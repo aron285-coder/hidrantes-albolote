@@ -1,6 +1,6 @@
 # Verificación · Fase 2 · Esquema de base de datos
 
-**Estado: en curso** hasta comprobar el despliegue en staging (§6). Todo lo local está en verde.
+**Estado: terminada el 18 sep 2026.** Criterio de salida cumplido (§2) y comprobado en staging (§3).
 
 ## 1. Qué se ha construido
 
@@ -42,6 +42,9 @@
 | Ninguna política de escritura; `anon` y `PUBLIC` sin privilegios; vistas `security_invoker` | `02_permisos` | ✅ |
 | Seed idempotente y coherente con las vistas | aplicado dos veces en local; radios y núcleos deducidos iguales a los escritos | ✅ |
 | `migrar.ts` detecta una migración aplicada que cambia | ocurrió de verdad en local al corregir 0001 | ✅ |
+| Staging: despliegue completo | `deploy-staging.yml` tras el PR #98: 0001–0004 aplicadas por `hidrantes_migrador`, propietario dado de alta, zona cargada (2 términos, 10 núcleos), seed, cabeceras | ✅ |
+| Staging: `anon` sin acceso por la API | `curl` a `/rest/v1/` con la anon key y `Accept-Profile: hidrantes`: `puntos`, `v_puntos_activos`, `propuestas`, `registro`, `config` y `rpc/fn_siguiente_codigo` → 42501 | ✅ |
+| Staging: la API de uniformidad sigue respondiendo | `GET /rest/v1/` → 200 | ✅ |
 
 ## 4. Cómo reproducirlo
 
@@ -61,6 +64,4 @@ papelera en la Fase 3; seed con códigos 9xxx; bcrypt para el código.
 
 ## 6. Lo que queda abierto
 
-- Comprobar en staging: migraciones aplicadas por CI, zona cargada, seed, propietario, y que la API
-  de Supabase niega a `anon` las tablas y vistas de `hidrantes`.
 - RPC, Pages Functions y la tarea de la papelera: Fase 3.
