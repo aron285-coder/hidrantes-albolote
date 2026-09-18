@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura (si afecta a datos que ve) y nueva versión; todo cambio arrastra una entrada en 12 y una migración nueva. |
-| **Versión** | 1.2 — 17 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048). |
+| **Versión** | 1.3 — 18 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058). |
 | **Propietario de** | **campos, tipos, constraints, índices, vistas, políticas RLS, firmas de las RPC y contrato HTTP de las Pages Functions.** El documento más consultado durante la construcción; 04 y 09 lo citan, no lo repiten. |
 | **No contiene** | la motivación de las decisiones (→ 04, 12) ni las reglas funcionales (→ 01, citadas por `FR-nn`). |
 
@@ -63,7 +63,7 @@ Constraints:
 check (tipo <> 'boca_riego' or diametro_mm = 45)
 check (tipo <> 'hidrante'   or diametro_mm in (70, 100))
 check ((tipo = 'boca_riego') = (racor is not null))
-check (caudal <> 'no_funciona' or length(trim(descripcion_fallo)) > 0)
+check (caudal <> 'no_funciona' or coalesce(length(trim(descripcion_fallo)), 0) > 0)  -- sin coalesce, NULL pasaría
 check (st_x(geom::geometry) between -4.5 and -2.5 and st_y(geom::geometry) between 36.6 and 38.2)  -- defensa contra coordenadas corruptas
 check ((situacion = 'borrado') = (borrado_en is not null))
 ```
@@ -104,7 +104,7 @@ Constraints:
 
 ```sql
 check ((operacion = 'alta') = (punto_id is null))
-check (estado <> 'rechazada' or length(trim(motivo_rechazo)) > 0)
+check (estado <> 'rechazada' or coalesce(length(trim(motivo_rechazo)), 0) > 0)
 check (operacion not in ('alta','revision','estado','ubicacion','retirada') or foto_path is not null)
 check (operacion not in ('alta','ubicacion') or (geom is not null and origen_ubicacion is not null))
 ```
@@ -129,6 +129,8 @@ check (operacion not in ('alta','ubicacion') or (geom is not null and origen_ubi
 
 Sin `update` ni `delete` para ningún rol, con política **y** trigger `before update or delete` que
 lanza excepción (dos capas: una política mal escrita es un error silencioso; un trigger no).
+Única excepción: `fn_anonimizar_autor` puede reescribir `actor` (y nada más) activando
+`hidrantes.anonimizando = 'on'` en su transacción (11 §7, DEC-058).
 
 ### 2.4 `dispositivos` — credenciales de móvil (FR-31, FR-35)
 
@@ -193,7 +195,8 @@ Un `dispositivo_id` puede tener varios tokens en el tiempo (revocación y nuevo 
 | `creado_en` | `timestamptz` | |
 | `creado_por` | `text` | email o `'migracion'` |
 
-Migración inicial: inserta el correo del propietario.
+El propietario **no** va en una migración (repositorio público, DEC-053): lo da de alta
+`scripts/asegurar-propietario.ts` en cada despliegue, desde el secreto `PROPIETARIO_EMAIL`, si no existe.
 
 ### 2.10 `config` — clave/valor (FR-142)
 
@@ -265,7 +268,7 @@ Las carga `scripts/cargar-zona.ts` con `upsert`; no van por migración.
 
 | Vista | Contenido |
 |---|---|
-| `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_url`. Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). |
+| `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_path`. La URL pública de la foto la compone el cliente con la URL de Supabase y el bucket del entorno (DEC-058). Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). |
 | `v_cola_revision` | propuestas con `estado = 'pendiente'` más el punto afectado, el diff (`antes`/`despues` calculados), y señales: `origen_ubicacion`, `precision_gps_m`, `distancia_gps_m`, `distancia_exif_m`, `fuera_de_zona`, `meses_desde_revision`, `duplicado_de` + `distancia_duplicado_m`, `otra_medida boolean`, `desactualizada boolean` (`puntos.actualizado_en > propuestas.creada_en`). |
 | `v_revisiones_caducadas` | puntos activos con `revision_caducada`, con `direccion` o coordenadas, agrupables por `nucleo`. |
 | `v_registro` | `registro` legible: `momento`, `actor`, `accion`, `codigo` del punto, resumen. |
@@ -290,12 +293,20 @@ denied*).
 
 Storage (bucket `hidrantes-fotos`): sin políticas de `insert`/`update`/`delete`/`list` para `anon` ni
 `authenticated`; `select` público; límite 5 MB; `allowed_mime_types = {image/jpeg, image/webp}`.
+No hace falta ninguna política sobre `storage.objects`: la lectura va por el bucket público y la
+subida por URL firmada de `service_role` (DEC-055).
+
+Los helpers que usan las vistas (`fn_es_admin`, `fn_config`, `fn_radio_px`, `fn_municipio_de`)
+tienen `execute` para `authenticated`: las vistas son `security_invoker` y las políticas se evalúan
+con el rol de quien consulta. Toda otra función nace sin `execute` para `PUBLIC` (privilegios por
+defecto de 0001).
 
 ---
 
 ## 6. Funciones RPC
 
-Todas `SECURITY DEFINER`, `set search_path = hidrantes, public`, en `language plpgsql`. Los errores
+Todas `SECURITY DEFINER`, `set search_path = pg_catalog, hidrantes, extensions` (PostGIS y pgcrypto
+viven en `extensions`; `public` es de uniformidad), en `language plpgsql`. Los errores
 se lanzan con `raise exception using errcode = 'P0001', message = '<código>: <texto en español>'`
 (vocabulario en §8). Las RPC de voluntario empiezan por `fn_validar_token(token)`; las de
 administrador por `fn_es_admin()`.
@@ -417,6 +428,7 @@ fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- "fuera" = a más de config.buffer_zona_m de todo límite (st_dwithin), igual que zona-cobertura.geojson
   -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
+fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con respaldo
 fn_es_admin() returns boolean       -- email del JWT presente y activo en administradores
 fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4
 fn_registrar(actor text, dispositivo_id uuid, es_admin boolean, accion text, punto_id uuid, propuesta_id uuid, antes jsonb, despues jsonb)
@@ -551,10 +563,11 @@ número 40 y 41 en paralelo → una pasa y otra falla.
 
 ## 12. Seed de staging (`supabase/seed-staging.sql`)
 
-Idempotente (`on conflict do nothing`): 12 puntos `[PRUEBA]` repartidos por los núcleos con las 12
+Idempotente (`on conflict do nothing`), con códigos `HID-9xxx`/`BOC-9xxx` para distinguirlos de los reales: 12 puntos `[PRUEBA]` repartidos por los núcleos con las 12
 combinaciones diámetro × caudal, tres con revisión caducada, uno retirado, uno en papelera; 6
 propuestas pendientes de cada operación con al menos un duplicado y una desactualizada; `config` con
-código `000000`; `administradores` con el propietario y dos correos de prueba. Nunca pisa un código
+código `000000` (bcrypt de pgcrypto); `administradores` con dos correos de prueba de `example.com`
+(el propietario llega por `asegurar-propietario.ts`, DEC-053). Nunca pisa un código
 real generado para el piloto.
 
 ---

@@ -97,6 +97,7 @@ function aplicar(url: string, m: Migracion): void {
 export function prepararLocal(): void {
   const bootstrap = readFileSync(path.join(RAIZ, 'supabase', 'sql', 'arranque-bd.sql'), 'utf8');
   psqlOk(LOCAL_POSTGRES, `\\set clave '${LOCAL_CLAVE_MIGRADOR}'\n${bootstrap}`);
+  psqlOk(LOCAL_POSTGRES, readFileSync(path.join(RAIZ, 'supabase', 'sql', 'local-storage.sql'), 'utf8'));
 }
 
 async function principal(): Promise<void> {

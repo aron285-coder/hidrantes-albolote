@@ -440,6 +440,29 @@ function secretosGithub(
   log.ok('hecho');
 }
 
+// ---------- 8b. propietario como administrador ----------
+
+/**
+ * El correo del propietario no puede ir en una migración (repositorio público, DEC-053): se guarda
+ * como secreto y asegurar-propietario.ts lo da de alta en cada despliegue si falta.
+ */
+async function asegurarSecretoPropietario(): Promise<void> {
+  log.paso('8b. Propietario como administrador');
+  const existe = gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name'])
+    .split('\n')
+    .includes('PROPIETARIO_EMAIL');
+  if (existe && !(await confirmar('PROPIETARIO_EMAIL ya existe. ¿Cambiarlo?'))) {
+    log.ok('se mantiene');
+    return;
+  }
+  const porDefecto = ejecutar('git', ['config', 'user.email']).salida;
+  const r = await preguntar(`Correo de Google con el que entrarás al panel [${porDefecto}]`);
+  const email = (r || porDefecto).trim().toLowerCase();
+  if (!/^[^@\s']+@[^@\s']+\.[^@\s']+$/.test(email)) abortar('Eso no parece un correo.');
+  fijarSecreto('PROPIETARIO_EMAIL', email);
+  log.ok('guardado como secreto; se da de alta en el próximo despliegue');
+}
+
 // ---------- 9. skills, 10. issues, 11. docs/entornos.md ----------
 
 async function instalarSkills(): Promise<void> {
@@ -557,6 +580,7 @@ async function principal(): Promise<void> {
   const huella = await prepararGpg(rotar.has('gpg'));
 
   if (!esRotacion) {
+    await asegurarSecretoPropietario();
     await instalarSkills();
     log.paso('10. Issues de las fases 1–9');
     crearIssues(REPO);

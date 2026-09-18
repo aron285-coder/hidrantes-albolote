@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.2 — 18 de septiembre de 2026 (DEC-052 a DEC-057; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.2 — 18 de septiembre de 2026 (DEC-052 a DEC-058; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -408,6 +408,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   7. **Tres servidores Overpass** en orden; si fallan todos, los GeoJSON committeados siguen valiendo. La fuente IECA (DERA G13) queda escrita en `generar-zona.ts` como alternativa manual.
 - **Afecta a:** 05 §6.3, 04 §8, 09 Fase 1.
 
+### DEC-058 · Ajustes del esquema al construir la Fase 2
+- **Fecha:** 18 sep 2026 · **Estado:** vigente
+- **Decisiones**, de bajo riesgo, corregidas primero en 05 (v1.3):
+  1. **Las constraints de texto obligatorio usan `coalesce`.** Tal como estaban en 05, `caudal <> 'no_funciona' or length(trim(descripcion_fallo)) > 0` dejaba pasar una descripción `NULL` (un `check` que da `NULL` se considera cumplido). Igual con el motivo de rechazo. Lo detectó el test pgTAP.
+  2. **`v_puntos_activos` expone `foto_path`, no `foto_url`:** una migración no conoce la URL del proyecto de cada entorno; el cliente la compone con `VITE_SUPABASE_URL` y el bucket. Así no hace falta otra clave de `config` que mantener.
+  3. **`search_path` de las funciones = `pg_catalog, hidrantes, extensions`**, no `hidrantes, public`: en Supabase PostGIS y pgcrypto están en `extensions`, y `public` es de uniformidad.
+  4. **Los helpers de las vistas tienen `execute` para `authenticated`** (`fn_es_admin`, `fn_config`, `fn_radio_px`, `fn_municipio_de`): las vistas `security_invoker` y las políticas se evalúan con el rol de quien consulta. Toda otra función nace sin `execute` para `PUBLIC` (privilegios por defecto).
+  5. **`registro` admite una sola reescritura:** el `actor`, cuando `fn_anonimizar_autor` activa `hidrantes.anonimizando` (11 §7). Cualquier otro cambio sigue bloqueado por el trigger. Se decide ahora para no reabrir la tabla en la Fase 3.
+  6. **El propietario no va en la migración 0004** sino en `asegurar-propietario.ts`, desde el secreto `PROPIETARIO_EMAIL` (DEC-053). `arranque.ts` pregunta el correo.
+  7. **La purga de la papelera se programa en la Fase 3**, con `fn_purgar_papelera` (escribe en `registro`). Las otras cuatro tareas de 04 §9 ya están en `pg_cron` con el prefijo `hidrantes_`.
+  8. **Seed con códigos `9xxx`** y correos de `example.com`: se distinguen a simple vista de los reales y no consumen las secuencias.
+  9. **El código de acceso se guarda con bcrypt (`crypt` + `gen_salt('bf')` de pgcrypto)**, de las dos opciones que admitía 05 §2.10: ya está en Supabase, sin extensión nueva.
+- **Afecta a:** 05 §2, §4, §5, §6, §12.
+
 ### DEC-041 · Manuales (13, 14) al final, con capturas reales
 - **Fecha:** 17 sep 2026 (desarrollador) · **Estado:** vigente
 - **Decisión:** 13 y 14 se escriben después del piloto, con las capturas de `scripts/capturas.ts` sobre la app real.
@@ -423,7 +437,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057, 058 |
 | 06 | 012, 013, 027, 047 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051 |

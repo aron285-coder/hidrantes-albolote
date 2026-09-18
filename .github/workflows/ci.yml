@@ -44,6 +44,15 @@ jobs:
       - run: npm run migrar -- --local
       - name: Segunda pasada sin cambios (idempotencia)
         run: npm run migrar -- --local
+      - name: Zona y seed de staging, dos veces (idempotentes)
+        env:
+          PGPASSWORD: migrador-local # detectar-secretos:permitir (contraseña del Supabase local efímero)
+        run: |
+          npm run cargar-zona -- --local
+          for i in 1 2; do
+            psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55422 -U hidrantes_migrador -d postgres \
+              -f supabase/seed-staging.sql
+          done
       - run: npm run test:sql
       - if: always()
         run: npx supabase stop --no-backup
