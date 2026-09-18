@@ -96,7 +96,7 @@ cobertura · fuera de zona.
    `docs/09-plan-implementacion.md` §8. Una fase sin ese archivo no está terminada.
 
 Producción solo por PR `develop → main` con aprobación del desarrollador en el *environment*
-`production`. No lo pidas hasta que la Fase 9 lo diga.
+`production`. No lo pidas hasta que la Fase 9 lo diga (la única excepción, al cerrar la Fase 0: DEC-056).
 
 ## 6. Entorno local y comandos
 

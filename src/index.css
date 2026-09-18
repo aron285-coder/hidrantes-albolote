@@ -1,0 +1,141 @@
+@import 'tailwindcss';
+
+/* Tokens de docs/06 §2–§6. No se inventan tokens: si falta uno, se añade primero a 06. */
+
+:root {
+  /* 06 §2.1 · interfaz, modo claro */
+  --marino-950: #0e1b30;
+  --marino-800: #152a4a;
+  --marino-700: #1d3a63;
+  --marino-600: #28517f;
+  --naranja-600: #dd5a1f;
+  --naranja-500: #e97136;
+  --naranja-100: #fbe2d2;
+  --oro-600: #b08a2e;
+  --oro-100: #f3e6c4;
+  --fondo: #f1f3ee;
+  --papel: #ffffff;
+  --linea: #d8dbd2;
+  --texto: #1b2430;
+  --texto-suave: #5a6472;
+
+  /* 06 §2.2 · estados (idénticos en claro y oscuro) */
+  --verde-600: #2e7d4f;
+  --verde-100: #dceee1;
+  --ambar-700: #8a6408;
+  --ambar-100: #fbedcb;
+  --rojo-700: #9c2b1e;
+  --rojo-100: #fbe0db;
+  --gris-700: #40453d;
+  --gris-100: #e5e4dc;
+
+  /* Superficies que cambian en oscuro (06 §2.4) */
+  --barra: var(--marino-950);
+  --borde-marcador: #ffffff;
+  --control-mapa: #ffffff;
+  --badge-pendiente-fondo: var(--naranja-100);
+  --badge-pendiente-texto: var(--naranja-600);
+
+  color-scheme: light;
+}
+
+/* 06 §2.4 · modo oscuro: según el sistema salvo que el usuario fije "claro" (FR-71, TR-34) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-tema='claro']) {
+    --fondo: #111826;
+    --barra: #0a111e;
+    --papel: #1a2333;
+    --linea: #2a3547;
+    --texto: #e6eaf0;
+    --texto-suave: #9aa8be;
+    --control-mapa: rgba(20, 29, 45, 0.94);
+    --badge-pendiente-fondo: #3a2a1e;
+    --badge-pendiente-texto: #f0a070;
+    --borde-marcador: #111826;
+    color-scheme: dark;
+  }
+}
+:root[data-tema='oscuro'] {
+  --fondo: #111826;
+  --barra: #0a111e;
+  --papel: #1a2333;
+  --linea: #2a3547;
+  --texto: #e6eaf0;
+  --texto-suave: #9aa8be;
+  --control-mapa: rgba(20, 29, 45, 0.94);
+  --badge-pendiente-fondo: #3a2a1e;
+  --badge-pendiente-texto: #f0a070;
+  --borde-marcador: #111826;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-marino-950: var(--marino-950);
+  --color-marino-800: var(--marino-800);
+  --color-marino-700: var(--marino-700);
+  --color-marino-600: var(--marino-600);
+  --color-naranja-600: var(--naranja-600);
+  --color-naranja-500: var(--naranja-500);
+  --color-naranja-100: var(--naranja-100);
+  --color-oro-600: var(--oro-600);
+  --color-oro-100: var(--oro-100);
+  --color-fondo: var(--fondo);
+  --color-papel: var(--papel);
+  --color-linea: var(--linea);
+  --color-texto: var(--texto);
+  --color-texto-suave: var(--texto-suave);
+  --color-barra: var(--barra);
+  --color-verde-600: var(--verde-600);
+  --color-verde-100: var(--verde-100);
+  --color-ambar-700: var(--ambar-700);
+  --color-ambar-100: var(--ambar-100);
+  --color-rojo-700: var(--rojo-700);
+  --color-rojo-100: var(--rojo-100);
+  --color-gris-700: var(--gris-700);
+  --color-gris-100: var(--gris-100);
+
+  /* 06 §3 */
+  --font-titulo: 'Barlow Condensed', sans-serif;
+  --font-texto: 'Source Sans 3', sans-serif;
+  --font-datos: 'JetBrains Mono', monospace;
+
+  /* 06 §6 */
+  --radius-campo: 7px;
+  --radius-tarjeta: 9px;
+  --radius-boton: 9px;
+  --radius-hoja: 16px;
+  --radius-chip: 999px;
+}
+
+html {
+  font-family: var(--font-texto);
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+body {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.2;
+}
+
+/* 06 §10 · foco visible */
+:focus-visible {
+  outline: 2px solid var(--marino-700);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
