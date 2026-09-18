@@ -44,7 +44,7 @@
 | `migrar.ts` detecta una migración aplicada que cambia | ocurrió de verdad en local al corregir 0001 | ✅ |
 | Staging: despliegue completo | `deploy-staging.yml` tras el PR #98: 0001–0004 aplicadas por `hidrantes_migrador`, propietario dado de alta, zona cargada (2 términos, 10 núcleos), seed, cabeceras | ✅ |
 | Staging: `anon` sin acceso por la API | `curl` a `/rest/v1/` con la anon key y `Accept-Profile: hidrantes`: `puntos`, `v_puntos_activos`, `propuestas`, `registro`, `config` y `rpc/fn_siguiente_codigo` → 42501 | ✅ |
-| Staging: la API de uniformidad sigue respondiendo | `GET /rest/v1/` → 200 | ✅ |
+| Staging: PostgREST sigue sirviendo el proyecto | las respuestas 42501 vienen de Postgres (la petición llega a la base de datos). `GET /rest/v1/` da 401: Supabase ya solo sirve el esquema OpenAPI con clave secreta, así que no dice nada de uniformidad. La salud de uniformidad no se ha comprobado desde aquí | ✅ (parcial) |
 
 ## 4. Cómo reproducirlo
 
