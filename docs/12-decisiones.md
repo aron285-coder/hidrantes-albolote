@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.2 — 18 de septiembre de 2026 (DEC-052 a DEC-055; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.2 — 18 de septiembre de 2026 (DEC-052 a DEC-056; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -388,6 +388,13 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   8. **Las RPC leen el JWT con `current_setting('request.jwt.claims', true)`**: en Supabase `postgres` no puede conceder permisos sobre el esquema `auth`.
   9. **La guarda de producción y la comprobación tras desplegar son scripts con test** (`guarda-produccion.ts`, `comprobar-despliegue.ts`), no *shell* dentro del YAML.
 - **Afecta a:** 04 §10, §11 y §11.1; 09 Fase 0.
+
+### DEC-056 · Un PR `develop → main` en la Fase 0 para probar el camino a producción
+- **Fecha:** 18 sep 2026 (desarrollador) · **Estado:** vigente
+- **Contexto:** el criterio de salida de la Fase 0 (09) exige que un PR a `main`, tras aprobación, aparezca solo en producción; `CLAUDE.md` §5 dice que el PR `develop → main` no se pide hasta la Fase 9.
+- **Decisión:** se hace **una** vez al cerrar la Fase 0, con producción sirviendo solo el armazón vacío (sin datos, sin banda). A partir de ahí rige `CLAUDE.md`: el siguiente PR `develop → main` es el de la Fase 9.
+- **Por qué:** descubrir un fallo del despliegue a producción en la Fase 9 es lo más caro (09 §2); el armazón no expone nada.
+- **Afecta a:** 09 Fase 0, `CLAUDE.md` §5.
 
 ### DEC-041 · Manuales (13, 14) al final, con capturas reales
 - **Fecha:** 17 sep 2026 (desarrollador) · **Estado:** vigente

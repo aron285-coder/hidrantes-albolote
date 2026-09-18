@@ -171,7 +171,8 @@ function asegurarRepositorio(): void {
   ghApi(`repos/${REPO}/vulnerability-alerts`, 'PUT');
   ghApi(`repos/${REPO}/actions/permissions/workflow`, 'PUT', {
     default_workflow_permissions: 'read',
-    can_approve_pull_request_reviews: false,
+    // Necesario para que release-please pueda abrir su PR (el nombre de la API engaña: crea y aprueba).
+    can_approve_pull_request_reviews: true,
   });
   log.ok('ajustes: rama por defecto develop, auto-merge, escaneo de secretos, alertas de Dependabot');
 
