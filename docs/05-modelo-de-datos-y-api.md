@@ -414,6 +414,8 @@ fn_fotos_referenciadas() returns setof text
 ```sql
 fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- cruce con limite_municipal; nucleo por proximidad (tope 1.500 m; si no, 'diseminado'); fuera: ('fuera_de_zona', null)
+  -- "fuera" = a más de config.buffer_zona_m de todo límite (st_dwithin), igual que zona-cobertura.geojson
+  -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
 fn_es_admin() returns boolean       -- email del JWT presente y activo en administradores
 fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4

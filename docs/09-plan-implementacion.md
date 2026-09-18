@@ -148,16 +148,16 @@ las fases 1–9 existen con su milestone; `CLAUDE.md` está en la raíz. Verific
 **Objetivo:** los GeoJSON de la zona en el repositorio y cargados en BD, con comprobación
 automática. Referencia: FR-53, FR-14, 04 §8.
 
-- [ ] `scripts/generar-zona.ts` (`npm run zona`): consulta Overpass (`admin_level=8`, Albolote y
+- [x] `scripts/generar-zona.ts` (`npm run zona`): consulta Overpass (`admin_level=8`, Albolote y
       Calicasas; mirror alternativo y fuente IECA escrita como respaldo); simplifica; une; margen de
       400 m; escribe `datos/zona-cobertura.geojson`, `datos/limite-municipal.geojson`,
       `datos/nucleos.geojson`, `datos/meta.json` y `datos/zona-cobertura.html` (previsualización con
       Leaflet).
-- [ ] Test que comprueba diez coordenadas conocidas (cinco dentro por núcleo, dos en Calicasas, tres
+- [x] Test que comprueba diez coordenadas conocidas (cinco dentro por núcleo, dos en Calicasas, tres
       fuera) contra los GeoJSON.
-- [ ] `scripts/cargar-zona.ts` (`npm run cargar-zona`): `upsert` en `limite_municipal` y `nucleos`
-      desde CI, tras las migraciones.
-- [ ] Committear los GeoJSON: el build nunca depende de Overpass.
+- [x] `scripts/cargar-zona.ts` (`npm run cargar-zona`): `upsert` en `limite_municipal` y `nucleos`
+      desde CI, tras las migraciones. Hasta que la Fase 2 cree las tablas, avisa y no carga (DEC-057).
+- [x] Committear los GeoJSON: el build nunca depende de Overpass.
 
 **Criterio de salida:** test de las diez coordenadas en verde; el desarrollador mira la
 previsualización tres minutos y confirma.

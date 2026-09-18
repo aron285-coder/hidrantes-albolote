@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.2 — 18 de septiembre de 2026 (DEC-052 a DEC-056; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.2 — 18 de septiembre de 2026 (DEC-052 a DEC-057; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -396,6 +396,18 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Por qué:** descubrir un fallo del despliegue a producción en la Fase 9 es lo más caro (09 §2); el armazón no expone nada.
 - **Afecta a:** 09 Fase 0, `CLAUDE.md` §5.
 
+### DEC-057 · Zona de cobertura: qué es núcleo, el margen en el servidor y la carga antes de la Fase 2
+- **Fecha:** 18 sep 2026 · **Estado:** vigente
+- **Decisiones**, de bajo riesgo, tomadas al construir la Fase 1:
+  1. **Municipios por código INE** (`ine:municipio` 18003 y 18037), no por nombre: un nombre puede repetirse en otra provincia.
+  2. **Núcleo = `place` de OSM de tipo town, village, hamlet, suburb, quarter o neighbourhood** dentro de los términos. Los `locality` son parajes sin población (El Juncal, Los Tabletares…) y no cuentan. Resultado actual: los diez de FR-53 (Albolote, Barrio Seco, La Farfana, Cortijo del Aire, El Chaparral, Parque del Cubillas, Pretel, Urb. Buenavista, Urb. El Torreón, Calicasas).
+  3. **El margen de 400 m también vale en el servidor:** `limite_municipal` guarda el término sin margen; `fn_municipio_de` considera "fuera de zona" solo lo que está a más de `buffer_zona_m` de todo límite, y en el margen asigna el municipio más cercano. Así el servidor y el aviso del móvil (que usa `zona-cobertura.geojson`, con margen) nunca discrepan. Aclarado en 05 §6.3.
+  4. **`cargar-zona.ts` no hace nada si las tablas aún no existen** (llegan con la migración 0001, Fase 2): avisa y sigue, para no romper el despliegue de staging entre las dos fases.
+  5. **Sin `osmtogeojson`:** su versión actual arrastra `@xmldom/xmldom` con avisos críticos; los anillos se unen con una función propia de 30 líneas con test. Geometría con módulos sueltos de Turf (los mismos que usará el móvil en la Fase 6).
+  6. **La previsualización usa el mapa base del IGN**: las teselas de OSM se rechazan desde un archivo local sin `Referer`.
+  7. **Tres servidores Overpass** en orden; si fallan todos, los GeoJSON committeados siguen valiendo. La fuente IECA (DERA G13) queda escrita en `generar-zona.ts` como alternativa manual.
+- **Afecta a:** 05 §6.3, 04 §8, 09 Fase 1.
+
 ### DEC-041 · Manuales (13, 14) al final, con capturas reales
 - **Fecha:** 17 sep 2026 (desarrollador) · **Estado:** vigente
 - **Decisión:** 13 y 14 se escriben después del piloto, con las capturas de `scripts/capturas.ts` sobre la app real.
@@ -411,7 +423,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057 |
 | 06 | 012, 013, 027, 047 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051 |

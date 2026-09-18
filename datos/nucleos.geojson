@@ -1,0 +1,12 @@
+{"type":"FeatureCollection","features":[
+{"type":"Feature","properties":{"nombre":"Albolote","municipio":"albolote","lugar":"town","osm_id":1470837691},"geometry":{"type":"Point","coordinates":[-3.657078,37.230622]}},
+{"type":"Feature","properties":{"nombre":"Barrio Seco","municipio":"albolote","lugar":"neighbourhood","osm_id":14076519857},"geometry":{"type":"Point","coordinates":[-3.650289,37.229473]}},
+{"type":"Feature","properties":{"nombre":"Calicasas","municipio":"calicasas","lugar":"village","osm_id":1432103091},"geometry":{"type":"Point","coordinates":[-3.618607,37.273336]}},
+{"type":"Feature","properties":{"nombre":"Cortijo del Aire","municipio":"albolote","lugar":"village","osm_id":2495264196},"geometry":{"type":"Point","coordinates":[-3.64905,37.248557]}},
+{"type":"Feature","properties":{"nombre":"El Chaparral","municipio":"albolote","lugar":"village","osm_id":2495264204},"geometry":{"type":"Point","coordinates":[-3.655979,37.256684]}},
+{"type":"Feature","properties":{"nombre":"La Farfana","municipio":"albolote","lugar":"neighbourhood","osm_id":1242521899},"geometry":{"type":"Point","coordinates":[-3.648948,37.224324]}},
+{"type":"Feature","properties":{"nombre":"Parque del Cubillas","municipio":"albolote","lugar":"hamlet","osm_id":2495264232},"geometry":{"type":"Point","coordinates":[-3.669489,37.285423]}},
+{"type":"Feature","properties":{"nombre":"Pretel","municipio":"albolote","lugar":"hamlet","osm_id":5567725646},"geometry":{"type":"Point","coordinates":[-3.66962,37.245534]}},
+{"type":"Feature","properties":{"nombre":"Urbanización Buenavista","municipio":"albolote","lugar":"neighbourhood","osm_id":5567725647},"geometry":{"type":"Point","coordinates":[-3.675149,37.237355]}},
+{"type":"Feature","properties":{"nombre":"Urbanización El Torreón","municipio":"albolote","lugar":"neighbourhood","osm_id":5567725645},"geometry":{"type":"Point","coordinates":[-3.673872,37.242101]}}
+]}
