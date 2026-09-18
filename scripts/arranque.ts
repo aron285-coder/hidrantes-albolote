@@ -239,6 +239,27 @@ function asegurarRepositorio(): void {
 
 // ---------- 3–4. Supabase ----------
 
+/**
+ * El pooler (Supavisor) guarda en caché las credenciales de cada rol: justo después de cambiar la
+ * contraseña de hidrantes_migrador sigue esperando la anterior durante un rato. Se reintenta hasta
+ * tres minutos antes de darlo por fallido.
+ */
+async function esperarConexion(url: string, maxSegundos = 180): Promise<string> {
+  const inicio = Date.now();
+  let avisado = false;
+  for (;;) {
+    const r = psql(url, 'select current_user;', { tuplas: true });
+    if (r.codigo === 0) return r.salida;
+    const esCache = /password authentication failed/i.test(r.error);
+    if (!esCache || Date.now() - inicio > maxSegundos * 1000) abortar(`psql falló:\n${r.error || r.salida}`);
+    if (!avisado) {
+      log.info('el pooler aún no conoce la contraseña nueva; reintentando (hasta 3 min)…');
+      avisado = true;
+    }
+    await new Promise((ok) => setTimeout(ok, 10_000));
+  }
+}
+
 interface DatosSupabase {
   ref: string;
   url: string;
@@ -281,7 +302,7 @@ async function prepararSupabase(
     log.ok('extensiones, esquema hidrantes y rol hidrantes_migrador (DEC-052)');
 
     urlMigrador = `postgresql://hidrantes_migrador.${ref}:${claveMigrador}@${host}:5432/postgres`;
-    const quien = psqlOk(urlMigrador, 'select current_user;', { tuplas: true });
+    const quien = await esperarConexion(urlMigrador);
     if (quien !== 'hidrantes_migrador') abortar(`El pooler conecta como ${quien}, no como hidrantes_migrador.`);
     ejecutarOk('npx', ['--no-install', 'tsx', 'scripts/migrar.ts'], { env: { SUPABASE_DB_URL: urlMigrador } });
     log.ok('historial de migraciones listo; conexión por el pooler como hidrantes_migrador');
