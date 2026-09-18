@@ -1,0 +1,10 @@
+dist
+dev-dist
+node_modules
+docs
+supabase/.temp
+playwright-report
+test-results
+package-lock.json
+*.md
+*.html

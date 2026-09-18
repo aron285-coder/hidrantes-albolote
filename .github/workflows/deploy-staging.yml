@@ -1,0 +1,62 @@
+# Staging: cada merge a develop (04 §4, §11). Migraciones con psql, nunca `supabase db push`.
+name: Desplegar staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://hidrantes-albolote-staging.pages.dev
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+
+      - name: Migraciones (hidrantes_migrador, DEC-052)
+        run: npm run migrar
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Zona de cobertura (desde la Fase 1)
+        if: hashFiles('scripts/cargar-zona.ts') != ''
+        run: npm run cargar-zona
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Seed de staging, idempotente (desde la Fase 2)
+        if: hashFiles('supabase/seed-staging.sql') != ''
+        run: psql -X -q -v ON_ERROR_STOP=1 -f supabase/seed-staging.sql "$SUPABASE_DB_URL"
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - run: npm run build
+        env:
+          VITE_ENTORNO: ${{ vars.VITE_ENTORNO }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL }}
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
+
+      - name: Desplegar a Cloudflare Pages
+        run: npx wrangler pages deploy dist --project-name "${{ vars.PAGES_PROYECTO }}" --branch develop --commit-hash "${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Comprobar versión, banda y cabeceras servidas (TR-100)
+        run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging

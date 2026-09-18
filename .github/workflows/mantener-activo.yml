@@ -1,0 +1,47 @@
+# Supabase Free pausa los proyectos tras ~7 días sin actividad; en pausa, ni esta app ni la de
+# uniformidad funcionan (DEC-054). Una lectura diaria de la API basta para mantenerlos activos.
+# Sin environment a propósito: production exigiría aprobación en cada ejecución. Solo usa la URL
+# y la anon key, que son públicas por diseño (04 §1).
+name: Mantener Supabase activo
+
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  tocar:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        entorno: [STAGING, PROD]
+    steps:
+      - name: Petición a la API de Supabase
+        env:
+          URL: ${{ vars[format('SUPABASE_URL_{0}', matrix.entorno)] }}
+          CLAVE: ${{ vars[format('SUPABASE_ANON_KEY_{0}', matrix.entorno)] }}
+        run: |
+          set -eu
+          [ -n "$URL" ] || { echo "::error::Falta la variable SUPABASE_URL_${{ matrix.entorno }} (npm run arranque)"; exit 1; }
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+            -H "apikey: $CLAVE" -H "Authorization: Bearer $CLAVE" "$URL/rest/v1/")
+          echo "Supabase ${{ matrix.entorno }}: HTTP $codigo"
+          [ "$codigo" -lt 500 ] || { echo "::error::Supabase ${{ matrix.entorno }} responde $codigo (¿en pausa?)"; exit 1; }
+
+      - name: Avisar con una issue si falla
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          titulo="Supabase ${{ matrix.entorno }} no responde"
+          if ! gh issue list --repo "$REPO" --state open --label vigilancia --search "$titulo in:title" --json number --jq '.[0].number' | grep -q .; then
+            gh issue create --repo "$REPO" --label vigilancia --title "$titulo" \
+              --body "La comprobación diaria falló: $RUN. Si el proyecto está en pausa, restáuralo desde el panel de Supabase (15)."
+          fi

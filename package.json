@@ -1,0 +1,69 @@
+{
+  "name": "hidrantes-albolote",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Mapa de hidrantes y bocas de riego de Protección Civil de Albolote",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "lint": "eslint .",
+    "formato": "prettier --write .",
+    "formato:comprobar": "prettier --check .",
+    "test": "vitest run",
+    "test:sql": "supabase test db",
+    "e2e": "playwright test",
+    "presupuesto": "tsx scripts/presupuesto.ts",
+    "arranque": "tsx scripts/arranque.ts",
+    "migrar": "tsx scripts/migrar.ts",
+    "revertir": "tsx scripts/revertir.ts",
+    "crear-issues": "tsx scripts/crear-issues.ts",
+    "detectar-secretos": "tsx scripts/detectar-secretos.ts",
+    "prepare": "git config core.hooksPath .githooks || true",
+    "comprobar-despliegue": "tsx scripts/comprobar-despliegue.ts",
+    "guarda-produccion": "tsx scripts/guarda-produccion.ts"
+  },
+  "dependencies": {
+    "@fontsource/barlow-condensed": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/source-sans-3": "^5.3.0",
+    "clsx": "^2.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwind-merge": "^3.7.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.10.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.12.0",
+    "openpgp": "^6.3.1",
+    "prettier": "^3.9.8",
+    "supabase": "^2.117.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.0",
+    "vite": "^8.3.0",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^5.0.1",
+    "workbox-window": "^7.4.1",
+    "wrangler": "^4.134.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "workerd": true
+  }
+}

@@ -1,0 +1,21 @@
+name: Preparar
+description: Node con caché de npm, dependencias y, si se pide, psql 17.
+inputs:
+  psql:
+    description: Instalar los clientes de PostgreSQL 17 (psql, pg_dump)
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24
+        cache: npm
+    - run: npm ci
+      shell: bash
+    - if: inputs.psql == 'true'
+      shell: bash
+      run: |
+        sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y >/dev/null
+        sudo apt-get install -y -qq postgresql-client-17 >/dev/null
+        echo "/usr/lib/postgresql/17/bin" >> "$GITHUB_PATH"
