@@ -1,7 +1,6 @@
 # Verificación · Fase 1 · Zona de cobertura
 
-**Estado: pendiente de la confirmación visual del desarrollador** (criterio de salida, §2). Todo lo
-automático está en verde.
+**Estado: terminada el 18 sep 2026.** Criterio de salida cumplido (§2).
 
 ## 1. Qué se ha construido
 
@@ -23,7 +22,7 @@ automático está en verde.
 | Parte | Cómo | Resultado |
 |---|---|---|
 | Diez coordenadas | `scripts/lib/zona.test.ts`: cinco núcleos de Albolote, dos puntos de Calicasas, tres fuera (Granada, Pinos Puente, Iznalloz), cada una contra el término y contra la zona con margen | ✅ |
-| Previsualización | el desarrollador abre `datos/zona-cobertura.html` | ⏳ pendiente |
+| Previsualización | el desarrollador abrió `datos/zona-cobertura.html` y confirmó que cubre Albolote y Calicasas con sus núcleos (18 sep 2026) | ✅ |
 
 ## 3. Otras comprobaciones
 
