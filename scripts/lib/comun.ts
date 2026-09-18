@@ -3,7 +3,7 @@
 
 import { spawnSync, type SpawnSyncOptions } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { createInterface } from 'node:readline';
+import { createInterface, type Interface } from 'node:readline';
 import { Writable } from 'node:stream';
 import path from 'node:path';
 
@@ -28,11 +28,14 @@ export function abortar(mensaje: string): never {
 
 /** Ejecuta `principal` y convierte los ErrorDeScript en un mensaje limpio y código 1. */
 export function ejecutarScript(principal: () => Promise<void>): void {
-  principal().catch((e: unknown) => {
-    if (e instanceof ErrorDeScript) log.error(e.message);
-    else console.error(e);
-    process.exit(1);
-  });
+  principal()
+    .then(() => cerrarEntrada())
+    .catch((e: unknown) => {
+      cerrarEntrada();
+      if (e instanceof ErrorDeScript) log.error(e.message);
+      else console.error(e);
+      process.exit(1);
+    });
 }
 
 // ---------- procesos ----------
@@ -127,28 +130,56 @@ export function psqlOk(url: string, sql: string, opciones: { tuplas?: boolean } 
 
 // ---------- entrada interactiva ----------
 
-export async function preguntar(texto: string, { oculto = false } = {}): Promise<string> {
-  let silenciar = false;
-  const salida = new Writable({
-    write(trozo, _codificacion, listo) {
-      if (!silenciar) process.stdout.write(trozo);
-      listo();
-    },
+// Una sola interfaz de lectura para todo el proceso: crear una por pregunta deja escuchas de
+// teclado acumuladas en stdin y cada tecla llega repetida ("s" se leía "ss").
+// Las líneas se encolan: si llegan varias de golpe (pegadas o por tubería) no se pierde ninguna.
+let lector: Interface | null = null;
+let silenciar = false;
+const lineas: string[] = [];
+const esperando: ((linea: string) => void)[] = [];
+const salidaSilenciable = new Writable({
+  write(trozo, _codificacion, listo) {
+    if (!silenciar) process.stdout.write(trozo);
+    listo();
+  },
+});
+
+function asegurarLector(): void {
+  if (lector) return;
+  lector = createInterface({
+    input: process.stdin,
+    output: salidaSilenciable,
+    terminal: Boolean(process.stdin.isTTY),
   });
-  const rl = createInterface({ input: process.stdin, output: salida, terminal: true });
-  return new Promise((resolver) => {
-    rl.question(`  ${texto}: `, (respuesta) => {
-      rl.close();
-      if (oculto) process.stdout.write('\n');
-      resolver(respuesta.trim());
-    });
-    silenciar = oculto;
+  lector.on('line', (linea) => {
+    const siguiente = esperando.shift();
+    if (siguiente) siguiente(linea);
+    else lineas.push(linea);
   });
 }
 
+export function cerrarEntrada(): void {
+  lector?.close();
+  lector = null;
+}
+
+export async function preguntar(texto: string, { oculto = false } = {}): Promise<string> {
+  asegurarLector();
+  process.stdout.write(`  ${texto}: `);
+  silenciar = oculto;
+  const linea = lineas.length ? lineas.shift()! : await new Promise<string>((ok) => esperando.push(ok));
+  silenciar = false;
+  if (oculto) process.stdout.write('\n');
+  return linea.trim();
+}
+
+/** Acepta s, si, sí, y en inglés y o yes, en mayúsculas o minúsculas. */
+export function esAfirmativo(respuesta: string): boolean {
+  return /^(s|si|sí|y|yes)$/i.test(respuesta.trim());
+}
+
 export async function confirmar(texto: string): Promise<boolean> {
-  const r = await preguntar(`${texto} [s/N]`);
-  return /^s(i|í)?$/i.test(r);
+  return esAfirmativo(await preguntar(`${texto} [s/N]`));
 }
 
 // ---------- argumentos ----------
