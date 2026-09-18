@@ -44,6 +44,10 @@ describe('hashDe', () => {
 });
 
 describe('leerMigraciones', () => {
+  it('sin carpeta de migraciones devuelve una lista vacía', () => {
+    expect(leerMigraciones(path.join(tmpdir(), 'no-existe-' + Date.now()))).toEqual([]);
+  });
+
   it('rechaza nombres fuera de formato y números repetidos', () => {
     const dir = mkdtempSync(path.join(tmpdir(), 'migr-'));
     writeFileSync(path.join(dir, 'mal nombre.sql'), '');

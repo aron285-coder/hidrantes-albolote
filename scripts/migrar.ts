@@ -6,7 +6,7 @@
 //   npm run migrar -- --comprobar    solo lista lo pendiente y verifica hashes; no aplica nada
 
 import { createHash } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { RAIZ, abortar, argumentos, ejecutarScript, log, psqlOk } from './lib/comun.ts';
 
@@ -29,6 +29,8 @@ export interface Migracion {
 }
 
 export function leerMigraciones(dir = DIR_MIGRACIONES): Migracion[] {
+  // Sin carpeta = sin migraciones todavía (Git no guarda carpetas vacías).
+  if (!existsSync(dir)) return [];
   const archivos = readdirSync(dir)
     .filter((f) => f.endsWith('.sql'))
     .sort();
