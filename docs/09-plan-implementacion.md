@@ -169,17 +169,17 @@ previsualización tres minutos y confirma.
 **Objetivo:** esquema `hidrantes` aplicado en staging por CI, con RLS, Storage, `pg_cron` y seed.
 Referencia: **05 §1–5, §10–11** al pie de la letra; 04 §5 (PostGIS primero en dev).
 
-- [ ] Migración 0001: extensiones (`postgis`, `pg_cron`), enums, tablas, constraints, índices,
+- [x] Migración 0001 (extensiones en `arranque-bd.sql`, DEC-052): enums, tablas, constraints, índices,
       secuencias, triggers (`actualizado_en`, protección de `registro`).
-- [ ] Migración 0002: vistas `security_invoker` (05 §4) con `fn_radio_px` leyendo `config`.
-- [ ] Migración 0003: RLS y grants exactamente como 05 §5; `revoke execute` de
-      `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas` a `anon` y
-      `authenticated`.
-- [ ] Migración 0004: `config` con defaults de 05 §2.10; `administradores` con el propietario;
+- [x] Migración 0002: vistas `security_invoker` (05 §4) con `fn_radio_px` leyendo `config`.
+- [x] Migración 0003: RLS y grants exactamente como 05 §5; ninguna función nace
+      ejecutable por `PUBLIC` (privilegios por defecto), así que las tres RPC de `service_role` de
+      la Fase 3 quedan cerradas a `anon` y `authenticated` por construcción (DEC-058).
+- [x] Migración 0004: `config` con defaults de 05 §2.10; el propietario por `asegurar-propietario.ts` (DEC-053, DEC-058);
       trabajos `pg_cron` de 04 §9.
-- [ ] Bucket y políticas de Storage (via `arranque.ts` y migración de políticas): sin escritura
+- [x] Bucket (vía `arranque.ts`; en local, `local-storage.sql`) sin políticas (DEC-055): sin escritura
       para `anon`/`authenticated`, lectura pública.
-- [ ] `supabase/seed-staging.sql` según 05 §11.
+- [x] `supabase/seed-staging.sql` según 05 §11.
 
 **Criterio de salida:** pgTAP en verde para: constraints de diámetro y racor por tipo; `no_funciona`
 sin descripción rechazado; punto sin foto rechazado; `insert` en Storage con `anon` rechazado;

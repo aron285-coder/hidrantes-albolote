@@ -28,7 +28,8 @@
     "comprobar-despliegue": "tsx scripts/comprobar-despliegue.ts",
     "guarda-produccion": "tsx scripts/guarda-produccion.ts",
     "zona": "tsx scripts/generar-zona.ts",
-    "cargar-zona": "tsx scripts/cargar-zona.ts"
+    "cargar-zona": "tsx scripts/cargar-zona.ts",
+    "asegurar-propietario": "tsx scripts/asegurar-propietario.ts"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",
