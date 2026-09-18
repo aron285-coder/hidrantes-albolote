@@ -82,7 +82,7 @@ proyecto. El frontend sobre una base sólida avanza deprisa. Cada fase termina c
 **Objetivo:** un commit en `develop` aparece solo en staging y uno en `main` solo en producción,
 todo creado con un comando. Referencia: 04 §4, §10, §11.
 
-- [ ] `scripts/arranque.ts` (`npm run arranque`), idempotente, en este orden:
+- [x] `scripts/arranque.ts` (`npm run arranque`), idempotente, en este orden:
   1. Comprueba `gh auth status` y `wrangler whoami`; se detiene con el comando de login exacto si
      falta alguna sesión. Pide el token de Cloudflare, un token de acceso de Supabase (Management API,
      DEC-055) y las dos contraseñas de BD, que solo sirven para crear `hidrantes_migrador` (DEC-052).
@@ -115,7 +115,7 @@ todo creado con un comando. Referencia: 04 §4, §10, §11.
 - [x] `_headers` con las cabeceras de TR-100 (generado en el build por `config/cabeceras.ts`, DEC-055); `manifest.webmanifest`; `robots.txt` por entorno.
 - [x] `.github/dependabot.yml` (npm y Actions, semanal) y `automerge.yml` (fusiona parches y menores
       con CI verde; los mayores esperan).
-- [ ] *Conventional commits* + `release-please` (o equivalente sin cuenta externa): versión semántica,
+- [x] *Conventional commits* + `release-please` (o equivalente sin cuenta externa): versión semántica,
       `CHANGELOG.md` automático, tag por release; la versión se inyecta en `<meta name="version">` y
       en Ajustes, y las tres últimas entradas del changelog se cargan en `config` para FR-167.
 - [x] Plantilla de PR con la definición de terminado (§6), plantilla de issue, `CODEOWNERS` con el
@@ -526,7 +526,7 @@ con su resultado.
 
 | Fase | Estado | Fecha | Notas |
 |---|---|---|---|
-| 0 | pendiente | | |
+| 0 | terminada | 18 sep 2026 | Repositorio público (DEC-053); rol `hidrantes_migrador` (DEC-052); `mantener-activo.yml` (DEC-054); ajustes del arranque (DEC-055); un PR a `main` de prueba (DEC-056). Changelog en `config` (FR-167) y versión en Ajustes quedan para las Fases 2 y 4. Verificación: `docs/verificacion/fase-0.md`. |
 | 1 | pendiente | | |
 | 2 | pendiente | | |
 | 3 | pendiente | | |

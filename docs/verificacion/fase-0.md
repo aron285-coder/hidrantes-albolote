@@ -1,8 +1,6 @@
 # Verificación · Fase 0 · Repositorio, entornos y despliegue
 
-**Estado: en curso.** Lo local está construido y probado. Falta ejecutar `npm run arranque` (lo hace
-el desarrollador, porque pide credenciales) y comprobar el despliegue real en staging y producción.
-Este archivo se completa entonces (09 §7).
+**Estado: terminada el 18 sep 2026.** Criterio de salida cumplido (§2).
 
 ## 1. Qué se ha construido
 
@@ -26,8 +24,18 @@ Este archivo se completa entonces (09 §7).
 > `C:\Proteccion civil\hidrantes-albolote`; las cabeceras de TR-100 se sirven; las issues de las
 > fases 1–9 existen con su milestone; `CLAUDE.md` está en la raíz. Verificado en ambos sentidos.
 
-**Resultado:** pendiente del arranque real. Los "tres pegados" son ahora cuatro: se añade el token de
-acceso de Supabase (DEC-055).
+**Resultado: cumplido.**
+
+| Parte del criterio | Cómo se comprobó | Resultado |
+|---|---|---|
+| `npm run arranque` sin más pasos manuales que lo pegado | Ejecutado por el desarrollador. Los "tres pegados" son cuatro: token de Supabase (DEC-055). Dos fallos corregidos por el camino: teclas repetidas tras las preguntas ocultas y la caché de credenciales del pooler | ✅ |
+| Merge en `develop` → solo staging, con banda naranja | PR #86: `deploy-staging.yml` en verde; captura de `hidrantes-albolote-staging.pages.dev` con "ENTORNO DE PRUEBAS" | ✅ |
+| PR a `main` tras aprobación → solo producción | PR #93 (DEC-056): `deploy-prod.yml` esperó a la aprobación del propietario, pasó la guarda y desplegó; producción sin banda, `Allow: /` y sin `X-Robots-Tag`; staging siguió con la banda | ✅ |
+| *Push* directo a `main` rechazado | Protección leída por la API: PR obligatorio, `ci-calidad`/`ci-sql`/`ci-e2e` obligatorios, `enforce_admins`, sin *force push* ni borrado; igual en `develop`. No se intentó un *push* real | ✅ (configuración) |
+| Repositorio en `C:\Proteccion civil\hidrantes-albolote` | `git remote -v` → `aron285-coder/hidrantes-albolote` | ✅ |
+| Cabeceras de TR-100 | `comprobar-despliegue.ts` en ambos despliegues y `curl -I` manual: CSP sin `unsafe-eval`, HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy` | ✅ |
+| Issues de las fases 1–9 con milestone | 85 issues creadas, etiquetas `fase-N` y milestones "Fase N" | ✅ |
+| `CLAUDE.md` en la raíz | en `main` y `develop` | ✅ |
 
 ## 3. Comprobado en local (18 sep 2026)
 
@@ -63,7 +71,12 @@ npm run e2e            # en Windows sin Chromium de Playwright: PW_CANAL=msedge 
 
 ## 6. Lo que queda abierto
 
-- Ejecutar `npm run arranque` y comprobar el criterio de salida completo (desarrollador + Claude Code).
+- Los skills los instaló `npx skills` para el usuario (`~\.agents\skills`, enlazados a Claude Code), no en
+  `.claude/skills/` del repositorio; funcionan igual. `cloudflare`, `webapp-testing` y `frontend-design`
+  no aparecen en la instalación: se revisa al necesitarlos (Fases 3–5).
+- Dependabot abrió cinco PR de versión mayor que esperan revisión (TR-101). TypeScript 7 rompe
+  `typescript-eslint` (admite < 6.1): no se fusiona hasta que lo soporte.
+- El primer release de release-please arranca en 0.1.0 (`initial-version`), no en 1.0.0.
 - Las tres últimas entradas del changelog en `config` (FR-167) necesitan la tabla `config`: Fase 2.
 - La versión en Ajustes: cuando exista la pantalla (Fase 4/6); ya está en `<meta name="version">` y en `VERSION`.
 - `wrangler pages dev` en la CI: cuando existan las Functions (Fase 3).
