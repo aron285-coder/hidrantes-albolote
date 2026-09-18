@@ -25,13 +25,13 @@ jobs:
         env:
           URL: ${{ vars[format('SUPABASE_URL_{0}', matrix.entorno)] }}
           CLAVE: ${{ vars[format('SUPABASE_ANON_KEY_{0}', matrix.entorno)] }}
-        # anon no puede leer hidrantes.config (05 §5): Postgres contesta 42501. Esa respuesta prueba que
+        # anon no puede leer hidrantes.migraciones_aplicadas (existe en ambos entornos desde el arranque): Postgres contesta 42501. Esa respuesta prueba que
         # la petición atravesó la API y llegó a la base de datos, que es lo que cuenta como actividad.
         run: |
           set -eu
           [ -n "$URL" ] || { echo "::error::Falta la variable SUPABASE_URL_${{ matrix.entorno }} (npm run arranque)"; exit 1; }
           cuerpo=$(curl -s --max-time 30 -H "apikey: $CLAVE" -H "Authorization: Bearer $CLAVE" \
-            -H "Accept-Profile: hidrantes" "$URL/rest/v1/config?select=clave&limit=1" || true)
+            -H "Accept-Profile: hidrantes" "$URL/rest/v1/migraciones_aplicadas?select=archivo&limit=1" || true)
           if echo "$cuerpo" | grep -q '"42501"'; then
             echo "Supabase ${{ matrix.entorno }}: la base de datos respondió"
           else
