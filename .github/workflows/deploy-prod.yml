@@ -1,0 +1,72 @@
+# Producción: cada merge a main, tras la aprobación del propietario en el environment (04 §4).
+# Este flujo nunca carga datos de prueba: la guarda lo comprueba.
+name: Desplegar producción
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://hidrantes-albolote.pages.dev
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+
+      - name: Guarda de seguridad
+        run: npm run guarda-produccion
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          VITE_ENTORNO: ${{ vars.VITE_ENTORNO }}
+          PAGES_PROYECTO: ${{ vars.PAGES_PROYECTO }}
+
+      - name: Migraciones (hidrantes_migrador, DEC-052)
+        run: npm run migrar
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Zona de cobertura (desde la Fase 1)
+        if: hashFiles('scripts/cargar-zona.ts') != ''
+        run: npm run cargar-zona
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      - name: Código de acceso real en el primer despliegue (desde la Fase 3)
+        if: hashFiles('scripts/generar-codigo.ts') != ''
+        run: npm run codigo -- --si-no-existe --resumen "$GITHUB_STEP_SUMMARY"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - run: npm run build
+        env:
+          VITE_ENTORNO: ${{ vars.VITE_ENTORNO }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL }}
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
+
+      - name: Desplegar a Cloudflare Pages
+        run: npx wrangler pages deploy dist --project-name hidrantes-albolote --branch main --commit-hash "${{ github.sha }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Comprobar versión y cabeceras servidas (TR-100)
+        run: npm run comprobar-despliegue -- --url https://hidrantes-albolote.pages.dev --entorno produccion

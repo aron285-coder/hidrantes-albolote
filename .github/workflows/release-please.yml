@@ -1,0 +1,33 @@
+# Versión semántica, CHANGELOG.md y tag a partir de los commits convencionales (04 §11.1).
+# Trabaja sobre develop: la versión sube con cada release PR y llega a main con el PR develop → main,
+# así main y develop nunca divergen por el changelog (DEC-053).
+name: Versiones
+
+on:
+  push:
+    branches: [develop]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          target-branch: develop
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      # Un PR abierto con GITHUB_TOKEN no dispara la CI, y la protección de develop exige CI verde.
+      # workflow_dispatch sí se permite con GITHUB_TOKEN: se lanza sobre la rama del release PR.
+      - if: steps.release.outputs.pr
+        run: gh workflow run ci.yml --repo "$REPO" --ref "$RAMA"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RAMA: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}

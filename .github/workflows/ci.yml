@@ -1,0 +1,65 @@
+# Integración continua (04 §11). Todo contra Supabase LOCAL: nunca contra dev ni prod.
+name: CI
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+  # release-please.yml la lanza sobre su rama: los PR creados con GITHUB_TOKEN no disparan la CI.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  calidad:
+    name: ci-calidad
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run formato:comprobar
+      - run: npm test
+      - run: npm run build
+      - run: npm run presupuesto
+
+  sql:
+    name: ci-sql
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+      - name: Supabase local
+        run: npx supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,realtime,supavisor
+      - run: npm run migrar -- --local
+      - name: Segunda pasada sin cambios (idempotencia)
+        run: npm run migrar -- --local
+      - run: npm run test:sql
+      - if: always()
+        run: npx supabase stop --no-backup
+
+  e2e:
+    name: ci-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
