@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>08 · Prototipo interactivo del panel de jefatura — Hidrantes Albolote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --marino-950:#0E1B30;
+    --marino-800:#152A4A;
+    --marino-700:#1D3A63;
+    --marino-600:#28517F;
+    --naranja-600:#DD5A1F;
+    --naranja-500:#E97136;
+    --naranja-100:#FBE2D2;
+    --oro-600:#B08A2E;
+    --oro-100:#F3E6C4;
+    --verde-600:#2E7D4F;
+    --verde-100:#DCEEE1;
+    --ambar-700:#8A6408;
+    --ambar-100:#FBEDCB;
+    --rojo-700:#9C2B1E;
+    --rojo-100:#FBE0DB;
+    --gris-700:#40453D;
+    --gris-100:#E5E4DC;
+    --fondo:#F1F3EE;
+    --papel:#FFFFFF;
+    --linea:#D8DBD2;
+    --texto:#1B2430;
+    --texto-suave:#5A6472;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--fondo); color:var(--texto);
+    font-family:"Source Sans 3", sans-serif; font-size:16.5px; line-height:1.6;
+  }
+  h1,h2,h3,h4{font-family:"Barlow Condensed", sans-serif; font-weight:700; color:var(--marino-950); letter-spacing:.2px; margin:0;}
+  code, .mono{font-family:"JetBrains Mono", monospace; font-size:.85em;}
+  a{color:var(--marino-700);}
+
+  .wrap{
+    display:grid; grid-template-columns:230px minmax(0,800px);
+    justify-content:center; gap:56px; max-width:1200px; margin:0 auto; padding:48px 24px 120px;
+  }
+  nav.toc{position:sticky; top:32px; align-self:start; font-size:14.5px;}
+  nav.toc .toc-title{font-family:"Barlow Condensed",sans-serif; font-weight:600; color:var(--texto-suave); font-size:13px; margin-bottom:10px;}
+  nav.toc ol{list-style:none; margin:0; padding:0; border-left:2px solid var(--linea);}
+  nav.toc a{display:block; padding:6px 0 6px 14px; color:var(--texto-suave); text-decoration:none; border-left:2px solid transparent; margin-left:-2px;}
+  nav.toc a:hover{color:var(--marino-800); border-left-color:var(--naranja-600);}
+
+  main{min-width:0;}
+  section{margin-bottom:64px; scroll-margin-top:28px;}
+  section > h2{font-size:30px; margin-bottom:6px;}
+  .sec-num{color:var(--naranja-600); margin-right:10px;}
+  section > .lead{color:var(--texto-suave); margin-bottom:22px; max-width:64ch;}
+  h3{font-size:20px; margin:30px 0 10px;}
+  h4{font-size:16px; margin:20px 0 6px;}
+  p{margin:0 0 14px;}
+  ul, ol.plain{margin:0 0 14px; padding-left:22px;}
+  li{margin-bottom:6px;}
+  strong{color:var(--marino-950); font-weight:600;}
+
+  header.portada{display:flex; align-items:flex-start; gap:22px; padding-bottom:36px; border-bottom:2px solid var(--marino-950); margin-bottom:44px;}
+  header.portada h1{font-size:44px; line-height:1.05;}
+  header.portada .subt{color:var(--texto-suave); font-size:18px; margin-top:8px; max-width:52ch;}
+  header.portada .meta{font-size:13.5px; color:var(--texto-suave); margin-top:16px;}
+
+  .callout{background:var(--papel); border:1px solid var(--linea); border-left:4px solid var(--marino-800); border-radius:4px; padding:18px 22px; margin-bottom:20px;}
+  .callout h4{font-size:15px; color:var(--marino-950); margin:0 0 8px;}
+  .callout ul{margin-bottom:0;}
+  .decidido{border-left-color:var(--verde-600);}
+  .abierto{border-left-color:var(--oro-600);}
+  .regla{border-left-color:var(--naranja-600);}
+
+  table{width:100%; border-collapse:collapse; font-size:14.5px; margin-bottom:8px;}
+  th{text-align:left; font-family:"Barlow Condensed",sans-serif; font-weight:600; font-size:13px; color:var(--texto-suave); border-bottom:2px solid var(--marino-950); padding:8px 12px;}
+  td{padding:10px 12px; border-bottom:1px solid var(--linea); vertical-align:top;}
+  tr:hover td{background:#FAFAF7;}
+  td.sistema{color:var(--texto-suave); font-style:italic;}
+
+  .chip{display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:3px 11px; font-size:13px; font-weight:600;}
+  .chip-verde{background:var(--verde-100); color:var(--verde-600);}
+  .chip-ambar{background:var(--ambar-100); color:var(--ambar-700);}
+  .chip-rojo{background:var(--rojo-100); color:var(--rojo-700);}
+  .chip-gris{background:var(--gris-100); color:var(--gris-700);}
+  .chip-neutro{background:#EDEEE8; color:var(--texto-suave);}
+  .chip-azul{background:#DCE6F2; color:var(--marino-700);}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--ambar-700);}
+  .dot-rojo{background:var(--rojo-700);} .dot-gris{background:var(--gris-700);}
+
+  .flujo{display:flex; align-items:flex-start; margin:26px 0 8px; flex-wrap:wrap;}
+  .paso{display:flex; flex-direction:column; align-items:center; text-align:center; width:150px;}
+  .paso .num{width:34px; height:34px; border-radius:50%; background:var(--marino-950); color:#fff; display:flex; align-items:center; justify-content:center; font-family:"Barlow Condensed"; font-weight:700; font-size:16px; margin-bottom:10px;}
+  .paso .txt{font-size:13.5px; color:var(--texto-suave); line-height:1.4;}
+  .paso .txt strong{display:block; color:var(--texto); font-size:14px; margin-bottom:2px;}
+  .flecha{flex:1; min-width:20px; height:34px; display:flex; align-items:center; justify-content:center; color:var(--linea); font-size:20px;}
+
+  /* acciones (operaciones) */
+  .op{display:flex; gap:14px; background:var(--papel); border:1px solid var(--linea); border-radius:8px; padding:13px 17px; margin-bottom:10px;}
+  .op .ic{width:30px; height:30px; border-radius:7px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:15px; background:var(--gris-100);}
+  .op .nm{font-family:"Barlow Condensed"; font-weight:600; font-size:16px; color:var(--marino-950); line-height:1.2;}
+  .op .ds{font-size:13.5px; color:var(--texto-suave); line-height:1.45;}
+  .op .ds em{color:var(--marino-700); font-style:normal; font-weight:600;}
+
+  /* mockups */
+  .mockup-row{display:flex; gap:22px; flex-wrap:wrap; margin:22px 0 6px; align-items:flex-start;}
+  .mockup-caption{font-size:13px; color:var(--texto-suave); margin-top:10px; max-width:250px;}
+  .phone{width:250px; border:7px solid var(--marino-950); border-radius:30px; background:var(--marino-950); padding:8px 8px 14px; flex-shrink:0;}
+  .phone-screen{background:var(--fondo); border-radius:20px; overflow:hidden; height:470px; display:flex; flex-direction:column; position:relative;}
+  .app-bar{background:var(--marino-950); color:#fff; padding:12px 14px 10px; font-family:"Barlow Condensed"; font-weight:600; font-size:16px; display:flex; align-items:center; justify-content:space-between;}
+  .app-bar .icon-btn{width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,.16); display:flex; align-items:center; justify-content:center; font-size:13px;}
+  .screen-body{padding:12px 12px 8px; flex:1; overflow:hidden; font-size:12.5px;}
+
+  .maphold{position:relative; border-radius:10px; overflow:hidden; background:#E8E6DE;}
+  .maphold svg{display:block; width:100%; height:100%;}
+
+  .layer-btn{position:absolute; right:8px; top:8px; background:#fff; border-radius:7px; padding:4px 7px; font-size:9.5px; font-weight:600; color:var(--marino-950); box-shadow:0 1px 5px rgba(0,0,0,.18);}
+  .legend-box{position:absolute; left:8px; bottom:8px; background:rgba(255,255,255,.94); border-radius:8px; padding:6px 8px; font-size:9px; box-shadow:0 2px 6px rgba(0,0,0,.14); display:flex; flex-direction:column; gap:3px;}
+  .legend-box div{display:flex; align-items:center; gap:5px;}
+
+  .field-label{font-size:11px; color:var(--texto-suave); font-weight:600; margin:10px 0 4px;}
+  .hint{font-size:9.5px; color:var(--texto-suave); margin:-3px 0 8px;}
+  .seg{display:flex; border:1px solid var(--linea); border-radius:7px; overflow:hidden; background:#fff;}
+  .seg div{flex:1; text-align:center; padding:6px 4px; font-size:11.5px; color:var(--texto-suave); border-right:1px solid var(--linea);}
+  .seg div:last-child{border-right:none;}
+  .seg .on{background:var(--marino-950); color:#fff; font-weight:600;}
+  .pillrow{display:flex; gap:5px;}
+  .pillrow div{flex:1; text-align:center; padding:6px 2px; border-radius:999px; font-size:10.5px; font-weight:600; border:1.5px solid transparent; background:#fff; color:var(--texto-suave);}
+  .fakebtn{margin-top:14px; background:var(--naranja-600); color:#fff; text-align:center; padding:10px; border-radius:9px; font-weight:600; font-size:13px;}
+  .fakebtn.secundario{background:#fff; color:var(--marino-950); border:1.5px solid var(--marino-950);}
+  .fakeinput{border:1px solid var(--linea); border-radius:7px; padding:7px 9px; background:#fff; font-size:12px; color:var(--texto-suave); margin-bottom:8px;}
+  .fab{position:absolute; right:14px; bottom:64px; width:44px; height:44px; border-radius:50%; background:var(--naranja-600); color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; box-shadow:0 3px 10px rgba(0,0,0,.25);}
+  .bottomnav{height:50px; background:#fff; border-top:1px solid var(--linea); display:flex; align-items:center; justify-content:space-around; font-size:10.5px; color:var(--texto-suave);}
+  .bottomnav div{display:flex; flex-direction:column; align-items:center; gap:3px;}
+  .bottomnav div.on{color:var(--marino-950); font-weight:700;}
+
+  /* portátil */
+  .laptop{width:100%; max-width:780px;}
+  .laptop-lid{border:9px solid var(--marino-950); border-radius:14px 14px 3px 3px; background:var(--marino-950); overflow:hidden;}
+  .laptop-base{height:11px; background:var(--marino-950); border-radius:0 0 12px 12px; margin:0 auto; width:104%; margin-left:-2%; position:relative;}
+  .laptop-base::after{content:""; position:absolute; left:50%; transform:translateX(-50%); top:0; width:70px; height:4px; background:#2C3A52; border-radius:0 0 5px 5px;}
+  .browser-chrome{background:#DDE0D8; padding:7px 10px; display:flex; align-items:center; gap:8px;}
+  .browser-chrome .dots{display:flex; gap:4px;}
+  .browser-chrome .dots i{width:8px; height:8px; border-radius:50%; background:#B9BDB2; display:block;}
+  .browser-chrome .url{flex:1; background:#fff; border-radius:5px; font-size:10px; color:var(--texto-suave); padding:3px 9px;}
+  .escritorio{background:var(--fondo); display:flex; height:420px;}
+  .esc-side{width:34%; background:#fff; border-right:1px solid var(--linea); display:flex; flex-direction:column;}
+  .esc-topbar{background:var(--marino-950); color:#fff; padding:9px 13px; font-family:"Barlow Condensed"; font-weight:600; font-size:14px; display:flex; justify-content:space-between; align-items:center;}
+  .esc-filtros{display:flex; gap:5px; padding:8px 10px; border-bottom:1px solid var(--linea); flex-wrap:wrap;}
+  .esc-filtros span{font-size:9.5px; border:1px solid var(--linea); border-radius:999px; padding:2px 8px; color:var(--texto-suave);}
+  .esc-filtros span.on{background:var(--marino-950); color:#fff; border-color:var(--marino-950);}
+  .esc-item{display:flex; gap:8px; padding:8px 11px; border-bottom:1px solid var(--linea); align-items:flex-start;}
+  .esc-item.on{background:#EFF3F8; box-shadow:inset 3px 0 0 var(--marino-700);}
+  .esc-item .mk{flex-shrink:0; margin-top:2px;}
+  .esc-item .nm{font-size:11.5px; font-weight:600; color:var(--marino-950); line-height:1.2;}
+  .esc-item .mt{font-size:10px; color:var(--texto-suave);}
+  .esc-mapa{flex:1; position:relative;}
+  .esc-panel{position:absolute; right:12px; top:12px; width:170px; background:#fff; border-radius:10px; box-shadow:0 4px 16px rgba(14,27,48,.16); overflow:hidden;}
+  .esc-panel .ph{background:var(--marino-950); color:#fff; padding:7px 10px; font-family:"Barlow Condensed"; font-weight:600; font-size:12.5px; display:flex; justify-content:space-between;}
+  .esc-panel .pb{padding:9px 10px;}
+
+  /* tableta */
+  .tablet{width:520px; max-width:100%; border:11px solid var(--marino-950); border-radius:20px; background:var(--marino-950); flex-shrink:0;}
+  .tablet-screen{background:var(--fondo); border-radius:9px; overflow:hidden; height:352px; display:flex;}
+  .tab-mapa{flex:1; position:relative;}
+  .tab-ficha{width:198px; background:#fff; border-left:1px solid var(--linea); display:flex; flex-direction:column;}
+  .tab-ficha .th{background:var(--marino-950); color:#fff; padding:9px 11px; font-family:"Barlow Condensed"; font-weight:600; font-size:13.5px; display:flex; justify-content:space-between; align-items:center;}
+  .tab-ficha .tb{padding:10px 11px; font-size:11.5px; overflow:hidden;}
+  .tab-tools{position:absolute; left:10px; top:10px; display:flex; flex-direction:column; gap:5px;}
+  .tab-tools div{background:#fff; border-radius:7px; padding:5px 8px; font-size:10px; font-weight:600; color:var(--marino-950); box-shadow:0 1px 5px rgba(0,0,0,.16);}
+
+  .card-mini{background:#fff; border:1px solid var(--linea); border-radius:9px; padding:9px 10px; margin-bottom:8px;}
+  .aviso-dup{background:var(--ambar-100); border:1px solid var(--oro-600); border-radius:8px; padding:8px 10px; font-size:10.5px; color:var(--ambar-700); line-height:1.35;}
+
+  /* simbología */
+  .simb{display:flex; gap:8px; flex-wrap:wrap; margin:18px 0 10px;}
+  .simb-card{background:var(--papel); border:1px solid var(--linea); border-radius:9px; padding:14px 10px 11px; text-align:center; flex:1; min-width:104px;}
+  .simb-card svg{display:block; margin:0 auto 8px;}
+  .simb-card .t{font-family:"Barlow Condensed"; font-weight:600; font-size:14px; color:var(--marino-950); line-height:1.2;}
+  .simb-card .s{font-size:11.5px; color:var(--texto-suave); line-height:1.3;}
+
+  /* desktop admin */
+  .desktop-frame{width:100%; border:1px solid var(--linea); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 4px 18px rgba(14,27,48,.08);}
+  .desktop-bar{background:var(--marino-950); color:#fff; padding:13px 20px; display:flex; justify-content:space-between; align-items:center;}
+  .desktop-bar .t1{font-family:"Barlow Condensed"; font-weight:600; font-size:17px;}
+  .desktop-bar .t2{font-size:12px; color:#B7C2D6;}
+  .tabs{display:flex; background:#F5F6F2; border-bottom:1px solid var(--linea); font-size:12.5px; padding:0 8px; overflow-x:auto;}
+  .tabs div{padding:9px 11px; color:var(--texto-suave); border-bottom:2px solid transparent; display:flex; align-items:center; gap:6px; white-space:nowrap;}
+  .tabs div.on{color:var(--marino-950); font-weight:700; border-bottom-color:var(--naranja-600); background:#fff;}
+  .tabs .badge{background:var(--naranja-600); color:#fff; border-radius:999px; font-size:10px; padding:0 6px; font-weight:700;}
+  .tabs .badge.gris{background:var(--gris-100); color:var(--gris-700);}
+
+  .split{display:flex; min-height:330px;}
+  .col-lista{width:47%; border-right:1px solid var(--linea);}
+  .col-detalle{width:53%; background:#FBFBF8; padding:13px 15px;}
+  .bulkbar{display:flex; align-items:center; gap:9px; padding:8px 13px; background:#F5F6F2; border-bottom:1px solid var(--linea); font-size:11.5px; color:var(--texto-suave); flex-wrap:wrap;}
+  .bulkbar .bb{background:#fff; border:1px solid var(--linea); border-radius:5px; padding:3px 8px; font-weight:600; color:var(--marino-950); font-size:11px; white-space:nowrap;}
+  #txt-sel{white-space:nowrap;}
+  .qrow{display:flex; gap:9px; padding:10px 13px; border-bottom:1px solid var(--linea); font-size:11.5px; align-items:flex-start;}
+  .qrow.sel{background:#EFF3F8; box-shadow:inset 3px 0 0 var(--marino-700);}
+  .qrow .cb{width:13px; height:13px; border:1.5px solid var(--linea); border-radius:3px; flex-shrink:0; margin-top:2px; background:#fff;}
+  .qrow .cb.on{background:var(--marino-950); border-color:var(--marino-950);}
+  .qrow .who{color:var(--texto-suave); font-size:10.5px;}
+  .qrow .cod{font-family:"JetBrains Mono"; font-size:10.5px; color:var(--texto-suave);}
+  .lbl{font-size:9.5px; font-weight:700; border-radius:4px; padding:1px 6px; display:inline-block;}
+  .lbl-alta{background:var(--verde-100); color:var(--verde-600);}
+  .lbl-estado{background:var(--ambar-100); color:var(--ambar-700);}
+  .lbl-rev{background:#DCE6F2; color:var(--marino-700);}
+  .lbl-ret{background:var(--rojo-100); color:var(--rojo-700);}
+  .lbl-datos{background:var(--gris-100); color:var(--gris-700);}
+
+  .det-h{font-family:"Barlow Condensed"; font-weight:600; font-size:15px; color:var(--marino-950); margin-bottom:2px;}
+  .det-sub{font-size:11px; color:var(--texto-suave); margin-bottom:9px;}
+  .diff{background:#fff; border:1px solid var(--linea); border-radius:7px; overflow:hidden; margin-bottom:9px; font-size:11px;}
+  .diff .dr{display:flex; border-bottom:1px solid var(--linea);}
+  .diff .dr:last-child{border-bottom:none;}
+  .diff .dk{width:32%; padding:5px 9px; color:var(--texto-suave); background:#FAFAF7;}
+  .diff .dv{flex:1; padding:5px 9px; display:flex; gap:6px; align-items:center;}
+  .diff .old{color:var(--rojo-700); text-decoration:line-through; opacity:.75;}
+  .diff .new{color:var(--verde-600); font-weight:600;}
+  .meta-row{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:9px;}
+  .meta-tag{font-size:10px; background:#fff; border:1px solid var(--linea); border-radius:5px; padding:2px 7px; color:var(--texto-suave);}
+  .meta-tag.ok{border-color:var(--verde-600); color:var(--verde-600);}
+  .meta-tag.warn{border-color:var(--oro-600); color:var(--ambar-700); background:var(--ambar-100);}
+  .det-acciones{display:flex; gap:6px; flex-wrap:wrap; margin-top:11px;}
+  .accion{font-size:11.5px; font-weight:600; padding:6px 11px; border-radius:6px; display:inline-block;}
+  .accion.aprobar{background:var(--verde-600); color:#fff;}
+  .accion.corregir{background:#fff; color:var(--marino-950); border:1.5px solid var(--marino-950);}
+  .accion.rechazar{background:#fff; color:var(--rojo-700); border:1.5px solid var(--rojo-700);}
+  .minimap{border-radius:7px; overflow:hidden; border:1px solid var(--linea); margin-bottom:9px; position:relative;}
+  .fotoslot{background:#fff; border:1px solid var(--linea); border-radius:7px; height:56px; display:flex; align-items:center; justify-content:center; color:var(--texto-suave); font-size:11px; margin-bottom:9px;}
+
+  .req-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:18px 0 6px;}
+  .req{background:var(--papel); border:1px solid var(--linea); border-radius:8px; padding:13px 15px;}
+  .req .rt{font-family:"Barlow Condensed"; font-weight:600; font-size:15px; color:var(--marino-950); margin-bottom:3px;}
+  .req .rd{font-size:13px; color:var(--texto-suave); line-height:1.45;}
+
+  .pregunta{background:var(--papel); border:1px solid var(--linea); border-radius:8px; padding:14px 18px; margin-bottom:12px; display:flex; gap:14px;}
+  .pregunta .n{font-family:"Barlow Condensed"; font-weight:700; color:var(--oro-600); font-size:20px; width:26px; flex-shrink:0;}
+  .shield{flex-shrink:0;}
+
+  @media (max-width: 980px){
+    .wrap{grid-template-columns:1fr; padding:28px 18px 100px;}
+    nav.toc{position:static; margin-bottom:8px; border-bottom:1px solid var(--linea); padding-bottom:14px;}
+    nav.toc ol{border-left:none; display:flex; flex-wrap:wrap; gap:4px 14px;}
+    nav.toc li a{padding:4px 0; border-left:none;}
+    header.portada{flex-direction:column;}
+    .req-grid{grid-template-columns:1fr;}
+    .split{flex-direction:column;}
+    .col-lista,.col-detalle{width:100%; border-right:none;}
+  }
+
+  /* --- panel interactivo --- */
+  .tabs div{cursor:pointer; user-select:none; transition:background .12s;}
+  .tabs div:hover{background:#EDEFEA;}
+  .tabs div.on:hover{background:#fff;}
+  .panel{display:none;}
+  .panel.on{display:block;}
+  .sel-mini{font-size:11.5px; border:1px solid var(--linea); border-radius:5px; padding:2px 5px; background:#fff; color:var(--marino-950); font-family:inherit;}
+  .bulkbar .bb{cursor:pointer; user-select:none;}
+  .bulkbar .bb:hover{background:var(--marino-950); color:#fff; border-color:var(--marino-950);}
+  .bulkbar .bb.off{opacity:.4; pointer-events:none;}
+  .qrow{cursor:pointer;}
+  .qrow:hover{background:#F6F8FA;}
+  .qrow .cb{cursor:pointer;}
+  .qrow .cb.on::after{content:"✓"; color:#fff; font-size:10px; display:block; line-height:11px; text-align:center;}
+  #cb-todas{width:13px; height:13px; border:1.5px solid var(--linea); border-radius:3px; background:#fff; cursor:pointer; flex-shrink:0;}
+  #cb-todas.on{background:var(--marino-950); border-color:var(--marino-950);}
+  #cb-todas.on::after{content:"✓"; color:#fff; font-size:10px; display:block; line-height:11px; text-align:center;}
+  .vacio{padding:26px; text-align:center; color:var(--texto-suave); font-size:13px;}
+  .accion{cursor:pointer; user-select:none;}
+  .accion:hover{filter:brightness(.94);}
+  .fchip{font-size:11px; border:1px solid var(--linea); border-radius:999px; padding:2px 9px; color:var(--texto-suave); background:#fff; cursor:pointer; margin-right:4px; user-select:none;}
+  .fchip.on{background:var(--marino-950); color:#fff; border-color:var(--marino-950);}
+  .motivo-box{margin-top:9px; background:#fff; border:1px solid var(--rojo-700); border-radius:7px; padding:9px;}
+  .motivo-box textarea{width:100%; border:1px solid var(--linea); border-radius:5px; font-family:inherit; font-size:11.5px; padding:5px; resize:vertical; min-height:44px;}
+  .motivo-box .err{color:var(--rojo-700); font-size:10.5px; margin-top:5px; display:none;}
+  .flash{background:var(--verde-100); color:var(--verde-600); border-radius:6px; padding:7px 11px; font-size:11.5px; font-weight:600; margin:9px 13px;}
+  .cad-grupo{display:flex; align-items:center; gap:11px; padding:9px 16px; border-bottom:1px solid var(--linea); font-size:13px; cursor:pointer;}
+  .cad-grupo:hover{background:#FAFAF7;}
+  .cad-grupo .n{font-family:"Barlow Condensed"; font-weight:700; font-size:19px; color:var(--naranja-600); width:34px;}
+  .cad-grupo .g{flex:1;}
+  .cad-grupo .barra{width:130px; height:7px; background:var(--gris-100); border-radius:4px; overflow:hidden;}
+  .cad-grupo .barra i{display:block; height:100%; background:var(--naranja-600);}
+  .cad-detalle{display:none; padding:4px 16px 12px 61px; font-size:12px; color:var(--texto-suave);}
+  .cad-detalle.on{display:block;}
+  .cad-detalle div{padding:3px 0; border-bottom:1px dashed var(--linea);}
+  .aviso-imprimir{display:none; margin:11px 16px; background:var(--ambar-100); color:var(--ambar-700); border-radius:7px; padding:9px 12px; font-size:12px;}
+  .aviso-imprimir.on{display:block;}
+  .aj-grid{display:grid; grid-template-columns:1fr 1fr; gap:13px; padding:15px;}
+  .aj-card{background:#FBFBF8; border:1px solid var(--linea); border-radius:9px; padding:14px 16px;}
+  .aj-t{font-family:"Barlow Condensed"; font-weight:600; font-size:16px; color:var(--marino-950); margin-bottom:3px;}
+  .aj-d{font-size:12px; color:var(--texto-suave); margin-bottom:9px;}
+  .cod-box{background:#fff; border:1px solid var(--linea); border-radius:7px; padding:9px 12px; font-family:"JetBrains Mono"; font-size:17px; letter-spacing:3px; color:var(--marino-950); display:flex; justify-content:space-between; align-items:center;}
+  .cod-ver{font-family:"Source Sans 3"; font-size:11px; letter-spacing:0; color:var(--marino-700); cursor:pointer; text-decoration:underline;}
+  .aj-acciones{display:flex; gap:10px; align-items:center; margin-top:10px; flex-wrap:wrap;}
+  .aj-acciones .bb{background:#fff; border:1px solid var(--linea); border-radius:5px; padding:4px 10px; font-weight:600; color:var(--marino-950); font-size:11.5px; cursor:pointer;}
+  .aj-acciones .bb:hover{background:var(--marino-950); color:#fff;}
+  .aj-check{font-size:11.5px; color:var(--texto-suave); display:flex; align-items:center; gap:5px; cursor:pointer;}
+  .aj-aviso{display:none; margin-top:9px; background:var(--verde-100); color:var(--verde-600); border-radius:6px; padding:7px 10px; font-size:11.5px; font-weight:600;}
+  .aj-aviso.on{display:block;}
+  .salud{display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px dashed var(--linea);}
+  .salud strong{color:var(--marino-950);} .salud .mal{color:var(--rojo-700);} .salud .bien{color:var(--verde-600);}
+  .par-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+  .par-grid label{font-size:11.5px; color:var(--texto-suave); display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fff; border:1px solid var(--linea); border-radius:6px; padding:5px 9px;}
+  .par-grid input{width:62px; border:1px solid var(--linea); border-radius:4px; padding:2px 5px; font-family:inherit; font-size:12px; text-align:right;}
+  .sw{width:34px; height:19px; border-radius:999px; background:var(--gris-100); position:relative; cursor:pointer; display:inline-block; transition:background .15s;}
+  .sw::after{content:""; position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .15s;}
+  .sw.on{background:var(--verde-600);} .sw.on::after{left:17px;}
+  @media (max-width:980px){ .aj-grid{grid-template-columns:1fr;} .par-grid{grid-template-columns:1fr;} }
+
+  /* --- mockups v6: elementos nuevos --- */
+  .searchbar{position:absolute; left:8px; right:8px; top:8px; background:#fff; border-radius:9px; padding:6px 9px; font-size:10.5px; color:var(--texto-suave); box-shadow:0 1px 5px rgba(0,0,0,.18); display:flex; align-items:center; gap:6px;}
+  .statusline{display:flex; justify-content:space-between; align-items:center; font-size:9.5px; color:var(--texto-suave); padding:6px 12px 0; white-space:nowrap;}
+  .statusline .pend{background:var(--naranja-100); color:var(--naranja-600); border-radius:999px; padding:1px 7px; font-weight:700;}
+  .mypos{position:absolute; right:8px; top:74px; width:30px; height:30px; border-radius:8px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:15px; box-shadow:0 1px 5px rgba(0,0,0,.18); color:var(--marino-700);}
+  .attrib{position:absolute; right:3px; bottom:2px; font-size:6.5px; color:#6F7676; background:rgba(255,255,255,.75); padding:0 3px; border-radius:2px;}
+  .foto-real{position:relative; border-radius:9px; overflow:hidden; height:86px; margin-bottom:8px; background:linear-gradient(180deg,#C6D2DA 0%,#AEBCC5 44%,#7A8582 45%,#8C968F 100%);}
+  .foto-real svg{position:absolute; left:50%; bottom:6px; transform:translateX(-50%);}
+  .foto-real .tag{position:absolute; left:6px; bottom:5px; font-size:8.5px; color:#fff; background:rgba(14,27,48,.6); border-radius:4px; padding:1px 5px;}
+  .foto-real .tag.r{left:auto; right:6px;}
+  .dim{position:absolute; inset:0; background:rgba(14,27,48,.38); border-radius:20px;}
+  .sheet{position:absolute; left:0; right:0; bottom:0; background:#fff; border-radius:16px 16px 0 0; box-shadow:0 -6px 20px rgba(14,27,48,.22); padding:8px 12px 12px;}
+  .sheet .grip{width:34px; height:4px; border-radius:2px; background:var(--linea); margin:0 auto 8px;}
+  .sheet-item{display:flex; gap:10px; align-items:center; padding:7px 6px; border-bottom:1px solid var(--linea); font-size:11.5px; color:var(--marino-950);}
+  .sheet-item:last-child{border-bottom:none;}
+  .sheet-item .ic{width:26px; height:26px; border-radius:7px; background:var(--gris-100); display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0;}
+  .sheet-item .d{font-size:9.5px; color:var(--texto-suave);}
+  .offline-bar{background:var(--gris-700); color:#fff; font-size:9.5px; padding:4px 12px; text-align:center;}
+  .warn-callout{background:var(--ambar-100); color:var(--ambar-700); border:1px solid var(--oro-600); border-radius:7px; padding:6px 8px; font-size:9.5px; margin:6px 0 2px; line-height:1.35;}
+  .racor-ref{display:flex; gap:6px; margin:4px 0 2px;}
+  .racor-ref div{flex:1; background:#fff; border:1px solid var(--linea); border-radius:7px; padding:4px 4px 3px; text-align:center; font-size:9px; color:var(--texto-suave);}
+  .racor-ref div.on{border-color:var(--marino-950); box-shadow:inset 0 0 0 1px var(--marino-950); color:var(--marino-950); font-weight:600;}
+  .racor-ref .ph{height:34px; border-radius:5px; margin-bottom:3px; background:linear-gradient(160deg,#9AA3A8 0%,#6E777B 60%,#4E5659 100%); position:relative; overflow:hidden;}
+  .racor-ref .ph::after{content:""; position:absolute; left:50%; top:50%; width:18px; height:18px; border-radius:50%; transform:translate(-50%,-50%); border:3px solid #C9CFD2; box-shadow:0 0 0 2px #3C4346;}
+  .toast{position:absolute; left:10px; right:10px; top:50px; background:var(--verde-600); color:#fff; border-radius:9px; padding:8px 10px; font-size:10.5px; box-shadow:0 4px 12px rgba(0,0,0,.2); z-index:2; line-height:1.35;}
+  .prop-item{background:#fff; border:1px solid var(--linea); border-radius:9px; padding:8px 10px; margin-bottom:7px; font-size:11px;}
+  .prop-item .h{display:flex; justify-content:space-between; align-items:center; margin-bottom:2px; gap:6px;}
+  .prop-item .h > span:first-child{white-space:nowrap;} .prop-item .h .chip{white-space:nowrap;}
+  .prop-item .m{font-size:9.5px; color:var(--texto-suave);}
+  .prop-item .mot{margin-top:4px; background:var(--rojo-100); color:var(--rojo-700); border-radius:5px; padding:3px 6px; font-size:9.5px;}
+  .aj-row{display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fff; border:1px solid var(--linea); border-radius:8px; padding:6px 10px; margin-bottom:5px; font-size:11px; color:var(--marino-950);}
+  .aj-row .s{font-size:9.5px; color:var(--texto-suave);}
+  .aj-row .v{font-size:10px; color:var(--marino-700); font-weight:600; white-space:nowrap;}
+  .aj-sec{font-size:9.5px; color:var(--texto-suave); font-weight:600; margin:8px 0 4px;}
+  .pin-drop{filter:drop-shadow(0 2px 2px rgba(0,0,0,.3));}
+  .gsearch{flex:1; max-width:300px; margin:0 20px; background:rgba(255,255,255,.12); border-radius:6px; padding:4px 9px; display:flex; align-items:center; gap:6px; font-size:12px;}
+  .gsearch input{background:transparent; border:none; color:#fff; font-family:inherit; font-size:12px; flex:1; outline:none;}
+  .gsearch input::placeholder{color:#B7C2D6;}
+  .dir-field{display:flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--linea); border-radius:7px; padding:5px 9px; font-size:11px; margin-bottom:9px;}
+  .dir-field .k{color:var(--texto-suave); width:28%;}
+  .dir-field .in{flex:1; border-bottom:1px dashed var(--linea); color:var(--marino-950);}
+  .dir-field .tg{font-size:9.5px; color:var(--texto-suave); background:#F5F6F2; border-radius:4px; padding:1px 5px;}
+  .accion.fusionar{background:#fff; color:var(--ambar-700); border:1.5px solid var(--oro-600);}
+  .accion.confirmar{background:var(--rojo-700); color:#fff;}
+  .det-revisada{background:#F5F6F2; border-radius:7px; padding:8px 10px; font-size:11.5px; color:var(--texto-suave); margin-top:10px;}
+  .panel-foot{font-size:10.5px; color:var(--texto-suave); padding:7px 16px; border-top:1px solid var(--linea); background:#FBFBF8;}
+  .inc-estado{font-size:10px; font-weight:700; border-radius:4px; padding:1px 6px;}
+  .inc-abierta{background:var(--ambar-100); color:var(--ambar-700);} .inc-resuelta{background:var(--verde-100); color:var(--verde-600);}
+  .tag-jef{font-size:9px; background:var(--oro-600); color:#fff; border-radius:4px; padding:1px 5px; margin-left:6px; font-family:"Source Sans 3"; font-weight:700; letter-spacing:.3px;}
+  .pillrow div{white-space:nowrap; font-size:10px; padding:6px 1px;}
+  .maphold .legend-box{font-size:7.5px; display:grid; grid-template-columns:auto auto; gap:2px 6px; padding:4px 6px; right:64px;}
+  .legend-box .lg{display:flex; align-items:center; gap:5px; white-space:nowrap;} .maphold .legend-box svg{flex-shrink:0; display:block; width:10px; height:10px;}
+  .legend-box .lgn{font-size:7px; color:var(--texto-suave); margin-top:1px; white-space:nowrap; grid-column:1/-1;}
+  .lista-filtros{display:flex; gap:4px; padding:6px 10px 4px; flex-wrap:wrap;}
+  .lista-filtros span{font-size:9.5px; border:1px solid var(--linea); border-radius:999px; padding:2px 8px; color:var(--texto-suave); background:#fff;}
+  .lista-filtros span.on{background:var(--marino-950); color:#fff; border-color:var(--marino-950);}
+  .lista-orden{display:flex; justify-content:space-between; font-size:9.5px; color:var(--texto-suave); padding:2px 12px 4px;}
+  .lista-item{display:flex; gap:8px; padding:7px 12px; border-bottom:1px solid var(--linea); align-items:center; background:#fff;}
+  .lista-item .mk{flex-shrink:0;} .lista-item .nm{font-size:11.5px; font-weight:600; color:var(--marino-950); line-height:1.2;} .lista-item .mt{font-size:9.5px; color:var(--texto-suave);}
+  .lista-item .dist{margin-left:auto; text-align:right; font-size:11px; font-weight:700; color:var(--marino-700); white-space:nowrap;}
+  .lista-item .dist small{display:block; font-size:8.5px; color:var(--texto-suave); font-weight:400;}
+  .phone-screen.dark{background:#111826;} .dark .app-bar{background:#0A111E;} .dark .statusline{color:#9AA8BE;} .dark .statusline .pend{background:#3A2A1E; color:#F0A070;}
+  .dark .searchbar,.dark .layer-btn,.dark .mypos{background:#1E2A3D; color:#DCE3EE; box-shadow:0 1px 5px rgba(0,0,0,.5);}
+  .dark .legend-box{background:rgba(20,29,45,.94); color:#DCE3EE;} .dark .legend-box .lgn{color:#8A9AB2;}
+  .dark .bottomnav{background:#0F1727; border-top-color:#25314A; color:#8A9AB2;} .dark .bottomnav div.on{color:#fff;}
+  .dark .maphold{background:#1B2536;} .dark .attrib{background:rgba(20,29,45,.8); color:#8A9AB2;}
+  .info-callout{background:#DCE6F2; color:var(--marino-700); border-radius:7px; padding:6px 8px; font-size:9.5px; margin:6px 0 2px; line-height:1.35;}
+  /* panel v6.1 */
+  .desktop-table td:nth-child(3), .desktop-table .chip{white-space:nowrap;}
+  .desktop-table{font-size:12px;} .desktop-table th{font-size:11.5px; padding:6px 10px; white-space:nowrap;} .desktop-table td{padding:7px 10px;}
+  .desktop-table td.mono{white-space:nowrap;} .desktop-table .chip{font-size:11px; padding:2px 8px;} .desktop-table .accion{font-size:11px; padding:4px 8px;}
+  .desktop-table th[data-s]{cursor:pointer; user-select:none;} .desktop-table th[data-s]:hover,.desktop-table th.sorted{color:var(--marino-950);}
+  .compara{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:9px;}
+  .compara .col{background:#fff; border:1px solid var(--linea); border-radius:7px; overflow:hidden; font-size:11px;}
+  .compara .col.ex{border-color:var(--oro-600);}
+  .compara .ch{padding:5px 9px; font-weight:700; border-bottom:1px solid var(--linea); background:#F5F6F2; display:flex; justify-content:space-between;}
+  .compara .cr{display:flex; padding:4px 9px; border-bottom:1px solid var(--linea);} .compara .cr:last-child{border-bottom:none;}
+  .compara .ck{width:42%; color:var(--texto-suave);} .compara .cv{flex:1;} .compara .dif{color:var(--ambar-700); font-weight:600;}
+  .compara .cf{height:40px; background:linear-gradient(180deg,#C6D2DA 0%,#AEBCC5 44%,#7A8582 45%,#8C968F 100%); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; text-shadow:0 1px 2px rgba(0,0,0,.4);}
+  .corr-box{background:#fff; border:1.5px solid var(--marino-950); border-radius:7px; padding:9px 10px; margin-top:9px;}
+  .corr-box .cr{display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:11px;} .corr-box .cr label{width:30%; color:var(--texto-suave);}
+  .corr-box select,.corr-box input,.fus-box select{flex:1; border:1px solid var(--linea); border-radius:5px; padding:3px 6px; font-family:inherit; font-size:11.5px; background:#fff; color:var(--marino-950);}
+  .corr-box .chg{border-color:var(--ambar-700); background:var(--ambar-100);}
+  .fus-box{background:var(--ambar-100); border:1px solid var(--oro-600); border-radius:7px; padding:9px 10px; margin-top:9px; font-size:11px; color:var(--ambar-700);}
+  .fus-box .cr{display:flex; align-items:center; gap:8px; margin:6px 0;} .fus-box .cr label{width:30%;}
+  .confirm-box{background:var(--rojo-100); border:1px solid var(--rojo-700); border-radius:7px; padding:9px 11px; margin-top:9px; font-size:11.5px; color:var(--rojo-700);}
+  .confirm-box .det-acciones{margin-top:8px;}
+  .inv-foot{display:flex; justify-content:space-between; align-items:center; padding:7px 14px; font-size:11.5px; color:var(--texto-suave); border-top:1px solid var(--linea); flex-wrap:wrap; gap:6px;}
+  .inv-foot .pg{display:flex; gap:4px;} .inv-foot .pg span{border:1px solid var(--linea); border-radius:4px; padding:1px 7px; background:#fff; cursor:pointer;}
+  .inv-foot .pg span.on{background:var(--marino-950); color:#fff; border-color:var(--marino-950);}
+  .dir-edit{border-bottom:1px dashed var(--linea); cursor:text;} .dir-edit:focus{outline:none; border-bottom-color:var(--marino-950); background:#FBFBF8;}
+  .dir-edit.pend{color:var(--ambar-700);}
+</style>
+<style>
+  .wrap{grid-template-columns:minmax(0,800px);}
+  .doc-estado{display:inline-block; background:var(--marino-950); color:#fff; font-size:12px; font-weight:600; border-radius:4px; padding:2px 8px; margin-right:8px;}
+  .doc-estado.g{background:var(--texto-suave);}
+</style>
+<style>
+  .sim{display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--papel); border:1px solid var(--linea); border-radius:10px; padding:8px 12px; font-size:13px;}
+  .sim .lab{font-size:11px; color:var(--texto-suave);} .sim button{font-family:inherit; font-size:12.5px; border:1px solid var(--linea); background:#fff; color:var(--marino-950); border-radius:6px; padding:5px 10px; cursor:pointer;}
+  .sim button.on{background:var(--rojo-700); color:#fff; border-color:var(--rojo-700);} .sim button.warn{border-color:var(--oro-600); color:var(--ambar-700);}
+  #panel.caido .accion,#panel.caido .bb{pointer-events:none; opacity:.55;}
+  .os-notif{position:fixed; top:14px; right:14px; z-index:50; background:#1F2937; color:#fff; border-radius:12px; padding:10px 14px; width:320px; box-shadow:0 10px 30px rgba(0,0,0,.35); font-size:12.5px; cursor:pointer;}
+  .os-notif b{display:block; font-size:12px; margin-bottom:2px;} .os-notif small{display:block; color:#B7C2D6; font-size:10.5px; margin-top:4px;}
+  .bleed{width:100vw; position:relative; left:50%; margin-left:-50vw; background:#0E1B30; padding:10px 0;}
+  #panel-wrap .desktop-frame{border-radius:0; margin:0 auto;}
+  #panel.estrecho .split{flex-direction:column;} #panel.estrecho .col-lista,#panel.estrecho .col-detalle{width:100%; border-right:none;} #panel.estrecho .col-lista{max-height:320px; overflow:auto; border-bottom:1px solid var(--linea);}
+  #panel.estrecho .aj-grid{grid-template-columns:1fr;} #panel.estrecho .aj-card[style*="grid-column"]{grid-column:auto !important;}
+  #panel.estrecho .desktop-bar{flex-wrap:wrap; gap:6px;} #panel.estrecho .gsearch{order:3; max-width:none; margin:6px 0 0; flex-basis:100%;}
+  #panel.ancho .aj-grid{grid-template-columns:1fr 1fr 1fr;}
+  #panel.ancho .col-lista{width:38%;} #panel.ancho .col-detalle{width:62%;}
+  .panel-hint{font-size:11.5px; color:#B7C2D6; text-align:center; margin-top:8px;}
+  .pn-note{font-size:12.5px; color:var(--texto-suave); margin:8px 0 14px;}
+  .pn-box{background:#fff; border:1px solid var(--linea); border-radius:8px; padding:10px 12px; margin:8px 14px; font-size:12px;}
+  .pn-box .row{display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap;}
+  .pn-box label{font-size:11px; color:var(--texto-suave); width:110px;}
+  .pn-box input,.pn-box select,.pn-box textarea{font-family:inherit; font-size:12px; border:1px solid var(--linea); border-radius:5px; padding:4px 7px; flex:1; min-width:120px;}
+  .pn-box textarea{width:100%; min-height:46px; resize:vertical;}
+  .pn-hist{max-height:200px; overflow:auto; font-size:11.5px;}
+  .pn-hist div{padding:4px 0; border-bottom:1px dashed var(--linea);}
+  .pn-map svg{display:block; width:100%; height:290px; border-radius:8px;}
+  .pn-map .mk{cursor:pointer;}
+  .sel-mini{cursor:pointer;}
+  .desktop-table td .accion{padding:4px 8px; font-size:11px;}
+  .pn-sug{display:flex; gap:5px; flex-wrap:wrap; margin-top:6px;} .pn-sug span{font-size:11px; border:1px dashed var(--linea); border-radius:999px; padding:1px 8px; cursor:pointer; color:var(--marino-700);}
+  .nuc-row{display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px dashed var(--linea); font-size:12px;}
+  .nuc-row .accion{padding:2px 8px; font-size:11px;}
+  .desktop-table th[data-s]{cursor:pointer; user-select:none;} .desktop-table th.sorted{color:var(--marino-950);}
+  .cad-grupo .accion{padding:2px 8px; font-size:11px; margin-left:8px;}
+  .pn-tip{font-size:11px; color:var(--texto-suave); padding:6px 14px 0;}
+  .qrow .dir-row{color:var(--texto-suave); font-size:10.5px;}
+</style>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <main>
+    <header class="portada">
+      <svg class="shield" width="58" height="66" viewBox="0 0 58 66" fill="none">
+        <path d="M29 2 L54 11 V30 C54 47 43 58 29 64 C15 58 4 47 4 30 V11 Z" fill="#0E1B30" stroke="#B08A2E" stroke-width="2"/>
+        <path d="M29 14 C34 14 38 18 38 23 C38 30 29 40 29 40 C29 40 20 30 20 23 C20 18 24 14 29 14 Z" fill="#E97136"/>
+        <circle cx="29" cy="23" r="4.2" fill="#0E1B30"/>
+      </svg>
+      <div>
+        <div><span class="doc-estado">Congelado</span><span class="doc-estado g">v2.1 · 17 de septiembre de 2026</span></div>
+        <h1 style="margin-top:10px;">08 · Prototipo interactivo del panel de jefatura</h1>
+        <div class="subt">Cola de revisión, inventario, revisiones caducadas, registro, papelera, voluntarios y ajustes, con todas las acciones operativas sobre datos de ejemplo.</div>
+        <div class="meta">Propietario del aspecto y el comportamiento de cada pantalla del panel. Cambia con conformidad de jefatura. Sustituye al mockup parcialmente interactivo de la v1.0.</div>
+      </div>
+    </header>
+    <section id="admin">
+      <h2><span class="sec-num">08</span>Panel de jefatura (prototipo interactivo)</h2>
+      <p class="lead">Todo funciona con datos de ejemplo que viven en esta página y se reinician al recargar: aprobar crea o cambia puntos del inventario, cada acción escribe en el Registro, la Salud se recalcula, la papelera y las revisiones caducadas se derivan de los datos reales. Requisitos en <strong>01</strong> §8–11 (FR-100 a FR-145); flujos en <strong>02</strong> FL-20 a FL-31; contratos en <strong>05</strong> §6.2.</p>
+      <table class="doc-tabla" style="margin-bottom:8px;font-size:14px;">
+        <tr><th>Pestaña</th><th>Flujos</th><th>Qué se puede hacer</th></tr>
+        <tr><td>Cola de revisión</td><td>FL-21–23</td><td>filtrar por operación y núcleo, buscar, seleccionar y aprobar en bloque, rechazar en bloque con motivo común, aprobar con correcciones (formulario), rechazar con motivo, comparar y fusionar el duplicado eligiendo qué prevalece, confirmar la propuesta desactualizada, editar la dirección deducida, ver el historial de lo ya decidido</td></tr>
+        <tr><td>Inventario</td><td>FL-24</td><td>filtros por tipo, estado, núcleo, Ø y caducidad; ordenar por columna; paginar; editar un punto; editar la dirección en la celda; retirar; borrar a papelera; ver el historial del punto; vista mapa con los puntos reales</td></tr>
+        <tr><td>Revisiones caducadas</td><td>FL-25</td><td>desplegar núcleos; hoja de campo imprimible por núcleo (abre la vista de impresión)</td></tr>
+        <tr><td>Registro</td><td>FL-26</td><td>filtrar por acción y texto; exportar CSV</td></tr>
+        <tr><td>Papelera</td><td>FL-24</td><td>restaurar, borrar definitivamente, purgar lo caducado</td></tr>
+        <tr><td>Voluntarios</td><td>FL-27</td><td>actividad a 3 y 12 meses (se recalcula con lo que apruebes); anonimizar con confirmación; resolver y reabrir incidencias</td></tr>
+        <tr><td>Ajustes</td><td>FL-29–31</td><td>ver y cambiar el código (con o sin revocar, con confirmación); añadir, activar y desactivar administradores; guardar parámetros (los meses de revisión cambian las caducadas); núcleos; salud; purga de fotos; descargar inventario JSON</td></tr>
+      </table>
+
+      <div class="sim" style="margin:0 0 10px;"><span class="lab">Simular:</span><button id="s-srv">Servidor Supabase caído</button><button id="s-prop" class="warn">Llega una propuesta nueva</button></div>
+      <div class="bleed" id="panel-wrap"><div class="desktop-frame" id="panel"><div id="srv-banner" style="display:none;background:var(--rojo-700);color:#fff;font-size:12.5px;padding:7px 16px;">Sin conexión con el servidor · mostrando datos de hace 3 min · las acciones se reintentarán solas</div>
+        <div class="desktop-bar">
+          <div class="t1">Hidrantes Albolote · Panel de jefatura</div>
+          <div class="gsearch">🔍 <input id="gsearch" placeholder="Buscar código, calle o voluntario…"></div>
+          <div class="t2">jefatura@albolote-pc.es</div>
+        </div>
+        <div class="tabs" id="tabs">
+          <div class="on" data-tab="cola">Cola de revisión <span class="badge" id="badge-cola">0</span></div>
+          <div data-tab="inventario">Inventario <span class="badge gris" id="badge-inv">0</span></div>
+          <div data-tab="caducadas">Revisiones caducadas <span class="badge gris" id="badge-cad">0</span></div>
+          <div data-tab="registro">Registro</div>
+          <div data-tab="papelera">Papelera <span class="badge gris" id="badge-pap">0</span></div>
+          <div data-tab="voluntarios">Voluntarios <span class="badge" id="badge-inc">0</span></div>
+          <div data-tab="ajustes">Ajustes</div>
+        </div>
+
+        <div class="panel on" data-panel="cola">
+          <div class="bulkbar">
+            <div class="cb" id="cb-todas"></div><span id="txt-sel">Ninguna seleccionada</span>
+            <div class="bb" id="btn-aprobar-lote">Aprobar seleccionadas</div><div class="bb" id="btn-rechazar-lote">Rechazar seleccionadas…</div>
+            <span id="est-chips" style="margin-left:6px;"><span class="fchip on" data-e="pendiente">Pendientes</span><span class="fchip" data-e="aprobada">Aprobadas</span><span class="fchip" data-e="rechazada">Rechazadas</span><span class="fchip" data-e="retirada">Retiradas por el autor</span></span>
+            <span style="margin-left:auto;">Filtrar: <select id="filtro-op" class="sel-mini"><option value="">todas las operaciones</option><option value="alta">altas</option><option value="revision">revisiones</option><option value="estado">cambios de estado</option><option value="datos">correcciones de datos</option><option value="ubicacion">correcciones de ubicación</option><option value="retirada">retiradas</option></select> <select id="filtro-nuc" class="sel-mini"><option value="">todos los núcleos</option></select></span>
+          </div>
+          <div id="lote-box"></div>
+          <div class="split"><div class="col-lista" id="lista-cola"></div><div class="col-detalle" id="detalle-cola"></div></div>
+        </div>
+
+        <div class="panel" data-panel="inventario">
+          <div class="bulkbar">
+            <span id="inv-chips"><span class="fchip on" data-f="todos">Todos</span><span class="fchip" data-f="hidrante">Hidrantes</span><span class="fchip" data-f="boca">Bocas de riego</span><span class="fchip" data-f="nf">No funciona</span><span class="fchip" data-f="cad">Sin revisar</span></span>
+            <select id="inv-nuc" class="sel-mini"><option value="">todos los núcleos</option></select><select id="inv-dia" class="sel-mini"><option value="">cualquier Ø</option><option value="100">100 mm</option><option value="70">70 mm</option><option value="45">45 mm</option></select>
+            <span style="margin-left:auto;display:flex;gap:6px;align-items:center;"><span style="font-size:11px;color:var(--texto-suave);">Exportar:</span><span class="bb" data-exp="xlsx">Excel</span><span class="bb" data-exp="csv">CSV</span><span class="bb" data-exp="geojson">GeoJSON</span><span class="fchip on" id="vista-tabla">Tabla</span><span class="fchip" id="vista-mapa">Mapa</span></span>
+          </div>
+          <div id="inv-box"></div>
+          <div id="inv-tabla"><table class="desktop-table"><thead id="inv-head"><tr><th data-s="cod">Código</th><th data-s="tipo">Tipo</th><th data-s="d">Ø</th><th data-s="caudal">Estado</th><th data-s="dir">Dirección</th><th data-s="nucleo">Núcleo</th><th data-s="rev">Última revisión</th><th>Acciones</th></tr></thead><tbody id="inv-body"></tbody></table>
+            <div class="vacio" id="inv-vacio" style="display:none;">Ningún punto cumple ese filtro.</div>
+            <div class="inv-foot"><span id="inv-cuenta"></span><span class="pg" id="inv-pg"></span></div></div>
+          <div id="inv-mapa" class="pn-map" style="display:none;padding:14px;"></div>
+        </div>
+
+        <div class="panel" data-panel="caducadas">
+          <div class="bulkbar"><span id="cad-txt"></span><div class="bb" id="btn-imprimir">🖨 Hoja de campo de todos los núcleos</div></div>
+          <div id="cad-lista"></div>
+          <div class="pn-tip">La hoja se abre en la vista de impresión del navegador: una página por núcleo con código, dirección (o coordenadas), tipo, Ø, último estado y una casilla para anotar la revisión.</div>
+        </div>
+
+        <div class="panel" data-panel="registro">
+          <div class="bulkbar"><span>Filtrar: <select id="filtro-reg" class="sel-mini"><option value="">todas las acciones</option></select></span><input id="reg-q" class="sel-mini" placeholder="actor, punto o texto…" style="width:190px;"><div class="bb" id="btn-reg-csv">Exportar CSV</div><span style="margin-left:auto;" id="reg-cuenta"></span></div>
+          <table class="desktop-table"><thead><tr><th>Momento</th><th>Actor</th><th>Acción</th><th>Punto</th><th>Detalle</th></tr></thead><tbody id="reg-body"></tbody></table>
+        </div>
+
+        <div class="panel" data-panel="papelera">
+          <div class="bulkbar"><span id="pap-txt">Los borrados se conservan 30 días y después se purgan.</span><div class="bb" id="btn-purgar-pap">Purgar lo caducado</div></div>
+          <div id="pap-box"></div>
+          <table class="desktop-table"><thead><tr><th>Código</th><th>Tipo</th><th>Borrado</th><th>Por</th><th>Motivo</th><th>Acciones</th></tr></thead><tbody id="pap-body"></tbody></table>
+          <div class="vacio" id="pap-vacio" style="display:none;">La papelera está vacía.</div>
+        </div>
+
+        <div class="panel" data-panel="voluntarios">
+          <div class="bulkbar"><span>Actividad de los últimos <select class="sel-mini" id="act-meses"><option value="3">3 meses</option><option value="12">12 meses</option></select></span><span style="margin-left:auto;">Solo visible aquí. No es un ranking público.</span></div>
+          <div id="act-box"></div>
+          <table class="desktop-table"><thead><tr><th>Voluntario</th><th>Propuestas</th><th>Aprobadas</th><th>Rechazadas</th><th>Tasa</th><th>Última</th><th></th></tr></thead><tbody id="act-body"></tbody></table>
+          <div class="bulkbar" style="border-top:1px solid var(--linea);margin-top:6px;"><span><strong style="color:var(--marino-950);">Incidencias de la aplicación</strong> · lo que llega desde "algo no funciona"</span><span style="margin-left:auto;" id="inc-cuenta"></span></div>
+          <table class="desktop-table"><thead><tr><th>Cuándo</th><th>Versión · pantalla</th><th>Descripción</th><th>Estado</th><th></th></tr></thead><tbody id="inc-body"></tbody></table>
+        </div>
+
+        <div class="panel" data-panel="ajustes">
+          <div class="aj-grid">
+            <div class="aj-card"><div class="aj-t">Código de acceso</div><div class="aj-d" id="cod-info"></div>
+              <div class="cod-box"><span id="cod-valor">••••••</span> <span class="cod-ver" id="cod-ver">ver</span></div>
+              <div class="aj-acciones"><span class="bb" id="btn-codigo">Generar uno nuevo</span><label class="aj-check"><input type="checkbox" id="chk-revocar"> Revocar todos los dispositivos</label></div>
+              <div class="aj-d" style="margin:8px 0 0;">Sin revocar: quien ya entró sigue trabajando y solo los móviles nuevos necesitan el código nuevo. Revocando: todos vuelven a teclearlo. Es lo que se usa si el código se ha filtrado.</div>
+              <div id="conf-codigo"></div><div class="aj-aviso" id="aviso-codigo"></div></div>
+            <div class="aj-card"><div class="aj-t">Salud del sistema</div><div id="salud"></div>
+              <div class="aj-acciones"><span class="bb" id="btn-purgar">Purgar fotos huérfanas</span><span class="bb" id="btn-json">Descargar inventario (JSON)</span></div><div class="aj-aviso" id="aviso-purga"></div></div>
+            <div class="aj-card" style="grid-column:1/-1;"><div class="aj-t">Acceso de administradores</div><div class="aj-d">Lista propia de hidrantes, independiente de la app de uniformidad. Al escribir un correo se sugieren los que ya existen allí.</div>
+              <table class="desktop-table" style="margin-top:8px;"><tbody id="usr-body"></tbody></table>
+              <div class="aj-acciones"><input id="usr-nuevo" class="sel-mini" placeholder="correo@albolote-pc.es" style="min-width:260px;padding:4px 8px;"><span class="bb" id="btn-usr-add">Añadir</span></div>
+              <div class="pn-sug" id="usr-sug"></div><div class="aj-aviso" id="aviso-usr"></div></div>
+            <div class="aj-card"><div class="aj-t">Parámetros</div><div class="par-grid" id="par-grid"></div>
+              <div class="aj-acciones"><span class="bb" id="btn-guardar-par">Guardar cambios</span><span style="font-size:11.5px;color:var(--texto-suave);">Los móviles los aplican en su próxima sincronización.</span></div><div class="aj-aviso" id="aviso-par"></div></div>
+            <div class="aj-card"><div class="aj-t">Núcleos</div><div class="aj-d">Deducidos automáticamente de OpenStreetMap. Se puede renombrar uno o añadir el que falte.</div><div id="nuc-lista"></div>
+              <div class="aj-acciones"><input id="nuc-nuevo" class="sel-mini" placeholder="Nuevo núcleo" style="min-width:160px;padding:4px 8px;"><span class="bb" id="btn-nuc-add">Añadir</span></div></div>
+            <div class="aj-card"><div class="aj-t">Mantenimiento</div><div class="aj-d">Trabajos que se ejecutan fuera de la aplicación (GitHub Actions). Tardan unos minutos; el resultado aparece en Salud del sistema y en el Registro.</div>
+              <div class="aj-acciones"><span class="bb" data-wf="regenerar-zona">Regenerar zona de cobertura</span><span class="bb" data-wf="regenerar-mapabase">Regenerar mapa base</span><span class="bb" data-wf="respaldo">Respaldo ahora</span></div><div class="aj-aviso" id="aviso-wf"></div></div>
+            <div class="aj-card"><div class="aj-t">Avisos para jefatura</div><div class="aj-d">Notificaciones en este navegador. Opcionales; como mucho una por hora.</div>
+              <div class="aj-row" style="border:none;padding:6px 0;"><div><div>Nuevas propuestas pendientes</div><div class="s">agrupadas: una por hora como máximo</div></div><span class="sw" data-push="nuevas"></span></div>
+              <div class="aj-row" style="border:none;padding:6px 0;"><div><div>Resumen semanal</div><div class="s">los lunes: revisiones caducadas y pendientes antiguas</div></div><span class="sw" data-push="resumen"></span></div>
+              <div class="aj-aviso" id="aviso-push"></div></div>
+            <div class="aj-card"><div class="aj-t">Código QR del enlace</div><div class="aj-d">Para la sede y las reuniones: quien lo escanea abre la aplicación.</div><div id="qr-box" style="display:flex;gap:14px;align-items:center;margin-top:8px;"><div id="qr"></div><div style="font-size:12px;"><div class="mono" style="font-size:11px;">hidrantes-albolote.pages.dev</div><div class="aj-acciones" style="margin-top:8px;"><span class="bb" id="btn-qr-print">Imprimir A4</span></div></div></div></div>
+            <div class="aj-card"><div class="aj-t">Novedades</div><div class="aj-d">Lo que cambió en las últimas versiones, generado desde el registro de cambios del repositorio.</div><div id="novedades" style="font-size:12px;margin-top:6px;"><div class="hist-row"><b>1.0.3</b> · Aprobar con correcciones abre un formulario en la misma pantalla.</div><div class="hist-row"><b>1.0.3</b> · Comparación de duplicados con elección de campo al fusionar.</div><div class="hist-row"><b>1.0.2</b> · Historial de propuestas aprobadas y rechazadas en la cola.</div></div></div>
+          </div>
+        </div>
+        <div class="panel-foot">Direcciones deducidas con Nominatim · © OpenStreetMap contributors · <span id="foot-reg"></span></div>
+      </div><div class="panel-hint" id="panel-hint"></div></div>
+      <div class="mockup-caption" style="max-width:none;margin-top:10px;">Sugerencia de recorrido: aprueba las dos revisiones de Luis en bloque; abre el alta de Pretel y fusiónala con BOC-0088; abre la de HID-0044 (desactualizada) y confírmala; corrige el alta del Parque del Cubillas (diámetro "otra medida"); después mira Inventario, Registro y Salud para ver el efecto.</div>
+    </section>
+
+  </main>
+</div>
+<script>
+(function(){
+  var $=function(q,el){return (el||document).querySelector(q)}, $$=function(q,el){return Array.prototype.slice.call((el||document).querySelectorAll(q))};
+  var ADMIN='jefatura@albolote-pc.es', HOY=new Date(2026,8,17,10,30);
+  var OPS={alta:['Alta','lbl-alta'],revision:['Revisión','lbl-rev'],estado:['Estado','lbl-estado'],datos:['Datos','lbl-datos'],ubicacion:['Ubicación','lbl-datos'],retirada:['Retirada','lbl-ret']};
+  var NOM={bueno:'Bueno',regular:'Regular',malo:'Malo',no_funciona:'No funciona'}, CH={bueno:'chip-verde',regular:'chip-ambar',malo:'chip-rojo',no_funciona:'chip-gris'}, DOT={bueno:'dot-verde',regular:'dot-ambar',malo:'dot-rojo',no_funciona:'dot-gris'};
+  var COL={bueno:'#2E7D4F',regular:'#8A6408',malo:'#9C2B1E',no_funciona:'#40453D'};
+  var config={meses_revision:12,radio_duplicado_m:25,dias_papelera:30,buffer_zona_m:400,escala_radios:'11 · 9 · 7 · 5,5 · 5',max_subidas_dispositivo_dia:40,codigo:'482917',codigo_cambiado:'2 sep 2026',codigo_por:'jefe@albolote-pc.es',dispositivos:61,ultimo_respaldo:'hace 2 días · restaurado con éxito el 3 sep',storage_mb:112,version_zona:'14 jul 2026',version_mapabase:'jul 2026 · 12 MB'};
+  var nucleos=['Albolote','El Chaparral','Pol. Ind. Juncaril','Cortijo del Aire','Parque del Cubillas','Pretel','Loma Verde','Calicasas'];
+  var d=function(dias){ return new Date(HOY.getTime()-dias*86400000) };
+  var puntos=[
+   {id:1,cod:'HID-0147',tipo:'hidrante',d:100,caudal:'bueno',dir:'C/ Real 14',nucleo:'Albolote',rev:d(28),desc:'Junto al portal 14',x:150,y:210},
+   {id:2,cod:'HID-0212',tipo:'hidrante',d:70,caudal:'regular',dir:'Av. de Andalucía 8',nucleo:'Albolote',rev:d(95),x:220,y:100},
+   {id:3,cod:'BOC-0088',tipo:'boca',d:45,racor:'granada',caudal:'bueno',dir:'C/ Fuente 3',nucleo:'Pretel',rev:d(60),desc:'Frente al nº 3, tapa cuadrada',x:480,y:250},
+   {id:4,cod:'HID-0302',tipo:'hidrante',d:100,caudal:'no_funciona',fallo:'Tapa bloqueada',dir:'C/ Almendro 3',nucleo:'Loma Verde',rev:d(150),x:300,y:250},
+   {id:5,cod:'HID-0091',tipo:'hidrante',d:70,caudal:'bueno',dir:'C/ Sierra Elvira 8',nucleo:'El Chaparral',rev:d(430),x:330,y:160},
+   {id:6,cod:'HID-0155',tipo:'hidrante',d:70,caudal:'malo',dir:'C/ Baza 10',nucleo:'Pol. Ind. Juncaril',rev:d(240),x:560,y:100},
+   {id:7,cod:'BOC-0231',tipo:'boca',d:45,racor:'barcelona',caudal:'bueno',dir:'Plaza Mayor',nucleo:'Cortijo del Aire',rev:d(520),x:640,y:210},
+   {id:8,cod:'HID-0044',tipo:'hidrante',d:100,caudal:'regular',dir:'C/ Cubillas 17',nucleo:'Albolote',rev:d(1),desc:'Cambió ayer: bueno → regular',x:100,y:250},
+   {id:9,cod:'HID-0118',tipo:'hidrante',d:100,caudal:'regular',dir:'',nucleo:'Parque del Cubillas',rev:d(400),x:450,y:160},
+   {id:10,cod:'BOC-0140',tipo:'boca',d:45,racor:'granada',caudal:'regular',dir:'C/ Fuente 9',nucleo:'Pretel',rev:d(395),x:520,y:250},
+   {id:11,cod:'HID-0089',tipo:'hidrante',d:70,caudal:'bueno',dir:'C/ Sierra Elvira 21',nucleo:'El Chaparral',rev:d(370),x:370,y:60},
+   {id:12,cod:'HID-0210',tipo:'hidrante',d:70,caudal:'bueno',dir:'Av. de Andalucía 40',nucleo:'Albolote',rev:d(120),x:180,y:100},
+   {id:13,cod:'HID-0266',tipo:'hidrante',d:70,caudal:'bueno',dir:'C/ Granada 4',nucleo:'Albolote',rev:d(20),situacion:'borrado',borrado:d(8),borradoPor:ADMIN,motivoBorrado:'Duplicado de HID-0265',x:60,y:60},
+   {id:14,cod:'BOC-0301',tipo:'boca',d:45,racor:'otro',caudal:'malo',dir:'C/ Real 40',nucleo:'Albolote',rev:d(180),situacion:'borrado',borrado:d(15),borradoPor:ADMIN,motivoBorrado:'Alta por error',x:80,y:210}
+  ];
+  puntos.forEach(function(p){ p.situacion=p.situacion||'activo'; p.desc=p.desc||'' });
+  var nextHid=312,nextBoc=232,seq=100;
+  var props=[
+   {id:1,cod:'HID-0147',pid:1,op:'estado',autor:'Sara Ruiz Molina',disp:'d-sara',creada:d(0.1),nucleo:'Albolote',dir:'C/ Real 14',datos:{caudal:'regular',nota:'Sale menos fuerza que en mayo'},meta:[['ok','✓ GPS en campo · ±4 m · a 6 m del punto'],['ok','✓ Con foto']]},
+   {id:2,cod:null,pid:null,op:'alta',autor:'Ana García Ruiz',disp:'d-ana',creada:d(0.13),nucleo:'Pol. Ind. Juncaril',dir:'C/ Loja 22',dirDed:true,datos:{tipo:'hidrante',d:100,caudal:'bueno'},x:600,y:60,meta:[['ok','✓ GPS en campo · ±2 m'],['ok','✓ Con foto · EXIF a 4 m del pin'],['ok','✓ Sin duplicados cerca']]},
+   {id:3,cod:'HID-0088',pid:null,op:'revision',autor:'Luis Martín Peña',disp:'d-luis',creada:d(0.2),nucleo:'El Chaparral',dir:'C/ Sierra Elvira 8',datos:{},meta:[['ok','✓ GPS en campo · ±6 m'],['ok','✓ Con foto']],pidCod:'HID-0091'},
+   {id:4,cod:'HID-0089',pid:11,op:'revision',autor:'Luis Martín Peña',disp:'d-luis',creada:d(0.2),nucleo:'El Chaparral',dir:'C/ Sierra Elvira 21',datos:{},meta:[['ok','✓ GPS en campo · ±5 m'],['ok','✓ Con foto']]},
+   {id:5,cod:'BOC-0231',pid:7,op:'retirada',autor:'Ana García Ruiz',disp:'d-ana',creada:d(1),nucleo:'Cortijo del Aire',dir:'Plaza Mayor',datos:{motivo:'asfaltado',texto:'Asfaltado de la calle, ya no existe'},meta:[['ok','✓ GPS en campo · ±3 m'],['ok','✓ Con foto']]},
+   {id:6,cod:'HID-0302',pid:4,op:'datos',autor:'Javier Ortiz Sanz',disp:'d-javier',creada:d(1),nucleo:'Loma Verde',dir:'C/ Almendro 3',datos:{d:70},meta:[['','Pin colocado a mano · 24 m del GPS (±8 m)'],['ok','✓ Con foto']]},
+   {id:7,cod:'HID-0155',pid:6,op:'estado',autor:'Marta León Gil',disp:'d-marta',creada:d(1.1),nucleo:'Pol. Ind. Juncaril',dir:'C/ Baza 10',datos:{caudal:'no_funciona',fallo:'Válvula rota, no gira'},meta:[['ok','✓ GPS en campo · ±7 m'],['ok','✓ Con foto']]},
+   {id:8,cod:null,pid:null,op:'alta',autor:'Javier Ortiz Sanz',disp:'d-javier',creada:d(2),nucleo:'Pretel',dir:'C/ Fuente 5',dirDed:true,datos:{tipo:'boca',d:45,racor:'granada',caudal:'bueno'},x:488,y:262,dup:3,meta:[['ok','✓ GPS en campo · ±8 m'],['ok','✓ Con foto'],['warn','⚠ Boca de riego activa a 11 m (BOC-0088) — posible duplicado']]},
+   {id:9,cod:'HID-0091',pid:5,op:'revision',autor:'Marta León Gil',disp:'d-marta',creada:d(2),nucleo:'El Chaparral',dir:'C/ Sierra Elvira 8',datos:{},meta:[['ok','✓ GPS en campo · ±4 m'],['ok','✓ Con foto']]},
+   {id:10,cod:'HID-0210',pid:12,op:'ubicacion',autor:'Sara Ruiz Molina',disp:'d-sara',creada:d(3),nucleo:'Albolote',dir:'Av. de Andalucía 42',dirDed:true,datos:{desplazamiento:18},x:200,y:110,meta:[['ok','✓ GPS en campo · ±2 m'],['ok','✓ Con foto']]},
+   {id:11,cod:null,pid:null,op:'alta',autor:'Luis Martín Peña',disp:'d-luis',creada:d(3),nucleo:'Parque del Cubillas',dir:'Camino del Cubillas',dirDed:true,datos:{tipo:'hidrante',d:'otro',otro:'80',caudal:'no_funciona',fallo:'Arqueta enterrada bajo tierra'},x:430,y:190,meta:[['','Pin colocado a mano · 31 m del GPS'],['warn','⚠ Foto hecha a 620 m del pin (EXIF)'],['warn','⚠ Diámetro "otra medida": fijar 70 o 100 al aprobar']]},
+   {id:12,cod:'HID-0044',pid:8,op:'estado',autor:'Ana García Ruiz',disp:'d-ana',creada:d(4),nucleo:'Albolote',dir:'C/ Cubillas 17',datos:{caudal:'no_funciona',fallo:'No se puede abrir la tapa'},base:{caudal:'bueno'},meta:[['ok','✓ GPS en campo · ±5 m'],['ok','✓ Con foto']]},
+   {id:13,cod:null,pid:null,op:'alta',autor:'Marta León Gil',disp:'d-marta',creada:d(5),nucleo:'Fuera de zona · Peligros',dir:'Ctra. de Peligros, km 2',dirDed:true,fuera:true,datos:{tipo:'hidrante',d:70,caudal:'bueno'},x:690,y:270,meta:[['ok','✓ GPS en campo · ±3 m'],['ok','✓ Con foto'],['warn','⚠ Fuera de la zona habitual (apoyo a Peligros)']]},
+   {id:14,cod:'HID-0212',pid:2,op:'estado',autor:'Pedro Navarro Ríos',disp:'d-pedro',creada:d(20),nucleo:'Albolote',dir:'Av. de Andalucía 8',datos:{caudal:'bueno'},estado:'aprobada',revisadaPor:ADMIN,revisada:d(19),meta:[['ok','✓ GPS en campo · ±5 m'],['ok','✓ Con foto']]},
+   {id:15,cod:'HID-0088',pid:null,op:'revision',autor:'Luis Martín Peña',disp:'d-luis',creada:d(7),nucleo:'El Chaparral',dir:'C/ Sierra Elvira 8',datos:{},estado:'rechazada',revisadaPor:ADMIN,revisada:d(6.5),motivo:'La foto es del hidrante de al lado (HID-0087).',meta:[['ok','✓ Con foto']]}
+  ];
+  props.forEach(function(p){ p.estado=p.estado||'pendiente'; p.dirEd=p.dir });
+  props[2].pid=5; props[2].cod='HID-0091'; props[2].dir='C/ Sierra Elvira 8';
+  var registro=[
+   {m:d(6),actor:ADMIN,admin:true,accion:'aprobacion',cod:'HID-0212',det:'Estado: regular → bueno · dirección deducida: Av. de Andalucía 8'},
+   {m:d(0.1),actor:'Sara Ruiz Molina',accion:'propuesta_creada',cod:'HID-0147',det:'Cambio de estado'},
+   {m:d(6.5),actor:ADMIN,admin:true,accion:'rechazo',cod:'HID-0091',det:'"La foto es del hidrante de al lado (HID-0087)"'},
+   {m:d(7),actor:ADMIN,admin:true,accion:'codigo_cambiado',cod:'—',det:'Código de acceso cambiado · sin revocar dispositivos'},
+   {m:d(7.2),actor:ADMIN+' (móvil)',admin:true,accion:'edicion_admin',cod:'HID-0311',det:'Alta directa · hidrante 70 mm · El Chaparral · aplicada al momento'},
+   {m:d(8),actor:'Ana García Ruiz',accion:'propuesta_creada',cod:'HID-0311',det:'Alta · hidrante 100 mm · Albolote'},
+   {m:d(8),actor:ADMIN,admin:true,accion:'borrado',cod:'HID-0266',det:'"Duplicado de HID-0265" · a papelera'},
+   {m:d(9),actor:ADMIN,admin:true,accion:'retirada',cod:'BOC-0190',det:'"Sustituida por obra"'},
+   {m:d(15),actor:ADMIN,admin:true,accion:'borrado',cod:'BOC-0301',det:'"Alta por error" · a papelera'},
+   {m:d(10),actor:'Luis Martín Peña',accion:'propuesta_creada',cod:'HID-0091',det:'Revisión sin cambios'}
+  ];
+  var ACC={propuesta_creada:'Propuesta',propuesta_retirada_autor:'Retirada por el autor',aprobacion:'Aprobación',aprobacion_con_correcciones:'Aprobación con correcciones',rechazo:'Rechazo',fusion:'Fusión',edicion_admin:'Edición directa',retirada:'Retirada',borrado:'Borrado',restauracion:'Restauración',purga_papelera:'Purga de papelera',codigo_cambiado:'Configuración',dispositivos_revocados:'Configuración',administrador_alta:'Configuración',administrador_baja:'Configuración',config_cambiada:'Configuración',incidencia_resuelta:'Incidencia',anonimizacion:'Anonimización',purga_fotos:'Purga de fotos',direccion_editada:'Dirección',nucleo:'Configuración'};
+  var admins=[{email:'jefe@albolote-pc.es',info:'propietario · desde el arranque',activo:true},{email:ADMIN,info:'añadido el 3 sep 2026 por jefe@',activo:true},{email:'secretaria@albolote-pc.es',info:'añadido el 3 sep 2026 por jefe@',activo:true},{email:'almacen@albolote-pc.es',info:'desactivado el 9 sep 2026',activo:false}];
+  var sugerencias=['tesoreria@albolote-pc.es','formacion@albolote-pc.es','logistica@albolote-pc.es'];
+  var incidencias=[{m:d(0.1),v:'1.0.3 · Nuevo punto',t:'"Al hacer la foto la app se cierra y pierdo lo que había escrito" · Android 12',estado:'abierta'},{m:d(1.5),v:'1.0.2 · Mapa',t:'"El mapa sale en blanco en el Cortijo del Aire aunque tengo el mapa descargado"',estado:'abierta'},{m:d(13),v:'1.0.2 · Entrada',t:'"No me deja entrar, dice código incorrecto" — era el código antiguo; resuelto con el nuevo',estado:'resuelta'}];
+  var actBase={3:{'Luis Martín Peña':[16,14,1,'d-luis'],'Ana García Ruiz':[12,10,1,'d-ana'],'Sara Ruiz Molina':[8,7,0,'d-sara'],'Marta León Gil':[6,4,1,'d-marta'],'Javier Ortiz Sanz':[4,2,1,'d-javier'],'Pedro Navarro Ríos':[1,1,0,'d-pedro']},
+               12:{'Luis Martín Peña':[59,53,3,'d-luis'],'Ana García Ruiz':[46,42,2,'d-ana'],'Sara Ruiz Molina':[36,33,1,'d-sara'],'Marta León Gil':[21,17,2,'d-marta'],'Javier Ortiz Sanz':[17,11,4,'d-javier'],'Pedro Navarro Ríos':[4,4,0,'d-pedro']}};
+  var anonimizados={};
+
+  /* ---------- utilidades ---------- */
+  var sel=new Set(), activa=1, filtro='', filtroNuc='', estadoF='pendiente', busca='', invF='todos', invNuc='', invDia='', invSort={k:'cod',asc:true}, invPage=0, PAGE=6, regF='', regQ='', actMeses=3, tab='cola';
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}) }
+  function punto(id){ return puntos.filter(function(p){return p.id===id})[0] }
+  function porCod(c){ return puntos.filter(function(p){return p.cod===c})[0] }
+  function porId(i){ return props.filter(function(x){return x.id===i})[0] }
+  function meses(dt){ return Math.floor((HOY-dt)/(30.4*86400000)) }
+  function hace(dt){ var h=(HOY-dt)/3600000; if(h<1) return 'hace '+Math.max(1,Math.round(h*60))+' min'; if(h<24) return 'hace '+Math.round(h)+' h'; var dd=Math.round(h/24); if(dd===1) return 'ayer'; if(dd<60) return 'hace '+dd+' días'; return 'hace '+meses(dt)+' meses' }
+  function fecha(dt){ return dt.getDate()+' '+['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][dt.getMonth()]+' '+String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0') }
+  function fechaC(dt){ return dt.getDate()+' '+['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][dt.getMonth()]+' '+dt.getFullYear() }
+  function caducado(p){ return meses(p.rev)>=config.meses_revision }
+  function activos(){ return puntos.filter(function(p){return p.situacion==='activo'}) }
+  function log(accion,cod,det,actor,admin){ registro.unshift({m:new Date(HOY.getTime()+(seq++)*1000),actor:actor||ADMIN,admin:admin!==false,accion:accion,cod:cod||'—',det:det}) }
+  function flash(t,panel){ var f=document.createElement('div'); f.className='flash'; f.textContent=t; var c=$('[data-panel="'+(panel||'cola')+'"]'); c.insertBefore(f,c.children[1]); setTimeout(function(){f.remove()},3400) }
+  function radio(dm,c){ var cap={100:3,70:2,45:1}[dm]||2, f={bueno:1,regular:.66,malo:.33,no_funciona:0}[c], p=cap*f; return p>=3?11:p>=1.9?9:p>=.9?7:p>0?5.5:5 }
+  function marcador(p,x,y,op){ op=op||{}; var r=radio(p.d,p.caudal)*(op.k||1), nf=p.caudal==='no_funciona', dash=caducado(p)?' stroke-dasharray="3 2.5"':'', s='';
+    if(p.tipo==='hidrante') s+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+COL[p.caudal]+'" stroke="#fff" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>'; else s+='<rect x="'+(x-r)+'" y="'+(y-r)+'" width="'+(2*r)+'" height="'+(2*r)+'" rx="3" fill="'+COL[p.caudal]+'" stroke="#fff" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>';
+    if(nf) s+='<line x1="'+(x-r)+'" y1="'+(y+r)+'" x2="'+(x+r)+'" y2="'+(y-r)+'" stroke="#fff" stroke-width="2"/>'; return s }
+  function fondo(w,h){ return '<rect width="'+w+'" height="'+h+'" fill="#EFECE3"/><g fill="#E2DED3"><rect x="30" y="24" width="170" height="60" rx="2"/><rect x="240" y="24" width="140" height="60" rx="2"/><rect x="430" y="24" width="200" height="60" rx="2"/><rect x="30" y="126" width="170" height="66" rx="2"/><rect x="240" y="126" width="140" height="66" rx="2"/><rect x="30" y="232" width="170" height="46" rx="2"/><rect x="240" y="232" width="140" height="46" rx="2"/><rect x="430" y="232" width="200" height="46" rx="2"/></g><rect x="430" y="126" width="200" height="66" rx="4" fill="#D3E0C6"/><rect x="665" y="0" width="60" height="'+h+'" fill="#E9EDE2"/><g stroke="#fff" stroke-linecap="round" fill="none"><path d="M0 100 H700" stroke-width="15"/><path d="M0 210 H700" stroke-width="11"/><path d="M220 0 V290" stroke-width="12"/><path d="M405 0 V290" stroke-width="15"/></g><circle cx="405" cy="100" r="21" fill="none" stroke="#fff" stroke-width="13"/><circle cx="405" cy="100" r="12" fill="#D3E0C6"/><path d="M660 -4 L668 300" stroke="#28517F" stroke-width="2" stroke-dasharray="9 7" opacity=".5"/><g font-family="Source Sans 3, sans-serif" font-size="10" fill="#8A9090"><text x="34" y="96">Av. de Andalucía</text><text x="34" y="206">C/ Real</text><text x="446" y="186">Parque del Cubillas</text><text x="672" y="20">fuera</text></g>' }
+
+  /* ---------- badges ---------- */
+  function badges(){ $('#badge-cola').textContent=props.filter(function(p){return p.estado==='pendiente'}).length; $('#badge-inv').textContent=activos().length; $('#badge-cad').textContent=activos().filter(caducado).length; $('#badge-pap').textContent=puntos.filter(function(p){return p.situacion==='borrado'}).length; var ab=incidencias.filter(function(i){return i.estado==='abierta'}).length; $('#badge-inc').textContent=ab; $('#badge-inc').className='badge'+(ab?'':' gris'); $('#foot-reg').textContent=registro.length+' entradas en el registro'; }
+  function nucSelects(){ ['#filtro-nuc','#inv-nuc'].forEach(function(q){ var s=$(q), v=s.value; s.innerHTML='<option value="">todos los núcleos</option>'+nucleos.map(function(n){return '<option'+(v===n?' selected':'')+'>'+n+'</option>'}).join('') }) }
+
+  /* ---------- COLA ---------- */
+  function coincide(p){ if(!busca) return true; var b=busca.toLowerCase(); return [p.cod,p.autor,p.nucleo,p.dirEd].join(' ').toLowerCase().indexOf(b)>-1 }
+  function visibles(){ return props.filter(function(p){return p.estado===estadoF&&(!filtro||p.op===filtro)&&(!filtroNuc||p.nucleo===filtroNuc)&&coincide(p)}) }
+  function desactualizada(p){ return !!p.base }
+  function pintarLista(){ var v=visibles(), h='';
+    v.forEach(function(p){ var o=OPS[p.op]; h+='<div class="qrow'+(p.id===activa?' sel':'')+'" data-id="'+p.id+'">'+(estadoF==='pendiente'?'<div class="cb'+(sel.has(p.id)?' on':'')+'" data-cb="'+p.id+'"></div>':'')+'<div style="flex:1;"><div><span class="lbl '+o[1]+'">'+o[0]+'</span> <span class="cod">'+(p.cod||'nuevo')+'</span>'+(p.meta.some(function(m){return m[0]==='warn'})||desactualizada(p)?' <span class="meta-tag warn" style="padding:0 5px;">⚠</span>':'')+'</div><div class="who">'+esc(p.autor)+' · '+hace(p.creada)+' · '+esc(p.dirEd)+' · '+esc(p.nucleo)+'</div></div></div>' });
+    if(!v.length) h='<div class="vacio">'+(busca?'Nada coincide con "'+esc(busca)+'".':estadoF==='pendiente'?'No queda ninguna propuesta pendiente con ese filtro. Buen trabajo.':'Todavía no hay propuestas en este estado.')+'</div>';
+    $('#lista-cola').innerHTML=h; var n=sel.size, pend=estadoF==='pendiente';
+    $('#txt-sel').innerHTML=pend?(n?'<strong style="color:var(--marino-950);">'+n+' seleccionada'+(n>1?'s':'')+'</strong>':'Ninguna seleccionada'):'Historial: solo lectura';
+    $('#btn-aprobar-lote').className='bb'+(n&&pend?'':' off'); $('#btn-rechazar-lote').className='bb'+(n&&pend?'':' off'); $('#cb-todas').style.visibility=pend?'visible':'hidden'; $('#cb-todas').className=(n&&n===v.length)?'on':''; badges(); }
+  function minimapa(p){ var x=p.x||300, y=p.y||150, ex=p.dup?punto(p.dup):null, orig=p.op==='ubicacion'&&p.pid?punto(p.pid):null;
+    var s='<div class="minimap" style="height:70px;"><svg viewBox="'+(x-150)+' '+(y-35)+' 300 70" width="100%" height="70" preserveAspectRatio="xMidYMid slice">'+fondo(700,290)+activos().filter(function(q){return !ex||q.id!==ex.id}).map(function(q){return marcador(q,q.x,q.y,{})}).join('');
+    if(ex) s+=marcador(ex,ex.x,ex.y,{})+'<text x="'+(ex.x+10)+'" y="'+(ex.y-10)+'" font-size="8" fill="#5A6472">'+ex.cod+' existente · a 11 m</text><line x1="'+x+'" y1="'+y+'" x2="'+ex.x+'" y2="'+ex.y+'" stroke="#8A6408" stroke-width="1" stroke-dasharray="2 2"/>';
+    if(orig) s+='<circle cx="'+orig.x+'" cy="'+orig.y+'" r="6" fill="none" stroke="#9C2B1E" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="'+orig.x+'" y1="'+orig.y+'" x2="'+x+'" y2="'+y+'" stroke="#9C2B1E" stroke-width="1"/>';
+    s+='<path d="M'+x+' '+(y-24)+' C'+(x+7)+' '+(y-24)+' '+(x+12)+' '+(y-19)+' '+(x+12)+' '+(y-12)+' C'+(x+12)+' '+(y-4)+' '+x+' '+(y+4)+' '+x+' '+(y+4)+' C'+x+' '+(y+4)+' '+(x-12)+' '+(y-4)+' '+(x-12)+' '+(y-12)+' C'+(x-12)+' '+(y-19)+' '+(x-7)+' '+(y-24)+' '+x+' '+(y-24)+' Z" fill="#DD5A1F" stroke="#fff" stroke-width="1.5"/></svg><div style="position:absolute;right:5px;bottom:3px;font-size:8px;color:#5A6472;background:rgba(255,255,255,.8);padding:0 3px;border-radius:2px;">'+(p.fuera?'límite municipal ┆':'puntos aprobados alrededor')+'</div></div>'; return s }
+  function diffRows(p){ var q=p.pid?punto(p.pid):null, rows=[], dt=p.datos;
+    if(p.op==='alta'){ rows=[['Tipo','',dt.tipo==='boca'?'Boca de riego':'Hidrante'],['Diámetro','',dt.d==='otro'?'Otra medida: "'+dt.otro+'"':dt.d+' mm']]; if(dt.racor) rows.push(['Racor','',dt.racor.charAt(0).toUpperCase()+dt.racor.slice(1)]); rows.push(['Estado','',NOM[dt.caudal]]); if(dt.fallo) rows.push(['Fallo','','"'+dt.fallo+'"']); rows.push(['Núcleo','',p.fuera?'fuera de zona':p.nucleo+' (deducido)']) }
+    if(p.op==='revision'){ rows=[['Estado','',(q?NOM[q.caudal]:'')+' · sin cambios'],['Revisión',q?fechaC(q.rev):'',fechaC(p.creada)]] }
+    if(p.op==='estado'){ var antes=p.base?p.base.caudal:(q?q.caudal:''); rows=[['Estado',NOM[antes]||'',NOM[dt.caudal]]]; if(dt.fallo) rows.push(['Fallo','','"'+dt.fallo+'"']); if(dt.nota) rows.push(['Nota','','"'+dt.nota+'"']); if(q&&p.base) rows.push(['Estado actual real','',NOM[q.caudal]+' (cambió después de la propuesta)']) }
+    if(p.op==='datos'){ if(dt.d!=null) rows.push(['Diámetro',(q?q.d:'')+' mm',dt.d+' mm']); if(dt.racor) rows.push(['Racor',q?q.racor:'',dt.racor]); if(dt.tipo) rows.push(['Tipo',q?q.tipo:'',dt.tipo]); if(q) rows.push(['Estado','',NOM[q.caudal]+' · sin cambios']) }
+    if(p.op==='ubicacion'){ rows=[['Ubicación','37.2281, -3.6553','37.2283, -3.6551'],['Desplazamiento','',dt.desplazamiento+' m'],['Dirección',q?q.dir:'',p.dirEd+' (deducida)']] }
+    if(p.op==='retirada'){ rows=[['Situación','Activo','Retirado'],['Motivo','',dt.motivo.charAt(0).toUpperCase()+dt.motivo.slice(1)+' · "'+dt.texto+'"']] }
+    return rows }
+  function pintarDetalle(){ var p=porId(activa); if(!p||p.estado!==estadoF){ $('#detalle-cola').innerHTML='<div class="vacio">Selecciona una propuesta de la lista.</div>'; return }
+    var o=OPS[p.op], dd=''; diffRows(p).forEach(function(f){ var val=f[1]?'<span class="old">'+esc(f[1])+'</span> → <span class="new">'+esc(f[2])+'</span>':(f[2].indexOf('sin cambios')>-1?'<span style="color:var(--texto-suave);">'+esc(f[2])+'</span>':'<span class="new">'+esc(f[2])+'</span>'); dd+='<div class="dr"><div class="dk">'+f[0]+'</div><div class="dv">'+val+'</div></div>' });
+    var m=p.meta.map(function(t){return '<span class="meta-tag '+t[0]+'">'+t[1]+'</span>'}).join('')+(desactualizada(p)?'<span class="meta-tag warn">⚠ El punto cambió después de esta propuesta</span>':'');
+    var conUbic=p.op==='alta'||p.op==='ubicacion', dirRow=conUbic?'<div class="dir-field"><span class="k">Dirección</span><span class="in" contenteditable="true" data-dir-ed="'+p.id+'">'+esc(p.dirEd)+'</span><span class="tg">deducida · editable</span></div>':'<div class="dir-field"><span class="k">Dirección</span><span class="in" style="border:none;">'+esc(p.dirEd)+'</span><span class="tg">del punto</span></div>';
+    var comp=''; if(p.dup&&p.estado==='pendiente'){ var ex=punto(p.dup), pr={Tipo:p.datos.tipo==='boca'?'Boca de riego':'Hidrante',Diámetro:p.datos.d+' mm',Racor:p.datos.racor||'—',Estado:NOM[p.datos.caudal],Revisión:'hoy',Dirección:p.dirEd}, exv={Tipo:ex.tipo==='boca'?'Boca de riego':'Hidrante',Diámetro:ex.d+' mm',Racor:ex.racor||'—',Estado:NOM[ex.caudal],Revisión:hace(ex.rev),Dirección:ex.dir};
+      var fila=function(k,a,b){return '<div class="cr"><span class="ck">'+k+'</span><span class="cv'+(a!==b?' dif':'')+'">'+esc(a)+'</span></div>'};
+      comp='<div class="det-sub" style="margin-top:2px;">Posible duplicado: compara antes de decidir. En ámbar, lo que difiere.</div><div class="compara"><div class="col"><div class="ch"><span>Propuesta</span><span style="color:var(--texto-suave);font-weight:400;">'+esc(p.autor.split(' ')[0])+'</span></div>'+Object.keys(pr).map(function(k){return fila(k,pr[k],exv[k])}).join('')+'<div class="cf">📷 foto nueva</div></div><div class="col ex"><div class="ch"><span>'+ex.cod+' existente</span><span style="color:var(--texto-suave);font-weight:400;">a 11 m</span></div>'+Object.keys(exv).map(function(k){return fila(k,exv[k],pr[k])}).join('')+'<div class="cf">📷 '+fechaC(ex.rev)+'</div></div></div>' }
+    var acc=''; if(p.estado==='pendiente'){ acc='<div class="det-acciones">'+(desactualizada(p)?'<span class="accion confirmar" data-ac="ap">Confirmar y aprobar</span>':'<span class="accion aprobar" data-ac="ap">Aprobar</span>')+'<span class="accion corregir" data-ac="co">Aprobar con correcciones</span>'+(p.dup?'<span class="accion fusionar" data-ac="fu">Fusionar con '+punto(p.dup).cod+'</span>':'')+'<span class="accion rechazar" data-ac="re">Rechazar…</span></div>'+(desactualizada(p)?'<div class="det-sub" style="margin-top:6px;color:var(--rojo-700);">El punto cambió después de que se enviara esta propuesta ('+NOM[p.base.caudal]+' → '+NOM[punto(p.pid).caudal]+' ayer). El diff se ha recalculado y se pide confirmación expresa.</div>':'')+'<div id="zona-motivo"></div>' }
+    else acc='<div class="det-revisada">'+(p.estado==='aprobada'?'✓ Aprobada':p.estado==='rechazada'?'✕ Rechazada':'↩ Retirada por el autor')+(p.revisadaPor?' por '+p.revisadaPor+' · '+hace(p.revisada):' · '+hace(p.revisada||p.creada))+(p.motivo?'<br>Motivo: "'+esc(p.motivo)+'"':'')+(p.correcciones?'<br>Con correcciones: '+esc(p.correcciones):'')+(p.fusion?'<br>Fusionada con '+p.fusion+(p.fusionDet?' · prevalece: '+esc(p.fusionDet):'')+'. No se creó un punto nuevo.':'')+(p.codFinal?'<br>Código asignado: <b>'+p.codFinal+'</b>':'')+'<br><span style="font-size:10.5px;">Consta en el Registro. Solo lectura.</span></div>';
+    $('#detalle-cola').innerHTML='<div class="det-h">'+(p.cod||'nuevo')+' · '+o[0]+'</div><div class="det-sub">Propuesto por '+esc(p.autor)+' · '+hace(p.creada)+' · '+esc(p.nucleo)+'</div>'+(conUbic?minimapa(p):'')+comp+dirRow+(comp?'':'<div class="diff">'+dd+'</div>')+'<div class="meta-row">'+m+'</div>'+(comp?'':'<div class="fotoslot" style="background:linear-gradient(180deg,#C6D2DA 0%,#AEBCC5 44%,#7A8582 45%,#8C968F 100%);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4);">📷 Foto del voluntario · toca para ampliar</div>')+acc; }
+  function aplicar(p,corr){ corr=corr||{}; var q=p.pid?punto(p.pid):null, dt=Object.assign({},p.datos,corr);
+    if(p.op==='alta'){ var boca=dt.tipo==='boca'; var np={id:1000+seq,cod:boca?'BOC-'+String(nextBoc++).padStart(4,'0'):'HID-'+String(nextHid++).padStart(4,'0'),tipo:dt.tipo,d:boca?45:+dt.d,racor:boca?dt.racor:null,caudal:dt.caudal,fallo:dt.fallo||'',dir:corr.dir!=null?corr.dir:p.dirEd,nucleo:p.fuera?'fuera de zona':p.nucleo,rev:HOY,desc:dt.desc||'',x:p.x||300,y:p.y||150,situacion:'activo'}; puntos.push(np); p.codFinal=np.cod; return np.cod }
+    if(!q) return p.cod; q.rev=HOY; if(corr.dir!=null) q.dir=corr.dir;
+    if(p.op==='estado'){ q.caudal=dt.caudal; q.fallo=dt.caudal==='no_funciona'?dt.fallo:'' }
+    if(p.op==='datos'){ if(dt.d!=null) q.d=+dt.d; if(dt.racor) q.racor=dt.racor; if(dt.tipo){ q.tipo=dt.tipo; q.cod=q.cod.replace(/^(HID|BOC)/,q.tipo==='boca'?'BOC':'HID') } }
+    if(p.op==='ubicacion'){ q.dir=corr.dir!=null?corr.dir:p.dirEd; if(p.x){ q.x=p.x; q.y=p.y } }
+    if(p.op==='retirada'){ q.situacion='retirado'; q.retirado=HOY; q.motivoRetirada=dt.texto }
+    return q.cod }
+  function resolver(ids,estado,extra){ ids.forEach(function(i){ var p=porId(i); if(p){ p.estado=estado; p.revisadaPor=ADMIN; p.revisada=new Date(HOY.getTime()+(seq++)*1000); if(extra) Object.assign(p,extra) } sel.delete(i) }); if(ids.indexOf(activa)>-1){ var v=visibles(); activa=v.length?v[0].id:null } pintarLista(); pintarDetalle(); }
+  $('#lista-cola').addEventListener('click',function(e){ var cb=e.target.closest('[data-cb]'); if(cb){ var i=+cb.dataset.cb; sel.has(i)?sel.delete(i):sel.add(i); pintarLista(); return } var r=e.target.closest('[data-id]'); if(r){ activa=+r.dataset.id; pintarLista(); pintarDetalle() } });
+  $('#detalle-cola').addEventListener('blur',function(e){ var d=e.target.closest('[data-dir-ed]'); if(!d) return; var p=porId(+d.dataset.dirEd), v=d.textContent.trim(); if(p&&v&&v!==p.dirEd){ p.dirEd=v; log('direccion_editada',p.cod||'nuevo','Dirección corregida a "'+v+'" antes de aprobar'); pintarLista() } },true);
+  $('#detalle-cola').addEventListener('click',function(e){ var a=e.target.closest('[data-ac]'); if(!a) return; var ac=a.dataset.ac, p=porId(activa), q=p.pid?punto(p.pid):null;
+    if(ac==='ap'){ var cod=aplicar(p); resolver([activa],'aprobada'); log(desactualizada(p)?'aprobacion':'aprobacion',cod,OPS[p.op][0]+(p.op==='alta'?' · nuevo punto '+cod:'')+(desactualizada(p)?' · confirmada pese a estar desactualizada':'')+' · dirección: '+p.dirEd); flash('Aprobada '+cod+(p.op==='alta'?' → código nuevo asignado':'')+'. Registrada en la auditoría; el autor lo verá en su móvil.'); pintarTodo(); return }
+    if(ac==='co'){ var f='<div class="corr-box"><div style="font-weight:700;margin-bottom:6px;">Corrige lo que haga falta y aprueba en un paso. Lo cambiado queda en el registro y lo ve el autor.</div>';
+      var dt=p.datos, tipo=dt.tipo||(q&&q.tipo)||'hidrante', dm=dt.d!=null?dt.d:(q?q.d:70), caudal=dt.caudal||(q?q.caudal:'bueno');
+      f+='<div class="cr"><label>Tipo</label><select data-c="tipo"><option value="hidrante"'+(tipo==='hidrante'?' selected':'')+'>Hidrante</option><option value="boca"'+(tipo==='boca'?' selected':'')+'>Boca de riego</option></select></div>';
+      f+='<div class="cr"><label>Diámetro</label><select data-c="d"><option value="70"'+(dm==70?' selected':'')+'>70 mm</option><option value="100"'+(dm==100?' selected':'')+'>100 mm</option><option value="45"'+(dm==45?' selected':'')+'>45 mm</option>'+(dm==='otro'?'<option value="otro" selected>Otra medida: '+esc(dt.otro)+' (no admitido)</option>':'')+'</select></div>';
+      f+='<div class="cr"><label>Estado</label><select data-c="caudal">'+Object.keys(NOM).map(function(k){return '<option value="'+k+'"'+(caudal===k?' selected':'')+'>'+NOM[k]+'</option>'}).join('')+'</select></div>';
+      f+='<div class="cr"><label>Fallo</label><input data-c="fallo" value="'+esc(dt.fallo||(q&&q.fallo)||'')+'"></div><div class="cr"><label>Dirección</label><input data-c="dir" value="'+esc(p.dirEd)+'"></div>';
+      if(dm==='otro') f+='<div style="font-size:11px;color:var(--ambar-700);margin:4px 0;">El diámetro "otra medida" hay que fijarlo en 70 o 100 para poder aprobar.</div>';
+      f+='<div class="det-acciones"><span class="accion aprobar" id="conf-corr">Guardar y aprobar</span><span class="accion corregir" id="canc-corr">Cancelar</span></div><div class="err" id="err-corr" style="color:var(--rojo-700);font-size:11px;display:none;"></div></div>';
+      $('#zona-motivo').innerHTML=f;
+      $('#conf-corr').onclick=function(){ var c={}; $$('#zona-motivo [data-c]').forEach(function(el){ c[el.dataset.c]=el.value }); if(c.d==='otro'){ $('#err-corr').style.display='block'; $('#err-corr').textContent='Fija el diámetro en 70 o 100.'; return } if(c.caudal==='no_funciona'&&!c.fallo.trim()){ $('#err-corr').style.display='block'; $('#err-corr').textContent='Con "No funciona" el fallo es obligatorio.'; return }
+        c.d=c.tipo==='boca'?45:+c.d; var cambios=[]; if(c.tipo!==tipo) cambios.push('tipo → '+c.tipo); if(c.d!==(dm==='otro'?-1:+dm)) cambios.push('diámetro '+(dm==='otro'?dt.otro:dm)+' → '+c.d+' mm'); if(c.caudal!==caudal) cambios.push('estado → '+NOM[c.caudal]); if(c.dir!==p.dirEd) cambios.push('dirección → '+c.dir);
+        var cod=aplicar(p,c); resolver([activa],'aprobada',{correcciones:cambios.join(', ')||'sin cambios de datos'}); log('aprobacion_con_correcciones',cod,cambios.join(', ')||'sin cambios'); flash('Aprobada con correcciones '+cod+'. '+(cambios.length?'Corregido: '+cambios.join(', ')+'.':'')); pintarTodo() };
+      $('#canc-corr').onclick=function(){ $('#zona-motivo').innerHTML='' }; return }
+    if(ac==='fu'){ var ex=punto(p.dup), pr={racor:p.datos.racor,caudal:p.datos.caudal,d:p.datos.d}, difs=[]; if(pr.racor&&pr.racor!==ex.racor) difs.push(['racor',pr.racor,ex.racor]); if(pr.caudal!==ex.caudal) difs.push(['caudal',NOM[pr.caudal],NOM[ex.caudal]]);
+      var h='<div class="fus-box"><div style="font-weight:700;">Fusionar con '+ex.cod+'</div><div style="margin:4px 0 8px;font-size:11px;">'+ex.cod+' conserva su código, recibe la foto nueva y queda revisado hoy. Para cada campo que difiere, elige qué prevalece.</div>'+difs.map(function(x){return '<div class="cr"><label>'+x[0]+'</label><select data-fk="'+x[0]+'"><option value="ex">'+x[2]+' (existente)</option><option value="pr">'+x[1]+' (propuesta)</option></select></div>'}).join('')+'<div class="cr"><label>Ubicación</label><select data-fk="ubic"><option value="ex">la de '+ex.cod+' (existente)</option><option value="pr">la del pin propuesto (11 m)</option></select></div>'+(difs.length?'':'<div style="font-size:11px;color:var(--texto-suave);">Ningún dato difiere: solo se actualizan foto y revisión.</div>')+'<div class="det-acciones"><span class="accion fusionar" id="conf-fus">Fusionar</span><span class="accion corregir" id="canc-fus">Cancelar</span></div></div>';
+      $('#zona-motivo').innerHTML=h;
+      $('#conf-fus').onclick=function(){ var det=[]; $$('#zona-motivo [data-fk]').forEach(function(s){ var k=s.dataset.fk; if(s.value!=='pr') return; if(k==='ubic'){ ex.x=p.x; ex.y=p.y; det.push('ubicación del pin propuesto') } else { if(k==='racor') ex.racor=pr.racor; if(k==='caudal') ex.caudal=pr.caudal; det.push(k+' de la propuesta') } }); ex.rev=HOY; resolver([activa],'aprobada',{fusion:ex.cod,fusionDet:det.join(', ')||'todo lo existente'}); log('fusion',ex.cod,'Alta de '+p.autor+' fusionada · prevalece: '+(det.join(', ')||'lo existente')+' · cuenta como revisión'); flash('Fusionada con '+ex.cod+'. No se ha creado un punto nuevo; '+ex.cod+' queda revisado hoy.'); pintarTodo() };
+      $('#canc-fus').onclick=function(){ $('#zona-motivo').innerHTML='' }; return }
+    if(ac==='re'){ $('#zona-motivo').innerHTML='<div class="motivo-box"><div style="font-size:11px;color:var(--texto-suave);margin-bottom:5px;">Motivo del rechazo (obligatorio, lo verá quien lo propuso)</div><textarea id="txt-motivo" placeholder="Ej.: la foto es del hidrante de al lado, HID-0087"></textarea><div class="err" id="err-motivo">Sin motivo no se puede rechazar.</div><div class="det-acciones"><span class="accion rechazar" id="conf-rech">Confirmar rechazo</span><span class="accion corregir" id="canc-rech">Cancelar</span></div></div>';
+      $('#conf-rech').onclick=function(){ var mot=$('#txt-motivo').value.trim(); if(!mot){ $('#err-motivo').style.display='block'; return } resolver([activa],'rechazada',{motivo:mot}); log('rechazo',p.cod||'nuevo','"'+mot+'"'); flash('Rechazada. El autor verá el motivo en su móvil.'); pintarTodo() }; $('#canc-rech').onclick=function(){ $('#zona-motivo').innerHTML='' } } });
+  $('#cb-todas').onclick=function(){ var v=visibles(); if(sel.size===v.length) sel.clear(); else v.forEach(function(p){sel.add(p.id)}); pintarLista() };
+  $('#btn-aprobar-lote').onclick=function(){ if(!sel.size) return; var ids=Array.from(sel), fuera=[], ok=[]; ids.forEach(function(i){ var p=porId(i); if(desactualizada(p)) fuera.push(p.cod+': desactualizada'); else if(p.datos.d==='otro') fuera.push('alta: diámetro sin fijar'); else if(p.pid&&punto(p.pid).situacion!=='activo') fuera.push(p.cod+': punto no activo'); else ok.push(i) });
+    ok.forEach(function(i){ var p=porId(i); var cod=aplicar(p); log('aprobacion',cod,OPS[p.op][0]+' · en bloque') }); resolver(ok,'aprobada'); flash(ok.length+' aprobadas en bloque, cada una con su entrada en el Registro.'+(fuera.length?' Omitidas: '+fuera.join('; ')+'. Siguen pendientes.':'')); pintarTodo() };
+  $('#btn-rechazar-lote').onclick=function(){ if(!sel.size) return; $('#lote-box').innerHTML='<div class="pn-box"><div class="row"><b>Rechazar '+sel.size+' propuestas con un motivo común</b></div><textarea id="lote-motivo" placeholder="Motivo que verán los autores"></textarea><div class="row" style="margin-top:6px;"><span class="accion rechazar" id="lote-ok">Confirmar rechazo</span><span class="accion corregir" id="lote-no">Cancelar</span><span id="lote-err" style="color:var(--rojo-700);font-size:11px;"></span></div></div>';
+    $('#lote-ok').onclick=function(){ var m=$('#lote-motivo').value.trim(); if(!m){ $('#lote-err').textContent='Sin motivo no se puede rechazar.'; return } var ids=Array.from(sel); ids.forEach(function(i){ var p=porId(i); log('rechazo',p.cod||'nuevo','"'+m+'" · en bloque') }); resolver(ids,'rechazada',{motivo:m}); $('#lote-box').innerHTML=''; flash(ids.length+' rechazadas. Cada autor verá el motivo.'); pintarTodo() }; $('#lote-no').onclick=function(){ $('#lote-box').innerHTML='' } };
+  $('#filtro-op').onchange=function(){ filtro=this.value; ajustaActiva() }; $('#filtro-nuc').onchange=function(){ filtroNuc=this.value; ajustaActiva() };
+  $('#est-chips').addEventListener('click',function(e){ var c=e.target.closest('.fchip'); if(!c) return; $$('.fchip',this).forEach(function(x){x.classList.remove('on')}); c.classList.add('on'); estadoF=c.dataset.e; sel.clear(); ajustaActiva() });
+  function ajustaActiva(){ var v=visibles(); if(!v.some(function(p){return p.id===activa})) activa=v.length?v[0].id:null; pintarLista(); pintarDetalle() }
+  $('#gsearch').addEventListener('input',function(){ busca=this.value.trim(); regQ=busca; $('#reg-q').value=busca; invPage=0; ajustaActiva(); pintarInv(); pintarReg() });
+
+  /* ---------- INVENTARIO ---------- */
+  function invFiltrado(){ var v=activos().filter(function(p){ if(busca&&[p.cod,p.dir,p.nucleo].join(' ').toLowerCase().indexOf(busca.toLowerCase())<0) return false; if(invNuc&&p.nucleo!==invNuc) return false; if(invDia&&p.d!==+invDia) return false; if(invF==='hidrante'||invF==='boca') return p.tipo===invF; if(invF==='nf') return p.caudal==='no_funciona'; if(invF==='cad') return caducado(p); return true });
+    var k=invSort.k, EL={bueno:0,regular:1,malo:2,no_funciona:3}; v.sort(function(a,b){ var x=k==='caudal'?EL[a.caudal]:k==='rev'?a.rev.getTime():a[k], y=k==='caudal'?EL[b.caudal]:k==='rev'?b.rev.getTime():b[k]; if(typeof x==='number') return invSort.asc?x-y:y-x; return invSort.asc?String(x).localeCompare(String(y),'es'):String(y).localeCompare(String(x),'es') }); return v }
+  function pintarInv(){ var v=invFiltrado(), pages=Math.max(1,Math.ceil(v.length/PAGE)); if(invPage>=pages) invPage=pages-1; var pg=v.slice(invPage*PAGE,(invPage+1)*PAGE);
+    $$('#inv-head th[data-s]').forEach(function(th){ var on=th.dataset.s===invSort.k; th.classList.toggle('sorted',on); th.textContent=th.textContent.replace(/ [▲▼]$/,'')+(on?(invSort.asc?' ▲':' ▼'):'') });
+    $('#inv-body').innerHTML=pg.map(function(p){ return '<tr><td class="mono">'+p.cod+'</td><td>'+(p.tipo==='boca'?'Boca de riego':'Hidrante')+'</td><td>'+p.d+' mm</td><td><span class="chip '+CH[p.caudal]+'"><span class="dot '+DOT[p.caudal]+'"></span>'+NOM[p.caudal]+'</span></td><td><span class="dir-edit'+(p.dir?'':' pend')+'" contenteditable="true" data-dir="'+p.id+'" title="Editar dirección">'+(p.dir?esc(p.dir):'— pendiente, escribe aquí')+'</span></td><td>'+esc(p.nucleo)+'</td><td'+(caducado(p)?' style="color:var(--rojo-700);font-weight:600;"':'')+'>'+hace(p.rev)+'</td><td style="white-space:nowrap;"><span class="accion editar" data-inv="editar" data-pid="'+p.id+'">Editar</span> <span class="accion editar" data-inv="retirar" data-pid="'+p.id+'">Retirar</span> <span class="accion editar" style="color:var(--rojo-700);" data-inv="borrar" data-pid="'+p.id+'">Borrar</span> <span class="accion editar" style="color:var(--texto-suave);" data-inv="hist" data-pid="'+p.id+'">Historial</span></td></tr>' }).join('');
+    $('#inv-vacio').style.display=v.length?'none':'block'; $('#inv-cuenta').innerHTML='Mostrando <strong style="color:var(--marino-950);">'+pg.length+'</strong> de '+v.length+' puntos'+(v.length!==activos().length?' (filtrados de '+activos().length+')':'')+' · '+PAGE+' por página · pulsa una columna para ordenar · la dirección se edita en la propia celda';
+    var pgh=''; for(var i=0;i<pages;i++) pgh+='<span class="'+(i===invPage?'on':'')+'" data-pg="'+i+'">'+(i+1)+'</span>'; $('#inv-pg').innerHTML=pgh; pintarInvMapa(); badges(); }
+  function pintarInvMapa(){ var v=invFiltrado(); $('#inv-mapa').innerHTML='<div class="maphold" style="height:290px;"><svg viewBox="0 0 700 290" preserveAspectRatio="xMidYMid slice">'+fondo(700,290)+v.map(function(p){return '<g class="mk" data-mk="'+p.id+'">'+marcador(p,p.x,p.y,{})+'<circle cx="'+p.x+'" cy="'+p.y+'" r="16" fill="transparent"/></g>'}).join('')+'</svg></div><div style="font-size:12px;color:var(--texto-suave);margin-top:9px;">'+v.length+' puntos con los filtros actuales. Pulsa uno para verlo en la tabla.</div>' }
+  $('#inv-head').addEventListener('click',function(e){ var th=e.target.closest('th[data-s]'); if(!th) return; var k=th.dataset.s; if(invSort.k===k) invSort.asc=!invSort.asc; else invSort={k:k,asc:true}; pintarInv() });
+  $('#inv-pg').addEventListener('click',function(e){ var s=e.target.closest('[data-pg]'); if(s){ invPage=+s.dataset.pg; pintarInv() } });
+  $('#inv-mapa').addEventListener('click',function(e){ var g=e.target.closest('[data-mk]'); if(!g) return; var p=punto(+g.dataset.mk); busca=p.cod; $('#gsearch').value=p.cod; $('#vista-tabla').click(); pintarInv() });
+  $('#inv-body').addEventListener('blur',function(e){ var d=e.target.closest('[data-dir]'); if(!d) return; var p=punto(+d.dataset.dir), v=d.textContent.trim(); if(p&&v&&v.indexOf('pendiente')<0&&v!==p.dir){ p.dir=v; log('direccion_editada',p.cod,'Dirección → "'+v+'"'); pintarInv(); flash('Dirección de '+p.cod+' guardada.','inventario') } },true);
+  $('#inv-body').addEventListener('click',function(e){ var a=e.target.closest('[data-inv]'); if(!a) return; var p=punto(+a.dataset.pid), k=a.dataset.inv, box=$('#inv-box');
+    if(k==='editar'){ box.innerHTML='<div class="pn-box"><div class="row"><b>Editar '+p.cod+'</b> <span style="font-size:11px;color:var(--texto-suave);">· edición directa de administrador: se aplica al momento y queda en el registro</span></div><div class="row"><label>Diámetro</label><select id="ed-d">'+(p.tipo==='boca'?'<option value="45">45 mm</option>':'<option value="70"'+(p.d===70?' selected':'')+'>70 mm</option><option value="100"'+(p.d===100?' selected':'')+'>100 mm</option>')+'</select><label>Estado</label><select id="ed-c">'+Object.keys(NOM).map(function(c){return '<option value="'+c+'"'+(p.caudal===c?' selected':'')+'>'+NOM[c]+'</option>'}).join('')+'</select></div>'+(p.tipo==='boca'?'<div class="row"><label>Racor</label><select id="ed-r">'+['granada','barcelona','otro'].map(function(r){return '<option value="'+r+'"'+(p.racor===r?' selected':'')+'>'+r+'</option>'}).join('')+'</select></div>':'')+'<div class="row"><label>Fallo</label><input id="ed-f" value="'+esc(p.fallo||'')+'"></div><div class="row"><label>Descripción</label><input id="ed-desc" value="'+esc(p.desc||'')+'"></div><div class="row"><label>Núcleo</label><select id="ed-n">'+nucleos.map(function(n){return '<option'+(p.nucleo===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select></div><div class="row"><span class="accion aprobar" id="ed-ok">Guardar</span><span class="accion corregir" id="ed-no">Cancelar</span><span id="ed-err" style="color:var(--rojo-700);font-size:11px;"></span></div></div>';
+      $('#ed-ok').onclick=function(){ var c=$('#ed-c').value, f=$('#ed-f').value.trim(); if(c==='no_funciona'&&!f){ $('#ed-err').textContent='Con "No funciona" el fallo es obligatorio.'; return } var cambios=[]; var nd=+$('#ed-d').value; if(nd!==p.d){ cambios.push('Ø '+p.d+' → '+nd); p.d=nd } if(c!==p.caudal){ cambios.push('estado '+NOM[p.caudal]+' → '+NOM[c]); p.caudal=c } p.fallo=c==='no_funciona'?f:''; if($('#ed-r')&&$('#ed-r').value!==p.racor){ cambios.push('racor → '+$('#ed-r').value); p.racor=$('#ed-r').value } var nn=$('#ed-n').value; if(nn!==p.nucleo){ cambios.push('núcleo → '+nn); p.nucleo=nn } p.desc=$('#ed-desc').value; log('edicion_admin',p.cod,cambios.join(', ')||'descripción'); box.innerHTML=''; pintarInv(); flash(p.cod+' actualizado'+(cambios.length?': '+cambios.join(', '):'')+'.','inventario'); pintarReg() }; $('#ed-no').onclick=function(){ box.innerHTML='' } }
+    if(k==='retirar'||k==='borrar'){ var ret=k==='retirar'; box.innerHTML='<div class="pn-box" style="border-color:var(--rojo-700);"><div class="row"><b>'+(ret?'Retirar':'Borrar')+' '+p.cod+'</b> <span style="font-size:11px;color:var(--texto-suave);">'+(ret?'· el punto existió y ya no está: desaparece del mapa y se conserva en el histórico':'· el registro nunca debió existir: va a la papelera '+config.dias_papelera+' días')+'</span></div><textarea id="rb-m" placeholder="Motivo (obligatorio)"></textarea><div class="row" style="margin-top:6px;"><span class="accion confirmar" id="rb-ok">'+(ret?'Retirar':'Borrar')+'</span><span class="accion corregir" id="rb-no">Cancelar</span><span id="rb-err" style="color:var(--rojo-700);font-size:11px;"></span></div></div>';
+      $('#rb-ok').onclick=function(){ var m=$('#rb-m').value.trim(); if(!m){ $('#rb-err').textContent='El motivo es obligatorio.'; return } if(ret){ p.situacion='retirado'; p.retirado=HOY; p.motivoRetirada=m; log('retirada',p.cod,'"'+m+'"') } else { p.situacion='borrado'; p.borrado=HOY; p.borradoPor=ADMIN; p.motivoBorrado=m; log('borrado',p.cod,'"'+m+'" · a papelera') } box.innerHTML=''; flash(p.cod+(ret?' retirado. Sigue en el registro e historial.':' enviado a la papelera. Recuperable '+config.dias_papelera+' días.'),'inventario'); pintarTodo() }; $('#rb-no').onclick=function(){ box.innerHTML='' } }
+    if(k==='hist'){ var h=registro.filter(function(r){return r.cod===p.cod}); box.innerHTML='<div class="pn-box"><div class="row"><b>Historial de '+p.cod+'</b><span class="accion corregir" id="h-no" style="margin-left:auto;">Cerrar</span></div><div class="pn-hist">'+(h.map(function(r){return '<div><span style="color:var(--texto-suave);white-space:nowrap;">'+fecha(r.m)+'</span> · <b>'+ACC[r.accion]+'</b> · '+esc(r.actor)+' · '+esc(r.det)+'</div>'}).join('')||'<div>Sin entradas: punto anterior al arranque del sistema.</div>')+'</div></div>'; $('#h-no').onclick=function(){ box.innerHTML='' } } });
+  $('#inv-chips').addEventListener('click',function(e){ var c=e.target.closest('.fchip'); if(!c) return; $$('.fchip',this).forEach(function(x){x.classList.remove('on')}); c.classList.add('on'); invF=c.dataset.f; invPage=0; pintarInv() });
+  $('#inv-nuc').onchange=function(){ invNuc=this.value; invPage=0; pintarInv() }; $('#inv-dia').onchange=function(){ invDia=this.value; invPage=0; pintarInv() };
+  $('#vista-tabla').onclick=function(){ this.classList.add('on'); $('#vista-mapa').classList.remove('on'); $('#inv-tabla').style.display='block'; $('#inv-mapa').style.display='none' };
+  $('#vista-mapa').onclick=function(){ this.classList.add('on'); $('#vista-tabla').classList.remove('on'); $('#inv-tabla').style.display='none'; $('#inv-mapa').style.display='block' };
+
+  /* ---------- CADUCADAS ---------- */
+  function pintarCad(){ var cad=activos().filter(caducado), g={}; cad.forEach(function(p){ (g[p.nucleo]=g[p.nucleo]||[]).push(p) }); var tot={}; activos().forEach(function(p){ tot[p.nucleo]=(tot[p.nucleo]||0)+1 });
+    $('#cad-txt').innerHTML='<strong style="color:var(--marino-950);">'+cad.length+' puntos</strong> sin revisar desde hace más de '+config.meses_revision+' meses (parámetro en Ajustes)';
+    $('#cad-lista').innerHTML=Object.keys(g).sort(function(a,b){return g[b].length-g[a].length}).map(function(n,i){ return '<div class="cad-grupo" data-g="'+i+'"><div class="n">'+g[n].length+'</div><div class="g">'+n+'<div style="font-size:11px;color:var(--texto-suave);">de '+tot[n]+' puntos del núcleo</div></div><div class="barra"><i style="width:'+Math.round(g[n].length/tot[n]*100)+'%"></i></div><span class="accion editar" data-hoja="'+esc(n)+'">🖨 Hoja</span><span style="font-size:11px;color:var(--texto-suave);">▾</span></div><div class="cad-detalle" data-d="'+i+'">'+g[n].map(function(p){return '<div>'+p.cod+' · '+(p.dir?esc(p.dir):'<span style="color:var(--ambar-700)">sin dirección (37.22'+(80+p.id)+', -3.65'+(50+p.id)+')</span>')+' · '+p.d+' mm · '+NOM[p.caudal]+' · '+hace(p.rev)+'</div>'}).join('')+'</div>' }).join('')||'<div class="vacio">Ningún punto lleva más de '+config.meses_revision+' meses sin revisar.</div>'; badges(); }
+  $('#cad-lista').addEventListener('click',function(e){ var h=e.target.closest('[data-hoja]'); if(h){ hoja(h.dataset.hoja); return } var g=e.target.closest('[data-g]'); if(!g) return; $('[data-d="'+g.dataset.g+'"]').classList.toggle('on') });
+  $('#btn-imprimir').onclick=function(){ hoja(null) };
+  function hoja(nuc){ var cad=activos().filter(caducado).filter(function(p){return !nuc||p.nucleo===nuc}), g={}; cad.forEach(function(p){ (g[p.nucleo]=g[p.nucleo]||[]).push(p) });
+    var html='<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Hoja de campo</title><style>body{font-family:Arial,sans-serif;font-size:12px;margin:24px}h1{font-size:16px;margin:0 0 4px}h2{font-size:14px;margin:0 0 10px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:24px}th,td{border:1px solid #999;padding:5px 6px;text-align:left}th{background:#eee}.c{width:70px}.chk{width:60px}@media print{.pb{page-break-after:always}}</style></head><body>'+Object.keys(g).map(function(n){return '<div class="pb"><h1>Revisiones caducadas · '+n+'</h1><h2>Protección Civil Albolote · impresa el '+fechaC(HOY)+' · '+g[n].length+' puntos · revisor: ____________________</h2><table><tr><th class="c">Código</th><th>Dirección / coordenadas</th><th>Tipo</th><th>Ø</th><th>Último estado</th><th>Última revisión</th><th class="chk">Revisado ✓</th><th>Estado hoy</th><th>Observaciones</th></tr>'+g[n].map(function(p){return '<tr><td>'+p.cod+'</td><td>'+(p.dir||('37.22'+(80+p.id)+', -3.65'+(50+p.id)))+'</td><td>'+(p.tipo==='boca'?'Boca de riego':'Hidrante')+'</td><td>'+p.d+' mm</td><td>'+NOM[p.caudal]+'</td><td>'+fechaC(p.rev)+'</td><td>☐</td><td>B / R / M / NF</td><td></td></tr>'}).join('')+'</table></div>'}).join('')+'</body></html>';
+    var w=window.open('','_blank'); if(!w){ flash('El navegador ha bloqueado la ventana de impresión. Permite ventanas emergentes para esta página.','caducadas'); return } w.document.write(html); w.document.close(); setTimeout(function(){ try{w.print()}catch(x){} },300); log('config_cambiada','—','Hoja de campo generada'+(nuc?' · '+nuc:' · todos los núcleos')+' · '+cad.length+' puntos',ADMIN); pintarReg() }
+
+  /* ---------- REGISTRO ---------- */
+  function pintarReg(){ var sel=$('#filtro-reg'), v=sel.value, tipos=[]; registro.forEach(function(r){ if(tipos.indexOf(ACC[r.accion])<0) tipos.push(ACC[r.accion]) }); sel.innerHTML='<option value="">todas las acciones</option>'+tipos.sort().map(function(t){return '<option'+(v===t?' selected':'')+'>'+t+'</option>'}).join('');
+    var q=regQ.toLowerCase(), rows=registro.filter(function(r){return (!regF||ACC[r.accion]===regF)&&(!q||[r.actor,r.cod,r.det].join(' ').toLowerCase().indexOf(q)>-1)});
+    $('#reg-body').innerHTML=rows.map(function(r){return '<tr><td style="white-space:nowrap;color:var(--texto-suave);">'+fecha(r.m)+'</td><td>'+esc(r.actor)+'</td><td><strong>'+ACC[r.accion]+'</strong></td><td class="mono">'+r.cod+'</td><td style="color:var(--texto-suave);">'+esc(r.det)+'</td></tr>'}).join('')||'<tr><td colspan="5" class="vacio">Nada coincide.</td></tr>';
+    $('#reg-cuenta').textContent=rows.length+' de '+registro.length+' entradas · no se puede editar ni borrar'; badges(); }
+  $('#filtro-reg').onchange=function(){ regF=this.value; pintarReg() }; $('#reg-q').addEventListener('input',function(){ regQ=this.value.trim(); pintarReg() });
+  function descargar(nombre,contenido,tipo){ var b=new Blob([contenido],{type:tipo}), u=URL.createObjectURL(b), a=document.createElement('a'); a.href=u; a.download=nombre; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(u)},1000) }
+  $('#btn-reg-csv').onclick=function(){ var csv='momento;actor;accion;punto;detalle\n'+registro.map(function(r){return [r.m.toISOString(),r.actor,ACC[r.accion],r.cod,r.det].map(function(x){return '"'+String(x).replace(/"/g,'""')+'"'}).join(';')}).join('\n'); descargar('registro-hidrantes.csv','\ufeff'+csv,'text/csv;charset=utf-8'); flash('Registro exportado ('+registro.length+' entradas).','registro') };
+
+  /* ---------- PAPELERA ---------- */
+  function pintarPap(){ var pap=puntos.filter(function(p){return p.situacion==='borrado'}); $('#pap-body').innerHTML=pap.map(function(p){ var quedan=config.dias_papelera-Math.round((HOY-p.borrado)/86400000); return '<tr><td class="mono">'+p.cod+'</td><td>'+(p.tipo==='boca'?'Boca de riego':'Hidrante')+' '+p.d+' mm</td><td>'+fechaC(p.borrado)+' · '+(quedan>0?'quedan '+quedan+' días':'<span style="color:var(--rojo-700)">caducado</span>')+'</td><td>'+p.borradoPor+'</td><td style="color:var(--texto-suave);">'+esc(p.motivoBorrado)+'</td><td style="white-space:nowrap;"><span class="accion aprobar" data-pap="rest" data-pid="'+p.id+'">Restaurar</span> <span class="accion rechazar" data-pap="def" data-pid="'+p.id+'">Borrar definitivamente</span></td></tr>' }).join(''); $('#pap-vacio').style.display=pap.length?'none':'block'; badges(); }
+  $('#pap-body').addEventListener('click',function(e){ var a=e.target.closest('[data-pap]'); if(!a) return; var p=punto(+a.dataset.pid);
+    if(a.dataset.pap==='rest'){ p.situacion='activo'; delete p.borrado; log('restauracion',p.cod,'Restaurado desde la papelera'); flash(p.cod+' restaurado: vuelve al mapa.','papelera'); pintarTodo(); return }
+    $('#pap-box').innerHTML='<div class="pn-box" style="border-color:var(--rojo-700);"><div class="row"><b>Borrar definitivamente '+p.cod+'</b><span style="font-size:11px;color:var(--texto-suave);">· no se puede deshacer; el registro conserva la traza</span></div><div class="row"><span class="accion confirmar" id="pd-ok">Borrar definitivamente</span><span class="accion corregir" id="pd-no">Cancelar</span></div></div>';
+    $('#pd-ok').onclick=function(){ puntos.splice(puntos.indexOf(p),1); log('purga_papelera',p.cod,'Borrado definitivo manual'); $('#pap-box').innerHTML=''; flash(p.cod+' borrado definitivamente.','papelera'); pintarTodo() }; $('#pd-no').onclick=function(){ $('#pap-box').innerHTML='' } });
+  $('#btn-purgar-pap').onclick=function(){ var cad=puntos.filter(function(p){return p.situacion==='borrado'&&(HOY-p.borrado)/86400000>config.dias_papelera}); if(!cad.length){ flash('Nada ha superado los '+config.dias_papelera+' días todavía.','papelera'); return } cad.forEach(function(p){ puntos.splice(puntos.indexOf(p),1); log('purga_papelera',p.cod,'Purga automática · '+config.dias_papelera+' días') }); flash(cad.length+' purgados.','papelera'); pintarTodo() };
+
+  /* ---------- VOLUNTARIOS ---------- */
+  function pintarAct(){ var base=actBase[actMeses], filas=Object.keys(base).map(function(n){ var b=base[n].slice(), disp=b[3], ap=props.filter(function(p){return p.disp===disp&&p.estado==='aprobada'&&p.id<14||p.disp===disp&&p.estado==='aprobada'&&p.id>=14&&false}).length; var re=props.filter(function(p){return p.disp===disp&&p.estado==='rechazada'&&p.id<14}).length, ult=props.filter(function(p){return p.disp===disp}).sort(function(a,c){return c.creada-a.creada})[0]; return {n:anonimizados[disp]?'voluntario dado de baja':n,disp:disp,t:b[0]+ap+re,a:b[1]+ap,r:b[2]+re,u:ult?hace(ult.creada):'hace 2 meses',anon:!!anonimizados[disp]} });
+    $('#act-body').innerHTML=filas.sort(function(a,b){return b.t-a.t}).map(function(f){ var tasa=Math.round(f.a/Math.max(1,f.t)*100); return '<tr><td'+(f.anon?' style="color:var(--texto-suave);font-style:italic;"':'')+'>'+esc(f.n)+'</td><td>'+f.t+'</td><td>'+f.a+'</td><td>'+f.r+'</td><td><span class="chip '+(tasa>=85?'chip-verde':tasa>=70?'chip-ambar':'chip-rojo')+'">'+tasa+' %</span>'+(tasa<70?' <span style="font-size:10.5px;color:var(--texto-suave);">conviene hablar con él</span>':'')+'</td><td style="color:var(--texto-suave);">'+f.u+'</td><td>'+(f.anon?'<span style="font-size:11px;color:var(--texto-suave);">anonimizado</span>':'<span class="accion editar" style="color:var(--texto-suave);" data-anon="'+f.disp+'" data-nom="'+esc(f.n)+'">Anonimizar…</span>')+'</td></tr>' }).join(''); }
+  $('#act-meses').onchange=function(){ actMeses=+this.value; pintarAct() };
+  $('#act-body').addEventListener('click',function(e){ var a=e.target.closest('[data-anon]'); if(!a) return; var disp=a.dataset.anon, nom=a.dataset.nom; $('#act-box').innerHTML='<div class="pn-box" style="border-color:var(--rojo-700);"><div class="row"><b>Anonimizar a '+esc(nom)+'</b></div><div style="font-size:11.5px;color:var(--texto-suave);margin-bottom:8px;">Derecho de supresión (11 §6.4). Su nombre se sustituye por "voluntario dado de baja" en todas sus propuestas y en el registro; las filas y los puntos se conservan. Se identifica por su dispositivo ('+disp+'), no por nombre. No se puede deshacer.</div><div class="row"><label style="width:auto;"><input type="checkbox" id="an-conf"> He confirmado con la persona que es su móvil</label></div><div class="row"><span class="accion confirmar" id="an-ok">Anonimizar</span><span class="accion corregir" id="an-no">Cancelar</span><span id="an-err" style="color:var(--rojo-700);font-size:11px;"></span></div></div>';
+    $('#an-ok').onclick=function(){ if(!$('#an-conf').checked){ $('#an-err').textContent='Confirma primero con la persona.'; return } anonimizados[disp]=true; props.forEach(function(p){ if(p.disp===disp) p.autor='voluntario dado de baja' }); registro.forEach(function(r){ if(r.actor===nom) r.actor='voluntario dado de baja' }); log('anonimizacion','—','Dispositivo '+disp+' anonimizado a petición del interesado'); $('#act-box').innerHTML=''; flash('Anonimizado. Las filas se conservan sin el nombre.','voluntarios'); pintarTodo() }; $('#an-no').onclick=function(){ $('#act-box').innerHTML='' } });
+  function pintarInc(){ var ab=incidencias.filter(function(x){return x.estado==='abierta'}).length; $('#inc-body').innerHTML=incidencias.map(function(x,i){return '<tr><td style="white-space:nowrap;color:var(--texto-suave);">'+fecha(x.m)+'</td><td style="white-space:nowrap;">'+x.v+'</td><td style="color:var(--texto-suave);">'+esc(x.t)+'</td><td><span class="inc-estado inc-'+x.estado+'">'+x.estado+'</span></td><td>'+(x.estado==='abierta'?'<span class="accion aprobar" data-inc="'+i+'">Marcar resuelta</span>':'<span class="accion editar" data-inc="'+i+'" style="color:var(--texto-suave);">Reabrir</span>')+'</td></tr>'}).join(''); $('#inc-cuenta').textContent=ab+' abierta'+(ab===1?'':'s')+' · '+(incidencias.length-ab)+' resuelta'+(incidencias.length-ab===1?'':'s'); badges(); }
+  $('#inc-body').addEventListener('click',function(e){ var b=e.target.closest('[data-inc]'); if(!b) return; var x=incidencias[+b.dataset.inc]; x.estado=x.estado==='abierta'?'resuelta':'abierta'; log('incidencia_resuelta','—','Incidencia "'+x.t.slice(0,40)+'…" '+x.estado); pintarInc(); pintarSalud(); pintarReg() });
+
+  /* ---------- AJUSTES ---------- */
+  function pintarCodInfo(){ $('#cod-info').textContent='Cambiado por última vez el '+config.codigo_cambiado+' por '+config.codigo_por+'. '+config.dispositivos+' móviles registrados.' }
+  $('#cod-ver').onclick=function(){ var v=$('#cod-valor'), oculto=v.textContent.indexOf('•')>-1; v.textContent=oculto?config.codigo:'••••••'; this.textContent=oculto?'ocultar':'ver' };
+  $('#btn-codigo').onclick=function(){ var rev=$('#chk-revocar').checked; $('#conf-codigo').innerHTML='<div class="confirm-box"><b>Vas a cambiar el código.</b> '+(rev?'Los '+config.dispositivos+' móviles registrados tendrán que volver a introducirlo la próxima vez que abran la aplicación. Úsalo si el código se ha filtrado.':'Los '+config.dispositivos+' móviles ya registrados siguen entrando; solo los nuevos necesitarán el código nuevo. El anterior deja de valer al instante.')+'<div class="det-acciones"><span class="accion confirmar" id="conf-cod">Cambiar el código</span><span class="accion corregir" id="canc-cod">Cancelar</span></div></div>';
+    $('#conf-cod').onclick=function(){ config.codigo=String(Math.floor(100000+Math.random()*900000)); config.codigo_cambiado=fechaC(HOY); config.codigo_por=ADMIN; $('#cod-valor').textContent=config.codigo; $('#cod-ver').textContent='ocultar'; var a=$('#aviso-codigo'); a.className='aj-aviso on'; a.textContent='Código nuevo: '+config.codigo+'. '+(rev?'Todos los dispositivos revocados: los '+config.dispositivos+' vuelven a teclearlo.':'Los dispositivos registrados siguen entrando.')+' Comunícalo al grupo por el canal habitual.'; log('codigo_cambiado','—','Código de acceso cambiado · '+(rev?'con revocación de '+config.dispositivos+' dispositivos':'sin revocar dispositivos')); if(rev){ log('dispositivos_revocados','—',config.dispositivos+' tokens revocados'); config.dispositivos=0 } $('#conf-codigo').innerHTML=''; pintarCodInfo(); pintarReg() }; $('#canc-cod').onclick=function(){ $('#conf-codigo').innerHTML='' } };
+  function pintarUsr(){ $('#usr-body').innerHTML=admins.map(function(u,i){return '<tr><td>'+esc(u.email)+'</td><td style="color:var(--texto-suave);">'+esc(u.info)+'</td><td style="text-align:right;"><span style="font-size:11.5px;color:var(--texto-suave);margin-right:9px;">'+(u.activo?'activo':'sin acceso')+'</span><span class="sw'+(u.activo?' on':'')+'" data-sw="'+i+'" style="cursor:pointer;"></span></td></tr>'}).join(''); $('#usr-sug').innerHTML='Sugerencias de la app de uniformidad: '+sugerencias.filter(function(s){return !admins.some(function(u){return u.email===s})}).map(function(s){return '<span data-sug="'+s+'">'+s+'</span>'}).join('') }
+  $('#usr-body').addEventListener('click',function(e){ var w=e.target.closest('[data-sw]'); if(!w) return; var u=admins[+w.dataset.sw]; if(u.activo&&admins.filter(function(x){return x.activo}).length===1){ var a=$('#aviso-usr'); a.className='aj-aviso on'; a.style.background='var(--rojo-100)'; a.style.color='var(--rojo-700)'; a.textContent='No se puede desactivar al último administrador activo.'; return } u.activo=!u.activo; u.info=(u.activo?'reactivado':'desactivado')+' el '+fechaC(HOY)+' por '+ADMIN.split('@')[0]+'@'; log(u.activo?'administrador_alta':'administrador_baja','—',u.email+(u.activo?' reactivado':' desactivado')); var a=$('#aviso-usr'); a.className='aj-aviso on'; a.style=''; a.textContent=u.email+(u.activo?' vuelve a tener acceso.':' ya no puede entrar al panel. Su sesión abierta caduca en unos minutos.'); pintarUsr(); pintarReg() });
+  $('#usr-sug').addEventListener('click',function(e){ var s=e.target.closest('[data-sug]'); if(s) $('#usr-nuevo').value=s.dataset.sug });
+  $('#btn-usr-add').onclick=function(){ var v=$('#usr-nuevo').value.trim().toLowerCase(), a=$('#aviso-usr'); a.className='aj-aviso on'; if(!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(v)){ a.style.background='var(--rojo-100)'; a.style.color='var(--rojo-700)'; a.textContent='Escribe un correo válido.'; return } if(admins.some(function(u){return u.email===v})){ a.style.background='var(--rojo-100)'; a.style.color='var(--rojo-700)'; a.textContent='Ese correo ya está en la lista.'; return } admins.push({email:v,info:'añadido el '+fechaC(HOY)+' por '+ADMIN.split('@')[0]+'@',activo:true}); log('administrador_alta','—',v+' añadido'); a.style=''; a.textContent=v+' puede entrar al panel con su cuenta de Google desde ahora.'; $('#usr-nuevo').value=''; pintarUsr(); pintarReg() };
+  function pintarPar(){ $('#par-grid').innerHTML=[['meses_revision','Meses entre revisiones','number'],['radio_duplicado_m','Radio de duplicado (m)','number'],['dias_papelera','Días de papelera','number'],['buffer_zona_m','Buffer de zona (m)','number'],['escala_radios','Radios de marcador (px)','text'],['max_subidas_dispositivo_dia','Subidas de foto por móvil y día','number']].map(function(p){return '<label>'+p[1]+' <input type="'+p[2]+'" data-par="'+p[0]+'" value="'+esc(config[p[0]])+'"'+(p[2]==='text'?' style="width:112px;"':' min="1"')+'></label>'}).join('') }
+  $('#btn-guardar-par').onclick=function(){ var cambios=[]; $$('#par-grid [data-par]').forEach(function(i){ var k=i.dataset.par, v=i.type==='number'?+i.value:i.value; if(i.type==='number'&&(!(v>0))){ return } if(String(v)!==String(config[k])){ cambios.push(k+': '+config[k]+' → '+v); config[k]=v } }); var a=$('#aviso-par'); a.className='aj-aviso on'; if(!cambios.length){ a.textContent='No hay cambios que guardar.'; return } a.textContent='Guardado: '+cambios.join('; ')+'. Los móviles lo aplican en su próxima sincronización.'; log('config_cambiada','—',cambios.join('; ')); pintarTodo() };
+  function pintarNuc(){ $('#nuc-lista').innerHTML=nucleos.map(function(n,i){ var c=activos().filter(function(p){return p.nucleo===n}).length; return '<div class="nuc-row"><span>'+esc(n)+' <span style="color:var(--texto-suave);font-size:11px;">· '+c+' puntos</span></span><span class="accion editar" data-nuc="'+i+'">Renombrar</span></div>' }).join('') }
+  $('#nuc-lista').addEventListener('click',function(e){ var a=e.target.closest('[data-nuc]'); if(!a) return; var i=+a.dataset.nuc, row=a.parentNode; row.innerHTML='<input class="sel-mini" id="nuc-ren" value="'+esc(nucleos[i])+'" style="flex:1;padding:3px 6px;"><span class="accion aprobar" id="nuc-ok" style="margin-left:6px;">Guardar</span>'; $('#nuc-ok').onclick=function(){ var v=$('#nuc-ren').value.trim(); if(!v) return; var old=nucleos[i]; nucleos[i]=v; puntos.forEach(function(p){ if(p.nucleo===old) p.nucleo=v }); props.forEach(function(p){ if(p.nucleo===old) p.nucleo=v }); log('nucleo','—','Núcleo "'+old+'" renombrado a "'+v+'"'); pintarTodo() } });
+  $('#btn-nuc-add').onclick=function(){ var v=$('#nuc-nuevo').value.trim(); if(!v||nucleos.indexOf(v)>-1) return; nucleos.push(v); log('nucleo','—','Núcleo "'+v+'" añadido a mano'); $('#nuc-nuevo').value=''; pintarTodo() };
+  function pintarSalud(){ var pend14=props.filter(function(p){return p.estado==='pendiente'&&(HOY-p.creada)/86400000>14}).length, inc=incidencias.filter(function(i){return i.estado==='abierta'}).length, sinDir=activos().filter(function(p){return !p.dir}).length;
+    var r=function(k,v,c){return '<div class="salud"><span>'+k+'</span><strong'+(c?' class="'+c+'"':'')+'>'+v+'</strong></div>'};
+    $('#salud').innerHTML=r('Propuestas pendientes >14 días',pend14,pend14?'mal':'bien')+r('Incidencias abiertas',inc,inc?'mal':'bien')+r('Errores de cliente (7 días)','0')+r('Puntos sin dirección deducida',sinDir,sinDir?'mal':'bien')+r('Último respaldo',config.ultimo_respaldo,'bien')+r('Storage usado',config.storage_mb+' MB / 1 GB')+r('Zona de cobertura · mapa base',config.version_zona+' · '+config.version_mapabase)+r('Dispositivos con acceso',config.dispositivos) }
+  $('#btn-purgar').onclick=function(){ var a=$('#aviso-purga'); a.className='aj-aviso on'; a.textContent='Purga lanzada en GitHub Actions. Tarda unos minutos…'; this.className='bb off'; var btn=this; setTimeout(function(){ var n=8+Math.floor(Math.random()*10), mb=Math.round(n*0.25); config.storage_mb-=mb; a.textContent='Purga terminada: '+n+' fotos huérfanas eliminadas, '+mb+' MB liberados. Consta en el Registro.'; log('purga_fotos','—',n+' fotos huérfanas · '+mb+' MB'); btn.className='bb'; pintarSalud(); pintarReg() },2500) };
+  $('#btn-json').onclick=function(){ descargar('inventario-hidrantes.json',JSON.stringify({exportado:HOY.toISOString(),puntos:activos().map(function(p){return {codigo:p.cod,tipo:p.tipo,diametro_mm:p.d,caudal:p.caudal,racor:p.racor||null,direccion:p.dir||null,nucleo:p.nucleo,ultima_revision:p.rev.toISOString().slice(0,10),descripcion:p.desc}})},null,2),'application/json'); flash('Inventario descargado ('+activos().length+' puntos). No es el respaldo: ese es semanal, automático y cifrado.','ajustes') };
+
+  /* ---------- pestañas y arranque ---------- */
+  $$('#tabs div').forEach(function(t){ t.onclick=function(){ $$('#tabs div').forEach(function(x){x.classList.remove('on')}); t.classList.add('on'); tab=t.dataset.tab; $$('#panel .panel').forEach(function(pp){pp.classList.toggle('on',pp.dataset.panel===tab)}) } });
+  function pintarTodo(){ nucSelects(); pintarLista(); pintarDetalle(); pintarInv(); pintarCad(); pintarReg(); pintarPap(); pintarAct(); pintarInc(); pintarUsr(); pintarPar(); pintarNuc(); pintarSalud(); pintarCodInfo(); badges(); }
+  /* --- P1: exportación --- */
+  function filasExport(){ return invFiltrado().map(function(p){ return {codigo:p.cod,tipo:p.tipo==='boca'?'boca_riego':'hidrante',diametro_mm:p.d,caudal:p.caudal,racor:p.racor||'',direccion:p.dir||'',nucleo:p.nucleo,fecha_ultima_revision:p.rev.toISOString().slice(0,10),lat:37.2281+(p.y-150)/9000,lng:-3.6553+(p.x-350)/8000} }) }
+  document.getElementById('panel').addEventListener('click',function(e){ var a=e.target.closest('[data-exp]'); if(!a) return; var f=a.dataset.exp, filas=filasExport(), n=filas.length;
+    if(f==='csv'){ var cab=Object.keys(filas[0]||{codigo:1}); descargar('inventario-hidrantes.csv','\ufeff'+cab.join(';')+'\n'+filas.map(function(r){return cab.map(function(k){return String(r[k]).replace(/;/g,',')}).join(';')}).join('\n'),'text/csv;charset=utf-8') }
+    if(f==='geojson'){ descargar('inventario-hidrantes.geojson',JSON.stringify({type:'FeatureCollection',features:filas.map(function(r){return {type:'Feature',geometry:{type:'Point',coordinates:[+r.lng.toFixed(6),+r.lat.toFixed(6)]},properties:{codigo:r.codigo,tipo:r.tipo,diametro_mm:r.diametro_mm,caudal:r.caudal,racor:r.racor||null,direccion:r.direccion||null,nucleo:r.nucleo,fecha_ultima_revision:r.fecha_ultima_revision}}})},null,1),'application/geo+json') }
+    if(f==='xlsx'){ if(!window.XLSX){ flash('La librería de Excel no ha cargado (sin conexión). Usa CSV.','inventario'); return } var ws=XLSX.utils.json_to_sheet(filas.map(function(r){var o=Object.assign({},r); delete o.lat; delete o.lng; return o})), wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Inventario'); XLSX.writeFile(wb,'inventario-hidrantes.xlsx') }
+    log('exportacion','—','Inventario exportado a '+f.toUpperCase()+' · '+n+' puntos'+(busca?' · filtro "'+busca+'"':'')); pintarReg(); flash('Exportado '+f.toUpperCase()+' con '+n+' puntos. Consta en el Registro.','inventario') });
+  /* --- P1: workflows desde Ajustes --- */
+  var WF={'regenerar-zona':['Zona de cobertura regenerada desde OpenStreetMap',function(){config.version_zona=fechaC(HOY)}],'regenerar-mapabase':['Mapa base regenerado · 12 MB',function(){config.version_mapabase=fechaC(HOY)+' · 12 MB'}],'respaldo':['Respaldo cifrado completado y guardado 90 días',function(){config.ultimo_respaldo='hoy · restaurado con éxito el 3 sep'}]};
+  document.getElementById('panel').addEventListener('click',function(e){ var a=e.target.closest('[data-wf]'); if(!a) return; var w=a.dataset.wf, av=$('#aviso-wf'); av.className='aj-aviso on'; av.textContent='Trabajo "'+w+'" lanzado en GitHub Actions. Tarda unos minutos…'; log('workflow_lanzado','—',w); pintarReg();
+    setTimeout(function(){ WF[w][1](); log('workflow_terminado','—',WF[w][0]); pintarSalud(); pintarReg(); av.textContent=WF[w][0]+'. Consta en el Registro y en Salud del sistema.' },2500) });
+  /* --- P1: push jefatura --- */
+  var push={nuevas:false,resumen:false};
+  document.getElementById('panel').addEventListener('click',function(e){ var a=e.target.closest('[data-push]'); if(!a) return; var k=a.dataset.push; push[k]=!push[k]; a.classList.toggle('on',push[k]); var av=$('#aviso-push'); av.className='aj-aviso on'; av.textContent=push[k]?'Activado. El navegador pediría permiso de notificaciones; después llegan aunque el panel esté cerrado.':'Desactivado. La suscripción se borra del servidor.'; log('configuracion','—','Avisos push: '+k+' '+(push[k]?'activado':'desactivado')); pintarReg() });
+  function osNotif(t,c,cb){ var n=document.createElement('div'); n.className='os-notif'; n.innerHTML='<b>'+t+'</b>'+c+'<small>Hidrantes Albolote · ahora</small>'; n.onclick=function(){ n.remove(); if(cb) cb() }; document.body.appendChild(n); setTimeout(function(){ n.remove() },6000) }
+  $('#s-prop').onclick=function(){ var pt=activos()[Math.floor(Math.random()*Math.min(6,activos().length))]; var id=Math.max.apply(null,props.map(function(p){return p.id}))+1; props.push({id:id,cod:pt.cod,pid:pt.id,op:'revision',autor:'Carmen Vega Soto',disp:'d-carmen',nucleo:pt.nucleo,dir:pt.dir,creada:new Date(HOY.getTime()+seq*1000),estado:'pendiente',datos:{},meta:[['ok','✓ GPS en campo · ±5 m'],['ok','✓ Con foto']]}); seq++; pintarTodo();
+    if(push.nuevas) osNotif('Nueva propuesta pendiente','Revisión de '+pt.cod+' · '+(pt.dir||pt.nucleo)+' · 1 pendiente nueva en la última hora',function(){ $('#tabs [data-tab="cola"]').click() }); else flash('Ha llegado una propuesta nueva a la cola. (Sin avisos activados: se ve al abrir el panel.)','cola') };
+  /* --- P1: QR --- */
+  function pintarQR(){ var el=$('#qr'); if(!el) return; el.innerHTML=''; if(window.QRCode){ new QRCode(el,{text:'https://hidrantes-albolote.pages.dev',width:96,height:96,colorDark:'#0E1B30',colorLight:'#ffffff'}) } else el.innerHTML='<div style="width:96px;height:96px;border:1px dashed var(--linea);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--texto-suave);text-align:center;">QR<br>(sin conexión)</div>' }
+  $('#btn-qr-print').onclick=function(){ var img=$('#qr img')?$('#qr img').src:''; var w=window.open('','_blank'); if(!w) return; w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>QR · Mapa de hidrantes</title><style>body{font-family:Arial,sans-serif;text-align:center;margin:0;padding:60px 40px}h1{font-size:34px;margin:30px 0 6px;color:#0E1B30}p{font-size:20px;color:#333}img{width:70vw;max-width:520px}small{display:block;margin-top:40px;color:#666;font-size:16px}@media print{button{display:none}}</style></head><body><button onclick="window.print()">Imprimir</button><h1>Mapa de hidrantes</h1><p>Escanea para instalar la aplicación en tu móvil</p>'+(img?'<img src="'+img+'">':'<p>(QR no disponible sin conexión)</p>')+'<p style="font-family:monospace">hidrantes-albolote.pages.dev</p><small>Agrupación de Voluntarios de Protección Civil de Albolote · el código de acceso te lo da jefatura</small></body></html>'); w.document.close(); log('exportacion','—','Cartel QR generado'); pintarReg() };
+  pintarQR();
+  /* --- P1: servidor caído --- */
+  var caido=false; $('#s-srv').onclick=function(){ caido=!caido; this.classList.toggle('on',caido); this.textContent=caido?'Servidor Supabase caído (pulsa para restablecer)':'Servidor Supabase caído'; $('#srv-banner').style.display=caido?'block':'none'; document.getElementById('panel').classList.toggle('caido',caido); if(caido) flash('El panel sigue mostrando lo último cargado; aprobar, rechazar y guardar quedan deshabilitados hasta que vuelva el servidor. Ningún error técnico llega a la pantalla.','cola'); else flash('Conexión restablecida. Todo vuelve a estar disponible.','cola') };
+
+  function geometriaPanel(){ var wrap=document.getElementById('panel-wrap'), panel=document.getElementById('panel'), W=wrap.clientWidth, z=Math.max(1,Math.min(1.35,W/1100)), dw=Math.round(W/z);
+    panel.style.zoom=z; panel.style.width=dw+'px'; panel.style.minHeight=Math.round(Math.max(520,(window.innerHeight-120))/z)+'px';
+    panel.classList.toggle('estrecho',dw<900); panel.classList.toggle('ancho',dw>=1300);
+    var h=document.getElementById('panel-hint'); if(h) h.textContent='Ventana de '+W+' px → panel a '+dw+' px de diseño · escala '+z.toFixed(2)+(dw<900?' · distribución de tableta: cola y detalle apilados':dw>=1300?' · distribución ancha: tres columnas en Ajustes':'') }
+  var rtoP; window.addEventListener('resize',function(){ clearTimeout(rtoP); rtoP=setTimeout(geometriaPanel,120) });
+  geometriaPanel(); pintarTodo();
+})();
+</script>
+
+
+
+
+</body>
+</html>

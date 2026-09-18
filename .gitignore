@@ -1,0 +1,45 @@
+# Dependencias y builds
+node_modules/
+dist/
+dev-dist/
+.wrangler/
+*.tsbuildinfo
+
+# Secretos: NUNCA en Git (04 §10). Solo .env.example, sin valores.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.asc
+
+# Respaldos y datos personales (04 §9, §11.1)
+*.sql.gpg
+*.gpg
+*.dump
+*.tar
+*.tar.gz
+respaldos/
+fotos/
+
+# Artefactos generados de datos/ (los GeoJSON sí se committean, 04 §8)
+*.pmtiles
+datos/*.html
+
+# Supabase local
+supabase/.temp/
+supabase/.branches/
+
+# Pruebas
+playwright-report/
+test-results/
+blob-report/
+coverage/
+
+# Claude Code: la configuración local es personal
+.claude/settings.local.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log

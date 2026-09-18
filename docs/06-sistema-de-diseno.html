@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06 · Sistema de diseño y simbología — Hidrantes Albolote</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --marino-950:#0E1B30; --marino-800:#152A4A; --marino-700:#1D3A63; --marino-600:#28517F;
+    --naranja-600:#DD5A1F; --naranja-500:#E97136; --naranja-100:#FBE2D2;
+    --oro-600:#B08A2E; --oro-100:#F3E6C4;
+    --verde-600:#2E7D4F; --verde-100:#DCEEE1; --ambar-700:#8A6408; --ambar-100:#FBEDCB;
+    --rojo-700:#9C2B1E; --rojo-100:#FBE0DB; --gris-700:#40453D; --gris-100:#E5E4DC;
+    --fondo:#F1F3EE; --papel:#FFFFFF; --linea:#D8DBD2; --texto:#1B2430; --texto-suave:#5A6472;
+    --mapa-fondo:#EFECE3; --mapa-oscuro:#1B2536;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--fondo); color:var(--texto); font-family:"Source Sans 3",sans-serif; font-size:16px; line-height:1.6;}
+  h1,h2,h3,h4{font-family:"Barlow Condensed",sans-serif; font-weight:700; color:var(--marino-950); margin:0;}
+  code,.mono{font-family:"JetBrains Mono",monospace; font-size:.85em;}
+  .wrap{max-width:900px; margin:0 auto; padding:40px 24px 100px;}
+  header{border-bottom:2px solid var(--marino-950); padding-bottom:24px; margin-bottom:36px;}
+  header h1{font-size:38px; line-height:1.05;}
+  header .meta{color:var(--texto-suave); font-size:14px; margin-top:8px;}
+  header .estado{display:inline-block; background:var(--marino-950); color:#fff; font-size:12px; font-weight:600; border-radius:4px; padding:2px 8px; margin-right:8px;}
+  section{margin-bottom:52px;}
+  section>h2{font-size:28px; margin-bottom:6px;} .num{color:var(--naranja-600); margin-right:8px;}
+  h3{font-size:19px; margin:26px 0 10px;}
+  p{margin:0 0 12px;} .lead{color:var(--texto-suave); max-width:64ch;}
+  table{width:100%; border-collapse:collapse; font-size:14px; margin-bottom:8px;}
+  th{text-align:left; font-family:"Barlow Condensed"; font-weight:600; font-size:13px; color:var(--texto-suave); border-bottom:2px solid var(--marino-950); padding:8px 10px;}
+  td{padding:8px 10px; border-bottom:1px solid var(--linea); vertical-align:middle;}
+
+  .sw-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px;}
+  .sw{background:var(--papel); border:1px solid var(--linea); border-radius:8px; overflow:hidden;}
+  .sw .c{height:52px;} .sw .t{padding:7px 10px; font-size:12px;} .sw .t b{display:block; font-family:"JetBrains Mono"; font-weight:500; font-size:11.5px;}
+  .sw .t span{color:var(--texto-suave); font-size:11.5px;}
+
+  .type-row{display:flex; gap:18px; align-items:baseline; border-bottom:1px solid var(--linea); padding:10px 0;}
+  .type-row .lab{width:210px; font-size:12px; color:var(--texto-suave); flex-shrink:0;}
+
+  .simb-table td{text-align:center;} .simb-table td:first-child{text-align:left; font-weight:600;}
+  .simb-table svg{display:block; margin:0 auto 2px;} .simb-table small{color:var(--texto-suave); font-size:11px;}
+  .mapa-demo{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .mapa-demo .m{border-radius:10px; overflow:hidden; border:1px solid var(--linea); position:relative;}
+  .mapa-demo svg{display:block; width:100%;}
+  .legend-box{position:absolute; left:8px; bottom:8px; background:rgba(255,255,255,.94); border-radius:8px; padding:5px 7px; font-size:9px; box-shadow:0 2px 6px rgba(0,0,0,.14); display:grid; grid-template-columns:auto auto; gap:2px 8px;}
+  .legend-box .lg{display:flex; align-items:center; gap:5px; white-space:nowrap;} .legend-box svg{width:12px; height:12px; display:block;}
+  .legend-box .lgn{grid-column:1/-1; font-size:8px; color:var(--texto-suave);}
+  .dark .legend-box{background:rgba(20,29,45,.94); color:#DCE3EE;} .dark .legend-box .lgn{color:#8A9AB2;}
+  .cap{font-size:12.5px; color:var(--texto-suave); margin-top:8px;}
+
+  .comp{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .comp .box{background:var(--papel); border:1px solid var(--linea); border-radius:10px; padding:16px;}
+  .comp h4{font-size:15px; margin-bottom:10px;}
+  .chip{display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:3px 11px; font-size:13px; font-weight:600; margin:0 4px 6px 0;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .btn{display:inline-block; text-align:center; padding:10px 16px; border-radius:9px; font-weight:600; font-size:13px; margin:0 8px 8px 0; min-width:150px;}
+  .btn.pri{background:var(--naranja-600); color:#fff;} .btn.sec{background:#fff; color:var(--marino-950); border:1.5px solid var(--marino-950);}
+  .btn.des{background:var(--rojo-700); color:#fff;} .btn.off{background:var(--linea); color:var(--texto-suave);}
+  .hint{font-size:11px; color:var(--texto-suave);}
+  .seg{display:flex; border:1px solid var(--linea); border-radius:7px; overflow:hidden; background:#fff; max-width:320px; margin-bottom:8px;}
+  .seg div{flex:1; text-align:center; padding:8px 4px; font-size:13px; color:var(--texto-suave); border-right:1px solid var(--linea);} .seg div:last-child{border-right:none;} .seg .on{background:var(--marino-950); color:#fff; font-weight:600;}
+  .pillrow{display:flex; gap:6px; max-width:360px; margin-bottom:8px;} .pillrow div{flex:1; text-align:center; padding:7px 2px; border-radius:999px; font-size:12px; font-weight:600; border:1.5px solid transparent; background:#fff; color:var(--texto-suave);}
+  .lbl{font-size:10.5px; font-weight:700; border-radius:4px; padding:2px 7px; display:inline-block; margin:0 4px 6px 0;}
+  .meta-tag{font-size:11px; background:#fff; border:1px solid var(--linea); border-radius:5px; padding:2px 7px; color:var(--texto-suave); display:inline-block; margin:0 4px 6px 0;}
+  .meta-tag.ok{border-color:var(--verde-600); color:var(--verde-600);} .meta-tag.warn{border-color:var(--oro-600); color:var(--ambar-700); background:var(--ambar-100);}
+  .accion{font-size:12px; font-weight:600; padding:7px 12px; border-radius:6px; display:inline-block; margin:0 6px 6px 0;}
+  .accion.aprobar{background:var(--verde-600); color:#fff;} .accion.corregir{background:#fff; color:var(--marino-950); border:1.5px solid var(--marino-950);}
+  .accion.fusionar{background:#fff; color:var(--ambar-700); border:1.5px solid var(--oro-600);} .accion.rechazar{background:#fff; color:var(--rojo-700); border:1.5px solid var(--rojo-700);} .accion.confirmar{background:var(--rojo-700); color:#fff;}
+  .warn-callout{background:var(--oro-100); color:var(--ambar-700); border:1px solid var(--oro-600); border-radius:7px; padding:8px 10px; font-size:12.5px; margin-bottom:8px;}
+  .toast{background:var(--verde-600); color:#fff; border-radius:9px; padding:9px 12px; font-size:12.5px; margin-bottom:8px;}
+  .diff{background:#fff; border:1px solid var(--linea); border-radius:7px; overflow:hidden; font-size:12.5px;}
+  .diff .dr{display:flex; border-bottom:1px solid var(--linea);} .diff .dr:last-child{border-bottom:none;}
+  .diff .dk{width:32%; padding:6px 10px; color:var(--texto-suave); background:#FAFAF7;} .diff .dv{flex:1; padding:6px 10px;}
+  .diff .old{color:var(--rojo-700); text-decoration:line-through; opacity:.75;} .diff .new{color:var(--verde-600); font-weight:600;}
+  .darkbox{background:#111826; border-radius:10px; padding:16px; color:#E6EAF0;}
+  .darkbox .card{background:#1A2333; border:1px solid #2A3547; border-radius:9px; padding:10px 12px; font-size:13px; margin-bottom:8px;}
+  .darkbox .s{color:#9AA8BE; font-size:11.5px;}
+  @media (max-width:760px){ .comp,.mapa-demo{grid-template-columns:1fr;} .type-row{flex-direction:column; gap:4px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><span class="estado">Congelado</span><span class="estado" style="background:var(--texto-suave);">v1.0 · 17 sep 2026</span></div>
+    <h1 style="margin-top:12px;">06 · Sistema de diseño y simbología</h1>
+    <div class="meta">Mapa de hidrantes · Protección Civil de Albolote. Versión renderizada de <code>06-sistema-de-diseno.md</code>: los marcadores de esta página se dibujan con la misma fórmula que aplicará la aplicación.</div>
+  </header>
+
+  <section>
+    <h2><span class="num">1</span>Color</h2>
+    <h3>Interfaz (modo claro)</h3>
+    <div class="sw-grid" id="sw-ui"></div>
+    <h3>Estado — idénticos en marcador, chip, leyenda y panel</h3>
+    <div class="sw-grid" id="sw-estado"></div>
+    <h3>Mapa base propio</h3>
+    <table>
+      <tr><th>Elemento</th><th>Claro</th><th>Oscuro</th></tr>
+      <tr><td>Fondo</td><td><span class="dot" style="background:#EFECE3;border:1px solid #ccc"></span> <code>#EFECE3</code></td><td><span class="dot" style="background:#1B2536"></span> <code>#1B2536</code></td></tr>
+      <tr><td>Manzanas</td><td><span class="dot" style="background:#E2DED3;border:1px solid #ccc"></span> <code>#E2DED3</code></td><td><span class="dot" style="background:#25314A"></span> <code>#25314A</code></td></tr>
+      <tr><td>Calles</td><td><span class="dot" style="background:#fff;border:1px solid #ccc"></span> <code>#FFFFFF</code></td><td><span class="dot" style="background:#3B4A64"></span> <code>#3B4A64</code></td></tr>
+      <tr><td>Zonas verdes</td><td><span class="dot" style="background:#D3E0C6"></span> <code>#D3E0C6</code></td><td><span class="dot" style="background:#233A2E"></span> <code>#233A2E</code></td></tr>
+      <tr><td>Agua</td><td><span class="dot" style="background:#B9CBD6"></span> <code>#B9CBD6</code></td><td><span class="dot" style="background:#2C4358"></span> <code>#2C4358</code></td></tr>
+      <tr><td>Rótulos</td><td><span class="dot" style="background:#8A9090"></span> <code>#8A9090</code></td><td><span class="dot" style="background:#7E8A99"></span> <code>#7E8A99</code></td></tr>
+    </table>
+  </section>
+
+  <section>
+    <h2><span class="num">2</span>Tipografía</h2>
+    <p class="lead">Dos familias con papeles distintos y una monoespaciada para códigos. Se sirven desde el propio despliegue para que carguen sin conexión.</p>
+    <div class="type-row"><div class="lab">Barlow Condensed 700 · 22 px · títulos</div><div style="font-family:'Barlow Condensed';font-weight:700;font-size:22px;">Puntos de agua</div></div>
+    <div class="type-row"><div class="lab">Barlow Condensed 600 · 16 px · barra de la app</div><div style="font-family:'Barlow Condensed';font-weight:600;font-size:16px;">Actualizar estado</div></div>
+    <div class="type-row"><div class="lab">Source Sans 3 600 · 16 px · cuerpo destacado</div><div style="font-weight:600;">C/ Real 14 · Albolote</div></div>
+    <div class="type-row"><div class="lab">Source Sans 3 400 · 16 px · cuerpo</div><div>Junto al portal 14, en la acera de los pares.</div></div>
+    <div class="type-row"><div class="lab">Source Sans 3 600 · 13 px · etiqueta de campo</div><div style="font-size:13px;font-weight:600;color:var(--texto-suave);">Diámetro de la salida mayor</div></div>
+    <div class="type-row"><div class="lab">Source Sans 3 400 · 11 px · pista</div><div style="font-size:11px;color:var(--texto-suave);">La salida, no la tubería. Si hay varias, marca la mayor</div></div>
+    <div class="type-row"><div class="lab">JetBrains Mono 500 · códigos</div><div class="mono" style="font-size:15px;">HID-0147 · BOC-0088 · 37.2281, -3.6553</div></div>
+    <div class="type-row"><div class="lab">JetBrains Mono 500 · 17 px, espaciado 3 px · código de acceso</div><div class="mono" style="font-size:17px;letter-spacing:3px;">482917</div></div>
+  </section>
+
+  <section>
+    <h2><span class="num">3</span>Simbología del marcador</h2>
+    <p class="lead">Forma = tipo · color = estado · tamaño = diámetro × caudal · tachado = no funciona · borde discontinuo = sin revisar en más de 12 meses. Los marcadores de esta tabla los genera la fórmula, no están dibujados a mano.</p>
+    <pre style="background:var(--marino-950);color:#DCE6F2;border-radius:8px;padding:14px 16px;font-size:12.5px;line-height:1.5;overflow:auto;">capacidad  = {100: 3, 70: 2, 45: 1}[diametro_mm]
+factor     = {bueno: 1.0, regular: 0.66, malo: 0.33, no_funciona: 0}[caudal]
+puntuacion = capacidad × factor
+radio_px   = 11 si ≥ 3.0 · 9 si ≥ 1.9 · 7 si ≥ 0.9 · 5.5 si > 0 · 5 si = 0     ← config.escala_radios</pre>
+    <table class="simb-table" id="simb"></table>
+    <h3>Variantes</h3>
+    <table class="simb-table" id="variantes"></table>
+    <h3>Declutter por zoom</h3>
+    <table>
+      <tr><th>Zoom</th><th>Se dibujan</th></tr>
+      <tr><td>z ≤ 13</td><td>solo radio ≥ 9 px (100 · bueno, 100 · regular, 70 · bueno)</td></tr>
+      <tr><td>14 – 15</td><td>radio ≥ 7 px</td></tr>
+      <tr><td>z ≥ 16</td><td>todos</td></tr>
+    </table>
+    <h3>En el mapa, claro y oscuro</h3>
+    <div class="mapa-demo">
+      <div class="m" id="mapa-claro"></div>
+      <div class="m dark" id="mapa-oscuro"></div>
+    </div>
+    <div class="cap">Los rellenos de estado no cambian entre modos; el borde del marcador pasa de blanco a <code>#111826</code>. La leyenda enseña siempre forma, color, tachado y borde discontinuo, en ese orden.</div>
+  </section>
+
+  <section>
+    <h2><span class="num">4</span>Componentes</h2>
+    <div class="comp">
+      <div class="box">
+        <h4>Chips de estado y etiquetas de operación</h4>
+        <span class="chip" style="background:var(--verde-100);color:var(--verde-600)"><span class="dot" style="background:var(--verde-600)"></span>Bueno</span>
+        <span class="chip" style="background:var(--ambar-100);color:var(--ambar-700)"><span class="dot" style="background:var(--ambar-700)"></span>Regular</span>
+        <span class="chip" style="background:var(--rojo-100);color:var(--rojo-700)"><span class="dot" style="background:var(--rojo-700)"></span>Malo</span>
+        <span class="chip" style="background:var(--gris-100);color:var(--gris-700)"><span class="dot" style="background:var(--gris-700)"></span>No funciona</span>
+        <span class="chip" style="background:#EDEEE8;color:var(--texto-suave)">Hidrante</span>
+        <span class="chip" style="background:#DCE6F2;color:var(--marino-700)">Revisión</span>
+        <div style="margin-top:10px;">
+          <span class="lbl" style="background:var(--verde-100);color:var(--verde-600)">Alta</span>
+          <span class="lbl" style="background:#DCE6F2;color:var(--marino-700)">Revisión</span>
+          <span class="lbl" style="background:var(--ambar-100);color:var(--ambar-700)">Estado</span>
+          <span class="lbl" style="background:var(--gris-100);color:var(--gris-700)">Datos</span>
+          <span class="lbl" style="background:var(--gris-100);color:var(--gris-700)">Ubicación</span>
+          <span class="lbl" style="background:var(--rojo-100);color:var(--rojo-700)">Retirada</span>
+          <span class="lbl" style="background:var(--oro-600);color:#fff">Jefatura</span>
+        </div>
+      </div>
+      <div class="box">
+        <h4>Botones</h4>
+        <div class="btn pri">Enviar para revisión</div><div class="btn sec">Proponer un cambio</div><br>
+        <div class="btn des">Confirmar rechazo</div><div class="btn off">Enviar para revisión</div>
+        <div class="hint">Un botón deshabilitado siempre lleva debajo el motivo: "Falta la foto para poder enviar".</div>
+      </div>
+      <div class="box">
+        <h4>Segmentado y píldoras de estado</h4>
+        <div class="seg"><div class="on">Hidrante</div><div>Boca de riego</div></div>
+        <div class="seg"><div>70 mm</div><div class="on">100 mm</div><div>Otra medida</div></div>
+        <div class="pillrow"><div style="background:var(--verde-100);color:var(--verde-600);border-color:var(--verde-600)">Bueno</div><div>Regular</div><div>Malo</div><div>No funciona</div></div>
+        <div class="pillrow"><div>Bueno</div><div>Regular</div><div>Malo</div><div style="background:var(--gris-100);color:var(--gris-700);border-color:var(--gris-700)">No funciona</div></div>
+      </div>
+      <div class="box">
+        <h4>Avisos y confirmaciones</h4>
+        <div class="warn-callout">⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.</div>
+        <div class="toast">✓ Tu alta en el Pol. Juncaril se aprobó como <b>HID-0311</b>.</div>
+        <div class="hint">El aviso nunca bloquea; el toast se puede cerrar y desaparece solo.</div>
+      </div>
+      <div class="box">
+        <h4>Panel: diff y señales</h4>
+        <div class="diff">
+          <div class="dr"><div class="dk">Estado</div><div class="dv"><span class="old">Bueno</span> → <span class="new">Regular</span></div></div>
+          <div class="dr"><div class="dk">Diámetro</div><div class="dv" style="color:var(--texto-suave)">100 mm · sin cambios</div></div>
+          <div class="dr"><div class="dk">Nota</div><div class="dv"><span class="new">"Sale menos fuerza que en mayo"</span></div></div>
+        </div>
+        <div style="margin-top:10px;">
+          <span class="meta-tag ok">✓ GPS en campo · ±4 m</span><span class="meta-tag ok">✓ Con foto</span><span class="meta-tag warn">⚠ Posible duplicado a 11 m</span><span class="meta-tag">Revisado hace 13 meses</span>
+        </div>
+      </div>
+      <div class="box">
+        <h4>Panel: acciones</h4>
+        <span class="accion aprobar">Aprobar</span><span class="accion corregir">Aprobar con correcciones</span><span class="accion fusionar">Fusionar con BOC-0088</span><span class="accion rechazar">Rechazar…</span><br>
+        <span class="accion confirmar">Confirmar y aprobar</span>
+        <div class="hint">El botón rojo relleno sustituye a "Aprobar" cuando la propuesta está desactualizada.</div>
+      </div>
+      <div class="box" style="grid-column:1/-1;">
+        <h4>Modo oscuro</h4>
+        <div class="darkbox">
+          <div class="card"><div>Mapa sin cobertura</div><div class="s">Descargado · 12 MB · jul 2026</div></div>
+          <div class="card" style="display:flex;justify-content:space-between;align-items:center;"><div><div>Modo oscuro</div><div class="s">Según el móvil</div></div><span style="width:34px;height:19px;border-radius:999px;background:var(--verde-600);display:inline-block;position:relative;"><span style="position:absolute;top:2px;left:17px;width:15px;height:15px;border-radius:50%;background:#fff;"></span></span></div>
+          <div class="btn pri" style="margin:0;">Enviar para revisión</div>
+          <div class="hint" style="color:#9AA8BE;margin-top:8px;">Fondo <code style="color:#DCE3EE">#111826</code>, tarjeta <code style="color:#DCE3EE">#1A2333</code>, borde <code style="color:#DCE3EE">#2A3547</code>, texto <code style="color:#DCE3EE">#E6EAF0</code>, secundario <code style="color:#DCE3EE">#9AA8BE</code>. El naranja de acción y los colores de estado no cambian.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">5</span>Voz</h2>
+    <table>
+      <tr><th>Sí</th><th>No</th></tr>
+      <tr><td>Enviar para revisión</td><td>Submit · ENVIAR</td></tr>
+      <tr><td>Falta la foto para poder enviar</td><td>Error: campo requerido</td></tr>
+      <tr><td>No funciona</td><td>Defecto</td></tr>
+      <tr><td>Espera una hora antes de volver a intentarlo</td><td>Rate limit exceeded (429)</td></tr>
+      <tr><td>No queda ninguna propuesta pendiente. Buen trabajo.</td><td>Sin datos</td></tr>
+      <tr><td>20 ago 2026 · hace 1 mes</td><td>2026-08-20T10:41:00Z</td></tr>
+    </table>
+  </section>
+</div>
+
+<script>
+(function(){
+  var UI=[['--marino-950','#0E1B30','barras, títulos'],['--marino-700','#1D3A63','enlaces, GPS'],['--marino-600','#28517F','halo GPS, límite'],['--naranja-600','#DD5A1F','acción primaria, pin'],['--naranja-100','#FBE2D2','badges'],['--oro-600','#B08A2E','avisos, Jefatura'],['--oro-100','#F3E6C4','fondo aviso'],['--fondo','#F1F3EE','fondo'],['--papel','#FFFFFF','tarjetas'],['--linea','#D8DBD2','bordes'],['--texto','#1B2430','texto'],['--texto-suave','#5A6472','secundario']];
+  var EST=[['bueno','#2E7D4F','#DCEEE1'],['regular','#8A6408','#FBEDCB'],['malo','#9C2B1E','#FBE0DB'],['no funciona','#40453D','#E5E4DC']];
+  function sw(hex,name,use,border){return '<div class="sw"><div class="c" style="background:'+hex+(border?';border-bottom:1px solid var(--linea)':'')+'"></div><div class="t"><b>'+name+'</b>'+hex+' <span>· '+use+'</span></div></div>'}
+  document.getElementById('sw-ui').innerHTML=UI.map(function(u){return sw(u[1],u[0],u[2],u[1].toUpperCase()==='#FFFFFF'||u[1]==='#F1F3EE')}).join('');
+  document.getElementById('sw-estado').innerHTML=EST.map(function(e){return sw(e[1],e[0]+' · relleno',e[1],false)+sw(e[2],e[0]+' · chip',e[2],true)}).join('');
+
+  /* --- simbología: la fórmula --- */
+  var ESCALA=[11,9,7,5.5,5];
+  var COLOR={bueno:'#2E7D4F',regular:'#8A6408',malo:'#9C2B1E',no_funciona:'#40453D'};
+  function radio(d,c){var cap={100:3,70:2,45:1}[d],f={bueno:1,regular:.66,malo:.33,no_funciona:0}[c],p=cap*f;
+    return p>=3?ESCALA[0]:p>=1.9?ESCALA[1]:p>=.9?ESCALA[2]:p>0?ESCALA[3]:ESCALA[4]}
+  function marcador(d,c,op){op=op||{}; var r=radio(d,c),tipo=d===45?'boca':'hidrante',fill=COLOR[c],nf=c==='no_funciona';
+    var borde=op.oscuro?'#111826':'#fff', bw=r<=5.5?2:2.5, dash=op.caducado?' stroke-dasharray="3 2.5"':'', size=32, cx=size/2, cy=size/2, s='';
+    if(op.seleccionado) s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+bw+3)+'" fill="none" stroke="#0E1B30" stroke-width="2"/>';
+    if(tipo==='hidrante') s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+fill+'" stroke="'+borde+'" stroke-width="'+bw+'"'+dash+(nf?' opacity=".5"':'')+'/>';
+    else { var rx=r>=7?3:r>=5.5?2.5:2; s+='<rect x="'+(cx-r)+'" y="'+(cy-r)+'" width="'+(2*r)+'" height="'+(2*r)+'" rx="'+rx+'" fill="'+fill+'" stroke="'+borde+'" stroke-width="'+bw+'"'+dash+(nf?' opacity=".5"':'')+'/>'; }
+    if(nf) s+='<line x1="'+(cx-r)+'" y1="'+(cy+r)+'" x2="'+(cx+r)+'" y2="'+(cy-r)+'" stroke="'+borde+'" stroke-width="2"/>';
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+s+'</svg>'; }
+  var ESTADOS=['bueno','regular','malo','no_funciona'], NOM={bueno:'Bueno',regular:'Regular',malo:'Malo',no_funciona:'No funciona'};
+  var h='<tr><th>Diámetro</th>'+ESTADOS.map(function(e){return '<th style="text-align:center">'+NOM[e]+'</th>'}).join('')+'</tr>';
+  [[100,'100 mm · hidrante'],[70,'70 mm · hidrante'],[45,'45 mm · boca de riego']].forEach(function(row){
+    h+='<tr><td>'+row[1]+'</td>'+ESTADOS.map(function(e){return '<td>'+marcador(row[0],e)+'<small>'+radio(row[0],e)+' px</small></td>'}).join('')+'</tr>';
+  });
+  document.getElementById('simb').innerHTML=h;
+  var v='<tr><th>Variante</th><th style="text-align:center">Hidrante 100 · bueno</th><th style="text-align:center">Boca 45 · regular</th><th style="text-align:center">Hidrante 70 · no funciona</th><th>Regla</th></tr>';
+  [['Normal',{}, 'borde blanco 2,5 px (2 px si r ≤ 5,5)'],['Sin revisar > 12 meses',{caducado:1},'borde discontinuo 3 2.5, mismo tamaño y color'],['Seleccionado',{seleccionado:1},'anillo marino 2 px a 3 px del borde'],['Modo oscuro',{oscuro:1},'borde #111826; relleno igual']].forEach(function(x){
+    var bg=x[1].oscuro?' style="background:#1B2536"':'';
+    v+='<tr><td>'+x[0]+'</td><td'+bg+'>'+marcador(100,'bueno',x[1])+'</td><td'+bg+'>'+marcador(45,'regular',x[1])+'</td><td'+bg+'>'+marcador(70,'no_funciona',x[1])+'</td><td style="text-align:left;font-size:12.5px;color:var(--texto-suave)">'+x[2]+'</td></tr>';
+  });
+  document.getElementById('variantes').innerHTML=v;
+
+  /* --- mapa demo --- */
+  function mapa(oscuro){
+    var P=oscuro?{bg:'#1B2536',bl:'#25314A',st:'#3B4A64',pk:'#233A2E',tr:'#2E4A38',wa:'#2C4358',tx:'#7E8A99',lim:'#7FA3D6'}:{bg:'#EFECE3',bl:'#E2DED3',st:'#fff',pk:'#D3E0C6',tr:'#BACFA8',wa:'#B9CBD6',tx:'#8A9090',lim:'#28517F'};
+    function mk(x,y,d,c,op){ return '<g transform="translate('+(x-16)+','+(y-16)+')">'+marcador(d,c,Object.assign({oscuro:oscuro},op||{})).replace(/<\/?svg[^>]*>/g,'')+'</g>'; }
+    var s='<svg viewBox="0 0 420 260" xmlns="http://www.w3.org/2000/svg"><rect width="420" height="260" fill="'+P.bg+'"/>'+
+      '<g fill="'+P.bl+'"><rect x="14" y="14" width="96" height="64" rx="2"/><rect x="140" y="14" width="110" height="64" rx="2"/><rect x="280" y="14" width="126" height="64" rx="2"/><rect x="14" y="108" width="96" height="60" rx="2"/><rect x="140" y="108" width="110" height="60" rx="2"/><rect x="14" y="196" width="96" height="52" rx="2"/><rect x="140" y="196" width="110" height="52" rx="2"/><rect x="280" y="196" width="126" height="52" rx="2"/></g>'+
+      '<rect x="280" y="108" width="126" height="60" rx="3" fill="'+P.pk+'"/><circle cx="310" cy="130" r="6" fill="'+P.tr+'"/><circle cx="370" cy="150" r="7" fill="'+P.tr+'"/>'+
+      '<path d="M0 186 C80 178 160 194 260 184 C340 176 380 190 420 184" stroke="'+P.wa+'" stroke-width="6" fill="none"/>'+
+      '<g stroke="'+P.st+'" stroke-linecap="round" fill="none"><path d="M0 92 H420" stroke-width="12"/><path d="M0 182 H420" stroke-width="9"/><path d="M126 0 V260" stroke-width="10"/><path d="M264 0 V260" stroke-width="12"/></g>'+
+      '<circle cx="264" cy="92" r="16" fill="none" stroke="'+P.st+'" stroke-width="10"/><circle cx="264" cy="92" r="9" fill="'+P.pk+'"/>'+
+      '<g font-family="Source Sans 3, sans-serif" font-size="9" fill="'+P.tx+'"><text x="18" y="88">Av. de Andalucía</text><text x="18" y="178">C/ Real</text><text x="286" y="162">Parque</text></g>'+
+      '<path d="M8 8 H412 V252 H8 Z" fill="none" stroke="'+P.lim+'" stroke-width="1.5" stroke-dasharray="9 7" opacity=".5"/>'+
+      mk(60,92,100,'bueno')+mk(126,182,70,'bueno',{caducado:1})+mk(200,92,100,'regular')+mk(330,92,70,'malo')+mk(126,60,45,'bueno')+mk(264,182,45,'regular')+mk(200,230,100,'no_funciona')+mk(360,230,45,'no_funciona')+
+      '<circle cx="300" cy="215" r="18" fill="#28517F" opacity=".16"/><circle cx="300" cy="215" r="4.5" fill="#28517F" stroke="'+(oscuro?'#111826':'#fff')+'" stroke-width="1.5"/>'+
+      '</svg>';
+    var leg='<div class="legend-box"><div class="lg">'+marcador(100,'bueno',{oscuro:oscuro})+'Hidrante</div><div class="lg">'+marcador(45,'bueno',{oscuro:oscuro})+'Boca de riego</div><div class="lg">'+marcador(70,'regular',{oscuro:oscuro})+'Regular</div><div class="lg">'+marcador(70,'malo',{oscuro:oscuro})+'Malo</div><div class="lg">'+marcador(70,'no_funciona',{oscuro:oscuro})+'No funciona</div><div class="lg">'+marcador(70,'bueno',{oscuro:oscuro,caducado:1})+'Sin revisar</div><div class="lgn">Más grande = más agua aprovechable</div></div>';
+    return s+leg;
+  }
+  document.getElementById('mapa-claro').innerHTML=mapa(false);
+  document.getElementById('mapa-oscuro').innerHTML=mapa(true);
+})();
+</script>
+</body>
+</html>
