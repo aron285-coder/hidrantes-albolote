@@ -527,7 +527,7 @@ con su resultado.
 | Fase | Estado | Fecha | Notas |
 |---|---|---|---|
 | 0 | terminada | 18 sep 2026 | Repositorio público (DEC-053); rol `hidrantes_migrador` (DEC-052); `mantener-activo.yml` (DEC-054); ajustes del arranque (DEC-055); un PR a `main` de prueba (DEC-056). Changelog en `config` (FR-167) y versión en Ajustes quedan para las Fases 2 y 4. Verificación: `docs/verificacion/fase-0.md`. |
-| 1 | pendiente | | |
+| 1 | terminada | 18 sep 2026 | Diez núcleos desde OSM; margen de 400 m también en el servidor; carga en espera de las tablas de la Fase 2 (DEC-057). Verificación: `docs/verificacion/fase-1.md`. |
 | 2 | pendiente | | |
 | 3 | pendiente | | |
 | 4 | pendiente | | |
