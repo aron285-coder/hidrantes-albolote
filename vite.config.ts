@@ -73,6 +73,8 @@ export default defineConfig(({ mode }) => {
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//],
           cleanupOutdatedCaches: true,
+          // Avisos push (FR-163): manejadores propios dentro del Service Worker generado.
+          importScripts: ['sw-push.js'],
           // Fotos ya vistas, para que la ficha las enseñe sin cobertura (DEC-011). Solo lectura pública.
           runtimeCaching: [
             {

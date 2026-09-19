@@ -38,7 +38,7 @@ test.describe('mapa y lista', () => {
     await expect(ficha).toContainText(T.formulario.bueno);
     await expect(ficha).toContainText(T.formato.mm(100));
     await expect(page.getByRole('link', { name: T.ficha.comoLlegar })).toHaveAttribute('href', /37\.2308/);
-    await expect(ficha).not.toContainText(T.ficha.proponerCambio);
+    await expect(page.getByRole('button', { name: T.ficha.proponerCambio })).toBeVisible();
   });
 
   test('lista: filtros, estados vacíos y paso al mapa (FR-68)', async ({ page }) => {

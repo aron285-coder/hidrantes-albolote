@@ -9,7 +9,10 @@ import { Ajustes } from '@/paginas/Ajustes';
 import { Armazon } from '@/paginas/Armazon';
 import { Bienvenida } from '@/paginas/Bienvenida';
 import { Entrada } from '@/paginas/Entrada';
+import { Incidencia } from '@/paginas/Incidencia';
 import { Legal } from '@/paginas/Legal';
+import { MisPropuestas } from '@/paginas/MisPropuestas';
+import { Proponer } from '@/paginas/Proponer';
 import { Lista } from '@/paginas/Lista';
 import { Mapa } from '@/paginas/Mapa';
 import { NoAutorizado } from '@/paginas/NoAutorizado';
@@ -45,6 +48,12 @@ function Rutas() {
         }
       />
       <Route path="/legal" element={<Legal />} />
+      <Route path="/proponer/:operacion" element={<Proponer />} />
+      <Route
+        path="/mis-propuestas"
+        element={acceso.tipo === 'voluntario' ? <MisPropuestas /> : <Navigate to="/" replace />}
+      />
+      <Route path="/incidencia" element={acceso.tipo === 'voluntario' ? <Incidencia /> : <Navigate to="/" replace />} />
       <Route
         path="/admin"
         element={acceso.tipo === 'jefatura' ? <PanelJefatura correo={acceso.correo} /> : <Navigate to="/" replace />}

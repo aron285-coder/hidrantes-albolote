@@ -230,6 +230,17 @@ export function Mapa() {
             </p>
           )}
 
+          {/* Nuevo punto (FL-03): botón + naranja de 44 px en la esquina inferior derecha (06 §5) */}
+          <button
+            type="button"
+            onClick={() => navegar('/proponer/alta')}
+            aria-label={T.navegacion.nuevoPunto}
+            title={T.navegacion.nuevoPunto}
+            className="bg-naranja-600 absolute right-3 bottom-8 z-[450] flex size-14 items-center justify-center rounded-full text-white shadow-lg"
+          >
+            <Plus size={28} aria-hidden />
+          </button>
+
           <div className="absolute bottom-2 left-2 z-[400]">
             <Leyenda />
           </div>

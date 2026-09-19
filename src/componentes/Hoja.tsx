@@ -1,6 +1,10 @@
 import { type ReactNode, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
-/** Hoja inferior sobre un velo (06 §5). Se cierra con el velo o con Escape. */
+/**
+ * Hoja inferior sobre un velo (06 §5). Se cierra con el velo o con Escape. Se pinta en <body> para
+ * quedar siempre encima, aunque se abra desde la ficha flotante sobre el mapa.
+ */
 export function Hoja({ titulo, alCerrar, children }: { titulo: string; alCerrar: () => void; children: ReactNode }) {
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
@@ -9,8 +13,8 @@ export function Hoja({ titulo, alCerrar, children }: { titulo: string; alCerrar:
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
   }, [alCerrar]);
-  return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center">
+  return createPortal(
+    <div className="fixed inset-0 z-[1000] flex items-end justify-center">
       <div className="absolute inset-0 bg-[rgba(14,27,48,.38)]" onClick={alCerrar} aria-hidden />
       <div
         role="dialog"
@@ -22,6 +26,7 @@ export function Hoja({ titulo, alCerrar, children }: { titulo: string; alCerrar:
         <h2 className="mb-1 text-[15px] font-bold">{titulo}</h2>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

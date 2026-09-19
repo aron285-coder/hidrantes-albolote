@@ -10,6 +10,8 @@ import { reintentarAhora } from '@/lib/conexion';
 import { fechaCorta, hace, megas } from '@/lib/formato';
 import { descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { useVersionNueva } from '@/hooks/version';
+import { useCola, useMisPropuestas } from '@/hooks/cola';
+import { type EstadoPush, activarPush, desactivarPush, estadoPush } from '@/lib/push';
 import { cambiarFirma, cerrarSesionVoluntario, salirDeGoogle } from '@/lib/acceso';
 import { VERSION } from '@/lib/entorno';
 import { recargar } from '@/lib/pwa';
@@ -44,8 +46,8 @@ const OPCIONES_TEMA: [Tema, string][] = [
 ];
 
 /**
- * Ajustes (FR-93, FL-12). Solo lo que ya funciona:
- * Mis propuestas, avisos e incidencias aparecen con la Fase 6 (UI-01, DEC-060).
+ * Ajustes (FR-93, FL-12): firma, Mis propuestas, mapa sin cobertura, puntos guardados, capa,
+ * avisos, pantalla, ayuda, aviso legal, cerrar sesión y versión.
  */
 export function Ajustes() {
   const acceso = useAcceso();
@@ -55,6 +57,7 @@ export function Ajustes() {
   const [editando, setEditando] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const cerrarHoja = useCallback(() => setConfirmar(false), []);
+  const cola = useCola();
 
   const sesion = acceso.tipo === 'voluntario' ? acceso.sesion : null;
   const [nombre, setNombre] = useState(sesion?.nombre ?? '');
@@ -117,7 +120,11 @@ export function Ajustes() {
         </form>
       )}
 
+      {sesion && <FilaMisPropuestas />}
+
       <SeccionMapa />
+
+      {sesion && <SeccionAvisos />}
 
       <Seccion>{T.ajustes.pantalla}</Seccion>
       <Fila titulo={T.ajustes.modoOscuro}>
@@ -144,6 +151,17 @@ export function Ajustes() {
       </Fila>
 
       <Seccion>{T.ajustes.ayuda}</Seccion>
+      {sesion && (
+        <Fila titulo={T.ajustes.algoNoFunciona}>
+          <Boton
+            variante="enlace"
+            className="text-sm"
+            onClick={() => navegar('/incidencia', { state: { desde: '/ajustes' } })}
+          >
+            {T.ajustes.avisarJefatura}
+          </Boton>
+        </Fila>
+      )}
       <Fila titulo={T.ajustes.comoSeUsa}>
         <Boton variante="enlace" className="text-sm" onClick={() => navegar('/bienvenida')}>
           {T.ajustes.ver}
@@ -179,8 +197,11 @@ export function Ajustes() {
 
       {confirmar && (
         <Hoja titulo={T.ajustes.confirmarCerrar} alCerrar={cerrarHoja}>
-          <p className="text-texto-suave mb-3 text-sm">{T.ajustes.cerrarSesionDetalle}</p>
-          <Boton variante="destructivo" className="w-full" onClick={cerrarSesionVoluntario}>
+          <p className="text-texto-suave mb-3 text-sm">
+            {T.ajustes.cerrarSesionDetalle}
+            {cola.length > 0 && <b className="text-rojo-700 block">{T.ajustes.perderasEnvios(cola.length)}</b>}
+          </p>
+          <Boton variante="destructivo" className="w-full" onClick={() => void cerrarSesionVoluntario()}>
             {T.ajustes.cerrarSesionBoton}
           </Boton>
           <Boton variante="secundario" className="mt-3 w-full" onClick={cerrarHoja}>
@@ -262,6 +283,92 @@ function SeccionMapa() {
           }}
           alCerrar={() => setEligiendoCapa(false)}
         />
+      )}
+    </>
+  );
+}
+
+function FilaMisPropuestas() {
+  const navegar = useNavigate();
+  const cola = useCola();
+  const propias = useMisPropuestas();
+  const enviadas = propias.filter((p) => !cola.some((c) => c.clave_local === p.clave_local)).length;
+  return (
+    <Fila titulo={T.navegacion.misPropuestas} detalle={T.misPropuestas.resumen(enviadas, cola.length)}>
+      <Boton variante="enlace" className="text-sm" onClick={() => navegar('/mis-propuestas')}>
+        {T.ajustes.ver}
+      </Boton>
+    </Fila>
+  );
+}
+
+/** Avisos push (FR-163): se explica antes de pedir el permiso del móvil. */
+function SeccionAvisos() {
+  const [estado, setEstado] = useState<EstadoPush>(estadoPush);
+  const [explicar, setExplicar] = useState(false);
+  const [ocupado, setOcupado] = useState(false);
+  const cerrar = useCallback(() => setExplicar(false), []);
+  if (estado === 'no_disponible') return null;
+  const detalle =
+    estado === 'activo'
+      ? T.push.activado
+      : estado === 'denegado'
+        ? T.push.denegado
+        : estado === 'instalar_primero'
+          ? T.push.instalarPrimero
+          : T.push.desactivado;
+  const puedeCambiar = estado === 'activo' || estado === 'inactivo';
+  return (
+    <>
+      <Seccion>{T.ajustes.avisos}</Seccion>
+      <Fila titulo={T.ajustes.avisarResolucion} detalle={detalle}>
+        {puedeCambiar && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={estado === 'activo'}
+            aria-label={T.ajustes.avisarResolucion}
+            disabled={ocupado}
+            onClick={async () => {
+              if (estado === 'activo') {
+                setOcupado(true);
+                setEstado(await desactivarPush());
+                setOcupado(false);
+              } else setExplicar(true);
+            }}
+            className={cn(
+              'relative h-7 w-12 shrink-0 rounded-full transition-colors',
+              estado === 'activo' ? 'bg-verde-600' : 'bg-linea',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 size-6 rounded-full bg-white shadow transition-all',
+                estado === 'activo' ? 'left-[22px]' : 'left-0.5',
+              )}
+            />
+          </button>
+        )}
+      </Fila>
+      {explicar && (
+        <Hoja titulo={T.push.titulo} alCerrar={cerrar}>
+          <p className="text-texto-suave mb-3 text-sm">{T.push.explicacion}</p>
+          <Boton
+            className="w-full"
+            disabled={ocupado}
+            onClick={async () => {
+              setOcupado(true);
+              setEstado(await activarPush().catch(() => estadoPush()));
+              setOcupado(false);
+              setExplicar(false);
+            }}
+          >
+            {T.push.permitir}
+          </Boton>
+          <Boton variante="secundario" className="mt-3 w-full" onClick={cerrar}>
+            {T.push.ahoraNo}
+          </Boton>
+        </Hoja>
       )}
     </>
   );

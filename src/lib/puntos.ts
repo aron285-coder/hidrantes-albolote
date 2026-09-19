@@ -74,6 +74,7 @@ let enCurso: Promise<Resultado<null>> | null = null;
  */
 export function sincronizar(token: string | null): Promise<Resultado<null>> {
   enCurso ??= (async () => {
+    await Promise.resolve(); // mismo motivo que en cola.ts: el finally no debe adelantarse a ??=
     fijar({ sincronizando: true });
     try {
       const completo = !estado.sincronizadoEn || !token;
@@ -87,6 +88,8 @@ export function sincronizar(token: string | null): Promise<Resultado<null>> {
         if (!r.ok) return r;
         listado = r.datos;
       }
+      if (!listado || !Array.isArray(listado.puntos)) return { ok: false, codigo: 'ERROR_INTERNO' };
+      listado.bajas = Array.isArray(listado.bajas) ? listado.bajas : [];
       const puntos = aplicarListado(estado.puntos, listado, completo);
       const guardadoEn = Date.now();
       try {

@@ -1,18 +1,12 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { PMTiles } from 'pmtiles';
-import { labelRules, leafletLayer, paintRules } from 'protomaps-leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import zonaTexto from '../../../datos/zona-cobertura.geojson?raw';
-import { CATASTRO, type Capa, OSM, PNOA } from '@/lib/capas';
-import { estiloLimite, estiloMapabase } from '@/lib/estilo-mapabase';
-import { FuenteMapabase } from '@/lib/mapabase';
+import { LIMITES, capasDe } from './capas-leaflet';
+import type { Capa } from '@/lib/capas';
 import type { Posicion } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
 
-const ZONA = JSON.parse(zonaTexto) as GeoJSON.FeatureCollection;
-const LIMITES = L.geoJSON(ZONA).getBounds();
 const VISTA = 'hidrantes.vista';
 
 export interface ControlMapa {
@@ -38,10 +32,6 @@ function vistaGuardada(): { centro: [number, number]; zoom: number } | null {
     return null;
   }
 }
-
-// Una sola lectura del archivo para todas las capas base que se creen (claro/oscuro).
-let archivo: PMTiles | null = null;
-const mapabase = () => (archivo ??= new PMTiles(new FuenteMapabase()));
 
 /** Mapa de Leaflet con el mapa base propio, las capas en línea, el límite, los puntos y tu posición. */
 export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
@@ -100,24 +90,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
   useEffect(() => {
     const m = mapa.current;
     if (!m) return;
-    const capas: L.Layer[] = [];
-    if (capa === 'calle') capas.push(L.tileLayer(OSM.url, OSM.opciones));
-    else if (capa === 'satelite') capas.push(L.tileLayer(PNOA.url, PNOA.opciones));
-    else {
-      const estilo = estiloMapabase(modo);
-      capas.push(
-        leafletLayer({
-          url: mapabase(),
-          paintRules: paintRules(estilo),
-          labelRules: labelRules(estilo, 'es'),
-          backgroundColor: estilo.background,
-          maxDataZoom: 15,
-          lang: 'es',
-        }) as unknown as L.Layer,
-      );
-      if (capa === 'catastro') capas.push(L.tileLayer.wms(CATASTRO.url, CATASTRO.opciones));
-    }
-    capas.push(L.geoJSON(ZONA, { style: estiloLimite(modo), interactive: false }));
+    const capas = capasDe(capa, modo);
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
   }, [capa, modo]);
