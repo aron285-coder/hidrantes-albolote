@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.2 — 19 de septiembre de 2026: el Apéndice A crece con los textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.3 — 19 de septiembre de 2026: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -86,6 +86,7 @@ Las capas en línea (OSM, PNOA, Catastro) no se recolorean.
 | texto secundario | `#9AA8BE` |
 | controles flotantes del mapa | `rgba(20,29,45,.94)` |
 | badge pendientes | fondo `#3A2A1E`, texto `#F0A070` |
+| anillo del marcador seleccionado (`--anillo-seleccion`) | `#E6EAF0` (el `--marino-950` de claro no se ve sobre el mapa oscuro; DEC-062) |
 
 Los rellenos de estado y el naranja de acción **no cambian**. El borde blanco del marcador pasa a
 `#111826` para que siga separando del fondo.
@@ -147,7 +148,7 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 | Relleno | color de estado (§2.2) |
 | No funciona | opacidad **0,5** + línea blanca cruzada de 2 px de esquina inferior izquierda a superior derecha, largo `2 × radio_px` |
 | Sin revisar > `meses_revision` | borde **discontinuo** `3 2.5`, mismo tamaño y color |
-| Seleccionado | anillo exterior `--marino-950` de 2 px a 3 px del borde |
+| Seleccionado | anillo exterior `--marino-950` de 2 px a 3 px del borde (en oscuro, `--anillo-seleccion` de §2.4) |
 | Propuesto (solo panel) | pin naranja `--naranja-600` con punto blanco; el punto existente en comparación, con opacidad .8 |
 | Posición del usuario | punto `--marino-600` r 4,5 con borde blanco 1,5 y halo del mismo color con opacidad .16 cuyo radio representa la precisión GPS |
 | Objetivo táctil | **≥ 44 × 44 px** alrededor de cada marcador, independiente del radio dibujado |
@@ -339,11 +340,19 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
 `No funciona` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` ·
 `Nada coincide con ese filtro.` · `Sin cobertura` · `Reintentar` ·
-`El mapa llega en la próxima versión de la aplicación.` ·
-`La lista de puntos llega en la próxima versión de la aplicación.` (los dos últimos, solo hasta la Fase 5).
+`[12] puntos` · `Sincronizando…` ·
+`Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` ·
+`Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.` ·
+`La capa "[Satélite (PNOA)]" necesita cobertura. Los puntos siguen; cambia al mapa base.` ·
+`Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Buscando tu posición…` ·
+`Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.` ·
+`No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Acercar` · `Alejar` ·
+`funciona sin cobertura` · `solo en línea` · `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
 
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
-`Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar`.
+`Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
+`Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Racor [Granada]` ·
+`Foto no disponible sin cobertura` · `Sin foto`.
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
@@ -390,13 +399,17 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
 `novedades` · `Cuenta de jefatura` · `Sesión de Google · [correo]` · `Cerrar la sesión de Google` ·
 `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
-`¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Versión [0.1.0]`.
+`¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Versión [0.1.0]` · `Descargando… [40] %` ·
+`No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
+`No se pudo descargar. Inténtalo de nuevo con wifi.` · `[438] · sincronizado [hace 5 min]` ·
+`Todavía sin sincronizar`.
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·
 `El panel de revisión llega en una próxima versión de la aplicación.` (hasta la Fase 7) · `Ir al mapa`.
 
-**Tiempos** (UI-12). `hace un momento` · `hace [5] min` · `hace [3] h` · `hace 1 día` · `hace [2] días`.
+**Tiempos** (UI-12). `hace un momento` · `hace [5] min` · `hace [3] h` · `hace 1 día` · `hace [2] días` · `hace 1 mes` ·
+`hace [3] meses` · `hace 1 año` · `hace [2] años` · `[100] mm`.
 
 **Panel: cola.** `Cola de revisión` · `Inventario` · `Revisiones caducadas` · `Registro` ·
 `Papelera` · `Voluntarios` · `Ajustes` · `Buscar código, calle o voluntario…` ·

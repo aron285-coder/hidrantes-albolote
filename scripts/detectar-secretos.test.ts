@@ -32,7 +32,8 @@ describe('archivoProhibido', () => {
   it.each(['.env', '.env.local', 'config/.env.produccion', 'respaldo.sql.gpg', 'datos/mapa.pmtiles'])('%s', (r) =>
     expect(archivoProhibido(r)).toBe(true),
   );
-  it.each(['.env.example', 'src/lib/entorno.ts', 'datos/zona-cobertura.geojson'])('%s se permite', (r) =>
-    expect(archivoProhibido(r)).toBe(false),
+  it.each(['.env.example', 'src/lib/entorno.ts', 'datos/zona-cobertura.geojson', 'public/mapabase/albolote.pmtiles'])(
+    '%s se permite',
+    (r) => expect(archivoProhibido(r)).toBe(false),
   );
 });

@@ -2,7 +2,13 @@ import { type FormEvent, type ReactNode, useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
-import { useAcceso } from '@/hooks/estado';
+import { SelectorCapas } from '@/componentes/mapa/SelectorCapas';
+import { useAcceso, useConexion, useMapabase, usePuntos } from '@/hooks/estado';
+import { useReloj } from '@/hooks/reloj';
+import { type Capa, NOMBRE_CAPA, capaGuardada, guardarCapa } from '@/lib/capas';
+import { reintentarAhora } from '@/lib/conexion';
+import { fechaCorta, hace, megas } from '@/lib/formato';
+import { descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { useVersionNueva } from '@/hooks/version';
 import { cambiarFirma, cerrarSesionVoluntario, salirDeGoogle } from '@/lib/acceso';
 import { VERSION } from '@/lib/entorno';
@@ -13,7 +19,11 @@ import { cn } from '@/lib/utils';
 
 function Fila({ titulo, detalle, children }: { titulo: ReactNode; detalle?: ReactNode; children?: ReactNode }) {
   return (
-    <div className="bg-papel border-linea rounded-tarjeta flex min-h-12 items-center gap-2 border px-3 py-1.5">
+    <div
+      role="group"
+      aria-label={typeof titulo === 'string' ? titulo : undefined}
+      className="bg-papel border-linea rounded-tarjeta flex min-h-12 items-center gap-2 border px-3 py-1.5"
+    >
       <div className="min-w-0 flex-1">
         <div className="text-[15px]">{titulo}</div>
         {detalle && <div className="text-texto-suave text-[13px]">{detalle}</div>}
@@ -34,8 +44,8 @@ const OPCIONES_TEMA: [Tema, string][] = [
 ];
 
 /**
- * Ajustes (FR-93, FL-12). Solo lo que ya funciona: mapa sin cobertura, sincronización, capa,
- * Mis propuestas, avisos e incidencias aparecen con sus fases (UI-01, DEC-060).
+ * Ajustes (FR-93, FL-12). Solo lo que ya funciona:
+ * Mis propuestas, avisos e incidencias aparecen con la Fase 6 (UI-01, DEC-060).
  */
 export function Ajustes() {
   const acceso = useAcceso();
@@ -107,6 +117,8 @@ export function Ajustes() {
         </form>
       )}
 
+      <SeccionMapa />
+
       <Seccion>{T.ajustes.pantalla}</Seccion>
       <Fila titulo={T.ajustes.modoOscuro}>
         <div role="radiogroup" aria-label={T.ajustes.modoOscuro} className="border-linea flex rounded-campo border">
@@ -177,5 +189,80 @@ export function Ajustes() {
         </Hoja>
       )}
     </div>
+  );
+}
+
+/** Mapa sin cobertura, puntos guardados y capa por defecto (FR-81, FR-93, FL-12). */
+function SeccionMapa() {
+  const mapabase = useMapabase();
+  const { puntos, guardadoEn, sincronizando } = usePuntos();
+  const conexion = useConexion();
+  const [capa, setCapa] = useState<Capa>(capaGuardada);
+  const [eligiendoCapa, setEligiendoCapa] = useState(false);
+  useReloj();
+  const sinRed = conexion === 'sin_cobertura';
+  const nueva = hayVersionNuevaMapabase(mapabase);
+
+  const detalleMapa =
+    mapabase.progreso !== null
+      ? T.ajustes.descargando(mapabase.progreso)
+      : mapabase.descargado
+        ? `${T.ajustes.descargado(megas(mapabase.descargado.bytes), fechaCorta(mapabase.descargado.fecha))}${nueva ? ` · ${T.ajustes.versionNuevaMapa}` : ''}`
+        : T.ajustes.noDescargadoDetalle;
+
+  return (
+    <>
+      <Seccion>{T.navegacion.mapa}</Seccion>
+      <Fila
+        titulo={T.ajustes.mapaSinCobertura}
+        detalle={
+          <>
+            {detalleMapa}
+            {mapabase.fallo && <span className="text-rojo-700 block">{T.ajustes.falloDescarga}</span>}
+            {sinRed && mapabase.progreso === null && <span className="block">{T.mapa.necesitaCobertura}</span>}
+          </>
+        }
+      >
+        {mapabase.progreso === null && (!mapabase.descargado || nueva) && (
+          <Boton variante="enlace" className="text-sm" disabled={sinRed} onClick={() => void descargarMapabase()}>
+            {mapabase.descargado ? T.ajustes.actualizar : T.ajustes.descargar}
+          </Boton>
+        )}
+      </Fila>
+      <Fila
+        titulo={T.ajustes.puntosGuardados}
+        detalle={
+          <>
+            {guardadoEn ? T.ajustes.puntosGuardadosDetalle(puntos.length, hace(guardadoEn)) : T.ajustes.sinSincronizar}
+            {sinRed && <span className="block">{T.mapa.necesitaCobertura}</span>}
+          </>
+        }
+      >
+        <Boton
+          variante="enlace"
+          className="text-sm"
+          disabled={sinRed || sincronizando}
+          onClick={() => void reintentarAhora()}
+        >
+          {sincronizando ? T.mapa.sincronizando : T.ajustes.sincronizar}
+        </Boton>
+      </Fila>
+      <Fila titulo={T.ajustes.capaPorDefecto} detalle={NOMBRE_CAPA[capa]}>
+        <Boton variante="enlace" className="text-sm" onClick={() => setEligiendoCapa(true)}>
+          {T.ajustes.cambiar}
+        </Boton>
+      </Fila>
+      {eligiendoCapa && (
+        <SelectorCapas
+          titulo={T.ajustes.capaPorDefecto}
+          actual={capa}
+          alElegir={(c) => {
+            setCapa(c);
+            guardarCapa(c);
+          }}
+          alCerrar={() => setEligiendoCapa(false)}
+        />
+      )}
+    </>
   );
 }

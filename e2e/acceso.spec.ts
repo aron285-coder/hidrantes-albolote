@@ -82,7 +82,7 @@ test.describe('entrada del voluntario (FL-01)', () => {
       const ultima = i === T.bienvenida.pantallas.length - 1;
       await page.getByRole('button', { name: ultima ? T.bienvenida.empezar : T.bienvenida.siguiente }).click();
     }
-    await expect(page.getByText(T.mapa.mapaProximamente)).toBeVisible();
+    await expect(page.getByTestId('mapa')).toBeVisible();
     await expect(page.getByRole('link', { name: T.navegacion.mapa })).toBeVisible();
 
     const almacen = await page.evaluate(() => JSON.stringify(localStorage));
@@ -92,7 +92,7 @@ test.describe('entrada del voluntario (FL-01)', () => {
 
     // Al volver a abrir no pide nada.
     await page.reload();
-    await expect(page.getByText(T.mapa.mapaProximamente)).toBeVisible();
+    await expect(page.getByTestId('mapa')).toBeVisible();
   });
 
   test('aviso legal desde la entrada, con vuelta', async ({ page }) => {
@@ -142,7 +142,7 @@ test.describe('con sesión guardada', () => {
     });
     await page.goto('/');
     await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeVisible();
-    await expect(page.getByText(T.mapa.mapaProximamente)).toBeVisible();
+    await expect(page.getByTestId('mapa')).toBeVisible();
     await page.getByRole('link', { name: T.navegacion.ajustes }).click();
     await expect(page.getByText(`${FIRMA.nombre} ${FIRMA.apellido}`)).toBeVisible();
 
@@ -164,7 +164,7 @@ test.describe('con sesión guardada', () => {
     await context.setOffline(true);
     await expect(page.getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
     await page.getByRole('link', { name: T.navegacion.lista }).click();
-    await expect(page.getByText(T.mapa.listaProximamente)).toBeVisible();
+    await expect(page.getByRole('radio', { name: T.mapa.todos })).toBeVisible();
     await context.setOffline(false);
     await expect(page.getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeHidden();
   });
@@ -175,7 +175,7 @@ test.describe('con sesión guardada', () => {
     await page.goto('/');
     await expect(page.getByRole('heading', { name: T.bienvenida.pantallas[0].titulo })).toBeVisible();
     await page.getByRole('button', { name: T.bienvenida.saltar }).click();
-    await expect(page.getByText(T.mapa.mapaProximamente)).toBeVisible();
+    await expect(page.getByTestId('mapa')).toBeVisible();
 
     await page.getByRole('link', { name: T.navegacion.ajustes }).click();
     await page
@@ -191,7 +191,10 @@ test.describe('con sesión guardada', () => {
     await simularRpc(page, { fn_listar_puntos: { puntos: [], bajas: [] } });
     await page.goto('/ajustes');
 
-    await page.getByRole('button', { name: T.ajustes.cambiar }).click();
+    await page
+      .getByRole('group', { name: `${FIRMA.nombre} ${FIRMA.apellido}` })
+      .getByRole('button', { name: T.ajustes.cambiar })
+      .click();
     await page.getByLabel(T.entrada.apellido).fill('');
     await expect(page.getByRole('button', { name: T.ajustes.guardar })).toBeDisabled();
     await expect(page.getByText(T.entrada.faltaNombre)).toBeVisible();
@@ -217,8 +220,12 @@ test.describe('con sesión guardada', () => {
     await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
     await expect(page.getByLabel(T.entrada.nombre)).toHaveValue('');
     const claves = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('hidrantes.')));
-    // Queda solo la preferencia de pantalla; el identificador del móvil se crea de nuevo al entrar.
-    expect(claves).toEqual(['hidrantes.tema']);
+    // No queda nada personal ni del móvil: ni acceso, ni nombre, ni identificador, ni puntos.
+    // (La preferencia de pantalla y el mapa base se conservan: no son datos personales.)
+    for (const clave of ['token', 'firma', 'dispositivo_id', 'primer_uso_visto']) {
+      expect(claves).not.toContain(`hidrantes.${clave}`);
+    }
+    expect(claves).toContain('hidrantes.tema');
   });
 
   test('un fallo en una pantalla muestra el límite de error y se anota (TR-106)', async ({ page }) => {
@@ -234,7 +241,7 @@ test.describe('con sesión guardada', () => {
     await expect(page.getByRole('alert')).toContainText(T.fallo.titulo);
     // La navegación sigue viva y "Volver al mapa" funciona.
     await page.getByRole('button', { name: T.envio.volverAlMapa }).click();
-    await expect(page.getByText(T.mapa.mapaProximamente)).toBeVisible();
+    await expect(page.getByTestId('mapa')).toBeVisible();
 
     await expect.poll(() => enviados.length).toBeGreaterThan(0);
     expect(enviados[0]).toMatchObject({
@@ -265,7 +272,7 @@ test.describe('jefatura (FL-20)', () => {
     await expect(page.getByRole('heading', { name: T.jefatura.panel })).toBeVisible();
     await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();
     await page.getByRole('button', { name: T.jefatura.irAlMapa }).click();
-    await expect(page.getByText(T.mapa.mapaProximamente)).toBeVisible();
+    await expect(page.getByTestId('mapa')).toBeVisible();
     await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();
 
     await page.getByRole('link', { name: T.navegacion.ajustes }).click();

@@ -11,6 +11,8 @@ import '@fontsource/jetbrains-mono/latin-500.css';
 import './index.css';
 import { App } from './App';
 import { iniciarAcceso } from './lib/acceso';
+import { iniciarMapabase } from './lib/mapabase';
+import { activarSiHayPermiso } from './lib/posicion';
 import { registrarComprobacion } from './lib/conexion';
 import { enviarErrores, instalarCapturaGlobal } from './lib/errores';
 import { registrarServiceWorker } from './lib/pwa';
@@ -20,6 +22,8 @@ aplicarTema();
 instalarCapturaGlobal();
 registrarComprobacion(enviarErrores);
 iniciarAcceso();
+void iniciarMapabase();
+void activarSiHayPermiso();
 registrarServiceWorker();
 
 createRoot(document.getElementById('raiz')!).render(

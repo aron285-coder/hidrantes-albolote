@@ -247,27 +247,27 @@ autorizado".
 **Objetivo:** el mapa operativo, con y sin cobertura. Referencia: FR-60–71, FR-80–81; **06 §4**;
 04 §8; 07 §7.2 y §7.6.
 
-- [ ] `scripts/generar-mapabase.ts` (`npm run mapabase`): `pmtiles extract` del recuadro; imprime
+- [x] `scripts/generar-mapabase.ts` (`npm run mapabase`): `pmtiles extract` del recuadro; imprime
       tamaño; ≤ 20 MB a Pages, si no a R2; `VITE_MAPABASE_URL`.
-- [ ] Descarga completa del PMTiles a Cache Storage (automática con wifi, manual desde Ajustes),
+- [x] Descarga completa del PMTiles a Cache Storage (automática con wifi, manual desde Ajustes),
       servicio de rangos desde la caché, indicador de estado y versión, aviso si falta (FR-81).
-- [ ] Leaflet con `protomaps-leaflet`; estilo claro y oscuro del mapa base desde los tokens de 06
+- [x] Leaflet con `protomaps-leaflet`; estilo claro y oscuro del mapa base desde los tokens de 06
       §2.3, en un solo archivo `src/lib/estilo-mapabase.ts`.
-- [ ] Capas en línea (OSM, PNOA, Catastro) en `src/lib/capas.ts`, con atribución, `User-Agent`
+- [x] Capas en línea (OSM, PNOA, Catastro) en `src/lib/capas.ts`, con atribución, `User-Agent`
       identificable, capa recordada, y degradación en gris sin conexión. Verificar que PNOA y
       Catastro responden por HTTPS y no filtran por `Referer`.
-- [ ] Límite de zona dibujado; encuadre inicial; centrar en mi posición con halo de precisión.
-- [ ] Marcadores según **06 §4** exactamente: `radio_px` viene de `v_puntos_activos`; forma, borde,
+- [x] Límite de zona dibujado; encuadre inicial; centrar en mi posición con halo de precisión.
+- [x] Marcadores según **06 §4** exactamente: `radio_px` viene de `v_puntos_activos`; forma, borde,
       tachado, discontinuo, declutter por zoom, objetivo táctil ≥ 44 px, sin agrupación.
-- [ ] Leyenda con el contenido y orden de 06 §4.5.
-- [ ] Caché de puntos en IndexedDB con sincronización incremental (05 §10) y sello visible.
-- [ ] Búsqueda local (código, dirección, descripción) en mapa y lista; pestaña Lista con filtros y
+- [x] Leyenda con el contenido y orden de 06 §4.5.
+- [x] Caché de puntos en IndexedDB con sincronización incremental (05 §10) y sello visible.
+- [x] Búsqueda local (código, dirección, descripción) en mapa y lista; pestaña Lista con filtros y
       orden de FR-68.
-- [ ] Ficha (FR-66) con menú "Proponer un cambio" y **"Cómo llegar"** (FR-161: enlace `geo:`/Google
+- [x] Ficha (FR-66) (el menú "Proponer un cambio" llega con la Fase 6, DEC-062) y **"Cómo llegar"** (FR-161: enlace `geo:`/Google
       Maps/Apple Plans según plataforma); comprobar en la respuesta de red que no viajan autores ni
       historial.
-- [ ] Layout adaptable: ≥ 900 px lista lateral y ficha flotante; tableta con botones laterales.
-- [ ] Modo oscuro completo (interfaz y mapa base).
+- [x] Layout adaptable: ≥ 900 px lista lateral y ficha flotante; tableta con botones laterales.
+- [x] Modo oscuro completo (interfaz y mapa base).
 
 **Criterio de salida:** con el mapa base descargado, mapa y búsqueda funcionan en modo avión con los
 datos de la última sincronización; las cuatro capas cargan en 3G; los tests unitarios cubren las

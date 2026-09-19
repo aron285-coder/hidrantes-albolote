@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060, DEC-061; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060 a DEC-062; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -479,6 +479,44 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   automática al haber versión nueva.
 - **Afecta a:** 06 Apéndice A; 09 Fase 4.
 
+### DEC-062 · Decisiones de detalle al construir la Fase 5 (mapa)
+- **Fecha:** 19 sep 2026 · **Estado:** vigente
+- **Contexto:** 04 §8 y 06 §4 fijan qué hace el mapa; faltaba cómo extraer el mapa base sin
+  herramientas externas, cuándo descargarlo y qué hacer con lo que depende de la Fase 6.
+- **Decisiones:**
+  1. **Extracción propia del mapa base** (`npm run mapabase`): lee por rangos la compilación diaria
+     de Protomaps con la librería `pmtiles` y escribe un PMTiles v3 con `scripts/lib/pmtiles.ts`
+     (probado releyéndolo con la librería oficial). Sin descargar ni ejecutar el binario `pmtiles`.
+     Zoom 10–15 del recuadro de la zona: **4,2 MB, 366 teselas**; va con el despliegue en
+     `public/mapabase/` y se commitea. La versión (fecha de la compilación) está en
+     `datos/mapabase.json`; el móvil la compara con la descargada. `config.version_mapabase` queda
+     sin usar: la versión viaja con el propio despliegue.
+  2. **`pmtiles` fijado en 3.2.1**, la misma versión que usa `protomaps-leaflet`: una sola copia.
+  3. **Descarga automática** al arrancar si no está descargado y la conexión es wifi o el móvil no
+     dice cuál es (iPhone); nunca con ahorro de datos ni con datos móviles declarados. La versión
+     nueva se ofrece en Ajustes, no se fuerza. Cerrar sesión no borra el mapa base (no es personal).
+  4. **La ficha no muestra "Proponer un cambio" hasta la Fase 6**: las operaciones aún no existen
+     (UI-01 prevalece sobre la tarea de 09, como en DEC-060).
+  5. **Anillo de selección en oscuro:** `--marino-950` no se ve sobre el mapa oscuro; token nuevo
+     `--anillo-seleccion` (`#E6EAF0`, el del prototipo 07) añadido primero a 06 §2.4. Pendiente de la
+     conformidad de jefatura por ser 06 un documento congelado.
+  6. **Catastro va superpuesto** al mapa base propio (FR-63 lo llama "superpuesta").
+  7. **El punto elegido va en la URL** (`/?p=id`): la lista, la búsqueda y el mapa llevan al mismo
+     sitio y "atrás" cierra la ficha. Móvil: ficha a pantalla completa; ≥ 768 px flotante; ≥ 900 px
+     además la lista lateral (FR-70).
+  8. **Posición solo en memoria**, nunca enviada ni guardada; se sigue desde el arranque solo si el
+     permiso ya estaba concedido. Sin posición, "distancia" ordena por código.
+  9. **Fotos ya vistas en caché del Service Worker** (CacheFirst, 800 fotos, 180 días) para que la
+     ficha las enseñe sin cobertura (DEC-011).
+  10. **Jefatura en el móvil lee `v_puntos_activos`** con su sesión de Google (no tiene token de
+      dispositivo): lectura completa en cada sincronización.
+  11. **Dependencias nuevas:** `leaflet` (mapa), `protomaps-leaflet` y `@protomaps/basemaps`
+      (dibujo y estilos del mapa base vectorial), `pmtiles` (lectura del archivo, en la app y en el
+      script).
+- **Descartado:** el binario `pmtiles extract` (descarga de un ejecutable; lo mismo se hace en JS);
+  descargar el mapa base en datos móviles sin preguntar; agrupar marcadores en racimos (06 §4.4).
+- **Afecta a:** 06 §2.4, §4.3 y Apéndice A; 09 Fase 5; 04 §8 (el mapa base cabe en Pages).
+
 ### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
 - **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)
 - **Contexto:** el sábado 19 sep 2026 staging no cargaba ni en fibra ni con datos móviles
@@ -533,9 +571,9 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059 |
-| 06 | 012, 013, 027, 047, 060 |
+| 06 | 012, 013, 027, 047, 060, 062 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
 | 15 | 023, 061 |

@@ -73,6 +73,18 @@ export default defineConfig(({ mode }) => {
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//],
           cleanupOutdatedCaches: true,
+          // Fotos ya vistas, para que la ficha las enseñe sin cobertura (DEC-011). Solo lectura pública.
+          runtimeCaching: [
+            {
+              urlPattern: /\/storage\/v1\/object\/public\/hidrantes-fotos/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'hidrantes-fotos',
+                expiration: { maxEntries: 800, maxAgeSeconds: 180 * 24 * 3600 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+          ],
         },
       }),
     ],

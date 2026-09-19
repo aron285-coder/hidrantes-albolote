@@ -2,7 +2,7 @@
 
 import { T } from './textos';
 
-/** "hace un momento", "hace 5 min", "hace 3 h", "hace 2 días" (UI-12). */
+/** "hace un momento", "hace 5 min", "hace 3 h", "hace 2 días", "hace 3 meses", "hace 2 años" (UI-12). */
 export function hace(desde: Date | string | number, ahora: Date = new Date()): string {
   const ms = ahora.getTime() - new Date(desde).getTime();
   const min = Math.floor(ms / 60_000);
@@ -11,11 +11,25 @@ export function hace(desde: Date | string | number, ahora: Date = new Date()): s
   const h = Math.floor(min / 60);
   if (h < 24) return T.formato.haceHoras(h);
   const d = Math.floor(h / 24);
-  return d === 1 ? T.formato.haceUnDia : T.formato.haceDias(d);
+  if (d < 30) return d === 1 ? T.formato.haceUnDia : T.formato.haceDias(d);
+  const meses = Math.floor(d / 30.44);
+  if (meses < 12) return meses <= 1 ? T.formato.haceUnMes : T.formato.haceMeses(meses);
+  const anos = Math.floor(meses / 12);
+  return anos === 1 ? T.formato.haceUnAno : T.formato.haceAnos(anos);
 }
 
-/** Metros hasta 999; después km con un decimal y coma decimal (UI-12). */
+const FECHA = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+
+/** Fecha absoluta corta: "20 ago 2026" (UI-12, junto a la relativa). */
+export function fechaCorta(f: Date | string | number): string {
+  return FECHA.format(new Date(f)).replace('.', '').replace(/ de /g, ' ');
+}
+
+/** Metros hasta 999, después km con un decimal y coma decimal (UI-12). */
 export function distancia(metros: number): string {
   if (metros < 1000) return `${Math.round(metros)} m`;
   return `${(metros / 1000).toFixed(1).replace('.', ',')} km`;
 }
+
+/** Megas con una cifra decimal y coma: "4,2". */
+export const megas = (bytes: number) => (bytes / 1024 / 1024).toFixed(1).replace('.', ',');

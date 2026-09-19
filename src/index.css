@@ -32,6 +32,7 @@
   /* Superficies que cambian en oscuro (06 §2.4) */
   --barra: var(--marino-950);
   --borde-marcador: #ffffff;
+  --anillo-seleccion: var(--marino-950);
   --control-mapa: #ffffff;
   --badge-pendiente-fondo: var(--naranja-100);
   --badge-pendiente-texto: var(--naranja-600);
@@ -52,6 +53,7 @@
     --badge-pendiente-fondo: #3a2a1e;
     --badge-pendiente-texto: #f0a070;
     --borde-marcador: #111826;
+    --anillo-seleccion: #e6eaf0;
     color-scheme: dark;
   }
 }
@@ -66,6 +68,7 @@
   --badge-pendiente-fondo: #3a2a1e;
   --badge-pendiente-texto: #f0a070;
   --borde-marcador: #111826;
+  --anillo-seleccion: #e6eaf0;
   color-scheme: dark;
 }
 
@@ -138,4 +141,14 @@ h3 {
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Marcadores de Leaflet: sin el recuadro blanco por defecto del divIcon (06 §4.3). */
+.leaflet-div-icon.marcador {
+  background: none;
+  border: none;
+}
+.leaflet-container {
+  background: var(--fondo);
+  font-family: var(--font-texto);
 }
