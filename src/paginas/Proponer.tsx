@@ -174,6 +174,7 @@ function FormularioOperacion({
               gps={gps}
               original={operacion === 'ubicacion' && punto ? { lat: punto.lat, lng: punto.lng } : undefined}
               alMover={(c) => cambiar({ pin: c, pinMovido: true })}
+              alUsarMiPosicion={operacion === 'alta' ? () => cambiar({ pin: undefined, pinMovido: false }) : undefined}
               etiqueta={TITULO_OPERACION[operacion]}
             />
             <p className="text-texto-suave text-center text-[13px]">

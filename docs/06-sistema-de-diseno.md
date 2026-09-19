@@ -426,6 +426,11 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Se enviará con la versión ([0.1.0]) y la pantalla en la que estabas. Lo verá jefatura en su panel.` ·
 `Describe el problema` · `Aviso enviado a jefatura` · `Ya has enviado varios avisos hoy. Inténtalo mañana.`.
 
+**Instalar la aplicación.** `Instalar la aplicación` · `Instalar` ·
+`Instala la aplicación en la pantalla de inicio: se abre más rápido y funciona sin cobertura.` ·
+`Instalada en este móvil` · `En iPhone: Compartir → Añadir a pantalla de inicio.` ·
+`En el menú del navegador: Añadir a pantalla de inicio (o Instalar aplicación).`
+
 **Avisos push** (FR-163). `Avisos de jefatura` ·
 `Recibirás una notificación cuando una propuesta tuya se apruebe o se rechace. Nada más: ni de otros voluntarios ni publicidad. En iPhone solo funciona si la aplicación está instalada en la pantalla de inicio. El móvil te pedirá permiso ahora.` ·
 `Permitir avisos` · `Ahora no` · `Activado en este móvil` · `Desactivado · también verás el resultado al abrir la app` ·

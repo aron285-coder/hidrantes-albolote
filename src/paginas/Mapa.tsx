@@ -8,6 +8,7 @@ import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
 import { type ControlMapa, MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
 import { SelectorCapas } from '@/componentes/mapa/SelectorCapas';
+import { AvisoInstalar } from '@/componentes/AvisoInstalar';
 import { BandaEntorno } from '@/componentes/BandaEntorno';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { useAcceso, useConexion, useMapabase, useModo, usePosicion, usePuntos } from '@/hooks/estado';
@@ -123,6 +124,7 @@ export function Mapa() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <BarraEstado />
+      <AvisoInstalar />
       <div className="relative flex min-h-0 flex-1">
         {ancho === 'escritorio' && (
           <aside className="border-linea bg-fondo flex w-80 shrink-0 flex-col border-r">
