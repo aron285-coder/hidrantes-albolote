@@ -54,6 +54,13 @@ jobs:
               -f supabase/seed-staging.sql
           done
       - run: npm run test:sql
+      - name: Pages Functions con wrangler pages dev contra Supabase local
+        run: |
+          npm run arranque -- --local
+          npm run build
+          npm run functions:dev > wrangler.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8788 && break; sleep 2; done
+          npm run probar-functions || { tail -50 wrangler.log; exit 1; }
       - if: always()
         run: npx supabase stop --no-backup
 

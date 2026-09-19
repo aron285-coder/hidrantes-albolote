@@ -49,6 +49,10 @@ describe('sqlCarga', () => {
     expect(sql.toLowerCase()).not.toMatch(/\bdelete\b|\btruncate\b/);
   });
 
+  it('anota la versión de la zona en config (FR-143)', () => {
+    expect(sql).toContain("'version_zona', to_jsonb('2026-09-18'::text)");
+  });
+
   it('escapa las comillas de los nombres', () => {
     expect(sql).toContain("'Cortijo d''Aire'");
   });

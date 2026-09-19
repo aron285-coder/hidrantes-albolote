@@ -363,6 +363,8 @@ async function prepararPages(
   if (!actuales.includes('VAPID_PRIVATE_KEY') || rotar.has('vapid')) {
     const par = paresVapid();
     secretos.VAPID_PRIVATE_KEY = par.privada;
+    // /api/push firma con las dos: WebCrypto no deduce la pública de la privada (DEC-059)
+    secretos.VAPID_PUBLIC_KEY = par.publica;
     vapidPublica = par.publica;
   }
   await cred.cloudflare.fijarSecretos(cred.cuentaCf, e.proyectoPages, secretos);
@@ -544,6 +546,12 @@ function arranqueLocal(): void {
     ].join('\n'),
   );
   log.ok('.env.local escrito');
+  // Variables de las Pages Functions para `wrangler pages dev` (no se commitea, .gitignore).
+  writeFileSync(
+    path.join(RAIZ, '.dev.vars'),
+    [`SUPABASE_URL=${s.API_URL}`, `SUPABASE_SERVICE_ROLE_KEY=${s.SERVICE_ROLE_KEY}`, 'SAL_IP=sal-local', ''].join('\n'),
+  );
+  log.ok('.dev.vars escrito');
   prepararLocal();
   ejecutarOk('npx', ['--no-install', 'tsx', 'scripts/migrar.ts', '--local']);
   log.ok('rol hidrantes_migrador y migraciones en Supabase local');

@@ -52,13 +52,6 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Código de acceso real en el primer despliegue (desde la Fase 3)
-        if: hashFiles('scripts/generar-codigo.ts') != ''
-        run: npm run codigo -- --si-no-existe --resumen "$GITHUB_STEP_SUMMARY"
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-
       - run: npm run build
         env:
           VITE_ENTORNO: ${{ vars.VITE_ENTORNO }}

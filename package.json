@@ -29,7 +29,9 @@
     "guarda-produccion": "tsx scripts/guarda-produccion.ts",
     "zona": "tsx scripts/generar-zona.ts",
     "cargar-zona": "tsx scripts/cargar-zona.ts",
-    "asegurar-propietario": "tsx scripts/asegurar-propietario.ts"
+    "asegurar-propietario": "tsx scripts/asegurar-propietario.ts",
+    "probar-functions": "tsx scripts/probar-functions.ts",
+    "functions:dev": "wrangler pages dev dist --port 8788 --ip 127.0.0.1 --compatibility-date=2026-09-01"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",

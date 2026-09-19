@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(30);
+select plan(32);
 
 -- ---------- estructura ----------
 
@@ -36,6 +36,20 @@ select is(
     where n.nspname = 'hidrantes' and c.relkind = 'v'
       and not coalesce('security_invoker=true' = any (c.reloptions), false)), 0,
   'todas las vistas son security_invoker'
+);
+-- Postgres da execute a PUBLIC en toda función nueva salvo que se revoque (DEC-059).
+select is(
+  (select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p
+    where p.pronamespace = 'hidrantes'::regnamespace
+      and exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a where a.grantee = 0)),
+  '{}'::text[], 'ninguna función de hidrantes es ejecutable por PUBLIC'
+);
+select set_eq(
+  $$ select p.proname::text from pg_proc p where p.pronamespace = 'hidrantes'::regnamespace
+       and has_function_privilege('anon', p.oid, 'execute') $$,
+  array['fn_listar_puntos', 'fn_ficha_punto', 'fn_proponer', 'fn_mis_propuestas', 'fn_retirar_propuesta',
+        'fn_reportar_incidencia', 'fn_guardar_suscripcion_push', 'fn_borrar_suscripcion_push', 'fn_registrar_error'],
+  'anon solo ejecuta las nueve RPC de voluntario (05 §6.1)'
 );
 
 -- ---------- datos de prueba ----------
