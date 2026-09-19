@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.2 — 19 de septiembre de 2026: el Apéndice A crece con los textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -305,14 +305,42 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Solo se pide una vez: este móvil recordará tu acceso y tu nombre.` ·
 `¿Eres de jefatura? Entrar con Google` · `Aviso legal y privacidad` · `Código incorrecto` ·
 `Demasiados intentos. Espera una hora antes de volver a intentarlo.` · `No autorizado` ·
-`Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.`
+`Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.` ·
+`Sin acceso` · `Volver` · `Cifra [1] de 6` · `El código son 6 cifras` ·
+`Escribe tu nombre y apellido` · `Entrando…` ·
+`Sin conexión con el servidor. Inténtalo de nuevo en un momento.` ·
+`El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo; tu nombre se conserva.` ·
+`Comprobando tu cuenta…` · `Aviso legal y privacidad · v[0.1.0]` · `Aviso legal`.
+
+**Primer uso** (FR-94). `Cuanto más grande, más agua da` ·
+`Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.` ·
+`Añadir un punto son cuatro toques` ·
+`Pulsa +, ajusta el pin, elige tipo y estado, haz la foto. Sin cobertura también: se enviará solo cuando vuelva la señal.` ·
+`Todo pasa por jefatura` ·
+`Lo que propongas no aparece en el mapa hasta que jefatura lo apruebe. Te avisaremos del resultado, y si algo se rechaza, del motivo.` ·
+`Siguiente` · `Empezar` · `Saltar` · `Pantalla [1] de 3`.
+
+**Aviso legal** (literal de 11 §7, que es su propietario). `Mapa de hidrantes — aviso legal y privacidad` ·
+`Esta aplicación la usa la Agrupación de Voluntarios de Protección Civil de Albolote para mantener el inventario de hidrantes y bocas de riego del término municipal y de Calicasas.` ·
+`Qué guardamos de ti.` ·
+`Tu nombre y apellido, para saber quién aportó cada dato, y un identificador aleatorio de tu móvil, para reconocer tus propias propuestas. No guardamos tu teléfono, correo, DNI ni dirección. Tu nombre solo lo ve la jefatura; nunca otros voluntarios.` ·
+`Ubicación y fotos.` ·
+`Al proponer un punto se guarda la posición del punto y, como referencia para jefatura, la de tu móvil en ese momento. Las fotos se guardan sin metadatos. No fotografíes personas ni matrículas: el objeto de la foto es el hidrante.` ·
+`Cuánto tiempo.` ·
+`El historial de cambios se conserva mientras exista el inventario, porque es el registro de quién hizo qué. Si dejas la agrupación y quieres que tu nombre desaparezca, pídelo a jefatura: lo sustituimos por "voluntario dado de baja" conservando los datos del hidrante.` ·
+`Tus derechos.` ·
+`Puedes pedir a jefatura ver, corregir o anonimizar lo que consta de ti. La responsable del tratamiento es la agrupación, representada por su jefatura.` ·
+`Datos externos.` ·
+`Para deducir direcciones se consulta OpenStreetMap con las coordenadas del hidrante, nunca con datos tuyos. Mapa base y direcciones © OpenStreetMap contributors.`
 
 **Mapa y lista.** `Buscar código, calle o descripción…` · `Capas` · `Mapa base propio` ·
 `Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `necesita cobertura` · `Mi posición` ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
 `No funciona` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` ·
-`Nada coincide con ese filtro.`
+`Nada coincide con ese filtro.` · `Sin cobertura` · `Reintentar` ·
+`El mapa llega en la próxima versión de la aplicación.` ·
+`La lista de puntos llega en la próxima versión de la aplicación.` (los dos últimos, solo hasta la Fase 5).
 
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar`.
@@ -360,7 +388,15 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Avisarme cuando jefatura resuelva mis propuestas` · `Algo no funciona en la aplicación` ·
 `Avisar a jefatura` · `Cómo se usa (3 pantallas)` · `Cerrar sesión en este móvil` ·
 `Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
-`novedades`.
+`novedades` · `Cuenta de jefatura` · `Sesión de Google · [correo]` · `Cerrar la sesión de Google` ·
+`Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
+`¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Versión [0.1.0]`.
+
+**Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
+`Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·
+`El panel de revisión llega en una próxima versión de la aplicación.` (hasta la Fase 7) · `Ir al mapa`.
+
+**Tiempos** (UI-12). `hace un momento` · `hace [5] min` · `hace [3] h` · `hace 1 día` · `hace [2] días`.
 
 **Panel: cola.** `Cola de revisión` · `Inventario` · `Revisiones caducadas` · `Registro` ·
 `Papelera` · `Voluntarios` · `Ajustes` · `Buscar código, calle o voluntario…` ·

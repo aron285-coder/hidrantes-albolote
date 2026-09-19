@@ -18,7 +18,12 @@ function entornoPlugin(entorno: Entorno, env: Record<string, string>): Plugin {
       if (entorno !== 'produccion') {
         etiquetas.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, nofollow' }, injectTo: 'head' });
       }
-      return { html: html.replace('%TITULO%', `${T.app.nombreCorto} · ${T.app.nombre}`), tags: etiquetas };
+      return {
+        html: html
+          .replace('%TITULO%', `${T.app.nombreCorto} · ${T.app.nombre}`)
+          .replace('%NOMBRE_CORTO%', T.app.nombreCorto),
+        tags: etiquetas,
+      };
     },
     generateBundle() {
       const opciones = { entorno, supabaseUrl: env.VITE_SUPABASE_URL, mapabaseUrl: env.VITE_MAPABASE_URL };
@@ -43,7 +48,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       entornoPlugin(entorno, env),
       VitePWA({
-        // El registro y el aviso "hay una versión nueva, recargar" llegan en la Fase 4 (TR-24).
+        // Registro y aviso "hay una versión nueva, recargar" en src/lib/pwa.ts (TR-24).
         registerType: 'prompt',
         injectRegister: false,
         manifest: {
@@ -56,9 +61,19 @@ export default defineConfig(({ mode }) => {
           orientation: 'any',
           theme_color: '#0E1B30',
           background_color: '#F1F3EE',
-          icons: [],
+          icons: [
+            { src: '/iconos/icono-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/iconos/icono-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: '/iconos/icono-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
         },
-        workbox: { globPatterns: ['**/*.{js,css,html,woff2,svg,png}'] },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,woff2,svg,png}'],
+          // Rutas de la SPA sin red: el armazón precacheado. Las Functions nunca desde la caché.
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/api\//],
+          cleanupOutdatedCaches: true,
+        },
       }),
     ],
     server: {

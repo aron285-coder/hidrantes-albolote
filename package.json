@@ -31,15 +31,19 @@
     "cargar-zona": "tsx scripts/cargar-zona.ts",
     "asegurar-propietario": "tsx scripts/asegurar-propietario.ts",
     "probar-functions": "tsx scripts/probar-functions.ts",
-    "functions:dev": "wrangler pages dev dist --port 8788 --ip 127.0.0.1 --compatibility-date=2026-09-01"
+    "functions:dev": "wrangler pages dev dist --port 8788 --ip 127.0.0.1 --compatibility-date=2026-09-01",
+    "iconos": "tsx scripts/generar-iconos.ts"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",
     "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/source-sans-3": "^5.3.0",
+    "@supabase/supabase-js": "^2.116.0",
     "clsx": "^2.1.1",
+    "lucide-react": "^1.47.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-router": "^8.4.0",
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {

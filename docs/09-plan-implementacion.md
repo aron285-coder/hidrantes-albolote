@@ -217,23 +217,23 @@ desactualizada aprueba las demás; `/api/direccion` sin JWT → 403.
 **Objetivo:** aplicación que arranca, pide código y nombre, y navega entre pantallas vacías.
 Referencia: FL-01, FL-12, FL-20; 07 §7.1; 06.
 
-- [ ] Pantalla de entrada → `POST /api/verificar-codigo`; enlace a Google para jefatura.
-- [ ] `dispositivo_id` uuid generado una vez; persistencia local de token, nombre, apellido y
+- [x] Pantalla de entrada → `POST /api/verificar-codigo`; enlace a Google para jefatura.
+- [x] `dispositivo_id` uuid generado una vez; persistencia local de token, nombre, apellido y
       `dispositivo_id`. El código no se guarda. Token inválido → pedir código conservando el nombre.
-- [ ] Mensajes de bloqueo por intentos sin pistas (FR-33).
-- [ ] Login Google en la misma PWA; "No autorizado" si no está en `administradores`; etiqueta
+- [x] Mensajes de bloqueo por intentos sin pistas (FR-33).
+- [x] Login Google en la misma PWA; "No autorizado" si no está en `administradores`; etiqueta
       Jefatura; ruta `/admin`.
-- [ ] Armazón: navegación inferior Mapa / Lista / Ajustes; Ajustes con lo de FR-93 (lo que dependa
-      de fases posteriores, como placeholder claro).
-- [ ] PWA: manifest, iconos con el escudo, Service Worker con precache del armazón y `autoUpdate`
+- [x] Armazón: navegación inferior Mapa / Lista / Ajustes; Ajustes con lo de FR-93 que ya funciona;
+      lo de fases posteriores aparece con su fase (UI-01, DEC-060).
+- [x] PWA: manifest, iconos con el escudo, Service Worker con precache del armazón y actualización en modo aviso (DEC-060)
       con aviso "hay una versión nueva, recargar" (TR-24). Fuentes servidas localmente (06 §3).
-- [ ] Captura global de errores → `fn_registrar_error`, con cola offline propia; **límites de error**
+- [x] Captura global de errores → `fn_registrar_error`, con cola offline propia; **límites de error**
       por pantalla con "volver al mapa" (TR-106).
-- [ ] **Degradación controlada** (FR-168): estado global "servidor no disponible" cuando Supabase o una
+- [x] **Degradación controlada** (FR-168): estado global "servidor no disponible" cuando Supabase o una
       Function fallan; la app sigue con datos locales, muestra el aviso y reintenta con retroceso
       exponencial. Sin pantallas en blanco ni errores técnicos visibles.
-- [ ] Tres pantallas de primer uso (FR-94), saltables y recuperables desde Ajustes.
-- [ ] Notas de iOS en **14**: instalación por "Compartir → Añadir a pantalla de inicio"; Safari puede
+- [x] Tres pantallas de primer uso (FR-94), saltables y recuperables desde Ajustes.
+- [x] Notas de iOS para **14** (en `docs/notas-para-14-ios.md` hasta que se escriba 14, DEC-041): instalación por "Compartir → Añadir a pantalla de inicio"; Safari puede
       desalojar IndexedDB.
 
 **Criterio de salida:** instalable en un Android real y un iPhone real, con icono y a pantalla
