@@ -446,6 +446,7 @@ Los riesgos de seguridad y privacidad viven en **11**; aquí, los de construcci�
 | Las notificaciones push fallan en iPhone | Opt-in explícito con explicación; la app funciona igual sin ellas; el aviso al abrir (FR-90) sigue siendo el canal principal. |
 | Claude Code pierde el contexto entre sesiones | `CLAUDE.md` en la raíz, issues por tarea con criterios de aceptación, y el registro de avance de §8. |
 | Una exportación sale con acentos rotos en Excel | CSV con BOM y `.xlsx` nativo; test que abre el archivo. |
+| Los operadores españoles bloquean durante los partidos de LaLiga la IP de Cloudflare que nos toca (staging ya lo sufre: DEC-061) | App instalada que funciona con lo guardado y encola (FR-168); vigilancia de nuestras IP contra la lista pública; pruebas de staging fuera de horario de partido; procedimiento en 15 §5.8. |
 
 ---
 

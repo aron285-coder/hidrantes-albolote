@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060, DEC-061; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -479,6 +479,44 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   automática al haber versión nueva.
 - **Afecta a:** 06 Apéndice A; 09 Fase 4.
 
+### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
+- **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)
+- **Contexto:** el sábado 19 sep 2026 staging no cargaba ni en fibra ni con datos móviles
+  (`ERR_CONNECTION_TIMED_OUT`), mientras que producción, GitHub y Supabase respondían y el despliegue
+  se comprobaba bien desde GitHub (EE. UU.). Causa: por orden judicial (sentencia 310/2024), Movistar,
+  MásOrange, Vodafone y DIGI bloquean durante los partidos de LaLiga IP compartidas de Cloudflare.
+  `hidrantes-albolote-staging.pages.dev` resuelve a **188.114.96.5 / 188.114.97.5**, que según el
+  histórico público de hayahora.futbol se han bloqueado 15–19 veces desde julio de 2026 en los cinco
+  operadores. Producción (`172.66.47.37`, `172.66.44.219`) y Supabase (`104.18.38.10`,
+  `172.64.149.246`) no han aparecido nunca, pero sí 22 IP vecinas de `172.66.*` y dos de `104.18.*`.
+  La IP la asigna Cloudflare por nombre de host y puede cambiar; no se puede elegir en el plan gratuito.
+- **Riesgo:** un fin de semana de partido, si producción o Supabase caen en la lista, ningún voluntario
+  en España llega al servidor durante unas horas. No es una caída que se vea en la página de estado de
+  Cloudflare ni desde fuera de España.
+- **Decisiones:**
+  1. **La mitigación principal ya está en el diseño:** la app instalada abre desde su Service Worker,
+     el mapa base y los puntos quedan en el móvil (Fase 5) y lo enviado se encola (Fase 6); el aviso
+     es "Sin conexión con el servidor" y reintenta solo (FR-168). Consultar un hidrante en una
+     emergencia no depende de la red. Por eso se insiste en instalar y abrir la app una vez con
+     cobertura antes de necesitarla.
+  2. **Vigilancia automática** (propuesta, pendiente de confirmar): un workflow diario que resuelve los
+     tres nombres (producción, staging, Supabase) y los cruza con la lista pública de hayahora.futbol;
+     abre una issue si una IP nuestra aparece. Sin cuenta ni coste.
+  3. **Staging se prueba fuera de horario de partido** (entre semana, o con la herramienta de
+     hayahora.futbol para saber si hay bloqueo). La prueba en móviles reales de la Fase 4 queda
+     pendiente por esto.
+  4. **Procedimiento en 15 §5.8** para jefatura: cómo reconocerlo y qué hacer.
+- **Descartado, por ahora:**
+  - *Copia estática en GitHub Pages* (Fastly, nunca bloqueada): sería otro origen, así que el móvil no
+    comparte acceso, puntos guardados ni cola con la app principal, y los datos (`*.supabase.co`) y las
+    Functions siguen detrás de Cloudflare. Solo ayudaría si cayera `pages.dev` y no Supabase. Queda
+    como plan B documentado.
+  - *Dominio propio en Cloudflare*: sigue en IP compartidas de Cloudflare (los foros recogen zonas
+    gratuitas asignadas a las mismas 188.114.96/97) y cuesta dinero (DEC-006).
+  - *Dominio propio para Supabase o salir de Cloudflare*: de pago; contradice el coste 0.
+  - *Recrear el proyecto de staging para que le toque otra IP*: azar, y puede volver a pasar.
+- **Afecta a:** 09 §3, 15 §5.8; notas para 14.
+
 ### DEC-041 · Manuales (13, 14) al final, con capturas reales
 - **Fecha:** 17 sep 2026 (desarrollador) · **Estado:** vigente
 - **Decisión:** 13 y 14 se escriben después del piloto, con las capturas de `scripts/capturas.ts` sobre la app real.
@@ -497,10 +535,10 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059 |
 | 06 | 012, 013, 027, 047, 060 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
-| 15 | 023 |
+| 15 | 023, 061 |
 | 16 | 007, 037 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |
