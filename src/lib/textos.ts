@@ -34,6 +34,74 @@ export const T = {
     noAutorizado: 'No autorizado',
     noAutorizadoDetalle:
       'Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.',
+    sinAcceso: 'Sin acceso',
+    volver: 'Volver',
+    cifra: (n: Parametro) => `Cifra ${n} de 6`,
+    codigoSeisCifras: 'El código son 6 cifras',
+    faltaNombre: 'Escribe tu nombre y apellido',
+    entrando: 'Entrando…',
+    sinServidor: 'Sin conexión con el servidor. Inténtalo de nuevo en un momento.',
+    accesoCaducado: 'El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo; tu nombre se conserva.',
+    comprobandoCuenta: 'Comprobando tu cuenta…',
+    avisoLegalVersion: (version: Parametro) => `Aviso legal y privacidad · v${version}`,
+    avisoLegalTitulo: 'Aviso legal',
+  },
+
+  bienvenida: {
+    pantallas: [
+      {
+        titulo: 'Cuanto más grande, más agua da',
+        texto:
+          'Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.',
+      },
+      {
+        titulo: 'Añadir un punto son cuatro toques',
+        texto:
+          'Pulsa +, ajusta el pin, elige tipo y estado, haz la foto. Sin cobertura también: se enviará solo cuando vuelva la señal.',
+      },
+      {
+        titulo: 'Todo pasa por jefatura',
+        texto:
+          'Lo que propongas no aparece en el mapa hasta que jefatura lo apruebe. Te avisaremos del resultado, y si algo se rechaza, del motivo.',
+      },
+    ],
+    siguiente: 'Siguiente',
+    empezar: 'Empezar',
+    saltar: 'Saltar',
+    paso: (n: Parametro) => `Pantalla ${n} de 3`,
+  },
+
+  legal: {
+    titulo: 'Mapa de hidrantes — aviso legal y privacidad',
+    introduccion:
+      'Esta aplicación la usa la Agrupación de Voluntarios de Protección Civil de Albolote para mantener el inventario de hidrantes y bocas de riego del término municipal y de Calicasas.',
+    secciones: [
+      {
+        titulo: 'Qué guardamos de ti.',
+        texto:
+          'Tu nombre y apellido, para saber quién aportó cada dato, y un identificador aleatorio de tu móvil, para reconocer tus propias propuestas. No guardamos tu teléfono, correo, DNI ni dirección. Tu nombre solo lo ve la jefatura; nunca otros voluntarios.',
+      },
+      {
+        titulo: 'Ubicación y fotos.',
+        texto:
+          'Al proponer un punto se guarda la posición del punto y, como referencia para jefatura, la de tu móvil en ese momento. Las fotos se guardan sin metadatos. No fotografíes personas ni matrículas: el objeto de la foto es el hidrante.',
+      },
+      {
+        titulo: 'Cuánto tiempo.',
+        texto:
+          'El historial de cambios se conserva mientras exista el inventario, porque es el registro de quién hizo qué. Si dejas la agrupación y quieres que tu nombre desaparezca, pídelo a jefatura: lo sustituimos por "voluntario dado de baja" conservando los datos del hidrante.',
+      },
+      {
+        titulo: 'Tus derechos.',
+        texto:
+          'Puedes pedir a jefatura ver, corregir o anonimizar lo que consta de ti. La responsable del tratamiento es la agrupación, representada por su jefatura.',
+      },
+      {
+        titulo: 'Datos externos.',
+        texto:
+          'Para deducir direcciones se consulta OpenStreetMap con las coordenadas del hidrante, nunca con datos tuyos. Mapa base y direcciones © OpenStreetMap contributors.',
+      },
+    ],
   },
 
   mapa: {
@@ -57,6 +125,10 @@ export const T = {
     leyendaTamano: 'Más grande = más agua aprovechable',
     desdeTi: 'desde ti',
     filtroVacio: 'Nada coincide con ese filtro.',
+    sinCoberturaSolo: 'Sin cobertura',
+    reintentar: 'Reintentar',
+    mapaProximamente: 'El mapa llega en la próxima versión de la aplicación.',
+    listaProximamente: 'La lista de puntos llega en la próxima versión de la aplicación.',
   },
 
   ficha: {
@@ -189,6 +261,38 @@ export const T = {
     cerrarSesionDetalle: 'Se borran tu acceso, tu nombre y los puntos guardados.',
     versionNueva: 'hay una versión nueva, recargar',
     novedades: 'novedades',
+    cuentaJefatura: 'Cuenta de jefatura',
+    sesionGoogle: (correo: Parametro) => `Sesión de Google · ${correo}`,
+    cerrarSesionGoogle: 'Cerrar la sesión de Google',
+    ver: 'Ver',
+    siempre: 'Siempre',
+    nunca: 'Nunca',
+    guardar: 'Guardar',
+    cancelar: 'Cancelar',
+    pantalla: 'Pantalla',
+    ayuda: 'Ayuda',
+    confirmarCerrar: '¿Cerrar sesión en este móvil?',
+    cerrarSesionBoton: 'Cerrar sesión',
+    version: (version: Parametro) => `Versión ${version}`,
+  },
+
+  fallo: {
+    titulo: 'Algo ha fallado en esta pantalla',
+    detalle: 'Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.',
+  },
+
+  jefatura: {
+    panel: 'Panel de jefatura',
+    proximamente: 'El panel de revisión llega en una próxima versión de la aplicación.',
+    irAlMapa: 'Ir al mapa',
+  },
+
+  formato: {
+    haceUnMomento: 'hace un momento',
+    haceMin: (n: Parametro) => `hace ${n} min`,
+    haceHoras: (n: Parametro) => `hace ${n} h`,
+    haceUnDia: 'hace 1 día',
+    haceDias: (n: Parametro) => `hace ${n} días`,
   },
 
   panelCola: {

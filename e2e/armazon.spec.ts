@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 
-test.describe('armazón (Fase 0)', () => {
+test.describe('armazón', () => {
   test('carga en español con la versión y la banda de pruebas', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'es');
@@ -32,5 +32,31 @@ test.describe('armazón (Fase 0)', () => {
   test('el manifiesto de la PWA está en español', async ({ request }) => {
     const manifiesto = await (await request.get('/manifest.webmanifest')).json();
     expect(manifiesto).toMatchObject({ lang: 'es', short_name: T.app.nombreCorto, display: 'standalone' });
+  });
+
+  test('instalable: iconos del escudo, apple-touch-icon y Service Worker activo (F4.6)', async ({ page, request }) => {
+    const manifiesto = await (await request.get('/manifest.webmanifest')).json();
+    const iconos = manifiesto.icons as { src: string; sizes: string; purpose: string }[];
+    expect(iconos.map((i) => `${i.sizes} ${i.purpose}`)).toEqual(['192x192 any', '512x512 any', '512x512 maskable']);
+    for (const { src } of iconos) expect((await request.get(src)).headers()['content-type']).toBe('image/png');
+
+    await page.goto('/');
+    const apple = await page.locator('link[rel="apple-touch-icon"]').getAttribute('href');
+    expect((await request.get(apple!)).status()).toBe(200);
+    await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveAttribute('content', 'yes');
+    const activo = await page.evaluate(async () => !!(await navigator.serviceWorker.ready).active);
+    expect(activo).toBe(true);
+  });
+
+  test('sin red, la app ya instalada abre desde la caché del Service Worker', async ({ page, context }) => {
+    await page.goto('/');
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await page.reload(); // la segunda carga ya la controla el Service Worker
+    await context.setOffline(true);
+    await page.goto('/lista');
+    await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
+    await context.setOffline(false);
   });
 });

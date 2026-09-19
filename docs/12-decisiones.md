@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.3 — 19 de septiembre de 2026 (DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -437,6 +437,48 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   10. **Tipos propios para las Functions** en vez de `@cloudflare/workers-types`, que choca con los tipos DOM de TypeScript 6: solo se usan `Request`, `Response`, `fetch` y WebCrypto.
 - **Afecta a:** 05 §2.2, §2.10, §6, §9, §10; 04 §10 y §11; 09 Fase 0 y Fase 3.
 
+### DEC-060 · Decisiones de detalle al construir la Fase 4 (acceso y armazón)
+- **Fecha:** 19 sep 2026 · **Estado:** vigente
+- **Contexto:** 01, 02 y 09 fijan qué hace la entrada, Ajustes y la degradación, pero no dónde se
+  guarda la sesión, cómo se valida el token al abrir ni qué se ve de lo que aún no existe.
+- **Decisiones:**
+  1. **Sesión en `localStorage`** (`hidrantes.token`, `hidrantes.firma`, `hidrantes.dispositivo_id`),
+     con toda lectura y escritura protegida: sin almacenamiento la app sigue en memoria (TR-07). Los
+     puntos y la cola irán a IndexedDB en las Fases 5 y 6. El código nunca se escribe (TR-43).
+  2. **Con token guardado se entra sin red**; después se valida con la lectura más pequeña posible
+     (`fn_listar_puntos(token, desde = ahora)`). Solo un `TOKEN_*` devuelve a la entrada, con aviso
+     y el nombre conservado (FR-35); un servidor caído no echa a nadie (FR-168).
+  3. **Cerrar sesión renueva también `dispositivo_id`**: si el móvil pasa a otra persona, sus
+     propuestas no se mezclan con las del anterior en *Mis propuestas*.
+  4. **Bloqueo por intentos recordado en el móvil una hora** además del límite del servidor, para
+     que la pantalla lo diga sin tener que fallar otra vez (FR-33).
+  5. **Jefatura:** PKCE de Supabase en la misma PWA; después de Google, `fn_es_admin()` decide.
+     Si no es administrador se cierra la sesión de Google y se ve "No autorizado". Vuelve a `/admin`
+     en pantallas ≥ 900 px y a `/` en el móvil (FL-20 paso 3). Hasta la Fase 7, `/admin` solo dice
+     que el panel llega después y permite ir al mapa o salir.
+  6. **Ajustes muestra solo lo que ya funciona** (firma, modo oscuro, primer uso, aviso legal, cerrar
+     sesión, versión y recarga). Mapa sin cobertura, sincronización, capa, Mis propuestas, avisos e
+     "Algo no funciona" aparecen con su fase: UI-01 prevalece sobre el "placeholder" de 09.
+  7. **Modo oscuro en tres posiciones** (Según el móvil · Siempre · Nunca), como el prototipo 07.
+     Enlaces y selección usan `--texto`, porque `--marino-700` no contrasta sobre el fondo oscuro.
+  8. **Degradación:** estado global con tres valores (bien, sin cobertura, sin servidor); cualquier
+     llamada que no llega o recibe 5xx lo marca; reintento automático 2 → 60 s con ±20 % de azar,
+     botón "Reintentar" y reintento al recuperar la red.
+  9. **Errores del cliente:** cola local de los últimos 20, enviada a `fn_registrar_error` en cuanto
+     hay servidor. Para probar los límites de error, fuera de producción `hidrantes.forzar_fallo = ruta`
+     hace fallar esa pantalla al dibujarse (no hay control visible).
+  10. **Service Worker en modo `prompt`**, no `autoUpdate`: la versión nueva se detecta al abrir y cada
+      hora y se ofrece "hay una versión nueva, recargar"; recargar sola podría perder un formulario a
+      medias. Cumple TR-24 (nadie pasa más de una sesión con la versión vieja).
+  11. **Iconos generados con Playwright** desde el escudo de 07 (`npm run iconos`), sin dependencia
+      nueva; fondo `--fondo` para iOS y zona segura del 58 % en el icono *maskable*.
+  12. **Dependencias nuevas:** `@supabase/supabase-js` (Google con PKCE y llamadas a las RPC),
+      `react-router` (rutas, incluida `/admin`) y `lucide-react` (iconos de 06 §7).
+- **Descartado:** IndexedDB para la sesión (tres claves pequeñas no lo justifican); validar el token
+  antes de mostrar nada (con mala cobertura el voluntario vería una pantalla de espera); recarga
+  automática al haber versión nueva.
+- **Afecta a:** 06 Apéndice A; 09 Fase 4.
+
 ### DEC-041 · Manuales (13, 14) al final, con capturas reales
 - **Fecha:** 17 sep 2026 (desarrollador) · **Estado:** vigente
 - **Decisión:** 13 y 14 se escriben después del piloto, con las capturas de `scripts/capturas.ts` sobre la app real.
@@ -453,9 +495,9 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059 |
-| 06 | 012, 013, 027, 047 |
+| 06 | 012, 013, 027, 047, 060 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
 | 15 | 023 |
