@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.2 — 18 de septiembre de 2026 (DEC-052 a DEC-058; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.3 — 19 de septiembre de 2026 (DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -422,6 +422,21 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   9. **El código de acceso se guarda con bcrypt (`crypt` + `gen_salt('bf')` de pgcrypto)**, de las dos opciones que admitía 05 §2.10: ya está en Supabase, sin extensión nueva.
 - **Afecta a:** 05 §2, §4, §5, §6, §12.
 
+### DEC-059 · Ajustes de las RPC y las Functions al construir la Fase 3
+- **Fecha:** 19 sep 2026 · **Estado:** vigente
+- **Decisiones**, corregidas primero en 05 (v1.4):
+  1. **Ninguna función nace ejecutable por `PUBLIC` — de verdad.** `alter default privileges … in schema` solo añade permisos, nunca quita el `execute` que Postgres da a `PUBLIC`: la línea de 0001 no hacía nada. Lo detectó el primer test de la Fase 3 (`anon` podía llamar a `fn_verificar_codigo`). Staging no estaba expuesto (solo tenía 0001–0004, y 0003 revocaba todo explícitamente). Ahora 0005 fija el privilegio por defecto global del rol de migraciones, 0007 revoca y concede explícitamente, y `02_permisos` comprueba que ninguna función es de `PUBLIC` y que `anon` solo ejecuta las nueve RPC de voluntario.
+  2. **`fn_verificar_codigo` devuelve el error en una columna** (`token, caduca_en, error`) en vez de lanzarlo: una excepción desharía la anotación del intento fallido y el límite de 10/30/200 no contaría nunca. Solo cuentan los fallos.
+  3. **Identidad técnica del administrador = `md5` de su correo** (`fn_dispositivo_admin`), no "un uuid por sesión": así casan su reserva de foto y su propuesta aunque cambie de sesión. `/api/url-subida` acepta su JWT y llama a `fn_reservar_subida_admin()`.
+  4. **El código de acceso se guarda también en claro en `config.codigo_acceso`**, legible solo por administradores (RLS), porque FR-140 pide *ver el actual*. La verificación sigue siendo por bcrypt. El código nunca va al registro.
+  5. **Producción no genera el código en el primer despliegue**: el *summary* de Actions es público (DEC-053). Lo genera jefatura desde Ajustes (Fase 7). Se retira ese paso de `deploy-prod.yml`.
+  6. **`sincronizado_en` con 60 s de solape**, para no perder escrituras que confirman durante la lectura.
+  7. **Web Push propio** (RFC 8291 + 8292 con WebCrypto, probado con el vector de la RFC), sin dependencias; `/api/push` necesita también `VAPID_PUBLIC_KEY` en Pages, que `arranque.ts` guarda desde ahora. Los entornos ya creados la recibirán con `npm run arranque -- --rotar vapid` antes de la Fase 6 (no hay suscripciones que perder).
+  8. **El bucket de fotos se deduce del dominio** en las Functions (`hidrantes-fotos` solo en el de producción), sin otra variable de Pages que mantener.
+  9. **Funciones nuevas de servicio**: `fn_guardar_direccion_sugerida`, `fn_registrar_workflow`, `fn_reclamar_notificaciones`, `fn_resultado_notificacion`, `fn_purgar_papelera_interna` (pg_cron cada noche) y los helpers de 05 §6.3.
+  10. **Tipos propios para las Functions** en vez de `@cloudflare/workers-types`, que choca con los tipos DOM de TypeScript 6: solo se usan `Request`, `Response`, `fetch` y WebCrypto.
+- **Afecta a:** 05 §2.2, §2.10, §6, §9, §10; 04 §10 y §11; 09 Fase 0 y Fase 3.
+
 ### DEC-041 · Manuales (13, 14) al final, con capturas reales
 - **Fecha:** 17 sep 2026 (desarrollador) · **Estado:** vigente
 - **Decisión:** 13 y 14 se escriben después del piloto, con las capturas de `scripts/capturas.ts` sobre la app real.
@@ -437,7 +452,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057, 058 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059 |
 | 06 | 012, 013, 027, 047 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051 |

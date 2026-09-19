@@ -35,6 +35,9 @@ export function sqlCarga(limites: Zona['limites'], nucleos: Zona['nucleos'], ver
     'on conflict (municipio) do update set geom = excluded.geom, version = excluded.version;',
     `insert into hidrantes.nucleos (nombre, municipio, geom, version) values\n  ${filasNucleo.join(',\n  ')}`,
     'on conflict (nombre) do update set municipio = excluded.municipio, geom = excluded.geom, version = excluded.version;',
+    // Salud del sistema muestra de cuándo es la zona (FR-143)
+    `insert into hidrantes.config (clave, valor, actualizado_por) values ('version_zona', to_jsonb(${v}::text), 'cargar-zona')`,
+    'on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;',
     'commit;',
   ].join('\n');
 }

@@ -125,8 +125,8 @@ todo creado con un comando. Referencia: 04 §4, §10, §11.
 - [x] `deploy-staging.yml`: `migrar.ts` contra dev, `cargar-zona.ts`, `seed-staging.sql`
       (idempotente), despliegue. Nunca `supabase db push`.
 - [x] `deploy-prod.yml`: *environment* `production`, guarda (aborta con seed o `PROJECT_REF`
-      incorrecto), `migrar.ts`, `cargar-zona.ts`, despliegue; en el primer despliegue genera el
-      código de acceso real y lo deja en el *summary*.
+      incorrecto), `migrar.ts`, `cargar-zona.ts`, despliegue. El código real lo genera jefatura en Ajustes: el *summary* es
+      público (DEC-059).
 - [x] `scripts/migrar.ts`: historial propio `hidrantes.migraciones_aplicadas`, orden, transacción,
       abortar si cambia el hash de una aplicada (04 §5, §12). `scripts/revertir.ts` para Pages.
 - [x] Banda "ENTORNO DE PRUEBAS" con `VITE_ENTORNO=staging`; `noindex` y `robots.txt` en staging.
@@ -192,14 +192,14 @@ devuelve filas con el rol previsto.
 
 **Objetivo:** toda la lógica de escritura probada antes de tocar la UI. Referencia: **05 §6–9**.
 
-- [ ] RPC de voluntario (05 §6.1), con `fn_validar_token` al inicio de cada una y tiempo constante
+- [x] RPC de voluntario (05 §6.1), con `fn_validar_token` al inicio de cada una y tiempo constante
       en `fn_verificar_codigo`.
-- [ ] RPC de jefatura (05 §6.2), incluidos los casos límite con mensaje explícito y los códigos de
+- [x] RPC de jefatura (05 §6.2), incluidos los casos límite con mensaje explícito y los códigos de
       error de 05 §8.
-- [ ] Helpers (05 §6.3).
-- [ ] `functions/api/{verificar-codigo,url-subida,direccion,lanzar-workflow,push}.ts` con el contrato de
-      05 §9; cola de 1 req/s para Nominatim; `wrangler pages dev` en CI.
-- [ ] Tests pgTAP y tests de las Functions en CI.
+- [x] Helpers (05 §6.3).
+- [x] `functions/api/{verificar-codigo,url-subida,direccion,lanzar-workflow,push}.ts` con el contrato de
+      05 §9; cola de 1 req/s para Nominatim; `wrangler pages dev` en CI (`scripts/probar-functions.ts`).
+- [x] Tests pgTAP y tests de las Functions en CI.
 
 **Criterio de salida:** tests en verde para: código erróneo rechazado; 11 intentos bloqueados;
 `fn_verificar_codigo` desde `anon` → *permission denied*; token revocado rechazado; reserva 41 del
