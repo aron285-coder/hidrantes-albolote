@@ -202,6 +202,20 @@ reenviarán solas.
   quien no la tenga instalada.
 - GitHub caído: nada visible para los voluntarios; los despliegues y respaldos esperan.
 
+**Caso frecuente en España: bloqueo por partidos de LaLiga (DEC-061).** Los operadores bloquean IP
+de Cloudflare durante los partidos, casi siempre en fin de semana y durante unas horas.
+
+- **Cómo se reconoce:** falla a la vez en todos los operadores (fibra y datos móviles), solo en
+  España y en horario de partido; desde fuera (o con una VPN) la web carga. En
+  <https://hayahora.futbol> se ve si hay bloqueo activo y se puede comprobar el dominio.
+- **Qué hacer:** nada en el sistema; no es una avería ni se arregla desplegando. Avisar al grupo:
+  "la app sigue funcionando con lo guardado; lo que enviéis saldrá solo cuando acabe el bloqueo".
+  El panel de jefatura esperará.
+- **Si coincide con una emergencia:** los hidrantes se consultan igual en la app instalada. Quien no
+  la tenga instalada no podrá abrirla hasta que acabe el bloqueo.
+- **Si pasa también entre semana o fuera de horario de partido**, anotarlo en una issue: habría que
+  retomar las alternativas descartadas en DEC-061.
+
 ### 5.9 Se ha perdido el acceso a la cuenta de Google institucional
 
 **Gravedad:** máxima a medio plazo. **Tiempo:** días.

@@ -32,3 +32,10 @@ En Android: Chrome ofrece **Instalar aplicación** en el menú ⋮ (o un aviso e
   de compartir de iOS).
 - Confirmar con el piloto si alguien usa iPadOS con Safari de escritorio (la opción está en el mismo
   menú Compartir).
+
+## Fines de semana de fútbol (todos los móviles, no solo iPhone)
+
+Durante los partidos de LaLiga los operadores españoles pueden bloquear el servidor (DEC-061). La app
+instalada sigue abriendo con lo guardado y dice "Sin conexión con el servidor"; lo enviado sale solo
+al acabar el bloqueo. Por eso: instalar la app y abrirla una vez con cobertura **antes** de
+necesitarla. En 14, una frase tranquilizadora: "si un sábado por la tarde no conecta, no es tu móvil".
