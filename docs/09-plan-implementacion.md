@@ -532,8 +532,8 @@ con su resultado.
 | 2 | terminada | 18 sep 2026 | 95 comprobaciones pgTAP; staging migrado por CI y cerrado a `anon`. Correcciones a 05 (v1.3) en DEC-058; el propietario llega por secreto (DEC-053). Verificación: `docs/verificacion/fase-2.md`. |
 | 3 | terminada | 19 sep 2026 | 187 pgTAP (concurrencia con dblink) y Functions probadas contra `wrangler pages dev`; staging comprobado. Corregido que las funciones nacieran ejecutables por `PUBLIC`; sin código real en el *summary* público (DEC-059). Verificación: `docs/verificacion/fase-3.md`. |
 | 4 | terminada (prueba en móviles pendiente) | 19 sep 2026 | Entrada, sesión, Google, armazón, PWA, degradación y errores (DEC-060). Integración real en ci-sql. La prueba en Android e iPhone reales espera a que staging salga de la lista de bloqueos de LaLiga (DEC-061). Verificación: `docs/verificacion/fase-4.md`. |
-| 5 | pendiente | | |
-| 6 | pendiente | | |
+| 5 | terminada (luz del día pendiente) | 19 sep 2026 | Mapa base propio de 4,2 MB con escritor PMTiles propio, capas, simbología, lista, búsqueda y ficha (DEC-062). Pendiente: los cinco tamaños a la luz del día en el móvil del desarrollador y las capas en 3G real (staging bloqueado, DEC-061). Verificación: `docs/verificacion/fase-5.md`. |
+| 6 | terminada | 20 sep 2026 | Seis operaciones, foto sin EXIF, cola sin cobertura idempotente, jefatura aplica al momento, Mis propuestas, incidencias y push (DEC-063). Criterio cumplido en integración real. Pendiente: fotos de referencia del racor (jefatura) y prueba en móvil real. Verificación: `docs/verificacion/fase-6.md`. |
 | 7 | pendiente | | |
 | 8 | pendiente | | |
 | 9 | pendiente | | |
