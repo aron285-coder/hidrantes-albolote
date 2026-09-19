@@ -529,7 +529,7 @@ con su resultado.
 | 0 | terminada | 18 sep 2026 | Repositorio público (DEC-053); rol `hidrantes_migrador` (DEC-052); `mantener-activo.yml` (DEC-054); ajustes del arranque (DEC-055); un PR a `main` de prueba (DEC-056). Changelog en `config` (FR-167) y versión en Ajustes quedan para las Fases 2 y 4. Verificación: `docs/verificacion/fase-0.md`. |
 | 1 | terminada | 18 sep 2026 | Diez núcleos desde OSM; margen de 400 m también en el servidor; carga en espera de las tablas de la Fase 2 (DEC-057). Verificación: `docs/verificacion/fase-1.md`. |
 | 2 | terminada | 18 sep 2026 | 95 comprobaciones pgTAP; staging migrado por CI y cerrado a `anon`. Correcciones a 05 (v1.3) en DEC-058; el propietario llega por secreto (DEC-053). Verificación: `docs/verificacion/fase-2.md`. |
-| 3 | pendiente | | |
+| 3 | terminada | 19 sep 2026 | 187 pgTAP (concurrencia con dblink) y Functions probadas contra `wrangler pages dev`; staging comprobado. Corregido que las funciones nacieran ejecutables por `PUBLIC`; sin código real en el *summary* público (DEC-059). Verificación: `docs/verificacion/fase-3.md`. |
 | 4 | pendiente | | |
 | 5 | pendiente | | |
 | 6 | pendiente | | |

@@ -1,6 +1,6 @@
 # Verificación · Fase 3 · Funciones RPC y Pages Functions
 
-**Estado: en curso** hasta comprobar la CI y el despliegue en staging (§6). Todo lo local está en verde.
+**Estado: terminada el 19 sep 2026.** Criterio de salida cumplido (§2), en CI y en staging (§3).
 
 ## 1. Qué se ha construido
 
@@ -51,6 +51,9 @@
 | Cifrado Web Push | vector del apéndice A de la RFC 8291, byte a byte; firma VAPID verificada | ✅ |
 | Fusión, papelera y plazo, código fuera del registro, último administrador, lista blanca de parámetros | `06_rpc_jefatura` | ✅ |
 | Tests independientes del seed de staging | ejecutados con y sin seed, y dos veces seguidas | ✅ |
+| CI | PR #100: `ci-sql` con los 187 pgTAP y `probar-functions` contra `wrangler pages dev` (9 de 9) | ✅ |
+| Staging: migraciones | `deploy-staging.yml`: 0005–0007 aplicadas por `hidrantes_migrador` | ✅ |
+| Staging: Functions y RPC reales | `/api/direccion` sin JWT → 403; código erróneo → `CODIGO_INCORRECTO`; código del seed → token de 43 caracteres; `anon` → `fn_verificar_codigo` por la API → 42501; `fn_listar_puntos` con el token → 10 puntos activos (12 del seed menos el retirado y el de la papelera) | ✅ |
 
 ## 4. Cómo reproducirlo
 
@@ -73,7 +76,6 @@ Web Push propio con `VAPID_PUBLIC_KEY`; bucket por dominio; tipos propios para l
 
 ## 6. Lo que queda abierto
 
-- Comprobar en CI y en staging tras el merge.
 - `VAPID_PUBLIC_KEY` en Pages: `npm run arranque -- --rotar vapid` antes de la Fase 6.
 - `GITHUB_DISPATCH_TOKEN` y los workflows con `repository_dispatch`: Fase 7.
 - `storage_bytes` en Salud lo anotará el workflow de respaldo (Fase 8).
