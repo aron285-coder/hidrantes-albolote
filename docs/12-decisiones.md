@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060 a DEC-062; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060 a DEC-063; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -517,6 +517,41 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   descargar el mapa base en datos móviles sin preguntar; agrupar marcadores en racimos (06 §4.4).
 - **Afecta a:** 06 §2.4, §4.3 y Apéndice A; 09 Fase 5; 04 §8 (el mapa base cabe en Pages).
 
+### DEC-063 · Decisiones de detalle al construir la Fase 6 (operaciones)
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** 02 y 05 §7/§10 fijan qué manda cada operación y el orden de envío; faltaba cómo se
+  comporta la cola, qué se ve mientras tanto y qué hacer con lo que aún no existe.
+- **Decisiones:**
+  1. **Todo pasa por la cola**, haya cobertura o no: se guarda la propuesta con su foto en IndexedDB
+     y se envía al momento si se puede. Un único camino para probar y ningún envío que se pierda si
+     la red cae a medias. La pantalla de resultado dice "Enviado", "Guardado en el móvil" o
+     "Aplicado" según lo que haya pasado de verdad.
+  2. **Reintentos:** retroceso de 2 s a 60 s contra un servidor caído; al volver la red o pulsar
+     "Reintentar" se intenta todo ya. Cuota de fotos agotada: se reintenta cada hora. Errores
+     permanentes (punto ya no activo, datos no válidos, falta foto) se enseñan en Mis propuestas con
+     "Descartar" y confirmación. `FOTO_NO_RESERVADA` hace subir la foto otra vez con la misma marca.
+  3. **Foto:** se endereza con la orientación de la cámara, lado mayor ≤ 1600 px, JPEG que baja de
+     calidad hasta ≈ 300 kB; el lienzo no copia EXIF. La posición EXIF se lee con un lector propio
+     (sin dependencias) y viaja como `exif_lat/exif_lng`. En "corregir datos" la foto es opcional,
+     como en 05 §6.
+  4. **Jefatura en el móvil firma como "Jefatura" + su correo** en `autor_*` (el registro ya usa su
+     correo); no tiene Mis propuestas ni avisos push de voluntario.
+  5. **Fotos de referencia del racor pendientes:** no hay fotos reales de los racores de Albolote.
+     Hasta que jefatura las haga, las tarjetas llevan solo el nombre; se añadirán en
+     `src/activos/racores/` sin tocar la lógica. Un dibujo inventado podría inducir a error.
+  6. **"Algo no funciona" necesita cobertura** (no pasa por la cola): el botón lo dice.
+  7. **Avisos push:** interruptor en Ajustes con la explicación antes del permiso; en iPhone sin
+     instalar se dice que primero hay que instalarla. Tras cada sincronización el móvil llama a
+     `/api/push`. `VAPID_PUBLIC_KEY` se ha puesto en Pages (staging y producción) desde la variable
+     pública de GitHub, sin rotar claves.
+  8. **Cerrar sesión** borra también la cola, Mis propuestas guardadas y la suscripción push,
+     avisando antes de cuántos envíos se perderán.
+  9. **Dependencia movida:** `@turf/boolean-point-in-polygon` pasa de desarrollo a la app (aviso de
+     fuera de zona, FR-55).
+- **Descartado:** enviar directamente sin cola cuando hay red (dos caminos y más fallos posibles);
+  bloquear el alta fuera de zona (FR-55 dice avisar).
+- **Afecta a:** 06 Apéndice A; 09 Fase 6.
+
 ### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
 - **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)
 - **Contexto:** el sábado 19 sep 2026 staging no cargaba ni en fibra ni con datos móviles
@@ -571,9 +606,9 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059 |
-| 06 | 012, 013, 027, 047, 060, 062 |
+| 06 | 012, 013, 027, 047, 060, 062, 063 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
 | 15 | 023, 061 |

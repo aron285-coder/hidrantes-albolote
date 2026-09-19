@@ -183,6 +183,32 @@ export const T = {
     corregirUbicacionDetalle: 'El pin está desplazado',
     proponerRetirada: 'Proponer retirada',
     proponerRetiradaDetalle: 'Ya no existe. Pide un motivo breve',
+    etiquetaAlta: 'Alta',
+    etiquetaRevision: 'Revisión',
+    etiquetaEstado: 'Estado',
+    etiquetaDatos: 'Datos',
+    etiquetaUbicacion: 'Ubicación',
+    etiquetaRetirada: 'Retirada',
+    constaComo: (estado: Parametro, hace: Parametro) => `Consta como ${estado} · revisado ${hace}`,
+    caudalAhora: 'Caudal / estado ahora',
+    revisionAviso: 'Confirmas que el punto sigue exactamente igual. Solo cambia la fecha de última revisión.',
+    retiradaAviso:
+      'Solo jefatura puede confirmar la retirada. Hasta entonces el punto sigue en el mapa de todos, y en el histórico quedará siempre que aquí hubo un punto.',
+    jefaturaAviso:
+      'Entraste con Google: el cambio se aplica al momento y consta en el registro como acción tuya. No pasa por la cola.',
+    ubicacionAyuda: 'Toca el mapa donde está realmente. La posición anterior queda registrada.',
+    sinGps: 'Sin posición GPS: toca el mapa donde está el punto.',
+    tuGpsDetalle: (precision: Parametro, distancia: Parametro) => `±${precision} m · a ${distancia} del pin`,
+    phFallo: 'Qué impide usarlo',
+    phNota: 'Ej.: sale menos fuerza que en mayo',
+    phMotivo: 'Qué has encontrado en el sitio',
+    phOtraMedida: 'Medida en mm (jefatura la comprobará)',
+    preparandoFoto: 'Preparando la foto…',
+    fotoIlegible: 'No se pudo leer la foto. Prueba otra vez.',
+    enviando: 'Enviando…',
+    guardadoDetalle: 'Se enviará sola cuando haya conexión.',
+    aplicadoDetalle: 'El cambio ya está en el mapa de todos.',
+    errorGuardar: 'No se pudo guardar en el móvil. Inténtalo otra vez.',
   },
 
   formulario: {
@@ -234,6 +260,8 @@ export const T = {
     eligeRacor: 'Elige el racor',
     muevePin: 'Mueve el pin al sitio correcto',
     sinCambios: 'No has cambiado nada',
+    eligeMotivo: 'Elige un motivo',
+    explicaMotivo: 'Explica brevemente qué has visto',
     fueraDeZona: '⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.',
     ajustaPin: (metros: Parametro) => `Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±${metros} m)`,
   },
@@ -266,6 +294,20 @@ export const T = {
     conCorrecciones: (texto: Parametro) => `con correcciones: ${texto}`,
     esperando24h: '⚠ Lleva más de 24 h esperando cobertura. Se enviará sola al tener señal.',
     vacio: 'Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.',
+    resumen: (enviadas: Parametro, sinEnviar: Parametro) => `${enviadas} enviadas · ${sinEnviar} sin enviar`,
+    nuevo: 'nuevo',
+    descartar: 'Descartar',
+    confirmarDescartar: '¿Descartar este envío?',
+    descartarDetalle: 'No se ha podido enviar y ya no se enviará. No se puede deshacer.',
+    confirmarRetirar: '¿Retirar esta propuesta?',
+    retirarDetalle: 'Jefatura ya no la verá. No se puede deshacer.',
+    aprobadaAviso: (codigo: Parametro) => `Aprobada ${codigo}`,
+    rechazadaAviso: (codigo: Parametro) => `Rechazada ${codigo}`,
+    errorNoActivo: 'El punto ya no está activo: no se ha enviado.',
+    errorDatos: 'Faltan datos o no son válidos: no se ha enviado.',
+    errorFoto: 'Falta la foto: no se ha enviado.',
+    errorGenerico: 'No se ha podido enviar.',
+    listaGuardada: 'Sin conexión: esta es la última lista guardada.',
   },
 
   ajustes: {
@@ -308,6 +350,32 @@ export const T = {
     falloDescarga: 'No se pudo descargar. Inténtalo de nuevo con wifi.',
     puntosGuardadosDetalle: (n: Parametro, hace: Parametro) => `${n} · sincronizado ${hace}`,
     sinSincronizar: 'Todavía sin sincronizar',
+    avisos: 'Avisos',
+    perderasEnvios: (n: Parametro) => `Tienes ${n} envíos sin mandar: se perderán.`,
+  },
+
+  incidencia: {
+    intro: 'Para problemas de la aplicación. Si lo que quieres es cambiar un hidrante, hazlo desde su ficha.',
+    queHaPasado: 'Qué ha pasado',
+    ph: 'Ej.: al hacer la foto la app se cierra…',
+    seEnviaCon: (version: Parametro) =>
+      `Se enviará con la versión (${version}) y la pantalla en la que estabas. Lo verá jefatura en su panel.`,
+    describe: 'Describe el problema',
+    enviado: 'Aviso enviado a jefatura',
+    cuota: 'Ya has enviado varios avisos hoy. Inténtalo mañana.',
+  },
+
+  push: {
+    titulo: 'Avisos de jefatura',
+    explicacion:
+      'Recibirás una notificación cuando una propuesta tuya se apruebe o se rechace. Nada más: ni de otros voluntarios ni publicidad. En iPhone solo funciona si la aplicación está instalada en la pantalla de inicio. El móvil te pedirá permiso ahora.',
+    permitir: 'Permitir avisos',
+    ahoraNo: 'Ahora no',
+    activado: 'Activado en este móvil',
+    desactivado: 'Desactivado · también verás el resultado al abrir la app',
+    denegado: 'Avisos bloqueados en el móvil: actívalos en sus ajustes.',
+    instalarPrimero:
+      'En iPhone, primero añade la aplicación a la pantalla de inicio (Compartir → Añadir a pantalla de inicio).',
   },
 
   fallo: {

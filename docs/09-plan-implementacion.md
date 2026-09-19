@@ -281,25 +281,25 @@ móvil a la luz del día.
 **Objetivo:** que un voluntario proponga cualquier cambio, con o sin cobertura, y que jefatura
 pueda hacerlo desde el móvil. Referencia: FL-03–FL-11, FL-28; 07 §7.3–7.5; 05 §7, §10.
 
-- [ ] Alta nueva según FL-03: pin arrastrable + GPS con precisión; tipo; diámetro con "otra medida";
-      racor con fotos de referencia servidas con la app (`src/activos/racores/`); caudal;
+- [x] Alta nueva según FL-03: pin arrastrable + GPS con precisión; tipo; diámetro con "otra medida";
+      racor (las fotos de referencia de `src/activos/racores/` quedan pendientes de jefatura, DEC-063); caudal;
       descripción del fallo condicional; foto obligatoria con botón deshabilitado que dice por qué;
       descripción.
-- [ ] Aviso de fuera de zona con Turf sobre `zona-cobertura.geojson`, sin bloquear.
-- [ ] Tratamiento de la foto en el cliente (TR-15, TR-47): orientación, ≤ 1600 px, recompresión,
+- [x] Aviso de fuera de zona con Turf sobre `zona-cobertura.geojson`, sin bloquear.
+- [x] Tratamiento de la foto en el cliente (TR-15, TR-47): orientación, ≤ 1600 px, recompresión,
       EXIF leído y enviado aparte.
-- [ ] Revisión (un botón), actualizar estado, corregir datos, corregir ubicación (posición actual
+- [x] Revisión (un botón), actualizar estado, corregir datos, corregir ubicación (posición actual
       gris + línea de desplazamiento), proponer retirada (motivo rápido + texto + foto). Pantallas de
       07 §7.3.
-- [ ] Variante jefatura: "Aplicar ahora", resultado "Aplicado".
-- [ ] Cola offline en IndexedDB con `clave_local`, blob de foto, contador visible, reintentos con
+- [x] Variante jefatura: "Aplicar ahora", resultado "Aplicado".
+- [x] Cola offline en IndexedDB con `clave_local`, blob de foto, contador visible, reintentos con
       retroceso exponencial, fallos permanentes mostrados al voluntario, aviso a las 24 h. Envío:
       `url-subida` → `PUT` → `fn_proponer` (05 §10).
-- [ ] Mis propuestas con estado, motivo, correcciones, sin enviar, retirar. Aviso de resolución al
+- [x] Mis propuestas con estado, motivo, correcciones, sin enviar, retirar. Aviso de resolución al
       abrir (comprobación local, sin push).
-- [ ] "Algo no funciona" → `fn_reportar_incidencia`.
-- [ ] Ajustes completo (FR-93), incluido cerrar sesión con confirmación si hay envíos pendientes.
-- [ ] **Notificaciones push del voluntario** (FR-163, P1): interruptor en Ajustes, explicación previa
+- [x] "Algo no funciona" → `fn_reportar_incidencia`.
+- [x] Ajustes completo (FR-93), incluido cerrar sesión con confirmación si hay envíos pendientes.
+- [x] **Notificaciones push del voluntario** (FR-163, P1): interruptor en Ajustes, explicación previa
       al permiso (iOS solo con la app instalada), suscripción con `fn_guardar_suscripcion_push`,
       Service Worker que muestra la notificación y abre Mis propuestas. Tras cada sincronización el
       cliente llama a `/api/push`.

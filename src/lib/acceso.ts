@@ -16,7 +16,10 @@ import {
   leerSesion,
   olvidarToken,
 } from './sesion';
+import { alEnviarPropuesta, iniciarCola, vaciarCola } from './cola';
+import { cargarMisPropuestas } from './mis-propuestas';
 import { borrarPuntos, cargarGuardados, estadoPuntos, sincronizar } from './puntos';
+import { desactivarPush, estadoPush, pedirEnvioPush } from './push';
 import { supabase } from './supabase';
 
 export type Acceso =
@@ -103,6 +106,12 @@ export async function comprobarAcceso(): Promise<void> {
   if (!r.ok && esErrorDeAcceso(r.codigo)) {
     olvidarToken();
     fijar({ tipo: 'fuera', caducado: true });
+    return;
+  }
+  if (r.ok) {
+    // Con servidor: resultado de mis propuestas (FR-90) y avisos push pendientes de todos (05 §9).
+    void cargarMisPropuestas();
+    pedirEnvioPush(sesion.token);
   }
 }
 
@@ -159,9 +168,12 @@ export function cambiarFirma(firma: Firma): void {
   if (sesion && estado.tipo === 'voluntario') fijar({ tipo: 'voluntario', sesion });
 }
 
-export function cerrarSesionVoluntario(): void {
+export async function cerrarSesionVoluntario(): Promise<void> {
+  // Primero lo que necesita el token: dejar de recibir avisos en este móvil.
+  if (estadoPush() === 'activo') await desactivarPush().catch(() => undefined);
   cerrarSesion();
   void borrarPuntos();
+  void vaciarCola();
   fijar({ tipo: 'fuera', caducado: false });
 }
 
@@ -170,6 +182,13 @@ const REFRESCO_MS = 5 * 60_000;
 
 export function iniciarAcceso(): void {
   registrarComprobacion(comprobarAcceso);
+  // Lo que sale de la cola: jefatura ve su cambio en el mapa al momento (FR-151); el voluntario, en
+  // Mis propuestas.
+  alEnviarPropuesta((e) => {
+    if (e.aplicada) void sincronizar(leerSesion()?.token ?? null);
+    else void cargarMisPropuestas();
+  });
+  iniciarCola();
   void cargarGuardados().then(comprobarAcceso);
   document.addEventListener('visibilitychange', () => {
     const { guardadoEn } = estadoPuntos();

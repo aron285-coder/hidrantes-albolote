@@ -1,10 +1,13 @@
-import { Navigation, X } from 'lucide-react';
+import { Activity, Check, Crosshair, Navigation, Pencil, PenLine, X } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
+import { Hoja } from '../Hoja';
 import { MarcadorSvg } from './MarcadorSvg';
 import { useConexion } from '@/hooks/estado';
 import { claseChip, enlaceComoLlegar, nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
 import { distancia, fechaCorta, hace } from '@/lib/formato';
 import type { Posicion } from '@/lib/posicion';
+import type { Operacion } from '@/lib/propuestas';
 import { type Punto, metros } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
@@ -45,8 +48,8 @@ function Foto({ punto }: { punto: Punto }) {
 }
 
 /**
- * Ficha de un punto (FR-66). Nunca muestra historial ni autores: la RPC no los trae. "Proponer un
- * cambio" llega con las operaciones (Fase 6, DEC-062).
+ * Ficha de un punto (FR-66). Nunca muestra historial ni autores: la RPC no los trae. Desde aquí,
+ * "Proponer un cambio" con las cinco operaciones (FR-67).
  */
 export function Ficha({
   punto,
@@ -62,6 +65,7 @@ export function Ficha({
   conCabecera?: boolean;
 }) {
   const conexion = useConexion();
+  const [operaciones, setOperaciones] = useState(false);
   const m = posicion ? metros(posicion, punto) : null;
   const revision = new Date(punto.fecha_ultima_revision);
 
@@ -130,15 +134,71 @@ export function Ficha({
           {punto.descripcion}
         </p>
       )}
-      <a
-        href={enlaceComoLlegar(punto)}
-        target="_blank"
-        rel="noreferrer"
-        className="bg-papel border-texto text-texto rounded-boton mt-1 flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-4 text-[15px] font-semibold"
-      >
-        <Navigation size={18} aria-hidden />
-        {T.ficha.comoLlegar}
-      </a>
+      <div className="mt-1 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setOperaciones(true)}
+          className="bg-papel border-texto text-texto rounded-boton flex min-h-11 flex-1 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
+        >
+          <PenLine size={18} aria-hidden />
+          {T.ficha.proponerCambio}
+        </button>
+        <a
+          href={enlaceComoLlegar(punto)}
+          target="_blank"
+          rel="noreferrer"
+          className="bg-papel border-texto text-texto rounded-boton flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
+        >
+          <Navigation size={18} aria-hidden />
+          {T.ficha.comoLlegar}
+        </a>
+      </div>
+      {operaciones && <HojaOperaciones punto={punto} alCerrar={() => setOperaciones(false)} />}
     </article>
+  );
+}
+
+const OPERACIONES: [Operacion, string, string, typeof Check][] = [
+  ['revision', T.operaciones.sigueIgual, T.operaciones.sigueIgualDetalle, Check],
+  ['estado', T.operaciones.actualizarEstado, T.operaciones.actualizarEstadoDetalle, Activity],
+  ['datos', T.operaciones.corregirDatos, T.operaciones.corregirDatosDetalle, Pencil],
+  ['ubicacion', T.operaciones.corregirUbicacion, T.operaciones.corregirUbicacionDetalle, Crosshair],
+  ['retirada', T.operaciones.proponerRetirada, T.operaciones.proponerRetiradaDetalle, X],
+];
+
+/** "¿Qué ha cambiado en HID-0147?": las cinco operaciones sobre un punto (FR-67, 07 §7.3). */
+function HojaOperaciones({ punto, alCerrar }: { punto: Punto; alCerrar: () => void }) {
+  const navegar = useNavigate();
+  return (
+    <Hoja titulo={T.operaciones.queHaCambiado(punto.codigo)} alCerrar={alCerrar}>
+      <ul className="mt-1 flex flex-col">
+        {OPERACIONES.map(([op, titulo, detalle, Icono]) => (
+          <li key={op}>
+            <button
+              type="button"
+              onClick={() => navegar(`/proponer/${op}?p=${encodeURIComponent(punto.id)}`)}
+              className="border-linea flex min-h-14 w-full items-center gap-3 border-b px-1 text-left"
+            >
+              <span
+                className={cn(
+                  'rounded-campo flex size-9 shrink-0 items-center justify-center',
+                  op === 'retirada'
+                    ? 'bg-rojo-100 text-rojo-700'
+                    : op === 'estado'
+                      ? 'bg-ambar-100 text-ambar-700'
+                      : 'bg-linea',
+                )}
+              >
+                <Icono size={18} strokeWidth={1.75} aria-hidden />
+              </span>
+              <span>
+                <span className="block text-[15px] font-semibold">{titulo}</span>
+                <span className="text-texto-suave block text-[13px]">{detalle}</span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Hoja>
   );
 }

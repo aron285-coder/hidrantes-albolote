@@ -1,6 +1,7 @@
 import { List, Map as IconoMapa, Settings } from 'lucide-react';
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
+import { AvisoNovedades } from '@/componentes/AvisoNovedades';
 import { LimiteError } from '@/componentes/LimiteError';
 import { useAcceso } from '@/hooks/estado';
 import { primerUsoVisto } from '@/lib/sesion';
@@ -28,6 +29,7 @@ export function Armazon() {
   return (
     <div className="flex flex-1 flex-col">
       <BarraSuperior titulo={TITULOS[pathname] ?? T.app.nombre} jefatura={acceso.tipo === 'jefatura'} />
+      <AvisoNovedades />
       <main className="flex min-h-0 flex-1 flex-col pb-[calc(50px+env(safe-area-inset-bottom))]">
         <LimiteError>
           <Outlet />

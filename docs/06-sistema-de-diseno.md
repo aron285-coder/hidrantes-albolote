@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.3 — 19 de septiembre de 2026: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.4 — 20 de septiembre de 2026: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -358,7 +358,17 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
 `El caudal ha cambiado o ya no funciona` · `Corregir datos` ·
 `Tipo, diámetro o racor mal anotados` · `Corregir ubicación` · `El pin está desplazado` ·
-`Proponer retirada` · `Ya no existe. Pide un motivo breve`.
+`Proponer retirada` · `Ya no existe. Pide un motivo breve` · `Alta` · `Revisión` · `Estado` · `Datos` ·
+`Ubicación` · `Retirada` · `Consta como [Bueno] · revisado [hace 1 mes]` · `Caudal / estado ahora` ·
+`Confirmas que el punto sigue exactamente igual. Solo cambia la fecha de última revisión.` ·
+`Solo jefatura puede confirmar la retirada. Hasta entonces el punto sigue en el mapa de todos, y en el histórico quedará siempre que aquí hubo un punto.` ·
+`Entraste con Google: el cambio se aplica al momento y consta en el registro como acción tuya. No pasa por la cola.` ·
+`Toca el mapa donde está realmente. La posición anterior queda registrada.` ·
+`Sin posición GPS: toca el mapa donde está el punto.` · `±[9] m · a [12 m] del pin` · `Qué impide usarlo` ·
+`Ej.: sale menos fuerza que en mayo` · `Qué has encontrado en el sitio` ·
+`Medida en mm (jefatura la comprobará)` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` ·
+`Enviando…` · `Se enviará sola cuando haya conexión.` · `El cambio ya está en el mapa de todos.` ·
+`No se pudo guardar en el móvil. Inténtalo otra vez.`.
 
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
 `Diámetro de la salida mayor` · `70 mm` · `100 mm` · `Otra medida` ·
@@ -374,7 +384,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Avisos del formulario.** `Falta la foto para poder enviar` · `Elige el estado` ·
 `Describe el fallo` · `Elige el tipo` · `Elige el diámetro` · `Indica la medida` ·
-`Elige el racor` · `Mueve el pin al sitio correcto` · `No has cambiado nada` ·
+`Elige el racor` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
+`Explica brevemente qué has visto` ·
 `⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.` ·
 `Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±[9] m)`.
 
@@ -389,7 +400,13 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Mis propuestas.** `Pendiente` · `Aprobada` · `Rechazada` · `Retirada por ti` · `Sin enviar` ·
 `Retirar` · `Motivo: [texto]` · `con correcciones: [texto]` ·
 `⚠ Lleva más de 24 h esperando cobertura. Se enviará sola al tener señal.` ·
-`Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.`
+`Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.` ·
+`[3] enviadas · [1] sin enviar` · `nuevo` · `Descartar` · `¿Descartar este envío?` ·
+`No se ha podido enviar y ya no se enviará. No se puede deshacer.` · `¿Retirar esta propuesta?` ·
+`Jefatura ya no la verá. No se puede deshacer.` · `Aprobada [HID-0147]` · `Rechazada [HID-0147]` ·
+`El punto ya no está activo: no se ha enviado.` · `Faltan datos o no son válidos: no se ha enviado.` ·
+`Falta la foto: no se ha enviado.` · `No se ha podido enviar.` ·
+`Sin conexión: esta es la última lista guardada.`
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
 `Descargado · [12] MB · [jul 2026]` · `No descargado` · `Descargar` · `Actualizar` ·
@@ -402,7 +419,18 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Versión [0.1.0]` · `Descargando… [40] %` ·
 `No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
 `No se pudo descargar. Inténtalo de nuevo con wifi.` · `[438] · sincronizado [hace 5 min]` ·
-`Todavía sin sincronizar`.
+`Todavía sin sincronizar` · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.`.
+
+**Algo no funciona** (FR-92). `Para problemas de la aplicación. Si lo que quieres es cambiar un hidrante, hazlo desde su ficha.` ·
+`Qué ha pasado` · `Ej.: al hacer la foto la app se cierra…` ·
+`Se enviará con la versión ([0.1.0]) y la pantalla en la que estabas. Lo verá jefatura en su panel.` ·
+`Describe el problema` · `Aviso enviado a jefatura` · `Ya has enviado varios avisos hoy. Inténtalo mañana.`.
+
+**Avisos push** (FR-163). `Avisos de jefatura` ·
+`Recibirás una notificación cuando una propuesta tuya se apruebe o se rechace. Nada más: ni de otros voluntarios ni publicidad. En iPhone solo funciona si la aplicación está instalada en la pantalla de inicio. El móvil te pedirá permiso ahora.` ·
+`Permitir avisos` · `Ahora no` · `Activado en este móvil` · `Desactivado · también verás el resultado al abrir la app` ·
+`Avisos bloqueados en el móvil: actívalos en sus ajustes.` ·
+`En iPhone, primero añade la aplicación a la pantalla de inicio (Compartir → Añadir a pantalla de inicio).`
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·

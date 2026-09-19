@@ -1,9 +1,9 @@
-// IndexedDB del móvil: los puntos aprobados y su sello de sincronización (FR-80, 05 §10). La cola de
-// propuestas llegará aquí en la Fase 6. Sin librería: dos almacenes y cuatro operaciones.
+// IndexedDB del móvil: los puntos aprobados y su sello de sincronización (FR-80, 05 §10) y la cola
+// de propuestas con sus fotos (FR-82, Fase 6). Sin librería: tres almacenes y pocas operaciones.
 // Si IndexedDB no existe o falla (modo privado, Safari que desaloja: TR-07), todo sigue en memoria.
 
 const NOMBRE = 'hidrantes';
-const VERSION = 1;
+const VERSION = 2;
 
 export interface Almacen<T> {
   todos(): Promise<T[]>;
@@ -22,6 +22,7 @@ function abrir(): Promise<IDBDatabase> {
       const bd = p.result;
       if (!bd.objectStoreNames.contains('puntos')) bd.createObjectStore('puntos', { keyPath: 'id' });
       if (!bd.objectStoreNames.contains('meta')) bd.createObjectStore('meta');
+      if (!bd.objectStoreNames.contains('cola')) bd.createObjectStore('cola', { keyPath: 'clave_local' });
     };
     p.onsuccess = () => resolver(p.result);
     p.onerror = () => rechazar(p.error);
@@ -98,5 +99,44 @@ export function almacenEnMemoria<T extends { id: string }>(): Almacen<T> {
       puntos.clear();
       meta.clear();
     },
+  };
+}
+
+// ---------- cola de propuestas (Fase 6) ----------
+
+export interface AlmacenCola<T extends { clave_local: string }> {
+  todos(): Promise<T[]>;
+  guardar(item: T): Promise<void>;
+  quitar(clave: string): Promise<void>;
+  vaciar(): Promise<void>;
+}
+
+/** La cola en IndexedDB (con los blobs de las fotos); si no hay IndexedDB, en memoria. */
+export function almacenCola<T extends { clave_local: string }>(): AlmacenCola<T> {
+  if (typeof indexedDB === 'undefined') return colaEnMemoria<T>();
+  const escribirUno = async (f: (s: IDBObjectStore) => void) => {
+    const bd = await abrir();
+    const t = bd.transaction('cola', 'readwrite');
+    f(t.objectStore('cola'));
+    await fin(t);
+  };
+  return {
+    async todos() {
+      const bd = await abrir();
+      return promesa(bd.transaction('cola').objectStore('cola').getAll()) as Promise<T[]>;
+    },
+    guardar: (item) => escribirUno((s) => s.put(item)),
+    quitar: (clave) => escribirUno((s) => s.delete(clave)),
+    vaciar: () => escribirUno((s) => s.clear()),
+  };
+}
+
+export function colaEnMemoria<T extends { clave_local: string }>(): AlmacenCola<T> {
+  const items = new Map<string, T>();
+  return {
+    todos: async () => [...items.values()],
+    guardar: async (item) => void items.set(item.clave_local, item),
+    quitar: async (clave) => void items.delete(clave),
+    vaciar: async () => items.clear(),
   };
 }

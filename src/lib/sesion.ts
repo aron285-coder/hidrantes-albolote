@@ -67,6 +67,9 @@ export function cerrarSesion(): void {
     CLAVE_PRIMER_USO,
     'sincronizado_en',
     'puntos_guardados',
+    'mis_propuestas',
+    'propuestas_vistas',
+    'push',
   ]) {
     borrar(c);
   }
