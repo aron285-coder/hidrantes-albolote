@@ -1,11 +1,13 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { LocateFixed } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { capasDe } from '../mapa/capas-leaflet';
-import { useModo } from '@/hooks/estado';
+import { useModo, usePosicion } from '@/hooks/estado';
 import { capaGuardada } from '@/lib/capas';
 import type { Coordenadas } from '@/lib/propuestas';
-import type { Posicion } from '@/lib/posicion';
+import { type Posicion, activarPosicion } from '@/lib/posicion';
+import { T } from '@/lib/textos';
 
 /** Pin naranja arrastrable con punto blanco (06 §4.3, "propuesto"). */
 const ICONO_PIN = L.divIcon({
@@ -18,19 +20,23 @@ const ICONO_PIN = L.divIcon({
 /**
  * Mapa pequeño para colocar el punto (FR-50, FL-03, FL-07): se arrastra el pin o se toca el mapa.
  * Enseña el GPS con su halo y, al corregir una ubicación, la posición anterior en gris con la línea
- * del desplazamiento.
+ * del desplazamiento. El botón de posición centra el mapa en el GPS, como en cualquier app de mapas;
+ * en un alta, además, devuelve el pin a la posición GPS.
  */
 export function SelectorPin({
   pin,
   gps,
   original,
   alMover,
+  alUsarMiPosicion,
   etiqueta,
 }: {
   pin: Coordenadas | undefined;
   gps: Posicion | null;
   original?: Coordenadas;
   alMover: (c: Coordenadas) => void;
+  /** Se llama al pulsar "Mi posición" con GPS disponible. */
+  alUsarMiPosicion?: () => void;
   etiqueta: string;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
@@ -39,6 +45,13 @@ export function SelectorPin({
   const extras = useRef<L.LayerGroup | null>(null);
   const alMoverRef = useRef(alMover);
   const modo = useModo();
+  const estadoPos = usePosicion();
+  const pendiente = useRef(false);
+  const alUsarRef = useRef(alUsarMiPosicion);
+
+  useEffect(() => {
+    alUsarRef.current = alUsarMiPosicion;
+  }, [alUsarMiPosicion]);
 
   useEffect(() => {
     alMoverRef.current = alMover;
@@ -84,9 +97,26 @@ export function SelectorPin({
     return () => capas.forEach((c) => m.removeLayer(c));
   }, [modo]);
 
+  // El pin se mueve (GPS que llega, botón de posición…): si queda fuera de la vista, el mapa lo sigue.
   useEffect(() => {
-    if (pin) marcador.current?.setLatLng([pin.lat, pin.lng]);
+    if (!pin) return;
+    marcador.current?.setLatLng([pin.lat, pin.lng]);
+    const m = mapa.current;
+    if (m && !m.getBounds().pad(-0.1).contains([pin.lat, pin.lng])) m.panTo([pin.lat, pin.lng]);
   }, [pin]);
+
+  function irAMiPosicion(p: Posicion) {
+    mapa.current?.setView([p.lat, p.lng], Math.max(18, mapa.current.getZoom()));
+    alUsarRef.current?.();
+  }
+
+  // Si se pulsó el botón antes de tener GPS, se centra en cuanto llega la primera lectura.
+  useEffect(() => {
+    if (pendiente.current && gps) {
+      pendiente.current = false;
+      irAMiPosicion(gps);
+    }
+  }, [gps]);
 
   useEffect(() => {
     const g = extras.current;
@@ -130,11 +160,38 @@ export function SelectorPin({
     }
   }, [gps, original, pin]);
 
+  const aviso =
+    estadoPos.tipo === 'denegada'
+      ? T.mapa.posicionDenegada
+      : estadoPos.tipo === 'no_disponible'
+        ? T.mapa.posicionNoDisponible
+        : null;
+
   return (
-    <div
-      ref={contenedor}
-      className="rounded-tarjeta border-linea isolate h-56 overflow-hidden border"
-      data-testid="selector-pin"
-    />
+    <div className="relative isolate">
+      <div
+        ref={contenedor}
+        className="rounded-tarjeta border-linea h-56 overflow-hidden border"
+        data-testid="selector-pin"
+      />
+      <button
+        type="button"
+        aria-label={T.mapa.miPosicion}
+        title={T.mapa.miPosicion}
+        onClick={() => {
+          activarPosicion();
+          if (gps) irAMiPosicion(gps);
+          else pendiente.current = true;
+        }}
+        className="text-texto rounded-tarjeta absolute top-2 right-2 z-[500] flex size-11 items-center justify-center bg-[var(--control-mapa)] shadow-[0_1px_5px_rgba(0,0,0,.18)]"
+      >
+        <LocateFixed size={20} aria-hidden />
+      </button>
+      {aviso && (
+        <p className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta absolute inset-x-2 bottom-2 z-[500] border px-2 py-1 text-[13px]">
+          {aviso}
+        </p>
+      )}
+    </div>
   );
 }

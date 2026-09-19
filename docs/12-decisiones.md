@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060 a DEC-063; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -552,6 +552,22 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   bloquear el alta fuera de zona (FR-55 dice avisar).
 - **Afecta a:** 06 Apéndice A; 09 Fase 6.
 
+### DEC-064 · Botón propio para instalar la app y "Mi posición" en el mapa de los formularios
+- **Fecha:** 20 sep 2026 (desarrollador, tras probar staging en Android) · **Estado:** vigente
+- **Contexto:** en Chrome para Android el desarrollador no encontró cómo instalar la app: la opción
+  del menú cambia de nombre con el idioma y la versión ("App installeren", "Añadir a pantalla de
+  inicio"…) y las instrucciones decían "Instalar aplicación". Chrome sí la consideraba instalable
+  (sin errores de instalabilidad salvo el modo incógnito de la prueba). Además, en el minimapa de un
+  alta no había forma de volver a la posición propia.
+- **Decisiones:**
+  1. La app escucha `beforeinstallprompt` y ofrece su propio botón "Instalar": un aviso en el mapa
+     que se cierra una vez para siempre y una fila fija en Ajustes. En iPhone (sin ese evento) Ajustes
+     explica Compartir → Añadir a pantalla de inicio; en otros navegadores, el menú.
+  2. El minimapa de los formularios tiene el botón "Mi posición", como el mapa principal: centra en
+     el GPS y, en un alta, devuelve el pin al GPS (origen `gps`). En "corregir ubicación" solo centra,
+     para no mover el pin sin querer. Si el pin cambia fuera de la vista, el mapa lo sigue.
+- **Afecta a:** 06 Apéndice A; notas para 14.
+
 ### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
 - **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)
 - **Contexto:** el sábado 19 sep 2026 staging no cargaba ni en fibra ni con datos móviles
@@ -606,7 +622,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059 |
-| 06 | 012, 013, 027, 047, 060, 062, 063 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |

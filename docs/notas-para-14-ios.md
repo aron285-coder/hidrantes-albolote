@@ -35,6 +35,8 @@ En Android: Chrome ofrece **Instalar aplicación** en el menú ⋮ (o un aviso e
 
 ## Fines de semana de fútbol (todos los móviles, no solo iPhone)
 
+La app ofrece su propio botón "Instalar" (aviso en el mapa y fila en Ajustes, DEC-064): en 14, decir que se use ese botón; el nombre del menú del navegador cambia con el idioma.
+
 Durante los partidos de LaLiga los operadores españoles pueden bloquear el servidor (DEC-061). La app
 instalada sigue abriendo con lo guardado y dice "Sin conexión con el servidor"; lo enviado sale solo
 al acabar el bloqueo. Por eso: instalar la app y abrirla una vez con cobertura **antes** de

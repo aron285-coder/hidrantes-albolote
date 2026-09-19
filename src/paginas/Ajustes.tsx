@@ -3,7 +3,8 @@ import { Link, useNavigate } from 'react-router';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
 import { SelectorCapas } from '@/componentes/mapa/SelectorCapas';
-import { useAcceso, useConexion, useMapabase, usePuntos } from '@/hooks/estado';
+import { useAcceso, useConexion, useInstalar, useMapabase, usePuntos } from '@/hooks/estado';
+import { instalar } from '@/lib/instalar';
 import { useReloj } from '@/hooks/reloj';
 import { type Capa, NOMBRE_CAPA, capaGuardada, guardarCapa } from '@/lib/capas';
 import { reintentarAhora } from '@/lib/conexion';
@@ -151,6 +152,7 @@ export function Ajustes() {
       </Fila>
 
       <Seccion>{T.ajustes.ayuda}</Seccion>
+      <FilaInstalar />
       {sesion && (
         <Fila titulo={T.ajustes.algoNoFunciona}>
           <Boton
@@ -371,5 +373,23 @@ function SeccionAvisos() {
         </Hoja>
       )}
     </>
+  );
+}
+
+/** Instalar la app en la pantalla de inicio: botón propio si el navegador lo permite (DEC-064). */
+function FilaInstalar() {
+  const estado = useInstalar();
+  if (estado === 'instalada') return <Fila titulo={T.instalar.titulo} detalle={T.instalar.instalada} />;
+  return (
+    <Fila
+      titulo={T.instalar.titulo}
+      detalle={estado === 'ios' ? T.instalar.ios : estado === 'menu' ? T.instalar.menu : undefined}
+    >
+      {estado === 'disponible' && (
+        <Boton variante="enlace" className="text-sm" onClick={() => void instalar()}>
+          {T.instalar.boton}
+        </Boton>
+      )}
+    </Fila>
   );
 }

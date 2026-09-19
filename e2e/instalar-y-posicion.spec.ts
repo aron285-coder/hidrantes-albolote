@@ -1,0 +1,96 @@
+// Botón propio para instalar la app y "Mi posición" en el mapa del formulario (DEC-064).
+
+import { expect, test, type Page } from '@playwright/test';
+import { T } from '../src/lib/textos.ts';
+import { conSesion, simularRpc } from './ayudas.ts';
+import { LISTADO } from './puntos.ts';
+
+/** El navegador ofrece instalar (lo que hace Chrome cuando la app cumple los requisitos). */
+async function ofrecerInstalacion(page: Page) {
+  await page.evaluate(() => {
+    const e = new Event('beforeinstallprompt') as Event & { prompt: () => Promise<void>; userChoice: unknown };
+    e.prompt = async () => {
+      (window as unknown as { instalacionPedida: boolean }).instalacionPedida = true;
+    };
+    e.userChoice = Promise.resolve({ outcome: 'accepted' });
+    window.dispatchEvent(e);
+  });
+}
+
+test.beforeEach(async ({ page, context }) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 37.2309, longitude: -3.6566, accuracy: 8 });
+  await conSesion(page);
+  await simularRpc(page, { fn_listar_puntos: LISTADO, fn_mis_propuestas: [], fn_registrar_error: null });
+});
+
+test('la app ofrece su propio botón de instalar y lo quita al instalarla', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText(T.instalar.aviso)).toHaveCount(0);
+  await ofrecerInstalacion(page);
+  await expect(page.getByText(T.instalar.aviso)).toBeVisible();
+  await page.getByRole('button', { name: T.instalar.boton, exact: true }).click();
+  await expect(page.getByText(T.instalar.aviso)).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { instalacionPedida?: boolean }).instalacionPedida)).toBe(
+    true,
+  );
+  await page.getByRole('link', { name: T.navegacion.ajustes }).click();
+  await expect(page.getByText(T.instalar.instalada)).toBeVisible();
+});
+
+test('sin oferta del navegador, Ajustes explica cómo instalar', async ({ page }) => {
+  await page.goto('/ajustes');
+  await expect(page.getByRole('group', { name: T.instalar.titulo })).toContainText(T.instalar.menu);
+});
+
+test('el aviso del mapa se puede cerrar y no vuelve', async ({ page }) => {
+  await page.goto('/');
+  await ofrecerInstalacion(page);
+  await page.getByRole('button', { name: T.ficha.cerrar }).click();
+  await expect(page.getByText(T.instalar.aviso)).toHaveCount(0);
+  await page.reload();
+  await ofrecerInstalacion(page);
+  await expect(page.getByText(T.instalar.aviso)).toHaveCount(0);
+});
+
+test('alta: "Mi posición" devuelve el pin al GPS después de moverlo a mano', async ({ page }) => {
+  await page.goto('/proponer/alta');
+  const mapa = page.getByTestId('selector-pin');
+  await expect(mapa).toBeVisible();
+  const caja = (await mapa.boundingBox())!;
+  await mapa.click({ position: { x: caja.width / 2 + 80, y: caja.height / 2 + 40 } });
+  await page.getByRole('button', { name: T.mapa.miPosicion }).click();
+
+  // Se envía y se comprueba que el pin volvió a la posición GPS (origen "gps").
+  let propuesta: Record<string, unknown> | null = null;
+  await page.route('https://supabase.invalid/rest/v1/rpc/fn_proponer', async (r) => {
+    propuesta = r.request().postDataJSON();
+    await r.fulfill({ contentType: 'application/json', body: '{"estado":"pendiente","aplicada":false,"codigo":null}' });
+  });
+  await page.route('**/api/url-subida', (r) =>
+    r.fulfill({
+      contentType: 'application/json',
+      body: '{"foto_path":"fotos/1.jpg","url":"https://supabase.invalid/subir"}',
+    }),
+  );
+  await page.route('https://supabase.invalid/subir', (r) => r.fulfill({ status: 200, body: '{}' }));
+  await page.getByRole('radio', { name: T.formulario.hidrante }).click();
+  await page.getByRole('radio', { name: T.formulario.d70 }).click();
+  await page.getByRole('radio', { name: T.formulario.bueno }).click();
+  const jpeg = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = 400;
+    c.height = 300;
+    c.getContext('2d')!.fillRect(0, 0, 400, 300);
+    const b = await new Promise<Blob>((r) => c.toBlob((x) => r(x!), 'image/jpeg'));
+    return Array.from(new Uint8Array(await b.arrayBuffer()));
+  });
+  await page
+    .getByTestId('entrada-foto')
+    .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
+  await page.getByRole('button', { name: T.envio.enviarRevision, exact: true }).click();
+  await expect.poll(() => propuesta).not.toBeNull();
+  expect(propuesta).toMatchObject({ origen: 'gps' });
+  expect(propuesta!.lat as number).toBeCloseTo(37.2309, 5);
+  expect(propuesta!.lng as number).toBeCloseTo(-3.6566, 5);
+});

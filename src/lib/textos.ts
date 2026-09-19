@@ -365,6 +365,15 @@ export const T = {
     cuota: 'Ya has enviado varios avisos hoy. Inténtalo mañana.',
   },
 
+  instalar: {
+    titulo: 'Instalar la aplicación',
+    boton: 'Instalar',
+    aviso: 'Instala la aplicación en la pantalla de inicio: se abre más rápido y funciona sin cobertura.',
+    instalada: 'Instalada en este móvil',
+    ios: 'En iPhone: Compartir → Añadir a pantalla de inicio.',
+    menu: 'En el menú del navegador: Añadir a pantalla de inicio (o Instalar aplicación).',
+  },
+
   push: {
     titulo: 'Avisos de jefatura',
     explicacion:
