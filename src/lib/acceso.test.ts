@@ -92,7 +92,7 @@ describe('comprobación del acceso al arrancar (FR-35, FR-168)', () => {
   it('token revocado: vuelve a la entrada avisando y conserva el nombre', async () => {
     rpc.mockResolvedValue({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: revocado' } });
     await comprobarAcceso();
-    expect(rpc).toHaveBeenCalledWith('fn_listar_puntos', { token: TOKEN, desde: expect.any(String) });
+    expect(rpc).toHaveBeenCalledWith('fn_listar_puntos', { token: TOKEN, desde: null });
     expect(acceso()).toEqual({ tipo: 'fuera', caducado: true });
     expect(leerFirma()).toEqual({ nombre: 'Ana', apellido: 'Ruiz' });
   });

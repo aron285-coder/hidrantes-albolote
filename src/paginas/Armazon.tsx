@@ -28,7 +28,7 @@ export function Armazon() {
   return (
     <div className="flex flex-1 flex-col">
       <BarraSuperior titulo={TITULOS[pathname] ?? T.app.nombre} jefatura={acceso.tipo === 'jefatura'} />
-      <main className="flex flex-1 flex-col pb-[calc(50px+env(safe-area-inset-bottom))]">
+      <main className="flex min-h-0 flex-1 flex-col pb-[calc(50px+env(safe-area-inset-bottom))]">
         <LimiteError>
           <Outlet />
         </LimiteError>
@@ -56,9 +56,4 @@ export function Armazon() {
       </nav>
     </div>
   );
-}
-
-/** Pantalla aún vacía, con su estado vacío explicado (UI-03). */
-export function PantallaVacia({ texto }: { texto: string }) {
-  return <p className="text-texto-suave m-auto max-w-xs p-6 text-center">{texto}</p>;
 }

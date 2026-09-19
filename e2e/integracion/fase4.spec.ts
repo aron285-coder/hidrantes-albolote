@@ -22,10 +22,10 @@ test('entrar con el código del seed y registrar un error provocado', async ({ p
   await page.getByRole('button', { name: T.entrada.entrar, exact: true }).click();
 
   await page.getByRole('button', { name: T.bienvenida.saltar }).click();
-  await expect(page.getByText(T.mapa.mapaProximamente)).toBeVisible();
+  await expect(page.getByTestId('mapa')).toBeVisible();
   // El token recién emitido vale para las RPC: no aparece el aviso de servidor.
   await page.reload();
-  await expect(page.getByText(T.mapa.mapaProximamente)).toBeVisible();
+  await expect(page.getByTestId('mapa')).toBeVisible();
   await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeHidden();
 
   const dispositivo = await page.evaluate(() => JSON.parse(localStorage.getItem('hidrantes.dispositivo_id')!));

@@ -127,8 +127,29 @@ export const T = {
     filtroVacio: 'Nada coincide con ese filtro.',
     sinCoberturaSolo: 'Sin cobertura',
     reintentar: 'Reintentar',
-    mapaProximamente: 'El mapa llega en la próxima versión de la aplicación.',
-    listaProximamente: 'La lista de puntos llega en la próxima versión de la aplicación.',
+    nPuntos: (n: Parametro) => `${n} puntos`,
+    sincronizando: 'Sincronizando…',
+    sinPuntos: 'Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.',
+    mapaNoDescargado:
+      'Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.',
+    capaSinCobertura: (capa: Parametro) =>
+      `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia al mapa base.`,
+    busquedaVacia: 'Nada coincide con esa búsqueda.',
+    borrarBusqueda: 'Borrar búsqueda',
+    buscandoPosicion: 'Buscando tu posición…',
+    posicionDenegada: 'Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.',
+    posicionNoDisponible: 'No se puede obtener tu posición ahora mismo.',
+    leyenda: 'Leyenda',
+    acercar: 'Acercar',
+    alejar: 'Alejar',
+    funcionaSinCobertura: 'funciona sin cobertura',
+    soloEnLinea: 'solo en línea',
+    orden: 'Orden',
+    filtrar: 'Filtrar',
+    porDistancia: 'distancia',
+    porCodigo: 'código',
+    porEstado: 'estado',
+    gps: (metros: Parametro) => `GPS ±${metros} m`,
   },
 
   ficha: {
@@ -141,6 +162,13 @@ export const T = {
     comoLlegar: 'Cómo llegar',
     datosDe: (hace: Parametro) => `Datos de ${hace} · sin cobertura`,
     ampliar: 'ampliar',
+    cerrar: 'Cerrar',
+    noEncontrado: 'Punto no encontrado.',
+    datosSincronizados: (hace: Parametro) => `Datos sincronizados ${hace}`,
+    fallo: 'Fallo:',
+    racor: (racor: Parametro) => `Racor ${racor}`,
+    fotoNoDisponible: 'Foto no disponible sin cobertura',
+    sinFoto: 'Sin foto',
   },
 
   operaciones: {
@@ -274,6 +302,12 @@ export const T = {
     confirmarCerrar: '¿Cerrar sesión en este móvil?',
     cerrarSesionBoton: 'Cerrar sesión',
     version: (version: Parametro) => `Versión ${version}`,
+    descargando: (porcentaje: Parametro) => `Descargando… ${porcentaje} %`,
+    noDescargadoDetalle: 'No descargado · el mapa no tendrá calles sin cobertura',
+    versionNuevaMapa: 'Hay una versión nueva del mapa',
+    falloDescarga: 'No se pudo descargar. Inténtalo de nuevo con wifi.',
+    puntosGuardadosDetalle: (n: Parametro, hace: Parametro) => `${n} · sincronizado ${hace}`,
+    sinSincronizar: 'Todavía sin sincronizar',
   },
 
   fallo: {
@@ -293,6 +327,11 @@ export const T = {
     haceHoras: (n: Parametro) => `hace ${n} h`,
     haceUnDia: 'hace 1 día',
     haceDias: (n: Parametro) => `hace ${n} días`,
+    haceUnMes: 'hace 1 mes',
+    haceMeses: (n: Parametro) => `hace ${n} meses`,
+    haceUnAno: 'hace 1 año',
+    haceAnos: (n: Parametro) => `hace ${n} años`,
+    mm: (n: Parametro) => `${n} mm`,
   },
 
   panelCola: {

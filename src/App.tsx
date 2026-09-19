@@ -6,10 +6,12 @@ import { useAcceso } from '@/hooks/estado';
 import { esPruebas } from '@/lib/entorno';
 import { T } from '@/lib/textos';
 import { Ajustes } from '@/paginas/Ajustes';
-import { Armazon, PantallaVacia } from '@/paginas/Armazon';
+import { Armazon } from '@/paginas/Armazon';
 import { Bienvenida } from '@/paginas/Bienvenida';
 import { Entrada } from '@/paginas/Entrada';
 import { Legal } from '@/paginas/Legal';
+import { Lista } from '@/paginas/Lista';
+import { Mapa } from '@/paginas/Mapa';
 import { NoAutorizado } from '@/paginas/NoAutorizado';
 import { PanelJefatura } from '@/paginas/PanelJefatura';
 
@@ -48,8 +50,8 @@ function Rutas() {
         element={acceso.tipo === 'jefatura' ? <PanelJefatura correo={acceso.correo} /> : <Navigate to="/" replace />}
       />
       <Route element={<Armazon />}>
-        <Route index element={<PantallaVacia texto={T.mapa.mapaProximamente} />} />
-        <Route path="lista" element={<PantallaVacia texto={T.mapa.listaProximamente} />} />
+        <Route index element={<Mapa />} />
+        <Route path="lista" element={<Lista />} />
         <Route path="ajustes" element={<Ajustes />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

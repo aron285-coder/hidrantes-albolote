@@ -16,6 +16,7 @@ import {
   leerSesion,
   olvidarToken,
 } from './sesion';
+import { borrarPuntos, cargarGuardados, estadoPuntos, sincronizar } from './puntos';
 import { supabase } from './supabase';
 
 export type Acceso =
@@ -80,7 +81,11 @@ export async function comprobarAcceso(): Promise<void> {
     limpiarDireccion();
     if (data.session) {
       const r = await rpc<boolean>('fn_es_admin');
-      if (r.ok && r.datos) return fijar({ tipo: 'jefatura', correo: data.session.user.email ?? '' });
+      if (r.ok && r.datos) {
+        fijar({ tipo: 'jefatura', correo: data.session.user.email ?? '' });
+        await sincronizar(null);
+        return;
+      }
       if (r.ok) {
         await cliente.auth.signOut().catch(() => undefined);
         return fijar({ tipo: 'no_autorizado' });
@@ -93,8 +98,8 @@ export async function comprobarAcceso(): Promise<void> {
 
   const sesion = leerSesion();
   if (!sesion) return;
-  // La lectura más pequeña que valida el token: cambios desde ahora mismo.
-  const r = await rpc('fn_listar_puntos', { token: sesion.token, desde: new Date().toISOString() });
+  // La sincronización de puntos valida el token de paso (FR-35, 05 §10).
+  const r = await sincronizar(sesion.token);
   if (!r.ok && esErrorDeAcceso(r.codigo)) {
     olvidarToken();
     fijar({ tipo: 'fuera', caducado: true });
@@ -110,6 +115,8 @@ export async function entrarConCodigo(codigo: string, firma: Firma): Promise<str
   }
   guardarSesion(r.datos.token, firma);
   fijar({ tipo: 'voluntario', sesion: leerSesion()! });
+  // Primera sincronización en cuanto hay acceso: los puntos llegan antes de salir del primer uso.
+  void sincronizar(r.datos.token);
   return null;
 }
 
@@ -154,12 +161,22 @@ export function cambiarFirma(firma: Firma): void {
 
 export function cerrarSesionVoluntario(): void {
   cerrarSesion();
+  void borrarPuntos();
   fijar({ tipo: 'fuera', caducado: false });
 }
 
+/** Cada cuánto se refresca como mucho al volver a la app (la red decide el resto). */
+const REFRESCO_MS = 5 * 60_000;
+
 export function iniciarAcceso(): void {
   registrarComprobacion(comprobarAcceso);
-  void comprobarAcceso();
+  void cargarGuardados().then(comprobarAcceso);
+  document.addEventListener('visibilitychange', () => {
+    const { guardadoEn } = estadoPuntos();
+    if (document.visibilityState === 'visible' && (!guardadoEn || Date.now() - guardadoEn > REFRESCO_MS)) {
+      void comprobarAcceso();
+    }
+  });
 }
 
 /** Solo para los tests. */
