@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.7 — 20 de septiembre de 2026 (DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.8 — 20 de septiembre de 2026 (DEC-069; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -633,7 +633,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 06 §5 y Apéndice A; 09 Fase 7.
 
 ### DEC-068 · Voluntarios, ajustes, núcleos, QR y avisos de jefatura
-- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Fecha:** 20 sep 2026 · **Estado:** vigente; el punto 5 lo sustituye DEC-069 (`workflow_dispatch`
+  en lugar de `repository_dispatch`)
 - **Contexto:** última tanda de la Fase 7 (FR-130–FR-145, FR-162–FR-167). Los núcleos gestionables y
   el resumen semanal no tenían RPC en 05, y el QR no podía depender de un servicio externo.
 - **Decisiones:**
@@ -658,6 +659,34 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-069 · El token de mantenimiento, con `actions:write` y no con `contents:write`
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** al ir a crear `GITHUB_DISPATCH_TOKEN` (último paso manual de la Fase 7) apareció una
+  contradicción: 04 §10 lo describe desde el principio como un token con el **permiso único
+  `actions:write`**, pero la implementación de DEC-068 usa `repository_dispatch`, y GitHub exige para
+  ese endpoint **`contents:write`** en los tokens *fine-grained* (`actions:write` solo vale para
+  `workflow_dispatch`). Con `contents:write`, un secreto filtrado de una Pages Function pública podría
+  empujar directamente a `develop`, que despliega solo a staging; el repositorio es público (DEC-053),
+  así que el atacante vería además exactamente qué hay que empujar.
+- **Decisiones:**
+  1. **Gana 04**, que es el propietario de los secretos: `/api/lanzar-workflow` despacha con
+     `workflow_dispatch` sobre el archivo del workflow (`mantenimiento.yml`), rama `develop` y el
+     trabajo como entrada `trabajo`. El token se crea con `Actions: Read and write` y nada más.
+  2. **`mantenimiento.yml` pierde el disparador `repository_dispatch`**: ya no lo usa nadie y dejarlo
+     sería configuración muerta. El paso "Qué toca" lee solo `inputs.trabajo`.
+  3. **Un trabajo sin workflow responde `NO_CONFIGURADO`** y no llama a GitHub: `purgar-fotos` y
+     `respaldo` siguen en la lista blanca de 05 §9, pero sus workflows son de la Fase 8. Antes se
+     mandaba un `repository_dispatch` que nadie escuchaba y la pantalla decía que todo había ido bien.
+  4. **Funciona aunque `main` no tenga el workflow**: `workflow_dispatch` por API pide que el archivo
+     esté en la rama por defecto, que aquí es `develop` (7, "Nombres fijos"), no `main`.
+- **Descartado:** crear el token con `contents:write` y seguir con `repository_dispatch` (más cómodo,
+  cero código, pero le da a un secreto de internet permiso de escritura sobre el código); y un token
+  *classic* con `repo` (aún más amplio y sin caducidad obligatoria).
+- **Consecuencias:** el desarrollador crea el token con un solo permiso. Si en la Fase 8 la purga de
+  fotos o el respaldo necesitan su propio workflow, se añaden al mapa `ARCHIVO` de la función.
+- **Afecta a:** 04 §10; 05 §9; 12 (DEC-068.5); `functions/api/lanzar-workflow.ts`;
+  `.github/workflows/mantenimiento.yml`; `docs/verificacion/fase-7.md`.
 
 ### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
 - **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)

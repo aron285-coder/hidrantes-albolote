@@ -1,11 +1,9 @@
-# Trabajos que jefatura lanza desde Ajustes (FR-165, DEC-068). /api/lanzar-workflow manda un
-# repository_dispatch con el nombre del trabajo; aquí se regenera el dato y se abre un PR a develop,
-# que es lo que lo despliega. Nunca se escribe directamente en develop.
+# Trabajos que jefatura lanza desde Ajustes (FR-165, DEC-068). /api/lanzar-workflow lo despacha con
+# workflow_dispatch y el trabajo como entrada (DEC-069); aquí se regenera el dato y se abre un PR a
+# develop, que es lo que lo despliega. Nunca se escribe directamente en develop.
 name: Mantenimiento
 
 on:
-  repository_dispatch:
-    types: [regenerar-zona, regenerar-mapabase]
   workflow_dispatch:
     inputs:
       trabajo:
@@ -34,7 +32,7 @@ jobs:
 
       - name: Qué toca
         id: trabajo
-        run: echo "nombre=${{ github.event.client_payload.tipo || github.event.action || inputs.trabajo }}" >> "$GITHUB_OUTPUT"
+        run: echo "nombre=${{ inputs.trabajo }}" >> "$GITHUB_OUTPUT"
 
       - name: Regenerar la zona de cobertura
         if: steps.trabajo.outputs.nombre == 'regenerar-zona'
