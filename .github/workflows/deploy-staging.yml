@@ -65,6 +65,15 @@ jobs:
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
 
+      # TR-100: las mismas cabeceras, leídas con un navegador sobre lo desplegado, y que la página
+      # carga sin violar su propia CSP. Solo GET a la portada: no se envía ni se lee ningún dato.
+      - name: Cabeceras y CSP en el navegador (TR-100)
+        env:
+          URL_DESPLEGADA: https://hidrantes-albolote-staging.pages.dev
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test e2e/cabeceras.spec.ts --project=escritorio
+
       # TR-103: rendimiento ≥ 85, accesibilidad ≥ 95, buenas prácticas ≥ 95 y manifiesto instalable,
       # sobre lo desplegado y con el móvil emulado que trae Lighthouse por defecto. Los umbrales
       # están en .github/lighthouse.json. La acción no necesita ninguna dependencia del proyecto.
