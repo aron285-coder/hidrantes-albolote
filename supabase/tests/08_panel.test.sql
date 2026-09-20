@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(4);
+select plan(11);
 
 delete from hidrantes.nucleos;
 delete from hidrantes.limite_municipal;
@@ -36,6 +36,36 @@ select is((select nucleo from hidrantes.v_cola_revision where id = '00000000-000
 select ok((select punto_actualizado_en is not null from hidrantes.v_cola_revision
             where id = '00000000-0000-4000-8000-0000000008c1'),
   'la cola dice cuándo cambió el punto (aviso de desactualizada)');
+
+
+-- ---------- núcleos gestionables (FR-166, DEC-068) ----------
+
+set local role postgres;
+insert into hidrantes.administradores (email, creado_por) values ('panel@example.com', 'test') on conflict do nothing;
+set local request.jwt.claims = '{"email": "panel@example.com"}';
+
+select hidrantes.fn_renombrar_nucleo('Centro', 'Centro histórico');
+select is((select nucleo from hidrantes.puntos where codigo = 'HID-0800'), 'El Chaparral',
+  'renombrar no toca los puntos de otro núcleo');
+select is((select nombre_osm from hidrantes.nucleos where nombre = 'Centro histórico'), 'Centro',
+  'el núcleo renombrado recuerda el nombre de OpenStreetMap');
+select throws_ok($$ select hidrantes.fn_renombrar_nucleo('Centro histórico', 'x') $$, 'P0001',
+  'PAYLOAD_INVALIDO(nombre): El nombre tiene entre 2 y 60 caracteres', 'nombre demasiado corto');
+
+select hidrantes.fn_anadir_nucleo('Nuevo Barrio', 37.2355, -3.6545);
+select is((select municipio::text from hidrantes.nucleos where nombre = 'Nuevo Barrio'), 'albolote',
+  'el núcleo nuevo deduce su municipio');
+select throws_ok($$ select hidrantes.fn_anadir_nucleo('Lejos', 37.9, -4.4) $$, 'P0001',
+  'PAYLOAD_INVALIDO(posicion): Ese punto queda fuera de la zona de cobertura', 'no se añade fuera de la zona');
+
+-- ---------- resumen semanal (FR-164) ----------
+
+insert into hidrantes.suscripciones_push (email, suscripcion, temas)
+values ('panel@example.com', '{"endpoint": "https://push.example/x", "keys": {"p256dh": "a", "auth": "b"}}',
+        array['resumen_semanal']);
+select is(hidrantes.fn_encolar_resumen_semanal(), 1, 'el resumen semanal encola un aviso por suscripción');
+select ok((select cuerpo not like '%@%' from hidrantes.notificaciones where titulo = 'Resumen semanal'),
+  'el resumen no lleva correos ni nombres (FR-27)');
 
 select * from finish();
 rollback;

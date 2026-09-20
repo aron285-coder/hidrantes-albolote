@@ -478,7 +478,7 @@ resultado fusionado antes de escribir.
 `accion` ∈ `propuesta_creada`, `propuesta_retirada_autor`, `aprobacion`, `aprobacion_con_correcciones`,
 `rechazo`, `fusion`, `edicion_admin`, `retirada`, `borrado`, `restauracion`, `purga_papelera`,
 `codigo_cambiado`, `dispositivos_revocados`, `administrador_alta`, `administrador_baja`,
-`config_cambiada`, `incidencia_resuelta`, `anonimizacion`, `exportacion`, `workflow_lanzado`.
+`config_cambiada`, `incidencia_resuelta`, `anonimizacion`, `exportacion`, `workflow_lanzado`, `nucleo_guardado` (DEC-068).
 
 Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTENTOS`,
 `TOKEN_INVALIDO`, `TOKEN_REVOCADO`, `TOKEN_CADUCADO`, `PAYLOAD_INVALIDO`, `FOTO_OBLIGATORIA`,

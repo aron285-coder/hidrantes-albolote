@@ -541,6 +541,51 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `[n] puntos purgados.` · `[codigo] restaurado: vuelve al mapa.` · `Borrado` · `quedan [dias] días` ·
 `La papelera está vacía.`.
 
+**Panel: voluntarios y ajustes (Fase 7, DEC-068).** `Actividad de los últimos` · `[n] meses` ·
+`Solo visible aquí. No es un ranking público.` · `Voluntario` · `Propuestas` · `Tasa` · `Última` ·
+`[n] %` · `sin resolver todavía` · `conviene explicarle mejor el formulario` ·
+`Nadie ha propuesto nada en este periodo.` ·
+`Las propuestas y el registro de [autor] pasarán a nombre de "voluntario dado de baja". Los datos de los hidrantes se conservan. No se puede deshacer.` ·
+`Anonimizar` · `Anonimizado: [n] filas actualizadas.` · `Incidencias de la aplicación` ·
+`lo que llega desde "Algo no funciona"` · `[n] abiertas` ·
+`No hay incidencias. Nadie ha avisado de nada.` · `Cuándo` · `Versión · pantalla` · `abierta` ·
+`resuelta` · `[quien] · [cuando]` · `Incidencia marcada como resuelta.` · `Código de acceso` ·
+`Cambiado por última vez el [fecha] por [quien]. [moviles] móviles registrados.` ·
+`Sin cambios desde el arranque. [moviles] móviles registrados.` · `ver` · `ocultar` ·
+`Sin revocar: quien ya entró sigue trabajando y solo los móviles nuevos necesitan el código nuevo.` ·
+`Revocando: todos vuelven a teclearlo. Es lo que se usa si el código se ha filtrado.` ·
+`Se pondrá en vigor un código nuevo. Los móviles que ya tienen acceso siguen funcionando.` ·
+`Se pondrá en vigor un código nuevo y [moviles] móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.` ·
+`Generar y poner en vigor` · `Código nuevo en vigor: [codigo]. Comunícalo al grupo.` ·
+`Acceso de administradores` · `Lista propia de hidrantes, independiente de la app de uniformidad.` ·
+`añadido el [fecha] por [quien]` · `Acceso de [correo]` · `activo` · `sin acceso` ·
+`correo@albolote-pc.es` · `Sugerencias de la app de uniformidad:` ·
+`[correo] ya puede entrar en el panel.` · `[correo] se queda sin acceso al panel.` · `Parámetros` ·
+`Los móviles los aplican en su próxima sincronización.` · `Meses entre revisiones` ·
+`Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` ·
+`Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Parámetros guardados.` · `Núcleos` ·
+`Deducidos de OpenStreetMap. Se puede renombrar uno o añadir el que falte.` · `añadido a mano` ·
+`Renombrar` · `Nombre de [nucleo]` · `Añadir un núcleo` · `Nombre del núcleo` ·
+`Toca el mapa en el centro del núcleo: de ahí sale el municipio y a qué núcleo pertenece cada punto.` ·
+`Centro del núcleo` · `Escribe el nombre del núcleo` · `Toca el mapa para situarlo` ·
+`Núcleo "[nombre]" añadido.` · `"[antes]" ahora se llama "[ahora]".` ·
+`Propuestas pendientes de más de 14 días` · `Incidencias abiertas` ·
+`Errores de la aplicación (7 días)` · `Puntos sin dirección deducida` · `Último respaldo` ·
+`Almacenamiento usado` · `Zona de cobertura · mapa base` · `Móviles con acceso` · `todavía ninguno` ·
+`sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
+`Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
+`"[nombre]" lanzado. Tarda unos minutos.` · `Avisos para jefatura` ·
+`Notificaciones en este navegador. Opcionales y apagadas por defecto.` ·
+`Nuevas propuestas pendientes` · `agrupadas: como mucho una por hora` · `Resumen semanal` ·
+`los lunes: revisiones caducadas y pendientes antiguas` ·
+`Este navegador tiene los avisos bloqueados. Actívalos en la configuración del sitio.` ·
+`En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.` ·
+`Este navegador no admite avisos.` · `No se han podido activar los avisos.` · `Código QR del enlace` ·
+`Para la sede y las reuniones: quien lo escanea abre la aplicación.` · `Imprimir A4` ·
+`Escanea para instalar` ·
+`Mapa de hidrantes y bocas de riego. Entra con el código de acceso que te haya dado jefatura.` ·
+`Novedades` · `Lo que cambió en las últimas versiones.` · `Todavía no hay novedades publicadas.`.
+
 **Tono.** Tuteo al voluntario, neutro en el panel. Botones en infinitivo. Sin exclamaciones salvo
 en el estado vacío de la cola. Nunca "defecto": es `No funciona`.
 

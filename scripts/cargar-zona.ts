@@ -33,8 +33,11 @@ export function sqlCarga(limites: Zona['limites'], nucleos: Zona['nucleos'], ver
     'begin;',
     `insert into hidrantes.limite_municipal (municipio, geom, version) values\n  ${filasLimite.join(',\n  ')}`,
     'on conflict (municipio) do update set geom = excluded.geom, version = excluded.version;',
-    `insert into hidrantes.nucleos (nombre, municipio, geom, version) values\n  ${filasNucleo.join(',\n  ')}`,
+    // Un núcleo que jefatura renombró (nombre_osm) no vuelve con su nombre de OpenStreetMap (DEC-068).
+    `insert into hidrantes.nucleos (nombre, municipio, geom, version)\n  select v.nombre, v.municipio::hidrantes.municipio, v.geom, v.version from (values\n  ${filasNucleo.join(',\n  ')}\n  ) as v(nombre, municipio, geom, version)\n  where not exists (select 1 from hidrantes.nucleos n where n.nombre_osm = v.nombre)`,
     'on conflict (nombre) do update set municipio = excluded.municipio, geom = excluded.geom, version = excluded.version;',
+    // A los renombrados les llega la geometría nueva por su nombre de origen.
+    `update hidrantes.nucleos n set municipio = v.municipio::hidrantes.municipio, geom = v.geom, version = v.version\n  from (values\n  ${filasNucleo.join(',\n  ')}\n  ) as v(nombre, municipio, geom, version)\n  where n.nombre_osm = v.nombre;`,
     // Salud del sistema muestra de cuándo es la zona (FR-143)
     `insert into hidrantes.config (clave, valor, actualizado_por) values ('version_zona', to_jsonb(${v}::text), 'cargar-zona')`,
     'on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;',
