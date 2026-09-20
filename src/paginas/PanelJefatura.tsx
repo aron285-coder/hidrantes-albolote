@@ -6,7 +6,7 @@ import { LimiteError } from '@/componentes/LimiteError';
 import { ProveedorPanel } from '@/componentes/panel/contexto';
 import { usePanel } from '@/componentes/panel/usar-panel';
 import { useCarga } from '@/hooks/carga';
-import { useConexion } from '@/hooks/estado';
+import { useConexion, usePuntos } from '@/hooks/estado';
 import { useReloj } from '@/hooks/reloj';
 import { salirDeGoogle } from '@/lib/acceso';
 import { reintentarAhora } from '@/lib/conexion';
@@ -16,6 +16,10 @@ import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
 const ColaRevision = lazy(() => import('@/componentes/panel/ColaRevision'));
+const Inventario = lazy(() => import('@/componentes/panel/Inventario'));
+const Caducadas = lazy(() => import('@/componentes/panel/Caducadas'));
+const Registro = lazy(() => import('@/componentes/panel/Registro'));
+const Papelera = lazy(() => import('@/componentes/panel/Papelera'));
 
 /** Cada cuánto se refresca el número de pendientes (FR-110). */
 const REFRESCO_MS = 60_000;
@@ -37,13 +41,31 @@ export function PanelJefatura({ correo }: { correo: string }) {
 }
 
 function Armazon({ correo }: { correo: string }) {
+  const { puntos } = usePuntos();
   const pendientes = useCarga(
     () => contar((c) => c.from('propuestas').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente')),
     [],
     REFRESCO_MS,
   );
+  const enPapelera = useCarga(
+    () => contar((c) => c.from('puntos').select('id', { count: 'exact', head: true }).eq('situacion', 'borrado')),
+    [],
+    REFRESCO_MS,
+  );
+  const recargarContadores = () => {
+    void pendientes.recargar();
+    void enPapelera.recargar();
+  };
   const pestanas: Pestana[] = [
     { ruta: 'cola', nombre: T.panelCola.colaRevision, badge: pendientes.datos, naranja: true },
+    { ruta: 'inventario', nombre: T.panelCola.inventario, badge: puntos.length },
+    {
+      ruta: 'caducadas',
+      nombre: T.panelCola.revisionesCaducadas,
+      badge: puntos.filter((p) => p.revision_caducada).length,
+    },
+    { ruta: 'registro', nombre: T.panelCola.registro },
+    { ruta: 'papelera', nombre: T.panelCola.papelera, badge: enPapelera.datos },
   ];
   return (
     <div className="bg-fondo flex min-h-dvh flex-col">
@@ -82,7 +104,11 @@ function Armazon({ correo }: { correo: string }) {
           <Suspense fallback={<p className="text-texto-suave p-6 text-sm">{T.panelCola.cargando}</p>}>
             <Routes>
               <Route index element={<Navigate to="cola" replace />} />
-              <Route path="cola" element={<ColaRevision alCambiar={() => void pendientes.recargar()} />} />
+              <Route path="cola" element={<ColaRevision alCambiar={recargarContadores} />} />
+              <Route path="inventario" element={<Inventario />} />
+              <Route path="caducadas" element={<Caducadas />} />
+              <Route path="registro" element={<Registro />} />
+              <Route path="papelera" element={<Papelera alCambiar={recargarContadores} />} />
               <Route path="*" element={<Navigate to="cola" replace />} />
             </Routes>
           </Suspense>

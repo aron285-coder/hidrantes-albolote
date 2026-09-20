@@ -152,3 +152,10 @@ h3 {
   background: var(--fondo);
   font-family: var(--font-texto);
 }
+
+/* Hoja de campo (FR-122): al imprimir queda solo la hoja, sin panel ni barras. */
+@media print {
+  body.imprimiendo > *:not(.hoja-campo) {
+    display: none !important;
+  }
+}
