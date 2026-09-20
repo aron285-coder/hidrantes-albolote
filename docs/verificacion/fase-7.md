@@ -1,8 +1,8 @@
 # Verificación · Fase 7 · Panel de jefatura
 
 **Estado: terminada el 20 sep 2026.** El criterio de salida se cumple entero contra la pila local
-real en CI (§2). Queda pendiente, fuera del criterio, el `GITHUB_DISPATCH_TOKEN` que solo puede crear
-el desarrollador, y con él la prueba de punta a punta de Mantenimiento (§6).
+real en CI (§2). El `GITHUB_DISPATCH_TOKEN`, último paso manual, lo creó el desarrollador ese mismo
+día (§6); la prueba del botón con una sesión real de jefatura es de la Fase 9.
 
 ## 1. Qué se ha construido
 
@@ -86,16 +86,17 @@ El camino del botón se comprobó lanzando el workflow a mano, que es exactament
 | `Mantenimiento` con `trabajo=regenerar-zona`, antes de DEC-070 | regenerar y, si hay novedades, abrir un PR | ✅ verde y PR abierto… pero su único cambio era la fecha, con la geometría idéntica: de ahí DEC-070 |
 | La misma, ya con DEC-070 | terminar en verde y **no** abrir PR | ✅ "Sin cambios: la fuente pública no ha cambiado desde la última vez"; ningún PR |
 
-Queda por probar solo el tramo que necesita el token: el botón de Ajustes llamando a la función.
+Queda por probar solo el tramo que necesita una sesión real de jefatura: el botón de Ajustes
+llamando a la función (Fase 9).
 
 ## 6. Lo que queda abierto
 
-- **`GITHUB_DISPATCH_TOKEN`**: lo crea el desarrollador (un token *fine-grained* no se puede crear
-  por API), con el permiso único `Actions: Read and write` sobre este repositorio, y se guarda como
-  secreto de Pages en staging y producción. Hasta entonces, Mantenimiento responde "Esta acción aún no
-  está configurada en el servidor" y `mantenimiento.yml` solo se puede lanzar a mano desde GitHub.
-  El endpoint pasó de `repository_dispatch` a `workflow_dispatch` para que ese permiso bastara
-  (DEC-069).
+- **`GITHUB_DISPATCH_TOKEN`**: **hecho el 20 sep 2026.** Lo creó el desarrollador (un token
+  *fine-grained* no se puede crear por API) con el permiso único `Actions: Read and write` sobre este
+  repositorio, y está guardado como secreto de Pages en los dos proyectos, staging y producción
+  (`wrangler pages secret list` lo confirma en ambos). El endpoint pasó de `repository_dispatch` a
+  `workflow_dispatch` para que ese permiso bastara (DEC-069). Lo que queda es probar el botón con una
+  sesión real de jefatura, que es validación de Fase 9.
 - **Purga de fotos huérfanas y respaldo** (FR-144, FR-165): sus workflows son de la Fase 8; los
   botones no se dibujan hasta que existan.
 - **Sugerencias de correos de la app de uniformidad** (FR-141): se leen si el esquema `public` lo
