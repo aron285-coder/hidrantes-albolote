@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 const ESTADOS: Record<EstadoPropuesta | 'sin_enviar', [string, string]> = {
   sin_enviar: [T.misPropuestas.sinEnviar, 'bg-linea text-texto'],
   pendiente: [T.misPropuestas.pendiente, 'bg-ambar-100 text-ambar-700'],
-  aprobada: [T.misPropuestas.aprobada, 'bg-verde-100 text-verde-600'],
+  aprobada: [T.misPropuestas.aprobada, 'bg-verde-100 text-verde-700'],
   rechazada: [T.misPropuestas.rechazada, 'bg-rojo-100 text-rojo-700'],
   retirada_por_autor: [T.misPropuestas.retiradaPorTi, 'bg-linea text-texto'],
 };

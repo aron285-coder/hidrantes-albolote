@@ -28,6 +28,9 @@ const OSCURO = {
 
 export type Modo = 'claro' | 'oscuro';
 
+/** Los colores de 06 §2.3, para quien necesite comprobarlos (contraste de los estados, TR-31). */
+export const COLORES_MAPA = { claro: CLARO, oscuro: OSCURO };
+
 /** Límite de la zona de cobertura: discontinuo `9 7` (06 §2.3). */
 export const estiloLimite = (modo: Modo) => {
   const p = modo === 'oscuro' ? OSCURO : CLARO;

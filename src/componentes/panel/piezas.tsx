@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 /** Etiquetas de operación (06 §5): alta verde, revisión azul, estado ámbar, datos y ubicación gris, retirada rojo. */
 const COLOR_OPERACION: Record<Operacion, string> = {
-  alta: 'bg-verde-100 text-verde-600',
+  alta: 'bg-verde-100 text-verde-700',
   revision: 'bg-[#DCE6F2] text-marino-700',
   estado: 'bg-ambar-100 text-ambar-700',
   datos: 'bg-gris-100 text-gris-700',

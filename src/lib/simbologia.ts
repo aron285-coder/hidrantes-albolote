@@ -34,7 +34,7 @@ export const grosorBorde = (r: number) => (r <= 5.5 ? 2 : 2.5);
 
 /**
  * SVG del marcador centrado en (0, 0). `tamano` es el lado del lienzo (44 en el mapa para el
- * objetivo táctil). El borde usa --borde-marcador, que en oscuro pasa a #111826.
+ * objetivo táctil). El borde usa --borde-marcador, blanco en los dos modos (DEC-072).
  */
 export function svgMarcador(p: Simbolo, { tamano = OBJETIVO_TACTIL, seleccionado = false } = {}): string {
   const r = p.radio_px;

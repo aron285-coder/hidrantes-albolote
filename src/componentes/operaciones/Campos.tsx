@@ -152,7 +152,7 @@ export function CampoFoto({
         onChange={(e) => void elegida(e.target.files?.[0])}
       />
       {foto ? (
-        <div className="bg-verde-100 text-verde-600 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold">
+        <div className="bg-verde-100 text-verde-700 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold">
           <Check size={18} aria-hidden />
           <span className="flex-1">{T.formulario.fotoAnadida(Math.round(foto.blob.size / 1024))}</span>
           <button type="button" className="min-h-11 px-1 underline" onClick={() => entrada.current?.click()}>
@@ -164,7 +164,7 @@ export function CampoFoto({
           type="button"
           disabled={procesando}
           onClick={() => entrada.current?.click()}
-          className="border-naranja-600 text-naranja-600 bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold"
+          className="border-naranja-600 text-naranja-texto bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold"
         >
           <Camera size={18} aria-hidden />
           {procesando ? T.operaciones.preparandoFoto : T.formulario.hacerFoto}

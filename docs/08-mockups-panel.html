@@ -13,7 +13,7 @@
     --marino-800:#152A4A;
     --marino-700:#1D3A63;
     --marino-600:#28517F;
-    --naranja-600:#DD5A1F;
+    --naranja-600:#C94F16;
     --naranja-500:#E97136;
     --naranja-100:#FBE2D2;
     --oro-600:#B08A2E;
@@ -687,7 +687,7 @@
     var s='<div class="minimap" style="height:70px;"><svg viewBox="'+(x-150)+' '+(y-35)+' 300 70" width="100%" height="70" preserveAspectRatio="xMidYMid slice">'+fondo(700,290)+activos().filter(function(q){return !ex||q.id!==ex.id}).map(function(q){return marcador(q,q.x,q.y,{})}).join('');
     if(ex) s+=marcador(ex,ex.x,ex.y,{})+'<text x="'+(ex.x+10)+'" y="'+(ex.y-10)+'" font-size="8" fill="#5A6472">'+ex.cod+' existente · a 11 m</text><line x1="'+x+'" y1="'+y+'" x2="'+ex.x+'" y2="'+ex.y+'" stroke="#8A6408" stroke-width="1" stroke-dasharray="2 2"/>';
     if(orig) s+='<circle cx="'+orig.x+'" cy="'+orig.y+'" r="6" fill="none" stroke="#9C2B1E" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="'+orig.x+'" y1="'+orig.y+'" x2="'+x+'" y2="'+y+'" stroke="#9C2B1E" stroke-width="1"/>';
-    s+='<path d="M'+x+' '+(y-24)+' C'+(x+7)+' '+(y-24)+' '+(x+12)+' '+(y-19)+' '+(x+12)+' '+(y-12)+' C'+(x+12)+' '+(y-4)+' '+x+' '+(y+4)+' '+x+' '+(y+4)+' C'+x+' '+(y+4)+' '+(x-12)+' '+(y-4)+' '+(x-12)+' '+(y-12)+' C'+(x-12)+' '+(y-19)+' '+(x-7)+' '+(y-24)+' '+x+' '+(y-24)+' Z" fill="#DD5A1F" stroke="#fff" stroke-width="1.5"/></svg><div style="position:absolute;right:5px;bottom:3px;font-size:8px;color:#5A6472;background:rgba(255,255,255,.8);padding:0 3px;border-radius:2px;">'+(p.fuera?'límite municipal ┆':'puntos aprobados alrededor')+'</div></div>'; return s }
+    s+='<path d="M'+x+' '+(y-24)+' C'+(x+7)+' '+(y-24)+' '+(x+12)+' '+(y-19)+' '+(x+12)+' '+(y-12)+' C'+(x+12)+' '+(y-4)+' '+x+' '+(y+4)+' '+x+' '+(y+4)+' C'+x+' '+(y+4)+' '+(x-12)+' '+(y-4)+' '+(x-12)+' '+(y-12)+' C'+(x-12)+' '+(y-19)+' '+(x-7)+' '+(y-24)+' '+x+' '+(y-24)+' Z" fill="#C94F16" stroke="#fff" stroke-width="1.5"/></svg><div style="position:absolute;right:5px;bottom:3px;font-size:8px;color:#5A6472;background:rgba(255,255,255,.8);padding:0 3px;border-radius:2px;">'+(p.fuera?'límite municipal ┆':'puntos aprobados alrededor')+'</div></div>'; return s }
   function diffRows(p){ var q=p.pid?punto(p.pid):null, rows=[], dt=p.datos;
     if(p.op==='alta'){ rows=[['Tipo','',dt.tipo==='boca'?'Boca de riego':'Hidrante'],['Diámetro','',dt.d==='otro'?'Otra medida: "'+dt.otro+'"':dt.d+' mm']]; if(dt.racor) rows.push(['Racor','',dt.racor.charAt(0).toUpperCase()+dt.racor.slice(1)]); rows.push(['Estado','',NOM[dt.caudal]]); if(dt.fallo) rows.push(['Fallo','','"'+dt.fallo+'"']); rows.push(['Núcleo','',p.fuera?'fuera de zona':p.nucleo+' (deducido)']) }
     if(p.op==='revision'){ rows=[['Estado','',(q?NOM[q.caudal]:'')+' · sin cambios'],['Revisión',q?fechaC(q.rev):'',fechaC(p.creada)]] }
