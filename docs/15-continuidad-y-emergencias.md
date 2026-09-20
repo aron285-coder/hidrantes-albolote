@@ -117,7 +117,7 @@ aplicada**. Se corrige con otra migración que deshaga el efecto:
 ### 5.3 Restaurar un respaldo (pérdida o corrupción de datos)
 
 **Gravedad:** máxima. **Tiempo:** 4 horas (TR-51). **Quién:** dos personas: una con el sobre, otra
-con el ordenador. Ensayado con éxito el `«fecha de la prueba de la Fase 8»`.
+con el ordenador. Ensayado con éxito el **20 sep 2026** sobre una base limpia (`docs/verificacion/fase-8.md` §3).
 
 Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con GPG, de las últimas
 13 semanas (datos) y 3 meses (fotos).
@@ -140,9 +140,21 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    ```
    npm run restaurar -- --entorno prod --archivo hidrantes.sql
    ```
-   El script borra y recrea el esquema `hidrantes` a partir del volcado, dentro de una transacción,
-   y aborta si el `PROJECT_REF` no es el de producción. Pide confirmación escribiendo `RESTAURAR`.
-5. Fotos: si también se perdieron, `npm run restaurar-fotos -- --entorno prod --archivo fotos-«fecha».tar.gpg`.
+   El script vacía el esquema `hidrantes` y lo rehace desde el volcado, todo en una transacción: si
+   algo falla a la mitad, la base se queda como estaba. Antes comprueba que el archivo es un volcado
+   nuestro, que no toca `public` y que el `PROJECT_REF` de la cadena es el de producción. Pide
+   confirmación escribiendo `RESTAURAR`.
+
+   Vacía el esquema en vez de borrarlo porque crear uno exige un permiso que `hidrantes_migrador` no
+   tiene (DEC-052), y en una emergencia solo hay a mano la cadena del secreto. Si el esquema ha
+   desaparecido del todo —una base recién hecha—, el script lo dice y hay que crear la cáscara una
+   vez con la cadena de `postgres`:
+   ```
+   create schema hidrantes authorization hidrantes_migrador;
+   ```
+5. Fotos: si también se perdieron, `npm run restaurar-fotos -- --entorno prod --archivo fotos-«fecha».tar.gpg`
+   (necesita `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`, o los pide). Solo sube lo que falte: las
+   fotos que ya estén en el bucket se dejan como están, así que se puede repetir sin miedo.
 6. Comprobar: abrir el panel, ver Inventario y Registro; abrir la app en un móvil, sincronizar.
 7. Comunicar el código nuevo al grupo. Anotar en §9 y en el Registro (el script escribe una entrada
    `restauracion_respaldo`).

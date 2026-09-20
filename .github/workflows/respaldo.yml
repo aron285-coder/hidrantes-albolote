@@ -112,7 +112,11 @@ jobs:
         run: |
           set -euo pipefail
           # Solo el esquema hidrantes: public es de la app de uniformidad y no se toca (CLAUDE.md §3).
-          pg_dump --schema=hidrantes --no-owner --no-privileges --format=plain "$BD" \
+          # Con los permisos dentro (nada de --no-privileges): sin los GRANT, una base restaurada
+          # deja a anon sin las nueve RPC de voluntario y la aplicación no arranca. Se vio en el
+          # ensayo de restauración de la Fase 8. Sin propietarios, en cambio, porque quien restaura
+          # es hidrantes_migrador y los objetos han de quedar suyos.
+          pg_dump --schema=hidrantes --no-owner --format=plain "$BD" \
             | gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
                   --output "hidrantes-$FECHA.sql.gpg"
           echo "TAMANO_DATOS=$(stat -c %s "hidrantes-$FECHA.sql.gpg")" >> "$GITHUB_ENV"
