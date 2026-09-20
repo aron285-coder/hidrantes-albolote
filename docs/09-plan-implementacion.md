@@ -315,31 +315,31 @@ segunda propuesta; un administrador desde el móvil ve su cambio en el mapa sin 
 **Objetivo:** que aprobar sea rápido. Referencia: FR-100–145; FL-20–31; **08** (que ya lo prototipa
 tal cual); 05 §6.2, §9.
 
-- [ ] Siete pestañas y búsqueda global (FR-145).
-- [ ] Cola de revisión en dos columnas con lista, filtros, casillas y barra de acciones en bloque;
+- [x] Siete pestañas y búsqueda global (FR-145).
+- [x] Cola de revisión en dos columnas con lista, filtros, casillas y barra de acciones en bloque;
       detalle con minimapa, dirección deducida (`/api/direccion`, campo editable), diff, señales,
       foto; acciones Aprobar / Aprobar con correcciones (formulario en el mismo panel) / Rechazar /
       Fusionar (comparación en dos columnas y elección por campo); propuesta desactualizada con
       confirmación; historial por estado y fechas.
-- [ ] Inventario: tabla con filtros, orden, paginación de 50, dirección en celda, tabla/mapa,
+- [x] Inventario: tabla con filtros, orden, paginación de 50, dirección en celda, tabla/mapa,
       acciones editar / retirar / borrar / historial.
-- [ ] Revisiones caducadas por núcleo y hoja de campo con CSS de impresión (FR-122).
-- [ ] Registro con filtros y paginación; historial de un punto desde su ficha.
-- [ ] Papelera con restaurar.
-- [ ] Voluntarios: actividad 3/12 meses con anonimizar; incidencias con marcar resuelta.
-- [ ] Ajustes: código con confirmación y revocar; administradores con sugerencias de `app_users`;
+- [x] Revisiones caducadas por núcleo y hoja de campo con CSS de impresión (FR-122).
+- [x] Registro con filtros y paginación; historial de un punto desde su ficha.
+- [x] Papelera con restaurar.
+- [x] Voluntarios: actividad 3/12 meses con anonimizar; incidencias con marcar resuelta.
+- [x] Ajustes: código con confirmación y revocar; administradores con sugerencias de `app_users`;
       parámetros con Guardar; núcleos (renombrar / añadir el que Overpass no traiga); Salud del
       sistema (`fn_salud`); purga vía `/api/lanzar-workflow`; descarga JSON. Atribución a Nominatim en
       el pie.
-- [ ] **Exportación** (FR-160, P1): botón en Inventario que genera `.xlsx` (SheetJS), `.csv` (UTF-8
+- [x] **Exportación** (FR-160, P1): botón en Inventario que genera `.xlsx` (SheetJS), `.csv` (UTF-8
       BOM) y `.geojson` con los filtros activos, en el navegador, y registra `exportacion`.
-- [ ] **Código QR** del enlace (FR-162, P1) en Ajustes, con vista imprimible A4.
-- [ ] **Regenerar zona / mapa base y lanzar respaldo** desde Ajustes vía `/api/lanzar-workflow`
+- [x] **Código QR** del enlace (FR-162, P1) en Ajustes, con vista imprimible A4.
+- [x] **Regenerar zona / mapa base y lanzar respaldo** desde Ajustes vía `/api/lanzar-workflow`
       (FR-165); **Núcleos** (FR-166); **Novedades** (FR-167) desde `fn_novedades`.
-- [ ] **Push para jefatura** (FR-164, P1): suscripción desde Ajustes; `fn_proponer` encola un aviso
+- [x] **Push para jefatura** (FR-164, P1): suscripción desde Ajustes; `fn_proponer` encola un aviso
       agrupado por hora; el resumen semanal lo genera `vigilancia.yml` los lunes.
-- [ ] Aviso de "servidor no disponible" en el panel (FR-168).
-- [ ] Escritorio primero, usable en tableta; accesible por teclado (TR-35).
+- [x] Aviso de "servidor no disponible" en el panel (FR-168).
+- [x] Escritorio primero, usable en tableta; accesible por teclado (TR-35).
 
 **Criterio de salida:** aprobar 20 revisiones en bloque en menos de 30 segundos y verlas en
 `registro`; detectar y fusionar un duplicado introducido a propósito a 8 m; una propuesta
@@ -534,7 +534,7 @@ con su resultado.
 | 4 | terminada (prueba en móviles pendiente) | 19 sep 2026 | Entrada, sesión, Google, armazón, PWA, degradación y errores (DEC-060). Integración real en ci-sql. La prueba en Android e iPhone reales espera a que staging salga de la lista de bloqueos de LaLiga (DEC-061). Verificación: `docs/verificacion/fase-4.md`. |
 | 5 | terminada (luz del día pendiente) | 19 sep 2026 | Mapa base propio de 4,2 MB con escritor PMTiles propio, capas, simbología, lista, búsqueda y ficha (DEC-062). Pendiente: los cinco tamaños a la luz del día en el móvil del desarrollador y las capas en 3G real (staging bloqueado, DEC-061). Verificación: `docs/verificacion/fase-5.md`. |
 | 6 | terminada | 20 sep 2026 | Seis operaciones, foto sin EXIF, cola sin cobertura idempotente, jefatura aplica al momento, Mis propuestas, incidencias y push (DEC-063). Criterio cumplido en integración real. Pendiente: fotos de referencia del racor (jefatura) y prueba en móvil real. Verificación: `docs/verificacion/fase-6.md`. |
-| 7 | pendiente | | |
+| 7 | terminada (token de GitHub pendiente) | 20 sep 2026 | Panel completo: cola con diff, señales, correcciones, fusión y bloque; inventario con exportación; caducadas con hoja de campo; registro, papelera, voluntarios y ajustes con núcleos, QR y avisos (DEC-065, DEC-067, DEC-068). Criterio cumplido en integración real: 20 revisiones en bloque en ~2 s. Pendiente: `GITHUB_DISPATCH_TOKEN` (solo lo puede crear el desarrollador) y, con él, Mantenimiento de punta a punta; la purga de fotos y el respaldo llegan en la Fase 8. Verificación: `docs/verificacion/fase-7.md`. |
 | 8 | pendiente | | |
 | 9 | pendiente | | |
 
