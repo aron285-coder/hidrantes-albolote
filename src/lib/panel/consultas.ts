@@ -97,3 +97,27 @@ export async function funcion<T>(
     return { ok: false, codigo: SIN_SERVIDOR };
   }
 }
+
+/** Una página de filas con el total que dice PostgREST en Content-Range (paginación del registro). */
+export async function leerPagina<T>(
+  consulta: (c: Cliente) => PromiseLike<Respuesta>,
+): Promise<Resultado<{ filas: T[]; total: number }>> {
+  const cliente = supabase();
+  if (!cliente) {
+    anotarServidor(false);
+    return { ok: false, codigo: SIN_SERVIDOR };
+  }
+  try {
+    const { data, error, status, count } = await consulta(cliente);
+    if (error || !Array.isArray(data)) {
+      const caido = !status || status >= 500;
+      anotarServidor(!caido);
+      return { ok: false, codigo: caido ? SIN_SERVIDOR : 'ERROR_INTERNO' };
+    }
+    anotarServidor(true);
+    return { ok: true, datos: { filas: data as T[], total: count ?? data.length } };
+  } catch {
+    anotarServidor(false);
+    return { ok: false, codigo: SIN_SERVIDOR };
+  }
+}

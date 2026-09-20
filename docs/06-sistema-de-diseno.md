@@ -209,6 +209,7 @@ igual con 9–10 px). Contenido fijo y en este orden:
 | **Panel: tablas** (`.desktop-table`) | 12 px, cabecera Barlow 11 px `--texto-suave` con borde inferior 2 px `--marino-950`, celdas 6 × 10 px, códigos y Ø sin salto de línea, cabeceras ordenables con ▲▼. |
 | **Panel: diff** | dos columnas, clave 32 % sobre `#FAFAF7`; valor anterior tachado `--rojo-700` opacidad .75 → nuevo `--verde-600` 600; "sin cambios" en `--texto-suave`. |
 | **Panel: señales** (`.meta-tag`) | 10 px, borde `--linea`; ok: borde y texto `--verde-600` con ✓; aviso: `--oro-600`/`--ambar-700` sobre `--ambar-100` con ⚠. |
+| **Panel: hoja de campo** | una página por núcleo, tabla en blanco y negro con casilla vacía para anotar; al imprimir solo se ve la hoja (FR-122, DEC-067). |
 | **Panel: acciones** | Aprobar `--verde-600` relleno; Aprobar con correcciones borde `--marino-950`; Fusionar borde `--oro-600` texto `--ambar-700`; Rechazar borde `--rojo-700`; Confirmar y aprobar (desactualizada) `--rojo-700` relleno. |
 
 ---
@@ -510,6 +511,35 @@ a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distan
 `Tu cuenta ya no tiene acceso de administrador.` ·
 `Esta acción aún no está configurada en el servidor.` ·
 `No se ha podido completar. Inténtalo de nuevo.`.
+
+**Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
+`Filtrar por diámetro` · `cualquier Ø` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` ·
+`Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `Ordenar por [columna]` ·
+`Dirección de [codigo]` · `pulsa una columna para ordenar ·
+la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con esos filtros.` ·
+`Guardado [codigo].` · `[codigo] retirado. Sigue en el histórico.` · `[codigo] está en la papelera.` ·
+`El punto existió y ya no está: desaparece del mapa y se conserva en el histórico.` ·
+`El registro nunca debió existir: va a la papelera y se puede restaurar mientras esté en plazo.` ·
+`Motivo (obligatorio, queda en el registro)` ·
+`Exportadas [n] filas. La exportación consta en el Registro.` ·
+`[n] puntos sin revisar desde hace más de los meses configurados` · `de [n] puntos del núcleo` ·
+`Ver puntos` · `Hoja` · `Hoja de campo de todos los núcleos` · `Imprimir` · `Hoja de campo ·
+[nucleo]` · `[n] puntos por revisar · impresa el [fecha]` · `Dirección o coordenadas` ·
+`Último estado conocido` · `Anotar revisión` · `revisado [hace] ([fecha])` ·
+`La hoja se abre para imprimir: una página por núcleo, con una casilla en blanco para anotar.` ·
+`No hay revisiones caducadas. Todo al día.` · `Filtrar por acción` · `todas las acciones` ·
+`[n] entradas` · `no se puede editar ni borrar` · `Momento` · `Actor` · `Acción` · `Punto` ·
+`Detalle` · `[n] entradas por página` · `Todavía no hay entradas con ese filtro.` ·
+`Propuesta retirada por su autor` · `Aprobación` · `Aprobación con correcciones` · `Rechazo` ·
+`Fusión` · `Edición directa` · `Borrado` · `Restauración` · `Purga de la papelera` ·
+`Código de acceso cambiado` · `Dispositivos revocados` · `Administrador añadido` ·
+`Administrador desactivado` · `Parámetros cambiados` · `Incidencia resuelta` · `Anonimización` ·
+`Exportación` · `Mantenimiento lanzado` ·
+`Los borrados se conservan [dias] días y después se purgan.` · `Purgar lo caducado…` ·
+`Purgar ahora` ·
+`Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de [dias] días en la papelera. No se puede deshacer.` ·
+`[n] puntos purgados.` · `[codigo] restaurado: vuelve al mapa.` · `Borrado` · `quedan [dias] días` ·
+`La papelera está vacía.`.
 
 **Tono.** Tuteo al voluntario, neutro en el panel. Botones en infinitivo. Sin exclamaciones salvo
 en el estado vacío de la cola. Nunca "defecto": es `No funciona`.
