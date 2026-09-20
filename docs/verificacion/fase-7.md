@@ -72,7 +72,21 @@ INTEGRACION=1 PW_CANAL=msedge npm run e2e
 
 DEC-065 (de dónde salen los datos de la cola, umbrales de las señales, qué del prototipo 08 no se
 construye), DEC-066 (minimapa de los formularios), DEC-067 (inventario, registro, papelera y
-exportación; `.xlsx` propio con fflate) y DEC-068 (núcleos, resumen semanal, QR y mantenimiento).
+exportación; `.xlsx` propio con fflate), DEC-068 (núcleos, resumen semanal, QR y mantenimiento),
+DEC-069 (el token de despacho con el permiso único `actions:write`) y DEC-070 (regenerar la zona no
+abre un PR si solo cambia la fecha).
+
+## 5.1 Mantenimiento, probado de verdad sin el token
+
+El camino del botón se comprobó lanzando el workflow a mano, que es exactamente lo que hará
+`/api/lanzar-workflow` cuando exista el token (mismo `workflow_dispatch`, misma entrada):
+
+| Ejecución | Qué se esperaba | Resultado |
+|---|---|---|
+| `Mantenimiento` con `trabajo=regenerar-zona`, antes de DEC-070 | regenerar y, si hay novedades, abrir un PR | ✅ verde y PR abierto… pero su único cambio era la fecha, con la geometría idéntica: de ahí DEC-070 |
+| La misma, ya con DEC-070 | terminar en verde y **no** abrir PR | ✅ "Sin cambios: la fuente pública no ha cambiado desde la última vez"; ningún PR |
+
+Queda por probar solo el tramo que necesita el token: el botón de Ajustes llamando a la función.
 
 ## 6. Lo que queda abierto
 
