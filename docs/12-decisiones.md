@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.4 — 19 de septiembre de 2026 (DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.5 — 20 de septiembre de 2026 (DEC-065 y DEC-066; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -567,6 +567,46 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      el GPS y, en un alta, devuelve el pin al GPS (origen `gps`). En "corregir ubicación" solo centra,
      para no mover el pin sin querer. Si el pin cambia fuera de la vista, el mapa lo sigue.
 - **Afecta a:** 06 Apéndice A; notas para 14.
+- **Corregida en parte por DEC-066** (el mapa ya no sigue al pin).
+
+### DEC-065 · Cómo se construye la cola de revisión del panel
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** la Fase 7 empieza por la cola (FR-100–FR-110). El contrato de 05 ya tenía todas las
+  RPC; faltaba decidir qué calcula el panel, qué pide a la base de datos y qué umbrales usan las
+  señales de fiabilidad (FR-104), que 01 describe sin números.
+- **Decisiones:**
+  1. El panel **lee** vistas y tablas con la sesión de Google (RLS de 05 §5) y **escribe** solo por
+     RPC. Las lecturas pasan por `src/lib/panel/consultas.ts`, que devuelve `Resultado` y anota si el
+     servidor responde, igual que `rpc()`.
+  2. `v_cola_revision` gana dos columnas (migración 0008): `nucleo` —el del punto o, en un alta, el
+     que se deduce del pin— y `punto_actualizado_en`, para explicar desde cuándo está desactualizada
+     una propuesta. Sin ellas, la lista no podía escribir "Autor · hace 2 h · calle · núcleo" (FR-101).
+  3. El historial (FR-109) se lee de `propuestas` con un tope de 300 filas por estado; el histórico
+     completo es el Registro (FR-123).
+  4. Umbrales de las señales: GPS "poco preciso" por encima de **20 m**; foto hecha a más de **30 m**
+     del pin. El resto de señales no necesitan umbral (origen del pin, fuera de zona, duplicado,
+     "otra medida", desactualizada, antigüedad de la revisión anterior).
+  5. La dirección deducida se pide a `/api/direccion` al abrir una propuesta con pin si aún no la
+     tiene; lo que quede escrito solo viaja como `correcciones.direccion` si difiere de la deducida.
+  6. Con "otra medida" el botón *Aprobar* queda deshabilitado con el motivo escrito (UI-02): hay que
+     fijar 70 o 100 en *Aprobar con correcciones*, que es lo que `fn_aprobar` exige (DIAMETRO_SIN_FIJAR).
+  7. **No se construye** lo que el prototipo 08 enseña pero ningún requisito pide: "Borrar
+     definitivamente" en la papelera (FR-124 purga sola a los 30 días), "Reabrir" una incidencia y el
+     CSV del Registro. El rechazo en bloque sí, porque está en 06 Apéndice A y en 09.
+  8. Una lectura caída no vacía la pantalla: se conserva lo cargado, se avisa arriba con la hora del
+     último dato y se reintenta con la degradación controlada (FR-168). `postgrest-js` reintenta solo
+     las lecturas fallidas con espera creciente, así que el aviso tarda unos segundos en darse por firme.
+- **Descartado:** calcular el núcleo de un alta en el navegador (el GeoJSON de la zona no trae los
+  núcleos); traer el historial entero (crece sin límite).
+- **Afecta a:** 05 §4; 06 Apéndice A; 09 Fase 7.
+
+### DEC-066 · Minimapa de los formularios: más alto y sin recentrados automáticos
+- **Fecha:** 20 sep 2026 (desarrollador, probando en Android) · **Estado:** vigente
+- **Contexto:** con 224 px de alto se veía poco contexto alrededor del pin, y el mapa se recentraba
+  solo cuando el pin se movía fuera de la vista (DEC-064.2), lo que descoloca mientras se ajusta a mano.
+- **Decisión:** el minimapa pasa a 336 px (+50 %) y no vuelve a centrarse solo: al llegar una lectura
+  de GPS o moverse el pin, solo se mueve el pin. Para centrar está el botón "Mi posición".
+- **Afecta a:** 06 §5; notas para 14.
 
 ### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
 - **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)
@@ -621,10 +661,10 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
 | 15 | 023, 061 |

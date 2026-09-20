@@ -269,9 +269,8 @@ test.describe('jefatura (FL-20)', () => {
     await conGoogle(page, 'jefe@example.org');
     await simularRpc(page, { fn_es_admin: true });
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: T.jefatura.panel })).toBeVisible();
-    await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: T.jefatura.irAlMapa }).click();
+    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeVisible();
+    await page.getByRole('link', { name: T.jefatura.irAlMapa }).click();
     await expect(page.getByTestId('mapa')).toBeVisible();
     await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();
 

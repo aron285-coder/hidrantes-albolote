@@ -52,5 +52,37 @@ export async function conGoogle(page: Page, correo: string) {
       localStorage.setItem('hidrantes.auth', s);
     }
   }, JSON.stringify(sesion));
-  await page.route(`${SUPABASE_PRUEBAS}/auth/v1/**`, (route) => route.fulfill({ status: 204, body: '' }));
+  // Respuestas con cuerpo válido: con un 204 vacío, supabase-js da la respuesta por error y reintenta
+  // con espera creciente, reteniendo varios segundos el token que necesitan las lecturas del panel.
+  await page.route(`${SUPABASE_PRUEBAS}/auth/v1/**`, (route) => {
+    const cuerpo = route.request().url().includes('/user') ? sesion.user : sesion;
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(cuerpo) });
+  });
+}
+
+/**
+ * Tablas y vistas simuladas para el panel (05 §5): nombre → filas, o función de la URL. Los HEAD con
+ * count=exact reciben el total en Content-Range, como PostgREST. Lo no listado, servidor caído.
+ */
+export async function simularTablas(page: Page, tablas: Record<string, unknown[] | ((url: URL) => unknown[])>) {
+  await page.route(new RegExp(`^${SUPABASE_PRUEBAS.replaceAll('.', '\\.')}/rest/v1/(?!rpc/)`), (route) => {
+    const url = new URL(route.request().url());
+    const nombre = url.pathname.split('/').pop()!;
+    const t = tablas[nombre];
+    if (!t) return route.abort('connectionrefused');
+    const filas = typeof t === 'function' ? t(url) : t;
+    // Sin exponer Content-Range, el navegador se lo oculta al cliente y no habría cuenta (FR-110).
+    const cabeceras = {
+      'Content-Range': `0-${Math.max(filas.length - 1, 0)}/${filas.length}`,
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': 'Content-Range',
+    };
+    if (route.request().method() === 'HEAD') return route.fulfill({ status: 200, headers: cabeceras, body: '' });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: cabeceras,
+      body: JSON.stringify(filas),
+    });
+  });
 }
