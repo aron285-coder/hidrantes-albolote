@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(36);
+select plan(38);
 
 -- ---------- datos de prueba ----------
 
@@ -132,6 +132,10 @@ select throws_like($$ select hidrantes.fn_exportar_inventario('{"color": "rojo"}
   'un filtro que no existe se rechaza, no se ignora');
 select is((select count(*) from hidrantes.registro where accion = 'exportacion'), 2::bigint,
   'cada exportación que sale adelante deja constancia en el registro (11 §6)');
+
+-- Salud del sistema enseña la última vigilancia (TR-102)
+select ok(hidrantes.fn_salud() ? 'ultima_vigilancia', 'la salud incluye cuándo corrió la vigilancia');
+select is(hidrantes.fn_salud() -> 'vigilancia_ok', 'null'::jsonb, 'sin vigilancia todavía, no se inventa un resultado');
 
 -- Mantenimiento (FR-165)
 select hidrantes.fn_registrar_workflow('regenerar-zona');

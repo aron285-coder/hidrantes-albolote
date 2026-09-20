@@ -480,6 +480,12 @@ function SaludDelSistema() {
           T.panelAjustes.zonaYMapa,
           `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
         ],
+        [
+          T.panelAjustes.ultimaVigilancia,
+          s.ultima_vigilancia
+            ? `${hace(s.ultima_vigilancia)} · ${s.vigilancia_ok ? T.panelAjustes.vigilanciaBien : T.panelAjustes.vigilanciaMal}`
+            : T.panelAjustes.nunca,
+        ],
         [T.panelAjustes.dispositivosActivos, String(s.dispositivos_activos)],
       ]
     : [];
