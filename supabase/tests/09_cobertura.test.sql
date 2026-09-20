@@ -22,9 +22,9 @@ insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, racor
                               direccion, fecha_ultima_revision)
 values
   ('00000000-0000-4000-8000-000000009001', 'HID-0900', 'hidrante', 'SRID=4326;POINT(-3.6569 37.2308)', 100, 'bueno',
-   null, 'fotos/9a.jpg', 'albolote', 'Núcleo 8', 'Calle Uno 1', current_date - 10),
+   null, 'f8/9a.jpg', 'albolote', 'Núcleo 8', 'Calle Uno 1', current_date - 10),
   ('00000000-0000-4000-8000-000000009002', 'BOC-0900', 'boca_riego', 'SRID=4326;POINT(-3.6500 37.2400)', 45, 'malo',
-   'granada', 'fotos/9b.jpg', 'albolote', 'Núcleo 8', 'Calle Dos 2', current_date - 400);
+   'granada', 'f8/9b.jpg', 'albolote', 'Núcleo 8', 'Calle Dos 2', current_date - 400);
 
 -- Dos voluntarios y un administrador que también propone: la actividad no debe contar al segundo.
 create function pg_temp.prop(id uuid, disp uuid, nombre text, estado text, creada timestamptz) returns void
@@ -32,7 +32,7 @@ language sql as $fn$
   insert into hidrantes.propuestas (id, punto_id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id,
                                     clave_local, foto_path, estado, motivo_rechazo, creada_en, revisada_en)
   values (id, '00000000-0000-4000-8000-000000009001', 'revision', '{}', nombre, 'Apellido', disp,
-          'c-' || id, 'fotos/p-' || id || '.jpg', estado::hidrantes.estado_moderacion,
+          'c-' || id, 'f8/p-' || id || '.jpg', estado::hidrantes.estado_moderacion,
           case when estado = 'rechazada' then 'no se ve' end, creada,
           case when estado <> 'pendiente' then creada + interval '1 hour' end);
 $fn$;
@@ -120,11 +120,13 @@ select throws_like($$ select hidrantes.fn_resolver_incidencia('00000000-0000-400
 
 -- Exportación (FR-160)
 select set_config('test.export', hidrantes.fn_exportar_inventario('{}')::text, true);
-select is(jsonb_array_length(current_setting('test.export')::jsonb), 2, 'la exportación trae los puntos activos');
+select is((select count(*) from jsonb_array_elements(current_setting('test.export')::jsonb) e
+            where e ->> 'nucleo' = 'Núcleo 8'), 2::bigint,
+  'la exportación trae los puntos activos');
 select is((select count(*) from jsonb_array_elements(current_setting('test.export')::jsonb) e
             where e ? 'autor_nombre' or e ? 'dispositivo_id'), 0::bigint,
   'la exportación no lleva a nadie dentro (FR-27)');
-select is(jsonb_array_length(hidrantes.fn_exportar_inventario('{"tipo": "boca_riego"}')), 1,
+select is(jsonb_array_length(hidrantes.fn_exportar_inventario('{"nucleo": "Núcleo 8", "tipo": "boca_riego"}')), 1,
   'los filtros filtran');
 select throws_like($$ select hidrantes.fn_exportar_inventario('{"color": "rojo"}') $$, 'PAYLOAD_INVALIDO(color)%',
   'un filtro que no existe se rechaza, no se ignora');
@@ -196,14 +198,14 @@ select is((select count(*) from hidrantes.suscripciones_push where id = '0000000
 -- Purga de fotos huérfanas (FR-144): la lista de fotos en uso es la que decide qué se borra del
 -- bucket, así que no puede olvidarse de ninguna.
 insert into hidrantes.subidas (dispositivo_id, foto_path, reservada_en) values
-  ('00000000-0000-4000-8000-0000000000b1', 'fotos/reciente.jpg', now() - interval '1 hour'),
-  ('00000000-0000-4000-8000-0000000000b1', 'fotos/vieja.jpg', now() - interval '3 days');
+  ('00000000-0000-4000-8000-0000000000b1', 'f8/reciente.jpg', now() - interval '1 hour'),
+  ('00000000-0000-4000-8000-0000000000b1', 'f8/vieja.jpg', now() - interval '3 days');
 
 select set_eq(
-  $$ select f from hidrantes.fn_fotos_referenciadas() f where f like 'fotos/%' $$,
-  $$ values ('fotos/9a.jpg'), ('fotos/9b.jpg'), ('fotos/p-00000000-0000-4000-8000-00000000a001.jpg'),
-            ('fotos/p-00000000-0000-4000-8000-00000000a002.jpg'), ('fotos/p-00000000-0000-4000-8000-00000000a004.jpg'), ('fotos/p-00000000-0000-4000-8000-00000000b001.jpg'),
-            ('fotos/p-00000000-0000-4000-8000-00000000c001.jpg'), ('fotos/reciente.jpg') $$,
+  $$ select f from hidrantes.fn_fotos_referenciadas() f where f like 'f8/%' $$,
+  $$ values ('f8/9a.jpg'), ('f8/9b.jpg'), ('f8/p-00000000-0000-4000-8000-00000000a001.jpg'),
+            ('f8/p-00000000-0000-4000-8000-00000000a002.jpg'), ('f8/p-00000000-0000-4000-8000-00000000a004.jpg'), ('f8/p-00000000-0000-4000-8000-00000000b001.jpg'),
+            ('f8/p-00000000-0000-4000-8000-00000000c001.jpg'), ('f8/reciente.jpg') $$,
   'en uso: las de los puntos, las de propuestas vivas y las reservas de menos de 24 h; la rechazada y la reserva vieja, no'
 );
 

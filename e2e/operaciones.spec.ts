@@ -217,8 +217,11 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await expect(page.getByRole('link', { name: T.mapa.sinEnviar(3) })).toBeVisible();
     expect(s.propuestas).toHaveLength(0);
 
+    // TR-04: al volver la señal salen solas, sin que nadie toque nada, y en menos de un minuto.
+    const vueltaLaSenal = Date.now();
     await context.setOffline(false);
-    await expect(page.getByRole('link', { name: /sin enviar/ })).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByRole('link', { name: /sin enviar/ })).toHaveCount(0, { timeout: 60_000 });
+    expect(Date.now() - vueltaLaSenal).toBeLessThan(60_000);
     expect(s.propuestas).toHaveLength(3);
     expect(new Set(s.propuestas.map((p) => p.clave_local)).size).toBe(3);
     expect(s.subidas).toHaveLength(3);
