@@ -77,9 +77,11 @@ exportación; `.xlsx` propio con fflate) y DEC-068 (núcleos, resumen semanal, Q
 ## 6. Lo que queda abierto
 
 - **`GITHUB_DISPATCH_TOKEN`**: lo crea el desarrollador (un token *fine-grained* no se puede crear
-  por API) y se guarda como secreto de Pages en staging y producción. Hasta entonces, Mantenimiento
-  responde "Esta acción aún no está configurada en el servidor" y `mantenimiento.yml` solo se puede
-  lanzar a mano desde GitHub.
+  por API), con el permiso único `Actions: Read and write` sobre este repositorio, y se guarda como
+  secreto de Pages en staging y producción. Hasta entonces, Mantenimiento responde "Esta acción aún no
+  está configurada en el servidor" y `mantenimiento.yml` solo se puede lanzar a mano desde GitHub.
+  El endpoint pasó de `repository_dispatch` a `workflow_dispatch` para que ese permiso bastara
+  (DEC-069).
 - **Purga de fotos huérfanas y respaldo** (FR-144, FR-165): sus workflows son de la Fase 8; los
   botones no se dibujan hasta que existan.
 - **Sugerencias de correos de la app de uniformidad** (FR-141): se leen si el esquema `public` lo

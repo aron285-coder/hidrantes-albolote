@@ -533,8 +533,11 @@ escribe `propuestas.direccion_sugerida`.
 ### `POST /api/lanzar-workflow`
 
 Cabecera `Authorization` de administrador. `→ { "workflow": "purgar-fotos" | "regenerar-zona" | "regenerar-mapabase" | "respaldo" }`;
-cualquier otro valor → `400`. `repository_dispatch` con `GITHUB_DISPATCH_TOKEN`. `← 202 { "lanzada": true, "workflow": "…" }`.
-Sin `GITHUB_DISPATCH_TOKEN` (hasta la Fase 7) → `503 { "error": "NO_CONFIGURADO" }`.
+cualquier otro valor → `400`. Despacha el workflow que atiende ese trabajo con **`workflow_dispatch`**
+(`POST /repos/…/actions/workflows/{archivo}/dispatches`, `{ "ref": "develop", "inputs": { "trabajo": "…" } }`)
+y `GITHUB_DISPATCH_TOKEN`, que así solo necesita `actions:write` (DEC-069). `← 202 { "lanzada": true, "workflow": "…" }`.
+Sin `GITHUB_DISPATCH_TOKEN`, o si el trabajo aún no tiene workflow (`purgar-fotos` y `respaldo` llegan
+en la Fase 8) → `503 { "error": "NO_CONFIGURADO" }`, sin llamar a GitHub.
 
 ### `POST /api/push`
 

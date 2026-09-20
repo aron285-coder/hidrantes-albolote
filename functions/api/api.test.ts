@@ -206,24 +206,40 @@ describe('POST /api/lanzar-workflow', () => {
     expect((await llamar(lanzarWorkflow, pedir({ workflow: 'deploy-prod' }))).status).toBe(400);
   });
 
-  it('sin GITHUB_DISPATCH_TOKEN (hasta la Fase 7): 503 NO_CONFIGURADO', async () => {
+  it('sin GITHUB_DISPATCH_TOKEN: 503 NO_CONFIGURADO', async () => {
     simularFetch(() => respuesta(true));
-    const r = await llamar(lanzarWorkflow, pedir({ workflow: 'respaldo' }));
+    const r = await llamar(lanzarWorkflow, pedir({ workflow: 'regenerar-zona' }));
     expect(r.status).toBe(503);
     expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
   });
 
-  it('con token: repository_dispatch y 202', async () => {
+  it('trabajo sin workflow todavía (purga y respaldo, Fase 8): 503 NO_CONFIGURADO', async () => {
     const f = simularFetch((url) =>
       url.includes('api.github.com') ? new Response(null, { status: 204 }) : respuesta(true),
     );
-    const r = await llamar(lanzarWorkflow, pedir({ workflow: 'purgar-fotos' }), {
+    const r = await llamar(lanzarWorkflow, pedir({ workflow: 'respaldo' }), { ...env, GITHUB_DISPATCH_TOKEN: 'gh' });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
+    // Y no se ha llamado a GitHub: nada que despachar.
+    expect(f.mock.calls.some(([u]) => String(u).includes('api.github.com'))).toBe(false);
+  });
+
+  it('con token: workflow_dispatch sobre mantenimiento.yml en develop y 202 (DEC-069)', async () => {
+    const f = simularFetch((url) =>
+      url.includes('api.github.com') ? new Response(null, { status: 204 }) : respuesta(true),
+    );
+    const r = await llamar(lanzarWorkflow, pedir({ workflow: 'regenerar-zona' }), {
       ...env,
       GITHUB_DISPATCH_TOKEN: 'gh',
     });
     expect(r.status).toBe(202);
     const gh = f.mock.calls.find(([u]) => String(u).includes('api.github.com'))!;
-    expect(JSON.parse(String(gh[1]?.body))).toEqual({ event_type: 'purgar-fotos' });
+    // El endpoint de workflow_dispatch basta con actions:write; el de repository_dispatch exigiría
+    // contents:write, que además dejaría empujar a develop.
+    expect(String(gh[0])).toBe(
+      'https://api.github.com/repos/aron285-coder/hidrantes-albolote/actions/workflows/mantenimiento.yml/dispatches',
+    );
+    expect(JSON.parse(String(gh[1]?.body))).toEqual({ ref: 'develop', inputs: { trabajo: 'regenerar-zona' } });
   });
 });
 
