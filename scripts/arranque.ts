@@ -70,8 +70,25 @@ const ENTORNOS: Entorno[] = [
   },
 ];
 
-const ROTABLES = ['db', 'cloudflare', 'sal-ip', 'vapid', 'gpg'] as const;
-type Rotable = (typeof ROTABLES)[number];
+export const ROTABLES = ['db', 'cloudflare', 'sal-ip', 'vapid', 'gpg'] as const;
+export type Rotable = (typeof ROTABLES)[number];
+
+/**
+ * `--rotar db`, `--rotar db,gpg` o `--rotar todo`. Se admite la lista porque rehacer los secretos de
+ * los trabajos automáticos (DEC-071) necesita la base de datos y la clave GPG a la vez, y rotarlo
+ * todo cambiaría de paso las claves VAPID, que dejarían sin avisos a los móviles ya suscritos.
+ */
+export function aRotar(pedida: string | undefined): Set<Rotable> {
+  if (!pedida) return new Set();
+  if (pedida === 'todo') return new Set(ROTABLES);
+  const partes = pedida.split(',').map((p) => p.trim());
+  for (const p of partes) {
+    if (!(ROTABLES as readonly string[]).includes(p)) {
+      abortar(`--rotar ${p} no existe. Opciones: ${ROTABLES.join(', ')}, todo (o varias separadas por comas)`);
+    }
+  }
+  return new Set(partes as Rotable[]);
+}
 
 // ---------- 1. sesiones y credenciales ----------
 
@@ -393,14 +410,26 @@ function existeSecreto(nombre: string, entorno: string): boolean {
     .includes(nombre);
 }
 
+function existeSecretoRepo(nombre: string): boolean {
+  return gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split('\n').includes(nombre);
+}
+
 async function prepararGpg(rotar: boolean): Promise<string | null> {
   log.paso('6. Clave GPG de los respaldos');
   if (existeSecreto('GPG_PUBLIC_KEY', 'production') && !rotar) {
     log.ok('ya existe (usa --rotar gpg para cambiarla)');
+    // La pública no se puede recuperar de un secreto de GitHub, así que si falta la del repositorio
+    // —la que usa respaldo.yml, DEC-071— hay que generar otro par.
+    if (!existeSecretoRepo('GPG_PUBLIC_KEY')) {
+      log.aviso('Falta GPG_PUBLIC_KEY en el repositorio: sin ella no hay respaldo. Vuelve con --rotar gpg.');
+    }
     return null;
   }
   const { publica, privada, huella } = await parGpg();
   fijarSecreto('GPG_PUBLIC_KEY', publica, 'production');
+  // También en el repositorio: respaldo.yml corre por calendario y no puede usar un entorno con
+  // aprobación humana (DEC-071). Es una clave pública: no revela nada.
+  fijarSecreto('GPG_PUBLIC_KEY', publica);
   console.log('\n\x1b[33m' + '═'.repeat(72));
   console.log(' CLAVE PRIVADA DE LOS RESPALDOS · se muestra UNA sola vez');
   console.log(' Guárdala ahora en el gestor de contraseñas o en el sobre de la agrupación (15 §2).');
@@ -439,6 +468,16 @@ function secretosGithub(
   const sufijo = e.clave === 'staging' ? 'STAGING' : 'PROD';
   fijarVariable(`SUPABASE_URL_${sufijo}`, sb.url);
   fijarVariable(`SUPABASE_ANON_KEY_${sufijo}`, sb.anon);
+
+  // Por el mismo motivo, respaldo.yml necesita en el repositorio lo que el entorno `production`
+  // guarda tras una aprobación humana (DEC-071). Solo producción: nadie respalda staging.
+  if (e.clave === 'production') {
+    if (sb.urlMigrador) fijarSecreto('SUPABASE_DB_URL_PROD', sb.urlMigrador);
+    fijarSecreto('SUPABASE_SERVICE_ROLE_KEY_PROD', sb.servicio);
+    if (!sb.urlMigrador && !existeSecretoRepo('SUPABASE_DB_URL_PROD')) {
+      log.aviso('Falta SUPABASE_DB_URL_PROD para el respaldo: vuelve a lanzarlo con --rotar db (DEC-071).');
+    }
+  }
   log.ok('hecho');
 }
 
@@ -563,11 +602,7 @@ async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   if (banderas.has('local')) return arranqueLocal();
 
-  const pedida = valores.get('rotar');
-  const rotar = new Set<Rotable>(pedida === 'todo' ? ROTABLES : pedida ? [pedida as Rotable] : []);
-  if (pedida && pedida !== 'todo' && !ROTABLES.includes(pedida as Rotable)) {
-    abortar(`--rotar ${pedida} no existe. Opciones: ${ROTABLES.join(', ')}, todo`);
-  }
+  const rotar = aRotar(valores.get('rotar'));
   const esRotacion = rotar.size > 0;
   // En el arranque completo se (re)crea siempre el rol; al rotar, solo si se pide `db`.
   const tocarBd = !esRotacion || rotar.has('db');

@@ -120,7 +120,7 @@ npm test                      # vitest
 npm run test:sql              # pgTAP contra la instancia local
 npm run e2e                   # Playwright (levanta todo lo anterior)
 npm run zona | mapabase | codigo | revertir | restaurar | promover-piloto | capturas
-npm run arranque              # solo la primera vez o para --rotar <secreto|todo>
+npm run arranque              # solo la primera vez o para --rotar <secreto[,secreto]|todo>
 
 git switch develop && git pull
 git switch -c fase-5/busqueda-local
