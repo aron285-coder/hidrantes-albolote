@@ -300,6 +300,7 @@ una migración nueva cada vez.
 | Purga de papelera pasado `dias_papelera` | `pg_cron` | diario |
 | Borrado de `errores_cliente` > 90 días | `pg_cron` | diario |
 | Revocación de tokens sin uso en `dias_caducidad_token` | `pg_cron` | diario |
+| Resumen semanal de jefatura encolado (FR-164) | `pg_cron`; lo envía `/api/push` (DEC-068) | lunes |
 | Purga de fotos huérfanas | GitHub Actions `purgar-fotos.yml` (`service_role`) | semanal + bajo demanda desde Ajustes |
 | Respaldo cifrado de la BD (`pg_dump` del esquema `hidrantes`) | GitHub Actions `respaldo.yml` (`service_role`, GPG) | semanal, 90 días de retención |
 | Respaldo del bucket de fotos | mismo workflow | mensual |

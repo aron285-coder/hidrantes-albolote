@@ -1,5 +1,5 @@
 import { CloudOff, LogOut, Map as IconoMapa, Search } from 'lucide-react';
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Link, NavLink, Navigate, Route, Routes } from 'react-router';
 import { Escudo } from '@/componentes/Escudo';
 import { LimiteError } from '@/componentes/LimiteError';
@@ -12,6 +12,7 @@ import { salirDeGoogle } from '@/lib/acceso';
 import { reintentarAhora } from '@/lib/conexion';
 import { hace } from '@/lib/formato';
 import { contar } from '@/lib/panel/consultas';
+import { pedirEnvioComoJefatura } from '@/lib/panel/push-jefatura';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +21,8 @@ const Inventario = lazy(() => import('@/componentes/panel/Inventario'));
 const Caducadas = lazy(() => import('@/componentes/panel/Caducadas'));
 const Registro = lazy(() => import('@/componentes/panel/Registro'));
 const Papelera = lazy(() => import('@/componentes/panel/Papelera'));
+const Voluntarios = lazy(() => import('@/componentes/panel/Voluntarios'));
+const Ajustes = lazy(() => import('@/componentes/panel/Ajustes'));
 
 /** Cada cuánto se refresca el número de pendientes (FR-110). */
 const REFRESCO_MS = 60_000;
@@ -52,10 +55,20 @@ function Armazon({ correo }: { correo: string }) {
     [],
     REFRESCO_MS,
   );
+  const incidencias = useCarga(
+    () => contar((c) => c.from('incidencias_app').select('id', { count: 'exact', head: true }).eq('estado', 'abierta')),
+    [],
+    REFRESCO_MS,
+  );
   const recargarContadores = () => {
     void pendientes.recargar();
     void enPapelera.recargar();
+    void incidencias.recargar();
   };
+  // Al abrir el panel, que salgan los avisos que haya en cola (05 §9, FR-164).
+  useEffect(() => {
+    void pedirEnvioComoJefatura();
+  }, []);
   const pestanas: Pestana[] = [
     { ruta: 'cola', nombre: T.panelCola.colaRevision, badge: pendientes.datos, naranja: true },
     { ruta: 'inventario', nombre: T.panelCola.inventario, badge: puntos.length },
@@ -66,6 +79,8 @@ function Armazon({ correo }: { correo: string }) {
     },
     { ruta: 'registro', nombre: T.panelCola.registro },
     { ruta: 'papelera', nombre: T.panelCola.papelera, badge: enPapelera.datos },
+    { ruta: 'voluntarios', nombre: T.panelCola.voluntarios, badge: incidencias.datos, naranja: true },
+    { ruta: 'ajustes', nombre: T.panelCola.ajustes },
   ];
   return (
     <div className="bg-fondo flex min-h-dvh flex-col">
@@ -109,6 +124,8 @@ function Armazon({ correo }: { correo: string }) {
               <Route path="caducadas" element={<Caducadas />} />
               <Route path="registro" element={<Registro />} />
               <Route path="papelera" element={<Papelera alCambiar={recargarContadores} />} />
+              <Route path="voluntarios" element={<Voluntarios alCambiar={recargarContadores} />} />
+              <Route path="ajustes" element={<Ajustes />} />
               <Route path="*" element={<Navigate to="cola" replace />} />
             </Routes>
           </Suspense>

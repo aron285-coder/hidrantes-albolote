@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.6 — 20 de septiembre de 2026 (DEC-065 a DEC-067; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.7 — 20 de septiembre de 2026 (DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -632,6 +632,33 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   falta y gastaría cuota).
 - **Afecta a:** 06 §5 y Apéndice A; 09 Fase 7.
 
+### DEC-068 · Voluntarios, ajustes, núcleos, QR y avisos de jefatura
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** última tanda de la Fase 7 (FR-130–FR-145, FR-162–FR-167). Los núcleos gestionables y
+  el resumen semanal no tenían RPC en 05, y el QR no podía depender de un servicio externo.
+- **Decisiones:**
+  1. **Núcleos** (FR-166): migración 0009 con `fn_renombrar_nucleo` y `fn_anadir_nucleo`. Renombrar
+     arrastra los puntos que lo tienen y recuerda el nombre de OpenStreetMap en `nucleos.nombre_osm`,
+     para que `cargar-zona.ts` no lo resucite en el siguiente despliegue. Añadir exige señalar dónde
+     está: el municipio y el núcleo de cada punto se deducen por cercanía (05 §6.3), así que un núcleo
+     sin geometría no serviría; al añadirlo se recalcula el núcleo de los puntos de ese municipio.
+     El registro gana la acción `nucleo_guardado`.
+  2. **Resumen semanal** (FR-164): lo encola `pg_cron` los lunes (`fn_encolar_resumen_semanal`) y lo
+     envía `/api/push`, al que el panel llama al abrirse. Así no hace falta un workflow con secretos
+     nuevos; cuando la Fase 8 traiga `vigilancia.yml`, ese trabajo también lo despachará.
+  3. **Código de acceso**: lo genera el navegador con `crypto.getRandomValues` y se confirma en un
+     diálogo que dice cuántos móviles tendrán que volver a escribirlo (FR-140, UI-06).
+  4. **Código QR** (FR-162): librería `uqr` (sin dependencias, 10 kB) y hoja A4 imprimible con el
+     escudo y "Escanea para instalar". Nada de servicios de QR por internet.
+  5. **Mantenimiento** (FR-165): `mantenimiento.yml` escucha el `repository_dispatch` y abre un PR a
+     `develop` con lo regenerado, en vez de escribir en la rama: el mapa base pesa megas y conviene
+     mirarlo antes de desplegarlo. Los botones de **purga de fotos** y **respaldo** no se dibujan
+     todavía: sus workflows llegan en la Fase 8 y un botón que no hace nada está prohibido (UI-01).
+  6. **`GITHUB_DISPATCH_TOKEN`** es el único paso manual que queda para el desarrollador: un token
+     *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
+     `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
+- **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
 ### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
 - **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)
 - **Contexto:** el sábado 19 sep 2026 staging no cargaba ni en fibra ni con datos móviles
@@ -684,11 +711,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
 | 15 | 023, 061 |
