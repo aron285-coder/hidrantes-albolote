@@ -213,11 +213,14 @@ describe('POST /api/lanzar-workflow', () => {
     expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
   });
 
-  it('trabajo sin workflow todavía (purga y respaldo, Fase 8): 503 NO_CONFIGURADO', async () => {
+  it('trabajo sin workflow todavía (la purga de fotos, Fase 8): 503 NO_CONFIGURADO', async () => {
     const f = simularFetch((url) =>
       url.includes('api.github.com') ? new Response(null, { status: 204 }) : respuesta(true),
     );
-    const r = await llamar(lanzarWorkflow, pedir({ workflow: 'respaldo' }), { ...env, GITHUB_DISPATCH_TOKEN: 'gh' });
+    const r = await llamar(lanzarWorkflow, pedir({ workflow: 'purgar-fotos' }), {
+      ...env,
+      GITHUB_DISPATCH_TOKEN: 'gh',
+    });
     expect(r.status).toBe(503);
     expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
     // Y no se ha llamado a GitHub: nada que despachar.
@@ -240,6 +243,17 @@ describe('POST /api/lanzar-workflow', () => {
       'https://api.github.com/repos/aron285-coder/hidrantes-albolote/actions/workflows/mantenimiento.yml/dispatches',
     );
     expect(JSON.parse(String(gh[1]?.body))).toEqual({ ref: 'develop', inputs: { trabajo: 'regenerar-zona' } });
+  });
+
+  it('el respaldo va a su propio workflow y sin entradas: GitHub rechaza las que no existen', async () => {
+    const f = simularFetch((url) =>
+      url.includes('api.github.com') ? new Response(null, { status: 204 }) : respuesta(true),
+    );
+    const r = await llamar(lanzarWorkflow, pedir({ workflow: 'respaldo' }), { ...env, GITHUB_DISPATCH_TOKEN: 'gh' });
+    expect(r.status).toBe(202);
+    const gh = f.mock.calls.find(([u]) => String(u).includes('api.github.com'))!;
+    expect(String(gh[0])).toContain('/actions/workflows/respaldo.yml/dispatches');
+    expect(JSON.parse(String(gh[1]?.body))).toEqual({ ref: 'develop' });
   });
 });
 

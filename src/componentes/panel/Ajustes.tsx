@@ -511,11 +511,12 @@ function SaludDelSistema() {
 
 // ---------- mantenimiento (FR-144, FR-165, FL-33) ----------
 
-// La purga de fotos y el respaldo llegan con sus workflows en la Fase 8: hasta entonces no se
-// dibuja el botón, que no haría nada (UI-01).
+// Solo se dibuja lo que existe (UI-01): la purga de fotos llega con su workflow más adelante en la
+// Fase 8, así que su botón todavía no está.
 const TRABAJOS: { workflow: Workflow; nombre: string }[] = [
   { workflow: 'regenerar-zona', nombre: T.panel.regenerarZona },
   { workflow: 'regenerar-mapabase', nombre: T.panel.regenerarMapaBase },
+  { workflow: 'respaldo', nombre: T.panel.respaldoAhora },
 ];
 
 function Mantenimiento() {
