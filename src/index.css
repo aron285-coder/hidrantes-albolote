@@ -8,7 +8,12 @@
   --marino-800: #152a4a;
   --marino-700: #1d3a63;
   --marino-600: #28517f;
-  --naranja-600: #dd5a1f;
+  /* Relleno de acción. Era #DD5A1F, que con texto blanco encima se queda en 3,78:1 y TR-31 pide
+     4,5:1; este llega a 4,55:1 y también sobre blanco (DEC-072). */
+  --naranja-600: #c94f16;
+  /* Naranja cuando es texto sobre una superficie: un punto más oscuro que el relleno, para llegar
+     a 4,5:1 también sobre --fondo (4,56:1); en oscuro se aclara. */
+  --naranja-texto: #be4811;
   --naranja-500: #e97136;
   --naranja-100: #fbe2d2;
   --oro-600: #b08a2e;
@@ -57,6 +62,7 @@
     --control-mapa: rgba(20, 29, 45, 0.94);
     --badge-pendiente-fondo: #3a2a1e;
     --badge-pendiente-texto: #f0a070;
+    --naranja-texto: #f0a070;
     --anillo-seleccion: #e6eaf0;
     color-scheme: dark;
   }
@@ -71,6 +77,7 @@
   --control-mapa: rgba(20, 29, 45, 0.94);
   --badge-pendiente-fondo: #3a2a1e;
   --badge-pendiente-texto: #f0a070;
+  --naranja-texto: #f0a070;
   --anillo-seleccion: #e6eaf0;
   color-scheme: dark;
 }
@@ -81,6 +88,7 @@
   --color-marino-700: var(--marino-700);
   --color-marino-600: var(--marino-600);
   --color-naranja-600: var(--naranja-600);
+  --color-naranja-texto: var(--naranja-texto);
   --color-naranja-500: var(--naranja-500);
   --color-naranja-100: var(--naranja-100);
   --color-oro-600: var(--oro-600);

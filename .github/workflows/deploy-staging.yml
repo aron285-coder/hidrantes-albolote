@@ -64,3 +64,14 @@ jobs:
 
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
+
+      # TR-103: rendimiento ≥ 85, accesibilidad ≥ 95, buenas prácticas ≥ 95 y manifiesto instalable,
+      # sobre lo desplegado y con el móvil emulado que trae Lighthouse por defecto. Los umbrales
+      # están en .github/lighthouse.json. La acción no necesita ninguna dependencia del proyecto.
+      - name: Lighthouse sobre staging (TR-103)
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: https://hidrantes-albolote-staging.pages.dev/
+          configPath: .github/lighthouse.json
+          uploadArtifacts: true
+          temporaryPublicStorage: false

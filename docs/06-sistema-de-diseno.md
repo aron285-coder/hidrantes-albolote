@@ -34,7 +34,7 @@
 | `--marino-800` | `#152A4A` | acentos de callout |
 | `--marino-700` | `#1D3A63` | enlaces, etiqueta "Ubicación", posición GPS |
 | `--marino-600` | `#28517F` | halo de posición GPS, límite de zona (con opacidad .5) |
-| `--naranja-600` | `#DD5A1F` | **acción primaria del voluntario** (Entrar, Enviar, botón +), pin arrastrable, badge de pendientes |
+| `--naranja-600` | `#C94F16` | **acción primaria del voluntario** (Entrar, Enviar, botón +), pin arrastrable, badge de pendientes |
 | `--naranja-500` | `#E97136` | icono del escudo |
 | `--naranja-100` | `#FBE2D2` | fondo de badges naranja |
 | `--oro-600` | `#B08A2E` | borde de avisos (duplicado, fuera de zona), etiqueta "Jefatura" |
@@ -44,6 +44,10 @@
 | `--linea` | `#D8DBD2` | bordes y separadores |
 | `--texto` | `#1B2430` | texto principal |
 | `--texto-suave` | `#5A6472` | texto secundario, etiquetas de campo |
+
+El naranja de acción bajó de `#DD5A1F` a `#C94F16` el 20 sep 2026: con texto blanco encima se
+quedaba en 3,78:1 y TR-31 pide 4,5:1. Cuando el naranja es **texto sobre una superficie** se usa
+`--naranja-texto`: `#BE4811` en claro (4,56:1 sobre `--fondo`) y `#F0A070` en oscuro (DEC-072).
 
 ### 2.2 Tokens de estado (los cuatro niveles de caudal)
 

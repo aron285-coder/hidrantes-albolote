@@ -75,9 +75,19 @@ for (const modo of ['claro', 'oscuro'] as const) {
       }
     });
 
-    it('el blanco sobre la barra y sobre el botón principal', () => {
+    it('el blanco sobre la barra y sobre los dos rellenos de acción', () => {
       expect(contraste('#ffffff', t['--barra'])).toBeGreaterThanOrEqual(4.5);
       expect(contraste('#ffffff', t['--marino-600'])).toBeGreaterThanOrEqual(4.5);
+      // El naranja es el relleno del botón principal: lo lleva el texto blanco de "Enviar" (DEC-072).
+      expect(contraste('#ffffff', t['--naranja-600'])).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('el naranja, cuando es texto sobre una superficie, también llega a 4,5:1', () => {
+      for (const superficie of ['--papel', '--fondo']) {
+        expect(contraste(t['--naranja-texto'], t[superficie]), `naranja sobre ${superficie}`).toBeGreaterThanOrEqual(
+          4.5,
+        );
+      }
     });
 
     // Un marcador se distingue del mapa en dos saltos (06 §4.2): el relleno de estado contra el

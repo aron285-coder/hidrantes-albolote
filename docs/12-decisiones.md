@@ -670,14 +670,22 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   2. En modo oscuro, 06 §2.4 cambiaba el borde del marcador a `#111826` "para que siga separando
      del fondo". Contra el mapa oscuro (`#1B2536`) ese borde da **1,16:1**, y los rellenos de estado
      contra él, entre 1,81 y 3,52: el marcador se perdía justo donde se usa de noche.
+  3. Y axe, sobre las pantallas montadas, encontró el que más se usa de todos: **texto blanco sobre
+     `--naranja-600` `#DD5A1F` da 3,78:1**. Es el botón de Enviar, el de Entrar, el botón + del mapa
+     y la banda de pruebas. El mismo naranja como texto sobre blanco, igual.
 - **Decisiones:**
   1. **`--verde-700` `#276B42`** para el texto sobre `--verde-100` (5,31:1). El relleno del marcador
      sigue siendo el `--verde-600` que fija 06 §4.2: la simbología de emergencias no se toca.
-  2. **El borde del marcador se queda blanco en los dos modos.** Contra el mapa oscuro da 13,6:1 y
+  2. **`--naranja-600` baja a `#C94F16`** (4,55:1 con blanco encima, y 4,55:1 sobre blanco). Es el
+     color de acción de toda la aplicación, así que el cambio se ve; se prefiere eso a un botón que
+     no se lee a pleno sol, que es el escenario de 06 §1. Cuando el naranja es **texto sobre una
+     superficie** se usa `--naranja-texto`: `#BE4811` en claro (4,56:1 sobre `--fondo`) y `#F0A070`
+     en oscuro (7,48:1 sobre las tarjetas), el mismo que ya usaba el badge de pendientes.
+  3. **El borde del marcador se queda blanco en los dos modos.** Contra el mapa oscuro da 13,6:1 y
      los cuatro rellenos contra él, de 5,0:1 a 9,8:1. Es además lo que ya decía 06 §4.2 ("el borde
      blanco de 2,5 px garantiza la separación en cualquier fondo de mapa"): el cambio de §2.4 lo
      contradecía.
-  3. **Cómo se lee TR-31 en el mapa:** un marcador se distingue en dos saltos —el relleno contra el
+  4. **Cómo se lee TR-31 en el mapa:** un marcador se distingue en dos saltos —el relleno contra el
      borde, y el relleno *o* el borde contra el mapa—, y los dos tienen que llegar a 3:1. Exigir el
      relleno contra el mapa a secas es imposible con una simbología idéntica en claro y oscuro: en
      el mapa oscuro, `no_funciona` (`#40453D`) se queda en 1,57:1 y aclararlo cambiaría el color de
@@ -685,7 +693,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      oscuro, se decide aparte.
 - **Descartado:** aclarar los cuatro estados en oscuro (cambia la simbología, que es lo primero que
   aprende un voluntario); dejar el verde como estaba (es texto, y TR-31 no distingue).
-- **Afecta a:** 06 §2.2, §2.4; `src/index.css`; `src/lib/accesibilidad.test.ts`; 03 TR-31 (lectura).
+- **Afecta a:** 06 §2.1, §2.2, §2.4 y los prototipos 06/07/08; `src/index.css`;
+  `src/lib/accesibilidad.test.ts`; `e2e/accesibilidad.spec.ts`; 03 TR-31 (lectura).
 
 ### DEC-071 · Los secretos de la automatización viven en el repositorio, no en el entorno
 - **Fecha:** 20 sep 2026 · **Estado:** vigente

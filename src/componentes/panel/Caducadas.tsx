@@ -38,7 +38,7 @@ export default function Caducadas() {
         {grupos.map((g) => (
           <li key={g.nucleo} className="border-linea bg-papel border-b">
             <div className="flex flex-wrap items-center gap-3 px-3 py-2">
-              <span className="text-naranja-600 font-titulo w-6 text-lg font-bold">{g.puntos.length}</span>
+              <span className="text-naranja-texto font-titulo w-6 text-lg font-bold">{g.puntos.length}</span>
               <div className="min-w-40 flex-1">
                 <p className="font-semibold">{g.nucleo}</p>
                 <p className="text-texto-suave text-[13px]">{T.panelCaducadas.dePuntos(g.total)}</p>

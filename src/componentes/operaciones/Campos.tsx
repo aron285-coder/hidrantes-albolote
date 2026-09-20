@@ -164,7 +164,7 @@ export function CampoFoto({
           type="button"
           disabled={procesando}
           onClick={() => entrada.current?.click()}
-          className="border-naranja-600 text-naranja-600 bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold"
+          className="border-naranja-600 text-naranja-texto bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold"
         >
           <Camera size={18} aria-hidden />
           {procesando ? T.operaciones.preparandoFoto : T.formulario.hacerFoto}
