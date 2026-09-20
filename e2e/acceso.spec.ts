@@ -152,7 +152,12 @@ test.describe('con sesión guardada', () => {
 
     // Vuelve el servidor: el aviso desaparece.
     await page.unroute('https://supabase.invalid/rest/v1/rpc/*');
-    await simularRpc(page, { fn_listar_puntos: { puntos: [], bajas: [] }, fn_registrar_error: null });
+    // Todo lo que el reintento llama: si algo quedara sin responder, el aviso volvería enseguida.
+    await simularRpc(page, {
+      fn_listar_puntos: { puntos: [], bajas: [] },
+      fn_mis_propuestas: [],
+      fn_registrar_error: null,
+    });
     await page.getByRole('button', { name: T.mapa.reintentar }).click();
     await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeHidden();
   });
@@ -269,9 +274,8 @@ test.describe('jefatura (FL-20)', () => {
     await conGoogle(page, 'jefe@example.org');
     await simularRpc(page, { fn_es_admin: true });
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: T.jefatura.panel })).toBeVisible();
-    await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: T.jefatura.irAlMapa }).click();
+    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeVisible();
+    await page.getByRole('link', { name: T.jefatura.irAlMapa }).click();
     await expect(page.getByTestId('mapa')).toBeVisible();
     await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();
 

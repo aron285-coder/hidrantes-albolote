@@ -76,9 +76,10 @@ function leerAplicadas(url: string): Map<string, string> {
   });
   return new Map(
     salida
-      .split('\n')
+      // psql en Windows termina las líneas con \r\n: sin quitarlo, ningún hash coincidiría
+      .split(/\r?\n/)
       .filter(Boolean)
-      .map((l) => l.split('|') as [string, string]),
+      .map((l) => l.trim().split('|') as [string, string]),
   );
 }
 

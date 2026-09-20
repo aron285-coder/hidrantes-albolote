@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { AvisoVersion } from '@/componentes/AvisoVersion';
 import { BandaEntorno } from '@/componentes/BandaEntorno';
@@ -16,7 +17,9 @@ import { Proponer } from '@/paginas/Proponer';
 import { Lista } from '@/paginas/Lista';
 import { Mapa } from '@/paginas/Mapa';
 import { NoAutorizado } from '@/paginas/NoAutorizado';
-import { PanelJefatura } from '@/paginas/PanelJefatura';
+
+// El panel solo lo abre jefatura: fuera del JavaScript inicial (TR-11).
+const PanelJefatura = lazy(() => import('@/paginas/PanelJefatura').then((m) => ({ default: m.PanelJefatura })));
 
 function Rutas() {
   const acceso = useAcceso();
@@ -55,8 +58,16 @@ function Rutas() {
       />
       <Route path="/incidencia" element={acceso.tipo === 'voluntario' ? <Incidencia /> : <Navigate to="/" replace />} />
       <Route
-        path="/admin"
-        element={acceso.tipo === 'jefatura' ? <PanelJefatura correo={acceso.correo} /> : <Navigate to="/" replace />}
+        path="/admin/*"
+        element={
+          acceso.tipo === 'jefatura' ? (
+            <Suspense fallback={<p className="text-texto-suave m-auto p-6">{T.panelCola.cargando}</p>}>
+              <PanelJefatura correo={acceso.correo} />
+            </Suspense>
+          ) : (
+            <Navigate to="/" replace />
+          )
+        }
       />
       <Route element={<Armazon />}>
         <Route index element={<Mapa />} />

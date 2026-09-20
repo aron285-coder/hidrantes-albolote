@@ -3,19 +3,12 @@ import L from 'leaflet';
 import { LocateFixed } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { capasDe } from '../mapa/capas-leaflet';
+import { ICONO_PIN } from '../mapa/iconos-leaflet';
 import { useModo, usePosicion } from '@/hooks/estado';
 import { capaGuardada } from '@/lib/capas';
 import type { Coordenadas } from '@/lib/propuestas';
 import { type Posicion, activarPosicion } from '@/lib/posicion';
 import { T } from '@/lib/textos';
-
-/** Pin naranja arrastrable con punto blanco (06 §4.3, "propuesto"). */
-const ICONO_PIN = L.divIcon({
-  className: 'marcador',
-  iconSize: [44, 44],
-  iconAnchor: [22, 38],
-  html: `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="-22 -38 44 44" aria-hidden="true" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))"><path d="M0 -32 C8 -32 13 -26 13 -18 C13 -9 0 4 0 4 C0 4 -13 -9 -13 -18 C-13 -26 -8 -32 0 -32 Z" fill="var(--naranja-600)" stroke="#fff" stroke-width="2"/><circle cx="0" cy="-18" r="4.5" fill="#fff"/></svg>`,
-});
 
 /**
  * Mapa pequeño para colocar el punto (FR-50, FL-03, FL-07): se arrastra el pin o se toca el mapa.
@@ -97,12 +90,11 @@ export function SelectorPin({
     return () => capas.forEach((c) => m.removeLayer(c));
   }, [modo]);
 
-  // El pin se mueve (GPS que llega, botón de posición…): si queda fuera de la vista, el mapa lo sigue.
+  // El pin se mueve (GPS que llega, botón de posición…): solo se mueve el pin. El mapa no se
+  // recentra solo, que descoloca mientras se ajusta a mano; para eso está "Mi posición" (DEC-066).
   useEffect(() => {
     if (!pin) return;
     marcador.current?.setLatLng([pin.lat, pin.lng]);
-    const m = mapa.current;
-    if (m && !m.getBounds().pad(-0.1).contains([pin.lat, pin.lng])) m.panTo([pin.lat, pin.lng]);
   }, [pin]);
 
   function irAMiPosicion(p: Posicion) {
@@ -171,7 +163,7 @@ export function SelectorPin({
     <div className="relative isolate">
       <div
         ref={contenedor}
-        className="rounded-tarjeta border-linea h-56 overflow-hidden border"
+        className="rounded-tarjeta border-linea h-84 overflow-hidden border"
         data-testid="selector-pin"
       />
       <button

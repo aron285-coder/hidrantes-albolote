@@ -202,6 +202,7 @@ igual con 9–10 px). Contenido fijo y en este orden:
 | **Toast** | `--verde-600`, blanco, radio 9, arriba bajo la barra, con cierre; para "tu propuesta se aprobó". |
 | **Foto** | relación 16:9 en ficha, 84–86 px de alto en móvil, etiqueta de fecha abajo-izquierda sobre `rgba(14,27,48,.6)`. Placeholder mientras carga: degradado gris-azulado. |
 | **Racor de referencia** | tres tarjetas iguales con foto real 34 px de alto y nombre; la elegida con borde `--marino-950` doble. |
+| **Minimapa de los formularios** | 336 px de alto, pin arrastrable y botón "Mi posición" arriba a la derecha; no se recentra solo (DEC-066). |
 | **Controles del mapa** | blancos, radio 7–9, sombra `0 1px 5px rgba(0,0,0,.18)`: búsqueda (arriba, ancho completo), Capas (arriba derecha), Mi posición (bajo Capas), leyenda (abajo izquierda), atribución (abajo derecha, 6,5 px). Botón + flotante 44 px `--naranja-600` sobre la esquina inferior derecha del mapa. |
 | **Navegación inferior** | 50 px, blanco, tres destinos (Mapa · Lista · Ajustes), activo `--marino-950` 700. |
 | **Panel: pestañas** | fondo `#F5F6F2`, activa blanca con borde inferior 2 px `--naranja-600`, badge naranja para pendientes y gris para totales. Sin salto de línea; scroll horizontal si no cabe. |
@@ -439,7 +440,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·
-`El panel de revisión llega en una próxima versión de la aplicación.` (hasta la Fase 7) · `Ir al mapa`.
+`Ir al mapa`.
 
 **Tiempos** (UI-12). `hace un momento` · `hace [5] min` · `hace [3] h` · `hace 1 día` · `hace [2] días` · `hace 1 mes` ·
 `hace [3] meses` · `hace 1 año` · `hace [2] años` · `[100] mm`.
@@ -466,6 +467,49 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Salud del sistema` · `Mostrando [10] de [438] puntos` ·
 `No se puede desactivar al último administrador activo.` ·
 `— pendiente, escribe aquí`.
+
+**Panel: cola, detalle y errores (Fase 7, DEC-065).** `Fuera de zona` · `sin núcleo` · `ninguno` ·
+`Tipo` · `Diámetro` · `Racor` · `Fallo` · `Descripción` · `Nota` · `Situación` · `Motivo` · `Activo` ·
+`Retirado` · `[valor] · sin cambios` · `Otra medida: [mm] mm` · `GPS en campo · ±[precision] m ·
+a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distancia] del GPS del móvil` ·
+`GPS poco preciso · ±[metros] m` · `La foto se hizo a [distancia] del pin` ·
+`Revisión anterior: [cuando]` · `este mes` · `Posible duplicado de [codigo] · a [distancia]` ·
+`Diámetro "otra medida": hay que fijar 70 o 100 mm` · `El punto cambió después de esta propuesta` ·
+`Con foto` · `Fija el diámetro en 70 o 100 mm para poder aprobar.` ·
+`la del pin propuesto (a [distancia])` · `la de [codigo] (existente)` · `desactualizada` ·
+`el punto ya no está activo` · `diámetro sin fijar` · `ya estaba resuelta` · `datos no válidos` ·
+`[n] aprobadas, cada una con su entrada en el Registro.` · `Quedan pendientes: [lista].` ·
+`[n] rechazadas. Cada autor verá el motivo.` · `Rechazar [n] propuestas con un motivo común` ·
+`Motivo que verán los autores` · `Ej.: la foto es del hidrante de al lado, HID-0087` ·
+`No menciones a otros voluntarios: el autor lo leerá tal cual.` · `Propuesto por [autor] · [hace] ·
+[nucleo]` · `Seleccionar [nombre]` · `Seleccionar todas` · `Historial: solo lectura` · `Filtrar:` ·
+`Filtrar por operación` · `Filtrar por núcleo` · `Estado de las propuestas` ·
+`Selecciona una propuesta de la lista.` · `Todavía no hay propuestas en este estado.` ·
+`Nada coincide con "[texto]".` · `No queda ninguna propuesta pendiente con ese filtro.` ·
+`Cargando…` · `Foto del voluntario · toca para ampliar` · `Esta propuesta no trae foto nueva.` ·
+`Corrige lo que haga falta y aprueba en un paso. Lo cambiado queda en el registro y lo ve el autor.` ·
+`[codigo] conserva su código, recibe la foto nueva y queda revisado hoy. Para cada campo que difiere, elige qué prevalece.` ·
+`Fusionar` · `Propuesta` · `[codigo] existente · a [distancia]` · `[valor] (existente)` ·
+`[valor] (propuesta)` · `Aprobada [codigo]. Consta en el registro; el autor lo verá en su móvil.` ·
+`Aprobada con correcciones [codigo].` · `Rechazada. El autor verá el motivo en su móvil.` ·
+`Fusionada con [codigo]: no se ha creado un punto nuevo y queda revisado hoy.` ·
+`✓ Aprobada por [quien] · [cuando]` · `✕ Rechazada por [quien] · [cuando]` ·
+`↩ Retirada por el autor · [cuando]` · `Motivo: "[texto]"` · `Con correcciones: [texto]` ·
+`Fusionada con [codigo]. No se creó un punto nuevo.` · `Código asignado: [codigo]` ·
+`Consta en el Registro. Solo lectura.` · `Pin propuesto y puntos aprobados alrededor` ·
+`Señales de fiabilidad` · `con avisos` · `Hidrantes Albolote · Panel de jefatura` ·
+`Direcciones deducidas con Nominatim · © OpenStreetMap contributors` · `datos de [hace]` ·
+`Esta propuesta ya no está pendiente: otra persona la ha resuelto. La lista se ha actualizado.` ·
+`El punto ya no está activo.` ·
+`El punto cambió mientras revisabas: vuelve a mirar el detalle y confirma.` ·
+`Sin motivo no se puede continuar.` · `Solo se fusionan puntos del mismo tipo.` ·
+`Solo se puede fusionar un alta.` ·
+`El resultado no cumple las reglas del punto: revisa los valores.` ·
+`Ha pasado el plazo de la papelera: ya no se puede restaurar.` · `El código son 6 cifras.` ·
+`Algún valor está fuera de rango: revisa los parámetros.` ·
+`Tu cuenta ya no tiene acceso de administrador.` ·
+`Esta acción aún no está configurada en el servidor.` ·
+`No se ha podido completar. Inténtalo de nuevo.`.
 
 **Tono.** Tuteo al voluntario, neutro en el panel. Botones en infinitivo. Sin exclamaciones salvo
 en el estado vacío de la cola. Nunca "defecto": es `No funciona`.
