@@ -18,7 +18,15 @@ export function hace(desde: Date | string | number, ahora: Date = new Date()): s
   return anos === 1 ? T.formato.haceUnAno : T.formato.haceAnos(anos);
 }
 
-const FECHA = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+// Zona horaria fija (TR-81): se guarda en UTC y se enseña en hora de Albolote, venga el móvil o el
+// ordenador de jefatura configurado como venga. Sin esto, algo enviado a las 00:30 se vería con la
+// fecha del día anterior en un equipo puesto en UTC.
+const FECHA = new Intl.DateTimeFormat('es-ES', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'Europe/Madrid',
+});
 
 /** Fecha absoluta corta: "20 ago 2026" (UI-12, junto a la relativa). */
 export function fechaCorta(f: Date | string | number): string {

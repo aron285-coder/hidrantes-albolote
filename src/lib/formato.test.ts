@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { distancia, fechaCorta, hace, megas } from './formato';
 
 describe('formato (UI-12)', () => {
@@ -30,5 +30,26 @@ describe('formato (UI-12)', () => {
   it('fecha corta y megas', () => {
     expect(fechaCorta('2026-08-20T10:00:00Z')).toBe('20 ago 2026');
     expect(megas(4_404_019)).toBe('4,2');
+  });
+
+  // TR-81: se guarda en UTC y se enseña en hora de Albolote. Lo enviado a las 00:30 es de ese día,
+  // aunque el equipo que lo mira esté puesto en UTC o en otro continente. El formateador se crea al
+  // importar el módulo, así que hay que reimportarlo con cada reloj para probarlo de verdad.
+  it('las fechas se leen en Europe/Madrid, no en la hora del aparato', async () => {
+    const verano = '2026-08-20T22:30:00Z'; // 21 ago, 00:30 en Albolote (CEST, +2)
+    const invierno = '2026-01-14T23:30:00Z'; // 15 ene, 00:30 en Albolote (CET, +1)
+    const tzOriginal = process.env.TZ;
+    try {
+      for (const tz of ['UTC', 'America/Los_Angeles', 'Europe/Madrid']) {
+        process.env.TZ = tz;
+        vi.resetModules();
+        const { fechaCorta: enEseReloj } = await import('./formato');
+        expect(enEseReloj(verano), tz).toBe('21 ago 2026');
+        expect(enEseReloj(invierno), tz).toBe('15 ene 2026');
+      }
+    } finally {
+      process.env.TZ = tzOriginal;
+      vi.resetModules();
+    }
   });
 });
