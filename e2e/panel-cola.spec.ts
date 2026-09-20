@@ -346,7 +346,7 @@ test('sin servidor: aviso en el panel y la lista explica el fallo (FR-168)', asy
   );
   await page.goto('/admin/cola');
   // postgrest-js reintenta solo las lecturas caídas con espera creciente: el fallo es firme a los ~7 s.
-  await expect(page.getByText(T.panel.sinServidor)).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText(T.panel.sinServidor, { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.sinServidor })).toBeVisible({
     timeout: 20_000,
   });
