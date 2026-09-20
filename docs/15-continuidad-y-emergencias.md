@@ -178,7 +178,10 @@ reenviarán solas.
 **Gravedad:** alta. **Tiempo:** el mismo día. **Quién:** quien maneje el ordenador.
 
 1. `npm run arranque -- --rotar «nombre-del-secreto»` regenera ese secreto en Supabase o GitHub y lo
-   vuelve a subir a GitHub Environments y a Cloudflare. Para rotar todo: `--rotar todo`.
+   vuelve a subir a GitHub Environments, a los secretos del repositorio (los que usan los trabajos
+   por calendario, DEC-071) y a Cloudflare. Se pueden pedir varios: `--rotar db,gpg`. Para rotar
+   todo: `--rotar todo` (ojo: cambia también las claves VAPID, y los móviles ya suscritos dejan de
+   recibir avisos hasta que vuelvan a abrir la aplicación).
 2. Redesplegar (`git commit --allow-empty -m "chore: rotación" && git push` en `develop`, luego PR a
    `main`).
 3. Si fue la `service_role key` de producción: revisar el Registro de las últimas 24 h.
