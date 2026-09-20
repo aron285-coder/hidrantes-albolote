@@ -52,6 +52,10 @@ Se usan **idénticos** en marcador, chip, leyenda y panel; no se retocan por con
 | Estado | Relleno | Fondo del chip | Texto del chip |
 |---|---|---|---|
 | bueno | `--verde-600` `#2E7D4F` | `--verde-100` `#DCEEE1` | `#2E7D4F` |
+
+Para **texto sobre `--verde-100`** (las etiquetas "bueno", "alta" y "resuelta") se usa
+`--verde-700` `#276B42`: el `--verde-600` sobre ese fondo se queda en 4,17:1 y TR-31 pide 4,5:1.
+El relleno del marcador sigue siendo el `--verde-600` de §4.2 (DEC-072).
 | regular | `--ambar-700` `#8A6408` | `--ambar-100` `#FBEDCB` | `#8A6408` |
 | malo | `--rojo-700` `#9C2B1E` | `--rojo-100` `#FBE0DB` | `#9C2B1E` |
 | no funciona | `--gris-700` `#40453D` | `--gris-100` `#E5E4DC` | `#40453D` |
@@ -88,8 +92,11 @@ Las capas en línea (OSM, PNOA, Catastro) no se recolorean.
 | badge pendientes | fondo `#3A2A1E`, texto `#F0A070` |
 | anillo del marcador seleccionado (`--anillo-seleccion`) | `#E6EAF0` (el `--marino-950` de claro no se ve sobre el mapa oscuro; DEC-062) |
 
-Los rellenos de estado y el naranja de acción **no cambian**. El borde blanco del marcador pasa a
-`#111826` para que siga separando del fondo.
+Los rellenos de estado y el naranja de acción **no cambian**, y el **borde del marcador sigue
+blanco** (`--borde-marcador`): es lo que lo separa del mapa. Un borde oscuro sobre el mapa oscuro se
+queda en 1,16:1 y el marcador se pierde; con el blanco, el borde contra el mapa da 13,6:1 y el
+relleno contra el borde, entre 5,0:1 y 9,8:1 (TR-31, medido en `src/lib/accesibilidad.test.ts`;
+DEC-072).
 
 ---
 

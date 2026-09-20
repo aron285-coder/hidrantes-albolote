@@ -117,7 +117,7 @@ export default function Voluntarios({ alCambiar }: { alCambiar: () => void }) {
                         <span
                           className={cn(
                             'rounded-chip px-2 py-0.5 font-semibold',
-                            tasa >= TASA_BAJA ? 'bg-verde-100 text-verde-600' : 'bg-rojo-100 text-rojo-700',
+                            tasa >= TASA_BAJA ? 'bg-verde-100 text-verde-700' : 'bg-rojo-100 text-rojo-700',
                           )}
                         >
                           {T.panelVoluntarios.porcentaje(tasa)}
@@ -190,7 +190,7 @@ export default function Voluntarios({ alCambiar }: { alCambiar: () => void }) {
                   <span
                     className={cn(
                       'rounded-chip px-2 py-0.5 font-semibold',
-                      i.estado === 'abierta' ? 'bg-ambar-100 text-ambar-700' : 'bg-verde-100 text-verde-600',
+                      i.estado === 'abierta' ? 'bg-ambar-100 text-ambar-700' : 'bg-verde-100 text-verde-700',
                     )}
                   >
                     {i.estado === 'abierta' ? T.panelVoluntarios.abierta : T.panelVoluntarios.resuelta}

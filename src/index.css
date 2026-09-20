@@ -21,6 +21,9 @@
 
   /* 06 §2.2 · estados (idénticos en claro y oscuro) */
   --verde-600: #2e7d4f;
+  /* Solo para texto sobre --verde-100: el 600 se queda en 4,17:1 y TR-31 pide 4,5:1 (DEC-072).
+     El relleno de los marcadores sigue siendo el 600, tal y como lo fija 06 §4.2. */
+  --verde-700: #276b42;
   --verde-100: #dceee1;
   --ambar-700: #8a6408;
   --ambar-100: #fbedcb;
@@ -31,6 +34,8 @@
 
   /* Superficies que cambian en oscuro (06 §2.4) */
   --barra: var(--marino-950);
+  /* Blanco en los dos modos: el borde es lo que separa el marcador del mapa (06 §4.2). Un borde
+     oscuro sobre el mapa oscuro se queda en 1,16:1 y el marcador desaparece (TR-31, DEC-072). */
   --borde-marcador: #ffffff;
   --anillo-seleccion: var(--marino-950);
   --control-mapa: #ffffff;
@@ -52,7 +57,6 @@
     --control-mapa: rgba(20, 29, 45, 0.94);
     --badge-pendiente-fondo: #3a2a1e;
     --badge-pendiente-texto: #f0a070;
-    --borde-marcador: #111826;
     --anillo-seleccion: #e6eaf0;
     color-scheme: dark;
   }
@@ -67,7 +71,6 @@
   --control-mapa: rgba(20, 29, 45, 0.94);
   --badge-pendiente-fondo: #3a2a1e;
   --badge-pendiente-texto: #f0a070;
-  --borde-marcador: #111826;
   --anillo-seleccion: #e6eaf0;
   color-scheme: dark;
 }
@@ -89,6 +92,7 @@
   --color-texto-suave: var(--texto-suave);
   --color-barra: var(--barra);
   --color-verde-600: var(--verde-600);
+  --color-verde-700: var(--verde-700);
   --color-verde-100: var(--verde-100);
   --color-ambar-700: var(--ambar-700);
   --color-ambar-100: var(--ambar-100);

@@ -152,7 +152,7 @@ export function CampoFoto({
         onChange={(e) => void elegida(e.target.files?.[0])}
       />
       {foto ? (
-        <div className="bg-verde-100 text-verde-600 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold">
+        <div className="bg-verde-100 text-verde-700 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold">
           <Check size={18} aria-hidden />
           <span className="flex-1">{T.formulario.fotoAnadida(Math.round(foto.blob.size / 1024))}</span>
           <button type="button" className="min-h-11 px-1 underline" onClick={() => entrada.current?.click()}>
