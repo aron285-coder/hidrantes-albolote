@@ -53,7 +53,6 @@ test.describe('presupuesto de rendimiento', () => {
     await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
     const tardado = Date.now() - empezado;
 
-    // eslint-disable-next-line no-console -- el número es el resultado de la prueba
     console.log(`TR-10 · primera pantalla útil con 3G: ${(tardado / 1000).toFixed(2)} s`);
     expect(tardado).toBeLessThan(3000);
   });
@@ -72,7 +71,6 @@ test.describe('presupuesto de rendimiento', () => {
     await expect(page.getByText(T.mapa.nPuntos(1000), { exact: false })).toBeVisible({ timeout: 30_000 });
     const tardado = Date.now() - empezado;
 
-    // eslint-disable-next-line no-console -- el número es el resultado de la prueba
     console.log(`TR-14 · 1.000 puntos sincronizados con 3G: ${(tardado / 1000).toFixed(2)} s`);
     expect(tardado).toBeLessThan(10_000);
   });
