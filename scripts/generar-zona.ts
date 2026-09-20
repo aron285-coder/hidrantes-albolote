@@ -14,7 +14,7 @@
 // (https://www.juntadeandalucia.es/institutodeestadisticaycartografia/dega/datos-espaciales-de-referencia-de-andalucia-dera),
 // capa de términos municipales, códigos INE 18003 y 18037.
 
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { RAIZ, abortar, ejecutarScript, log } from './lib/comun.ts';
 import {
@@ -74,6 +74,16 @@ function escribir(nombre: string, contenido: string): void {
   log.ok(`datos/${nombre} (${(Buffer.byteLength(contenido) / 1024).toFixed(1)} kB)`);
 }
 
+/**
+ * Lo mismo que hay en datos/, mirando solo la geometría: la versión es la fecha del día en que se
+ * regenera y cambiaría siempre. Sin esto, cada Mantenimiento abriría un PR cuyo único cambio es una
+ * fecha, y jefatura acabaría fusionando ruido sin mirarlo (DEC-070).
+ */
+export function mismaGeometria(nuevo: string, anterior: string): boolean {
+  const sinFecha = (t: string) => t.replace(/"version":"\d{4}-\d{2}-\d{2}"/g, '"version":"-"');
+  return sinFecha(nuevo) === sinFecha(anterior);
+}
+
 /** GeoJSON con una Feature por línea: compacto y con diffs legibles al regenerar. */
 export function serializar(fc: { type: string; features?: unknown[] }): string {
   if (!fc.features) return `${JSON.stringify(fc)}\n`;
@@ -123,9 +133,23 @@ async function principal(): Promise<void> {
   if (z.nucleos.features.length < 5)
     abortar(`Solo ${z.nucleos.features.length} núcleos: los datos de OSM parecen incompletos.`);
 
-  escribir('limite-municipal.geojson', serializar(z.limites));
-  escribir('zona-cobertura.geojson', serializar({ type: 'FeatureCollection', features: [z.zona] }));
-  escribir('nucleos.geojson', serializar(z.nucleos));
+  const geojson: Record<string, string> = {
+    'limite-municipal.geojson': serializar(z.limites),
+    'zona-cobertura.geojson': serializar({ type: 'FeatureCollection', features: [z.zona] }),
+    'nucleos.geojson': serializar(z.nucleos),
+  };
+  const iguales = Object.entries(geojson).every(([nombre, contenido]) => {
+    const ruta = path.join(RAIZ, 'datos', nombre);
+    return existsSync(ruta) && mismaGeometria(contenido, readFileSync(ruta, 'utf8'));
+  });
+  if (iguales) {
+    // La previsualización no se committea (.gitignore), así que se reescribe igualmente.
+    escribir('zona-cobertura.html', htmlPrevisualizacion(z, version));
+    log.ok('La zona no ha cambiado en OpenStreetMap: datos/ se queda como está.');
+    return;
+  }
+
+  for (const [nombre, contenido] of Object.entries(geojson)) escribir(nombre, contenido);
   escribir(
     'meta.json',
     `${JSON.stringify(

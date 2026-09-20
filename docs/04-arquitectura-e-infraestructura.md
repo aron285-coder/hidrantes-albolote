@@ -288,7 +288,9 @@ simplifica, une, aplica un margen de 400 m y escribe `datos/zona-cobertura.geojs
 `datos/zona-cobertura.html`. Los GeoJSON se committean; el build nunca depende de Overpass.
 `scripts/cargar-zona.ts` los carga en `hidrantes.limite_municipal` y `hidrantes.nucleos` con `upsert`
 idempotente desde CI, tras las migraciones. No van por migración: regenerar el límite no debe generar
-una migración nueva cada vez.
+una migración nueva cada vez. Si la geometría recién consultada es la misma que la committeada,
+`generar-zona.ts` no escribe nada: la `version` es la fecha del día y, sin esa comprobación, cada
+Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 
 ---
 
