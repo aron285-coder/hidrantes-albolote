@@ -29,6 +29,7 @@
     "guarda-produccion": "tsx scripts/guarda-produccion.ts",
     "zona": "tsx scripts/generar-zona.ts",
     "cargar-zona": "tsx scripts/cargar-zona.ts",
+    "respaldo-fotos": "tsx scripts/respaldo-fotos.ts",
     "asegurar-propietario": "tsx scripts/asegurar-propietario.ts",
     "probar-functions": "tsx scripts/probar-functions.ts",
     "functions:dev": "wrangler pages dev dist --port 8788 --ip 127.0.0.1 --compatibility-date=2026-09-01",

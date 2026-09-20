@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.9 — 20 de septiembre de 2026 (DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.10 — 20 de septiembre de 2026 (DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,33 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-071 · Los secretos de la automatización viven en el repositorio, no en el entorno
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** `respaldo.yml` (Fase 8) necesita la cadena de la base de datos de producción y la
+  clave de servicio. Hoy esos secretos están en el *environment* `production`, que tiene
+  `required_reviewers`: cualquier job que lo declare espera a que una persona apruebe la ejecución.
+  Eso es exactamente lo que queremos para desplegar, y exactamente lo que **no** puede tener un
+  respaldo semanal de madrugada: un respaldo que espera a que alguien pulse un botón no es un
+  respaldo, y el proyecto se sostiene sobre la idea de que nadie tiene que mirarlo (TR-50).
+- **Decisión:** los trabajos automáticos (respaldo, y más adelante purga de fotos y vigilancia) usan
+  **secretos de repositorio** con sufijo de entorno —`SUPABASE_DB_URL_PROD`,
+  `SUPABASE_SERVICE_ROLE_KEY_PROD`, `GPG_PUBLIC_KEY`—, y los *environments* siguen guardando los del
+  despliegue con su aprobación. El workflow comprueba que están y, si falta alguno, falla diciendo
+  en el resumen los tres `gh secret set` exactos, en vez de intentarlo y dejar un respaldo a medias.
+- **Descartado:**
+  - *Quitarle los revisores a `production`*: es la única barrera entre `develop` y la producción.
+  - *Un environment nuevo sin revisores con los mismos valores*: la misma exposición, con un sitio
+    más donde mirar cuando algo no cuadre.
+  - *Respaldar desde `pg_cron`*: no puede escribir archivos ni cifrarlos.
+- **Riesgo aceptado:** un secreto de repositorio lo puede leer cualquier workflow del repositorio.
+  El repositorio es público (DEC-053), pero GitHub no entrega secretos a los PR que vienen de un
+  fork, y los workflows que los usan solo se disparan por calendario o a mano. Queda como uno de los
+  puntos a mirar en las pruebas de intrusión (TR-40, tarea F8.8).
+- **Consecuencias:** tres `gh secret set` una sola vez, con valores que el desarrollador ya tiene.
+  Hasta entonces el respaldo falla a propósito y lo dice; `vigilancia.yml` avisará de que no hay
+  respaldo reciente.
+- **Afecta a:** 04 §9, §10; 15 §5.3; `.github/workflows/respaldo.yml`.
 
 ### DEC-070 · Regenerar la zona no abre un PR si solo cambia la fecha
 - **Fecha:** 20 sep 2026 · **Estado:** vigente
