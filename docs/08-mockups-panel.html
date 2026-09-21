@@ -20,6 +20,9 @@
     --oro-100:#F3E6C4;
     --verde-600:#2E7D4F;
     --verde-100:#DCEEE1;
+    --naranja-estado-600:#A85300;
+    --naranja-estado-700:#8F4505;
+    --naranja-estado-100:#FDE8D6;
     --ambar-700:#8A6408;
     --ambar-100:#FBEDCB;
     --rojo-700:#9C2B1E;
@@ -84,13 +87,13 @@
 
   .chip{display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:3px 11px; font-size:13px; font-weight:600;}
   .chip-verde{background:var(--verde-100); color:var(--verde-600);}
-  .chip-ambar{background:var(--ambar-100); color:var(--ambar-700);}
+  .chip-ambar{background:var(--naranja-estado-100); color:var(--naranja-estado-700);}
   .chip-rojo{background:var(--rojo-100); color:var(--rojo-700);}
   .chip-gris{background:var(--gris-100); color:var(--gris-700);}
   .chip-neutro{background:#EDEEE8; color:var(--texto-suave);}
   .chip-azul{background:#DCE6F2; color:var(--marino-700);}
   .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
-  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--ambar-700);}
+  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--naranja-estado-600);}
   .dot-rojo{background:var(--rojo-700);} .dot-gris{background:var(--gris-700);}
 
   .flujo{display:flex; align-items:flex-start; margin:26px 0 8px; flex-wrap:wrap;}
@@ -588,7 +591,7 @@
   var ADMIN='jefatura@albolote-pc.es', HOY=new Date(2026,8,17,10,30);
   var OPS={alta:['Alta','lbl-alta'],revision:['Revisión','lbl-rev'],estado:['Estado','lbl-estado'],datos:['Datos','lbl-datos'],ubicacion:['Ubicación','lbl-datos'],retirada:['Retirada','lbl-ret']};
   var NOM={bueno:'Bueno',regular:'Regular',malo:'Malo',no_funciona:'No funciona'}, CH={bueno:'chip-verde',regular:'chip-ambar',malo:'chip-rojo',no_funciona:'chip-gris'}, DOT={bueno:'dot-verde',regular:'dot-ambar',malo:'dot-rojo',no_funciona:'dot-gris'};
-  var COL={bueno:'#2E7D4F',regular:'#8A6408',malo:'#9C2B1E',no_funciona:'#40453D'};
+  var COL={bueno:'#2E7D4F',regular:'#A85300',malo:'#9C2B1E',no_funciona:'#40453D'};
   var config={meses_revision:12,radio_duplicado_m:25,dias_papelera:30,buffer_zona_m:400,escala_radios:'11 · 9 · 7 · 5,5 · 5',max_subidas_dispositivo_dia:40,codigo:'482917',codigo_cambiado:'2 sep 2026',codigo_por:'jefe@albolote-pc.es',dispositivos:61,ultimo_respaldo:'hace 2 días · restaurado con éxito el 3 sep',storage_mb:112,version_zona:'14 jul 2026',version_mapabase:'jul 2026 · 12 MB'};
   var nucleos=['Albolote','El Chaparral','Pol. Ind. Juncaril','Cortijo del Aire','Parque del Cubillas','Pretel','Loma Verde','Calicasas'];
   var d=function(dias){ return new Date(HOY.getTime()-dias*86400000) };

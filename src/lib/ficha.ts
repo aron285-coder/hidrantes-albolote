@@ -42,7 +42,7 @@ export const nombreRacor = (r: string) =>
 /** Chip de estado (06 §5): fondo y texto de su color. */
 export const claseChip: Record<Caudal, string> = {
   bueno: 'bg-verde-100 text-verde-700',
-  regular: 'bg-ambar-100 text-ambar-700',
+  regular: 'bg-naranja-estado-100 text-naranja-estado-700',
   malo: 'bg-rojo-100 text-rojo-700',
   no_funciona: 'bg-gris-100 text-gris-700',
 };

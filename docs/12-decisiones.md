@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.13 — 21 de septiembre de 2026 (DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.15 — 21 de septiembre de 2026 (DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,25 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-076 · El estado "regular" es naranja, no ámbar
+- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Contexto:** en la prueba con un Android real, el desarrollador pidió que **regular se vea
+  naranja**. El token de 06 §2.2 era `--ambar-700` `#8A6408`, que en pantalla, y más a pleno sol,
+  se lee marrón mostaza; junto al rojo de "malo" no se distingue de un vistazo, que es justo lo que
+  la simbología tiene que resolver (06 §1).
+- **Decisión:** `regular` pasa a **`--naranja-estado-600` `#A85300`** en el relleno del marcador, la
+  leyenda, la lista y el panel; el chip usa `--naranja-estado-100` `#FDE8D6` de fondo y
+  `--naranja-estado-700` `#8F4505` de texto (la misma separación relleno/texto que el verde, DEC-072).
+- **Por qué ese naranja y no uno más vivo:** el relleno tiene que llegar a 3:1 contra **todas** las
+  superficies del mapa claro, incluidas las más oscuras (árboles `#BACFA8`, agua `#B9CBD6`), donde el
+  borde blanco no ayuda. `#A85300` da 3,22:1 ahí, exactamente el mismo margen que tenía el ámbar;
+  `#CC6600` se queda en 2,30:1 y `#E8710A`, en 2,62:1 sobre el fondo claro. Es decir: el claror lo
+  fija TR-31 y lo único que cambia es el tono, que es lo que se pedía.
+- **Qué no cambia:** el `--ambar-*` sigue siendo el color de **aviso** (señales de fiabilidad,
+  diferencias en el diff, propuesta pendiente, banda de almacenamiento). No es caudal.
+- **Afecta a:** `src/index.css`, `src/lib/simbologia.ts`, `src/lib/ficha.ts`, 06 §2.2 y los
+  prototipos 06/07/08 y `requisitos-hidrantes.html`; `src/lib/accesibilidad.test.ts` lo mide.
 
 ### DEC-074 · La instalabilidad la comprueba un e2e, no Lighthouse
 - **Fecha:** 21 sep 2026 · **Estado:** vigente

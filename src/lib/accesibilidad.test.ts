@@ -41,7 +41,12 @@ export function contraste(a: string, b: string): number {
   return (x + 0.05) / (y + 0.05);
 }
 
-const ESTADOS = { bueno: '--verde-600', regular: '--ambar-700', malo: '--rojo-700', no_funciona: '--gris-700' };
+const ESTADOS = {
+  bueno: '--verde-600',
+  regular: '--naranja-estado-600',
+  malo: '--rojo-700',
+  no_funciona: '--gris-700',
+};
 
 describe('la fórmula, con los casos que todo el mundo conoce', () => {
   it('negro sobre blanco son 21:1 y un color consigo mismo, 1:1', () => {
@@ -115,7 +120,7 @@ for (const modo of ['claro', 'oscuro'] as const) {
     it('las etiquetas de estado se leen sobre su propio fondo claro', () => {
       for (const [texto, fondo] of [
         ['--verde-700', '--verde-100'],
-        ['--ambar-700', '--ambar-100'],
+        ['--naranja-estado-700', '--naranja-estado-100'],
         ['--rojo-700', '--rojo-100'],
         ['--gris-700', '--gris-100'],
       ]) {
