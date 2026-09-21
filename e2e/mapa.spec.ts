@@ -112,3 +112,55 @@ test.describe('sin cobertura (criterio de salida)', () => {
     await context.setOffline(false);
   });
 });
+
+test.describe('zoom (#136)', () => {
+  // El ZOOM_MAX de src/lib/capas.ts. Aquí va el número y no el import porque este archivo se compila
+  // con la resolución de Node y capas.ts importa sin extensión; capas.test.ts fija que sigan siendo
+  // el mismo 21.
+  const TOPE = 21;
+  // Una tesela de 1×1 en JPEG: lo que se comprueba es que la capa sigue puesta al tope de zoom, no
+  // lo que dibuja el IGN. Así el test no depende de www.ign.es.
+  const TESELA = Buffer.from(
+    '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP//////////////////////////////////////////////////////////' +
+      '////////////////////////2wBDAf//////////////////////////////////////////////////////////' +
+      '///////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEA' +
+      'AAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhED' +
+      'EQA/AKAAAf/Z',
+    'base64',
+  );
+
+  async function conSatelite(page: Page) {
+    await page.route('https://www.ign.es/**', (r) => r.fulfill({ contentType: 'image/jpeg', body: TESELA }));
+    await abrir(page);
+    await page.getByRole('button', { name: T.mapa.capas }).click();
+    await page.getByRole('radio', { name: new RegExp(T.mapa.satelitePnoa.replace(/[()]/g, '\\$&')) }).click();
+    await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
+  }
+
+  const zoomGuardado = (page: Page) =>
+    page.evaluate(() => (JSON.parse(localStorage.getItem('hidrantes.vista') ?? 'null')?.zoom ?? 0) as number);
+
+  test('se puede acercar hasta el tope y el satélite no se queda en blanco', async ({ page }) => {
+    await conSatelite(page);
+    const acercar = page.getByRole('button', { name: T.mapa.acercar });
+    // Se pulsa dentro del poll porque Leaflet ignora los clics mientras dura su animación de zoom.
+    await expect
+      .poll(
+        async () => {
+          await acercar.click();
+          return zoomGuardado(page);
+        },
+        { timeout: 20_000, intervals: [250] },
+      )
+      .toBe(TOPE);
+    // Y al tope sigue habiendo teselas: la capa no ha desaparecido (que era el fondo blanco).
+    const teselas = page.locator('img.leaflet-tile');
+    await expect.poll(() => teselas.count()).toBeGreaterThan(0);
+    // Las pide del último nivel que el IGN tiene (z20) y las amplía: a z21 responde 400.
+    await expect(teselas.first()).toHaveAttribute('src', /tilematrix=20&/);
+    // Más allá del tope no se pasa, por mucho que se insista.
+    await acercar.click();
+    await acercar.click();
+    expect(await zoomGuardado(page)).toBe(TOPE);
+  });
+});

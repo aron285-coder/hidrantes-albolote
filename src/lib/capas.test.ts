@@ -2,7 +2,18 @@
 // licencias de OSM, el IGN y el Catastro obligan a citar la fuente de lo que se está viendo.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ATRIBUCION_BASE, CAPAS, CATASTRO, NOMBRE_CAPA, OSM, PNOA, atribucion, capaGuardada, enLinea } from './capas';
+import {
+  ATRIBUCION_BASE,
+  CAPAS,
+  CATASTRO,
+  NOMBRE_CAPA,
+  OSM,
+  PNOA,
+  ZOOM_MAX,
+  atribucion,
+  capaGuardada,
+  enLinea,
+} from './capas';
 import { escribir } from './almacen';
 import { almacenEnMemoria } from './pruebas';
 
@@ -45,5 +56,31 @@ describe('capas (FR-63)', () => {
       expect(url.startsWith('https://')).toBe(true);
       expect(url).not.toMatch(/api[_-]?key|token|apikey/i);
     }
+  });
+});
+
+describe('tope de zoom (#136)', () => {
+  // El fallo que esto evita: si una capa declara menos zoom que el mapa, Leaflet la quita entera al
+  // pasar de su tope y la pantalla se queda en blanco. Con maxNativeZoom amplía la última tesela.
+  it('el tope es z21, el mismo número que repite el e2e', () => {
+    expect(ZOOM_MAX).toBe(21);
+  });
+
+  it('las capas de teselas llegan hasta el tope del mapa, ampliando la última tesela', () => {
+    for (const capa of [OSM, PNOA]) {
+      expect(capa.opciones.maxZoom).toBe(ZOOM_MAX);
+      expect(capa.opciones.maxNativeZoom).toBeLessThan(ZOOM_MAX);
+    }
+  });
+
+  it('cada una declara hasta donde de verdad tiene teselas', () => {
+    // OSM publica hasta z19; el WMTS del IGN sirve hasta z20 y a partir de z21 responde 400.
+    expect(OSM.opciones.maxNativeZoom).toBe(19);
+    expect(PNOA.opciones.maxNativeZoom).toBe(20);
+  });
+
+  it('el catastro es WMS: dibuja a cualquier escala y no necesita tope propio', () => {
+    expect(CATASTRO.opciones.maxZoom).toBe(ZOOM_MAX);
+    expect(CATASTRO.opciones).not.toHaveProperty('maxNativeZoom');
   });
 });

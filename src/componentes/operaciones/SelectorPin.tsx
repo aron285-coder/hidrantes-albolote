@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { capasDe } from '../mapa/capas-leaflet';
 import { ICONO_PIN } from '../mapa/iconos-leaflet';
 import { useModo, usePosicion } from '@/hooks/estado';
-import { capaGuardada } from '@/lib/capas';
+import { ZOOM_MAX, capaGuardada } from '@/lib/capas';
 import type { Coordenadas } from '@/lib/propuestas';
 import { type Posicion, activarPosicion } from '@/lib/posicion';
 import { T } from '@/lib/textos';
@@ -53,7 +53,12 @@ export function SelectorPin({
   useEffect(() => {
     if (!contenedor.current) return;
     const inicio = pin ?? original ?? (gps ? { lat: gps.lat, lng: gps.lng } : { lat: 37.2308, lng: -3.6569 });
-    const m = L.map(contenedor.current, { zoomControl: false, attributionControl: false, minZoom: 12, maxZoom: 20 });
+    const m = L.map(contenedor.current, {
+      zoomControl: false,
+      attributionControl: false,
+      minZoom: 12,
+      maxZoom: ZOOM_MAX,
+    });
     m.setView([inicio.lat, inicio.lng], 18);
     extras.current = L.layerGroup().addTo(m);
     const mk = L.marker([inicio.lat, inicio.lng], {

@@ -181,6 +181,12 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 
 Sin agrupación en racimos: destruiría la semántica del tamaño (FR-64).
 
+**Hasta dónde se acerca:** z10 a **z21**, en el mapa del voluntario y en el del alta. Ninguna capa
+tiene teselas tan abajo, así que cada una declara hasta dónde llegan las suyas (OSM z19, PNOA z20) y
+se amplía la última; el Catastro es WMS y dibuja a cualquier escala. Si una capa declarara menos
+zoom que el mapa, Leaflet la quitaría entera al pasar de su tope y la pantalla se quedaría en blanco
+(DEC-075).
+
 ### 4.5 Leyenda
 
 Siempre visible en el mapa (móvil: esquina inferior izquierda, dos columnas, 7,5–8 px; escritorio:
