@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.15 — 21 de septiembre de 2026 (DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.16 — 21 de septiembre de 2026 (DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,30 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-077 · Mantener pulsado el mapa empieza un alta ahí mismo
+- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Contexto:** en la prueba con un Android real se pidió poder dar de alta un punto **manteniendo
+  pulsado el mapa**, como en Google Maps. Hasta ahora el alta empezaba solo por el botón **+**
+  (FL-03) y el pin nacía en el GPS, así que junto a un hidrante al que no se puede uno acercar —una
+  mediana, una parcela cerrada— había que mover el pin a mano después.
+- **Decisión:** medio segundo de pulsación sobre el mapa del voluntario abre *Nuevo punto* con el pin
+  en ese sitio y `origen_ubicacion = 'manual'` (FR-13). **Abre directo, sin preguntar**: el
+  formulario ya enseña el pin, se puede mover y se puede cancelar, así que una confirmación previa
+  solo sería un toque de más (UI-05). Las coordenadas viajan en la ruta
+  (`/proponer/alta?lat=&lng=`) con **seis decimales**, los ~10 cm de TR-61; no son dato personal
+  (11 §1), son la ubicación de un hidrante.
+- **Detalles del gesto:** cancela si el dedo se mueve más de 12 px (eso es arrastrar el mapa), si
+  aparece un segundo dedo (eso es un pellizco para el zoom) o si el propio mapa empieza a moverse o
+  a hacer zoom. Sobre un marcador no dispara: ahí manda abrir la ficha. Con ratón el gesto es el
+  **clic derecho**, y se le quita el menú del navegador encima del mapa.
+- **Por qué un detector propio y no el `contextmenu` del navegador:** en Android no todos los
+  navegadores lo lanzan igual sobre un `div` con la selección desactivada, que es lo que hace
+  Leaflet. La máquina de estados vive en `src/lib/pulsacion-larga.ts`, sin DOM, y por eso se puede
+  probar entera; el `contextmenu` se usa solo para el ratón.
+- **Afecta a:** 01 FR-50, 02 FL-03, `src/lib/pulsacion-larga.ts`, `src/lib/propuestas.ts`
+  (`rutaAltaEn`, `coordenadasDe`), `src/componentes/mapa/MapaLeaflet.tsx`, `src/paginas/Mapa.tsx`,
+  `src/paginas/Proponer.tsx`.
 
 ### DEC-076 · El estado "regular" es naranja, no ámbar
 - **Fecha:** 21 sep 2026 · **Estado:** vigente

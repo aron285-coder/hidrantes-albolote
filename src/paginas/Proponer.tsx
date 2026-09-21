@@ -16,8 +16,10 @@ import { activarPosicion, posicionActual } from '@/lib/posicion';
 import {
   type Formulario,
   type MotivoRapido,
+  type Coordenadas,
   type Operacion,
   argumentos,
+  coordenadasDe,
   necesitaFoto,
   queFalta,
 } from '@/lib/propuestas';
@@ -48,10 +50,17 @@ export function Proponer() {
   const operacion = OPERACIONES.includes(op as Operacion) ? (op as Operacion) : null;
   const { puntos } = usePuntos();
   const punto = useMemo(() => puntos.find((p) => p.id === params.get('p')) ?? null, [puntos, params]);
+  // Alta empezada con una pulsación larga sobre el mapa: el pin nace donde se pulsó (DEC-077).
+  const pinInicial = useMemo(() => coordenadasDe(params.get('lat'), params.get('lng')), [params]);
   if (!operacion || (operacion !== 'alta' && !punto)) return <Navigate to="/" replace />;
   return (
     <LimiteError>
-      <FormularioOperacion key={`${operacion}-${punto?.id}`} operacion={operacion} punto={punto} />
+      <FormularioOperacion
+        key={`${operacion}-${punto?.id}`}
+        operacion={operacion}
+        punto={punto}
+        pinInicial={pinInicial}
+      />
     </LimiteError>
   );
 }
@@ -59,9 +68,11 @@ export function Proponer() {
 function FormularioOperacion({
   operacion,
   punto,
+  pinInicial,
 }: {
   operacion: Operacion;
   punto: ReturnType<typeof usePuntos>['puntos'][number] | null;
+  pinInicial: Coordenadas | null;
 }) {
   const navegar = useNavigate();
   const acceso = useAcceso();
@@ -74,7 +85,9 @@ function FormularioOperacion({
   const [f, setF] = useState<Formulario>(() => {
     return {
       operacion,
-      pin: operacion === 'ubicacion' && punto ? { lat: punto.lat, lng: punto.lng } : undefined,
+      pin: operacion === 'ubicacion' && punto ? { lat: punto.lat, lng: punto.lng } : (pinInicial ?? undefined),
+      // Con el pin puesto a mano el GPS ya no manda: es una ubicación manual (FR-13).
+      pinMovido: operacion === 'alta' && !!pinInicial,
       tipo: operacion === 'datos' ? punto?.tipo : undefined,
     };
   });

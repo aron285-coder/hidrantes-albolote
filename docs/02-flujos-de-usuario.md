@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -52,9 +52,10 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 
 ### FL-03 · Alta de un punto nuevo
 
-**Actor:** voluntario, junto al punto. **Parte de:** *Mapa*, botón **+**.
+**Actor:** voluntario, junto al punto. **Parte de:** *Mapa*, botón **+** o pulsación larga sobre el mapa.
 
 1. Pulsa **+**. → *Nuevo punto*. El mapa muestra la posición GPS con su margen de error y un pin naranja arrastrable. (FR-50)
+   - Atajo: **mantener pulsado** un sitio del mapa (clic derecho en ordenador) abre *Nuevo punto* con el pin ya puesto ahí, sin pasar por el GPS. Sobre un marcador no hace nada: ahí manda la ficha. (FR-50, DEC-077)
 2. Ajusta el pin si el GPS no acierta. El sistema guardará origen, precisión y distancia. (FR-13)
 3. Si el pin queda fuera de la zona: aviso "esto queda fuera de la zona habitual, ¿seguro?". Puede continuar. (FR-55)
 4. Elige el **tipo**. (FR-11)

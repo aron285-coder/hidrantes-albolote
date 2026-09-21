@@ -164,3 +164,63 @@ test.describe('zoom (#136)', () => {
     expect(await zoomGuardado(page)).toBe(TOPE);
   });
 });
+
+test.describe('alta con pulsación larga (#138)', () => {
+  /** Lo que hace un dedo que se queda quieto: pointerdown, esperar, pointerup. */
+  async function mantenerPulsado(page: Page, x: number, y: number, ms = 700) {
+    await page.locator('[data-testid="mapa"]').dispatchEvent('pointerdown', {
+      clientX: x,
+      clientY: y,
+      pointerType: 'touch',
+      isPrimary: true,
+    });
+    await page.waitForTimeout(ms);
+    // Si la pulsación ya ha abierto el alta, el mapa ya no está: levantar el dedo sobra.
+    await page
+      .locator('[data-testid="mapa"]')
+      .dispatchEvent('pointerup', { clientX: x, clientY: y }, { timeout: 1000 })
+      .catch(() => {});
+  }
+
+  test('mantener pulsado el mapa abre el alta con el pin ahí mismo', async ({ page }) => {
+    await abrir(page);
+    const caja = (await page.locator('[data-testid="mapa"]').boundingBox())!;
+    await mantenerPulsado(page, caja.x + caja.width / 2, caja.y + caja.height / 2);
+
+    await expect(page).toHaveURL(/\/proponer\/alta\?lat=-?\d+\.\d{6}&lng=-?\d+\.\d{6}/);
+    await expect(page.getByTestId('selector-pin')).toBeVisible();
+    // Y el punto es el del centro del mapa, que es donde se pulsó.
+    const url = new URL(page.url());
+    expect(Number(url.searchParams.get('lat'))).toBeGreaterThan(37);
+    expect(Number(url.searchParams.get('lng'))).toBeLessThan(-3);
+  });
+
+  test('un toque corto no abre nada: eso es mirar el mapa', async ({ page }) => {
+    await abrir(page);
+    const caja = (await page.locator('[data-testid="mapa"]').boundingBox())!;
+    await mantenerPulsado(page, caja.x + caja.width / 2, caja.y + caja.height / 2, 150);
+    await page.waitForTimeout(600);
+    await expect(page).toHaveURL(/\/$|\/\?/);
+  });
+
+  test('sobre un marcador no: ahí lo que toca es abrir la ficha', async ({ page }) => {
+    await abrir(page);
+    const marcador = page.locator('.marcador').first();
+    const caja = (await marcador.boundingBox())!;
+    await marcador.dispatchEvent('pointerdown', {
+      clientX: caja.x + caja.width / 2,
+      clientY: caja.y + caja.height / 2,
+      pointerType: 'touch',
+      isPrimary: true,
+    });
+    await page.waitForTimeout(900);
+    await expect(page).not.toHaveURL(/\/proponer/);
+  });
+
+  test('en escritorio, el clic derecho hace lo mismo', async ({ page }) => {
+    await abrir(page);
+    const caja = (await page.locator('[data-testid="mapa"]').boundingBox())!;
+    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2, { button: 'right' });
+    await expect(page).toHaveURL(/\/proponer\/alta\?lat=/);
+  });
+});
