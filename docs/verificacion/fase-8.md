@@ -117,6 +117,7 @@ conviene `npx supabase stop --no-backup && npx supabase start`.
 - **Sincronización mensual de fotos**: el bucket de producción está vacío mientras no haya piloto, así
   que el camino se ha probado con el script (`respaldo-fotos.ts`, con sus tests) pero todavía no ha
   copiado ninguna foto de verdad. Ocurrirá el primer domingo de mes tras el piloto.
-- **La clave privada del respaldo** la guarda el desarrollador fuera del repositorio (15 §5.3). Sin
-  ella, un respaldo cifrado no se puede restaurar: es el único secreto que no se puede rotar sin
-  perder los respaldos anteriores.
+- **La clave privada del respaldo**: **guardada el 21 sep 2026** por el desarrollador, fuera del
+  repositorio (15 §5.3), y borrada del directorio temporal donde se generó. Sin ella un respaldo
+  cifrado no se puede restaurar: es el único secreto que no se puede rotar sin perder los respaldos
+  anteriores. La pública sigue como secreto del repositorio y su huella, en `docs/entornos.md`.
