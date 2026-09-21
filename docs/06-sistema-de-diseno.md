@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.5 — 21 de septiembre de 2026: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.6 — 21 de septiembre de 2026: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -173,6 +173,12 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 | z ≥ 16 | todos |
 
 Sin agrupación en racimos: destruiría la semántica del tamaño (FR-64).
+
+**Hasta dónde se acerca:** z10 a **z21**, en el mapa del voluntario y en el del alta. Ninguna capa
+tiene teselas tan abajo, así que cada una declara hasta dónde llegan las suyas (OSM z19, PNOA z20) y
+se amplía la última; el Catastro es WMS y dibuja a cualquier escala. Si una capa declarara menos
+zoom que el mapa, Leaflet la quitaría entera al pasar de su tope y la pantalla se quedaría en blanco
+(DEC-075).
 
 ### 4.5 Leyenda
 
