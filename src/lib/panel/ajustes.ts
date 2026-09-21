@@ -177,6 +177,9 @@ export interface Salud {
   storage_bytes: number | null;
   version_zona: string | null;
   version_mapabase: string | null;
+  /** Cuándo corrió vigilancia.yml y si fue bien (TR-102). */
+  ultima_vigilancia: string | null;
+  vigilancia_ok: boolean | null;
   dispositivos_activos: number;
 }
 

@@ -1,0 +1,116 @@
+# Vigilancia diaria (TR-102, 04 §9): comprueba que la aplicación responde, que una RPC de lectura
+# responde, que el último respaldo tiene menos de ocho días y que no se acumulan avisos push sin
+# enviar. Si algo falla, abre una issue con la etiqueta `vigilancia`; si todo va bien y había una
+# abierta, la cierra. Salud del sistema enseña cuándo corrió y cómo fue.
+#
+# Sin servicio externo y sin `environment` (DEC-071): usa las variables públicas del repositorio y,
+# para lo que necesita la base de datos, el secreto de repositorio del respaldo.
+name: Vigilancia
+
+on:
+  schedule:
+    - cron: '41 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: vigilancia
+  cancel-in-progress: false
+
+jobs:
+  mirar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+
+      - name: Comprobar
+        id: mirar
+        env:
+          APP: https://hidrantes-albolote.pages.dev
+          APP_STAGING: https://hidrantes-albolote-staging.pages.dev
+          SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY_PROD }}
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -uo pipefail
+          problemas=()
+
+          # 1. La aplicación responde y sirve HTML, no una página de error de Cloudflare.
+          for url in "$APP" "$APP_STAGING"; do
+            codigo=$(curl -s -o cuerpo.html -w '%{http_code}' --max-time 20 "$url" || echo 000)
+            if [ "$codigo" != "200" ]; then
+              problemas+=("$url responde $codigo")
+            elif ! grep -q '<div id="raiz"' cuerpo.html; then
+              problemas+=("$url responde 200 pero no sirve la aplicación")
+            fi
+          done
+
+          # 2. Una RPC de lectura responde. anon no puede leer hidrantes.migraciones_aplicadas y
+          #    Postgres contesta 42501: esa respuesta prueba que la petición llegó a la base de datos.
+          respuesta=$(curl -s --max-time 20 -X POST "$SUPABASE_URL/rest/v1/rpc/fn_listar_puntos" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H 'Content-Type: application/json' \
+            -H 'Accept-Profile: hidrantes' -H 'Content-Profile: hidrantes' \
+            -d '{"token": "vigilancia", "desde": null}' || echo '')
+          if ! printf '%s' "$respuesta" | grep -qE 'TOKEN_INVALIDO|puntos'; then
+            problemas+=("la RPC de lectura no responde como debe: ${respuesta:0:120}")
+          fi
+
+          # 3. Respaldo reciente y avisos push sin enviar (necesitan la base de datos).
+          if [ -n "${BD:-}" ]; then
+            dias=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c \
+              "select coalesce(extract(day from now() - (hidrantes.fn_config('ultimo_respaldo','null') #>> '{}')::timestamptz)::int, 999);" 2>/dev/null || echo error)
+            if [ "$dias" = "error" ]; then
+              problemas+=("no se puede consultar la base de datos")
+            elif [ "$dias" -gt 8 ]; then
+              problemas+=("el último respaldo tiene $dias días (más de 8)")
+            fi
+            pendientes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c \
+              "select count(*) from hidrantes.notificaciones where enviada_en is null and error is null and creada_en < now() - interval '2 hours';" 2>/dev/null || echo 0)
+            if [ "${pendientes:-0}" -gt 0 ]; then
+              problemas+=("$pendientes avisos push llevan más de dos horas sin salir")
+            fi
+          else
+            problemas+=("falta SUPABASE_DB_URL_PROD: la vigilancia no puede mirar el respaldo (DEC-071)")
+          fi
+
+          # 4. Se anota en Salud del sistema, salga como salga (TR-102).
+          if [ -n "${BD:-}" ]; then
+            ok=$([ ${#problemas[@]} -eq 0 ] && echo true || echo false)
+            psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('ultima_vigilancia', to_jsonb(now()), 'vigilancia.yml'), ('vigilancia_ok', to_jsonb($ok), 'vigilancia.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;" || true
+          fi
+
+          {
+            echo "### Vigilancia"
+            if [ ${#problemas[@]} -eq 0 ]; then echo 'Todo responde.'; else printf -- '- %s\n' "${problemas[@]}"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          printf '%s\n' "${problemas[@]}" > problemas.txt
+          echo "hay=$([ ${#problemas[@]} -eq 0 ] && echo no || echo si)" >> "$GITHUB_OUTPUT"
+
+      - name: Abrir o cerrar la issue de vigilancia
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HAY: ${{ steps.mirar.outputs.hay }}
+        run: |
+          set -euo pipefail
+          titulo='Vigilancia diaria: algo no responde'
+          abierta=$(gh issue list --label vigilancia --state open --search "$titulo in:title" --json number --jq '.[0].number // empty')
+          if [ "$HAY" = 'si' ]; then
+            cuerpo=$(printf 'La comprobación de %s ha encontrado:\n\n%s\n\nQué hacer: 15 §4 y §5.\n' \
+              "$(date -u +%Y-%m-%d)" "$(sed 's/^/- /' problemas.txt)")
+            if [ -n "$abierta" ]; then gh issue comment "$abierta" --body "$cuerpo"
+            else gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"; fi
+            exit 1
+          fi
+          # Todo bien: si había una issue abierta, se cierra sola. Una issue que nadie cierra deja de
+          # mirarse a los pocos días (15 §4).
+          if [ -n "$abierta" ]; then
+            gh issue close "$abierta" --comment "La vigilancia de $(date -u +%Y-%m-%d) ha ido bien: todo responde."
+          fi

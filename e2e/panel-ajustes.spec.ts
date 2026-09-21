@@ -66,6 +66,8 @@ const SALUD = {
   storage_bytes: 117_440_512,
   version_zona: '2026-07-14',
   version_mapabase: '2026-07-14',
+  ultima_vigilancia: '2026-09-20T07:41:00Z',
+  vigilancia_ok: true,
   dispositivos_activos: 61,
 };
 

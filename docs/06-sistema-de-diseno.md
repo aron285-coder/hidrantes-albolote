@@ -582,6 +582,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Núcleo "[nombre]" añadido.` · `"[antes]" ahora se llama "[ahora]".` ·
 `Propuestas pendientes de más de 14 días` · `Incidencias abiertas` ·
 `Errores de la aplicación (7 días)` · `Puntos sin dirección deducida` · `Último respaldo` ·
+`Última vigilancia` · `todo respondía` · `con avisos: mira las issues` ·
 `Almacenamiento usado` · `Zona de cobertura · mapa base` · `Móviles con acceso` · `todavía ninguno` ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
