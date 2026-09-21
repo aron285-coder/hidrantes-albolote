@@ -16,6 +16,7 @@ import { useAncho } from '@/hooks/ancho';
 import { type Capa, NOMBRE_CAPA, atribucion, capaGuardada, enLinea, guardarCapa } from '@/lib/capas';
 import { nombreCaudal } from '@/lib/ficha';
 import { activarPosicion, posicionActual } from '@/lib/posicion';
+import { rutaAltaEn } from '@/lib/propuestas';
 import { esPruebas } from '@/lib/entorno';
 import { buscar } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -140,6 +141,7 @@ export function Mapa() {
             modo={modo}
             posicion={pos}
             alSeleccionar={elegir}
+            alPulsacionLarga={(lat, lng) => navegar(rutaAltaEn(lat, lng))}
           />
 
           {/* Búsqueda (FR-69) */}

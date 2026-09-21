@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia solo con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.1 — 17 de septiembre de 2026. Consolida `requisitos-hidrantes.html` v6.1 §1–5 y §8.1; v1.1 añade problema/objetivos/no-objetivos (estructura del skill *write-spec*), la sección 13 y el criterio de alcance DEC-037. |
+| **Versión** | 1.2 — 21 de septiembre de 2026: alta con pulsación larga en FR-50 (DEC-077). v1.1 — 17 de septiembre de 2026. Consolida `requisitos-hidrantes.html` v6.1 §1–5 y §8.1; v1.1 añade problema/objetivos/no-objetivos (estructura del skill *write-spec*), la sección 13 y el criterio de alcance DEC-037. |
 | **Propietario de** | las reglas funcionales del sistema. Todo otro documento las cita por su `FR-nn`. |
 | **No contiene** | pasos de uso (→ 02), cifras técnicas (→ 03), campos y tipos (→ 05), colores y tamaños (→ 06). |
 
@@ -139,7 +139,7 @@ exportación FR-160 cubre el intercambio de datos).
 
 | ID | Requisito |
 |---|---|
-| FR-50 | El voluntario puede **tocar el mapa para colocar el punto**; no depende solo del GPS. La aplicación muestra la posición GPS con su margen de error y un pin arrastrable. |
+| FR-50 | El voluntario puede **tocar el mapa para colocar el punto**; no depende solo del GPS. La aplicación muestra la posición GPS con su margen de error y un pin arrastrable. Además, **mantener pulsado el mapa** (clic derecho en ordenador) empieza un alta con el pin en ese sitio, como en las aplicaciones de mapas de siempre; sobre un marcador existente no, que ahí lo que toca es abrir la ficha (DEC-077). |
 | FR-51 | **Duplicados:** al recibir un alta, el sistema busca el punto activo más cercano **del mismo tipo**. Si está a menos del radio configurado (25 m por defecto), la propuesta llega a jefatura marcada como posible duplicado, con ambos puntos en un minimapa, una comparación campo a campo con el existente, y la acción de **fusionar** con él en vez de crear otro. |
 | FR-52 | El voluntario **no recibe ningún aviso de duplicado** en la calle. Lo resuelve quien ve los dos registros: jefatura. |
 | FR-53 | La **zona de cobertura** es el término municipal de Albolote (Albolote, Cortijo del Aire, El Chaparral, Parque del Cubillas, Pretel, urbanizaciones consolidadas y diseminado) más Calicasas, con un margen de unos 400 m. Se genera de forma automática a partir de datos públicos (OpenStreetMap, límites administrativos); nadie descarga ni mantiene archivos a mano. |

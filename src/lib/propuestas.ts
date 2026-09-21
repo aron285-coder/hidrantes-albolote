@@ -14,6 +14,22 @@ export interface Coordenadas {
   lng: number;
 }
 
+/**
+ * Ruta del alta con el pin ya puesto donde se pulsó el mapa (DEC-077). Seis decimales, que son los
+ * ~10 cm de TR-61: más dígitos serían precisión inventada.
+ */
+export const rutaAltaEn = (lat: number, lng: number) => `/proponer/alta?lat=${lat.toFixed(6)}&lng=${lng.toFixed(6)}`;
+
+/** Las coordenadas de esa ruta, o null si no vienen, no son números o no son de este planeta. */
+export function coordenadasDe(lat: string | null, lng: string | null): Coordenadas | null {
+  const a = Number(lat);
+  const b = Number(lng);
+  if (lat === null || lng === null || lat.trim() === '' || lng.trim() === '') return null;
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  if (Math.abs(a) > 90 || Math.abs(b) > 180) return null;
+  return { lat: a, lng: b };
+}
+
 export interface Formulario {
   operacion: Operacion;
   tipo?: TipoPunto;

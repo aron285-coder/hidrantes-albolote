@@ -2,7 +2,16 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Punto } from '../tipos/punto';
-import { type Formulario, argumentos, cambiosDatos, datosDe, medidaValida, queFalta } from './propuestas';
+import {
+  type Formulario,
+  argumentos,
+  cambiosDatos,
+  coordenadasDe,
+  datosDe,
+  medidaValida,
+  queFalta,
+  rutaAltaEn,
+} from './propuestas';
 import { T } from './textos';
 
 const a = T.avisosFormulario;
@@ -127,5 +136,28 @@ describe('operaciones sobre un punto', () => {
       motivo_rapido: 'obras',
       motivo: 'Zanja',
     });
+  });
+});
+
+describe('alta desde una pulsación larga en el mapa (DEC-077)', () => {
+  it('la ruta lleva las coordenadas con los seis decimales de TR-61', () => {
+    expect(rutaAltaEn(37.2308123456, -3.6569987654)).toBe('/proponer/alta?lat=37.230812&lng=-3.656999');
+  });
+
+  it('y se leen de vuelta tal cual', () => {
+    expect(coordenadasDe('37.230812', '-3.656999')).toEqual({ lat: 37.230812, lng: -3.656999 });
+  });
+
+  it('sin coordenadas, el alta empieza como siempre (con el GPS)', () => {
+    expect(coordenadasDe(null, null)).toBe(null);
+    expect(coordenadasDe('37.23', null)).toBe(null);
+    expect(coordenadasDe('', '')).toBe(null);
+  });
+
+  it('lo que no sea un par de coordenadas de este planeta se ignora', () => {
+    expect(coordenadasDe('norte', 'oeste')).toBe(null);
+    expect(coordenadasDe('91', '0')).toBe(null);
+    expect(coordenadasDe('0', '181')).toBe(null);
+    expect(coordenadasDe('NaN', '0')).toBe(null);
   });
 });

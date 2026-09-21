@@ -5,6 +5,7 @@ import { LIMITES, capasDe } from './capas-leaflet';
 import { type Capa, ZOOM_MAX } from '@/lib/capas';
 import type { Posicion } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
+import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
 
 const VISTA = 'hidrantes.vista';
@@ -22,6 +23,8 @@ interface Props {
   modo: 'claro' | 'oscuro';
   posicion: Posicion | null;
   alSeleccionar: (id: string) => void;
+  /** Pulsación larga (o clic derecho) sobre el mapa, para dar de alta ahí mismo (DEC-077). */
+  alPulsacionLarga?: (lat: number, lng: number) => void;
 }
 
 function vistaGuardada(): { centro: [number, number]; zoom: number } | null {
@@ -35,7 +38,7 @@ function vistaGuardada(): { centro: [number, number]; zoom: number } | null {
 
 /** Mapa de Leaflet con el mapa base propio, las capas en línea, el límite, los puntos y tu posición. */
 export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
-  { puntos, seleccionado, capa, modo, posicion, alSeleccionar },
+  { puntos, seleccionado, capa, modo, posicion, alSeleccionar, alPulsacionLarga },
   ref,
 ) {
   const contenedor = useRef<HTMLDivElement>(null);
@@ -46,6 +49,10 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
   useEffect(() => {
     alSeleccionarRef.current = alSeleccionar;
   }, [alSeleccionar]);
+  const alPulsacionLargaRef = useRef(alPulsacionLarga);
+  useEffect(() => {
+    alPulsacionLargaRef.current = alPulsacionLarga;
+  }, [alPulsacionLarga]);
 
   // Crear el mapa una vez.
   useEffect(() => {
@@ -72,7 +79,48 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     grupoPuntos.current = L.layerGroup().addTo(m);
     grupoPosicion.current = L.layerGroup().addTo(m);
     mapa.current = m;
+
+    // Alta con pulsación larga, como en las aplicaciones de mapas de siempre (DEC-077). Sobre un
+    // marcador no: ahí manda abrir la ficha.
+    const lienzo = contenedor.current;
+    const sobreMarcador = (destino: EventTarget | null) =>
+      destino instanceof Element && !!destino.closest('.leaflet-marker-pane');
+    const avisar = (clientX: number, clientY: number, destino: EventTarget | null) => {
+      if (!alPulsacionLargaRef.current || sobreMarcador(destino)) return;
+      const caja = lienzo.getBoundingClientRect();
+      const donde = m.containerPointToLatLng(L.point(clientX - caja.left, clientY - caja.top));
+      alPulsacionLargaRef.current(donde.lat, donde.lng);
+    };
+    let destinoUltimo: EventTarget | null = null;
+    const detector = detectorPulsacionLarga((p) => avisar(p.clientX, p.clientY, destinoUltimo));
+    const bajar = (e: PointerEvent) => {
+      // El ratón tiene su propio gesto: el clic derecho, que el navegador ya da hecho.
+      if (e.pointerType === 'mouse') return;
+      destinoUltimo = e.target;
+      detector.bajar(e);
+    };
+    const mover = (e: PointerEvent) => detector.mover(e);
+    const soltar = () => detector.soltar();
+    const menu = (e: MouseEvent) => {
+      // Sin menú del navegador encima del mapa: el gesto es nuestro.
+      e.preventDefault();
+      avisar(e.clientX, e.clientY, e.target);
+    };
+    lienzo.addEventListener('pointerdown', bajar);
+    lienzo.addEventListener('pointermove', mover);
+    lienzo.addEventListener('pointerup', soltar);
+    lienzo.addEventListener('pointercancel', soltar);
+    lienzo.addEventListener('contextmenu', menu);
+    // Si el mapa se mueve o hace zoom, el gesto era para el mapa.
+    m.on('movestart zoomstart', soltar);
+
     return () => {
+      lienzo.removeEventListener('pointerdown', bajar);
+      lienzo.removeEventListener('pointermove', mover);
+      lienzo.removeEventListener('pointerup', soltar);
+      lienzo.removeEventListener('pointercancel', soltar);
+      lienzo.removeEventListener('contextmenu', menu);
+      detector.cancelar();
       m.remove();
       mapa.current = null;
     };
