@@ -723,6 +723,8 @@ export const T = {
     vigilanciaBien: 'todo respondía',
     vigilanciaMal: 'con avisos: mira las issues',
     almacenamiento: 'Almacenamiento usado',
+    almacenamientoLleno: (porcentaje: Parametro) =>
+      `Las fotos ocupan el ${porcentaje} % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.`,
     zonaYMapa: 'Zona de cobertura · mapa base',
     dispositivosActivos: 'Móviles con acceso',
     nunca: 'todavía ninguno',

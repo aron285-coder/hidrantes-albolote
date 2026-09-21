@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -133,7 +133,7 @@ jobs:
           fi
           echo "Datos: hidrantes-$FECHA.sql.gpg ($((TAMANO_DATOS / 1024)) kB)" >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: respaldo-hidrantes
           path: hidrantes-*.sql.gpg
@@ -159,7 +159,7 @@ jobs:
           rm -rf "fotos-$FECHA"
           echo "Fotos: fotos-$FECHA.tar.gpg ($((bytes / 1024 / 1024)) MB en origen)" >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.fotos.outcome == 'success'
         with:
           name: respaldo-fotos

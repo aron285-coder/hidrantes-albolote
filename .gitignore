@@ -46,3 +46,6 @@ coverage/
 Thumbs.db
 *.log
 .dev.vars
+
+# Worktree temporal de scripts/compatibilidad.ts (TR-107)
+.anterior/
