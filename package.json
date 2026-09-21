@@ -34,6 +34,7 @@
     "restaurar-fotos": "tsx scripts/restaurar-fotos.ts",
     "asegurar-propietario": "tsx scripts/asegurar-propietario.ts",
     "probar-functions": "tsx scripts/probar-functions.ts",
+    "compatibilidad": "tsx scripts/compatibilidad.ts",
     "functions:dev": "wrangler pages dev dist --port 8788 --ip 127.0.0.1 --compatibility-date=2026-09-01",
     "iconos": "tsx scripts/generar-iconos.ts",
     "mapabase": "tsx scripts/generar-mapabase.ts"
