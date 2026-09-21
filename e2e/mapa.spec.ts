@@ -2,7 +2,6 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { ZOOM_MAX } from '../src/lib/capas.ts';
 import { conSesion, simularRpc } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
@@ -115,6 +114,10 @@ test.describe('sin cobertura (criterio de salida)', () => {
 });
 
 test.describe('zoom (#136)', () => {
+  // El ZOOM_MAX de src/lib/capas.ts. Aquí va el número y no el import porque este archivo se compila
+  // con la resolución de Node y capas.ts importa sin extensión; capas.test.ts fija que sigan siendo
+  // el mismo 21.
+  const TOPE = 21;
   // Una tesela de 1×1 en JPEG: lo que se comprueba es que la capa sigue puesta al tope de zoom, no
   // lo que dibuja el IGN. Así el test no depende de www.ign.es.
   const TESELA = Buffer.from(
@@ -149,7 +152,7 @@ test.describe('zoom (#136)', () => {
         },
         { timeout: 20_000, intervals: [250] },
       )
-      .toBe(ZOOM_MAX);
+      .toBe(TOPE);
     // Y al tope sigue habiendo teselas: la capa no ha desaparecido (que era el fondo blanco).
     const teselas = page.locator('img.leaflet-tile');
     await expect.poll(() => teselas.count()).toBeGreaterThan(0);
@@ -158,6 +161,6 @@ test.describe('zoom (#136)', () => {
     // Más allá del tope no se pasa, por mucho que se insista.
     await acercar.click();
     await acercar.click();
-    expect(await zoomGuardado(page)).toBe(ZOOM_MAX);
+    expect(await zoomGuardado(page)).toBe(TOPE);
   });
 });

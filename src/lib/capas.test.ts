@@ -62,6 +62,10 @@ describe('capas (FR-63)', () => {
 describe('tope de zoom (#136)', () => {
   // El fallo que esto evita: si una capa declara menos zoom que el mapa, Leaflet la quita entera al
   // pasar de su tope y la pantalla se queda en blanco. Con maxNativeZoom amplía la última tesela.
+  it('el tope es z21, el mismo número que repite el e2e', () => {
+    expect(ZOOM_MAX).toBe(21);
+  });
+
   it('las capas de teselas llegan hasta el tope del mapa, ampliando la última tesela', () => {
     for (const capa of [OSM, PNOA]) {
       expect(capa.opciones.maxZoom).toBe(ZOOM_MAX);
