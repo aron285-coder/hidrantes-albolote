@@ -13,7 +13,7 @@
     --marino-800:#152A4A;
     --marino-700:#1D3A63;
     --marino-600:#28517F;
-    --naranja-600:#DD5A1F;
+    --naranja-600:#C94F16;
     --naranja-500:#E97136;
     --naranja-100:#FBE2D2;
     --oro-600:#B08A2E;
@@ -605,7 +605,7 @@
     if(nf) s+='<line x1="'+(p.x-r)+'" y1="'+(p.y+r)+'" x2="'+(p.x+r)+'" y2="'+(p.y-r)+'" stroke="'+borde+'" stroke-width="'+(2/(op.escala||1))+'"/>';
     if(op.tap) s='<g class="mk" data-mk="'+p.id+'">'+s+'<circle class="mk-tap" cx="'+p.x+'" cy="'+p.y+'" r="'+(22/(op.escala||1))+'"/></g>';
     return s; }
-  function pin(x,y,e){ e=e||1; return '<g transform="translate('+x+','+y+') scale('+(1/e)+')" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))"><path d="M0 -26 C7 -26 12 -21 12 -14 C12 -6 0 6 0 6 C0 6 -12 -6 -12 -14 C-12 -21 -7 -26 0 -26 Z" fill="#DD5A1F" stroke="#fff" stroke-width="2"/><circle cx="0" cy="-14" r="4" fill="#fff"/></g>' }
+  function pin(x,y,e){ e=e||1; return '<g transform="translate('+x+','+y+') scale('+(1/e)+')" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))"><path d="M0 -26 C7 -26 12 -21 12 -14 C12 -6 0 6 0 6 C0 6 -12 -6 -12 -14 C-12 -21 -7 -26 0 -26 Z" fill="#C94F16" stroke="#fff" stroke-width="2"/><circle cx="0" cy="-14" r="4" fill="#fff"/></g>' }
   function gpsSvg(e){ e=e||1; return '<circle cx="'+GPS.x+'" cy="'+GPS.y+'" r="'+(GPS.prec*1.6)+'" fill="#28517F" opacity=".16"/><circle cx="'+GPS.x+'" cy="'+GPS.y+'" r="'+(4.5/e)+'" fill="#28517F" stroke="'+(dark()?'#111826':'#fff')+'" stroke-width="'+(1.5/e)+'"/>' }
 
   /* ---------- mapa ---------- */

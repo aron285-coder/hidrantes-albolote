@@ -8,7 +8,12 @@
   --marino-800: #152a4a;
   --marino-700: #1d3a63;
   --marino-600: #28517f;
-  --naranja-600: #dd5a1f;
+  /* Relleno de acción. Era #DD5A1F, que con texto blanco encima se queda en 3,78:1 y TR-31 pide
+     4,5:1; este llega a 4,55:1 y también sobre blanco (DEC-072). */
+  --naranja-600: #c94f16;
+  /* Naranja cuando es texto sobre una superficie: un punto más oscuro que el relleno, para llegar
+     a 4,5:1 también sobre --fondo (4,56:1); en oscuro se aclara. */
+  --naranja-texto: #be4811;
   --naranja-500: #e97136;
   --naranja-100: #fbe2d2;
   --oro-600: #b08a2e;
@@ -21,6 +26,9 @@
 
   /* 06 §2.2 · estados (idénticos en claro y oscuro) */
   --verde-600: #2e7d4f;
+  /* Solo para texto sobre --verde-100: el 600 se queda en 4,17:1 y TR-31 pide 4,5:1 (DEC-072).
+     El relleno de los marcadores sigue siendo el 600, tal y como lo fija 06 §4.2. */
+  --verde-700: #276b42;
   --verde-100: #dceee1;
   --ambar-700: #8a6408;
   --ambar-100: #fbedcb;
@@ -31,7 +39,10 @@
 
   /* Superficies que cambian en oscuro (06 §2.4) */
   --barra: var(--marino-950);
+  /* Blanco en los dos modos: el borde es lo que separa el marcador del mapa (06 §4.2). Un borde
+     oscuro sobre el mapa oscuro se queda en 1,16:1 y el marcador desaparece (TR-31, DEC-072). */
   --borde-marcador: #ffffff;
+  --anillo-seleccion: var(--marino-950);
   --control-mapa: #ffffff;
   --badge-pendiente-fondo: var(--naranja-100);
   --badge-pendiente-texto: var(--naranja-600);
@@ -51,7 +62,8 @@
     --control-mapa: rgba(20, 29, 45, 0.94);
     --badge-pendiente-fondo: #3a2a1e;
     --badge-pendiente-texto: #f0a070;
-    --borde-marcador: #111826;
+    --naranja-texto: #f0a070;
+    --anillo-seleccion: #e6eaf0;
     color-scheme: dark;
   }
 }
@@ -65,7 +77,8 @@
   --control-mapa: rgba(20, 29, 45, 0.94);
   --badge-pendiente-fondo: #3a2a1e;
   --badge-pendiente-texto: #f0a070;
-  --borde-marcador: #111826;
+  --naranja-texto: #f0a070;
+  --anillo-seleccion: #e6eaf0;
   color-scheme: dark;
 }
 
@@ -75,6 +88,7 @@
   --color-marino-700: var(--marino-700);
   --color-marino-600: var(--marino-600);
   --color-naranja-600: var(--naranja-600);
+  --color-naranja-texto: var(--naranja-texto);
   --color-naranja-500: var(--naranja-500);
   --color-naranja-100: var(--naranja-100);
   --color-oro-600: var(--oro-600);
@@ -86,6 +100,7 @@
   --color-texto-suave: var(--texto-suave);
   --color-barra: var(--barra);
   --color-verde-600: var(--verde-600);
+  --color-verde-700: var(--verde-700);
   --color-verde-100: var(--verde-100);
   --color-ambar-700: var(--ambar-700);
   --color-ambar-100: var(--ambar-100);
@@ -137,5 +152,22 @@ h3 {
   *::after {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* Marcadores de Leaflet: sin el recuadro blanco por defecto del divIcon (06 §4.3). */
+.leaflet-div-icon.marcador {
+  background: none;
+  border: none;
+}
+.leaflet-container {
+  background: var(--fondo);
+  font-family: var(--font-texto);
+}
+
+/* Hoja de campo (FR-122): al imprimir queda solo la hoja, sin panel ni barras. */
+@media print {
+  body.imprimiendo > *:not(.hoja-campo) {
+    display: none !important;
   }
 }

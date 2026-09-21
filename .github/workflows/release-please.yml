@@ -30,4 +30,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          RAMA: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+          RAMA: ${{ fromJSON(steps.release.outputs.pr || '{}').headBranchName }}

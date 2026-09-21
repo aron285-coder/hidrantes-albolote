@@ -44,7 +44,32 @@ jobs:
       - run: npm run migrar -- --local
       - name: Segunda pasada sin cambios (idempotencia)
         run: npm run migrar -- --local
+      - name: Zona y seed de staging, dos veces (idempotentes)
+        env:
+          PGPASSWORD: migrador-local # detectar-secretos:permitir (contraseña del Supabase local efímero)
+        run: |
+          npm run cargar-zona -- --local
+          for i in 1 2; do
+            psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55422 -U hidrantes_migrador -d postgres \
+              -f supabase/seed-staging.sql
+          done
       - run: npm run test:sql
+      - name: Pages Functions con wrangler pages dev contra Supabase local
+        run: |
+          npm run arranque -- --local
+          npm run build
+          npm run functions:dev > wrangler.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8788 && break; sleep 2; done
+          npm run probar-functions || { tail -50 wrangler.log; exit 1; }
+          # Las ocho pruebas de intrusión de TR-40, con la anon key desde fuera (11 §5).
+          npm run intrusion || { tail -50 wrangler.log; exit 1; }
+          # Integración del frontend con la pila real (Fase 4 en adelante): mismo paso, mismo wrangler.
+          npx playwright install --with-deps chromium
+          INTEGRACION=1 npm run e2e || { tail -50 wrangler.log; exit 1; }
+          # El siguiente paso levanta su propio wrangler en el mismo puerto con el frontend anterior.
+          pkill -f 'wrangler pages dev' || true
+      - name: Compatibilidad hacia atrás (TR-107)
+        run: npm run compatibilidad
       - if: always()
         run: npx supabase stop --no-backup
 

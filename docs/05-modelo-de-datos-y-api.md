@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura (si afecta a datos que ve) y nueva versión; todo cambio arrastra una entrada en 12 y una migración nueva. |
-| **Versión** | 1.2 — 17 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048). |
+| **Versión** | 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
 | **Propietario de** | **campos, tipos, constraints, índices, vistas, políticas RLS, firmas de las RPC y contrato HTTP de las Pages Functions.** El documento más consultado durante la construcción; 04 y 09 lo citan, no lo repiten. |
 | **No contiene** | la motivación de las decisiones (→ 04, 12) ni las reglas funcionales (→ 01, citadas por `FR-nn`). |
 
@@ -63,7 +63,7 @@ Constraints:
 check (tipo <> 'boca_riego' or diametro_mm = 45)
 check (tipo <> 'hidrante'   or diametro_mm in (70, 100))
 check ((tipo = 'boca_riego') = (racor is not null))
-check (caudal <> 'no_funciona' or length(trim(descripcion_fallo)) > 0)
+check (caudal <> 'no_funciona' or coalesce(length(trim(descripcion_fallo)), 0) > 0)  -- sin coalesce, NULL pasaría
 check (st_x(geom::geometry) between -4.5 and -2.5 and st_y(geom::geometry) between 36.6 and 38.2)  -- defensa contra coordenadas corruptas
 check ((situacion = 'borrado') = (borrado_en is not null))
 ```
@@ -81,7 +81,7 @@ check ((situacion = 'borrado') = (borrado_en is not null))
 | `datos` | `jsonb` | no | solo los campos que cambian; forma en §7 |
 | `autor_nombre` | `text` | no | |
 | `autor_apellido` | `text` | no | |
-| `dispositivo_id` | `uuid` | no | del móvil; `null` nunca (para admin se usa un uuid fijo por sesión) |
+| `dispositivo_id` | `uuid` | no | del móvil; para un administrador, `fn_dispositivo_admin(email)`: el mismo en cada sesión (DEC-059) |
 | `clave_local` | `text` | no | idempotencia; **único** |
 | `origen_ubicacion` | `origen_ubicacion` | sí | en alta y ubicación |
 | `geom` | `geography(Point,4326)` | sí | pin final |
@@ -104,7 +104,7 @@ Constraints:
 
 ```sql
 check ((operacion = 'alta') = (punto_id is null))
-check (estado <> 'rechazada' or length(trim(motivo_rechazo)) > 0)
+check (estado <> 'rechazada' or coalesce(length(trim(motivo_rechazo)), 0) > 0)
 check (operacion not in ('alta','revision','estado','ubicacion','retirada') or foto_path is not null)
 check (operacion not in ('alta','ubicacion') or (geom is not null and origen_ubicacion is not null))
 ```
@@ -129,6 +129,8 @@ check (operacion not in ('alta','ubicacion') or (geom is not null and origen_ubi
 
 Sin `update` ni `delete` para ningún rol, con política **y** trigger `before update or delete` que
 lanza excepción (dos capas: una política mal escrita es un error silencioso; un trigger no).
+Única excepción: `fn_anonimizar_autor` puede reescribir `actor` (y nada más) activando
+`hidrantes.anonimizando = 'on'` en su transacción (11 §7, DEC-058).
 
 ### 2.4 `dispositivos` — credenciales de móvil (FR-31, FR-35)
 
@@ -193,7 +195,8 @@ Un `dispositivo_id` puede tener varios tokens en el tiempo (revocación y nuevo 
 | `creado_en` | `timestamptz` | |
 | `creado_por` | `text` | email o `'migracion'` |
 
-Migración inicial: inserta el correo del propietario.
+El propietario **no** va en una migración (repositorio público, DEC-053): lo da de alta
+`scripts/asegurar-propietario.ts` en cada despliegue, desde el secreto `PROPIETARIO_EMAIL`, si no existe.
 
 ### 2.10 `config` — clave/valor (FR-142)
 
@@ -201,7 +204,8 @@ Migración inicial: inserta el correo del propietario.
 
 | Clave | Default | Uso |
 |---|---|---|
-| `codigo_acceso_hash` | (generado) | argon2id o bcrypt del código |
+| `codigo_acceso_hash` | (generado) | bcrypt del código (`crypt` de pgcrypto); con él se verifica |
+| `codigo_acceso` | (generado) | el código en claro, solo legible por administradores, para verlo en Ajustes (FR-140, DEC-059) |
 | `codigo_acceso_cambiado_en` | | |
 | `codigo_acceso_cambiado_por` | | |
 | `meses_revision` | `12` | FR-61, FR-121 |
@@ -265,8 +269,8 @@ Las carga `scripts/cargar-zona.ts` con `upsert`; no van por migración.
 
 | Vista | Contenido |
 |---|---|
-| `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_url`. Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). |
-| `v_cola_revision` | propuestas con `estado = 'pendiente'` más el punto afectado, el diff (`antes`/`despues` calculados), y señales: `origen_ubicacion`, `precision_gps_m`, `distancia_gps_m`, `distancia_exif_m`, `fuera_de_zona`, `meses_desde_revision`, `duplicado_de` + `distancia_duplicado_m`, `otra_medida boolean`, `desactualizada boolean` (`puntos.actualizado_en > propuestas.creada_en`). |
+| `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_path`. La URL pública de la foto la compone el cliente con la URL de Supabase y el bucket del entorno (DEC-058). Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). |
+| `v_cola_revision` | propuestas con `estado = 'pendiente'` más el punto afectado, el diff (`antes`/`despues` calculados), y señales: `origen_ubicacion`, `precision_gps_m`, `distancia_gps_m`, `distancia_exif_m`, `fuera_de_zona`, `meses_desde_revision`, `duplicado_de` + `distancia_duplicado_m`, `otra_medida boolean`, `desactualizada boolean` (`puntos.actualizado_en > propuestas.creada_en`), `nucleo` (el del punto o, en un alta, el deducido del pin) y `punto_actualizado_en` (DEC-065). |
 | `v_revisiones_caducadas` | puntos activos con `revision_caducada`, con `direccion` o coordenadas, agrupables por `nucleo`. |
 | `v_registro` | `registro` legible: `momento`, `actor`, `accion`, `codigo` del punto, resumen. |
 
@@ -290,12 +294,20 @@ denied*).
 
 Storage (bucket `hidrantes-fotos`): sin políticas de `insert`/`update`/`delete`/`list` para `anon` ni
 `authenticated`; `select` público; límite 5 MB; `allowed_mime_types = {image/jpeg, image/webp}`.
+No hace falta ninguna política sobre `storage.objects`: la lectura va por el bucket público y la
+subida por URL firmada de `service_role` (DEC-055).
+
+Los helpers que usan las vistas (`fn_es_admin`, `fn_config`, `fn_radio_px`, `fn_municipio_de`)
+tienen `execute` para `authenticated`: las vistas son `security_invoker` y las políticas se evalúan
+con el rol de quien consulta. Toda otra función nace sin `execute` para `PUBLIC` (privilegios por
+defecto de 0001).
 
 ---
 
 ## 6. Funciones RPC
 
-Todas `SECURITY DEFINER`, `set search_path = hidrantes, public`, en `language plpgsql`. Los errores
+Todas `SECURITY DEFINER`, `set search_path = pg_catalog, hidrantes, extensions` (PostGIS y pgcrypto
+viven en `extensions`; `public` es de uniformidad), en `language plpgsql`. Los errores
 se lanzan con `raise exception using errcode = 'P0001', message = '<código>: <texto en español>'`
 (vocabulario en §8). Las RPC de voluntario empiezan por `fn_validar_token(token)`; las de
 administrador por `fn_es_admin()`.
@@ -305,8 +317,9 @@ administrador por `fn_es_admin()`.
 ```sql
 -- Solo service_role (la llama /api/verificar-codigo). Tiempo de respuesta constante.
 fn_verificar_codigo(codigo text, dispositivo_id uuid, ip_hash text)
-  returns table (token text, caduca_en timestamptz)
-  -- errores: CODIGO_INCORRECTO · DEMASIADOS_INTENTOS (dispositivo | ip | global)
+  returns table (token text, caduca_en timestamptz, error text)
+  -- error en la columna, no lanzado: una excepción desharía la anotación del intento (DEC-059).
+  -- error: CODIGO_INCORRECTO · DEMASIADOS_INTENTOS (dispositivo | ip | global). Solo cuentan los fallos.
 
 -- Helper: devuelve el dispositivo_id, actualiza ultimo_uso.
 fn_validar_token(token text) returns uuid
@@ -321,6 +334,8 @@ fn_ficha_punto(token text, punto_id uuid) returns jsonb
 -- Solo service_role (la llama /api/url-subida).
 fn_reservar_subida(token text) returns text  -- foto_path
   -- errores: CUOTA_SUBIDAS_AGOTADA
+-- Jefatura desde el móvil (authenticated + fn_es_admin): misma cuota, su dispositivo técnico.
+fn_reservar_subida_admin() returns text
 
 fn_proponer(
   token text, clave_local text, autor_nombre text, autor_apellido text,
@@ -349,7 +364,8 @@ fn_borrar_suscripcion_push(token text) returns void
 
 -- Única RPC anónima sin token.
 fn_registrar_error(dispositivo_id uuid, mensaje text, pila text, ruta text, agente text) returns void
-  -- pila truncada a 4 kB; techo por dispositivo y global diario; nunca lanza error al cliente.
+  -- pila truncada a 4 kB; techo diario de 100 por dispositivo y max_errores_global_dia en total;
+  -- nunca lanza error al cliente.
 ```
 
 No existe RPC de voluntario para "puntos cercanos": el duplicado se calcula en `fn_proponer` y solo
@@ -368,7 +384,7 @@ fn_aprobar(propuesta_id uuid, correcciones jsonb default null, confirmar_desactu
 
 fn_aprobar_lote(propuesta_ids uuid[])
   returns table (propuesta_id uuid, resultado text, motivo text)
-  -- cada una en su propia transacción (savepoint); resultado 'aprobada' | 'omitida'.
+  -- cada una en su propia transacción (savepoint); resultado 'aprobada' | 'omitida'; motivo = código de error.
 
 fn_rechazar(propuesta_id uuid, motivo text) returns void
   -- errores: MOTIVO_OBLIGATORIO · PROPUESTA_NO_PENDIENTE
@@ -404,9 +420,17 @@ fn_salud() returns jsonb
 fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
 fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
 fn_novedades() returns jsonb                                    -- últimas entradas del CHANGELOG cargadas en config por CI (FR-167)
+fn_guardar_direccion_sugerida(propuesta_id uuid, direccion text) returns void   -- la usa /api/direccion con el JWT
+fn_registrar_workflow(workflow text) returns void               -- la usa /api/lanzar-workflow ('workflow_lanzado')
 
 -- Solo service_role (la llama el workflow de purga).
 fn_fotos_referenciadas() returns setof text
+-- Solo service_role (la llama /api/push): reclama avisos pendientes con skip locked y los marca
+-- enviados en la misma transacción; después se anota el resultado de cada uno.
+fn_reclamar_notificaciones(limite integer default 100)
+  returns table (id bigint, titulo text, cuerpo text, url text, suscripcion_id uuid, suscripcion jsonb)
+fn_resultado_notificacion(notificacion_id bigint, ok boolean, error text, suscripcion_caducada boolean default false)
+  returns void   -- tres fallos seguidos o un 404/410 borran la suscripción
 ```
 
 ### 6.3 Helpers internos (sin `execute` público)
@@ -414,10 +438,20 @@ fn_fotos_referenciadas() returns setof text
 ```sql
 fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- cruce con limite_municipal; nucleo por proximidad (tope 1.500 m; si no, 'diseminado'); fuera: ('fuera_de_zona', null)
+  -- "fuera" = a más de config.buffer_zona_m de todo límite (st_dwithin), igual que zona-cobertura.geojson
+  -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
+fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con respaldo
 fn_es_admin() returns boolean       -- email del JWT presente y activo en administradores
 fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4
 fn_registrar(actor text, dispositivo_id uuid, es_admin boolean, accion text, punto_id uuid, propuesta_id uuid, antes jsonb, despues jsonb)
+fn_error(codigo text, texto text)            -- lanza P0001 'CODIGO: texto'
+fn_email_jwt() returns text                  -- correo del JWT, en minúsculas
+fn_exigir_admin() returns text               -- NO_AUTORIZADO si no es administrador; devuelve su correo
+fn_dispositivo_admin(email text) returns uuid -- md5 del correo: identidad técnica estable de un administrador
+fn_aplicar_propuesta(propuesta_id uuid, correcciones jsonb, confirmar_desactualizada boolean, actor text) returns jsonb
+                                             -- núcleo de fn_aprobar, fn_aprobar_lote y fn_proponer de jefatura
+fn_purgar_papelera_interna(actor text) returns integer   -- la llama pg_cron cada noche y fn_purgar_papelera
 ```
 
 ---
@@ -444,7 +478,7 @@ resultado fusionado antes de escribir.
 `accion` ∈ `propuesta_creada`, `propuesta_retirada_autor`, `aprobacion`, `aprobacion_con_correcciones`,
 `rechazo`, `fusion`, `edicion_admin`, `retirada`, `borrado`, `restauracion`, `purga_papelera`,
 `codigo_cambiado`, `dispositivos_revocados`, `administrador_alta`, `administrador_baja`,
-`config_cambiada`, `incidencia_resuelta`, `anonimizacion`, `exportacion`, `workflow_lanzado`.
+`config_cambiada`, `incidencia_resuelta`, `anonimizacion`, `exportacion`, `workflow_lanzado`, `nucleo_guardado` (DEC-068).
 
 Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTENTOS`,
 `TOKEN_INVALIDO`, `TOKEN_REVOCADO`, `TOKEN_CADUCADO`, `PAYLOAD_INVALIDO`, `FOTO_OBLIGATORIA`,
@@ -471,16 +505,18 @@ con el estado HTTP indicado.
 ← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 3600 }
 ```
 Lee `CF-Connecting-IP`, calcula `ip_hash`, llama a `fn_verificar_codigo` con `service_role`.
-Respuesta en tiempo constante.
+Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (TR-42).
 
 ### `POST /api/url-subida`
 
 ```json
-→ { "token": "…" }
+→ { "token": "…" }            (voluntario)   ·   cabecera Authorization con el JWT (jefatura, DEC-059)
 ← 200 { "foto_path": "fotos/3f9c….jpg", "url": "https://…/object/upload/sign/…", "caduca_en_s": 7200 }
 ← 401 { "error": "TOKEN_INVALIDO" } · 429 { "error": "CUOTA_SUBIDAS_AGOTADA" }
 ```
-El móvil hace `PUT` del blob a `url` con `Content-Type: image/jpeg|image/webp`.
+El móvil hace `PUT` del blob a `url` con `Content-Type: image/jpeg|image/webp`. El bucket se deduce del
+dominio: `hidrantes-fotos` solo en `hidrantes-albolote.pages.dev`; staging, previsualizaciones y local,
+`hidrantes-fotos-dev`.
 
 ### `GET /api/direccion?lat=&lng=&propuesta_id=`
 
@@ -497,14 +533,20 @@ escribe `propuestas.direccion_sugerida`.
 ### `POST /api/lanzar-workflow`
 
 Cabecera `Authorization` de administrador. `→ { "workflow": "purgar-fotos" | "regenerar-zona" | "regenerar-mapabase" | "respaldo" }`;
-cualquier otro valor → `400`. `repository_dispatch` con `GITHUB_DISPATCH_TOKEN`. `← 202 { "lanzada": true, "workflow": "…" }`.
+cualquier otro valor → `400`. Despacha el workflow que atiende ese trabajo con **`workflow_dispatch`**
+(`POST /repos/…/actions/workflows/{archivo}/dispatches`, `{ "ref": "develop", "inputs": { "trabajo": "…" } }`)
+y `GITHUB_DISPATCH_TOKEN`, que así solo necesita `actions:write` (DEC-069). `← 202 { "lanzada": true, "workflow": "…" }`.
+Sin `GITHUB_DISPATCH_TOKEN`, o si el trabajo aún no tiene workflow (`purgar-fotos` y `respaldo` llegan
+en la Fase 8) → `503 { "error": "NO_CONFIGURADO" }`, sin llamar a GitHub.
 
 ### `POST /api/push`
 
 `→ { "token": "…" }` (voluntario) o cabecera de administrador, o cabecera `X-Vigilancia` con el
 secreto del trabajo diario. Lee `notificaciones` sin `enviada_en`, envía cada una con Web Push
 (VAPID), marca `enviada_en` o `error`, borra suscripciones con tres fallos. `← 200 { "enviadas": n, "fallidas": m }`.
-Idempotente: dos llamadas seguidas no envían dos veces.
+Idempotente: dos llamadas seguidas no envían dos veces. Necesita `VAPID_PUBLIC_KEY` además de la
+privada (WebCrypto no deduce una de otra); sin ellas → `503 NO_CONFIGURADO`. Cifrado RFC 8291 y firma
+RFC 8292 con WebCrypto, sin dependencias.
 
 ---
 
@@ -514,7 +556,9 @@ Idempotente: dos llamadas seguidas no envían dos veces.
 - Siguientes: `fn_listar_puntos(token, desde = sincronizado_en anterior)` → solo puntos con
   `actualizado_en > desde` y `bajas` (ids que pasaron a `retirado` o `borrado` desde entonces). El
   cliente reemplaza por `id` y elimina las bajas.
-- El cliente guarda `sincronizado_en` del servidor, no su propio reloj.
+- El cliente guarda `sincronizado_en` del servidor, no su propio reloj. El servidor lo devuelve con 60 s
+  de solape (`now() − 60 s`): una escritura que aún no había confirmado entra en la siguiente
+  sincronización; repetir un punto no duplica, porque el cliente reemplaza por `id`.
 - La cola local guarda por propuesta: `clave_local` (uuid v4), payload de `fn_proponer`, blob de la
   foto, `creada_en` local, intentos. Envío: `url-subida` → `PUT` → `fn_proponer`. Si `fn_proponer`
   devuelve la propuesta existente (misma `clave_local`), se considera enviada.
@@ -549,10 +593,11 @@ número 40 y 41 en paralelo → una pasa y otra falla.
 
 ## 12. Seed de staging (`supabase/seed-staging.sql`)
 
-Idempotente (`on conflict do nothing`): 12 puntos `[PRUEBA]` repartidos por los núcleos con las 12
+Idempotente (`on conflict do nothing`), con códigos `HID-9xxx`/`BOC-9xxx` para distinguirlos de los reales: 12 puntos `[PRUEBA]` repartidos por los núcleos con las 12
 combinaciones diámetro × caudal, tres con revisión caducada, uno retirado, uno en papelera; 6
 propuestas pendientes de cada operación con al menos un duplicado y una desactualizada; `config` con
-código `000000`; `administradores` con el propietario y dos correos de prueba. Nunca pisa un código
+código `000000` (bcrypt de pgcrypto); `administradores` con dos correos de prueba de `example.com`
+(el propietario llega por `asegurar-propietario.ts`, DEC-053). Nunca pisa un código
 real generado para el piloto.
 
 ---

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.2 — 18 de septiembre de 2026 (DEC-052 a DEC-055; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.13 — 21 de septiembre de 2026 (DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -389,6 +389,462 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   9. **La guarda de producción y la comprobación tras desplegar son scripts con test** (`guarda-produccion.ts`, `comprobar-despliegue.ts`), no *shell* dentro del YAML.
 - **Afecta a:** 04 §10, §11 y §11.1; 09 Fase 0.
 
+### DEC-056 · Un PR `develop → main` en la Fase 0 para probar el camino a producción
+- **Fecha:** 18 sep 2026 (desarrollador) · **Estado:** vigente
+- **Contexto:** el criterio de salida de la Fase 0 (09) exige que un PR a `main`, tras aprobación, aparezca solo en producción; `CLAUDE.md` §5 dice que el PR `develop → main` no se pide hasta la Fase 9.
+- **Decisión:** se hace **una** vez al cerrar la Fase 0, con producción sirviendo solo el armazón vacío (sin datos, sin banda). A partir de ahí rige `CLAUDE.md`: el siguiente PR `develop → main` es el de la Fase 9.
+- **Por qué:** descubrir un fallo del despliegue a producción en la Fase 9 es lo más caro (09 §2); el armazón no expone nada.
+- **Afecta a:** 09 Fase 0, `CLAUDE.md` §5.
+
+### DEC-057 · Zona de cobertura: qué es núcleo, el margen en el servidor y la carga antes de la Fase 2
+- **Fecha:** 18 sep 2026 · **Estado:** vigente
+- **Decisiones**, de bajo riesgo, tomadas al construir la Fase 1:
+  1. **Municipios por código INE** (`ine:municipio` 18003 y 18037), no por nombre: un nombre puede repetirse en otra provincia.
+  2. **Núcleo = `place` de OSM de tipo town, village, hamlet, suburb, quarter o neighbourhood** dentro de los términos. Los `locality` son parajes sin población (El Juncal, Los Tabletares…) y no cuentan. Resultado actual: los diez de FR-53 (Albolote, Barrio Seco, La Farfana, Cortijo del Aire, El Chaparral, Parque del Cubillas, Pretel, Urb. Buenavista, Urb. El Torreón, Calicasas).
+  3. **El margen de 400 m también vale en el servidor:** `limite_municipal` guarda el término sin margen; `fn_municipio_de` considera "fuera de zona" solo lo que está a más de `buffer_zona_m` de todo límite, y en el margen asigna el municipio más cercano. Así el servidor y el aviso del móvil (que usa `zona-cobertura.geojson`, con margen) nunca discrepan. Aclarado en 05 §6.3.
+  4. **`cargar-zona.ts` no hace nada si las tablas aún no existen** (llegan con la migración 0001, Fase 2): avisa y sigue, para no romper el despliegue de staging entre las dos fases.
+  5. **Sin `osmtogeojson`:** su versión actual arrastra `@xmldom/xmldom` con avisos críticos; los anillos se unen con una función propia de 30 líneas con test. Geometría con módulos sueltos de Turf (los mismos que usará el móvil en la Fase 6).
+  6. **La previsualización usa el mapa base del IGN**: las teselas de OSM se rechazan desde un archivo local sin `Referer`.
+  7. **Tres servidores Overpass** en orden; si fallan todos, los GeoJSON committeados siguen valiendo. La fuente IECA (DERA G13) queda escrita en `generar-zona.ts` como alternativa manual.
+- **Afecta a:** 05 §6.3, 04 §8, 09 Fase 1.
+
+### DEC-058 · Ajustes del esquema al construir la Fase 2
+- **Fecha:** 18 sep 2026 · **Estado:** vigente
+- **Decisiones**, de bajo riesgo, corregidas primero en 05 (v1.3):
+  1. **Las constraints de texto obligatorio usan `coalesce`.** Tal como estaban en 05, `caudal <> 'no_funciona' or length(trim(descripcion_fallo)) > 0` dejaba pasar una descripción `NULL` (un `check` que da `NULL` se considera cumplido). Igual con el motivo de rechazo. Lo detectó el test pgTAP.
+  2. **`v_puntos_activos` expone `foto_path`, no `foto_url`:** una migración no conoce la URL del proyecto de cada entorno; el cliente la compone con `VITE_SUPABASE_URL` y el bucket. Así no hace falta otra clave de `config` que mantener.
+  3. **`search_path` de las funciones = `pg_catalog, hidrantes, extensions`**, no `hidrantes, public`: en Supabase PostGIS y pgcrypto están en `extensions`, y `public` es de uniformidad.
+  4. **Los helpers de las vistas tienen `execute` para `authenticated`** (`fn_es_admin`, `fn_config`, `fn_radio_px`, `fn_municipio_de`): las vistas `security_invoker` y las políticas se evalúan con el rol de quien consulta. Toda otra función nace sin `execute` para `PUBLIC` (privilegios por defecto).
+  5. **`registro` admite una sola reescritura:** el `actor`, cuando `fn_anonimizar_autor` activa `hidrantes.anonimizando` (11 §7). Cualquier otro cambio sigue bloqueado por el trigger. Se decide ahora para no reabrir la tabla en la Fase 3.
+  6. **El propietario no va en la migración 0004** sino en `asegurar-propietario.ts`, desde el secreto `PROPIETARIO_EMAIL` (DEC-053). `arranque.ts` pregunta el correo.
+  7. **La purga de la papelera se programa en la Fase 3**, con `fn_purgar_papelera` (escribe en `registro`). Las otras cuatro tareas de 04 §9 ya están en `pg_cron` con el prefijo `hidrantes_`.
+  8. **Seed con códigos `9xxx`** y correos de `example.com`: se distinguen a simple vista de los reales y no consumen las secuencias.
+  9. **El código de acceso se guarda con bcrypt (`crypt` + `gen_salt('bf')` de pgcrypto)**, de las dos opciones que admitía 05 §2.10: ya está en Supabase, sin extensión nueva.
+- **Afecta a:** 05 §2, §4, §5, §6, §12.
+
+### DEC-059 · Ajustes de las RPC y las Functions al construir la Fase 3
+- **Fecha:** 19 sep 2026 · **Estado:** vigente
+- **Decisiones**, corregidas primero en 05 (v1.4):
+  1. **Ninguna función nace ejecutable por `PUBLIC` — de verdad.** `alter default privileges … in schema` solo añade permisos, nunca quita el `execute` que Postgres da a `PUBLIC`: la línea de 0001 no hacía nada. Lo detectó el primer test de la Fase 3 (`anon` podía llamar a `fn_verificar_codigo`). Staging no estaba expuesto (solo tenía 0001–0004, y 0003 revocaba todo explícitamente). Ahora 0005 fija el privilegio por defecto global del rol de migraciones, 0007 revoca y concede explícitamente, y `02_permisos` comprueba que ninguna función es de `PUBLIC` y que `anon` solo ejecuta las nueve RPC de voluntario.
+  2. **`fn_verificar_codigo` devuelve el error en una columna** (`token, caduca_en, error`) en vez de lanzarlo: una excepción desharía la anotación del intento fallido y el límite de 10/30/200 no contaría nunca. Solo cuentan los fallos.
+  3. **Identidad técnica del administrador = `md5` de su correo** (`fn_dispositivo_admin`), no "un uuid por sesión": así casan su reserva de foto y su propuesta aunque cambie de sesión. `/api/url-subida` acepta su JWT y llama a `fn_reservar_subida_admin()`.
+  4. **El código de acceso se guarda también en claro en `config.codigo_acceso`**, legible solo por administradores (RLS), porque FR-140 pide *ver el actual*. La verificación sigue siendo por bcrypt. El código nunca va al registro.
+  5. **Producción no genera el código en el primer despliegue**: el *summary* de Actions es público (DEC-053). Lo genera jefatura desde Ajustes (Fase 7). Se retira ese paso de `deploy-prod.yml`.
+  6. **`sincronizado_en` con 60 s de solape**, para no perder escrituras que confirman durante la lectura.
+  7. **Web Push propio** (RFC 8291 + 8292 con WebCrypto, probado con el vector de la RFC), sin dependencias; `/api/push` necesita también `VAPID_PUBLIC_KEY` en Pages, que `arranque.ts` guarda desde ahora. Los entornos ya creados la recibirán con `npm run arranque -- --rotar vapid` antes de la Fase 6 (no hay suscripciones que perder).
+  8. **El bucket de fotos se deduce del dominio** en las Functions (`hidrantes-fotos` solo en el de producción), sin otra variable de Pages que mantener.
+  9. **Funciones nuevas de servicio**: `fn_guardar_direccion_sugerida`, `fn_registrar_workflow`, `fn_reclamar_notificaciones`, `fn_resultado_notificacion`, `fn_purgar_papelera_interna` (pg_cron cada noche) y los helpers de 05 §6.3.
+  10. **Tipos propios para las Functions** en vez de `@cloudflare/workers-types`, que choca con los tipos DOM de TypeScript 6: solo se usan `Request`, `Response`, `fetch` y WebCrypto.
+- **Afecta a:** 05 §2.2, §2.10, §6, §9, §10; 04 §10 y §11; 09 Fase 0 y Fase 3.
+
+### DEC-060 · Decisiones de detalle al construir la Fase 4 (acceso y armazón)
+- **Fecha:** 19 sep 2026 · **Estado:** vigente
+- **Contexto:** 01, 02 y 09 fijan qué hace la entrada, Ajustes y la degradación, pero no dónde se
+  guarda la sesión, cómo se valida el token al abrir ni qué se ve de lo que aún no existe.
+- **Decisiones:**
+  1. **Sesión en `localStorage`** (`hidrantes.token`, `hidrantes.firma`, `hidrantes.dispositivo_id`),
+     con toda lectura y escritura protegida: sin almacenamiento la app sigue en memoria (TR-07). Los
+     puntos y la cola irán a IndexedDB en las Fases 5 y 6. El código nunca se escribe (TR-43).
+  2. **Con token guardado se entra sin red**; después se valida con la lectura más pequeña posible
+     (`fn_listar_puntos(token, desde = ahora)`). Solo un `TOKEN_*` devuelve a la entrada, con aviso
+     y el nombre conservado (FR-35); un servidor caído no echa a nadie (FR-168).
+  3. **Cerrar sesión renueva también `dispositivo_id`**: si el móvil pasa a otra persona, sus
+     propuestas no se mezclan con las del anterior en *Mis propuestas*.
+  4. **Bloqueo por intentos recordado en el móvil una hora** además del límite del servidor, para
+     que la pantalla lo diga sin tener que fallar otra vez (FR-33).
+  5. **Jefatura:** PKCE de Supabase en la misma PWA; después de Google, `fn_es_admin()` decide.
+     Si no es administrador se cierra la sesión de Google y se ve "No autorizado". Vuelve a `/admin`
+     en pantallas ≥ 900 px y a `/` en el móvil (FL-20 paso 3). Hasta la Fase 7, `/admin` solo dice
+     que el panel llega después y permite ir al mapa o salir.
+  6. **Ajustes muestra solo lo que ya funciona** (firma, modo oscuro, primer uso, aviso legal, cerrar
+     sesión, versión y recarga). Mapa sin cobertura, sincronización, capa, Mis propuestas, avisos e
+     "Algo no funciona" aparecen con su fase: UI-01 prevalece sobre el "placeholder" de 09.
+  7. **Modo oscuro en tres posiciones** (Según el móvil · Siempre · Nunca), como el prototipo 07.
+     Enlaces y selección usan `--texto`, porque `--marino-700` no contrasta sobre el fondo oscuro.
+  8. **Degradación:** estado global con tres valores (bien, sin cobertura, sin servidor); cualquier
+     llamada que no llega o recibe 5xx lo marca; reintento automático 2 → 60 s con ±20 % de azar,
+     botón "Reintentar" y reintento al recuperar la red.
+  9. **Errores del cliente:** cola local de los últimos 20, enviada a `fn_registrar_error` en cuanto
+     hay servidor. Para probar los límites de error, fuera de producción `hidrantes.forzar_fallo = ruta`
+     hace fallar esa pantalla al dibujarse (no hay control visible).
+  10. **Service Worker en modo `prompt`**, no `autoUpdate`: la versión nueva se detecta al abrir y cada
+      hora y se ofrece "hay una versión nueva, recargar"; recargar sola podría perder un formulario a
+      medias. Cumple TR-24 (nadie pasa más de una sesión con la versión vieja).
+  11. **Iconos generados con Playwright** desde el escudo de 07 (`npm run iconos`), sin dependencia
+      nueva; fondo `--fondo` para iOS y zona segura del 58 % en el icono *maskable*.
+  12. **Dependencias nuevas:** `@supabase/supabase-js` (Google con PKCE y llamadas a las RPC),
+      `react-router` (rutas, incluida `/admin`) y `lucide-react` (iconos de 06 §7).
+- **Descartado:** IndexedDB para la sesión (tres claves pequeñas no lo justifican); validar el token
+  antes de mostrar nada (con mala cobertura el voluntario vería una pantalla de espera); recarga
+  automática al haber versión nueva.
+- **Afecta a:** 06 Apéndice A; 09 Fase 4.
+
+### DEC-062 · Decisiones de detalle al construir la Fase 5 (mapa)
+- **Fecha:** 19 sep 2026 · **Estado:** vigente
+- **Contexto:** 04 §8 y 06 §4 fijan qué hace el mapa; faltaba cómo extraer el mapa base sin
+  herramientas externas, cuándo descargarlo y qué hacer con lo que depende de la Fase 6.
+- **Decisiones:**
+  1. **Extracción propia del mapa base** (`npm run mapabase`): lee por rangos la compilación diaria
+     de Protomaps con la librería `pmtiles` y escribe un PMTiles v3 con `scripts/lib/pmtiles.ts`
+     (probado releyéndolo con la librería oficial). Sin descargar ni ejecutar el binario `pmtiles`.
+     Zoom 10–15 del recuadro de la zona: **4,2 MB, 366 teselas**; va con el despliegue en
+     `public/mapabase/` y se commitea. La versión (fecha de la compilación) está en
+     `datos/mapabase.json`; el móvil la compara con la descargada. `config.version_mapabase` queda
+     sin usar: la versión viaja con el propio despliegue.
+  2. **`pmtiles` fijado en 3.2.1**, la misma versión que usa `protomaps-leaflet`: una sola copia.
+  3. **Descarga automática** al arrancar si no está descargado y la conexión es wifi o el móvil no
+     dice cuál es (iPhone); nunca con ahorro de datos ni con datos móviles declarados. La versión
+     nueva se ofrece en Ajustes, no se fuerza. Cerrar sesión no borra el mapa base (no es personal).
+  4. **La ficha no muestra "Proponer un cambio" hasta la Fase 6**: las operaciones aún no existen
+     (UI-01 prevalece sobre la tarea de 09, como en DEC-060).
+  5. **Anillo de selección en oscuro:** `--marino-950` no se ve sobre el mapa oscuro; token nuevo
+     `--anillo-seleccion` (`#E6EAF0`, el del prototipo 07) añadido primero a 06 §2.4. Pendiente de la
+     conformidad de jefatura por ser 06 un documento congelado.
+  6. **Catastro va superpuesto** al mapa base propio (FR-63 lo llama "superpuesta").
+  7. **El punto elegido va en la URL** (`/?p=id`): la lista, la búsqueda y el mapa llevan al mismo
+     sitio y "atrás" cierra la ficha. Móvil: ficha a pantalla completa; ≥ 768 px flotante; ≥ 900 px
+     además la lista lateral (FR-70).
+  8. **Posición solo en memoria**, nunca enviada ni guardada; se sigue desde el arranque solo si el
+     permiso ya estaba concedido. Sin posición, "distancia" ordena por código.
+  9. **Fotos ya vistas en caché del Service Worker** (CacheFirst, 800 fotos, 180 días) para que la
+     ficha las enseñe sin cobertura (DEC-011).
+  10. **Jefatura en el móvil lee `v_puntos_activos`** con su sesión de Google (no tiene token de
+      dispositivo): lectura completa en cada sincronización.
+  11. **Dependencias nuevas:** `leaflet` (mapa), `protomaps-leaflet` y `@protomaps/basemaps`
+      (dibujo y estilos del mapa base vectorial), `pmtiles` (lectura del archivo, en la app y en el
+      script).
+- **Descartado:** el binario `pmtiles extract` (descarga de un ejecutable; lo mismo se hace en JS);
+  descargar el mapa base en datos móviles sin preguntar; agrupar marcadores en racimos (06 §4.4).
+- **Afecta a:** 06 §2.4, §4.3 y Apéndice A; 09 Fase 5; 04 §8 (el mapa base cabe en Pages).
+
+### DEC-063 · Decisiones de detalle al construir la Fase 6 (operaciones)
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** 02 y 05 §7/§10 fijan qué manda cada operación y el orden de envío; faltaba cómo se
+  comporta la cola, qué se ve mientras tanto y qué hacer con lo que aún no existe.
+- **Decisiones:**
+  1. **Todo pasa por la cola**, haya cobertura o no: se guarda la propuesta con su foto en IndexedDB
+     y se envía al momento si se puede. Un único camino para probar y ningún envío que se pierda si
+     la red cae a medias. La pantalla de resultado dice "Enviado", "Guardado en el móvil" o
+     "Aplicado" según lo que haya pasado de verdad.
+  2. **Reintentos:** retroceso de 2 s a 60 s contra un servidor caído; al volver la red o pulsar
+     "Reintentar" se intenta todo ya. Cuota de fotos agotada: se reintenta cada hora. Errores
+     permanentes (punto ya no activo, datos no válidos, falta foto) se enseñan en Mis propuestas con
+     "Descartar" y confirmación. `FOTO_NO_RESERVADA` hace subir la foto otra vez con la misma marca.
+  3. **Foto:** se endereza con la orientación de la cámara, lado mayor ≤ 1600 px, JPEG que baja de
+     calidad hasta ≈ 300 kB; el lienzo no copia EXIF. La posición EXIF se lee con un lector propio
+     (sin dependencias) y viaja como `exif_lat/exif_lng`. En "corregir datos" la foto es opcional,
+     como en 05 §6.
+  4. **Jefatura en el móvil firma como "Jefatura" + su correo** en `autor_*` (el registro ya usa su
+     correo); no tiene Mis propuestas ni avisos push de voluntario.
+  5. **Fotos de referencia del racor pendientes:** no hay fotos reales de los racores de Albolote.
+     Hasta que jefatura las haga, las tarjetas llevan solo el nombre; se añadirán en
+     `src/activos/racores/` sin tocar la lógica. Un dibujo inventado podría inducir a error.
+  6. **"Algo no funciona" necesita cobertura** (no pasa por la cola): el botón lo dice.
+  7. **Avisos push:** interruptor en Ajustes con la explicación antes del permiso; en iPhone sin
+     instalar se dice que primero hay que instalarla. Tras cada sincronización el móvil llama a
+     `/api/push`. `VAPID_PUBLIC_KEY` se ha puesto en Pages (staging y producción) desde la variable
+     pública de GitHub, sin rotar claves.
+  8. **Cerrar sesión** borra también la cola, Mis propuestas guardadas y la suscripción push,
+     avisando antes de cuántos envíos se perderán.
+  9. **Dependencia movida:** `@turf/boolean-point-in-polygon` pasa de desarrollo a la app (aviso de
+     fuera de zona, FR-55).
+- **Descartado:** enviar directamente sin cola cuando hay red (dos caminos y más fallos posibles);
+  bloquear el alta fuera de zona (FR-55 dice avisar).
+- **Afecta a:** 06 Apéndice A; 09 Fase 6.
+
+### DEC-064 · Botón propio para instalar la app y "Mi posición" en el mapa de los formularios
+- **Fecha:** 20 sep 2026 (desarrollador, tras probar staging en Android) · **Estado:** vigente
+- **Contexto:** en Chrome para Android el desarrollador no encontró cómo instalar la app: la opción
+  del menú cambia de nombre con el idioma y la versión ("App installeren", "Añadir a pantalla de
+  inicio"…) y las instrucciones decían "Instalar aplicación". Chrome sí la consideraba instalable
+  (sin errores de instalabilidad salvo el modo incógnito de la prueba). Además, en el minimapa de un
+  alta no había forma de volver a la posición propia.
+- **Decisiones:**
+  1. La app escucha `beforeinstallprompt` y ofrece su propio botón "Instalar": un aviso en el mapa
+     que se cierra una vez para siempre y una fila fija en Ajustes. En iPhone (sin ese evento) Ajustes
+     explica Compartir → Añadir a pantalla de inicio; en otros navegadores, el menú.
+  2. El minimapa de los formularios tiene el botón "Mi posición", como el mapa principal: centra en
+     el GPS y, en un alta, devuelve el pin al GPS (origen `gps`). En "corregir ubicación" solo centra,
+     para no mover el pin sin querer. Si el pin cambia fuera de la vista, el mapa lo sigue.
+- **Afecta a:** 06 Apéndice A; notas para 14.
+- **Corregida en parte por DEC-066** (el mapa ya no sigue al pin).
+
+### DEC-065 · Cómo se construye la cola de revisión del panel
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** la Fase 7 empieza por la cola (FR-100–FR-110). El contrato de 05 ya tenía todas las
+  RPC; faltaba decidir qué calcula el panel, qué pide a la base de datos y qué umbrales usan las
+  señales de fiabilidad (FR-104), que 01 describe sin números.
+- **Decisiones:**
+  1. El panel **lee** vistas y tablas con la sesión de Google (RLS de 05 §5) y **escribe** solo por
+     RPC. Las lecturas pasan por `src/lib/panel/consultas.ts`, que devuelve `Resultado` y anota si el
+     servidor responde, igual que `rpc()`.
+  2. `v_cola_revision` gana dos columnas (migración 0008): `nucleo` —el del punto o, en un alta, el
+     que se deduce del pin— y `punto_actualizado_en`, para explicar desde cuándo está desactualizada
+     una propuesta. Sin ellas, la lista no podía escribir "Autor · hace 2 h · calle · núcleo" (FR-101).
+  3. El historial (FR-109) se lee de `propuestas` con un tope de 300 filas por estado; el histórico
+     completo es el Registro (FR-123).
+  4. Umbrales de las señales: GPS "poco preciso" por encima de **20 m**; foto hecha a más de **30 m**
+     del pin. El resto de señales no necesitan umbral (origen del pin, fuera de zona, duplicado,
+     "otra medida", desactualizada, antigüedad de la revisión anterior).
+  5. La dirección deducida se pide a `/api/direccion` al abrir una propuesta con pin si aún no la
+     tiene; lo que quede escrito solo viaja como `correcciones.direccion` si difiere de la deducida.
+  6. Con "otra medida" el botón *Aprobar* queda deshabilitado con el motivo escrito (UI-02): hay que
+     fijar 70 o 100 en *Aprobar con correcciones*, que es lo que `fn_aprobar` exige (DIAMETRO_SIN_FIJAR).
+  7. **No se construye** lo que el prototipo 08 enseña pero ningún requisito pide: "Borrar
+     definitivamente" en la papelera (FR-124 purga sola a los 30 días), "Reabrir" una incidencia y el
+     CSV del Registro. El rechazo en bloque sí, porque está en 06 Apéndice A y en 09.
+  8. Una lectura caída no vacía la pantalla: se conserva lo cargado, se avisa arriba con la hora del
+     último dato y se reintenta con la degradación controlada (FR-168). `postgrest-js` reintenta solo
+     las lecturas fallidas con espera creciente, así que el aviso tarda unos segundos en darse por firme.
+- **Descartado:** calcular el núcleo de un alta en el navegador (el GeoJSON de la zona no trae los
+  núcleos); traer el historial entero (crece sin límite).
+- **Afecta a:** 05 §4; 06 Apéndice A; 09 Fase 7.
+
+### DEC-066 · Minimapa de los formularios: más alto y sin recentrados automáticos
+- **Fecha:** 20 sep 2026 (desarrollador, probando en Android) · **Estado:** vigente
+- **Contexto:** con 224 px de alto se veía poco contexto alrededor del pin, y el mapa se recentraba
+  solo cuando el pin se movía fuera de la vista (DEC-064.2), lo que descoloca mientras se ajusta a mano.
+- **Decisión:** el minimapa pasa a 336 px (+50 %) y no vuelve a centrarse solo: al llegar una lectura
+  de GPS o moverse el pin, solo se mueve el pin. Para centrar está el botón "Mi posición".
+- **Afecta a:** 06 §5; notas para 14.
+
+### DEC-067 · Inventario, registro, papelera y exportación del panel
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** segunda tanda de pestañas de la Fase 7 (FR-120–FR-125, FR-160). Faltaba decidir de
+  dónde salen los datos, cómo se imprime la hoja de campo y con qué se genera el Excel sin servicios
+  externos ni cuentas.
+- **Decisiones:**
+  1. El **inventario** se pinta con los puntos que el panel ya tiene sincronizados (la misma
+     `v_puntos_activos` del mapa): filtros, orden y páginas de 50 se calculan en el navegador, que
+     con unos cientos de puntos va sobrado y funciona aunque el servidor tarde.
+  2. El **registro** sí se pagina en el servidor (`range` de PostgREST, 50 por página) porque crece
+     sin límite; la búsqueda global filtra por actor, código y resumen, escapando lo que rompería el
+     filtro. Solo lectura: no hay ningún control que escriba.
+  3. La **hoja de campo** (FR-122) no abre ventanas nuevas —los bloqueadores se las comen—: se pinta
+     sobre la página y una regla de impresión deja solo la hoja, una página por núcleo.
+  4. La **exportación** (FR-160) genera el archivo en el navegador: CSV con BOM y punto y coma (Excel
+     en español), GeoJSON estándar y un .xlsx propio de unas 40 líneas (OOXML mínimo comprimido con
+     **fflate**, dependencia nueva de 8 kB que ya estaba en el árbol). Los números van como números.
+  5. Retirar y borrar piden motivo y explican el efecto antes de confirmar (UI-06); la papelera
+     enseña los días que quedan y solo purga lo caducado, como manda FR-124.
+- **Descartado:** SheetJS desde npm (la versión publicada arrastra avisos de seguridad y el propio
+  proyecto recomienda su CDN, que sería un servicio externo); generar el xlsx en el servidor (no hace
+  falta y gastaría cuota).
+- **Afecta a:** 06 §5 y Apéndice A; 09 Fase 7.
+
+### DEC-068 · Voluntarios, ajustes, núcleos, QR y avisos de jefatura
+- **Fecha:** 20 sep 2026 · **Estado:** vigente; el punto 5 lo sustituye DEC-069 (`workflow_dispatch`
+  en lugar de `repository_dispatch`)
+- **Contexto:** última tanda de la Fase 7 (FR-130–FR-145, FR-162–FR-167). Los núcleos gestionables y
+  el resumen semanal no tenían RPC en 05, y el QR no podía depender de un servicio externo.
+- **Decisiones:**
+  1. **Núcleos** (FR-166): migración 0009 con `fn_renombrar_nucleo` y `fn_anadir_nucleo`. Renombrar
+     arrastra los puntos que lo tienen y recuerda el nombre de OpenStreetMap en `nucleos.nombre_osm`,
+     para que `cargar-zona.ts` no lo resucite en el siguiente despliegue. Añadir exige señalar dónde
+     está: el municipio y el núcleo de cada punto se deducen por cercanía (05 §6.3), así que un núcleo
+     sin geometría no serviría; al añadirlo se recalcula el núcleo de los puntos de ese municipio.
+     El registro gana la acción `nucleo_guardado`.
+  2. **Resumen semanal** (FR-164): lo encola `pg_cron` los lunes (`fn_encolar_resumen_semanal`) y lo
+     envía `/api/push`, al que el panel llama al abrirse. Así no hace falta un workflow con secretos
+     nuevos; cuando la Fase 8 traiga `vigilancia.yml`, ese trabajo también lo despachará.
+  3. **Código de acceso**: lo genera el navegador con `crypto.getRandomValues` y se confirma en un
+     diálogo que dice cuántos móviles tendrán que volver a escribirlo (FR-140, UI-06).
+  4. **Código QR** (FR-162): librería `uqr` (sin dependencias, 10 kB) y hoja A4 imprimible con el
+     escudo y "Escanea para instalar". Nada de servicios de QR por internet.
+  5. **Mantenimiento** (FR-165): `mantenimiento.yml` escucha el `repository_dispatch` y abre un PR a
+     `develop` con lo regenerado, en vez de escribir en la rama: el mapa base pesa megas y conviene
+     mirarlo antes de desplegarlo. Los botones de **purga de fotos** y **respaldo** no se dibujan
+     todavía: sus workflows llegan en la Fase 8 y un botón que no hace nada está prohibido (UI-01).
+  6. **`GITHUB_DISPATCH_TOKEN`** es el único paso manual que queda para el desarrollador: un token
+     *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
+     `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
+- **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-074 · La instalabilidad la comprueba un e2e, no Lighthouse
+- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Contexto:** TR-103 pide "Lighthouse en CI sobre staging: rendimiento ≥ 85, accesibilidad ≥ 95,
+  buenas prácticas ≥ 95, **PWA instalable**". Lighthouse 12 (la que trae `treosh/lighthouse-ci-action@v12`)
+  **quitó la categoría PWA** y ya no ejecuta la auditoría `installable-manifest`, así que la
+  aserción no fallaba por una app no instalable: fallaba porque la auditoría no se ejecutaba
+  (`auditRan`, 0 de 1). Eso dejó rojo el despliegue de staging tres veces seguidas.
+- **Decisión:** la aserción `installable-manifest` queda en `off` en `.github/lighthouse.json` y la
+  instalabilidad se comprueba **con un navegador sobre lo desplegado**, en `e2e/cabeceras.spec.ts`:
+  manifiesto con `display: standalone` y `start_url`, iconos de 192 y 512 más uno `maskable`, los
+  tres servidos como PNG, y un Service Worker activo. Lo lanza `deploy-staging.yml` justo después de
+  desplegar, con `URL_DESPLEGADA`. Los tres umbrales numéricos de TR-103 siguen en Lighthouse.
+- **Descartado:** clavar la acción a Lighthouse 11 para conservar la categoría PWA (quedarse atrás en
+  la herramienta que mide accesibilidad y rendimiento, por una auditoría que se puede hacer mejor
+  desde el propio navegador).
+- **Afecta a:** `.github/lighthouse.json`, `e2e/cabeceras.spec.ts`, `.github/workflows/deploy-staging.yml`;
+  03 TR-103 (lectura: la parte de "PWA instalable" no la mide Lighthouse).
+
+### DEC-073 · El aviso de almacenamiento salta al 90 % del gigabyte gratuito
+- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Contexto:** la prueba de degradación de la Fase 8 pide "Storage al 90 % → banda en Salud", pero
+  ningún documento decía de qué es ese 90 %, qué dice la banda ni si bloquea algo. Salud del sistema
+  solo enseñaba los megas ocupados, que no le dicen nada a jefatura si no sabe la cota.
+- **Decisión:** el porcentaje es sobre el **1 GB de fotos de TR-53**, la única cota que la aplicación
+  puede llenar sola. Desde el 90 %, la tarjeta de Salud del sistema enseña una banda de aviso (06 §5:
+  fondo `--oro-100`, borde `--oro-600`, texto `--ambar-700`, ⚠ delante) que dice el porcentaje y qué
+  hacer: purgar la papelera y las fotos huérfanas. **No bloquea nada** y no se puede descartar: es un
+  dato de la tarjeta, no una alerta que se cierre y se olvide. Por debajo del 90 % no se dibuja
+  (UI-01: nada que no aporte).
+- **Descartado:** cortar las subidas al llegar al 90 % (dejaría a un voluntario sin poder enviar su
+  alta con un cuarto de giga libre); avisar por push a jefatura (aún no hay tema para eso y el aviso
+  no es urgente: se ve al entrar en Ajustes).
+- **Afecta a:** `src/lib/panel/ajustes.ts` (`avisoAlmacenamiento`), `src/componentes/panel/Ajustes.tsx`,
+  `src/lib/textos.ts`, 06 Apéndice A, `e2e/degradacion.spec.ts`.
+
+### DEC-072 · Dos arreglos de contraste que salieron al medir los tokens
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** la Fase 8 pedía comprobar TR-31 (4,5:1 en texto, 3:1 en los colores de estado sobre
+  el mapa) de forma automática. Al escribir la comprobación sobre los tokens de verdad aparecieron
+  dos incumplimientos que nadie había medido:
+  1. `--verde-600` sobre `--verde-100` da **4,17:1**, y ahí va texto: las etiquetas "bueno", "alta"
+     y "resuelta". Los otros tres estados sí llegan (4,63 / 6,04 / 7,70).
+  2. En modo oscuro, 06 §2.4 cambiaba el borde del marcador a `#111826` "para que siga separando
+     del fondo". Contra el mapa oscuro (`#1B2536`) ese borde da **1,16:1**, y los rellenos de estado
+     contra él, entre 1,81 y 3,52: el marcador se perdía justo donde se usa de noche.
+  3. Y axe, sobre las pantallas montadas, encontró el que más se usa de todos: **texto blanco sobre
+     `--naranja-600` `#DD5A1F` da 3,78:1**. Es el botón de Enviar, el de Entrar, el botón + del mapa
+     y la banda de pruebas. El mismo naranja como texto sobre blanco, igual.
+- **Decisiones:**
+  1. **`--verde-700` `#276B42`** para el texto sobre `--verde-100` (5,31:1). El relleno del marcador
+     sigue siendo el `--verde-600` que fija 06 §4.2: la simbología de emergencias no se toca.
+  2. **`--naranja-600` baja a `#C94F16`** (4,55:1 con blanco encima, y 4,55:1 sobre blanco). Es el
+     color de acción de toda la aplicación, así que el cambio se ve; se prefiere eso a un botón que
+     no se lee a pleno sol, que es el escenario de 06 §1. Cuando el naranja es **texto sobre una
+     superficie** se usa `--naranja-texto`: `#BE4811` en claro (4,56:1 sobre `--fondo`) y `#F0A070`
+     en oscuro (7,48:1 sobre las tarjetas), el mismo que ya usaba el badge de pendientes.
+  3. **El borde del marcador se queda blanco en los dos modos.** Contra el mapa oscuro da 13,6:1 y
+     los cuatro rellenos contra él, de 5,0:1 a 9,8:1. Es además lo que ya decía 06 §4.2 ("el borde
+     blanco de 2,5 px garantiza la separación en cualquier fondo de mapa"): el cambio de §2.4 lo
+     contradecía.
+  4. **Cómo se lee TR-31 en el mapa:** un marcador se distingue en dos saltos —el relleno contra el
+     borde, y el relleno *o* el borde contra el mapa—, y los dos tienen que llegar a 3:1. Exigir el
+     relleno contra el mapa a secas es imposible con una simbología idéntica en claro y oscuro: en
+     el mapa oscuro, `no_funciona` (`#40453D`) se queda en 1,57:1 y aclararlo cambiaría el color de
+     un estado. Queda así en el test; si el desarrollador prefiere cambiar los colores de estado en
+     oscuro, se decide aparte.
+- **Descartado:** aclarar los cuatro estados en oscuro (cambia la simbología, que es lo primero que
+  aprende un voluntario); dejar el verde como estaba (es texto, y TR-31 no distingue).
+- **Afecta a:** 06 §2.1, §2.2, §2.4 y los prototipos 06/07/08; `src/index.css`;
+  `src/lib/accesibilidad.test.ts`; `e2e/accesibilidad.spec.ts`; 03 TR-31 (lectura).
+
+### DEC-071 · Los secretos de la automatización viven en el repositorio, no en el entorno
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** `respaldo.yml` (Fase 8) necesita la cadena de la base de datos de producción y la
+  clave de servicio. Hoy esos secretos están en el *environment* `production`, que tiene
+  `required_reviewers`: cualquier job que lo declare espera a que una persona apruebe la ejecución.
+  Eso es exactamente lo que queremos para desplegar, y exactamente lo que **no** puede tener un
+  respaldo semanal de madrugada: un respaldo que espera a que alguien pulse un botón no es un
+  respaldo, y el proyecto se sostiene sobre la idea de que nadie tiene que mirarlo (TR-50).
+- **Decisión:** los trabajos automáticos (respaldo, y más adelante purga de fotos y vigilancia) usan
+  **secretos de repositorio** con sufijo de entorno —`SUPABASE_DB_URL_PROD`,
+  `SUPABASE_SERVICE_ROLE_KEY_PROD`, `GPG_PUBLIC_KEY`—, y los *environments* siguen guardando los del
+  despliegue con su aprobación. El workflow comprueba que están y, si falta alguno, falla diciendo
+  en el resumen los tres `gh secret set` exactos, en vez de intentarlo y dejar un respaldo a medias.
+- **Descartado:**
+  - *Quitarle los revisores a `production`*: es la única barrera entre `develop` y la producción.
+  - *Un environment nuevo sin revisores con los mismos valores*: la misma exposición, con un sitio
+    más donde mirar cuando algo no cuadre.
+  - *Respaldar desde `pg_cron`*: no puede escribir archivos ni cifrarlos.
+- **Riesgo aceptado:** un secreto de repositorio lo puede leer cualquier workflow del repositorio.
+  El repositorio es público (DEC-053), pero GitHub no entrega secretos a los PR que vienen de un
+  fork, y los workflows que los usan solo se disparan por calendario o a mano. Queda como uno de los
+  puntos a mirar en las pruebas de intrusión (TR-40, tarea F8.8).
+- **Consecuencias:** tres `gh secret set` una sola vez, con valores que el desarrollador ya tiene.
+  Hasta entonces el respaldo falla a propósito y lo dice; `vigilancia.yml` avisará de que no hay
+  respaldo reciente.
+- **Afecta a:** 04 §9, §10; 15 §5.3; `.github/workflows/respaldo.yml`.
+
+### DEC-070 · Regenerar la zona no abre un PR si solo cambia la fecha
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** al probar el Mantenimiento ya arreglado (DEC-069) se lanzó "Regenerar zona" contra
+  OpenStreetMap real. El workflow abrió un PR y el único cambio era la fecha: `generar-zona.ts` sella
+  `version` con el día en que se ejecuta, así que los archivos siempre salen distintos aunque la
+  geometría sea idéntica byte a byte. El paso "Sin cambios" del workflow mira `git status`, que ve el
+  sello y nunca se cumple.
+- **Por qué importa:** quien pulsa el botón es jefatura, y quien tendría que revisar el PR es el
+  desarrollador. Un PR de ruido cada vez enseña a fusionar sin mirar, que es justo lo que ese PR
+  intermedio venía a evitar (DEC-068.5), y convierte el historial de `datos/` en una lista de fechas.
+- **Decisión:** `generar-zona.ts` compara lo recién construido con lo que hay en `datos/` ignorando el
+  sello de versión (`mismaGeometria`). Si la geometría es la misma, **no escribe nada** y lo dice; la
+  versión sigue siendo la del último cambio real, que es lo que "Salud del sistema" enseña como fecha
+  de la zona (FR-143). La previsualización HTML sí se reescribe: no se committea.
+- **Descartado:** sellar la fecha solo en `meta.json` (el mismo ruido, en otro archivo); que el
+  workflow filtrara el diff con `git diff -I` (la regla quedaría en YAML, lejos de quien la lee, y
+  `npm run zona` a mano seguiría ensuciando el repositorio).
+- **Consecuencias:** "Regenerar zona" con datos sin cambios termina en verde y sin PR, y el resumen del
+  workflow lo dice. Cuando OSM cambie de verdad, el PR llega con el cambio y con la fecha nueva.
+- **Afecta a:** `scripts/generar-zona.ts`; 04 §8; 12 (DEC-068.5).
+
+### DEC-069 · El token de mantenimiento, con `actions:write` y no con `contents:write`
+- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Contexto:** al ir a crear `GITHUB_DISPATCH_TOKEN` (último paso manual de la Fase 7) apareció una
+  contradicción: 04 §10 lo describe desde el principio como un token con el **permiso único
+  `actions:write`**, pero la implementación de DEC-068 usa `repository_dispatch`, y GitHub exige para
+  ese endpoint **`contents:write`** en los tokens *fine-grained* (`actions:write` solo vale para
+  `workflow_dispatch`). Con `contents:write`, un secreto filtrado de una Pages Function pública podría
+  empujar directamente a `develop`, que despliega solo a staging; el repositorio es público (DEC-053),
+  así que el atacante vería además exactamente qué hay que empujar.
+- **Decisiones:**
+  1. **Gana 04**, que es el propietario de los secretos: `/api/lanzar-workflow` despacha con
+     `workflow_dispatch` sobre el archivo del workflow (`mantenimiento.yml`), rama `develop` y el
+     trabajo como entrada `trabajo`. El token se crea con `Actions: Read and write` y nada más.
+  2. **`mantenimiento.yml` pierde el disparador `repository_dispatch`**: ya no lo usa nadie y dejarlo
+     sería configuración muerta. El paso "Qué toca" lee solo `inputs.trabajo`.
+  3. **Un trabajo sin workflow responde `NO_CONFIGURADO`** y no llama a GitHub: `purgar-fotos` y
+     `respaldo` siguen en la lista blanca de 05 §9, pero sus workflows son de la Fase 8. Antes se
+     mandaba un `repository_dispatch` que nadie escuchaba y la pantalla decía que todo había ido bien.
+  4. **Funciona aunque `main` no tenga el workflow**: `workflow_dispatch` por API pide que el archivo
+     esté en la rama por defecto, que aquí es `develop` (7, "Nombres fijos"), no `main`.
+- **Descartado:** crear el token con `contents:write` y seguir con `repository_dispatch` (más cómodo,
+  cero código, pero le da a un secreto de internet permiso de escritura sobre el código); y un token
+  *classic* con `repo` (aún más amplio y sin caducidad obligatoria).
+- **Consecuencias:** el desarrollador crea el token con un solo permiso. Si en la Fase 8 la purga de
+  fotos o el respaldo necesitan su propio workflow, se añaden al mapa `ARCHIVO` de la función.
+- **Afecta a:** 04 §10; 05 §9; 12 (DEC-068.5); `functions/api/lanzar-workflow.ts`;
+  `.github/workflows/mantenimiento.yml`; `docs/verificacion/fase-7.md`.
+
+### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
+- **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)
+- **Contexto:** el sábado 19 sep 2026 staging no cargaba ni en fibra ni con datos móviles
+  (`ERR_CONNECTION_TIMED_OUT`), mientras que producción, GitHub y Supabase respondían y el despliegue
+  se comprobaba bien desde GitHub (EE. UU.). Causa: por orden judicial (sentencia 310/2024), Movistar,
+  MásOrange, Vodafone y DIGI bloquean durante los partidos de LaLiga IP compartidas de Cloudflare.
+  `hidrantes-albolote-staging.pages.dev` resuelve a **188.114.96.5 / 188.114.97.5**, que según el
+  histórico público de hayahora.futbol se han bloqueado 15–19 veces desde julio de 2026 en los cinco
+  operadores. Producción (`172.66.47.37`, `172.66.44.219`) y Supabase (`104.18.38.10`,
+  `172.64.149.246`) no han aparecido nunca, pero sí 22 IP vecinas de `172.66.*` y dos de `104.18.*`.
+  La IP la asigna Cloudflare por nombre de host y puede cambiar; no se puede elegir en el plan gratuito.
+- **Riesgo:** un fin de semana de partido, si producción o Supabase caen en la lista, ningún voluntario
+  en España llega al servidor durante unas horas. No es una caída que se vea en la página de estado de
+  Cloudflare ni desde fuera de España.
+- **Decisiones:**
+  1. **La mitigación principal ya está en el diseño:** la app instalada abre desde su Service Worker,
+     el mapa base y los puntos quedan en el móvil (Fase 5) y lo enviado se encola (Fase 6); el aviso
+     es "Sin conexión con el servidor" y reintenta solo (FR-168). Consultar un hidrante en una
+     emergencia no depende de la red. Por eso se insiste en instalar y abrir la app una vez con
+     cobertura antes de necesitarla.
+  2. **Vigilancia automática** (propuesta, pendiente de confirmar): un workflow diario que resuelve los
+     tres nombres (producción, staging, Supabase) y los cruza con la lista pública de hayahora.futbol;
+     abre una issue si una IP nuestra aparece. Sin cuenta ni coste.
+  3. **Staging se prueba fuera de horario de partido** (entre semana, o con la herramienta de
+     hayahora.futbol para saber si hay bloqueo). La prueba en móviles reales de la Fase 4 queda
+     pendiente por esto.
+  4. **Procedimiento en 15 §5.8** para jefatura: cómo reconocerlo y qué hacer.
+- **Descartado, por ahora:**
+  - *Copia estática en GitHub Pages* (Fastly, nunca bloqueada): sería otro origen, así que el móvil no
+    comparte acceso, puntos guardados ni cola con la app principal, y los datos (`*.supabase.co`) y las
+    Functions siguen detrás de Cloudflare. Solo ayudaría si cayera `pages.dev` y no Supabase. Queda
+    como plan B documentado.
+  - *Dominio propio en Cloudflare*: sigue en IP compartidas de Cloudflare (los foros recogen zonas
+    gratuitas asignadas a las mismas 188.114.96/97) y cuesta dinero (DEC-006).
+  - *Dominio propio para Supabase o salir de Cloudflare*: de pago; contradice el coste 0.
+  - *Recrear el proyecto de staging para que le toque otra IP*: azar, y puede volver a pasar.
+- **Afecta a:** 09 §3, 15 §5.8; notas para 14.
+
 ### DEC-041 · Manuales (13, 14) al final, con capturas reales
 - **Fecha:** 17 sep 2026 (desarrollador) · **Estado:** vigente
 - **Decisión:** 13 y 14 se escriben después del piloto, con las capturas de `scripts/capturas.ts` sobre la app real.
@@ -403,14 +859,14 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035 |
-| 06 | 012, 013, 027, 047 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
-| 15 | 023 |
+| 15 | 023, 061 |
 | 16 | 007, 037 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |

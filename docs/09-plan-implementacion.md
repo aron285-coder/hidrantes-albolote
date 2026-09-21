@@ -82,7 +82,7 @@ proyecto. El frontend sobre una base sólida avanza deprisa. Cada fase termina c
 **Objetivo:** un commit en `develop` aparece solo en staging y uno en `main` solo en producción,
 todo creado con un comando. Referencia: 04 §4, §10, §11.
 
-- [ ] `scripts/arranque.ts` (`npm run arranque`), idempotente, en este orden:
+- [x] `scripts/arranque.ts` (`npm run arranque`), idempotente, en este orden:
   1. Comprueba `gh auth status` y `wrangler whoami`; se detiene con el comando de login exacto si
      falta alguna sesión. Pide el token de Cloudflare, un token de acceso de Supabase (Management API,
      DEC-055) y las dos contraseñas de BD, que solo sirven para crear `hidrantes_migrador` (DEC-052).
@@ -115,7 +115,7 @@ todo creado con un comando. Referencia: 04 §4, §10, §11.
 - [x] `_headers` con las cabeceras de TR-100 (generado en el build por `config/cabeceras.ts`, DEC-055); `manifest.webmanifest`; `robots.txt` por entorno.
 - [x] `.github/dependabot.yml` (npm y Actions, semanal) y `automerge.yml` (fusiona parches y menores
       con CI verde; los mayores esperan).
-- [ ] *Conventional commits* + `release-please` (o equivalente sin cuenta externa): versión semántica,
+- [x] *Conventional commits* + `release-please` (o equivalente sin cuenta externa): versión semántica,
       `CHANGELOG.md` automático, tag por release; la versión se inyecta en `<meta name="version">` y
       en Ajustes, y las tres últimas entradas del changelog se cargan en `config` para FR-167.
 - [x] Plantilla de PR con la definición de terminado (§6), plantilla de issue, `CODEOWNERS` con el
@@ -125,8 +125,8 @@ todo creado con un comando. Referencia: 04 §4, §10, §11.
 - [x] `deploy-staging.yml`: `migrar.ts` contra dev, `cargar-zona.ts`, `seed-staging.sql`
       (idempotente), despliegue. Nunca `supabase db push`.
 - [x] `deploy-prod.yml`: *environment* `production`, guarda (aborta con seed o `PROJECT_REF`
-      incorrecto), `migrar.ts`, `cargar-zona.ts`, despliegue; en el primer despliegue genera el
-      código de acceso real y lo deja en el *summary*.
+      incorrecto), `migrar.ts`, `cargar-zona.ts`, despliegue. El código real lo genera jefatura en Ajustes: el *summary* es
+      público (DEC-059).
 - [x] `scripts/migrar.ts`: historial propio `hidrantes.migraciones_aplicadas`, orden, transacción,
       abortar si cambia el hash de una aplicada (04 §5, §12). `scripts/revertir.ts` para Pages.
 - [x] Banda "ENTORNO DE PRUEBAS" con `VITE_ENTORNO=staging`; `noindex` y `robots.txt` en staging.
@@ -148,16 +148,16 @@ las fases 1–9 existen con su milestone; `CLAUDE.md` está en la raíz. Verific
 **Objetivo:** los GeoJSON de la zona en el repositorio y cargados en BD, con comprobación
 automática. Referencia: FR-53, FR-14, 04 §8.
 
-- [ ] `scripts/generar-zona.ts` (`npm run zona`): consulta Overpass (`admin_level=8`, Albolote y
+- [x] `scripts/generar-zona.ts` (`npm run zona`): consulta Overpass (`admin_level=8`, Albolote y
       Calicasas; mirror alternativo y fuente IECA escrita como respaldo); simplifica; une; margen de
       400 m; escribe `datos/zona-cobertura.geojson`, `datos/limite-municipal.geojson`,
       `datos/nucleos.geojson`, `datos/meta.json` y `datos/zona-cobertura.html` (previsualización con
       Leaflet).
-- [ ] Test que comprueba diez coordenadas conocidas (cinco dentro por núcleo, dos en Calicasas, tres
+- [x] Test que comprueba diez coordenadas conocidas (cinco dentro por núcleo, dos en Calicasas, tres
       fuera) contra los GeoJSON.
-- [ ] `scripts/cargar-zona.ts` (`npm run cargar-zona`): `upsert` en `limite_municipal` y `nucleos`
-      desde CI, tras las migraciones.
-- [ ] Committear los GeoJSON: el build nunca depende de Overpass.
+- [x] `scripts/cargar-zona.ts` (`npm run cargar-zona`): `upsert` en `limite_municipal` y `nucleos`
+      desde CI, tras las migraciones. Hasta que la Fase 2 cree las tablas, avisa y no carga (DEC-057).
+- [x] Committear los GeoJSON: el build nunca depende de Overpass.
 
 **Criterio de salida:** test de las diez coordenadas en verde; el desarrollador mira la
 previsualización tres minutos y confirma.
@@ -169,17 +169,17 @@ previsualización tres minutos y confirma.
 **Objetivo:** esquema `hidrantes` aplicado en staging por CI, con RLS, Storage, `pg_cron` y seed.
 Referencia: **05 §1–5, §10–11** al pie de la letra; 04 §5 (PostGIS primero en dev).
 
-- [ ] Migración 0001: extensiones (`postgis`, `pg_cron`), enums, tablas, constraints, índices,
+- [x] Migración 0001 (extensiones en `arranque-bd.sql`, DEC-052): enums, tablas, constraints, índices,
       secuencias, triggers (`actualizado_en`, protección de `registro`).
-- [ ] Migración 0002: vistas `security_invoker` (05 §4) con `fn_radio_px` leyendo `config`.
-- [ ] Migración 0003: RLS y grants exactamente como 05 §5; `revoke execute` de
-      `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas` a `anon` y
-      `authenticated`.
-- [ ] Migración 0004: `config` con defaults de 05 §2.10; `administradores` con el propietario;
+- [x] Migración 0002: vistas `security_invoker` (05 §4) con `fn_radio_px` leyendo `config`.
+- [x] Migración 0003: RLS y grants exactamente como 05 §5; ninguna función nace
+      ejecutable por `PUBLIC` (privilegios por defecto), así que las tres RPC de `service_role` de
+      la Fase 3 quedan cerradas a `anon` y `authenticated` por construcción (DEC-058).
+- [x] Migración 0004: `config` con defaults de 05 §2.10; el propietario por `asegurar-propietario.ts` (DEC-053, DEC-058);
       trabajos `pg_cron` de 04 §9.
-- [ ] Bucket y políticas de Storage (via `arranque.ts` y migración de políticas): sin escritura
+- [x] Bucket (vía `arranque.ts`; en local, `local-storage.sql`) sin políticas (DEC-055): sin escritura
       para `anon`/`authenticated`, lectura pública.
-- [ ] `supabase/seed-staging.sql` según 05 §11.
+- [x] `supabase/seed-staging.sql` según 05 §11.
 
 **Criterio de salida:** pgTAP en verde para: constraints de diámetro y racor por tipo; `no_funciona`
 sin descripción rechazado; punto sin foto rechazado; `insert` en Storage con `anon` rechazado;
@@ -192,14 +192,14 @@ devuelve filas con el rol previsto.
 
 **Objetivo:** toda la lógica de escritura probada antes de tocar la UI. Referencia: **05 §6–9**.
 
-- [ ] RPC de voluntario (05 §6.1), con `fn_validar_token` al inicio de cada una y tiempo constante
+- [x] RPC de voluntario (05 §6.1), con `fn_validar_token` al inicio de cada una y tiempo constante
       en `fn_verificar_codigo`.
-- [ ] RPC de jefatura (05 §6.2), incluidos los casos límite con mensaje explícito y los códigos de
+- [x] RPC de jefatura (05 §6.2), incluidos los casos límite con mensaje explícito y los códigos de
       error de 05 §8.
-- [ ] Helpers (05 §6.3).
-- [ ] `functions/api/{verificar-codigo,url-subida,direccion,lanzar-workflow,push}.ts` con el contrato de
-      05 §9; cola de 1 req/s para Nominatim; `wrangler pages dev` en CI.
-- [ ] Tests pgTAP y tests de las Functions en CI.
+- [x] Helpers (05 §6.3).
+- [x] `functions/api/{verificar-codigo,url-subida,direccion,lanzar-workflow,push}.ts` con el contrato de
+      05 §9; cola de 1 req/s para Nominatim; `wrangler pages dev` en CI (`scripts/probar-functions.ts`).
+- [x] Tests pgTAP y tests de las Functions en CI.
 
 **Criterio de salida:** tests en verde para: código erróneo rechazado; 11 intentos bloqueados;
 `fn_verificar_codigo` desde `anon` → *permission denied*; token revocado rechazado; reserva 41 del
@@ -217,23 +217,23 @@ desactualizada aprueba las demás; `/api/direccion` sin JWT → 403.
 **Objetivo:** aplicación que arranca, pide código y nombre, y navega entre pantallas vacías.
 Referencia: FL-01, FL-12, FL-20; 07 §7.1; 06.
 
-- [ ] Pantalla de entrada → `POST /api/verificar-codigo`; enlace a Google para jefatura.
-- [ ] `dispositivo_id` uuid generado una vez; persistencia local de token, nombre, apellido y
+- [x] Pantalla de entrada → `POST /api/verificar-codigo`; enlace a Google para jefatura.
+- [x] `dispositivo_id` uuid generado una vez; persistencia local de token, nombre, apellido y
       `dispositivo_id`. El código no se guarda. Token inválido → pedir código conservando el nombre.
-- [ ] Mensajes de bloqueo por intentos sin pistas (FR-33).
-- [ ] Login Google en la misma PWA; "No autorizado" si no está en `administradores`; etiqueta
+- [x] Mensajes de bloqueo por intentos sin pistas (FR-33).
+- [x] Login Google en la misma PWA; "No autorizado" si no está en `administradores`; etiqueta
       Jefatura; ruta `/admin`.
-- [ ] Armazón: navegación inferior Mapa / Lista / Ajustes; Ajustes con lo de FR-93 (lo que dependa
-      de fases posteriores, como placeholder claro).
-- [ ] PWA: manifest, iconos con el escudo, Service Worker con precache del armazón y `autoUpdate`
+- [x] Armazón: navegación inferior Mapa / Lista / Ajustes; Ajustes con lo de FR-93 que ya funciona;
+      lo de fases posteriores aparece con su fase (UI-01, DEC-060).
+- [x] PWA: manifest, iconos con el escudo, Service Worker con precache del armazón y actualización en modo aviso (DEC-060)
       con aviso "hay una versión nueva, recargar" (TR-24). Fuentes servidas localmente (06 §3).
-- [ ] Captura global de errores → `fn_registrar_error`, con cola offline propia; **límites de error**
+- [x] Captura global de errores → `fn_registrar_error`, con cola offline propia; **límites de error**
       por pantalla con "volver al mapa" (TR-106).
-- [ ] **Degradación controlada** (FR-168): estado global "servidor no disponible" cuando Supabase o una
+- [x] **Degradación controlada** (FR-168): estado global "servidor no disponible" cuando Supabase o una
       Function fallan; la app sigue con datos locales, muestra el aviso y reintenta con retroceso
       exponencial. Sin pantallas en blanco ni errores técnicos visibles.
-- [ ] Tres pantallas de primer uso (FR-94), saltables y recuperables desde Ajustes.
-- [ ] Notas de iOS en **14**: instalación por "Compartir → Añadir a pantalla de inicio"; Safari puede
+- [x] Tres pantallas de primer uso (FR-94), saltables y recuperables desde Ajustes.
+- [x] Notas de iOS para **14** (en `docs/notas-para-14-ios.md` hasta que se escriba 14, DEC-041): instalación por "Compartir → Añadir a pantalla de inicio"; Safari puede
       desalojar IndexedDB.
 
 **Criterio de salida:** instalable en un Android real y un iPhone real, con icono y a pantalla
@@ -247,27 +247,27 @@ autorizado".
 **Objetivo:** el mapa operativo, con y sin cobertura. Referencia: FR-60–71, FR-80–81; **06 §4**;
 04 §8; 07 §7.2 y §7.6.
 
-- [ ] `scripts/generar-mapabase.ts` (`npm run mapabase`): `pmtiles extract` del recuadro; imprime
+- [x] `scripts/generar-mapabase.ts` (`npm run mapabase`): `pmtiles extract` del recuadro; imprime
       tamaño; ≤ 20 MB a Pages, si no a R2; `VITE_MAPABASE_URL`.
-- [ ] Descarga completa del PMTiles a Cache Storage (automática con wifi, manual desde Ajustes),
+- [x] Descarga completa del PMTiles a Cache Storage (automática con wifi, manual desde Ajustes),
       servicio de rangos desde la caché, indicador de estado y versión, aviso si falta (FR-81).
-- [ ] Leaflet con `protomaps-leaflet`; estilo claro y oscuro del mapa base desde los tokens de 06
+- [x] Leaflet con `protomaps-leaflet`; estilo claro y oscuro del mapa base desde los tokens de 06
       §2.3, en un solo archivo `src/lib/estilo-mapabase.ts`.
-- [ ] Capas en línea (OSM, PNOA, Catastro) en `src/lib/capas.ts`, con atribución, `User-Agent`
+- [x] Capas en línea (OSM, PNOA, Catastro) en `src/lib/capas.ts`, con atribución, `User-Agent`
       identificable, capa recordada, y degradación en gris sin conexión. Verificar que PNOA y
       Catastro responden por HTTPS y no filtran por `Referer`.
-- [ ] Límite de zona dibujado; encuadre inicial; centrar en mi posición con halo de precisión.
-- [ ] Marcadores según **06 §4** exactamente: `radio_px` viene de `v_puntos_activos`; forma, borde,
+- [x] Límite de zona dibujado; encuadre inicial; centrar en mi posición con halo de precisión.
+- [x] Marcadores según **06 §4** exactamente: `radio_px` viene de `v_puntos_activos`; forma, borde,
       tachado, discontinuo, declutter por zoom, objetivo táctil ≥ 44 px, sin agrupación.
-- [ ] Leyenda con el contenido y orden de 06 §4.5.
-- [ ] Caché de puntos en IndexedDB con sincronización incremental (05 §10) y sello visible.
-- [ ] Búsqueda local (código, dirección, descripción) en mapa y lista; pestaña Lista con filtros y
+- [x] Leyenda con el contenido y orden de 06 §4.5.
+- [x] Caché de puntos en IndexedDB con sincronización incremental (05 §10) y sello visible.
+- [x] Búsqueda local (código, dirección, descripción) en mapa y lista; pestaña Lista con filtros y
       orden de FR-68.
-- [ ] Ficha (FR-66) con menú "Proponer un cambio" y **"Cómo llegar"** (FR-161: enlace `geo:`/Google
+- [x] Ficha (FR-66) (el menú "Proponer un cambio" llega con la Fase 6, DEC-062) y **"Cómo llegar"** (FR-161: enlace `geo:`/Google
       Maps/Apple Plans según plataforma); comprobar en la respuesta de red que no viajan autores ni
       historial.
-- [ ] Layout adaptable: ≥ 900 px lista lateral y ficha flotante; tableta con botones laterales.
-- [ ] Modo oscuro completo (interfaz y mapa base).
+- [x] Layout adaptable: ≥ 900 px lista lateral y ficha flotante; tableta con botones laterales.
+- [x] Modo oscuro completo (interfaz y mapa base).
 
 **Criterio de salida:** con el mapa base descargado, mapa y búsqueda funcionan en modo avión con los
 datos de la última sincronización; las cuatro capas cargan en 3G; los tests unitarios cubren las
@@ -281,25 +281,25 @@ móvil a la luz del día.
 **Objetivo:** que un voluntario proponga cualquier cambio, con o sin cobertura, y que jefatura
 pueda hacerlo desde el móvil. Referencia: FL-03–FL-11, FL-28; 07 §7.3–7.5; 05 §7, §10.
 
-- [ ] Alta nueva según FL-03: pin arrastrable + GPS con precisión; tipo; diámetro con "otra medida";
-      racor con fotos de referencia servidas con la app (`src/activos/racores/`); caudal;
+- [x] Alta nueva según FL-03: pin arrastrable + GPS con precisión; tipo; diámetro con "otra medida";
+      racor (las fotos de referencia de `src/activos/racores/` quedan pendientes de jefatura, DEC-063); caudal;
       descripción del fallo condicional; foto obligatoria con botón deshabilitado que dice por qué;
       descripción.
-- [ ] Aviso de fuera de zona con Turf sobre `zona-cobertura.geojson`, sin bloquear.
-- [ ] Tratamiento de la foto en el cliente (TR-15, TR-47): orientación, ≤ 1600 px, recompresión,
+- [x] Aviso de fuera de zona con Turf sobre `zona-cobertura.geojson`, sin bloquear.
+- [x] Tratamiento de la foto en el cliente (TR-15, TR-47): orientación, ≤ 1600 px, recompresión,
       EXIF leído y enviado aparte.
-- [ ] Revisión (un botón), actualizar estado, corregir datos, corregir ubicación (posición actual
+- [x] Revisión (un botón), actualizar estado, corregir datos, corregir ubicación (posición actual
       gris + línea de desplazamiento), proponer retirada (motivo rápido + texto + foto). Pantallas de
       07 §7.3.
-- [ ] Variante jefatura: "Aplicar ahora", resultado "Aplicado".
-- [ ] Cola offline en IndexedDB con `clave_local`, blob de foto, contador visible, reintentos con
+- [x] Variante jefatura: "Aplicar ahora", resultado "Aplicado".
+- [x] Cola offline en IndexedDB con `clave_local`, blob de foto, contador visible, reintentos con
       retroceso exponencial, fallos permanentes mostrados al voluntario, aviso a las 24 h. Envío:
       `url-subida` → `PUT` → `fn_proponer` (05 §10).
-- [ ] Mis propuestas con estado, motivo, correcciones, sin enviar, retirar. Aviso de resolución al
+- [x] Mis propuestas con estado, motivo, correcciones, sin enviar, retirar. Aviso de resolución al
       abrir (comprobación local, sin push).
-- [ ] "Algo no funciona" → `fn_reportar_incidencia`.
-- [ ] Ajustes completo (FR-93), incluido cerrar sesión con confirmación si hay envíos pendientes.
-- [ ] **Notificaciones push del voluntario** (FR-163, P1): interruptor en Ajustes, explicación previa
+- [x] "Algo no funciona" → `fn_reportar_incidencia`.
+- [x] Ajustes completo (FR-93), incluido cerrar sesión con confirmación si hay envíos pendientes.
+- [x] **Notificaciones push del voluntario** (FR-163, P1): interruptor en Ajustes, explicación previa
       al permiso (iOS solo con la app instalada), suscripción con `fn_guardar_suscripcion_push`,
       Service Worker que muestra la notificación y abre Mis propuestas. Tras cada sincronización el
       cliente llama a `/api/push`.
@@ -315,31 +315,31 @@ segunda propuesta; un administrador desde el móvil ve su cambio en el mapa sin 
 **Objetivo:** que aprobar sea rápido. Referencia: FR-100–145; FL-20–31; **08** (que ya lo prototipa
 tal cual); 05 §6.2, §9.
 
-- [ ] Siete pestañas y búsqueda global (FR-145).
-- [ ] Cola de revisión en dos columnas con lista, filtros, casillas y barra de acciones en bloque;
+- [x] Siete pestañas y búsqueda global (FR-145).
+- [x] Cola de revisión en dos columnas con lista, filtros, casillas y barra de acciones en bloque;
       detalle con minimapa, dirección deducida (`/api/direccion`, campo editable), diff, señales,
       foto; acciones Aprobar / Aprobar con correcciones (formulario en el mismo panel) / Rechazar /
       Fusionar (comparación en dos columnas y elección por campo); propuesta desactualizada con
       confirmación; historial por estado y fechas.
-- [ ] Inventario: tabla con filtros, orden, paginación de 50, dirección en celda, tabla/mapa,
+- [x] Inventario: tabla con filtros, orden, paginación de 50, dirección en celda, tabla/mapa,
       acciones editar / retirar / borrar / historial.
-- [ ] Revisiones caducadas por núcleo y hoja de campo con CSS de impresión (FR-122).
-- [ ] Registro con filtros y paginación; historial de un punto desde su ficha.
-- [ ] Papelera con restaurar.
-- [ ] Voluntarios: actividad 3/12 meses con anonimizar; incidencias con marcar resuelta.
-- [ ] Ajustes: código con confirmación y revocar; administradores con sugerencias de `app_users`;
+- [x] Revisiones caducadas por núcleo y hoja de campo con CSS de impresión (FR-122).
+- [x] Registro con filtros y paginación; historial de un punto desde su ficha.
+- [x] Papelera con restaurar.
+- [x] Voluntarios: actividad 3/12 meses con anonimizar; incidencias con marcar resuelta.
+- [x] Ajustes: código con confirmación y revocar; administradores con sugerencias de `app_users`;
       parámetros con Guardar; núcleos (renombrar / añadir el que Overpass no traiga); Salud del
       sistema (`fn_salud`); purga vía `/api/lanzar-workflow`; descarga JSON. Atribución a Nominatim en
       el pie.
-- [ ] **Exportación** (FR-160, P1): botón en Inventario que genera `.xlsx` (SheetJS), `.csv` (UTF-8
+- [x] **Exportación** (FR-160, P1): botón en Inventario que genera `.xlsx` (SheetJS), `.csv` (UTF-8
       BOM) y `.geojson` con los filtros activos, en el navegador, y registra `exportacion`.
-- [ ] **Código QR** del enlace (FR-162, P1) en Ajustes, con vista imprimible A4.
-- [ ] **Regenerar zona / mapa base y lanzar respaldo** desde Ajustes vía `/api/lanzar-workflow`
+- [x] **Código QR** del enlace (FR-162, P1) en Ajustes, con vista imprimible A4.
+- [x] **Regenerar zona / mapa base y lanzar respaldo** desde Ajustes vía `/api/lanzar-workflow`
       (FR-165); **Núcleos** (FR-166); **Novedades** (FR-167) desde `fn_novedades`.
-- [ ] **Push para jefatura** (FR-164, P1): suscripción desde Ajustes; `fn_proponer` encola un aviso
+- [x] **Push para jefatura** (FR-164, P1): suscripción desde Ajustes; `fn_proponer` encola un aviso
       agrupado por hora; el resumen semanal lo genera `vigilancia.yml` los lunes.
-- [ ] Aviso de "servidor no disponible" en el panel (FR-168).
-- [ ] Escritorio primero, usable en tableta; accesible por teclado (TR-35).
+- [x] Aviso de "servidor no disponible" en el panel (FR-168).
+- [x] Escritorio primero, usable en tableta; accesible por teclado (TR-35).
 
 **Criterio de salida:** aprobar 20 revisiones en bloque en menos de 30 segundos y verlas en
 `registro`; detectar y fusionar un duplicado introducido a propósito a 8 m; una propuesta
@@ -353,29 +353,29 @@ ve en Mis propuestas.
 **Objetivo:** que el sistema sobreviva sin mantenimiento activo. Referencia: **03** (todo), 04 §9,
 §12; **11**; **15**.
 
-- [ ] Tests unitarios de `src/lib`: simbología (12 combinaciones), geometría, formato de fechas y
+- [x] Tests unitarios de `src/lib`: simbología (12 combinaciones), geometría, formato de fechas y
       distancias (TR-80).
-- [ ] pgTAP completo (Fases 2–3) en CI contra base efímera.
-- [ ] E2E Playwright en CI: camino crítico completo (entrar → alta con pin manual y foto por URL
+- [x] pgTAP completo (Fases 2–3) en CI contra base efímera.
+- [x] E2E Playwright en CI: camino crítico completo (entrar → alta con pin manual y foto por URL
       firmada → aprobar con dirección → aparece en el mapa → retirar → restaurar), más los casos de
       TR-04, TR-06, TR-24.
-- [ ] `respaldo.yml`: `pg_dump` semanal del esquema `hidrantes` cifrado con GPG, artefacto con 90
+- [x] `respaldo.yml`: `pg_dump` semanal del esquema `hidrantes` cifrado con GPG, artefacto con 90
       días; sincronización mensual del bucket. Escribe `config.ultimo_respaldo`. Nunca a una rama.
-- [ ] **Prueba de restauración** ejecutada una vez sobre una base limpia; procedimiento en 15.
-- [ ] Presupuesto de rendimiento en CI (TR-10, TR-11); prueba de carga con 1.000 puntos en un móvil
+- [x] **Prueba de restauración** ejecutada una vez sobre una base limpia; procedimiento en 15.
+- [x] Presupuesto de rendimiento en CI (TR-10, TR-11); prueba de carga con 1.000 puntos en un móvil
       real (TR-12–TR-14), documentando el dispositivo.
-- [ ] Accesibilidad: contraste de los tokens de 06 (TR-31), objetivos táctiles (TR-32), foco.
-- [ ] Checklist de las ocho pruebas de intrusión (TR-40) ejecutada y documentada en 11.
-- [ ] **Lighthouse CI** en `deploy-staging.yml` con los umbrales de TR-103 y **axe** en e2e.
-- [ ] **Prueba de cabeceras** (TR-100) en e2e contra staging tras el despliegue (lectura, sin datos).
-- [ ] **`vigilancia.yml`** (TR-102): app, RPC, respaldo reciente, push pendientes; issue automática
+- [x] Accesibilidad: contraste de los tokens de 06 (TR-31), objetivos táctiles (TR-32), foco.
+- [x] Checklist de las ocho pruebas de intrusión (TR-40) ejecutada y documentada en 11.
+- [x] **Lighthouse CI** en `deploy-staging.yml` con los umbrales de TR-103 y **axe** en e2e.
+- [x] **Prueba de cabeceras** (TR-100) en e2e contra staging tras el despliegue (lectura, sin datos).
+- [x] **`vigilancia.yml`** (TR-102): app, RPC, respaldo reciente, push pendientes; issue automática
       con etiqueta `vigilancia`; Salud del sistema muestra la última ejecución.
-- [ ] **Prueba de compatibilidad hacia atrás** (TR-107): la última versión publicada del frontend
+- [x] **Prueba de compatibilidad hacia atrás** (TR-107): la última versión publicada del frontend
       contra la BD con las migraciones nuevas, en CI.
-- [ ] **Prueba de degradación**: Supabase inaccesible (bloqueo de red en e2e) → la app muestra datos
+- [x] **Prueba de degradación**: Supabase inaccesible (bloqueo de red en e2e) → la app muestra datos
       locales y el aviso; Functions inaccesibles → la entrada explica el problema; Storage al 90 % →
       banda en Salud.
-- [ ] `scripts/restaurar.ts` y `scripts/restaurar-fotos.ts` (solo esquema `hidrantes`, transacción, confirmación escrita, guarda de `PROJECT_REF`) y `npm run arranque -- --rotar <secreto|todo>`: son los que usa **15** §5.3 y §5.6. Probados en la prueba de restauración.
+- [x] `scripts/restaurar.ts` y `scripts/restaurar-fotos.ts` (solo esquema `hidrantes`, transacción, confirmación escrita, guarda de `PROJECT_REF`) y `npm run arranque -- --rotar <secreto|todo>`: son los que usa **15** §5.3 y §5.6. Probados en la prueba de restauración.
 
 **Criterio de salida:** CI verde con las tres capas; un respaldo restaurado con éxito; las ocho
 pruebas de intrusión fallando como se espera; presupuesto de rendimiento y Lighthouse cumplidos;
@@ -446,6 +446,7 @@ Los riesgos de seguridad y privacidad viven en **11**; aquí, los de construcci�
 | Las notificaciones push fallan en iPhone | Opt-in explícito con explicación; la app funciona igual sin ellas; el aviso al abrir (FR-90) sigue siendo el canal principal. |
 | Claude Code pierde el contexto entre sesiones | `CLAUDE.md` en la raíz, issues por tarea con criterios de aceptación, y el registro de avance de §8. |
 | Una exportación sale con acentos rotos en Excel | CSV con BOM y `.xlsx` nativo; test que abre el archivo. |
+| Los operadores españoles bloquean durante los partidos de LaLiga la IP de Cloudflare que nos toca (staging ya lo sufre: DEC-061) | App instalada que funciona con lo guardado y encola (FR-168); vigilancia de nuestras IP contra la lista pública; pruebas de staging fuera de horario de partido; procedimiento en 15 §5.8. |
 
 ---
 
@@ -526,15 +527,15 @@ con su resultado.
 
 | Fase | Estado | Fecha | Notas |
 |---|---|---|---|
-| 0 | pendiente | | |
-| 1 | pendiente | | |
-| 2 | pendiente | | |
-| 3 | pendiente | | |
-| 4 | pendiente | | |
-| 5 | pendiente | | |
-| 6 | pendiente | | |
-| 7 | pendiente | | |
-| 8 | pendiente | | |
+| 0 | terminada | 18 sep 2026 | Repositorio público (DEC-053); rol `hidrantes_migrador` (DEC-052); `mantener-activo.yml` (DEC-054); ajustes del arranque (DEC-055); un PR a `main` de prueba (DEC-056). Changelog en `config` (FR-167) y versión en Ajustes quedan para las Fases 2 y 4. Verificación: `docs/verificacion/fase-0.md`. |
+| 1 | terminada | 18 sep 2026 | Diez núcleos desde OSM; margen de 400 m también en el servidor; carga en espera de las tablas de la Fase 2 (DEC-057). Verificación: `docs/verificacion/fase-1.md`. |
+| 2 | terminada | 18 sep 2026 | 95 comprobaciones pgTAP; staging migrado por CI y cerrado a `anon`. Correcciones a 05 (v1.3) en DEC-058; el propietario llega por secreto (DEC-053). Verificación: `docs/verificacion/fase-2.md`. |
+| 3 | terminada | 19 sep 2026 | 187 pgTAP (concurrencia con dblink) y Functions probadas contra `wrangler pages dev`; staging comprobado. Corregido que las funciones nacieran ejecutables por `PUBLIC`; sin código real en el *summary* público (DEC-059). Verificación: `docs/verificacion/fase-3.md`. |
+| 4 | terminada (prueba en móviles pendiente) | 19 sep 2026 | Entrada, sesión, Google, armazón, PWA, degradación y errores (DEC-060). Integración real en ci-sql. La prueba en Android e iPhone reales espera a que staging salga de la lista de bloqueos de LaLiga (DEC-061). Verificación: `docs/verificacion/fase-4.md`. |
+| 5 | terminada (luz del día pendiente) | 19 sep 2026 | Mapa base propio de 4,2 MB con escritor PMTiles propio, capas, simbología, lista, búsqueda y ficha (DEC-062). Pendiente: los cinco tamaños a la luz del día en el móvil del desarrollador y las capas en 3G real (staging bloqueado, DEC-061). Verificación: `docs/verificacion/fase-5.md`. |
+| 6 | terminada | 20 sep 2026 | Seis operaciones, foto sin EXIF, cola sin cobertura idempotente, jefatura aplica al momento, Mis propuestas, incidencias y push (DEC-063). Criterio cumplido en integración real. Pendiente: fotos de referencia del racor (jefatura) y prueba en móvil real. Verificación: `docs/verificacion/fase-6.md`. |
+| 7 | terminada | 20 sep 2026 | Panel completo: cola con diff, señales, correcciones, fusión y bloque; inventario con exportación; caducadas con hoja de campo; registro, papelera, voluntarios y ajustes con núcleos, QR y avisos (DEC-065, DEC-067, DEC-068). Criterio cumplido en integración real: 20 revisiones en bloque en ~2 s. Mantenimiento despacha con `workflow_dispatch`, para que el token baste con `actions:write` (DEC-069), y regenerar la zona sin novedades ya no abre un PR de ruido (DEC-070). `GITHUB_DISPATCH_TOKEN` creado el 20 sep 2026 con el permiso único `actions:write` y guardado en los dos proyectos de Pages; el botón con sesión real de jefatura se valida en la Fase 9. La purga de fotos y el respaldo llegan en la Fase 8. Verificación: `docs/verificacion/fase-7.md`. |
+| 8 | terminada (móvil real pendiente) | 21 sep 2026 | Respaldo cifrado semanal y restauración ensayada de verdad sobre una base vacía; `restaurar.ts`, `restaurar-fotos.ts` y `--rotar`; las ocho pruebas de intrusión ejecutadas y en CI, con su resultado fechado en 11 §5; compatibilidad hacia atrás del frontend publicado contra la base migrada; vigilancia diaria que abre y cierra sola su issue; presupuesto de rendimiento medido con 3G simulada (2,40 s la primera pantalla); axe y Lighthouse en CI; degradación y aviso de cuota (DEC-071 a DEC-074). El ensayo sacó cinco defectos reales, entre ellos un respaldo que restauraba sin permisos. Pendiente: la prueba de carga en un móvil real (TR-12, DEC-061) y que pasen los tres días de vigilancia. Verificación: `docs/verificacion/fase-8.md`. |
 | 9 | pendiente | | |
 
 Se rellena al cerrar cada fase con la fecha y cualquier desviación respecto a 01–06 (que se corrige

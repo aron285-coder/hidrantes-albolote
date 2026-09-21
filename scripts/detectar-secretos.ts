@@ -33,8 +33,11 @@ export function buscarSecretos(texto: string): { linea: number; tipo: string }[]
   return hallazgos;
 }
 
+/** El mapa base publicado es el único PMTiles que va a Git: datos públicos de OSM (DEC-062). */
+const PERMITIDOS = new Set(['public/mapabase/albolote.pmtiles']);
+
 export function archivoProhibido(ruta: string): boolean {
-  return ARCHIVOS_PROHIBIDOS.test(ruta);
+  return !PERMITIDOS.has(ruta.replaceAll('\\', '/')) && ARCHIVOS_PROHIBIDOS.test(ruta);
 }
 
 async function principal(): Promise<void> {

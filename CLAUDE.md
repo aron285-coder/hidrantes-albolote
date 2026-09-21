@@ -96,7 +96,7 @@ cobertura · fuera de zona.
    `docs/09-plan-implementacion.md` §8. Una fase sin ese archivo no está terminada.
 
 Producción solo por PR `develop → main` con aprobación del desarrollador en el *environment*
-`production`. No lo pidas hasta que la Fase 9 lo diga.
+`production`. No lo pidas hasta que la Fase 9 lo diga (la única excepción, al cerrar la Fase 0: DEC-056).
 
 ## 6. Entorno local y comandos
 
@@ -120,7 +120,7 @@ npm test                      # vitest
 npm run test:sql              # pgTAP contra la instancia local
 npm run e2e                   # Playwright (levanta todo lo anterior)
 npm run zona | mapabase | codigo | revertir | restaurar | promover-piloto | capturas
-npm run arranque              # solo la primera vez o para --rotar <secreto|todo>
+npm run arranque              # solo la primera vez o para --rotar <secreto[,secreto]|todo>
 
 git switch develop && git pull
 git switch -c fase-5/busqueda-local
