@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.11 — 20 de septiembre de 2026 (DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.12 — 21 de septiembre de 2026 (DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,23 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-073 · El aviso de almacenamiento salta al 90 % del gigabyte gratuito
+- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Contexto:** la prueba de degradación de la Fase 8 pide "Storage al 90 % → banda en Salud", pero
+  ningún documento decía de qué es ese 90 %, qué dice la banda ni si bloquea algo. Salud del sistema
+  solo enseñaba los megas ocupados, que no le dicen nada a jefatura si no sabe la cota.
+- **Decisión:** el porcentaje es sobre el **1 GB de fotos de TR-53**, la única cota que la aplicación
+  puede llenar sola. Desde el 90 %, la tarjeta de Salud del sistema enseña una banda de aviso (06 §5:
+  fondo `--oro-100`, borde `--oro-600`, texto `--ambar-700`, ⚠ delante) que dice el porcentaje y qué
+  hacer: purgar la papelera y las fotos huérfanas. **No bloquea nada** y no se puede descartar: es un
+  dato de la tarjeta, no una alerta que se cierre y se olvide. Por debajo del 90 % no se dibuja
+  (UI-01: nada que no aporte).
+- **Descartado:** cortar las subidas al llegar al 90 % (dejaría a un voluntario sin poder enviar su
+  alta con un cuarto de giga libre); avisar por push a jefatura (aún no hay tema para eso y el aviso
+  no es urgente: se ve al entrar en Ajustes).
+- **Afecta a:** `src/lib/panel/ajustes.ts` (`avisoAlmacenamiento`), `src/componentes/panel/Ajustes.tsx`,
+  `src/lib/textos.ts`, 06 Apéndice A, `e2e/degradacion.spec.ts`.
 
 ### DEC-072 · Dos arreglos de contraste que salieron al medir los tokens
 - **Fecha:** 20 sep 2026 · **Estado:** vigente

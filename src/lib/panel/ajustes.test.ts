@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { PARAMETROS_POR_DEFECTO, cambiosParametros, faltaEnParametros, generarCodigo } from './ajustes';
+import {
+  CUOTA_FOTOS_BYTES,
+  PARAMETROS_POR_DEFECTO,
+  avisoAlmacenamiento,
+  cambiosParametros,
+  faltaEnParametros,
+  generarCodigo,
+} from './ajustes';
 import { filtrarActividad, porcentaje } from './voluntarios';
 
 describe('código de acceso (FR-140)', () => {
@@ -64,5 +71,24 @@ describe('voluntarios (FR-130)', () => {
   it('la búsqueda global también filtra la actividad, sin acentos', () => {
     expect(filtrarActividad(filas, 'angela')).toHaveLength(1);
     expect(filtrarActividad(filas, '')).toHaveLength(2);
+  });
+});
+
+describe('aviso de almacenamiento (TR-53)', () => {
+  it('calla mientras quede sitio: el 89 % todavía no es noticia', () => {
+    expect(avisoAlmacenamiento(null)).toBe(null);
+    expect(avisoAlmacenamiento(0)).toBe(null);
+    expect(avisoAlmacenamiento(Math.round(CUOTA_FOTOS_BYTES * 0.5))).toBe(null);
+    expect(avisoAlmacenamiento(Math.round(CUOTA_FOTOS_BYTES * 0.89))).toBe(null);
+  });
+
+  it('desde el 90 % devuelve el porcentaje, que es lo que se enseña', () => {
+    expect(avisoAlmacenamiento(Math.round(CUOTA_FOTOS_BYTES * 0.9))).toBe(90);
+    expect(avisoAlmacenamiento(Math.round(CUOTA_FOTOS_BYTES * 0.955))).toBe(96);
+  });
+
+  it('lleno o pasado de la cota, 100 %: nunca un número imposible', () => {
+    expect(avisoAlmacenamiento(CUOTA_FOTOS_BYTES)).toBe(100);
+    expect(avisoAlmacenamiento(CUOTA_FOTOS_BYTES * 3)).toBe(100);
   });
 });
