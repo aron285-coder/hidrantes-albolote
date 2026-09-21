@@ -185,6 +185,21 @@ export interface Salud {
 
 export const cargarSalud = () => rpc<Salud>('fn_salud');
 
+/** La cota gratuita de fotos de TR-53: 1 GB. */
+export const CUOTA_FOTOS_BYTES = 1024 ** 3;
+const AVISAR_DESDE = 0.9;
+
+/**
+ * Porcentaje ocupado del gigabyte gratuito cuando pasa del 90 %, y `null` mientras haya sitio: a
+ * partir de ahí Salud del sistema lo avisa para que dé tiempo a liberar espacio antes de que la
+ * aplicación deje de aceptar fotos (TR-53, 09 Fase 8).
+ */
+export function avisoAlmacenamiento(bytes: number | null): number | null {
+  if (!bytes || bytes <= 0) return null;
+  const parte = bytes / CUOTA_FOTOS_BYTES;
+  return parte >= AVISAR_DESDE ? Math.min(Math.round(parte * 100), 100) : null;
+}
+
 // ---------- mantenimiento (FR-144, FR-165, FL-33) ----------
 
 export type Workflow = 'purgar-fotos' | 'regenerar-zona' | 'regenerar-mapabase' | 'respaldo';

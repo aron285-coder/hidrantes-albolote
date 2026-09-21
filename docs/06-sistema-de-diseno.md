@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.4 — 20 de septiembre de 2026: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.5 — 21 de septiembre de 2026: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -583,7 +583,9 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Propuestas pendientes de más de 14 días` · `Incidencias abiertas` ·
 `Errores de la aplicación (7 días)` · `Puntos sin dirección deducida` · `Último respaldo` ·
 `Última vigilancia` · `todo respondía` · `con avisos: mira las issues` ·
-`Almacenamiento usado` · `Zona de cobertura · mapa base` · `Móviles con acceso` · `todavía ninguno` ·
+`Almacenamiento usado` ·
+`Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073) ·
+`Zona de cobertura · mapa base` · `Móviles con acceso` · `todavía ninguno` ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
 `"[nombre]" lanzado. Tarda unos minutos.` · `Avisos para jefatura` ·
