@@ -24,6 +24,8 @@ fotos/
 
 # Artefactos generados de datos/ (los GeoJSON sí se committean, 04 §8)
 *.pmtiles
+# …salvo el mapa base publicado: el build no depende de Protomaps (DEC-062)
+!public/mapabase/albolote.pmtiles
 datos/*.html
 
 # Supabase local
@@ -43,3 +45,7 @@ coverage/
 .DS_Store
 Thumbs.db
 *.log
+.dev.vars
+
+# Worktree temporal de scripts/compatibilidad.ts (TR-107)
+.anterior/

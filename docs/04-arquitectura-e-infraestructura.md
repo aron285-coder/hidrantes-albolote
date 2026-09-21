@@ -288,7 +288,9 @@ simplifica, une, aplica un margen de 400 m y escribe `datos/zona-cobertura.geojs
 `datos/zona-cobertura.html`. Los GeoJSON se committean; el build nunca depende de Overpass.
 `scripts/cargar-zona.ts` los carga en `hidrantes.limite_municipal` y `hidrantes.nucleos` con `upsert`
 idempotente desde CI, tras las migraciones. No van por migración: regenerar el límite no debe generar
-una migración nueva cada vez.
+una migración nueva cada vez. Si la geometría recién consultada es la misma que la committeada,
+`generar-zona.ts` no escribe nada: la `version` es la fecha del día y, sin esa comprobación, cada
+Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 
 ---
 
@@ -300,6 +302,7 @@ una migración nueva cada vez.
 | Purga de papelera pasado `dias_papelera` | `pg_cron` | diario |
 | Borrado de `errores_cliente` > 90 días | `pg_cron` | diario |
 | Revocación de tokens sin uso en `dias_caducidad_token` | `pg_cron` | diario |
+| Resumen semanal de jefatura encolado (FR-164) | `pg_cron`; lo envía `/api/push` (DEC-068) | lunes |
 | Purga de fotos huérfanas | GitHub Actions `purgar-fotos.yml` (`service_role`) | semanal + bajo demanda desde Ajustes |
 | Respaldo cifrado de la BD (`pg_dump` del esquema `hidrantes`) | GitHub Actions `respaldo.yml` (`service_role`, GPG) | semanal, 90 días de retención |
 | Respaldo del bucket de fotos | mismo workflow | mensual |
@@ -328,11 +331,15 @@ nombres y sin valores. Los carga `scripts/arranque.ts`.
 | GitHub (por entorno) | `SUPABASE_DB_URL` | `psql` para `migrar.ts`, `cargar-zona.ts`, `pg_dump`. **Cadena del pooler de Supavisor en modo sesión (puerto 5432)**: los runners de GitHub no tienen IPv6. Usuario **`hidrantes_migrador`**, nunca `postgres` (DEC-052) |
 | GitHub (por entorno) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | purga de fotos, respaldo del bucket, `promover-piloto.ts` |
 | GitHub (production) | `GPG_PUBLIC_KEY` | cifrar el respaldo. La privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación |
-| Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN` (permiso único `actions:write`), `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | las Pages Functions |
+| Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN` (permiso único `actions:write`), `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` (DEC-059), `VAPID_SUBJECT` | las Pages Functions |
 | GitHub (variables por entorno, públicas) | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MAPABASE_URL`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` | el build del frontend, que se hace en Actions y se sube con `wrangler pages deploy` (DEC-055) |
+| GitHub (repositorio, para los trabajos automáticos) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `GPG_PUBLIC_KEY` | `respaldo.yml` y los demás trabajos por calendario: no pueden usar los del *environment* `production`, que exige aprobación humana en cada ejecución (DEC-071) |
 | GitHub (variables del repositorio, públicas) | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` | `mantener-activo.yml`, sin *environment* (DEC-054) |
 
-`GITHUB_DISPATCH_TOKEN` se añade en la Fase 7, con `/api/lanzar-workflow` (DEC-055). El inventario
+`GITHUB_DISPATCH_TOKEN` se añade en la Fase 7, con `/api/lanzar-workflow` (DEC-055). Es un token
+*fine-grained* del repositorio con **un solo permiso: `Actions: Read and write`**, y nada más; con eso
+basta para `workflow_dispatch` (DEC-069). Caduca (máximo un año): el día que expire, Mantenimiento
+vuelve a responder `NO_CONFIGURADO` y se crea otro igual. El inventario
 real de lo creado lo escribe el arranque en `docs/entornos.md`, sin valores.
 
 ---
@@ -372,9 +379,9 @@ e2e/                    # Playwright
 
 | Workflow | Disparo | Hace |
 |---|---|---|
-| `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP y Playwright contra Supabase local + `wrangler pages dev` |
+| `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP, las ocho pruebas de intrusión de TR-40 (`scripts/intrusion.ts`, 11 §5) y Playwright contra Supabase local + `wrangler pages dev`; si la rama cambia migraciones, además la compatibilidad hacia atrás de §12 |
 | `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), despliegue a Pages staging |
-| `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, despliegue; en el primer despliegue genera el código de acceso real y lo deja en el *summary* |
+| `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
 | `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
 | `purgar-fotos.yml` | semanal, `repository_dispatch` | purga de huérfanas |
 | `promover-piloto.yml` | manual | copia puntos, fotos y registro de staging a prod conservando códigos |
@@ -440,6 +447,9 @@ Fase 0.
 - **Compatibilidad:** toda migración funciona con la versión anterior del frontend durante unos
   minutos, porque la base de datos se actualiza antes que el navegador de la gente. Añadir columnas y
   valores de enum sí; renombrar o eliminar, en dos pasos separados por un despliegue.
+  Lo comprueba `ci-sql` en cada PR que toque `supabase/migrations` (`npm run compatibilidad`,
+  TR-107): monta un worktree de la rama publicada, construye aquel frontend con sus Pages Functions
+  y corre **sus** casos de integración contra la base de datos ya migrada con lo que trae el PR.
 - Los tres procedimientos (revertir frontend, revertir migración, restaurar respaldo) están escritos
   paso a paso en **15**.
 

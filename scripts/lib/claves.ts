@@ -31,12 +31,21 @@ export function paresVapid(): { publica: string; privada: string } {
   };
 }
 
-/** Par GPG para cifrar respaldos (04 §10). La privada solo se muestra una vez. */
+/**
+ * Par GPG para cifrar respaldos (04 §10). La privada solo se muestra una vez.
+ *
+ * Clave **v4** con curve25519 «legacy», no la de RFC 9580 que openpgp.js llama `curve25519`: quien
+ * tiene que leerla es el `gpg` del runner (GnuPG 2.4), y de una clave v6 se traga el paquete pero
+ * descarta los identificadores ("w/o user IDs"), así que después no sirve para cifrar. Tampoco es
+ * un capricho el correo: una clave sin identificador legible no hay forma de elegirla a mano el día
+ * de una restauración (15 §5.3).
+ */
 export async function parGpg(): Promise<{ publica: string; privada: string; huella: string }> {
   const openpgp = await import('openpgp');
   const { publicKey, privateKey } = await openpgp.generateKey({
-    type: 'curve25519',
-    userIDs: [{ name: 'Respaldo hidrantes-albolote' }],
+    type: 'ecc',
+    curve: 'curve25519Legacy',
+    userIDs: [{ name: 'Respaldo hidrantes-albolote', email: 'respaldo@hidrantes-albolote.invalid' }],
     format: 'armored',
   });
   const clave = await openpgp.readKey({ armoredKey: publicKey });

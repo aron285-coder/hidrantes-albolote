@@ -76,9 +76,10 @@ function leerAplicadas(url: string): Map<string, string> {
   });
   return new Map(
     salida
-      .split('\n')
+      // psql en Windows termina las líneas con \r\n: sin quitarlo, ningún hash coincidiría
+      .split(/\r?\n/)
       .filter(Boolean)
-      .map((l) => l.split('|') as [string, string]),
+      .map((l) => l.trim().split('|') as [string, string]),
   );
 }
 
@@ -97,6 +98,7 @@ function aplicar(url: string, m: Migracion): void {
 export function prepararLocal(): void {
   const bootstrap = readFileSync(path.join(RAIZ, 'supabase', 'sql', 'arranque-bd.sql'), 'utf8');
   psqlOk(LOCAL_POSTGRES, `\\set clave '${LOCAL_CLAVE_MIGRADOR}'\n${bootstrap}`);
+  psqlOk(LOCAL_POSTGRES, readFileSync(path.join(RAIZ, 'supabase', 'sql', 'local-storage.sql'), 'utf8'));
 }
 
 async function principal(): Promise<void> {

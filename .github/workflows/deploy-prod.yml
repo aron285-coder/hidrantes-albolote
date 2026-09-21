@@ -41,18 +41,16 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Zona de cobertura (desde la Fase 1)
-        if: hashFiles('scripts/cargar-zona.ts') != ''
+      - name: Propietario como administrador (sin correo en el repositorio, DEC-053)
+        run: npm run asegurar-propietario
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PROPIETARIO_EMAIL: ${{ secrets.PROPIETARIO_EMAIL }}
+
+      - name: Zona de cobertura
         run: npm run cargar-zona
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-      - name: Código de acceso real en el primer despliegue (desde la Fase 3)
-        if: hashFiles('scripts/generar-codigo.ts') != ''
-        run: npm run codigo -- --si-no-existe --resumen "$GITHUB_STEP_SUMMARY"
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - run: npm run build
         env:

@@ -70,8 +70,25 @@ const ENTORNOS: Entorno[] = [
   },
 ];
 
-const ROTABLES = ['db', 'cloudflare', 'sal-ip', 'vapid', 'gpg'] as const;
-type Rotable = (typeof ROTABLES)[number];
+export const ROTABLES = ['db', 'cloudflare', 'sal-ip', 'vapid', 'gpg'] as const;
+export type Rotable = (typeof ROTABLES)[number];
+
+/**
+ * `--rotar db`, `--rotar db,gpg` o `--rotar todo`. Se admite la lista porque rehacer los secretos de
+ * los trabajos automáticos (DEC-071) necesita la base de datos y la clave GPG a la vez, y rotarlo
+ * todo cambiaría de paso las claves VAPID, que dejarían sin avisos a los móviles ya suscritos.
+ */
+export function aRotar(pedida: string | undefined): Set<Rotable> {
+  if (!pedida) return new Set();
+  if (pedida === 'todo') return new Set(ROTABLES);
+  const partes = pedida.split(',').map((p) => p.trim());
+  for (const p of partes) {
+    if (!(ROTABLES as readonly string[]).includes(p)) {
+      abortar(`--rotar ${p} no existe. Opciones: ${ROTABLES.join(', ')}, todo (o varias separadas por comas)`);
+    }
+  }
+  return new Set(partes as Rotable[]);
+}
 
 // ---------- 1. sesiones y credenciales ----------
 
@@ -171,7 +188,8 @@ function asegurarRepositorio(): void {
   ghApi(`repos/${REPO}/vulnerability-alerts`, 'PUT');
   ghApi(`repos/${REPO}/actions/permissions/workflow`, 'PUT', {
     default_workflow_permissions: 'read',
-    can_approve_pull_request_reviews: false,
+    // Necesario para que release-please pueda abrir su PR (el nombre de la API engaña: crea y aprueba).
+    can_approve_pull_request_reviews: true,
   });
   log.ok('ajustes: rama por defecto develop, auto-merge, escaneo de secretos, alertas de Dependabot');
 
@@ -362,6 +380,8 @@ async function prepararPages(
   if (!actuales.includes('VAPID_PRIVATE_KEY') || rotar.has('vapid')) {
     const par = paresVapid();
     secretos.VAPID_PRIVATE_KEY = par.privada;
+    // /api/push firma con las dos: WebCrypto no deduce la pública de la privada (DEC-059)
+    secretos.VAPID_PUBLIC_KEY = par.publica;
     vapidPublica = par.publica;
   }
   await cred.cloudflare.fijarSecretos(cred.cuentaCf, e.proyectoPages, secretos);
@@ -390,14 +410,26 @@ function existeSecreto(nombre: string, entorno: string): boolean {
     .includes(nombre);
 }
 
+function existeSecretoRepo(nombre: string): boolean {
+  return gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split('\n').includes(nombre);
+}
+
 async function prepararGpg(rotar: boolean): Promise<string | null> {
   log.paso('6. Clave GPG de los respaldos');
   if (existeSecreto('GPG_PUBLIC_KEY', 'production') && !rotar) {
     log.ok('ya existe (usa --rotar gpg para cambiarla)');
+    // La pública no se puede recuperar de un secreto de GitHub, así que si falta la del repositorio
+    // —la que usa respaldo.yml, DEC-071— hay que generar otro par.
+    if (!existeSecretoRepo('GPG_PUBLIC_KEY')) {
+      log.aviso('Falta GPG_PUBLIC_KEY en el repositorio: sin ella no hay respaldo. Vuelve con --rotar gpg.');
+    }
     return null;
   }
   const { publica, privada, huella } = await parGpg();
   fijarSecreto('GPG_PUBLIC_KEY', publica, 'production');
+  // También en el repositorio: respaldo.yml corre por calendario y no puede usar un entorno con
+  // aprobación humana (DEC-071). Es una clave pública: no revela nada.
+  fijarSecreto('GPG_PUBLIC_KEY', publica);
   console.log('\n\x1b[33m' + '═'.repeat(72));
   console.log(' CLAVE PRIVADA DE LOS RESPALDOS · se muestra UNA sola vez');
   console.log(' Guárdala ahora en el gestor de contraseñas o en el sobre de la agrupación (15 §2).');
@@ -436,7 +468,40 @@ function secretosGithub(
   const sufijo = e.clave === 'staging' ? 'STAGING' : 'PROD';
   fijarVariable(`SUPABASE_URL_${sufijo}`, sb.url);
   fijarVariable(`SUPABASE_ANON_KEY_${sufijo}`, sb.anon);
+
+  // Por el mismo motivo, respaldo.yml necesita en el repositorio lo que el entorno `production`
+  // guarda tras una aprobación humana (DEC-071). Solo producción: nadie respalda staging.
+  if (e.clave === 'production') {
+    if (sb.urlMigrador) fijarSecreto('SUPABASE_DB_URL_PROD', sb.urlMigrador);
+    fijarSecreto('SUPABASE_SERVICE_ROLE_KEY_PROD', sb.servicio);
+    if (!sb.urlMigrador && !existeSecretoRepo('SUPABASE_DB_URL_PROD')) {
+      log.aviso('Falta SUPABASE_DB_URL_PROD para el respaldo: vuelve a lanzarlo con --rotar db (DEC-071).');
+    }
+  }
   log.ok('hecho');
+}
+
+// ---------- 8b. propietario como administrador ----------
+
+/**
+ * El correo del propietario no puede ir en una migración (repositorio público, DEC-053): se guarda
+ * como secreto y asegurar-propietario.ts lo da de alta en cada despliegue si falta.
+ */
+async function asegurarSecretoPropietario(): Promise<void> {
+  log.paso('8b. Propietario como administrador');
+  const existe = gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name'])
+    .split('\n')
+    .includes('PROPIETARIO_EMAIL');
+  if (existe && !(await confirmar('PROPIETARIO_EMAIL ya existe. ¿Cambiarlo?'))) {
+    log.ok('se mantiene');
+    return;
+  }
+  const porDefecto = ejecutar('git', ['config', 'user.email']).salida;
+  const r = await preguntar(`Correo de Google con el que entrarás al panel [${porDefecto}]`);
+  const email = (r || porDefecto).trim().toLowerCase();
+  if (!/^[^@\s']+@[^@\s']+\.[^@\s']+$/.test(email)) abortar('Eso no parece un correo.');
+  fijarSecreto('PROPIETARIO_EMAIL', email);
+  log.ok('guardado como secreto; se da de alta en el próximo despliegue');
 }
 
 // ---------- 9. skills, 10. issues, 11. docs/entornos.md ----------
@@ -520,6 +585,12 @@ function arranqueLocal(): void {
     ].join('\n'),
   );
   log.ok('.env.local escrito');
+  // Variables de las Pages Functions para `wrangler pages dev` (no se commitea, .gitignore).
+  writeFileSync(
+    path.join(RAIZ, '.dev.vars'),
+    [`SUPABASE_URL=${s.API_URL}`, `SUPABASE_SERVICE_ROLE_KEY=${s.SERVICE_ROLE_KEY}`, 'SAL_IP=sal-local', ''].join('\n'),
+  );
+  log.ok('.dev.vars escrito');
   prepararLocal();
   ejecutarOk('npx', ['--no-install', 'tsx', 'scripts/migrar.ts', '--local']);
   log.ok('rol hidrantes_migrador y migraciones en Supabase local');
@@ -531,11 +602,7 @@ async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   if (banderas.has('local')) return arranqueLocal();
 
-  const pedida = valores.get('rotar');
-  const rotar = new Set<Rotable>(pedida === 'todo' ? ROTABLES : pedida ? [pedida as Rotable] : []);
-  if (pedida && pedida !== 'todo' && !ROTABLES.includes(pedida as Rotable)) {
-    abortar(`--rotar ${pedida} no existe. Opciones: ${ROTABLES.join(', ')}, todo`);
-  }
+  const rotar = aRotar(valores.get('rotar'));
   const esRotacion = rotar.size > 0;
   // En el arranque completo se (re)crea siempre el rol; al rotar, solo si se pide `db`.
   const tocarBd = !esRotacion || rotar.has('db');
@@ -556,6 +623,7 @@ async function principal(): Promise<void> {
   const huella = await prepararGpg(rotar.has('gpg'));
 
   if (!esRotacion) {
+    await asegurarSecretoPropietario();
     await instalarSkills();
     log.paso('10. Issues de las fases 1–9');
     crearIssues(REPO);

@@ -32,14 +32,18 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Zona de cobertura (desde la Fase 1)
-        if: hashFiles('scripts/cargar-zona.ts') != ''
+      - name: Propietario como administrador (sin correo en el repositorio, DEC-053)
+        run: npm run asegurar-propietario
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PROPIETARIO_EMAIL: ${{ secrets.PROPIETARIO_EMAIL }}
+
+      - name: Zona de cobertura
         run: npm run cargar-zona
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Seed de staging, idempotente (desde la Fase 2)
-        if: hashFiles('supabase/seed-staging.sql') != ''
+      - name: Seed de staging, idempotente
         run: psql -X -q -v ON_ERROR_STOP=1 -f supabase/seed-staging.sql "$SUPABASE_DB_URL"
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -60,3 +64,23 @@ jobs:
 
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
+
+      # TR-100: las mismas cabeceras, leídas con un navegador sobre lo desplegado, y que la página
+      # carga sin violar su propia CSP. Solo GET a la portada: no se envía ni se lee ningún dato.
+      - name: Cabeceras y CSP en el navegador (TR-100)
+        env:
+          URL_DESPLEGADA: https://hidrantes-albolote-staging.pages.dev
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test e2e/cabeceras.spec.ts --project=escritorio
+
+      # TR-103: rendimiento ≥ 85, accesibilidad ≥ 95, buenas prácticas ≥ 95 y manifiesto instalable,
+      # sobre lo desplegado y con el móvil emulado que trae Lighthouse por defecto. Los umbrales
+      # están en .github/lighthouse.json. La acción no necesita ninguna dependencia del proyecto.
+      - name: Lighthouse sobre staging (TR-103)
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: https://hidrantes-albolote-staging.pages.dev/
+          configPath: .github/lighthouse.json
+          uploadArtifacts: true
+          temporaryPublicStorage: false
