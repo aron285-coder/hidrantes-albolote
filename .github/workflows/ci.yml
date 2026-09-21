@@ -61,6 +61,8 @@ jobs:
           npm run functions:dev > wrangler.log 2>&1 &
           for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8788 && break; sleep 2; done
           npm run probar-functions || { tail -50 wrangler.log; exit 1; }
+          # Las ocho pruebas de intrusión de TR-40, con la anon key desde fuera (11 §5).
+          npm run intrusion || { tail -50 wrangler.log; exit 1; }
           # Integración del frontend con la pila real (Fase 4 en adelante): mismo paso, mismo wrangler.
           npx playwright install --with-deps chromium
           INTEGRACION=1 npm run e2e || { tail -50 wrangler.log; exit 1; }

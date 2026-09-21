@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se actualiza con cada revisión de seguridad y cada petición de derechos atendida. |
-| **Versión** | 1.1 — 17 de septiembre de 2026 (añade notificaciones push y exportación) |
+| **Versión** | 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
 | **Propietario de** | el modelo de acceso y amenazas, la protección del código, RLS y permisos, qué datos personales se guardan y por qué, retención, el procedimiento del derecho de supresión, y el aviso legal. |
 | **Para** | jefatura (que es la responsable del tratamiento) y construcción. Escrito para tenerlo **antes** de que alguien pregunte. |
 | **Referencias** | las cifras medibles están en **03** §5–7; los campos en **05**; la infraestructura en **04**. |
@@ -99,16 +99,22 @@ la cola las propuestas de las últimas horas antes de aprobar nada. Procedimient
 Se ejecuta en la Fase 8 y en cada cambio del modelo de permisos, con la **`anon key`** desde un
 cliente externo. Las ocho deben fallar. Resultado en la tabla, con fecha.
 
+La ejecuta `npm run intrusion` contra la pila local (Supabase local y `wrangler pages dev`, nunca
+dev ni prod), y `ci-sql` la repite en cada PR: si alguna dejara de fallar, la rama se queda en rojo.
+`npm run intrusion -- --anotar` rellena las dos últimas columnas de esta tabla con la fecha del día.
+Lo que mira es lo que contestan PostgREST, Storage y las Pages Functions a un cliente cualquiera;
+los permisos vistos desde dentro de Postgres los cubre pgTAP (`supabase/tests`).
+
 | # | Prueba | Esperado | Última ejecución | Resultado |
 |---|---|---|---|---|
-| 1 | `select` sobre `propuestas` | *permission denied* / 0 filas | | |
-| 2 | `select` sobre `registro` | ídem | | |
-| 3 | `insert`/`update` en `puntos` | ídem | | |
-| 4 | llamar a `fn_aprobar` | `NO_AUTORIZADO` | | |
-| 5 | `fn_mis_propuestas` con token de otro dispositivo | 0 filas ajenas | | |
-| 6 | llamar a `fn_verificar_codigo` directamente | *permission denied* | | |
-| 7 | subir un archivo al bucket sin URL firmada | 403 | | |
-| 8 | `GET /api/direccion` sin JWT de administrador | 403 | | |
+| 1 | `select` sobre `propuestas` | *permission denied* / 0 filas | 2026-09-21 | ✅ 401 · 42501: permission denied for table propuestas |
+| 2 | `select` sobre `registro` | ídem | 2026-09-21 | ✅ 401 · 42501: permission denied for table registro |
+| 3 | `insert`/`update` en `puntos` | ídem | 2026-09-21 | ✅ insert 401 · 42501: permission denied for table puntos; update 401 · 42501: permission denied for table puntos |
+| 4 | llamar a `fn_aprobar` | *permission denied* con la `anon key`; `NO_AUTORIZADO` con una sesión que no sea de jefatura | 2026-09-21 | ✅ 401 · 42501: permission denied for function fn_aprobar |
+| 5 | `fn_mis_propuestas` con token de otro dispositivo | 0 filas ajenas | 2026-09-21 | ✅ 0 filas ajenas, ninguna suya |
+| 6 | llamar a `fn_verificar_codigo` directamente | *permission denied* | 2026-09-21 | ✅ 401 · 42501: permission denied for function fn_verificar_codigo |
+| 7 | subir un archivo al bucket sin URL firmada | 403, o el 400 *AccessDenied* de Storage | 2026-09-21 | ✅ 400 · AccessDenied: new row violates row-level security policy |
+| 8 | `GET /api/direccion` sin JWT de administrador | 403 | 2026-09-21 | ✅ 403 · NO_AUTORIZADO |
 
 Complementarias (TR-41–TR-47): 11 intentos → bloqueo; tiempo constante; sin código en el móvil;
 sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausente.
