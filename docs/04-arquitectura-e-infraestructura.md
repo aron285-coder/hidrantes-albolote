@@ -379,7 +379,7 @@ e2e/                    # Playwright
 
 | Workflow | Disparo | Hace |
 |---|---|---|
-| `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP y Playwright contra Supabase local + `wrangler pages dev` |
+| `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP, las ocho pruebas de intrusión de TR-40 (`scripts/intrusion.ts`, 11 §5) y Playwright contra Supabase local + `wrangler pages dev` |
 | `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), despliegue a Pages staging |
 | `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
 | `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
