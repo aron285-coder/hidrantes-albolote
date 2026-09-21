@@ -30,6 +30,15 @@
      El relleno de los marcadores sigue siendo el 600, tal y como lo fija 06 §4.2. */
   --verde-700: #276b42;
   --verde-100: #dceee1;
+  /* "regular" es naranja desde el 21 sep 2026: el ámbar de antes (#8A6408) se leía marrón en el
+     móvil, a pleno sol (DEC-076). Es el mismo claror que tenía el ámbar —3,22:1 sobre las
+     superficies más oscuras del mapa claro, donde el borde blanco no ayuda— pero naranja de verdad.
+     Más claro no se puede: #CC6600 se queda en 2,30:1 sobre el agua y TR-31 pide 3:1. */
+  --naranja-estado-600: #a85300;
+  /* Solo para el texto del chip sobre --naranja-estado-100: el 600 ahí se queda en 3,31:1. */
+  --naranja-estado-700: #8f4505;
+  --naranja-estado-100: #fde8d6;
+  /* El ámbar se queda para lo que es aviso (señales, diferencias, pendiente), que no es caudal. */
   --ambar-700: #8a6408;
   --ambar-100: #fbedcb;
   --rojo-700: #9c2b1e;
@@ -102,6 +111,9 @@
   --color-verde-600: var(--verde-600);
   --color-verde-700: var(--verde-700);
   --color-verde-100: var(--verde-100);
+  --color-naranja-estado-600: var(--naranja-estado-600);
+  --color-naranja-estado-700: var(--naranja-estado-700);
+  --color-naranja-estado-100: var(--naranja-estado-100);
   --color-ambar-700: var(--ambar-700);
   --color-ambar-100: var(--ambar-100);
   --color-rojo-700: var(--rojo-700);

@@ -10,7 +10,7 @@
     --marino-950:#0E1B30; --marino-800:#152A4A; --marino-700:#1D3A63; --marino-600:#28517F;
     --naranja-600:#C94F16; --naranja-500:#E97136; --naranja-100:#FBE2D2;
     --oro-600:#B08A2E; --oro-100:#F3E6C4;
-    --verde-600:#2E7D4F; --verde-100:#DCEEE1; --ambar-700:#8A6408; --ambar-100:#FBEDCB;
+    --verde-600:#2E7D4F; --verde-100:#DCEEE1; --naranja-estado-600:#A85300; --naranja-estado-700:#8F4505; --naranja-estado-100:#FDE8D6; --ambar-700:#8A6408; --ambar-100:#FBEDCB;
     --rojo-700:#9C2B1E; --rojo-100:#FBE0DB; --gris-700:#40453D; --gris-100:#E5E4DC;
     --fondo:#F1F3EE; --papel:#FFFFFF; --linea:#D8DBD2; --texto:#1B2430; --texto-suave:#5A6472;
     --mapa-fondo:#EFECE3; --mapa-oscuro:#1B2536;
@@ -151,7 +151,7 @@ radio_px   = 11 si ≥ 3.0 · 9 si ≥ 1.9 · 7 si ≥ 0.9 · 5.5 si > 0 · 5 si
       <div class="box">
         <h4>Chips de estado y etiquetas de operación</h4>
         <span class="chip" style="background:var(--verde-100);color:var(--verde-600)"><span class="dot" style="background:var(--verde-600)"></span>Bueno</span>
-        <span class="chip" style="background:var(--ambar-100);color:var(--ambar-700)"><span class="dot" style="background:var(--ambar-700)"></span>Regular</span>
+        <span class="chip" style="background:var(--naranja-estado-100);color:var(--naranja-estado-700)"><span class="dot" style="background:var(--naranja-estado-600)"></span>Regular</span>
         <span class="chip" style="background:var(--rojo-100);color:var(--rojo-700)"><span class="dot" style="background:var(--rojo-700)"></span>Malo</span>
         <span class="chip" style="background:var(--gris-100);color:var(--gris-700)"><span class="dot" style="background:var(--gris-700)"></span>No funciona</span>
         <span class="chip" style="background:#EDEEE8;color:var(--texto-suave)">Hidrante</span>
@@ -231,14 +231,14 @@ radio_px   = 11 si ≥ 3.0 · 9 si ≥ 1.9 · 7 si ≥ 0.9 · 5.5 si > 0 · 5 si
 <script>
 (function(){
   var UI=[['--marino-950','#0E1B30','barras, títulos'],['--marino-700','#1D3A63','enlaces, GPS'],['--marino-600','#28517F','halo GPS, límite'],['--naranja-600','#C94F16','acción primaria, pin'],['--naranja-100','#FBE2D2','badges'],['--oro-600','#B08A2E','avisos, Jefatura'],['--oro-100','#F3E6C4','fondo aviso'],['--fondo','#F1F3EE','fondo'],['--papel','#FFFFFF','tarjetas'],['--linea','#D8DBD2','bordes'],['--texto','#1B2430','texto'],['--texto-suave','#5A6472','secundario']];
-  var EST=[['bueno','#2E7D4F','#DCEEE1'],['regular','#8A6408','#FBEDCB'],['malo','#9C2B1E','#FBE0DB'],['no funciona','#40453D','#E5E4DC']];
+  var EST=[['bueno','#2E7D4F','#DCEEE1'],['regular','#A85300','#FDE8D6'],['malo','#9C2B1E','#FBE0DB'],['no funciona','#40453D','#E5E4DC']];
   function sw(hex,name,use,border){return '<div class="sw"><div class="c" style="background:'+hex+(border?';border-bottom:1px solid var(--linea)':'')+'"></div><div class="t"><b>'+name+'</b>'+hex+' <span>· '+use+'</span></div></div>'}
   document.getElementById('sw-ui').innerHTML=UI.map(function(u){return sw(u[1],u[0],u[2],u[1].toUpperCase()==='#FFFFFF'||u[1]==='#F1F3EE')}).join('');
   document.getElementById('sw-estado').innerHTML=EST.map(function(e){return sw(e[1],e[0]+' · relleno',e[1],false)+sw(e[2],e[0]+' · chip',e[2],true)}).join('');
 
   /* --- simbología: la fórmula --- */
   var ESCALA=[11,9,7,5.5,5];
-  var COLOR={bueno:'#2E7D4F',regular:'#8A6408',malo:'#9C2B1E',no_funciona:'#40453D'};
+  var COLOR={bueno:'#2E7D4F',regular:'#A85300',malo:'#9C2B1E',no_funciona:'#40453D'};
   function radio(d,c){var cap={100:3,70:2,45:1}[d],f={bueno:1,regular:.66,malo:.33,no_funciona:0}[c],p=cap*f;
     return p>=3?ESCALA[0]:p>=1.9?ESCALA[1]:p>=.9?ESCALA[2]:p>0?ESCALA[3]:ESCALA[4]}
   function marcador(d,c,op){op=op||{}; var r=radio(d,c),tipo=d===45?'boca':'hidrante',fill=COLOR[c],nf=c==='no_funciona';

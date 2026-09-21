@@ -51,7 +51,7 @@ describe('las doce combinaciones (06 §4.2)', () => {
   it('cuatro colores de estado, uno por nivel y sin "defecto"', () => {
     expect(COLOR_CAUDAL).toEqual({
       bueno: 'var(--verde-600)',
-      regular: 'var(--ambar-700)',
+      regular: 'var(--naranja-estado-600)',
       malo: 'var(--rojo-700)',
       no_funciona: 'var(--gris-700)',
     });

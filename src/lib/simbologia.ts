@@ -7,7 +7,7 @@ import type { Caudal, TipoPunto } from './puntos';
 /** Rellenos de estado (06 §2.2), idénticos en claro y oscuro. */
 export const COLOR_CAUDAL: Record<Caudal, string> = {
   bueno: 'var(--verde-600)',
-  regular: 'var(--ambar-700)',
+  regular: 'var(--naranja-estado-600)',
   malo: 'var(--rojo-700)',
   no_funciona: 'var(--gris-700)',
 };

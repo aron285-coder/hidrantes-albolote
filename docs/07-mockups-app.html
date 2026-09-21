@@ -20,6 +20,9 @@
     --oro-100:#F3E6C4;
     --verde-600:#2E7D4F;
     --verde-100:#DCEEE1;
+    --naranja-estado-600:#A85300;
+    --naranja-estado-700:#8F4505;
+    --naranja-estado-100:#FDE8D6;
     --ambar-700:#8A6408;
     --ambar-100:#FBEDCB;
     --rojo-700:#9C2B1E;
@@ -84,13 +87,13 @@
 
   .chip{display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:3px 11px; font-size:13px; font-weight:600;}
   .chip-verde{background:var(--verde-100); color:var(--verde-600);}
-  .chip-ambar{background:var(--ambar-100); color:var(--ambar-700);}
+  .chip-ambar{background:var(--naranja-estado-100); color:var(--naranja-estado-700);}
   .chip-rojo{background:var(--rojo-100); color:var(--rojo-700);}
   .chip-gris{background:var(--gris-100); color:var(--gris-700);}
   .chip-neutro{background:#EDEEE8; color:var(--texto-suave);}
   .chip-azul{background:#DCE6F2; color:var(--marino-700);}
   .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
-  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--ambar-700);}
+  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--naranja-estado-600);}
   .dot-rojo{background:var(--rojo-700);} .dot-gris{background:var(--gris-700);}
 
   .flujo{display:flex; align-items:flex-start; margin:26px 0 8px; flex-wrap:wrap;}
@@ -562,7 +565,7 @@
 (function(){
   var $=function(q,el){return (el||document).querySelector(q)}, $$=function(q,el){return Array.prototype.slice.call((el||document).querySelectorAll(q))};
   var CODIGO='482917', ESCALA=[11,9,7,5.5,5];
-  var COL={bueno:'#2E7D4F',regular:'#8A6408',malo:'#9C2B1E',no_funciona:'#40453D'};
+  var COL={bueno:'#2E7D4F',regular:'#A85300',malo:'#9C2B1E',no_funciona:'#40453D'};
   var NOM={bueno:'Bueno',regular:'Regular',malo:'Malo',no_funciona:'No funciona'};
   var CHIP={bueno:'chip-verde',regular:'chip-ambar',malo:'chip-rojo',no_funciona:'chip-gris'};
   var DOT={bueno:'dot-verde',regular:'dot-ambar',malo:'dot-rojo',no_funciona:'dot-gris'};
