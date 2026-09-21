@@ -19,16 +19,29 @@ export const NOMBRE_CAPA: Record<Capa, string> = {
 /** Capas que necesitan red. Catastro va superpuesta al mapa base propio. */
 export const enLinea = (c: Capa) => c !== 'base';
 
+/**
+ * Hasta dónde se puede acercar, en los dos mapas (el del voluntario y el del alta). A z21 se
+ * distingue la acera de la calzada, que es lo que hace falta para poner el pin donde está el
+ * hidrante y no "más o menos ahí".
+ *
+ * Ninguna capa ráster tiene teselas tan abajo: cada una declara hasta dónde llegan las suyas
+ * (`maxNativeZoom`) y Leaflet amplía la última en vez de pedir una que no existe. **Sin eso la capa
+ * se cae entera al pasar de su tope y la pantalla se queda en blanco.**
+ */
+export const ZOOM_MAX = 21;
+
 export const OSM = {
   url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-  opciones: { maxZoom: 19, attribution: '© OpenStreetMap contributors' },
+  // OSM publica hasta z19 (su política de teselas).
+  opciones: { maxZoom: ZOOM_MAX, maxNativeZoom: 19, attribution: '© OpenStreetMap contributors' },
 };
 
 export const PNOA = {
   url:
     'https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0&layer=OI.OrthoimageCoverage' +
     '&style=default&tilematrixset=GoogleMapsCompatible&tilematrix={z}&tilerow={y}&tilecol={x}&format=image/jpeg',
-  opciones: { maxZoom: 19, attribution: 'PNOA © Instituto Geográfico Nacional' },
+  // El WMTS del IGN sirve hasta z20; a partir de z21 responde 400 con un XML de excepción.
+  opciones: { maxZoom: ZOOM_MAX, maxNativeZoom: 20, attribution: 'PNOA © Instituto Geográfico Nacional' },
 };
 
 export const CATASTRO = {
@@ -38,7 +51,8 @@ export const CATASTRO = {
     format: 'image/png',
     transparent: true,
     version: '1.1.1',
-    maxZoom: 20,
+    // WMS: el servidor dibuja a la escala que se le pida, no hay teselas que se acaben.
+    maxZoom: ZOOM_MAX,
     attribution: '© Dirección General del Catastro',
   },
 };

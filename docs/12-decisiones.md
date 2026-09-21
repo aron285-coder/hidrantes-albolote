@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.13 — 21 de septiembre de 2026 (DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.14 — 21 de septiembre de 2026 (DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,25 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-075 · El mapa llega a z21, y cada capa dice hasta dónde tiene teselas
+- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Contexto:** la prueba en un Android real (TR-12) sacó tres cosas del zoom: en el mapa no se podía
+  acercar lo suficiente para poner el pin donde está el hidrante (tope z19), en el mapa del alta
+  tampoco (z20), y **con el satélite al máximo la pantalla se quedaba en blanco**. Lo último no era
+  la red: `SelectorPin` permitía z20 mientras la capa PNOA declaraba `maxZoom: 19`, y Leaflet, al
+  pasar del tope de una capa, **la quita entera**.
+- **Decisión:** un solo tope, `ZOOM_MAX = 21` en `src/lib/capas.ts`, para los dos mapas. Cada capa
+  ráster declara `maxNativeZoom` con el último nivel que de verdad sirve —OSM **z19** (su política de
+  teselas), PNOA **z20**— y Leaflet amplía esa última tesela en lugar de pedir una que no existe. El
+  Catastro es WMS: dibuja a la escala que se le pida y no necesita tope propio.
+- **Cómo se ha comprobado el límite de PNOA:** pidiendo teselas al WMTS del IGN en Albolote y en
+  Calicasas. Hasta z20 responde `200 image/jpeg`; en z21 y z22, `400` con un XML de excepción.
+- **Por qué z21 y no más:** a z21 se distingue la acera de la calzada, que es lo que hacía falta;
+  más allá solo se amplía borrosidad. Un test unitario fija el tope y los niveles nativos, y un e2e
+  lleva el mapa al máximo con el satélite y comprueba que sigue habiendo teselas (pedidas a z20).
+- **Afecta a:** `src/lib/capas.ts`, `src/componentes/mapa/MapaLeaflet.tsx`,
+  `src/componentes/operaciones/SelectorPin.tsx`, 06 §4.4.
 
 ### DEC-074 · La instalabilidad la comprueba un e2e, no Lighthouse
 - **Fecha:** 21 sep 2026 · **Estado:** vigente

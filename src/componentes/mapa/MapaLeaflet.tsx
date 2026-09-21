@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { LIMITES, capasDe } from './capas-leaflet';
-import type { Capa } from '@/lib/capas';
+import { type Capa, ZOOM_MAX } from '@/lib/capas';
 import type { Posicion } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
@@ -54,7 +54,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
       zoomControl: false,
       attributionControl: false,
       minZoom: 10,
-      maxZoom: 19,
+      maxZoom: ZOOM_MAX,
       maxBounds: LIMITES.pad(0.5),
       maxBoundsViscosity: 0.8,
     });
