@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { CodigoQR } from './CodigoQR';
 import { Dialogo } from './Dialogo';
@@ -23,6 +23,7 @@ import {
   cargarNovedades,
   cargarNucleos,
   cargarParametros,
+  avisoAlmacenamiento,
   cargarSalud,
   contarDispositivos,
   descargarInventarioJson,
@@ -456,6 +457,7 @@ function SaludDelSistema() {
   const carga = useCarga(() => cargarSalud(), []);
   const [ocupado, setOcupado] = useState(false);
   const s = carga.datos;
+  const lleno = avisoAlmacenamiento(s?.storage_bytes ?? null);
 
   async function descargar() {
     setOcupado(true);
@@ -480,6 +482,12 @@ function SaludDelSistema() {
           T.panelAjustes.zonaYMapa,
           `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
         ],
+        [
+          T.panelAjustes.ultimaVigilancia,
+          s.ultima_vigilancia
+            ? `${hace(s.ultima_vigilancia)} · ${s.vigilancia_ok ? T.panelAjustes.vigilanciaBien : T.panelAjustes.vigilanciaMal}`
+            : T.panelAjustes.nunca,
+        ],
         [T.panelAjustes.dispositivosActivos, String(s.dispositivos_activos)],
       ]
     : [];
@@ -491,14 +499,27 @@ function SaludDelSistema() {
           {carga.estado === 'error' ? textoError(carga.codigo) : T.panelCola.cargando}
         </p>
       ) : (
-        <dl className="text-sm">
-          {filas.map(([k, valor]) => (
-            <div key={k} className="border-linea flex gap-2 border-b py-1 last:border-b-0">
-              <dt className="text-texto-suave flex-1">{k}</dt>
-              <dd className="font-semibold">{valor}</dd>
-            </div>
-          ))}
-        </dl>
+        <>
+          {/* Cuando el gigabyte gratuito va lleno, avisa con tiempo: el día que se llene, la
+              aplicación deja de admitir fotos (TR-53). No bloquea nada, solo se ve (06 §5). */}
+          {lleno != null && (
+            <p
+              role="status"
+              className="bg-oro-100 border-oro-600 text-ambar-700 rounded-campo mb-3 flex items-start gap-2 border p-2 text-sm"
+            >
+              <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden />
+              <span>{T.panelAjustes.almacenamientoLleno(lleno)}</span>
+            </p>
+          )}
+          <dl className="text-sm">
+            {filas.map(([k, valor]) => (
+              <div key={k} className="border-linea flex gap-2 border-b py-1 last:border-b-0">
+                <dt className="text-texto-suave flex-1">{k}</dt>
+                <dd className="font-semibold">{valor}</dd>
+              </div>
+            ))}
+          </dl>
+        </>
       )}
       <div className="mt-3 flex flex-wrap gap-3">
         <Boton variante="secundario" disabled={ocupado} onClick={() => void descargar()}>

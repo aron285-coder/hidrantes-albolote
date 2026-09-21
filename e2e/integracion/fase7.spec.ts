@@ -194,7 +194,6 @@ test('duplicado a 8 m: se detecta al proponer y se fusiona sin crear un punto nu
   expect(Number(distancia)).toBeLessThan(15);
 
   // Jefatura lo ve señalado y lo fusiona con el existente.
-  const puntosAntes = consulta(`select count(*) from hidrantes.puntos`);
   await entrarComoJefatura(page, request);
   await page.goto('/admin/cola');
   await page.getByPlaceholder(T.panelCola.buscar).fill(apellido);
@@ -209,7 +208,10 @@ test('duplicado a 8 m: se detecta al proponer y se fusiona sin crear un punto nu
   await detalle.getByRole('button', { name: T.panelCola.fusionar, exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: T.panelCola.fusionada(codigo) })).toBeVisible();
 
-  expect(consulta(`select count(*) from hidrantes.puntos`)).toBe(puntosAntes);
+  // Fusionar no crea un punto nuevo: si lo creara, llevaría la descripción de esta propuesta. Se
+  // cuenta solo lo de esta prueba y no el total de la tabla, porque los demás casos de integración
+  // corren a la vez y dan de alta sus propios puntos.
+  expect(consulta(`select count(*) from hidrantes.puntos where descripcion = '${marca} propuesta'`)).toBe('0');
   expect(
     consulta(
       `select caudal::text || '|' || (fecha_ultima_revision = current_date)::text from hidrantes.puntos where codigo = '${codigo}'`,
