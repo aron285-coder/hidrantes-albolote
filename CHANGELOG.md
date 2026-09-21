@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.1.0...hidrantes-albolote-v0.2.0) (2026-09-21)
+
+
+### Novedades
+
+* **diseño:** el estado regular pasa a naranja (DEC-076) ([#141](https://github.com/aron285-coder/hidrantes-albolote/issues/141)) ([ab1cd95](https://github.com/aron285-coder/hidrantes-albolote/commit/ab1cd953ba193a94db81291e2056c0c13e389260))
+* **mapa:** alta manteniendo pulsado el mapa, como en Google Maps ([#144](https://github.com/aron285-coder/hidrantes-albolote/issues/144)) ([9810222](https://github.com/aron285-coder/hidrantes-albolote/commit/981022248d0313b638c8f1f495d69730a68edf6b))
+
+
+### Correcciones
+
+* **mapa:** acercar hasta z21 y que ninguna capa se quede en blanco ([#139](https://github.com/aron285-coder/hidrantes-albolote/issues/139)) ([b67e6de](https://github.com/aron285-coder/hidrantes-albolote/commit/b67e6de80fb07723291378e3fccada1b0794c562))
+
 ## 0.1.0 (2026-09-21)
 
 
