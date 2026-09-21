@@ -188,7 +188,10 @@ test('camino crítico: alta con pin manual y foto, aprobación con dirección, m
   const enPapelera = panel.getByRole('row').filter({ hasText: codigo });
   await expect(enPapelera).toHaveCount(1, { timeout: 30_000 });
   await enPapelera.getByRole('button', { name: T.panel.restaurar }).click();
-  await expect(panel.getByRole('status')).toBeVisible({ timeout: 30_000 });
+  // Por su texto: el cartel de «ENTORNO DE PRUEBAS» que lleva staging también es un `status`.
+  await expect(panel.getByRole('status').filter({ hasText: T.panelPapelera.restaurado(codigo) })).toBeVisible({
+    timeout: 30_000,
+  });
   expect(consulta(`select situacion::text from hidrantes.puntos where codigo = '${codigo}'`)).toBe('activo');
 
   // El registro cuenta la historia entera, sin huecos (11 §6).
