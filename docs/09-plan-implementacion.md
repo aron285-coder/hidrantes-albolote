@@ -353,29 +353,29 @@ ve en Mis propuestas.
 **Objetivo:** que el sistema sobreviva sin mantenimiento activo. Referencia: **03** (todo), 04 §9,
 §12; **11**; **15**.
 
-- [ ] Tests unitarios de `src/lib`: simbología (12 combinaciones), geometría, formato de fechas y
+- [x] Tests unitarios de `src/lib`: simbología (12 combinaciones), geometría, formato de fechas y
       distancias (TR-80).
-- [ ] pgTAP completo (Fases 2–3) en CI contra base efímera.
-- [ ] E2E Playwright en CI: camino crítico completo (entrar → alta con pin manual y foto por URL
+- [x] pgTAP completo (Fases 2–3) en CI contra base efímera.
+- [x] E2E Playwright en CI: camino crítico completo (entrar → alta con pin manual y foto por URL
       firmada → aprobar con dirección → aparece en el mapa → retirar → restaurar), más los casos de
       TR-04, TR-06, TR-24.
-- [ ] `respaldo.yml`: `pg_dump` semanal del esquema `hidrantes` cifrado con GPG, artefacto con 90
+- [x] `respaldo.yml`: `pg_dump` semanal del esquema `hidrantes` cifrado con GPG, artefacto con 90
       días; sincronización mensual del bucket. Escribe `config.ultimo_respaldo`. Nunca a una rama.
-- [ ] **Prueba de restauración** ejecutada una vez sobre una base limpia; procedimiento en 15.
-- [ ] Presupuesto de rendimiento en CI (TR-10, TR-11); prueba de carga con 1.000 puntos en un móvil
+- [x] **Prueba de restauración** ejecutada una vez sobre una base limpia; procedimiento en 15.
+- [x] Presupuesto de rendimiento en CI (TR-10, TR-11); prueba de carga con 1.000 puntos en un móvil
       real (TR-12–TR-14), documentando el dispositivo.
-- [ ] Accesibilidad: contraste de los tokens de 06 (TR-31), objetivos táctiles (TR-32), foco.
-- [ ] Checklist de las ocho pruebas de intrusión (TR-40) ejecutada y documentada en 11.
-- [ ] **Lighthouse CI** en `deploy-staging.yml` con los umbrales de TR-103 y **axe** en e2e.
-- [ ] **Prueba de cabeceras** (TR-100) en e2e contra staging tras el despliegue (lectura, sin datos).
-- [ ] **`vigilancia.yml`** (TR-102): app, RPC, respaldo reciente, push pendientes; issue automática
+- [x] Accesibilidad: contraste de los tokens de 06 (TR-31), objetivos táctiles (TR-32), foco.
+- [x] Checklist de las ocho pruebas de intrusión (TR-40) ejecutada y documentada en 11.
+- [x] **Lighthouse CI** en `deploy-staging.yml` con los umbrales de TR-103 y **axe** en e2e.
+- [x] **Prueba de cabeceras** (TR-100) en e2e contra staging tras el despliegue (lectura, sin datos).
+- [x] **`vigilancia.yml`** (TR-102): app, RPC, respaldo reciente, push pendientes; issue automática
       con etiqueta `vigilancia`; Salud del sistema muestra la última ejecución.
-- [ ] **Prueba de compatibilidad hacia atrás** (TR-107): la última versión publicada del frontend
+- [x] **Prueba de compatibilidad hacia atrás** (TR-107): la última versión publicada del frontend
       contra la BD con las migraciones nuevas, en CI.
-- [ ] **Prueba de degradación**: Supabase inaccesible (bloqueo de red en e2e) → la app muestra datos
+- [x] **Prueba de degradación**: Supabase inaccesible (bloqueo de red en e2e) → la app muestra datos
       locales y el aviso; Functions inaccesibles → la entrada explica el problema; Storage al 90 % →
       banda en Salud.
-- [ ] `scripts/restaurar.ts` y `scripts/restaurar-fotos.ts` (solo esquema `hidrantes`, transacción, confirmación escrita, guarda de `PROJECT_REF`) y `npm run arranque -- --rotar <secreto|todo>`: son los que usa **15** §5.3 y §5.6. Probados en la prueba de restauración.
+- [x] `scripts/restaurar.ts` y `scripts/restaurar-fotos.ts` (solo esquema `hidrantes`, transacción, confirmación escrita, guarda de `PROJECT_REF`) y `npm run arranque -- --rotar <secreto|todo>`: son los que usa **15** §5.3 y §5.6. Probados en la prueba de restauración.
 
 **Criterio de salida:** CI verde con las tres capas; un respaldo restaurado con éxito; las ocho
 pruebas de intrusión fallando como se espera; presupuesto de rendimiento y Lighthouse cumplidos;
@@ -535,7 +535,7 @@ con su resultado.
 | 5 | terminada (luz del día pendiente) | 19 sep 2026 | Mapa base propio de 4,2 MB con escritor PMTiles propio, capas, simbología, lista, búsqueda y ficha (DEC-062). Pendiente: los cinco tamaños a la luz del día en el móvil del desarrollador y las capas en 3G real (staging bloqueado, DEC-061). Verificación: `docs/verificacion/fase-5.md`. |
 | 6 | terminada | 20 sep 2026 | Seis operaciones, foto sin EXIF, cola sin cobertura idempotente, jefatura aplica al momento, Mis propuestas, incidencias y push (DEC-063). Criterio cumplido en integración real. Pendiente: fotos de referencia del racor (jefatura) y prueba en móvil real. Verificación: `docs/verificacion/fase-6.md`. |
 | 7 | terminada | 20 sep 2026 | Panel completo: cola con diff, señales, correcciones, fusión y bloque; inventario con exportación; caducadas con hoja de campo; registro, papelera, voluntarios y ajustes con núcleos, QR y avisos (DEC-065, DEC-067, DEC-068). Criterio cumplido en integración real: 20 revisiones en bloque en ~2 s. Mantenimiento despacha con `workflow_dispatch`, para que el token baste con `actions:write` (DEC-069), y regenerar la zona sin novedades ya no abre un PR de ruido (DEC-070). `GITHUB_DISPATCH_TOKEN` creado el 20 sep 2026 con el permiso único `actions:write` y guardado en los dos proyectos de Pages; el botón con sesión real de jefatura se valida en la Fase 9. La purga de fotos y el respaldo llegan en la Fase 8. Verificación: `docs/verificacion/fase-7.md`. |
-| 8 | pendiente | | |
+| 8 | terminada (móvil real pendiente) | 21 sep 2026 | Respaldo cifrado semanal y restauración ensayada de verdad sobre una base vacía; `restaurar.ts`, `restaurar-fotos.ts` y `--rotar`; las ocho pruebas de intrusión ejecutadas y en CI, con su resultado fechado en 11 §5; compatibilidad hacia atrás del frontend publicado contra la base migrada; vigilancia diaria que abre y cierra sola su issue; presupuesto de rendimiento medido con 3G simulada (2,40 s la primera pantalla); axe y Lighthouse en CI; degradación y aviso de cuota (DEC-071 a DEC-074). El ensayo sacó cinco defectos reales, entre ellos un respaldo que restauraba sin permisos. Pendiente: la prueba de carga en un móvil real (TR-12, DEC-061) y que pasen los tres días de vigilancia. Verificación: `docs/verificacion/fase-8.md`. |
 | 9 | pendiente | | |
 
 Se rellena al cerrar cada fase con la fecha y cualquier desviación respecto a 01–06 (que se corrige

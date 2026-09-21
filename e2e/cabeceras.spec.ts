@@ -62,4 +62,24 @@ test.describe('cabeceras de la página desplegada (TR-100)', () => {
     violaciones.push(...(await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp ?? [])));
     expect(violaciones, 'violaciones de la CSP al cargar').toEqual([]);
   });
+
+  test('lo desplegado es instalable: manifiesto, iconos y Service Worker (TR-103)', async ({ page, request }) => {
+    // Lighthouse 12 ya no trae la categoría PWA ni ejecuta `installable-manifest` (DEC-074), así que
+    // la instalabilidad se comprueba aquí, sobre lo que Pages sirve de verdad.
+    const manifiesto = await (await request.get(new URL('/manifest.webmanifest', DESPLEGADA!).href)).json();
+    expect(manifiesto).toMatchObject({ lang: 'es', display: 'standalone', start_url: '/' });
+    expect(String(manifiesto.name)).not.toBe('');
+    const iconos = (manifiesto.icons ?? []) as { src: string; sizes: string; purpose?: string }[];
+    // Android exige 192 y 512; la maskable es la que no queda recortada en el lanzador.
+    expect(iconos.map((i) => i.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']));
+    expect(iconos.some((i) => i.purpose === 'maskable')).toBe(true);
+    for (const { src } of iconos) {
+      const icono = await request.get(new URL(src, DESPLEGADA!).href);
+      expect(icono.headers()['content-type'], `icono ${src}`).toBe('image/png');
+    }
+
+    await page.goto(DESPLEGADA!);
+    const activo = await page.evaluate(async () => !!(await navigator.serviceWorker.ready).active);
+    expect(activo, 'Service Worker activo').toBe(true);
+  });
 });

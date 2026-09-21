@@ -379,7 +379,7 @@ e2e/                    # Playwright
 
 | Workflow | Disparo | Hace |
 |---|---|---|
-| `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP y Playwright contra Supabase local + `wrangler pages dev` |
+| `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP, las ocho pruebas de intrusión de TR-40 (`scripts/intrusion.ts`, 11 §5) y Playwright contra Supabase local + `wrangler pages dev`; si la rama cambia migraciones, además la compatibilidad hacia atrás de §12 |
 | `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), despliegue a Pages staging |
 | `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
 | `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
@@ -447,6 +447,9 @@ Fase 0.
 - **Compatibilidad:** toda migración funciona con la versión anterior del frontend durante unos
   minutos, porque la base de datos se actualiza antes que el navegador de la gente. Añadir columnas y
   valores de enum sí; renombrar o eliminar, en dos pasos separados por un despliegue.
+  Lo comprueba `ci-sql` en cada PR que toque `supabase/migrations` (`npm run compatibilidad`,
+  TR-107): monta un worktree de la rama publicada, construye aquel frontend con sus Pages Functions
+  y corre **sus** casos de integración contra la base de datos ya migrada con lo que trae el PR.
 - Los tres procedimientos (revertir frontend, revertir migración, restaurar respaldo) están escritos
   paso a paso en **15**.
 
