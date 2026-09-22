@@ -28,8 +28,14 @@ export async function turnoNominatim(
   if (espera > 0) await dormir(espera);
 }
 
-export async function direccionDe(lat: number, lng: number, agente: string): Promise<string | null> {
-  await turnoNominatim();
+/** `turno` solo se sustituye en las pruebas, para no dormir de verdad el segundo de TR-72. */
+export async function direccionDe(
+  lat: number,
+  lng: number,
+  agente: string,
+  turno: () => Promise<void> = turnoNominatim,
+): Promise<string | null> {
+  await turno();
   const url = new URL('https://nominatim.openstreetmap.org/reverse');
   url.search = new URLSearchParams({
     format: 'jsonv2',
