@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Los valores marcados `«…»` los rellena `scripts/arranque.ts` en `docs/entornos.md` y se copian aquí al cerrar la Fase 0; la tabla de §9 se actualiza en cada comprobación. |
-| **Versión** | 1.0 — 17 de septiembre de 2026 |
+| **Versión** | 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
 | **Propietario de** | qué cuenta controla qué, dónde están las credenciales, y los procedimientos paso a paso para restaurar, revertir, rotar y recuperar el control cuando algo falla o cuando el desarrollador no está. |
 | **Para** | jefatura y quien tenga que hacerse cargo del sistema sin conocerlo. Escrito para leerse con prisa. |
 | **Referencias** | arquitectura en **04**; datos personales en **11**; tareas de construcción en **09** Fase 8. |
@@ -20,12 +20,12 @@ paso mal hecho en una restauración cuesta más que una hora de espera.
 |---|---|---|---|---|
 | Código fuente, CI/CD, respaldos cifrados, issues | GitHub | repo público (DEC-053) `aron285-coder/hidrantes-albolote` (hasta el traspaso, §7); copia local en `C:\Proteccion civil\hidrantes-albolote` | `«cuenta-institucional@…»` · hoy: cuenta personal del desarrollador | 0 € |
 | Aplicación y Pages Functions (producción) | Cloudflare Pages | proyecto `hidrantes-albolote` → `hidrantes-albolote.pages.dev` | `«cuenta-institucional@…»` | 0 € |
-| Aplicación (pruebas) | Cloudflare Pages | `hidrantes-albolote-staging` | ídem | 0 € |
-| Base de datos, Storage, Auth (producción) | Supabase | proyecto **prod** `«PROJECT_REF_PROD»`, esquema `hidrantes`, bucket `hidrantes-fotos` | ídem (compartido con la app de uniformidad) | 0 € |
-| Base de datos (pruebas) | Supabase | proyecto **dev** `«PROJECT_REF_DEV»`, bucket `hidrantes-fotos-dev` | ídem | 0 € |
+| Aplicación (pruebas) | Cloudflare Pages | `hidrantes-albolote-staging` → `hidrantes-albolote-staging.pages.dev`; cuenta `12c14cad67798806b9ba75017f3e2959` | ídem | 0 € |
+| Base de datos, Storage, Auth (producción) | Supabase | proyecto **prod** `uniformidad-prod` · ref `cbgqirjqyltadpydpeyr`, esquema `hidrantes`, bucket `hidrantes-fotos` | ídem (compartido con la app de uniformidad) | 0 € |
+| Base de datos (pruebas) | Supabase | proyecto **dev** `uniformidad-dev` · ref `jowapbzawsebfpksnlqx`, bucket `hidrantes-fotos-dev` | ídem | 0 € |
 | Inicio de sesión de jefatura | Google (vía Supabase Auth) | proveedor Google del proyecto Supabase | ídem | 0 € |
 | Mapa base propio (si > 20 MB) | Cloudflare R2 | bucket `hidrantes-mapabase` | ídem | 0 € |
-| Dirección deducida | Nominatim (OSM) | sin cuenta; `User-Agent` `«…»` | — | 0 € |
+| Dirección deducida | Nominatim (OSM) | sin cuenta; `User-Agent` `hidrantes-albolote/1.0 (+https://hidrantes-albolote.pages.dev)` | — | 0 € |
 
 Objetivo: todo en **una cuenta de Google institucional de la agrupación**, no en la personal de nadie
 (DEC-023). Situación de partida (sep 2026): GitHub, Cloudflare y Supabase están bajo la cuenta de
@@ -40,7 +40,7 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 |---|---|---|---|
 | Contraseña + 2FA de la cuenta de Google institucional | entrar en GitHub, Cloudflare y Supabase | gestor de contraseñas de la agrupación (o sobre cerrado en la sede) | jefatura + secretaría |
 | Códigos de recuperación de 2FA (Google, GitHub, Cloudflare, Supabase) | recuperar acceso si se pierde el móvil del 2FA | mismo sitio, entrada aparte | ídem |
-| Clave GPG privada del respaldo | descifrar un respaldo | mismo sitio; **no está en GitHub ni en ningún ordenador** | ídem |
+| Clave GPG privada del respaldo (huella `BD378A1E0E09843032B3A70254A89DD4FC82E6CE`) | descifrar un respaldo | guardada el 21 sep 2026 por el desarrollador fuera del repositorio; **no está en GitHub ni en ningún ordenador de trabajo**. La pública sí: secreto `GPG_PUBLIC_KEY` | ídem |
 | Contraseñas de las bases de datos (dev, prod) | `pg_dump`, restauración | mismo sitio; también en los secretos de GitHub (cifrados) | ídem |
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub; se puede regenerar en un minuto | — |
 | Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
@@ -117,7 +117,19 @@ aplicada**. Se corrige con otra migración que deshaga el efecto:
 ### 5.3 Restaurar un respaldo (pérdida o corrupción de datos)
 
 **Gravedad:** máxima. **Tiempo:** 4 horas (TR-51). **Quién:** dos personas: una con el sobre, otra
-con el ordenador. Ensayado con éxito el **20 sep 2026** sobre una base limpia (`docs/verificacion/fase-8.md` §3).
+con el ordenador.
+
+**Ensayado de verdad el 20–21 sep 2026** sobre una base vacía, con un volcado cifrado real y estos
+ocho pasos (`docs/verificacion/fase-8.md` §2 y §5). El ensayo, que llevó menos de una hora, encontró
+tres cosas que habrían estropeado la restauración de verdad:
+
+1. El volcado se hacía con `--no-privileges` y la base restaurada dejaba a `anon` sin las nueve RPC
+   del voluntario: la aplicación habría arrancado y nadie habría podido entrar.
+2. `create schema` fallaba por permisos (DEC-052); de ahí el paso 4 de abajo.
+3. La clave GPG generada no la leía GnuPG (algoritmos de RFC 9580); se regeneró el 20 sep 2026 y
+   por eso la huella de §2 es la de esa fecha.
+
+El respaldo semanal corrió en verde contra producción el 21 sep 2026 y dejó su artefacto cifrado.
 
 Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con GPG, de las últimas
 13 semanas (datos) y 3 meses (fotos).
@@ -189,7 +201,7 @@ reenviarán solas.
 
 **Gravedad:** alta. **Tiempo:** el mismo día. **Quién:** quien maneje el ordenador.
 
-1. `npm run arranque -- --rotar «nombre-del-secreto»` regenera ese secreto en Supabase o GitHub y lo
+1. `npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|todo>` regenera ese secreto en Supabase o GitHub y lo
    vuelve a subir a GitHub Environments, a los secretos del repositorio (los que usan los trabajos
    por calendario, DEC-071) y a Cloudflare. Se pueden pedir varios: `--rotar db,gpg`. Para rotar
    todo: `--rotar todo` (ojo: cambia también las claves VAPID, y los móviles ya suscritos dejan de
@@ -317,6 +329,9 @@ Registro de comprobaciones y de incidentes:
 
 | Fecha | Tipo (mensual / trimestral / anual / incidente §5.x) | Resultado | Quién |
 |---|---|---|---|
+| 20–21 sep 2026 | anual, adelantado: ensayo de restauración (§5.3) sobre una base vacía | correcto; tres defectos encontrados y corregidos (§5.3) | desarrollador |
+| 21 sep 2026 | respaldo semanal contra producción, a mano | artefacto cifrado de 136 KB, 90 días de retención; `ultimo_respaldo` en Salud del sistema | desarrollador |
+| 21 sep 2026 | vigilancia diaria, de punta a punta | abrió su issue al faltar el respaldo y la cerró sola al haberlo | automática |
 | | | | |
 
 ---

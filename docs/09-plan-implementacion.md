@@ -403,7 +403,7 @@ cabeceras A; `vigilancia.yml` ha corrido en verde tres días seguidos; la prueba
 - [x] `scripts/capturas.ts` (Playwright emulando móvil sobre staging) deja las capturas listas en
       `docs/capturas/`; los manuales **13** y **14** se escriben después con ellas (decisión de
       jefatura: manuales al final).
-- [ ] **15** verificado con los datos reales del arranque (`docs/entornos.md`) y la prueba de
+- [x] **15** verificado con los datos reales del arranque (`docs/entornos.md`) y la prueba de
       restauración de la Fase 8 anotada.
 - [ ] Sesión presencial de 20 minutos en una reunión ordinaria: instalar, entrar, dar de alta un
       punto real en la puerta de la sede.
