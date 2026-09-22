@@ -395,7 +395,7 @@ cabeceras A; `vigilancia.yml` ha corrido en verde tres días seguidos; la prueba
       código real desde Ajustes. Incidencias en la pestaña Voluntarios.
 - [ ] Corregir lo que salga; volver a pasar los casos de 10 afectados.
 - [ ] PR `develop` → `main`; aprobación; despliegue automático con código real en el *summary*.
-- [ ] `scripts/promover-piloto.ts` (`promover-piloto.yml`, manual con aprobación): cola de staging a
+- [x] `scripts/promover-piloto.ts` (`promover-piloto.yml`, manual con aprobación): cola de staging a
       cero → lee puntos activos no `[PRUEBA]` con propuestas aprobadas y registro → copia fotos
       entre buckets → inserta conservando códigos y avanza secuencias → informe. Idempotente por
       `codigo`.

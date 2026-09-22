@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.16 — 21 de septiembre de 2026 (DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.17 — 22 de septiembre de 2026 (DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-078 · Las dos cadenas de conexión, en el repositorio, para poder promover el piloto
+- **Fecha:** 22 sep 2026 · **Estado:** vigente
+- **Contexto:** `promover-piloto.yml` lee de staging y escribe en producción, y un trabajo de
+  GitHub Actions solo puede declarar **un** environment. Con `environment: production` (que es el
+  que exige la aprobación del desarrollador) el trabajo no ve los secretos de `staging`.
+- **Descartado:** partirlo en dos trabajos, uno por entorno, pasándose el guion generado como
+  artefacto. En un repositorio público los artefactos los puede descargar cualquiera, y ese guion
+  lleva **nombres de voluntarios** (`autor_nombre`): eso no sale de la base de datos (11, FR-27).
+- **Decisión:** `arranque.ts` guarda también en el **repositorio** `SUPABASE_DB_URL_STAGING` y
+  `SUPABASE_SERVICE_ROLE_KEY_STAGING`, como ya hacía con los de producción para el respaldo
+  (DEC-071). El environment `production` sigue siendo el que manda: sin la aprobación, el trabajo
+  ni siquiera arranca.
+- **Afecta a:** `scripts/arranque.ts`, `.github/workflows/promover-piloto.yml`, `docs/entornos.md`.
 
 ### DEC-077 · Mantener pulsado el mapa empieza un alta ahí mismo
 - **Fecha:** 21 sep 2026 · **Estado:** vigente
