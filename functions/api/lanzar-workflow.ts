@@ -10,9 +10,10 @@ export const WORKFLOWS = ['purgar-fotos', 'regenerar-zona', 'regenerar-mapabase'
 export type Workflow = (typeof WORKFLOWS)[number];
 
 // Qué archivo atiende cada trabajo, y con qué entradas: GitHub rechaza con 422 una entrada que el
-// workflow no declara, así que cada uno lleva las suyas. El de la purga de fotos llega con su
-// workflow (Fase 8); hasta entonces ese trabajo responde NO_CONFIGURADO.
+// workflow no declara, así que cada uno lleva las suyas. Un trabajo sin archivo responde
+// NO_CONFIGURADO, que el panel dice con palabras en vez de quedarse mudo.
 export const ARCHIVO: Partial<Record<Workflow, { archivo: string; entradas?: Record<string, string> }>> = {
+  'purgar-fotos': { archivo: 'purgar-fotos.yml' },
   'regenerar-zona': { archivo: 'mantenimiento.yml', entradas: { trabajo: 'regenerar-zona' } },
   'regenerar-mapabase': { archivo: 'mantenimiento.yml', entradas: { trabajo: 'regenerar-mapabase' } },
   respaldo: { archivo: 'respaldo.yml' },

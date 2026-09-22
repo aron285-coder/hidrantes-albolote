@@ -73,7 +73,7 @@ export function MinimapaPropuesta({
           [otro.lat, otro.lng],
           [lat, lng],
         ],
-        { color: otro === original ? '#9C2B1E' : '#8A6408', weight: 1.5, dashArray: '3 3', interactive: false },
+        { color: otro === original ? '#9C2B1E' : '#7F5C07', weight: 1.5, dashArray: '3 3', interactive: false },
       ).addTo(g);
     }
     if (original) {

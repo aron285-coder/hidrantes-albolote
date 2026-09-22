@@ -233,6 +233,15 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
     page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoLanzado(T.panel.regenerarZona) }),
   ).toBeVisible();
 
+  // FR-144: la purga de fotos huérfanas es un trabajo más de mantenimiento, con su aviso de que
+  // tarda unos minutos y su confirmación (AC-106).
+  const purga = page.waitForRequest((r) => r.url().includes('/api/lanzar-workflow') && r.method() === 'POST');
+  await page.getByRole('button', { name: T.panel.purgarFotos }).click();
+  expect((await purga).postDataJSON()).toEqual({ workflow: 'purgar-fotos' });
+  await expect(
+    page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoLanzado(T.panel.purgarFotos) }),
+  ).toBeVisible();
+
   await expect(page.getByText('Aprobar con correcciones abre un formulario.')).toBeVisible();
 
   await page.getByRole('button', { name: T.panelAjustes.imprimirA4 }).click();

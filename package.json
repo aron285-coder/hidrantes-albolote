@@ -30,6 +30,7 @@
     "zona": "tsx scripts/generar-zona.ts",
     "cargar-zona": "tsx scripts/cargar-zona.ts",
     "respaldo-fotos": "tsx scripts/respaldo-fotos.ts",
+    "purgar-fotos": "tsx scripts/purgar-fotos.ts",
     "restaurar": "tsx scripts/restaurar.ts",
     "restaurar-fotos": "tsx scripts/restaurar-fotos.ts",
     "asegurar-propietario": "tsx scripts/asegurar-propietario.ts",

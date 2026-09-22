@@ -99,6 +99,24 @@ test.describe('sin cobertura (criterio de salida)', () => {
     await context.setOffline(false);
   });
 
+  // FR-63 y UI-04: la capa en línea que se estaba usando deja de pintarse al perder la cobertura.
+  // El Catastro también, aunque debajo siga el mapa base: desaparecería el plano sin decir por qué.
+  for (const [capa, nombre] of [
+    ['satelite', T.mapa.satelitePnoa],
+    ['catastro', T.mapa.catastro],
+  ] as const) {
+    test(`sin cobertura, la capa "${capa}" dice que la necesita (FR-63)`, async ({ page, context }) => {
+      await conSesion(page, { extra: { capa } });
+      await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+      await page.goto('/');
+      await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+
+      await context.setOffline(true);
+      await expect(page.getByRole('status').filter({ hasText: T.mapa.capaSinCobertura(nombre) })).toBeVisible();
+      await context.setOffline(false);
+    });
+  }
+
   test('sin mapa base y sin cobertura, el mapa lo avisa en vez de quedarse en blanco (FR-81)', async ({
     page,
     context,

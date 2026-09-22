@@ -117,6 +117,15 @@ for (const modo of ['claro', 'oscuro'] as const) {
       expect(contraste(t['--anillo-seleccion'], mapa.fondo)).toBeGreaterThanOrEqual(3);
     });
 
+    // El aviso (06 §5) es texto ámbar sobre fondo oro o ámbar claro, y sale en los dos modos con
+    // los mismos colores: es una banda que avisa, no una superficie del tema. Se mide aquí porque
+    // axe solo lo ve si el aviso está en pantalla, y casi nunca lo está (DEC-081).
+    it('el texto de los avisos se lee sobre el fondo del aviso', () => {
+      for (const fondo of ['--oro-100', '--ambar-100']) {
+        expect(contraste(t['--ambar-700'], t[fondo]), `ámbar sobre ${fondo}`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
     it('las etiquetas de estado se leen sobre su propio fondo claro', () => {
       for (const [texto, fondo] of [
         ['--verde-700', '--verde-100'],

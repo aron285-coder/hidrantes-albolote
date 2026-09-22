@@ -157,12 +157,16 @@ export function SelectorPin({
     }
   }, [gps, original, pin]);
 
+  // El primer arreglo del GPS puede tardar medio minuto en la calle: sin este "buscando", el botón
+  // de posición parece roto y se pulsa tres veces (UI-01, UI-05). Es el mismo aviso que el mapa.
   const aviso =
     estadoPos.tipo === 'denegada'
       ? T.mapa.posicionDenegada
       : estadoPos.tipo === 'no_disponible'
         ? T.mapa.posicionNoDisponible
-        : null;
+        : estadoPos.tipo === 'buscando'
+          ? T.mapa.buscandoPosicion
+          : null;
 
   return (
     <div className="relative isolate">
@@ -185,7 +189,10 @@ export function SelectorPin({
         <LocateFixed size={20} aria-hidden />
       </button>
       {aviso && (
-        <p className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta absolute inset-x-2 bottom-2 z-[500] border px-2 py-1 text-[13px]">
+        <p
+          role="status"
+          className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta absolute inset-x-2 bottom-2 z-[500] border px-2 py-1 text-[13px]"
+        >
           {aviso}
         </p>
       )}

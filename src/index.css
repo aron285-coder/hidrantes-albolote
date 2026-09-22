@@ -38,8 +38,10 @@
   /* Solo para el texto del chip sobre --naranja-estado-100: el 600 ahí se queda en 3,31:1. */
   --naranja-estado-700: #8f4505;
   --naranja-estado-100: #fde8d6;
-  /* El ámbar se queda para lo que es aviso (señales, diferencias, pendiente), que no es caudal. */
-  --ambar-700: #8a6408;
+  /* El ámbar se queda para lo que es aviso (señales, diferencias, pendiente), que no es caudal.
+     Bajó de #8A6408 a #7F5C07 el 22 sep 2026: como caudal era un relleno de marcador y le bastaba
+     con 3:1, pero como texto del aviso va sobre --oro-100 y ahí se quedaba en 4,33:1 (DEC-081). */
+  --ambar-700: #7f5c07;
   --ambar-100: #fbedcb;
   --rojo-700: #9c2b1e;
   --rojo-100: #fbe0db;
