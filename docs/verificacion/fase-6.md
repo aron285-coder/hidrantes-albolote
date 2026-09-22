@@ -52,4 +52,5 @@ DEC-063 (todo por la cola, reintentos, foto, firma de jefatura, racor sin fotos 
 - Fotos de referencia de los racores Granada, Barcelona y otro (las hace jefatura; van en
   `src/activos/racores/`).
 - Probar en un móvil real la cámara (orientación de fotos de iPhone y Android) y un aviso push de
-  punta a punta, cuando staging sea accesible (DEC-061).
+  punta a punta. **Ya se puede**: staging volvió a abrirse el 22 sep 2026 (DEC-061) y ese día se usó
+  en un POCO M6 Pro, aunque la cámara y el push no entraron en esa sesión.

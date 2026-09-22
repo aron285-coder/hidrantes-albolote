@@ -901,7 +901,12 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   `.github/workflows/mantenimiento.yml`; `docs/verificacion/fase-7.md`.
 
 ### DEC-061 · Riesgo: bloqueos de IP de Cloudflare por LaLiga en España
-- **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones; revisión al cerrar la Fase 6)
+- **Fecha:** 19 sep 2026 · **Estado:** vigente (riesgo aceptado con mitigaciones)
+- **Al día 22 sep 2026:** staging vuelve a abrirse con normalidad y **sin VPN**, desde la misma
+  conexión que el 19 no llegaba (200 en 0,14 s). Es lo esperable de un bloqueo por horario de
+  partido: va y viene, no se "arregla". El riesgo sigue vigente y las mitigaciones también; lo que
+  cambia es que las pruebas que esperaban a esto ya se pueden hacer, y la primera —la de carga en
+  un móvil real, TR-12— se hizo ese mismo día.
 - **Contexto:** el sábado 19 sep 2026 staging no cargaba ni en fibra ni con datos móviles
   (`ERR_CONNECTION_TIMED_OUT`), mientras que producción, GitHub y Supabase respondían y el despliegue
   se comprobaba bien desde GitHub (EE. UU.). Causa: por orden judicial (sentencia 310/2024), Movistar,

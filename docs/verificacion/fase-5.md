@@ -1,8 +1,9 @@
 # Verificación · Fase 5 · Mapa, capas y simbología
 
-**Estado: terminada el 19 sep 2026, con una comprobación manual pendiente** (§6): el desarrollador
-aún no ha visto staging a la luz del día en su móvil, porque staging está bloqueado en España durante
-los partidos de LaLiga (DEC-061).
+**Estado: terminada el 19 sep 2026; vista en un móvil real el 22 sep 2026.** El desarrollador abrió
+staging en un POCO M6 Pro en cuanto volvió a ser accesible (DEC-061) y de ahí salieron el tope de
+zoom, el satélite en blanco y el color de "regular", que en pantalla se leía marrón (DEC-075 a
+DEC-077). Queda confirmar los **cinco tamaños a la luz del día** ya con el naranja nuevo.
 
 ## 1. Qué se ha construido
 
@@ -24,7 +25,7 @@ los partidos de LaLiga (DEC-061).
 | Modo avión con mapa base descargado | e2e `mapa.spec.ts` (móvil y escritorio): descarga, sin red, mapa pintado, búsqueda y lista | ✅ |
 | Las 12 combinaciones | `simbologia.test.ts` | ✅ |
 | Las cuatro capas en 3G | Las URL responden por HTTPS con nuestro Referer (comprobado con `curl`); sin prueba con red 3G real | ⏳ |
-| Cinco tamaños distinguibles a la luz del día | Prueba del desarrollador en su móvil | ⏳ (staging bloqueado, DEC-061) |
+| Cinco tamaños distinguibles a la luz del día | Prueba del desarrollador en su móvil | ⏳ (staging ya se abre; la primera pasada del 22 sep 2026 cambió el color de "regular", DEC-076) |
 
 ## 3. Casos de 10 ejecutados
 

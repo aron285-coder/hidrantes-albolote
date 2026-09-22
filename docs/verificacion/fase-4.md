@@ -1,9 +1,9 @@
 # Verificación · Fase 4 · Acceso y armazón del frontend
 
-**Estado: terminada el 19 sep 2026, con una comprobación manual pendiente** (§6): la prueba en un
-Android y un iPhone reales no se ha podido hacer porque staging estaba bloqueado en España por los
-partidos de LaLiga (DEC-061). Todo lo automatizable está en verde en CI; se sigue con la Fase 5 y la
-prueba en móviles se hace en cuanto staging vuelva a ser accesible.
+**Estado: terminada el 19 sep 2026; probada en un Android real el 22 sep 2026.** Ese día staging
+volvió a abrirse sin VPN (DEC-061) y el desarrollador la usó en un **POCO M6 Pro (Android 15,
+`AP3A.240905.015.A2`)**: el mapa se maneja con soltura y de esa sesión salieron tres correcciones
+(DEC-075 a DEC-077). Queda el **iPhone**, y dejar constancia de la instalación como PWA en los dos.
 
 ## 1. Qué se ha construido
 
@@ -25,7 +25,7 @@ prueba en móviles se hace en cuanto staging vuelva a ser accesible.
 |---|---|---|
 | Error provocado en `errores_cliente` | `e2e/integracion/fase4.spec.ts` en ci-sql: `wrangler pages dev` + Supabase local, código 000000, fallo forzado en `/lista`, consulta a la tabla | ✅ |
 | Correo no autorizado ve "No autorizado" | e2e con sesión de Google simulada y `fn_es_admin = false` | ✅ automático · ⏳ con Google real en staging |
-| Instalable en Android y iPhone reales | e2e: manifiesto con iconos 192/512/maskable, `apple-touch-icon`, Service Worker activo y arranque sin red | ✅ automático · ⏳ en móviles reales (bloqueo DEC-061) |
+| Instalable en Android y iPhone reales | e2e: manifiesto con iconos 192/512/maskable, `apple-touch-icon`, Service Worker activo y arranque sin red | ✅ automático · ✅ usada en Android real (POCO M6 Pro, 22 sep 2026) · ⏳ iPhone |
 
 ## 3. Casos de 10 ejecutados
 
