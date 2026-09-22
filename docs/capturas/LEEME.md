@@ -1,6 +1,6 @@
 # Capturas de la aplicación
 
-Generadas con `npm run capturas` el 2026-09-21 desde http://127.0.0.1:8788, con un móvil emulado (Pixel 7).
+Generadas con `npm run capturas` el 2026-09-22 desde https://hidrantes-albolote-staging.pages.dev, con un móvil emulado (Pixel 7).
 No se editan a mano: si una pantalla cambia, se vuelve a lanzar el script.
 
 Llevan la banda **ENTORNO DE PRUEBAS** porque no se hacen contra producción (04 §4), y los
