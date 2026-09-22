@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se amplía cuando aparece un caso nuevo; los resultados se anotan por recorrido. |
-| **Versión** | 1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
+| **Versión** | 1.3 — 22 de septiembre de 2026: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
 | **Propietario de** | los casos de prueba de aceptación (`AC-nn`). Cada caso cita el requisito que verifica (01, 03). |
 | **Cómo se usa** | Se imprime. Jefatura y 2–3 voluntarios lo recorren en la calle sobre **staging** con el código del piloto, y después sobre producción antes de abrir a los 65. Columna "Resultado": ✓ / ✗ / n.a.; columna "Notas": qué pasó si ✗. |
 
@@ -150,13 +150,13 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|
-| AC-110 | Las ocho pruebas de intrusión con la `anon key` (TR-40) | Las ocho fallan; documentadas en 11 | TR-40 | | |
+| AC-110 | Las ocho pruebas de intrusión con la `anon key` (TR-40) | Las ocho fallan; documentadas en 11 | TR-40 | ✓ | 21 sep 2026 · `npm run intrusion`, y en cada PR desde ci-sql. Resultado de cada una, en 11 §5 |
 | AC-111 | Código no almacenado en el móvil | Inspección del almacenamiento local: solo token, nombre, `dispositivo_id` | TR-43 | | |
 | AC-112 | EXIF eliminado | La foto en el bucket no tiene metadatos | TR-47 | | |
 | AC-113 | Cuota de subidas | La reserva 41 del día falla | TR-45 | | |
-| AC-114 | Respaldo restaurado | Restauración sobre base limpia ejecutada y documentada | TR-51 | | |
-| AC-115 | Presupuesto de rendimiento | CI: < 3 s en 3G, < 300 kB | TR-10, TR-11 | | |
-| AC-116 | Carga con 1.000 puntos | Mapa fluido en el móvil de gama media documentado | TR-12 | | |
+| AC-114 | Respaldo restaurado | Restauración sobre base limpia ejecutada y documentada | TR-51 | ✓ | 20–21 sep 2026 · ensayo completo con un volcado cifrado real; sacó tres defectos (15 §5.3, verificación de la Fase 8) |
+| AC-115 | Presupuesto de rendimiento | CI: < 3 s en 3G, < 300 kB | TR-10, TR-11 | ✓ | 21 sep 2026 · 2,40 s la primera pantalla y 2,56 s la ficha con 3G simulada; 268 kB de JavaScript inicial |
+| AC-116 | Carga con 1.000 puntos | Mapa fluido en el móvil de gama media documentado | TR-12 | ✓ | 22 sep 2026 · POCO M6 Pro, Android 15 (`AP3A.240905.015.A2`), sobre staging; se maneja con soltura |
 
 ## I · Exportación, avisos, utilidades y robustez (FR-160–168, TR-100–107)
 

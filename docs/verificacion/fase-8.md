@@ -1,9 +1,10 @@
 # Verificación · Fase 8 · Calidad, respaldo y observabilidad
 
-**Estado: terminada el 21 sep 2026.** El criterio de salida se cumple entero salvo dos cosas que no
-dependen del código y quedan anotadas en §6: la prueba de carga en un móvil real (TR-12, esperando a
-que staging salga del bloqueo de DEC-061) y los tres días seguidos de vigilancia en verde, que se
-cumplen solos a partir de hoy (§2, última fila).
+**Estado: terminada el 21 sep 2026.** El criterio de salida se cumple entero. La prueba de carga en
+un móvil real (TR-12) la hizo el desarrollador el **22 sep 2026** sobre staging, que ese día volvió a
+ser accesible sin VPN (DEC-061): **POCO M6 Pro, Android 15 (AP3A.240905.015.A2)**, y el mapa se
+maneja con soltura. Lo único que sigue corriendo es el calendario: la vigilancia diaria necesita tres
+días seguidos en verde (§2, última fila).
 
 Lo que distingue a esta fase de las anteriores: casi todo lo que hay aquí **se ha ejecutado de
 verdad**, no solo escrito. El respaldo corrió contra producción, la restauración se ensayó sobre una
@@ -107,13 +108,16 @@ conviene `npx supabase stop --no-backup && npx supabase start`.
 
 ## 6. Lo que queda abierto
 
-- **TR-12 · prueba de carga en un móvil real** (1 000 puntos, ≥ 30 fps, Android de gama media de
-  menos de tres años, documentando el dispositivo). Los tres tiempos medibles desde CI (TR-10,
-  TR-13, TR-14) están cumplidos; lo que falta es el móvil de verdad, y espera a que staging sea
-  accesible (DEC-061), igual que las pruebas pendientes de las Fases 4, 5 y 6.
-- **Tres días seguidos de vigilancia en verde.** El ciclo completo está probado hoy (abre la issue
-  cuando algo falla, la cierra cuando deja de fallar); solo hace falta que pasen los días. Si alguno
-  sale en rojo, habrá una issue con la etiqueta `vigilancia` explicando qué.
+- **TR-12 · prueba de carga en un móvil real: hecha el 22 sep 2026.** El desarrollador la pasó
+  sobre staging con un **POCO M6 Pro** (Android 15, compilación `AP3A.240905.015.A2`), un Android de
+  gama media de menos de tres años, que es lo que pide el requisito. Resultado: se mueve con soltura
+  al desplazar y al acercar. De esa misma sesión salieron tres cosas que ya están corregidas —el
+  tope de zoom, el satélite en blanco al acercar del todo y el ámbar de "regular", que en la calle
+  se leía marrón— en DEC-075, DEC-076 y DEC-077.
+- **Tres días seguidos de vigilancia en verde.** El ciclo completo está probado (abre la issue
+  cuando algo falla, la cierra cuando deja de fallar) y a 22 sep 2026 lleva **dos ejecuciones en
+  verde**, una de ellas por calendario. Solo hace falta que pasen los días. Si alguno sale en rojo,
+  habrá una issue con la etiqueta `vigilancia` explicando qué.
 - **Sincronización mensual de fotos**: el bucket de producción está vacío mientras no haya piloto, así
   que el camino se ha probado con el script (`respaldo-fotos.ts`, con sus tests) pero todavía no ha
   copiado ninguna foto de verdad. Ocurrirá el primer domingo de mes tras el piloto.
