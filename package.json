@@ -37,6 +37,7 @@
     "intrusion": "tsx scripts/intrusion.ts",
     "compatibilidad": "tsx scripts/compatibilidad.ts",
     "capturas": "tsx scripts/capturas.ts",
+    "promover-piloto": "tsx scripts/promover-piloto.ts",
     "functions:dev": "wrangler pages dev dist --port 8788 --ip 127.0.0.1 --compatibility-date=2026-09-01",
     "iconos": "tsx scripts/generar-iconos.ts",
     "mapabase": "tsx scripts/generar-mapabase.ts"

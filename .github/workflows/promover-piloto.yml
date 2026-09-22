@@ -1,0 +1,71 @@
+# Promoción del piloto a producción (04 §13, 09 Fase 9). Manual y con aprobación: declara el
+# entorno `production`, así que no se mueve hasta que el desarrollador lo apruebe en GitHub.
+#
+# Lee de staging y escribe en producción, y un trabajo solo puede llevar un environment, así que las
+# dos cadenas de conexión están como secretos del repositorio (DEC-078); las pone `arranque.ts`.
+#
+# Empieza siempre en ensayo: la primera pasada dice qué se llevaría sin tocar nada.
+name: Promover piloto
+
+on:
+  workflow_dispatch:
+    inputs:
+      ensayo:
+        description: 'Ensayo (no escribe nada)'
+        type: boolean
+        default: true
+      confirmacion:
+        description: 'Para promover de verdad, escribe PROMOVER'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promover-piloto
+  cancel-in-progress: false
+
+jobs:
+  promover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+
+      - name: Promover
+        env:
+          SUPABASE_DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
+          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          SUPABASE_URL_STAGING: ${{ vars.SUPABASE_URL_STAGING }}
+          SUPABASE_URL_PROD: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
+          SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          ENSAYO: ${{ inputs.ensayo }}
+          CONFIRMACION: ${{ inputs.confirmacion }}
+        run: |
+          set -euo pipefail
+          if [ "$ENSAYO" = 'true' ]; then
+            npm run promover-piloto -- --ensayo | tee salida.txt
+          else
+            if [ "$CONFIRMACION" != 'PROMOVER' ]; then
+              echo 'Para promover de verdad hay que escribir PROMOVER en la entrada del workflow.' >&2
+              exit 1
+            fi
+            echo PROMOVER | npm run promover-piloto | tee salida.txt
+          fi
+
+      - name: Informe
+        if: always()
+        run: |
+          {
+            echo '### Promoción del piloto'
+            echo '```'
+            # Sin los nombres de los autores: el resumen es público (DEC-053, FR-27).
+            sed -n '/Promovido\|Se promoverían\|Fotos/p' salida.txt || echo 'sin informe'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

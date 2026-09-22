@@ -470,13 +470,13 @@ function secretosGithub(
   fijarVariable(`SUPABASE_ANON_KEY_${sufijo}`, sb.anon);
 
   // Por el mismo motivo, respaldo.yml necesita en el repositorio lo que el entorno `production`
-  // guarda tras una aprobación humana (DEC-071). Solo producción: nadie respalda staging.
-  if (e.clave === 'production') {
-    if (sb.urlMigrador) fijarSecreto('SUPABASE_DB_URL_PROD', sb.urlMigrador);
-    fijarSecreto('SUPABASE_SERVICE_ROLE_KEY_PROD', sb.servicio);
-    if (!sb.urlMigrador && !existeSecretoRepo('SUPABASE_DB_URL_PROD')) {
-      log.aviso('Falta SUPABASE_DB_URL_PROD para el respaldo: vuelve a lanzarlo con --rotar db (DEC-071).');
-    }
+  // guarda tras una aprobación humana (DEC-071). Y `promover-piloto.yml` necesita los dos lados a
+  // la vez —lee de staging y escribe en producción—, y un trabajo solo puede llevar un environment,
+  // así que también los de staging viven en el repositorio (DEC-078).
+  if (sb.urlMigrador) fijarSecreto(`SUPABASE_DB_URL_${sufijo}`, sb.urlMigrador);
+  fijarSecreto(`SUPABASE_SERVICE_ROLE_KEY_${sufijo}`, sb.servicio);
+  if (!sb.urlMigrador && !existeSecretoRepo(`SUPABASE_DB_URL_${sufijo}`)) {
+    log.aviso(`Falta SUPABASE_DB_URL_${sufijo}: vuelve a lanzarlo con --rotar db (DEC-071).`);
   }
   log.ok('hecho');
 }
@@ -559,6 +559,7 @@ ${filas.join('\n')}
 | Secretos por environment | \`SUPABASE_DB_URL\`, \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\` (+ \`GPG_PUBLIC_KEY\` en production) |
 | Variables por environment | \`VITE_ENTORNO\`, \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_ANON_KEY\`, \`VITE_VAPID_PUBLIC_KEY\`, \`PAGES_PROYECTO\`, \`SUPABASE_PROJECT_REF\` |
 | Variables del repositorio | \`SUPABASE_URL_STAGING\`, \`SUPABASE_ANON_KEY_STAGING\`, \`SUPABASE_URL_PROD\`, \`SUPABASE_ANON_KEY_PROD\` (mantener-activo.yml, DEC-054) |
+| Secretos del repositorio | \`SUPABASE_DB_URL_{STAGING,PROD}\`, \`SUPABASE_SERVICE_ROLE_KEY_{STAGING,PROD}\`, \`GPG_PUBLIC_KEY\` (respaldo y promoción del piloto: DEC-071, DEC-078) |
 | Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_SUBJECT\` |
 
 Rotar un secreto: \`npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|todo>\` (15).

@@ -384,7 +384,7 @@ e2e/                    # Playwright
 | `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
 | `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
 | `purgar-fotos.yml` | semanal, `repository_dispatch` | purga de huérfanas |
-| `promover-piloto.yml` | manual | copia puntos, fotos y registro de staging a prod conservando códigos |
+| `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos; empieza en ensayo y exige escribir PROMOVER (DEC-078) |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md`; relanza la CI de ese PR (DEC-055) |
