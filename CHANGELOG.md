@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.3.0...hidrantes-albolote-v0.4.0) (2026-09-22)
+
+
+### Novedades
+
+* **mantenimiento:** purgar las fotos huerfanas desde Ajustes y cada lunes ([#156](https://github.com/aron285-coder/hidrantes-albolote/issues/156)) ([2cbbde4](https://github.com/aron285-coder/hidrantes-albolote/commit/2cbbde495ea3f3d3c7bb2272533ff520beeb4f61))
+
 ## [0.3.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.2.0...hidrantes-albolote-v0.3.0) (2026-09-22)
 
 
