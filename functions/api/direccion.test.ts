@@ -2,7 +2,7 @@
 // tercero, así que aquí se comprueba lo que importa: que solo jefatura puede pedirla, que no se
 // vuelve a preguntar lo ya preguntado, y que si Nominatim calla, la revisión sigue.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { type Env } from '../_lib/comun.ts';
 import { onRequestGet } from './direccion.ts';
 
@@ -45,23 +45,11 @@ function fingirRed(red: Red) {
 }
 
 describe('GET /api/direccion', () => {
-  // Nominatim solo admite una petición por segundo (TR-72) y el módulo las espacia de verdad: con el
-  // reloj fingido, esa espera se adelanta en vez de sufrirla.
-  // Igual que en verificar-codigo: se finge solo setTimeout, para que leer la petición y hablar con
-  // la red simulada siga pasando por el bucle de eventos de verdad.
-  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
-  afterEach(() => vi.useRealTimers());
-
-  const responder = async (request: Request) => {
-    const respuesta = onRequestGet({ request, env: ENV });
-    let lista = false;
-    void respuesta.then(() => (lista = true));
-    for (let i = 0; i < 100 && !lista; i++) {
-      await new Promise((listo) => setImmediate(listo));
-      await vi.advanceTimersByTimeAsync(1000);
-    }
-    return respuesta;
-  };
+  // Nominatim solo admite una petición por segundo (TR-72) y el módulo las espacia de verdad, así
+  // que las pruebas que llegan hasta él esperan ese segundo. Se intentó adelantar el reloj con
+  // temporizadores fingidos y no es de fiar: en una máquina cargada la espera se programa después
+  // del salto y la prueba se cuelga (se vio en la CI, con la Function del código).
+  const responder = (request: Request) => onRequestGet({ request, env: ENV });
 
   it('sin sesión de administrador, 403 y no se pregunta a nadie (TR-40)', async () => {
     const { espia, llamadas } = fingirRed({ admin: false });

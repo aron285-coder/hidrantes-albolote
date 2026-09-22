@@ -1,8 +1,14 @@
 // La Function del canje del código (TR-41, TR-42, 11 §3). Es la única puerta abierta al exterior sin
 // credencial previa: aquí se comprueba que la IP que cuenta para el límite es la real de Cloudflare y
 // que nunca se guarda en claro, y que acertar o fallar el código tarda lo mismo.
+//
+// Cada respuesta espera a completar DURACION_MINIMA_MS de verdad (TR-42). Adelantar el reloj con
+// temporizadores fingidos salía mal —leer el cuerpo de la petición pasa por el bucle de eventos real
+// y, en una máquina cargada, la espera se programaba después del salto y la prueba se colgaba; se
+// vio en la CI—, así que las llamadas que no dependen unas de otras se lanzan a la vez: todas caben
+// en la misma espera.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { type Env } from '../_lib/comun.ts';
 import { DURACION_MINIMA_MS, onRequestPost } from './verificar-codigo.ts';
 
@@ -13,6 +19,7 @@ const ENV = {
 } as Env;
 
 const DISPOSITIVO = '0f1e2d3c-4b5a-4968-8776-6a5b4c3d2e1f';
+const TOKEN = 't'.repeat(32);
 
 const peticion = (cuerpo: unknown, cabeceras: Record<string, string> = { 'CF-Connecting-IP': '203.0.113.7' }) =>
   new Request('https://hidrantes-albolote-staging.pages.dev/api/verificar-codigo', {
@@ -23,50 +30,79 @@ const peticion = (cuerpo: unknown, cabeceras: Record<string, string> = { 'CF-Con
 
 /** Lo que responde fn_verificar_codigo: una fila con token, o con error. */
 const canje = (fila: Record<string, unknown>) => new Response(JSON.stringify([fila]));
-const fingir = (r: Response | Error) =>
-  vi.spyOn(globalThis, 'fetch').mockImplementation(() => (r instanceof Error ? Promise.reject(r) : Promise.resolve(r)));
+
+/** Una respuesta solo se puede leer una vez: con varias llamadas a la vez, cada una lleva su copia. */
+const servir = (r: Response | Error) => (r instanceof Error ? Promise.reject(r) : Promise.resolve(r.clone()));
+
+/** Respuesta de la base de datos según el código que se teclee, para poder lanzarlas a la vez. */
+function fingirPorCodigo(porCodigo: Record<string, Response | Error>) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opciones) => {
+    const { codigo } = JSON.parse((opciones as RequestInit).body as string) as { codigo: string };
+    return servir(porCodigo[codigo] ?? canje({ token: null, caduca_en: null, error: null }));
+  });
+}
+
+const fingir = (r: Response | Error) => vi.spyOn(globalThis, 'fetch').mockImplementation(() => servir(r));
 
 describe('POST /api/verificar-codigo', () => {
-  // Toda respuesta espera a completar DURACION_MINIMA_MS (TR-42). En las pruebas ese reloj se
-  // adelanta a mano: lo que se comprueba aquí es la respuesta, no la paciencia.
-  // Solo se finge setTimeout: leer el cuerpo de la petición pasa por el bucle de eventos de verdad
-  // y, con todos los relojes fingidos, el manejador no llegaría nunca a programar su espera.
-  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
-  afterEach(() => vi.useRealTimers());
+  const responder = (request: Request) => onRequestPost({ request, env: ENV });
 
-  /** Cede al bucle de eventos y adelanta el reloj fingido `ms`, tantas veces como haga falta. */
-  const correr = async (ms: number, veces: number, parar: () => boolean = () => false) => {
-    for (let i = 0; i < veces && !parar(); i++) {
-      await new Promise((listo) => setImmediate(listo));
-      await vi.advanceTimersByTimeAsync(ms);
+  it('cada respuesta de la base de datos sale con su estado (05 §8)', async () => {
+    const casos = [
+      {
+        que: 'código correcto',
+        codigo: '123456',
+        da: canje({ token: TOKEN, caduca_en: '2027-09-22T00:00:00Z', error: null }),
+        estado: 200,
+        espera: { token: TOKEN, caduca_en: '2027-09-22T00:00:00Z' },
+      },
+      {
+        que: 'código incorrecto, sin más pistas (FR-33)',
+        codigo: '000001',
+        da: canje({ token: null, caduca_en: null, error: null }),
+        estado: 401,
+        espera: { error: 'CODIGO_INCORRECTO' },
+      },
+      {
+        que: 'pasado el límite, con cuánto esperar (TR-41)',
+        codigo: '000002',
+        da: canje({ token: null, caduca_en: null, error: 'DEMASIADOS_INTENTOS' }),
+        estado: 429,
+        espera: { error: 'DEMASIADOS_INTENTOS', reintentar_en_s: 3600 },
+      },
+      {
+        que: 'base de datos sin responder',
+        codigo: '000003',
+        da: new Error('ECONNREFUSED'),
+        estado: 503,
+        espera: { error: 'SERVIDOR_NO_DISPONIBLE' },
+      },
+    ];
+    const espia = fingirPorCodigo(Object.fromEntries(casos.map((c) => [c.codigo, c.da])));
+    const respuestas = await Promise.all(
+      casos.map((c) => responder(peticion({ codigo: c.codigo, dispositivo_id: DISPOSITIVO }))),
+    );
+
+    for (const [i, r] of respuestas.entries()) {
+      expect(r.status, casos[i].que).toBe(casos[i].estado);
+      expect(await r.json(), casos[i].que).toEqual(casos[i].espera);
     }
-  };
-
-  const responder = async (request: Request) => {
-    const respuesta = onRequestPost({ request, env: ENV });
-    let lista = false;
-    void respuesta.then(() => (lista = true));
-    await correr(DURACION_MINIMA_MS, 100, () => lista);
-    return respuesta;
-  };
-
-  it('canjea el código por un token de dispositivo', async () => {
-    const espia = fingir(canje({ token: 'tok_' + 'a'.repeat(30), caduca_en: '2027-09-22T00:00:00Z', error: null }));
-    const r = await responder(peticion({ codigo: '123456', dispositivo_id: DISPOSITIVO }));
-
-    expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ token: 'tok_' + 'a'.repeat(30), caduca_en: '2027-09-22T00:00:00Z' });
     espia.mockRestore();
   });
 
   it('el límite se cuenta sobre la IP real de Cloudflare, y va cifrada (TR-41, 11 §3)', async () => {
-    const espia = fingir(canje({ token: 't'.repeat(32), caduca_en: null, error: null }));
-    await responder(
-      peticion(
-        { codigo: '123456', dispositivo_id: DISPOSITIVO },
-        { 'CF-Connecting-IP': '203.0.113.7', 'X-Forwarded-For': '10.0.0.1' },
+    const espia = fingir(canje({ token: TOKEN, caduca_en: null, error: null }));
+    const [conCloudflare, sinCabecera] = await Promise.all([
+      responder(
+        peticion(
+          { codigo: '123456', dispositivo_id: DISPOSITIVO },
+          { 'CF-Connecting-IP': '203.0.113.7', 'X-Forwarded-For': '10.0.0.1' },
+        ),
       ),
-    );
+      // Sin la cabecera de Cloudflare no se cae: esa petición cuenta como una IP más.
+      responder(peticion({ codigo: '123456', dispositivo_id: DISPOSITIVO }, {})),
+    ]);
+    expect([conCloudflare.status, sinCabecera.status]).toEqual([200, 200]);
 
     const cuerpo = JSON.parse((espia.mock.calls[0][1] as RequestInit).body as string) as Record<string, string>;
     expect(cuerpo.ip_hash).toMatch(/^[0-9a-f]{64}$/);
@@ -75,84 +111,40 @@ describe('POST /api/verificar-codigo', () => {
     espia.mockRestore();
   });
 
-  it('sin la cabecera de Cloudflare no se cae: cuenta como una IP más', async () => {
-    const espia = fingir(canje({ token: 't'.repeat(32), caduca_en: null, error: null }));
-    const r = await responder(peticion({ codigo: '123456', dispositivo_id: DISPOSITIVO }, {}));
-    expect(r.status).toBe(200);
-    espia.mockRestore();
-  });
-
-  it('un código que no vale es 401 y no dice nada más (FR-33)', async () => {
-    const espia = fingir(canje({ token: null, caduca_en: null, error: null }));
-    const r = await responder(peticion({ codigo: '000001', dispositivo_id: DISPOSITIVO }));
-    expect(r.status).toBe(401);
-    expect(await r.json()).toEqual({ error: 'CODIGO_INCORRECTO' });
-    espia.mockRestore();
-  });
-
-  it('pasado el límite, 429 con cuánto hay que esperar (TR-41)', async () => {
-    const espia = fingir(canje({ token: null, caduca_en: null, error: 'DEMASIADOS_INTENTOS' }));
-    const r = await responder(peticion({ codigo: '000001', dispositivo_id: DISPOSITIVO }));
-    expect(r.status).toBe(429);
-    expect(await r.json()).toEqual({ error: 'DEMASIADOS_INTENTOS', reintentar_en_s: 3600 });
-    espia.mockRestore();
-  });
-
   it('rechaza lo que no tiene la forma esperada, sin preguntar a la base de datos', async () => {
     const espia = fingir(canje({ token: null, caduca_en: null, error: null }));
-    for (const cuerpo of [
+    const cuerpos = [
       {},
       { codigo: '123456' },
       { codigo: 123456, dispositivo_id: DISPOSITIVO },
       { codigo: '123456', dispositivo_id: 'no-es-uuid' },
       'esto no es json',
-    ]) {
-      const r = await responder(peticion(cuerpo));
-      expect(r.status, JSON.stringify(cuerpo)).toBe(400);
+    ];
+    const respuestas = await Promise.all(cuerpos.map((c) => responder(peticion(c))));
+
+    for (const [i, r] of respuestas.entries()) {
+      expect(r.status, JSON.stringify(cuerpos[i])).toBe(400);
       expect(await r.json()).toEqual({ error: 'PAYLOAD_INVALIDO' });
     }
     expect(espia).not.toHaveBeenCalled();
     espia.mockRestore();
   });
 
-  it('si la base de datos no responde, 503 y la app lo trata como falta de servidor', async () => {
-    const espia = fingir(new Error('ECONNREFUSED'));
-    const r = await responder(peticion({ codigo: '123456', dispositivo_id: DISPOSITIVO }));
-    expect(r.status).toBe(503);
-    expect(await r.json()).toEqual({ error: 'SERVIDOR_NO_DISPONIBLE' });
-    espia.mockRestore();
-  });
-
   // TR-42: si acertar tardara menos que fallar, se podría adivinar el código a base de cronómetro.
-  // Se comprueba que ninguna de las dos respuestas sale antes de tiempo, no cuánto tarda el reloj.
-  it('ni acertar ni fallar responden antes de la duración mínima', async () => {
-    const saleAntesDeTiempo = async (fila: Record<string, unknown>) => {
-      const espia = fingir(canje(fila));
-      let lista = false;
-      const respuesta = onRequestPost({
-        request: peticion({ codigo: '123456', dispositivo_id: DISPOSITIVO }),
-        env: ENV,
-      }).then((r) => {
-        lista = true;
-        return r;
-      });
-      // A pasos cortos hasta un pelo por debajo del mínimo: el manejador descuenta lo que ya haya
-      // tardado la consulta, así que su espera es de poco menos de DURACION_MINIMA_MS.
-      await correr(50, (DURACION_MINIMA_MS - 100) / 50);
-      const pronto = lista;
-      await correr(200, 100, () => lista);
-      await respuesta;
-      espia.mockRestore();
-      return { pronto, despues: lista };
+  it('acertar y fallar tardan lo mismo, y no menos del mínimo', async () => {
+    const espia = fingirPorCodigo({ '123456': canje({ token: TOKEN, caduca_en: null, error: null }) });
+    const medir = async (codigo: string) => {
+      const empezado = Date.now();
+      const r = await responder(peticion({ codigo, dispositivo_id: DISPOSITIVO }));
+      return { estado: r.status, tardado: Date.now() - empezado };
     };
+    const [bueno, malo] = await Promise.all([medir('123456'), medir('000001')]);
+    espia.mockRestore();
 
-    expect(await saleAntesDeTiempo({ token: 't'.repeat(32), caduca_en: null, error: null })).toEqual({
-      pronto: false,
-      despues: true,
-    });
-    expect(await saleAntesDeTiempo({ token: null, caduca_en: null, error: null })).toEqual({
-      pronto: false,
-      despues: true,
-    });
+    expect([bueno.estado, malo.estado]).toEqual([200, 401]);
+    // Margen pequeño: el temporizador puede despertar un pelo antes del milisegundo redondo.
+    for (const { tardado } of [bueno, malo]) expect(tardado).toBeGreaterThanOrEqual(DURACION_MINIMA_MS - 20);
+    // Y lo que importa: acertar no se nota en el cronómetro.
+    expect(Math.abs(bueno.tardado - malo.tardado)).toBeLessThan(150);
   });
 });
