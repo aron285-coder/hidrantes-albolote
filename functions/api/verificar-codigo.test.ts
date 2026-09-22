@@ -29,18 +29,24 @@ const fingir = (r: Response | Error) =>
 describe('POST /api/verificar-codigo', () => {
   // Toda respuesta espera a completar DURACION_MINIMA_MS (TR-42). En las pruebas ese reloj se
   // adelanta a mano: lo que se comprueba aquí es la respuesta, no la paciencia.
-  beforeEach(() => vi.useFakeTimers());
+  // Solo se finge setTimeout: leer el cuerpo de la petición pasa por el bucle de eventos de verdad
+  // y, con todos los relojes fingidos, el manejador no llegaría nunca a programar su espera.
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
   afterEach(() => vi.useRealTimers());
 
-  /** Espera a que el manejador programe su espera, y solo entonces adelanta el reloj. */
-  const alEsperar = async () => {
-    for (let i = 0; i < 50 && vi.getTimerCount() === 0; i++) await vi.advanceTimersByTimeAsync(0);
+  /** Cede al bucle de eventos y adelanta el reloj fingido `ms`, tantas veces como haga falta. */
+  const correr = async (ms: number, veces: number, parar: () => boolean = () => false) => {
+    for (let i = 0; i < veces && !parar(); i++) {
+      await new Promise((listo) => setImmediate(listo));
+      await vi.advanceTimersByTimeAsync(ms);
+    }
   };
 
   const responder = async (request: Request) => {
     const respuesta = onRequestPost({ request, env: ENV });
-    await alEsperar();
-    await vi.advanceTimersByTimeAsync(DURACION_MINIMA_MS);
+    let lista = false;
+    void respuesta.then(() => (lista = true));
+    await correr(DURACION_MINIMA_MS, 100, () => lista);
     return respuesta;
   };
 
@@ -130,10 +136,11 @@ describe('POST /api/verificar-codigo', () => {
         lista = true;
         return r;
       });
-      await alEsperar();
-      await vi.advanceTimersByTimeAsync(DURACION_MINIMA_MS - 1);
+      // A pasos cortos hasta un pelo por debajo del mínimo: el manejador descuenta lo que ya haya
+      // tardado la consulta, así que su espera es de poco menos de DURACION_MINIMA_MS.
+      await correr(50, (DURACION_MINIMA_MS - 100) / 50);
       const pronto = lista;
-      await vi.advanceTimersByTimeAsync(1);
+      await correr(200, 100, () => lista);
       await respuesta;
       espia.mockRestore();
       return { pronto, despues: lista };

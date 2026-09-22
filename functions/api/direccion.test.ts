@@ -47,14 +47,19 @@ function fingirRed(red: Red) {
 describe('GET /api/direccion', () => {
   // Nominatim solo admite una petición por segundo (TR-72) y el módulo las espacia de verdad: con el
   // reloj fingido, esa espera se adelanta en vez de sufrirla.
-  beforeEach(() => vi.useFakeTimers());
+  // Igual que en verificar-codigo: se finge solo setTimeout, para que leer la petición y hablar con
+  // la red simulada siga pasando por el bucle de eventos de verdad.
+  beforeEach(() => vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] }));
   afterEach(() => vi.useRealTimers());
 
   const responder = async (request: Request) => {
     const respuesta = onRequestGet({ request, env: ENV });
     let lista = false;
     void respuesta.then(() => (lista = true));
-    for (let i = 0; i < 50 && !lista; i++) await vi.advanceTimersByTimeAsync(1000);
+    for (let i = 0; i < 100 && !lista; i++) {
+      await new Promise((listo) => setImmediate(listo));
+      await vi.advanceTimersByTimeAsync(1000);
+    }
     return respuesta;
   };
 
