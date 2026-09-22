@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.2.0...hidrantes-albolote-v0.3.0) (2026-09-22)
+
+
+### Novedades
+
+* **capturas:** scripts/capturas.ts deja las pantallas listas para 13 y 14 (F9.7) ([#145](https://github.com/aron285-coder/hidrantes-albolote/issues/145)) ([80a6726](https://github.com/aron285-coder/hidrantes-albolote/commit/80a6726c6a13df1689a5e864a73b5696c6f88b3b))
+* **piloto:** scripts/promover-piloto.ts y su workflow con aprobacion (F9.5) ([#146](https://github.com/aron285-coder/hidrantes-albolote/issues/146)) ([66edd98](https://github.com/aron285-coder/hidrantes-albolote/commit/66edd981e88d9bfd00e1514fe5d5139c4913b69e))
+
 ## [0.2.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.1.0...hidrantes-albolote-v0.2.0) (2026-09-21)
 
 
