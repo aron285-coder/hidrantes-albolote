@@ -400,7 +400,7 @@ cabeceras A; `vigilancia.yml` ha corrido en verde tres días seguidos; la prueba
       entre buckets → inserta conservando códigos y avanza secuencias → informe. Idempotente por
       `codigo`.
 - [ ] Autorizar los correos de jefatura desde Ajustes (solo el propietario viene por migración).
-- [ ] `scripts/capturas.ts` (Playwright emulando móvil sobre staging) deja las capturas listas en
+- [x] `scripts/capturas.ts` (Playwright emulando móvil sobre staging) deja las capturas listas en
       `docs/capturas/`; los manuales **13** y **14** se escriben después con ellas (decisión de
       jefatura: manuales al final).
 - [ ] **15** verificado con los datos reales del arranque (`docs/entornos.md`) y la prueba de
