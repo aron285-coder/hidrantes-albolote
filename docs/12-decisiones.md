@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.17 — 22 de septiembre de 2026 (DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.18 — 22 de septiembre de 2026 (DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,23 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-079 · El PR de versión necesita un empujón humano para poder fusionarse
+- **Fecha:** 22 sep 2026 · **Estado:** vigente
+- **Contexto:** `release-please` abre su PR con `GITHUB_TOKEN`, y GitHub, por diseño, **no dispara
+  workflows con eventos hechos por ese token**: el PR nace sin checks y `develop` exige tres. El
+  workflow lanzaba la CI sobre la rama con `workflow_dispatch` creyendo que bastaba; al fusionar la
+  0.1.0 se vio que no: esos checks salen verdes pero **no cuentan como checks del PR**, que sigue
+  en `BLOCKED`.
+- **Decisión:** el PR de versión se desbloquea con **un empujón de una persona** a su rama (un
+  commit vacío vale): eso es un `pull_request: synchronize` de verdad y la CI corre como check del
+  PR. El workflow deja el comando exacto en su resumen, para no tener que recordarlo. La CI por
+  `workflow_dispatch` se mantiene, pero solo como aviso temprano.
+- **Descartado:** un PAT con `contents: write` para que el bot empuje (otro secreto que caduca y
+  que hay que rotar, por un empujón cada pocas semanas); bajar la protección de `develop` (es lo que
+  garantiza que nada entra en rojo); fusionar con `--admin` (salta los checks: exactamente lo que no
+  se quiere en un repositorio de un servicio de emergencias).
+- **Afecta a:** `.github/workflows/release-please.yml`; 04 §11.1.
 
 ### DEC-078 · Las dos cadenas de conexión, en el repositorio, para poder promover el piloto
 - **Fecha:** 22 sep 2026 · **Estado:** vigente
