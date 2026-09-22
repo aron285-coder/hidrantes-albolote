@@ -23,10 +23,24 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # Un PR abierto con GITHUB_TOKEN no dispara la CI, y la protección de develop exige CI verde.
-      # workflow_dispatch sí se permite con GITHUB_TOKEN: se lanza sobre la rama del release PR.
+      # Un PR abierto con GITHUB_TOKEN no dispara la CI, y la protección de develop exige los tres
+      # checks. Se lanza la CI sobre la rama para ver el resultado cuanto antes, pero **eso no basta
+      # para fusionar**: los checks de un `workflow_dispatch` no cuentan como checks del PR (se
+      # comprobó el 21 sep 2026 con el PR de la 0.1.0). Hace falta un empujón de una persona, porque
+      # lo que hace GITHUB_TOKEN nunca dispara otro workflow (DEC-079).
       - if: steps.release.outputs.pr
-        run: gh workflow run ci.yml --repo "$REPO" --ref "$RAMA"
+        run: |
+          gh workflow run ci.yml --repo "$REPO" --ref "$RAMA" || true
+          {
+            echo "### PR de versión abierto"
+            echo "La CI lanzada desde aquí es solo informativa. Para poder fusionarlo, un humano tiene"
+            echo "que empujar la rama una vez (eso sí dispara los checks del PR):"
+            echo '```'
+            echo "git fetch origin $RAMA && git switch -c version-nueva FETCH_HEAD"
+            echo "git commit --allow-empty -m 'chore(release): lanzar la CI del PR de versión'"
+            echo "git push origin HEAD:$RAMA"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}

@@ -387,7 +387,7 @@ e2e/                    # Playwright
 | `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos; empieza en ensayo y exige escribir PROMOVER (DEC-078) |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
-| `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md`; relanza la CI de ese PR (DEC-055) |
+| `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) |
 
 Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml`: `ci-calidad`,
 `ci-sql` y `ci-e2e`.
