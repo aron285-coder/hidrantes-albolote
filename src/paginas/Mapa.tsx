@@ -86,8 +86,10 @@ export function Mapa() {
     }
   }, [pos]);
 
+  // Sin cobertura, la capa elegida deja de pintarse y hay que decirlo (UI-04). También el Catastro,
+  // aunque debajo siga el mapa base: si no, el plano de parcelas desaparece sin explicación.
   const avisoCapa =
-    sinRed && enLinea(capa) && capa !== 'catastro'
+    sinRed && enLinea(capa)
       ? T.mapa.capaSinCobertura(NOMBRE_CAPA[capa])
       : sinRed && !mapabase.descargado
         ? T.mapa.mapaNoDescargado

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se amplía cuando aparece un caso nuevo; los resultados se anotan por recorrido. |
-| **Versión** | 1.3 — 22 de septiembre de 2026: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
+| **Versión** | 1.4 — 22 de septiembre de 2026: AC-140 pasa a comprobarse sola (`e2e/controles.spec.ts`). v1.3: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
 | **Propietario de** | los casos de prueba de aceptación (`AC-nn`). Cada caso cita el requisito que verifica (01, 03). |
 | **Cómo se usa** | Se imprime. Jefatura y 2–3 voluntarios lo recorren en la calle sobre **staging** con el código del piloto, y después sobre producción antes de abrir a los 65. Columna "Resultado": ✓ / ✗ / n.a.; columna "Notas": qué pasó si ✗. |
 
@@ -182,7 +182,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-140 | Ningún control muerto | Recorrido automatizado que pulsa todos los controles de cada pantalla de la app y del panel | Cada uno cambia la pantalla, abre un diálogo o muestra un aviso; ningún botón deshabilitado sin motivo escrito debajo | UI-01, UI-02, TR-110 | | |
+| AC-140 | Ningún control muerto | Recorrido automatizado que pulsa todos los controles de cada pantalla de la app y del panel | Cada uno cambia la pantalla, abre un diálogo o muestra un aviso; ningún botón deshabilitado sin motivo escrito debajo | UI-01, UI-02, TR-110 | UI-01, UI-02, TR-110 | ✓ | 22 sep 2026 · automatizado en `e2e/controles.spec.ts` para las ocho pantallas del **voluntario**, en móvil y en escritorio: pulsa cada control y exige que cambie la pantalla, abra un diálogo o saque un aviso. El **panel** lo sigue recorriendo jefatura a mano 
 | AC-141 | Legibilidad y separación | Revisión de cada pantalla en móvil y escritorio | Sin texto pegado; datos compuestos con ` · `; "Aprobar" y "Rechazar…" separados; objetivos táctiles ≥ 44 px | UI-10 a UI-16, TR-113 | | |
 | AC-142 | Dos administradores a la vez | Dos navegadores abren la misma propuesta y pulsan Aprobar casi a la vez | Uno aprueba; el otro ve "esta propuesta ya no está pendiente" y la lista se refresca. Nada se duplica ni se pisa | TR-114, 05 §11 | | |
 | AC-143 | Dos envíos del mismo móvil | Forzar dos sincronizaciones simultáneas con propuestas en cola | Una sola propuesta por `clave_local` | TR-114, FR-49 | | |
