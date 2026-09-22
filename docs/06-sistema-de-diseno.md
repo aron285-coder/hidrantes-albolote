@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.7 — 21 de septiembre de 2026: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -69,7 +69,10 @@ marrón mostaza en el móvil a pleno sol. El naranja nuevo tiene el mismo claror
 superficies más oscuras del mapa claro, que es donde el borde blanco no ayuda— y no se puede
 aclarar más sin bajar de los 3:1 de TR-31. El texto del chip va un punto más oscuro, como en el
 verde. El `--ambar-*` sigue existiendo para lo que es **aviso** (señales de fiabilidad, diferencias,
-propuesta pendiente): eso no es caudal.
+propuesta pendiente): eso no es caudal. Como aviso es **texto**, y el texto del aviso va sobre
+`--oro-100`: ahí el `#8A6408` de antes se quedaba en 4,33:1 y TR-31 pide 4,5:1, así que
+`--ambar-700` es `#7F5C07` desde el 22 sep 2026 (4,93:1 sobre el oro; DEC-081). De relleno de
+marcador le bastaba con 3:1 y por eso nadie lo había medido como texto.
 
 Contraste de los cuatro rellenos sobre el fondo del mapa claro (`#EFECE3`) y oscuro (`#1B2536`):
 ≥ 3:1 en todos los casos; el borde blanco de 2,5 px garantiza la separación en cualquier fondo de
@@ -222,7 +225,7 @@ igual con 9–10 px). Contenido fijo y en este orden:
 | **Etiquetas de operación** (panel) | alta verde, revisión azul, estado ámbar, datos gris, ubicación gris, retirada rojo; 9,5 px 700, radio 4. |
 | **Tarjeta** (`.card-mini`) | blanco, borde `--linea`, radio 9, 9 × 10 px. |
 | **Hoja inferior** (`.sheet`) | radio 16 arriba, asa de 34 × 4 px, sombra `0 -6px 20px rgba(14,27,48,.22)`, sobre un velo `rgba(14,27,48,.38)`. Filas de 44 px con icono 26 px, título 11,5 px y descripción 9,5 px. |
-| **Aviso** (`.warn-callout`) | `--oro-100` fondo, borde `--oro-600`, texto `--ambar-700`, ⚠ delante. Nunca bloquea. |
+| **Aviso** (`.warn-callout`) | `--oro-100` fondo, borde `--oro-600`, texto `--ambar-700` (`#7F5C07`, DEC-081), ⚠ delante. Nunca bloquea. |
 | **Toast** | `--verde-600`, blanco, radio 9, arriba bajo la barra, con cierre; para "tu propuesta se aprobó". |
 | **Foto** | relación 16:9 en ficha, 84–86 px de alto en móvil, etiqueta de fecha abajo-izquierda sobre `rgba(14,27,48,.6)`. Placeholder mientras carga: degradado gris-azulado. |
 | **Racor de referencia** | tres tarjetas iguales con foto real 34 px de alto y nombre; la elegida con borde `--marino-950` doble. |

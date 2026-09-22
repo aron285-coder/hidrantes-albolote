@@ -7,8 +7,9 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { conSesion, simularRpc } from './ayudas.ts';
+import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
+import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 
 /** 3G de 03: 1,6 Mbit/s de bajada, 750 kbit/s de subida, 300 ms de ida y vuelta. */
 async function frenarA3G(page: Page): Promise<void> {
@@ -35,6 +36,73 @@ function milPuntos() {
     lng: -3.66 + Math.floor(i / 100) * 0.0004,
   }));
 }
+
+/**
+ * Doscientas propuestas pendientes, que es el atasco del que habla TR-16: una semana de piloto sin
+ * que jefatura entre a moderar. Cada una con su diff y sus señales, como las de verdad.
+ */
+function doscientasPropuestas() {
+  const punto = PUNTOS[0];
+  return Array.from({ length: 200 }, (_, i) => ({
+    id: `c${i}`,
+    operacion: (['alta', 'revision', 'estado', 'datos', 'ubicacion', 'retirada'] as const)[i % 6],
+    estado: 'pendiente',
+    creada_en: new Date(Date.now() - i * 60_000).toISOString(),
+    autor_nombre: 'Voluntaria',
+    autor_apellido: `Prueba ${i}`,
+    dispositivo_id: `d${i % 20}`,
+    punto_id: punto.id,
+    codigo: punto.codigo,
+    tipo_actual: punto.tipo,
+    datos: { caudal: 'regular', nota: `[PRUEBA] ${i}` },
+    antes: { caudal: 'bueno' },
+    despues: { caudal: 'regular' },
+    foto_path: null,
+    foto_path_actual: null,
+    direccion_sugerida: null,
+    direccion_actual: `Calle Prueba ${i}`,
+    lat: punto.lat,
+    lng: punto.lng,
+    origen_ubicacion: 'gps',
+    precision_gps_m: 8,
+    distancia_gps_m: 3,
+    distancia_exif_m: null,
+    fuera_de_zona: false,
+    meses_desde_revision: 13,
+    duplicado_de: null,
+    distancia_duplicado_m: null,
+    codigo_duplicado: null,
+    otra_medida: false,
+    desactualizada: false,
+    nucleo: 'Albolote',
+    punto_actualizado_en: null,
+  }));
+}
+
+// El panel es de escritorio (FR-100) y la cola se mide sin frenar la red: TR-16 habla de banda
+// ancha, así que lo que se está midiendo es lo que tarda el panel en pintar doscientas propuestas.
+test.describe('presupuesto del panel', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'el panel se mide en escritorio');
+
+  test('la cola con 200 propuestas pendientes se ve en menos de 2 s (TR-16)', async ({ page }) => {
+    await conGoogle(page, 'jefa@example.org');
+    const propuestas = doscientasPropuestas();
+    await simularTablas(page, { v_puntos_activos: PUNTOS, v_cola_revision: propuestas, propuestas: [] });
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/*`, (r) =>
+      r.fulfill({ contentType: 'application/json', body: 'true' }),
+    );
+
+    const empezado = Date.now();
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await expect(lista.getByRole('button').first()).toBeVisible();
+    await expect(page.getByRole('link', { name: `${T.panelCola.colaRevision} 200` })).toBeVisible();
+    const tardado = Date.now() - empezado;
+
+    console.log(`TR-16 · cola con 200 propuestas: ${(tardado / 1000).toFixed(2)} s`);
+    expect(tardado).toBeLessThan(2000);
+  });
+});
 
 // Solo en el móvil emulado: en escritorio el mismo frenado mediría otra cosa y duplicaría el tiempo
 // de CI sin decir nada nuevo.

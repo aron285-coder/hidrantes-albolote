@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.19 — 22 de septiembre de 2026 (DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.20 — 22 de septiembre de 2026 (DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,22 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-081 · El ámbar de los avisos, medido como texto y no como relleno
+- **Fecha:** 22 sep 2026 · **Estado:** vigente; continúa DEC-072 y DEC-076
+- **Contexto:** `--ambar-700` (`#8A6408`) nació como **relleno** del marcador "regular", donde TR-31
+  pide 3:1. DEC-076 lo jubiló para caudal y lo dejó para los **avisos**, que son texto sobre
+  `--oro-100`: ahí se queda en **4,33:1** y TR-31 pide 4,5:1. Nadie lo midió al cambiarle el oficio.
+  axe lo habría visto, pero solo mira lo que está en pantalla, y un aviso casi nunca lo está: saltó
+  de forma intermitente en la auditoría del formulario de alta, según llegara o no el aviso del GPS.
+- **Decisión:** `--ambar-700` pasa a `#7F5C07`: 4,93:1 sobre `--oro-100`, 5,26:1 sobre
+  `--ambar-100` y 6,11:1 sobre blanco. Sigue siendo ámbar; se nota más oscuro solo al compararlos.
+  Y `src/lib/accesibilidad.test.ts` gana el par que faltaba, así que a partir de ahora se mide en
+  cada cambio en lugar de depender de que un aviso esté a la vista cuando pasa axe.
+- **Descartado:** aclarar `--oro-100` (el fondo del aviso es lo que lo hace reconocible de lejos);
+  agrandar el texto del aviso a 18 px para entrar en el umbral de texto grande (no cabe en la banda
+  del mapa); dejarlo en 4,33:1 (TR-31 es un número, no una orientación).
+- **Afecta a:** 06 §2.2 y §5; `src/index.css`; los prototipos 06/07/08.
+
 ### DEC-080 · La purga de fotos huérfanas, el trabajo que se quedó sin hacer
 - **Fecha:** 22 sep 2026 · **Estado:** vigente; completa el punto 5 de DEC-068
 - **Contexto:** DEC-068 dejó los botones de **purga de fotos** y **respaldo** sin dibujar porque sus
@@ -983,7 +999,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |

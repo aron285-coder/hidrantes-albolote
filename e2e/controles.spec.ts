@@ -167,7 +167,11 @@ for (const pantalla of PANTALLAS) {
       expect(mudos, `${pantalla.nombre} · controles sin nombre accesible`).toEqual([]);
     });
 
-    test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page }) => {
+    // El recorrido completo, solo en el móvil: es donde se usa la aplicación, cada pulsación exige
+    // recargar la pantalla y repetirlo en escritorio duplicaría el tiempo de CI para comprobar el
+    // mismo código. Lo propio del escritorio (lista lateral y ficha flotante) lo cubre armazon.spec.
+    test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page, isMobile }) => {
+      test.skip(!isMobile, 'el recorrido completo se hace en el móvil');
       await abrir(page, pantalla);
       const nombres = await nombresDe(page);
 
