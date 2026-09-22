@@ -532,9 +532,10 @@ function SaludDelSistema() {
 
 // ---------- mantenimiento (FR-144, FR-165, FL-33) ----------
 
-// Solo se dibuja lo que existe (UI-01): la purga de fotos llega con su workflow más adelante en la
-// Fase 8, así que su botón todavía no está.
+// Solo se dibuja lo que existe (UI-01): cada uno de estos cuatro tiene su workflow, y una prueba de
+// /api/lanzar-workflow comprueba que sigue siendo así (DEC-080).
 const TRABAJOS: { workflow: Workflow; nombre: string }[] = [
+  { workflow: 'purgar-fotos', nombre: T.panel.purgarFotos },
   { workflow: 'regenerar-zona', nombre: T.panel.regenerarZona },
   { workflow: 'regenerar-mapabase', nombre: T.panel.regenerarMapaBase },
   { workflow: 'respaldo', nombre: T.panel.respaldoAhora },

@@ -23,7 +23,7 @@ flowchart LR
   end
   subgraph cf["Cloudflare Pages (gratuito)"]
     EST[Archivos estáticos + PMTiles]
-    PF[Pages Functions<br/>verificar-codigo · url-subida · direccion · lanzar-purga]
+    PF[Pages Functions<br/>verificar-codigo · url-subida · direccion · lanzar-workflow · push]
   end
   subgraph sb["Supabase (proyecto compartido con la app de uniformidad)"]
     PG[(Postgres · esquema hidrantes<br/>PostGIS · pg_cron)]
@@ -218,7 +218,7 @@ Las cinco Pages Functions (`functions/api/`), en TypeScript, con su contrato en 
 | `POST /api/verificar-codigo` | Canje del código por token, con la IP real. |
 | `POST /api/url-subida` | Reserva de subida y URL firmada para una foto. |
 | `GET /api/direccion` | Reverse geocoding en Nominatim, solo con JWT de administrador, ≤ 1 req/s, resultado cacheado en la propuesta. |
-| `POST /api/lanzar-workflow` | `repository_dispatch` a un workflow de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. Sustituye a `/api/lanzar-purga`. |
+| `POST /api/lanzar-workflow` | `workflow_dispatch` a un workflow de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. Con `workflow_dispatch` el token basta con `actions:write` (DEC-069). |
 | `POST /api/push` | Envía las notificaciones pendientes (`notificaciones`) por Web Push con las claves VAPID; la llama el cliente tras cada acción que genera avisos y el trabajo diario de vigilancia. Idempotente. |
 
 ---
@@ -249,7 +249,7 @@ sequenceDiagram
   no puede copiar archivos. `puntos.foto_path` pasa a apuntar al archivo ya subido.
 - **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas()`
   la lista de paths protegidos (puntos, propuestas pendientes o aprobadas, reservas de < 24 h), lista
-  el bucket y borra el resto. Desde Ajustes se lanza el mismo workflow vía `/api/lanzar-purga`. Una
+  el bucket y borra el resto. Desde Ajustes se lanza el mismo workflow vía `/api/lanzar-workflow`. Una
   foto referenciada por un punto nunca se borra, aunque su propuesta original se rechazara después.
 - **El tratamiento de la imagen es en el móvil:** orientación EXIF aplicada, ≤ 1600 px, recompresión
   (elimina metadatos), y coordenadas EXIF leídas antes y enviadas aparte como `exif_geom`.
@@ -309,7 +309,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Promoción de los datos del piloto | GitHub Actions `promover-piloto.yml` (manual, con aprobación) | una vez |
 | Mantener activos los proyectos de Supabase (DEC-054) | GitHub Actions `mantener-activo.yml` | diario |
 | Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | diario |
-| Regenerar zona / mapa base | GitHub Actions `regenerar-zona.yml`, `regenerar-mapabase.yml` (por `repository_dispatch` desde Ajustes) | bajo demanda |
+| Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml` (por `workflow_dispatch` desde Ajustes, DEC-069); abre un PR a `develop` con lo regenerado | bajo demanda |
 | Actualización de dependencias | Dependabot + `automerge.yml` (parches y menores con CI verde) | semanal |
 | Lighthouse y cabeceras | dentro de `deploy-staging.yml`, tras desplegar | cada despliegue |
 
@@ -383,8 +383,10 @@ e2e/                    # Playwright
 | `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), despliegue a Pages staging |
 | `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
 | `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
-| `purgar-fotos.yml` | semanal, `repository_dispatch` | purga de huérfanas |
+| `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema |
 | `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos; empieza en ensayo y exige escribir PROMOVER (DEC-078) |
+| `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
+| `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; abre una issue si algo falla (TR-102) |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) |

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.18 — 22 de septiembre de 2026 (DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.19 — 22 de septiembre de 2026 (DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,30 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-080 · La purga de fotos huérfanas, el trabajo que se quedó sin hacer
+- **Fecha:** 22 sep 2026 · **Estado:** vigente; completa el punto 5 de DEC-068
+- **Contexto:** DEC-068 dejó los botones de **purga de fotos** y **respaldo** sin dibujar porque sus
+  workflows llegaban en la Fase 8. La Fase 8 trajo `respaldo.yml` y su botón, pero la purga se quedó
+  por el camino: `fn_fotos_referenciadas()` existía desde la Fase 3 y no la llamaba nadie, el texto
+  `Purgar fotos huérfanas` estaba en el Apéndice A de 06 sin usarse, y 04 §9 la daba por hecha. Sin
+  ella, cada foto de una propuesta rechazada o de un envío a medias se queda para siempre en el
+  gigabyte gratuito: cuando se llene, la aplicación deja de admitir fotos (TR-53). Lo sacó una
+  revisión de la aplicación contra 01 y 03, no un fallo en la calle.
+- **Decisión:** `scripts/purgar-fotos.ts` + `purgar-fotos.yml`, con las dos vías que pedían FR-144 y
+  TR-54: los lunes de madrugada por su cuenta y bajo demanda desde Ajustes con `/api/lanzar-workflow`.
+  Qué se conserva lo decide la base de datos (`fn_fotos_referenciadas`: puntos, propuestas pendientes
+  o aprobadas y reservas de menos de 24 h), no el script. Tres redes de seguridad, porque borrar
+  fotos no se deshace: si la lista de referenciadas llega vacía con el bucket lleno **no se borra
+  nada**; si Storage o la base fallan, el script aborta en vez de seguir; y `--ensayo` dice qué
+  sobraría sin tocar nada. Al terminar anota en `config.storage_bytes` el espacio que queda ocupado,
+  que es lo que Salud del sistema enseña (FR-143).
+- **Descartado:** borrar desde `pg_cron` (Postgres no puede tocar Storage); borrar por antigüedad del
+  archivo sin preguntar a la base (una foto vieja puede ser la de un punto vivo); pedir confirmación
+  escrita como en `promover-piloto.yml` (esto ha de correr solo, TR-54).
+- **Consecuencia:** una prueba comprueba que **todos** los trabajos que ofrece el panel tienen
+  workflow, para que no vuelva a quedarse uno a medias.
+- **Afecta a:** 04 §7 y §9; 06 Apéndice A (el texto ya estaba); 09 Fase 8.
+
 ### DEC-079 · El PR de versión necesita un empujón humano para poder fusionarse
 - **Fecha:** 22 sep 2026 · **Estado:** vigente
 - **Contexto:** `release-please` abre su PR con `GITHUB_TOKEN`, y GitHub, por diseño, **no dispara
@@ -957,11 +981,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
 | 15 | 023, 061 |
