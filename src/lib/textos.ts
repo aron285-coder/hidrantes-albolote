@@ -193,6 +193,7 @@ export const T = {
 
   aqui: {
     titulo: '¿Qué hay aquí?',
+    cercanosDesdeAqui: 'Cercanos desde aquí',
     compartirUbicacion: 'Compartir esta ubicación',
     anadirPunto: 'Añadir un punto aquí',
   },

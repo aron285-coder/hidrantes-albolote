@@ -1,8 +1,8 @@
-import { MapPinPlus, X } from 'lucide-react';
+import { Crosshair, MapPinPlus, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { BloqueCoordenadas, BotonCompartir } from './Coordenadas';
 import { Hoja } from '../Hoja';
-import type { LatLng } from '@/lib/coordenadas';
+import { type LatLng, parametroLatLng } from '@/lib/coordenadas';
 import { textoUbicacion } from '@/lib/compartir';
 import { rutaAltaEn } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
@@ -21,6 +21,15 @@ export function QueHayAqui({ l, alCerrar, enHoja }: { l: LatLng; alCerrar: () =>
     <div className="flex flex-col gap-2">
       <BloqueCoordenadas l={l} />
       <div className="flex flex-col gap-3">
+        {/* 1. Cercanos desde aquí (FR-74): el incidente, en este sitio. */}
+        <button
+          type="button"
+          onClick={() => navegar(`/?incidente=${parametroLatLng(l)}`, { replace: true })}
+          className={accion}
+        >
+          <Crosshair size={18} aria-hidden />
+          {T.aqui.cercanosDesdeAqui}
+        </button>
         <BotonCompartir
           titulo={T.compartir.tituloUbicacion}
           texto={textoUbicacion(l)}

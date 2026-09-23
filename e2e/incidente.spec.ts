@@ -140,3 +140,15 @@ test('G2: con puntos guardados y sin red, la primera fila de Cercanos en menos d
   expect(ms).toBeLessThan(3000);
   await context.setOffline(false);
 });
+
+test('desde ¿Qué hay aquí?, "Cercanos desde aquí" abre el incidente en ese sitio', async ({ page, context }) => {
+  await preparar(page, context, false);
+  await page.goto('/?aqui=37.230500,-3.656000');
+  await page
+    .getByRole('dialog', { name: T.aqui.titulo })
+    .getByRole('button', { name: T.aqui.cercanosDesdeAqui })
+    .click();
+  await expect(page).toHaveURL(/\?incidente=37\.230500,-3\.656000$/);
+  await expect(filas(page)).toHaveCount(5);
+  await expect(hoja(page)).toContainText(T.incidente.desdePuntoMarcado);
+});
