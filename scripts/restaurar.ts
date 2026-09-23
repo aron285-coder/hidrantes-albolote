@@ -87,6 +87,10 @@ export const sinCrearEsquema = (volcado: string): string =>
     .replace(/^CREATE SCHEMA (IF NOT EXISTS )?hidrantes;$/gim, '-- (el esquema ya existe)')
     .replace(/^ALTER SCHEMA hidrantes OWNER TO .*;$/gim, '-- (el propietario no se cambia)');
 
+export const EPOCA_NUEVA = `insert into hidrantes.config (clave, valor, actualizado_por)
+  values ('epoca_datos', to_jsonb(gen_random_uuid()::text), 'restaurar.ts')
+  on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;`;
+
 /**
  * Todo en una transacción: si el volcado falla a la mitad, la base se queda como estaba en vez de
  * quedarse a medio restaurar.
@@ -97,6 +101,9 @@ export function sqlRestauracion(volcado: string, nombreArchivo: string, actor: s
     CREAR_SI_FALTA,
     LIMPIAR_ESQUEMA,
     sinCrearEsquema(volcado),
+    // Época nueva: los móviles que la vean distinta repiten una sincronización completa, porque lo
+    // restaurado vuelve con actualizado_en antiguos que la incremental no recogería (RV-06).
+    EPOCA_NUEVA,
     // Que conste quién y cuándo, en el propio registro restaurado (11 §6, 15 §5.3).
     `insert into hidrantes.registro (actor, es_admin, accion, despues)
        values ('${actor.replaceAll("'", "''")}', true, 'restauracion_respaldo',

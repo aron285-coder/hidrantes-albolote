@@ -554,8 +554,13 @@ RFC 8292 con WebCrypto, sin dependencias.
 
 - Primera carga: `fn_listar_puntos(token)` sin `desde` → todos los puntos activos + `config`.
 - Siguientes: `fn_listar_puntos(token, desde = sincronizado_en anterior)` → solo puntos con
-  `actualizado_en > desde` y `bajas` (ids que pasaron a `retirado` o `borrado` desde entonces). El
-  cliente reemplaza por `id` y elimina las bajas.
+  `actualizado_en > desde` y `bajas`: ids que pasaron a `retirado` o `borrado` desde entonces **y**
+  los purgados de la papelera desde entonces (sacados de `registro`, `accion = 'purga_papelera'`),
+  sin repetidos (0012). El cliente reemplaza por `id` y elimina las bajas.
+- `config.epoca_datos` (texto o `null`) la cambia `restaurar.ts` en cada restauración. Si el móvil
+  la recibe distinta de la que tenía guardada (y la guardada no era `null`), repite en la misma
+  llamada una sincronización completa. Además hace una completa si la última tiene más de 7 días
+  (DEC-083).
 - El cliente guarda `sincronizado_en` del servidor, no su propio reloj. El servidor lo devuelve con 60 s
   de solape (`now() − 60 s`): una escritura que aún no había confirmado entra en la siguiente
   sincronización; repetir un punto no duplica, porque el cliente reemplaza por `id`.

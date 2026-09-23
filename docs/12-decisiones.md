@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082, DEC-085; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082, DEC-083, DEC-085; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -683,6 +683,21 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   commit mensual automático a `develop` (ensucia el historial y dispara despliegues).
 - **Afecta a:** 04 §9, 15 §4.
 
+### DEC-083 · Bajas de puntos purgados, época de los datos y una completa por semana
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/17` RV-06)
+- **Contexto:** `bajas` solo listaba puntos que todavía existían; tras la purga de la papelera (30
+  días) un móvil que no había sincronizado en ese intervalo seguía enseñando el hidrante para
+  siempre. Y tras `npm run restaurar` los puntos vuelven con `actualizado_en` antiguos, así que los
+  móviles con un sello más reciente no recibían lo restaurado.
+- **Decisión:** (1) `bajas` incluye los `punto_id` de `registro` con `accion = 'purga_papelera'`
+  desde `desde` (0012). (2) `restaurar.ts` escribe una `config.epoca_datos` nueva en la misma
+  transacción; el móvil que la ve distinta repite una completa. (3) Red de seguridad: una completa
+  si la última tiene más de 7 días. Cuesta una lectura de ~1.000 puntos por semana y móvil (unos
+  300 kB comprimidos), dentro de la transferencia gratuita.
+- **Descartado:** conservar filas "fantasma" de los purgados (contradice la purga, 11 §2) y forzar
+  la completa en cada arranque (datos móviles de más).
+- **Afecta a:** 05 §10, 15 §5.3.
+
 ### DEC-082 · El móvil deriva "sin revisar" y el radio del marcador
 - **Fecha:** 23 sep 2026 · **Estado:** vigente (bajo riesgo; `docs/17` RV-05)
 - **Contexto:** `v_puntos_activos` calcula `revision_caducada` y `radio_px` al leer, pero tras la
@@ -1040,7 +1055,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 085 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
