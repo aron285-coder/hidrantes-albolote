@@ -36,9 +36,13 @@ jobs:
           SECRETO: ${{ secrets[format('VIGILANCIA_SECRETO_{0}', matrix.entorno)] }}
         run: |
           set -uo pipefail
+          # Sin el secreto (antes del paso manual de 15 §2) se avisa sin salir en rojo: un fallo cada
+          # 15 minutos serían 96 correos al día, y mientras tanto los avisos siguen saliendo al
+          # moderar y al sincronizar. La vigilancia diaria sí salta si se atascan más de dos horas.
           if [ -z "${SECRETO:-}" ]; then
+            echo "::warning::Falta VIGILANCIA_SECRETO_${{ matrix.entorno }}: npm run arranque -- --rotar vigilancia (15 §2)"
             echo "### Avisos ${{ matrix.entorno }}: falta el secreto VIGILANCIA_SECRETO_${{ matrix.entorno }} (npm run arranque -- --rotar vigilancia)" >> "$GITHUB_STEP_SUMMARY"
-            exit 1
+            exit 0
           fi
           llamar() {
             curl -s -o respuesta.json -w '%{http_code}' --max-time 60 -X POST "$APP/api/push" \
