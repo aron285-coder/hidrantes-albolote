@@ -107,6 +107,11 @@ export const T = {
   mapa: {
     buscar: 'Buscar código, calle o descripción…',
     capas: 'Capas',
+    // Atribuciones de las capas: las exigen sus licencias y se ven en el mapa.
+    atribucionOsm: '© OpenStreetMap contributors',
+    atribucionPnoa: 'PNOA © Instituto Geográfico Nacional',
+    atribucionCatastro: '© Dirección General del Catastro',
+    atribucionBase: '© OpenStreetMap contributors · Protomaps',
     mapaBasePropio: 'Mapa base propio',
     calleOsm: 'Calle (OSM)',
     satelitePnoa: 'Satélite (PNOA)',

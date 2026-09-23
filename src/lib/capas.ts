@@ -33,7 +33,7 @@ export const ZOOM_MAX = 21;
 export const OSM = {
   url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   // OSM publica hasta z19 (su política de teselas).
-  opciones: { maxZoom: ZOOM_MAX, maxNativeZoom: 19, attribution: '© OpenStreetMap contributors' },
+  opciones: { maxZoom: ZOOM_MAX, maxNativeZoom: 19, attribution: T.mapa.atribucionOsm },
 };
 
 export const PNOA = {
@@ -41,7 +41,7 @@ export const PNOA = {
     'https://www.ign.es/wmts/pnoa-ma?service=WMTS&request=GetTile&version=1.0.0&layer=OI.OrthoimageCoverage' +
     '&style=default&tilematrixset=GoogleMapsCompatible&tilematrix={z}&tilerow={y}&tilecol={x}&format=image/jpeg',
   // El WMTS del IGN sirve hasta z20; a partir de z21 responde 400 con un XML de excepción.
-  opciones: { maxZoom: ZOOM_MAX, maxNativeZoom: 20, attribution: 'PNOA © Instituto Geográfico Nacional' },
+  opciones: { maxZoom: ZOOM_MAX, maxNativeZoom: 20, attribution: T.mapa.atribucionPnoa },
 };
 
 export const CATASTRO = {
@@ -53,11 +53,11 @@ export const CATASTRO = {
     version: '1.1.1',
     // WMS: el servidor dibuja a la escala que se le pida, no hay teselas que se acaben.
     maxZoom: ZOOM_MAX,
-    attribution: '© Dirección General del Catastro',
+    attribution: T.mapa.atribucionCatastro,
   },
 };
 
-export const ATRIBUCION_BASE = '© OpenStreetMap contributors · Protomaps';
+export const ATRIBUCION_BASE = T.mapa.atribucionBase;
 
 /** La última capa elegida se recuerda (FR-63) y es la "capa por defecto" de Ajustes (FR-93). */
 export function capaGuardada(): Capa {
