@@ -195,9 +195,17 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    `restauracion_respaldo`).
 8. Borrar la clave privada del ordenador: `gpg --delete-secret-keys «id»`.
 
-Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Los
-voluntarios verán sus propuestas de esos días como "sin enviar" si aún las tienen en el móvil, y se
-reenviarán solas.
+Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Lo que
+los voluntarios **enviaron** después del respaldo se pierde también: salió de la cola del móvil al
+enviarse y no vuelve solo. Jefatura avisa al grupo con la **fecha del respaldo** para que repitan lo
+que hicieron desde entonces. Solo lo que aún estuviera sin enviar en un móvil se envía solo al volver
+el código (docs/18 RV-35).
+
+**El acceso no vuelve atrás** (docs/18 RV-35). Antes de restaurar, el script lee en memoria el código
+de acceso, los dispositivos y los administradores de **ahora**, y los repone al terminar: el código
+nuevo del paso 1 sigue valiendo, el viejo no vuelve, los móviles revocados siguen revocados, los que
+entraron después con el código nuevo siguen entrando y un administrador dado de baja después del
+respaldo sigue de baja. Nada de eso se escribe en disco.
 
 ### 5.4 El código de acceso se ha filtrado
 
