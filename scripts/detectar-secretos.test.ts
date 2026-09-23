@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { archivoProhibido, buscarSecretos } from './detectar-secretos.ts';
+import { archivoProhibido, buscarSecretos, esVolcado } from './detectar-secretos.ts';
 
 describe('buscarSecretos', () => {
   it.each([
@@ -36,4 +36,25 @@ describe('archivoProhibido', () => {
     '%s se permite',
     (r) => expect(archivoProhibido(r)).toBe(false),
   );
+});
+
+// docs/18 RV-37: un volcado descifrado lleva en claro nombres, correos y el hash del código.
+describe('volcado de la base de datos', () => {
+  const volcado = ['--', '-- PostgreSQL database dump', '--', 'COPY hidrantes.puntos (id, codigo) FROM stdin;'].join(
+    '\n',
+  );
+
+  it('un archivo con la cabecera de pg_dump se bloquea', () => {
+    expect(esVolcado('hidrantes.sql', volcado)).toBe(true);
+    expect(esVolcado('docs/notas.txt', 'x\nCOPY hidrantes.propuestas (id) FROM stdin;\n')).toBe(true);
+  });
+
+  it('las migraciones y los tests de supabase/ no', () => {
+    expect(esVolcado('supabase/migrations/0099_x.sql', volcado)).toBe(false);
+    expect(esVolcado('supabase/seed-staging.sql', volcado)).toBe(false);
+  });
+
+  it('citar la cabecera en un documento, sin empezar la línea con ella, no es un volcado', () => {
+    expect(esVolcado('docs/18.md', 'bloquea `-- PostgreSQL database dump` o `COPY hidrantes.`')).toBe(false);
+  });
 });

@@ -33,6 +33,16 @@ export function buscarSecretos(texto: string): { linea: number; tipo: string }[]
   return hallazgos;
 }
 
+/**
+ * Un volcado de pg_dump del esquema (docs/18 RV-37): lleva en claro nombres de voluntarios, correos
+ * y el hash del código, y el repositorio es público (DEC-053). Se reconoce por la cabecera de pg_dump
+ * o por un bloque COPY al principio de una línea; bajo supabase/ (migraciones, tests, seed) no.
+ */
+export function esVolcado(ruta: string, texto: string): boolean {
+  if (ruta.replaceAll('\\', '/').startsWith('supabase/')) return false;
+  return /^-- PostgreSQL database dump/m.test(texto) || /^COPY hidrantes\.\w+ /m.test(texto);
+}
+
 /** El mapa base publicado es el único PMTiles que va a Git: datos públicos de OSM (DEC-062). */
 const PERMITIDOS = new Set(['public/mapabase/albolote.pmtiles']);
 
@@ -55,6 +65,11 @@ async function principal(): Promise<void> {
     if (archivo === 'scripts/detectar-secretos.test.ts') continue;
     const contenido = ejecutar('git', ['show', `:${archivo}`], { cwd: RAIZ }).salida;
     if (contenido.includes(String.fromCharCode(0))) continue; // binario
+    if (esVolcado(archivo, contenido)) {
+      log.error(`${archivo}: parece un volcado de la base de datos (datos personales en claro): nunca va a Git`);
+      problemas++;
+      continue;
+    }
     for (const h of buscarSecretos(contenido)) {
       log.error(`${archivo}:${h.linea}: posible ${h.tipo} (no se muestra el valor)`);
       problemas++;

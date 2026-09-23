@@ -5,15 +5,27 @@
 //   npm run restaurar -- --entorno local --archivo hidrantes.sql   (el ensayo de la Fase 8)
 //   npm run restaurar -- --entorno local --archivo x.sql --confirmar RESTAURAR   (CI, sin preguntar)
 //
-// El archivo es el volcado ya descifrado (`gpg --decrypt hidrantes-«fecha».sql.gpg > hidrantes.sql`).
+// El archivo es el volcado ya descifrado **fuera del repositorio** (15 §5.3:
+// `gpg --decrypt hidrantes-«fecha».sql.gpg > /tmp/hidrantes.sql`); dentro solo si Git lo ignora.
 // La cadena de conexión sale de SUPABASE_DB_URL, o se pide sin mostrarla.
 //
 // Nunca toca el esquema `public`: es de la app de uniformidad (CLAUDE.md §3). Todo va en una
 // transacción, así que un volcado a medias deja la base como estaba.
 
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { abortar, argumentos, ejecutarScript, log, preguntar, psql, RAIZ, type Resultado } from './lib/comun.ts';
+import {
+  abortar,
+  argumentos,
+  ejecutar,
+  ejecutarScript,
+  log,
+  preguntar,
+  psql,
+  RAIZ,
+  type Resultado,
+} from './lib/comun.ts';
 import {
   type AccesoActual,
   leerAcceso,
@@ -169,6 +181,25 @@ export function sqlRestauracion(volcado: string, nombreArchivo: string, actor: s
 const cuenta = (url: string, tabla: string): string =>
   psql(url, `select count(*) from hidrantes.${tabla};`, { tuplas: true }).salida.trim() || '?';
 
+/**
+ * Un volcado descifrado lleva en claro nombres, correos y el hash del código, y el repositorio es
+ * público (DEC-053). Dentro del repositorio solo se acepta si Git lo ignora; lo normal es tenerlo
+ * fuera, en el directorio temporal del sistema (15 §5.3, docs/18 RV-37).
+ */
+export function motivoArchivoInseguro(ruta: string, raiz: string, ignorado: (ruta: string) => boolean): string | null {
+  const relativa = path.relative(raiz, ruta);
+  const dentro = relativa !== '' && !relativa.startsWith('..') && !path.isAbsolute(relativa);
+  if (!dentro || ignorado(ruta)) return null;
+  return `${relativa} está dentro del repositorio y Git no lo ignora: un volcado lleva datos personales en claro y el repositorio es público. Descífralo fuera (en %TEMP% o /tmp, 15 §5.3) y vuelve a lanzar la restauración.`;
+}
+
+/** `git check-ignore -q` sale con 0 si la ruta está ignorada. */
+export const ignoradoPorGit = (ruta: string): boolean =>
+  ejecutar('git', ['check-ignore', '-q', ruta], { cwd: RAIZ }).codigo === 0;
+
+/** Una carpeta propia en el directorio temporal del sistema, nunca bajo el repositorio. */
+export const carpetaTemporal = (): string => mkdtempSync(path.join(os.tmpdir(), 'hidrantes-'));
+
 /** Lo que hay ahora; si no se puede leer (tablas rotas), se avisa y no se repone nada. */
 function accesoActual(url: string): AccesoActual | null {
   const r = psql(url, SQL_LEER_ACCESO, { tuplas: true });
@@ -189,6 +220,8 @@ async function principal(): Promise<void> {
   const archivo = valores.get('archivo') ?? abortar('Indica --archivo <volcado.sql> ya descifrado.');
   const sinPreguntar = confirmacionAutomatica(entorno, valores.get('confirmar'));
   const ruta = path.resolve(RAIZ, archivo);
+  const inseguro = motivoArchivoInseguro(ruta, RAIZ, ignoradoPorGit);
+  if (inseguro) abortar(inseguro);
 
   const volcado = readFileSync(ruta, 'utf8');
   if (!pareceVolcado(volcado)) abortar(`${archivo} no parece un volcado del esquema hidrantes.`);
@@ -254,14 +287,17 @@ async function principal(): Promise<void> {
   const actor = `restauracion ${entorno}`;
 
   // El volcado y lo que lo envuelve van juntos a un archivo: psql lo lee de una sola vez, y así los
-  // bloques COPY del volcado llegan enteros.
-  const guion = path.join(RAIZ, 'restauracion.tmp.sql');
+  // bloques COPY del volcado llegan enteros. El archivo lleva datos personales en claro: va al
+  // directorio temporal del sistema, nunca bajo el repositorio público, solo legible por quien
+  // restaura, y se borra aunque psql falle (docs/18 RV-37).
+  const carpeta = carpetaTemporal();
+  const guion = path.join(carpeta, 'restauracion.sql');
   let r: Resultado;
   try {
-    writeFileSync(guion, sqlRestauracion(volcado, path.basename(ruta), actor));
+    writeFileSync(guion, sqlRestauracion(volcado, path.basename(ruta), actor), { mode: 0o600 });
     r = psql(url, `\\i '${guion.replaceAll('\\', '/')}'`);
   } finally {
-    rmSync(guion, { force: true });
+    rmSync(carpeta, { recursive: true, force: true });
   }
   if (r.codigo !== 0) abortar(`La restauración ha fallado y no se ha cambiado nada:\n${r.error || r.salida}`);
 
