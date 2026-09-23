@@ -404,8 +404,11 @@ fn_rechazar(propuesta_id uuid, motivo text) returns void
 
 fn_fusionar_con_existente(propuesta_id uuid, punto_id uuid, prevalece jsonb default '{}')
   returns jsonb  -- { punto_id, codigo }
-  -- prevalece: { "racor": "propuesta"|"existente", "caudal": …, "diametro_mm": …, "ubicacion": … }
+  -- prevalece: { "racor": "propuesta"|"existente", "caudal": …, "diametro_mm": …, "descripcion": …,
+  --              "ubicacion": … }
   -- por defecto prevalece lo existente salvo foto y fecha de revisión, que son los de la propuesta.
+  -- con "ubicacion": "propuesta" se recalculan municipio y núcleo y la dirección pasa a la sugerida
+  -- (si no la hay, se conserva), como en fn_aplicar_propuesta (0017, RV-18).
   -- errores: TIPO_DISTINTO · PUNTO_NO_ACTIVO · PROPUESTA_NO_ALTA
 
 fn_editar_punto(punto_id uuid, cambios jsonb) returns void
