@@ -186,7 +186,22 @@ export interface Salud {
   intentos_fallidos_24h?: number;
   topes_alcanzados_24h?: number;
   topes_globales_24h?: number;
+  /** Tamaño de toda la base de datos (compartida con uniformidad) y de nuestro esquema (RV-22). */
+  bd_bytes?: number;
+  esquema_bytes?: number;
+  /** Lo que anotó la vigilancia de cada tarea de pg_cron (TR-54). */
+  tareas?: TareaProgramada[] | null;
 }
+
+export interface TareaProgramada {
+  tarea: string;
+  ultima: string | null;
+  fallo: boolean;
+  problema: boolean;
+}
+
+/** Los 500 MB de base de datos del plan gratuito, compartidos con uniformidad (TR-53). */
+export const CUOTA_BD_BYTES = 500 * 1024 ** 2;
 
 export const cargarSalud = () => rpc<Salud>('fn_salud');
 

@@ -432,7 +432,10 @@ fn_anonimizar_autor(dispositivo_id uuid) returns integer      -- filas afectadas
 fn_historial_punto(punto_id uuid) returns setof v_registro
 fn_salud() returns jsonb
   -- { pendientes_14d, incidencias_abiertas, errores_7d, sin_direccion, ultimo_respaldo, storage_bytes,
-  --   version_zona, version_mapabase, dispositivos_activos }
+  --   version_zona, version_mapabase (la escribe cada despliegue, RV-21), ultima_vigilancia,
+  --   vigilancia_ok (0011), dispositivos_activos, intentos_fallidos_24h, topes_alcanzados_24h,
+  --   topes_globales_24h (0015, RV-14), bd_bytes, esquema_bytes, tareas (0018, RV-22: lo que
+  --   vigilancia.yml anotó de cada tarea de pg_cron: { tarea, ultima, fallo, problema }) }
 fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
 fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
 fn_novedades() returns jsonb                                    -- OBSOLETA desde 0.5.0: sin uso (las novedades salen del build, DEC-087); se retira en la siguiente versión mayor

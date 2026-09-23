@@ -82,6 +82,24 @@ jobs:
             if [ "${pendientes:-0}" -gt 0 ]; then
               problemas+=("$pendientes avisos push llevan más de dos horas sin salir")
             fi
+            # Tareas de pg_cron (TR-54, RV-22): cuándo corrió cada una y si falló. Se guarda para
+            # Salud del sistema, salga como salga.
+            tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -f scripts/sql/tareas-programadas.sql 2>/dev/null || echo '')
+            if [ -z "$tareas" ]; then
+              problemas+=("no se pueden leer las tareas programadas de pg_cron")
+            else
+              printf '%s' "$tareas" > tareas.json
+              psql -X -q -v ON_ERROR_STOP=1 "$BD" -v valor="$tareas" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('tareas_programadas', :'valor'::jsonb, 'vigilancia.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;" || true
+              atrasadas=$(jq -r '[.[] | select(.problema) | .tarea] | join(", ")' tareas.json)
+              if [ -n "$atrasadas" ]; then
+                problemas+=("tareas programadas que fallaron o no han corrido a tiempo: $atrasadas")
+              fi
+            fi
+            # La base de datos de 500 MB la comparte uniformidad: aviso al 80 % (TR-53, RV-22).
+            bd=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c "select pg_database_size(current_database());" 2>/dev/null || echo 0)
+            if [ "${bd:-0}" -gt $((400 * 1024 * 1024)) ]; then
+              problemas+=("la base de datos ocupa $((bd / 1024 / 1024)) MB de 500 (más del 80 %)")
+            fi
             # Intentos del código de acceso (RV-14, TR-41): muchos fallos o un tope de todo el grupo
             # alcanzado son la huella de un ataque, y los voluntarios con móvil nuevo no podrían entrar.
             intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$BD" -c \

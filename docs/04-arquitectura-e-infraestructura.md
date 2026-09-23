@@ -308,6 +308,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Respaldo cifrado de la BD (`pg_dump` del esquema `hidrantes`) | GitHub Actions `respaldo.yml` (`service_role`, GPG) | semanal, 90 días de retención |
 | Respaldo del bucket de fotos | mismo workflow | mensual |
 | Promoción de los datos del piloto | GitHub Actions `promover-piloto.yml` (manual, con aprobación) | una vez |
+| Versión del mapa base en `config.version_mapabase` (`cargar-version-mapabase.ts`, tras desplegar y comprobar lo servido; RV-21) | GitHub Actions `deploy-*.yml` | cada despliegue |
 | Mantener activos los proyectos de Supabase (DEC-054) | GitHub Actions `mantener-activo.yml` | diario |
 | Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | diario |
 | Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml` (por `workflow_dispatch` desde Ajustes, DEC-069); abre un PR a `develop` con lo regenerado | bajo demanda |
@@ -387,7 +388,7 @@ e2e/                    # Playwright
 | `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema |
 | `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos; empieza en ensayo y exige escribir PROMOVER (DEC-078) |
 | `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
-| `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; abre una issue si algo falla (TR-102) |
+| `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`; avisa si la base de datos pasa de 400 MB (80 % de los 500 compartidos con uniformidad); abre una issue si algo falla (TR-102, TR-54, RV-22). La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
 | `avisos.yml` | cada 15 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos (DEC-088) |
