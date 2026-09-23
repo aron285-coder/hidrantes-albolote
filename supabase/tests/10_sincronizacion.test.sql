@@ -4,7 +4,11 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(5);
+select plan(6);
+
+-- docs/18 RV-34: la época existe desde la migración. Con null en todos los móviles, la primera
+-- restauración pasaba de null a un valor y la regla "la primera época no fuerza nada" la ignoraba.
+select isnt(hidrantes.fn_config('epoca_datos', 'null') #>> '{}', null, 'epoca_datos existe y no es null tras migrar');
 
 insert into hidrantes.config (clave, valor, actualizado_por)
 values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen_salt('bf', 4))), 'test')

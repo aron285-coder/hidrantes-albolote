@@ -167,6 +167,11 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    fallar la restauración sobre un esquema vivo (RV-13). Desde el 23 sep 2026 **CI lo ensaya en cada
    cambio**, sobre un esquema con datos y con un volcado anterior a 0010 (`scripts/probar-restauracion.ts`).
 
+   **Los códigos no retroceden nunca** (FR-10): el script lee las secuencias de `HID-` y `BOC-` antes
+   de restaurar y, al terminar, las deja en el mayor de lo que había, lo que trae el volcado y el
+   mayor código de `puntos`. Un código dado después del respaldo se pierde con su punto, pero no se
+   vuelve a dar a otro (docs/18 RV-34). El log enseña los valores antes y después.
+
    Vacía el esquema en vez de borrarlo porque crear uno exige un permiso que `hidrantes_migrador` no
    tiene (DEC-052), y en una emergencia solo hay a mano la cadena del secreto. Si el esquema ha
    desaparecido del todo —una base recién hecha—, el script lo dice y hay que crear la cáscara una

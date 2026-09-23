@@ -14,7 +14,10 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { abortar, argumentos, ejecutarScript, log, preguntar, psql, RAIZ, type Resultado } from './lib/comun.ts';
+import { leerSecuencias, SQL_LEER_SECUENCIAS, sqlSecuenciasAlMenos } from './lib/secuencias.ts';
 import { LOCAL_MIGRADOR, migrarPendientes } from './migrar.ts';
+
+export { sqlSecuenciasAlMenos };
 
 /** Refs de Supabase por entorno (docs/entornos.md). No son secretos: identifican el proyecto. */
 export const REFS: Record<string, string> = {
@@ -218,6 +221,12 @@ async function principal(): Promise<void> {
     if (escrito.trim() !== 'RESTAURAR') return log.info('Cancelado: no se ha tocado nada.');
   }
   const inicio = psql(url, 'select clock_timestamp();', { tuplas: true }).salida.trim();
+  // Los códigos no retroceden nunca (FR-10, docs/18 RV-34): el volcado trae las secuencias de la
+  // fecha del respaldo, y los códigos dados después, ya perdidos, volverían a darse.
+  const previas = hayEsquema
+    ? leerSecuencias(psql(url, SQL_LEER_SECUENCIAS, { tuplas: true }).salida)
+    : { hid: 0, boc: 0 };
+  log.info(`secuencias antes de restaurar: HID ${previas.hid} · BOC ${previas.boc}`);
   const actor = `restauracion ${entorno}`;
 
   // El volcado y lo que lo envuelve van juntos a un archivo: psql lo lee de una sola vez, y así los
@@ -239,6 +248,11 @@ async function principal(): Promise<void> {
   log.paso('Migraciones pendientes del volcado');
   const aplicadas = migrarPendientes(url);
   log.info(aplicadas.length ? `aplicadas: ${aplicadas.join(', ')}` : 'ninguna: el volcado ya estaba al día');
+
+  const s = psql(url, sqlSecuenciasAlMenos(previas.hid, previas.boc));
+  if (s.codigo !== 0) abortar(`No se han podido ajustar las secuencias de los códigos: ${s.error}`);
+  const ahora = leerSecuencias(psql(url, SQL_LEER_SECUENCIAS, { tuplas: true }).salida);
+  log.ok(`secuencias tras restaurar: HID ${ahora.hid} · BOC ${ahora.boc} (ningún código se reutiliza)`);
 
   const anotada = psql(
     url,
