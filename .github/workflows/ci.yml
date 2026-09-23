@@ -101,7 +101,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
-      - run: npx playwright install --with-deps chromium
+      # Firefox para el panel (TR-21, RV-28).
+      - run: npx playwright install --with-deps chromium firefox
       - name: E2e (sin los de rendimiento)
         run: npx playwright test --grep-invert @rendimiento
       # Los de rendimiento miden tiempos: de uno en uno, sin competir por CPU (RV-27).

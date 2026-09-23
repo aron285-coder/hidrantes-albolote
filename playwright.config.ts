@@ -35,12 +35,21 @@ export default defineConfig({
     : [
         { name: 'movil', testIgnore: /integracion\//, use: { ...devices['Pixel 7'] } },
         { name: 'escritorio', testIgnore: /integracion\//, use: { ...devices['Desktop Chrome'] } },
+        // TR-21: el panel también en Firefox de escritorio (RV-28). Sin canal: es otro motor.
+        {
+          name: 'panel-firefox',
+          testMatch: /panel-.*\.spec\.ts/,
+          use: { ...devices['Desktop Firefox'], channel: undefined },
+        },
       ],
   webServer:
     integracion || desplegada
       ? undefined
       : {
-          command: 'npx vite build && npx vite preview --host 127.0.0.1 --port 4173 --strictPort',
+          // Las novedades se generan como en `npm run build` (prebuild, RV-20): si no, la app probada
+          // llevaría el JSON de git, que puede ir una versión por detrás del CHANGELOG.
+          command:
+            'npx tsx scripts/generar-novedades.ts && npx vite build && npx vite preview --host 127.0.0.1 --port 4173 --strictPort',
           url: 'http://127.0.0.1:4173',
           env: {
             VITE_ENTORNO: 'staging',
