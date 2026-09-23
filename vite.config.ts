@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { archivoHeaders, archivoRobots, type Entorno } from './config/cabeceras.ts';
+import { CACHE_FOTOS } from './config/cache-fotos.ts';
 import { T } from './src/lib/textos.ts';
 
 const version: string = JSON.parse(readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
@@ -75,18 +76,8 @@ export default defineConfig(({ mode }) => {
           cleanupOutdatedCaches: true,
           // Avisos push (FR-163): manejadores propios dentro del Service Worker generado.
           importScripts: ['sw-push.js'],
-          // Fotos ya vistas, para que la ficha las enseñe sin cobertura (DEC-011). Solo lectura pública.
-          runtimeCaching: [
-            {
-              urlPattern: /\/storage\/v1\/object\/public\/hidrantes-fotos/,
-              handler: 'CacheFirst',
-              options: {
-                cacheName: 'hidrantes-fotos',
-                expiration: { maxEntries: 800, maxAgeSeconds: 180 * 24 * 3600 },
-                cacheableResponse: { statuses: [0, 200] },
-              },
-            },
-          ],
+          // Fotos ya vistas, para que la ficha las enseñe sin cobertura (DEC-011, RV-12).
+          runtimeCaching: [CACHE_FOTOS],
         },
       }),
     ],

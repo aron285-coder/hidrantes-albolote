@@ -150,6 +150,8 @@ export function DetallePropuesta({ p, puntos, alHecho }: { p: PropuestaPanel; pu
       {foto ? (
         <a href={foto} target="_blank" rel="noreferrer" className="rounded-tarjeta mb-3 block overflow-hidden">
           <img
+            // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
+            crossOrigin="anonymous"
             src={foto}
             alt={T.panelCola.fotoVoluntario}
             className="max-h-72 w-full bg-[linear-gradient(180deg,#C6D2DA,#8C968F)] object-contain"

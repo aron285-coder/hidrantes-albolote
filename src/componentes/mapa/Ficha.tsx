@@ -34,6 +34,8 @@ function Foto({ punto }: { punto: Punto }) {
   return (
     <a href={url} target="_blank" rel="noreferrer" className="rounded-tarjeta relative block overflow-hidden">
       <img
+        // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
+        crossOrigin="anonymous"
         src={url}
         alt={punto.codigo}
         loading="lazy"
