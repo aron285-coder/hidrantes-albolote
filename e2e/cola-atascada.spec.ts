@@ -13,9 +13,9 @@ import { LISTADO, PUNTOS } from './puntos.ts';
 const [P0] = PUNTOS;
 
 /** Deja un envío en la cola local del móvil, creado hace `horas`. */
-async function encolar(page: Page, horas: number, clave: string): Promise<void> {
+async function encolar(page: Page, horas: number, clave: string, fallo: string | null = null): Promise<void> {
   await page.evaluate(
-    ([clave, desde, puntoId, codigo]) =>
+    ([clave, desde, puntoId, codigo, conFallo]) =>
       new Promise<void>((ok, fallo) => {
         const abrir = indexedDB.open('hidrantes');
         abrir.onerror = () => fallo(abrir.error);
@@ -38,13 +38,13 @@ async function encolar(page: Page, horas: number, clave: string): Promise<void> 
             codigo,
             intentos: 0,
             proximo: 0,
-            fallo: null,
+            fallo: conFallo,
           });
           t.oncomplete = () => ok();
           t.onerror = () => fallo(t.error);
         };
       }),
-    [clave, horas * 3600_000, P0.id, P0.codigo] as const,
+    [clave, horas * 3600_000, P0.id, P0.codigo, fallo] as const,
   );
 }
 
@@ -68,4 +68,21 @@ test('lo de hace un rato no se avisa: esperar un poco es normal (TR-06)', async 
   await page.reload();
   await expect(page.getByRole('link', { name: T.mapa.sinEnviar(1) })).toBeVisible();
   await expect(page.getByText(T.misPropuestas.esperando24h)).toHaveCount(0);
+});
+
+test('un envío fallido se puede reintentar desde Mis propuestas (RV-03)', async ({ page }) => {
+  await encolar(page, 1, 'k-fallida', 'DESCONOCIDO');
+  // Ahora el servidor sí acepta la propuesta.
+  await simularRpc(page, {
+    fn_listar_puntos: LISTADO,
+    fn_registrar_error: null,
+    fn_mis_propuestas: [],
+    fn_proponer: { propuesta_id: 'x', estado: 'pendiente', aplicada: false, codigo: P0.codigo },
+  });
+  await page.goto('/mis-propuestas');
+  await expect(page.getByText(T.misPropuestas.errorGenerico)).toBeVisible();
+  await expect(page.getByRole('button', { name: T.misPropuestas.descartar })).toBeVisible();
+  await page.getByRole('button', { name: T.misPropuestas.reintentar }).click();
+  await expect(page.getByText(T.misPropuestas.errorGenerico)).toHaveCount(0);
+  await expect(page.getByText(T.misPropuestas.sinEnviar)).toHaveCount(0);
 });

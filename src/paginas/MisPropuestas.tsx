@@ -7,7 +7,7 @@ import { LimiteError } from '@/componentes/LimiteError';
 import { useConexion } from '@/hooks/estado';
 import { useCola, useMisPropuestas } from '@/hooks/cola';
 import { useReloj } from '@/hooks/reloj';
-import { ATASCADO_MS, type EnCola, descartar } from '@/lib/cola';
+import { ATASCADO_MS, type EnCola, descartar, reintentarFallido } from '@/lib/cola';
 import { hace } from '@/lib/formato';
 import {
   type EstadoPropuesta,
@@ -112,13 +112,23 @@ export function MisPropuestas() {
                 punteada
                 accion={
                   c.fallo && (
-                    <button
-                      type="button"
-                      className="text-rojo-700 min-h-11 underline"
-                      onClick={() => setConfirmar({ tipo: 'descartar', id: c.clave_local })}
-                    >
-                      {T.misPropuestas.descartar}
-                    </button>
+                    // Reintentar sin confirmación; descartar, que pierde el envío, con ella y a ≥ 12 px (UI-13).
+                    <span className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="text-texto min-h-11 underline"
+                        onClick={() => void reintentarFallido(c.clave_local)}
+                      >
+                        {T.misPropuestas.reintentar}
+                      </button>
+                      <button
+                        type="button"
+                        className="text-rojo-700 min-h-11 underline"
+                        onClick={() => setConfirmar({ tipo: 'descartar', id: c.clave_local })}
+                      >
+                        {T.misPropuestas.descartar}
+                      </button>
+                    </span>
                   )
                 }
               >

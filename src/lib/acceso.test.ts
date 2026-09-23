@@ -9,6 +9,9 @@ vi.mock('./supabase', () => ({
   supabase: () => ({ rpc, auth: { getSession: async () => ({ data: { session: null } }) } }),
 }));
 
+const reintentarCola = vi.fn(async () => undefined);
+vi.mock('./cola', async (original) => ({ ...(await original<typeof import('./cola')>()), reintentarCola }));
+
 const { _reiniciarAcceso, acceso, comprobarAcceso, entrarConCodigo } = await import('./acceso');
 const { codigoDeError, SIN_SERVIDOR, verificarCodigo } = await import('./api');
 const { _reiniciar, estadoConexion } = await import('./conexion');
@@ -33,7 +36,7 @@ describe('códigos de error de las RPC (05 §8)', () => {
   it('extrae el código del mensaje', () => {
     expect(codigoDeError('TOKEN_REVOCADO: El acceso de este móvil se ha revocado')).toBe('TOKEN_REVOCADO');
     expect(codigoDeError('FUERA_DE_RANGO(diametro_mm): x')).toBe('FUERA_DE_RANGO(diametro_mm)');
-    expect(codigoDeError('permission denied for function')).toBe('ERROR_INTERNO');
+    expect(codigoDeError('permission denied for function')).toBe('DESCONOCIDO');
   });
 });
 
@@ -66,6 +69,16 @@ describe('canje del código (FR-31, FR-33)', () => {
     const cuerpo = JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
     expect(cuerpo).toEqual({ codigo: '482915', dispositivo_id: expect.stringMatching(/^[0-9a-f-]{36}$/) });
     expect([...datos.values()].join('|')).not.toContain('482915');
+  });
+
+  it('al volver a entrar con el código se reintenta la cola (RV-04)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respuesta(200, { token: TOKEN, caduca_en: '2027-09-19T00:00:00Z' })),
+    );
+    reintentarCola.mockClear();
+    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBeNull();
+    expect(reintentarCola).toHaveBeenCalledTimes(1);
   });
 
   it('demasiados intentos bloquea la entrada una hora', async () => {

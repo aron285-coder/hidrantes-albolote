@@ -489,6 +489,11 @@ Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTE
 `NO_AUTORIZADO`. El cliente traduce cada código a un texto en español (TR-36); ningún error de
 Postgres llega crudo.
 
+`DESCONOCIDO` es un código **solo de cliente** y no sale de ninguna RPC: lo pone `src/lib/api.ts`
+cuando la respuesta no trae un código de los de arriba (un `PGRST…` durante un despliegue, un 409, un
+429). Un 401, un 403 o un `42501` sin código se leen como `NO_AUTORIZADO`. La cola del móvil reintenta
+`DESCONOCIDO` con retroceso y lo marca como fallo, recuperable a mano, a los cinco seguidos (RV-03).
+
 ---
 
 ## 9. Pages Functions — contrato HTTP

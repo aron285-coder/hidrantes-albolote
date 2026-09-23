@@ -16,7 +16,7 @@ import {
   leerSesion,
   olvidarToken,
 } from './sesion';
-import { alEnviarPropuesta, iniciarCola, vaciarCola } from './cola';
+import { alEnviarPropuesta, iniciarCola, reintentarCola, vaciarCola } from './cola';
 import { cargarMisPropuestas } from './mis-propuestas';
 import { borrarPuntos, cargarGuardados, estadoPuntos, rederivarSiCambiaElDia, sincronizar } from './puntos';
 import { desactivarPush, estadoPush, pedirEnvioPush } from './push';
@@ -85,7 +85,11 @@ export async function comprobarAcceso(): Promise<void> {
     if (data.session) {
       const r = await rpc<boolean>('fn_es_admin');
       if (r.ok && r.datos) {
+        const llega = estado.tipo !== 'jefatura';
         fijar({ tipo: 'jefatura', correo: data.session.user.email ?? '' });
+        // Lo que jefatura encoló sin sesión sale ahora (RV-04). Solo al pasar a jefatura: si no, la
+        // cola y esta comprobación se llamarían la una a la otra.
+        if (llega) void reintentarCola();
         await sincronizar(null);
         return;
       }
@@ -124,6 +128,8 @@ export async function entrarConCodigo(codigo: string, firma: Firma): Promise<str
   }
   guardarSesion(r.datos.token, firma);
   fijar({ tipo: 'voluntario', sesion: leerSesion()! });
+  // Lo que esperaba en la cola porque el token había caducado sale con el nuevo (RV-04).
+  void reintentarCola();
   // Primera sincronización en cuanto hay acceso: los puntos llegan antes de salir del primer uso.
   void sincronizar(r.datos.token);
   return null;

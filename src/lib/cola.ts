@@ -24,6 +24,8 @@ export interface EnCola {
   proximo: number;
   /** Error permanente (05 §8): no se reintenta y se enseña al voluntario. */
   fallo: string | null;
+  /** Intentos seguidos con un error que no es de paso (RV-03); ausente en envíos guardados antes. */
+  fallos_seguidos?: number;
 }
 
 export interface Enviada {
@@ -39,10 +41,18 @@ const PERMANENTES = [
   'FOTO_OBLIGATORIA',
   'PUNTO_NO_ENCONTRADO',
   'PUNTO_NO_ACTIVO',
-  'NO_AUTORIZADO',
-  'ERROR_INTERNO',
+  'DIAMETRO_SIN_FIJAR',
 ];
 export const esPermanente = (codigo: string) => PERMANENTES.some((p) => codigo.startsWith(p));
+
+/**
+ * Errores de paso: se reintentan con retroceso sin límite. NO_AUTORIZADO es la sesión de jefatura
+ * caducada, que comprobarAcceso resuelve; FOTO_NO_RESERVADA se arregla subiendo otra vez la foto.
+ * Cualquier otro (DESCONOCIDO, ERROR_INTERNO…) también se reintenta, pero a los cinco seguidos se
+ * marca fallo: así no se insiste para siempre y el envío sigue siendo recuperable a mano (RV-03).
+ */
+const TRANSITORIOS = [SIN_SERVIDOR, 'CUOTA_SUBIDAS_AGOTADA', 'NO_AUTORIZADO', 'FOTO_NO_RESERVADA'];
+export const MAX_FALLOS_SEGUIDOS = 5;
 
 const HORA = 3600_000;
 /** Aviso de envío atascado (FR-83). */
@@ -141,8 +151,16 @@ export async function encolar(
 /** Descartar a mano un envío con error permanente (Mis propuestas, con confirmación). */
 export const descartar = (clave: string) => quitar(clave);
 
+/**
+ * Generación de la cola: vaciarla la cambia, y un envío que estaba en vuelo al cerrar sesión ya no
+ * escribe nada al volver ni se manda con el token viejo (RV-04, FL-12, FR-27).
+ */
+let generacion = 0;
+const COLA_VACIADA = 'COLA_VACIADA';
+
 /** Cerrar sesión borra la cola (FL-12), avisando antes en Ajustes. */
 export async function vaciarCola(): Promise<void> {
+  generacion++;
   publicar([]);
   try {
     await bd().vaciar();
@@ -166,7 +184,7 @@ async function credencial(): Promise<Credencial | null> {
 
 type Paso = { ok: true } | { ok: false; codigo: string };
 
-async function subirFoto(item: EnCola, c: Credencial): Promise<Paso> {
+async function subirFoto(item: EnCola, c: Credencial, gen: number): Promise<Paso> {
   let reserva: Response;
   try {
     reserva = await fetch('/api/url-subida', {
@@ -196,23 +214,28 @@ async function subirFoto(item: EnCola, c: Credencial): Promise<Paso> {
   } catch {
     return { ok: false, codigo: SIN_SERVIDOR };
   }
-  await guardar({ ...item, foto_path: cuerpo.foto_path });
+  // Si la cola se vació mientras subía, o el envío ya no está, no se resucita nada.
+  const actual = items.find((i) => i.clave_local === item.clave_local);
+  if (gen !== generacion || !actual) return { ok: false, codigo: COLA_VACIADA };
+  await guardar({ ...actual, foto_path: cuerpo.foto_path });
   return { ok: true };
 }
 
-async function enviarUno(clave: string, c: Credencial): Promise<Paso> {
+async function enviarUno(clave: string, c: Credencial, gen: number): Promise<Paso> {
   let item = items.find((i) => i.clave_local === clave);
   if (!item) return { ok: true };
   if (item.foto && !item.foto_path) {
-    const r = await subirFoto(item, c);
+    const r = await subirFoto(item, c, gen);
     if (!r.ok) return r;
     item = items.find((i) => i.clave_local === clave)!;
   }
+  if (gen !== generacion) return { ok: false, codigo: COLA_VACIADA };
   const r = await rpc<{ estado: 'pendiente' | 'aprobada'; aplicada: boolean; codigo: string | null }>('fn_proponer', {
     ...item.args,
     token: 'token' in c ? c.token : null,
     foto_path: item.foto_path,
   });
+  if (gen !== generacion) return { ok: false, codigo: COLA_VACIADA };
   if (!r.ok) {
     if (r.codigo === 'FOTO_NO_RESERVADA' && item.foto) {
       // La reserva caducó o se perdió: se sube otra vez en el siguiente intento.
@@ -242,12 +265,14 @@ function programar() {
 }
 
 /** Una pasada por la cola en orden. `parar`: no tiene sentido seguir ahora (sin acceso, sin servidor). */
-async function unaVuelta(c: Credencial): Promise<'seguir' | 'parar'> {
+async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'> {
   for (const pendiente of [...items]) {
+    if (gen !== generacion) return 'parar';
     const actual0 = items.find((i) => i.clave_local === pendiente.clave_local);
     if (!actual0 || actual0.fallo || actual0.proximo > Date.now()) continue;
-    const r = await enviarUno(pendiente.clave_local, c);
+    const r = await enviarUno(pendiente.clave_local, c, gen);
     if (r.ok) continue;
+    if (r.codigo === COLA_VACIADA || gen !== generacion) return 'parar';
     const actual = items.find((i) => i.clave_local === pendiente.clave_local);
     if (!actual) continue;
     if (r.codigo.startsWith('TOKEN_')) {
@@ -259,9 +284,15 @@ async function unaVuelta(c: Credencial): Promise<'seguir' | 'parar'> {
       await guardar({ ...actual, fallo: r.codigo });
       continue;
     }
+    const transitorio = TRANSITORIOS.some((t) => r.codigo.startsWith(t));
+    const fallos_seguidos = transitorio ? 0 : (actual.fallos_seguidos ?? 0) + 1;
+    if (fallos_seguidos >= MAX_FALLOS_SEGUIDOS) {
+      await guardar({ ...actual, fallo: r.codigo, fallos_seguidos });
+      continue;
+    }
     const intentos = actual.intentos + 1;
     const retraso = r.codigo === 'CUOTA_SUBIDAS_AGOTADA' ? HORA : espera(intentos);
-    await guardar({ ...actual, intentos, proximo: Date.now() + retraso });
+    await guardar({ ...actual, intentos, fallos_seguidos, proximo: Date.now() + retraso });
     if (r.codigo === SIN_SERVIDOR) {
       anotarServidor(false);
       return 'parar'; // sin servidor no tiene sentido probar los siguientes
@@ -290,9 +321,10 @@ export function procesarCola(): Promise<void> {
       do {
         otraVuelta = false;
         if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
+        const gen = generacion;
         const c = await credencial();
         if (!c) break;
-        if ((await unaVuelta(c)) === 'parar') break;
+        if ((await unaVuelta(c, gen)) === 'parar') break;
       } while (otraVuelta);
     } finally {
       procesando = null;
@@ -310,6 +342,15 @@ export function procesarCola(): Promise<void> {
 export async function reintentarCola(): Promise<void> {
   if (!cargada) await cargarCola();
   for (const i of items) if (!i.fallo && i.proximo > 0) await guardar({ ...i, proximo: 0 });
+  await procesarCola();
+}
+
+/** "Reintentar" en un envío con fallo (Mis propuestas): se olvida el fallo y se intenta ya (RV-03). */
+export async function reintentarFallido(clave: string): Promise<void> {
+  if (!cargada) await cargarCola();
+  const item = items.find((i) => i.clave_local === clave);
+  if (!item) return;
+  await guardar({ ...item, fallo: null, intentos: 0, fallos_seguidos: 0, proximo: 0 });
   await procesarCola();
 }
 
