@@ -203,14 +203,14 @@ select is((select count(*) from hidrantes.suscripciones_push where id = '0000000
 -- bucket, así que no puede olvidarse de ninguna.
 insert into hidrantes.subidas (dispositivo_id, foto_path, reservada_en) values
   ('00000000-0000-4000-8000-0000000000b1', 'f8/reciente.jpg', now() - interval '1 hour'),
-  ('00000000-0000-4000-8000-0000000000b1', 'f8/vieja.jpg', now() - interval '3 days');
+  ('00000000-0000-4000-8000-0000000000b1', 'f8/vieja.jpg', now() - interval '8 days');
 
 select set_eq(
   $$ select f from hidrantes.fn_fotos_referenciadas() f where f like 'f8/%' $$,
   $$ values ('f8/9a.jpg'), ('f8/9b.jpg'), ('f8/p-00000000-0000-4000-8000-00000000a001.jpg'),
             ('f8/p-00000000-0000-4000-8000-00000000a002.jpg'), ('f8/p-00000000-0000-4000-8000-00000000a004.jpg'), ('f8/p-00000000-0000-4000-8000-00000000b001.jpg'),
             ('f8/p-00000000-0000-4000-8000-00000000c001.jpg'), ('f8/reciente.jpg') $$,
-  'en uso: las de los puntos, las de propuestas vivas y las reservas de menos de 24 h; la rechazada y la reserva vieja, no'
+  'en uso: las de los puntos, las de propuestas vivas y las reservas de menos de dias_reserva_subida (7, RV-07); la rechazada y la reserva vieja, no'
 );
 
 -- ---------- el registro no se reescribe (11 §6) ----------

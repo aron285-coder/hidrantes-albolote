@@ -116,7 +116,9 @@ function FormularioOperacion({
     const autor =
       acceso.tipo === 'voluntario'
         ? { nombre: acceso.sesion.nombre, apellido: acceso.sesion.apellido }
-        : { nombre: T.navegacion.jefatura, apellido: acceso.tipo === 'jefatura' ? acceso.correo : '-' };
+        : // Jefatura: el servidor pone su nombre y su correo (fn_proponer, RV-19); el correo no viaja
+          // en autor_* ni choca con su límite de 60 caracteres.
+          { nombre: T.navegacion.jefatura, apellido: T.navegacion.jefatura };
     const clave = crypto.randomUUID();
     let persistida: boolean;
     try {
@@ -225,7 +227,7 @@ function FormularioOperacion({
         {operacion === 'revision' && <Aviso>{T.operaciones.revisionAviso}</Aviso>}
 
         {(operacion === 'alta' || operacion === 'datos') && (
-          <DatosPunto f={formulario} cambiar={cambiar} punto={punto} />
+          <DatosPunto f={formulario} cambiar={cambiar} punto={punto} jefatura={jefatura} />
         )}
 
         {(operacion === 'alta' || operacion === 'estado') && (
@@ -339,10 +341,12 @@ function DatosPunto({
   f,
   cambiar,
   punto,
+  jefatura,
 }: {
   f: Formulario;
   cambiar: (c: Partial<Formulario>) => void;
   punto: ReturnType<typeof usePuntos>['puntos'][number] | null;
+  jefatura: boolean;
 }) {
   const tipo = f.tipo;
   const diametroActual =
@@ -365,7 +369,9 @@ function DatosPunto({
         <Campo etiqueta={T.formulario.diametro} ayuda={f.diametro === 'otro' ? undefined : T.formulario.diametroAyuda}>
           <Segmentado
             opciones={
-              f.operacion === 'alta'
+              // "Otra medida" la resuelve jefatura al moderar; jefatura aplica al momento (FR-151), así
+              // que fija 70 o 100 directamente (RV-19).
+              f.operacion === 'alta' && !jefatura
                 ? [
                     [70, T.formulario.d70],
                     [100, T.formulario.d100],

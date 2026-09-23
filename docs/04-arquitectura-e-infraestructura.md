@@ -248,7 +248,7 @@ sequenceDiagram
 - **Las fotos no se mueven al aprobar.** Storage guarda los bytes fuera de Postgres; una función SQL
   no puede copiar archivos. `puntos.foto_path` pasa a apuntar al archivo ya subido.
 - **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas()`
-  la lista de paths protegidos (puntos, propuestas pendientes o aprobadas, reservas de < 24 h), lista
+  la lista de paths protegidos (puntos, propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 7 días, DEC-084), lista
   el bucket y borra el resto. Desde Ajustes se lanza el mismo workflow vía `/api/lanzar-workflow`. Una
   foto referenciada por un punto nunca se borra, aunque su propuesta original se rechazara después.
 - **El tratamiento de la imagen es en el móvil:** orientación EXIF aplicada, ≤ 1600 px, recompresión
@@ -300,6 +300,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 |---|---|---|
 | Purga de `intentos_codigo` > 24 h | `pg_cron` | cada hora |
 | Purga de papelera pasado `dias_papelera` | `pg_cron` | diario |
+| Purga de reservas de subida de más de 30 días (`hidrantes_purgar_subidas`, DEC-084) | `pg_cron` | diario |
 | Borrado de `errores_cliente` > 90 días | `pg_cron` | diario |
 | Revocación de tokens sin uso en `dias_caducidad_token` | `pg_cron` | diario |
 | Resumen semanal de jefatura encolado (FR-164) | `pg_cron`; lo envía `/api/push` (DEC-068) | lunes |

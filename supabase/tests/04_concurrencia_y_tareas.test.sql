@@ -41,8 +41,9 @@ select is(hidrantes.fn_config('buffer_zona_m', 'null'), '400'::jsonb, 'buffer_zo
 select set_eq(
   $$ select jobname from cron.job where jobname like 'hidrantes\_%' $$,
   array['hidrantes_purgar_intentos', 'hidrantes_purgar_errores', 'hidrantes_revocar_tokens',
-        'hidrantes_purgar_notificaciones', 'hidrantes_purgar_papelera', 'hidrantes_resumen_semanal'],
-  'las seis tareas de 04 §9 programadas');
+        'hidrantes_purgar_notificaciones', 'hidrantes_purgar_papelera', 'hidrantes_resumen_semanal',
+        'hidrantes_purgar_subidas'],
+  'las siete tareas de 04 §9 programadas (la de subidas, RV-07)');
 select is(
   (select count(*)::int from cron.job where jobname like 'hidrantes\_%' and username <> 'hidrantes_migrador'), 0,
   'las tareas corren como hidrantes_migrador, no como postgres');
