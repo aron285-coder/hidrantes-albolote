@@ -50,10 +50,10 @@ aún no ha corrido por calendario).
 
 ## 3. Qué queda
 
-- **Paso manual del desarrollador (≈ 5 min):** `npm run arranque -- --rotar vigilancia` (RV-08). El
-  mismo arranque pone el `User-Agent` de Nominatim con la URL del repositorio (RV-25).
+- ~~Paso manual del desarrollador: `npm run arranque -- --rotar vigilancia` (RV-08).~~ Hecho el 23 sep
+  2026. El mismo arranque puso el `User-Agent` de Nominatim con la URL del repositorio (RV-25).
 - RV-12: comprobar la cabecera CORS sobre una foto real de staging en el piloto.
-- Bloque P2 (RV-27 a RV-32): #213 (RV-27) y este PR (RV-32) abiertos; RV-28 a RV-31 siguen.
+- Bloque P2 (RV-27 a RV-32): hecho el 23 sep 2026, #213 a #218 (`revision-p2.md`).
 - `docs/17` §12: decisiones que no se han tomado aquí (Turnstile, ensayo real de marcha atrás,
   fecha de revisión de campo, restaurar retirados…).
 
