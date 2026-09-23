@@ -7,7 +7,7 @@
 // anterior y el fallo dice exactamente cuál se quedó mudo.
 
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
-import { conSesion } from './ayudas.ts';
+import { conGoogle, conSesion, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 import { T } from '../src/lib/textos.ts';
@@ -150,6 +150,66 @@ async function indiceDe(page: Page, nombre: string, repeticion: number): Promise
   return -1;
 }
 
+/**
+ * El recorrido: pulsa uno a uno los controles de la pantalla recién cargada y exige que cada uno
+ * cambie algo. Los de `noSePulsan` se saltan con su motivo; los de `descargas` cuentan si sale
+ * una descarga (su efecto es un archivo, no el DOM).
+ */
+async function recorrer(
+  page: Page,
+  pantalla: Pantalla,
+  noSePulsan: Map<string, string>,
+  descargas = new Set<string>(),
+  /** Veces que se pulsa un control repetido (la misma acción en cada fila de una tabla). */
+  maxRepeticiones = Infinity,
+) {
+  const nombres = await nombresDe(page);
+
+  const mudos: string[] = [];
+  const repeticiones = new Map<string, number>();
+  let pulsados = 0;
+  for (const nombre of nombres) {
+    const repeticion = repeticiones.get(nombre) ?? 0;
+    repeticiones.set(nombre, repeticion + 1);
+    if (noSePulsan.has(nombre) || repeticion >= maxRepeticiones) continue;
+    await abrir(page, pantalla);
+    const i = await indiceDe(page, nombre, repeticion);
+    if (i < 0) continue; // ya no está en la pantalla recién cargada
+    const control = pulsables(page).nth(i);
+    if (!(await cuenta(control))) continue;
+
+    const antes = { url: page.url(), html: await page.locator('body').innerHTML() };
+    // Abrir la cámara o el carrete es cosa del móvil, no del DOM: si sale el selector de
+    // archivos, el control ha hecho lo suyo (FR-21).
+    const selector = page.waitForEvent('filechooser', { timeout: 3000 }).then(
+      () => true,
+      () => false,
+    );
+    const descarga = descargas.has(nombre)
+      ? page.waitForEvent('download', { timeout: 5000 }).then(
+          () => true,
+          () => false,
+        )
+      : Promise.resolve(false);
+    // Un control puede desaparecer al pulsarlo (una hoja que se cierra): se pulsa a la fuerza,
+    // sin esperar a que siga ahí después.
+    await control.click({ timeout: 5000 }).catch(() => undefined);
+    pulsados++;
+
+    const cambio = await page
+      .waitForFunction(
+        ([url, html]) => location.href !== url || document.body.innerHTML !== html,
+        [antes.url, antes.html] as const,
+        { timeout: 3000 },
+      )
+      .then(() => true)
+      .catch(() => selector);
+    if (!(await cambio) && !(await descarga)) mudos.push(nombre);
+  }
+  expect(pulsados, `${pantalla.nombre} · no se ha llegado a pulsar nada`).toBeGreaterThan(0);
+  expect(mudos, `${pantalla.nombre} · controles que no hacen nada al pulsarlos`).toEqual([]);
+}
+
 for (const pantalla of PANTALLAS) {
   test.describe(`controles de ${pantalla.nombre}`, () => {
     test.beforeEach(async ({ page }) => {
@@ -178,45 +238,88 @@ for (const pantalla of PANTALLAS) {
     test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page, isMobile }) => {
       test.skip(!isMobile, 'el recorrido completo se hace en el móvil');
       await abrir(page, pantalla);
-      const nombres = await nombresDe(page);
+      await recorrer(page, pantalla, NO_SE_PULSAN);
+    });
+  });
+}
 
+// ---------- panel de jefatura (AC-140, docs/17 RV-30) ----------
+
+const PANTALLAS_PANEL: Pantalla[] = [
+  { nombre: 'cola', ruta: '/admin/cola', listo: (p) => p.getByRole('region', { name: T.panelCola.colaRevision }) },
+  {
+    nombre: 'inventario',
+    ruta: '/admin/inventario',
+    listo: (p) => p.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length)),
+  },
+  { nombre: 'caducadas', ruta: '/admin/caducadas', listo: (p) => p.getByRole('main') },
+  { nombre: 'registro', ruta: '/admin/registro', listo: (p) => p.getByRole('main') },
+  { nombre: 'voluntarios', ruta: '/admin/voluntarios', listo: (p) => p.getByRole('main') },
+  { nombre: 'papelera', ruta: '/admin/papelera', listo: (p) => p.getByRole('main') },
+  { nombre: 'ajustes', ruta: '/admin/ajustes', listo: (p) => p.getByRole('region', { name: T.panel.saludSistema }) },
+];
+
+/** Controles del panel cuyo efecto es un archivo: se pulsan y se espera la descarga. */
+const DESCARGAS_PANEL = new Set([T.panel.excel, T.panel.csv, T.panel.geojson, T.panel.descargarInventario]);
+
+/** Controles del panel que no se pulsan en el recorrido, con el motivo. */
+const NO_SE_PULSAN_PANEL = new Map<string, string>([
+  [T.jefatura.irAlMapa, 'sale del panel a la app; lo cubre acceso.spec.ts'],
+  [T.ajustes.cerrarSesionGoogle, 'cierra la sesión y deja el panel; lo cubre acceso.spec.ts'],
+  [T.panel.salir, 'ídem, desde la cabecera del panel'],
+]);
+
+async function prepararPanel(page: Page) {
+  await conGoogle(page, 'jefe@example.org');
+  await simularTablas(page, {
+    v_puntos_activos: PUNTOS,
+    v_cola_revision: [],
+    v_registro: [],
+    propuestas: [],
+    puntos: [],
+    incidencias_app: [],
+    config: [],
+    administradores: [
+      { email: 'jefe@example.org', activo: true, creado_en: '2026-08-01T10:00:00Z', creado_por: 'migracion' },
+    ],
+    dispositivos: [],
+    nucleos: [],
+  });
+  await simularRpcLento(page, {
+    fn_es_admin: true,
+    fn_salud: { pendientes_14d: 0, incidencias_abiertas: 0, errores_7d: 0, sin_direccion: 0, dispositivos_activos: 3 },
+    fn_actividad_voluntarios: [],
+    fn_exportar_inventario: [],
+    fn_registrar_error: null,
+  });
+  await page.route('**/api/push', (r) => r.fulfill({ contentType: 'application/json', body: '{"enviadas":0}' }));
+  await page.route('**/api/lanzar-workflow', (r) =>
+    r.fulfill({ contentType: 'application/json', status: 202, body: '{"lanzada":true}' }),
+  );
+}
+
+for (const pantalla of PANTALLAS_PANEL) {
+  test.describe(`controles del panel · ${pantalla.nombre}`, () => {
+    test.beforeEach(async ({ page }) => prepararPanel(page));
+
+    test('todos tienen nombre', async ({ page, isMobile }) => {
+      test.skip(!!isMobile, 'el panel es de escritorio (FR-100)');
+      await abrir(page, pantalla);
+      const controles = pulsables(page);
+      const total = await controles.count();
       const mudos: string[] = [];
-      const repeticiones = new Map<string, number>();
-      let pulsados = 0;
-      for (const nombre of nombres) {
-        const repeticion = repeticiones.get(nombre) ?? 0;
-        repeticiones.set(nombre, repeticion + 1);
-        if (NO_SE_PULSAN.has(nombre)) continue;
-        await abrir(page, pantalla);
-        const i = await indiceDe(page, nombre, repeticion);
-        if (i < 0) continue; // ya no está en la pantalla recién cargada
-        const control = pulsables(page).nth(i);
-        if (!(await cuenta(control))) continue;
-
-        const antes = { url: page.url(), html: await page.locator('body').innerHTML() };
-        // Abrir la cámara o el carrete es cosa del móvil, no del DOM: si sale el selector de
-        // archivos, el control ha hecho lo suyo (FR-21).
-        const selector = page.waitForEvent('filechooser', { timeout: 3000 }).then(
-          () => true,
-          () => false,
-        );
-        // Un control puede desaparecer al pulsarlo (una hoja que se cierra): se pulsa a la fuerza,
-        // sin esperar a que siga ahí después.
-        await control.click({ timeout: 5000 }).catch(() => undefined);
-        pulsados++;
-
-        const cambio = await page
-          .waitForFunction(
-            ([url, html]) => location.href !== url || document.body.innerHTML !== html,
-            [antes.url, antes.html] as const,
-            { timeout: 3000 },
-          )
-          .then(() => true)
-          .catch(() => selector);
-        if (!(await cambio)) mudos.push(nombre);
+      for (let i = 0; i < total; i++) {
+        const control = controles.nth(i);
+        if (!(await nombreDe(control))) mudos.push(await control.evaluate((e) => e.outerHTML.slice(0, 120)));
       }
-      expect(pulsados, `${pantalla.nombre} · no se ha llegado a pulsar nada`).toBeGreaterThan(0);
-      expect(mudos, `${pantalla.nombre} · controles que no hacen nada al pulsarlos`).toEqual([]);
+      expect(mudos, `panel ${pantalla.nombre} · controles sin nombre accesible`).toEqual([]);
+    });
+
+    test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page, isMobile }) => {
+      test.skip(!!isMobile, 'el panel es de escritorio (FR-100)');
+      await abrir(page, pantalla);
+      // En las tablas del panel cada fila repite las mismas acciones: con la primera basta.
+      await recorrer(page, pantalla, NO_SE_PULSAN_PANEL, DESCARGAS_PANEL, 1);
     });
   });
 }

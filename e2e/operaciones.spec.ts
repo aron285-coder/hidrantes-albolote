@@ -375,3 +375,22 @@ test.describe('Mis propuestas (RV-23)', () => {
     await expect(page.getByText(/diametro mm/)).toHaveCount(0);
   });
 });
+
+// FR-55 (RV-30): un alta fuera de la zona avisa y deja continuar; jefatura lo verá señalado.
+test('un alta fuera de la zona avisa y deja continuar (FR-55)', async ({ page, context }) => {
+  await context.grantPermissions(['geolocation']);
+  // Granada capital: dentro de los límites de la base de datos, fuera de Albolote y Calicasas.
+  await context.setGeolocation({ latitude: 37.1773, longitude: -3.5986, accuracy: 6 });
+  await conSesion(page);
+  const s = await servidor(page);
+  await page.goto('/proponer/alta');
+  await expect(page.getByText(T.avisosFormulario.fueraDeZona)).toBeVisible();
+  await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+  await page.getByRole('radio', { name: T.formulario.granada }).click();
+  await page.getByRole('radio', { name: T.formulario.bueno }).click();
+  await hacerFoto(page);
+  await enviar(page).click();
+  await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+  expect(s.propuestas[0]).toMatchObject({ operacion: 'alta' });
+  expect(s.propuestas[0].lat as number).toBeCloseTo(37.1773, 3);
+});
