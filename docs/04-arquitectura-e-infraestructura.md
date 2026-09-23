@@ -247,9 +247,13 @@ sequenceDiagram
   offline de fichas; se descarta a sabiendas. La foto retrata un hidrante, no una persona (11).
 - **Las fotos no se mueven al aprobar.** Storage guarda los bytes fuera de Postgres; una función SQL
   no puede copiar archivos. `puntos.foto_path` pasa a apuntar al archivo ya subido.
-- **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas()`
+- **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas_lista()`
   la lista de paths protegidos (puntos, propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 7 días, DEC-084), lista
-  el bucket y borra el resto. Desde Ajustes se lanza el mismo workflow vía `/api/lanzar-workflow`. Una
+  el bucket y borra el resto. La lista llega en una sola fila con su total, porque PostgREST corta en
+  1.000 filas cualquier RPC que devuelva un conjunto. El guion no borra nada si la lista no cuadra con
+  el total, si trae un múltiplo exacto de 1.000 o si la pasada borraría más de max(50, 10 %) del
+  bucket (eso solo a mano, con `--forzar`, tras un `--ensayo`). Justo antes de borrar vuelve a pedir la
+  lista (docs/18 RV-33). Desde Ajustes se lanza el mismo workflow vía `/api/lanzar-workflow`. Una
   foto referenciada por un punto nunca se borra, aunque su propuesta original se rechazara después.
 - **El tratamiento de la imagen es en el móvil:** orientación EXIF aplicada, ≤ 1600 px, recompresión
   (elimina metadatos), y coordenadas EXIF leídas antes y enviadas aparte como `exif_geom`.

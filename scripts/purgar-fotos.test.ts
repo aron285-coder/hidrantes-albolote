@@ -9,10 +9,13 @@ import {
   bytesDe,
   huerfanas,
   lotes,
+  MAX_FILAS_POSTGREST,
   motivoParaNoBorrar,
+  purgar,
   referenciadas,
   resumen,
 } from './purgar-fotos.ts';
+import { readFileSync } from 'node:fs';
 import type { ObjetoStorage } from './respaldo-fotos.ts';
 
 const archivo = (ruta: string, bytes = 1000): Archivo => ({ ruta, bytes });
@@ -37,7 +40,7 @@ describe('huerfanas', () => {
 });
 
 // La lista de conservadas la da fn_fotos_referenciadas (04 §7): puntos, propuestas vivas y subidas
-// reservadas en las últimas 24 h. Si esa lista llega vacía, o es que la base está vacía —y entonces
+// reservadas en los últimos `dias_reserva_subida` días. Si esa lista llega vacía, o es que la base está vacía —y entonces
 // el bucket también debería estarlo— o es que algo ha fallado.
 describe('motivoParaNoBorrar', () => {
   it('se planta si el bucket tiene fotos y la base de datos no referencia ninguna', () => {
@@ -50,6 +53,80 @@ describe('motivoParaNoBorrar', () => {
 
   it('con referencias, adelante', () => {
     expect(motivoParaNoBorrar([archivo('a.jpg'), archivo('b.jpg')], ['a.jpg'])).toBeNull();
+  });
+
+  // RV-33: PostgREST corta cualquier respuesta en max_rows (1.000). Una lista de exactamente 1.000,
+  // o de un múltiplo, huele a truncada: el resto contaría como huérfano.
+  it('con 1.000 referenciadas exactas se planta: es el síntoma de una lista truncada', () => {
+    const bucket = Array.from({ length: 1500 }, (_, i) => archivo(`f/${i}.jpg`));
+    const vivas = bucket.slice(0, MAX_FILAS_POSTGREST).map((a) => a.ruta);
+    expect(motivoParaNoBorrar(bucket, vivas)).toMatch(/1000/);
+    expect(motivoParaNoBorrar(bucket, [...vivas, ...vivas.map((r) => r + 'x')])).toMatch(/2000/);
+  });
+
+  it('se planta si una pasada borraría más de max(50, 10 %) del bucket, salvo con --forzar', () => {
+    const bucket = Array.from({ length: 1000 }, (_, i) => archivo(`f/${i}.jpg`));
+    const vivas = bucket.slice(0, 600).map((a) => a.ruta); // sobran 400, el 40 %
+    expect(motivoParaNoBorrar(bucket, vivas)).toMatch(/40 %/);
+    expect(motivoParaNoBorrar(bucket, vivas, { forzar: true })).toBeNull();
+    // 50 de 100 es la mitad, pero por debajo de 50 fotos no hace falta forzar.
+    const pequeno = bucket.slice(0, 100);
+    expect(
+      motivoParaNoBorrar(
+        pequeno,
+        pequeno.slice(0, 50).map((a) => a.ruta),
+      ),
+    ).toBeNull();
+    expect(
+      motivoParaNoBorrar(
+        pequeno,
+        pequeno.slice(0, 49).map((a) => a.ruta),
+      ),
+    ).toMatch(/51/);
+  });
+});
+
+describe('purgar', () => {
+  const bucket = Array.from({ length: 1500 }, (_, i) => archivo(`f/${i}.jpg`));
+  const dependencias = (lecturas: string[][]) => {
+    const borrados: string[][] = [];
+    let n = 0;
+    return {
+      borrados,
+      archivos: () => Promise.resolve(bucket),
+      referenciadas: () => Promise.resolve(lecturas[Math.min(n++, lecturas.length - 1)]),
+      borrar: (rutas: string[]) => {
+        borrados.push(rutas);
+        return Promise.resolve();
+      },
+    };
+  };
+
+  it('con 1.000 referenciadas exactas y 1.500 en el bucket, aborta sin borrar', async () => {
+    const d = dependencias([bucket.slice(0, 1000).map((a) => a.ruta)]);
+    await expect(purgar(d, { ensayo: false, forzar: true })).rejects.toThrow(/truncada/);
+    expect(d.borrados).toEqual([]);
+  });
+
+  it('una ruta que aparece en la segunda lectura no se borra', async () => {
+    const primera = bucket.slice(0, 1480).map((a) => a.ruta);
+    const d = dependencias([primera, [...primera, 'f/1490.jpg']]);
+    const r = await purgar(d, { ensayo: false, forzar: false });
+    expect(d.borrados.flat()).toHaveLength(19);
+    expect(d.borrados.flat()).not.toContain('f/1490.jpg');
+    expect(r.borradas).toBe(19);
+  });
+
+  it('en ensayo no borra ni vuelve a preguntar', async () => {
+    const d = dependencias([bucket.slice(0, 1480).map((a) => a.ruta)]);
+    const r = await purgar(d, { ensayo: true, forzar: false });
+    expect(d.borrados).toEqual([]);
+    expect(r.sobran).toHaveLength(20);
+  });
+
+  it('purgar-fotos.yml nunca pasa --forzar: solo se usa a mano tras un --ensayo revisado', () => {
+    const lineas = readFileSync('.github/workflows/purgar-fotos.yml', 'utf8').split('\n');
+    expect(lineas.filter((l) => !l.trim().startsWith('#') && l.includes('--forzar'))).toEqual([]);
   });
 });
 
@@ -103,24 +180,43 @@ describe('archivosDelBucket', () => {
   });
 });
 
+const lista = (fotos: unknown[], total = fotos.length) => new Response(JSON.stringify({ fotos, total }));
+
 describe('referenciadas', () => {
-  it('pregunta a la RPC con la clave de servicio y el esquema hidrantes', async () => {
-    const espia = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify(['2026/09/a.jpg', '2026/09/b.jpg'])));
+  // RV-33: una RPC que devuelve un conjunto se corta en max_rows; la lista viene en una sola fila.
+  it('pregunta a fn_fotos_referenciadas_lista con la clave de servicio y el esquema hidrantes', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(lista(['2026/09/a.jpg', '2026/09/b.jpg']));
     expect(await referenciadas(URL_BASE, SERVICIO)).toEqual(['2026/09/a.jpg', '2026/09/b.jpg']);
 
     const [url, opciones] = espia.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe(`${URL_BASE}/rest/v1/rpc/fn_fotos_referenciadas`);
+    expect(url).toBe(`${URL_BASE}/rest/v1/rpc/fn_fotos_referenciadas_lista`);
     expect((opciones.headers as Record<string, string>)['Accept-Profile']).toBe('hidrantes');
     espia.mockRestore();
   });
 
-  it('descarta filas vacías o que no son texto', async () => {
+  it('si total no coincide con la longitud de la lista, aborta', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(lista(['a.jpg', 'b.jpg'], 1200));
+    await expect(referenciadas(URL_BASE, SERVICIO)).rejects.toThrow(/1200/);
+    espia.mockRestore();
+  });
+
+  it('una fila vacía o que no es texto también aborta: la lista no cuadraría con total', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(lista(['a.jpg', null, '', 7, 'b.jpg']));
+    await expect(referenciadas(URL_BASE, SERVICIO)).rejects.toThrow(/no cuadra/);
+    espia.mockRestore();
+  });
+
+  it('una respuesta con forma de conjunto (la RPC antigua) aborta', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify(['a.jpg'])));
+    await expect(referenciadas(URL_BASE, SERVICIO)).rejects.toThrow(/inesperada/);
+    espia.mockRestore();
+  });
+
+  it('sin ninguna foto referenciada, la lista viene vacía (jsonb_agg da null)', async () => {
     const espia = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(new Response(JSON.stringify(['a.jpg', null, '', 7, 'b.jpg'])));
-    expect(await referenciadas(URL_BASE, SERVICIO)).toEqual(['a.jpg', 'b.jpg']);
+      .mockResolvedValue(new Response(JSON.stringify({ fotos: null, total: 0 })));
+    expect(await referenciadas(URL_BASE, SERVICIO)).toEqual([]);
     espia.mockRestore();
   });
 
