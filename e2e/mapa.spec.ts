@@ -194,7 +194,8 @@ test.describe('aviso del mapa base en el propio mapa (RV-10, FR-81)', () => {
     await page.getByRole('link', { name: T.navegacion.mapa }).click();
     await expect(page.getByTestId('aviso-mapabase')).toHaveCount(0);
   });
-/^>>>>>>> bcaa31f/d
+});
+
 test('la foto de la ficha se pide en modo cors (RV-12)', async ({ page }) => {
   const conFoto = { ...PUNTOS[0], foto_path: 'fotos/prueba-cors.jpg' };
   await conSesion(page);
@@ -221,7 +222,6 @@ test('la foto de la ficha se pide en modo cors (RV-12)', async ({ page }) => {
   await expect(page.getByRole('img', { name: conFoto.codigo })).toBeVisible();
   await expect.poll(() => origenes.length).toBeGreaterThan(0);
   expect(origenes.filter((o) => !o)).toEqual([]);
->>>>>>> bcaa31f (fix(fotos): las fotos se piden en modo CORS y la caché no guarda respuestas opacas)
 });
 
 test.describe('zoom (#136)', () => {
