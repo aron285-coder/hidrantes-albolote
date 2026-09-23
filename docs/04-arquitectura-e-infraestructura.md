@@ -332,9 +332,9 @@ nombres y sin valores. Los carga `scripts/arranque.ts`.
 | GitHub (por entorno) | `SUPABASE_DB_URL` | `psql` para `migrar.ts`, `cargar-zona.ts`, `pg_dump`. **Cadena del pooler de Supavisor en modo sesión (puerto 5432)**: los runners de GitHub no tienen IPv6. Usuario **`hidrantes_migrador`**, nunca `postgres` (DEC-052) |
 | GitHub (por entorno) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | purga de fotos, respaldo del bucket, `promover-piloto.ts` |
 | GitHub (production) | `GPG_PUBLIC_KEY` | cifrar el respaldo. La privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación |
-| Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN` (permiso único `actions:write`), `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` (DEC-059), `VAPID_SUBJECT` | las Pages Functions |
+| Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN` (permiso único `actions:write`), `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` (DEC-059), `VAPID_SUBJECT`, `VIGILANCIA_SECRETO` (DEC-088) | las Pages Functions |
 | GitHub (variables por entorno, públicas) | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MAPABASE_URL`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` | el build del frontend, que se hace en Actions y se sube con `wrangler pages deploy` (DEC-055) |
-| GitHub (repositorio, para los trabajos automáticos) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `GPG_PUBLIC_KEY` | `respaldo.yml` y los demás trabajos por calendario: no pueden usar los del *environment* `production`, que exige aprobación humana en cada ejecución (DEC-071) |
+| GitHub (repositorio, para los trabajos automáticos) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `GPG_PUBLIC_KEY`, `VIGILANCIA_SECRETO_{PROD,STAGING}` (el mismo valor que el de Pages; `avisos.yml`, DEC-088) | `respaldo.yml` y los demás trabajos por calendario: no pueden usar los del *environment* `production`, que exige aprobación humana en cada ejecución (DEC-071) |
 | GitHub (variables del repositorio, públicas) | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` | `mantener-activo.yml`, sin *environment* (DEC-054) |
 
 `GITHUB_DISPATCH_TOKEN` se añade en la Fase 7, con `/api/lanzar-workflow` (DEC-055). Es un token
@@ -390,6 +390,7 @@ e2e/                    # Playwright
 | `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; abre una issue si algo falla (TR-102) |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
+| `avisos.yml` | cada 15 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos (DEC-088) |
 | `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) |
 

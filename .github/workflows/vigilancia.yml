@@ -43,7 +43,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           # La misma lista que mantener-activo.yml; scripts/workflows.test.ts comprueba que coinciden.
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml avisos.yml
         run: |
           set -uo pipefail
           problemas=()
@@ -131,7 +131,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml avisos.yml
         run: |
           set -eu
           for w in $WORKFLOWS; do gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"; done

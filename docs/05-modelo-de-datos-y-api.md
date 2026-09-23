@@ -252,9 +252,12 @@ Las carga `scripts/cargar-zona.ts` con `upsert`; no van por migración.
 ### 2.13 `notificaciones` — cola de envío
 
 `id bigint identity`, `suscripcion_id uuid`, `titulo text`, `cuerpo text` (sin nombres de personas, FR-27), `url text`,
-`creada_en`, `enviada_en`, `error text`. Las escriben `fn_aprobar`, `fn_rechazar`, `fn_fusionar_con_existente`
+`creada_en`, `enviada_en`, `error text`, `reclamada_en timestamptz`, `intentos smallint` (0014, RV-08). Las escriben `fn_aprobar`, `fn_rechazar`, `fn_fusionar_con_existente`
 (resultado al autor) y `fn_proponer` (aviso a administradores, agrupado por hora). Las envía
-`/api/push`; se purgan a los 30 días por `pg_cron`.
+`/api/push`; se purgan a los 30 días por `pg_cron`. Reclamar **no** es enviar:
+`fn_reclamar_notificaciones` (como mucho 50) anota `reclamada_en` e `intentos`, y `enviada_en` solo
+lo pone `fn_resultado_notificacion` con `ok`. Lo reclamado sin resultado vuelve a salir a los
+15 minutos; al cuarto intento queda `error = 'SIN_RESPUESTA'` (DEC-088).
 
 ### 2.14 `migraciones_aplicadas`
 
@@ -553,9 +556,14 @@ en la Fase 8) → `503 { "error": "NO_CONFIGURADO" }`, sin llamar a GitHub.
 ### `POST /api/push`
 
 `→ { "token": "…" }` (voluntario) o cabecera de administrador, o cabecera `X-Vigilancia` con el
-secreto del trabajo diario. Lee `notificaciones` sin `enviada_en`, envía cada una con Web Push
-(VAPID), marca `enviada_en` o `error`, borra suscripciones con tres fallos. `← 200 { "enviadas": n, "fallidas": m }`.
-Idempotente: dos llamadas seguidas no envían dos veces. Necesita `VAPID_PUBLIC_KEY` además de la
+secreto de `avisos.yml` (`VIGILANCIA_SECRETO`). Reclama **20** avisos (el plan gratuito de Workers
+permite 50 peticiones de salida por invocación y cada aviso gasta dos), envía cada uno con Web Push
+(VAPID) y anota su resultado; borra suscripciones con tres fallos.
+`← 200 { "enviadas": n, "fallidas": m, "sin_anotar": k, "quedan": bool }`: `sin_anotar` son los que
+salieron o no sin poder anotarse (vuelven a salir a los 15 minutos: mejor un duplicado que una
+pérdida) y `quedan` dice si se llenó el lote. Dos llamadas seguidas no envían dos veces. La piden el
+móvil tras sincronizar o tras enviar una propuesta, jefatura tras cada moderación (una vez por lote)
+y `avisos.yml` cada 15 minutos (DEC-088). Necesita `VAPID_PUBLIC_KEY` además de la
 privada (WebCrypto no deduce una de otra); sin ellas → `503 NO_CONFIGURADO`. Cifrado RFC 8291 y firma
 RFC 8292 con WebCrypto, sin dependencias.
 

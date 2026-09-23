@@ -2,7 +2,7 @@
 //
 //   npm run arranque                       todo (repositorio, Supabase, Cloudflare, secretos, issues)
 //   npm run arranque -- --local            solo el entorno local: .env.local + rol en Supabase local
-//   npm run arranque -- --rotar <qué>      db | cloudflare | sal-ip | vapid | gpg | todo
+//   npm run arranque -- --rotar <qué>      db | cloudflare | sal-ip | vapid | gpg | vigilancia | todo
 //
 // Pide a mano solo lo que ninguna API devuelve: token de Cloudflare, token de acceso de Supabase
 // (Management API) y las contraseñas de `postgres` de dev y prod. Nada de eso se guarda en disco:
@@ -70,7 +70,7 @@ const ENTORNOS: Entorno[] = [
   },
 ];
 
-export const ROTABLES = ['db', 'cloudflare', 'sal-ip', 'vapid', 'gpg'] as const;
+export const ROTABLES = ['db', 'cloudflare', 'sal-ip', 'vapid', 'gpg', 'vigilancia'] as const;
 export type Rotable = (typeof ROTABLES)[number];
 
 /**
@@ -356,7 +356,7 @@ async function prepararPages(
   e: Entorno,
   sb: DatosSupabase,
   rotar: Set<Rotable>,
-): Promise<{ vapidPublica?: string }> {
+): Promise<{ vapidPublica?: string; vigilancia?: string }> {
   log.paso(`5. Cloudflare Pages · ${e.proyectoPages}`);
   let proyecto = await cred.cloudflare.proyecto(cred.cuentaCf, e.proyectoPages);
   if (!proyecto) {
@@ -384,11 +384,26 @@ async function prepararPages(
     secretos.VAPID_PUBLIC_KEY = par.publica;
     vapidPublica = par.publica;
   }
+  // Secreto compartido con avisos.yml y vigilancia.yml para llamar a /api/push (RV-08). Vive en
+  // Pages y, con el mismo valor, en un secreto del repositorio (sin environment, DEC-071). El de
+  // Pages no se puede leer: si falta el del repositorio, se hacen los dos de nuevo.
+  let vigilancia: string | undefined;
+  if (
+    !actuales.includes('VIGILANCIA_SECRETO') ||
+    rotar.has('vigilancia') ||
+    !existeSecretoRepo(`VIGILANCIA_SECRETO_${sufijoDe(e)}`)
+  ) {
+    vigilancia = salAleatoria();
+    secretos.VIGILANCIA_SECRETO = vigilancia;
+  }
   await cred.cloudflare.fijarSecretos(cred.cuentaCf, e.proyectoPages, secretos);
   log.ok(`variables cifradas: ${Object.keys(secretos).join(', ')}`);
   log.info('GITHUB_DISPATCH_TOKEN se añade en la Fase 7, cuando exista /api/lanzar-workflow (DEC-053).');
-  return { vapidPublica };
+  return { vapidPublica, vigilancia };
 }
+
+/** Sufijo de los secretos y variables de repositorio que no pueden ir en un environment (DEC-071). */
+export const sufijoDe = (e: Pick<Entorno, 'clave'>) => (e.clave === 'staging' ? 'STAGING' : 'PROD');
 
 // ---------- 6–8. GPG y secretos de GitHub ----------
 
@@ -448,6 +463,7 @@ function secretosGithub(
   cuentaCf: string,
   tokenCf: string | null,
   vapidPublica?: string,
+  vigilancia?: string,
 ) {
   log.paso(`7. Secretos y variables de GitHub · ${e.clave}`);
   if (sb.urlMigrador) fijarSecreto('SUPABASE_DB_URL', sb.urlMigrador, e.clave);
@@ -465,7 +481,7 @@ function secretosGithub(
 
   // Para mantener-activo.yml: sin environment, porque production exige aprobación en cada ejecución.
   // La URL y la anon key son públicas por diseño (04 §1).
-  const sufijo = e.clave === 'staging' ? 'STAGING' : 'PROD';
+  const sufijo = sufijoDe(e);
   fijarVariable(`SUPABASE_URL_${sufijo}`, sb.url);
   fijarVariable(`SUPABASE_ANON_KEY_${sufijo}`, sb.anon);
 
@@ -475,6 +491,8 @@ function secretosGithub(
   // así que también los de staging viven en el repositorio (DEC-078).
   if (sb.urlMigrador) fijarSecreto(`SUPABASE_DB_URL_${sufijo}`, sb.urlMigrador);
   fijarSecreto(`SUPABASE_SERVICE_ROLE_KEY_${sufijo}`, sb.servicio);
+  // avisos.yml llama a /api/push cada 15 minutos con este secreto (RV-08).
+  if (vigilancia) fijarSecreto(`VIGILANCIA_SECRETO_${sufijo}`, vigilancia);
   if (!sb.urlMigrador && !existeSecretoRepo(`SUPABASE_DB_URL_${sufijo}`)) {
     log.aviso(`Falta SUPABASE_DB_URL_${sufijo}: vuelve a lanzarlo con --rotar db (DEC-071).`);
   }
@@ -559,10 +577,10 @@ ${filas.join('\n')}
 | Secretos por environment | \`SUPABASE_DB_URL\`, \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\` (+ \`GPG_PUBLIC_KEY\` en production) |
 | Variables por environment | \`VITE_ENTORNO\`, \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_ANON_KEY\`, \`VITE_VAPID_PUBLIC_KEY\`, \`PAGES_PROYECTO\`, \`SUPABASE_PROJECT_REF\` |
 | Variables del repositorio | \`SUPABASE_URL_STAGING\`, \`SUPABASE_ANON_KEY_STAGING\`, \`SUPABASE_URL_PROD\`, \`SUPABASE_ANON_KEY_PROD\` (mantener-activo.yml, DEC-054) |
-| Secretos del repositorio | \`SUPABASE_DB_URL_{STAGING,PROD}\`, \`SUPABASE_SERVICE_ROLE_KEY_{STAGING,PROD}\`, \`GPG_PUBLIC_KEY\` (respaldo y promoción del piloto: DEC-071, DEC-078) |
-| Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_SUBJECT\` |
+| Secretos del repositorio | \`SUPABASE_DB_URL_{STAGING,PROD}\`, \`SUPABASE_SERVICE_ROLE_KEY_{STAGING,PROD}\`, \`GPG_PUBLIC_KEY\` (respaldo y promoción del piloto: DEC-071, DEC-078), \`VIGILANCIA_SECRETO_{STAGING,PROD}\` (avisos.yml) |
+| Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_SUBJECT\`, \`VIGILANCIA_SECRETO\` |
 
-Rotar un secreto: \`npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|todo>\` (15).
+Rotar un secreto: \`npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|vigilancia|todo>\` (15).
 `,
   );
   log.ok('escrito (sin secretos): haz commit en una rama y PR a develop');
@@ -589,7 +607,14 @@ function arranqueLocal(): void {
   // Variables de las Pages Functions para `wrangler pages dev` (no se commitea, .gitignore).
   writeFileSync(
     path.join(RAIZ, '.dev.vars'),
-    [`SUPABASE_URL=${s.API_URL}`, `SUPABASE_SERVICE_ROLE_KEY=${s.SERVICE_ROLE_KEY}`, 'SAL_IP=sal-local', ''].join('\n'),
+    [
+      `SUPABASE_URL=${s.API_URL}`,
+      `SUPABASE_SERVICE_ROLE_KEY=${s.SERVICE_ROLE_KEY}`,
+      'SAL_IP=sal-local',
+      // probar-functions.ts llama a /api/push con él (RV-08); solo vale contra la pila local.
+      'VIGILANCIA_SECRETO=vigilancia-local', // detectar-secretos:permitir (valor local de prueba)
+      '',
+    ].join('\n'),
   );
   log.ok('.dev.vars escrito');
   prepararLocal();
@@ -618,8 +643,8 @@ async function principal(): Promise<void> {
   for (const e of ENTORNOS) {
     const sb = await prepararSupabase(cred, e, tocarBd);
     datos.set(e.clave, sb);
-    const { vapidPublica } = await prepararPages(cred, e, sb, rotar);
-    secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica);
+    const { vapidPublica, vigilancia } = await prepararPages(cred, e, sb, rotar);
+    secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica, vigilancia);
   }
   const huella = await prepararGpg(rotar.has('gpg'));
 
