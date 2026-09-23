@@ -131,7 +131,13 @@ async function principal(): Promise<void> {
   comprobar(despues.puntos === antes.puntos, 'vuelven los puntos', `${despues.puntos} de ${antes.puntos}`);
   comprobar(despues.propuestas === antes.propuestas, 'vuelven las propuestas');
   comprobar(despues.registro === antes.registro + 1, 'el registro gana una fila: la de la restauración');
-  comprobar(despues.boca === antes.boca, 'la secuencia de bocas sigue donde estaba');
+  // La de bocas no baja nunca: queda en el mayor de lo guardado y el mayor código BOC (el seed usa
+  // BOC-9001 a BOC-9004 sin pasar por la secuencia).
+  comprobar(
+    Number(despues.boca) >= Number(antes.boca),
+    'la secuencia de bocas no retrocede',
+    `${despues.boca} frente a ${antes.boca}`,
+  );
   const siguiente = Number(valor("select substring(hidrantes.fn_siguiente_codigo('hidrante') from 5)::int;"));
   comprobar(
     siguiente > ultimaAlta,
