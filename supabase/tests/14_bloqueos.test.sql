@@ -31,9 +31,10 @@ select dblink_connect(s, (select cadena from conexion)) from unnest(array['b0', 
 
 select dblink_exec('b0', format($f$
   insert into hidrantes.administradores (email, creado_por) values ('bloqueos@example.com', 'test') on conflict do nothing;
-  insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, fecha_ultima_revision)
+  insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, fecha_ultima_revision,
+                                actualizado_en)
   select p, 'HID-' || (8100 + i), 'hidrante', 'SRID=4326;POINT(-3.6300 37.2600)', 100, 'bueno', 'fotos/b.jpg', 'albolote',
-         current_date - 30
+         current_date - 30, now() - interval '1 day'
   from unnest(%1$L::uuid[]) with ordinality as t(p, i);
   insert into hidrantes.propuestas (id, punto_id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id,
                                     clave_local, foto_path, creada_en)
@@ -61,6 +62,7 @@ select dblink_exec('b1', 'rollback');
 select is((select motivo from lote where propuesta_id = (select propuestas[1] from conexion)), 'PUNTO_OCUPADO',
   'la propuesta cuyo punto está bloqueado se omite con PUNTO_OCUPADO');
 select is((select count(*)::int from lote where resultado = 'aprobada'), 2, 'y las otras dos se aprueban');
+select diag('lote: ' || (select string_agg(resultado || coalesce('/' || motivo, ''), ', ') from lote));
 
 select dblink_exec('b0', format($f$
   delete from hidrantes.propuestas where id = any (%2$L::uuid[]);
