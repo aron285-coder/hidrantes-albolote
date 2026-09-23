@@ -84,11 +84,44 @@ function listarResponde(): boolean {
   return /TOKEN_INVALIDO/.test(r.error + r.salida);
 }
 
+/** El resultado de fn_validar_token con ese token: 'ok' o el código de error. */
+function validar(token: string): string {
+  const r = ejecutar('psql', ['-X', '-q', '-c', `select hidrantes.fn_validar_token('${token}');`], {
+    env: entornoPg(LOCAL_POSTGRES),
+  });
+  if (r.codigo === 0) return 'ok';
+  return /(TOKEN_[A-Z]+)/.exec(r.error + r.salida)?.[1] ?? 'error';
+}
+
+/** Un token de voluntario con ese código, para un móvil nuevo. */
+const token = (codigo: string, ip: string) =>
+  valor(
+    `select token from hidrantes.fn_verificar_codigo('${codigo}', gen_random_uuid(), '${ip}') where token is not null;`,
+  );
+
+const ADMIN = 'jefe-restauracion@example.org';
+const ADMIN_BAJA = 'baja-restauracion@example.org';
+/** Una sesión de jefatura con Google, como la trae el JWT de Supabase (RV-36). */
+const CLAIMS = JSON.stringify({
+  email: ADMIN,
+  amr: [{ method: 'oauth', timestamp: 1 }],
+  app_metadata: { provider: 'google', providers: ['google'] },
+});
+
 async function principal(): Promise<void> {
   const { valores } = argumentos();
   const carpeta = os.tmpdir();
 
   log.paso('1. Restaurar sobre el esquema vivo, con datos (15 §5.3)');
+  // Antes del respaldo: dos administradores y un móvil con el código del seed (RV-35).
+  psqlOk(
+    LOCAL_POSTGRES,
+    `insert into hidrantes.administradores (email, activo, creado_por) values
+       ('${ADMIN}', true, 'probar-restauracion'), ('${ADMIN_BAJA}', true, 'probar-restauracion')
+     on conflict (email) do update set activo = true;`,
+  );
+  const tokenViejo = token('000000', 'ip-rv35-antes');
+  if (!tokenViejo || validar(tokenViejo) !== 'ok') abortar('No se ha podido sacar un token con el código del seed.');
   const volcado = path.join(carpeta, 'hidrantes-ensayo.sql');
   volcar(volcado);
   const antes = estado();
@@ -113,6 +146,18 @@ async function principal(): Promise<void> {
     .map(Number);
   const ultimaAlta = Math.max(...tresAltas);
   log.info(`tres altas después del volcado: HID ${tresAltas.join(', ')}`);
+
+  // 15 §5.3, paso 1: código nuevo con todos los móviles revocados, y un administrador de baja. Un
+  // móvil entra después con el código nuevo (RV-35).
+  psqlOk(
+    LOCAL_POSTGRES,
+    `select set_config('request.jwt.claims', '${CLAIMS}', false);
+     select hidrantes.fn_cambiar_codigo_acceso('482917', true);
+     update hidrantes.administradores set activo = false where email = '${ADMIN_BAJA}';`,
+  );
+  const hashNuevo = valor("select valor #>> '{}' from hidrantes.config where clave = 'codigo_acceso_hash';");
+  const tokenNuevo = token('482917', 'ip-rv35-despues');
+  comprobar(validar(tokenViejo) === 'TOKEN_REVOCADO', 'antes de restaurar, el móvil de antes está revocado');
 
   // Estropear: tres puntos sin propuestas fuera, y un código de hidrante gastado.
   psqlOk(
@@ -148,6 +193,23 @@ async function principal(): Promise<void> {
     valor("select hidrantes.fn_config('epoca_datos', 'null') #>> '{}';") !== '',
     'la época existe tras restaurar',
   );
+  // RV-35: el acceso de ahora manda sobre el restaurado.
+  comprobar(
+    valor("select valor #>> '{}' from hidrantes.config where clave = 'codigo_acceso_hash';") === hashNuevo,
+    'el código de acceso es el nuevo, no el del volcado (RV-35)',
+  );
+  const tokenAntes = validar(tokenViejo);
+  comprobar(tokenAntes === 'TOKEN_REVOCADO', 'un móvil de antes del cambio de código sigue revocado', tokenAntes);
+  comprobar(
+    valor(`select activo from hidrantes.administradores where email = '${ADMIN_BAJA}';`) === 'f',
+    'el administrador dado de baja sigue de baja',
+  );
+  comprobar(
+    valor(`select activo from hidrantes.administradores where email = '${ADMIN}';`) === 't',
+    'y el que sigue, sigue',
+  );
+  const nuevo = validar(tokenNuevo);
+  comprobar(nuevo === 'ok', 'un móvil que entró después del volcado sigue funcionando', nuevo);
   comprobar(
     valor("select count(*) from hidrantes.registro where accion = 'restauracion_respaldo';") !== '0',
     'la restauración queda en el registro',

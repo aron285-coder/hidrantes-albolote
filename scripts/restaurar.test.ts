@@ -10,11 +10,13 @@ import {
   pareceVolcado,
   refDeUrl,
   sinCrearEsquema,
+  sqlReponerAcceso,
   sqlRestauracion,
   sqlSecuenciasAlMenos,
   tocaPublic,
 } from './restaurar.ts';
 import { SQL_SECUENCIAS } from './promover-piloto.ts';
+import { leerAcceso, sinAcceso } from './lib/acceso-restaurado.ts';
 import { archivosDe, sinCarpetaRaiz } from './restaurar-fotos.ts';
 
 const POOLER =
@@ -84,6 +86,70 @@ describe('sqlSecuenciasAlMenos', () => {
 
   it('promover-piloto usa la misma, sin mínimo previo', () => {
     expect(SQL_SECUENCIAS).toBe(sqlSecuenciasAlMenos(1, 1));
+  });
+});
+
+// docs/18 RV-35: el acceso de ahora manda sobre el restaurado.
+describe('sqlReponerAcceso', () => {
+  const actual = {
+    config: JSON.stringify({ codigo_acceso_hash: '$2a$10$nuevo', codigo_acceso: '482917' }),
+    dispositivos: JSON.stringify([
+      {
+        dispositivo_id: 'aaaaaaaa-0000-4000-8000-000000000001',
+        token_hash: 'h1',
+        emitido_en: '2026-09-23T10:00:00Z',
+        ultimo_uso: '2026-09-23T10:00:00Z',
+        revocado_en: null,
+      },
+    ]),
+    administradores: JSON.stringify([
+      { email: "o'brien@example.org", activo: true, creado_en: '2026-08-01T10:00:00Z', creado_por: 'migracion' },
+    ]),
+  };
+
+  it('en una transacción, repone código, dispositivos y administradores', () => {
+    const sql = sqlReponerAcceso(actual);
+    expect(sql.startsWith('begin;')).toBe(true);
+    expect(sql.trimEnd().endsWith('commit;')).toBe(true);
+    expect(sql).toContain('insert into hidrantes.config');
+    expect(sql).toContain('on conflict (clave) do update set valor = excluded.valor');
+    expect(sql).toContain('update hidrantes.dispositivos d set revocado_en = now()');
+    expect(sql).toContain('on conflict (token_hash) do update set revocado_en = excluded.revocado_en');
+    expect(sql).toContain('on conflict (email) do update set activo = excluded.activo');
+    expect(sql).toContain('update hidrantes.administradores g set activo = false');
+  });
+
+  it('solo columnas de 0001 y nada del esquema public', () => {
+    const sql = sqlReponerAcceso(actual);
+    expect(sql).toContain('dispositivo_id uuid, token_hash text, emitido_en timestamptz, ultimo_uso timestamptz');
+    expect(sql).toContain('email text, activo boolean, creado_en timestamptz, creado_por text');
+    expect(sql).not.toMatch(/public\./);
+  });
+
+  it('dobla las comillas simples de los datos', () => {
+    const sql = sqlReponerAcceso(actual);
+    expect(sql).toContain("o''brien@example.org");
+    expect(sql).not.toContain("o'brien");
+  });
+
+  it('un campo que no es JSON no se mete en el SQL', () => {
+    expect(() => sqlReponerAcceso({ ...actual, config: "x'; drop table hidrantes.puntos; --" })).toThrow();
+  });
+
+  it('sin datos no repone nada: sin administradores leídos no se da de baja a nadie', () => {
+    const vacio = { config: null, dispositivos: null, administradores: null };
+    expect(sinAcceso(vacio)).toBe(true);
+    expect(sqlReponerAcceso(vacio)).toBe('begin;\ncommit;');
+    expect(sqlReponerAcceso({ ...vacio, config: actual.config })).not.toContain('administradores');
+  });
+
+  it('lee la salida de psql: tres campos separados por tabuladores, vacío es null', () => {
+    expect(leerAcceso(`${actual.config}\t\t${actual.administradores}\n`)).toEqual({
+      config: actual.config,
+      dispositivos: null,
+      administradores: actual.administradores,
+    });
+    expect(sinAcceso(leerAcceso('\t\t\n'))).toBe(true);
   });
 });
 

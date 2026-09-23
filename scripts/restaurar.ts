@@ -14,10 +14,17 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { abortar, argumentos, ejecutarScript, log, preguntar, psql, RAIZ, type Resultado } from './lib/comun.ts';
+import {
+  type AccesoActual,
+  leerAcceso,
+  SQL_LEER_ACCESO,
+  sinAcceso,
+  sqlReponerAcceso,
+} from './lib/acceso-restaurado.ts';
 import { leerSecuencias, SQL_LEER_SECUENCIAS, sqlSecuenciasAlMenos } from './lib/secuencias.ts';
 import { LOCAL_MIGRADOR, migrarPendientes } from './migrar.ts';
 
-export { sqlSecuenciasAlMenos };
+export { sqlReponerAcceso, sqlSecuenciasAlMenos };
 
 /** Refs de Supabase por entorno (docs/entornos.md). No son secretos: identifican el proyecto. */
 export const REFS: Record<string, string> = {
@@ -162,6 +169,20 @@ export function sqlRestauracion(volcado: string, nombreArchivo: string, actor: s
 const cuenta = (url: string, tabla: string): string =>
   psql(url, `select count(*) from hidrantes.${tabla};`, { tuplas: true }).salida.trim() || '?';
 
+/** Lo que hay ahora; si no se puede leer (tablas rotas), se avisa y no se repone nada. */
+function accesoActual(url: string): AccesoActual | null {
+  const r = psql(url, SQL_LEER_ACCESO, { tuplas: true });
+  if (r.codigo !== 0) {
+    log.aviso('No se ha podido leer el acceso actual: tras restaurar, genera un código nuevo y revoca los móviles.');
+    return null;
+  }
+  const a = leerAcceso(r.salida);
+  log.info(
+    `acceso actual leído: ${a.dispositivos ? JSON.parse(a.dispositivos).length : 0} dispositivos, ${a.administradores ? JSON.parse(a.administradores).length : 0} administradores`,
+  );
+  return a;
+}
+
 async function principal(): Promise<void> {
   const { valores } = argumentos();
   const entorno = valores.get('entorno') ?? abortar('Indica --entorno local, staging o prod.');
@@ -227,6 +248,9 @@ async function principal(): Promise<void> {
     ? leerSecuencias(psql(url, SQL_LEER_SECUENCIAS, { tuplas: true }).salida)
     : { hid: 0, boc: 0 };
   log.info(`secuencias antes de restaurar: HID ${previas.hid} · BOC ${previas.boc}`);
+  // El acceso de ahora (código, móviles revocados, administradores) manda sobre el del volcado
+  // (docs/18 RV-35). Se guarda en memoria, nunca en disco.
+  const acceso = hayEsquema ? accesoActual(url) : null;
   const actor = `restauracion ${entorno}`;
 
   // El volcado y lo que lo envuelve van juntos a un archivo: psql lo lee de una sola vez, y así los
@@ -253,6 +277,18 @@ async function principal(): Promise<void> {
   if (s.codigo !== 0) abortar(`No se han podido ajustar las secuencias de los códigos: ${s.error}`);
   const ahora = leerSecuencias(psql(url, SQL_LEER_SECUENCIAS, { tuplas: true }).salida);
   log.ok(`secuencias tras restaurar: HID ${ahora.hid} · BOC ${ahora.boc} (ningún código se reutiliza)`);
+
+  if (!acceso || sinAcceso(acceso)) {
+    log.info('no había acceso que reponer: el esquema no existía antes de restaurar');
+  } else {
+    const a = psql(url, sqlReponerAcceso(acceso));
+    if (a.codigo !== 0) {
+      abortar(
+        `Restaurado, pero no se ha podido reponer el acceso de antes: genera un código nuevo con "Revocar todos los dispositivos" y revisa Administradores en Ajustes.\n${a.error}`,
+      );
+    }
+    log.ok('acceso de antes repuesto: el código, los móviles revocados y los administradores de ahora');
+  }
 
   const anotada = psql(
     url,
