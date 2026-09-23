@@ -95,6 +95,20 @@ function aplicar(url: string, m: Migracion): void {
   psqlOk(url, sql);
 }
 
+/**
+ * Aplica lo pendiente contra `url` y devuelve qué se aplicó. `hasta` (el número, p. ej. "0009")
+ * deja fuera las posteriores: solo lo usa CI para fabricar un volcado antiguo de verdad (RV-13).
+ */
+export function migrarPendientes(url: string, hasta?: string): string[] {
+  const locales = leerMigraciones().filter((m) => !hasta || m.archivo.slice(0, hasta.length) <= hasta);
+  const pendientes = planificar(locales, leerAplicadas(url));
+  for (const m of pendientes) {
+    aplicar(url, m);
+    log.ok(m.archivo);
+  }
+  return pendientes.map((m) => m.archivo);
+}
+
 export function prepararLocal(): void {
   const bootstrap = readFileSync(path.join(RAIZ, 'supabase', 'sql', 'arranque-bd.sql'), 'utf8');
   psqlOk(LOCAL_POSTGRES, `\\set clave '${LOCAL_CLAVE_MIGRADOR}'\n${bootstrap}`);
@@ -102,7 +116,7 @@ export function prepararLocal(): void {
 }
 
 async function principal(): Promise<void> {
-  const { banderas } = argumentos();
+  const { banderas, valores } = argumentos();
   let url: string;
   if (banderas.has('local')) {
     log.paso('Supabase local: preparando el rol hidrantes_migrador');
@@ -117,6 +131,8 @@ async function principal(): Promise<void> {
   }
 
   log.paso('Migraciones');
+  const hasta = valores.get('hasta');
+  if (hasta && !banderas.has('local')) abortar('--hasta solo se admite con --local (CI, RV-13).');
   const locales = leerMigraciones();
   const pendientes = planificar(locales, leerAplicadas(url));
   log.info(`${locales.length} en el repositorio, ${pendientes.length} pendientes`);
@@ -124,10 +140,7 @@ async function principal(): Promise<void> {
     for (const m of pendientes) log.info(`pendiente: ${m.archivo}`);
     return;
   }
-  for (const m of pendientes) {
-    aplicar(url, m);
-    log.ok(m.archivo);
-  }
+  migrarPendientes(url, hasta);
   log.ok('Base de datos al día');
 }
 

@@ -161,6 +161,12 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    nuestro, que no toca `public` y que el `PROJECT_REF` de la cadena es el de producción. Pide
    confirmación escribiendo `RESTAURAR`.
 
+   Después aplica las migraciones que le falten al volcado (un respaldo antiguo vuelve con el
+   esquema de entonces) y anota la restauración en el registro; si el volcado es anterior a 0010, la
+   anota después de migrar. Borra también las secuencias sueltas de los códigos, que antes hacían
+   fallar la restauración sobre un esquema vivo (RV-13). Desde el 23 sep 2026 **CI lo ensaya en cada
+   cambio**, sobre un esquema con datos y con un volcado anterior a 0010 (`scripts/probar-restauracion.ts`).
+
    Vacía el esquema en vez de borrarlo porque crear uno exige un permiso que `hidrantes_migrador` no
    tiene (DEC-052), y en una emergencia solo hay a mano la cadena del secreto. Si el esquema ha
    desaparecido del todo —una base recién hecha—, el script lo dice y hay que crear la cáscara una
