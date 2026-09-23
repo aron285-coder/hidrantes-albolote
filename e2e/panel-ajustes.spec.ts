@@ -5,6 +5,11 @@ import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 import { conGoogle, simularTablas } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
+import { readFileSync } from 'node:fs';
+import { novedadesDe } from '../scripts/generar-novedades.ts';
+
+/** Lo que `npm run build` genera desde el CHANGELOG, que es lo que lleva la app probada. */
+const NOVEDADES = novedadesDe(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8'));
 
 const ACTIVIDAD = [
   {
@@ -121,8 +126,6 @@ async function prepararPanel(page: Page, { conDispatch = true } = {}) {
         return json(null);
       case 'fn_salud':
         return json(SALUD);
-      case 'fn_novedades':
-        return json([{ version: '1.0.3', texto: 'Aprobar con correcciones abre un formulario.' }]);
       case 'fn_exportar_inventario':
         return json([]);
       case 'fn_gestionar_administrador':
@@ -242,7 +245,8 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
     page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoLanzado(T.panel.purgarFotos) }),
   ).toBeVisible();
 
-  await expect(page.getByText('Aprobar con correcciones abre un formulario.')).toBeVisible();
+  // Las novedades salen del build, no de fn_novedades (RV-20): sin simular la RPC, se ven igual.
+  for (const linea of NOVEDADES.lineas) await expect(page.getByText(linea)).toBeVisible();
 
   await page.getByRole('button', { name: T.panelAjustes.imprimirA4 }).click();
   await expect(page.getByText(T.panelAjustes.escaneaParaInstalar)).toBeVisible();

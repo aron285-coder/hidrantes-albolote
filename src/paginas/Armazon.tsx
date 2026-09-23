@@ -2,6 +2,7 @@ import { List, Map as IconoMapa, Settings } from 'lucide-react';
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { AvisoNovedades } from '@/componentes/AvisoNovedades';
+import { hayNovedadesSinVer } from '@/lib/novedades';
 import { LimiteError } from '@/componentes/LimiteError';
 import { useAcceso } from '@/hooks/estado';
 import { primerUsoVisto } from '@/lib/sesion';
@@ -51,7 +52,17 @@ export function Armazon() {
               )
             }
           >
-            <Icono size={20} strokeWidth={1.75} aria-hidden />
+            <span className="relative">
+              <Icono size={20} strokeWidth={1.75} aria-hidden />
+              {/* Novedades de la versión sin ver: un punto hasta abrir Ajustes (RV-20, FR-167). */}
+              {a === '/ajustes' && pathname !== '/ajustes' && hayNovedadesSinVer() && (
+                <span
+                  className="bg-naranja-600 absolute -top-0.5 -right-1 size-2.5 rounded-full"
+                  data-testid="punto-novedades"
+                  aria-label={T.ajustes.seccionNovedades}
+                />
+              )}
+            </span>
             {texto}
           </NavLink>
         ))}

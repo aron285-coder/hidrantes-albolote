@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082 a DEC-086, DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -683,6 +683,27 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   entornos (15 §2).
 - **Afecta a:** 04 §9 y §10, 05 §2.13 y §9, 15 §2, `docs/entornos.md`.
 
+### DEC-087 · Las novedades salen del build, no de la base de datos
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (bajo riesgo; `docs/17` RV-20)
+- **Contexto:** 05 decía que CI cargaba el CHANGELOG en `config.novedades` y nada lo hacía
+  (`docs/verificacion/fase-0.md` lo aplazó): el panel decía siempre "Todavía no hay novedades
+  publicadas", y el e2e del panel simulaba la RPC y no lo veía. Además `fn_novedades` solo la
+  ejecuta `authenticated`: el voluntario no podía ver nada, y FR-167 / AC-127 piden novedades en
+  Ajustes de la app al actualizarse.
+- **Decisión:** `scripts/generar-novedades.ts` lee `CHANGELOG.md` y escribe
+  `src/generado/novedades.json` (versión, fecha y tres líneas limpias: sin ámbito en negrita, sin
+  enlaces ni identificadores técnicos; primero novedades, luego correcciones). Corre en `prebuild`,
+  así que cada build de CI y de despliegue lleva las de su CHANGELOG. Ajustes de la app las enseña
+  (con "Nuevo" y un punto en la pestaña hasta abrirlas); el panel las lee del mismo JSON.
+  `fn_novedades` se queda sin uso (04 §12) y se retira en la siguiente versión mayor.
+- **Sin paso de CI que compare el JSON con git:** el CHANGELOG cambia en el PR de release-please,
+  que no tiene quién regenere el JSON sin romper DEC-079; como `prebuild` lo regenera siempre, lo
+  que se despliega nunca va atrasado. El archivo en git es solo para que el typecheck y los tests
+  tengan algo que importar; puede ir una versión por detrás.
+- **Lo que queda en manos del desarrollo:** las líneas salen de los `feat:`/`fix:`. Si no se
+  entienden para un voluntario, el arreglo es escribir mejor el commit, no filtrar aquí.
+- **Afecta a:** 05 §6.2, 06 Apéndice A.
+
 ### DEC-086 · Código de acceso: el /64, la cuenta bajo bloqueo y un tope de canjes buenos
 - **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/17` RV-14)
 - **Contexto:** el `dispositivo_id` lo elige el cliente y la IP se hasheaba entera: en IPv6 un
@@ -1116,8 +1137,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |

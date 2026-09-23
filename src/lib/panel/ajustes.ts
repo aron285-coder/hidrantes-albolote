@@ -4,6 +4,7 @@
 import { type Resultado, rpc } from '../api';
 import { sincronizar } from '../puntos';
 import { funcion, leer, leerLista } from './consultas';
+import { NOVEDADES } from '../novedades';
 import { type FilaExportada, pedirInventario } from './exportar';
 
 // ---------- código de acceso (FR-140, FL-29) ----------
@@ -235,14 +236,11 @@ export interface Novedad {
   texto: string;
 }
 
+/**
+ * Las novedades salen del build (src/generado/novedades.json, RV-20), no de fn_novedades: nada las
+ * cargaba en config y el panel decía siempre "Todavía no hay novedades publicadas".
+ */
 export async function cargarNovedades(): Promise<Resultado<Novedad[]>> {
-  const r = await rpc<unknown>('fn_novedades');
-  if (!r.ok) return r;
-  const filas = Array.isArray(r.datos) ? r.datos : [];
-  return {
-    ok: true,
-    datos: filas
-      .map((x) => x as Partial<Novedad>)
-      .filter((x): x is Novedad => typeof x?.version === 'string' && typeof x?.texto === 'string'),
-  };
+  const { version, lineas } = NOVEDADES;
+  return { ok: true, datos: version ? lineas.map((texto) => ({ version, texto })) : [] };
 }
