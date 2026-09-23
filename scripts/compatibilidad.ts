@@ -12,7 +12,7 @@
 // `wrangler pages dev` y **sus propios** casos de integración (los de entonces, que hablan de las
 // pantallas de entonces). Todo contra el Supabase local de ci-sql, nunca contra dev ni prod.
 
-import { copyFileSync, existsSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import { abortar, argumentos, ejecutar, ejecutarScript, log, RAIZ } from './lib/comun.ts';
@@ -36,6 +36,44 @@ export function tocaMigraciones(salidaDeGitDiff: string): boolean {
     .split('\n')
     .map((l) => l.trim())
     .some((l) => l.startsWith('supabase/migrations/') && l.endsWith('.sql'));
+}
+
+/**
+ * Los casos de integración anteriores a RV-36 entran en el panel con una sesión de contraseña, que
+ * desde 0022 ya no es jefatura (DEC-094). El frontend publicado entra con Google y sigue funcionando
+ * con la base nueva; lo que no puede es su arnés de pruebas, porque el Supabase local no tiene
+ * Google. Si la referencia no trae `e2e/integracion/sesion-google.ts`, se le copia el de ahora y
+ * cada sesión con contraseña de sus casos se vuelve a firmar como de Google. En cuanto la referencia
+ * publicada lo traiga, no hace nada.
+ */
+export function adaptarSesiones(texto: string): string {
+  const patron =
+    /const sesion = await \(\n(\s+await request\.post\(`[^`]*grant_type=password`[\s\S]*?\n\s*)\)\.json\(\);/g;
+  if (!patron.test(texto)) return texto;
+  patron.lastIndex = 0;
+  const adaptado = texto.replace(
+    patron,
+    (_, peticion: string) => `const sesion = comoGoogle(await (\n${peticion}).json());`,
+  );
+  return adaptado.replace(
+    "import { T } from '../../src/lib/textos.ts';",
+    "import { T } from '../../src/lib/textos.ts';\nimport { comoGoogle } from './sesion-google.ts';",
+  );
+}
+
+function adaptarArnesAnterior(): void {
+  const carpeta = path.join(DESTINO, 'e2e', 'integracion');
+  if (!existsSync(carpeta) || existsSync(path.join(carpeta, 'sesion-google.ts'))) return;
+  copyFileSync(path.join(RAIZ, 'e2e', 'integracion', 'sesion-google.ts'), path.join(carpeta, 'sesion-google.ts'));
+  for (const archivo of readdirSync(carpeta).filter((a) => a.endsWith('.spec.ts'))) {
+    const ruta = path.join(carpeta, archivo);
+    const texto = readFileSync(ruta, 'utf8');
+    const adaptado = adaptarSesiones(texto);
+    if (adaptado !== texto) {
+      writeFileSync(ruta, adaptado);
+      log.info(`${archivo}: la sesión de jefatura se firma como de Google (DEC-094)`);
+    }
+  }
 }
 
 function limpiarWorktree(): void {
@@ -106,6 +144,7 @@ async function principal(): Promise<void> {
     const construido = ejecutar('npx', ['--no-install', 'vite', 'build'], { cwd: DESTINO });
     if (construido.codigo !== 0) abortar(`El frontend de ${ref} no compila:\n${construido.error || construido.salida}`);
     log.ok('frontend anterior construido');
+    adaptarArnesAnterior();
 
     const orden = [
       'npx',
