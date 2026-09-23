@@ -362,3 +362,90 @@ describe('cola: avisos al momento (RV-08)', () => {
     expect(pedirEnvioPush).not.toHaveBeenCalled();
   });
 });
+
+describe('cola: cabos sueltos de RV-01 a RV-04 (docs/18 RV-39)', () => {
+  it('tras cerrar sesión durante un PUT, lo encolado después sale sin esperar a la red', async () => {
+    const put = retenida<Response>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/url-subida') return respuesta(200, { foto_path: 'fotos/f.jpg', url: 'https://sb/subir' });
+      return put.promesa;
+    });
+    rpc.mockResolvedValue(ok());
+    await cola.encolar(args('k-000501'), FOTO, 'HID-0147');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    // Cierra sesión con el PUT en vuelo, vuelve a entrar y envía otra propuesta.
+    await cola.vaciarCola();
+    guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+    await cola.encolar(args('k-000502'), null, 'HID-0148');
+    put.soltar(new Response(null, { status: 200 }));
+    await cola.procesarCola();
+    expect(rpc.mock.calls.map((c) => c[1].clave_local)).toEqual(['k-000502']);
+    expect(cola.colaActual()).toEqual([]);
+  });
+
+  it('reintentarCola tras vaciarCola no resucita nada', async () => {
+    const almacen = colaEnMemoria<EnCola>();
+    cola._usarAlmacenCola(almacen);
+    rpc.mockResolvedValue(caido);
+    await cola.encolar(args('k-000503'), null, 'HID-0147');
+    await cola.procesarCola();
+    expect(cola.colaActual()[0].proximo).toBeGreaterThan(Date.now());
+    const llamadas = rpc.mock.calls.length;
+    // El reintento se queda a medio guardar; mientras, se cierra sesión.
+    const retenido = retenida<void>();
+    const original = almacen.guardar.bind(almacen);
+    almacen.guardar = async (i) => {
+      await retenido.promesa;
+      return original(i);
+    };
+    rpc.mockResolvedValue(ok());
+    const reintento = cola.reintentarCola();
+    await cola.vaciarCola();
+    retenido.soltar();
+    await reintento;
+    expect(cola.colaActual()).toEqual([]);
+    expect(await almacen.todos()).toEqual([]);
+    expect(rpc.mock.calls.length).toBe(llamadas);
+  });
+
+  it('reintentarFallido tras vaciarCola no resucita nada', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'PAYLOAD_INVALIDO(x): y' }, status: 400 });
+    const almacen = colaEnMemoria<EnCola>();
+    cola._usarAlmacenCola(almacen);
+    await cola.encolar(args('k-000505'), null, 'HID-0147');
+    await cola.procesarCola();
+    expect(cola.colaActual()[0].fallo).toBe('PAYLOAD_INVALIDO(x)');
+    const retenido = retenida<void>();
+    const guardarOriginal = almacen.guardar.bind(almacen);
+    almacen.guardar = async (i) => {
+      await retenido.promesa;
+      return guardarOriginal(i);
+    };
+    rpc.mockResolvedValue(ok());
+    const reintento = cola.reintentarFallido('k-000505');
+    await cola.vaciarCola();
+    retenido.soltar();
+    await reintento;
+    expect(cola.colaActual()).toEqual([]);
+    expect(await almacen.todos()).toEqual([]);
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it('estaPersistida dice si un envío llegó a IndexedDB, y un reintento vuelve a intentarlo', async () => {
+    const almacen = colaEnMemoria<EnCola>();
+    const guardarOriginal = almacen.guardar.bind(almacen);
+    let roto = true;
+    almacen.guardar = async (i) => {
+      if (roto) throw new Error('QuotaExceededError');
+      return guardarOriginal(i);
+    };
+    cola._usarAlmacenCola(almacen);
+    rpc.mockResolvedValue(caido);
+    const r = await cola.encolar(args('k-000506'), null, 'HID-0147');
+    expect(r.persistida).toBe(false);
+    expect(cola.estaPersistida('k-000506')).toBe(false);
+    roto = false;
+    await cola.reintentarCola();
+    expect(cola.estaPersistida('k-000506')).toBe(true);
+  });
+});
