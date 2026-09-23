@@ -42,6 +42,8 @@ const resultado = (page: Page) => barra(page).locator('p').first().innerText();
 const marcador = (page: Page, codigo: string) => page.locator(`.marcador[title="${codigo}"]`);
 
 async function centro(page: Page, codigo: string) {
+  // Con la máquina cargada, el marcador tarda en pintarse: se espera a que esté antes de medirlo.
+  await expect(marcador(page, codigo)).toBeVisible();
   const c = (await marcador(page, codigo).boundingBox())!;
   return { x: c.x + c.width / 2, y: c.y + c.height / 2 };
 }
