@@ -313,6 +313,30 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await expect(page.getByText(T.envio.soloEnMemoriaDetalle)).toBeVisible();
     await expect(page.getByRole('button', { name: T.envio.reintentarAhora })).toBeVisible();
   });
+
+  // docs/18 RV-39: la pantalla no se quedaba en "Solo en memoria" tras un reintento bueno.
+  test('tras "Reintentar ahora" con éxito la pantalla dice enviado', async ({ page }) => {
+    await page.addInitScript(() => {
+      indexedDB.open = () => {
+        throw new DOMException('sin IndexedDB', 'UnknownError');
+      };
+    });
+    await servidor(page);
+    let caido = true;
+    await page.route(`${SB}/rest/v1/rpc/fn_proponer`, (r) => (caido ? r.abort('connectionrefused') : r.fallback()));
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await page.getByRole('radio', { name: T.formulario.granada }).click();
+    await page.getByRole('radio', { name: T.formulario.bueno }).click();
+    await hacerFoto(page);
+    await page.getByRole('button', { name: /^(Enviar para revisión|Guardar · se enviará)/ }).click();
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.soloEnMemoria })).toBeVisible();
+    caido = false;
+    await page.getByRole('button', { name: T.envio.reintentarAhora }).click();
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+    await expect(page.getByRole('button', { name: T.envio.reintentarAhora })).toHaveCount(0);
+  });
 });
 
 test('jefatura no ve "otra medida" en un alta (RV-19, FR-151)', async ({ page, context }) => {

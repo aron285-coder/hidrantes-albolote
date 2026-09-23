@@ -88,7 +88,9 @@ export const atascados = (ahora = Date.now()) => items.filter((i) => ahora - i.c
 
 export async function cargarCola(): Promise<void> {
   try {
-    publicar(await bd().todos());
+    const guardados = await bd().todos();
+    for (const i of guardados) persistidas.add(i.clave_local);
+    publicar(guardados);
   } catch {
     // sin IndexedDB, la cola vive en memoria
   }
@@ -96,18 +98,35 @@ export async function cargarCola(): Promise<void> {
 }
 
 let errorGuardadoAnotado = false;
+/** Envíos que llegaron a IndexedDB en su último guardado (RV-02, docs/18 RV-39). */
+const persistidas = new Set<string>();
+
+/** Si un envío está guardado en el móvil o solo en memoria ("Solo en memoria", RV-02). */
+export const estaPersistida = (clave: string) => persistidas.has(clave);
 
 /**
  * Publica en memoria y escribe en IndexedDB. Nunca lanza: sin IndexedDB (navegación privada, cuota
  * agotada) se puede enviar igual con cobertura. Devuelve si quedó guardado en el móvil (RV-02); el
  * primer fallo de la sesión se anota para que llegue a errores_cliente.
+ *
+ * Con `gen`, no escribe nada si la cola se vació desde entonces, y deshace lo escrito si se vació
+ * mientras escribía: un reintento en vuelo no resucita envíos de una sesión cerrada (RV-04, RV-39).
  */
-async function guardar(item: EnCola): Promise<boolean> {
+async function guardar(item: EnCola, gen?: number): Promise<boolean> {
+  if (gen !== undefined && gen !== generacion) return false;
   publicar([...items.filter((i) => i.clave_local !== item.clave_local), item]);
   try {
     await bd().guardar(item);
+    if (gen !== undefined && gen !== generacion) {
+      await bd()
+        .quitar(item.clave_local)
+        .catch(() => undefined);
+      return false;
+    }
+    persistidas.add(item.clave_local);
     return true;
   } catch (e) {
+    persistidas.delete(item.clave_local);
     if (!errorGuardadoAnotado) {
       errorGuardadoAnotado = true;
       anotarError(e, 'cola');
@@ -117,6 +136,7 @@ async function guardar(item: EnCola): Promise<boolean> {
 }
 
 async function quitar(clave: string) {
+  persistidas.delete(clave);
   publicar(items.filter((i) => i.clave_local !== clave));
   try {
     await bd().quitar(clave);
@@ -163,6 +183,7 @@ const COLA_VACIADA = 'COLA_VACIADA';
 /** Cerrar sesión borra la cola (FL-12), avisando antes en Ajustes. */
 export async function vaciarCola(): Promise<void> {
   generacion++;
+  persistidas.clear();
   publicar([]);
   try {
     await bd().vaciar();
@@ -268,10 +289,14 @@ function programar() {
   temporizador = setTimeout(() => void procesarCola(), Math.max(1000, Math.min(...futuros) - ahora));
 }
 
-/** Una pasada por la cola en orden. `parar`: no tiene sentido seguir ahora (sin acceso, sin servidor). */
-async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'> {
+/**
+ * Una pasada por la cola en orden. `parar`: no tiene sentido seguir ahora (sin acceso, sin
+ * servidor). `reiniciar`: la cola se vació durante la vuelta (cierre de sesión); lo de esta vuelta
+ * ya no vale, pero si alguien pidió otra (una propuesta de la sesión nueva) se da (docs/18 RV-39).
+ */
+async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar' | 'reiniciar'> {
   for (const pendiente of [...items]) {
-    if (gen !== generacion) return 'parar';
+    if (gen !== generacion) return 'reiniciar';
     const actual0 = items.find((i) => i.clave_local === pendiente.clave_local);
     if (!actual0 || actual0.fallo || actual0.proximo > Date.now()) continue;
     const r = await enviarUno(pendiente.clave_local, c, gen);
@@ -279,7 +304,7 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
       huboEnvio = c;
       continue;
     }
-    if (r.codigo === COLA_VACIADA || gen !== generacion) return 'parar';
+    if (r.codigo === COLA_VACIADA || gen !== generacion) return 'reiniciar';
     const actual = items.find((i) => i.clave_local === pendiente.clave_local);
     if (!actual) continue;
     if (r.codigo.startsWith('TOKEN_')) {
@@ -331,7 +356,10 @@ export function procesarCola(): Promise<void> {
         const gen = generacion;
         const c = await credencial();
         if (!c) break;
-        if ((await unaVuelta(c, gen)) === 'parar') break;
+        const vuelta = await unaVuelta(c, gen);
+        if (vuelta === 'parar') break;
+        // Tras un cierre de sesión en vuelo, solo se sigue si alguien pidió otra vuelta (RV-39).
+        if (vuelta === 'reiniciar' && !otraVuelta) break;
       } while (otraVuelta);
     } finally {
       procesando = null;
@@ -356,16 +384,24 @@ function pedirAvisos(c: Credencial) {
  */
 export async function reintentarCola(): Promise<void> {
   if (!cargada) await cargarCola();
-  for (const i of items) if (!i.fallo && i.proximo > 0) await guardar({ ...i, proximo: 0 });
+  const gen = generacion;
+  for (const i of items) {
+    if (gen !== generacion) return;
+    // Lo que solo estaba en memoria vuelve a intentar llegar a IndexedDB (RV-39).
+    if (!i.fallo && (i.proximo > 0 || !persistidas.has(i.clave_local))) await guardar({ ...i, proximo: 0 }, gen);
+  }
+  if (gen !== generacion) return;
   await procesarCola();
 }
 
 /** "Reintentar" en un envío con fallo (Mis propuestas): se olvida el fallo y se intenta ya (RV-03). */
 export async function reintentarFallido(clave: string): Promise<void> {
   if (!cargada) await cargarCola();
+  const gen = generacion;
   const item = items.find((i) => i.clave_local === clave);
   if (!item) return;
-  await guardar({ ...item, fallo: null, intentos: 0, fallos_seguidos: 0, proximo: 0 });
+  await guardar({ ...item, fallo: null, intentos: 0, fallos_seguidos: 0, proximo: 0 }, gen);
+  if (gen !== generacion) return;
   await procesarCola();
 }
 
@@ -404,6 +440,7 @@ export function _usarAlmacenCola(a: AlmacenCola<EnCola>) {
   otraVuelta = false;
   huboEnvio = null;
   errorGuardadoAnotado = false;
+  persistidas.clear();
   clearTimeout(temporizador);
   oyentes.clear();
   alEnviar.clear();

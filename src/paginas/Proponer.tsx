@@ -8,7 +8,7 @@ import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
 import { Campo, CampoFoto, PildorasCaudal, Segmentado, SelectorRacor } from '@/componentes/operaciones/Campos';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useAcceso, useConexion, usePosicion, usePuntos } from '@/hooks/estado';
-import { colaActual, encolar, procesarCola, reintentarCola } from '@/lib/cola';
+import { colaActual, encolar, estaPersistida, procesarCola, reintentarCola } from '@/lib/cola';
 import { nombreCaudal, nombreTipo } from '@/lib/ficha';
 import type { FotoProcesada } from '@/lib/foto';
 import { distancia, hace } from '@/lib/formato';
@@ -92,7 +92,7 @@ function FormularioOperacion({
     };
   });
   const [enviando, setEnviando] = useState(false);
-  const [resultado, setResultado] = useState<Resultado | null>(null);
+  const [resultado, setResultado] = useState<{ que: Resultado; clave: string } | null>(null);
   const [falloGuardar, setFalloGuardar] = useState(false);
   const cambiar = (c: Partial<Formulario>) => setF((x) => ({ ...x, ...c }));
 
@@ -133,13 +133,11 @@ function FormularioOperacion({
       setEnviando(false);
       return;
     }
-    const sigue = colaActual().some((i) => i.clave_local === clave);
-    // Sigue en la cola y no llegó a IndexedDB: solo vive en memoria y se perdería al cerrar (RV-02).
-    setResultado(sigue ? (persistida ? 'guardado' : 'solo_en_memoria') : jefatura ? 'aplicado' : 'enviado');
+    setResultado({ que: resultadoDe(clave, jefatura, persistida), clave });
     setEnviando(false);
   }
 
-  if (resultado) return <PantallaResultado resultado={resultado} />;
+  if (resultado) return <PantallaResultado inicial={resultado.que} clave={resultado.clave} jefatura={jefatura} />;
 
   const textoBoton = jefatura
     ? T.envio.aplicarAhora
@@ -426,11 +424,23 @@ function DatosPunto({
   );
 }
 
+/**
+ * Qué ha pasado con un envío: sigue en la cola y no llegó a IndexedDB, solo vive en memoria y se
+ * perdería al cerrar (RV-02); si ya salió, enviado o aplicado.
+ */
+function resultadoDe(clave: string, jefatura: boolean, persistida = estaPersistida(clave)): Resultado {
+  const sigue = colaActual().some((i) => i.clave_local === clave);
+  if (sigue) return persistida ? 'guardado' : 'solo_en_memoria';
+  return jefatura ? 'aplicado' : 'enviado';
+}
+
 /** Confirmación de 07 §7.5: qué ha pasado con lo enviado (UI-05). */
-function PantallaResultado({ resultado }: { resultado: Resultado }) {
+function PantallaResultado({ inicial, clave, jefatura }: { inicial: Resultado; clave: string; jefatura: boolean }) {
   const navegar = useNavigate();
   const acceso = useAcceso();
   const [reintentando, setReintentando] = useState(false);
+  // Tras "Reintentar ahora" se vuelve a mirar: puede haber salido o haber llegado al móvil (RV-39).
+  const [resultado, setResultado] = useState(inicial);
   const titulo = {
     aplicado: T.envio.aplicado,
     guardado: T.envio.guardadoEnMovil,
@@ -461,7 +471,10 @@ function PantallaResultado({ resultado }: { resultado: Resultado }) {
             disabled={reintentando}
             onClick={() => {
               setReintentando(true);
-              void reintentarCola().finally(() => setReintentando(false));
+              void reintentarCola().finally(() => {
+                setReintentando(false);
+                setResultado(resultadoDe(clave, jefatura));
+              });
             }}
           >
             {reintentando ? T.operaciones.enviando : T.envio.reintentarAhora}
