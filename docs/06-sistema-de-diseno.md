@@ -421,7 +421,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Elige el racor` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
 `Explica brevemente qué has visto` ·
 `⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.` ·
-`Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±[9] m)`.
+`Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±[9] m)` ·
+`La posición no está al día: coloca el pin a mano o espera a que el GPS responda`.
 
 **Envío.** `Enviar para revisión` · `Enviar propuesta de retirada` · `Aplicar ahora` ·
 `Guardar · se enviará con cobertura` · `Guardar · se enviará al volver el servidor` ·
