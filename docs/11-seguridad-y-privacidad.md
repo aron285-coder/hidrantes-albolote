@@ -64,7 +64,10 @@ límite. Cinco capas, y por qué no basta con la primera:
    falsifica. La Pages Function de Cloudflare ve `CF-Connecting-IP`, que el cliente no puede alterar,
    y es la única capa que conoce la IP; la guarda como `sha256(SAL_IP + ip)`, nunca en claro. En
    IPv6 el límite "por IP" es **por /64** (los cuatro primeros grupos): un atacante rota direcciones
-   dentro de su /64 con facilidad (RV-14). Una IPv4 mapeada cuenta como la IPv4.
+   dentro de su /64 con facilidad (RV-14). Una IPv4 mapeada cuenta como la IPv4, también escrita en
+   hexadecimal (`::ffff:c000:201`); algo con forma de IPv6 imposible (dos `::`, más de 8 grupos) va a un
+   cubo propio, `invalida`, que no se mezcla con ninguna IP de verdad. Una petición bloqueada deja como
+   mucho una fila por IP, tope y minuto en `intentos_codigo` (0026, docs/18 RV-48).
 3. **Techo global (200/h).** Nadie lo esquiva cambiando de identidad. A ese ritmo, el millón de
    combinaciones lleva unos 208 días, y Salud del sistema y la vigilancia diaria avisan mucho antes
    (más de 300 fallos en 24 h, o cualquier bloqueo de todo el grupo: RV-14). La cuenta va bajo un

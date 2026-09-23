@@ -226,7 +226,7 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `max_altas_global_hora` | `150` | canjes buenos en total por hora (RV-14, DEC-086) |
 | `dias_caducidad_token` | `365` | |
 | `max_subidas_dispositivo_dia` | `40` | |
-| `dias_reserva_subida` | `7` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084) |
+| `dias_reserva_subida` | `7` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084); `fn_proponer` acepta como mínimo 1 día y la purga protege como mínimo 2, también si se pone a 1 (0026, RV-48) |
 | `max_incidencias_dispositivo_dia` | `5` | |
 | `max_errores_global_dia` | `2000` | |
 | `escala_radios` | `[11, 9, 7, 5.5, 5]` | 06 §4 |

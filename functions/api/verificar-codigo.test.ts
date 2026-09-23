@@ -163,6 +163,19 @@ describe('normalizarIp (RV-14)', () => {
     expect(normalizarIp('::ffff:192.0.2.1')).toBe('192.0.2.1');
     expect(normalizarIp('192.0.2.1')).toBe('192.0.2.1');
   });
+  // docs/18 RV-48: basura con forma de IPv6 no se mezcla con nadie, y la IPv4 mapeada en
+  // hexadecimal es su IPv4, no el /64 de ::1.
+  it('más de un :: o más de 8 grupos es una IP inválida, en un cubo propio', async () => {
+    const { normalizarIp } = await import('../_lib/comun.ts');
+    expect(normalizarIp('1::2::3')).toBe('invalida');
+    expect(normalizarIp('1:2:3:4:5:6:7:8:9')).toBe('invalida');
+    expect(normalizarIp('1::2::3')).not.toBe(normalizarIp('::1'));
+  });
+  it('::ffff:c000:201 (IPv4 mapeada en hexadecimal) es 192.0.2.1', async () => {
+    const { normalizarIp } = await import('../_lib/comun.ts');
+    expect(normalizarIp('::ffff:c000:201')).toBe('192.0.2.1');
+    expect(normalizarIp('::ffff:c000:201')).not.toBe(normalizarIp('::1'));
+  });
   it('lo que no es una IP se queda como está', async () => {
     const { normalizarIp } = await import('../_lib/comun.ts');
     expect(normalizarIp('desconocida')).toBe('desconocida');
