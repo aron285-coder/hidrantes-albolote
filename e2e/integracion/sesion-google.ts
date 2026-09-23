@@ -35,10 +35,10 @@ export const claimsDe = (jwt: string) => leer(jwt.split('.')[1]);
 
 /** Vuelve a firmar el token como el de una sesión de Google: amr oauth y providers google. */
 export function comoGoogle(sesion: Sesion, secreto = secretoLocal()): Sesion {
-  const [cabecera, cuerpo] = sesion.access_token.split('.');
-  const cab = leer(cabecera);
-  if (cab.alg !== 'HS256') throw new Error(`El Supabase local firma con ${String(cab.alg)}, no con HS256.`);
-  const claims = leer(cuerpo);
+  // El Supabase local firma sus sesiones con ES256, pero Auth y PostgREST siguen aceptando HS256 con
+  // el secreto JWT (así van firmadas la anon key y la service key): se vuelve a firmar en HS256.
+  const cab = { alg: 'HS256', typ: 'JWT' };
+  const claims = leer(sesion.access_token.split('.')[1]);
   const iat = typeof claims.iat === 'number' ? claims.iat : Math.floor(Date.now() / 1000);
   const appMetadata = { ...(claims.app_metadata as object), provider: 'google', providers: ['google'] };
   const nuevos = { ...claims, amr: [{ method: 'oauth', timestamp: iat }], app_metadata: appMetadata };
