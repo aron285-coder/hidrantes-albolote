@@ -33,14 +33,20 @@ select dblink_exec('c0', format($f$
                                           where momento > now() - interval '1 hour' and not exito and not bloqueado))) i;
 $f$, (select prefijo from conexion)));
 
+select diag('fallos confirmados antes: ' || (select x from dblink('c0',
+  'select count(*)::text from hidrantes.intentos_codigo where momento > now() - interval ''1 hour'' and not exito and not bloqueado') as t(x text)));
 select dblink_exec('c1', 'begin');
-select * from dblink('c1', format($q$select error from hidrantes.fn_verificar_codigo('000000', gen_random_uuid(), %L)$q$,
+create temp table r1 as select * from dblink('c1', format($q$select error from hidrantes.fn_verificar_codigo('000000', gen_random_uuid(), %L)$q$,
   (select prefijo from conexion) || '-a')) as t(e text);
 select dblink_send_query('c2', format($q$select error from hidrantes.fn_verificar_codigo('000000', gen_random_uuid(), %L)$q$,
   (select prefijo from conexion) || '-b'));
 select pg_sleep(0.5);
 select dblink_exec('c1', 'commit');
-create temp table r2 as select * from dblink_get_result('c2') as t(e text);
+create temp table r2 as select * from dblink_get_result('c2', false) as t(e text);
+select diag('c1: ' || coalesce((select string_agg(coalesce(e, 'NULL'), ',') from r1), 'sin filas') || ' · c2: ' ||
+  coalesce((select string_agg(coalesce(e, 'NULL'), ',') from r2), 'sin filas') || ' · error c2: ' ||
+  coalesce(dblink_error_message('c2'), '-'));
+select * from dblink_get_result('c2', false) as t(e text);
 
 select is((select e from r2), 'DEMASIADOS_INTENTOS',
   'con 199 fallos, dos a la vez: la segunda espera al bloqueo, ve 200 y no llega a comparar');
