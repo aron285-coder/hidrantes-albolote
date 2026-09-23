@@ -94,3 +94,23 @@ test('alta: "Mi posición" devuelve el pin al GPS después de moverlo a mano', a
   expect(propuesta!.lat as number).toBeCloseTo(37.2309, 5);
   expect(propuesta!.lng as number).toBeCloseTo(-3.6566, 5);
 });
+
+test('el alta recupera el GPS tras un primer timeout (RV-09)', async ({ page }) => {
+  // El primer intento del GPS se agota antes del primer fix, como en la calle; el fix llega después.
+  await page.addInitScript(() => {
+    const geo = navigator.geolocation;
+    const original = geo.watchPosition.bind(geo);
+    geo.watchPosition = (ok, ko, opciones) => {
+      setTimeout(
+        () => ko?.({ code: 3, message: 'Timeout', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 }),
+        0,
+      );
+      return original((p) => setTimeout(() => ok(p), 800), ko, opciones);
+    };
+  });
+  await page.goto('/proponer/alta');
+  await expect(page.getByText(T.mapa.posicionNoDisponible)).toBeVisible();
+  // Sin tocar nada, llega el fix: el aviso desaparece y el pin sale del GPS.
+  await expect(page.getByText(T.mapa.posicionNoDisponible)).toHaveCount(0);
+  await expect(page.getByText(T.avisosFormulario.muevePin)).toHaveCount(0);
+});

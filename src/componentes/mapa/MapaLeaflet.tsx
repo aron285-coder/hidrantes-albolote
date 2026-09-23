@@ -3,7 +3,7 @@ import L from 'leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { LIMITES, capasDe } from './capas-leaflet';
 import { type Capa, ZOOM_MAX } from '@/lib/capas';
-import type { Posicion } from '@/lib/posicion';
+import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
@@ -184,7 +184,10 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
       color,
       weight: 0,
       fillColor: color,
-      fillOpacity: 0.16,
+      // Posición de hace más de un minuto o sin GPS desde entonces: halo atenuado. 06 no tiene token
+      // de "atenuado"; se usa la mitad de la opacidad normal (RV-09).
+      fillOpacity: esAntigua(posicion) ? 0.08 : 0.16,
+      className: esAntigua(posicion) ? 'halo-antiguo' : 'halo',
       interactive: false,
     }).addTo(g);
     L.circleMarker([posicion.lat, posicion.lng], {

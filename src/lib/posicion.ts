@@ -7,7 +7,16 @@ export interface Posicion {
   lng: number;
   /** Radio de precisión en metros. */
   precision: number;
+  /** Cuándo la dio el GPS (ms). */
+  momento?: number;
+  /** El GPS dejó de responder después de esta posición: sigue valiendo, pero es la última (RV-09). */
+  antigua?: boolean;
 }
+
+/** A partir de aquí el halo de precisión se pinta atenuado (06 §4.3). */
+export const POSICION_ANTIGUA_MS = 60_000;
+export const esAntigua = (p: Posicion, ahora = Date.now()) =>
+  !!p.antigua || (p.momento !== undefined && ahora - p.momento > POSICION_ANTIGUA_MS);
 
 export type EstadoPosicion =
   | { tipo: 'inactiva' }
@@ -42,14 +51,27 @@ export function activarPosicion(): void {
     (p) =>
       fijar({
         tipo: 'ok',
-        posicion: { lat: p.coords.latitude, lng: p.coords.longitude, precision: p.coords.accuracy },
+        posicion: {
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+          precision: p.coords.accuracy,
+          momento: p.timestamp || Date.now(),
+        },
       }),
     (e) => {
-      if (vigilancia !== null) navigator.geolocation.clearWatch(vigilancia);
-      vigilancia = null;
-      fijar({ tipo: e.code === e.PERMISSION_DENIED ? 'denegada' : 'no_disponible' });
+      // Solo el permiso denegado para la vigilancia. Un TIMEOUT o POSITION_UNAVAILABLE es lo normal
+      // en la calle mientras llega el primer fix: la vigilancia sigue y el siguiente fix pasa a ok
+      // (RV-09). Con una posición buena previa, se conserva como la última conocida.
+      if (e.code === e.PERMISSION_DENIED) {
+        if (vigilancia !== null) navigator.geolocation.clearWatch(vigilancia);
+        vigilancia = null;
+        return fijar({ tipo: 'denegada' });
+      }
+      if (estado.tipo === 'ok') return fijar({ tipo: 'ok', posicion: { ...estado.posicion, antigua: true } });
+      fijar({ tipo: 'no_disponible' });
     },
-    { enableHighAccuracy: true, maximumAge: 15_000, timeout: 30_000 },
+    // 60 s: el primer fix en la calle a veces tarda más de 30.
+    { enableHighAccuracy: true, maximumAge: 15_000, timeout: 60_000 },
   );
 }
 
