@@ -70,6 +70,9 @@ jobs:
           pkill -f 'wrangler pages dev' || true
       - name: Compatibilidad hacia atrás (TR-107)
         run: npm run compatibilidad
+      # Al final: la restauración deja la base como estaba el volcado (RV-13, TR-51, 15 §5.3).
+      - name: Restauración sobre un esquema con datos (RV-13)
+        run: npx tsx scripts/probar-restauracion.ts
       - if: always()
         run: npx supabase stop --no-backup
 
