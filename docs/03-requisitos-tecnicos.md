@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
+| **Versión** | 1.3 — 23 de septiembre de 2026: §13, requisitos de las funciones de mapa para emergencias (TR-116 a TR-119), y CartoCiudad y el callejero de OSM en §8 (DEC-089, DEC-092, DEC-093; pendiente de conformidad de jefatura en F9.1, #76). v1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
 | **Propietario de** | las **exigencias medibles y no funcionales**: qué tiene que cumplir el sistema, no cómo se consigue. La solución elegida está en 04; si mañana cambia la solución, estas exigencias siguen en pie. |
 | **No contiene** | decisiones de producto (→ 04), reglas funcionales (→ 01), campos (→ 05). |
 
@@ -118,6 +118,8 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 | TR-73 | **PNOA (IGN) y Catastro:** solo en línea, por HTTPS, con atribución; no se almacenan sus imágenes. | Revisión de capas. |
 | TR-74 | **Overpass (límites administrativos):** se consulta solo al regenerar la zona, nunca en tiempo de ejecución de la aplicación; el resultado se guarda en el repositorio. | El build no depende de Overpass. |
 | TR-75 | Ninguna dependencia externa requiere tarjeta de crédito ni clave de API de pago. | Revisión de 04. |
+| TR-76 | **CartoCiudad (IGN/CNIG), números de portal:** solo desde la Pages Function `/api/geocodificar` (nunca desde el navegador), con `User-Agent` identificable, caché de 30 días por consulta normalizada y límite de tiempo de 5 s; uso libre y gratuito, con la obligación de citar la fuente ("CartoCiudad · IGN", licencia CC BY 4.0 del SCNE). Nunca bloqueante: sin él, la búsqueda sigue con calles, lugares y coordenadas (FR-73, DEC-092). | Test de la Function; atribución en los resultados. |
+| TR-77 | **Callejero sin conexión desde OSM:** se genera con Overpass solo a mano o al regenerar la zona (nunca en el build de CI), se guarda en el repositorio y lleva la atribución © OpenStreetMap (ODbL) en sus resultados (FR-73, DEC-093). | El build no depende de Overpass; atribución presente. |
 
 ---
 
@@ -169,6 +171,17 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 
 ---
 
+## 13. Funciones de mapa para emergencias
+
+| ID | Requisito | Comprobación |
+|---|---|---|
+| TR-116 | Calcular los cercanos (FR-74) sobre 1.000 puntos tarda **< 50 ms** en un móvil medio. | vitest en Node con umbral de 20 ms (mediana de 20 ejecuciones) y e2e con CPU ×4. |
+| TR-117 | El callejero (FR-73) ocupa **≤ 200 kB** sin comprimir, se precachea en el Service Worker y no forma parte del JS inicial. | El script que lo genera falla por encima; e2e: no se pide al arrancar, solo al abrir la búsqueda. |
+| TR-118 | `/api/geocodificar` responde en **≤ 5 s** o devuelve `SIN_SERVIDOR`. Con él caído, la búsqueda sigue funcionando para calles, lugares y coordenadas. | Test de la Function con fetch simulado; e2e con la Function en 503. |
+| TR-119 | La conversión a UTM (ETRS89, huso 30) tiene un error **≤ 1 m** frente a PROJ (EPSG:4258 → EPSG:25830) en la zona. | vitest contra vectores de referencia calculados con PROJ. |
+
+---
+
 ## Trazabilidad
 
 | Sección | Origen |
@@ -178,4 +191,5 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 | 1, 3, 4 | `requisitos-hidrantes.html` v6.1 §6.3, §6.4, §7.6; plan v2.1 Fases 4–6 |
 | 2, 6, 7, 10 | plan v2.1 Fase 8 y "Consumo del plan gratuito" |
 | 5 | plan v2.1 "Protección del código de acceso", Storage, Fase 8 (revisión de seguridad) |
-| 8 | plan v2.1 Fase 5 (política de OSM, Nominatim) y Fase 1 (Overpass) |
+| 8 | plan v2.1 Fase 5 (política de OSM, Nominatim) y Fase 1 (Overpass); TR-76 y TR-77, `docs/18` bloque D (DEC-092, DEC-093) |
+| 13 | `docs/18` bloque D, 23 sep 2026 (DEC-089) |

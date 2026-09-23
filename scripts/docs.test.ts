@@ -47,4 +47,21 @@ describe('documentación honesta y sin datos personales (RV-32)', () => {
     const faltan = [...concedidas].filter((f) => !new RegExp(`\\b${f}\\b`).test(doc05)).sort();
     expect(faltan).toEqual([]);
   });
+
+  // docs/18 GM-00: ningún requisito sin un caso de aceptación que lo compruebe.
+  it('cada FR de 01 tiene al menos un AC en 10 que lo cita', () => {
+    const doc01 = readFileSync(path.join(RAIZ, 'docs', '01-requisitos-funcionales.md'), 'utf8');
+    const filasAc = readFileSync(path.join(RAIZ, 'docs', '10-matriz-aceptacion.md'), 'utf8')
+      .split('\n')
+      .filter((l) => l.startsWith('| AC-'))
+      .join('\n');
+    const requisitos = [...new Set([...doc01.matchAll(/^\| (FR-\d+) \|/gm)].map((m) => m[1]!))];
+    expect(requisitos.length).toBeGreaterThan(100);
+    const citados = new Set([...filasAc.matchAll(/FR-\d+/g)].map((m) => m[0]));
+    // Rangos: "FR-160–168", "FR-72–76", "FR-10 a FR-12".
+    for (const [, desde, hasta] of filasAc.matchAll(/FR-(\d+)\s*(?:[–-]|\ba\b)\s*(?:FR-)?(\d+)/g)) {
+      for (let n = Number(desde); n <= Number(hasta); n++) citados.add(`FR-${String(n).padStart(2, '0')}`);
+    }
+    expect(requisitos.filter((fr) => !citados.has(fr))).toEqual([]);
+  });
 });

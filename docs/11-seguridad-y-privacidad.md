@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se actualiza con cada revisión de seguridad y cada petición de derechos atendida. |
-| **Versión** | 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
+| **Versión** | 1.3 — 23 de septiembre de 2026 (jefatura exige una sesión de Google, DEC-094; privacidad del incidente, la medición y la búsqueda, §6.1, DEC-089). 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
 | **Propietario de** | el modelo de acceso y amenazas, la protección del código, RLS y permisos, qué datos personales se guardan y por qué, retención, el procedimiento del derecho de supresión, y el aviso legal. |
 | **Para** | jefatura (que es la responsable del tratamiento) y construcción. Escrito para tenerlo **antes** de que alguien pregunte. |
 | **Referencias** | las cifras medibles están en **03** §5–7; los campos en **05**; la infraestructura en **04**. |
@@ -147,6 +147,15 @@ sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausen
 | Descripción libre de incidencias | `incidencias_app` | soporte | administradores |
 | Correo de Google | `administradores`, `registro.actor`, `propuestas.revisada_por` | acceso y auditoría de administradores | administradores |
 | Suscripción push (endpoint y claves del navegador) | `suscripciones_push` | avisar del resultado de una propuesta (voluntario) o de propuestas nuevas (jefatura); **solo si la persona lo activa** | nadie la lee; se borra al desactivar o tras tres fallos |
+
+**Funciones de mapa para emergencias (FR-72 a FR-76, DEC-089):** el punto de incidente, la
+medición y la posición del móvil **nunca salen del móvil** (DEC-062 §8) y no se guardan en IndexedDB
+ni en la base de datos. El incidente puede ir en la URL (`?incidente=lat,lng`) y en
+`sessionStorage`, para sobrevivir a una recarga; se pierde al cerrar la pestaña. Lo único que sale es
+el texto de una búsqueda con número de portal, hacia `/api/geocodificar` y de ahí a CartoCiudad
+(DEC-092): la Function no lo registra en logs ni en `errores_cliente`, y lo guarda en caché solo como
+`sha256` del texto normalizado. Compartir (FR-75) usa el menú del móvil: lo compartido nunca lleva
+nombres ni la descripción libre (FR-27), y no pasa por ningún servidor nuestro.
 
 **No se guardan:** DNI, teléfono, correo de voluntarios, dirección postal, fecha de nacimiento,
 fotos de personas. No hay cookies de terceros ni analítica externa; los errores se registran en el

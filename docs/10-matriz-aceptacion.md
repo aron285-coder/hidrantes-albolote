@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se amplía cuando aparece un caso nuevo; los resultados se anotan por recorrido. |
-| **Versión** | 1.4 — 22 de septiembre de 2026: AC-140 pasa a comprobarse sola (`e2e/controles.spec.ts`). v1.3: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
+| **Versión** | 1.5 — 23 de septiembre de 2026: §K, AC-150 a AC-156 de las funciones de mapa para emergencias (DEC-089), y §L, un caso para cada FR que no tenía (docs/18 GM-00). 1.4 — 22 de septiembre de 2026: AC-140 pasa a comprobarse sola (`e2e/controles.spec.ts`). v1.3: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
 | **Propietario de** | los casos de prueba de aceptación (`AC-nn`). Cada caso cita el requisito que verifica (01, 03). |
 | **Cómo se usa** | Se imprime. Jefatura y 2–3 voluntarios lo recorren en la calle sobre **staging** con el código del piloto, y después sobre producción antes de abrir a los 65. Columna "Resultado": ✓ / ✗ / n.a.; columna "Notas": qué pasó si ✗. |
 
@@ -190,6 +190,43 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-145 | Errores explicados | Provocar un rechazo sin motivo, una foto que falta y un fallo de red | Tres mensajes en español que dicen qué pasa y qué hacer; ningún código técnico | UI-04, TR-36 | | |
 | AC-146 | Textos centralizados | Buscar en el código literales de interfaz fuera de `src/lib/textos.ts` | Ninguno; el build falla si se añade uno | UI-20, TR-111 | ✓ | 23 sep 2026 · regla de `eslint.config.js` en `npm run lint` (ci-calidad) y `src/lib/textos.test.ts` (cada texto en el Apéndice A); la regla se amplía a `.ts` en RV-31 |
 | AC-147 | Verificación por fase | Abrir `docs/verificacion/` | Un archivo por fase cerrada, con casos ejecutados, comandos y suposiciones | TR-115 | | |
+
+---
+
+## K · Funciones de mapa para emergencias (FR-72–76, TR-116–119, DEC-089)
+
+Pendientes de conformidad de jefatura en F9.1 (#76). Se comprueban en el piloto con uso real.
+
+| ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
+|---|---|---|---|---|---|---|
+| AC-150 | ¿Qué hay aquí? | Sin cobertura, mantener pulsado un sitio del mapa sin marcador | Hoja con coordenadas decimales y UTM ETRS89 huso 30, la calle más cercana si la hay y las cuatro acciones; *Añadir un punto aquí* abre el alta con el pin ahí; *atrás* la cierra | FR-72, FR-50 | | |
+| AC-151 | Buscar calle, lugar, portal o coordenadas | Sin cobertura, buscar "c/ real"; con cobertura, "calle real 12"; pegar un enlace de Google Maps | La calle sale del móvil con "© OpenStreetMap"; el portal, con "CartoCiudad · IGN"; el enlace da "Coordenadas …" arriba; sin cobertura, el portal explica que necesita cobertura y enseña la calle | FR-73, FR-69, TR-118 | | |
+| AC-152 | Modo incidente | Sin cobertura, con GPS, pulsar *Cercanos* | Como mucho cinco puntos que funcionan (bueno o regular), en orden de distancia, con rumbo y tramos; aviso si el más cercano no funciona; *Solo hidrantes* cambia la lista; *atrás* sale; recargar lo mantiene | FR-74 | | |
+| AC-153 | Compartir un punto | Ficha → *Compartir* → WhatsApp | Llega código, tipo, diámetro, estado, dirección, coordenadas decimales y UTM y un enlace de Google Maps; sin nombres ni descripción | FR-75, FR-27 | | |
+| AC-154 | Medir un tendido | Desde *Cercanos*, *Medir tendido*; añadir dos vértices; *Deshacer*; *Terminar* | La barra dice la distancia y los tramos de manguera; tocar no abre fichas; *Deshacer* quita el último; *atrás* sale | FR-76, FR-142 | | |
+| AC-155 | G2: el punto más cercano que funciona | Con puntos guardados y sin red, cronometrar desde abrir la app hasta ver la primera fila de *Cercanos* con un toque | Menos de 15 s en campo; en e2e con perfil móvil, menos de 3 s | G2, FR-74, TR-116 | | e2e `incidente.spec.ts` (@rendimiento) |
+| AC-156 | UTM exacto | Comparar las UTM de la app con PROJ (EPSG:4258 → EPSG:25830) en cuatro puntos de la zona | Diferencia ≤ 1 m | TR-119, FR-72, FR-75 | | vitest `coordenadas.test.ts` |
+
+---
+
+## L · Requisitos generales que no tenían caso propio (docs/18 GM-00)
+
+Casos para que cada FR de 01 tenga al menos uno que lo cite (`scripts/docs.test.ts`). La mayoría ya
+se ven al recorrer los anteriores: aquí se anotan una vez.
+
+| ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
+|---|---|---|---|---|---|---|
+| AC-157 | Qué es y para quién | Recorrer el mapa con un voluntario y el panel con jefatura | El mapa enseña hidrantes y bocas de la zona mantenidos por voluntarios y validados por jefatura; responde dónde está el más cercano, en qué estado y cuándo se revisó; hay dos perfiles, voluntario sin cuenta y jefatura con Google | FR-01, FR-02, FR-03 | | |
+| AC-158 | Todo en español | Recorrer todas las pantallas de la app y del panel | Ningún texto en otro idioma ni código técnico a la vista | FR-05, UI-20 | | regla de ESLint y `textos.test.ts` (AC-146) |
+| AC-159 | Datos de cada punto | Abrir la ficha de un hidrante y de una boca de riego | Tipo, ubicación, descripción, fecha de última revisión y situación; el tipo no se ofrece para cambiar (FR-11) | FR-11, FR-12, FR-22, FR-24, FR-25 | | |
+| AC-160 | Estados de una propuesta | Enviar tres propuestas; jefatura aprueba una, rechaza otra con motivo; el autor retira la tercera | Mis propuestas enseña aprobada, rechazada con motivo y retirada por ti; la pendiente no está en el mapa general | FR-26, FR-47 | | |
+| AC-161 | Fotos solo con código | Intentar pedir una URL de subida sin token | 401; con token, hasta el tope diario del dispositivo | FR-38 | ✓ | 23 sep 2026 · `scripts/probar-functions.ts` e intrusión (TR-40) |
+| AC-162 | Seis operaciones y "Proponer un cambio" | Abrir la ficha → *Proponer un cambio* | Cinco operaciones sobre el punto; la sexta, el alta, desde el botón + | FR-40, FR-67 | | e2e `operaciones.spec.ts` |
+| AC-163 | Zona de cobertura | Colocar un pin en Albolote, en Calicasas y fuera | Dentro, sin aviso; fuera (más de unos 400 m), aviso y se puede continuar | FR-53, FR-55 | | |
+| AC-164 | Panel en ordenador y tableta | Abrir el panel en un portátil y en una tableta con una cuenta autorizada y con otra no autorizada | La autorizada entra y se usa en los dos; la otra ve "no autorizado" | FR-100 | | e2e `anchos.spec.ts` |
+| AC-165 | Pendientes a la vista | Con tres propuestas pendientes, abrir el panel | La cola dice 3 en todo momento, y baja al aprobar | FR-110 | | |
+| AC-166 | Caducadas sin correos | Dejar puntos sin revisar más de 12 meses | Salen en Caducadas del panel; no llega ningún correo automático | FR-125 | | |
+| AC-167 | Núcleos desde Ajustes | Ajustes → Núcleos: renombrar uno y añadir otro | El renombrado se ve en el inventario y la lista; el nuevo sale con su recuento de puntos | FR-166 | | e2e `panel-ajustes.spec.ts` |
 
 ---
 
