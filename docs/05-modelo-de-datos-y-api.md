@@ -435,7 +435,7 @@ fn_salud() returns jsonb
   --   version_zona, version_mapabase, dispositivos_activos }
 fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
 fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
-fn_novedades() returns jsonb                                    -- últimas entradas del CHANGELOG cargadas en config por CI (FR-167)
+fn_novedades() returns jsonb                                    -- OBSOLETA desde 0.5.0: sin uso (las novedades salen del build, DEC-087); se retira en la siguiente versión mayor
 fn_guardar_direccion_sugerida(propuesta_id uuid, direccion text) returns void   -- la usa /api/direccion con el JWT
 fn_registrar_workflow(workflow text) returns void               -- la usa /api/lanzar-workflow ('workflow_lanzado')
 

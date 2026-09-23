@@ -3,6 +3,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { conSesion, simularRpc } from './ayudas.ts';
+import { readFileSync } from 'node:fs';
+import { novedadesDe } from '../scripts/generar-novedades.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 async function abrir(page: Page, ruta = '/') {
@@ -334,4 +336,18 @@ test.describe('alta con pulsación larga (#138)', () => {
     await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2, { button: 'right' });
     await expect(page).toHaveURL(/\/proponer\/alta\?lat=/);
   });
+});
+
+test('Ajustes enseña tres novedades de la versión instalada (AC-127, RV-20)', async ({ page }) => {
+  const novedades = novedadesDe(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8'));
+  expect(novedades.lineas).toHaveLength(3);
+  await abrir(page);
+  // Versión nueva sin ver: un punto en la pestaña de Ajustes hasta abrirlo.
+  await expect(page.getByTestId('punto-novedades')).toBeVisible();
+  await page.getByRole('link', { name: T.navegacion.ajustes }).click();
+  const bloque = page.getByTestId('novedades');
+  for (const linea of novedades.lineas) await expect(bloque.getByText(linea)).toBeVisible();
+  await expect(page.getByText(T.ajustes.nuevo, { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: T.navegacion.mapa }).click();
+  await expect(page.getByTestId('punto-novedades')).toHaveCount(0);
 });

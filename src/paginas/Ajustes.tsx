@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useCallback, useState } from 'react';
+import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
@@ -20,6 +20,7 @@ import { recargar } from '@/lib/pwa';
 import { type Tema, guardarTema, leerTema } from '@/lib/tema';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
+import { NOVEDADES, hayNovedadesSinVer, marcarNovedadesVistas } from '@/lib/novedades';
 
 function Fila({ titulo, detalle, children }: { titulo: ReactNode; detalle?: ReactNode; children?: ReactNode }) {
   return (
@@ -127,6 +128,8 @@ export function Ajustes() {
       <SeccionMapa />
 
       {sesion && <SeccionAvisos />}
+
+      <SeccionNovedades />
 
       <Seccion>{T.ajustes.pantalla}</Seccion>
       <Fila titulo={T.ajustes.modoOscuro}>
@@ -311,6 +314,37 @@ function FilaMisPropuestas() {
 }
 
 /** Avisos push (FR-163): se explica antes de pedir el permiso del móvil. */
+/**
+ * Lo que trae la versión instalada (FR-167, AC-127), desde el build (RV-20). La primera vez que se
+ * abre Ajustes tras una versión nueva se marca como "Nuevo"; al salir, ya está vista.
+ */
+function SeccionNovedades() {
+  const [nuevas] = useState(hayNovedadesSinVer);
+  useEffect(() => marcarNovedadesVistas(), []);
+  return (
+    <>
+      <Seccion>
+        {T.ajustes.seccionNovedades}
+        {nuevas && (
+          <span className="bg-naranja-600 ml-2 rounded px-1.5 py-0.5 text-[11px] text-white">{T.ajustes.nuevo}</span>
+        )}
+      </Seccion>
+      <div className="px-3 py-2 text-sm" data-testid="novedades">
+        {NOVEDADES.version && <p className="text-texto-suave text-[13px]">{T.ajustes.version(NOVEDADES.version)}</p>}
+        {NOVEDADES.lineas.length ? (
+          <ul className="mt-1 list-disc pl-5">
+            {NOVEDADES.lineas.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-texto-suave">{T.ajustes.sinNovedades}</p>
+        )}
+      </div>
+    </>
+  );
+}
+
 function SeccionAvisos() {
   const [estado, setEstado] = useState<EstadoPush>(estadoPush);
   const [explicar, setExplicar] = useState(false);
