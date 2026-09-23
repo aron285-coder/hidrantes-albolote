@@ -158,6 +158,44 @@ test.describe('sin cobertura (criterio de salida)', () => {
   });
 });
 
+test.describe('aviso del mapa base en el propio mapa (RV-10, FR-81)', () => {
+  test('con red y sin mapa base, el mapa lo avisa y el botón lo descarga', async ({ page }) => {
+    // Datos móviles: no se descarga solo; el aviso pregunta.
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'connection', { value: { type: 'cellular', saveData: false } });
+    });
+    await page.route('**/mapabase/*.pmtiles', async (r) => {
+      await new Promise((ok) => setTimeout(ok, 1500));
+      await r.continue();
+    });
+    await abrir(page);
+    const aviso = page.getByTestId('aviso-mapabase');
+    await expect(aviso).toContainText(T.mapa.mapabaseFalta);
+    await aviso.getByRole('button', { name: /^Descargar \(\d+,\d MB\)$/ }).click();
+    await expect(aviso).toContainText(/Descargando… \d+ %/);
+    await expect(aviso).toHaveCount(0, { timeout: 20_000 });
+  });
+
+  test('con una versión nueva en el despliegue, el mapa la ofrece', async ({ page }) => {
+    await abrir(page, '/ajustes');
+    await expect(page.getByText(/Descargado · /)).toBeVisible({ timeout: 20_000 });
+    // Lo descargado es de una versión anterior a la del despliegue.
+    await page.evaluate(() => {
+      const d = JSON.parse(localStorage.getItem('hidrantes.mapabase')!);
+      localStorage.setItem('hidrantes.mapabase', JSON.stringify({ ...d, version: '2000-01-01' }));
+    });
+    await page.goto('/');
+    const aviso = page.getByTestId('aviso-mapabase');
+    await expect(aviso).toContainText(T.ajustes.versionNuevaMapa);
+    await expect(aviso.getByRole('button', { name: T.mapa.descargarVersionNueva })).toBeVisible();
+    await aviso.getByRole('button', { name: T.mapa.ocultarAviso }).click();
+    await expect(aviso).toHaveCount(0);
+    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    await page.getByRole('link', { name: T.navegacion.mapa }).click();
+    await expect(page.getByTestId('aviso-mapabase')).toHaveCount(0);
+  });
+});
+
 test.describe('zoom (#136)', () => {
   // El ZOOM_MAX de src/lib/capas.ts. Aquí va el número y no el import porque este archivo se compila
   // con la resolución de Node y capas.ts importa sin extensión; capas.test.ts fija que sigan siendo

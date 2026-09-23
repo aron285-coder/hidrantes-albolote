@@ -372,6 +372,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `[12] puntos` · `Sincronizando…` ·
 `Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` ·
 `Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.` ·
+`El mapa base no está en el móvil: sin cobertura el fondo quedará vacío.` · `Descargar ([4,4] MB)` ·
+`Descargar versión nueva` · `Ocultar aviso` (avisos del mapa base en el propio mapa, FR-81) ·
 `La capa "[Satélite (PNOA)]" necesita cobertura. Los puntos siguen; cambia al mapa base.` ·
 `Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Buscando tu posición…` ·
 `Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.` ·

@@ -11,6 +11,7 @@ import { conSesion } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 import { T } from '../src/lib/textos.ts';
+import mapabase from '../datos/mapabase.json' with { type: 'json' };
 
 // Con el permiso de ubicación concedido, como lo tendrá un voluntario que acepte la primera vez: si
 // no, el aviso de "sin permiso" ya está en pantalla antes de pulsar y no se podría distinguir un
@@ -26,6 +27,10 @@ test.describe.configure({ timeout: 180_000 });
 const NO_SE_PULSAN = new Map<string, string>([
   [T.ajustes.descargar, 'se traería el mapa base entero (megas) desde una red simulada'],
   [T.ajustes.actualizar, 'ídem'],
+  // El aviso del mapa base en el propio mapa (RV-10): se comprueba en mapa.spec.ts, con el archivo
+  // retenido para ver el progreso.
+  [T.mapa.descargarMapabase((mapabase.bytes / 1024 / 1024).toFixed(1).replace('.', ',')), 'ídem'],
+  [T.mapa.descargarVersionNueva, 'ídem'],
   [T.ficha.comoLlegar, 'abre la aplicación de mapas del móvil, fuera del navegador (FR-161)'],
 ]);
 

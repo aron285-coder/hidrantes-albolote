@@ -132,6 +132,10 @@ export const T = {
     sinPuntos: 'Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.',
     mapaNoDescargado:
       'Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.',
+    mapabaseFalta: 'El mapa base no está en el móvil: sin cobertura el fondo quedará vacío.',
+    descargarMapabase: (mb: Parametro) => `Descargar (${mb} MB)`,
+    descargarVersionNueva: 'Descargar versión nueva',
+    ocultarAviso: 'Ocultar aviso',
     capaSinCobertura: (capa: Parametro) =>
       `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia al mapa base.`,
     busquedaVacia: 'Nada coincide con esa búsqueda.',
