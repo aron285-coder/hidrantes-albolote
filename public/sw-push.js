@@ -1,6 +1,12 @@
 // Avisos push dentro del Service Worker (FR-163). Lo importa el Service Worker de Workbox
 // (vite.config.ts, workbox.importScripts). El contenido llega de /api/push: { titulo, cuerpo, url }.
 
+// La caché de fotos de antes de RV-12 guardaba respuestas opacas: con las <img> en modo CORS ya no
+// sirven y harían fallar la foto. Su sucesora es hidrantes-fotos-v2 (config/cache-fotos.ts, RV-43).
+self.addEventListener('activate', (evento) => {
+  evento.waitUntil(caches.delete('hidrantes-fotos'));
+});
+
 self.addEventListener('push', (evento) => {
   let datos = {};
   try {

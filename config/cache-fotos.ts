@@ -6,7 +6,10 @@ export const CACHE_FOTOS = {
   urlPattern: /\/storage\/v1\/object\/public\/hidrantes-fotos/,
   handler: 'CacheFirst' as const,
   options: {
-    cacheName: 'hidrantes-fotos',
+    // El nombre se versiona cuando cambia el modo de petición: la caché anterior guardaba respuestas
+    // opacas (no-cors) que CacheFirst devolvería a una petición CORS, y el navegador lo trata como un
+    // error de red. public/sw-push.js borra la antigua al activarse (docs/18 RV-43).
+    cacheName: 'hidrantes-fotos-v2',
     expiration: { maxEntries: 800, maxAgeSeconds: 180 * 24 * 3600, purgeOnQuotaError: true },
     cacheableResponse: { statuses: [200] },
   },
