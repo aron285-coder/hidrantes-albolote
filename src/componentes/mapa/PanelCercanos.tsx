@@ -1,4 +1,4 @@
-import { Navigation, X } from 'lucide-react';
+import { Navigation, Ruler, X } from 'lucide-react';
 import { BotonCompartir } from './Coordenadas';
 import { MarcadorSvg } from './MarcadorSvg';
 import type { LatLng } from '@/lib/coordenadas';
@@ -38,6 +38,7 @@ export function PanelCercanos({
   alCambiarSoloHidrantes,
   alElegir,
   alVerLista,
+  alMedir,
 }: {
   estado: EstadoCercanos;
   enHoja: boolean;
@@ -45,6 +46,8 @@ export function PanelCercanos({
   alCambiarSoloHidrantes: (si: boolean) => void;
   alElegir: (id: string) => void;
   alVerLista: () => void;
+  /** "Medir tendido": la medición con la recta incidente → punto ya puesta (FR-76). */
+  alMedir: (hasta: LatLng) => void;
 }) {
   const { origen, desdeGps, posicionVieja, candidatos, aviso, soloHidrantes, guardadoEn } = estado;
   return (
@@ -53,7 +56,7 @@ export function PanelCercanos({
       className={cn(
         'bg-fondo absolute z-[600] flex flex-col gap-2 overflow-y-auto p-3 shadow-xl',
         enHoja
-          ? 'rounded-t-hoja inset-x-0 bottom-0 max-h-[45%] pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+          ? 'rounded-t-hoja inset-x-0 bottom-0 max-h-[40%] pb-[max(0.75rem,env(safe-area-inset-bottom))]'
           : 'rounded-tarjeta top-16 left-2 max-h-[calc(100%-5rem)] w-[min(360px,calc(100%-5rem))]',
       )}
     >
@@ -151,6 +154,10 @@ export function PanelCercanos({
                       <Navigation size={16} aria-hidden />
                       {T.ficha.comoLlegar}
                     </a>
+                    <button type="button" onClick={() => alMedir(c.punto)} className={cn(boton, 'flex-1')}>
+                      <Ruler size={16} aria-hidden />
+                      {T.medir.tendido}
+                    </button>
                   </div>
                 </li>
               ))}

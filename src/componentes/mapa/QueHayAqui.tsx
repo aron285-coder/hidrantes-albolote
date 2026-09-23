@@ -1,4 +1,4 @@
-import { Crosshair, MapPinPlus, X } from 'lucide-react';
+import { Crosshair, MapPinPlus, Ruler, X } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { BloqueCoordenadas, BotonCompartir } from './Coordenadas';
 import { Hoja } from '../Hoja';
@@ -29,6 +29,15 @@ export function QueHayAqui({ l, alCerrar, enHoja }: { l: LatLng; alCerrar: () =>
         >
           <Crosshair size={18} aria-hidden />
           {T.aqui.cercanosDesdeAqui}
+        </button>
+        {/* 2. Medir desde aquí (FR-76): la medición empieza en este sitio. */}
+        <button
+          type="button"
+          onClick={() => navegar('/?medir=1', { replace: true, state: { vertices: [l] } })}
+          className={accion}
+        >
+          <Ruler size={18} aria-hidden />
+          {T.medir.desdeAqui}
         </button>
         <BotonCompartir
           titulo={T.compartir.tituloUbicacion}

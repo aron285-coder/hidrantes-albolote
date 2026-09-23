@@ -412,7 +412,10 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Ningún punto que funcione a menos de 2 km del incidente` · `Ver todos en la lista` ·
 `El más cercano, [HID-0012] a [40 m], no funciona` · `El más cercano, [HID-0012] a [40 m], está en mal estado` ·
 `[140 m] · [NE] · [≥ 8 tramos]` · `≥ 1 tramo` · `≥ [8] tramos` · `Compartir el incidente` · `Datos de [hace 3 min]` ·
-`Distancias desde el incidente` · `Cerrar el incidente`.
+`Distancias desde el incidente` · `Cerrar el incidente` · `Medir` · `Medir distancia` · `Medir desde aquí` ·
+`Medir tendido` · `Toca el mapa para poner los puntos del tendido` · `[186 m] · [10] tramos de [20] m` ·
+`[40 m] · 1 tramo de [20] m` · `Deshacer` · `Borrar` · `Terminar` · `Para deshacer hacen falta dos puntos` ·
+`Aún no hay puntos: toca el mapa`.
 
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·

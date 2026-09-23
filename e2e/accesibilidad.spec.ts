@@ -45,6 +45,8 @@ interface Caja {
   grupo: string | null;
   destructivo: boolean;
   variante: string | null;
+  /** Un marcador del mapa: contenido que se desplaza bajo los controles flotantes. */
+  marcador: boolean;
   i: number;
 }
 
@@ -91,6 +93,7 @@ async function geometria(page: Page, contexto: string, { movil }: { movil: boole
         grupo: e.closest('[role=radiogroup]')?.getAttribute('aria-label') ?? null,
         destructivo: e.getAttribute('data-variante') === 'destructivo',
         variante: e.getAttribute('data-variante'),
+        marcador: e.classList.contains('marcador'),
         i,
       };
     });
@@ -120,6 +123,9 @@ async function geometria(page: Page, contexto: string, { movil }: { movil: boole
       }
       if (!movil || gap >= 8) continue;
       if (a.grupo && a.grupo === b.grupo) continue;
+      // Un marcador junto a un control flotante del mapa no es un problema de la interfaz: basta con
+      // mover el mapa (docs/18 GM-03). Entre marcadores, y entre controles, sí cuenta.
+      if (a.marcador !== b.marcador) continue;
       const eje = lado ? Math.min(a.w, b.w) : Math.min(a.h, b.h);
       if (eje >= 52) continue;
       problemas.push(`${a.que} y ${b.que}: ${Math.round(gap)} px entre controles vecinos (< 8)`);
@@ -168,6 +174,11 @@ test.describe('app del voluntario', () => {
     await expect(page.getByRole('region', { name: T.incidente.titulo })).toBeVisible();
     await auditar(page, 'incidente');
     await geometria(page, 'incidente', { movil: !!isMobile });
+    // docs/18 GM-06: la barra de la medición.
+    await page.goto('/?medir=1');
+    await expect(page.getByRole('region', { name: T.medir.titulo })).toBeVisible();
+    await auditar(page, 'medir');
+    await geometria(page, 'medir', { movil: !!isMobile });
   });
 
   test('formulario de alta, que es el que más campos tiene', async ({ page, isMobile }) => {

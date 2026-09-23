@@ -61,6 +61,8 @@ const PANTALLAS: Pantalla[] = [
   { nombre: 'lista', ruta: '/lista', listo: (p) => p.getByPlaceholder(T.mapa.buscar) },
   { nombre: 'ficha', ruta: `/?p=${PUNTOS[0].id}`, listo: (p) => p.getByRole('article') },
   { nombre: 'alta', ruta: '/proponer/alta', listo: (p) => p.getByTestId('selector-pin') },
+  // docs/18 GM-06: la barra de la medición.
+  { nombre: 'medir', ruta: '/?medir=1', listo: (p) => p.getByRole('region', { name: T.medir.titulo }) },
   // docs/18 GM-03: el modo incidente, con su hoja de cercanos.
   {
     nombre: 'incidente',

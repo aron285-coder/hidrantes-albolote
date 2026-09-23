@@ -185,6 +185,26 @@ h3 {
 path.linea-incidente {
   stroke: var(--linea-incidente);
 }
+/* Medición (06 §4.7): línea de 3 px y vértices de papel con borde, en claro y en oscuro. */
+path.linea-medicion {
+  stroke: var(--anillo-seleccion);
+}
+path.vertice-medicion {
+  stroke: var(--anillo-seleccion);
+  fill: var(--papel);
+  fill-opacity: 1;
+}
+.leaflet-div-icon.etiqueta-medicion {
+  background: var(--papel);
+  color: var(--texto);
+  border: 1px solid var(--anillo-seleccion);
+  border-radius: 4px;
+  font-family: var(--font-datos);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+}
 .leaflet-container {
   background: var(--fondo);
   font-family: var(--font-texto);

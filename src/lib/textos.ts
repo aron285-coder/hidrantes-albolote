@@ -222,6 +222,21 @@ export const T = {
     cerrarIncidente: 'Cerrar el incidente',
   },
 
+  medir: {
+    boton: 'Medir',
+    titulo: 'Medir distancia',
+    desdeAqui: 'Medir desde aquí',
+    tendido: 'Medir tendido',
+    empezar: 'Toca el mapa para poner los puntos del tendido',
+    resultado: (distancia: Parametro, n: Parametro, largo: Parametro) =>
+      n === 1 ? `${distancia} · 1 tramo de ${largo} m` : `${distancia} · ${n} tramos de ${largo} m`,
+    deshacer: 'Deshacer',
+    borrar: 'Borrar',
+    terminar: 'Terminar',
+    motivoDeshacer: 'Para deshacer hacen falta dos puntos',
+    motivoBorrar: 'Aún no hay puntos: toca el mapa',
+  },
+
   compartir: {
     boton: 'Compartir',
     tituloUbicacion: 'Ubicación',
