@@ -78,7 +78,8 @@ jobs:
           PG: postgresql://postgres:postgres@127.0.0.1:55422/postgres # detectar-secretos:permitir (Supabase local efímero)
         run: |
           set -euo pipefail
-          psql -X -q -v ON_ERROR_STOP=1 "$PG" -c "insert into cron.job_run_details (jobid, database, username, command, status, start_time, end_time) select jobid, current_database(), username, command, 'succeeded', now() - interval '20 days', now() - interval '20 days' from cron.job where jobname = 'hidrantes_resumen_semanal';"
+          # runid a mano: postgres no puede usar cron.runid_seq en el Supabase local.
+          psql -X -q -v ON_ERROR_STOP=1 "$PG" -c "insert into cron.job_run_details (jobid, runid, database, username, command, status, start_time, end_time) select jobid, (select coalesce(max(runid), 0) + 1000000 from cron.job_run_details), current_database(), username, command, 'succeeded', now() - interval '20 days', now() - interval '20 days' from cron.job where jobname = 'hidrantes_resumen_semanal';"
           tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "$MIG" -f scripts/sql/tareas-programadas.sql)
           problema=$(echo "$tareas" | jq '.[] | select(.tarea == "hidrantes_resumen_semanal") | .problema')
           echo "hidrantes_resumen_semanal, última hace 20 días: problema = $problema"
