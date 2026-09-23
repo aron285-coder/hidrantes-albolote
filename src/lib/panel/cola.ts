@@ -430,7 +430,7 @@ export function conDireccion(c: Record<string, unknown>, escrita: string, sugeri
 // ---------- fusionar con el existente (FR-51, FR-106) ----------
 
 export type Prevalece = 'propuesta' | 'existente';
-export type CampoFusion = 'racor' | 'caudal' | 'diametro_mm' | 'ubicacion';
+export type CampoFusion = 'racor' | 'caudal' | 'diametro_mm' | 'descripcion' | 'ubicacion';
 
 export interface DiferenciaFusion {
   campo: CampoFusion;
@@ -458,6 +458,15 @@ export function diferenciasFusion(p: PropuestaPanel, existente: Punto): Diferenc
   }
   if (d.racor && d.racor !== existente.racor) {
     difs.push({ campo: 'racor', propuesta: valorDe('racor', d.racor), existente: valorDe('racor', existente.racor) });
+  }
+  // FR-106: "cada campo que difiere", y la descripción difiere a menudo (RV-18).
+  const descripcion = typeof d.descripcion === 'string' ? d.descripcion.trim() : '';
+  if (descripcion && descripcion !== (existente.descripcion ?? '').trim()) {
+    difs.push({
+      campo: 'descripcion',
+      propuesta: valorDe('descripcion', descripcion),
+      existente: valorDe('descripcion', existente.descripcion),
+    });
   }
   if (p.lat != null && p.lng != null) {
     difs.push({

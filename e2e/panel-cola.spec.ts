@@ -82,7 +82,13 @@ function cola() {
       operacion: 'alta',
       creada_en: hace(30),
       codigo: null,
-      datos: { tipo: 'boca_riego', diametro_mm: 45, caudal: 'regular', racor: 'granada' },
+      datos: {
+        tipo: 'boca_riego',
+        diametro_mm: 45,
+        caudal: 'regular',
+        racor: 'granada',
+        descripcion: 'Junto a la fuente',
+      },
       lat: P8.lat + 0.00005,
       lng: P8.lng,
       origen_ubicacion: 'gps',
@@ -316,12 +322,14 @@ test('posible duplicado: comparar y fusionar eligiendo qué prevalece (FR-51)', 
   await expect(detalle.getByRole('columnheader', { name: new RegExp(`${P8.codigo} existente`) })).toBeVisible();
   await detalle.getByRole('button', { name: T.panelCola.fusionarCon(P8.codigo) }).click();
   await detalle.getByLabel(T.panelCola.campoEstado).selectOption('propuesta');
+  // La descripción también difiere y se elige (RV-18, FR-106).
+  await detalle.getByLabel(T.panelCola.campoDescripcion).selectOption('propuesta');
   await detalle.getByRole('button', { name: T.panelCola.fusionar, exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: T.panelCola.fusionada(P8.codigo) })).toBeVisible();
   expect(llamadaA(llamadas, 'fn_fusionar_con_existente')).toEqual({
     propuesta_id: 'c4',
     punto_id: P8.id,
-    prevalece: { caudal: 'propuesta' },
+    prevalece: { caudal: 'propuesta', descripcion: 'propuesta' },
   });
 });
 

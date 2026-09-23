@@ -254,6 +254,21 @@ describe('aprobar con correcciones (FR-106)', () => {
 });
 
 describe('fusionar (FR-51)', () => {
+  it('la descripción también se elige cuando difiere (RV-18, FR-106)', () => {
+    const p = propuesta({
+      operacion: 'alta',
+      datos: { tipo: 'hidrante', diametro_mm: 100, caudal: 'bueno', descripcion: 'Junto a la farmacia' },
+    });
+    expect(diferenciasFusion(p, { ...PUNTO, descripcion: 'Esquina' })).toContainEqual({
+      campo: 'descripcion',
+      propuesta: 'Junto a la farmacia',
+      existente: 'Esquina',
+    });
+    expect(diferenciasFusion(p, { ...PUNTO, descripcion: 'Junto a la farmacia' }).map((d) => d.campo)).not.toContain(
+      'descripcion',
+    );
+  });
+
   it('lista lo que difiere y siempre la ubicación', () => {
     const p = propuesta({
       operacion: 'alta',
