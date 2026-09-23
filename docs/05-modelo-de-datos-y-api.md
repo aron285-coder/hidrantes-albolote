@@ -412,6 +412,7 @@ fn_fusionar_con_existente(propuesta_id uuid, punto_id uuid, prevalece jsonb defa
   -- errores: TIPO_DISTINTO · PUNTO_NO_ACTIVO · PROPUESTA_NO_ALTA
 
 fn_editar_punto(punto_id uuid, cambios jsonb) returns void
+  -- un caudal distinto de 'no_funciona' borra descripcion_fallo, como en fn_aplicar_propuesta (0024, RV-42)
   -- edición directa de administrador (FR-151 desde el inventario); registro es_admin = true.
 
 fn_retirar_punto(punto_id uuid, motivo text) returns void
