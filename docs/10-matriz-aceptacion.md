@@ -169,7 +169,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-124 | Push voluntario | Ajustes → activar notificaciones → jefatura aprueba una propuesta | Llega la notificación; al tocarla se abre Mis propuestas. En iPhone, solo con la app instalada, y la app lo avisó antes | FR-163, TR-104 | | |
 | AC-125 | Push jefatura | Administrador suscrito; un voluntario envía dos altas en 10 min | Una sola notificación agrupada en la hora | FR-164 | | |
 | AC-126 | Regenerar zona desde Ajustes | Ajustes → Regenerar zona | Aviso "tarda unos minutos"; Salud muestra la nueva fecha al terminar | FR-165 | | |
-| AC-127 | Novedades | Tras un despliegue, abrir Ajustes | Tres líneas de novedades con la versión nueva | FR-167 | | |
+| AC-127 | Novedades | Tras un despliegue, abrir Ajustes | Hasta tres líneas de novedades con la versión nueva, escritas para un voluntario: sin rutas de archivo ni códigos internos (DEC-091) | FR-167 | ✓ | e2e `mapa.spec.ts` (RV-47) |
 | AC-128 | Servidor no disponible | Bloquear Supabase (modo avión con mapa base descargado no vale: usar un bloqueo de dominio) | La app muestra los datos guardados y "sin conexión con el servidor"; nada en blanco; lo enviado queda en cola | FR-168, TR-106 | | |
 | AC-129 | Cabeceras | Analizador de cabeceras sobre producción | Puntuación A; CSP sin `unsafe-eval` | TR-100 | | |
 | AC-130 | Vigilancia | Ver la última ejecución de `vigilancia.yml` | En verde; al forzar un fallo se abre una issue | TR-102 | | |

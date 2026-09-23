@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.23 — 23 de septiembre de 2026 (DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.24 — 23 de septiembre de 2026 (DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -703,6 +703,21 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
     además tiene Google pasaría.
 - **Afecta a:** 05 §6.3, 11 §2, `e2e/ayudas.ts`, `supabase/tests/*`, `e2e/integracion/*`.
 
+### DEC-091 · Novedades: solo los ámbitos de cara al usuario
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` RV-47); completa DEC-087
+- **Contexto:** Ajustes enseñaba a los voluntarios líneas como "Scripts/capturas.ts deja las pantallas listas para 13 y 14". `generar-novedades.ts` tomaba cualquier `feat:` o `fix:` del CHANGELOG, y el e2e exigía **exactamente** tres líneas, lo que lo hacía frágil.
+- **Decisión:**
+  1. Solo entran los commits cuyo ámbito esté en esta lista: `mapa, lista, ficha, alta, operaciones, cola, envios, ajustes, avisos, panel, cola-revision, inventario, fotos, posicion, mapabase, diseño, accesibilidad, busqueda, incidente, medir, compartir`. La lista está en el propio script (`AMBITOS_USUARIO`).
+  2. Se descarta la línea que, ya limpia, nombre un archivo (`.ts`, `.tsx`, `.yml`, `.sql`, `.md`) o un código interno (`RV-nn`, `F9.x`, `TR-nn`, `FR-nn`).
+  3. Cada línea se corta a 140 caracteres.
+  4. Sin ninguna válida, `lineas: []`, y Ajustes enseña su texto vacío.
+  5. CLAUDE.md §5.5 lo pide al escribir: la descripción de un `feat:` o `fix:` con ámbito de usuario dice qué cambia para un voluntario.
+  6. El e2e pasa a "entre 1 y 3 líneas, sin `/` ni `.ts`".
+- **Descartado:**
+  - Escribir las novedades a mano en un archivo aparte: nadie se acordaría.
+  - Filtrar solo por palabras: los ámbitos ya separan lo interno de lo que se ve.
+- **Afecta a:** `scripts/generar-novedades.ts`, CLAUDE.md §5, 10 (AC-127).
+
 ### DEC-090 · El tipo de un punto no se cambia
 - **Fecha:** 23 sep 2026 · **Estado:** vigente. Decisión del desarrollador (`docs/18` §0.3.1, RV-41); pendiente de conformidad de jefatura en F9.1 (#76).
 - **Contexto:** "corregir datos", `fn_editar_punto` y las correcciones de `fn_aplicar_propuesta` admitían `tipo`, pero el `codigo` no cambia. Una boca de riego podía quedarse como `HID-0123`: rompía FR-10 ("coherente con su prefijo"), y del tipo salen el radio del marcador y el diámetro fijo de 45 mm.
@@ -1200,7 +1215,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091 |
 | 11 | 002, 004, 011, 017–019, 022, 086, 094 |
 | 15 | 023, 061, 085, 088 |
 | 16 | 007, 037 |

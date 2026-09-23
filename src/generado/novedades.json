@@ -2,8 +2,8 @@
   "version": "0.4.0",
   "fecha": "2026-09-22",
   "lineas": [
-    "Purgar las fotos huerfanas desde Ajustes y cada lunes",
-    "Scripts/capturas.ts deja las pantallas listas para 13 y 14",
-    "Scripts/promover-piloto.ts y su workflow con aprobacion"
+    "El estado regular pasa a naranja",
+    "Alta manteniendo pulsado el mapa, como en Google Maps",
+    "Mapa base propio, capas, simbología, lista, búsqueda y ficha"
   ]
 }

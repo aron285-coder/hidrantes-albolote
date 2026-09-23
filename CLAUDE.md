@@ -89,7 +89,9 @@ cobertura · fuera de zona.
    flujos. La issue no está terminada sin ellos. Comprueba también las reglas UI de 06 §9 en la
    pantalla que toques.
 5. PR a `develop` que enlaza la issue, con la plantilla rellena (definición de terminado, 09 §6).
-   Commits *conventional* en español: `feat(mapa): …`, `fix(cola): …`, `chore(ci): …`.
+   Commits *conventional* en español: `feat(mapa): …`, `fix(cola): …`, `chore(ci): …`. La descripción
+   de un `feat:` o `fix:` con ámbito de usuario se escribe para un voluntario: qué cambia para él, sin
+   nombres de archivos ni códigos internos. Sale tal cual en Novedades (FR-167, DEC-091).
 6. CI verde → merge → staging se despliega solo. Comprueba staging con Playwright si el cambio es
    visible.
 7. Marca la issue; si cierra una fase, escribe `docs/verificacion/fase-N.md` (qué casos de 10 has
