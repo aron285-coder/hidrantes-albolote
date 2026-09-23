@@ -3,6 +3,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { colaEnMemoria } from './bd';
+import type { EnCola } from './cola';
 import type { ArgumentosPropuesta } from './propuestas';
 import { almacenEnMemoria, respuesta } from './pruebas';
 
@@ -11,7 +12,11 @@ vi.mock('./supabase', () => ({
   supabase: () => ({ rpc, auth: { getSession: async () => ({ data: { session: null } }) } }),
 }));
 
+const anotarError = vi.fn();
+vi.mock('./errores', () => ({ anotarError }));
+
 const cola = await import('./cola');
+const { LIMITES_RED } = await import('./red');
 const { _reiniciar } = await import('./conexion');
 const { guardarSesion } = await import('./sesion');
 
@@ -147,5 +152,113 @@ describe('cola de envíos', () => {
     await cola.encolar(args('k-000007'), null, null);
     expect(cola.atascados(Date.now() + 25 * 3600_000).map((i) => i.clave_local)).toEqual(['k-000007']);
     expect(cola.atascados()).toEqual([]);
+  });
+});
+
+/** Promesa que el test suelta cuando quiere. */
+function retenida<T>() {
+  let soltar!: (v: T) => void;
+  const promesa = new Promise<T>((r) => (soltar = r));
+  return { promesa, soltar };
+}
+
+describe('cola: vueltas pedidas durante un envío (RV-01)', () => {
+  it('encola durante un envío en curso y sale en la misma llamada', async () => {
+    const reserva = retenida<Response>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/url-subida') return reserva.promesa;
+      return new Response(null, { status: 200 });
+    });
+    rpc.mockResolvedValue(ok());
+    await cola.encolar(args('k-000101'), FOTO, 'HID-0147');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await cola.encolar({ ...args('k-000102'), operacion: 'datos', punto_id: 'p2' }, null, 'HID-0148');
+    reserva.soltar(respuesta(200, { foto_path: 'fotos/a.jpg', url: 'https://sb/subir' }));
+    await cola.procesarCola();
+    expect(cola.colaActual()).toEqual([]);
+    expect(rpc.mock.calls.map((c) => c[1].clave_local)).toEqual(['k-000101', 'k-000102']);
+  });
+
+  it('reintentarCola durante un envío en curso reintenta también lo que esperaba retroceso', async () => {
+    rpc.mockResolvedValueOnce(caido);
+    await cola.encolar(args('k-000103'), null, 'HID-0147');
+    await cola.procesarCola();
+    expect(cola.colaActual()[0].proximo).toBeGreaterThan(Date.now());
+
+    const reserva = retenida<Response>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/url-subida') return reserva.promesa;
+      return new Response(null, { status: 200 });
+    });
+    rpc.mockResolvedValue(ok());
+    await cola.encolar(args('k-000104'), FOTO, 'HID-0148');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const reintento = cola.reintentarCola();
+    reserva.soltar(respuesta(200, { foto_path: 'fotos/b.jpg', url: 'https://sb/subir' }));
+    await reintento;
+    expect(cola.colaActual()).toEqual([]);
+  });
+
+  it('sin servidor, la vuelta extra no reintenta en bucle', async () => {
+    const reserva = retenida<Response>();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/url-subida') return reserva.promesa;
+      return new Response(null, { status: 200 });
+    });
+    rpc.mockResolvedValue(caido);
+    await cola.encolar(args('k-000105'), FOTO, 'HID-0147');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await cola.encolar(args('k-000106'), null, 'HID-0148');
+    void cola.procesarCola();
+    reserva.soltar(respuesta(200, { foto_path: 'fotos/c.jpg', url: 'https://sb/subir' }));
+    await cola.procesarCola();
+    expect(rpc.mock.calls.length).toBeLessThanOrEqual(2);
+    const [a] = cola.colaActual();
+    expect(a).toMatchObject({ clave_local: 'k-000105', intentos: 1 });
+    expect(a!.proximo).toBeGreaterThan(Date.now());
+  });
+
+  it('un PUT que no responde se corta y se reintenta', async () => {
+    LIMITES_RED.foto = 30;
+    try {
+      fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+        if (url === '/api/url-subida') return respuesta(200, { foto_path: 'fotos/d.jpg', url: 'https://sb/subir' });
+        return new Promise<Response>((_, rechazar) =>
+          init?.signal?.addEventListener('abort', () => rechazar(init.signal!.reason)),
+        );
+      });
+      rpc.mockResolvedValue(ok());
+      await cola.encolar(args('k-000107'), FOTO, null);
+      await cola.procesarCola();
+      const [a] = cola.colaActual();
+      expect(a).toMatchObject({ intentos: 1, fallo: null });
+      expect(a!.proximo).toBeGreaterThan(0);
+      expect(rpc).not.toHaveBeenCalled();
+    } finally {
+      LIMITES_RED.foto = 120_000;
+    }
+  });
+});
+
+describe('cola: IndexedDB que falla (RV-02)', () => {
+  it('encolar informa persistida=false si IndexedDB falla y sigue enviando', async () => {
+    const roto = colaEnMemoria<EnCola>();
+    roto.guardar = async () => {
+      throw new Error('QuotaExceededError');
+    };
+    cola._usarAlmacenCola(roto);
+    anotarError.mockClear();
+    rpc.mockResolvedValue(ok());
+    const r = await cola.encolar(args('k-000201'), null, 'HID-0147');
+    expect(r).toEqual({ persistida: false });
+    await cola.procesarCola();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(cola.colaActual()).toEqual([]);
+    expect(anotarError).toHaveBeenCalled();
+  });
+
+  it('encolar informa persistida=true con IndexedDB sano', async () => {
+    rpc.mockResolvedValue(ok());
+    expect(await cola.encolar(args('k-000202'), null, 'HID-0147')).toEqual({ persistida: true });
   });
 });

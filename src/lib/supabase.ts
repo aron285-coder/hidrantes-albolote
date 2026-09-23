@@ -3,6 +3,7 @@
 // y la app se comporta como con el servidor caído (FR-168).
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { LIMITES_RED, fetchConLimite } from './red';
 
 // Sin tipos generados del esquema: las RPC devuelven lo que dice 05 y se tipan en src/lib/api.ts.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -18,6 +19,9 @@ export function supabase(): Cliente | null {
     url && clave
       ? createClient(url, clave, {
           db: { schema: 'hidrantes' },
+          // Toda petición con límite de tiempo (RV-01): un aborto llega como error sin status y
+          // se trata como servidor no disponible.
+          global: { fetch: fetchConLimite(() => LIMITES_RED.rpc) },
           auth: { flowType: 'pkce', persistSession: true, detectSessionInUrl: true, storageKey: 'hidrantes.auth' },
         })
       : null;

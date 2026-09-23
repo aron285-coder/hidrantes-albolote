@@ -4,8 +4,11 @@
 
 import { SIN_SERVIDOR, rpc } from './api';
 import { type AlmacenCola, almacenCola } from './bd';
+import { escribir } from './almacen';
 import { anotarServidor, espera, registrarComprobacion, reintentarAhora } from './conexion';
+import { anotarError } from './errores';
 import type { ArgumentosPropuesta } from './propuestas';
+import { LIMITES_RED, conLimite } from './red';
 import { leerSesion } from './sesion';
 import { supabase } from './supabase';
 
@@ -80,12 +83,24 @@ export async function cargarCola(): Promise<void> {
   cargada = true;
 }
 
-async function guardar(item: EnCola) {
+let errorGuardadoAnotado = false;
+
+/**
+ * Publica en memoria y escribe en IndexedDB. Nunca lanza: sin IndexedDB (navegación privada, cuota
+ * agotada) se puede enviar igual con cobertura. Devuelve si quedó guardado en el móvil (RV-02); el
+ * primer fallo de la sesión se anota para que llegue a errores_cliente.
+ */
+async function guardar(item: EnCola): Promise<boolean> {
   publicar([...items.filter((i) => i.clave_local !== item.clave_local), item]);
   try {
     await bd().guardar(item);
-  } catch {
-    // en memoria sigue
+    return true;
+  } catch (e) {
+    if (!errorGuardadoAnotado) {
+      errorGuardadoAnotado = true;
+      anotarError(e, 'cola');
+    }
+    return false;
   }
 }
 
@@ -98,10 +113,17 @@ async function quitar(clave: string) {
   }
 }
 
-/** Guarda la propuesta con su foto y trata de enviarla ya. */
-export async function encolar(args: ArgumentosPropuesta, foto: Blob | null, codigo: string | null): Promise<void> {
+/**
+ * Guarda la propuesta con su foto y trata de enviarla ya. `persistida: false` quiere decir que solo
+ * está en memoria: si la aplicación se cierra antes de enviarla, se pierde (RV-02).
+ */
+export async function encolar(
+  args: ArgumentosPropuesta,
+  foto: Blob | null,
+  codigo: string | null,
+): Promise<{ persistida: boolean }> {
   if (!cargada) await cargarCola();
-  await guardar({
+  const persistida = await guardar({
     clave_local: args.clave_local,
     creada_en: Date.now(),
     args,
@@ -113,6 +135,7 @@ export async function encolar(args: ArgumentosPropuesta, foto: Blob | null, codi
     fallo: null,
   });
   void procesarCola();
+  return { persistida };
 }
 
 /** Descartar a mano un envío con error permanente (Mis propuestas, con confirmación). */
@@ -148,6 +171,7 @@ async function subirFoto(item: EnCola, c: Credencial): Promise<Paso> {
   try {
     reserva = await fetch('/api/url-subida', {
       method: 'POST',
+      signal: conLimite(LIMITES_RED.reserva),
       headers: {
         'Content-Type': 'application/json',
         ...('jwt' in c ? { Authorization: `Bearer ${c.jwt}` } : {}),
@@ -164,6 +188,7 @@ async function subirFoto(item: EnCola, c: Credencial): Promise<Paso> {
   try {
     const subida = await fetch(cuerpo.url, {
       method: 'PUT',
+      signal: conLimite(LIMITES_RED.foto),
       headers: { 'Content-Type': item.foto!.type || 'image/jpeg' },
       body: item.foto,
     });
@@ -203,6 +228,8 @@ async function enviarUno(clave: string, c: Credencial): Promise<Paso> {
 }
 
 let procesando: Promise<void> | null = null;
+/** Alguien pidió enviar mientras había una vuelta en curso: al terminarla se da otra (RV-01). */
+let otraVuelta = false;
 let temporizador: ReturnType<typeof setTimeout> | undefined;
 
 /** Siguiente reintento programado: el más cercano de los que esperan su turno (retroceso). */
@@ -214,42 +241,62 @@ function programar() {
   temporizador = setTimeout(() => void procesarCola(), Math.max(1000, Math.min(...futuros) - ahora));
 }
 
-/** Envía todo lo que toca, de uno en uno y en orden. Seguro de llamar muchas veces. */
+/** Una pasada por la cola en orden. `parar`: no tiene sentido seguir ahora (sin acceso, sin servidor). */
+async function unaVuelta(c: Credencial): Promise<'seguir' | 'parar'> {
+  for (const pendiente of [...items]) {
+    const actual0 = items.find((i) => i.clave_local === pendiente.clave_local);
+    if (!actual0 || actual0.fallo || actual0.proximo > Date.now()) continue;
+    const r = await enviarUno(pendiente.clave_local, c);
+    if (r.ok) continue;
+    const actual = items.find((i) => i.clave_local === pendiente.clave_local);
+    if (!actual) continue;
+    if (r.codigo.startsWith('TOKEN_')) {
+      // Acceso caducado o revocado: lo resuelve acceso (vuelta a la entrada); la cola espera.
+      void reintentarAhora();
+      return 'parar';
+    }
+    if (esPermanente(r.codigo)) {
+      await guardar({ ...actual, fallo: r.codigo });
+      continue;
+    }
+    const intentos = actual.intentos + 1;
+    const retraso = r.codigo === 'CUOTA_SUBIDAS_AGOTADA' ? HORA : espera(intentos);
+    await guardar({ ...actual, intentos, proximo: Date.now() + retraso });
+    if (r.codigo === SIN_SERVIDOR) {
+      anotarServidor(false);
+      return 'parar'; // sin servidor no tiene sentido probar los siguientes
+    }
+  }
+  return 'seguir';
+}
+
+/**
+ * Envía todo lo que toca, de uno en uno y en orden. Seguro de llamar muchas veces: una llamada
+ * durante una vuelta devuelve la misma promesa, que no se resuelve hasta dar otra vuelta más. Así
+ * `await procesarCola()` tras encolar espera también a lo recién encolado.
+ */
 export function procesarCola(): Promise<void> {
-  procesando ??= (async () => {
+  if (procesando) {
+    otraVuelta = true;
+    return procesando;
+  }
+  procesando = (async () => {
     // Ceder una vez antes de nada: si el cuerpo terminara sin ningún await, el finally pondría
-    // procesando = null antes de que ??= guarde la promesa, y la cola se quedaría bloqueada.
+    // procesando = null antes de que se guarde la promesa, y la cola se quedaría bloqueada.
     await Promise.resolve();
     try {
       if (!cargada) await cargarCola();
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
-      const c = await credencial();
-      if (!c) return;
-      for (const pendiente of [...items]) {
-        if (pendiente.fallo || pendiente.proximo > Date.now()) continue;
-        const r = await enviarUno(pendiente.clave_local, c);
-        if (r.ok) continue;
-        const actual = items.find((i) => i.clave_local === pendiente.clave_local);
-        if (!actual) continue;
-        if (r.codigo.startsWith('TOKEN_')) {
-          // Acceso caducado o revocado: lo resuelve acceso (vuelta a la entrada); la cola espera.
-          void reintentarAhora();
-          return;
-        }
-        if (esPermanente(r.codigo)) {
-          await guardar({ ...actual, fallo: r.codigo });
-          continue;
-        }
-        const intentos = actual.intentos + 1;
-        const retraso = r.codigo === 'CUOTA_SUBIDAS_AGOTADA' ? HORA : espera(intentos);
-        await guardar({ ...actual, intentos, proximo: Date.now() + retraso });
-        if (r.codigo === SIN_SERVIDOR) {
-          anotarServidor(false);
-          break; // sin servidor no tiene sentido probar los siguientes
-        }
-      }
+      // otraVuelta se apaga al empezar cada vuelta: solo se repite si alguien llamó durante ella.
+      do {
+        otraVuelta = false;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) break;
+        const c = await credencial();
+        if (!c) break;
+        if ((await unaVuelta(c)) === 'parar') break;
+      } while (otraVuelta);
     } finally {
       procesando = null;
+      otraVuelta = false;
       programar();
     }
   })();
@@ -269,8 +316,27 @@ export async function reintentarCola(): Promise<void> {
 /** Arranque: carga la cola y la engancha a los reintentos de la conexión y a la vuelta de la red. */
 export function iniciarCola(): void {
   void cargarCola().then(procesarCola);
+  pedirAlmacenPersistente();
   registrarComprobacion(reintentarCola);
   if (typeof window !== 'undefined') window.addEventListener('online', () => void reintentarCola());
+}
+
+/**
+ * Pide al navegador que no desaloje la cola ni los puntos guardados (TR-07) y anota si lo concede,
+ * para enseñarlo en Ajustes. Sin esperar: el navegador decide cuando quiere.
+ */
+function pedirAlmacenPersistente() {
+  try {
+    const almacenamiento = typeof navigator !== 'undefined' ? navigator.storage : undefined;
+    if (!almacenamiento?.persist) return;
+    void almacenamiento
+      .persist()
+      .then(() => almacenamiento.persisted())
+      .then((si) => escribir('almacen_persistente', si))
+      .catch(() => undefined);
+  } catch {
+    // sin API de almacenamiento: nada que pedir
+  }
 }
 
 /** Solo para los tests. */
@@ -279,6 +345,8 @@ export function _usarAlmacenCola(a: AlmacenCola<EnCola>) {
   items = [];
   cargada = false;
   procesando = null;
+  otraVuelta = false;
+  errorGuardadoAnotado = false;
   clearTimeout(temporizador);
   oyentes.clear();
   alEnviar.clear();

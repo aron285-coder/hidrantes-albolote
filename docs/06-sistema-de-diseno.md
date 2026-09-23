@@ -421,7 +421,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Envío.** `Enviar para revisión` · `Enviar propuesta de retirada` · `Aplicar ahora` ·
 `Guardar · se enviará con cobertura` · `Guardar · se enviará al volver el servidor` ·
 `Enviado para revisión` · `Guardado en el móvil` · `Aplicado` · `Volver al mapa` ·
-`Ver mis propuestas` ·
+`Ver mis propuestas` · `Sin guardar en el móvil` ·
+`No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.` · `Reintentar ahora` ·
 `Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.` ·
 `Sin cobertura · lo que envíes se guardará en el móvil y saldrá al recuperar señal` ·
 `Sin conexión con el servidor · seguimos con los datos guardados; lo que envíes esperará y se reintentará solo`.
@@ -448,7 +449,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Versión [0.1.0]` · `Descargando… [40] %` ·
 `No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
 `No se pudo descargar. Inténtalo de nuevo con wifi.` · `[438] · sincronizado [hace 5 min]` ·
-`Todavía sin sincronizar` · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.`.
+`Todavía sin sincronizar` · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
+ha concedido, o no, no desalojar lo guardado; TR-07).
 
 **Algo no funciona** (FR-92). `Para problemas de la aplicación. Si lo que quieres es cambiar un hidrante, hazlo desde su ficha.` ·
 `Qué ha pasado` · `Ej.: al hacer la foto la app se cierra…` ·

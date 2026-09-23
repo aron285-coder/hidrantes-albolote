@@ -7,6 +7,7 @@ import { useAcceso, useConexion, useInstalar, useMapabase, usePuntos } from '@/h
 import { instalar } from '@/lib/instalar';
 import { useReloj } from '@/hooks/reloj';
 import { type Capa, NOMBRE_CAPA, capaGuardada, guardarCapa } from '@/lib/capas';
+import { leer } from '@/lib/almacen';
 import { reintentarAhora } from '@/lib/conexion';
 import { fechaCorta, hace, megas } from '@/lib/formato';
 import { descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
@@ -222,6 +223,8 @@ function SeccionMapa() {
   const conexion = useConexion();
   const [capa, setCapa] = useState<Capa>(capaGuardada);
   const [eligiendoCapa, setEligiendoCapa] = useState(false);
+  // Si el navegador concedió no desalojar lo guardado (TR-07); null hasta que contesta.
+  const [protegido] = useState(() => leer<boolean>('almacen_persistente'));
   useReloj();
   const sinRed = conexion === 'sin_cobertura';
   const nueva = hayVersionNuevaMapabase(mapabase);
@@ -270,6 +273,9 @@ function SeccionMapa() {
           {sincronizando ? T.mapa.sincronizando : T.ajustes.sincronizar}
         </Boton>
       </Fila>
+      {protegido !== null && (
+        <Fila titulo={T.ajustes.guardadoProtegido} detalle={T.ajustes.guardadoProtegidoValor(protegido)} />
+      )}
       <Fila titulo={T.ajustes.capaPorDefecto} detalle={NOMBRE_CAPA[capa]}>
         <Boton variante="enlace" className="text-sm" onClick={() => setEligiendoCapa(true)}>
           {T.ajustes.cambiar}

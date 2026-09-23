@@ -8,7 +8,7 @@ import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
 import { Campo, CampoFoto, PildorasCaudal, Segmentado, SelectorRacor } from '@/componentes/operaciones/Campos';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useAcceso, useConexion, usePosicion, usePuntos } from '@/hooks/estado';
-import { colaActual, encolar, procesarCola } from '@/lib/cola';
+import { colaActual, encolar, procesarCola, reintentarCola } from '@/lib/cola';
 import { nombreCaudal, nombreTipo } from '@/lib/ficha';
 import type { FotoProcesada } from '@/lib/foto';
 import { distancia, hace } from '@/lib/formato';
@@ -41,7 +41,7 @@ const MOTIVOS: [MotivoRapido, string][] = [
 const areaTexto =
   'bg-papel border-linea rounded-campo text-texto min-h-11 w-full border px-3 py-2 text-base placeholder:text-texto-suave';
 
-type Resultado = 'enviado' | 'guardado' | 'aplicado';
+type Resultado = 'enviado' | 'guardado' | 'aplicado' | 'solo_en_memoria';
 
 /** Formulario de las seis operaciones (FL-03–FL-08, 07 §7.3). `/proponer/:operacion?p=<punto>`. */
 export function Proponer() {
@@ -118,12 +118,13 @@ function FormularioOperacion({
         ? { nombre: acceso.sesion.nombre, apellido: acceso.sesion.apellido }
         : { nombre: T.navegacion.jefatura, apellido: acceso.tipo === 'jefatura' ? acceso.correo : '-' };
     const clave = crypto.randomUUID();
+    let persistida: boolean;
     try {
-      await encolar(
+      ({ persistida } = await encolar(
         argumentos(formulario, punto, autor, clave),
         necesitaFoto(operacion) || foto ? (foto?.blob ?? null) : null,
         punto?.codigo ?? null,
-      );
+      ));
       await procesarCola();
     } catch {
       setFalloGuardar(true);
@@ -131,7 +132,8 @@ function FormularioOperacion({
       return;
     }
     const sigue = colaActual().some((i) => i.clave_local === clave);
-    setResultado(sigue ? 'guardado' : jefatura ? 'aplicado' : 'enviado');
+    // Sigue en la cola y no llegó a IndexedDB: solo vive en memoria y se perdería al cerrar (RV-02).
+    setResultado(sigue ? (persistida ? 'guardado' : 'solo_en_memoria') : jefatura ? 'aplicado' : 'enviado');
     setEnviando(false);
   }
 
@@ -422,15 +424,21 @@ function DatosPunto({
 function PantallaResultado({ resultado }: { resultado: Resultado }) {
   const navegar = useNavigate();
   const acceso = useAcceso();
-  const titulo =
-    resultado === 'aplicado' ? T.envio.aplicado : resultado === 'guardado' ? T.envio.guardadoEnMovil : T.envio.enviado;
-  const detalle =
-    resultado === 'aplicado'
-      ? T.operaciones.aplicadoDetalle
-      : resultado === 'guardado'
-        ? T.operaciones.guardadoDetalle
-        : T.envio.jefaturaRevisara;
-  const Icono = resultado === 'guardado' ? CloudUpload : CheckCircle2;
+  const [reintentando, setReintentando] = useState(false);
+  const titulo = {
+    aplicado: T.envio.aplicado,
+    guardado: T.envio.guardadoEnMovil,
+    solo_en_memoria: T.envio.soloEnMemoria,
+    enviado: T.envio.enviado,
+  }[resultado];
+  const detalle = {
+    aplicado: T.operaciones.aplicadoDetalle,
+    guardado: T.operaciones.guardadoDetalle,
+    solo_en_memoria: T.envio.soloEnMemoriaDetalle,
+    enviado: T.envio.jefaturaRevisara,
+  }[resultado];
+  const pendiente = resultado === 'guardado' || resultado === 'solo_en_memoria';
+  const Icono = pendiente ? CloudUpload : CheckCircle2;
   return (
     <div className="flex flex-1 flex-col">
       <BarraSuperior titulo={titulo} jefatura={acceso.tipo === 'jefatura'} />
@@ -438,9 +446,21 @@ function PantallaResultado({ resultado }: { resultado: Resultado }) {
         role="status"
         className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-3 p-6 text-center"
       >
-        <Icono size={44} className={resultado === 'guardado' ? 'text-naranja-600' : 'text-verde-600'} aria-hidden />
+        <Icono size={44} className={pendiente ? 'text-naranja-600' : 'text-verde-600'} aria-hidden />
         <h2 className="font-titulo text-2xl font-bold">{titulo}</h2>
         <p className="text-texto-suave">{detalle}</p>
+        {resultado === 'solo_en_memoria' && (
+          <Boton
+            className="mt-3 w-full"
+            disabled={reintentando}
+            onClick={() => {
+              setReintentando(true);
+              void reintentarCola().finally(() => setReintentando(false));
+            }}
+          >
+            {reintentando ? T.operaciones.enviando : T.envio.reintentarAhora}
+          </Boton>
+        )}
         <Boton className="mt-3 w-full" onClick={() => navegar('/', { replace: true })}>
           {T.envio.volverAlMapa}
         </Boton>
