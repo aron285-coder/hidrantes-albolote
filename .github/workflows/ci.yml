@@ -69,6 +69,23 @@ jobs:
           echo "$tareas" | jq .
           n=$(echo "$tareas" | jq 'length')
           [ "$n" -eq 7 ] || { echo "::error::se esperaban 7 tareas hidrantes_%, hay $n"; exit 1; }
+      # El comando real con el que vigilancia.yml guarda las tareas, y una semanal que dejó de correr
+      # hace 20 días (RV-38). Sobre develop fallaban las dos: psql no sustituía :'valor' en -c y el
+      # historial de 8 días dejaba la semanal con ultima = null, sin problema.
+      - name: Tareas guardadas y una semanal que dejó de correr (RV-38)
+        env:
+          MIG: postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres # detectar-secretos:permitir (Supabase local efímero)
+          PG: postgresql://postgres:postgres@127.0.0.1:55422/postgres # detectar-secretos:permitir (Supabase local efímero)
+        run: |
+          set -euo pipefail
+          psql -X -q -v ON_ERROR_STOP=1 "$PG" -c "insert into cron.job_run_details (jobid, database, username, command, status, start_time, end_time) select jobid, current_database(), username, command, 'succeeded', now() - interval '20 days', now() - interval '20 days' from cron.job where jobname = 'hidrantes_resumen_semanal';"
+          tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "$MIG" -f scripts/sql/tareas-programadas.sql)
+          problema=$(echo "$tareas" | jq '.[] | select(.tarea == "hidrantes_resumen_semanal") | .problema')
+          echo "hidrantes_resumen_semanal, última hace 20 días: problema = $problema"
+          [ "$problema" = "true" ] || { echo "::error::una semanal que no corre desde hace 20 días no cuenta como problema"; exit 1; }
+          psql -X -q -v ON_ERROR_STOP=1 "$MIG" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql
+          guardado=$(psql -X -A -t -v ON_ERROR_STOP=1 "$MIG" -c "select jsonb_typeof(hidrantes.fn_config('tareas_programadas', 'null'));")
+          [ "$guardado" = "array" ] || { echo "::error::config.tareas_programadas no se ha guardado ($guardado)"; exit 1; }
       - name: Versión del mapa base en config (RV-21)
         run: |
           npm run cargar-version-mapabase -- --local

@@ -399,6 +399,7 @@ async function prepararPages(
   }
   await cred.cloudflare.fijarSecretos(cred.cuentaCf, e.proyectoPages, secretos);
   log.ok(`variables cifradas: ${Object.keys(secretos).join(', ')}`);
+  aplicarSecretosPages(e);
   log.info('GITHUB_DISPATCH_TOKEN se añade en la Fase 7, cuando exista /api/lanzar-workflow (DEC-053).');
   return { vapidPublica, vigilancia };
 }
@@ -543,6 +544,33 @@ async function instalarSkills(): Promise<void> {
   log.info('task-shaper es de la organización: su plantilla ya está en .github/ISSUE_TEMPLATE/tarea.md.');
 }
 
+/**
+ * Pages aplica sus secretos solo a los despliegues **nuevos**; el del repositorio vale al momento.
+ * Tras rotar VIGILANCIA_SECRETO, avisos.yml recibía 401 cada 15 minutos hasta el siguiente
+ * despliegue (docs/18 RV-38). Staging se vuelve a desplegar ahora; producción exige la aprobación
+ * del environment y solo se despliega por PR develop → main, así que se dice el paso.
+ */
+export function pasoTrasSecretosPages(e: { clave: 'staging' | 'production' }): { comando?: string[]; aviso: string } {
+  if (e.clave === 'staging') {
+    return {
+      comando: ['workflow', 'run', 'Desplegar staging', '--ref', 'develop'],
+      aviso: 'staging se vuelve a desplegar ahora para que las Functions vean los secretos nuevos',
+    };
+  }
+  return {
+    aviso:
+      'producción verá los secretos nuevos en su siguiente despliegue (PR develop → main con tu aprobación). Hasta entonces avisos.yml da 401 en PROD como aviso, sin fallar (15 §2).',
+  };
+}
+
+function aplicarSecretosPages(e: Entorno): void {
+  const paso = pasoTrasSecretosPages(e);
+  if (!paso.comando) return log.aviso(paso.aviso);
+  const r = ejecutar('gh', paso.comando);
+  if (r.codigo === 0) log.ok(paso.aviso);
+  else log.aviso(`No se ha podido lanzar el despliegue de staging (${r.error.trim()}): gh ${paso.comando.join(' ')}`);
+}
+
 function escribirEntornos(datos: Map<string, DatosSupabase>, cuentaCf: string, huella: string | null): void {
   log.paso('11. docs/entornos.md');
   const archivo = path.join(RAIZ, 'docs', 'entornos.md');
@@ -554,6 +582,10 @@ function escribirEntornos(datos: Map<string, DatosSupabase>, cuentaCf: string, h
     }
   })();
   const huellaTexto = huella ?? anterior.match(/Huella GPG de respaldos \| `([^`]+)`/)?.[1] ?? '—';
+  // La nota que acompaña a la huella (cuándo y por qué se regeneró) se conserva si la clave no cambia.
+  const notaHuella = huella
+    ? ''
+    : (anterior.match(/Huella GPG de respaldos \| `[^`]+`([^|\n]*)\|/)?.[1] ?? '').trimEnd();
   const filas = ENTORNOS.map((e) => {
     const d = datos.get(e.clave)!;
     return `| ${e.clave} | \`${e.rama}\` | \`${e.proyectoSupabase}\` · \`${d.ref}\` | \`${e.bucket}\` | https://${e.proyectoPages}.pages.dev |`;
@@ -574,14 +606,18 @@ ${filas.join('\n')}
 | Repositorio | https://github.com/${REPO} (público, DEC-053) |
 | Cuenta de Cloudflare | \`${cuentaCf}\` |
 | Rol de migraciones | \`hidrantes_migrador\` por el pooler en modo sesión, puerto 5432 (DEC-052) |
-| Huella GPG de respaldos | \`${huellaTexto}\` |
+| Huella GPG de respaldos | \`${huellaTexto}\`${notaHuella} |
 | Secretos por environment | \`SUPABASE_DB_URL\`, \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\` (+ \`GPG_PUBLIC_KEY\` en production) |
 | Variables por environment | \`VITE_ENTORNO\`, \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_ANON_KEY\`, \`VITE_VAPID_PUBLIC_KEY\`, \`PAGES_PROYECTO\`, \`SUPABASE_PROJECT_REF\` |
 | Variables del repositorio | \`SUPABASE_URL_STAGING\`, \`SUPABASE_ANON_KEY_STAGING\`, \`SUPABASE_URL_PROD\`, \`SUPABASE_ANON_KEY_PROD\` (mantener-activo.yml, DEC-054) |
-| Secretos del repositorio | \`SUPABASE_DB_URL_{STAGING,PROD}\`, \`SUPABASE_SERVICE_ROLE_KEY_{STAGING,PROD}\`, \`GPG_PUBLIC_KEY\` (respaldo y promoción del piloto: DEC-071, DEC-078), \`VIGILANCIA_SECRETO_{STAGING,PROD}\` (avisos.yml) |
-| Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_SUBJECT\`, \`VIGILANCIA_SECRETO\` |
+| Secretos del repositorio | \`SUPABASE_DB_URL_{STAGING,PROD}\`, \`SUPABASE_SERVICE_ROLE_KEY_{STAGING,PROD}\`, \`GPG_PUBLIC_KEY\` (respaldo y promoción del piloto: DEC-071, DEC-078), \`VIGILANCIA_SECRETO_{STAGING,PROD}\` (avisos.yml, DEC-088) |
+| Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_SUBJECT\`, \`VIGILANCIA_SECRETO\` (DEC-088) |
 
 Rotar un secreto: \`npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|vigilancia|todo>\` (15).
+
+Pages aplica sus secretos solo a los despliegues nuevos: tras rotar uno, el arranque vuelve a desplegar
+staging (\`gh workflow run "Desplegar staging" --ref develop\`); producción lo aplica en su siguiente
+despliegue, el PR \`develop → main\` (15 §2, docs/18 RV-38).
 `,
   );
   log.ok('escrito (sin secretos): haz commit en una rama y PR a develop');

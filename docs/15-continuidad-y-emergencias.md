@@ -49,6 +49,14 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
 contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
 
+**Tras regenerar un secreto de Cloudflare Pages** (`npm run arranque -- --rotar …`): Pages solo lo
+aplica a los despliegues **nuevos**, y el del repositorio vale al momento. El arranque vuelve a
+desplegar staging solo (`gh workflow run "Desplegar staging" --ref develop`). Producción lo aplica en
+su siguiente despliegue, el PR `develop → main` con la aprobación del desarrollador. Mientras tanto
+`avisos.yml` recibe 401 en PROD y lo deja como aviso en el resumen, sin fallar: los avisos siguen
+saliendo al moderar y al sincronizar, y la vigilancia diaria salta si se atascan más de dos horas
+(docs/18 RV-38). `VIGILANCIA_SECRETO` se rotó el 23 sep 2026.
+
 Comprobación del sobre: cerrado, fechado, firmado por dos personas, en la caja fuerte o el archivo de
 la sede. Se abre solo con dos personas presentes y se anota en §9.
 
