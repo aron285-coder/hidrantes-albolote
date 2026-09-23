@@ -7,7 +7,8 @@ import { Leyenda } from '@/componentes/mapa/Leyenda';
 import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
 import { type ControlMapa, MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
-import { QueHayAqui, leerAqui, parametroAqui } from '@/componentes/mapa/QueHayAqui';
+import { QueHayAqui } from '@/componentes/mapa/QueHayAqui';
+import { leerLatLng, parametroLatLng } from '@/lib/coordenadas';
 import { SelectorCapas } from '@/componentes/mapa/SelectorCapas';
 import { AvisoInstalar } from '@/componentes/AvisoInstalar';
 import { BandaEntorno } from '@/componentes/BandaEntorno';
@@ -60,7 +61,7 @@ export function Mapa() {
   const [params] = useSearchParams();
   const seleccionado = params.get('p');
   const aquiParam = params.get('aqui');
-  const aqui = useMemo(() => leerAqui(aquiParam), [aquiParam]);
+  const aqui = useMemo(() => leerLatLng(aquiParam), [aquiParam]);
   const [capa, setCapa] = useState<Capa>(capaGuardada);
   const [menuCapas, setMenuCapas] = useState(false);
   const [texto, setTexto] = useState('');
@@ -78,7 +79,7 @@ export function Mapa() {
   const cerrarFicha = useCallback(() => navegar('/', { replace: true }), [navegar]);
   // "¿Qué hay aquí?" va en la URL: *atrás* la cierra (FR-72).
   const abrirAqui = useCallback(
-    (lat: number, lng: number) => navegar(`/?aqui=${parametroAqui({ lat, lng })}`, { replace: !!aquiParam }),
+    (lat: number, lng: number) => navegar(`/?aqui=${parametroLatLng({ lat, lng })}`, { replace: !!aquiParam }),
     [navegar, aquiParam],
   );
 

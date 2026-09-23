@@ -62,14 +62,3 @@ export function QueHayAqui({ l, alCerrar, enHoja }: { l: LatLng; alCerrar: () =>
     </aside>
   );
 }
-
-/** `?aqui=37.230500,-3.656000` → coordenadas, o null si no son válidas. */
-export function leerAqui(valor: string | null): LatLng | null {
-  if (!valor) return null;
-  const [lat, lng] = valor.split(',').map(Number);
-  if (lat === undefined || lng === undefined || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
-  return { lat, lng };
-}
-
-export const parametroAqui = (l: LatLng) => `${l.lat.toFixed(6)},${l.lng.toFixed(6)}`;

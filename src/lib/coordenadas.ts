@@ -121,6 +121,19 @@ export function formatoGms(p: LatLng): string {
   return `${parte(p.lat, 'N', 'S')} ${parte(p.lng, 'E', 'O')}`;
 }
 
+/** `37.230500,-3.656000` en la URL (`?aqui=`, `?incidente=`) → coordenadas, o null si no lo son. */
+export function leerLatLng(valor: string | null): LatLng | null {
+  if (!valor) return null;
+  const partes = valor.split(',').map(Number);
+  const [lat, lng] = partes;
+  if (partes.length !== 2 || lat === undefined || lng === undefined) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
+
+/** Coordenadas para la URL: seis decimales, unos 10 cm. */
+export const parametroLatLng = (l: LatLng) => `${l.lat.toFixed(6)},${l.lng.toFixed(6)}`;
+
 /** Enlace universal de Google Maps a unas coordenadas (FR-75): lo abre cualquier móvil. */
 export const enlaceGoogleMaps = (p: LatLng) =>
   `https://www.google.com/maps/search/?api=1&query=${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
