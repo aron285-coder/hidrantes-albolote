@@ -12,7 +12,7 @@ import { colaActual, encolar, estaPersistida, procesarCola, reintentarCola } fro
 import { nombreCaudal, nombreTipo } from '@/lib/ficha';
 import type { FotoProcesada } from '@/lib/foto';
 import { distancia, hace } from '@/lib/formato';
-import { activarPosicion, posicionActual } from '@/lib/posicion';
+import { activarPosicion, esAntigua, posicionActual } from '@/lib/posicion';
 import {
   type Formulario,
   type MotivoRapido,
@@ -78,7 +78,12 @@ function FormularioOperacion({
   const acceso = useAcceso();
   const conexion = useConexion();
   usePosicion();
-  const gps = posicionActual();
+  // Una posición que el GPS dejó de refrescar (timeout, o más de 60 s) no coloca el pin del alta ni
+  // viaja como gps_*: jefatura vería "GPS ±9 m" de un sitio del que quizá ya se ha ido (docs/18 RV-40).
+  // El mapa la sigue enseñando atenuada.
+  const ultimaPosicion = posicionActual();
+  const gps = ultimaPosicion && !esAntigua(ultimaPosicion) ? ultimaPosicion : null;
+  const posicionVieja = !!ultimaPosicion && !gps;
   const jefatura = acceso.tipo === 'jefatura';
   const [foto, setFoto] = useState<FotoProcesada | null>(null);
   useEffect(() => activarPosicion(), []);
@@ -197,7 +202,9 @@ function FormularioOperacion({
                 ? T.operaciones.ubicacionAyuda
                 : gps
                   ? T.avisosFormulario.ajustaPin(Math.round(gps.precision))
-                  : T.operaciones.sinGps}
+                  : posicionVieja
+                    ? T.avisosFormulario.posicionNoAlDia
+                    : T.operaciones.sinGps}
             </p>
             {pinFuera && (
               <p className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm">

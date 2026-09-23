@@ -274,6 +274,7 @@ export const T = {
     explicaMotivo: 'Explica brevemente qué has visto',
     fueraDeZona: '⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.',
     ajustaPin: (metros: Parametro) => `Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±${metros} m)`,
+    posicionNoAlDia: 'La posición no está al día: coloca el pin a mano o espera a que el GPS responda',
   },
 
   envio: {
