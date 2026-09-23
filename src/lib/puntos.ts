@@ -43,6 +43,22 @@ let config: ConfigMovil | null = null;
 /** Jefatura no recibe config: el tramo de manguera lo lee aparte de la tabla (FR-142, GM-01). */
 let tramoJefatura: number | null = null;
 
+/**
+ * Jefatura: el tramo, de la tabla de config (lo lee por RLS de administrador). Se pide cuando hace
+ * falta, no al sincronizar: una lectura más en cada sincronización no aporta nada al mapa. Si no se
+ * puede, se queda el que hubiera.
+ */
+export async function cargarTramoJefatura(): Promise<void> {
+  const cliente = supabase();
+  if (!cliente) return;
+  try {
+    const { data } = await cliente.from('config').select('valor').eq('clave', 'metros_tramo_manguera').maybeSingle();
+    if (data) tramoJefatura = leerMetrosTramo((data as { valor: unknown }).valor);
+  } catch {
+    // sin config legible: el de por defecto
+  }
+}
+
 /** Longitud del tramo de manguera con la que calcular los tramos (FR-74, FR-76). */
 export const metrosTramoManguera = () => config?.metros_tramo_manguera ?? tramoJefatura ?? METROS_TRAMO_POR_DEFECTO;
 /**
@@ -233,18 +249,6 @@ async function leerComoJefatura(): Promise<Resultado<Listado>> {
     if (data.length < PAGINA_JEFATURA) break;
   }
   anotarServidor(true);
-  // El tramo de manguera, de la tabla de config (jefatura la lee por RLS de administrador). Si no se
-  // puede, se queda el que hubiera: no bloquea la sincronización.
-  try {
-    const { data: fila } = await cliente
-      .from('config')
-      .select('valor')
-      .eq('clave', 'metros_tramo_manguera')
-      .maybeSingle();
-    if (fila) tramoJefatura = leerMetrosTramo((fila as { valor: unknown }).valor);
-  } catch {
-    // sin config legible: el de por defecto
-  }
   return { ok: true, datos: { puntos: todos, bajas: [], sincronizado_en: ahora } };
 }
 
