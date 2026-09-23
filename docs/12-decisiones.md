@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-085; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082, DEC-085; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -683,6 +683,25 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   commit mensual automático a `develop` (ensucia el historial y dispara despliegues).
 - **Afecta a:** 04 §9, 15 §4.
 
+### DEC-082 · El móvil deriva "sin revisar" y el radio del marcador
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (bajo riesgo; `docs/17` RV-05)
+- **Contexto:** `v_puntos_activos` calcula `revision_caducada` y `radio_px` al leer, pero tras la
+  primera sincronización el móvil solo recibe los puntos con `actualizado_en > desde`. Un punto que
+  cruza los 12 meses sin cambiar nunca se veía "sin revisar" (FR-61), y un cambio de
+  `escala_radios` no llegaba a los puntos no modificados (FR-142). `fn_listar_puntos` ya mandaba
+  `config` y el cliente la ignoraba.
+- **Decisión:** `src/lib/derivar.ts` replica `fn_radio_px` y la comparación de fechas de la vista
+  (resta de meses al estilo de Postgres) y el móvil deriva los dos campos en todos sus puntos al
+  sincronizar, al cargar lo guardado y al volver a la app si cambió el día local. La paridad con el
+  servidor se comprueba en la integración contra la pila real. Jefatura lee la vista entera y no
+  re-deriva al sincronizar.
+- **Consecuencia aceptada:** "hoy" es la fecha local del móvil y el servidor usa la suya (UTC):
+  alrededor de medianoche pueden diferir un día.
+- **Descartado:** forzar una sincronización completa diaria (más datos móviles para algo que se
+  calcula con dos números) y tocar `actualizado_en` de los puntos que caducan con `pg_cron` (una
+  escritura masiva que ensucia el registro y no resuelve el cambio de escala).
+- **Afecta a:** 05 §10.
+
 ### DEC-081 · El ámbar de los avisos, medido como texto y no como relleno
 - **Fecha:** 22 sep 2026 · **Estado:** vigente; continúa DEC-072 y DEC-076
 - **Contexto:** `--ambar-700` (`#8A6408`) nació como **relleno** del marcador "regular", donde TR-31
@@ -1021,7 +1040,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 085 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |

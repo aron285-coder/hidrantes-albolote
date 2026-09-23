@@ -6,6 +6,7 @@ import { type Resultado, rpc } from './api';
 import { type Almacen, almacenPuntos } from './bd';
 import { supabase } from './supabase';
 import { anotarServidor } from './conexion';
+import { CONFIG_POR_DEFECTO, type ConfigMovil, derivar, diaLocal, leerConfig } from './derivar';
 
 import type { Caudal, Punto } from '../tipos/punto';
 
@@ -15,6 +16,8 @@ interface Listado {
   puntos: Punto[];
   bajas: string[];
   sincronizado_en: string;
+  /** Solo en fn_listar_puntos (voluntario); la vista de jefatura no la trae. */
+  config?: unknown;
 }
 
 export interface EstadoPuntos {
@@ -29,6 +32,17 @@ export interface EstadoPuntos {
 
 let almacen: Almacen<Punto> | null = null;
 const bd = () => (almacen ??= almacenPuntos<Punto>());
+
+/** Config con la que se derivan radio_px y revision_caducada (RV-05); la última recibida. */
+let config: ConfigMovil = CONFIG_POR_DEFECTO;
+/** Día local de la última derivación: si cambia, "sin revisar" puede haber cambiado sin red. */
+let derivadoEl: string | null = null;
+
+const derivarTodos = (puntos: Punto[]) => {
+  const hoy = new Date();
+  derivadoEl = diaLocal(hoy);
+  return puntos.map((p) => derivar(p, config, hoy));
+};
 
 let estado: EstadoPuntos = { puntos: [], sincronizadoEn: null, guardadoEn: null, cargado: false, sincronizando: false };
 const oyentes = new Set<() => void>();
@@ -47,12 +61,14 @@ export function suscribirPuntos(o: () => void): () => void {
 /** Lo guardado en el móvil, al arrancar: sin esperar a la red. */
 export async function cargarGuardados(): Promise<void> {
   try {
-    const [puntos, sello, guardado] = await Promise.all([
+    const [puntos, sello, guardado, cfg] = await Promise.all([
       bd().todos(),
       bd().leerMeta<string>('sincronizado_en'),
       bd().leerMeta<number>('guardado_en'),
+      bd().leerMeta<unknown>('config'),
     ]);
-    fijar({ puntos, sincronizadoEn: sello, guardadoEn: guardado, cargado: true });
+    config = leerConfig(cfg) ?? CONFIG_POR_DEFECTO;
+    fijar({ puntos: derivarTodos(puntos), sincronizadoEn: sello, guardadoEn: guardado, cargado: true });
   } catch {
     fijar({ cargado: true });
   }
@@ -90,10 +106,18 @@ export function sincronizar(token: string | null): Promise<Resultado<null>> {
       }
       if (!listado || !Array.isArray(listado.puntos)) return { ok: false, codigo: 'ERROR_INTERNO' };
       listado.bajas = Array.isArray(listado.bajas) ? listado.bajas : [];
-      const puntos = aplicarListado(estado.puntos, listado, completo);
+      // Voluntario: se deriva todo con la config recibida, también lo que no cambió (RV-05). Una
+      // config que no sirve deja la anterior. Jefatura lee la vista entera: sus valores ya son
+      // frescos y no trae config, así que no se re-deriva.
+      const nuevaConfig = token ? leerConfig(listado.config) : null;
+      if (nuevaConfig) config = nuevaConfig;
+      const combinados = aplicarListado(estado.puntos, listado, completo);
+      const puntos = token ? derivarTodos(combinados) : combinados;
       const guardadoEn = Date.now();
       try {
-        await bd().reemplazar(listado.puntos, listado.bajas, completo);
+        // Se guardan todos, no solo los recibidos: los derivados también cambian.
+        await bd().reemplazar(token ? puntos : listado.puntos, listado.bajas, completo);
+        if (nuevaConfig) await bd().escribirMeta('config', nuevaConfig);
         await bd().escribirMeta('sincronizado_en', listado.sincronizado_en);
         await bd().escribirMeta('guardado_en', guardadoEn);
       } catch {
@@ -107,6 +131,15 @@ export function sincronizar(token: string | null): Promise<Resultado<null>> {
     }
   })();
   return enCurso;
+}
+
+/**
+ * Al volver a la app (visibilitychange): si cambió el día local desde la última derivación, se
+ * re-deriva sin red, porque un punto puede haber pasado a "sin revisar".
+ */
+export function rederivarSiCambiaElDia(): void {
+  if (!estado.puntos.length || derivadoEl === diaLocal()) return;
+  fijar({ puntos: derivarTodos(estado.puntos) });
 }
 
 async function leerComoJefatura(): Promise<Resultado<Listado>> {
@@ -129,6 +162,7 @@ export async function borrarPuntos(): Promise<void> {
   } catch {
     // nada guardado
   }
+  config = CONFIG_POR_DEFECTO;
   fijar({ puntos: [], sincronizadoEn: null, guardadoEn: null });
 }
 
@@ -197,5 +231,7 @@ export function ordenar(puntos: Punto[], orden: Orden, desde: { lat: number; lng
 export function _usarAlmacen(a: Almacen<Punto>) {
   almacen = a;
   estado = { puntos: [], sincronizadoEn: null, guardadoEn: null, cargado: false, sincronizando: false };
+  config = CONFIG_POR_DEFECTO;
+  derivadoEl = null;
   oyentes.clear();
 }
