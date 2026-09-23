@@ -104,9 +104,38 @@ export function conexionPermiteDescarga(): boolean {
   return !c?.type || c.type === 'wifi' || c.type === 'ethernet';
 }
 
+type ConexionRed = EventTarget & { type?: string; saveData?: boolean };
+const conexionRed = () => (navigator as Navigator & { connection?: ConexionRed }).connection;
+
+let escuchando = false;
+
+/** Si falta y la conexión lo permite ahora, se descarga. La guarda de descargarMapabase evita dos a la vez. */
+function siFaltaYSePuede() {
+  if (estado.descargado) return quitarEscuchas();
+  if (!conexionPermiteDescarga()) return;
+  void descargarMapabase().then((ok) => ok && quitarEscuchas());
+}
+
+function ponerEscuchas() {
+  if (escuchando || typeof window === 'undefined') return;
+  escuchando = true;
+  window.addEventListener('online', siFaltaYSePuede);
+  conexionRed()?.addEventListener?.('change', siFaltaYSePuede);
+}
+
+function quitarEscuchas() {
+  if (!escuchando) return;
+  escuchando = false;
+  window.removeEventListener('online', siFaltaYSePuede);
+  conexionRed()?.removeEventListener?.('change', siFaltaYSePuede);
+}
+
 /**
  * Al arrancar: comprueba que lo descargado sigue en el móvil (iOS puede desalojarlo, TR-07) y, si
- * falta y la conexión lo permite, lo descarga solo (FR-81). Una versión nueva se ofrece, no se fuerza.
+ * falta y la conexión lo permite, lo descarga solo (FR-81). Si ahora no se puede (sin red, datos
+ * móviles), se vuelve a mirar al volver la red o al cambiar de conexión, no solo al arrancar
+ * (RV-10). Con datos móviles no se descarga sin preguntar: el aviso del mapa ofrece el botón. Una
+ * versión nueva se ofrece, no se fuerza.
  */
 export async function iniciarMapabase(): Promise<void> {
   if (typeof caches === 'undefined') return;
@@ -115,5 +144,7 @@ export async function iniciarMapabase(): Promise<void> {
     blob = null;
     fijar({ descargado: null });
   }
-  if (!estado.descargado && conexionPermiteDescarga()) await descargarMapabase();
+  if (estado.descargado) return;
+  ponerEscuchas();
+  if (conexionPermiteDescarga() && (await descargarMapabase())) quitarEscuchas();
 }
