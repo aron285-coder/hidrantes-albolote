@@ -249,3 +249,68 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     expect(s.incidencias[0]).toMatchObject({ token: TOKEN, descripcion: 'Al hacer la foto la app se cierra' });
   });
 });
+
+test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)', () => {
+  test.beforeEach(async ({ page, context }) => {
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({ latitude: 37.2309, longitude: -3.6566, accuracy: 9 });
+    await conSesion(page);
+  });
+
+  test('una corrección enviada mientras sube otra foto sale en la misma vuelta', async ({ page }) => {
+    const s = await servidor(page);
+    // La reserva de la primera foto no contesta hasta que la corrección está enviada: 3G lento.
+    let soltar!: () => void;
+    const suelta = new Promise<void>((r) => (soltar = r));
+    let reservas = 0;
+    await page.route('**/api/url-subida', async (r) => {
+      reservas++;
+      await suelta;
+      await r.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ foto_path: `fotos/${reservas}.jpg`, url: `${SB}/storage/subir` }),
+      });
+    });
+    const [hid, otro] = PUNTOS;
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.sigueIgual}`) }).click();
+    await hacerFoto(page);
+    await enviar(page).click();
+    await expect.poll(() => reservas).toBe(1);
+
+    // Mientras la foto espera, el voluntario vuelve atrás y corrige los datos de otro punto.
+    await page.goto(`/?p=${otro.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.corregirDatos}`) }).click();
+    await page.getByRole('radio', { name: otro.diametro_mm === 70 ? T.formulario.d100 : T.formulario.d70 }).click();
+    await expect.poll(() => reservas).toBeGreaterThanOrEqual(2);
+    await enviar(page).click();
+    soltar();
+
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+    await page.getByRole('button', { name: T.envio.volverAlMapa }).click();
+    await expect(page.getByRole('link', { name: /sin enviar/ })).toHaveCount(0);
+    expect(s.propuestas.map((p) => p.operacion)).toEqual(['revision', 'datos']);
+  });
+
+  test('sin IndexedDB avisa de no cerrar la aplicación', async ({ page }) => {
+    await page.addInitScript(() => {
+      indexedDB.open = () => {
+        throw new DOMException('sin IndexedDB', 'UnknownError');
+      };
+    });
+    await servidor(page);
+    await page.route(`${SB}/rest/v1/rpc/fn_proponer`, (r) => r.abort('connectionrefused'));
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await page.getByRole('radio', { name: T.formulario.granada }).click();
+    await page.getByRole('radio', { name: T.formulario.bueno }).click();
+    await hacerFoto(page);
+    await page.getByRole('button', { name: /^(Enviar para revisión|Guardar · se enviará)/ }).click();
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.soloEnMemoria })).toBeVisible();
+    await expect(page.getByText(T.envio.soloEnMemoriaDetalle)).toBeVisible();
+    await expect(page.getByRole('button', { name: T.envio.reintentarAhora })).toBeVisible();
+  });
+});
