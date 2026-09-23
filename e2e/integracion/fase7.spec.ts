@@ -282,3 +282,25 @@ test('propuesta desactualizada: exige confirmación; las correcciones llegan al 
   await expect(page.getByText(T.misPropuestas.aprobada).first()).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText(/con correcciones/)).toBeVisible();
 });
+
+// RV-15 (TR-60): PostgREST corta en 1.000 filas y la lectura de jefatura es una sustitución completa.
+// Con más de 1.000 puntos el inventario tiene que enseñarlos todos.
+test('el inventario del panel enseña más de 1.000 puntos (RV-15, TR-60)', async ({ page, request }) => {
+  const antes = Number(consulta(`select count(*) from hidrantes.puntos where situacion = 'activo'`));
+  consulta(`
+    insert into hidrantes.puntos (codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, fecha_ultima_revision,
+                                  descripcion)
+    select 'HID-' || (7000 + i), 'hidrante',
+           ('SRID=4326;POINT(' || (-3.66 + (i % 40) * 0.0004) || ' ' || (37.22 + (i / 40) * 0.0004) || ')')::extensions.geography,
+           70, 'bueno', 'fotos/carga-' || i || '.jpg', 'albolote', current_date, '[PRUEBA] carga ' || i
+    from generate_series(0, 1049) i`);
+  try {
+    await entrarComoJefatura(page, request);
+    await page.goto('/admin/inventario');
+    await expect(page.getByText(T.panel.mostrando(50, antes + 1050), { exact: false })).toBeVisible({
+      timeout: 20_000,
+    });
+  } finally {
+    consulta(`delete from hidrantes.puntos where codigo between 'HID-7000' and 'HID-8049'`);
+  }
+});

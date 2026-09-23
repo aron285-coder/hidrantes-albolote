@@ -178,17 +178,32 @@ export function rederivarSiCambiaElDia(): void {
   fijar({ puntos: derivarTodos(estado.puntos) });
 }
 
+/** El max_rows de PostgREST (supabase/config.toml y el valor por defecto de Supabase). */
+const PAGINA_JEFATURA = 1000;
+
 async function leerComoJefatura(): Promise<Resultado<Listado>> {
   const cliente = supabase();
   if (!cliente) return { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' };
   const ahora = new Date().toISOString();
-  const { data, error, status } = await cliente.from('v_puntos_activos').select('*').order('codigo');
-  if (error) {
-    anotarServidor(!!status && status < 500);
-    return { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' };
+  // PostgREST corta en max_rows (1.000, también en Supabase alojado) y esto es una sustitución
+  // completa: sin páginas, el almacén se quedaba en silencio con los primeros 1.000 (RV-15, TR-60).
+  // `codigo` es único, así que el orden es estable. Un error a mitad no reemplaza nada.
+  const todos: Punto[] = [];
+  for (let desde = 0; ; desde += PAGINA_JEFATURA) {
+    const { data, error, status } = await cliente
+      .from('v_puntos_activos')
+      .select('*')
+      .order('codigo')
+      .range(desde, desde + PAGINA_JEFATURA - 1);
+    if (error || !Array.isArray(data)) {
+      anotarServidor(!!status && status < 500);
+      return { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' };
+    }
+    todos.push(...(data as Punto[]));
+    if (data.length < PAGINA_JEFATURA) break;
   }
   anotarServidor(true);
-  return { ok: true, datos: { puntos: data as Punto[], bajas: [], sincronizado_en: ahora } };
+  return { ok: true, datos: { puntos: todos, bajas: [], sincronizado_en: ahora } };
 }
 
 /** Cerrar sesión: el móvil deja de tener los puntos (FL-12). */
