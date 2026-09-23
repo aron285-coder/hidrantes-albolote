@@ -139,7 +139,8 @@ describe('editar un punto (FR-120, FR-151)', () => {
 
   it('el racor solo viaja en bocas y el fallo solo con "No funciona"', () => {
     const p = punto();
-    expect(cambiosDe(p, { tipo: 'boca_riego', racor: 'granada' })).toEqual({ tipo: 'boca_riego', racor: 'granada' });
+    // El tipo no se cambia desde el inventario (DEC-090, docs/18 RV-41).
+    expect(cambiosDe(p, { tipo: 'boca_riego', racor: 'granada' })).toEqual({});
     expect(cambiosDe(p, { caudal: 'no_funciona', descripcion_fallo: 'Tapa soldada' })).toEqual({
       caudal: 'no_funciona',
       descripcion_fallo: 'Tapa soldada',

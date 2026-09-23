@@ -449,3 +449,9 @@ describe('cola: cabos sueltos de RV-01 a RV-04 (docs/18 RV-39)', () => {
     expect(cola.estaPersistida('k-000506')).toBe(true);
   });
 });
+
+describe('cola: el tipo no se cambia (docs/18 RV-41)', () => {
+  it('TIPO_NO_MODIFICABLE es permanente: no se reintenta', () => {
+    expect(cola.esPermanente('TIPO_NO_MODIFICABLE')).toBe(true);
+  });
+});

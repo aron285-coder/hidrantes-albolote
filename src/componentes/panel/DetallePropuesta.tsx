@@ -394,22 +394,27 @@ function FormularioCorrecciones({
     >
       <p className="font-semibold">{T.panelCola.corrigeYAprueba}</p>
       <Fila etiqueta={T.panelCola.campoTipo}>
-        <select
-          value={v.tipo}
-          onChange={(e) => {
-            const tipo = e.target.value as TipoPunto;
-            setV((x) => ({
-              ...x,
-              tipo,
-              diametro_mm: tipo === 'boca_riego' ? 45 : x.diametro_mm === 45 ? null : x.diametro_mm,
-              racor: tipo === 'boca_riego' ? x.racor : null,
-            }));
-          }}
-          className="border-linea rounded-campo min-h-9 flex-1 border px-2"
-        >
-          <option value="hidrante">{nombreTipo.hidrante}</option>
-          <option value="boca_riego">{nombreTipo.boca_riego}</option>
-        </select>
+        {/* Fuera de un alta el tipo no cambia (DEC-090): se enseña sin selector. */}
+        {p.operacion !== 'alta' ? (
+          <span className="min-h-9 flex-1 py-2">{nombreTipo[v.tipo]}</span>
+        ) : (
+          <select
+            value={v.tipo}
+            onChange={(e) => {
+              const tipo = e.target.value as TipoPunto;
+              setV((x) => ({
+                ...x,
+                tipo,
+                diametro_mm: tipo === 'boca_riego' ? 45 : x.diametro_mm === 45 ? null : x.diametro_mm,
+                racor: tipo === 'boca_riego' ? x.racor : null,
+              }));
+            }}
+            className="border-linea rounded-campo min-h-9 flex-1 border px-2"
+          >
+            <option value="hidrante">{nombreTipo.hidrante}</option>
+            <option value="boca_riego">{nombreTipo.boca_riego}</option>
+          </select>
+        )}
       </Fila>
       {v.tipo === 'hidrante' ? (
         <Fila etiqueta={T.panelCola.campoDiametro}>

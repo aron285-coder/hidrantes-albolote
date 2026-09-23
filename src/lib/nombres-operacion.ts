@@ -27,6 +27,7 @@ export const ETIQUETA_OPERACION: Record<Operacion, string> = {
 export function textoFallo(codigo: string): string {
   if (codigo.startsWith('PUNTO_NO')) return T.misPropuestas.errorNoActivo;
   if (codigo.startsWith('FOTO')) return T.misPropuestas.errorFoto;
+  if (codigo.startsWith('TIPO_NO_MODIFICABLE')) return T.misPropuestas.errorTipo;
   if (codigo.startsWith('PAYLOAD')) return T.misPropuestas.errorDatos;
   return T.misPropuestas.errorGenerico;
 }

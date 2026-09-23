@@ -196,6 +196,21 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     expect(s.propuestas[4]).toMatchObject({ datos: { motivo_rapido: 'obras' } });
   });
 
+  // docs/18 RV-41, DEC-090: el tipo no se cambia; se retira el punto y se da de alta el correcto.
+  test('corregir datos no ofrece cambiar el tipo y enlaza a retirar', async ({ page }) => {
+    await servidor(page);
+    const hid = PUNTOS[0];
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.corregirDatos}`) }).click();
+    await expect(page.getByRole('radio', { name: T.formulario.bocaRiego })).toHaveCount(0);
+    await expect(page.getByRole('radio', { name: T.formulario.hidrante })).toHaveCount(0);
+    await expect(page.getByText(T.operaciones.tipoNoCambia)).toBeVisible();
+    await page.getByRole('link', { name: T.operaciones.proponerRetirada }).click();
+    await expect(page).toHaveURL((u) => u.pathname === '/proponer/retirada' && u.searchParams.get('p') === hid.id);
+    await expect(page.getByLabel(T.formulario.motivoRetirada)).toBeVisible();
+  });
+
   test('sin cobertura: tres altas se guardan y salen solas al volver, una vez cada una (criterio)', async ({
     page,
     context,

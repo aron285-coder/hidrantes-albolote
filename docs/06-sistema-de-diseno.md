@@ -340,6 +340,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Escribe tu nombre y apellido` · `Entrando…` ·
 `Sin conexión con el servidor. Inténtalo de nuevo en un momento.` ·
 `Otra persona está cambiando este punto; inténtalo en unos segundos.` ·
+`El tipo de un punto no se cambia: retíralo y da de alta el correcto.` ·
 `El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo; tu nombre se conserva.` ·
 `Comprobando tu cuenta…` · `Aviso legal y privacidad · v[0.1.0]` · `Aviso legal`.
 
@@ -391,7 +392,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
 `El caudal ha cambiado o ya no funciona` · `Corregir datos` ·
-`Tipo, diámetro o racor mal anotados` · `Corregir ubicación` · `El pin está desplazado` ·
+`Diámetro, racor o descripción mal anotados` ·
+`¿El tipo está mal? Propón retirarlo y da de alta el correcto` · `Corregir ubicación` · `El pin está desplazado` ·
 `Proponer retirada` · `Ya no existe. Pide un motivo breve` · `Alta` · `Revisión` · `Estado` · `Datos` ·
 `Ubicación` · `Retirada` · `Consta como [Bueno] · revisado [hace 1 mes]` · `Caudal / estado ahora` ·
 `Confirmas que el punto sigue exactamente igual. Solo cambia la fecha de última revisión.` ·
@@ -441,7 +443,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se ha podido enviar y ya no se enviará. No se puede deshacer.` · `¿Retirar esta propuesta?` ·
 `Jefatura ya no la verá. No se puede deshacer.` · `Aprobada [HID-0147]` · `Rechazada [HID-0147]` ·
 `El punto ya no está activo: no se ha enviado.` · `Faltan datos o no son válidos: no se ha enviado.` ·
-`Falta la foto: no se ha enviado.` · `No se ha podido enviar.` ·
+`Falta la foto: no se ha enviado.` ·
+`El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.` · `No se ha podido enviar.` ·
 `Sin conexión: esta es la última lista guardada.`
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
@@ -513,7 +516,7 @@ a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distan
 `Diámetro "otra medida": hay que fijar 70 o 100 mm` · `El punto cambió después de esta propuesta` ·
 `Con foto` · `Fija el diámetro en 70 o 100 mm para poder aprobar.` ·
 `la del pin propuesto (a [distancia])` · `la de [codigo] (existente)` · `desactualizada` ·
-`el punto ya no está activo` · `diámetro sin fijar` · `ya estaba resuelta` · `datos no válidos` ·
+`el punto ya no está activo` · `diámetro sin fijar` · `ya estaba resuelta` · `datos no válidos` · `cambia el tipo, que no se puede cambiar: recházala` ·
 `[n] aprobadas, cada una con su entrada en el Registro.` · `Quedan pendientes: [lista].` ·
 `[n] rechazadas. Cada autor verá el motivo.` · `Rechazar [n] propuestas con un motivo común` ·
 `Motivo que verán los autores` · `Ej.: la foto es del hidrante de al lado, HID-0087` ·

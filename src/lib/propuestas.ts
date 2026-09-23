@@ -53,18 +53,18 @@ export interface Formulario {
 
 const lleno = (s?: string) => !!s && s.trim().length > 0;
 
-/** Campos que cambian en "corregir datos" respecto al punto (FR-44). */
+/**
+ * Campos que cambian en "corregir datos" respecto al punto (FR-44). El tipo no está entre ellos: no
+ * se cambia una vez creado; se corrige retirando el punto y dando de alta el correcto (FR-11, DEC-090).
+ */
 export function cambiosDatos(f: Formulario, p: Punto): Record<string, unknown> {
   const c: Record<string, unknown> = {};
-  const tipo = f.tipo ?? p.tipo;
-  if (tipo !== p.tipo) c.tipo = tipo;
-  if (tipo === 'boca_riego') {
+  if (p.tipo === 'boca_riego') {
     if (p.diametro_mm !== 45) c.diametro_mm = 45;
-    if ((f.racor ?? p.racor) !== p.racor || tipo !== p.tipo) c.racor = f.racor ?? p.racor;
+    if ((f.racor ?? p.racor) !== p.racor) c.racor = f.racor ?? p.racor;
   } else {
-    const d = f.diametro === 70 || f.diametro === 100 ? f.diametro : p.tipo === 'hidrante' ? p.diametro_mm : undefined;
-    if (d !== undefined && d !== p.diametro_mm) c.diametro_mm = d;
-    if (tipo !== p.tipo) c.racor = null;
+    const d = f.diametro === 70 || f.diametro === 100 ? f.diametro : p.diametro_mm;
+    if (d !== p.diametro_mm) c.diametro_mm = d;
   }
   const desc = f.descripcion ?? p.descripcion ?? '';
   if (desc.trim() !== (p.descripcion ?? '').trim()) c.descripcion = desc.trim() || null;
@@ -96,9 +96,7 @@ export function queFalta(f: Formulario, p: Punto | null): string | null {
       return f.hayFoto ? null : a.faltaFoto;
     case 'datos': {
       if (!p) return a.sinCambios;
-      const tipo = f.tipo ?? p.tipo;
-      if (tipo === 'boca_riego' && !(f.racor ?? (p.tipo === 'boca_riego' ? p.racor : undefined))) return a.eligeRacor;
-      if (tipo === 'hidrante' && p.tipo !== 'hidrante' && !f.diametro) return a.eligeDiametro;
+      if (p.tipo === 'boca_riego' && !(f.racor ?? p.racor)) return a.eligeRacor;
       return Object.keys(cambiosDatos(f, p)).length ? null : a.sinCambios;
     }
     case 'ubicacion':

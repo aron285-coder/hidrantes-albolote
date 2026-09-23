@@ -164,6 +164,18 @@ test('inventario: editar la dirección en la celda y editar el punto (FR-15, FR-
   });
 });
 
+// docs/18 RV-41, DEC-090: el tipo no se cambia desde el inventario.
+test('panel-inventario: editar no ofrece el tipo', async ({ page }) => {
+  await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  const fila = page.getByRole('row').filter({ hasText: P0.codigo });
+  await fila.getByRole('button', { name: T.panel.editar }).click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByLabel(T.panelCola.campoEstado)).toBeVisible();
+  await expect(dialogo.getByLabel(T.panelCola.campoTipo)).toHaveCount(0);
+  await expect(dialogo.getByText(T.panelErrores.tipoNoModificable)).toBeVisible();
+});
+
 test('inventario: retirar pide motivo y el historial se puede consultar (FR-123, FR-124)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/inventario');

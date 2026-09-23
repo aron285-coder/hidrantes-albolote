@@ -366,7 +366,10 @@ export function valoresPropuestos(p: PropuestaPanel, punto?: Punto): ValoresPunt
   };
 }
 
-/** Lo que jefatura ha cambiado respecto a lo propuesto: eso es `correcciones` (05 §7). */
+/**
+ * Lo que jefatura ha cambiado respecto a lo propuesto: eso es `correcciones` (05 §7). El tipo solo se
+ * corrige en un alta: fuera de ella no cambia (DEC-090) y el formulario no lo ofrece.
+ */
 export function correccionesDe(propuesto: ValoresPunto, final: ValoresPunto): Record<string, unknown> {
   const c: Record<string, unknown> = {};
   if (final.tipo !== propuesto.tipo) c.tipo = final.tipo;
@@ -532,6 +535,7 @@ export function motivoOmitida(codigo: string | null): string {
   if (codigo?.startsWith('DIAMETRO_SIN_FIJAR')) return T.panelCola.omitidaDiametro;
   if (codigo?.startsWith('PROPUESTA_NO_PENDIENTE')) return T.panelCola.omitidaYaResuelta;
   if (codigo?.startsWith('PUNTO_OCUPADO')) return T.panelErrores.puntoOcupado;
+  if (codigo?.startsWith('TIPO_NO_MODIFICABLE')) return T.panelCola.omitidaTipo;
   return T.panelCola.omitidaDatos;
 }
 

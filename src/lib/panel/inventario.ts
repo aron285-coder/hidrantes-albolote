@@ -231,8 +231,8 @@ export function cambiosDe(p: Punto, v: CambiosPunto): CambiosPunto {
   // Un campo que no viene en el formulario no se toca; uno vacío sí borra el valor.
   const cambia = (campo: keyof CambiosPunto, a: string | null | undefined, b: string | null) =>
     campo in v && (a?.trim() || null) !== b;
-  if (v.tipo && v.tipo !== p.tipo) c.tipo = v.tipo;
-  const tipoFinal = v.tipo ?? p.tipo;
+  // El tipo no se cambia desde el inventario: se retira el punto y se da de alta el correcto (DEC-090).
+  const tipoFinal = p.tipo;
   if (tipoFinal === 'hidrante' && v.diametro_mm && v.diametro_mm !== p.diametro_mm) c.diametro_mm = v.diametro_mm;
   if (v.caudal && v.caudal !== p.caudal) c.caudal = v.caudal;
   if (tipoFinal === 'boca_riego' && cambia('racor', v.racor, p.racor)) c.racor = v.racor ?? null;
