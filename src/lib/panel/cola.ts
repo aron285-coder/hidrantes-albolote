@@ -3,12 +3,15 @@
 // Lo que se calcula aquí no toca la red y tiene tests; las acciones devuelven Resultado.
 
 import { type Resultado, rpc } from '../api';
-import { nombreCaudal, nombreRacor, nombreTipo } from '../ficha';
+import { MOTIVO_RAPIDO, etiquetaCampo, texto, valorDe } from '../campos';
+import { nombreCaudal } from '../ficha';
 import { distancia, fechaCorta, hace } from '../formato';
 import type { MotivoRapido, Operacion } from '../propuestas';
 import { type Caudal, type Punto, type Racor, type TipoPunto, metros, sincronizar } from '../puntos';
 import { T } from '../textos';
 import { funcion, leerLista } from './consultas';
+
+export { etiquetaCampo } from '../campos';
 import { pedirEnvioComoJefatura } from './push-jefatura';
 
 export type EstadoModeracion = 'pendiente' | 'aprobada' | 'rechazada' | 'retirada_por_autor';
@@ -179,43 +182,7 @@ export interface FilaDiff {
   sinCambios?: boolean;
 }
 
-const texto = (v: unknown) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v));
 const entreComillas = (v: unknown) => `"${texto(v)}"`;
-
-function valorDe(campo: string, v: unknown): string {
-  switch (campo) {
-    case 'tipo':
-      return nombreTipo[v as TipoPunto] ?? texto(v);
-    case 'diametro_mm':
-      return T.formato.mm(texto(v));
-    case 'caudal':
-      return nombreCaudal[v as Caudal] ?? texto(v);
-    case 'racor':
-      return v ? nombreRacor(texto(v)) : T.panelCola.ninguno;
-    default:
-      return texto(v) || T.panelCola.ninguno;
-  }
-}
-
-const ETIQUETA_CAMPO: Record<string, string> = {
-  tipo: T.panelCola.campoTipo,
-  diametro_mm: T.panelCola.campoDiametro,
-  caudal: T.panelCola.campoEstado,
-  racor: T.panelCola.campoRacor,
-  descripcion_fallo: T.panelCola.campoFallo,
-  descripcion: T.panelCola.campoDescripcion,
-  nota: T.panelCola.campoNota,
-  direccion: T.ficha.direccion,
-};
-
-export const etiquetaCampo = (campo: string) => ETIQUETA_CAMPO[campo] ?? campo;
-
-const MOTIVO_RAPIDO: Record<MotivoRapido, string> = {
-  obras: T.formulario.obras,
-  asfaltado: T.formulario.asfaltado,
-  sustituido: T.formulario.sustituido,
-  otro: T.formulario.otro,
-};
 
 /** El antes y el después campo a campo (FR-102). `punto` es el estado actual, si existe. */
 export function filasDiff(p: PropuestaPanel, punto?: Punto): FilaDiff[] {

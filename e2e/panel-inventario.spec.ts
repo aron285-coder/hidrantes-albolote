@@ -81,9 +81,15 @@ async function prepararPanel(page: Page) {
         return json(null);
       case 'fn_historial_punto':
         return json(REGISTRO);
-      case 'fn_exportar_inventario':
+      case 'fn_exportar_inventario': {
+        // Como el servidor: filtra por tipo y estado; sin filtros, dos filas de muestra.
+        const f = (cuerpo.filtros ?? {}) as { tipo?: string; caudal?: string };
+        const filas =
+          f.tipo || f.caudal
+            ? PUNTOS.filter((p) => (!f.tipo || p.tipo === f.tipo) && (!f.caudal || p.caudal === f.caudal))
+            : PUNTOS.slice(0, 2);
         return json(
-          PUNTOS.slice(0, 2).map((p) => ({
+          filas.map((p) => ({
             codigo: p.codigo,
             tipo: p.tipo,
             diametro_mm: p.diametro_mm,
@@ -97,6 +103,7 @@ async function prepararPanel(page: Page) {
             lng: p.lng,
           })),
         );
+      }
       default:
         return route.abort('connectionrefused');
     }
@@ -115,7 +122,10 @@ test('inventario: filtros, orden y búsqueda global (FR-120, FR-145)', async ({ 
 
   await page.getByRole('radio', { name: T.panelInventario.bocasDeRiego }).click();
   await expect(filas).toHaveCount(5);
-  await page.getByRole('radio', { name: T.mapa.todos }).click();
+  await page
+    .getByRole('radiogroup', { name: T.panelInventario.colTipo })
+    .getByRole('radio', { name: T.mapa.todos })
+    .click();
 
   await page.getByRole('button', { name: T.panelInventario.ordenarPor(T.panelInventario.colCodigo) }).click();
   await expect(filas.nth(1).getByRole('cell').first()).toHaveText('HID-9008');
@@ -228,4 +238,49 @@ test('papelera: restaurar dentro de plazo (FR-124, FL-24)', async ({ page }) => 
   await page.getByRole('button', { name: T.panel.restaurar }).click();
   await expect(page.getByRole('status').filter({ hasText: T.panelPapelera.restaurado('HID-9100') })).toBeVisible();
   await expect(page.getByText(T.panelPapelera.vacia)).toBeVisible();
+});
+
+// FR-120 y FR-160 (RV-24): tipo y estado se combinan, y el archivo lleva lo filtrado, también la
+// búsqueda, que el servidor no conoce.
+test('filtrar hidrantes regulares y exportar CSV da solo esas filas (RV-24)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  const filas = page.getByRole('row');
+  await page
+    .getByRole('radiogroup', { name: T.panelInventario.colTipo })
+    .getByRole('radio', { name: T.mapa.hidrantes })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: T.panelInventario.colEstado })
+    .getByRole('radio', { name: T.formulario.regular })
+    .click();
+  const regulares = PUNTOS.filter((p) => p.tipo === 'hidrante' && p.caudal === 'regular').map((p) => p.codigo);
+  await expect(filas).toHaveCount(regulares.length + 1);
+
+  const leerCsv = async () => {
+    const descarga = page.waitForEvent('download');
+    await page.getByRole('button', { name: T.panel.csv, exact: true }).click();
+    const texto = await (await descarga).createReadStream().then(
+      (flujo) =>
+        new Promise<string>((ok) => {
+          let datos = '';
+          flujo.on('data', (c) => (datos += c));
+          flujo.on('end', () => ok(datos));
+        }),
+    );
+    return texto
+      .split(String.fromCharCode(13, 10))
+      .slice(1)
+      .filter(Boolean)
+      .map((l) => l.split(';')[0]!.replace(/^"|"$/g, ''));
+  };
+
+  expect(await leerCsv()).toEqual(regulares);
+  expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: { tipo: 'hidrante', caudal: 'regular' } });
+
+  // Con búsqueda, solo lo que se ve.
+  await page.getByPlaceholder(T.panelCola.buscar).fill(regulares[1]!);
+  await expect(filas).toHaveCount(2);
+  expect(await leerCsv()).toEqual([regulares[1]]);
+  await expect(page.getByRole('status').filter({ hasText: T.panelInventario.exportado(1) })).toBeVisible();
 });

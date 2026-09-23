@@ -3,7 +3,8 @@
 // van por RPC (05 §6.2) y devuelven Resultado.
 
 import { type Resultado, rpc } from '../api';
-import { type Filtro, type Punto, filtrar, sincronizar } from '../puntos';
+import { type Caudal, type Punto, type TipoPunto, sincronizar } from '../puntos';
+import type { FiltrosExportacion } from './exportar';
 import { T } from '../textos';
 import { leerLista, leerPagina } from './consultas';
 import { sinAcentos } from './cola';
@@ -18,11 +19,28 @@ export interface Orden {
   ascendente: boolean;
 }
 
+/**
+ * Filtros del inventario (FR-120): tipo **y** estado, combinables, más revisión, núcleo y diámetro
+ * (RV-24). No reutiliza el filtro de chips de la Lista del móvil, que es de uno en uno (FR-68).
+ */
 export interface FiltrosInventario {
-  filtro: Filtro;
+  tipo: 'todos' | TipoPunto;
+  caudal: 'todos' | Caudal;
+  sin_revisar: boolean;
   nucleo: string;
   diametro: string;
   busqueda: string;
+}
+
+/** Lo mismo en la forma de fn_exportar_inventario (05 §6.2); la búsqueda se aplica aparte. */
+export function filtrosExportacion(f: FiltrosInventario): FiltrosExportacion {
+  return {
+    ...(f.tipo !== 'todos' ? { tipo: f.tipo } : {}),
+    ...(f.caudal !== 'todos' ? { caudal: f.caudal } : {}),
+    ...(f.sin_revisar ? { revision_caducada: true } : {}),
+    ...(f.nucleo ? { nucleo: f.nucleo } : {}),
+    ...(f.diametro ? { diametro_mm: Number(f.diametro) } : {}),
+  };
 }
 
 const ORDEN_CAUDAL = { bueno: 0, regular: 1, malo: 2, no_funciona: 3 };
@@ -30,8 +48,11 @@ const ORDEN_CAUDAL = { bueno: 0, regular: 1, malo: 2, no_funciona: 3 };
 /** Inventario en pantalla: filtros de FR-120 más la búsqueda global (FR-145). */
 export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
   const texto = sinAcentos(f.busqueda.trim());
-  return filtrar(puntos, f.filtro).filter(
+  return puntos.filter(
     (p) =>
+      (f.tipo === 'todos' || p.tipo === f.tipo) &&
+      (f.caudal === 'todos' || p.caudal === f.caudal) &&
+      (!f.sin_revisar || p.revision_caducada) &&
       (!f.nucleo || p.nucleo === f.nucleo) &&
       (!f.diametro || String(p.diametro_mm) === f.diametro) &&
       (!texto ||

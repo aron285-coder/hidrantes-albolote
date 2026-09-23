@@ -11,6 +11,7 @@ import {
   ordenarPor,
   pagina,
   paginas,
+  filtrosExportacion,
 } from './inventario';
 import type { Punto } from '../puntos';
 import { T } from '../textos';
@@ -53,16 +54,51 @@ const PUNTOS = [
   punto({ codigo: 'HID-0004', caudal: 'malo', nucleo: null, direccion: null, revision_caducada: true }),
 ];
 
-const sinFiltro = { filtro: 'todos' as const, nucleo: '', diametro: '', busqueda: '' };
+const sinFiltro = {
+  tipo: 'todos' as const,
+  caudal: 'todos' as const,
+  sin_revisar: false,
+  nucleo: '',
+  diametro: '',
+  busqueda: '',
+};
 
 describe('inventario (FR-120)', () => {
   it('filtra por tipo, estado, caducidad, núcleo y diámetro', () => {
-    expect(inventario(PUNTOS, { ...sinFiltro, filtro: 'hidrantes' })).toHaveLength(3);
-    expect(inventario(PUNTOS, { ...sinFiltro, filtro: 'bocas' })).toHaveLength(1);
-    expect(inventario(PUNTOS, { ...sinFiltro, filtro: 'no_funciona' })).toHaveLength(1);
-    expect(inventario(PUNTOS, { ...sinFiltro, filtro: 'sin_revisar' })).toHaveLength(2);
+    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'hidrante' })).toHaveLength(3);
+    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'boca_riego' })).toHaveLength(1);
+    expect(inventario(PUNTOS, { ...sinFiltro, caudal: 'no_funciona' })).toHaveLength(1);
+    expect(inventario(PUNTOS, { ...sinFiltro, sin_revisar: true })).toHaveLength(2);
     expect(inventario(PUNTOS, { ...sinFiltro, nucleo: 'Pretel' })).toHaveLength(2);
     expect(inventario(PUNTOS, { ...sinFiltro, diametro: '45' })).toHaveLength(1);
+  });
+
+  // FR-120: tipo **y** estado, combinables (RV-24).
+  it('tipo y estado se combinan', () => {
+    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'boca_riego', caudal: 'regular' }).map((p) => p.codigo)).toEqual([
+      'BOC-0003',
+    ]);
+    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'boca_riego', caudal: 'malo' })).toEqual([]);
+    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'hidrante', caudal: 'malo' }).map((p) => p.codigo)).toEqual([
+      'HID-0004',
+    ]);
+  });
+
+  it('sin revisar se combina con tipo', () => {
+    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'hidrante', sin_revisar: true })).toHaveLength(2);
+    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'boca_riego', sin_revisar: true })).toEqual([]);
+  });
+
+  it('los filtros del panel van a la exportación en la forma de fn_exportar_inventario', () => {
+    expect(
+      filtrosExportacion({ ...sinFiltro, tipo: 'hidrante', caudal: 'malo', sin_revisar: true, diametro: '70' }),
+    ).toEqual({
+      tipo: 'hidrante',
+      caudal: 'malo',
+      revision_caducada: true,
+      diametro_mm: 70,
+    });
+    expect(filtrosExportacion(sinFiltro)).toEqual({});
   });
 
   it('la búsqueda global mira código, calle y núcleo, sin acentos (FR-145)', () => {

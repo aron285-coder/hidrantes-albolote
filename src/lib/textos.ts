@@ -122,6 +122,7 @@ export const T = {
     bocas: 'Bocas',
     noFunciona: 'No funciona',
     sinRevisar: 'Sin revisar',
+    revisado: (hace: Parametro) => `revisado ${hace}`,
     leyendaTamano: 'Más grande = más agua aprovechable',
     desdeTi: 'desde ti',
     filtroVacio: 'Nada coincide con ese filtro.',
@@ -315,6 +316,8 @@ export const T = {
     errorDatos: 'Faltan datos o no son válidos: no se ha enviado.',
     errorFoto: 'Falta la foto: no se ha enviado.',
     errorGenerico: 'No se ha podido enviar.',
+    yaRevisada: 'Jefatura ya la ha revisado',
+    errorRetirar: 'No se ha podido retirar. Inténtalo de nuevo.',
     listaGuardada: 'Sin conexión: esta es la última lista guardada.',
   },
 
@@ -549,6 +552,8 @@ export const T = {
 
   panelInventario: {
     bocasDeRiego: 'Bocas de riego',
+    filtroRevision: 'Revisión',
+    todas: 'Todas',
     filtroDiametro: 'Filtrar por diámetro',
     cualquierDiametro: 'cualquier Ø',
     vista: 'Vista',

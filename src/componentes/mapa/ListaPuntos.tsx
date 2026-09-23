@@ -120,8 +120,15 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
                   <span className="font-datos">{p.codigo}</span> · {T.formato.mm(p.diametro_mm)}
                 </span>
                 <span className="text-texto-suave block truncate text-[13px]">
-                  {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal[p.caudal]}
-                  {p.revision_caducada && ` · ${T.mapa.sinRevisar} · ${hace(p.fecha_ultima_revision)}`}
+                  {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal[p.caudal]} ·{' '}
+                  {/* FR-68: la última revisión en todas las filas; caducada, en rojo (RV-24). */}
+                  {p.revision_caducada ? (
+                    <span className="text-rojo-700 font-semibold">
+                      {T.mapa.sinRevisar} · {hace(p.fecha_ultima_revision)}
+                    </span>
+                  ) : (
+                    T.mapa.revisado(hace(p.fecha_ultima_revision))
+                  )}
                 </span>
               </span>
               {pos && (

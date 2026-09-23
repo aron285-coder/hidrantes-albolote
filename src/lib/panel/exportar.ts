@@ -188,10 +188,26 @@ export function descargar(formato: Formato, filas: FilaExportada[]): void {
 }
 
 /** Pide los datos y descarga. Devuelve cuántas filas salieron. */
-export async function exportar(formato: Formato, filtros: FiltrosExportacion): Promise<Resultado<number>> {
+/** Solo las filas que se ven en pantalla, si hay búsqueda (FR-160): el servidor no la conoce. */
+export const soloVisibles = (filas: FilaExportada[], codigosVisibles?: string[]) => {
+  if (!codigosVisibles) return filas;
+  const visibles = new Set(codigosVisibles);
+  return filas.filter((f) => visibles.has(f.codigo));
+};
+
+/**
+ * Exporta con los filtros activos (FR-160). Con `codigosVisibles` (hay búsqueda), el archivo lleva
+ * solo esas filas y el recuento devuelto es el del archivo. El registro de la exportación anota los
+ * filtros que entiende fn_exportar_inventario; la búsqueda no (su lista de claves no la admite).
+ */
+export async function exportar(
+  formato: Formato,
+  filtros: FiltrosExportacion,
+  codigosVisibles?: string[],
+): Promise<Resultado<number>> {
   const r = await pedirInventario(filtros);
   if (!r.ok) return r;
-  const filas = Array.isArray(r.datos) ? r.datos : [];
+  const filas = soloVisibles(Array.isArray(r.datos) ? r.datos : [], codigosVisibles);
   descargar(formato, filas);
   return { ok: true, datos: filas.length };
 }

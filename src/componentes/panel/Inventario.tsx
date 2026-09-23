@@ -9,25 +9,70 @@ import { type Formato, exportar } from '@/lib/panel/exportar';
 import { textoError } from '@/lib/panel/errores';
 import {
   type Columna,
+  type FiltrosInventario,
   type Orden,
   editarPunto,
+  filtrosExportacion,
   inventario,
   nucleosDe,
   ordenarPor,
   pagina,
   paginas,
 } from '@/lib/panel/inventario';
-import { type Filtro, type Punto } from '@/lib/puntos';
+import { type Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
-const FILTROS: { valor: Filtro; nombre: string }[] = [
+// FR-120: tipo, estado y revisión son tres controles independientes, combinables (RV-24).
+const TIPOS: { valor: FiltrosInventario['tipo']; nombre: string }[] = [
   { valor: 'todos', nombre: T.mapa.todos },
-  { valor: 'hidrantes', nombre: T.mapa.hidrantes },
-  { valor: 'bocas', nombre: T.panelInventario.bocasDeRiego },
-  { valor: 'no_funciona', nombre: T.mapa.noFunciona },
+  { valor: 'hidrante', nombre: T.mapa.hidrantes },
+  { valor: 'boca_riego', nombre: T.panelInventario.bocasDeRiego },
+];
+const ESTADOS: { valor: FiltrosInventario['caudal']; nombre: string }[] = [
+  { valor: 'todos', nombre: T.mapa.todos },
+  { valor: 'bueno', nombre: T.formulario.bueno },
+  { valor: 'regular', nombre: T.formulario.regular },
+  { valor: 'malo', nombre: T.formulario.malo },
+  { valor: 'no_funciona', nombre: T.formulario.noFunciona },
+];
+const REVISIONES: { valor: 'todas' | 'sin_revisar'; nombre: string }[] = [
+  { valor: 'todas', nombre: T.panelInventario.todas },
   { valor: 'sin_revisar', nombre: T.mapa.sinRevisar },
 ];
+
+function Chips<V extends string>({
+  etiqueta,
+  opciones,
+  valor,
+  alCambiar,
+}: {
+  etiqueta: string;
+  opciones: { valor: V; nombre: string }[];
+  valor: V;
+  alCambiar: (v: V) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={etiqueta} className="flex flex-wrap items-center gap-1.5">
+      <span className="text-texto-suave text-[12px]">{etiqueta}</span>
+      {opciones.map((o) => (
+        <button
+          key={o.valor}
+          type="button"
+          role="radio"
+          aria-checked={valor === o.valor}
+          onClick={() => alCambiar(o.valor)}
+          className={cn(
+            'border-linea min-h-9 rounded-full border px-3 text-[13px]',
+            valor === o.valor ? 'bg-barra border-barra text-white' : 'bg-papel text-texto-suave',
+          )}
+        >
+          {o.nombre}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const COLUMNAS: { clave: Columna; nombre: string }[] = [
   { clave: 'codigo', nombre: T.panelInventario.colCodigo },
@@ -47,7 +92,9 @@ export default function Inventario() {
   const { puntos } = usePuntos();
   const modo = useModo();
   const posicion = usePosicion();
-  const [filtro, setFiltro] = useState<Filtro>('todos');
+  const [tipo, setTipo] = useState<FiltrosInventario['tipo']>('todos');
+  const [caudal, setCaudal] = useState<FiltrosInventario['caudal']>('todos');
+  const [sinRevisar, setSinRevisar] = useState(false);
   const [nucleo, setNucleo] = useState('');
   const [diametro, setDiametro] = useState('');
   const [orden, setOrden] = useState<Orden>({ columna: 'codigo', ascendente: true });
@@ -58,9 +105,11 @@ export default function Inventario() {
   const [seleccion, setSeleccion] = useState<string | null>(null);
 
   const nucleos = useMemo(() => nucleosDe(puntos), [puntos]);
+  const filtros: FiltrosInventario = { tipo, caudal, sin_revisar: sinRevisar, nucleo, diametro, busqueda };
   const filtrados = useMemo(
-    () => ordenarPor(inventario(puntos, { filtro, nucleo, diametro, busqueda }), orden),
-    [puntos, filtro, nucleo, diametro, busqueda, orden],
+    () => ordenarPor(inventario(puntos, filtros), orden),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [puntos, tipo, caudal, sinRevisar, nucleo, diametro, busqueda, orden],
   );
   const total = paginas(filtrados.length);
   const pag = Math.min(n, total - 1);
@@ -80,15 +129,13 @@ export default function Inventario() {
 
   async function exportarCon(formato: Formato) {
     setExportando(true);
-    // El servidor filtra lo que entiende (05 §6.2); el resto ya está aplicado en pantalla.
-    const r = await exportar(formato, {
-      ...(filtro === 'hidrantes' ? { tipo: 'hidrante' as const } : {}),
-      ...(filtro === 'bocas' ? { tipo: 'boca_riego' as const } : {}),
-      ...(filtro === 'no_funciona' ? { caudal: 'no_funciona' as const } : {}),
-      ...(filtro === 'sin_revisar' ? { revision_caducada: true } : {}),
-      ...(nucleo ? { nucleo } : {}),
-      ...(diametro ? { diametro_mm: Number(diametro) } : {}),
-    });
+    // El servidor filtra lo que entiende (05 §6.2); la búsqueda no la conoce, así que con búsqueda
+    // el archivo lleva solo lo que se ve en la tabla (FR-160, RV-24).
+    const r = await exportar(
+      formato,
+      filtrosExportacion(filtros),
+      busqueda.trim() ? filtrados.map((p) => p.codigo) : undefined,
+    );
     setExportando(false);
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     avisar(T.panelInventario.exportado(r.datos));
@@ -97,26 +144,33 @@ export default function Inventario() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-linea bg-fondo flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm">
-        <div role="radiogroup" aria-label={T.mapa.filtrar} className="flex flex-wrap gap-1.5">
-          {FILTROS.map((f) => (
-            <button
-              key={f.valor}
-              type="button"
-              role="radio"
-              aria-checked={filtro === f.valor}
-              onClick={() => {
-                setFiltro(f.valor);
-                setN(0);
-              }}
-              className={cn(
-                'border-linea min-h-9 rounded-full border px-3 text-[13px]',
-                filtro === f.valor ? 'bg-barra border-barra text-white' : 'bg-papel text-texto-suave',
-              )}
-            >
-              {f.nombre}
-            </button>
-          ))}
-        </div>
+        <Chips
+          etiqueta={T.panelInventario.colTipo}
+          opciones={TIPOS}
+          valor={tipo}
+          alCambiar={(v) => {
+            setTipo(v);
+            setN(0);
+          }}
+        />
+        <Chips
+          etiqueta={T.panelInventario.colEstado}
+          opciones={ESTADOS}
+          valor={caudal}
+          alCambiar={(v) => {
+            setCaudal(v);
+            setN(0);
+          }}
+        />
+        <Chips
+          etiqueta={T.panelInventario.filtroRevision}
+          opciones={REVISIONES}
+          valor={sinRevisar ? 'sin_revisar' : 'todas'}
+          alCambiar={(v) => {
+            setSinRevisar(v === 'sin_revisar');
+            setN(0);
+          }}
+        />
         <select
           aria-label={T.panelCola.filtroNucleo}
           value={nucleo}
