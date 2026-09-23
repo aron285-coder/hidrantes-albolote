@@ -327,3 +327,51 @@ test('jefatura no ve "otra medida" en un alta (RV-19, FR-151)', async ({ page, c
   await expect(page.getByRole('radio', { name: T.formulario.d100 })).toBeVisible();
   await expect(page.getByRole('radio', { name: T.formulario.otraMedida })).toHaveCount(0);
 });
+
+test.describe('Mis propuestas (RV-23)', () => {
+  const PROPIA = (extra: Record<string, unknown>) => ({
+    id: 'r1',
+    clave_local: 'k-r1',
+    operacion: 'datos',
+    punto_id: PUNTOS[0].id,
+    codigo: PUNTOS[0].codigo,
+    datos: {},
+    estado: 'pendiente',
+    motivo_rechazo: null,
+    correcciones: null,
+    creada_en: new Date().toISOString(),
+    revisada_en: null,
+    ...extra,
+  });
+
+  async function conPropuestas(page: Page, propias: Record<string, unknown>[]) {
+    await conSesion(page);
+    await page.route(`${SB}/rest/v1/rpc/*`, async (r) => {
+      const nombre = new URL(r.request().url()).pathname.split('/').pop();
+      const json = (b: unknown, status = 200) =>
+        r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) });
+      if (nombre === 'fn_listar_puntos') return json(LISTADO);
+      if (nombre === 'fn_mis_propuestas') return json(propias);
+      if (nombre === 'fn_retirar_propuesta') {
+        return json({ code: 'P0001', message: 'PROPUESTA_NO_PENDIENTE: Ya no está pendiente' }, 400);
+      }
+      return json(null);
+    });
+  }
+
+  test('retirar una propuesta ya revisada lo dice', async ({ page }) => {
+    await conPropuestas(page, [PROPIA({})]);
+    await page.goto('/mis-propuestas');
+    await page.getByRole('button', { name: T.misPropuestas.retirar }).click();
+    const hoja = page.getByRole('dialog');
+    await hoja.getByRole('button', { name: T.misPropuestas.retirar }).click();
+    await expect(hoja.getByRole('alert')).toHaveText(T.misPropuestas.yaRevisada);
+  });
+
+  test('las correcciones se leen en español', async ({ page }) => {
+    await conPropuestas(page, [PROPIA({ estado: 'aprobada', correcciones: { diametro_mm: 70, racor: 'granada' } })]);
+    await page.goto('/mis-propuestas');
+    await expect(page.getByText(T.misPropuestas.conCorrecciones('Diámetro: 70 mm · Racor: Granada'))).toBeVisible();
+    await expect(page.getByText(/diametro mm/)).toHaveCount(0);
+  });
+});
