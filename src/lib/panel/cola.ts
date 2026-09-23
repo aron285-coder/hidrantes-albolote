@@ -9,6 +9,7 @@ import type { MotivoRapido, Operacion } from '../propuestas';
 import { type Caudal, type Punto, type Racor, type TipoPunto, metros, sincronizar } from '../puntos';
 import { T } from '../textos';
 import { funcion, leerLista } from './consultas';
+import { pedirEnvioComoJefatura } from './push-jefatura';
 
 export type EstadoModeracion = 'pendiente' | 'aprobada' | 'rechazada' | 'retirada_por_autor';
 
@@ -470,10 +471,19 @@ export function diferenciasFusion(p: PropuestaPanel, existente: Punto): Diferenc
 
 // ---------- acciones (05 §6.2) ----------
 
-/** Tras cambiar puntos, el inventario y el mapa se refrescan. */
+/**
+ * Tras moderar, el voluntario recibe su aviso al momento: se pide el envío a /api/push, una vez por
+ * acción (también en los lotes), en vez de esperar a avisos.yml (RV-08, FR-163).
+ */
+function avisar<T>(r: Resultado<T>): Resultado<T> {
+  if (r.ok) void pedirEnvioComoJefatura();
+  return r;
+}
+
+/** Tras cambiar puntos, el inventario y el mapa se refrescan y se avisa. */
 function refrescar<T>(r: Resultado<T>): Resultado<T> {
   if (r.ok) void sincronizar(null);
-  return r;
+  return avisar(r);
 }
 
 export async function aprobar(
@@ -502,18 +512,22 @@ export async function aprobarLote(ids: string[]): Promise<Resultado<ResultadoLot
   return r;
 }
 
-export const rechazar = (id: string, motivo: string) =>
+const rechazarUna = (id: string, motivo: string) =>
   rpc<null>('fn_rechazar', { propuesta_id: id, motivo: motivo.trim() });
+
+export const rechazar = async (id: string, motivo: string) => avisar(await rechazarUna(id, motivo));
 
 /** Rechazo de varias con un motivo común: una a una; devuelve cuántas se rechazaron. */
 export async function rechazarLote(ids: string[], motivo: string): Promise<{ hechas: number; fallos: string[] }> {
   const fallos: string[] = [];
   let hechas = 0;
   for (const id of ids) {
-    const r = await rechazar(id, motivo);
+    const r = await rechazarUna(id, motivo);
     if (r.ok) hechas++;
     else fallos.push(r.codigo);
   }
+  // Un solo envío de avisos para todo el lote.
+  if (hechas) void pedirEnvioComoJefatura();
   return { hechas, fallos };
 }
 

@@ -1,0 +1,62 @@
+# Envío de los avisos push pendientes (FR-163, FR-164, 05 §9; docs/17 RV-08, DEC-068 actualizada).
+# Aprobar o rechazar desde el panel ya pide el envío al momento; esto es lo que garantiza que salgan
+# aunque nadie abra la app: los resultados de moderación, el resumen semanal del lunes y lo que un
+# envío anterior dejó reclamado sin anotar.
+#
+# Sin `environment` (DEC-071): `production` pediría aprobación humana en cada ejecución. El secreto
+# de repositorio VIGILANCIA_SECRETO_<ENTORNO> es el mismo valor que la Function lee de sus
+# secretos de Pages (npm run arranque -- --rotar vigilancia). En un repositorio público los minutos
+# de Actions no cuentan (TR-53).
+name: Avisos
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avisos
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        entorno: [PROD, STAGING]
+    steps:
+      - name: Pedir el envío hasta que no quede nada
+        env:
+          APP: ${{ matrix.entorno == 'PROD' && 'https://hidrantes-albolote.pages.dev' || 'https://hidrantes-albolote-staging.pages.dev' }}
+          SECRETO: ${{ secrets[format('VIGILANCIA_SECRETO_{0}', matrix.entorno)] }}
+        run: |
+          set -uo pipefail
+          if [ -z "${SECRETO:-}" ]; then
+            echo "### Avisos ${{ matrix.entorno }}: falta el secreto VIGILANCIA_SECRETO_${{ matrix.entorno }} (npm run arranque -- --rotar vigilancia)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          llamar() {
+            curl -s -o respuesta.json -w '%{http_code}' --max-time 60 -X POST "$APP/api/push" \
+              -H "X-Vigilancia: $SECRETO" -H 'Content-Type: application/json' -d '{}' || echo 000
+          }
+          # Cada llamada envía como mucho 20 (límite de peticiones de Workers): se repite mientras
+          # la respuesta diga que quedan, diez veces como mucho.
+          for vuelta in $(seq 1 10); do
+            codigo=$(llamar)
+            # Un 5xx suelto se reintenta una vez.
+            if [ "${codigo:0:1}" = "5" ] || [ "$codigo" = "000" ]; then sleep 5; codigo=$(llamar); fi
+            if [ "$codigo" != "200" ]; then
+              {
+                echo "### Avisos ${{ matrix.entorno }}: /api/push responde $codigo"
+                head -c 300 respuesta.json 2>/dev/null || true
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            echo "vuelta $vuelta: $(cat respuesta.json)"
+            grep -q '"quedan":true' respuesta.json || break
+          done

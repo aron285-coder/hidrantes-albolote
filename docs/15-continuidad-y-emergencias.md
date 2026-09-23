@@ -43,7 +43,7 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Clave GPG privada del respaldo (huella `BD378A1E0E09843032B3A70254A89DD4FC82E6CE`) | descifrar un respaldo | guardada el 21 sep 2026 por el desarrollador fuera del repositorio; **no está en GitHub ni en ningún ordenador de trabajo**. La pública sí: secreto `GPG_PUBLIC_KEY` | ídem |
 | Contraseñas de las bases de datos (dev, prod) | `pg_dump`, restauración | mismo sitio; también en los secretos de GitHub (cifrados) | ídem |
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub; se puede regenerar en un minuto | — |
-| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
+| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
@@ -205,7 +205,7 @@ reenviarán solas.
 
 **Gravedad:** alta. **Tiempo:** el mismo día. **Quién:** quien maneje el ordenador.
 
-1. `npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|todo>` regenera ese secreto en Supabase o GitHub y lo
+1. `npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|vigilancia|todo>` regenera ese secreto en Supabase o GitHub y lo
    vuelve a subir a GitHub Environments, a los secretos del repositorio (los que usan los trabajos
    por calendario, DEC-071) y a Cloudflare. Se pueden pedir varios: `--rotar db,gpg`. Para rotar
    todo: `--rotar todo` (ojo: cambia también las claves VAPID, y los móviles ya suscritos dejan de

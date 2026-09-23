@@ -8,6 +8,8 @@ import { escribir } from './almacen';
 import { anotarServidor, espera, registrarComprobacion, reintentarAhora } from './conexion';
 import { anotarError } from './errores';
 import type { ArgumentosPropuesta } from './propuestas';
+import { pedirEnvioComoJefatura } from './panel/push-jefatura';
+import { pedirEnvioPush } from './push';
 import { LIMITES_RED, conLimite } from './red';
 import { leerSesion } from './sesion';
 import { supabase } from './supabase';
@@ -251,6 +253,8 @@ async function enviarUno(clave: string, c: Credencial, gen: number): Promise<Pas
 }
 
 let procesando: Promise<void> | null = null;
+/** Algo salió bien en esta llamada: al terminar se pide el envío de avisos, una sola vez (RV-08). */
+let huboEnvio: Credencial | null = null;
 /** Alguien pidió enviar mientras había una vuelta en curso: al terminarla se da otra (RV-01). */
 let otraVuelta = false;
 let temporizador: ReturnType<typeof setTimeout> | undefined;
@@ -271,7 +275,10 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
     const actual0 = items.find((i) => i.clave_local === pendiente.clave_local);
     if (!actual0 || actual0.fallo || actual0.proximo > Date.now()) continue;
     const r = await enviarUno(pendiente.clave_local, c, gen);
-    if (r.ok) continue;
+    if (r.ok) {
+      huboEnvio = c;
+      continue;
+    }
     if (r.codigo === COLA_VACIADA || gen !== generacion) return 'parar';
     const actual = items.find((i) => i.clave_local === pendiente.clave_local);
     if (!actual) continue;
@@ -330,9 +337,17 @@ export function procesarCola(): Promise<void> {
       procesando = null;
       otraVuelta = false;
       programar();
+      // "Nueva propuesta" a jefatura sale al momento, no a los 15 minutos de avisos.yml.
+      if (huboEnvio) pedirAvisos(huboEnvio);
+      huboEnvio = null;
     }
   })();
   return procesando;
+}
+
+function pedirAvisos(c: Credencial) {
+  if ('token' in c) pedirEnvioPush(c.token);
+  else void pedirEnvioComoJefatura();
 }
 
 /**
@@ -387,6 +402,7 @@ export function _usarAlmacenCola(a: AlmacenCola<EnCola>) {
   cargada = false;
   procesando = null;
   otraVuelta = false;
+  huboEnvio = null;
   errorGuardadoAnotado = false;
   clearTimeout(temporizador);
   oyentes.clear();

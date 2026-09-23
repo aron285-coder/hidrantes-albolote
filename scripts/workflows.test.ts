@@ -38,3 +38,23 @@ describe('workflows programados (DEC-085)', () => {
     expect(texto).toMatch(/^\s{2}actions: write/m);
   });
 });
+
+describe('avisos.yml (RV-08)', () => {
+  const texto = leer('avisos.yml');
+  it('corre cada 15 minutos y a mano', () => {
+    expect(texto).toMatch(/cron: '\*\/15 \* \* \* \*'/);
+    expect(texto).toMatch(/^\s{2}workflow_dispatch:/m);
+  });
+  it('recorre producción y staging', () => {
+    expect(texto).toMatch(/entorno: \[PROD, STAGING\]/);
+    expect(texto).toContain("secrets[format('VIGILANCIA_SECRETO_{0}', matrix.entorno)]");
+    expect(texto).toContain('X-Vigilancia');
+  });
+  it('no declara environment: production pediría aprobación en cada ejecución (DEC-071)', () => {
+    expect(texto).not.toMatch(/^\s*environment:/m);
+  });
+  it('repite mientras queden avisos, como mucho diez veces', () => {
+    expect(texto).toContain('"quedan":true');
+    expect(texto).toContain('seq 1 10');
+  });
+});

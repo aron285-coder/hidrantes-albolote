@@ -14,6 +14,9 @@ vi.mock('./supabase', () => ({
 
 const anotarError = vi.fn();
 vi.mock('./errores', () => ({ anotarError }));
+const pedirEnvioPush = vi.fn();
+vi.mock('./push', () => ({ pedirEnvioPush }));
+vi.mock('./panel/push-jefatura', () => ({ pedirEnvioComoJefatura: vi.fn(async () => undefined) }));
 
 const cola = await import('./cola');
 const { LIMITES_RED } = await import('./red');
@@ -336,5 +339,26 @@ describe('cola: cerrar sesión durante un envío (RV-04)', () => {
     expect(cola.colaActual()).toEqual([]);
     expect(await almacen.todos()).toEqual([]);
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('cola: avisos al momento (RV-08)', () => {
+  it('un fn_proponer bueno pide el envío de avisos, una vez por llamada', async () => {
+    pedirEnvioPush.mockClear();
+    rpc.mockResolvedValue(ok());
+    await cola.encolar(args('k-000501'), null, 'HID-0147');
+    await cola.encolar(args('k-000502'), null, 'HID-0148');
+    await cola.procesarCola();
+    expect(cola.colaActual()).toEqual([]);
+    expect(pedirEnvioPush).toHaveBeenCalledTimes(1);
+    expect(pedirEnvioPush).toHaveBeenCalledWith(TOKEN);
+  });
+
+  it('sin nada enviado no pide nada', async () => {
+    pedirEnvioPush.mockClear();
+    rpc.mockResolvedValue(caido);
+    await cola.encolar(args('k-000503'), null, 'HID-0147');
+    await cola.procesarCola();
+    expect(pedirEnvioPush).not.toHaveBeenCalled();
   });
 });

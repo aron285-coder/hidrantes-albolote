@@ -7,6 +7,8 @@
 import { abortar, ejecutarScript, log } from './lib/comun.ts';
 
 const BASE = process.env.FUNCTIONS_URL ?? 'http://127.0.0.1:8788';
+/** El de .dev.vars que escribe `npm run arranque -- --local`; solo vale contra la pila local. */
+const SECRETO_VIGILANCIA_LOCAL = 'vigilancia-local';
 let fallos = 0;
 
 function comprobar(condicion: boolean, texto: string, detalle = ''): void {
@@ -87,6 +89,17 @@ async function principal(): Promise<void> {
 
   const push = await post('/api/push', { token: 'inventado-inventado-inventado' });
   comprobar(push.estado === 401, '/api/push con token inventado: 401');
+
+  // avisos.yml llama con el secreto de la vigilancia (RV-08). En local no hay claves VAPID: 503
+  // NO_CONFIGURADO es la respuesta buena; lo que no puede salir es un 401.
+  const conSecreto = await post('/api/push', {}, { 'X-Vigilancia': SECRETO_VIGILANCIA_LOCAL });
+  comprobar(
+    conSecreto.estado === 200 || (conSecreto.estado === 503 && conSecreto.cuerpo?.error === 'NO_CONFIGURADO'),
+    '/api/push con el secreto de la vigilancia: 200 o 503 NO_CONFIGURADO, nunca 401',
+    `HTTP ${conSecreto.estado}`,
+  );
+  const secretoMalo = await post('/api/push', {}, { 'X-Vigilancia': 'no-es-el-secreto' });
+  comprobar(secretoMalo.estado === 401, '/api/push con un secreto de vigilancia incorrecto: 401');
 
   if (fallos) abortar(`${fallos} comprobaciones fallidas`);
   log.ok('Pages Functions conformes con 05 §9');

@@ -46,6 +46,8 @@ interface Red {
   token?: boolean;
   pendientes?: ReturnType<typeof pendiente>[];
   servicioPush?: Response;
+  /** fn_resultado_notificacion no contesta (p. ej. se acabaron las peticiones de la invocación). */
+  resultadoCae?: boolean;
 }
 
 function fingirRed(red: Red = {}) {
@@ -63,7 +65,11 @@ function fingirRed(red: Red = {}) {
     if (url.includes('fn_reclamar_notificaciones')) {
       return Promise.resolve(new Response(JSON.stringify(red.pendientes ?? [])));
     }
-    if (url.includes('fn_resultado_notificacion')) return Promise.resolve(new Response('null'));
+    if (url.includes('fn_resultado_notificacion')) {
+      return red.resultadoCae
+        ? Promise.reject(new TypeError('Too many subrequests'))
+        : Promise.resolve(new Response('null'));
+    }
     return Promise.resolve(red.servicioPush ?? new Response(null, { status: 201 }));
   });
   return { espia, llamadas };
@@ -104,7 +110,7 @@ describe('POST /api/push', () => {
   it('sin nada pendiente no envía nada y responde en cero', async () => {
     const { espia, llamadas } = fingirRed({ admin: true, pendientes: [] });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
-    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 0 });
+    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 0, sin_anotar: 0, quedan: false });
     expect(llamadas.some((l) => l.url.includes('push.example.net'))).toBe(false);
     espia.mockRestore();
   });
@@ -116,7 +122,7 @@ describe('POST /api/push', () => {
     });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
 
-    expect(await r.json()).toEqual({ enviadas: 2, fallidas: 0 });
+    expect(await r.json()).toEqual({ enviadas: 2, fallidas: 0, sin_anotar: 0, quedan: false });
     const alServicio = llamadas.filter((l) => l.url === SUSCRIPCION.endpoint);
     expect(alServicio).toHaveLength(2);
     const resultados = llamadas.filter((l) => l.url.includes('fn_resultado_notificacion'));
@@ -135,7 +141,7 @@ describe('POST /api/push', () => {
     });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
 
-    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 1 });
+    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 1, sin_anotar: 0, quedan: false });
     expect(llamadas.find((l) => l.url.includes('fn_resultado_notificacion'))?.cuerpo).toEqual({
       notificacion_id: 7,
       ok: false,
@@ -152,6 +158,42 @@ describe('POST /api/push', () => {
 
     const enviado = llamadas.find((l) => l.url === SUSCRIPCION.endpoint)!.cuerpo as Uint8Array;
     expect(new TextDecoder().decode(enviado)).not.toContain('HID-0143');
+    espia.mockRestore();
+  });
+
+  // RV-08: el plan gratuito de Workers permite 50 peticiones de salida por invocación y cada aviso
+  // gasta dos (el push y su resultado). Se reclaman 20: 20 × 2 + 2 = 42.
+  it('reclama 20 y responde quedan=true cuando llegan 20', async () => {
+    const veinte = Array.from({ length: 20 }, (_, i) => pendiente(i + 1));
+    const { espia, llamadas } = fingirRed({ admin: true, pendientes: veinte });
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+    expect(await r.json()).toEqual({ enviadas: 20, fallidas: 0, sin_anotar: 0, quedan: true });
+    expect(llamadas.find((l) => l.url.includes('fn_reclamar_notificaciones'))?.cuerpo).toEqual({ limite: 20 });
+    espia.mockRestore();
+  });
+
+  it('no hace más de 50 fetch por invocación con 20 avisos', async () => {
+    const veinte = Array.from({ length: 20 }, (_, i) => pendiente(i + 1));
+    const { espia, llamadas } = fingirRed({ admin: true, pendientes: veinte });
+    await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+    expect(llamadas.length).toBeLessThanOrEqual(50);
+    espia.mockRestore();
+  });
+
+  // Un aviso sin anotar se queda reclamado y sale otra vez a los 15 minutos: un duplicado es
+  // preferible a una pérdida.
+  it('si fn_resultado falla cuenta sin_anotar y no lanza', async () => {
+    const { espia } = fingirRed({ admin: true, pendientes: [pendiente(1), pendiente(2)], resultadoCae: true });
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ enviadas: 2, fallidas: 0, sin_anotar: 2, quedan: false });
+    espia.mockRestore();
+  });
+
+  it('con el secreto de la vigilancia correcto entra sin sesión ni token', async () => {
+    const { espia } = fingirRed({ pendientes: [] });
+    const r = await onRequestPost({ request: peticion({}, { 'X-Vigilancia': 'secreto-de-vigilancia' }), env: ENV });
+    expect(r.status).toBe(200);
     espia.mockRestore();
   });
 });
