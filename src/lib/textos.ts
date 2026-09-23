@@ -300,6 +300,7 @@ export const T = {
     resumen: (enviadas: Parametro, sinEnviar: Parametro) => `${enviadas} enviadas · ${sinEnviar} sin enviar`,
     nuevo: 'nuevo',
     descartar: 'Descartar',
+    reintentar: 'Reintentar',
     confirmarDescartar: '¿Descartar este envío?',
     descartarDetalle: 'No se ha podido enviar y ya no se enviará. No se puede deshacer.',
     confirmarRetirar: '¿Retirar esta propuesta?',

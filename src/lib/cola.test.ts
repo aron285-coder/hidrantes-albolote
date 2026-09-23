@@ -262,3 +262,79 @@ describe('cola: IndexedDB que falla (RV-02)', () => {
     expect(await cola.encolar(args('k-000202'), null, 'HID-0147')).toEqual({ persistida: true });
   });
 });
+
+describe('cola: errores desconocidos y fallidos (RV-03)', () => {
+  const desconocido = { data: null, error: { message: 'PGRST202 Could not find the function' }, status: 404 };
+
+  it('un error desconocido se reintenta y no marca fallo', async () => {
+    rpc.mockResolvedValueOnce(desconocido).mockResolvedValueOnce(ok());
+    await cola.encolar(args('k-000301'), null, 'HID-0147');
+    await cola.procesarCola();
+    expect(cola.colaActual()[0]).toMatchObject({ fallo: null, intentos: 1 });
+    vi.setSystemTime(Date.now() + 120_000);
+    await cola.procesarCola();
+    expect(cola.colaActual()).toEqual([]);
+  });
+
+  it('cinco desconocidos seguidos marcan fallo', async () => {
+    rpc.mockResolvedValue(desconocido);
+    await cola.encolar(args('k-000302'), null, 'HID-0147');
+    for (let i = 0; i < 5; i++) {
+      await cola.procesarCola();
+      vi.setSystemTime(Date.now() + 3600_000);
+    }
+    expect(rpc).toHaveBeenCalledTimes(5);
+    expect(cola.colaActual()[0].fallo).toBe('DESCONOCIDO');
+    await cola.procesarCola();
+    expect(rpc).toHaveBeenCalledTimes(5);
+  });
+
+  it('reintentarFallido vuelve a enviar un envío fallido', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'PAYLOAD_INVALIDO(x): y' }, status: 400 });
+    await cola.encolar(args('k-000303'), null, 'HID-0147');
+    await cola.procesarCola();
+    expect(cola.colaActual()[0].fallo).toBe('PAYLOAD_INVALIDO(x)');
+    rpc.mockResolvedValueOnce(ok());
+    await cola.reintentarFallido('k-000303');
+    expect(cola.colaActual()).toEqual([]);
+  });
+
+  it('NO_AUTORIZADO (sesión de jefatura caducada) se reintenta con retroceso', async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'JWT expired' }, status: 401 });
+    await cola.encolar(args('k-000304'), null, 'HID-0147');
+    await cola.procesarCola();
+    expect(cola.colaActual()[0]).toMatchObject({ fallo: null, intentos: 1 });
+  });
+
+  it('DIAMETRO_SIN_FIJAR marca fallo y no reintenta', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'DIAMETRO_SIN_FIJAR: fija' }, status: 400 });
+    await cola.encolar(args('k-000305'), null, null);
+    await cola.procesarCola();
+    await cola.procesarCola();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(cola.colaActual()[0].fallo).toBe('DIAMETRO_SIN_FIJAR');
+  });
+});
+
+describe('cola: cerrar sesión durante un envío (RV-04)', () => {
+  it('cerrar sesión durante la subida no resucita el envío', async () => {
+    let soltar!: (r: Response) => void;
+    const put = new Promise<Response>((r) => (soltar = r));
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/url-subida') return respuesta(200, { foto_path: 'fotos/e.jpg', url: 'https://sb/subir' });
+      return put;
+    });
+    const almacen = colaEnMemoria<EnCola>();
+    cola._usarAlmacenCola(almacen);
+    rpc.mockResolvedValue(ok());
+    await cola.encolar(args('k-000401'), FOTO, 'HID-0147');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await cola.vaciarCola();
+    soltar(new Response(null, { status: 200 }));
+    await cola.procesarCola();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(cola.colaActual()).toEqual([]);
+    expect(await almacen.todos()).toEqual([]);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});

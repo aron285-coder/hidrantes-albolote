@@ -25,9 +25,18 @@ describe('codigoDeError (05 §8)', () => {
     expect(codigoDeError('PAYLOAD_INVALIDO(caudal): valor raro')).toBe('PAYLOAD_INVALIDO(caudal)');
   });
 
-  it('lo que no tiene forma de código es un error interno', () => {
-    expect(codigoDeError('algo ha fallado')).toBe('ERROR_INTERNO');
-    expect(codigoDeError(undefined)).toBe('ERROR_INTERNO');
+  it('lo que no tiene forma de código es desconocido, no un error interno (RV-03)', () => {
+    expect(codigoDeError('algo ha fallado')).toBe('DESCONOCIDO');
+    expect(codigoDeError(undefined)).toBe('DESCONOCIDO');
+    expect(codigoDeError('PGRST202 Could not find the function hidrantes.fn_proponer')).toBe('DESCONOCIDO');
+    expect(codigoDeError('JWT expired')).toBe('DESCONOCIDO');
+  });
+
+  it('un 401, un 403 o un 42501 son NO_AUTORIZADO', () => {
+    expect(codigoDeError('JWT expired', 401)).toBe('NO_AUTORIZADO');
+    expect(codigoDeError('forbidden', 403)).toBe('NO_AUTORIZADO');
+    expect(codigoDeError('permission denied for function', 400, '42501')).toBe('NO_AUTORIZADO');
+    expect(codigoDeError('PUNTO_NO_ACTIVO: x', 400, 'P0001')).toBe('PUNTO_NO_ACTIVO');
   });
 });
 
@@ -42,6 +51,11 @@ describe('rpc (FR-168)', () => {
     rpcCliente.mockResolvedValue({ data: null, error: { message: 'MOTIVO_OBLIGATORIO: falta' }, status: 400 });
     await expect(rpc('fn_rechazar')).resolves.toEqual({ ok: false, codigo: 'MOTIVO_OBLIGATORIO' });
     expect(estadoConexion()).toBe('bien');
+  });
+
+  it('un 401 de la RPC llega como NO_AUTORIZADO (RV-03)', async () => {
+    rpcCliente.mockResolvedValue({ data: null, error: { message: 'JWT expired', code: 'PGRST301' }, status: 401 });
+    await expect(rpc('fn_proponer')).resolves.toEqual({ ok: false, codigo: 'NO_AUTORIZADO' });
   });
 
   it('un 500 o una red caída son SERVIDOR_NO_DISPONIBLE y encienden el aviso', async () => {
