@@ -555,6 +555,7 @@ export function motivoOmitida(codigo: string | null): string {
   if (codigo?.startsWith('PUNTO_NO_ACTIVO')) return T.panelCola.omitidaPuntoNoActivo;
   if (codigo?.startsWith('DIAMETRO_SIN_FIJAR')) return T.panelCola.omitidaDiametro;
   if (codigo?.startsWith('PROPUESTA_NO_PENDIENTE')) return T.panelCola.omitidaYaResuelta;
+  if (codigo?.startsWith('PUNTO_OCUPADO')) return T.panelErrores.puntoOcupado;
   return T.panelCola.omitidaDatos;
 }
 

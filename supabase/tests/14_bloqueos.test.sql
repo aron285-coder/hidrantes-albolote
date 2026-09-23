@@ -44,7 +44,8 @@ $f$, (select puntos from conexion), (select propuestas from conexion)));
 
 -- b1 bloquea el primer punto y no suelta.
 select dblink_exec('b1', 'begin');
-select dblink_exec('b1', format('select 1 from hidrantes.puntos where id = %L for update', (select puntos[1] from conexion)));
+select * from dblink('b1', format('select 1 from hidrantes.puntos where id = %L for update',
+  (select puntos[1] from conexion))) as t(x int);
 
 -- b2 aprueba las tres en lote; un statement_timeout de sesión para que el test nunca se cuelgue.
 select dblink_exec('b2', 'begin');

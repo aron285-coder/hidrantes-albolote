@@ -36,6 +36,8 @@ export function textoError(codigo: string): string {
       return T.panelErrores.noConfigurado;
     case SIN_SERVIDOR:
       return T.panelErrores.sinServidor;
+    case 'PUNTO_OCUPADO':
+      return T.panelErrores.puntoOcupado;
     default:
       return T.panelErrores.generico;
   }

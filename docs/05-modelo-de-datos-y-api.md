@@ -495,7 +495,8 @@ Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTE
 `PUNTO_NO_ACTIVO`, `PROPUESTA_NO_PENDIENTE`, `PROPUESTA_AJENA`, `PROPUESTA_DESACTUALIZADA`,
 `DIAMETRO_SIN_FIJAR`, `MOTIVO_OBLIGATORIO`, `TIPO_DISTINTO`, `PROPUESTA_NO_ALTA`,
 `FUERA_DE_PLAZO_PAPELERA`, `CODIGO_FORMATO`, `ULTIMO_ADMINISTRADOR`, `CONFIG_INVALIDA`,
-`NO_AUTORIZADO`. El cliente traduce cada código a un texto en español (TR-36); ningún error de
+`NO_AUTORIZADO`, `PUNTO_OCUPADO` ("otra persona está cambiando este punto; inténtalo en unos
+segundos": lo devuelve `fn_aprobar_lote` en la propuesta cuyo punto no consigue en 5 s, RV-17). El cliente traduce cada código a un texto en español (TR-36); ningún error de
 Postgres llega crudo.
 
 `DESCONOCIDO` es un código **solo de cliente** y no sale de ninguna RPC: lo pone `src/lib/api.ts`
@@ -610,7 +611,7 @@ sin ese cuello de botella:
 | `fn_verificar_codigo` | El recuento de intentos y la inserción van en la misma transacción; el índice sobre `(dispositivo_id, momento)` la hace barata. |
 | `fn_guardar_config`, `fn_gestionar_administrador` | `for update` sobre las filas afectadas; la regla del último administrador activo se comprueba **dentro** de la transacción. |
 | Escrituras largas | Ninguna RPC hace peticiones de red: Nominatim y GitHub se llaman desde las *Pages Functions*, nunca con una transacción abierta. |
-| Tiempo máximo | `statement_timeout` de 10 s en las RPC de escritura; un bloqueo que no avanza falla con mensaje, no deja la interfaz colgada. |
+| Tiempo máximo | `lock_timeout` de 5 s en las RPC de escritura que bloquean filas (0013, 0016): una espera de bloqueo que no avanza falla en vez de dejar la interfaz colgada. `statement_timeout` como atributo de función no hacía nada y se quitó (RV-17). En `fn_aprobar_lote` esa propuesta se omite con `PUNTO_OCUPADO` y siguen las demás; una RPC suelta devuelve el error 55P03, que PostgREST responde como 5xx y el cliente trata como sin servidor (la cola lo reintenta). |
 
 Tests obligatorios (pgTAP, dos sesiones): dos `fn_aprobar` simultáneos sobre la misma propuesta →
 uno aprueba, el otro falla con `PROPUESTA_NO_PENDIENTE`; dos `fn_proponer` con la misma
