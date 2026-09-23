@@ -438,6 +438,9 @@ fn_salud() returns jsonb
   --   vigilancia.yml anotó de cada tarea de pg_cron: { tarea, ultima, fallo, problema }) }
 fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
 fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
+fn_renombrar_nucleo(nombre_actual text, nombre_nuevo text) returns void   -- 0009, DEC-068 (FR-166)
+fn_anadir_nucleo(nombre text, lat double precision, lng double precision) returns void   -- 0009
+fn_encolar_resumen_semanal() returns integer                   -- 0009; solo pg_cron, los lunes (FR-164)
 fn_novedades() returns jsonb                                    -- OBSOLETA desde 0.5.0: sin uso (las novedades salen del build, DEC-087); se retira en la siguiente versión mayor
 fn_guardar_direccion_sugerida(propuesta_id uuid, direccion text) returns void   -- la usa /api/direccion con el JWT
 fn_registrar_workflow(workflow text) returns void               -- la usa /api/lanzar-workflow ('workflow_lanzado')
@@ -497,7 +500,8 @@ resultado fusionado antes de escribir.
 `accion` ∈ `propuesta_creada`, `propuesta_retirada_autor`, `aprobacion`, `aprobacion_con_correcciones`,
 `rechazo`, `fusion`, `edicion_admin`, `retirada`, `borrado`, `restauracion`, `purga_papelera`,
 `codigo_cambiado`, `dispositivos_revocados`, `administrador_alta`, `administrador_baja`,
-`config_cambiada`, `incidencia_resuelta`, `anonimizacion`, `exportacion`, `workflow_lanzado`, `nucleo_guardado` (DEC-068).
+`config_cambiada`, `incidencia_resuelta`, `anonimizacion`, `exportacion`, `workflow_lanzado`, `nucleo_guardado` (DEC-068),
+`restauracion_respaldo` (0010, la anota `restaurar.ts`).
 
 Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTENTOS`,
 `TOKEN_INVALIDO`, `TOKEN_REVOCADO`, `TOKEN_CADUCADO`, `PAYLOAD_INVALIDO`, `FOTO_OBLIGATORIA`,
@@ -622,7 +626,7 @@ sin ese cuello de botella:
 | `fn_aprobar_lote` | Ordena los ids antes de bloquear (evita interbloqueos) y procesa cada propuesta en su propio *savepoint*: una que falle no tumba el lote. |
 | Asignación de código | `nextval` sobre la secuencia, fuera de cualquier lectura de `max(codigo)`. Dos altas simultáneas obtienen códigos distintos por construcción. |
 | `fn_proponer` | `insert … on conflict (clave_local) do nothing returning …`; si no devuelve fila, lee la existente. Dos envíos simultáneos del mismo móvil crean una sola propuesta. |
-| `fn_reservar_subida` | Cuenta y reserva en la misma sentencia (`insert … select … where (select count(*) …) < cuota`), para que dos peticiones a la vez no pasen las dos el tope. |
+| `fn_reservar_subida` | `pg_advisory_xact_lock(hashtext('subidas:' || dispositivo))` y después cuenta y reserva: las reservas del mismo dispositivo van de una en una y dos peticiones a la vez no pasan las dos el tope (0005). |
 | `fn_verificar_codigo` | Empieza con `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). |
 | `fn_guardar_config`, `fn_gestionar_administrador` | `for update` sobre las filas afectadas; la regla del último administrador activo se comprueba **dentro** de la transacción. |
 | Escrituras largas | Ninguna RPC hace peticiones de red: Nominatim y GitHub se llaman desde las *Pages Functions*, nunca con una transacción abierta. |

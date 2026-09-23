@@ -1,6 +1,8 @@
 # Verificación · Fase 8 · Calidad, respaldo y observabilidad
 
-**Estado: terminada el 21 sep 2026.** El criterio de salida se cumple entero. La prueba de carga en
+**Estado: terminada el 21 sep 2026**, con una salvedad: el criterio de salida se cumple salvo los
+tres días seguidos de vigilancia en verde (§2, última fila), que el 23 sep 2026 todavía no se habían
+dado. La prueba de carga en
 un móvil real (TR-12) la hizo el desarrollador el **22 sep 2026** sobre staging, que ese día volvió a
 ser accesible sin VPN (DEC-061): **POCO M6 Pro, Android 15 (AP3A.240905.015.A2)**, y el mapa se
 maneja con soltura. Lo único que sigue corriendo es el calendario: la vigilancia diaria necesita tres
@@ -41,25 +43,29 @@ defectos reales salieron de ahí y están en §5.
 | Un respaldo **restaurado** con éxito | ensayo completo sobre una base vacía con el volcado cifrado de verdad: importar la clave, descifrar, vaciar el esquema, restaurar en transacción y comprobar recuentos y permisos. **Corrección del 23 sep 2026 (RV-13):** ese ensayo fue solo sobre base vacía; sobre un esquema vivo fallaba (secuencias sueltas) y con un volcado anterior a 0010 también (auditoría). TR-51 queda ensayado sobre base vacía **y** sobre esquema con datos, en CI (`scripts/probar-restauracion.ts` en `ci-sql`) | ✅ (tres defectos por el camino, §5; dos más en RV-13) |
 | El respaldo corre de verdad | `respaldo.yml` lanzado a mano contra producción el 21 sep 2026 (run 35575039376): artefacto `respaldo-hidrantes` de 136 KB cifrado, 90 días de retención, `ultimo_respaldo` anotado | ✅ |
 | Las ocho pruebas de intrusión fallan | `npm run intrusion` contra la pila local; resultado exacto de cada una, con fecha, en 11 §5 | ✅ las ocho denegadas |
-| Presupuesto de rendimiento | `e2e/rendimiento.spec.ts` con 3G simulada (1,6 Mbit/s, 300 ms): primera pantalla útil **2,40 s** (TR-10 < 3 s), ficha **2,56 s** (TR-14 < 3 s); búsqueda sobre 1 000 puntos, mediana de 11 ejecuciones (TR-13) | ✅ |
+| Presupuesto de rendimiento | `e2e/rendimiento.spec.ts` con 3G simulada (1,6 Mbit/s, 300 ms): primera pantalla útil **2,40 s** (TR-10 < 3 s) y sincronización de 1 000 puntos (TR-14) en el mismo spec; búsqueda sobre 1 000 puntos, mediana de 11 ejecuciones (TR-13). La ficha no tiene medida propia: la cifra de 2,56 s que figuraba aquí no salía de ningún test (corregido el 23 sep 2026, `docs/17` RV-32) | ✅ |
 | Lighthouse | `deploy-staging.yml` sobre staging con los umbrales de TR-103 (85 / 95 / 95) | ✅ los tres umbrales; la instalabilidad pasa a un e2e porque Lighthouse 12 ya no la audita (DEC-074) |
 | Cabeceras A | `comprobar-despliegue.ts` desde fuera y `e2e/cabeceras.spec.ts` con un navegador: las de TR-100, la CSP sin `unsafe-eval` ni Nominatim, y cero violaciones al cargar | ✅ |
 | Prueba de degradación | `e2e/degradacion.spec.ts`: base de datos caída → puntos guardados + aviso; Functions con 503 → la entrada lo explica y conserva lo escrito; panel igual; ninguna pantalla con jerga | ✅ |
-| `vigilancia.yml` tres días en verde | ha corrido de punta a punta el 21 sep 2026: la primera ejecución encontró un problema real (no había respaldo), abrió la issue #133 y salió en rojo; hecho el respaldo, la siguiente **cerró la issue sola** | ⏳ el ciclo entero está probado; los tres días se cumplen solos (cron diario, 07:41 UTC) |
+| `vigilancia.yml` tres días en verde | ha corrido de punta a punta el 21 sep 2026: la primera ejecución encontró un problema real (no había respaldo), abrió la issue #133 y salió en rojo; hecho el respaldo, la siguiente **cerró la issue sola** | ⏳ el ciclo entero está probado; los tres días seguidos no se han cumplido todavía: el 23 sep 2026 la vigilancia abrió #206 por un fallo de la propia comprobación de workflows de RV-11, corregido en #212 |
 
 ## 3. Casos de 10 ejecutados
 
-- **Camino crítico (AC-01 a AC-08, en integración real):** entrar con el código → alta con el pin
+- **Camino crítico (AC-01 a AC-08, en integración real):** con dos salvedades: el Google de verdad
+  (AC-06 y AC-07) está simulado con una sesión creada por la API de Auth (`fase-4.md`), y la
+  instalación en Android (AC-08) no se automatiza. entrar con el código → alta con el pin
   movido a mano y foto por URL firmada → jefatura aprueba escribiendo la dirección → el punto sale
   en el mapa y en la lista del voluntario → retirada → papelera → restauración, con el registro
   contando la historia entera sin huecos.
 - **Rendimiento (TR-10, TR-13, TR-14):** medidos, no estimados; números arriba.
-- **Accesibilidad (TR-30, TR-31, TR-32):** axe sin violaciones en entrada, mapa, lista, alta, mis
+- **Accesibilidad (TR-30, TR-31):** axe sin violaciones en entrada, mapa, lista, alta, mis
   propuestas, ajustes y las dos pantallas del panel; contraste de los tokens en claro y oscuro,
-  incluida la cadena de dos saltos del marcador (DEC-072).
+  incluida la cadena de dos saltos del marcador (DEC-072). **TR-32** (objetivos táctiles de 44 px)
+  no lo cubre axe con las reglas WCAG 2.1 (la regla `target-size` es de 2.2): queda para RV-29.
 - **Seguridad (TR-40):** las ocho de 11 §5, ejecutadas y documentadas con su respuesta exacta.
-- **Continuidad (TR-50, TR-51, TR-52):** respaldo real, restauración ensayada, marcha atrás del
-  frontend por CLI ya probada en fases anteriores.
+- **Continuidad (TR-50, TR-51, TR-52):** respaldo real, restauración ensayada (sobre base vacía y, desde
+  RV-13, sobre esquema con datos en CI); la marcha atrás del frontend (`revertir.ts`, TR-52) está
+  **pendiente de ensayo** (`docs/17` §12): no consta ningún ensayo registrado.
 - **Degradación (FR-168) y cuota (TR-53):** e2e propios.
 
 ## 4. Cómo reproducirlo

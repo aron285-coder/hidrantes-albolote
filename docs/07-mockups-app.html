@@ -674,7 +674,7 @@
       '<div style="font-size:8.5px;color:var(--texto-suave);margin-top:auto;padding-top:10px;text-decoration:underline;cursor:pointer;" data-ac="legal">Aviso legal y privacidad · v'+S.version+'</div></div>'; }
   function pGoogle(){ return '<div class="app-bar" style="justify-content:center;">Elige una cuenta</div><div class="screen-body"><div style="font-size:10.5px;color:var(--texto-suave);margin-bottom:8px;">para continuar en <b>Hidrantes Albolote</b></div>'+
       '<div class="gacc" data-gacc="ok"><div class="av">J</div><div>Jefatura Albolote<small>jefatura@albolote-pc.es · autorizada</small></div></div>'+
-      '<div class="gacc" data-gacc="no"><div class="av" style="background:var(--gris-700)">P</div><div>Pedro Navarro<small>pedro.navarro@gmail.com · no está en la lista</small></div></div>'+
+      '<div class="gacc" data-gacc="no"><div class="av" style="background:var(--gris-700)">O</div><div>Otra cuenta<small>persona@example.org · no está en la lista</small></div></div>'+
       '<div class="fakebtn secundario" data-ac="google-cancel" style="margin-top:14px;">Cancelar</div></div>' }
   function pNoAuth(){ return appBar('Sin acceso')+'<div class="screen-body noauth"><div style="font-size:30px;">🔒</div><div style="font-family:Barlow Condensed;font-weight:700;font-size:17px;margin:8px 0 6px;">No autorizado</div><div style="font-size:11px;color:var(--texto-suave);">Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.</div><div class="fakebtn secundario" data-ac="salir" style="margin-top:16px;width:100%;">Volver</div></div>' }
   function pOnboarding(){ var n=Math.max(0,Math.min(2,S.onboarding-1)), T=[
