@@ -471,8 +471,11 @@ El piloto se hace en **staging** con un barrio real y 5–8 voluntarios. Antes, 
 código real desde Ajustes. Al terminar, `promover-piloto.ts` (workflow manual con aprobación):
 exige cola de staging a cero; lee los puntos activos que no empiecen por `[PRUEBA]` con sus
 propuestas aprobadas y su registro; copia sus fotos entre buckets con el mismo `foto_path`; inserta
-en producción **conservando los códigos** y avanza las secuencias; es idempotente por `codigo` y
-deja informe. Los voluntarios instalan la PWA de producción con el código real.
+en producción **conservando los códigos** y avanza las secuencias; es idempotente por `id` y
+deja informe. Antes de escribir comprueba que ningún código del piloto lo tiene ya **otro** punto en
+producción: si lo hay, aborta con la lista y se resuelve a mano. Los puntos entran con
+`actualizado_en = now()` y la transacción cambia la época de los datos, para que los móviles los
+vean sin esperar a la completa semanal (docs/18 RV-46). Los voluntarios instalan la PWA de producción con el código real.
 
 ---
 

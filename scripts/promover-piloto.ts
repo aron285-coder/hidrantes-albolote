@@ -13,7 +13,7 @@
 
 import { abortar, argumentos, ejecutarScript, log, preguntar, psql, psqlOk, type Resultado } from './lib/comun.ts';
 import { sqlSecuenciasAlMenos } from './lib/secuencias.ts';
-import { REFS, refDeUrl } from './restaurar.ts';
+import { REFS, epocaNueva, refDeUrl } from './restaurar.ts';
 import { BUCKETS, subir } from './restaurar-fotos.ts';
 
 /** El prefijo del seed (CLAUDE.md §7): lo que empieza así es de mentira y no sube a producción. */
@@ -35,7 +35,11 @@ export function esDePruebas(descripcion: string | null): boolean {
  * geografías ni jsonb.
  *
  * Todo lleva su guarda de idempotencia:
- * - `puntos` y `propuestas` conservan su `id`, así que basta con `on conflict do nothing`.
+ * - `puntos` y `propuestas` conservan su `id`, así que basta con `on conflict do nothing`. En
+ *   `puntos`, `on conflict (id)`: un código que en producción ya tenga otro id no se descarta en
+ *   silencio, falla, y antes de escribir se comprueba y se nombra (docs/18 RV-46).
+ * - `actualizado_en = now()`: con el sello de staging, las incrementales de los móviles no los
+ *   verían hasta la completa semanal. Además la transacción cambia la época (RV-46).
  * - `registro` tiene el id autogenerado; se salta la fila si ya hay una igual (mismo momento, actor,
  *   acción, punto y propuesta), que es lo que deja una segunda pasada.
  */
@@ -56,11 +60,11 @@ select sentencia from (
 select format(
   'insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, racor, descripcion_fallo,'
   || ' descripcion, direccion, foto_path, municipio, nucleo, situacion, fecha_ultima_revision,'
-  || ' creado_en, actualizado_en) values (%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)'
-  || ' on conflict do nothing;',
+  || ' creado_en, actualizado_en) values (%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, now())'
+  || ' on conflict (id) do nothing;',
   p.id, p.codigo, p.tipo, p.geom, p.diametro_mm, p.caudal, p.racor, p.descripcion_fallo,
   p.descripcion, p.direccion, p.foto_path, p.municipio, p.nucleo, p.situacion, p.fecha_ultima_revision,
-  p.creado_en, p.actualizado_en) as sentencia, 1 as orden
+  p.creado_en) as sentencia, 1 as orden
 from elegidos p
 union all
 select format(
@@ -99,6 +103,38 @@ where g.punto_id in (select id from elegidos)
  * siguiente alta intentaría repetir uno (`codigo` es único y el alta fallaría).
  */
 export const SQL_SECUENCIAS = sqlSecuenciasAlMenos(1, 1);
+
+/** Los puntos que viajan, para comprobar en producción que sus códigos no los tiene otro id. */
+export const SQL_CODIGOS_ORIGEN = `
+select id || ' ' || codigo from hidrantes.puntos where ${CONDICION_PUNTOS} order by codigo;`;
+
+/**
+ * Qué códigos del guion existen ya en producción con **otro** id. Un `on conflict do nothing` sin
+ * objetivo los descartaba en silencio; ahora se aborta con la lista y la resolución es humana.
+ */
+export function sqlCodigosEnConflicto(pares: { id: string; codigo: string }[]): string | null {
+  if (!pares.length) return null;
+  const valores = pares
+    .map(({ id, codigo }) => {
+      if (!/^[0-9a-f-]{36}$/i.test(id) || !/^(HID|BOC)-\d{4}$/.test(codigo))
+        throw new Error(`Par no válido: ${id} ${codigo}`);
+      return `('${id}'::uuid, '${codigo}')`;
+    })
+    .join(',\n  ');
+  return `select x.codigo from (values
+  ${valores}) v(id, codigo)
+join hidrantes.puntos x on x.codigo = v.codigo and x.id <> v.id
+order by x.codigo;`;
+}
+
+export function motivoCodigosEnConflicto(codigos: string[]): string | null {
+  if (!codigos.length) return null;
+  return `Estos códigos ya existen en producción con otro punto: ${codigos.join(', ')}. No se ha escrito nada; hay que resolverlo a mano antes de promover.`;
+}
+
+/** Todo en una transacción: o entra el piloto entero o no entra nada. Con la época nueva (RV-46). */
+export const guionPromocion = (sentencias: string[]) =>
+  ['begin;', ...sentencias, SQL_SECUENCIAS, epocaNueva('promover-piloto.ts'), 'commit;'].join('\n');
 
 /** Cuántas sentencias de cada tabla trae el guion generado, para el informe. */
 export function cuentaPorTabla(sentencias: string[]): Record<string, number> {
@@ -227,13 +263,32 @@ async function principal(): Promise<void> {
     return;
   }
 
+  // Un código que producción ya tiene con otro id: se nombra y no se escribe nada (RV-46).
+  const pares = psqlOk(origen, SQL_CODIGOS_ORIGEN, { tuplas: true })
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const [id, codigo] = l.split(' ');
+      return { id: id!, codigo: codigo! };
+    });
+  const consulta = sqlCodigosEnConflicto(pares);
+  if (consulta) {
+    const enConflicto = psqlOk(destino, consulta, { tuplas: true })
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const motivo = motivoCodigosEnConflicto(enConflicto);
+    if (motivo) abortar(motivo);
+  }
+  log.ok('Ningún código del piloto lo tiene ya otro punto en producción');
+
   const escrito = await preguntar(`Escribe ${CONFIRMACION} para llevar esto a producción`);
   if (escrito !== CONFIRMACION) abortar('No se ha escrito la confirmación: no se ha tocado nada.');
 
-  // Todo en una transacción: o entra el piloto entero o no entra nada.
-  const r: Resultado = psql(destino, ['begin;', ...sentencias, SQL_SECUENCIAS, 'commit;'].join('\n'));
+  const r: Resultado = psql(destino, guionPromocion(sentencias));
   if (r.codigo !== 0) abortar(`La promoción falló y no se ha escrito nada:\n${r.error || r.salida}`);
-  log.ok('Puntos, propuestas y registro insertados; secuencias avanzadas');
+  log.ok('Puntos, propuestas y registro insertados; secuencias avanzadas; época nueva para los móviles');
 
   const fotos = { copiadas: 0, ya: 0, sin: [] as string[] };
   const servicioOrigen = process.env.SUPABASE_SERVICE_ROLE_KEY_STAGING;
