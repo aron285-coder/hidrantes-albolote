@@ -278,7 +278,9 @@ test.describe('zoom (#136)', () => {
   });
 });
 
-test.describe('alta con pulsación larga (#138)', () => {
+// FR-50 v1.3 y FR-72 (docs/18 GM-02): la pulsación larga abre "¿Qué hay aquí?", y el alta queda a un
+// toque. Antes abría el alta directamente (DEC-077).
+test.describe('pulsación larga: ¿Qué hay aquí? (#138, FR-72)', () => {
   /** Lo que hace un dedo que se queda quieto: pointerdown, esperar, pointerup. */
   async function mantenerPulsado(page: Page, x: number, y: number, ms = 700) {
     await page.locator('[data-testid="mapa"]').dispatchEvent('pointerdown', {
@@ -295,17 +297,42 @@ test.describe('alta con pulsación larga (#138)', () => {
       .catch(() => {});
   }
 
-  test('mantener pulsado el mapa abre el alta con el pin ahí mismo', async ({ page }) => {
+  const hoja = (page: Page) => page.getByRole('dialog', { name: T.aqui.titulo });
+
+  test('mantener pulsado el mapa abre ¿Qué hay aquí? en ese sitio', async ({ page }) => {
     await abrir(page);
     const caja = (await page.locator('[data-testid="mapa"]').boundingBox())!;
     await mantenerPulsado(page, caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await expect(hoja(page)).toBeVisible();
+    await expect(page).toHaveURL(/\?aqui=-?\d+\.\d{6},-?\d+\.\d{6}/);
+    // Y el sitio es el del centro del mapa, que es donde se pulsó.
+    const [lat, lng] = new URL(page.url()).searchParams.get('aqui')!.split(',').map(Number);
+    expect(lat).toBeGreaterThan(37);
+    expect(lng).toBeLessThan(-3);
+    await expect(hoja(page).getByRole('region', { name: T.coordenadas.titulo })).toBeVisible();
+  });
 
-    await expect(page).toHaveURL(/\/proponer\/alta\?lat=-?\d+\.\d{6}&lng=-?\d+\.\d{6}/);
+  test('¿Qué hay aquí? enseña las coordenadas UTM del sitio (vector de GM-01)', async ({ page }) => {
+    await abrir(page, '/?aqui=37.2305,-3.656');
+    await expect(hoja(page)).toContainText('37.230500, -3.656000');
+    await expect(hoja(page)).toContainText('30S 441808 4120645');
+  });
+
+  test('Añadir un punto aquí lleva al alta con esas coordenadas (FR-50 v1.3)', async ({ page }) => {
+    await abrir(page, '/?aqui=37.2305,-3.656');
+    await hoja(page).getByRole('button', { name: T.aqui.anadirPunto }).click();
+    await expect(page).toHaveURL(/\/proponer\/alta\?lat=37\.230500&lng=-3\.656000/);
     await expect(page.getByTestId('selector-pin')).toBeVisible();
-    // Y el punto es el del centro del mapa, que es donde se pulsó.
-    const url = new URL(page.url());
-    expect(Number(url.searchParams.get('lat'))).toBeGreaterThan(37);
-    expect(Number(url.searchParams.get('lng'))).toBeLessThan(-3);
+  });
+
+  test('atrás cierra la hoja', async ({ page }) => {
+    await abrir(page);
+    const caja = (await page.locator('[data-testid="mapa"]').boundingBox())!;
+    await mantenerPulsado(page, caja.x + caja.width / 2, caja.y + caja.height / 2);
+    await expect(hoja(page)).toBeVisible();
+    await page.goBack();
+    await expect(hoja(page)).toHaveCount(0);
+    await expect(page).not.toHaveURL(/aqui=/);
   });
 
   test('un toque corto no abre nada: eso es mirar el mapa', async ({ page }) => {
@@ -327,14 +354,70 @@ test.describe('alta con pulsación larga (#138)', () => {
       isPrimary: true,
     });
     await page.waitForTimeout(900);
-    await expect(page).not.toHaveURL(/\/proponer/);
+    await expect(page).not.toHaveURL(/\/proponer|aqui=/);
   });
 
   test('en escritorio, el clic derecho hace lo mismo', async ({ page }) => {
     await abrir(page);
     const caja = (await page.locator('[data-testid="mapa"]').boundingBox())!;
     await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2, { button: 'right' });
-    await expect(page).toHaveURL(/\/proponer\/alta\?lat=/);
+    await expect(hoja(page)).toBeVisible();
+    await expect(page).toHaveURL(/\?aqui=/);
+  });
+});
+
+// FR-75 (docs/18 GM-05): compartir y coordenadas.
+test.describe('compartir y coordenadas (FR-75)', () => {
+  test('la ficha enseña UTM y copia', async ({ page, context, browserName }) => {
+    test.skip(browserName !== 'chromium', 'los permisos del portapapeles son de Chromium');
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    const p = { ...PUNTOS[0], lat: 37.2305, lng: -3.656 };
+    await conSesion(page);
+    await simularRpc(page, {
+      fn_listar_puntos: { ...LISTADO, puntos: [p, ...PUNTOS.slice(1)] },
+      fn_registrar_error: null,
+    });
+    await page.goto(`/?p=${p.id}`);
+    const bloque = page.getByRole('region', { name: T.coordenadas.titulo });
+    await expect(bloque).toContainText('30S 441808 4120645');
+    await bloque.getByRole('button', { name: T.coordenadas.copiar(T.coordenadas.utm) }).click();
+    await expect(bloque.getByRole('status')).toHaveText(T.coordenadas.copiado);
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('30S 441808 4120645');
+  });
+
+  test('compartir llama a navigator.share con el texto', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { compartido: unknown[] };
+      w.compartido = [];
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: (datos: unknown) => {
+          w.compartido.push(datos);
+          return Promise.resolve();
+        },
+      });
+    });
+    await abrir(page, `/?p=${PUNTOS[0].id}`);
+    await page.getByRole('button', { name: T.compartir.boton, exact: true }).click();
+    const [datos] = await page.evaluate(
+      () => (window as unknown as { compartido: { title: string; text: string }[] }).compartido,
+    );
+    expect(datos!.title).toBe(PUNTOS[0].codigo);
+    expect(datos!.text).toContain(PUNTOS[0].codigo);
+    expect(datos!.text).toContain('UTM 30S');
+    expect(datos!.text).toContain('https://www.google.com/maps/search/?api=1&query=');
+  });
+
+  test('sin navigator.share, copia y avisa', async ({ page, context, browserName }) => {
+    test.skip(browserName !== 'chromium', 'los permisos del portapapeles son de Chromium');
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'share', { configurable: true, value: undefined });
+    });
+    await abrir(page, `/?p=${PUNTOS[0].id}`);
+    await page.getByRole('button', { name: T.compartir.boton, exact: true }).click();
+    await expect(page.getByText(T.compartir.copiado)).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(PUNTOS[0].codigo);
   });
 });
 

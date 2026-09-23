@@ -181,6 +181,32 @@ export const T = {
     sinFoto: 'Sin foto',
   },
 
+  // Funciones de mapa para emergencias (FR-72, FR-75; docs/18 GM-02 y GM-05).
+  coordenadas: {
+    titulo: 'Coordenadas',
+    decimal: 'Decimal',
+    utm: 'UTM ETRS89 · huso 30',
+    copiar: (que: Parametro) => `Copiar ${que}`,
+    copiado: 'Copiado',
+    noSeCopia: 'No se ha podido copiar: mantén pulsado el texto para copiarlo',
+  },
+
+  aqui: {
+    titulo: '¿Qué hay aquí?',
+    compartirUbicacion: 'Compartir esta ubicación',
+    anadirPunto: 'Añadir un punto aquí',
+  },
+
+  compartir: {
+    boton: 'Compartir',
+    tituloUbicacion: 'Ubicación',
+    lineaPunto: (codigo: Parametro, tipo: Parametro, diametro: Parametro, estado: Parametro) =>
+      `${codigo} · ${tipo} ${diametro} · ${estado}`,
+    lineaCoordenadas: (decimal: Parametro, utm: Parametro) => `${decimal} · UTM ${utm} (ETRS89)`,
+    copiado: 'Copiado: pégalo donde quieras',
+    noSePuede: 'No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo',
+  },
+
   operaciones: {
     queHaCambiado: (codigo: Parametro) => `¿Qué ha cambiado en ${codigo}?`,
     sigueIgual: 'Sigue igual',
