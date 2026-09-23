@@ -7,7 +7,8 @@
 #
 # Sin `environment: production` por el mismo motivo que el respaldo: ese entorno exige aprobación
 # humana en cada ejecución y una tarea de mantenimiento periódica no puede esperar a nadie
-# (DEC-071). Qué se conserva lo decide `fn_fotos_referenciadas`, no este workflow.
+# (DEC-071). Qué se conserva lo decide `fn_fotos_referenciadas_lista`, no este workflow.
+# Nunca pasa --forzar: una pasada que borraría más de max(50, 10 %) del bucket se para (RV-33).
 name: Purgar fotos
 
 on:

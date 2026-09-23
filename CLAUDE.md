@@ -52,7 +52,8 @@ nunca crea un requisito.
   `wrangler pages dev`.
 - **Nunca `insert`/`update`/`delete` directo desde el frontend.** Todo por RPC `SECURITY DEFINER`.
 - **Nunca `execute` para `anon` en `fn_verificar_codigo`, `fn_reservar_subida`,
-  `fn_fotos_referenciadas`.** Solo `service_role` desde las Pages Functions.
+  `fn_fotos_referenciadas`, `fn_fotos_referenciadas_lista`.** Solo `service_role` desde las Pages
+  Functions y los workflows.
 - **Nunca políticas de escritura en Storage para `anon`.** Subida solo con URL firmada.
 - **Nunca nombres de voluntarios ni correos de administradores en nada que llegue a un
   voluntario** (FR-27): RPC de voluntario, notificaciones, exportaciones.

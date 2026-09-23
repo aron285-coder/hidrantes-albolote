@@ -60,6 +60,9 @@ jobs:
               -f supabase/seed-staging.sql
           done
       - run: npm run test:sql
+      # Más de 1.000 fotos referenciadas por PostgREST: la lista llega entera (RV-33).
+      - name: Purga con más de 1.000 fotos referenciadas (RV-33)
+        run: npx tsx scripts/probar-purga.ts
       - name: Tareas programadas legibles por hidrantes_migrador (RV-22)
         run: |
           tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres" -f scripts/sql/tareas-programadas.sql) # detectar-secretos:permitir (Supabase local efímero)

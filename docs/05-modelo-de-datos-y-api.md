@@ -298,7 +298,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida` |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas`, más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni
@@ -445,8 +445,11 @@ fn_novedades() returns jsonb                                    -- OBSOLETA desd
 fn_guardar_direccion_sugerida(propuesta_id uuid, direccion text) returns void   -- la usa /api/direccion con el JWT
 fn_registrar_workflow(workflow text) returns void               -- la usa /api/lanzar-workflow ('workflow_lanzado')
 
--- Solo service_role (la llama el workflow de purga).
-fn_fotos_referenciadas() returns setof text
+-- Solo service_role (la llama el workflow de purga). Una sola fila: PostgREST corta en max_rows
+-- (1.000) cualquier RPC que devuelva un conjunto, y la purga comprueba que fotos y total cuadran
+-- (0020, docs/18 RV-33).
+fn_fotos_referenciadas_lista() returns jsonb   -- {"fotos": [text], "total": int}, sin repetidas
+fn_fotos_referenciadas() returns setof text    -- OBSOLETA desde 0.5.0: truncada a 1.000 por PostgREST; sin uso, se retira en la siguiente versión mayor
 -- Solo service_role (la llama /api/push): reclama avisos pendientes con skip locked y los marca
 -- enviados en la misma transacción; después se anota el resultado de cada uno.
 fn_reclamar_notificaciones(limite integer default 100)
