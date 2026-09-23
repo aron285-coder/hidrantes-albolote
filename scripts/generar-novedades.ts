@@ -3,10 +3,14 @@
 //   npx tsx scripts/generar-novedades.ts        (lo corre `prebuild`)
 //
 // Lee las entradas de release-please (`## [x.y.z](…) (fecha)`, `### Novedades`, `### Correcciones`)
-// y escribe src/generado/novedades.json con la última versión y tres líneas legibles para un
+// y escribe src/generado/novedades.json con la última versión y hasta tres líneas legibles para un
 // voluntario: sin el ámbito en negrita, sin enlaces a PR ni commits y sin identificadores técnicos
 // entre paréntesis. Primero las novedades, de la versión más reciente hacia atrás; si no llegan a
 // tres, se completa con correcciones.
+//
+// Solo entran los ámbitos de cara al usuario (AMBITOS_USUARIO, DEC-091) y nunca una línea que nombre
+// un archivo o un código interno (RV-nn, F9.x, TR-nn, FR-nn): lo que sale aquí lo lee un voluntario
+// en Ajustes (FR-167). Si no queda ninguna, `lineas: []` y Ajustes enseña su texto vacío (RV-47).
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -18,6 +22,43 @@ export interface Novedades {
 }
 
 export const MAX_LINEAS = 3;
+export const MAX_CARACTERES = 140;
+
+/**
+ * Ámbitos de los commits `feat:` y `fix:` que cambian algo que ve un voluntario o jefatura. Los demás
+ * (ci, sql, restauracion, vigilancia, pruebas…) son internos y no salen en Novedades (DEC-091).
+ */
+export const AMBITOS_USUARIO = new Set([
+  'mapa',
+  'lista',
+  'ficha',
+  'alta',
+  'operaciones',
+  'cola',
+  'envios',
+  'ajustes',
+  'avisos',
+  'panel',
+  'cola-revision',
+  'inventario',
+  'fotos',
+  'posicion',
+  'mapabase',
+  'diseño',
+  'accesibilidad',
+  'busqueda',
+  'incidente',
+  'medir',
+  'compartir',
+]);
+
+/** Una línea que nombra un archivo o un código interno no es para un voluntario. */
+const TECNICA = [/\w+\.(ts|tsx|yml|sql|md)\b/, /\b(RV-\d+|F\d+\.\w+|TR-\d+|FR-\d+)\b/];
+
+const ambitoDe = (linea: string) => /^\*\*([^*:]+):\*\*/.exec(linea)?.[1]?.trim().toLowerCase() ?? null;
+
+/** Corta a MAX_CARACTERES, con puntos suspensivos si hace falta. */
+const cortar = (s: string) => (s.length <= MAX_CARACTERES ? s : `${s.slice(0, MAX_CARACTERES - 1).trimEnd()}…`);
 
 interface Version {
   version: string;
@@ -73,8 +114,11 @@ export function novedadesDe(changelog: string): Novedades {
   for (const campo of ['novedades', 'correcciones'] as const) {
     for (const v of lista) {
       for (const l of v[campo]) {
-        const limpia = limpiar(l);
-        if (limpia && !lineas.includes(limpia)) lineas.push(limpia);
+        const ambito = ambitoDe(l);
+        if (!ambito || !AMBITOS_USUARIO.has(ambito)) continue;
+        const limpia = cortar(limpiar(l));
+        if (!limpia || TECNICA.some((t) => t.test(limpia))) continue;
+        if (!lineas.includes(limpia)) lineas.push(limpia);
         if (lineas.length === MAX_LINEAS) break;
       }
       if (lineas.length === MAX_LINEAS) break;

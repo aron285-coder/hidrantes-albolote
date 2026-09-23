@@ -338,9 +338,12 @@ test.describe('alta con pulsación larga (#138)', () => {
   });
 });
 
-test('Ajustes enseña tres novedades de la versión instalada (AC-127, RV-20)', async ({ page }) => {
+test('Ajustes enseña las novedades de la versión instalada (AC-127, RV-20, RV-47)', async ({ page }) => {
   const novedades = novedadesDe(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8'));
-  expect(novedades.lineas).toHaveLength(3);
+  // Entre una y tres, y ninguna con rutas de archivo: las lee un voluntario (docs/18 RV-47).
+  expect(novedades.lineas.length).toBeGreaterThanOrEqual(1);
+  expect(novedades.lineas.length).toBeLessThanOrEqual(3);
+  for (const l of novedades.lineas) expect(l).not.toMatch(/\/|\.ts/);
   await abrir(page);
   // Versión nueva sin ver: un punto en la pestaña de Ajustes hasta abrirlo.
   await expect(page.getByTestId('punto-novedades')).toBeVisible();
