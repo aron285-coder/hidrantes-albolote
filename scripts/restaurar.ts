@@ -98,9 +98,12 @@ export const sinCrearEsquema = (volcado: string): string =>
     .replace(/^CREATE SCHEMA (IF NOT EXISTS )?hidrantes;$/gim, '-- (el esquema ya existe)')
     .replace(/^ALTER SCHEMA hidrantes OWNER TO .*;$/gim, '-- (el propietario no se cambia)');
 
-export const EPOCA_NUEVA = `insert into hidrantes.config (clave, valor, actualizado_por)
-  values ('epoca_datos', to_jsonb(gen_random_uuid()::text), 'restaurar.ts')
+/** Época nueva de los datos: los móviles que la vean distinta repiten una sincronización completa. */
+export const epocaNueva = (quien: string) => `insert into hidrantes.config (clave, valor, actualizado_por)
+  values ('epoca_datos', to_jsonb(gen_random_uuid()::text), '${quien.replaceAll("'", "''")}')
   on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;`;
+
+export const EPOCA_NUEVA = epocaNueva('restaurar.ts');
 
 /** La fila de auditoría de la restauración (11 §6, 15 §5.3). */
 export const insertAuditoria = (actor: string, nombreArchivo: string) =>

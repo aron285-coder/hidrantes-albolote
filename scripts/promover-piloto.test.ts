@@ -7,7 +7,10 @@ import {
   esDePruebas,
   esLocal,
   fotosDe,
+  guionPromocion,
   informe,
+  motivoCodigosEnConflicto,
+  sqlCodigosEnConflicto,
 } from './promover-piloto.ts';
 
 describe('qué sube y qué no', () => {
@@ -31,7 +34,7 @@ describe('el guion que se genera', () => {
 
   it('se puede pasar dos veces: cada tabla trae su guarda', () => {
     // puntos y propuestas conservan su id; registro lo genera, así que va por "no existe ya".
-    expect(SQL_GENERADOR.match(/on conflict do nothing/g)).toHaveLength(2);
+    expect(SQL_GENERADOR.match(/on conflict (\(id\) )?do nothing/g)).toHaveLength(2);
     expect(SQL_GENERADOR).toContain('where not exists (select 1 from hidrantes.registro x');
   });
 
@@ -86,5 +89,37 @@ describe('a dónde se puede escribir', () => {
       false,
     );
     expect(esLocal('no es una url')).toBe(false);
+  });
+});
+
+// docs/18 RV-46: códigos en conflicto y puntos que no llegaban a los móviles.
+describe('promoción sin conflictos ni puntos invisibles (RV-46)', () => {
+  it('un código existente con otro id aborta y lo nombra', () => {
+    expect(motivoCodigosEnConflicto(['HID-0007', 'BOC-0002'])).toMatch(/HID-0007.*BOC-0002/);
+    expect(motivoCodigosEnConflicto([])).toBeNull();
+  });
+
+  it('la comprobación compara código e id contra producción', () => {
+    const sql = sqlCodigosEnConflicto([{ id: '00000000-0000-4000-8000-000000000001', codigo: 'HID-0007' }]);
+    expect(sql).toContain("('00000000-0000-4000-8000-000000000001'::uuid, 'HID-0007')");
+    expect(sql).toContain('x.codigo = v.codigo and x.id <> v.id');
+    expect(sqlCodigosEnConflicto([])).toBeNull();
+  });
+
+  it('el guion fija actualizado_en = now(): si no, las incrementales no los verían', () => {
+    const puntos = SQL_GENERADOR.slice(SQL_GENERADOR.indexOf('insert into hidrantes.puntos'));
+    const hastaValores = puntos.slice(0, puntos.indexOf('from elegidos p'));
+    expect(hastaValores).toContain('now())');
+    expect(hastaValores).not.toContain('p.actualizado_en');
+    expect(SQL_GENERADOR).toContain('on conflict (id) do nothing;');
+  });
+
+  it('el guion incluye la época nueva, dentro de la transacción', () => {
+    const guion = guionPromocion(['insert into hidrantes.puntos (id) values (1);']);
+    expect(guion.startsWith('begin;')).toBe(true);
+    const epoca = guion.indexOf("'epoca_datos', to_jsonb(gen_random_uuid()::text)");
+    expect(epoca).toBeGreaterThan(guion.indexOf('insert into hidrantes.puntos'));
+    expect(epoca).toBeLessThan(guion.lastIndexOf('commit;'));
+    expect(guion).toContain("'promover-piloto.ts'");
   });
 });
