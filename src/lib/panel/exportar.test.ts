@@ -93,3 +93,13 @@ describe('exportación (FR-160, FL-32)', () => {
     expect(nombreArchivo('geojson', new Date('2026-01-02T10:00:00Z'))).toBe('hidrantes-albolote-2026-01-02.geojson');
   });
 });
+
+// FR-160: la exportación usa los filtros activos, también la búsqueda, que el servidor no conoce.
+describe('exportar con búsqueda (RV-24)', () => {
+  it('con búsqueda exporta solo las filas visibles', async () => {
+    const { soloVisibles } = await import('./exportar');
+    expect(soloVisibles(FILAS, undefined)).toEqual(FILAS);
+    expect(soloVisibles(FILAS, [FILAS[1]!.codigo]).map((f) => f.codigo)).toEqual([FILAS[1]!.codigo]);
+    expect(soloVisibles(FILAS, [])).toEqual([]);
+  });
+});

@@ -15,8 +15,10 @@ import {
   cargarMisPropuestas,
   marcarVistas,
   retirarPropuesta,
+  textoErrorRetirar,
 } from '@/lib/mis-propuestas';
 import { ETIQUETA_OPERACION, textoFallo } from '@/lib/nombres-operacion';
+import { textoCambios } from '@/lib/campos';
 import type { Operacion } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
@@ -29,13 +31,8 @@ const ESTADOS: Record<EstadoPropuesta | 'sin_enviar', [string, string]> = {
   retirada_por_autor: [T.misPropuestas.retiradaPorTi, 'bg-linea text-texto'],
 };
 
-/** Correcciones de jefatura en texto legible: "diametro_mm: 70 · racor: granada". */
-const textoCorrecciones = (c: Record<string, unknown> | null) =>
-  c && Object.keys(c).length
-    ? Object.entries(c)
-        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${String(v)}`)
-        .join(' · ')
-    : null;
+/** Correcciones de jefatura en español: "Diámetro: 70 mm · Racor: Granada" (UI-20, RV-23). */
+const textoCorrecciones = (c: Record<string, unknown> | null) => textoCambios(c);
 
 function Tarjeta({
   operacion,
@@ -81,7 +78,11 @@ export function MisPropuestas() {
   const conexion = useConexion();
   const ahora = useReloj();
   const [confirmar, setConfirmar] = useState<{ tipo: 'retirar' | 'descartar'; id: string } | null>(null);
-  const cerrar = useCallback(() => setConfirmar(null), []);
+  const [errorRetirar, setErrorRetirar] = useState<string | null>(null);
+  const cerrar = useCallback(() => {
+    setConfirmar(null);
+    setErrorRetirar(null);
+  }, []);
 
   useEffect(() => {
     void cargarMisPropuestas().then(() => marcarVistas());
@@ -189,12 +190,24 @@ export function MisPropuestas() {
           <p className="text-texto-suave mb-3 text-sm">
             {confirmar.tipo === 'retirar' ? T.misPropuestas.retirarDetalle : T.misPropuestas.descartarDetalle}
           </p>
+          {errorRetirar && (
+            <p role="alert" className="bg-rojo-100 text-rojo-700 rounded-campo mb-3 px-2 py-1 text-sm">
+              {errorRetirar}
+            </p>
+          )}
           <Boton
             variante="destructivo"
             className="w-full"
             onClick={async () => {
-              if (confirmar.tipo === 'retirar') await retirarPropuesta(confirmar.id);
-              else await descartar(confirmar.id);
+              if (confirmar.tipo === 'retirar') {
+                // Si jefatura ya decidió o no hay red, se dice dentro del diálogo, que sigue abierto (UI-05).
+                const r = await retirarPropuesta(confirmar.id);
+                if (!r.ok) {
+                  setErrorRetirar(textoErrorRetirar(r.codigo));
+                  void cargarMisPropuestas();
+                  return;
+                }
+              } else await descartar(confirmar.id);
               setConfirmar(null);
             }}
           >

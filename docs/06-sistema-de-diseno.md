@@ -369,7 +369,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
 `No funciona` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` ·
-`Nada coincide con ese filtro.` · `Sin cobertura` · `Reintentar` ·
+`Nada coincide con ese filtro.` · `revisado [hace 3 meses]` (en cada fila de la Lista, FR-68) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
 `[12] puntos` · `Sincronizando…` ·
 `Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` ·
 `Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.` ·
@@ -434,7 +434,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Retirar` · `Motivo: [texto]` · `con correcciones: [texto]` ·
 `⚠ Lleva más de 24 h esperando cobertura. Se enviará sola al tener señal.` ·
 `Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.` ·
-`[3] enviadas · [1] sin enviar` · `nuevo` · `Descartar` · `¿Descartar este envío?` ·
+`[3] enviadas · [1] sin enviar` · `nuevo` · `Descartar` · `Jefatura ya la ha revisado` · `No se ha podido retirar. Inténtalo de nuevo.` · `¿Descartar este envío?` ·
 `No se ha podido enviar y ya no se enviará. No se puede deshacer.` · `¿Retirar esta propuesta?` ·
 `Jefatura ya no la verá. No se puede deshacer.` · `Aprobada [HID-0147]` · `Rechazada [HID-0147]` ·
 `El punto ya no está activo: no se ha enviado.` · `Faltan datos o no son válidos: no se ha enviado.` ·

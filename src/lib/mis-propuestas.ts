@@ -1,10 +1,11 @@
 // Mis propuestas (FR-90, FR-91, FR-48): lo enviado desde este móvil y en qué quedó. Se guarda la
 // última lista en el móvil para verla sin cobertura; lo que aún no ha salido está en la cola.
 
-import { type Resultado, rpc } from './api';
+import { SIN_SERVIDOR, type Resultado, rpc } from './api';
 import { escribir, leer } from './almacen';
 import type { Operacion } from './propuestas';
 import { leerSesion } from './sesion';
+import { T } from './textos';
 
 export type EstadoPropuesta = 'pendiente' | 'aprobada' | 'rechazada' | 'retirada_por_autor';
 
@@ -77,6 +78,13 @@ export async function retirarPropuesta(id: string): Promise<Resultado<null>> {
   if (!r.ok) return r;
   await cargarMisPropuestas();
   return { ok: true, datos: null };
+}
+
+/** Por qué no se pudo retirar, en palabras del voluntario (UI-05, RV-23). */
+export function textoErrorRetirar(codigo: string): string {
+  if (codigo.startsWith('PROPUESTA_NO_PENDIENTE')) return T.misPropuestas.yaRevisada;
+  if (codigo === SIN_SERVIDOR) return T.entrada.sinServidor;
+  return T.misPropuestas.errorRetirar;
 }
 
 /** Solo para los tests. */

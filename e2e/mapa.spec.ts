@@ -351,3 +351,12 @@ test('Ajustes enseña tres novedades de la versión instalada (AC-127, RV-20)', 
   await page.getByRole('link', { name: T.navegacion.mapa }).click();
   await expect(page.getByTestId('punto-novedades')).toHaveCount(0);
 });
+
+test('cada fila de la lista enseña la última revisión (RV-24, FR-68)', async ({ page }) => {
+  await abrir(page, '/lista');
+  const filas = page.locator('ul li button');
+  await expect(filas.first()).toBeVisible();
+  const n = await filas.count();
+  for (let i = 0; i < n; i++) await expect(filas.nth(i)).toContainText(/revisado hace|Sin revisar/);
+  await expect(page.getByRole('button', { name: /HID-9005/ })).toContainText(T.mapa.sinRevisar);
+});
