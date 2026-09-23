@@ -18,7 +18,7 @@ import {
 } from './sesion';
 import { alEnviarPropuesta, iniciarCola, vaciarCola } from './cola';
 import { cargarMisPropuestas } from './mis-propuestas';
-import { borrarPuntos, cargarGuardados, estadoPuntos, sincronizar } from './puntos';
+import { borrarPuntos, cargarGuardados, estadoPuntos, rederivarSiCambiaElDia, sincronizar } from './puntos';
 import { desactivarPush, estadoPush, pedirEnvioPush } from './push';
 import { supabase } from './supabase';
 
@@ -191,6 +191,7 @@ export function iniciarAcceso(): void {
   iniciarCola();
   void cargarGuardados().then(comprobarAcceso);
   document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') rederivarSiCambiaElDia();
     const { guardadoEn } = estadoPuntos();
     if (document.visibilityState === 'visible' && (!guardadoEn || Date.now() - guardadoEn > REFRESCO_MS)) {
       void comprobarAcceso();

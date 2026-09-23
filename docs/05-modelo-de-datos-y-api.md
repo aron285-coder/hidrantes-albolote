@@ -562,7 +562,11 @@ RFC 8292 con WebCrypto, sin dependencias.
 - La cola local guarda por propuesta: `clave_local` (uuid v4), payload de `fn_proponer`, blob de la
   foto, `creada_en` local, intentos. Envío: `url-subida` → `PUT` → `fn_proponer`. Si `fn_proponer`
   devuelve la propuesta existente (misma `clave_local`), se considera enviada.
-- `config` recibida se aplica en el cliente (radios, meses de revisión) en la siguiente carga del mapa.
+- `config` recibida se aplica en el cliente (radios, meses de revisión) en la siguiente carga del mapa:
+  el móvil deriva `revision_caducada` y `radio_px` con la `config` recibida, en **todos** los puntos
+  guardados y no solo en los recibidos, al sincronizar, al arrancar sin red (con la última `config`
+  guardada) y al volver a la app si cambió el día (DEC-082). `v_puntos_activos` sigue siendo la fuente
+  del panel y de la exportación.
 
 ---
 

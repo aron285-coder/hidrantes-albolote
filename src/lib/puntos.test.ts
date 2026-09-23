@@ -7,8 +7,18 @@ import type { Punto } from './puntos';
 const rpc = vi.fn();
 vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }));
 
-const { _usarAlmacen, aplicarListado, buscar, cargarGuardados, estadoPuntos, filtrar, metros, ordenar, sincronizar } =
-  await import('./puntos');
+const {
+  _usarAlmacen,
+  aplicarListado,
+  buscar,
+  cargarGuardados,
+  estadoPuntos,
+  filtrar,
+  metros,
+  ordenar,
+  rederivarSiCambiaElDia,
+  sincronizar,
+} = await import('./puntos');
 const { _reiniciar } = await import('./conexion');
 
 const p = (id: string, extra: Partial<Punto> = {}): Punto => ({
@@ -124,5 +134,107 @@ describe('búsqueda, filtros y orden', () => {
 
   it('distancias en metros razonables', () => {
     expect(Math.round(metros({ lat: 37.23, lng: -3.65 }, { lat: 37.24, lng: -3.65 }))).toBe(1112);
+  });
+});
+
+describe('el móvil deriva radio_px y revision_caducada (RV-05, FR-61, FR-142)', () => {
+  const haceMeses = (n: number) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(Math.min(d.getDate(), 28)).padStart(2, '0')}`;
+  };
+
+  it('una sincronización incremental vacía marca caducado un punto que cruzó el umbral', async () => {
+    const guardado = almacenEnMemoria<Punto>();
+    await guardado.reemplazar([p('1', { fecha_ultima_revision: haceMeses(13), revision_caducada: false })], []);
+    await guardado.escribirMeta('sincronizado_en', 'S1');
+    _usarAlmacen(guardado);
+    await cargarGuardados();
+    rpc.mockResolvedValueOnce(
+      ok({
+        puntos: [],
+        bajas: [],
+        sincronizado_en: 'S2',
+        config: { meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5] },
+      }),
+    );
+    await sincronizar(TOKEN);
+    expect(rpc).toHaveBeenLastCalledWith('fn_listar_puntos', { token: TOKEN, desde: 'S1' });
+    expect(estadoPuntos().puntos[0].revision_caducada).toBe(true);
+  });
+
+  it('cambiar escala_radios cambia el radio de puntos no modificados', async () => {
+    rpc.mockResolvedValueOnce(
+      ok({
+        puntos: [p('1')],
+        bajas: [],
+        sincronizado_en: 'S1',
+        config: { meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5] },
+      }),
+    );
+    await sincronizar(TOKEN);
+    expect(estadoPuntos().puntos[0].radio_px).toBe(11);
+    rpc.mockResolvedValueOnce(
+      ok({
+        puntos: [],
+        bajas: [],
+        sincronizado_en: 'S2',
+        config: { meses_revision: 12, escala_radios: [14, 12, 9, 7, 6] },
+      }),
+    );
+    await sincronizar(TOKEN);
+    expect(estadoPuntos().puntos[0].radio_px).toBe(14);
+  });
+
+  it('al arrancar sin red se re-deriva con la config guardada', async () => {
+    const guardado = almacenEnMemoria<Punto>();
+    await guardado.reemplazar(
+      [p('1', { fecha_ultima_revision: haceMeses(2), revision_caducada: false, radio_px: 11 })],
+      [],
+    );
+    await guardado.escribirMeta('config', { meses_revision: 1, escala_radios: [20, 15, 10, 6, 3] });
+    _usarAlmacen(guardado);
+    await cargarGuardados();
+    expect(estadoPuntos().puntos[0]).toMatchObject({ radio_px: 20, revision_caducada: true });
+  });
+
+  it('una config que no sirve no borra la guardada', async () => {
+    rpc.mockResolvedValueOnce(
+      ok({
+        puntos: [p('1')],
+        bajas: [],
+        sincronizado_en: 'S1',
+        config: { meses_revision: 12, escala_radios: [14, 12, 9, 7, 6] },
+      }),
+    );
+    await sincronizar(TOKEN);
+    rpc.mockResolvedValueOnce(ok({ puntos: [], bajas: [], sincronizado_en: 'S2', config: { escala_radios: 'x' } }));
+    await sincronizar(TOKEN);
+    expect(estadoPuntos().puntos[0].radio_px).toBe(14);
+  });
+
+  it('al cambiar el día se re-deriva sin red', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2026, 8, 22, 12));
+      rpc.mockResolvedValueOnce(
+        ok({
+          puntos: [p('1', { fecha_ultima_revision: '2025-09-22' })],
+          bajas: [],
+          sincronizado_en: 'S1',
+          config: { meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5] },
+        }),
+      );
+      await sincronizar(TOKEN);
+      expect(estadoPuntos().puntos[0].revision_caducada).toBe(false);
+      rederivarSiCambiaElDia();
+      expect(estadoPuntos().puntos[0].revision_caducada).toBe(false);
+      vi.setSystemTime(new Date(2026, 8, 23, 9));
+      rederivarSiCambiaElDia();
+      expect(estadoPuntos().puntos[0].revision_caducada).toBe(true);
+      expect(rpc).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -41,6 +41,33 @@ test.describe('mapa y lista', () => {
     await expect(page.getByRole('button', { name: T.ficha.proponerCambio })).toBeVisible();
   });
 
+  test('un punto que cruza los 12 meses se ve sin revisar sin cambios en el servidor (RV-05, FR-61)', async ({
+    page,
+  }) => {
+    // El reloj que se mueve es el del navegador; el servidor simulado contesta siempre lo mismo.
+    await page.clock.install({ time: new Date('2026-09-23T10:00:00') });
+    const [p0, ...resto] = PUNTOS;
+    // Revisado hace 11 meses y 29 días: aún no le toca.
+    const casiCaducado = { ...p0, fecha_ultima_revision: '2025-09-24', revision_caducada: false };
+    await conSesion(page);
+    await simularRpc(page, {
+      fn_listar_puntos: {
+        ...LISTADO,
+        puntos: [casiCaducado, ...resto],
+        config: { meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5] },
+      },
+      fn_registrar_error: null,
+    });
+    await page.goto('/lista');
+    await page.getByRole('radio', { name: T.mapa.sinRevisar }).click();
+    await expect(page.getByRole('button', { name: /HID-9005/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /HID-9001/ })).toHaveCount(0);
+
+    await page.clock.setSystemTime(new Date('2026-09-25T10:00:00'));
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect(page.getByRole('button', { name: /HID-9001/ })).toBeVisible();
+  });
+
   test('lista: filtros, estados vacíos y paso al mapa (FR-68)', async ({ page }) => {
     await abrir(page, '/lista');
     await page.getByRole('radio', { name: T.mapa.bocas }).click();
