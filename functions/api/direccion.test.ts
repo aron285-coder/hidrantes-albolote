@@ -127,3 +127,38 @@ describe('GET /api/direccion', () => {
     }
   });
 });
+
+describe('Nominatim con contacto y caché por coordenadas (RV-25)', () => {
+  /** caches.default de Cloudflare, en memoria. */
+  function fingirCache() {
+    const guardado = new Map<string, Response>();
+    const cache = {
+      match: vi.fn(async (k: Request | string) => guardado.get(typeof k === 'string' ? k : k.url)?.clone()),
+      put: vi.fn(async (k: Request | string, r: Response) => void guardado.set(typeof k === 'string' ? k : k.url, r)),
+    };
+    vi.stubGlobal('caches', { default: cache });
+    return cache;
+  }
+
+  it('sin User-Agent configurado responde 503 y no llama a fetch', async () => {
+    const { espia, llamadas } = fingirRed({});
+    const sinAgente = { ...ENV, NOMINATIM_USER_AGENT: undefined } as Env;
+    const r = await onRequestGet({ request: peticion(ALBOLOTE), env: sinAgente });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
+    expect(llamadas.some((u) => u.includes('nominatim'))).toBe(false);
+    espia.mockRestore();
+  });
+
+  it('dos peticiones a coordenadas que redondean igual hacen una sola llamada a Nominatim', async () => {
+    fingirCache();
+    const { espia, llamadas } = fingirRed({});
+    const r1 = await onRequestGet({ request: peticion({ lat: '37.23091', lng: '-3.65581' }), env: ENV });
+    const r2 = await onRequestGet({ request: peticion({ lat: '37.23094', lng: '-3.65584' }), env: ENV });
+    expect((await r1.json()).direccion).toBe('Calle Real, Albolote');
+    expect((await r2.json()).direccion).toBe('Calle Real, Albolote');
+    expect(llamadas.filter((u) => u.includes('nominatim'))).toHaveLength(1);
+    espia.mockRestore();
+    vi.unstubAllGlobals();
+  });
+});
