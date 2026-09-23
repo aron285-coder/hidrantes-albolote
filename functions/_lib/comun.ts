@@ -46,6 +46,33 @@ export async function sha256Hex(texto: string): Promise<string> {
   return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * La IP con la que cuenta el límite por IP (11 §3, RV-14). Con IPv6 un atacante rota direcciones
+ * dentro de su /64, así que cuenta el /64: los cuatro primeros grupos, ya expandido `::`. Una IPv4
+ * mapeada (`::ffff:a.b.c.d`) es esa IPv4, y una IPv4 queda tal cual. Lo que no parezca una IP se
+ * devuelve sin tocar.
+ */
+export function normalizarIp(ip: string): string {
+  const limpia = ip.trim().toLowerCase().replace(/%.*$/, '');
+  const mapeada = /^(?:(?:0{1,4}:){5}|::)ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(limpia);
+  if (mapeada) return mapeada[1]!;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(limpia)) return limpia;
+  if (!limpia.includes(':') || !/^[0-9a-f:]+$/.test(limpia)) return ip;
+  const [izquierda, derecha] = limpia.split('::') as [string, string?];
+  const grupos = (s: string | undefined) => (s ? s.split(':') : []);
+  const izq = grupos(izquierda);
+  const der = grupos(derecha);
+  const completos =
+    derecha === undefined
+      ? izq
+      : [...izq, ...Array<string>(Math.max(0, 8 - izq.length - der.length)).fill('0'), ...der];
+  if (completos.length !== 8 || completos.some((g) => g.length > 4)) return ip;
+  return `${completos
+    .slice(0, 4)
+    .map((g) => parseInt(g || '0', 16).toString(16))
+    .join(':')}::/64`;
+}
+
 /** JWT de la cabecera Authorization, si la hay. */
 export function jwtDe(peticion: Request): string | null {
   const a = peticion.headers.get('Authorization') ?? '';

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082, DEC-083, DEC-084, DEC-085, DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082 a DEC-086, DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -683,6 +683,26 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   entornos (15 §2).
 - **Afecta a:** 04 §9 y §10, 05 §2.13 y §9, 15 §2, `docs/entornos.md`.
 
+### DEC-086 · Código de acceso: el /64, la cuenta bajo bloqueo y un tope de canjes buenos
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/17` RV-14)
+- **Contexto:** el `dispositivo_id` lo elige el cliente y la IP se hasheaba entera: en IPv6 un
+  atacante rota direcciones dentro de su /64 y el límite por IP no sirve; solo queda el techo global
+  de 200 fallos por hora, que además se podía pasar con peticiones en paralelo (la cuenta iba sin
+  bloqueo). Y los canjes buenos no tenían límite: con el código, dispositivos sin fin.
+- **Decisión:** (1) la Function cuenta el /64 en IPv6 (`normalizarIp`). (2) `fn_verificar_codigo`
+  empieza con un bloqueo consultivo: los canjes van de uno en uno (son pocos). (3) Topes de canjes
+  buenos `max_altas_ip_dia` = 150 y `max_altas_global_hora` = 150: la sesión presencial de F9.9 son
+  65 personas en la misma wifi y cabe con más del doble de margen. (4) Cada `DEMASIADOS_INTENTOS` se
+  anota (`bloqueado`, `tope`), sin contar como fallo; Salud del sistema enseña fallos y bloqueos de
+  24 h y la vigilancia abre la issue con más de 300 fallos o cualquier bloqueo de todo el grupo.
+- **Límite conocido:** el bloqueo por inundación del techo global sigue siendo posible; la defensa
+  completa (Turnstile o una regla de rate limiting de Cloudflare) cambia la entrada y 11, y queda en
+  `docs/17` §12 para decidir.
+- **Descartado:** subir el código a 8 cifras ya (cambia FR-31 y la comunicación a 65 personas: solo
+  si se confirma un ataque) y contar los bloqueados como fallos (reintentar alargaría el bloqueo de
+  quien espera).
+- **Afecta a:** 05 §2.5, §2.10 y §11; 11 §3.
+
 ### DEC-085 · Los workflows programados se rehabilitan solos para que GitHub no los apague
 - **Fecha:** 23 sep 2026 · **Estado:** vigente (revisión de sep 2026, `docs/17` RV-11)
 - **Contexto:** en un repositorio público, GitHub desactiva los workflows con `schedule` cuando el
@@ -1096,12 +1116,12 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 088 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
-| 11 | 002, 004, 011, 017–019, 022 |
+| 11 | 002, 004, 011, 017–019, 022, 086 |
 | 15 | 023, 061, 085, 088 |
 | 16 | 007, 037 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |

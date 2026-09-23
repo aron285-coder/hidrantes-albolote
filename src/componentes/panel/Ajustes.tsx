@@ -489,6 +489,11 @@ function SaludDelSistema() {
             : T.panelAjustes.nunca,
         ],
         [T.panelAjustes.dispositivosActivos, String(s.dispositivos_activos)],
+        [T.panelAjustes.intentosFallidos24h, String(s.intentos_fallidos_24h ?? 0)],
+        [
+          T.panelAjustes.topesAlcanzados24h,
+          T.panelAjustes.topesDetalle(s.topes_alcanzados_24h ?? 0, s.topes_globales_24h ?? 0),
+        ],
       ]
     : [];
 

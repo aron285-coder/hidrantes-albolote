@@ -82,6 +82,14 @@ jobs:
             if [ "${pendientes:-0}" -gt 0 ]; then
               problemas+=("$pendientes avisos push llevan más de dos horas sin salir")
             fi
+            # Intentos del código de acceso (RV-14, TR-41): muchos fallos o un tope de todo el grupo
+            # alcanzado son la huella de un ataque, y los voluntarios con móvil nuevo no podrían entrar.
+            intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$BD" -c \
+              "select count(*) filter (where not exito and not bloqueado), count(*) filter (where bloqueado and tope in ('global', 'altas_global')) from hidrantes.intentos_codigo where momento > now() - interval '24 hours';" 2>/dev/null || echo '0 0')
+            read -r fallidos globales <<< "$intentos"
+            if [ "${fallidos:-0}" -gt 300 ] || [ "${globales:-0}" -gt 0 ]; then
+              problemas+=("posible ataque al código de acceso ($fallidos fallos y $globales bloqueos de todo el grupo en 24 h): cambia el código (15 §5.4)")
+            fi
           else
             problemas+=("falta SUPABASE_DB_URL_PROD: la vigilancia no puede mirar el respaldo (DEC-071)")
           fi
