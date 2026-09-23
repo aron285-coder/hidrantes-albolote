@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 import { T } from '../../src/lib/textos.ts';
+import { sesionDeJefatura } from './sesion-google.ts';
 
 const BD = process.env.BD_PRUEBAS ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (Supabase local efímero)
 const RAIZ = path.resolve(import.meta.dirname, '../..');
@@ -38,20 +39,13 @@ async function panelDeJefatura(browser: Browser, request: APIRequestContext): Pr
   const env = variables('.env.local');
   const servicio = variables('.dev.vars').SUPABASE_SERVICE_ROLE_KEY;
   const correo = `panel.f8.${Date.now()}@example.org`;
-  const clave = `clave-${Date.now()}`; // detectar-secretos:permitir (usuario efímero del Supabase local)
   consulta(`insert into hidrantes.administradores (email, creado_por) values ('${correo}', 'prueba')`);
-  const alta = await request.post(`${env.VITE_SUPABASE_URL}/auth/v1/admin/users`, {
-    headers: { apikey: servicio, Authorization: `Bearer ${servicio}` },
-    data: { email: correo, password: clave, email_confirm: true },
-  });
-  expect(alta.ok()).toBe(true);
-  const sesion = await (
-    await request.post(`${env.VITE_SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-      headers: { apikey: env.VITE_SUPABASE_ANON_KEY },
-      data: { email: correo, password: clave },
-    })
-  ).json();
-  expect(sesion.access_token).toBeTruthy();
+  // Jefatura exige una sesión de Google (RV-36): la local se vuelve a firmar como tal.
+  const sesion = await sesionDeJefatura(
+    request,
+    { url: env.VITE_SUPABASE_URL, anon: env.VITE_SUPABASE_ANON_KEY, servicio },
+    correo,
+  );
 
   // El panel es de escritorio (FR-100); el proyecto de integración emula un móvil.
   const contexto = await browser.newContext({ viewport: { width: 1400, height: 900 } });

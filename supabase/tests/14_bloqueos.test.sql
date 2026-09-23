@@ -52,7 +52,7 @@ select * from dblink('b1', format('select 1 from hidrantes.puntos where id = %L 
 select dblink_exec('b2', 'begin');
 select dblink_exec('b2', $$set local statement_timeout = '20s'$$);
 select x from dblink('b2',
-  $$select set_config('request.jwt.claims', '{"role":"authenticated","email":"bloqueos@example.com"}', true)$$) as t(x text);
+  $$select set_config('request.jwt.claims', '{"role":"authenticated","email":"bloqueos@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true)$$) as t(x text);
 create temp table lote as
 select * from dblink('b2', format('select propuesta_id, resultado, motivo from hidrantes.fn_aprobar_lote(%L::uuid[])',
   (select propuestas from conexion))) as t(propuesta_id uuid, resultado text, motivo text);

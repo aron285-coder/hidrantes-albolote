@@ -48,6 +48,11 @@ export class SupabaseGestion {
     return true;
   }
 
+  /** La configuración de Auth del proyecto, solo para leerla (comprobar-auth.ts, RV-36). */
+  async configAuth(ref: string): Promise<Record<string, unknown>> {
+    return (await this.api<Record<string, unknown>>(`/projects/${ref}/config/auth`)) ?? {};
+  }
+
   /** Añade URLs de redirección de Auth sin tocar las de la app de uniformidad. */
   async anadirRedirecciones(ref: string, urls: string[]): Promise<string[]> {
     const actual = await this.api<{ uri_allow_list?: string }>(`/projects/${ref}/config/auth`);

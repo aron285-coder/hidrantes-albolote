@@ -37,7 +37,7 @@ flowchart LR
   V -- token en cada RPC --> DB
   A[Administrador] -- Google --> AU[Supabase Auth]
   AU -- JWT --> DB
-  DB -- fn_es_admin: email en administradores --> A
+  DB -- fn_es_admin: email en administradores y sesión de Google --> A
 ```
 
 | Principio | Cómo se aplica |
@@ -48,6 +48,7 @@ flowchart LR
 | Los nombres solo los ve jefatura (FR-27) | `anon` no lee `propuestas` ni `registro`; `fn_listar_puntos`, `fn_ficha_punto` y `fn_mis_propuestas` no devuelven autores ni `revisada_por`; las notificaciones y exportaciones no llevan nombres; test pgTAP y comprobación de red (AC-21, AC-134) |
 | Mínimo privilegio en secretos | la `service_role key` solo en las Pages Functions y en CI; el frontend solo tiene la `anon key` |
 | Permisos propios | `hidrantes.administradores`, independiente de la app de uniformidad; arranca solo con el propietario |
+| Jefatura es correo **y** Google | `fn_es_admin()` exige que el correo del JWT esté activo en `administradores`, que `app_metadata.providers` contenga `google` y que la sesión se abriera con OAuth (`amr` con `method = 'oauth'`). Una cuenta de Auth con contraseña y el correo de un administrador no es jefatura: el proyecto se comparte con uniformidad, que admite registro por correo (DEC-094, `npm run comprobar-auth`) |
 | Menos es más seguro | no se guardan DNI, teléfono, correo ni dirección de nadie |
 
 ---

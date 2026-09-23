@@ -36,7 +36,7 @@ $f$, (select punto from conexion), (select propuesta from conexion), (select dis
 
 select dblink_exec(s, 'begin') from unnest(array['s1', 's2']) s;
 select x from unnest(array['s1', 's2']) s, dblink(s,
-  $$select set_config('request.jwt.claims', '{"role":"authenticated","email":"conc@example.com"}', true)$$) as t(x text);
+  $$select set_config('request.jwt.claims', '{"role":"authenticated","email":"conc@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true)$$) as t(x text);
 select * from dblink('s1', format('select hidrantes.fn_aprobar(%L)::text', (select propuesta from conexion))) as t(r text);
 select dblink_send_query('s2', format('select hidrantes.fn_aprobar(%L)::text', (select propuesta from conexion)));
 select dblink_exec('s1', 'commit');

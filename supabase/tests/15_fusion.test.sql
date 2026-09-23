@@ -7,7 +7,7 @@ set search_path = extensions, public;
 select plan(5);
 
 insert into hidrantes.administradores (email, creado_por) values ('fusion@example.com', 'test') on conflict do nothing;
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"fusion@example.com"}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","email":"fusion@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 
 -- Un hidrante en Albolote y dos altas: una igual de sitio con otra descripción, otra con el pin en
 -- Calicasas (las coordenadas del seed de BOC-9001).

@@ -69,7 +69,7 @@ select set_config('test.disp_admin', hidrantes.fn_dispositivo_admin('jefa8@examp
 
 -- ---------- quien no es jefatura no pasa de aquí (05 §6.2) ----------
 
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"cualquiera@example.com"}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","email":"cualquiera@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 select throws_like($$ select hidrantes.fn_actividad_voluntarios(3) $$, 'NO_AUTORIZADO%',
   'la actividad de los voluntarios no la ve cualquiera');
@@ -87,7 +87,7 @@ reset role;
 
 -- ---------- jefatura ----------
 
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"jefa8@example.com"}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","email":"jefa8@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 
 -- Actividad (FR-130)

@@ -7,7 +7,7 @@ set search_path = extensions, public;
 select plan(3);
 
 insert into hidrantes.administradores (email, creado_por) values ('salud@example.com', 'test') on conflict do nothing;
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"salud@example.com"}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","email":"salud@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 insert into hidrantes.config (clave, valor, actualizado_por)
 values ('tareas_programadas', '[{"tarea":"hidrantes_purgar_errores","problema":false}]', 'vigilancia.yml')
 on conflict (clave) do update set valor = excluded.valor;
