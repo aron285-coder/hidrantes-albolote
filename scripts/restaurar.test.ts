@@ -60,6 +60,15 @@ describe('el guion de restauración', () => {
   const volcado = ['CREATE SCHEMA hidrantes;', 'CREATE TABLE hidrantes.puntos (id uuid);', ''].join('\n');
   const sql = sqlRestauracion(volcado, 'hidrantes-2026-09-20.sql', 'restauracion prod');
 
+  it('cambia la época de los datos después del volcado y antes del commit (RV-06)', () => {
+    const volcadoEn = sql.indexOf('CREATE TABLE hidrantes.puntos');
+    const epoca = sql.indexOf("'epoca_datos', to_jsonb(gen_random_uuid()::text)");
+    expect(volcadoEn).toBeGreaterThan(-1);
+    expect(epoca).toBeGreaterThan(volcadoEn);
+    expect(epoca).toBeLessThan(sql.lastIndexOf('commit;'));
+    expect(sql).toContain("'restaurar.ts'");
+  });
+
   it('va entero en una transacción: si falla a la mitad, la base se queda como estaba', () => {
     expect(sql.startsWith('begin;')).toBe(true);
     expect(sql.trimEnd().endsWith('commit;')).toBe(true);

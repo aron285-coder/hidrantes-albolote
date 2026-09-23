@@ -35,6 +35,20 @@ const bd = () => (almacen ??= almacenPuntos<Punto>());
 
 /** Config con la que se derivan radio_px y revision_caducada (RV-05); la última recibida. */
 let config: ConfigMovil = CONFIG_POR_DEFECTO;
+/**
+ * Época de los datos del servidor: cambia al restaurar un respaldo (restaurar.ts). Distinta de la
+ * guardada ⇒ sincronización completa, porque lo restaurado vuelve con sellos antiguos (RV-06).
+ */
+let epoca: string | null = null;
+/** Última sincronización completa. Más de una semana ⇒ otra completa, por cualquier otra deriva. */
+let completoEn: number | null = null;
+export const MAX_SIN_COMPLETA_MS = 7 * 24 * 3600_000;
+
+const epocaDe = (config: unknown): string | null => {
+  const e = (config as { epoca_datos?: unknown } | null | undefined)?.epoca_datos;
+  return typeof e === 'string' && e ? e : null;
+};
+
 /** Día local de la última derivación: si cambia, "sin revisar" puede haber cambiado sin red. */
 let derivadoEl: string | null = null;
 
@@ -61,12 +75,16 @@ export function suscribirPuntos(o: () => void): () => void {
 /** Lo guardado en el móvil, al arrancar: sin esperar a la red. */
 export async function cargarGuardados(): Promise<void> {
   try {
-    const [puntos, sello, guardado, cfg] = await Promise.all([
+    const [puntos, sello, guardado, cfg, epocaGuardada, completo] = await Promise.all([
       bd().todos(),
       bd().leerMeta<string>('sincronizado_en'),
       bd().leerMeta<number>('guardado_en'),
       bd().leerMeta<unknown>('config'),
+      bd().leerMeta<string>('epoca_datos'),
+      bd().leerMeta<number>('completo_en'),
     ]);
+    epoca = epocaGuardada;
+    completoEn = completo;
     config = leerConfig(cfg) ?? CONFIG_POR_DEFECTO;
     fijar({ puntos: derivarTodos(puntos), sincronizadoEn: sello, guardadoEn: guardado, cargado: true });
   } catch {
@@ -93,12 +111,25 @@ export function sincronizar(token: string | null): Promise<Resultado<null>> {
     await Promise.resolve(); // mismo motivo que en cola.ts: el finally no debe adelantarse a ??=
     fijar({ sincronizando: true });
     try {
-      const completo = !estado.sincronizadoEn || !token;
+      // Completa: la primera vez, siempre para jefatura y, como red de seguridad, si la última
+      // completa tiene más de una semana (DEC-083). Sin fecha de completa (móviles de antes), el
+      // reloj empieza a contar con esta.
+      let completo =
+        !estado.sincronizadoEn || !token || (completoEn !== null && Date.now() - completoEn > MAX_SIN_COMPLETA_MS);
       let listado: Listado;
       if (token) {
         const r = await rpc<Listado>('fn_listar_puntos', { token, desde: completo ? null : estado.sincronizadoEn });
         if (!r.ok) return r;
         listado = r.datos;
+        // Datos restaurados: la incremental no los recogería. Se repite completa en esta misma
+        // llamada. La primera época que se ve (null → valor) no fuerza nada.
+        const recibida = epocaDe(listado?.config);
+        if (!completo && recibida && epoca && recibida !== epoca) {
+          const r2 = await rpc<Listado>('fn_listar_puntos', { token, desde: null });
+          if (!r2.ok) return r2;
+          listado = r2.datos;
+          completo = true;
+        }
       } else {
         const r = await leerComoJefatura();
         if (!r.ok) return r;
@@ -114,12 +145,17 @@ export function sincronizar(token: string | null): Promise<Resultado<null>> {
       const combinados = aplicarListado(estado.puntos, listado, completo);
       const puntos = token ? derivarTodos(combinados) : combinados;
       const guardadoEn = Date.now();
+      const nuevaEpoca = token ? (epocaDe(listado.config) ?? epoca) : epoca;
+      if (completo || completoEn === null) completoEn = guardadoEn;
+      epoca = nuevaEpoca;
       try {
         // Se guardan todos, no solo los recibidos: los derivados también cambian.
         await bd().reemplazar(token ? puntos : listado.puntos, listado.bajas, completo);
         if (nuevaConfig) await bd().escribirMeta('config', nuevaConfig);
         await bd().escribirMeta('sincronizado_en', listado.sincronizado_en);
         await bd().escribirMeta('guardado_en', guardadoEn);
+        await bd().escribirMeta('completo_en', completoEn);
+        if (nuevaEpoca) await bd().escribirMeta('epoca_datos', nuevaEpoca);
       } catch {
         // sin IndexedDB seguimos en memoria (TR-07)
       }
@@ -163,6 +199,8 @@ export async function borrarPuntos(): Promise<void> {
     // nada guardado
   }
   config = CONFIG_POR_DEFECTO;
+  epoca = null;
+  completoEn = null;
   fijar({ puntos: [], sincronizadoEn: null, guardadoEn: null });
 }
 
@@ -233,5 +271,7 @@ export function _usarAlmacen(a: Almacen<Punto>) {
   estado = { puntos: [], sincronizadoEn: null, guardadoEn: null, cargado: false, sincronizando: false };
   config = CONFIG_POR_DEFECTO;
   derivadoEl = null;
+  epoca = null;
+  completoEn = null;
   oyentes.clear();
 }
