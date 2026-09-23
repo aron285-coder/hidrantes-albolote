@@ -169,8 +169,10 @@ h3 {
   }
 }
 
-/* Marcadores de Leaflet: sin el recuadro blanco por defecto del divIcon (06 §4.3). */
-.leaflet-div-icon.marcador {
+/* Marcadores de Leaflet: sin el recuadro blanco por defecto del divIcon (06 §4.3); también las
+   marcas de trabajo (06 §4.7). */
+.leaflet-div-icon.marcador,
+.leaflet-div-icon.marca-trabajo {
   background: none;
   border: none;
 }

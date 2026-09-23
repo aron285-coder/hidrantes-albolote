@@ -220,7 +220,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     g.clearLayers();
     if (!aqui) return;
     L.marker([aqui.lat, aqui.lng], {
-      icon: L.divIcon({ html: SVG_AQUI, className: 'marca-aqui', iconSize: [36, 36], iconAnchor: [18, 34] }),
+      icon: L.divIcon({ html: SVG_AQUI, className: 'marca-trabajo marca-aqui', iconSize: [36, 36], iconAnchor: [18, 34] }),
       interactive: false,
       keyboard: false,
       zIndexOffset: 10_000,
