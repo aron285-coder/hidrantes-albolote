@@ -616,7 +616,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `correo@albolote-pc.es` · `Sugerencias de la app de uniformidad:` ·
 `[correo] ya puede entrar en el panel.` · `[correo] se queda sin acceso al panel.` · `Parámetros` ·
 `Los móviles los aplican en su próxima sincronización.` · `Meses entre revisiones` ·
-`Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` ·
+`Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` · `Tramo de manguera (m)` ·
 `Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Parámetros guardados.` · `Núcleos` ·
 `Deducidos de OpenStreetMap. Se puede renombrar uno o añadir el que falte.` · `añadido a mano` ·
 `Renombrar` · `Nombre de [nucleo]` · `Añadir un núcleo` · `Nombre del núcleo` ·

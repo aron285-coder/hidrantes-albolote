@@ -6,7 +6,8 @@ import { type Resultado, rpc } from './api';
 import { type Almacen, almacenPuntos } from './bd';
 import { supabase } from './supabase';
 import { anotarServidor } from './conexion';
-import { type ConfigMovil, derivar, diaLocal, leerConfig } from './derivar';
+import { type ConfigMovil, METROS_TRAMO_POR_DEFECTO, derivar, diaLocal, leerConfig, leerMetrosTramo } from './derivar';
+import { metros } from './geometria';
 
 import type { Caudal, Punto } from '../tipos/punto';
 
@@ -39,6 +40,27 @@ const bd = () => (almacen ??= almacenPuntos<Punto>());
  * se re-deriva nada y los puntos se quedan con los valores del servidor (docs/18 RV-44).
  */
 let config: ConfigMovil | null = null;
+/** Jefatura no recibe config: el tramo de manguera lo lee aparte de la tabla (FR-142, GM-01). */
+let tramoJefatura: number | null = null;
+
+/**
+ * Jefatura: el tramo, de la tabla de config (lo lee por RLS de administrador). Se pide cuando hace
+ * falta, no al sincronizar: una lectura más en cada sincronización no aporta nada al mapa. Si no se
+ * puede, se queda el que hubiera.
+ */
+export async function cargarTramoJefatura(): Promise<void> {
+  const cliente = supabase();
+  if (!cliente) return;
+  try {
+    const { data } = await cliente.from('config').select('valor').eq('clave', 'metros_tramo_manguera').maybeSingle();
+    if (data) tramoJefatura = leerMetrosTramo((data as { valor: unknown }).valor);
+  } catch {
+    // sin config legible: el de por defecto
+  }
+}
+
+/** Longitud del tramo de manguera con la que calcular los tramos (FR-74, FR-76). */
+export const metrosTramoManguera = () => config?.metros_tramo_manguera ?? tramoJefatura ?? METROS_TRAMO_POR_DEFECTO;
 /**
  * Generación de los datos: la sube borrarPuntos (cerrar sesión). Una sincronización que empezó antes
  * descarta su resultado sin escribir ni publicar (FL-12, docs/18 RV-45).
@@ -239,6 +261,7 @@ export async function borrarPuntos(): Promise<void> {
     // nada guardado
   }
   config = null;
+  tramoJefatura = null;
   epoca = null;
   completoEn = null;
   fijar({ puntos: [], sincronizadoEn: null, guardadoEn: null });
@@ -285,14 +308,8 @@ export type Orden = 'distancia' | 'codigo' | 'estado';
 const ORDEN_CAUDAL: Caudal[] = ['bueno', 'regular', 'malo', 'no_funciona'];
 
 /** Metros entre dos puntos (haversine); suficiente a escala de municipio. */
-export function metros(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6_371_000;
-  const rad = (g: number) => (g * Math.PI) / 180;
-  const dLat = rad(b.lat - a.lat);
-  const dLng = rad(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
+// Se movió a geometria.ts (docs/18 GM-01); se reexporta para no romper los imports.
+export { metros };
 
 /** Sin posición, "distancia" ordena por código. */
 export function ordenar(puntos: Punto[], orden: Orden, desde: { lat: number; lng: number } | null): Punto[] {

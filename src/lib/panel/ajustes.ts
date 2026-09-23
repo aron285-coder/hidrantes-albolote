@@ -89,6 +89,7 @@ export const PARAMETROS = {
   dias_papelera: 30,
   buffer_zona_m: 400,
   max_subidas_dispositivo_dia: 40,
+  metros_tramo_manguera: 20,
 } as const;
 
 export type ClaveParametro = keyof typeof PARAMETROS;
@@ -133,6 +134,7 @@ export function faltaEnParametros(v: Parametros): string | null {
   if (!entero(v.dias_papelera, 1, 365)) return 'dias_papelera';
   if (!entero(v.buffer_zona_m, 0, 5000)) return 'buffer_zona_m';
   if (!entero(v.max_subidas_dispositivo_dia, 1, 500)) return 'max_subidas_dispositivo_dia';
+  if (!entero(v.metros_tramo_manguera, 10, 30)) return 'metros_tramo_manguera';
   if (v.escala_radios.length !== 5 || v.escala_radios.some((r) => !(r >= 2 && r <= 30))) return 'escala_radios';
   return null;
 }

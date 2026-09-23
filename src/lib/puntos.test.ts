@@ -23,6 +23,7 @@ const {
   estadoPuntos,
   filtrar,
   metros,
+  metrosTramoManguera,
   ordenar,
   rederivarSiCambiaElDia,
   sincronizar,
@@ -378,5 +379,24 @@ describe('cerrar sesión durante una sincronización (RV-45)', () => {
     expect(estadoPuntos().sincronizadoEn).toBeNull();
     expect(await almacen.todos()).toEqual([]);
     expect(await almacen.leerMeta('sincronizado_en')).toBeNull();
+  });
+});
+
+// docs/18 GM-01: el tramo de manguera sale de la config recibida, con 20 por defecto.
+describe('tramo de manguera (FR-142)', () => {
+  it('20 sin config y el de la config recibida después', async () => {
+    expect(metrosTramoManguera()).toBe(20);
+    rpc.mockResolvedValueOnce(
+      ok({
+        puntos: [p('1')],
+        bajas: [],
+        sincronizado_en: 'S1',
+        config: { meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5], metros_tramo_manguera: 25 },
+      }),
+    );
+    await sincronizar(TOKEN);
+    expect(metrosTramoManguera()).toBe(25);
+    await borrarPuntos();
+    expect(metrosTramoManguera()).toBe(20);
   });
 });
