@@ -2,7 +2,8 @@
 // con su sesión de Google, o nadie todavía. El voluntario entra sin red si ya tenía token: el
 // servidor se consulta después y solo se le echa si dice que el token ya no vale (FR-35).
 
-import { type Resultado, rpc, verificarCodigo } from './api';
+import { borrar, escribir, leer } from './almacen';
+import { SIN_SERVIDOR, type Resultado, rpc, verificarCodigo } from './api';
 import { anotarServidor, registrarComprobacion } from './conexion';
 import {
   type Firma,
@@ -68,6 +69,19 @@ function sinGoogle(): Acceso {
   return { tipo: 'fuera', caducado: estado.tipo === 'fuera' && estado.caducado };
 }
 
+/**
+ * Última vez que el servidor confirmó que este correo es de jefatura. Sin servidor al arrancar,
+ * jefatura sigue viendo el mapa y los puntos guardados en vez de acabar en la entrada (FR-168,
+ * RV-16). No da ningún permiso: el servidor aplica RLS igual, y lo que se encole espera a la sesión.
+ */
+interface JefaturaConfirmada {
+  correo: string;
+  confirmado_en: number;
+}
+const CLAVE_CONFIRMADA = 'jefatura_confirmada';
+const confirmada = () => leer<JefaturaConfirmada>(CLAVE_CONFIRMADA);
+const olvidarConfirmada = () => borrar(CLAVE_CONFIRMADA);
+
 /** Quita ?code=… de la dirección después de canjearlo. */
 function limpiarDireccion(): void {
   if (location.search) history.replaceState(history.state, '', location.pathname);
@@ -84,9 +98,11 @@ export async function comprobarAcceso(): Promise<void> {
     limpiarDireccion();
     if (data.session) {
       const r = await rpc<boolean>('fn_es_admin');
+      const correo = data.session.user.email ?? '';
       if (r.ok && r.datos) {
         const llega = estado.tipo !== 'jefatura';
-        fijar({ tipo: 'jefatura', correo: data.session.user.email ?? '' });
+        escribir(CLAVE_CONFIRMADA, { correo, confirmado_en: Date.now() } satisfies JefaturaConfirmada);
+        fijar({ tipo: 'jefatura', correo });
         // Lo que jefatura encoló sin sesión sale ahora (RV-04). Solo al pasar a jefatura: si no, la
         // cola y esta comprobación se llamarían la una a la otra.
         if (llega) void reintentarCola();
@@ -94,10 +110,24 @@ export async function comprobarAcceso(): Promise<void> {
         return;
       }
       if (r.ok) {
+        olvidarConfirmada();
         await cliente.auth.signOut().catch(() => undefined);
         return fijar({ tipo: 'no_autorizado' });
       }
+      // Sin servidor: si este mismo correo ya fue jefatura, se sigue como jefatura, sin sincronizar;
+      // el aviso de degradación lo pinta conexión (RV-16).
+      if (r.codigo === SIN_SERVIDOR && correo && confirmada()?.correo === correo) {
+        if (estado.tipo !== 'jefatura') fijar({ tipo: 'jefatura', correo });
+        return;
+      }
       if (estado.tipo === 'comprobando') fijar(sinGoogle());
+      return;
+    }
+    // Sin red, supabase-js puede no devolver la sesión (no puede renovarla): con la confirmación
+    // guardada, jefatura sigue en solo lectura. La cola espera a que vuelva la sesión.
+    const guardada = confirmada();
+    if (typeof navigator !== 'undefined' && navigator.onLine === false && guardada) {
+      if (estado.tipo !== 'jefatura') fijar({ tipo: 'jefatura', correo: guardada.correo });
       return;
     }
   }
@@ -160,11 +190,13 @@ export async function salirDeGoogle(): Promise<void> {
   } catch {
     // sin almacenamiento no había sesión guardada
   }
+  olvidarConfirmada();
   fijar(sinGoogle());
 }
 
 /** "Volver" desde "No autorizado". */
 export function volverAEntrada(): void {
+  olvidarConfirmada();
   fijar(sinGoogle());
 }
 

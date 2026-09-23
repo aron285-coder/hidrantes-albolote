@@ -89,6 +89,26 @@ test.describe('degradación controlada (FR-168)', () => {
       await sinJergaTecnica(page);
     });
 
+    // RV-16: si al arrancar el servidor no responde, jefatura no acaba en la pantalla de entrada.
+    test('el panel sin servidor enseña los datos guardados (RV-16)', async ({ page }) => {
+      await conGoogle(page, 'jefa@example.org');
+      await simularTablas(page, { v_puntos_activos: PUNTOS, v_cola_revision: [], propuestas: [] });
+      await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_es_admin`, (r) =>
+        r.fulfill({ contentType: 'application/json', body: 'true' }),
+      );
+      await page.goto('/admin/inventario');
+      await expect(page.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length))).toBeVisible();
+
+      // Segundo arranque: el servidor no responde a nada.
+      await page.unrouteAll({ behavior: 'ignoreErrors' });
+      await page.route(`${SUPABASE_PRUEBAS}/**`, (r) => r.fulfill(paginaDeError));
+      await page.reload();
+      await expect(page.getByLabel(T.entrada.nombre)).toHaveCount(0);
+      await expect(page.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length))).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText(T.panel.sinServidor, { exact: false })).toBeVisible({ timeout: 20_000 });
+      await sinJergaTecnica(page);
+    });
+
     test('el gigabyte de fotos casi lleno: banda en Salud del sistema (TR-53)', async ({ page }) => {
       const GIGA = 1024 ** 3;
       let bytes = Math.round(GIGA * 0.5);

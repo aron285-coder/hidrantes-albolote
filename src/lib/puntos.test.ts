@@ -5,7 +5,14 @@ import { almacenEnMemoria } from './bd';
 import type { Punto } from './puntos';
 
 const rpc = vi.fn();
-vi.mock('./supabase', () => ({ supabase: () => ({ rpc }) }));
+/** Lectura de v_puntos_activos de jefatura: responde según el rango pedido (RV-15). */
+const pagina = vi.fn<(desde: number, hasta: number) => Promise<{ data: unknown; error: unknown; status: number }>>();
+vi.mock('./supabase', () => ({
+  supabase: () => ({
+    rpc,
+    from: () => ({ select: () => ({ order: () => ({ range: (d: number, h: number) => pagina(d, h) }) }) }),
+  }),
+}));
 
 const {
   _usarAlmacen,
@@ -281,5 +288,37 @@ describe('sincronización completa cuando hace falta (RV-06)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('jefatura lee por páginas (RV-15, TR-60)', () => {
+  const muchos = (desde: number, n: number) => Array.from({ length: n }, (_, i) => p(String(desde + i)));
+
+  it('jefatura lee por páginas hasta tener todo', async () => {
+    pagina.mockReset();
+    pagina.mockImplementation(async (desde) => ({
+      data: desde === 0 ? muchos(0, 1000) : desde === 1000 ? muchos(1000, 1000) : muchos(2000, 5),
+      error: null,
+      status: 200,
+    }));
+    expect(await sincronizar(null)).toEqual({ ok: true, datos: null });
+    expect(pagina.mock.calls).toEqual([
+      [0, 999],
+      [1000, 1999],
+      [2000, 2999],
+    ]);
+    expect(estadoPuntos().puntos).toHaveLength(2005);
+  });
+
+  it('un error en la segunda página no reemplaza el almacén', async () => {
+    pagina.mockReset();
+    pagina.mockResolvedValueOnce({ data: muchos(0, 3), error: null, status: 200 });
+    await sincronizar(null);
+    expect(estadoPuntos().puntos).toHaveLength(3);
+    pagina
+      .mockResolvedValueOnce({ data: muchos(0, 1000), error: null, status: 200 })
+      .mockResolvedValueOnce({ data: null, error: { message: 'boom' }, status: 500 });
+    expect(await sincronizar(null)).toEqual({ ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' });
+    expect(estadoPuntos().puntos).toHaveLength(3);
   });
 });

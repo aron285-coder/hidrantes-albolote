@@ -5,14 +5,23 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { almacenEnMemoria, respuesta } from './pruebas';
 
 const rpc = vi.fn();
+/** Sesión de Google que devuelve supabase-js (null: ninguna). */
+let sesionGoogle: { access_token: string; user: { email: string } } | null = null;
 vi.mock('./supabase', () => ({
-  supabase: () => ({ rpc, auth: { getSession: async () => ({ data: { session: null } }) } }),
+  supabase: () => ({
+    rpc,
+    auth: { getSession: async () => ({ data: { session: sesionGoogle } }), signOut: async () => ({}) },
+    // La sincronización de jefatura: sin puntos.
+    from: () => ({
+      select: () => ({ order: () => ({ range: async () => ({ data: [], error: null, status: 200 }) }) }),
+    }),
+  }),
 }));
 
 const reintentarCola = vi.fn(async () => undefined);
 vi.mock('./cola', async (original) => ({ ...(await original<typeof import('./cola')>()), reintentarCola }));
 
-const { _reiniciarAcceso, acceso, comprobarAcceso, entrarConCodigo } = await import('./acceso');
+const { _reiniciarAcceso, acceso, comprobarAcceso, entrarConCodigo, salirDeGoogle } = await import('./acceso');
 const { codigoDeError, SIN_SERVIDOR, verificarCodigo } = await import('./api');
 const { _reiniciar, estadoConexion } = await import('./conexion');
 const { guardarSesion, leerFirma, bloqueadoHasta } = await import('./sesion');
@@ -115,5 +124,69 @@ describe('comprobación del acceso al arrancar (FR-35, FR-168)', () => {
     await comprobarAcceso();
     expect(acceso().tipo).toBe('voluntario');
     expect(estadoConexion()).toBe('sin_servidor');
+  });
+});
+
+describe('jefatura sin servidor al arrancar (RV-16, FR-168)', () => {
+  const conGoogle = (correo: string) => {
+    datos.set('hidrantes.auth', '{"sesion":"guardada"}');
+    sesionGoogle = { access_token: 'a.b.c', user: { email: correo } };
+    _reiniciarAcceso();
+  };
+  const caido = { data: null, error: { message: 'Failed to fetch' }, status: 0 };
+  afterEach(() => {
+    sesionGoogle = null;
+  });
+
+  it('jefatura confirmada sigue como jefatura si el servidor no responde', async () => {
+    conGoogle('jefa@example.org');
+    rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+
+    // Otro arranque, ahora sin servidor.
+    _reiniciarAcceso();
+    rpc.mockResolvedValue(caido);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+  });
+
+  it('un correo distinto no hereda la confirmación', async () => {
+    conGoogle('jefa@example.org');
+    rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
+    await comprobarAcceso();
+    conGoogle('otra@example.org');
+    rpc.mockResolvedValue(caido);
+    await comprobarAcceso();
+    expect(acceso().tipo).not.toBe('jefatura');
+  });
+
+  it('fn_es_admin=false borra la confirmación', async () => {
+    conGoogle('jefa@example.org');
+    rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
+    await comprobarAcceso();
+    rpc.mockResolvedValueOnce({ data: false, error: null, status: 200 });
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado' });
+    expect(datos.has('hidrantes.jefatura_confirmada')).toBe(false);
+  });
+
+  it('salir de Google borra la confirmación', async () => {
+    conGoogle('jefa@example.org');
+    rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
+    await comprobarAcceso();
+    await salirDeGoogle();
+    expect(datos.has('hidrantes.jefatura_confirmada')).toBe(false);
+  });
+
+  it('sin sesión devuelta y sin red, con la confirmación guardada, sigue en solo lectura', async () => {
+    conGoogle('jefa@example.org');
+    rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
+    await comprobarAcceso();
+    sesionGoogle = null;
+    _reiniciarAcceso();
+    vi.stubGlobal('navigator', { onLine: false });
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
   });
 });
