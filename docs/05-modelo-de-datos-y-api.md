@@ -464,11 +464,13 @@ fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
 fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con respaldo
-fn_es_admin() returns boolean       -- email del JWT presente y activo en administradores
+fn_es_admin() returns boolean       -- fn_email_jwt() presente y activo en administradores
 fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4
 fn_registrar(actor text, dispositivo_id uuid, es_admin boolean, accion text, punto_id uuid, propuesta_id uuid, antes jsonb, despues jsonb)
 fn_error(codigo text, texto text)            -- lanza P0001 'CODIGO: texto'
-fn_email_jwt() returns text                  -- correo del JWT, en minúsculas
+fn_email_jwt() returns text                  -- correo del JWT, en minúsculas, solo si la sesión es de Google:
+                                             -- app_metadata.providers contiene 'google' y amr tiene method
+                                             -- 'oauth'; si no, null (0022, DEC-094)
 fn_exigir_admin() returns text               -- NO_AUTORIZADO si no es administrador; devuelve su correo
 fn_dispositivo_admin(email text) returns uuid -- md5 del correo: identidad técnica estable de un administrador
 fn_aplicar_propuesta(propuesta_id uuid, correcciones jsonb, confirmar_desactualizada boolean, actor text) returns jsonb

@@ -58,7 +58,7 @@ select pg_temp.propuesta('00000000-0000-4000-8000-0000000a0009', null, 'alta',
 
 -- ---------- no administrador ----------
 
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"cualquiera@example.com"}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","email":"cualquiera@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 select throws_like($$ select hidrantes.fn_aprobar('00000000-0000-4000-8000-0000000a0001') $$,
   'NO_AUTORIZADO%', 'un no administrador no aprueba');
@@ -67,7 +67,7 @@ reset role;
 
 -- ---------- administrador ----------
 
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"jefa@example.com"}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","email":"jefa@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 
 -- alta → aprobación → punto visible con dirección (FR-15, FR-24)

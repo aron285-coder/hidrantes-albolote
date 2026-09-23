@@ -57,7 +57,7 @@ insert into hidrantes.administradores (email, creado_por) values (current_settin
 insert into hidrantes.subidas (dispositivo_id, foto_path)
 values (hidrantes.fn_dispositivo_admin(current_setting('test.correo')), 'fotos/admin-largo.jpg');
 select set_config('request.jwt.claims',
-  jsonb_build_object('role', 'authenticated', 'email', current_setting('test.correo'))::text, true);
+  jsonb_build_object('role', 'authenticated', 'email', current_setting('test.correo'), 'amr', '[{"method":"oauth","timestamp":1}]'::jsonb, 'app_metadata', '{"provider":"google","providers":["google"]}'::jsonb)::text, true);
 set local role authenticated;
 select is(length(current_setting('test.correo')), 70, 'el correo de prueba tiene 70 caracteres');
 select is(hidrantes.fn_proponer(null, 'admin-clave-larga', 'Jefatura', current_setting('test.correo'), 'estado',

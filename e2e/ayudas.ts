@@ -37,14 +37,30 @@ export async function simularRpc(page: Page, respuestas: Record<string, unknown>
 export async function conGoogle(page: Page, correo: string) {
   const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
   const expira = Math.floor(Date.now() / 1000) + 3600;
-  const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ sub: 'u1', email: correo, role: 'authenticated', exp: expira })}.firma`;
+  // Como el de una sesión de Google de Supabase: fn_es_admin exige amr oauth y providers google (RV-36).
+  const appMetadata = { provider: 'google', providers: ['google'] };
+  const jwt = `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({
+    sub: 'u1',
+    email: correo,
+    role: 'authenticated',
+    exp: expira,
+    amr: [{ method: 'oauth', timestamp: expira - 3600 }],
+    app_metadata: appMetadata,
+  })}.firma`;
   const sesion = {
     access_token: jwt,
     refresh_token: 'refresco',
     token_type: 'bearer',
     expires_in: 3600,
     expires_at: expira,
-    user: { id: 'u1', aud: 'authenticated', role: 'authenticated', email: correo, app_metadata: {}, user_metadata: {} },
+    user: {
+      id: 'u1',
+      aud: 'authenticated',
+      role: 'authenticated',
+      email: correo,
+      app_metadata: appMetadata,
+      user_metadata: {},
+    },
   };
   await page.addInitScript((s) => {
     if (!sessionStorage.getItem('google')) {

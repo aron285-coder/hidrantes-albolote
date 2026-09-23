@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.22 — 23 de septiembre de 2026 (DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,49 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-094 · Jefatura exige una sesión de Google, no solo el correo del JWT
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` RV-36)
+- **Contexto:** `fn_es_admin()` daba jefatura a cualquier usuario de Supabase Auth cuyo JWT trajera
+  un `email` de `administradores`. El proyecto es también el de la app de uniformidad. Si ese
+  proyecto deja registrarse con correo y contraseña, alguien puede darse de alta con el correo de un
+  administrador que aún no haya entrado con Google y tener jefatura completa.
+  `scripts/comprobar-auth.ts` lo midió el 23 sep 2026 en staging y en producción:
+  `disable_signup = false`, correo activado y `mailer_autoconfirm = false`. El registro por correo
+  está abierto, con confirmación. El correo de confirmación le llegaría al administrador, que podría
+  pulsarlo sin darse cuenta.
+- **Decisión:**
+  1. `fn_email_jwt()` (0022, misma firma) devuelve el correo solo si se cumplen dos condiciones:
+     - `app_metadata.providers` contiene `google`. `app_metadata` lo escribe solo Auth.
+     - alguna entrada de `amr` tiene `method = 'oauth'`. `amr` describe cómo se abrió **esta**
+       sesión: una abierta con contraseña trae `password`, aunque el usuario tenga Google vinculado.
+  2. `fn_es_admin()` compara con ese correo. Con eso quedan cubiertos a la vez `fn_exigir_admin`, la
+     rama de jefatura de `fn_proponer`, las políticas de RLS y las Functions, que preguntan a
+     `fn_es_admin`.
+  3. La configuración de Auth no se toca: es compartida con uniformidad (CLAUDE.md §6). La
+     recomendación para su responsable queda en la issue #222.
+- **Formato comprobado:**
+  - En local, el JWT de una sesión con contraseña trae `amr: [{method: 'password', timestamp}]` y
+    `app_metadata: {provider: 'email', providers: ['email']}`. Lo comprueba el test de integración
+    `e2e/integracion/jefatura-google.spec.ts`.
+  - Para Google, Supabase Auth emite `method: 'oauth'` y añade `google` a `providers`. Es el
+    `models.OAuth` de GoTrue, en los flujos implícito y PKCE.
+  - El Supabase local no tiene Google. Por eso los tests de integración de jefatura vuelven a
+    firmar la sesión local con el secreto JWT **local**, cambiando solo esos dos claims
+    (`e2e/integracion/sesion-google.ts`).
+- **`comprobar-auth.ts`:**
+  - Lee la Management API si hay `SUPABASE_ACCESS_TOKEN`.
+  - Si no lo hay, usa el endpoint público `/auth/v1/settings` con la anon key de las variables del
+    repositorio, que da los mismos tres datos. Así no hace falta un token de Management para
+    comprobarlo.
+  - `vigilancia.yml` no lo ejecuta, como pide `docs/18`.
+- **Descartado:**
+  - cerrar el registro por correo desde aquí, porque es de uniformidad;
+  - comparar el `sub` con una lista de usuarios, porque obligaría a dar de alta el uuid de Auth de
+    cada administrador;
+  - exigir solo `providers ? 'google'`, porque una sesión abierta con contraseña de un usuario que
+    además tiene Google pasaría.
+- **Afecta a:** 05 §6.3, 11 §2, `e2e/ayudas.ts`, `supabase/tests/*`, `e2e/integracion/*`.
+
 ### DEC-088 · Los avisos salen cada 15 minutos y solo cuentan como enviados cuando se anotan
 - **Fecha:** 23 sep 2026 · **Estado:** vigente; sustituye el punto 2 de DEC-068 en cuanto a quién
   despacha los avisos (`docs/17` RV-08)
@@ -1142,7 +1185,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
-| 11 | 002, 004, 011, 017–019, 022, 086 |
+| 11 | 002, 004, 011, 017–019, 022, 086, 094 |
 | 15 | 023, 061, 085, 088 |
 | 16 | 007, 037 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
