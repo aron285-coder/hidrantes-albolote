@@ -360,3 +360,26 @@ test('cada fila de la lista enseña la última revisión (RV-24, FR-68)', async 
   for (let i = 0; i < n; i++) await expect(filas.nth(i)).toContainText(/revisado hace|Sin revisar/);
   await expect(page.getByRole('button', { name: /HID-9005/ })).toContainText(T.mapa.sinRevisar);
 });
+
+// FR-65 (RV-30): "Mi posición" centra el mapa en ti y dibuja el halo de precisión.
+test('el botón de centrar lleva a la posición y dibuja el halo (FR-65)', async ({ page, context }) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 37.2381, longitude: -3.6494, accuracy: 25 });
+  await abrir(page);
+  await page.getByRole('button', { name: T.mapa.miPosicion }).click();
+  const halo = page.locator('path.halo');
+  await expect(halo).toHaveCount(1);
+  // El halo queda en el centro de la parte visible del mapa: el mapa se ha movido a la posición.
+  await expect
+    .poll(async () => {
+      const mapa = (await page.getByTestId('mapa').boundingBox())!;
+      const alto = page.viewportSize()!.height;
+      const visible = { x: mapa.x, y: mapa.y, w: mapa.width, h: Math.min(mapa.y + mapa.height, alto) - mapa.y };
+      const h = (await halo.boundingBox())!;
+      return Math.hypot(
+        h.x + h.width / 2 - (visible.x + visible.w / 2),
+        h.y + h.height / 2 - (visible.y + visible.h / 2),
+      );
+    })
+    .toBeLessThan(80);
+});
