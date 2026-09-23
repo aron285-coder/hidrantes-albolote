@@ -48,6 +48,19 @@ test.describe('armazón', () => {
     expect(activo).toBe(true);
   });
 
+  // docs/18 RV-43: la caché de fotos de antes guardaba respuestas opacas que harían fallar la foto.
+  test('el Service Worker borra la caché de fotos antigua al activarse', async ({ page }) => {
+    await page.addInitScript(() => {
+      // Como la deja la versión anterior en un móvil que ya tenía la app.
+      void caches.open('hidrantes-fotos').then((c) => c.put('/fotos/vieja.jpg', new Response('opaca')));
+    });
+    await page.goto('/');
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await expect.poll(() => page.evaluate(() => caches.has('hidrantes-fotos'))).toBe(false);
+  });
+
   test('sin red, la app ya instalada abre desde la caché del Service Worker', async ({ page, context }) => {
     await page.goto('/');
     await page.evaluate(async () => {
