@@ -15,7 +15,7 @@ import {
   retirarPunto,
 } from '@/lib/panel/inventario';
 import { textoError } from '@/lib/panel/errores';
-import type { Caudal, Punto, Racor, TipoPunto } from '@/lib/puntos';
+import type { Caudal, Punto, Racor } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 
 const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'no_funciona'];
@@ -69,25 +69,12 @@ export function DialogoEditar({
   return (
     <Dialogo titulo={`${punto.codigo} · ${T.panel.editar}`} alCerrar={alCerrar}>
       <div className="grid gap-2 text-sm">
-        <label>
+        {/* El tipo no se cambia: se retira el punto y se da de alta el correcto (FR-11, DEC-090). */}
+        <div>
           <span className={etiqueta}>{T.panelCola.campoTipo}</span>
-          <select
-            className={campo}
-            value={tipo}
-            onChange={(e) => {
-              const t = e.target.value as TipoPunto;
-              setV((x) => ({
-                ...x,
-                tipo: t,
-                diametro_mm: t === 'boca_riego' ? 45 : x.diametro_mm === 45 ? 70 : x.diametro_mm,
-                racor: t === 'boca_riego' ? (x.racor ?? 'granada') : null,
-              }));
-            }}
-          >
-            <option value="hidrante">{nombreTipo.hidrante}</option>
-            <option value="boca_riego">{nombreTipo.boca_riego}</option>
-          </select>
-        </label>
+          <p className="min-h-9 py-2">{nombreTipo[tipo]}</p>
+          <p className={etiqueta}>{T.panelErrores.tipoNoModificable}</p>
+        </div>
         {tipo === 'hidrante' ? (
           <label>
             <span className={etiqueta}>{T.panelCola.campoDiametro}</span>

@@ -1,6 +1,6 @@
 import { CheckCircle2, CloudUpload } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { Boton } from '@/componentes/Boton';
 import { LimiteError } from '@/componentes/LimiteError';
@@ -352,17 +352,35 @@ function DatosPunto({
   const racorActual = f.racor ?? (punto?.tipo === 'boca_riego' ? (punto.racor ?? undefined) : undefined);
   return (
     <>
-      <Campo etiqueta={T.formulario.tipoElemento}>
-        <Segmentado
-          opciones={[
-            ['hidrante', T.formulario.hidrante],
-            ['boca_riego', T.formulario.bocaRiego],
-          ]}
-          valor={tipo}
-          alCambiar={(t) => cambiar({ tipo: t })}
-          etiqueta={T.formulario.tipoElemento}
-        />
-      </Campo>
+      {f.operacion === 'datos' && punto ? (
+        // El tipo no se cambia una vez creado: se propone retirarlo y se da de alta el correcto (FR-11,
+        // DEC-090).
+        <Campo etiqueta={T.formulario.tipoElemento}>
+          <p className="bg-papel border-linea rounded-campo min-h-11 border px-3 py-2">{nombreTipo[punto.tipo]}</p>
+          <p className="text-texto-suave mt-1 text-[13px]">
+            {T.operaciones.tipoNoCambia} ·{' '}
+            <Link
+              to={`/proponer/retirada?p=${encodeURIComponent(punto.id)}`}
+              replace
+              className="text-marino-600 inline-flex min-h-11 items-center font-semibold underline"
+            >
+              {T.operaciones.proponerRetirada}
+            </Link>
+          </p>
+        </Campo>
+      ) : (
+        <Campo etiqueta={T.formulario.tipoElemento}>
+          <Segmentado
+            opciones={[
+              ['hidrante', T.formulario.hidrante],
+              ['boca_riego', T.formulario.bocaRiego],
+            ]}
+            valor={tipo}
+            alCambiar={(t) => cambiar({ tipo: t })}
+            etiqueta={T.formulario.tipoElemento}
+          />
+        </Campo>
+      )}
       {tipo === 'hidrante' && (
         <Campo etiqueta={T.formulario.diametro} ayuda={f.diametro === 'otro' ? undefined : T.formulario.diametroAyuda}>
           <Segmentado

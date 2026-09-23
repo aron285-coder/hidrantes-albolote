@@ -38,6 +38,8 @@ export function textoError(codigo: string): string {
       return T.panelErrores.sinServidor;
     case 'PUNTO_OCUPADO':
       return T.panelErrores.puntoOcupado;
+    case 'TIPO_NO_MODIFICABLE':
+      return T.panelErrores.tipoNoModificable;
     default:
       return T.panelErrores.generico;
   }

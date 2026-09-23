@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -107,7 +107,9 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 
 **Actor:** voluntario. **Parte de:** *Ficha* → *Proponer un cambio* → *Corregir datos*.
 
-1. Cambia tipo, diámetro o racor. Las reglas de FR-16 y FR-20 aplican igual que en el alta.
+1. Cambia diámetro, racor o descripción. Las reglas de FR-16 y FR-20 aplican igual que en el alta.
+   El tipo se ve pero no se cambia (FR-11): si está mal, el enlace *Proponer retirada* lleva a FL-08 de
+   ese punto, y después se da de alta el correcto (FL-03).
 2. Foto de hoy y nota opcional.
 3. *Enviar para revisión*. (FR-44)
 

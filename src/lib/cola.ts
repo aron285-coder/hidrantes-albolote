@@ -44,6 +44,7 @@ const PERMANENTES = [
   'PUNTO_NO_ENCONTRADO',
   'PUNTO_NO_ACTIVO',
   'DIAMETRO_SIN_FIJAR',
+  'TIPO_NO_MODIFICABLE',
 ];
 export const esPermanente = (codigo: string) => PERMANENTES.some((p) => codigo.startsWith(p));
 

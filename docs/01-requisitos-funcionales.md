@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia solo con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.2 — 21 de septiembre de 2026: alta con pulsación larga en FR-50 (DEC-077). v1.1 — 17 de septiembre de 2026. Consolida `requisitos-hidrantes.html` v6.1 §1–5 y §8.1; v1.1 añade problema/objetivos/no-objetivos (estructura del skill *write-spec*), la sección 13 y el criterio de alcance DEC-037. |
+| **Versión** | 1.3 — 23 de septiembre de 2026: el tipo de un punto no cambia (FR-11, FR-44, DEC-090). Pendiente de conformidad de jefatura en la validación F9.1 (#76); aprobada por el desarrollador el 23 sep 2026. v1.2 — 21 de septiembre de 2026: alta con pulsación larga en FR-50 (DEC-077). v1.1 — 17 de septiembre de 2026. Consolida `requisitos-hidrantes.html` v6.1 §1–5 y §8.1; v1.1 añade problema/objetivos/no-objetivos (estructura del skill *write-spec*), la sección 13 y el criterio de alcance DEC-037. |
 | **Propietario de** | las reglas funcionales del sistema. Todo otro documento las cita por su `FR-nn`. |
 | **No contiene** | pasos de uso (→ 02), cifras técnicas (→ 03), campos y tipos (→ 05), colores y tamaños (→ 06). |
 
@@ -82,7 +82,7 @@ exportación FR-160 cubre el intercambio de datos).
 | ID | Requisito |
 |---|---|
 | FR-10 | Cada punto tiene un **código** interno único y correlativo, `HID-####` para hidrantes y `BOC-####` para bocas de riego, generado por el sistema y nunca reutilizado. |
-| FR-11 | Cada punto es de un **tipo**: hidrante de incendios o boca de riego. |
+| FR-11 | Cada punto es de un **tipo**: hidrante de incendios o boca de riego. El tipo no cambia una vez creado; se corrige retirando el punto y dando de alta el correcto (DEC-090). |
 | FR-12 | Cada punto tiene una **ubicación** (latitud/longitud) fijada por el voluntario, por GPS o colocando el pin en el mapa. |
 | FR-13 | El sistema registra el **origen de la ubicación** (GPS en campo / colocado a mano), la **precisión del GPS** que informó el móvil y la **distancia** entre la posición GPS y el pin final. Es una señal para jefatura; no bloquea nada. |
 | FR-14 | El sistema deduce el **municipio y núcleo** de las coordenadas por cruce con la zona de cobertura. El voluntario no lo introduce. Fuera de todo límite, el municipio es "fuera de zona". |
@@ -126,7 +126,7 @@ exportación FR-160 cubre el intercambio de datos).
 | FR-41 | **Alta nueva:** un punto que no estaba en el mapa. Requiere ubicación, tipo, diámetro (si hidrante), estado, racor (si boca de riego), foto y, si procede, descripción del fallo. Necesita aprobación. |
 | FR-42 | **Revisión:** "he estado allí y sigue igual". No cambia ningún dato; solo actualiza la fecha de última revisión. Requiere foto. Jefatura puede aprobarla **en bloque**, sin revisar una por una. |
 | FR-43 | **Actualizar estado:** el caudal ha cambiado, o el punto ha dejado de funcionar (o vuelve a funcionar). Requiere foto y, si el estado es "no funciona", la descripción del fallo. Necesita aprobación. |
-| FR-44 | **Corregir datos:** tipo, diámetro o racor mal introducidos. No refleja un cambio en la realidad sino un error de registro. Necesita aprobación. |
+| FR-44 | **Corregir datos:** diámetro, racor o descripción mal introducidos; el tipo no (FR-11). No refleja un cambio en la realidad sino un error de registro. Necesita aprobación. |
 | FR-45 | **Corregir ubicación:** el pin está desplazado. El voluntario lo arrastra al sitio correcto; el sistema conserva la posición anterior y calcula el desplazamiento. Necesita aprobación. |
 | FR-46 | **Proponer retirada:** el punto ya no existe (obras, asfaltado, sustitución). Requiere motivo (uno rápido: obras, asfaltado, sustituido, otro; más texto libre) y foto del sitio. Solo jefatura puede confirmarla; hasta entonces el punto sigue visible. |
 | FR-47 | Toda propuesta pendiente queda **fuera del mapa general**: solo la ve jefatura en su cola, y el propio autor en "Mis propuestas". |

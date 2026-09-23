@@ -490,12 +490,14 @@ fn_purgar_papelera_interna(actor text) returns integer   -- la llama pg_cron cad
 | `alta` | `{ tipo, diametro_mm?, diametro_otro?, caudal, racor?, descripcion_fallo?, descripcion? }` | `geom`, `origen`, `foto_path`. Si `tipo = 'boca_riego'`: `racor`, y `diametro_mm` se fija a 45. Si `diametro_otro` viene, `diametro_mm` es `null` y la propuesta queda marcada `otra_medida`. |
 | `revision` | `{}` (o `{ nota? }`) | `foto_path` |
 | `estado` | `{ caudal, descripcion_fallo?, nota? }` | `foto_path` |
-| `datos` | subconjunto de `{ tipo, diametro_mm, racor, descripcion }` | — |
+| `datos` | subconjunto de `{ diametro_mm, racor, descripcion }`; `tipo` solo si es **igual** al actual (el frontend anterior lo manda siempre, 04 §12): uno distinto da `TIPO_NO_MODIFICABLE` (0023, DEC-090) | — |
 | `ubicacion` | `{ nota? }` | `geom`, `origen`, `foto_path`; el servidor calcula `desplazamiento_m` contra `puntos.geom` |
 | `retirada` | `{ motivo_rapido: 'obras'|'asfaltado'|'sustituido'|'otro', motivo: text }` | `foto_path` |
 
 `correcciones` (en `fn_aprobar`) admite cualquiera de: `tipo, diametro_mm, caudal, racor,
-descripcion_fallo, descripcion, direccion`. Las mismas constraints de `puntos` se validan sobre el
+descripcion_fallo, descripcion, direccion`. `tipo` solo corrige un **alta**: en las demás
+operaciones, y en `fn_editar_punto`, un tipo distinto del actual da `TIPO_NO_MODIFICABLE` (0023,
+DEC-090); `fn_aprobar_lote` omite con ese código una pendiente antigua que lo cambie. Las mismas constraints de `puntos` se validan sobre el
 resultado fusionado antes de escribir.
 
 ---
@@ -514,7 +516,8 @@ Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTE
 `PUNTO_NO_ACTIVO`, `PROPUESTA_NO_PENDIENTE`, `PROPUESTA_AJENA`, `PROPUESTA_DESACTUALIZADA`,
 `DIAMETRO_SIN_FIJAR`, `MOTIVO_OBLIGATORIO`, `TIPO_DISTINTO`, `PROPUESTA_NO_ALTA`,
 `FUERA_DE_PLAZO_PAPELERA`, `CODIGO_FORMATO`, `ULTIMO_ADMINISTRADOR`, `CONFIG_INVALIDA`,
-`NO_AUTORIZADO`, `PUNTO_OCUPADO` ("otra persona está cambiando este punto; inténtalo en unos
+`NO_AUTORIZADO`, `TIPO_NO_MODIFICABLE` ("el tipo no se cambia: propón retirarlo y da de alta el
+correcto", 0023), `PUNTO_OCUPADO` ("otra persona está cambiando este punto; inténtalo en unos
 segundos": lo devuelve `fn_aprobar_lote` en la propuesta cuyo punto no consigue en 5 s, RV-17). El cliente traduce cada código a un texto en español (TR-36); ningún error de
 Postgres llega crudo.
 

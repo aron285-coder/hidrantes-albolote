@@ -107,12 +107,9 @@ describe('operaciones sobre un punto', () => {
   it('corregir datos: solo lo que cambia; sin cambios no se envía', () => {
     expect(queFalta({ operacion: 'datos' }, P)).toBe(a.sinCambios);
     expect(cambiosDatos({ operacion: 'datos', diametro: 70 }, P)).toEqual({ diametro_mm: 70 });
-    expect(cambiosDatos({ operacion: 'datos', tipo: 'boca_riego', racor: 'barcelona' }, P)).toEqual({
-      tipo: 'boca_riego',
-      diametro_mm: 45,
-      racor: 'barcelona',
-    });
-    expect(queFalta({ operacion: 'datos', tipo: 'boca_riego' }, P)).toBe(a.eligeRacor);
+    // El tipo no se cambia (FR-11, DEC-090, docs/18 RV-41): aunque llegue en el formulario, no viaja.
+    expect(cambiosDatos({ operacion: 'datos', tipo: 'boca_riego', racor: 'barcelona' }, P)).toEqual({});
+    expect(queFalta({ operacion: 'datos', tipo: 'boca_riego' }, P)).toBe(a.sinCambios);
     expect(cambiosDatos({ operacion: 'datos', descripcion: 'Junto a la farmacia ' }, P)).toEqual({});
     expect(queFalta({ operacion: 'datos', descripcion: 'Otra referencia' }, P)).toBeNull();
   });

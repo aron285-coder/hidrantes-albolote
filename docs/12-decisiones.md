@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.22 — 23 de septiembre de 2026 (DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.23 — 23 de septiembre de 2026 (DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -703,6 +703,22 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
     además tiene Google pasaría.
 - **Afecta a:** 05 §6.3, 11 §2, `e2e/ayudas.ts`, `supabase/tests/*`, `e2e/integracion/*`.
 
+### DEC-090 · El tipo de un punto no se cambia
+- **Fecha:** 23 sep 2026 · **Estado:** vigente. Decisión del desarrollador (`docs/18` §0.3.1, RV-41); pendiente de conformidad de jefatura en F9.1 (#76).
+- **Contexto:** "corregir datos", `fn_editar_punto` y las correcciones de `fn_aplicar_propuesta` admitían `tipo`, pero el `codigo` no cambia. Una boca de riego podía quedarse como `HID-0123`: rompía FR-10 ("coherente con su prefijo"), y del tipo salen el radio del marcador y el diámetro fijo de 45 mm.
+- **Decisión:**
+  - Fuera de un alta, un `tipo` distinto del actual da `TIPO_NO_MODIFICABLE` en:
+    - `fn_proponer` (operación `datos`);
+    - `fn_editar_punto`;
+    - `fn_aplicar_propuesta` (lo propuesto más las correcciones).
+  - Un tipo **igual** al actual se acepta, porque el frontend anterior lo manda siempre (04 §12).
+  - En un alta sí se corrige: aún no hay código, y sale del tipo final.
+  - La app y el panel dejan de ofrecer el selector fuera del alta. "Corregir datos" enseña el tipo con un enlace a *Proponer retirada*.
+  - En la cola del móvil, `TIPO_NO_MODIFICABLE` es un fallo permanente.
+  - Las propuestas pendientes antiguas que cambien el tipo no se tocan solas: `fn_aprobar_lote` las omite con ese código y jefatura las rechaza con motivo. 0023 cuenta cuántas hay con `raise notice`.
+- **Descartado:** cambiar el código a la vez que el tipo. Un código dado no se reutiliza ni se cambia, y un voluntario puede tenerlo apuntado en campo (FR-10).
+- **Afecta a:** 01 FR-11 y FR-44 (v1.3), 02 FL-06, 05 §7 y §8, 06 Apéndice A.
+
 ### DEC-088 · Los avisos salen cada 15 minutos y solo cuentan como enviados cuando se anotan
 - **Fecha:** 23 sep 2026 · **Estado:** vigente; sustituye el punto 2 de DEC-068 en cuanto a quién
   despacha los avisos (`docs/17` RV-08)
@@ -1177,7 +1193,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 090 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
