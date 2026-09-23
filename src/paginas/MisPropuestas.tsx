@@ -117,6 +117,7 @@ export function MisPropuestas() {
                     <span className="flex items-center gap-3">
                       <button
                         type="button"
+                        data-variante="enlace"
                         className="text-texto min-h-11 underline"
                         onClick={() => void reintentarFallido(c.clave_local)}
                       >
@@ -124,6 +125,7 @@ export function MisPropuestas() {
                       </button>
                       <button
                         type="button"
+                        data-variante="destructivo"
                         className="text-rojo-700 min-h-11 underline"
                         onClick={() => setConfirmar({ tipo: 'descartar', id: c.clave_local })}
                       >

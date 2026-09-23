@@ -13,7 +13,8 @@ import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 
-const REGLAS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
+// wcag22aa trae target-size (RV-29); los 44 px de TR-32 los mide geometria(), más abajo.
+const REGLAS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 // Cada prueba pasa axe por varias pantallas; con cuatro workers y la máquina cargada, 30 s no
 // siempre bastan (se vio en el ensayo de RV-27 con --repeat-each=3).
@@ -35,41 +36,169 @@ async function auditar(page: Page, contexto: string) {
   expect(resumen, `${contexto} · violaciones de axe`).toEqual([]);
 }
 
+interface Caja {
+  que: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  grupo: string | null;
+  destructivo: boolean;
+  variante: string | null;
+  i: number;
+}
+
+/**
+ * Geometría de los controles (TR-32, TR-113, UI-13, UI-15; docs/17 RV-29): axe con WCAG 2.1 no
+ * mide objetivos táctiles. En el móvil, cada control mide ≥ 44 × 44 px (contando la etiqueta que lo
+ * envuelve, que es su área táctil) y entre dos vecinos hay ≥ 8 px; en todas las pantallas, una
+ * acción destructiva queda a ≥ 12 px de la afirmativa. Los segmentos de un mismo grupo de radios son
+ * un solo control y no cuentan entre sí; un objetivo de 52 px o más en el eje en que se tocan ya
+ * lleva sus 8 px dentro (filas de lista).
+ */
+async function geometria(page: Page, contexto: string, { movil }: { movil: boolean }) {
+  const cajas: Caja[] = await page.evaluate(() => {
+    const sel =
+      'button, a[href], [role=button], [role=radio], input:not([type=hidden]):not([type=file]), select, textarea, .marcador';
+    const vistos = [...document.querySelectorAll<HTMLElement>(sel)].filter((e) => {
+      const r = e.getBoundingClientRect();
+      const st = getComputedStyle(e);
+      return r.width > 1 && r.height > 1 && st.visibility !== 'hidden' && !e.closest('[aria-hidden="true"]');
+    });
+    return vistos.map((e, i) => {
+      const propio = e.getBoundingClientRect();
+      const etiqueta = e.closest('label')?.getBoundingClientRect();
+      const r = etiqueta && etiqueta.width * etiqueta.height > propio.width * propio.height ? etiqueta : propio;
+      const nombre = (e.getAttribute('aria-label') || e.textContent || e.getAttribute('placeholder') || e.tagName)
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 40);
+      return {
+        que: `${e.tagName.toLowerCase()} "${nombre}"`,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        grupo: e.closest('[role=radiogroup]')?.getAttribute('aria-label') ?? null,
+        destructivo: e.getAttribute('data-variante') === 'destructivo',
+        variante: e.getAttribute('data-variante'),
+        i,
+      };
+    });
+  });
+  const hueco = (a: Caja, b: Caja) => {
+    const dx = Math.max(b.x - (a.x + a.w), a.x - (b.x + b.w));
+    const dy = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h));
+    return { dx, dy };
+  };
+  const problemas: string[] = [];
+  if (movil) {
+    for (const c of cajas) {
+      if (c.w < 43.5 || c.h < 43.5) problemas.push(`${c.que}: ${Math.round(c.w)} × ${Math.round(c.h)} px (< 44)`);
+    }
+  }
+  for (let i = 0; i < cajas.length; i++) {
+    for (let j = i + 1; j < cajas.length; j++) {
+      const a = cajas[i]!;
+      const b = cajas[j]!;
+      const { dx, dy } = hueco(a, b);
+      // Solapados: uno está encima del otro (capas, o uno dentro de otro), no al lado.
+      if (dx < 0 && dy < 0) continue;
+      const lado = dx >= 0 && dy < 0; // uno junto al otro en horizontal
+      const gap = lado ? dx : dy;
+      if (a.destructivo !== b.destructivo && a.variante && b.variante && gap < 12) {
+        problemas.push(`${a.que} y ${b.que}: ${Math.round(gap)} px entre la acción destructiva y la otra (< 12)`);
+      }
+      if (!movil || gap >= 8) continue;
+      if (a.grupo && a.grupo === b.grupo) continue;
+      const eje = lado ? Math.min(a.w, b.w) : Math.min(a.h, b.h);
+      if (eje >= 52) continue;
+      problemas.push(`${a.que} y ${b.que}: ${Math.round(gap)} px entre controles vecinos (< 8)`);
+    }
+  }
+  expect(problemas, `${contexto} · geometría de los controles`).toEqual([]);
+}
+
 test.describe('app del voluntario', () => {
-  test('entrada, primer uso y aviso legal', async ({ page }) => {
+  test('entrada, primer uso y aviso legal', async ({ page, isMobile }) => {
     await simularRpc(page, { fn_registrar_error: null });
     await page.goto('/');
     await expect(page.getByLabel(T.entrada.nombre)).toBeVisible();
     await auditar(page, 'entrada');
+    await geometria(page, 'entrada', { movil: !!isMobile });
   });
 
-  test('mapa, lista y ficha', async ({ page }) => {
+  test('mapa, lista y ficha', async ({ page, isMobile }) => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null, fn_ficha_punto: PUNTOS[0] });
     await page.goto('/');
     await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
     await auditar(page, 'mapa');
+    await geometria(page, 'mapa', { movil: !!isMobile });
 
     await page.getByRole('link', { name: T.navegacion.lista }).click();
     await expect(page.getByPlaceholder(T.mapa.buscar)).toBeVisible();
     await auditar(page, 'lista');
+    await geometria(page, 'lista', { movil: !!isMobile });
   });
 
-  test('formulario de alta, que es el que más campos tiene', async ({ page }) => {
+  test('formulario de alta, que es el que más campos tiene', async ({ page, isMobile }) => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
     await page.goto('/proponer/alta');
     await expect(page.getByTestId('selector-pin')).toBeVisible();
     await auditar(page, 'alta');
+    await geometria(page, 'alta', { movil: !!isMobile });
   });
 
-  test('mis propuestas y ajustes', async ({ page }) => {
+  test('mis propuestas y ajustes', async ({ page, isMobile }) => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_mis_propuestas: [], fn_registrar_error: null });
     await page.goto('/mis-propuestas');
     await auditar(page, 'mis propuestas');
+    await geometria(page, 'mis propuestas', { movil: !!isMobile });
     await page.goto('/ajustes');
     await auditar(page, 'ajustes');
+    await geometria(page, 'ajustes', { movil: !!isMobile });
+  });
+});
+
+test.describe('acciones destructivas (UI-13, RV-29)', () => {
+  test('la hoja de cerrar sesión y un envío fallido en Mis propuestas', async ({ page, isMobile }) => {
+    await conSesion(page);
+    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_mis_propuestas: [], fn_registrar_error: null });
+    await page.goto('/ajustes');
+    await page.getByRole('button', { name: T.ajustes.cerrarSesion }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await geometria(page, 'hoja de cerrar sesión', { movil: !!isMobile });
+
+    // Un envío con fallo: "Reintentar" y "Descartar" juntos.
+    await page.goto('/');
+    await page.evaluate(
+      () =>
+        new Promise<void>((ok, ko) => {
+          const abrir = indexedDB.open('hidrantes');
+          abrir.onerror = () => ko(abrir.error);
+          abrir.onsuccess = () => {
+            const t = abrir.result.transaction('cola', 'readwrite');
+            t.objectStore('cola').put({
+              clave_local: 'k-geometria',
+              creada_en: Date.now(),
+              args: { clave_local: 'k-geometria', operacion: 'estado', punto_id: 'x', datos: {} },
+              foto: null,
+              foto_path: null,
+              codigo: 'HID-9001',
+              intentos: 0,
+              proximo: 0,
+              fallo: 'PAYLOAD_INVALIDO(caudal)',
+            });
+            t.oncomplete = () => ok();
+          };
+        }),
+    );
+    await page.goto('/mis-propuestas');
+    await expect(page.getByRole('button', { name: T.misPropuestas.descartar })).toBeVisible();
+    await geometria(page, 'mis propuestas con un fallo', { movil: !!isMobile });
   });
 });
 
@@ -86,9 +215,11 @@ test.describe('panel de jefatura', () => {
     await page.goto('/admin/cola');
     await expect(page.getByRole('region', { name: T.panelCola.colaRevision })).toBeVisible();
     await auditar(page, 'panel · cola');
+    await geometria(page, 'panel · cola', { movil: false });
 
     await page.goto('/admin/inventario');
     await expect(page.getByRole('table')).toBeVisible();
     await auditar(page, 'panel · inventario');
+    await geometria(page, 'panel · inventario', { movil: false });
   });
 });

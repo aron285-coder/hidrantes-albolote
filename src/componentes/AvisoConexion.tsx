@@ -9,7 +9,7 @@ export function AvisoConexion() {
   if (estado === 'bien') return null;
   const sinServidor = estado === 'sin_servidor';
   return (
-    <div role="status" className="bg-gris-700 flex min-h-8 items-center gap-2 px-3 text-[13px] text-white">
+    <div role="status" className="bg-gris-700 flex min-h-8 items-center gap-2 px-3 pt-2 text-[13px] text-white">
       {sinServidor ? <CloudOff size={16} aria-hidden /> : <WifiOff size={16} aria-hidden />}
       <span className="flex-1">{sinServidor ? T.mapa.sinServidor : T.mapa.sinCoberturaSolo}</span>
       {sinServidor && (
