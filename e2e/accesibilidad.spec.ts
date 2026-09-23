@@ -15,6 +15,10 @@ import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 
 const REGLAS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
+// Cada prueba pasa axe por varias pantallas; con cuatro workers y la máquina cargada, 30 s no
+// siempre bastan (se vio en el ensayo de RV-27 con --repeat-each=3).
+test.describe.configure({ timeout: 60_000 });
+
 async function auditar(page: Page, contexto: string) {
   const { violations } = await new AxeBuilder({ page })
     .withTags(REGLAS)

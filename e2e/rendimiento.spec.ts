@@ -81,7 +81,9 @@ function doscientasPropuestas() {
 
 // El panel es de escritorio (FR-100) y la cola se mide sin frenar la red: TR-16 habla de banda
 // ancha, así que lo que se está midiendo es lo que tarda el panel en pintar doscientas propuestas.
-test.describe('presupuesto del panel', () => {
+// @rendimiento: miden tiempos y compiten por CPU con otros workers; se corren aparte y de uno en uno
+// (npm run e2e, RV-27).
+test.describe('presupuesto del panel @rendimiento', () => {
   test.skip(({ isMobile }) => !!isMobile, 'el panel se mide en escritorio');
 
   test('la cola con 200 propuestas pendientes se ve en menos de 2 s (TR-16)', async ({ page }) => {
@@ -123,7 +125,7 @@ test.describe('presupuesto del panel', () => {
 
 // Solo en el móvil emulado: en escritorio el mismo frenado mediría otra cosa y duplicaría el tiempo
 // de CI sin decir nada nuevo.
-test.describe('presupuesto de rendimiento', () => {
+test.describe('presupuesto de rendimiento @rendimiento', () => {
   test.skip(({ isMobile }) => !isMobile, 'se mide en el móvil emulado');
 
   test('la primera pantalla útil llega en menos de 3 s con 3G (TR-10)', async ({ page }) => {
