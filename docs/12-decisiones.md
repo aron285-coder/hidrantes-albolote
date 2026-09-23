@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082, DEC-083, DEC-085; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-082, DEC-083, DEC-084, DEC-085; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -683,6 +683,24 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   commit mensual automático a `develop` (ensucia el historial y dispara despliegues).
 - **Afecta a:** 04 §9, 15 §4.
 
+### DEC-084 · Las reservas de subida valen 7 días y caducan un día antes de que la purga las borre
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/17` RV-07, RV-19)
+- **Contexto:** la purga de fotos protegía las reservas de menos de 24 h, y `fn_proponer` aceptaba
+  cualquier reserva del mismo dispositivo. Con una foto subida, un `fn_proponer` fallido y más de
+  24 h sin red, la purga del lunes borraba el archivo y el reintento **entraba**: jefatura podía
+  aprobar un punto con un `foto_path` inexistente, aunque la foto es obligatoria. Y `subidas` crecía
+  sin límite.
+- **Decisión:** clave `dias_reserva_subida` = 7. La purga protege las reservas de menos de 7 días;
+  `fn_proponer` rechaza con `FOTO_NO_RESERVADA` una reserva sin confirmar de más de 6, y el móvil,
+  que aún guarda el Blob en su cola, la vuelve a subir. `pg_cron` borra las reservas de más de 30
+  días; la idempotencia va por `clave_local` antes de mirar la foto, así que no rompe reintentos.
+  En la misma migración, con sesión de administrador `fn_proponer` ignora los `autor_*` recibidos
+  (usa "Jefatura" y el correo recortado a 60) y el alta de jefatura no ofrece "otra medida" (RV-19).
+- **Descartado:** alargar solo la ventana de la purga (seguiría existiendo una reserva que la purga
+  ha borrado y `fn_proponer` acepta) y confirmar la reserva al subir (la subida no pasa por la base
+  de datos: es una URL firmada).
+- **Afecta a:** 04 §7 y §9, 05 §2.6 y §2.10.
+
 ### DEC-083 · Bajas de puntos purgados, época de los datos y una completa por semana
 - **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/17` RV-06)
 - **Contexto:** `bajas` solo listaba puntos que todavía existían; tras la purga de la papelera (30
@@ -1054,8 +1072,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 085 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |

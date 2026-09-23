@@ -167,6 +167,11 @@ Un `dispositivo_id` puede tener varios tokens en el tiempo (revocación y nuevo 
 | `reservada_en` | `timestamptz` | |
 | `confirmada_en` | `timestamptz` | fijada por `fn_proponer` al usarla |
 
+`fn_proponer` no acepta una reserva **sin confirmar** de más de `dias_reserva_subida − 1` días
+(`FOTO_NO_RESERVADA`, el móvil vuelve a subir la foto): la purga de fotos respeta las reservas de
+menos de `dias_reserva_subida` días, y un día de margen evita aprobar un `foto_path` ya borrado.
+`pg_cron` borra las reservas de más de 30 días (`hidrantes_purgar_subidas`). DEC-084.
+
 ### 2.7 `incidencias_app` (FR-92, FR-132)
 
 | Columna | Tipo | Notas |
@@ -217,6 +222,7 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `max_intentos_global` | `200` | por hora |
 | `dias_caducidad_token` | `365` | |
 | `max_subidas_dispositivo_dia` | `40` | |
+| `dias_reserva_subida` | `7` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084) |
 | `max_incidencias_dispositivo_dia` | `5` | |
 | `max_errores_global_dia` | `2000` | |
 | `escala_radios` | `[11, 9, 7, 5.5, 5]` | 06 §4 |
