@@ -42,7 +42,11 @@ export const onRequestGet: Manejador = async ({ request, env }) => {
   if (!agente) return error(503, 'NO_CONFIGURADO');
 
   const cache = typeof caches !== 'undefined' ? (caches as unknown as { default?: Cache }).default : undefined;
-  const clave = new Request(`https://cache.hidrantes-albolote.invalid/direccion/${lat.toFixed(4)},${lng.toFixed(4)}`);
+  // Con el origen de la propia petición: la Cache API de Cloudflare puede ignorar claves de otro
+  // origen (docs/18 RV-48).
+  const clave = new Request(
+    `${new URL(request.url).origin}/__cache/direccion?lat=${lat.toFixed(4)}&lng=${lng.toFixed(4)}`,
+  );
   let direccion: string | null = null;
   const enCache = await cache?.match(clave).catch(() => undefined);
   if (enCache) direccion = ((await enCache.json().catch(() => ({}))) as { direccion?: string }).direccion ?? null;

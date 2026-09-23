@@ -52,21 +52,33 @@ export async function sha256Hex(texto: string): Promise<string> {
  * mapeada (`::ffff:a.b.c.d`) es esa IPv4, y una IPv4 queda tal cual. Lo que no parezca una IP se
  * devuelve sin tocar.
  */
+export const IP_INVALIDA = 'invalida';
+
 export function normalizarIp(ip: string): string {
   const limpia = ip.trim().toLowerCase().replace(/%.*$/, '');
   const mapeada = /^(?:(?:0{1,4}:){5}|::)ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(limpia);
   if (mapeada) return mapeada[1]!;
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(limpia)) return limpia;
   if (!limpia.includes(':') || !/^[0-9a-f:]+$/.test(limpia)) return ip;
+  // Con forma de IPv6 pero imposible (dos "::", más de 8 grupos, un grupo de más de 4 cifras): un
+  // cubo propio que no se mezcla con ninguna IP de verdad (docs/18 RV-48).
+  if (limpia.split('::').length > 2) return IP_INVALIDA;
   const [izquierda, derecha] = limpia.split('::') as [string, string?];
   const grupos = (s: string | undefined) => (s ? s.split(':') : []);
   const izq = grupos(izquierda);
   const der = grupos(derecha);
+  if (izq.length + der.length > 8 || (derecha !== undefined && izq.length + der.length > 7)) return IP_INVALIDA;
   const completos =
     derecha === undefined
       ? izq
       : [...izq, ...Array<string>(Math.max(0, 8 - izq.length - der.length)).fill('0'), ...der];
-  if (completos.length !== 8 || completos.some((g) => g.length > 4)) return ip;
+  if (completos.length !== 8 || completos.some((g) => g.length > 4 || g === '')) return IP_INVALIDA;
+  // IPv4 mapeada escrita en hexadecimal (::ffff:c000:201): es 192.0.2.1, no el /64 de ::1.
+  const numeros = completos.map((g) => parseInt(g, 16));
+  if (numeros.slice(0, 5).every((n) => n === 0) && numeros[5] === 0xffff) {
+    const [a, b] = [numeros[6]!, numeros[7]!];
+    return [a >> 8, a & 255, b >> 8, b & 255].join('.');
+  }
   return `${completos
     .slice(0, 4)
     .map((g) => parseInt(g || '0', 16).toString(16))

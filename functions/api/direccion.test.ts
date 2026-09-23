@@ -161,4 +161,15 @@ describe('Nominatim con contacto y caché por coordenadas (RV-25)', () => {
     espia.mockRestore();
     vi.unstubAllGlobals();
   });
+
+  // docs/18 RV-48: la Cache API de Cloudflare puede ignorar claves de otro origen.
+  it('la clave de la caché empieza por el origen de la petición', async () => {
+    const cache = fingirCache();
+    const { espia } = fingirRed({});
+    await onRequestGet({ request: peticion(ALBOLOTE), env: ENV });
+    const clave = cache.put.mock.calls[0]![0] as Request;
+    expect(clave.url.startsWith('https://hidrantes-albolote-staging.pages.dev/__cache/direccion?')).toBe(true);
+    espia.mockRestore();
+    vi.unstubAllGlobals();
+  });
 });
