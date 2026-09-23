@@ -15,6 +15,8 @@ on:
 permissions:
   contents: read
   issues: write
+  # Leer las ejecuciones de los workflows programados y rehabilitarlos (DEC-085).
+  actions: write
 
 concurrency:
   group: vigilancia
@@ -38,6 +40,10 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
           SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY_PROD }}
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          # La misma lista que mantener-activo.yml; scripts/workflows.test.ts comprueba que coinciden.
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
         run: |
           set -uo pipefail
           problemas=()
@@ -80,7 +86,30 @@ jobs:
             problemas+=("falta SUPABASE_DB_URL_PROD: la vigilancia no puede mirar el respaldo (DEC-071)")
           fi
 
-          # 4. Se anota en Salud del sistema, salga como salga (TR-102).
+          # 4. Los workflows programados siguen vivos: GitHub los desactiva tras 60 días sin actividad
+          #    en un repositorio público (DEC-085). Diarios: última ejecución programada de menos de
+          #    2 días; semanales (respaldo y purga de fotos): de menos de 8.
+          ahora=$(date -u +%s)
+          for w in $WORKFLOWS; do
+            case "$w" in respaldo.yml | purgar-fotos.yml) limite=8 ;; *) limite=2 ;; esac
+            estado=$(gh api "repos/$REPO/actions/workflows/$w" --jq .state 2>/dev/null || echo error)
+            if [ "$estado" != "active" ]; then
+              problemas+=("el workflow $w está desactivado ($estado): 15 §4")
+              continue
+            fi
+            ultima=$(gh api "repos/$REPO/actions/workflows/$w/runs?event=schedule&per_page=1" \
+              --jq '.workflow_runs[0].created_at // empty' 2>/dev/null || echo '')
+            if [ -z "$ultima" ]; then
+              problemas+=("el workflow $w no tiene ninguna ejecución programada")
+            else
+              dias=$(( (ahora - $(date -u -d "$ultima" +%s)) / 86400 ))
+              if [ "$dias" -ge "$limite" ]; then
+                problemas+=("el workflow $w lleva $dias días sin ejecutarse solo (límite $limite)")
+              fi
+            fi
+          done
+
+          # 5. Se anota en Salud del sistema, salga como salga (TR-102).
           if [ -n "${BD:-}" ]; then
             ok=$([ ${#problemas[@]} -eq 0 ] && echo true || echo false)
             psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('ultima_vigilancia', to_jsonb(now()), 'vigilancia.yml'), ('vigilancia_ok', to_jsonb($ok), 'vigilancia.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;" || true
@@ -93,6 +122,19 @@ jobs:
 
           printf '%s\n' "${problemas[@]}" > problemas.txt
           echo "hay=$([ ${#problemas[@]} -eq 0 ] && echo no || echo si)" >> "$GITHUB_OUTPUT"
+
+      # Salga como salga lo anterior: rehabilitar los workflows programados reinicia el contador de
+      # inactividad de GitHub. mantener-activo.yml hace lo mismo, así que se sostienen el uno al
+      # otro (DEC-085).
+      - name: Rehabilitar los workflows programados
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+        run: |
+          set -eu
+          for w in $WORKFLOWS; do gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"; done
 
       - name: Abrir o cerrar la issue de vigilancia
         env:

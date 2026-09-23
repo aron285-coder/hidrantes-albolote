@@ -51,3 +51,23 @@ jobs:
             gh issue create --repo "$REPO" --label vigilancia --title "$titulo" \
               --body "La comprobación diaria falló: $RUN. Si el proyecto está en pausa, restáuralo desde el panel de Supabase (15)."
           fi
+
+  # GitHub desactiva los workflows con `schedule` de un repositorio público tras 60 días sin
+  # actividad (DEC-085). Habilitarlos por la API reinicia ese contador. La lista es explícita:
+  # scripts/workflows.test.ts rompe CI si un workflow programado no está aquí. vigilancia.yml llama
+  # a este mismo job, así que los dos se rehabilitan mutuamente.
+  mantener-workflows:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Rehabilitar los workflows programados
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+        run: |
+          set -eu
+          for w in $WORKFLOWS; do
+            gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"
+          done

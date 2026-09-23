@@ -74,7 +74,11 @@ En orden de fiabilidad:
 2. **Issues con etiqueta `vigilancia`** en GitHub: las abre solo el trabajo diario cuando la app, la
    base de datos o el respaldo fallan. Una issue abierta = algo que mirar en la §5 correspondiente.
 3. **Los voluntarios**: "Algo no funciona" en Ajustes de la app llega a Panel → Voluntarios.
-4. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
+4. **Correo de GitHub "scheduled workflow … disabled"**: en Actions, abre el workflow que nombra y
+   pulsa *Enable workflow* (o `gh workflow enable <archivo>`); después lanza `mantener-activo.yml`
+   a mano, que rehabilita los demás (DEC-085). Si pasa a menudo, el mecanismo de DEC-085 ha dejado
+   de servir y hay que decidir la alternativa.
+5. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
    `githubstatus.com`. Si está caído el proveedor, no hay nada que hacer salvo esperar; la app sigue
    mostrando los datos guardados en los móviles (FR-168).
 

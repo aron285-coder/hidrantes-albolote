@@ -388,6 +388,7 @@ e2e/                    # Playwright
 | `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
 | `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; abre una issue si algo falla (TR-102) |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
+| `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
 | `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) |
 
