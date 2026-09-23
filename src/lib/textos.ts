@@ -723,6 +723,7 @@ export const T = {
     diasPapelera: 'Días de papelera',
     bufferZona: 'Margen de la zona (m)',
     subidasDia: 'Fotos por móvil y día',
+    metrosTramo: 'Tramo de manguera (m)',
     radiosMarcador: 'Radios de marcador (px)',
     fueraDeRango: (campo: Parametro) => `"${campo}" está fuera de rango.`,
     parametrosGuardados: 'Parámetros guardados.',

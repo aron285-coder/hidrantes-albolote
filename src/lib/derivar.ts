@@ -11,9 +11,24 @@ export type EscalaRadios = [number, number, number, number, number];
 export interface ConfigMovil {
   meses_revision: number;
   escala_radios: EscalaRadios;
+  /** Longitud del tramo de manguera para FR-74 y FR-76 (FR-142, docs/18 GM-01). */
+  metros_tramo_manguera: number;
 }
 
-export const CONFIG_POR_DEFECTO: ConfigMovil = { meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5] };
+/** El tramo que se usa si la config no lo trae o no sirve (05 §2.10). */
+export const METROS_TRAMO_POR_DEFECTO = 20;
+
+export const CONFIG_POR_DEFECTO: ConfigMovil = {
+  meses_revision: 12,
+  escala_radios: [11, 9, 7, 5.5, 5],
+  metros_tramo_manguera: METROS_TRAMO_POR_DEFECTO,
+};
+
+/** Un entero de 10 a 30, como lo valida fn_guardar_config; si no, el de por defecto. */
+export function leerMetrosTramo(v: unknown): number {
+  const n = numero(v);
+  return n !== null && Number.isInteger(n) && n >= 10 && n <= 30 ? n : METROS_TRAMO_POR_DEFECTO;
+}
 
 const PUNTOS_DIAMETRO: Record<number, number> = { 100: 3, 70: 2, 45: 1 };
 const FACTOR_CAUDAL: Record<Caudal, number> = { bueno: 1, regular: 0.66, malo: 0.33, no_funciona: 0 };
@@ -51,10 +66,10 @@ export function derivar(p: Punto, c: ConfigMovil, hoy: Date = new Date()): Punto
   };
 }
 
-const numero = (v: unknown): number | null => {
+function numero(v: unknown): number | null {
   const n = typeof v === 'string' ? Number(v) : v;
   return typeof n === 'number' && Number.isFinite(n) ? n : null;
-};
+}
 
 /** La `config` de fn_listar_puntos, validada; null si no sirve (y entonces se usa la guardada). */
 export function leerConfig(bruta: unknown): ConfigMovil | null {
@@ -65,7 +80,11 @@ export function leerConfig(bruta: unknown): ConfigMovil | null {
   if (!Array.isArray(c.escala_radios) || c.escala_radios.length !== 5) return null;
   const escala = c.escala_radios.map(numero);
   if (escala.some((r) => r === null || r <= 0)) return null;
-  return { meses_revision: meses, escala_radios: escala as EscalaRadios };
+  return {
+    meses_revision: meses,
+    escala_radios: escala as EscalaRadios,
+    metros_tramo_manguera: leerMetrosTramo(c.metros_tramo_manguera),
+  };
 }
 
 /** Fecha local "AAAA-MM-DD", para saber si cambió el día desde la última derivación. */

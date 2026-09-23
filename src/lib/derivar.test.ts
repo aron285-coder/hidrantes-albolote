@@ -62,7 +62,17 @@ describe('leerConfig', () => {
     expect(leerConfig({ meses_revision: 6, escala_radios: [12, 10, 8, 6, 4], radio_duplicado_m: 25 })).toEqual({
       meses_revision: 6,
       escala_radios: [12, 10, 8, 6, 4],
+      metros_tramo_manguera: 20,
     });
+  });
+
+  // docs/18 GM-01: el tramo de manguera (FR-142), con 20 si falta o no sirve.
+  it('leerConfig sin metros_tramo_manguera da 20', () => {
+    const base = { meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5] };
+    expect(leerConfig(base)?.metros_tramo_manguera).toBe(20);
+    expect(leerConfig({ ...base, metros_tramo_manguera: 25 })?.metros_tramo_manguera).toBe(25);
+    expect(leerConfig({ ...base, metros_tramo_manguera: 5 })?.metros_tramo_manguera).toBe(20);
+    expect(leerConfig({ ...base, metros_tramo_manguera: 22.5 })?.metros_tramo_manguera).toBe(20);
   });
   it.each([
     null,

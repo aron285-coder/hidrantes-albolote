@@ -247,6 +247,7 @@ const NOMBRE_PARAMETRO: Record<ClaveParametro, string> = {
   dias_papelera: T.panelAjustes.diasPapelera,
   buffer_zona_m: T.panelAjustes.bufferZona,
   max_subidas_dispositivo_dia: T.panelAjustes.subidasDia,
+  metros_tramo_manguera: T.panelAjustes.metrosTramo,
 };
 
 function ParametrosTarjeta() {

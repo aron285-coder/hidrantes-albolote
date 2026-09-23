@@ -54,6 +54,7 @@ const CONFIG = [
   { clave: 'dias_papelera', valor: 30 },
   { clave: 'buffer_zona_m', valor: 400 },
   { clave: 'max_subidas_dispositivo_dia', valor: 40 },
+  { clave: 'metros_tramo_manguera', valor: 20 },
   { clave: 'escala_radios', valor: [11, 9, 7, 5.5, 5] },
 ];
 
@@ -235,6 +236,21 @@ test('ajustes: administradores, parámetros y núcleos (FR-141, FR-142, FR-166)'
   await expect
     .poll(() => llamadaA(llamadas, 'fn_renombrar_nucleo'))
     .toEqual({ nombre_actual: 'Albolote', nombre_nuevo: 'Albolote centro' });
+});
+
+// docs/18 GM-01: el tramo de manguera se ajusta entre 10 y 30 m (FR-142).
+test('ajustes: el tramo de manguera se guarda y fuera de 10–30 no deja guardar (FR-142)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  const parametros = page.getByRole('region').filter({ hasText: T.panelAjustes.parametros }).first();
+  const tramo = parametros.getByLabel(T.panelAjustes.metrosTramo);
+  await expect(tramo).toHaveValue('20');
+  await tramo.fill('40');
+  await expect(parametros.getByText(T.panelAjustes.fueraDeRango(T.panelAjustes.metrosTramo))).toBeVisible();
+  await expect(parametros.getByRole('button', { name: T.panel.guardarCambios })).toBeDisabled();
+  await tramo.fill('25');
+  await parametros.getByRole('button', { name: T.panel.guardarCambios }).click();
+  await expect.poll(() => llamadaA(llamadas, 'fn_guardar_config')).toEqual({ cambios: { metros_tramo_manguera: 25 } });
 });
 
 test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR-165, FR-167)', async ({ page }) => {
