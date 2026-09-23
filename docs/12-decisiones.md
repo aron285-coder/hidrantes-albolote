@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.20 — 22 de septiembre de 2026 (DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.21 — 23 de septiembre de 2026 (DEC-085; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,29 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-085 · Los workflows programados se rehabilitan solos para que GitHub no los apague
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (revisión de sep 2026, `docs/17` RV-11)
+- **Contexto:** en un repositorio público, GitHub desactiva los workflows con `schedule` cuando el
+  repositorio pasa 60 días sin actividad
+  (<https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows>).
+  Cuando el desarrollo termine se pararían a la vez `mantener-activo.yml` (y Supabase se pausaría,
+  también para uniformidad, DEC-054), el respaldo, la vigilancia y la purga de fotos, y nadie se
+  enteraría porque la vigilancia también se para.
+- **Decisión:** `mantener-activo.yml` tiene un job `mantener-workflows` que llama a
+  `PUT /repos/…/actions/workflows/<archivo>/enable` para cada workflow programado, con una lista
+  explícita; `vigilancia.yml` hace lo mismo como paso final, así que se sostienen mutuamente.
+  `vigilancia.yml` además comprueba que cada uno está `active` y que su última ejecución programada
+  tiene menos de 2 días (8 para los semanales) y, si no, abre la issue de vigilancia.
+  `scripts/workflows.test.ts` rompe CI si aparece un workflow programado fuera de la lista.
+- **Límite conocido:** la documentación de GitHub no dice expresamente que habilitar por la API
+  reinicie el contador; es el mecanismo que usan las acciones de *keepalive* sin commits. Si GitHub
+  lo cambia, la comprobación de la vigilancia lo detecta (un workflow desactivado o parado abre la
+  issue) y GitHub avisa por correo antes de desactivar; la alternativa sería un commit vacío mensual
+  a una rama `mantenimiento/latido`, que pediría otra decisión.
+- **Descartado:** depender de la fusión automática de Dependabot (no garantiza actividad) y un
+  commit mensual automático a `develop` (ensucia el historial y dispara despliegues).
+- **Afecta a:** 04 §9, 15 §4.
+
 ### DEC-081 · El ámbar de los avisos, medido como texto y no como relleno
 - **Fecha:** 22 sep 2026 · **Estado:** vigente; continúa DEC-072 y DEC-076
 - **Contexto:** `--ambar-700` (`#8A6408`) nació como **relleno** del marcador "regular", donde TR-31
@@ -997,14 +1020,14 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042 |
 | 03 | 001, 004, 026, 028 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 085 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053 |
 | 11 | 002, 004, 011, 017–019, 022 |
-| 15 | 023, 061 |
+| 15 | 023, 061, 085 |
 | 16 | 007, 037 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |
