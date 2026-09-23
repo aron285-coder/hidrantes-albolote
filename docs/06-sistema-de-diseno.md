@@ -400,6 +400,13 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Acercar` · `Alejar` ·
 `funciona sin cobertura` · `solo en línea` · `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
 
+**Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089). `Coordenadas` · `Decimal` ·
+`UTM ETRS89 · huso 30` · `Copiar [decimal]` · `Copiado` ·
+`No se ha podido copiar: mantén pulsado el texto para copiarlo` · `¿Qué hay aquí?` ·
+`Compartir esta ubicación` · `Añadir un punto aquí` · `Compartir` · `Ubicación` ·
+`[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[37.230500, -3.656000] · UTM [30S 441808 4120645] (ETRS89)` ·
+`Copiado: pégalo donde quieras` · `No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo`.
+
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
 `Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Racor [Granada]` ·

@@ -142,6 +142,20 @@ test.describe('app del voluntario', () => {
     await geometria(page, 'lista', { movil: !!isMobile });
   });
 
+  // docs/18 GM-02 y GM-05: la ficha con sus coordenadas y "Compartir", y la hoja de "¿Qué hay aquí?".
+  test('ficha con coordenadas y ¿Qué hay aquí?', async ({ page, isMobile }) => {
+    await conSesion(page);
+    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+    await page.goto(`/?p=${PUNTOS[0].id}`);
+    await expect(page.getByRole('region', { name: T.coordenadas.titulo })).toBeVisible();
+    await auditar(page, 'ficha');
+    await geometria(page, 'ficha', { movil: !!isMobile });
+    await page.goto('/?aqui=37.2305,-3.656');
+    await expect(page.getByRole('dialog', { name: T.aqui.titulo })).toBeVisible();
+    await auditar(page, 'qué hay aquí');
+    await geometria(page, 'qué hay aquí', { movil: !!isMobile });
+  });
+
   test('formulario de alta, que es el que más campos tiene', async ({ page, isMobile }) => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });

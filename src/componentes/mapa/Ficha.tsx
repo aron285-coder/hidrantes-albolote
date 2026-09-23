@@ -2,8 +2,10 @@ import { Activity, Check, Crosshair, Navigation, Pencil, PenLine, X } from 'luci
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Hoja } from '../Hoja';
+import { BloqueCoordenadas, BotonCompartir } from './Coordenadas';
 import { MarcadorSvg } from './MarcadorSvg';
 import { useConexion } from '@/hooks/estado';
+import { textoPunto } from '@/lib/compartir';
 import { claseChip, enlaceComoLlegar, nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
 import { distancia, fechaCorta, hace } from '@/lib/formato';
 import type { Posicion } from '@/lib/posicion';
@@ -26,7 +28,8 @@ function Foto({ punto }: { punto: Punto }) {
   const conexion = useConexion();
   if (!url || fallo) {
     return (
-      <div className="bg-linea text-texto-suave rounded-tarjeta flex aspect-video items-center justify-center text-sm">
+      // text-texto: el suave sobre bg-linea se queda en 4,28:1 (axe, docs/18 GM-05).
+      <div className="bg-linea text-texto rounded-tarjeta flex aspect-video items-center justify-center text-sm">
         {url && conexion !== 'bien' ? T.ficha.fotoNoDisponible : T.ficha.sinFoto}
       </div>
     );
@@ -137,24 +140,27 @@ export function Ficha({
           {punto.descripcion}
         </p>
       )}
-      <div className="mt-1 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setOperaciones(true)}
-          className="bg-papel border-texto text-texto rounded-boton flex min-h-11 flex-1 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
-        >
-          <PenLine size={18} aria-hidden />
-          {T.ficha.proponerCambio}
-        </button>
+      {/* Coordenadas para dárselas a bomberos o al 112 (FR-75, docs/18 GM-05). */}
+      <BloqueCoordenadas l={punto} />
+      <button
+        type="button"
+        onClick={() => setOperaciones(true)}
+        className="bg-papel border-texto text-texto rounded-boton mt-1 flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
+      >
+        <PenLine size={18} aria-hidden />
+        {T.ficha.proponerCambio}
+      </button>
+      <div className="flex flex-wrap gap-2">
         <a
           href={enlaceComoLlegar(punto)}
           target="_blank"
           rel="noreferrer"
-          className="bg-papel border-texto text-texto rounded-boton flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
+          className="bg-papel border-texto text-texto rounded-boton flex min-h-11 flex-1 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
         >
           <Navigation size={18} aria-hidden />
           {T.ficha.comoLlegar}
         </a>
+        <BotonCompartir titulo={punto.codigo} texto={textoPunto(punto)} className="flex-1" />
       </div>
       {operaciones && <HojaOperaciones punto={punto} alCerrar={() => setOperaciones(false)} />}
     </article>

@@ -3,6 +3,7 @@ import L from 'leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { LIMITES, capasDe } from './capas-leaflet';
 import { type Capa, ZOOM_MAX } from '@/lib/capas';
+import type { LatLng } from '@/lib/coordenadas';
 import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
@@ -23,9 +24,18 @@ interface Props {
   modo: 'claro' | 'oscuro';
   posicion: Posicion | null;
   alSeleccionar: (id: string) => void;
-  /** Pulsación larga (o clic derecho) sobre el mapa, para dar de alta ahí mismo (DEC-077). */
+  /** Pulsación larga (o clic derecho) sobre el mapa: abre "¿Qué hay aquí?" (FR-72, DEC-089). */
   alPulsacionLarga?: (lat: number, lng: number) => void;
+  /** El sitio de "¿Qué hay aquí?", con su pin soltado (06 §4.7). */
+  aqui?: LatLng | null;
 }
+
+/** Pin soltado de "¿Qué hay aquí?": el MapPin de lucide en --anillo-seleccion (06 §4.7). */
+const SVG_AQUI =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="var(--papel)" ' +
+  'stroke="var(--anillo-seleccion)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+  '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>' +
+  '<circle cx="12" cy="10" r="3"/></svg>';
 
 function vistaGuardada(): { centro: [number, number]; zoom: number } | null {
   try {
@@ -38,13 +48,14 @@ function vistaGuardada(): { centro: [number, number]; zoom: number } | null {
 
 /** Mapa de Leaflet con el mapa base propio, las capas en línea, el límite, los puntos y tu posición. */
 export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
-  { puntos, seleccionado, capa, modo, posicion, alSeleccionar, alPulsacionLarga },
+  { puntos, seleccionado, capa, modo, posicion, alSeleccionar, alPulsacionLarga, aqui = null },
   ref,
 ) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<L.Map | null>(null);
   const grupoPuntos = useRef<L.LayerGroup | null>(null);
   const grupoPosicion = useRef<L.LayerGroup | null>(null);
+  const grupoMarcas = useRef<L.LayerGroup | null>(null);
   const alSeleccionarRef = useRef(alSeleccionar);
   useEffect(() => {
     alSeleccionarRef.current = alSeleccionar;
@@ -78,10 +89,11 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     });
     grupoPuntos.current = L.layerGroup().addTo(m);
     grupoPosicion.current = L.layerGroup().addTo(m);
+    grupoMarcas.current = L.layerGroup().addTo(m);
     mapa.current = m;
 
-    // Alta con pulsación larga, como en las aplicaciones de mapas de siempre (DEC-077). Sobre un
-    // marcador no: ahí manda abrir la ficha.
+    // Pulsación larga, como en las aplicaciones de mapas de siempre: abre "¿Qué hay aquí?" (FR-72,
+    // DEC-089). Sobre un marcador no: ahí manda abrir la ficha.
     const lienzo = contenedor.current;
     const sobreMarcador = (destino: EventTarget | null) =>
       destino instanceof Element && !!destino.closest('.leaflet-marker-pane');
@@ -199,6 +211,22 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
       interactive: false,
     }).addTo(g);
   }, [posicion]);
+
+  // Marcas de trabajo (06 §4.7): el pin de "¿Qué hay aquí?". No se tocan: encima de todo y sin clic.
+  useEffect(() => {
+    const g = grupoMarcas.current;
+    const m = mapa.current;
+    if (!g || !m) return;
+    g.clearLayers();
+    if (!aqui) return;
+    L.marker([aqui.lat, aqui.lng], {
+      icon: L.divIcon({ html: SVG_AQUI, className: 'marca-aqui', iconSize: [36, 36], iconAnchor: [18, 34] }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 10_000,
+    }).addTo(g);
+    m.panTo([aqui.lat, aqui.lng], { animate: false });
+  }, [aqui]);
 
   return (
     <div className="absolute inset-0">

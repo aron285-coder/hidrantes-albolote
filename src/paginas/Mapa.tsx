@@ -7,6 +7,7 @@ import { Leyenda } from '@/componentes/mapa/Leyenda';
 import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
 import { type ControlMapa, MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
+import { QueHayAqui, leerAqui, parametroAqui } from '@/componentes/mapa/QueHayAqui';
 import { SelectorCapas } from '@/componentes/mapa/SelectorCapas';
 import { AvisoInstalar } from '@/componentes/AvisoInstalar';
 import { BandaEntorno } from '@/componentes/BandaEntorno';
@@ -18,7 +19,6 @@ import { nombreCaudal } from '@/lib/ficha';
 import { megas } from '@/lib/formato';
 import { BYTES_MAPABASE, descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { activarPosicion, posicionActual } from '@/lib/posicion';
-import { rutaAltaEn } from '@/lib/propuestas';
 import { esPruebas } from '@/lib/entorno';
 import { buscar } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -59,6 +59,8 @@ export function Mapa() {
   const navegar = useNavigate();
   const [params] = useSearchParams();
   const seleccionado = params.get('p');
+  const aquiParam = params.get('aqui');
+  const aqui = useMemo(() => leerAqui(aquiParam), [aquiParam]);
   const [capa, setCapa] = useState<Capa>(capaGuardada);
   const [menuCapas, setMenuCapas] = useState(false);
   const [texto, setTexto] = useState('');
@@ -74,6 +76,11 @@ export function Mapa() {
     [navegar, seleccionado],
   );
   const cerrarFicha = useCallback(() => navegar('/', { replace: true }), [navegar]);
+  // "¿Qué hay aquí?" va en la URL: *atrás* la cierra (FR-72).
+  const abrirAqui = useCallback(
+    (lat: number, lng: number) => navegar(`/?aqui=${parametroAqui({ lat, lng })}`, { replace: !!aquiParam }),
+    [navegar, aquiParam],
+  );
 
   // Al elegir un punto (mapa, lista o búsqueda), el mapa lo centra.
   useEffect(() => {
@@ -146,7 +153,8 @@ export function Mapa() {
             modo={modo}
             posicion={pos}
             alSeleccionar={elegir}
-            alPulsacionLarga={(lat, lng) => navegar(rutaAltaEn(lat, lng))}
+            alPulsacionLarga={abrirAqui}
+            aqui={aqui}
           />
 
           {/* Búsqueda (FR-69) */}
@@ -266,6 +274,7 @@ export function Mapa() {
               {ficha}
             </aside>
           )}
+          {aqui && !ficha && <QueHayAqui l={aqui} alCerrar={cerrarFicha} enHoja={ancho === 'movil'} />}
           {seleccionado && !punto && puntos.length > 0 && (
             <p className="bg-papel rounded-tarjeta absolute inset-x-6 top-1/3 z-[600] p-3 text-center shadow">
               {T.ficha.noEncontrado}
