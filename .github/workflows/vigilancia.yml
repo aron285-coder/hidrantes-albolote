@@ -89,7 +89,10 @@ jobs:
               problemas+=("no se pueden leer las tareas programadas de pg_cron")
             else
               printf '%s' "$tareas" > tareas.json
-              psql -X -q -v ON_ERROR_STOP=1 "$BD" -v valor="$tareas" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('tareas_programadas', :'valor'::jsonb, 'vigilancia.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;" || true
+              # psql no sustituye variables en -c: va por -f (RV-38). Si no se guarda, es un problema.
+              if ! psql -X -q -v ON_ERROR_STOP=1 "$BD" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql; then
+                problemas+=("no se pueden guardar las tareas programadas en Salud del sistema")
+              fi
               atrasadas=$(jq -r '[.[] | select(.problema) | .tarea] | join(", ")' tareas.json)
               if [ -n "$atrasadas" ]; then
                 problemas+=("tareas programadas que fallaron o no han corrido a tiempo: $atrasadas")
@@ -159,6 +162,8 @@ jobs:
       # otro (DEC-085).
       - name: Rehabilitar los workflows programados
         if: always()
+        # Si falla, la issue se abre igual (RV-38).
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -168,6 +173,7 @@ jobs:
           for w in $WORKFLOWS; do gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"; done
 
       - name: Abrir o cerrar la issue de vigilancia
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HAY: ${{ steps.mirar.outputs.hay }}

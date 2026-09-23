@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -56,5 +57,66 @@ describe('avisos.yml (RV-08)', () => {
   it('repite mientras queden avisos, como mucho diez veces', () => {
     expect(texto).toContain('"quedan":true');
     expect(texto).toContain('seq 1 10');
+  });
+});
+
+// docs/18 RV-38: fallos que se ocultaban solos.
+describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
+  it("ningún run usa -v con -c y una variable :'…' en la misma línea: psql no sustituye en -c", () => {
+    const malas: string[] = [];
+    for (const a of archivos) {
+      for (const [i, l] of leer(a).split('\n').entries()) {
+        if (/psql\b/.test(l) && /\s-v\s/.test(l) && /\s-c\s/.test(l) && /:'\w+'/.test(l)) malas.push(`${a}:${i + 1}`);
+      }
+    }
+    expect(malas).toEqual([]);
+  });
+
+  it('guardar las tareas no se traga el error con || true', () => {
+    const texto = leer('vigilancia.yml');
+    expect(texto).toContain('-f scripts/sql/guardar-tareas.sql');
+    const linea = texto.split('\n').find((l) => l.includes('guardar-tareas.sql'))!;
+    expect(linea).not.toMatch(/\|\|\s*true/);
+  });
+
+  it('la issue se abre o se cierra aunque falle la rehabilitación de workflows', () => {
+    const texto = leer('vigilancia.yml');
+    const paso = (nombre: string) => texto.slice(texto.indexOf(`- name: ${nombre}`)).split(/\n\s{6}- name:/)[0]!;
+    expect(paso('Abrir o cerrar la issue de vigilancia')).toMatch(/^\s+if: always\(\)$/m);
+    expect(paso('Rehabilitar los workflows programados')).toMatch(/^\s+continue-on-error: true$/m);
+  });
+
+  it('avisos.yml no hace || echo 000: con la red caída daba 000000 y no reintentaba', () => {
+    const texto = leer('avisos.yml');
+    expect(texto).not.toContain('|| echo 000');
+    expect(texto).toContain('.github/scripts/codigo-http.sh');
+  });
+
+  it('avisos.yml trata un 401 como aviso, no como fallo: el secreto de Pages vale al siguiente despliegue', () => {
+    const texto = leer('avisos.yml');
+    expect(texto).toMatch(/"\$codigo" = "401"/);
+    expect(texto).toMatch(/::warning::.*401/);
+  });
+});
+
+describe('codigo_http (RV-38)', () => {
+  const codigo = (entrada: string) =>
+    execFileSync('bash', ['-c', `source .github/scripts/codigo-http.sh; codigo_http "${entrada}"`], {
+      cwd: path.resolve(import.meta.dirname, '..'),
+      encoding: 'utf8',
+    });
+
+  it('deja el código tal cual', () => {
+    expect(codigo('200')).toBe('200');
+    expect(codigo('503')).toBe('503');
+  });
+
+  it('red caída: curl escribe 000 y sale con error; queda 000, no 000000', () => {
+    expect(codigo('000')).toBe('000');
+    expect(codigo('000000')).toBe('000');
+  });
+
+  it('sin salida, 000', () => {
+    expect(codigo('')).toBe('000');
   });
 });

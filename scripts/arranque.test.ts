@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ErrorDeScript } from './lib/comun.ts';
-import { ROTABLES, aRotar, sufijoDe } from './arranque.ts';
+import { ROTABLES, aRotar, pasoTrasSecretosPages, sufijoDe } from './arranque.ts';
 
 describe('--rotar', () => {
   it('sin nada, no se rota nada: el arranque completo no es una rotación', () => {
@@ -35,5 +35,24 @@ describe('secreto de la vigilancia (RV-08)', () => {
   it('su secreto de repositorio lleva el sufijo del entorno', () => {
     expect(sufijoDe({ clave: 'staging' })).toBe('STAGING');
     expect(sufijoDe({ clave: 'production' })).toBe('PROD');
+  });
+});
+
+// docs/18 RV-38: un secreto de Pages nuevo solo vale en un despliegue nuevo.
+describe('tras fijar los secretos de Pages', () => {
+  it('staging se vuelve a desplegar desde develop', () => {
+    expect(pasoTrasSecretosPages({ clave: 'staging' }).comando).toEqual([
+      'workflow',
+      'run',
+      'Desplegar staging',
+      '--ref',
+      'develop',
+    ]);
+  });
+
+  it('producción no se despliega sola: se dice el paso', () => {
+    const paso = pasoTrasSecretosPages({ clave: 'production' });
+    expect(paso.comando).toBeUndefined();
+    expect(paso.aviso).toMatch(/develop → main/);
   });
 });

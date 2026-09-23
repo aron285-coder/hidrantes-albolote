@@ -30,6 +30,10 @@ jobs:
       matrix:
         entorno: [PROD, STAGING]
     steps:
+      # Solo para el cálculo del código HTTP (RV-38).
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
       - name: Pedir el envío hasta que no quede nada
         env:
           APP: ${{ matrix.entorno == 'PROD' && 'https://hidrantes-albolote.pages.dev' || 'https://hidrantes-albolote-staging.pages.dev' }}
@@ -44,9 +48,12 @@ jobs:
             echo "### Avisos ${{ matrix.entorno }}: falta el secreto VIGILANCIA_SECRETO_${{ matrix.entorno }} (npm run arranque -- --rotar vigilancia)" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          source .github/scripts/codigo-http.sh
           llamar() {
-            curl -s -o respuesta.json -w '%{http_code}' --max-time 60 -X POST "$APP/api/push" \
-              -H "X-Vigilancia: $SECRETO" -H 'Content-Type: application/json' -d '{}' || echo 000
+            local c
+            c=$(curl -s -o respuesta.json -w '%{http_code}' --max-time 60 -X POST "$APP/api/push" \
+              -H "X-Vigilancia: $SECRETO" -H 'Content-Type: application/json' -d '{}' || true)
+            codigo_http "$c"
           }
           # Cada llamada envía como mucho 20 (límite de peticiones de Workers): se repite mientras
           # la respuesta diga que quedan, diez veces como mucho.
@@ -54,6 +61,14 @@ jobs:
             codigo=$(llamar)
             # Un 5xx suelto se reintenta una vez.
             if [ "${codigo:0:1}" = "5" ] || [ "$codigo" = "000" ]; then sleep 5; codigo=$(llamar); fi
+            # 401: el secreto del repositorio y el de Pages no coinciden. Tras rotarlo, Pages solo lo
+            # aplica al siguiente despliegue (RV-38): se avisa sin salir en rojo cada 15 minutos. La
+            # vigilancia diaria salta si los avisos se atascan más de dos horas.
+            if [ "$codigo" = "401" ]; then
+              echo "::warning::/api/push de ${{ matrix.entorno }} responde 401: el secreto de Pages aún no está desplegado (15 §2)"
+              echo "### Avisos ${{ matrix.entorno }}: /api/push responde 401; el secreto rotado se aplica en el siguiente despliegue (15 §2)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
             if [ "$codigo" != "200" ]; then
               {
                 echo "### Avisos ${{ matrix.entorno }}: /api/push responde $codigo"
