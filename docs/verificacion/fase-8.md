@@ -61,7 +61,8 @@ defectos reales salieron de ahí y están en §5.
 - **Accesibilidad (TR-30, TR-31):** axe sin violaciones en entrada, mapa, lista, alta, mis
   propuestas, ajustes y las dos pantallas del panel; contraste de los tokens en claro y oscuro,
   incluida la cadena de dos saltos del marcador (DEC-072). **TR-32** (objetivos táctiles de 44 px)
-  no lo cubre axe con las reglas WCAG 2.1 (la regla `target-size` es de 2.2): queda para RV-29.
+  no lo cubría axe con las reglas WCAG 2.1 (la regla `target-size` es de 2.2). Desde el 23 sep 2026
+  (RV-29) axe usa también `wcag22aa` y `e2e/accesibilidad.spec.ts` mide la geometría de cada control.
 - **Seguridad (TR-40):** las ocho de 11 §5, ejecutadas y documentadas con su respuesta exacta.
 - **Continuidad (TR-50, TR-51, TR-52):** respaldo real, restauración ensayada (sobre base vacía y, desde
   RV-13, sobre esquema con datos en CI); la marcha atrás del frontend (`revertir.ts`, TR-52) está

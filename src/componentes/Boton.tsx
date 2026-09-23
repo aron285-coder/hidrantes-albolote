@@ -11,7 +11,7 @@ const CLASES: Record<Variante, string> = {
   enlace: 'text-texto underline px-1 font-normal',
 };
 
-/** Botones de 06 §5: alto ≥ 44 px (UI-15), radio 9. Deshabilitado solo con motivo escrito (UI-02). */
+/** Botones de 06 §5: alto y ancho ≥ 44 px (UI-15), radio 9. Deshabilitado solo con motivo escrito (UI-02). */
 export function Boton({
   variante = 'primario',
   className,
@@ -21,8 +21,10 @@ export function Boton({
   return (
     <button
       type={type}
+      // Para la prueba de geometría: la acción destructiva, a ≥ 12 px de la afirmativa (UI-13, TR-113).
+      data-variante={variante}
       className={cn(
-        'rounded-boton disabled:bg-linea disabled:text-texto-suave min-h-11 px-4 text-[15px] font-semibold disabled:cursor-not-allowed',
+        'rounded-boton disabled:bg-linea disabled:text-texto-suave min-h-11 min-w-11 px-4 text-[15px] font-semibold disabled:cursor-not-allowed',
         CLASES[variante],
         className,
       )}

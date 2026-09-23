@@ -106,7 +106,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           <legend className="text-texto-suave mb-1.5 w-full text-center text-[13px] font-semibold">
             {T.entrada.codigo}
           </legend>
-          <div className="flex justify-center gap-1.5">
+          <div className="flex justify-center gap-2">
             {cifras.map((c, i) => (
               <input
                 key={i}

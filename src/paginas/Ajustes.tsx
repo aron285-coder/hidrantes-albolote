@@ -174,7 +174,10 @@ export function Ajustes() {
         </Boton>
       </Fila>
       <Fila titulo={T.entrada.avisoLegal}>
-        <Link to="/legal" className="text-texto inline-flex min-h-11 items-center px-1 text-sm underline">
+        <Link
+          to="/legal"
+          className="text-texto inline-flex min-h-11 min-w-11 items-center justify-center px-1 text-sm underline"
+        >
           {T.ajustes.ver}
         </Link>
       </Fila>

@@ -75,7 +75,7 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
               escribir('filtro_lista', f);
             }}
             className={cn(
-              'rounded-chip min-h-9 shrink-0 border px-3 text-[13px] font-semibold',
+              'rounded-chip min-h-11 shrink-0 border px-3 text-[13px] font-semibold',
               filtro === f ? 'bg-marino-950 border-marino-950 text-white' : 'border-linea bg-papel text-texto-suave',
             )}
           >
@@ -83,7 +83,7 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
           </button>
         ))}
       </div>
-      <div className="text-texto-suave flex items-center justify-between px-3 pb-1.5 text-[13px]">
+      <div className="text-texto-suave flex items-center justify-between px-3 pb-2 text-[13px]">
         <label className="flex items-center gap-1.5">
           {T.mapa.orden}
           <select
@@ -94,7 +94,7 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
               escribir('orden_lista', o);
               if (o === 'distancia') activarPosicion();
             }}
-            className="bg-papel border-linea rounded-campo text-texto min-h-9 border px-1.5"
+            className="bg-papel border-linea rounded-campo text-texto min-h-11 border px-1.5"
           >
             {ORDENES.map(([o, t]) => (
               <option key={o} value={o}>
