@@ -5,8 +5,9 @@
 //
 // 1. El caso normal de 15 §5.3: datos dañados con el esquema vivo. Se vuelca el esquema con el
 //    seed, se estropean datos (se borran tres puntos, se gasta un código) y se restaura encima. Los
-//    conteos y las secuencias vuelven a lo guardado, el registro gana la fila de auditoría y
-//    fn_listar_puntos sigue respondiendo a anon.
+//    conteos vuelven a lo guardado, el registro gana la fila de auditoría y fn_listar_puntos sigue
+//    respondiendo a anon. Los códigos no retroceden (RV-34): tras el volcado se dan tres altas, se
+//    pierden al restaurar, y la siguiente recibe un número mayor que la última de ellas.
 // 2. Con --viejo: un volcado de verdad hecho con las migraciones hasta la 0009 (anterior a la
 //    acción 'restauracion_respaldo'). Se restaura, se migra hasta hoy y la auditoría se anota
 //    después.
@@ -94,6 +95,25 @@ async function principal(): Promise<void> {
   log.info(`guardado: ${JSON.stringify(antes)}`);
   if (antes.puntos < 3) abortar('Hace falta el seed de staging cargado (al menos tres puntos).');
 
+  // Tres altas después del respaldo (RV-34): sus códigos se pierden al restaurar y no pueden volver
+  // a darse, porque un voluntario puede tenerlos apuntados en campo (FR-10).
+  const tresAltas = psqlOk(
+    LOCAL_POSTGRES,
+    `insert into hidrantes.puntos (codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio,
+                                   fecha_ultima_revision, descripcion)
+     select hidrantes.fn_siguiente_codigo('hidrante'), 'hidrante',
+            ('SRID=4326;POINT(' || (-3.65 + i * 0.0005) || ' 37.23)')::extensions.geography, 100, 'bueno',
+            'fotos/rv34-' || i || '.jpg', 'albolote', current_date, '[PRUEBA] RV-34 ' || i
+       from generate_series(1, 3) i
+     returning substring(codigo from 5)::int;`,
+    { tuplas: true },
+  )
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(Number);
+  const ultimaAlta = Math.max(...tresAltas);
+  log.info(`tres altas después del volcado: HID ${tresAltas.join(', ')}`);
+
   // Estropear: tres puntos sin propuestas fuera, y un código de hidrante gastado.
   psqlOk(
     LOCAL_POSTGRES,
@@ -103,7 +123,7 @@ async function principal(): Promise<void> {
         order by p.codigo limit 3);
      select nextval('hidrantes.seq_codigo_hidrante');`,
   );
-  comprobar(estado().puntos === antes.puntos - 3, 'datos estropeados: tres puntos menos');
+  comprobar(estado().puntos === antes.puntos, 'datos estropeados: tres altas nuevas y tres puntos menos');
 
   const r1 = restaurar(volcado);
   comprobar(r1.codigo === 0, 'la restauración sobre el esquema vivo termina bien', r1.salida.slice(-400));
@@ -111,10 +131,16 @@ async function principal(): Promise<void> {
   comprobar(despues.puntos === antes.puntos, 'vuelven los puntos', `${despues.puntos} de ${antes.puntos}`);
   comprobar(despues.propuestas === antes.propuestas, 'vuelven las propuestas');
   comprobar(despues.registro === antes.registro + 1, 'el registro gana una fila: la de la restauración');
+  comprobar(despues.boca === antes.boca, 'la secuencia de bocas sigue donde estaba');
+  const siguiente = Number(valor("select substring(hidrantes.fn_siguiente_codigo('hidrante') from 5)::int;"));
   comprobar(
-    despues.hidrante === antes.hidrante && despues.boca === antes.boca,
-    'las secuencias dan el siguiente código esperado',
-    `${despues.hidrante}/${despues.boca} frente a ${antes.hidrante}/${antes.boca}`,
+    siguiente > ultimaAlta,
+    'la siguiente alta recibe un código mayor que las dadas después del respaldo (RV-34)',
+    `recibe ${siguiente}; la última dada fue ${ultimaAlta}`,
+  );
+  comprobar(
+    valor("select hidrantes.fn_config('epoca_datos', 'null') #>> '{}';") !== '',
+    'la época existe tras restaurar',
   );
   comprobar(
     valor("select count(*) from hidrantes.registro where accion = 'restauracion_respaldo';") !== '0',

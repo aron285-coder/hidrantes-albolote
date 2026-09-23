@@ -11,8 +11,10 @@ import {
   refDeUrl,
   sinCrearEsquema,
   sqlRestauracion,
+  sqlSecuenciasAlMenos,
   tocaPublic,
 } from './restaurar.ts';
+import { SQL_SECUENCIAS } from './promover-piloto.ts';
 import { archivosDe, sinCarpetaRaiz } from './restaurar-fotos.ts';
 
 const POOLER =
@@ -55,6 +57,33 @@ describe('qué archivo se acepta', () => {
 
   it('mencionar public de pasada no es tocarlo (search_path, comentarios)', () => {
     expect(tocaPublic('SET search_path = pg_catalog, public;\nCREATE TABLE hidrantes.x (i int);')).toBe(false);
+  });
+});
+
+// docs/18 RV-34: los códigos no se reutilizan nunca (FR-10). Tras restaurar, cada secuencia queda
+// por encima de lo que había antes de restaurar, de lo que trae el volcado y del mayor código.
+describe('sqlSecuenciasAlMenos', () => {
+  it('fija cada secuencia al mayor de lo restaurado, lo previo y el máximo código', () => {
+    const sql = sqlSecuenciasAlMenos(57, 12);
+    const plano = sql.replace(/\s+/g, ' ');
+    expect(plano).toContain(
+      "setval('hidrantes.seq_codigo_hidrante', greatest((select last_value from hidrantes.seq_codigo_hidrante), 57,",
+    );
+    expect(plano).toContain(
+      "setval('hidrantes.seq_codigo_boca', greatest((select last_value from hidrantes.seq_codigo_boca), 12,",
+    );
+    expect(sql).toContain("where codigo like 'HID-%'");
+    expect(sql).toContain("where codigo like 'BOC-%'");
+  });
+
+  it('solo acepta enteros: el valor viene de psql y va dentro del SQL', () => {
+    expect(() => sqlSecuenciasAlMenos(Number.NaN, 1)).toThrow();
+    expect(() => sqlSecuenciasAlMenos(1.5, 1)).toThrow();
+    expect(sqlSecuenciasAlMenos(0, 0)).toContain('greatest(');
+  });
+
+  it('promover-piloto usa la misma, sin mínimo previo', () => {
+    expect(SQL_SECUENCIAS).toBe(sqlSecuenciasAlMenos(1, 1));
   });
 });
 
