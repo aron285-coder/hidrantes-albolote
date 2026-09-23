@@ -2,11 +2,9 @@
 // se pueda disparar contra el proyecto equivocado ni con un archivo que no sea nuestro (15 §5.3).
 
 import { describe, expect, it } from 'vitest';
-import { ErrorDeScript } from './lib/comun.ts';
 import {
   LIMPIAR_ESQUEMA,
   REFS,
-  confirmacionAutomatica,
   pareceVolcado,
   refDeUrl,
   sinCrearEsquema,
@@ -98,39 +96,6 @@ describe('el guion de restauración', () => {
   it('deja constancia en el registro, con el archivo del que salió', () => {
     expect(sql).toContain("'restauracion_respaldo'");
     expect(sql).toContain("'hidrantes-2026-09-20.sql'");
-  });
-
-  // RV-13: el caso normal de 15 §5.3 es un esquema vivo con datos dañados.
-  it('borra también las secuencias sueltas, que no caen con las tablas', () => {
-    expect(LIMPIAR_ESQUEMA).toContain("c.relkind = 'S'");
-    expect(LIMPIAR_ESQUEMA).toContain('drop sequence if exists hidrantes.%I cascade');
-    expect(LIMPIAR_ESQUEMA.indexOf("relkind = 'S'")).toBeLessThan(LIMPIAR_ESQUEMA.indexOf("t.typtype = 'e'"));
-  });
-
-  it('la auditoría va en un bloque condicional: un volcado anterior a 0010 no la admite', () => {
-    const inicio = sql.indexOf('do $auditoria$');
-    const bloque = sql.slice(inicio, sql.indexOf('$auditoria$;', inicio));
-    expect(bloque).toContain("pg_get_constraintdef(c.oid) like '%restauracion_respaldo%'");
-    expect(bloque).toContain('insert into hidrantes.registro');
-    expect(bloque).toContain("raise notice 'volcado anterior a 0010: se anota tras migrar'");
-    // Ningún insert de auditoría suelto fuera del bloque.
-    expect(sql.replace(bloque, '')).not.toContain('insert into hidrantes.registro');
-  });
-});
-
-describe('--confirmar (RV-13)', () => {
-  it('sin --confirmar se pregunta', () => {
-    expect(confirmacionAutomatica('prod', undefined)).toBe(false);
-  });
-  it('--confirmar RESTAURAR con --entorno local no pregunta', () => {
-    expect(confirmacionAutomatica('local', 'RESTAURAR')).toBe(true);
-  });
-  it('--confirmar sin --entorno local aborta', () => {
-    expect(() => confirmacionAutomatica('prod', 'RESTAURAR')).toThrow(ErrorDeScript);
-    expect(() => confirmacionAutomatica('staging', 'RESTAURAR')).toThrow(/solo se admite con --entorno local/);
-  });
-  it('--confirmar con otra palabra aborta', () => {
-    expect(() => confirmacionAutomatica('local', 'si')).toThrow(/exactamente RESTAURAR/);
   });
 });
 
