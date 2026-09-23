@@ -1,7 +1,19 @@
 // POST /api/verificar-codigo (05 §9, 11 §3): canje del código de acceso por un token de dispositivo.
-// Es la única capa que ve la IP real (CF-Connecting-IP) y la guarda como sha256(SAL_IP + ip).
+// Es la única capa que ve la IP real (CF-Connecting-IP) y la guarda como sha256(SAL_IP + ip), con la
+// IP normalizada: en IPv6 cuenta el /64 (RV-14).
 
-import { type Env, type Manejador, error, esUuid, esperar, json, leerJson, rpc, sha256Hex } from '../_lib/comun.ts';
+import {
+  type Env,
+  type Manejador,
+  error,
+  esUuid,
+  esperar,
+  json,
+  leerJson,
+  normalizarIp,
+  rpc,
+  sha256Hex,
+} from '../_lib/comun.ts';
 
 /** Toda respuesta tarda al menos esto: el tiempo no revela si el código estaba cerca (TR-42). */
 export const DURACION_MINIMA_MS = 800;
@@ -28,7 +40,7 @@ async function canjear(request: Request, env: Env): Promise<Response> {
   const r = await rpc<Canje[]>(env, 'fn_verificar_codigo', {
     codigo: cuerpo.codigo.trim().slice(0, 12),
     dispositivo_id: cuerpo.dispositivo_id,
-    ip_hash: await sha256Hex(env.SAL_IP + ip),
+    ip_hash: await sha256Hex(env.SAL_IP + normalizarIp(ip)),
   });
   if (!r.ok) return error(r.estado === 503 ? 503 : 500, r.codigo);
   const fila = r.datos[0];

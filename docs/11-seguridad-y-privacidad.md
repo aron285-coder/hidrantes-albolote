@@ -61,9 +61,18 @@ límite. Cinco capas, y por qué no basta con la primera:
    atacante cambia de uuid en cada intento.
 2. **Límite por IP real (30/h).** No se puede leer `x-forwarded-for` en Postgres porque el cliente lo
    falsifica. La Pages Function de Cloudflare ve `CF-Connecting-IP`, que el cliente no puede alterar,
-   y es la única capa que conoce la IP; la guarda como `sha256(SAL_IP + ip)`, nunca en claro.
+   y es la única capa que conoce la IP; la guarda como `sha256(SAL_IP + ip)`, nunca en claro. En
+   IPv6 el límite "por IP" es **por /64** (los cuatro primeros grupos): un atacante rota direcciones
+   dentro de su /64 con facilidad (RV-14). Una IPv4 mapeada cuenta como la IPv4.
 3. **Techo global (200/h).** Nadie lo esquiva cambiando de identidad. A ese ritmo, el millón de
-   combinaciones lleva años, y Salud del sistema avisa mucho antes.
+   combinaciones lleva unos 208 días, y Salud del sistema y la vigilancia diaria avisan mucho antes
+   (más de 300 fallos en 24 h, o cualquier bloqueo de todo el grupo: RV-14). La cuenta va bajo un
+   bloqueo, así que peticiones en paralelo no lo pasan. El techo se puede usar para dejar sin
+   entrar a los voluntarios con móvil nuevo mientras dure el ataque; la defensa completa
+   (Turnstile o una regla de Cloudflare) queda para una decisión (`docs/17` §12).
+3b. **Tope de canjes buenos (150 por IP y día, 150 por hora en total).** Quien tenga el código no
+   puede crear dispositivos sin fin para saltarse las cuotas por dispositivo. Los valores cubren la
+   sesión presencial de 65 personas en la misma wifi (DEC-086).
 4. **Token de dispositivo.** Tras el primer canje, el móvil usa un token aleatorio de 32 bytes (se
    guarda su hash); el código no vuelve a viajar. Los 65 voluntarios dejan de tocar el sistema de
    intentos, así que activar el techo global no deja a nadie fuera.

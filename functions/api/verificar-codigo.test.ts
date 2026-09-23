@@ -148,3 +148,42 @@ describe('POST /api/verificar-codigo', () => {
     expect(Math.abs(bueno.tardado - malo.tardado)).toBeLessThan(150);
   });
 });
+
+// RV-14: con IPv6, quien ataca rota direcciones dentro de su /64; el límite por IP cuenta el /64.
+describe('normalizarIp (RV-14)', () => {
+  it('IPv6: sus primeros 64 bits, se escriba como se escriba', async () => {
+    const { normalizarIp } = await import('../_lib/comun.ts');
+    expect(normalizarIp('2001:db8:1:2:3:4:5:6')).toBe(normalizarIp('2001:db8:1:2::9'));
+    expect(normalizarIp('2001:0DB8:0001:0002:ffff::1')).toBe(normalizarIp('2001:db8:1:2::'));
+    expect(normalizarIp('2001:db8:1:2::9')).not.toBe(normalizarIp('2001:db8:1:3::9'));
+    expect(normalizarIp('::1')).toBe(normalizarIp('0:0:0:0:0:0:0:1'));
+  });
+  it('una IPv4 mapeada es la IPv4, y una IPv4 queda intacta', async () => {
+    const { normalizarIp } = await import('../_lib/comun.ts');
+    expect(normalizarIp('::ffff:192.0.2.1')).toBe('192.0.2.1');
+    expect(normalizarIp('192.0.2.1')).toBe('192.0.2.1');
+  });
+  it('lo que no es una IP se queda como está', async () => {
+    const { normalizarIp } = await import('../_lib/comun.ts');
+    expect(normalizarIp('desconocida')).toBe('desconocida');
+  });
+
+  it('dos IPv6 del mismo /64 comparten ip_hash', async () => {
+    const hashes: string[] = [];
+    const espia = vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opciones) => {
+      hashes.push((JSON.parse((opciones as RequestInit).body as string) as { ip_hash: string }).ip_hash);
+      return Promise.resolve(canje({ token: null, caduca_en: null, error: 'CODIGO_INCORRECTO' }));
+    });
+    await Promise.all(
+      ['2001:db8:aa:bb:1::1', '2001:db8:aa:bb:ffff:2::7'].map((ip) =>
+        onRequestPost({
+          request: peticion({ codigo: '000000', dispositivo_id: DISPOSITIVO }, { 'CF-Connecting-IP': ip }),
+          env: ENV,
+        }),
+      ),
+    );
+    expect(hashes).toHaveLength(2);
+    expect(hashes[0]).toBe(hashes[1]);
+    espia.mockRestore();
+  });
+});

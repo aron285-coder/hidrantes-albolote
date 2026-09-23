@@ -151,9 +151,11 @@ Un `dispositivo_id` puede tener varios tokens en el tiempo (revocación y nuevo 
 |---|---|---|
 | `id` | `bigint` identity | |
 | `dispositivo_id` | `uuid` | |
-| `ip_hash` | `text` | `sha256(SAL_IP + ip)`, calculado en la Pages Function |
+| `ip_hash` | `text` | `sha256(SAL_IP + ip)`, calculado en la Pages Function; en IPv6, con el /64 (RV-14) |
 | `momento` | `timestamptz` | |
 | `exito` | `boolean` | |
+| `bloqueado` | `boolean` | `true` en la fila que anota un `DEMASIADOS_INTENTOS` (0015); no cuenta como fallo |
+| `tope` | `text` | qué tope saltó: `dispositivo`, `ip`, `global`, `altas_ip`, `altas_global` |
 
 Índices sobre `(dispositivo_id, momento)`, `(ip_hash, momento)`, `(momento)`. Purga > 24 h por `pg_cron`.
 
@@ -220,6 +222,8 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `max_intentos_dispositivo` | `10` | por hora |
 | `max_intentos_ip` | `30` | por hora |
 | `max_intentos_global` | `200` | por hora |
+| `max_altas_ip_dia` | `150` | canjes **buenos** por IP en 24 h (RV-14, DEC-086) |
+| `max_altas_global_hora` | `150` | canjes buenos en total por hora (RV-14, DEC-086) |
 | `dias_caducidad_token` | `365` | |
 | `max_subidas_dispositivo_dia` | `40` | |
 | `dias_reserva_subida` | `7` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084) |
@@ -607,7 +611,7 @@ sin ese cuello de botella:
 | Asignación de código | `nextval` sobre la secuencia, fuera de cualquier lectura de `max(codigo)`. Dos altas simultáneas obtienen códigos distintos por construcción. |
 | `fn_proponer` | `insert … on conflict (clave_local) do nothing returning …`; si no devuelve fila, lee la existente. Dos envíos simultáneos del mismo móvil crean una sola propuesta. |
 | `fn_reservar_subida` | Cuenta y reserva en la misma sentencia (`insert … select … where (select count(*) …) < cuota`), para que dos peticiones a la vez no pasen las dos el tope. |
-| `fn_verificar_codigo` | El recuento de intentos y la inserción van en la misma transacción; el índice sobre `(dispositivo_id, momento)` la hace barata. |
+| `fn_verificar_codigo` | Empieza con `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). |
 | `fn_guardar_config`, `fn_gestionar_administrador` | `for update` sobre las filas afectadas; la regla del último administrador activo se comprueba **dentro** de la transacción. |
 | Escrituras largas | Ninguna RPC hace peticiones de red: Nominatim y GitHub se llaman desde las *Pages Functions*, nunca con una transacción abierta. |
 | Tiempo máximo | `statement_timeout` de 10 s en las RPC de escritura; un bloqueo que no avanza falla con mensaje, no deja la interfaz colgada. |

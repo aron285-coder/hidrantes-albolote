@@ -181,6 +181,10 @@ export interface Salud {
   ultima_vigilancia: string | null;
   vigilancia_ok: boolean | null;
   dispositivos_activos: number;
+  /** Intentos del código de las últimas 24 h (RV-14); ausentes con una base anterior a 0015. */
+  intentos_fallidos_24h?: number;
+  topes_alcanzados_24h?: number;
+  topes_globales_24h?: number;
 }
 
 export const cargarSalud = () => rpc<Salud>('fn_salud');
