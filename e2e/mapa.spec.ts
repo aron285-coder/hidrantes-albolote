@@ -194,6 +194,34 @@ test.describe('aviso del mapa base en el propio mapa (RV-10, FR-81)', () => {
     await page.getByRole('link', { name: T.navegacion.mapa }).click();
     await expect(page.getByTestId('aviso-mapabase')).toHaveCount(0);
   });
+/^>>>>>>> bcaa31f/d
+test('la foto de la ficha se pide en modo cors (RV-12)', async ({ page }) => {
+  const conFoto = { ...PUNTOS[0], foto_path: 'fotos/prueba-cors.jpg' };
+  await conSesion(page);
+  await simularRpc(page, {
+    fn_listar_puntos: { ...LISTADO, puntos: [conFoto, ...PUNTOS.slice(1)] },
+    fn_registrar_error: null,
+  });
+  // Una <img> sin crossOrigin pide en modo no-cors y no manda Origin; con crossOrigin, sí. (La
+  // intercepción de Playwright no ve las cabeceras sec-fetch-*.)
+  const origenes: string[] = [];
+  await page.route('**/storage/v1/object/public/**', async (r) => {
+    origenes.push((await r.request().allHeaders()).origin ?? '');
+    await r.fulfill({
+      status: 200,
+      contentType: 'image/jpeg',
+      headers: { 'access-control-allow-origin': '*' },
+      body: Buffer.from(
+        '/9j/2wBDAP//////////////////////////////////////////////////////////////////////////////////////2wBDAf//////////////////////////////////////////////////////////////////////////////////////wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AKAAAf/Z',
+        'base64',
+      ),
+    });
+  });
+  await page.goto(`/?p=${conFoto.id}`);
+  await expect(page.getByRole('img', { name: conFoto.codigo })).toBeVisible();
+  await expect.poll(() => origenes.length).toBeGreaterThan(0);
+  expect(origenes.filter((o) => !o)).toEqual([]);
+>>>>>>> bcaa31f (fix(fotos): las fotos se piden en modo CORS y la caché no guarda respuestas opacas)
 });
 
 test.describe('zoom (#136)', () => {
