@@ -365,7 +365,9 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Para deducir direcciones se consulta OpenStreetMap con las coordenadas del hidrante, nunca con datos tuyos. Mapa base y direcciones © OpenStreetMap contributors.`
 
 **Mapa y lista.** `Buscar código, calle o descripción…` · `Capas` · `Mapa base propio` ·
-`Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `necesita cobertura` · `Mi posición` ·
+`Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `© OpenStreetMap contributors` ·
+`PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
+`© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
 `No funciona` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` ·
