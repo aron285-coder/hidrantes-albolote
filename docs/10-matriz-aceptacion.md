@@ -151,11 +151,11 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | ID | Caso | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|
 | AC-110 | Las ocho pruebas de intrusión con la `anon key` (TR-40) | Las ocho fallan; documentadas en 11 | TR-40 | ✓ | 21 sep 2026 · `npm run intrusion`, y en cada PR desde ci-sql. Resultado de cada una, en 11 §5 |
-| AC-111 | Código no almacenado en el móvil | Inspección del almacenamiento local: solo token, nombre, `dispositivo_id` | TR-43 | | |
+| AC-111 | Código no almacenado en el móvil | Inspección del almacenamiento local: solo token, nombre, `dispositivo_id` | TR-43 | ✓ | 23 sep 2026 · `src/lib/acceso.test.ts` · "al entrar guarda token, nombre e identificador; el código nunca (TR-43)" |
 | AC-112 | EXIF eliminado | La foto en el bucket no tiene metadatos | TR-47 | | |
-| AC-113 | Cuota de subidas | La reserva 41 del día falla | TR-45 | | |
+| AC-113 | Cuota de subidas | La reserva 41 del día falla | TR-45 | ✓ | 23 sep 2026 · pgTAP `05_rpc_voluntario.test.sql` ("la reserva 41 del día: rechazada") y `07_concurrencia_rpc.test.sql` (40 y 41 a la vez) |
 | AC-114 | Respaldo restaurado | Restauración sobre base limpia ejecutada y documentada | TR-51 | ✓ | 20–21 sep 2026 · ensayo completo con un volcado cifrado real; sacó tres defectos (15 §5.3, verificación de la Fase 8) |
-| AC-115 | Presupuesto de rendimiento | CI: < 3 s en 3G, < 300 kB | TR-10, TR-11 | ✓ | 21 sep 2026 · 2,40 s la primera pantalla y 2,56 s la ficha con 3G simulada; 268 kB de JavaScript inicial |
+| AC-115 | Presupuesto de rendimiento | CI: < 3 s en 3G, < 300 kB | TR-10, TR-11 | ✓ | 21 sep 2026 · 2,40 s la primera pantalla con 3G simulada (`e2e/rendimiento.spec.ts`); 23 sep 2026 · 271,5 kB de JavaScript inicial (`npm run presupuesto`) |
 | AC-116 | Carga con 1.000 puntos | Mapa fluido en el móvil de gama media documentado | TR-12 | ✓ | 22 sep 2026 · POCO M6 Pro, Android 15 (`AP3A.240905.015.A2`), sobre staging; se maneja con soltura |
 
 ## I · Exportación, avisos, utilidades y robustez (FR-160–168, TR-100–107)
@@ -182,13 +182,13 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-140 | Ningún control muerto | Recorrido automatizado que pulsa todos los controles de cada pantalla de la app y del panel | Cada uno cambia la pantalla, abre un diálogo o muestra un aviso; ningún botón deshabilitado sin motivo escrito debajo | UI-01, UI-02, TR-110 | UI-01, UI-02, TR-110 | ✓ | 22 sep 2026 · automatizado en `e2e/controles.spec.ts` para las ocho pantallas del **voluntario** en el móvil: pulsa cada control y exige que cambie la pantalla, abra un diálogo o saque un aviso; en escritorio comprueba que ninguno se queda sin nombre. El **panel** lo sigue recorriendo jefatura a mano 
+| AC-140 | Ningún control muerto | Recorrido automatizado que pulsa todos los controles de cada pantalla de la app y del panel | Cada uno cambia la pantalla, abre un diálogo o muestra un aviso; ningún botón deshabilitado sin motivo escrito debajo | UI-01, UI-02, TR-110 | ⏳ | 22 sep 2026 · ✓ **solo en la app**: automatizado en `e2e/controles.spec.ts` para las ocho pantallas del **voluntario** en el móvil: pulsa cada control y exige que cambie la pantalla, abra un diálogo o saque un aviso; en escritorio comprueba que ninguno se queda sin nombre. El **panel** lo sigue recorriendo jefatura a mano 
 | AC-141 | Legibilidad y separación | Revisión de cada pantalla en móvil y escritorio | Sin texto pegado; datos compuestos con ` · `; "Aprobar" y "Rechazar…" separados; objetivos táctiles ≥ 44 px | UI-10 a UI-16, TR-113 | | |
-| AC-142 | Dos administradores a la vez | Dos navegadores abren la misma propuesta y pulsan Aprobar casi a la vez | Uno aprueba; el otro ve "esta propuesta ya no está pendiente" y la lista se refresca. Nada se duplica ni se pisa | TR-114, 05 §11 | | |
-| AC-143 | Dos envíos del mismo móvil | Forzar dos sincronizaciones simultáneas con propuestas en cola | Una sola propuesta por `clave_local` | TR-114, FR-49 | | |
+| AC-142 | Dos administradores a la vez | Dos navegadores abren la misma propuesta y pulsan Aprobar casi a la vez | Uno aprueba; el otro ve "esta propuesta ya no está pendiente" y la lista se refresca. Nada se duplica ni se pisa | TR-114, 05 §11 | ✓ | 23 sep 2026 · pgTAP `07_concurrencia_rpc.test.sql` con dblink: dos `fn_aprobar` a la vez, la segunda falla con `PROPUESTA_NO_PENDIENTE` |
+| AC-143 | Dos envíos del mismo móvil | Forzar dos sincronizaciones simultáneas con propuestas en cola | Una sola propuesta por `clave_local` | TR-114, FR-49 | ✓ | 23 sep 2026 · pgTAP `07_concurrencia_rpc.test.sql` (dos `fn_proponer` con la misma `clave_local`) y `src/lib/cola.test.ts` |
 | AC-144 | Estados vacíos | Vaciar la cola, filtrar el inventario a cero, entrar sin propuestas propias | Las tres pantallas muestran un texto útil, no una tabla vacía | UI-03 | | |
 | AC-145 | Errores explicados | Provocar un rechazo sin motivo, una foto que falta y un fallo de red | Tres mensajes en español que dicen qué pasa y qué hacer; ningún código técnico | UI-04, TR-36 | | |
-| AC-146 | Textos centralizados | Buscar en el código literales de interfaz fuera de `src/lib/textos.ts` | Ninguno; el build falla si se añade uno | UI-20, TR-111 | | |
+| AC-146 | Textos centralizados | Buscar en el código literales de interfaz fuera de `src/lib/textos.ts` | Ninguno; el build falla si se añade uno | UI-20, TR-111 | ✓ | 23 sep 2026 · regla de `eslint.config.js` en `npm run lint` (ci-calidad) y `src/lib/textos.test.ts` (cada texto en el Apéndice A); la regla se amplía a `.ts` en RV-31 |
 | AC-147 | Verificación por fase | Abrir `docs/verificacion/` | Un archivo por fase cerrada, con casos ejecutados, comandos y suposiciones | TR-115 | | |
 
 ---
