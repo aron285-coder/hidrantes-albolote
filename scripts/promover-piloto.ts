@@ -12,6 +12,7 @@
 // Nunca toca el esquema `public` ni borra nada del destino: solo inserta lo que falta.
 
 import { abortar, argumentos, ejecutarScript, log, preguntar, psql, psqlOk, type Resultado } from './lib/comun.ts';
+import { sqlSecuenciasAlMenos } from './lib/secuencias.ts';
 import { REFS, refDeUrl } from './restaurar.ts';
 import { BUCKETS, subir } from './restaurar-fotos.ts';
 
@@ -97,13 +98,7 @@ where g.punto_id in (select id from elegidos)
  * Las secuencias del destino tienen que quedar por encima de los códigos que acaban de entrar, o el
  * siguiente alta intentaría repetir uno (`codigo` es único y el alta fallaría).
  */
-export const SQL_SECUENCIAS = `
-select setval('hidrantes.seq_codigo_hidrante',
-  greatest((select last_value from hidrantes.seq_codigo_hidrante),
-           coalesce((select max(substring(codigo from 5)::int) from hidrantes.puntos where codigo like 'HID-%'), 1)));
-select setval('hidrantes.seq_codigo_boca',
-  greatest((select last_value from hidrantes.seq_codigo_boca),
-           coalesce((select max(substring(codigo from 5)::int) from hidrantes.puntos where codigo like 'BOC-%'), 1)));`;
+export const SQL_SECUENCIAS = sqlSecuenciasAlMenos(1, 1);
 
 /** Cuántas sentencias de cada tabla trae el guion generado, para el informe. */
 export function cuentaPorTabla(sentencias: string[]): Record<string, number> {

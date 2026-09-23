@@ -599,7 +599,8 @@ RFC 8292 con WebCrypto, sin dependencias.
   `actualizado_en > desde` y `bajas`: ids que pasaron a `retirado` o `borrado` desde entonces **y**
   los purgados de la papelera desde entonces (sacados de `registro`, `accion = 'purga_papelera'`),
   sin repetidos (0012). El cliente reemplaza por `id` y elimina las bajas.
-- `config.epoca_datos` (texto o `null`) la cambia `restaurar.ts` en cada restauración. Si el móvil
+- `config.epoca_datos` (texto) la siembra 0021 y la cambia `restaurar.ts` en cada restauración
+  (docs/18 RV-34: antes nadie la sembraba y la primera restauración no llegaba a los móviles). Si el móvil
   la recibe distinta de la que tenía guardada (y la guardada no era `null`), repite en la misma
   llamada una sincronización completa. Además hace una completa si la última tiene más de 7 días
   (DEC-083).
