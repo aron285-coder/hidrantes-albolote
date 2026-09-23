@@ -17,6 +17,7 @@ vi.mock('./supabase', () => ({
 const {
   _usarAlmacen,
   aplicarListado,
+  borrarPuntos,
   buscar,
   cargarGuardados,
   estadoPuntos,
@@ -320,5 +321,62 @@ describe('jefatura lee por páginas (RV-15, TR-60)', () => {
       .mockResolvedValueOnce({ data: null, error: { message: 'boom' }, status: 500 });
     expect(await sincronizar(null)).toEqual({ ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' });
     expect(estadoPuntos().puntos).toHaveLength(3);
+  });
+});
+
+// docs/18 RV-44: jefatura nunca guarda config (lee la vista); sus puntos llegan ya derivados.
+describe('sin config guardada no se re-deriva con la de por defecto (RV-44)', () => {
+  it('sin config guardada (jefatura) cargarGuardados no cambia radio_px ni revision_caducada', async () => {
+    const guardado = almacenEnMemoria<Punto>();
+    // Valores de la vista con una escala y unos meses distintos de los de por defecto.
+    await guardado.reemplazar(
+      [p('1', { fecha_ultima_revision: '2020-01-01', radio_px: 17, revision_caducada: false })],
+      [],
+    );
+    _usarAlmacen(guardado);
+    await cargarGuardados();
+    expect(estadoPuntos().puntos[0]).toMatchObject({ radio_px: 17, revision_caducada: false });
+  });
+
+  it('rederivarSiCambiaElDia sin config no hace nada', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      vi.setSystemTime(new Date(2026, 8, 22, 12));
+      const guardado = almacenEnMemoria<Punto>();
+      await guardado.reemplazar([p('1', { fecha_ultima_revision: '2020-01-01', radio_px: 17 })], []);
+      _usarAlmacen(guardado);
+      await cargarGuardados();
+      vi.setSystemTime(new Date(2026, 8, 23, 9));
+      rederivarSiCambiaElDia();
+      expect(estadoPuntos().puntos[0]).toMatchObject({ radio_px: 17, revision_caducada: false });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// docs/18 RV-45: una sincronización en curso al cerrar sesión no vuelve a escribir (FL-12).
+describe('cerrar sesión durante una sincronización (RV-45)', () => {
+  it('cerrar sesión durante una sincronización no deja puntos', async () => {
+    const almacen = almacenEnMemoria<Punto>();
+    _usarAlmacen(almacen);
+    let soltar!: (v: unknown) => void;
+    rpc.mockReturnValueOnce(new Promise((r) => (soltar = r)));
+    const sinc = sincronizar(TOKEN);
+    await vi.waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
+    await borrarPuntos();
+    soltar(
+      ok({
+        puntos: [p('1')],
+        bajas: [],
+        sincronizado_en: 'S1',
+        config: { meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5] },
+      }),
+    );
+    await sinc;
+    expect(estadoPuntos().puntos).toEqual([]);
+    expect(estadoPuntos().sincronizadoEn).toBeNull();
+    expect(await almacen.todos()).toEqual([]);
+    expect(await almacen.leerMeta('sincronizado_en')).toBeNull();
   });
 });

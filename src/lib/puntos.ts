@@ -6,7 +6,7 @@ import { type Resultado, rpc } from './api';
 import { type Almacen, almacenPuntos } from './bd';
 import { supabase } from './supabase';
 import { anotarServidor } from './conexion';
-import { CONFIG_POR_DEFECTO, type ConfigMovil, derivar, diaLocal, leerConfig } from './derivar';
+import { type ConfigMovil, derivar, diaLocal, leerConfig } from './derivar';
 
 import type { Caudal, Punto } from '../tipos/punto';
 
@@ -33,8 +33,17 @@ export interface EstadoPuntos {
 let almacen: Almacen<Punto> | null = null;
 const bd = () => (almacen ??= almacenPuntos<Punto>());
 
-/** Config con la que se derivan radio_px y revision_caducada (RV-05); la última recibida. */
-let config: ConfigMovil = CONFIG_POR_DEFECTO;
+/**
+ * Config con la que se derivan radio_px y revision_caducada (RV-05); la última recibida. Null si no
+ * hay ninguna guardada: es el caso de jefatura, que lee la vista y nunca recibe config. Entonces no
+ * se re-deriva nada y los puntos se quedan con los valores del servidor (docs/18 RV-44).
+ */
+let config: ConfigMovil | null = null;
+/**
+ * Generación de los datos: la sube borrarPuntos (cerrar sesión). Una sincronización que empezó antes
+ * descarta su resultado sin escribir ni publicar (FL-12, docs/18 RV-45).
+ */
+let generacion = 0;
 /**
  * Época de los datos del servidor: cambia al restaurar un respaldo (restaurar.ts). Distinta de la
  * guardada ⇒ sincronización completa, porque lo restaurado vuelve con sellos antiguos (RV-06).
@@ -53,9 +62,11 @@ const epocaDe = (config: unknown): string | null => {
 let derivadoEl: string | null = null;
 
 const derivarTodos = (puntos: Punto[]) => {
+  if (!config) return puntos;
+  const cfg = config;
   const hoy = new Date();
   derivadoEl = diaLocal(hoy);
-  return puntos.map((p) => derivar(p, config, hoy));
+  return puntos.map((p) => derivar(p, cfg, hoy));
 };
 
 let estado: EstadoPuntos = { puntos: [], sincronizadoEn: null, guardadoEn: null, cargado: false, sincronizando: false };
@@ -85,7 +96,7 @@ export async function cargarGuardados(): Promise<void> {
     ]);
     epoca = epocaGuardada;
     completoEn = completo;
-    config = leerConfig(cfg) ?? CONFIG_POR_DEFECTO;
+    config = leerConfig(cfg);
     fijar({ puntos: derivarTodos(puntos), sincronizadoEn: sello, guardadoEn: guardado, cargado: true });
   } catch {
     fijar({ cargado: true });
@@ -109,6 +120,7 @@ let enCurso: Promise<Resultado<null>> | null = null;
 export function sincronizar(token: string | null): Promise<Resultado<null>> {
   enCurso ??= (async () => {
     await Promise.resolve(); // mismo motivo que en cola.ts: el finally no debe adelantarse a ??=
+    const gen = generacion;
     fijar({ sincronizando: true });
     try {
       // Completa: la primera vez, siempre para jefatura y, como red de seguridad, si la última
@@ -135,6 +147,8 @@ export function sincronizar(token: string | null): Promise<Resultado<null>> {
         if (!r.ok) return r;
         listado = r.datos;
       }
+      // Se cerró sesión mientras llegaba: lo recibido ya no es de nadie (RV-45).
+      if (gen !== generacion) return { ok: true, datos: null };
       if (!listado || !Array.isArray(listado.puntos)) return { ok: false, codigo: 'ERROR_INTERNO' };
       listado.bajas = Array.isArray(listado.bajas) ? listado.bajas : [];
       // Voluntario: se deriva todo con la config recibida, también lo que no cambió (RV-05). Una
@@ -159,6 +173,16 @@ export function sincronizar(token: string | null): Promise<Resultado<null>> {
       } catch {
         // sin IndexedDB seguimos en memoria (TR-07)
       }
+      if (gen !== generacion) {
+        // Se cerró sesión mientras se escribía: se deshace lo escrito.
+        config = null;
+        epoca = null;
+        completoEn = null;
+        await bd()
+          .borrarTodo()
+          .catch(() => undefined);
+        return { ok: true, datos: null };
+      }
       fijar({ puntos, sincronizadoEn: listado.sincronizado_en, guardadoEn });
       return { ok: true, datos: null };
     } finally {
@@ -174,7 +198,7 @@ export function sincronizar(token: string | null): Promise<Resultado<null>> {
  * re-deriva sin red, porque un punto puede haber pasado a "sin revisar".
  */
 export function rederivarSiCambiaElDia(): void {
-  if (!estado.puntos.length || derivadoEl === diaLocal()) return;
+  if (!config || !estado.puntos.length || derivadoEl === diaLocal()) return;
   fijar({ puntos: derivarTodos(estado.puntos) });
 }
 
@@ -208,12 +232,13 @@ async function leerComoJefatura(): Promise<Resultado<Listado>> {
 
 /** Cerrar sesión: el móvil deja de tener los puntos (FL-12). */
 export async function borrarPuntos(): Promise<void> {
+  generacion++;
   try {
     await bd().borrarTodo();
   } catch {
     // nada guardado
   }
-  config = CONFIG_POR_DEFECTO;
+  config = null;
   epoca = null;
   completoEn = null;
   fijar({ puntos: [], sincronizadoEn: null, guardadoEn: null });
@@ -284,7 +309,7 @@ export function ordenar(puntos: Punto[], orden: Orden, desde: { lat: number; lng
 export function _usarAlmacen(a: Almacen<Punto>) {
   almacen = a;
   estado = { puntos: [], sincronizadoEn: null, guardadoEn: null, cargado: false, sincronizando: false };
-  config = CONFIG_POR_DEFECTO;
+  config = null;
   derivadoEl = null;
   epoca = null;
   completoEn = null;

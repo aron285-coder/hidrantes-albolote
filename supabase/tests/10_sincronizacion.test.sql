@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(6);
+select plan(7);
 
 -- docs/18 RV-34: la época existe desde la migración. Con null en todos los móviles, la primera
 -- restauración pasaba de null a un valor y la regla "la primera época no fuerza nada" la ignoraba.
@@ -39,6 +39,10 @@ select is(
   (select count(distinct e)::int from jsonb_array_elements_text(current_setting('test.listado')::jsonb -> 'bajas') e),
   'bajas no repite ids');
 select ok(current_setting('test.listado')::jsonb -> 'config' ? 'epoca_datos', 'config trae epoca_datos');
+-- docs/18 RV-45: 10 minutos de solape, para que un lote largo que confirma tarde no se salte.
+select ok(abs(extract(epoch from (now() - interval '10 minutes')
+                 - (current_setting('test.listado')::jsonb ->> 'sincronizado_en')::timestamptz)) < 1,
+  'sincronizado_en es now() - 10 min');
 
 select * from finish();
 rollback;

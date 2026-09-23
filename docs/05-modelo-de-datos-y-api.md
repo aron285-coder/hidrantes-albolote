@@ -610,9 +610,13 @@ RFC 8292 con WebCrypto, sin dependencias.
   la recibe distinta de la que tenía guardada (y la guardada no era `null`), repite en la misma
   llamada una sincronización completa. Además hace una completa si la última tiene más de 7 días
   (DEC-083).
-- El cliente guarda `sincronizado_en` del servidor, no su propio reloj. El servidor lo devuelve con 60 s
-  de solape (`now() − 60 s`): una escritura que aún no había confirmado entra en la siguiente
-  sincronización; repetir un punto no duplica, porque el cliente reemplaza por `id`.
+- El cliente guarda `sincronizado_en` del servidor, no su propio reloj. El servidor lo devuelve con
+  **10 minutos** de solape (`now() − 10 min`, 0025, docs/18 RV-45): una escritura que aún no había
+  confirmado entra en la siguiente sincronización, también la de un `fn_aprobar_lote` de 50 con
+  esperas de bloqueo de 5 s; repetir un punto no duplica, porque el cliente reemplaza por `id`.
+- Jefatura no guarda `config` (lee la vista): sus puntos se quedan con los valores del servidor y no
+  se re-derivan con los de por defecto (RV-44). Cerrar sesión durante una sincronización descarta su
+  resultado sin escribir (FL-12, RV-45).
 - La cola local guarda por propuesta: `clave_local` (uuid v4), payload de `fn_proponer`, blob de la
   foto, `creada_en` local, intentos. Envío: `url-subida` → `PUT` → `fn_proponer`. Si `fn_proponer`
   devuelve la propuesta existente (misma `clave_local`), se considera enviada.
