@@ -104,7 +104,8 @@ export function Ficha({
           {nombreCaudal[punto.caudal]}
         </Chip>
       </div>
-      {punto.descripcion_fallo && (
+      {/* La nota de fallo solo vale mientras no funciona (docs/18 RV-42). */}
+      {punto.caudal === 'no_funciona' && punto.descripcion_fallo && (
         <p className="bg-gris-100 rounded-tarjeta text-gris-700 px-2.5 py-2 text-sm">
           <strong>{T.ficha.fallo}</strong> {punto.descripcion_fallo}
         </p>

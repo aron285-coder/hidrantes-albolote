@@ -383,3 +383,24 @@ test('el botón de centrar lleva a la posición y dibuja el halo (FR-65)', async
     })
     .toBeLessThan(80);
 });
+
+// docs/18 RV-42: la nota de fallo solo se enseña mientras el punto no funciona.
+test('un punto bueno con descripcion_fallo antigua no la enseña', async ({ page }) => {
+  const bueno = PUNTOS.find((p) => p.caudal === 'bueno')!;
+  const conNotaVieja = { ...bueno, descripcion_fallo: 'Tapa soldada' };
+  const noFunciona = PUNTOS.find((p) => p.caudal === 'no_funciona')!;
+  const conNota = { ...noFunciona, descripcion_fallo: 'Sin presión' };
+  await conSesion(page);
+  await simularRpc(page, {
+    fn_listar_puntos: {
+      ...LISTADO,
+      puntos: PUNTOS.map((p) => (p.id === bueno.id ? conNotaVieja : p.id === noFunciona.id ? conNota : p)),
+    },
+    fn_registrar_error: null,
+  });
+  await page.goto(`/?p=${bueno.id}`);
+  await expect(page.getByRole('heading', { name: bueno.codigo })).toBeVisible();
+  await expect(page.getByText('Tapa soldada')).toHaveCount(0);
+  await page.goto(`/?p=${noFunciona.id}`);
+  await expect(page.getByText('Sin presión')).toBeVisible();
+});
