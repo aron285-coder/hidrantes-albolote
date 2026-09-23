@@ -63,7 +63,16 @@ async function geometria(page: Page, contexto: string, { movil }: { movil: boole
     const vistos = [...document.querySelectorAll<HTMLElement>(sel)].filter((e) => {
       const r = e.getBoundingClientRect();
       const st = getComputedStyle(e);
-      return r.width > 1 && r.height > 1 && st.visibility !== 'hidden' && !e.closest('[aria-hidden="true"]');
+      if (r.width <= 1 || r.height <= 1 || st.visibility === 'hidden' || e.closest('[aria-hidden="true"]'))
+        return false;
+      // Solo lo que se puede tocar: un control que una hoja con scroll deja fuera de la vista no es un
+      // objetivo táctil ahora (docs/18 GM-03). Se mira si su centro está a la vista y es suyo.
+      const cx = r.left + r.width / 2;
+      const cy = r.top + r.height / 2;
+      if (cx < 0 || cy < 0 || cx > innerWidth || cy > innerHeight) return false;
+      const encima = document.elementFromPoint(cx, cy);
+      const etiqueta = e.closest('label');
+      return !encima || e.contains(encima) || encima.contains(e) || (!!etiqueta && etiqueta.contains(encima));
     });
     return vistos.map((e, i) => {
       const propio = e.getBoundingClientRect();
@@ -154,6 +163,11 @@ test.describe('app del voluntario', () => {
     await expect(page.getByRole('dialog', { name: T.aqui.titulo })).toBeVisible();
     await auditar(page, 'qué hay aquí');
     await geometria(page, 'qué hay aquí', { movil: !!isMobile });
+    // docs/18 GM-03: el modo incidente.
+    await page.goto('/?incidente=37.230500,-3.656000');
+    await expect(page.getByRole('region', { name: T.incidente.titulo })).toBeVisible();
+    await auditar(page, 'incidente');
+    await geometria(page, 'incidente', { movil: !!isMobile });
   });
 
   test('formulario de alta, que es el que más campos tiene', async ({ page, isMobile }) => {

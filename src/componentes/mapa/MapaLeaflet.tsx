@@ -8,6 +8,7 @@ import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
+import { T } from '@/lib/textos';
 
 const VISTA = 'hidrantes.vista';
 
@@ -28,7 +29,17 @@ interface Props {
   alPulsacionLarga?: (lat: number, lng: number) => void;
   /** El sitio de "¿Qué hay aquí?", con su pin soltado (06 §4.7). */
   aqui?: LatLng | null;
+  /** Modo incidente (FR-74): la diana y los candidatos, a los que se trazan líneas discontinuas. */
+  incidente?: { origen: LatLng; candidatos: LatLng[]; margenInferior?: number } | null;
 }
+
+/** Diana del incidente: el Crosshair de lucide sobre un círculo de papel con borde (06 §4.7). */
+const SVG_DIANA =
+  '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">' +
+  '<circle cx="16" cy="16" r="15" fill="var(--papel)" stroke="var(--anillo-seleccion)" stroke-width="2"/>' +
+  '<g transform="translate(4 4)" fill="none" stroke="var(--anillo-seleccion)" stroke-width="2" stroke-linecap="round">' +
+  '<circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/>' +
+  '<line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></g></svg>';
 
 /** Pin soltado de "¿Qué hay aquí?": el MapPin de lucide en --anillo-seleccion (06 §4.7). */
 const SVG_AQUI =
@@ -48,7 +59,7 @@ function vistaGuardada(): { centro: [number, number]; zoom: number } | null {
 
 /** Mapa de Leaflet con el mapa base propio, las capas en línea, el límite, los puntos y tu posición. */
 export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
-  { puntos, seleccionado, capa, modo, posicion, alSeleccionar, alPulsacionLarga, aqui = null },
+  { puntos, seleccionado, capa, modo, posicion, alSeleccionar, alPulsacionLarga, aqui = null, incidente = null },
   ref,
 ) {
   const contenedor = useRef<HTMLDivElement>(null);
@@ -56,6 +67,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
   const grupoPuntos = useRef<L.LayerGroup | null>(null);
   const grupoPosicion = useRef<L.LayerGroup | null>(null);
   const grupoMarcas = useRef<L.LayerGroup | null>(null);
+  const grupoIncidente = useRef<L.LayerGroup | null>(null);
   const alSeleccionarRef = useRef(alSeleccionar);
   useEffect(() => {
     alSeleccionarRef.current = alSeleccionar;
@@ -89,6 +101,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     });
     grupoPuntos.current = L.layerGroup().addTo(m);
     grupoPosicion.current = L.layerGroup().addTo(m);
+    grupoIncidente.current = L.layerGroup().addTo(m);
     grupoMarcas.current = L.layerGroup().addTo(m);
     mapa.current = m;
 
@@ -232,6 +245,46 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     }).addTo(g);
     m.panTo([aqui.lat, aqui.lng], { animate: false });
   }, [aqui]);
+
+  // Modo incidente (FR-74, 06 §4.7): diana, líneas discontinuas a los candidatos y un encuadre que
+  // deja ver el incidente y los tres primeros. Los demás marcadores siguen a la vista.
+  const claveIncidente = incidente
+    ? [incidente.origen, ...incidente.candidatos].map((l) => `${l.lat.toFixed(6)},${l.lng.toFixed(6)}`).join(';')
+    : '';
+  useEffect(() => {
+    const g = grupoIncidente.current;
+    const m = mapa.current;
+    if (!g || !m) return;
+    g.clearLayers();
+    if (!incidente) return;
+    const { origen, candidatos } = incidente;
+    for (const c of candidatos) {
+      L.polyline(
+        [
+          [origen.lat, origen.lng],
+          [c.lat, c.lng],
+        ],
+        { weight: 2, dashArray: '6 6', className: 'linea-incidente', interactive: false },
+      ).addTo(g);
+    }
+    L.marker([origen.lat, origen.lng], {
+      icon: L.divIcon({ html: SVG_DIANA, className: 'marca-trabajo marca-incidente', iconSize: [32, 32] }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 10_000,
+      alt: T.incidente.diana,
+    }).addTo(g);
+    const encuadre = L.latLngBounds([origen, ...candidatos.slice(0, 3)].map((l) => [l.lat, l.lng] as [number, number]));
+    // En el móvil la hoja tapa la mitad de abajo: el encuadre la descuenta.
+    m.fitBounds(encuadre, {
+      // Arriba, la búsqueda y la columna de herramientas: los candidatos no quedan debajo.
+      paddingTopLeft: [56, 132],
+      paddingBottomRight: [72, 48 + (incidente.margenInferior ?? 0)],
+      maxZoom: 18,
+      animate: false,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- la clave resume origen y candidatos
+  }, [claveIncidente]);
 
   return (
     <div className="absolute inset-0">

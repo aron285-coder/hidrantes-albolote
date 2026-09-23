@@ -1,4 +1,4 @@
-import { Layers, LocateFixed, Minus, Plus, Search, X } from 'lucide-react';
+import { Crosshair, Layers, LocateFixed, Minus, Plus, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { BarraEstado } from '@/componentes/mapa/BarraEstado';
@@ -7,6 +7,7 @@ import { Leyenda } from '@/componentes/mapa/Leyenda';
 import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
 import { type ControlMapa, MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
+import { PanelCercanos } from '@/componentes/mapa/PanelCercanos';
 import { QueHayAqui } from '@/componentes/mapa/QueHayAqui';
 import { leerLatLng, parametroLatLng } from '@/lib/coordenadas';
 import { SelectorCapas } from '@/componentes/mapa/SelectorCapas';
@@ -19,9 +20,11 @@ import { type Capa, NOMBRE_CAPA, atribucion, capaGuardada, enLinea, guardarCapa 
 import { nombreCaudal } from '@/lib/ficha';
 import { megas } from '@/lib/formato';
 import { BYTES_MAPABASE, descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
-import { activarPosicion, posicionActual } from '@/lib/posicion';
+import { escribir } from '@/lib/almacen';
+import { cercanos, masCercanoQueNoFunciona, recordarIncidente } from '@/lib/incidente';
+import { activarPosicion, esAntigua, posicionActual } from '@/lib/posicion';
 import { esPruebas } from '@/lib/entorno';
-import { buscar } from '@/lib/puntos';
+import { buscar, cargarTramoJefatura, metrosTramoManguera } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -62,6 +65,13 @@ export function Mapa() {
   const seleccionado = params.get('p');
   const aquiParam = params.get('aqui');
   const aqui = useMemo(() => leerLatLng(aquiParam), [aquiParam]);
+  // Modo incidente (FR-74): el incidente va en la URL, así *atrás* lo cierra y una recarga lo mantiene.
+  const incidenteParam = params.get('incidente');
+  const incidente = useMemo(() => leerLatLng(incidenteParam), [incidenteParam]);
+  const desdeGps = params.get('gps') === '1';
+  const [sinPosicion, setSinPosicion] = useState(false);
+  const [soloHidrantes, setSoloHidrantes] = useState(false);
+  const buscador = useRef<HTMLInputElement>(null);
   const [capa, setCapa] = useState<Capa>(capaGuardada);
   const [menuCapas, setMenuCapas] = useState(false);
   const [texto, setTexto] = useState('');
@@ -72,14 +82,59 @@ export function Mapa() {
   const pos = posicionActual();
   const sinRed = conexion === 'sin_cobertura';
 
-  const elegir = useCallback(
-    (id: string) => navegar(`/?p=${encodeURIComponent(id)}`, { replace: !!seleccionado }),
-    [navegar, seleccionado],
+  const candidatos = useMemo(
+    () => (incidente ? cercanos(puntos, incidente, { soloHidrantes, metrosTramo: metrosTramoManguera() }) : []),
+    [puntos, incidente, soloHidrantes],
   );
-  const cerrarFicha = useCallback(() => navegar('/', { replace: true }), [navegar]);
+  const avisoCercano = useMemo(
+    () => (incidente ? masCercanoQueNoFunciona(puntos, incidente, { soloHidrantes }, candidatos[0]) : null),
+    [puntos, incidente, soloHidrantes, candidatos],
+  );
+  useEffect(() => {
+    recordarIncidente(incidente);
+    // Jefatura no recibe config: el tramo de manguera, de la tabla, al abrir un incidente (GM-01).
+    if (incidente && acceso.tipo === 'jefatura') void cargarTramoJefatura();
+  }, [incidente, acceso.tipo]);
+
+  const elegir = useCallback(
+    (id: string) =>
+      navegar(
+        incidenteParam
+          ? `/?incidente=${incidenteParam}${desdeGps ? '&gps=1' : ''}&p=${encodeURIComponent(id)}`
+          : `/?p=${encodeURIComponent(id)}`,
+        { replace: !!seleccionado },
+      ),
+    [navegar, seleccionado, incidenteParam, desdeGps],
+  );
+  const cerrarFicha = useCallback(() => {
+    // Con un incidente abierto, cerrar la ficha vuelve al incidente.
+    navegar(incidenteParam ? `/?incidente=${incidenteParam}${desdeGps ? '&gps=1' : ''}` : '/', { replace: true });
+  }, [navegar, incidenteParam, desdeGps]);
+  const cerrarIncidente = useCallback(() => {
+    setSinPosicion(false);
+    recordarIncidente(null);
+    navegar('/', { replace: true });
+  }, [navegar]);
+  /** "Cercanos": desde tu posición; sin posición, se explica y se ofrece la búsqueda (FR-74, UI-02). */
+  const pedirCercanos = () => {
+    activarPosicion();
+    if (!pos) {
+      setSinPosicion(true);
+      buscador.current?.focus();
+      document.getElementById('buscar-lista')?.focus();
+      return;
+    }
+    setSinPosicion(false);
+    navegar(`/?incidente=${parametroLatLng(pos)}&gps=1`, { replace: !!incidenteParam });
+  };
+  const elegirCandidato = (id: string) =>
+    navegar(`/?incidente=${incidenteParam}${desdeGps ? '&gps=1' : ''}&p=${encodeURIComponent(id)}`);
   // "¿Qué hay aquí?" va en la URL: *atrás* la cierra (FR-72).
   const abrirAqui = useCallback(
-    (lat: number, lng: number) => navegar(`/?aqui=${parametroLatLng({ lat, lng })}`, { replace: !!aquiParam }),
+    (lat: number, lng: number) => {
+      setSinPosicion(false);
+      navegar(`/?aqui=${parametroLatLng({ lat, lng })}`, { replace: !!aquiParam });
+    },
     [navegar, aquiParam],
   );
 
@@ -156,6 +211,16 @@ export function Mapa() {
             alSeleccionar={elegir}
             alPulsacionLarga={abrirAqui}
             aqui={aqui}
+            incidente={
+              incidente
+                ? {
+                    origen: incidente,
+                    candidatos: candidatos.map((c) => c.punto),
+                    // La hoja de abajo ocupa como mucho el 45 % en el móvil.
+                    margenInferior: ancho === 'movil' ? Math.round(window.innerHeight * 0.45) : 0,
+                  }
+                : null
+            }
           />
 
           {/* Búsqueda (FR-69) */}
@@ -164,6 +229,7 @@ export function Mapa() {
               <label className="rounded-tarjeta flex min-h-11 items-center gap-2 bg-[var(--control-mapa)] px-2.5 shadow-[0_1px_5px_rgba(0,0,0,.18)]">
                 <Search size={18} className="text-texto-suave shrink-0" aria-hidden />
                 <input
+                  ref={buscador}
                   type="search"
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
@@ -225,6 +291,16 @@ export function Mapa() {
             >
               <LocateFixed size={20} aria-hidden />
             </Control>
+            {/* Cercanos (FR-74): con texto visible en el móvil, junto a "centrar en mí" (06 §4.7). */}
+            <button
+              type="button"
+              onClick={pedirCercanos}
+              aria-label={T.incidente.boton}
+              className="text-texto rounded-tarjeta flex min-h-11 items-center justify-center gap-1 self-end bg-[var(--control-mapa)] px-2.5 text-[13px] font-semibold shadow-[0_1px_5px_rgba(0,0,0,.18)]"
+            >
+              <Crosshair size={20} aria-hidden />
+              <span>{T.incidente.boton}</span>
+            </button>
             <Control etiqueta={T.mapa.acercar} onClick={() => control.current?.acercar()}>
               <Plus size={20} aria-hidden />
             </Control>
@@ -276,6 +352,27 @@ export function Mapa() {
             </aside>
           )}
           {aqui && !ficha && <QueHayAqui l={aqui} alCerrar={cerrarFicha} enHoja={ancho === 'movil'} />}
+          {(incidente || (sinPosicion && !aqui)) && (
+            <PanelCercanos
+              estado={{
+                origen: incidente,
+                desdeGps,
+                posicionVieja: desdeGps && pos && esAntigua(pos) ? (pos.momento ?? null) : null,
+                candidatos,
+                aviso: avisoCercano,
+                soloHidrantes,
+                guardadoEn,
+              }}
+              enHoja={ancho === 'movil'}
+              alCerrar={cerrarIncidente}
+              alCambiarSoloHidrantes={setSoloHidrantes}
+              alElegir={elegirCandidato}
+              alVerLista={() => {
+                escribir('orden_lista', 'distancia');
+                navegar('/lista');
+              }}
+            />
+          )}
           {seleccionado && !punto && puntos.length > 0 && (
             <p className="bg-papel rounded-tarjeta absolute inset-x-6 top-1/3 z-[600] p-3 text-center shadow">
               {T.ficha.noEncontrado}

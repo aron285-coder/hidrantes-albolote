@@ -197,6 +197,30 @@ export const T = {
     anadirPunto: 'Añadir un punto aquí',
   },
 
+  incidente: {
+    boton: 'Cercanos',
+    titulo: 'Cercanos',
+    diana: 'Incidente',
+    desdeTuPosicion: 'Desde tu posición',
+    desdePuntoMarcado: 'Desde el punto marcado',
+    posicionDe: (hace: Parametro) => `Posición de ${hace}`,
+    soloHidrantes: 'Solo hidrantes',
+    lineaRecta: 'Distancias en línea recta',
+    sinPosicion: 'Sin posición: mantén pulsado el mapa donde está el incidente o busca la calle',
+    vacio: 'Ningún punto que funcione a menos de 2 km del incidente',
+    verTodos: 'Ver todos en la lista',
+    masCercanoNoFunciona: (codigo: Parametro, distancia: Parametro) =>
+      `El más cercano, ${codigo} a ${distancia}, no funciona`,
+    masCercanoMalo: (codigo: Parametro, distancia: Parametro) =>
+      `El más cercano, ${codigo} a ${distancia}, está en mal estado`,
+    fila: (distancia: Parametro, rumbo: Parametro, tramos: Parametro) => `${distancia} · ${rumbo} · ${tramos}`,
+    tramos: (n: Parametro) => (n === 1 ? '≥ 1 tramo' : `≥ ${n} tramos`),
+    compartirIncidente: 'Compartir el incidente',
+    datos: (hace: Parametro) => `Datos de ${hace}`,
+    desdeIncidente: 'Distancias desde el incidente',
+    cerrarIncidente: 'Cerrar el incidente',
+  },
+
   compartir: {
     boton: 'Compartir',
     tituloUbicacion: 'Ubicación',
