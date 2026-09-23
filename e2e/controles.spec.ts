@@ -36,6 +36,7 @@ const NO_SE_PULSAN = new Map<string, string>([
   // cubren los tests de compartir de mapa.spec.ts (FR-75).
   [T.compartir.boton, 'abre el menú de compartir del móvil, fuera del navegador (FR-75)'],
   [T.aqui.compartirUbicacion, 'ídem'],
+  [T.incidente.compartirIncidente, 'ídem'],
 ]);
 
 const RESPUESTAS = {
@@ -60,6 +61,12 @@ const PANTALLAS: Pantalla[] = [
   { nombre: 'lista', ruta: '/lista', listo: (p) => p.getByPlaceholder(T.mapa.buscar) },
   { nombre: 'ficha', ruta: `/?p=${PUNTOS[0].id}`, listo: (p) => p.getByRole('article') },
   { nombre: 'alta', ruta: '/proponer/alta', listo: (p) => p.getByTestId('selector-pin') },
+  // docs/18 GM-03: el modo incidente, con su hoja de cercanos.
+  {
+    nombre: 'incidente',
+    ruta: '/?incidente=37.230500,-3.656000',
+    listo: (p) => p.getByRole('region', { name: T.incidente.titulo }),
+  },
   // docs/18 GM-02: la hoja de la pulsación larga.
   {
     nombre: 'qué hay aquí',

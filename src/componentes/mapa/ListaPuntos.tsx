@@ -5,6 +5,7 @@ import { usePosicion, usePuntos } from '@/hooks/estado';
 import { leer, escribir } from '@/lib/almacen';
 import { nombreCaudal } from '@/lib/ficha';
 import { distancia, hace } from '@/lib/formato';
+import { incidenteRecordado } from '@/lib/incidente';
 import { activarPosicion, posicionActual } from '@/lib/posicion';
 import { type Filtro, type Orden, buscar, filtrar, metros, ordenar } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -28,7 +29,10 @@ const ORDENES: [Orden, string][] = [
 export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
   const { puntos, cargado } = usePuntos();
   usePosicion();
-  const pos = posicionActual();
+  // Con un incidente abierto, "por distancia" ordena desde él y no desde tu posición (FR-74).
+  const incidente = incidenteRecordado();
+  const gps = posicionActual();
+  const pos = incidente ?? gps;
   const [texto, setTexto] = useState('');
   const [filtro, setFiltro] = useState<Filtro>(() => leer<Filtro>('filtro_lista') ?? 'todos');
   const [orden, setOrden] = useState<Orden>(() => leer<Orden>('orden_lista') ?? 'distancia');
@@ -44,6 +48,7 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
         <label className="bg-papel border-linea rounded-campo flex min-h-11 items-center gap-2 border px-2.5">
           <Search size={18} className="text-texto-suave shrink-0" aria-hidden />
           <input
+            id="buscar-lista"
             type="search"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
@@ -103,7 +108,11 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
             ))}
           </select>
         </label>
-        {pos && <span>{T.mapa.gps(Math.round(pos.precision))}</span>}
+        {incidente ? (
+          <span>{T.incidente.desdeIncidente}</span>
+        ) : (
+          gps && <span>{T.mapa.gps(Math.round(gps.precision))}</span>
+        )}
       </div>
 
       <ul className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">
