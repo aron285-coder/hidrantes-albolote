@@ -155,14 +155,18 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    gh run download «ID» --name respaldo-hidrantes
    ```
 3. Descifrar con la clave privada del sobre (importarla una sola vez en este ordenador; borrarla al
-   terminar):
+   terminar) **en un directorio fuera del repositorio**. El `.sql` lleva en claro nombres, correos y
+   el hash del código, y el repositorio es público (docs/18 RV-37):
    ```
    gpg --import clave-privada-respaldo.asc
-   gpg --decrypt hidrantes-«fecha».sql.gpg > hidrantes.sql
+   gpg --decrypt hidrantes-«fecha».sql.gpg > "%TEMP%\hidrantes.sql"      (Windows, cmd)
+   gpg --decrypt hidrantes-«fecha».sql.gpg > /tmp/hidrantes.sql            (Linux)
    ```
+   `restaurar.ts` se niega a usar un volcado que esté dentro del repositorio si Git no lo ignora, y el
+   *pre-commit* bloquea cualquier archivo con la cabecera de `pg_dump`.
 4. Restaurar **solo el esquema `hidrantes`** en producción (la app de uniformidad no se toca):
    ```
-   npm run restaurar -- --entorno prod --archivo hidrantes.sql
+   npm run restaurar -- --entorno prod --archivo "%TEMP%\hidrantes.sql"   (o /tmp/hidrantes.sql)
    ```
    El script vacía el esquema `hidrantes` y lo rehace desde el volcado, todo en una transacción: si
    algo falla a la mitad, la base se queda como estaba. Antes comprueba que el archivo es un volcado
@@ -193,7 +197,9 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
 6. Comprobar: abrir el panel, ver Inventario y Registro; abrir la app en un móvil, sincronizar.
 7. Comunicar el código nuevo al grupo. Anotar en §9 y en el Registro (el script escribe una entrada
    `restauracion_respaldo`).
-8. Borrar la clave privada del ordenador: `gpg --delete-secret-keys «id»`.
+8. Borrar la clave privada del ordenador (`gpg --delete-secret-keys «id»`) y el volcado descifrado
+   (`del "%TEMP%\hidrantes.sql"` o `rm /tmp/hidrantes.sql`). El guion temporal de la restauración
+   ya lo borra el script, también si falla.
 
 Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Lo que
 los voluntarios **enviaron** después del respaldo se pierde también: salió de la cola del móvil al

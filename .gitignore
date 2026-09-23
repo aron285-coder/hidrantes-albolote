@@ -20,7 +20,12 @@ dev-dist/
 *.tar
 *.tar.gz
 respaldos/
+/respaldos/
 fotos/
+# Un volcado descifrado lleva datos personales en claro (docs/18 RV-37); supabase/**/*.sql sí va
+/*.sql
+restauracion*.sql
+hidrantes-*.sql
 
 # Artefactos generados de datos/ (los GeoJSON sí se committean, 04 §8)
 *.pmtiles

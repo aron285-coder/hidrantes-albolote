@@ -1,12 +1,18 @@
 // La restauración borra el esquema entero antes de recrearlo: lo que se comprueba aquí es que no
 // se pueda disparar contra el proyecto equivocado ni con un archivo que no sea nuestro (15 §5.3).
 
+import { rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { ErrorDeScript } from './lib/comun.ts';
+import { ErrorDeScript, RAIZ } from './lib/comun.ts';
 import {
   LIMPIAR_ESQUEMA,
   REFS,
+  carpetaTemporal,
   confirmacionAutomatica,
+  ignoradoPorGit,
+  motivoArchivoInseguro,
   pareceVolcado,
   refDeUrl,
   sinCrearEsquema,
@@ -240,5 +246,36 @@ describe('fotos restauradas', () => {
     expect(archivos).toContain('lib/claves.ts');
     // En Windows readdir daría barras invertidas: en el bucket la ruta lleva las normales.
     expect(archivos.some((f) => f.includes(String.fromCharCode(92)))).toBe(false);
+  });
+});
+
+// docs/18 RV-37: un volcado descifrado no puede acabar en el repositorio público.
+describe('el volcado y el guion, fuera del repositorio', () => {
+  const raiz = path.resolve('/repo');
+
+  it('--archivo ./hidrantes.sql dentro del repositorio y no ignorado aborta', () => {
+    expect(motivoArchivoInseguro(path.join(raiz, 'hidrantes.sql'), raiz, () => false)).toMatch(/Git no lo ignora/);
+  });
+
+  it('dentro pero ignorado por Git, o fuera del repositorio, se acepta', () => {
+    expect(motivoArchivoInseguro(path.join(raiz, 'hidrantes.sql'), raiz, () => true)).toBeNull();
+    expect(motivoArchivoInseguro(path.join(os.tmpdir(), 'hidrantes.sql'), raiz, () => false)).toBeNull();
+  });
+
+  it('el guion temporal no queda bajo el repositorio', () => {
+    const carpeta = carpetaTemporal();
+    try {
+      expect(path.relative(RAIZ, carpeta).startsWith('..') || path.isAbsolute(path.relative(RAIZ, carpeta))).toBe(true);
+      expect(path.basename(carpeta)).toMatch(/^hidrantes-/);
+    } finally {
+      rmSync(carpeta, { recursive: true, force: true });
+    }
+  });
+
+  it('Git ignora un volcado descifrado en la raíz, y no las migraciones', () => {
+    for (const r of ['hidrantes.sql', 'restauracion.tmp.sql', 'hidrantes-2026-09-20.sql', 'respaldos/x.sql']) {
+      expect(ignoradoPorGit(path.join(RAIZ, r)), r).toBe(true);
+    }
+    expect(ignoradoPorGit(path.join(RAIZ, 'supabase/migrations/0001_esquema.sql'))).toBe(false);
   });
 });
