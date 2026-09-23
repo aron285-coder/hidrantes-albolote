@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ErrorDeScript } from './lib/comun.ts';
-import { ROTABLES, aRotar } from './arranque.ts';
+import { ROTABLES, aRotar, sufijoDe } from './arranque.ts';
 
 describe('--rotar', () => {
   it('sin nada, no se rota nada: el arranque completo no es una rotación', () => {
@@ -24,5 +24,16 @@ describe('--rotar', () => {
   it('un nombre inventado aborta diciendo cuáles hay, en vez de no rotar nada en silencio', () => {
     expect(() => aRotar('base-de-datos')).toThrow(ErrorDeScript);
     expect(() => aRotar('db,gpj')).toThrow(/gpj no existe/);
+  });
+});
+
+describe('secreto de la vigilancia (RV-08)', () => {
+  it('se puede rotar solo', () => {
+    expect([...aRotar('vigilancia')]).toEqual(['vigilancia']);
+    expect(aRotar('todo').has('vigilancia')).toBe(true);
+  });
+  it('su secreto de repositorio lleva el sufijo del entorno', () => {
+    expect(sufijoDe({ clave: 'staging' })).toBe('STAGING');
+    expect(sufijoDe({ clave: 'production' })).toBe('PROD');
   });
 });

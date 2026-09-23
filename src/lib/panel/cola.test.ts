@@ -1,5 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { rpcPanel, pedirEnvioComoJefatura } = vi.hoisted(() => ({
+  rpcPanel: vi.fn(),
+  pedirEnvioComoJefatura: vi.fn(async () => undefined),
+}));
+vi.mock('../api', async (original) => ({ ...(await original<typeof import('../api')>()), rpc: rpcPanel }));
+vi.mock('./push-jefatura', () => ({ pedirEnvioComoJefatura }));
+vi.mock('../puntos', async (original) => ({
+  ...(await original<typeof import('../puntos')>()),
+  sincronizar: vi.fn(async () => ({ ok: true, datos: null })),
+}));
+
 import {
+  aprobar,
+  aprobarLote,
+  rechazar,
+  rechazarLote,
   type PropuestaPanel,
   coincide,
   conDireccion,
@@ -285,5 +301,37 @@ describe('errores en palabras (TR-36)', () => {
       expect(textoError(c)).not.toMatch(/[A-Z]{3,}_/);
     }
     expect(textoError('ULTIMO_ADMINISTRADOR')).toBe(T.panel.ultimoAdministrador);
+  });
+});
+
+describe('moderar pide el envío de avisos (RV-08, FR-163)', () => {
+  beforeEach(() => {
+    rpcPanel.mockReset();
+    pedirEnvioComoJefatura.mockClear();
+  });
+
+  it('aprobar pide el envío de avisos una vez', async () => {
+    rpcPanel.mockResolvedValue({ ok: true, datos: { punto_id: 'x', codigo: 'HID-0001' } });
+    await aprobar('p1', null, false);
+    expect(pedirEnvioComoJefatura).toHaveBeenCalledTimes(1);
+  });
+
+  it('un lote pide el envío una sola vez', async () => {
+    rpcPanel.mockResolvedValue({ ok: true, datos: [{ propuesta_id: 'a', resultado: 'aprobada', motivo: null }] });
+    await aprobarLote(['a', 'b', 'c']);
+    expect(pedirEnvioComoJefatura).toHaveBeenCalledTimes(1);
+    rpcPanel.mockResolvedValue({ ok: true, datos: null });
+    pedirEnvioComoJefatura.mockClear();
+    await rechazarLote(['a', 'b', 'c'], 'Duplicado');
+    expect(pedirEnvioComoJefatura).toHaveBeenCalledTimes(1);
+  });
+
+  it('rechazar una también avisa; si falla, no', async () => {
+    rpcPanel.mockResolvedValueOnce({ ok: true, datos: null });
+    await rechazar('p1', 'No es un hidrante');
+    expect(pedirEnvioComoJefatura).toHaveBeenCalledTimes(1);
+    rpcPanel.mockResolvedValueOnce({ ok: false, codigo: 'PROPUESTA_NO_PENDIENTE' });
+    await rechazar('p2', 'x');
+    expect(pedirEnvioComoJefatura).toHaveBeenCalledTimes(1);
   });
 });
