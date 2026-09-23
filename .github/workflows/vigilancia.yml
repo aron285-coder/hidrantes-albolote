@@ -125,8 +125,13 @@ jobs:
             fi
             ultima=$(gh api "repos/$REPO/actions/workflows/$w/runs?event=schedule&per_page=1" \
               --jq '.workflow_runs[0].created_at // empty' 2>/dev/null || echo '')
+            # Un workflow recién creado (o que hasta ahora solo se lanzó a mano) aún no tiene
+            # ejecuciones programadas: cuenta desde que existe, no es un problema todavía.
             if [ -z "$ultima" ]; then
-              problemas+=("el workflow $w no tiene ninguna ejecución programada")
+              ultima=$(gh api "repos/$REPO/actions/workflows/$w" --jq '.created_at // empty' 2>/dev/null || echo '')
+            fi
+            if [ -z "$ultima" ]; then
+              problemas+=("no se puede leer el estado del workflow $w")
             else
               dias=$(( (ahora - $(date -u -d "$ultima" +%s)) / 86400 ))
               if [ "$dias" -ge "$limite" ]; then
