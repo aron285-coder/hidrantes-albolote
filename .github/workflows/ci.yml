@@ -41,6 +41,12 @@ jobs:
           psql: 'true'
       - name: Supabase local
         run: npx supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,realtime,supavisor
+      # Un volcado de verdad anterior a 0010 (sin la acción 'restauracion_respaldo'), para ensayar
+      # al final la restauración de un respaldo antiguo (RV-13).
+      - name: Volcado con las migraciones hasta la 0009
+        run: |
+          npm run migrar -- --local --hasta 0009
+          pg_dump --schema=hidrantes --no-owner --format=plain             "postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres" > /tmp/volcado-0009.sql # detectar-secretos:permitir (Supabase local efímero)
       - run: npm run migrar -- --local
       - name: Segunda pasada sin cambios (idempotencia)
         run: npm run migrar -- --local
@@ -70,6 +76,9 @@ jobs:
           pkill -f 'wrangler pages dev' || true
       - name: Compatibilidad hacia atrás (TR-107)
         run: npm run compatibilidad
+      # Al final: la restauración deja la base como estaba el volcado (RV-13, TR-51, 15 §5.3).
+      - name: Restauración sobre un esquema con datos y de un volcado anterior a 0010 (RV-13)
+        run: npx tsx scripts/probar-restauracion.ts --viejo /tmp/volcado-0009.sql
       - if: always()
         run: npx supabase stop --no-backup
 

@@ -3,6 +3,7 @@
 //
 //   npm run restaurar -- --entorno prod --archivo hidrantes.sql
 //   npm run restaurar -- --entorno local --archivo hidrantes.sql   (el ensayo de la Fase 8)
+//   npm run restaurar -- --entorno local --archivo x.sql --confirmar RESTAURAR   (CI, sin preguntar)
 //
 // El archivo es el volcado ya descifrado (`gpg --decrypt hidrantes-«fecha».sql.gpg > hidrantes.sql`).
 // La cadena de conexión sale de SUPABASE_DB_URL, o se pide sin mostrarla.
@@ -13,7 +14,7 @@
 import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { abortar, argumentos, ejecutarScript, log, preguntar, psql, RAIZ, type Resultado } from './lib/comun.ts';
-import { LOCAL_MIGRADOR } from './migrar.ts';
+import { LOCAL_MIGRADOR, migrarPendientes } from './migrar.ts';
 
 /** Refs de Supabase por entorno (docs/entornos.md). No son secretos: identifican el proyecto. */
 export const REFS: Record<string, string> = {
@@ -61,6 +62,13 @@ begin
             join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'hidrantes' loop
     execute format('drop routine if exists %s cascade', r.firma);
   end loop;
+  -- Las secuencias sueltas (seq_codigo_hidrante, seq_codigo_boca) no son de ninguna columna y no
+  -- caen con las tablas: si quedaran, el CREATE SEQUENCE del volcado fallaría y se desharía todo
+  -- (RV-13). Las de identidad ya se fueron con su tabla.
+  for r in select c.relname from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'hidrantes' and c.relkind = 'S' loop
+    execute format('drop sequence if exists hidrantes.%I cascade', r.relname);
+  end loop;
   for r in select t.typname from pg_type t
             join pg_namespace n on n.oid = t.typnamespace where n.nspname = 'hidrantes' and t.typtype = 'e' loop
     execute format('drop type if exists hidrantes.%I cascade', r.typname);
@@ -91,6 +99,42 @@ export const EPOCA_NUEVA = `insert into hidrantes.config (clave, valor, actualiz
   values ('epoca_datos', to_jsonb(gen_random_uuid()::text), 'restaurar.ts')
   on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;`;
 
+/** La fila de auditoría de la restauración (11 §6, 15 §5.3). */
+export const insertAuditoria = (actor: string, nombreArchivo: string) =>
+  `insert into hidrantes.registro (actor, es_admin, accion, despues)
+       values ('${actor.replaceAll("'", "''")}', true, 'restauracion_respaldo',
+               jsonb_build_object('archivo', '${nombreArchivo.replaceAll("'", "''")}'));`;
+
+/**
+ * Un volcado anterior a 0010 no admite la acción 'restauracion_respaldo' en el check de
+ * registro.accion: insertarla desharía toda la restauración (RV-13). Si no la admite, se anota
+ * después, una vez migrado.
+ */
+export const auditoriaCondicional = (actor: string, nombreArchivo: string) => `
+do $auditoria$
+begin
+  if exists (select 1 from pg_constraint c
+              where c.conrelid = 'hidrantes.registro'::regclass and c.contype = 'c'
+                and pg_get_constraintdef(c.oid) like '%restauracion_respaldo%') then
+    ${insertAuditoria(actor, nombreArchivo)}
+  else
+    raise notice 'volcado anterior a 0010: se anota tras migrar';
+  end if;
+end
+$auditoria$;`;
+
+/**
+ * `--confirmar RESTAURAR` evita la pregunta, y solo contra el Supabase local: es para CI. Contra
+ * staging o producción siempre se escribe a mano.
+ */
+export function confirmacionAutomatica(entorno: string, confirmar: string | undefined): boolean {
+  if (confirmar === undefined) return false;
+  if (entorno !== 'local')
+    abortar('--confirmar solo se admite con --entorno local: en staging y producción se escribe a mano.');
+  if (confirmar !== 'RESTAURAR') abortar('--confirmar tiene que ser exactamente RESTAURAR.');
+  return true;
+}
+
 /**
  * Todo en una transacción: si el volcado falla a la mitad, la base se queda como estaba en vez de
  * quedarse a medio restaurar.
@@ -104,10 +148,9 @@ export function sqlRestauracion(volcado: string, nombreArchivo: string, actor: s
     // Época nueva: los móviles que la vean distinta repiten una sincronización completa, porque lo
     // restaurado vuelve con actualizado_en antiguos que la incremental no recogería (RV-06).
     EPOCA_NUEVA,
-    // Que conste quién y cuándo, en el propio registro restaurado (11 §6, 15 §5.3).
-    `insert into hidrantes.registro (actor, es_admin, accion, despues)
-       values ('${actor.replaceAll("'", "''")}', true, 'restauracion_respaldo',
-               jsonb_build_object('archivo', '${nombreArchivo.replaceAll("'", "''")}'));`,
+    // Que conste quién y cuándo, en el propio registro restaurado (11 §6, 15 §5.3), si el volcado
+    // lo admite; si no, tras migrar.
+    auditoriaCondicional(actor, nombreArchivo),
     'commit;',
   ].join('\n');
 }
@@ -120,6 +163,7 @@ async function principal(): Promise<void> {
   const { valores } = argumentos();
   const entorno = valores.get('entorno') ?? abortar('Indica --entorno local, staging o prod.');
   const archivo = valores.get('archivo') ?? abortar('Indica --archivo <volcado.sql> ya descifrado.');
+  const sinPreguntar = confirmacionAutomatica(entorno, valores.get('confirmar'));
   const ruta = path.resolve(RAIZ, archivo);
 
   const volcado = readFileSync(ruta, 'utf8');
@@ -169,15 +213,19 @@ async function principal(): Promise<void> {
   }
   log.aviso('Se vacía el esquema hidrantes y se rehace desde el volcado. Lo posterior se pierde.');
 
-  const escrito = await preguntar('Escribe RESTAURAR para continuar');
-  if (escrito.trim() !== 'RESTAURAR') return log.info('Cancelado: no se ha tocado nada.');
+  if (!sinPreguntar) {
+    const escrito = await preguntar('Escribe RESTAURAR para continuar');
+    if (escrito.trim() !== 'RESTAURAR') return log.info('Cancelado: no se ha tocado nada.');
+  }
+  const inicio = psql(url, 'select clock_timestamp();', { tuplas: true }).salida.trim();
+  const actor = `restauracion ${entorno}`;
 
   // El volcado y lo que lo envuelve van juntos a un archivo: psql lo lee de una sola vez, y así los
   // bloques COPY del volcado llegan enteros.
   const guion = path.join(RAIZ, 'restauracion.tmp.sql');
   let r: Resultado;
   try {
-    writeFileSync(guion, sqlRestauracion(volcado, path.basename(ruta), `restauracion ${entorno}`));
+    writeFileSync(guion, sqlRestauracion(volcado, path.basename(ruta), actor));
     r = psql(url, `\\i '${guion.replaceAll('\\', '/')}'`);
   } finally {
     rmSync(guion, { force: true });
@@ -185,6 +233,23 @@ async function principal(): Promise<void> {
   if (r.codigo !== 0) abortar(`La restauración ha fallado y no se ha cambiado nada:\n${r.error || r.salida}`);
 
   log.ok(`Restaurado: ${cuenta(url, 'puntos')} puntos y ${cuenta(url, 'propuestas')} propuestas.`);
+
+  // Un volcado viejo vuelve con el esquema de entonces: se lleva al de hoy con las migraciones que
+  // le falten (RV-13).
+  log.paso('Migraciones pendientes del volcado');
+  const aplicadas = migrarPendientes(url);
+  log.info(aplicadas.length ? `aplicadas: ${aplicadas.join(', ')}` : 'ninguna: el volcado ya estaba al día');
+
+  const anotada = psql(
+    url,
+    `select count(*) from hidrantes.registro where accion = 'restauracion_respaldo' and momento >= '${inicio}';`,
+    { tuplas: true },
+  ).salida.trim();
+  if (anotada === '0') {
+    const a = psql(url, insertAuditoria(actor, path.basename(ruta)));
+    if (a.codigo !== 0) log.aviso(`No se ha podido anotar la restauración en el registro: ${a.error}`);
+    else log.ok('restauración anotada en el registro (tras migrar: el volcado era anterior a 0010)');
+  }
   log.info('Comprueba el panel (Inventario y Registro) y la app en un móvil (15 §5.3, pasos 6 a 8).');
 }
 

@@ -38,7 +38,7 @@ defectos reales salieron de ahí y están en §5.
 | Parte | Cómo se ha comprobado | Resultado |
 |---|---|---|
 | CI verde con las tres capas | `ci-calidad`, `ci-sql` y `ci-e2e` en cada PR de la fase | ✅ 1 049 unitarios, 236 pgTAP, 125 e2e simulados y 8 de integración real |
-| Un respaldo **restaurado** con éxito | ensayo completo sobre una base vacía con el volcado cifrado de verdad: importar la clave, descifrar, vaciar el esquema, restaurar en transacción y comprobar recuentos y permisos | ✅ (tres defectos por el camino, §5) |
+| Un respaldo **restaurado** con éxito | ensayo completo sobre una base vacía con el volcado cifrado de verdad: importar la clave, descifrar, vaciar el esquema, restaurar en transacción y comprobar recuentos y permisos. **Corrección del 23 sep 2026 (RV-13):** ese ensayo fue solo sobre base vacía; sobre un esquema vivo fallaba (secuencias sueltas) y con un volcado anterior a 0010 también (auditoría). TR-51 queda ensayado sobre base vacía **y** sobre esquema con datos, en CI (`scripts/probar-restauracion.ts` en `ci-sql`) | ✅ (tres defectos por el camino, §5; dos más en RV-13) |
 | El respaldo corre de verdad | `respaldo.yml` lanzado a mano contra producción el 21 sep 2026 (run 35575039376): artefacto `respaldo-hidrantes` de 136 KB cifrado, 90 días de retención, `ultimo_respaldo` anotado | ✅ |
 | Las ocho pruebas de intrusión fallan | `npm run intrusion` contra la pila local; resultado exacto de cada una, con fecha, en 11 §5 | ✅ las ocho denegadas |
 | Presupuesto de rendimiento | `e2e/rendimiento.spec.ts` con 3G simulada (1,6 Mbit/s, 300 ms): primera pantalla útil **2,40 s** (TR-10 < 3 s), ficha **2,56 s** (TR-14 < 3 s); búsqueda sobre 1 000 puntos, mediana de 11 ejecuciones (TR-13) | ✅ |
