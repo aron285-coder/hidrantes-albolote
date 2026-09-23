@@ -548,7 +548,12 @@ Cabecera `Authorization: Bearer <JWT de Supabase>`; la Function reenvía el JWT 
 ← 200 { "direccion": "Calle Real 14, Albolote", "fuente": "nominatim", "cacheada": false }
 ← 200 { "direccion": null, "fuente": "nominatim", "motivo": "sin_respuesta" }   // nunca bloquea
 ← 403 { "error": "NO_AUTORIZADO" }
+← 503 { "error": "NO_CONFIGURADO" }   // sin NOMINATIM_USER_AGENT no se llama a Nominatim (RV-25)
 ```
+
+Nominatim exige un `User-Agent` con contacto: `hidrantes-albolote/1.0 (+<URL del repositorio>)`,
+nunca un correo (DEC-053). La respuesta se guarda en la caché de Cloudflare (`caches.default`) 30 días
+por coordenadas redondeadas a 4 decimales (unos 11 m), también sin `propuesta_id` (RV-25).
 Nominatim `reverse`, `zoom=18`, `User-Agent = NOMINATIM_USER_AGENT`, cola en memoria a 1 req/s;
 escribe `propuestas.direccion_sugerida`.
 

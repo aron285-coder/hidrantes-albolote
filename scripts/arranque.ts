@@ -372,7 +372,8 @@ async function prepararPages(
   const secretos: Record<string, string> = {
     SUPABASE_URL: sb.url,
     SUPABASE_SERVICE_ROLE_KEY: sb.servicio,
-    NOMINATIM_USER_AGENT: `hidrantes-albolote/1.0 (+${pages})`,
+    // Nominatim exige contacto (RV-25): la URL del repositorio, nunca un correo (DEC-053).
+    NOMINATIM_USER_AGENT: `hidrantes-albolote/1.0 (+https://github.com/${REPO})`,
     VAPID_SUBJECT: pages,
   };
   if (!actuales.includes('SAL_IP') || rotar.has('sal-ip')) secretos.SAL_IP = salAleatoria();

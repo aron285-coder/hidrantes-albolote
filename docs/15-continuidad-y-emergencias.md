@@ -25,7 +25,7 @@ paso mal hecho en una restauración cuesta más que una hora de espera.
 | Base de datos (pruebas) | Supabase | proyecto **dev** `uniformidad-dev` · ref `jowapbzawsebfpksnlqx`, bucket `hidrantes-fotos-dev` | ídem | 0 € |
 | Inicio de sesión de jefatura | Google (vía Supabase Auth) | proveedor Google del proyecto Supabase | ídem | 0 € |
 | Mapa base propio (si > 20 MB) | Cloudflare R2 | bucket `hidrantes-mapabase` | ídem | 0 € |
-| Dirección deducida | Nominatim (OSM) | sin cuenta; `User-Agent` `hidrantes-albolote/1.0 (+https://hidrantes-albolote.pages.dev)` | — | 0 € |
+| Dirección deducida | Nominatim (OSM) | sin cuenta; `User-Agent` con contacto, obligatorio: `hidrantes-albolote/1.0 (+https://github.com/aron285-coder/hidrantes-albolote)` desde el siguiente `npm run arranque` (antes, la URL de la app) | — | 0 € |
 
 Objetivo: todo en **una cuenta de Google institucional de la agrupación**, no en la personal de nadie
 (DEC-023). Situación de partida (sep 2026): GitHub, Cloudflare y Supabase están bajo la cuenta de

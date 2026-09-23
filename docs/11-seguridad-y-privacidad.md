@@ -199,7 +199,8 @@ exportó y cuándo.
      es su móvil.
   3. *Anonimizar…* → confirmar. `fn_anonimizar_autor(dispositivo_id)` sustituye nombre y apellido
      por "voluntario dado de baja" en `propuestas` y `registro`; conserva las filas y el
-     `dispositivo_id`.
+     `dispositivo_id`. El registro sigue siendo de solo añadir: con la anonimización activa, el
+     trigger solo deja cambiar `actor`, y solo al texto exacto "voluntario dado de baja" (RV-26).
   4. Si tenía el móvil registrado, en Ajustes del móvil → Cerrar sesión. Su token caduca; no se
      revoca a los demás.
   5. Anotar la atención en `registro` (lo hace la RPC: `anonimizacion`) y en la tabla de §8.
