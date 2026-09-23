@@ -68,3 +68,9 @@ jobs:
 
       - name: Comprobar versión y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote.pages.dev --entorno produccion
+
+      # Después de desplegar y comprobar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
+      - name: Versión del mapa base en Salud del sistema (FR-143)
+        run: npm run cargar-version-mapabase
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

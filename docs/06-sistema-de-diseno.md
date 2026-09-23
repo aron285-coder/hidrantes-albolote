@@ -605,7 +605,8 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Última vigilancia` · `todo respondía` · `con avisos: mira las issues` ·
 `Almacenamiento usado` ·
 `Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073) ·
-`Zona de cobertura · mapa base` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` ·
+`Zona de cobertura · mapa base` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Base de datos` · `[38] MB de [500] MB` · `Tareas programadas` ·
+`[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` ·
 `Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·

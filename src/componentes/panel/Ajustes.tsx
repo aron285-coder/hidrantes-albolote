@@ -13,6 +13,7 @@ import {
   type ClaveParametro,
   type Parametros,
   type Workflow,
+  CUOTA_BD_BYTES,
   PARAMETROS,
   PARAMETROS_POR_DEFECTO,
   anadirNucleo,
@@ -489,6 +490,12 @@ function SaludDelSistema() {
             : T.panelAjustes.nunca,
         ],
         [T.panelAjustes.dispositivosActivos, String(s.dispositivos_activos)],
+        [
+          T.panelAjustes.baseDeDatos,
+          s.bd_bytes != null
+            ? T.panelAjustes.baseDeDatosDetalle(megas(s.bd_bytes), megas(CUOTA_BD_BYTES))
+            : T.panelAjustes.sinDato,
+        ],
         [T.panelAjustes.intentosFallidos24h, String(s.intentos_fallidos_24h ?? 0)],
         [
           T.panelAjustes.topesAlcanzados24h,
@@ -523,6 +530,30 @@ function SaludDelSistema() {
                 <dd className="font-semibold">{valor}</dd>
               </div>
             ))}
+            {/* TR-54: la última ejecución de cada tarea de pg_cron, según la anotó la vigilancia. */}
+            <div className="border-linea border-b py-1 last:border-b-0">
+              <dt className="text-texto-suave">{T.panelAjustes.tareasProgramadas}</dt>
+              <dd>
+                {s.tareas?.length ? (
+                  <ul className="mt-1" data-testid="tareas-programadas">
+                    {s.tareas.map((t) => (
+                      <li key={t.tarea} className="flex gap-2">
+                        <span className="font-datos flex-1 text-[13px]">{t.tarea.replace(/^hidrantes_/, '')}</span>
+                        <span className={cn('font-semibold', t.problema && 'text-rojo-700')}>
+                          {!t.ultima
+                            ? T.panelAjustes.tareaSinEjecutar
+                            : t.problema
+                              ? T.panelAjustes.tareaMal(hace(t.ultima))
+                              : T.panelAjustes.tareaBien(hace(t.ultima))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className="font-semibold">{T.panelAjustes.sinDato}</span>
+                )}
+              </dd>
+            </div>
           </dl>
         </>
       )}

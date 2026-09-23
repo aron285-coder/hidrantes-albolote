@@ -60,6 +60,18 @@ jobs:
               -f supabase/seed-staging.sql
           done
       - run: npm run test:sql
+      - name: Tareas programadas legibles por hidrantes_migrador (RV-22)
+        run: |
+          tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres" -f scripts/sql/tareas-programadas.sql) # detectar-secretos:permitir (Supabase local efímero)
+          echo "$tareas" | jq .
+          n=$(echo "$tareas" | jq 'length')
+          [ "$n" -eq 7 ] || { echo "::error::se esperaban 7 tareas hidrantes_%, hay $n"; exit 1; }
+      - name: Versión del mapa base en config (RV-21)
+        run: |
+          npm run cargar-version-mapabase -- --local
+          esperada=$(node -p "require('./datos/mapabase.json').version")
+          guardada=$(psql -X -A -t -v ON_ERROR_STOP=1 "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -c "select hidrantes.fn_config('version_mapabase', 'null') #>> '{}';") # detectar-secretos:permitir (Supabase local efímero)
+          [ "$esperada" = "$guardada" ] || { echo "::error::version_mapabase es '$guardada' y datos/mapabase.json dice '$esperada'"; exit 1; }
       - name: Pages Functions con wrangler pages dev contra Supabase local
         run: |
           npm run arranque -- --local

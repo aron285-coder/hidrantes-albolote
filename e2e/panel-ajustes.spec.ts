@@ -69,6 +69,23 @@ const SALUD = {
   ultima_vigilancia: '2026-09-20T07:41:00Z',
   vigilancia_ok: true,
   dispositivos_activos: 61,
+  bd_bytes: 38 * 1024 * 1024,
+  esquema_bytes: 3 * 1024 * 1024,
+  tareas: [
+    {
+      tarea: 'hidrantes_purgar_errores',
+      ultima: new Date(Date.now() - 2 * 3600_000).toISOString(),
+      fallo: false,
+      problema: false,
+    },
+    { tarea: 'hidrantes_resumen_semanal', ultima: null, fallo: false, problema: false },
+    {
+      tarea: 'hidrantes_purgar_subidas',
+      ultima: new Date(Date.now() - 50 * 3600_000).toISOString(),
+      fallo: true,
+      problema: true,
+    },
+  ],
 };
 
 interface Llamada {
@@ -255,4 +272,15 @@ test('ajustes: sin token de GitHub, el mantenimiento lo dice (FR-165, UI-04)', a
   await page.goto('/admin/ajustes');
   await page.getByRole('button', { name: T.panel.regenerarMapaBase }).click();
   await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.noConfigurado })).toBeVisible();
+});
+
+test('Salud del sistema enseña la base de datos y las tareas programadas (RV-22, TR-53, TR-54)', async ({ page }) => {
+  await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
+  await expect(salud.getByText(T.panelAjustes.baseDeDatosDetalle('38,0', '500,0'))).toBeVisible();
+  const tareas = salud.getByTestId('tareas-programadas');
+  await expect(tareas.getByText('purgar_errores')).toBeVisible();
+  await expect(tareas.getByText(T.panelAjustes.tareaSinEjecutar)).toBeVisible();
+  await expect(tareas.getByText(/falló o va con retraso/)).toBeVisible();
 });
