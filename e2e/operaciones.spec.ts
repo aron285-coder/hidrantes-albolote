@@ -4,7 +4,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { conExif } from '../src/lib/exif-prueba.ts';
 import { T } from '../src/lib/textos.ts';
-import { TOKEN, conSesion } from './ayudas.ts';
+import { TOKEN, conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 const SB = 'https://supabase.invalid';
@@ -313,4 +313,17 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await expect(page.getByText(T.envio.soloEnMemoriaDetalle)).toBeVisible();
     await expect(page.getByRole('button', { name: T.envio.reintentarAhora })).toBeVisible();
   });
+});
+
+test('jefatura no ve "otra medida" en un alta (RV-19, FR-151)', async ({ page, context }) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 37.2309, longitude: -3.6566, accuracy: 9 });
+  await conGoogle(page, 'jefa@example.org');
+  await simularRpc(page, { fn_es_admin: true, fn_registrar_error: null });
+  await simularTablas(page, { v_puntos_activos: PUNTOS });
+  await page.goto('/');
+  await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+  await page.getByRole('radio', { name: T.formulario.hidrante }).click();
+  await expect(page.getByRole('radio', { name: T.formulario.d100 })).toBeVisible();
+  await expect(page.getByRole('radio', { name: T.formulario.otraMedida })).toHaveCount(0);
 });
