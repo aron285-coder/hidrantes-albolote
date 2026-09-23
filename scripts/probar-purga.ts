@@ -27,7 +27,7 @@ async function principal(): Promise<void> {
     LOCAL_POSTGRES,
     `insert into hidrantes.puntos (codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio,
                                    fecha_ultima_revision, descripcion)
-     select 'HID-' || (8000 + i), 'hidrante',
+     select 'HID-' || (7500 + i), 'hidrante',
             ('SRID=4326;POINT(' || (-3.69 + (i % 40) * 0.0015) || ' ' || (37.21 + (i / 40) * 0.0012) || ')')::extensions.geography,
             100, 'bueno', '${PREFIJO}' || i || '.jpg', 'albolote', current_date, '[PRUEBA] RV-33 integración ' || i
      from generate_series(1, ${SEMBRADOS}) i;`,
