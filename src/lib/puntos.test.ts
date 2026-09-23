@@ -238,3 +238,48 @@ describe('el móvil deriva radio_px y revision_caducada (RV-05, FR-61, FR-142)',
     }
   });
 });
+
+describe('sincronización completa cuando hace falta (RV-06)', () => {
+  const cfg = (epoca: string | null) => ({ meses_revision: 12, escala_radios: [11, 9, 7, 5.5, 5], epoca_datos: epoca });
+
+  it('una época de datos distinta fuerza la sincronización completa', async () => {
+    rpc.mockResolvedValueOnce(ok({ puntos: [p('1'), p('2')], bajas: [], sincronizado_en: 'S1', config: cfg('E1') }));
+    await sincronizar(TOKEN);
+    rpc
+      .mockResolvedValueOnce(ok({ puntos: [], bajas: [], sincronizado_en: 'S2', config: cfg('E2') }))
+      .mockResolvedValueOnce(ok({ puntos: [p('3')], bajas: [], sincronizado_en: 'S3', config: cfg('E2') }));
+    expect(await sincronizar(TOKEN)).toEqual({ ok: true, datos: null });
+    expect(rpc.mock.calls.slice(1).map((c) => c[1].desde)).toEqual(['S1', null]);
+    expect(estadoPuntos().puntos.map((x) => x.id)).toEqual(['3']);
+    expect(estadoPuntos().sincronizadoEn).toBe('S3');
+    // Y la siguiente ya es incremental con la época nueva.
+    rpc.mockResolvedValueOnce(ok({ puntos: [], bajas: [], sincronizado_en: 'S4', config: cfg('E2') }));
+    await sincronizar(TOKEN);
+    expect(rpc).toHaveBeenLastCalledWith('fn_listar_puntos', { token: TOKEN, desde: 'S3' });
+  });
+
+  it('la primera época (null → valor) no fuerza nada', async () => {
+    rpc.mockResolvedValueOnce(ok({ puntos: [p('1')], bajas: [], sincronizado_en: 'S1', config: cfg(null) }));
+    await sincronizar(TOKEN);
+    rpc.mockResolvedValueOnce(ok({ puntos: [], bajas: [], sincronizado_en: 'S2', config: cfg('E1') }));
+    await sincronizar(TOKEN);
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(estadoPuntos().puntos.map((x) => x.id)).toEqual(['1']);
+  });
+
+  it('siete días sin completa fuerzan una completa', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      rpc.mockResolvedValue(ok({ puntos: [p('1')], bajas: [], sincronizado_en: 'S1', config: cfg('E1') }));
+      await sincronizar(TOKEN);
+      vi.setSystemTime(Date.now() + 6 * 24 * 3600_000);
+      await sincronizar(TOKEN);
+      expect(rpc).toHaveBeenLastCalledWith('fn_listar_puntos', { token: TOKEN, desde: 'S1' });
+      vi.setSystemTime(Date.now() + 2 * 24 * 3600_000);
+      await sincronizar(TOKEN);
+      expect(rpc).toHaveBeenLastCalledWith('fn_listar_puntos', { token: TOKEN, desde: null });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
