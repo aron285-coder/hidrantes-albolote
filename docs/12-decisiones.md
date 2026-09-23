@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.24 — 23 de septiembre de 2026 (DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.25 — 23 de septiembre de 2026 (DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,41 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-093 · Callejero sin conexión desde OpenStreetMap
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); pendiente de conformidad de jefatura en F9.1 (#76)
+- **Contexto:** la búsqueda de calles y lugares tiene que funcionar **sin cobertura** (FR-73), igual que el resto del mapa. Necesita un callejero de la zona dentro del móvil.
+- **Decisión:**
+  - `scripts/generar-callejero.ts` (`npm run callejero`) lo genera desde OSM vía Overpass, con los mismos servidores y el mismo `User-Agent` que la zona. Solo corre a mano o en el workflow de regenerar (FR-165), nunca en el build de CI (TR-77).
+  - Guarda calles, lugares, polígonos industriales y equipamientos con nombre, unidos por nombre y municipio, simplificados a unos 3 m y recortados a la zona.
+  - Sale `public/callejero.json`, de 200 kB como mucho (TR-117). Se precachea y se carga la primera vez que se usa la búsqueda: no va en el JS inicial.
+  - Los resultados citan "© OpenStreetMap" (ODbL, como el mapa base, TR-71).
+- **Descartado:**
+  - la búsqueda de calles de CartoCiudad sin conexión, porque no hay descarga ligera por municipio;
+  - Nominatim desde el navegador, porque exige cobertura y su política lo desaconseja.
+- **Afecta a:** 01 FR-73, 03 TR-77 y TR-117, 05 (config `version_callejero`), 11 §6.1.
+
+### DEC-092 · Números de portal con CartoCiudad, a través de una Function
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); pendiente de conformidad de jefatura en F9.1 (#76)
+- **Contexto:** con cobertura, la búsqueda tiene que encontrar también el portal ("calle real 12"), y el callejero de OSM no trae portales. CartoCiudad (IGN/CNIG) los tiene para toda España. Es gratuito y no pide cuenta, así que cumple DEC-037.
+- **Comprobado el 23 sep 2026:**
+  - **Documentación oficial** (`github.com/IDEESpain/Cartociudad` y *CartoCiudad_ServiciosWeb.pdf* del IDEE):
+    - `GET /geocoder/api/geocoder/candidates?q=&limit=&no_process=` devuelve un array de candidatos con `id`, `type` (`portal`, `callejero`, `toponimo`…), `address`, `muni`, `portalNumber`, `lat` y `lng`;
+    - `find?id=&type=&portal=` geolocaliza un candidato que venga sin coordenadas;
+    - existe `municipio_filter`.
+  - **Llamada real** desde este equipo: `candidates?q=calle real 12 albolote&limit=3` devolvió `CALLE REAL 12, Albolote`, `type: portal`, `lat 37.2319`, `lng −3.6575`.
+  - **Licencia:** según el propio documento de servicios, se pueden usar "de modo libre y gratuito para cualquier uso". La única obligación es mencionar procedencia y autoría, bajo la licencia CC BY 4.0 del SCNE.
+- **Decisión:**
+  - `POST /api/geocodificar`, una Pages Function nuestra (05 §9). El navegador solo habla con nuestro origen, así que la CSP no cambia.
+  - Nunca anónima: pide un token de voluntario o una sesión de administrador.
+  - Tiene un tiempo máximo de 5 s (TR-118), una caché de 30 días con la clave `sha256` del texto normalizado y solo devuelve resultados dentro de la zona con 2 km de margen.
+  - La consulta no se registra en ningún sitio (11 §6.1).
+  - Los resultados dicen "CartoCiudad · IGN".
+- **Descartado:**
+  - la API de Google Places: clave, facturación, y términos que prohíben guardar los resultados y usarlos sin conexión;
+  - Nominatim para portales, que en la zona casi no tiene números;
+  - llamar a CartoCiudad desde el navegador, que abriría la CSP y enviaría la IP del voluntario a un tercero.
+- **Afecta a:** 01 FR-73, 03 TR-76 y TR-118, 05 §9, 11 §6.1.
+
 ### DEC-094 · Jefatura exige una sesión de Google, no solo el correo del JWT
 - **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` RV-36)
 - **Contexto:** `fn_es_admin()` daba jefatura a cualquier usuario de Supabase Auth cuyo JWT trajera
@@ -733,6 +768,32 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - Las propuestas pendientes antiguas que cambien el tipo no se tocan solas: `fn_aprobar_lote` las omite con ese código y jefatura las rechaza con motivo. 0023 cuenta cuántas hay con `raise notice`.
 - **Descartado:** cambiar el código a la vez que el tipo. Un código dado no se reutiliza ni se cambia, y un voluntario puede tenerlo apuntado en campo (FR-10).
 - **Afecta a:** 01 FR-11 y FR-44 (v1.3), 02 FL-06, 05 §7 y §8, 06 Apéndice A.
+
+### DEC-089 · Funciones de mapa para emergencias
+- **Fecha:** 23 sep 2026 · **Estado:** vigente. Aprobadas por el desarrollador (`docs/18` §0.3.2); pendientes de conformidad de jefatura en la validación F9.1 (#76).
+- **Contexto:** el objetivo G2 es ver el punto más cercano que funciona en menos de 15 s y sin cobertura (01 §A). Hasta ahora se conseguía a mano, ordenando la lista por distancia. Faltaban las acciones que Google Maps hace bien, apoyadas en lo que esta app tiene y Google no: datos propios, uso sin conexión y el estado real de cada hidrante.
+- **Decisión:** entran cinco funciones, todas sin conexión salvo el número de portal:
+  - "¿Qué hay aquí?" con la pulsación larga (FR-72). Sustituye en parte a DEC-077: la pulsación larga ya no abre el alta directamente, sino una hoja cuya acción *Añadir un punto aquí* lo hace a un toque;
+  - búsqueda de calles, lugares, direcciones y coordenadas (FR-73);
+  - modo incidente con los cinco más cercanos que funcionan (FR-74);
+  - compartir y coordenadas UTM ETRS89 huso 30 (FR-75);
+  - medir distancia en tramos de manguera (FR-76), con `metros_tramo_manguera` en config (FR-142).
+
+  Además:
+  - Nada calcula rutas: "Cómo llegar" sigue abriendo la app de mapas del móvil (16 §2).
+  - El incidente, la medición y la posición nunca salen del móvil (11 §6.1).
+  - No hay colores nuevos: las marcas de trabajo usan los tokens de interfaz (06 §4.7).
+  - No hay dependencias nuevas: UTM, rumbo y distancia a un segmento son código propio, probado contra PROJ (TR-119).
+- **Descartado:**
+  - **Rutas propias:** necesitarían un servicio de rutas, con cuenta o coste, o un grafo de calles pesado (16 §2).
+  - **APIs de Google:** clave, facturación y términos que prohíben el uso sin conexión.
+  - **Brújula y rumbo en el punto azul:** en iOS pide permiso de orientación y falla cerca de vehículos.
+  - **Recibir ubicaciones compartidas (Share Target):** solo funciona en Android con la app instalada.
+  - **Street View en la ficha.**
+  - **Rondas de revisión guardadas:** "sin revisar" más el orden por distancia ya lo cubren.
+
+  Todo lo descartado se revisa tras el piloto (`docs/18` §5).
+- **Afecta a:** 01 v1.3 (FR-50, FR-69, FR-142, FR-72 a FR-76), 02 v1.3 (FL-03, FL-35 a FL-38), 03 §13 y §8, 05 §2.10 y §9, 06 §4.7 y Apéndice A, 10 §K, 11 §6.1, 16 §2.1.
 
 ### DEC-088 · Los avisos salen cada 15 minutos y solo cuentan como enviados cuando se anotan
 - **Fecha:** 23 sep 2026 · **Estado:** vigente; sustituye el punto 2 de DEC-068 en cuanto a quién
@@ -945,7 +1006,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** `scripts/arranque.ts`, `.github/workflows/promover-piloto.yml`, `docs/entornos.md`.
 
 ### DEC-077 · Mantener pulsado el mapa empieza un alta ahí mismo
-- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Fecha:** 21 sep 2026 · **Estado:** vigente; sustituida en parte por DEC-089 (la pulsación larga abre "¿Qué hay aquí?", cuya acción *Añadir un punto aquí* empieza el alta a un toque)
 - **Contexto:** en la prueba con un Android real se pidió poder dar de alta un punto **manteniendo
   pulsado el mapa**, como en Google Maps. Hasta ahora el alta empezaba solo por el botón **+**
   (FL-03) y el pin nacía en el GPS, así que junto a un hidrante al que no se puede uno acercar —una
@@ -1208,7 +1269,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 090 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -55,7 +55,7 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 **Actor:** voluntario, junto al punto. **Parte de:** *Mapa*, botón **+** o pulsación larga sobre el mapa.
 
 1. Pulsa **+**. → *Nuevo punto*. El mapa muestra la posición GPS con su margen de error y un pin naranja arrastrable. (FR-50)
-   - Atajo: **mantener pulsado** un sitio del mapa (clic derecho en ordenador) abre *Nuevo punto* con el pin ya puesto ahí, sin pasar por el GPS. Sobre un marcador no hace nada: ahí manda la ficha. (FR-50, DEC-077)
+   - Atajo: **mantener pulsado** un sitio del mapa (clic derecho en ordenador) abre *¿Qué hay aquí?* (FR-72); su acción *Añadir un punto aquí* abre *Nuevo punto* con el pin ya puesto ahí, sin pasar por el GPS. Sobre un marcador no hace nada: ahí manda la ficha. (FR-50, DEC-077, DEC-089)
 2. Ajusta el pin si el GPS no acierta. El sistema guardará origen, precisión y distancia. (FR-13)
 3. Si el pin queda fuera de la zona: aviso "esto queda fuera de la zona habitual, ¿seguro?". Puede continuar. (FR-55)
 4. Elige el **tipo**. (FR-11)
@@ -373,6 +373,69 @@ No hace falta desplegar nada ni tocar código.
 
 ---
 
+### FL-35 · Incidente con GPS, sin cobertura
+
+**Actor:** voluntario en una salida, con el móvil y sin cobertura. (FR-74, FR-80, G2)
+
+1. Abre la aplicación. El mapa pinta lo guardado en el móvil y la barra dice "sin cobertura · datos de hace N min". (FR-80, FR-168)
+2. Pulsa **Cercanos**, junto a *centrar en mí*. Con la posición del GPS al día, el incidente es esa posición. (FR-74)
+3. El mapa marca el incidente con una diana, traza líneas discontinuas a los candidatos y encuadra el incidente y los tres primeros. Se abre la hoja *Cercanos* con, como mucho, los cinco puntos activos más cercanos en estado *bueno* o *regular*. (FR-74)
+4. Cada fila da código, tipo y diámetro, estado, distancia en línea recta, rumbo (N, NE…) y tramos de manguera. Si el más cercano de todos no funciona, un aviso lo dice para que nadie vaya a él por costumbre. (FR-74, FR-142)
+5. *Solo hidrantes* limita la lista. Tocar una fila abre la ficha sin cerrar el incidente; *Cómo llegar* abre la app de mapas del móvil. (FR-74, FR-161)
+6. *Atrás* cierra el modo incidente. (FR-74)
+
+**Variantes**
+- La posición no está al día (el GPS dejó de responder): el origen es la última posición, y un aviso dice "posición de hace N min". (FR-74)
+- Sin posición: la hoja lo explica ("mantén pulsado el mapa donde está el incidente o busca la calle") y enfoca la búsqueda. Ningún botón se queda sin hacer nada. (FR-74, FR-72, FR-73)
+- Ningún punto que funcione a menos de 2 km: estado vacío con *Ver todos en la lista*, ordenada por distancia desde el incidente. (FR-74, FR-68)
+
+---
+
+### FL-36 · Incidente desde una calle buscada
+
+**Actor:** voluntario o jefatura que recibe un aviso con la dirección. (FR-73, FR-72, FR-74)
+
+1. Escribe la calle en la búsqueda del mapa ("calle real", "c/ real", "avda andalucía"). Las calles y lugares salen del callejero guardado en el móvil, sin cobertura, citando "© OpenStreetMap". (FR-73)
+2. Elige la calle: el mapa la encuadra y la resalta, y se abre *¿Qué hay aquí?* en el punto de la calle más cercano al centro del mapa. (FR-73, FR-72)
+3. Pulsa *Cercanos desde aquí*: el resto es FL-35 desde el paso 3, con el incidente en ese sitio. (FR-74)
+
+**Variantes**
+- Con número de portal ("calle real 12") y cobertura: aparece la dirección exacta (fuente "CartoCiudad · IGN"); elegirla centra el mapa en el portal y abre *¿Qué hay aquí?* ahí. (FR-73)
+- Con número y sin cobertura (o el servicio caído): "Los números de portal necesitan cobertura: te enseño la calle", y el resultado de la calle. (FR-73)
+- Unas coordenadas o un enlace de Google Maps pegados: un único resultado "Coordenadas …" arriba; elegirlo centra el mapa ahí. Un enlace corto (maps.app.goo.gl) no se puede leer y lo dice. (FR-73)
+
+---
+
+### FL-37 · Compartir un hidrante con bomberos por WhatsApp
+
+**Actor:** voluntario o jefatura. (FR-75)
+
+1. Abre la ficha del hidrante. El bloque *Coordenadas* enseña las decimales y las UTM ETRS89 huso 30, cada una con su botón de copiar. (FR-75)
+2. Pulsa **Compartir**, junto a *Cómo llegar*. Se abre el menú del móvil con un texto: código, tipo, diámetro y estado; dirección; coordenadas decimales y UTM; y un enlace de Google Maps a esas coordenadas. Sin nombres ni la descripción libre. (FR-75, FR-27)
+3. Elige WhatsApp y el chat. (FR-75)
+
+**Variantes**
+- Sin menú de compartir (ordenador, algunos navegadores): el texto se copia y un aviso dice "Copiado". Si tampoco se puede copiar, el aviso enseña el texto seleccionable. (FR-75, UI-05)
+- Compartir el incidente o un sitio de *¿Qué hay aquí?*: el mismo texto sin los datos del punto. (FR-75, FR-72, FR-74)
+- Sin cobertura: el menú del móvil funciona igual; el mensaje sale cuando haya señal. (FR-75)
+
+---
+
+### FL-38 · Medir el tendido desde un hidrante
+
+**Actor:** voluntario en una salida. (FR-76, FR-74)
+
+1. Desde una fila de *Cercanos*, *Medir tendido*: la medición empieza con la recta incidente → punto ya puesta. También desde *¿Qué hay aquí?* (*Medir desde aquí*) o desde el botón *Medir* del menú de herramientas del mapa. (FR-76, FR-72, FR-74)
+2. Mientras mide, cada toque en el mapa añade un vértice (y se imanta a un marcador si cae cerca); tocar no abre fichas. (FR-76)
+3. La barra inferior dice la distancia total y los tramos: "186 m · 10 tramos de 20 m". Cada tramo de más de 30 m lleva su etiqueta. (FR-76, FR-142)
+4. *Deshacer* quita el último vértice; *Borrar* empieza de nuevo; *Terminar* o *atrás* salen. La medición no se guarda. (FR-76)
+
+**Variantes**
+- Sin cobertura: todo funciona igual. (FR-76)
+- Con 0 o 1 vértices, *Deshacer* está deshabilitado y dice por qué. (FR-76, UI-02)
+
+---
+
 ## Trazabilidad
 
 | Flujo | Pantallas (07 / 08) | Requisitos principales |
@@ -388,4 +451,5 @@ No hace falta desplegar nada ni tocar código.
 | FL-27 | 08 Voluntarios | FR-130–132 |
 | FL-28 | 07 §7.3 (variante jefatura) | FR-150–151 |
 | FL-29–31 | 08 Ajustes | FR-140–145 |
+| FL-35–38 | 07 Mapa, Ficha (incidente, ¿Qué hay aquí?, búsqueda, compartir, medir) | FR-72–76, FR-161 |
 | FL-13, FL-32–34 | 07 Ficha/Ajustes (cómo llegar, avisos, novedades, servidor caído), 08 Inventario/Ajustes (exportar, mantenimiento, avisos, QR, novedades, servidor caído) | FR-160–168 |

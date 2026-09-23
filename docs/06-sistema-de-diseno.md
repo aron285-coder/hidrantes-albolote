@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -206,6 +206,22 @@ igual con 9–10 px). Contenido fijo y en este orden:
 - Cuadrado pequeño ámbar: boca de riego que da menos de lo que podría.
 - Punto gris pequeño tachado: no se pudo usar; hay que comunicarlo, pero no compite visualmente.
 - Cualquiera con borde discontinuo: el dato es el último conocido, pero tiene más de un año.
+
+### 4.7 Marcas de trabajo (incidente, medición y "¿Qué hay aquí?")
+
+Sin colores nuevos: los de caudal significan estado y no se usan para otra cosa (DEC-089). Todas van
+por encima de los marcadores y no se guardan.
+
+| Marca | Claro | Oscuro (§2.4) |
+|---|---|---|
+| **Incidente** | diana de 32 px (icono `Crosshair` de lucide) en `--marino-950` sobre un círculo `--papel` con borde de 2 px `--marino-950` | diana y borde `--anillo-seleccion` (`#E6EAF0`) sobre círculo de tarjeta `#1A2333` |
+| **Líneas del incidente a cada candidato** | discontinuas de 2 px `--marino-600` | discontinuas de 2 px `--anillo-seleccion` con opacidad .7 |
+| **Medición** | línea continua de 3 px `--marino-950`; vértices de 10 px `--papel` con borde `--marino-950`; etiqueta de distancia en `font-datos` | línea y bordes `--anillo-seleccion`; vértices de tarjeta `#1A2333` |
+| **"¿Qué hay aquí?"** (pin soltado) | icono `MapPin` de lucide en `--marino-950` | `--anillo-seleccion` |
+| **Calle resaltada** (resultado de búsqueda) | línea de 4 px `--marino-600` durante la sesión | `--anillo-seleccion` con opacidad .7 |
+
+Los controles que las abren (*Cercanos*, *Medir*, la hoja de *¿Qué hay aquí?*) siguen §5 y §9: ≥ 44 px,
+texto visible en móvil y ningún control muerto (UI-01, UI-02).
 
 ---
 

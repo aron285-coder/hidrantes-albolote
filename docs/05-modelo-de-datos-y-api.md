@@ -230,6 +230,8 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `max_incidencias_dispositivo_dia` | `5` | |
 | `max_errores_global_dia` | `2000` | |
 | `escala_radios` | `[11, 9, 7, 5.5, 5]` | 06 §4 |
+| `metros_tramo_manguera` | `20` | entero de 10 a 30: longitud del tramo de manguera para los tramos de FR-74 y FR-76 (FR-142, GM-01) |
+| `version_callejero` | | la escribe cada despliegue con la versión de `datos/callejero.json` (FR-73, GM-04); Salud del sistema la enseña |
 | `version_zona` | | fecha de `datos/meta.json` |
 | `version_mapabase` | | ídem |
 | `ultimo_respaldo` | | lo escribe el workflow |
@@ -339,7 +341,7 @@ fn_validar_token(token text) returns uuid
   -- errores: TOKEN_INVALIDO · TOKEN_REVOCADO · TOKEN_CADUCADO
 
 fn_listar_puntos(token text, desde timestamptz default null)
-  returns jsonb  -- { puntos: v_puntos_activos[], bajas: uuid[], sincronizado_en, config: {meses_revision, radio_duplicado_m, escala_radios, version_zona, version_mapabase} }
+  returns jsonb  -- { puntos: v_puntos_activos[], bajas: uuid[], sincronizado_en, config: {meses_revision, radio_duplicado_m, escala_radios, version_zona, version_mapabase, epoca_datos, metros_tramo_manguera} }
 
 fn_ficha_punto(token text, punto_id uuid) returns jsonb
   -- sin historial ni autores. error: PUNTO_NO_ENCONTRADO
@@ -572,6 +574,28 @@ nunca un correo (DEC-053). La respuesta se guarda en la caché de Cloudflare (`c
 por coordenadas redondeadas a 4 decimales (unos 11 m), también sin `propuesta_id` (RV-25).
 Nominatim `reverse`, `zoom=18`, `User-Agent = NOMINATIM_USER_AGENT`, cola en memoria a 1 req/s;
 escribe `propuestas.direccion_sugerida`.
+
+### `POST /api/geocodificar`
+
+Números de portal para la búsqueda (FR-73, DEC-092). **Nunca anónimo**: no es un proxy abierto.
+
+```json
+→ { "token": "…", "q": "calle real 12" }    (voluntario)   ·   cabecera Authorization de administrador
+← 200 { "resultados": [ { "etiqueta": "Calle Real, 12, Albolote", "tipo": "portal|calle|lugar",
+                          "lat": 37.2319, "lng": -3.6575, "municipio": "albolote" } ],
+        "fuente": "CartoCiudad (IGN/CNIG)" }        // como mucho 5
+← 400 { "error": "PAYLOAD_INVALIDO" }   // q de menos de 3 o más de 120 caracteres tras trim
+← 401 { "error": "TOKEN_INVALIDO" }     // sin token de voluntario válido ni sesión de administrador
+← 503 { "error": "SIN_SERVIDOR" }       // CartoCiudad caído o más de 5 s (TR-118)
+```
+
+- Autorización igual que `/api/push`: token de voluntario válido o administrador.
+- Llama a `GET https://www.cartociudad.es/geocoder/api/geocoder/candidates?q=<q>&limit=10&no_process=…`
+  con `AbortSignal.timeout(5000)` y el `User-Agent` de `NOMINATIM_USER_AGENT`; si un candidato
+  `portal` o `callejero` no trae `lat`/`lng`, `find?id=&type=&portal=`.
+- Solo devuelve resultados dentro del recuadro de la zona de cobertura con 2 km de margen.
+- Caché `caches.default` 30 días. La clave es `<origen de la petición>/__cache/geocodificar?q=<sha256(q normalizada)>`:
+  el texto no se guarda en claro. `q` no se registra en logs ni en `errores_cliente` (11).
 
 ### `POST /api/lanzar-workflow`
 
