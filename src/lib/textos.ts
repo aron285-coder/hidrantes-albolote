@@ -781,6 +781,7 @@ export const T = {
     noAutorizado: 'Tu cuenta ya no tiene acceso de administrador.',
     noConfigurado: 'Esta acción aún no está configurada en el servidor.',
     sinServidor: 'Sin conexión con el servidor. Inténtalo de nuevo en un momento.',
+    puntoOcupado: 'Otra persona está cambiando este punto; inténtalo en unos segundos.',
     generico: 'No se ha podido completar. Inténtalo de nuevo.',
   },
 

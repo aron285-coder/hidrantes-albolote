@@ -46,3 +46,11 @@ describe('textoError (05 §8, UI-04)', () => {
     for (const c of [...CODIGOS, 'LO_QUE_SEA']) expect(textoError(c)).not.toMatch(/@/);
   });
 });
+
+describe('PUNTO_OCUPADO (RV-17)', () => {
+  it('se dice en palabras de jefatura, suelto y en el resumen de un lote', async () => {
+    const { motivoOmitida } = await import('./cola');
+    expect(textoError('PUNTO_OCUPADO')).toBe(T.panelErrores.puntoOcupado);
+    expect(motivoOmitida('PUNTO_OCUPADO')).toBe(T.panelErrores.puntoOcupado);
+  });
+});

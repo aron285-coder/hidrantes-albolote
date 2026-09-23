@@ -339,6 +339,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Sin acceso` · `Volver` · `Cifra [1] de 6` · `El código son 6 cifras` ·
 `Escribe tu nombre y apellido` · `Entrando…` ·
 `Sin conexión con el servidor. Inténtalo de nuevo en un momento.` ·
+`Otra persona está cambiando este punto; inténtalo en unos segundos.` ·
 `El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo; tu nombre se conserva.` ·
 `Comprobando tu cuenta…` · `Aviso legal y privacidad · v[0.1.0]` · `Aviso legal`.
 
