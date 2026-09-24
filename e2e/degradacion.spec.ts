@@ -148,3 +148,38 @@ test.describe('degradación controlada (FR-168)', () => {
     });
   });
 });
+
+// docs/19 RV-58: con la capa de calle elegida, sin cobertura el mapa se quedaba sin calles aunque el
+// mapa base estuviera en el móvil.
+test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
+  test('con "Calle" elegida y sin cobertura, se ve el mapa base propio debajo y el aviso lo dice', async ({
+    page,
+    context,
+  }) => {
+    await conSesion(page);
+    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+    await page.goto('/ajustes');
+    // Se descarga solo al arrancar con una conexión que lo permite (FR-81).
+    await expect(page.getByText(/Descargado · /)).toBeVisible({ timeout: 20_000 });
+    await page.goto('/');
+    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+
+    const calle = page.getByRole('radio', { name: new RegExp(T.mapa.calleOsm.replace(/[()]/g, '\\$&')) });
+    await page.getByRole('button', { name: T.mapa.capas }).click();
+    await calle.click();
+    await page.keyboard.press('Escape');
+    // Con cobertura, solo la calle: lo comprueba capas.test.ts (el servidor simulado aquí no
+    // responde a todo, y sin servidor el mapa base ya va debajo).
+    const teselasBase = page.locator('.leaflet-tile-container canvas, canvas.leaflet-tile');
+
+    await page.route('https://tile.openstreetmap.org/**', (r) => r.abort('internetdisconnected'));
+    await context.setOffline(true);
+    await expect(page.getByRole('status').filter({ hasText: T.mapa.capaConBaseDebajo(T.mapa.calleOsm) })).toBeVisible();
+    await expect(teselasBase.first()).toBeVisible();
+
+    // La elección no cambia: al volver la cobertura sigue elegida la calle.
+    await context.setOffline(false);
+    await page.getByRole('button', { name: T.mapa.capas }).click();
+    await expect(calle).toBeChecked();
+  });
+});

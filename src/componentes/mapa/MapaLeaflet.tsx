@@ -25,6 +25,8 @@ interface Props {
   puntos: Punto[];
   seleccionado: string | null;
   capa: Capa;
+  /** El mapa base propio debajo de la capa en línea (sin cobertura, RV-58). */
+  baseDebajo?: boolean;
   modo: 'claro' | 'oscuro';
   posicion: Posicion | null;
   alSeleccionar: (id: string) => void;
@@ -64,6 +66,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     puntos,
     seleccionado,
     capa,
+    baseDebajo = false,
     modo,
     posicion,
     alSeleccionar,
@@ -194,14 +197,14 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     alejar: () => mapa.current?.zoomOut(),
   }));
 
-  // Capa base, capa en línea y límite de zona: cambian con la capa elegida y con el modo.
+  // Capa base, capa en línea y límite de zona: cambian con la capa elegida, el modo y la cobertura.
   useEffect(() => {
     const m = mapa.current;
     if (!m) return;
-    const capas = capasDe(capa, modo);
+    const capas = capasDe(capa, modo, baseDebajo);
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
-  }, [capa, modo]);
+  }, [capa, modo, baseDebajo]);
 
   // Puntos, con declutter por zoom (06 §4.4). El seleccionado se ve siempre.
   useEffect(() => {

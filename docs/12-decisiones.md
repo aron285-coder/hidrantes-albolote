@@ -660,6 +660,16 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-098 · Sin cobertura, el mapa base propio va debajo de la capa en línea
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/19` RV-58). Pendiente de conformidad de jefatura con 01 v1.4 (F9.1, #76).
+- **Contexto:** con la capa de calle (OSM) o el satélite (PNOA) elegida, al perder la cobertura el mapa se quedaba en blanco con los marcadores y un aviso. En una emergencia sin señal eso deja al voluntario sin calles, aunque tenga el mapa base en el móvil.
+- **Decisión:**
+  - Mientras la conexión no esté bien (`conexion !== 'bien'`) y el mapa base esté descargado, se pinta **debajo** de la capa en línea. Encima sigue la capa elegida, con lo que el navegador tenga en caché o nada. Es el mismo mecanismo que ya usaba Catastro, generalizado en `capasPintadas` (`src/lib/capas.ts`).
+  - El aviso pasa a "Sin cobertura: se ve el mapa base propio en lugar de «…»". Sin el mapa base descargado, el aviso sigue como estaba.
+  - La capa elegida no se cambia ni se guarda otra: al volver la cobertura, todo queda como estaba.
+- **Descartado:** cambiar la capa al mapa base al perder la cobertura. Obliga a volver a elegirla y pisa la preferencia de FR-93.
+- **Afecta a:** 01 FR-63 (v1.4), 06 Apéndice A.
+
 ### DEC-097 · Los avisos push los despacha un Cloudflare Worker con Cron Trigger
 - **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente (`docs/19` §0.2.2, RV-52). Sustituye la cadencia de DEC-088: lo demás de DEC-088 (reclamar, anotar, `quedan`) sigue igual.
 - **Contexto:**
@@ -1333,11 +1343,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
 | 03 | 001, 004, 026, 028 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091 |

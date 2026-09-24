@@ -395,6 +395,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `El mapa base no está en el móvil: sin cobertura el fondo quedará vacío.` · `Descargar ([4,4] MB)` ·
 `Descargar versión nueva` · `Ocultar aviso` (avisos del mapa base en el propio mapa, FR-81) ·
 `La capa "[Satélite (PNOA)]" necesita cobertura. Los puntos siguen; cambia al mapa base.` ·
+`Sin cobertura: se ve el mapa base propio en lugar de «[Calle (OSM)]»` (con el mapa base en el móvil, RV-58) ·
 `Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Buscando tu posición…` ·
 `Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.` ·
 `No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Acercar` · `Alejar` ·
