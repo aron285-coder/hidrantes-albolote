@@ -11,7 +11,17 @@
 //
 // Nunca toca el esquema `public` ni borra nada del destino: solo inserta lo que falta.
 
-import { abortar, argumentos, ejecutarScript, log, preguntar, psql, psqlOk, type Resultado } from './lib/comun.ts';
+import {
+  abortar,
+  argumentos,
+  errorSeguro,
+  ejecutarScript,
+  log,
+  preguntar,
+  psql,
+  psqlOk,
+  type Resultado,
+} from './lib/comun.ts';
 import { sqlSecuenciasAlMenos } from './lib/secuencias.ts';
 import { REFS, epocaNueva, refDeUrl } from './restaurar.ts';
 import { BUCKETS, subir } from './restaurar-fotos.ts';
@@ -130,6 +140,16 @@ order by x.codigo;`;
 export function motivoCodigosEnConflicto(codigos: string[]): string | null {
   if (!codigos.length) return null;
   return `Estos códigos ya existen en producción con otro punto: ${codigos.join(', ')}. No se ha escrito nada; hay que resolverlo a mano antes de promover.`;
+}
+
+/**
+ * El error de psql de una promoción fallida. Una violación de `check` o `not null` trae
+ * `DETAIL: Failing row contains (…)` con autor_nombre, autor_apellido y revisada_por, y
+ * promover-piloto.yml corre en Actions de un repositorio público (docs/19 RV-53). Completo solo en
+ * local y con --detalle; con CI, nunca.
+ */
+export function errorDePromocion(texto: string, detalle = argumentos().banderas.has('detalle')): string {
+  return detalle && !process.env.CI ? texto : errorSeguro(texto);
 }
 
 /** Todo en una transacción: o entra el piloto entero o no entra nada. Con la época nueva (RV-46). */
@@ -287,7 +307,7 @@ async function principal(): Promise<void> {
   if (escrito !== CONFIRMACION) abortar('No se ha escrito la confirmación: no se ha tocado nada.');
 
   const r: Resultado = psql(destino, guionPromocion(sentencias));
-  if (r.codigo !== 0) abortar(`La promoción falló y no se ha escrito nada:\n${r.error || r.salida}`);
+  if (r.codigo !== 0) abortar(`La promoción falló y no se ha escrito nada:\n${errorDePromocion(r.error || r.salida)}`);
   log.ok('Puntos, propuestas y registro insertados; secuencias avanzadas; época nueva para los móviles');
 
   const fotos = { copiadas: 0, ya: 0, sin: [] as string[] };

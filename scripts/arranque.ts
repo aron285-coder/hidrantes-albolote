@@ -19,6 +19,7 @@ import {
   ejecutar,
   ejecutarOk,
   ejecutarScript,
+  errorSeguro,
   log,
   preguntar,
   psql,
@@ -269,7 +270,8 @@ async function esperarConexion(url: string, maxSegundos = 180): Promise<string> 
     const r = psql(url, 'select current_user;', { tuplas: true });
     if (r.codigo === 0) return r.salida;
     const esCache = /password authentication failed/i.test(r.error);
-    if (!esCache || Date.now() - inicio > maxSegundos * 1000) abortar(`psql falló:\n${r.error || r.salida}`);
+    if (!esCache || Date.now() - inicio > maxSegundos * 1000)
+      abortar(`psql falló:\n${errorSeguro(r.error || r.salida)}`);
     if (!avisado) {
       log.info('el pooler aún no conoce la contraseña nueva; reintentando (hasta 3 min)…');
       avisado = true;
@@ -568,7 +570,10 @@ function aplicarSecretosPages(e: Entorno): void {
   if (!paso.comando) return log.aviso(paso.aviso);
   const r = ejecutar('gh', paso.comando);
   if (r.codigo === 0) log.ok(paso.aviso);
-  else log.aviso(`No se ha podido lanzar el despliegue de staging (${r.error.trim()}): gh ${paso.comando.join(' ')}`);
+  else
+    log.aviso(
+      `No se ha podido lanzar el despliegue de staging (${errorSeguro(r.error)}): gh ${paso.comando.join(' ')}`,
+    );
 }
 
 function escribirEntornos(datos: Map<string, DatosSupabase>, cuentaCf: string, huella: string | null): void {

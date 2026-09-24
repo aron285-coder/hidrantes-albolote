@@ -13,7 +13,17 @@
 import { copyFileSync, existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { abortar, argumentos, confirmar, ejecutar, ejecutarScript, log, preguntar, RAIZ } from './lib/comun.ts';
+import {
+  abortar,
+  argumentos,
+  confirmar,
+  ejecutar,
+  ejecutarScript,
+  errorSeguro,
+  log,
+  preguntar,
+  RAIZ,
+} from './lib/comun.ts';
 import { BUCKET_POR_DEFECTO } from './respaldo-fotos.ts';
 
 export const BUCKETS: Record<string, string> = {
@@ -58,7 +68,7 @@ export async function subir(
   // lo cuenta como 409 en el cuerpo aunque la respuesta venga con 400 (pasa por Kong).
   const cuerpo = (await r.json().catch(() => ({}))) as { statusCode?: string; error?: string };
   if (r.status === 409 || cuerpo.statusCode === '409' || cuerpo.error === 'Duplicate') return false;
-  abortar(`Storage respondió ${r.status} al subir ${objeto}: ${cuerpo.error ?? 'sin detalle'}`);
+  abortar(`Storage respondió ${r.status} al subir ${objeto}: ${errorSeguro(cuerpo.error ?? 'sin detalle')}`);
 }
 
 function descifrarYDesempaquetar(archivo: string): string {
@@ -70,12 +80,12 @@ function descifrarYDesempaquetar(archivo: string): string {
   if (archivo.endsWith('.gpg')) {
     log.info('Descifrando con gpg (necesita la clave privada del sobre importada aquí).');
     const r = ejecutar('gpg', ['--batch', '--yes', '--decrypt', '--output', tar, archivo]);
-    if (r.codigo !== 0) abortar(`gpg no ha podido descifrar el archivo:\n${r.error || r.salida}`);
+    if (r.codigo !== 0) abortar(`gpg no ha podido descifrar el archivo:\n${errorSeguro(r.error || r.salida)}`);
   } else {
     copyFileSync(archivo, tar);
   }
   const r = ejecutar('tar', ['-xf', 'fotos.tar'], { cwd: carpeta });
-  if (r.codigo !== 0) abortar(`No se ha podido desempaquetar:\n${r.error || r.salida}`);
+  if (r.codigo !== 0) abortar(`No se ha podido desempaquetar:\n${errorSeguro(r.error || r.salida)}`);
   rmSync(tar, { force: true });
   return carpeta;
 }

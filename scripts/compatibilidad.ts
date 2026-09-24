@@ -15,7 +15,7 @@
 import { copyFileSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
-import { abortar, argumentos, ejecutar, ejecutarScript, log, RAIZ } from './lib/comun.ts';
+import { abortar, argumentos, ejecutar, ejecutarScript, errorSeguro, log, RAIZ } from './lib/comun.ts';
 
 const CARPETA = '.anterior';
 const DESTINO = path.join(RAIZ, CARPETA);
@@ -127,7 +127,7 @@ async function principal(): Promise<void> {
 
   limpiarWorktree();
   const alta = ejecutar('git', ['worktree', 'add', '--detach', CARPETA, ref]);
-  if (alta.codigo !== 0) abortar(`No se pudo preparar el worktree:\n${alta.error}`);
+  if (alta.codigo !== 0) abortar(`No se pudo preparar el worktree:\n${errorSeguro(alta.error)}`);
   log.ok(
     `${ref} desplegado en ${CARPETA}/ (${ejecutar('git', ['-C', CARPETA, 'rev-parse', '--short', 'HEAD']).salida})`,
   );
@@ -142,7 +142,8 @@ async function principal(): Promise<void> {
     // `vite build` y no `npm run build`: el typecheck del código de entonces no aporta nada aquí, y
     // las dependencias se resuelven en el node_modules del repositorio, que está justo encima.
     const construido = ejecutar('npx', ['--no-install', 'vite', 'build'], { cwd: DESTINO });
-    if (construido.codigo !== 0) abortar(`El frontend de ${ref} no compila:\n${construido.error || construido.salida}`);
+    if (construido.codigo !== 0)
+      abortar(`El frontend de ${ref} no compila:\n${errorSeguro(construido.error || construido.salida)}`);
     log.ok('frontend anterior construido');
     adaptarArnesAnterior();
 

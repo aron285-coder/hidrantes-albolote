@@ -4,6 +4,7 @@ import {
   PREFIJO_PRUEBA,
   SQL_GENERADOR,
   cuentaPorTabla,
+  errorDePromocion,
   esDePruebas,
   esLocal,
   fotosDe,
@@ -121,5 +122,32 @@ describe('promoción sin conflictos ni puntos invisibles (RV-46)', () => {
     expect(epoca).toBeGreaterThan(guion.indexOf('insert into hidrantes.puntos'));
     expect(epoca).toBeLessThan(guion.lastIndexOf('commit;'));
     expect(guion).toContain("'promover-piloto.ts'");
+  });
+});
+
+// docs/19 RV-53: una promoción fallida no escribe nombres de voluntarios en los logs de Actions.
+describe('error de una promoción fallida (RV-53)', () => {
+  const FALLO = [
+    'psql:<stdin>:40: ERROR:  null value in column "autor_nombre" of relation "propuestas" violates not-null constraint',
+    'DETAIL:  Failing row contains (0f1e2d3c-4b5a-4968-8776-6a5b4c3d2e1f, null, alta, {}, null, Pérez, d1, x, manual, Ana García).',
+  ].join('\n');
+
+  it('sin --detalle, ni en local: sin la fila', () => {
+    const texto = errorDePromocion(FALLO, false);
+    expect(texto).toContain('violates not-null constraint');
+    for (const nombre of ['Pérez', 'Ana', 'García', 'Failing row contains (0f']) expect(texto).not.toContain(nombre);
+  });
+
+  it('con CI, nunca, aunque se pida --detalle', () => {
+    const antes = process.env.CI;
+    try {
+      process.env.CI = '1';
+      expect(errorDePromocion(FALLO, true)).not.toContain('Pérez');
+      delete process.env.CI;
+      expect(errorDePromocion(FALLO, true)).toContain('Pérez');
+    } finally {
+      if (antes === undefined) delete process.env.CI;
+      else process.env.CI = antes;
+    }
   });
 });

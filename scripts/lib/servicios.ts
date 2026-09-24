@@ -1,7 +1,7 @@
 // Clientes mínimos de las API que usa el arranque: Supabase Management, Supabase Storage,
 // Cloudflare y GitHub (vía `gh`). Todos idempotentes: leen antes de escribir.
 
-import { abortar, ejecutar } from './comun.ts';
+import { abortar, ejecutar, errorSeguro } from './comun.ts';
 
 async function peticion<R>(url: string, init: RequestInit & { permitir404?: boolean } = {}): Promise<R | null> {
   const r = await fetch(url, {
@@ -208,7 +208,7 @@ export class Cloudflare {
 
 export function gh(args: string[], entrada?: string): string {
   const r = ejecutar('gh', args, { entrada });
-  if (r.codigo !== 0) abortar(`gh ${args.slice(0, 3).join(' ')} falló: ${r.error || r.salida}`);
+  if (r.codigo !== 0) abortar(`gh ${args.slice(0, 3).join(' ')} falló: ${errorSeguro(r.error || r.salida)}`);
   return r.salida;
 }
 
