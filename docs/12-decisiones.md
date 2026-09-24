@@ -660,6 +660,24 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-113 · Inventario vacío, panel a 800 px y respaldo en staging: los detalles
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-76, RV-79 y la parte Frontend de RV-78). Decisión de bajo riesgo de la sesión Frontend: no cambia ningún requisito.
+- **Decisión:**
+  1. **Inventario vacío (RV-76).** El caso lo decide `sincronizadoEn`: con `null`, el texto de siempre; con valor y sin puntos, "Todavía no hay ningún punto en el inventario…" y el botón "Añadir un punto".
+     - El botón abre `/proponer/alta` **sin coordenadas**, igual que el "+" naranja: el alta coloca el pin con el GPS si está al día (FL-03, RV-40). Pasar la posición en la URL la trataría como una pulsación larga (DEC-077).
+     - El aviso va dentro de `avisos-mapa`, con los demás avisos flotantes, que ya dejan libre la columna de controles (RV-59).
+     - El mapa y la lista usan el mismo componente (`AvisoSinPuntos`). En ordenador, con la lista al lado, sale en los dos sitios, como antes.
+  2. **Panel por debajo de 1.024 px (RV-79).**
+     - El Inventario pasa a filas de dos líneas: código, tipo, diámetro, estado y acciones en la primera; dirección, núcleo y revisión en la segunda.
+     - Sigue siendo una tabla para los lectores de pantalla (`role="table"`, `row`, `columnheader` y `cell`), con los mismos botones de ordenar arriba. Se cambia de tabla a filas con `matchMedia('(min-width: 1024px)')`, no con CSS, para no tener dos campos de dirección con la misma etiqueta.
+     - El campo de dirección mide al menos `27ch`, así que "— pendiente, escribe aquí" nunca se corta, tampoco en la tabla ancha. El tipo va con `whitespace-nowrap`.
+     - Las pestañas se reparten en dos filas (`flex-wrap`), sin selector: se ven todas a la vez y cada una sigue siendo un enlace.
+  3. **"Último respaldo" en staging (RV-78):** con `VITE_ENTORNO=staging` y sin respaldo, dice "no se respalda: entorno de pruebas". Si algún día hubiera una fecha, se enseña la fecha. En local sigue "todavía ninguno".
+- **Descartado:**
+  - **Un selector "Sección: Inventario ▾"** para las pestañas: esconde las demás y añade un toque. Con dos filas caben las siete a 768 px.
+  - **Filas de dos líneas solo con CSS** sobre la misma `<table>`: con `display` cambiado, algunos navegadores pierden la semántica de tabla, y el test tendría que adivinarla.
+- **Afecta a:** 06 Apéndice A (tres textos nuevos).
+
 ### DEC-111 · En línea, el mapa base va en teselas sueltas; el PMTiles entero, solo para la descarga
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-71). Decisión de bajo riesgo de la sesión Frontend: no cambia ningún requisito.
 - **Contexto:**
@@ -1496,7 +1514,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028, 099, 111 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100 |
