@@ -180,6 +180,8 @@ jobs:
         run: npx supabase stop --no-backup
 
   # Los e2e en tres partes a la vez (DEC-100). Antes, un solo trabajo de 8 a 10 minutos.
+  # --fully-parallel reparte por test y no por archivo: por archivo, una parte tardaba 5,5 min y las
+  # otras 3,7. Ningún spec comparte estado entre tests (ni beforeAll ni serial).
   e2e-parte:
     name: ci-e2e-parte
     needs: cambios
@@ -195,7 +197,7 @@ jobs:
       - uses: ./.github/actions/preparar
       - uses: ./.github/actions/navegadores
       - name: E2e (sin los de rendimiento), parte ${{ matrix.parte }} de 3
-        run: npx playwright test --grep-invert @rendimiento --shard=${{ matrix.parte }}/3
+        run: npx playwright test --grep-invert @rendimiento --fully-parallel --shard=${{ matrix.parte }}/3
       - if: failure()
         uses: actions/upload-artifact@v7
         with:

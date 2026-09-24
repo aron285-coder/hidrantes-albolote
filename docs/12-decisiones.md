@@ -669,7 +669,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. **Tres sesiones** (Ops, Backend, Frontend), cada una dueña de sus rutas, coordinadas por una issue por especificación. El reparto está en `docs/trabajo-en-paralelo.md`.
   2. **Puertos por sesión:** `PW_PUERTO` en `playwright.config.ts` (4173 por defecto) y `VITE_PUERTO` en `vite.config.ts` (5173). Los dos e2e que tenían escrito `127.0.0.1:4173` usan `baseURL`.
-  3. **`ci-e2e` en tres partes** (`ci-e2e-parte`, `--shard=N/3`, `fail-fast: false`) más `ci-e2e-rendimiento` con un worker. Los navegadores salen de una caché por la versión de `@playwright/test` (`.github/actions/navegadores`). El check obligatorio sigue llamándose `ci-e2e`: es un agregador con `if: always()` que solo acepta `success` y `skipped`. Así `CHECKS_OBLIGATORIOS` y la protección de ramas no cambian.
+  3. **`ci-e2e` en tres partes** (`ci-e2e-parte`, `--fully-parallel --shard=N/3`, `fail-fast: false`) más `ci-e2e-rendimiento` con un worker. Los navegadores salen de una caché por la versión de `@playwright/test` (`.github/actions/navegadores`). El check obligatorio sigue llamándose `ci-e2e`: es un agregador con `if: always()` que solo acepta `success` y `skipped`. Así `CHECKS_OBLIGATORIOS` y la protección de ramas no cambian.
+     `--fully-parallel` reparte por test: por archivo, en el primer intento una parte tardó 5,5 min y las otras dos 3,7. Ningún spec comparte estado entre tests: no hay `beforeAll` ni `serial`, y el estado simulado vive dentro de cada test.
   4. **PR de documentación:** el trabajo `cambios` da `codigo=false` si todo lo cambiado está bajo `docs/` o es `*.md` fuera de `src/` (`.github/scripts/hay-codigo.sh`). Entonces `ci-sql` y los e2e se saltan por su `if`, y GitHub los cuenta como correctos. En `push` y a mano, siempre `codigo=true`. Ni los e2e ni ci-sql leen `docs/`: `intrusion.ts` escribe en 11, pero no lo lee.
   5. **Migraciones en orden desde CI:** en los PR, `ci-calidad` corre `scripts/comprobar-migraciones-nuevas.ts`. Falla si una migración añadida no va por encima de la mayor de la rama base, y dice a qué número renumerar. También falla si el PR modifica o borra una migración de la base (CLAUDE.md §3).
   6. **Números de decisión:** DEC-099 ya lo tomó la pantalla de entrada (#327). Este documento es DEC-100, y los rangos de la próxima especificación son Ops DEC-100 a 105, Backend 106 a 111 y Frontend 112 a 117.
@@ -679,7 +680,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - «Comprobarlo en el propio PR con un commit que solo toque `docs/`» no se puede hacer. `cambios` mira todo el PR, y el de PAR-01 toca código, así que la prueba es el segundo PR de 9.6.
 - **Descartado:**
   - **`paths-ignore` en el workflow:** sin ejecución no hay check, y un check obligatorio que no llega deja el PR esperando para siempre.
-  - **`fullyParallel`, por ahora:** reparte por test y no por archivo, y equilibraría mejor las partes. Pero cambia cómo corren todos los e2e a la vez. Se deja para cuando la medición diga que las partes salen muy desiguales.
+  - **`fullyParallel` en `playwright.config.ts`:** cambiaría también cómo corren los e2e en local. Basta con `--fully-parallel` en las partes del CI.
   - **Rangos de migraciones por sesión:** `migrar.ts` rechaza una pendiente anterior a la última aplicada.
 - **Resultado:** la duración antes y después (mediana de 5 ejecuciones, API de Actions) está en `docs/verificacion/par-01.md`.
 - **Afecta a:** 04 §11; CLAUDE.md §5; `docs/trabajo-en-paralelo.md`.

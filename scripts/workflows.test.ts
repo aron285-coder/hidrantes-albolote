@@ -258,7 +258,7 @@ describe('CI en paralelo (PAR-01)', () => {
     const t = trabajo('e2e-parte');
     expect(t).toContain('parte: [1, 2, 3]');
     expect(t).toContain('fail-fast: false');
-    expect(t).toContain('--grep-invert @rendimiento --shard=${{ matrix.parte }}/3');
+    expect(t).toContain('--grep-invert @rendimiento --fully-parallel --shard=${{ matrix.parte }}/3');
     expect(t).toContain('name: playwright-report-${{ matrix.parte }}');
   });
 
