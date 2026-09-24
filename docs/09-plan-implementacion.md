@@ -397,7 +397,9 @@ cabeceras A; `vigilancia.yml` ha corrido en verde tres días seguidos; la prueba
 - [ ] Piloto de una semana en staging con un barrio real y 5–8 voluntarios; jefatura genera antes un
       código real desde Ajustes. Incidencias en la pestaña Voluntarios.
 - [ ] Corregir lo que salga; volver a pasar los casos de 10 afectados.
-- [ ] PR `develop` → `main`; aprobación; despliegue automático con código real en el *summary*.
+- [ ] **Abrir producción a la agrupación**, después de la validación (F9.1) y del piloto (F9.2):
+      producción ya tiene la versión completa de staging desde DEC-096, porque se pone al día al
+      cerrar cada bloque de trabajo; aquí se genera el código real y se abre el acceso.
 - [x] `scripts/promover-piloto.ts` (`promover-piloto.yml`, manual con aprobación): cola de staging a
       cero → lee puntos activos no `[PRUEBA]` con propuestas aprobadas y registro → copia fotos
       entre buckets → inserta conservando códigos y avanza secuencias → informe. Idempotente por

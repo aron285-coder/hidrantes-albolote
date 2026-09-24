@@ -12,9 +12,11 @@ async function errores(codigo: string, archivo: string): Promise<string[]> {
 }
 
 describe('regla de textos de interfaz (RV-31)', () => {
-  // La primera pasada carga la configuración y los plugins: con la máquina cargada pasaba de 5 s.
+  // La primera pasada de cada tipo de archivo carga su configuración y sus plugins: con la máquina
+  // cargada pasaba de 5 s. Se calientan los dos, .ts y .tsx.
   beforeAll(async () => {
     await errores('export {};\n', 'src/lib/calentar.ts');
+    await errores('export const X = () => null;\n', 'src/componentes/Calentar.tsx');
   }, 60_000);
 
   it('un .tsx con <p>Guardado</p> da error, aunque sea una sola palabra sin acento', async () => {
