@@ -201,6 +201,9 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     expect(cuerpo).toContain('::warning::');
     expect(cuerpo).toContain('GITHUB_STEP_SUMMARY');
     expect(cuerpo).toContain('Workers Scripts: Edit');
+    // Con solo lectura el token ve los Workers pero no puede desplegarlos: se mira el permiso de
+    // edición, con la lista de nombres de los secretos (24 sep 2026).
+    expect(cuerpo).toContain('workers/scripts/hidrantes-avisos/secrets');
     // La vigilancia sí lo cuenta como problema: dice el código HTTP en vez de "ninguno".
     expect(leer('vigilancia.yml')).toContain('cron="sin permiso (HTTP $codigo)"');
   });

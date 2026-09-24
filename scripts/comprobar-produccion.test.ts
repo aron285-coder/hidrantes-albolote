@@ -36,7 +36,7 @@ function fuentes(cambios: Partial<Fuentes> = {}): Fuentes {
       ]),
     esquemasExpuestos: async () => ['public', 'graphql_public', 'hidrantes'],
     maxRows: async () => 1000,
-    token: async () => ({ activo: true, workers: true, pages: true }),
+    token: async () => ({ activo: true, workers: true, workersEdicion: true, pages: true }),
     ...cambios,
   };
 }
@@ -110,6 +110,22 @@ describe('comprobar-produccion (docs/19 P-01)', () => {
     );
     expect(tabla(filas)).toMatch(/Workers Scripts \| FALTA \| Cloudflare → My Profile → API Tokens/);
     expect(codigoSalida(filas)).toBe(1);
+  });
+
+  // Tras el primer despliegue del Worker (24 sep 2026): el token veía los Workers pero no podía
+  // desplegarlos. Leer los scripts no basta; los nombres de los secretos solo los lista con Edit.
+  it('el token que ve los Workers pero no puede editarlos: Workers Scripts: Edit falta y para', async () => {
+    const filas = await comprobar(
+      fuentes({ token: async () => ({ activo: true, workers: true, workersEdicion: false, pages: true }) }),
+      LOCALES,
+    );
+    expect(tabla(filas)).toMatch(/Workers Scripts: Edit \| FALTA \| Cloudflare → My Profile → API Tokens/);
+    expect(codigoSalida(filas)).toBe(1);
+    const sinWorker = await comprobar(
+      fuentes({ token: async () => ({ activo: true, workers: true, workersEdicion: null, pages: true }) }),
+      LOCALES,
+    );
+    expect(tabla(sinWorker)).toMatch(/Workers Scripts: Edit \| NO COMPROBADO \|/);
   });
 
   it('sin hidrantes en la Data API, falta; un db_max_rows distinto se anota pero no para', async () => {

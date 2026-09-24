@@ -76,6 +76,12 @@ export interface EstadoToken {
   activo: boolean;
   /** GET /accounts/{id}/workers/scripts respondió: el token ve los Workers. */
   workers: boolean;
+  /**
+   * GET …/workers/scripts/hidrantes-avisos/secrets respondió: el token puede **desplegar** el Worker.
+   * Solo lista nombres, y solo con Workers Scripts: Edit (el primer despliegue falló ahí, 24 sep
+   * 2026). Null si el Worker aún no existe: entonces no se puede saber sin tocar nada.
+   */
+  workersEdicion?: boolean | null;
   /** GET /accounts/{id}/pages/projects/hidrantes-albolote respondió. */
   pages: boolean;
 }
@@ -242,6 +248,18 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
           ? undefined
           : 'Cloudflare → My Profile → API Tokens → editar el token → Account · Workers Scripts · Edit (2 min)',
       },
+      {
+        grupo: grupoCf,
+        nombre: 'Workers Scripts: Edit',
+        estado: token.workersEdicion === true ? 'OK' : token.workersEdicion === false ? 'FALTA' : 'NO COMPROBADO',
+        imprescindible: true,
+        nota:
+          token.workersEdicion === false
+            ? 'Cloudflare → My Profile → API Tokens → editar el token → Account · Workers Scripts · Edit (2 min): ve los Workers pero no puede desplegar hidrantes-avisos'
+            : token.workersEdicion == null
+              ? 'el Worker hidrantes-avisos aún no existe: se sabrá en su primer despliegue'
+              : undefined,
+      },
     );
   }
   return filas;
@@ -340,8 +358,10 @@ function fuentesReales(): Fuentes {
       const activo =
         !!verificar?.ok && ((await verificar.json()) as { result?: { status?: string } }).result?.status === 'active';
       const workers = !!(await pedir(`/accounts/${cuenta}/workers/scripts`))?.ok;
+      const secretos = await pedir(`/accounts/${cuenta}/workers/scripts/hidrantes-avisos/secrets`);
+      const workersEdicion = !secretos || secretos.status === 404 ? null : secretos.ok;
       const pages = !!(await pedir(`/accounts/${cuenta}/pages/projects/${PAGES_PROD}`))?.ok;
-      return { activo, workers, pages };
+      return { activo, workers, workersEdicion, pages };
     },
   };
 }
