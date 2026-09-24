@@ -34,3 +34,15 @@ El mismo run dejó el aviso de #312: «El token de Cloudflare no tiene permiso d
 - **Tableta con la ficha abierta (RV-60):** en lugar de bajar la ficha, la hoja deja libres los 432 px de la derecha: 360 de ficha, 64 de borde y 8 de aire. A 768 px la hoja queda de 336 px, y las filas compactas de RV-61 caben.
 - **«Volver a la lista» en ordenador** no cierra el incidente: enseña la lista, que ordena desde él (RV-62), con «Volver a Cercanos» encima.
 - **Sin posición o buscándola, en ordenador,** el aviso de Cercanos va encima de la lista, para que el buscador que se enfoca siga ahí (RV-59).
+
+## 4. Tanda de e2e (19 §7)
+
+> `npm run e2e` en verde, y en verde con `--repeat-each=3 --workers=4`.
+
+**Resultado: cumplido.** Se corrió en un runner de GitHub (`ubuntu-latest`, 4 núcleos) sobre `develop` con los bloques A, B y C ya fusionados (rama desechable `prueba/revision-3-estres`, run 36023019363, ya borrada), con:
+
+```
+npx playwright test --project=movil --project=escritorio --grep-invert @rendimiento --repeat-each=3 --workers=4 --retries=0
+```
+
+**0 fallidos**, 1.068 pasados y 144 omitidos, en 16,3 min. Los omitidos son los que no tocan a cada proyecto: el panel en el móvil y los recorridos del móvil en escritorio. Los de rendimiento, de uno en uno: 7 pasados.
