@@ -66,8 +66,9 @@ function restaurar(archivo: string): { codigo: number; salida: string } {
       '--confirmar',
       'RESTAURAR',
     ],
-    // Por si el script no conociera --confirmar: la confirmación también llega por la entrada.
-    { entrada: 'RESTAURAR\n', env: { ...process.env, SUPABASE_DB_URL: LOCAL_MIGRADOR } },
+    // La entrada va vacía a propósito: si --confirmar dejara de funcionar, la pregunta leería nada y
+    // se cancelaría, y la prueba fallaría en vez de confirmar por detrás (docs/18 RV-50).
+    { entrada: '', env: { ...process.env, SUPABASE_DB_URL: LOCAL_MIGRADOR } },
   );
   return { codigo: r.codigo, salida: `${r.salida}\n${r.error}` };
 }

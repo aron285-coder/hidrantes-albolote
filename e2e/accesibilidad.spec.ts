@@ -2,7 +2,7 @@
 // los tokens ya lo mide src/lib/accesibilidad.test.ts; esto busca lo que solo se ve montado: campos
 // sin etiqueta, encabezados saltados, botones sin nombre accesible, listas mal anidadas.
 //
-// Se comprueban las reglas WCAG 2.1 A y AA. Si alguna vez hay que tolerar algo, se desactiva esa
+// Se comprueban las reglas WCAG 2.2 A y AA (con las de 2.0 y 2.1 que siguen en 2.2). Si alguna vez hay que tolerar algo, se desactiva esa
 // regla **con el motivo escrito**, nunca la pantalla entera.
 
 import { AxeBuilder } from '@axe-core/playwright';
@@ -76,7 +76,17 @@ async function geometria(page: Page, contexto: string, { movil }: { movil: boole
       const etiqueta = e.closest('label');
       return !encima || e.contains(encima) || encima.contains(e) || (!!etiqueta && etiqueta.contains(encima));
     });
+    // La variante sale de `data-variante` (Boton la pone siempre) y, en un <button> suelto que no la
+    // lleve, de su clase: una acción destructiva sin la marca no se escapa de los 12 px (docs/18 RV-50).
+    const varianteDe = (e: HTMLElement): string | null => {
+      const marcada = e.getAttribute('data-variante');
+      if (marcada) return marcada;
+      if (e.classList.contains('bg-rojo-700')) return 'destructivo';
+      if (e.classList.contains('bg-naranja-600')) return 'primario';
+      return null;
+    };
     return vistos.map((e, i) => {
+      const variante = varianteDe(e);
       const propio = e.getBoundingClientRect();
       const etiqueta = e.closest('label')?.getBoundingClientRect();
       const r = etiqueta && etiqueta.width * etiqueta.height > propio.width * propio.height ? etiqueta : propio;
@@ -91,8 +101,8 @@ async function geometria(page: Page, contexto: string, { movil }: { movil: boole
         w: r.width,
         h: r.height,
         grupo: e.closest('[role=radiogroup]')?.getAttribute('aria-label') ?? null,
-        destructivo: e.getAttribute('data-variante') === 'destructivo',
-        variante: e.getAttribute('data-variante'),
+        destructivo: variante === 'destructivo',
+        variante,
         marcador: e.classList.contains('marcador'),
         i,
       };
@@ -282,5 +292,49 @@ test.describe('panel de jefatura', () => {
     await expect(page.getByRole('table')).toBeVisible();
     await auditar(page, 'panel · inventario');
     await geometria(page, 'panel · inventario', { movil: false });
+  });
+
+  // docs/18 RV-50: la geometría en todas las pantallas del panel, no solo en la cola y el inventario.
+  test('caducadas, registro, voluntarios, papelera y ajustes', async ({ page }) => {
+    await conGoogle(page, 'jefa@example.org');
+    await simularTablas(page, {
+      v_puntos_activos: PUNTOS,
+      v_cola_revision: [],
+      v_registro: [],
+      propuestas: [],
+      puntos: [],
+      incidencias_app: [],
+      config: [],
+      administradores: [
+        { email: 'jefa@example.org', activo: true, creado_en: '2026-08-01T10:00:00Z', creado_por: 'migracion' },
+      ],
+      dispositivos: [],
+      nucleos: [],
+    });
+    await simularRpc(page, {
+      fn_es_admin: true,
+      fn_salud: {
+        pendientes_14d: 0,
+        incidencias_abiertas: 0,
+        errores_7d: 0,
+        sin_direccion: 0,
+        dispositivos_activos: 3,
+      },
+      fn_actividad_voluntarios: [],
+      fn_registrar_error: null,
+    });
+    const pantallas: [string, string, (p: Page) => ReturnType<Page['getByRole']>][] = [
+      ['caducadas', '/admin/caducadas', (p) => p.getByRole('main')],
+      ['registro', '/admin/registro', (p) => p.getByRole('main')],
+      ['voluntarios', '/admin/voluntarios', (p) => p.getByRole('main')],
+      ['papelera', '/admin/papelera', (p) => p.getByRole('main')],
+      ['ajustes', '/admin/ajustes', (p) => p.getByRole('region', { name: T.panel.saludSistema })],
+    ];
+    for (const [nombre, ruta, listo] of pantallas) {
+      await page.goto(ruta);
+      await expect(listo(page)).toBeVisible();
+      await auditar(page, `panel · ${nombre}`);
+      await geometria(page, `panel · ${nombre}`, { movil: false });
+    }
   });
 });

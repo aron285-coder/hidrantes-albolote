@@ -321,7 +321,7 @@ terminado; los casos de aceptación AC-140 a AC-146 las comprueban.
 
 | ID | Regla |
 |---|---|
-| UI-20 | **Todos los textos de interfaz viven en un único módulo** `src/lib/textos.ts` (objeto `T`), agrupados por pantalla. Ningún literal suelto en un componente. Facilita revisarlos de una vez y traducirlos si algún día hace falta. |
+| UI-20 | **Todos los textos de interfaz viven en un único módulo** `src/lib/textos.ts` (objeto `T`), agrupados por pantalla. Ningún literal suelto en un componente. Facilita revisarlos de una vez y traducirlos si algún día hace falta. Lo vigila una regla de ESLint; el marcado, las columnas de PostgREST y los mensajes de `Error` no son texto de interfaz (DEC-095). |
 | UI-21 | **Los textos del Apéndice A se usan literalmente.** Donde no haya texto fijado, se escribe español natural coherente con el resto y se añade al apéndice en el mismo PR. |
 | UI-22 | **Nunca jerga técnica en la interfaz**: ni "RPC", ni "token", ni "URL firmada", ni "RLS", ni nombres de tabla. El voluntario lee "acceso", "aviso", "foto". |
 
