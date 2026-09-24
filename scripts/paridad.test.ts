@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { type Esperado, type Estado, commitDeHtml, problemasDeParidad } from './paridad.ts';
+import { type Esperado, type Estado, commitDeHtml, estadoTrasPropagar, problemasDeParidad } from './paridad.ts';
 
 const SHA = 'a'.repeat(40);
 const ESPERADO: Esperado = {
@@ -83,5 +83,27 @@ describe('paridad de producción con develop (docs/19 P-03)', () => {
   it('lee el commit de <meta name="commit">', () => {
     expect(commitDeHtml(`<head><meta name="commit" content="${SHA}"></head>`)).toBe(SHA);
     expect(commitDeHtml('<head><meta name="version" content="0.5.0"></head>')).toBeNull();
+  });
+});
+
+// Primer despliegue real (24 sep 2026, run 36027754885): /api/geocodificar dio 405 porque la edge aún
+// servía las Functions del despliegue anterior, que no la tenía. Minutos después daba 401.
+describe('las Functions tras propagar el despliegue', () => {
+  it('reintenta hasta que responde lo esperado', async () => {
+    const respuestas = [405, 405, 401];
+    const esperas: number[] = [];
+    const estado = await estadoTrasPropagar(async () => respuestas.shift() ?? null, 401, {
+      intentos: 6,
+      esperar: async (ms) => void esperas.push(ms),
+    });
+    expect(estado).toBe(401);
+    expect(esperas).toHaveLength(2);
+  });
+
+  it('si nunca llega, devuelve el último estado para decirlo', async () => {
+    let n = 0;
+    const estado = await estadoTrasPropagar(async () => (n++, 405), 401, { intentos: 3, esperar: async () => {} });
+    expect(estado).toBe(405);
+    expect(n).toBe(3);
   });
 });
