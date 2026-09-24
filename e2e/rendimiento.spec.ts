@@ -198,3 +198,41 @@ test('el callejero no se pide al arrancar, solo al buscar (TR-117) @rendimiento'
   await callejero;
   expect(pedidos).toHaveLength(1);
 });
+
+// TR-103: la pantalla de entrada no descarga el mapa (Leaflet y las pantallas con sesión van en la
+// porción de RutasDentro) ni el mapa base, que se baja al entrar. Si vuelven al arranque, Lighthouse
+// se queda en el umbral de rendimiento y el LCP puede contar los 4 MB del mapa base.
+test.describe('la pantalla de entrada no carga el mapa (TR-103)', () => {
+  const delMapa = (url: string) => /\/assets\/RutasDentro-|\/mapabase\/albolote\.pmtiles$/.test(url);
+
+  test('sin sesión no se pide la porción con sesión ni el mapa base', async ({ page }) => {
+    const pedidos: string[] = [];
+    page.on('request', (r) => {
+      if (delMapa(r.url())) pedidos.push(r.url());
+    });
+    await page.goto('/');
+    await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    expect(pedidos).toEqual([]);
+  });
+
+  // La precarga de config/precarga.ts: con sesión, index.html pide la porción por su cuenta, en
+  // paralelo con el JavaScript inicial (TR-10). Se comprueba con el script de entrada bloqueado:
+  // así solo puede haberla pedido la precarga, y se ve también que sin sesión no pide nada.
+  for (const conCuenta of [true, false]) {
+    test(`la precarga ${conCuenta ? 'pide' : 'no pide'} la porción ${conCuenta ? 'con' : 'sin'} sesión`, async ({
+      page,
+    }) => {
+      if (conCuenta) await conSesion(page);
+      await page.route(/\/assets\/index-[^/]+\.js$/, (r) => r.abort());
+      const pedidos: string[] = [];
+      page.on('request', (r) => {
+        if (delMapa(r.url())) pedidos.push(r.url());
+      });
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      expect(pedidos.some((u) => u.includes('/assets/RutasDentro-'))).toBe(conCuenta);
+      expect(pedidos.some((u) => u.endsWith('.pmtiles'))).toBe(false);
+    });
+  }
+});

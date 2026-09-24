@@ -62,7 +62,24 @@ const PANTALLAS: Pantalla[] = [
   { nombre: 'mapa', ruta: '/', listo: (p) => p.getByTestId('mapa') },
   { nombre: 'lista', ruta: '/lista', listo: (p) => p.getByPlaceholder(T.mapa.buscar) },
   { nombre: 'ficha', ruta: `/?p=${PUNTOS[0].id}`, listo: (p) => p.getByRole('article') },
-  { nombre: 'alta', ruta: '/proponer/alta', listo: (p) => p.getByTestId('selector-pin') },
+  {
+    nombre: 'alta',
+    ruta: '/proponer/alta',
+    listo: (p) => p.getByTestId('selector-pin'),
+    // Si el GPS llega antes de que se monte el selector, el mapa ya empieza en la posición y "Mi
+    // posición" no tiene nada que mover, como la opción ya elegida de un segmentado. Se aparta el
+    // mapa antes, como hace quien lo usa: arrastre lento, lejos del pin del centro y sin inercia.
+    preparar: async (p) => {
+      const caja = (await p.getByTestId('selector-pin').boundingBox())!;
+      const x = caja.x + caja.width * 0.25;
+      const y = caja.y + caja.height * 0.75;
+      await p.mouse.move(x, y);
+      await p.mouse.down();
+      await p.mouse.move(x + 80, y - 60, { steps: 8 });
+      await p.waitForTimeout(200);
+      await p.mouse.up();
+    },
+  },
   // docs/18 GM-06: la barra de la medición.
   { nombre: 'medir', ruta: '/?medir=1', listo: (p) => p.getByRole('region', { name: T.medir.titulo }) },
   // docs/18 GM-03: el modo incidente, con su hoja de cercanos.

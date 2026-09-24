@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.29 — 24 de septiembre de 2026 (DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.30 — 24 de septiembre de 2026 (DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,28 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-099 · La pantalla de entrada no descarga el mapa: las pantallas con sesión van aparte
+- **Fecha:** 24 sep 2026 · **Estado:** vigente. Decisión de bajo riesgo (no cambia ningún requisito); la parte de Lighthouse queda **propuesta**, sin aplicar.
+- **Contexto:**
+  - El paso de Lighthouse de `deploy-staging.yml` (TR-103) fallaba a ratos con rendimiento 0,84 frente a 0,85, también con commits que solo tocaban documentación.
+  - No era ruido. En los 22 informes de staging entre `d0e8f5a` y `31ea8b9`, la mejor de las dos pasadas (LHCI agrega con `optimistic` por defecto) bajó de 0,88–0,91 a 0,84–0,86, siempre con FCP ≈ 3,1 s y LCP ≈ 3,4 s. La primera pasada sale casi siempre peor (0,34–0,92, TBT de hasta 3,6 s): arranca en frío.
+  - Lighthouse mide la pantalla de entrada, sin sesión. Esa pantalla cargaba todo: Leaflet, protomaps, el estilo del mapa base y todas las pantallas con sesión (285 kB gzip en un build como el de staging). Las funciones de mapa para emergencias (GM-01 a GM-06) sumaron unos 13 kB, y #304, #314 y #319 sumaron 1,6 kB entre las tres. Eso no causa el fallo por sí solo, pero dejó la nota en el umbral.
+  - Además, `main.tsx` empezaba a descargar el mapa base entero (4,3 MB) en la pantalla de entrada. En Lighthouse, si esa descarga acaba antes del último repintado del LCP (el cambio de fuente), entra en el cálculo del LCP y la nota se hunde. En local ocurre siempre: LCP de 25 s. En staging no había pasado aún, pero por solo unos milisegundos de diferencia.
+- **Decisión:**
+  1. Las pantallas con sesión (mapa, lista, Ajustes, operaciones, bienvenida, incidencia) van en **una sola porción**, `src/paginas/RutasDentro.tsx`, que `App.tsx` carga con `lazy`. Van todas juntas para que, una vez dentro, ninguna pantalla dependa de otra descarga: sin cobertura se puede ir a cualquiera. El Service Worker la precachea con el resto del JS (`globPatterns`). La envuelve un límite de error propio (`LimiteCarga`), que no se reinicia al cambiar de ruta y, si la porción no llega, recarga la app (TR-106).
+  2. **Precarga con sesión:** `config/precarga.ts` añade a `index.html` un script clásico diminuto, `assets/precarga-<hash>.js`, que solo con sesión guardada (token, sesión de Google o `?code=`) pide la porción y su CSS en paralelo con el JavaScript inicial. Sin esto, la primera pantalla útil con 3G (TR-10) pasaba de 2,7 s a 3,5–3,9 s por las idas y vueltas. Es un archivo y no un script en línea, para que la CSP siga siendo `script-src 'self'`.
+  3. **El mapa base se comprueba y se descarga al entrar**, al montar `RutasDentro`, y no al arrancar. FR-81 no cambia: se descarga la primera vez que hay wifi. Sin sesión no hay mapa que enseñar.
+  4. **Guarda en CI:** `npm run presupuesto` falla si el JavaScript inicial vuelve a traer Leaflet, protomaps o una pantalla con sesión. Además, un e2e comprueba que la entrada no pide la porción ni el mapa base, y que la precarga solo la pide con sesión.
+- **Resultado:** JavaScript inicial de 285 kB a 178 kB gzip, y peso total de la entrada de 4,7 MB a 271 kB. Con Lighthouse 12.6.1 en local, rendimiento de 0,62–0,65 a 0,87–0,91 (FCP de 3,29 s a 2,78 s). TR-10 en local: de 2,63–2,73 s a 2,76–2,93 s. Cumple, con menos margen; el `vite preview` local va por HTTP/1.1, con seis conexiones, y Cloudflare por HTTP/2.
+- **Descartado:**
+  - **Bajar el umbral**, o subir `numberOfRuns` con la agregación optimista: sería pasar más veces sin arreglar nada.
+  - **Mediana de más pasadas ahora:** con la primera pasada en frío, la mediana de dos o tres habría fallado *más* con el código de antes.
+  - **Cargar en diferido solo lo del modo incidente:** el peso está en Leaflet y en las pantallas, no en GM-03.
+  - **Una porción por pantalla:** sin cobertura, ir a una pantalla aún no descargada fallaría si el Service Worker no la tiene.
+  - **Script de precarga en línea con hash en la CSP:** toca la CSP (11) por 300 ms.
+- **Propuesta pendiente del desarrollador:** cuando staging lleve unos días con esto, pasar `.github/lighthouse.json` a `numberOfRuns: 3` con `aggregationMethod: "median"`. Con una pasada en frío y dos templadas, la mediana es la peor de las templadas: más exigente que hoy y sin depender de la suerte. TR-103 no cambia.
+- **Afecta a:** 03 TR-10, TR-11 y TR-103 (sin cambio de texto); 10 AC-115 y AC-131.
 
 ### DEC-098 · Sin cobertura, el mapa base propio va debajo de la capa en línea
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/19` RV-58). Pendiente de conformidad de jefatura con 01 v1.4 (F9.1, #76).
@@ -1351,7 +1373,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | Documento | Decisiones |
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
-| 03 | 001, 004, 026, 028 |
+| 03 | 001, 004, 026, 028, 099 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098 |

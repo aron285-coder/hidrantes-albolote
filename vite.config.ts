@@ -8,6 +8,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { archivoHeaders, archivoRobots, type Entorno } from './config/cabeceras.ts';
 import { CACHE_FOTOS } from './config/cache-fotos.ts';
 import { entradaCallejero } from './config/precacheo.ts';
+import { precargaPlugin } from './config/precarga.ts';
 import { T } from './src/lib/textos.ts';
 
 /** En Actions, el commit que se construye; en local, el de HEAD (o "local" fuera de Git). */
@@ -65,6 +66,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       entornoPlugin(entorno, env),
+      precargaPlugin(),
       VitePWA({
         // Registro y aviso "hay una versión nueva, recargar" en src/lib/pwa.ts (TR-24).
         registerType: 'prompt',

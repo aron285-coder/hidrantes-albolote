@@ -9,6 +9,7 @@ export const T = {
     nombre: 'Protección Civil Albolote',
     nombreCorto: 'Hidrantes',
     entornoPruebas: 'ENTORNO DE PRUEBAS',
+    cargando: 'Cargando…',
   },
 
   navegacion: {

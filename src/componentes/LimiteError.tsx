@@ -63,3 +63,17 @@ export function LimiteError({ children }: { children: ReactNode }) {
     </Limite>
   );
 }
+
+/**
+ * Límite para todas las pantallas con sesión juntas (App.tsx). No se reinicia al cambiar de ruta,
+ * para no volver a montar el armazón y el mapa en cada navegación. Si lo que falla es la descarga de
+ * su JavaScript, "Volver al mapa" recarga la aplicación entera, que es lo que la vuelve a pedir (TR-106).
+ */
+export function LimiteCarga({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  return (
+    <Limite ruta={pathname} alVolver={() => location.assign('/')}>
+      {children}
+    </Limite>
+  );
+}

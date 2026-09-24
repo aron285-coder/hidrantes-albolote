@@ -1,25 +1,22 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { BrowserRouter, Route, Routes } from 'react-router';
 import { AvisoVersion } from '@/componentes/AvisoVersion';
 import { BandaEntorno } from '@/componentes/BandaEntorno';
-import { LimiteError } from '@/componentes/LimiteError';
+import { LimiteCarga } from '@/componentes/LimiteError';
 import { useAcceso } from '@/hooks/estado';
+import { acceso as accesoAlArrancar } from '@/lib/acceso';
 import { esPruebas } from '@/lib/entorno';
 import { T } from '@/lib/textos';
-import { Ajustes } from '@/paginas/Ajustes';
-import { Armazon } from '@/paginas/Armazon';
-import { Bienvenida } from '@/paginas/Bienvenida';
 import { Entrada } from '@/paginas/Entrada';
-import { Incidencia } from '@/paginas/Incidencia';
 import { Legal } from '@/paginas/Legal';
-import { MisPropuestas } from '@/paginas/MisPropuestas';
-import { Proponer } from '@/paginas/Proponer';
-import { Lista } from '@/paginas/Lista';
-import { Mapa } from '@/paginas/Mapa';
 import { NoAutorizado } from '@/paginas/NoAutorizado';
 
-// El panel solo lo abre jefatura: fuera del JavaScript inicial (TR-11).
-const PanelJefatura = lazy(() => import('@/paginas/PanelJefatura').then((m) => ({ default: m.PanelJefatura })));
+// Las pantallas con sesión (mapa, Leaflet, operaciones) van en una porción aparte: la pantalla de
+// entrada no la descarga (TR-103, TR-11). Con una sesión guardada se pide ya al arrancar, en
+// paralelo con el primer dibujo, sin esperar a que React llegue a pedirla.
+const cargarDentro = () => import('@/paginas/RutasDentro');
+const RutasDentro = lazy(cargarDentro);
+if (accesoAlArrancar().tipo !== 'fuera') void cargarDentro();
 
 function Rutas() {
   const acceso = useAcceso();
@@ -40,42 +37,19 @@ function Rutas() {
       </Routes>
     );
   }
+  // Si la porción no llegara (sin red y sin Service Worker), mensaje y registro, nunca en blanco (TR-106).
   return (
-    <Routes>
-      <Route
-        path="/bienvenida"
-        element={
-          <LimiteError>
-            <Bienvenida />
-          </LimiteError>
+    <LimiteCarga>
+      <Suspense
+        fallback={
+          <p role="status" className="text-texto-suave m-auto p-6">
+            {T.app.cargando}
+          </p>
         }
-      />
-      <Route path="/legal" element={<Legal />} />
-      <Route path="/proponer/:operacion" element={<Proponer />} />
-      <Route
-        path="/mis-propuestas"
-        element={acceso.tipo === 'voluntario' ? <MisPropuestas /> : <Navigate to="/" replace />}
-      />
-      <Route path="/incidencia" element={acceso.tipo === 'voluntario' ? <Incidencia /> : <Navigate to="/" replace />} />
-      <Route
-        path="/admin/*"
-        element={
-          acceso.tipo === 'jefatura' ? (
-            <Suspense fallback={<p className="text-texto-suave m-auto p-6">{T.panelCola.cargando}</p>}>
-              <PanelJefatura correo={acceso.correo} />
-            </Suspense>
-          ) : (
-            <Navigate to="/" replace />
-          )
-        }
-      />
-      <Route element={<Armazon />}>
-        <Route index element={<Mapa />} />
-        <Route path="lista" element={<Lista />} />
-        <Route path="ajustes" element={<Ajustes />} />
-      </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      >
+        <RutasDentro acceso={acceso} />
+      </Suspense>
+    </LimiteCarga>
   );
 }
 
