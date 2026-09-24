@@ -660,6 +660,17 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-103 · El Worker de los avisos se despliega en cada push y dice qué código lleva; la vigilancia también anota staging
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-74 y RV-78, parte Ops). Decisión de bajo riesgo de la sesión Ops.
+- **Decisión:**
+  1. **`deploy-staging.yml` despliega el Worker en cada push a `develop`**, sin mirar el diff, con `--var VERSION_CODIGO:<último commit de workers/>`. Para eso el checkout tiene la historia completa.
+  2. **La vigilancia lee `VERSION_CODIGO`** de los ajustes del Worker (`GET …/workers/scripts/hidrantes-avisos/settings`, `result.bindings`). Si no coincide con `git log -1 -- workers` de `develop`, o no está, es un problema. Sin permiso de lectura ya lo dice el cron (punto 7), y no se repite.
+  3. **La vigilancia también mira staging** con `SUPABASE_DB_URL_STAGING`: avisos sin salir y tareas de `pg_cron`, que guarda en su `config.tareas_programadas`. Anota `ultima_vigilancia` y `vigilancia_ok` en las dos bases. En staging no se miran el respaldo, el tamaño (la base de dev la comparte uniformidad) ni los intentos del código. Un problema de staging sale en la misma issue, con «staging:» delante.
+- **Descartado:**
+  - **Comparar con el id de versión de Cloudflare:** no dice de qué commit es.
+  - **Una vigilancia aparte para staging:** duplicaría el workflow, y habría otra issue que mirar.
+- **Afecta a:** 04 §9.
+
 ### DEC-100 · Especificaciones grandes en tres sesiones en paralelo, y CI que no hace esperar
 - **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente. `docs/trabajo-en-paralelo.md`; PAR-01 es su preparación.
 - **Contexto:**
