@@ -19,7 +19,14 @@ import {
 } from './sesion';
 import { alEnviarPropuesta, iniciarCola, reintentarCola, vaciarCola } from './cola';
 import { cargarMisPropuestas } from './mis-propuestas';
-import { borrarPuntos, cargarGuardados, estadoPuntos, rederivarSiCambiaElDia, sincronizar } from './puntos';
+import {
+  borrarPuntos,
+  cargarGuardados,
+  cargarTramoJefatura,
+  estadoPuntos,
+  rederivarSiCambiaElDia,
+  sincronizar,
+} from './puntos';
 import { desactivarPush, estadoPush, pedirEnvioPush } from './push';
 import { supabase } from './supabase';
 
@@ -130,7 +137,11 @@ export async function comprobarAcceso(): Promise<void> {
         fijar({ tipo: 'jefatura', correo });
         // Lo que jefatura encoló sin sesión sale ahora (RV-04). Solo al pasar a jefatura: si no, la
         // cola y esta comprobación se llamarían la una a la otra.
-        if (llega) void reintentarCola();
+        if (llega) {
+          void reintentarCola();
+          // El tramo de manguera de la tabla, una vez: incidente y medición lo usan (RV-62).
+          void cargarTramoJefatura();
+        }
         await sincronizar(null);
         return;
       }

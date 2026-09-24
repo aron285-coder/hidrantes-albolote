@@ -151,7 +151,9 @@ sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausen
 **Funciones de mapa para emergencias (FR-72 a FR-76, DEC-089):** el punto de incidente, la
 medición y la posición del móvil **nunca salen del móvil** (DEC-062 §8) y no se guardan en IndexedDB
 ni en la base de datos. El incidente puede ir en la URL (`?incidente=lat,lng`, y si el origen es el GPS también
-`&gps=<momento>,<precisión>`, RV-59) y en `sessionStorage`, para sobrevivir a una recarga; se pierde al cerrar la pestaña. Lo único que sale es
+`&gps=<momento>,<precisión>`, RV-59), para sobrevivir a una recarga; la lista lo lee de ahí, y ya no
+de `sessionStorage` (docs/19 RV-62). Mientras hay un incidente, "¿Qué hay aquí?" o una medición
+abiertos, la vista del mapa no se guarda en `localStorage`: diría dónde fue más allá de la sesión. Lo único que sale es
 el texto de una búsqueda con número de portal, hacia `/api/geocodificar` y de ahí a CartoCiudad
 (DEC-092): la Function no lo registra en logs ni en `errores_cliente`, y lo guarda en caché solo como
 `sha256` del texto normalizado. Compartir (FR-75) usa el menú del móvil: lo compartido nunca lleva

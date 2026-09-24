@@ -14,7 +14,17 @@ export function vistaGuardada(): { centro: [number, number]; zoom: number } | nu
   }
 }
 
-export function guardarVista(centro: LatLng, zoom: number): void {
+/**
+ * Con `?incidente`, `?aqui` o `?medir` en la dirección no se guarda: la vista diría dónde fue el
+ * incidente más allá de la sesión (11 §6.1, docs/19 RV-62).
+ */
+export const debeGuardarVista = (busqueda: string): boolean => {
+  const q = new URLSearchParams(busqueda);
+  return !q.has('incidente') && !q.has('aqui') && !q.has('medir');
+};
+
+export function guardarVista(centro: LatLng, zoom: number, busqueda = globalThis.location?.search ?? ''): void {
+  if (!debeGuardarVista(busqueda)) return;
   try {
     localStorage.setItem(VISTA, JSON.stringify({ centro: [centro.lat, centro.lng], zoom }));
   } catch {

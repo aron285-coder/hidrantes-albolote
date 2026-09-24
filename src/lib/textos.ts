@@ -130,6 +130,7 @@ export const T = {
     revisado: (hace: Parametro) => `revisado ${hace}`,
     leyendaTamano: 'Más grande = más agua aprovechable',
     desdeTi: 'desde ti',
+    desdeIncidente: 'desde el incidente',
     filtroVacio: 'Nada coincide con ese filtro.',
     sinCoberturaSolo: 'Sin cobertura',
     reintentar: 'Reintentar',

@@ -29,14 +29,7 @@ import { nombreCaudal } from '@/lib/ficha';
 import { megas } from '@/lib/formato';
 import { BYTES_MAPABASE, descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { escribir } from '@/lib/almacen';
-import {
-  cercanos,
-  leerGps,
-  masCercanoQueNoFunciona,
-  origenViejo,
-  parametroGps,
-  recordarIncidente,
-} from '@/lib/incidente';
+import { cercanos, leerGps, masCercanoQueNoFunciona, origenViejo, parametroGps } from '@/lib/incidente';
 import { anadir, borrar as borrarMedicion, deshacer, resumen as resumenMedicion } from '@/lib/medicion';
 import {
   type Posicion,
@@ -47,7 +40,7 @@ import {
   suscribirPosicion,
 } from '@/lib/posicion';
 import { esPruebas } from '@/lib/entorno';
-import { buscar, cargarTramoJefatura, metrosTramoManguera } from '@/lib/puntos';
+import { buscar, metrosTramoManguera } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -136,8 +129,16 @@ export function Mapa() {
   // En ordenador busca la lista de al lado; aquí, solo la búsqueda flotante del móvil y la tableta.
   const lugares = useBusquedaLugares(ancho !== 'escritorio' ? texto : '');
   const irADestino = useIrADestino();
+  /** Elegir cualquier resultado de la búsqueda deja atrás el "Sin posición" (docs/19 RV-62). */
+  const olvidarSinPosicion = () => {
+    setSinPosicion(false);
+    esperaFix.current?.();
+    esperaFix.current = null;
+    setEsperandoFix(false);
+  };
   const irA = (d: Destino) => {
     setTexto('');
+    olvidarSinPosicion();
     irADestino(d);
   };
   const conLugares = hayLugares(lugares);
@@ -152,32 +153,32 @@ export function Mapa() {
     () => (incidente ? masCercanoQueNoFunciona(puntos, incidente, { soloHidrantes }, candidatos) : null),
     [puntos, incidente, soloHidrantes, candidatos],
   );
-  useEffect(() => {
-    recordarIncidente(incidente);
-    // Jefatura no recibe config: el tramo de manguera, de la tabla, al abrir un incidente (GM-01).
-    if (incidente && acceso.tipo === 'jefatura') void cargarTramoJefatura();
-  }, [incidente, acceso.tipo]);
-
+  // Una ficha abierta desde el incidente lo recuerda en el estado de la navegación: al cerrarla se
+  // vuelve atrás, y no quedan dos entradas iguales del incidente (docs/19 RV-62).
+  const desdeIncidente = (ubicacion.state as { desdeIncidente?: boolean } | null)?.desdeIncidente === true;
   const elegir = useCallback(
     (id: string) =>
       navegar(
         incidenteParam
           ? `/?incidente=${incidenteParam}${sufijoGps}&p=${encodeURIComponent(id)}`
           : `/?p=${encodeURIComponent(id)}`,
-        { replace: !!seleccionado },
+        {
+          replace: !!seleccionado,
+          state: incidenteParam && (!seleccionado || desdeIncidente) ? { desdeIncidente: true } : undefined,
+        },
       ),
-    [navegar, seleccionado, incidenteParam, sufijoGps],
+    [navegar, seleccionado, incidenteParam, sufijoGps, desdeIncidente],
   );
   const cerrarFicha = useCallback(() => {
+    if (desdeIncidente) return navegar(-1);
     // Con un incidente abierto, cerrar la ficha vuelve al incidente.
     navegar(incidenteParam ? `/?incidente=${incidenteParam}${sufijoGps}` : '/', { replace: true });
-  }, [navegar, incidenteParam, sufijoGps]);
+  }, [navegar, incidenteParam, sufijoGps, desdeIncidente]);
   const cerrarIncidente = useCallback(() => {
     setSinPosicion(false);
     esperaFix.current?.();
     esperaFix.current = null;
     setEsperandoFix(false);
-    recordarIncidente(null);
     navegar('/', { replace: true });
   }, [navegar]);
   const abrirDesdeGps = (p: Posicion) =>
@@ -213,7 +214,9 @@ export function Mapa() {
     } else mostrarSinPosicion();
   };
   const elegirCandidato = (id: string) =>
-    navegar(`/?incidente=${incidenteParam}${sufijoGps}&p=${encodeURIComponent(id)}`);
+    navegar(`/?incidente=${incidenteParam}${sufijoGps}&p=${encodeURIComponent(id)}`, {
+      state: { desdeIncidente: true },
+    });
   // "¿Qué hay aquí?" va en la URL: *atrás* la cierra (FR-72).
   const abrirAqui = useCallback(
     (lat: number, lng: number) => {
@@ -310,7 +313,13 @@ export function Mapa() {
       <div className="relative flex min-h-0 flex-1">
         {ancho === 'escritorio' && (
           <aside className="border-linea bg-fondo flex w-80 shrink-0 flex-col border-r">
-            <ListaPuntos alElegir={elegir} />
+            <ListaPuntos
+              alElegir={(id) => {
+                olvidarSinPosicion();
+                elegir(id);
+              }}
+              alElegirLugar={olvidarSinPosicion}
+            />
           </aside>
         )}
         <div className="relative isolate min-h-[60vh] flex-1">
@@ -385,6 +394,7 @@ export function Mapa() {
                               type="button"
                               onClick={() => {
                                 setTexto('');
+                                olvidarSinPosicion();
                                 elegir(p.id);
                               }}
                               className="border-linea flex min-h-13 w-full items-center gap-2 border-b px-2.5 text-left text-sm"
@@ -546,7 +556,8 @@ export function Mapa() {
               }
               alVerLista={() => {
                 escribir('orden_lista', 'distancia');
-                navegar('/lista');
+                // El incidente viaja en la URL: la lista ordena desde él (RV-62).
+                navegar(`/lista?incidente=${incidenteParam}`);
               }}
             />
           )}

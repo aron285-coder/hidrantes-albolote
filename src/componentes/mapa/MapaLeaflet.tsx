@@ -113,7 +113,14 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     const v = vistaGuardada();
     if (v) m.setView(v.centro, v.zoom);
     else m.fitBounds(LIMITES, { padding: [8, 8] });
-    m.on('moveend', () => guardarVista(m.getCenter(), m.getZoom()));
+    // El zoom de ahora, a la vista en el contenedor: la vista guardada no vale para saberlo con un
+    // incidente o "¿Qué hay aquí?" abiertos, porque entonces no se guarda (RV-62).
+    const anotarZoom = () => (m.getContainer().dataset.zoom = String(m.getZoom()));
+    anotarZoom();
+    m.on('moveend', () => {
+      anotarZoom();
+      guardarVista(m.getCenter(), m.getZoom());
+    });
     grupoCalle.current = L.layerGroup().addTo(m);
     grupoPuntos.current = L.layerGroup().addTo(m);
     grupoPosicion.current = L.layerGroup().addTo(m);
