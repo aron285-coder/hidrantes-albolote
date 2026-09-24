@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { leerLatLng as leerIncidente } from './coordenadas';
-import { cercanos, masCercanoQueNoFunciona } from './incidente';
+import { cercanos, leerGps, masCercanoQueNoFunciona, origenViejo, parametroGps } from './incidente';
 import type { Punto } from './puntos';
 
 const O = { lat: 37.23, lng: -3.656 };
@@ -170,5 +170,32 @@ describe('orden de los cercanos (RV-54)', () => {
     const candidatos = cercanos(lista, O, OP);
     expect(candidatos[0]!.punto.id).toBe(b.id);
     expect(masCercanoQueNoFunciona(lista, O, OP, candidatos)).toBeNull();
+  });
+});
+
+// docs/19 RV-59: el origen del GPS viaja en la URL con su momento y su precisión.
+describe('origen del GPS en la URL (RV-59)', () => {
+  it('gps=<momento>,<precisión> se lee; gps=1 es GPS sin datos; sin gps, null', () => {
+    expect(leerGps('1790000000000,12')).toEqual({ momento: 1790000000000, precision: 12 });
+    expect(leerGps('1')).toEqual({ momento: null, precision: null });
+    expect(leerGps('<script>')).toEqual({ momento: null, precision: null });
+    expect(leerGps(null)).toBeNull();
+  });
+
+  it('se escribe redondeado, con el momento del GPS o el de ahora', () => {
+    expect(parametroGps({ precision: 11.6, momento: 1790000000000.4 })).toBe('1790000000000,12');
+    expect(parametroGps({ precision: 800 }, 1790000000000)).toBe('1790000000000,800');
+    expect(leerGps(parametroGps({ precision: 8, momento: 1790000000000 }))).toEqual({
+      momento: 1790000000000,
+      precision: 8,
+    });
+  });
+
+  it('el origen es viejo con más de 60 s, comparando con su momento, no con el GPS de ahora', () => {
+    const t = 1790000000000;
+    expect(origenViejo({ momento: t, precision: 8 }, t + 60_000)).toBeNull();
+    expect(origenViejo({ momento: t, precision: 8 }, t + 5 * 60_000)).toBe(t);
+    expect(origenViejo({ momento: null, precision: null }, t)).toBeNull();
+    expect(origenViejo(null, t)).toBeNull();
   });
 });

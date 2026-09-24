@@ -104,6 +104,34 @@ export function masCercanoQueNoFunciona(
   return mejor;
 }
 
+/**
+ * El origen del GPS tal como va en la URL: `&gps=<momento_ms>,<precision_m>` (docs/19 RV-59). Así la
+ * cabecera, el aviso de poca precisión y el de posición vieja miran la posición que se usó, no la de
+ * ahora, y sobreviven a una recarga. `gps=1` (versión anterior) es GPS sin esos datos.
+ */
+export interface OrigenGps {
+  momento: number | null;
+  precision: number | null;
+}
+
+/** A partir de aquí la posición es "poco precisa": wifi o antena, no GPS (RV-59). */
+export const PRECISION_POCA_M = 50;
+/** Con el origen más viejo que esto, la hoja dice de cuándo es (RV-40, RV-59). */
+export const ORIGEN_VIEJO_MS = 60_000;
+
+export function leerGps(param: string | null): OrigenGps | null {
+  if (param === null) return null;
+  const m = /^(\d{10,16}),(\d{1,6})$/.exec(param);
+  return m ? { momento: Number(m[1]), precision: Number(m[2]) } : { momento: null, precision: null };
+}
+
+export const parametroGps = (p: { precision: number; momento?: number }, ahora = Date.now()): string =>
+  `${Math.round(p.momento ?? ahora)},${Math.round(p.precision)}`;
+
+/** El momento del origen si ya tiene más de un minuto; si no, o sin datos, null. */
+export const origenViejo = (g: OrigenGps | null, ahora = Date.now()): number | null =>
+  g?.momento != null && ahora - g.momento > ORIGEN_VIEJO_MS ? g.momento : null;
+
 // El incidente sobrevive a una recarga en la URL; la lista lo lee de sessionStorage para ordenar por
 // distancia desde él (FR-74). Se pierde al cerrar la pestaña, y nunca va a IndexedDB ni al servidor.
 const CLAVE = 'hidrantes.incidente';

@@ -409,6 +409,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Cercanos` · `Incidente` · `Desde tu posición` · `Desde el punto marcado` · `Posición de [hace 3 min]` ·
 `Solo hidrantes` · `Distancias en línea recta` ·
 `Sin posición: mantén pulsado el mapa donde está el incidente o busca la calle` ·
+`Buscando tu posición… (puedes marcar el incidente en el mapa)` · `±[12] m` (en `Desde tu posición · ±12 m · hace 2 min`, RV-59) ·
+`Posición poco precisa (±[800] m): si sabes dónde es, mantén pulsado el mapa` · `Marcar en el mapa` ·
 `Ningún punto que funcione a menos de 2 km del incidente` · `Ver todos en la lista` ·
 `El más cercano, [HID-0012] a [40 m], no funciona` · `El más cercano, [HID-0012] a [40 m], está en mal estado` ·
 `[140 m] · [NE] · [≥ 8 tramos]` · `≥ 1 tramo` · `≥ [8] tramos` · `Compartir el incidente` · `Datos de [hace 3 min]` ·

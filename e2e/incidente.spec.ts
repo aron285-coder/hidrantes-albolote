@@ -29,10 +29,15 @@ const CERCA = Array.from({ length: 30 }, (_, i) => {
 });
 const metros = (lat: number) => Math.round((lat - O.latitude) * M_POR_GRADO);
 
-async function preparar(page: Page, context: import('@playwright/test').BrowserContext, conPosicion = true) {
+async function preparar(
+  page: Page,
+  context: import('@playwright/test').BrowserContext,
+  conPosicion = true,
+  precision = 8,
+) {
   if (conPosicion) {
     await context.grantPermissions(['geolocation']);
-    await context.setGeolocation({ ...O, accuracy: 8 });
+    await context.setGeolocation({ ...O, accuracy: precision });
   }
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: { ...LISTADO, puntos: CERCA }, fn_registrar_error: null });
@@ -58,8 +63,9 @@ test('sin red: cinco que funcionan, en orden y con su distancia', async ({ page,
     expect(Math.abs(m - metros(p.lat))).toBeLessThanOrEqual(1);
     await expect(fila).toContainText('· N ·');
   }
-  await expect(page).toHaveURL(/\?incidente=37\.230500,-3\.656000&gps=1/);
-  await expect(hoja(page)).toContainText(T.incidente.desdeTuPosicion);
+  // El origen del GPS lleva su momento y su precisión (RV-59).
+  await expect(page).toHaveURL(/\?incidente=37\.230500,-3\.656000&gps=\d{13},8/);
+  await expect(hoja(page)).toContainText(`${T.incidente.desdeTuPosicion} · ${T.incidente.precision(8)} ·`);
   await context.setOffline(false);
 });
 
@@ -168,4 +174,98 @@ test('jefatura recarga /?incidente=… y el incidente sigue abierto (RV-57)', as
   await expect(page).toHaveURL(/\?incidente=37\.230500,-3\.656000/);
   await expect(hoja(page)).toBeVisible();
   await expect(hoja(page)).toContainText(T.incidente.desdePuntoMarcado);
+});
+
+// docs/19 RV-59: precisión invisible, posición vieja mal avisada y "Sin posición" mientras el GPS busca.
+test.describe('Cercanos con GPS (RV-59)', () => {
+  /** Un GPS que no contesta hasta que el test lo dice: `window.__fix(...)` o `window.__errorGps(código)`. */
+  async function gpsManual(page: Page) {
+    await page.addInitScript(() => {
+      const w = window as unknown as Record<string, unknown>;
+      const geo = {
+        watchPosition(ok: PositionCallback, error?: PositionErrorCallback | null) {
+          w.__fix = (lat: number, lng: number, accuracy: number) =>
+            ok({ coords: { latitude: lat, longitude: lng, accuracy }, timestamp: Date.now() } as GeolocationPosition);
+          w.__errorGps = (code: number) =>
+            error?.({ code, PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError);
+          return 1;
+        },
+        clearWatch() {},
+        getCurrentPosition() {},
+      };
+      Object.defineProperty(navigator, 'geolocation', { value: geo, configurable: true });
+    });
+  }
+  const buscador = (page: Page, isMobile: boolean) =>
+    isMobile ? page.getByRole('searchbox', { name: T.mapa.buscar }).first() : page.locator('#buscar-lista');
+
+  test('precisión de 800 m avisa y ofrece marcar en el mapa', async ({ page, context }) => {
+    await preparar(page, context, true, 800);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    await expect(hoja(page)).toContainText(`${T.incidente.desdeTuPosicion} · ${T.incidente.precision(800)}`);
+    await expect(
+      hoja(page)
+        .getByRole('status')
+        .filter({ hasText: T.incidente.pocoPrecisa(800) }),
+    ).toBeVisible();
+
+    await hoja(page).getByRole('button', { name: T.incidente.marcarEnMapa }).click();
+    await expect(hoja(page)).toHaveCount(0);
+    await expect(page).not.toHaveURL(/incidente=/);
+  });
+
+  test('con ±8 m no hay aviso de poca precisión', async ({ page, context }) => {
+    await preparar(page, context);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    await expect(filas(page)).toHaveCount(5);
+    await expect(hoja(page).getByRole('button', { name: T.incidente.marcarEnMapa })).toHaveCount(0);
+  });
+
+  test('tras recargar con gps=…&momento de hace 5 min se ve "hace 5 min"', async ({ page, context }) => {
+    const ahora = Date.now();
+    await page.clock.setFixedTime(ahora);
+    await preparar(page, context, false);
+    await page.goto(`/?incidente=37.230500,-3.656000&gps=${ahora - 5 * 60_000},12`);
+    const cabecera = `${T.incidente.desdeTuPosicion} · ${T.incidente.precision(12)} · ${T.formato.haceMin(5)}`;
+    await expect(hoja(page)).toContainText(cabecera);
+    await expect(
+      hoja(page)
+        .getByRole('status')
+        .filter({ hasText: T.incidente.posicionDe(T.formato.haceMin(5)) }),
+    ).toBeVisible();
+    await page.reload();
+    await expect(hoja(page)).toContainText(cabecera);
+    await expect(filas(page)).toHaveCount(5);
+  });
+
+  test('GPS en frío: primero "Buscando…", sin foco en el buscador; al llegar el fix, sale la lista sola', async ({
+    page,
+    context,
+    isMobile,
+  }) => {
+    await gpsManual(page);
+    await preparar(page, context, false);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    await expect(hoja(page)).toContainText(T.incidente.buscandoPosicion);
+    await expect(hoja(page)).not.toContainText(T.incidente.sinPosicion);
+    await expect(buscador(page, isMobile)).not.toBeFocused();
+    // El aviso flotante no lo repite.
+    await expect(page.getByRole('status').filter({ hasText: T.mapa.buscandoPosicion })).toHaveCount(1);
+
+    await page.evaluate(() =>
+      (window as unknown as { __fix: (a: number, b: number, c: number) => void }).__fix(37.2305, -3.656, 10),
+    );
+    await expect(filas(page)).toHaveCount(5);
+    await expect(page).toHaveURL(/gps=\d{13},10/);
+  });
+
+  test('denegado: "Sin posición" y foco en el buscador', async ({ page, context, isMobile }) => {
+    await gpsManual(page);
+    await preparar(page, context, false);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    await expect(hoja(page)).toContainText(T.incidente.buscandoPosicion);
+    await page.evaluate(() => (window as unknown as { __errorGps: (c: number) => void }).__errorGps(1));
+    await expect(hoja(page)).toContainText(T.incidente.sinPosicion);
+    await expect(buscador(page, isMobile)).toBeFocused();
+  });
 });

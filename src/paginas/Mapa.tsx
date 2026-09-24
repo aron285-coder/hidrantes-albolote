@@ -1,5 +1,5 @@
 import { Crosshair, Layers, LocateFixed, Minus, Plus, Ruler, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { BarraEstado } from '@/componentes/mapa/BarraEstado';
 import { Ficha } from '@/componentes/mapa/Ficha';
@@ -29,9 +29,23 @@ import { nombreCaudal } from '@/lib/ficha';
 import { megas } from '@/lib/formato';
 import { BYTES_MAPABASE, descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { escribir } from '@/lib/almacen';
-import { cercanos, masCercanoQueNoFunciona, recordarIncidente } from '@/lib/incidente';
+import {
+  cercanos,
+  leerGps,
+  masCercanoQueNoFunciona,
+  origenViejo,
+  parametroGps,
+  recordarIncidente,
+} from '@/lib/incidente';
 import { anadir, borrar as borrarMedicion, deshacer, resumen as resumenMedicion } from '@/lib/medicion';
-import { activarPosicion, esAntigua, posicionActual } from '@/lib/posicion';
+import {
+  type Posicion,
+  activarPosicion,
+  esAntigua,
+  estadoPosicion,
+  posicionActual,
+  suscribirPosicion,
+} from '@/lib/posicion';
 import { esPruebas } from '@/lib/entorno';
 import { buscar, cargarTramoJefatura, metrosTramoManguera } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -79,8 +93,21 @@ export function Mapa() {
   // Modo incidente (FR-74): el incidente va en la URL, así *atrás* lo cierra y una recarga lo mantiene.
   const incidenteParam = params.get('incidente');
   const incidente = useMemo(() => leerLatLng(incidenteParam), [incidenteParam]);
-  const desdeGps = params.get('gps') === '1';
+  // Con el GPS de origen, su momento y su precisión (RV-59); `gps=1` es de la versión anterior.
+  const gpsParam = params.get('gps');
+  const origenGps = useMemo(() => leerGps(gpsParam), [gpsParam]);
+  const desdeGps = origenGps !== null;
+  const sufijoGps = gpsParam !== null ? `&gps=${gpsParam}` : '';
   const [sinPosicion, setSinPosicion] = useState(false);
+  // "Cercanos" con el GPS en frío: la hoja espera al primer fix en vez de decir "Sin posición" (RV-59).
+  const [esperandoFix, setEsperandoFix] = useState(false);
+  const esperaFix = useRef<(() => void) | null>(null);
+  const dejarDeEsperar = () => {
+    esperaFix.current?.();
+    esperaFix.current = null;
+    setEsperandoFix(false);
+  };
+  useEffect(() => () => esperaFix.current?.(), []);
   const [soloHidrantes, setSoloHidrantes] = useState(false);
   const buscador = useRef<HTMLInputElement>(null);
   // Medición (FR-76): en la URL (`?medir=1`) para que *atrás* salga; los vértices, en memoria, y los
@@ -135,39 +162,65 @@ export function Mapa() {
     (id: string) =>
       navegar(
         incidenteParam
-          ? `/?incidente=${incidenteParam}${desdeGps ? '&gps=1' : ''}&p=${encodeURIComponent(id)}`
+          ? `/?incidente=${incidenteParam}${sufijoGps}&p=${encodeURIComponent(id)}`
           : `/?p=${encodeURIComponent(id)}`,
         { replace: !!seleccionado },
       ),
-    [navegar, seleccionado, incidenteParam, desdeGps],
+    [navegar, seleccionado, incidenteParam, sufijoGps],
   );
   const cerrarFicha = useCallback(() => {
     // Con un incidente abierto, cerrar la ficha vuelve al incidente.
-    navegar(incidenteParam ? `/?incidente=${incidenteParam}${desdeGps ? '&gps=1' : ''}` : '/', { replace: true });
-  }, [navegar, incidenteParam, desdeGps]);
+    navegar(incidenteParam ? `/?incidente=${incidenteParam}${sufijoGps}` : '/', { replace: true });
+  }, [navegar, incidenteParam, sufijoGps]);
   const cerrarIncidente = useCallback(() => {
     setSinPosicion(false);
+    esperaFix.current?.();
+    esperaFix.current = null;
+    setEsperandoFix(false);
     recordarIncidente(null);
     navegar('/', { replace: true });
   }, [navegar]);
-  /** "Cercanos": desde tu posición; sin posición, se explica y se ofrece la búsqueda (FR-74, UI-02). */
+  const abrirDesdeGps = (p: Posicion) =>
+    navegar(`/?incidente=${parametroLatLng(p)}&gps=${parametroGps(p)}`, { replace: !!incidenteParam });
+  /** Sin posición de verdad (denegada o no disponible): se explica y se ofrece la búsqueda (UI-02). */
+  const mostrarSinPosicion = () => {
+    dejarDeEsperar();
+    setSinPosicion(true);
+    buscador.current?.focus();
+    document.getElementById('buscar-lista')?.focus();
+  };
+  /**
+   * "Cercanos": desde tu posición (FR-74). Mientras el GPS busca, la hoja lo dice sin enfocar el
+   * buscador (el teclado taparía la explicación) y el incidente se abre solo con el primer fix (RV-59).
+   */
   const pedirCercanos = () => {
     activarPosicion();
-    if (!pos) {
-      setSinPosicion(true);
-      buscador.current?.focus();
-      document.getElementById('buscar-lista')?.focus();
-      return;
-    }
-    setSinPosicion(false);
-    navegar(`/?incidente=${parametroLatLng(pos)}&gps=1`, { replace: !!incidenteParam });
+    if (pos) {
+      setSinPosicion(false);
+      dejarDeEsperar();
+      abrirDesdeGps(pos);
+    } else if (estadoPosicion().tipo === 'buscando') {
+      setSinPosicion(false);
+      setEsperandoFix(true);
+      esperaFix.current?.();
+      esperaFix.current = suscribirPosicion(() => {
+        const e = estadoPosicion();
+        if (e.tipo === 'ok') {
+          dejarDeEsperar();
+          abrirDesdeGps(e.posicion);
+        } else if (e.tipo === 'denegada' || e.tipo === 'no_disponible') mostrarSinPosicion();
+      });
+    } else mostrarSinPosicion();
   };
   const elegirCandidato = (id: string) =>
-    navegar(`/?incidente=${incidenteParam}${desdeGps ? '&gps=1' : ''}&p=${encodeURIComponent(id)}`);
+    navegar(`/?incidente=${incidenteParam}${sufijoGps}&p=${encodeURIComponent(id)}`);
   // "¿Qué hay aquí?" va en la URL: *atrás* la cierra (FR-72).
   const abrirAqui = useCallback(
     (lat: number, lng: number) => {
       setSinPosicion(false);
+      esperaFix.current?.();
+      esperaFix.current = null;
+      setEsperandoFix(false);
       navegar(`/?aqui=${parametroLatLng({ lat, lng })}`, { replace: !!aquiParam });
     },
     [navegar, aquiParam],
@@ -204,12 +257,25 @@ export function Mapa() {
       : sinRed && !mapabase.descargado
         ? T.mapa.mapaNoDescargado
         : null;
+  // Los avisos flotantes dejan libre la columna de botones: su ancho, medido, más 8 px (RV-59).
+  const columna = useRef<HTMLDivElement>(null);
+  const [anchoColumna, setAnchoColumna] = useState(0);
+  useLayoutEffect(() => {
+    const c = columna.current;
+    if (!c) return;
+    const medir = () => setAnchoColumna(c.offsetWidth);
+    medir();
+    if (typeof ResizeObserver === 'undefined') return;
+    const o = new ResizeObserver(medir);
+    o.observe(c);
+    return () => o.disconnect();
+  }, []);
   const avisoPosicion =
     estadoPos.tipo === 'denegada'
       ? T.mapa.posicionDenegada
       : estadoPos.tipo === 'no_disponible'
         ? T.mapa.posicionNoDisponible
-        : estadoPos.tipo === 'buscando'
+        : estadoPos.tipo === 'buscando' && !esperandoFix
           ? T.mapa.buscandoPosicion
           : null;
 
@@ -342,6 +408,7 @@ export function Mapa() {
           {/* Capas, mi posición y zoom: columna derecha (tableta: botones laterales). Con los resultados de
               la búsqueda abiertos se quita: la lista la taparía a medias (06 §9, tamaño de los objetivos). */}
           <div
+            ref={columna}
             hidden={!!texto && ancho !== 'escritorio'}
             className={`absolute right-2 z-[400] flex flex-col gap-2 ${ancho === 'escritorio' ? 'top-2' : 'top-16'}`}
           >
@@ -383,7 +450,12 @@ export function Mapa() {
             </Control>
           </div>
 
-          <div className="absolute inset-x-2 top-16 z-[450] mr-14 flex flex-col gap-1.5">
+          <div
+            data-testid="avisos-mapa"
+            className="absolute top-16 left-2 z-[450] flex flex-col gap-1.5"
+            // right-2 de la columna + su ancho + 8 px de aire (RV-59).
+            style={{ right: anchoColumna ? anchoColumna + 16 : 64 }}
+          >
             {(avisoCapa || avisoPosicion) && (
               <p
                 role="status"
@@ -435,12 +507,21 @@ export function Mapa() {
               alTerminar={terminarMedicion}
             />
           )}
-          {!midiendo && (incidente || (sinPosicion && !aqui)) && (
+          {!midiendo && (incidente || ((sinPosicion || esperandoFix) && !aqui)) && (
             <PanelCercanos
               estado={{
                 origen: incidente,
                 desdeGps,
-                posicionVieja: desdeGps && pos && esAntigua(pos) ? (pos.momento ?? null) : null,
+                buscando: esperandoFix,
+                precision: origenGps?.precision ?? null,
+                momento: origenGps?.momento ?? null,
+                // Con el momento en la URL, el del origen; con `gps=1`, como antes, el del GPS de ahora.
+                posicionVieja:
+                  origenGps?.momento != null
+                    ? origenViejo(origenGps)
+                    : desdeGps && pos && esAntigua(pos)
+                      ? (pos.momento ?? null)
+                      : null,
                 candidatos,
                 aviso: avisoCercano,
                 soloHidrantes,
@@ -448,6 +529,12 @@ export function Mapa() {
               }}
               enHoja={ancho === 'movil'}
               alCerrar={cerrarIncidente}
+              alMarcarEnMapa={() => {
+                // Cierra la hoja y deja el mapa sobre el sitio, listo para la pulsación larga.
+                const o = incidente;
+                cerrarIncidente();
+                if (o) control.current?.centrar(o.lat, o.lng, 17);
+              }}
               alCambiarSoloHidrantes={setSoloHidrantes}
               alElegir={elegirCandidato}
               alMedir={(hasta) =>
