@@ -114,13 +114,16 @@ describe('comprobar-produccion (docs/19 P-01)', () => {
 
   // Tras el primer despliegue del Worker (24 sep 2026): el token veía los Workers pero no podía
   // desplegarlos. Leer los scripts no basta; los nombres de los secretos solo los lista con Edit.
-  it('el token que ve los Workers pero no puede editarlos: Workers Scripts: Edit falta y para', async () => {
+  // Sin Edit no se puede actualizar el Worker desde deploy-staging, pero deploy-prod.yml no lo despliega:
+  // se dice, y no para el PR develop → main.
+  it('el token que ve los Workers pero no puede editarlos: Workers Scripts: Edit falta, sin parar producción', async () => {
     const filas = await comprobar(
       fuentes({ token: async () => ({ activo: true, workers: true, workersEdicion: false, pages: true }) }),
       LOCALES,
     );
     expect(tabla(filas)).toMatch(/Workers Scripts: Edit \| FALTA \| Cloudflare → My Profile → API Tokens/);
-    expect(codigoSalida(filas)).toBe(1);
+    expect(tabla(filas)).toMatch(/No impide desplegar producción/);
+    expect(codigoSalida(filas)).toBe(0);
     const sinWorker = await comprobar(
       fuentes({ token: async () => ({ activo: true, workers: true, workersEdicion: null, pages: true }) }),
       LOCALES,
