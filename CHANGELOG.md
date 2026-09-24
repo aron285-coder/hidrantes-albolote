@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.0...hidrantes-albolote-v0.6.1) (2026-09-24)
+
+
+### Correcciones
+
+* **avisos:** cinco defensas pequeñas: mapa base, avisos, purga de fotos, novedades y Auth ([#316](https://github.com/aron285-coder/hidrantes-albolote/issues/316)) ([958e547](https://github.com/aron285-coder/hidrantes-albolote/commit/958e54790f6310e9bf1e3e4c6387d8c47f6132db))
+* **avisos:** comprobar que el token de Cloudflare puede desplegar el Worker, no solo verlo ([#312](https://github.com/aron285-coder/hidrantes-albolote/issues/312)) ([6d8cd74](https://github.com/aron285-coder/hidrantes-albolote/commit/6d8cd74b6964bc569b93fe2053b04af713b9600e))
+* **busqueda:** la búsqueda entiende más formas de escribir coordenadas ([#315](https://github.com/aron285-coder/hidrantes-albolote/issues/315)) ([9044cfc](https://github.com/aron285-coder/hidrantes-albolote/commit/9044cfcae647e193f86b9a293fd77feb5d8c4d57))
+* **busqueda:** los números de portal no fallan por un resultado roto y dicen cuándo hay que volver a entrar ([#309](https://github.com/aron285-coder/hidrantes-albolote/issues/309)) ([3cfcb20](https://github.com/aron285-coder/hidrantes-albolote/commit/3cfcb2003f4b05ceb183dbf9c35ba1022978b05b))
+* **mapa:** "Cercanos" ya no deja cabos sueltos al volver atrás, en la lista ni en los tramos de jefatura ([#311](https://github.com/aron285-coder/hidrantes-albolote/issues/311)) ([50642ad](https://github.com/aron285-coder/hidrantes-albolote/commit/50642ad1b4c9196e4bebc4ac6cab386aec10aafd))
+* **mapa:** en el móvil, "Cercanos" enseña tres puntos sin desplazarse ([#314](https://github.com/aron285-coder/hidrantes-albolote/issues/314)) ([03fa85d](https://github.com/aron285-coder/hidrantes-albolote/commit/03fa85df198785d8c63bd558f7e125b7a6fdf13f))
+* **mapa:** en tableta y ordenador, "Cercanos" ya no tapa la ficha ni los puntos del incidente ([#319](https://github.com/aron285-coder/hidrantes-albolote/issues/319)) ([d16120f](https://github.com/aron285-coder/hidrantes-albolote/commit/d16120f8595b46272b520c09fdb8e0f49db8470d))
+* **mapa:** la distancia de cada tramo al medir se lee bien, al lado de la línea ([#318](https://github.com/aron285-coder/hidrantes-albolote/issues/318)) ([bd8f4ee](https://github.com/aron285-coder/hidrantes-albolote/commit/bd8f4ee298df3104e141cb45e099cd8c91f25949))
+
 ## [0.6.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.5.0...hidrantes-albolote-v0.6.0) (2026-09-24)
 
 
