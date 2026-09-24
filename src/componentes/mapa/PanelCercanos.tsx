@@ -1,4 +1,5 @@
-import { Navigation, Ruler, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Navigation, Ruler, X } from 'lucide-react';
+import { useRef, useState } from 'react';
 import { BotonCompartir } from './Coordenadas';
 import { MarcadorSvg } from './MarcadorSvg';
 import type { LatLng } from '@/lib/coordenadas';
@@ -6,6 +7,7 @@ import { textoUbicacion } from '@/lib/compartir';
 import { enlaceComoLlegar, nombreCaudal, nombreTipo } from '@/lib/ficha';
 import { distancia, hace } from '@/lib/formato';
 import { rumboCorto } from '@/lib/geometria';
+import { type AlturaHoja, alturaHoja, alturaTrasArrastrar, guardarAlturaHoja } from '@/lib/hoja-cercanos';
 import { type Candidato, PRECISION_POCA_M } from '@/lib/incidente';
 import type { Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -30,6 +32,9 @@ export interface EstadoCercanos {
 
 const boton =
   'bg-papel border-texto text-texto rounded-boton flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[14px] font-semibold';
+/** Botón de icono de la fila: 44 × 44 (UI-13, TR-113). */
+const icono =
+  'bg-papel border-texto text-texto rounded-boton flex size-11 shrink-0 items-center justify-center border-[1.5px]';
 
 /**
  * Hoja "Cercanos" del modo incidente (FR-74, docs/18 GM-03): como mucho cinco puntos que funcionan,
@@ -80,16 +85,46 @@ export function PanelCercanos({
         .join(' · ')
     : T.incidente.desdePuntoMarcado;
   const pocoPrecisa = desdeGps && precision !== null && precision > PRECISION_POCA_M;
+  // En el móvil, dos alturas: 55 % por defecto y 90 % arrastrando el asa o con su botón (RV-61).
+  const [altura, setAltura] = useState<AlturaHoja>(alturaHoja);
+  const cambiarAltura = (a: AlturaHoja) => {
+    setAltura(a);
+    guardarAlturaHoja(a);
+  };
+  const arrastre = useRef<number | null>(null);
   return (
     <section
       aria-label={T.incidente.titulo}
       className={cn(
         'bg-fondo absolute z-[600] flex flex-col gap-2 overflow-y-auto p-3 shadow-xl',
         enHoja
-          ? 'rounded-t-hoja inset-x-0 bottom-0 max-h-[40%] pb-[max(0.75rem,env(safe-area-inset-bottom))]'
+          ? cn(
+              'rounded-t-hoja inset-x-0 bottom-0 pt-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+              altura === 'alta' ? 'max-h-[90%]' : 'max-h-[55%]',
+            )
           : 'rounded-tarjeta top-16 left-2 max-h-[calc(100%-5rem)] w-[min(360px,calc(100%-5rem))]',
       )}
     >
+      {enHoja && (
+        // El asa: se arrastra hacia arriba o hacia abajo. El botón de la cabecera hace lo mismo.
+        <div
+          data-testid="asa-cercanos"
+          aria-hidden
+          className="-mt-1.5 flex h-4 touch-none justify-center pt-1.5"
+          onPointerDown={(e) => {
+            arrastre.current = e.clientY;
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }}
+          onPointerUp={(e) => {
+            if (arrastre.current === null) return;
+            cambiarAltura(alturaTrasArrastrar(altura, e.clientY - arrastre.current));
+            arrastre.current = null;
+          }}
+          onPointerCancel={() => (arrastre.current = null)}
+        >
+          <span className="bg-linea h-1 w-9 rounded-full" />
+        </div>
+      )}
       <header className="flex items-center gap-2">
         <h2 className="flex-1 text-[15px] font-bold">
           {T.incidente.titulo}
@@ -99,6 +134,18 @@ export function PanelCercanos({
             </span>
           )}
         </h2>
+        {enHoja && (
+          <button
+            type="button"
+            onClick={() => cambiarAltura(altura === 'alta' ? 'media' : 'alta')}
+            aria-label={altura === 'alta' ? T.incidente.reducirHoja : T.incidente.ampliarHoja}
+            title={altura === 'alta' ? T.incidente.reducirHoja : T.incidente.ampliarHoja}
+            aria-expanded={altura === 'alta'}
+            className="flex size-11 shrink-0 items-center justify-center"
+          >
+            {altura === 'alta' ? <ChevronDown size={20} aria-hidden /> : <ChevronUp size={20} aria-hidden />}
+          </button>
+        )}
         <button
           type="button"
           onClick={alCerrar}
@@ -109,6 +156,14 @@ export function PanelCercanos({
           <X size={20} aria-hidden />
         </button>
       </header>
+      {origen && aviso && (
+        // Una línea bajo la cabecera, no un bloque: así caben tres candidatos en el móvil (RV-61).
+        <p role="alert" className="text-rojo-700 -mt-1.5 shrink-0 truncate text-[13px] font-semibold">
+          {aviso.punto.caudal === 'no_funciona'
+            ? T.incidente.masCercanoNoFunciona(aviso.punto.codigo, distancia(aviso.metros))
+            : T.incidente.masCercanoMalo(aviso.punto.codigo, distancia(aviso.metros))}
+        </p>
+      )}
 
       {!origen ? (
         <p
@@ -148,16 +203,6 @@ export function PanelCercanos({
               className="size-6"
             />
           </label>
-          {aviso && (
-            <p
-              role="alert"
-              className="bg-rojo-100 text-rojo-700 rounded-tarjeta px-2.5 py-1.5 text-[13px] font-semibold"
-            >
-              {aviso.punto.caudal === 'no_funciona'
-                ? T.incidente.masCercanoNoFunciona(aviso.punto.codigo, distancia(aviso.metros))
-                : T.incidente.masCercanoMalo(aviso.punto.codigo, distancia(aviso.metros))}
-            </p>
-          )}
           {candidatos.length === 0 ? (
             <div className="flex flex-col gap-2">
               <p className="text-texto-suave text-sm">{T.incidente.vacio}</p>
@@ -168,11 +213,15 @@ export function PanelCercanos({
           ) : (
             <ol className="flex flex-col gap-2">
               {candidatos.map((c) => (
-                <li key={c.punto.id} className="bg-papel border-linea rounded-tarjeta border p-2">
+                <li
+                  key={c.punto.id}
+                  className="bg-papel border-linea rounded-tarjeta flex items-center gap-2 border py-1 pr-1 pl-2"
+                >
+                  {/* Fila compacta (RV-61): dos líneas y dos botones de icono de 44 px, 8 px entre ellos. */}
                   <button
                     type="button"
                     onClick={() => alElegir(c.punto.id)}
-                    className="flex min-h-11 w-full items-center gap-2 text-left"
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
                   >
                     <MarcadorSvg punto={c.punto} tamano={24} />
                     <span className="min-w-0 flex-1">
@@ -180,26 +229,31 @@ export function PanelCercanos({
                         <b className="font-datos">{c.punto.codigo}</b> · {nombreTipo[c.punto.tipo].toLowerCase()}{' '}
                         {T.formato.mm(c.punto.diametro_mm)} · {nombreCaudal[c.punto.caudal].toLowerCase()}
                       </span>
-                      <span className="font-datos text-texto-suave block text-[13px]">
-                        {T.incidente.fila(distancia(c.metros), rumboCorto(c.rumbo), T.incidente.tramos(c.tramos))}
+                      <span className="font-datos text-texto-suave block truncate text-[12px]">
+                        {T.incidente.fila(distancia(c.metros), rumboCorto(c.rumbo), T.incidente.tramos(c.tramos))} ·{' '}
+                        {T.mapa.revisado(hace(c.punto.fecha_ultima_revision))}
                       </span>
                     </span>
                   </button>
-                  <div className="mt-2 flex gap-2">
-                    <a
-                      href={enlaceComoLlegar(c.punto)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={cn(boton, 'flex-1')}
-                    >
-                      <Navigation size={16} aria-hidden />
-                      {T.ficha.comoLlegar}
-                    </a>
-                    <button type="button" onClick={() => alMedir(c.punto)} className={cn(boton, 'flex-1')}>
-                      <Ruler size={16} aria-hidden />
-                      {T.medir.tendido}
-                    </button>
-                  </div>
+                  <a
+                    href={enlaceComoLlegar(c.punto)}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={T.ficha.comoLlegar}
+                    title={T.ficha.comoLlegar}
+                    className={icono}
+                  >
+                    <Navigation size={20} aria-hidden />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => alMedir(c.punto)}
+                    aria-label={T.medir.tendido}
+                    title={T.medir.tendido}
+                    className={icono}
+                  >
+                    <Ruler size={20} aria-hidden />
+                  </button>
                 </li>
               ))}
             </ol>

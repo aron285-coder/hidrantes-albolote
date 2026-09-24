@@ -349,3 +349,67 @@ test.describe('cabos sueltos del modo incidente (RV-62)', () => {
     await expect(page.getByText(T.incidente.sinPosicion)).toHaveCount(0);
   });
 });
+
+// docs/19 RV-61: en el móvil, "Cercanos" solo enseñaba un candidato sin desplazarse.
+test.describe('hoja de Cercanos en el móvil (RV-61)', () => {
+  test('con el aviso del más cercano, tres candidatos se ven enteros por encima de la barra de abajo', async ({
+    page,
+    context,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'la hoja es del móvil');
+    await preparar(page, context);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    await expect(hoja(page).getByRole('alert')).toBeVisible();
+    await expect(filas(page)).toHaveCount(5);
+    const barra = (await page.getByRole('navigation', { name: T.app.nombreCorto }).boundingBox())!;
+    const tercera = (await filas(page).nth(2).boundingBox())!;
+    const caja = (await hoja(page).boundingBox())!;
+    expect(tercera.y + tercera.height, 'la tercera fila termina por encima de la barra').toBeLessThanOrEqual(barra.y);
+    expect(tercera.y + tercera.height, 'y dentro de la hoja, sin desplazarse').toBeLessThanOrEqual(
+      caja.y + caja.height,
+    );
+    // La fila dice también cuándo se revisó.
+    await expect(filas(page).first()).toContainText(/revisado hace/);
+  });
+
+  test('el asa y su botón cambian entre 55 % y 90 %, y la altura se recuerda en la sesión', async ({
+    page,
+    context,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'la hoja es del móvil');
+    await preparar(page, context);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    await expect(filas(page)).toHaveCount(5);
+    const media = (await hoja(page).boundingBox())!.height;
+    await hoja(page).getByRole('button', { name: T.incidente.ampliarHoja }).click();
+    await expect(hoja(page).getByRole('button', { name: T.incidente.reducirHoja })).toBeVisible();
+    await expect.poll(async () => (await hoja(page).boundingBox())!.height).toBeGreaterThan(media);
+    await page.reload();
+    await expect(hoja(page).getByRole('button', { name: T.incidente.reducirHoja })).toBeVisible();
+    // Arrastrar el asa hacia abajo la deja en la media.
+    const asa = (await page.getByTestId('asa-cercanos').boundingBox())!;
+    await page.mouse.move(asa.x + asa.width / 2, asa.y + asa.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(asa.x + asa.width / 2, asa.y + 120, { steps: 5 });
+    await page.mouse.up();
+    await expect(hoja(page).getByRole('button', { name: T.incidente.ampliarHoja })).toBeVisible();
+  });
+
+  test('"Cómo llegar" y "Medir tendido" de cada fila son botones de icono de 44 px con nombre', async ({
+    page,
+    context,
+  }) => {
+    await preparar(page, context);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    const fila = filas(page).first();
+    for (const nombre of [T.ficha.comoLlegar, T.medir.tendido]) {
+      const control = fila.getByRole(nombre === T.ficha.comoLlegar ? 'link' : 'button', { name: nombre });
+      await expect(control).toBeVisible();
+      const b = (await control.boundingBox())!;
+      expect(b.width, nombre).toBeGreaterThanOrEqual(44);
+      expect(b.height, nombre).toBeGreaterThanOrEqual(44);
+    }
+  });
+});

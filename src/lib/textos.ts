@@ -246,6 +246,8 @@ export const T = {
     datos: (hace: Parametro) => `Datos de ${hace}`,
     desdeIncidente: 'Distancias desde el incidente',
     cerrarIncidente: 'Cerrar el incidente',
+    ampliarHoja: 'Ver más cercanos',
+    reducirHoja: 'Ver más mapa',
   },
 
   medir: {

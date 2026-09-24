@@ -29,6 +29,7 @@ import { nombreCaudal } from '@/lib/ficha';
 import { megas } from '@/lib/formato';
 import { BYTES_MAPABASE, descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { escribir } from '@/lib/almacen';
+import { FRACCION_HOJA, alturaHoja } from '@/lib/hoja-cercanos';
 import { cercanos, leerGps, masCercanoQueNoFunciona, origenViejo, parametroGps } from '@/lib/incidente';
 import { anadir, borrar as borrarMedicion, deshacer, resumen as resumenMedicion } from '@/lib/medicion';
 import {
@@ -350,7 +351,8 @@ export function Mapa() {
                     origen: incidente,
                     candidatos: candidatos.map((c) => c.punto),
                     // La hoja de abajo ocupa como mucho el 40 % en el móvil.
-                    margenInferior: ancho === 'movil' ? Math.round(window.innerHeight * 0.4) : 0,
+                    margenInferior:
+                      ancho === 'movil' ? Math.round(window.innerHeight * FRACCION_HOJA[alturaHoja()]) : 0,
                   }
                 : null
             }
