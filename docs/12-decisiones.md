@@ -668,6 +668,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - Guarda calles, lugares, polígonos industriales y equipamientos con nombre, unidos por nombre y municipio, simplificados a unos 3 m y recortados a la zona.
   - Sale `public/callejero.json`, de 200 kB como mucho (TR-117). Se precachea y se carga la primera vez que se usa la búsqueda: no va en el JS inicial.
   - Los resultados citan "© OpenStreetMap" (ODbL, como el mapa base, TR-71).
+- **Al implementarlo (GM-04, 23 sep 2026):**
+  - Cada tramo cuenta por su punto medio: dentro o fuera de la zona, y en qué municipio. Lo que cae en el margen de la zona, fuera de los dos términos (el polígono de Juncaril), va sin municipio.
+  - Además de las sendas sin nombre de calle, se descartan las vías `proposed` y `construction`: aún no existen.
+  - La primera generación da 795 entradas (638 calles y 157 lugares) en 125 kB. `datos/callejero.json` guarda solo la versión y el recuento, para Salud del sistema (config `version_callejero`, que anota `cargar-version-mapabase.ts` en cada despliegue).
+  - Mantenimiento lo regenera con la zona y con el mapa base; si Overpass falla o no cabe, se queda el que había y lo dice el resumen del workflow.
 - **Descartado:**
   - la búsqueda de calles de CartoCiudad sin conexión, porque no hay descarga ligera por municipio;
   - Nominatim desde el navegador, porque exige cobertura y su política lo desaconseja.
@@ -681,6 +686,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
     - `GET /geocoder/api/geocoder/candidates?q=&limit=&no_process=` devuelve un array de candidatos con `id`, `type` (`portal`, `callejero`, `toponimo`…), `address`, `muni`, `portalNumber`, `lat` y `lng`;
     - `find?id=&type=&portal=` geolocaliza un candidato que venga sin coordenadas;
     - existe `municipio_filter`.
+  - **Al implementarlo (GM-04, 23 sep 2026), con llamadas reales:**
+    - sin filtro, `candidates?q=calle real 12` devuelve diez calles reales de toda España y ninguna de Albolote. Con `municipio_filter=Albolote,Calicasas` (por nombre; con los códigos INE no devuelve nada) sale `CALLE REAL 12, Albolote`, `type: portal`, `lat 37.23193`, `lng −3.65753`. La Function lo manda siempre;
+    - un candidato `callejero` llega con `lat: 0, lng: 0`, no sin ellas: se trata igual que si faltaran y se pide `find?id=&type=callejero`, que devuelve un objeto con `lat`, `lng` y la geometría;
+    - `address` viene en mayúsculas ("CALLE REAL 12, Albolote"): la Function la da como "Calle Real, 12, Albolote";
+    - sin resultados no se guarda en la caché: una calle nueva puede aparecer al día siguiente.
   - **Llamada real** desde este equipo: `candidates?q=calle real 12 albolote&limit=3` devolvió `CALLE REAL 12, Albolote`, `type: portal`, `lat 37.2319`, `lng −3.6575`.
   - **Licencia:** según el propio documento de servicios, se pueden usar "de modo libre y gratuito para cualquier uso". La única obligación es mencionar procedencia y autoría, bajo la licencia CC BY 4.0 del SCNE.
 - **Decisión:**

@@ -105,7 +105,7 @@ export const T = {
   },
 
   mapa: {
-    buscar: 'Buscar código, calle o descripción…',
+    buscar: 'Buscar código, calle, dirección o coordenadas…',
     capas: 'Capas',
     // Atribuciones de las capas: las exigen sus licencias y se ven en el mapa.
     atribucionOsm: '© OpenStreetMap contributors',
@@ -196,6 +196,23 @@ export const T = {
     cercanosDesdeAqui: 'Cercanos desde aquí',
     compartirUbicacion: 'Compartir esta ubicación',
     anadirPunto: 'Añadir un punto aquí',
+    junto: (calle: Parametro) => `Junto a ${calle}`,
+  },
+
+  // Búsqueda de calles, lugares, direcciones y coordenadas (FR-73, docs/18 GM-04).
+  busqueda: {
+    coordenadas: (decimal: Parametro) => `Coordenadas ${decimal}`,
+    fueraDeZona: 'Fuera de la zona habitual',
+    enlaceCorto: 'Abre el enlace en el navegador y copia las coordenadas',
+    puntos: 'Puntos',
+    calles: 'Calles y lugares',
+    direcciones: 'Direcciones',
+    fuenteCalles: '© OpenStreetMap',
+    fuenteDirecciones: 'CartoCiudad · IGN',
+    buscandoDirecciones: 'Buscando la dirección…',
+    sinDirecciones: 'Ninguna dirección con ese número en Albolote ni Calicasas',
+    portalSinCobertura: 'Los números de portal necesitan cobertura: te enseño la calle',
+    municipio: { albolote: 'Albolote', calicasas: 'Calicasas' },
   },
 
   incidente: {
@@ -820,6 +837,7 @@ export const T = {
     almacenamientoLleno: (porcentaje: Parametro) =>
       `Las fotos ocupan el ${porcentaje} % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.`,
     zonaYMapa: 'Zona de cobertura · mapa base',
+    callejero: 'Callejero sin conexión',
     dispositivosActivos: 'Móviles con acceso',
     intentosFallidos24h: 'Códigos de acceso fallidos (24 h)',
     baseDeDatos: 'Base de datos',

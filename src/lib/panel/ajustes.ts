@@ -180,6 +180,8 @@ export interface Salud {
   storage_bytes: number | null;
   version_zona: string | null;
   version_mapabase: string | null;
+  /** Versión del callejero sin conexión (docs/18 GM-04); ausente con una base anterior a 0028. */
+  version_callejero?: string | null;
   /** Cuándo corrió vigilancia.yml y si fue bien (TR-102). */
   ultima_vigilancia: string | null;
   vigilancia_ok: boolean | null;

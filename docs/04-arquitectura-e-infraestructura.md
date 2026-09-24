@@ -219,6 +219,7 @@ Las cinco Pages Functions (`functions/api/`), en TypeScript, con su contrato en 
 | `POST /api/url-subida` | Reserva de subida y URL firmada para una foto. |
 | `GET /api/direccion` | Reverse geocoding en Nominatim, solo con JWT de administrador, ≤ 1 req/s, resultado cacheado en la propuesta. |
 | `POST /api/lanzar-workflow` | `workflow_dispatch` a un workflow de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. Con `workflow_dispatch` el token basta con `actions:write` (DEC-069). |
+| `POST /api/geocodificar` | Números de portal para la búsqueda con CartoCiudad (IGN/CNIG), con token de voluntario o JWT de administrador, nunca anónima; 5 s como mucho, caché de 30 días por el sha256 de la consulta, que no se registra (DEC-092, 05 §9). |
 | `POST /api/push` | Envía las notificaciones pendientes (`notificaciones`) por Web Push con las claves VAPID; la llama el cliente tras cada acción que genera avisos y el trabajo diario de vigilancia. Idempotente. |
 
 ---

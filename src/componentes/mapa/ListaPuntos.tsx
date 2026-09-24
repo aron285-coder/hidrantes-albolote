@@ -1,6 +1,8 @@
 import { Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { MarcadorSvg } from './MarcadorSvg';
+import { CabeceraGrupo, ResultadoCoordenadas, ResultadosCallesYDirecciones } from './ResultadosLugares';
+import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
 import { usePosicion, usePuntos } from '@/hooks/estado';
 import { leer, escribir } from '@/lib/almacen';
 import { nombreCaudal } from '@/lib/ficha';
@@ -36,6 +38,15 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
   const [texto, setTexto] = useState('');
   const [filtro, setFiltro] = useState<Filtro>(() => leer<Filtro>('filtro_lista') ?? 'todos');
   const [orden, setOrden] = useState<Orden>(() => leer<Orden>('orden_lista') ?? 'distancia');
+
+  // Además de los puntos, calles, lugares, direcciones y coordenadas (FR-73).
+  const lugares = useBusquedaLugares(texto);
+  const conLugares = !!texto && hayLugares(lugares);
+  const irADestino = useIrADestino();
+  const irA = (d: Destino) => {
+    setTexto('');
+    irADestino(d);
+  };
 
   const visibles = useMemo(
     () => ordenar(filtrar(buscar(puntos, texto), filtro), orden, pos),
@@ -115,46 +126,51 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
         )}
       </div>
 
-      <ul className="min-h-0 flex-1 overflow-y-auto" aria-live="polite">
-        {visibles.map((p) => (
-          <li key={p.id}>
-            <button
-              type="button"
-              onClick={() => alElegir(p.id)}
-              className="border-linea hover:bg-papel flex min-h-14 w-full items-center gap-2.5 border-b px-3 py-2 text-left"
-            >
-              <MarcadorSvg punto={p} tamano={24} />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-semibold">
-                  <span className="font-datos">{p.codigo}</span> · {T.formato.mm(p.diametro_mm)}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {texto && <ResultadoCoordenadas lugares={lugares} alElegir={irA} />}
+        {conLugares && visibles.length > 0 && <CabeceraGrupo titulo={T.busqueda.puntos} />}
+        <ul aria-live="polite">
+          {visibles.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => alElegir(p.id)}
+                className="border-linea hover:bg-papel flex min-h-14 w-full items-center gap-2.5 border-b px-3 py-2 text-left"
+              >
+                <MarcadorSvg punto={p} tamano={24} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-semibold">
+                    <span className="font-datos">{p.codigo}</span> · {T.formato.mm(p.diametro_mm)}
+                  </span>
+                  <span className="text-texto-suave block truncate text-[13px]">
+                    {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal[p.caudal]} ·{' '}
+                    {/* FR-68: la última revisión en todas las filas; caducada, en rojo (RV-24). */}
+                    {p.revision_caducada ? (
+                      <span className="text-rojo-700 font-semibold">
+                        {T.mapa.sinRevisar} · {hace(p.fecha_ultima_revision)}
+                      </span>
+                    ) : (
+                      T.mapa.revisado(hace(p.fecha_ultima_revision))
+                    )}
+                  </span>
                 </span>
-                <span className="text-texto-suave block truncate text-[13px]">
-                  {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal[p.caudal]} ·{' '}
-                  {/* FR-68: la última revisión en todas las filas; caducada, en rojo (RV-24). */}
-                  {p.revision_caducada ? (
-                    <span className="text-rojo-700 font-semibold">
-                      {T.mapa.sinRevisar} · {hace(p.fecha_ultima_revision)}
-                    </span>
-                  ) : (
-                    T.mapa.revisado(hace(p.fecha_ultima_revision))
-                  )}
-                </span>
-              </span>
-              {pos && (
-                <span className="text-right text-[13px] font-semibold whitespace-nowrap">
-                  {distancia(metros(pos, p))}
-                  <small className="text-texto-suave block font-normal">{T.mapa.desdeTi}</small>
-                </span>
-              )}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {cargado && visibles.length === 0 && (
-        <p className="text-texto-suave p-6 text-center">
-          {puntos.length === 0 ? T.mapa.sinPuntos : texto ? T.mapa.busquedaVacia : T.mapa.filtroVacio}
-        </p>
-      )}
+                {pos && (
+                  <span className="text-right text-[13px] font-semibold whitespace-nowrap">
+                    {distancia(metros(pos, p))}
+                    <small className="text-texto-suave block font-normal">{T.mapa.desdeTi}</small>
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {texto && <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} />}
+        {cargado && visibles.length === 0 && !conLugares && (
+          <p className="text-texto-suave p-6 text-center">
+            {puntos.length === 0 ? T.mapa.sinPuntos : texto ? T.mapa.busquedaVacia : T.mapa.filtroVacio}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

@@ -484,6 +484,7 @@ function SaludDelSistema() {
           T.panelAjustes.zonaYMapa,
           `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
         ],
+        [T.panelAjustes.callejero, s.version_callejero ?? T.panelAjustes.sinDato],
         [
           T.panelAjustes.ultimaVigilancia,
           s.ultima_vigilancia

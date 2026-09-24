@@ -17,6 +17,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { RAIZ, abortar, ejecutarScript, log } from './lib/comun.ts';
+import { consultarOverpass } from './lib/overpass.ts';
 import {
   MUNICIPIOS,
   construirZona,
@@ -29,45 +30,12 @@ import {
 export const MARGEN_METROS = 400; // FR-53; config.buffer_zona_m es informativo (05 §2.10)
 export const TOLERANCIA = 0.0001; // ≈ 10 m: suficiente para avisar, ligero para el móvil
 
-const ESPEJOS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
-];
-const AGENTE = 'hidrantes-albolote/1.0 (+https://github.com/aron285-coder/hidrantes-albolote)';
-
 const CONSULTA = `[out:json][timeout:120];
 rel["boundary"="administrative"]["admin_level"="8"]["ine:municipio"~"^(${Object.keys(MUNICIPIOS).join('|')})$"]->.m;
 .m out geom;
 .m map_to_area->.a;
 node(area.a)["place"];
 out;`;
-
-interface RespuestaOverpass {
-  osm3s?: { timestamp_osm_base?: string };
-  elements: (RelacionOverpass | NodoOverpass)[];
-}
-
-async function consultarOverpass(): Promise<RespuestaOverpass> {
-  for (const url of ESPEJOS) {
-    try {
-      log.info(`Overpass: ${new URL(url).host}`);
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'User-Agent': AGENTE, 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ data: CONSULTA }),
-        signal: AbortSignal.timeout(180_000),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return (await r.json()) as RespuestaOverpass;
-    } catch (e) {
-      log.aviso(`${new URL(url).host} no respondió (${(e as Error).message}); pruebo el siguiente`);
-    }
-  }
-  abortar(
-    'Ningún servidor Overpass respondió. Los GeoJSON committeados siguen valiendo; vuelve a intentarlo más tarde.',
-  );
-}
 
 function escribir(nombre: string, contenido: string): void {
   writeFileSync(path.join(RAIZ, 'datos', nombre), contenido);
@@ -124,7 +92,10 @@ mapa.fitBounds(zona.getBounds());
 
 async function principal(): Promise<void> {
   log.paso('Zona de cobertura desde OpenStreetMap');
-  const respuesta = await consultarOverpass();
+  const respuesta = await consultarOverpass<RelacionOverpass | NodoOverpass>(
+    CONSULTA,
+    'Los GeoJSON committeados siguen valiendo; vuelve a intentarlo más tarde.',
+  );
   const relaciones = respuesta.elements.filter((e): e is RelacionOverpass => e.type === 'relation');
   const lugares = respuesta.elements.filter((e): e is NodoOverpass => e.type === 'node');
   const version = new Date().toISOString().slice(0, 10);

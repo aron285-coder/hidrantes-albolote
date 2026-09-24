@@ -246,7 +246,7 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Foto** | relación 16:9 en ficha, 84–86 px de alto en móvil, etiqueta de fecha abajo-izquierda sobre `rgba(14,27,48,.6)`. Placeholder mientras carga: degradado gris-azulado. |
 | **Racor de referencia** | tres tarjetas iguales con foto real 34 px de alto y nombre; la elegida con borde `--marino-950` doble. |
 | **Minimapa de los formularios** | 336 px de alto, pin arrastrable y botón "Mi posición" arriba a la derecha; no se recentra solo (DEC-066). |
-| **Controles del mapa** | blancos, radio 7–9, sombra `0 1px 5px rgba(0,0,0,.18)`: búsqueda (arriba, ancho completo), Capas (arriba derecha), Mi posición (bajo Capas), leyenda (abajo izquierda), atribución (abajo derecha, 6,5 px). Botón + flotante 44 px `--naranja-600` sobre la esquina inferior derecha del mapa. |
+| **Controles del mapa** | blancos, radio 7–9, sombra `0 1px 5px rgba(0,0,0,.18)`: búsqueda (arriba, ancho completo), Capas (arriba derecha), Mi posición (bajo Capas), leyenda (abajo izquierda), atribución (abajo derecha, 6,5 px). Botón + flotante 44 px `--naranja-600` sobre la esquina inferior derecha del mapa. Resultados de la búsqueda (FR-73): en grupos, por este orden, *Coordenadas*, *Puntos*, *Calles y lugares* (© OpenStreetMap) y *Direcciones* (CartoCiudad · IGN), cada fila de ≥ 52 px; mientras están abiertos en el móvil y la tableta, la columna de la derecha se oculta, porque la lista la taparía a medias. |
 | **Navegación inferior** | 50 px, blanco, tres destinos (Mapa · Lista · Ajustes), activo `--marino-950` 700. |
 | **Panel: pestañas** | fondo `#F5F6F2`, activa blanca con borde inferior 2 px `--naranja-600`, badge naranja para pendientes y gris para totales. Sin salto de línea; scroll horizontal si no cabe. |
 | **Panel: tablas** (`.desktop-table`) | 12 px, cabecera Barlow 11 px `--texto-suave` con borde inferior 2 px `--marino-950`, celdas 6 × 10 px, códigos y Ø sin salto de línea, cabeceras ordenables con ▲▼. |
@@ -381,7 +381,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Datos externos.` ·
 `Para deducir direcciones se consulta OpenStreetMap con las coordenadas del hidrante, nunca con datos tuyos. Mapa base y direcciones © OpenStreetMap contributors.`
 
-**Mapa y lista.** `Buscar código, calle o descripción…` · `Capas` · `Mapa base propio` ·
+**Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · `Mapa base propio` ·
 `Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `© OpenStreetMap contributors` ·
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
@@ -403,7 +403,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089). `Coordenadas` · `Decimal` ·
 `UTM ETRS89 · huso 30` · `Copiar [decimal]` · `Copiado` ·
 `No se ha podido copiar: mantén pulsado el texto para copiarlo` · `¿Qué hay aquí?` ·
-`Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Compartir` · `Ubicación` ·
+`Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Junto a [Calle Real]` · `Compartir` · `Ubicación` ·
 `[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[37.230500, -3.656000] · UTM [30S 441808 4120645] (ETRS89)` ·
 `Copiado: pégalo donde quieras` · `No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo` ·
 `Cercanos` · `Incidente` · `Desde tu posición` · `Desde el punto marcado` · `Posición de [hace 3 min]` ·
@@ -415,7 +415,11 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Distancias desde el incidente` · `Cerrar el incidente` · `Medir` · `Medir distancia` · `Medir desde aquí` ·
 `Medir tendido` · `Toca el mapa para poner los puntos del tendido` · `[186 m] · [10] tramos de [20] m` ·
 `[40 m] · 1 tramo de [20] m` · `Deshacer` · `Borrar` · `Terminar` · `Para deshacer hacen falta dos puntos` ·
-`Aún no hay puntos: toca el mapa`.
+`Aún no hay puntos: toca el mapa` · `Coordenadas [37.230500, -3.656000]` · `Fuera de la zona habitual` ·
+`Abre el enlace en el navegador y copia las coordenadas` · `Puntos` · `Calles y lugares` · `Direcciones` ·
+`© OpenStreetMap` · `CartoCiudad · IGN` · `Buscando la dirección…` ·
+`Ninguna dirección con ese número en Albolote ni Calicasas` ·
+`Los números de portal necesitan cobertura: te enseño la calle` · `Albolote` · `Calicasas` (búsqueda, FR-73).
 
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
@@ -645,7 +649,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Última vigilancia` · `todo respondía` · `con avisos: mira las issues` ·
 `Almacenamiento usado` ·
 `Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073) ·
-`Zona de cobertura · mapa base` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Base de datos` · `[38] MB de [500] MB` · `Tareas programadas` ·
+`Zona de cobertura · mapa base` · `Callejero sin conexión` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Base de datos` · `[38] MB de [500] MB` · `Tareas programadas` ·
 `[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` ·
 `Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·

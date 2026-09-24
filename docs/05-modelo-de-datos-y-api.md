@@ -435,7 +435,8 @@ fn_anonimizar_autor(dispositivo_id uuid) returns integer      -- filas afectadas
 fn_historial_punto(punto_id uuid) returns setof v_registro
 fn_salud() returns jsonb
   -- { pendientes_14d, incidencias_abiertas, errores_7d, sin_direccion, ultimo_respaldo, storage_bytes,
-  --   version_zona, version_mapabase (la escribe cada despliegue, RV-21), ultima_vigilancia,
+  --   version_zona, version_mapabase (la escribe cada despliegue, RV-21), version_callejero (0028,
+  --   GM-04, ídem), ultima_vigilancia,
   --   vigilancia_ok (0011), dispositivos_activos, intentos_fallidos_24h, topes_alcanzados_24h,
   --   topes_globales_24h (0015, RV-14), bd_bytes, esquema_bytes, tareas (0018, RV-22: lo que
   --   vigilancia.yml anotó de cada tarea de pg_cron: { tarea, ultima, fallo, problema }) }
@@ -590,11 +591,13 @@ Números de portal para la búsqueda (FR-73, DEC-092). **Nunca anónimo**: no es
 ```
 
 - Autorización igual que `/api/push`: token de voluntario válido o administrador.
-- Llama a `GET https://www.cartociudad.es/geocoder/api/geocoder/candidates?q=<q>&limit=10&no_process=…`
+- Llama a `GET https://www.cartociudad.es/geocoder/api/geocoder/candidates?q=<q>&limit=10&no_process=…&municipio_filter=Albolote,Calicasas`
   con `AbortSignal.timeout(5000)` y el `User-Agent` de `NOMINATIM_USER_AGENT`; si un candidato
-  `portal` o `callejero` no trae `lat`/`lng`, `find?id=&type=&portal=`.
+  `portal` o `callejero` no trae `lat`/`lng` (o trae `0, 0`), `find?id=&type=&portal=`. Sin el
+  filtro por municipio, el portal de Albolote no entra entre los diez primeros (DEC-092).
+- `tipo`: `portal` → `portal`, `callejero` → `calle`, `toponimo` y `poblacion` → `lugar`; los demás no salen.
 - Solo devuelve resultados dentro del recuadro de la zona de cobertura con 2 km de margen.
-- Caché `caches.default` 30 días. La clave es `<origen de la petición>/__cache/geocodificar?q=<sha256(q normalizada)>`:
+- Caché `caches.default` 30 días, solo con resultados. La clave es `<origen de la petición>/__cache/geocodificar?q=<sha256(q normalizada)>`:
   el texto no se guarda en claro. `q` no se registra en logs ni en `errores_cliente` (11).
 
 ### `POST /api/lanzar-workflow`

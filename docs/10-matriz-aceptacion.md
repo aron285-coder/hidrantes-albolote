@@ -199,13 +199,13 @@ Pendientes de conformidad de jefatura en F9.1 (#76). Se comprueban en el piloto 
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-150 | ¿Qué hay aquí? | Sin cobertura, mantener pulsado un sitio del mapa sin marcador | Hoja con coordenadas decimales y UTM ETRS89 huso 30, la calle más cercana si la hay y las cuatro acciones; *Añadir un punto aquí* abre el alta con el pin ahí; *atrás* la cierra | FR-72, FR-50 | | |
-| AC-151 | Buscar calle, lugar, portal o coordenadas | Sin cobertura, buscar "c/ real"; con cobertura, "calle real 12"; pegar un enlace de Google Maps | La calle sale del móvil con "© OpenStreetMap"; el portal, con "CartoCiudad · IGN"; el enlace da "Coordenadas …" arriba; sin cobertura, el portal explica que necesita cobertura y enseña la calle | FR-73, FR-69, TR-118 | | |
-| AC-152 | Modo incidente | Sin cobertura, con GPS, pulsar *Cercanos* | Como mucho cinco puntos que funcionan (bueno o regular), en orden de distancia, con rumbo y tramos; aviso si el más cercano no funciona; *Solo hidrantes* cambia la lista; *atrás* sale; recargar lo mantiene | FR-74 | | |
+| AC-150 | ¿Qué hay aquí? | Sin cobertura, mantener pulsado un sitio del mapa sin marcador | Hoja con coordenadas decimales y UTM ETRS89 huso 30, la calle más cercana si la hay y las cuatro acciones; *Añadir un punto aquí* abre el alta con el pin ahí; *atrás* la cierra | FR-72, FR-50 | ✓ | 23 sep 2026 · e2e `mapa.spec.ts` y `busqueda.spec.ts` |
+| AC-151 | Buscar calle, lugar, portal o coordenadas | Sin cobertura, buscar "c/ real"; con cobertura, "calle real 12"; pegar un enlace de Google Maps | La calle sale del móvil con "© OpenStreetMap"; el portal, con "CartoCiudad · IGN"; el enlace da "Coordenadas …" arriba; sin cobertura, el portal explica que necesita cobertura y enseña la calle | FR-73, FR-69, TR-118 | ✓ | 23 sep 2026 · e2e `busqueda.spec.ts` |
+| AC-152 | Modo incidente | Sin cobertura, con GPS, pulsar *Cercanos* | Como mucho cinco puntos que funcionan (bueno o regular), en orden de distancia, con rumbo y tramos; aviso si el más cercano no funciona; *Solo hidrantes* cambia la lista; *atrás* sale; recargar lo mantiene | FR-74 | ✓ | 23 sep 2026 · e2e `incidente.spec.ts` |
 | AC-153 | Compartir un punto | Ficha → *Compartir* → WhatsApp | Llega código, tipo, diámetro, estado, dirección, coordenadas decimales y UTM y un enlace de Google Maps; sin nombres ni descripción | FR-75, FR-27 | | |
-| AC-154 | Medir un tendido | Desde *Cercanos*, *Medir tendido*; añadir dos vértices; *Deshacer*; *Terminar* | La barra dice la distancia y los tramos de manguera; tocar no abre fichas; *Deshacer* quita el último; *atrás* sale | FR-76, FR-142 | | |
+| AC-154 | Medir un tendido | Desde *Cercanos*, *Medir tendido*; añadir dos vértices; *Deshacer*; *Terminar* | La barra dice la distancia y los tramos de manguera; tocar no abre fichas; *Deshacer* quita el último; *atrás* sale | FR-76, FR-142 | ✓ | 23 sep 2026 · e2e `medir.spec.ts` |
 | AC-155 | G2: el punto más cercano que funciona | Con puntos guardados y sin red, cronometrar desde abrir la app hasta ver la primera fila de *Cercanos* con un toque | Menos de 15 s en campo; en e2e con perfil móvil, menos de 3 s | G2, FR-74, TR-116 | | e2e `incidente.spec.ts` (@rendimiento) |
-| AC-156 | UTM exacto | Comparar las UTM de la app con PROJ (EPSG:4258 → EPSG:25830) en cuatro puntos de la zona | Diferencia ≤ 1 m | TR-119, FR-72, FR-75 | | vitest `coordenadas.test.ts` |
+| AC-156 | UTM exacto | Comparar las UTM de la app con PROJ (EPSG:4258 → EPSG:25830) en cuatro puntos de la zona | Diferencia ≤ 1 m | TR-119, FR-72, FR-75 | ✓ | 23 sep 2026 · vitest `coordenadas.test.ts` |
 
 ---
 

@@ -6,6 +6,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { archivoHeaders, archivoRobots, type Entorno } from './config/cabeceras.ts';
 import { CACHE_FOTOS } from './config/cache-fotos.ts';
+import { entradaCallejero } from './config/precacheo.ts';
 import { T } from './src/lib/textos.ts';
 
 const version: string = JSON.parse(readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
@@ -70,6 +71,8 @@ export default defineConfig(({ mode }) => {
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,woff2,svg,png}'],
+          // El callejero, aparte y con su revisión: se baja al instalar y funciona sin cobertura (TR-117).
+          additionalManifestEntries: [entradaCallejero(path.resolve(import.meta.dirname, 'public', 'callejero.json'))],
           // Rutas de la SPA sin red: el armazón precacheado. Las Functions nunca desde la caché.
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api\//],
