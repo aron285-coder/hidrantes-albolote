@@ -1,7 +1,7 @@
-# Envío de los avisos push pendientes (FR-163, FR-164, 05 §9; docs/17 RV-08, DEC-068 actualizada).
-# Aprobar o rechazar desde el panel ya pide el envío al momento; esto es lo que garantiza que salgan
-# aunque nadie abra la app: los resultados de moderación, el resumen semanal del lunes y lo que un
-# envío anterior dejó reclamado sin anotar.
+# Envío MANUAL de emergencia de los avisos push pendientes (FR-163, FR-164, 05 §9; docs/17 RV-08).
+# Desde docs/19 RV-52 (DEC-097) los despacha cada 5 minutos el Worker `hidrantes-avisos`, con su
+# Cron Trigger: el cron de GitHub es de mejor esfuerzo y este workflow, programado cada 15 minutos,
+# corría cada 3 a 5 horas. Queda solo `workflow_dispatch`, por si el Worker fallara.
 #
 # Sin `environment` (DEC-071): `production` pediría aprobación humana en cada ejecución. El secreto
 # de repositorio VIGILANCIA_SECRETO_<ENTORNO> es el mismo valor que la Function lee de sus
@@ -10,8 +10,6 @@
 name: Avisos
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:

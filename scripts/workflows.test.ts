@@ -42,8 +42,9 @@ describe('workflows programados (DEC-085)', () => {
 
 describe('avisos.yml (RV-08)', () => {
   const texto = leer('avisos.yml');
-  it('corre cada 15 minutos y a mano', () => {
-    expect(texto).toMatch(/cron: '\*\/15 \* \* \* \*'/);
+  // docs/19 RV-52: el cron de GitHub es de mejor esfuerzo; ahora despacha el Worker cada 5 minutos.
+  it('solo a mano, sin schedule: los avisos los despacha el Worker', () => {
+    expect(texto).not.toMatch(/^\s{2}schedule:/m);
     expect(texto).toMatch(/^\s{2}workflow_dispatch:/m);
   });
   it('recorre producción y staging', () => {
@@ -140,5 +141,41 @@ describe('paridad de producción (P-03)', () => {
     expect(texto).toMatch(/"\$dias_atras" -gt 7/);
     expect(texto).toContain('haz P-02');
     expect(texto).toMatch(/fetch-depth: 0/);
+  });
+});
+
+// docs/19 RV-52, DEC-097: el Worker de los avisos, su despliegue y su vigilancia.
+describe('Worker hidrantes-avisos (RV-52)', () => {
+  const toml = readFileSync(path.resolve(import.meta.dirname, '../workers/avisos/wrangler.toml'), 'utf8');
+
+  it('wrangler.toml tiene el cron cada 5 minutos, sin superficie HTTP y sin secretos', () => {
+    expect(toml).toMatch(/crons = \["\*\/5 \* \* \* \*"\]/);
+    expect(toml).toMatch(/^name = "hidrantes-avisos"/m);
+    expect(toml).toMatch(/^workers_dev = false/m);
+    expect(toml).not.toMatch(/VIGILANCIA_SECRETO_(PROD|STAGING)\s*=/);
+    expect(toml).toContain('https://hidrantes-albolote.pages.dev,https://hidrantes-albolote-staging.pages.dev');
+  });
+
+  it('deploy-staging.yml despliega el Worker tras Pages, si cambió workers/ o si aún no existe', () => {
+    const texto = leer('deploy-staging.yml');
+    const paso = texto.indexOf('- name: Desplegar el Worker de los avisos');
+    expect(paso).toBeGreaterThan(texto.indexOf('wrangler pages deploy'));
+    expect(texto.slice(paso)).toContain('npx wrangler deploy --config workers/avisos/wrangler.toml');
+    expect(texto.slice(paso)).toContain('git diff --name-only HEAD~1 HEAD -- workers/');
+    expect(texto).toMatch(/fetch-depth: 2/);
+  });
+
+  it('la vigilancia mira el cron del Worker y avisa de avisos parados más de 30 minutos', () => {
+    const texto = leer('vigilancia.yml');
+    expect(texto).toContain('workers/scripts/hidrantes-avisos/schedules');
+    expect(texto).toContain('"${WORKER_CRON:-}" != "*/5 * * * *"');
+    expect(texto).toContain("interval '30 minutes'");
+    expect(texto).not.toContain("interval '2 hours'");
+  });
+
+  it('avisos.yml ya no está en las listas de workflows programados', () => {
+    for (const a of ['mantener-activo.yml', 'vigilancia.yml']) {
+      for (const lista of listas(a)) expect(lista).not.toContain('avisos.yml');
+    }
   });
 });

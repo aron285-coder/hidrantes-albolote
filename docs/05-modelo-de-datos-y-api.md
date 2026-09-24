@@ -612,14 +612,14 @@ en la Fase 8) → `503 { "error": "NO_CONFIGURADO" }`, sin llamar a GitHub.
 ### `POST /api/push`
 
 `→ { "token": "…" }` (voluntario) o cabecera de administrador, o cabecera `X-Vigilancia` con el
-secreto de `avisos.yml` (`VIGILANCIA_SECRETO`). Reclama **20** avisos (el plan gratuito de Workers
+secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. Reclama **20** avisos (el plan gratuito de Workers
 permite 50 peticiones de salida por invocación y cada aviso gasta dos), envía cada uno con Web Push
 (VAPID) y anota su resultado; borra suscripciones con tres fallos.
 `← 200 { "enviadas": n, "fallidas": m, "sin_anotar": k, "quedan": bool }`: `sin_anotar` son los que
 salieron o no sin poder anotarse (vuelven a salir a los 15 minutos: mejor un duplicado que una
 pérdida) y `quedan` dice si se llenó el lote. Dos llamadas seguidas no envían dos veces. La piden el
 móvil tras sincronizar o tras enviar una propuesta, jefatura tras cada moderación (una vez por lote)
-y `avisos.yml` cada 15 minutos (DEC-088). Necesita `VAPID_PUBLIC_KEY` además de la
+y el Worker `hidrantes-avisos` cada 5 minutos, con `avisos.yml` como envío manual de emergencia (DEC-097). Necesita `VAPID_PUBLIC_KEY` además de la
 privada (WebCrypto no deduce una de otra); sin ellas → `503 NO_CONFIGURADO`. Cifrado RFC 8291 y firma
 RFC 8292 con WebCrypto, sin dependencias.
 

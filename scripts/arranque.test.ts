@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ErrorDeScript } from './lib/comun.ts';
-import { ROTABLES, aRotar, pasoTrasSecretosPages, sufijoDe } from './arranque.ts';
+import { ROTABLES, aRotar, pasoTrasSecretosPages, planFaltantes, sufijoDe } from './arranque.ts';
 
 describe('--rotar', () => {
   it('sin nada, no se rota nada: el arranque completo no es una rotación', () => {
@@ -54,5 +54,54 @@ describe('tras fijar los secretos de Pages', () => {
     const paso = pasoTrasSecretosPages({ clave: 'production' });
     expect(paso.comando).toBeUndefined();
     expect(paso.aviso).toMatch(/develop → main/);
+  });
+});
+
+// docs/19 P-01 y RV-52: --solo-faltantes pone lo que falta y nunca rota lo que ya está.
+describe('--solo-faltantes', () => {
+  const COMPLETO = [
+    'SUPABASE_URL',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'SAL_IP',
+    'NOMINATIM_USER_AGENT',
+    'VAPID_PRIVATE_KEY',
+    'VAPID_PUBLIC_KEY',
+    'VAPID_SUBJECT',
+    'VIGILANCIA_SECRETO',
+  ];
+  const REPO = ['VIGILANCIA_SECRETO_PROD', 'VIGILANCIA_SECRETO_STAGING'];
+
+  it('con todo puesto, no toca nada', () => {
+    expect(planFaltantes({ clave: 'production', pages: COMPLETO, repo: REPO, worker: REPO })).toEqual({
+      clave: 'production',
+      vigilancia: false,
+      salIp: false,
+      vapid: false,
+      nominatim: false,
+      aMano: [],
+    });
+  });
+
+  it('si al Worker le falta el secreto, se genera uno nuevo para Pages, el repositorio y el Worker', () => {
+    expect(planFaltantes({ clave: 'staging', pages: COMPLETO, repo: REPO, worker: [] }).vigilancia).toBe(true);
+    const soloProd = ['VIGILANCIA_SECRETO_PROD'];
+    expect(planFaltantes({ clave: 'staging', pages: COMPLETO, repo: REPO, worker: soloProd }).vigilancia).toBe(true);
+    expect(planFaltantes({ clave: 'production', pages: COMPLETO, repo: REPO, worker: soloProd }).vigilancia).toBe(
+      false,
+    );
+  });
+
+  it('nunca genera claves VAPID si ya están: dejaría sin avisos a los suscritos', () => {
+    const plan = planFaltantes({ clave: 'production', pages: COMPLETO, repo: [], worker: [] });
+    expect(plan.vigilancia).toBe(true);
+    expect(plan.vapid).toBe(false);
+    expect(plan.salIp).toBe(false);
+  });
+
+  it('lo que solo sabe el arranque completo se dice, no se inventa', () => {
+    const plan = planFaltantes({ clave: 'production', pages: ['SAL_IP'], repo: REPO, worker: REPO });
+    expect(plan.aMano).toEqual(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    expect(plan.vapid).toBe(true);
+    expect(plan.nominatim).toBe(true);
   });
 });

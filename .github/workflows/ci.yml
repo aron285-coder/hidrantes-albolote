@@ -107,6 +107,12 @@ jobs:
           INTEGRACION=1 npm run e2e || { tail -50 wrangler.log; exit 1; }
           # El siguiente paso levanta su propio wrangler en el mismo puerto con el frontend anterior.
           pkill -f 'wrangler pages dev' || true
+      # El Worker de los avisos con su cron de verdad (wrangler dev --test-scheduled) contra las
+      # Functions locales: una notificación pendiente sale sola (docs/19 RV-52).
+      - name: Worker de los avisos con su cron, contra la pila local (RV-52)
+        run: |
+          npx tsx scripts/probar-worker-avisos.ts
+          pkill -f 'wrangler' || true
       - name: Compatibilidad hacia atrás (TR-107)
         run: npm run compatibilidad
       # Al final: la restauración deja la base como estaba el volcado (RV-13, TR-51, 15 §5.3).

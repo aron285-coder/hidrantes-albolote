@@ -12,6 +12,9 @@
     },
     {
       "path": "./tsconfig.functions.json"
+    },
+    {
+      "path": "./tsconfig.workers.json"
     }
   ]
 }
