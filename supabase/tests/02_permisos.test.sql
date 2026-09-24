@@ -149,7 +149,8 @@ select is(
   (select array_agg(c.relname::text order by c.relname)
      from pg_class c join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'hidrantes' and c.relkind = 'S'
-      and not has_sequence_privilege('service_role', c.oid, 'USAGE')),
+      -- En un case: si no, Postgres puede evaluarlo antes que el filtro y fallar con una tabla.
+      and case when c.relkind = 'S' then not has_sequence_privilege('service_role', c.oid, 'USAGE') else false end),
   null,
   'service_role: usa cada secuencia de hidrantes'
 );
