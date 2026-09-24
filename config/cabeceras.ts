@@ -11,6 +11,9 @@ export const ORIGENES_CAPAS = [
   'https://ovc.catastro.meh.es', // Catastro (WMS)
 ];
 
+/** Tipo MIME de las teselas vectoriales sueltas (docs/20 RV-71). */
+export const TIPO_TESELA = 'application/vnd.mapbox-vector-tile';
+
 export interface OpcionesCabeceras {
   entorno: Entorno;
   supabaseUrl?: string;
@@ -77,6 +80,17 @@ export function archivoHeaders(opciones: OpcionesCabeceras): string {
     bloque('/sw.js', { 'Cache-Control': 'no-cache' }),
     bloque('/manifest.webmanifest', { 'Cache-Control': 'no-cache' }),
     bloque('/assets/*', { 'Cache-Control': 'public, max-age=31536000, immutable' }),
+    // Teselas sueltas del mapa base en línea (docs/20 RV-71, DEC-111): la ruta lleva la versión, así
+    // que no cambian nunca. El tipo, solo en las teselas ({z}/{x}/{y}.pbf), no en su meta.json: Pages
+    // juntaría con una coma dos Content-Type de dos reglas.
+    bloque('/mapabase/t/*', { 'Cache-Control': 'public, max-age=31536000, immutable' }),
+    bloque('/mapabase/t/:version/:z/:x/:y', { 'Content-Type': TIPO_TESELA }),
+    // El PMTiles entero solo se descarga para usarlo sin cobertura (FR-81). no-transform: ya va
+    // comprimido por dentro y un rango, si Pages llegara a servirlo, no debe cambiar de bytes.
+    bloque('/mapabase/albolote.pmtiles', {
+      'Content-Type': 'application/vnd.pmtiles',
+      'Cache-Control': 'no-transform',
+    }),
     '',
   ].join('\n\n');
 }

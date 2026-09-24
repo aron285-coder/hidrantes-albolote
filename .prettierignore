@@ -11,3 +11,4 @@ package-lock.json
 datos
 src/generado
 public/callejero.json
+public/mapabase
