@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { DialogoEditar, DialogoHistorial, DialogoMotivo } from './dialogos';
 import { usePanel } from './usar-panel';
 import { MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
+import { usePanelAncho } from '@/hooks/ancho';
 import { useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { claseChip, nombreCaudal, nombreRacor, nombreTipo } from '@/lib/ficha';
 import { fechaCorta, hace } from '@/lib/formato';
@@ -92,6 +93,7 @@ export default function Inventario() {
   const { puntos } = usePuntos();
   const modo = useModo();
   const posicion = usePosicion();
+  const ancha = usePanelAncho();
   const [tipo, setTipo] = useState<FiltrosInventario['tipo']>('todos');
   const [caudal, setCaudal] = useState<FiltrosInventario['caudal']>('todos');
   const [sinRevisar, setSinRevisar] = useState(false);
@@ -140,6 +142,150 @@ export default function Inventario() {
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     avisar(T.panelInventario.exportado(r.datos));
   }
+
+  // Piezas de cada punto, iguales en la tabla y en las filas de dos líneas (docs/20 RV-79).
+  const diametroDe = (p: Punto) => (
+    <>
+      {T.formato.mm(p.diametro_mm)}
+      {p.racor && <span className="text-texto-suave"> · {nombreRacor(p.racor)}</span>}
+    </>
+  );
+  const estadoDe = (p: Punto) => (
+    <span className={cn('rounded-chip px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap', claseChip[p.caudal])}>
+      {nombreCaudal[p.caudal]}
+    </span>
+  );
+  // Nunca "— pen": el campo mide al menos lo que su texto de "pendiente" (RV-79).
+  const direccionDe = (p: Punto, clase?: string) => (
+    <input
+      defaultValue={p.direccion ?? ''}
+      placeholder={T.panel.pendienteEscribe}
+      aria-label={T.panelInventario.direccionDe(p.codigo)}
+      onBlur={(e) => void guardarDireccion(p, e.target.value)}
+      className={cn(
+        'border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]',
+        clase,
+      )}
+    />
+  );
+  const revisionDe = (p: Punto) => (
+    <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-700 font-semibold')}>
+      {hace(p.fecha_ultima_revision)}
+      <span className="text-texto-suave font-normal"> · {fechaCorta(p.fecha_ultima_revision)}</span>
+    </span>
+  );
+  const accionesDe = (p: Punto) => (
+    <div className="flex flex-wrap items-center gap-1">
+      {(['editar', 'retirar', 'historial', 'borrar'] as const).map((que) => (
+        <button
+          key={que}
+          type="button"
+          onClick={() => setDialogo({ punto: p, que })}
+          className={cn(
+            'min-h-8 px-2 whitespace-nowrap underline',
+            que === 'borrar' && 'text-rojo-700 ml-3',
+            que === 'historial' && 'text-texto-suave',
+          )}
+        >
+          {que === 'editar'
+            ? T.panel.editar
+            : que === 'retirar'
+              ? T.panel.retirar
+              : que === 'historial'
+                ? T.panel.historial
+                : T.panel.borrar}
+        </button>
+      ))}
+    </div>
+  );
+  const botonOrden = (c: (typeof COLUMNAS)[number], clase: string) => (
+    <button
+      type="button"
+      onClick={() => ordenarCon(c.clave)}
+      aria-label={T.panelInventario.ordenarPor(c.nombre)}
+      className={cn('font-titulo text-texto-suave flex min-h-9 items-center gap-1 px-3 font-semibold', clase)}
+    >
+      {c.nombre}
+      {orden.columna === c.clave && <span aria-hidden>{orden.ascendente ? '▲' : '▼'}</span>}
+    </button>
+  );
+
+  const tabla = (
+    <table className="w-full text-[13px]">
+      <thead>
+        <tr>
+          {COLUMNAS.map((c) => (
+            <th key={c.clave} scope="col" className="border-barra bg-fondo sticky top-0 border-b-2 p-0 text-left">
+              {botonOrden(c, 'w-full')}
+            </th>
+          ))}
+          <th
+            scope="col"
+            className="border-barra bg-fondo font-titulo text-texto-suave sticky top-0 border-b-2 px-3 py-2 text-left font-semibold"
+          >
+            {T.panelInventario.colAcciones}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {visibles.map((p) => (
+          <tr key={p.id} className="border-linea bg-papel border-b">
+            <td className="font-datos px-3 py-1.5 whitespace-nowrap">{p.codigo}</td>
+            <td className="px-3 py-1.5 whitespace-nowrap">{nombreTipo[p.tipo]}</td>
+            <td className="px-3 py-1.5 whitespace-nowrap">{diametroDe(p)}</td>
+            <td className="px-3 py-1.5">{estadoDe(p)}</td>
+            <td className="px-3 py-1.5">{direccionDe(p)}</td>
+            <td className="px-3 py-1.5">{p.nucleo ?? T.panelCola.sinNucleo}</td>
+            <td className="px-3 py-1.5">{revisionDe(p)}</td>
+            <td className="px-3 py-1.5">{accionesDe(p)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  // Por debajo de 1.024 px: código, tipo, diámetro y estado en la primera línea; dirección, núcleo y
+  // última revisión en la segunda. El orden, con los mismos botones que las cabeceras de la tabla.
+  // Misma tabla para los lectores de pantalla (filas y celdas), en dos líneas a la vista.
+  const filas = (
+    <div role="table" aria-label={T.panelCola.inventario} className="text-[13px]">
+      <div role="row" className="border-barra bg-fondo sticky top-0 z-10 flex flex-wrap items-center border-b-2 px-1">
+        {COLUMNAS.map((c) => (
+          <span key={c.clave} role="columnheader">
+            {botonOrden(c, '')}
+          </span>
+        ))}
+      </div>
+      {visibles.map((p) => (
+        <div key={p.id} role="row" className="border-linea bg-papel border-b px-3 py-1.5">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span role="cell" className="font-datos font-semibold whitespace-nowrap">
+              {p.codigo}
+            </span>
+            <span role="cell" className="whitespace-nowrap">
+              {nombreTipo[p.tipo]}
+            </span>
+            <span role="cell" className="whitespace-nowrap">
+              {diametroDe(p)}
+            </span>
+            <span role="cell">{estadoDe(p)}</span>
+            <span role="cell" className="ml-auto">
+              {accionesDe(p)}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span role="cell" className="flex min-w-0 flex-1 basis-[27ch]">
+              {direccionDe(p)}
+            </span>
+            <span role="cell" className="whitespace-nowrap">
+              {p.nucleo ?? T.panelCola.sinNucleo}
+            </span>
+            <span role="cell">{revisionDe(p)}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -252,91 +398,7 @@ export default function Inventario() {
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr>
-                {COLUMNAS.map((c) => (
-                  <th key={c.clave} scope="col" className="border-barra bg-fondo sticky top-0 border-b-2 p-0 text-left">
-                    <button
-                      type="button"
-                      onClick={() => ordenarCon(c.clave)}
-                      aria-label={T.panelInventario.ordenarPor(c.nombre)}
-                      className="font-titulo text-texto-suave flex min-h-9 w-full items-center gap-1 px-3 font-semibold"
-                    >
-                      {c.nombre}
-                      {orden.columna === c.clave && <span aria-hidden>{orden.ascendente ? '▲' : '▼'}</span>}
-                    </button>
-                  </th>
-                ))}
-                <th
-                  scope="col"
-                  className="border-barra bg-fondo font-titulo text-texto-suave sticky top-0 border-b-2 px-3 py-2 text-left font-semibold"
-                >
-                  {T.panelInventario.colAcciones}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibles.map((p) => (
-                <tr key={p.id} className="border-linea bg-papel border-b">
-                  <td className="font-datos px-3 py-1.5 whitespace-nowrap">{p.codigo}</td>
-                  <td className="px-3 py-1.5">{nombreTipo[p.tipo]}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap">
-                    {T.formato.mm(p.diametro_mm)}
-                    {p.racor && <span className="text-texto-suave"> · {nombreRacor(p.racor)}</span>}
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <span className={cn('rounded-chip px-2 py-0.5 text-[12px] font-semibold', claseChip[p.caudal])}>
-                      {nombreCaudal[p.caudal]}
-                    </span>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <input
-                      defaultValue={p.direccion ?? ''}
-                      placeholder={T.panel.pendienteEscribe}
-                      aria-label={T.panelInventario.direccionDe(p.codigo)}
-                      onBlur={(e) => void guardarDireccion(p, e.target.value)}
-                      className="border-linea rounded-campo min-h-8 w-full border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]"
-                    />
-                  </td>
-                  <td className="px-3 py-1.5">{p.nucleo ?? T.panelCola.sinNucleo}</td>
-                  <td
-                    className={cn(
-                      'px-3 py-1.5 whitespace-nowrap',
-                      p.revision_caducada && 'text-rojo-700 font-semibold',
-                    )}
-                  >
-                    {hace(p.fecha_ultima_revision)}
-                    <span className="text-texto-suave"> · {fechaCorta(p.fecha_ultima_revision)}</span>
-                  </td>
-                  <td className="px-3 py-1.5 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      {(['editar', 'retirar', 'historial', 'borrar'] as const).map((que) => (
-                        <button
-                          key={que}
-                          type="button"
-                          onClick={() => setDialogo({ punto: p, que })}
-                          className={cn(
-                            'min-h-8 px-2 underline',
-                            que === 'borrar' && 'text-rojo-700 ml-3',
-                            que === 'historial' && 'text-texto-suave',
-                          )}
-                        >
-                          {que === 'editar'
-                            ? T.panel.editar
-                            : que === 'retirar'
-                              ? T.panel.retirar
-                              : que === 'historial'
-                                ? T.panel.historial
-                                : T.panel.borrar}
-                        </button>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {ancha ? tabla : filas}
 
           <div className="text-texto-suave flex flex-wrap items-center gap-3 px-3 py-2 text-[13px]">
             <span>{T.panel.mostrando(visibles.length, filtrados.length)}</span>

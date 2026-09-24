@@ -7,6 +7,7 @@ import { Boton } from '@/componentes/Boton';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useCarga } from '@/hooks/carga';
 import { usePosicion, usePuntos } from '@/hooks/estado';
+import { ENTORNO } from '@/lib/entorno';
 import { fechaCorta, hace, megas } from '@/lib/formato';
 import { textoError } from '@/lib/panel/errores';
 import {
@@ -477,7 +478,11 @@ function SaludDelSistema() {
         [T.panelAjustes.sinDireccion, String(s.sin_direccion)],
         [
           T.panelAjustes.ultimoRespaldo,
-          s.ultimo_respaldo ? `${hace(s.ultimo_respaldo)} · ${fechaCorta(s.ultimo_respaldo)}` : T.panelAjustes.nunca,
+          s.ultimo_respaldo
+            ? `${hace(s.ultimo_respaldo)} · ${fechaCorta(s.ultimo_respaldo)}`
+            : ENTORNO === 'staging'
+              ? T.panelAjustes.respaldoNoAplica
+              : T.panelAjustes.nunca,
         ],
         [T.panelAjustes.almacenamiento, s.storage_bytes ? `${megas(s.storage_bytes)} MB` : T.panelAjustes.sinDato],
         [

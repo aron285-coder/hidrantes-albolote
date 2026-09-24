@@ -101,7 +101,7 @@ interface Llamada {
   cuerpo: Record<string, unknown>;
 }
 
-async function prepararPanel(page: Page, { conDispatch = true } = {}) {
+async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as Record<string, unknown> } = {}) {
   const llamadas: Llamada[] = [];
   let incidencias = INCIDENCIAS;
   let administradores = ADMINISTRADORES;
@@ -145,7 +145,7 @@ async function prepararPanel(page: Page, { conDispatch = true } = {}) {
         }));
         return json(null);
       case 'fn_salud':
-        return json(SALUD);
+        return json(salud);
       case 'fn_exportar_inventario':
         return json([]);
       case 'fn_gestionar_administrador':
@@ -310,4 +310,19 @@ test('Salud del sistema enseña la base de datos y las tareas programadas (RV-22
   await expect(tareas.getByRole('listitem').filter({ hasText: 'revocar_tokens' })).toContainText(
     T.panelAjustes.tareaFalta,
   );
+});
+
+// docs/20 RV-78: en staging no se hacen respaldos (solo de producción). "todavía ninguno" se leía
+// como un fallo y tapaba los problemas de verdad del piloto. Los e2e se construyen con
+// VITE_ENTORNO=staging (playwright.config.ts).
+test('en staging, el texto del respaldo no aplica (RV-78)', async ({ page }) => {
+  await prepararPanel(page, { salud: { ...SALUD, ultimo_respaldo: null } });
+  await page.goto('/admin/ajustes');
+  const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
+  const fila = salud
+    .locator('div')
+    .filter({ has: page.getByText(T.panelAjustes.ultimoRespaldo, { exact: true }) })
+    .last();
+  await expect(fila).toContainText(T.panelAjustes.respaldoNoAplica);
+  await expect(fila).not.toContainText(T.panelAjustes.nunca);
 });
