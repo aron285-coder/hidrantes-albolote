@@ -250,6 +250,34 @@ function accesoActual(url: string): AccesoActual {
   return a;
 }
 
+/** "psql (PostgreSQL) 17.6 (Ubuntu …)" o "-- Dumped by pg_dump version 17.6" → [17, 6]. */
+export function versionDe(texto: string, patron: RegExp): [number, number] | null {
+  const m = patron.exec(texto);
+  return m ? [Number(m[1]), Number(m[2] ?? 0)] : null;
+}
+
+const menor = (a: [number, number], b: [number, number]) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
+
+/**
+ * pg_dump 17.6 o posterior escribe `\restrict` y `\unrestrict` en los volcados en texto plano, y un
+ * psql anterior los rechaza: con ON_ERROR_STOP la restauración aborta a medias (docs/19 RV-64). Se
+ * comprueba antes de tocar nada: psql tiene que ser al menos de la versión que escribió el volcado, y
+ * 17.6 si el volcado trae `\restrict`. Devuelve el motivo para abortar, o null.
+ */
+export function motivoVersionPsql(salidaVersion: string, volcado: string): string | null {
+  const psql = versionDe(salidaVersion, /psql \(PostgreSQL\) (\d+)(?:\.(\d+))?/);
+  if (!psql) return 'No se puede saber la versión de psql (psql --version). Instala psql 17.6 o posterior (15 §5.3).';
+  const dump = versionDe(volcado.slice(0, 4000), /^-- Dumped by pg_dump version (\d+)(?:\.(\d+))?/m);
+  const conRestrict = /^\\restrict\b/m.test(volcado);
+  const necesaria: [number, number] | null = conRestrict && (!dump || menor(dump, [17, 6])) ? [17, 6] : dump;
+  if (!necesaria || !menor(psql, necesaria)) return null;
+  return (
+    `Tu psql es ${psql.join('.')} y el volcado lo escribió pg_dump ${dump ? dump.join('.') : 'desconocido'}` +
+    `${conRestrict ? ' con \\restrict' : ''}: psql lo rechazaría a medias. Instala psql ${necesaria.join('.')} o ` +
+    'posterior (15 §5.3) y repite. No se ha tocado nada.'
+  );
+}
+
 async function principal(): Promise<void> {
   const { valores } = argumentos();
   const entorno = valores.get('entorno') ?? abortar('Indica --entorno local, staging o prod.');
@@ -262,6 +290,8 @@ async function principal(): Promise<void> {
   const volcado = readFileSync(ruta, 'utf8');
   if (!pareceVolcado(volcado)) abortar(`${archivo} no parece un volcado del esquema hidrantes.`);
   if (tocaPublic(volcado)) abortar(`${archivo} toca el esquema public: no se restaura (es de la app de uniformidad).`);
+  const version = motivoVersionPsql(ejecutar('psql', ['--version']).salida, volcado);
+  if (version) abortar(version);
 
   const url =
     entorno === 'local'

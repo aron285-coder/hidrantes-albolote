@@ -177,6 +177,12 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    nuestro, que no toca `public` y que el `PROJECT_REF` de la cadena es el de producción. Pide
    confirmación escribiendo `RESTAURAR`.
 
+   **Hace falta psql 17.6 o posterior** (docs/19 RV-64). `pg_dump` 17.6 escribe `\restrict` en el
+   volcado y un psql anterior lo rechaza a medias. El script compara `psql --version` con la cabecera
+   `-- Dumped by pg_dump version …` y, si psql es más antiguo, se para antes de tocar nada con la
+   instrucción de instalarlo: en Windows, el instalador de PostgreSQL 17 (solo *Command Line Tools*);
+   en Linux, `postgresql-client-17`.
+
    El código de acceso de ahora, los móviles revocados, los administradores y las secuencias de los
    códigos se reponen **en la misma transacción** que el volcado (docs/19 RV-55).
    - Si no se puede leer el acceso de ahora, el script no restaura nada.

@@ -10,6 +10,7 @@ import {
   ACCIONES_MANUALES,
   LIMPIAR_ESQUEMA,
   motivoSinAcceso,
+  motivoVersionPsql,
   REFS,
   carpetaTemporal,
   confirmacionAutomatica,
@@ -347,5 +348,42 @@ describe('restauración que falla después del commit (RV-55)', () => {
       if (antes === undefined) delete process.env.MIGRACIONES_DIR;
       else process.env.MIGRACIONES_DIR = antes;
     }
+  });
+});
+
+// docs/19 RV-64: pg_dump 17.6 escribe \restrict y un psql anterior lo rechaza a medias.
+describe('versión de psql antes de restaurar (RV-64)', () => {
+  const volcado = (version: string, restrict: boolean) =>
+    [
+      '--',
+      '-- PostgreSQL database dump',
+      '--',
+      ...(restrict ? ['\\restrict abc123'] : []),
+      `-- Dumped from database version 17.6`,
+      `-- Dumped by pg_dump version ${version}`,
+      'create schema hidrantes;',
+      ...(restrict ? ['\\unrestrict abc123'] : []),
+    ].join('\n');
+
+  it('versión 16.4 con \\restrict → aborta con el texto', () => {
+    const motivo = motivoVersionPsql('psql (PostgreSQL) 16.4 (Ubuntu 16.4-1)', volcado('17.6', true));
+    expect(motivo).toContain('Tu psql es 16.4');
+    expect(motivo).toContain('\\restrict');
+    expect(motivo).toContain('Instala psql 17.6 o posterior');
+    expect(motivo).toContain('No se ha tocado nada');
+  });
+
+  it('17.6 → sigue', () => {
+    expect(motivoVersionPsql('psql (PostgreSQL) 17.6', volcado('17.6', true))).toBeNull();
+    expect(motivoVersionPsql('psql (PostgreSQL) 18.0', volcado('17.6', true))).toBeNull();
+  });
+
+  it('psql más antiguo que el pg_dump del volcado, aunque no traiga \\restrict → aborta', () => {
+    expect(motivoVersionPsql('psql (PostgreSQL) 17.2', volcado('17.5', false))).toContain('Instala psql 17.5');
+    expect(motivoVersionPsql('psql (PostgreSQL) 17.5', volcado('17.5', false))).toBeNull();
+  });
+
+  it('sin poder leer la versión de psql → aborta', () => {
+    expect(motivoVersionPsql('', volcado('17.6', true))).toContain('No se puede saber la versión de psql');
   });
 });
