@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type Env } from '../_lib/comun.ts';
 import { RECUADRO_ZONA } from '../_lib/zona.ts';
 import { MAX_RESULTADOS, TIEMPO_MAXIMO_MS, claveCache, etiquetaDe, onRequestPost } from './geocodificar.ts';
+import { LIMITE_POR_MINUTO, _reiniciarLimites } from '../_lib/limite.ts';
 
 const ENV = {
   SUPABASE_URL: 'https://proyecto.supabase.co',
@@ -70,6 +71,7 @@ function fingirRed(red: Red) {
       return c instanceof Error ? Promise.reject(c) : Promise.resolve(new Response(JSON.stringify(c)));
     }
     if (url.includes('/find?')) {
+      if (red.find instanceof Error) return Promise.reject(red.find);
       return Promise.resolve(
         new Response(
           JSON.stringify(
@@ -254,5 +256,61 @@ describe('recuadro', () => {
   it('es el de datos/meta.json', () => {
     const meta = JSON.parse(readFileSync('datos/meta.json', 'utf8')) as { recuadro: number[] };
     expect([...RECUADRO_ZONA]).toEqual(meta.recuadro);
+  });
+});
+
+// docs/19 RV-63: fallos parciales, caché comprobable y tope por token.
+describe('POST /api/geocodificar sin fallos que lo tiren todo (RV-63)', () => {
+  afterEach(() => {
+    _reiniciarLimites();
+    vi.useRealTimers();
+  });
+
+  it('un find que falla no tira los demás: el candidato con coordenadas sale igual', async () => {
+    fingirRed({ candidatos: [CALLE_SIN_COORDENADAS, PORTAL], find: new TypeError('sin red') });
+    const r = await responder(peticion({ token: 't', q: 'calle real 12' }));
+    expect(r.status).toBe(200);
+    const { resultados } = (await r.json()) as { resultados: { etiqueta: string }[] };
+    expect(resultados.map((x) => x.etiqueta)).toEqual(['Calle Real, 12, Albolote']);
+  });
+
+  it('si fallan todos los find y no queda ningún resultado: 503', async () => {
+    fingirRed({ candidatos: [CALLE_SIN_COORDENADAS], find: new TypeError('sin red') });
+    const r = await responder(peticion({ token: 't', q: 'calle real' }));
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'SIN_SERVIDOR' });
+  });
+
+  it('x-hidrantes-cache dice miss la primera vez y hit la segunda', async () => {
+    fingirCache();
+    fingirRed({});
+    const primera = await responder(peticion({ token: 't', q: 'calle real 12' }));
+    expect(primera.headers.get('x-hidrantes-cache')).toBe('miss');
+    const segunda = await responder(peticion({ token: 't', q: 'calle real 12' }));
+    expect(segunda.headers.get('x-hidrantes-cache')).toBe('hit');
+  });
+
+  it('acepta el secreto de vigilancia (para comprobar la caché tras desplegar), y no otro', async () => {
+    const env = { ...ENV, VIGILANCIA_SECRETO: 'secreto-de-prueba' } as Env; // detectar-secretos:permitir (valor de prueba)
+    fingirRed({});
+    const con = (v: string) => onRequestPost({ request: peticion({ q: 'calle real 12' }, { 'X-Vigilancia': v }), env });
+    expect((await con('secreto-de-prueba')).status).toBe(200);
+    expect((await con('otro')).status).toBe(401);
+  });
+
+  it('más de 30 búsquedas por minuto con el mismo token: 429 DEMASIADOS_INTENTOS; otro token sigue', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    fingirRed({});
+    for (let i = 0; i < LIMITE_POR_MINUTO; i++) {
+      expect((await responder(peticion({ token: 'bucle', q: 'calle real 12' }))).status, String(i)).toBe(200);
+    }
+    const r = await responder(peticion({ token: 'bucle', q: 'calle real 12' }));
+    expect(r.status).toBe(429);
+    expect(await r.json()).toEqual({ error: 'DEMASIADOS_INTENTOS' });
+    expect((await responder(peticion({ token: 'otro', q: 'calle real 12' }))).status).toBe(200);
+    // Pasado el minuto, vuelve a poder.
+    vi.setSystemTime(Date.now() + 61_000);
+    expect((await responder(peticion({ token: 'bucle', q: 'calle real 12' }))).status).toBe(200);
+    expect(LIMITE_POR_MINUTO).toBe(30);
   });
 });

@@ -213,6 +213,7 @@ export const T = {
     buscandoDirecciones: 'Buscando la dirección…',
     sinDirecciones: 'Ninguna dirección con ese número en Albolote ni Calicasas',
     portalSinCobertura: 'Los números de portal necesitan cobertura: te enseño la calle',
+    portalSinAcceso: 'Vuelve a entrar con el código para buscar números de portal',
     municipio: { albolote: 'Albolote', calicasas: 'Calicasas' },
   },
 

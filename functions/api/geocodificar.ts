@@ -4,7 +4,19 @@
 // La consulta no se registra en ningún sitio (11 §6.1): ni logs ni errores_cliente, y la caché la
 // guarda por su sha256.
 
-import { type Env, type Manejador, error, esAdmin, json, jwtDe, leerJson, rpc, sha256Hex } from '../_lib/comun.ts';
+import {
+  type Env,
+  type Manejador,
+  error,
+  esAdmin,
+  iguales,
+  json,
+  jwtDe,
+  leerJson,
+  rpc,
+  sha256Hex,
+} from '../_lib/comun.ts';
+import { dentroDelLimite } from '../_lib/limite.ts';
 import { cercaDeLaZona } from '../_lib/zona.ts';
 
 export const FUENTE = 'CartoCiudad (IGN/CNIG)';
@@ -96,11 +108,16 @@ async function pedir<T>(url: string, agente: string, signal: AbortSignal): Promi
   return (await r.json()) as T;
 }
 
-/** Candidatos de CartoCiudad → resultados de la zona, con `find` para los que llegan sin coordenadas. */
+/**
+ * Candidatos de CartoCiudad → resultados de la zona, con `find` para los que llegan sin coordenadas.
+ * Un `find` que falla se salta y se sigue con los demás (docs/19 RV-63); si al final no queda
+ * ninguno y alguno falló, es un fallo (503), no "no hay resultados".
+ */
 export async function geocodificar(q: string, agente: string, signal: AbortSignal): Promise<Resultado[]> {
   const parametros = new URLSearchParams({ q, limit: '10', no_process: NO_PROCESAR, municipio_filter: MUNICIPIOS });
   const candidatos = await pedir<Candidato[]>(`${BASE}/candidates?${parametros}`, agente, signal);
   const resultados: Resultado[] = [];
+  let fallos = 0;
   for (const cand of Array.isArray(candidatos) ? candidatos : []) {
     if (resultados.length >= MAX_RESULTADOS) break;
     const tipo = cand.type ? TIPOS[cand.type] : undefined;
@@ -109,29 +126,46 @@ export async function geocodificar(q: string, agente: string, signal: AbortSigna
     if (!conCoordenadas(c) && (cand.type === 'portal' || cand.type === 'callejero') && cand.id) {
       const f = new URLSearchParams({ id: cand.id, type: cand.type });
       if (cand.portalNumber != null) f.set('portal', String(cand.portalNumber));
-      c = { ...cand, ...(await pedir<Candidato>(`${BASE}/find?${f}`, agente, signal)), type: cand.type };
+      try {
+        c = { ...cand, ...(await pedir<Candidato>(`${BASE}/find?${f}`, agente, signal)), type: cand.type };
+      } catch {
+        // Fuera de tiempo, no hay más que hacer: lo que ya haya sale igual.
+        if (signal.aborted) break;
+        fallos++;
+        continue;
+      }
     }
     if (!conCoordenadas(c) || !cercaDeLaZona(c.lat!, c.lng!, MARGEN_M)) continue;
     const etiqueta = etiquetaDe(c);
     if (resultados.some((r) => r.etiqueta === etiqueta)) continue;
     resultados.push({ etiqueta, tipo, lat: c.lat!, lng: c.lng!, municipio: MUNICIPIO_INE[c.muniCode ?? ''] ?? null });
   }
+  if (!resultados.length && (fallos > 0 || signal.aborted)) throw new Error('sin resultados por fallos');
   return resultados;
 }
 
-/** Token de voluntario válido o sesión de administrador, como /api/push (sin la vigilancia). */
-async function autorizado(request: Request, env: Env, cuerpo: Record<string, unknown> | null): Promise<boolean> {
+/**
+ * Quién pregunta, o null: token de voluntario válido, sesión de administrador o, como /api/push, el
+ * secreto de vigilancia (lo usa comprobar-despliegue para ver que la caché funciona, docs/19 RV-63).
+ * Lo que devuelve es la clave del tope por token: nunca el token en claro.
+ */
+async function autorizado(request: Request, env: Env, cuerpo: Record<string, unknown> | null): Promise<string | null> {
+  const vigilancia = request.headers.get('X-Vigilancia');
+  if (vigilancia && env.VIGILANCIA_SECRETO) return iguales(vigilancia, env.VIGILANCIA_SECRETO) ? 'vigilancia' : null;
   const jwt = jwtDe(request);
-  if (jwt) return esAdmin(env, jwt);
-  if (typeof cuerpo?.token !== 'string') return false;
+  if (jwt) return (await esAdmin(env, jwt)) ? `jefatura:${await sha256Hex(jwt)}` : null;
+  if (typeof cuerpo?.token !== 'string') return null;
   // Validar el token cuesta una lectura mínima: solo lo cambiado desde ahora.
   const r = await rpc(env, 'fn_listar_puntos', { token: cuerpo.token, desde: new Date().toISOString() });
-  return r.ok;
+  return r.ok ? `token:${await sha256Hex(cuerpo.token)}` : null;
 }
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
   const cuerpo = await leerJson(request);
-  if (!(await autorizado(request, env, cuerpo))) return error(401, 'TOKEN_INVALIDO');
+  const quien = await autorizado(request, env, cuerpo);
+  if (!quien) return error(401, 'TOKEN_INVALIDO');
+  // 30 por minuto por token: frena un bucle de cliente (RV-63).
+  if (!dentroDelLimite(quien)) return error(429, 'DEMASIADOS_INTENTOS');
   const q = typeof cuerpo?.q === 'string' ? cuerpo.q.trim() : '';
   if (q.length < 3 || q.length > 120) return error(400, 'PAYLOAD_INVALIDO');
 
@@ -140,7 +174,9 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
   const enCache = await cache?.match(clave).catch(() => undefined);
   if (enCache) {
     const guardado = (await enCache.json().catch(() => null)) as { resultados?: Resultado[] } | null;
-    if (Array.isArray(guardado?.resultados)) return json({ resultados: guardado.resultados, fuente: FUENTE });
+    if (Array.isArray(guardado?.resultados)) {
+      return json({ resultados: guardado.resultados, fuente: FUENTE }, 200, { 'x-hidrantes-cache': 'hit' });
+    }
   }
 
   let resultados: Resultado[];
@@ -161,5 +197,6 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     });
     await cache.put(clave, respuesta).catch(() => undefined);
   }
-  return json({ resultados, fuente: FUENTE });
+  // Para comprobar tras desplegar que la caché funciona de verdad en *.pages.dev (RV-63).
+  return json({ resultados, fuente: FUENTE }, 200, { 'x-hidrantes-cache': 'miss' });
 };

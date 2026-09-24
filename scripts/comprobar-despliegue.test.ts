@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cabecerasGenerales } from '../config/cabeceras.ts';
-import { comprobarPagina } from './comprobar-despliegue.ts';
+import { comprobarPagina, estadoCache } from './comprobar-despliegue.ts';
 
 const html = (robots: boolean) =>
   `<head><meta name="version" content="1.2.3">${robots ? '<meta name="robots" content="noindex, nofollow">' : ''}</head>`;
@@ -38,5 +38,14 @@ describe('comprobarPagina', () => {
         'staging no está marcado noindex / Disallow',
       ]),
     );
+  });
+});
+
+// docs/19 RV-63: la caché de las Functions se comprueba con dos peticiones iguales.
+describe('estadoCache (RV-63)', () => {
+  it('hit en la segunda es que funciona; miss, que no; sin cabecera, que no se sabe', () => {
+    expect(estadoCache('hit')).toBe('funciona');
+    expect(estadoCache('miss')).toBe('no_funciona');
+    expect(estadoCache(null)).toBe('sin_dato');
   });
 });

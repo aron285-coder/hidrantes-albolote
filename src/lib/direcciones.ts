@@ -10,7 +10,8 @@ export interface Direccion {
   municipio: 'albolote' | 'calicasas' | null;
 }
 
-export type Direcciones = { ok: true; resultados: Direccion[] } | { ok: false };
+/** `sin_acceso`: la Function dijo 401, el token ya no vale (docs/19 RV-63). */
+export type Direcciones = { ok: true; resultados: Direccion[] } | { ok: false; sinAcceso?: true };
 
 /** La Function responde en 5 s como mucho; esto cubre además la red. */
 const LIMITE_MS = 8000;
@@ -35,6 +36,7 @@ export async function buscarDirecciones(q: string, c: Credencial, senal: AbortSi
       headers: { 'Content-Type': 'application/json', ...('jwt' in c ? { Authorization: `Bearer ${c.jwt}` } : {}) },
       body: JSON.stringify({ q, ...('token' in c ? { token: c.token } : {}) }),
     });
+    if (r.status === 401) return { ok: false, sinAcceso: true };
     if (!r.ok) return { ok: false };
     const cuerpo = (await r.json()) as { resultados?: Direccion[] };
     return Array.isArray(cuerpo.resultados) ? { ok: true, resultados: cuerpo.resultados } : { ok: false };

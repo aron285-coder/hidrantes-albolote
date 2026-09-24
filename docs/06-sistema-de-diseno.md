@@ -422,7 +422,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Abre el enlace en el navegador y copia las coordenadas` · `Puntos` · `Calles y lugares` · `Direcciones` ·
 `© OpenStreetMap` · `CartoCiudad · IGN` · `Buscando la dirección…` ·
 `Ninguna dirección con ese número en Albolote ni Calicasas` ·
-`Los números de portal necesitan cobertura: te enseño la calle` · `Albolote` · `Calicasas` (búsqueda, FR-73).
+`Los números de portal necesitan cobertura: te enseño la calle` · `Vuelve a entrar con el código para buscar números de portal` (401, RV-63) · `Albolote` · `Calicasas` (búsqueda, FR-73).
 
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·

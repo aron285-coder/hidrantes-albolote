@@ -21,7 +21,12 @@ import { centroGuardado } from '@/lib/vista';
 import { dentroDeZona } from '@/lib/zona';
 
 export type EstadoDirecciones =
-  { estado: 'nada' } | { estado: 'buscando' } | { estado: 'ok'; resultados: Direccion[] } | { estado: 'sin_cobertura' };
+  | { estado: 'nada' }
+  | { estado: 'buscando' }
+  | { estado: 'ok'; resultados: Direccion[] }
+  | { estado: 'sin_cobertura' }
+  /** 401: el token ya no vale; no es la cobertura (docs/19 RV-63). */
+  | { estado: 'sin_acceso' };
 
 /** Espera tras la última tecla antes de preguntar por el portal (docs/18 GM-04 D). */
 const RETARDO_MS = 400;
@@ -82,7 +87,14 @@ export function useBusquedaLugares(texto: string): Lugares {
     const reloj = setTimeout(() => {
       void preguntar(q, control.signal).then((r) => {
         if (control.signal.aborted) return;
-        setRespuesta({ q, estado: r.ok ? { estado: 'ok', resultados: r.resultados } : { estado: 'sin_cobertura' } });
+        setRespuesta({
+          q,
+          estado: r.ok
+            ? { estado: 'ok', resultados: r.resultados }
+            : r.sinAcceso
+              ? { estado: 'sin_acceso' }
+              : { estado: 'sin_cobertura' },
+        });
       });
     }, RETARDO_MS);
     return () => {
