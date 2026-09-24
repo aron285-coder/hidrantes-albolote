@@ -135,6 +135,11 @@ test.describe('sin cobertura (criterio de salida)', () => {
     ['catastro', T.mapa.catastro],
   ] as const) {
     test(`sin cobertura, la capa "${capa}" dice que la necesita (FR-63)`, async ({ page, context }) => {
+      // Datos móviles: el mapa base no se descarga solo. Con él descargado va debajo y el aviso es
+      // otro (RV-58, degradacion.spec.ts).
+      await page.addInitScript(() => {
+        Object.defineProperty(navigator, 'connection', { value: { type: 'cellular', saveData: false } });
+      });
       await conSesion(page, { extra: { capa } });
       await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
       await page.goto('/');
