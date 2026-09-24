@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.2](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.1...hidrantes-albolote-v0.6.2) (2026-09-24)
+
+
+### Correcciones
+
+* **produccion:** el permiso de Workers del token se avisa sin impedir el PR a producción ([#321](https://github.com/aron285-coder/hidrantes-albolote/issues/321)) ([5d85eab](https://github.com/aron285-coder/hidrantes-albolote/commit/5d85eab20ff24a9255656d552e91bd8f738334db))
+* **produccion:** la comprobación de paridad espera a que las Functions nuevas lleguen ([#324](https://github.com/aron285-coder/hidrantes-albolote/issues/324)) ([31ea8b9](https://github.com/aron285-coder/hidrantes-albolote/commit/31ea8b93172917a4d436271036661f0a41885c95))
+
 ## [0.6.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.0...hidrantes-albolote-v0.6.1) (2026-09-24)
 
 
