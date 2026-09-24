@@ -10,6 +10,10 @@ const integracion = !!process.env.INTEGRACION;
 const desplegada = !!process.env.URL_DESPLEGADA;
 
 export const SUPABASE_PRUEBAS = 'https://supabase.invalid';
+// Un puerto por sesión cuando se trabaja en paralelo (docs/trabajo-en-paralelo.md §4, DEC-100): con el
+// mismo, reuseExistingServer haría que los e2e de una sesión probaran el build de otra, sin error.
+const PUERTO = Number(process.env.PW_PUERTO ?? 4173);
+const URL_PREVIEW = `http://127.0.0.1:${PUERTO}`;
 
 export default defineConfig({
   testDir: 'e2e',
@@ -17,7 +21,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: URL_PREVIEW,
     locale: 'es-ES',
     timezoneId: 'Europe/Madrid',
     trace: 'retain-on-failure',
@@ -48,9 +52,8 @@ export default defineConfig({
       : {
           // Las novedades se generan como en `npm run build` (prebuild, RV-20): si no, la app probada
           // llevaría el JSON de git, que puede ir una versión por detrás del CHANGELOG.
-          command:
-            'npx tsx scripts/generar-novedades.ts && npx vite build && npx vite preview --host 127.0.0.1 --port 4173 --strictPort',
-          url: 'http://127.0.0.1:4173',
+          command: `npx tsx scripts/generar-novedades.ts && npx vite build && npx vite preview --host 127.0.0.1 --port ${PUERTO} --strictPort`,
+          url: URL_PREVIEW,
           env: {
             VITE_ENTORNO: 'staging',
             VITE_SUPABASE_URL: SUPABASE_PRUEBAS,

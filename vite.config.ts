@@ -103,7 +103,8 @@ export default defineConfig(({ mode }) => {
       }),
     ],
     server: {
-      port: 5173,
+      // Otro puerto por sesión en paralelo (docs/trabajo-en-paralelo.md §4).
+      port: Number(process.env.VITE_PUERTO ?? 5173),
       strictPort: true,
       proxy: { '/api': 'http://127.0.0.1:8788' },
     },

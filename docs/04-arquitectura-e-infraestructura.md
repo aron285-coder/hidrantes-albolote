@@ -415,6 +415,11 @@ e2e/                    # Playwright
 
 Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml`: `ci-calidad`,
 `ci-sql` y `ci-e2e`.
+`ci-e2e` es un agregador: los e2e corren en tres partes (`ci-e2e-parte`, `--shard`) y los de
+rendimiento aparte, y falla si alguno falla o se cancela. En un PR que solo toca `docs/` o `*.md`
+fuera de `src/`, el trabajo `cambios` salta `ci-sql` y los e2e, y cuentan como correctos. En los PR,
+`ci-calidad` comprueba además que las migraciones nuevas van por encima de la última de la base y
+que ninguna aplicada cambia (`scripts/comprobar-migraciones-nuevas.ts`). DEC-100.
 
 `main` está protegida: solo PR con CI verde. El *environment* `production` exige aprobación del
 propietario.

@@ -16,13 +16,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # docs/trabajo-en-paralelo.md §9.2, DEC-100: un PR que solo toca documentación no espera a e2e ni
+  # a SQL. Saltados por su `if`, cuentan como correctos para los checks obligatorios.
+  cambios:
+    name: cambios
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      codigo: ${{ steps.calcular.outputs.codigo }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: calcular
+        env:
+          EVENTO: ${{ github.event_name }}
+          BASE: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/hay-codigo.sh
+          # En push a develop o main (y a mano), siempre se prueba todo.
+          if [ "$EVENTO" != pull_request ]; then
+            echo "codigo=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          cambiados=$(git diff --name-only "origin/$BASE...HEAD")
+          echo "$cambiados"
+          codigo=$(printf '%s\n' "$cambiados" | hay_codigo)
+          echo "¿Toca código? $codigo"
+          echo "codigo=$codigo" >> "$GITHUB_OUTPUT"
+
   calidad:
     name: ci-calidad
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: ./.github/actions/preparar
+      # Migraciones nuevas por encima de la última de la base, y ninguna aplicada cambiada (DEC-100).
+      - name: Migraciones nuevas en orden
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.base_ref }}
+        run: npx tsx scripts/comprobar-migraciones-nuevas.ts --base "$BASE"
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run formato:comprobar
@@ -32,6 +70,8 @@ jobs:
 
   sql:
     name: ci-sql
+    needs: cambios
+    if: needs.cambios.outputs.codigo == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -139,23 +179,66 @@ jobs:
       - if: always()
         run: npx supabase stop --no-backup
 
-  e2e:
-    name: ci-e2e
+  # Los e2e en tres partes a la vez (DEC-100). Antes, un solo trabajo de 8 a 10 minutos.
+  e2e-parte:
+    name: ci-e2e-parte
+    needs: cambios
+    if: needs.cambios.outputs.codigo == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        parte: [1, 2, 3]
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
-      # Firefox para el panel (TR-21, RV-28).
-      - run: npx playwright install --with-deps chromium firefox
-      - name: E2e (sin los de rendimiento)
-        run: npx playwright test --grep-invert @rendimiento
-      # Los de rendimiento miden tiempos: de uno en uno, sin competir por CPU (RV-27).
+      - uses: ./.github/actions/navegadores
+      - name: E2e (sin los de rendimiento), parte ${{ matrix.parte }} de 3
+        run: npx playwright test --grep-invert @rendimiento --shard=${{ matrix.parte }}/3
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.parte }}
+          path: playwright-report/
+          retention-days: 7
+
+  # Los de rendimiento miden tiempos: de uno en uno, sin competir por CPU (RV-27).
+  e2e-rendimiento:
+    name: ci-e2e-rendimiento
+    needs: cambios
+    if: needs.cambios.outputs.codigo == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar
+      - uses: ./.github/actions/navegadores
       - name: E2e de rendimiento, un worker
         run: npx playwright test --grep @rendimiento --workers=1
       - if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-rendimiento
           path: playwright-report/
           retention-days: 7
+
+  # Conserva el nombre del check obligatorio (arranque.ts, CHECKS_OBLIGATORIOS): la protección de
+  # ramas no cambia. Corre siempre, y falla si alguna parte falló o se canceló.
+  e2e:
+    name: ci-e2e
+    needs: [cambios, e2e-parte, e2e-rendimiento]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          RESULTADOS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "cambios, partes y rendimiento: $RESULTADOS"
+          for r in $RESULTADOS; do
+            case "$r" in
+              success | skipped) ;;
+              *) echo "::error::un trabajo de e2e terminó con $r"; exit 1 ;;
+            esac
+          done
