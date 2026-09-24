@@ -151,8 +151,17 @@ export function cercaDeLaZona(p: LatLng, margen: number): boolean {
   return p.lat >= sur - dLat && p.lat <= norte + dLat && p.lng >= oeste - dLng && p.lng <= este + dLng;
 }
 
-/** Un UTM solo se acepta cerca de la zona: dos números sueltos de 6 y 7 cifras pueden ser otra cosa. */
+/**
+ * Un UTM solo se acepta cerca de la zona: dos números sueltos de 6 y 7 cifras pueden ser otra cosa.
+ * El mismo margen decide si una longitud sin signo se toma como oeste (docs/19 RV-69).
+ */
 const MARGEN_UTM = 5000;
+
+/** Lo que devuelve `interpretar`: unas coordenadas y, si hubo que suponer algo, qué. */
+export interface Interpretadas extends LatLng {
+  /** La longitud se escribió sin signo y se ha tomado como oeste: el número tal como se escribió. */
+  oesteSupuesto?: string;
+}
 
 /** Enlaces cortos de Google Maps: no se resuelven, porque exigiría ir a Google desde el servidor. */
 export const esEnlaceCorto = (texto: string) => /\b(?:maps\.app\.goo\.gl|goo\.gl\/maps)\//i.test(texto);
@@ -172,6 +181,8 @@ function desdeEnlace(texto: string): LatLng | null {
   const patrones = [
     new RegExp(String.raw`!3d${num}!4d${num}`),
     new RegExp(String.raw`[?&](?:q|query|ll)=(?:loc:)?${num}\s*,\s*${num}`),
+    // Google "search" o "place" con las coordenadas en la ruta, con "+" por espacio (".../37.2305,+-3.656").
+    new RegExp(String.raw`/maps/(?:search|place)/\+?${num}\s*,[\s+]*${num}(?=$|[/?&#])`),
     new RegExp(String.raw`@${num},${num}`),
     new RegExp(String.raw`^geo:${num},${num}`),
   ];
@@ -182,15 +193,20 @@ function desdeEnlace(texto: string): LatLng | null {
   return null;
 }
 
+/** Grados, minutos y segundos, o grados y minutos decimales (37°13.830'N), que usan GPS de mano y bomberos. */
 function desdeGms(texto: string): LatLng | null {
   const partes = [
-    ...texto.matchAll(/(\d{1,3})\s*°\s*(\d{1,2})\s*'\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*(?:"|'')?)?\s*([NSEOW])/gi),
+    ...texto.matchAll(
+      /(\d{1,3})\s*°\s*(\d{1,2}(?:[.,]\d+)?)\s*'\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*(?:"|'')?)?\s*([NSEOW])/gi,
+    ),
   ];
   if (partes.length !== 2) return null;
   let lat: number | null = null;
   let lng: number | null = null;
   for (const [, g, m, s, h] of partes) {
-    const valor = Number(g) + Number(m) / 60 + Number((s ?? '0').replace(',', '.')) / 3600;
+    // Minutos con decimales y además segundos no es un formato: se descarta.
+    if (/[.,]/.test(m!) && s !== undefined) return null;
+    const valor = Number(g) + Number(m!.replace(',', '.')) / 60 + Number((s ?? '0').replace(',', '.')) / 3600;
     const letra = h!.toUpperCase();
     if (letra === 'N' || letra === 'S') lat = letra === 'S' ? -valor : valor;
     else lng = letra === 'E' ? valor : -valor;
@@ -207,29 +223,46 @@ function desdeUtmTexto(texto: string): LatLng | null {
   return cercaDeLaZona(p, MARGEN_UTM) ? p : null;
 }
 
-function desdeDecimal(texto: string): LatLng | null {
-  // Con punto decimal, separados por coma, punto y coma o espacio; o con coma decimal y un espacio
-  // entre los dos números ("37,2305 -3,656").
+function desdeDecimal(texto: string): Interpretadas | null {
+  // Con punto decimal, separados por coma, punto y coma o espacio; o con coma decimal y, entre los dos
+  // números, un espacio o una coma (o punto y coma) seguida de espacio ("37,2305 -3,656",
+  // "37,2305, -3,656"). Sin ese espacio ("37,2305,-3,656") no se sabe qué coma separa.
   const m =
     /^([+-]?\d{1,2}\.\d+)\s*°?\s*([NS])?\s*[,;\s]\s*([+-]?\d{1,3}\.\d+)\s*°?\s*([EOW])?$/i.exec(texto) ??
-    /^([+-]?\d{1,2},\d+)\s*°?\s*([NS])?\s+([+-]?\d{1,3},\d+)\s*°?\s*([EOW])?$/i.exec(texto);
+    /^([+-]?\d{1,2},\d+)\s*°?\s*([NS])?(?:\s*[,;]\s+|\s+)([+-]?\d{1,3},\d+)\s*°?\s*([EOW])?$/i.exec(texto);
   if (!m) return null;
   let lat = Number(m[1]!.replace(',', '.'));
   let lng = Number(m[3]!.replace(',', '.'));
   if (m[2]?.toUpperCase() === 'S') lat = -Math.abs(lat);
   if (m[4] && m[4].toUpperCase() !== 'E') lng = -Math.abs(lng);
-  return valida(lat, lng);
+  const p = valida(lat, lng);
+  // Longitud sin signo ni letra: la zona está al oeste de Greenwich. Si con el signo cambiado cae en
+  // la zona, se toma como oeste y se avisa (docs/19 RV-69); si no, se deja como se escribió.
+  if (p && !m[4] && !/^[+-]/.test(m[3]!) && lng > 0) {
+    const oeste = { lat: p.lat, lng: -p.lng };
+    if (cercaDeLaZona(oeste, MARGEN_UTM)) return { ...oeste, oesteSupuesto: m[3]! };
+  }
+  return p;
 }
 
+/** Texto delante de las coordenadas ("Mi ubicación: 37.2305, -3.656"): se quita hasta el primer número. */
+const sinTextoDelante = (t: string) => t.replace(/^[^\d+-]*[:\s](?=\s*[+-]?\d)/, '').trim();
+
 /**
- * Coordenadas pegadas en la búsqueda: decimal, grados-minutos-segundos, UTM 30 ETRS89 o un enlace de
- * Google Maps, Apple Plans o `geo:`. Null si no lo son, también un enlace corto (`esEnlaceCorto`).
- * Unas coordenadas lejos de la zona se aceptan (el llamador avisa de fuera de zona, FR-55); un UTM no.
+ * Coordenadas pegadas en la búsqueda: decimal, grados-minutos-segundos, grados y minutos decimales,
+ * UTM 30 ETRS89 o un enlace de Google Maps, Apple Plans o `geo:`, con o sin texto delante. Null si no
+ * lo son, también un enlace corto (`esEnlaceCorto`). Unas coordenadas lejos de la zona se aceptan (el
+ * llamador avisa de fuera de zona, FR-55); un UTM no. Si la longitud llegó sin signo y se ha tomado
+ * como oeste, lo dice `oesteSupuesto`.
  */
-export function interpretar(texto: string): LatLng | null {
+export function interpretar(texto: string): Interpretadas | null {
   const t = texto.trim().replace(/[′’´]/g, "'").replace(/[″”“]/g, '"').replace(/º/g, '°');
   if (!t || esEnlaceCorto(t)) return null;
   if (/^(?:https?:\/\/|geo:)|\b(?:google\.[a-z.]+\/maps|maps\.google\.|maps\.apple\.com)/i.test(t))
     return desdeEnlace(t);
-  return desdeGms(t) ?? desdeUtmTexto(t) ?? desdeDecimal(t);
+  const leer = (s: string) => desdeGms(s) ?? desdeUtmTexto(s) ?? desdeDecimal(s);
+  const directo = leer(t);
+  if (directo) return directo;
+  const resto = sinTextoDelante(t);
+  return resto && resto !== t ? leer(resto) : null;
 }

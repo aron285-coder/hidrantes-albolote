@@ -137,6 +137,41 @@ describe('interpretar (FR-73, docs/18 GM-04 B)', () => {
     }
   });
 
+  describe('formatos de campo (docs/19 RV-69)', () => {
+    it('coma decimal y coma de separación con espacio: 37,2305, -3,656', () => {
+      cerca('37,2305, -3,656');
+    });
+
+    it(`grados y minutos decimales: 37°13.830'N 3°39.360'W`, () => {
+      cerca(`37°13.830'N 3°39.360'W`);
+    });
+
+    it('Google search con +: …/maps/search/37.2305,+-3.656', () => {
+      cerca('https://www.google.com/maps/search/37.2305,+-3.656');
+    });
+
+    it('texto delante: Mi ubicación: 37.2305, -3.656', () => {
+      cerca('Mi ubicación: 37.2305, -3.656');
+    });
+
+    it('longitud sin signo que al invertirla cae en la zona: 37.2305 3.656 → oeste, con aviso', () => {
+      cerca('37.2305 3.656');
+      expect(interpretar('37.2305 3.656')?.oesteSupuesto).toBe('3.656');
+      expect(interpretar('37.2305 -3.656')?.oesteSupuesto).toBeUndefined();
+    });
+
+    it('longitud sin signo lejos de la zona: se deja como está, sin aviso', () => {
+      const p = interpretar('40.4168 3.7038');
+      expect(p).toMatchObject({ lat: 40.4168, lng: 3.7038 });
+      expect(p?.oesteSupuesto).toBeUndefined();
+    });
+
+    it('Calle Real 12 y HID-0012 siguen dando null', () => {
+      expect(interpretar('Calle Real 12')).toBeNull();
+      expect(interpretar('HID-0012')).toBeNull();
+    });
+  });
+
   it('el recuadro es el de datos/meta.json', () => {
     const meta = JSON.parse(readFileSync('datos/meta.json', 'utf8')) as { recuadro: number[] };
     expect([...RECUADRO_ZONA]).toEqual(meta.recuadro);

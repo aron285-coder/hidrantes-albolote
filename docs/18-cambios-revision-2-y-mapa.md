@@ -852,7 +852,7 @@ export function desdeUtm(u: { x: number; y: number }, huso?: 30): LatLng;
 export function formatoDecimal(p: LatLng): string;                // "37.230500, -3.656000"
 export function formatoUtm(u: Utm): string;                       // "30S 441808 4120645" (redondeo a metro)
 export function formatoGms(p: LatLng): string;                    // "37°13′49.8″N 3°39′21.6″O"
-export function interpretar(texto: string): LatLng | null;        // ver GM-04
+export function interpretar(texto: string): (LatLng & { oesteSupuesto?: string }) | null; // ver GM-04 y docs/19 RV-69
 export function enlaceGoogleMaps(p: LatLng): string;              // https://www.google.com/maps/search/?api=1&query=lat,lng
 ```
 

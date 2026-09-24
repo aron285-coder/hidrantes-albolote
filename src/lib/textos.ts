@@ -204,6 +204,8 @@ export const T = {
   busqueda: {
     coordenadas: (decimal: Parametro) => `Coordenadas ${decimal}`,
     fueraDeZona: 'Fuera de la zona habitual',
+    /** Longitud escrita sin signo que se ha tomado como oeste (docs/19 RV-69). */
+    tomadoComoOeste: (numero: Parametro) => `Se ha tomado ${numero} como Oeste`,
     enlaceCorto: 'Abre el enlace en el navegador y copia las coordenadas',
     puntos: 'Puntos',
     calles: 'Calles y lugares',

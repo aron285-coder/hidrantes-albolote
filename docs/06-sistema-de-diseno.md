@@ -419,7 +419,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Medir tendido` · `Toca el mapa para poner los puntos del tendido` · `[186 m] · [10] tramos de [20] m` ·
 `[40 m] · 1 tramo de [20] m` · `Deshacer` · `Borrar` · `Terminar` · `Para deshacer hacen falta dos puntos` ·
 `Aún no hay puntos: toca el mapa` · `Coordenadas [37.230500, -3.656000]` · `Fuera de la zona habitual` ·
-`Abre el enlace en el navegador y copia las coordenadas` · `Puntos` · `Calles y lugares` · `Direcciones` ·
+`Se ha tomado [3.656] como Oeste` (longitud sin signo, RV-69) · `Abre el enlace en el navegador y copia las coordenadas` · `Puntos` · `Calles y lugares` · `Direcciones` ·
 `© OpenStreetMap` · `CartoCiudad · IGN` · `Buscando la dirección…` ·
 `Ninguna dirección con ese número en Albolote ni Calicasas` ·
 `Los números de portal necesitan cobertura: te enseño la calle` · `Vuelve a entrar con el código para buscar números de portal` (401, RV-63) · `Albolote` · `Calicasas` (búsqueda, FR-73).
