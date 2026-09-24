@@ -15,7 +15,17 @@
 import { rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { abortar, argumentos, ejecutar, ejecutarScript, entornoPg, log, psqlOk, RAIZ } from './lib/comun.ts';
+import {
+  abortar,
+  argumentos,
+  ejecutar,
+  ejecutarScript,
+  entornoPg,
+  errorSeguro,
+  log,
+  psqlOk,
+  RAIZ,
+} from './lib/comun.ts';
 import { LOCAL_MIGRADOR, LOCAL_POSTGRES, leerMigraciones } from './migrar.ts';
 
 let fallos = 0;
@@ -49,7 +59,7 @@ function volcar(destino: string): void {
   const r = ejecutar('pg_dump', ['--schema=hidrantes', '--no-owner', '--format=plain', '--file', destino], {
     env: entornoPg(LOCAL_MIGRADOR),
   });
-  if (r.codigo !== 0) abortar(`pg_dump falló: ${r.error}`);
+  if (r.codigo !== 0) abortar(`pg_dump falló: ${errorSeguro(r.error)}`);
 }
 
 function restaurar(archivo: string): { codigo: number; salida: string } {
@@ -70,7 +80,7 @@ function restaurar(archivo: string): { codigo: number; salida: string } {
     // se cancelaría, y la prueba fallaría en vez de confirmar por detrás (docs/18 RV-50).
     { entrada: '', env: { ...process.env, SUPABASE_DB_URL: LOCAL_MIGRADOR } },
   );
-  return { codigo: r.codigo, salida: `${r.salida}\n${r.error}` };
+  return { codigo: r.codigo, salida: `${r.salida}\n${errorSeguro(r.error)}` };
 }
 
 /** anon puede llamar a fn_listar_puntos: un token inventado da TOKEN_INVALIDO, no "permiso denegado". */

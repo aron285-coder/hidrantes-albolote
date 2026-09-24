@@ -74,14 +74,14 @@ export function ejecutar(
   const r = esWindows
     ? spawnSync([comando, ...args].map(citar).join(' '), spawnOpts)
     : spawnSync(comando, args, spawnOpts);
-  if (r.error) abortar(`No se pudo ejecutar ${comando}: ${r.error.message}`);
+  if (r.error) abortar(`No se pudo ejecutar ${comando}: ${errorSeguro(r.error.message)}`);
   return { codigo: r.status ?? 1, salida: String(r.stdout ?? '').trim(), error: String(r.stderr ?? '').trim() };
 }
 
 /** Como `ejecutar`, pero aborta si el comando falla. */
 export function ejecutarOk(comando: string, args: string[], opciones: Parameters<typeof ejecutar>[2] = {}): string {
   const r = ejecutar(comando, args, opciones);
-  if (r.codigo !== 0) abortar(`${comando} ${args[0] ?? ''} falló:\n${r.error || r.salida}`);
+  if (r.codigo !== 0) abortar(`${comando} ${args[0] ?? ''} falló:\n${errorSeguro(r.error || r.salida)}`);
   return r.salida;
 }
 
@@ -115,16 +115,49 @@ export function entornoPg(url: string): NodeJS.ProcessEnv {
   };
 }
 
-/** Ejecuta SQL con psql leyendo de stdin, con ON_ERROR_STOP. */
-export function psql(url: string, sql: string, opciones: { tuplas?: boolean } = {}): Resultado {
-  const args = ['-X', '-q', '-v', 'ON_ERROR_STOP=1', '-f', '-'];
-  if (opciones.tuplas) args.push('-A', '-t');
-  return ejecutar(rutaPsql(), args, { entrada: sql, env: entornoPg(url) });
+/**
+ * Un error de psql sin los datos de la fila (docs/19 RV-53). En una violación de `check` o `not
+ * null`, Postgres añade `DETAIL: Failing row contains (…)` con la fila entera, nombres de voluntarios
+ * incluidos, y el repositorio es público: lo que se imprime en Actions lo lee cualquiera. Quita las
+ * líneas DETAIL, CONTEXT y QUERY (y lo que cuelga de ellas) y cualquier "Failing row contains (…)";
+ * deja el mensaje principal y el SQLSTATE si lo hay.
+ */
+export function errorSeguro(texto: string): string {
+  const fuera = /^(?:psql:[^:]*:\d+:\s*)?(DETAIL|CONTEXT|QUERY|DETALLE|CONTEXTO):/;
+  const lineas: string[] = [];
+  let quitando = false;
+  for (const linea of texto.split(/\r?\n/)) {
+    if (fuera.test(linea.trim())) {
+      quitando = true;
+      continue;
+    }
+    // Lo que continúa una línea quitada va sangrado.
+    if (quitando && /^\s+\S/.test(linea)) continue;
+    quitando = false;
+    lineas.push(linea.replace(/Failing row contains \([\s\S]*?\)\.?/g, 'Failing row contains (…)'));
+  }
+  return lineas.join('\n').trim();
 }
 
-export function psqlOk(url: string, sql: string, opciones: { tuplas?: boolean } = {}): string {
+/**
+ * Ejecuta SQL con psql leyendo de stdin, con ON_ERROR_STOP. En Actions (`CI`), siempre con
+ * VERBOSITY=terse: sin DETAIL ni CONTEXT, que pueden llevar datos de la fila (RV-53).
+ */
+export function argsPsql(opciones: { tuplas?: boolean; terse?: boolean } = {}): string[] {
+  const args = ['-X', '-q', '-v', 'ON_ERROR_STOP=1'];
+  if (process.env.CI || opciones.terse) args.push('-v', 'VERBOSITY=terse');
+  args.push('-f', '-');
+  if (opciones.tuplas) args.push('-A', '-t');
+  return args;
+}
+
+export function psql(url: string, sql: string, opciones: { tuplas?: boolean; terse?: boolean } = {}): Resultado {
+  return ejecutar(rutaPsql(), argsPsql(opciones), { entrada: sql, env: entornoPg(url) });
+}
+
+export function psqlOk(url: string, sql: string, opciones: { tuplas?: boolean; terse?: boolean } = {}): string {
   const r = psql(url, sql, opciones);
-  if (r.codigo !== 0) abortar(`psql falló:\n${r.error || r.salida}`);
+  if (r.codigo !== 0) abortar(`psql falló:\n${errorSeguro(r.error || r.salida)}`);
   return r.salida;
 }
 

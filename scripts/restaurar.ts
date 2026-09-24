@@ -20,6 +20,7 @@ import {
   argumentos,
   ejecutar,
   ejecutarScript,
+  errorSeguro,
   log,
   preguntar,
   psql,
@@ -302,7 +303,8 @@ async function principal(): Promise<void> {
   } finally {
     rmSync(carpeta, { recursive: true, force: true });
   }
-  if (r.codigo !== 0) abortar(`La restauración ha fallado y no se ha cambiado nada:\n${r.error || r.salida}`);
+  if (r.codigo !== 0)
+    abortar(`La restauración ha fallado y no se ha cambiado nada:\n${errorSeguro(r.error || r.salida)}`);
 
   log.ok(`Restaurado: ${cuenta(url, 'puntos')} puntos y ${cuenta(url, 'propuestas')} propuestas.`);
 
@@ -313,7 +315,7 @@ async function principal(): Promise<void> {
   log.info(aplicadas.length ? `aplicadas: ${aplicadas.join(', ')}` : 'ninguna: el volcado ya estaba al día');
 
   const s = psql(url, sqlSecuenciasAlMenos(previas.hid, previas.boc));
-  if (s.codigo !== 0) abortar(`No se han podido ajustar las secuencias de los códigos: ${s.error}`);
+  if (s.codigo !== 0) abortar(`No se han podido ajustar las secuencias de los códigos: ${errorSeguro(s.error)}`);
   const ahora = leerSecuencias(psql(url, SQL_LEER_SECUENCIAS, { tuplas: true }).salida);
   log.ok(`secuencias tras restaurar: HID ${ahora.hid} · BOC ${ahora.boc} (ningún código se reutiliza)`);
 
@@ -323,7 +325,7 @@ async function principal(): Promise<void> {
     const a = psql(url, sqlReponerAcceso(acceso));
     if (a.codigo !== 0) {
       abortar(
-        `Restaurado, pero no se ha podido reponer el acceso de antes: genera un código nuevo con "Revocar todos los dispositivos" y revisa Administradores en Ajustes.\n${a.error}`,
+        `Restaurado, pero no se ha podido reponer el acceso de antes: genera un código nuevo con "Revocar todos los dispositivos" y revisa Administradores en Ajustes.\n${errorSeguro(a.error)}`,
       );
     }
     log.ok('acceso de antes repuesto: el código, los móviles revocados y los administradores de ahora');
@@ -336,7 +338,7 @@ async function principal(): Promise<void> {
   ).salida.trim();
   if (anotada === '0') {
     const a = psql(url, insertAuditoria(actor, path.basename(ruta)));
-    if (a.codigo !== 0) log.aviso(`No se ha podido anotar la restauración en el registro: ${a.error}`);
+    if (a.codigo !== 0) log.aviso(`No se ha podido anotar la restauración en el registro: ${errorSeguro(a.error)}`);
     else log.ok('restauración anotada en el registro (tras migrar: el volcado era anterior a 0010)');
   }
   log.info('Comprueba el panel (Inventario y Registro) y la app en un móvil (15 §5.3, pasos 6 a 8).');

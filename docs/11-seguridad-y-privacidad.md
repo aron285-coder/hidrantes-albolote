@@ -157,6 +157,13 @@ el texto de una búsqueda con número de portal, hacia `/api/geocodificar` y de 
 `sha256` del texto normalizado. Compartir (FR-75) usa el menú del móvil: lo compartido nunca lleva
 nombres ni la descripción libre (FR-27), y no pasa por ningún servidor nuestro.
 
+**Los logs de GitHub Actions son públicos** (repositorio público, DEC-053). Un error de psql de una
+violación de `check` o `not null` trae `DETAIL: Failing row contains (…)` con la fila entera, nombres
+de voluntarios incluidos. Por eso, en Actions, `psql` corre siempre con `VERBOSITY=terse`, y todo
+error de un proceso que un script imprime pasa por `errorSeguro`, que quita DETAIL, CONTEXT, QUERY y
+cualquier "Failing row contains". Un test comprueba que ningún script lo imprime en crudo (docs/19
+RV-53). `promover-piloto` enseña el error completo solo en local y con `--detalle`.
+
 **No se guardan:** DNI, teléfono, correo de voluntarios, dirección postal, fecha de nacimiento,
 fotos de personas. No hay cookies de terceros ni analítica externa; los errores se registran en el
 propio sistema sin datos más allá del `dispositivo_id`.
