@@ -2,6 +2,16 @@
 // permite, no solo al arrancar; nunca dos descargas a la vez; con datos móviles no se descarga solo.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import info from '../../datos/mapabase.json';
+
+/** Un PMTiles v3 del tamaño esperado: los 7 bytes de la firma, la versión y ceros. */
+function pmtiles(tamano = info.bytes, version = 3, firma = 'PMTiles'): Uint8Array {
+  const b = new Uint8Array(tamano);
+  b.set([...firma].map((c) => c.charCodeAt(0)));
+  b[7] = version;
+  return b;
+}
+let cuerpo: Uint8Array;
 
 class Conexion extends EventTarget {
   constructor(public type: string) {
@@ -21,6 +31,7 @@ function prepararEntorno({ enLinea, tipo, retener = false }: { enLinea: boolean;
   guardado = new Map();
   pedidas = 0;
   soltar = null;
+  cuerpo = pmtiles();
   vi.stubGlobal('navigator', { onLine: enLinea, connection: conexion });
   vi.stubGlobal('window', ventana);
   vi.stubGlobal('localStorage', {
@@ -39,7 +50,7 @@ function prepararEntorno({ enLinea, tipo, retener = false }: { enLinea: boolean;
     vi.fn(async () => {
       pedidas++;
       if (retener) await new Promise<void>((r) => (soltar = r));
-      return new Response(new Uint8Array(1000), { headers: { 'content-length': '1000' } });
+      return new Response(new Blob([cuerpo as BlobPart]), { headers: { 'content-length': String(cuerpo.length) } });
     }),
   );
 }
@@ -96,5 +107,31 @@ describe('descarga del mapa base (RV-10, FR-81)', () => {
     await new Promise((r) => setTimeout(r, 10));
     expect(pedidas).toBe(0);
     expect(m.estadoMapabase().descargado).toBeNull();
+  });
+});
+
+// docs/19 RV-68: un archivo cualquiera (una página de error, uno a medias) no se guarda como mapa base.
+describe('el mapa base se valida antes de guardarlo (RV-68)', () => {
+  for (const [caso, mal] of [
+    ['sin la firma PMTiles', () => pmtiles(info.bytes, 3, 'NoTiles')],
+    ['con otra versión del encabezado', () => pmtiles(info.bytes, 2)],
+    ['con un tamaño lejos del esperado (más del 1 %)', () => pmtiles(Math.round(info.bytes * 0.9))],
+  ] as const) {
+    it(`${caso}: fallo y no se guarda`, async () => {
+      prepararEntorno({ enLinea: true, tipo: 'cellular' });
+      cuerpo = mal();
+      const m = await cargar();
+      expect(await m.descargarMapabase()).toBe(false);
+      expect(m.estadoMapabase()).toMatchObject({ fallo: true, descargado: null });
+      expect(guardado.size).toBe(0);
+    });
+  }
+
+  it('dentro del 1 % de tamaño, con firma y versión 3, se guarda', async () => {
+    prepararEntorno({ enLinea: true, tipo: 'cellular' });
+    cuerpo = pmtiles(Math.round(info.bytes * 1.005));
+    const m = await cargar();
+    expect(await m.descargarMapabase()).toBe(true);
+    expect(guardado.size).toBe(1);
   });
 });

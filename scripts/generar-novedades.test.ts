@@ -82,6 +82,22 @@ describe('novedades desde el CHANGELOG (RV-20, FR-167)', () => {
     expect(novedadesDe(c).lineas).toEqual(['Ordenar por calle']);
   });
 
+  // docs/19 RV-68: el filtro va antes del corte; si no, una ruta más allá del carácter 140 se colaba.
+  it('una ruta o un código después del carácter 140 también excluye la línea', () => {
+    const relleno = 'la ficha enseña mejor el estado del punto y la fecha de su última revisión '.repeat(2);
+    const c = [
+      '## [1.0.0](x) (2026-10-01)',
+      '',
+      '### Novedades',
+      '',
+      `* **mapa:** ${relleno}con src/lib/ficha.ts`,
+      `* **mapa:** ${relleno}como pedía RV-12`,
+      '* **lista:** ordenar por calle',
+    ].join('\n');
+    expect(relleno.length).toBeGreaterThan(140);
+    expect(novedadesDe(c).lineas).toEqual(['Ordenar por calle']);
+  });
+
   it('corta a 140', () => {
     const larga = 'a'.repeat(300);
     const c = `## [1.0.0](x) (2026-10-01)\n\n### Novedades\n\n* **mapa:** ${larga}\n`;

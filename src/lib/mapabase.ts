@@ -66,6 +66,17 @@ export class FuenteMapabase implements Source {
   }
 }
 
+/**
+ * ¿Es un PMTiles v3 del tamaño esperado? Los 7 primeros bytes son "PMTiles", el octavo la versión del
+ * encabezado (3), y el tamaño está a ±1 % del de datos/mapabase.json (docs/19 RV-68).
+ */
+export function esMapabaseValido(inicio: Uint8Array, tamano: number, esperado = BYTES_MAPABASE): boolean {
+  const firma = 'PMTiles';
+  for (let i = 0; i < firma.length; i++) if (inicio[i] !== firma.charCodeAt(i)) return false;
+  if (inicio[7] !== 3) return false;
+  return Math.abs(tamano - esperado) <= esperado * 0.01;
+}
+
 /** Descarga completa con progreso; al terminar, el mapa ya no depende de la red. */
 export async function descargarMapabase(): Promise<boolean> {
   if (estado.progreso !== null) return false;
@@ -85,6 +96,9 @@ export async function descargarMapabase(): Promise<boolean> {
       fijar({ progreso: Math.min(99, Math.round((recibido / total) * 100)) });
     }
     const archivo = new Blob(trozos as BlobPart[], { type: 'application/octet-stream' });
+    // Una página de error o una descarga a medias no se guarda como mapa base (docs/19 RV-68).
+    const inicio = new Uint8Array(await archivo.slice(0, 8).arrayBuffer());
+    if (!esMapabaseValido(inicio, archivo.size)) throw new Error('mapa base no válido');
     await (await caches.open(CACHE)).put(URL_MAPABASE, new Response(archivo));
     const descargado = { version: VERSION_MAPABASE, bytes: archivo.size, fecha: Date.now() };
     escribir(CLAVE, descargado);

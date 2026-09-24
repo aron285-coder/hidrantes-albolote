@@ -251,7 +251,7 @@ Las carga `scripts/cargar-zona.ts` con `upsert`; no van por migración.
 | `id` | `uuid` | PK |
 | `dispositivo_id` | `uuid` | voluntario; `null` si es administrador |
 | `email` | `text` | administrador; `null` si es voluntario |
-| `suscripcion` | `jsonb` | `endpoint`, `keys.p256dh`, `keys.auth` |
+| `suscripcion` | `jsonb` | `endpoint`, `keys.p256dh`, `keys.auth`. El `endpoint` es `https://` de un servicio de push de navegador: `fcm.googleapis.com`, `*.push.services.mozilla.com`, `web.push.apple.com`, `*.push.apple.com` o `*.notify.windows.com` (`fn_validar_suscripcion`, 0029, docs/19 RV-68) |
 | `temas` | `text[]` | `{resultado_propuesta}` para voluntarios; `{nuevas_propuestas, resumen_semanal}` para administradores |
 | `creada_en`, `ultimo_envio`, `fallos` | | tres fallos seguidos → se borra |
 

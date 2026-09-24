@@ -64,6 +64,17 @@ describe('motivoParaNoBorrar', () => {
     expect(motivoParaNoBorrar(bucket, [...vivas, ...vivas.map((r) => r + 'x')])).toMatch(/2000/);
   });
 
+  // docs/19 RV-68: con el total de la base de datos igual a la lista, ya está comprobada: un número
+  // redondo de fotos no es motivo para no purgar.
+  it('con total === fotos.length, 1.000 referenciadas no se plantan', () => {
+    const bucket = Array.from({ length: 1050 }, (_, i) => archivo(`f/${i}.jpg`));
+    const vivas = bucket.slice(0, MAX_FILAS_POSTGREST).map((a) => a.ruta);
+    expect(motivoParaNoBorrar(bucket, vivas, { total: MAX_FILAS_POSTGREST })).toBeNull();
+    // Sin total, o con otro, sigue plantándose.
+    expect(motivoParaNoBorrar(bucket, vivas)).toMatch(/1000/);
+    expect(motivoParaNoBorrar(bucket, vivas, { total: 1200 })).toMatch(/1000/);
+  });
+
   it('se planta si una pasada borraría más de max(50, 10 %) del bucket, salvo con --forzar', () => {
     const bucket = Array.from({ length: 1000 }, (_, i) => archivo(`f/${i}.jpg`));
     const vivas = bucket.slice(0, 600).map((a) => a.ruta); // sobran 400, el 40 %
@@ -94,7 +105,8 @@ describe('purgar', () => {
     return {
       borrados,
       archivos: () => Promise.resolve(bucket),
-      referenciadas: () => Promise.resolve(lecturas[Math.min(n++, lecturas.length - 1)]),
+      // Sin total, como si la base de datos no lo hubiera dicho: el múltiplo de 1.000 se planta.
+      referenciadas: () => Promise.resolve({ fotos: lecturas[Math.min(n++, lecturas.length - 1)]! }),
       borrar: (rutas: string[]) => {
         borrados.push(rutas);
         return Promise.resolve();
