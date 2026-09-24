@@ -1,5 +1,6 @@
-import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -8,6 +9,8 @@ import { describe, expect, it } from 'vitest';
 const carpeta = path.resolve(import.meta.dirname, '../.github/workflows');
 const archivos = readdirSync(carpeta).filter((a) => a.endsWith('.yml'));
 const leer = (a: string) => readFileSync(path.join(carpeta, a), 'utf8');
+/** Lo que la vigilancia mira en cada base de datos (docs/20 RV-78, DEC-104). */
+const revisarBd = () => readFileSync(path.resolve(import.meta.dirname, '../.github/scripts/revisar-bd.sh'), 'utf8');
 
 const programados = archivos.filter((a) => /^on:[\s\S]*?^\s{2}schedule:/m.test(leer(a))).sort();
 
@@ -65,8 +68,12 @@ describe('avisos.yml (RV-08)', () => {
 describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
   it("ningún run usa -v con -c y una variable :'…' en la misma línea: psql no sustituye en -c", () => {
     const malas: string[] = [];
-    for (const a of archivos) {
-      for (const [i, l] of leer(a).split('\n').entries()) {
+    const textos: [string, string][] = [
+      ...archivos.map((a): [string, string] => [a, leer(a)]),
+      ['revisar-bd.sh', revisarBd()],
+    ];
+    for (const [a, texto] of textos) {
+      for (const [i, l] of texto.split('\n').entries()) {
         if (/psql\b/.test(l) && /\s-v\s/.test(l) && /\s-c\s/.test(l) && /:'\w+'/.test(l)) malas.push(`${a}:${i + 1}`);
       }
     }
@@ -74,7 +81,7 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
   });
 
   it('guardar las tareas no se traga el error con || true', () => {
-    const texto = leer('vigilancia.yml');
+    const texto = revisarBd();
     expect(texto).toContain('-f scripts/sql/guardar-tareas.sql');
     const linea = texto.split('\n').find((l) => l.includes('guardar-tareas.sql'))!;
     expect(linea).not.toMatch(/\|\|\s*true/);
@@ -109,7 +116,7 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
   });
 
   it('la vigilancia pasa la lista de tareas esperadas a la consulta de pg_cron', () => {
-    const texto = leer('vigilancia.yml');
+    const texto = revisarBd();
     expect(texto).toContain('paste -sd, scripts/sql/tareas-esperadas.txt');
     expect(texto).toContain('-v esperadas="$esperadas"');
     expect(texto).toContain('select(.falta)');
@@ -229,28 +236,34 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     const texto = leer('vigilancia.yml');
     expect(texto).toContain('workers/scripts/hidrantes-avisos/schedules');
     expect(texto).toContain('"${WORKER_CRON:-}" != "*/5 * * * *"');
-    expect(texto).toContain("interval '30 minutes'");
-    expect(texto).not.toContain("interval '2 hours'");
+    expect(revisarBd()).toContain("interval '30 minutes'");
+    expect(revisarBd()).not.toContain("interval '2 hours'");
   });
 
   // docs/20 RV-78: en staging, Salud del sistema decía "todavía ninguno" porque solo se escribía en prod.
-  it('la vigilancia mira y anota también staging, sin el respaldo', () => {
+  // SUPABASE_DB_URL_STAGING no existe en el repositorio: staging se mira en su environment (DEC-104).
+  it('la vigilancia mira y anota staging en su propio trabajo, con el secreto de su environment', () => {
     const texto = leer('vigilancia.yml');
-    expect(texto).toContain('BD_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}');
-    expect(texto).toContain('revisar_bd produccion "$BD"');
-    expect(texto).toContain('revisar_bd staging "$BD_STAGING"');
-    // Las tareas se guardan con el -f de siempre, en la base de cada entorno.
-    expect(texto).toContain('"$bd" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql');
-    // ultima_vigilancia y vigilancia_ok en las dos bases.
-    const anotar = texto.slice(texto.indexOf('# 5. Se anota en Salud del sistema'));
-    expect(anotar).toContain('for bd in "${BD:-}" "${BD_STAGING:-}"; do');
-    expect(anotar).toContain("'ultima_vigilancia'");
-    expect(anotar).toContain("'vigilancia_ok'");
-    // El respaldo solo en producción.
-    const funcion = texto.slice(texto.indexOf('revisar_bd() {'), texto.indexOf('\n          }\n'));
-    const respaldo = funcion.indexOf('ultimo_respaldo');
-    expect(respaldo).toBeGreaterThan(funcion.indexOf('if [ "$entorno" = produccion ]; then'));
-    expect(respaldo).toBeLessThan(funcion.indexOf('elif !'));
+    expect(texto).not.toContain('SUPABASE_DB_URL_STAGING');
+    const staging = texto.slice(texto.indexOf('\n  staging:\n'), texto.indexOf('\n  mirar:\n'));
+    expect(staging).toMatch(/^ {4}environment: staging$/m);
+    expect(staging).toContain('BD: ${{ secrets.SUPABASE_DB_URL }}');
+    expect(staging).toContain('revisar_bd staging "$BD"');
+    expect(staging).toContain("'ultima_vigilancia'");
+    expect(staging).toContain("'vigilancia_ok'");
+    expect(staging).toContain("echo 'problemas<<FIN_PROBLEMAS'");
+    const mirar = texto.slice(texto.indexOf('\n  mirar:\n'));
+    expect(mirar).toContain('needs: [worker, staging]');
+    expect(mirar).toContain('revisar_bd produccion "$BD"');
+    expect(mirar).toContain('STAGING_PROBLEMAS: ${{ needs.staging.outputs.problemas }}');
+    expect(mirar).toContain('"${STAGING_RESULTADO:-}" != success');
+  });
+
+  // 24 sep 2026, run 36055437810: «git log … | head -1» terminó con 141 (SIGPIPE) bajo bash -e y
+  // pipefail, y la vigilancia se quedó sin resultado.
+  it('ningún paso de la vigilancia corta una tubería con head', () => {
+    expect(leer('vigilancia.yml')).not.toMatch(/\|\s*head\b/);
+    expect(revisarBd()).not.toMatch(/\|\s*head\b/);
   });
 
   it('avisos.yml ya no está en las listas de workflows programados', () => {
@@ -349,5 +362,72 @@ describe('hay_codigo (PAR-01)', () => {
 
   it('sin archivos se prueba todo', () => {
     expect(hay([])).toBe('true');
+  });
+});
+
+// docs/20 RV-78 y DEC-104: la vigilancia de cada base, con bash -e como en Actions y un psql simulado.
+describe('revisar_bd (RV-78)', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
+  /** psql simulado: responde según la consulta; `tareas` es lo que da tareas-programadas.sql. */
+  const correr = (entorno: string, tareas: string) => {
+    const guion = [
+      'set -uo pipefail',
+      `psql() {
+        case "$*" in
+          *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
+          *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
+          *ultimo_respaldo*) echo 3 ;;
+          *notificaciones*) echo 0 ;;
+          *pg_database_size*) echo 1000 ;;
+          *intentos_codigo*) echo '0 0' ;;
+          *) echo 1 ;;
+        esac
+      }`,
+      'problemas=()',
+      'source .github/scripts/revisar-bd.sh',
+      `revisar_bd ${entorno} postgresql://simulada`,
+      'printf "%s\\n" "${problemas[@]}"',
+      'echo FIN',
+    ].join('\n');
+    const dir = mkdtempSync(path.join(tmpdir(), 'vigilancia-'));
+    try {
+      const r = spawnSync('bash', ['-e', '-c', guion], {
+        cwd: raiz,
+        encoding: 'utf8',
+        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado') },
+      });
+      return { salida: r.stdout, codigo: r.status };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const BIEN = JSON.stringify([{ tarea: 'hidrantes_purgar_errores', falta: false, problema: false }]);
+  const FALTA = JSON.stringify([{ tarea: 'hidrantes_purgar_errores', falta: true, problema: true }]);
+
+  it.skipIf(!tieneJq)('con todo bien, bash -e llega al final sin problemas, en los dos entornos', () => {
+    for (const entorno of ['produccion', 'staging']) {
+      const r = correr(entorno, BIEN);
+      expect(r.codigo, entorno).toBe(0);
+      expect(r.salida.trim(), entorno).toBe('FIN');
+    }
+  });
+
+  it.skipIf(!tieneJq)('en staging, una tarea que falta sale con «staging:» delante', () => {
+    const r = correr('staging', FALTA);
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain('staging: faltan tareas programadas de pg_cron: hidrantes_purgar_errores');
+    expect(r.salida.trim().endsWith('FIN')).toBe(true);
+  });
+
+  it('staging no mira el respaldo, el tamaño ni los intentos del código', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
+    const antesDeStaging = guion.slice(0, guion.indexOf('elif ! psql'));
+    expect(antesDeStaging).toContain('ultimo_respaldo');
+    const tras = guion.slice(guion.indexOf('[ "$entorno" = produccion ] || return 0'));
+    expect(tras).toContain('pg_database_size');
+    expect(tras).toContain('intentos_codigo');
+    // Nada de `a && b` en su propia línea: con bash -e y `a` falso, terminaría el paso.
+    expect(guion.split('\n').filter((l) => /^\s*\[.*\]\s*&&/.test(l))).toEqual([]);
   });
 });

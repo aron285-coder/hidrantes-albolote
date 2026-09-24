@@ -660,6 +660,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-104 · Staging se vigila en su propio trabajo, con el secreto de su environment
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-78). Sustituye el punto 3 de DEC-103.
+- **Contexto:** la primera vigilancia con DEC-103 (run 36055437810) mostró dos cosas.
+  - `SUPABASE_DB_URL_STAGING` no existe como secreto del repositorio: `docs/20` lo daba por hecho, y el arranque solo lo pone al rotar `db`.
+  - «Comprobar» terminó con 141 sin resultado. `git log … | head -1` recibía SIGPIPE en cuanto `main` iba bastante por detrás, y con `pipefail` bajo `bash -e` (el shell de Actions) el paso entero se paraba. Justo cuando hay que avisar de que producción va atrasada.
+- **Decisión:**
+  1. Lo que se mira en cada base va en `.github/scripts/revisar-bd.sh` (`revisar_bd produccion|staging`), sin `a && b` sueltos.
+  2. Un trabajo `staging`, con `environment: staging` (no pide aprobación) y su `SUPABASE_DB_URL`, mira los avisos sin salir y las tareas de `pg_cron` de staging. Anota allí `ultima_vigilancia` y `vigilancia_ok` **de staging**, y pasa sus problemas a «mirar», que los pone en la misma issue.
+  3. `tail -1` en vez de `head -1`, y un test que prohíbe `| head` en la vigilancia.
+- **Descartado:**
+  - **Crear `SUPABASE_DB_URL_STAGING` en el repositorio:** un secreto más con la misma contraseña, que habría que rotar a la vez que el del environment.
+  - **Escribir en staging el resultado global:** para eso haría falta un tercer trabajo en staging tras «mirar». En la Salud del sistema de staging, lo útil es lo de staging.
+- **Afecta a:** 04 §9.
+
 ### DEC-103 · El Worker de los avisos se despliega en cada push y dice qué código lleva; la vigilancia también anota staging
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-74 y RV-78, parte Ops). Decisión de bajo riesgo de la sesión Ops.
 - **Decisión:**
@@ -1425,7 +1439,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
 | 03 | 001, 004, 026, 028, 099 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098 |
 | 07, 08 | 036 |
