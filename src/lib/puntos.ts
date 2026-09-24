@@ -44,8 +44,9 @@ let config: ConfigMovil | null = null;
 let tramoJefatura: number | null = null;
 
 /**
- * Jefatura: el tramo, de la tabla de config (lo lee por RLS de administrador). Se pide cuando hace
- * falta, no al sincronizar: una lectura más en cada sincronización no aporta nada al mapa. Si no se
+ * Jefatura: el tramo, de la tabla de config (lo lee por RLS de administrador). Se pide una vez al
+ * pasar a jefatura (comprobarAcceso), no en cada sincronización, y se publica como un cambio del
+ * almacén para que el incidente y la medición se vuelvan a pintar con él (docs/19 RV-62). Si no se
  * puede, se queda el que hubiera.
  */
 export async function cargarTramoJefatura(): Promise<void> {
@@ -53,7 +54,11 @@ export async function cargarTramoJefatura(): Promise<void> {
   if (!cliente) return;
   try {
     const { data } = await cliente.from('config').select('valor').eq('clave', 'metros_tramo_manguera').maybeSingle();
-    if (data) tramoJefatura = leerMetrosTramo((data as { valor: unknown }).valor);
+    if (!data) return;
+    const tramo = leerMetrosTramo((data as { valor: unknown }).valor);
+    if (tramo === tramoJefatura) return;
+    tramoJefatura = tramo;
+    fijar({});
   } catch {
     // sin config legible: el de por defecto
   }

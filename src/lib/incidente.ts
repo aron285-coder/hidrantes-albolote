@@ -131,25 +131,3 @@ export const parametroGps = (p: { precision: number; momento?: number }, ahora =
 /** El momento del origen si ya tiene más de un minuto; si no, o sin datos, null. */
 export const origenViejo = (g: OrigenGps | null, ahora = Date.now()): number | null =>
   g?.momento != null && ahora - g.momento > ORIGEN_VIEJO_MS ? g.momento : null;
-
-// El incidente sobrevive a una recarga en la URL; la lista lo lee de sessionStorage para ordenar por
-// distancia desde él (FR-74). Se pierde al cerrar la pestaña, y nunca va a IndexedDB ni al servidor.
-const CLAVE = 'hidrantes.incidente';
-
-export function recordarIncidente(l: LatLng | null): void {
-  try {
-    if (l) sessionStorage.setItem(CLAVE, JSON.stringify(l));
-    else sessionStorage.removeItem(CLAVE);
-  } catch {
-    // sin sessionStorage: la lista ordena desde tu posición
-  }
-}
-
-export function incidenteRecordado(): LatLng | null {
-  try {
-    const v = JSON.parse(sessionStorage.getItem(CLAVE) ?? 'null') as LatLng | null;
-    return v && Number.isFinite(v.lat) && Number.isFinite(v.lng) ? v : null;
-  } catch {
-    return null;
-  }
-}

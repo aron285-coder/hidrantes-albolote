@@ -16,8 +16,9 @@ async function abrir(page: Page) {
 
 const buscador = (page: Page) => page.getByRole('searchbox', { name: T.mapa.buscar });
 const hojaAqui = (page: Page) => page.getByRole('dialog', { name: T.aqui.titulo });
+// El zoom de ahora: con "¿Qué hay aquí?" abierto la vista ya no se guarda (docs/19 RV-62).
 const zoomGuardado = (page: Page) =>
-  page.evaluate(() => (JSON.parse(localStorage.getItem('hidrantes.vista') ?? 'null')?.zoom ?? 0) as number);
+  page.evaluate(() => Number(document.querySelector<HTMLElement>('.leaflet-container')?.dataset.zoom ?? 0));
 
 const PORTAL = {
   etiqueta: 'Calle Real, 12, Albolote',

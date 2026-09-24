@@ -269,3 +269,83 @@ test.describe('Cercanos con GPS (RV-59)', () => {
     await expect(buscador(page, isMobile)).toBeFocused();
   });
 });
+
+// docs/19 RV-62: cabos sueltos del modo incidente.
+test.describe('cabos sueltos del modo incidente (RV-62)', () => {
+  test('cerrar la ficha abierta desde Cercanos con la X y pulsar atrás una vez cierra el incidente', async ({
+    page,
+    context,
+    isMobile,
+  }) => {
+    await preparar(page, context);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    await filas(page).first().getByRole('button').first().click();
+    await expect(page).toHaveURL(/&p=/);
+    // En el móvil la ficha ocupa la pantalla y se cierra con la flecha de la barra de arriba.
+    await page
+      .getByRole('button', { name: isMobile ? T.entrada.volver : T.ficha.cerrar, exact: true })
+      .first()
+      .click();
+    await expect(page).not.toHaveURL(/&p=/);
+    await expect(filas(page)).toHaveCount(5);
+    await page.goBack();
+    await expect(page).not.toHaveURL(/incidente=/);
+    await expect(hoja(page)).toHaveCount(0);
+  });
+
+  test('la lista de al lado dice "desde el incidente" y, al cerrarlo, deja de ordenar desde él', async ({
+    page,
+    context,
+    isMobile,
+  }) => {
+    test.skip(!!isMobile, 'la lista va al lado del mapa en ordenador (FR-70)');
+    await preparar(page, context, false);
+    await page.goto('/?incidente=37.230500,-3.656000');
+    await expect(filas(page)).toHaveCount(5);
+    const lista = page.locator('aside').filter({ has: page.locator('#buscar-lista') });
+    await expect(lista.getByText(T.mapa.desdeIncidente).first()).toBeVisible();
+    await expect(lista.getByText(T.mapa.desdeTi)).toHaveCount(0);
+    await hoja(page).getByRole('button', { name: T.incidente.cerrarIncidente }).click();
+    await expect(lista.getByText(T.mapa.desdeIncidente)).toHaveCount(0);
+  });
+
+  test('jefatura con tramos de 25 m los ve en el primer incidente y en la medición', async ({ page }) => {
+    await conGoogle(page, 'jefa@example.org');
+    await simularTablas(page, {
+      v_puntos_activos: CERCA,
+      config: (url) => (url.searchParams.get('clave') === 'eq.metros_tramo_manguera' ? [{ valor: 25 }] : []),
+    });
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_es_admin`, (r) =>
+      r.fulfill({ contentType: 'application/json', body: 'true' }),
+    );
+    // BOC-7004 está a 200 m: 8 tramos de 25 m (con los 20 m de por defecto serían 10).
+    await page.goto('/?incidente=37.230500,-3.656000');
+    const fila = filas(page).filter({ hasText: 'BOC-7004' });
+    await expect(fila).toContainText(T.incidente.tramos(8));
+    await fila.getByRole('button', { name: T.medir.tendido }).click();
+    await expect(page.getByText(/tramos de 25 m/)).toBeVisible();
+  });
+
+  test('tras elegir un resultado de la búsqueda, cerrar ¿Qué hay aquí? no vuelve a enseñar "Sin posición"', async ({
+    page,
+    context,
+    isMobile,
+  }) => {
+    await preparar(page, context, false);
+    await page.getByRole('button', { name: T.incidente.boton }).click();
+    await expect(hoja(page)).toContainText(T.incidente.sinPosicion);
+    const buscador = isMobile
+      ? page.getByRole('searchbox', { name: T.mapa.buscar }).first()
+      : page.locator('#buscar-lista');
+    await buscador.fill('37.2305, -3.656');
+    await page
+      .getByRole('button', { name: T.busqueda.coordenadas('37.230500, -3.656000') })
+      .first()
+      .click();
+    const aqui = page.getByRole('dialog', { name: T.aqui.titulo });
+    await expect(aqui).toBeVisible();
+    await page.goBack();
+    await expect(aqui).toHaveCount(0);
+    await expect(page.getByText(T.incidente.sinPosicion)).toHaveCount(0);
+  });
+});

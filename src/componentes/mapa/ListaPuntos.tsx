@@ -1,5 +1,6 @@
 import { Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { MarcadorSvg } from './MarcadorSvg';
 import { CabeceraGrupo, ResultadoCoordenadas, ResultadosCallesYDirecciones } from './ResultadosLugares';
 import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
@@ -7,7 +8,7 @@ import { usePosicion, usePuntos } from '@/hooks/estado';
 import { leer, escribir } from '@/lib/almacen';
 import { nombreCaudal } from '@/lib/ficha';
 import { distancia, hace } from '@/lib/formato';
-import { incidenteRecordado } from '@/lib/incidente';
+import { leerLatLng } from '@/lib/coordenadas';
 import { activarPosicion, posicionActual } from '@/lib/posicion';
 import { type Filtro, type Orden, buscar, filtrar, metros, ordenar } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -28,11 +29,21 @@ const ORDENES: [Orden, string][] = [
 ];
 
 /** Lista filtrable y ordenable (FR-68, FR-69). Se usa en la pestaña Lista y al lado del mapa en ordenador. */
-export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
+export function ListaPuntos({
+  alElegir,
+  alElegirLugar,
+}: {
+  alElegir: (id: string) => void;
+  /** Al elegir una calle, un lugar o unas coordenadas: el mapa olvida el "Sin posición" (RV-62). */
+  alElegirLugar?: () => void;
+}) {
   const { puntos, cargado } = usePuntos();
   usePosicion();
-  // Con un incidente abierto, "por distancia" ordena desde él y no desde tu posición (FR-74).
-  const incidente = incidenteRecordado();
+  // Con un incidente abierto, "por distancia" ordena desde él y no desde tu posición (FR-74). Sale de
+  // la URL, como en el mapa, no de un valor recordado: al cerrarlo, vuelve a ordenar desde ti (RV-62).
+  const [params] = useSearchParams();
+  const incidenteParam = params.get('incidente');
+  const incidente = useMemo(() => leerLatLng(incidenteParam), [incidenteParam]);
   const gps = posicionActual();
   const pos = incidente ?? gps;
   const [texto, setTexto] = useState('');
@@ -45,6 +56,7 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
   const irADestino = useIrADestino();
   const irA = (d: Destino) => {
     setTexto('');
+    alElegirLugar?.();
     irADestino(d);
   };
 
@@ -157,7 +169,9 @@ export function ListaPuntos({ alElegir }: { alElegir: (id: string) => void }) {
                 {pos && (
                   <span className="text-right text-[13px] font-semibold whitespace-nowrap">
                     {distancia(metros(pos, p))}
-                    <small className="text-texto-suave block font-normal">{T.mapa.desdeTi}</small>
+                    <small className="text-texto-suave block font-normal">
+                      {incidente ? T.mapa.desdeIncidente : T.mapa.desdeTi}
+                    </small>
                   </span>
                 )}
               </button>
