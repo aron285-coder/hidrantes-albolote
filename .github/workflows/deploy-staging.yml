@@ -74,8 +74,14 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          existe=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/schedules" || echo 000)
-          if [ "$existe" = "200" ] && [ -z "$(git diff --name-only HEAD~1 HEAD -- workers/)" ]; then
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/schedules" || echo 000)
+          if [ "$codigo" = "401" ] || [ "$codigo" = "403" ]; then
+            # Un token solo de Pages: staging se ha desplegado igual. No es un fallo silencioso: aviso
+            # aquí, en el resumen, y la vigilancia diaria lo cuenta como problema hasta que se arregle.
+            aviso="El token de Cloudflare no tiene permiso de Workers (HTTP $codigo): el Worker de los avisos no se despliega desde aquí. Añade «Account · Workers Scripts: Edit» al token (15 §2, DEC-097); mientras, npm run arranque -- --solo-faltantes lo despliega con la sesión de wrangler."
+            echo "::warning::$aviso"
+            echo "$aviso" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$codigo" = "200" ] && [ -z "$(git diff --name-only HEAD~1 HEAD -- workers/)" ]; then
             echo "workers/ sin cambios y el Worker ya existe: no se despliega."
           else
             npx wrangler deploy --config workers/avisos/wrangler.toml

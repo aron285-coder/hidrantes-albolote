@@ -41,7 +41,15 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -uo pipefail
-          cron=$(curl -s --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN"             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/schedules"             | jq -r '[.result.schedules[]?.cron] | join(",")' 2>/dev/null || echo '')
+          respuesta=$(mktemp)
+          codigo=$(curl -s -o "$respuesta" -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/schedules" || echo 000)
+          if [ "$codigo" = "401" ] || [ "$codigo" = "403" ]; then
+            # Token solo de Pages: sin permiso no se sabe si el Worker corre, y eso es un problema.
+            cron="sin permiso (HTTP $codigo)"
+          else
+            cron=$(jq -r '[.result.schedules[]?.cron] | join(",")' "$respuesta" 2>/dev/null || echo '')
+          fi
           echo "cron=${cron:-ninguno}" >> "$GITHUB_OUTPUT"
 
   mirar:

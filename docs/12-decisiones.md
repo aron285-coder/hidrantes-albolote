@@ -679,6 +679,12 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
     - comprueba que el Worker tiene su cron, con `GET …/workers/scripts/hidrantes-avisos/schedules`.
 
     Lo hace en un trabajo con el *environment* `staging`, que no pide aprobación y tiene el token de la cuenta. DEC-071 sigue valiendo para el resto: ningún trabajo por calendario usa `production`.
+- **Token sin permiso de Workers** (24 sep 2026, primer despliegue): el token de los *environments* solo tenía Pages. Por eso:
+  - el paso del Worker en `deploy-staging.yml` avisa (`::warning::` y resumen) sin tirar el despliegue de Pages;
+  - la vigilancia lo cuenta como problema;
+  - `arranque -- --solo-faltantes` despliega el Worker con la sesión de `wrangler login` si falta.
+
+  Ampliar el token es un paso del desarrollador en el panel, porque la API no deja ampliar un token con él mismo (15 §2).
 - **Descartado:**
   - `pg_cron` con `pg_net`: exigiría activar una extensión en la base de datos que se comparte con uniformidad y guardar el secreto en esa base;
   - seguir con el cron de GitHub: no se puede confiar en él para algo que el voluntario espera en minutos.
