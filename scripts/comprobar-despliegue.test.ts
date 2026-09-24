@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { archivoHeaders, cabecerasGenerales, TIPO_TESELA } from '../config/cabeceras.ts';
 import {
+  comprobarMapabase,
   comprobarPagina,
   comprobarRespuestasMapabase,
   estadoCache,
@@ -92,6 +93,27 @@ describe('comprobarRespuestasMapabase (RV-71)', () => {
       `${ruta}: estado 404`,
       `el PMTiles entero pesa 10 bytes y datos/mapabase.json dice ${info.bytes}`,
     ]);
+  });
+
+  // En el primer despliegue de RV-71 la página ya pasaba con el despliegue anterior (misma versión) y
+  // la tesela aún salía como la página de la SPA: hay que esperar a que Pages propague, como la página.
+  it('mientras Pages propaga, reintenta; cuando llega la tesela, no hay problemas', async () => {
+    let pedidas = 0;
+    const pedir = async (u: URL) => {
+      pedidas++;
+      if (u.pathname.endsWith('.pmtiles')) return new Response(new Uint8Array(info.bytes));
+      const propagado = pedidas > 4;
+      return new Response('x', { headers: { 'content-type': propagado ? TIPO_TESELA : 'text/html; charset=utf-8' } });
+    };
+    const problemas = await comprobarMapabase('https://x.pages.dev', { info, esperaMs: 0, pedir });
+    expect(problemas).toEqual([]);
+    expect(pedidas).toBe(6);
+  });
+
+  it('si nunca llega, devuelve los problemas del último intento', async () => {
+    const pedir = async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } });
+    const problemas = await comprobarMapabase('https://x.pages.dev', { info, intentos: 3, esperaMs: 0, pedir });
+    expect(problemas).toHaveLength(2);
   });
 
   it('el _headers generado da a las teselas un tipo que esta comprobación acepta', () => {

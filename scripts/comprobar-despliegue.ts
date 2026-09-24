@@ -63,7 +63,8 @@ async function principal(): Promise<void> {
   if (problemas.length) abortar(`${url}:\n  - ${problemas.join('\n  - ')}`);
   log.ok(`${url} responde con la versión ${version} y las cabeceras de TR-100`);
 
-  await comprobarMapabase(url);
+  const mapabase = await comprobarMapabase(url);
+  if (mapabase.length) abortar(`${url}, mapa base:\n  - ${mapabase.join('\n  - ')}`);
 
   const secreto = process.env.VIGILANCIA_SECRETO;
   if (entorno === 'staging' && secreto) await comprobarCaches(url, secreto);
@@ -101,23 +102,45 @@ export function rutaTeselaDePrueba(info: { version: string; recuadro: number[] }
 /**
  * En línea el mapa pinta con teselas sueltas (Pages no sirve rangos) y la descarga sin conexión baja
  * el PMTiles entero (FR-81): los dos tienen que estar en el despliegue.
+ *
+ * Con reintentos, como la página: si la versión de package.json no cambia, la página ya pasa con el
+ * despliegue anterior mientras Pages propaga el nuevo, y la tesela aún sale como la página de la SPA
+ * (visto en el primer despliegue de RV-71). Devuelve los problemas del último intento.
  */
-async function comprobarMapabase(url: string): Promise<void> {
-  const info = JSON.parse(readFileSync(path.join(RAIZ, 'datos', 'mapabase.json'), 'utf8'));
-  const ruta = rutaTeselaDePrueba(info);
-  const t = await fetch(new URL(ruta, url));
-  await t.arrayBuffer();
-  const a = await fetch(new URL('/mapabase/albolote.pmtiles', url));
-  const bytes = (await a.arrayBuffer()).byteLength;
-  const problemas = comprobarRespuestasMapabase(
-    {
-      tesela: { ruta, estado: t.status, tipo: t.headers.get('content-type') ?? '' },
-      archivo: { estado: a.status, bytes },
+export async function comprobarMapabase(
+  url: string,
+  {
+    info = JSON.parse(readFileSync(path.join(RAIZ, 'datos', 'mapabase.json'), 'utf8')) as {
+      version: string;
+      bytes: number;
+      recuadro: number[];
     },
-    info.bytes,
-  );
-  if (problemas.length) abortar(`${url}, mapa base:\n  - ${problemas.join('\n  - ')}`);
-  log.ok(`${url} sirve las teselas sueltas (${ruta}) y el PMTiles entero (${bytes} bytes)`);
+    intentos = 6,
+    esperaMs = 10_000,
+    pedir = fetch as (u: URL) => Promise<Response>,
+  } = {},
+): Promise<string[]> {
+  const ruta = rutaTeselaDePrueba(info);
+  let problemas: string[] = [];
+  for (let intento = 1; intento <= intentos; intento++) {
+    const t = await pedir(new URL(ruta, url));
+    await t.arrayBuffer();
+    const a = await pedir(new URL('/mapabase/albolote.pmtiles', url));
+    const bytes = (await a.arrayBuffer()).byteLength;
+    problemas = comprobarRespuestasMapabase(
+      {
+        tesela: { ruta, estado: t.status, tipo: t.headers.get('content-type') ?? '' },
+        archivo: { estado: a.status, bytes },
+      },
+      info.bytes,
+    );
+    if (problemas.length === 0) {
+      log.ok(`${url} sirve las teselas sueltas (${ruta}) y el PMTiles entero (${bytes} bytes)`);
+      break;
+    }
+    if (intento < intentos) await new Promise((ok) => setTimeout(ok, esperaMs));
+  }
+  return problemas;
 }
 
 /** Qué dice la segunda de dos peticiones iguales (docs/19 RV-63). */
