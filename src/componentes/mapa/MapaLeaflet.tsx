@@ -8,7 +8,7 @@ import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
 import { distancia } from '@/lib/formato';
-import { imantar } from '@/lib/medicion';
+import { desplazamientoEtiqueta, imantar } from '@/lib/medicion';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
 import { T } from '@/lib/textos';
 import { guardarVista, vistaGuardada } from '@/lib/vista';
@@ -40,7 +40,11 @@ interface Props {
    * Medición (FR-76): mientras está activa, un toque añade un vértice y no abre fichas; cerca de un
    * marcador (≤ 44 px) se imanta a él.
    */
-  medicion?: { vertices: LatLng[]; etiquetas: { en: LatLng; metros: number }[]; alTocar: (l: LatLng) => void } | null;
+  medicion?: {
+    vertices: LatLng[];
+    etiquetas: { en: LatLng; desde: LatLng; hasta: LatLng; metros: number }[];
+    alTocar: (l: LatLng) => void;
+  } | null;
   /** La calle elegida en la búsqueda, resaltada durante la sesión (FR-73, 06 §4.7): [[[lng, lat], …], …]. */
   calle?: [number, number][][] | null;
 }
@@ -360,9 +364,22 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     for (const v of lista) {
       L.circleMarker(v, { radius: 5, weight: 2, className: 'vertice-medicion', interactive: false }).addTo(g);
     }
+    const m = mapa.current;
     for (const e of medicion.etiquetas) {
+      // A 14 px de la línea, en perpendicular al tramo: sobre ella, la línea la tachaba (RV-67).
+      const d = m
+        ? desplazamientoEtiqueta(
+            m.latLngToLayerPoint([e.desde.lat, e.desde.lng]),
+            m.latLngToLayerPoint([e.hasta.lat, e.hasta.lng]),
+          )
+        : { x: 0, y: 0 };
       L.marker([e.en.lat, e.en.lng], {
-        icon: L.divIcon({ html: distancia(e.metros), className: 'etiqueta-medicion', iconSize: [56, 20] }),
+        icon: L.divIcon({
+          html: distancia(e.metros),
+          className: 'etiqueta-medicion',
+          iconSize: [56, 20],
+          iconAnchor: [28 - d.x, 10 - d.y],
+        }),
         interactive: false,
         keyboard: false,
       }).addTo(g);

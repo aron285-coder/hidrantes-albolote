@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { longitudLinea } from './geometria';
-import { anadir, borrar, deshacer, imantar, puedeDeshacer, resumen } from './medicion';
+import { anadir, borrar, deshacer, desplazamientoEtiqueta, imantar, puedeDeshacer, resumen } from './medicion';
 
 const O = { lat: 37.23, lng: -3.656 };
 const alNorte = (m: number) => ({ lat: O.lat + m / 111_195, lng: O.lng });
@@ -48,5 +48,33 @@ describe('medición', () => {
     expect(v).toEqual([O]);
     expect(puedeDeshacer(v)).toBe(false);
     expect(borrar()).toEqual([]);
+  });
+});
+
+// docs/19 RV-67: la etiqueta iba centrada sobre la línea y la línea la tachaba.
+describe('etiqueta al lado del tramo (RV-67)', () => {
+  it('14 px en perpendicular, hacia arriba en un tramo horizontal', () => {
+    const d = desplazamientoEtiqueta({ x: 0, y: 100 }, { x: 125, y: 100 });
+    expect(d.x).toBeCloseTo(0);
+    expect(d.y).toBeCloseTo(-14);
+  });
+
+  it('en un tramo inclinado, perpendicular y a 14 px', () => {
+    const d = desplazamientoEtiqueta({ x: 0, y: 0 }, { x: 100, y: 100 });
+    expect(Math.hypot(d.x, d.y)).toBeCloseTo(14);
+    expect(d.x * 100 + d.y * 100).toBeCloseTo(0); // perpendicular al tramo
+    expect(d.y).toBeLessThan(0);
+  });
+
+  it('en un tramo vertical, hacia la derecha; sin tramo, hacia arriba', () => {
+    const d = desplazamientoEtiqueta({ x: 10, y: 0 }, { x: 10, y: 80 });
+    expect(d.x).toBeCloseTo(14);
+    expect(d.y).toBeCloseTo(0);
+    expect(desplazamientoEtiqueta({ x: 1, y: 1 }, { x: 1, y: 1 })).toEqual({ x: 0, y: -14 });
+  });
+
+  it('resumen da los extremos de cada tramo etiquetado', () => {
+    const r = resumen([O, { lat: O.lat + 80 / 111_195, lng: O.lng }], 20);
+    expect(r.etiquetas[0]).toMatchObject({ desde: O, hasta: { lat: O.lat + 80 / 111_195, lng: O.lng } });
   });
 });

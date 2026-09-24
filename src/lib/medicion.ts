@@ -37,8 +37,35 @@ export const puedeDeshacer = (vertices: LatLng[]) => vertices.length >= 2;
 export interface Resumen {
   metros: number;
   tramos: number;
-  /** Tramos de más de 30 m, con su punto medio y su longitud, para etiquetarlos en el mapa. */
-  etiquetas: { en: LatLng; metros: number }[];
+  /** Tramos de más de 30 m, con su punto medio, sus extremos y su longitud, para etiquetarlos. */
+  etiquetas: { en: LatLng; desde: LatLng; hasta: LatLng; metros: number }[];
+}
+
+/** Cuánto se separa la etiqueta de la línea, en perpendicular al tramo (docs/19 RV-67). */
+export const SEPARACION_ETIQUETA_PX = 14;
+
+/**
+ * Desplazamiento en pantalla de la etiqueta de un tramo de `a` a `b` (en píxeles): 14 px en
+ * perpendicular, hacia arriba (y hacia la derecha si el tramo es vertical), para que la línea no la
+ * tache. La dirección en pantalla no cambia con el zoom (Mercator conserva los ángulos).
+ */
+export function desplazamientoEtiqueta(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+  px = SEPARACION_ETIQUETA_PX,
+): { x: number; y: number } {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const largo = Math.hypot(dx, dy);
+  if (largo === 0) return { x: 0, y: -px };
+  // Las dos normales son (-dy, dx) y (dy, -dx): se elige la que sube en pantalla.
+  let nx = -dy / largo;
+  let ny = dx / largo;
+  if (ny > 0 || (ny === 0 && nx < 0)) {
+    nx = -nx;
+    ny = -ny;
+  }
+  return { x: nx * px, y: ny * px };
 }
 
 export function resumen(vertices: LatLng[], metrosTramo: number): Resumen {
@@ -48,7 +75,9 @@ export function resumen(vertices: LatLng[], metrosTramo: number): Resumen {
     const a = vertices[i - 1]!;
     const b = vertices[i]!;
     const m = metros(a, b);
-    if (m > ETIQUETA_DESDE_M) etiquetas.push({ en: { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 }, metros: m });
+    if (m > ETIQUETA_DESDE_M) {
+      etiquetas.push({ en: { lat: (a.lat + b.lat) / 2, lng: (a.lng + b.lng) / 2 }, desde: a, hasta: b, metros: m });
+    }
   }
   return { metros: total, tramos: tramos(total, metrosTramo), etiquetas };
 }

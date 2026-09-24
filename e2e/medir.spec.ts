@@ -113,3 +113,23 @@ test('"Medir tendido" desde el incidente trae la recta precargada', async ({ pag
   await barra(page).getByRole('button', { name: T.medir.terminar }).click();
   await expect(hoja).toBeVisible();
 });
+
+// docs/19 RV-67: la etiqueta iba centrada sobre la línea y la línea la tachaba.
+test('la etiqueta del tramo queda al lado de la línea, sin que la corte', async ({ page }) => {
+  await preparar(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: T.medir.boton }).click();
+  const a = await centro(page, A.codigo);
+  await page.mouse.click(a.x, a.y);
+  const b = await centro(page, B.codigo);
+  await page.mouse.click(b.x, b.y);
+  await expect.poll(() => resultado(page)).toBe(T.medir.resultado(distancia(59), 3, 20));
+  const etiqueta = page.locator('.etiqueta-medicion').first();
+  await expect(etiqueta).toBeVisible();
+  const e = (await etiqueta.boundingBox())!;
+  const cx = e.x + e.width / 2;
+  const cy = e.y + e.height / 2;
+  // Distancia del centro de la caja a la recta a–b: más de media caja, la línea no la corta.
+  const dist = Math.abs((b.y - a.y) * cx - (b.x - a.x) * cy + b.x * a.y - b.y * a.x) / Math.hypot(b.y - a.y, b.x - a.x);
+  expect(dist).toBeGreaterThan(e.height / 2);
+});
