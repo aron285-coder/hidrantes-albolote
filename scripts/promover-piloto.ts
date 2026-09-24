@@ -22,7 +22,7 @@ import {
   psqlOk,
   type Resultado,
 } from './lib/comun.ts';
-import { sqlSecuenciasAlMenos } from './lib/secuencias.ts';
+import { SQL_LEER_SECUENCIAS, leerSecuencias, sqlSecuenciasAlMenos } from './lib/secuencias.ts';
 import { REFS, epocaNueva, refDeUrl } from './restaurar.ts';
 import { BUCKETS, subir } from './restaurar-fotos.ts';
 
@@ -110,9 +110,12 @@ where g.punto_id in (select id from elegidos)
 
 /**
  * Las secuencias del destino tienen que quedar por encima de los códigos que acaban de entrar, o el
- * siguiente alta intentaría repetir uno (`codigo` es único y el alta fallaría).
+ * siguiente alta intentaría repetir uno (`codigo` es único y el alta fallaría). Y también por encima
+ * de las de **staging** (`last_value`, docs/19 RV-66): los códigos de puntos del piloto retirados allí
+ * por encima del mayor activo promovido ya se dieron, pueden estar apuntados en campo, y FR-10 dice
+ * "nunca reutilizado".
  */
-export const SQL_SECUENCIAS = sqlSecuenciasAlMenos(1, 1);
+export const sqlSecuencias = (minimos: { hid: number; boc: number }) => sqlSecuenciasAlMenos(minimos.hid, minimos.boc);
 
 /** Los puntos que viajan, para comprobar en producción que sus códigos no los tiene otro id. */
 export const SQL_CODIGOS_ORIGEN = `
@@ -153,8 +156,8 @@ export function errorDePromocion(texto: string, detalle = argumentos().banderas.
 }
 
 /** Todo en una transacción: o entra el piloto entero o no entra nada. Con la época nueva (RV-46). */
-export const guionPromocion = (sentencias: string[]) =>
-  ['begin;', ...sentencias, SQL_SECUENCIAS, epocaNueva('promover-piloto.ts'), 'commit;'].join('\n');
+export const guionPromocion = (sentencias: string[], minimos: { hid: number; boc: number } = { hid: 1, boc: 1 }) =>
+  ['begin;', ...sentencias, sqlSecuencias(minimos), epocaNueva('promover-piloto.ts'), 'commit;'].join('\n');
 
 /** Cuántas sentencias de cada tabla trae el guion generado, para el informe. */
 export function cuentaPorTabla(sentencias: string[]): Record<string, number> {
@@ -306,7 +309,9 @@ async function principal(): Promise<void> {
   const escrito = await preguntar(`Escribe ${CONFIRMACION} para llevar esto a producción`);
   if (escrito !== CONFIRMACION) abortar('No se ha escrito la confirmación: no se ha tocado nada.');
 
-  const r: Resultado = psql(destino, guionPromocion(sentencias));
+  // Los códigos que ya dio staging, retirados incluidos (RV-66).
+  const secuenciasStaging = leerSecuencias(psqlOk(origen, SQL_LEER_SECUENCIAS, { tuplas: true }));
+  const r: Resultado = psql(destino, guionPromocion(sentencias, secuenciasStaging));
   if (r.codigo !== 0) abortar(`La promoción falló y no se ha escrito nada:\n${errorDePromocion(r.error || r.salida)}`);
   log.ok('Puntos, propuestas y registro insertados; secuencias avanzadas; época nueva para los móviles');
 

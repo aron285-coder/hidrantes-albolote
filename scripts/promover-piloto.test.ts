@@ -125,6 +125,20 @@ describe('promoción sin conflictos ni puntos invisibles (RV-46)', () => {
   });
 });
 
+// docs/19 RV-66: con el mayor código activo, se volvían a dar los de puntos retirados en staging.
+describe('secuencias al menos las de staging (RV-66)', () => {
+  it('el guion lleva greatest(…, last_value de staging) en las dos secuencias', () => {
+    const guion = guionPromocion(['insert into hidrantes.puntos (id) values (1);'], { hid: 57, boc: 12 });
+    expect(guion).toMatch(
+      /setval\('hidrantes\.seq_codigo_hidrante',\s+greatest\(\(select last_value from hidrantes\.seq_codigo_hidrante\), 57,/,
+    );
+    expect(guion).toMatch(
+      /setval\('hidrantes\.seq_codigo_boca',\s+greatest\(\(select last_value from hidrantes\.seq_codigo_boca\), 12,/,
+    );
+    expect(guion.indexOf('setval(')).toBeLessThan(guion.lastIndexOf('commit;'));
+  });
+});
+
 // docs/19 RV-53: una promoción fallida no escribe nombres de voluntarios en los logs de Actions.
 describe('error de una promoción fallida (RV-53)', () => {
   const FALLO = [

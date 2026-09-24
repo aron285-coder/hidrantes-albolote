@@ -23,7 +23,7 @@ import {
   sqlSecuenciasAlMenos,
   tocaPublic,
 } from './restaurar.ts';
-import { SQL_SECUENCIAS } from './promover-piloto.ts';
+import { sqlSecuencias } from './promover-piloto.ts';
 import { leerAcceso, sinAcceso, sqlComprobarAcceso } from './lib/acceso-restaurado.ts';
 import { dirMigraciones } from './migrar.ts';
 import { archivosDe, sinCarpetaRaiz } from './restaurar-fotos.ts';
@@ -93,8 +93,8 @@ describe('sqlSecuenciasAlMenos', () => {
     expect(sqlSecuenciasAlMenos(0, 0)).toContain('greatest(');
   });
 
-  it('promover-piloto usa la misma, sin mínimo previo', () => {
-    expect(SQL_SECUENCIAS).toBe(sqlSecuenciasAlMenos(1, 1));
+  it('promover-piloto usa la misma, con las secuencias de staging como mínimo (RV-66)', () => {
+    expect(sqlSecuencias({ hid: 57, boc: 12 })).toBe(sqlSecuenciasAlMenos(57, 12));
   });
 });
 
