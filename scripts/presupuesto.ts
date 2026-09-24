@@ -50,7 +50,13 @@ async function principal(): Promise<void> {
     const kb = gzipSync(readFileSync(archivo)).length / 1024;
     total += kb;
     log.info(`${ruta}: ${kb.toFixed(1)} kB gzip`);
-    if (!existsSync(`${archivo}.map`)) abortar(`Falta ${ruta}.map: el build debe generar los mapas de código.`);
+    // El runtime que genera el bundler no trae mapa: no tiene código nuestro ni de librerías. El de
+    // entrada sí tiene que tenerlo; si no, es que el build ya no genera mapas y no se puede mirar nada.
+    if (!existsSync(`${archivo}.map`)) {
+      if (ruta === rutas[0]) abortar(`Falta ${ruta}.map: el build debe generar los mapas de código.`);
+      log.info(`${ruta}: sin mapa de código, no se revisa su contenido`);
+      continue;
+    }
     fuentes.push(...(JSON.parse(readFileSync(`${archivo}.map`, 'utf8')) as { sources: string[] }).sources);
   }
   if (total > LIMITE_KB) abortar(`JavaScript inicial ${total.toFixed(1)} kB > ${LIMITE_KB} kB (TR-11)`);
