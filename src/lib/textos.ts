@@ -138,6 +138,10 @@ export const T = {
     nPuntos: (n: Parametro) => `${n} puntos`,
     sincronizando: 'Sincronizando…',
     sinPuntos: 'Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.',
+    // Ya sincronizado y el servidor no tiene ninguno: el primer día de producción (DEC-051, docs/20 RV-76).
+    inventarioVacio:
+      'Todavía no hay ningún punto en el inventario. Mantén pulsado el mapa donde haya uno para darlo de alta.',
+    anadirUnPunto: 'Añadir un punto',
     mapaNoDescargado:
       'Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.',
     mapabaseFalta: 'El mapa base no está en el móvil: sin cobertura el fondo quedará vacío.',
@@ -864,6 +868,8 @@ export const T = {
     topesAlcanzados24h: 'Entradas bloqueadas por demasiados intentos (24 h)',
     topesDetalle: (n: Parametro, grupo: Parametro) => `${n} · de todo el grupo: ${grupo}`,
     nunca: 'todavía ninguno',
+    // En staging no se hacen respaldos: solo de producción (docs/20 RV-78).
+    respaldoNoAplica: 'no se respalda: entorno de pruebas',
     sinDato: 'sin dato',
     inventarioDescargado: (n: Parametro) => `Inventario descargado: ${n} puntos.`,
     mantenimiento: 'Mantenimiento',

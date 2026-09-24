@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { BarraEstado } from '@/componentes/mapa/BarraEstado';
 import { Ficha } from '@/componentes/mapa/Ficha';
 import { Leyenda } from '@/componentes/mapa/Leyenda';
+import { AvisoSinPuntos } from '@/componentes/mapa/AvisoSinPuntos';
 import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
 import { type ControlMapa, MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
@@ -561,13 +562,11 @@ export function Mapa() {
             )}
             {/* El aviso de la capa sin cobertura manda: ya incluye el del mapa base (FR-81). */}
             {!avisoCapa && <AvisoMapabase sinRed={sinRed} />}
+            {/* Con los demás avisos, sin tapar la columna de controles (docs/20 RV-76). */}
+            {puntos.length === 0 && (
+              <AvisoSinPuntos className="bg-papel rounded-tarjeta text-texto-suave p-3 text-center text-sm shadow" />
+            )}
           </div>
-
-          {puntos.length === 0 && (
-            <p className="bg-papel rounded-tarjeta text-texto-suave absolute inset-x-6 top-1/2 z-[450] p-3 text-center text-sm shadow">
-              {T.mapa.sinPuntos}
-            </p>
-          )}
 
           {/* Nuevo punto (FL-03): botón + naranja de 44 px en la esquina inferior derecha (06 §5) */}
           <button

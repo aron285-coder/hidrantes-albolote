@@ -390,7 +390,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No funciona` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` · `desde el incidente` (lista ordenada desde el incidente, RV-62) ·
 `Nada coincide con ese filtro.` · `revisado [hace 3 meses]` (en cada fila de la Lista, FR-68) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
 `[12] puntos` · `Sincronizando…` ·
-`Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` ·
+`Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` (nunca sincronizado) ·
+`Todavía no hay ningún punto en el inventario. Mantén pulsado el mapa donde haya uno para darlo de alta.` · `Añadir un punto` (sincronizado y sin ningún punto, en el mapa y en la lista, RV-76) ·
 `Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.` ·
 `El mapa base no está en el móvil: sin cobertura el fondo quedará vacío.` · `Descargar ([4,4] MB)` ·
 `Descargar versión nueva` · `Ocultar aviso` (avisos del mapa base en el propio mapa, FR-81) ·
@@ -654,7 +655,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073) ·
 `Zona de cobertura · mapa base` · `Callejero sin conexión` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Base de datos` · `[38] MB de [500] MB` · `Tareas programadas` ·
 `[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` · `no está programada` (tarea de pg_cron que falta, RV-56) ·
-`Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` ·
+`Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
 `"[nombre]" lanzado. Tarda unos minutos.` · `Avisos para jefatura` ·

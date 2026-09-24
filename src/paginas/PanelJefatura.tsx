@@ -86,7 +86,11 @@ function Armazon({ correo }: { correo: string }) {
     <div className="bg-fondo flex min-h-dvh flex-col">
       <Cabecera correo={correo} />
       <AvisoServidor desde={pendientes.en} />
-      <nav aria-label={T.jefatura.panel} className="border-linea flex overflow-x-auto border-b bg-fondo px-2">
+      {/* Por debajo de 1.024 px, las pestañas en dos filas: ninguna fuera de la vista ni desplazamiento a lo ancho (docs/20 RV-79). */}
+      <nav
+        aria-label={T.jefatura.panel}
+        className="border-linea bg-fondo flex flex-wrap border-b px-2 lg:flex-nowrap lg:overflow-x-auto"
+      >
         {pestanas.map((p) => (
           <NavLink
             key={p.ruta}

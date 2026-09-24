@@ -19,3 +19,17 @@ function suscribir(o: () => void) {
 
 /** Tramo de ancho de FR-70: desde 768 px mapa y ficha a la vez; desde 900 px, además la lista. */
 export const useAncho = () => useSyncExternalStore(suscribir, ancho);
+
+const PANEL_ANCHO = '(min-width: 1024px)';
+
+function suscribirPanel(o: () => void) {
+  const m = window.matchMedia(PANEL_ANCHO);
+  m.addEventListener('change', o);
+  return () => m.removeEventListener('change', o);
+}
+
+/**
+ * ¿Cabe la tabla del Inventario? Por debajo de 1.024 px (una tableta en vertical) las filas pasan a
+ * dos líneas: la tabla cortaba la dirección y partía "Boca de riego" (docs/20 RV-79).
+ */
+export const usePanelAncho = () => useSyncExternalStore(suscribirPanel, () => window.matchMedia(PANEL_ANCHO).matches);

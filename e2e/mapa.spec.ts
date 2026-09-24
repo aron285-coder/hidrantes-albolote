@@ -203,6 +203,45 @@ test.describe('aviso del mapa base en el propio mapa (RV-10, FR-81)', () => {
   });
 });
 
+// docs/20 RV-76: producción arranca vacía (DEC-051). Ya sincronizado, "se descargarán en cuanto haya
+// conexión" es falso: hay conexión y el inventario no tiene ningún punto.
+test.describe('mapa y lista sin ningún punto (RV-76)', () => {
+  test('inventario vacío ya sincronizado: lo dice y ofrece añadir', async ({ page }) => {
+    await conSesion(page);
+    await simularRpc(page, {
+      fn_listar_puntos: { ...LISTADO, puntos: [], sincronizado_en: new Date().toISOString() },
+      fn_registrar_error: null,
+    });
+    await page.goto('/');
+    await expect(page.getByText(/Sincronizado hace/)).toBeVisible();
+    // En el mapa: en ordenador la lista de al lado también lo dice.
+    const aviso = page.getByTestId('avisos-mapa').getByTestId('aviso-sin-puntos');
+    await expect(aviso).toContainText(T.mapa.inventarioVacio);
+    await expect(page.getByText(T.mapa.sinPuntos)).toHaveCount(0);
+
+    await page.goto('/lista');
+    await expect(page.getByTestId('aviso-sin-puntos').first()).toContainText(T.mapa.inventarioVacio);
+    await expect(page.getByText(T.mapa.sinPuntos)).toHaveCount(0);
+
+    await page.goto('/');
+    await aviso.getByRole('button', { name: T.mapa.anadirUnPunto }).click();
+    await expect(page).toHaveURL(/\/proponer\/alta$/);
+  });
+
+  test('nunca sincronizado: el texto de siempre', async ({ page }) => {
+    await conSesion(page);
+    // El servidor no responde: nunca ha habido una sincronización buena en este móvil.
+    await simularRpc(page, { fn_registrar_error: null });
+    await page.goto('/');
+    // En el mapa: en ordenador la lista de al lado también lo dice.
+    const aviso = page.getByTestId('avisos-mapa').getByTestId('aviso-sin-puntos');
+    await expect(aviso).toContainText(T.mapa.sinPuntos);
+    await expect(aviso.getByRole('button')).toHaveCount(0);
+    await page.goto('/lista');
+    await expect(page.getByTestId('aviso-sin-puntos').first()).toContainText(T.mapa.sinPuntos);
+  });
+});
+
 test('la foto de la ficha se pide en modo cors (RV-12)', async ({ page }) => {
   const conFoto = { ...PUNTOS[0], foto_path: 'fotos/prueba-cors.jpg' };
   await conSesion(page);
