@@ -71,6 +71,9 @@ const Control = ({
  * Pantalla del mapa (FR-60–FR-71). El punto elegido va en `?p=`: en el móvil la ficha ocupa la
  * pantalla; desde tableta flota sobre el mapa; en ordenador, además, la lista va al lado (FR-70).
  */
+/** Lo que tapa la ficha flotante por la derecha: 360 px de ancho, a 64 px del borde, y 8 de aire. */
+const MARGEN_FICHA_PX = 360 + 64 + 8;
+
 export function Mapa() {
   const { puntos, guardadoEn } = usePuntos();
   const acceso = useAcceso();
@@ -144,6 +147,8 @@ export function Mapa() {
   };
   const conLugares = hayLugares(lugares);
   const pos = posicionActual();
+  // La ficha flota a la derecha desde la tableta (360 px a 64 px del borde, más 8 de aire).
+  const fichaAlLado = !!seleccionado && ancho !== 'movil';
   const sinRed = conexion === 'sin_cobertura';
 
   const candidatos = useMemo(
@@ -230,9 +235,11 @@ export function Mapa() {
     [navegar, aquiParam],
   );
 
-  // Al elegir un punto (mapa, lista o búsqueda), el mapa lo centra.
+  // Al elegir un punto (mapa, lista o búsqueda), el mapa lo centra. Con un incidente abierto, no: el
+  // encuadre del incidente ya deja ver el incidente y los candidatos junto a la ficha (RV-60).
   useEffect(() => {
-    if (punto) control.current?.centrar(punto.lat, punto.lng);
+    if (punto && !incidente) control.current?.centrar(punto.lat, punto.lng);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo al cambiar el punto elegido
   }, [punto]);
 
   // Al llegar desde un resultado de la búsqueda (FR-73): un sitio se centra a z18; una calle, se encuadra.
@@ -286,6 +293,59 @@ export function Mapa() {
           ? T.mapa.buscandoPosicion
           : null;
 
+  // "Cercanos" (FR-74): abajo en el móvil y la tableta; en ordenador, en la columna de la lista, con
+  // "Volver a la lista" (docs/19 RV-60). Un incidente nuevo vuelve a enseñar Cercanos.
+  const hayCercanos = !midiendo && (!!incidente || ((sinPosicion || esperandoFix) && !aqui));
+  const [listaEnColumna, setListaEnColumna] = useState(false);
+  const [incidenteVisto, setIncidenteVisto] = useState(incidenteParam);
+  if (incidenteParam !== incidenteVisto) {
+    setIncidenteVisto(incidenteParam);
+    setListaEnColumna(false);
+  }
+  /** "Marcar en el mapa" (RV-59): cierra la hoja y deja el mapa sobre el sitio, listo para la pulsación larga. */
+  const marcarEnMapa = () => {
+    const o = incidente;
+    cerrarIncidente();
+    if (o) control.current?.centrar(o.lat, o.lng, 17);
+  };
+  const panelCercanos = (variante: 'hoja' | 'columna') => (
+    <PanelCercanos
+      estado={{
+        origen: incidente,
+        desdeGps,
+        buscando: esperandoFix,
+        precision: origenGps?.precision ?? null,
+        momento: origenGps?.momento ?? null,
+        // Con el momento en la URL, el del origen; con `gps=1`, como antes, el del GPS de ahora.
+        posicionVieja:
+          origenGps?.momento != null
+            ? origenViejo(origenGps)
+            : desdeGps && pos && esAntigua(pos)
+              ? (pos.momento ?? null)
+              : null,
+        candidatos,
+        aviso: avisoCercano,
+        soloHidrantes,
+        guardadoEn,
+      }}
+      variante={variante}
+      dejarSitioFicha={variante === 'hoja' && fichaAlLado}
+      alVolverALista={variante === 'columna' ? () => setListaEnColumna(true) : undefined}
+      alCerrar={cerrarIncidente}
+      alMarcarEnMapa={marcarEnMapa}
+      alCambiarSoloHidrantes={setSoloHidrantes}
+      alElegir={elegirCandidato}
+      alMedir={(hasta) =>
+        navegar('/?medir=1', { state: { vertices: [incidente!, { lat: hasta.lat, lng: hasta.lng }] } })
+      }
+      alVerLista={() => {
+        escribir('orden_lista', 'distancia');
+        // El incidente viaja en la URL: la lista ordena desde él (RV-62).
+        navegar(`/lista?incidente=${incidenteParam}`);
+      }}
+    />
+  );
+
   const ficha = punto && (
     <Ficha
       punto={punto}
@@ -314,13 +374,31 @@ export function Mapa() {
       <div className="relative flex min-h-0 flex-1">
         {ancho === 'escritorio' && (
           <aside className="border-linea bg-fondo flex w-80 shrink-0 flex-col border-r">
-            <ListaPuntos
-              alElegir={(id) => {
-                olvidarSinPosicion();
-                elegir(id);
-              }}
-              alElegirLugar={olvidarSinPosicion}
-            />
+            {hayCercanos && incidente && !listaEnColumna ? (
+              panelCercanos('columna')
+            ) : (
+              <>
+                {/* Sin posición o buscándola: el aviso encima de la lista, que tiene la búsqueda. */}
+                {hayCercanos && !incidente && panelCercanos('columna')}
+                {hayCercanos && incidente && (
+                  <button
+                    type="button"
+                    onClick={() => setListaEnColumna(false)}
+                    className="bg-papel border-texto text-texto rounded-boton mx-3 mt-2 flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[14px] font-semibold"
+                  >
+                    <Crosshair size={16} aria-hidden />
+                    {T.incidente.volverACercanos}
+                  </button>
+                )}
+                <ListaPuntos
+                  alElegir={(id) => {
+                    olvidarSinPosicion();
+                    elegir(id);
+                  }}
+                  alElegirLugar={olvidarSinPosicion}
+                />
+              </>
+            )}
           </aside>
         )}
         <div className="relative isolate min-h-[60vh] flex-1">
@@ -350,9 +428,10 @@ export function Mapa() {
                 ? {
                     origen: incidente,
                     candidatos: candidatos.map((c) => c.punto),
-                    // La hoja de abajo ocupa como mucho el 40 % en el móvil.
+                    // La hoja de abajo (móvil y tableta) y la ficha flotante a la derecha (RV-60).
                     margenInferior:
-                      ancho === 'movil' ? Math.round(window.innerHeight * FRACCION_HOJA[alturaHoja()]) : 0,
+                      ancho !== 'escritorio' ? Math.round(window.innerHeight * FRACCION_HOJA[alturaHoja()]) : 0,
+                    margenDerecho: fichaAlLado ? MARGEN_FICHA_PX : 0,
                   }
                 : null
             }
@@ -523,46 +602,7 @@ export function Mapa() {
               alTerminar={terminarMedicion}
             />
           )}
-          {!midiendo && (incidente || ((sinPosicion || esperandoFix) && !aqui)) && (
-            <PanelCercanos
-              estado={{
-                origen: incidente,
-                desdeGps,
-                buscando: esperandoFix,
-                precision: origenGps?.precision ?? null,
-                momento: origenGps?.momento ?? null,
-                // Con el momento en la URL, el del origen; con `gps=1`, como antes, el del GPS de ahora.
-                posicionVieja:
-                  origenGps?.momento != null
-                    ? origenViejo(origenGps)
-                    : desdeGps && pos && esAntigua(pos)
-                      ? (pos.momento ?? null)
-                      : null,
-                candidatos,
-                aviso: avisoCercano,
-                soloHidrantes,
-                guardadoEn,
-              }}
-              enHoja={ancho === 'movil'}
-              alCerrar={cerrarIncidente}
-              alMarcarEnMapa={() => {
-                // Cierra la hoja y deja el mapa sobre el sitio, listo para la pulsación larga.
-                const o = incidente;
-                cerrarIncidente();
-                if (o) control.current?.centrar(o.lat, o.lng, 17);
-              }}
-              alCambiarSoloHidrantes={setSoloHidrantes}
-              alElegir={elegirCandidato}
-              alMedir={(hasta) =>
-                navegar('/?medir=1', { state: { vertices: [incidente!, { lat: hasta.lat, lng: hasta.lng }] } })
-              }
-              alVerLista={() => {
-                escribir('orden_lista', 'distancia');
-                // El incidente viaja en la URL: la lista ordena desde él (RV-62).
-                navegar(`/lista?incidente=${incidenteParam}`);
-              }}
-            />
-          )}
+          {hayCercanos && ancho !== 'escritorio' && panelCercanos('hoja')}
           {seleccionado && !punto && puntos.length > 0 && (
             <p className="bg-papel rounded-tarjeta absolute inset-x-6 top-1/3 z-[600] p-3 text-center shadow">
               {T.ficha.noEncontrado}

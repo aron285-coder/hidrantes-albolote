@@ -247,6 +247,8 @@ export const T = {
     desdeIncidente: 'Distancias desde el incidente',
     cerrarIncidente: 'Cerrar el incidente',
     ampliarHoja: 'Ver más cercanos',
+    volverALista: 'Volver a la lista',
+    volverACercanos: 'Volver a Cercanos',
     reducirHoja: 'Ver más mapa',
   },
 

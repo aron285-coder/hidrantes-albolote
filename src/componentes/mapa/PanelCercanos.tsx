@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronUp, Navigation, Ruler, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, List, Navigation, Ruler, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { BotonCompartir } from './Coordenadas';
 import { MarcadorSvg } from './MarcadorSvg';
@@ -38,12 +38,15 @@ const icono =
 
 /**
  * Hoja "Cercanos" del modo incidente (FR-74, docs/18 GM-03): como mucho cinco puntos que funcionan,
- * en orden de distancia en línea recta, con rumbo y tramos. En el móvil va abajo y deja ver el mapa;
- * en tableta y ordenador flota a la izquierda para no tapar la ficha.
+ * en orden de distancia en línea recta, con rumbo y tramos. En el móvil y la tableta va abajo, en una
+ * hoja; en ordenador ocupa la columna de la lista, y nunca flota sobre el plano ni tapa la ficha
+ * (docs/19 RV-60).
  */
 export function PanelCercanos({
   estado,
-  enHoja,
+  variante,
+  dejarSitioFicha = false,
+  alVolverALista,
   alCerrar,
   alMarcarEnMapa,
   alCambiarSoloHidrantes,
@@ -52,7 +55,12 @@ export function PanelCercanos({
   alMedir,
 }: {
   estado: EstadoCercanos;
-  enHoja: boolean;
+  /** `hoja`: abajo, en el móvil y la tableta; `columna`: en la columna de la lista, en ordenador. */
+  variante: 'hoja' | 'columna';
+  /** Tableta con la ficha abierta a la derecha: la hoja se queda a su izquierda (RV-60). */
+  dejarSitioFicha?: boolean;
+  /** En la columna: vuelve a enseñar la lista, con el incidente abierto (RV-60). */
+  alVolverALista?: () => void;
   alCerrar: () => void;
   /** "Marcar en el mapa" con una posición poco precisa (RV-59). */
   alMarcarEnMapa: () => void;
@@ -92,17 +100,23 @@ export function PanelCercanos({
     guardarAlturaHoja(a);
   };
   const arrastre = useRef<number | null>(null);
+  const enHoja = variante === 'hoja';
   return (
     <section
       aria-label={T.incidente.titulo}
       className={cn(
-        'bg-fondo absolute z-[600] flex flex-col gap-2 overflow-y-auto p-3 shadow-xl',
+        'bg-fondo flex flex-col gap-2 overflow-y-auto p-3',
         enHoja
           ? cn(
-              'rounded-t-hoja inset-x-0 bottom-0 pt-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+              'rounded-t-hoja absolute bottom-0 left-0 z-[600] pt-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl',
+              // La ficha flotante mide 360 px y está a 64 px del borde: 432 px libres a la derecha.
+              dejarSitioFicha ? 'right-[27rem]' : 'right-0',
               altura === 'alta' ? 'max-h-[90%]' : 'max-h-[55%]',
             )
-          : 'rounded-tarjeta top-16 left-2 max-h-[calc(100%-5rem)] w-[min(360px,calc(100%-5rem))]',
+          : // En la columna: sin origen (sin posición o buscando) es un aviso sobre la lista.
+            origen
+            ? 'min-h-0 flex-1'
+            : 'border-linea shrink-0 border-b',
       )}
     >
       {enHoja && (
@@ -163,6 +177,13 @@ export function PanelCercanos({
             ? T.incidente.masCercanoNoFunciona(aviso.punto.codigo, distancia(aviso.metros))
             : T.incidente.masCercanoMalo(aviso.punto.codigo, distancia(aviso.metros))}
         </p>
+      )}
+
+      {origen && alVolverALista && (
+        <button type="button" onClick={alVolverALista} className={cn(boton, 'shrink-0 self-start')}>
+          <List size={16} aria-hidden />
+          {T.incidente.volverALista}
+        </button>
       )}
 
       {!origen ? (

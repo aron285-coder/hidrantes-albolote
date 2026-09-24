@@ -302,9 +302,12 @@ test.describe('cabos sueltos del modo incidente (RV-62)', () => {
     await preparar(page, context, false);
     await page.goto('/?incidente=37.230500,-3.656000');
     await expect(filas(page)).toHaveCount(5);
+    // En ordenador Cercanos ocupa la columna (RV-60): la lista, con "Volver a la lista".
+    await hoja(page).getByRole('button', { name: T.incidente.volverALista }).click();
     const lista = page.locator('aside').filter({ has: page.locator('#buscar-lista') });
     await expect(lista.getByText(T.mapa.desdeIncidente).first()).toBeVisible();
     await expect(lista.getByText(T.mapa.desdeTi)).toHaveCount(0);
+    await page.getByRole('button', { name: T.incidente.volverACercanos }).click();
     await hoja(page).getByRole('button', { name: T.incidente.cerrarIncidente }).click();
     await expect(lista.getByText(T.mapa.desdeIncidente)).toHaveCount(0);
   });

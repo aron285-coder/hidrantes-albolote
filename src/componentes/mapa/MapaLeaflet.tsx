@@ -35,7 +35,13 @@ interface Props {
   /** El sitio de "¿Qué hay aquí?", con su pin soltado (06 §4.7). */
   aqui?: LatLng | null;
   /** Modo incidente (FR-74): la diana y los candidatos, a los que se trazan líneas discontinuas. */
-  incidente?: { origen: LatLng; candidatos: LatLng[]; margenInferior?: number } | null;
+  incidente?: {
+    origen: LatLng;
+    candidatos: LatLng[];
+    /** Lo que tapan la hoja de abajo y la ficha de la derecha, para encuadrar sin ellas (RV-60). */
+    margenInferior?: number;
+    margenDerecho?: number;
+  } | null;
   /**
    * Medición (FR-76): mientras está activa, un toque añade un vértice y no abre fichas; cerca de un
    * marcador (≤ 44 px) se imanta a él.
@@ -302,8 +308,12 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
 
   // Modo incidente (FR-74, 06 §4.7): diana, líneas discontinuas a los candidatos y un encuadre que
   // deja ver el incidente y los tres primeros. Los demás marcadores siguen a la vista.
+  // Con los márgenes: al abrir o cerrar la ficha se vuelve a encuadrar, para que no tape nada (RV-60).
   const claveIncidente = incidente
-    ? [incidente.origen, ...incidente.candidatos].map((l) => `${l.lat.toFixed(6)},${l.lng.toFixed(6)}`).join(';')
+    ? [incidente.origen, ...incidente.candidatos]
+        .map((l) => `${l.lat.toFixed(6)},${l.lng.toFixed(6)}`)
+        .concat(String(incidente.margenInferior ?? 0), String(incidente.margenDerecho ?? 0))
+        .join(';')
     : '';
   useEffect(() => {
     const g = grupoIncidente.current;
@@ -333,7 +343,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     m.fitBounds(encuadre, {
       // Arriba, la búsqueda y la columna de herramientas: los candidatos no quedan debajo.
       paddingTopLeft: [56, 132],
-      paddingBottomRight: [72, 48 + (incidente.margenInferior ?? 0)],
+      paddingBottomRight: [72 + (incidente.margenDerecho ?? 0), 48 + (incidente.margenInferior ?? 0)],
       maxZoom: 18,
       animate: false,
     });
