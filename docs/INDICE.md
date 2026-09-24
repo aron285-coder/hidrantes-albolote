@@ -25,6 +25,7 @@ Estado al 23 de septiembre de 2026. La referencia completa está en `00-README.m
 | 17 | `17-cambios-revision-2026-09.md` · especificación de cambios tras la revisión del 23 sep 2026 (RV-01 a RV-32) | aplicado |
 | 18 | `18-cambios-revision-2-y-mapa.md` · segunda revisión del 23 sep 2026 (RV-33 a RV-51) y funciones de mapa para emergencias (GM-00 a GM-06) | hecho el 24 sep 2026; queda §5, pendiente de decisión |
 | 19 | `19-paridad-avisos-y-revision-3.md` · producción al día con staging (P-01 a P-04), avisos con un Worker y tercera revisión (RV-52 a RV-70) | vivo, hasta cerrar los bloques P, A y B |
+| 20 | `20-revision-en-vivo.md` · revisión sobre staging y producción en vivo (P-10, RV-71 a RV-80), la primera en paralelo con dos sesiones | vivo |
 | — | `trabajo-en-paralelo.md` · cómo repartir una especificación grande entre tres sesiones de Claude Code (Ops, Backend, Frontend), y PAR-01 (DEC-100) | vivo |
 | — | `entornos.md` · lo que dejó el arranque (refs, buckets, secretos por nombre) | vivo |
 | — | `verificacion/fase-N.md` · qué se ejecutó al cerrar cada fase y con qué resultado | vivo |
