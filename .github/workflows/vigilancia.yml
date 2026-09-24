@@ -1,7 +1,8 @@
 # Vigilancia diaria (TR-102, 04 §9): comprueba que la aplicación responde, que una RPC de lectura
 # responde, que el último respaldo tiene menos de ocho días y que no se acumulan avisos push sin
-# enviar. Si algo falla, abre una issue con la etiqueta `vigilancia`; si todo va bien y había una
-# abierta, la cierra. Salud del sistema enseña cuándo corrió y cómo fue.
+# enviar, y que producción no lleva más de una semana por detrás de develop. Si algo falla, abre
+# una issue con la etiqueta `vigilancia`; si todo va bien y había una abierta, la cierra. Salud del
+# sistema enseña cuándo corrió y cómo fue.
 #
 # Sin servicio externo y sin `environment` (DEC-071): usa las variables públicas del repositorio y,
 # para lo que necesita la base de datos, el secreto de repositorio del respaldo.
@@ -28,6 +29,9 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Para comparar main con develop (producción al día, docs/19 P-03).
+          fetch-depth: 0
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -142,6 +146,21 @@ jobs:
               fi
             fi
           done
+
+          # 6. Producción al día (docs/19 P-03, DEC-096): main no lleva más de 7 días por detrás de
+          #    develop en algo que no sea documentación.
+          if git fetch -q origin main develop 2>/dev/null; then
+            atrasados=$(git rev-list --count origin/main..origin/develop -- . ':!docs')
+            if [ "${atrasados:-0}" -gt 0 ]; then
+              primero=$(git log --reverse --format=%ct origin/main..origin/develop -- . ':!docs' | head -1)
+              dias_atras=$(( (ahora - primero) / 86400 ))
+              if [ "$dias_atras" -gt 7 ]; then
+                problemas+=("producción va $atrasados commits por detrás de develop desde hace $dias_atras días: haz P-02 (docs/19, DEC-096)")
+              fi
+            fi
+          else
+            problemas+=("no se puede comparar main con develop")
+          fi
 
           # 5. Se anota en Salud del sistema, salga como salga (TR-102).
           if [ -n "${BD:-}" ]; then

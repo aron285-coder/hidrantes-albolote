@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
@@ -9,6 +10,17 @@ import { CACHE_FOTOS } from './config/cache-fotos.ts';
 import { entradaCallejero } from './config/precacheo.ts';
 import { T } from './src/lib/textos.ts';
 
+/** En Actions, el commit que se construye; en local, el de HEAD (o "local" fuera de Git). */
+const commit: string =
+  process.env.GITHUB_SHA ??
+  (() => {
+    try {
+      return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    } catch {
+      return 'local';
+    }
+  })();
+
 const version: string = JSON.parse(readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
 
 /** Versión en <meta>, noindex fuera de producción, `_headers` y `robots.txt` por entorno (04 §4, TR-100). */
@@ -16,7 +28,11 @@ function entornoPlugin(entorno: Entorno, env: Record<string, string>): Plugin {
   return {
     name: 'hidrantes-entorno',
     transformIndexHtml(html) {
-      const etiquetas = [{ tag: 'meta', attrs: { name: 'version', content: version }, injectTo: 'head' as const }];
+      const etiquetas = [
+        { tag: 'meta', attrs: { name: 'version', content: version }, injectTo: 'head' as const },
+        // El commit desplegado, para comprobar que producción sirve la versión de staging (docs/19 P-03).
+        { tag: 'meta', attrs: { name: 'commit', content: commit }, injectTo: 'head' as const },
+      ];
       if (entorno !== 'produccion') {
         etiquetas.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, nofollow' }, injectTo: 'head' });
       }

@@ -48,7 +48,9 @@
     "mapabase": "tsx scripts/generar-mapabase.ts",
     "novedades": "tsx scripts/generar-novedades.ts",
     "comprobar-auth": "tsx scripts/comprobar-auth.ts",
-    "comprobar-produccion": "tsx scripts/comprobar-produccion.ts"
+    "comprobar-auth": "tsx scripts/comprobar-auth.ts",
+    "comprobar-produccion": "tsx scripts/comprobar-produccion.ts",
+    "paridad": "tsx scripts/paridad.ts"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",
