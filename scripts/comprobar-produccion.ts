@@ -252,10 +252,11 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
         grupo: grupoCf,
         nombre: 'Workers Scripts: Edit',
         estado: token.workersEdicion === true ? 'OK' : token.workersEdicion === false ? 'FALTA' : 'NO COMPROBADO',
-        imprescindible: true,
+        // No para el PR develop → main: deploy-prod.yml no despliega el Worker, lo hace deploy-staging.
+        imprescindible: false,
         nota:
           token.workersEdicion === false
-            ? 'Cloudflare → My Profile → API Tokens → editar el token → Account · Workers Scripts · Edit (2 min): ve los Workers pero no puede desplegar hidrantes-avisos'
+            ? 'Cloudflare → My Profile → API Tokens → editar el token → Account · Workers Scripts · Edit (2 min): ve los Workers pero deploy-staging no puede actualizar hidrantes-avisos. No impide desplegar producción'
             : token.workersEdicion == null
               ? 'el Worker hidrantes-avisos aún no existe: se sabrá en su primer despliegue'
               : undefined,
