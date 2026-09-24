@@ -1,4 +1,5 @@
-// Tras desplegar: la app responde, sirve la versión esperada y las cabeceras de TR-100.
+// Tras desplegar: la app responde, sirve la versión esperada, las cabeceras de TR-100 y el mapa base
+// (teselas sueltas y PMTiles entero, docs/20 RV-71).
 // Solo lectura, sin datos. La usan deploy-staging.yml y deploy-prod.yml.
 //
 //   npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
@@ -6,6 +7,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { RAIZ, abortar, argumentos, ejecutarScript, log } from './lib/comun.ts';
+import { teselasDelRecuadro } from './lib/pmtiles.ts';
 
 export interface Pagina {
   estado: number;
@@ -61,8 +63,61 @@ async function principal(): Promise<void> {
   if (problemas.length) abortar(`${url}:\n  - ${problemas.join('\n  - ')}`);
   log.ok(`${url} responde con la versión ${version} y las cabeceras de TR-100`);
 
+  await comprobarMapabase(url);
+
   const secreto = process.env.VIGILANCIA_SECRETO;
   if (entorno === 'staging' && secreto) await comprobarCaches(url, secreto);
+}
+
+/** Lo que se ha visto al pedir una tesela suelta y el PMTiles entero (docs/20 RV-71). */
+export interface RespuestasMapabase {
+  tesela: { ruta: string; estado: number; tipo: string };
+  archivo: { estado: number; bytes: number };
+}
+
+/** Tipos que aceptan la app y el Service Worker para una tesela MVT. */
+export const TIPOS_TESELA = ['application/vnd.mapbox-vector-tile', 'application/x-protobuf'];
+
+export function comprobarRespuestasMapabase(r: RespuestasMapabase, bytesEsperados: number): string[] {
+  const problemas: string[] = [];
+  const tipo = r.tesela.tipo.split(';')[0].trim();
+  if (r.tesela.estado !== 200) problemas.push(`${r.tesela.ruta}: estado ${r.tesela.estado}`);
+  else if (!TIPOS_TESELA.includes(tipo)) {
+    problemas.push(`${r.tesela.ruta}: Content-Type ${tipo || 'vacío'}, no de tesela MVT (${TIPOS_TESELA.join(' o ')})`);
+  }
+  if (r.archivo.estado !== 200) problemas.push(`el PMTiles entero: estado ${r.archivo.estado}`);
+  else if (r.archivo.bytes !== bytesEsperados) {
+    problemas.push(`el PMTiles entero pesa ${r.archivo.bytes} bytes y datos/mapabase.json dice ${bytesEsperados}`);
+  }
+  return problemas;
+}
+
+/** Primera tesela z10 del recuadro de datos/mapabase.json: existe siempre que el mapa base esté publicado. */
+export function rutaTeselaDePrueba(info: { version: string; recuadro: number[] }): string {
+  const [{ x, y }] = teselasDelRecuadro(10, info.recuadro as [number, number, number, number]);
+  return `/mapabase/t/${info.version}/10/${x}/${y}.pbf`;
+}
+
+/**
+ * En línea el mapa pinta con teselas sueltas (Pages no sirve rangos) y la descarga sin conexión baja
+ * el PMTiles entero (FR-81): los dos tienen que estar en el despliegue.
+ */
+async function comprobarMapabase(url: string): Promise<void> {
+  const info = JSON.parse(readFileSync(path.join(RAIZ, 'datos', 'mapabase.json'), 'utf8'));
+  const ruta = rutaTeselaDePrueba(info);
+  const t = await fetch(new URL(ruta, url));
+  await t.arrayBuffer();
+  const a = await fetch(new URL('/mapabase/albolote.pmtiles', url));
+  const bytes = (await a.arrayBuffer()).byteLength;
+  const problemas = comprobarRespuestasMapabase(
+    {
+      tesela: { ruta, estado: t.status, tipo: t.headers.get('content-type') ?? '' },
+      archivo: { estado: a.status, bytes },
+    },
+    info.bytes,
+  );
+  if (problemas.length) abortar(`${url}, mapa base:\n  - ${problemas.join('\n  - ')}`);
+  log.ok(`${url} sirve las teselas sueltas (${ruta}) y el PMTiles entero (${bytes} bytes)`);
 }
 
 /** Qué dice la segunda de dos peticiones iguales (docs/19 RV-63). */

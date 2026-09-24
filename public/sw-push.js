@@ -7,6 +7,22 @@ self.addEventListener('activate', (evento) => {
   evento.waitUntil(caches.delete('hidrantes-fotos'));
 });
 
+// Teselas sueltas del mapa base (docs/20 RV-71): se borran las de otras versiones. El nombre vigente
+// lo deja sw-teselas.js, que se importa antes que este archivo; sin él no se borra nada.
+self.addEventListener('activate', (evento) => {
+  const vigente = self.CACHE_TESELAS;
+  if (!vigente) return;
+  evento.waitUntil(
+    caches
+      .keys()
+      .then((nombres) =>
+        Promise.all(
+          nombres.filter((n) => n.startsWith('hidrantes-teselas-') && n !== vigente).map((n) => caches.delete(n)),
+        ),
+      ),
+  );
+});
+
 self.addEventListener('push', (evento) => {
   let datos = {};
   try {

@@ -1,14 +1,19 @@
-// Mapa base propio sin cobertura (FR-81, 04 §8). En línea se lee por rangos del despliegue; una vez
-// descargado entero a Cache Storage, los rangos salen de ahí y el mapa funciona en modo avión. La
-// versión del archivo desplegado viene de datos/mapabase.json (npm run mapabase).
+// Mapa base propio sin cobertura (FR-81, 04 §8). En línea se piden teselas sueltas del despliegue
+// (/mapabase/t/<versión>/{z}/{x}/{y}.pbf): Cloudflare Pages no sirve rangos, así que leer el PMTiles
+// por rangos dejaba el mapa en blanco (docs/20 RV-71, DEC-111). Una vez descargado el PMTiles entero a
+// Cache Storage, las teselas salen de ahí y el mapa funciona en modo avión. La versión del archivo
+// desplegado viene de datos/mapabase.json (npm run mapabase).
 
-import { FetchSource, type RangeResponse, type Source } from 'pmtiles';
+import { PMTiles, type RangeResponse, type Source } from 'pmtiles';
 import info from '../../datos/mapabase.json';
 import { borrar, escribir, leer } from './almacen';
 
 export const URL_MAPABASE = import.meta.env.VITE_MAPABASE_URL || '/mapabase/albolote.pmtiles';
 export const VERSION_MAPABASE: string = info.version;
 export const BYTES_MAPABASE: number = info.bytes;
+/** Carpeta de las teselas sueltas de esta versión: una versión nueva nunca mezcla teselas viejas. */
+export const RUTA_TESELAS = `/mapabase/t/${VERSION_MAPABASE}`;
+export const urlTesela = (z: number, x: number, y: number) => `${RUTA_TESELAS}/${z}/${x}/${y}.pbf`;
 
 const CACHE = 'hidrantes-mapabase';
 const CLAVE = 'mapabase';
@@ -55,14 +60,52 @@ async function archivoGuardado(): Promise<Blob | null> {
   return blob;
 }
 
-/** Origen para `pmtiles`: lo descargado si existe; si no, el servidor por rangos. */
-export class FuenteMapabase implements Source {
-  private remota = new FetchSource(URL_MAPABASE);
+/** Rangos por la copia descargada; sin ella no se lee nada (las teselas van sueltas). */
+class ArchivoGuardado implements Source {
   getKey = () => URL_MAPABASE;
-  async getBytes(offset: number, length: number, signal?: AbortSignal, etag?: string): Promise<RangeResponse> {
+  async getBytes(offset: number, length: number): Promise<RangeResponse> {
     const local = await archivoGuardado();
-    if (local) return { data: await local.slice(offset, offset + length).arrayBuffer() };
-    return this.remota.getBytes(offset, length, signal, etag);
+    if (!local) throw new Error('mapa base no descargado');
+    return { data: await local.slice(offset, offset + length).arrayBuffer() };
+  }
+}
+
+/**
+ * ¿Está la tesela en el mapa base? Misma cuenta que scripts/lib/pmtiles.ts (`teselasDelRecuadro`):
+ * los zooms de datos/mapabase.json y las teselas de Web Mercator que tocan su recuadro. Fuera no se
+ * pide nada: Pages respondería con la página de la SPA y un 200.
+ */
+export function teselaEnMapabase(z: number, x: number, y: number, i: Pick<typeof info, 'zoom' | 'recuadro'> = info) {
+  const [zMin, zMax] = i.zoom;
+  if (z < zMin || z > zMax) return false;
+  const [oeste, sur, este, norte] = i.recuadro;
+  const n = 2 ** z;
+  const tx = (lon: number) => Math.min(n - 1, Math.floor(((lon + 180) / 360) * n));
+  const ty = (lat: number) => {
+    const r = (lat * Math.PI) / 180;
+    return Math.min(n - 1, Math.floor(((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n));
+  };
+  return x >= tx(oeste) && x <= tx(este) && y >= ty(norte) && y <= ty(sur);
+}
+
+/**
+ * Origen del mapa base para `protomaps-leaflet`, que solo le pide `getZxy`. Tesela a tesela: si hay
+ * copia descargada, del PMTiles de Cache Storage; si no, la tesela suelta del despliegue con un GET
+ * normal, que el Service Worker guarda (config/cache-teselas.ts) para verla luego sin cobertura. No
+ * se usa `ZxySource` de la librería: no sabe del recuadro y leería como tesela la página de la SPA
+ * que Pages sirve con 200 para lo que no existe (DEC-111).
+ */
+export class FuenteMapabase extends PMTiles {
+  constructor() {
+    super(new ArchivoGuardado());
+  }
+
+  override async getZxy(z: number, x: number, y: number, signal?: AbortSignal): Promise<RangeResponse | undefined> {
+    if (await archivoGuardado()) return super.getZxy(z, x, y, signal);
+    if (!teselaEnMapabase(z, x, y)) return undefined;
+    const r = await fetch(urlTesela(z, x, y), { signal });
+    if (!r.ok || (r.headers.get('content-type') ?? '').startsWith('text/html')) return undefined;
+    return { data: await r.arrayBuffer() };
   }
 }
 
