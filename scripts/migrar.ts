@@ -99,8 +99,16 @@ function aplicar(url: string, m: Migracion): void {
  * Aplica lo pendiente contra `url` y devuelve qué se aplicó. `hasta` (el número, p. ej. "0009")
  * deja fuera las posteriores: solo lo usa CI para fabricar un volcado antiguo de verdad (RV-13).
  */
-export function migrarPendientes(url: string, hasta?: string): string[] {
-  const locales = leerMigraciones().filter((m) => !hasta || m.archivo.slice(0, hasta.length) <= hasta);
+/**
+ * La carpeta de migraciones de `MIGRACIONES_DIR`, solo para el Supabase local: el ensayo de una
+ * migración que falla tras restaurar (docs/19 RV-55). Contra dev o prod se ignora siempre.
+ */
+export function dirMigraciones(local: boolean): string | undefined {
+  return local ? process.env.MIGRACIONES_DIR || undefined : undefined;
+}
+
+export function migrarPendientes(url: string, hasta?: string, dir?: string): string[] {
+  const locales = leerMigraciones(dir).filter((m) => !hasta || m.archivo.slice(0, hasta.length) <= hasta);
   const pendientes = planificar(locales, leerAplicadas(url));
   for (const m of pendientes) {
     aplicar(url, m);
@@ -133,7 +141,7 @@ async function principal(): Promise<void> {
   log.paso('Migraciones');
   const hasta = valores.get('hasta');
   if (hasta && !banderas.has('local')) abortar('--hasta solo se admite con --local (CI, RV-13).');
-  const locales = leerMigraciones();
+  const locales = leerMigraciones(dirMigraciones(banderas.has('local')));
   const pendientes = planificar(locales, leerAplicadas(url));
   log.info(`${locales.length} en el repositorio, ${pendientes.length} pendientes`);
   if (banderas.has('comprobar')) {

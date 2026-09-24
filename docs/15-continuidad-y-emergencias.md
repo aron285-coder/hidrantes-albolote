@@ -173,6 +173,16 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    nuestro, que no toca `public` y que el `PROJECT_REF` de la cadena es el de producción. Pide
    confirmación escribiendo `RESTAURAR`.
 
+   El código de acceso de ahora, los móviles revocados, los administradores y las secuencias de los
+   códigos se reponen **en la misma transacción** que el volcado (docs/19 RV-55).
+   - Si no se puede leer el acceso de ahora, el script no restaura nada.
+   - Si algo falla **después**, al migrar o al comprobar, el script termina con el texto de las acciones manuales:
+     1. código nuevo con *Revocar todos los dispositivos*;
+     2. revisar Administradores;
+     3. avisar al grupo.
+
+   Hazlas aunque lo restaurado ya esté bien.
+
    Después aplica las migraciones que le falten al volcado (un respaldo antiguo vuelve con el
    esquema de entonces) y anota la restauración en el registro; si el volcado es anterior a 0010, la
    anota después de migrar. Borra también las secuencias sueltas de los códigos, que antes hacían

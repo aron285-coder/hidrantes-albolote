@@ -11,8 +11,11 @@
 // 2. Con --viejo: un volcado de verdad hecho con las migraciones hasta la 0009 (anterior a la
 //    acción 'restauracion_respaldo'). Se restaura, se migra hasta hoy y la auditoría se anota
 //    después.
+// 3. Una migración que falla tras el commit (docs/19 RV-55), con MIGRACIONES_DIR apuntando a una
+//    copia de las migraciones con 9999_falla.sql: termina con error y las acciones manuales, pero el
+//    código viejo no vale, el administrador de baja sigue de baja y los códigos no se repiten.
 
-import { rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -62,7 +65,7 @@ function volcar(destino: string): void {
   if (r.codigo !== 0) abortar(`pg_dump falló: ${errorSeguro(r.error)}`);
 }
 
-function restaurar(archivo: string): { codigo: number; salida: string } {
+function restaurar(archivo: string, env: NodeJS.ProcessEnv = {}): { codigo: number; salida: string } {
   const r = ejecutar(
     'npx',
     [
@@ -78,7 +81,7 @@ function restaurar(archivo: string): { codigo: number; salida: string } {
     ],
     // La entrada va vacía a propósito: si --confirmar dejara de funcionar, la pregunta leería nada y
     // se cancelaría, y la prueba fallaría en vez de confirmar por detrás (docs/18 RV-50).
-    { entrada: '', env: { ...process.env, SUPABASE_DB_URL: LOCAL_MIGRADOR } },
+    { entrada: '', env: { ...process.env, SUPABASE_DB_URL: LOCAL_MIGRADOR, ...env } },
   );
   return { codigo: r.codigo, salida: `${r.salida}\n${errorSeguro(r.error)}` };
 }
@@ -226,6 +229,37 @@ async function principal(): Promise<void> {
     'la restauración queda en el registro',
   );
   comprobar(listarResponde(), 'fn_listar_puntos responde con la anon key tras restaurar');
+
+  // docs/19 RV-55: una migración que falla después del commit. Antes, el volcado entraba, la
+  // migración abortaba y ya no se reponía nada: volvían el código viejo, los móviles revocados y los
+  // administradores de baja, y los códigos podían repetirse.
+  log.paso('3. Una migración que falla después de restaurar (RV-55)');
+  const conFallo = mkdtempSync(path.join(carpeta, 'migraciones-rv55-'));
+  cpSync(path.join(RAIZ, 'supabase', 'migrations'), conFallo, { recursive: true });
+  writeFileSync(path.join(conFallo, '9999_falla.sql'), 'select 1/0;\n');
+  const r3 = restaurar(volcado, { MIGRACIONES_DIR: conFallo });
+  rmSync(conFallo, { recursive: true, force: true });
+  comprobar(r3.codigo !== 0, 'la restauración termina con error', r3.salida.slice(-300));
+  comprobar(
+    /Revocar todos los dispositivos/.test(r3.salida) && /avisa al grupo/.test(r3.salida),
+    'y el último mensaje dice qué hacer a mano',
+    r3.salida.slice(-300),
+  );
+  comprobar(
+    valor("select valor #>> '{}' from hidrantes.config where clave = 'codigo_acceso_hash';") === hashNuevo,
+    'aun así, el código de acceso es el nuevo: el viejo no vale',
+  );
+  comprobar(validar(tokenViejo) === 'TOKEN_REVOCADO', 'aun así, el móvil de antes sigue revocado');
+  comprobar(
+    valor(`select activo from hidrantes.administradores where email = '${ADMIN_BAJA}';`) === 'f',
+    'aun así, el administrador dado de baja sigue de baja',
+  );
+  const siguienteTrasFallo = Number(valor("select substring(hidrantes.fn_siguiente_codigo('hidrante') from 5)::int;"));
+  comprobar(
+    siguienteTrasFallo > siguiente,
+    'aun así, la siguiente alta no repite código',
+    `recibe ${siguienteTrasFallo}; ya se habían dado hasta ${siguiente}`,
+  );
   rmSync(volcado, { force: true });
 
   const viejo = valores.get('viejo');
