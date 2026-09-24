@@ -7,6 +7,8 @@ import type { LatLng } from '@/lib/coordenadas';
 import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
+import { distancia } from '@/lib/formato';
+import { imantar } from '@/lib/medicion';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
 import { T } from '@/lib/textos';
 
@@ -31,6 +33,11 @@ interface Props {
   aqui?: LatLng | null;
   /** Modo incidente (FR-74): la diana y los candidatos, a los que se trazan líneas discontinuas. */
   incidente?: { origen: LatLng; candidatos: LatLng[]; margenInferior?: number } | null;
+  /**
+   * Medición (FR-76): mientras está activa, un toque añade un vértice y no abre fichas; cerca de un
+   * marcador (≤ 44 px) se imanta a él.
+   */
+  medicion?: { vertices: LatLng[]; etiquetas: { en: LatLng; metros: number }[]; alTocar: (l: LatLng) => void } | null;
 }
 
 /** Diana del incidente: el Crosshair de lucide sobre un círculo de papel con borde (06 §4.7). */
@@ -59,7 +66,18 @@ function vistaGuardada(): { centro: [number, number]; zoom: number } | null {
 
 /** Mapa de Leaflet con el mapa base propio, las capas en línea, el límite, los puntos y tu posición. */
 export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
-  { puntos, seleccionado, capa, modo, posicion, alSeleccionar, alPulsacionLarga, aqui = null, incidente = null },
+  {
+    puntos,
+    seleccionado,
+    capa,
+    modo,
+    posicion,
+    alSeleccionar,
+    alPulsacionLarga,
+    aqui = null,
+    incidente = null,
+    medicion = null,
+  },
   ref,
 ) {
   const contenedor = useRef<HTMLDivElement>(null);
@@ -72,6 +90,11 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
   useEffect(() => {
     alSeleccionarRef.current = alSeleccionar;
   }, [alSeleccionar]);
+  const medicionRef = useRef(medicion);
+  useEffect(() => {
+    medicionRef.current = medicion;
+  }, [medicion]);
+  const grupoMedicion = useRef<L.LayerGroup | null>(null);
   const alPulsacionLargaRef = useRef(alPulsacionLarga);
   useEffect(() => {
     alPulsacionLargaRef.current = alPulsacionLarga;
@@ -102,6 +125,20 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     grupoPuntos.current = L.layerGroup().addTo(m);
     grupoPosicion.current = L.layerGroup().addTo(m);
     grupoIncidente.current = L.layerGroup().addTo(m);
+    grupoMedicion.current = L.layerGroup().addTo(m);
+    // Medición: un toque en el mapa añade un vértice, imantado al marcador más cercano (FR-76).
+    m.on('click', (e: L.LeafletMouseEvent) => {
+      const med = medicionRef.current;
+      if (!med) return;
+      const visibles = (grupoPuntos.current?.getLayers() ?? []) as L.Marker[];
+      const enPantalla = visibles.map((mk) => {
+        const ll = mk.getLatLng();
+        const pt = m.latLngToContainerPoint(ll);
+        return { x: pt.x, y: pt.y, lat: ll.lat, lng: ll.lng };
+      });
+      const iman = imantar({ x: e.containerPoint.x, y: e.containerPoint.y }, enPantalla);
+      med.alTocar(iman ? { lat: iman.lat, lng: iman.lng } : { lat: e.latlng.lat, lng: e.latlng.lng });
+    });
     grupoMarcas.current = L.layerGroup().addTo(m);
     mapa.current = m;
 
@@ -186,7 +223,12 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
           keyboard: true,
           zIndexOffset: sel ? 1000 : Math.round(p.radio_px * 10),
         })
-          .on('click', () => alSeleccionarRef.current(p.id))
+          // Midiendo, tocar un marcador pone ahí un vértice exacto; si no, abre su ficha.
+          .on('click', () =>
+            medicionRef.current
+              ? medicionRef.current.alTocar({ lat: p.lat, lng: p.lng })
+              : alSeleccionarRef.current(p.id),
+          )
           .addTo(grupo);
       }
     };
@@ -285,6 +327,28 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- la clave resume origen y candidatos
   }, [claveIncidente]);
+
+  // Medición (06 §4.7): línea de 3 px, vértices de 10 px y la distancia de cada tramo de más de 30 m.
+  const claveMedicion = medicion ? medicion.vertices.map((l) => `${l.lat},${l.lng}`).join(';') : '';
+  useEffect(() => {
+    const g = grupoMedicion.current;
+    if (!g) return;
+    g.clearLayers();
+    if (!medicion) return;
+    const lista = medicion.vertices.map((l) => [l.lat, l.lng] as [number, number]);
+    if (lista.length > 1) L.polyline(lista, { weight: 3, className: 'linea-medicion', interactive: false }).addTo(g);
+    for (const v of lista) {
+      L.circleMarker(v, { radius: 5, weight: 2, className: 'vertice-medicion', interactive: false }).addTo(g);
+    }
+    for (const e of medicion.etiquetas) {
+      L.marker([e.en.lat, e.en.lng], {
+        icon: L.divIcon({ html: distancia(e.metros), className: 'etiqueta-medicion', iconSize: [56, 20] }),
+        interactive: false,
+        keyboard: false,
+      }).addTo(g);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- la clave resume los vértices
+  }, [claveMedicion, !!medicion]);
 
   return (
     <div className="absolute inset-0">

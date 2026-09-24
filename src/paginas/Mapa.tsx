@@ -1,7 +1,8 @@
-import { Crosshair, Layers, LocateFixed, Minus, Plus, Search, X } from 'lucide-react';
+import { Crosshair, Layers, LocateFixed, Minus, Plus, Ruler, Search, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { BarraEstado } from '@/componentes/mapa/BarraEstado';
+import { BarraMedicion } from '@/componentes/mapa/BarraMedicion';
 import { Ficha } from '@/componentes/mapa/Ficha';
 import { Leyenda } from '@/componentes/mapa/Leyenda';
 import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
@@ -22,11 +23,14 @@ import { megas } from '@/lib/formato';
 import { BYTES_MAPABASE, descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { escribir } from '@/lib/almacen';
 import { cercanos, masCercanoQueNoFunciona, recordarIncidente } from '@/lib/incidente';
+import { anadir, borrar as borrarMedicion, deshacer, resumen as resumenMedicion } from '@/lib/medicion';
 import { activarPosicion, esAntigua, posicionActual } from '@/lib/posicion';
 import { esPruebas } from '@/lib/entorno';
 import { buscar, cargarTramoJefatura, metrosTramoManguera } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
+
+type LatLngMedida = { lat: number; lng: number };
 
 const Control = ({
   etiqueta,
@@ -72,6 +76,22 @@ export function Mapa() {
   const [sinPosicion, setSinPosicion] = useState(false);
   const [soloHidrantes, setSoloHidrantes] = useState(false);
   const buscador = useRef<HTMLInputElement>(null);
+  // Medición (FR-76): en la URL (`?medir=1`) para que *atrás* salga; los vértices, en memoria, y los
+  // de partida llegan en el estado de la navegación ("Medir desde aquí", "Medir tendido").
+  const ubicacion = useLocation();
+  const midiendo = params.get('medir') === '1';
+  const verticesIniciales = (ubicacion.state as { vertices?: LatLngMedida[] } | null)?.vertices;
+  const [vertices, setVertices] = useState<LatLngMedida[]>(() => verticesIniciales ?? []);
+  const [claveMedicion, setClaveMedicion] = useState(ubicacion.key);
+  if (midiendo && claveMedicion !== ubicacion.key) {
+    // Una medición nueva (otra entrada al modo): se empieza con sus vértices de partida.
+    setClaveMedicion(ubicacion.key);
+    setVertices(verticesIniciales ?? []);
+  }
+  const terminarMedicion = () => {
+    if (ubicacion.key !== 'default') navegar(-1);
+    else navegar('/', { replace: true });
+  };
   const [capa, setCapa] = useState<Capa>(capaGuardada);
   const [menuCapas, setMenuCapas] = useState(false);
   const [texto, setTexto] = useState('');
@@ -209,15 +229,24 @@ export function Mapa() {
             modo={modo}
             posicion={pos}
             alSeleccionar={elegir}
-            alPulsacionLarga={abrirAqui}
-            aqui={aqui}
+            alPulsacionLarga={midiendo ? undefined : abrirAqui}
+            aqui={midiendo ? null : aqui}
+            medicion={
+              midiendo
+                ? {
+                    vertices,
+                    etiquetas: resumenMedicion(vertices, metrosTramoManguera()).etiquetas,
+                    alTocar: (l) => setVertices((v) => anadir(v, l)),
+                  }
+                : null
+            }
             incidente={
               incidente
                 ? {
                     origen: incidente,
                     candidatos: candidatos.map((c) => c.punto),
-                    // La hoja de abajo ocupa como mucho el 45 % en el móvil.
-                    margenInferior: ancho === 'movil' ? Math.round(window.innerHeight * 0.45) : 0,
+                    // La hoja de abajo ocupa como mucho el 40 % en el móvil.
+                    margenInferior: ancho === 'movil' ? Math.round(window.innerHeight * 0.4) : 0,
                   }
                 : null
             }
@@ -281,6 +310,13 @@ export function Mapa() {
             <Control etiqueta={T.mapa.capas} onClick={() => setMenuCapas(true)}>
               <Layers size={20} aria-hidden />
             </Control>
+            {/* Medir (FR-76): junto a las capas, en las herramientas del mapa. Midiendo ya, sobra: la barra
+                tiene "Terminar" (UI-01). */}
+            {!midiendo && (
+              <Control etiqueta={T.medir.boton} onClick={() => navegar('/?medir=1', { state: { vertices: [] } })}>
+                <Ruler size={20} aria-hidden />
+              </Control>
+            )}
             <Control
               etiqueta={T.mapa.miPosicion}
               onClick={() => {
@@ -351,8 +387,17 @@ export function Mapa() {
               {ficha}
             </aside>
           )}
-          {aqui && !ficha && <QueHayAqui l={aqui} alCerrar={cerrarFicha} enHoja={ancho === 'movil'} />}
-          {(incidente || (sinPosicion && !aqui)) && (
+          {aqui && !ficha && !midiendo && <QueHayAqui l={aqui} alCerrar={cerrarFicha} enHoja={ancho === 'movil'} />}
+          {midiendo && (
+            <BarraMedicion
+              vertices={vertices}
+              metrosTramo={metrosTramoManguera()}
+              alDeshacer={() => setVertices(deshacer)}
+              alBorrar={() => setVertices(borrarMedicion())}
+              alTerminar={terminarMedicion}
+            />
+          )}
+          {!midiendo && (incidente || (sinPosicion && !aqui)) && (
             <PanelCercanos
               estado={{
                 origen: incidente,
@@ -367,6 +412,9 @@ export function Mapa() {
               alCerrar={cerrarIncidente}
               alCambiarSoloHidrantes={setSoloHidrantes}
               alElegir={elegirCandidato}
+              alMedir={(hasta) =>
+                navegar('/?medir=1', { state: { vertices: [incidente!, { lat: hasta.lat, lng: hasta.lng }] } })
+              }
               alVerLista={() => {
                 escribir('orden_lista', 'distancia');
                 navegar('/lista');
