@@ -338,3 +338,55 @@ test.describe('panel de jefatura', () => {
     }
   });
 });
+
+// docs/19 RV-59: el aviso "Buscando tu posición…" se montaba sobre el botón de capas.
+test.describe('avisos flotantes del mapa (RV-59)', () => {
+  test.skip(({ isMobile }) => !isMobile, 'móvil y tableta; en ordenador la columna va arriba del todo');
+
+  for (const [nombre, tamano] of [
+    ['móvil', null],
+    ['tableta', { width: 820, height: 1180 }],
+  ] as const) {
+    test(`ningún aviso flotante se solapa con un botón del mapa (${nombre})`, async ({ page }) => {
+      if (tamano) await page.setViewportSize(tamano);
+      // Permiso de ubicación denegado: el aviso más largo que sale sobre el mapa.
+      await page.addInitScript(() => {
+        const geo = {
+          watchPosition(_ok: PositionCallback, error?: PositionErrorCallback | null) {
+            setTimeout(() => error?.({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError), 50);
+            return 1;
+          },
+          clearWatch() {},
+          getCurrentPosition() {},
+        };
+        Object.defineProperty(navigator, 'geolocation', { value: geo, configurable: true });
+      });
+      await conSesion(page);
+      await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+      await page.goto('/');
+      await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+      await page.getByRole('button', { name: T.mapa.miPosicion }).click();
+      await expect(page.getByRole('status').filter({ hasText: T.mapa.posicionDenegada })).toBeVisible();
+
+      const avisos = await page.getByTestId('avisos-mapa').locator(':scope > *').all();
+      expect(avisos.length).toBeGreaterThan(0);
+      const botones = [
+        T.mapa.capas,
+        T.medir.boton,
+        T.mapa.miPosicion,
+        T.incidente.boton,
+        T.mapa.acercar,
+        T.mapa.alejar,
+      ];
+      for (const aviso of avisos) {
+        const a = (await aviso.boundingBox())!;
+        for (const nombreBoton of botones) {
+          const b = (await page.getByRole('button', { name: nombreBoton, exact: true }).first().boundingBox())!;
+          const ancho = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+          const alto = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+          expect(ancho * alto, `el aviso tapa "${nombreBoton}"`).toBe(0);
+        }
+      }
+    });
+  }
+});

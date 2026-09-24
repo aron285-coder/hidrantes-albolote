@@ -225,6 +225,10 @@ export const T = {
     soloHidrantes: 'Solo hidrantes',
     lineaRecta: 'Distancias en línea recta',
     sinPosicion: 'Sin posición: mantén pulsado el mapa donde está el incidente o busca la calle',
+    buscandoPosicion: 'Buscando tu posición… (puedes marcar el incidente en el mapa)',
+    precision: (m: Parametro) => `±${m} m`,
+    pocoPrecisa: (m: Parametro) => `Posición poco precisa (±${m} m): si sabes dónde es, mantén pulsado el mapa`,
+    marcarEnMapa: 'Marcar en el mapa',
     vacio: 'Ningún punto que funcione a menos de 2 km del incidente',
     verTodos: 'Ver todos en la lista',
     masCercanoNoFunciona: (codigo: Parametro, distancia: Parametro) =>

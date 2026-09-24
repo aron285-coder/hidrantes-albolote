@@ -6,7 +6,7 @@ import { textoUbicacion } from '@/lib/compartir';
 import { enlaceComoLlegar, nombreCaudal, nombreTipo } from '@/lib/ficha';
 import { distancia, hace } from '@/lib/formato';
 import { rumboCorto } from '@/lib/geometria';
-import type { Candidato } from '@/lib/incidente';
+import { type Candidato, PRECISION_POCA_M } from '@/lib/incidente';
 import type { Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,11 @@ export interface EstadoCercanos {
   /** Sin origen: se pidió "Cercanos" sin posición (FR-74). */
   origen: LatLng | null;
   desdeGps: boolean;
+  /** Sin origen todavía: el GPS está buscando el primer fix (RV-59). */
+  buscando: boolean;
+  /** Precisión (m) y momento (ms) de la posición de origen, de la URL (RV-59). */
+  precision: number | null;
+  momento: number | null;
   /** Momento de la posición si ya no está al día (RV-40). */
   posicionVieja: number | null;
   candidatos: Candidato[];
@@ -35,6 +40,7 @@ export function PanelCercanos({
   estado,
   enHoja,
   alCerrar,
+  alMarcarEnMapa,
   alCambiarSoloHidrantes,
   alElegir,
   alVerLista,
@@ -43,13 +49,37 @@ export function PanelCercanos({
   estado: EstadoCercanos;
   enHoja: boolean;
   alCerrar: () => void;
+  /** "Marcar en el mapa" con una posición poco precisa (RV-59). */
+  alMarcarEnMapa: () => void;
   alCambiarSoloHidrantes: (si: boolean) => void;
   alElegir: (id: string) => void;
   alVerLista: () => void;
   /** "Medir tendido": la medición con la recta incidente → punto ya puesta (FR-76). */
   alMedir: (hasta: LatLng) => void;
 }) {
-  const { origen, desdeGps, posicionVieja, candidatos, aviso, soloHidrantes, guardadoEn } = estado;
+  const {
+    origen,
+    desdeGps,
+    buscando,
+    precision,
+    momento,
+    posicionVieja,
+    candidatos,
+    aviso,
+    soloHidrantes,
+    guardadoEn,
+  } = estado;
+  // "Desde tu posición · ±12 m · hace 2 min": lo que se sabe del origen (RV-59).
+  const desde = desdeGps
+    ? [
+        T.incidente.desdeTuPosicion,
+        precision !== null ? T.incidente.precision(precision) : null,
+        momento !== null ? hace(momento) : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : T.incidente.desdePuntoMarcado;
+  const pocoPrecisa = desdeGps && precision !== null && precision > PRECISION_POCA_M;
   return (
     <section
       aria-label={T.incidente.titulo}
@@ -65,7 +95,7 @@ export function PanelCercanos({
           {T.incidente.titulo}
           {origen && (
             <span className="text-texto-suave block text-[13px] font-normal">
-              {desdeGps ? T.incidente.desdeTuPosicion : T.incidente.desdePuntoMarcado} · {T.incidente.lineaRecta}
+              {desde} · {T.incidente.lineaRecta}
             </span>
           )}
         </h2>
@@ -85,10 +115,21 @@ export function PanelCercanos({
           role="status"
           className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm"
         >
-          {T.incidente.sinPosicion}
+          {buscando ? T.incidente.buscandoPosicion : T.incidente.sinPosicion}
         </p>
       ) : (
         <>
+          {pocoPrecisa && (
+            <div
+              role="status"
+              className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta flex flex-col gap-1.5 border px-2.5 py-2 text-[13px]"
+            >
+              <p>{T.incidente.pocoPrecisa(precision)}</p>
+              <button type="button" onClick={alMarcarEnMapa} className={cn(boton, 'self-start')}>
+                {T.incidente.marcarEnMapa}
+              </button>
+            </div>
+          )}
           {posicionVieja !== null && (
             <p
               role="status"
