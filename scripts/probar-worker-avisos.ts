@@ -42,7 +42,14 @@ async function hastaQueResponda(url: string, segundos = 90): Promise<void> {
 }
 
 function lanzar(comando: string, args: string[]): ChildProcess {
-  const p = spawn(comando, args, { cwd: RAIZ, shell: process.platform === 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
+  // En su propio grupo de procesos (fuera de Windows): npx lanza wrangler y wrangler lanza workerd, y
+  // matar solo a npx los deja vivos y el paso de CI no termina nunca.
+  const p = spawn(comando, args, {
+    cwd: RAIZ,
+    shell: process.platform === 'win32',
+    detached: process.platform !== 'win32',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
   let salida = '';
   p.stdout?.on('data', (d) => (salida += d));
   p.stderr?.on('data', (d) => (salida += d));
@@ -132,9 +139,21 @@ async function principal(): Promise<void> {
       LOCAL_POSTGRES,
       `delete from hidrantes.suscripciones_push where suscripcion ->> 'endpoint' like '%${MARCA}';`,
     );
-    for (const p of procesos) p.kill();
+    for (const p of procesos) matar(p);
+    receptor.closeAllConnections();
     receptor.close();
   }
 }
 
-if (import.meta.main) ejecutarScript(principal);
+/** El proceso y todo lo que haya lanzado (su grupo), no solo el primero. */
+function matar(p: ChildProcess): void {
+  try {
+    if (process.platform !== 'win32' && p.pid) process.kill(-p.pid, 'SIGTERM');
+    else p.kill();
+  } catch {
+    p.kill();
+  }
+}
+
+// Al terminar se sale sin esperar a nada que haya quedado colgado: el paso de CI tiene que acabar.
+if (import.meta.main) ejecutarScript(() => principal().then(() => process.exit(0)));

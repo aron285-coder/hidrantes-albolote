@@ -110,6 +110,7 @@ jobs:
       # El Worker de los avisos con su cron de verdad (wrangler dev --test-scheduled) contra las
       # Functions locales: una notificación pendiente sale sola (docs/19 RV-52).
       - name: Worker de los avisos con su cron, contra la pila local (RV-52)
+        timeout-minutes: 5
         run: |
           npx tsx scripts/probar-worker-avisos.ts
           pkill -f 'wrangler' || true
