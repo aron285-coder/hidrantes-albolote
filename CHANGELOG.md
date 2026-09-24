@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.3](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.2...hidrantes-albolote-v0.6.3) (2026-09-24)
+
+
+### Correcciones
+
+* **ajustes:** las novedades se leen sin códigos internos ni palabras técnicas ([#338](https://github.com/aron285-coder/hidrantes-albolote/issues/338)) ([1b42d90](https://github.com/aron285-coder/hidrantes-albolote/commit/1b42d90bb5f360fbffc4caa24d204360106cb763)), closes [#337](https://github.com/aron285-coder/hidrantes-albolote/issues/337)
+* **mapa:** con cobertura, el mapa enseña las calles aunque aún no hayas descargado el mapa base ([#341](https://github.com/aron285-coder/hidrantes-albolote/issues/341)) ([02447aa](https://github.com/aron285-coder/hidrantes-albolote/commit/02447aa951eac5ea0ee40fdf3026df80bc2bebe5))
+* **mapa:** con el inventario vacío, el mapa lo dice y ofrece añadir el primer punto ([#346](https://github.com/aron285-coder/hidrantes-albolote/issues/346)) ([0f37051](https://github.com/aron285-coder/hidrantes-albolote/commit/0f3705135392a830fb002843fa3d4351f1dc2673))
+* **rendimiento:** al abrir la app con sesión, el mapa sale unas décimas antes ([#348](https://github.com/aron285-coder/hidrantes-albolote/issues/348)) ([223d95a](https://github.com/aron285-coder/hidrantes-albolote/commit/223d95a907067dc52862ca7293c858beb3133435))
+* **rendimiento:** la pantalla de entrada abre antes y el mapa base se descarga al entrar ([#327](https://github.com/aron285-coder/hidrantes-albolote/issues/327)) ([2dcaf81](https://github.com/aron285-coder/hidrantes-albolote/commit/2dcaf8110742cfe6e2f900e02d2647516dfcbb19))
+* **vigilancia:** staging se mira en su propio trabajo y la vigilancia no se corta con un SIGPIPE (RV-78) ([#343](https://github.com/aron285-coder/hidrantes-albolote/issues/343)) ([7675e86](https://github.com/aron285-coder/hidrantes-albolote/commit/7675e86e27472b0b501b656f053a898c919e2cb3))
+
 ## [0.6.2](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.1...hidrantes-albolote-v0.6.2) (2026-09-24)
 
 
