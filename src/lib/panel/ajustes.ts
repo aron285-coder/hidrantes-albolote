@@ -201,6 +201,8 @@ export interface TareaProgramada {
   tarea: string;
   ultima: string | null;
   fallo: boolean;
+  /** Es de las que tiene que haber y no está en pg_cron (docs/19 RV-56). */
+  falta?: boolean;
   problema: boolean;
 }
 

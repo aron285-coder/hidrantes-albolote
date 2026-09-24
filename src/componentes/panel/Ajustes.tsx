@@ -542,11 +542,13 @@ function SaludDelSistema() {
                       <li key={t.tarea} className="flex gap-2">
                         <span className="font-datos flex-1 text-[13px]">{t.tarea.replace(/^hidrantes_/, '')}</span>
                         <span className={cn('font-semibold', t.problema && 'text-rojo-700')}>
-                          {!t.ultima
-                            ? T.panelAjustes.tareaSinEjecutar
-                            : t.problema
-                              ? T.panelAjustes.tareaMal(hace(t.ultima))
-                              : T.panelAjustes.tareaBien(hace(t.ultima))}
+                          {t.falta
+                            ? T.panelAjustes.tareaFalta
+                            : !t.ultima
+                              ? T.panelAjustes.tareaSinEjecutar
+                              : t.problema
+                                ? T.panelAjustes.tareaMal(hace(t.ultima))
+                                : T.panelAjustes.tareaBien(hace(t.ultima))}
                         </span>
                       </li>
                     ))}

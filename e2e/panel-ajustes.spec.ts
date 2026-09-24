@@ -91,6 +91,8 @@ const SALUD = {
       fallo: true,
       problema: true,
     },
+    // Una de las que tiene que haber y no está en pg_cron (docs/19 RV-56).
+    { tarea: 'hidrantes_revocar_tokens', ultima: null, fallo: false, falta: true, problema: true },
   ],
 };
 
@@ -305,4 +307,7 @@ test('Salud del sistema enseña la base de datos y las tareas programadas (RV-22
   await expect(tareas.getByText('purgar_errores')).toBeVisible();
   await expect(tareas.getByText(T.panelAjustes.tareaSinEjecutar)).toBeVisible();
   await expect(tareas.getByText(/falló o va con retraso/)).toBeVisible();
+  await expect(tareas.getByRole('listitem').filter({ hasText: 'revocar_tokens' })).toContainText(
+    T.panelAjustes.tareaFalta,
+  );
 });
