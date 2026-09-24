@@ -37,7 +37,7 @@ tareas as (
 ),
 sistema as (
   select coalesce((select min(start_time) from cron.job_run_details) < now() - interval '8 days', false) as rodado
-)
+),
 filas as (
   select tarea, ultima, fallo, false as falta,
          fallo
