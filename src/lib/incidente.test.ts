@@ -74,18 +74,17 @@ describe('masCercanoQueNoFunciona', () => {
   it('avisa si el más cercano de todos no funciona y está antes que el primero que sí', () => {
     const roto = p(40, { caudal: 'no_funciona' });
     const lista = [roto, p(120)];
-    const [primero] = cercanos(lista, O, OP);
-    expect(masCercanoQueNoFunciona(lista, O, OP, primero)?.punto.id).toBe(roto.id);
+    expect(masCercanoQueNoFunciona(lista, O, OP, cercanos(lista, O, OP))?.punto.id).toBe(roto.id);
   });
 
   it('si el más cercano funciona, no hay aviso', () => {
     const lista = [p(40), p(60, { caudal: 'malo' })];
-    expect(masCercanoQueNoFunciona(lista, O, OP, cercanos(lista, O, OP)[0])).toBeNull();
+    expect(masCercanoQueNoFunciona(lista, O, OP, cercanos(lista, O, OP))).toBeNull();
   });
 
   it('sin ninguno que funcione, avisa del más cercano', () => {
     const lista = [p(30, { caudal: 'malo' })];
-    expect(masCercanoQueNoFunciona(lista, O, OP, undefined)?.punto.caudal).toBe('malo');
+    expect(masCercanoQueNoFunciona(lista, O, OP, [])?.punto.caudal).toBe('malo');
   });
 });
 
@@ -118,5 +117,58 @@ describe('leerIncidente', () => {
     expect(leerIncidente('x,y')).toBeNull();
     expect(leerIncidente('37.2')).toBeNull();
     expect(leerIncidente(null)).toBeNull();
+  });
+});
+
+// docs/19 RV-54: el comparador de antes no era transitivo y el orden dependía del de entrada.
+describe('orden de los cercanos (RV-54)', () => {
+  const permutaciones = <T>(xs: T[]): T[][] =>
+    xs.length <= 1
+      ? [xs]
+      : xs.flatMap((x, i) => permutaciones([...xs.slice(0, i), ...xs.slice(i + 1)]).map((r) => [x, ...r]));
+
+  it('el resultado no depende del orden de entrada', () => {
+    const a = p(0, { radio_px: 5 });
+    const b = p(9, { radio_px: 9 });
+    const c = p(18, { radio_px: 11 });
+    const resultados = permutaciones([a, b, c]).map((lista) =>
+      cercanos(lista, O, OP)
+        .map((x) => x.punto.id)
+        .join(','),
+    );
+    expect(new Set(resultados).size).toBe(1);
+    const [primero] = resultados[0]!.split(',');
+    expect([a.id, b.id]).toContain(primero);
+    expect(primero).not.toBe(c.id);
+  });
+
+  it('ningún candidato adelanta a otro más de 10 m más cercano (1.000 casos con semilla fija)', () => {
+    let semilla = 20260924;
+    const azar = () => {
+      semilla = (semilla * 1664525 + 1013904223) % 2 ** 32;
+      return semilla / 2 ** 32;
+    };
+    for (let caso = 0; caso < 1000; caso++) {
+      const lista = Array.from({ length: 2 + Math.floor(azar() * 10) }, () =>
+        p(Math.floor(azar() * 120), { radio_px: [5, 7, 9, 11, 13][Math.floor(azar() * 5)] }),
+      );
+      const r = cercanos(lista, O, { ...OP, n: lista.length });
+      for (let i = 0; i < r.length; i++) {
+        for (let j = i + 1; j < r.length; j++) {
+          expect(r[i]!.metros - r[j]!.metros, `caso ${caso}`).toBeLessThan(10);
+        }
+      }
+    }
+  });
+
+  it('el aviso usa la distancia mínima de los candidatos, no el primero de la lista', () => {
+    // B (radio mayor) sale primero a 9 m; A funciona a 0 m. Un roto a 5 m está más lejos que A.
+    const a = p(0, { radio_px: 5 });
+    const b = p(9, { radio_px: 13 });
+    const roto = p(5, { caudal: 'no_funciona' });
+    const lista = [a, b, roto];
+    const candidatos = cercanos(lista, O, OP);
+    expect(candidatos[0]!.punto.id).toBe(b.id);
+    expect(masCercanoQueNoFunciona(lista, O, OP, candidatos)).toBeNull();
   });
 });

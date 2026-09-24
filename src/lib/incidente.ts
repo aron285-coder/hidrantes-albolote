@@ -35,8 +35,28 @@ const funciona = (p: Punto) => p.caudal === 'bueno' || p.caudal === 'regular';
 const delTipo = (soloHidrantes: boolean) => (p: Punto) => !soloHidrantes || p.tipo === 'hidrante';
 
 /**
+ * Orden por distancia y, después, **una pasada** de desempate entre vecinos: si el siguiente está a
+ * menos de 10 m del actual y tiene mayor `radio_px`, se intercambian una sola vez y se avanza dos.
+ * Así un punto nunca adelanta a otro que está más de 10 m más cerca, y el resultado no depende del
+ * orden de entrada (docs/19 RV-54). A igual distancia, por código: determinista.
+ */
+export function ordenar<T extends { metros: number; punto: Pick<Punto, 'radio_px' | 'codigo'> }>(lista: T[]): T[] {
+  const r = [...lista].sort((a, b) => a.metros - b.metros || a.punto.codigo.localeCompare(b.punto.codigo));
+  for (let i = 0; i + 1 < r.length;) {
+    const actual = r[i]!;
+    const siguiente = r[i + 1]!;
+    if (siguiente.metros - actual.metros < EMPATE_M && siguiente.punto.radio_px > actual.punto.radio_px) {
+      r[i] = siguiente;
+      r[i + 1] = actual;
+      i += 2;
+    } else i += 1;
+  }
+  return r;
+}
+
+/**
  * Los `n` puntos que funcionan (bueno o regular) más cercanos a `origen`, a menos de `maxMetros`, en
- * orden de distancia. Dos a menos de 10 m entre sí: primero el de mayor `radio_px`.
+ * orden de distancia. Dos vecinos a menos de 10 m: primero el de mayor `radio_px` (`ordenar`).
  */
 export function cercanos(puntos: Punto[], origen: LatLng, o: OpcionesCercanos): Candidato[] {
   const n = o.n ?? CERCANOS_N;
@@ -48,28 +68,27 @@ export function cercanos(puntos: Punto[], origen: LatLng, o: OpcionesCercanos): 
     const m = metros(origen, p);
     if (m <= max) conDistancia.push({ punto: p, metros: m });
   }
-  conDistancia.sort((a, b) =>
-    Math.abs(a.metros - b.metros) < EMPATE_M && a.punto.radio_px !== b.punto.radio_px
-      ? b.punto.radio_px - a.punto.radio_px
-      : a.metros - b.metros,
-  );
-  return conDistancia.slice(0, n).map(({ punto, metros: m }) => ({
-    punto,
-    metros: m,
-    rumbo: rumbo(origen, punto),
-    tramos: tramos(m, o.metrosTramo),
-  }));
+  return ordenar(conDistancia)
+    .slice(0, n)
+    .map(({ punto, metros: m }) => ({
+      punto,
+      metros: m,
+      rumbo: rumbo(origen, punto),
+      tramos: tramos(m, o.metrosTramo),
+    }));
 }
 
 /**
- * El más cercano de todos (del tipo que se mira) si **no** funciona y está más cerca que el primero
- * que sí: para avisar y que nadie vaya a él por costumbre. Null si no hace falta avisar.
+ * El más cercano de todos (del tipo que se mira) si **no** funciona y está más cerca que el más
+ * cercano de los que sí: para avisar y que nadie vaya a él por costumbre. Null si no hace falta avisar.
+ * Se compara con la distancia mínima de los candidatos, no con el primero de la lista, que puede ir
+ * delante por el desempate de radio (docs/19 RV-54).
  */
 export function masCercanoQueNoFunciona(
   puntos: Punto[],
   origen: LatLng,
   o: Pick<OpcionesCercanos, 'soloHidrantes' | 'maxMetros'>,
-  primero: Candidato | undefined,
+  candidatos: Candidato[],
 ): { punto: Punto; metros: number } | null {
   const tipo = delTipo(o.soloHidrantes);
   const max = o.maxMetros ?? CERCANOS_MAX_M;
@@ -80,7 +99,8 @@ export function masCercanoQueNoFunciona(
     if (m <= max && (!mejor || m < mejor.metros)) mejor = { punto: p, metros: m };
   }
   if (!mejor || funciona(mejor.punto)) return null;
-  if (primero && primero.metros <= mejor.metros) return null;
+  const minimo = Math.min(...candidatos.map((c) => c.metros));
+  if (candidatos.length && minimo <= mejor.metros) return null;
   return mejor;
 }
 

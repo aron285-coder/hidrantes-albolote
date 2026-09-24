@@ -1,9 +1,9 @@
 {
-  "version": "0.4.0",
-  "fecha": "2026-09-22",
+  "version": "0.5.0",
+  "fecha": "2026-09-24",
   "lineas": [
-    "El estado regular pasa a naranja",
-    "Alta manteniendo pulsado el mapa, como en Google Maps",
-    "Mapa base propio, capas, simbología, lista, búsqueda y ficha"
+    "Las novedades de la versión salen del build y se ven en la app y en el panel",
+    "Calles, lugares, direcciones y coordenadas (GM-04)",
+    "Los cinco puntos más cercanos que funcionan (GM-03)"
   ]
 }

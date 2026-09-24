@@ -122,7 +122,7 @@ export function Mapa() {
     [puntos, incidente, soloHidrantes],
   );
   const avisoCercano = useMemo(
-    () => (incidente ? masCercanoQueNoFunciona(puntos, incidente, { soloHidrantes }, candidatos[0]) : null),
+    () => (incidente ? masCercanoQueNoFunciona(puntos, incidente, { soloHidrantes }, candidatos) : null),
     [puntos, incidente, soloHidrantes, candidatos],
   );
   useEffect(() => {
