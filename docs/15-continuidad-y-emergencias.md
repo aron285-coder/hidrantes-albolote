@@ -57,7 +57,7 @@ el Worker `hidrantes-avisos` recibe 401 en PROD, lo anota sin datos y sigue con 
 siguen saliendo al moderar y al sincronizar, y la vigilancia diaria salta si se atascan más de 30
 minutos (docs/18 RV-38, docs/19 RV-52). **Rotar `VIGILANCIA_SECRETO` lo cambia en tres sitios** —Pages,
 el secreto del repositorio y el Worker—, y el arranque los pone los tres; si falta en alguno,
-`npm run arranque -- --solo-faltantes` genera uno nuevo para los tres, sin pedir tokens. `VIGILANCIA_SECRETO` se rotó el 23 sep 2026.
+`npm run arranque -- --solo-faltantes` genera uno nuevo para los tres, sin pedir tokens. `VIGILANCIA_SECRETO` se rotó el 23 sep 2026. Si no puede leer los secretos del Worker (red, sesión de `wrangler` caducada), para sin cambiar nada; al rotar, el Worker se escribe primero, y si no lo acepta no se toca Pages ni el repositorio (docs/20 RV-72, DEC-102).
 
 **Si el token de Cloudflare no tiene permiso de Workers** (04 §9 pide **Pages: Edit** y **Workers Scripts: Edit**), staging se despliega igual, pero el paso del Worker avisa en el resumen del workflow. Lo mismo dice `npm run comprobar-produccion` («Workers Scripts: Edit · FALTA»). Mira el permiso con la lista de nombres de los secretos del Worker, que solo da un token que puede editarlo. El token del primer despliegue (24 sep 2026) **veía** los Workers pero no podía desplegarlos. Con ese permiso de lectura la vigilancia sí lee el cron y no salta; solo salta si el Worker no tiene su cron. Arreglo: en Cloudflare, *My Profile → API Tokens*, editar el token y añadir *Account · Workers Scripts · Edit* (unos 2 minutos; un token no se puede ampliar con la API). Mientras, `npm run arranque -- --solo-faltantes` despliega el Worker con la sesión de `wrangler login` si aún no existe.
 
