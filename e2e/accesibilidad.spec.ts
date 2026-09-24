@@ -2,8 +2,8 @@
 // los tokens ya lo mide src/lib/accesibilidad.test.ts; esto busca lo que solo se ve montado: campos
 // sin etiqueta, encabezados saltados, botones sin nombre accesible, listas mal anidadas.
 //
-// Se comprueban las reglas WCAG 2.2 A y AA (con las de 2.0 y 2.1 que siguen en 2.2). Si alguna vez hay que tolerar algo, se desactiva esa
-// regla **con el motivo escrito**, nunca la pantalla entera.
+// Se comprueban las reglas WCAG 2.2 A y AA (con las de 2.0 y 2.1 que siguen en 2.2). Si alguna vez
+// hay que tolerar algo, se desactiva esa regla **con el motivo escrito**, nunca la pantalla entera.
 
 import { AxeBuilder } from '@axe-core/playwright';
 import type { NodeResult, Result } from 'axe-core';
