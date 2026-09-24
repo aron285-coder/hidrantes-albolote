@@ -34,6 +34,23 @@ describe('comprobar-auth', () => {
     expect(evaluar({ registroCerrado: false, correo: false, autoconfirmar: true }).nivel).toBe('bajo');
   });
 
+  // docs/19 RV-68: el vínculo manual de identidades deja unir una cuenta de correo con una de Google.
+  it('informa de security_manual_linking_enabled y, activo, lo señala como riesgo para RV-36', () => {
+    const e = desdeGestion({ disable_signup: true, security_manual_linking_enabled: true });
+    expect(e.vinculoManual).toBe(true);
+    const r = evaluar(e);
+    expect(r.nivel).toBe('medio');
+    expect(r.texto).toMatch(/security_manual_linking_enabled/);
+    expect(r.texto).toMatch(/RV-36/);
+    expect(evaluar({ ...e, registroCerrado: false, correo: true, autoconfirmar: true }).nivel).toBe('alto');
+    // Apagado, o sin saberlo (el endpoint público no lo dice), no cambia nada.
+    expect(desdeGestion({ security_manual_linking_enabled: false }).vinculoManual).toBe(false);
+    expect(desdeAjustes({ disable_signup: true }).vinculoManual).toBeUndefined();
+    expect(evaluar({ registroCerrado: true, correo: true, autoconfirmar: false, vinculoManual: false }).nivel).toBe(
+      'bajo',
+    );
+  });
+
   it('el texto nunca pide cambiar nada desde aquí: es una recomendación para uniformidad', () => {
     for (const autoconfirmar of [true, false]) {
       expect(evaluar({ registroCerrado: false, correo: true, autoconfirmar }).texto).toMatch(/uniformidad/);

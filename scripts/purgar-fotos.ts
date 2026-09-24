@@ -50,13 +50,15 @@ export function huerfanas(enBucket: Archivo[], referenciadas: Iterable<string>):
 export function motivoParaNoBorrar(
   enBucket: Archivo[],
   referenciadas: string[],
-  { forzar = false }: { forzar?: boolean } = {},
+  { forzar = false, total }: { forzar?: boolean; total?: number } = {},
 ): string | null {
   if (!enBucket.length) return null;
   if (!referenciadas.length) {
     return 'La base de datos no referencia ninguna foto y el bucket no está vacío: algo va mal, no se borra nada.';
   }
-  if (referenciadas.length % MAX_FILAS_POSTGREST === 0) {
+  // Un múltiplo de max_rows huele a lista truncada, salvo si la base de datos ha dicho cuántas son y
+  // coinciden: entonces ya está comprobada (docs/19 RV-68).
+  if (total !== referenciadas.length && referenciadas.length % MAX_FILAS_POSTGREST === 0) {
     return `La base de datos referencia exactamente ${referenciadas.length} fotos, un múltiplo de max_rows (${MAX_FILAS_POSTGREST}): la lista puede venir truncada, no se borra nada.`;
   }
   const sobran = huerfanas(enBucket, referenciadas).length;
@@ -146,7 +148,11 @@ export async function archivosDelBucket(deposito: Deposito): Promise<Archivo[]> 
 
 export interface Dependencias {
   archivos: () => Promise<Archivo[]>;
-  referenciadas: () => Promise<string[]>;
+  /**
+   * Las fotos referenciadas y, si la base de datos lo ha dicho, cuántas son. `referenciadas()` ya
+   * aborta si no cuadran, así que con ella siempre llega (docs/19 RV-68).
+   */
+  referenciadas: () => Promise<{ fotos: string[]; total?: number }>;
   borrar: (rutas: string[]) => Promise<void>;
 }
 
@@ -159,10 +165,10 @@ export async function purgar(
   { ensayo, forzar }: { ensayo: boolean; forzar: boolean },
 ): Promise<{ enBucket: Archivo[]; sobran: Archivo[]; borradas: number }> {
   const enBucket = await d.archivos();
-  const vivas = await d.referenciadas();
+  const { fotos: vivas, total } = await d.referenciadas();
   log.info(`${enBucket.length} fotos en el bucket · ${vivas.length} referenciadas por la base de datos`);
 
-  const motivo = motivoParaNoBorrar(enBucket, vivas, { forzar });
+  const motivo = motivoParaNoBorrar(enBucket, vivas, { forzar, total });
   if (motivo) abortar(motivo);
 
   let sobran = huerfanas(enBucket, vivas);
@@ -170,8 +176,8 @@ export async function purgar(
   if (sobran.length > 20) log.info(`… y ${sobran.length - 20} más`);
   if (ensayo || !sobran.length) return { enBucket, sobran, borradas: 0 };
 
-  const segunda = await d.referenciadas();
-  const motivo2 = motivoParaNoBorrar(enBucket, segunda, { forzar });
+  const { fotos: segunda, total: total2 } = await d.referenciadas();
+  const motivo2 = motivoParaNoBorrar(enBucket, segunda, { forzar, total: total2 });
   if (motivo2) abortar(motivo2);
   const antes = sobran.length;
   sobran = huerfanas(sobran, segunda);
@@ -194,7 +200,11 @@ async function principal(): Promise<void> {
   const { enBucket, sobran, borradas } = await purgar(
     {
       archivos: () => archivosDelBucket(depositoSupabase(url, servicio, bucket)),
-      referenciadas: () => referenciadas(url, servicio),
+      // referenciadas() comprueba la lista contra el total de la base de datos: si no cuadra, aborta.
+      referenciadas: async () => {
+        const fotos = await referenciadas(url, servicio);
+        return { fotos, total: fotos.length };
+      },
       borrar: (rutas) => borrar(url, servicio, bucket, rutas),
     },
     { ensayo, forzar },

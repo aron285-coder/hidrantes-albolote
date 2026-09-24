@@ -116,8 +116,10 @@ export function novedadesDe(changelog: string): Novedades {
       for (const l of v[campo]) {
         const ambito = ambitoDe(l);
         if (!ambito || !AMBITOS_USUARIO.has(ambito)) continue;
-        const limpia = cortar(limpiar(l));
-        if (!limpia || TECNICA.some((t) => t.test(limpia))) continue;
+        // El filtro antes del corte: una ruta más allá del carácter 140 no se cuela (docs/19 RV-68).
+        const entera = limpiar(l);
+        if (!entera || TECNICA.some((t) => t.test(entera))) continue;
+        const limpia = cortar(entera);
         if (!lineas.includes(limpia)) lineas.push(limpia);
         if (lineas.length === MAX_LINEAS) break;
       }
