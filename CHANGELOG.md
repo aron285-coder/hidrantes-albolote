@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.6.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.5.0...hidrantes-albolote-v0.6.0) (2026-09-24)
+
+
+### Novedades
+
+* **avisos:** avisos cada 5 minutos desde un Worker de Cloudflare (RV-52) ([#295](https://github.com/aron285-coder/hidrantes-albolote/issues/295)) ([bdf3eee](https://github.com/aron285-coder/hidrantes-albolote/commit/bdf3eee06e0853332c8611a6dfd1b0ea49ff739f))
+
+
+### Correcciones
+
+* **acceso:** jefatura ya no pierde el incidente, la ficha ni ¿Qué hay aquí? al recargar la página ([#301](https://github.com/aron285-coder/hidrantes-albolote/issues/301)) ([e6cf324](https://github.com/aron285-coder/hidrantes-albolote/commit/e6cf3241f4d35fe611f4cc2245b64feda830e55a))
+* **avisos:** token de Cloudflare solo de Pages sin tirar el despliegue de staging (RV-52) ([#305](https://github.com/aron285-coder/hidrantes-albolote/issues/305)) ([d5e68d4](https://github.com/aron285-coder/hidrantes-albolote/commit/d5e68d4fd0ebda5c038f653fd3d94681b36a1fe6))
+* **incidente:** "Cercanos" ordena siempre igual y nunca pone primero uno más lejano ([#298](https://github.com/aron285-coder/hidrantes-albolote/issues/298)) ([c3151cc](https://github.com/aron285-coder/hidrantes-albolote/commit/c3151cce36edc01f239dac86ab9cbdd4b0228b4f))
+* **mapa:** "Cercanos" dice cuánto de precisa y de reciente es tu posición, y espera al GPS ([#304](https://github.com/aron285-coder/hidrantes-albolote/issues/304)) ([a5d3467](https://github.com/aron285-coder/hidrantes-albolote/commit/a5d3467b28ec6b309c97bfda300e6da2953a0d3c))
+* **mapa:** sin cobertura, el mapa base propio debajo de la capa en línea (RV-58) ([#302](https://github.com/aron285-coder/hidrantes-albolote/issues/302)) ([259f251](https://github.com/aron285-coder/hidrantes-albolote/commit/259f2514cdeb9a3ed2d4a281323cdbb6800bbcfd))
+* **panel:** lectura completa de jefatura por páginas por clave (RV-65) ([#303](https://github.com/aron285-coder/hidrantes-albolote/issues/303)) ([2ca650e](https://github.com/aron285-coder/hidrantes-albolote/commit/2ca650ef3d26141f7a3a1ee472924511f8887e22))
+* **piloto:** la promoción del piloto no vuelve a dar códigos de puntos retirados ([#307](https://github.com/aron285-coder/hidrantes-albolote/issues/307)) ([2c95522](https://github.com/aron285-coder/hidrantes-albolote/commit/2c955223500e24b66137ac222d5d31d0e4975b76))
+* **privacidad:** un error de psql en Actions no enseña la fila con los nombres ([#297](https://github.com/aron285-coder/hidrantes-albolote/issues/297)) ([73f7047](https://github.com/aron285-coder/hidrantes-albolote/commit/73f7047334f3d699268c788f7881275466e51313))
+* **restauracion:** el acceso y las secuencias se reponen en la misma transacción que el volcado ([#299](https://github.com/aron285-coder/hidrantes-albolote/issues/299)) ([a9f6d18](https://github.com/aron285-coder/hidrantes-albolote/commit/a9f6d1843218d9c6376f8de181f98b0186d709a6))
+* **restaurar:** restaurar se para antes de tocar nada si psql es demasiado antiguo ([#308](https://github.com/aron285-coder/hidrantes-albolote/issues/308)) ([d765ca7](https://github.com/aron285-coder/hidrantes-albolote/commit/d765ca763712fdc357834cddd721e52307b7f8a9))
+* **vigilancia:** solo cerrar con HAY=no, sin npm ci y con las tareas de pg_cron esperadas (RV-56) ([#306](https://github.com/aron285-coder/hidrantes-albolote/issues/306)) ([eb91f24](https://github.com/aron285-coder/hidrantes-albolote/commit/eb91f24b6f30e7571bef08ea7b5aa4ed38e11a50))
+
 ## [0.5.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.4.0...hidrantes-albolote-v0.5.0) (2026-09-24)
 
 
