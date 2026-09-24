@@ -120,3 +120,25 @@ describe('codigo_http (RV-38)', () => {
     expect(codigo('')).toBe('000');
   });
 });
+
+// docs/19 P-03, DEC-096: producción es la versión de staging, y la vigilancia avisa si se queda atrás.
+describe('paridad de producción (P-03)', () => {
+  it('deploy-prod.yml comprueba la paridad después de desplegar y de anunciar las versiones', () => {
+    const texto = leer('deploy-prod.yml');
+    const paridad = texto.indexOf('- name: Paridad con develop');
+    expect(paridad).toBeGreaterThan(-1);
+    expect(paridad).toBeGreaterThan(texto.indexOf('wrangler pages deploy'));
+    expect(paridad).toBeGreaterThan(texto.indexOf('npm run cargar-version-mapabase'));
+    expect(texto.slice(paridad)).toContain('npm run paridad');
+    // Sin historia completa no hay HEAD^2 con el que comparar el árbol.
+    expect(texto).toMatch(/fetch-depth: 0/);
+  });
+
+  it('vigilancia.yml comprueba que producción está al día, sin contar la documentación', () => {
+    const texto = leer('vigilancia.yml');
+    expect(texto).toContain("origin/main..origin/develop -- . ':!docs'");
+    expect(texto).toMatch(/"\$dias_atras" -gt 7/);
+    expect(texto).toContain('haz P-02');
+    expect(texto).toMatch(/fetch-depth: 0/);
+  });
+});
