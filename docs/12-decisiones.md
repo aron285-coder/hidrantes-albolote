@@ -660,6 +660,16 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-101 · Novedades sin códigos de ninguna serie ni términos técnicos
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-77). Decisión de bajo riesgo de la sesión Ops.
+- **Contexto:** en Ajustes salieron «Calles, lugares, direcciones y coordenadas (GM-04)» y «Avisos cada 5 minutos desde un Worker de Cloudflare». El filtro tenía una lista de series (RV, F, TR, FR, DEC, AC, UI), y cada serie nueva se colaba.
+- **Decisión:**
+  1. Un solo patrón para cualquier código: `[A-Z]{1,4}-d{1,3}` y `Fd+(.d+)?`. Entre paréntesis (solos o varios, con «Fase N» y «#N») se quitan y la línea se queda. Suelto en la frase, la línea no entra: quitarlo dejaría la frase coja.
+  2. Una entrada con un término técnico no entra. La lista está en `TERMINOS_TECNICOS` (`scripts/generar-novedades.ts`): Worker, Cloudflare, Supabase, CI, workflow, token, build, PR, migración, pgTAP, e2e y Playwright. CI y PR solo en mayúsculas, para no descartar palabras corrientes; los demás sin distinguir.
+  3. Los códigos de punto (`HID-0012`) no cuentan: llevan cuatro cifras.
+- **Coste aceptado:** una carretera escrita como «A-92» descartaría la línea. Hoy no hay ninguna, y es mejor perder una novedad que enseñar un código.
+- **Afecta a:** `scripts/generar-novedades.ts` (FR-167 no cambia).
+
 ### DEC-100 · Especificaciones grandes en tres sesiones en paralelo, y CI que no hace esperar
 - **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente. `docs/trabajo-en-paralelo.md`; PAR-01 es su preparación.
 - **Contexto:**
