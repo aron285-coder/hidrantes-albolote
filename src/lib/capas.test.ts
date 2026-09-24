@@ -11,7 +11,9 @@ import {
   PNOA,
   ZOOM_MAX,
   atribucion,
+  baseDebajo,
   capaGuardada,
+  capasPintadas,
   enLinea,
 } from './capas';
 import { escribir } from './almacen';
@@ -82,5 +84,25 @@ describe('tope de zoom (#136)', () => {
   it('el catastro es WMS: dibuja a cualquier escala y no necesita tope propio', () => {
     expect(CATASTRO.opciones.maxZoom).toBe(ZOOM_MAX);
     expect(CATASTRO.opciones).not.toHaveProperty('maxNativeZoom');
+  });
+});
+
+// docs/19 RV-58: sin cobertura, una capa solo en línea dejaba el mapa sin calles.
+describe('el mapa base propio debajo sin cobertura (RV-58, DEC-098)', () => {
+  it('con la capa de calle y sin conexión se pintan base + calle; con conexión, solo calle', () => {
+    expect(capasPintadas('calle', baseDebajo('sin_cobertura', true))).toEqual(['base', 'calle']);
+    expect(capasPintadas('satelite', baseDebajo('sin_servidor', true))).toEqual(['base', 'satelite']);
+    expect(capasPintadas('calle', baseDebajo('bien', true))).toEqual(['calle']);
+  });
+
+  it('sin el mapa base en el móvil no hay nada que poner debajo', () => {
+    expect(baseDebajo('sin_cobertura', false)).toBe(false);
+    expect(capasPintadas('calle', false)).toEqual(['calle']);
+  });
+
+  it('el mapa base va solo; Catastro, siempre sobre él', () => {
+    expect(capasPintadas('base', true)).toEqual(['base']);
+    expect(capasPintadas('catastro', false)).toEqual(['base', 'catastro']);
+    expect(capasPintadas('catastro', true)).toEqual(['base', 'catastro']);
   });
 });

@@ -4,6 +4,7 @@
 // (Referrer-Policy strict-origin-when-cross-origin), que es lo que pide la política de OSM.
 
 import { escribir, leer } from './almacen';
+import type { EstadoConexion } from './conexion';
 import { T } from './textos';
 
 export type Capa = 'base' | 'calle' | 'satelite' | 'catastro';
@@ -18,6 +19,22 @@ export const NOMBRE_CAPA: Record<Capa, string> = {
 
 /** Capas que necesitan red. Catastro va superpuesta al mapa base propio. */
 export const enLinea = (c: Capa) => c !== 'base';
+
+/**
+ * ¿Va el mapa base propio debajo de la capa elegida? Sin cobertura (o sin servidor) y con el mapa
+ * base en el móvil, sí: sin señal, una capa solo en línea deja el mapa sin calles (RV-58, DEC-098).
+ */
+export const baseDebajo = (conexion: EstadoConexion, baseDescargado: boolean) => conexion !== 'bien' && baseDescargado;
+
+/**
+ * Lo que se pinta, de abajo arriba. Catastro va siempre sobre el mapa base; calle y satélite, solo
+ * cuando toca `baseDebajo`. Encima queda la capa en línea, con lo que el navegador tenga en caché o
+ * nada. La elección del usuario no cambia: al volver la cobertura todo queda como estaba.
+ */
+export function capasPintadas(capa: Capa, debajo: boolean): Capa[] {
+  if (capa === 'base') return ['base'];
+  return capa === 'catastro' || debajo ? ['base', capa] : [capa];
+}
 
 /**
  * Hasta dónde se puede acercar, en los dos mapas (el del voluntario y el del alta). A z21 se

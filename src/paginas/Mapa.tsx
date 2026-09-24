@@ -24,7 +24,7 @@ import { useAcceso, useConexion, useMapabase, useModo, usePosicion, usePuntos } 
 import { useAncho } from '@/hooks/ancho';
 import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
 import { type Enfoque, calleResaltada } from '@/lib/callejero';
-import { type Capa, NOMBRE_CAPA, atribucion, capaGuardada, enLinea, guardarCapa } from '@/lib/capas';
+import { type Capa, NOMBRE_CAPA, atribucion, baseDebajo, capaGuardada, enLinea, guardarCapa } from '@/lib/capas';
 import { nombreCaudal } from '@/lib/ficha';
 import { megas } from '@/lib/formato';
 import { BYTES_MAPABASE, descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
@@ -250,10 +250,13 @@ export function Mapa() {
   }, [pos]);
 
   // Sin cobertura, la capa elegida deja de pintarse y hay que decirlo (UI-04). También el Catastro,
-  // aunque debajo siga el mapa base: si no, el plano de parcelas desaparece sin explicación.
+  // aunque debajo siga el mapa base: si no, el plano de parcelas desaparece sin explicación. Con el
+  // mapa base en el móvil, se pinta debajo y el aviso lo dice (RV-58).
   const avisoCapa =
     sinRed && enLinea(capa)
-      ? T.mapa.capaSinCobertura(NOMBRE_CAPA[capa])
+      ? mapabase.descargado
+        ? T.mapa.capaConBaseDebajo(NOMBRE_CAPA[capa])
+        : T.mapa.capaSinCobertura(NOMBRE_CAPA[capa])
       : sinRed && !mapabase.descargado
         ? T.mapa.mapaNoDescargado
         : null;
@@ -316,6 +319,7 @@ export function Mapa() {
             puntos={puntos}
             seleccionado={seleccionado}
             capa={capa}
+            baseDebajo={baseDebajo(conexion, mapabase.descargado !== null)}
             modo={modo}
             posicion={pos}
             alSeleccionar={elegir}
