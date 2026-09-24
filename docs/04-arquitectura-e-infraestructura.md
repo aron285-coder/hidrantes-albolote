@@ -143,6 +143,11 @@ Reglas:
 
 - Las migraciones son las mismas y en el mismo orden. Producción nunca recibe una migración que no
   haya pasado por staging; lo garantiza el flujo de ramas.
+- **Producción tiene siempre la versión completa de staging** (DEC-096). Producción solo por PR
+  `develop → main` con aprobación del desarrollador en el *environment* `production`. Al cerrar cada
+  bloque de trabajo se abre ese PR, con *merge commit* para que las dos ramas compartan historia, y
+  el paso "Paridad con develop" de `deploy-prod.yml` comprueba que producción quedó igual. Poner
+  producción al día no abre el acceso: el código real se comunica en F9.10 (#85).
 - El seed es un archivo aparte (`supabase/seed-staging.sql`) y la CI de producción **aborta** si su
   nombre aparece en el comando o si `PROJECT_REF` no es el esperado.
 - Cada punto ficticio del seed lleva `descripcion` con prefijo `[PRUEBA]`.

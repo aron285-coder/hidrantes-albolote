@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.26 — 24 de septiembre de 2026 (DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.27 — 24 de septiembre de 2026 (DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -390,7 +390,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §10, §11 y §11.1; 09 Fase 0.
 
 ### DEC-056 · Un PR `develop → main` en la Fase 0 para probar el camino a producción
-- **Fecha:** 18 sep 2026 (desarrollador) · **Estado:** vigente
+- **Fecha:** 18 sep 2026 (desarrollador) · **Estado:** vigente en lo que toca a la Fase 0; la regla de no pedir otro PR a `main` hasta la Fase 9 la sustituye DEC-096
 - **Contexto:** el criterio de salida de la Fase 0 (09) exige que un PR a `main`, tras aprobación, aparezca solo en producción; `CLAUDE.md` §5 dice que el PR `develop → main` no se pide hasta la Fase 9.
 - **Decisión:** se hace **una** vez al cerrar la Fase 0, con producción sirviendo solo el armazón vacío (sin datos, sin banda). A partir de ahí rige `CLAUDE.md`: el siguiente PR `develop → main` es el de la Fase 9.
 - **Por qué:** descubrir un fallo del despliegue a producción en la Fase 9 es lo más caro (09 §2); el armazón no expone nada.
@@ -659,6 +659,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-096 · Producción tiene siempre la versión completa de staging
+- **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente (`docs/19` §0.2.1, P-04). Sustituye la última frase de DEC-056 y la regla de `CLAUDE.md` §5 "no lo pidas hasta que la Fase 9 lo diga".
+- **Contexto:**
+  - `main` se quedó en la versión de prueba de la Fase 0 (18 sep 2026), 145 commits por detrás de `develop`.
+  - Con producción tan atrás, cada tarea que depende de ella falla en silencio: `avisos.yml` en PROD, por ejemplo. Además, el primer despliegue de verdad acumularía un mes de cambios sin probar.
+- **Decisión:**
+  - `main` se pone al día con `develop` al cerrar cada bloque de trabajo, por PR `develop → main` con las dos aprobaciones del desarrollador (el PR y el *environment* `production`).
+  - Se fusiona con *merge commit*, no con squash: así `main` y `develop` comparten historia y la paridad se comprueba comparando árboles.
+  - Antes de cada PR, `npm run comprobar-produccion` (P-01). Después de cada despliegue, el paso "Paridad con develop" de `deploy-prod.yml` (P-03).
+  - La vigilancia diaria avisa si `main` lleva más de 7 días por detrás en algo que no sea documentación.
+  - **Poner producción al día no abre el acceso.** El código de acceso real se genera y se comunica en F9.10 (#85), después de la validación de jefatura (#76) y del piloto (#77). Por eso F9.4 (#79) pasa de "PR `develop → main`" a "Abrir producción a la agrupación".
+- **Por qué:** es más barato desplegar diez veces poco que una vez mucho. Producción es la que tiene que funcionar cuando nadie mire (CLAUDE.md §9), y sin datos ni código real no expone nada a nadie.
+- **Afecta a:** `CLAUDE.md` §5, 04 §4, 09 Fase 9 (F9.4), la issue #79 y DEC-056.
 
 ### DEC-095 · La regla de textos de interfaz: qué no es texto que se vea
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/18` RV-50)
