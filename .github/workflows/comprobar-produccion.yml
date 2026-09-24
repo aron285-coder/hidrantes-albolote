@@ -1,0 +1,31 @@
+# ¿Tiene producción lo que la versión actual necesita? (docs/19 P-01, DEC-096). Solo lectura.
+# La parte que en local no se puede hacer: la base de datos de producción, con el secreto del
+# repositorio de los trabajos automáticos (DEC-071), y el token de Cloudflare. El token es el mismo
+# en los dos environments (arranque.ts lo pone en ambos); se lee del de staging, que no pide
+# aprobación. Lo de GitHub y Pages se comprueba en local: GITHUB_TOKEN no puede listar secretos.
+name: Comprobar producción
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+      - name: Comprobar (sin valores)
+        run: npm run comprobar-produccion
+        env:
+          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          SUPABASE_URL_PROD: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_ANON_KEY_PROD: ${{ vars.SUPABASE_ANON_KEY_PROD }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
