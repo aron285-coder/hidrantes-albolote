@@ -151,7 +151,9 @@ const cuenta = (control: Locator) =>
 
 async function abrir(page: Page, pantalla: Pantalla) {
   await page.goto(pantalla.ruta);
-  await expect(pantalla.listo(page)).toBeVisible();
+  // Se recarga antes de cada pulsación: con cuatro workers, la carga de la pantalla pasa a veces de
+  // los 5 s por defecto de expect (docs/18 RV-49). Solo esta espera, no el test entero.
+  await expect(pantalla.listo(page)).toBeVisible({ timeout: 15_000 });
   await pantalla.preparar?.(page);
   // El mapa sigue pintando teselas un rato; sin esta pausa, el "algo ha cambiado" podría ser el mapa
   // y no el control que se acaba de pulsar.
@@ -174,13 +176,23 @@ async function nombreDe(control: Locator): Promise<string> {
   return (etiqueta || texto || titulo).replace(/\s+/g, ' ').trim();
 }
 
-/** Los nombres de los controles de la pantalla, en orden. */
+/**
+ * Los nombres de los controles de la pantalla, en orden, leídos de una vez. Uno a uno, si la pantalla
+ * se volvía a pintar con menos controles a mitad de la lectura, `nth(i)` esperaba a un control que ya
+ * no existía hasta agotar el tiempo del test (docs/18 RV-49). El filtro es el de `visible` de
+ * Playwright: caja no vacía y sin `visibility: hidden`, igual que `pulsables`.
+ */
 async function nombresDe(page: Page): Promise<string[]> {
-  const controles = pulsables(page);
-  const total = await controles.count();
-  const nombres: string[] = [];
-  for (let i = 0; i < total; i++) nombres.push(await nombreDe(controles.nth(i)));
-  return nombres;
+  return page.locator('button:not([disabled]), a[href]').evaluateAll((els) =>
+    els
+      .filter((e) => {
+        const r = e.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && getComputedStyle(e).visibility !== 'hidden';
+      })
+      .map((e) =>
+        (e.getAttribute('aria-label') || e.textContent || e.getAttribute('title') || '').replace(/\s+/g, ' ').trim(),
+      ),
+  );
 }
 
 /**
@@ -365,6 +377,9 @@ for (const pantalla of PANTALLAS_PANEL) {
 
     test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page, isMobile }) => {
       test.skip(!!isMobile, 'el panel es de escritorio (FR-100)');
+      // El inventario tiene unos sesenta controles y cada uno recarga la pantalla: unos 50 s a solas,
+      // más de 180 s con cuatro workers. Solo este recorrido va con más tiempo (docs/18 RV-49).
+      test.slow(pantalla.nombre === 'inventario', 'sesenta controles, cada uno con su recarga');
       await abrir(page, pantalla);
       // En las tablas del panel cada fila repite las mismas acciones: con la primera basta.
       await recorrer(page, pantalla, NO_SE_PULSAN_PANEL, DESCARGAS_PANEL, 1);

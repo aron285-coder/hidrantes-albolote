@@ -209,6 +209,8 @@ test('ajustes: código de acceso con confirmación y revocación (FR-140, FL-29)
   const dialogo = page.getByRole('dialog');
   await expect(dialogo.getByText(T.panelAjustes.avisoRevocando(2))).toBeVisible();
   await dialogo.getByRole('button', { name: T.panelAjustes.confirmarCodigo }).click();
+  // La llamada sale después del clic, no con él: se espera a que llegue (docs/18 RV-49).
+  await expect.poll(() => llamadaA(llamadas, 'fn_cambiar_codigo_acceso')).toBeTruthy();
   const cuerpo = llamadaA(llamadas, 'fn_cambiar_codigo_acceso')!;
   expect(cuerpo.revocar_dispositivos).toBe(true);
   expect(String(cuerpo.nuevo)).toMatch(/^\d{6}$/);

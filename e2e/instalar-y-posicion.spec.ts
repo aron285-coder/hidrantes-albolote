@@ -96,20 +96,25 @@ test('alta: "Mi posición" devuelve el pin al GPS después de moverlo a mano', a
 });
 
 test('el alta recupera el GPS tras un primer timeout (RV-09)', async ({ page }) => {
-  // El primer intento del GPS se agota antes del primer fix, como en la calle; el fix llega después.
+  // El primer intento del GPS se agota antes del primer fix, como en la calle; el fix llega después,
+  // cuando el test lo manda: con un retardo fijo, en una máquina cargada el aviso podía irse antes de
+  // que nadie lo viera (docs/18 RV-49).
   await page.addInitScript(() => {
-    const geo = navigator.geolocation;
-    const original = geo.watchPosition.bind(geo);
-    geo.watchPosition = (ok, ko, opciones) => {
+    const w = window as unknown as { __fix?: () => void };
+    navigator.geolocation.watchPosition = (ok, ko) => {
       setTimeout(
         () => ko?.({ code: 3, message: 'Timeout', PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 }),
         0,
       );
-      return original((p) => setTimeout(() => ok(p), 800), ko, opciones);
+      w.__fix = () =>
+        ok({ coords: { latitude: 37.2309, longitude: -3.6558, accuracy: 8 }, timestamp: Date.now() } as never);
+      return 1;
     };
+    navigator.geolocation.clearWatch = () => undefined;
   });
   await page.goto('/proponer/alta');
   await expect(page.getByText(T.mapa.posicionNoDisponible)).toBeVisible();
+  await page.evaluate(() => (window as unknown as { __fix: () => void }).__fix());
   // Sin tocar nada, llega el fix: el aviso desaparece y el pin sale del GPS.
   await expect(page.getByText(T.mapa.posicionNoDisponible)).toHaveCount(0);
   await expect(page.getByText(T.avisosFormulario.muevePin)).toHaveCount(0);

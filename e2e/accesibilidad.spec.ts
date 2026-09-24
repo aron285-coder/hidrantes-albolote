@@ -2,8 +2,8 @@
 // los tokens ya lo mide src/lib/accesibilidad.test.ts; esto busca lo que solo se ve montado: campos
 // sin etiqueta, encabezados saltados, botones sin nombre accesible, listas mal anidadas.
 //
-// Se comprueban las reglas WCAG 2.2 A y AA (con las de 2.0 y 2.1 que siguen en 2.2). Si alguna vez hay que tolerar algo, se desactiva esa
-// regla **con el motivo escrito**, nunca la pantalla entera.
+// Se comprueban las reglas WCAG 2.2 A y AA (con las de 2.0 y 2.1 que siguen en 2.2). Si alguna vez
+// hay que tolerar algo, se desactiva esa regla **con el motivo escrito**, nunca la pantalla entera.
 
 import { AxeBuilder } from '@axe-core/playwright';
 import type { NodeResult, Result } from 'axe-core';
@@ -167,29 +167,29 @@ test.describe('app del voluntario', () => {
     await geometria(page, 'lista', { movil: !!isMobile });
   });
 
-  // docs/18 GM-02 y GM-05: la ficha con sus coordenadas y "Compartir", y la hoja de "¿Qué hay aquí?".
-  test('ficha con coordenadas y ¿Qué hay aquí?', async ({ page, isMobile }) => {
+  // docs/18 GM-02 a GM-06: la ficha con sus coordenadas, "¿Qué hay aquí?", el incidente y la medición.
+  // Una prueba por pantalla: juntas pasaban del minuto con cuatro workers (docs/18 RV-49).
+  const EMERGENCIAS: [string, string, (p: Page) => ReturnType<Page['getByRole']>][] = [
+    ['ficha', `/?p=${PUNTOS[0].id}`, (p) => p.getByRole('region', { name: T.coordenadas.titulo })],
+    ['qué hay aquí', '/?aqui=37.2305,-3.656', (p) => p.getByRole('dialog', { name: T.aqui.titulo })],
+    ['incidente', '/?incidente=37.230500,-3.656000', (p) => p.getByRole('region', { name: T.incidente.titulo })],
+    ['medir', '/?medir=1', (p) => p.getByRole('region', { name: T.medir.titulo })],
+  ];
+  for (const [nombre, ruta, listo] of EMERGENCIAS) {
+    test(`${nombre} (funciones de mapa para emergencias)`, async ({ page, isMobile }) => {
+      await conSesion(page);
+      await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+      await page.goto(ruta);
+      await expect(listo(page)).toBeVisible();
+      await auditar(page, nombre);
+      await geometria(page, nombre, { movil: !!isMobile });
+    });
+  }
+
+  // docs/18 GM-04: la búsqueda con puntos, calles y una dirección.
+  test('búsqueda (funciones de mapa para emergencias)', async ({ page, isMobile }) => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
-    await page.goto(`/?p=${PUNTOS[0].id}`);
-    await expect(page.getByRole('region', { name: T.coordenadas.titulo })).toBeVisible();
-    await auditar(page, 'ficha');
-    await geometria(page, 'ficha', { movil: !!isMobile });
-    await page.goto('/?aqui=37.2305,-3.656');
-    await expect(page.getByRole('dialog', { name: T.aqui.titulo })).toBeVisible();
-    await auditar(page, 'qué hay aquí');
-    await geometria(page, 'qué hay aquí', { movil: !!isMobile });
-    // docs/18 GM-03: el modo incidente.
-    await page.goto('/?incidente=37.230500,-3.656000');
-    await expect(page.getByRole('region', { name: T.incidente.titulo })).toBeVisible();
-    await auditar(page, 'incidente');
-    await geometria(page, 'incidente', { movil: !!isMobile });
-    // docs/18 GM-06: la barra de la medición.
-    await page.goto('/?medir=1');
-    await expect(page.getByRole('region', { name: T.medir.titulo })).toBeVisible();
-    await auditar(page, 'medir');
-    await geometria(page, 'medir', { movil: !!isMobile });
-    // docs/18 GM-04: la búsqueda con puntos, calles y una dirección.
     await page.route('**/api/geocodificar', (r) =>
       r.fulfill({
         json: {
