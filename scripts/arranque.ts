@@ -724,10 +724,23 @@ function fijarSecretoPages(proyecto: string, nombre: string, valor: string): voi
   }
 }
 
+/**
+ * El Worker de los avisos, si aún no existe en la cuenta. Normalmente lo despliega deploy-staging.yml;
+ * con un token de Cloudflare solo de Pages no puede, y aquí se hace con la sesión de `wrangler login`
+ * (DEC-097). Sin el Worker no hay dónde poner sus secretos.
+ */
+function desplegarWorkerSiFalta(): void {
+  const r = ejecutar('npx', ['--no-install', 'wrangler', 'deployments', 'list', '--config', CONFIG_WORKER]);
+  if (r.codigo === 0) return;
+  ejecutarOk('npx', ['--no-install', 'wrangler', 'deploy', '--config', CONFIG_WORKER]);
+  log.ok('Worker hidrantes-avisos desplegado con su cron cada 5 minutos');
+}
+
 /** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
 function soloFaltantes(): void {
   log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
   comprobarSesiones();
+  desplegarWorkerSiFalta();
   const repo = gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/);
   const worker = nombresSecretosWorker();
   const aMano: string[] = [];

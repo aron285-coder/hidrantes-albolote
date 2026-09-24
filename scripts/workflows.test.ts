@@ -165,6 +165,18 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     expect(texto).toMatch(/fetch-depth: 2/);
   });
 
+  it('con un token sin permiso de Workers (401/403), Pages se despliega igual y el paso lo avisa', () => {
+    const texto = leer('deploy-staging.yml');
+    const paso = texto.slice(texto.indexOf('- name: Desplegar el Worker de los avisos'));
+    const cuerpo = paso.slice(0, paso.indexOf('\n      - name:', 10));
+    expect(cuerpo).toMatch(/"\$codigo" = "401" \] \|\| \[ "\$codigo" = "403"/);
+    expect(cuerpo).toContain('::warning::');
+    expect(cuerpo).toContain('GITHUB_STEP_SUMMARY');
+    expect(cuerpo).toContain('Workers Scripts: Edit');
+    // La vigilancia sí lo cuenta como problema: dice el código HTTP en vez de "ninguno".
+    expect(leer('vigilancia.yml')).toContain('cron="sin permiso (HTTP $codigo)"');
+  });
+
   it('la vigilancia mira el cron del Worker y avisa de avisos parados más de 30 minutos', () => {
     const texto = leer('vigilancia.yml');
     expect(texto).toContain('workers/scripts/hidrantes-avisos/schedules');
