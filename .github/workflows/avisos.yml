@@ -1,0 +1,79 @@
+# Envío MANUAL de emergencia de los avisos push pendientes (FR-163, FR-164, 05 §9; docs/17 RV-08).
+# Desde docs/19 RV-52 (DEC-097) los despacha cada 5 minutos el Worker `hidrantes-avisos`, con su
+# Cron Trigger: el cron de GitHub es de mejor esfuerzo y este workflow, programado cada 15 minutos,
+# corría cada 3 a 5 horas. Queda solo `workflow_dispatch`, por si el Worker fallara.
+#
+# Sin `environment` (DEC-071): `production` pediría aprobación humana en cada ejecución. El secreto
+# de repositorio VIGILANCIA_SECRETO_<ENTORNO> es el mismo valor que la Function lee de sus
+# secretos de Pages (npm run arranque -- --rotar vigilancia). En un repositorio público los minutos
+# de Actions no cuentan (TR-53).
+name: Avisos
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avisos
+  cancel-in-progress: false
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        entorno: [PROD, STAGING]
+    steps:
+      # Solo para el cálculo del código HTTP (RV-38).
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github/scripts
+      - name: Pedir el envío hasta que no quede nada
+        env:
+          APP: ${{ matrix.entorno == 'PROD' && 'https://hidrantes-albolote.pages.dev' || 'https://hidrantes-albolote-staging.pages.dev' }}
+          SECRETO: ${{ secrets[format('VIGILANCIA_SECRETO_{0}', matrix.entorno)] }}
+        run: |
+          set -uo pipefail
+          # Sin el secreto (antes del paso manual de 15 §2) se avisa sin salir en rojo: un fallo cada
+          # 15 minutos serían 96 correos al día, y mientras tanto los avisos siguen saliendo al
+          # moderar y al sincronizar. La vigilancia diaria sí salta si se atascan más de dos horas.
+          if [ -z "${SECRETO:-}" ]; then
+            echo "::warning::Falta VIGILANCIA_SECRETO_${{ matrix.entorno }}: npm run arranque -- --rotar vigilancia (15 §2)"
+            echo "### Avisos ${{ matrix.entorno }}: falta el secreto VIGILANCIA_SECRETO_${{ matrix.entorno }} (npm run arranque -- --rotar vigilancia)" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          source .github/scripts/codigo-http.sh
+          llamar() {
+            local c
+            c=$(curl -s -o respuesta.json -w '%{http_code}' --max-time 60 -X POST "$APP/api/push" \
+              -H "X-Vigilancia: $SECRETO" -H 'Content-Type: application/json' -d '{}' || true)
+            codigo_http "$c"
+          }
+          # Cada llamada envía como mucho 20 (límite de peticiones de Workers): se repite mientras
+          # la respuesta diga que quedan, diez veces como mucho.
+          for vuelta in $(seq 1 10); do
+            codigo=$(llamar)
+            # Un 5xx suelto se reintenta una vez.
+            if [ "${codigo:0:1}" = "5" ] || [ "$codigo" = "000" ]; then sleep 5; codigo=$(llamar); fi
+            # 401: el secreto del repositorio y el de Pages no coinciden. Tras rotarlo, Pages solo lo
+            # aplica al siguiente despliegue (RV-38): se avisa sin salir en rojo cada 15 minutos. La
+            # vigilancia diaria salta si los avisos se atascan más de dos horas.
+            if [ "$codigo" = "401" ]; then
+              echo "::warning::/api/push de ${{ matrix.entorno }} responde 401: el secreto de Pages aún no está desplegado (15 §2)"
+              echo "### Avisos ${{ matrix.entorno }}: /api/push responde 401; el secreto rotado se aplica en el siguiente despliegue (15 §2)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            if [ "$codigo" != "200" ]; then
+              {
+                echo "### Avisos ${{ matrix.entorno }}: /api/push responde $codigo"
+                head -c 300 respuesta.json 2>/dev/null || true
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 1
+            fi
+            echo "vuelta $vuelta: $(cat respuesta.json)"
+            grep -q '"quedan":true' respuesta.json || break
+          done

@@ -1,0 +1,197 @@
+# Respaldo cifrado (04 §9, TR-50, TR-51; procedimiento de restauración en 15 §5.3).
+#
+#   - Datos: pg_dump del esquema hidrantes, semanal, cifrado con GPG y guardado como artefacto 90
+#     días. Nunca se escribe en una rama: el volcado lleva nombres de voluntarios y el historial de
+#     Git no se puede purgar (04 §9, 11 §2).
+#   - Fotos: el bucket entero, el primer domingo de cada mes, con el mismo cifrado.
+#
+# Sin `environment: production` a propósito: ese entorno exige aprobación humana en cada ejecución
+# (es lo que protege los despliegues), y un respaldo que espera a que alguien pulse un botón no es
+# un respaldo. Usa secretos del repositorio (DEC-071).
+name: Respaldo
+
+on:
+  schedule:
+    # Domingos de madrugada, cuando nadie está enviando nada.
+    - cron: '23 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      fotos:
+        description: Incluir las fotos (si no, solo los datos)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: respaldo
+  cancel-in-progress: false
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+
+      - name: Comprobar que están los secretos
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          SERVICIO: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          CLAVE_GPG: ${{ secrets.GPG_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          falta=0
+          for v in BD SERVICIO CLAVE_GPG; do
+            if [ -z "${!v}" ]; then echo "::error::Falta el secreto de repositorio para $v"; falta=1; fi
+          done
+          if [ "$falta" = 1 ]; then
+            {
+              echo "### Respaldo no configurado"
+              echo
+              echo 'Faltan secretos **de repositorio** (no de entorno). Con los mismos valores que ya'
+              echo 'están en el entorno `production`:'
+              echo '```'
+              echo 'gh secret set SUPABASE_DB_URL_PROD'
+              echo 'gh secret set SUPABASE_SERVICE_ROLE_KEY_PROD'
+              echo 'gh secret set GPG_PUBLIC_KEY'
+              echo '```'
+              echo 'Motivo en DEC-071: el entorno `production` exige aprobación humana y un respaldo'
+              echo 'semanal no puede esperar a que alguien pulse un botón.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          # La conexión directa (db.«ref».supabase.co) solo resuelve por IPv6 y los runners de
+          # GitHub no tienen IPv6: pg_dump diría "Network is unreachable" ya con el volcado a medias.
+          # Tiene que ser el pooler de Supavisor en modo sesión, y como hidrantes_migrador (DEC-052).
+          if printf '%s' "$BD" | grep -q '@db\..*\.supabase\.co'; then
+            echo "::error::SUPABASE_DB_URL_PROD apunta a la conexión directa; hace falta el pooler (04 §10)"
+            {
+              echo "### La cadena de conexión no sirve para un runner"
+              echo
+              echo 'Es la conexión directa (`db.«ref».supabase.co`), que solo resuelve por IPv6, y los'
+              echo 'runners de GitHub no tienen IPv6. Hace falta el **pooler en modo sesión**, con el'
+              echo 'usuario `hidrantes_migrador` (DEC-052):'
+              echo '```'
+              echo 'postgresql://hidrantes_migrador.«ref»:«clave»@aws-0-«region».pooler.supabase.com:5432/postgres' # detectar-secretos:permitir (la forma de la cadena, con marcadores en lugar de valores)
+              echo '```'
+              echo 'Lo deja puesto `npm run arranque -- --rotar db`, que además regenera esa clave.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if ! printf '%s' "$BD" | grep -q '://hidrantes_migrador\.'; then
+            echo "::warning::La cadena no usa hidrantes_migrador: el respaldo no necesita ser postgres (DEC-052)"
+          fi
+
+      - name: Fecha del respaldo
+        id: cuando
+        run: |
+          echo "fecha=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+          # Primer domingo del mes: toca también el bucket de fotos (04 §9).
+          echo "mensual=$([ "$(date -u +%d)" -le 7 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Importar la clave pública de cifrado
+        env:
+          CLAVE_GPG: ${{ secrets.GPG_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLAVE_GPG" | gpg --batch --import
+          # Es una clave de respaldo, no hay cadena de confianza que validar: se cifra igualmente.
+          echo "DESTINATARIO=$(gpg --list-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')" >> "$GITHUB_ENV"
+
+      - name: Volcado del esquema hidrantes, cifrado
+        env:
+          PGSSLMODE: require
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          FECHA: ${{ steps.cuando.outputs.fecha }}
+        run: |
+          set -euo pipefail
+          # Solo el esquema hidrantes: public es de la app de uniformidad y no se toca (CLAUDE.md §3).
+          # Con los permisos dentro (nada de --no-privileges): sin los GRANT, una base restaurada
+          # deja a anon sin las nueve RPC de voluntario y la aplicación no arranca. Se vio en el
+          # ensayo de restauración de la Fase 8. Sin propietarios, en cambio, porque quien restaura
+          # es hidrantes_migrador y los objetos han de quedar suyos.
+          pg_dump --schema=hidrantes --no-owner --format=plain "$BD" \
+            | gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
+                  --output "hidrantes-$FECHA.sql.gpg"
+          echo "TAMANO_DATOS=$(stat -c %s "hidrantes-$FECHA.sql.gpg")" >> "$GITHUB_ENV"
+
+      - name: Comprobar que el volcado no está vacío
+        env:
+          FECHA: ${{ steps.cuando.outputs.fecha }}
+        run: |
+          set -euo pipefail
+          # Un respaldo de 20 bytes es un respaldo que no existe: mejor fallar y avisar.
+          if [ "$TAMANO_DATOS" -lt 10000 ]; then
+            echo "::error::El volcado cifrado ocupa $TAMANO_DATOS bytes: demasiado poco para ser bueno"
+            exit 1
+          fi
+          echo "Datos: hidrantes-$FECHA.sql.gpg ($((TAMANO_DATOS / 1024)) kB)" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: respaldo-hidrantes
+          path: hidrantes-*.sql.gpg
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Fotos del bucket, cifradas (mensual)
+        id: fotos
+        if: steps.cuando.outputs.mensual == 'true' || inputs.fotos
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          BUCKET: hidrantes-fotos
+          FECHA: ${{ steps.cuando.outputs.fecha }}
+        run: |
+          set -euo pipefail
+          npm run respaldo-fotos -- --destino "fotos-$FECHA" | tee salida.txt
+          bytes=$(grep -oP '^bytes=\K[0-9]+' salida.txt)
+          echo "bytes=$bytes" >> "$GITHUB_OUTPUT"
+          tar -cf - "fotos-$FECHA" \
+            | gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
+                  --output "fotos-$FECHA.tar.gpg"
+          rm -rf "fotos-$FECHA"
+          echo "Fotos: fotos-$FECHA.tar.gpg ($((bytes / 1024 / 1024)) MB en origen)" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: steps.fotos.outcome == 'success'
+        with:
+          name: respaldo-fotos
+          path: fotos-*.tar.gpg
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Anotar el respaldo en Salud del sistema
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          BYTES_FOTOS: ${{ steps.fotos.outputs.bytes }}
+        run: |
+          set -euo pipefail
+          # FR-143: jefatura ve en Ajustes cuándo fue el último respaldo y cuánto ocupan las fotos.
+          # En una sola línea a propósito: dentro de un bloque de YAML, un heredoc sin sangrar
+          # rompería el archivo.
+          guardar() { psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('$1', $2, 'respaldo.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;"; }
+          guardar ultimo_respaldo 'to_jsonb(now())'
+          if [ -n "${BYTES_FOTOS:-}" ]; then guardar storage_bytes "to_jsonb(${BYTES_FOTOS}::bigint)"; fi
+
+      - name: Avisar si el respaldo ha fallado
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Un respaldo que falla en silencio es peor que no tenerlo (15 §4).
+          titulo="El respaldo semanal ha fallado"
+          existe=$(gh issue list --label vigilancia --state open --search "$titulo" --json number --jq '.[0].number // empty')
+          cuerpo="La ejecución ${{ github.run_id }} no terminó. Revisa el registro del workflow y 15 §5.3."
+          if [ -n "$existe" ]; then
+            gh issue comment "$existe" --body "$cuerpo"
+          else
+            gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"
+          fi

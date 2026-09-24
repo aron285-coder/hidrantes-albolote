@@ -8,7 +8,12 @@
   --marino-800: #152a4a;
   --marino-700: #1d3a63;
   --marino-600: #28517f;
-  --naranja-600: #dd5a1f;
+  /* Relleno de acción. Era #DD5A1F, que con texto blanco encima se queda en 3,78:1 y TR-31 pide
+     4,5:1; este llega a 4,55:1 y también sobre blanco (DEC-072). */
+  --naranja-600: #c94f16;
+  /* Naranja cuando es texto sobre una superficie: un punto más oscuro que el relleno, para llegar
+     a 4,5:1 también sobre --fondo (4,56:1); en oscuro se aclara. */
+  --naranja-texto: #be4811;
   --naranja-500: #e97136;
   --naranja-100: #fbe2d2;
   --oro-600: #b08a2e;
@@ -21,8 +26,22 @@
 
   /* 06 §2.2 · estados (idénticos en claro y oscuro) */
   --verde-600: #2e7d4f;
+  /* Solo para texto sobre --verde-100: el 600 se queda en 4,17:1 y TR-31 pide 4,5:1 (DEC-072).
+     El relleno de los marcadores sigue siendo el 600, tal y como lo fija 06 §4.2. */
+  --verde-700: #276b42;
   --verde-100: #dceee1;
-  --ambar-700: #8a6408;
+  /* "regular" es naranja desde el 21 sep 2026: el ámbar de antes (#8A6408) se leía marrón en el
+     móvil, a pleno sol (DEC-076). Es el mismo claror que tenía el ámbar —3,22:1 sobre las
+     superficies más oscuras del mapa claro, donde el borde blanco no ayuda— pero naranja de verdad.
+     Más claro no se puede: #CC6600 se queda en 2,30:1 sobre el agua y TR-31 pide 3:1. */
+  --naranja-estado-600: #a85300;
+  /* Solo para el texto del chip sobre --naranja-estado-100: el 600 ahí se queda en 3,31:1. */
+  --naranja-estado-700: #8f4505;
+  --naranja-estado-100: #fde8d6;
+  /* El ámbar se queda para lo que es aviso (señales, diferencias, pendiente), que no es caudal.
+     Bajó de #8A6408 a #7F5C07 el 22 sep 2026: como caudal era un relleno de marcador y le bastaba
+     con 3:1, pero como texto del aviso va sobre --oro-100 y ahí se quedaba en 4,33:1 (DEC-081). */
+  --ambar-700: #7f5c07;
   --ambar-100: #fbedcb;
   --rojo-700: #9c2b1e;
   --rojo-100: #fbe0db;
@@ -31,7 +50,12 @@
 
   /* Superficies que cambian en oscuro (06 §2.4) */
   --barra: var(--marino-950);
+  /* Blanco en los dos modos: el borde es lo que separa el marcador del mapa (06 §4.2). Un borde
+     oscuro sobre el mapa oscuro se queda en 1,16:1 y el marcador desaparece (TR-31, DEC-072). */
   --borde-marcador: #ffffff;
+  --anillo-seleccion: var(--marino-950);
+  /* Líneas del incidente a cada candidato (06 §4.7). */
+  --linea-incidente: var(--marino-600);
   --control-mapa: #ffffff;
   --badge-pendiente-fondo: var(--naranja-100);
   --badge-pendiente-texto: var(--naranja-600);
@@ -51,7 +75,9 @@
     --control-mapa: rgba(20, 29, 45, 0.94);
     --badge-pendiente-fondo: #3a2a1e;
     --badge-pendiente-texto: #f0a070;
-    --borde-marcador: #111826;
+    --naranja-texto: #f0a070;
+    --anillo-seleccion: #e6eaf0;
+    --linea-incidente: rgba(230, 234, 240, 0.7);
     color-scheme: dark;
   }
 }
@@ -65,7 +91,9 @@
   --control-mapa: rgba(20, 29, 45, 0.94);
   --badge-pendiente-fondo: #3a2a1e;
   --badge-pendiente-texto: #f0a070;
-  --borde-marcador: #111826;
+  --naranja-texto: #f0a070;
+  --anillo-seleccion: #e6eaf0;
+  --linea-incidente: rgba(230, 234, 240, 0.7);
   color-scheme: dark;
 }
 
@@ -75,6 +103,7 @@
   --color-marino-700: var(--marino-700);
   --color-marino-600: var(--marino-600);
   --color-naranja-600: var(--naranja-600);
+  --color-naranja-texto: var(--naranja-texto);
   --color-naranja-500: var(--naranja-500);
   --color-naranja-100: var(--naranja-100);
   --color-oro-600: var(--oro-600);
@@ -86,7 +115,11 @@
   --color-texto-suave: var(--texto-suave);
   --color-barra: var(--barra);
   --color-verde-600: var(--verde-600);
+  --color-verde-700: var(--verde-700);
   --color-verde-100: var(--verde-100);
+  --color-naranja-estado-600: var(--naranja-estado-600);
+  --color-naranja-estado-700: var(--naranja-estado-700);
+  --color-naranja-estado-100: var(--naranja-estado-100);
   --color-ambar-700: var(--ambar-700);
   --color-ambar-100: var(--ambar-100);
   --color-rojo-700: var(--rojo-700);
@@ -137,5 +170,54 @@ h3 {
   *::after {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* Marcadores de Leaflet: sin el recuadro blanco por defecto del divIcon (06 §4.3); también las
+   marcas de trabajo (06 §4.7). */
+.leaflet-div-icon.marcador,
+.leaflet-div-icon.marca-trabajo {
+  background: none;
+  border: none;
+}
+/* Líneas discontinuas del incidente a los candidatos (06 §4.7): el color va por CSS porque el
+   atributo stroke de SVG no entiende variables. */
+path.linea-incidente {
+  stroke: var(--linea-incidente);
+}
+/* Calle resaltada de la búsqueda (06 §4.7): el mismo color que las líneas del incidente. */
+path.linea-calle {
+  stroke: var(--linea-incidente);
+}
+/* Medición (06 §4.7): línea de 3 px y vértices de papel con borde, en claro y en oscuro. */
+path.linea-medicion {
+  stroke: var(--anillo-seleccion);
+}
+path.vertice-medicion {
+  stroke: var(--anillo-seleccion);
+  fill: var(--papel);
+  fill-opacity: 1;
+}
+/* Al lado de la línea, no encima (RV-67): fondo de papel al 85 %, que en oscuro es el papel oscuro. */
+.leaflet-div-icon.etiqueta-medicion {
+  background: color-mix(in srgb, var(--papel) 85%, transparent);
+  color: var(--texto);
+  border: 0;
+  border-radius: 4px;
+  font-family: var(--font-datos);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: center;
+  white-space: nowrap;
+}
+.leaflet-container {
+  background: var(--fondo);
+  font-family: var(--font-texto);
+}
+
+/* Hoja de campo (FR-122): al imprimir queda solo la hoja, sin panel ni barras. */
+@media print {
+  body.imprimiendo > *:not(.hoja-campo) {
+    display: none !important;
   }
 }

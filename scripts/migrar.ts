@@ -76,9 +76,10 @@ function leerAplicadas(url: string): Map<string, string> {
   });
   return new Map(
     salida
-      .split('\n')
+      // psql en Windows termina las líneas con \r\n: sin quitarlo, ningún hash coincidiría
+      .split(/\r?\n/)
       .filter(Boolean)
-      .map((l) => l.split('|') as [string, string]),
+      .map((l) => l.trim().split('|') as [string, string]),
   );
 }
 
@@ -94,13 +95,36 @@ function aplicar(url: string, m: Migracion): void {
   psqlOk(url, sql);
 }
 
+/**
+ * Aplica lo pendiente contra `url` y devuelve qué se aplicó. `hasta` (el número, p. ej. "0009")
+ * deja fuera las posteriores: solo lo usa CI para fabricar un volcado antiguo de verdad (RV-13).
+ */
+/**
+ * La carpeta de migraciones de `MIGRACIONES_DIR`, solo para el Supabase local: el ensayo de una
+ * migración que falla tras restaurar (docs/19 RV-55). Contra dev o prod se ignora siempre.
+ */
+export function dirMigraciones(local: boolean): string | undefined {
+  return local ? process.env.MIGRACIONES_DIR || undefined : undefined;
+}
+
+export function migrarPendientes(url: string, hasta?: string, dir?: string): string[] {
+  const locales = leerMigraciones(dir).filter((m) => !hasta || m.archivo.slice(0, hasta.length) <= hasta);
+  const pendientes = planificar(locales, leerAplicadas(url));
+  for (const m of pendientes) {
+    aplicar(url, m);
+    log.ok(m.archivo);
+  }
+  return pendientes.map((m) => m.archivo);
+}
+
 export function prepararLocal(): void {
   const bootstrap = readFileSync(path.join(RAIZ, 'supabase', 'sql', 'arranque-bd.sql'), 'utf8');
   psqlOk(LOCAL_POSTGRES, `\\set clave '${LOCAL_CLAVE_MIGRADOR}'\n${bootstrap}`);
+  psqlOk(LOCAL_POSTGRES, readFileSync(path.join(RAIZ, 'supabase', 'sql', 'local-storage.sql'), 'utf8'));
 }
 
 async function principal(): Promise<void> {
-  const { banderas } = argumentos();
+  const { banderas, valores } = argumentos();
   let url: string;
   if (banderas.has('local')) {
     log.paso('Supabase local: preparando el rol hidrantes_migrador');
@@ -115,17 +139,16 @@ async function principal(): Promise<void> {
   }
 
   log.paso('Migraciones');
-  const locales = leerMigraciones();
+  const hasta = valores.get('hasta');
+  if (hasta && !banderas.has('local')) abortar('--hasta solo se admite con --local (CI, RV-13).');
+  const locales = leerMigraciones(dirMigraciones(banderas.has('local')));
   const pendientes = planificar(locales, leerAplicadas(url));
   log.info(`${locales.length} en el repositorio, ${pendientes.length} pendientes`);
   if (banderas.has('comprobar')) {
     for (const m of pendientes) log.info(`pendiente: ${m.archivo}`);
     return;
   }
-  for (const m of pendientes) {
-    aplicar(url, m);
-    log.ok(m.archivo);
-  }
+  migrarPendientes(url, hasta);
   log.ok('Base de datos al día');
 }
 

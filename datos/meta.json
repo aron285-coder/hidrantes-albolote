@@ -1,0 +1,26 @@
+{
+  "version": "2026-09-18",
+  "datos_osm": "2026-09-18T20:36:35Z",
+  "fuente": "OpenStreetMap (ODbL), relaciones admin_level=8 por código INE",
+  "municipios": [
+    {
+      "ine": "18003",
+      "municipio": "albolote",
+      "osm_id": 343443
+    },
+    {
+      "ine": "18037",
+      "municipio": "calicasas",
+      "osm_id": 347437
+    }
+  ],
+  "margen_m": 400,
+  "tolerancia_grados": 0.0001,
+  "recuadro": [
+    -3.711504,
+    37.206212,
+    -3.601049,
+    37.404078
+  ],
+  "nucleos": 10
+}

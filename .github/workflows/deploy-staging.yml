@@ -22,7 +22,10 @@ jobs:
       url: https://hidrantes-albolote-staging.pages.dev
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          # Para saber si este push cambió workers/ (docs/19 RV-52).
+          fetch-depth: 2
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -32,14 +35,18 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Zona de cobertura (desde la Fase 1)
-        if: hashFiles('scripts/cargar-zona.ts') != ''
+      - name: Propietario como administrador (sin correo en el repositorio, DEC-053)
+        run: npm run asegurar-propietario
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PROPIETARIO_EMAIL: ${{ secrets.PROPIETARIO_EMAIL }}
+
+      - name: Zona de cobertura
         run: npm run cargar-zona
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Seed de staging, idempotente (desde la Fase 2)
-        if: hashFiles('supabase/seed-staging.sql') != ''
+      - name: Seed de staging, idempotente
         run: psql -X -q -v ON_ERROR_STOP=1 -f supabase/seed-staging.sql "$SUPABASE_DB_URL"
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
@@ -58,5 +65,58 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # El Worker de los avisos (docs/19 RV-52, DEC-097): uno para los dos entornos, desde develop,
+      # porque su código es el mismo y no toca datos. Solo si este push cambió workers/, o si el Worker
+      # aún no existe en la cuenta.
+      - name: Desplegar el Worker de los avisos
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          # Los nombres de los secretos solo los lista un token con Workers Scripts: Edit, que es lo que
+          # hace falta para desplegar; con solo lectura, 403. 200: existe; 404: aún no.
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/secrets" || echo 000)
+          if [ "$codigo" = "401" ] || [ "$codigo" = "403" ]; then
+            # Un token solo de Pages: staging se ha desplegado igual. No es un fallo silencioso: aviso
+            # aquí, en el resumen, y en comprobar-produccion («Workers Scripts: Edit»).
+            aviso="El token de Cloudflare no tiene permiso de Workers (HTTP $codigo): el Worker de los avisos no se despliega desde aquí. Añade «Account · Workers Scripts: Edit» al token (15 §2, DEC-097); mientras, npm run arranque -- --solo-faltantes lo despliega con la sesión de wrangler."
+            echo "::warning::$aviso"
+            echo "$aviso" >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$codigo" = "200" ] && [ -z "$(git diff --name-only HEAD~1 HEAD -- workers/)" ]; then
+            echo "workers/ sin cambios y el Worker ya existe: no se despliega."
+          else
+            npx wrangler deploy --config workers/avisos/wrangler.toml
+          fi
+
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
+        env:
+          # Para ver con dos peticiones iguales que la caché de las Functions funciona (docs/19 RV-63).
+          VIGILANCIA_SECRETO: ${{ secrets.VIGILANCIA_SECRETO_STAGING }}
+
+      # Después de desplegar y comprobar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
+      - name: Versión del mapa base en Salud del sistema (FR-143)
+        run: npm run cargar-version-mapabase
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      # TR-100: las mismas cabeceras, leídas con un navegador sobre lo desplegado, y que la página
+      # carga sin violar su propia CSP. Solo GET a la portada: no se envía ni se lee ningún dato.
+      - name: Cabeceras y CSP en el navegador (TR-100)
+        env:
+          URL_DESPLEGADA: https://hidrantes-albolote-staging.pages.dev
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test e2e/cabeceras.spec.ts --project=escritorio
+
+      # TR-103: rendimiento ≥ 85, accesibilidad ≥ 95, buenas prácticas ≥ 95 y manifiesto instalable,
+      # sobre lo desplegado y con el móvil emulado que trae Lighthouse por defecto. Los umbrales
+      # están en .github/lighthouse.json. La acción no necesita ninguna dependencia del proyecto.
+      - name: Lighthouse sobre staging (TR-103)
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: https://hidrantes-albolote-staging.pages.dev/
+          configPath: .github/lighthouse.json
+          uploadArtifacts: true
+          temporaryPublicStorage: false

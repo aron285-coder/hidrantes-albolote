@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se actualiza con cada revisión de seguridad y cada petición de derechos atendida. |
-| **Versión** | 1.1 — 17 de septiembre de 2026 (añade notificaciones push y exportación) |
+| **Versión** | 1.3 — 23 de septiembre de 2026 (jefatura exige una sesión de Google, DEC-094; privacidad del incidente, la medición y la búsqueda, §6.1, DEC-089). 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
 | **Propietario de** | el modelo de acceso y amenazas, la protección del código, RLS y permisos, qué datos personales se guardan y por qué, retención, el procedimiento del derecho de supresión, y el aviso legal. |
 | **Para** | jefatura (que es la responsable del tratamiento) y construcción. Escrito para tenerlo **antes** de que alguien pregunte. |
 | **Referencias** | las cifras medibles están en **03** §5–7; los campos en **05**; la infraestructura en **04**. |
@@ -37,7 +37,7 @@ flowchart LR
   V -- token en cada RPC --> DB
   A[Administrador] -- Google --> AU[Supabase Auth]
   AU -- JWT --> DB
-  DB -- fn_es_admin: email en administradores --> A
+  DB -- fn_es_admin: email en administradores y sesión de Google --> A
 ```
 
 | Principio | Cómo se aplica |
@@ -48,6 +48,7 @@ flowchart LR
 | Los nombres solo los ve jefatura (FR-27) | `anon` no lee `propuestas` ni `registro`; `fn_listar_puntos`, `fn_ficha_punto` y `fn_mis_propuestas` no devuelven autores ni `revisada_por`; las notificaciones y exportaciones no llevan nombres; test pgTAP y comprobación de red (AC-21, AC-134) |
 | Mínimo privilegio en secretos | la `service_role key` solo en las Pages Functions y en CI; el frontend solo tiene la `anon key` |
 | Permisos propios | `hidrantes.administradores`, independiente de la app de uniformidad; arranca solo con el propietario |
+| Jefatura es correo **y** Google | `fn_es_admin()` exige que el correo del JWT esté activo en `administradores`, que `app_metadata.providers` contenga `google` y que la sesión se abriera con OAuth (`amr` con `method = 'oauth'`). Una cuenta de Auth con contraseña y el correo de un administrador no es jefatura: el proyecto se comparte con uniformidad, que admite registro por correo (DEC-094, `npm run comprobar-auth`) |
 | Menos es más seguro | no se guardan DNI, teléfono, correo ni dirección de nadie |
 
 ---
@@ -61,9 +62,21 @@ límite. Cinco capas, y por qué no basta con la primera:
    atacante cambia de uuid en cada intento.
 2. **Límite por IP real (30/h).** No se puede leer `x-forwarded-for` en Postgres porque el cliente lo
    falsifica. La Pages Function de Cloudflare ve `CF-Connecting-IP`, que el cliente no puede alterar,
-   y es la única capa que conoce la IP; la guarda como `sha256(SAL_IP + ip)`, nunca en claro.
+   y es la única capa que conoce la IP; la guarda como `sha256(SAL_IP + ip)`, nunca en claro. En
+   IPv6 el límite "por IP" es **por /64** (los cuatro primeros grupos): un atacante rota direcciones
+   dentro de su /64 con facilidad (RV-14). Una IPv4 mapeada cuenta como la IPv4, también escrita en
+   hexadecimal (`::ffff:c000:201`); algo con forma de IPv6 imposible (dos `::`, más de 8 grupos) va a un
+   cubo propio, `invalida`, que no se mezcla con ninguna IP de verdad. Una petición bloqueada deja como
+   mucho una fila por IP, tope y minuto en `intentos_codigo` (0026, docs/18 RV-48).
 3. **Techo global (200/h).** Nadie lo esquiva cambiando de identidad. A ese ritmo, el millón de
-   combinaciones lleva años, y Salud del sistema avisa mucho antes.
+   combinaciones lleva unos 208 días, y Salud del sistema y la vigilancia diaria avisan mucho antes
+   (más de 300 fallos en 24 h, o cualquier bloqueo de todo el grupo: RV-14). La cuenta va bajo un
+   bloqueo, así que peticiones en paralelo no lo pasan. El techo se puede usar para dejar sin
+   entrar a los voluntarios con móvil nuevo mientras dure el ataque; la defensa completa
+   (Turnstile o una regla de Cloudflare) queda para una decisión (`docs/17` §12).
+3b. **Tope de canjes buenos (150 por IP y día, 150 por hora en total).** Quien tenga el código no
+   puede crear dispositivos sin fin para saltarse las cuotas por dispositivo. Los valores cubren la
+   sesión presencial de 65 personas en la misma wifi (DEC-086).
 4. **Token de dispositivo.** Tras el primer canje, el móvil usa un token aleatorio de 32 bytes (se
    guarda su hash); el código no vuelve a viajar. Los 65 voluntarios dejan de tocar el sistema de
    intentos, así que activar el techo global no deja a nadie fuera.
@@ -99,16 +112,22 @@ la cola las propuestas de las últimas horas antes de aprobar nada. Procedimient
 Se ejecuta en la Fase 8 y en cada cambio del modelo de permisos, con la **`anon key`** desde un
 cliente externo. Las ocho deben fallar. Resultado en la tabla, con fecha.
 
+La ejecuta `npm run intrusion` contra la pila local (Supabase local y `wrangler pages dev`, nunca
+dev ni prod), y `ci-sql` la repite en cada PR: si alguna dejara de fallar, la rama se queda en rojo.
+`npm run intrusion -- --anotar` rellena las dos últimas columnas de esta tabla con la fecha del día.
+Lo que mira es lo que contestan PostgREST, Storage y las Pages Functions a un cliente cualquiera;
+los permisos vistos desde dentro de Postgres los cubre pgTAP (`supabase/tests`).
+
 | # | Prueba | Esperado | Última ejecución | Resultado |
 |---|---|---|---|---|
-| 1 | `select` sobre `propuestas` | *permission denied* / 0 filas | | |
-| 2 | `select` sobre `registro` | ídem | | |
-| 3 | `insert`/`update` en `puntos` | ídem | | |
-| 4 | llamar a `fn_aprobar` | `NO_AUTORIZADO` | | |
-| 5 | `fn_mis_propuestas` con token de otro dispositivo | 0 filas ajenas | | |
-| 6 | llamar a `fn_verificar_codigo` directamente | *permission denied* | | |
-| 7 | subir un archivo al bucket sin URL firmada | 403 | | |
-| 8 | `GET /api/direccion` sin JWT de administrador | 403 | | |
+| 1 | `select` sobre `propuestas` | *permission denied* / 0 filas | 2026-09-21 | ✅ 401 · 42501: permission denied for table propuestas |
+| 2 | `select` sobre `registro` | ídem | 2026-09-21 | ✅ 401 · 42501: permission denied for table registro |
+| 3 | `insert`/`update` en `puntos` | ídem | 2026-09-21 | ✅ insert 401 · 42501: permission denied for table puntos; update 401 · 42501: permission denied for table puntos |
+| 4 | llamar a `fn_aprobar` | *permission denied* con la `anon key`; `NO_AUTORIZADO` con una sesión que no sea de jefatura | 2026-09-21 | ✅ 401 · 42501: permission denied for function fn_aprobar |
+| 5 | `fn_mis_propuestas` con token de otro dispositivo | 0 filas ajenas | 2026-09-21 | ✅ 0 filas ajenas, ninguna suya |
+| 6 | llamar a `fn_verificar_codigo` directamente | *permission denied* | 2026-09-21 | ✅ 401 · 42501: permission denied for function fn_verificar_codigo |
+| 7 | subir un archivo al bucket sin URL firmada | 403, o el 400 *AccessDenied* de Storage | 2026-09-21 | ✅ 400 · AccessDenied: new row violates row-level security policy |
+| 8 | `GET /api/direccion` sin JWT de administrador | 403 | 2026-09-21 | ✅ 403 · NO_AUTORIZADO |
 
 Complementarias (TR-41–TR-47): 11 intentos → bloqueo; tiempo constante; sin código en el móvil;
 sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausente.
@@ -128,6 +147,24 @@ sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausen
 | Descripción libre de incidencias | `incidencias_app` | soporte | administradores |
 | Correo de Google | `administradores`, `registro.actor`, `propuestas.revisada_por` | acceso y auditoría de administradores | administradores |
 | Suscripción push (endpoint y claves del navegador) | `suscripciones_push` | avisar del resultado de una propuesta (voluntario) o de propuestas nuevas (jefatura); **solo si la persona lo activa** | nadie la lee; se borra al desactivar o tras tres fallos |
+
+**Funciones de mapa para emergencias (FR-72 a FR-76, DEC-089):** el punto de incidente, la
+medición y la posición del móvil **nunca salen del móvil** (DEC-062 §8) y no se guardan en IndexedDB
+ni en la base de datos. El incidente puede ir en la URL (`?incidente=lat,lng`, y si el origen es el GPS también
+`&gps=<momento>,<precisión>`, RV-59), para sobrevivir a una recarga; la lista lo lee de ahí, y ya no
+de `sessionStorage` (docs/19 RV-62). Mientras hay un incidente, "¿Qué hay aquí?" o una medición
+abiertos, la vista del mapa no se guarda en `localStorage`: diría dónde fue más allá de la sesión. Lo único que sale es
+el texto de una búsqueda con número de portal, hacia `/api/geocodificar` y de ahí a CartoCiudad
+(DEC-092): la Function no lo registra en logs ni en `errores_cliente`, y lo guarda en caché solo como
+`sha256` del texto normalizado. Compartir (FR-75) usa el menú del móvil: lo compartido nunca lleva
+nombres ni la descripción libre (FR-27), y no pasa por ningún servidor nuestro.
+
+**Los logs de GitHub Actions son públicos** (repositorio público, DEC-053). Un error de psql de una
+violación de `check` o `not null` trae `DETAIL: Failing row contains (…)` con la fila entera, nombres
+de voluntarios incluidos. Por eso, en Actions, `psql` corre siempre con `VERBOSITY=terse`, y todo
+error de un proceso que un script imprime pasa por `errorSeguro`, que quita DETAIL, CONTEXT, QUERY y
+cualquier "Failing row contains". Un test comprueba que ningún script lo imprime en crudo (docs/19
+RV-53). `promover-piloto` enseña el error completo solo en local y con `--detalle`.
 
 **No se guardan:** DNI, teléfono, correo de voluntarios, dirección postal, fecha de nacimiento,
 fotos de personas. No hay cookies de terceros ni analítica externa; los errores se registran en el
@@ -184,7 +221,8 @@ exportó y cuándo.
      es su móvil.
   3. *Anonimizar…* → confirmar. `fn_anonimizar_autor(dispositivo_id)` sustituye nombre y apellido
      por "voluntario dado de baja" en `propuestas` y `registro`; conserva las filas y el
-     `dispositivo_id`.
+     `dispositivo_id`. El registro sigue siendo de solo añadir: con la anonimización activa, el
+     trigger solo deja cambiar `actor`, y solo al texto exacto "voluntario dado de baja" (RV-26).
   4. Si tenía el móvil registrado, en Ajustes del móvil → Cerrar sesión. Su token caduca; no se
      revoca a los demás.
   5. Anotar la atención en `registro` (lo hace la RPC: `anonimizacion`) y en la tabla de §8.

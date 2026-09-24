@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.1 — 17 de septiembre de 2026 (añade §2.1) |
+| **Versión** | 1.2 — 23 de septiembre de 2026 (§2.1: el modo incidente cubre "lo más cercano que funciona" sin rutas, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.1 — 17 de septiembre de 2026 (añade §2.1) |
 | **Propietario de** | qué está **fuera** de la versión 1, por qué, y qué habría que decidir para meterlo después. |
 | **Regla de alcance (DEC-037)** | Está **dentro** de la versión 1 todo lo que Claude Code pueda construir sin trabajo adicional del desarrollador, sin cuentas externas nuevas y sin coste. Este documento es, por tanto, corto: solo lo que no cumple ese criterio. |
 
@@ -46,6 +46,13 @@ consorcio facilitan una, importarla contra este esquema es un script de un día.
 **Código QR por punto** (pegatina en el hidrante que abre su ficha). Técnicamente entra en el
 criterio DEC-037, pero exige imprimir y pegar ~400 pegatinas que se despegan a la intemperie; se
 descarta salvo que jefatura lo pida.
+
+**"Lo más cercano que funciona" sin rutas.** Las rutas calculadas siguen fuera (§2), pero el modo
+incidente (FR-74) responde a la pregunta que importa en una salida: qué puntos activos que funcionan
+hay más cerca, a qué distancia en línea recta, en qué dirección y con cuántos tramos de manguera,
+sin cobertura. "Cómo llegar" sigue abriendo la app de mapas del móvil (FR-161). Brújula, recibir
+ubicaciones compartidas, Street View y rondas guardadas se estudiaron el 23 sep 2026 y quedan fuera
+(`docs/18` §5, DEC-089).
 
 ---
 

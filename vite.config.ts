@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
@@ -5,7 +6,20 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { archivoHeaders, archivoRobots, type Entorno } from './config/cabeceras.ts';
+import { CACHE_FOTOS } from './config/cache-fotos.ts';
+import { entradaCallejero } from './config/precacheo.ts';
 import { T } from './src/lib/textos.ts';
+
+/** En Actions, el commit que se construye; en local, el de HEAD (o "local" fuera de Git). */
+const commit: string =
+  process.env.GITHUB_SHA ??
+  (() => {
+    try {
+      return execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+    } catch {
+      return 'local';
+    }
+  })();
 
 const version: string = JSON.parse(readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf8')).version;
 
@@ -14,11 +28,20 @@ function entornoPlugin(entorno: Entorno, env: Record<string, string>): Plugin {
   return {
     name: 'hidrantes-entorno',
     transformIndexHtml(html) {
-      const etiquetas = [{ tag: 'meta', attrs: { name: 'version', content: version }, injectTo: 'head' as const }];
+      const etiquetas = [
+        { tag: 'meta', attrs: { name: 'version', content: version }, injectTo: 'head' as const },
+        // El commit desplegado, para comprobar que producción sirve la versión de staging (docs/19 P-03).
+        { tag: 'meta', attrs: { name: 'commit', content: commit }, injectTo: 'head' as const },
+      ];
       if (entorno !== 'produccion') {
         etiquetas.push({ tag: 'meta', attrs: { name: 'robots', content: 'noindex, nofollow' }, injectTo: 'head' });
       }
-      return { html: html.replace('%TITULO%', `${T.app.nombreCorto} · ${T.app.nombre}`), tags: etiquetas };
+      return {
+        html: html
+          .replace('%TITULO%', `${T.app.nombreCorto} · ${T.app.nombre}`)
+          .replace('%NOMBRE_CORTO%', T.app.nombreCorto),
+        tags: etiquetas,
+      };
     },
     generateBundle() {
       const opciones = { entorno, supabaseUrl: env.VITE_SUPABASE_URL, mapabaseUrl: env.VITE_MAPABASE_URL };
@@ -43,7 +66,7 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       entornoPlugin(entorno, env),
       VitePWA({
-        // El registro y el aviso "hay una versión nueva, recargar" llegan en la Fase 4 (TR-24).
+        // Registro y aviso "hay una versión nueva, recargar" en src/lib/pwa.ts (TR-24).
         registerType: 'prompt',
         injectRegister: false,
         manifest: {
@@ -56,9 +79,25 @@ export default defineConfig(({ mode }) => {
           orientation: 'any',
           theme_color: '#0E1B30',
           background_color: '#F1F3EE',
-          icons: [],
+          icons: [
+            { src: '/iconos/icono-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+            { src: '/iconos/icono-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+            { src: '/iconos/icono-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
         },
-        workbox: { globPatterns: ['**/*.{js,css,html,woff2,svg,png}'] },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,woff2,svg,png}'],
+          // El callejero, aparte y con su revisión: se baja al instalar y funciona sin cobertura (TR-117).
+          additionalManifestEntries: [entradaCallejero(path.resolve(import.meta.dirname, 'public', 'callejero.json'))],
+          // Rutas de la SPA sin red: el armazón precacheado. Las Functions nunca desde la caché.
+          navigateFallback: '/index.html',
+          navigateFallbackDenylist: [/^\/api\//],
+          cleanupOutdatedCaches: true,
+          // Avisos push (FR-163): manejadores propios dentro del Service Worker generado.
+          importScripts: ['sw-push.js'],
+          // Fotos ya vistas, para que la ficha las enseñe sin cobertura (DEC-011, RV-12).
+          runtimeCaching: [CACHE_FOTOS],
+        },
       }),
     ],
     server: {

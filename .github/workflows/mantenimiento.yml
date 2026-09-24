@@ -1,0 +1,75 @@
+# Trabajos que jefatura lanza desde Ajustes (FR-165, DEC-068). /api/lanzar-workflow lo despacha con
+# workflow_dispatch y el trabajo como entrada (DEC-069); aquí se regenera el dato y se abre un PR a
+# develop, que es lo que lo despliega. Nunca se escribe directamente en develop.
+name: Mantenimiento
+
+on:
+  workflow_dispatch:
+    inputs:
+      trabajo:
+        description: Qué regenerar
+        required: true
+        type: choice
+        options: [regenerar-zona, regenerar-mapabase]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: mantenimiento
+  cancel-in-progress: false
+
+jobs:
+  regenerar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: develop
+      - uses: ./.github/actions/preparar
+
+      - name: Qué toca
+        id: trabajo
+        run: echo "nombre=${{ inputs.trabajo }}" >> "$GITHUB_OUTPUT"
+
+      - name: Regenerar la zona de cobertura
+        if: steps.trabajo.outputs.nombre == 'regenerar-zona'
+        run: npm run zona
+
+      - name: Regenerar el mapa base
+        if: steps.trabajo.outputs.nombre == 'regenerar-mapabase'
+        run: npm run mapabase
+
+      # El callejero sin conexión va con los dos (docs/18 GM-04, DEC-093). Si Overpass no responde
+      # o no cabe en 200 kB, el committeado sigue valiendo: se avisa y el PR sale sin él.
+      - name: Regenerar el callejero
+        run: |
+          if ! npm run callejero; then
+            echo "::warning::No se pudo regenerar el callejero; sigue el que había."
+            echo "El callejero no se ha regenerado (Overpass o tamaño): sigue el que había." >> "$GITHUB_STEP_SUMMARY"
+            git checkout -- public/callejero.json datos/callejero.json 2>/dev/null || true
+          fi
+
+      - name: PR con lo regenerado
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TRABAJO: ${{ steps.trabajo.outputs.nombre }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Sin cambios: la fuente pública no ha cambiado desde la última vez." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          rama="mantenimiento/$TRABAJO-$(date +%Y%m%d%H%M)"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git switch -c "$rama"
+          git add -A
+          git commit -m "chore(datos): $TRABAJO desde Ajustes"
+          git push -u origin "$rama"
+          gh pr create --base develop --head "$rama" \
+            --title "chore(datos): $TRABAJO" \
+            --body "Lanzado desde Ajustes del panel (FR-165). Revisa el tamaño del archivo y fusiona para desplegarlo."
+          echo "PR abierto con lo regenerado." >> "$GITHUB_STEP_SUMMARY"

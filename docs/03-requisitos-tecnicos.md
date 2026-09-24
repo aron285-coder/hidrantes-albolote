@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
+| **Versión** | 1.4 — 24 de septiembre de 2026: TR-78, Cloudflare Workers para los avisos (DEC-097). 1.3 — 23 de septiembre de 2026: §13, requisitos de las funciones de mapa para emergencias (TR-116 a TR-119), y CartoCiudad y el callejero de OSM en §8 (DEC-089, DEC-092, DEC-093; pendiente de conformidad de jefatura en F9.1, #76). v1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
 | **Propietario de** | las **exigencias medibles y no funcionales**: qué tiene que cumplir el sistema, no cómo se consigue. La solución elegida está en 04; si mañana cambia la solución, estas exigencias siguen en pie. |
 | **No contiene** | decisiones de producto (→ 04), reglas funcionales (→ 01), campos (→ 05). |
 
@@ -118,6 +118,9 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 | TR-73 | **PNOA (IGN) y Catastro:** solo en línea, por HTTPS, con atribución; no se almacenan sus imágenes. | Revisión de capas. |
 | TR-74 | **Overpass (límites administrativos):** se consulta solo al regenerar la zona, nunca en tiempo de ejecución de la aplicación; el resultado se guarda en el repositorio. | El build no depende de Overpass. |
 | TR-75 | Ninguna dependencia externa requiere tarjeta de crédito ni clave de API de pago. | Revisión de 04. |
+| TR-76 | **CartoCiudad (IGN/CNIG), números de portal:** solo desde la Pages Function `/api/geocodificar` (nunca desde el navegador), con `User-Agent` identificable, caché de 30 días por consulta normalizada y límite de tiempo de 5 s; uso libre y gratuito, con la obligación de citar la fuente ("CartoCiudad · IGN", licencia CC BY 4.0 del SCNE). Nunca bloqueante: sin él, la búsqueda sigue con calles, lugares y coordenadas (FR-73, DEC-092). | Test de la Function; atribución en los resultados. |
+| TR-77 | **Callejero sin conexión desde OSM:** se genera con Overpass solo a mano o al regenerar la zona (nunca en el build de CI), se guarda en el repositorio y lleva la atribución © OpenStreetMap (ODbL) en sus resultados (FR-73, DEC-093). | El build no depende de Overpass; atribución presente. |
+| TR-78 | **Cloudflare Workers (Cron Triggers), en la cuenta que ya existe:** un Worker `hidrantes-avisos` con un cron cada 5 minutos despacha los avisos push (FR-163). Plan gratuito: 5 Cron Triggers por cuenta, 100.000 peticiones al día y 50 subpeticiones por invocación; el Worker hace 20 como mucho. Sin coste ni cuenta nueva (DEC-037, DEC-097). | `workers/avisos/src/index.test.ts`; la vigilancia comprueba el cron. |
 
 ---
 
@@ -161,11 +164,22 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 | TR-100 | Cabeceras de seguridad en toda respuesta de Pages: `Content-Security-Policy` (sin `unsafe-eval`; `connect-src` limitado a Supabase, Nominatim vía la Function, OSM/IGN/Catastro; `img-src` idem), `Strict-Transport-Security`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (cámara y geolocalización solo para el propio origen). | Test e2e que lee las cabeceras de staging tras el despliegue; puntuación A en un analizador de cabeceras. |
 | TR-101 | Dependencias actualizadas **sin intervención**: Dependabot semanal; parches y menores con CI verde se fusionan solos; los mayores abren PR y esperan. | Configuración en el repo; historial de PR automáticos. |
 | TR-102 | **Vigilancia diaria**: un trabajo comprueba que la app responde, que una RPC de lectura responde y que el último respaldo tiene menos de 8 días. Si falla, abre una *issue* en GitHub y lo muestra Salud del sistema. Sin servicio externo. | Workflow presente; simular fallo y ver la issue. |
-| TR-103 | **Lighthouse** en CI sobre staging: rendimiento ≥ 85, accesibilidad ≥ 95, buenas prácticas ≥ 95, PWA instalable. Falla el pipeline si baja. | Informe de Lighthouse CI en cada despliegue. |
+| TR-103 | **Lighthouse** en CI sobre staging: rendimiento ≥ 85, accesibilidad ≥ 95, buenas prácticas ≥ 95, PWA instalable. Falla el pipeline si baja. | Informe de Lighthouse CI en cada despliegue; la instalabilidad, con un navegador sobre lo desplegado (`e2e/cabeceras.spec.ts`), porque Lighthouse 12 ya no la audita (DEC-074). |
 | TR-104 | Notificaciones push (FR-163–164): estándar Web Push con claves VAPID generadas en el arranque; **opt-in explícito**; ninguna notificación contiene nombres de otros voluntarios; en iOS solo con la PWA instalada (16.4+), y la app lo dice antes de pedir permiso. Ninguna dependencia de terceros (sin Firebase). | Test de la Function de envío; prueba manual en Android e iOS. |
-| TR-105 | Exportaciones (FR-160) generadas en el navegador, sin pasar por un servidor de terceros: `.xlsx` con SheetJS, `.csv` UTF-8 con BOM (Excel en español), `.geojson` RFC 7946 con `codigo`, `tipo`, `diametro_mm`, `caudal`, `racor`, `direccion`, `nucleo`, `fecha_ultima_revision`. | Test unitario que abre el archivo generado. |
+| TR-105 | Exportaciones (FR-160) generadas en el navegador, sin pasar por un servidor de terceros: `.xlsx` con SheetJS (→ DEC-067: se hace con `fflate`), `.csv` UTF-8 con BOM (Excel en español), `.geojson` RFC 7946 con `codigo`, `tipo`, `diametro_mm`, `caudal`, `racor`, `direccion`, `nucleo`, `fecha_ultima_revision`. | Test unitario que abre el archivo generado. |
 | TR-106 | La aplicación tiene **límites de error**: un fallo de renderizado en una pantalla muestra un mensaje y un botón "volver al mapa" y se registra en `errores_cliente`; nunca una pantalla en blanco. (FR-168) | e2e que fuerza un error en un componente. |
 | TR-107 | Ningún cambio en el frontend rompe a los móviles con la versión anterior durante la ventana de despliegue: el contrato de las RPC es compatible hacia atrás al menos una versión (04 §12). | Revisión en cada migración; test de la versión anterior contra la BD nueva en CI. |
+
+---
+
+## 13. Funciones de mapa para emergencias
+
+| ID | Requisito | Comprobación |
+|---|---|---|
+| TR-116 | Calcular los cercanos (FR-74) sobre 1.000 puntos tarda **< 50 ms** en un móvil medio. | vitest en Node con umbral de 20 ms (mediana de 20 ejecuciones) y e2e con CPU ×4. |
+| TR-117 | El callejero (FR-73) ocupa **≤ 200 kB** sin comprimir, se precachea en el Service Worker y no forma parte del JS inicial. | El script que lo genera falla por encima; e2e: no se pide al arrancar, solo al abrir la búsqueda. |
+| TR-118 | `/api/geocodificar` responde en **≤ 5 s** o devuelve `SIN_SERVIDOR`. Con él caído, la búsqueda sigue funcionando para calles, lugares y coordenadas. | Test de la Function con fetch simulado; e2e con la Function en 503. |
+| TR-119 | La conversión a UTM (ETRS89, huso 30) tiene un error **≤ 1 m** frente a PROJ (EPSG:4258 → EPSG:25830) en la zona. | vitest contra vectores de referencia calculados con PROJ. |
 
 ---
 
@@ -178,4 +192,5 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 | 1, 3, 4 | `requisitos-hidrantes.html` v6.1 §6.3, §6.4, §7.6; plan v2.1 Fases 4–6 |
 | 2, 6, 7, 10 | plan v2.1 Fase 8 y "Consumo del plan gratuito" |
 | 5 | plan v2.1 "Protección del código de acceso", Storage, Fase 8 (revisión de seguridad) |
-| 8 | plan v2.1 Fase 5 (política de OSM, Nominatim) y Fase 1 (Overpass) |
+| 8 | plan v2.1 Fase 5 (política de OSM, Nominatim) y Fase 1 (Overpass); TR-76 y TR-77, `docs/18` bloque D (DEC-092, DEC-093) |
+| 13 | `docs/18` bloque D, 23 sep 2026 (DEC-089) |

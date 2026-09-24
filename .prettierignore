@@ -8,3 +8,6 @@ test-results
 package-lock.json
 *.md
 *.html
+datos
+src/generado
+public/callejero.json

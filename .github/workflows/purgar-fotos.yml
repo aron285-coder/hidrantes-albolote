@@ -1,0 +1,116 @@
+# Purga de fotos huérfanas (FR-144, TR-53, TR-54; 04 §7). Una foto se sube antes de que exista la
+# propuesta: si el envío se corta, si jefatura rechaza o si el punto se purga de la papelera, el
+# archivo se queda ocupando el gigabyte gratuito. Aquí se recogen.
+#
+#   - Sola, los lunes de madrugada, sin que nadie lo pida (TR-54).
+#   - A mano desde Ajustes del panel, con /api/lanzar-workflow (FR-144, DEC-069).
+#
+# Sin `environment: production` por el mismo motivo que el respaldo: ese entorno exige aprobación
+# humana en cada ejecución y una tarea de mantenimiento periódica no puede esperar a nadie
+# (DEC-071). Qué se conserva lo decide `fn_fotos_referenciadas_lista`, no este workflow.
+# Nunca pasa --forzar: una pasada que borraría más de max(50, 10 %) del bucket se para (RV-33).
+name: Purgar fotos
+
+on:
+  schedule:
+    # Lunes de madrugada, después de la purga de la papelera de pg_cron (03:47), para que las fotos
+    # de los puntos purgados esa misma noche ya no estén referenciadas.
+    - cron: '43 4 * * 1'
+  workflow_dispatch:
+    inputs:
+      ensayo:
+        description: Solo decir cuáles sobran, sin borrar
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: purgar-fotos
+  cancel-in-progress: false
+
+jobs:
+  purgar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+
+      - name: Comprobar que están los secretos
+        env:
+          SERVICIO: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          URL: ${{ vars.SUPABASE_URL_PROD }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SERVICIO" ] || [ -z "$URL" ]; then
+            echo "::error::Faltan SUPABASE_URL_PROD o SUPABASE_SERVICE_ROLE_KEY_PROD como secretos de repositorio"
+            {
+              echo "### Purga no configurada"
+              echo
+              echo 'Con los mismos valores que ya están en el entorno `production` (DEC-071):'
+              echo '```'
+              echo 'gh secret set SUPABASE_SERVICE_ROLE_KEY_PROD'
+              echo 'gh variable set SUPABASE_URL_PROD'
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Buscar y borrar las huérfanas
+        id: purga
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          BUCKET: hidrantes-fotos
+          ENSAYO: ${{ inputs.ensayo && '--ensayo' || '' }}
+        run: |
+          set -euo pipefail
+          npm run purgar-fotos -- $ENSAYO | tee salida.txt
+          for clave in borradas bytes_liberados bytes_restantes; do
+            echo "$clave=$(grep -oP "^$clave=\K[0-9]+" salida.txt)" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Anotar el espacio que queda ocupado en Salud del sistema
+        if: ${{ !inputs.ensayo }}
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          RESTANTES: ${{ steps.purga.outputs.bytes_restantes }}
+        run: |
+          set -euo pipefail
+          # FR-143: jefatura ve el espacio usado en Ajustes, y hasta ahora solo lo refrescaba el
+          # respaldo mensual de fotos; tras purgar, ese número ya no es el de antes.
+          if [ -z "${BD:-}" ]; then
+            echo "::warning::Sin SUPABASE_DB_URL_PROD no se anota el espacio liberado en Salud del sistema"
+            exit 0
+          fi
+          psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('storage_bytes', to_jsonb(${RESTANTES}::bigint), 'purgar-fotos.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;"
+
+      - name: Resumen
+        env:
+          BORRADAS: ${{ steps.purga.outputs.borradas }}
+          LIBERADOS: ${{ steps.purga.outputs.bytes_liberados }}
+        run: |
+          set -euo pipefail
+          echo "Fotos borradas: $BORRADAS ($((LIBERADOS / 1024 / 1024)) MB)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Avisar si la purga ha fallado
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Si la purga deja de funcionar, el bucket se llena en silencio y la app deja de admitir
+          # fotos (TR-53): más vale una issue abierta que enterarse en la calle.
+          titulo="La purga de fotos huérfanas ha fallado"
+          existe=$(gh issue list --label vigilancia --state open --search "$titulo" --json number --jq '.[0].number // empty')
+          cuerpo="La ejecución ${{ github.run_id }} no terminó. Revisa el registro del workflow y 04 §7."
+          if [ -n "$existe" ]; then
+            gh issue comment "$existe" --body "$cuerpo"
+          else
+            gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"
+          fi

@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
       - run: npm run typecheck
       - run: npm run lint
@@ -35,16 +35,107 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
       - name: Supabase local
         run: npx supabase start -x studio,imgproxy,mailpit,edge-runtime,logflare,vector,realtime,supavisor
+      # Un volcado de verdad anterior a 0010 (sin la acción 'restauracion_respaldo'), para ensayar
+      # al final la restauración de un respaldo antiguo (RV-13).
+      - name: Volcado con las migraciones hasta la 0009
+        run: |
+          npm run migrar -- --local --hasta 0009
+          pg_dump --schema=hidrantes --no-owner --format=plain             "postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres" > /tmp/volcado-0009.sql # detectar-secretos:permitir (Supabase local efímero)
       - run: npm run migrar -- --local
       - name: Segunda pasada sin cambios (idempotencia)
         run: npm run migrar -- --local
+      - name: Zona y seed de staging, dos veces (idempotentes)
+        env:
+          PGPASSWORD: migrador-local # detectar-secretos:permitir (contraseña del Supabase local efímero)
+        run: |
+          npm run cargar-zona -- --local
+          for i in 1 2; do
+            psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55422 -U hidrantes_migrador -d postgres \
+              -f supabase/seed-staging.sql
+          done
       - run: npm run test:sql
+      # Más de 1.000 fotos referenciadas por PostgREST: la lista llega entera (RV-33).
+      - name: Purga con más de 1.000 fotos referenciadas (RV-33)
+        run: npx tsx scripts/probar-purga.ts
+      - name: Tareas programadas legibles por hidrantes_migrador (RV-22)
+        run: |
+          tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres" -f scripts/sql/tareas-programadas.sql) # detectar-secretos:permitir (Supabase local efímero)
+          echo "$tareas" | jq .
+          n=$(echo "$tareas" | jq 'length')
+          [ "$n" -eq 7 ] || { echo "::error::se esperaban 7 tareas hidrantes_%, hay $n"; exit 1; }
+      # El comando real con el que vigilancia.yml guarda las tareas, y una semanal que dejó de correr
+      # hace 20 días (RV-38). Sobre develop fallaban las dos: psql no sustituía :'valor' en -c y el
+      # historial de 8 días dejaba la semanal con ultima = null, sin problema.
+      - name: Tareas guardadas y una semanal que dejó de correr (RV-38)
+        env:
+          MIG: postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres # detectar-secretos:permitir (Supabase local efímero)
+          PG: postgresql://postgres:postgres@127.0.0.1:55422/postgres # detectar-secretos:permitir (Supabase local efímero)
+        run: |
+          set -euo pipefail
+          # runid a mano: postgres no puede usar cron.runid_seq en el Supabase local.
+          psql -X -q -v ON_ERROR_STOP=1 "$PG" -c "insert into cron.job_run_details (jobid, runid, database, username, command, status, start_time, end_time) select jobid, (select coalesce(max(runid), 0) + 1000000 from cron.job_run_details), current_database(), username, command, 'succeeded', now() - interval '20 days', now() - interval '20 days' from cron.job where jobname = 'hidrantes_resumen_semanal';"
+          tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "$MIG" -f scripts/sql/tareas-programadas.sql)
+          problema=$(echo "$tareas" | jq '.[] | select(.tarea == "hidrantes_resumen_semanal") | .problema')
+          echo "hidrantes_resumen_semanal, última hace 20 días: problema = $problema"
+          [ "$problema" = "true" ] || { echo "::error::una semanal que no corre desde hace 20 días no cuenta como problema"; exit 1; }
+          psql -X -q -v ON_ERROR_STOP=1 "$MIG" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql
+          guardado=$(psql -X -A -t -v ON_ERROR_STOP=1 "$MIG" -c "select jsonb_typeof(hidrantes.fn_config('tareas_programadas', 'null'));")
+          [ "$guardado" = "array" ] || { echo "::error::config.tareas_programadas no se ha guardado ($guardado)"; exit 1; }
+      # docs/19 RV-56: con la lista esperada, una tarea borrada es un problema y no "todo responde".
+      # En una transacción que se deshace: las demás pruebas siguen con todas las tareas.
+      - name: Una tarea programada borrada cuenta como problema (RV-56)
+        env:
+          MIG: postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres # detectar-secretos:permitir (Supabase local efímero)
+        run: |
+          set -euo pipefail
+          esperadas=$(paste -sd, scripts/sql/tareas-esperadas.txt)
+          todas=$(psql -X -A -t -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$MIG" -f scripts/sql/tareas-programadas.sql)
+          n=$(echo "$todas" | jq '[.[] | select(.falta)] | length')
+          [ "$n" -eq 0 ] || { echo "::error::con las migraciones aplicadas no debería faltar ninguna tarea ($n)"; exit 1; }
+          tareas=$(psql -X -A -t -q -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$MIG" \
+            -c 'begin' -c "select cron.unschedule('hidrantes_purgar_errores')" \
+            -f scripts/sql/tareas-programadas.sql -c 'rollback' | tail -1)
+          marcada=$(echo "$tareas" | jq '[.[] | select(.tarea == "hidrantes_purgar_errores" and .falta and .problema)] | length')
+          echo "hidrantes_purgar_errores borrada: marcada como problema = $marcada"
+          [ "$marcada" -eq 1 ] || { echo "::error::una tarea borrada no cuenta como problema"; exit 1; }
+      - name: Versión del mapa base en config (RV-21)
+        run: |
+          npm run cargar-version-mapabase -- --local
+          esperada=$(node -p "require('./datos/mapabase.json').version")
+          guardada=$(psql -X -A -t -v ON_ERROR_STOP=1 "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -c "select hidrantes.fn_config('version_mapabase', 'null') #>> '{}';") # detectar-secretos:permitir (Supabase local efímero)
+          [ "$esperada" = "$guardada" ] || { echo "::error::version_mapabase es '$guardada' y datos/mapabase.json dice '$esperada'"; exit 1; }
+      - name: Pages Functions con wrangler pages dev contra Supabase local
+        run: |
+          npm run arranque -- --local
+          npm run build
+          npm run functions:dev > wrangler.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8788 && break; sleep 2; done
+          npm run probar-functions || { tail -50 wrangler.log; exit 1; }
+          # Las ocho pruebas de intrusión de TR-40, con la anon key desde fuera (11 §5).
+          npm run intrusion || { tail -50 wrangler.log; exit 1; }
+          # Integración del frontend con la pila real (Fase 4 en adelante): mismo paso, mismo wrangler.
+          npx playwright install --with-deps chromium
+          INTEGRACION=1 npm run e2e || { tail -50 wrangler.log; exit 1; }
+          # El siguiente paso levanta su propio wrangler en el mismo puerto con el frontend anterior.
+          pkill -f 'wrangler pages dev' || true
+      # El Worker de los avisos con su cron de verdad (wrangler dev --test-scheduled) contra las
+      # Functions locales: una notificación pendiente sale sola (docs/19 RV-52).
+      - name: Worker de los avisos con su cron, contra la pila local (RV-52)
+        timeout-minutes: 5
+        run: |
+          npx tsx scripts/probar-worker-avisos.ts
+          pkill -f 'wrangler' || true
+      - name: Compatibilidad hacia atrás (TR-107)
+        run: npm run compatibilidad
+      # Al final: la restauración deja la base como estaba el volcado (RV-13, TR-51, 15 §5.3).
+      - name: Restauración sobre un esquema con datos y de un volcado anterior a 0010 (RV-13)
+        run: npx tsx scripts/probar-restauracion.ts --viejo /tmp/volcado-0009.sql
       - if: always()
         run: npx supabase stop --no-backup
 
@@ -53,12 +144,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
-      - run: npx playwright install --with-deps chromium
-      - run: npm run e2e
+      # Firefox para el panel (TR-21, RV-28).
+      - run: npx playwright install --with-deps chromium firefox
+      - name: E2e (sin los de rendimiento)
+        run: npx playwright test --grep-invert @rendimiento
+      # Los de rendimiento miden tiempos: de uno en uno, sin competir por CPU (RV-27).
+      - name: E2e de rendimiento, un worker
+        run: npx playwright test --grep @rendimiento --workers=1
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: playwright-report/

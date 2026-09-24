@@ -2,7 +2,9 @@
 //
 //   npm run arranque                       todo (repositorio, Supabase, Cloudflare, secretos, issues)
 //   npm run arranque -- --local            solo el entorno local: .env.local + rol en Supabase local
-//   npm run arranque -- --rotar <qué>      db | cloudflare | sal-ip | vapid | gpg | todo
+//   npm run arranque -- --rotar <qué>      db | cloudflare | sal-ip | vapid | gpg | vigilancia | todo
+//   npm run arranque -- --solo-faltantes   pone lo que falta sin rotar nada, con las sesiones de gh
+//                                          y wrangler (docs/19 P-01, RV-52)
 //
 // Pide a mano solo lo que ninguna API devuelve: token de Cloudflare, token de acceso de Supabase
 // (Management API) y las contraseñas de `postgres` de dev y prod. Nada de eso se guarda en disco:
@@ -19,6 +21,7 @@ import {
   ejecutar,
   ejecutarOk,
   ejecutarScript,
+  errorSeguro,
   log,
   preguntar,
   psql,
@@ -70,8 +73,25 @@ const ENTORNOS: Entorno[] = [
   },
 ];
 
-const ROTABLES = ['db', 'cloudflare', 'sal-ip', 'vapid', 'gpg'] as const;
-type Rotable = (typeof ROTABLES)[number];
+export const ROTABLES = ['db', 'cloudflare', 'sal-ip', 'vapid', 'gpg', 'vigilancia'] as const;
+export type Rotable = (typeof ROTABLES)[number];
+
+/**
+ * `--rotar db`, `--rotar db,gpg` o `--rotar todo`. Se admite la lista porque rehacer los secretos de
+ * los trabajos automáticos (DEC-071) necesita la base de datos y la clave GPG a la vez, y rotarlo
+ * todo cambiaría de paso las claves VAPID, que dejarían sin avisos a los móviles ya suscritos.
+ */
+export function aRotar(pedida: string | undefined): Set<Rotable> {
+  if (!pedida) return new Set();
+  if (pedida === 'todo') return new Set(ROTABLES);
+  const partes = pedida.split(',').map((p) => p.trim());
+  for (const p of partes) {
+    if (!(ROTABLES as readonly string[]).includes(p)) {
+      abortar(`--rotar ${p} no existe. Opciones: ${ROTABLES.join(', ')}, todo (o varias separadas por comas)`);
+    }
+  }
+  return new Set(partes as Rotable[]);
+}
 
 // ---------- 1. sesiones y credenciales ----------
 
@@ -252,7 +272,8 @@ async function esperarConexion(url: string, maxSegundos = 180): Promise<string> 
     const r = psql(url, 'select current_user;', { tuplas: true });
     if (r.codigo === 0) return r.salida;
     const esCache = /password authentication failed/i.test(r.error);
-    if (!esCache || Date.now() - inicio > maxSegundos * 1000) abortar(`psql falló:\n${r.error || r.salida}`);
+    if (!esCache || Date.now() - inicio > maxSegundos * 1000)
+      abortar(`psql falló:\n${errorSeguro(r.error || r.salida)}`);
     if (!avisado) {
       log.info('el pooler aún no conoce la contraseña nueva; reintentando (hasta 3 min)…');
       avisado = true;
@@ -339,7 +360,7 @@ async function prepararPages(
   e: Entorno,
   sb: DatosSupabase,
   rotar: Set<Rotable>,
-): Promise<{ vapidPublica?: string }> {
+): Promise<{ vapidPublica?: string; vigilancia?: string }> {
   log.paso(`5. Cloudflare Pages · ${e.proyectoPages}`);
   let proyecto = await cred.cloudflare.proyecto(cred.cuentaCf, e.proyectoPages);
   if (!proyecto) {
@@ -355,7 +376,8 @@ async function prepararPages(
   const secretos: Record<string, string> = {
     SUPABASE_URL: sb.url,
     SUPABASE_SERVICE_ROLE_KEY: sb.servicio,
-    NOMINATIM_USER_AGENT: `hidrantes-albolote/1.0 (+${pages})`,
+    // Nominatim exige contacto (RV-25): la URL del repositorio, nunca un correo (DEC-053).
+    NOMINATIM_USER_AGENT: `hidrantes-albolote/1.0 (+https://github.com/${REPO})`,
     VAPID_SUBJECT: pages,
   };
   if (!actuales.includes('SAL_IP') || rotar.has('sal-ip')) secretos.SAL_IP = salAleatoria();
@@ -363,13 +385,31 @@ async function prepararPages(
   if (!actuales.includes('VAPID_PRIVATE_KEY') || rotar.has('vapid')) {
     const par = paresVapid();
     secretos.VAPID_PRIVATE_KEY = par.privada;
+    // /api/push firma con las dos: WebCrypto no deduce la pública de la privada (DEC-059)
+    secretos.VAPID_PUBLIC_KEY = par.publica;
     vapidPublica = par.publica;
+  }
+  // Secreto compartido con avisos.yml y vigilancia.yml para llamar a /api/push (RV-08). Vive en
+  // Pages y, con el mismo valor, en un secreto del repositorio (sin environment, DEC-071). El de
+  // Pages no se puede leer: si falta el del repositorio, se hacen los dos de nuevo.
+  let vigilancia: string | undefined;
+  if (
+    !actuales.includes('VIGILANCIA_SECRETO') ||
+    rotar.has('vigilancia') ||
+    !existeSecretoRepo(`VIGILANCIA_SECRETO_${sufijoDe(e)}`)
+  ) {
+    vigilancia = salAleatoria();
+    secretos.VIGILANCIA_SECRETO = vigilancia;
   }
   await cred.cloudflare.fijarSecretos(cred.cuentaCf, e.proyectoPages, secretos);
   log.ok(`variables cifradas: ${Object.keys(secretos).join(', ')}`);
+  aplicarSecretosPages(e);
   log.info('GITHUB_DISPATCH_TOKEN se añade en la Fase 7, cuando exista /api/lanzar-workflow (DEC-053).');
-  return { vapidPublica };
+  return { vapidPublica, vigilancia };
 }
+
+/** Sufijo de los secretos y variables de repositorio que no pueden ir en un environment (DEC-071). */
+export const sufijoDe = (e: Pick<Entorno, 'clave'>) => (e.clave === 'staging' ? 'STAGING' : 'PROD');
 
 // ---------- 6–8. GPG y secretos de GitHub ----------
 
@@ -391,14 +431,26 @@ function existeSecreto(nombre: string, entorno: string): boolean {
     .includes(nombre);
 }
 
+function existeSecretoRepo(nombre: string): boolean {
+  return gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split('\n').includes(nombre);
+}
+
 async function prepararGpg(rotar: boolean): Promise<string | null> {
   log.paso('6. Clave GPG de los respaldos');
   if (existeSecreto('GPG_PUBLIC_KEY', 'production') && !rotar) {
     log.ok('ya existe (usa --rotar gpg para cambiarla)');
+    // La pública no se puede recuperar de un secreto de GitHub, así que si falta la del repositorio
+    // —la que usa respaldo.yml, DEC-071— hay que generar otro par.
+    if (!existeSecretoRepo('GPG_PUBLIC_KEY')) {
+      log.aviso('Falta GPG_PUBLIC_KEY en el repositorio: sin ella no hay respaldo. Vuelve con --rotar gpg.');
+    }
     return null;
   }
   const { publica, privada, huella } = await parGpg();
   fijarSecreto('GPG_PUBLIC_KEY', publica, 'production');
+  // También en el repositorio: respaldo.yml corre por calendario y no puede usar un entorno con
+  // aprobación humana (DEC-071). Es una clave pública: no revela nada.
+  fijarSecreto('GPG_PUBLIC_KEY', publica);
   console.log('\n\x1b[33m' + '═'.repeat(72));
   console.log(' CLAVE PRIVADA DE LOS RESPALDOS · se muestra UNA sola vez');
   console.log(' Guárdala ahora en el gestor de contraseñas o en el sobre de la agrupación (15 §2).');
@@ -417,6 +469,7 @@ function secretosGithub(
   cuentaCf: string,
   tokenCf: string | null,
   vapidPublica?: string,
+  vigilancia?: string,
 ) {
   log.paso(`7. Secretos y variables de GitHub · ${e.clave}`);
   if (sb.urlMigrador) fijarSecreto('SUPABASE_DB_URL', sb.urlMigrador, e.clave);
@@ -434,10 +487,45 @@ function secretosGithub(
 
   // Para mantener-activo.yml: sin environment, porque production exige aprobación en cada ejecución.
   // La URL y la anon key son públicas por diseño (04 §1).
-  const sufijo = e.clave === 'staging' ? 'STAGING' : 'PROD';
+  const sufijo = sufijoDe(e);
   fijarVariable(`SUPABASE_URL_${sufijo}`, sb.url);
   fijarVariable(`SUPABASE_ANON_KEY_${sufijo}`, sb.anon);
+
+  // Por el mismo motivo, respaldo.yml necesita en el repositorio lo que el entorno `production`
+  // guarda tras una aprobación humana (DEC-071). Y `promover-piloto.yml` necesita los dos lados a
+  // la vez —lee de staging y escribe en producción—, y un trabajo solo puede llevar un environment,
+  // así que también los de staging viven en el repositorio (DEC-078).
+  if (sb.urlMigrador) fijarSecreto(`SUPABASE_DB_URL_${sufijo}`, sb.urlMigrador);
+  fijarSecreto(`SUPABASE_SERVICE_ROLE_KEY_${sufijo}`, sb.servicio);
+  // avisos.yml llama a /api/push cada 15 minutos con este secreto (RV-08).
+  if (vigilancia) fijarSecreto(`VIGILANCIA_SECRETO_${sufijo}`, vigilancia);
+  if (!sb.urlMigrador && !existeSecretoRepo(`SUPABASE_DB_URL_${sufijo}`)) {
+    log.aviso(`Falta SUPABASE_DB_URL_${sufijo}: vuelve a lanzarlo con --rotar db (DEC-071).`);
+  }
   log.ok('hecho');
+}
+
+// ---------- 8b. propietario como administrador ----------
+
+/**
+ * El correo del propietario no puede ir en una migración (repositorio público, DEC-053): se guarda
+ * como secreto y asegurar-propietario.ts lo da de alta en cada despliegue si falta.
+ */
+async function asegurarSecretoPropietario(): Promise<void> {
+  log.paso('8b. Propietario como administrador');
+  const existe = gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name'])
+    .split('\n')
+    .includes('PROPIETARIO_EMAIL');
+  if (existe && !(await confirmar('PROPIETARIO_EMAIL ya existe. ¿Cambiarlo?'))) {
+    log.ok('se mantiene');
+    return;
+  }
+  const porDefecto = ejecutar('git', ['config', 'user.email']).salida;
+  const r = await preguntar(`Correo de Google con el que entrarás al panel [${porDefecto}]`);
+  const email = (r || porDefecto).trim().toLowerCase();
+  if (!/^[^@\s']+@[^@\s']+\.[^@\s']+$/.test(email)) abortar('Eso no parece un correo.');
+  fijarSecreto('PROPIETARIO_EMAIL', email);
+  log.ok('guardado como secreto; se da de alta en el próximo despliegue');
 }
 
 // ---------- 9. skills, 10. issues, 11. docs/entornos.md ----------
@@ -460,6 +548,36 @@ async function instalarSkills(): Promise<void> {
   log.info('task-shaper es de la organización: su plantilla ya está en .github/ISSUE_TEMPLATE/tarea.md.');
 }
 
+/**
+ * Pages aplica sus secretos solo a los despliegues **nuevos**; el del repositorio vale al momento.
+ * Tras rotar VIGILANCIA_SECRETO, avisos.yml recibía 401 cada 15 minutos hasta el siguiente
+ * despliegue (docs/18 RV-38). Staging se vuelve a desplegar ahora; producción exige la aprobación
+ * del environment y solo se despliega por PR develop → main, así que se dice el paso.
+ */
+export function pasoTrasSecretosPages(e: { clave: 'staging' | 'production' }): { comando?: string[]; aviso: string } {
+  if (e.clave === 'staging') {
+    return {
+      comando: ['workflow', 'run', 'Desplegar staging', '--ref', 'develop'],
+      aviso: 'staging se vuelve a desplegar ahora para que las Functions vean los secretos nuevos',
+    };
+  }
+  return {
+    aviso:
+      'producción verá los secretos nuevos en su siguiente despliegue (PR develop → main con tu aprobación). Hasta entonces el Worker de los avisos recibe 401 en PROD, lo anota sin datos y sigue con staging (15 §2).',
+  };
+}
+
+function aplicarSecretosPages(e: Entorno): void {
+  const paso = pasoTrasSecretosPages(e);
+  if (!paso.comando) return log.aviso(paso.aviso);
+  const r = ejecutar('gh', paso.comando);
+  if (r.codigo === 0) log.ok(paso.aviso);
+  else
+    log.aviso(
+      `No se ha podido lanzar el despliegue de staging (${errorSeguro(r.error)}): gh ${paso.comando.join(' ')}`,
+    );
+}
+
 function escribirEntornos(datos: Map<string, DatosSupabase>, cuentaCf: string, huella: string | null): void {
   log.paso('11. docs/entornos.md');
   const archivo = path.join(RAIZ, 'docs', 'entornos.md');
@@ -471,6 +589,10 @@ function escribirEntornos(datos: Map<string, DatosSupabase>, cuentaCf: string, h
     }
   })();
   const huellaTexto = huella ?? anterior.match(/Huella GPG de respaldos \| `([^`]+)`/)?.[1] ?? '—';
+  // La nota que acompaña a la huella (cuándo y por qué se regeneró) se conserva si la clave no cambia.
+  const notaHuella = huella
+    ? ''
+    : (anterior.match(/Huella GPG de respaldos \| `[^`]+`([^|\n]*)\|/)?.[1] ?? '').trimEnd();
   const filas = ENTORNOS.map((e) => {
     const d = datos.get(e.clave)!;
     return `| ${e.clave} | \`${e.rama}\` | \`${e.proyectoSupabase}\` · \`${d.ref}\` | \`${e.bucket}\` | https://${e.proyectoPages}.pages.dev |`;
@@ -491,16 +613,175 @@ ${filas.join('\n')}
 | Repositorio | https://github.com/${REPO} (público, DEC-053) |
 | Cuenta de Cloudflare | \`${cuentaCf}\` |
 | Rol de migraciones | \`hidrantes_migrador\` por el pooler en modo sesión, puerto 5432 (DEC-052) |
-| Huella GPG de respaldos | \`${huellaTexto}\` |
+| Huella GPG de respaldos | \`${huellaTexto}\`${notaHuella} |
 | Secretos por environment | \`SUPABASE_DB_URL\`, \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\` (+ \`GPG_PUBLIC_KEY\` en production) |
 | Variables por environment | \`VITE_ENTORNO\`, \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_ANON_KEY\`, \`VITE_VAPID_PUBLIC_KEY\`, \`PAGES_PROYECTO\`, \`SUPABASE_PROJECT_REF\` |
 | Variables del repositorio | \`SUPABASE_URL_STAGING\`, \`SUPABASE_ANON_KEY_STAGING\`, \`SUPABASE_URL_PROD\`, \`SUPABASE_ANON_KEY_PROD\` (mantener-activo.yml, DEC-054) |
-| Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_SUBJECT\` |
+| Secretos del repositorio | \`SUPABASE_DB_URL_{STAGING,PROD}\`, \`SUPABASE_SERVICE_ROLE_KEY_{STAGING,PROD}\`, \`GPG_PUBLIC_KEY\` (respaldo y promoción del piloto: DEC-071, DEC-078), \`VIGILANCIA_SECRETO_{STAGING,PROD}\` (vigilancia y envío manual de avisos, DEC-088) |
+| Secretos del Worker \`hidrantes-avisos\` | \`VIGILANCIA_SECRETO_{STAGING,PROD}\`, con los mismos valores que Pages y el repositorio (docs/19 RV-52, DEC-097) |
+| Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_PUBLIC_KEY\`, \`VAPID_SUBJECT\`, \`VIGILANCIA_SECRETO\` (DEC-088) |
 
-Rotar un secreto: \`npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|todo>\` (15).
+Rotar un secreto: \`npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|vigilancia|todo>\` (15).
+
+Pages aplica sus secretos solo a los despliegues nuevos: tras rotar uno, el arranque vuelve a desplegar
+staging (\`gh workflow run "Desplegar staging" --ref develop\`); producción lo aplica en su siguiente
+despliegue, el PR \`develop → main\` (15 §2, docs/18 RV-38).
 `,
   );
   log.ok('escrito (sin secretos): haz commit en una rama y PR a develop');
+}
+
+// ---------- Worker de los avisos (docs/19 RV-52, DEC-097) ----------
+
+export const CONFIG_WORKER = 'workers/avisos/wrangler.toml';
+
+/**
+ * Pone un secreto del Worker `hidrantes-avisos`. Sin token, con la sesión de `wrangler login`. Si el
+ * Worker aún no existe (antes de su primer despliegue desde staging), se dice y no se para.
+ */
+function fijarSecretoWorker(nombre: string, valor: string, tokenCf?: string): boolean {
+  const env = tokenCf ? { ...process.env, CLOUDFLARE_API_TOKEN: tokenCf } : process.env;
+  const r = ejecutar('npx', ['--no-install', 'wrangler', 'secret', 'put', nombre, '--config', CONFIG_WORKER], {
+    entrada: valor,
+    env,
+  });
+  if (r.codigo === 0) return true;
+  log.aviso(
+    `No se ha podido poner ${nombre} en el Worker hidrantes-avisos (¿aún no se ha desplegado?). Tras el primer despliegue de staging: npm run arranque -- --solo-faltantes`,
+  );
+  return false;
+}
+
+// ---------- --solo-faltantes (docs/19 P-01) ----------
+
+/** Lo que hay de cada secreto, por nombres; nunca valores. */
+export interface HayEntorno {
+  clave: 'staging' | 'production';
+  pages: string[];
+  repo: string[];
+  worker: string[];
+}
+
+export interface PlanFaltantes {
+  clave: 'staging' | 'production';
+  /** Se genera un secreto de vigilancia nuevo y se pone en Pages, el repositorio y el Worker. */
+  vigilancia: boolean;
+  /** Se generan porque faltan; lo que ya está no se toca nunca. */
+  salIp: boolean;
+  vapid: boolean;
+  nominatim: boolean;
+  /** Lo que solo sabe poner el arranque completo, con el token de Supabase. */
+  aMano: string[];
+}
+
+/**
+ * Qué poner sin rotar nada de lo que ya está (cambiar las claves VAPID dejaría sin avisos a los
+ * suscritos, ver `aRotar`). El secreto de vigilancia no se puede leer de Pages ni del repositorio:
+ * si falta en cualquiera de los tres sitios, se genera uno nuevo para los tres. Eso no afecta a
+ * nadie; solo hay que volver a desplegar Pages para que la Function lo lea (RV-38).
+ */
+export function planFaltantes(h: HayEntorno): PlanFaltantes {
+  const sufijo = sufijoDe(h);
+  const vigilancia =
+    !h.pages.includes('VIGILANCIA_SECRETO') ||
+    !h.repo.includes(`VIGILANCIA_SECRETO_${sufijo}`) ||
+    !h.worker.includes(`VIGILANCIA_SECRETO_${sufijo}`);
+  return {
+    clave: h.clave,
+    vigilancia,
+    salIp: !h.pages.includes('SAL_IP'),
+    vapid: !h.pages.includes('VAPID_PRIVATE_KEY') || !h.pages.includes('VAPID_PUBLIC_KEY'),
+    nominatim: !h.pages.includes('NOMINATIM_USER_AGENT'),
+    aMano: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((n) => !h.pages.includes(n)),
+  };
+}
+
+function nombresSecretosPages(proyecto: string): string[] {
+  const r = ejecutar('npx', ['--no-install', 'wrangler', 'pages', 'secret', 'list', '--project-name', proyecto]);
+  if (r.codigo !== 0) abortar(`No se pueden listar los secretos de Pages de ${proyecto}: npx wrangler login`);
+  return [...r.salida.matchAll(/^\s*-\s+([A-Z0-9_]+):/gm)].map((m) => m[1]!);
+}
+
+function nombresSecretosWorker(): string[] {
+  const r = ejecutar('npx', ['--no-install', 'wrangler', 'secret', 'list', '--config', CONFIG_WORKER]);
+  // Sin Worker desplegado aún: no hay secretos.
+  if (r.codigo !== 0) return [];
+  try {
+    return (JSON.parse(r.salida.slice(r.salida.indexOf('['))) as { name: string }[]).map((s) => s.name);
+  } catch {
+    return [];
+  }
+}
+
+function fijarSecretoPages(proyecto: string, nombre: string, valor: string): void {
+  // En producción y en previsualizaciones, como fijarSecretos del arranque completo.
+  for (const extra of [[], ['--env', 'preview']]) {
+    ejecutarOk(
+      'npx',
+      ['--no-install', 'wrangler', 'pages', 'secret', 'put', nombre, '--project-name', proyecto, ...extra],
+      { entrada: valor },
+    );
+  }
+}
+
+/**
+ * El Worker de los avisos, si aún no existe en la cuenta. Normalmente lo despliega deploy-staging.yml;
+ * con un token de Cloudflare solo de Pages no puede, y aquí se hace con la sesión de `wrangler login`
+ * (DEC-097). Sin el Worker no hay dónde poner sus secretos.
+ */
+function desplegarWorkerSiFalta(): void {
+  const r = ejecutar('npx', ['--no-install', 'wrangler', 'deployments', 'list', '--config', CONFIG_WORKER]);
+  if (r.codigo === 0) return;
+  ejecutarOk('npx', ['--no-install', 'wrangler', 'deploy', '--config', CONFIG_WORKER]);
+  log.ok('Worker hidrantes-avisos desplegado con su cron cada 5 minutos');
+}
+
+/** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
+function soloFaltantes(): void {
+  log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
+  comprobarSesiones();
+  desplegarWorkerSiFalta();
+  const repo = gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/);
+  const worker = nombresSecretosWorker();
+  const aMano: string[] = [];
+  for (const e of ENTORNOS) {
+    const plan = planFaltantes({ clave: e.clave, pages: nombresSecretosPages(e.proyectoPages), repo, worker });
+    const sufijo = sufijoDe(e);
+    const puestos: string[] = [];
+    if (plan.vigilancia) {
+      const valor = salAleatoria();
+      fijarSecretoPages(e.proyectoPages, 'VIGILANCIA_SECRETO', valor);
+      fijarSecreto(`VIGILANCIA_SECRETO_${sufijo}`, valor);
+      fijarSecretoWorker(`VIGILANCIA_SECRETO_${sufijo}`, valor);
+      puestos.push('VIGILANCIA_SECRETO (Pages, repositorio y Worker)');
+    }
+    if (plan.salIp) {
+      fijarSecretoPages(e.proyectoPages, 'SAL_IP', salAleatoria());
+      puestos.push('SAL_IP');
+    }
+    if (plan.nominatim) {
+      fijarSecretoPages(
+        e.proyectoPages,
+        'NOMINATIM_USER_AGENT',
+        `hidrantes-albolote/1.0 (+https://github.com/${REPO})`,
+      );
+      puestos.push('NOMINATIM_USER_AGENT');
+    }
+    if (plan.vapid) {
+      // Solo si faltan: nadie puede estar suscrito con unas claves que no existen.
+      const par = paresVapid();
+      fijarSecretoPages(e.proyectoPages, 'VAPID_PRIVATE_KEY', par.privada);
+      fijarSecretoPages(e.proyectoPages, 'VAPID_PUBLIC_KEY', par.publica);
+      fijarVariable('VITE_VAPID_PUBLIC_KEY', par.publica, e.clave);
+      puestos.push('VAPID_PRIVATE_KEY y VAPID_PUBLIC_KEY');
+    }
+    aMano.push(...plan.aMano.map((n) => `${n} en Pages ${e.proyectoPages}`));
+    if (puestos.length) {
+      log.ok(`${e.clave}: ${puestos.join(', ')}`);
+      aplicarSecretosPages(e);
+    } else log.ok(`${e.clave}: no falta nada`);
+  }
+  if (aMano.length) log.aviso(`Faltan y solo los pone el arranque completo (npm run arranque): ${aMano.join('; ')}`);
 }
 
 // ---------- modo local ----------
@@ -521,6 +802,19 @@ function arranqueLocal(): void {
     ].join('\n'),
   );
   log.ok('.env.local escrito');
+  // Variables de las Pages Functions para `wrangler pages dev` (no se commitea, .gitignore).
+  writeFileSync(
+    path.join(RAIZ, '.dev.vars'),
+    [
+      `SUPABASE_URL=${s.API_URL}`,
+      `SUPABASE_SERVICE_ROLE_KEY=${s.SERVICE_ROLE_KEY}`,
+      'SAL_IP=sal-local',
+      // probar-functions.ts llama a /api/push con él (RV-08); solo vale contra la pila local.
+      'VIGILANCIA_SECRETO=vigilancia-local', // detectar-secretos:permitir (valor local de prueba)
+      '',
+    ].join('\n'),
+  );
+  log.ok('.dev.vars escrito');
   prepararLocal();
   ejecutarOk('npx', ['--no-install', 'tsx', 'scripts/migrar.ts', '--local']);
   log.ok('rol hidrantes_migrador y migraciones en Supabase local');
@@ -531,12 +825,9 @@ function arranqueLocal(): void {
 async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   if (banderas.has('local')) return arranqueLocal();
+  if (banderas.has('solo-faltantes')) return soloFaltantes();
 
-  const pedida = valores.get('rotar');
-  const rotar = new Set<Rotable>(pedida === 'todo' ? ROTABLES : pedida ? [pedida as Rotable] : []);
-  if (pedida && pedida !== 'todo' && !ROTABLES.includes(pedida as Rotable)) {
-    abortar(`--rotar ${pedida} no existe. Opciones: ${ROTABLES.join(', ')}, todo`);
-  }
+  const rotar = aRotar(valores.get('rotar'));
   const esRotacion = rotar.size > 0;
   // En el arranque completo se (re)crea siempre el rol; al rotar, solo si se pide `db`.
   const tocarBd = !esRotacion || rotar.has('db');
@@ -551,12 +842,15 @@ async function principal(): Promise<void> {
   for (const e of ENTORNOS) {
     const sb = await prepararSupabase(cred, e, tocarBd);
     datos.set(e.clave, sb);
-    const { vapidPublica } = await prepararPages(cred, e, sb, rotar);
-    secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica);
+    const { vapidPublica, vigilancia } = await prepararPages(cred, e, sb, rotar);
+    // El Worker de los avisos llama a /api/push con el mismo secreto (docs/19 RV-52).
+    if (vigilancia) fijarSecretoWorker(`VIGILANCIA_SECRETO_${sufijoDe(e)}`, vigilancia, cred.tokenCf);
+    secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica, vigilancia);
   }
   const huella = await prepararGpg(rotar.has('gpg'));
 
   if (!esRotacion) {
+    await asegurarSecretoPropietario();
     await instalarSkills();
     log.paso('10. Issues de las fases 1–9');
     crearIssues(REPO);

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Los valores marcados `«…»` los rellena `scripts/arranque.ts` en `docs/entornos.md` y se copian aquí al cerrar la Fase 0; la tabla de §9 se actualiza en cada comprobación. |
-| **Versión** | 1.0 — 17 de septiembre de 2026 |
+| **Versión** | 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
 | **Propietario de** | qué cuenta controla qué, dónde están las credenciales, y los procedimientos paso a paso para restaurar, revertir, rotar y recuperar el control cuando algo falla o cuando el desarrollador no está. |
 | **Para** | jefatura y quien tenga que hacerse cargo del sistema sin conocerlo. Escrito para leerse con prisa. |
 | **Referencias** | arquitectura en **04**; datos personales en **11**; tareas de construcción en **09** Fase 8. |
@@ -20,12 +20,12 @@ paso mal hecho en una restauración cuesta más que una hora de espera.
 |---|---|---|---|---|
 | Código fuente, CI/CD, respaldos cifrados, issues | GitHub | repo público (DEC-053) `aron285-coder/hidrantes-albolote` (hasta el traspaso, §7); copia local en `C:\Proteccion civil\hidrantes-albolote` | `«cuenta-institucional@…»` · hoy: cuenta personal del desarrollador | 0 € |
 | Aplicación y Pages Functions (producción) | Cloudflare Pages | proyecto `hidrantes-albolote` → `hidrantes-albolote.pages.dev` | `«cuenta-institucional@…»` | 0 € |
-| Aplicación (pruebas) | Cloudflare Pages | `hidrantes-albolote-staging` | ídem | 0 € |
-| Base de datos, Storage, Auth (producción) | Supabase | proyecto **prod** `«PROJECT_REF_PROD»`, esquema `hidrantes`, bucket `hidrantes-fotos` | ídem (compartido con la app de uniformidad) | 0 € |
-| Base de datos (pruebas) | Supabase | proyecto **dev** `«PROJECT_REF_DEV»`, bucket `hidrantes-fotos-dev` | ídem | 0 € |
+| Aplicación (pruebas) | Cloudflare Pages | `hidrantes-albolote-staging` → `hidrantes-albolote-staging.pages.dev`; cuenta `12c14cad67798806b9ba75017f3e2959` | ídem | 0 € |
+| Base de datos, Storage, Auth (producción) | Supabase | proyecto **prod** `uniformidad-prod` · ref `cbgqirjqyltadpydpeyr`, esquema `hidrantes`, bucket `hidrantes-fotos` | ídem (compartido con la app de uniformidad) | 0 € |
+| Base de datos (pruebas) | Supabase | proyecto **dev** `uniformidad-dev` · ref `jowapbzawsebfpksnlqx`, bucket `hidrantes-fotos-dev` | ídem | 0 € |
 | Inicio de sesión de jefatura | Google (vía Supabase Auth) | proveedor Google del proyecto Supabase | ídem | 0 € |
 | Mapa base propio (si > 20 MB) | Cloudflare R2 | bucket `hidrantes-mapabase` | ídem | 0 € |
-| Dirección deducida | Nominatim (OSM) | sin cuenta; `User-Agent` `«…»` | — | 0 € |
+| Dirección deducida | Nominatim (OSM) | sin cuenta; `User-Agent` con contacto, obligatorio: `hidrantes-albolote/1.0 (+https://github.com/aron285-coder/hidrantes-albolote)` desde el siguiente `npm run arranque` (antes, la URL de la app) | — | 0 € |
 
 Objetivo: todo en **una cuenta de Google institucional de la agrupación**, no en la personal de nadie
 (DEC-023). Situación de partida (sep 2026): GitHub, Cloudflare y Supabase están bajo la cuenta de
@@ -40,14 +40,26 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 |---|---|---|---|
 | Contraseña + 2FA de la cuenta de Google institucional | entrar en GitHub, Cloudflare y Supabase | gestor de contraseñas de la agrupación (o sobre cerrado en la sede) | jefatura + secretaría |
 | Códigos de recuperación de 2FA (Google, GitHub, Cloudflare, Supabase) | recuperar acceso si se pierde el móvil del 2FA | mismo sitio, entrada aparte | ídem |
-| Clave GPG privada del respaldo | descifrar un respaldo | mismo sitio; **no está en GitHub ni en ningún ordenador** | ídem |
+| Clave GPG privada del respaldo (huella `BD378A1E0E09843032B3A70254A89DD4FC82E6CE`) | descifrar un respaldo | guardada el 21 sep 2026 por el desarrollador fuera del repositorio; **no está en GitHub ni en ningún ordenador de trabajo**. La pública sí: secreto `GPG_PUBLIC_KEY` | ídem |
 | Contraseñas de las bases de datos (dev, prod) | `pg_dump`, restauración | mismo sitio; también en los secretos de GitHub (cifrados) | ídem |
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub; se puede regenerar en un minuto | — |
-| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
+| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
 contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
+
+**Tras regenerar un secreto de Cloudflare Pages** (`npm run arranque -- --rotar …`): Pages solo lo
+aplica a los despliegues **nuevos**, y el del repositorio vale al momento. El arranque vuelve a
+desplegar staging solo (`gh workflow run "Desplegar staging" --ref develop`). Producción lo aplica en
+su siguiente despliegue, el PR `develop → main` con la aprobación del desarrollador. Mientras tanto
+el Worker `hidrantes-avisos` recibe 401 en PROD, lo anota sin datos y sigue con staging: los avisos
+siguen saliendo al moderar y al sincronizar, y la vigilancia diaria salta si se atascan más de 30
+minutos (docs/18 RV-38, docs/19 RV-52). **Rotar `VIGILANCIA_SECRETO` lo cambia en tres sitios** —Pages,
+el secreto del repositorio y el Worker—, y el arranque los pone los tres; si falta en alguno,
+`npm run arranque -- --solo-faltantes` genera uno nuevo para los tres, sin pedir tokens. `VIGILANCIA_SECRETO` se rotó el 23 sep 2026.
+
+**Si el token de Cloudflare no tiene permiso de Workers** (04 §9 pide **Pages: Edit** y **Workers Scripts: Edit**), staging se despliega igual, pero el paso del Worker avisa en el resumen del workflow. Lo mismo dice `npm run comprobar-produccion` («Workers Scripts: Edit · FALTA»). Mira el permiso con la lista de nombres de los secretos del Worker, que solo da un token que puede editarlo. El token del primer despliegue (24 sep 2026) **veía** los Workers pero no podía desplegarlos. Con ese permiso de lectura la vigilancia sí lee el cron y no salta; solo salta si el Worker no tiene su cron. Arreglo: en Cloudflare, *My Profile → API Tokens*, editar el token y añadir *Account · Workers Scripts · Edit* (unos 2 minutos; un token no se puede ampliar con la API). Mientras, `npm run arranque -- --solo-faltantes` despliega el Worker con la sesión de `wrangler login` si aún no existe.
 
 Comprobación del sobre: cerrado, fechado, firmado por dos personas, en la caja fuerte o el archivo de
 la sede. Se abre solo con dos personas presentes y se anota en §9.
@@ -74,7 +86,11 @@ En orden de fiabilidad:
 2. **Issues con etiqueta `vigilancia`** en GitHub: las abre solo el trabajo diario cuando la app, la
    base de datos o el respaldo fallan. Una issue abierta = algo que mirar en la §5 correspondiente.
 3. **Los voluntarios**: "Algo no funciona" en Ajustes de la app llega a Panel → Voluntarios.
-4. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
+4. **Correo de GitHub "scheduled workflow … disabled"**: en Actions, abre el workflow que nombra y
+   pulsa *Enable workflow* (o `gh workflow enable <archivo>`); después lanza `mantener-activo.yml`
+   a mano, que rehabilita los demás (DEC-085). Si pasa a menudo, el mecanismo de DEC-085 ha dejado
+   de servir y hay que decidir la alternativa.
+5. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
    `githubstatus.com`. Si está caído el proveedor, no hay nada que hacer salvo esperar; la app sigue
    mostrando los datos guardados en los móviles (FR-168).
 
@@ -117,7 +133,19 @@ aplicada**. Se corrige con otra migración que deshaga el efecto:
 ### 5.3 Restaurar un respaldo (pérdida o corrupción de datos)
 
 **Gravedad:** máxima. **Tiempo:** 4 horas (TR-51). **Quién:** dos personas: una con el sobre, otra
-con el ordenador. Ensayado con éxito el `«fecha de la prueba de la Fase 8»`.
+con el ordenador.
+
+**Ensayado de verdad el 20–21 sep 2026** sobre una base vacía, con un volcado cifrado real y estos
+ocho pasos (`docs/verificacion/fase-8.md` §2 y §5). El ensayo, que llevó menos de una hora, encontró
+tres cosas que habrían estropeado la restauración de verdad:
+
+1. El volcado se hacía con `--no-privileges` y la base restaurada dejaba a `anon` sin las nueve RPC
+   del voluntario: la aplicación habría arrancado y nadie habría podido entrar.
+2. `create schema` fallaba por permisos (DEC-052); de ahí el paso 4 de abajo.
+3. La clave GPG generada no la leía GnuPG (algoritmos de RFC 9580); se regeneró el 20 sep 2026 y
+   por eso la huella de §2 es la de esa fecha.
+
+El respaldo semanal corrió en verde contra producción el 21 sep 2026 y dejó su artefacto cifrado.
 
 Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con GPG, de las últimas
 13 semanas (datos) y 3 meses (fotos).
@@ -131,26 +159,79 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    gh run download «ID» --name respaldo-hidrantes
    ```
 3. Descifrar con la clave privada del sobre (importarla una sola vez en este ordenador; borrarla al
-   terminar):
+   terminar) **en un directorio fuera del repositorio**. El `.sql` lleva en claro nombres, correos y
+   el hash del código, y el repositorio es público (docs/18 RV-37):
    ```
    gpg --import clave-privada-respaldo.asc
-   gpg --decrypt hidrantes-«fecha».sql.gpg > hidrantes.sql
+   gpg --decrypt hidrantes-«fecha».sql.gpg > "%TEMP%\hidrantes.sql"      (Windows, cmd)
+   gpg --decrypt hidrantes-«fecha».sql.gpg > /tmp/hidrantes.sql            (Linux)
    ```
+   `restaurar.ts` se niega a usar un volcado que esté dentro del repositorio si Git no lo ignora, y el
+   *pre-commit* bloquea cualquier archivo con la cabecera de `pg_dump`.
 4. Restaurar **solo el esquema `hidrantes`** en producción (la app de uniformidad no se toca):
    ```
-   npm run restaurar -- --entorno prod --archivo hidrantes.sql
+   npm run restaurar -- --entorno prod --archivo "%TEMP%\hidrantes.sql"   (o /tmp/hidrantes.sql)
    ```
-   El script borra y recrea el esquema `hidrantes` a partir del volcado, dentro de una transacción,
-   y aborta si el `PROJECT_REF` no es el de producción. Pide confirmación escribiendo `RESTAURAR`.
-5. Fotos: si también se perdieron, `npm run restaurar-fotos -- --entorno prod --archivo fotos-«fecha».tar.gpg`.
+   El script vacía el esquema `hidrantes` y lo rehace desde el volcado, todo en una transacción: si
+   algo falla a la mitad, la base se queda como estaba. Antes comprueba que el archivo es un volcado
+   nuestro, que no toca `public` y que el `PROJECT_REF` de la cadena es el de producción. Pide
+   confirmación escribiendo `RESTAURAR`.
+
+   **Hace falta psql 17.6 o posterior** (docs/19 RV-64). `pg_dump` 17.6 escribe `\restrict` en el
+   volcado y un psql anterior lo rechaza a medias. El script compara `psql --version` con la cabecera
+   `-- Dumped by pg_dump version …` y, si psql es más antiguo, se para antes de tocar nada con la
+   instrucción de instalarlo: en Windows, el instalador de PostgreSQL 17 (solo *Command Line Tools*);
+   en Linux, `postgresql-client-17`.
+
+   El código de acceso de ahora, los móviles revocados, los administradores y las secuencias de los
+   códigos se reponen **en la misma transacción** que el volcado (docs/19 RV-55).
+   - Si no se puede leer el acceso de ahora, el script no restaura nada.
+   - Si algo falla **después**, al migrar o al comprobar, el script termina con el texto de las acciones manuales:
+     1. código nuevo con *Revocar todos los dispositivos*;
+     2. revisar Administradores;
+     3. avisar al grupo.
+
+   Hazlas aunque lo restaurado ya esté bien.
+
+   Después aplica las migraciones que le falten al volcado (un respaldo antiguo vuelve con el
+   esquema de entonces) y anota la restauración en el registro; si el volcado es anterior a 0010, la
+   anota después de migrar. Borra también las secuencias sueltas de los códigos, que antes hacían
+   fallar la restauración sobre un esquema vivo (RV-13). Desde el 23 sep 2026 **CI lo ensaya en cada
+   cambio**, sobre un esquema con datos y con un volcado anterior a 0010 (`scripts/probar-restauracion.ts`).
+
+   **Los códigos no retroceden nunca** (FR-10): el script lee las secuencias de `HID-` y `BOC-` antes
+   de restaurar y, al terminar, las deja en el mayor de lo que había, lo que trae el volcado y el
+   mayor código de `puntos`. Un código dado después del respaldo se pierde con su punto, pero no se
+   vuelve a dar a otro (docs/18 RV-34). El log enseña los valores antes y después.
+
+   Vacía el esquema en vez de borrarlo porque crear uno exige un permiso que `hidrantes_migrador` no
+   tiene (DEC-052), y en una emergencia solo hay a mano la cadena del secreto. Si el esquema ha
+   desaparecido del todo —una base recién hecha—, el script lo dice y hay que crear la cáscara una
+   vez con la cadena de `postgres`:
+   ```
+   create schema hidrantes authorization hidrantes_migrador;
+   ```
+5. Fotos: si también se perdieron, `npm run restaurar-fotos -- --entorno prod --archivo fotos-«fecha».tar.gpg`
+   (necesita `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`, o los pide). Solo sube lo que falte: las
+   fotos que ya estén en el bucket se dejan como están, así que se puede repetir sin miedo.
 6. Comprobar: abrir el panel, ver Inventario y Registro; abrir la app en un móvil, sincronizar.
 7. Comunicar el código nuevo al grupo. Anotar en §9 y en el Registro (el script escribe una entrada
    `restauracion_respaldo`).
-8. Borrar la clave privada del ordenador: `gpg --delete-secret-keys «id»`.
+8. Borrar la clave privada del ordenador (`gpg --delete-secret-keys «id»`) y el volcado descifrado
+   (`del "%TEMP%\hidrantes.sql"` o `rm /tmp/hidrantes.sql`). El guion temporal de la restauración
+   ya lo borra el script, también si falla.
 
-Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Los
-voluntarios verán sus propuestas de esos días como "sin enviar" si aún las tienen en el móvil, y se
-reenviarán solas.
+Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Lo que
+los voluntarios **enviaron** después del respaldo se pierde también: salió de la cola del móvil al
+enviarse y no vuelve solo. Jefatura avisa al grupo con la **fecha del respaldo** para que repitan lo
+que hicieron desde entonces. Solo lo que aún estuviera sin enviar en un móvil se envía solo al volver
+el código (docs/18 RV-35).
+
+**El acceso no vuelve atrás** (docs/18 RV-35). Antes de restaurar, el script lee en memoria el código
+de acceso, los dispositivos y los administradores de **ahora**, y los repone al terminar: el código
+nuevo del paso 1 sigue valiendo, el viejo no vuelve, los móviles revocados siguen revocados, los que
+entraron después con el código nuevo siguen entrando y un administrador dado de baja después del
+respaldo sigue de baja. Nada de eso se escribe en disco.
 
 ### 5.4 El código de acceso se ha filtrado
 
@@ -177,8 +258,11 @@ reenviarán solas.
 
 **Gravedad:** alta. **Tiempo:** el mismo día. **Quién:** quien maneje el ordenador.
 
-1. `npm run arranque -- --rotar «nombre-del-secreto»` regenera ese secreto en Supabase o GitHub y lo
-   vuelve a subir a GitHub Environments y a Cloudflare. Para rotar todo: `--rotar todo`.
+1. `npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|vigilancia|todo>` regenera ese secreto en Supabase o GitHub y lo
+   vuelve a subir a GitHub Environments, a los secretos del repositorio (los que usan los trabajos
+   por calendario, DEC-071) y a Cloudflare. Se pueden pedir varios: `--rotar db,gpg`. Para rotar
+   todo: `--rotar todo` (ojo: cambia también las claves VAPID, y los móviles ya suscritos dejan de
+   recibir avisos hasta que vuelvan a abrir la aplicación).
 2. Redesplegar (`git commit --allow-empty -m "chore: rotación" && git push` en `develop`, luego PR a
    `main`).
 3. Si fue la `service_role key` de producción: revisar el Registro de las últimas 24 h.
@@ -201,6 +285,20 @@ reenviarán solas.
 - Cloudflare caído: la app instalada abre con lo guardado (Service Worker); la web no carga para
   quien no la tenga instalada.
 - GitHub caído: nada visible para los voluntarios; los despliegues y respaldos esperan.
+
+**Caso frecuente en España: bloqueo por partidos de LaLiga (DEC-061).** Los operadores bloquean IP
+de Cloudflare durante los partidos, casi siempre en fin de semana y durante unas horas.
+
+- **Cómo se reconoce:** falla a la vez en todos los operadores (fibra y datos móviles), solo en
+  España y en horario de partido; desde fuera (o con una VPN) la web carga. En
+  <https://hayahora.futbol> se ve si hay bloqueo activo y se puede comprobar el dominio.
+- **Qué hacer:** nada en el sistema; no es una avería ni se arregla desplegando. Avisar al grupo:
+  "la app sigue funcionando con lo guardado; lo que enviéis saldrá solo cuando acabe el bloqueo".
+  El panel de jefatura esperará.
+- **Si coincide con una emergencia:** los hidrantes se consultan igual en la app instalada. Quien no
+  la tenga instalada no podrá abrirla hasta que acabe el bloqueo.
+- **Si pasa también entre semana o fuera de horario de partido**, anotarlo en una issue: habría que
+  retomar las alternativas descartadas en DEC-061.
 
 ### 5.9 Se ha perdido el acceso a la cuenta de Google institucional
 
@@ -288,6 +386,9 @@ Registro de comprobaciones y de incidentes:
 
 | Fecha | Tipo (mensual / trimestral / anual / incidente §5.x) | Resultado | Quién |
 |---|---|---|---|
+| 20–21 sep 2026 | anual, adelantado: ensayo de restauración (§5.3) sobre una base vacía | correcto; tres defectos encontrados y corregidos (§5.3) | desarrollador |
+| 21 sep 2026 | respaldo semanal contra producción, a mano | artefacto cifrado de 136 KB, 90 días de retención; `ultimo_respaldo` en Salud del sistema | desarrollador |
+| 21 sep 2026 | vigilancia diaria, de punta a punta | abrió su issue al faltar el respaldo y la cerró sola al haberlo | automática |
 | | | | |
 
 ---

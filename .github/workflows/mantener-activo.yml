@@ -21,17 +21,23 @@ jobs:
       matrix:
         entorno: [STAGING, PROD]
     steps:
-      - name: Petición a la API de Supabase
+      - name: Consulta que llega a la base de datos
         env:
           URL: ${{ vars[format('SUPABASE_URL_{0}', matrix.entorno)] }}
           CLAVE: ${{ vars[format('SUPABASE_ANON_KEY_{0}', matrix.entorno)] }}
+        # anon no puede leer hidrantes.migraciones_aplicadas (existe en ambos entornos desde el arranque): Postgres contesta 42501. Esa respuesta prueba que
+        # la petición atravesó la API y llegó a la base de datos, que es lo que cuenta como actividad.
         run: |
           set -eu
           [ -n "$URL" ] || { echo "::error::Falta la variable SUPABASE_URL_${{ matrix.entorno }} (npm run arranque)"; exit 1; }
-          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
-            -H "apikey: $CLAVE" -H "Authorization: Bearer $CLAVE" "$URL/rest/v1/")
-          echo "Supabase ${{ matrix.entorno }}: HTTP $codigo"
-          [ "$codigo" -lt 500 ] || { echo "::error::Supabase ${{ matrix.entorno }} responde $codigo (¿en pausa?)"; exit 1; }
+          cuerpo=$(curl -s --max-time 30 -H "apikey: $CLAVE" -H "Authorization: Bearer $CLAVE" \
+            -H "Accept-Profile: hidrantes" "$URL/rest/v1/migraciones_aplicadas?select=archivo&limit=1" || true)
+          if echo "$cuerpo" | grep -q '"42501"'; then
+            echo "Supabase ${{ matrix.entorno }}: la base de datos respondió"
+          else
+            echo "::error::Supabase ${{ matrix.entorno }} no respondió desde la base de datos (¿en pausa?): ${cuerpo:0:200}"
+            exit 1
+          fi
 
       - name: Avisar con una issue si falla
         if: failure()
@@ -45,3 +51,23 @@ jobs:
             gh issue create --repo "$REPO" --label vigilancia --title "$titulo" \
               --body "La comprobación diaria falló: $RUN. Si el proyecto está en pausa, restáuralo desde el panel de Supabase (15)."
           fi
+
+  # GitHub desactiva los workflows con `schedule` de un repositorio público tras 60 días sin
+  # actividad (DEC-085). Habilitarlos por la API reinicia ese contador. La lista es explícita:
+  # scripts/workflows.test.ts rompe CI si un workflow programado no está aquí. vigilancia.yml llama
+  # a este mismo job, así que los dos se rehabilitan mutuamente.
+  mantener-workflows:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Rehabilitar los workflows programados
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+        run: |
+          set -eu
+          for w in $WORKFLOWS; do
+            gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"
+          done

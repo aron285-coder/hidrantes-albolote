@@ -19,6 +19,7 @@ Cierra #
 - [ ] CI verde (typecheck, lint, build, presupuesto, tests, Lighthouse en staging).
 - [ ] Ningún requisito nuevo inventado: todo lo que hace el código está en 01 o en 12.
 - [ ] Cambios de esquema compatibles hacia atrás (04 §12) y reflejados en 05.
+- [ ] Una tabla nueva de `hidrantes` lleva en su migración los `grant` que le da 05 §5 (Supabase no los concede solo, 04 §5).
 - [ ] Textos de UI en español, sin jerga técnica, con los términos de 00 §6.
 - [ ] Sin secretos, sin `console.log` de datos personales, sin dependencias nuevas sin motivo escrito.
 - [ ] Reglas de interfaz de 06 §9 cumplidas en lo tocado: ningún control muerto, motivo en los botones

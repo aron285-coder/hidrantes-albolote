@@ -23,7 +23,7 @@ flowchart LR
   end
   subgraph cf["Cloudflare Pages (gratuito)"]
     EST[Archivos estáticos + PMTiles]
-    PF[Pages Functions<br/>verificar-codigo · url-subida · direccion · lanzar-purga]
+    PF[Pages Functions<br/>verificar-codigo · url-subida · direccion · lanzar-workflow · push]
   end
   subgraph sb["Supabase (proyecto compartido con la app de uniformidad)"]
     PG[(Postgres · esquema hidrantes<br/>PostGIS · pg_cron)]
@@ -143,11 +143,21 @@ Reglas:
 
 - Las migraciones son las mismas y en el mismo orden. Producción nunca recibe una migración que no
   haya pasado por staging; lo garantiza el flujo de ramas.
+- **Producción tiene siempre la versión completa de staging** (DEC-096). Producción solo por PR
+  `develop → main` con aprobación del desarrollador en el *environment* `production`. Al cerrar cada
+  bloque de trabajo se abre ese PR, con *merge commit* para que las dos ramas compartan historia, y
+  el paso "Paridad con develop" de `deploy-prod.yml` comprueba que producción quedó igual. Poner
+  producción al día no abre el acceso: el código real se comunica en F9.10 (#85).
 - El seed es un archivo aparte (`supabase/seed-staging.sql`) y la CI de producción **aborta** si su
   nombre aparece en el comando o si `PROJECT_REF` no es el esperado.
 - Cada punto ficticio del seed lleva `descripcion` con prefijo `[PRUEBA]`.
 - Las *preview deployments* de Cloudflare (una URL por Pull Request) apuntan siempre a Supabase
   **dev**.
+- **Antes de cada PR `develop → main`**, `npm run comprobar-produccion` (docs/19 P-01) comprueba, sin
+  cambiar nada ni imprimir valores, que producción tiene los secretos, variables y migraciones que la
+  versión nueva necesita. En local mira GitHub, Pages y la Data API; el workflow
+  `comprobar-produccion.yml` mira la base de datos de producción y el token de Cloudflare, que solo
+  están en los secretos. Lo que no puede mirar sale como "NO COMPROBADO", nunca como OK.
 - Los tests (SQL, e2e) corren contra una **instancia local efímera** (`supabase start` en el runner)
   con las Pages Functions servidas por `wrangler pages dev`. Nunca contra dev ni prod: dos ramas a la
   vez se pisarían los datos, y un test que borra algo en una base compartida con la app de uniformidad
@@ -165,6 +175,7 @@ antes de la primera migración:
 | **Historial de migraciones compartido.** El CLI guarda lo aplicado en `supabase_migrations.schema_migrations`, una tabla por base de datos; dos repositorios con `supabase db push` se verían las migraciones del otro como desconocidas. | Este proyecto **no usa `supabase db push`**. `scripts/migrar.ts` aplica los archivos de `supabase/migrations/` con `psql`, en orden y en una transacción, contra un historial propio `hidrantes.migraciones_aplicadas` (archivo, hash, fecha). Aborta si el hash de una migración ya aplicada ha cambiado. |
 | **`public.app_users` es de la otra app.** Reutilizarla tal cual convertiría a todo administrador de uniformidad en administrador de hidrantes, y añadirle una columna crearía *drift* en un esquema que gestiona otro repositorio. | Tabla propia **`hidrantes.administradores`**. `fn_es_admin()` comprueba el email del JWT contra ella. `public` no se toca; el panel solo lee `app_users` para sugerir correos. |
 | **PostGIS se habilita para toda la instancia.** | Primero en dev; se comprueba que la app de uniformidad sigue bien; después en prod. |
+| **Desde el 30 oct 2026 Supabase no concede acceso a la Data API a tablas nuevas de `public`.** | No nos afecta: `hidrantes` tiene permisos explícitos (`0003_permisos.sql` revoca todo y concede a medida), y la app solo **lee** `public.app_users`, que ya existe y conserva sus grants. Toda tabla nueva de `hidrantes` lleva en su migración los `grant` que necesite (05 §5), y `02_permisos.test.sql` falla si a una tabla le faltan los de `service_role` (docs/19 RV-70). **A quien sí afecta es a la app de uniformidad**, que usa `public` en el mismo proyecto: sus tablas nuevas necesitarán sus `grant` en su propia migración. |
 | **La contraseña de `postgres` alcanza también `public`.** | Solo la usa `arranque.ts`, en memoria, para crear extensiones, el esquema y el rol `hidrantes_migrador` (propietario de `hidrantes`, sin privilegios en `public`). Todo lo automático usa ese rol (DEC-052). |
 
 ### Consumo del plan gratuito (compartido)
@@ -218,7 +229,8 @@ Las cinco Pages Functions (`functions/api/`), en TypeScript, con su contrato en 
 | `POST /api/verificar-codigo` | Canje del código por token, con la IP real. |
 | `POST /api/url-subida` | Reserva de subida y URL firmada para una foto. |
 | `GET /api/direccion` | Reverse geocoding en Nominatim, solo con JWT de administrador, ≤ 1 req/s, resultado cacheado en la propuesta. |
-| `POST /api/lanzar-workflow` | `repository_dispatch` a un workflow de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. Sustituye a `/api/lanzar-purga`. |
+| `POST /api/lanzar-workflow` | `workflow_dispatch` a un workflow de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. Con `workflow_dispatch` el token basta con `actions:write` (DEC-069). |
+| `POST /api/geocodificar` | Números de portal para la búsqueda con CartoCiudad (IGN/CNIG), con token de voluntario o JWT de administrador, nunca anónima; 5 s como mucho, caché de 30 días por el sha256 de la consulta, que no se registra (DEC-092, 05 §9). |
 | `POST /api/push` | Envía las notificaciones pendientes (`notificaciones`) por Web Push con las claves VAPID; la llama el cliente tras cada acción que genera avisos y el trabajo diario de vigilancia. Idempotente. |
 
 ---
@@ -247,9 +259,13 @@ sequenceDiagram
   offline de fichas; se descarta a sabiendas. La foto retrata un hidrante, no una persona (11).
 - **Las fotos no se mueven al aprobar.** Storage guarda los bytes fuera de Postgres; una función SQL
   no puede copiar archivos. `puntos.foto_path` pasa a apuntar al archivo ya subido.
-- **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas()`
-  la lista de paths protegidos (puntos, propuestas pendientes o aprobadas, reservas de < 24 h), lista
-  el bucket y borra el resto. Desde Ajustes se lanza el mismo workflow vía `/api/lanzar-purga`. Una
+- **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas_lista()`
+  la lista de paths protegidos (puntos, propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 7 días, DEC-084), lista
+  el bucket y borra el resto. La lista llega en una sola fila con su total, porque PostgREST corta en
+  1.000 filas cualquier RPC que devuelva un conjunto. El guion no borra nada si la lista no cuadra con
+  el total, si trae un múltiplo exacto de 1.000 o si la pasada borraría más de max(50, 10 %) del
+  bucket (eso solo a mano, con `--forzar`, tras un `--ensayo`). Justo antes de borrar vuelve a pedir la
+  lista (docs/18 RV-33). Desde Ajustes se lanza el mismo workflow vía `/api/lanzar-workflow`. Una
   foto referenciada por un punto nunca se borra, aunque su propuesta original se rechazara después.
 - **El tratamiento de la imagen es en el móvil:** orientación EXIF aplicada, ≤ 1600 px, recompresión
   (elimina metadatos), y coordenadas EXIF leídas antes y enviadas aparte como `exif_geom`.
@@ -288,7 +304,9 @@ simplifica, une, aplica un margen de 400 m y escribe `datos/zona-cobertura.geojs
 `datos/zona-cobertura.html`. Los GeoJSON se committean; el build nunca depende de Overpass.
 `scripts/cargar-zona.ts` los carga en `hidrantes.limite_municipal` y `hidrantes.nucleos` con `upsert`
 idempotente desde CI, tras las migraciones. No van por migración: regenerar el límite no debe generar
-una migración nueva cada vez.
+una migración nueva cada vez. Si la geometría recién consultada es la misma que la committeada,
+`generar-zona.ts` no escribe nada: la `version` es la fecha del día y, sin esa comprobación, cada
+Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 
 ---
 
@@ -298,15 +316,18 @@ una migración nueva cada vez.
 |---|---|---|
 | Purga de `intentos_codigo` > 24 h | `pg_cron` | cada hora |
 | Purga de papelera pasado `dias_papelera` | `pg_cron` | diario |
+| Purga de reservas de subida de más de 30 días (`hidrantes_purgar_subidas`, DEC-084) | `pg_cron` | diario |
 | Borrado de `errores_cliente` > 90 días | `pg_cron` | diario |
 | Revocación de tokens sin uso en `dias_caducidad_token` | `pg_cron` | diario |
+| Resumen semanal de jefatura encolado (FR-164) | `pg_cron`; lo envía `/api/push` (DEC-068) | lunes |
 | Purga de fotos huérfanas | GitHub Actions `purgar-fotos.yml` (`service_role`) | semanal + bajo demanda desde Ajustes |
 | Respaldo cifrado de la BD (`pg_dump` del esquema `hidrantes`) | GitHub Actions `respaldo.yml` (`service_role`, GPG) | semanal, 90 días de retención |
 | Respaldo del bucket de fotos | mismo workflow | mensual |
 | Promoción de los datos del piloto | GitHub Actions `promover-piloto.yml` (manual, con aprobación) | una vez |
+| Versión del mapa base en `config.version_mapabase` (`cargar-version-mapabase.ts`, tras desplegar y comprobar lo servido; RV-21) | GitHub Actions `deploy-*.yml` | cada despliegue |
 | Mantener activos los proyectos de Supabase (DEC-054) | GitHub Actions `mantener-activo.yml` | diario |
 | Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | diario |
-| Regenerar zona / mapa base | GitHub Actions `regenerar-zona.yml`, `regenerar-mapabase.yml` (por `repository_dispatch` desde Ajustes) | bajo demanda |
+| Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml` (por `workflow_dispatch` desde Ajustes, DEC-069); abre un PR a `develop` con lo regenerado | bajo demanda |
 | Actualización de dependencias | Dependabot + `automerge.yml` (parches y menores con CI verde) | semanal |
 | Lighthouse y cabeceras | dentro de `deploy-staging.yml`, tras desplegar | cada despliegue |
 
@@ -324,15 +345,20 @@ nombres y sin valores. Los carga `scripts/arranque.ts`.
 
 | Dónde | Secreto | Para qué |
 |---|---|---|
-| GitHub (ambos entornos) | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | desplegar a Pages |
+| GitHub (ambos entornos) | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | desplegar a Pages y, desde staging, el Worker `hidrantes-avisos`. El token necesita **Pages: Edit** y **Workers Scripts: Edit** (docs/19 P-01) |
 | GitHub (por entorno) | `SUPABASE_DB_URL` | `psql` para `migrar.ts`, `cargar-zona.ts`, `pg_dump`. **Cadena del pooler de Supavisor en modo sesión (puerto 5432)**: los runners de GitHub no tienen IPv6. Usuario **`hidrantes_migrador`**, nunca `postgres` (DEC-052) |
 | GitHub (por entorno) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | purga de fotos, respaldo del bucket, `promover-piloto.ts` |
 | GitHub (production) | `GPG_PUBLIC_KEY` | cifrar el respaldo. La privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación |
-| Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN` (permiso único `actions:write`), `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | las Pages Functions |
+| Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN` (permiso único `actions:write`), `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` (DEC-059), `VAPID_SUBJECT`, `VIGILANCIA_SECRETO` (DEC-088) | las Pages Functions |
 | GitHub (variables por entorno, públicas) | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MAPABASE_URL`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` | el build del frontend, que se hace en Actions y se sube con `wrangler pages deploy` (DEC-055) |
+| GitHub (repositorio, para los trabajos automáticos) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `GPG_PUBLIC_KEY`, `VIGILANCIA_SECRETO_{PROD,STAGING}` (el mismo valor que el de Pages y el del Worker; la vigilancia y el envío manual de `avisos.yml`, DEC-088) | `respaldo.yml` y los demás trabajos por calendario: no pueden usar los del *environment* `production`, que exige aprobación humana en cada ejecución (DEC-071) |
+| Worker `hidrantes-avisos` (cifrados) | `VIGILANCIA_SECRETO_PROD`, `VIGILANCIA_SECRETO_STAGING`, los mismos valores que Pages y el repositorio; los pone `npm run arranque` (también `--rotar vigilancia` y `--solo-faltantes`) | llamar a `/api/push` de cada entorno cada 5 minutos (docs/19 RV-52, DEC-097) |
 | GitHub (variables del repositorio, públicas) | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` | `mantener-activo.yml`, sin *environment* (DEC-054) |
 
-`GITHUB_DISPATCH_TOKEN` se añade en la Fase 7, con `/api/lanzar-workflow` (DEC-055). El inventario
+`GITHUB_DISPATCH_TOKEN` se añade en la Fase 7, con `/api/lanzar-workflow` (DEC-055). Es un token
+*fine-grained* del repositorio con **un solo permiso: `Actions: Read and write`**, y nada más; con eso
+basta para `workflow_dispatch` (DEC-069). Caduca (máximo un año): el día que expire, Mantenimiento
+vuelve a responder `NO_CONFIGURADO` y se crea otro igual. El inventario
 real de lo creado lo escribe el arranque en `docs/entornos.md`, sin valores.
 
 ---
@@ -372,15 +398,20 @@ e2e/                    # Playwright
 
 | Workflow | Disparo | Hace |
 |---|---|---|
-| `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP y Playwright contra Supabase local + `wrangler pages dev` |
-| `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), despliegue a Pages staging |
-| `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, despliegue; en el primer despliegue genera el código de acceso real y lo deja en el *summary* |
+| `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP, las ocho pruebas de intrusión de TR-40 (`scripts/intrusion.ts`, 11 §5) y Playwright contra Supabase local + `wrangler pages dev`; si la rama cambia migraciones, además la compatibilidad hacia atrás de §12 |
+| `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), despliegue a Pages staging y, si cambió `workers/` o aún no existe, el Worker de los avisos (DEC-097) |
+| `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
 | `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
-| `purgar-fotos.yml` | semanal, `repository_dispatch` | purga de huérfanas |
-| `promover-piloto.yml` | manual | copia puntos, fotos y registro de staging a prod conservando códigos |
+| `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema |
+| `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos, con las secuencias de prod al menos en las de staging para no volver a dar un código (RV-66); empieza en ensayo y exige escribir PROMOVER (DEC-078) |
+| `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
+| `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa si la base de datos pasa de 400 MB (80 % de los 500 compartidos con uniformidad); abre una issue si algo falla (TR-102, TR-54, RV-22). La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
+| `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
+| Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` cuando cambia `workers/`; sin superficie HTTP (DEC-097) |
+| `avisos.yml` | solo a mano (`workflow_dispatch`) | lo mismo que el Worker, como envío de emergencia si fallara (DEC-097) |
 | `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
-| `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md`; relanza la CI de ese PR (DEC-055) |
+| `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) |
 
 Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml`: `ci-calidad`,
 `ci-sql` y `ci-e2e`.
@@ -440,6 +471,9 @@ Fase 0.
 - **Compatibilidad:** toda migración funciona con la versión anterior del frontend durante unos
   minutos, porque la base de datos se actualiza antes que el navegador de la gente. Añadir columnas y
   valores de enum sí; renombrar o eliminar, en dos pasos separados por un despliegue.
+  Lo comprueba `ci-sql` en cada PR que toque `supabase/migrations` (`npm run compatibilidad`,
+  TR-107): monta un worktree de la rama publicada, construye aquel frontend con sus Pages Functions
+  y corre **sus** casos de integración contra la base de datos ya migrada con lo que trae el PR.
 - Los tres procedimientos (revertir frontend, revertir migración, restaurar respaldo) están escritos
   paso a paso en **15**.
 
@@ -451,8 +485,11 @@ El piloto se hace en **staging** con un barrio real y 5–8 voluntarios. Antes, 
 código real desde Ajustes. Al terminar, `promover-piloto.ts` (workflow manual con aprobación):
 exige cola de staging a cero; lee los puntos activos que no empiecen por `[PRUEBA]` con sus
 propuestas aprobadas y su registro; copia sus fotos entre buckets con el mismo `foto_path`; inserta
-en producción **conservando los códigos** y avanza las secuencias; es idempotente por `codigo` y
-deja informe. Los voluntarios instalan la PWA de producción con el código real.
+en producción **conservando los códigos** y avanza las secuencias; es idempotente por `id` y
+deja informe. Antes de escribir comprueba que ningún código del piloto lo tiene ya **otro** punto en
+producción: si lo hay, aborta con la lista y se resuelve a mano. Los puntos entran con
+`actualizado_en = now()` y la transacción cambia la época de los datos, para que los móviles los
+vean sin esperar a la completa semanal (docs/18 RV-46). Los voluntarios instalan la PWA de producción con el código real.
 
 ---
 

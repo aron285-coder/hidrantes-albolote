@@ -52,7 +52,8 @@ nunca crea un requisito.
   `wrangler pages dev`.
 - **Nunca `insert`/`update`/`delete` directo desde el frontend.** Todo por RPC `SECURITY DEFINER`.
 - **Nunca `execute` para `anon` en `fn_verificar_codigo`, `fn_reservar_subida`,
-  `fn_fotos_referenciadas`.** Solo `service_role` desde las Pages Functions.
+  `fn_fotos_referenciadas`, `fn_fotos_referenciadas_lista`.** Solo `service_role` desde las Pages
+  Functions y los workflows.
 - **Nunca políticas de escritura en Storage para `anon`.** Subida solo con URL firmada.
 - **Nunca nombres de voluntarios ni correos de administradores en nada que llegue a un
   voluntario** (FR-27): RPC de voluntario, notificaciones, exportaciones.
@@ -88,7 +89,9 @@ cobertura · fuera de zona.
    flujos. La issue no está terminada sin ellos. Comprueba también las reglas UI de 06 §9 en la
    pantalla que toques.
 5. PR a `develop` que enlaza la issue, con la plantilla rellena (definición de terminado, 09 §6).
-   Commits *conventional* en español: `feat(mapa): …`, `fix(cola): …`, `chore(ci): …`.
+   Commits *conventional* en español: `feat(mapa): …`, `fix(cola): …`, `chore(ci): …`. La descripción
+   de un `feat:` o `fix:` con ámbito de usuario se escribe para un voluntario: qué cambia para él, sin
+   nombres de archivos ni códigos internos. Sale tal cual en Novedades (FR-167, DEC-091).
 6. CI verde → merge → staging se despliega solo. Comprueba staging con Playwright si el cambio es
    visible.
 7. Marca la issue; si cierra una fase, escribe `docs/verificacion/fase-N.md` (qué casos de 10 has
@@ -96,7 +99,9 @@ cobertura · fuera de zona.
    `docs/09-plan-implementacion.md` §8. Una fase sin ese archivo no está terminada.
 
 Producción solo por PR `develop → main` con aprobación del desarrollador en el *environment*
-`production`. No lo pidas hasta que la Fase 9 lo diga (la única excepción, al cerrar la Fase 0: DEC-056).
+`production`. Al cerrar cada bloque de trabajo, abre ese PR para que producción tenga la versión
+completa de staging (DEC-096). Poner producción al día no abre el acceso: el código real se
+comunica en F9.10.
 
 ## 6. Entorno local y comandos
 
@@ -119,8 +124,8 @@ npx wrangler pages dev        # Pages Functions en :8788 (proxy configurado en v
 npm test                      # vitest
 npm run test:sql              # pgTAP contra la instancia local
 npm run e2e                   # Playwright (levanta todo lo anterior)
-npm run zona | mapabase | codigo | revertir | restaurar | promover-piloto | capturas
-npm run arranque              # solo la primera vez o para --rotar <secreto|todo>
+npm run zona | callejero | tareas-esperadas | mapabase | comprobar-produccion | codigo | revertir | restaurar | promover-piloto | capturas | purgar-fotos
+npm run arranque              # solo la primera vez o para --rotar <secreto[,secreto]|todo>
 
 git switch develop && git pull
 git switch -c fase-5/busqueda-local

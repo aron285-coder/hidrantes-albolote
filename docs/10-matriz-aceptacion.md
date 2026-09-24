@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se amplía cuando aparece un caso nuevo; los resultados se anotan por recorrido. |
-| **Versión** | 1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
+| **Versión** | 1.5 — 23 de septiembre de 2026: §K, AC-150 a AC-156 de las funciones de mapa para emergencias (DEC-089), y §L, un caso para cada FR que no tenía (docs/18 GM-00). 1.4 — 22 de septiembre de 2026: AC-140 pasa a comprobarse sola (`e2e/controles.spec.ts`). v1.3: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
 | **Propietario de** | los casos de prueba de aceptación (`AC-nn`). Cada caso cita el requisito que verifica (01, 03). |
 | **Cómo se usa** | Se imprime. Jefatura y 2–3 voluntarios lo recorren en la calle sobre **staging** con el código del piloto, y después sobre producción antes de abrir a los 65. Columna "Resultado": ✓ / ✗ / n.a.; columna "Notas": qué pasó si ✗. |
 
@@ -150,13 +150,13 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|
-| AC-110 | Las ocho pruebas de intrusión con la `anon key` (TR-40) | Las ocho fallan; documentadas en 11 | TR-40 | | |
-| AC-111 | Código no almacenado en el móvil | Inspección del almacenamiento local: solo token, nombre, `dispositivo_id` | TR-43 | | |
+| AC-110 | Las ocho pruebas de intrusión con la `anon key` (TR-40) | Las ocho fallan; documentadas en 11 | TR-40 | ✓ | 21 sep 2026 · `npm run intrusion`, y en cada PR desde ci-sql. Resultado de cada una, en 11 §5 |
+| AC-111 | Código no almacenado en el móvil | Inspección del almacenamiento local: solo token, nombre, `dispositivo_id` | TR-43 | ✓ | 23 sep 2026 · `src/lib/acceso.test.ts` · "al entrar guarda token, nombre e identificador; el código nunca (TR-43)" |
 | AC-112 | EXIF eliminado | La foto en el bucket no tiene metadatos | TR-47 | | |
-| AC-113 | Cuota de subidas | La reserva 41 del día falla | TR-45 | | |
-| AC-114 | Respaldo restaurado | Restauración sobre base limpia ejecutada y documentada | TR-51 | | |
-| AC-115 | Presupuesto de rendimiento | CI: < 3 s en 3G, < 300 kB | TR-10, TR-11 | | |
-| AC-116 | Carga con 1.000 puntos | Mapa fluido en el móvil de gama media documentado | TR-12 | | |
+| AC-113 | Cuota de subidas | La reserva 41 del día falla | TR-45 | ✓ | 23 sep 2026 · pgTAP `05_rpc_voluntario.test.sql` ("la reserva 41 del día: rechazada") y `07_concurrencia_rpc.test.sql` (40 y 41 a la vez) |
+| AC-114 | Respaldo restaurado | Restauración sobre base limpia ejecutada y documentada | TR-51 | ✓ | 20–21 sep 2026 · ensayo completo con un volcado cifrado real; sacó tres defectos (15 §5.3, verificación de la Fase 8) |
+| AC-115 | Presupuesto de rendimiento | CI: < 3 s en 3G, < 300 kB | TR-10, TR-11 | ✓ | 21 sep 2026 · 2,40 s la primera pantalla con 3G simulada (`e2e/rendimiento.spec.ts`); 23 sep 2026 · 271,5 kB de JavaScript inicial (`npm run presupuesto`) |
+| AC-116 | Carga con 1.000 puntos | Mapa fluido en el móvil de gama media documentado | TR-12 | ✓ | 22 sep 2026 · POCO M6 Pro, Android 15 (`AP3A.240905.015.A2`), sobre staging; se maneja con soltura |
 
 ## I · Exportación, avisos, utilidades y robustez (FR-160–168, TR-100–107)
 
@@ -169,7 +169,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-124 | Push voluntario | Ajustes → activar notificaciones → jefatura aprueba una propuesta | Llega la notificación; al tocarla se abre Mis propuestas. En iPhone, solo con la app instalada, y la app lo avisó antes | FR-163, TR-104 | | |
 | AC-125 | Push jefatura | Administrador suscrito; un voluntario envía dos altas en 10 min | Una sola notificación agrupada en la hora | FR-164 | | |
 | AC-126 | Regenerar zona desde Ajustes | Ajustes → Regenerar zona | Aviso "tarda unos minutos"; Salud muestra la nueva fecha al terminar | FR-165 | | |
-| AC-127 | Novedades | Tras un despliegue, abrir Ajustes | Tres líneas de novedades con la versión nueva | FR-167 | | |
+| AC-127 | Novedades | Tras un despliegue, abrir Ajustes | Hasta tres líneas de novedades con la versión nueva, escritas para un voluntario: sin rutas de archivo ni códigos internos (DEC-091) | FR-167 | ✓ | e2e `mapa.spec.ts` (RV-47) |
 | AC-128 | Servidor no disponible | Bloquear Supabase (modo avión con mapa base descargado no vale: usar un bloqueo de dominio) | La app muestra los datos guardados y "sin conexión con el servidor"; nada en blanco; lo enviado queda en cola | FR-168, TR-106 | | |
 | AC-129 | Cabeceras | Analizador de cabeceras sobre producción | Puntuación A; CSP sin `unsafe-eval` | TR-100 | | |
 | AC-130 | Vigilancia | Ver la última ejecución de `vigilancia.yml` | En verde; al forzar un fallo se abre una issue | TR-102 | | |
@@ -182,14 +182,51 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-140 | Ningún control muerto | Recorrido automatizado que pulsa todos los controles de cada pantalla de la app y del panel | Cada uno cambia la pantalla, abre un diálogo o muestra un aviso; ningún botón deshabilitado sin motivo escrito debajo | UI-01, UI-02, TR-110 | | |
+| AC-140 | Ningún control muerto | Recorrido automatizado que pulsa todos los controles de cada pantalla de la app y del panel | Cada uno cambia la pantalla, abre un diálogo o muestra un aviso; ningún botón deshabilitado sin motivo escrito debajo | UI-01, UI-02, TR-110 | ✓ | 22 sep 2026 · automatizado en `e2e/controles.spec.ts` para las ocho pantallas del **voluntario** en el móvil: pulsa cada control y exige que cambie la pantalla, abra un diálogo o saque un aviso; en escritorio comprueba que ninguno se queda sin nombre. 23 sep 2026 · también las siete pantallas del **panel** en escritorio (RV-30): la primera de cada acción repetida por fila, las descargas esperando el archivo, y fuera, con su motivo, "Ir al mapa", "Cerrar sesión" de Google y "Salir" de la cabecera (salen del panel; los cubre `acceso.spec.ts`). En la app no se pulsan "Descargar" y "Actualizar" del mapa base ni sus avisos en el mapa (bajarían megas; los cubren `mapa.spec.ts` y `ajustes`) ni "Cómo llegar" (abre la app de mapas del móvil, FR-161). **Parcial:** la cola del recorrido del panel está vacía, así que "Aprobar", "Rechazar…" y "Fusionar" no se pulsan aquí; los cubren `panel-cola.spec.ts` y la integración `fase7.spec.ts` (docs/18 RV-51) 
 | AC-141 | Legibilidad y separación | Revisión de cada pantalla en móvil y escritorio | Sin texto pegado; datos compuestos con ` · `; "Aprobar" y "Rechazar…" separados; objetivos táctiles ≥ 44 px | UI-10 a UI-16, TR-113 | | |
-| AC-142 | Dos administradores a la vez | Dos navegadores abren la misma propuesta y pulsan Aprobar casi a la vez | Uno aprueba; el otro ve "esta propuesta ya no está pendiente" y la lista se refresca. Nada se duplica ni se pisa | TR-114, 05 §11 | | |
-| AC-143 | Dos envíos del mismo móvil | Forzar dos sincronizaciones simultáneas con propuestas en cola | Una sola propuesta por `clave_local` | TR-114, FR-49 | | |
+| AC-142 | Dos administradores a la vez | Dos navegadores abren la misma propuesta y pulsan Aprobar casi a la vez | Uno aprueba; el otro ve "esta propuesta ya no está pendiente" y la lista se refresca. Nada se duplica ni se pisa | TR-114, 05 §11 | ✓ | 23 sep 2026 · pgTAP `07_concurrencia_rpc.test.sql` con dblink: dos `fn_aprobar` a la vez, la segunda falla con `PROPUESTA_NO_PENDIENTE` |
+| AC-143 | Dos envíos del mismo móvil | Forzar dos sincronizaciones simultáneas con propuestas en cola | Una sola propuesta por `clave_local` | TR-114, FR-49 | ✓ | 23 sep 2026 · pgTAP `07_concurrencia_rpc.test.sql` (dos `fn_proponer` con la misma `clave_local`) y `src/lib/cola.test.ts` |
 | AC-144 | Estados vacíos | Vaciar la cola, filtrar el inventario a cero, entrar sin propuestas propias | Las tres pantallas muestran un texto útil, no una tabla vacía | UI-03 | | |
 | AC-145 | Errores explicados | Provocar un rechazo sin motivo, una foto que falta y un fallo de red | Tres mensajes en español que dicen qué pasa y qué hacer; ningún código técnico | UI-04, TR-36 | | |
-| AC-146 | Textos centralizados | Buscar en el código literales de interfaz fuera de `src/lib/textos.ts` | Ninguno; el build falla si se añade uno | UI-20, TR-111 | | |
+| AC-146 | Textos centralizados | Buscar en el código literales de interfaz fuera de `src/lib/textos.ts` | Ninguno; el build falla si se añade uno | UI-20, TR-111 | ✓ | 23 sep 2026 · regla de `eslint.config.js` en `npm run lint` (ci-calidad) y `src/lib/textos.test.ts` (cada texto en el Apéndice A); la regla se amplía a `.ts` en RV-31 |
 | AC-147 | Verificación por fase | Abrir `docs/verificacion/` | Un archivo por fase cerrada, con casos ejecutados, comandos y suposiciones | TR-115 | | |
+
+---
+
+## K · Funciones de mapa para emergencias (FR-72–76, TR-116–119, DEC-089)
+
+Pendientes de conformidad de jefatura en F9.1 (#76). Se comprueban en el piloto con uso real.
+
+| ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
+|---|---|---|---|---|---|---|
+| AC-150 | ¿Qué hay aquí? | Sin cobertura, mantener pulsado un sitio del mapa sin marcador | Hoja con coordenadas decimales y UTM ETRS89 huso 30, la calle más cercana si la hay y las cuatro acciones; *Añadir un punto aquí* abre el alta con el pin ahí; *atrás* la cierra | FR-72, FR-50 | ✓ | 23 sep 2026 · e2e `mapa.spec.ts` y `busqueda.spec.ts` |
+| AC-151 | Buscar calle, lugar, portal o coordenadas | Sin cobertura, buscar "c/ real"; con cobertura, "calle real 12"; pegar un enlace de Google Maps | La calle sale del móvil con "© OpenStreetMap"; el portal, con "CartoCiudad · IGN"; el enlace da "Coordenadas …" arriba; sin cobertura, el portal explica que necesita cobertura y enseña la calle | FR-73, FR-69, TR-118 | ✓ | 23 sep 2026 · e2e `busqueda.spec.ts` |
+| AC-152 | Modo incidente | Sin cobertura, con GPS, pulsar *Cercanos* | Como mucho cinco puntos que funcionan (bueno o regular), en orden de distancia, con rumbo y tramos; aviso si el más cercano no funciona; *Solo hidrantes* cambia la lista; *atrás* sale; recargar lo mantiene | FR-74 | ✓ | 23 sep 2026 · e2e `incidente.spec.ts` |
+| AC-153 | Compartir un punto | Ficha → *Compartir* → WhatsApp | Llega código, tipo, diámetro, estado, dirección, coordenadas decimales y UTM y un enlace de Google Maps; sin nombres ni descripción | FR-75, FR-27 | | |
+| AC-154 | Medir un tendido | Desde *Cercanos*, *Medir tendido*; añadir dos vértices; *Deshacer*; *Terminar* | La barra dice la distancia y los tramos de manguera; tocar no abre fichas; *Deshacer* quita el último; *atrás* sale | FR-76, FR-142 | ✓ | 23 sep 2026 · e2e `medir.spec.ts` |
+| AC-155 | G2: el punto más cercano que funciona | Con puntos guardados y sin red, cronometrar desde abrir la app hasta ver la primera fila de *Cercanos* con un toque | Menos de 15 s en campo; en e2e con perfil móvil, menos de 3 s | G2, FR-74, TR-116 | | e2e `incidente.spec.ts` (@rendimiento) |
+| AC-156 | UTM exacto | Comparar las UTM de la app con PROJ (EPSG:4258 → EPSG:25830) en cuatro puntos de la zona | Diferencia ≤ 1 m | TR-119, FR-72, FR-75 | ✓ | 23 sep 2026 · vitest `coordenadas.test.ts` |
+
+---
+
+## L · Requisitos generales que no tenían caso propio (docs/18 GM-00)
+
+Casos para que cada FR de 01 tenga al menos uno que lo cite (`scripts/docs.test.ts`). La mayoría ya
+se ven al recorrer los anteriores: aquí se anotan una vez.
+
+| ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
+|---|---|---|---|---|---|---|
+| AC-157 | Qué es y para quién | Recorrer el mapa con un voluntario y el panel con jefatura | El mapa enseña hidrantes y bocas de la zona mantenidos por voluntarios y validados por jefatura; responde dónde está el más cercano, en qué estado y cuándo se revisó; hay dos perfiles, voluntario sin cuenta y jefatura con Google | FR-01, FR-02, FR-03 | | |
+| AC-158 | Todo en español | Recorrer todas las pantallas de la app y del panel | Ningún texto en otro idioma ni código técnico a la vista | FR-05, UI-20 | | regla de ESLint y `textos.test.ts` (AC-146) |
+| AC-159 | Datos de cada punto | Abrir la ficha de un hidrante y de una boca de riego | Tipo, ubicación, descripción, fecha de última revisión y situación; el tipo no se ofrece para cambiar (FR-11) | FR-11, FR-12, FR-22, FR-24, FR-25 | | |
+| AC-160 | Estados de una propuesta | Enviar tres propuestas; jefatura aprueba una, rechaza otra con motivo; el autor retira la tercera | Mis propuestas enseña aprobada, rechazada con motivo y retirada por ti; la pendiente no está en el mapa general | FR-26, FR-47 | | |
+| AC-161 | Fotos solo con código | Intentar pedir una URL de subida sin token | 401; con token, hasta el tope diario del dispositivo | FR-38 | ✓ | 23 sep 2026 · `scripts/probar-functions.ts` e intrusión (TR-40) |
+| AC-162 | Seis operaciones y "Proponer un cambio" | Abrir la ficha → *Proponer un cambio* | Cinco operaciones sobre el punto; la sexta, el alta, desde el botón + | FR-40, FR-67 | | e2e `operaciones.spec.ts` |
+| AC-163 | Zona de cobertura | Colocar un pin en Albolote, en Calicasas y fuera | Dentro, sin aviso; fuera (más de unos 400 m), aviso y se puede continuar | FR-53, FR-55 | | |
+| AC-164 | Panel en ordenador y tableta | Abrir el panel en un portátil y en una tableta con una cuenta autorizada y con otra no autorizada | La autorizada entra y se usa en los dos; la otra ve "no autorizado" | FR-100 | | e2e `anchos.spec.ts` |
+| AC-165 | Pendientes a la vista | Con tres propuestas pendientes, abrir el panel | La cola dice 3 en todo momento, y baja al aprobar | FR-110 | | |
+| AC-166 | Caducadas sin correos | Dejar puntos sin revisar más de 12 meses | Salen en Caducadas del panel; no llega ningún correo automático | FR-125 | | |
+| AC-167 | Núcleos desde Ajustes | Ajustes → Núcleos: renombrar uno y añadir otro | El renombrado se ve en el inventario y la lista; el nuevo sale con su recuento de puntos | FR-166 | | e2e `panel-ajustes.spec.ts` |
 
 ---
 

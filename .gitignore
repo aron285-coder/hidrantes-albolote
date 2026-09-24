@@ -20,10 +20,17 @@ dev-dist/
 *.tar
 *.tar.gz
 respaldos/
+/respaldos/
 fotos/
+# Un volcado descifrado lleva datos personales en claro (docs/18 RV-37); supabase/**/*.sql sí va
+/*.sql
+restauracion*.sql
+hidrantes-*.sql
 
 # Artefactos generados de datos/ (los GeoJSON sí se committean, 04 §8)
 *.pmtiles
+# …salvo el mapa base publicado: el build no depende de Protomaps (DEC-062)
+!public/mapabase/albolote.pmtiles
 datos/*.html
 
 # Supabase local
@@ -38,8 +45,14 @@ coverage/
 
 # Claude Code: la configuración local es personal
 .claude/settings.local.json
+# Worktrees de los agentes de Claude Code: son otras copias del repositorio, nunca parte de él.
+.claude/worktrees/
 
 # Sistema
 .DS_Store
 Thumbs.db
 *.log
+.dev.vars
+
+# Worktree temporal de scripts/compatibilidad.ts (TR-107)
+.anterior/

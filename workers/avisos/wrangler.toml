@@ -1,0 +1,16 @@
+# Worker que despacha los avisos push cada 5 minutos (docs/19 RV-52, DEC-097). Uno solo para los
+# dos entornos: llama a /api/push de producción y de staging con el secreto de cada uno. Sin
+# superficie HTTP: sin workers.dev ni rutas, y fetch() responde 404.
+#
+#   secretos (nunca aquí): VIGILANCIA_SECRETO_PROD y VIGILANCIA_SECRETO_STAGING, que pone
+#   `npm run arranque` con los mismos valores que Pages y los secretos del repositorio.
+name = "hidrantes-avisos"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+workers_dev = false
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+DESTINOS = "https://hidrantes-albolote.pages.dev,https://hidrantes-albolote-staging.pages.dev"

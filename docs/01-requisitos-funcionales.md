@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia solo con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.1 — 17 de septiembre de 2026. Consolida `requisitos-hidrantes.html` v6.1 §1–5 y §8.1; v1.1 añade problema/objetivos/no-objetivos (estructura del skill *write-spec*), la sección 13 y el criterio de alcance DEC-037. |
+| **Versión** | 1.4 — 24 de septiembre de 2026: sin cobertura, el mapa base propio se pinta debajo de la capa en línea elegida (FR-63, DEC-098). Pendiente de conformidad de jefatura en la validación F9.1 (#76), como las de v1.3. v1.3 — 23 de septiembre de 2026: el tipo de un punto no cambia (FR-11, FR-44, DEC-090); funciones de mapa para emergencias: "¿Qué hay aquí?", búsqueda de calles y coordenadas, modo incidente, compartir y medir (FR-50, FR-69, FR-142, FR-72 a FR-76, DEC-089). Pendiente de conformidad de jefatura en la validación F9.1 (#76); aprobada por el desarrollador el 23 sep 2026. v1.2 — 21 de septiembre de 2026: alta con pulsación larga en FR-50 (DEC-077). v1.1 — 17 de septiembre de 2026. Consolida `requisitos-hidrantes.html` v6.1 §1–5 y §8.1; v1.1 añade problema/objetivos/no-objetivos (estructura del skill *write-spec*), la sección 13 y el criterio de alcance DEC-037. |
 | **Propietario de** | las reglas funcionales del sistema. Todo otro documento las cita por su `FR-nn`. |
 | **No contiene** | pasos de uso (→ 02), cifras técnicas (→ 03), campos y tipos (→ 05), colores y tamaños (→ 06). |
 
@@ -82,7 +82,7 @@ exportación FR-160 cubre el intercambio de datos).
 | ID | Requisito |
 |---|---|
 | FR-10 | Cada punto tiene un **código** interno único y correlativo, `HID-####` para hidrantes y `BOC-####` para bocas de riego, generado por el sistema y nunca reutilizado. |
-| FR-11 | Cada punto es de un **tipo**: hidrante de incendios o boca de riego. |
+| FR-11 | Cada punto es de un **tipo**: hidrante de incendios o boca de riego. El tipo no cambia una vez creado; se corrige retirando el punto y dando de alta el correcto (DEC-090). |
 | FR-12 | Cada punto tiene una **ubicación** (latitud/longitud) fijada por el voluntario, por GPS o colocando el pin en el mapa. |
 | FR-13 | El sistema registra el **origen de la ubicación** (GPS en campo / colocado a mano), la **precisión del GPS** que informó el móvil y la **distancia** entre la posición GPS y el pin final. Es una señal para jefatura; no bloquea nada. |
 | FR-14 | El sistema deduce el **municipio y núcleo** de las coordenadas por cruce con la zona de cobertura. El voluntario no lo introduce. Fuera de todo límite, el municipio es "fuera de zona". |
@@ -126,7 +126,7 @@ exportación FR-160 cubre el intercambio de datos).
 | FR-41 | **Alta nueva:** un punto que no estaba en el mapa. Requiere ubicación, tipo, diámetro (si hidrante), estado, racor (si boca de riego), foto y, si procede, descripción del fallo. Necesita aprobación. |
 | FR-42 | **Revisión:** "he estado allí y sigue igual". No cambia ningún dato; solo actualiza la fecha de última revisión. Requiere foto. Jefatura puede aprobarla **en bloque**, sin revisar una por una. |
 | FR-43 | **Actualizar estado:** el caudal ha cambiado, o el punto ha dejado de funcionar (o vuelve a funcionar). Requiere foto y, si el estado es "no funciona", la descripción del fallo. Necesita aprobación. |
-| FR-44 | **Corregir datos:** tipo, diámetro o racor mal introducidos. No refleja un cambio en la realidad sino un error de registro. Necesita aprobación. |
+| FR-44 | **Corregir datos:** diámetro, racor o descripción mal introducidos; el tipo no (FR-11). No refleja un cambio en la realidad sino un error de registro. Necesita aprobación. |
 | FR-45 | **Corregir ubicación:** el pin está desplazado. El voluntario lo arrastra al sitio correcto; el sistema conserva la posición anterior y calcula el desplazamiento. Necesita aprobación. |
 | FR-46 | **Proponer retirada:** el punto ya no existe (obras, asfaltado, sustitución). Requiere motivo (uno rápido: obras, asfaltado, sustituido, otro; más texto libre) y foto del sitio. Solo jefatura puede confirmarla; hasta entonces el punto sigue visible. |
 | FR-47 | Toda propuesta pendiente queda **fuera del mapa general**: solo la ve jefatura en su cola, y el propio autor en "Mis propuestas". |
@@ -139,7 +139,7 @@ exportación FR-160 cubre el intercambio de datos).
 
 | ID | Requisito |
 |---|---|
-| FR-50 | El voluntario puede **tocar el mapa para colocar el punto**; no depende solo del GPS. La aplicación muestra la posición GPS con su margen de error y un pin arrastrable. |
+| FR-50 | El voluntario puede **tocar el mapa para colocar el punto**; no depende solo del GPS. La aplicación muestra la posición GPS con su margen de error y un pin arrastrable. Además, **mantener pulsado el mapa** (clic derecho en ordenador) abre *¿Qué hay aquí?* (FR-72), cuya acción *Añadir un punto aquí* empieza un alta con el pin en ese sitio a un toque; sobre un marcador existente no, que ahí lo que toca es abrir la ficha. Sustituye en parte a DEC-077 (DEC-089). |
 | FR-51 | **Duplicados:** al recibir un alta, el sistema busca el punto activo más cercano **del mismo tipo**. Si está a menos del radio configurado (25 m por defecto), la propuesta llega a jefatura marcada como posible duplicado, con ambos puntos en un minimapa, una comparación campo a campo con el existente, y la acción de **fusionar** con él en vez de crear otro. |
 | FR-52 | El voluntario **no recibe ningún aviso de duplicado** en la calle. Lo resuelve quien ve los dos registros: jefatura. |
 | FR-53 | La **zona de cobertura** es el término municipal de Albolote (Albolote, Cortijo del Aire, El Chaparral, Parque del Cubillas, Pretel, urbanizaciones consolidadas y diseminado) más Calicasas, con un margen de unos 400 m. Se genera de forma automática a partir de datos públicos (OpenStreetMap, límites administrativos); nadie descarga ni mantiene archivos a mano. |
@@ -155,15 +155,20 @@ exportación FR-160 cubre el intercambio de datos).
 | FR-60 | El mapa muestra todos los puntos **activos y aprobados**. La forma distingue el tipo (círculo = hidrante, cuadrado = boca de riego), el color el estado, y el tamaño lo aprovechable que es el punto (diámetro × caudal). La especificación exacta está en 06. |
 | FR-61 | Los puntos sin revisar en más de 12 meses (configurable) se distinguen visualmente (borde discontinuo) manteniendo tamaño y color. Los que no funcionan caen al tamaño mínimo y van atenuados y tachados. |
 | FR-62 | El mapa tiene una **leyenda** visible que explica forma, color, tamaño, tachado y borde discontinuo. |
-| FR-63 | Capas disponibles: **mapa base propio** (por defecto, funciona sin cobertura), **calle** (OpenStreetMap, en línea), **satélite** (PNOA del IGN, en línea) y **Catastro** (superpuesta, en línea). Todas gratuitas y sin clave de API. El selector recuerda la última capa elegida. Sin cobertura, las capas en línea aparecen en gris con el motivo. |
+| FR-63 | Capas disponibles: **mapa base propio** (por defecto, funciona sin cobertura), **calle** (OpenStreetMap, en línea), **satélite** (PNOA del IGN, en línea) y **Catastro** (superpuesta, en línea). Todas gratuitas y sin clave de API. El selector recuerda la última capa elegida. Sin cobertura, las capas en línea aparecen en gris con el motivo. Si la capa elegida es en línea y el mapa base está en el móvil, se pinta debajo el mapa base propio y se avisa; la elección no cambia (v1.4, DEC-098). |
 | FR-64 | Al alejar el zoom, los puntos desaparecen por orden inverso de tamaño: la vista general muestra siempre lo más aprovechable. No se agrupan marcadores en racimos. |
 | FR-65 | Hay un botón para **centrar el mapa en la posición del usuario**, y se muestra la posición con su halo de precisión. |
 | FR-66 | La **ficha** de un punto muestra: código, tipo, diámetro, estado, racor (si boca de riego), foto, dirección, distancia hasta el usuario, descripción, fecha de última revisión y la antigüedad de los datos que se están viendo. **No muestra** el historial de cambios ni los nombres de quien lo editó: eso es solo del panel. |
 | FR-67 | Desde la ficha se accede a **"Proponer un cambio"** con las cinco operaciones sobre un punto existente. |
 | FR-68 | La pestaña **Lista** muestra los mismos puntos ordenados por distancia (por defecto), código o estado, con filtros rápidos: todos, hidrantes, bocas de riego, no funciona, sin revisar. Cada fila muestra marcador, código, dirección, estado, última revisión y distancia. |
-| FR-69 | Hay **búsqueda** por código, dirección y descripción, tanto en el mapa como en la lista, y funciona sin cobertura sobre los datos guardados en el móvil. Elegir un resultado centra el mapa y abre la ficha. |
+| FR-69 | Hay **búsqueda** por código, dirección y descripción, tanto en el mapa como en la lista, y funciona sin cobertura sobre los datos guardados en el móvil. Elegir un resultado centra el mapa y abre la ficha. La búsqueda encuentra también calles, lugares, direcciones con número y coordenadas (FR-73). |
 | FR-70 | A partir del ancho de tableta, mapa y ficha se ven a la vez; en ordenador aparece además una lista lateral filtrable y la ficha se abre como panel flotante sin tapar el plano. |
 | FR-71 | La aplicación tiene **modo oscuro**, activado por la preferencia del móvil y conmutable a mano. Es operativo: en un servicio de noche, una pantalla blanca arruina la visión adaptada a la oscuridad. |
+| FR-72 | **"¿Qué hay aquí?"** Al mantener pulsado el mapa (o clic derecho), se abre una hoja con las coordenadas de ese sitio (decimal y UTM ETRS89 huso 30), la calle más cercana si se conoce y cuatro acciones: *Cercanos desde aquí*, *Medir desde aquí*, *Compartir esta ubicación* y *Añadir un punto aquí*. Funciona sin cobertura. |
+| FR-73 | **Búsqueda de calles, lugares, direcciones y coordenadas.** La búsqueda encuentra, además de puntos, calles y lugares con nombre de Albolote y Calicasas **sin cobertura**, y con cobertura también el número de portal. Acepta coordenadas en decimal, grados-minutos-segundos y UTM, y enlaces de Google Maps o Apple Plans que las contengan. Elegir un resultado centra el mapa y ofrece *Cercanos desde aquí*. Los resultados de calles citan su fuente. |
+| FR-74 | **Modo incidente: los más cercanos que funcionan.** Desde un botón del mapa (con la posición del GPS), desde FR-72 o desde un resultado de FR-73, la aplicación marca un punto de incidente y lista los cinco puntos activos más cercanos cuyo estado es *bueno* o *regular*. Cada fila da código, tipo y diámetro, estado, distancia en línea recta, rumbo (N, NE…) y tramos de manguera mínimos, con *Cómo llegar* y *Medir tendido*. Un conmutador limita a hidrantes. Funciona sin cobertura, el incidente no sale del móvil, y *atrás* lo cierra. |
+| FR-75 | **Compartir y coordenadas.** La ficha, FR-72 y FR-74 permiten compartir con el menú del móvil (o copiar, donde no lo haya) un texto con código, tipo, diámetro y estado si es un punto, dirección, coordenadas en decimal y UTM ETRS89 huso 30, y un enlace de Google Maps a esas coordenadas. La ficha enseña las coordenadas en los dos formatos, con botón de copiar. Nunca se incluyen nombres (FR-27). |
+| FR-76 | **Medir distancia.** Una herramienta de medición sobre el mapa suma tramos entre los puntos que se tocan (y se imanta a los marcadores cercanos), y enseña la distancia total y el número de tramos de manguera que hacen falta según FR-142. Deshacer el último punto, borrar y terminar. Funciona sin cobertura. |
 
 ---
 
@@ -238,7 +243,7 @@ exportación FR-160 cubre el intercambio de datos).
 |---|---|
 | FR-140 | **Código de acceso:** ver el actual, generar uno nuevo con o sin revocar dispositivos (FR-34), con confirmación previa que explique qué pasará con los móviles registrados, y fecha y autor del último cambio. |
 | FR-141 | **Administradores:** añadir un correo (con los de la app de uniformidad como sugerencia), activar y desactivar. No se puede desactivar al último administrador activo. |
-| FR-142 | **Parámetros** modificables sin desplegar código: meses entre revisiones, radio de duplicado, días de papelera, margen de la zona, los cinco radios de marcador y el tope diario de subidas de foto. Se guardan con un botón explícito y los móviles los aplican en su siguiente sincronización. |
+| FR-142 | **Parámetros** modificables sin desplegar código: meses entre revisiones, radio de duplicado, días de papelera, margen de la zona, los cinco radios de marcador, el tope diario de subidas de foto y la longitud del tramo de manguera (20 m por defecto, FR-76). Se guardan con un botón explícito y los móviles los aplican en su siguiente sincronización. |
 | FR-143 | **Salud del sistema:** propuestas con más de 14 días sin revisar, incidencias abiertas, errores de la aplicación en los últimos 7 días, puntos sin dirección deducida, fecha y resultado del último respaldo, espacio de almacenamiento usado, y fecha de generación de la zona de cobertura y del mapa base. |
 | FR-144 | Acción **purgar fotos huérfanas**, con aviso de que se ejecuta fuera de la aplicación y tarda unos minutos, y acción **descargar el inventario** en formato abierto (JSON) para consulta. Esta descarga no es el respaldo (→ 15). |
 | FR-145 | **Búsqueda global** en la cabecera del panel: por código, dirección o nombre de quien propuso. |
@@ -293,3 +298,4 @@ administradores están pensados para ello.
 | 13 | DEC-037 (17 sep 2026): antes en la Fase 10 diferida del plan |
 | A | estructura del skill *product-management:write-spec* |
 | Cambio "defecto" → "no funciona" | plan v2.1, revisión 2.1 (16 sep 2026) |
+| FR-72 a FR-76, FR-11 (tipo fijo) | `docs/18-cambios-revision-2-y-mapa.md` §0.3 y bloque D (23 sep 2026), DEC-089, DEC-090 |

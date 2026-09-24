@@ -1,0 +1,271 @@
+# Vigilancia diaria (TR-102, 04 §9): comprueba que la aplicación responde, que una RPC de lectura
+# responde, que el último respaldo tiene menos de ocho días y que no se acumulan avisos push sin
+# enviar, y que producción no lleva más de una semana por detrás de develop. Si algo falla, abre
+# una issue con la etiqueta `vigilancia`; si todo va bien y había una abierta, la cierra. Salud del
+# sistema enseña cuándo corrió y cómo fue.
+#
+# Sin servicio externo y sin `environment` (DEC-071): usa las variables públicas del repositorio y,
+# para lo que necesita la base de datos, el secreto de repositorio del respaldo.
+name: Vigilancia
+
+on:
+  schedule:
+    - cron: '41 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  # Leer las ejecuciones de los workflows programados y rehabilitarlos (DEC-085).
+  actions: write
+
+concurrency:
+  group: vigilancia
+  cancel-in-progress: false
+
+jobs:
+  # El Worker de los avisos existe y tiene su cron (docs/19 RV-52, DEC-097). Con el token de
+  # Cloudflare del environment staging: es el mismo de toda la cuenta (arranque.ts lo pone en los
+  # dos) y staging no pide aprobación. Solo lectura.
+  worker:
+    runs-on: ubuntu-latest
+    environment: staging
+    timeout-minutes: 5
+    outputs:
+      cron: ${{ steps.mirar.outputs.cron }}
+    steps:
+      - name: Cron del Worker hidrantes-avisos
+        id: mirar
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -uo pipefail
+          respuesta=$(mktemp)
+          codigo=$(curl -s -o "$respuesta" -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/schedules" || echo 000)
+          if [ "$codigo" = "401" ] || [ "$codigo" = "403" ]; then
+            # Token solo de Pages: sin permiso no se sabe si el Worker corre, y eso es un problema.
+            cron="sin permiso (HTTP $codigo)"
+          else
+            cron=$(jq -r '[.result.schedules[]?.cron] | join(",")' "$respuesta" 2>/dev/null || echo '')
+          fi
+          echo "cron=${cron:-ninguno}" >> "$GITHUB_OUTPUT"
+
+  mirar:
+    needs: worker
+    # Aunque no se haya podido mirar el Worker: el resto se comprueba igual y eso ya es un problema.
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Para comparar main con develop (producción al día, docs/19 P-03).
+          fetch-depth: 0
+      # Sin npm ci (docs/19 RV-56): "Comprobar" solo usa bash, psql, gh y jq, y un npm ci roto no puede
+      # dejar la vigilancia sin comprobar.
+      - uses: ./.github/actions/preparar
+        with:
+          npm: 'false'
+          psql: 'true'
+
+      - name: Comprobar
+        id: mirar
+        env:
+          APP: https://hidrantes-albolote.pages.dev
+          APP_STAGING: https://hidrantes-albolote-staging.pages.dev
+          SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY_PROD }}
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKER_CRON: ${{ needs.worker.outputs.cron }}
+          # La misma lista que mantener-activo.yml; scripts/workflows.test.ts comprueba que coinciden.
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+        run: |
+          set -uo pipefail
+          problemas=()
+
+          # 1. La aplicación responde y sirve HTML, no una página de error de Cloudflare.
+          for url in "$APP" "$APP_STAGING"; do
+            codigo=$(curl -s -o cuerpo.html -w '%{http_code}' --max-time 20 "$url" || echo 000)
+            if [ "$codigo" != "200" ]; then
+              problemas+=("$url responde $codigo")
+            elif ! grep -q '<div id="raiz"' cuerpo.html; then
+              problemas+=("$url responde 200 pero no sirve la aplicación")
+            fi
+          done
+
+          # 2. Una RPC de lectura responde. anon no puede leer hidrantes.migraciones_aplicadas y
+          #    Postgres contesta 42501: esa respuesta prueba que la petición llegó a la base de datos.
+          respuesta=$(curl -s --max-time 20 -X POST "$SUPABASE_URL/rest/v1/rpc/fn_listar_puntos" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H 'Content-Type: application/json' \
+            -H 'Accept-Profile: hidrantes' -H 'Content-Profile: hidrantes' \
+            -d '{"token": "vigilancia", "desde": null}' || echo '')
+          if ! printf '%s' "$respuesta" | grep -qE 'TOKEN_INVALIDO|puntos'; then
+            problemas+=("la RPC de lectura no responde como debe: ${respuesta:0:120}")
+          fi
+
+          # 3. Respaldo reciente y avisos push sin enviar (necesitan la base de datos).
+          if [ -n "${BD:-}" ]; then
+            dias=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c \
+              "select coalesce(extract(day from now() - (hidrantes.fn_config('ultimo_respaldo','null') #>> '{}')::timestamptz)::int, 999);" 2>/dev/null || echo error)
+            if [ "$dias" = "error" ]; then
+              problemas+=("no se puede consultar la base de datos")
+            elif [ "$dias" -gt 8 ]; then
+              problemas+=("el último respaldo tiene $dias días (más de 8)")
+            fi
+            pendientes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c \
+              "select count(*) from hidrantes.notificaciones where enviada_en is null and error is null and creada_en < now() - interval '30 minutes';" 2>/dev/null || echo 0)
+            if [ "${pendientes:-0}" -gt 0 ]; then
+              problemas+=("$pendientes avisos push llevan más de 30 minutos sin salir: mira el Worker hidrantes-avisos (docs/19 RV-52)")
+            fi
+            # Tareas de pg_cron (TR-54, RV-22): cuándo corrió cada una y si falló. Se guarda para
+            # Salud del sistema, salga como salga.
+            # Con la lista de las que tiene que haber (RV-56): una que falte, o todas, es un problema.
+            esperadas=$(paste -sd, scripts/sql/tareas-esperadas.txt)
+            tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$BD" -f scripts/sql/tareas-programadas.sql 2>/dev/null || echo '')
+            if [ -z "$tareas" ]; then
+              problemas+=("no se pueden leer las tareas programadas de pg_cron")
+            else
+              printf '%s' "$tareas" > tareas.json
+              # psql no sustituye variables en -c: va por -f (RV-38). Si no se guarda, es un problema.
+              if ! psql -X -q -v ON_ERROR_STOP=1 "$BD" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql; then
+                problemas+=("no se pueden guardar las tareas programadas en Salud del sistema")
+              fi
+              faltan=$(jq -r '[.[] | select(.falta) | .tarea] | join(", ")' tareas.json)
+              if [ -n "$faltan" ]; then
+                problemas+=("faltan tareas programadas de pg_cron: $faltan (¿restauración en un proyecto nuevo? 15 §5.3)")
+              fi
+              atrasadas=$(jq -r '[.[] | select(.problema and (.falta | not)) | .tarea] | join(", ")' tareas.json)
+              if [ -n "$atrasadas" ]; then
+                problemas+=("tareas programadas que fallaron o no han corrido a tiempo: $atrasadas")
+              fi
+            fi
+            # La base de datos de 500 MB la comparte uniformidad: aviso al 80 % (TR-53, RV-22).
+            bd=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c "select pg_database_size(current_database());" 2>/dev/null || echo 0)
+            if [ "${bd:-0}" -gt $((400 * 1024 * 1024)) ]; then
+              problemas+=("la base de datos ocupa $((bd / 1024 / 1024)) MB de 500 (más del 80 %)")
+            fi
+            # Intentos del código de acceso (RV-14, TR-41): muchos fallos o un tope de todo el grupo
+            # alcanzado son la huella de un ataque, y los voluntarios con móvil nuevo no podrían entrar.
+            intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$BD" -c \
+              "select count(*) filter (where not exito and not bloqueado), count(*) filter (where bloqueado and tope in ('global', 'altas_global')) from hidrantes.intentos_codigo where momento > now() - interval '24 hours';" 2>/dev/null || echo '0 0')
+            read -r fallidos globales <<< "$intentos"
+            if [ "${fallidos:-0}" -gt 300 ] || [ "${globales:-0}" -gt 0 ]; then
+              problemas+=("posible ataque al código de acceso ($fallidos fallos y $globales bloqueos de todo el grupo en 24 h): cambia el código (15 §5.4)")
+            fi
+          else
+            problemas+=("falta SUPABASE_DB_URL_PROD: la vigilancia no puede mirar el respaldo (DEC-071)")
+          fi
+
+          # 4. Los workflows programados siguen vivos: GitHub los desactiva tras 60 días sin actividad
+          #    en un repositorio público (DEC-085). Diarios: última ejecución programada de menos de
+          #    2 días; semanales (respaldo y purga de fotos): de menos de 8.
+          ahora=$(date -u +%s)
+          for w in $WORKFLOWS; do
+            case "$w" in respaldo.yml | purgar-fotos.yml) limite=8 ;; *) limite=2 ;; esac
+            estado=$(gh api "repos/$REPO/actions/workflows/$w" --jq .state 2>/dev/null || echo error)
+            if [ "$estado" != "active" ]; then
+              problemas+=("el workflow $w está desactivado ($estado): 15 §4")
+              continue
+            fi
+            ultima=$(gh api "repos/$REPO/actions/workflows/$w/runs?event=schedule&per_page=1" \
+              --jq '.workflow_runs[0].created_at // empty' 2>/dev/null || echo '')
+            # Un workflow recién creado (o que hasta ahora solo se lanzó a mano) aún no tiene
+            # ejecuciones programadas: cuenta desde que existe, no es un problema todavía.
+            if [ -z "$ultima" ]; then
+              ultima=$(gh api "repos/$REPO/actions/workflows/$w" --jq '.created_at // empty' 2>/dev/null || echo '')
+            fi
+            if [ -z "$ultima" ]; then
+              problemas+=("no se puede leer el estado del workflow $w")
+            else
+              dias=$(( (ahora - $(date -u -d "$ultima" +%s)) / 86400 ))
+              if [ "$dias" -ge "$limite" ]; then
+                problemas+=("el workflow $w lleva $dias días sin ejecutarse solo (límite $limite)")
+              fi
+            fi
+          done
+
+          # 6. Producción al día (docs/19 P-03, DEC-096): main no lleva más de 7 días por detrás de
+          #    develop en algo que no sea documentación.
+          if git fetch -q origin main develop 2>/dev/null; then
+            atrasados=$(git rev-list --count origin/main..origin/develop -- . ':!docs')
+            if [ "${atrasados:-0}" -gt 0 ]; then
+              primero=$(git log --reverse --format=%ct origin/main..origin/develop -- . ':!docs' | head -1)
+              dias_atras=$(( (ahora - primero) / 86400 ))
+              if [ "$dias_atras" -gt 7 ]; then
+                problemas+=("producción va $atrasados commits por detrás de develop desde hace $dias_atras días: haz P-02 (docs/19, DEC-096)")
+              fi
+            fi
+          else
+            problemas+=("no se puede comparar main con develop")
+          fi
+
+          # 7. El Worker de los avisos tiene su cron cada 5 minutos (docs/19 RV-52).
+          if [ "${WORKER_CRON:-}" != "*/5 * * * *" ]; then
+            problemas+=("el Worker hidrantes-avisos no tiene su cron cada 5 minutos (${WORKER_CRON:-sin respuesta}): 15 §2")
+          fi
+
+          # 5. Se anota en Salud del sistema, salga como salga (TR-102).
+          if [ -n "${BD:-}" ]; then
+            ok=$([ ${#problemas[@]} -eq 0 ] && echo true || echo false)
+            psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('ultima_vigilancia', to_jsonb(now()), 'vigilancia.yml'), ('vigilancia_ok', to_jsonb($ok), 'vigilancia.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;" || true
+          fi
+
+          {
+            echo "### Vigilancia"
+            if [ ${#problemas[@]} -eq 0 ]; then echo 'Todo responde.'; else printf -- '- %s\n' "${problemas[@]}"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          printf '%s\n' "${problemas[@]}" > problemas.txt
+          echo "hay=$([ ${#problemas[@]} -eq 0 ] && echo no || echo si)" >> "$GITHUB_OUTPUT"
+
+      # Salga como salga lo anterior: rehabilitar los workflows programados reinicia el contador de
+      # inactividad de GitHub. mantener-activo.yml hace lo mismo, así que se sostienen el uno al
+      # otro (DEC-085).
+      - name: Rehabilitar los workflows programados
+        if: always()
+        # Si falla, la issue se abre igual (RV-38).
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+        run: |
+          set -eu
+          for w in $WORKFLOWS; do gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"; done
+
+      - name: Abrir o cerrar la issue de vigilancia
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Aunque el checkout no haya llegado a hacerse: gh sabe igual de qué repositorio es.
+          GH_REPO: ${{ github.repository }}
+          HAY: ${{ steps.mirar.outputs.hay }}
+        run: |
+          set -euo pipefail
+          titulo='Vigilancia diaria: algo no responde'
+          abierta=$(gh issue list --label vigilancia --state open --search "$titulo in:title" --json number --jq '.[0].number // empty')
+          # Solo "no" es todo bien (docs/19 RV-56): si "Comprobar" no llegó a escribir `hay` (tiempo
+          # agotado, preparar roto…), no se ha comprobado nada, y eso también se avisa.
+          if [ "$HAY" = 'no' ]; then
+            # Si había una issue abierta, se cierra sola. Una issue que nadie cierra deja de mirarse a
+            # los pocos días (15 §4).
+            if [ -n "$abierta" ]; then
+              gh issue close "$abierta" --comment "La vigilancia de $(date -u +%Y-%m-%d) ha ido bien: todo responde."
+            fi
+            exit 0
+          fi
+          ejecucion="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ "$HAY" = 'si' ] && [ -s problemas.txt ]; then
+            cuerpo=$(printf 'La comprobación de %s ha encontrado:\n\n%s\n\nQué hacer: 15 §4 y §5.\n' \
+              "$(date -u +%Y-%m-%d)" "$(sed 's/^/- /' problemas.txt)")
+          else
+            cuerpo=$(printf 'La vigilancia de %s no terminó: la comprobación no llegó a dar un resultado, así que no se ha comprobado nada. Mira la ejecución: %s\n\nQué hacer: 15 §4.\n' \
+              "$(date -u +%Y-%m-%d)" "$ejecucion")
+          fi
+          if [ -n "$abierta" ]; then gh issue comment "$abierta" --body "$cuerpo"
+          else gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"; fi
+          exit 1

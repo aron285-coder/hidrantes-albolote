@@ -13,14 +13,17 @@
     --marino-800:#152A4A;
     --marino-700:#1D3A63;
     --marino-600:#28517F;
-    --naranja-600:#DD5A1F;
+    --naranja-600:#C94F16;
     --naranja-500:#E97136;
     --naranja-100:#FBE2D2;
     --oro-600:#B08A2E;
     --oro-100:#F3E6C4;
     --verde-600:#2E7D4F;
     --verde-100:#DCEEE1;
-    --ambar-700:#8A6408;
+    --naranja-estado-600:#A85300;
+    --naranja-estado-700:#8F4505;
+    --naranja-estado-100:#FDE8D6;
+    --ambar-700:#7F5C07;
     --ambar-100:#FBEDCB;
     --rojo-700:#9C2B1E;
     --rojo-100:#FBE0DB;
@@ -84,13 +87,13 @@
 
   .chip{display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:3px 11px; font-size:13px; font-weight:600;}
   .chip-verde{background:var(--verde-100); color:var(--verde-600);}
-  .chip-ambar{background:var(--ambar-100); color:var(--ambar-700);}
+  .chip-ambar{background:var(--naranja-estado-100); color:var(--naranja-estado-700);}
   .chip-rojo{background:var(--rojo-100); color:var(--rojo-700);}
   .chip-gris{background:var(--gris-100); color:var(--gris-700);}
   .chip-neutro{background:#EDEEE8; color:var(--texto-suave);}
   .chip-azul{background:#DCE6F2; color:var(--marino-700);}
   .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
-  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--ambar-700);}
+  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--naranja-estado-600);}
   .dot-rojo{background:var(--rojo-700);} .dot-gris{background:var(--gris-700);}
 
   .flujo{display:flex; align-items:flex-start; margin:26px 0 8px; flex-wrap:wrap;}
@@ -562,7 +565,7 @@
 (function(){
   var $=function(q,el){return (el||document).querySelector(q)}, $$=function(q,el){return Array.prototype.slice.call((el||document).querySelectorAll(q))};
   var CODIGO='482917', ESCALA=[11,9,7,5.5,5];
-  var COL={bueno:'#2E7D4F',regular:'#8A6408',malo:'#9C2B1E',no_funciona:'#40453D'};
+  var COL={bueno:'#2E7D4F',regular:'#A85300',malo:'#9C2B1E',no_funciona:'#40453D'};
   var NOM={bueno:'Bueno',regular:'Regular',malo:'Malo',no_funciona:'No funciona'};
   var CHIP={bueno:'chip-verde',regular:'chip-ambar',malo:'chip-rojo',no_funciona:'chip-gris'};
   var DOT={bueno:'dot-verde',regular:'dot-ambar',malo:'dot-rojo',no_funciona:'dot-gris'};
@@ -605,7 +608,7 @@
     if(nf) s+='<line x1="'+(p.x-r)+'" y1="'+(p.y+r)+'" x2="'+(p.x+r)+'" y2="'+(p.y-r)+'" stroke="'+borde+'" stroke-width="'+(2/(op.escala||1))+'"/>';
     if(op.tap) s='<g class="mk" data-mk="'+p.id+'">'+s+'<circle class="mk-tap" cx="'+p.x+'" cy="'+p.y+'" r="'+(22/(op.escala||1))+'"/></g>';
     return s; }
-  function pin(x,y,e){ e=e||1; return '<g transform="translate('+x+','+y+') scale('+(1/e)+')" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))"><path d="M0 -26 C7 -26 12 -21 12 -14 C12 -6 0 6 0 6 C0 6 -12 -6 -12 -14 C-12 -21 -7 -26 0 -26 Z" fill="#DD5A1F" stroke="#fff" stroke-width="2"/><circle cx="0" cy="-14" r="4" fill="#fff"/></g>' }
+  function pin(x,y,e){ e=e||1; return '<g transform="translate('+x+','+y+') scale('+(1/e)+')" style="filter:drop-shadow(0 2px 2px rgba(0,0,0,.3))"><path d="M0 -26 C7 -26 12 -21 12 -14 C12 -6 0 6 0 6 C0 6 -12 -6 -12 -14 C-12 -21 -7 -26 0 -26 Z" fill="#C94F16" stroke="#fff" stroke-width="2"/><circle cx="0" cy="-14" r="4" fill="#fff"/></g>' }
   function gpsSvg(e){ e=e||1; return '<circle cx="'+GPS.x+'" cy="'+GPS.y+'" r="'+(GPS.prec*1.6)+'" fill="#28517F" opacity=".16"/><circle cx="'+GPS.x+'" cy="'+GPS.y+'" r="'+(4.5/e)+'" fill="#28517F" stroke="'+(dark()?'#111826':'#fff')+'" stroke-width="'+(1.5/e)+'"/>' }
 
   /* ---------- mapa ---------- */
@@ -671,7 +674,7 @@
       '<div style="font-size:8.5px;color:var(--texto-suave);margin-top:auto;padding-top:10px;text-decoration:underline;cursor:pointer;" data-ac="legal">Aviso legal y privacidad · v'+S.version+'</div></div>'; }
   function pGoogle(){ return '<div class="app-bar" style="justify-content:center;">Elige una cuenta</div><div class="screen-body"><div style="font-size:10.5px;color:var(--texto-suave);margin-bottom:8px;">para continuar en <b>Hidrantes Albolote</b></div>'+
       '<div class="gacc" data-gacc="ok"><div class="av">J</div><div>Jefatura Albolote<small>jefatura@albolote-pc.es · autorizada</small></div></div>'+
-      '<div class="gacc" data-gacc="no"><div class="av" style="background:var(--gris-700)">P</div><div>Pedro Navarro<small>pedro.navarro@gmail.com · no está en la lista</small></div></div>'+
+      '<div class="gacc" data-gacc="no"><div class="av" style="background:var(--gris-700)">O</div><div>Otra cuenta<small>persona@example.org · no está en la lista</small></div></div>'+
       '<div class="fakebtn secundario" data-ac="google-cancel" style="margin-top:14px;">Cancelar</div></div>' }
   function pNoAuth(){ return appBar('Sin acceso')+'<div class="screen-body noauth"><div style="font-size:30px;">🔒</div><div style="font-family:Barlow Condensed;font-weight:700;font-size:17px;margin:8px 0 6px;">No autorizado</div><div style="font-size:11px;color:var(--texto-suave);">Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.</div><div class="fakebtn secundario" data-ac="salir" style="margin-top:16px;width:100%;">Volver</div></div>' }
   function pOnboarding(){ var n=Math.max(0,Math.min(2,S.onboarding-1)), T=[

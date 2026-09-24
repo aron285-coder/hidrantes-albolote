@@ -22,7 +22,10 @@ jobs:
       url: https://hidrantes-albolote.pages.dev
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          # La paridad compara el árbol con el develop fusionado (docs/19 P-03).
+          fetch-depth: 0
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -41,18 +44,16 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Zona de cobertura (desde la Fase 1)
-        if: hashFiles('scripts/cargar-zona.ts') != ''
+      - name: Propietario como administrador (sin correo en el repositorio, DEC-053)
+        run: npm run asegurar-propietario
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          PROPIETARIO_EMAIL: ${{ secrets.PROPIETARIO_EMAIL }}
+
+      - name: Zona de cobertura
         run: npm run cargar-zona
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-      - name: Código de acceso real en el primer despliegue (desde la Fase 3)
-        if: hashFiles('scripts/generar-codigo.ts') != ''
-        run: npm run codigo -- --si-no-existe --resumen "$GITHUB_STEP_SUMMARY"
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
       - run: npm run build
         env:
@@ -70,3 +71,16 @@ jobs:
 
       - name: Comprobar versión y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote.pages.dev --entorno produccion
+
+      # Después de desplegar y comprobar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
+      - name: Versión del mapa base en Salud del sistema (FR-143)
+        run: npm run cargar-version-mapabase
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      # Producción es la versión de staging (docs/19 P-03, DEC-096): árbol, frontend servido,
+      # migraciones, Functions y versiones de datos. Si algo no coincide, el despliegue falla.
+      - name: Paridad con develop
+        run: npm run paridad -- --url https://hidrantes-albolote.pages.dev
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

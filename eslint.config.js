@@ -6,7 +6,25 @@ import tseslint from 'typescript-eslint';
 
 // TR-111 / UI-20: ningún texto de interfaz fuera de src/lib/textos.ts.
 // Se considera texto de interfaz una cadena con letras acentuadas o de más de dos palabras.
-const PATRON_TEXTO = '/[áéíóúüñÁÉÍÓÚÜÑ¿¡]|\S+\s+\S+\s+\S+/';
+// Con String.raw: en una cadena normal, '\S' es 'S' y la parte de las tres palabras no pillaba nada
+// (docs/18 RV-50).
+// No cuentan el marcado (SVG, XML, que empieza por "<") ni las listas de columnas de PostgREST
+// ("id, codigo, tipo"), que no son texto que se vea (docs/18 RV-50).
+const PATRON_TEXTO = String.raw`/^(?!\s*<)(?![\s\S]*(?:="|<\/|\/>))(?![\w.:!()*]+(?:,\s*[\w.:!()*]+)+,?\s*$)[\s\S]*(?:[áéíóúüñÁÉÍÓÚÜÑ¿¡]|\S+\s+\S+\s+\S+)/`;
+// En JSX, cualquier letra es texto que se ve: también una o dos palabras sin acento (RV-31).
+const PATRON_JSX = '/[A-Za-záéíóúüñÁÉÍÓÚÜÑ]/';
+/**
+ * Módulos .ts sin interfaz, con lista explícita (docs/17 RV-31, docs/18 RV-50): sus cadenas son de
+ * protocolo (PostgREST, IndexedDB, estilo del mapa base), nunca texto que se vea.
+ */
+const MODULOS_SIN_UI = [
+  'src/lib/api.ts',
+  'src/lib/bd.ts',
+  'src/lib/almacen.ts',
+  'src/lib/supabase.ts',
+  'src/lib/red.ts',
+  'src/lib/estilo-mapabase.ts',
+];
 const MENSAJE = 'Texto de interfaz fuera de src/lib/textos.ts (UI-20, TR-111). Añádelo a T y al Apéndice A de 06.';
 const ATRIBUTOS_VISIBLES = '/^(title|placeholder|alt|aria-label|aria-description|label)$/';
 
@@ -36,14 +54,40 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       'no-restricted-syntax': [
         'error',
-        { selector: `JSXText[value=${PATRON_TEXTO}]`, message: MENSAJE },
+        { selector: `JSXText[value=${PATRON_JSX}]`, message: MENSAJE },
         {
-          selector: `JSXAttribute[name.name=${ATRIBUTOS_VISIBLES}] > Literal[value=${PATRON_TEXTO}]`,
+          selector: `JSXAttribute[name.name=${ATRIBUTOS_VISIBLES}] > Literal[value=${PATRON_JSX}]`,
           message: MENSAJE,
         },
-        { selector: `JSXExpressionContainer > Literal[value=${PATRON_TEXTO}]`, message: MENSAJE },
+        // Un literal entre llaves se ve si es hijo de un elemento o de un atributo visible; en
+        // className={'x'} o type={'button'} no (docs/18 RV-50).
         {
-          selector: `JSXExpressionContainer > TemplateLiteral > TemplateElement[value.raw=${PATRON_TEXTO}]`,
+          selector: `:matches(JSXElement, JSXFragment) > JSXExpressionContainer > Literal[value=${PATRON_JSX}]`,
+          message: MENSAJE,
+        },
+        {
+          selector: `JSXAttribute[name.name=${ATRIBUTOS_VISIBLES}] > JSXExpressionContainer > Literal[value=${PATRON_JSX}]`,
+          message: MENSAJE,
+        },
+        {
+          selector: `:matches(JSXElement, JSXFragment, JSXAttribute[name.name=${ATRIBUTOS_VISIBLES}]) > JSXExpressionContainer > TemplateLiteral > TemplateElement[value.raw=${PATRON_TEXTO}]`,
+          message: MENSAJE,
+        },
+      ],
+    },
+  },
+  {
+    // RV-31: también en los módulos .ts que componen texto de pantalla (p. ej. unas correcciones
+    // "diametro mm: 70"). Fuera quedan textos.ts, los tests, lo generado y los módulos sin interfaz.
+    files: ['src/**/*.ts'],
+    ignores: ['src/lib/textos.ts', 'src/**/*.test.ts', 'src/generado/**', ...MODULOS_SIN_UI],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        // Los mensajes de `new Error(…)` son para quien depura, no para la pantalla (docs/18 RV-50).
+        { selector: `:not(NewExpression[callee.name=/Error$/]) > Literal[value=${PATRON_TEXTO}]`, message: MENSAJE },
+        {
+          selector: `:not(NewExpression[callee.name=/Error$/]) > TemplateLiteral > TemplateElement[value.raw=${PATRON_TEXTO}]`,
           message: MENSAJE,
         },
       ],
