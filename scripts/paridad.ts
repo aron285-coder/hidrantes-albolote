@@ -4,7 +4,8 @@
 //   npm run paridad -- --url https://hidrantes-albolote.pages.dev     (deploy-prod.yml, con SUPABASE_DB_URL)
 //
 // 1. `main` tiene el mismo árbol que `develop`: el del commit fusionado si HEAD es el merge commit
-//    del PR (así da igual que develop haya avanzado durante el PR), o el de origin/develop si no.
+//    del PR y ese commit está en develop (así da igual que develop haya avanzado durante el PR), o el
+//    de origin/develop si no (docs/20 RV-75).
 // 2. El frontend servido lleva el commit desplegado (<meta name="commit">, vite.config.ts).
 // 3. La base de datos tiene todas las migraciones del repositorio, con el mismo hash.
 // 4. Las Functions de la versión actual existen: /api/push y /api/geocodificar sin credenciales
@@ -67,21 +68,33 @@ export function commitDeHtml(html: string): string | null {
 
 // ---------- fuentes reales ----------
 
+export type Git = (args: string[]) => { ok: boolean; salida: string };
+
 function git(args: string[]): { ok: boolean; salida: string } {
   const r = ejecutar('git', args);
   return { ok: r.codigo === 0, salida: r.salida.trim() };
 }
 
-function arbol(): { igual: boolean; con: string } {
-  // Merge commit del PR develop → main: su segundo padre es el develop fusionado.
-  const fusionado = git(['rev-parse', '-q', '--verify', 'HEAD^2']);
-  if (fusionado.ok)
+/**
+ * Con qué se compara el árbol de HEAD. Si HEAD es el merge commit del PR develop → main, su segundo
+ * padre es el develop fusionado, y así da igual que develop haya avanzado durante el PR. Pero solo si
+ * ese padre **está en develop**: un hotfix fusionado con merge commit se compararía consigo mismo y
+ * daría paridad sin serlo (docs/20 RV-75). Si no, contra origin/develop.
+ */
+export function arbol(g: Git = git): { igual: boolean; con: string } {
+  g(['fetch', '-q', 'origin', 'develop']);
+  const fusionado = g(['rev-parse', '-q', '--verify', 'HEAD^2']);
+  if (fusionado.ok && g(['merge-base', '--is-ancestor', 'HEAD^2', 'origin/develop']).ok)
     return {
-      igual: git(['diff', '--quiet', 'HEAD^2', 'HEAD']).ok,
+      igual: g(['diff', '--quiet', 'HEAD^2', 'HEAD']).ok,
       con: `develop fusionado (${fusionado.salida.slice(0, 7)})`,
     };
-  git(['fetch', '-q', 'origin', 'develop']);
-  return { igual: git(['diff', '--quiet', 'origin/develop', 'HEAD']).ok, con: 'origin/develop' };
+  return {
+    igual: g(['diff', '--quiet', 'origin/develop', 'HEAD']).ok,
+    con: fusionado.ok
+      ? `origin/develop (el merge es de ${fusionado.salida.slice(0, 7)}, que no está en develop)`
+      : 'origin/develop',
+  };
 }
 
 async function estadoSinCredenciales(url: string): Promise<number | null> {

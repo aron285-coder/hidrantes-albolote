@@ -184,13 +184,30 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     expect(toml).toContain('https://hidrantes-albolote.pages.dev,https://hidrantes-albolote-staging.pages.dev');
   });
 
-  it('deploy-staging.yml despliega el Worker tras Pages, si cambió workers/ o si aún no existe', () => {
+  // docs/20 RV-74: con la detección de cambios, un push fallido dejaba el Worker con el código viejo.
+  it('deploy-staging.yml despliega el Worker tras Pages en cada push, sin mirar el diff, con su versión', () => {
     const texto = leer('deploy-staging.yml');
     const paso = texto.indexOf('- name: Desplegar el Worker de los avisos');
     expect(paso).toBeGreaterThan(texto.indexOf('wrangler pages deploy'));
-    expect(texto.slice(paso)).toContain('npx wrangler deploy --config workers/avisos/wrangler.toml');
-    expect(texto.slice(paso)).toContain('git diff --name-only HEAD~1 HEAD -- workers/');
-    expect(texto).toMatch(/fetch-depth: 2/);
+    const cuerpo = texto.slice(paso, texto.indexOf('\n      - name:', paso + 10));
+    expect(cuerpo).toContain(
+      'npx wrangler deploy --config workers/avisos/wrangler.toml --var "VERSION_CODIGO:$version"',
+    );
+    expect(cuerpo).toContain('version=$(git log -1 --format=%H -- workers)');
+    expect(cuerpo).not.toMatch(/git diff/);
+    expect(texto).not.toContain('HEAD~1');
+    // Con historia corta, git log -- workers daría otro commit.
+    expect(texto).toMatch(/fetch-depth: 0/);
+  });
+
+  it('la vigilancia compara la versión del Worker con el último commit de workers/ en develop', () => {
+    const texto = leer('vigilancia.yml');
+    expect(texto).toContain('workers/scripts/hidrantes-avisos/settings');
+    expect(texto).toContain('select(.name == "VERSION_CODIGO") | .text');
+    expect(texto).toContain('version: ${{ steps.mirar.outputs.version }}');
+    expect(texto).toContain('WORKER_VERSION: ${{ needs.worker.outputs.version }}');
+    expect(texto).toContain('esperada=$(git log -1 --format=%H origin/develop -- workers');
+    expect(texto).toContain('"$WORKER_VERSION" != "$esperada"');
   });
 
   it('con un token sin permiso de Workers (401/403), Pages se despliega igual y el paso lo avisa', () => {
@@ -214,6 +231,26 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     expect(texto).toContain('"${WORKER_CRON:-}" != "*/5 * * * *"');
     expect(texto).toContain("interval '30 minutes'");
     expect(texto).not.toContain("interval '2 hours'");
+  });
+
+  // docs/20 RV-78: en staging, Salud del sistema decía "todavía ninguno" porque solo se escribía en prod.
+  it('la vigilancia mira y anota también staging, sin el respaldo', () => {
+    const texto = leer('vigilancia.yml');
+    expect(texto).toContain('BD_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}');
+    expect(texto).toContain('revisar_bd produccion "$BD"');
+    expect(texto).toContain('revisar_bd staging "$BD_STAGING"');
+    // Las tareas se guardan con el -f de siempre, en la base de cada entorno.
+    expect(texto).toContain('"$bd" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql');
+    // ultima_vigilancia y vigilancia_ok en las dos bases.
+    const anotar = texto.slice(texto.indexOf('# 5. Se anota en Salud del sistema'));
+    expect(anotar).toContain('for bd in "${BD:-}" "${BD_STAGING:-}"; do');
+    expect(anotar).toContain("'ultima_vigilancia'");
+    expect(anotar).toContain("'vigilancia_ok'");
+    // El respaldo solo en producción.
+    const funcion = texto.slice(texto.indexOf('revisar_bd() {'), texto.indexOf('\n          }\n'));
+    const respaldo = funcion.indexOf('ultimo_respaldo');
+    expect(respaldo).toBeGreaterThan(funcion.indexOf('if [ "$entorno" = produccion ]; then'));
+    expect(respaldo).toBeLessThan(funcion.indexOf('elif !'));
   });
 
   it('avisos.yml ya no está en las listas de workflows programados', () => {

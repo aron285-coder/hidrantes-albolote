@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  type Fila,
   type Fuentes,
   SECRETOS_ENTORNO,
   SECRETOS_PAGES,
@@ -9,6 +10,7 @@ import {
   VARIABLES_ENTORNO,
   codigoSalida,
   comprobar,
+  unirMitades,
   esquemasDeAviso,
   nombresWrangler,
   requeridosDeWorkflow,
@@ -100,7 +102,9 @@ describe('comprobar-produccion (docs/19 P-01)', () => {
       LOCALES,
     );
     expect(filas.filter((f) => f.estado === 'NO COMPROBADO').length).toBe(SECRETOS_ENTORNO.length + 3);
-    expect(codigoSalida(filas)).toBe(0);
+    // docs/20 RV-73: sin la otra mitad, lo imprescindible no está comprobado. Sobre develop daba 0.
+    expect(codigoSalida(filas)).toBe(2);
+    expect(codigoSalida(filas, { parcial: true })).toBe(0);
   });
 
   it('el token sin Workers Scripts dice el paso exacto y para', async () => {
@@ -197,5 +201,43 @@ describe('lectura de las fuentes', () => {
     const { secretos, variables } = requeridosDeWorkflow(yml);
     expect(secretos.filter((s) => !SECRETOS_ENTORNO.includes(s))).toEqual([]);
     expect(variables.filter((v) => !VARIABLES_ENTORNO.includes(v))).toEqual([]);
+  });
+});
+
+describe('las dos mitades (docs/20 RV-73)', () => {
+  const fila = (nombre: string, estado: Fila['estado'], imprescindible = true): Fila => ({
+    grupo: 'g',
+    nombre,
+    estado,
+    imprescindible,
+  });
+
+  it('una fila imprescindible sin comprobar da 2; una opcional sin comprobar, no', () => {
+    expect(codigoSalida([fila('a', 'OK'), fila('b', 'NO COMPROBADO')])).toBe(2);
+    expect(codigoSalida([fila('a', 'OK'), fila('b', 'NO COMPROBADO', false)])).toBe(0);
+  });
+
+  it('con --parcial da 0; lo que falta sigue dando 1', () => {
+    expect(codigoSalida([fila('b', 'NO COMPROBADO')], { parcial: true })).toBe(0);
+    expect(codigoSalida([fila('a', 'FALTA'), fila('b', 'NO COMPROBADO')], { parcial: true })).toBe(1);
+  });
+
+  it('une las mitades: lo que una no pudo mirar lo pone la otra, y lo que ninguna miró sigue sin comprobar', () => {
+    const local = [fila('gh', 'OK'), fila('bd', 'NO COMPROBADO'), fila('token', 'NO COMPROBADO')];
+    const actions = [
+      fila('gh', 'NO COMPROBADO'),
+      fila('bd', 'OK'),
+      fila('token', 'NO COMPROBADO'),
+      fila('extra', 'FALTA'),
+    ];
+    const unidas = unirMitades(local, actions);
+    expect(unidas.map((f) => `${f.nombre} ${f.estado}`)).toEqual([
+      'gh OK',
+      'bd OK',
+      'token NO COMPROBADO',
+      'extra FALTA',
+    ]);
+    expect(codigoSalida(unidas)).toBe(1);
+    expect(codigoSalida(unirMitades(local, [fila('bd', 'OK'), fila('token', 'OK')]))).toBe(0);
   });
 });

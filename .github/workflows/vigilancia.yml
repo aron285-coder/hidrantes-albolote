@@ -1,6 +1,7 @@
 # Vigilancia diaria (TR-102, 04 §9): comprueba que la aplicación responde, que una RPC de lectura
 # responde, que el último respaldo tiene menos de ocho días y que no se acumulan avisos push sin
-# enviar, y que producción no lleva más de una semana por detrás de develop. Si algo falla, abre
+# enviar, y que producción no lleva más de una semana por detrás de develop. En staging mira lo que
+# aplica allí y también lo anota (docs/20 RV-78). Si algo falla, abre
 # una issue con la etiqueta `vigilancia`; si todo va bien y había una abierta, la cierra. Salud del
 # sistema enseña cuándo corrió y cómo fue.
 #
@@ -33,6 +34,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       cron: ${{ steps.mirar.outputs.cron }}
+      version: ${{ steps.mirar.outputs.version }}
     steps:
       - name: Cron del Worker hidrantes-avisos
         id: mirar
@@ -51,6 +53,16 @@ jobs:
             cron=$(jq -r '[.result.schedules[]?.cron] | join(",")' "$respuesta" 2>/dev/null || echo '')
           fi
           echo "cron=${cron:-ninguno}" >> "$GITHUB_OUTPUT"
+          # Qué código lleva (docs/20 RV-74): la variable VERSION_CODIGO de sus ajustes.
+          ajustes=$(mktemp)
+          codigo=$(curl -s -o "$ajustes" -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/settings" || echo 000)
+          if [ "$codigo" = "401" ] || [ "$codigo" = "403" ]; then
+            version="sin permiso"
+          else
+            version=$(jq -r '[.result.bindings[]? | select(.name == "VERSION_CODIGO") | .text] | first // ""' "$ajustes" 2>/dev/null || echo '')
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
   mirar:
     needs: worker
@@ -78,9 +90,11 @@ jobs:
           SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
           SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY_PROD }}
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          BD_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           WORKER_CRON: ${{ needs.worker.outputs.cron }}
+          WORKER_VERSION: ${{ needs.worker.outputs.version }}
           # La misma lista que mantener-activo.yml; scripts/workflows.test.ts comprueba que coinciden.
           WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
         run: |
@@ -107,58 +121,72 @@ jobs:
             problemas+=("la RPC de lectura no responde como debe: ${respuesta:0:120}")
           fi
 
-          # 3. Respaldo reciente y avisos push sin enviar (necesitan la base de datos).
-          if [ -n "${BD:-}" ]; then
-            dias=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c \
-              "select coalesce(extract(day from now() - (hidrantes.fn_config('ultimo_respaldo','null') #>> '{}')::timestamptz)::int, 999);" 2>/dev/null || echo error)
-            if [ "$dias" = "error" ]; then
-              problemas+=("no se puede consultar la base de datos")
-            elif [ "$dias" -gt 8 ]; then
-              problemas+=("el último respaldo tiene $dias días (más de 8)")
+          # 3. En la base de datos de cada entorno. Producción: todo. Staging, donde se hace el piloto
+          #    (docs/20 RV-78): lo que aplica allí, avisos sin salir y tareas programadas, que se
+          #    guardan para su Salud del sistema. El respaldo, el tamaño (la base de dev la comparte
+          #    uniformidad) y los intentos del código de acceso solo se miran en producción.
+          revisar_bd() {
+            local entorno="$1" bd="$2" pre=""
+            [ "$entorno" = staging ] && pre="staging: "
+            if [ "$entorno" = produccion ]; then
+              dias=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c \
+                "select coalesce(extract(day from now() - (hidrantes.fn_config('ultimo_respaldo','null') #>> '{}')::timestamptz)::int, 999);" 2>/dev/null || echo error)
+              if [ "$dias" = "error" ]; then
+                problemas+=("no se puede consultar la base de datos")
+                return
+              elif [ "$dias" -gt 8 ]; then
+                problemas+=("el último respaldo tiene $dias días (más de 8)")
+              fi
+            elif ! psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c 'select 1;' > /dev/null 2>&1; then
+              problemas+=("${pre}no se puede consultar la base de datos")
+              return
             fi
-            pendientes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c \
+            pendientes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c \
               "select count(*) from hidrantes.notificaciones where enviada_en is null and error is null and creada_en < now() - interval '30 minutes';" 2>/dev/null || echo 0)
             if [ "${pendientes:-0}" -gt 0 ]; then
-              problemas+=("$pendientes avisos push llevan más de 30 minutos sin salir: mira el Worker hidrantes-avisos (docs/19 RV-52)")
+              problemas+=("${pre}$pendientes avisos push llevan más de 30 minutos sin salir: mira el Worker hidrantes-avisos (docs/19 RV-52)")
             fi
             # Tareas de pg_cron (TR-54, RV-22): cuándo corrió cada una y si falló. Se guarda para
             # Salud del sistema, salga como salga.
             # Con la lista de las que tiene que haber (RV-56): una que falte, o todas, es un problema.
             esperadas=$(paste -sd, scripts/sql/tareas-esperadas.txt)
-            tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$BD" -f scripts/sql/tareas-programadas.sql 2>/dev/null || echo '')
+            tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$bd" -f scripts/sql/tareas-programadas.sql 2>/dev/null || echo '')
             if [ -z "$tareas" ]; then
-              problemas+=("no se pueden leer las tareas programadas de pg_cron")
+              problemas+=("${pre}no se pueden leer las tareas programadas de pg_cron")
             else
-              printf '%s' "$tareas" > tareas.json
+              printf '%s' "$tareas" > "tareas-$entorno.json"
               # psql no sustituye variables en -c: va por -f (RV-38). Si no se guarda, es un problema.
-              if ! psql -X -q -v ON_ERROR_STOP=1 "$BD" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql; then
-                problemas+=("no se pueden guardar las tareas programadas en Salud del sistema")
+              if ! psql -X -q -v ON_ERROR_STOP=1 "$bd" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql; then
+                problemas+=("${pre}no se pueden guardar las tareas programadas en Salud del sistema")
               fi
-              faltan=$(jq -r '[.[] | select(.falta) | .tarea] | join(", ")' tareas.json)
+              faltan=$(jq -r '[.[] | select(.falta) | .tarea] | join(", ")' "tareas-$entorno.json")
               if [ -n "$faltan" ]; then
-                problemas+=("faltan tareas programadas de pg_cron: $faltan (¿restauración en un proyecto nuevo? 15 §5.3)")
+                problemas+=("${pre}faltan tareas programadas de pg_cron: $faltan (¿restauración en un proyecto nuevo? 15 §5.3)")
               fi
-              atrasadas=$(jq -r '[.[] | select(.problema and (.falta | not)) | .tarea] | join(", ")' tareas.json)
+              atrasadas=$(jq -r '[.[] | select(.problema and (.falta | not)) | .tarea] | join(", ")' "tareas-$entorno.json")
               if [ -n "$atrasadas" ]; then
-                problemas+=("tareas programadas que fallaron o no han corrido a tiempo: $atrasadas")
+                problemas+=("${pre}tareas programadas que fallaron o no han corrido a tiempo: $atrasadas")
               fi
             fi
+            [ "$entorno" = produccion ] || return 0
             # La base de datos de 500 MB la comparte uniformidad: aviso al 80 % (TR-53, RV-22).
-            bd=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c "select pg_database_size(current_database());" 2>/dev/null || echo 0)
-            if [ "${bd:-0}" -gt $((400 * 1024 * 1024)) ]; then
-              problemas+=("la base de datos ocupa $((bd / 1024 / 1024)) MB de 500 (más del 80 %)")
+            tam=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c "select pg_database_size(current_database());" 2>/dev/null || echo 0)
+            if [ "${tam:-0}" -gt $((400 * 1024 * 1024)) ]; then
+              problemas+=("la base de datos ocupa $((tam / 1024 / 1024)) MB de 500 (más del 80 %)")
             fi
             # Intentos del código de acceso (RV-14, TR-41): muchos fallos o un tope de todo el grupo
             # alcanzado son la huella de un ataque, y los voluntarios con móvil nuevo no podrían entrar.
-            intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$BD" -c \
+            intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$bd" -c \
               "select count(*) filter (where not exito and not bloqueado), count(*) filter (where bloqueado and tope in ('global', 'altas_global')) from hidrantes.intentos_codigo where momento > now() - interval '24 hours';" 2>/dev/null || echo '0 0')
             read -r fallidos globales <<< "$intentos"
             if [ "${fallidos:-0}" -gt 300 ] || [ "${globales:-0}" -gt 0 ]; then
               problemas+=("posible ataque al código de acceso ($fallidos fallos y $globales bloqueos de todo el grupo en 24 h): cambia el código (15 §5.4)")
             fi
-          else
-            problemas+=("falta SUPABASE_DB_URL_PROD: la vigilancia no puede mirar el respaldo (DEC-071)")
-          fi
+          }
+          if [ -n "${BD:-}" ]; then revisar_bd produccion "$BD"
+          else problemas+=("falta SUPABASE_DB_URL_PROD: la vigilancia no puede mirar el respaldo (DEC-071)"); fi
+          if [ -n "${BD_STAGING:-}" ]; then revisar_bd staging "$BD_STAGING"
+          else problemas+=("falta SUPABASE_DB_URL_STAGING: la vigilancia no puede mirar staging (docs/20 RV-78)"); fi
 
           # 4. Los workflows programados siguen vivos: GitHub los desactiva tras 60 días sin actividad
           #    en un repositorio público (DEC-085). Diarios: última ejecución programada de menos de
@@ -208,11 +236,23 @@ jobs:
             problemas+=("el Worker hidrantes-avisos no tiene su cron cada 5 minutos (${WORKER_CRON:-sin respuesta}): 15 §2")
           fi
 
-          # 5. Se anota en Salud del sistema, salga como salga (TR-102).
-          if [ -n "${BD:-}" ]; then
-            ok=$([ ${#problemas[@]} -eq 0 ] && echo true || echo false)
-            psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('ultima_vigilancia', to_jsonb(now()), 'vigilancia.yml'), ('vigilancia_ok', to_jsonb($ok), 'vigilancia.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;" || true
+          # 8. El Worker lleva el código de develop (docs/20 RV-74): VERSION_CODIGO, que pone
+          #    deploy-staging.yml en cada push, es el último commit que tocó workers/.
+          esperada=$(git log -1 --format=%H origin/develop -- workers 2>/dev/null || echo '')
+          if [ "${WORKER_VERSION:-}" = "sin permiso" ]; then
+            : # ya lo dice el punto 7
+          elif [ -z "${WORKER_VERSION:-}" ]; then
+            problemas+=("el Worker hidrantes-avisos no dice qué código lleva (VERSION_CODIGO): vuelve a desplegar staging (docs/20 RV-74)")
+          elif [ "$WORKER_VERSION" != "$esperada" ]; then
+            problemas+=("el Worker hidrantes-avisos lleva el código de ${WORKER_VERSION:0:7} y develop tiene el de ${esperada:0:7}: vuelve a desplegar staging (docs/20 RV-74)")
           fi
+
+          # 5. Se anota en Salud del sistema de los dos entornos, salga como salga (TR-102, docs/20 RV-78).
+          ok=$([ ${#problemas[@]} -eq 0 ] && echo true || echo false)
+          for bd in "${BD:-}" "${BD_STAGING:-}"; do
+            [ -n "$bd" ] || continue
+            psql -X -q -v ON_ERROR_STOP=1 "$bd" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('ultima_vigilancia', to_jsonb(now()), 'vigilancia.yml'), ('vigilancia_ok', to_jsonb($ok), 'vigilancia.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;" || true
+          done
 
           {
             echo "### Vigilancia"

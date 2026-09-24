@@ -54,7 +54,7 @@ interface Entorno {
   bucket: string;
 }
 
-const ENTORNOS: Entorno[] = [
+export const ENTORNOS: Entorno[] = [
   {
     clave: 'staging',
     entornoApp: 'staging',
@@ -360,7 +360,7 @@ async function prepararPages(
   e: Entorno,
   sb: DatosSupabase,
   rotar: Set<Rotable>,
-): Promise<{ vapidPublica?: string; vigilancia?: string }> {
+): Promise<{ vapidPublica?: string; vigilancia?: string; escribir: () => Promise<void> }> {
   log.paso(`5. Cloudflare Pages · ${e.proyectoPages}`);
   let proyecto = await cred.cloudflare.proyecto(cred.cuentaCf, e.proyectoPages);
   if (!proyecto) {
@@ -401,11 +401,14 @@ async function prepararPages(
     vigilancia = salAleatoria();
     secretos.VIGILANCIA_SECRETO = vigilancia;
   }
-  await cred.cloudflare.fijarSecretos(cred.cuentaCf, e.proyectoPages, secretos);
-  log.ok(`variables cifradas: ${Object.keys(secretos).join(', ')}`);
-  aplicarSecretosPages(e);
-  log.info('GITHUB_DISPATCH_TOKEN se añade en la Fase 7, cuando exista /api/lanzar-workflow (DEC-053).');
-  return { vapidPublica, vigilancia };
+  // Se escribe después, y con un secreto de vigilancia nuevo, tras el Worker (docs/20 RV-72).
+  const escribir = async () => {
+    await cred.cloudflare.fijarSecretos(cred.cuentaCf, e.proyectoPages, secretos);
+    log.ok(`variables cifradas: ${Object.keys(secretos).join(', ')}`);
+    aplicarSecretosPages(e);
+    log.info('GITHUB_DISPATCH_TOKEN se añade en la Fase 7, cuando exista /api/lanzar-workflow (DEC-053).');
+  };
+  return { vapidPublica, vigilancia, escribir };
 }
 
 /** Sufijo de los secretos y variables de repositorio que no pueden ir en un environment (DEC-071). */
@@ -635,21 +638,65 @@ despliegue, el PR \`develop → main\` (15 §2, docs/18 RV-38).
 
 export const CONFIG_WORKER = 'workers/avisos/wrangler.toml';
 
+/** Cómo acabó escribir un secreto del Worker: puesto, el Worker no existe aún, o cualquier otro fallo. */
+export type EscrituraWorker = 'ok' | 'sin-worker' | 'error';
+
+/** Código de la API de Cloudflare para "ese Worker no existe" (en wrangler, WORKER_NOT_FOUND_ERR_CODE). */
+const WORKER_NO_EXISTE = /\b10007\b/;
+
 /**
- * Pone un secreto del Worker `hidrantes-avisos`. Sin token, con la sesión de `wrangler login`. Si el
- * Worker aún no existe (antes de su primer despliegue desde staging), se dice y no se para.
+ * Pone un secreto del Worker `hidrantes-avisos`. Sin token, con la sesión de `wrangler login`. Un
+ * Worker que aún no existe (antes de su primer despliegue desde staging) no es un error; un corte de
+ * red o una sesión caducada, sí (docs/20 RV-72).
  */
-function fijarSecretoWorker(nombre: string, valor: string, tokenCf?: string): boolean {
+function fijarSecretoWorker(nombre: string, valor: string, tokenCf?: string): EscrituraWorker {
   const env = tokenCf ? { ...process.env, CLOUDFLARE_API_TOKEN: tokenCf } : process.env;
   const r = ejecutar('npx', ['--no-install', 'wrangler', 'secret', 'put', nombre, '--config', CONFIG_WORKER], {
     entrada: valor,
     env,
   });
-  if (r.codigo === 0) return true;
-  log.aviso(
-    `No se ha podido poner ${nombre} en el Worker hidrantes-avisos (¿aún no se ha desplegado?). Tras el primer despliegue de staging: npm run arranque -- --solo-faltantes`,
-  );
-  return false;
+  if (r.codigo === 0) return 'ok';
+  return WORKER_NO_EXISTE.test(r.salida) ? 'sin-worker' : 'error';
+}
+
+/**
+ * Un secreto de vigilancia nuevo, en orden: primero el Worker y, solo si lo acepta, Pages y el
+ * repositorio (`resto`). Al revés, un fallo del Worker dejaba Pages con el valor nuevo y el Worker con
+ * el viejo: 401 y avisos parados (docs/20 RV-72, DEC-102). Si el Worker ya lo tiene y falla lo demás,
+ * se dice cómo completarlo.
+ */
+export async function vigilanciaEnOrden(
+  sufijo: string,
+  worker: () => EscrituraWorker,
+  resto: () => void | Promise<void>,
+): Promise<void> {
+  const nombre = `VIGILANCIA_SECRETO_${sufijo}`;
+  const w = worker();
+  if (w === 'error') {
+    abortar(
+      `El Worker hidrantes-avisos no ha aceptado ${nombre}: no se ha tocado Pages ni el repositorio, y todo sigue como estaba. Comprueba la sesión (npx wrangler whoami) y repite el mismo comando.`,
+    );
+  }
+  if (w === 'sin-worker') {
+    log.aviso(
+      `El Worker hidrantes-avisos aún no existe. Tras su primer despliegue (deploy-staging.yml), npm run arranque -- --solo-faltantes le pone ${nombre}.`,
+    );
+  }
+  try {
+    await resto();
+  } catch (e) {
+    if (w !== 'ok') throw e;
+    abortar(
+      [
+        `La rotación de ${nombre} ha quedado a medias: el Worker ya tiene el valor nuevo, y Pages o el repositorio no. Hasta completarla, /api/push responde 401 al Worker.`,
+        'Para completarla, en este orden:',
+        '  1. gh auth status && npx wrangler whoami            (las dos sesiones, en vigor)',
+        '  2. npm run arranque -- --rotar vigilancia          (genera otro valor y lo pone en los tres sitios, el Worker primero)',
+        '  3. gh workflow run "Desplegar staging" --ref develop   (si el paso 2 no lo lanza; producción lo verá en su siguiente despliegue)',
+        `Causa: ${e instanceof Error ? e.message : String(e)}`,
+      ].join('\n'),
+    );
+  }
 }
 
 // ---------- --solo-faltantes (docs/19 P-01) ----------
@@ -702,14 +749,21 @@ function nombresSecretosPages(proyecto: string): string[] {
   return [...r.salida.matchAll(/^\s*-\s+([A-Z0-9_]+):/gm)].map((m) => m[1]!);
 }
 
-function nombresSecretosWorker(): string[] {
-  const r = ejecutar('npx', ['--no-install', 'wrangler', 'secret', 'list', '--config', CONFIG_WORKER]);
-  // Sin Worker desplegado aún: no hay secretos.
-  if (r.codigo !== 0) return [];
+/**
+ * Los nombres de los secretos del Worker, de la salida de `wrangler secret list`. Tres casos: el Worker
+ * no existe (`[]`: hay que ponerlos), la lista, o un error, que **para**. Antes, un error también daba
+ * `[]`, y --solo-faltantes rotaba todos los secretos de vigilancia por un corte de red (docs/20 RV-72).
+ */
+export function secretosWorkerDe(r: { codigo: number; salida: string }): string[] {
+  const error = () =>
+    abortar(
+      'No se han podido leer los secretos del Worker hidrantes-avisos: no se cambia nada. Comprueba la sesión (npx wrangler whoami) y repite.',
+    );
+  if (r.codigo !== 0) return WORKER_NO_EXISTE.test(r.salida) ? [] : error();
   try {
     return (JSON.parse(r.salida.slice(r.salida.indexOf('['))) as { name: string }[]).map((s) => s.name);
   } catch {
-    return [];
+    return error();
   }
 }
 
@@ -736,51 +790,93 @@ function desplegarWorkerSiFalta(): void {
   log.ok('Worker hidrantes-avisos desplegado con su cron cada 5 minutos');
 }
 
-/** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
-function soloFaltantes(): void {
-  log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
-  comprobarSesiones();
-  desplegarWorkerSiFalta();
-  const repo = gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/);
-  const worker = nombresSecretosWorker();
+/** Lo que --solo-faltantes lee y escribe fuera; en los tests, simulado. */
+export interface OpsFaltantes {
+  secretosRepo(): string[];
+  /** La salida tal cual de `wrangler secret list`, para `secretosWorkerDe`. */
+  secretosWorker(): { codigo: number; salida: string };
+  secretosPages(proyecto: string): string[];
+  fijarPages(proyecto: string, nombre: string, valor: string): void;
+  fijarRepo(nombre: string, valor: string): void;
+  fijarWorker(nombre: string, valor: string): EscrituraWorker;
+  fijarVariable(nombre: string, valor: string, entorno: string): void;
+  aplicar(e: Entorno): void;
+  aleatorio(): string;
+  vapid(): { privada: string; publica: string };
+}
+
+const OPS_REALES: OpsFaltantes = {
+  secretosRepo: () => gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/),
+  secretosWorker: () => ejecutar('npx', ['--no-install', 'wrangler', 'secret', 'list', '--config', CONFIG_WORKER]),
+  secretosPages: nombresSecretosPages,
+  fijarPages: fijarSecretoPages,
+  fijarRepo: (nombre, valor) => fijarSecreto(nombre, valor),
+  fijarWorker: (nombre, valor) => fijarSecretoWorker(nombre, valor),
+  fijarVariable,
+  aplicar: aplicarSecretosPages,
+  aleatorio: salAleatoria,
+  vapid: paresVapid,
+};
+
+/**
+ * Pone solo lo que falta. **Primero lee todo** (repositorio, Worker y las dos Pages) y solo después
+ * escribe: un fallo al leer para antes de cambiar nada (docs/20 RV-72). Devuelve lo que solo sabe
+ * poner el arranque completo.
+ */
+export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENTORNOS): Promise<string[]> {
+  const repo = op.secretosRepo();
+  const worker = secretosWorkerDe(op.secretosWorker());
+  const planes = entornos.map((e) => ({
+    e,
+    plan: planFaltantes({ clave: e.clave, pages: op.secretosPages(e.proyectoPages), repo, worker }),
+  }));
   const aMano: string[] = [];
-  for (const e of ENTORNOS) {
-    const plan = planFaltantes({ clave: e.clave, pages: nombresSecretosPages(e.proyectoPages), repo, worker });
+  for (const { e, plan } of planes) {
     const sufijo = sufijoDe(e);
     const puestos: string[] = [];
     if (plan.vigilancia) {
-      const valor = salAleatoria();
-      fijarSecretoPages(e.proyectoPages, 'VIGILANCIA_SECRETO', valor);
-      fijarSecreto(`VIGILANCIA_SECRETO_${sufijo}`, valor);
-      fijarSecretoWorker(`VIGILANCIA_SECRETO_${sufijo}`, valor);
-      puestos.push('VIGILANCIA_SECRETO (Pages, repositorio y Worker)');
+      const valor = op.aleatorio();
+      await vigilanciaEnOrden(
+        sufijo,
+        () => op.fijarWorker(`VIGILANCIA_SECRETO_${sufijo}`, valor),
+        () => {
+          op.fijarPages(e.proyectoPages, 'VIGILANCIA_SECRETO', valor);
+          op.fijarRepo(`VIGILANCIA_SECRETO_${sufijo}`, valor);
+        },
+      );
+      puestos.push('VIGILANCIA_SECRETO (Worker, Pages y repositorio)');
     }
     if (plan.salIp) {
-      fijarSecretoPages(e.proyectoPages, 'SAL_IP', salAleatoria());
+      op.fijarPages(e.proyectoPages, 'SAL_IP', op.aleatorio());
       puestos.push('SAL_IP');
     }
     if (plan.nominatim) {
-      fijarSecretoPages(
-        e.proyectoPages,
-        'NOMINATIM_USER_AGENT',
-        `hidrantes-albolote/1.0 (+https://github.com/${REPO})`,
-      );
+      op.fijarPages(e.proyectoPages, 'NOMINATIM_USER_AGENT', `hidrantes-albolote/1.0 (+https://github.com/${REPO})`);
       puestos.push('NOMINATIM_USER_AGENT');
     }
     if (plan.vapid) {
       // Solo si faltan: nadie puede estar suscrito con unas claves que no existen.
-      const par = paresVapid();
-      fijarSecretoPages(e.proyectoPages, 'VAPID_PRIVATE_KEY', par.privada);
-      fijarSecretoPages(e.proyectoPages, 'VAPID_PUBLIC_KEY', par.publica);
-      fijarVariable('VITE_VAPID_PUBLIC_KEY', par.publica, e.clave);
+      const par = op.vapid();
+      op.fijarPages(e.proyectoPages, 'VAPID_PRIVATE_KEY', par.privada);
+      op.fijarPages(e.proyectoPages, 'VAPID_PUBLIC_KEY', par.publica);
+      op.fijarVariable('VITE_VAPID_PUBLIC_KEY', par.publica, e.clave);
       puestos.push('VAPID_PRIVATE_KEY y VAPID_PUBLIC_KEY');
     }
     aMano.push(...plan.aMano.map((n) => `${n} en Pages ${e.proyectoPages}`));
     if (puestos.length) {
       log.ok(`${e.clave}: ${puestos.join(', ')}`);
-      aplicarSecretosPages(e);
+      op.aplicar(e);
     } else log.ok(`${e.clave}: no falta nada`);
   }
+  return aMano;
+}
+
+/** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
+async function soloFaltantes(): Promise<void> {
+  log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
+  comprobarSesiones();
+  desplegarWorkerSiFalta();
+  const aMano = await ponerFaltantes(OPS_REALES);
   if (aMano.length) log.aviso(`Faltan y solo los pone el arranque completo (npm run arranque): ${aMano.join('; ')}`);
 }
 
@@ -825,7 +921,7 @@ function arranqueLocal(): void {
 async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   if (banderas.has('local')) return arranqueLocal();
-  if (banderas.has('solo-faltantes')) return soloFaltantes();
+  if (banderas.has('solo-faltantes')) return await soloFaltantes();
 
   const rotar = aRotar(valores.get('rotar'));
   const esRotacion = rotar.size > 0;
@@ -842,10 +938,21 @@ async function principal(): Promise<void> {
   for (const e of ENTORNOS) {
     const sb = await prepararSupabase(cred, e, tocarBd);
     datos.set(e.clave, sb);
-    const { vapidPublica, vigilancia } = await prepararPages(cred, e, sb, rotar);
-    // El Worker de los avisos llama a /api/push con el mismo secreto (docs/19 RV-52).
-    if (vigilancia) fijarSecretoWorker(`VIGILANCIA_SECRETO_${sufijoDe(e)}`, vigilancia, cred.tokenCf);
-    secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica, vigilancia);
+    const { vapidPublica, vigilancia, escribir } = await prepararPages(cred, e, sb, rotar);
+    const resto = async () => {
+      await escribir();
+      secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica, vigilancia);
+    };
+    // El Worker de los avisos llama a /api/push con el mismo secreto (docs/19 RV-52): se escribe
+    // primero, y si no lo acepta no se toca nada más (docs/20 RV-72).
+    if (vigilancia) {
+      const sufijo = sufijoDe(e);
+      await vigilanciaEnOrden(
+        sufijo,
+        () => fijarSecretoWorker(`VIGILANCIA_SECRETO_${sufijo}`, vigilancia, cred.tokenCf),
+        resto,
+      );
+    } else await resto();
   }
   const huella = await prepararGpg(rotar.has('gpg'));
 

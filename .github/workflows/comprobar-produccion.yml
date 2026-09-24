@@ -21,11 +21,21 @@ jobs:
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
+      # Su mitad (--parcial): lo que solo se ve desde aquí. La tabla completa la da
+      # `npm run comprobar-produccion -- --completo` en local, que lanza este workflow y lee el artefacto
+      # (docs/20 RV-73). Solo nombres y estados, nunca valores.
       - name: Comprobar (sin valores)
-        run: npm run comprobar-produccion
+        run: npm run comprobar-produccion -- --parcial --json filas-produccion.json
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
           SUPABASE_URL_PROD: ${{ vars.SUPABASE_URL_PROD }}
           SUPABASE_ANON_KEY_PROD: ${{ vars.SUPABASE_ANON_KEY_PROD }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: filas-produccion
+          path: filas-produccion.json
+          retention-days: 7
+          if-no-files-found: ignore

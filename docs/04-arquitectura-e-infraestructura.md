@@ -153,11 +153,13 @@ Reglas:
 - Cada punto ficticio del seed lleva `descripcion` con prefijo `[PRUEBA]`.
 - Las *preview deployments* de Cloudflare (una URL por Pull Request) apuntan siempre a Supabase
   **dev**.
-- **Antes de cada PR `develop → main`**, `npm run comprobar-produccion` (docs/19 P-01) comprueba, sin
-  cambiar nada ni imprimir valores, que producción tiene los secretos, variables y migraciones que la
-  versión nueva necesita. En local mira GitHub, Pages y la Data API; el workflow
-  `comprobar-produccion.yml` mira la base de datos de producción y el token de Cloudflare, que solo
-  están en los secretos. Lo que no puede mirar sale como "NO COMPROBADO", nunca como OK.
+- **Antes de cada PR `develop → main`**, `npm run comprobar-produccion -- --completo` (docs/19 P-01,
+  docs/20 RV-73) comprueba, sin cambiar nada ni imprimir valores, que producción tiene los secretos,
+  variables y migraciones que la versión nueva necesita. En local mira GitHub, Pages y la Data API; lanza
+  `comprobar-produccion.yml`, que mira la base de datos de producción y el token de Cloudflare (solo
+  están en los secretos), y une las dos mitades en una tabla. Lo que no puede mirar sale como "NO
+  COMPROBADO", nunca como OK. Sale con 1 si falta algo imprescindible y con 2 si algo imprescindible
+  queda sin comprobar; `--parcial` acepta una sola mitad y lo dice.
 - Los tests (SQL, e2e) corren contra una **instancia local efímera** (`supabase start` en el runner)
   con las Pages Functions servidas por `wrangler pages dev`. Nunca contra dev ni prod: dos ramas a la
   vez se pisarían los datos, y un test que borra algo en una base compartida con la app de uniformidad
@@ -405,10 +407,10 @@ e2e/                    # Playwright
 | `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema |
 | `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos, con las secuencias de prod al menos en las de staging para no volver a dar un código (RV-66); empieza en ensayo y exige escribir PROMOVER (DEC-078) |
 | `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
-| `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa si la base de datos pasa de 400 MB (80 % de los 500 compartidos con uniformidad); abre una issue si algo falla (TR-102, TR-54, RV-22). La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
+| `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa si la base de datos pasa de 400 MB (80 % de los 500 compartidos con uniformidad); abre una issue si algo falla (TR-102, TR-54, RV-22). En staging mira los avisos sin salir y las tareas de `pg_cron`, y anota allí también la última vigilancia, sin el respaldo, que solo existe en producción (docs/20 RV-78). La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
-| Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` cuando cambia `workers/`; sin superficie HTTP (DEC-097) |
+| Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` en cada push a `develop` con `VERSION_CODIGO` (el último commit de `workers/`), que la vigilancia compara con `develop` (docs/20 RV-74); sin superficie HTTP (DEC-097) |
 | `avisos.yml` | solo a mano (`workflow_dispatch`) | lo mismo que el Worker, como envío de emergencia si fallara (DEC-097) |
 | `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) |

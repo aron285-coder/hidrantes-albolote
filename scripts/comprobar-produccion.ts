@@ -1,18 +1,22 @@
 // ¿Tiene producción todo lo que la versión actual necesita? (docs/19 P-01, DEC-096). Solo lectura:
 // no cambia nada y **nunca imprime valores**, solo nombres (DEC-053).
 //
-//   npm run comprobar-produccion           en local: GitHub (gh), Pages (wrangler), Data API, y lo
-//                                          demás si están SUPABASE_DB_URL_PROD, CLOUDFLARE_API_TOKEN,
-//                                          CLOUDFLARE_ACCOUNT_ID y SUPABASE_ACCESS_TOKEN
-//   comprobar-produccion.yml               en Actions: la base de datos y el token de Cloudflare,
-//                                          con los secretos que en local no hay
+//   npm run comprobar-produccion -- --completo
+//        **La que se usa antes del PR develop → main** (docs/20 P-10 y RV-73). Hace la mitad local
+//        (GitHub con gh, Pages con wrangler, Data API), lanza comprobar-produccion.yml para la otra
+//        (la base de datos y el token de Cloudflare, con secretos que en local no hay), espera, y une
+//        las dos en una tabla. Solo nombres y estados viajan entre las dos.
+//   npm run comprobar-produccion           solo la mitad local
+//   comprobar-produccion.yml               solo la mitad de Actions (--parcial --json)
 //
 // Cada comprobación que no se puede hacer con lo que hay sale como NO COMPROBADO, nunca como OK.
-// Termina con 1 si falta algo imprescindible para desplegar.
+// Termina con 1 si falta algo imprescindible para desplegar, y con 2 si algo imprescindible queda
+// sin comprobar: "falta la otra mitad". Con --parcial, eso último sale con 0 y el resumen lo dice.
 
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { RAIZ, ejecutar, ejecutarScript, log, psql } from './lib/comun.ts';
+import { RAIZ, abortar, argumentos, ejecutar, ejecutarScript, log, psql } from './lib/comun.ts';
 import { type Migracion, leerMigraciones } from './migrar.ts';
 
 const REPO = 'aron285-coder/hidrantes-albolote';
@@ -266,7 +270,31 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
   return filas;
 }
 
-export const codigoSalida = (filas: Fila[]) => (filas.some((f) => f.estado === 'FALTA' && f.imprescindible) ? 1 : 0);
+/**
+ * 1 si falta algo imprescindible; 2 si algo imprescindible queda sin comprobar, salvo con `parcial`.
+ * Antes, las filas NO COMPROBADO no contaban, y cada mitad salía con 0 sin haber mirado lo obligatorio
+ * de la otra (docs/20 RV-73).
+ */
+export function codigoSalida(filas: Fila[], { parcial = false } = {}): 0 | 1 | 2 {
+  if (filas.some((f) => f.estado === 'FALTA' && f.imprescindible)) return 1;
+  if (!parcial && filas.some((f) => f.estado === 'NO COMPROBADO' && f.imprescindible)) return 2;
+  return 0;
+}
+
+/**
+ * Las dos mitades en una: lo que la local no pudo comprobar se toma de la de Actions, si esta sí
+ * pudo. Lo que solo está en una se conserva.
+ */
+export function unirMitades(local: Fila[], actions: Fila[]): Fila[] {
+  const clave = (f: Fila) => `${f.grupo}\u0000${f.nombre}`;
+  const deActions = new Map(actions.map((f) => [clave(f), f]));
+  const unidas = local.map((f) => {
+    const otra = deActions.get(clave(f));
+    return f.estado === 'NO COMPROBADO' && otra && otra.estado !== 'NO COMPROBADO' ? otra : f;
+  });
+  const vistas = new Set(local.map(clave));
+  return [...unidas, ...actions.filter((f) => !vistas.has(clave(f)))];
+}
 
 export function tabla(filas: Fila[]): string {
   const lineas = ['| Grupo | Qué | Estado | Nota |', '|---|---|---|---|'];
@@ -367,7 +395,52 @@ function fuentesReales(): Fuentes {
   };
 }
 
+const WORKFLOW = 'comprobar-produccion.yml';
+
+/** La mitad de Actions: lanza el workflow, espera y lee sus filas (artefacto sin valores). */
+async function mitadDeActions(): Promise<Fila[]> {
+  const desde = new Date(Date.now() - 5_000).toISOString();
+  const lanzar = ejecutar('gh', ['workflow', 'run', WORKFLOW, '--repo', REPO, '--ref', 'develop']);
+  if (lanzar.codigo !== 0) abortar(`No se ha podido lanzar ${WORKFLOW}: ${lanzar.salida.trim()}`);
+  let id = '';
+  for (let i = 0; i < 30 && !id; i++) {
+    const r = ejecutar('gh', [
+      'run',
+      'list',
+      '--repo',
+      REPO,
+      '--workflow',
+      WORKFLOW,
+      '--event',
+      'workflow_dispatch',
+      '-L',
+      '5',
+      '--json',
+      'databaseId,createdAt',
+      '--jq',
+      `[.[] | select(.createdAt >= "${desde}")] | last | .databaseId // ""`,
+    ]);
+    id = r.codigo === 0 ? r.salida.trim() : '';
+    if (!id) await new Promise((ok) => setTimeout(ok, 4_000));
+  }
+  if (!id) abortar(`${WORKFLOW} no ha empezado: míralo en Actions.`);
+  log.info(`Esperando a ${WORKFLOW} (run ${id})…`);
+  ejecutar('gh', ['run', 'watch', id, '--repo', REPO, '--exit-status', '--interval', '10']);
+  const dir = mkdtempSync(path.join(tmpdir(), 'comprobar-produccion-'));
+  try {
+    const bajar = ejecutar('gh', ['run', 'download', id, '--repo', REPO, '-n', 'filas-produccion', '-D', dir]);
+    if (bajar.codigo !== 0)
+      abortar(`No se han podido leer las filas de ${WORKFLOW} (run ${id}): ${bajar.salida.trim()}`);
+    return JSON.parse(readFileSync(path.join(dir, 'filas-produccion.json'), 'utf8')) as Fila[];
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 async function principal(): Promise<void> {
+  const { banderas, valores } = argumentos();
+  const parcial = banderas.has('parcial');
+  const completo = banderas.has('completo');
   log.paso('Producción: lo que la versión actual necesita (solo lectura, sin valores)');
   const yml = readFileSync(path.join(RAIZ, '.github', 'workflows', 'deploy-prod.yml'), 'utf8');
   const { secretos, variables } = requeridosDeWorkflow(yml);
@@ -376,19 +449,33 @@ async function principal(): Promise<void> {
     ...variables.filter((v) => !VARIABLES_ENTORNO.includes(v)),
   ];
   if (fuera.length) log.aviso(`deploy-prod.yml usa algo que esta lista no conoce: ${fuera.join(', ')}`);
-  const filas = await comprobar(fuentesReales(), leerMigraciones());
+  let filas = await comprobar(fuentesReales(), leerMigraciones());
+  if (completo) filas = unirMitades(filas, await mitadDeActions());
+  const json = valores.get('json');
+  // Solo grupo, nombre, estado y nota: nunca valores (DEC-053).
+  if (json) writeFileSync(json, JSON.stringify(filas, null, 2));
   console.log(tabla(filas));
-  const salida = codigoSalida(filas);
+  const salida = codigoSalida(filas, { parcial });
+  const sinComprobar = filas.filter((f) => f.estado === 'NO COMPROBADO' && f.imprescindible).length;
+  const otraMitad = process.env.GITHUB_ACTIONS
+    ? 'npm run comprobar-produccion -- --completo en local (GitHub y Pages)'
+    : 'npm run comprobar-produccion -- --completo, que lanza comprobar-produccion.yml';
+  const resumen =
+    salida === 1
+      ? 'Falta algo imprescindible para desplegar: no abras el PR develop → main.'
+      : salida === 2
+        ? `${sinComprobar} imprescindibles sin comprobar: falta la otra mitad: ejecuta también ${otraMitad}.`
+        : sinComprobar
+          ? `Mitad comprobada (--parcial): ${sinComprobar} imprescindibles quedan para la otra mitad (${otraMitad}).`
+          : 'Nada imprescindible falta, y todo lo imprescindible está comprobado.';
   if (process.env.GITHUB_STEP_SUMMARY) {
     const { appendFileSync } = await import('node:fs');
-    appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Producción\n\n${tabla(filas)}\n`);
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Producción\n\n${tabla(filas)}\n\n${resumen}\n`);
   }
-  const sinComprobar = filas.filter((f) => f.estado === 'NO COMPROBADO').length;
-  if (sinComprobar) log.aviso(`${sinComprobar} sin comprobar desde aquí: mira la nota de cada una.`);
-  if (salida) {
-    log.error('Falta algo imprescindible para desplegar: no abras el PR develop → main.');
-    process.exitCode = 1;
-  } else log.ok('Nada imprescindible falta.');
+  if (salida === 1) log.error(resumen);
+  else if (salida === 2 || sinComprobar) log.aviso(resumen);
+  else log.ok(resumen);
+  process.exitCode = salida;
 }
 
 if (import.meta.main) ejecutarScript(principal);
