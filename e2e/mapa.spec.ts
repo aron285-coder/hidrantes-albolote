@@ -346,7 +346,14 @@ test.describe('pulsación larga: ¿Qué hay aquí? (#138, FR-72)', () => {
   test('sobre un marcador no: ahí lo que toca es abrir la ficha', async ({ page }) => {
     await abrir(page);
     const marcador = page.locator('.marcador').first();
-    const caja = (await marcador.boundingBox())!;
+    // Con la máquina cargada, el marcador aún no está pintado cuando llegan los puntos, y al colocarse
+    // el mapa se vuelve a pintar: se espera a tener su caja (docs/18 RV-49).
+    let caja: { x: number; y: number; width: number; height: number } | null = null;
+    await expect(async () => {
+      caja = await marcador.boundingBox({ timeout: 1000 });
+      expect(caja).not.toBeNull();
+    }).toPass();
+    caja = caja!;
     await marcador.dispatchEvent('pointerdown', {
       clientX: caja.x + caja.width / 2,
       clientY: caja.y + caja.height / 2,

@@ -143,59 +143,82 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     expect(dimensiones).toEqual([1600, 1200]);
   });
 
-  test('revisión, estado, datos, ubicación y retirada desde la ficha', async ({ page }) => {
-    const s = await servidor(page);
-    const hid = PUNTOS[0];
-    const abrirOperacion = async (nombre: string) => {
+  // Las cinco operaciones sobre un punto, desde la ficha. Una prueba por operación: las cinco seguidas,
+  // con sus fotos, pasaban de los 30 s con cuatro workers (docs/18 RV-49).
+  const OPERACIONES: {
+    nombre: string;
+    hacer: (page: Page) => Promise<void>;
+    envio?: string;
+    esperado: Record<string, unknown>;
+  }[] = [
+    {
+      nombre: T.operaciones.sigueIgual,
+      hacer: async (page) => {
+        await expect(page.getByText(T.operaciones.revisionAviso)).toBeVisible();
+        await hacerFoto(page);
+      },
+      esperado: { operacion: 'revision' },
+    },
+    {
+      nombre: T.operaciones.actualizarEstado,
+      hacer: async (page) => {
+        await page.getByRole('radio', { name: T.formulario.regular }).click();
+        await hacerFoto(page);
+      },
+      esperado: { operacion: 'estado' },
+    },
+    {
+      nombre: T.operaciones.corregirDatos,
+      hacer: async (page) => {
+        await expect(page.getByText(T.avisosFormulario.sinCambios)).toBeVisible();
+        await page.getByRole('radio', { name: T.formulario.d70 }).click();
+      },
+      esperado: { operacion: 'datos', datos: { diametro_mm: 70 }, foto_path: null },
+    },
+    {
+      nombre: T.operaciones.corregirUbicacion,
+      hacer: async (page) => {
+        await expect(page.getByText(T.avisosFormulario.muevePin)).toBeVisible();
+        const mapa = page.getByTestId('selector-pin');
+        // El mapa del selector puede no escuchar aún el toque cuando ya se ve: se toca hasta que el pin
+        // se mueve, en vez de dar por hecho que el primer toque llegó.
+        await expect(async () => {
+          const caja = (await mapa.boundingBox())!;
+          await mapa.click({ position: { x: caja.width / 2 + 60, y: caja.height / 2 } });
+          await expect(page.getByText(T.formulario.desplazamiento)).toBeVisible({ timeout: 1000 });
+        }).toPass();
+        await hacerFoto(page);
+      },
+      esperado: { operacion: 'ubicacion', origen: 'manual', datos: {} },
+    },
+    {
+      nombre: T.operaciones.proponerRetirada,
+      hacer: async (page) => {
+        await page.getByRole('radio', { name: T.formulario.obras }).click();
+        await expect(page.getByText(T.avisosFormulario.explicaMotivo)).toBeVisible();
+        await page.getByLabel(T.formulario.motivoRetirada).fill('Zanja abierta, el hidrante no está');
+        await hacerFoto(page);
+      },
+      envio: T.envio.enviarRetirada,
+      esperado: { operacion: 'retirada', datos: { motivo_rapido: 'obras' } },
+    },
+  ];
+
+  for (const op of OPERACIONES) {
+    test(`desde la ficha: ${op.nombre}`, async ({ page }) => {
+      const s = await servidor(page);
+      const hid = PUNTOS[0];
       await page.goto(`/?p=${hid.id}`);
       await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
       await expect(page.getByRole('dialog', { name: T.operaciones.queHaCambiado(hid.codigo) })).toBeVisible();
-      await page.getByRole('button', { name: new RegExp(`^${nombre}`) }).click();
-    };
-
-    await abrirOperacion(T.operaciones.sigueIgual);
-    await expect(page.getByText(T.operaciones.revisionAviso)).toBeVisible();
-    await hacerFoto(page);
-    await enviar(page).click();
-    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
-
-    await abrirOperacion(T.operaciones.actualizarEstado);
-    await page.getByRole('radio', { name: T.formulario.regular }).click();
-    await hacerFoto(page);
-    await enviar(page).click();
-    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
-
-    await abrirOperacion(T.operaciones.corregirDatos);
-    await expect(page.getByText(T.avisosFormulario.sinCambios)).toBeVisible();
-    await page.getByRole('radio', { name: T.formulario.d70 }).click();
-    await enviar(page).click();
-    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
-
-    await abrirOperacion(T.operaciones.corregirUbicacion);
-    await expect(page.getByText(T.avisosFormulario.muevePin)).toBeVisible();
-    const mapa = page.getByTestId('selector-pin');
-    const caja = (await mapa.boundingBox())!;
-    await mapa.click({ position: { x: caja.width / 2 + 60, y: caja.height / 2 } });
-    await expect(page.getByText(T.formulario.desplazamiento)).toBeVisible();
-    await hacerFoto(page);
-    await enviar(page).click();
-    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
-
-    await abrirOperacion(T.operaciones.proponerRetirada);
-    await page.getByRole('radio', { name: T.formulario.obras }).click();
-    await expect(page.getByText(T.avisosFormulario.explicaMotivo)).toBeVisible();
-    await page.getByLabel(T.formulario.motivoRetirada).fill('Zanja abierta, el hidrante no está');
-    await hacerFoto(page);
-    await enviar(page, T.envio.enviarRetirada).click();
-    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
-
-    expect(s.propuestas.map((p) => p.operacion)).toEqual(['revision', 'estado', 'datos', 'ubicacion', 'retirada']);
-    expect(s.propuestas.every((p) => p.punto_id === hid.id)).toBe(true);
-    expect(s.propuestas[2]).toMatchObject({ datos: { diametro_mm: 70 }, foto_path: null });
-    expect(s.propuestas[3]).toMatchObject({ origen: 'manual', datos: {} });
-    expect(s.propuestas[4]).toMatchObject({ datos: { motivo_rapido: 'obras' } });
-  });
-
+      await page.getByRole('button', { name: new RegExp(`^${op.nombre}`) }).click();
+      await op.hacer(page);
+      await enviar(page, op.envio).click();
+      await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+      expect(s.propuestas).toHaveLength(1);
+      expect(s.propuestas[0]).toMatchObject({ ...op.esperado, punto_id: hid.id });
+    });
+  }
   // docs/18 RV-41, DEC-090: el tipo no se cambia; se retira el punto y se da de alta el correcto.
   test('corregir datos no ofrece cambiar el tipo y enlaza a retirar', async ({ page }) => {
     await servidor(page);

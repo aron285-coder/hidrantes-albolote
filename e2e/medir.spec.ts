@@ -42,10 +42,25 @@ const resultado = (page: Page) => barra(page).locator('p').first().innerText();
 const marcador = (page: Page, codigo: string) => page.locator(`.marcador[title="${codigo}"]`);
 
 async function centro(page: Page, codigo: string) {
-  // Con la máquina cargada, el marcador tarda en pintarse: se espera a que esté antes de medirlo.
-  await expect(marcador(page, codigo)).toBeVisible();
-  const c = (await marcador(page, codigo).boundingBox())!;
-  return { x: c.x + c.width / 2, y: c.y + c.height / 2 };
+  // Con la máquina cargada, el marcador tarda en pintarse y el mapa aún se está colocando: se espera
+  // a que esté y a que dos lecturas seguidas coincidan antes de medirlo (docs/18 RV-49).
+  // Al moverse, el mapa vuelve a pintar los marcadores: entre medias el de B no existe y no hay caja.
+  const leer = async () => {
+    const c = await marcador(page, codigo)
+      .boundingBox({ timeout: 1000 })
+      .catch(() => null);
+    return c ? { x: Math.round(c.x + c.width / 2), y: Math.round(c.y + c.height / 2) } : null;
+  };
+  let previo = await leer();
+  await expect
+    .poll(async () => {
+      const ahora = await leer();
+      const quieto = !!ahora && !!previo && ahora.x === previo.x && ahora.y === previo.y;
+      previo = ahora;
+      return quieto;
+    })
+    .toBe(true);
+  return previo!;
 }
 
 test('desde ¿Qué hay aquí?, dos puntos a 59 m: 59 m · 3 tramos de 20 m, con el imán', async ({ page }) => {
