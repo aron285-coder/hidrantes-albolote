@@ -222,3 +222,95 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     }
   });
 });
+
+// docs/trabajo-en-paralelo.md §9, DEC-100: e2e en tres partes, puertos por sesión y PR de
+// documentación sin e2e ni SQL.
+describe('CI en paralelo (PAR-01)', () => {
+  const ci = leer('ci.yml');
+  const raiz = path.resolve(import.meta.dirname, '..');
+  /** El bloque de un trabajo de ci.yml, desde su id hasta el siguiente. */
+  const trabajo = (id: string) => {
+    const desde = ci.indexOf(`\n  ${id}:\n`);
+    expect(desde, `trabajo ${id}`).toBeGreaterThan(-1);
+    const resto = ci.slice(desde + 1);
+    const fin = resto.slice(1).search(/\n {2}[a-z][\w-]*:\n/);
+    return fin === -1 ? resto : resto.slice(0, fin + 1);
+  };
+
+  it('los checks obligatorios de arranque.ts son nombres de trabajo de ci.yml', () => {
+    const arranque = readFileSync(path.join(raiz, 'scripts/arranque.ts'), 'utf8');
+    const lista = /const CHECKS_OBLIGATORIOS = \[([^\]]+)\]/.exec(arranque)![1]!;
+    const checks = [...lista.matchAll(/'([^']+)'/g)].map((m) => m[1]!);
+    expect(checks).toEqual(['ci-calidad', 'ci-sql', 'ci-e2e']);
+    const nombres = [...ci.matchAll(/^ {4}name: (.+)$/gm)].map((m) => m[1]!.trim());
+    for (const c of checks) expect(nombres).toContain(c);
+  });
+
+  it('el agregador ci-e2e corre siempre, depende de las partes y solo acepta success y skipped', () => {
+    const t = trabajo('e2e');
+    expect(t).toMatch(/^ {4}name: ci-e2e$/m);
+    expect(t).toMatch(/^ {4}if: always\(\)$/m);
+    expect(t).toContain('needs: [cambios, e2e-parte, e2e-rendimiento]');
+    expect(t).toContain('success | skipped) ;;');
+  });
+
+  it('la matriz tiene tres partes y cada una usa --shard', () => {
+    const t = trabajo('e2e-parte');
+    expect(t).toContain('parte: [1, 2, 3]');
+    expect(t).toContain('fail-fast: false');
+    expect(t).toContain('--grep-invert @rendimiento --fully-parallel --shard=${{ matrix.parte }}/3');
+    expect(t).toContain('name: playwright-report-${{ matrix.parte }}');
+  });
+
+  it('e2e y SQL se saltan sin código; ci-calidad corre siempre y mira las migraciones en los PR', () => {
+    for (const id of ['sql', 'e2e-parte', 'e2e-rendimiento']) {
+      expect(trabajo(id)).toContain("if: needs.cambios.outputs.codigo == 'true'");
+    }
+    const calidad = trabajo('calidad');
+    expect(calidad).not.toMatch(/^ {4}if:/m);
+    expect(calidad).toContain('fetch-depth: 0');
+    expect(calidad).toContain('scripts/comprobar-migraciones-nuevas.ts --base');
+    expect(calidad).toContain("if: github.event_name == 'pull_request'");
+    expect(trabajo('e2e-rendimiento')).toContain('--grep @rendimiento --workers=1');
+  });
+
+  it('los navegadores salen de la caché por la versión de @playwright/test', () => {
+    const accion = readFileSync(path.join(raiz, '.github/actions/navegadores/action.yml'), 'utf8');
+    expect(accion).toContain("packages['node_modules/@playwright/test'].version");
+    expect(accion).toContain('path: ~/.cache/ms-playwright');
+    expect(accion).toContain('npx playwright install-deps chromium firefox');
+    expect(accion).toContain('npx playwright install --with-deps chromium firefox');
+  });
+
+  it('playwright.config.ts no tiene el puerto 4173 fuera del valor por defecto de PW_PUERTO', () => {
+    const config = readFileSync(path.join(raiz, 'playwright.config.ts'), 'utf8');
+    expect(config).toContain('Number(process.env.PW_PUERTO ?? 4173)');
+    expect(config.replace('process.env.PW_PUERTO ?? 4173', '')).not.toContain('4173');
+    const vite = readFileSync(path.join(raiz, 'vite.config.ts'), 'utf8');
+    expect(vite).toContain('port: Number(process.env.VITE_PUERTO ?? 5173)');
+  });
+});
+
+describe('hay_codigo (PAR-01)', () => {
+  const hay = (archivos: string[]) =>
+    execFileSync('bash', ['-c', 'source .github/scripts/hay-codigo.sh; hay_codigo'], {
+      cwd: path.resolve(import.meta.dirname, '..'),
+      input: archivos.join('\n') + '\n',
+      encoding: 'utf8',
+    }).trim();
+
+  it('solo docs/ y *.md fuera de src/ no es código', () => {
+    expect(hay(['docs/12-decisiones.md', 'docs/07-mockups-app.html', 'README.md', 'e2e/LEEME.md'])).toBe('false');
+  });
+
+  it('un archivo de código, un .md dentro de src/ o CHANGELOG con package.json, sí', () => {
+    expect(hay(['docs/12-decisiones.md', 'src/lib/textos.ts'])).toBe('true');
+    expect(hay(['src/lib/LEEME.md'])).toBe('true');
+    expect(hay(['CHANGELOG.md', 'package.json'])).toBe('true');
+    expect(hay(['.github/workflows/ci.yml'])).toBe('true');
+  });
+
+  it('sin archivos se prueba todo', () => {
+    expect(hay([])).toBe('true');
+  });
+});

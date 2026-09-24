@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.30 — 24 de septiembre de 2026 (DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.31 — 24 de septiembre de 2026 (DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,31 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-100 · Especificaciones grandes en tres sesiones en paralelo, y CI que no hace esperar
+- **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente. `docs/trabajo-en-paralelo.md`; PAR-01 es su preparación.
+- **Contexto:**
+  - En `docs/18` hubo unas 6 h de trabajo real y 24 PR en serie, cada uno con unos 10 min de CI.
+  - `ci-e2e` era un solo trabajo de 8 a 10 min, también en los PR que solo tocaban documentación. `ci-calidad` tarda 1 min y `ci-sql` 4.
+  - Con varias sesiones a la vez, dos cosas fallarían sin avisar: los e2e de una sesión probarían el build de otra (el mismo puerto 4173 con `reuseExistingServer`), y dos migraciones con el mismo número o fuera de orden solo se verían al desplegar staging.
+- **Decisión:**
+  1. **Tres sesiones** (Ops, Backend, Frontend), cada una dueña de sus rutas, coordinadas por una issue por especificación. El reparto está en `docs/trabajo-en-paralelo.md`.
+  2. **Puertos por sesión:** `PW_PUERTO` en `playwright.config.ts` (4173 por defecto) y `VITE_PUERTO` en `vite.config.ts` (5173). Los dos e2e que tenían escrito `127.0.0.1:4173` usan `baseURL`.
+  3. **`ci-e2e` en tres partes** (`ci-e2e-parte`, `--fully-parallel --shard=N/3`, `fail-fast: false`) más `ci-e2e-rendimiento` con un worker. Los navegadores salen de una caché por la versión de `@playwright/test` (`.github/actions/navegadores`). El check obligatorio sigue llamándose `ci-e2e`: es un agregador con `if: always()` que solo acepta `success` y `skipped`. Así `CHECKS_OBLIGATORIOS` y la protección de ramas no cambian.
+     `--fully-parallel` reparte por test: por archivo, en el primer intento una parte tardó 5,5 min y las otras dos 3,7. Ningún spec comparte estado entre tests: no hay `beforeAll` ni `serial`, y el estado simulado vive dentro de cada test.
+  4. **PR de documentación:** el trabajo `cambios` da `codigo=false` si todo lo cambiado está bajo `docs/` o es `*.md` fuera de `src/` (`.github/scripts/hay-codigo.sh`). Entonces `ci-sql` y los e2e se saltan por su `if`, y GitHub los cuenta como correctos. En `push` y a mano, siempre `codigo=true`. Ni los e2e ni ci-sql leen `docs/`: `intrusion.ts` escribe en 11, pero no lo lee.
+  5. **Migraciones en orden desde CI:** en los PR, `ci-calidad` corre `scripts/comprobar-migraciones-nuevas.ts`. Falla si una migración añadida no va por encima de la mayor de la rama base, y dice a qué número renumerar. También falla si el PR modifica o borra una migración de la base (CLAUDE.md §3).
+  6. **Números de decisión:** DEC-099 ya lo tomó la pantalla de entrada (#327). Este documento es DEC-100, y los rangos de la próxima especificación son Ops DEC-100 a 105, Backend 106 a 111 y Frontend 112 a 117.
+- **Suposiciones:**
+  - Si falla el trabajo `cambios`, `ci-sql` queda saltado, pero `ci-e2e` falla y el PR no se puede fusionar.
+  - Una lista de cambios vacía cuenta como código.
+  - «Comprobarlo en el propio PR con un commit que solo toque `docs/`» no se puede hacer. `cambios` mira todo el PR, y el de PAR-01 toca código, así que la prueba es el segundo PR de 9.6.
+- **Descartado:**
+  - **`paths-ignore` en el workflow:** sin ejecución no hay check, y un check obligatorio que no llega deja el PR esperando para siempre.
+  - **`fullyParallel` en `playwright.config.ts`:** cambiaría también cómo corren los e2e en local. Basta con `--fully-parallel` en las partes del CI.
+  - **Rangos de migraciones por sesión:** `migrar.ts` rechaza una pendiente anterior a la última aplicada.
+- **Resultado:** la duración antes y después (mediana de 5 ejecuciones, API de Actions) está en `docs/verificacion/par-01.md`.
+- **Afecta a:** 04 §11; CLAUDE.md §5; `docs/trabajo-en-paralelo.md`.
 
 ### DEC-099 · La pantalla de entrada no descarga el mapa: las pantallas con sesión van aparte
 - **Fecha:** 24 sep 2026 · **Estado:** vigente. Decisión de bajo riesgo (no cambia ningún requisito); la parte de Lighthouse queda **propuesta**, sin aplicar.
@@ -1374,12 +1399,12 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
 | 03 | 001, 004, 026, 028, 099 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100 |
 | 11 | 002, 004, 011, 017–019, 022, 086, 094 |
 | 15 | 023, 061, 085, 088 |
 | 16 | 007, 037 |

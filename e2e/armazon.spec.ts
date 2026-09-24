@@ -17,10 +17,10 @@ test.describe('armazón', () => {
     expect(await (await request.get('/robots.txt')).text()).toMatch(/Disallow: \/\s*$/m);
   });
 
-  test('fuentes servidas desde el propio despliegue, sin terceros (06 §3)', async ({ page }) => {
+  test('fuentes servidas desde el propio despliegue, sin terceros (06 §3)', async ({ page, baseURL }) => {
     const externas: string[] = [];
     page.on('request', (r) => {
-      if (!r.url().startsWith('http://127.0.0.1:4173')) externas.push(r.url());
+      if (!r.url().startsWith(baseURL!)) externas.push(r.url());
     });
     await page.goto('/');
     await page.waitForLoadState('networkidle');

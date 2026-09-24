@@ -103,7 +103,7 @@ test.describe('entrada del voluntario (FL-01)', () => {
     await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
   });
 
-  test('"Entrar con Google" lleva a Google a través de Supabase (FR-36)', async ({ page }) => {
+  test('"Entrar con Google" lleva a Google a través de Supabase (FR-36)', async ({ page, baseURL }) => {
     let destino = '';
     await page.route('https://supabase.invalid/auth/v1/authorize**', (r) => {
       destino = r.request().url();
@@ -113,7 +113,7 @@ test.describe('entrada del voluntario (FL-01)', () => {
     await page.getByRole('button', { name: T.entrada.jefaturaGoogle }).click();
     await expect.poll(() => destino).toContain('provider=google');
     expect(destino).toContain('code_challenge=');
-    expect(decodeURIComponent(destino)).toContain('redirect_to=http://127.0.0.1:4173/');
+    expect(decodeURIComponent(destino)).toContain(`redirect_to=${baseURL}/`);
   });
 });
 
