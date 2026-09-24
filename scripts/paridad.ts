@@ -94,6 +94,26 @@ async function estadoSinCredenciales(url: string): Promise<number | null> {
   return r?.status ?? null;
 }
 
+/**
+ * Repite la petición hasta que responde `esperado`, hasta `intentos` veces cada 10 s. El HTML nuevo
+ * puede llegar antes que las Functions nuevas: en el primer despliegue real, /api/geocodificar dio
+ * 405 (la edge aún servía las del despliegue anterior, que no la tenía) y minutos después 401.
+ * Devuelve el último estado, para que el aviso diga el que se vio.
+ */
+export async function estadoTrasPropagar(
+  pedir: () => Promise<number | null>,
+  esperado: number,
+  { intentos = 6, esperar = (ms: number) => new Promise<void>((ok) => setTimeout(ok, ms)) } = {},
+): Promise<number | null> {
+  let estado: number | null = null;
+  for (let i = 0; i < intentos; i++) {
+    if (i) await esperar(10_000);
+    estado = await pedir();
+    if (estado === esperado) break;
+  }
+  return estado;
+}
+
 function leerAplicadas(bd: string): Map<string, string> {
   const r = psql(bd, "select archivo || '|' || hash from hidrantes.migraciones_aplicadas order by archivo;", {
     tuplas: true,
@@ -137,8 +157,11 @@ async function principal(): Promise<void> {
       commitEsperado,
       commitServido,
       aplicadas: leerAplicadas(bd),
-      estadoPush: await estadoSinCredenciales(new URL('/api/push', url).href),
-      estadoGeocodificar: await estadoSinCredenciales(new URL('/api/geocodificar', url).href),
+      estadoPush: await estadoTrasPropagar(() => estadoSinCredenciales(new URL('/api/push', url).href), 401),
+      estadoGeocodificar: await estadoTrasPropagar(
+        () => estadoSinCredenciales(new URL('/api/geocodificar', url).href),
+        401,
+      ),
       config: {
         version_mapabase: leerConfig(bd, 'version_mapabase'),
         version_callejero: leerConfig(bd, 'version_callejero'),
