@@ -13,7 +13,13 @@ vi.mock('./supabase', () => ({
     auth: { getSession: async () => ({ data: { session: sesionGoogle } }), signOut: async () => ({}) },
     // La sincronización de jefatura: sin puntos.
     from: () => ({
-      select: () => ({ order: () => ({ range: async () => ({ data: [], error: null, status: 200 }) }) }),
+      // Páginas por clave (RV-65): limit la primera, gt(...).limit las siguientes.
+      select: () => ({
+        order: () => {
+          const pagina = async () => ({ data: [], error: null, status: 200 });
+          return { limit: pagina, gt: () => ({ limit: pagina }) };
+        },
+      }),
     }),
   }),
 }));
