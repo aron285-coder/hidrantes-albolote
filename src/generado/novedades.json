@@ -1,9 +1,9 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.2",
   "fecha": "2026-09-24",
   "lineas": [
-    "Las novedades de la versión salen del build y se ven en la app y en el panel",
-    "Calles, lugares, direcciones y coordenadas (GM-04)",
-    "Los cinco puntos más cercanos que funcionan (GM-03)"
+    "Calles, lugares, direcciones y coordenadas",
+    "Los cinco puntos más cercanos que funcionan",
+    "Mantener pulsado el mapa abre \"¿Qué hay aquí?\", y la ficha enseña las coordenadas y se puede compartir"
   ]
 }
