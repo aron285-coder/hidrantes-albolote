@@ -29,7 +29,7 @@ prueba no existían.
 **Resultado:** cumplido.
 
 - Los seis PR se fusionaron en ese orden, cada uno con la CI completa en verde.
-- JS inicial: el de `develop` antes del bloque medía 219,5 kB. Con el bloque entero, la cifra está en el PR de GM-04 (#266), medida con `npm run presupuesto` sin `.env.local`.
+- JS inicial: 229,5 kB con el bloque entero, frente a 219,5 kB en `develop` antes del bloque: +10,0 kB, medido con `npm run presupuesto` sin `.env.local` (§5).
 - El callejero no cuenta en el JS inicial: es un JSON aparte y se precachea.
 
 ## 3. Casos de 10 ejecutados
@@ -68,6 +68,10 @@ Docker no funciona en este equipo, así que la base de datos local no se puede l
 - **GM-04, pantalla:**
   - mientras los resultados están abiertos en el móvil y la tableta, la columna de controles de la derecha se oculta. axe marcaba el *Acercar* tapado a medias por la lista;
   - las filas de resultados miden 52 px, como las de la lista. El 06 §5 ya lo recoge.
+- **GM-04, JS inicial:**
+  - la búsqueda del callejero llega en su propio trozo, con los datos, y la llamada a `/api/geocodificar` también, al preguntar;
+  - los paneles (Cercanos, ¿Qué hay aquí?, la barra de medir) **no** se cargan aparte. En la primera sesión, antes de que el Service Worker controle la página, un trozo pedido sin red no llega, y esas funciones tienen que ir sin red.
+  - Resultado: 229,5 kB, +10,0 kB sobre `develop` antes del bloque (219,5 kB). Frente a los 219,0 kB que cita 18 como partida, son +10,5 kB.
 - **GM-04, Mantenimiento:** el callejero se regenera con la zona y con el mapa base. Si falla, sigue el que había, y el resumen del workflow lo dice.
 
 ## 6. Lo que queda abierto
