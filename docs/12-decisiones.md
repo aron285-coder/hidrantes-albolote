@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.27 — 24 de septiembre de 2026 (DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.28 — 24 de septiembre de 2026 (DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,30 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-097 · Los avisos push los despacha un Cloudflare Worker con Cron Trigger
+- **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente (`docs/19` §0.2.2, RV-52). Sustituye la cadencia de DEC-088: lo demás de DEC-088 (reclamar, anotar, `quedan`) sigue igual.
+- **Contexto:**
+  - El cron de GitHub es de mejor esfuerzo. `avisos.yml`, programado cada 15 minutos, corrió el 23 y 24 sep a las 16:16, 19:45, 22:45, 01:09, 06:10 y 11:48.
+  - Además, la tarea de PROD fallaba porque producción no tenía aún la versión actual (lo arregla DEC-096).
+  - Los avisos solo llegaban a tiempo si alguien sincronizaba o moderaba.
+- **Decisión:**
+  - Un Worker, `hidrantes-avisos` (`workers/avisos/`), con `crons = ["*/5 * * * *"]`, en la cuenta de Cloudflare que ya existe.
+  - Cada 5 minutos llama a `POST /api/push` de producción y de staging con `X-Vigilancia` y el secreto de cada uno. Repite mientras la respuesta traiga `quedan`, como mucho 10 veces por destino: 20 subpeticiones, por debajo de las 50 del plan gratuito.
+  - El tiempo de espera de `fetch` no cuenta como CPU. Parsear respuestas tan pequeñas queda muy por debajo de los 10 ms de CPU del plan gratuito.
+  - Un 401 o un 404 de un destino se anota con `console.warn`, sin datos, y se sigue con el otro: un entorno atrasado no para al otro. Nunca lanza.
+  - **Uno solo para los dos entornos**, desplegado desde `deploy-staging.yml` cuando cambia `workers/` o si aún no existe. Su código es el mismo para ambos y no toca datos: solo pide a cada Function que envíe lo suyo. No tiene superficie HTTP: `workers_dev = false`, sin rutas, y `fetch()` responde 404.
+  - **Secretos:** `VIGILANCIA_SECRETO_PROD` y `VIGILANCIA_SECRETO_STAGING`, con los mismos valores que Pages y los secretos del repositorio. Los pone `npm run arranque` en la primera instalación, con `--rotar vigilancia` y con `--solo-faltantes`. Como el valor no se puede leer de ningún sitio, si falta en uno se genera uno nuevo para los tres.
+  - `avisos.yml` se queda solo con `workflow_dispatch`, como envío manual de emergencia.
+  - La vigilancia diaria:
+    - baja el umbral de "avisos sin salir" de 2 h a **30 min**;
+    - comprueba que el Worker tiene su cron, con `GET …/workers/scripts/hidrantes-avisos/schedules`.
+
+    Lo hace en un trabajo con el *environment* `staging`, que no pide aprobación y tiene el token de la cuenta. DEC-071 sigue valiendo para el resto: ningún trabajo por calendario usa `production`.
+- **Descartado:**
+  - `pg_cron` con `pg_net`: exigiría activar una extensión en la base de datos que se comparte con uniformidad y guardar el secreto en esa base;
+  - seguir con el cron de GitHub: no se puede confiar en él para algo que el voluntario espera en minutos.
+- **Afecta a:** 03 TR-78; 04 §9 (secretos) y §11 (workflows); 05 §9 (`/api/push`); 15 §2; `scripts/arranque.ts`; `workers/avisos/`; `avisos.yml`, `vigilancia.yml`, `mantener-activo.yml` y `deploy-staging.yml`.
+
 ### DEC-096 · Producción tiene siempre la versión completa de staging
 - **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente (`docs/19` §0.2.1, P-04). Sustituye la última frase de DEC-056 y la regla de `CLAUDE.md` §5 "no lo pidas hasta que la Fase 9 lo diga".
 - **Contexto:**
@@ -836,7 +860,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 ### DEC-088 · Los avisos salen cada 15 minutos y solo cuentan como enviados cuando se anotan
 - **Fecha:** 23 sep 2026 · **Estado:** vigente; sustituye el punto 2 de DEC-068 en cuanto a quién
-  despacha los avisos (`docs/17` RV-08)
+  despacha los avisos (`docs/17` RV-08). La cadencia (cada 15 minutos con `avisos.yml`) la sustituye
+  DEC-097: cada 5 minutos, con un Worker
 - **Contexto:** DEC-068 dejó el envío a `/api/push` "al abrir el panel" y a una vigilancia que nunca
   lo llamó: aprobar o rechazar no avisaba a nadie hasta que alguien abría la app, y el resumen del
   lunes esperaba igual. Además `fn_reclamar_notificaciones` marcaba `enviada_en` al reclamar 100, y

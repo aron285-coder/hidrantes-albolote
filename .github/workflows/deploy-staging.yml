@@ -23,6 +23,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Para saber si este push cambió workers/ (docs/19 RV-52).
+          fetch-depth: 2
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -61,6 +64,22 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # El Worker de los avisos (docs/19 RV-52, DEC-097): uno para los dos entornos, desde develop,
+      # porque su código es el mismo y no toca datos. Solo si este push cambió workers/, o si el Worker
+      # aún no existe en la cuenta.
+      - name: Desplegar el Worker de los avisos
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          existe=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/schedules" || echo 000)
+          if [ "$existe" = "200" ] && [ -z "$(git diff --name-only HEAD~1 HEAD -- workers/)" ]; then
+            echo "workers/ sin cambios y el Worker ya existe: no se despliega."
+          else
+            npx wrangler deploy --config workers/avisos/wrangler.toml
+          fi
 
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging

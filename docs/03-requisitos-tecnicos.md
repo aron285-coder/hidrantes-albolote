@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.3 — 23 de septiembre de 2026: §13, requisitos de las funciones de mapa para emergencias (TR-116 a TR-119), y CartoCiudad y el callejero de OSM en §8 (DEC-089, DEC-092, DEC-093; pendiente de conformidad de jefatura en F9.1, #76). v1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
+| **Versión** | 1.4 — 24 de septiembre de 2026: TR-78, Cloudflare Workers para los avisos (DEC-097). 1.3 — 23 de septiembre de 2026: §13, requisitos de las funciones de mapa para emergencias (TR-116 a TR-119), y CartoCiudad y el callejero de OSM en §8 (DEC-089, DEC-092, DEC-093; pendiente de conformidad de jefatura en F9.1, #76). v1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
 | **Propietario de** | las **exigencias medibles y no funcionales**: qué tiene que cumplir el sistema, no cómo se consigue. La solución elegida está en 04; si mañana cambia la solución, estas exigencias siguen en pie. |
 | **No contiene** | decisiones de producto (→ 04), reglas funcionales (→ 01), campos (→ 05). |
 
@@ -120,6 +120,7 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 | TR-75 | Ninguna dependencia externa requiere tarjeta de crédito ni clave de API de pago. | Revisión de 04. |
 | TR-76 | **CartoCiudad (IGN/CNIG), números de portal:** solo desde la Pages Function `/api/geocodificar` (nunca desde el navegador), con `User-Agent` identificable, caché de 30 días por consulta normalizada y límite de tiempo de 5 s; uso libre y gratuito, con la obligación de citar la fuente ("CartoCiudad · IGN", licencia CC BY 4.0 del SCNE). Nunca bloqueante: sin él, la búsqueda sigue con calles, lugares y coordenadas (FR-73, DEC-092). | Test de la Function; atribución en los resultados. |
 | TR-77 | **Callejero sin conexión desde OSM:** se genera con Overpass solo a mano o al regenerar la zona (nunca en el build de CI), se guarda en el repositorio y lleva la atribución © OpenStreetMap (ODbL) en sus resultados (FR-73, DEC-093). | El build no depende de Overpass; atribución presente. |
+| TR-78 | **Cloudflare Workers (Cron Triggers), en la cuenta que ya existe:** un Worker `hidrantes-avisos` con un cron cada 5 minutos despacha los avisos push (FR-163). Plan gratuito: 5 Cron Triggers por cuenta, 100.000 peticiones al día y 50 subpeticiones por invocación; el Worker hace 20 como mucho. Sin coste ni cuenta nueva (DEC-037, DEC-097). | `workers/avisos/src/index.test.ts`; la vigilancia comprueba el cron. |
 
 ---
 
