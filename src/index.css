@@ -198,10 +198,11 @@ path.vertice-medicion {
   fill: var(--papel);
   fill-opacity: 1;
 }
+/* Al lado de la línea, no encima (RV-67): fondo de papel al 85 %, que en oscuro es el papel oscuro. */
 .leaflet-div-icon.etiqueta-medicion {
-  background: var(--papel);
+  background: color-mix(in srgb, var(--papel) 85%, transparent);
   color: var(--texto);
-  border: 1px solid var(--anillo-seleccion);
+  border: 0;
   border-radius: 4px;
   font-family: var(--font-datos);
   font-size: 12px;

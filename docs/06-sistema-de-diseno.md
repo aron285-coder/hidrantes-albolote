@@ -216,7 +216,7 @@ por encima de los marcadores y no se guardan.
 |---|---|---|
 | **Incidente** | diana de 32 px (icono `Crosshair` de lucide) en `--marino-950` sobre un círculo `--papel` con borde de 2 px `--marino-950` | diana y borde `--anillo-seleccion` (`#E6EAF0`) sobre círculo de tarjeta `#1A2333` |
 | **Líneas del incidente a cada candidato** | discontinuas de 2 px `--marino-600` | discontinuas de 2 px `--anillo-seleccion` con opacidad .7 |
-| **Medición** | línea continua de 3 px `--marino-950`; vértices de 10 px `--papel` con borde `--marino-950`; etiqueta de distancia en `font-datos` | línea y bordes `--anillo-seleccion`; vértices de tarjeta `#1A2333` |
+| **Medición** | línea continua de 3 px `--marino-950`; vértices de 10 px `--papel` con borde `--marino-950`; etiqueta de distancia en `font-datos`, a 14 px de la línea en perpendicular al tramo, sobre `--papel` al 85 % con radio 4 (docs/19 RV-67) | línea y bordes `--anillo-seleccion`; vértices de tarjeta `#1A2333` |
 | **"¿Qué hay aquí?"** (pin soltado) | icono `MapPin` de lucide en `--marino-950` | `--anillo-seleccion` |
 | **Calle resaltada** (resultado de búsqueda) | línea de 4 px `--marino-600` durante la sesión | `--anillo-seleccion` con opacidad .7 |
 
