@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.25 — 23 de septiembre de 2026 (DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.26 — 24 de septiembre de 2026 (DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-095 · La regla de textos de interfaz: qué no es texto que se vea
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/18` RV-50)
+- **Contexto:** al rehacer los restos de RV-31 salió que la parte de "tres palabras" de la regla de ESLint (UI-20, TR-111) nunca había funcionado. El patrón estaba en una cadena normal y `'\S'` se quedaba en `'S'`: solo pillaba textos con tildes. Con el patrón arreglado, la regla marcó 26 sitios, y ninguno era texto de interfaz.
+- **Decisión:**
+  - el patrón va con `String.raw`, y `scripts/eslint.test.ts` comprueba que tres palabras sin tilde dan error;
+  - **no** cuentan como texto de interfaz:
+    - el marcado, es decir, una cadena que empieza por `<` o lleva `="`, `</` o `/>` (SVG de los marcadores, XML de la exportación);
+    - las listas de columnas de PostgREST (`'id, codigo, tipo'`, también con `tabla!fk(…)`);
+    - el mensaje de un `new …Error(…)`, que es para quien depura. Lo que ve el usuario sale de `T` por el código de error;
+    - un literal o una plantilla entre llaves en un atributo no visible (`className`, `type`). Sí cuentan como hijo de un elemento o en `aria-label`, `title`, `alt`, `placeholder`, `aria-description` y `label`;
+  - `MODULOS_SIN_UI` es la lista explícita de módulos de protocolo, que la regla no mira: `api.ts`, `bd.ts`, `almacen.ts`, `supabase.ts`, `red.ts`, `estilo-mapabase.ts`.
+- **Descartado:** reescribir los 26 sitios para esquivar la regla. Habría escondido marcado y consultas en constantes sin ganar nada.
+- **Afecta a:** 06 §9 (UI-20), 03 TR-111, `eslint.config.js`.
 
 ### DEC-093 · Callejero sin conexión desde OpenStreetMap
 - **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); pendiente de conformidad de jefatura en F9.1 (#76)
