@@ -2,7 +2,8 @@
 // nunca pasa de 20 llamadas, por debajo de las 50 subpeticiones del plan gratuito.
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import trabajador, { type Env, MAX_VUELTAS, despachar, secretoDe } from './index.ts';
+import { type Env, MAX_VUELTAS, despachar, secretoDe } from './despachar.ts';
+import trabajador, * as modulo from './index.ts';
 
 const PROD = 'https://hidrantes-albolote.pages.dev';
 const STAGING = 'https://hidrantes-albolote-staging.pages.dev';
@@ -118,6 +119,12 @@ describe('despachar (RV-52)', () => {
 });
 
 describe('el Worker', () => {
+  // Una exportación con nombre que no sea un manejador impide arrancar al runtime de Workers: pasó
+  // con MAX_VUELTAS y lo cazó la prueba de integración de ci-sql.
+  it('index.ts solo exporta el manejador por defecto', () => {
+    expect(Object.keys(modulo)).toEqual(['default']);
+  });
+
   it('fetch() devuelve 404: sin superficie HTTP', async () => {
     expect((await trabajador.fetch()).status).toBe(404);
   });
