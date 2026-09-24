@@ -24,8 +24,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          # Para saber si este push cambió workers/ (docs/19 RV-52).
-          fetch-depth: 2
+          # Historia completa: VERSION_CODIGO del Worker es el último commit que tocó workers/ (docs/20
+          # RV-74), y con una historia corta saldría otro.
+          fetch-depth: 0
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -66,8 +67,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       # El Worker de los avisos (docs/19 RV-52, DEC-097): uno para los dos entornos, desde develop,
-      # porque su código es el mismo y no toca datos. Solo si este push cambió workers/, o si el Worker
-      # aún no existe en la cuenta.
+      # porque su código es el mismo y no toca datos. En **cada** push (docs/20 RV-74): si el push que
+      # cambió workers/ fallaba antes de este paso, el siguiente ya no lo desplegaba. Tarda segundos.
+      # VERSION_CODIGO es el último commit que tocó workers/; la vigilancia lo compara con develop.
       - name: Desplegar el Worker de los avisos
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -83,10 +85,9 @@ jobs:
             aviso="El token de Cloudflare no tiene permiso de Workers (HTTP $codigo): el Worker de los avisos no se despliega desde aquí. Añade «Account · Workers Scripts: Edit» al token (15 §2, DEC-097); mientras, npm run arranque -- --solo-faltantes lo despliega con la sesión de wrangler."
             echo "::warning::$aviso"
             echo "$aviso" >> "$GITHUB_STEP_SUMMARY"
-          elif [ "$codigo" = "200" ] && [ -z "$(git diff --name-only HEAD~1 HEAD -- workers/)" ]; then
-            echo "workers/ sin cambios y el Worker ya existe: no se despliega."
           else
-            npx wrangler deploy --config workers/avisos/wrangler.toml
+            version=$(git log -1 --format=%H -- workers)
+            npx wrangler deploy --config workers/avisos/wrangler.toml --var "VERSION_CODIGO:$version"
           fi
 
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
