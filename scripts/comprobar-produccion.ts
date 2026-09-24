@@ -282,18 +282,35 @@ export function codigoSalida(filas: Fila[], { parcial = false } = {}): 0 | 1 | 2
 }
 
 /**
- * Las dos mitades en una: lo que la local no pudo comprobar se toma de la de Actions, si esta sí
- * pudo. Lo que solo está en una se conserva.
+ * Las dos mitades en una.
+ * - La misma fila en las dos: la que sí se comprobó; si las dos, la peor (FALTA gana a OK).
+ * - Una fila NO COMPROBADO que solo está en una mitad se quita si la otra comprobó ese grupo: sin
+ *   acceso, una mitad deja una fila por grupo («migraciones», «Pages: Edit y Workers Scripts: Edit»),
+ *   y la que sí tiene acceso lo desglosa en filas con otros nombres. Así lo vio P-10 el 24 sep 2026.
+ * - Lo demás se conserva.
  */
 export function unirMitades(local: Fila[], actions: Fila[]): Fila[] {
   const clave = (f: Fila) => `${f.grupo}\u0000${f.nombre}`;
+  const comprobados = (filas: Fila[]) => new Set(filas.filter((f) => f.estado !== 'NO COMPROBADO').map((f) => f.grupo));
+  const gruposLocal = comprobados(local);
+  const gruposActions = comprobados(actions);
   const deActions = new Map(actions.map((f) => [clave(f), f]));
-  const unidas = local.map((f) => {
+  const deLocal = new Set(local.map(clave));
+  const unidas: Fila[] = [];
+  for (const f of local) {
     const otra = deActions.get(clave(f));
-    return f.estado === 'NO COMPROBADO' && otra && otra.estado !== 'NO COMPROBADO' ? otra : f;
-  });
-  const vistas = new Set(local.map(clave));
-  return [...unidas, ...actions.filter((f) => !vistas.has(clave(f)))];
+    if (otra) {
+      if (f.estado === 'NO COMPROBADO') unidas.push(otra);
+      else if (otra.estado === 'FALTA') unidas.push(otra);
+      else unidas.push(f);
+    } else if (!(f.estado === 'NO COMPROBADO' && gruposActions.has(f.grupo))) unidas.push(f);
+  }
+  for (const f of actions) {
+    if (deLocal.has(clave(f))) continue;
+    if (f.estado === 'NO COMPROBADO' && gruposLocal.has(f.grupo)) continue;
+    unidas.push(f);
+  }
+  return unidas;
 }
 
 export function tabla(filas: Fila[]): string {

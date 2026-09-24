@@ -240,4 +240,49 @@ describe('las dos mitades (docs/20 RV-73)', () => {
     expect(codigoSalida(unidas)).toBe(1);
     expect(codigoSalida(unirMitades(local, [fila('bd', 'OK'), fila('token', 'OK')]))).toBe(0);
   });
+
+  // P-10, 24 sep 2026: sin acceso, la mitad local deja una fila por grupo con otro nombre que las que
+  // desglosa la de Actions, y --completo salía con 2 aunque las dos mitades lo habían comprobado todo.
+  it('una fila sin comprobar se quita si la otra mitad comprobó su grupo con filas de otro nombre', () => {
+    const f = (grupo: string, nombre: string, estado: Fila['estado'], imprescindible = true): Fila => ({
+      grupo,
+      nombre,
+      estado,
+      imprescindible,
+    });
+    const bd = 'base de datos de producción';
+    const cf = 'token de Cloudflare';
+    const local = [
+      f('repositorio · secretos', 'GPG_PUBLIC_KEY', 'OK'),
+      f(bd, 'migraciones', 'NO COMPROBADO'),
+      f(bd, 'hidrantes en la Data API', 'OK'),
+      f(bd, 'db_max_rows', 'NO COMPROBADO', false),
+      f(cf, 'Pages: Edit y Workers Scripts: Edit', 'NO COMPROBADO'),
+    ];
+    const actions = [
+      f('repositorio · secretos', 'GPG_PUBLIC_KEY', 'NO COMPROBADO'),
+      f(bd, 'migraciones pendientes', 'OK', false),
+      f(bd, 'hidrantes en la Data API', 'OK'),
+      f(bd, 'db_max_rows', 'NO COMPROBADO', false),
+      f(cf, 'activo', 'OK'),
+      f(cf, 'Pages', 'OK'),
+    ];
+    const unidas = unirMitades(local, actions);
+    expect(unidas.map((x) => x.nombre)).toEqual([
+      'GPG_PUBLIC_KEY',
+      'hidrantes en la Data API',
+      'db_max_rows',
+      'migraciones pendientes',
+      'activo',
+      'Pages',
+    ]);
+    expect(codigoSalida(unidas)).toBe(0);
+    // Sobre el primer --completo: 2, por «migraciones» y el token.
+    expect(codigoSalida(unirMitades(local, [f(cf, 'activo', 'OK')]))).toBe(2);
+  });
+
+  it('si las dos comprobaron la misma fila y una dice FALTA, gana FALTA', () => {
+    expect(unirMitades([fila('a', 'OK')], [fila('a', 'FALTA')])[0]!.estado).toBe('FALTA');
+    expect(unirMitades([fila('a', 'FALTA')], [fila('a', 'OK')])[0]!.estado).toBe('FALTA');
+  });
 });
