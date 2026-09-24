@@ -563,7 +563,7 @@ export function pasoTrasSecretosPages(e: { clave: 'staging' | 'production' }): {
   }
   return {
     aviso:
-      'producción verá los secretos nuevos en su siguiente despliegue (PR develop → main con tu aprobación). Hasta entonces avisos.yml da 401 en PROD como aviso, sin fallar (15 §2).',
+      'producción verá los secretos nuevos en su siguiente despliegue (PR develop → main con tu aprobación). Hasta entonces el Worker de los avisos recibe 401 en PROD, lo anota sin datos y sigue con staging (15 §2).',
   };
 }
 
