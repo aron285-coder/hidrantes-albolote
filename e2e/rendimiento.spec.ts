@@ -144,6 +144,34 @@ test.describe('presupuesto de rendimiento @rendimiento', () => {
     expect(tardado).toBeLessThan(3000);
   });
 
+  // docs/20 RV-80: con `lazy` y `Suspense`, React 19 dejaba "Cargando…" al menos 300 ms aunque la
+  // porción con sesión ya estuviera descargada por la precarga. Se mide en la página, cuadro a cuadro,
+  // para no depender de cada cuánto mira Playwright.
+  test('con sesión, "Cargando…" no se queda a la vista cuando la porción ya ha llegado (RV-80)', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { marcas: { cargando?: number; mapa?: number } };
+      w.marcas = {};
+      const mirar = () => {
+        const texto = document.body?.innerText ?? '';
+        if (w.marcas.cargando === undefined && texto.includes('Cargando…')) w.marcas.cargando = performance.now();
+        if (document.querySelector('[data-testid=mapa]')) w.marcas.mapa = performance.now();
+        else requestAnimationFrame(mirar);
+      };
+      requestAnimationFrame(mirar);
+    });
+    await conSesion(page);
+    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+    await frenarA3G(page);
+    await page.goto('/');
+    await expect(page.getByTestId('mapa')).toBeVisible();
+    const { cargando, mapa } = await page.evaluate(
+      () => (window as unknown as { marcas: { cargando?: number; mapa: number } }).marcas,
+    );
+    const visto = cargando === undefined ? 0 : mapa - cargando;
+    console.log(`RV-80 · "Cargando…" a la vista: ${Math.round(visto)} ms`);
+    expect(visto).toBeLessThan(250);
+  });
+
   test('sincronizar 1.000 puntos con 3G termina en menos de 10 s (TR-14)', async ({ page }) => {
     const puntos = milPuntos();
     await conSesion(page);

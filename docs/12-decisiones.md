@@ -660,6 +660,32 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
+- **Contexto:**
+  - DEC-099 midió de 2,76 a 2,93 s frente a los 3 s de TR-10.
+  - Tras RV-71 (DEC-111), `rendimiento.spec.ts` en local (Chrome, `--workers=1`, 5 pasadas): 2,72 · 2,67 · 2,69 · 2,65 · 2,74 s, **mediana 2,69 s**.
+  - En CI, las cinco últimas ejecuciones de `ci-e2e-rendimiento` dieron 2,50 · 2,61 · 2,50 · 2,60 · 2,85 s.
+  - La mediana está justo en el límite de 2,7 s de RV-80, y hubo un 2,85 en CI.
+- **Perfil** del arranque con sesión y 3G (tiempos de recurso y marcas cuadro a cuadro en la página):
+  - Todo el JavaScript (inicial y porción con sesión por la precarga, unos 290 kB gzip) llega a los 2,2 s, que es lo que da la banda de 1,6 Mbit/s.
+  - Entre los 2,2 y los 2,6 s, **"Cargando…" seguía a la vista sin ninguna tarea larga ni petición pendiente**. Era el fallback del `Suspense` de `RutasDentro`: React 19 deja el fallback de un `Suspense` a la vista al menos 300 ms antes de revelar el contenido, aunque la porción llegue al momento. Es el "Cargando…" de más de 1 s que se veía en staging al recargar.
+  - Los otros sospechosos de RV-80 no bloquean el primer dibujo.
+    - **El blob de 4,4 MB:** se lee de Cache Storage al pedir la primera tesela, de forma asíncrona.
+    - **`getSession`:** solo se espera en la sesión de Google de jefatura. El voluntario con token no pasa por ahí.
+- **Decisión:**
+  - `App.tsx` carga la porción con sesión con un `import()` propio, sin `lazy` ni `Suspense`. Se sigue pidiendo al arrancar con una sesión guardada.
+  - Mientras no llega, un estado normal enseña "Cargando…". Si no llega, el error se lanza en el render y lo recoge `LimiteCarga`, como antes (TR-106).
+- **Resultado** en local, con el mismo spec y el mismo umbral:
+  - **TR-10:** 2,44 · 2,45 · 2,42 · 2,42 · 2,45 s, **mediana 2,44 s**, 0,25 s menos.
+  - **"Cargando…" a la vista:** de 342–345 ms a 117–159 ms.
+  - **JavaScript inicial:** 178,5 kB, igual que antes.
+- **Test:** *con sesión, "Cargando…" no se queda a la vista cuando la porción ya ha llegado (RV-80)*, en `rendimiento.spec.ts` (`@rendimiento`), con un umbral de 250 ms medido en la página, cuadro a cuadro. Sobre `develop` falla (342 y 345 ms).
+- **Descartado:**
+  - **Relajar o medir distinto TR-10.** Además, `toBeVisible` reintenta a intervalos crecientes, así que el número del spec va a saltos y cuenta de más, nunca de menos.
+  - **Esperar a la porción antes de montar React:** con una red lenta, la pantalla quedaría en blanco en vez de decir "Cargando…".
+- **Afecta a:** 03 TR-10 (sin cambio de texto); 10 AC-115.
+
 ### DEC-113 · Inventario vacío, panel a 800 px y respaldo en staging: los detalles
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-76, RV-79 y la parte Frontend de RV-78). Decisión de bajo riesgo de la sesión Frontend: no cambia ningún requisito.
 - **Decisión:**
@@ -1511,7 +1537,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | Documento | Decisiones |
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
-| 03 | 001, 004, 026, 028, 099, 111 |
+| 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
