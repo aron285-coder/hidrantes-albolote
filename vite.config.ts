@@ -7,7 +7,9 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { archivoHeaders, archivoRobots, type Entorno } from './config/cabeceras.ts';
 import { CACHE_FOTOS } from './config/cache-fotos.ts';
+import { SCRIPT_TESELAS, cacheTeselas, teselasPlugin, versionMapabase } from './config/cache-teselas.ts';
 import { entradaCallejero } from './config/precacheo.ts';
+import { precargaPlugin } from './config/precarga.ts';
 import { T } from './src/lib/textos.ts';
 
 /** En Actions, el commit que se construye; en local, el de HEAD (o "local" fuera de Git). */
@@ -54,6 +56,7 @@ function entornoPlugin(entorno: Entorno, env: Record<string, string>): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
   const entorno = (env.VITE_ENTORNO || 'local') as Entorno;
+  const mapabase = versionMapabase();
   if (!['local', 'staging', 'produccion'].includes(entorno)) {
     throw new Error(`VITE_ENTORNO no válido: ${entorno}`);
   }
@@ -65,6 +68,8 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       entornoPlugin(entorno, env),
+      precargaPlugin(),
+      teselasPlugin(mapabase),
       VitePWA({
         // Registro y aviso "hay una versión nueva, recargar" en src/lib/pwa.ts (TR-24).
         registerType: 'prompt',
@@ -86,6 +91,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
+          // Sin .pbf ni .pmtiles: las teselas sueltas van por runtimeCaching (docs/20 RV-71).
           globPatterns: ['**/*.{js,css,html,woff2,svg,png}'],
           // El callejero, aparte y con su revisión: se baja al instalar y funciona sin cobertura (TR-117).
           additionalManifestEntries: [entradaCallejero(path.resolve(import.meta.dirname, 'public', 'callejero.json'))],
@@ -94,14 +100,17 @@ export default defineConfig(({ mode }) => {
           navigateFallbackDenylist: [/^\/api\//],
           cleanupOutdatedCaches: true,
           // Avisos push (FR-163): manejadores propios dentro del Service Worker generado.
-          importScripts: ['sw-push.js'],
+          // sw-teselas.js primero: deja el nombre de la caché de teselas vigente a sw-push.js.
+          importScripts: [SCRIPT_TESELAS, 'sw-push.js'],
           // Fotos ya vistas, para que la ficha las enseñe sin cobertura (DEC-011, RV-12).
-          runtimeCaching: [CACHE_FOTOS],
+          // Y las teselas sueltas del mapa base que se han visto en línea (docs/20 RV-71, DEC-111).
+          runtimeCaching: [CACHE_FOTOS, cacheTeselas(mapabase)],
         },
       }),
     ],
     server: {
-      port: 5173,
+      // Otro puerto por sesión en paralelo (docs/trabajo-en-paralelo.md §4).
+      port: Number(process.env.VITE_PUERTO ?? 5173),
       strictPort: true,
       proxy: { '/api': 'http://127.0.0.1:8788' },
     },

@@ -2,7 +2,9 @@
 // permite, no solo al arrancar; nunca dos descargas a la vez; con datos móviles no se descarga solo.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { gzipSync } from 'node:zlib';
 import info from '../../datos/mapabase.json';
+import { escribirPmtiles, teselasDelRecuadro } from '../../scripts/lib/pmtiles.ts';
 
 /** Un PMTiles v3 del tamaño esperado: los 7 bytes de la firma, la versión y ceros. */
 function pmtiles(tamano = info.bytes, version = 3, firma = 'PMTiles'): Uint8Array {
@@ -133,5 +135,96 @@ describe('el mapa base se valida antes de guardarlo (RV-68)', () => {
     const m = await cargar();
     expect(await m.descargarMapabase()).toBe(true);
     expect(guardado.size).toBe(1);
+  });
+});
+
+// docs/20 RV-71: Cloudflare Pages no sirve rangos. Sin copia descargada, el mapa pide teselas sueltas
+// de la carpeta de su versión; con copia, las lee del PMTiles guardado y no pide nada.
+describe('origen del mapa base (RV-71)', () => {
+  const recuadro = info.recuadro as [number, number, number, number];
+  const [{ x, y }] = teselasDelRecuadro(12, recuadro);
+  let pedidasUrl: string[];
+
+  function entorno({ copia, respuesta }: { copia?: Uint8Array; respuesta?: () => Response }) {
+    pedidasUrl = [];
+    vi.stubGlobal('navigator', { onLine: true });
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => undefined, removeItem: () => undefined });
+    vi.stubGlobal('caches', {
+      open: async () => ({
+        match: async () => (copia ? new Response(new Blob([copia as BlobPart])) : undefined),
+        put: async () => undefined,
+      }),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        pedidasUrl.push(url);
+        return respuesta
+          ? respuesta()
+          : new Response(new Uint8Array([1, 2, 3]), {
+              headers: { 'content-type': 'application/vnd.mapbox-vector-tile' },
+            });
+      }),
+    );
+  }
+
+  it('teselaEnMapabase: justo las teselas que publica npm run mapabase, ni las de alrededor ni otros zooms', async () => {
+    const m = await cargar();
+    for (let z = info.zoom[0] - 1; z <= info.zoom[1] + 1; z++) {
+      const dentro = new Set(teselasDelRecuadro(z, recuadro).map((t) => `${t.x}/${t.y}`));
+      const enZoom = z >= info.zoom[0] && z <= info.zoom[1];
+      const xs = [...dentro].map((k) => Number(k.split('/')[0]));
+      const ys = [...dentro].map((k) => Number(k.split('/')[1]));
+      for (let tx = Math.min(...xs) - 1; tx <= Math.max(...xs) + 1; tx++) {
+        for (let ty = Math.min(...ys) - 1; ty <= Math.max(...ys) + 1; ty++) {
+          expect(m.teselaEnMapabase(z, tx, ty), `${z}/${tx}/${ty}`).toBe(enZoom && dentro.has(`${tx}/${ty}`));
+        }
+      }
+    }
+  });
+
+  it('sin copia: pide la tesela suelta de la versión', async () => {
+    entorno({});
+    const m = await cargar();
+    const r = await new m.FuenteMapabase().getZxy(12, x, y);
+    expect(pedidasUrl).toEqual([`/mapabase/t/${info.version}/12/${x}/${y}.pbf`]);
+    expect(new Uint8Array(r!.data)).toEqual(new Uint8Array([1, 2, 3]));
+  });
+
+  it('sin copia: fuera del recuadro o de los zooms no pide nada', async () => {
+    entorno({});
+    const m = await cargar();
+    const f = new m.FuenteMapabase();
+    expect(await f.getZxy(12, x - 1, y)).toBeUndefined();
+    expect(await f.getZxy(info.zoom[0] - 1, x >> 3, y >> 3)).toBeUndefined();
+    expect(await f.getZxy(info.zoom[1] + 1, x << 4, y << 4)).toBeUndefined();
+    expect(pedidasUrl).toEqual([]);
+  });
+
+  it('sin copia: la página de la SPA (200 text/html) o un 404 no se leen como tesela', async () => {
+    entorno({
+      respuesta: () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html; charset=utf-8' } }),
+    });
+    let m = await cargar();
+    expect(await new m.FuenteMapabase().getZxy(12, x, y)).toBeUndefined();
+    entorno({ respuesta: () => new Response('no', { status: 404 }) });
+    m = await cargar();
+    expect(await new m.FuenteMapabase().getZxy(12, x, y)).toBeUndefined();
+  });
+
+  it('con copia: la tesela sale del PMTiles guardado, sin pedir nada al servidor', async () => {
+    const copia = escribirPmtiles([{ z: 12, x, y, datos: gzipSync(Buffer.from('guardada')) }], {
+      compresionTeselas: 2,
+      tipoTesela: 1,
+      minZoom: 12,
+      maxZoom: 12,
+      recuadro,
+      metadatos: {},
+    });
+    entorno({ copia });
+    const m = await cargar();
+    const r = await new m.FuenteMapabase().getZxy(12, x, y);
+    expect(Buffer.from(r!.data).toString()).toBe('guardada');
+    expect(pedidasUrl).toEqual([]);
   });
 });

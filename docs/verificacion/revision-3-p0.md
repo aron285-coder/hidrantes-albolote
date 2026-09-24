@@ -31,7 +31,7 @@ C en `revision-3-p1.md` y `revision-3-p2.md`.
   - producción anotó `hidrantes-albolote.pages.dev · fallo`, que es lo esperado: producción aún no tiene `/api/push` ni el secreto nuevo. Se arregla con P-02 (#296).
 - **Pendiente:**
   - **Un aviso real entregado en staging.** Hace falta un móvil suscrito y una moderación en staging, y eso lo hace el desarrollador o jefatura. En menos de 5 minutos debe llegar el aviso.
-  - **Ampliar el token de Cloudflare** con *Account · Workers Scripts · Edit*. Son 2 minutos en el panel (15 §2, comentario en #273). Hasta entonces, la vigilancia diaria abre su issue con «sin permiso (HTTP 403)».
+  - ~~Ampliar el token de Cloudflare con *Account · Workers Scripts · Edit*.~~ **Hecho por el desarrollador el 24 sep 2026.** `comprobar-produccion.yml` (run 36034475753) da «Workers Scripts: Edit · OK». En `deploy-staging` (run 36034585440), el paso del Worker ya no da el 403. Desde ahora, un cambio en `workers/` se despliega desde CI.
 
 ## 3. Suposiciones
 

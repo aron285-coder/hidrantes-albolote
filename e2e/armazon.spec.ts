@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 
@@ -17,10 +18,10 @@ test.describe('armazón', () => {
     expect(await (await request.get('/robots.txt')).text()).toMatch(/Disallow: \/\s*$/m);
   });
 
-  test('fuentes servidas desde el propio despliegue, sin terceros (06 §3)', async ({ page }) => {
+  test('fuentes servidas desde el propio despliegue, sin terceros (06 §3)', async ({ page, baseURL }) => {
     const externas: string[] = [];
     page.on('request', (r) => {
-      if (!r.url().startsWith('http://127.0.0.1:4173')) externas.push(r.url());
+      if (!r.url().startsWith(baseURL!)) externas.push(r.url());
     });
     await page.goto('/');
     await page.waitForLoadState('networkidle');
@@ -59,6 +60,23 @@ test.describe('armazón', () => {
       await navigator.serviceWorker.ready;
     });
     await expect.poll(() => page.evaluate(() => caches.has('hidrantes-fotos'))).toBe(false);
+  });
+
+  // docs/20 RV-71: las teselas sueltas de una versión anterior del mapa base no se quedan ocupando sitio.
+  test('el Service Worker borra las teselas de otras versiones del mapa base al activarse', async ({ page }) => {
+    const version = JSON.parse(readFileSync('datos/mapabase.json', 'utf8')).version;
+    await page.addInitScript((v) => {
+      void caches
+        .open('hidrantes-teselas-19990101')
+        .then((c) => c.put('/mapabase/t/19990101/10/1/1.pbf', new Response('')));
+      void caches.open(`hidrantes-teselas-${v}`).then((c) => c.put(`/mapabase/t/${v}/10/1/1.pbf`, new Response('')));
+    }, version);
+    await page.goto('/');
+    await page.evaluate(async () => {
+      await navigator.serviceWorker.ready;
+    });
+    await expect.poll(() => page.evaluate(() => caches.has('hidrantes-teselas-19990101'))).toBe(false);
+    expect(await page.evaluate((v) => caches.has(`hidrantes-teselas-${v}`), version)).toBe(true);
   });
 
   test('sin red, la app ya instalada abre desde la caché del Service Worker', async ({ page, context }) => {

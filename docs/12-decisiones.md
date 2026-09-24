@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.29 — 24 de septiembre de 2026 (DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.36 — 24 de septiembre de 2026 (DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,192 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
+- **Contexto:**
+  - DEC-099 midió de 2,76 a 2,93 s frente a los 3 s de TR-10.
+  - Tras RV-71 (DEC-111), `rendimiento.spec.ts` en local (Chrome, `--workers=1`, 5 pasadas): 2,72 · 2,67 · 2,69 · 2,65 · 2,74 s, **mediana 2,69 s**.
+  - En CI, las cinco últimas ejecuciones de `ci-e2e-rendimiento` dieron 2,50 · 2,61 · 2,50 · 2,60 · 2,85 s.
+  - La mediana está justo en el límite de 2,7 s de RV-80, y hubo un 2,85 en CI.
+- **Perfil** del arranque con sesión y 3G (tiempos de recurso y marcas cuadro a cuadro en la página):
+  - Todo el JavaScript (inicial y porción con sesión por la precarga, unos 290 kB gzip) llega a los 2,2 s, que es lo que da la banda de 1,6 Mbit/s.
+  - Entre los 2,2 y los 2,6 s, **"Cargando…" seguía a la vista sin ninguna tarea larga ni petición pendiente**. Era el fallback del `Suspense` de `RutasDentro`: React 19 deja el fallback de un `Suspense` a la vista al menos 300 ms antes de revelar el contenido, aunque la porción llegue al momento. Es el "Cargando…" de más de 1 s que se veía en staging al recargar.
+  - Los otros sospechosos de RV-80 no bloquean el primer dibujo.
+    - **El blob de 4,4 MB:** se lee de Cache Storage al pedir la primera tesela, de forma asíncrona.
+    - **`getSession`:** solo se espera en la sesión de Google de jefatura. El voluntario con token no pasa por ahí.
+- **Decisión:**
+  - `App.tsx` carga la porción con sesión con un `import()` propio, sin `lazy` ni `Suspense`. Se sigue pidiendo al arrancar con una sesión guardada.
+  - Mientras no llega, un estado normal enseña "Cargando…". Si no llega, el error se lanza en el render y lo recoge `LimiteCarga`, como antes (TR-106).
+- **Resultado** en local, con el mismo spec y el mismo umbral:
+  - **TR-10:** 2,44 · 2,45 · 2,42 · 2,42 · 2,45 s, **mediana 2,44 s**, 0,25 s menos.
+  - **"Cargando…" a la vista:** de 342–345 ms a 117–159 ms.
+  - **JavaScript inicial:** 178,5 kB, igual que antes.
+- **Test:** *con sesión, "Cargando…" no se queda a la vista cuando la porción ya ha llegado (RV-80)*, en `rendimiento.spec.ts` (`@rendimiento`), con un umbral de 250 ms medido en la página, cuadro a cuadro. Sobre `develop` falla (342 y 345 ms).
+- **Descartado:**
+  - **Relajar o medir distinto TR-10.** Además, `toBeVisible` reintenta a intervalos crecientes, así que el número del spec va a saltos y cuenta de más, nunca de menos.
+  - **Esperar a la porción antes de montar React:** con una red lenta, la pantalla quedaría en blanco en vez de decir "Cargando…".
+- **Afecta a:** 03 TR-10 (sin cambio de texto); 10 AC-115.
+
+### DEC-113 · Inventario vacío, panel a 800 px y respaldo en staging: los detalles
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-76, RV-79 y la parte Frontend de RV-78). Decisión de bajo riesgo de la sesión Frontend: no cambia ningún requisito.
+- **Decisión:**
+  1. **Inventario vacío (RV-76).** El caso lo decide `sincronizadoEn`: con `null`, el texto de siempre; con valor y sin puntos, "Todavía no hay ningún punto en el inventario…" y el botón "Añadir un punto".
+     - El botón abre `/proponer/alta` **sin coordenadas**, igual que el "+" naranja: el alta coloca el pin con el GPS si está al día (FL-03, RV-40). Pasar la posición en la URL la trataría como una pulsación larga (DEC-077).
+     - El aviso va dentro de `avisos-mapa`, con los demás avisos flotantes, que ya dejan libre la columna de controles (RV-59).
+     - El mapa y la lista usan el mismo componente (`AvisoSinPuntos`). En ordenador, con la lista al lado, sale en los dos sitios, como antes.
+  2. **Panel por debajo de 1.024 px (RV-79).**
+     - El Inventario pasa a filas de dos líneas: código, tipo, diámetro, estado y acciones en la primera; dirección, núcleo y revisión en la segunda.
+     - Sigue siendo una tabla para los lectores de pantalla (`role="table"`, `row`, `columnheader` y `cell`), con los mismos botones de ordenar arriba. Se cambia de tabla a filas con `matchMedia('(min-width: 1024px)')`, no con CSS, para no tener dos campos de dirección con la misma etiqueta.
+     - El campo de dirección mide al menos `27ch`, así que "— pendiente, escribe aquí" nunca se corta, tampoco en la tabla ancha. El tipo va con `whitespace-nowrap`.
+     - Las pestañas se reparten en dos filas (`flex-wrap`), sin selector: se ven todas a la vez y cada una sigue siendo un enlace.
+  3. **"Último respaldo" en staging (RV-78):** con `VITE_ENTORNO=staging` y sin respaldo, dice "no se respalda: entorno de pruebas". Si algún día hubiera una fecha, se enseña la fecha. En local sigue "todavía ninguno".
+- **Descartado:**
+  - **Un selector "Sección: Inventario ▾"** para las pestañas: esconde las demás y añade un toque. Con dos filas caben las siete a 768 px.
+  - **Filas de dos líneas solo con CSS** sobre la misma `<table>`: con `display` cambiado, algunos navegadores pierden la semántica de tabla, y el test tendría que adivinarla.
+- **Afecta a:** 06 Apéndice A (tres textos nuevos).
+
+### DEC-111 · En línea, el mapa base va en teselas sueltas; el PMTiles entero, solo para la descarga
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-71). Decisión de bajo riesgo de la sesión Frontend: no cambia ningún requisito.
+- **Contexto:**
+  - Con sesión y sin la copia descargada, el mapa de staging solo pintaba el fondo y la zona. `pmtiles` daba 12–16 veces "Server returned no content-length header or content-length exceeding request".
+  - Diagnóstico del 24-09 a las 20:06 UTC, `curl -sI -H 'Range: bytes=0-99' https://hidrantes-albolote-staging.pages.dev/mapabase/albolote.pmtiles`:
+    ```
+    HTTP/1.1 200 OK
+    Content-Type: application/octet-stream
+    ETag: "a8fb8033993a5c97fe05bd69bb55d59a"
+    Access-Control-Allow-Origin: *
+    Server: cloudflare
+    (sin Content-Range, sin Accept-Ranges, sin Content-Length)
+    ```
+    Pages no sirve rangos de este archivo: devuelve un 200 con el archivo entero. Los e2e no lo veían porque `vite preview` sí los sirve.
+  - Medida en staging antes del arreglo, Playwright y Chrome con el Service Worker bloqueado, sesión y Supabase simulados en el navegador (no llega nada a la base), datos móviles simulados para que no se descargue solo: 393 kB en la primera vista, **12 errores de `pmtiles`** y **0 de 12 lienzos del mapa con dibujo**. La petición del `.pmtiles` se corta en cuanto llegan las cabeceras del 200, así que se cuentan 0 kB. El coste real está en la radio, que empieza a recibir 4,4 MB en cada intento.
+- **Decisión:**
+  1. **Paso 1 de RV-71, las cabeceras:** el `.pmtiles` se sirve con `Content-Type: application/vnd.pmtiles` y `Cache-Control: no-transform`. No se puede comprobar sin desplegar, así que va en el mismo PR y se mira tras el despliegue (resultado abajo). La solución no depende de él: si Pages llegara a servir rangos, el mapa seguiría con las teselas sueltas.
+  2. **Teselas sueltas, sacadas del PMTiles que ya está en el repositorio.** Así no se descarga nada de Protomaps y la versión no cambia (`20260919`). Es lo más aburrido: los mismos bytes que el archivo de la descarga. `npm run mapabase -- --solo-teselas` las escribe del PMTiles publicado, y `npm run mapabase`, al regenerar, escribe las dos cosas.
+     - Ruta: `public/mapabase/t/<versión>/{z}/{x}/{y}.pbf`, descomprimidas, para no depender de `Content-Encoding`, más `meta.json` (zooms, recuadro, número y bytes).
+     - Una por cada tesela del recuadro de `datos/mapabase.json` en z10–15: **366 archivos, 7,2 MB sin comprimir** (el PMTiles, en gzip, pesa 4,2 MB).
+     - Una tesela sin datos se escribe vacía, que es un MVT válido. Hoy son 0. Así ninguna petición del recuadro cae en la página de la SPA, que Pages sirve con 200 para lo que no existe.
+     - Se borran las carpetas de otras versiones.
+     - **Topes: 5.000 archivos y 15 MB.** Pages admite 20.000 archivos por despliegue, y el resto de la app son unos 85. 5.000 da para unas 13 veces el recuadro de hoy y deja 15.000 de margen. 15 MB es el doble de lo de hoy. El script falla antes de escribir nada si se pasa.
+  3. **Origen del mapa (`FuenteMapabase`, `src/lib/mapabase.ts`)**, tesela a tesela:
+     - **con copia descargada:** el PMTiles de Cache Storage, como antes;
+     - **sin copia:** un `GET` normal de la tesela suelta de su versión, solo si está en el recuadro y los zooms. Si no, no se pide. Un 404 o un `text/html` se tratan como "sin tesela".
+     - Se quita `FetchSource` por rangos.
+     - **No se usa `ZxySource` de `protomaps-leaflet` 5.1.0**, que se elige con una plantilla que no acaba en `.pmtiles`. No sabe del recuadro: pediría teselas de z9 y de fuera, y leería como MVT la página de la SPA (200 `text/html`). `FuenteMapabase` extiende `PMTiles` y redefine `getZxy`, que es lo único que `protomaps-leaflet` le pide (`PmtilesSource`). Así se pasa por `url` sin conversiones de tipo.
+  4. **Caché y cabeceras:**
+     - `/mapabase/t/*`: `Cache-Control: public, max-age=31536000, immutable`.
+     - El tipo, `Content-Type: application/vnd.mapbox-vector-tile`, solo en `/mapabase/t/:version/:z/:x/:y`. Si fuera en `/mapabase/t/*`, `meta.json` saldría como tesela: Pages junta con una coma el mismo encabezado de dos reglas.
+     - `globPatterns` sigue sin `.pbf`.
+     - `runtimeCaching` `CacheFirst` para `/mapabase/t/` (`config/cache-teselas.ts`): `hidrantes-teselas-<versión>`, 600 entradas, `purgeOnQuotaError` y solo respuestas 200.
+     - Para que `sw-push.js`, un archivo estático, sepa qué caché es la vigente, el build emite `sw-teselas.js` con `self.CACHE_TESELAS = "hidrantes-teselas-<versión>"`. El Service Worker lo importa antes que `sw-push.js`, y este borra en `activate` las demás `hidrantes-teselas-*`. Esto toca `vite.config.ts` (un plugin y `importScripts`), además de `globPatterns` y `runtimeCaching`.
+     - La descarga completa (FR-81) no cambia.
+  5. **Comprobación tras desplegar** (`scripts/comprobar-despliegue.ts`, staging y producción): una tesela z10 del recuadro da 200 con tipo MVT (`application/vnd.mapbox-vector-tile` o `application/x-protobuf`), y el `GET` del `.pmtiles` da 200 con los bytes de `datos/mapabase.json`.
+- **Resultado en staging tras el despliegue:** en `docs/verificacion/revision-vivo-frontend.md` (kB de la primera vista y cabeceras de la tesela y del `.pmtiles`).
+- **Descartado:**
+  - **R2 o un Worker que sirva rangos:** más piezas y otra cuenta de recursos por 4 MB. Queda en 16 §3 para cuando el mapa base pase de 20.000 archivos.
+  - **Volver a bajar de Protomaps:** cambiaría la versión, obligaría a los móviles a bajar otra copia y no gana nada.
+  - **Precachear las teselas:** 7 MB y 366 archivos en cada instalación y actualización del Service Worker, que es justo lo que FR-81 deja para cuando hay wifi.
+  - **Un `.pmtiles` de ejemplo en `scripts/fixtures/`:** `detectar-secretos` no deja subir más `.pmtiles` que el publicado. El test construye uno pequeño en memoria con `scripts/lib/pmtiles.ts`.
+- **Afecta a:** 03 TR-03 (sin cambio de texto); 04 §8; 16 §3.
+
+### DEC-104 · Staging se vigila en su propio trabajo, con el secreto de su environment
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-78). Sustituye el punto 3 de DEC-103.
+- **Contexto:** la primera vigilancia con DEC-103 (run 36055437810) mostró dos cosas.
+  - `SUPABASE_DB_URL_STAGING` no existe como secreto del repositorio: `docs/20` lo daba por hecho, y el arranque solo lo pone al rotar `db`.
+  - «Comprobar» terminó con 141 sin resultado. `git log … | head -1` recibía SIGPIPE en cuanto `main` iba bastante por detrás, y con `pipefail` bajo `bash -e` (el shell de Actions) el paso entero se paraba. Justo cuando hay que avisar de que producción va atrasada.
+- **Decisión:**
+  1. Lo que se mira en cada base va en `.github/scripts/revisar-bd.sh` (`revisar_bd produccion|staging`), sin `a && b` sueltos.
+  2. Un trabajo `staging`, con `environment: staging` (no pide aprobación) y su `SUPABASE_DB_URL`, mira los avisos sin salir y las tareas de `pg_cron` de staging. Anota allí `ultima_vigilancia` y `vigilancia_ok` **de staging**, y pasa sus problemas a «mirar», que los pone en la misma issue.
+  3. `tail -1` en vez de `head -1`, y un test que prohíbe `| head` en la vigilancia.
+- **Descartado:**
+  - **Crear `SUPABASE_DB_URL_STAGING` en el repositorio:** un secreto más con la misma contraseña, que habría que rotar a la vez que el del environment.
+  - **Escribir en staging el resultado global:** para eso haría falta un tercer trabajo en staging tras «mirar». En la Salud del sistema de staging, lo útil es lo de staging.
+- **Afecta a:** 04 §9.
+
+### DEC-103 · El Worker de los avisos se despliega en cada push y dice qué código lleva; la vigilancia también anota staging
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-74 y RV-78, parte Ops); **el punto 3, sustituido por DEC-104**. Decisión de bajo riesgo de la sesión Ops.
+- **Decisión:**
+  1. **`deploy-staging.yml` despliega el Worker en cada push a `develop`**, sin mirar el diff, con `--var VERSION_CODIGO:<último commit de workers/>`. Para eso el checkout tiene la historia completa.
+  2. **La vigilancia lee `VERSION_CODIGO`** de los ajustes del Worker (`GET …/workers/scripts/hidrantes-avisos/settings`, `result.bindings`). Si no coincide con `git log -1 -- workers` de `develop`, o no está, es un problema. Sin permiso de lectura ya lo dice el cron (punto 7), y no se repite.
+  3. **La vigilancia también mira staging** con `SUPABASE_DB_URL_STAGING`: avisos sin salir y tareas de `pg_cron`, que guarda en su `config.tareas_programadas`. Anota `ultima_vigilancia` y `vigilancia_ok` en las dos bases. En staging no se miran el respaldo, el tamaño (la base de dev la comparte uniformidad) ni los intentos del código. Un problema de staging sale en la misma issue, con «staging:» delante.
+- **Descartado:**
+  - **Comparar con el id de versión de Cloudflare:** no dice de qué commit es.
+  - **Una vigilancia aparte para staging:** duplicaría el workflow, y habría otra issue que mirar.
+- **Afecta a:** 04 §9.
+
+### DEC-102 · Los scripts de producción no cambian nada si no han podido leer, y dicen lo que no han mirado
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-72, RV-73 y RV-75). Decisión de bajo riesgo de la sesión Ops.
+- **Decisión:**
+  1. **`arranque --solo-faltantes` lee todo antes de escribir nada:** el repositorio, el Worker y las dos Pages.
+     - `wrangler secret list` tiene tres salidas: la lista, el Worker no existe (código 10007 de la API, `WORKER_NOT_FOUND_ERR_CODE` en wrangler) o un error. Un error para con «no se cambia nada».
+     - Un secreto de vigilancia nuevo se escribe **primero en el Worker** y solo después en Pages y el repositorio (`vigilanciaEnOrden`), también en `--rotar vigilancia`. Si el Worker no lo acepta, no se toca nada más.
+     - Si el Worker ya lo tiene y falla lo demás, el script imprime cómo completarlo: comprobar las sesiones, volver a `--rotar vigilancia` y volver a desplegar staging. Los valores no se imprimen (DEC-053), así que completar es generar otro y ponerlo en los tres sitios, el Worker primero.
+  2. **`comprobar-produccion` sale con 2** si una fila imprescindible queda en NO COMPROBADO. Con `--parcial` sale con 0, y el resumen dice qué queda para la otra mitad.
+     - La invocación de P-10 es `npm run comprobar-produccion -- --completo`. Hace la mitad local, lanza `comprobar-produccion.yml` (que corre con `--parcial --json` y sube las filas como artefacto), espera y une las dos: lo que una no pudo mirar lo pone la otra.
+     - Entre las dos solo viajan grupo, nombre, estado y nota.
+  3. **`paridad.ts`** solo compara con el segundo padre del merge si ese padre está en `origin/develop` (`git merge-base --is-ancestor`). Si no, compara con `origin/develop` y lo dice.
+- **Descartado:**
+  - **En RV-73, un único proceso en Actions que lea también los secretos del repositorio:** `GITHUB_TOKEN` no puede listarlos, y un token con ese permiso sería un secreto más que rotar.
+  - **En RV-72, reintentar `wrangler secret list`:** un reintento que al final falla seguiría necesitando parar.
+- **Afecta a:** 04 §4 (comprobar producción); 15 §2 (rotar).
+
+### DEC-101 · Novedades sin códigos de ninguna serie ni términos técnicos
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-77). Decisión de bajo riesgo de la sesión Ops.
+- **Contexto:** en Ajustes salieron «Calles, lugares, direcciones y coordenadas (GM-04)» y «Avisos cada 5 minutos desde un Worker de Cloudflare». El filtro tenía una lista de series (RV, F, TR, FR, DEC, AC, UI), y cada serie nueva se colaba.
+- **Decisión:**
+  1. Un solo patrón para cualquier código: `[A-Z]{1,4}-d{1,3}` y `Fd+(.d+)?`. Entre paréntesis (solos o varios, con «Fase N» y «#N») se quitan y la línea se queda. Suelto en la frase, la línea no entra: quitarlo dejaría la frase coja.
+  2. Una entrada con un término técnico no entra. La lista está en `TERMINOS_TECNICOS` (`scripts/generar-novedades.ts`): Worker, Cloudflare, Supabase, CI, workflow, token, build, PR, migración, pgTAP, e2e y Playwright. CI y PR solo en mayúsculas, para no descartar palabras corrientes; los demás sin distinguir.
+  3. Los códigos de punto (`HID-0012`) no cuentan: llevan cuatro cifras.
+- **Coste aceptado:** una carretera escrita como «A-92» descartaría la línea. Hoy no hay ninguna, y es mejor perder una novedad que enseñar un código.
+- **Afecta a:** `scripts/generar-novedades.ts` (FR-167 no cambia).
+
+### DEC-100 · Especificaciones grandes en tres sesiones en paralelo, y CI que no hace esperar
+- **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente. `docs/trabajo-en-paralelo.md`; PAR-01 es su preparación.
+- **Contexto:**
+  - En `docs/18` hubo unas 6 h de trabajo real y 24 PR en serie, cada uno con unos 10 min de CI.
+  - `ci-e2e` era un solo trabajo de 8 a 10 min, también en los PR que solo tocaban documentación. `ci-calidad` tarda 1 min y `ci-sql` 4.
+  - Con varias sesiones a la vez, dos cosas fallarían sin avisar: los e2e de una sesión probarían el build de otra (el mismo puerto 4173 con `reuseExistingServer`), y dos migraciones con el mismo número o fuera de orden solo se verían al desplegar staging.
+- **Decisión:**
+  1. **Tres sesiones** (Ops, Backend, Frontend), cada una dueña de sus rutas, coordinadas por una issue por especificación. El reparto está en `docs/trabajo-en-paralelo.md`.
+  2. **Puertos por sesión:** `PW_PUERTO` en `playwright.config.ts` (4173 por defecto) y `VITE_PUERTO` en `vite.config.ts` (5173). Los dos e2e que tenían escrito `127.0.0.1:4173` usan `baseURL`.
+  3. **`ci-e2e` en tres partes** (`ci-e2e-parte`, `--fully-parallel --shard=N/3`, `fail-fast: false`) más `ci-e2e-rendimiento` con un worker. Los navegadores salen de una caché por la versión de `@playwright/test` (`.github/actions/navegadores`). El check obligatorio sigue llamándose `ci-e2e`: es un agregador con `if: always()` que solo acepta `success` y `skipped`. Así `CHECKS_OBLIGATORIOS` y la protección de ramas no cambian.
+     `--fully-parallel` reparte por test: por archivo, en el primer intento una parte tardó 5,5 min y las otras dos 3,7. Ningún spec comparte estado entre tests: no hay `beforeAll` ni `serial`, y el estado simulado vive dentro de cada test.
+  4. **PR de documentación:** el trabajo `cambios` da `codigo=false` si todo lo cambiado está bajo `docs/` o es `*.md` fuera de `src/` (`.github/scripts/hay-codigo.sh`). Entonces `ci-sql` y los e2e se saltan por su `if`, y GitHub los cuenta como correctos. En `push` y a mano, siempre `codigo=true`. Ni los e2e ni ci-sql leen `docs/`: `intrusion.ts` escribe en 11, pero no lo lee.
+  5. **Migraciones en orden desde CI:** en los PR, `ci-calidad` corre `scripts/comprobar-migraciones-nuevas.ts`. Falla si una migración añadida no va por encima de la mayor de la rama base, y dice a qué número renumerar. También falla si el PR modifica o borra una migración de la base (CLAUDE.md §3).
+  6. **Números de decisión:** DEC-099 ya lo tomó la pantalla de entrada (#327). Este documento es DEC-100, y los rangos de la próxima especificación son Ops DEC-100 a 105, Backend 106 a 111 y Frontend 112 a 117.
+- **Suposiciones:**
+  - Si falla el trabajo `cambios`, `ci-sql` queda saltado, pero `ci-e2e` falla y el PR no se puede fusionar.
+  - Una lista de cambios vacía cuenta como código.
+  - «Comprobarlo en el propio PR con un commit que solo toque `docs/`» no se puede hacer. `cambios` mira todo el PR, y el de PAR-01 toca código, así que la prueba es el segundo PR de 9.6.
+- **Descartado:**
+  - **`paths-ignore` en el workflow:** sin ejecución no hay check, y un check obligatorio que no llega deja el PR esperando para siempre.
+  - **`fullyParallel` en `playwright.config.ts`:** cambiaría también cómo corren los e2e en local. Basta con `--fully-parallel` en las partes del CI.
+  - **Rangos de migraciones por sesión:** `migrar.ts` rechaza una pendiente anterior a la última aplicada.
+- **Resultado:** la duración antes y después (mediana de 5 ejecuciones, API de Actions) está en `docs/verificacion/par-01.md`.
+- **Afecta a:** 04 §11; CLAUDE.md §5; `docs/trabajo-en-paralelo.md`.
+
+### DEC-099 · La pantalla de entrada no descarga el mapa: las pantallas con sesión van aparte
+- **Fecha:** 24 sep 2026 · **Estado:** vigente. Decisión de bajo riesgo (no cambia ningún requisito); la parte de Lighthouse queda **propuesta**, sin aplicar.
+- **Contexto:**
+  - El paso de Lighthouse de `deploy-staging.yml` (TR-103) fallaba a ratos con rendimiento 0,84 frente a 0,85, también con commits que solo tocaban documentación.
+  - No era ruido. En los 22 informes de staging entre `d0e8f5a` y `31ea8b9`, la mejor de las dos pasadas (LHCI agrega con `optimistic` por defecto) bajó de 0,88–0,91 a 0,84–0,86, siempre con FCP ≈ 3,1 s y LCP ≈ 3,4 s. La primera pasada sale casi siempre peor (0,34–0,92, TBT de hasta 3,6 s): arranca en frío.
+  - Lighthouse mide la pantalla de entrada, sin sesión. Esa pantalla cargaba todo: Leaflet, protomaps, el estilo del mapa base y todas las pantallas con sesión (285 kB gzip en un build como el de staging). Las funciones de mapa para emergencias (GM-01 a GM-06) sumaron unos 13 kB, y #304, #314 y #319 sumaron 1,6 kB entre las tres. Eso no causa el fallo por sí solo, pero dejó la nota en el umbral.
+  - Además, `main.tsx` empezaba a descargar el mapa base entero (4,3 MB) en la pantalla de entrada. En Lighthouse, si esa descarga acaba antes del último repintado del LCP (el cambio de fuente), entra en el cálculo del LCP y la nota se hunde. En local ocurre siempre: LCP de 25 s. En staging no había pasado aún, pero por solo unos milisegundos de diferencia.
+- **Decisión:**
+  1. Las pantallas con sesión (mapa, lista, Ajustes, operaciones, bienvenida, incidencia) van en **una sola porción**, `src/paginas/RutasDentro.tsx`, que `App.tsx` carga con `lazy`. Van todas juntas para que, una vez dentro, ninguna pantalla dependa de otra descarga: sin cobertura se puede ir a cualquiera. El Service Worker la precachea con el resto del JS (`globPatterns`). La envuelve un límite de error propio (`LimiteCarga`), que no se reinicia al cambiar de ruta y, si la porción no llega, recarga la app (TR-106).
+  2. **Precarga con sesión:** `config/precarga.ts` añade a `index.html` un script clásico diminuto, `assets/precarga-<hash>.js`, que solo con sesión guardada (token, sesión de Google o `?code=`) pide la porción y su CSS en paralelo con el JavaScript inicial. Sin esto, la primera pantalla útil con 3G (TR-10) pasaba de 2,7 s a 3,5–3,9 s por las idas y vueltas. Es un archivo y no un script en línea, para que la CSP siga siendo `script-src 'self'`.
+  3. **El mapa base se comprueba y se descarga al entrar**, al montar `RutasDentro`, y no al arrancar. FR-81 no cambia: se descarga la primera vez que hay wifi. Sin sesión no hay mapa que enseñar.
+  4. **Guarda en CI:** `npm run presupuesto` falla si el JavaScript inicial vuelve a traer Leaflet, protomaps o una pantalla con sesión. Además, un e2e comprueba que la entrada no pide la porción ni el mapa base, y que la precarga solo la pide con sesión.
+- **Resultado:** JavaScript inicial de 285 kB a 178 kB gzip, y peso total de la entrada de 4,7 MB a 271 kB. Con Lighthouse 12.6.1 en local, rendimiento de 0,62–0,65 a 0,87–0,91 (FCP de 3,29 s a 2,78 s). TR-10 en local: de 2,63–2,73 s a 2,76–2,93 s. Cumple, con menos margen; el `vite preview` local va por HTTP/1.1, con seis conexiones, y Cloudflare por HTTP/2.
+- **Descartado:**
+  - **Bajar el umbral**, o subir `numberOfRuns` con la agregación optimista: sería pasar más veces sin arreglar nada.
+  - **Mediana de más pasadas ahora:** con la primera pasada en frío, la mediana de dos o tres habría fallado *más* con el código de antes.
+  - **Cargar en diferido solo lo del modo incidente:** el peso está en Leaflet y en las pantallas, no en GM-03.
+  - **Una porción por pantalla:** sin cobertura, ir a una pantalla aún no descargada fallaría si el Service Worker no la tiene.
+  - **Script de precarga en línea con hash en la CSP:** toca la CSP (11) por 300 ms.
+- **Propuesta pendiente del desarrollador:** cuando staging lleve unos días con esto, pasar `.github/lighthouse.json` a `numberOfRuns: 3` con `aggregationMethod: "median"`. Con una pasada en frío y dos templadas, la mediana es la peor de las templadas: más exigente que hoy y sin depender de la suerte. TR-103 no cambia.
+- **Afecta a:** 03 TR-10, TR-11 y TR-103 (sin cambio de texto); 10 AC-115 y AC-131.
 
 ### DEC-098 · Sin cobertura, el mapa base propio va debajo de la capa en línea
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/19` RV-58). Pendiente de conformidad de jefatura con 01 v1.4 (F9.1, #76).
@@ -1351,16 +1537,16 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | Documento | Decisiones |
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
-| 03 | 001, 004, 026, 028 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088 |
+| 03 | 001, 004, 026, 028, 099, 111, 112 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100 |
 | 11 | 002, 004, 011, 017–019, 022, 086, 094 |
-| 15 | 023, 061, 085, 088 |
-| 16 | 007, 037 |
+| 15 | 023, 061, 085, 088, 102 |
+| 16 | 007, 037, 111 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |
 

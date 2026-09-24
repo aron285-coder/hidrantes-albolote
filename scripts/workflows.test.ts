@@ -1,5 +1,6 @@
-import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -8,6 +9,8 @@ import { describe, expect, it } from 'vitest';
 const carpeta = path.resolve(import.meta.dirname, '../.github/workflows');
 const archivos = readdirSync(carpeta).filter((a) => a.endsWith('.yml'));
 const leer = (a: string) => readFileSync(path.join(carpeta, a), 'utf8');
+/** Lo que la vigilancia mira en cada base de datos (docs/20 RV-78, DEC-104). */
+const revisarBd = () => readFileSync(path.resolve(import.meta.dirname, '../.github/scripts/revisar-bd.sh'), 'utf8');
 
 const programados = archivos.filter((a) => /^on:[\s\S]*?^\s{2}schedule:/m.test(leer(a))).sort();
 
@@ -65,8 +68,12 @@ describe('avisos.yml (RV-08)', () => {
 describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
   it("ningún run usa -v con -c y una variable :'…' en la misma línea: psql no sustituye en -c", () => {
     const malas: string[] = [];
-    for (const a of archivos) {
-      for (const [i, l] of leer(a).split('\n').entries()) {
+    const textos: [string, string][] = [
+      ...archivos.map((a): [string, string] => [a, leer(a)]),
+      ['revisar-bd.sh', revisarBd()],
+    ];
+    for (const [a, texto] of textos) {
+      for (const [i, l] of texto.split('\n').entries()) {
         if (/psql\b/.test(l) && /\s-v\s/.test(l) && /\s-c\s/.test(l) && /:'\w+'/.test(l)) malas.push(`${a}:${i + 1}`);
       }
     }
@@ -74,7 +81,7 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
   });
 
   it('guardar las tareas no se traga el error con || true', () => {
-    const texto = leer('vigilancia.yml');
+    const texto = revisarBd();
     expect(texto).toContain('-f scripts/sql/guardar-tareas.sql');
     const linea = texto.split('\n').find((l) => l.includes('guardar-tareas.sql'))!;
     expect(linea).not.toMatch(/\|\|\s*true/);
@@ -109,7 +116,7 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
   });
 
   it('la vigilancia pasa la lista de tareas esperadas a la consulta de pg_cron', () => {
-    const texto = leer('vigilancia.yml');
+    const texto = revisarBd();
     expect(texto).toContain('paste -sd, scripts/sql/tareas-esperadas.txt');
     expect(texto).toContain('-v esperadas="$esperadas"');
     expect(texto).toContain('select(.falta)');
@@ -184,13 +191,30 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     expect(toml).toContain('https://hidrantes-albolote.pages.dev,https://hidrantes-albolote-staging.pages.dev');
   });
 
-  it('deploy-staging.yml despliega el Worker tras Pages, si cambió workers/ o si aún no existe', () => {
+  // docs/20 RV-74: con la detección de cambios, un push fallido dejaba el Worker con el código viejo.
+  it('deploy-staging.yml despliega el Worker tras Pages en cada push, sin mirar el diff, con su versión', () => {
     const texto = leer('deploy-staging.yml');
     const paso = texto.indexOf('- name: Desplegar el Worker de los avisos');
     expect(paso).toBeGreaterThan(texto.indexOf('wrangler pages deploy'));
-    expect(texto.slice(paso)).toContain('npx wrangler deploy --config workers/avisos/wrangler.toml');
-    expect(texto.slice(paso)).toContain('git diff --name-only HEAD~1 HEAD -- workers/');
-    expect(texto).toMatch(/fetch-depth: 2/);
+    const cuerpo = texto.slice(paso, texto.indexOf('\n      - name:', paso + 10));
+    expect(cuerpo).toContain(
+      'npx wrangler deploy --config workers/avisos/wrangler.toml --var "VERSION_CODIGO:$version"',
+    );
+    expect(cuerpo).toContain('version=$(git log -1 --format=%H -- workers)');
+    expect(cuerpo).not.toMatch(/git diff/);
+    expect(texto).not.toContain('HEAD~1');
+    // Con historia corta, git log -- workers daría otro commit.
+    expect(texto).toMatch(/fetch-depth: 0/);
+  });
+
+  it('la vigilancia compara la versión del Worker con el último commit de workers/ en develop', () => {
+    const texto = leer('vigilancia.yml');
+    expect(texto).toContain('workers/scripts/hidrantes-avisos/settings');
+    expect(texto).toContain('select(.name == "VERSION_CODIGO") | .text');
+    expect(texto).toContain('version: ${{ steps.mirar.outputs.version }}');
+    expect(texto).toContain('WORKER_VERSION: ${{ needs.worker.outputs.version }}');
+    expect(texto).toContain('esperada=$(git log -1 --format=%H origin/develop -- workers');
+    expect(texto).toContain('"$WORKER_VERSION" != "$esperada"');
   });
 
   it('con un token sin permiso de Workers (401/403), Pages se despliega igual y el paso lo avisa', () => {
@@ -212,13 +236,198 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     const texto = leer('vigilancia.yml');
     expect(texto).toContain('workers/scripts/hidrantes-avisos/schedules');
     expect(texto).toContain('"${WORKER_CRON:-}" != "*/5 * * * *"');
-    expect(texto).toContain("interval '30 minutes'");
-    expect(texto).not.toContain("interval '2 hours'");
+    expect(revisarBd()).toContain("interval '30 minutes'");
+    expect(revisarBd()).not.toContain("interval '2 hours'");
+  });
+
+  // docs/20 RV-78: en staging, Salud del sistema decía "todavía ninguno" porque solo se escribía en prod.
+  // SUPABASE_DB_URL_STAGING no existe en el repositorio: staging se mira en su environment (DEC-104).
+  it('la vigilancia mira y anota staging en su propio trabajo, con el secreto de su environment', () => {
+    const texto = leer('vigilancia.yml');
+    expect(texto).not.toContain('SUPABASE_DB_URL_STAGING');
+    const staging = texto.slice(texto.indexOf('\n  staging:\n'), texto.indexOf('\n  mirar:\n'));
+    expect(staging).toMatch(/^ {4}environment: staging$/m);
+    expect(staging).toContain('BD: ${{ secrets.SUPABASE_DB_URL }}');
+    expect(staging).toContain('revisar_bd staging "$BD"');
+    expect(staging).toContain("'ultima_vigilancia'");
+    expect(staging).toContain("'vigilancia_ok'");
+    expect(staging).toContain("echo 'problemas<<FIN_PROBLEMAS'");
+    const mirar = texto.slice(texto.indexOf('\n  mirar:\n'));
+    expect(mirar).toContain('needs: [worker, staging]');
+    expect(mirar).toContain('revisar_bd produccion "$BD"');
+    expect(mirar).toContain('STAGING_PROBLEMAS: ${{ needs.staging.outputs.problemas }}');
+    expect(mirar).toContain('"${STAGING_RESULTADO:-}" != success');
+  });
+
+  // 24 sep 2026, run 36055437810: «git log … | head -1» terminó con 141 (SIGPIPE) bajo bash -e y
+  // pipefail, y la vigilancia se quedó sin resultado.
+  it('ningún paso de la vigilancia corta una tubería con head', () => {
+    expect(leer('vigilancia.yml')).not.toMatch(/\|\s*head\b/);
+    expect(revisarBd()).not.toMatch(/\|\s*head\b/);
   });
 
   it('avisos.yml ya no está en las listas de workflows programados', () => {
     for (const a of ['mantener-activo.yml', 'vigilancia.yml']) {
       for (const lista of listas(a)) expect(lista).not.toContain('avisos.yml');
     }
+  });
+});
+
+// docs/trabajo-en-paralelo.md §9, DEC-100: e2e en tres partes, puertos por sesión y PR de
+// documentación sin e2e ni SQL.
+describe('CI en paralelo (PAR-01)', () => {
+  const ci = leer('ci.yml');
+  const raiz = path.resolve(import.meta.dirname, '..');
+  /** El bloque de un trabajo de ci.yml, desde su id hasta el siguiente. */
+  const trabajo = (id: string) => {
+    const desde = ci.indexOf(`\n  ${id}:\n`);
+    expect(desde, `trabajo ${id}`).toBeGreaterThan(-1);
+    const resto = ci.slice(desde + 1);
+    const fin = resto.slice(1).search(/\n {2}[a-z][\w-]*:\n/);
+    return fin === -1 ? resto : resto.slice(0, fin + 1);
+  };
+
+  it('los checks obligatorios de arranque.ts son nombres de trabajo de ci.yml', () => {
+    const arranque = readFileSync(path.join(raiz, 'scripts/arranque.ts'), 'utf8');
+    const lista = /const CHECKS_OBLIGATORIOS = \[([^\]]+)\]/.exec(arranque)![1]!;
+    const checks = [...lista.matchAll(/'([^']+)'/g)].map((m) => m[1]!);
+    expect(checks).toEqual(['ci-calidad', 'ci-sql', 'ci-e2e']);
+    const nombres = [...ci.matchAll(/^ {4}name: (.+)$/gm)].map((m) => m[1]!.trim());
+    for (const c of checks) expect(nombres).toContain(c);
+  });
+
+  it('el agregador ci-e2e corre siempre, depende de las partes y solo acepta success y skipped', () => {
+    const t = trabajo('e2e');
+    expect(t).toMatch(/^ {4}name: ci-e2e$/m);
+    expect(t).toMatch(/^ {4}if: always\(\)$/m);
+    expect(t).toContain('needs: [cambios, e2e-parte, e2e-rendimiento]');
+    expect(t).toContain('success | skipped) ;;');
+  });
+
+  it('la matriz tiene tres partes y cada una usa --shard', () => {
+    const t = trabajo('e2e-parte');
+    expect(t).toContain('parte: [1, 2, 3]');
+    expect(t).toContain('fail-fast: false');
+    expect(t).toContain('--grep-invert @rendimiento --fully-parallel --shard=${{ matrix.parte }}/3');
+    expect(t).toContain('name: playwright-report-${{ matrix.parte }}');
+  });
+
+  it('e2e y SQL se saltan sin código; ci-calidad corre siempre y mira las migraciones en los PR', () => {
+    for (const id of ['sql', 'e2e-parte', 'e2e-rendimiento']) {
+      expect(trabajo(id)).toContain("if: needs.cambios.outputs.codigo == 'true'");
+    }
+    const calidad = trabajo('calidad');
+    expect(calidad).not.toMatch(/^ {4}if:/m);
+    expect(calidad).toContain('fetch-depth: 0');
+    expect(calidad).toContain('scripts/comprobar-migraciones-nuevas.ts --base');
+    expect(calidad).toContain("if: github.event_name == 'pull_request'");
+    expect(trabajo('e2e-rendimiento')).toContain('--grep @rendimiento --workers=1');
+  });
+
+  it('los navegadores salen de la caché por la versión de @playwright/test', () => {
+    const accion = readFileSync(path.join(raiz, '.github/actions/navegadores/action.yml'), 'utf8');
+    expect(accion).toContain("packages['node_modules/@playwright/test'].version");
+    expect(accion).toContain('path: ~/.cache/ms-playwright');
+    expect(accion).toContain('npx playwright install-deps chromium firefox');
+    expect(accion).toContain('npx playwright install --with-deps chromium firefox');
+  });
+
+  it('playwright.config.ts no tiene el puerto 4173 fuera del valor por defecto de PW_PUERTO', () => {
+    const config = readFileSync(path.join(raiz, 'playwright.config.ts'), 'utf8');
+    expect(config).toContain('Number(process.env.PW_PUERTO ?? 4173)');
+    expect(config.replace('process.env.PW_PUERTO ?? 4173', '')).not.toContain('4173');
+    const vite = readFileSync(path.join(raiz, 'vite.config.ts'), 'utf8');
+    expect(vite).toContain('port: Number(process.env.VITE_PUERTO ?? 5173)');
+  });
+});
+
+describe('hay_codigo (PAR-01)', () => {
+  const hay = (archivos: string[]) =>
+    execFileSync('bash', ['-c', 'source .github/scripts/hay-codigo.sh; hay_codigo'], {
+      cwd: path.resolve(import.meta.dirname, '..'),
+      input: archivos.join('\n') + '\n',
+      encoding: 'utf8',
+    }).trim();
+
+  it('solo docs/ y *.md fuera de src/ no es código', () => {
+    expect(hay(['docs/12-decisiones.md', 'docs/07-mockups-app.html', 'README.md', 'e2e/LEEME.md'])).toBe('false');
+  });
+
+  it('un archivo de código, un .md dentro de src/ o CHANGELOG con package.json, sí', () => {
+    expect(hay(['docs/12-decisiones.md', 'src/lib/textos.ts'])).toBe('true');
+    expect(hay(['src/lib/LEEME.md'])).toBe('true');
+    expect(hay(['CHANGELOG.md', 'package.json'])).toBe('true');
+    expect(hay(['.github/workflows/ci.yml'])).toBe('true');
+  });
+
+  it('sin archivos se prueba todo', () => {
+    expect(hay([])).toBe('true');
+  });
+});
+
+// docs/20 RV-78 y DEC-104: la vigilancia de cada base, con bash -e como en Actions y un psql simulado.
+describe('revisar_bd (RV-78)', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
+  /** psql simulado: responde según la consulta; `tareas` es lo que da tareas-programadas.sql. */
+  const correr = (entorno: string, tareas: string) => {
+    const guion = [
+      'set -uo pipefail',
+      `psql() {
+        case "$*" in
+          *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
+          *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
+          *ultimo_respaldo*) echo 3 ;;
+          *notificaciones*) echo 0 ;;
+          *pg_database_size*) echo 1000 ;;
+          *intentos_codigo*) echo '0 0' ;;
+          *) echo 1 ;;
+        esac
+      }`,
+      'problemas=()',
+      'source .github/scripts/revisar-bd.sh',
+      `revisar_bd ${entorno} postgresql://simulada`,
+      'printf "%s\\n" "${problemas[@]}"',
+      'echo FIN',
+    ].join('\n');
+    const dir = mkdtempSync(path.join(tmpdir(), 'vigilancia-'));
+    try {
+      const r = spawnSync('bash', ['-e', '-c', guion], {
+        cwd: raiz,
+        encoding: 'utf8',
+        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado') },
+      });
+      return { salida: r.stdout, codigo: r.status };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const BIEN = JSON.stringify([{ tarea: 'hidrantes_purgar_errores', falta: false, problema: false }]);
+  const FALTA = JSON.stringify([{ tarea: 'hidrantes_purgar_errores', falta: true, problema: true }]);
+
+  it.skipIf(!tieneJq)('con todo bien, bash -e llega al final sin problemas, en los dos entornos', () => {
+    for (const entorno of ['produccion', 'staging']) {
+      const r = correr(entorno, BIEN);
+      expect(r.codigo, entorno).toBe(0);
+      expect(r.salida.trim(), entorno).toBe('FIN');
+    }
+  });
+
+  it.skipIf(!tieneJq)('en staging, una tarea que falta sale con «staging:» delante', () => {
+    const r = correr('staging', FALTA);
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain('staging: faltan tareas programadas de pg_cron: hidrantes_purgar_errores');
+    expect(r.salida.trim().endsWith('FIN')).toBe(true);
+  });
+
+  it('staging no mira el respaldo, el tamaño ni los intentos del código', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
+    const antesDeStaging = guion.slice(0, guion.indexOf('elif ! psql'));
+    expect(antesDeStaging).toContain('ultimo_respaldo');
+    const tras = guion.slice(guion.indexOf('[ "$entorno" = produccion ] || return 0'));
+    expect(tras).toContain('pg_database_size');
+    expect(tras).toContain('intentos_codigo');
+    // Nada de `a && b` en su propia línea: con bash -e y `a` falso, terminaría el paso.
+    expect(guion.split('\n').filter((l) => /^\s*\[.*\]\s*&&/.test(l))).toEqual([]);
   });
 });

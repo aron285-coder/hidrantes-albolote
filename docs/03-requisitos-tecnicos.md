@@ -17,7 +17,7 @@ Cada requisito indica **cómo se comprueba**. Un requisito técnico que no se pu
 |---|---|---|
 | TR-01 | Con el móvil en modo avión y tras una sincronización previa, el mapa, la lista, la búsqueda y las fichas funcionan con los datos de la última sincronización. (FR-80) | Prueba manual AC en 10; e2e con red desactivada. |
 | TR-02 | El mapa base sin cobertura muestra calles y portales de toda la zona de cobertura, no solo lo que el usuario miró antes en línea. (FR-81) | En modo avión, desplazarse a un núcleo no visitado: hay calles. |
-| TR-03 | El mapa base completo para uso sin cobertura pesa **≤ 20 MB**; se prevé entre 8 y 15 MB. Si excediera 20 MB, cambia su ubicación de servicio (04), no el requisito. | Tamaño del archivo impreso por el script de generación. |
+| TR-03 | El mapa base completo para uso sin cobertura pesa **≤ 20 MB**; se prevé entre 8 y 15 MB. Si excediera 20 MB, cambia su ubicación de servicio (04), no el requisito. | Tamaño del archivo impreso por el script de generación. Cómo se cumple en línea: teselas sueltas del mismo archivo (04 §8, DEC-111). |
 | TR-04 | Una propuesta hecha sin cobertura, con su foto, se envía sola al recuperar señal en menos de **60 s**, sin intervención del usuario. (FR-82) | e2e: crear en modo avión, reconectar, comprobar llegada. |
 | TR-05 | Un reintento de envío nunca crea una segunda propuesta: la clave de idempotencia generada en el móvil es única por propuesta. (FR-49) | Test SQL: segundo envío con la misma clave devuelve la misma propuesta. |
 | TR-06 | La aplicación advierte de cualquier envío que lleve **> 24 h** en la cola local. (FR-83) | Manipular el reloj en e2e. |

@@ -12,7 +12,6 @@ import './index.css';
 import { App } from './App';
 import { iniciarAcceso } from './lib/acceso';
 import { escucharInstalacion } from './lib/instalar';
-import { iniciarMapabase } from './lib/mapabase';
 import { activarSiHayPermiso } from './lib/posicion';
 import { registrarComprobacion } from './lib/conexion';
 import { enviarErrores, instalarCapturaGlobal } from './lib/errores';
@@ -24,7 +23,6 @@ escucharInstalacion();
 instalarCapturaGlobal();
 registrarComprobacion(enviarErrores);
 iniciarAcceso();
-void iniciarMapabase();
 void activarSiHayPermiso();
 registrarServiceWorker();
 

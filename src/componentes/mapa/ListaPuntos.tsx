@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { AvisoSinPuntos } from './AvisoSinPuntos';
 import { MarcadorSvg } from './MarcadorSvg';
 import { CabeceraGrupo, ResultadoCoordenadas, ResultadosCallesYDirecciones } from './ResultadosLugares';
 import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
@@ -179,11 +180,15 @@ export function ListaPuntos({
           ))}
         </ul>
         {texto && <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} />}
-        {cargado && visibles.length === 0 && !conLugares && (
-          <p className="text-texto-suave p-6 text-center">
-            {puntos.length === 0 ? T.mapa.sinPuntos : texto ? T.mapa.busquedaVacia : T.mapa.filtroVacio}
-          </p>
-        )}
+        {cargado &&
+          visibles.length === 0 &&
+          !conLugares &&
+          (puntos.length === 0 ? (
+            // Los mismos dos casos que el mapa: nunca sincronizado o inventario vacío (docs/20 RV-76).
+            <AvisoSinPuntos className="text-texto-suave p-6 text-center" />
+          ) : (
+            <p className="text-texto-suave p-6 text-center">{texto ? T.mapa.busquedaVacia : T.mapa.filtroVacio}</p>
+          ))}
       </div>
     </div>
   );

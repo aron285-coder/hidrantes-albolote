@@ -4,7 +4,8 @@
 
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { conSesion, simularRpc } from './ayudas.ts';
+import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
+import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 const [P0] = PUNTOS;
@@ -113,3 +114,72 @@ for (const [ancho, alto] of [
     await captura(page, info, `incidente-y-ficha-${ancho}`);
   });
 }
+
+// docs/20 RV-79: a unos 800 px (tableta en vertical, TR-21) el Inventario cortaba la dirección en
+// "— pen", partía "Boca de riego" en dos líneas y dejaba Voluntarios y Ajustes fuera de la vista.
+test.describe('panel de jefatura en tableta en vertical (RV-79)', () => {
+  test.beforeEach(async ({ page }) => {
+    await conGoogle(page, 'jefe@example.org');
+    await simularTablas(page, { v_puntos_activos: PUNTOS, v_cola_revision: [], propuestas: [] });
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_es_admin`, (r) =>
+      r.fulfill({ contentType: 'application/json', body: 'true' }),
+    );
+  });
+
+  for (const ancho of [768, 800]) {
+    test(`${ancho} px: el Inventario no corta la dirección, no parte el tipo y se ven todas las pestañas`, async ({
+      page,
+    }, info) => {
+      await page.setViewportSize({ width: ancho, height: 1024 });
+      await page.goto('/admin/inventario');
+      const campos = page.getByRole('textbox', { name: /^Dirección de (HID|BOC)-/ });
+      await expect(campos.first()).toBeVisible();
+      expect(await campos.count()).toBe(PUNTOS.length);
+
+      // Ni el valor ni el "— pendiente, escribe aquí" caben a medias en su campo.
+      const cortados = await campos.evaluateAll((els) => {
+        const lienzo = document.createElement('canvas').getContext('2d')!;
+        return (els as HTMLInputElement[])
+          .filter((e) => {
+            const st = getComputedStyle(e);
+            lienzo.font = `${st.fontWeight} ${st.fontSize} ${st.fontFamily}`;
+            const texto = e.value || e.placeholder;
+            const hueco = e.clientWidth - parseFloat(st.paddingLeft) - parseFloat(st.paddingRight);
+            return e.scrollWidth > e.clientWidth || lienzo.measureText(texto).width > hueco;
+          })
+          .map((e) => e.getAttribute('aria-label'));
+      });
+      expect(cortados).toEqual([]);
+
+      // "Boca de riego" en una sola línea.
+      const tipo = page.getByRole('main').getByText(T.formulario.bocaRiego, { exact: true }).first();
+      const lineas = await tipo.evaluate((e) => {
+        const r = document.createRange();
+        r.selectNodeContents(e);
+        return new Set([...r.getClientRects()].map((c) => Math.round(c.top))).size;
+      });
+      expect(lineas).toBe(1);
+
+      // Todas las pestañas a la vista, sin desplazamiento a lo ancho.
+      const nav = page.getByRole('navigation', { name: T.jefatura.panel });
+      for (const nombre of [
+        T.panelCola.colaRevision,
+        T.panelCola.inventario,
+        T.panelCola.revisionesCaducadas,
+        T.panelCola.registro,
+        T.panelCola.papelera,
+        T.panelCola.voluntarios,
+        T.panelCola.ajustes,
+      ]) {
+        const caja = (await nav.getByRole('link', { name: new RegExp(`^${nombre}`) }).boundingBox())!;
+        expect(caja.x, nombre).toBeGreaterThanOrEqual(0);
+        expect(caja.x + caja.width, nombre).toBeLessThanOrEqual(ancho);
+      }
+      expect(await nav.evaluate((n) => n.scrollWidth - n.clientWidth)).toBeLessThanOrEqual(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(
+        0,
+      );
+      await captura(page, info, `inventario-${ancho}`);
+    });
+  }
+});

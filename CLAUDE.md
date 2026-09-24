@@ -92,6 +92,7 @@ cobertura · fuera de zona.
    Commits *conventional* en español: `feat(mapa): …`, `fix(cola): …`, `chore(ci): …`. La descripción
    de un `feat:` o `fix:` con ámbito de usuario se escribe para un voluntario: qué cambia para él, sin
    nombres de archivos ni códigos internos. Sale tal cual en Novedades (FR-167, DEC-091).
+   Especificaciones grandes: tres sesiones en paralelo según `docs/trabajo-en-paralelo.md` (DEC-100).
 6. CI verde → merge → staging se despliega solo. Comprueba staging con Playwright si el cambio es
    visible.
 7. Marca la issue; si cierra una fase, escribe `docs/verificacion/fase-N.md` (qué casos de 10 has

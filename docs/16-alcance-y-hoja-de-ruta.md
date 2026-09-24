@@ -65,6 +65,9 @@ Decisiones ya tomadas para que nada de lo anterior obligue a rehacer:
 - `notificaciones` como cola genérica: añadir un canal (correo) es un envío más, no otro modelo.
 - Exportación con esquema estable (TR-105): una API de lectura devolvería lo mismo.
 - Capas en `src/lib/capas.ts`: cambiar o añadir un proveedor de mapa es un archivo.
+- Mapa base en teselas sueltas dentro del despliegue (DEC-111): R2, o un Worker que sirva rangos,
+  solo si algún día pasa de los 20.000 archivos por despliegue de Pages. El script ya falla a los
+  5.000.
 
 ---
 

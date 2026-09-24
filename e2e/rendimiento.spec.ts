@@ -144,6 +144,34 @@ test.describe('presupuesto de rendimiento @rendimiento', () => {
     expect(tardado).toBeLessThan(3000);
   });
 
+  // docs/20 RV-80: con `lazy` y `Suspense`, React 19 dejaba "Cargando…" al menos 300 ms aunque la
+  // porción con sesión ya estuviera descargada por la precarga. Se mide en la página, cuadro a cuadro,
+  // para no depender de cada cuánto mira Playwright.
+  test('con sesión, "Cargando…" no se queda a la vista cuando la porción ya ha llegado (RV-80)', async ({ page }) => {
+    await page.addInitScript(() => {
+      const w = window as unknown as { marcas: { cargando?: number; mapa?: number } };
+      w.marcas = {};
+      const mirar = () => {
+        const texto = document.body?.innerText ?? '';
+        if (w.marcas.cargando === undefined && texto.includes('Cargando…')) w.marcas.cargando = performance.now();
+        if (document.querySelector('[data-testid=mapa]')) w.marcas.mapa = performance.now();
+        else requestAnimationFrame(mirar);
+      };
+      requestAnimationFrame(mirar);
+    });
+    await conSesion(page);
+    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+    await frenarA3G(page);
+    await page.goto('/');
+    await expect(page.getByTestId('mapa')).toBeVisible();
+    const { cargando, mapa } = await page.evaluate(
+      () => (window as unknown as { marcas: { cargando?: number; mapa: number } }).marcas,
+    );
+    const visto = cargando === undefined ? 0 : mapa - cargando;
+    console.log(`RV-80 · "Cargando…" a la vista: ${Math.round(visto)} ms`);
+    expect(visto).toBeLessThan(250);
+  });
+
   test('sincronizar 1.000 puntos con 3G termina en menos de 10 s (TR-14)', async ({ page }) => {
     const puntos = milPuntos();
     await conSesion(page);
@@ -197,4 +225,42 @@ test('el callejero no se pide al arrancar, solo al buscar (TR-117) @rendimiento'
   await page.getByRole('searchbox', { name: T.mapa.buscar }).fill('real');
   await callejero;
   expect(pedidos).toHaveLength(1);
+});
+
+// TR-103: la pantalla de entrada no descarga el mapa (Leaflet y las pantallas con sesión van en la
+// porción de RutasDentro) ni el mapa base, que se baja al entrar. Si vuelven al arranque, Lighthouse
+// se queda en el umbral de rendimiento y el LCP puede contar los 4 MB del mapa base.
+test.describe('la pantalla de entrada no carga el mapa (TR-103)', () => {
+  const delMapa = (url: string) => /\/assets\/RutasDentro-|\/mapabase\/albolote\.pmtiles$/.test(url);
+
+  test('sin sesión no se pide la porción con sesión ni el mapa base', async ({ page }) => {
+    const pedidos: string[] = [];
+    page.on('request', (r) => {
+      if (delMapa(r.url())) pedidos.push(r.url());
+    });
+    await page.goto('/');
+    await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    expect(pedidos).toEqual([]);
+  });
+
+  // La precarga de config/precarga.ts: con sesión, index.html pide la porción por su cuenta, en
+  // paralelo con el JavaScript inicial (TR-10). Se comprueba con el script de entrada bloqueado:
+  // así solo puede haberla pedido la precarga, y se ve también que sin sesión no pide nada.
+  for (const conCuenta of [true, false]) {
+    test(`la precarga ${conCuenta ? 'pide' : 'no pide'} la porción ${conCuenta ? 'con' : 'sin'} sesión`, async ({
+      page,
+    }) => {
+      if (conCuenta) await conSesion(page);
+      await page.route(/\/assets\/index-[^/]+\.js$/, (r) => r.abort());
+      const pedidos: string[] = [];
+      page.on('request', (r) => {
+        if (delMapa(r.url())) pedidos.push(r.url());
+      });
+      await page.goto('/');
+      await page.waitForLoadState('networkidle');
+      expect(pedidos.some((u) => u.includes('/assets/RutasDentro-'))).toBe(conCuenta);
+      expect(pedidos.some((u) => u.endsWith('.pmtiles'))).toBe(false);
+    });
+  }
 });

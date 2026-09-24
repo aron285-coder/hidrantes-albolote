@@ -388,5 +388,32 @@ test.describe('avisos flotantes del mapa (RV-59)', () => {
         }
       }
     });
+
+    // docs/20 RV-76: el aviso de inventario vacío tapaba en parte el botón "+" del zoom.
+    test(`el aviso de inventario vacío no se solapa con ningún botón del mapa (${nombre})`, async ({ page }) => {
+      if (tamano) await page.setViewportSize(tamano);
+      await conSesion(page);
+      await simularRpc(page, {
+        fn_listar_puntos: { ...LISTADO, puntos: [], sincronizado_en: new Date().toISOString() },
+        fn_registrar_error: null,
+      });
+      await page.goto('/');
+      const aviso = page.getByTestId('aviso-sin-puntos');
+      await expect(aviso).toContainText(T.mapa.inventarioVacio);
+      const a = (await aviso.boundingBox())!;
+      const nodoAviso = await aviso.elementHandle();
+      const botones = await page.getByRole('button').all();
+      expect(botones.length).toBeGreaterThan(5);
+      for (const boton of botones) {
+        // Los botones del propio aviso no cuentan.
+        if (await boton.evaluate((b, av) => av!.contains(b), nodoAviso)) continue;
+        const b = await boton.boundingBox();
+        if (!b) continue;
+        const ancho = Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x));
+        const alto = Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
+        const nombreBoton = (await boton.getAttribute('aria-label')) ?? (await boton.innerText());
+        expect(ancho * alto, `el aviso tapa "${nombreBoton}"`).toBe(0);
+      }
+    });
   }
 });
