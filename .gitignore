@@ -45,6 +45,8 @@ coverage/
 
 # Claude Code: la configuración local es personal
 .claude/settings.local.json
+# Worktrees de los agentes de Claude Code: son otras copias del repositorio, nunca parte de él.
+.claude/worktrees/
 
 # Sistema
 .DS_Store
