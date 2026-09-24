@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(32);
+select plan(35);
 
 -- ---------- estructura ----------
 
@@ -120,6 +120,40 @@ select throws_ok(
   '42501', null, 'administrador: insert directo en administradores rechazado'
 );
 reset role;
+
+-- ---------- privilegios explícitos (docs/19 RV-70) ----------
+-- Supabase deja de conceder solo el acceso a tablas nuevas (30 oct 2026). Cada tabla, vista y
+-- secuencia de hidrantes tiene para service_role lo que le da 05 §5: todo, y en el registro sin
+-- reescribirlo. Una tabla nueva sin sus grant falla aquí, en CI, antes de llegar a producción.
+select is(
+  (select array_agg(c.relname::text order by c.relname)
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'hidrantes' and c.relkind in ('r', 'p')
+      and not (has_table_privilege('service_role', c.oid, 'SELECT')
+               and has_table_privilege('service_role', c.oid, 'INSERT')
+               and (c.relname = 'registro'
+                    or (has_table_privilege('service_role', c.oid, 'UPDATE')
+                        and has_table_privilege('service_role', c.oid, 'DELETE'))))),
+  null,
+  'service_role: cada tabla de hidrantes tiene sus privilegios explícitos (05 §5)'
+);
+select is(
+  (select array_agg(c.relname::text order by c.relname)
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'hidrantes' and c.relkind in ('v', 'm')
+      and not has_table_privilege('service_role', c.oid, 'SELECT')),
+  null,
+  'service_role: lee cada vista de hidrantes'
+);
+select is(
+  (select array_agg(c.relname::text order by c.relname)
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    where n.nspname = 'hidrantes' and c.relkind = 'S'
+      -- En un case: si no, Postgres puede evaluarlo antes que el filtro y fallar con una tabla.
+      and case when c.relkind = 'S' then not has_sequence_privilege('service_role', c.oid, 'USAGE') else false end),
+  null,
+  'service_role: usa cada secuencia de hidrantes'
+);
 
 -- ---------- service_role ----------
 
