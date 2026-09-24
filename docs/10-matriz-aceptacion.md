@@ -155,7 +155,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-112 | EXIF eliminado | La foto en el bucket no tiene metadatos | TR-47 | | |
 | AC-113 | Cuota de subidas | La reserva 41 del día falla | TR-45 | ✓ | 23 sep 2026 · pgTAP `05_rpc_voluntario.test.sql` ("la reserva 41 del día: rechazada") y `07_concurrencia_rpc.test.sql` (40 y 41 a la vez) |
 | AC-114 | Respaldo restaurado | Restauración sobre base limpia ejecutada y documentada | TR-51 | ✓ | 20–21 sep 2026 · ensayo completo con un volcado cifrado real; sacó tres defectos (15 §5.3, verificación de la Fase 8) |
-| AC-115 | Presupuesto de rendimiento | CI: < 3 s en 3G, < 300 kB | TR-10, TR-11 | ✓ | 21 sep 2026 · 2,40 s la primera pantalla con 3G simulada (`e2e/rendimiento.spec.ts`); 23 sep 2026 · 271,5 kB de JavaScript inicial (`npm run presupuesto`) |
+| AC-115 | Presupuesto de rendimiento | CI: < 3 s en 3G, < 300 kB | TR-10, TR-11 | ✓ | 21 sep 2026 · 2,40 s la primera pantalla con 3G simulada (`e2e/rendimiento.spec.ts`); 23 sep 2026 · 271,5 kB de JavaScript inicial (`npm run presupuesto`); 24 sep 2026 · 178,1 kB con las pantallas con sesión en una porción aparte, y `presupuesto` falla si Leaflet o una pantalla con sesión vuelven al arranque (DEC-099) |
 | AC-116 | Carga con 1.000 puntos | Mapa fluido en el móvil de gama media documentado | TR-12 | ✓ | 22 sep 2026 · POCO M6 Pro, Android 15 (`AP3A.240905.015.A2`), sobre staging; se maneja con soltura |
 
 ## I · Exportación, avisos, utilidades y robustez (FR-160–168, TR-100–107)
