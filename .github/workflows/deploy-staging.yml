@@ -74,7 +74,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/schedules" || echo 000)
+          # Los nombres de los secretos solo los lista un token con Workers Scripts: Edit, que es lo que
+          # hace falta para desplegar; con solo lectura, 403. 200: existe; 404: aún no.
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-avisos/secrets" || echo 000)
           if [ "$codigo" = "401" ] || [ "$codigo" = "403" ]; then
             # Un token solo de Pages: staging se ha desplegado igual. No es un fallo silencioso: aviso
             # aquí, en el resumen, y la vigilancia diaria lo cuenta como problema hasta que se arregle.
