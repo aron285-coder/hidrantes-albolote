@@ -13,7 +13,7 @@ import {
   llevaNumero,
   resaltarCalle,
 } from '@/lib/callejero';
-import { type LatLng, esEnlaceCorto, interpretar, parametroLatLng } from '@/lib/coordenadas';
+import { type Interpretadas, type LatLng, esEnlaceCorto, interpretar, parametroLatLng } from '@/lib/coordenadas';
 import type { Credencial, Direccion, Direcciones } from '@/lib/direcciones';
 import { leerSesion } from '@/lib/sesion';
 import { supabase } from '@/lib/supabase';
@@ -52,7 +52,8 @@ async function preguntar(q: string, senal: AbortSignal): Promise<Direcciones> {
 }
 
 export interface Lugares {
-  coordenadas: LatLng | null;
+  /** Con `oesteSupuesto` si la longitud llegó sin signo y se ha tomado como oeste (docs/19 RV-69). */
+  coordenadas: Interpretadas | null;
   fueraDeZona: boolean;
   enlaceCorto: boolean;
   calles: EntradaCallejero[];

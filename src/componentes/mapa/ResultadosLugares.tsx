@@ -17,7 +17,8 @@ function Cabecera({ titulo, fuente }: { titulo: string; fuente?: string }) {
 
 /**
  * Unas coordenadas pegadas: un único resultado arriba (FR-73). Fuera de la zona se aceptan, con el
- * aviso (FR-55). Un enlace corto no se puede leer, y se dice (UI-05).
+ * aviso (FR-55). Un enlace corto no se puede leer, y se dice (UI-05). Una longitud sin signo tomada
+ * como oeste se avisa, para que nadie vaya al sitio equivocado sin saberlo (docs/19 RV-69).
  */
 export function ResultadoCoordenadas({ lugares, alElegir }: { lugares: Lugares; alElegir: (d: Destino) => void }) {
   if (lugares.enlaceCorto) {
@@ -30,15 +31,22 @@ export function ResultadoCoordenadas({ lugares, alElegir }: { lugares: Lugares; 
   const l = lugares.coordenadas;
   if (!l) return null;
   return (
-    <button type="button" onClick={() => alElegir({ tipo: 'sitio', l })} className={fila}>
-      <LocateFixed size={18} className="shrink-0" aria-hidden />
-      <span className="min-w-0 flex-1">
-        <span className="font-datos block truncate">{T.busqueda.coordenadas(formatoDecimal(l))}</span>
-        {lugares.fueraDeZona && (
-          <span className="text-ambar-700 block text-[12px] font-semibold">{T.busqueda.fueraDeZona}</span>
-        )}
-      </span>
-    </button>
+    <>
+      <button type="button" onClick={() => alElegir({ tipo: 'sitio', l })} className={fila}>
+        <LocateFixed size={18} className="shrink-0" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="font-datos block truncate">{T.busqueda.coordenadas(formatoDecimal(l))}</span>
+          {lugares.fueraDeZona && (
+            <span className="text-ambar-700 block text-[12px] font-semibold">{T.busqueda.fueraDeZona}</span>
+          )}
+        </span>
+      </button>
+      {l.oesteSupuesto && (
+        <p role="status" className={aviso}>
+          {T.busqueda.tomadoComoOeste(l.oesteSupuesto)}
+        </p>
+      )}
+    </>
   );
 }
 
