@@ -153,11 +153,13 @@ Reglas:
 - Cada punto ficticio del seed lleva `descripcion` con prefijo `[PRUEBA]`.
 - Las *preview deployments* de Cloudflare (una URL por Pull Request) apuntan siempre a Supabase
   **dev**.
-- **Antes de cada PR `develop → main`**, `npm run comprobar-produccion` (docs/19 P-01) comprueba, sin
-  cambiar nada ni imprimir valores, que producción tiene los secretos, variables y migraciones que la
-  versión nueva necesita. En local mira GitHub, Pages y la Data API; el workflow
-  `comprobar-produccion.yml` mira la base de datos de producción y el token de Cloudflare, que solo
-  están en los secretos. Lo que no puede mirar sale como "NO COMPROBADO", nunca como OK.
+- **Antes de cada PR `develop → main`**, `npm run comprobar-produccion -- --completo` (docs/19 P-01,
+  docs/20 RV-73) comprueba, sin cambiar nada ni imprimir valores, que producción tiene los secretos,
+  variables y migraciones que la versión nueva necesita. En local mira GitHub, Pages y la Data API; lanza
+  `comprobar-produccion.yml`, que mira la base de datos de producción y el token de Cloudflare (solo
+  están en los secretos), y une las dos mitades en una tabla. Lo que no puede mirar sale como "NO
+  COMPROBADO", nunca como OK. Sale con 1 si falta algo imprescindible y con 2 si algo imprescindible
+  queda sin comprobar; `--parcial` acepta una sola mitad y lo dice.
 - Los tests (SQL, e2e) corren contra una **instancia local efímera** (`supabase start` en el runner)
   con las Pages Functions servidas por `wrangler pages dev`. Nunca contra dev ni prod: dos ramas a la
   vez se pisarían los datos, y un test que borra algo en una base compartida con la app de uniformidad
