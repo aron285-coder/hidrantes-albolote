@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.33 — 24 de septiembre de 2026 (DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.35 — 24 de septiembre de 2026 (DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,8 +660,66 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-111 · En línea, el mapa base va en teselas sueltas; el PMTiles entero, solo para la descarga
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-71). Decisión de bajo riesgo de la sesión Frontend: no cambia ningún requisito.
+- **Contexto:**
+  - Con sesión y sin la copia descargada, el mapa de staging solo pintaba el fondo y la zona. `pmtiles` daba 12–16 veces "Server returned no content-length header or content-length exceeding request".
+  - Diagnóstico del 24-09 a las 20:06 UTC, `curl -sI -H 'Range: bytes=0-99' https://hidrantes-albolote-staging.pages.dev/mapabase/albolote.pmtiles`:
+    ```
+    HTTP/1.1 200 OK
+    Content-Type: application/octet-stream
+    ETag: "a8fb8033993a5c97fe05bd69bb55d59a"
+    Access-Control-Allow-Origin: *
+    Server: cloudflare
+    (sin Content-Range, sin Accept-Ranges, sin Content-Length)
+    ```
+    Pages no sirve rangos de este archivo: devuelve un 200 con el archivo entero. Los e2e no lo veían porque `vite preview` sí los sirve.
+  - Medida en staging antes del arreglo, Playwright y Chrome con el Service Worker bloqueado, sesión y Supabase simulados en el navegador (no llega nada a la base), datos móviles simulados para que no se descargue solo: 393 kB en la primera vista, **12 errores de `pmtiles`** y **0 de 12 lienzos del mapa con dibujo**. La petición del `.pmtiles` se corta en cuanto llegan las cabeceras del 200, así que se cuentan 0 kB. El coste real está en la radio, que empieza a recibir 4,4 MB en cada intento.
+- **Decisión:**
+  1. **Paso 1 de RV-71, las cabeceras:** el `.pmtiles` se sirve con `Content-Type: application/vnd.pmtiles` y `Cache-Control: no-transform`. No se puede comprobar sin desplegar, así que va en el mismo PR y se mira tras el despliegue (resultado abajo). La solución no depende de él: si Pages llegara a servir rangos, el mapa seguiría con las teselas sueltas.
+  2. **Teselas sueltas, sacadas del PMTiles que ya está en el repositorio.** Así no se descarga nada de Protomaps y la versión no cambia (`20260919`). Es lo más aburrido: los mismos bytes que el archivo de la descarga. `npm run mapabase -- --solo-teselas` las escribe del PMTiles publicado, y `npm run mapabase`, al regenerar, escribe las dos cosas.
+     - Ruta: `public/mapabase/t/<versión>/{z}/{x}/{y}.pbf`, descomprimidas, para no depender de `Content-Encoding`, más `meta.json` (zooms, recuadro, número y bytes).
+     - Una por cada tesela del recuadro de `datos/mapabase.json` en z10–15: **366 archivos, 7,2 MB sin comprimir** (el PMTiles, en gzip, pesa 4,2 MB).
+     - Una tesela sin datos se escribe vacía, que es un MVT válido. Hoy son 0. Así ninguna petición del recuadro cae en la página de la SPA, que Pages sirve con 200 para lo que no existe.
+     - Se borran las carpetas de otras versiones.
+     - **Topes: 5.000 archivos y 15 MB.** Pages admite 20.000 archivos por despliegue, y el resto de la app son unos 85. 5.000 da para unas 13 veces el recuadro de hoy y deja 15.000 de margen. 15 MB es el doble de lo de hoy. El script falla antes de escribir nada si se pasa.
+  3. **Origen del mapa (`FuenteMapabase`, `src/lib/mapabase.ts`)**, tesela a tesela:
+     - **con copia descargada:** el PMTiles de Cache Storage, como antes;
+     - **sin copia:** un `GET` normal de la tesela suelta de su versión, solo si está en el recuadro y los zooms. Si no, no se pide. Un 404 o un `text/html` se tratan como "sin tesela".
+     - Se quita `FetchSource` por rangos.
+     - **No se usa `ZxySource` de `protomaps-leaflet` 5.1.0**, que se elige con una plantilla que no acaba en `.pmtiles`. No sabe del recuadro: pediría teselas de z9 y de fuera, y leería como MVT la página de la SPA (200 `text/html`). `FuenteMapabase` extiende `PMTiles` y redefine `getZxy`, que es lo único que `protomaps-leaflet` le pide (`PmtilesSource`). Así se pasa por `url` sin conversiones de tipo.
+  4. **Caché y cabeceras:**
+     - `/mapabase/t/*`: `Cache-Control: public, max-age=31536000, immutable`.
+     - El tipo, `Content-Type: application/vnd.mapbox-vector-tile`, solo en `/mapabase/t/:version/:z/:x/:y`. Si fuera en `/mapabase/t/*`, `meta.json` saldría como tesela: Pages junta con una coma el mismo encabezado de dos reglas.
+     - `globPatterns` sigue sin `.pbf`.
+     - `runtimeCaching` `CacheFirst` para `/mapabase/t/` (`config/cache-teselas.ts`): `hidrantes-teselas-<versión>`, 600 entradas, `purgeOnQuotaError` y solo respuestas 200.
+     - Para que `sw-push.js`, un archivo estático, sepa qué caché es la vigente, el build emite `sw-teselas.js` con `self.CACHE_TESELAS = "hidrantes-teselas-<versión>"`. El Service Worker lo importa antes que `sw-push.js`, y este borra en `activate` las demás `hidrantes-teselas-*`. Esto toca `vite.config.ts` (un plugin y `importScripts`), además de `globPatterns` y `runtimeCaching`.
+     - La descarga completa (FR-81) no cambia.
+  5. **Comprobación tras desplegar** (`scripts/comprobar-despliegue.ts`, staging y producción): una tesela z10 del recuadro da 200 con tipo MVT (`application/vnd.mapbox-vector-tile` o `application/x-protobuf`), y el `GET` del `.pmtiles` da 200 con los bytes de `datos/mapabase.json`.
+- **Resultado en staging tras el despliegue:** en `docs/verificacion/revision-vivo-frontend.md` (kB de la primera vista y cabeceras de la tesela y del `.pmtiles`).
+- **Descartado:**
+  - **R2 o un Worker que sirva rangos:** más piezas y otra cuenta de recursos por 4 MB. Queda en 16 §3 para cuando el mapa base pase de 20.000 archivos.
+  - **Volver a bajar de Protomaps:** cambiaría la versión, obligaría a los móviles a bajar otra copia y no gana nada.
+  - **Precachear las teselas:** 7 MB y 366 archivos en cada instalación y actualización del Service Worker, que es justo lo que FR-81 deja para cuando hay wifi.
+  - **Un `.pmtiles` de ejemplo en `scripts/fixtures/`:** `detectar-secretos` no deja subir más `.pmtiles` que el publicado. El test construye uno pequeño en memoria con `scripts/lib/pmtiles.ts`.
+- **Afecta a:** 03 TR-03 (sin cambio de texto); 04 §8; 16 §3.
+
+### DEC-104 · Staging se vigila en su propio trabajo, con el secreto de su environment
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-78). Sustituye el punto 3 de DEC-103.
+- **Contexto:** la primera vigilancia con DEC-103 (run 36055437810) mostró dos cosas.
+  - `SUPABASE_DB_URL_STAGING` no existe como secreto del repositorio: `docs/20` lo daba por hecho, y el arranque solo lo pone al rotar `db`.
+  - «Comprobar» terminó con 141 sin resultado. `git log … | head -1` recibía SIGPIPE en cuanto `main` iba bastante por detrás, y con `pipefail` bajo `bash -e` (el shell de Actions) el paso entero se paraba. Justo cuando hay que avisar de que producción va atrasada.
+- **Decisión:**
+  1. Lo que se mira en cada base va en `.github/scripts/revisar-bd.sh` (`revisar_bd produccion|staging`), sin `a && b` sueltos.
+  2. Un trabajo `staging`, con `environment: staging` (no pide aprobación) y su `SUPABASE_DB_URL`, mira los avisos sin salir y las tareas de `pg_cron` de staging. Anota allí `ultima_vigilancia` y `vigilancia_ok` **de staging**, y pasa sus problemas a «mirar», que los pone en la misma issue.
+  3. `tail -1` en vez de `head -1`, y un test que prohíbe `| head` en la vigilancia.
+- **Descartado:**
+  - **Crear `SUPABASE_DB_URL_STAGING` en el repositorio:** un secreto más con la misma contraseña, que habría que rotar a la vez que el del environment.
+  - **Escribir en staging el resultado global:** para eso haría falta un tercer trabajo en staging tras «mirar». En la Salud del sistema de staging, lo útil es lo de staging.
+- **Afecta a:** 04 §9.
+
 ### DEC-103 · El Worker de los avisos se despliega en cada push y dice qué código lleva; la vigilancia también anota staging
-- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-74 y RV-78, parte Ops). Decisión de bajo riesgo de la sesión Ops.
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-74 y RV-78, parte Ops); **el punto 3, sustituido por DEC-104**. Decisión de bajo riesgo de la sesión Ops.
 - **Decisión:**
   1. **`deploy-staging.yml` despliega el Worker en cada push a `develop`**, sin mirar el diff, con `--var VERSION_CODIGO:<último commit de workers/>`. Para eso el checkout tiene la historia completa.
   2. **La vigilancia lee `VERSION_CODIGO`** de los ajustes del Worker (`GET …/workers/scripts/hidrantes-avisos/settings`, `result.bindings`). Si no coincide con `git log -1 -- workers` de `develop`, o no está, es un problema. Sin permiso de lectura ya lo dice el cron (punto 7), y no se repite.
@@ -670,6 +728,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **Comparar con el id de versión de Cloudflare:** no dice de qué commit es.
   - **Una vigilancia aparte para staging:** duplicaría el workflow, y habría otra issue que mirar.
 - **Afecta a:** 04 §9.
+
 ### DEC-102 · Los scripts de producción no cambian nada si no han podido leer, y dicen lo que no han mirado
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-72, RV-73 y RV-75). Decisión de bajo riesgo de la sesión Ops.
 - **Decisión:**
@@ -685,6 +744,16 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **En RV-73, un único proceso en Actions que lea también los secretos del repositorio:** `GITHUB_TOKEN` no puede listarlos, y un token con ese permiso sería un secreto más que rotar.
   - **En RV-72, reintentar `wrangler secret list`:** un reintento que al final falla seguiría necesitando parar.
 - **Afecta a:** 04 §4 (comprobar producción); 15 §2 (rotar).
+
+### DEC-101 · Novedades sin códigos de ninguna serie ni términos técnicos
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-77). Decisión de bajo riesgo de la sesión Ops.
+- **Contexto:** en Ajustes salieron «Calles, lugares, direcciones y coordenadas (GM-04)» y «Avisos cada 5 minutos desde un Worker de Cloudflare». El filtro tenía una lista de series (RV, F, TR, FR, DEC, AC, UI), y cada serie nueva se colaba.
+- **Decisión:**
+  1. Un solo patrón para cualquier código: `[A-Z]{1,4}-d{1,3}` y `Fd+(.d+)?`. Entre paréntesis (solos o varios, con «Fase N» y «#N») se quitan y la línea se queda. Suelto en la frase, la línea no entra: quitarlo dejaría la frase coja.
+  2. Una entrada con un término técnico no entra. La lista está en `TERMINOS_TECNICOS` (`scripts/generar-novedades.ts`): Worker, Cloudflare, Supabase, CI, workflow, token, build, PR, migración, pgTAP, e2e y Playwright. CI y PR solo en mayúsculas, para no descartar palabras corrientes; los demás sin distinguir.
+  3. Los códigos de punto (`HID-0012`) no cuentan: llevan cuatro cifras.
+- **Coste aceptado:** una carretera escrita como «A-92» descartaría la línea. Hoy no hay ninguna, y es mejor perder una novedad que enseñar un código.
+- **Afecta a:** `scripts/generar-novedades.ts` (FR-167 no cambia).
 
 ### DEC-100 · Especificaciones grandes en tres sesiones en paralelo, y CI que no hace esperar
 - **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente. `docs/trabajo-en-paralelo.md`; PAR-01 es su preparación.
@@ -1424,8 +1493,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | Documento | Decisiones |
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
-| 03 | 001, 004, 026, 028, 099 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103 |
+| 03 | 001, 004, 026, 028, 099, 111 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098 |
 | 07, 08 | 036 |
@@ -1433,7 +1502,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100 |
 | 11 | 002, 004, 011, 017–019, 022, 086, 094 |
 | 15 | 023, 061, 085, 088, 102 |
-| 16 | 007, 037 |
+| 16 | 007, 037, 111 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |
 

@@ -282,11 +282,19 @@ sequenceDiagram
 - **Dónde se sirve:** ≤ 20 MB, dentro del despliegue de Pages; si pesa más, `arranque.ts` crea un
   bucket **R2** con CORS para los dos dominios y el script lo sube ahí. El frontend lee la URL de
   `VITE_MAPABASE_URL`, así que el cambio no toca código. Se esperan 8–15 MB.
-- **Offline de verdad:** en línea se lee por rangos bajo demanda; sin cobertura solo existe lo
-  descargado, y el Service Worker no cachea bien respuestas parciales. La aplicación descarga el
-  archivo completo (automáticamente con wifi, o desde Ajustes), lo guarda en Cache Storage y sirve
-  los rangos desde ahí con un `fetch` interceptado. `datos/meta.json` lleva la versión; cuando cambia,
-  el móvil ofrece descargar la nueva.
+- **En línea, teselas sueltas** (`docs/20` RV-71, DEC-111): Cloudflare Pages no sirve rangos (a un
+  `Range` responde 200 con el archivo entero), así que el PMTiles no se lee por rangos. El mismo
+  script escribe cada tesela del recuadro en `public/mapabase/t/<versión>/{z}/{x}/{y}.pbf`, sin
+  comprimir, más `meta.json`: 366 archivos y 7,2 MB en la versión `20260919`. Tope: 5.000 archivos y
+  15 MB. `npm run mapabase -- --solo-teselas` las rehace del PMTiles publicado sin tocar la versión.
+  Se sirven con `Cache-Control: immutable` y `Content-Type: application/vnd.mapbox-vector-tile`, y el
+  Service Worker guarda las vistas en `hidrantes-teselas-<versión>` (hasta 600). Así, lo mirado en
+  línea también se ve sin cobertura.
+- **Offline de verdad:** sin cobertura solo existe lo descargado. La aplicación descarga el PMTiles
+  completo con un `GET` normal (automáticamente con wifi, o desde Ajustes), lo guarda en Cache
+  Storage y, desde entonces, lee cada tesela de ahí. `datos/mapabase.json` lleva la versión; cuando
+  cambia, el móvil ofrece descargar la nueva. `comprobar-despliegue` mira tras cada despliegue que
+  se sirven una tesela suelta y el PMTiles entero.
 - Estilo claro y oscuro definidos en el mismo archivo (`src/lib/estilo-mapabase.ts`), con los tokens
   de 06.
 - Se regenera un par de veces al año, como la zona de cobertura.
@@ -407,7 +415,7 @@ e2e/                    # Playwright
 | `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema |
 | `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos, con las secuencias de prod al menos en las de staging para no volver a dar un código (RV-66); empieza en ensayo y exige escribir PROMOVER (DEC-078) |
 | `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
-| `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa si la base de datos pasa de 400 MB (80 % de los 500 compartidos con uniformidad); abre una issue si algo falla (TR-102, TR-54, RV-22). En staging mira los avisos sin salir y las tareas de `pg_cron`, y anota allí también la última vigilancia, sin el respaldo, que solo existe en producción (docs/20 RV-78). La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
+| `vigilancia.yml` | diario | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa si la base de datos pasa de 400 MB (80 % de los 500 compartidos con uniformidad); abre una issue si algo falla (TR-102, TR-54, RV-22). Staging tiene su propio trabajo, con la base de datos de su *environment*: mira los avisos sin salir y las tareas de `pg_cron`, y anota allí su última vigilancia. El respaldo solo existe en producción (docs/20 RV-78, DEC-104). Lo que se mira en cada base está en `.github/scripts/revisar-bd.sh`. La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
 | Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` en cada push a `develop` con `VERSION_CODIGO` (el último commit de `workers/`), que la vigilancia compara con `develop` (docs/20 RV-74); sin superficie HTTP (DEC-097) |

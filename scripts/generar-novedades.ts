@@ -8,9 +8,10 @@
 // entre paréntesis. Primero las novedades, de la versión más reciente hacia atrás; si no llegan a
 // tres, se completa con correcciones.
 //
-// Solo entran los ámbitos de cara al usuario (AMBITOS_USUARIO, DEC-091) y nunca una línea que nombre
-// un archivo o un código interno (RV-nn, F9.x, TR-nn, FR-nn): lo que sale aquí lo lee un voluntario
-// en Ajustes (FR-167). Si no queda ninguna, `lineas: []` y Ajustes enseña su texto vacío (RV-47).
+// Solo entran los ámbitos de cara al usuario (AMBITOS_USUARIO, DEC-091). Los códigos internos entre
+// paréntesis se quitan; una línea con un código suelto, un archivo o un término técnico no entra
+// (TERMINOS_TECNICOS, docs/20 RV-77, DEC-101): lo que sale aquí lo lee un voluntario en Ajustes
+// (FR-167). Si no queda ninguna, `lineas: []` y Ajustes enseña su texto vacío (RV-47).
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -52,8 +53,33 @@ export const AMBITOS_USUARIO = new Set([
   'compartir',
 ]);
 
-/** Una línea que nombra un archivo o un código interno no es para un voluntario. */
-const TECNICA = [/\w+\.(ts|tsx|yml|sql|md)\b/, /\b(RV-\d+|F\d+\.\w+|TR-\d+|FR-\d+)\b/];
+/**
+ * Un código interno, de cualquier serie: RV-52, GM-04, DEC-100, AC-127, y también uno que aún no
+ * existe. Antes había una lista (RV, F, TR, FR, DEC, AC, UI) y GM-04 se coló en Ajustes (docs/20 RV-77).
+ */
+const CODIGO = String.raw`\b[A-Z]{1,4}-\d{1,3}\b|\bF\d+(?:\.\d+)?\b`;
+
+/**
+ * Palabras que un voluntario no tiene por qué entender. Una entrada que las lleve no sale en Novedades:
+ * quitarlas dejaría la frase coja (DEC-101). Siglas en mayúsculas, el resto sin distinguir.
+ */
+export const TERMINOS_TECNICOS = [
+  /\bworkers?\b/i,
+  /\bcloudflare\b/i,
+  /\bsupabase\b/i,
+  /\bCI\b/,
+  /\bworkflows?\b/i,
+  /\btokens?\b/i,
+  /\bbuild\b/i,
+  /\bPRs?\b/,
+  /\bmigraci(?:ón|ones)\b/i,
+  /\bpgtap\b/i,
+  /\be2e\b/i,
+  /\bplaywright\b/i,
+];
+
+/** Una línea que nombra un archivo, un código interno suelto o un término técnico no es para un voluntario. */
+const TECNICA = [/\w+\.(ts|tsx|yml|sql|md)\b/, new RegExp(CODIGO), ...TERMINOS_TECNICOS];
 
 const ambitoDe = (linea: string) => /^\*\*([^*:]+):\*\*/.exec(linea)?.[1]?.trim().toLowerCase() ?? null;
 
@@ -97,8 +123,9 @@ export function limpiar(linea: string): string {
   const sinEnlaces = sinAmbito
     .replace(/\s*\(\[[^\]]*\]\([^)]*\)\)/g, '') // ([#156](…)) ([2cbbde4](…))
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1'); // cualquier otro enlace: su texto
+  // Paréntesis que solo llevan códigos: «(GM-04)», «(RV-52, DEC-097)», «(Fase 9)», «(#12)».
   const sinCodigos = sinEnlaces.replace(
-    /\s*\((?:(?:F\d+(?:\.\d+)?|DEC-\d+|RV-\d+|FR-\d+|TR-\d+|AC-\d+|UI-\d+|Fase \d+|#\d+)(?:[,;]\s*)?)+\)/g,
+    new RegExp(String.raw`\s*\((?:(?:${CODIGO}|Fase \d+|#\d+)(?:[,;]\s*)?)+\)`, 'g'),
     '',
   );
   const texto = sinCodigos
