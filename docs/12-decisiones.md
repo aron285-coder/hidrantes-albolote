@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.33 — 24 de septiembre de 2026 (DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.34 — 24 de septiembre de 2026 (DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -699,6 +699,16 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **En RV-73, un único proceso en Actions que lea también los secretos del repositorio:** `GITHUB_TOKEN` no puede listarlos, y un token con ese permiso sería un secreto más que rotar.
   - **En RV-72, reintentar `wrangler secret list`:** un reintento que al final falla seguiría necesitando parar.
 - **Afecta a:** 04 §4 (comprobar producción); 15 §2 (rotar).
+
+### DEC-101 · Novedades sin códigos de ninguna serie ni términos técnicos
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-77). Decisión de bajo riesgo de la sesión Ops.
+- **Contexto:** en Ajustes salieron «Calles, lugares, direcciones y coordenadas (GM-04)» y «Avisos cada 5 minutos desde un Worker de Cloudflare». El filtro tenía una lista de series (RV, F, TR, FR, DEC, AC, UI), y cada serie nueva se colaba.
+- **Decisión:**
+  1. Un solo patrón para cualquier código: `[A-Z]{1,4}-d{1,3}` y `Fd+(.d+)?`. Entre paréntesis (solos o varios, con «Fase N» y «#N») se quitan y la línea se queda. Suelto en la frase, la línea no entra: quitarlo dejaría la frase coja.
+  2. Una entrada con un término técnico no entra. La lista está en `TERMINOS_TECNICOS` (`scripts/generar-novedades.ts`): Worker, Cloudflare, Supabase, CI, workflow, token, build, PR, migración, pgTAP, e2e y Playwright. CI y PR solo en mayúsculas, para no descartar palabras corrientes; los demás sin distinguir.
+  3. Los códigos de punto (`HID-0012`) no cuentan: llevan cuatro cifras.
+- **Coste aceptado:** una carretera escrita como «A-92» descartaría la línea. Hoy no hay ninguna, y es mejor perder una novedad que enseñar un código.
+- **Afecta a:** `scripts/generar-novedades.ts` (FR-167 no cambia).
 
 ### DEC-100 · Especificaciones grandes en tres sesiones en paralelo, y CI que no hace esperar
 - **Fecha:** 24 sep 2026 (desarrollador) · **Estado:** vigente. `docs/trabajo-en-paralelo.md`; PAR-01 es su preparación.

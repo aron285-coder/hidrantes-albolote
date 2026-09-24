@@ -116,3 +116,59 @@ describe('novedades desde el CHANGELOG (RV-20, FR-167)', () => {
     expect(limpiar('**app:** botón propio para instalar (DEC-064, F4.2)')).toBe('Botón propio para instalar');
   });
 });
+
+// docs/20 RV-77: en Ajustes salieron «(GM-04)» y «desde un Worker de Cloudflare».
+describe('códigos de cualquier serie y términos técnicos (RV-77)', () => {
+  const changelog = (...lineas: string[]) =>
+    `## [0.6.3](https://github.com/o/r/compare/v0.6.2...v0.6.3) (2026-09-24)\n\n### Novedades\n\n${lineas.map((l) => `* ${l}`).join('\n')}\n`;
+
+  it('(GM-04) desaparece y la línea se queda', () => {
+    expect(limpiar('**busqueda:** calles, lugares, direcciones y coordenadas (GM-04) ([#266](https://x))')).toBe(
+      'Calles, lugares, direcciones y coordenadas',
+    );
+    expect(novedadesDe(changelog('**busqueda:** calles, lugares, direcciones y coordenadas (GM-04)')).lineas).toEqual([
+      'Calles, lugares, direcciones y coordenadas',
+    ]);
+  });
+
+  it('un código inventado (XY-12) también desaparece, y varios juntos', () => {
+    expect(limpiar('**mapa:** algo nuevo (XY-12)')).toBe('Algo nuevo');
+    expect(limpiar('**mapa:** algo nuevo (RV-52, DEC-100; F9.10)')).toBe('Algo nuevo');
+  });
+
+  it('"…desde un Worker de Cloudflare" se descarta', () => {
+    const n = novedadesDe(
+      changelog(
+        '**avisos:** avisos cada 5 minutos desde un Worker de Cloudflare (RV-52)',
+        '**mapa:** el mapa se ve sin cobertura',
+      ),
+    );
+    expect(n.lineas).toEqual(['El mapa se ve sin cobertura']);
+  });
+
+  it('se descarta cualquier término de la lista, y un código suelto fuera de paréntesis', () => {
+    for (const termino of [
+      'Supabase',
+      'el CI',
+      'un workflow',
+      'el token',
+      'el build',
+      'un PR',
+      'la migración',
+      'pgTAP',
+      'los e2e',
+      'Playwright',
+    ]) {
+      expect(novedadesDe(changelog(`**mapa:** algo con ${termino} dentro`)).lineas, termino).toEqual([]);
+    }
+    expect(novedadesDe(changelog('**mapa:** lo pide GM-04 ahora')).lineas).toEqual([]);
+  });
+
+  it('las palabras normales que contienen esas letras no se descartan', () => {
+    expect(
+      novedadesDe(
+        changelog('**mapa:** el precio de la ruta y la prueba de la capa', '**ficha:** HID-0012 abre su ficha'),
+      ).lineas,
+    ).toEqual(['El precio de la ruta y la prueba de la capa', 'HID-0012 abre su ficha']);
+  });
+});
