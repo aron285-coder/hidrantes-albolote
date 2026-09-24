@@ -19,6 +19,14 @@ export interface Env {
 }
 
 /** Respuesta JSON; los errores con la forma de 05 §9: { error, mensaje }. */
+/** Comparación de secretos sin atajos (el tiempo no dice cuántos caracteres coinciden). */
+export function iguales(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
 export function json(cuerpo: unknown, estado = 200, cabeceras: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(cuerpo), {
     status: estado,

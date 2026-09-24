@@ -4,14 +4,19 @@
 // caché de Cloudflare guarda la respuesta por coordenadas redondeadas a 4 decimales (unos 11 m, basta
 // para una calle) 30 días, también sin propuesta: el límite de 1 petición/s es por instancia.
 
-import { type Manejador, error, esAdmin, esUuid, json, jwtDe, rpc } from '../_lib/comun.ts';
+import { type Manejador, error, esAdmin, esUuid, iguales, json, jwtDe, rpc } from '../_lib/comun.ts';
 import { direccionDe } from '../_lib/nominatim.ts';
 
 export const onRequestGet: Manejador = async ({ request, env }) => {
   const jwt = jwtDe(request);
-  if (!(await esAdmin(env, jwt))) return error(403, 'NO_AUTORIZADO');
-
   const q = new URL(request.url).searchParams;
+  // El secreto de vigilancia solo vale para leer, sin propuesta: con él, comprobar-despliegue ve que
+  // la caché funciona (docs/19 RV-63). Guardar en una propuesta sigue siendo cosa de jefatura.
+  const vigilancia = request.headers.get('X-Vigilancia');
+  const esVigilancia =
+    !!vigilancia && !!env.VIGILANCIA_SECRETO && !q.has('propuesta_id') && iguales(vigilancia, env.VIGILANCIA_SECRETO);
+  if (!esVigilancia && !(await esAdmin(env, jwt))) return error(403, 'NO_AUTORIZADO');
+
   const lat = Number(q.get('lat'));
   const lng = Number(q.get('lng'));
   const propuestaId = q.get('propuesta_id');
@@ -50,6 +55,8 @@ export const onRequestGet: Manejador = async ({ request, env }) => {
   let direccion: string | null = null;
   const enCache = await cache?.match(clave).catch(() => undefined);
   if (enCache) direccion = ((await enCache.json().catch(() => ({}))) as { direccion?: string }).direccion ?? null;
+  // Para comprobar tras desplegar que la caché funciona de verdad en *.pages.dev (RV-63).
+  const cabeceras = { 'x-hidrantes-cache': direccion ? 'hit' : 'miss' };
   if (!direccion) {
     direccion = await direccionDe(lat, lng, agente);
     if (direccion && cache) {
@@ -59,9 +66,9 @@ export const onRequestGet: Manejador = async ({ request, env }) => {
       await cache.put(clave, respuesta).catch(() => undefined);
     }
   }
-  if (!direccion) return json({ direccion: null, fuente: 'nominatim', motivo: 'sin_respuesta' });
+  if (!direccion) return json({ direccion: null, fuente: 'nominatim', motivo: 'sin_respuesta' }, 200, cabeceras);
   if (propuestaId) {
     await rpc(env, 'fn_guardar_direccion_sugerida', { propuesta_id: propuestaId, direccion }, { jwt: jwt! });
   }
-  return json({ direccion, fuente: 'nominatim', cacheada: false });
+  return json({ direccion, fuente: 'nominatim', cacheada: false }, 200, cabeceras);
 };

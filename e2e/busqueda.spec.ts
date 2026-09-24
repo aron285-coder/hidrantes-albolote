@@ -96,6 +96,18 @@ test('con /api/geocodificar en 503, explica que el portal necesita cobertura y e
   ).toBeVisible();
 });
 
+// docs/19 RV-63: un 401 no es falta de cobertura.
+test('con /api/geocodificar en 401, pide volver a entrar con el código y enseña la calle', async ({ page }) => {
+  await abrir(page);
+  await page.route('**/api/geocodificar', (ruta) => ruta.fulfill({ status: 401, json: { error: 'TOKEN_INVALIDO' } }));
+  await buscador(page).fill('calle real 12');
+  await expect(page.getByText(T.busqueda.portalSinAcceso)).toBeVisible();
+  await expect(page.getByText(T.busqueda.portalSinCobertura)).toHaveCount(0);
+  await expect(
+    page.getByRole('group', { name: T.busqueda.calles }).getByRole('button', { name: /^Calle Real · Albolote$/ }),
+  ).toBeVisible();
+});
+
 test('sin red, con número, lo mismo y sin preguntar a nadie', async ({ page, context }) => {
   await abrir(page);
   const callejero = page.waitForResponse((r) => r.url().endsWith('/callejero.json'));

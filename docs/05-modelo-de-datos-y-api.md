@@ -561,7 +561,9 @@ dominio: `hidrantes-fotos` solo en `hidrantes-albolote.pages.dev`; staging, prev
 
 ### `GET /api/direccion?lat=&lng=&propuesta_id=`
 
-Cabecera `Authorization: Bearer <JWT de Supabase>`; la Function reenvía el JWT a `fn_es_admin()`.
+Cabecera `Authorization: Bearer <JWT de Supabase>`; la Function reenvía el JWT a `fn_es_admin()`. Sin
+`propuesta_id`, también vale `X-Vigilancia` con el secreto de vigilancia: es solo lectura y lo usa
+`comprobar-despliegue` para ver la caché (docs/19 RV-63). La respuesta lleva `x-hidrantes-cache: hit|miss`.
 
 ```json
 ← 200 { "direccion": "Calle Real 14, Albolote", "fuente": "nominatim", "cacheada": false }
@@ -587,10 +589,14 @@ Números de portal para la búsqueda (FR-73, DEC-092). **Nunca anónimo**: no es
         "fuente": "CartoCiudad (IGN/CNIG)" }        // como mucho 5
 ← 400 { "error": "PAYLOAD_INVALIDO" }   // q de menos de 3 o más de 120 caracteres tras trim
 ← 401 { "error": "TOKEN_INVALIDO" }     // sin token de voluntario válido ni sesión de administrador
-← 503 { "error": "SIN_SERVIDOR" }       // CartoCiudad caído o más de 5 s (TR-118)
+← 429 { "error": "DEMASIADOS_INTENTOS" } // más de 30 por minuto con el mismo token (RV-63)
+← 503 { "error": "SIN_SERVIDOR" }       // CartoCiudad caído o más de 5 s, o sin ningún resultado porque fallaron los find (TR-118, RV-63)
 ```
 
-- Autorización igual que `/api/push`: token de voluntario válido o administrador.
+- Autorización igual que `/api/push`: token de voluntario válido, administrador o `X-Vigilancia` (para `comprobar-despliegue`, RV-63).
+- **Tope por token** (RV-63): 30 búsquedas por minuto, contadas en la memoria del aislado (`functions/_lib/limite.ts`). No es global, pero frena un bucle de cliente.
+- Un `find` que falla se salta y se sigue con los demás candidatos; `503` solo si no queda ninguno (RV-63).
+- La respuesta lleva `x-hidrantes-cache: hit|miss`, para comprobar tras desplegar que la caché funciona en `*.pages.dev`.
 - Llama a `GET https://www.cartociudad.es/geocoder/api/geocoder/candidates?q=<q>&limit=10&no_process=…&municipio_filter=Albolote,Calicasas`
   con `AbortSignal.timeout(5000)` y el `User-Agent` de `NOMINATIM_USER_AGENT`; si un candidato
   `portal` o `callejero` no trae `lat`/`lng` (o trae `0, 0`), `find?id=&type=&portal=`. Sin el

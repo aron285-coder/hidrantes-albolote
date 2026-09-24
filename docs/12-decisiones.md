@@ -758,6 +758,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - Tiene un tiempo máximo de 5 s (TR-118), una caché de 30 días con la clave `sha256` del texto normalizado y solo devuelve resultados dentro de la zona con 2 km de margen.
   - La consulta no se registra en ningún sitio (11 §6.1).
   - Los resultados dicen "CartoCiudad · IGN".
+  - **Caché y tope por token** (docs/19 RV-63, 24 sep 2026). La respuesta dice `x-hidrantes-cache: hit|miss`, y `comprobar-despliegue` hace en staging dos peticiones iguales con el secreto de vigilancia, a esta Function y a `/api/direccion`. Si la segunda no sale de la caché, avisa sin tirar el despliegue. En `*.pages.dev` la Cache API puede no guardar nada, y por eso la protección real frente a un bucle es el tope de 30 búsquedas por minuto y token. El resultado del primer despliegue se anota en `docs/verificacion/revision-3-p1.md`.
 - **Descartado:**
   - la API de Google Places: clave, facturación, y términos que prohíben guardar los resultados y usarlos sin conexión;
   - Nominatim para portales, que en la zona casi no tiene números;

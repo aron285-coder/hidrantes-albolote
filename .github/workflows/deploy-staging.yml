@@ -89,6 +89,9 @@ jobs:
 
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
+        env:
+          # Para ver con dos peticiones iguales que la caché de las Functions funciona (docs/19 RV-63).
+          VIGILANCIA_SECRETO: ${{ secrets.VIGILANCIA_SECRETO_STAGING }}
 
       # Después de desplegar y comprobar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
       - name: Versión del mapa base en Salud del sistema (FR-143)

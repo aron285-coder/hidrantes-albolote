@@ -3,7 +3,7 @@
 // y avisos.yml cada 15 minutos (X-Vigilancia). Cada aviso se reclama en la base de datos antes de
 // enviarse y solo cuenta como enviado cuando su resultado queda anotado (RV-08).
 
-import { type Env, type Manejador, error, esAdmin, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
+import { type Env, type Manejador, error, esAdmin, iguales, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
 import { type Suscripcion, enviar } from '../_lib/webpush.ts';
 
 interface Pendiente {
@@ -13,13 +13,6 @@ interface Pendiente {
   url: string | null;
   suscripcion_id: string;
   suscripcion: Suscripcion;
-}
-
-function iguales(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let d = 0;
-  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return d === 0;
 }
 
 async function autorizado(request: Request, env: Env): Promise<boolean> {

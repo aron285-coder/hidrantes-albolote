@@ -104,6 +104,11 @@ export function ResultadosCallesYDirecciones({
               {T.busqueda.portalSinCobertura}
             </p>
           )}
+          {direcciones.estado === 'sin_acceso' && (
+            <p role="status" className={aviso}>
+              {T.busqueda.portalSinAcceso}
+            </p>
+          )}
           {direcciones.estado === 'ok' && direcciones.resultados.length === 0 && (
             <p role="status" className={aviso}>
               {T.busqueda.sinDirecciones}

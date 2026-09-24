@@ -162,6 +162,35 @@ describe('Nominatim con contacto y caché por coordenadas (RV-25)', () => {
     vi.unstubAllGlobals();
   });
 
+  // docs/19 RV-63: la caché se tiene que poder comprobar tras desplegar.
+  it('x-hidrantes-cache dice miss la primera vez y hit la segunda', async () => {
+    fingirCache();
+    const { espia } = fingirRed({});
+    const r1 = await onRequestGet({ request: peticion(ALBOLOTE), env: ENV });
+    const r2 = await onRequestGet({ request: peticion(ALBOLOTE), env: ENV });
+    expect(r1.headers.get('x-hidrantes-cache')).toBe('miss');
+    expect(r2.headers.get('x-hidrantes-cache')).toBe('hit');
+    espia.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('con el secreto de vigilancia y sin propuesta responde (solo lectura); con propuesta, no', async () => {
+    const env = { ...ENV, VIGILANCIA_SECRETO: 'secreto-de-prueba' } as Env; // detectar-secretos:permitir (valor de prueba)
+    const { espia } = fingirRed({ admin: false });
+    const con = (parametros: Record<string, string>, v: string) =>
+      onRequestGet({
+        request: new Request(
+          `https://hidrantes-albolote-staging.pages.dev/api/direccion?${new URLSearchParams(parametros)}`,
+          { headers: { 'X-Vigilancia': v } },
+        ),
+        env,
+      });
+    expect((await con(ALBOLOTE, 'secreto-de-prueba')).status).toBe(200);
+    expect((await con(ALBOLOTE, 'otro')).status).toBe(403);
+    expect((await con({ ...ALBOLOTE, propuesta_id: PROPUESTA }, 'secreto-de-prueba')).status).toBe(403);
+    espia.mockRestore();
+  });
+
   // docs/18 RV-48: la Cache API de Cloudflare puede ignorar claves de otro origen.
   it('la clave de la caché empieza por el origen de la petición', async () => {
     const cache = fingirCache();
