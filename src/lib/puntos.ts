@@ -233,20 +233,20 @@ async function leerComoJefatura(): Promise<Resultado<Listado>> {
   const ahora = new Date().toISOString();
   // PostgREST corta en max_rows (1.000, también en Supabase alojado) y esto es una sustitución
   // completa: sin páginas, el almacén se quedaba en silencio con los primeros 1.000 (RV-15, TR-60).
-  // `codigo` es único, así que el orden es estable. Un error a mitad no reemplaza nada.
+  // Páginas por clave (`codigo`, único): cada una empieza después del último código leído. Por
+  // desplazamiento, un punto retirado entre dos páginas hacía saltarse otro que seguía activo (RV-65).
+  // Un error a mitad no reemplaza nada.
   const todos: Punto[] = [];
-  for (let desde = 0; ; desde += PAGINA_JEFATURA) {
-    const { data, error, status } = await cliente
-      .from('v_puntos_activos')
-      .select('*')
-      .order('codigo')
-      .range(desde, desde + PAGINA_JEFATURA - 1);
+  for (let ultimo: string | null = null; ;) {
+    const orden = cliente.from('v_puntos_activos').select('*').order('codigo');
+    const { data, error, status } = await (ultimo === null ? orden : orden.gt('codigo', ultimo)).limit(PAGINA_JEFATURA);
     if (error || !Array.isArray(data)) {
       anotarServidor(!!status && status < 500);
       return { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' };
     }
     todos.push(...(data as Punto[]));
     if (data.length < PAGINA_JEFATURA) break;
+    ultimo = (data[data.length - 1] as Punto).codigo;
   }
   anotarServidor(true);
   return { ok: true, datos: { puntos: todos, bajas: [], sincronizado_en: ahora } };

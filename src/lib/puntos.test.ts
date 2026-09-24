@@ -6,11 +6,22 @@ import type { Punto } from './puntos';
 
 const rpc = vi.fn();
 /** Lectura de v_puntos_activos de jefatura: responde según el rango pedido (RV-15). */
-const pagina = vi.fn<(desde: number, hasta: number) => Promise<{ data: unknown; error: unknown; status: number }>>();
+const pagina =
+  vi.fn<
+    (desde: number, hasta: number, despuesDe?: string) => Promise<{ data: unknown; error: unknown; status: number }>
+  >();
 vi.mock('./supabase', () => ({
   supabase: () => ({
     rpc,
-    from: () => ({ select: () => ({ order: () => ({ range: (d: number, h: number) => pagina(d, h) }) }) }),
+    // Páginas por clave (RV-65): `limit` la primera, `gt('codigo', último).limit` las siguientes.
+    from: () => ({
+      select: () => ({
+        order: () => ({
+          limit: (n: number) => pagina(0, n - 1),
+          gt: (_c: string, v: string) => ({ limit: (n: number) => pagina(0, n - 1, v) }),
+        }),
+      }),
+    }),
   }),
 }));
 
@@ -298,16 +309,17 @@ describe('jefatura lee por páginas (RV-15, TR-60)', () => {
 
   it('jefatura lee por páginas hasta tener todo', async () => {
     pagina.mockReset();
-    pagina.mockImplementation(async (desde) => ({
-      data: desde === 0 ? muchos(0, 1000) : desde === 1000 ? muchos(1000, 1000) : muchos(2000, 5),
+    pagina.mockImplementation(async (_d, _h, despuesDe) => ({
+      data: despuesDe === undefined ? muchos(0, 1000) : despuesDe === 'HID-999' ? muchos(1000, 1000) : muchos(2000, 5),
       error: null,
       status: 200,
     }));
     expect(await sincronizar(null)).toEqual({ ok: true, datos: null });
+    // Cada página empieza después del último código de la anterior (RV-65).
     expect(pagina.mock.calls).toEqual([
       [0, 999],
-      [1000, 1999],
-      [2000, 2999],
+      [0, 999, 'HID-999'],
+      [0, 999, 'HID-1999'],
     ]);
     expect(estadoPuntos().puntos).toHaveLength(2005);
   });
@@ -398,5 +410,27 @@ describe('tramo de manguera (FR-142)', () => {
     expect(metrosTramoManguera()).toBe(25);
     await borrarPuntos();
     expect(metrosTramoManguera()).toBe(20);
+  });
+});
+
+// docs/19 RV-65: con páginas por desplazamiento, un punto retirado entre dos páginas hacía saltarse otro.
+describe('jefatura lee por páginas por clave (RV-65)', () => {
+  const codigo = (i: number) => `HID-${String(i).padStart(5, '0')}`;
+  const hasta = (n: number) => Array.from({ length: n }, (_, i) => p(String(i), { codigo: codigo(i) }));
+
+  it('un punto retirado entre la página 1 y la 2 no hace perder otro que sigue activo', async () => {
+    let filas = hasta(2005);
+    pagina.mockReset();
+    pagina.mockImplementation(async (desde, h, despuesDe) => {
+      const ordenadas = [...filas].sort((a, b) => a.codigo.localeCompare(b.codigo));
+      const resto = despuesDe === undefined ? ordenadas.slice(desde) : ordenadas.filter((x) => x.codigo > despuesDe);
+      const data = resto.slice(0, h - desde + 1);
+      // Tras servir la primera página, alguien retira un punto que ya se ha leído.
+      if (filas.length === 2005) filas = filas.filter((x) => x.codigo !== codigo(10));
+      return { data, error: null, status: 200 };
+    });
+    expect(await sincronizar(null)).toEqual({ ok: true, datos: null });
+    const leidos = new Set(estadoPuntos().puntos.map((x) => x.codigo));
+    for (const x of filas) expect(leidos.has(x.codigo), x.codigo).toBe(true);
   });
 });
