@@ -1,0 +1,7 @@
+hidrantes_purgar_errores
+hidrantes_purgar_intentos
+hidrantes_purgar_notificaciones
+hidrantes_purgar_papelera
+hidrantes_purgar_subidas
+hidrantes_resumen_semanal
+hidrantes_revocar_tokens

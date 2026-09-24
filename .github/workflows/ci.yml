@@ -87,6 +87,23 @@ jobs:
           psql -X -q -v ON_ERROR_STOP=1 "$MIG" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql
           guardado=$(psql -X -A -t -v ON_ERROR_STOP=1 "$MIG" -c "select jsonb_typeof(hidrantes.fn_config('tareas_programadas', 'null'));")
           [ "$guardado" = "array" ] || { echo "::error::config.tareas_programadas no se ha guardado ($guardado)"; exit 1; }
+      # docs/19 RV-56: con la lista esperada, una tarea borrada es un problema y no "todo responde".
+      # En una transacción que se deshace: las demás pruebas siguen con todas las tareas.
+      - name: Una tarea programada borrada cuenta como problema (RV-56)
+        env:
+          MIG: postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres # detectar-secretos:permitir (Supabase local efímero)
+        run: |
+          set -euo pipefail
+          esperadas=$(paste -sd, scripts/sql/tareas-esperadas.txt)
+          todas=$(psql -X -A -t -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$MIG" -f scripts/sql/tareas-programadas.sql)
+          n=$(echo "$todas" | jq '[.[] | select(.falta)] | length')
+          [ "$n" -eq 0 ] || { echo "::error::con las migraciones aplicadas no debería faltar ninguna tarea ($n)"; exit 1; }
+          tareas=$(psql -X -A -t -q -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$MIG" \
+            -c 'begin' -c "select cron.unschedule('hidrantes_purgar_errores')" \
+            -f scripts/sql/tareas-programadas.sql -c 'rollback' | tail -1)
+          marcada=$(echo "$tareas" | jq '[.[] | select(.tarea == "hidrantes_purgar_errores" and .falta and .problema)] | length')
+          echo "hidrantes_purgar_errores borrada: marcada como problema = $marcada"
+          [ "$marcada" -eq 1 ] || { echo "::error::una tarea borrada no cuenta como problema"; exit 1; }
       - name: Versión del mapa base en config (RV-21)
         run: |
           npm run cargar-version-mapabase -- --local

@@ -851,6 +851,7 @@ export const T = {
     tareaBien: (hace: Parametro) => `${hace} · bien`,
     tareaMal: (hace: Parametro) => `${hace} · falló o va con retraso`,
     tareaSinEjecutar: 'todavía sin ejecutar',
+    tareaFalta: 'no está programada',
     topesAlcanzados24h: 'Entradas bloqueadas por demasiados intentos (24 h)',
     topesDetalle: (n: Parametro, grupo: Parametro) => `${n} · de todo el grupo: ${grupo}`,
     nunca: 'todavía ninguno',

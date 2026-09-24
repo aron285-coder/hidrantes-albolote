@@ -87,6 +87,34 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
     expect(paso('Rehabilitar los workflows programados')).toMatch(/^\s+continue-on-error: true$/m);
   });
 
+  // docs/19 RV-56: con HAY vacío (Comprobar no terminó) la issue se cerraba con "todo responde".
+  it('la issue solo se cierra con HAY igual a no; sin resultado, se avisa de que no terminó', () => {
+    const texto = leer('vigilancia.yml');
+    const paso = texto.slice(texto.indexOf('- name: Abrir o cerrar la issue de vigilancia'));
+    const cerrar = paso.indexOf('gh issue close');
+    expect(paso.lastIndexOf(`if [ "$HAY" = 'no' ]; then`, cerrar)).toBeGreaterThan(-1);
+    expect(paso).not.toContain(`if [ "$HAY" = 'si' ]; then\n`);
+    expect(paso).toContain('no terminó');
+    expect(paso).toContain('GH_REPO:');
+  });
+
+  it('"Comprobar" no ejecuta npm ci: el trabajo prepara solo psql', () => {
+    const texto = leer('vigilancia.yml');
+    const mirar = texto.slice(texto.indexOf('\n  mirar:'));
+    expect(mirar).toMatch(/uses: \.\/\.github\/actions\/preparar\n\s+with:\n\s+npm: 'false'\n\s+psql: 'true'/);
+    const comprobar = mirar.slice(mirar.indexOf('- name: Comprobar'), mirar.indexOf('- name: Rehabilitar'));
+    expect(comprobar).not.toMatch(/\bnpm\b|\bnpx\b|\bnode\b/);
+    const preparar = readFileSync(path.resolve(import.meta.dirname, '../.github/actions/preparar/action.yml'), 'utf8');
+    expect(preparar).toMatch(/- if: inputs\.npm == 'true'\n\s+run: npm ci/);
+  });
+
+  it('la vigilancia pasa la lista de tareas esperadas a la consulta de pg_cron', () => {
+    const texto = leer('vigilancia.yml');
+    expect(texto).toContain('paste -sd, scripts/sql/tareas-esperadas.txt');
+    expect(texto).toContain('-v esperadas="$esperadas"');
+    expect(texto).toContain('select(.falta)');
+  });
+
   it('avisos.yml no hace || echo 000: con la red caída daba 000000 y no reintentaba', () => {
     const texto = leer('avisos.yml');
     expect(texto).not.toContain('|| echo 000');

@@ -63,8 +63,11 @@ jobs:
         with:
           # Para comparar main con develop (producción al día, docs/19 P-03).
           fetch-depth: 0
+      # Sin npm ci (docs/19 RV-56): "Comprobar" solo usa bash, psql, gh y jq, y un npm ci roto no puede
+      # dejar la vigilancia sin comprobar.
       - uses: ./.github/actions/preparar
         with:
+          npm: 'false'
           psql: 'true'
 
       - name: Comprobar
@@ -120,7 +123,9 @@ jobs:
             fi
             # Tareas de pg_cron (TR-54, RV-22): cuándo corrió cada una y si falló. Se guarda para
             # Salud del sistema, salga como salga.
-            tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -f scripts/sql/tareas-programadas.sql 2>/dev/null || echo '')
+            # Con la lista de las que tiene que haber (RV-56): una que falte, o todas, es un problema.
+            esperadas=$(paste -sd, scripts/sql/tareas-esperadas.txt)
+            tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$BD" -f scripts/sql/tareas-programadas.sql 2>/dev/null || echo '')
             if [ -z "$tareas" ]; then
               problemas+=("no se pueden leer las tareas programadas de pg_cron")
             else
@@ -129,7 +134,11 @@ jobs:
               if ! psql -X -q -v ON_ERROR_STOP=1 "$BD" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql; then
                 problemas+=("no se pueden guardar las tareas programadas en Salud del sistema")
               fi
-              atrasadas=$(jq -r '[.[] | select(.problema) | .tarea] | join(", ")' tareas.json)
+              faltan=$(jq -r '[.[] | select(.falta) | .tarea] | join(", ")' tareas.json)
+              if [ -n "$faltan" ]; then
+                problemas+=("faltan tareas programadas de pg_cron: $faltan (¿restauración en un proyecto nuevo? 15 §5.3)")
+              fi
+              atrasadas=$(jq -r '[.[] | select(.problema and (.falta | not)) | .tarea] | join(", ")' tareas.json)
               if [ -n "$atrasadas" ]; then
                 problemas+=("tareas programadas que fallaron o no han corrido a tiempo: $atrasadas")
               fi
@@ -232,20 +241,31 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Aunque el checkout no haya llegado a hacerse: gh sabe igual de qué repositorio es.
+          GH_REPO: ${{ github.repository }}
           HAY: ${{ steps.mirar.outputs.hay }}
         run: |
           set -euo pipefail
           titulo='Vigilancia diaria: algo no responde'
           abierta=$(gh issue list --label vigilancia --state open --search "$titulo in:title" --json number --jq '.[0].number // empty')
-          if [ "$HAY" = 'si' ]; then
+          # Solo "no" es todo bien (docs/19 RV-56): si "Comprobar" no llegó a escribir `hay` (tiempo
+          # agotado, preparar roto…), no se ha comprobado nada, y eso también se avisa.
+          if [ "$HAY" = 'no' ]; then
+            # Si había una issue abierta, se cierra sola. Una issue que nadie cierra deja de mirarse a
+            # los pocos días (15 §4).
+            if [ -n "$abierta" ]; then
+              gh issue close "$abierta" --comment "La vigilancia de $(date -u +%Y-%m-%d) ha ido bien: todo responde."
+            fi
+            exit 0
+          fi
+          ejecucion="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ "$HAY" = 'si' ] && [ -s problemas.txt ]; then
             cuerpo=$(printf 'La comprobación de %s ha encontrado:\n\n%s\n\nQué hacer: 15 §4 y §5.\n' \
               "$(date -u +%Y-%m-%d)" "$(sed 's/^/- /' problemas.txt)")
-            if [ -n "$abierta" ]; then gh issue comment "$abierta" --body "$cuerpo"
-            else gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"; fi
-            exit 1
+          else
+            cuerpo=$(printf 'La vigilancia de %s no terminó: la comprobación no llegó a dar un resultado, así que no se ha comprobado nada. Mira la ejecución: %s\n\nQué hacer: 15 §4.\n' \
+              "$(date -u +%Y-%m-%d)" "$ejecucion")
           fi
-          # Todo bien: si había una issue abierta, se cierra sola. Una issue que nadie cierra deja de
-          # mirarse a los pocos días (15 §4).
-          if [ -n "$abierta" ]; then
-            gh issue close "$abierta" --comment "La vigilancia de $(date -u +%Y-%m-%d) ha ido bien: todo responde."
-          fi
+          if [ -n "$abierta" ]; then gh issue comment "$abierta" --body "$cuerpo"
+          else gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"; fi
+          exit 1
