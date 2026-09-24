@@ -2,7 +2,8 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { conSesion, simularRpc } from './ayudas.ts';
+import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
+import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 const O = { latitude: 37.2305, longitude: -3.656 };
@@ -150,5 +151,21 @@ test('desde ¿Qué hay aquí?, "Cercanos desde aquí" abre el incidente en ese s
     .click();
   await expect(page).toHaveURL(/\?incidente=37\.230500,-3\.656000$/);
   await expect(filas(page)).toHaveCount(5);
+  await expect(hoja(page)).toContainText(T.incidente.desdePuntoMarcado);
+});
+
+// docs/19 RV-57: al arrancar con sesión de Google se borraban todos los parámetros de la dirección.
+test('jefatura recarga /?incidente=… y el incidente sigue abierto (RV-57)', async ({ page }) => {
+  await conGoogle(page, 'jefa@example.org');
+  await simularTablas(page, { v_puntos_activos: CERCA, config: [] });
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_es_admin`, (r) =>
+    r.fulfill({ contentType: 'application/json', body: 'true' }),
+  );
+  await page.goto('/?incidente=37.230500,-3.656000');
+  await expect(hoja(page)).toBeVisible();
+  await expect(filas(page).first()).toBeVisible();
+  await page.reload();
+  await expect(page).toHaveURL(/\?incidente=37\.230500,-3\.656000/);
+  await expect(hoja(page)).toBeVisible();
   await expect(hoja(page)).toContainText(T.incidente.desdePuntoMarcado);
 });

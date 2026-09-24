@@ -21,7 +21,15 @@ vi.mock('./supabase', () => ({
 const reintentarCola = vi.fn(async () => undefined);
 vi.mock('./cola', async (original) => ({ ...(await original<typeof import('./cola')>()), reintentarCola }));
 
-const { _reiniciarAcceso, acceso, comprobarAcceso, entrarConCodigo, salirDeGoogle } = await import('./acceso');
+const {
+  _reiniciarAcceso,
+  acceso,
+  comprobarAcceso,
+  direccionSinOauth,
+  entrarConCodigo,
+  limpiarDireccion,
+  salirDeGoogle,
+} = await import('./acceso');
 const { codigoDeError, SIN_SERVIDOR, verificarCodigo } = await import('./api');
 const { _reiniciar, estadoConexion } = await import('./conexion');
 const { guardarSesion, leerFirma, bloqueadoHasta } = await import('./sesion');
@@ -188,5 +196,40 @@ describe('jefatura sin servidor al arrancar (RV-16, FR-168)', () => {
     vi.stubGlobal('navigator', { onLine: false });
     await comprobarAcceso();
     expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+  });
+});
+
+// docs/19 RV-57: jefatura perdía ?incidente=, ?p= y ?aqui= al recargar.
+describe('la dirección tras volver de Google (RV-57)', () => {
+  it('?incidente=…&code=x → ?incidente=…, con el hash', () => {
+    expect(direccionSinOauth('/', '?incidente=37.230500,-3.656000&code=x&state=y', '#arriba')).toBe(
+      '/?incidente=37.230500,-3.656000#arriba',
+    );
+    expect(direccionSinOauth('/admin', '?error=access_denied&error_description=no', '')).toBe('/admin');
+  });
+
+  it('?p=… sin code no cambia', () => {
+    expect(direccionSinOauth('/', '?p=abc', '')).toBeNull();
+    expect(direccionSinOauth('/', '', '')).toBeNull();
+  });
+
+  it('se limpia una sola vez: una segunda llamada no hace nada', () => {
+    const replaceState = vi.fn();
+    vi.stubGlobal('history', { state: null, replaceState });
+    vi.stubGlobal('location', { pathname: '/', search: '?incidente=1,2&code=x', hash: '' });
+    limpiarDireccion();
+    expect(replaceState).toHaveBeenCalledTimes(1);
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/?incidente=1,2');
+    vi.stubGlobal('location', { pathname: '/', search: '?code=otra', hash: '' });
+    limpiarDireccion();
+    expect(replaceState).toHaveBeenCalledTimes(1);
+  });
+
+  it('sin parámetros de OAuth, no toca la dirección', () => {
+    const replaceState = vi.fn();
+    vi.stubGlobal('history', { state: null, replaceState });
+    vi.stubGlobal('location', { pathname: '/', search: '?p=abc&aqui=1,2', hash: '' });
+    limpiarDireccion();
+    expect(replaceState).not.toHaveBeenCalled();
   });
 });
