@@ -203,6 +203,54 @@ test.describe('aviso del mapa base en el propio mapa (RV-10, FR-81)', () => {
   });
 });
 
+// docs/20 RV-71: Cloudflare Pages responde a un Range con 200 y el archivo entero. Sin copia
+// descargada, el mapa se quedaba en blanco con cobertura. vite preview sí sirve rangos: aquí se
+// simula lo que hace Pages.
+test('sin copia descargada y con un servidor que no sirve rangos, el mapa base se pinta (RV-71)', async ({ page }) => {
+  // Datos móviles: el mapa base no se descarga solo (FR-81).
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'connection', { value: { type: 'cellular', saveData: false } });
+  });
+  const entero = readFileSync('public/mapabase/albolote.pmtiles');
+  await page.route('**/mapabase/*.pmtiles', (r) =>
+    r.fulfill({ status: 200, contentType: 'application/octet-stream', body: entero }),
+  );
+  const teselas: string[] = [];
+  page.on('request', (r) => {
+    if (/\/mapabase\/t\/[^/]+\/\d+\/\d+\/\d+\.pbf$/.test(r.url())) teselas.push(r.url());
+  });
+  const errores: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errores.push(m.text());
+  });
+
+  await abrir(page);
+  await expect.poll(() => teselas.length, { timeout: 15_000 }).toBeGreaterThan(0);
+  const version = JSON.parse(readFileSync('datos/mapabase.json', 'utf8')).version;
+  expect(teselas.every((u) => u.includes(`/mapabase/t/${version}/`))).toBe(true);
+
+  // Hay lienzos con calles: más colores que el fondo liso.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          let pintados = 0;
+          for (const c of document.querySelectorAll<HTMLCanvasElement>(
+            '.leaflet-tile-container canvas, canvas.leaflet-tile',
+          )) {
+            const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+            const colores = new Set<string>();
+            for (let i = 0; i < d.length; i += 4 * 61) colores.add(`${d[i]},${d[i + 1]},${d[i + 2]}`);
+            if (colores.size > 3) pintados++;
+          }
+          return pintados;
+        }),
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThan(0);
+  expect(errores.filter((e) => /pmtiles|Byte Serving|content-length/i.test(e))).toEqual([]);
+});
+
 test('la foto de la ficha se pide en modo cors (RV-12)', async ({ page }) => {
   const conFoto = { ...PUNTOS[0], foto_path: 'fotos/prueba-cors.jpg' };
   await conSesion(page);

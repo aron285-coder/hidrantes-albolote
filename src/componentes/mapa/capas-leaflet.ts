@@ -1,7 +1,6 @@
 // Capas de Leaflet compartidas por el mapa principal y el selector de pin de los formularios.
 
 import L from 'leaflet';
-import { PMTiles } from 'pmtiles';
 import { labelRules, leafletLayer, paintRules } from 'protomaps-leaflet';
 import zonaTexto from '../../../datos/zona-cobertura.geojson?raw';
 import { CATASTRO, type Capa, OSM, PNOA, capasPintadas } from '@/lib/capas';
@@ -11,9 +10,10 @@ import { FuenteMapabase } from '@/lib/mapabase';
 export const ZONA = JSON.parse(zonaTexto) as GeoJSON.FeatureCollection;
 export const LIMITES = L.geoJSON(ZONA).getBounds();
 
-// Una sola lectura del archivo para todas las capas base que se creen (claro/oscuro, formularios).
-let archivo: PMTiles | null = null;
-const mapabase = () => (archivo ??= new PMTiles(new FuenteMapabase()));
+// Un solo origen del mapa base (teselas sueltas o copia descargada) para todas las capas base que se
+// creen (claro/oscuro, formularios).
+let archivo: FuenteMapabase | null = null;
+const mapabase = () => (archivo ??= new FuenteMapabase());
 
 function capaBase(modo: 'claro' | 'oscuro'): L.Layer {
   const estilo = estiloMapabase(modo);

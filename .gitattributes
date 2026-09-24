@@ -5,3 +5,4 @@
 *.webp binary
 *.woff2 binary
 *.pmtiles binary
+*.pbf binary
