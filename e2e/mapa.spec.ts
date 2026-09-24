@@ -249,6 +249,7 @@ test('sin copia descargada y con un servidor que no sirve rangos, el mapa base s
     )
     .toBeGreaterThan(0);
   expect(errores.filter((e) => /pmtiles|Byte Serving|content-length/i.test(e))).toEqual([]);
+});
 
 // docs/20 RV-76: producción arranca vacía (DEC-051). Ya sincronizado, "se descargarán en cuanto haya
 // conexión" es falso: hay conexión y el inventario no tiene ningún punto.
