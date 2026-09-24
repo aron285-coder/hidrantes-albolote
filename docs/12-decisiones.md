@@ -675,7 +675,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §9.
 
 ### DEC-103 · El Worker de los avisos se despliega en cada push y dice qué código lleva; la vigilancia también anota staging
-- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-74 y RV-78, parte Ops). Decisión de bajo riesgo de la sesión Ops.
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-74 y RV-78, parte Ops); **el punto 3, sustituido por DEC-104**. Decisión de bajo riesgo de la sesión Ops.
 - **Decisión:**
   1. **`deploy-staging.yml` despliega el Worker en cada push a `develop`**, sin mirar el diff, con `--var VERSION_CODIGO:<último commit de workers/>`. Para eso el checkout tiene la historia completa.
   2. **La vigilancia lee `VERSION_CODIGO`** de los ajustes del Worker (`GET …/workers/scripts/hidrantes-avisos/settings`, `result.bindings`). Si no coincide con `git log -1 -- workers` de `develop`, o no está, es un problema. Sin permiso de lectura ya lo dice el cron (punto 7), y no se repite.
