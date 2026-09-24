@@ -11,11 +11,12 @@ import { distancia } from '@/lib/formato';
 import { imantar } from '@/lib/medicion';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
 import { T } from '@/lib/textos';
-
-const VISTA = 'hidrantes.vista';
+import { guardarVista, vistaGuardada } from '@/lib/vista';
 
 export interface ControlMapa {
   centrar(lat: number, lng: number, zoom?: number): void;
+  /** Encuadra un recuadro [[sur, oeste], [norte, este]] sin que lo tapen la búsqueda ni la hoja. */
+  encuadrar(recuadro: [[number, number], [number, number]], margenInferior?: number): void;
   acercar(): void;
   alejar(): void;
 }
@@ -38,6 +39,8 @@ interface Props {
    * marcador (≤ 44 px) se imanta a él.
    */
   medicion?: { vertices: LatLng[]; etiquetas: { en: LatLng; metros: number }[]; alTocar: (l: LatLng) => void } | null;
+  /** La calle elegida en la búsqueda, resaltada durante la sesión (FR-73, 06 §4.7): [[[lng, lat], …], …]. */
+  calle?: [number, number][][] | null;
 }
 
 /** Diana del incidente: el Crosshair de lucide sobre un círculo de papel con borde (06 §4.7). */
@@ -55,15 +58,6 @@ const SVG_AQUI =
   '<path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>' +
   '<circle cx="12" cy="10" r="3"/></svg>';
 
-function vistaGuardada(): { centro: [number, number]; zoom: number } | null {
-  try {
-    const v = JSON.parse(localStorage.getItem(VISTA) ?? 'null');
-    return v && Array.isArray(v.centro) ? v : null;
-  } catch {
-    return null;
-  }
-}
-
 /** Mapa de Leaflet con el mapa base propio, las capas en línea, el límite, los puntos y tu posición. */
 export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
   {
@@ -77,6 +71,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     aqui = null,
     incidente = null,
     medicion = null,
+    calle = null,
   },
   ref,
 ) {
@@ -95,6 +90,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     medicionRef.current = medicion;
   }, [medicion]);
   const grupoMedicion = useRef<L.LayerGroup | null>(null);
+  const grupoCalle = useRef<L.LayerGroup | null>(null);
   const alPulsacionLargaRef = useRef(alPulsacionLarga);
   useEffect(() => {
     alPulsacionLargaRef.current = alPulsacionLarga;
@@ -114,14 +110,8 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     const v = vistaGuardada();
     if (v) m.setView(v.centro, v.zoom);
     else m.fitBounds(LIMITES, { padding: [8, 8] });
-    m.on('moveend', () => {
-      const c = m.getCenter();
-      try {
-        localStorage.setItem(VISTA, JSON.stringify({ centro: [c.lat, c.lng], zoom: m.getZoom() }));
-      } catch {
-        // sin almacenamiento: la próxima vez se encuadra la zona
-      }
-    });
+    m.on('moveend', () => guardarVista(m.getCenter(), m.getZoom()));
+    grupoCalle.current = L.layerGroup().addTo(m);
     grupoPuntos.current = L.layerGroup().addTo(m);
     grupoPosicion.current = L.layerGroup().addTo(m);
     grupoIncidente.current = L.layerGroup().addTo(m);
@@ -191,6 +181,14 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
   useImperativeHandle(ref, () => ({
     centrar(lat, lng, zoom) {
       mapa.current?.setView([lat, lng], Math.max(zoom ?? 17, mapa.current.getZoom()));
+    },
+    encuadrar(recuadro, margenInferior = 0) {
+      mapa.current?.fitBounds(recuadro, {
+        paddingTopLeft: [56, 132],
+        paddingBottomRight: [72, 48 + margenInferior],
+        maxZoom: 18,
+        animate: false,
+      });
     },
     acercar: () => mapa.current?.zoomIn(),
     alejar: () => mapa.current?.zoomOut(),
@@ -327,6 +325,18 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- la clave resume origen y candidatos
   }, [claveIncidente]);
+
+  // Calle resaltada (06 §4.7): línea de 4 px, debajo de los marcadores para no tapar ninguno.
+  useEffect(() => {
+    const g = grupoCalle.current;
+    if (!g) return;
+    g.clearLayers();
+    if (!calle?.length) return;
+    L.polyline(
+      calle.map((linea) => linea.map(([lng, lat]) => [lat, lng] as [number, number])),
+      { weight: 4, className: 'linea-calle', interactive: false },
+    ).addTo(g);
+  }, [calle]);
 
   // Medición (06 §4.7): línea de 3 px, vértices de 10 px y la distancia de cada tramo de más de 30 m.
   const claveMedicion = medicion ? medicion.vertices.map((l) => `${l.lat},${l.lng}`).join(';') : '';

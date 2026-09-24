@@ -137,3 +137,99 @@ export const parametroLatLng = (l: LatLng) => `${l.lat.toFixed(6)},${l.lng.toFix
 /** Enlace universal de Google Maps a unas coordenadas (FR-75): lo abre cualquier móvil. */
 export const enlaceGoogleMaps = (p: LatLng) =>
   `https://www.google.com/maps/search/?api=1&query=${p.lat.toFixed(6)},${p.lng.toFixed(6)}`;
+
+// ---------- interpretar lo que se pega en la búsqueda (FR-73, docs/18 GM-04 B) ----------
+
+/** Recuadro de la zona de cobertura, [oeste, sur, este, norte] (datos/meta.json). */
+export const RECUADRO_ZONA = [-3.711504, 37.206212, -3.601049, 37.404078] as const;
+
+/** Dentro del recuadro de la zona con `margen` metros alrededor. */
+export function cercaDeLaZona(p: LatLng, margen: number): boolean {
+  const [oeste, sur, este, norte] = RECUADRO_ZONA;
+  const dLat = margen / 111_195;
+  const dLng = margen / (111_195 * Math.cos(rad((sur + norte) / 2)));
+  return p.lat >= sur - dLat && p.lat <= norte + dLat && p.lng >= oeste - dLng && p.lng <= este + dLng;
+}
+
+/** Un UTM solo se acepta cerca de la zona: dos números sueltos de 6 y 7 cifras pueden ser otra cosa. */
+const MARGEN_UTM = 5000;
+
+/** Enlaces cortos de Google Maps: no se resuelven, porque exigiría ir a Google desde el servidor. */
+export const esEnlaceCorto = (texto: string) => /\b(?:maps\.app\.goo\.gl|goo\.gl\/maps)\//i.test(texto);
+
+const valida = (lat: number, lng: number): LatLng | null =>
+  Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180 ? { lat, lng } : null;
+
+function desdeEnlace(texto: string): LatLng | null {
+  let t = texto;
+  try {
+    t = decodeURIComponent(texto);
+  } catch {
+    // Un % suelto: se lee tal cual.
+  }
+  const num = String.raw`(-?\d{1,3}(?:\.\d+)?)`;
+  // El sitio marcado (!3d…!4d…) manda sobre el centro de la vista (@lat,lng).
+  const patrones = [
+    new RegExp(String.raw`!3d${num}!4d${num}`),
+    new RegExp(String.raw`[?&](?:q|query|ll)=(?:loc:)?${num}\s*,\s*${num}`),
+    new RegExp(String.raw`@${num},${num}`),
+    new RegExp(String.raw`^geo:${num},${num}`),
+  ];
+  for (const p of patrones) {
+    const m = p.exec(t);
+    if (m) return valida(Number(m[1]), Number(m[2]));
+  }
+  return null;
+}
+
+function desdeGms(texto: string): LatLng | null {
+  const partes = [
+    ...texto.matchAll(/(\d{1,3})\s*°\s*(\d{1,2})\s*'\s*(?:(\d{1,2}(?:[.,]\d+)?)\s*(?:"|'')?)?\s*([NSEOW])/gi),
+  ];
+  if (partes.length !== 2) return null;
+  let lat: number | null = null;
+  let lng: number | null = null;
+  for (const [, g, m, s, h] of partes) {
+    const valor = Number(g) + Number(m) / 60 + Number((s ?? '0').replace(',', '.')) / 3600;
+    const letra = h!.toUpperCase();
+    if (letra === 'N' || letra === 'S') lat = letra === 'S' ? -valor : valor;
+    else lng = letra === 'E' ? valor : -valor;
+  }
+  return lat === null || lng === null ? null : valida(lat, lng);
+}
+
+function desdeUtmTexto(texto: string): LatLng | null {
+  const m =
+    /^(?:30\s*[A-Z]?\s+)?(\d{6}(?:\.\d+)?)\s*[,;\s]\s*(\d{7}(?:\.\d+)?)$/i.exec(texto) ??
+    /^X\s*[:=]?\s*(\d{6}(?:\.\d+)?)\s*[,;]?\s*Y\s*[:=]?\s*(\d{7}(?:\.\d+)?)$/i.exec(texto);
+  if (!m) return null;
+  const p = desdeUtm({ x: Number(m[1]), y: Number(m[2]) });
+  return cercaDeLaZona(p, MARGEN_UTM) ? p : null;
+}
+
+function desdeDecimal(texto: string): LatLng | null {
+  // Con punto decimal, separados por coma, punto y coma o espacio; o con coma decimal y un espacio
+  // entre los dos números ("37,2305 -3,656").
+  const m =
+    /^([+-]?\d{1,2}\.\d+)\s*°?\s*([NS])?\s*[,;\s]\s*([+-]?\d{1,3}\.\d+)\s*°?\s*([EOW])?$/i.exec(texto) ??
+    /^([+-]?\d{1,2},\d+)\s*°?\s*([NS])?\s+([+-]?\d{1,3},\d+)\s*°?\s*([EOW])?$/i.exec(texto);
+  if (!m) return null;
+  let lat = Number(m[1]!.replace(',', '.'));
+  let lng = Number(m[3]!.replace(',', '.'));
+  if (m[2]?.toUpperCase() === 'S') lat = -Math.abs(lat);
+  if (m[4] && m[4].toUpperCase() !== 'E') lng = -Math.abs(lng);
+  return valida(lat, lng);
+}
+
+/**
+ * Coordenadas pegadas en la búsqueda: decimal, grados-minutos-segundos, UTM 30 ETRS89 o un enlace de
+ * Google Maps, Apple Plans o `geo:`. Null si no lo son, también un enlace corto (`esEnlaceCorto`).
+ * Unas coordenadas lejos de la zona se aceptan (el llamador avisa de fuera de zona, FR-55); un UTM no.
+ */
+export function interpretar(texto: string): LatLng | null {
+  const t = texto.trim().replace(/[′’´]/g, "'").replace(/[″”“]/g, '"').replace(/º/g, '°');
+  if (!t || esEnlaceCorto(t)) return null;
+  if (/^(?:https?:\/\/|geo:)|\b(?:google\.[a-z.]+\/maps|maps\.google\.|maps\.apple\.com)/i.test(t))
+    return desdeEnlace(t);
+  return desdeGms(t) ?? desdeUtmTexto(t) ?? desdeDecimal(t);
+}

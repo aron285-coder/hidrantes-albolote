@@ -42,6 +42,16 @@ jobs:
         if: steps.trabajo.outputs.nombre == 'regenerar-mapabase'
         run: npm run mapabase
 
+      # El callejero sin conexión va con los dos (docs/18 GM-04, DEC-093). Si Overpass no responde
+      # o no cabe en 200 kB, el committeado sigue valiendo: se avisa y el PR sale sin él.
+      - name: Regenerar el callejero
+        run: |
+          if ! npm run callejero; then
+            echo "::warning::No se pudo regenerar el callejero; sigue el que había."
+            echo "El callejero no se ha regenerado (Overpass o tamaño): sigue el que había." >> "$GITHUB_STEP_SUMMARY"
+            git checkout -- public/callejero.json datos/callejero.json 2>/dev/null || true
+          fi
+
       - name: PR con lo regenerado
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -30,6 +30,7 @@
     "comprobar-despliegue": "tsx scripts/comprobar-despliegue.ts",
     "guarda-produccion": "tsx scripts/guarda-produccion.ts",
     "zona": "tsx scripts/generar-zona.ts",
+    "callejero": "tsx scripts/generar-callejero.ts",
     "cargar-zona": "tsx scripts/cargar-zona.ts",
     "cargar-version-mapabase": "tsx scripts/cargar-version-mapabase.ts",
     "respaldo-fotos": "tsx scripts/respaldo-fotos.ts",

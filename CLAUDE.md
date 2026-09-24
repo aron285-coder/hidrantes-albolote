@@ -122,7 +122,7 @@ npx wrangler pages dev        # Pages Functions en :8788 (proxy configurado en v
 npm test                      # vitest
 npm run test:sql              # pgTAP contra la instancia local
 npm run e2e                   # Playwright (levanta todo lo anterior)
-npm run zona | mapabase | codigo | revertir | restaurar | promover-piloto | capturas | purgar-fotos
+npm run zona | callejero | mapabase | codigo | revertir | restaurar | promover-piloto | capturas | purgar-fotos
 npm run arranque              # solo la primera vez o para --rotar <secreto[,secreto]|todo>
 
 git switch develop && git pull

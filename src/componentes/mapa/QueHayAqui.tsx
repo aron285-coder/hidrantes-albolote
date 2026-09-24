@@ -1,7 +1,9 @@
 import { Crosshair, MapPinPlus, Ruler, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { BloqueCoordenadas, BotonCompartir } from './Coordenadas';
 import { Hoja } from '../Hoja';
+import { callejeroCargado, cargarCallejero } from '@/lib/callejero';
 import { type LatLng, parametroLatLng } from '@/lib/coordenadas';
 import { textoUbicacion } from '@/lib/compartir';
 import { rutaAltaEn } from '@/lib/propuestas';
@@ -13,12 +15,19 @@ const accion =
 /**
  * "¿Qué hay aquí?" (FR-72, docs/18 GM-02): coordenadas del sitio pulsado y lo que se puede hacer
  * desde él. En el móvil, hoja inferior; en tableta y ordenador, panel flotante como la ficha (FR-70).
- * Funciona sin cobertura. *Atrás* la cierra, porque el sitio va en la URL (`?aqui=lat,lng`).
+ * Funciona sin cobertura. *Atrás* la cierra, porque el sitio va en la URL (`?aqui=lat,lng`). Con el
+ * callejero cargado, nombra la calle si hay una a menos de 60 m (GM-04).
  */
 export function QueHayAqui({ l, alCerrar, enHoja }: { l: LatLng; alCerrar: () => void; enHoja: boolean }) {
   const navegar = useNavigate();
+  const [callejero, setCallejero] = useState(callejeroCargado);
+  useEffect(() => {
+    if (!callejero) void cargarCallejero().then((c) => c && setCallejero(c));
+  }, [callejero]);
+  const calle = callejero ? callejero.f.calleCercana(callejero.datos, l) : null;
   const contenido = (
     <div className="flex flex-col gap-2">
+      {calle && <p className="text-[15px] font-semibold">{T.aqui.junto(calle)}</p>}
       <BloqueCoordenadas l={l} />
       <div className="flex flex-col gap-3">
         {/* 1. Cercanos desde aquí (FR-74): el incidente, en este sitio. */}
@@ -41,7 +50,7 @@ export function QueHayAqui({ l, alCerrar, enHoja }: { l: LatLng; alCerrar: () =>
         </button>
         <BotonCompartir
           titulo={T.compartir.tituloUbicacion}
-          texto={textoUbicacion(l)}
+          texto={textoUbicacion(l, calle)}
           etiqueta={T.aqui.compartirUbicacion}
           className="w-full"
         />

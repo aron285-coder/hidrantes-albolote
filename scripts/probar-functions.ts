@@ -101,6 +101,15 @@ async function principal(): Promise<void> {
   const secretoMalo = await post('/api/push', {}, { 'X-Vigilancia': 'no-es-el-secreto' });
   comprobar(secretoMalo.estado === 401, '/api/push con un secreto de vigilancia incorrecto: 401');
 
+  // Nunca un proxy abierto hacia CartoCiudad (docs/18 GM-04, DEC-092).
+  const geo = await post('/api/geocodificar', { q: 'calle real 12' });
+  comprobar(
+    geo.estado === 401 && geo.cuerpo?.error === 'TOKEN_INVALIDO',
+    '/api/geocodificar sin token: 401 TOKEN_INVALIDO',
+  );
+  const geoInventado = await post('/api/geocodificar', { token: 'inventado-inventado-inventado', q: 'calle real 12' });
+  comprobar(geoInventado.estado === 401, '/api/geocodificar con token inventado: 401');
+
   if (fallos) abortar(`${fallos} comprobaciones fallidas`);
   log.ok('Pages Functions conformes con 05 §9');
 }

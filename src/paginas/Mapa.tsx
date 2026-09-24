@@ -2,12 +2,17 @@ import { Crosshair, Layers, LocateFixed, Minus, Plus, Ruler, Search, X } from 'l
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { BarraEstado } from '@/componentes/mapa/BarraEstado';
-import { BarraMedicion } from '@/componentes/mapa/BarraMedicion';
 import { Ficha } from '@/componentes/mapa/Ficha';
 import { Leyenda } from '@/componentes/mapa/Leyenda';
 import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
 import { type ControlMapa, MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
+import {
+  CabeceraGrupo,
+  ResultadoCoordenadas,
+  ResultadosCallesYDirecciones,
+} from '@/componentes/mapa/ResultadosLugares';
+import { BarraMedicion } from '@/componentes/mapa/BarraMedicion';
 import { PanelCercanos } from '@/componentes/mapa/PanelCercanos';
 import { QueHayAqui } from '@/componentes/mapa/QueHayAqui';
 import { leerLatLng, parametroLatLng } from '@/lib/coordenadas';
@@ -17,6 +22,8 @@ import { BandaEntorno } from '@/componentes/BandaEntorno';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { useAcceso, useConexion, useMapabase, useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { useAncho } from '@/hooks/ancho';
+import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
+import { type Enfoque, calleResaltada } from '@/lib/callejero';
 import { type Capa, NOMBRE_CAPA, atribucion, capaGuardada, enLinea, guardarCapa } from '@/lib/capas';
 import { nombreCaudal } from '@/lib/ficha';
 import { megas } from '@/lib/formato';
@@ -99,6 +106,14 @@ export function Mapa() {
 
   const punto = useMemo(() => puntos.find((p) => p.id === seleccionado) ?? null, [puntos, seleccionado]);
   const resultados = useMemo(() => (texto ? buscar(puntos, texto).slice(0, 8) : []), [puntos, texto]);
+  // En ordenador busca la lista de al lado; aquí, solo la búsqueda flotante del móvil y la tableta.
+  const lugares = useBusquedaLugares(ancho !== 'escritorio' ? texto : '');
+  const irADestino = useIrADestino();
+  const irA = (d: Destino) => {
+    setTexto('');
+    irADestino(d);
+  };
+  const conLugares = hayLugares(lugares);
   const pos = posicionActual();
   const sinRed = conexion === 'sin_cobertura';
 
@@ -162,6 +177,15 @@ export function Mapa() {
   useEffect(() => {
     if (punto) control.current?.centrar(punto.lat, punto.lng);
   }, [punto]);
+
+  // Al llegar desde un resultado de la búsqueda (FR-73): un sitio se centra a z18; una calle, se encuadra.
+  const enfoque = (ubicacion.state as { enfoque?: Enfoque } | null)?.enfoque;
+  useEffect(() => {
+    if (enfoque?.recuadro) {
+      control.current?.encuadrar(enfoque.recuadro, ancho === 'movil' ? Math.round(window.innerHeight * 0.4) : 0);
+    } else if (enfoque?.centro) control.current?.centrar(enfoque.centro.lat, enfoque.centro.lng, 18);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- una vez por navegación
+  }, [ubicacion.key]);
 
   // El botón "Mi posición" centra en cuanto llega la primera lectura.
   const centrarEnMi = useRef(false);
@@ -231,6 +255,7 @@ export function Mapa() {
             alSeleccionar={elegir}
             alPulsacionLarga={midiendo ? undefined : abrirAqui}
             aqui={midiendo ? null : aqui}
+            calle={calleResaltada()?.g ?? null}
             medicion={
               midiendo
                 ? {
@@ -278,33 +303,46 @@ export function Mapa() {
                 )}
               </label>
               {texto && (
-                <ul className="bg-papel rounded-tarjeta mt-1 max-h-72 overflow-y-auto shadow-lg">
-                  {resultados.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTexto('');
-                          elegir(p.id);
-                        }}
-                        className="border-linea flex min-h-11 w-full items-center gap-2 border-b px-2.5 text-left text-sm"
-                      >
-                        <MarcadorSvg punto={p} tamano={20} />
-                        <span className="truncate">
-                          <b className="font-datos">{p.codigo}</b> · {p.direccion ?? T.ficha.sinDireccion} ·{' '}
-                          {nombreCaudal[p.caudal]}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                  {resultados.length === 0 && <li className="text-texto-suave p-3 text-sm">{T.mapa.busquedaVacia}</li>}
-                </ul>
+                <div className="bg-papel rounded-tarjeta mt-1 max-h-72 overflow-y-auto shadow-lg">
+                  <ResultadoCoordenadas lugares={lugares} alElegir={irA} />
+                  {resultados.length > 0 && (
+                    <div role="group" aria-label={T.busqueda.puntos}>
+                      {conLugares && <CabeceraGrupo titulo={T.busqueda.puntos} />}
+                      <ul>
+                        {resultados.map((p) => (
+                          <li key={p.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setTexto('');
+                                elegir(p.id);
+                              }}
+                              className="border-linea flex min-h-13 w-full items-center gap-2 border-b px-2.5 text-left text-sm"
+                            >
+                              <MarcadorSvg punto={p} tamano={20} />
+                              <span className="truncate">
+                                <b className="font-datos">{p.codigo}</b> · {p.direccion ?? T.ficha.sinDireccion} ·{' '}
+                                {nombreCaudal[p.caudal]}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} />
+                  {resultados.length === 0 && !conLugares && (
+                    <p className="text-texto-suave p-3 text-sm">{T.mapa.busquedaVacia}</p>
+                  )}
+                </div>
               )}
             </div>
           )}
 
-          {/* Capas, mi posición y zoom: columna derecha (tableta: botones laterales) */}
+          {/* Capas, mi posición y zoom: columna derecha (tableta: botones laterales). Con los resultados de
+              la búsqueda abiertos se quita: la lista la taparía a medias (06 §9, tamaño de los objetivos). */}
           <div
+            hidden={!!texto && ancho !== 'escritorio'}
             className={`absolute right-2 z-[400] flex flex-col gap-2 ${ancho === 'escritorio' ? 'top-2' : 'top-16'}`}
           >
             <Control etiqueta={T.mapa.capas} onClick={() => setMenuCapas(true)}>

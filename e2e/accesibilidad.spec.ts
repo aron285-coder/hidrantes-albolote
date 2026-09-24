@@ -179,6 +179,28 @@ test.describe('app del voluntario', () => {
     await expect(page.getByRole('region', { name: T.medir.titulo })).toBeVisible();
     await auditar(page, 'medir');
     await geometria(page, 'medir', { movil: !!isMobile });
+    // docs/18 GM-04: la búsqueda con puntos, calles y una dirección.
+    await page.route('**/api/geocodificar', (r) =>
+      r.fulfill({
+        json: {
+          resultados: [
+            {
+              etiqueta: 'Calle Real, 12, Albolote',
+              tipo: 'portal',
+              lat: 37.231929,
+              lng: -3.657528,
+              municipio: 'albolote',
+            },
+          ],
+          fuente: 'CartoCiudad (IGN/CNIG)',
+        },
+      }),
+    );
+    await page.goto('/');
+    await page.getByRole('searchbox', { name: T.mapa.buscar }).fill('real 12');
+    await expect(page.getByRole('group', { name: T.busqueda.direcciones }).getByRole('button')).toBeVisible();
+    await auditar(page, 'búsqueda');
+    await geometria(page, 'búsqueda', { movil: !!isMobile });
   });
 
   test('formulario de alta, que es el que más campos tiene', async ({ page, isMobile }) => {

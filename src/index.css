@@ -185,6 +185,10 @@ h3 {
 path.linea-incidente {
   stroke: var(--linea-incidente);
 }
+/* Calle resaltada de la búsqueda (06 §4.7): el mismo color que las líneas del incidente. */
+path.linea-calle {
+  stroke: var(--linea-incidente);
+}
 /* Medición (06 §4.7): línea de 3 px y vértices de papel con borde, en claro y en oscuro. */
 path.linea-medicion {
   stroke: var(--anillo-seleccion);

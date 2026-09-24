@@ -1,0 +1,85 @@
+{
+  "osm3s": { "timestamp_osm_base": "2026-09-23T00:00:00Z" },
+  "elements": [
+    {
+      "type": "way",
+      "id": 1,
+      "tags": { "highway": "residential", "name": "Calle Real" },
+      "geometry": [
+        { "lat": 37.231, "lon": -3.658 },
+        { "lat": 37.2315, "lon": -3.6575 },
+        { "lat": 37.232, "lon": -3.657 }
+      ]
+    },
+    {
+      "type": "way",
+      "id": 2,
+      "tags": { "highway": "residential", "name": "Calle Real" },
+      "geometry": [
+        { "lat": 37.233, "lon": -3.656 },
+        { "lat": 37.2325, "lon": -3.6565 },
+        { "lat": 37.232, "lon": -3.657 }
+      ]
+    },
+    {
+      "type": "way",
+      "id": 3,
+      "tags": { "highway": "residential", "name": "Calle Real" },
+      "geometry": [
+        { "lat": 37.273, "lon": -3.6225 },
+        { "lat": 37.2735, "lon": -3.622 }
+      ]
+    },
+    {
+      "type": "way",
+      "id": 4,
+      "tags": { "highway": "residential", "name": "Calle de Fuera" },
+      "geometry": [
+        { "lat": 37.1, "lon": -3.6 },
+        { "lat": 37.1005, "lon": -3.5995 }
+      ]
+    },
+    {
+      "type": "way",
+      "id": 5,
+      "tags": { "highway": "footway", "name": "Sendero del Arroyo" },
+      "geometry": [
+        { "lat": 37.23, "lon": -3.659 },
+        { "lat": 37.2302, "lon": -3.6588 }
+      ]
+    },
+    {
+      "type": "way",
+      "id": 6,
+      "tags": { "highway": "footway", "name": "Paseo del Río" },
+      "geometry": [
+        { "lat": 37.229, "lon": -3.659 },
+        { "lat": 37.2292, "lon": -3.6585 }
+      ]
+    },
+    {
+      "type": "way",
+      "id": 7,
+      "tags": { "highway": "proposed", "name": "Calle Nueva" },
+      "geometry": [
+        { "lat": 37.228, "lon": -3.659 },
+        { "lat": 37.2282, "lon": -3.6585 }
+      ]
+    },
+    { "type": "node", "id": 8, "lat": 37.2306, "lon": -3.6571, "tags": { "place": "town", "name": "Albolote" } },
+    {
+      "type": "way",
+      "id": 9,
+      "center": { "lat": 37.234, "lon": -3.654 },
+      "tags": { "amenity": "school", "name": "Colegio Público" }
+    },
+    {
+      "type": "node",
+      "id": 10,
+      "lat": 37.2341,
+      "lon": -3.6541,
+      "tags": { "amenity": "school", "name": "Colegio Público" }
+    },
+    { "type": "node", "id": 11, "lat": 37.1, "lon": -3.6, "tags": { "place": "village", "name": "Pueblo de Fuera" } }
+  ]
+}

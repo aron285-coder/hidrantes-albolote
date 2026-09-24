@@ -179,3 +179,22 @@ test.describe('presupuesto de rendimiento @rendimiento', () => {
     expect(Date.now() - empezado).toBeLessThan(1000);
   });
 });
+
+// TR-117: el callejero no forma parte del arranque. El Service Worker lo precachea por su cuenta; la
+// página solo lo pide cuando se usa la búsqueda.
+test('el callejero no se pide al arrancar, solo al buscar (TR-117) @rendimiento', async ({ page }) => {
+  const pedidos: string[] = [];
+  page.on('request', (r) => {
+    if (r.url().endsWith('/callejero.json')) pedidos.push(r.url());
+  });
+  await conSesion(page);
+  await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+  await page.goto('/');
+  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  expect(pedidos).toEqual([]);
+  const callejero = page.waitForResponse((r) => r.url().endsWith('/callejero.json'));
+  await page.getByRole('searchbox', { name: T.mapa.buscar }).fill('real');
+  await callejero;
+  expect(pedidos).toHaveLength(1);
+});

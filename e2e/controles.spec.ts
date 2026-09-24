@@ -53,6 +53,8 @@ interface Pantalla {
   /** Algo que solo está cuando la pantalla ha terminado de montarse. */
   listo: (page: Page) => Locator;
   sesion?: boolean;
+  /** Lo que hay que hacer, ya montada, para llegar al estado que se recorre (escribir en la búsqueda). */
+  preparar?: (page: Page) => Promise<void>;
 }
 
 const PANTALLAS: Pantalla[] = [
@@ -68,6 +70,32 @@ const PANTALLAS: Pantalla[] = [
     nombre: 'incidente',
     ruta: '/?incidente=37.230500,-3.656000',
     listo: (p) => p.getByRole('region', { name: T.incidente.titulo }),
+  },
+  // docs/18 GM-04: la búsqueda con coordenadas, puntos, calles y una dirección simulada.
+  {
+    nombre: 'búsqueda',
+    ruta: '/',
+    listo: (p) => p.getByTestId('mapa'),
+    preparar: async (p) => {
+      await p.route('**/api/geocodificar', (r) =>
+        r.fulfill({
+          json: {
+            resultados: [
+              {
+                etiqueta: 'Calle Real, 12, Albolote',
+                tipo: 'portal',
+                lat: 37.231929,
+                lng: -3.657528,
+                municipio: 'albolote',
+              },
+            ],
+            fuente: 'CartoCiudad (IGN/CNIG)',
+          },
+        }),
+      );
+      await p.getByRole('searchbox', { name: T.mapa.buscar }).fill('real 12');
+      await expect(p.getByRole('group', { name: T.busqueda.direcciones }).getByRole('button')).toBeVisible();
+    },
   },
   // docs/18 GM-02: la hoja de la pulsación larga.
   {
@@ -124,6 +152,7 @@ const cuenta = (control: Locator) =>
 async function abrir(page: Page, pantalla: Pantalla) {
   await page.goto(pantalla.ruta);
   await expect(pantalla.listo(page)).toBeVisible();
+  await pantalla.preparar?.(page);
   // El mapa sigue pintando teselas un rato; sin esta pausa, el "algo ha cambiado" podría ser el mapa
   // y no el control que se acaba de pulsar.
   await page.waitForTimeout(300);

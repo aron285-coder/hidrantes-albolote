@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sqlVersionMapabase } from './cargar-version-mapabase.ts';
+import { sqlVersionCallejero, sqlVersionMapabase } from './cargar-version-mapabase.ts';
 import { ErrorDeScript } from './lib/comun.ts';
 
 describe('versión del mapa base en config (RV-21, FR-143)', () => {
@@ -13,5 +13,11 @@ describe('versión del mapa base en config (RV-21, FR-143)', () => {
   });
   it('sin versión no escribe nada', () => {
     expect(() => sqlVersionMapabase({ version: '' })).toThrow(ErrorDeScript);
+    expect(() => sqlVersionCallejero({ version: '' })).toThrow(ErrorDeScript);
+  });
+  it('también la del callejero (docs/18 GM-04)', () => {
+    expect(sqlVersionCallejero({ version: '20260923' })).toContain(
+      "('version_callejero', to_jsonb('20260923'::text), 'despliegue')",
+    );
   });
 });
