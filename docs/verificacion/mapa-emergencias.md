@@ -31,6 +31,7 @@ prueba no existían.
 - Los seis PR se fusionaron en ese orden, cada uno con la CI completa en verde.
 - JS inicial: 229,5 kB con el bloque entero, frente a 219,5 kB en `develop` antes del bloque: +10,0 kB, medido con `npm run presupuesto` sin `.env.local` (§5).
 - El callejero no cuenta en el JS inicial: es un JSON aparte y se precachea.
+- `/api/geocodificar` contra CartoCiudad real, desde local, el 24 sep 2026: cuatro consultas con el resultado esperado, en 130 a 410 ms (DEC-092).
 
 ## 3. Casos de 10 ejecutados
 

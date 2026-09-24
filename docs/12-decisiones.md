@@ -691,6 +691,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
     - un candidato `callejero` llega con `lat: 0, lng: 0`, no sin ellas: se trata igual que si faltaran y se pide `find?id=&type=callejero`, que devuelve un objeto con `lat`, `lng` y la geometría;
     - `address` viene en mayúsculas ("CALLE REAL 12, Albolote"): la Function la da como "Calle Real, 12, Albolote";
     - sin resultados no se guarda en la caché: una calle nueva puede aparecer al día siguiente.
+    - **probado desde local el 24 sep 2026** con `geocodificar()` de la Function contra CartoCiudad real: "calle real 12", "avenida de andalucia 31", "calle real" y "juncaril" dieron el portal, los dos portales (Albolote y Calicasas), la calle (vía `find`) y cinco lugares, en 130 a 410 ms.
   - **Llamada real** desde este equipo: `candidates?q=calle real 12 albolote&limit=3` devolvió `CALLE REAL 12, Albolote`, `type: portal`, `lat 37.2319`, `lng −3.6575`.
   - **Licencia:** según el propio documento de servicios, se pueden usar "de modo libre y gratuito para cualquier uso". La única obligación es mencionar procedencia y autoría, bajo la licencia CC BY 4.0 del SCNE.
 - **Decisión:**
