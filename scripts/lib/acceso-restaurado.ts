@@ -5,9 +5,11 @@
 // administradores tal como estaban: el código comunicado al grupo dejaría de valer, los móviles
 // revocados volverían a entrar y un administrador dado de baja volvería a estar activo.
 //
-// Se lee en memoria con el esquema vivo, antes de restaurar, y se repone después de restaurar y
-// migrar, en una transacción aparte. El SQL viaja a psql por la entrada estándar: ningún archivo
-// con hashes ni correos en disco. Solo usa columnas de 0001, que no han cambiado.
+// Se lee en memoria con el esquema vivo, antes de restaurar, y se repone **dentro** de la
+// transacción de la restauración, antes del commit: si después falla una migración, lo de antes no
+// vuelve a valer (docs/19 RV-55). Tras migrar se comprueba que sigue igual (sqlComprobarAcceso).
+// Va en el guion temporal de la restauración, que se borra al acabar (docs/18 RV-37). Solo usa
+// columnas de 0001, que no han cambiado.
 
 /** Lo que se lee antes de restaurar: cada campo es el texto JSON que devuelve psql, o null. */
 export interface AccesoActual {
@@ -50,11 +52,12 @@ function literal(json: string): string {
 export const sinAcceso = (a: AccesoActual) => !a.config && !a.dispositivos && !a.administradores;
 
 /**
- * La transacción que repone el acceso de ahora sobre lo restaurado. Cada parte solo va si se leyó:
- * sin administradores leídos no se da de baja a nadie.
+ * Lo que repone el acceso de ahora sobre lo restaurado, sin transacción propia: va dentro de la de
+ * la restauración, antes del commit (docs/19 RV-55). Cada parte solo va si se leyó: sin
+ * administradores leídos no se da de baja a nadie.
  */
-export function sqlReponerAcceso(a: AccesoActual): string {
-  const partes: string[] = ['begin;'];
+export function sqlReponerAccesoCuerpo(a: AccesoActual): string {
+  const partes: string[] = [];
   if (a.config) {
     partes.push(`
 -- El código de ahora, no el del volcado.
@@ -88,6 +91,39 @@ on conflict (email) do update set activo = excluded.activo;
 update hidrantes.administradores g set activo = false
  where g.activo and not exists (select 1 from acceso_administradores x where x.email = g.email);`);
   }
-  partes.push('commit;');
   return partes.join('\n');
+}
+
+/** La misma reposición en una transacción propia. */
+export const sqlReponerAcceso = (a: AccesoActual): string =>
+  ['begin;', sqlReponerAccesoCuerpo(a), 'commit;'].filter(Boolean).join('\n');
+
+/**
+ * Tras migrar, que el acceso sigue siendo el de antes (docs/19 RV-55): el hash del código, los tokens
+ * revocados siguen revocados (y ninguno restaurado vuelve a valer si no valía) y los administradores
+ * tienen el mismo `activo`. Devuelve una línea con lo que no cuadra, separado por comas; vacía, todo
+ * bien. Solo compara lo que se leyó.
+ */
+export function sqlComprobarAcceso(a: AccesoActual): string {
+  const partes: string[] = [];
+  if (a.config) {
+    partes.push(`case when (select valor from hidrantes.config where clave = 'codigo_acceso_hash')
+        is distinct from (${literal(a.config)} -> 'codigo_acceso_hash') then 'el código de acceso' end`);
+  }
+  if (a.dispositivos) {
+    partes.push(`case when exists (
+        select 1 from hidrantes.dispositivos d
+         where d.revocado_en is null
+           and not exists (select 1 from jsonb_to_recordset(${literal(a.dispositivos)}) as x(token_hash text, revocado_en timestamptz)
+                            where x.token_hash = d.token_hash and x.revocado_en is null))
+      then 'los móviles revocados' end`);
+  }
+  if (a.administradores) {
+    partes.push(`case when exists (
+        select 1 from hidrantes.administradores g
+          left join jsonb_to_recordset(${literal(a.administradores)}) as x(email text, activo boolean) on x.email = g.email
+         where g.activo is distinct from coalesce(x.activo, false))
+      then 'los administradores' end`);
+  }
+  return partes.length ? `select concat_ws(', ', ${partes.join(',\n  ')});` : "select '';";
 }

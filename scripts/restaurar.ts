@@ -32,10 +32,12 @@ import {
   leerAcceso,
   SQL_LEER_ACCESO,
   sinAcceso,
+  sqlComprobarAcceso,
   sqlReponerAcceso,
+  sqlReponerAccesoCuerpo,
 } from './lib/acceso-restaurado.ts';
 import { leerSecuencias, SQL_LEER_SECUENCIAS, sqlSecuenciasAlMenos } from './lib/secuencias.ts';
-import { LOCAL_MIGRADOR, migrarPendientes } from './migrar.ts';
+import { LOCAL_MIGRADOR, dirMigraciones, migrarPendientes } from './migrar.ts';
 
 export { sqlReponerAcceso, sqlSecuenciasAlMenos };
 
@@ -162,10 +164,26 @@ export function confirmacionAutomatica(entorno: string, confirmar: string | unde
 }
 
 /**
- * Todo en una transacción: si el volcado falla a la mitad, la base se queda como estaba en vez de
- * quedarse a medio restaurar.
+ * Lo que hay que hacer a mano si la restauración se queda a medias después del commit. Siempre es el
+ * último mensaje (docs/19 RV-55).
  */
-export function sqlRestauracion(volcado: string, nombreArchivo: string, actor: string): string {
+export const ACCIONES_MANUALES =
+  'Haz ahora, a mano y en este orden: 1) genera un código nuevo en Ajustes con «Revocar todos los dispositivos»; 2) revisa Administradores en Ajustes y da de baja a quien no deba estar; 3) avisa al grupo del código nuevo (15 §5.3).';
+
+/** Lo que se repone dentro de la misma transacción que el volcado (docs/19 RV-55). */
+export interface Reponer {
+  previas: { hid: number; boc: number };
+  acceso: AccesoActual | null;
+}
+
+/**
+ * Todo en una transacción: si el volcado falla a la mitad, la base se queda como estaba en vez de
+ * quedarse a medio restaurar. Las secuencias y el acceso de ahora van **dentro**, antes del commit:
+ * si después falla una migración, el código viejo, los móviles revocados y los administradores de
+ * baja no vuelven a valer, y ningún código se repite (docs/19 RV-55). Solo usan columnas de 0001, así
+ * que valen con cualquier volcado.
+ */
+export function sqlRestauracion(volcado: string, nombreArchivo: string, actor: string, reponer?: Reponer): string {
   return [
     'begin;',
     CREAR_SI_FALTA,
@@ -174,6 +192,12 @@ export function sqlRestauracion(volcado: string, nombreArchivo: string, actor: s
     // Época nueva: los móviles que la vean distinta repiten una sincronización completa, porque lo
     // restaurado vuelve con actualizado_en antiguos que la incremental no recogería (RV-06).
     EPOCA_NUEVA,
+    ...(reponer
+      ? [
+          sqlSecuenciasAlMenos(reponer.previas.hid, reponer.previas.boc),
+          reponer.acceso && !sinAcceso(reponer.acceso) ? sqlReponerAccesoCuerpo(reponer.acceso) : '',
+        ]
+      : []),
     // Que conste quién y cuándo, en el propio registro restaurado (11 §6, 15 §5.3), si el volcado
     // lo admite; si no, tras migrar.
     auditoriaCondicional(actor, nombreArchivo),
@@ -204,13 +228,21 @@ export const ignoradoPorGit = (ruta: string): boolean =>
 /** Una carpeta propia en el directorio temporal del sistema, nunca bajo el repositorio. */
 export const carpetaTemporal = (): string => mkdtempSync(path.join(os.tmpdir(), 'hidrantes-'));
 
-/** Lo que hay ahora; si no se puede leer (tablas rotas), se avisa y no se repone nada. */
-function accesoActual(url: string): AccesoActual | null {
+/**
+ * Lo que hay ahora. Si el esquema existe pero no se puede leer, **no se restaura**: después no habría
+ * forma de reponer el código, los móviles revocados ni los administradores (docs/19 RV-55). No es lo
+ * mismo que no haber esquema, que no tiene nada que reponer.
+ */
+export function motivoSinAcceso(codigo: number): string | null {
+  return codigo === 0
+    ? null
+    : 'No se ha podido leer el acceso actual (código, móviles y administradores): no se restaura, porque después no se podría reponer y volverían a valer el código y los móviles del volcado. Revisa la conexión y repite.';
+}
+
+function accesoActual(url: string): AccesoActual {
   const r = psql(url, SQL_LEER_ACCESO, { tuplas: true });
-  if (r.codigo !== 0) {
-    log.aviso('No se ha podido leer el acceso actual: tras restaurar, genera un código nuevo y revoca los móviles.');
-    return null;
-  }
+  const motivo = motivoSinAcceso(r.codigo);
+  if (motivo) abortar(motivo);
   const a = leerAcceso(r.salida);
   log.info(
     `acceso actual leído: ${a.dispositivos ? JSON.parse(a.dispositivos).length : 0} dispositivos, ${a.administradores ? JSON.parse(a.administradores).length : 0} administradores`,
@@ -296,50 +328,69 @@ async function principal(): Promise<void> {
   // restaura, y se borra aunque psql falle (docs/18 RV-37).
   const carpeta = carpetaTemporal();
   const guion = path.join(carpeta, 'restauracion.sql');
+  // Un Ctrl+C o un SIGTERM a mitad no deja el volcado descifrado en el disco (docs/18 RV-37, RV-55).
+  const alSenal = () => {
+    rmSync(carpeta, { recursive: true, force: true });
+    process.exit(130);
+  };
+  process.on('SIGINT', alSenal);
+  process.on('SIGTERM', alSenal);
   let r: Resultado;
   try {
-    writeFileSync(guion, sqlRestauracion(volcado, path.basename(ruta), actor), { mode: 0o600 });
+    writeFileSync(guion, sqlRestauracion(volcado, path.basename(ruta), actor, { previas, acceso }), { mode: 0o600 });
     r = psql(url, `\\i '${guion.replaceAll('\\', '/')}'`);
   } finally {
     rmSync(carpeta, { recursive: true, force: true });
+    process.off('SIGINT', alSenal);
+    process.off('SIGTERM', alSenal);
   }
   if (r.codigo !== 0)
     abortar(`La restauración ha fallado y no se ha cambiado nada:\n${errorSeguro(r.error || r.salida)}`);
 
   log.ok(`Restaurado: ${cuenta(url, 'puntos')} puntos y ${cuenta(url, 'propuestas')} propuestas.`);
-
-  // Un volcado viejo vuelve con el esquema de entonces: se lleva al de hoy con las migraciones que
-  // le falten (RV-13).
-  log.paso('Migraciones pendientes del volcado');
-  const aplicadas = migrarPendientes(url);
-  log.info(aplicadas.length ? `aplicadas: ${aplicadas.join(', ')}` : 'ninguna: el volcado ya estaba al día');
-
-  const s = psql(url, sqlSecuenciasAlMenos(previas.hid, previas.boc));
-  if (s.codigo !== 0) abortar(`No se han podido ajustar las secuencias de los códigos: ${errorSeguro(s.error)}`);
-  const ahora = leerSecuencias(psql(url, SQL_LEER_SECUENCIAS, { tuplas: true }).salida);
-  log.ok(`secuencias tras restaurar: HID ${ahora.hid} · BOC ${ahora.boc} (ningún código se reutiliza)`);
-
   if (!acceso || sinAcceso(acceso)) {
     log.info('no había acceso que reponer: el esquema no existía antes de restaurar');
   } else {
-    const a = psql(url, sqlReponerAcceso(acceso));
-    if (a.codigo !== 0) {
-      abortar(
-        `Restaurado, pero no se ha podido reponer el acceso de antes: genera un código nuevo con "Revocar todos los dispositivos" y revisa Administradores en Ajustes.\n${errorSeguro(a.error)}`,
-      );
-    }
-    log.ok('acceso de antes repuesto: el código, los móviles revocados y los administradores de ahora');
+    log.ok(
+      'acceso de antes repuesto en la misma transacción: el código, los móviles revocados y los administradores de ahora',
+    );
   }
 
-  const anotada = psql(
-    url,
-    `select count(*) from hidrantes.registro where accion = 'restauracion_respaldo' and momento >= '${inicio}';`,
-    { tuplas: true },
-  ).salida.trim();
-  if (anotada === '0') {
-    const a = psql(url, insertAuditoria(actor, path.basename(ruta)));
-    if (a.codigo !== 0) log.aviso(`No se ha podido anotar la restauración en el registro: ${errorSeguro(a.error)}`);
-    else log.ok('restauración anotada en el registro (tras migrar: el volcado era anterior a 0010)');
+  // Lo que va tras el commit: si algo falla aquí, lo restaurado ya está y el acceso de ahora también,
+  // pero hay que decir qué hacer. El último mensaje siempre es ese (docs/19 RV-55).
+  try {
+    // Un volcado viejo vuelve con el esquema de entonces: se lleva al de hoy con las migraciones que
+    // le falten (RV-13).
+    log.paso('Migraciones pendientes del volcado');
+    const aplicadas = migrarPendientes(url, undefined, dirMigraciones(entorno === 'local'));
+    log.info(aplicadas.length ? `aplicadas: ${aplicadas.join(', ')}` : 'ninguna: el volcado ya estaba al día');
+
+    // Otra vez, por si una migración tocó algo: es idempotente.
+    const s = psql(url, sqlSecuenciasAlMenos(previas.hid, previas.boc));
+    if (s.codigo !== 0) abortar(`No se han podido ajustar las secuencias de los códigos: ${errorSeguro(s.error)}`);
+    const ahora = leerSecuencias(psql(url, SQL_LEER_SECUENCIAS, { tuplas: true }).salida);
+    log.ok(`secuencias tras restaurar: HID ${ahora.hid} · BOC ${ahora.boc} (ningún código se reutiliza)`);
+
+    if (acceso && !sinAcceso(acceso)) {
+      const c = psql(url, sqlComprobarAcceso(acceso), { tuplas: true });
+      const distinto = c.codigo === 0 ? c.salida.trim() : 'no se ha podido comprobar';
+      if (distinto) abortar(`Tras migrar, el acceso no es el de antes: ${distinto}.`);
+      log.ok('comprobado tras migrar: el mismo código, los mismos móviles revocados y los mismos administradores');
+    }
+
+    const anotada = psql(
+      url,
+      `select count(*) from hidrantes.registro where accion = 'restauracion_respaldo' and momento >= '${inicio}';`,
+      { tuplas: true },
+    ).salida.trim();
+    if (anotada === '0') {
+      const a = psql(url, insertAuditoria(actor, path.basename(ruta)));
+      if (a.codigo !== 0) log.aviso(`No se ha podido anotar la restauración en el registro: ${errorSeguro(a.error)}`);
+      else log.ok('restauración anotada en el registro (tras migrar: el volcado era anterior a 0010)');
+    }
+  } catch (e) {
+    const motivo = e instanceof Error ? e.message : String(e);
+    abortar(`Restaurado, pero no ha terminado: ${motivo}\n\n${ACCIONES_MANUALES}`);
   }
   log.info('Comprueba el panel (Inventario y Registro) y la app en un móvil (15 §5.3, pasos 6 a 8).');
 }

@@ -7,7 +7,9 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ErrorDeScript, RAIZ } from './lib/comun.ts';
 import {
+  ACCIONES_MANUALES,
   LIMPIAR_ESQUEMA,
+  motivoSinAcceso,
   REFS,
   carpetaTemporal,
   confirmacionAutomatica,
@@ -22,7 +24,8 @@ import {
   tocaPublic,
 } from './restaurar.ts';
 import { SQL_SECUENCIAS } from './promover-piloto.ts';
-import { leerAcceso, sinAcceso } from './lib/acceso-restaurado.ts';
+import { leerAcceso, sinAcceso, sqlComprobarAcceso } from './lib/acceso-restaurado.ts';
+import { dirMigraciones } from './migrar.ts';
 import { archivosDe, sinCarpetaRaiz } from './restaurar-fotos.ts';
 
 const POOLER =
@@ -277,5 +280,72 @@ describe('el volcado y el guion, fuera del repositorio', () => {
       expect(ignoradoPorGit(path.join(RAIZ, r)), r).toBe(true);
     }
     expect(ignoradoPorGit(path.join(RAIZ, 'supabase/migrations/0001_esquema.sql'))).toBe(false);
+  });
+});
+
+// docs/19 RV-55: si algo falla tras el commit, el acceso de antes no puede volver a valer.
+describe('restauración que falla después del commit (RV-55)', () => {
+  const acceso = {
+    config: JSON.stringify({ codigo_acceso_hash: '$2a$10$nuevo' }),
+    dispositivos: JSON.stringify([
+      { dispositivo_id: null, token_hash: 'h1', emitido_en: null, ultimo_uso: null, revocado_en: null },
+    ]),
+    administradores: JSON.stringify([{ email: 'jefe@example.org', activo: true, creado_en: null, creado_por: 'x' }]),
+  };
+  const volcado = ['CREATE TABLE hidrantes.puntos (id uuid);', ''].join('\n');
+  const sql = sqlRestauracion(volcado, 'h.sql', 'restauracion prod', { previas: { hid: 57, boc: 12 }, acceso });
+  const commit = sql.lastIndexOf('commit;');
+
+  it('la reposición del acceso y las secuencias van dentro de la transacción, antes del commit', () => {
+    const volcadoEn = sql.indexOf('CREATE TABLE hidrantes.puntos');
+    const secuencias = sql.indexOf("setval('hidrantes.seq_codigo_hidrante'");
+    const codigo = sql.indexOf('insert into hidrantes.config (clave, valor, actualizado_por)\nselect c.key');
+    const moviles = sql.indexOf('update hidrantes.dispositivos d set revocado_en = now()');
+    const admins = sql.indexOf('update hidrantes.administradores g set activo = false');
+    for (const i of [secuencias, codigo, moviles, admins]) {
+      expect(i).toBeGreaterThan(volcadoEn);
+      expect(i).toBeLessThan(commit);
+    }
+    expect(sql).toContain('greatest((select last_value from hidrantes.seq_codigo_hidrante), 57');
+    // Una sola transacción: ni begin ni commit de más dentro.
+    expect(sql.match(/^begin;$/gm)).toHaveLength(1);
+    expect(sql.match(/^commit;$/gm)).toHaveLength(1);
+  });
+
+  it('sin esquema antes (nada que reponer), solo las secuencias', () => {
+    const vacio = sqlRestauracion(volcado, 'h.sql', 'x', { previas: { hid: 0, boc: 0 }, acceso: null });
+    expect(vacio).toContain("setval('hidrantes.seq_codigo_boca'");
+    expect(vacio).not.toContain('update hidrantes.dispositivos d set revocado_en');
+  });
+
+  it('si falla la lectura del acceso, se aborta sin restaurar; si se lee, se sigue', () => {
+    expect(motivoSinAcceso(1)).toMatch(/no se restaura/);
+    expect(motivoSinAcceso(0)).toBeNull();
+  });
+
+  it('el texto de las acciones manuales dice las tres cosas', () => {
+    expect(ACCIONES_MANUALES).toContain('Revocar todos los dispositivos');
+    expect(ACCIONES_MANUALES).toContain('Administradores');
+    expect(ACCIONES_MANUALES).toContain('avisa al grupo');
+  });
+
+  it('la comprobación tras migrar mira el código, los móviles y los administradores', () => {
+    const c = sqlComprobarAcceso(acceso);
+    expect(c).toContain("clave = 'codigo_acceso_hash'");
+    expect(c).toContain("'los móviles revocados'");
+    expect(c).toContain("'los administradores'");
+    expect(sqlComprobarAcceso({ config: null, dispositivos: null, administradores: null })).toBe("select '';");
+  });
+
+  it('MIGRACIONES_DIR solo vale contra el Supabase local', () => {
+    const antes = process.env.MIGRACIONES_DIR;
+    try {
+      process.env.MIGRACIONES_DIR = '/tmp/migraciones-con-fallo';
+      expect(dirMigraciones(true)).toBe('/tmp/migraciones-con-fallo');
+      expect(dirMigraciones(false)).toBeUndefined();
+    } finally {
+      if (antes === undefined) delete process.env.MIGRACIONES_DIR;
+      else process.env.MIGRACIONES_DIR = antes;
+    }
   });
 });
