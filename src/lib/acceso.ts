@@ -82,9 +82,34 @@ const CLAVE_CONFIRMADA = 'jefatura_confirmada';
 const confirmada = () => leer<JefaturaConfirmada>(CLAVE_CONFIRMADA);
 const olvidarConfirmada = () => borrar(CLAVE_CONFIRMADA);
 
-/** Quita ?code=… de la dirección después de canjearlo. */
-function limpiarDireccion(): void {
-  if (location.search) history.replaceState(history.state, '', location.pathname);
+/** Los parámetros con los que vuelve el inicio de sesión de Google (OAuth). */
+const PARAMETROS_OAUTH = ['code', 'state', 'error', 'error_code', 'error_description'];
+
+/**
+ * La dirección sin los parámetros de la vuelta de OAuth, o null si no trae ninguno. Conserva el
+ * resto (`?incidente=`, `?p=`, `?aqui=`…) y el hash (docs/19 RV-57).
+ */
+export function direccionSinOauth(ruta: string, busqueda: string, hash: string): string | null {
+  // Por pares, sin volver a codificar: lo demás queda tal cual estaba.
+  const pares = busqueda.replace(/^\?/, '').split('&').filter(Boolean);
+  const esOauth = (par: string) => PARAMETROS_OAUTH.includes(decodeURIComponent(par.split('=')[0] ?? ''));
+  if (!pares.some(esOauth)) return null;
+  const resto = pares.filter((par) => !esOauth(par)).join('&');
+  return `${ruta}${resto ? `?${resto}` : ''}${hash}`;
+}
+
+let direccionLimpia = false;
+
+/**
+ * Quita de la dirección los parámetros de OAuth después de canjearlos, **una sola vez**, al arrancar.
+ * Antes borraba todos los parámetros en cada comprobación (también en los reintentos de FR-168), a
+ * espaldas de React Router: jefatura perdía `?incidente=`, `?p=` y `?aqui=` al recargar (RV-57).
+ */
+export function limpiarDireccion(): void {
+  if (direccionLimpia) return;
+  direccionLimpia = true;
+  const limpia = direccionSinOauth(location.pathname, location.search, location.hash);
+  if (limpia !== null) history.replaceState(history.state, '', limpia);
 }
 
 /**
@@ -241,4 +266,5 @@ export function iniciarAcceso(): void {
 export function _reiniciarAcceso(): void {
   estado = inicial();
   oyentes.clear();
+  direccionLimpia = false;
 }
