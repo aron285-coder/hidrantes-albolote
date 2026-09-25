@@ -27,7 +27,7 @@ Estado al 23 de septiembre de 2026. La referencia completa está en `00-README.m
 | 19 | `19-paridad-avisos-y-revision-3.md` · producción al día con staging (P-01 a P-04), avisos con un Worker y tercera revisión (RV-52 a RV-70) | vivo, hasta cerrar los bloques P, A y B |
 | 20 | `20-revision-en-vivo.md` · revisión sobre staging y producción en vivo (P-10, RV-71 a RV-80), la primera en paralelo con dos sesiones | hecho el 25 sep 2026, en staging y producción (0.6.3) |
 | 21 | `21-avisos-controles-y-herramientas.md` · avisos que no se activan (RV-81, RV-84, RV-86), controles del mapa (RV-82) y herramientas de Claude Code (SK-01 a SK-03), en tres sesiones | sustituida por 22 para lo pendiente |
-| 22 | `22-pendientes-y-mantenimiento.md` · lo pendiente de 21 (RV-81 a RV-88) y mantenimiento: Ubuntu 26 en Actions (RV-89), archivos sueltos de los tests (RV-90), huecos de los hooks (RV-91), tareas en vivo en Salud del sistema (RV-92), vigilancia dos veces al día (RV-93) y primera purga de fotos (RV-94) | vivo |
+| 22 | `22-pendientes-y-mantenimiento.md` · lo pendiente de 21 (RV-81 a RV-88) y mantenimiento: Ubuntu 26 en Actions (RV-89), archivos sueltos de los tests (RV-90), huecos de los hooks (RV-91), tareas en vivo en Salud del sistema (RV-92), vigilancia dos veces al día (RV-93) y primera purga de fotos (RV-94) | hecho el 25 sep 2026, en staging y producción (0.6.4); quedan comprobaciones del 27 y 28-09 |
 | — | `trabajo-en-paralelo.md` · cómo repartir una especificación grande entre tres sesiones de Claude Code (Ops, Backend, Frontend), y PAR-01 (DEC-100) | vivo |
 | — | `entornos.md` · lo que dejó el arranque (refs, buckets, secretos por nombre) | vivo |
 | — | `verificacion/fase-N.md` · qué se ejecutó al cerrar cada fase y con qué resultado | vivo |
