@@ -866,6 +866,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   4. **Pantallas:** la app y el panel enseñan cada línea como `[versión] · [texto]`, con la versión de esa línea. La app mantiene encima "Versión [x]" de la instalada.
   5. **Compatibilidad:** `normalizarNovedades()` (`src/lib/novedades.ts`) lee también el formato antiguo `string[]`, con la `version` de arriba. Es el que hay en git (va una versión por detrás, DEC-087) y el de un build a medias: el typecheck pasa sin regenerar el JSON, así que el archivo de git no se ha tocado.
   6. **FR-167** dice ahora "lo último de cada versión, con su número" (01 v1.5).
+  7. **"Nuevo" y el punto de la pestaña** solo salen si la última versión trae alguna línea propia (`hayNovedadesSinVer`). Si solo trajo cambios internos, las tres líneas son de versiones anteriores y "Nuevo" junto a «0.6.4 · …» en la 0.6.5 contradiría la lista (hallazgo de la revisión del PR). Si el CHANGELOG tiene versiones y ninguna línea sale, el script lo avisa en el registro del build.
+  8. `src/componentes/AvisoNovedades.tsx`, que `docs/23` nombra, no lee este JSON: es el aviso del resultado de las propuestas propias (FR-90). No cambia.
 - **Descartado:**
   - **Enseñar solo la última versión:** una versión con solo correcciones internas dejaría Novedades vacía.
   - **Agrupar por versión con un título por versión:** con tres líneas ocupa más de lo que aporta.

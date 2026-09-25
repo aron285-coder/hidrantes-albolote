@@ -181,6 +181,11 @@ function principal(): void {
   mkdirSync(path.dirname(destino), { recursive: true });
   writeFileSync(destino, `${JSON.stringify(novedades, null, 2)}\n`);
   console.log(`novedades ${novedades.version ?? '—'}: ${novedades.lineas.length} líneas`);
+  // Con versiones y sin ninguna línea, Ajustes diría "Todavía no hay novedades" para siempre: que se
+  // vea en el registro del build (por ejemplo, si release-please cambia los títulos de sección).
+  if (novedades.version && !novedades.lineas.length) {
+    console.warn(`aviso: el CHANGELOG tiene la ${novedades.version} y ninguna línea para Novedades`);
+  }
 }
 
 if (import.meta.main) principal();

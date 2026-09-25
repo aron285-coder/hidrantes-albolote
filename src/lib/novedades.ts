@@ -47,9 +47,13 @@ export const NOVEDADES: NovedadesVersion = normalizarNovedades(datos);
 
 const CLAVE_VISTAS = 'novedades_vistas';
 
-/** Hay novedades de una versión que este móvil todavía no ha visto en Ajustes. */
+/**
+ * Hay novedades de una versión que este móvil todavía no ha visto en Ajustes. Solo si esa versión trae
+ * alguna línea propia: si solo trajo cambios internos, las líneas son de versiones anteriores y
+ * "Nuevo" junto a «0.6.4 · …» en la 0.6.5 diría lo contrario de la lista (DEC-142).
+ */
 export const hayNovedadesSinVer = (n: NovedadesVersion = NOVEDADES) =>
-  !!n.version && n.lineas.length > 0 && leer<string>(CLAVE_VISTAS) !== n.version;
+  !!n.version && n.lineas.some((l) => l.version === n.version) && leer<string>(CLAVE_VISTAS) !== n.version;
 
 export function marcarNovedadesVistas(n: NovedadesVersion = NOVEDADES): void {
   if (n.version) escribir(CLAVE_VISTAS, n.version);

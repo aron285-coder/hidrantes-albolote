@@ -557,16 +557,18 @@ test('Ajustes enseña las novedades de la versión instalada (AC-127, RV-20, RV-
   expect(novedades.lineas.length).toBeGreaterThanOrEqual(1);
   expect(novedades.lineas.length).toBeLessThanOrEqual(3);
   for (const l of novedades.lineas) expect(l.texto).not.toMatch(/\/|\.ts/);
+  // "Nuevo" y el punto, solo si la última versión trae alguna línea propia (DEC-142).
+  const propia = novedades.lineas.some((l) => l.version === novedades.version);
   await abrir(page);
   // Versión nueva sin ver: un punto en la pestaña de Ajustes hasta abrirlo.
-  await expect(page.getByTestId('punto-novedades')).toBeVisible();
+  await expect(page.getByTestId('punto-novedades')).toHaveCount(propia ? 1 : 0);
   await page.getByRole('link', { name: T.navegacion.ajustes }).click();
   const bloque = page.getByTestId('novedades');
   // Cada línea con la versión que la trajo (docs/23 RV-95).
   for (const l of novedades.lineas) {
     await expect(bloque.getByRole('listitem').filter({ hasText: l.texto })).toHaveText(`${l.version} · ${l.texto}`);
   }
-  await expect(page.getByText(T.ajustes.nuevo, { exact: true })).toBeVisible();
+  await expect(page.getByText(T.ajustes.nuevo, { exact: true })).toHaveCount(propia ? 1 : 0);
   await page.getByRole('link', { name: T.navegacion.mapa }).click();
   await expect(page.getByTestId('punto-novedades')).toHaveCount(0);
 });
