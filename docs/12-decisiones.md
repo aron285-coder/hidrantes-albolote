@@ -773,7 +773,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      - los avisos flotantes (antes medían la columna con `ResizeObserver`);
      - el encuadre del incidente.
   5. **Test de geometría (`accesibilidad.spec.ts`):**
-     - los botones de una pieza unida (`data-pieza-unida`, el zoom) no necesitan 8 px entre ellos;
+     - los botones de una pieza unida (`data-pieza-unida`, el zoom) no necesitan 8 px entre ellos: es la única excepción de UI-15, escrita allí;
      - en diagonal manda el mayor de los dos huecos. La leyenda desplegada, abajo a la izquierda, y "Cercanos", abajo a la derecha, no son vecinos.
 - **Descartado:** "Cercanos" dentro de la barra de búsqueda, como botón a su derecha. Ocupa menos, pero queda arriba, lejos del pulgar, y compite con el teclado al buscar.
 - **Afecta a:** 06 §4.5, §4.7, §5 y Apéndice A; 07 (mapa).

@@ -346,7 +346,8 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
       paddingTopLeft: [56, 132],
       // A la derecha, la columna de controles (o la ficha); abajo, Cercanos y el + (o la hoja): RV-82.
       paddingBottomRight: [
-        RESERVA_DERECHA + 12 + (incidente.margenDerecho ?? 0),
+        // margenDerecho (la ficha) ya incluye la columna: no se suma dos veces.
+        Math.max(RESERVA_DERECHA + 12, incidente.margenDerecho ?? 0),
         Math.max(48 + (incidente.margenInferior ?? 0), ZONA_ABAJO + 16),
       ],
       maxZoom: 18,

@@ -142,13 +142,20 @@ for (const [ancho, alto] of [
     const izquierda = Math.min(...columna.map((b) => b.x));
     expect(Math.max(...derechas) - izquierda, 'la columna mide ≤ 48 px de ancho').toBeLessThanOrEqual(48);
 
-    const cercanos = (await page.getByRole('button', { name: T.incidente.boton }).boundingBox())!;
+    const cercanos = (await page.getByRole('button', { name: T.incidente.boton, exact: true }).boundingBox())!;
     const nuevo = (await page.getByRole('button', { name: T.navegacion.nuevoPunto }).boundingBox())!;
     const atribucion = (await page.getByTestId('atribucion').boundingBox())!;
-    // Abajo a la derecha, encima del "+", con 12 px de aire (UI-13), sin tocar la atribución.
+    // Abajo a la derecha, encima del "+", con 12 px de aire (UI-15), sin tocar la atribución.
     expect(cercanos.y, 'Cercanos en la mitad de abajo').toBeGreaterThan(mapa.y + mapa.height / 2);
     expect(bordeMapa - (cercanos.x + cercanos.width), 'Cercanos pegado a la derecha').toBeLessThanOrEqual(16);
-    expect(nuevo.y - (cercanos.y + cercanos.height), 'Cercanos encima del +, a 12 px').toBeGreaterThanOrEqual(11.5);
+    const aire = nuevo.y - (cercanos.y + cercanos.height);
+    expect(aire, 'Cercanos encima del +, a 12 px').toBeGreaterThanOrEqual(11.5);
+    expect(aire, 'Cercanos encima del +, a 12 px').toBeLessThanOrEqual(12.5);
+    // Las medidas de 06 §5: Cercanos de 48 px de alto, el + de 56 y el zoom en una pieza de 44 × 88.
+    expect(Math.round(cercanos.height)).toBe(48);
+    expect([Math.round(nuevo.width), Math.round(nuevo.height)]).toEqual([56, 56]);
+    const zoom = (await page.getByRole('group', { name: T.mapa.zoom }).boundingBox())!;
+    expect([Math.round(zoom.width), Math.round(zoom.height)]).toEqual([44, 88]);
     expect(cortan(cercanos, atribucion), 'Cercanos y la atribución').toBe(false);
     expect(cortan(nuevo, atribucion), 'el + y la atribución').toBe(false);
     for (const [i, b] of columna.entries()) expect(cortan(b, cercanos), `${COLUMNA[i]} y Cercanos`).toBe(false);

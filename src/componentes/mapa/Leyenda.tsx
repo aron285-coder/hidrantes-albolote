@@ -79,7 +79,7 @@ export function Leyenda() {
         ))}
       </ul>
       <p className="text-texto-suave mt-0.5">{T.mapa.leyendaTamano}</p>
-      {/* 44 px de objetivo táctil (UI-13) sobre la esquina, con el aspa pequeña dentro. */}
+      {/* 44 px de objetivo táctil (UI-15) sobre la esquina, con el aspa pequeña dentro. */}
       <button
         type="button"
         aria-label={T.mapa.cerrarLeyenda}
