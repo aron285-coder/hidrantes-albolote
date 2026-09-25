@@ -37,6 +37,7 @@ export const MARGEN_FICHA_PX = ANCHO_FICHA + RESERVA_DERECHA + CONTROLES.aire;
  */
 export const ESTILO_PANEL_FLOTANTE = {
   right: RESERVA_DERECHA,
-  width: `min(${ANCHO_FICHA}px, calc(100% - ${RESERVA_DERECHA + 20}px))`,
+  width: ANCHO_FICHA,
+  maxWidth: `calc(100% - ${RESERVA_DERECHA + 20}px)`,
   maxHeight: `calc(100% - ${8 + ZONA_ABAJO}px)`,
 } as const;
