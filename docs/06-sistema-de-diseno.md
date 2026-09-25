@@ -662,7 +662,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Almacenamiento usado` ·
 `Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073) ·
 `Zona de cobertura · mapa base` · `Callejero sin conexión` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Base de datos` · `[38] MB de [500] MB` · `Tareas programadas` ·
-`[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` · `no está programada` (tarea de pg_cron que falta, RV-56) ·
+`[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` · `no está programada` (tarea de pg_cron que falta, RV-56) · debajo del título, `Ahora mismo` · `Según la vigilancia de [hace 13 h]` · `Según la última vigilancia` (docs/22 RV-92) · `lleva más de un día sin pasar` (última vigilancia de más de 26 h, en tono de aviso, RV-93) ·
 `Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·

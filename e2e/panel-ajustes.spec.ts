@@ -326,3 +326,53 @@ test('en staging, el texto del respaldo no aplica (RV-78)', async ({ page }) => 
   await expect(fila).toContainText(T.panelAjustes.respaldoNoAplica);
   await expect(fila).not.toContainText(T.panelAjustes.nunca);
 });
+
+// docs/22 RV-92, RV-93 y RV-94: de dónde salen las tareas, la vigilancia de más de 26 h y el bucket vacío.
+test.describe('Salud del sistema: tareas en vivo o de la vigilancia (RV-92)', () => {
+  const haceH = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  const filaDe = (page: Page, titulo: string) =>
+    page
+      .getByRole('region')
+      .filter({ hasText: T.panel.saludSistema })
+      .first()
+      .locator('div')
+      .filter({ has: page.getByText(titulo, { exact: true }) })
+      .last();
+
+  test('en vivo dice "Ahora mismo" y una vigilancia de hace 13 h no se marca', async ({ page }) => {
+    await prepararPanel(page, { salud: { ...SALUD, tareas_origen: 'en_vivo', ultima_vigilancia: haceH(13) } });
+    await page.goto('/admin/ajustes');
+    await expect(page.getByTestId('origen-tareas')).toHaveText(T.panelAjustes.tareasAhora);
+    const vigilancia = filaDe(page, T.panelAjustes.ultimaVigilancia).locator('dd');
+    await expect(vigilancia).toContainText('hace 13 h');
+    await expect(vigilancia).not.toHaveAttribute('data-aviso');
+    await expect(vigilancia).not.toContainText(T.panelAjustes.vigilanciaAtrasada);
+  });
+
+  test('de la vigilancia dice de cuándo es, y una vigilancia de 27 h va en tono de aviso', async ({ page }, info) => {
+    await prepararPanel(page, {
+      salud: {
+        ...SALUD,
+        tareas_origen: 'vigilancia',
+        tareas_medidas_en: haceH(13),
+        tareas_error: '42501',
+        ultima_vigilancia: haceH(27),
+        storage_bytes: 0,
+      },
+    });
+    await page.goto('/admin/ajustes');
+    await expect(page.getByTestId('origen-tareas')).toHaveText(T.panelAjustes.tareasSegunVigilancia('hace 13 h'));
+    const vigilancia = filaDe(page, T.panelAjustes.ultimaVigilancia).locator('dd');
+    await expect(vigilancia).toHaveAttribute('data-aviso', 'true');
+    await expect(vigilancia).toContainText(T.panelAjustes.vigilanciaAtrasada);
+    // El SQLSTATE es para diagnóstico: no se enseña (UI-13).
+    await expect(page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first()).not.toContainText('42501');
+    // Con el bucket vacío, 0 es un dato (RV-94).
+    await expect(filaDe(page, T.panelAjustes.almacenamiento).locator('dd')).toHaveText('0,0 MB');
+    // Para revisarla una persona (revisar-pantallas).
+    const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
+    const captura = info.outputPath('salud-vigilancia.png');
+    await salud.screenshot({ path: captura });
+    await info.attach('salud-vigilancia', { path: captura, contentType: 'image/png' });
+  });
+});

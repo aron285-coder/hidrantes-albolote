@@ -842,6 +842,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Paso manual del desarrollador (`docs/22` §4.3):** anotar el texto que enseña la hoja y mirar si hay un error `push:*` nuevo en Salud del sistema.
 - **Afecta a:** 06 Apéndice A; `src/paginas/Ajustes.tsx`.
 
+### DEC-137 · Salud del sistema dice de cuándo son las tareas, marca la vigilancia atrasada y enseña 0 bytes
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-92, parte de pantalla; RV-93 punto 3; petición de Ops para RV-94). Sesión Frontend.
+- **Decisión:**
+  1. **Debajo de "Tareas programadas"** va una de tres líneas:
+     - "Ahora mismo", con `tareas_origen = 'en_vivo'`;
+     - "Según la vigilancia de hace N h", con `tareas_medidas_en` en relativo;
+     - "Según la última vigilancia", si la base es anterior a 0031 (no trae origen) o no trae la hora.
+
+     `tareas_error` (el SQLSTATE) no se enseña: es para diagnóstico (UI-13).
+  2. **"Última vigilancia"** va en `--naranja-texto` a partir de **26 h** (`VIGILANCIA_ATRASADA_H` en `src/lib/panel/ajustes.ts`). Como el color solo no basta (WCAG 1.4.1), se añade además "lleva más de un día sin pasar". Hasta 26 h no se marca: GitHub retrasa la vigilancia varias horas.
+  3. **"Almacenamiento usado":** con el bucket vacío, 0 bytes es un dato ("0,0 MB"), no "sin dato" (`storage_bytes != null`). `avisoAlmacenamiento(0)` ya daba `null` y no cambia.
+  4. **La lógica va en funciones puras de `src/lib/panel/ajustes.ts`,** probadas con vitest (`origenTareas`, `vigilanciaAtrasada`, `textoAlmacenamiento`), y la pantalla se prueba con e2e. `docs/22` pedía un vitest de `Ajustes.tsx`, pero el proyecto no tiene entorno DOM en vitest, y añadir jsdom sería una dependencia nueva para un solo test.
+- **Afecta a:** 06 Apéndice A; `src/componentes/panel/Ajustes.tsx`, `src/lib/panel/ajustes.ts`.
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**
