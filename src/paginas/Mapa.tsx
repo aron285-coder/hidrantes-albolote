@@ -43,7 +43,7 @@ import {
 } from '@/lib/posicion';
 import { esPruebas } from '@/lib/entorno';
 import { buscar, metrosTramoManguera } from '@/lib/puntos';
-import { ANCHO_FICHA, MARGEN_FICHA_PX, RESERVA_DERECHA, ZONA_ABAJO } from '@/lib/disposicion-mapa';
+import { ESTILO_PANEL_FLOTANTE, MARGEN_FICHA_PX, RESERVA_DERECHA } from '@/lib/disposicion-mapa';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -599,11 +599,7 @@ export function Mapa() {
             // A la izquierda de la columna y por encima de los botones de abajo: no tapa ninguno (RV-82).
             <aside
               className="bg-fondo rounded-tarjeta absolute top-2 z-[600] overflow-y-auto p-3 shadow-xl"
-              style={{
-                right: RESERVA_DERECHA,
-                width: `min(${ANCHO_FICHA}px, calc(100% - ${RESERVA_DERECHA + 20}px))`,
-                maxHeight: `calc(100% - ${8 + ZONA_ABAJO}px)`,
-              }}
+              style={ESTILO_PANEL_FLOTANTE}
             >
               {ficha}
             </aside>

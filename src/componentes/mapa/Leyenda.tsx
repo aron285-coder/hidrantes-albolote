@@ -34,7 +34,12 @@ const SOMBRA = 'shadow-[0_1px_5px_rgba(0,0,0,.18)]';
 export function Leyenda() {
   const [abierta, setAbierta] = useState(abiertaAlEmpezar);
   const caja = useRef<HTMLElement>(null);
+  const chip = useRef<HTMLButtonElement>(null);
+  const cerrar = useRef<HTMLButtonElement>(null);
+  // Con teclado o lector de pantalla, el foco sigue al control que sustituye al pulsado.
+  const enfocar = useRef(false);
   const cambiar = (a: boolean) => {
+    enfocar.current = true;
     setAbierta(a);
     escribir(CLAVE_LEYENDA, a);
   };
@@ -51,10 +56,17 @@ export function Leyenda() {
     return () => document.removeEventListener('pointerdown', fuera);
   }, [abierta]);
 
+  useEffect(() => {
+    if (!enfocar.current) return;
+    enfocar.current = false;
+    (abierta ? cerrar : chip).current?.focus();
+  }, [abierta]);
+
   if (!abierta) {
     return (
       <button
         type="button"
+        ref={chip}
         aria-expanded={false}
         onClick={() => cambiar(true)}
         className={`text-texto rounded-tarjeta flex h-11 items-center gap-1.5 bg-[var(--control-mapa)] px-3 text-[13px] font-semibold ${SOMBRA}`}
@@ -82,6 +94,7 @@ export function Leyenda() {
       {/* 44 px de objetivo táctil (UI-15) sobre la esquina, con el aspa pequeña dentro. */}
       <button
         type="button"
+        ref={cerrar}
         aria-label={T.mapa.cerrarLeyenda}
         title={T.mapa.cerrarLeyenda}
         onClick={() => cambiar(false)}

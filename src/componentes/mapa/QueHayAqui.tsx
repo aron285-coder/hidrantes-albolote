@@ -7,6 +7,7 @@ import { callejeroCargado, cargarCallejero } from '@/lib/callejero';
 import { type LatLng, parametroLatLng } from '@/lib/coordenadas';
 import { textoUbicacion } from '@/lib/compartir';
 import { rutaAltaEn } from '@/lib/propuestas';
+import { ESTILO_PANEL_FLOTANTE } from '@/lib/disposicion-mapa';
 import { T } from '@/lib/textos';
 
 const accion =
@@ -72,7 +73,8 @@ export function QueHayAqui({ l, alCerrar, enHoja }: { l: LatLng; alCerrar: () =>
     <aside
       role="dialog"
       aria-label={T.aqui.titulo}
-      className="bg-fondo rounded-tarjeta absolute top-2 right-16 z-[600] max-h-[calc(100%-1rem)] w-[min(360px,calc(100%-5rem))] overflow-y-auto p-3 shadow-xl"
+      className="bg-fondo rounded-tarjeta absolute top-2 z-[600] overflow-y-auto p-3 shadow-xl"
+      style={ESTILO_PANEL_FLOTANTE}
     >
       <header className="mb-1 flex items-center gap-2">
         <h2 className="flex-1 text-[15px] font-bold">{T.aqui.titulo}</h2>

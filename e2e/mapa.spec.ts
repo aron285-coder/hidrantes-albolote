@@ -34,7 +34,10 @@ test.describe('mapa y lista', () => {
     await expect(leyenda).toHaveCount(0);
     await ficha.click();
     await expect(leyenda).toContainText(T.mapa.leyendaTamano);
+    // El foco sigue al control que sustituye al pulsado (teclado y lector de pantalla).
+    await expect(leyenda.getByRole('button', { name: T.mapa.cerrarLeyenda })).toBeFocused();
     await leyenda.getByRole('button', { name: T.mapa.cerrarLeyenda }).click();
+    await expect(ficha).toBeFocused();
     await expect(leyenda).toHaveCount(0);
 
     // Se cierra también tocando fuera, y el estado se recuerda.
