@@ -84,11 +84,18 @@ set local role anon;
 select throws_ok($$ select hidrantes.fn_salud() $$, '42501', null, 'y anon ni la puede llamar');
 reset role;
 
--- Si pg_cron deja de dar permiso, la foto de la vigilancia, diciendo de cuándo es. (El revoke se
--- deshace con el rollback final.)
-revoke select on cron.job_run_details from hidrantes_migrador;
-select ok(not has_table_privilege('hidrantes_migrador', 'cron.job_run_details', 'select'),
-  'el revoke de la prueba quita de verdad la lectura (si no, lo que sigue no probaría nada)');
+-- Si pg_cron deja de dar permiso, la foto de la vigilancia, diciendo de cuándo es. Un revoke en la
+-- prueba no basta (el Supabase local deja leer cron.job_run_details por otras vías): se simula con
+-- una fn_tareas_programadas que falla como fallaría sin permiso. El rollback final la devuelve.
+set local role hidrantes_migrador;
+create or replace function hidrantes.fn_tareas_programadas() returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog as $$
+begin
+  raise exception using errcode = 'insufficient_privilege', message = 'permission denied for table job_run_details';
+end $$;
+reset role;
+select throws_ok($$ select hidrantes.fn_tareas_programadas() $$, '42501', null,
+  'la simulación falla como sin permiso (si no, lo que sigue no probaría nada)');
 select pg_temp.como_admin();
 set local role authenticated;
 create temp table salud_foto as select hidrantes.fn_salud() as s;
