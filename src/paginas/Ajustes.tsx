@@ -399,7 +399,10 @@ function SeccionAvisos() {
             aria-label={T.ajustes.avisarResolucion}
             disabled={ocupado}
             onClick={async () => {
-              if (estado !== 'activo') return setExplicar(true);
+              if (estado !== 'activo') {
+                setMotivo(null);
+                return setExplicar(true);
+              }
               setOcupado(true);
               try {
                 setEstado(await desactivarPush());

@@ -282,3 +282,16 @@ describe('sin cobertura no se molesta a jefatura', () => {
     expect(anotarError).not.toHaveBeenCalled();
   });
 });
+
+describe('apagar los avisos mientras se resincroniza', () => {
+  it('no vuelve a guardar una suscripción que el voluntario acaba de apagar', async () => {
+    datos.set('hidrantes.push', 'true');
+    pushManager.getSubscription.mockImplementation(async () => {
+      datos.set('hidrantes.push', 'false');
+      return null;
+    });
+    await resincronizarPush('t'.repeat(43));
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+});

@@ -228,8 +228,11 @@ export async function resincronizarPush(token: string, ahora = Date.now()): Prom
     // Se marca el intento, salga como salga: un fallo que se repite no llena de errores a jefatura.
     escribir(CLAVE_RESINCRONIZADA, ahora);
     const registro = await registroListo(LIMITE_SW_MS);
+    // Si mientras tanto se han apagado los avisos, no se vuelve a suscribir ni a guardar nada.
+    const siguenActivos = () => leer<boolean>(CLAVE) === true;
+    if (!siguenActivos()) return;
     const s = await suscribir(registro, claveBinaria(PUBLICA));
-    if (!s.ok) return;
+    if (!s.ok || !siguenActivos()) return;
     const fallo = await guardarEnServidor(token, s.suscripcion.toJSON());
     if (!fallo && pendiente) await conBdSw('readwrite', (a) => a.delete(BD_SW.pendiente));
   } catch (e) {
