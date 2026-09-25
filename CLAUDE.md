@@ -70,6 +70,8 @@ nunca crea un requisito.
 - **Nunca dependencias nuevas sin una línea en el PR que diga por qué.** Sin servicios externos
   que exijan cuenta o tarjeta.
 
+Estas reglas las hace cumplir también `.claude/settings.json` (hooks, DEC-115).
+
 ## 4. Glosario fijo (00 §6)
 
 punto · hidrante / boca de riego · propuesta (pendiente / aprobada / rechazada / retirada por el
@@ -93,6 +95,8 @@ cobertura · fuera de zona.
    de un `feat:` o `fix:` con ámbito de usuario se escribe para un voluntario: qué cambia para él, sin
    nombres de archivos ni códigos internos. Sale tal cual en Novedades (FR-167, DEC-091).
    Especificaciones grandes: tres sesiones en paralelo según `docs/trabajo-en-paralelo.md` (DEC-100).
+   Revisado con `pr-review-toolkit` y `code-review`; los hallazgos, resueltos o explicados en el PR
+   (DEC-114).
 6. CI verde → merge → staging se despliega solo. Comprueba staging con Playwright si el cambio es
    visible.
 7. Marca la issue; si cierra una fase, escribe `docs/verificacion/fase-N.md` (qué casos de 10 has
@@ -162,6 +166,18 @@ Variables locales en `.env.local` (no se commitea): las genera `npm run arranque
 | `webapp-testing` | cualquier prueba con Playwright (reconocimiento de selectores, e2e, capturas) |
 | `frontend-design` | al construir una pantalla nueva; siempre subordinado a 06 |
 | `task-shaper` | al crear o reformular una issue (Why, fuera de alcance, cómo verificar, checklist) |
+| `paquete-rv` | al empezar cualquier paquete de puntos RV/GM de una especificación `docs/NN`: de la rama a la fusión, con el test que falla antes (DEC-116) |
+| `nueva-migracion` | siempre que haya que cambiar una tabla, función, vista, permiso o tarea `pg_cron` (solo la sesión Backend) |
+| `revisar-pantallas` | en cualquier PR que toque `src/**` o estilos, y cuando se pida una revisión visual de staging: capturas a 412 × 915 y 1280 × 800, mirarlas y adjuntarlas |
+
+**Plugins oficiales de Anthropic** (declarados en `.claude/settings.json`, DEC-114: una sesión nueva
+los ofrece al confiar en la carpeta, sin instalar nada):
+
+| Plugin | Úsalo cuando |
+|---|---|
+| `pr-review-toolkit` | antes de `gh pr merge --auto` de cualquier PR de código. Sobre todo con sus agentes de fallos silenciosos (RV-81 es un caso de manual), de cobertura de tests y de manejo de errores. |
+| `code-review` | en cada PR de código, después de `pr-review-toolkit`. Los hallazgos de confianza alta se arreglan en el mismo PR; los demás se anotan en el PR con su motivo. |
+| `security-guidance` | siempre activo. Si avisa al tocar `functions/**`, RLS, `grant`, CSP, secretos o `scripts/arranque.ts`, el aviso se contesta en el PR. |
 
 ## 9. Cuando dudes
 

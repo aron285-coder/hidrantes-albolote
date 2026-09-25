@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.6.4](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.3...hidrantes-albolote-v0.6.4) (2026-09-25)
+
+
+### Correcciones
+
+* **avisos:** activar los avisos dice qué ha fallado y cómo arreglarlo ([#376](https://github.com/aron285-coder/hidrantes-albolote/issues/376)) ([53db0a0](https://github.com/aron285-coder/hidrantes-albolote/commit/53db0a0c788a9a32767e276cabac511e7d2c4573))
+* **avisos:** los avisos se activan de verdad y ya no se pierden por un fallo pasajero ([#368](https://github.com/aron285-coder/hidrantes-albolote/issues/368)) ([e881436](https://github.com/aron285-coder/hidrantes-albolote/commit/e881436c9625704200bd3aa9e2658f5816ff8593))
+* **avisos:** tocar un aviso lleva siempre a «Mis propuestas» ([#383](https://github.com/aron285-coder/hidrantes-albolote/issues/383)) ([84ad66a](https://github.com/aron285-coder/hidrantes-albolote/commit/84ad66a2cba33108a13886146509c3a7040424c2))
+* **mapa:** en el ordenador el mapa cabe en la pantalla y sus botones de abajo se ven ([#385](https://github.com/aron285-coder/hidrantes-albolote/issues/385)) ([1a9eac5](https://github.com/aron285-coder/hidrantes-albolote/commit/1a9eac523519b84bf0564954564dad1909cb8dee))
+* **mapa:** los botones del mapa van pegados al borde y «Cercanos» abajo, al alcance del pulgar ([#381](https://github.com/aron285-coder/hidrantes-albolote/issues/381)) ([cf323d5](https://github.com/aron285-coder/hidrantes-albolote/commit/cf323d559249b394f0e9df1639d7a7c0769269b4))
+* **panel:** Salud del sistema dice si las tareas son de ahora mismo o de la vigilancia ([#387](https://github.com/aron285-coder/hidrantes-albolote/issues/387)) ([98eff1e](https://github.com/aron285-coder/hidrantes-albolote/commit/98eff1ea357ef9ebca552cf3b4c717b4e0666f27))
+* **panel:** Salud del sistema enseña las tareas programadas de ahora mismo ([#375](https://github.com/aron285-coder/hidrantes-albolote/issues/375)) ([597af31](https://github.com/aron285-coder/hidrantes-albolote/commit/597af31d9bb2f7e6b880b0f03db403a02fe0257c))
+
 ## [0.6.3](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.2...hidrantes-albolote-v0.6.3) (2026-09-24)
 
 

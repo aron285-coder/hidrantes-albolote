@@ -6,6 +6,8 @@ import { sincronizar } from '../puntos';
 import { funcion, leer, leerLista } from './consultas';
 import { NOVEDADES } from '../novedades';
 import { type FilaExportada, pedirInventario } from './exportar';
+import { hace, megas } from '../formato';
+import { T } from '../textos';
 
 // ---------- código de acceso (FR-140, FL-29) ----------
 
@@ -195,6 +197,15 @@ export interface Salud {
   esquema_bytes?: number;
   /** Lo que anotó la vigilancia de cada tarea de pg_cron (TR-54). */
   tareas?: TareaProgramada[] | null;
+  /**
+   * De dónde salen `tareas` (0031, docs/22 RV-92, DEC-132): `en_vivo` de pg_cron, o `vigilancia` si
+   * pg_cron no dejó leer y se enseña la foto de la última vigilancia. Ausente con una base anterior.
+   */
+  tareas_origen?: 'en_vivo' | 'vigilancia';
+  /** Cuándo tomó la vigilancia esa foto; solo con `tareas_origen = 'vigilancia'`. */
+  tareas_medidas_en?: string | null;
+  /** SQLSTATE por el que no se pudo leer en vivo; para diagnóstico, no se enseña. */
+  tareas_error?: string | null;
 }
 
 export interface TareaProgramada {
@@ -210,6 +221,31 @@ export interface TareaProgramada {
 export const CUOTA_BD_BYTES = 500 * 1024 ** 2;
 
 export const cargarSalud = () => rpc<Salud>('fn_salud');
+
+/**
+ * A partir de cuántas horas "Última vigilancia" va en tono de aviso (docs/22 RV-93). GitHub puede
+ * retrasarla varias horas, y con dos pasadas al día menos de 14 h es lo normal; más de 26 h, no.
+ */
+export const VIGILANCIA_ATRASADA_H = 26;
+
+export function vigilanciaAtrasada(ultima: string | null, ahora: Date = new Date()): boolean {
+  if (!ultima) return false;
+  const desde = new Date(ultima).getTime();
+  if (Number.isNaN(desde)) return false;
+  return ahora.getTime() - desde >= VIGILANCIA_ATRASADA_H * 3_600_000;
+}
+
+/** Debajo de "Tareas programadas": si son de ahora mismo o de la foto de la vigilancia (RV-92). */
+export function origenTareas(s: Salud, ahora: Date = new Date()): string {
+  if (s.tareas_origen === 'en_vivo') return T.panelAjustes.tareasAhora;
+  if (s.tareas_medidas_en) return T.panelAjustes.tareasSegunVigilancia(hace(s.tareas_medidas_en, ahora));
+  return T.panelAjustes.tareasSegunUltimaVigilancia;
+}
+
+/** "Almacenamiento usado": 0 bytes, con el bucket vacío, también es un dato (docs/22 RV-94). */
+export function textoAlmacenamiento(bytes: number | null | undefined): string {
+  return bytes != null ? `${megas(bytes)} MB` : T.panelAjustes.sinDato;
+}
 
 /** La cota gratuita de fotos de TR-53: 1 GB. */
 export const CUOTA_FOTOS_BYTES = 1024 ** 3;

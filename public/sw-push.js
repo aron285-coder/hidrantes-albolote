@@ -41,18 +41,78 @@ self.addEventListener('push', (evento) => {
   );
 });
 
+// El servicio de push cambió la suscripción (caducada o renovada; docs/21 RV-81): se vuelve a suscribir
+// con la misma clave y se deja la nueva en IndexedDB. El SW no tiene el token: la envía la app al
+// abrirse (resincronizarPush en src/lib/push.ts, que usa la misma base, almacén y clave).
+function guardarPendiente(suscripcion) {
+  return new Promise((resolver) => {
+    const peticion = indexedDB.open('hidrantes-sw', 1);
+    peticion.onupgradeneeded = () => peticion.result.createObjectStore('kv');
+    peticion.onerror = () => resolver();
+    peticion.onsuccess = () => {
+      const bd = peticion.result;
+      const fin = () => {
+        bd.close();
+        resolver();
+      };
+      try {
+        const tx = bd.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(suscripcion, 'push_pendiente');
+        tx.oncomplete = fin;
+        tx.onerror = fin;
+        tx.onabort = fin;
+      } catch {
+        fin();
+      }
+    };
+  });
+}
+
+self.addEventListener('pushsubscriptionchange', (evento) => {
+  const clave = evento.oldSubscription?.options?.applicationServerKey;
+  evento.waitUntil(
+    (evento.newSubscription
+      ? Promise.resolve(evento.newSubscription)
+      : clave
+        ? self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: clave })
+        : Promise.resolve(null)
+    )
+      // Sin suscripción nueva, queda al menos la marca: la app se suscribe al abrirse.
+      .then((nueva) => guardarPendiente(nueva ? nueva.toJSON() : true))
+      .catch(() => guardarPendiente(true)),
+  );
+});
+
 self.addEventListener('notificationclick', (evento) => {
   evento.notification.close();
   const destino = new URL(evento.notification.data?.url || '/mis-propuestas', self.location.origin).href;
+  // docs/21 RV-83: solo se navega una ventana de este origen que el SW controla; `navigate()` rechaza
+  // sobre una que no controla, y tras la primera instalación es lo normal (no hay clientsClaim). Si
+  // no la hay, o si navegar falla, se abre una nueva. Todo dentro de waitUntil.
+  // Si tampoco se puede abrir una ventana, no hay nada más que hacer desde el SW (no tiene el token
+  // para anotarlo): la app enseña igualmente el resultado en «Mis propuestas» al abrirse.
+  const abrir = () => self.clients.openWindow(destino).catch(() => null);
+  const deEsteOrigen = (v) => {
+    try {
+      return new URL(v.url).origin === self.location.origin;
+    } catch {
+      return false;
+    }
+  };
   evento.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
-      for (const v of ventanas) {
-        if ('focus' in v) {
-          v.navigate(destino);
-          return v.focus();
-        }
-      }
-      return self.clients.openWindow(destino);
-    }),
+    self.clients
+      .matchAll({ type: 'window' })
+      .catch(() => [])
+      .then((controladas) => {
+        const propia = controladas.find(deEsteOrigen);
+        if (!propia) return abrir();
+        // Primero el foco: el navegador solo lo permite poco después del toque, y navegar con datos
+        // móviles puede tardar. Un foco que falla no abre otra ventana; un navigate que falla, sí.
+        return Promise.resolve()
+          .then(() => propia.focus())
+          .catch(() => null)
+          .then(() => propia.navigate(destino))
+          .catch(abrir);
+      }),
   );
 });

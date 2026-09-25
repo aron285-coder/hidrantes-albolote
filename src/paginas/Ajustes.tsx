@@ -13,7 +13,15 @@ import { fechaCorta, hace, megas } from '@/lib/formato';
 import { descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { useVersionNueva } from '@/hooks/version';
 import { useCola, useMisPropuestas } from '@/hooks/cola';
-import { type EstadoPush, activarPush, desactivarPush, estadoPush } from '@/lib/push';
+import {
+  type EstadoPush,
+  type MotivoPush,
+  activarPush,
+  desactivarPush,
+  estadoPush,
+  sePuedeReintentar,
+  textoMotivoPush,
+} from '@/lib/push';
 import { cambiarFirma, cerrarSesionVoluntario, salirDeGoogle } from '@/lib/acceso';
 import { VERSION } from '@/lib/entorno';
 import { recargar } from '@/lib/pwa';
@@ -352,7 +360,23 @@ function SeccionAvisos() {
   const [estado, setEstado] = useState<EstadoPush>(estadoPush);
   const [explicar, setExplicar] = useState(false);
   const [ocupado, setOcupado] = useState(false);
-  const cerrar = useCallback(() => setExplicar(false), []);
+  const [motivo, setMotivo] = useState<MotivoPush | null>(null);
+  const cerrar = useCallback(() => {
+    setExplicar(false);
+    setMotivo(null);
+  }, []);
+  const activar = async () => {
+    setOcupado(true);
+    try {
+      const r = await activarPush();
+      setEstado(r.estado);
+      // Si algo falla, la hoja se queda abierta y dice por qué (RV-81, UI-05).
+      if (r.motivo) setMotivo(r.motivo);
+      else cerrar();
+    } finally {
+      setOcupado(false);
+    }
+  };
   if (estado === 'no_disponible') return null;
   const detalle =
     estado === 'activo'
@@ -375,43 +399,53 @@ function SeccionAvisos() {
             aria-label={T.ajustes.avisarResolucion}
             disabled={ocupado}
             onClick={async () => {
-              if (estado === 'activo') {
-                setOcupado(true);
+              if (estado !== 'activo') {
+                setMotivo(null);
+                return setExplicar(true);
+              }
+              setOcupado(true);
+              try {
                 setEstado(await desactivarPush());
+              } finally {
                 setOcupado(false);
-              } else setExplicar(true);
+              }
             }}
-            className={cn(
-              'relative h-7 w-12 shrink-0 rounded-full transition-colors',
-              estado === 'activo' ? 'bg-verde-600' : 'bg-linea',
-            )}
+            // 44 px de objetivo táctil (UI-15) alrededor de la pista de 48 × 28.
+            className="flex h-11 w-12 shrink-0 items-center"
           >
             <span
+              aria-hidden
               className={cn(
-                'absolute top-0.5 size-6 rounded-full bg-white shadow transition-all',
-                estado === 'activo' ? 'left-[22px]' : 'left-0.5',
+                'relative h-7 w-12 rounded-full transition-colors',
+                estado === 'activo' ? 'bg-verde-600' : 'bg-linea',
               )}
-            />
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 size-6 rounded-full bg-white shadow transition-all',
+                  estado === 'activo' ? 'left-[22px]' : 'left-0.5',
+                )}
+              />
+            </span>
           </button>
         )}
       </Fila>
       {explicar && (
         <Hoja titulo={T.push.titulo} alCerrar={cerrar}>
-          <p className="text-texto-suave mb-3 text-sm">{T.push.explicacion}</p>
-          <Boton
-            className="w-full"
-            disabled={ocupado}
-            onClick={async () => {
-              setOcupado(true);
-              setEstado(await activarPush().catch(() => estadoPush()));
-              setOcupado(false);
-              setExplicar(false);
-            }}
-          >
-            {T.push.permitir}
-          </Boton>
+          {motivo ? (
+            <div role="alert" data-testid="motivo-push" className="mb-3">
+              <p className="text-sm">{textoMotivoPush(motivo)}</p>
+            </div>
+          ) : (
+            <p className="text-texto-suave mb-3 text-sm">{T.push.explicacion}</p>
+          )}
+          {(!motivo || sePuedeReintentar(motivo)) && (
+            <Boton className="w-full" disabled={ocupado} onClick={() => void activar()}>
+              {motivo ? T.push.reintentar : T.push.permitir}
+            </Boton>
+          )}
           <Boton variante="secundario" className="mt-3 w-full" onClick={cerrar}>
-            {T.push.ahoraNo}
+            {motivo ? T.push.cerrar : T.push.ahoraNo}
           </Boton>
         </Hoja>
       )}

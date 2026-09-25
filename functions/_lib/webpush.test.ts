@@ -4,7 +4,7 @@
 // se comprueba contra el ejemplo de la propia RFC, que trae claves fijas y el cuerpo ya cifrado.
 
 import { describe, expect, it, vi } from 'vitest';
-import { b64url, cabeceraVapid, cifrar, desdeB64url, enviar } from './webpush.ts';
+import { b64url, cabeceraVapid, cifrar, desdeB64url, enviar, segundosDeRetryAfter } from './webpush.ts';
 
 /** RFC 8291 §5 "Push Message Encryption Example". */
 const RFC = {
@@ -144,10 +144,44 @@ describe('enviar', () => {
     }
   });
 
+  // RV-84: solo 404 y 410 caducan. Cualquier otro error cuenta como un fallo más.
   it('otro error del servicio no caduca la suscripción: se reintentará', async () => {
-    const espia = fingirFetch(new Response(null, { status: 500 }));
-    expect(await enviar(suscripcion, aviso, vapid)).toEqual({ ok: false, caducada: false, error: 'HTTP 500' });
+    for (const estado of [400, 403, 413, 500, 502, 503]) {
+      const espia = fingirFetch(new Response(null, { status: estado }));
+      expect(await enviar(suscripcion, aviso, vapid)).toEqual({ ok: false, caducada: false, error: `HTTP ${estado}` });
+      espia.mockRestore();
+    }
+  });
+
+  // RV-84: un 429 es pasajero. Se aplaza lo que diga Retry-After (en segundos o como fecha HTTP).
+  it('429 no caduca la suscripción y devuelve cuánto esperar', async () => {
+    let espia = fingirFetch(new Response(null, { status: 429, headers: { 'Retry-After': '120' } }));
+    expect(await enviar(suscripcion, aviso, vapid)).toEqual({
+      ok: false,
+      caducada: false,
+      error: 'HTTP 429',
+      aplazar_s: 120,
+    });
     espia.mockRestore();
+
+    const dentro = new Date(Date.now() + 300_000).toUTCString();
+    espia = fingirFetch(new Response(null, { status: 429, headers: { 'Retry-After': dentro } }));
+    const r = await enviar(suscripcion, aviso, vapid);
+    expect(r.aplazar_s).toBeGreaterThanOrEqual(290);
+    expect(r.aplazar_s).toBeLessThanOrEqual(300);
+    espia.mockRestore();
+
+    espia = fingirFetch(new Response(null, { status: 429 }));
+    expect((await enviar(suscripcion, aviso, vapid)).aplazar_s).toBe(60);
+    espia.mockRestore();
+  });
+
+  it('Retry-After raro: una fecha pasada es 0; lo que no se entiende, 60', () => {
+    const ahora = Date.parse('2026-09-25T10:00:00Z');
+    expect(segundosDeRetryAfter('Fri, 25 Sep 2026 09:00:00 GMT', ahora)).toBe(0);
+    expect(segundosDeRetryAfter('Fri, 25 Sep 2026 10:02:00 GMT', ahora)).toBe(120);
+    expect(segundosDeRetryAfter(' 30 ', ahora)).toBe(30);
+    for (const raro of ['1.5', '-5', 'pronto', '', null]) expect(segundosDeRetryAfter(raro, ahora)).toBe(60);
   });
 
   it('si la red falla, devuelve el motivo en lugar de lanzar', async () => {

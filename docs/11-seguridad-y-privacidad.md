@@ -146,7 +146,7 @@ sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausen
 | Coordenadas GPS del móvil en el momento de una propuesta | `propuestas.gps_geom`, `precision_gps_m` | señal de fiabilidad para jefatura | administradores |
 | Descripción libre de incidencias | `incidencias_app` | soporte | administradores |
 | Correo de Google | `administradores`, `registro.actor`, `propuestas.revisada_por` | acceso y auditoría de administradores | administradores |
-| Suscripción push (endpoint y claves del navegador) | `suscripciones_push` | avisar del resultado de una propuesta (voluntario) o de propuestas nuevas (jefatura); **solo si la persona lo activa** | nadie la lee; se borra al desactivar o tras tres fallos |
+| Suscripción push (endpoint y claves del navegador) | `suscripciones_push` | avisar del resultado de una propuesta (voluntario) o de propuestas nuevas (jefatura); **solo si la persona lo activa** | nadie la lee; se borra al desactivar, cuando el servicio de push dice que ya no existe (404/410), o tras 10 fallos seguidos sin ningún envío bueno en 7 días (DEC-118) |
 
 **Funciones de mapa para emergencias (FR-72 a FR-76, DEC-089):** el punto de incidente, la
 medición y la posición del móvil **nunca salen del móvil** (DEC-062 §8) y no se guardan en IndexedDB

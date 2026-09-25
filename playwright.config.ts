@@ -58,6 +58,10 @@ export default defineConfig({
             VITE_ENTORNO: 'staging',
             VITE_SUPABASE_URL: SUPABASE_PRUEBAS,
             VITE_SUPABASE_ANON_KEY: 'clave-anonima-de-pruebas',
+            // Clave pública de prueba del RFC 8291 (la de functions/api/push.test.ts): sin ella no hay
+            // sección de avisos en Ajustes y e2e/ajustes-avisos.spec.ts no probaría nada (docs/21 RV-81).
+            VITE_VAPID_PUBLIC_KEY:
+              'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8',
           },
           reuseExistingServer: !process.env.CI,
           timeout: 120_000,

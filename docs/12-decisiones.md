@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.36 — 24 de septiembre de 2026 (DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.42 — 25 de septiembre de 2026 (DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,202 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-129 · La primera purga de fotos es un ensayo, y el ensayo también anota el tamaño
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-94). Sesión Ops.
+- **Contexto:** `purgar-fotos.yml` no se había ejecutado nunca. La primera vez iba a ser la pasada programada del lunes 28-09 a las 04:43 UTC, y borraría de verdad sin que nadie hubiera visto una lista. Además, un ensayo no anotaba `storage_bytes` aunque lo medía, así que Salud del sistema decía «Almacenamiento usado: sin dato».
+- **Decisión:**
+  1. **El paso de anotar corre siempre.** Con ensayo, `actualizado_por = 'purgar-fotos.yml (ensayo)'`. El valor es el tamaño real del bucket: `bytes_restantes = bytesDe(enBucket)` cuando no se borra nada.
+  2. **Guarda de primera vez**, en `scripts/purgar-fotos.ts` (`modoDePurga`). La pasada **programada** (`--programada`, que el workflow pasa solo con `schedule`) hace ensayo si no existe `config.ultima_purga_fotos`. Entonces el workflow escribe lo que borraría en el resumen y abre la issue «Primera purga de fotos: revisa el ensayo» (etiqueta `vigilancia`). Una ejecución a mano sin ensayo, o la programada de la semana siguiente, ya borra.
+  3. **Solo una pasada que borra de verdad** escribe `config.ultima_purga_fotos = to_jsonb(now())`, aunque no haya nada que borrar. Si no se puede leer esa marca, se da por que no existe: mejor un ensayo de más.
+- **Comprobado:** `purgar-fotos.test.ts` (`modoDePurga`), `workflows.test.ts`, y `probar-purga.ts` contra el Supabase local en `ci-sql`, que prueba la primera vez programada, la manual y la siguiente.
+- **Afecta a:** 04 §9; 15 §4.
+
+### DEC-128 · Los trabajos de Actions, fijos en ubuntu-24.04, con un canario de Ubuntu 26
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-89). Sesión Ops.
+- **Contexto:** cada ejecución avisa de que `ubuntu-latest` pasa a Ubuntu 26 desde el 19 oct 2026, y los 21 trabajos lo usaban. `preparar` instala `postgresql-client-17` con el script de PGDG, que en una versión recién salida puede no tener paquetes. Si ese paso falla, fallan a la vez `ci-sql`, el respaldo, la vigilancia y la purga: todo lo que avisa cuando algo va mal.
+- **Decisión:**
+  1. Los 21 trabajos, con `runs-on: ubuntu-24.04`. Ningún `ubuntu-latest` en `.github/workflows/`: lo comprueba `workflows.test.ts`.
+  2. `canario-ubuntu.yml`, con el trabajo `canario-ubuntu-26` en `ubuntu-26.04`, los miércoles a las 05:13 UTC y a mano. Hace `preparar` con psql, las versiones de psql, pg_dump y jq, y `npm run typecheck && npm test`, sin tocar ninguna base de datos. Abre o cierra la issue «Canario Ubuntu 26 en rojo».
+  3. Está en las listas `WORKFLOWS` de la vigilancia y de `mantener-activo.yml` (DEC-085), con el límite de 8 días de los semanales.
+  4. **Paso a Ubuntu 26:** cuando el canario lleve dos semanas en verde, en un PR aparte, y el canario se retira.
+- **Descartado:**
+  - **Meter el canario en `mantenimiento.yml`:** ese lo despacha jefatura con una entrada obligatoria.
+  - **Quedarse en `ubuntu-latest` y arreglar si falla:** fallaría justo lo que avisa de los fallos.
+- **Afecta a:** 15 §4.
+
+### DEC-132 · Salud del sistema lee las tareas programadas en vivo; la foto de la vigilancia, de respaldo
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-92, 0031). Sesión Backend.
+- **Contexto:** `fn_salud()` devolvía en `tareas` la foto que guarda `vigilancia.yml` cada noche (`config.tareas_programadas`). El 25-09, en producción, `purgar_intentos` (cada hora) decía "hace 13 h · bien" y `purgar_subidas` "todavía sin ejecutar" aunque ya había corrido.
+- **Decisión:**
+  1. **`hidrantes.fn_tareas_programadas()`**, `security definer`, dueño `hidrantes_migrador` (el que aplica las migraciones y es dueño de las tareas; `arranque-bd.sql` le da `select` en `cron.job` y `cron.job_run_details`). La misma consulta que `scripts/sql/tareas-programadas.sql`, sin la lista de esperadas, y con la misma forma de fila que la foto (el panel anterior la pinta igual). Una tarea que estaba en la última foto de la vigilancia y ya no está en `cron.job` (o no se ve, por ejemplo recreada con otro dueño: pg_cron filtra por `username`) sale con `falta = true` y `problema = true`: sin eso, una lista vacía o incompleta se leería como «todo bien» (hallazgo de la revisión del PR). En `plpgsql` para que la migración no falle en una base sin pg_cron. Sin `execute` para `anon` ni `authenticated`.
+  2. **`fn_salud()`**, misma firma: `tareas` de `fn_tareas_programadas()` y `tareas_origen = 'en_vivo'`. Si falla con `insufficient_privilege`, `undefined_table`, `invalid_schema_name` o `undefined_function`, la foto de `config.tareas_programadas` con `tareas_origen = 'vigilancia'`, `tareas_medidas_en` (el `actualizado_en` de esa fila) y `tareas_error` (el SQLSTATE, para saber por qué). Cualquier otro error sigue saliendo como error: no se esconde.
+  3. **La vigilancia no cambia:** sigue guardando la foto, que es la red de seguridad, y sigue siendo la única que mira las tareas que faltan.
+- **Descartado:** dar a `authenticated` lectura de `cron.job_run_details`: es de toda la base (también de uniformidad) y abriría más de lo necesario.
+- **Afecta a:** 05 §6.2 y §6.3.
+
+### DEC-120 · La integración de los avisos, con un servidor de push falso y una variable que solo vale en local
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-86). Sesión Backend.
+- **Contexto:** la suscripción a los avisos no se había probado nunca de punta a punta contra la pila real: los e2e simulan la RPC y `scripts/probar-worker-avisos.ts` mete la suscripción a mano con un endpoint `http://` que `fn_validar_suscripcion` no admitiría. Por eso nadie vio que `fn_guardar_suscripcion_push` fallaba siempre (DEC-119).
+- **Decisión:**
+  1. **`e2e/integracion/avisos.spec.ts`**, en el paso de integración de `ci-sql`: una suscripción con forma de FCM (endpoint de 152 caracteres, claves de 65 y 16 bytes) guardada con `fn_guardar_suscripcion_push` por PostgREST y un token canjeado en `/api/verificar-codigo`; jefatura (sesión local firmada como Google) rechaza una propuesta de ese móvil, que es lo que crea el aviso; `/api/push` con `X-Vigilancia` local lo envía; un servidor de push falso en el test comprueba el camino, `aes128gcm`, `TTL` y la cabecera VAPID: `aud` = `https://fcm.googleapis.com`, `exp` en el futuro y a menos de 24 h (RFC 8292 §2), `sub` y la firma ES256 verificada con la clave pública.
+  2. **`PUSH_ENDPOINT_PRUEBAS`:** `/api/push` sustituye el origen del endpoint por el de esa variable **solo** si tanto ella como `SUPABASE_URL` son `127.0.0.1` o `localhost` (`destinoDePruebas`). La firma sigue siendo para el servicio de verdad. Así, aunque la variable llegara a staging o a producción, no desviaría ningún aviso.
+  3. **El spec levanta su propio `wrangler pages dev` en :8789** con claves VAPID de prueba y la variable como `--binding`: no toca `.dev.vars`, `package.json` ni `ci.yml` (de Ops), y el wrangler de :8788 del paso sigue sin claves VAPID, como espera `probar-functions.ts`.
+  4. **`scripts/guarda-produccion.ts`** aborta si `PUSH_ENDPOINT_PRUEBAS` está en el entorno del despliegue, en `deploy-prod.yml` (fuera de comentarios) o en `scripts/arranque.ts`, que es quien sube los secretos de Pages. La guarda solo ve lo que ve el runner: una variable puesta a mano en el proyecto de Pages no le llega. La barrera de verdad es la del punto 2 (`SUPABASE_URL` local), que no depende de dónde se ponga la variable.
+- **Descartado:** apuntar la suscripción directamente al servidor falso (como `probar-worker-avisos.ts`): no pasaría por `fn_validar_suscripcion` ni por la forma real de un endpoint de FCM, que es justo lo que había que probar.
+- **Afecta a:** 05 §9.
+
+### DEC-118 · Una suscripción push solo se borra al momento si el servicio dice que no existe
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-84, 0030). Sesión Backend.
+- **Contexto:** `fn_resultado_notificacion` borraba la suscripción al tercer error de cualquier tipo. Un 5xx o un 429 pasajero de FCM bastaba: el móvil seguía diciendo "Activado" y no volvía a recibir nada.
+- **Decisión:**
+  1. **Solo 404 y 410** (`suscripcion_caducada`, lo pone `enviar()` de `functions/_lib/webpush.ts`) borran al primer aviso.
+  2. **Cualquier otro error** suma un fallo y anota el error en el aviso, como antes. La suscripción se borra solo con **10 fallos seguidos y ningún envío bueno en los últimos 7 días**, o ninguno nunca. Un envío bueno pone `fallos = 0`.
+  3. **429:** `/api/push` no llama a `fn_resultado_notificacion`, y los demás avisos del lote para ese mismo servicio (origen del endpoint) no se intentan en esa invocación. Todos ellos se aplazan con **una** llamada a la RPC nueva `fn_aplazar_notificaciones(ids, segundos)` (solo `service_role`), con el `Retry-After` mayor (segundos o fecha; 60 s si no viene; de 0 a 24 h): vuelven a poder reclamarse pasado ese tiempo y se les devuelve el intento, así que una racha de 429 no los deja como `SIN_RESPUESTA` (DEC-088). Presupuesto: 20 × 2 + 3 = 43 peticiones de 50. La respuesta lleva `aplazadas`, y `quedan` solo si el lote venía lleno y no se aplazó entero: los avisos de otros servicios no esperan por uno que ha pedido calma.
+- **Coste aceptado:**
+  - si la llamada a `fn_aplazar_notificaciones` falla, esos avisos siguen reclamados y salen a los 15 minutos gastando un intento, como cualquier aviso sin anotar; cuentan en `sin_anotar`;
+  - un 5xx sigue dejando **ese aviso** con `error` y no se reintenta (como antes de 0030): lo que cambia es que la suscripción ya no se pierde. Reintentar los 5xx sería otro cambio en la cola, fuera de RV-84;
+  - una suscripción rota de verdad con un error que no es 404/410 (p. ej. un 403 por claves VAPID cambiadas) tarda hasta 7 días en borrarse. Mientras, sus avisos fallan y quedan anotados, que es lo mismo que pasaría sin borrarla.
+- **Descartado:**
+  - subir solo el umbral de 3 a 10 sin mirar `ultimo_envio`: una suscripción que recibe bien a diario se perdería con una mala racha de un día;
+  - dejar lo aplazado solo reclamado, sin RPC nueva (lo que proponía `docs/21`): cada 429 gastaba un intento, incluso en los avisos que ni se intentaban, y tres seguidos los perdían; y un `Retry-After` de más de 15 minutos no se respetaba.
+- **Afecta a:** 05 §2.12, §6.3 y §9; 11 §6.1.
+
+### DEC-119 · Una fila de voluntario y una de jefatura por navegador
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-84, 0030). Sesión Backend.
+- **Contexto:** el único de `suscripciones_push` era solo por `endpoint`, y `fn_guardar_suscripcion_push` (voluntario) y `fn_guardar_suscripcion_push_admin` se quitaban la fila con `on conflict … set email = null` / `set dispositivo_id = null`. Voluntario y jefatura en el mismo navegador: el último que activaba se quedaba la fila y el otro dejaba de recibir sin saberlo.
+- **Decisión:** el único pasa a `((suscripcion ->> 'endpoint'), (dispositivo_id is null))` (`suscripciones_endpoint_duenio_idx`), índice nuevo y borrado del viejo sin editar 0001. Cada función hace `on conflict` sobre ese índice y solo actualiza su tipo de dueño. Mismas firmas (04 §12); `/api/push` no cambia porque cada aviso ya va a una `suscripcion_id`.
+- **Por qué por tipo de dueño y no `coalesce(dispositivo_id::text, email)`** (lo que proponía `docs/21`): un navegador solo tiene un token de voluntario, así que otro `dispositivo_id` en el mismo endpoint es ese navegador con un acceso nuevo; con el índice de `docs/21` se quedaría también la fila del acceso viejo y el navegador recibiría los avisos de las dos. Lo mismo con dos administradores en el mismo ordenador: los avisos de jefatura son iguales para todos, y dos filas serían avisos repetidos. Con el índice por tipo de dueño el `upsert` sigue siendo atómico y sin borrados aparte.
+- **Encontrado al escribir el test:** las dos funciones de guardar fallaban **siempre** en la base real con `42702 column reference "suscripcion" is ambiguous`: en `on conflict ((suscripcion ->> 'endpoint'))`, el parámetro `suscripcion` y la columna se llaman igual y plpgsql no elige. Ningún pgTAP las llamaba (solo se comprobaban sus permisos) y los e2e simulan la RPC. Es, del lado del servidor, la incidencia «Avisos quedan desactivados» de staging (RV-81). 0030 pone `#variable_conflict use_column` y califica los parámetros con el nombre de la función; no se renombran porque PostgREST llama por nombre de parámetro. `27_suscripciones_duenios.test.sql` las llama con los roles `anon` y `authenticated`, como PostgREST.
+- **Afecta a:** 05 §2.12.
+
+### DEC-116 · Tres skills propias del proyecto, versionadas en .claude/skills/
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` SK-03). Sesión Ops.
+- **Decisión:** `paquete-rv`, `nueva-migracion` y `revisar-pantallas`, con el texto de `docs/21` §3 como punto de partida y sin quitar ningún paso. Cada una tiene su `SKILL.md` con `name` y `description`, que dicen cuándo usarla: es lo que Claude Code mira para cargarla. Se añadió solo lo propio de este repositorio:
+  - `paquete-rv`: `npm.cmd`/`npx.cmd` y `PW_CANAL=chrome` en Windows, y que «Cierra #N» no cierra la issue;
+  - `nueva-migracion`: los hooks de DEC-115 dejan editar una migración que solo está en la rama, y cómo lanzar `ci-sql` sin Docker en local;
+  - `revisar-pantallas`: mientras no exista `e2e/vistas.spec.ts` (RV-88, sesión Frontend), cómo sacar las mismas capturas desde los specs de la pantalla tocada.
+- **Comprobado:** `scripts/herramientas.test.ts` exige las tres carpetas, un `SKILL.md` con encabezado `name` y `description`, y que el `name` coincida con la carpeta.
+- **Afecta a:** CLAUDE.md §8.
+
+### DEC-115 · Las prohibiciones de CLAUDE.md §3, también como hooks de Claude Code
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` SK-02). Sesión Ops.
+- **Contexto:** las prohibiciones duras solo estaban escritas. Una sesión cansada, o una nueva que aún no ha leído CLAUDE.md, podía saltarse una. Algunas cuestan caro: una migración aplicada editada rompe staging, y un `.env` en un repositorio público no se puede deshacer (DEC-053).
+- **Decisión:**
+  1. **Hooks `PreToolUse` en `.claude/settings.json`**, sin plugin, cada uno con un script de Node sin dependencias en `.claude/hooks/` (`comun.mjs` y uno por regla). Salen con 2 (bloqueo) y un mensaje que cita la regla. Se llaman con `node "${CLAUDE_PROJECT_DIR}/.claude/hooks/<regla>.mjs"`, que también funciona con la ruta de Windows con espacio. Comprobado en vivo el 25 sep 2026.
+  2. **Qué bloquean:**
+     - `sin-db-push`: `supabase db push` en Bash o PowerShell;
+     - `migraciones-aplicadas`: Edit, Write, MultiEdit, `rm`, `git rm`, `mv`, `sed -i` o una redirección sobre una migración que **ya está en `origin/develop` o `origin/main`**. Una migración nueva, o una que solo está en la rama de trabajo, se puede editar y renumerar: lo pide la skill `nueva-migracion`. Sin remoto, cuenta como aplicada si el archivo existe;
+     - `sin-force-push`: `git push` con `--force`, `-f`, `--force-with-lease` o un refspec con `+` hacia `develop` o `main`, o sin refspec estando en una de ellas;
+     - `sin-console-log`: `console.log(` en lo que se escribe en `src/**` o `functions/**`;
+     - `git-add-prohibidos`: lo que `git add --dry-run` con los mismos argumentos metería, si es un `.env*` (salvo `.env.example`), `.dev.vars`, un `.sql` en la raíz o un `.pmtiles` fuera de `public/mapabase/`. Así también se ve con `git add -A` o `git add .`.
+  3. **`scripts/probar-hooks.ts`** los ejecuta con la entrada JSON de Claude Code (`tool_name`, `tool_input`, `cwd`) en un repositorio temporal: 28 casos, bloqueados y permitidos. Corre en `ci-calidad`.
+- **Coste aceptado:** los hooks miran el texto del comando, no lo interpretan. `echo "supabase db push"` también se bloquea. Es mejor un falso positivo que dejar pasar la acción.
+- **Descartado:**
+  - **Un solo script con todas las reglas:** un fallo en una regla dejaría sin las demás.
+  - **Bloquear también los `console.log` de `scripts/`:** los scripts de operación escriben por consola a propósito, con `log`.
+- **Afecta a:** CLAUDE.md §3.
+
+### DEC-114 · Los plugins oficiales de revisión, declarados en el repositorio
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` SK-01). Sesión Ops.
+- **Contexto:** RV-81 (activar los avisos falla en silencio) es el tipo de fallo que una revisión con un agente de fallos silenciosos encuentra antes que un voluntario. Cada sesión de Claude Code, hoy o dentro de un año, tiene que tener las mismas herramientas sin instalar nada a mano.
+- **Decisión:**
+  1. **Comandos que funcionaron**, con Claude Code 2.1.141 desde la raíz del repositorio (`/plugin` es interactivo; su equivalente por CLI):
+     - `claude plugin marketplace add anthropics/claude-code --scope project`: el marketplace se llama **`claude-code-plugins`**;
+     - `claude plugin install pr-review-toolkit@claude-code-plugins --scope project`, y lo mismo con `code-review` y `security-guidance`.
+  2. **Versiones instaladas:** `pr-review-toolkit` 1.0.0, `code-review` 1.0.0 y `security-guidance` 2.0.0.
+  3. **En `.claude/settings.json`**, que se versiona: `extraKnownMarketplaces` con `{"claude-code-plugins": {"source": {"source": "github", "repo": "anthropics/claude-code"}}}` y `enabledPlugins` con los tres `<plugin>@claude-code-plugins: true`. Son los nombres de `code.claude.com/docs/en/settings` («Shared project settings»), y los mismos que escribió `--scope project`.
+     - Esa documentación advierte de que `extraKnownMarketplaces` solo se aplica **cuando cada persona confía en la carpeta**. Hasta entonces no se ofrecen los plugins del marketplace.
+  4. `.claude/settings.local.json` y `.claude/worktrees/` siguen en `.gitignore`. Nunca van credenciales en `settings.json`: `scripts/herramientas.test.ts` lo comprueba con los patrones de `detectar-secretos.ts`.
+  5. **CLAUDE.md:** §5.5 exige la revisión con `pr-review-toolkit` y `code-review`, y §8 dice cuándo usar cada plugin.
+- **Descartado:** instalarlos a nivel de usuario (`--scope user`). Solo valdría en este ordenador.
+- **Afecta a:** CLAUDE.md §5 y §8.
+
+### DEC-122 · Activar los avisos dice siempre el motivo si no queda activo
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-81), salvo la línea de referencia del punto 3, que sustituye DEC-136. Sesión Frontend.
+- **Contexto:** en un Android con staging, "Permitir avisos" dejaba el interruptor apagado, sin mensaje y sin error en Salud del sistema. Había cuatro caminos que acababan en el mismo "Desactivado" mudo.
+- **Decisión:**
+  1. `activarPush()` nunca lanza y devuelve `{ estado, motivo? }`. Motivos: `permiso_no_concedido` (el permiso vuelve `default`), `permiso_bloqueado` (vuelve `denied`; el estado sigue siendo `denegado`), `sin_service_worker` (`serviceWorker.ready` no llega en 10 s), `sin_servicio_push` (`subscribe` o `getSubscription` lanzan, o algo imprevisto), `clave_distinta` (había una suscripción con otra clave VAPID y no se pudo cambiar) y `servidor:<código>` (la RPC falla).
+  2. Todos salvo los dos de permiso van a `anotarError` con el nombre y el mensaje del error, o con el código de la RPC. **Nunca** el endpoint ni las claves.
+  3. **La hoja no se cierra si algo falla:** enseña el texto del motivo (Apéndice A de 06), una línea pequeña "Referencia para jefatura: `<motivo>`" y "Reintentar". Con `permiso_bloqueado` no se ofrece "Reintentar" (no cambiaría nada, UI-01): el texto dice dónde activarlo en Android. La referencia es lo que el desarrollador anota en el paso manual de `docs/22` §4.3.
+  4. Para `servidor:*` no se usa `textoError` del panel: sus textos son de jefatura ("revisa los valores"). Hay dos textos de voluntario: sin conexión y "el servidor no ha guardado la suscripción".
+  5. **Resincronización:** tras cada sincronización buena, si los avisos están activos y hay permiso, se vuelve a enviar la suscripción como mucho una vez cada 24 h. El intento se marca antes de hacerlo, así que un fallo que se repite no llena de errores a jefatura. Si el SW dejó una marca de `pushsubscriptionchange`, se envía sin esperar a las 24 h.
+  6. **`pushsubscriptionchange` en `sw-push.js`:** usa `newSubscription` si llega o se vuelve a suscribir con la clave de la vieja, y deja en IndexedDB (`hidrantes-sw`, almacén `kv`, clave `push_pendiente`) la suscripción nueva, o `true` si no pudo hacerla. La app la envía al abrirse. Es una base propia del SW para no tocar la versión de la base `hidrantes` de la app.
+- **Pendiente (paso manual del desarrollador, 2 min, `docs/22` §4.3):** repetir la activación en el Android con staging y anotar aquí la referencia que enseña la hoja, o que quedó activado.
+- **Descartado:** cerrar la hoja y avisar con un aviso flotante: se pierde el "Reintentar" y el texto largo no cabe.
+- **Afecta a:** 06 Apéndice A; `src/lib/push.ts`, `public/sw-push.js`.
+
+### DEC-123 · Controles del mapa: iconos a la derecha, acciones principales abajo y leyenda plegable
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-82). Sesión Frontend.
+- **Contexto:** en un Android, "Cercanos", con texto, ensanchaba la columna de la derecha a unos 110 px y dejaba los botones de 44 px hacia el centro del mapa. Con la leyenda abierta y el "+", el mapa útil se quedaba en la mitad. En tableta y ordenador, la ficha flotante (`right-16`) tapaba la columna.
+- **Decisión** (patrón de las apps de mapas):
+  1. **Columna de la derecha solo con iconos:** 44 px fijos y `right-2`. Contiene Capas, Medir y Mi posición, y el zoom en una pieza de 44 × 88. El zoom se queda porque es la alternativa de un dedo al pellizco.
+  2. **"Cercanos" extendido abajo a la derecha,** 48 px y `--marino-950`, 12 px por encima del "+". El "+" queda en **56 px**: 06 decía 44, pero el código ya usaba 56.
+  3. **Leyenda plegable:** una ficha "Leyenda" de 44 px que se despliega y se cierra con la X o tocando fuera.
+     - El primer uso la enseña desplegada una vez.
+     - El estado se guarda en `almacen` (`leyenda_abierta`).
+  4. **`src/lib/disposicion-mapa.ts` (`CONTROLES`, `RESERVA_DERECHA`, `ZONA_ABAJO`, `MARGEN_FICHA_PX`) es la única fuente de medidas.** Lo que ya no se mide ni se escribe a mano:
+     - la ficha (`right` y alto máximo, que termina por encima de los botones de abajo);
+     - los avisos flotantes (antes medían la columna con `ResizeObserver`);
+     - el encuadre del incidente.
+  5. **Test de geometría (`accesibilidad.spec.ts`):**
+     - los botones de una pieza unida (`data-pieza-unida`, el zoom) no necesitan 8 px entre ellos: es la única excepción de UI-15, escrita allí;
+     - en diagonal manda el mayor de los dos huecos. La leyenda desplegada, abajo a la izquierda, y "Cercanos", abajo a la derecha, no son vecinos.
+- **Descartado:** "Cercanos" dentro de la barra de búsqueda, como botón a su derecha. Ocupa menos, pero queda arriba, lejos del pulgar, y compite con el teclado al buscar.
+- **Afecta a:** 06 §4.5, §4.7, §5 y Apéndice A; 07 (mapa).
+
+### DEC-124 · El aviso del mapa base, también para quien solo tenía teselas sueltas
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-85). Sesión Frontend.
+- **Contexto:** quien va con datos móviles y nunca descargó el PMTiles solo tiene, sin cobertura, lo que quedó en `hidrantes-teselas-<versión>`. Cada versión nueva del mapa base borra esa caché al activarse el SW (`docs/20` RV-71, DEC-111).
+- **Comprobado:** el aviso de RV-10 ya depende solo de que el PMTiles no esté descargado, no de si hay teselas sueltas. Por eso no hace falta cambiar código:
+  - con cobertura sale "El mapa base no está en el móvil" con el botón de descarga;
+  - sin cobertura sale "Mapa base no descargado…".
+- **Decisión:** se deja fijado con un e2e (`e2e/mapabase-version.spec.ts`). Simula datos móviles para que el PMTiles no se descargue solo (FR-81), deja una caché `hidrantes-teselas-19990101`, instala el SW de cero y comprueba tres cosas: que la caché vieja desaparece y que el aviso sale con cobertura y sin ella. El test pasa sobre `develop`: es un test de protección, no de regresión.
+- **Pendiente para Ops:** una línea en 04 §8 con este comportamiento (04 es de Ops; pedido en la issue de coordinación de `docs/22`).
+- **Afecta a:** 04 §8 (Ops).
+
+### DEC-125 · Tocar un aviso navega solo una ventana controlada; si no, abre una
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-83). Sesión Frontend.
+- **Contexto:** `notificationclick` buscaba ventanas con `includeUncontrolled: true` y llamaba a `navigate()` sin esperar la promesa. Tras la primera instalación no hay `clientsClaim`, así que la ventana no está controlada, `navigate()` rechaza, y la app recibía el foco sin cambiar de pantalla.
+- **Decisión:** `matchAll({ type: 'window' })` solo con las controladas. De la primera de este origen se pide primero el foco (el navegador solo lo deja poco después del toque) y después se navega. Un foco que falla no abre otra ventana; si no hay ventana controlada, o si `navigate()` falla, se usa `clients.openWindow(url)` una sola vez. Todo va dentro de `event.waitUntil`, que nunca queda rechazado: el SW no tiene token para anotar errores, y la app enseña el resultado en «Mis propuestas» al abrirse.
+- **Descartado:** añadir `clientsClaim` al SW de Workbox. Cambia cuándo toma el control una versión nueva (TR-24, el aviso de versión nueva) solo para arreglar esto.
+- **Afecta a:** `public/sw-push.js`; `config/sw-push.test.ts` (nuevo, carga el SW con `vm`).
+
+### DEC-126 · Capturas de las pantallas en cada PR que toca src/**, y el mapa de escritorio cabe en la pantalla
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-88). Sesión Frontend.
+- **Contexto:** la disposición de RV-82 solo se vio mal en un móvil real: los tests medían cajas sueltas, no el conjunto.
+- **Decisión:**
+  1. `e2e/vistas.spec.ts` saca siete pantallas, en claro y en oscuro: mapa, mapa con incidente, mapa con ficha, lista, Ajustes, cola del panel e inventario del panel.
+     - A 412 × 915 en el proyecto móvil (Pixel 7). El panel no, porque es de ordenador.
+     - A 1280 × 800 en el de escritorio.
+     - Datos simulados de `e2e/puntos.ts`.
+     - Las adjunta con `testInfo.attach` y no compara nada. Corre también en `ci-e2e-parte` como prueba de humo (unos 45 s repartidos).
+  2. **Trabajo `ci-vistas`**, no obligatorio, en `ubuntu-24.04`: solo en `pull_request` y solo si el PR toca `src/**`. Sube el artefacto `vistas` (14 días). Es la única excepción de propiedad que dio `docs/22` para `.github/`: no toca los demás trabajos.
+  3. **Lo primero que vio:** a 1280 × 800 la lista lateral marcaba la altura de la fila. El mapa crecía hasta unos 917 px, por debajo de la pantalla, y se llevaba fuera de la vista "Cercanos", el "+" y la leyenda. Ahora el contenido de la lista va en una capa absoluta dentro del `aside` y desplaza dentro de él. `anchos.spec.ts` exige que "Cercanos" y el "+" queden dentro de la pantalla y fuera de la navegación.
+  4. La skill `revisar-pantallas` ya no tiene el paso provisional de "si `e2e/vistas.spec.ts` aún no existe".
+- **Pendiente:** el marcador de posición del buscador de la lista lateral se corta ("… o co") a 320 px. Ya pasaba antes y no tapa nada. Queda para un punto de textos.
+- **Afecta a:** `.github/workflows/ci.yml` (`ci-vistas`), `.claude/skills/revisar-pantallas/SKILL.md`, `src/paginas/Mapa.tsx`.
+
+### DEC-136 · La hoja de avisos no enseña el código del motivo
+- **Fecha:** 25 sep 2026 · **Estado:** vigente. Sustituye la línea "Referencia para jefatura: `<motivo>`" de DEC-122 punto 3. Sesión Frontend.
+- **Contexto:** la revisión de RV-82 recordó UI-13: al voluntario no se le enseñan códigos internos, salvo el del propio punto. `sin_servicio_push` o `servidor:DESCONOCIDO` lo son.
+- **Decisión:** la hoja enseña solo el texto del motivo. Cada motivo tiene un texto distinto, así que el texto basta para saber el caso. Lo que no depende del voluntario queda además en Salud del sistema → "Errores de la aplicación", con la ruta `push:*`.
+- **Paso manual del desarrollador (`docs/22` §4.3):** anotar el texto que enseña la hoja y mirar si hay un error `push:*` nuevo en Salud del sistema.
+- **Afecta a:** 06 Apéndice A; `src/paginas/Ajustes.tsx`.
+
+### DEC-137 · Salud del sistema dice de cuándo son las tareas, marca la vigilancia atrasada y enseña 0 bytes
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-92, parte de pantalla; RV-93 punto 3; petición de Ops para RV-94). Sesión Frontend.
+- **Decisión:**
+  1. **Debajo de "Tareas programadas"** va una de tres líneas:
+     - "Ahora mismo", con `tareas_origen = 'en_vivo'`;
+     - "Según la vigilancia de hace N h", con `tareas_medidas_en` en relativo;
+     - "Según la última vigilancia", si la base es anterior a 0031 (no trae origen) o no trae la hora.
+
+     `tareas_error` (el SQLSTATE) no se enseña: es para diagnóstico (UI-13).
+  2. **"Última vigilancia"** va en `--naranja-texto` a partir de **26 h** (`VIGILANCIA_ATRASADA_H` en `src/lib/panel/ajustes.ts`). Como el color solo no basta (WCAG 1.4.1), se añade además "lleva más de un día sin pasar". Hasta 26 h no se marca: GitHub retrasa la vigilancia varias horas.
+  3. **"Almacenamiento usado":** con el bucket vacío, 0 bytes es un dato ("0,0 MB"), no "sin dato" (`storage_bytes != null`). `avisoAlmacenamiento(0)` ya daba `null` y no cambia.
+  4. **La lógica va en funciones puras de `src/lib/panel/ajustes.ts`,** probadas con vitest (`origenTareas`, `vigilanciaAtrasada`, `textoAlmacenamiento`), y la pantalla se prueba con e2e. `docs/22` pedía un vitest de `Ajustes.tsx`, pero el proyecto no tiene entorno DOM en vitest, y añadir jsdom sería una dependencia nueva para un solo test.
+- **Afecta a:** 06 Apéndice A; `src/componentes/panel/Ajustes.tsx`, `src/lib/panel/ajustes.ts`.
 
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
@@ -1539,13 +1735,13 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100 |
-| 11 | 002, 004, 011, 017–019, 022, 086, 094 |
-| 15 | 023, 061, 085, 088, 102 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |
+| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118 |
+| 15 | 023, 061, 085, 088, 102, 128, 129 |
 | 16 | 007, 037, 111 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |

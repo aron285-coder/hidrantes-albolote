@@ -157,6 +157,8 @@ export const T = {
     posicionDenegada: 'Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.',
     posicionNoDisponible: 'No se puede obtener tu posición ahora mismo.',
     leyenda: 'Leyenda',
+    cerrarLeyenda: 'Cerrar la leyenda',
+    zoom: 'Zoom',
     acercar: 'Acercar',
     alejar: 'Alejar',
     funcionaSinCobertura: 'funciona sin cobertura',
@@ -510,6 +512,20 @@ export const T = {
     denegado: 'Avisos bloqueados en el móvil: actívalos en sus ajustes.',
     instalarPrimero:
       'En iPhone, primero añade la aplicación a la pantalla de inicio (Compartir → Añadir a pantalla de inicio).',
+    reintentar: 'Reintentar',
+    cerrar: 'Cerrar',
+    permisoNoConcedido:
+      'El móvil no ha dejado preguntar. Abre los ajustes de notificaciones de la aplicación, actívalas y vuelve a intentarlo.',
+    permisoBloqueado:
+      'Los avisos de esta aplicación están bloqueados en el móvil. En Android: Ajustes → Aplicaciones → esta aplicación → Notificaciones. Actívalas y vuelve aquí.',
+    sinServicioPush:
+      'Este móvil no puede recibir avisos ahora (servicio de avisos no disponible). Comprueba que tiene conexión y los servicios de Google actualizados.',
+    sinServiceWorker: 'La aplicación aún se está preparando. Ciérrala del todo, ábrela y vuelve a intentarlo.',
+    claveDistinta:
+      'No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
+    servidorSinConexion: 'Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.',
+    servidorNoGuarda:
+      'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
   },
 
   fallo: {
@@ -865,6 +881,10 @@ export const T = {
     tareaMal: (hace: Parametro) => `${hace} · falló o va con retraso`,
     tareaSinEjecutar: 'todavía sin ejecutar',
     tareaFalta: 'no está programada',
+    tareasAhora: 'Ahora mismo',
+    tareasSegunVigilancia: (hace: Parametro) => `Según la vigilancia de ${hace}`,
+    tareasSegunUltimaVigilancia: 'Según la última vigilancia',
+    vigilanciaAtrasada: 'lleva más de un día sin pasar',
     topesAlcanzados24h: 'Entradas bloqueadas por demasiados intentos (24 h)',
     topesDetalle: (n: Parametro, grupo: Parametro) => `${n} · de todo el grupo: ${grupo}`,
     nunca: 'todavía ninguno',

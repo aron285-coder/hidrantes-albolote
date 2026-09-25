@@ -4,6 +4,8 @@
 #
 #   - Sola, los lunes de madrugada, sin que nadie lo pida (TR-54).
 #   - A mano desde Ajustes del panel, con /api/lanzar-workflow (FR-144, DEC-069).
+#   - La primera pasada programada, en ensayo: la primera vez que se borra lo revisa una persona
+#     (docs/22 RV-94, DEC-129).
 #
 # Sin `environment: production` por el mismo motivo que el respaldo: ese entorno exige aprobación
 # humana en cada ejecución y una tarea de mantenimiento periódica no puede esperar a nadie
@@ -33,7 +35,7 @@ concurrency:
 
 jobs:
   purgar:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -66,20 +68,26 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          # Para leer y anotar config.ultima_purga_fotos (docs/22 RV-94, DEC-129).
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL_PROD }}
           BUCKET: hidrantes-fotos
           ENSAYO: ${{ inputs.ensayo && '--ensayo' || '' }}
+          # La pasada de los lunes: si nunca se ha borrado de verdad, hace ensayo (guarda de primera vez).
+          PROGRAMADA: ${{ github.event_name == 'schedule' && '--programada' || '' }}
         run: |
           set -euo pipefail
-          npm run purgar-fotos -- $ENSAYO | tee salida.txt
-          for clave in borradas bytes_liberados bytes_restantes; do
+          npm run purgar-fotos -- $ENSAYO $PROGRAMADA | tee salida.txt
+          for clave in borradas bytes_liberados bytes_restantes ensayo primera_vez; do
             echo "$clave=$(grep -oP "^$clave=\K[0-9]+" salida.txt)" >> "$GITHUB_OUTPUT"
           done
 
+      # También en un ensayo (docs/22 RV-94): el tamaño del bucket se ha medido igual, y sin esto
+      # Salud del sistema decía «sin dato» hasta la primera purga de verdad.
       - name: Anotar el espacio que queda ocupado en Salud del sistema
-        if: ${{ !inputs.ensayo }}
         env:
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
           RESTANTES: ${{ steps.purga.outputs.bytes_restantes }}
+          POR: ${{ steps.purga.outputs.ensayo == '1' && 'purgar-fotos.yml (ensayo)' || 'purgar-fotos.yml' }}
         run: |
           set -euo pipefail
           # FR-143: jefatura ve el espacio usado en Ajustes, y hasta ahora solo lo refrescaba el
@@ -88,7 +96,7 @@ jobs:
             echo "::warning::Sin SUPABASE_DB_URL_PROD no se anota el espacio liberado en Salud del sistema"
             exit 0
           fi
-          psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('storage_bytes', to_jsonb(${RESTANTES}::bigint), 'purgar-fotos.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;"
+          psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('storage_bytes', to_jsonb(${RESTANTES}::bigint), '${POR}') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;"
 
       - name: Resumen
         env:
@@ -97,6 +105,31 @@ jobs:
         run: |
           set -euo pipefail
           echo "Fotos borradas: $BORRADAS ($((LIBERADOS / 1024 / 1024)) MB)" >> "$GITHUB_STEP_SUMMARY"
+
+      # Guarda de primera vez (DEC-129): la primera pasada programada no borra. Lo que borraría
+      # queda en el resumen y en una issue, para que alguien lo mire antes de la semana siguiente.
+      - name: Primera purga, en ensayo
+        if: ${{ steps.purga.outputs.primera_vez == '1' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          lista=$(grep -E 'sobra |… y [0-9]+ más|fotos en el bucket' salida.txt | sed 's/^[^a-zA-Z0-9…]*//' || true)
+          ejecucion="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          {
+            echo "### Primera purga: ensayo"
+            echo
+            echo 'Es la primera pasada programada: no se ha borrado nada. Esto es lo que borraría:'
+            echo '```'
+            printf '%s\n' "${lista:-nada}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          titulo='Primera purga de fotos: revisa el ensayo'
+          cuerpo=$(printf 'La primera pasada programada de la purga de fotos ha hecho **ensayo** (DEC-129): %s\n\n```\n%s\n```\n\nSi la lista está bien, no hay que hacer nada: la pasada del lunes que viene borra. Si no, lanza la purga a mano con «ensayo» y mira 04 §7 antes.\n' "$ejecucion" "${lista:-nada}")
+          abierta=$(gh issue list --label vigilancia --state open --search "$titulo in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$abierta" ]; then gh issue comment "$abierta" --body "$cuerpo"
+          else gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"; fi
 
       - name: Avisar si la purga ha fallado
         if: failure()

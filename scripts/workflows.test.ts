@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -395,14 +395,30 @@ describe('revisar_bd (RV-78)', () => {
       const r = spawnSync('bash', ['-e', '-c', guion], {
         cwd: raiz,
         encoding: 'utf8',
-        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado') },
+        // docs/22 RV-90: el JSON de las tareas va a RUNNER_TEMP, no a la raíz del repositorio.
+        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado'), RUNNER_TEMP: dir },
       });
-      return { salida: r.stdout, codigo: r.status };
+      const archivo = `tareas-${entorno}.json`;
+      return {
+        salida: r.stdout,
+        codigo: r.status,
+        enRaiz: existsSync(path.join(raiz, archivo)),
+        enTemporal: existsSync(path.join(dir, archivo)),
+      };
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
   };
   const BIEN = JSON.stringify([{ tarea: 'hidrantes_purgar_errores', falta: false, problema: false }]);
+
+  // docs/22 RV-90: tras npm test quedaban tareas-produccion.json y tareas-staging.json en la raíz.
+  it('el JSON de las tareas no queda en la raíz del repositorio, sino en RUNNER_TEMP', () => {
+    for (const entorno of ['produccion', 'staging']) {
+      const r = correr(entorno, BIEN);
+      expect(r.enRaiz, entorno).toBe(false);
+      expect(r.enTemporal, entorno).toBe(true);
+    }
+  });
   const FALTA = JSON.stringify([{ tarea: 'hidrantes_purgar_errores', falta: true, problema: true }]);
 
   it.skipIf(!tieneJq)('con todo bien, bash -e llega al final sin problemas, en los dos entornos', () => {
@@ -429,5 +445,75 @@ describe('revisar_bd (RV-78)', () => {
     expect(tras).toContain('intentos_codigo');
     // Nada de `a && b` en su propia línea: con bash -e y `a` falso, terminaría el paso.
     expect(guion.split('\n').filter((l) => /^\s*\[.*\]\s*&&/.test(l))).toEqual([]);
+  });
+});
+
+// docs/22 RV-89, DEC-128: ubuntu-latest pasa a Ubuntu 26 el 19 oct 2026.
+describe('imagen de los trabajos de Actions (RV-89)', () => {
+  const runsOn = archivos.flatMap((a) =>
+    [...leer(a).matchAll(/^\s+runs-on: (.+)$/gm)].map((m) => ({ archivo: a, imagen: m[1]!.trim() })),
+  );
+
+  it('ningún runs-on es ubuntu-latest', () => {
+    expect(runsOn.filter((r) => r.imagen.includes('ubuntu-latest'))).toEqual([]);
+  });
+
+  it('todos son ubuntu-24.04, salvo el canario de Ubuntu 26', () => {
+    const otros = runsOn.filter((r) => r.imagen !== 'ubuntu-24.04');
+    expect(otros).toEqual([{ archivo: 'canario-ubuntu.yml', imagen: 'ubuntu-26.04' }]);
+    expect(runsOn.length).toBeGreaterThanOrEqual(22);
+  });
+
+  it('el canario usa ubuntu-26.04, llama a preparar con psql y abre su issue', () => {
+    const texto = leer('canario-ubuntu.yml');
+    expect(texto).toMatch(/^ {2}canario-ubuntu-26:\n {4}runs-on: ubuntu-26\.04$/m);
+    expect(texto).toMatch(/uses: \.\/\.github\/actions\/preparar\n\s+with:\n\s+psql: 'true'/);
+    expect(texto).toContain('psql --version');
+    expect(texto).toContain('pg_dump --version');
+    expect(texto).toContain('jq --version');
+    expect(texto).toContain('npm run typecheck && npm test');
+    expect(texto).toContain("cron: '13 5 * * 3'");
+    expect(texto).toContain('Canario Ubuntu 26 en rojo');
+  });
+
+  it('el canario está en las listas de workflows programados, como semanal', () => {
+    for (const a of ['mantener-activo.yml', 'vigilancia.yml']) {
+      for (const l of listas(a)) expect(l).toContain('canario-ubuntu.yml');
+    }
+    expect(leer('vigilancia.yml')).toContain('respaldo.yml | purgar-fotos.yml | canario-ubuntu.yml) limite=8');
+  });
+});
+
+// docs/22 RV-90, RV-93 y RV-94.
+describe('mantenimiento de docs/22', () => {
+  it('ci-calidad falla si los tests dejan archivos sueltos, justo después de npm test (RV-90)', () => {
+    const ci = leer('ci.yml');
+    const tras = ci.slice(ci.indexOf('      - run: npm test\n'));
+    expect(tras).toMatch(/^ {6}- run: npm test\n(?: {6}#.*\n)* {6}- name: Los tests no dejan archivos sueltos\n/);
+    expect(ci).toContain('git status --porcelain --untracked-files=all');
+    const gitignore = readFileSync(path.resolve(import.meta.dirname, '../.gitignore'), 'utf8');
+    expect(gitignore).toMatch(/^tareas-\*\.json$/m);
+  });
+
+  it('la vigilancia corre dos veces al día (RV-93)', () => {
+    const crons = [...leer('vigilancia.yml').matchAll(/^\s+- cron: (.+)$/gm)].map((m) => m[1]!.trim());
+    expect(crons).toEqual(["'41 7 * * *'", "'41 19 * * *'"]);
+  });
+
+  it('la purga anota el tamaño también en un ensayo (RV-94)', () => {
+    const texto = leer('purgar-fotos.yml');
+    const paso = texto.slice(texto.indexOf('- name: Anotar el espacio')).split(/\n\s{6}- name:/)[0]!;
+    expect(paso).not.toMatch(/if:.*!inputs\.ensayo/);
+    expect(paso).toContain('purgar-fotos.yml (ensayo)');
+  });
+
+  it('la primera pasada programada de la purga es ensayo y lee ultima_purga_fotos (RV-94)', () => {
+    const texto = leer('purgar-fotos.yml');
+    expect(texto).toContain("PROGRAMADA: ${{ github.event_name == 'schedule' && '--programada' || '' }}");
+    expect(texto).toContain('npm run purgar-fotos -- $ENSAYO $PROGRAMADA');
+    expect(texto).toContain("if: ${{ steps.purga.outputs.primera_vez == '1' }}");
+    expect(texto).toContain('Primera purga de fotos: revisa el ensayo');
+    const script = readFileSync(path.resolve(import.meta.dirname, 'purgar-fotos.ts'), 'utf8');
+    expect(script).toContain("fn_config('ultima_purga_fotos'");
   });
 });
