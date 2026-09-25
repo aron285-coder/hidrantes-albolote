@@ -771,7 +771,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** CLAUDE.md §5 y §8.
 
 ### DEC-122 · Activar los avisos dice siempre el motivo si no queda activo
-- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-81). Sesión Frontend.
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-81), salvo la línea de referencia del punto 3, que sustituye DEC-136. Sesión Frontend.
 - **Contexto:** en un Android con staging, "Permitir avisos" dejaba el interruptor apagado, sin mensaje y sin error en Salud del sistema. Había cuatro caminos que acababan en el mismo "Desactivado" mudo.
 - **Decisión:**
   1. `activarPush()` nunca lanza y devuelve `{ estado, motivo? }`. Motivos: `permiso_no_concedido` (el permiso vuelve `default`), `permiso_bloqueado` (vuelve `denied`; el estado sigue siendo `denegado`), `sin_service_worker` (`serviceWorker.ready` no llega en 10 s), `sin_servicio_push` (`subscribe` o `getSubscription` lanzan, o algo imprevisto), `clave_distinta` (había una suscripción con otra clave VAPID y no se pudo cambiar) y `servidor:<código>` (la RPC falla).
@@ -803,6 +803,23 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** "Cercanos" dentro de la barra de búsqueda, como botón a su derecha. Ocupa menos, pero queda arriba, lejos del pulgar, y compite con el teclado al buscar.
 - **Afecta a:** 06 §4.5, §4.7, §5 y Apéndice A; 07 (mapa).
 
+### DEC-124 · El aviso del mapa base, también para quien solo tenía teselas sueltas
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-85). Sesión Frontend.
+- **Contexto:** quien va con datos móviles y nunca descargó el PMTiles solo tiene, sin cobertura, lo que quedó en `hidrantes-teselas-<versión>`. Cada versión nueva del mapa base borra esa caché al activarse el SW (`docs/20` RV-71, DEC-111).
+- **Comprobado:** el aviso de RV-10 ya depende solo de que el PMTiles no esté descargado, no de si hay teselas sueltas. Por eso no hace falta cambiar código:
+  - con cobertura sale "El mapa base no está en el móvil" con el botón de descarga;
+  - sin cobertura sale "Mapa base no descargado…".
+- **Decisión:** se deja fijado con un e2e (`e2e/mapabase-version.spec.ts`). Simula datos móviles para que el PMTiles no se descargue solo (FR-81), deja una caché `hidrantes-teselas-19990101`, instala el SW de cero y comprueba tres cosas: que la caché vieja desaparece y que el aviso sale con cobertura y sin ella. El test pasa sobre `develop`: es un test de protección, no de regresión.
+- **Pendiente para Ops:** una línea en 04 §8 con este comportamiento (04 es de Ops; pedido en la issue de coordinación de `docs/22`).
+- **Afecta a:** 04 §8 (Ops).
+
+### DEC-125 · Tocar un aviso navega solo una ventana controlada; si no, abre una
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-83). Sesión Frontend.
+- **Contexto:** `notificationclick` buscaba ventanas con `includeUncontrolled: true` y llamaba a `navigate()` sin esperar la promesa. Tras la primera instalación no hay `clientsClaim`, así que la ventana no está controlada, `navigate()` rechaza, y la app recibía el foco sin cambiar de pantalla.
+- **Decisión:** `matchAll({ type: 'window' })` solo con las controladas. De la primera de este origen se pide primero el foco (el navegador solo lo deja poco después del toque) y después se navega. Un foco que falla no abre otra ventana; si no hay ventana controlada, o si `navigate()` falla, se usa `clients.openWindow(url)` una sola vez. Todo va dentro de `event.waitUntil`, que nunca queda rechazado: el SW no tiene token para anotar errores, y la app enseña el resultado en «Mis propuestas» al abrirse.
+- **Descartado:** añadir `clientsClaim` al SW de Workbox. Cambia cuándo toma el control una versión nueva (TR-24, el aviso de versión nueva) solo para arreglar esto.
+- **Afecta a:** `public/sw-push.js`; `config/sw-push.test.ts` (nuevo, carga el SW con `vm`).
+
 ### DEC-126 · Capturas de las pantallas en cada PR que toca src/**, y el mapa de escritorio cabe en la pantalla
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-88). Sesión Frontend.
 - **Contexto:** la disposición de RV-82 solo se vio mal en un móvil real: los tests medían cajas sueltas, no el conjunto.
@@ -817,6 +834,12 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   4. La skill `revisar-pantallas` ya no tiene el paso provisional de "si `e2e/vistas.spec.ts` aún no existe".
 - **Pendiente:** el marcador de posición del buscador de la lista lateral se corta ("… o co") a 320 px. Ya pasaba antes y no tapa nada. Queda para un punto de textos.
 - **Afecta a:** `.github/workflows/ci.yml` (`ci-vistas`), `.claude/skills/revisar-pantallas/SKILL.md`, `src/paginas/Mapa.tsx`.
+### DEC-136 · La hoja de avisos no enseña el código del motivo
+- **Fecha:** 25 sep 2026 · **Estado:** vigente. Sustituye la línea "Referencia para jefatura: `<motivo>`" de DEC-122 punto 3. Sesión Frontend.
+- **Contexto:** la revisión de RV-82 recordó UI-13: al voluntario no se le enseñan códigos internos, salvo el del propio punto. `sin_servicio_push` o `servidor:DESCONOCIDO` lo son.
+- **Decisión:** la hoja enseña solo el texto del motivo. Cada motivo tiene un texto distinto, así que el texto basta para saber el caso. Lo que no depende del voluntario queda además en Salud del sistema → "Errores de la aplicación", con la ruta `push:*`.
+- **Paso manual del desarrollador (`docs/22` §4.3):** anotar el texto que enseña la hoja y mirar si hay un error `push:*` nuevo en Salud del sistema.
+- **Afecta a:** 06 Apéndice A; `src/paginas/Ajustes.tsx`.
 
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
