@@ -1,6 +1,11 @@
 # Versión semántica, CHANGELOG.md y tag a partir de los commits convencionales (04 §11.1).
 # Trabaja sobre develop: la versión sube con cada release PR y llega a main con el PR develop → main,
 # así main y develop nunca divergen por el changelog (DEC-053).
+#
+# Con la GitHub App propia del proyecto (DEC-140: variable RELEASE_APP_ID y secreto RELEASE_APP_KEY,
+# que crea el desarrollador con los pasos de 15 §2), release-please abre y actualiza su PR con el
+# token de la App: eso sí dispara la CI normal, y ni hay runs «expired» ni hace falta el empujón de
+# DEC-079. Sin la App, todo sigue como antes, con GITHUB_TOKEN y el aviso del empujón.
 name: Versiones
 
 on:
@@ -16,19 +21,30 @@ jobs:
   release-please:
     runs-on: ubuntu-24.04
     steps:
+      - id: app
+        if: vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
       - id: release
         uses: googleapis/release-please-action@v5
         with:
+          # Con la App, su token; sin ella (reserva), GITHUB_TOKEN como antes de DEC-140.
+          token: ${{ steps.app.outputs.token || secrets.GITHUB_TOKEN }}
           target-branch: develop
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # Un PR abierto con GITHUB_TOKEN no dispara la CI, y la protección de develop exige los tres
-      # checks. Se lanza la CI sobre la rama para ver el resultado cuanto antes, pero **eso no basta
-      # para fusionar**: los checks de un `workflow_dispatch` no cuentan como checks del PR (se
-      # comprobó el 21 sep 2026 con el PR de la 0.1.0). Hace falta un empujón de una persona, porque
-      # lo que hace GITHUB_TOKEN nunca dispara otro workflow (DEC-079).
-      - if: steps.release.outputs.pr
+      # Solo sin la App (DEC-079). Un PR abierto con GITHUB_TOKEN no dispara la CI, y la protección de
+      # develop exige los tres checks. Se lanza la CI sobre la rama para ver el resultado cuanto antes,
+      # pero **eso no basta para fusionar**: los checks de un `workflow_dispatch` no cuentan como
+      # checks del PR (se comprobó el 21 sep 2026 con el PR de la 0.1.0). Hace falta un empujón de una
+      # persona, porque lo que hace GITHUB_TOKEN nunca dispara otro workflow.
+      - if: steps.release.outputs.pr && vars.RELEASE_APP_ID == ''
         run: |
           gh workflow run ci.yml --repo "$REPO" --ref "$RAMA" || true
           {
@@ -40,6 +56,7 @@ jobs:
             echo "git commit --allow-empty -m 'chore(release): lanzar la CI del PR de versión'"
             echo "git push origin HEAD:$RAMA"
             echo '```'
+            echo "Con la GitHub App de DEC-140 (15 §2) este paso desaparece."
           } >> "$GITHUB_STEP_SUMMARY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

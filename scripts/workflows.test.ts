@@ -517,3 +517,29 @@ describe('mantenimiento de docs/22', () => {
     expect(script).toContain("fn_config('ultima_purga_fotos'");
   });
 });
+
+// docs/23 RV-97, DEC-140: el PR de versión con el token de una GitHub App, y reserva sin ella.
+describe('release-please con la GitHub App (RV-97)', () => {
+  const texto = leer('release-please.yml');
+
+  it('saca un token de la App con create-github-app-token, solo si existe RELEASE_APP_ID', () => {
+    expect(texto).toContain('uses: actions/create-github-app-token@v2');
+    expect(texto).toMatch(/- id: app\n\s+if: vars\.RELEASE_APP_ID != ''/);
+    expect(texto).toContain('app-id: ${{ vars.RELEASE_APP_ID }}');
+    expect(texto).toContain('private-key: ${{ secrets.RELEASE_APP_KEY }}');
+  });
+
+  it('release-please usa ese token y, sin App, GITHUB_TOKEN', () => {
+    expect(texto).toContain('token: ${{ steps.app.outputs.token || secrets.GITHUB_TOKEN }}');
+  });
+
+  it('el empujón y el workflow_dispatch de la CI solo salen sin la App', () => {
+    expect(texto).toContain("- if: steps.release.outputs.pr && vars.RELEASE_APP_ID == ''");
+    expect(texto).toContain('gh workflow run ci.yml');
+  });
+
+  it('ninguna clave en claro', () => {
+    expect(texto).not.toMatch(/-----BEGIN [A-Z ]*PRIVATE KEY/);
+    expect(texto).not.toMatch(/app-id: ['"]?\d+/);
+  });
+});
