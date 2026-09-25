@@ -410,7 +410,7 @@ function SeccionAvisos() {
                 setOcupado(false);
               }
             }}
-            // 44 px de objetivo táctil (UI-13) alrededor de la pista de 48 × 28.
+            // 44 px de objetivo táctil (UI-15) alrededor de la pista de 48 × 28.
             className="flex h-11 w-12 shrink-0 items-center"
           >
             <span
@@ -435,7 +435,6 @@ function SeccionAvisos() {
           {motivo ? (
             <div role="alert" data-testid="motivo-push" className="mb-3">
               <p className="text-sm">{textoMotivoPush(motivo)}</p>
-              <p className="text-texto-suave mt-1 text-[13px]">{T.push.referencia(motivo)}</p>
             </div>
           ) : (
             <p className="text-texto-suave mb-3 text-sm">{T.push.explicacion}</p>

@@ -526,7 +526,6 @@ export const T = {
     servidorSinConexion: 'Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.',
     servidorNoGuarda:
       'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
-    referencia: (motivo: Parametro) => `Referencia para jefatura: ${motivo}`,
   },
 
   fallo: {

@@ -42,7 +42,9 @@ test('sin servicio de push: la hoja dice el motivo y no se cierra', async ({ pag
   await hoja.getByRole('button', { name: T.push.permitir }).click();
   const motivo = hoja.getByTestId('motivo-push');
   await expect(motivo).toContainText(T.push.sinServicioPush, { timeout: 15_000 });
-  await expect(motivo).toContainText(T.push.referencia('sin_servicio_push'));
+  // Sin códigos internos a la vista del voluntario (UI-13, DEC-136).
+  await expect(motivo).not.toContainText('sin_servicio_push');
+  await expect(hoja).not.toContainText('Referencia');
   await expect(hoja).toBeVisible();
   // Se puede volver a intentar, y el interruptor no se queda deshabilitado (UI-02).
   await expect(hoja.getByRole('button', { name: T.push.reintentar })).toBeEnabled();
@@ -79,7 +81,7 @@ test('con una suscripción de FCM y el servidor que la guarda: queda activado', 
   await expect(page.getByText(T.push.activado)).toBeVisible();
 });
 
-test('el servidor no la guarda: lo dice, con el código para jefatura', async ({ page }) => {
+test('el servidor no la guarda: lo dice, sin códigos internos', async ({ page }) => {
   await page.addInitScript((endpoint) => {
     PushManager.prototype.getSubscription = async () => null;
     PushManager.prototype.subscribe = async () =>
@@ -94,6 +96,6 @@ test('el servidor no la guarda: lo dice, con el código para jefatura', async ({
   const hoja = page.getByRole('dialog', { name: T.push.titulo });
   await hoja.getByRole('button', { name: T.push.permitir }).click();
   await expect(hoja.getByTestId('motivo-push')).toContainText(T.push.servidorSinConexion);
-  await expect(hoja.getByTestId('motivo-push')).toContainText('servidor:SERVIDOR_NO_DISPONIBLE');
+  await expect(hoja.getByTestId('motivo-push')).not.toContainText('SERVIDOR_NO_DISPONIBLE');
   await expect(interruptor).toHaveAttribute('aria-checked', 'false');
 });
