@@ -72,7 +72,7 @@ enseña al lado es falso.
    - `src/lib/novedades.ts`
    - `src/lib/panel/ajustes.ts` `cargarNovedades()`
    - `src/paginas/Ajustes.tsx`
-   - `src/componentes/AvisoNovedades.tsx`, el aviso tras actualizar que monta `Armazon.tsx`.
+   - ~~`src/componentes/AvisoNovedades.tsx`~~ **Corrección (25-09):** ese componente enseña el resultado de las propuestas de un voluntario y no lee este JSON. No se tocó (DEC-142, punto 8).
      Este sigue avisando por la `version` de arriba.
 5. **Compatibilidad:** si `lineas` llega como `string[]` (el JSON viejo que hay en git), se leen con la
    `version` de arriba. Sin eso, el typecheck o un build a medias fallan.
