@@ -11,7 +11,7 @@ permissions:
 jobs:
   fusionar:
     if: github.actor == 'dependabot[bot]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@v3
