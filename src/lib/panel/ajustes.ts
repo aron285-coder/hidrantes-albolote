@@ -230,7 +230,9 @@ export const VIGILANCIA_ATRASADA_H = 26;
 
 export function vigilanciaAtrasada(ultima: string | null, ahora: Date = new Date()): boolean {
   if (!ultima) return false;
-  return ahora.getTime() - new Date(ultima).getTime() > VIGILANCIA_ATRASADA_H * 3_600_000;
+  const desde = new Date(ultima).getTime();
+  if (Number.isNaN(desde)) return false;
+  return ahora.getTime() - desde >= VIGILANCIA_ATRASADA_H * 3_600_000;
 }
 
 /** Debajo de "Tareas programadas": si son de ahora mismo o de la foto de la vigilancia (RV-92). */

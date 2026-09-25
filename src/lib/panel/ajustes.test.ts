@@ -118,13 +118,19 @@ describe('Salud del sistema: origen de las tareas, vigilancia atrasada y almacen
 
   it('una base anterior a 0031 (sin origen) dice que es de la vigilancia, sin inventarse la hora', () => {
     expect(origenTareas(base, ahora)).toBe(T.panelAjustes.tareasSegunUltimaVigilancia);
+    // 0031 sin foto guardada: de la vigilancia, pero sin hora.
+    expect(origenTareas({ ...base, tareas_origen: 'vigilancia', tareas_medidas_en: null }, ahora)).toBe(
+      T.panelAjustes.tareasSegunUltimaVigilancia,
+    );
   });
 
   it(`la vigilancia va con retraso a partir de ${VIGILANCIA_ATRASADA_H} h, no antes`, () => {
     expect(VIGILANCIA_ATRASADA_H).toBe(26);
     const de = (h: number) => new Date(ahora.getTime() - h * hora).toISOString();
     expect(vigilanciaAtrasada(de(27), ahora)).toBe(true);
+    expect(vigilanciaAtrasada(de(26), ahora)).toBe(true);
     expect(vigilanciaAtrasada(de(25), ahora)).toBe(false);
+    expect(vigilanciaAtrasada('no es una fecha', ahora)).toBe(false);
     // Cinco horas tarde es lo normal en GitHub (docs/22 RV-93): no se marca.
     expect(vigilanciaAtrasada(de(13), ahora)).toBe(false);
     expect(vigilanciaAtrasada(null, ahora)).toBe(false);
