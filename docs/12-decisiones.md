@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.39 — 25 de septiembre de 2026 (DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.41 — 25 de septiembre de 2026 (DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,63 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-129 · La primera purga de fotos es un ensayo, y el ensayo también anota el tamaño
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-94). Sesión Ops.
+- **Contexto:** `purgar-fotos.yml` no se había ejecutado nunca. La primera vez iba a ser la pasada programada del lunes 28-09 a las 04:43 UTC, y borraría de verdad sin que nadie hubiera visto una lista. Además, un ensayo no anotaba `storage_bytes` aunque lo medía, así que Salud del sistema decía «Almacenamiento usado: sin dato».
+- **Decisión:**
+  1. **El paso de anotar corre siempre.** Con ensayo, `actualizado_por = 'purgar-fotos.yml (ensayo)'`. El valor es el tamaño real del bucket: `bytes_restantes = bytesDe(enBucket)` cuando no se borra nada.
+  2. **Guarda de primera vez**, en `scripts/purgar-fotos.ts` (`modoDePurga`). La pasada **programada** (`--programada`, que el workflow pasa solo con `schedule`) hace ensayo si no existe `config.ultima_purga_fotos`. Entonces el workflow escribe lo que borraría en el resumen y abre la issue «Primera purga de fotos: revisa el ensayo» (etiqueta `vigilancia`). Una ejecución a mano sin ensayo, o la programada de la semana siguiente, ya borra.
+  3. **Solo una pasada que borra de verdad** escribe `config.ultima_purga_fotos = to_jsonb(now())`, aunque no haya nada que borrar. Si no se puede leer esa marca, se da por que no existe: mejor un ensayo de más.
+- **Comprobado:** `purgar-fotos.test.ts` (`modoDePurga`), `workflows.test.ts`, y `probar-purga.ts` contra el Supabase local en `ci-sql`, que prueba la primera vez programada, la manual y la siguiente.
+- **Afecta a:** 04 §9; 15 §4.
+
+### DEC-128 · Los trabajos de Actions, fijos en ubuntu-24.04, con un canario de Ubuntu 26
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-89). Sesión Ops.
+- **Contexto:** cada ejecución avisa de que `ubuntu-latest` pasa a Ubuntu 26 desde el 19 oct 2026, y los 21 trabajos lo usaban. `preparar` instala `postgresql-client-17` con el script de PGDG, que en una versión recién salida puede no tener paquetes. Si ese paso falla, fallan a la vez `ci-sql`, el respaldo, la vigilancia y la purga: todo lo que avisa cuando algo va mal.
+- **Decisión:**
+  1. Los 21 trabajos, con `runs-on: ubuntu-24.04`. Ningún `ubuntu-latest` en `.github/workflows/`: lo comprueba `workflows.test.ts`.
+  2. `canario-ubuntu.yml`, con el trabajo `canario-ubuntu-26` en `ubuntu-26.04`, los miércoles a las 05:13 UTC y a mano. Hace `preparar` con psql, las versiones de psql, pg_dump y jq, y `npm run typecheck && npm test`, sin tocar ninguna base de datos. Abre o cierra la issue «Canario Ubuntu 26 en rojo».
+  3. Está en las listas `WORKFLOWS` de la vigilancia y de `mantener-activo.yml` (DEC-085), con el límite de 8 días de los semanales.
+  4. **Paso a Ubuntu 26:** cuando el canario lleve dos semanas en verde, en un PR aparte, y el canario se retira.
+- **Descartado:**
+  - **Meter el canario en `mantenimiento.yml`:** ese lo despacha jefatura con una entrada obligatoria.
+  - **Quedarse en `ubuntu-latest` y arreglar si falla:** fallaría justo lo que avisa de los fallos.
+- **Afecta a:** 15 §4.
+
+### DEC-132 · Salud del sistema lee las tareas programadas en vivo; la foto de la vigilancia, de respaldo
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-92, 0031). Sesión Backend.
+- **Contexto:** `fn_salud()` devolvía en `tareas` la foto que guarda `vigilancia.yml` cada noche (`config.tareas_programadas`). El 25-09, en producción, `purgar_intentos` (cada hora) decía "hace 13 h · bien" y `purgar_subidas` "todavía sin ejecutar" aunque ya había corrido.
+- **Decisión:**
+  1. **`hidrantes.fn_tareas_programadas()`**, `security definer`, dueño `hidrantes_migrador` (el que aplica las migraciones y es dueño de las tareas; `arranque-bd.sql` le da `select` en `cron.job` y `cron.job_run_details`). La misma consulta que `scripts/sql/tareas-programadas.sql`, sin la lista de esperadas, y con la misma forma de fila que la foto (el panel anterior la pinta igual). Una tarea que estaba en la última foto de la vigilancia y ya no está en `cron.job` (o no se ve, por ejemplo recreada con otro dueño: pg_cron filtra por `username`) sale con `falta = true` y `problema = true`: sin eso, una lista vacía o incompleta se leería como «todo bien» (hallazgo de la revisión del PR). En `plpgsql` para que la migración no falle en una base sin pg_cron. Sin `execute` para `anon` ni `authenticated`.
+  2. **`fn_salud()`**, misma firma: `tareas` de `fn_tareas_programadas()` y `tareas_origen = 'en_vivo'`. Si falla con `insufficient_privilege`, `undefined_table`, `invalid_schema_name` o `undefined_function`, la foto de `config.tareas_programadas` con `tareas_origen = 'vigilancia'`, `tareas_medidas_en` (el `actualizado_en` de esa fila) y `tareas_error` (el SQLSTATE, para saber por qué). Cualquier otro error sigue saliendo como error: no se esconde.
+  3. **La vigilancia no cambia:** sigue guardando la foto, que es la red de seguridad, y sigue siendo la única que mira las tareas que faltan.
+- **Descartado:** dar a `authenticated` lectura de `cron.job_run_details`: es de toda la base (también de uniformidad) y abriría más de lo necesario.
+- **Afecta a:** 05 §6.2 y §6.3.
+
+### DEC-118 · Una suscripción push solo se borra al momento si el servicio dice que no existe
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-84, 0030). Sesión Backend.
+- **Contexto:** `fn_resultado_notificacion` borraba la suscripción al tercer error de cualquier tipo. Un 5xx o un 429 pasajero de FCM bastaba: el móvil seguía diciendo "Activado" y no volvía a recibir nada.
+- **Decisión:**
+  1. **Solo 404 y 410** (`suscripcion_caducada`, lo pone `enviar()` de `functions/_lib/webpush.ts`) borran al primer aviso.
+  2. **Cualquier otro error** suma un fallo y anota el error en el aviso, como antes. La suscripción se borra solo con **10 fallos seguidos y ningún envío bueno en los últimos 7 días**, o ninguno nunca. Un envío bueno pone `fallos = 0`.
+  3. **429:** `/api/push` no llama a `fn_resultado_notificacion`, y los demás avisos del lote para ese mismo servicio (origen del endpoint) no se intentan en esa invocación. Todos ellos se aplazan con **una** llamada a la RPC nueva `fn_aplazar_notificaciones(ids, segundos)` (solo `service_role`), con el `Retry-After` mayor (segundos o fecha; 60 s si no viene; de 0 a 24 h): vuelven a poder reclamarse pasado ese tiempo y se les devuelve el intento, así que una racha de 429 no los deja como `SIN_RESPUESTA` (DEC-088). Presupuesto: 20 × 2 + 3 = 43 peticiones de 50. La respuesta lleva `aplazadas`, y `quedan` solo si el lote venía lleno y no se aplazó entero: los avisos de otros servicios no esperan por uno que ha pedido calma.
+- **Coste aceptado:**
+  - si la llamada a `fn_aplazar_notificaciones` falla, esos avisos siguen reclamados y salen a los 15 minutos gastando un intento, como cualquier aviso sin anotar; cuentan en `sin_anotar`;
+  - un 5xx sigue dejando **ese aviso** con `error` y no se reintenta (como antes de 0030): lo que cambia es que la suscripción ya no se pierde. Reintentar los 5xx sería otro cambio en la cola, fuera de RV-84;
+  - una suscripción rota de verdad con un error que no es 404/410 (p. ej. un 403 por claves VAPID cambiadas) tarda hasta 7 días en borrarse. Mientras, sus avisos fallan y quedan anotados, que es lo mismo que pasaría sin borrarla.
+- **Descartado:**
+  - subir solo el umbral de 3 a 10 sin mirar `ultimo_envio`: una suscripción que recibe bien a diario se perdería con una mala racha de un día;
+  - dejar lo aplazado solo reclamado, sin RPC nueva (lo que proponía `docs/21`): cada 429 gastaba un intento, incluso en los avisos que ni se intentaban, y tres seguidos los perdían; y un `Retry-After` de más de 15 minutos no se respetaba.
+- **Afecta a:** 05 §2.12, §6.3 y §9; 11 §6.1.
+
+### DEC-119 · Una fila de voluntario y una de jefatura por navegador
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-84, 0030). Sesión Backend.
+- **Contexto:** el único de `suscripciones_push` era solo por `endpoint`, y `fn_guardar_suscripcion_push` (voluntario) y `fn_guardar_suscripcion_push_admin` se quitaban la fila con `on conflict … set email = null` / `set dispositivo_id = null`. Voluntario y jefatura en el mismo navegador: el último que activaba se quedaba la fila y el otro dejaba de recibir sin saberlo.
+- **Decisión:** el único pasa a `((suscripcion ->> 'endpoint'), (dispositivo_id is null))` (`suscripciones_endpoint_duenio_idx`), índice nuevo y borrado del viejo sin editar 0001. Cada función hace `on conflict` sobre ese índice y solo actualiza su tipo de dueño. Mismas firmas (04 §12); `/api/push` no cambia porque cada aviso ya va a una `suscripcion_id`.
+- **Por qué por tipo de dueño y no `coalesce(dispositivo_id::text, email)`** (lo que proponía `docs/21`): un navegador solo tiene un token de voluntario, así que otro `dispositivo_id` en el mismo endpoint es ese navegador con un acceso nuevo; con el índice de `docs/21` se quedaría también la fila del acceso viejo y el navegador recibiría los avisos de las dos. Lo mismo con dos administradores en el mismo ordenador: los avisos de jefatura son iguales para todos, y dos filas serían avisos repetidos. Con el índice por tipo de dueño el `upsert` sigue siendo atómico y sin borrados aparte.
+- **Encontrado al escribir el test:** las dos funciones de guardar fallaban **siempre** en la base real con `42702 column reference "suscripcion" is ambiguous`: en `on conflict ((suscripcion ->> 'endpoint'))`, el parámetro `suscripcion` y la columna se llaman igual y plpgsql no elige. Ningún pgTAP las llamaba (solo se comprobaban sus permisos) y los e2e simulan la RPC. Es, del lado del servidor, la incidencia «Avisos quedan desactivados» de staging (RV-81). 0030 pone `#variable_conflict use_column` y califica los parámetros con el nombre de la función; no se renombran porque PostgREST llama por nombre de parámetro. `27_suscripciones_duenios.test.sql` las llama con los roles `anon` y `authenticated`, como PostgREST.
+- **Afecta a:** 05 §2.12.
 
 ### DEC-116 · Tres skills propias del proyecto, versionadas en .claude/skills/
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` SK-03). Sesión Ops.
@@ -1595,13 +1652,13 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 132 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |
-| 11 | 002, 004, 011, 017–019, 022, 086, 094 |
-| 15 | 023, 061, 085, 088, 102 |
+| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118 |
+| 15 | 023, 061, 085, 088, 102, 128, 129 |
 | 16 | 007, 037, 111 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |

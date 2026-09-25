@@ -10,6 +10,7 @@ import {
   huerfanas,
   lotes,
   MAX_FILAS_POSTGREST,
+  modoDePurga,
   motivoParaNoBorrar,
   purgar,
   referenciadas,
@@ -270,5 +271,27 @@ describe('borrar', () => {
     const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('no', { status: 500 }));
     await expect(borrar(URL_BASE, SERVICIO, 'hidrantes-fotos', ['a.jpg'])).rejects.toThrow(/Storage/);
     espia.mockRestore();
+  });
+});
+
+// docs/22 RV-94, DEC-129: la primera pasada programada no borra.
+describe('modoDePurga', () => {
+  it('primera pasada programada, sin purga anterior: ensayo, y se avisa', () => {
+    expect(modoDePurga({ programada: true, ensayoPedido: false, hayUltimaPurga: false })).toEqual({
+      ensayo: true,
+      primeraVez: true,
+    });
+  });
+  it('programada con una purga de verdad anterior: borra', () => {
+    expect(modoDePurga({ programada: true, ensayoPedido: false, hayUltimaPurga: true }).ensayo).toBe(false);
+  });
+  it('a mano sin ensayo, aunque sea la primera: borra', () => {
+    expect(modoDePurga({ programada: false, ensayoPedido: false, hayUltimaPurga: false }).ensayo).toBe(false);
+  });
+  it('con ensayo pedido, siempre ensayo, y no cuenta como primera vez', () => {
+    expect(modoDePurga({ programada: true, ensayoPedido: true, hayUltimaPurga: false })).toEqual({
+      ensayo: true,
+      primeraVez: false,
+    });
   });
 });

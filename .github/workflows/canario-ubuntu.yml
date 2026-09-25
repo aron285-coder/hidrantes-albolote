@@ -1,0 +1,63 @@
+# Canario de Ubuntu 26 (docs/22 RV-89, DEC-128). Todos los trabajos de verdad van fijos en
+# ubuntu-24.04: `ubuntu-latest` pasa a Ubuntu 26 desde el 19 de octubre de 2026, y en una versión
+# recién salida el repositorio de PGDG puede no tener aún postgresql-client-17. Si fallara
+# `preparar`, fallarían a la vez ci-sql, el respaldo, la vigilancia y la purga de fotos.
+#
+# Este trabajo hace el camino crítico en ubuntu-26.04 sin tocar ninguna base de datos: preparar con
+# psql, las versiones de psql, pg_dump y jq, y typecheck y tests. Si falla, abre o comenta la issue
+# «Canario Ubuntu 26 en rojo» (etiqueta vigilancia); si pasa, la cierra. Cuando lleve dos semanas en
+# verde, todo pasa a ubuntu-26.04 en un PR aparte y este workflow se retira (DEC-128, 15 §4).
+name: Canario Ubuntu 26
+
+on:
+  schedule:
+    - cron: '13 5 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: canario-ubuntu
+  cancel-in-progress: false
+
+jobs:
+  canario-ubuntu-26:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - id: preparar
+        uses: ./.github/actions/preparar
+        with:
+          psql: 'true'
+      - name: Versiones de las herramientas del camino crítico
+        run: |
+          set -euo pipefail
+          psql --version
+          pg_dump --version
+          jq --version
+      - run: npm run typecheck && npm test
+
+      - name: Abrir o cerrar la issue del canario
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RESULTADO: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          titulo='Canario Ubuntu 26 en rojo'
+          abierta=$(gh issue list --label vigilancia --state open --search "$titulo in:title" --json number --jq '.[0].number // empty')
+          ejecucion="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ "$RESULTADO" = success ]; then
+            if [ -n "$abierta" ]; then
+              gh issue close "$abierta" --comment "El canario de $(date -u +%Y-%m-%d) en ubuntu-26.04 ha ido bien: $ejecucion"
+            fi
+            exit 0
+          fi
+          cuerpo=$(printf 'El canario de %s en ubuntu-26.04 ha fallado (%s): %s\n\nNo es urgente: los trabajos de verdad siguen en ubuntu-24.04. Qué hacer: 15 §4 (DEC-128).\n' \
+            "$(date -u +%Y-%m-%d)" "$RESULTADO" "$ejecucion")
+          if [ -n "$abierta" ]; then gh issue comment "$abierta" --body "$cuerpo"
+          else gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"; fi

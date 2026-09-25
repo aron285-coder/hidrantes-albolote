@@ -47,6 +47,8 @@ coverage/
 .claude/settings.local.json
 # Worktrees de los agentes de Claude Code: son otras copias del repositorio, nunca parte de él.
 .claude/worktrees/
+# Las tareas de pg_cron que escribe revisar-bd.sh fuera de Actions (docs/22 RV-90).
+tareas-*.json
 
 # Sistema
 .DS_Store

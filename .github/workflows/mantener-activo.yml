@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   tocar:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +57,7 @@ jobs:
   # scripts/workflows.test.ts rompe CI si un workflow programado no está aquí. vigilancia.yml llama
   # a este mismo job, así que los dos se rehabilitan mutuamente.
   mantener-workflows:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       actions: write
     steps:
@@ -65,7 +65,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml
         run: |
           set -eu
           for w in $WORKFLOWS; do

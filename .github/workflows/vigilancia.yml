@@ -11,7 +11,10 @@ name: Vigilancia
 
 on:
   schedule:
+    # Dos pasadas (docs/22 RV-93): GitHub retrasa la programada varias horas. En un repositorio
+    # público no cuesta minutos (TR-53).
     - cron: '41 7 * * *'
+    - cron: '41 19 * * *'
   workflow_dispatch:
 
 permissions:
@@ -29,7 +32,7 @@ jobs:
   # Cloudflare del environment staging: es el mismo de toda la cuenta (arranque.ts lo pone en los
   # dos) y staging no pide aprobación. Solo lectura.
   worker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: staging
     timeout-minutes: 5
     outputs:
@@ -68,7 +71,7 @@ jobs:
   # con la base de datos de su environment, que no pide aprobación. Anota allí su última vigilancia y
   # si lo de staging respondía. Sus problemas van a la misma issue, con «staging:» delante.
   staging:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: staging
     timeout-minutes: 10
     outputs:
@@ -104,7 +107,7 @@ jobs:
     needs: [worker, staging]
     # Aunque no se haya podido mirar el Worker o staging: el resto se comprueba igual y eso ya es un problema.
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
@@ -133,7 +136,7 @@ jobs:
           WORKER_CRON: ${{ needs.worker.outputs.cron }}
           WORKER_VERSION: ${{ needs.worker.outputs.version }}
           # La misma lista que mantener-activo.yml; scripts/workflows.test.ts comprueba que coinciden.
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml
         run: |
           set -uo pipefail
           problemas=()
@@ -176,10 +179,10 @@ jobs:
 
           # 4. Los workflows programados siguen vivos: GitHub los desactiva tras 60 días sin actividad
           #    en un repositorio público (DEC-085). Diarios: última ejecución programada de menos de
-          #    2 días; semanales (respaldo y purga de fotos): de menos de 8.
+          #    2 días; semanales (respaldo, purga de fotos y canario de Ubuntu 26): de menos de 8.
           ahora=$(date -u +%s)
           for w in $WORKFLOWS; do
-            case "$w" in respaldo.yml | purgar-fotos.yml) limite=8 ;; *) limite=2 ;; esac
+            case "$w" in respaldo.yml | purgar-fotos.yml | canario-ubuntu.yml) limite=8 ;; *) limite=2 ;; esac
             estado=$(gh api "repos/$REPO/actions/workflows/$w" --jq .state 2>/dev/null || echo error)
             if [ "$estado" != "active" ]; then
               problemas+=("el workflow $w está desactivado ($estado): 15 §4")
@@ -259,7 +262,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml
         run: |
           set -eu
           for w in $WORKFLOWS; do gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"; done

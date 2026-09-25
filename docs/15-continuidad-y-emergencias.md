@@ -85,12 +85,18 @@ En orden de fiabilidad:
    respaldo, almacenamiento, última vigilancia. Verde = todo bien.
 2. **Issues con etiqueta `vigilancia`** en GitHub: las abre solo el trabajo diario cuando la app, la
    base de datos o el respaldo fallan. Una issue abierta = algo que mirar en la §5 correspondiente.
+   - La vigilancia corre dos veces al día (07:41 y 19:41 UTC), pero **GitHub puede retrasarla varias horas**. Una vigilancia de hace menos de 14 h es normal; más de 26 h, no (docs/22 RV-93).
+   - La issue «Primera purga de fotos: revisa el ensayo» sale una sola vez: la primera pasada programada de la purga no borra (DEC-129). Mira la lista. Si está bien, no hay que hacer nada, porque el lunes siguiente ya borra.
 3. **Los voluntarios**: "Algo no funciona" en Ajustes de la app llega a Panel → Voluntarios.
 4. **Correo de GitHub "scheduled workflow … disabled"**: en Actions, abre el workflow que nombra y
    pulsa *Enable workflow* (o `gh workflow enable <archivo>`); después lanza `mantener-activo.yml`
    a mano, que rehabilita los demás (DEC-085). Si pasa a menudo, el mecanismo de DEC-085 ha dejado
    de servir y hay que decidir la alternativa.
-5. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
+5. **Issue «Canario Ubuntu 26 en rojo»** (etiqueta `vigilancia`, `canario-ubuntu.yml`, los miércoles): **nada urgente**. Todos los trabajos de verdad van fijos en `ubuntu-24.04` (DEC-128), así que el respaldo, la vigilancia, la purga y el CI siguen funcionando. Solo avisa de que aún no se puede pasar a `ubuntu-26.04`.
+   - **Qué hacer:** abrir la ejecución y mirar qué paso falló. Lo normal es `preparar`: PGDG aún sin `postgresql-client-17` para la versión nueva. Esperar a la semana siguiente.
+   - **Cuándo pasar a Ubuntu 26:** cuando el canario lleve dos semanas en verde, se cambia todo a `ubuntu-26.04` en un PR aparte y se retira el canario.
+   - **Hasta cuándo vale `ubuntu-24.04`:** `actions/runner-images` no publica una fecha. Su política es «We support (at maximum) 2 GA images and 1 beta image at a time», y la retirada de la imagen más antigua empieza cuando la siguiente llega a GA. El 25 sep 2026 están `ubuntu-26.04`, `ubuntu-24.04` y `ubuntu-22.04`. `ubuntu-24.04` será la más antigua cuando llegue la siguiente LTS. Consultado en https://github.com/actions/runner-images el 25 sep 2026.
+6. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
    `githubstatus.com`. Si está caído el proveedor, no hay nada que hacer salvo esperar; la app sigue
    mostrando los datos guardados en los móviles (FR-168).
 

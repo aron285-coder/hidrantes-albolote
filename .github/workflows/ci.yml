@@ -20,7 +20,7 @@ jobs:
   # a SQL. Saltados por su `if`, cuentan como correctos para los checks obligatorios.
   cambios:
     name: cambios
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       codigo: ${{ steps.calcular.outputs.codigo }}
@@ -48,7 +48,7 @@ jobs:
 
   calidad:
     name: ci-calidad
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -65,6 +65,11 @@ jobs:
       - run: npm run lint
       - run: npm run formato:comprobar
       - run: npm test
+      # docs/22 RV-90: un test que deja archivos acabaría en un PR con git add -A.
+      - name: Los tests no dejan archivos sueltos
+        run: |
+          sucio=$(git status --porcelain --untracked-files=all)
+          if [ -n "$sucio" ]; then echo "::error::Los tests han dejado archivos: $sucio"; exit 1; fi
       # Los hooks de .claude/ que hacen cumplir CLAUDE.md §3 (docs/21 SK-02, DEC-115).
       - run: npx tsx scripts/probar-hooks.ts
       - run: npm run build
@@ -74,7 +79,7 @@ jobs:
     name: ci-sql
     needs: cambios
     if: needs.cambios.outputs.codigo == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -188,7 +193,7 @@ jobs:
     name: ci-e2e-parte
     needs: cambios
     if: needs.cambios.outputs.codigo == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -212,7 +217,7 @@ jobs:
     name: ci-e2e-rendimiento
     needs: cambios
     if: needs.cambios.outputs.codigo == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -233,7 +238,7 @@ jobs:
     name: ci-e2e
     needs: [cambios, e2e-parte, e2e-rendimiento]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - env:
