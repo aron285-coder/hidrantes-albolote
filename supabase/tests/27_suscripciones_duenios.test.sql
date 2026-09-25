@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(16);
+select plan(18);
 
 -- ---------- datos de prueba ----------
 
@@ -85,6 +85,21 @@ select is((select count(*)::int from hidrantes.suscripciones_push
 
 select ok(not exists (select 1 from pg_indexes where schemaname = 'hidrantes' and indexname = 'suscripciones_endpoint_idx'),
   'el índice único solo por endpoint ya no existe');
+
+-- Como llegan de verdad, por PostgREST: el voluntario con el rol anon y jefatura con authenticated.
+-- Hasta 0030 las dos fallaban siempre con 42702 (parámetro y columna `suscripcion` ambiguos).
+set local role anon;
+select lives_ok($$ select hidrantes.fn_guardar_suscripcion_push('token-de-prueba-rv84-dispositivo-uno',
+  '{"endpoint": "https://fcm.googleapis.com/fcm/send/rv84-anon", "keys": {"p256dh": "p", "auth": "a"}}'::jsonb, array['resultado_propuesta']) $$,
+  'un voluntario guarda su suscripción con el rol anon');
+reset role;
+select pg_temp.como_admin('jefa-avisos@example.com');
+set local role authenticated;
+select lives_ok($$ select hidrantes.fn_guardar_suscripcion_push_admin(
+  '{"endpoint": "https://fcm.googleapis.com/fcm/send/rv84-anon", "keys": {"p256dh": "p", "auth": "a"}}'::jsonb, array['nuevas_propuestas', 'resumen_semanal']) $$,
+  'y jefatura la suya con authenticated');
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 -- ---------- fallos pasajeros y caducidad ----------
 

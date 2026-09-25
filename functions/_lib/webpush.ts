@@ -129,6 +129,20 @@ export interface ResultadoEnvio {
   ok: boolean;
   caducada: boolean;
   error?: string;
+  /** Solo con 429: segundos que el servicio pide esperar (Retry-After) antes de volver a enviar. */
+  aplazar_s?: number;
+}
+
+/** Espera por defecto si un 429 no trae Retry-After, o trae algo que no se entiende. */
+export const APLAZAR_POR_DEFECTO_S = 60;
+
+/** Retry-After (RFC 9110 §10.2.3): segundos, o una fecha HTTP. */
+export function segundosDeRetryAfter(valor: string | null, ahora = Date.now()): number {
+  const texto = valor?.trim() ?? '';
+  if (/^\d+$/.test(texto)) return Number(texto);
+  const fecha = Date.parse(texto);
+  if (Number.isNaN(fecha)) return APLAZAR_POR_DEFECTO_S;
+  return Math.max(0, Math.round((fecha - ahora) / 1000));
 }
 
 export async function enviar(
@@ -149,8 +163,17 @@ export async function enviar(
       },
       body: cuerpo,
     });
-    // 404/410: la suscripción ya no existe en el servicio de push
+    // 404/410: la suscripción ya no existe en el servicio de push. Solo estos dos caducan (RV-84).
     if (r.status === 404 || r.status === 410) return { ok: false, caducada: true, error: `HTTP ${r.status}` };
+    // 429: pasajero; el servicio dice cuánto esperar.
+    if (r.status === 429) {
+      return {
+        ok: false,
+        caducada: false,
+        error: 'HTTP 429',
+        aplazar_s: segundosDeRetryAfter(r.headers.get('Retry-After')),
+      };
+    }
     return r.ok ? { ok: true, caducada: false } : { ok: false, caducada: false, error: `HTTP ${r.status}` };
   } catch (e) {
     return { ok: false, caducada: false, error: (e as Error).message.slice(0, 200) };

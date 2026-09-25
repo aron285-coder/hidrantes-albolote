@@ -44,13 +44,28 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
   let enviadas = 0;
   let fallidas = 0;
   let sin_anotar = 0;
+  let aplazadas = 0;
+  // Servicios de push (origen del endpoint) que han contestado 429 en esta invocación.
+  const enEspera = new Set<string>();
   for (const n of pendientes.datos) {
+    const servicio = origenDe(n.suscripcion.endpoint);
+    if (enEspera.has(servicio)) {
+      aplazadas++;
+      continue;
+    }
     let r: Awaited<ReturnType<typeof enviar>>;
     try {
       r = await enviar(n.suscripcion, { titulo: n.titulo, cuerpo: n.cuerpo, url: n.url }, vapid);
     } catch {
       // No se sabe si salió: queda reclamado y se reintenta a los 15 minutos.
       sin_anotar++;
+      continue;
+    }
+    if (r.aplazar_s !== undefined) {
+      // 429 (RV-84): no es un fallo de la suscripción. Sin anotar, el aviso sigue reclamado y vuelve
+      // a salir a los 15 minutos, que es más de lo que suelen pedir los servicios de push.
+      enEspera.add(servicio);
+      aplazadas++;
       continue;
     }
     const anotado = await rpc(env, 'fn_resultado_notificacion', {
@@ -65,5 +80,21 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     if (r.ok) enviadas++;
     else fallidas++;
   }
-  return json({ enviadas, fallidas, sin_anotar, quedan: pendientes.datos.length === LOTE });
+  // Con algo aplazado, el Worker no debe volver a llamar enseguida: reclamaría más avisos para el
+  // mismo servicio que acaba de pedir esperar.
+  return json({
+    enviadas,
+    fallidas,
+    sin_anotar,
+    aplazadas,
+    quedan: pendientes.datos.length === LOTE && aplazadas === 0,
+  });
 };
+
+function origenDe(endpoint: string): string {
+  try {
+    return new URL(endpoint).origin;
+  } catch {
+    return endpoint;
+  }
+}
