@@ -499,7 +499,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Versión [0.1.0]` · `Descargando… [40] %` ·
 `No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
 `No se pudo descargar. Inténtalo de nuevo con wifi.` · `[438] · sincronizado [hace 5 min]` ·
-`Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
+`Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167; cada línea, `[0.6.4] · [texto]` con la versión que la trajo, DEC-142) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
 ha concedido, o no, no desalojar lo guardado; TR-07).
 
 **Algo no funciona** (FR-92). `Para problemas de la aplicación. Si lo que quieres es cambiar un hidrante, hazlo desde su ficha.` ·
@@ -663,7 +663,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073) ·
 `Zona de cobertura · mapa base` · `Callejero sin conexión` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Base de datos` · `[38] MB de [500] MB` · `Tareas programadas` ·
 `[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` · `no está programada` (tarea de pg_cron que falta, RV-56) · debajo del título, `Ahora mismo` · `Según la vigilancia de [hace 13 h]` · `Según la última vigilancia` (docs/22 RV-92) · `lleva más de un día sin pasar` (última vigilancia de más de 26 h, en tono de aviso, RV-93) ·
-`Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) ·
+`Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) · `no se mide en pruebas` (Almacenamiento usado en staging sin dato, docs/23 RV-98, DEC-143) ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
 `"[nombre]" lanzado. Tarda unos minutos.` · `Avisos para jefatura` ·
@@ -676,7 +676,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Para la sede y las reuniones: quien lo escanea abre la aplicación.` · `Imprimir A4` ·
 `Escanea para instalar` ·
 `Mapa de hidrantes y bocas de riego. Entra con el código de acceso que te haya dado jefatura.` ·
-`Novedades` · `Lo que cambió en las últimas versiones.` · `Todavía no hay novedades publicadas.`.
+`Novedades` · `Lo que cambió en las últimas versiones.` · `Todavía no hay novedades publicadas.` · cada línea, `[0.6.4] · [texto]` con la versión que la trajo (docs/23 RV-95, DEC-142).
 
 **Tono.** Tuteo al voluntario, neutro en el panel. Botones en infinitivo. Sin exclamaciones salvo
 en el estado vacío de la cola. Nunca "defecto": es `No funciona`.

@@ -4,9 +4,10 @@
 //
 // Lee las entradas de release-please (`## [x.y.z](…) (fecha)`, `### Novedades`, `### Correcciones`)
 // y escribe src/generado/novedades.json con la última versión y hasta tres líneas legibles para un
-// voluntario: sin el ámbito en negrita, sin enlaces a PR ni commits y sin identificadores técnicos
-// entre paréntesis. Primero las novedades, de la versión más reciente hacia atrás; si no llegan a
-// tres, se completa con correcciones.
+// voluntario, cada una con la versión que la trajo: sin el ámbito en negrita, sin enlaces a PR ni
+// commits y sin identificadores técnicos entre paréntesis. Versión a versión, de la más reciente
+// hacia atrás; dentro de cada una, primero las novedades y luego las correcciones, y como mucho dos
+// por ámbito (docs/23 RV-95, DEC-142).
 //
 // Solo entran los ámbitos de cara al usuario (AMBITOS_USUARIO, DEC-091). Los códigos internos entre
 // paréntesis se quitan; una línea con un código suelto, un archivo o un término técnico no entra
@@ -16,14 +17,26 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
+/** Una línea de Novedades con la versión que la trajo (docs/23 RV-95, DEC-142). */
+export interface LineaNovedad {
+  version: string;
+  texto: string;
+}
+
 export interface Novedades {
+  /** La última versión del CHANGELOG: la que avisa de "Nuevo" en Ajustes de la app. */
   version: string | null;
   fecha: string | null;
-  lineas: string[];
+  lineas: LineaNovedad[];
 }
 
 export const MAX_LINEAS = 3;
 export const MAX_CARACTERES = 140;
+/**
+ * Dentro de una versión, como mucho dos líneas por ámbito: dos correcciones del panel que dicen casi
+ * lo mismo no se comen el hueco de un tercer tema (docs/23 RV-95).
+ */
+export const MAX_POR_AMBITO = 2;
 
 /**
  * Ámbitos de los commits `feat:` y `fix:` que cambian algo que ve un voluntario o jefatura. Los demás
@@ -137,22 +150,26 @@ export function limpiar(linea: string): string {
 
 export function novedadesDe(changelog: string): Novedades {
   const lista = versiones(changelog);
-  const lineas: string[] = [];
-  for (const campo of ['novedades', 'correcciones'] as const) {
-    for (const v of lista) {
-      for (const l of v[campo]) {
-        const ambito = ambitoDe(l);
-        if (!ambito || !AMBITOS_USUARIO.has(ambito)) continue;
-        // El filtro antes del corte: una ruta más allá del carácter 140 no se cuela (docs/19 RV-68).
-        const entera = limpiar(l);
-        if (!entera || TECNICA.some((t) => t.test(entera))) continue;
-        const limpia = cortar(entera);
-        if (!lineas.includes(limpia)) lineas.push(limpia);
-        if (lineas.length === MAX_LINEAS) break;
-      }
-      if (lineas.length === MAX_LINEAS) break;
+  const lineas: LineaNovedad[] = [];
+  // Versión a versión, de la más reciente hacia atrás; dentro de cada una, primero las novedades y
+  // luego las correcciones (docs/23 RV-95). Antes se recorrían las novedades de todas las versiones
+  // y solo después las correcciones: con tres `feat:` antiguos, ninguna corrección salía nunca.
+  recorrido: for (const v of lista) {
+    const porAmbito = new Map<string, number>();
+    for (const l of [...v.novedades, ...v.correcciones]) {
+      const ambito = ambitoDe(l);
+      if (!ambito || !AMBITOS_USUARIO.has(ambito)) continue;
+      const usadas = porAmbito.get(ambito) ?? 0;
+      if (usadas >= MAX_POR_AMBITO) continue;
+      // El filtro antes del corte: una ruta más allá del carácter 140 no se cuela (docs/19 RV-68).
+      const entera = limpiar(l);
+      if (!entera || TECNICA.some((t) => t.test(entera))) continue;
+      const texto = cortar(entera);
+      if (lineas.some((x) => x.texto === texto)) continue;
+      lineas.push({ version: v.version, texto });
+      porAmbito.set(ambito, usadas + 1);
+      if (lineas.length === MAX_LINEAS) break recorrido;
     }
-    if (lineas.length === MAX_LINEAS) break;
   }
   return { version: lista[0]?.version ?? null, fecha: lista[0]?.fecha ?? null, lineas };
 }
@@ -164,6 +181,11 @@ function principal(): void {
   mkdirSync(path.dirname(destino), { recursive: true });
   writeFileSync(destino, `${JSON.stringify(novedades, null, 2)}\n`);
   console.log(`novedades ${novedades.version ?? '—'}: ${novedades.lineas.length} líneas`);
+  // Con versiones y sin ninguna línea, Ajustes diría "Todavía no hay novedades" para siempre: que se
+  // vea en el registro del build (por ejemplo, si release-please cambia los títulos de sección).
+  if (novedades.version && !novedades.lineas.length) {
+    console.warn(`aviso: el CHANGELOG tiene la ${novedades.version} y ninguna línea para Novedades`);
+  }
 }
 
 if (import.meta.main) principal();
