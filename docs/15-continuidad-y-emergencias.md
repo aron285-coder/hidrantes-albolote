@@ -85,6 +85,8 @@ En orden de fiabilidad:
    respaldo, almacenamiento, última vigilancia. Verde = todo bien.
 2. **Issues con etiqueta `vigilancia`** en GitHub: las abre solo el trabajo diario cuando la app, la
    base de datos o el respaldo fallan. Una issue abierta = algo que mirar en la §5 correspondiente.
+   - La vigilancia corre dos veces al día (07:41 y 19:41 UTC), pero **GitHub puede retrasarla varias horas**. Una vigilancia de hace menos de 14 h es normal; más de 26 h, no (docs/22 RV-93).
+   - La issue «Primera purga de fotos: revisa el ensayo» sale una sola vez: la primera pasada programada de la purga no borra (DEC-129). Mira la lista. Si está bien, no hay que hacer nada, porque el lunes siguiente ya borra.
 3. **Los voluntarios**: "Algo no funciona" en Ajustes de la app llega a Panel → Voluntarios.
 4. **Correo de GitHub "scheduled workflow … disabled"**: en Actions, abre el workflow que nombra y
    pulsa *Enable workflow* (o `gh workflow enable <archivo>`); después lanza `mantener-activo.yml`
