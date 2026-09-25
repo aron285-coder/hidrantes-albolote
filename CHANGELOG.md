@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.5](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.4...hidrantes-albolote-v0.6.5) (2026-09-25)
+
+
+### Correcciones
+
+* **ajustes:** las novedades enseñan lo último de cada versión, cada una con su número ([#399](https://github.com/aron285-coder/hidrantes-albolote/issues/399)) ([74c30e7](https://github.com/aron285-coder/hidrantes-albolote/commit/74c30e7634ee759e8e1cb10cda7435e2cae9dd1f))
+
 ## [0.6.4](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.3...hidrantes-albolote-v0.6.4) (2026-09-25)
 
 
