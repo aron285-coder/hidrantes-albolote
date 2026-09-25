@@ -702,6 +702,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** instalarlos a nivel de usuario (`--scope user`). Solo valdría en este ordenador.
 - **Afecta a:** CLAUDE.md §5 y §8.
 
+### DEC-122 · Activar los avisos dice siempre el motivo si no queda activo
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-81). Sesión Frontend.
+- **Contexto:** en un Android con staging, "Permitir avisos" dejaba el interruptor apagado, sin mensaje y sin error en Salud del sistema. Había cuatro caminos que acababan en el mismo "Desactivado" mudo.
+- **Decisión:**
+  1. `activarPush()` nunca lanza y devuelve `{ estado, motivo? }`. Motivos: `permiso_no_concedido` (el permiso vuelve `default`), `permiso_bloqueado` (vuelve `denied`; el estado sigue siendo `denegado`), `sin_service_worker` (`serviceWorker.ready` no llega en 10 s), `sin_servicio_push` (`subscribe` o `getSubscription` lanzan, o algo imprevisto), `clave_distinta` (había una suscripción con otra clave VAPID y no se pudo cambiar) y `servidor:<código>` (la RPC falla).
+  2. Todos salvo los dos de permiso van a `anotarError` con el nombre y el mensaje del error, o con el código de la RPC. **Nunca** el endpoint ni las claves.
+  3. **La hoja no se cierra si algo falla:** enseña el texto del motivo (Apéndice A de 06), una línea pequeña "Referencia para jefatura: `<motivo>`" y "Reintentar". Con `permiso_bloqueado` no se ofrece "Reintentar" (no cambiaría nada, UI-01): el texto dice dónde activarlo en Android. La referencia es lo que el desarrollador anota en el paso manual de `docs/22` §4.3.
+  4. Para `servidor:*` no se usa `textoError` del panel: sus textos son de jefatura ("revisa los valores"). Hay dos textos de voluntario: sin conexión y "el servidor no ha guardado la suscripción".
+  5. **Resincronización:** tras cada sincronización buena, si los avisos están activos y hay permiso, se vuelve a enviar la suscripción como mucho una vez cada 24 h. El intento se marca antes de hacerlo, así que un fallo que se repite no llena de errores a jefatura. Si el SW dejó una marca de `pushsubscriptionchange`, se envía sin esperar a las 24 h.
+  6. **`pushsubscriptionchange` en `sw-push.js`:** usa `newSubscription` si llega o se vuelve a suscribir con la clave de la vieja, y deja en IndexedDB (`hidrantes-sw`, almacén `kv`, clave `push_pendiente`) la suscripción nueva, o `true` si no pudo hacerla. La app la envía al abrirse. Es una base propia del SW para no tocar la versión de la base `hidrantes` de la app.
+- **Pendiente (paso manual del desarrollador, 2 min, `docs/22` §4.3):** repetir la activación en el Android con staging y anotar aquí la referencia que enseña la hoja, o que quedó activado.
+- **Descartado:** cerrar la hoja y avisar con un aviso flotante: se pierde el "Reintentar" y el texto largo no cabe.
+- **Afecta a:** 06 Apéndice A; `src/lib/push.ts`, `public/sw-push.js`.
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**
