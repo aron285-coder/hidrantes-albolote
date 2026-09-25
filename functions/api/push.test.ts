@@ -244,6 +244,20 @@ describe('POST /api/push', () => {
     espia.mockRestore();
   });
 
+  it('un Retry-After enorme se queda en un día', async () => {
+    const { espia, llamadas } = fingirRed({
+      admin: true,
+      pendientes: [pendiente(1)],
+      servicioPush: new Response(null, { status: 429, headers: { 'Retry-After': '99999999999' } }),
+    });
+    await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+    expect(llamadas.find((l) => l.url.includes('fn_aplazar_notificaciones'))?.cuerpo).toEqual({
+      ids: [1],
+      segundos: 86_400,
+    });
+    espia.mockRestore();
+  });
+
   it('sin ningún 429 no se llama a fn_aplazar_notificaciones', async () => {
     const { espia, llamadas } = fingirRed({ admin: true, pendientes: [pendiente(1)] });
     await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });

@@ -69,7 +69,8 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
       // 429 (RV-84): no es un fallo de la suscripción ni del aviso. No se anota: se aplaza abajo.
       enEspera.add(servicio);
       aplazados.push(n.id);
-      esperar_s = Math.max(esperar_s, r.aplazar_s);
+      // Como mucho un día (el TTL del aviso): fn_aplazar_notificaciones recibe un integer.
+      esperar_s = Math.min(Math.max(esperar_s, r.aplazar_s), 86_400);
       continue;
     }
     const anotado = await rpc(env, 'fn_resultado_notificacion', {
