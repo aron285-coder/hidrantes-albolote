@@ -660,6 +660,15 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-141 · Las issues se enlazan con «Closes #»: se cierran solas al fusionar
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-96). Sesión Ops.
+- **Contexto:** la plantilla de PR empezaba con «Cierra #». GitHub solo cierra issues con sus palabras clave en inglés (`Closes`, `Fixes`, `Resolves`), así que ninguna se cerraba sola. Cerrarlas dependía de acordarse (skill `paquete-rv`), y #326 siguió abierta dos días después de arreglarse en #327.
+- **Decisión:**
+  - La plantilla empieza con `Closes #`, con un comentario que explica por qué va en inglés. Es la única palabra en inglés de un PR: todo lo demás sigue en español (DEC-033).
+  - CLAUDE.md §5, `docs/trabajo-en-paralelo.md` y la skill `paquete-rv` dicen lo mismo. Las casillas de la issue de coordinación siguen marcándose a mano, y esa issue la cierra Ops con un comentario.
+  - `herramientas.test.ts` comprueba la plantilla y la skill.
+- **Afecta a:** CLAUDE.md §5; `docs/trabajo-en-paralelo.md` §5.
+
 ### DEC-140 · release-please con una GitHub App propia, y reserva con GITHUB_TOKEN mientras no exista
 - **Fecha:** 25 sep 2026 · **Estado:** vigente, con la App **pendiente del desarrollador** (`docs/23` RV-97). Sustituye a DEC-079 cuando la App está puesta.
 - **Contexto:** release-please abre y actualiza su PR con `GITHUB_TOKEN`, y lo que hace ese token no dispara workflows (DEC-079). Los runs que quedan esperando la aprobación del bot caducan en rojo («This workflow run required approval but was not approved before it expired»): #549 (0.6.1), #570 (0.6.2), #617 (0.6.3) y #693 (0.6.4). Llenan la lista de fallos y esconden los de verdad. Además, cada release necesita el empujón de una persona.

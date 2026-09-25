@@ -23,4 +23,5 @@ description: Ciclo completo de un paquete de puntos RV/GM de una especificación
    `gh pr merge --auto --squash`. No esperes al CI: empieza el siguiente paquete.
 9. Si el CI falla, arréglalo en esa rama antes de otra cosa.
 10. Al fusionar, marca la casilla en la issue de coordinación con una línea: qué entró y qué PR.
-    "Cierra #N" en español no cierra la issue: ciérrala a mano.
+    En la descripción del PR, `Closes #N` (en inglés: es la palabra clave de GitHub). Las casillas de
+    la issue de coordinación se marcan a mano.
