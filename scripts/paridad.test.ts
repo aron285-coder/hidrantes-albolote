@@ -121,7 +121,8 @@ describe('las Functions tras propagar el despliegue', () => {
 });
 
 // docs/20 RV-75: un merge en main de una rama que no está en develop no es paridad.
-describe('con qué se compara el árbol de main', () => {
+// Cada caso lanza unos quince procesos de git: en Windows y con la batería entera, 5 s no bastaban.
+describe('con qué se compara el árbol de main', { timeout: 30_000 }, () => {
   let dir = '';
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
