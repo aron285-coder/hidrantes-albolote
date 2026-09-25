@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.36 — 24 de septiembre de 2026 (DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.37 — 25 de septiembre de 2026 (DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,21 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-114 · Los plugins oficiales de revisión, declarados en el repositorio
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` SK-01). Sesión Ops.
+- **Contexto:** RV-81 (activar los avisos falla en silencio) es el tipo de fallo que una revisión con un agente de fallos silenciosos encuentra antes que un voluntario. Cada sesión de Claude Code, hoy o dentro de un año, tiene que tener las mismas herramientas sin instalar nada a mano.
+- **Decisión:**
+  1. **Comandos que funcionaron**, con Claude Code 2.1.141 desde la raíz del repositorio (`/plugin` es interactivo; su equivalente por CLI):
+     - `claude plugin marketplace add anthropics/claude-code --scope project`: el marketplace se llama **`claude-code-plugins`**;
+     - `claude plugin install pr-review-toolkit@claude-code-plugins --scope project`, y lo mismo con `code-review` y `security-guidance`.
+  2. **Versiones instaladas:** `pr-review-toolkit` 1.0.0, `code-review` 1.0.0 y `security-guidance` 2.0.0.
+  3. **En `.claude/settings.json`**, que se versiona: `extraKnownMarketplaces` con `{"claude-code-plugins": {"source": {"source": "github", "repo": "anthropics/claude-code"}}}` y `enabledPlugins` con los tres `<plugin>@claude-code-plugins: true`. Son los nombres de `code.claude.com/docs/en/settings` («Shared project settings»), y los mismos que escribió `--scope project`.
+     - Esa documentación advierte de que `extraKnownMarketplaces` solo se aplica **cuando cada persona confía en la carpeta**. Hasta entonces no se ofrecen los plugins del marketplace.
+  4. `.claude/settings.local.json` y `.claude/worktrees/` siguen en `.gitignore`. Nunca van credenciales en `settings.json`: `scripts/herramientas.test.ts` lo comprueba con los patrones de `detectar-secretos.ts`.
+  5. **CLAUDE.md:** §5.5 exige la revisión con `pr-review-toolkit` y `code-review`, y §8 dice cuándo usar cada plugin.
+- **Descartado:** instalarlos a nivel de usuario (`--scope user`). Solo valdría en este ordenador.
+- **Afecta a:** CLAUDE.md §5 y §8.
 
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
@@ -1543,7 +1558,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114 |
 | 11 | 002, 004, 011, 017–019, 022, 086, 094 |
 | 15 | 023, 061, 085, 088, 102 |
 | 16 | 007, 037, 111 |
