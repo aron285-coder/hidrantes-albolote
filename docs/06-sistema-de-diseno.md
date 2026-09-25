@@ -517,6 +517,15 @@ ha concedido, o no, no desalojar lo guardado; TR-07).
 `Permitir avisos` · `Ahora no` · `Activado en este móvil` · `Desactivado · también verás el resultado al abrir la app` ·
 `Avisos bloqueados en el móvil: actívalos en sus ajustes.` ·
 `En iPhone, primero añade la aplicación a la pantalla de inicio (Compartir → Añadir a pantalla de inicio).`
+Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-122): `Reintentar` · `Cerrar` ·
+`El móvil no ha dejado preguntar. Abre los ajustes de notificaciones de la aplicación, actívalas y vuelve a intentarlo.` ·
+`Los avisos de esta aplicación están bloqueados en el móvil. En Android: Ajustes → Aplicaciones → esta aplicación → Notificaciones. Actívalas y vuelve aquí.` ·
+`Este móvil no puede recibir avisos ahora (servicio de avisos no disponible). Comprueba que tiene conexión y los servicios de Google actualizados.` ·
+`La aplicación aún se está preparando. Ciérrala del todo, ábrela y vuelve a intentarlo.` ·
+`No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.` ·
+`Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.` ·
+`El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.` ·
+`Referencia para jefatura: [sin_servicio_push]`
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·

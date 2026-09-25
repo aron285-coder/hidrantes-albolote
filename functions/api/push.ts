@@ -59,7 +59,12 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     }
     let r: Awaited<ReturnType<typeof enviar>>;
     try {
-      r = await enviar(n.suscripcion, { titulo: n.titulo, cuerpo: n.cuerpo, url: n.url }, vapid);
+      r = await enviar(
+        n.suscripcion,
+        { titulo: n.titulo, cuerpo: n.cuerpo, url: n.url },
+        vapid,
+        destinoDePruebas(env, n.suscripcion.endpoint),
+      );
     } catch {
       // No se sabe si salió: queda reclamado y se reintenta a los 15 minutos.
       sin_anotar++;
@@ -100,6 +105,32 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     quedan: pendientes.datos.length === LOTE && aplazados.length < LOTE,
   });
 };
+
+/**
+ * Con `PUSH_ENDPOINT_PRUEBAS` y un Supabase local, el mismo camino y la misma consulta del endpoint en
+ * el servidor de push falso de las pruebas (RV-86). En cualquier otro caso, el endpoint tal cual: la
+ * variable no puede desviar avisos de verdad aunque llegara a staging o a producción (DEC-120).
+ */
+export function destinoDePruebas(env: Env, endpoint: string): string {
+  if (!env.PUSH_ENDPOINT_PRUEBAS || !esLocal(env.SUPABASE_URL)) return endpoint;
+  try {
+    const original = new URL(endpoint);
+    const falso = new URL(env.PUSH_ENDPOINT_PRUEBAS);
+    if (!esLocal(falso.href)) return endpoint;
+    return `${falso.origin}${original.pathname}${original.search}`;
+  } catch {
+    return endpoint;
+  }
+}
+
+function esLocal(url: string | undefined): boolean {
+  try {
+    const host = new URL(url ?? '').hostname;
+    return host === '127.0.0.1' || host === 'localhost';
+  } catch {
+    return false;
+  }
+}
 
 function origenDe(endpoint: string): string {
   try {

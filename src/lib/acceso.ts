@@ -27,7 +27,7 @@ import {
   rederivarSiCambiaElDia,
   sincronizar,
 } from './puntos';
-import { desactivarPush, estadoPush, pedirEnvioPush } from './push';
+import { desactivarPush, estadoPush, pedirEnvioPush, resincronizarPush } from './push';
 import { supabase } from './supabase';
 
 export type Acceso =
@@ -182,6 +182,8 @@ export async function comprobarAcceso(): Promise<void> {
     // Con servidor: resultado de mis propuestas (FR-90) y avisos push pendientes de todos (05 §9).
     void cargarMisPropuestas();
     pedirEnvioPush(sesion.token);
+    // Si el servidor perdió la suscripción de este móvil, se recupera (RV-81); como mucho, una vez al día.
+    void resincronizarPush(sesion.token);
   }
 }
 
