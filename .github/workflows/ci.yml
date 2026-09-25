@@ -65,6 +65,8 @@ jobs:
       - run: npm run lint
       - run: npm run formato:comprobar
       - run: npm test
+      # Los hooks de .claude/ que hacen cumplir CLAUDE.md §3 (docs/21 SK-02, DEC-115).
+      - run: npx tsx scripts/probar-hooks.ts
       - run: npm run build
       - run: npm run presupuesto
 
