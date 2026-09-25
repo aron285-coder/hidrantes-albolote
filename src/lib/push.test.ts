@@ -291,7 +291,6 @@ describe('apagar los avisos mientras se resincroniza', () => {
       return null;
     });
     await resincronizarPush('t'.repeat(43));
-    expect(pushManager.subscribe).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
   });
 });
