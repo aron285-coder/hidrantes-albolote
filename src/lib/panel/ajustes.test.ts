@@ -5,6 +5,7 @@ import {
   type Salud,
   VIGILANCIA_ATRASADA_H,
   avisoAlmacenamiento,
+  cargarNovedades,
   origenTareas,
   textoAlmacenamiento,
   vigilanciaAtrasada,
@@ -13,6 +14,7 @@ import {
   generarCodigo,
 } from './ajustes';
 import { filtrarActividad, porcentaje } from './voluntarios';
+import { NOVEDADES, normalizarNovedades } from '../novedades';
 import { T } from '../textos';
 
 describe('código de acceso (FR-140)', () => {
@@ -137,10 +139,73 @@ describe('Salud del sistema: origen de las tareas, vigilancia atrasada y almacen
   });
 
   it('almacenamiento a 0 bytes (bucket vacío) es un dato, no "sin dato" (RV-94)', () => {
-    expect(textoAlmacenamiento(0)).toBe('0,0 MB');
-    expect(textoAlmacenamiento(5 * 1024 ** 2)).toBe('5,0 MB');
-    expect(textoAlmacenamiento(null)).toBe(T.panelAjustes.sinDato);
-    expect(textoAlmacenamiento(undefined)).toBe(T.panelAjustes.sinDato);
+    expect(textoAlmacenamiento(0, 'produccion')).toBe('0,0 MB');
+    expect(textoAlmacenamiento(5 * 1024 ** 2, 'produccion')).toBe('5,0 MB');
+    expect(textoAlmacenamiento(null, 'produccion')).toBe(T.panelAjustes.sinDato);
+    expect(textoAlmacenamiento(undefined, 'produccion')).toBe(T.panelAjustes.sinDato);
     expect(avisoAlmacenamiento(0)).toBeNull();
+  });
+
+  // docs/23 RV-98: la purga de fotos solo mide el bucket de producción; en staging, "sin dato" para
+  // siempre parecía una avería.
+  it('en staging, sin dato de almacenamiento dice "no se mide en pruebas"; con dato, el dato', () => {
+    expect(textoAlmacenamiento(null, 'staging')).toBe('no se mide en pruebas');
+    expect(textoAlmacenamiento(undefined, 'staging')).toBe(T.panelAjustes.almacenamientoNoAplica);
+    expect(textoAlmacenamiento(0, 'staging')).toBe('0,0 MB');
+    expect(textoAlmacenamiento(5 * 1024 ** 2, 'staging')).toBe('5,0 MB');
+    // En producción y en local no cambia nada: `null` sigue siendo "sin dato".
+    expect(textoAlmacenamiento(null, 'produccion')).toBe('sin dato');
+    expect(textoAlmacenamiento(null, 'local')).toBe('sin dato');
+  });
+});
+
+// docs/23 RV-95: cada línea de Novedades con la versión que la trajo, no con la última.
+describe('novedades del panel (FR-167, RV-95)', () => {
+  it('cada línea lleva su propio número', async () => {
+    const r = await cargarNovedades(
+      normalizarNovedades({
+        version: '0.6.4',
+        fecha: '2026-09-25',
+        lineas: [
+          { version: '0.6.4', texto: 'Los avisos se activan de verdad' },
+          { version: '0.6.1', texto: 'La búsqueda entiende más coordenadas' },
+        ],
+      }),
+    );
+    expect(r).toEqual({
+      ok: true,
+      datos: [
+        { version: '0.6.4', texto: 'Los avisos se activan de verdad' },
+        { version: '0.6.1', texto: 'La búsqueda entiende más coordenadas' },
+      ],
+    });
+  });
+
+  it('el formato antiguo (string[]) también se lee, con la versión de arriba', async () => {
+    const r = await cargarNovedades(
+      normalizarNovedades({ version: '0.6.2', fecha: '2026-09-24', lineas: ['Calles y lugares', 'Cercanos'] }),
+    );
+    expect(r).toEqual({
+      ok: true,
+      datos: [
+        { version: '0.6.2', texto: 'Calles y lugares' },
+        { version: '0.6.2', texto: 'Cercanos' },
+      ],
+    });
+  });
+
+  it('sin versión ni líneas, lista vacía', async () => {
+    expect(await cargarNovedades(normalizarNovedades({ version: null, fecha: null, lineas: [] }))).toEqual({
+      ok: true,
+      datos: [],
+    });
+    expect(normalizarNovedades({ version: null, fecha: null, lineas: ['huérfana'] }).lineas).toEqual([]);
+  });
+
+  it('el JSON del build se lee, esté en el formato que esté', () => {
+    for (const l of NOVEDADES.lineas) {
+      expect(l.version).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(typeof l.texto).toBe('string');
+    }
   });
 });

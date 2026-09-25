@@ -283,7 +283,11 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
   ).toBeVisible();
 
   // Las novedades salen del build, no de fn_novedades (RV-20): sin simular la RPC, se ven igual.
-  for (const linea of NOVEDADES.lineas) await expect(page.getByText(linea)).toBeVisible();
+  // Cada línea lleva su propio número, no el de la última versión (docs/23 RV-95).
+  const novedades = page.getByRole('region', { name: T.panelAjustes.novedades, exact: true });
+  for (const l of NOVEDADES.lineas) {
+    await expect(novedades.getByRole('listitem').filter({ hasText: l.texto })).toHaveText(`${l.version} · ${l.texto}`);
+  }
 
   await page.getByRole('button', { name: T.panelAjustes.imprimirA4 }).click();
   await expect(page.getByText(T.panelAjustes.escaneaParaInstalar)).toBeVisible();
@@ -325,6 +329,19 @@ test('en staging, el texto del respaldo no aplica (RV-78)', async ({ page }) => 
     .last();
   await expect(fila).toContainText(T.panelAjustes.respaldoNoAplica);
   await expect(fila).not.toContainText(T.panelAjustes.nunca);
+});
+
+// docs/23 RV-98: la purga de fotos solo mide producción; en staging, "sin dato" parecía una avería.
+test('en staging, el almacenamiento sin dato dice que no se mide en pruebas (RV-98)', async ({ page }) => {
+  await prepararPanel(page, { salud: { ...SALUD, storage_bytes: null } });
+  await page.goto('/admin/ajustes');
+  const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
+  const fila = salud
+    .locator('div')
+    .filter({ has: page.getByText(T.panelAjustes.almacenamiento, { exact: true }) })
+    .last();
+  await expect(fila).toContainText(T.panelAjustes.almacenamientoNoAplica);
+  await expect(fila).not.toContainText(T.panelAjustes.sinDato);
 });
 
 // docs/22 RV-92, RV-93 y RV-94: de dónde salen las tareas, la vigilancia de más de 26 h y el bucket vacío.

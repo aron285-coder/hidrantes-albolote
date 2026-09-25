@@ -1,5 +1,6 @@
 # Verificación · Paridad de producción con develop (docs/19 bloque P)
 | 25 sep 2026, 06:04 UTC | `387c469` (merge commit de #351) | 0.6.3 (`docs/20`) | ninguna nueva: las 29 con su hash | **todo en verde**: árbol igual que el develop fusionado (`6712a63`), commit servido `387c469`, las 29 migraciones, `/api/push` y `/api/geocodificar` con 401, y las versiones de datos. Además, `comprobar-despliegue` vio una tesela del mapa base (MVT) y el `.pmtiles` entero | 36065099327 |
+| 25 sep 2026, 15:18 UTC | `880b6e7` (merge commit de #390) | 0.6.4 (`docs/21` y `docs/22`) | 2: `0030_suscripciones_por_duenio` y `0031_salud_tareas_en_vivo` | **todo en verde**: árbol igual que el develop fusionado (`dfa1a64`), commit servido `880b6e7`, las 31 migraciones, las Functions y las versiones de datos | 36141770642 |
 
 **Estado: hecho el 24 sep 2026.** Especificación: `docs/19-paridad-avisos-y-revision-3.md` §1 (P-01
 a P-04) y DEC-096. Cada vez que se repita P-02 se añade aquí una entrada al registro (§2).

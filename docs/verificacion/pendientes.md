@@ -1,6 +1,6 @@
 # Verificación · Lo pendiente de docs/21 y el mantenimiento (docs/22)
 
-**Estado: hecho en staging el 25 sep 2026; producción con P-12 (`paridad-produccion.md`).**
+**Estado: hecho el 25 sep 2026, en staging y en producción (0.6.4).** Quedan las comprobaciones del 27 y 28-09 y los pasos del desarrollador (§3).
 Especificación: `docs/22-pendientes-y-mantenimiento.md`, que recoge lo que quedaba de `docs/21`.
 Tres sesiones en paralelo, coordinadas en #362. Los registros de cada sesión son
 `pendientes-frontend.md`, `pendientes-backend.md` y `pendientes-ops.md`. Las herramientas de Claude
@@ -35,12 +35,13 @@ Code de `docs/21` (SK-01 a SK-03) se hicieron antes: #356, #358 y #360 (DEC-114 
 - [x] **RV-89:** no queda ningún `ubuntu-latest`. El canario de Ubuntu 26 corrió en verde el 25-09 (run 36124034908), antes del 19-10.
 - [x] **RV-90:** `npm test` no deja archivos, y el paso de CI se puso en rojo en una rama de prueba (run 36125625135).
 - [x] **RV-91:** los tres huecos están bloqueados y probados (42 casos de `probar-hooks.ts`).
-- [ ] **RV-92 en producción:** `purgar_intentos` de hace menos de 1 h, con «Ahora mismo». Se comprueba tras P-12.
+- [ ] **RV-92 en producción:** `purgar_intentos` de hace menos de 1 h, con «Ahora mismo». 0031 ya está en producción. Falta mirarlo en Salud del sistema con una sesión de jefatura, que Claude Code no abre.
 - [x] **RV-93:** hay dos pasadas de vigilancia al día, y #342 se cerró sola con la vigilancia programada del 25-09 (run 36138075138, hacia las 13:00 UTC).
 - [ ] **RV-94:** «Almacenamiento usado» con dato en producción, y la primera purga revisada.
   - El ensayo del 25-09 (run 36125628694) anotó 0 bytes: el bucket de producción está vacío. Desde #387 la pantalla enseña 0 en vez de «sin dato».
   - La primera purga programada es el lunes 28-09. Hará ensayo y abrirá su issue (DEC-129).
-- [ ] **P-12:** producción en la versión nueva con la paridad en verde, y el respaldo del 27-09 comprobado. El respaldo solo se puede comprobar después del domingo.
+- [x] **P-12:** producción en la **0.6.4** el 25 sep 2026 a las 15:18 UTC (#390, run 36141770642), con 0030 y 0031 y la paridad en verde. Registro en `paridad-produccion.md`.
+  - [ ] Queda comprobar el respaldo del 27-09 y la purga del 28-09, después de esas fechas.
 
 ## 3. Lo que queda para personas (docs/22 §4)
 

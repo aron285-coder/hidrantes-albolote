@@ -1,4 +1,5 @@
-Cierra #
+Closes #
+<!-- Palabra clave de GitHub: tiene que ir en inglés para que la issue se cierre al fusionar. -->
 
 ## Qué cambia
 

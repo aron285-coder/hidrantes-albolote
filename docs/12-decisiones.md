@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.42 — 25 de septiembre de 2026 (DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.44 — 25 de septiembre de 2026 (DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,27 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-141 · Las issues se enlazan con «Closes #»: se cierran solas al fusionar
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-96). Sesión Ops.
+- **Contexto:** la plantilla de PR empezaba con «Cierra #». GitHub solo cierra issues con sus palabras clave en inglés (`Closes`, `Fixes`, `Resolves`), así que ninguna se cerraba sola. Cerrarlas dependía de acordarse (skill `paquete-rv`), y #326 siguió abierta dos días después de arreglarse en #327.
+- **Decisión:**
+  - La plantilla empieza con `Closes #`, con un comentario que explica por qué va en inglés. Es la única palabra en inglés de un PR: todo lo demás sigue en español (DEC-033).
+  - CLAUDE.md §5, `docs/trabajo-en-paralelo.md` y la skill `paquete-rv` dicen lo mismo. Las casillas de la issue de coordinación siguen marcándose a mano, y esa issue la cierra Ops con un comentario.
+  - `herramientas.test.ts` comprueba la plantilla y la skill.
+- **Afecta a:** CLAUDE.md §5; `docs/trabajo-en-paralelo.md` §5.
+
+### DEC-140 · release-please con una GitHub App propia, y reserva con GITHUB_TOKEN mientras no exista
+- **Fecha:** 25 sep 2026 · **Estado:** vigente, con la App **pendiente del desarrollador** (`docs/23` RV-97). Sustituye a DEC-079 cuando la App está puesta.
+- **Contexto:** release-please abre y actualiza su PR con `GITHUB_TOKEN`, y lo que hace ese token no dispara workflows (DEC-079). Los runs que quedan esperando la aprobación del bot caducan en rojo («This workflow run required approval but was not approved before it expired»): #549 (0.6.1), #570 (0.6.2), #617 (0.6.3) y #693 (0.6.4). Llenan la lista de fallos y esconden los de verdad. Además, cada release necesita el empujón de una persona.
+- **Decisión:**
+  1. Una **GitHub App** del proyecto, solo en este repositorio, con *Contents* y *Pull requests* de lectura y escritura y *Actions* de lectura. La crea el desarrollador con los pasos de 15 §2 y guarda `RELEASE_APP_ID` (variable) y `RELEASE_APP_KEY` (secreto). Claude Code nunca maneja la clave.
+  2. `release-please.yml` obtiene un token de la App con `actions/create-github-app-token@v2` (`app-id`, `private-key`) y se lo pasa a `release-please-action` como `token`. Con ese token, el PR de versión dispara la CI normal y sus checks cuentan.
+  3. **Reserva:** si `RELEASE_APP_ID` está vacía, el paso de la App no corre, el `token` vuelve a `GITHUB_TOKEN`, y el aviso del empujón y el `gh workflow run ci.yml` siguen saliendo, como con DEC-079. Así el PR se puede fusionar antes de que exista la App.
+  4. Ya existe la v3 de la acción, que prefiere `client-id` y marca `app-id` como obsoleto. Se usa la v2, la que dice la especificación. Pasar a la v3 es cambiar una línea cuando haga falta.
+- **Descartado:** un token personal (PAT). Caduca, va ligado a una persona y da más permisos de los necesarios.
+- **Comprobado:** `workflows.test.ts` exige el paso de la App con `if: vars.RELEASE_APP_ID != ''`, el `token` con la reserva, el empujón solo sin la App, y ninguna clave en claro. La prueba en vivo es la primera release con la App puesta.
+- **Afecta a:** 04 §11; 15 §2; DEC-079.
+
 ### DEC-129 · La primera purga de fotos es un ensayo, y el ensayo también anota el tamaño
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-94). Sesión Ops.
 - **Contexto:** `purgar-fotos.yml` no se había ejecutado nunca. La primera vez iba a ser la pasada programada del lunes 28-09 a las 04:43 UTC, y borraría de verdad sin que nadie hubiera visto una lista. Además, un ensayo no anotaba `storage_bytes` aunque lo medía, así que Salud del sistema decía «Almacenamiento usado: sin dato».
@@ -855,6 +876,29 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   3. **"Almacenamiento usado":** con el bucket vacío, 0 bytes es un dato ("0,0 MB"), no "sin dato" (`storage_bytes != null`). `avisoAlmacenamiento(0)` ya daba `null` y no cambia.
   4. **La lógica va en funciones puras de `src/lib/panel/ajustes.ts`,** probadas con vitest (`origenTareas`, `vigilanciaAtrasada`, `textoAlmacenamiento`), y la pantalla se prueba con e2e. `docs/22` pedía un vitest de `Ajustes.tsx`, pero el proyecto no tiene entorno DOM en vitest, y añadir jsdom sería una dependencia nueva para un solo test.
 - **Afecta a:** 06 Apéndice A; `src/componentes/panel/Ajustes.tsx`, `src/lib/panel/ajustes.ts`.
+
+### DEC-142 · Novedades: lo último de cada versión, cada línea con su número
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-95). Sesión Frontend. Completa DEC-087, DEC-091 y DEC-101.
+- **Contexto:** con la 0.6.4 en producción, Ajustes enseñaba «0.6.4 · Calles, lugares, direcciones y coordenadas» y otras dos novedades de la 0.6.0 y la 0.6.1, y ninguna de las correcciones de la 0.6.4 (los avisos). `novedadesDe()` recorría primero las novedades de todas las versiones y solo después las correcciones, y devolvía una sola `version`, que `cargarNovedades()` ponía delante de cada línea.
+- **Decisión:**
+  1. **Formato:** `src/generado/novedades.json` guarda `lineas: { version, texto }[]`. `version` y `fecha` de arriba siguen siendo las de la última release: con esa versión la app marca "Nuevo" y el punto de la pestaña de Ajustes.
+  2. **Orden:** versión a versión, de la más reciente a la más antigua; dentro de cada una, primero `### Novedades` y luego `### Correcciones`. Se para en tres (`MAX_LINEAS`). Los filtros de DEC-091 y DEC-101 y la eliminación de duplicados no cambian; un duplicado se queda con la versión más reciente.
+  3. **Como mucho dos líneas por ámbito dentro de una versión** (`MAX_POR_AMBITO`): dos correcciones del `panel` que dicen casi lo mismo no se comen el hueco de otro tema. El límite es de cada versión: la anterior puede traer ese ámbito otra vez.
+  4. **Pantallas:** la app y el panel enseñan cada línea como `[versión] · [texto]`, con la versión de esa línea. La app mantiene encima "Versión [x]" de la instalada.
+  5. **Compatibilidad:** `normalizarNovedades()` (`src/lib/novedades.ts`) lee también el formato antiguo `string[]`, con la `version` de arriba. Es el que hay en git (va una versión por detrás, DEC-087) y el de un build a medias: el typecheck pasa sin regenerar el JSON, así que el archivo de git no se ha tocado.
+  6. **FR-167** dice ahora "lo último de cada versión, con su número" (01 v1.5).
+  7. **"Nuevo" y el punto de la pestaña** solo salen si la última versión trae alguna línea propia (`hayNovedadesSinVer`). Si solo trajo cambios internos, las tres líneas son de versiones anteriores y "Nuevo" junto a «0.6.4 · …» en la 0.6.5 contradiría la lista (hallazgo de la revisión del PR). Si el CHANGELOG tiene versiones y ninguna línea sale, el script lo avisa en el registro del build.
+  8. `src/componentes/AvisoNovedades.tsx`, que `docs/23` nombra, no lee este JSON: es el aviso del resultado de las propuestas propias (FR-90). No cambia.
+- **Descartado:**
+  - **Enseñar solo la última versión:** una versión con solo correcciones internas dejaría Novedades vacía.
+  - **Agrupar por versión con un título por versión:** con tres líneas ocupa más de lo que aporta.
+- **Afecta a:** 01 FR-167; 06 Apéndice A; `scripts/generar-novedades.ts`, `src/lib/novedades.ts`, `src/lib/panel/ajustes.ts`, `src/paginas/Ajustes.tsx`, `src/componentes/panel/Ajustes.tsx`.
+
+### DEC-143 · "Almacenamiento usado" en staging: "no se mide en pruebas"
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-98). Sesión Frontend.
+- **Contexto:** `purgar-fotos.yml` solo mide el bucket de producción (DEC-129), así que en staging `storage_bytes` es siempre `null` y Salud del sistema decía "sin dato" para siempre, como una avería.
+- **Decisión:** el mismo criterio que "Último respaldo" (RV-78): con `ENTORNO === 'staging'` y `storage_bytes` a `null`, "no se mide en pruebas". Con un número, el número (también en staging, por si algún día se mide). En producción y en local, `null` sigue siendo "sin dato". `textoAlmacenamiento(bytes, entorno)` recibe el entorno como parámetro para probar los dos casos con vitest sin depender del build.
+- **Afecta a:** 06 Apéndice A; `src/lib/panel/ajustes.ts`, `src/componentes/panel/Ajustes.tsx`.
 
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
@@ -1438,7 +1482,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §7 y §9; 06 Apéndice A (el texto ya estaba); 09 Fase 8.
 
 ### DEC-079 · El PR de versión necesita un empujón humano para poder fusionarse
-- **Fecha:** 22 sep 2026 · **Estado:** vigente
+- **Fecha:** 22 sep 2026 · **Estado:** vigente mientras no exista la GitHub App de las versiones; **sustituida por DEC-140 en cuanto esté puesta**
 - **Contexto:** `release-please` abre su PR con `GITHUB_TOKEN`, y GitHub, por diseño, **no dispara
   workflows con eventos hechos por ese token**: el PR nace sin checks y `develop` exige tres. El
   workflow lanzaba la CI sobre la rama con `workflow_dispatch` creyendo que bastaba; al fusionar la
@@ -1732,11 +1776,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

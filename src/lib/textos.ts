@@ -890,6 +890,7 @@ export const T = {
     nunca: 'todavía ninguno',
     // En staging no se hacen respaldos: solo de producción (docs/20 RV-78).
     respaldoNoAplica: 'no se respalda: entorno de pruebas',
+    almacenamientoNoAplica: 'no se mide en pruebas',
     sinDato: 'sin dato',
     inventarioDescargado: (n: Parametro) => `Inventario descargado: ${n} puntos.`,
     mantenimiento: 'Mantenimiento',

@@ -106,3 +106,19 @@ describe('skills propias del proyecto (SK-03)', () => {
       expect(claude).toContain(`| \`${skill}\` |`);
   });
 });
+
+// docs/23 RV-96, DEC-141: GitHub solo cierra issues con sus palabras clave en inglés.
+describe('plantilla de PR (RV-96)', () => {
+  const plantilla = readFileSync(path.join(raiz, '.github', 'PULL_REQUEST_TEMPLATE.md'), 'utf8');
+
+  it('enlaza la issue con Closes #, que la cierra al fusionar', () => {
+    expect(plantilla.split('\n')[0]).toBe('Closes #');
+    expect(plantilla).not.toContain('Cierra #');
+  });
+
+  it('la skill paquete-rv dice lo mismo', () => {
+    const skill = readFileSync(path.join(raiz, '.claude', 'skills', 'paquete-rv', 'SKILL.md'), 'utf8');
+    expect(skill).toContain('`Closes #N`');
+    expect(skill).not.toMatch(/ciérrala a mano/);
+  });
+});
