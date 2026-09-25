@@ -660,6 +660,15 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-141 · Las issues se enlazan con «Closes #»: se cierran solas al fusionar
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-96). Sesión Ops.
+- **Contexto:** la plantilla de PR empezaba con «Cierra #». GitHub solo cierra issues con sus palabras clave en inglés (`Closes`, `Fixes`, `Resolves`), así que ninguna se cerraba sola. Cerrarlas dependía de acordarse (skill `paquete-rv`), y #326 siguió abierta dos días después de arreglarse en #327.
+- **Decisión:**
+  - La plantilla empieza con `Closes #`, con un comentario que explica por qué va en inglés. Es la única palabra en inglés de un PR: todo lo demás sigue en español (DEC-033).
+  - CLAUDE.md §5, `docs/trabajo-en-paralelo.md` y la skill `paquete-rv` dicen lo mismo. Las casillas de la issue de coordinación siguen marcándose a mano, y esa issue la cierra Ops con un comentario.
+  - `herramientas.test.ts` comprueba la plantilla y la skill.
+- **Afecta a:** CLAUDE.md §5; `docs/trabajo-en-paralelo.md` §5.
+
 ### DEC-129 · La primera purga de fotos es un ensayo, y el ensayo también anota el tamaño
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-94). Sesión Ops.
 - **Contexto:** `purgar-fotos.yml` no se había ejecutado nunca. La primera vez iba a ser la pasada programada del lunes 28-09 a las 04:43 UTC, y borraría de verdad sin que nadie hubiera visto una lista. Además, un ensayo no anotaba `storage_bytes` aunque lo medía, así que Salud del sistema decía «Almacenamiento usado: sin dato».
