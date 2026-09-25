@@ -166,6 +166,9 @@ Variables locales en `.env.local` (no se commitea): las genera `npm run arranque
 | `webapp-testing` | cualquier prueba con Playwright (reconocimiento de selectores, e2e, capturas) |
 | `frontend-design` | al construir una pantalla nueva; siempre subordinado a 06 |
 | `task-shaper` | al crear o reformular una issue (Why, fuera de alcance, cómo verificar, checklist) |
+| `paquete-rv` | al empezar cualquier paquete de puntos RV/GM de una especificación `docs/NN`: de la rama a la fusión, con el test que falla antes (DEC-116) |
+| `nueva-migracion` | siempre que haya que cambiar una tabla, función, vista, permiso o tarea `pg_cron` (solo la sesión Backend) |
+| `revisar-pantallas` | en cualquier PR que toque `src/**` o estilos, y cuando se pida una revisión visual de staging: capturas a 412 × 915 y 1280 × 800, mirarlas y adjuntarlas |
 
 **Plugins oficiales de Anthropic** (declarados en `.claude/settings.json`, DEC-114: una sesión nueva
 los ofrece al confiar en la carpeta, sin instalar nada):
