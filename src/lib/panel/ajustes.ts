@@ -4,9 +4,10 @@
 import { type Resultado, rpc } from '../api';
 import { sincronizar } from '../puntos';
 import { funcion, leer, leerLista } from './consultas';
-import { NOVEDADES } from '../novedades';
+import { NOVEDADES, type LineaNovedad, type NovedadesVersion } from '../novedades';
 import { type FilaExportada, pedirInventario } from './exportar';
 import { hace, megas } from '../formato';
+import type { Entorno } from '../entorno';
 import { T } from '../textos';
 
 // ---------- código de acceso (FR-140, FL-29) ----------
@@ -242,9 +243,14 @@ export function origenTareas(s: Salud, ahora: Date = new Date()): string {
   return T.panelAjustes.tareasSegunUltimaVigilancia;
 }
 
-/** "Almacenamiento usado": 0 bytes, con el bucket vacío, también es un dato (docs/22 RV-94). */
-export function textoAlmacenamiento(bytes: number | null | undefined): string {
-  return bytes != null ? `${megas(bytes)} MB` : T.panelAjustes.sinDato;
+/**
+ * "Almacenamiento usado": 0 bytes, con el bucket vacío, también es un dato (docs/22 RV-94). Sin dato
+ * en staging, lo dice como "Último respaldo": la purga de fotos, que es la que lo mide, solo mira el
+ * bucket de producción, y "sin dato" para siempre parecía una avería (docs/23 RV-98, DEC-143).
+ */
+export function textoAlmacenamiento(bytes: number | null | undefined, entorno: Entorno): string {
+  if (bytes != null) return `${megas(bytes)} MB`;
+  return entorno === 'staging' ? T.panelAjustes.almacenamientoNoAplica : T.panelAjustes.sinDato;
 }
 
 /** La cota gratuita de fotos de TR-53: 1 GB. */
@@ -288,16 +294,13 @@ export async function descargarInventarioJson(): Promise<Resultado<number>> {
 
 // ---------- novedades (FR-167) ----------
 
-export interface Novedad {
-  version: string;
-  texto: string;
-}
+export type Novedad = LineaNovedad;
 
 /**
  * Las novedades salen del build (src/generado/novedades.json, RV-20), no de fn_novedades: nada las
- * cargaba en config y el panel decía siempre "Todavía no hay novedades publicadas".
+ * cargaba en config y el panel decía siempre "Todavía no hay novedades publicadas". Cada línea lleva
+ * la versión que la trajo, no la última (docs/23 RV-95).
  */
-export async function cargarNovedades(): Promise<Resultado<Novedad[]>> {
-  const { version, lineas } = NOVEDADES;
-  return { ok: true, datos: version ? lineas.map((texto) => ({ version, texto })) : [] };
+export async function cargarNovedades(n: NovedadesVersion = NOVEDADES): Promise<Resultado<Novedad[]>> {
+  return { ok: true, datos: n.lineas };
 }

@@ -78,6 +78,24 @@ async function voluntario(page: Page) {
   });
 }
 
+const SALUD_STAGING = {
+  pendientes_14d: 2,
+  incidencias_abiertas: 0,
+  errores_7d: 0,
+  sin_direccion: 0,
+  ultimo_respaldo: null,
+  storage_bytes: null,
+  version_zona: '2026-07-14',
+  version_mapabase: '2026-07-14',
+  ultima_vigilancia: hace(3),
+  vigilancia_ok: true,
+  dispositivos_activos: 4,
+  bd_bytes: 38 * 1024 * 1024,
+  esquema_bytes: 3 * 1024 * 1024,
+  tareas: [],
+  tareas_origen: 'en_vivo',
+};
+
 async function jefatura(page: Page) {
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
@@ -92,6 +110,8 @@ async function jefatura(page: Page) {
     const json = (d: unknown) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(d) });
     if (nombre === 'fn_es_admin') return json(true);
     if (nombre === 'fn_exportar_inventario') return json(PUNTOS);
+    // Salud del sistema como en staging: sin respaldo ni medida del bucket (docs/23 RV-98).
+    if (nombre === 'fn_salud') return json(SALUD_STAGING);
     if (nombre === 'fn_registrar_error') return json(null);
     return route.abort('connectionrefused');
   });
@@ -146,6 +166,13 @@ const VISTAS: Vista[] = [
     ruta: '/admin/cola',
     preparar: jefatura,
     lista: (p) => expect(p.getByRole('region', { name: T.panelCola.colaRevision })).toBeVisible(),
+    soloEscritorio: true,
+  },
+  {
+    nombre: 'panel-ajustes',
+    ruta: '/admin/ajustes',
+    preparar: jefatura,
+    lista: (p) => expect(p.getByText(T.panelAjustes.almacenamientoNoAplica)).toBeVisible(),
     soloEscritorio: true,
   },
   {

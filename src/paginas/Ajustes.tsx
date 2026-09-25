@@ -326,8 +326,9 @@ function FilaMisPropuestas() {
 
 /** Avisos push (FR-163): se explica antes de pedir el permiso del móvil. */
 /**
- * Lo que trae la versión instalada (FR-167, AC-127), desde el build (RV-20). La primera vez que se
- * abre Ajustes tras una versión nueva se marca como "Nuevo"; al salir, ya está vista.
+ * Lo que trae la versión instalada y las anteriores (FR-167, AC-127), desde el build (RV-20), cada
+ * línea con su número (docs/23 RV-95). La primera vez que se abre Ajustes tras una versión nueva se
+ * marca como "Nuevo"; al salir, ya está vista.
  */
 function SeccionNovedades() {
   const [nuevas] = useState(hayNovedadesSinVer);
@@ -345,7 +346,9 @@ function SeccionNovedades() {
         {NOVEDADES.lineas.length ? (
           <ul className="mt-1 list-disc pl-5">
             {NOVEDADES.lineas.map((l) => (
-              <li key={l}>{l}</li>
+              <li key={`${l.version}-${l.texto}`}>
+                <span className="font-datos text-texto-suave text-[13px]">{l.version}</span> · {l.texto}
+              </li>
             ))}
           </ul>
         ) : (

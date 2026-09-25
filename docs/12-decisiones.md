@@ -856,6 +856,27 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   4. **La lógica va en funciones puras de `src/lib/panel/ajustes.ts`,** probadas con vitest (`origenTareas`, `vigilanciaAtrasada`, `textoAlmacenamiento`), y la pantalla se prueba con e2e. `docs/22` pedía un vitest de `Ajustes.tsx`, pero el proyecto no tiene entorno DOM en vitest, y añadir jsdom sería una dependencia nueva para un solo test.
 - **Afecta a:** 06 Apéndice A; `src/componentes/panel/Ajustes.tsx`, `src/lib/panel/ajustes.ts`.
 
+### DEC-142 · Novedades: lo último de cada versión, cada línea con su número
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-95). Sesión Frontend. Completa DEC-087, DEC-091 y DEC-101.
+- **Contexto:** con la 0.6.4 en producción, Ajustes enseñaba «0.6.4 · Calles, lugares, direcciones y coordenadas» y otras dos novedades de la 0.6.0 y la 0.6.1, y ninguna de las correcciones de la 0.6.4 (los avisos). `novedadesDe()` recorría primero las novedades de todas las versiones y solo después las correcciones, y devolvía una sola `version`, que `cargarNovedades()` ponía delante de cada línea.
+- **Decisión:**
+  1. **Formato:** `src/generado/novedades.json` guarda `lineas: { version, texto }[]`. `version` y `fecha` de arriba siguen siendo las de la última release: con esa versión la app marca "Nuevo" y el punto de la pestaña de Ajustes.
+  2. **Orden:** versión a versión, de la más reciente a la más antigua; dentro de cada una, primero `### Novedades` y luego `### Correcciones`. Se para en tres (`MAX_LINEAS`). Los filtros de DEC-091 y DEC-101 y la eliminación de duplicados no cambian; un duplicado se queda con la versión más reciente.
+  3. **Como mucho dos líneas por ámbito dentro de una versión** (`MAX_POR_AMBITO`): dos correcciones del `panel` que dicen casi lo mismo no se comen el hueco de otro tema. El límite es de cada versión: la anterior puede traer ese ámbito otra vez.
+  4. **Pantallas:** la app y el panel enseñan cada línea como `[versión] · [texto]`, con la versión de esa línea. La app mantiene encima "Versión [x]" de la instalada.
+  5. **Compatibilidad:** `normalizarNovedades()` (`src/lib/novedades.ts`) lee también el formato antiguo `string[]`, con la `version` de arriba. Es el que hay en git (va una versión por detrás, DEC-087) y el de un build a medias: el typecheck pasa sin regenerar el JSON, así que el archivo de git no se ha tocado.
+  6. **FR-167** dice ahora "lo último de cada versión, con su número" (01 v1.5).
+- **Descartado:**
+  - **Enseñar solo la última versión:** una versión con solo correcciones internas dejaría Novedades vacía.
+  - **Agrupar por versión con un título por versión:** con tres líneas ocupa más de lo que aporta.
+- **Afecta a:** 01 FR-167; 06 Apéndice A; `scripts/generar-novedades.ts`, `src/lib/novedades.ts`, `src/lib/panel/ajustes.ts`, `src/paginas/Ajustes.tsx`, `src/componentes/panel/Ajustes.tsx`.
+
+### DEC-143 · "Almacenamiento usado" en staging: "no se mide en pruebas"
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-98). Sesión Frontend.
+- **Contexto:** `purgar-fotos.yml` solo mide el bucket de producción (DEC-129), así que en staging `storage_bytes` es siempre `null` y Salud del sistema decía "sin dato" para siempre, como una avería.
+- **Decisión:** el mismo criterio que "Último respaldo" (RV-78): con `ENTORNO === 'staging'` y `storage_bytes` a `null`, "no se mide en pruebas". Con un número, el número (también en staging, por si algún día se mide). En producción y en local, `null` sigue siendo "sin dato". `textoAlmacenamiento(bytes, entorno)` recibe el entorno como parámetro para probar los dos casos con vitest sin depender del build.
+- **Afecta a:** 06 Apéndice A; `src/lib/panel/ajustes.ts`, `src/componentes/panel/Ajustes.tsx`.
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**
@@ -1732,11 +1753,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

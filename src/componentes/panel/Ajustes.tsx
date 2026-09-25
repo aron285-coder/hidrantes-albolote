@@ -488,7 +488,7 @@ function SaludDelSistema() {
               ? T.panelAjustes.respaldoNoAplica
               : T.panelAjustes.nunca,
         ],
-        [T.panelAjustes.almacenamiento, textoAlmacenamiento(s.storage_bytes)],
+        [T.panelAjustes.almacenamiento, textoAlmacenamiento(s.storage_bytes, ENTORNO)],
         [
           T.panelAjustes.zonaYMapa,
           `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
