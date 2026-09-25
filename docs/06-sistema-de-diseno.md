@@ -192,7 +192,7 @@ zoom que el mapa, Leaflet la quitaría entera al pasar de su tope y la pantalla 
 
 ### 4.5 Leyenda
 
-Siempre visible en el mapa (móvil: esquina inferior izquierda, dos columnas, 7,5–8 px; escritorio:
+Plegable (§5, DEC-123): la primera vez y cuando se despliega, en el mapa (móvil: esquina inferior izquierda, dos columnas, 7,5–8 px; escritorio:
 igual con 9–10 px). Contenido fijo y en este orden:
 
 1. ● Hidrante · ■ Boca de riego (forma)
@@ -220,7 +220,7 @@ por encima de los marcadores y no se guardan.
 | **"¿Qué hay aquí?"** (pin soltado) | icono `MapPin` de lucide en `--marino-950` | `--anillo-seleccion` |
 | **Calle resaltada** (resultado de búsqueda) | línea de 4 px `--marino-600` durante la sesión | `--anillo-seleccion` con opacidad .7 |
 
-Los controles que las abren (*Cercanos*, *Medir*, la hoja de *¿Qué hay aquí?*) siguen §5 y §9: ≥ 44 px,
+Los controles que las abren (*Cercanos*, botón extendido con texto abajo a la derecha; *Medir*, icono de la columna de la derecha; la hoja de *¿Qué hay aquí?*) siguen §5 y §9: ≥ 44 px,
 texto visible en móvil y ningún control muerto (UI-01, UI-02).
 
 ---
@@ -246,7 +246,7 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Foto** | relación 16:9 en ficha, 84–86 px de alto en móvil, etiqueta de fecha abajo-izquierda sobre `rgba(14,27,48,.6)`. Placeholder mientras carga: degradado gris-azulado. |
 | **Racor de referencia** | tres tarjetas iguales con foto real 34 px de alto y nombre; la elegida con borde `--marino-950` doble. |
 | **Minimapa de los formularios** | 336 px de alto, pin arrastrable y botón "Mi posición" arriba a la derecha; no se recentra solo (DEC-066). |
-| **Controles del mapa** | blancos, radio 7–9, sombra `0 1px 5px rgba(0,0,0,.18)`: búsqueda (arriba, ancho completo), Capas (arriba derecha), Mi posición (bajo Capas), leyenda (abajo izquierda), atribución (abajo derecha, 6,5 px). Botón + flotante 44 px `--naranja-600` sobre la esquina inferior derecha del mapa. Resultados de la búsqueda (FR-73): en grupos, por este orden, *Coordenadas*, *Puntos*, *Calles y lugares* (© OpenStreetMap) y *Direcciones* (CartoCiudad · IGN), cada fila de ≥ 52 px; mientras están abiertos en el móvil y la tableta, la columna de la derecha se oculta, porque la lista la taparía a medias. |
+| **Controles del mapa** | blancos, radio 7–9, sombra `0 1px 5px rgba(0,0,0,.18)`. Patrón de las apps de mapas (DEC-123): herramientas arriba a la derecha y acciones principales abajo, al alcance del pulgar. **Búsqueda** arriba, ancho completo. **Columna de la derecha**, solo iconos: 44 px de ancho fijo, pegada al borde con 8 px de margen (`right-2`), con los botones alineados a su borde derecho; de arriba abajo, Capas, Medir y Mi posición (44 × 44, con `aria-label` y `title`) y el zoom "+/−" en **una sola pieza** vertical de 44 × 88 con separador (alternativa de un dedo al pellizco, WCAG 2.5.1). **Abajo a la derecha**: "Cercanos" como botón extendido (icono `Crosshair` y texto visible, 48 px de alto, `--marino-950` con texto blanco) encima del **botón + de nuevo punto**, flotante de **56 px** `--naranja-600`, con 12 px entre los dos (UI-15); igual en ordenador, con la lista lateral a la izquierda. **Leyenda** abajo a la izquierda, plegada en una ficha "Leyenda" de 44 px: al tocarla se despliega (§4.5) y se cierra con la X o tocando fuera; el primer uso la enseña desplegada una vez y después se recuerda cómo la dejó el voluntario. Atribución abajo a la derecha, 6,5 px, sin que la toquen los botones. La ficha flotante (tableta y ordenador) va a la izquierda de la columna y termina por encima de los botones de abajo: no tapa ningún control. Las medidas viven en `src/lib/disposicion-mapa.ts` (`CONTROLES`): las usan la ficha, los avisos flotantes y el encuadre del incidente. Resultados de la búsqueda (FR-73): en grupos, por este orden, *Coordenadas*, *Puntos*, *Calles y lugares* (© OpenStreetMap) y *Direcciones* (CartoCiudad · IGN), cada fila de ≥ 52 px; mientras están abiertos en el móvil y la tableta, la columna de la derecha se oculta, porque la lista la taparía a medias. |
 | **Navegación inferior** | 50 px, blanco, tres destinos (Mapa · Lista · Ajustes), activo `--marino-950` 700. |
 | **Panel: pestañas** | fondo `#F5F6F2`, activa blanca con borde inferior 2 px `--naranja-600`, badge naranja para pendientes y gris para totales. Sin salto de línea; scroll horizontal si no cabe. |
 | **Panel: tablas** (`.desktop-table`) | 12 px, cabecera Barlow 11 px `--texto-suave` con borde inferior 2 px `--marino-950`, celdas 6 × 10 px, códigos y Ø sin salto de línea, cabeceras ordenables con ▲▼. |
@@ -314,7 +314,7 @@ terminado; los casos de aceptación AC-140 a AC-146 las comprueban.
 | UI-12 | **Fechas** siempre relativas con la absoluta disponible (`hace 1 mes`, con `20 ago 2026` en el detalle). **Distancias** en metros hasta 999 y en km con un decimal después. |
 | UI-13 | **Los códigos internos no se muestran al voluntario** salvo el del propio punto (`HID-####`, que es su nombre). Identificadores de dispositivo, de propuesta y de foto no aparecen en la app; en el panel, solo donde sirven. |
 | UI-14 | **Acciones destructivas separadas** de las afirmativas: ≥ 12 px entre "Aprobar" y "Rechazar…", entre "+" y "×"; nunca contiguas ni del mismo color. |
-| UI-15 | **Objetivos táctiles ≥ 44 × 44 px** en móvil, con ≥ 8 px entre controles adyacentes, aunque el elemento dibujado sea menor (marcadores del mapa). |
+| UI-15 | **Objetivos táctiles ≥ 44 × 44 px** en móvil, con ≥ 8 px entre controles adyacentes, aunque el elemento dibujado sea menor (marcadores del mapa). Única excepción: los botones de una **pieza unida**, como el zoom "+/−" del mapa (§5, DEC-123), que van juntos con un separador. |
 | UI-16 | **Un dato, un lugar en la pantalla.** El mismo valor no se repite en dos sitios de la misma vista (el código ya está en la cabecera: no se repite en la ficha). |
 
 ### 9.3 Textos
@@ -399,7 +399,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Sin cobertura: se ve el mapa base propio en lugar de «[Calle (OSM)]»` (con el mapa base en el móvil, RV-58) ·
 `Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Buscando tu posición…` ·
 `Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.` ·
-`No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Acercar` · `Alejar` ·
+`No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Cerrar la leyenda` · `Zoom` · `Acercar` · `Alejar` ·
 `funciona sin cobertura` · `solo en línea` · `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
 
 **Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089). `Coordenadas` · `Decimal` ·

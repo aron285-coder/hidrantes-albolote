@@ -100,7 +100,8 @@ async function geometria(page: Page, contexto: string, { movil }: { movil: boole
         y: r.top,
         w: r.width,
         h: r.height,
-        grupo: e.closest('[role=radiogroup]')?.getAttribute('aria-label') ?? null,
+        // Un grupo de opciones, o una pieza unida como el zoom (06 §5): sin aire entre sus botones.
+        grupo: e.closest('[role=radiogroup],[data-pieza-unida]')?.getAttribute('aria-label') ?? null,
         destructivo: variante === 'destructivo',
         variante,
         marcador: e.classList.contains('marcador'),
@@ -127,7 +128,9 @@ async function geometria(page: Page, contexto: string, { movil }: { movil: boole
       // Solapados: uno está encima del otro (capas, o uno dentro de otro), no al lado.
       if (dx < 0 && dy < 0) continue;
       const lado = dx >= 0 && dy < 0; // uno junto al otro en horizontal
-      const gap = lado ? dx : dy;
+      // En diagonal (ni encima ni al lado) manda el mayor de los dos huecos: la leyenda abajo a la
+      // izquierda y "Cercanos" a la derecha no son vecinos aunque sus bordes queden a la misma altura.
+      const gap = lado ? dx : dx >= 0 ? Math.max(dx, dy) : dy;
       if (a.destructivo !== b.destructivo && a.variante && b.variante && gap < 12) {
         problemas.push(`${a.que} y ${b.que}: ${Math.round(gap)} px entre la acción destructiva y la otra (< 12)`);
       }
@@ -160,6 +163,12 @@ test.describe('app del voluntario', () => {
     await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
     await auditar(page, 'mapa');
     await geometria(page, 'mapa', { movil: !!isMobile });
+
+    // La leyenda plegada (RV-82): una ficha de 44 px con nombre, sin pegarse a los demás controles.
+    await page.reload();
+    await expect(page.getByRole('button', { name: T.mapa.leyenda, exact: true })).toBeVisible();
+    await auditar(page, 'mapa con la leyenda plegada');
+    await geometria(page, 'mapa con la leyenda plegada', { movil: !!isMobile });
 
     await page.getByRole('link', { name: T.navegacion.lista }).click();
     await expect(page.getByPlaceholder(T.mapa.buscar)).toBeVisible();

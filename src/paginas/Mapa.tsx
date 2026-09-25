@@ -1,5 +1,5 @@
 import { Crosshair, Layers, LocateFixed, Minus, Plus, Ruler, Search, X } from 'lucide-react';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { BarraEstado } from '@/componentes/mapa/BarraEstado';
 import { Ficha } from '@/componentes/mapa/Ficha';
@@ -43,6 +43,7 @@ import {
 } from '@/lib/posicion';
 import { esPruebas } from '@/lib/entorno';
 import { buscar, metrosTramoManguera } from '@/lib/puntos';
+import { ESTILO_PANEL_FLOTANTE, MARGEN_FICHA_PX, RESERVA_DERECHA } from '@/lib/disposicion-mapa';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -72,9 +73,6 @@ const Control = ({
  * Pantalla del mapa (FR-60–FR-71). El punto elegido va en `?p=`: en el móvil la ficha ocupa la
  * pantalla; desde tableta flota sobre el mapa; en ordenador, además, la lista va al lado (FR-70).
  */
-/** Lo que tapa la ficha flotante por la derecha: 360 px de ancho, a 64 px del borde, y 8 de aire. */
-const MARGEN_FICHA_PX = 360 + 64 + 8;
-
 export function Mapa() {
   const { puntos, guardadoEn } = usePuntos();
   const acceso = useAcceso();
@@ -272,19 +270,6 @@ export function Mapa() {
       : sinRed && !mapabase.descargado
         ? T.mapa.mapaNoDescargado
         : null;
-  // Los avisos flotantes dejan libre la columna de botones: su ancho, medido, más 8 px (RV-59).
-  const columna = useRef<HTMLDivElement>(null);
-  const [anchoColumna, setAnchoColumna] = useState(0);
-  useLayoutEffect(() => {
-    const c = columna.current;
-    if (!c) return;
-    const medir = () => setAnchoColumna(c.offsetWidth);
-    medir();
-    if (typeof ResizeObserver === 'undefined') return;
-    const o = new ResizeObserver(medir);
-    o.observe(c);
-    return () => o.disconnect();
-  }, []);
   const avisoPosicion =
     estadoPos.tipo === 'denegada'
       ? T.mapa.posicionDenegada
@@ -501,12 +486,12 @@ export function Mapa() {
             </div>
           )}
 
-          {/* Capas, mi posición y zoom: columna derecha (tableta: botones laterales). Con los resultados de
-              la búsqueda abiertos se quita: la lista la taparía a medias (06 §9, tamaño de los objetivos). */}
+          {/* Herramientas: columna de iconos de 44 px pegada al borde derecho (06 §5, DEC-123). Con los
+              resultados de la búsqueda abiertos se quita: la lista la taparía a medias (06 §9). */}
           <div
-            ref={columna}
+            data-testid="columna-controles"
             hidden={!!texto && ancho !== 'escritorio'}
-            className={`absolute right-2 z-[400] flex flex-col gap-2 ${ancho === 'escritorio' ? 'top-2' : 'top-16'}`}
+            className={`absolute right-2 z-[400] flex w-11 flex-col items-end gap-2 ${ancho === 'escritorio' ? 'top-2' : 'top-16'}`}
           >
             <Control etiqueta={T.mapa.capas} onClick={() => setMenuCapas(true)}>
               <Layers size={20} aria-hidden />
@@ -528,29 +513,39 @@ export function Mapa() {
             >
               <LocateFixed size={20} aria-hidden />
             </Control>
-            {/* Cercanos (FR-74): con texto visible en el móvil, junto a "centrar en mí" (06 §4.7). */}
-            <button
-              type="button"
-              onClick={pedirCercanos}
-              aria-label={T.incidente.boton}
-              className="text-texto rounded-tarjeta flex min-h-11 items-center justify-center gap-1 self-end bg-[var(--control-mapa)] px-2.5 text-[13px] font-semibold shadow-[0_1px_5px_rgba(0,0,0,.18)]"
+            {/* Zoom en una sola pieza de 44 × 88: la alternativa de un dedo al pellizco (WCAG 2.5.1). */}
+            <div
+              role="group"
+              aria-label={T.mapa.zoom}
+              data-pieza-unida
+              className="rounded-tarjeta flex flex-col overflow-hidden bg-[var(--control-mapa)] shadow-[0_1px_5px_rgba(0,0,0,.18)]"
             >
-              <Crosshair size={20} aria-hidden />
-              <span>{T.incidente.boton}</span>
-            </button>
-            <Control etiqueta={T.mapa.acercar} onClick={() => control.current?.acercar()}>
-              <Plus size={20} aria-hidden />
-            </Control>
-            <Control etiqueta={T.mapa.alejar} onClick={() => control.current?.alejar()}>
-              <Minus size={20} aria-hidden />
-            </Control>
+              <button
+                type="button"
+                onClick={() => control.current?.acercar()}
+                aria-label={T.mapa.acercar}
+                title={T.mapa.acercar}
+                className="text-texto flex size-11 items-center justify-center"
+              >
+                <Plus size={20} aria-hidden />
+              </button>
+              <button
+                type="button"
+                onClick={() => control.current?.alejar()}
+                aria-label={T.mapa.alejar}
+                title={T.mapa.alejar}
+                className="text-texto border-linea flex size-11 items-center justify-center border-t"
+              >
+                <Minus size={20} aria-hidden />
+              </button>
+            </div>
           </div>
 
           <div
             data-testid="avisos-mapa"
             className="absolute top-16 left-2 z-[450] flex flex-col gap-1.5"
-            // right-2 de la columna + su ancho + 8 px de aire (RV-59).
-            style={{ right: anchoColumna ? anchoColumna + 16 : 64 }}
+            // Sin tapar la columna de controles: su margen, su ancho y 8 px de aire (RV-59, RV-82).
+            style={{ right: RESERVA_DERECHA }}
           >
             {(avisoCapa || avisoPosicion) && (
               <p
@@ -568,26 +563,44 @@ export function Mapa() {
             )}
           </div>
 
-          {/* Nuevo punto (FL-03): botón + naranja de 44 px en la esquina inferior derecha (06 §5) */}
-          <button
-            type="button"
-            onClick={() => navegar('/proponer/alta')}
-            aria-label={T.navegacion.nuevoPunto}
-            title={T.navegacion.nuevoPunto}
-            className="bg-naranja-600 absolute right-3 bottom-8 z-[450] flex size-14 items-center justify-center rounded-full text-white shadow-lg"
-          >
-            <Plus size={28} aria-hidden />
-          </button>
+          {/* Acciones principales abajo a la derecha, al alcance del pulgar (06 §5, DEC-123): "Cercanos"
+              extendido (FR-74, con texto visible, 06 §4.7) encima del + de nuevo punto (FL-03), a 12 px. */}
+          <div className="absolute right-3 bottom-8 z-[450] flex flex-col items-end gap-3">
+            <button
+              type="button"
+              onClick={pedirCercanos}
+              className="bg-marino-950 flex h-12 items-center gap-1.5 rounded-full pr-4 pl-3 text-[15px] font-semibold text-white shadow-lg"
+            >
+              <Crosshair size={20} aria-hidden />
+              <span>{T.incidente.boton}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => navegar('/proponer/alta')}
+              aria-label={T.navegacion.nuevoPunto}
+              title={T.navegacion.nuevoPunto}
+              className="bg-naranja-600 flex size-14 items-center justify-center rounded-full text-white shadow-lg"
+            >
+              <Plus size={28} aria-hidden />
+            </button>
+          </div>
 
           <div className="absolute bottom-2 left-2 z-[400]">
             <Leyenda />
           </div>
-          <p className="text-texto-suave absolute right-1 bottom-0.5 z-[400] rounded bg-[var(--control-mapa)] px-1 text-[10px]">
+          <p
+            data-testid="atribucion"
+            className="text-texto-suave absolute right-1 bottom-0.5 z-[400] rounded bg-[var(--control-mapa)] px-1 text-[10px]"
+          >
             {atribucion(capa)}
           </p>
 
           {ficha && (
-            <aside className="bg-fondo rounded-tarjeta absolute top-2 right-16 z-[600] max-h-[calc(100%-1rem)] w-[min(360px,calc(100%-5rem))] overflow-y-auto p-3 shadow-xl">
+            // A la izquierda de la columna y por encima de los botones de abajo: no tapa ninguno (RV-82).
+            <aside
+              className="bg-fondo rounded-tarjeta absolute top-2 z-[600] overflow-y-auto p-3 shadow-xl"
+              style={ESTILO_PANEL_FLOTANTE}
+            >
               {ficha}
             </aside>
           )}

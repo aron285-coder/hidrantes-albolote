@@ -784,6 +784,25 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** cerrar la hoja y avisar con un aviso flotante: se pierde el "Reintentar" y el texto largo no cabe.
 - **Afecta a:** 06 Apéndice A; `src/lib/push.ts`, `public/sw-push.js`.
 
+### DEC-123 · Controles del mapa: iconos a la derecha, acciones principales abajo y leyenda plegable
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-82). Sesión Frontend.
+- **Contexto:** en un Android, "Cercanos", con texto, ensanchaba la columna de la derecha a unos 110 px y dejaba los botones de 44 px hacia el centro del mapa. Con la leyenda abierta y el "+", el mapa útil se quedaba en la mitad. En tableta y ordenador, la ficha flotante (`right-16`) tapaba la columna.
+- **Decisión** (patrón de las apps de mapas):
+  1. **Columna de la derecha solo con iconos:** 44 px fijos y `right-2`. Contiene Capas, Medir y Mi posición, y el zoom en una pieza de 44 × 88. El zoom se queda porque es la alternativa de un dedo al pellizco.
+  2. **"Cercanos" extendido abajo a la derecha,** 48 px y `--marino-950`, 12 px por encima del "+". El "+" queda en **56 px**: 06 decía 44, pero el código ya usaba 56.
+  3. **Leyenda plegable:** una ficha "Leyenda" de 44 px que se despliega y se cierra con la X o tocando fuera.
+     - El primer uso la enseña desplegada una vez.
+     - El estado se guarda en `almacen` (`leyenda_abierta`).
+  4. **`src/lib/disposicion-mapa.ts` (`CONTROLES`, `RESERVA_DERECHA`, `ZONA_ABAJO`, `MARGEN_FICHA_PX`) es la única fuente de medidas.** Lo que ya no se mide ni se escribe a mano:
+     - la ficha (`right` y alto máximo, que termina por encima de los botones de abajo);
+     - los avisos flotantes (antes medían la columna con `ResizeObserver`);
+     - el encuadre del incidente.
+  5. **Test de geometría (`accesibilidad.spec.ts`):**
+     - los botones de una pieza unida (`data-pieza-unida`, el zoom) no necesitan 8 px entre ellos: es la única excepción de UI-15, escrita allí;
+     - en diagonal manda el mayor de los dos huecos. La leyenda desplegada, abajo a la izquierda, y "Cercanos", abajo a la derecha, no son vecinos.
+- **Descartado:** "Cercanos" dentro de la barra de búsqueda, como botón a su derecha. Ocupa menos, pero queda arriba, lejos del pulgar, y compite con el teclado al buscar.
+- **Afecta a:** 06 §4.5, §4.7, §5 y Apéndice A; 07 (mapa).
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**
