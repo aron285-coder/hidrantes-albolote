@@ -144,9 +144,35 @@ describe('enviar', () => {
     }
   });
 
+  // RV-84: solo 404 y 410 caducan. Cualquier otro error cuenta como un fallo más.
   it('otro error del servicio no caduca la suscripción: se reintentará', async () => {
-    const espia = fingirFetch(new Response(null, { status: 500 }));
-    expect(await enviar(suscripcion, aviso, vapid)).toEqual({ ok: false, caducada: false, error: 'HTTP 500' });
+    for (const estado of [400, 403, 413, 500, 502, 503]) {
+      const espia = fingirFetch(new Response(null, { status: estado }));
+      expect(await enviar(suscripcion, aviso, vapid)).toEqual({ ok: false, caducada: false, error: `HTTP ${estado}` });
+      espia.mockRestore();
+    }
+  });
+
+  // RV-84: un 429 es pasajero. Se aplaza lo que diga Retry-After (en segundos o como fecha HTTP).
+  it('429 no caduca la suscripción y devuelve cuánto esperar', async () => {
+    let espia = fingirFetch(new Response(null, { status: 429, headers: { 'Retry-After': '120' } }));
+    expect(await enviar(suscripcion, aviso, vapid)).toEqual({
+      ok: false,
+      caducada: false,
+      error: 'HTTP 429',
+      aplazar_s: 120,
+    });
+    espia.mockRestore();
+
+    const dentro = new Date(Date.now() + 300_000).toUTCString();
+    espia = fingirFetch(new Response(null, { status: 429, headers: { 'Retry-After': dentro } }));
+    const r = await enviar(suscripcion, aviso, vapid);
+    expect(r.aplazar_s).toBeGreaterThanOrEqual(290);
+    expect(r.aplazar_s).toBeLessThanOrEqual(300);
+    espia.mockRestore();
+
+    espia = fingirFetch(new Response(null, { status: 429 }));
+    expect((await enviar(suscripcion, aviso, vapid)).aplazar_s).toBe(60);
     espia.mockRestore();
   });
 

@@ -46,6 +46,8 @@ interface Red {
   token?: boolean;
   pendientes?: ReturnType<typeof pendiente>[];
   servicioPush?: Response;
+  /** Respuesta del servicio de push según el endpoint; manda sobre `servicioPush`. */
+  servicioPushPor?: (url: string) => Response;
   /** fn_resultado_notificacion no contesta (p. ej. se acabaron las peticiones de la invocación). */
   resultadoCae?: boolean;
 }
@@ -70,6 +72,7 @@ function fingirRed(red: Red = {}) {
         ? Promise.reject(new TypeError('Too many subrequests'))
         : Promise.resolve(new Response('null'));
     }
+    if (red.servicioPushPor) return Promise.resolve(red.servicioPushPor(url));
     return Promise.resolve(red.servicioPush ?? new Response(null, { status: 201 }));
   });
   return { espia, llamadas };
@@ -110,7 +113,7 @@ describe('POST /api/push', () => {
   it('sin nada pendiente no envía nada y responde en cero', async () => {
     const { espia, llamadas } = fingirRed({ admin: true, pendientes: [] });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
-    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 0, sin_anotar: 0, quedan: false });
+    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 0, sin_anotar: 0, aplazadas: 0, quedan: false });
     expect(llamadas.some((l) => l.url.includes('push.example.net'))).toBe(false);
     espia.mockRestore();
   });
@@ -122,7 +125,7 @@ describe('POST /api/push', () => {
     });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
 
-    expect(await r.json()).toEqual({ enviadas: 2, fallidas: 0, sin_anotar: 0, quedan: false });
+    expect(await r.json()).toEqual({ enviadas: 2, fallidas: 0, sin_anotar: 0, aplazadas: 0, quedan: false });
     const alServicio = llamadas.filter((l) => l.url === SUSCRIPCION.endpoint);
     expect(alServicio).toHaveLength(2);
     const resultados = llamadas.filter((l) => l.url.includes('fn_resultado_notificacion'));
@@ -141,13 +144,59 @@ describe('POST /api/push', () => {
     });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
 
-    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 1, sin_anotar: 0, quedan: false });
+    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 1, sin_anotar: 0, aplazadas: 0, quedan: false });
     expect(llamadas.find((l) => l.url.includes('fn_resultado_notificacion'))?.cuerpo).toEqual({
       notificacion_id: 7,
       ok: false,
       error: 'HTTP 410',
       suscripcion_caducada: true,
     });
+    espia.mockRestore();
+  });
+
+  // RV-84: un error pasajero del servicio se anota como fallo, pero nunca como caducidad.
+  it('un 500 del servicio se anota como fallo sin caducar la suscripción', async () => {
+    const { espia, llamadas } = fingirRed({
+      admin: true,
+      pendientes: [pendiente(8)],
+      servicioPush: new Response(null, { status: 500 }),
+    });
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+
+    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 1, sin_anotar: 0, aplazadas: 0, quedan: false });
+    expect(llamadas.find((l) => l.url.includes('fn_resultado_notificacion'))?.cuerpo).toEqual({
+      notificacion_id: 8,
+      ok: false,
+      error: 'HTTP 500',
+      suscripcion_caducada: false,
+    });
+    espia.mockRestore();
+  });
+
+  // RV-84: con un 429 el servicio pide esperar. El aviso no se anota (ni fallo en la suscripción ni
+  // error en el aviso): sigue reclamado y vuelve a salir en una pasada posterior del Worker. Lo que
+  // quede para ese mismo servicio en esta invocación tampoco se manda, y el Worker no insiste.
+  it('429 con Retry-After: sin fallo, el aviso sigue pendiente y no se insiste en ese servicio', async () => {
+    const otro = {
+      ...pendiente(9),
+      suscripcion: { ...SUSCRIPCION, endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/otro' },
+    };
+    const veinte = [pendiente(1), pendiente(2), otro, ...Array.from({ length: 17 }, (_, i) => pendiente(i + 10))];
+    const { espia, llamadas } = fingirRed({
+      admin: true,
+      pendientes: veinte,
+      servicioPushPor: (url) =>
+        url.startsWith('https://push.example.net/')
+          ? new Response(null, { status: 429, headers: { 'Retry-After': '120' } })
+          : new Response(null, { status: 201 }),
+    });
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+
+    // 19 avisos a push.example.net: uno se intenta y recibe 429, los otros 18 ni se intentan.
+    expect(await r.json()).toEqual({ enviadas: 1, fallidas: 0, sin_anotar: 0, aplazadas: 19, quedan: false });
+    expect(llamadas.filter((l) => l.url === SUSCRIPCION.endpoint)).toHaveLength(1);
+    const resultados = llamadas.filter((l) => l.url.includes('fn_resultado_notificacion'));
+    expect(resultados.map((l) => (l.cuerpo as { notificacion_id: number }).notificacion_id)).toEqual([9]);
     espia.mockRestore();
   });
 
@@ -167,7 +216,7 @@ describe('POST /api/push', () => {
     const veinte = Array.from({ length: 20 }, (_, i) => pendiente(i + 1));
     const { espia, llamadas } = fingirRed({ admin: true, pendientes: veinte });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
-    expect(await r.json()).toEqual({ enviadas: 20, fallidas: 0, sin_anotar: 0, quedan: true });
+    expect(await r.json()).toEqual({ enviadas: 20, fallidas: 0, sin_anotar: 0, aplazadas: 0, quedan: true });
     expect(llamadas.find((l) => l.url.includes('fn_reclamar_notificaciones'))?.cuerpo).toEqual({ limite: 20 });
     espia.mockRestore();
   });
@@ -186,7 +235,7 @@ describe('POST /api/push', () => {
     const { espia } = fingirRed({ admin: true, pendientes: [pendiente(1), pendiente(2)], resultadoCae: true });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
     expect(r.status).toBe(200);
-    expect(await r.json()).toEqual({ enviadas: 2, fallidas: 0, sin_anotar: 2, quedan: false });
+    expect(await r.json()).toEqual({ enviadas: 2, fallidas: 0, sin_anotar: 2, aplazadas: 0, quedan: false });
     espia.mockRestore();
   });
 
