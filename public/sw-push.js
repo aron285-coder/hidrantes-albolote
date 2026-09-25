@@ -41,6 +41,48 @@ self.addEventListener('push', (evento) => {
   );
 });
 
+// El servicio de push cambió la suscripción (caducada o renovada; docs/21 RV-81): se vuelve a suscribir
+// con la misma clave y se deja la nueva en IndexedDB. El SW no tiene el token: la envía la app al
+// abrirse (resincronizarPush en src/lib/push.ts, que usa la misma base, almacén y clave).
+function guardarPendiente(suscripcion) {
+  return new Promise((resolver) => {
+    const peticion = indexedDB.open('hidrantes-sw', 1);
+    peticion.onupgradeneeded = () => peticion.result.createObjectStore('kv');
+    peticion.onerror = () => resolver();
+    peticion.onsuccess = () => {
+      const bd = peticion.result;
+      const fin = () => {
+        bd.close();
+        resolver();
+      };
+      try {
+        const tx = bd.transaction('kv', 'readwrite');
+        tx.objectStore('kv').put(suscripcion, 'push_pendiente');
+        tx.oncomplete = fin;
+        tx.onerror = fin;
+        tx.onabort = fin;
+      } catch {
+        fin();
+      }
+    };
+  });
+}
+
+self.addEventListener('pushsubscriptionchange', (evento) => {
+  const clave = evento.oldSubscription?.options?.applicationServerKey;
+  evento.waitUntil(
+    (evento.newSubscription
+      ? Promise.resolve(evento.newSubscription)
+      : clave
+        ? self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: clave })
+        : Promise.resolve(null)
+    )
+      // Sin suscripción nueva, queda al menos la marca: la app se suscribe al abrirse.
+      .then((nueva) => guardarPendiente(nueva ? nueva.toJSON() : true))
+      .catch(() => guardarPendiente(true)),
+  );
+});
+
 self.addEventListener('notificationclick', (evento) => {
   evento.notification.close();
   const destino = new URL(evento.notification.data?.url || '/mis-propuestas', self.location.origin).href;

@@ -510,6 +510,21 @@ export const T = {
     denegado: 'Avisos bloqueados en el móvil: actívalos en sus ajustes.',
     instalarPrimero:
       'En iPhone, primero añade la aplicación a la pantalla de inicio (Compartir → Añadir a pantalla de inicio).',
+    reintentar: 'Reintentar',
+    cerrar: 'Cerrar',
+    permisoNoConcedido:
+      'El móvil no ha dejado preguntar. Abre los ajustes de notificaciones de la aplicación, actívalas y vuelve a intentarlo.',
+    permisoBloqueado:
+      'Los avisos de esta aplicación están bloqueados en el móvil. En Android: Ajustes → Aplicaciones → esta aplicación → Notificaciones. Actívalas y vuelve aquí.',
+    sinServicioPush:
+      'Este móvil no puede recibir avisos ahora (servicio de avisos no disponible). Comprueba que tiene conexión y los servicios de Google actualizados.',
+    sinServiceWorker: 'La aplicación aún se está preparando. Ciérrala del todo, ábrela y vuelve a intentarlo.',
+    claveDistinta:
+      'No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
+    servidorSinConexion: 'Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.',
+    servidorNoGuarda:
+      'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
+    referencia: (motivo: Parametro) => `Referencia para jefatura: ${motivo}`,
   },
 
   fallo: {
