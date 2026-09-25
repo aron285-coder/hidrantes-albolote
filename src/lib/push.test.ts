@@ -226,3 +226,59 @@ describe('lo que dice la hoja por cada motivo (RV-81, UI-04)', () => {
     expect(sePuedeReintentar('servidor:TOKEN_CADUCADO')).toBe(true);
   });
 });
+
+/** IndexedDB mínima: solo lo que usan push.ts y sw-push.js (open, get, delete). */
+function indexedDbFalsa(inicial: Record<string, unknown>) {
+  const kv = new Map(Object.entries(inicial));
+  const peticion = <T>(hacer: () => T) => {
+    const p: { result?: T; onsuccess?: () => void; onerror?: () => void } = {};
+    queueMicrotask(() => {
+      p.result = hacer();
+      p.onsuccess?.();
+    });
+    return p;
+  };
+  const almacen = {
+    get: (k: string) => peticion(() => kv.get(k)),
+    delete: (k: string) => peticion(() => kv.delete(k)),
+  };
+  const bd = { transaction: () => ({ objectStore: () => almacen }), close: () => undefined };
+  vi.stubGlobal('indexedDB', { open: () => peticion(() => bd) });
+  return kv;
+}
+
+describe('la suscripción nueva que dejó el Service Worker (pushsubscriptionchange)', () => {
+  const token = 't'.repeat(43);
+  const ahora = 1_000_000_000_000;
+
+  it('se envía sin esperar a las 24 h y, si el servidor la guarda, se borra la marca', async () => {
+    datos.set('hidrantes.push', 'true');
+    datos.set('hidrantes.push_resincronizado_en', String(ahora - 2 * 60 * 60 * 1000));
+    const kv = indexedDbFalsa({ push_pendiente: true });
+    pushManager.getSubscription.mockResolvedValue(suscripcion());
+    await resincronizarPush(token, ahora);
+    expect(rpc).toHaveBeenCalledWith('fn_guardar_suscripcion_push', expect.objectContaining({ token }));
+    expect(kv.has('push_pendiente')).toBe(false);
+  });
+
+  it('si el servidor no la guarda, la marca se queda y se reintenta como mucho cada hora', async () => {
+    datos.set('hidrantes.push', 'true');
+    const kv = indexedDbFalsa({ push_pendiente: true });
+    pushManager.getSubscription.mockResolvedValue(suscripcion());
+    rpc.mockResolvedValue({ ok: false, codigo: 'DESCONOCIDO' });
+    await resincronizarPush(token, ahora);
+    await resincronizarPush(token, ahora + 10 * 60 * 1000);
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(kv.has('push_pendiente')).toBe(true);
+    await resincronizarPush(token, ahora + 61 * 60 * 1000);
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('sin cobertura no se molesta a jefatura', () => {
+  it('activar sin servidor dice el motivo pero no anota un error', async () => {
+    rpc.mockResolvedValue({ ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' });
+    await expect(activarPush()).resolves.toEqual({ estado: 'inactivo', motivo: 'servidor:SERVIDOR_NO_DISPONIBLE' });
+    expect(anotarError).not.toHaveBeenCalled();
+  });
+});

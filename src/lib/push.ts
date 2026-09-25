@@ -25,6 +25,8 @@ export const BD_SW = { nombre: 'hidrantes-sw', almacen: 'kv', pendiente: 'push_p
 export const LIMITE_SW_MS = 10_000;
 /** Cada cuánto, como mucho, se vuelve a enviar la suscripción tras sincronizar. */
 export const RESINCRONIZAR_CADA_MS = 24 * 60 * 60 * 1000;
+/** Con una suscripción nueva del SW pendiente de enviar: como mucho un intento por hora. */
+export const REINTENTO_PENDIENTE_MS = 60 * 60 * 1000;
 
 export type EstadoPush = 'no_disponible' | 'instalar_primero' | 'denegado' | 'activo' | 'inactivo';
 
@@ -127,7 +129,10 @@ async function suscribir(registro: ServiceWorkerRegistration, clave: Uint8Array<
 async function guardarEnServidor(token: string, suscripcion: PushSubscriptionJSON): Promise<MotivoPush | null> {
   const r = await rpc('fn_guardar_suscripcion_push', { token, suscripcion, temas: ['resultado_propuesta'] });
   if (r.ok) return null;
-  anotarError(new Error(`fn_guardar_suscripcion_push: ${r.codigo}`.slice(0, 500)), 'push:guardar');
+  // Sin cobertura no es un fallo de la aplicación: el voluntario lo ve, jefatura no necesita saberlo.
+  if (r.codigo !== SIN_SERVIDOR) {
+    anotarError(new Error(`fn_guardar_suscripcion_push: ${r.codigo}`.slice(0, 500)), 'push:guardar');
+  }
   return `servidor:${r.codigo}`;
 }
 
@@ -169,11 +174,17 @@ export async function desactivarPush(): Promise<EstadoPush> {
   try {
     const registro = await registroListo(LIMITE_SW_MS);
     await (await registro.pushManager.getSubscription())?.unsubscribe();
-  } catch {
-    // sin suscripción local o sin Service Worker: el servidor la borra igualmente
+  } catch (e) {
+    // Sin suscripción local o sin Service Worker: el servidor la borra igualmente, pero queda anotado.
+    anotarError(errorSinDatos(e, 'unsubscribe'), 'push:desactivar');
   }
   const sesion = leerSesion();
-  if (sesion) await rpc('fn_borrar_suscripcion_push', { token: sesion.token });
+  if (sesion) {
+    const r = await rpc('fn_borrar_suscripcion_push', { token: sesion.token });
+    if (!r.ok && r.codigo !== SIN_SERVIDOR) {
+      anotarError(new Error(`fn_borrar_suscripcion_push: ${r.codigo}`.slice(0, 500)), 'push:desactivar');
+    }
+  }
   return estadoPush();
 }
 
@@ -212,7 +223,8 @@ export async function resincronizarPush(token: string, ahora = Date.now()): Prom
     // La suscripción nueva que dejó el SW, o `true` si no pudo hacerla; basta con saber que hay algo.
     const pendiente = await conBdSw<PushSubscriptionJSON | true>('readonly', (a) => a.get(BD_SW.pendiente));
     const ultima = leer<number>(CLAVE_RESINCRONIZADA) ?? 0;
-    if (!pendiente && ahora - ultima < RESINCRONIZAR_CADA_MS) return;
+    // Con una marca del SW se reintenta cada hora, no cada día; sin ella, una vez al día.
+    if (ahora - ultima < (pendiente ? REINTENTO_PENDIENTE_MS : RESINCRONIZAR_CADA_MS)) return;
     // Se marca el intento, salga como salga: un fallo que se repite no llena de errores a jefatura.
     escribir(CLAVE_RESINCRONIZADA, ahora);
     const registro = await registroListo(LIMITE_SW_MS);

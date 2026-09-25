@@ -407,17 +407,23 @@ function SeccionAvisos() {
                 setOcupado(false);
               }
             }}
-            className={cn(
-              'relative h-7 w-12 shrink-0 rounded-full transition-colors',
-              estado === 'activo' ? 'bg-verde-600' : 'bg-linea',
-            )}
+            // 44 px de objetivo táctil (UI-13) alrededor de la pista de 48 × 28.
+            className="flex h-11 w-12 shrink-0 items-center"
           >
             <span
+              aria-hidden
               className={cn(
-                'absolute top-0.5 size-6 rounded-full bg-white shadow transition-all',
-                estado === 'activo' ? 'left-[22px]' : 'left-0.5',
+                'relative h-7 w-12 rounded-full transition-colors',
+                estado === 'activo' ? 'bg-verde-600' : 'bg-linea',
               )}
-            />
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 size-6 rounded-full bg-white shadow transition-all',
+                  estado === 'activo' ? 'left-[22px]' : 'left-0.5',
+                )}
+              />
+            </span>
           </button>
         )}
       </Fila>

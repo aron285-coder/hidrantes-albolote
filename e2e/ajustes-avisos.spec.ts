@@ -21,17 +21,15 @@ async function abrirAjustes(page: Page, guardada: Record<string, unknown> | null
     ...(guardada === 'falla' ? {} : { fn_guardar_suscripcion_push: guardada }),
   });
   await page.goto('/ajustes');
+  // El Service Worker de verdad tiene que estar listo: con la máquina cargada tarda en instalarse.
+  await page.evaluate(() => navigator.serviceWorker.ready.then(() => undefined));
   const interruptor = page.getByRole('switch', { name: T.ajustes.avisarResolucion });
-  // El build de los e2e necesita VITE_VAPID_PUBLIC_KEY (una clave de prueba) para enseñar los avisos.
-  const hay = await interruptor.waitFor({ timeout: 5_000 }).then(
-    () => true,
-    () => false,
-  );
-  test.skip(!hay, 'el build de los e2e no lleva VITE_VAPID_PUBLIC_KEY: sin ella no hay sección de avisos');
+  // Si no aparece, el build de los e2e no lleva VITE_VAPID_PUBLIC_KEY (playwright.config.ts): falla, no se salta.
+  await expect(interruptor, 'sin VITE_VAPID_PUBLIC_KEY en el build no hay sección de avisos').toBeVisible();
   return interruptor;
 }
 
-test('sin servicio de push: la hoja dice el motivo y no se cierra', async ({ page }) => {
+test('sin servicio de push: la hoja dice el motivo y no se cierra', async ({ page }, testInfo) => {
   const interruptor = await abrirAjustes(page, null);
   await interruptor.click();
   const hoja = page.getByRole('dialog', { name: T.push.titulo });
@@ -42,6 +40,10 @@ test('sin servicio de push: la hoja dice el motivo y no se cierra', async ({ pag
   await expect(hoja).toBeVisible();
   // Se puede volver a intentar, y el interruptor no se queda deshabilitado (UI-02).
   await expect(hoja.getByRole('button', { name: T.push.reintentar })).toBeEnabled();
+  // Para revisarla una persona (revisar-pantallas): no se compara.
+  const captura = testInfo.outputPath('hoja-motivo.png');
+  await page.screenshot({ path: captura });
+  await testInfo.attach('hoja-motivo', { path: captura, contentType: 'image/png' });
   await hoja.getByRole('button', { name: T.push.cerrar }).click();
   await expect(hoja).toBeHidden();
   await expect(interruptor).toBeEnabled();
