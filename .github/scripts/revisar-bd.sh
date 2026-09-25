@@ -32,21 +32,23 @@ revisar_bd() {
   # Tareas de pg_cron (TR-54, RV-22): cuándo corrió cada una y si falló. Se guarda para
   # Salud del sistema, salga como salga.
   # Con la lista de las que tiene que haber (RV-56): una que falte, o todas, es un problema.
+  # Fuera del repositorio (docs/22 RV-90): en el directorio actual quedaba suelto tras los tests.
+  local tareas_json="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/tareas-$entorno.json"
   esperadas=$(paste -sd, scripts/sql/tareas-esperadas.txt)
   tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 -v esperadas="$esperadas" "$bd" -f scripts/sql/tareas-programadas.sql 2>/dev/null || echo '')
   if [ -z "$tareas" ]; then
     problemas+=("${pre}no se pueden leer las tareas programadas de pg_cron")
   else
-    printf '%s' "$tareas" > "tareas-$entorno.json"
+    printf '%s' "$tareas" > "$tareas_json"
     # psql no sustituye variables en -c: va por -f (RV-38). Si no se guarda, es un problema.
     if ! psql -X -q -v ON_ERROR_STOP=1 "$bd" -v valor="$tareas" -f scripts/sql/guardar-tareas.sql; then
       problemas+=("${pre}no se pueden guardar las tareas programadas en Salud del sistema")
     fi
-    faltan=$(jq -r '[.[] | select(.falta) | .tarea] | join(", ")' "tareas-$entorno.json")
+    faltan=$(jq -r '[.[] | select(.falta) | .tarea] | join(", ")' "$tareas_json")
     if [ -n "$faltan" ]; then
       problemas+=("${pre}faltan tareas programadas de pg_cron: $faltan (¿restauración en un proyecto nuevo? 15 §5.3)")
     fi
-    atrasadas=$(jq -r '[.[] | select(.problema and (.falta | not)) | .tarea] | join(", ")' "tareas-$entorno.json")
+    atrasadas=$(jq -r '[.[] | select(.problema and (.falta | not)) | .tarea] | join(", ")' "$tareas_json")
     if [ -n "$atrasadas" ]; then
       problemas+=("${pre}tareas programadas que fallaron o no han corrido a tiempo: $atrasadas")
     fi
