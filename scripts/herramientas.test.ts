@@ -84,3 +84,25 @@ describe('hooks que hacen cumplir CLAUDE.md §3 (SK-02)', () => {
     );
   });
 });
+
+describe('skills propias del proyecto (SK-03)', () => {
+  for (const skill of ['paquete-rv', 'nueva-migracion', 'revisar-pantallas']) {
+    it(`${skill}: SKILL.md con name y description en el encabezado`, () => {
+      const ruta = path.join(raiz, '.claude', 'skills', skill, 'SKILL.md');
+      expect(existsSync(ruta)).toBe(true);
+      const texto = readFileSync(ruta, 'utf8');
+      const cabecera = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(texto)?.[1] ?? '';
+      expect(cabecera).toMatch(new RegExp(`^name: ${skill}$`, 'm'));
+      const descripcion = /^description: (.+)$/m.exec(cabecera)?.[1] ?? '';
+      // Tiene que decir cuándo usarla: es lo que Claude Code mira para cargarla.
+      expect(descripcion).toMatch(/Úsala/);
+      expect(buscarSecretos(texto)).toEqual([]);
+    });
+  }
+
+  it('CLAUDE.md §8 dice cuándo usar cada una', () => {
+    const claude = readFileSync(path.join(raiz, 'CLAUDE.md'), 'utf8');
+    for (const skill of ['paquete-rv', 'nueva-migracion', 'revisar-pantallas'])
+      expect(claude).toContain(`| \`${skill}\` |`);
+  });
+});
