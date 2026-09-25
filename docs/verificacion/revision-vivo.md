@@ -1,6 +1,6 @@
 # Verificación · Revisión sobre staging y producción en vivo (docs/20)
 
-**Estado: hecho en staging el 24 sep 2026; producción, con P-10 (§3).** Especificación:
+**Estado: hecho el 25 sep 2026**, en staging y en producción. Especificación:
 `docs/20-revision-en-vivo.md`. Es la primera especificación en paralelo (`docs/trabajo-en-paralelo.md`,
 DEC-100), con dos sesiones coordinadas en #332. Los registros de cada sesión:
 `revision-vivo-ops.md` y `revision-vivo-frontend.md`. La preparación del CI está en `par-01.md`.
@@ -26,7 +26,7 @@ DEC-100), con dos sesiones coordinadas en #332. Los registros de cada sesión:
 
 ## 2. Checklist de docs/20 §6
 
-- [ ] **P-10**, con producción en la versión de esta especificación y el job de `deploy-prod.yml` entero en verde. Va en §3 y en `paridad-produccion.md`.
+- [x] **P-10:** producción en la **0.6.3** el 25 sep 2026 a las 06:04 UTC (#351, run 36065099327), con el job de `deploy-prod.yml` **entero en verde**, «Paridad con develop» incluida. Sirve `<meta name="version" content="0.6.3">` y las teselas del mapa base. Registro en `paridad-produccion.md`.
 - [x] **RV-71 en staging, sin copia descargada.** Una tesela da 200 con `application/vnd.mapbox-vector-tile` e `immutable`. La primera vista del mapa pinta 12 de 12 lienzos con 205 kB de teselas, sin errores de `pmtiles` (antes, 0 de 12 y 12 errores).
   - **Queda para una persona:** mirarlo en una ventana privada con una sesión real. La medida se hizo con la sesión y Supabase simulados en el navegador, contra los estáticos de staging.
 - [x] **Todos los RV con su test de regresión.**
@@ -35,7 +35,14 @@ DEC-100), con dos sesiones coordinadas en #332. Los registros de cada sesión:
 
 ## 3. P-10 · producción al día
 
-Se hace una sola vez, al final y con todo `docs/20`: así lo pidió el desarrollador («primero staging, luego producción»). `docs/20` §1 pedía hacerlo antes y repetirlo al final. El registro está en `paridad-produccion.md`.
+Se hizo una sola vez, al final y con todo `docs/20`: así lo pidió el desarrollador («primero staging, luego producción»). `docs/20` §1 pedía hacerlo antes y repetirlo al final.
+
+- `comprobar-produccion -- --completo`: salida 0 (run 36063673495).
+- Release 0.6.3 (#328).
+- #352: `main` en la historia de `develop`, porque #296 se había fusionado con squash.
+- #351, con merge commit y la aprobación del desarrollador en `production`.
+
+El registro está en `paridad-produccion.md`.
 
 ## 4. Lo que se aprendió de trabajar en paralelo
 
