@@ -268,7 +268,9 @@ jobs:
         env:
           BASE: ${{ github.base_ref }}
         run: |
-          if git diff --name-only "origin/$BASE...HEAD" | grep -q '^src/'; then
+          # Con -- src y en una variable: un grep -q cortaría el diff y, con pipefail, daría un falso «no toca».
+          tocados=$(git diff --name-only "origin/$BASE...HEAD" -- src)
+          if [ -n "$tocados" ]; then
             echo "tocan=true" >> "$GITHUB_OUTPUT"
           else
             echo "El PR no toca src/**: sin capturas."
