@@ -70,11 +70,15 @@ let receptor: Server;
 let wrangler: ChildProcess | undefined;
 let salidaWrangler = '';
 let suscripcion = '';
+let correo = '';
 const vapid = paresVapid();
 
 test.describe.configure({ mode: 'serial', timeout: 180_000 });
 
 test.beforeAll(async () => {
+  // Un servidor viejo en :8789 firmaría con otras claves y el fallo saldría tarde y confuso.
+  if (await fetch(PAGES).catch(() => null))
+    throw new Error(':8789 ya está ocupado: para el wrangler que haya quedado.');
   receptor = createServer((peticion, respuesta) => {
     const trozos: Buffer[] = [];
     peticion.on('data', (t: Buffer) => trozos.push(t));
@@ -82,7 +86,13 @@ test.beforeAll(async () => {
       recibidos.push({ ruta: peticion.url ?? '', cabeceras: peticion.headers, cuerpo: Buffer.concat(trozos) });
       respuesta.writeHead(201).end();
     });
-  }).listen(PUERTO_PUSH, '127.0.0.1');
+  });
+  await new Promise<void>((ok, mal) => {
+    receptor.once('error', (e) =>
+      mal(new Error(`El servidor de push falso no arranca en :${PUERTO_PUSH}: ${e.message}`)),
+    );
+    receptor.listen(PUERTO_PUSH, '127.0.0.1', ok);
+  });
 
   // Su propio grupo de procesos fuera de Windows: npx lanza wrangler y wrangler lanza workerd.
   wrangler = spawn(
@@ -114,7 +124,12 @@ test.beforeAll(async () => {
   );
   wrangler.stdout?.on('data', (d) => (salidaWrangler += d));
   wrangler.stderr?.on('data', (d) => (salidaWrangler += d));
+  let salio: number | null | undefined;
+  wrangler.once('exit', (c) => (salio = c));
   for (let i = 0; i < 120; i++) {
+    if (salio !== undefined)
+      throw new Error(`wrangler en :8789 ha terminado (${salio}):
+${salidaWrangler.slice(-2000)}`);
     const r = await fetch(PAGES).catch(() => null);
     if (r) return;
     await new Promise((ok) => setTimeout(ok, 1000));
@@ -123,17 +138,21 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  consulta(`delete from hidrantes.propuestas where clave_local like '${MARCA}%'`);
-  consulta(`delete from hidrantes.puntos where descripcion like '${MARCA}%'`);
-  if (suscripcion) consulta(`delete from hidrantes.suscripciones_push where id = '${suscripcion}'`);
+  // Primero los procesos y el puerto: si la limpieza de la base fallara, no quedan vivos.
   try {
-    if (wrangler?.pid && process.platform !== 'win32') process.kill(-wrangler.pid, 'SIGTERM');
-    else wrangler?.kill();
+    if (wrangler?.pid && process.platform === 'win32') {
+      // Con shell, kill() solo mataría cmd.exe: el árbol entero (npx, wrangler, workerd).
+      execFileSync('taskkill', ['/pid', String(wrangler.pid), '/T', '/F'], { stdio: 'ignore' });
+    } else if (wrangler?.pid) process.kill(-wrangler.pid, 'SIGTERM');
   } catch {
     wrangler?.kill();
   }
   receptor?.closeAllConnections();
   receptor?.close();
+  consulta(`delete from hidrantes.propuestas where clave_local like '${MARCA}%'`);
+  consulta(`delete from hidrantes.puntos where descripcion like '${MARCA}%'`);
+  if (suscripcion) consulta(`delete from hidrantes.suscripciones_push where id = '${suscripcion}'`);
+  if (correo) consulta(`delete from hidrantes.administradores where email = '${correo}'`);
 });
 
 test('una suscripción de FCM guardada de verdad recibe el aviso con VAPID válido', async ({ request }) => {
@@ -187,7 +206,7 @@ test('una suscripción de FCM guardada de verdad recibe el aviso con VAPID váli
     returning id)
     select id from nueva`);
 
-  const correo = `avisos.${Date.now()}@example.org`;
+  correo = `avisos.${Date.now()}@example.org`;
   consulta(`insert into hidrantes.administradores (email, creado_por) values ('${correo}', 'prueba')`);
   const servicio = variables('.dev.vars').SUPABASE_SERVICE_ROLE_KEY;
   const sesion = await sesionDeJefatura(request, { ...api, servicio }, correo);

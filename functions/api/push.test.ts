@@ -326,6 +326,20 @@ describe('POST /api/push', () => {
       espia.mockRestore();
     });
 
+    it('también con localhost en los dos', async () => {
+      const { espia, llamadas } = fingirRed({ admin: true, pendientes: [{ ...pendiente(1), suscripcion: FCM }] });
+      await onRequestPost({
+        request: peticion({}, { Authorization: 'Bearer a.b.c' }),
+        env: {
+          ...local,
+          SUPABASE_URL: 'http://localhost:55421',
+          PUSH_ENDPOINT_PRUEBAS: 'http://localhost:9912',
+        } as Env,
+      });
+      expect(llamadas.some((l) => l.url === 'http://localhost:9912/fcm/send/abc:def?x=1')).toBe(true);
+      espia.mockRestore();
+    });
+
     it('la firma VAPID sigue siendo para el servicio de verdad (aud)', async () => {
       const { espia } = fingirRed({ admin: true, pendientes: [{ ...pendiente(1), suscripcion: FCM }] });
       await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: local });
