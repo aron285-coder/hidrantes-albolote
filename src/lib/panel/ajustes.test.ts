@@ -2,12 +2,18 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   CUOTA_FOTOS_BYTES,
   PARAMETROS_POR_DEFECTO,
+  type Salud,
+  VIGILANCIA_ATRASADA_H,
   avisoAlmacenamiento,
+  origenTareas,
+  textoAlmacenamiento,
+  vigilanciaAtrasada,
   cambiosParametros,
   faltaEnParametros,
   generarCodigo,
 } from './ajustes';
 import { filtrarActividad, porcentaje } from './voluntarios';
+import { T } from '../textos';
 
 describe('código de acceso (FR-140)', () => {
   it('son seis cifras y salen del generador criptográfico', () => {
@@ -90,5 +96,45 @@ describe('aviso de almacenamiento (TR-53)', () => {
   it('lleno o pasado de la cota, 100 %: nunca un número imposible', () => {
     expect(avisoAlmacenamiento(CUOTA_FOTOS_BYTES)).toBe(100);
     expect(avisoAlmacenamiento(CUOTA_FOTOS_BYTES * 3)).toBe(100);
+  });
+});
+
+// docs/22 RV-92 (y RV-93, RV-94): lo que enseña Salud del sistema de las tareas, la vigilancia y el espacio.
+describe('Salud del sistema: origen de las tareas, vigilancia atrasada y almacenamiento (RV-92)', () => {
+  const ahora = new Date('2026-09-25T09:30:00Z');
+  const hora = 3_600_000;
+  const base = { tareas: [] } as unknown as Salud;
+
+  it('tareas en vivo: "Ahora mismo"', () => {
+    expect(origenTareas({ ...base, tareas_origen: 'en_vivo' }, ahora)).toBe(T.panelAjustes.tareasAhora);
+  });
+
+  it('tareas de la foto de la vigilancia: "Según la vigilancia de hace 13 h"', () => {
+    const medidas = new Date(ahora.getTime() - 13 * hora).toISOString();
+    const texto = origenTareas({ ...base, tareas_origen: 'vigilancia', tareas_medidas_en: medidas }, ahora);
+    expect(texto).toBe(T.panelAjustes.tareasSegunVigilancia('hace 13 h'));
+    expect(texto).toBe('Según la vigilancia de hace 13 h');
+  });
+
+  it('una base anterior a 0031 (sin origen) dice que es de la vigilancia, sin inventarse la hora', () => {
+    expect(origenTareas(base, ahora)).toBe(T.panelAjustes.tareasSegunUltimaVigilancia);
+  });
+
+  it(`la vigilancia va con retraso a partir de ${VIGILANCIA_ATRASADA_H} h, no antes`, () => {
+    expect(VIGILANCIA_ATRASADA_H).toBe(26);
+    const de = (h: number) => new Date(ahora.getTime() - h * hora).toISOString();
+    expect(vigilanciaAtrasada(de(27), ahora)).toBe(true);
+    expect(vigilanciaAtrasada(de(25), ahora)).toBe(false);
+    // Cinco horas tarde es lo normal en GitHub (docs/22 RV-93): no se marca.
+    expect(vigilanciaAtrasada(de(13), ahora)).toBe(false);
+    expect(vigilanciaAtrasada(null, ahora)).toBe(false);
+  });
+
+  it('almacenamiento a 0 bytes (bucket vacío) es un dato, no "sin dato" (RV-94)', () => {
+    expect(textoAlmacenamiento(0)).toBe('0,0 MB');
+    expect(textoAlmacenamiento(5 * 1024 ** 2)).toBe('5,0 MB');
+    expect(textoAlmacenamiento(null)).toBe(T.panelAjustes.sinDato);
+    expect(textoAlmacenamiento(undefined)).toBe(T.panelAjustes.sinDato);
+    expect(avisoAlmacenamiento(0)).toBeNull();
   });
 });

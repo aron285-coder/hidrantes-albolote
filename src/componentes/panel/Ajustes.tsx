@@ -27,6 +27,9 @@ import {
   cargarParametros,
   avisoAlmacenamiento,
   cargarSalud,
+  origenTareas,
+  textoAlmacenamiento,
+  vigilanciaAtrasada,
   contarDispositivos,
   descargarInventarioJson,
   faltaEnParametros,
@@ -470,7 +473,8 @@ function SaludDelSistema() {
     avisar(T.panelAjustes.inventarioDescargado(r.datos));
   }
 
-  const filas: [string, string][] = s
+  // La tercera columna marca en tono de aviso una fila que pide atención (RV-93).
+  const filas: [string, string, boolean?][] = s
     ? [
         [T.panelAjustes.pendientes14, String(s.pendientes_14d)],
         [T.panelAjustes.incidenciasAbiertas, String(s.incidencias_abiertas)],
@@ -484,7 +488,7 @@ function SaludDelSistema() {
               ? T.panelAjustes.respaldoNoAplica
               : T.panelAjustes.nunca,
         ],
-        [T.panelAjustes.almacenamiento, s.storage_bytes ? `${megas(s.storage_bytes)} MB` : T.panelAjustes.sinDato],
+        [T.panelAjustes.almacenamiento, textoAlmacenamiento(s.storage_bytes)],
         [
           T.panelAjustes.zonaYMapa,
           `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
@@ -493,8 +497,14 @@ function SaludDelSistema() {
         [
           T.panelAjustes.ultimaVigilancia,
           s.ultima_vigilancia
-            ? `${hace(s.ultima_vigilancia)} · ${s.vigilancia_ok ? T.panelAjustes.vigilanciaBien : T.panelAjustes.vigilanciaMal}`
+            ? [
+                hace(s.ultima_vigilancia),
+                s.vigilancia_ok ? T.panelAjustes.vigilanciaBien : T.panelAjustes.vigilanciaMal,
+              ]
+                .concat(vigilanciaAtrasada(s.ultima_vigilancia) ? [T.panelAjustes.vigilanciaAtrasada] : [])
+                .join(' · ')
             : T.panelAjustes.nunca,
+          vigilanciaAtrasada(s.ultima_vigilancia),
         ],
         [T.panelAjustes.dispositivosActivos, String(s.dispositivos_activos)],
         [
@@ -531,15 +541,23 @@ function SaludDelSistema() {
             </p>
           )}
           <dl className="text-sm">
-            {filas.map(([k, valor]) => (
+            {filas.map(([k, valor, aviso]) => (
               <div key={k} className="border-linea flex gap-2 border-b py-1 last:border-b-0">
                 <dt className="text-texto-suave flex-1">{k}</dt>
-                <dd className="font-semibold">{valor}</dd>
+                <dd className={cn('font-semibold', aviso && 'text-naranja-texto')} data-aviso={aviso || undefined}>
+                  {valor}
+                </dd>
               </div>
             ))}
-            {/* TR-54: la última ejecución de cada tarea de pg_cron, según la anotó la vigilancia. */}
+            {/* TR-54: la última ejecución de cada tarea de pg_cron: en vivo o, si pg_cron no deja leer,
+                según la anotó la vigilancia; debajo del título se dice cuál (RV-92). */}
             <div className="border-linea border-b py-1 last:border-b-0">
-              <dt className="text-texto-suave">{T.panelAjustes.tareasProgramadas}</dt>
+              <dt className="text-texto-suave">
+                {T.panelAjustes.tareasProgramadas}
+                <span className="block text-[13px]" data-testid="origen-tareas">
+                  {origenTareas(s)}
+                </span>
+              </dt>
               <dd>
                 {s.tareas?.length ? (
                   <ul className="mt-1" data-testid="tareas-programadas">
