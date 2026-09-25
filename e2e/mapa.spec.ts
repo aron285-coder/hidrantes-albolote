@@ -19,6 +19,34 @@ async function abrir(page: Page, ruta = '/') {
 const boton = (page: Page, texto: string) => page.locator('button').filter({ hasText: texto }).first();
 
 test.describe('mapa y lista', () => {
+  // docs/21 RV-82: la leyenda desplegada, con Cercanos y el + abajo, dejaba medio mapa útil.
+  test('la leyenda se enseña desplegada el primer uso y después va plegada; se abre y se cierra (RV-82)', async ({
+    page,
+  }) => {
+    await abrir(page);
+    const leyenda = page.getByRole('region', { name: T.mapa.leyenda });
+    const ficha = page.getByRole('button', { name: T.mapa.leyenda, exact: true });
+    await expect(leyenda).toBeVisible();
+    await expect(ficha).toHaveCount(0);
+
+    await page.reload();
+    await expect(ficha).toBeVisible();
+    await expect(leyenda).toHaveCount(0);
+    await ficha.click();
+    await expect(leyenda).toContainText(T.mapa.leyendaTamano);
+    await leyenda.getByRole('button', { name: T.mapa.cerrarLeyenda }).click();
+    await expect(leyenda).toHaveCount(0);
+
+    // Se cierra también tocando fuera, y el estado se recuerda.
+    await ficha.click();
+    await expect(leyenda).toBeVisible();
+    await page.reload();
+    await expect(leyenda).toBeVisible();
+    await page.getByText(/Sincronizado hace/).click();
+    await expect(leyenda).toHaveCount(0);
+    await expect(ficha).toBeVisible();
+  });
+
   test('sincroniza, pinta los marcadores y dice cuándo (FR-60, FR-80)', async ({ page }) => {
     await abrir(page);
     await expect(page.getByText(/Sincronizado hace/)).toBeVisible();

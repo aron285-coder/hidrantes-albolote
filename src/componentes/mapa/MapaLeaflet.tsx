@@ -10,6 +10,7 @@ import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
 import { distancia } from '@/lib/formato';
 import { desplazamientoEtiqueta, imantar } from '@/lib/medicion';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
+import { RESERVA_DERECHA, ZONA_ABAJO } from '@/lib/disposicion-mapa';
 import { T } from '@/lib/textos';
 import { guardarVista, vistaGuardada } from '@/lib/vista';
 
@@ -343,7 +344,11 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     m.fitBounds(encuadre, {
       // Arriba, la búsqueda y la columna de herramientas: los candidatos no quedan debajo.
       paddingTopLeft: [56, 132],
-      paddingBottomRight: [72 + (incidente.margenDerecho ?? 0), 48 + (incidente.margenInferior ?? 0)],
+      // A la derecha, la columna de controles (o la ficha); abajo, Cercanos y el + (o la hoja): RV-82.
+      paddingBottomRight: [
+        RESERVA_DERECHA + 12 + (incidente.margenDerecho ?? 0),
+        Math.max(48 + (incidente.margenInferior ?? 0), ZONA_ABAJO + 16),
+      ],
       maxZoom: 18,
       animate: false,
     });

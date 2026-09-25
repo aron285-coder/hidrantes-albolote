@@ -115,6 +115,67 @@ for (const [ancho, alto] of [
   });
 }
 
+// docs/21 RV-82: "Cercanos", con texto, ensanchaba la columna de la derecha y dejaba los botones de
+// 44 px hacia el centro del mapa; en tableta y ordenador la ficha además los tapaba.
+const COLUMNA = [T.mapa.capas, T.medir.boton, T.mapa.miPosicion, T.mapa.acercar, T.mapa.alejar];
+
+for (const [ancho, alto] of [
+  [390, 844],
+  [412, 915],
+  [768, 1024],
+  [1280, 800],
+] as const) {
+  test(`${ancho} px: la columna de controles va pegada al borde y "Cercanos", abajo a la derecha (RV-82)`, async ({
+    page,
+  }, info) => {
+    await abrir(page, ancho, alto);
+    const mapa = (await page.getByTestId('mapa').boundingBox())!;
+    const bordeMapa = mapa.x + mapa.width;
+    const columna: Caja[] = [];
+    for (const nombre of COLUMNA)
+      columna.push((await page.getByRole('button', { name: nombre, exact: true }).boundingBox())!);
+    const derechas = columna.map((b) => b.x + b.width);
+    for (const [i, d] of derechas.entries()) {
+      expect(Math.abs(d - derechas[0]!), `${COLUMNA[i]}: mismo borde derecho que Capas`).toBeLessThanOrEqual(1);
+      expect(bordeMapa - d, `${COLUMNA[i]}: a ≤ 12 px del borde del mapa`).toBeLessThanOrEqual(12);
+    }
+    const izquierda = Math.min(...columna.map((b) => b.x));
+    expect(Math.max(...derechas) - izquierda, 'la columna mide ≤ 48 px de ancho').toBeLessThanOrEqual(48);
+
+    const cercanos = (await page.getByRole('button', { name: T.incidente.boton }).boundingBox())!;
+    const nuevo = (await page.getByRole('button', { name: T.navegacion.nuevoPunto }).boundingBox())!;
+    const atribucion = (await page.getByTestId('atribucion').boundingBox())!;
+    // Abajo a la derecha, encima del "+", con 12 px de aire (UI-13), sin tocar la atribución.
+    expect(cercanos.y, 'Cercanos en la mitad de abajo').toBeGreaterThan(mapa.y + mapa.height / 2);
+    expect(bordeMapa - (cercanos.x + cercanos.width), 'Cercanos pegado a la derecha').toBeLessThanOrEqual(16);
+    expect(nuevo.y - (cercanos.y + cercanos.height), 'Cercanos encima del +, a 12 px').toBeGreaterThanOrEqual(11.5);
+    expect(cortan(cercanos, atribucion), 'Cercanos y la atribución').toBe(false);
+    expect(cortan(nuevo, atribucion), 'el + y la atribución').toBe(false);
+    for (const [i, b] of columna.entries()) expect(cortan(b, cercanos), `${COLUMNA[i]} y Cercanos`).toBe(false);
+    await captura(page, info, `controles-${ancho}`);
+
+    if (ancho < 768) {
+      // Para revisarlas una persona en el PR (revisar-pantallas): el incidente abierto y la ficha.
+      await page.goto(`/?incidente=${P0.lat.toFixed(6)},${P0.lng.toFixed(6)}`);
+      await expect(page.getByRole('region', { name: T.incidente.titulo }).getByRole('listitem').first()).toBeVisible();
+      await captura(page, info, `incidente-${ancho}`);
+      await page.goto(`/?p=${P0.id}`);
+      await expect(page.getByRole('article')).toBeVisible();
+      await captura(page, info, `ficha-${ancho}`);
+      return;
+    }
+    await page.goto(`/?p=${P0.id}`);
+    // La caja que se ve: la ficha flotante, que desplaza su contenido si no cabe.
+    await expect(page.getByRole('article')).toBeVisible();
+    const ficha = (await page.locator('aside:has(article)').boundingBox())!;
+    for (const nombre of [...COLUMNA, T.incidente.boton, T.navegacion.nuevoPunto]) {
+      const b = (await page.getByRole('button', { name: nombre, exact: true }).boundingBox())!;
+      expect(cortan(b, ficha), `${nombre} y la ficha`).toBe(false);
+    }
+    await captura(page, info, `controles-con-ficha-${ancho}`);
+  });
+}
+
 // docs/20 RV-79: a unos 800 px (tableta en vertical, TR-21) el Inventario cortaba la dirección en
 // "— pen", partía "Boca de riego" en dos líneas y dejaba Voluntarios y Ajustes fuera de la vista.
 test.describe('panel de jefatura en tableta en vertical (RV-79)', () => {

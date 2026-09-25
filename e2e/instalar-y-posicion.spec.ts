@@ -46,7 +46,7 @@ test('sin oferta del navegador, Ajustes explica cómo instalar', async ({ page }
 test('el aviso del mapa se puede cerrar y no vuelve', async ({ page }) => {
   await page.goto('/');
   await ofrecerInstalacion(page);
-  await page.getByRole('button', { name: T.ficha.cerrar }).click();
+  await page.getByRole('button', { name: T.ficha.cerrar, exact: true }).click();
   await expect(page.getByText(T.instalar.aviso)).toHaveCount(0);
   await page.reload();
   await ofrecerInstalacion(page);
