@@ -129,6 +129,8 @@ for (const [ancho, alto] of [
     page,
   }, info) => {
     await abrir(page, ancho, alto);
+    // Con los puntos ya en la lista: es la lista la que estiraba la fila en el ordenador.
+    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
     const mapa = (await page.getByTestId('mapa').boundingBox())!;
     const bordeMapa = mapa.x + mapa.width;
     const columna: Caja[] = [];
@@ -159,6 +161,20 @@ for (const [ancho, alto] of [
     expect(cortan(cercanos, atribucion), 'Cercanos y la atribución').toBe(false);
     expect(cortan(nuevo, atribucion), 'el + y la atribución').toBe(false);
     for (const [i, b] of columna.entries()) expect(cortan(b, cercanos), `${COLUMNA[i]} y Cercanos`).toBe(false);
+    // Todo a la vista, sin desplazar la página ni quedar bajo la navegación (lo vio vistas.spec.ts, RV-88).
+    const navegacion = (await page.getByRole('navigation').first().boundingBox())!;
+    const leyenda = (await page.getByRole('region', { name: T.mapa.leyenda }).boundingBox())!;
+    for (const [nombre, b] of [
+      ['Cercanos', cercanos],
+      ['el +', nuevo],
+      ['la leyenda', leyenda],
+    ] as const) {
+      expect(b.y + b.height, `${nombre} dentro de la pantalla`).toBeLessThanOrEqual(alto);
+      expect(cortan(b, navegacion), `${nombre} y la navegación`).toBe(false);
+    }
+    // Y la página no se desplaza: el mapa cabe en la pantalla, se mueva el control que se mueva.
+    const alturas = await page.evaluate(() => [document.scrollingElement!.scrollHeight, innerHeight]);
+    expect(alturas[0], 'la página no es más alta que la pantalla').toBeLessThanOrEqual(alturas[1]! + 1);
     await captura(page, info, `controles-${ancho}`);
 
     if (ancho < 768) {

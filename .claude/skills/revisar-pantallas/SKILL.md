@@ -7,9 +7,10 @@ description: Revisar a ojo las pantallas de la app y del panel antes de fusionar
 
 1. Ejecuta `npx playwright test e2e/vistas.spec.ts` con tu `PW_PUERTO` (docs/21 RV-88). Genera
    capturas a 412 × 915 (Android) y 1280 × 800, en claro y en oscuro.
-   - Si `e2e/vistas.spec.ts` aún no existe (llega con RV-88), saca las mismas capturas con
-     `page.screenshot` desde los specs de la pantalla tocada, con los datos simulados de
-     `e2e/ayudas.ts`.
+   - Las capturas quedan en `test-results/vistas-*/*.png` y en el informe. En un PR que toca
+     `src/**`, el trabajo `ci-vistas` las sube como artefacto `vistas`
+     (`gh run download <id> -n vistas`).
+   - Si tocas una pantalla que no está en el spec, añádela a `VISTAS`.
 2. **Mira cada captura** (léela como imagen) y comprueba:
    - los controles del mapa alineados al borde derecho y nada tapado por la ficha, los avisos o la
      leyenda;

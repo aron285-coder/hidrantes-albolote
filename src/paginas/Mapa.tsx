@@ -359,32 +359,36 @@ export function Mapa() {
       <AvisoInstalar />
       <div className="relative flex min-h-0 flex-1">
         {ancho === 'escritorio' && (
-          <aside className="border-linea bg-fondo flex w-80 shrink-0 flex-col border-r">
-            {hayCercanos && incidente && !listaEnColumna ? (
-              panelCercanos('columna')
-            ) : (
-              <>
-                {/* Sin posición o buscándola: el aviso encima de la lista, que tiene la búsqueda. */}
-                {hayCercanos && !incidente && panelCercanos('columna')}
-                {hayCercanos && incidente && (
-                  <button
-                    type="button"
-                    onClick={() => setListaEnColumna(false)}
-                    className="bg-papel border-texto text-texto rounded-boton mx-3 mt-2 flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[14px] font-semibold"
-                  >
-                    <Crosshair size={16} aria-hidden />
-                    {T.incidente.volverACercanos}
-                  </button>
-                )}
-                <ListaPuntos
-                  alElegir={(id) => {
-                    olvidarSinPosicion();
-                    elegir(id);
-                  }}
-                  alElegirLugar={olvidarSinPosicion}
-                />
-              </>
-            )}
+          // La lista no marca la altura de la fila: si no, con muchos puntos el mapa crecía por debajo de la
+          // pantalla y se llevaba los botones de abajo (Cercanos, el + y la leyenda) fuera de la vista.
+          <aside className="border-linea bg-fondo relative w-80 shrink-0 border-r">
+            <div className="absolute inset-0 flex flex-col">
+              {hayCercanos && incidente && !listaEnColumna ? (
+                panelCercanos('columna')
+              ) : (
+                <>
+                  {/* Sin posición o buscándola: el aviso encima de la lista, que tiene la búsqueda. */}
+                  {hayCercanos && !incidente && panelCercanos('columna')}
+                  {hayCercanos && incidente && (
+                    <button
+                      type="button"
+                      onClick={() => setListaEnColumna(false)}
+                      className="bg-papel border-texto text-texto rounded-boton mx-3 mt-2 flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[14px] font-semibold"
+                    >
+                      <Crosshair size={16} aria-hidden />
+                      {T.incidente.volverACercanos}
+                    </button>
+                  )}
+                  <ListaPuntos
+                    alElegir={(id) => {
+                      olvidarSinPosicion();
+                      elegir(id);
+                    }}
+                    alElegirLugar={olvidarSinPosicion}
+                  />
+                </>
+              )}
+            </div>
           </aside>
         )}
         <div className="relative isolate min-h-[60vh] flex-1">

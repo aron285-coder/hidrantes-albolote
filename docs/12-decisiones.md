@@ -820,6 +820,21 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** añadir `clientsClaim` al SW de Workbox. Cambia cuándo toma el control una versión nueva (TR-24, el aviso de versión nueva) solo para arreglar esto.
 - **Afecta a:** `public/sw-push.js`; `config/sw-push.test.ts` (nuevo, carga el SW con `vm`).
 
+### DEC-126 · Capturas de las pantallas en cada PR que toca src/**, y el mapa de escritorio cabe en la pantalla
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-88). Sesión Frontend.
+- **Contexto:** la disposición de RV-82 solo se vio mal en un móvil real: los tests medían cajas sueltas, no el conjunto.
+- **Decisión:**
+  1. `e2e/vistas.spec.ts` saca siete pantallas, en claro y en oscuro: mapa, mapa con incidente, mapa con ficha, lista, Ajustes, cola del panel e inventario del panel.
+     - A 412 × 915 en el proyecto móvil (Pixel 7). El panel no, porque es de ordenador.
+     - A 1280 × 800 en el de escritorio.
+     - Datos simulados de `e2e/puntos.ts`.
+     - Las adjunta con `testInfo.attach` y no compara nada. Corre también en `ci-e2e-parte` como prueba de humo (unos 45 s repartidos).
+  2. **Trabajo `ci-vistas`**, no obligatorio, en `ubuntu-24.04`: solo en `pull_request` y solo si el PR toca `src/**`. Sube el artefacto `vistas` (14 días). Es la única excepción de propiedad que dio `docs/22` para `.github/`: no toca los demás trabajos.
+  3. **Lo primero que vio:** a 1280 × 800 la lista lateral marcaba la altura de la fila. El mapa crecía hasta unos 917 px, por debajo de la pantalla, y se llevaba fuera de la vista "Cercanos", el "+" y la leyenda. Ahora el contenido de la lista va en una capa absoluta dentro del `aside` y desplaza dentro de él. `anchos.spec.ts` exige que "Cercanos" y el "+" queden dentro de la pantalla y fuera de la navegación.
+  4. La skill `revisar-pantallas` ya no tiene el paso provisional de "si `e2e/vistas.spec.ts` aún no existe".
+- **Pendiente:** el marcador de posición del buscador de la lista lateral se corta ("… o co") a 320 px. Ya pasaba antes y no tapa nada. Queda para un punto de textos.
+- **Afecta a:** `.github/workflows/ci.yml` (`ci-vistas`), `.claude/skills/revisar-pantallas/SKILL.md`, `src/paginas/Mapa.tsx`.
+
 ### DEC-136 · La hoja de avisos no enseña el código del motivo
 - **Fecha:** 25 sep 2026 · **Estado:** vigente. Sustituye la línea "Referencia para jefatura: `<motivo>`" de DEC-122 punto 3. Sesión Frontend.
 - **Contexto:** la revisión de RV-82 recordó UI-13: al voluntario no se le enseñan códigos internos, salvo el del propio punto. `sin_servicio_push` o `servidor:DESCONOCIDO` lo son.
