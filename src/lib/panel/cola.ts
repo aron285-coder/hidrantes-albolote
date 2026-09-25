@@ -452,7 +452,7 @@ export function diferenciasFusion(p: PropuestaPanel, existente: Punto): Diferenc
 
 /**
  * Tras moderar, el voluntario recibe su aviso al momento: se pide el envío a /api/push, una vez por
- * acción (también en los lotes), en vez de esperar a avisos.yml (RV-08, FR-163).
+ * acción (también en los lotes), en vez de esperar a la pasada del Worker de avisos (RV-08, FR-163, DEC-097).
  */
 function avisar<T>(r: Resultado<T>): Resultado<T> {
   if (r.ok) void pedirEnvioComoJefatura();

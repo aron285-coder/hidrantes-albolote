@@ -366,7 +366,7 @@ export function procesarCola(): Promise<void> {
       procesando = null;
       otraVuelta = false;
       programar();
-      // "Nueva propuesta" a jefatura sale al momento, no a los 15 minutos de avisos.yml.
+      // "Nueva propuesta" a jefatura sale al momento, sin esperar a la pasada del Worker de avisos (DEC-097).
       if (huboEnvio) pedirAvisos(huboEnvio);
       huboEnvio = null;
     }

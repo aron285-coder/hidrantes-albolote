@@ -86,15 +86,18 @@ self.addEventListener('pushsubscriptionchange', (evento) => {
 self.addEventListener('notificationclick', (evento) => {
   evento.notification.close();
   const destino = new URL(evento.notification.data?.url || '/mis-propuestas', self.location.origin).href;
+  // docs/21 RV-83: solo se navega una ventana de este origen que el SW controla; `navigate()` rechaza
+  // sobre una que no controla, y tras la primera instalación es lo normal (no hay clientsClaim). Si
+  // no la hay, o si navegar falla, se abre una nueva. Todo dentro de waitUntil.
+  const abrir = () => self.clients.openWindow(destino);
   evento.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((ventanas) => {
-      for (const v of ventanas) {
-        if ('focus' in v) {
-          v.navigate(destino);
-          return v.focus();
-        }
-      }
-      return self.clients.openWindow(destino);
-    }),
+    self.clients
+      .matchAll({ type: 'window' })
+      .then((controladas) => {
+        const propia = controladas.find((v) => new URL(v.url).origin === self.location.origin);
+        if (!propia) return abrir();
+        return propia.navigate(destino).then((v) => (v || propia).focus());
+      })
+      .catch(abrir),
   );
 });

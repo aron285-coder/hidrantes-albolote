@@ -524,8 +524,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `La aplicación aún se está preparando. Ciérrala del todo, ábrela y vuelve a intentarlo.` ·
 `No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.` ·
 `Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.` ·
-`El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.` ·
-`Referencia para jefatura: [sin_servicio_push]`
+`El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.`
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·
