@@ -14,6 +14,12 @@ test.skip(({ isMobile }) => !isMobile, 'los avisos se activan en el móvil');
 async function abrirAjustes(page: Page, guardada: Record<string, unknown> | null | 'falla') {
   await conSesion(page);
   await page.context().grantPermissions(['notifications']);
+  // Chromium sin interfaz de CI da el permiso por denegado aunque se conceda: se fija aquí. Que no haya
+  // servicio de push, que es lo que se prueba, no depende de esto.
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, 'permission', { get: () => 'granted', configurable: true });
+    Notification.requestPermission = async () => 'granted';
+  });
   await simularRpc(page, {
     fn_listar_puntos: LISTADO,
     fn_mis_propuestas: [],
