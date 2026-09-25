@@ -431,3 +431,39 @@ describe('revisar_bd (RV-78)', () => {
     expect(guion.split('\n').filter((l) => /^\s*\[.*\]\s*&&/.test(l))).toEqual([]);
   });
 });
+
+// docs/22 RV-89, DEC-128: ubuntu-latest pasa a Ubuntu 26 el 19 oct 2026.
+describe('imagen de los trabajos de Actions (RV-89)', () => {
+  const runsOn = archivos.flatMap((a) =>
+    [...leer(a).matchAll(/^\s+runs-on: (.+)$/gm)].map((m) => ({ archivo: a, imagen: m[1]!.trim() })),
+  );
+
+  it('ningún runs-on es ubuntu-latest', () => {
+    expect(runsOn.filter((r) => r.imagen.includes('ubuntu-latest'))).toEqual([]);
+  });
+
+  it('todos son ubuntu-24.04, salvo el canario de Ubuntu 26', () => {
+    const otros = runsOn.filter((r) => r.imagen !== 'ubuntu-24.04');
+    expect(otros).toEqual([{ archivo: 'canario-ubuntu.yml', imagen: 'ubuntu-26.04' }]);
+    expect(runsOn.length).toBeGreaterThanOrEqual(22);
+  });
+
+  it('el canario usa ubuntu-26.04, llama a preparar con psql y abre su issue', () => {
+    const texto = leer('canario-ubuntu.yml');
+    expect(texto).toMatch(/^ {2}canario-ubuntu-26:\n {4}runs-on: ubuntu-26\.04$/m);
+    expect(texto).toMatch(/uses: \.\/\.github\/actions\/preparar\n\s+with:\n\s+psql: 'true'/);
+    expect(texto).toContain('psql --version');
+    expect(texto).toContain('pg_dump --version');
+    expect(texto).toContain('jq --version');
+    expect(texto).toContain('npm run typecheck && npm test');
+    expect(texto).toContain("cron: '13 5 * * 3'");
+    expect(texto).toContain('Canario Ubuntu 26 en rojo');
+  });
+
+  it('el canario está en las listas de workflows programados, como semanal', () => {
+    for (const a of ['mantener-activo.yml', 'vigilancia.yml']) {
+      for (const l of listas(a)) expect(l).toContain('canario-ubuntu.yml');
+    }
+    expect(leer('vigilancia.yml')).toContain('respaldo.yml | purgar-fotos.yml | canario-ubuntu.yml) limite=8');
+  });
+});

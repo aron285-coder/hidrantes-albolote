@@ -20,7 +20,7 @@ jobs:
   # a SQL. Saltados por su `if`, cuentan como correctos para los checks obligatorios.
   cambios:
     name: cambios
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       codigo: ${{ steps.calcular.outputs.codigo }}
@@ -48,7 +48,7 @@ jobs:
 
   calidad:
     name: ci-calidad
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -74,7 +74,7 @@ jobs:
     name: ci-sql
     needs: cambios
     if: needs.cambios.outputs.codigo == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -188,7 +188,7 @@ jobs:
     name: ci-e2e-parte
     needs: cambios
     if: needs.cambios.outputs.codigo == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -212,7 +212,7 @@ jobs:
     name: ci-e2e-rendimiento
     needs: cambios
     if: needs.cambios.outputs.codigo == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -233,7 +233,7 @@ jobs:
     name: ci-e2e
     needs: [cambios, e2e-parte, e2e-rendimiento]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - env:

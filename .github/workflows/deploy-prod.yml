@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   desplegar:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: production
       url: https://hidrantes-albolote.pages.dev
