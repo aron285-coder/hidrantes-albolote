@@ -11,7 +11,10 @@ name: Vigilancia
 
 on:
   schedule:
+    # Dos pasadas (docs/22 RV-93): GitHub retrasa la programada varias horas. En un repositorio
+    # público no cuesta minutos (TR-53).
     - cron: '41 7 * * *'
+    - cron: '41 19 * * *'
   workflow_dispatch:
 
 permissions:

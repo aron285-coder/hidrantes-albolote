@@ -6,6 +6,10 @@
 //   npm run purgar-fotos -- --ensayo     dice cuáles borraría, sin tocar nada
 //   npm run purgar-fotos -- --forzar     borra aunque sean más de max(50, 10 %) del bucket: solo a
 //                                        mano y tras un --ensayo revisado; el workflow nunca lo pasa
+//   npm run purgar-fotos -- --programada la pasada de los lunes: si nunca se ha borrado de verdad
+//                                        (sin config.ultima_purga_fotos), hace ensayo (docs/22 RV-94)
+//
+// Con SUPABASE_DB_URL, lee y anota config.ultima_purga_fotos (DEC-129).
 //
 // Necesita SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY (y BUCKET, si no es el de producción). Quién
 // decide qué se conserva es la base de datos, no este script: `fn_fotos_referenciadas_lista` devuelve
@@ -22,7 +26,7 @@
 // para no llevarse la foto de una propuesta confirmada entre medias.
 
 import { type Deposito, depositoSupabase, rutasDelBucket } from './respaldo-fotos.ts';
-import { abortar, argumentos, ejecutarScript, log } from './lib/comun.ts';
+import { abortar, argumentos, ejecutarScript, log, psql, psqlOk } from './lib/comun.ts';
 
 export const BUCKET_POR_DEFECTO = 'hidrantes-fotos';
 /** Storage acepta hasta 1.000 rutas por borrado; se va de cien en cien para no pasarse. */
@@ -188,9 +192,45 @@ export async function purgar(
   return { enBucket, sobran, borradas: sobran.length };
 }
 
+/**
+ * ¿Borra de verdad esta pasada? La primera pasada programada no: la primera vez que se borra lo
+ * revisa una persona (docs/22 RV-94, DEC-129). Una a mano sin --ensayo, o la programada de la semana
+ * siguiente, ya borra.
+ */
+export function modoDePurga(p: { programada: boolean; ensayoPedido: boolean; hayUltimaPurga: boolean }): {
+  ensayo: boolean;
+  primeraVez: boolean;
+} {
+  if (p.ensayoPedido) return { ensayo: true, primeraVez: false };
+  if (p.programada && !p.hayUltimaPurga) return { ensayo: true, primeraVez: true };
+  return { ensayo: false, primeraVez: false };
+}
+
+/** ¿Hay ya una purga que borró de verdad? Sin poder leerlo, se da por que no: mejor un ensayo de más. */
+export function hayUltimaPurga(bd: string): boolean {
+  const r = psql(bd, "select hidrantes.fn_config('ultima_purga_fotos', 'null') is distinct from 'null'::jsonb;", {
+    tuplas: true,
+  });
+  return r.codigo === 0 && r.salida.trim() === 't';
+}
+
+export function anotarUltimaPurga(bd: string): void {
+  psqlOk(
+    bd,
+    "insert into hidrantes.config (clave, valor, actualizado_por) values ('ultima_purga_fotos', to_jsonb(now()), 'purgar-fotos.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;",
+  );
+}
+
 async function principal(): Promise<void> {
   const { banderas } = argumentos();
-  const ensayo = banderas.has('ensayo');
+  const bd = process.env.SUPABASE_DB_URL;
+  const { ensayo, primeraVez } = modoDePurga({
+    programada: banderas.has('programada'),
+    ensayoPedido: banderas.has('ensayo'),
+    hayUltimaPurga: bd ? hayUltimaPurga(bd) : false,
+  });
+  if (primeraVez)
+    log.aviso('Primera pasada programada: se hace ensayo. La revisa una persona antes de borrar (DEC-129).');
   const forzar = banderas.has('forzar');
   const url = process.env.SUPABASE_URL ?? abortar('Falta SUPABASE_URL.');
   const servicio = process.env.SUPABASE_SERVICE_ROLE_KEY ?? abortar('Falta SUPABASE_SERVICE_ROLE_KEY.');
@@ -215,6 +255,10 @@ async function principal(): Promise<void> {
   console.log(`borradas=${borradas}`);
   console.log(`bytes_liberados=${liberados}`);
   console.log(`bytes_restantes=${bytesDe(enBucket) - liberados}`);
+  console.log(`ensayo=${ensayo ? 1 : 0}`);
+  console.log(`primera_vez=${primeraVez ? 1 : 0}`);
+  // Solo una pasada que ha podido borrar de verdad cuenta como «ya se ha purgado» (DEC-129).
+  if (!ensayo && bd) anotarUltimaPurga(bd);
   log.ok(resumen(enBucket, sobran, ensayo));
 }
 

@@ -9,7 +9,7 @@
 
 import { abortar, ejecutar, ejecutarScript, log, psqlOk } from './lib/comun.ts';
 import { LOCAL_POSTGRES } from './migrar.ts';
-import { MAX_FILAS_POSTGREST, referenciadas } from './purgar-fotos.ts';
+import { MAX_FILAS_POSTGREST, anotarUltimaPurga, hayUltimaPurga, modoDePurga, referenciadas } from './purgar-fotos.ts';
 
 const SEMBRADOS = 1100;
 const PREFIJO = 'rv33-integracion/';
@@ -59,6 +59,40 @@ async function principal(): Promise<void> {
     log.ok(`la purga ve las ${vivas.length} fotos referenciadas, más de ${MAX_FILAS_POSTGREST}`);
   } finally {
     psqlOk(LOCAL_POSTGRES, `delete from hidrantes.puntos where foto_path like '${PREFIJO}%';`);
+  }
+  primeraVez();
+}
+
+// docs/22 RV-94, DEC-129: la primera pasada programada es ensayo; tras una de verdad, ya borra.
+function primeraVez(): void {
+  log.paso('Guarda de la primera purga');
+  const borrarMarca = () => psqlOk(LOCAL_POSTGRES, "delete from hidrantes.config where clave = 'ultima_purga_fotos';");
+  borrarMarca();
+  try {
+    const antes = modoDePurga({
+      programada: true,
+      ensayoPedido: false,
+      hayUltimaPurga: hayUltimaPurga(LOCAL_POSTGRES),
+    });
+    if (!antes.ensayo || !antes.primeraVez) abortar('Sin ultima_purga_fotos, la pasada programada no ha hecho ensayo.');
+    log.ok('primera vez, programada → ensayo');
+    const aMano = modoDePurga({
+      programada: false,
+      ensayoPedido: false,
+      hayUltimaPurga: hayUltimaPurga(LOCAL_POSTGRES),
+    });
+    if (aMano.ensayo) abortar('A mano y sin ensayo, la primera pasada tenía que borrar.');
+    log.ok('primera vez, a mano sin ensayo → borra');
+    anotarUltimaPurga(LOCAL_POSTGRES);
+    const despues = modoDePurga({
+      programada: true,
+      ensayoPedido: false,
+      hayUltimaPurga: hayUltimaPurga(LOCAL_POSTGRES),
+    });
+    if (despues.ensayo) abortar('Con ultima_purga_fotos anotada, la pasada programada tenía que borrar.');
+    log.ok('tras una purga de verdad, programada → borra');
+  } finally {
+    borrarMarca();
   }
 }
 

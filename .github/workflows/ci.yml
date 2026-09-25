@@ -65,6 +65,11 @@ jobs:
       - run: npm run lint
       - run: npm run formato:comprobar
       - run: npm test
+      # docs/22 RV-90: un test que deja archivos acabaría en un PR con git add -A.
+      - name: Los tests no dejan archivos sueltos
+        run: |
+          sucio=$(git status --porcelain --untracked-files=all)
+          if [ -n "$sucio" ]; then echo "::error::Los tests han dejado archivos: $sucio"; exit 1; fi
       # Los hooks de .claude/ que hacen cumplir CLAUDE.md §3 (docs/21 SK-02, DEC-115).
       - run: npx tsx scripts/probar-hooks.ts
       - run: npm run build
