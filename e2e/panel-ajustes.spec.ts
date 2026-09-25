@@ -371,6 +371,8 @@ test.describe('Salud del sistema: tareas en vivo o de la vigilancia (RV-92)', ()
     await expect(filaDe(page, T.panelAjustes.almacenamiento).locator('dd')).toHaveText('0,0 MB');
     // Para revisarla una persona (revisar-pantallas).
     const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
-    await info.attach('salud-vigilancia', { body: await salud.screenshot(), contentType: 'image/png' });
+    const captura = info.outputPath('salud-vigilancia.png');
+    await salud.screenshot({ path: captura });
+    await info.attach('salud-vigilancia', { path: captura, contentType: 'image/png' });
   });
 });
