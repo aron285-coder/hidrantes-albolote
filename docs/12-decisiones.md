@@ -834,6 +834,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   4. La skill `revisar-pantallas` ya no tiene el paso provisional de "si `e2e/vistas.spec.ts` aún no existe".
 - **Pendiente:** el marcador de posición del buscador de la lista lateral se corta ("… o co") a 320 px. Ya pasaba antes y no tapa nada. Queda para un punto de textos.
 - **Afecta a:** `.github/workflows/ci.yml` (`ci-vistas`), `.claude/skills/revisar-pantallas/SKILL.md`, `src/paginas/Mapa.tsx`.
+
 ### DEC-136 · La hoja de avisos no enseña el código del motivo
 - **Fecha:** 25 sep 2026 · **Estado:** vigente. Sustituye la línea "Referencia para jefatura: `<motivo>`" de DEC-122 punto 3. Sesión Frontend.
 - **Contexto:** la revisión de RV-82 recordó UI-13: al voluntario no se le enseñan códigos internos, salvo el del propio punto. `sin_servicio_push` o `servidor:DESCONOCIDO` lo son.
