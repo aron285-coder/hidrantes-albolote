@@ -29,7 +29,11 @@ if (comando) {
     const forzado = opciones.some((o) => /^--force(-with-lease|-if-includes)?(=|$)/.test(o) || /^-[a-zA-Z]*f/.test(o));
     // `git push origin +develop` o `+HEAD:main` también fuerzan.
     const refspecs = posicionales.slice(1);
-    const destino = (r) => r.replace(/^\+/, '').split(':').pop();
+    // HEAD, @ o un refspec sin rama de destino son la rama actual (docs/22 RV-91).
+    const destino = (r) => {
+      const d = r.replace(/^\+/, '').split(':').pop();
+      return d === '' || d === 'HEAD' || d === '@' ? ramaActual() : d;
+    };
     const aProtegida = refspecs.some((r) => PROTEGIDAS.test(destino(r)));
     const conMas = refspecs.some((r) => r.startsWith('+') && PROTEGIDAS.test(destino(r)));
     const sinRefspec = refspecs.length === 0 && PROTEGIDAS.test(ramaActual());

@@ -122,6 +122,53 @@ function casos(): Caso[] {
       entrada: bash(`git switch -q fase-9/prueba && git mv ${m}/0002_de_la_rama.sql ${m}/0031_de_la_rama.sql`),
       bloquea: false,
     },
+    // docs/22 RV-91: órdenes que copian o restauran encima de una migración.
+    {
+      hook: 'migraciones-aplicadas',
+      que: 'cp encima de una de develop',
+      entrada: bash(`cp volcado.sql ${m}/0001_aplicada.sql`),
+      bloquea: true,
+    },
+    {
+      hook: 'migraciones-aplicadas',
+      que: 'cp a una nueva',
+      entrada: bash(`cp volcado.sql ${m}/0040_nueva.sql`),
+      bloquea: false,
+    },
+    {
+      hook: 'migraciones-aplicadas',
+      que: 'cp desde una de develop',
+      entrada: bash(`cp ${m}/0001_aplicada.sql copia.sql`),
+      bloquea: false,
+    },
+    { hook: 'migraciones-aplicadas', que: 'tee', entrada: bash(`echo x | tee ${m}/0001_aplicada.sql`), bloquea: true },
+    {
+      hook: 'migraciones-aplicadas',
+      que: 'dd of=',
+      entrada: bash(`dd if=/dev/zero of=${m}/0001_aplicada.sql count=1`),
+      bloquea: true,
+    },
+    {
+      hook: 'migraciones-aplicadas',
+      que: 'git checkout -- ruta',
+      entrada: bash(`git checkout origin/develop -- ${m}/0001_aplicada.sql`),
+      bloquea: true,
+    },
+    {
+      hook: 'migraciones-aplicadas',
+      que: 'git restore',
+      entrada: bash(`git restore ${m}/0001_aplicada.sql`),
+      bloquea: true,
+    },
+    {
+      hook: 'migraciones-aplicadas',
+      que: 'Copy-Item en PowerShell',
+      entrada: {
+        tool_name: 'PowerShell',
+        tool_input: { command: `Copy-Item volcado.sql -Destination ${m}/0001_aplicada.sql` },
+      },
+      bloquea: true,
+    },
     // force push
     {
       hook: 'sin-force-push',
@@ -144,6 +191,25 @@ function casos(): Caso[] {
       bloquea: false,
     },
     { hook: 'sin-force-push', que: 'push normal a develop', entrada: bash('git push origin develop'), bloquea: false },
+    // docs/22 RV-91: HEAD y refs/heads/ son la rama de destino.
+    {
+      hook: 'sin-force-push',
+      que: '--force a HEAD estando en develop',
+      entrada: bash('git push --force origin HEAD'),
+      bloquea: true,
+    },
+    {
+      hook: 'sin-force-push',
+      que: '-f a HEAD:refs/heads/main',
+      entrada: bash('git push -f origin HEAD:refs/heads/main'),
+      bloquea: true,
+    },
+    {
+      hook: 'sin-force-push',
+      que: '--force a HEAD en una rama propia',
+      entrada: bash('git switch -q fase-9/prueba && git push --force origin HEAD'),
+      bloquea: false,
+    },
     // console.log
     {
       hook: 'sin-console-log',
@@ -173,6 +239,31 @@ function casos(): Caso[] {
       hook: 'sin-console-log',
       que: 'console.log en scripts',
       entrada: { tool_name: 'Write', tool_input: { file_path: 'scripts/a.ts', content: 'console.log(x);' } },
+      bloquea: false,
+    },
+    // docs/22 RV-91: el Service Worker y el Worker de los avisos también.
+    {
+      hook: 'sin-console-log',
+      que: 'Write en public/sw-push.js',
+      entrada: { tool_name: 'Write', tool_input: { file_path: 'public/sw-push.js', content: 'console.log(e);' } },
+      bloquea: true,
+    },
+    {
+      hook: 'sin-console-log',
+      que: 'Edit en workers/',
+      entrada: {
+        tool_name: 'Edit',
+        tool_input: { file_path: 'workers/avisos/src/index.ts', old_string: 'a', new_string: 'console.log(r)' },
+      },
+      bloquea: true,
+    },
+    {
+      hook: 'sin-console-log',
+      que: 'console.error en workers/',
+      entrada: {
+        tool_name: 'Edit',
+        tool_input: { file_path: 'workers/avisos/src/index.ts', old_string: 'a', new_string: 'console.error(r)' },
+      },
       bloquea: false,
     },
     // git add
