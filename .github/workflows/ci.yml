@@ -251,3 +251,38 @@ jobs:
               *) echo "::error::un trabajo de e2e terminó con $r"; exit 1 ;;
             esac
           done
+
+  # docs/21 RV-88 (DEC-126): capturas de las pantallas principales (e2e/vistas.spec.ts) a 412 × 915 y
+  # 1280 × 800, en claro y en oscuro, como artefacto para mirarlas antes de fusionar (skill
+  # revisar-pantallas). No es obligatorio ni compara nada: solo en los PR que tocan src/**.
+  vistas:
+    name: ci-vistas
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: pantallas
+        env:
+          BASE: ${{ github.base_ref }}
+        run: |
+          if git diff --name-only "origin/$BASE...HEAD" | grep -q '^src/'; then
+            echo "tocan=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "El PR no toca src/**: sin capturas."
+          fi
+      - if: steps.pantallas.outputs.tocan == 'true'
+        uses: ./.github/actions/preparar
+      - if: steps.pantallas.outputs.tocan == 'true'
+        uses: ./.github/actions/navegadores
+      - name: Capturas de las pantallas
+        if: steps.pantallas.outputs.tocan == 'true'
+        run: npx playwright test e2e/vistas.spec.ts
+      - if: steps.pantallas.outputs.tocan == 'true' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vistas
+          path: test-results/vistas-*/*.png
+          retention-days: 14

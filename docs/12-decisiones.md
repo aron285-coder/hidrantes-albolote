@@ -803,6 +803,21 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** "Cercanos" dentro de la barra de búsqueda, como botón a su derecha. Ocupa menos, pero queda arriba, lejos del pulgar, y compite con el teclado al buscar.
 - **Afecta a:** 06 §4.5, §4.7, §5 y Apéndice A; 07 (mapa).
 
+### DEC-126 · Capturas de las pantallas en cada PR que toca src/**, y el mapa de escritorio cabe en la pantalla
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-88). Sesión Frontend.
+- **Contexto:** la disposición de RV-82 solo se vio mal en un móvil real: los tests medían cajas sueltas, no el conjunto.
+- **Decisión:**
+  1. `e2e/vistas.spec.ts` saca siete pantallas, en claro y en oscuro: mapa, mapa con incidente, mapa con ficha, lista, Ajustes, cola del panel e inventario del panel.
+     - A 412 × 915 en el proyecto móvil (Pixel 7). El panel no, porque es de ordenador.
+     - A 1280 × 800 en el de escritorio.
+     - Datos simulados de `e2e/puntos.ts`.
+     - Las adjunta con `testInfo.attach` y no compara nada. Corre también en `ci-e2e-parte` como prueba de humo (unos 45 s repartidos).
+  2. **Trabajo `ci-vistas`**, no obligatorio, en `ubuntu-24.04`: solo en `pull_request` y solo si el PR toca `src/**`. Sube el artefacto `vistas` (14 días). Es la única excepción de propiedad que dio `docs/22` para `.github/`: no toca los demás trabajos.
+  3. **Lo primero que vio:** a 1280 × 800 la lista lateral marcaba la altura de la fila. El mapa crecía hasta unos 917 px, por debajo de la pantalla, y se llevaba fuera de la vista "Cercanos", el "+" y la leyenda. Ahora el contenido de la lista va en una capa absoluta dentro del `aside` y desplaza dentro de él. `anchos.spec.ts` exige que "Cercanos" y el "+" queden dentro de la pantalla y fuera de la navegación.
+  4. La skill `revisar-pantallas` ya no tiene el paso provisional de "si `e2e/vistas.spec.ts` aún no existe".
+- **Pendiente:** el marcador de posición del buscador de la lista lateral se corta ("… o co") a 320 px. Ya pasaba antes y no tapa nada. Queda para un punto de textos.
+- **Afecta a:** `.github/workflows/ci.yml` (`ci-vistas`), `.claude/skills/revisar-pantallas/SKILL.md`, `src/paginas/Mapa.tsx`.
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**

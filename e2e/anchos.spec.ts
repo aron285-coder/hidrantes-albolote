@@ -159,6 +159,15 @@ for (const [ancho, alto] of [
     expect(cortan(cercanos, atribucion), 'Cercanos y la atribución').toBe(false);
     expect(cortan(nuevo, atribucion), 'el + y la atribución').toBe(false);
     for (const [i, b] of columna.entries()) expect(cortan(b, cercanos), `${COLUMNA[i]} y Cercanos`).toBe(false);
+    // Todo a la vista, sin desplazar la página ni quedar bajo la navegación (lo vio vistas.spec.ts, RV-88).
+    const navegacion = (await page.getByRole('navigation').first().boundingBox())!;
+    for (const [nombre, b] of [
+      ['Cercanos', cercanos],
+      ['el +', nuevo],
+    ] as const) {
+      expect(b.y + b.height, `${nombre} dentro de la pantalla`).toBeLessThanOrEqual(alto);
+      expect(cortan(b, navegacion), `${nombre} y la navegación`).toBe(false);
+    }
     await captura(page, info, `controles-${ancho}`);
 
     if (ancho < 768) {
