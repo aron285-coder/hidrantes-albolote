@@ -448,13 +448,14 @@ fn_salud() returns jsonb
   --   GM-04, ídem), ultima_vigilancia,
   --   vigilancia_ok (0011), dispositivos_activos, intentos_fallidos_24h, topes_alcanzados_24h,
   --   topes_globales_24h (0015, RV-14), bd_bytes, esquema_bytes, tareas (0018, RV-22),
-  --   tareas_origen, tareas_medidas_en (0031, docs/22 RV-92, DEC-132) }
+  --   tareas_origen, tareas_medidas_en, tareas_error (0031, docs/22 RV-92, DEC-132) }
   -- tareas: una fila por tarea hidrantes_% de pg_cron, { tarea, ultima, fallo, falta, problema }.
   --   Desde 0031 sale **en vivo** de fn_tareas_programadas() y tareas_origen = 'en_vivo'. Si esa
   --   llamada falla por permisos o porque pg_cron no está (insufficient_privilege, undefined_table,
   --   invalid_schema_name, undefined_function), es la foto que guardó vigilancia.yml en
-  --   config.tareas_programadas, con tareas_origen = 'vigilancia' y tareas_medidas_en = el
-  --   actualizado_en de esa fila. En vivo, falta es siempre false: la lista de esperadas
+  --   config.tareas_programadas, con tareas_origen = 'vigilancia', tareas_medidas_en = el
+  --   actualizado_en de esa fila y tareas_error = el SQLSTATE. En vivo, falta = true solo para
+  --   una tarea que estaba en esa foto y ya no está (o no se ve) en cron.job; la lista de esperadas
   --   (scripts/sql/tareas-esperadas.txt) solo la compara la vigilancia.
 fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
 fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
@@ -504,8 +505,9 @@ fn_aplicar_propuesta(propuesta_id uuid, correcciones jsonb, confirmar_desactuali
 fn_purgar_papelera_interna(actor text) returns integer   -- la llama pg_cron cada noche y fn_purgar_papelera
 fn_tareas_programadas() returns jsonb        -- 0031, RV-92: las tareas hidrantes_% de cron.job con su
                                              -- última ejecución en cron.job_run_details, como
-                                             -- scripts/sql/tareas-programadas.sql pero sin esperadas
-                                             -- (falta = false). Dueño hidrantes_migrador (el de las
+                                             -- scripts/sql/tareas-programadas.sql pero sin esperadas;
+                                             -- falta = true para las de la última foto de la
+                                             -- vigilancia que ya no están en cron.job. Dueño hidrantes_migrador (el de las
                                              -- tareas); sin execute para anon ni authenticated: solo
                                              -- la llama fn_salud (DEC-132)
 ```

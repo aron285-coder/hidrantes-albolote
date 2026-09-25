@@ -1,5 +1,5 @@
 -- Salud del sistema (FR-143, docs/17 RV-22): tamaño de la base de datos y de nuestro esquema, y la
--- lista de tareas que escribe la vigilancia.
+-- lista de tareas programadas (en vivo desde 0031, RV-92; el detalle, en 28_salud_tareas_en_vivo).
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
@@ -15,7 +15,7 @@ on conflict (clave) do update set valor = excluded.valor;
 set local role authenticated;
 select ok((hidrantes.fn_salud() ->> 'bd_bytes')::bigint > 0, 'fn_salud devuelve bd_bytes > 0');
 select ok((hidrantes.fn_salud() ->> 'esquema_bytes')::bigint > 0, 'y esquema_bytes > 0');
-select is(hidrantes.fn_salud() -> 'tareas' -> 0 ->> 'tarea', 'hidrantes_purgar_errores',
+select is(jsonb_typeof(hidrantes.fn_salud() -> 'tareas'), 'array',
   'y la lista de tareas (en vivo desde 0031: ver 28_salud_tareas_en_vivo)');
 reset role;
 
