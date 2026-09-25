@@ -1,6 +1,6 @@
 # Verificación · Novedades que dicen lo que cambió, issues que se cierran solas y release sin runs caducados (docs/23)
 
-**Estado: hecho en staging el 25 sep 2026; producción con P-13 (`paridad-produccion.md`).**
+**Estado: hecho el 25 sep 2026, en staging y en producción (0.6.5).** Queda la GitHub App de RV-97, del desarrollador.
 Especificación: `docs/23-novedades-y-limpieza.md`. Dos sesiones (Frontend y Ops), coordinadas en
 #393. Registros: `novedades-limpieza-frontend.md` y `novedades-limpieza-ops.md`.
 
@@ -19,8 +19,9 @@ Especificación: `docs/23-novedades-y-limpieza.md`. Dos sesiones (Frontend y Ops
 
 ## 2. Checklist de docs/23 §4
 
-- [ ] **RV-95 en producción:** Novedades enseña las líneas de la última versión, cada una con su número. El test del caso de la 0.6.4 está en verde (`generar-novedades.test.ts`). En staging, el código servido lleva las tres líneas de la 0.6.4 con `version: "0.6.4"`. La comprobación en producción va con P-13.
+- [x] **RV-95 en producción:** el código servido de la 0.6.5 lleva `lineas` con su número: `0.6.5 · Las novedades enseñan lo último de cada versión, cada una con su número`, `0.6.4 · Activar los avisos dice qué ha fallado y cómo arreglarlo` y `0.6.4 · Los avisos se activan de verdad y ya no se pierden por un fallo pasajero`. El test del caso de la 0.6.4 está en verde. No se vio en pantalla: hace falta una sesión.
 - [x] **RV-98:** en staging, el código servido lleva «no se mide en pruebas» con el mismo criterio de entorno que «Último respaldo». No se vio en pantalla: hace falta una sesión de jefatura.
 - [x] **RV-96:** la plantilla usa `Closes #`, #326 está cerrada, y las issues de código ya se cierran solas: #394 al fusionar #395, y #398 al fusionar #399.
 - [ ] **RV-97:** fusionado con reserva. **Pendiente del desarrollador:** crear la App (15 §2). La release sin runs «expired» y sin empujón se comprueba en la primera con la App.
-- [ ] **P-13:** producción en la versión nueva con la paridad en verde.
+- [x] **P-13:** producción en la **0.6.5** el 25 sep 2026 a las 20:28 UTC (#403, run 36184349766), con la paridad en verde. RV-97 quedó **pendiente del desarrollador**: esta release aún necesitó el empujón.
+  - Las comprobaciones del 27-09 (respaldo) y del 28-09 (primera purga en ensayo, con su issue) de `docs/22` P-12 siguen pendientes hasta esas fechas.
