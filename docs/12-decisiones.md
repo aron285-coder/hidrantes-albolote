@@ -683,6 +683,30 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **Quedarse en `ubuntu-latest` y arreglar si falla:** fallaría justo lo que avisa de los fallos.
 - **Afecta a:** 15 §4.
 
+### DEC-118 · Una suscripción push solo se borra al momento si el servicio dice que no existe
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-84, 0030). Sesión Backend.
+- **Contexto:** `fn_resultado_notificacion` borraba la suscripción al tercer error de cualquier tipo. Un 5xx o un 429 pasajero de FCM bastaba: el móvil seguía diciendo "Activado" y no volvía a recibir nada.
+- **Decisión:**
+  1. **Solo 404 y 410** (`suscripcion_caducada`, lo pone `enviar()` de `functions/_lib/webpush.ts`) borran al primer aviso.
+  2. **Cualquier otro error** suma un fallo y anota el error en el aviso, como antes. La suscripción se borra solo con **10 fallos seguidos y ningún envío bueno en los últimos 7 días**, o ninguno nunca. Un envío bueno pone `fallos = 0`.
+  3. **429:** `/api/push` no llama a `fn_resultado_notificacion`, y los demás avisos del lote para ese mismo servicio (origen del endpoint) no se intentan en esa invocación. Todos ellos se aplazan con **una** llamada a la RPC nueva `fn_aplazar_notificaciones(ids, segundos)` (solo `service_role`), con el `Retry-After` mayor (segundos o fecha; 60 s si no viene; de 0 a 24 h): vuelven a poder reclamarse pasado ese tiempo y se les devuelve el intento, así que una racha de 429 no los deja como `SIN_RESPUESTA` (DEC-088). Presupuesto: 20 × 2 + 3 = 43 peticiones de 50. La respuesta lleva `aplazadas`, y `quedan` solo si el lote venía lleno y no se aplazó entero: los avisos de otros servicios no esperan por uno que ha pedido calma.
+- **Coste aceptado:**
+  - si la llamada a `fn_aplazar_notificaciones` falla, esos avisos siguen reclamados y salen a los 15 minutos gastando un intento, como cualquier aviso sin anotar; cuentan en `sin_anotar`;
+  - un 5xx sigue dejando **ese aviso** con `error` y no se reintenta (como antes de 0030): lo que cambia es que la suscripción ya no se pierde. Reintentar los 5xx sería otro cambio en la cola, fuera de RV-84;
+  - una suscripción rota de verdad con un error que no es 404/410 (p. ej. un 403 por claves VAPID cambiadas) tarda hasta 7 días en borrarse. Mientras, sus avisos fallan y quedan anotados, que es lo mismo que pasaría sin borrarla.
+- **Descartado:**
+  - subir solo el umbral de 3 a 10 sin mirar `ultimo_envio`: una suscripción que recibe bien a diario se perdería con una mala racha de un día;
+  - dejar lo aplazado solo reclamado, sin RPC nueva (lo que proponía `docs/21`): cada 429 gastaba un intento, incluso en los avisos que ni se intentaban, y tres seguidos los perdían; y un `Retry-After` de más de 15 minutos no se respetaba.
+- **Afecta a:** 05 §2.12, §6.3 y §9; 11 §6.1.
+
+### DEC-119 · Una fila de voluntario y una de jefatura por navegador
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-84, 0030). Sesión Backend.
+- **Contexto:** el único de `suscripciones_push` era solo por `endpoint`, y `fn_guardar_suscripcion_push` (voluntario) y `fn_guardar_suscripcion_push_admin` se quitaban la fila con `on conflict … set email = null` / `set dispositivo_id = null`. Voluntario y jefatura en el mismo navegador: el último que activaba se quedaba la fila y el otro dejaba de recibir sin saberlo.
+- **Decisión:** el único pasa a `((suscripcion ->> 'endpoint'), (dispositivo_id is null))` (`suscripciones_endpoint_duenio_idx`), índice nuevo y borrado del viejo sin editar 0001. Cada función hace `on conflict` sobre ese índice y solo actualiza su tipo de dueño. Mismas firmas (04 §12); `/api/push` no cambia porque cada aviso ya va a una `suscripcion_id`.
+- **Por qué por tipo de dueño y no `coalesce(dispositivo_id::text, email)`** (lo que proponía `docs/21`): un navegador solo tiene un token de voluntario, así que otro `dispositivo_id` en el mismo endpoint es ese navegador con un acceso nuevo; con el índice de `docs/21` se quedaría también la fila del acceso viejo y el navegador recibiría los avisos de las dos. Lo mismo con dos administradores en el mismo ordenador: los avisos de jefatura son iguales para todos, y dos filas serían avisos repetidos. Con el índice por tipo de dueño el `upsert` sigue siendo atómico y sin borrados aparte.
+- **Encontrado al escribir el test:** las dos funciones de guardar fallaban **siempre** en la base real con `42702 column reference "suscripcion" is ambiguous`: en `on conflict ((suscripcion ->> 'endpoint'))`, el parámetro `suscripcion` y la columna se llaman igual y plpgsql no elige. Ningún pgTAP las llamaba (solo se comprobaban sus permisos) y los e2e simulan la RPC. Es, del lado del servidor, la incidencia «Avisos quedan desactivados» de staging (RV-81). 0030 pone `#variable_conflict use_column` y califica los parámetros con el nombre de la función; no se renombran porque PostgREST llama por nombre de parámetro. `27_suscripciones_duenios.test.sql` las llama con los roles `anon` y `authenticated`, como PostgREST.
+- **Afecta a:** 05 §2.12.
+
 ### DEC-116 · Tres skills propias del proyecto, versionadas en .claude/skills/
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` SK-03). Sesión Ops.
 - **Decisión:** `paquete-rv`, `nueva-migracion` y `revisar-pantallas`, con el texto de `docs/21` §3 como punto de partida y sin quitar ningún paso. Cada una tiene su `SKILL.md` con `name` y `description`, que dicen cuándo usarla: es lo que Claude Code mira para cargarla. Se añadió solo lo propio de este repositorio:
@@ -1604,12 +1628,12 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |
-| 11 | 002, 004, 011, 017–019, 022, 086, 094 |
+| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118 |
 | 15 | 023, 061, 085, 088, 102, 128, 129 |
 | 16 | 007, 037, 111 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |

@@ -253,7 +253,14 @@ Las carga `scripts/cargar-zona.ts` con `upsert`; no van por migración.
 | `email` | `text` | administrador; `null` si es voluntario |
 | `suscripcion` | `jsonb` | `endpoint`, `keys.p256dh`, `keys.auth`. El `endpoint` es `https://` de un servicio de push de navegador: `fcm.googleapis.com`, `*.push.services.mozilla.com`, `web.push.apple.com`, `*.push.apple.com` o `*.notify.windows.com` (`fn_validar_suscripcion`, 0029, docs/19 RV-68) |
 | `temas` | `text[]` | `{resultado_propuesta}` para voluntarios; `{nuevas_propuestas, resumen_semanal}` para administradores |
-| `creada_en`, `ultimo_envio`, `fallos` | | tres fallos seguidos → se borra |
+| `creada_en`, `ultimo_envio`, `fallos` | | un 404/410 del servicio de push (`suscripcion_caducada`) → se borra al momento; cualquier otro error suma un fallo, y se borra solo con **10 fallos seguidos y ningún envío bueno en los últimos 7 días** (o nunca). Un envío bueno pone `fallos = 0` (0030, docs/21 RV-84, DEC-118) |
+
+Único: `((suscripcion ->> 'endpoint'), (dispositivo_id is null))`, `suscripciones_endpoint_duenio_idx`
+(0030, DEC-119). Un mismo navegador tiene como mucho **una fila de voluntario y una de jefatura**:
+si en él activan los avisos un voluntario y un administrador, cada uno conserva la suya. Guardar de
+nuevo desde el mismo tipo de dueño actualiza esa fila (un token nuevo del mismo navegador, u otro
+administrador en el mismo ordenador, se la queda). Hasta 0030 el único era solo por `endpoint` y el
+último en activar le quitaba la fila al otro.
 
 ### 2.13 `notificaciones` — cola de envío
 
@@ -263,7 +270,9 @@ Las carga `scripts/cargar-zona.ts` con `upsert`; no van por migración.
 `/api/push`; se purgan a los 30 días por `pg_cron`. Reclamar **no** es enviar:
 `fn_reclamar_notificaciones` (como mucho 50) anota `reclamada_en` e `intentos`, y `enviada_en` solo
 lo pone `fn_resultado_notificacion` con `ok`. Lo reclamado sin resultado vuelve a salir a los
-15 minutos; al cuarto intento queda `error = 'SIN_RESPUESTA'` (DEC-088).
+15 minutos; al cuarto intento queda `error = 'SIN_RESPUESTA'` (DEC-088). Lo que un servicio de push
+rechaza con 429 lo aplaza `fn_aplazar_notificaciones`: vuelve a poder reclamarse pasado el
+`Retry-After` y se le devuelve el intento (0030, DEC-118).
 
 ### 2.14 `migraciones_aplicadas`
 
@@ -459,7 +468,10 @@ fn_fotos_referenciadas() returns setof text    -- OBSOLETA desde 0.5.0: truncada
 fn_reclamar_notificaciones(limite integer default 100)
   returns table (id bigint, titulo text, cuerpo text, url text, suscripcion_id uuid, suscripcion jsonb)
 fn_resultado_notificacion(notificacion_id bigint, ok boolean, error text, suscripcion_caducada boolean default false)
-  returns void   -- tres fallos seguidos o un 404/410 borran la suscripción
+  returns void   -- un 404/410 (caducada) borra la suscripción; otro error, con 10 fallos seguidos y sin envío bueno en 7 días (0030, DEC-118)
+fn_aplazar_notificaciones(ids bigint[], segundos integer) returns integer
+  -- 0030, RV-84: los avisos reclamados y sin resultado de `ids` vuelven a poder reclamarse pasados
+  -- `segundos` (Retry-After de un 429; de 0 a 86.400, 60 si es null) y recuperan el intento. Devuelve cuántos.
 ```
 
 ### 6.3 Helpers internos (sin `execute` público)
@@ -619,11 +631,18 @@ en la Fase 8) → `503 { "error": "NO_CONFIGURADO" }`, sin llamar a GitHub.
 
 `→ { "token": "…" }` (voluntario) o cabecera de administrador, o cabecera `X-Vigilancia` con el
 secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. Reclama **20** avisos (el plan gratuito de Workers
-permite 50 peticiones de salida por invocación y cada aviso gasta dos), envía cada uno con Web Push
-(VAPID) y anota su resultado; borra suscripciones con tres fallos.
-`← 200 { "enviadas": n, "fallidas": m, "sin_anotar": k, "quedan": bool }`: `sin_anotar` son los que
-salieron o no sin poder anotarse (vuelven a salir a los 15 minutos: mejor un duplicado que una
-pérdida) y `quedan` dice si se llenó el lote. Dos llamadas seguidas no envían dos veces. La piden el
+permite 50 peticiones de salida por invocación y cada aviso gasta dos, más una para aplazar: 43), envía cada uno con Web Push
+(VAPID) y anota su resultado. Marca `suscripcion_caducada` **solo** con 404 o 410; cualquier otro
+error se anota como fallo (§2.12). Con un **429** el servicio pide esperar: el aviso no se anota
+(ni fallo en la suscripción ni error en el aviso); lo que quede en el lote para ese mismo servicio
+(origen del endpoint) ya no se intenta en esa invocación, y todos esos avisos se aplazan con **una**
+llamada a `fn_aplazar_notificaciones` con el `Retry-After` mayor (60 s si no viene). Si esa llamada
+falla, siguen reclamados y salen a los 15 minutos (0030, docs/21 RV-84, DEC-118).
+`← 200 { "enviadas": n, "fallidas": m, "sin_anotar": k, "aplazadas": a, "quedan": bool }`:
+`sin_anotar` son los que salieron o no sin poder anotarse (vuelven a salir a los 15 minutos: mejor
+un duplicado que una pérdida; incluye los aplazados que no se pudieron aplazar), `aplazadas` los que
+se dejan por un 429 (campo nuevo de RV-84; quien lea la respuesta anterior lo ignora) y `quedan`
+dice si se llenó el lote y no se aplazó entero. Dos llamadas seguidas no envían dos veces. La piden el
 móvil tras sincronizar o tras enviar una propuesta, jefatura tras cada moderación (una vez por lote)
 y el Worker `hidrantes-avisos` cada 5 minutos, con `avisos.yml` como envío manual de emergencia (DEC-097). Necesita `VAPID_PUBLIC_KEY` además de la
 privada (WebCrypto no deduce una de otra); sin ellas → `503 NO_CONFIGURADO`. Cifrado RFC 8291 y firma
