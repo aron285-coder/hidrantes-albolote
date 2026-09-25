@@ -683,6 +683,16 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **Quedarse en `ubuntu-latest` y arreglar si falla:** fallaría justo lo que avisa de los fallos.
 - **Afecta a:** 15 §4.
 
+### DEC-132 · Salud del sistema lee las tareas programadas en vivo; la foto de la vigilancia, de respaldo
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-92, 0031). Sesión Backend.
+- **Contexto:** `fn_salud()` devolvía en `tareas` la foto que guarda `vigilancia.yml` cada noche (`config.tareas_programadas`). El 25-09, en producción, `purgar_intentos` (cada hora) decía "hace 13 h · bien" y `purgar_subidas` "todavía sin ejecutar" aunque ya había corrido.
+- **Decisión:**
+  1. **`hidrantes.fn_tareas_programadas()`**, `security definer`, dueño `hidrantes_migrador` (el que aplica las migraciones y es dueño de las tareas; `arranque-bd.sql` le da `select` en `cron.job` y `cron.job_run_details`). La misma consulta que `scripts/sql/tareas-programadas.sql`, sin la lista de esperadas, y con la misma forma de fila que la foto (el panel anterior la pinta igual). Una tarea que estaba en la última foto de la vigilancia y ya no está en `cron.job` (o no se ve, por ejemplo recreada con otro dueño: pg_cron filtra por `username`) sale con `falta = true` y `problema = true`: sin eso, una lista vacía o incompleta se leería como «todo bien» (hallazgo de la revisión del PR). En `plpgsql` para que la migración no falle en una base sin pg_cron. Sin `execute` para `anon` ni `authenticated`.
+  2. **`fn_salud()`**, misma firma: `tareas` de `fn_tareas_programadas()` y `tareas_origen = 'en_vivo'`. Si falla con `insufficient_privilege`, `undefined_table`, `invalid_schema_name` o `undefined_function`, la foto de `config.tareas_programadas` con `tareas_origen = 'vigilancia'`, `tareas_medidas_en` (el `actualizado_en` de esa fila) y `tareas_error` (el SQLSTATE, para saber por qué). Cualquier otro error sigue saliendo como error: no se esconde.
+  3. **La vigilancia no cambia:** sigue guardando la foto, que es la red de seguridad, y sigue siendo la única que mira las tareas que faltan.
+- **Descartado:** dar a `authenticated` lectura de `cron.job_run_details`: es de toda la base (también de uniformidad) y abriría más de lo necesario.
+- **Afecta a:** 05 §6.2 y §6.3.
+
 ### DEC-120 · La integración de los avisos, con un servidor de push falso y una variable que solo vale en local
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-86). Sesión Backend.
 - **Contexto:** la suscripción a los avisos no se había probado nunca de punta a punta contra la pila real: los e2e simulan la RPC y `scripts/probar-worker-avisos.ts` mete la suscripción a mano con un endpoint `http://` que `fn_validar_suscripcion` no admitiría. Por eso nadie vio que `fn_guardar_suscripcion_push` fallaba siempre (DEC-119).
@@ -1639,7 +1649,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
