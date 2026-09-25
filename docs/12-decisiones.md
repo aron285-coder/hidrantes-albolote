@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.42 — 25 de septiembre de 2026 (DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.43 — 25 de septiembre de 2026 (DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -668,6 +668,18 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - CLAUDE.md §5, `docs/trabajo-en-paralelo.md` y la skill `paquete-rv` dicen lo mismo. Las casillas de la issue de coordinación siguen marcándose a mano, y esa issue la cierra Ops con un comentario.
   - `herramientas.test.ts` comprueba la plantilla y la skill.
 - **Afecta a:** CLAUDE.md §5; `docs/trabajo-en-paralelo.md` §5.
+
+### DEC-140 · release-please con una GitHub App propia, y reserva con GITHUB_TOKEN mientras no exista
+- **Fecha:** 25 sep 2026 · **Estado:** vigente, con la App **pendiente del desarrollador** (`docs/23` RV-97). Sustituye a DEC-079 cuando la App está puesta.
+- **Contexto:** release-please abre y actualiza su PR con `GITHUB_TOKEN`, y lo que hace ese token no dispara workflows (DEC-079). Los runs que quedan esperando la aprobación del bot caducan en rojo («This workflow run required approval but was not approved before it expired»): #549 (0.6.1), #570 (0.6.2), #617 (0.6.3) y #693 (0.6.4). Llenan la lista de fallos y esconden los de verdad. Además, cada release necesita el empujón de una persona.
+- **Decisión:**
+  1. Una **GitHub App** del proyecto, solo en este repositorio, con *Contents* y *Pull requests* de lectura y escritura y *Actions* de lectura. La crea el desarrollador con los pasos de 15 §2 y guarda `RELEASE_APP_ID` (variable) y `RELEASE_APP_KEY` (secreto). Claude Code nunca maneja la clave.
+  2. `release-please.yml` obtiene un token de la App con `actions/create-github-app-token@v2` (`app-id`, `private-key`) y se lo pasa a `release-please-action` como `token`. Con ese token, el PR de versión dispara la CI normal y sus checks cuentan.
+  3. **Reserva:** si `RELEASE_APP_ID` está vacía, el paso de la App no corre, el `token` vuelve a `GITHUB_TOKEN`, y el aviso del empujón y el `gh workflow run ci.yml` siguen saliendo, como con DEC-079. Así el PR se puede fusionar antes de que exista la App.
+  4. Ya existe la v3 de la acción, que prefiere `client-id` y marca `app-id` como obsoleto. Se usa la v2, la que dice la especificación. Pasar a la v3 es cambiar una línea cuando haga falta.
+- **Descartado:** un token personal (PAT). Caduca, va ligado a una persona y da más permisos de los necesarios.
+- **Comprobado:** `workflows.test.ts` exige el paso de la App con `if: vars.RELEASE_APP_ID != ''`, el `token` con la reserva, el empujón solo sin la App, y ninguna clave en claro. La prueba en vivo es la primera release con la App puesta.
+- **Afecta a:** 04 §11; 15 §2; DEC-079.
 
 ### DEC-129 · La primera purga de fotos es un ensayo, y el ensayo también anota el tamaño
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/22` RV-94). Sesión Ops.
@@ -1447,7 +1459,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §7 y §9; 06 Apéndice A (el texto ya estaba); 09 Fase 8.
 
 ### DEC-079 · El PR de versión necesita un empujón humano para poder fusionarse
-- **Fecha:** 22 sep 2026 · **Estado:** vigente
+- **Fecha:** 22 sep 2026 · **Estado:** vigente mientras no exista la GitHub App de las versiones; **sustituida por DEC-140 en cuanto esté puesta**
 - **Contexto:** `release-please` abre su PR con `GITHUB_TOKEN`, y GitHub, por diseño, **no dispara
   workflows con eventos hechos por ese token**: el PR nace sin checks y `develop` exige tres. El
   workflow lanzaba la CI sobre la rama con `workflow_dispatch` creyendo que bastaba; al fusionar la

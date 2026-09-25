@@ -45,6 +45,7 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub; se puede regenerar en un minuto | — |
 | Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
+| GitHub App «hidrantes-albolote-versiones» (`RELEASE_APP_ID`, `RELEASE_APP_KEY`) | que el PR de versión dispare la CI sin empujón (DEC-140) | variable y secreto del repositorio. La clave privada no se guarda en ningún otro sitio: si se pierde, se genera otra en la App | el desarrollador |
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
 contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
@@ -60,6 +61,24 @@ el secreto del repositorio y el Worker—, y el arranque los pone los tres; si f
 `npm run arranque -- --solo-faltantes` genera uno nuevo para los tres, sin pedir tokens. `VIGILANCIA_SECRETO` se rotó el 23 sep 2026. Si no puede leer los secretos del Worker (red, sesión de `wrangler` caducada), para sin cambiar nada; al rotar, el Worker se escribe primero, y si no lo acepta no se toca Pages ni el repositorio (docs/20 RV-72, DEC-102).
 
 **Si el token de Cloudflare no tiene permiso de Workers** (04 §9 pide **Pages: Edit** y **Workers Scripts: Edit**), staging se despliega igual, pero el paso del Worker avisa en el resumen del workflow. Lo mismo dice `npm run comprobar-produccion` («Workers Scripts: Edit · FALTA»). Mira el permiso con la lista de nombres de los secretos del Worker, que solo da un token que puede editarlo. El token del primer despliegue (24 sep 2026) **veía** los Workers pero no podía desplegarlos. Con ese permiso de lectura la vigilancia sí lee el cron y no salta; solo salta si el Worker no tiene su cron. Arreglo: en Cloudflare, *My Profile → API Tokens*, editar el token y añadir *Account · Workers Scripts · Edit* (unos 2 minutos; un token no se puede ampliar con la API). Mientras, `npm run arranque -- --solo-faltantes` despliega el Worker con la sesión de `wrangler login` si aún no existe.
+
+**Crear la GitHub App de las versiones** (DEC-140, unos 10 minutos, una vez, **el desarrollador**: Claude Code nunca maneja la clave):
+
+1. GitHub → foto de perfil → *Settings* → *Developer settings* → *GitHub Apps* → *New GitHub App*.
+2. **Nombre:** `hidrantes-albolote-versiones`. **Homepage URL:** `https://github.com/aron285-coder/hidrantes-albolote`. **Webhook:** desmarcar *Active* (no hace falta).
+3. **Repository permissions:** *Contents* → *Read and write*; *Pull requests* → *Read and write*; *Actions* → *Read-only*. Nada más.
+4. **Where can this GitHub App be installed?** → *Only on this account*. Pulsar *Create GitHub App*.
+5. En la página de la App, anotar el **App ID**. Abajo, *Private keys* → *Generate a private key*: se descarga un `.pem`.
+6. *Install App* (menú izquierdo) → *Install* → *Only select repositories* → `hidrantes-albolote`.
+7. En una terminal, desde la carpeta del repositorio:
+   ```
+   gh variable set RELEASE_APP_ID --body "<App ID>"
+   gh secret set RELEASE_APP_KEY < ruta/al/archivo.pem
+   ```
+8. **Borrar el `.pem` descargado** (Papelera vaciada). No se sube a ningún sitio más.
+9. Comprobarlo: la siguiente vez que algo entre en `develop`, el PR de versión tiene los checks del PR sin empujón, y en Actions no aparece ningún run «expired».
+
+Sin la App, `release-please.yml` sigue como antes, con el empujón de DEC-079.
 
 Comprobación del sobre: cerrado, fechado, firmado por dos personas, en la caja fuerte o el archivo de
 la sede. Se abre solo con dos personas presentes y se anota en §9.
