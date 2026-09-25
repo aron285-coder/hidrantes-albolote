@@ -500,7 +500,8 @@ function secretosGithub(
   // así que también los de staging viven en el repositorio (DEC-078).
   if (sb.urlMigrador) fijarSecreto(`SUPABASE_DB_URL_${sufijo}`, sb.urlMigrador);
   fijarSecreto(`SUPABASE_SERVICE_ROLE_KEY_${sufijo}`, sb.servicio);
-  // avisos.yml llama a /api/push cada 15 minutos con este secreto (RV-08).
+  // El Worker hidrantes-avisos llama a /api/push cada 5 minutos con este secreto (DEC-097), y
+  // avisos.yml, a mano, también (RV-08).
   if (vigilancia) fijarSecreto(`VIGILANCIA_SECRETO_${sufijo}`, vigilancia);
   if (!sb.urlMigrador && !existeSecretoRepo(`SUPABASE_DB_URL_${sufijo}`)) {
     log.aviso(`Falta SUPABASE_DB_URL_${sufijo}: vuelve a lanzarlo con --rotar db (DEC-071).`);
@@ -553,7 +554,8 @@ async function instalarSkills(): Promise<void> {
 
 /**
  * Pages aplica sus secretos solo a los despliegues **nuevos**; el del repositorio vale al momento.
- * Tras rotar VIGILANCIA_SECRETO, avisos.yml recibía 401 cada 15 minutos hasta el siguiente
+ * Tras rotar VIGILANCIA_SECRETO, los avisos recibían 401 (antes avisos.yml cada 15 minutos; hoy el
+ * Worker cada 5, DEC-097) hasta el siguiente
  * despliegue (docs/18 RV-38). Staging se vuelve a desplegar ahora; producción exige la aprobación
  * del environment y solo se despliega por PR develop → main, así que se dice el paso.
  */

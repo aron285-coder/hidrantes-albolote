@@ -289,7 +289,10 @@ sequenceDiagram
   15 MB. `npm run mapabase -- --solo-teselas` las rehace del PMTiles publicado sin tocar la versión.
   Se sirven con `Cache-Control: immutable` y `Content-Type: application/vnd.mapbox-vector-tile`, y el
   Service Worker guarda las vistas en `hidrantes-teselas-<versión>` (hasta 600). Así, lo mirado en
-  línea también se ve sin cobertura.
+  línea también se ve sin cobertura. Con una versión nueva del mapa base, el Service Worker borra la
+  caché de teselas de la anterior. Quien no tiene el PMTiles descargado ve entonces el aviso «El mapa
+  base no está en el móvil» (con cobertura) o «Mapa base no descargado…» (sin ella), aunque antes
+  tuviera teselas sueltas (`docs/21` RV-85, DEC-124).
 - **Offline de verdad:** sin cobertura solo existe lo descargado. La aplicación descarga el PMTiles
   completo con un `GET` normal (automáticamente con wifi, o desde Ajustes), lo guarda en Cache
   Storage y, desde entonces, lee cada tesela de ahí. `datos/mapabase.json` lleva la versión; cuando

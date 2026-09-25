@@ -1,6 +1,6 @@
 // POST /api/push (05 §9, FR-163–FR-164): envía las notificaciones pendientes por Web Push.
 // Lo llaman el móvil tras sincronizar o enviar ({ token }), jefatura tras moderar (Authorization)
-// y avisos.yml cada 15 minutos (X-Vigilancia). Cada aviso se reclama en la base de datos antes de
+// y el Worker hidrantes-avisos cada 5 minutos (X-Vigilancia, DEC-097). Cada aviso se reclama en la base de datos antes de
 // enviarse y solo cuenta como enviado cuando su resultado queda anotado (RV-08).
 
 import { type Env, type Manejador, error, esAdmin, iguales, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
