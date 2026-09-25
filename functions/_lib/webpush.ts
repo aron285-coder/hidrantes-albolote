@@ -147,14 +147,19 @@ export function segundosDeRetryAfter(valor: string | null, ahora = Date.now()): 
   return Math.max(0, Math.round((fecha - ahora) / 1000));
 }
 
+/**
+ * `destino` solo lo pasan las pruebas de integración (`PUSH_ENDPOINT_PRUEBAS`, RV-86): la petición va
+ * ahí, pero la firma VAPID sigue siendo para el servicio de push de verdad (`aud` = origen del endpoint).
+ */
 export async function enviar(
   s: Suscripcion,
   aviso: { titulo: string; cuerpo: string; url: string | null },
   vapid: { publica: string; privada: string; sujeto: string },
+  destino: string = s.endpoint,
 ): Promise<ResultadoEnvio> {
   try {
     const cuerpo = await cifrar(te.encode(JSON.stringify(aviso)), s.keys.p256dh, s.keys.auth);
-    const r = await fetch(s.endpoint, {
+    const r = await fetch(destino, {
       method: 'POST',
       headers: {
         Authorization: await cabeceraVapid(s.endpoint, vapid.publica, vapid.privada, vapid.sujeto),

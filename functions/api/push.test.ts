@@ -304,6 +304,68 @@ describe('POST /api/push', () => {
     espia.mockRestore();
   });
 
+  // RV-86: en las pruebas de integración el envío va a un servidor de push falso, con la firma VAPID
+  // del servicio de verdad. Fuera de un Supabase local, la variable no cambia nada (DEC-120).
+  describe('PUSH_ENDPOINT_PRUEBAS', () => {
+    const FCM = {
+      ...SUSCRIPCION,
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc:def?x=1',
+    };
+    const local = {
+      ...ENV,
+      SUPABASE_URL: 'http://127.0.0.1:55421',
+      PUSH_ENDPOINT_PRUEBAS: 'http://127.0.0.1:9912',
+    } as Env;
+
+    it('con un Supabase local, el envío va al servidor falso con el mismo camino', async () => {
+      const { espia, llamadas } = fingirRed({ admin: true, pendientes: [{ ...pendiente(1), suscripcion: FCM }] });
+      const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: local });
+      expect(await r.json()).toEqual(expect.objectContaining({ enviadas: 1 }));
+      expect(llamadas.some((l) => l.url === 'http://127.0.0.1:9912/fcm/send/abc:def?x=1')).toBe(true);
+      expect(llamadas.some((l) => l.url.startsWith('https://fcm.googleapis.com'))).toBe(false);
+      espia.mockRestore();
+    });
+
+    it('también con localhost en los dos', async () => {
+      const { espia, llamadas } = fingirRed({ admin: true, pendientes: [{ ...pendiente(1), suscripcion: FCM }] });
+      await onRequestPost({
+        request: peticion({}, { Authorization: 'Bearer a.b.c' }),
+        env: {
+          ...local,
+          SUPABASE_URL: 'http://localhost:55421',
+          PUSH_ENDPOINT_PRUEBAS: 'http://localhost:9912',
+        } as Env,
+      });
+      expect(llamadas.some((l) => l.url === 'http://localhost:9912/fcm/send/abc:def?x=1')).toBe(true);
+      espia.mockRestore();
+    });
+
+    it('la firma VAPID sigue siendo para el servicio de verdad (aud)', async () => {
+      const { espia } = fingirRed({ admin: true, pendientes: [{ ...pendiente(1), suscripcion: FCM }] });
+      await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: local });
+      const [, opciones] = espia.mock.calls.find(([u]) => String(u).startsWith('http://127.0.0.1:9912'))!;
+      const jwt = /vapid t=([^,]+)/.exec((opciones!.headers as Record<string, string>).Authorization)![1];
+      const reclamos = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString('utf8'));
+      expect(reclamos.aud).toBe('https://fcm.googleapis.com');
+      espia.mockRestore();
+    });
+
+    it.each([
+      ['un Supabase de verdad', { SUPABASE_URL: 'https://proyecto.supabase.co' }],
+      ['un servidor falso que no es local', { PUSH_ENDPOINT_PRUEBAS: 'https://atacante.example' }],
+      ['un valor que no es una URL', { PUSH_ENDPOINT_PRUEBAS: 'no es una url' }],
+    ])('con %s, la variable se ignora', async (_n, cambio) => {
+      const { espia, llamadas } = fingirRed({ admin: true, pendientes: [{ ...pendiente(1), suscripcion: FCM }] });
+      await onRequestPost({
+        request: peticion({}, { Authorization: 'Bearer a.b.c' }),
+        env: { ...local, ...cambio } as Env,
+      });
+      expect(llamadas.some((l) => l.url === FCM.endpoint)).toBe(true);
+      expect(llamadas.some((l) => l.url.includes('127.0.0.1:9912') || l.url.includes('atacante'))).toBe(false);
+      espia.mockRestore();
+    });
+  });
+
   it('con el secreto de la vigilancia correcto entra sin sesión ni token', async () => {
     const { espia } = fingirRed({ pendientes: [] });
     const r = await onRequestPost({ request: peticion({}, { 'X-Vigilancia': 'secreto-de-vigilancia' }), env: ENV });

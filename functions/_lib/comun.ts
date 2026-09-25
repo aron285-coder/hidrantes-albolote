@@ -16,6 +16,12 @@ export interface Env {
   VIGILANCIA_SECRETO?: string;
   /** Solo para sobrescribir en local; si falta, se deduce del dominio (bucketPara). */
   BUCKET_FOTOS?: string;
+  /**
+   * Solo en las pruebas de integración (RV-86, DEC-120): origen de un servidor de push falso que
+   * sustituye al del endpoint. /api/push lo ignora si SUPABASE_URL no es local, y
+   * scripts/guarda-produccion.ts aborta si aparece en producción.
+   */
+  PUSH_ENDPOINT_PRUEBAS?: string;
 }
 
 /** Respuesta JSON; los errores con la forma de 05 §9: { error, mensaje }. */
