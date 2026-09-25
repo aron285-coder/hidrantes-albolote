@@ -129,7 +129,8 @@ Cada sesión:
   `gh pr list --state merged --search "<paquete>"` que lo que necesita ya está en `develop`. Si no,
   pasa a otro paquete suyo sin dependencias, y **no espera** sin hacer nada;
 - **al fusionar** un paquete, marca su casilla y comenta una línea: qué entró, qué PR y si deja algo
-  pedido a otra sesión;
+  pedido a otra sesión. La issue del paquete se cierra sola si el PR dice `Closes #N` (en inglés: es
+  la palabra clave de GitHub, DEC-141). Las casillas de la issue de coordinación se marcan a mano;
 - **al acabar todo lo suyo**, escribe su registro `docs/verificacion/<especificación>-<sesión>.md` y
   lo comenta en la issue.
 
@@ -138,7 +139,7 @@ Cada sesión:
 - hace las sincronizaciones con producción (PR `develop → main`) en los puntos que marque la
   especificación, y siempre al final;
 - consolida los tres registros en el de la especificación;
-- cierra la issue.
+- cierra la issue de coordinación a mano, con un comentario: no la cierra ningún PR.
 
 ---
 

@@ -90,7 +90,8 @@ cobertura · fuera de zona.
 4. Implementa con tests: unitarios (`vitest`) para `src/lib`, pgTAP para SQL, Playwright para
    flujos. La issue no está terminada sin ellos. Comprueba también las reglas UI de 06 §9 en la
    pantalla que toques.
-5. PR a `develop` que enlaza la issue, con la plantilla rellena (definición de terminado, 09 §6).
+5. PR a `develop` que enlaza la issue con `Closes #N` (en inglés: es la palabra clave de GitHub, y así
+   la issue se cierra sola al fusionar; DEC-141), con la plantilla rellena (definición de terminado, 09 §6).
    Commits *conventional* en español: `feat(mapa): …`, `fix(cola): …`, `chore(ci): …`. La descripción
    de un `feat:` o `fix:` con ámbito de usuario se escribe para un voluntario: qué cambia para él, sin
    nombres de archivos ni códigos internos. Sale tal cual en Novedades (FR-167, DEC-091).
@@ -99,7 +100,7 @@ cobertura · fuera de zona.
    (DEC-114).
 6. CI verde → merge → staging se despliega solo. Comprueba staging con Playwright si el cambio es
    visible.
-7. Marca la issue; si cierra una fase, escribe `docs/verificacion/fase-N.md` (qué casos de 10 has
+7. Comprueba que la issue se ha cerrado (si no, ciérrala con un comentario); si cierra una fase, escribe `docs/verificacion/fase-N.md` (qué casos de 10 has
    ejecutado, cómo, con qué resultado, y qué suposiciones has tomado) y actualiza
    `docs/09-plan-implementacion.md` §8. Una fase sin ese archivo no está terminada.
 
