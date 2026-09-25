@@ -16,7 +16,7 @@ set local role authenticated;
 select ok((hidrantes.fn_salud() ->> 'bd_bytes')::bigint > 0, 'fn_salud devuelve bd_bytes > 0');
 select ok((hidrantes.fn_salud() ->> 'esquema_bytes')::bigint > 0, 'y esquema_bytes > 0');
 select is(hidrantes.fn_salud() -> 'tareas' -> 0 ->> 'tarea', 'hidrantes_purgar_errores',
-  'y las tareas que anotó la vigilancia');
+  'y la lista de tareas (en vivo desde 0031: ver 28_salud_tareas_en_vivo)');
 reset role;
 
 select * from finish();
