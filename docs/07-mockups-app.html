@@ -466,6 +466,11 @@
   .ap .searchbar input{margin:0; padding:0; border:none; background:transparent; font-size:10.5px; flex:1;}
   .ap .zoom{position:absolute; right:8px; top:110px; display:flex; flex-direction:column; gap:3px;}
   .ap .zoom div{width:26px; height:26px; border-radius:6px; background:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:var(--marino-950); box-shadow:0 1px 5px rgba(0,0,0,.18); cursor:pointer;}
+  /* docs/21 RV-82 (DEC-123): iconos de 44 px pegados al borde, zoom en una pieza, Cercanos extendido encima del + y leyenda plegada. */
+  .ap .zoom.pieza{gap:0; border-radius:6px; overflow:hidden; box-shadow:0 1px 5px rgba(0,0,0,.18);} .ap .zoom.pieza div{border-radius:0; box-shadow:none;} .ap .zoom.pieza div+div{border-top:1px solid var(--linea);}
+  .cercanos-ext{position:absolute; right:14px; bottom:116px; height:30px; padding:0 11px; border-radius:15px; background:var(--marino-950); color:#fff; font-size:10px; font-weight:600; display:flex; align-items:center; gap:4px; box-shadow:0 3px 10px rgba(0,0,0,.25); cursor:pointer;}
+  .legend-chip{position:absolute; left:8px; bottom:8px; height:26px; padding:0 9px; border-radius:7px; background:#fff; font-size:9px; font-weight:600; color:var(--marino-950); display:flex; align-items:center; box-shadow:0 1px 5px rgba(0,0,0,.18); cursor:pointer;} .legend-box .lg-x{position:absolute; top:2px; right:4px; cursor:pointer; font-size:10px;} .maphold .legend-box{padding-right:16px;}
+  .ap.dark .legend-chip{background:#1A2333; color:#E6EAF0;}
   .ap .mapa-aviso{position:absolute; left:50%; top:46%; transform:translate(-50%,-50%); background:rgba(255,255,255,.95); border:1px solid var(--oro-600); color:var(--ambar-700); border-radius:8px; padding:8px 10px; font-size:10.5px; text-align:center; width:80%;}
   .ap .mk{cursor:pointer;} .ap .mk-tap{fill:transparent;}
   .ap .foto-min{height:64px; border-radius:8px; background:linear-gradient(180deg,#C6D2DA 0%,#AEBCC5 44%,#7A8582 45%,#8C968F 100%); display:flex; align-items:flex-end; padding:5px 7px; color:#fff; font-size:9.5px; margin-bottom:8px; position:relative;}
@@ -645,10 +650,10 @@
     var res=(S.resultados&&S.busca&&!compacto)?'<div class="resultados">'+(buscar().map(function(p){return '<div data-ir="'+p.id+'"><b>'+p.cod+'</b> · '+esc(p.dir||'sin dirección')+' · '+NOM[p.caudal]+'</div>'}).join('')||'<div>Nada coincide.</div>')+'</div>':'';
     var aviso=(!S.online&&S.capa!=='base')?'<div class="mapa-aviso">La capa "'+capas[S.capa]+'" necesita cobertura. Los puntos siguen; cambia al mapa base.</div>':(!S.online&&!S.mapaDescargado?'<div class="mapa-aviso">Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.</div>':'');
     return (compacto?'':'<div class="searchbar">🔍 <input id="q" placeholder="Buscar código, calle…" value="'+esc(S.busca)+'"></div>')+
-      '<div class="layer-btn" style="top:'+(compacto?8:38)+'px;" data-ac="capas">🗺️ Capas</div>'+(compacto?menu.replace('top:64px','top:34px'):menu)+res+
+      '<div class="layer-btn" title="Capas" style="top:'+(compacto?8:38)+'px;" data-ac="capas">🗺️</div>'+(compacto?menu.replace('top:64px','top:34px'):menu)+res+
       '<div class="mypos" style="top:'+(compacto?44:74)+'px;" data-ac="pos">⌖</div>'+
-      '<div class="zoom" style="top:'+(compacto?80:110)+'px;"><div data-ac="z+">+</div><div data-ac="z-">−</div></div>'+
-      leyenda()+aviso+'<div class="attrib">© OpenStreetMap · Protomaps</div>'; }
+      '<div class="zoom pieza" style="top:'+(compacto?80:110)+'px;"><div data-ac="z+">+</div><div data-ac="z-">−</div></div>'+(compacto?'':'<div class="cercanos-ext" data-ac="cercanos">⌖ Cercanos</div>')+
+      (S.leyendaAbierta?leyenda().replace('<div class="legend-box">','<div class="legend-box"><span class="lg-x" data-ac="leyenda">×</span>'):'<div class="legend-chip" data-ac="leyenda">Leyenda</div>')+aviso+'<div class="attrib">© OpenStreetMap · Protomaps</div>'; }
   function buscar(){ var b=S.busca.toLowerCase(); return S.puntos.filter(function(p){return [p.cod,p.dir,p.desc,p.nucleo].join(' ').toLowerCase().indexOf(b)>-1}) }
 
   /* ---------- pantallas ---------- */
@@ -847,6 +852,7 @@
       if(ac==='legal'){ ir('legal'); return } if(ac==='volver'){ volver(); return }
       if(ac==='ob-next'){ S.onboarding++; if(S.onboarding>3){ S.onboarding=0; S.pantalla='mapa' } render(); return } if(ac==='ob-skip'){ S.onboarding=0; S.pantalla='mapa'; render(); return }
       if(ac==='capas'){ S.capaMenu=!S.capaMenu; render(); return } if(ac==='pos'){ S.cx=GPS.x; S.cy=GPS.y; S.zoom=Math.max(1,S.zoom); S.toast='Centrado en tu posición · ±'+GPS.prec+' m'; render(); setTimeout(function(){S.toast=null;render()},1800); return }
+      if(ac==='leyenda'){ S.leyendaAbierta=!S.leyendaAbierta; render(); return } if(ac==='cercanos'){ S.toast='Cercanos'; render(); setTimeout(function(){S.toast=null;render()},1800); return }
       if(ac==='z+'){ S.zoom=Math.min(2,S.zoom+1); render(); return } if(ac==='z-'){ S.zoom=Math.max(0,S.zoom-1); render(); return }
       if(ac==='cerrar-toast'){ S.toast=null; render(); return }
       if(ac==='alta'){ S.op='alta'; S.form={tipo:null,pin:{x:GPS.x+14,y:GPS.y-8}}; ir('alta'); return }

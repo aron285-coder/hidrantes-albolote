@@ -157,6 +157,8 @@ export const T = {
     posicionDenegada: 'Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.',
     posicionNoDisponible: 'No se puede obtener tu posición ahora mismo.',
     leyenda: 'Leyenda',
+    cerrarLeyenda: 'Cerrar la leyenda',
+    zoom: 'Zoom',
     acercar: 'Acercar',
     alejar: 'Alejar',
     funcionaSinCobertura: 'funciona sin cobertura',
