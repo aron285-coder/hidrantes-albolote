@@ -140,7 +140,9 @@ export const APLAZAR_POR_DEFECTO_S = 60;
 export function segundosDeRetryAfter(valor: string | null, ahora = Date.now()): number {
   const texto = valor?.trim() ?? '';
   if (/^\d+$/.test(texto)) return Number(texto);
-  const fecha = Date.parse(texto);
+  // Una fecha HTTP lleva el día y el mes en letras; sin letras (p. ej. "1.5") no es ni una cosa ni
+  // otra, aunque Date.parse la acepte.
+  const fecha = /[a-z]/i.test(texto) ? Date.parse(texto) : Number.NaN;
   if (Number.isNaN(fecha)) return APLAZAR_POR_DEFECTO_S;
   return Math.max(0, Math.round((fecha - ahora) / 1000));
 }

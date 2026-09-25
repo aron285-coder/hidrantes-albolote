@@ -679,12 +679,14 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. **Solo 404 y 410** (`suscripcion_caducada`, lo pone `enviar()` de `functions/_lib/webpush.ts`) borran al primer aviso.
   2. **Cualquier otro error** suma un fallo y anota el error en el aviso, como antes. La suscripción se borra solo con **10 fallos seguidos y ningún envío bueno en los últimos 7 días**, o ninguno nunca. Un envío bueno pone `fallos = 0`.
-  3. **429:** `/api/push` no llama a `fn_resultado_notificacion`. El aviso sigue reclamado y vuelve a salir a los 15 minutos (DEC-088); los demás avisos del lote para ese mismo servicio (origen del endpoint) no se intentan en esa invocación, y la respuesta lleva `aplazadas` y `quedan: false` para que el Worker no insista. `Retry-After` se lee (segundos o fecha; 60 s si no viene) y los 15 minutos de la reclamación lo cubren en la práctica.
+  3. **429:** `/api/push` no llama a `fn_resultado_notificacion`, y los demás avisos del lote para ese mismo servicio (origen del endpoint) no se intentan en esa invocación. Todos ellos se aplazan con **una** llamada a la RPC nueva `fn_aplazar_notificaciones(ids, segundos)` (solo `service_role`), con el `Retry-After` mayor (segundos o fecha; 60 s si no viene; de 0 a 24 h): vuelven a poder reclamarse pasado ese tiempo y se les devuelve el intento, así que una racha de 429 no los deja como `SIN_RESPUESTA` (DEC-088). Presupuesto: 20 × 2 + 3 = 43 peticiones de 50. La respuesta lleva `aplazadas`, y `quedan` solo si el lote venía lleno y no se aplazó entero: los avisos de otros servicios no esperan por uno que ha pedido calma.
 - **Coste aceptado:**
-  - un 429 gasta uno de los tres intentos de la reclamación: tres 429 seguidos dejan el aviso como `SIN_RESPUESTA`, pero la suscripción sigue intacta para los siguientes;
-  - un `Retry-After` de más de 15 minutos no se respeta entero. Hacerlo pediría una RPC nueva para soltar la reclamación con fecha, y los servicios de push no piden tanto;
+  - si la llamada a `fn_aplazar_notificaciones` falla, esos avisos siguen reclamados y salen a los 15 minutos gastando un intento, como cualquier aviso sin anotar; cuentan en `sin_anotar`;
+  - un 5xx sigue dejando **ese aviso** con `error` y no se reintenta (como antes de 0030): lo que cambia es que la suscripción ya no se pierde. Reintentar los 5xx sería otro cambio en la cola, fuera de RV-84;
   - una suscripción rota de verdad con un error que no es 404/410 (p. ej. un 403 por claves VAPID cambiadas) tarda hasta 7 días en borrarse. Mientras, sus avisos fallan y quedan anotados, que es lo mismo que pasaría sin borrarla.
-- **Descartado:** subir solo el umbral de 3 a 10 sin mirar `ultimo_envio`: una suscripción que recibe bien a diario se perdería con una mala racha de un día.
+- **Descartado:**
+  - subir solo el umbral de 3 a 10 sin mirar `ultimo_envio`: una suscripción que recibe bien a diario se perdería con una mala racha de un día;
+  - dejar lo aplazado solo reclamado, sin RPC nueva (lo que proponía `docs/21`): cada 429 gastaba un intento, incluso en los avisos que ni se intentaban, y tres seguidos los perdían; y un `Retry-After` de más de 15 minutos no se respetaba.
 - **Afecta a:** 05 §2.12, §6.3 y §9; 11 §6.1.
 
 ### DEC-119 · Una fila de voluntario y una de jefatura por navegador

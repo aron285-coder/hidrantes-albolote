@@ -4,7 +4,7 @@
 // se comprueba contra el ejemplo de la propia RFC, que trae claves fijas y el cuerpo ya cifrado.
 
 import { describe, expect, it, vi } from 'vitest';
-import { b64url, cabeceraVapid, cifrar, desdeB64url, enviar } from './webpush.ts';
+import { b64url, cabeceraVapid, cifrar, desdeB64url, enviar, segundosDeRetryAfter } from './webpush.ts';
 
 /** RFC 8291 §5 "Push Message Encryption Example". */
 const RFC = {
@@ -174,6 +174,14 @@ describe('enviar', () => {
     espia = fingirFetch(new Response(null, { status: 429 }));
     expect((await enviar(suscripcion, aviso, vapid)).aplazar_s).toBe(60);
     espia.mockRestore();
+  });
+
+  it('Retry-After raro: una fecha pasada es 0; lo que no se entiende, 60', () => {
+    const ahora = Date.parse('2026-09-25T10:00:00Z');
+    expect(segundosDeRetryAfter('Fri, 25 Sep 2026 09:00:00 GMT', ahora)).toBe(0);
+    expect(segundosDeRetryAfter('Fri, 25 Sep 2026 10:02:00 GMT', ahora)).toBe(120);
+    expect(segundosDeRetryAfter(' 30 ', ahora)).toBe(30);
+    for (const raro of ['1.5', '-5', 'pronto', '', null]) expect(segundosDeRetryAfter(raro, ahora)).toBe(60);
   });
 
   it('si la red falla, devuelve el motivo en lugar de lanzar', async () => {

@@ -50,6 +50,8 @@ interface Red {
   servicioPushPor?: (url: string) => Response;
   /** fn_resultado_notificacion no contesta (p. ej. se acabaron las peticiones de la invocación). */
   resultadoCae?: boolean;
+  /** fn_aplazar_notificaciones no contesta. */
+  aplazarCae?: boolean;
 }
 
 function fingirRed(red: Red = {}) {
@@ -66,6 +68,11 @@ function fingirRed(red: Red = {}) {
     }
     if (url.includes('fn_reclamar_notificaciones')) {
       return Promise.resolve(new Response(JSON.stringify(red.pendientes ?? [])));
+    }
+    if (url.includes('fn_aplazar_notificaciones')) {
+      return red.aplazarCae
+        ? Promise.reject(new TypeError('Too many subrequests'))
+        : Promise.resolve(new Response('1'));
     }
     if (url.includes('fn_resultado_notificacion')) {
       return red.resultadoCae
@@ -174,8 +181,8 @@ describe('POST /api/push', () => {
   });
 
   // RV-84: con un 429 el servicio pide esperar. El aviso no se anota (ni fallo en la suscripción ni
-  // error en el aviso): sigue reclamado y vuelve a salir en una pasada posterior del Worker. Lo que
-  // quede para ese mismo servicio en esta invocación tampoco se manda, y el Worker no insiste.
+  // error en el aviso): se aplaza lo que diga Retry-After, sin gastar intento. Lo que quede para ese
+  // mismo servicio en esta invocación tampoco se manda; el de los otros servicios, sí.
   it('429 con Retry-After: sin fallo, el aviso sigue pendiente y no se insiste en ese servicio', async () => {
     const otro = {
       ...pendiente(9),
@@ -193,10 +200,54 @@ describe('POST /api/push', () => {
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
 
     // 19 avisos a push.example.net: uno se intenta y recibe 429, los otros 18 ni se intentan.
-    expect(await r.json()).toEqual({ enviadas: 1, fallidas: 0, sin_anotar: 0, aplazadas: 19, quedan: false });
+    // El lote venía lleno y no todo se ha aplazado: el Worker puede pedir el siguiente.
+    expect(await r.json()).toEqual({ enviadas: 1, fallidas: 0, sin_anotar: 0, aplazadas: 19, quedan: true });
     expect(llamadas.filter((l) => l.url === SUSCRIPCION.endpoint)).toHaveLength(1);
     const resultados = llamadas.filter((l) => l.url.includes('fn_resultado_notificacion'));
     expect(resultados.map((l) => (l.cuerpo as { notificacion_id: number }).notificacion_id)).toEqual([9]);
+    const aplazar = llamadas.filter((l) => l.url.includes('fn_aplazar_notificaciones'));
+    expect(aplazar.map((l) => l.cuerpo)).toEqual([
+      { ids: [1, 2, ...Array.from({ length: 17 }, (_, i) => i + 10)], segundos: 120 },
+    ]);
+    expect(llamadas.length).toBeLessThanOrEqual(50);
+    espia.mockRestore();
+  });
+
+  it('429 sin Retry-After: se aplaza 60 s; con todo el lote aplazado, el Worker no insiste', async () => {
+    const veinte = Array.from({ length: 20 }, (_, i) => pendiente(i + 1));
+    const { espia, llamadas } = fingirRed({
+      admin: true,
+      pendientes: veinte,
+      servicioPush: new Response(null, { status: 429 }),
+    });
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+
+    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 0, sin_anotar: 0, aplazadas: 20, quedan: false });
+    expect(llamadas.find((l) => l.url.includes('fn_aplazar_notificaciones'))?.cuerpo).toEqual({
+      ids: veinte.map((p) => p.id),
+      segundos: 60,
+    });
+    expect(llamadas.some((l) => l.url.includes('fn_resultado_notificacion'))).toBe(false);
+    espia.mockRestore();
+  });
+
+  it('si no se puede aplazar, los avisos cuentan como sin anotar (salen a los 15 minutos)', async () => {
+    const { espia } = fingirRed({
+      admin: true,
+      pendientes: [pendiente(1)],
+      servicioPush: new Response(null, { status: 429, headers: { 'Retry-After': '30' } }),
+      aplazarCae: true,
+    });
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ enviadas: 0, fallidas: 0, sin_anotar: 1, aplazadas: 1, quedan: false });
+    espia.mockRestore();
+  });
+
+  it('sin ningún 429 no se llama a fn_aplazar_notificaciones', async () => {
+    const { espia, llamadas } = fingirRed({ admin: true, pendientes: [pendiente(1)] });
+    await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+    expect(llamadas.some((l) => l.url.includes('fn_aplazar_notificaciones'))).toBe(false);
     espia.mockRestore();
   });
 

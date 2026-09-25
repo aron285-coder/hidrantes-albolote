@@ -4,7 +4,8 @@
 --    cualquier tipo, también con un 5xx pasajero del servicio de push: el móvil seguía diciendo
 --    "Activado" y no recibía nada. Ahora solo la caducidad (404/410, suscripcion_caducada) borra al
 --    momento; los demás errores suman un fallo y se borra solo con 10 seguidos y ningún envío bueno
---    en los últimos 7 días (o nunca). Un 429 ni llega aquí: /api/push lo deja reclamado.
+--    en los últimos 7 días (o nunca). Un 429 ni llega aquí: /api/push lo aplaza con
+--    fn_aplazar_notificaciones (nueva), que respeta Retry-After y no gasta intentos.
 -- 2. Dos dueños, un endpoint. El índice único era solo por endpoint, y fn_guardar_suscripcion_push
 --    y su versión de administrador se quitaban la fila: voluntario y jefatura en el mismo navegador,
 --    el último que activaba se la quedaba. Ahora el único es por endpoint y tipo de dueño: una fila
@@ -100,7 +101,30 @@ begin
   end if;
 end $$;
 
+-- ---------- aplazar: un 429 no gasta intentos ----------
+
+-- /api/push la llama una vez por invocación con los avisos que no ha enviado porque su servicio de
+-- push contestó 429. Vuelven a poder reclamarse cuando pasen `segundos` (Retry-After), en lugar de a
+-- los 15 minutos, y se les devuelve el intento: sin eso, tres 429 seguidos los dejarían como
+-- SIN_RESPUESTA (0014). Solo lo reclamado y sin resultado; lo demás no se toca.
+create function hidrantes.fn_aplazar_notificaciones(ids bigint[], segundos integer) returns integer
+language plpgsql volatile security definer set search_path = pg_catalog, hidrantes as $$
+declare
+  n integer;
+begin
+  update hidrantes.notificaciones
+     set reclamada_en = now() - interval '15 minutes'
+                        + make_interval(secs => least(greatest(coalesce(segundos, 60), 0), 86400)),
+         intentos = greatest(intentos - 1, 0)
+   where id = any (ids) and reclamada_en is not null and enviada_en is null and error is null;
+  get diagnostics n = row_count;
+  return n;
+end $$;
+
 -- create or replace conserva los permisos, pero se repiten por si alguna base los perdió.
 revoke all on function hidrantes.fn_guardar_suscripcion_push(text, jsonb, text[]) from public;
 revoke all on function hidrantes.fn_guardar_suscripcion_push_admin(jsonb, text[]) from public;
 revoke all on function hidrantes.fn_resultado_notificacion(bigint, boolean, text, boolean) from public;
+-- Como fn_reclamar_notificaciones y fn_resultado_notificacion: solo las Pages Functions (11 §3, capa 5).
+revoke all on function hidrantes.fn_aplazar_notificaciones(bigint[], integer) from public, anon, authenticated;
+grant execute on function hidrantes.fn_aplazar_notificaciones(bigint[], integer) to service_role;

@@ -29,7 +29,8 @@ async function autorizado(request: Request, env: Env): Promise<boolean> {
 
 /**
  * El plan gratuito de Workers permite 50 peticiones de salida por invocación y cada aviso gasta dos
- * (el push y fn_resultado_notificacion): 20 × 2 + la autorización + la reclamación = 42 (RV-08).
+ * (el push y fn_resultado_notificacion): 20 × 2 + la autorización + la reclamación + el aplazamiento
+ * de los 429 = 43 (RV-08, RV-84).
  */
 export const LOTE = 20;
 
@@ -44,13 +45,16 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
   let enviadas = 0;
   let fallidas = 0;
   let sin_anotar = 0;
-  let aplazadas = 0;
+  // Avisos que no se envían porque su servicio de push ha contestado 429 (RV-84), y cuánto pide
+  // esperar el que más.
+  const aplazados: number[] = [];
+  let esperar_s = 0;
   // Servicios de push (origen del endpoint) que han contestado 429 en esta invocación.
   const enEspera = new Set<string>();
   for (const n of pendientes.datos) {
     const servicio = origenDe(n.suscripcion.endpoint);
     if (enEspera.has(servicio)) {
-      aplazadas++;
+      aplazados.push(n.id);
       continue;
     }
     let r: Awaited<ReturnType<typeof enviar>>;
@@ -62,10 +66,10 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
       continue;
     }
     if (r.aplazar_s !== undefined) {
-      // 429 (RV-84): no es un fallo de la suscripción. Sin anotar, el aviso sigue reclamado y vuelve
-      // a salir a los 15 minutos, que es más de lo que suelen pedir los servicios de push.
+      // 429 (RV-84): no es un fallo de la suscripción ni del aviso. No se anota: se aplaza abajo.
       enEspera.add(servicio);
-      aplazadas++;
+      aplazados.push(n.id);
+      esperar_s = Math.max(esperar_s, r.aplazar_s);
       continue;
     }
     const anotado = await rpc(env, 'fn_resultado_notificacion', {
@@ -80,14 +84,19 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     if (r.ok) enviadas++;
     else fallidas++;
   }
-  // Con algo aplazado, el Worker no debe volver a llamar enseguida: reclamaría más avisos para el
-  // mismo servicio que acaba de pedir esperar.
+  if (aplazados.length > 0) {
+    // Vuelven a poder reclamarse pasado Retry-After y sin gastar intento. Si esta llamada falla,
+    // siguen reclamados y salen a los 15 minutos, como cualquier aviso sin anotar.
+    const aplazado = await rpc(env, 'fn_aplazar_notificaciones', { ids: aplazados, segundos: esperar_s });
+    if (!aplazado.ok) sin_anotar += aplazados.length;
+  }
+  // Si todo el lote se ha aplazado, el Worker no vuelve a llamar enseguida.
   return json({
     enviadas,
     fallidas,
     sin_anotar,
-    aplazadas,
-    quedan: pendientes.datos.length === LOTE && aplazadas === 0,
+    aplazadas: aplazados.length,
+    quedan: pendientes.datos.length === LOTE && aplazados.length < LOTE,
   });
 };
 

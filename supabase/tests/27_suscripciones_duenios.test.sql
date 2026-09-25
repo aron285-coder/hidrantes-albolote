@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(18);
+select plan(31);
 
 -- ---------- datos de prueba ----------
 
@@ -100,6 +100,30 @@ select lives_ok($$ select hidrantes.fn_guardar_suscripcion_push_admin(
   'y jefatura la suya con authenticated');
 reset role;
 select set_config('request.jwt.claims', '', true);
+select is((select array_agg(coalesce(dispositivo_id::text, email) order by dispositivo_id is null)
+             from hidrantes.suscripciones_push
+            where suscripcion ->> 'endpoint' = 'https://fcm.googleapis.com/fcm/send/rv84-anon'),
+  array['00000000-0000-4000-8000-00000000d271', 'jefa-avisos@example.com'],
+  'por PostgREST también quedan dos filas, cada una con su dueño');
+
+-- Los errores de siempre siguen saliendo con el cuerpo reescrito.
+select throws_like($$ select hidrantes.fn_guardar_suscripcion_push('token-de-prueba-rv84-inventado',
+  '{"endpoint": "https://fcm.googleapis.com/fcm/send/rv84-x", "keys": {"p256dh": "p", "auth": "a"}}'::jsonb, null) $$,
+  'TOKEN_INVALIDO%', 'un token inventado no guarda nada');
+select throws_like($$ select hidrantes.fn_guardar_suscripcion_push('token-de-prueba-rv84-dispositivo-uno',
+  '{"endpoint": "https://fcm.googleapis.com/fcm/send/rv84-x", "keys": {"p256dh": "p", "auth": "a"}}'::jsonb,
+  array['nuevas_propuestas']) $$,
+  'PAYLOAD_INVALIDO(temas)%', 'un voluntario no se apunta a los temas de jefatura');
+select throws_like($$ select hidrantes.fn_guardar_suscripcion_push_admin(
+  '{"endpoint": "https://fcm.googleapis.com/fcm/send/rv84-x", "keys": {"p256dh": "p", "auth": "a"}}'::jsonb,
+  array['nuevas_propuestas']) $$,
+  'NO_AUTORIZADO%', 'sin sesión de jefatura, la versión de administrador no guarda');
+select pg_temp.como_admin('jefa-avisos@example.com');
+select throws_like($$ select hidrantes.fn_guardar_suscripcion_push_admin(
+  '{"endpoint": "https://fcm.googleapis.com/fcm/send/rv84-x", "keys": {"p256dh": "p", "auth": "a"}}'::jsonb,
+  '{}'::text[]) $$,
+  'PAYLOAD_INVALIDO(temas)%', 'jefatura sin ningún tema tampoco');
+select set_config('request.jwt.claims', '', true);
 
 -- ---------- fallos pasajeros y caducidad ----------
 
@@ -136,6 +160,51 @@ select ok(not pg_temp.existe('00000000-0000-4000-8000-0000000c2703'),
 select pg_temp.resultado('00000000-0000-4000-8000-0000000c2702', true);
 select is((select fallos from hidrantes.suscripciones_push where id = '00000000-0000-4000-8000-0000000c2702'),
   0::smallint, 'un envío bueno deja los fallos a cero');
+
+-- "Seguidos": tras el envío bueno se cuenta desde cero. Con el último envío bueno de hace 8 días,
+-- nueve fallos más aún no la borran (sin la puesta a cero serían 21).
+update hidrantes.suscripciones_push set ultimo_envio = now() - interval '8 days'
+ where id = '00000000-0000-4000-8000-0000000c2702';
+select pg_temp.resultado('00000000-0000-4000-8000-0000000c2702', false) from generate_series(1, 9);
+select ok(pg_temp.existe('00000000-0000-4000-8000-0000000c2702'),
+  'tras un envío bueno, la cuenta de fallos seguidos vuelve a empezar');
+select is((select error from hidrantes.notificaciones
+            where suscripcion_id = '00000000-0000-4000-8000-0000000c2702' order by id desc limit 1),
+  'HTTP 503', 'el error de cada envío fallido queda anotado en su aviso');
+
+-- ---------- 429: aplazar sin gastar intentos ----------
+
+insert into hidrantes.suscripciones_push (id, email, suscripcion, temas) values
+  ('00000000-0000-4000-8000-0000000c2705', 'jefa-avisos@example.com',
+   pg_temp.sus('https://fcm.googleapis.com/fcm/send/rv84-429'), '{nuevas_propuestas}');
+insert into hidrantes.notificaciones (suscripcion_id, titulo, cuerpo)
+values ('00000000-0000-4000-8000-0000000c2705', 'rv84-429-a', 'x'), ('00000000-0000-4000-8000-0000000c2705', 'rv84-429-b', 'x');
+create temp table reclamadas_429 as
+select r.id, n.titulo from hidrantes.fn_reclamar_notificaciones(50) r join hidrantes.notificaciones n using (id)
+ where n.titulo like 'rv84-429-%';
+
+select is(hidrantes.fn_aplazar_notificaciones(
+  (select array_agg(id) from reclamadas_429 where titulo = 'rv84-429-a'), 120), 1,
+  'aplazar devuelve cuántos avisos ha aplazado');
+select hidrantes.fn_aplazar_notificaciones((select array_agg(id) from reclamadas_429 where titulo = 'rv84-429-b'), 0);
+-- now() no avanza dentro de la transacción: se simula que pasa un minuto.
+update hidrantes.notificaciones set reclamada_en = reclamada_en - interval '1 minute' where titulo like 'rv84-429-%';
+select is((select array_agg(n.titulo order by n.titulo) from hidrantes.fn_reclamar_notificaciones(50) r
+             join hidrantes.notificaciones n using (id) where n.titulo like 'rv84-429-%'),
+  array['rv84-429-b'], 'un minuto después, el de Retry-After 0 vuelve a salir y el de 120 s todavía no');
+select is((select intentos from hidrantes.notificaciones where titulo = 'rv84-429-a'), 0::smallint,
+  'y el aplazado no gasta intento');
+select ok((select error is null and enviada_en is null from hidrantes.notificaciones where titulo = 'rv84-429-a'),
+  'ni queda con error ni como enviado');
+
+set local role anon;
+select throws_ok($$ select hidrantes.fn_aplazar_notificaciones(array[1::bigint], 60) $$, '42501', null,
+  'anon no puede aplazar avisos');
+reset role;
+set local role authenticated;
+select throws_ok($$ select hidrantes.fn_aplazar_notificaciones(array[1::bigint], 60) $$, '42501', null,
+  'authenticated tampoco');
+reset role;
 
 select * from finish();
 rollback;
