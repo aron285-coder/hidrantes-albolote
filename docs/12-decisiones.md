@@ -683,6 +683,17 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **Quedarse en `ubuntu-latest` y arreglar si falla:** fallaría justo lo que avisa de los fallos.
 - **Afecta a:** 15 §4.
 
+### DEC-120 · La integración de los avisos, con un servidor de push falso y una variable que solo vale en local
+- **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-86). Sesión Backend.
+- **Contexto:** la suscripción a los avisos no se había probado nunca de punta a punta contra la pila real: los e2e simulan la RPC y `scripts/probar-worker-avisos.ts` mete la suscripción a mano con un endpoint `http://` que `fn_validar_suscripcion` no admitiría. Por eso nadie vio que `fn_guardar_suscripcion_push` fallaba siempre (DEC-119).
+- **Decisión:**
+  1. **`e2e/integracion/avisos.spec.ts`**, en el paso de integración de `ci-sql`: una suscripción con forma de FCM (endpoint de 152 caracteres, claves de 65 y 16 bytes) guardada con `fn_guardar_suscripcion_push` por PostgREST y un token canjeado en `/api/verificar-codigo`; jefatura (sesión local firmada como Google) rechaza una propuesta de ese móvil, que es lo que crea el aviso; `/api/push` con `X-Vigilancia` local lo envía; un servidor de push falso en el test comprueba el camino, `aes128gcm`, `TTL` y la cabecera VAPID: `aud` = `https://fcm.googleapis.com`, `exp` en el futuro y a menos de 24 h (RFC 8292 §2), `sub` y la firma ES256 verificada con la clave pública.
+  2. **`PUSH_ENDPOINT_PRUEBAS`:** `/api/push` sustituye el origen del endpoint por el de esa variable **solo** si tanto ella como `SUPABASE_URL` son `127.0.0.1` o `localhost` (`destinoDePruebas`). La firma sigue siendo para el servicio de verdad. Así, aunque la variable llegara a staging o a producción, no desviaría ningún aviso.
+  3. **El spec levanta su propio `wrangler pages dev` en :8789** con claves VAPID de prueba y la variable como `--binding`: no toca `.dev.vars`, `package.json` ni `ci.yml` (de Ops), y el wrangler de :8788 del paso sigue sin claves VAPID, como espera `probar-functions.ts`.
+  4. **`scripts/guarda-produccion.ts`** aborta si `PUSH_ENDPOINT_PRUEBAS` está en el entorno del despliegue, en `deploy-prod.yml` (fuera de comentarios) o en `scripts/arranque.ts`, que es quien sube los secretos de Pages.
+- **Descartado:** apuntar la suscripción directamente al servidor falso (como `probar-worker-avisos.ts`): no pasaría por `fn_validar_suscripcion` ni por la forma real de un endpoint de FCM, que es justo lo que había que probar.
+- **Afecta a:** 05 §9.
+
 ### DEC-118 · Una suscripción push solo se borra al momento si el servicio dice que no existe
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-84, 0030). Sesión Backend.
 - **Contexto:** `fn_resultado_notificacion` borraba la suscripción al tercer error de cualquier tipo. Un 5xx o un 429 pasajero de FCM bastaba: el móvil seguía diciendo "Activado" y no volvía a recibir nada.
@@ -1628,7 +1639,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |

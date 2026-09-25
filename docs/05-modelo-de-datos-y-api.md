@@ -646,7 +646,12 @@ dice si se llenó el lote y no se aplazó entero. Dos llamadas seguidas no enví
 móvil tras sincronizar o tras enviar una propuesta, jefatura tras cada moderación (una vez por lote)
 y el Worker `hidrantes-avisos` cada 5 minutos, con `avisos.yml` como envío manual de emergencia (DEC-097). Necesita `VAPID_PUBLIC_KEY` además de la
 privada (WebCrypto no deduce una de otra); sin ellas → `503 NO_CONFIGURADO`. Cifrado RFC 8291 y firma
-RFC 8292 con WebCrypto, sin dependencias.
+RFC 8292 con WebCrypto, sin dependencias. **Solo en las pruebas de integración** (`e2e/integracion/avisos.spec.ts`,
+docs/21 RV-86, DEC-120): con `PUSH_ENDPOINT_PRUEBAS` (un origen `http://127.0.0.1:…` o `localhost`)
+**y** un `SUPABASE_URL` local, la petición va a ese servidor de push falso con el camino y la consulta
+del endpoint, y la firma VAPID sigue siendo para el servicio de verdad (`aud` = origen del endpoint).
+En cualquier otro caso la variable se ignora, y `scripts/guarda-produccion.ts` aborta el despliegue
+de producción si está en el entorno, en `deploy-prod.yml` o en `scripts/arranque.ts`.
 
 ---
 
