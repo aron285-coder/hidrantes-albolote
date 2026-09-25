@@ -70,6 +70,8 @@ nunca crea un requisito.
 - **Nunca dependencias nuevas sin una línea en el PR que diga por qué.** Sin servicios externos
   que exijan cuenta o tarjeta.
 
+Estas reglas las hace cumplir también `.claude/settings.json` (hooks, DEC-115).
+
 ## 4. Glosario fijo (00 §6)
 
 punto · hidrante / boca de riego · propuesta (pendiente / aprobada / rechazada / retirada por el
