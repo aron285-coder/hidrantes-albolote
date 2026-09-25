@@ -42,8 +42,9 @@ test('sin servicio de push: la hoja dice el motivo y no se cierra', async ({ pag
   await hoja.getByRole('button', { name: T.push.permitir }).click();
   const motivo = hoja.getByTestId('motivo-push');
   await expect(motivo).toContainText(T.push.sinServicioPush, { timeout: 15_000 });
-  // Sin códigos internos a la vista del voluntario (UI-13, DEC-125).
+  // Sin códigos internos a la vista del voluntario (UI-13, DEC-136).
   await expect(motivo).not.toContainText('sin_servicio_push');
+  await expect(hoja).not.toContainText('Referencia');
   await expect(hoja).toBeVisible();
   // Se puede volver a intentar, y el interruptor no se queda deshabilitado (UI-02).
   await expect(hoja.getByRole('button', { name: T.push.reintentar })).toBeEnabled();

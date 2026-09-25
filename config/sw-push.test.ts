@@ -125,6 +125,31 @@ describe('tocar un aviso (RV-83)', () => {
     await sw.lanzar('notificationclick', aviso());
     expect(sw.clients.openWindow).toHaveBeenCalledWith(`${ORIGEN}/mis-propuestas`);
   });
+
+  it('si el foco falla, navega igual y no abre una segunda ventana', async () => {
+    const v = ventana();
+    v.focus.mockRejectedValue(new Error('InvalidAccessError'));
+    const sw = cargar({ controladas: [v] });
+    await sw.lanzar('notificationclick', aviso());
+    expect(v.navigate).toHaveBeenCalledWith(`${ORIGEN}/mis-propuestas`);
+    expect(sw.clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  it('navigate que resuelve null (la ventana se fue a otro origen) no abre otra', async () => {
+    const v = ventana();
+    v.navigate.mockResolvedValue(null);
+    const sw = cargar({ controladas: [v] });
+    await sw.lanzar('notificationclick', aviso());
+    expect(sw.clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  it('si abrir una ventana falla, se intenta una sola vez y waitUntil no queda rechazado', async () => {
+    const sw = cargar();
+    sw.clients.openWindow.mockRejectedValue(new TypeError('sin gesto del usuario'));
+    const evento = await sw.lanzar('notificationclick', aviso());
+    expect(sw.clients.openWindow).toHaveBeenCalledOnce();
+    await expect(evento.waitUntil.mock.calls[0]![0]).resolves.toBeNull();
+  });
 });
 
 describe('la suscripción cambia (RV-81, pushsubscriptionchange)', () => {

@@ -816,7 +816,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 ### DEC-125 · Tocar un aviso navega solo una ventana controlada; si no, abre una
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/21` RV-83). Sesión Frontend.
 - **Contexto:** `notificationclick` buscaba ventanas con `includeUncontrolled: true` y llamaba a `navigate()` sin esperar la promesa. Tras la primera instalación no hay `clientsClaim`, así que la ventana no está controlada, `navigate()` rechaza, y la app recibía el foco sin cambiar de pantalla.
-- **Decisión:** `matchAll({ type: 'window' })` solo con las controladas. Se navega la primera de este origen y se enfoca. Si no hay ninguna, o si `navigate()` falla, se usa `clients.openWindow(url)`. Todo va dentro de `event.waitUntil`.
+- **Decisión:** `matchAll({ type: 'window' })` solo con las controladas. De la primera de este origen se pide primero el foco (el navegador solo lo deja poco después del toque) y después se navega. Un foco que falla no abre otra ventana; si no hay ventana controlada, o si `navigate()` falla, se usa `clients.openWindow(url)` una sola vez. Todo va dentro de `event.waitUntil`, que nunca queda rechazado: el SW no tiene token para anotar errores, y la app enseña el resultado en «Mis propuestas» al abrirse.
 - **Descartado:** añadir `clientsClaim` al SW de Workbox. Cambia cuándo toma el control una versión nueva (TR-24, el aviso de versión nueva) solo para arreglar esto.
 - **Afecta a:** `public/sw-push.js`; `config/sw-push.test.ts` (nuevo, carga el SW con `vm`).
 
