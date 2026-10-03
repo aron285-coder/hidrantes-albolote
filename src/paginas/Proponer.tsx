@@ -202,7 +202,7 @@ function FormularioOperacion({
               {operacion === 'ubicacion'
                 ? T.operaciones.ubicacionAyuda
                 : gps
-                  ? T.avisosFormulario.ajustaPin(Math.round(gps.precision))
+                  ? T.avisosFormulario.ajustaPin
                   : posicionVieja
                     ? T.avisosFormulario.posicionNoAlDia
                     : T.operaciones.sinGps}
@@ -238,10 +238,7 @@ function FormularioOperacion({
 
         {(operacion === 'alta' || operacion === 'estado') && (
           <>
-            <Campo
-              etiqueta={operacion === 'estado' ? T.operaciones.caudalAhora : T.formulario.caudal}
-              ayuda={T.formulario.caudalAyuda}
-            >
+            <Campo etiqueta={operacion === 'estado' ? T.operaciones.caudalAhora : T.formulario.caudal}>
               <PildorasCaudal
                 valor={f.caudal}
                 alCambiar={(c) => cambiar({ caudal: c })}
@@ -319,11 +316,6 @@ function FormularioOperacion({
 
         {operacion === 'retirada' && <Aviso>{T.operaciones.retiradaAviso}</Aviso>}
         {jefatura && <Aviso>{T.operaciones.jefaturaAviso}</Aviso>}
-        {!jefatura && !disponible && (
-          <p className="text-texto-suave text-[13px]">
-            {conexion === 'sin_cobertura' ? T.envio.avisoSinCobertura : T.envio.avisoSinServidor}
-          </p>
-        )}
 
         <Boton type="submit" disabled={!!falta || enviando} className="mt-1 w-full">
           {enviando ? T.operaciones.enviando : textoBoton}
@@ -520,7 +512,12 @@ function PantallaResultado({ inicial, clave, jefatura }: { inicial: Resultado; c
             {reintentando ? T.operaciones.enviando : T.envio.reintentarAhora}
           </Boton>
         )}
-        <Boton className="mt-3 w-full" onClick={() => navegar('/', { replace: true })}>
+        {/* Un solo primario por pantalla (06 §5, DEC-147): si hay que reintentar, es eso. */}
+        <Boton
+          variante={resultado === 'solo_en_memoria' ? 'secundario' : 'primario'}
+          className="mt-3 w-full"
+          onClick={() => navegar('/', { replace: true })}
+        >
           {T.envio.volverAlMapa}
         </Boton>
         {acceso.tipo === 'voluntario' && (

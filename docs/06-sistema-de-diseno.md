@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -233,6 +233,7 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Barra superior** (móvil) | `--marino-950`, 16 px Barlow 600, título a la izquierda, acción a la derecha en círculo 22 px `rgba(255,255,255,.16)`. Etiqueta **Jefatura**: `--oro-600`, 9 px, radio 4. |
 | **Barra de estado** (móvil) | debajo de la barra: "Sincronizado hace N min" y badge "N sin enviar" (`--naranja-100`/`--naranja-600`). Sin cobertura: banda `--gris-700` con texto blanco 9,5 px. |
 | **Botón primario** | `--naranja-600`, blanco, 600, 13 px, alto ≥ 44 px, radio 9. Deshabilitado: `--linea` con `--texto-suave` **y una línea debajo que dice por qué** ("Falta la foto para poder enviar"). |
+| **Un primario por pantalla** | Una pantalla o una hoja tiene **como mucho un botón primario**, arriba del grupo de acciones, y es la acción más usada. No se inventa un primario donde no hay una acción clara (la ficha no lo tiene). En *¿Qué hay aquí?* es *Añadir un punto aquí*, el mismo naranja del + del mapa: un color dice "añadir" en toda la app (DEC-147). |
 | **Botón secundario** | blanco, borde 1,5 px `--marino-950`, texto `--marino-950`. |
 | **Botón destructivo** | `--rojo-700` relleno (confirmar retirada / rechazo / cambio de código). |
 | **Segmentado** (`.seg`) | opciones iguales, borde `--linea`, activa `--marino-950` con blanco. Para tipo y diámetro. |
@@ -287,6 +288,11 @@ estilo. Los seis iconos de operación: `check` (sigue igual), `activity` (actual
 - Fechas relativas con la absoluta al lado: "20 ago 2026 · hace 1 mes".
 - Nunca "defecto": el cuarto nivel se llama **No funciona** en toda la interfaz (DEC en 12).
 - Términos fijos del glosario de 00 §6.
+- **Pantallas de campo** (`docs/24` RV-99): enseñan **solo** lo que el voluntario necesita para decidir
+  o lo que evita un error que de verdad se comete. Las definiciones van a la sesión presencial y a la
+  ayuda (FR-94), no debajo de los campos. Un campo nuevo tiene que servir a jefatura para aprobar o a
+  quien acude a un incendio; si no, no se añade. Lo que ya dice la banda de conexión de arriba no se
+  repite al pie del formulario.
 
 ---
 
@@ -365,6 +371,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.` ·
 `Añadir un punto son cuatro toques` ·
 `Pulsa +, ajusta el pin, elige tipo y estado, haz la foto. Sin cobertura también: se enviará solo cuando vuelva la señal.` ·
+`Malo: se probó y sale débil.` · `No funciona: no se pudo usar (tapa, válvula, arqueta).` (debajo, una línea cada una; docs/24 RV-99) ·
 `Todo pasa por jefatura` ·
 `Lo que propongas no aparece en el mapa hasta que jefatura lo apruebe. Te avisaremos del resultado, y si algo se rechaza, del motivo.` ·
 `Siguiente` · `Empezar` · `Saltar` · `Pantalla [1] de 3`.
@@ -406,7 +413,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089). `Coordenadas` · `Decimal` ·
 `UTM ETRS89 · huso 30` · `Copiar [decimal]` · `Copiado` ·
 `No se ha podido copiar: mantén pulsado el texto para copiarlo` · `¿Qué hay aquí?` ·
-`Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Junto a [Calle Real]` · `Compartir` · `Ubicación` ·
+`Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Compartir` · `Ubicación` ·
 `[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[37.230500, -3.656000] · UTM [30S 441808 4120645] (ETRS89)` ·
 `Copiado: pégalo donde quieras` · `No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo` ·
 `Cercanos` · `Incidente` · `Desde tu posición` · `Desde el punto marcado` · `Posición de [hace 3 min]` ·
@@ -450,10 +457,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
-`La salida, no la tubería. Si hay varias, marca la mayor` ·
 `Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `No funciona` ·
-`Malo = probado y sale débil. No funciona = no se pudo probar (tapa, válvula, arqueta).` ·
 `Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` ·
 `Hacer foto · obligatoria` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
@@ -465,7 +470,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Elige el racor` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
 `Explica brevemente qué has visto` ·
 `⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.` ·
-`Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±[9] m)` ·
+`Toca el mapa para ajustar el pin` ·
 `La posición no está al día: coloca el pin a mano o espera a que el GPS responda`.
 
 **Envío.** `Enviar para revisión` · `Enviar propuesta de retirada` · `Aplicar ahora` ·
@@ -473,9 +478,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Enviado para revisión` · `Guardado en el móvil` · `Aplicado` · `Volver al mapa` ·
 `Ver mis propuestas` · `Sin guardar en el móvil` ·
 `No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.` · `Reintentar ahora` ·
-`Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.` ·
-`Sin cobertura · lo que envíes se guardará en el móvil y saldrá al recuperar señal` ·
-`Sin conexión con el servidor · seguimos con los datos guardados; lo que envíes esperará y se reintentará solo`.
+`Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.`.
 
 **Mis propuestas.** `Pendiente` · `Aprobada` · `Rechazada` · `Retirada por ti` · `Sin enviar` ·
 `Retirar` · `Motivo: [texto]` · `con correcciones: [texto]` ·

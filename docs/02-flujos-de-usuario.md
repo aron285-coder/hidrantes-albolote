@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -433,6 +433,18 @@ No hace falta desplegar nada ni tocar código.
 **Variantes**
 - Sin cobertura: todo funciona igual. (FR-76)
 - Con 0 o 1 vértices, *Deshacer* está deshabilitado y dice por qué. (FR-76, UI-02)
+
+---
+
+## Sesión presencial (F9.9, #84)
+
+Veinte minutos en una reunión ordinaria: instalar, entrar y dar de alta un punto real en la puerta de
+la sede (FL-01, FL-03). Como el formulario ya no explica los estados debajo de los botones (`docs/24` RV-99, 06 §8), se dicen en voz alta, una frase cada uno (FR-18):
+
+- **Malo:** se probó y sale débil.
+- **No funciona:** no se pudo usar (tapa que no abre, válvula rota, arqueta enterrada o inaccesible).
+
+La segunda pantalla de primer uso (FR-94) los repite, una línea cada uno.
 
 ---
 

@@ -29,6 +29,13 @@ export function Bienvenida() {
         <p className="sr-only">{T.bienvenida.paso(n + 1)}</p>
         <h1 className="font-titulo mb-3 text-2xl font-bold">{PANTALLAS[n].titulo}</h1>
         <p className="text-white/85">{PANTALLAS[n].texto}</p>
+        {PANTALLAS[n].lineas.length > 0 && (
+          <ul className="mt-3 flex flex-col gap-1 text-white/85">
+            {PANTALLAS[n].lineas.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+        )}
       </section>
       <div className="mx-auto w-full max-w-sm">
         <div className="mb-4 flex justify-center gap-2" aria-hidden>

@@ -111,6 +111,10 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByRole('radio', { name: T.formulario.hidrante }).click();
     await expect(page.getByText(T.avisosFormulario.eligeDiametro)).toBeVisible();
     await page.getByRole('radio', { name: T.formulario.d100 }).click();
+    // docs/24 RV-99: sin las definiciones debajo de los campos (van al primer uso y a la sesión).
+    await expect(page.getByText('La salida, no la tubería')).toHaveCount(0);
+    await expect(page.getByText('Malo =')).toHaveCount(0);
+    await expect(page.getByText('círculo azul')).toHaveCount(0);
     await page.getByRole('radio', { name: T.formulario.noFunciona }).click();
     await expect(page.getByText(T.avisosFormulario.describeFallo)).toBeVisible();
     await page.getByLabel(T.formulario.descripcionFallo).fill('Tapa soldada');
@@ -377,6 +381,12 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await expect(page.getByRole('heading', { level: 2, name: T.envio.soloEnMemoria })).toBeVisible();
     await expect(page.getByText(T.envio.soloEnMemoriaDetalle)).toBeVisible();
     await expect(page.getByRole('button', { name: T.envio.reintentarAhora })).toBeVisible();
+    // Un solo primario por pantalla (docs/24 RV-100, DEC-147): reintentar; volver al mapa, secundario.
+    await expect(page.locator('[data-variante="primario"]')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: T.envio.volverAlMapa })).toHaveAttribute(
+      'data-variante',
+      'secundario',
+    );
   });
 
   // docs/18 RV-39: la pantalla no se quedaba en "Solo en memoria" tras un reintento bueno.

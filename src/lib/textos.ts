@@ -54,16 +54,20 @@ export const T = {
         titulo: 'Cuanto más grande, más agua da',
         texto:
           'Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.',
+        lineas: [] as string[],
       },
       {
         titulo: 'Añadir un punto son cuatro toques',
         texto:
           'Pulsa +, ajusta el pin, elige tipo y estado, haz la foto. Sin cobertura también: se enviará solo cuando vuelva la señal.',
+        // Las definiciones de FR-18 salen del formulario y vienen aquí (docs/24 RV-99).
+        lineas: ['Malo: se probó y sale débil.', 'No funciona: no se pudo usar (tapa, válvula, arqueta).'],
       },
       {
         titulo: 'Todo pasa por jefatura',
         texto:
           'Lo que propongas no aparece en el mapa hasta que jefatura lo apruebe. Te avisaremos del resultado, y si algo se rechaza, del motivo.',
+        lineas: [] as string[],
       },
     ],
     siguiente: 'Siguiente',
@@ -207,7 +211,6 @@ export const T = {
     cercanosDesdeAqui: 'Cercanos desde aquí',
     compartirUbicacion: 'Compartir esta ubicación',
     anadirPunto: 'Añadir un punto aquí',
-    junto: (calle: Parametro) => `Junto a ${calle}`,
   },
 
   // Búsqueda de calles, lugares, direcciones y coordenadas (FR-73, docs/18 GM-04).
@@ -337,7 +340,6 @@ export const T = {
     d70: '70 mm',
     d100: '100 mm',
     otraMedida: 'Otra medida',
-    diametroAyuda: 'La salida, no la tubería. Si hay varias, marca la mayor',
     racor: 'Racor · compara con lo que ves',
     granada: 'Granada',
     barcelona: 'Barcelona',
@@ -347,7 +349,6 @@ export const T = {
     regular: 'Regular',
     malo: 'Malo',
     noFunciona: 'No funciona',
-    caudalAyuda: 'Malo = probado y sale débil. No funciona = no se pudo probar (tapa, válvula, arqueta).',
     descripcionFallo: 'Descripción del fallo · obligatoria',
     foto: 'Foto',
     fotoDeHoy: 'Foto de hoy',
@@ -380,7 +381,7 @@ export const T = {
     eligeMotivo: 'Elige un motivo',
     explicaMotivo: 'Explica brevemente qué has visto',
     fueraDeZona: '⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.',
-    ajustaPin: (metros: Parametro) => `Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±${metros} m)`,
+    ajustaPin: 'Toca el mapa para ajustar el pin',
     posicionNoAlDia: 'La posición no está al día: coloca el pin a mano o espera a que el GPS responda',
   },
 
@@ -399,9 +400,6 @@ export const T = {
     volverAlMapa: 'Volver al mapa',
     verMisPropuestas: 'Ver mis propuestas',
     jefaturaRevisara: 'Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.',
-    avisoSinCobertura: 'Sin cobertura · lo que envíes se guardará en el móvil y saldrá al recuperar señal',
-    avisoSinServidor:
-      'Sin conexión con el servidor · seguimos con los datos guardados; lo que envíes esperará y se reintentará solo',
   },
 
   misPropuestas: {
