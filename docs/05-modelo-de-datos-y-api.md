@@ -420,9 +420,11 @@ fn_fusionar_con_existente(propuesta_id uuid, punto_id uuid, prevalece jsonb defa
   -- prevalece: { "racor": "propuesta"|"existente", "caudal": …, "diametro_mm": …, "descripcion": …,
   --              "ubicacion": … }
   -- por defecto prevalece lo existente salvo foto y fecha de revisión, que son los de la propuesta.
+  -- "diametro_mm": "propuesta" sigue las reglas del alta: boca, diametro_mm, diametro_otro o 45;
+  -- hidrante con otra medida → DIAMETRO_SIN_FIJAR (0032, DEC-144).
   -- con "ubicacion": "propuesta" se recalculan municipio y núcleo y la dirección pasa a la sugerida
   -- (si no la hay, se conserva), como en fn_aplicar_propuesta (0017, RV-18).
-  -- errores: TIPO_DISTINTO · PUNTO_NO_ACTIVO · PROPUESTA_NO_ALTA
+  -- errores: TIPO_DISTINTO · PUNTO_NO_ACTIVO · PROPUESTA_NO_ALTA · DIAMETRO_SIN_FIJAR
 
 fn_editar_punto(punto_id uuid, cambios jsonb) returns void
   -- un caudal distinto de 'no_funciona' borra descripcion_fallo, como en fn_aplicar_propuesta (0024, RV-42)

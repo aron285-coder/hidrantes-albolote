@@ -36,7 +36,8 @@ begin
          or (otro #>> '{}')::numeric not between 20 and 150 then
         perform hidrantes.fn_error('PAYLOAD_INVALIDO(diametro_otro)', 'La medida de una boca es un número entero de 20 a 150 mm');
       end if;
-    elsif datos ? 'diametro_mm' and datos ->> 'diametro_mm' not in ('45', '70') then
+    -- coalesce: con un null explícito, "not in" da NULL y no se rechazaría.
+    elsif datos ? 'diametro_mm' and coalesce(datos ->> 'diametro_mm', '') not in ('45', '70') then
       perform hidrantes.fn_error('PAYLOAD_INVALIDO(diametro_mm)', 'El diámetro de una boca es 45 o 70');
     end if;
   else
@@ -92,7 +93,7 @@ begin
     if datos = '{}'::jsonb then
       perform hidrantes.fn_error('PAYLOAD_INVALIDO(datos)', 'No has cambiado nada');
     end if;
-    if datos ? 'diametro_mm' and datos ->> 'diametro_mm' not in ('45', '70', '100') then
+    if datos ? 'diametro_mm' and coalesce(datos ->> 'diametro_mm', '') not in ('45', '70', '100') then
       perform hidrantes.fn_error('PAYLOAD_INVALIDO(diametro_mm)', 'Diámetro no válido');
     end if;
   when 'retirada' then
@@ -367,7 +368,8 @@ begin
       update hidrantes.puntos x set situacion = 'retirado' where x.id = p.id returning * into p;
     end case;
   exception
-    when check_violation or not_null_violation or invalid_text_representation then
+    -- numeric_value_out_of_range: un diámetro enorme no llega crudo al cliente ni tumba el lote.
+    when check_violation or not_null_violation or invalid_text_representation or numeric_value_out_of_range then
       perform hidrantes.fn_error('PAYLOAD_INVALIDO(' || coalesce(hidrantes.constraint_name_de(sqlerrm), 'datos') || ')',
                                  'El resultado no cumple las reglas del punto');
   end;
@@ -434,7 +436,7 @@ begin
       direccion = case when cambios ? 'direccion' then nullif(trim(cambios ->> 'direccion'), '') else x.direccion end
     where x.id = punto_id
     returning * into p;
-  exception when check_violation or invalid_text_representation then
+  exception when check_violation or invalid_text_representation or numeric_value_out_of_range then
     perform hidrantes.fn_error('PAYLOAD_INVALIDO(' || coalesce(hidrantes.constraint_name_de(sqlerrm), 'cambios') || ')',
                                'El resultado no cumple las reglas del punto');
   end;
@@ -442,7 +444,8 @@ begin
 end $$;
 
 -- ---------- fusión ----------
--- Igual que 0017 salvo que el diámetro de la propuesta, en una boca, puede venir como diametro_otro.
+-- Igual que 0017 salvo el diámetro de la propuesta: en una boca puede venir como diametro_otro o no
+-- venir (45); en un hidrante con otra medida, DIAMETRO_SIN_FIJAR en vez de ignorar la elección.
 create or replace function hidrantes.fn_fusionar_con_existente(propuesta_id uuid, punto_id uuid, prevalece jsonb default '{}')
 returns jsonb
 language plpgsql volatile security definer set search_path = pg_catalog, hidrantes, extensions
@@ -455,6 +458,7 @@ declare
   usa_propuesta text[];
   k text;
   zona record;
+  diametro_propuesta smallint;
 begin
   select * into r from hidrantes.propuestas x where x.id = propuesta_id for update;
   if not found or r.estado <> 'pendiente' then
@@ -482,17 +486,23 @@ begin
     case when 'ubicacion' = any (usa_propuesta) then r.geom else p.geom end);
 
   begin
+    -- El diámetro de la propuesta, con las reglas del alta: una boca, el que trae o 45; un hidrante
+    -- con otra medida no tiene diámetro que copiar, y no se ignora en silencio lo que pidió jefatura.
+    if 'diametro_mm' = any (usa_propuesta) then
+      diametro_propuesta := case when p.tipo = 'boca_riego'
+                                 then coalesce((r.datos ->> 'diametro_mm')::smallint,
+                                               ((r.datos ->> 'diametro_otro')::numeric)::smallint, 45)
+                                 else (r.datos ->> 'diametro_mm')::smallint end;
+      if diametro_propuesta is null then
+        perform hidrantes.fn_error('DIAMETRO_SIN_FIJAR', 'La propuesta no trae 70 ni 100: deja el diámetro del punto');
+      end if;
+    end if;
     update hidrantes.puntos x set
       racor = case when 'racor' = any (usa_propuesta) then (r.datos ->> 'racor')::hidrantes.tipo_racor else x.racor end,
       caudal = case when 'caudal' = any (usa_propuesta) then (r.datos ->> 'caudal')::hidrantes.estado_caudal else x.caudal end,
       descripcion_fallo = case when 'caudal' = any (usa_propuesta)
                                then nullif(trim(r.datos ->> 'descripcion_fallo'), '') else x.descripcion_fallo end,
-      diametro_mm = case when 'diametro_mm' = any (usa_propuesta)
-                         then coalesce((r.datos ->> 'diametro_mm')::smallint,
-                                       case when x.tipo = 'boca_riego'
-                                            then ((r.datos ->> 'diametro_otro')::numeric)::smallint end,
-                                       x.diametro_mm)
-                         else x.diametro_mm end,
+      diametro_mm = coalesce(diametro_propuesta, x.diametro_mm),
       descripcion = case when 'descripcion' = any (usa_propuesta)
                          then nullif(trim(r.datos ->> 'descripcion'), '') else x.descripcion end,
       geom = case when 'ubicacion' = any (usa_propuesta) then r.geom else x.geom end,
@@ -506,7 +516,7 @@ begin
       fecha_ultima_revision = current_date
     where x.id = p.id
     returning * into p;
-  exception when check_violation or invalid_text_representation then
+  exception when check_violation or invalid_text_representation or numeric_value_out_of_range then
     perform hidrantes.fn_error('PAYLOAD_INVALIDO(fusion)', 'El resultado no cumple las reglas del punto');
   end;
 
@@ -557,5 +567,10 @@ begin
      and g.punto_id is not null;
   get diagnostics n = row_count;
   raise notice 'altas aprobadas con el punto recuperado del registro: %', n;
+  select count(*) into n from hidrantes.propuestas
+   where operacion = 'alta' and estado = 'aprobada' and correcciones is null;
+  if n > 0 then
+    raise warning 'altas aprobadas que siguen sin punto (sin fila en registro): %', n;
+  end if;
 end
 $completar$;

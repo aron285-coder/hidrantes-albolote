@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(22);
+select plan(32);
 
 insert into hidrantes.config (clave, valor, actualizado_por)
 values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen_salt('bf', 4))), 'test')
@@ -107,6 +107,63 @@ select hidrantes.fn_editar_punto(current_setting('test.boca70')::uuid, '{"diamet
 select hidrantes.fn_editar_punto(current_setting('test.boca70')::uuid, '{"racor":"barcelona"}');
 select is((select diametro_mm from hidrantes.puntos where id = current_setting('test.boca70')::uuid), 70::smallint,
   'fn_editar_punto conserva los 70 de una boca al cambiarle el racor');
+
+select throws_like($$ select hidrantes.fn_editar_punto(current_setting('test.boca70')::uuid, '{"diametro_mm":151}') $$,
+  'PAYLOAD_INVALIDO(puntos_diametro_boca)%', 'fn_editar_punto con una boca de 151: PAYLOAD_INVALIDO, no un error crudo');
+select throws_like($$ select hidrantes.fn_editar_punto(current_setting('test.boca70')::uuid, '{"diametro_mm":"99999"}') $$,
+  'PAYLOAD_INVALIDO%', 'fn_editar_punto con un número enorme: PAYLOAD_INVALIDO');
+
+-- ---------- más casos de corregir datos y del alta ----------
+select throws_like($$ select pg_temp.proponer('diam-datos-h45', 'datos', current_setting('test.hid100')::uuid,
+  '{"diametro_mm":45}') $$,
+  'PAYLOAD_INVALIDO(diametro_mm)%', 'corregir datos de un hidrante a 45: rechazado al proponer');
+select throws_like($$ select pg_temp.proponer('diam-datos-txt', 'datos', current_setting('test.boca70')::uuid,
+  '{"diametro_otro":"32"}') $$,
+  'PAYLOAD_INVALIDO(diametro_otro)%', 'una otra medida en texto: rechazada');
+select throws_like($$ select pg_temp.proponer('diam-boca-null', 'alta', null,
+  '{"tipo":"boca_riego","diametro_mm":null,"caudal":"bueno","racor":"granada"}', 37.2071, -3.6071) $$,
+  'PAYLOAD_INVALIDO(diametro_mm)%', 'un diametro_mm null explícito: rechazado');
+select is(pg_temp.aprobar(pg_temp.proponer('diam-boca-corr', 'alta', null,
+  '{"tipo":"boca_riego","diametro_otro":32,"caudal":"bueno","racor":"granada"}', 37.2081, -3.6081),
+  '{"diametro_mm":70}'), 70::smallint, 'la corrección de jefatura gana a la otra medida propuesta');
+
+-- Una pendiente de antes de 0032 con un número que no cabe: el lote la omite con su código y sigue.
+insert into hidrantes.propuestas (id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id, clave_local,
+                                  origen_ubicacion, geom, foto_path)
+values ('00000000-0000-4000-8000-0000000e2911', 'alta', '{"tipo":"boca_riego","diametro_otro":1e6,"caudal":"bueno","racor":"granada"}',
+        'Ana', 'Ruiz', gen_random_uuid(), 'diam-vieja-enorme', 'gps', 'SRID=4326;POINT(-3.6091 37.2091)', 'fotos/v.jpg');
+select set_config('request.jwt.claims',
+  '{"role":"authenticated","email":"diametro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+  true);
+select is((select resultado || ':' || motivo from hidrantes.fn_aprobar_lote(array['00000000-0000-4000-8000-0000000e2911'::uuid])),
+  'omitida:PAYLOAD_INVALIDO(datos)', 'una otra medida enorme de antes: el lote la omite con PAYLOAD_INVALIDO');
+
+-- ---------- fusión ----------
+insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, racor, foto_path, municipio, fecha_ultima_revision)
+values ('00000000-0000-4000-8000-0000000e2921', 'BOC-8292', 'boca_riego', 'SRID=4326;POINT(-3.6201 37.2201)', 45, 'bueno',
+        'granada', 'fotos/f1.jpg', 'albolote', current_date),
+       ('00000000-0000-4000-8000-0000000e2922', 'HID-8293', 'hidrante', 'SRID=4326;POINT(-3.6211 37.2211)', 70, 'bueno',
+        null, 'fotos/f2.jpg', 'albolote', current_date);
+insert into hidrantes.propuestas (id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id, clave_local,
+                                  origen_ubicacion, geom, foto_path)
+values ('00000000-0000-4000-8000-0000000e2931', 'alta', '{"tipo":"boca_riego","diametro_otro":32,"caudal":"bueno","racor":"granada"}',
+        'Ana', 'Ruiz', gen_random_uuid(), 'diam-fusion-boca', 'gps', 'SRID=4326;POINT(-3.6201 37.2201)', 'fotos/f3.jpg'),
+       ('00000000-0000-4000-8000-0000000e2932', 'alta', '{"tipo":"hidrante","diametro_otro":80,"caudal":"bueno"}',
+        'Ana', 'Ruiz', gen_random_uuid(), 'diam-fusion-hid', 'gps', 'SRID=4326;POINT(-3.6211 37.2211)', 'fotos/f4.jpg');
+select hidrantes.fn_fusionar_con_existente('00000000-0000-4000-8000-0000000e2931', '00000000-0000-4000-8000-0000000e2921',
+  '{"diametro_mm":"propuesta"}');
+select is((select diametro_mm from hidrantes.puntos where id = '00000000-0000-4000-8000-0000000e2921'), 32::smallint,
+  'fusión con el diámetro de la propuesta: la otra medida de la boca (32)');
+select throws_like($$ select hidrantes.fn_fusionar_con_existente('00000000-0000-4000-8000-0000000e2932',
+  '00000000-0000-4000-8000-0000000e2922', '{"diametro_mm":"propuesta"}') $$,
+  'DIAMETRO_SIN_FIJAR%', 'fusión de un hidrante con otra medida eligiendo su diámetro: DIAMETRO_SIN_FIJAR, no se ignora');
+
+-- ---------- las altas aprobadas de antes ----------
+select is((select count(*)::int from hidrantes.propuestas r
+            where r.operacion = 'alta' and r.estado = 'aprobada' and r.correcciones is null
+              and exists (select 1 from hidrantes.registro g where g.propuesta_id = r.id
+                             and g.accion in ('aprobacion', 'aprobacion_con_correcciones') and g.punto_id is not null)),
+  0, 'ninguna alta aprobada se queda sin su punto en correcciones si el registro lo sabe');
 
 -- ---------- restricción y tamaño del marcador ----------
 select throws_ok($$ insert into hidrantes.puntos (codigo, tipo, geom, diametro_mm, caudal, racor, foto_path, municipio,
