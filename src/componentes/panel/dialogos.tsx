@@ -15,6 +15,7 @@ import {
   nombreAccion,
   retirarPunto,
 } from '@/lib/panel/inventario';
+import { diametroBocaValido } from '@/lib/panel/cola';
 import { textoError } from '@/lib/panel/errores';
 import type { Caudal, Punto, Racor } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -49,13 +50,15 @@ export function DialogoEditar({
   const cambios = cambiosDe(punto, v);
   const tipo = v.tipo ?? punto.tipo;
   const falta =
-    tipo === 'boca_riego' && !v.racor
-      ? T.avisosFormulario.eligeRacor
-      : v.caudal === 'no_funciona' && !v.descripcion_fallo?.trim()
-        ? T.avisosFormulario.describeFallo
-        : !Object.keys(cambios).length
-          ? T.avisosFormulario.sinCambios
-          : null;
+    tipo === 'boca_riego' && !diametroBocaValido(v.diametro_mm ?? null)
+      ? T.avisosFormulario.indicaMedida
+      : tipo === 'boca_riego' && !v.racor
+        ? T.avisosFormulario.eligeRacor
+        : v.caudal === 'no_funciona' && !v.descripcion_fallo?.trim()
+          ? T.avisosFormulario.describeFallo
+          : !Object.keys(cambios).length
+            ? T.avisosFormulario.sinCambios
+            : null;
 
   async function guardar() {
     setOcupado(true);
@@ -89,20 +92,38 @@ export function DialogoEditar({
             </select>
           </label>
         ) : (
-          <label>
-            <span className={etiqueta}>{T.panelCola.campoRacor}</span>
-            <select
-              className={campo}
-              value={v.racor ?? ''}
-              onChange={(e) => setV((x) => ({ ...x, racor: (e.target.value || null) as Racor | null }))}
-            >
-              {RACORES.map((r) => (
-                <option key={r} value={r}>
-                  {nombreRacor(r)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <>
+            {/* El diámetro de una boca: cualquier entero de 20 a 150 (docs/24 RV-101, DEC-144). */}
+            <label>
+              <span className={etiqueta}>{T.panelCola.campoDiametro}</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={20}
+                max={150}
+                step={1}
+                className={campo}
+                value={v.diametro_mm ?? ''}
+                onChange={(e) =>
+                  setV((x) => ({ ...x, diametro_mm: e.target.value === '' ? undefined : Number(e.target.value) }))
+                }
+              />
+            </label>
+            <label>
+              <span className={etiqueta}>{T.panelCola.campoRacor}</span>
+              <select
+                className={campo}
+                value={v.racor ?? ''}
+                onChange={(e) => setV((x) => ({ ...x, racor: (e.target.value || null) as Racor | null }))}
+              >
+                {RACORES.map((r) => (
+                  <option key={r} value={r}>
+                    {nombreRacor(r)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
         )}
         <label>
           <span className={etiqueta}>{T.panelCola.campoEstado}</span>

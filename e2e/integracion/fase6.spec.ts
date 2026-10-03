@@ -42,6 +42,8 @@ async function foto(page: Page): Promise<Buffer> {
 async function altaBocaDeRiego(page: Page, descripcion: string, boton: string) {
   await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
   await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+  // docs/24 RV-101: la boca también pide el diámetro.
+  await page.getByRole('radio', { name: T.formulario.d45 }).click();
   await page.getByRole('radio', { name: T.formulario.barcelona }).click();
   await page.getByRole('radio', { name: T.formulario.bueno }).click();
   await page

@@ -218,8 +218,11 @@ describe('aprobar con correcciones (FR-106)', () => {
     expect(correccionesDe(base, { ...base, caudal: 'malo', descripcion: ' Junto al bar ' })).toEqual({
       caudal: 'malo',
     });
+    // El diámetro va también: con bocas de otra medida (docs/24 RV-101), el servidor tomaría el 100 del
+    // hidrante propuesto como diámetro de la boca.
     expect(correccionesDe(base, { ...base, tipo: 'boca_riego', diametro_mm: 45, racor: 'granada' })).toEqual({
       tipo: 'boca_riego',
+      diametro_mm: 45,
       racor: 'granada',
     });
   });

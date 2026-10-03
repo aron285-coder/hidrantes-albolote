@@ -235,7 +235,8 @@ export function cambiosDe(p: Punto, v: CambiosPunto): CambiosPunto {
     campo in v && (a?.trim() || null) !== b;
   // El tipo no se cambia desde el inventario: se retira el punto y se da de alta el correcto (DEC-090).
   const tipoFinal = p.tipo;
-  if (tipoFinal === 'hidrante' && v.diametro_mm && v.diametro_mm !== p.diametro_mm) c.diametro_mm = v.diametro_mm;
+  // En una boca también: 45, 70 o la medida que tenga, de 20 a 150 (docs/24 RV-101, DEC-144).
+  if (v.diametro_mm && v.diametro_mm !== p.diametro_mm) c.diametro_mm = v.diametro_mm;
   if (v.caudal && v.caudal !== p.caudal) c.caudal = v.caudal;
   if (tipoFinal === 'boca_riego' && cambia('racor', v.racor, p.racor)) c.racor = v.racor ?? null;
   const caudalFinal = v.caudal ?? p.caudal;

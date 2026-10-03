@@ -22,9 +22,9 @@ const TABLA: [number, Caudal, number][] = [
   [45, 'regular', 3],
   [45, 'malo', 3],
   [45, 'no_funciona', 4],
-  [80, 'bueno', 4],
-  [80, 'regular', 4],
-  [80, 'malo', 4],
+  [80, 'bueno', 0],
+  [80, 'regular', 1],
+  [80, 'malo', 2],
   [80, 'no_funciona', 4],
 ];
 
