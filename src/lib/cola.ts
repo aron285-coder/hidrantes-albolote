@@ -26,6 +26,14 @@ export interface EnCola {
    */
   foto_sitio?: Blob | null;
   foto_sitio_path?: string | null;
+  /**
+   * Guardado por esta versión: sale con la firma nueva de fn_proponer. Un envío de la versión
+   * anterior no lo tiene y sale con la de antes; se marca aparte para no depender de si un campo
+   * existe (DEC-150).
+   */
+  firma_nueva?: true;
+  /** FOTO_NO_RESERVADA seguidos: al segundo se vuelven a subir las dos fotos (DEC-150). */
+  no_reservada_seguidas?: number;
   /** Código del punto, o null en un alta, para enseñarlo en Mis propuestas. */
   codigo: string | null;
   intentos: number;
@@ -172,6 +180,7 @@ export async function encolar(
     foto_path: null,
     foto_sitio: fotoSitio,
     foto_sitio_path: null,
+    firma_nueva: true,
     codigo,
     intentos: 0,
     proximo: 0,
@@ -280,19 +289,26 @@ async function enviarUno(clave: string, c: Credencial, gen: number): Promise<Pas
     // Firma nueva (0035): la clave va siempre, a null si no hay foto del sitio. Sin la clave, PostgREST
     // elegiría la de antes y un alta entraría sin foto del sitio. Un envío de la versión anterior no
     // tiene el campo y sale con la firma vieja: nada de lo que había en cola se pierde (DEC-150).
-    ...('foto_sitio' in item ? { foto_sitio_path: item.foto_sitio_path ?? null } : {}),
+    ...(item.firma_nueva ? { foto_sitio_path: item.foto_sitio_path ?? null } : {}),
   });
   if (gen !== generacion) return { ok: false, codigo: COLA_VACIADA };
   if (!r.ok) {
-    if (r.codigo === 'FOTO_NO_RESERVADA') {
-      // La reserva caducó o se perdió: se sube otra vez, en el siguiente intento, la que falte. El
-      // servidor lo dice en el texto ("La foto del sitio no se subió…"); sin él, las dos.
-      const delSitio = /del sitio/i.test(r.mensaje ?? '');
-      const deLaConexion = !!r.mensaje && !delSitio;
+    if (r.codigo.startsWith('FOTO_NO_RESERVADA')) {
+      // La reserva caducó o se perdió: se sube otra vez, en el siguiente intento, la que falte. 0035 da
+      // el mismo código para las dos y lo dice en el texto ("La foto del sitio no se subió…"); se
+      // admite también un código con sufijo, por si el servidor lo distingue más adelante. Si no se
+      // sabe cuál, o el error se repite (el texto cambió y se adivinó mal), se suben las dos: así no
+      // se reintenta para siempre con la misma ruta caducada.
+      const seguidas = (item.no_reservada_seguidas ?? 0) + 1;
+      const textoServidor = (r.mensaje ?? '').slice((r.mensaje ?? '').indexOf(':') + 1).trim();
+      const delSitio = r.codigo.includes('foto_sitio') || /del sitio/i.test(textoServidor);
+      const sabido = r.codigo.includes('(') || textoServidor.length > 0;
+      const lasDos = !sabido || seguidas > 1;
       await guardar({
         ...item,
-        ...(item.foto && !delSitio ? { foto_path: null } : {}),
-        ...(item.foto_sitio && !deLaConexion ? { foto_sitio_path: null } : {}),
+        no_reservada_seguidas: seguidas,
+        ...(item.foto && (lasDos || !delSitio) ? { foto_path: null } : {}),
+        ...(item.foto_sitio && (lasDos || delSitio) ? { foto_sitio_path: null } : {}),
       });
     }
     return r;

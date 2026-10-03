@@ -107,6 +107,7 @@ describe('Barro, un estado conocido (RV-102)', () => {
       caudal: BARRO,
       fallo: 'x',
       hayFoto: true,
+      hayFotoSitio: true,
     } as const;
     expect(queFalta(alta, null)).toBeNull();
     expect(datosDe(alta, null)).not.toHaveProperty('descripcion_fallo');
