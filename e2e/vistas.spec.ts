@@ -150,6 +150,20 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByRole('article')).toBeVisible(),
   },
   {
+    // docs/24 RV-99 y RV-100: sin título visible, «Añadir un punto aquí» primero y en naranja.
+    nombre: 'que-hay-aqui',
+    ruta: `/?aqui=${P0.lat.toFixed(6)},${P0.lng.toFixed(6)}`,
+    preparar: voluntario,
+    lista: (p) => expect(p.getByRole('dialog', { name: T.aqui.titulo })).toBeVisible(),
+  },
+  {
+    // docs/24 RV-99: el formulario de alta sin las definiciones debajo de los campos.
+    nombre: 'nuevo-punto',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: (p) => expect(p.getByRole('radio', { name: T.formulario.hidrante })).toBeVisible(),
+  },
+  {
     nombre: 'lista',
     ruta: '/lista',
     preparar: voluntario,

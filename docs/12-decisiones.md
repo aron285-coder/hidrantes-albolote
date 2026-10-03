@@ -900,6 +900,17 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:** el mismo criterio que "Último respaldo" (RV-78): con `ENTORNO === 'staging'` y `storage_bytes` a `null`, "no se mide en pruebas". Con un número, el número (también en staging, por si algún día se mide). En producción y en local, `null` sigue siendo "sin dato". `textoAlmacenamiento(bytes, entorno)` recibe el entorno como parámetro para probar los dos casos con vitest sin depender del build.
 - **Afecta a:** 06 Apéndice A; `src/lib/panel/ajustes.ts`, `src/componentes/panel/Ajustes.tsx`.
 
+### DEC-147 · Como mucho un botón primario por pantalla, arriba del grupo de acciones
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-100). Sesión Frontend.
+- **Contexto:** en "¿Qué hay aquí?" la acción más usada, *Añadir un punto aquí*, era la última de cuatro botones iguales. En la pantalla de resultado sin IndexedDB había dos primarios naranjas (*Reintentar ahora* y *Volver al mapa*).
+- **Decisión:**
+  1. Una pantalla o una hoja tiene **como mucho un primario** (`--naranja-600`), arriba del grupo de acciones, y es la acción más usada (06 §5).
+  2. En "¿Qué hay aquí?" es *Añadir un punto aquí*, primero y en naranja, el mismo color que el + del mapa: un color dice "añadir" en toda la app. Cercanos, Medir y Compartir siguen como secundarios.
+  3. Repaso: la **ficha** no tiene primario y no se le inventa (sus acciones, *Proponer un cambio*, *Cómo llegar* y *Compartir*, no tienen una más usada clara). La hoja **"Proponer un cambio"** es una lista de filas, sin botones primarios. El **formulario** tiene uno, el de envío. La **pantalla de resultado** con *Reintentar ahora* dejaba dos: *Volver al mapa* pasa a secundario mientras hay que reintentar.
+  4. Lo comprueban `src/componentes/mapa/acciones-campo.test.tsx` (QueHayAqui y Ficha) y `e2e/operaciones.spec.ts` (pantalla de resultado).
+- **Descartado:** el primario abajo, como en un formulario: en una hoja de acciones la que más se usa tiene que ser la primera que se ve.
+- **Afecta a:** 06 §5; 01 FR-72; `src/componentes/mapa/QueHayAqui.tsx`, `src/paginas/Proponer.tsx`.
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**
@@ -1780,7 +1791,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |
