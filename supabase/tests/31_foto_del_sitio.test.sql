@@ -87,8 +87,8 @@ select throws_like($$ select pg_temp.proponer('sitio-ubic-sin', 'ubicacion', '00
 select throws_like($$ select pg_temp.proponer('sitio-rev', 'revision', '00000000-0000-4000-8000-0000000e3151',
   '{}', null, null, pg_temp.foto(), pg_temp.foto()) $$,
   'PAYLOAD_INVALIDO(foto_sitio_path)%', 'revisión con foto del sitio: PAYLOAD_INVALIDO(foto_sitio_path)');
-select throws_like($ select pg_temp.proponer('sitio-est', 'estado', '00000000-0000-4000-8000-0000000e3151',
-  '{"caudal":"malo"}', null, null, pg_temp.foto(), pg_temp.foto()) $,
+select throws_like($$ select pg_temp.proponer('sitio-est', 'estado', '00000000-0000-4000-8000-0000000e3151',
+  '{"caudal":"malo"}', null, null, pg_temp.foto(), pg_temp.foto()) $$,
   'PAYLOAD_INVALIDO(foto_sitio_path)%', 'cambio de estado con foto del sitio: PAYLOAD_INVALIDO(foto_sitio_path)');
 select set_config('test.misma', pg_temp.foto(), true);
 select throws_like($$ select pg_temp.proponer('sitio-misma', 'alta', null,
