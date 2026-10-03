@@ -11,11 +11,11 @@ import {
   borrarPunto,
   cambiosDe,
   editarPunto,
+  faltaEnEdicion,
   historialPunto,
   nombreAccion,
   retirarPunto,
 } from '@/lib/panel/inventario';
-import { diametroBocaValido } from '@/lib/panel/cola';
 import { textoError } from '@/lib/panel/errores';
 import type { Caudal, Punto, Racor } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -49,16 +49,7 @@ export function DialogoEditar({
   const [ocupado, setOcupado] = useState(false);
   const cambios = cambiosDe(punto, v);
   const tipo = v.tipo ?? punto.tipo;
-  const falta =
-    tipo === 'boca_riego' && !diametroBocaValido(v.diametro_mm ?? null)
-      ? T.avisosFormulario.indicaMedida
-      : tipo === 'boca_riego' && !v.racor
-        ? T.avisosFormulario.eligeRacor
-        : v.caudal === 'no_funciona' && !v.descripcion_fallo?.trim()
-          ? T.avisosFormulario.describeFallo
-          : !Object.keys(cambios).length
-            ? T.avisosFormulario.sinCambios
-            : null;
+  const falta = faltaEnEdicion(punto, v);
 
   async function guardar() {
     setOcupado(true);

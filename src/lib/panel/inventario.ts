@@ -7,6 +7,7 @@ import { CAUDALES, caudalParaDibujar } from '../caudal';
 import { type Caudal, type Punto, type TipoPunto, sincronizar } from '../puntos';
 import type { FiltrosExportacion } from './exportar';
 import { T } from '../textos';
+import { diametroBocaValido } from './cola';
 import { leerLista, leerPagina } from './consultas';
 import { sinAcentos } from './cola';
 
@@ -226,6 +227,17 @@ export async function restaurarPunto(id: string): Promise<Resultado<null>> {
 }
 
 export const purgarPapelera = () => rpc<number>('fn_purgar_papelera');
+
+/**
+ * Qué impide guardar la edición de un punto desde el inventario (UI-02), o null: el diámetro de una
+ * boca (entero de 20 a 150, DEC-144), su racor, la descripción del fallo y que haya algún cambio.
+ */
+export function faltaEnEdicion(p: Punto, v: CambiosPunto): string | null {
+  if (p.tipo === 'boca_riego' && !diametroBocaValido(v.diametro_mm ?? null)) return T.avisosFormulario.indicaMedida;
+  if (p.tipo === 'boca_riego' && !v.racor) return T.avisosFormulario.eligeRacor;
+  if (v.caudal === 'no_funciona' && !v.descripcion_fallo?.trim()) return T.avisosFormulario.describeFallo;
+  return Object.keys(cambiosDe(p, v)).length ? null : T.avisosFormulario.sinCambios;
+}
 
 /** Lo que cambia respecto al punto actual: `fn_editar_punto` rechaza un objeto vacío. */
 export function cambiosDe(p: Punto, v: CambiosPunto): CambiosPunto {

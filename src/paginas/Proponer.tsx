@@ -413,7 +413,12 @@ function DatosPunto({
               ['boca_riego', T.formulario.bocaRiego],
             ]}
             valor={tipo}
-            alCambiar={(t) => cambiar({ tipo: t, diametro: diametroPermitido(t, f.diametro) ? f.diametro : undefined })}
+            alCambiar={(t) =>
+              cambiar({
+                tipo: t,
+                diametro: diametroPermitido(t, f.diametro) && f.diametro !== 'otro' ? f.diametro : undefined,
+              })
+            }
             etiqueta={T.formulario.tipoElemento}
           />
         </Campo>

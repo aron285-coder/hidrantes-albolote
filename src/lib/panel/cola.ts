@@ -252,6 +252,14 @@ export function filasDiff(p: PropuestaPanel, punto?: Punto): FilaDiff[] {
           despues: valorDe(campo, d[campo]),
         });
       }
+      // Una boca corregida a otra medida (docs/24 RV-101): el número, frente al diámetro que tenía.
+      if ('diametro_otro' in d) {
+        filas.push({
+          campo: T.panelCola.campoDiametro,
+          antes: 'diametro_mm' in antes ? valorDe('diametro_mm', antes.diametro_mm) : undefined,
+          despues: T.formato.mm(texto(d.diametro_otro)),
+        });
+      }
       break;
     case 'ubicacion':
       if (punto && p.lat != null && p.lng != null) {
@@ -332,7 +340,7 @@ export function senales(p: PropuestaPanel): Senal[] {
   }
   if (p.otra_medida) {
     s.push(
-      p.datos?.tipo === 'boca_riego'
+      tipoDePropuesta(p) === 'boca_riego'
         ? { texto: T.panelCola.senalOtraMedidaBoca(texto(p.datos.diametro_otro)), aviso: false }
         : { texto: T.panelCola.senalOtraMedida, aviso: true },
     );
@@ -385,7 +393,8 @@ export function correccionesDe(propuesto: ValoresPunto, final: ValoresPunto): Re
   const c: Record<string, unknown> = {};
   if (final.tipo !== propuesto.tipo) c.tipo = final.tipo;
   // Jefatura fija el de un hidrante (70 o 100) y corrige el de una boca con cualquier entero de 20 a 150.
-  if (final.diametro_mm !== propuesto.diametro_mm) c.diametro_mm = final.diametro_mm;
+  // Si cambia el tipo, va siempre: si no, el servidor tomaría el diametro_otro de lo propuesto.
+  if (final.diametro_mm !== propuesto.diametro_mm || final.tipo !== propuesto.tipo) c.diametro_mm = final.diametro_mm;
   if (final.caudal !== propuesto.caudal) c.caudal = final.caudal;
   if (final.tipo === 'boca_riego' && final.racor !== propuesto.racor) c.racor = final.racor;
   if (final.caudal === 'no_funciona' && final.descripcion_fallo.trim() !== propuesto.descripcion_fallo.trim()) {
@@ -409,8 +418,18 @@ export const diametroBocaValido = (d: number | null) => d != null && Number.isIn
  */
 export function bloqueoPorMedida(p: PropuestaPanel, punto?: Punto): string | null {
   if (!p.otra_medida) return null;
-  const tipo = (p.datos?.tipo as TipoPunto | undefined) ?? punto?.tipo ?? 'hidrante';
-  return tipo === 'boca_riego' ? null : T.panelCola.fijaDiametro;
+  return tipoDePropuesta(p, punto) === 'boca_riego' ? null : T.panelCola.fijaDiametro;
+}
+
+/**
+ * El tipo del punto de una propuesta: el del alta, el del punto si se tiene a mano o, si no (la lista
+ * de la cola), el del código: "corregir datos" no trae el tipo en `datos` (DEC-090).
+ */
+export function tipoDePropuesta(p: PropuestaPanel, punto?: Punto): TipoPunto {
+  const tipo = p.datos?.tipo as TipoPunto | undefined;
+  if (tipo === 'hidrante' || tipo === 'boca_riego') return tipo;
+  if (punto) return punto.tipo;
+  return p.codigo?.startsWith('BOC-') ? 'boca_riego' : 'hidrante';
 }
 
 /** Qué impide guardar el formulario de correcciones, o null si se puede (UI-02). */

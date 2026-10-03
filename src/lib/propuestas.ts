@@ -55,6 +55,12 @@ export interface Formulario {
 const lleno = (s?: string) => !!s && s.trim().length > 0;
 
 /**
+ * La otra medida de una boca al corregir datos: la escrita o, si no se ha tocado el campo, la que ya
+ * tiene la boca (la pantalla la enseña precargada). Así volver a "Otra medida" no pide escribirla.
+ */
+const otraMedidaDatos = (f: Formulario, p: Punto) => f.diametroOtro ?? String(p.diametro_mm);
+
+/**
  * Campos que cambian en "corregir datos" respecto al punto (FR-44). El tipo no está entre ellos: no
  * se cambia una vez creado; se corrige retirando el punto y dando de alta el correcto (FR-11, DEC-090).
  */
@@ -63,8 +69,9 @@ export function cambiosDatos(f: Formulario, p: Punto): Record<string, unknown> {
   if (p.tipo === 'boca_riego') {
     // 45 o 70 como diametro_mm; otra medida como diametro_otro entero (DEC-144). Lo que ya tiene no viaja.
     if ((f.diametro === 45 || f.diametro === 70) && f.diametro !== p.diametro_mm) c.diametro_mm = f.diametro;
-    if (f.diametro === 'otro' && medidaBocaValida(f.diametroOtro) && Number(f.diametroOtro) !== p.diametro_mm) {
-      c.diametro_otro = Number(f.diametroOtro);
+    const otra = otraMedidaDatos(f, p);
+    if (f.diametro === 'otro' && medidaBocaValida(otra) && Number(otra) !== p.diametro_mm) {
+      c.diametro_otro = Number(otra);
     }
     if ((f.racor ?? p.racor) !== p.racor) c.racor = f.racor ?? p.racor;
   } else {
@@ -102,7 +109,8 @@ export function queFalta(f: Formulario, p: Punto | null): string | null {
       return f.hayFoto ? null : a.faltaFoto;
     case 'datos': {
       if (!p) return a.sinCambios;
-      if (p.tipo === 'boca_riego' && f.diametro === 'otro' && !medidaBocaValida(f.diametroOtro)) return a.indicaMedida;
+      if (p.tipo === 'boca_riego' && f.diametro === 'otro' && !medidaBocaValida(otraMedidaDatos(f, p)))
+        return a.indicaMedida;
       if (p.tipo === 'boca_riego' && !(f.racor ?? p.racor)) return a.eligeRacor;
       return Object.keys(cambiosDatos(f, p)).length ? null : a.sinCambios;
     }
