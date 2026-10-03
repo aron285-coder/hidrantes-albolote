@@ -176,6 +176,17 @@ const VISTAS: Vista[] = [
     },
   },
   {
+    // docs/24 RV-103: las dos fotos del alta, Conexión y Sitio, lado a lado.
+    nombre: 'nuevo-punto-fotos',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: async (p) => {
+      const hueco = p.getByTestId('hueco-entrada-foto-sitio');
+      await hueco.scrollIntoViewIfNeeded();
+      await expect(hueco).toBeVisible();
+    },
+  },
+  {
     nombre: 'lista',
     ruta: '/lista',
     preparar: voluntario,

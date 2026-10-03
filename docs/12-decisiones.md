@@ -980,6 +980,22 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** dejar 45 marcado por defecto (un toque menos, pero las bocas de 70 entrarían como 45 sin que nadie lo decidiera).
 - **Afecta a:** 06 Apéndice A; `src/lib/propuestas.ts`, `src/lib/derivar.ts`, `src/lib/panel/cola.ts`, `src/lib/panel/inventario.ts`, `src/paginas/Proponer.tsx`, `src/componentes/panel/DetallePropuesta.tsx`, `src/componentes/panel/dialogos.tsx`.
 
+### DEC-150 · Pantalla de la foto del sitio: dos huecos, cola compatible y qué foto se vuelve a subir
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-103, pantalla de DEC-146). Sesión Frontend.
+- **Contexto:** desde 0035 `fn_proponer` tiene una firma nueva con `foto_sitio_path`, obligatoria en alta y ubicación; la de antes se queda para la app anterior. PostgREST elige la firma por los nombres de los parámetros: si falta la clave, entra por la vieja sin error.
+- **Decisión:**
+  1. **Formulario:** en alta y corregir ubicación, dos huecos lado a lado, **Conexión** y **Sitio**, los dos obligatorios; el botón dice "Falta la foto del sitio" (UI-05). Revisión, estado, datos y retirada siguen con una. Nombre accesible de cada hueco: "Hacer foto · Sitio · obligatoria" y "repetir · Sitio".
+  2. **Procesado:** la del sitio a 1280 px y objetivo ≈ 150 kB (`PERFIL_SITIO` en `foto.ts`); la de la conexión no cambia (TR-15).
+  3. **Cola:** cada envío nuevo guarda `foto_sitio` y `foto_sitio_path` (a `null` si no hay) y llama a `fn_proponer` **siempre con la clave** `foto_sitio_path`. Uno guardado por la versión anterior no tiene el campo: se lee tal cual y sale con la firma vieja, así que nada de lo que había en cola se pierde al actualizar ni hace falta migrar IndexedDB (el almacén guarda objetos enteros). Se suben las dos, cada una con su reserva, antes de `fn_proponer`.
+  4. **`FOTO_NO_RESERVADA`:** el código es el mismo para las dos fotos y solo el texto del servidor dice cuál ("La foto del sitio no se subió…"). `rpc` devuelve ahora también ese texto (`mensaje`, que nunca se enseña) y la cola vuelve a subir solo la que falta; sin texto, las dos. Pedir a Backend un código distinto habría cambiado 0035 ya fusionada.
+  5. `FOTO_SITIO_OBLIGATORIA` es un error permanente en la cola y se traduce en Mis propuestas ("Falta la foto del sitio: no se ha enviado.") y en el panel.
+  6. **Ficha:** la de la conexión y, si hay foto del sitio, dos botones de 44 px con un punto y su palabra, y se puede deslizar. Las dos se cargan con la ficha abierta (`loading="lazy"`).
+  7. **Panel:** el detalle enseña las dos fotos lado a lado, cada una con su palabra; la señal "sin foto del sitio" es aviso (la mandó la app anterior). El historial lee también `foto_sitio_path`. El inventario no cambia.
+  8. **Exportación (FR-160):** dos columnas al final, "Foto" y "Foto del sitio", con la URL pública; en GeoJSON, `foto` y `foto_sitio`. La exportación no tenía la foto de la conexión: se añade también, porque la del sitio sola no tiene sentido.
+  9. Los e2e de integración de Backend (`fase6`, `fase7`, `fase8`) suben también la foto del sitio en sus altas, y `fase6` comprueba que las tres altas llegan a la cola del panel con las dos fotos; avisado en #409.
+- **Descartado:** reenviar con la firma nueva los envíos antiguos de alta y ubicación: fallarían con `FOTO_SITIO_OBLIGATORIA` y se perderían.
+- **Afecta a:** 02 FL-03 y FL-07; 06 §5 y Apéndice A; `src/lib/api.ts`, `cola.ts`, `foto.ts`, `propuestas.ts`, `nombres-operacion.ts`, `panel/cola.ts`, `panel/errores.ts`, `panel/exportar.ts`, `src/componentes/operaciones/Campos.tsx`, `src/componentes/mapa/Ficha.tsx`, `src/componentes/panel/DetallePropuesta.tsx`, `src/paginas/Proponer.tsx`.
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**
@@ -1860,7 +1876,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 150 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

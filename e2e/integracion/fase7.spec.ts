@@ -177,6 +177,10 @@ test('duplicado a 8 m: se detecta al proponer y se fusiona sin crear un punto nu
   await page
     .getByTestId('entrada-foto')
     .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
+  // docs/24 RV-103: el alta lleva también la foto del sitio.
+  await page
+    .getByTestId('entrada-foto-sitio')
+    .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
   await page.getByLabel(T.formulario.descripcionOpcional).fill(`${marca} propuesta`);
   await page.getByRole('button', { name: T.envio.enviarRevision, exact: true }).click();
   await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible({ timeout: 20_000 });

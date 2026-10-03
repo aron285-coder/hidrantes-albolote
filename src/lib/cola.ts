@@ -20,6 +20,12 @@ export interface EnCola {
   args: ArgumentosPropuesta;
   foto: Blob | null;
   foto_path: string | null;
+  /**
+   * La foto del sitio (docs/24 RV-103, DEC-146): solo en alta y ubicación. Un envío guardado por la
+   * versión anterior no tiene el campo: se lee tal cual y sale con la firma vieja de fn_proponer.
+   */
+  foto_sitio?: Blob | null;
+  foto_sitio_path?: string | null;
   /** Código del punto, o null en un alta, para enseñarlo en Mis propuestas. */
   codigo: string | null;
   intentos: number;
@@ -44,6 +50,7 @@ const PERMANENTES = [
   'PUNTO_NO_ENCONTRADO',
   'PUNTO_NO_ACTIVO',
   'DIAMETRO_SIN_FIJAR',
+  'FOTO_SITIO_OBLIGATORIA',
   'TIPO_NO_MODIFICABLE',
 ];
 export const esPermanente = (codigo: string) => PERMANENTES.some((p) => codigo.startsWith(p));
@@ -154,6 +161,7 @@ export async function encolar(
   args: ArgumentosPropuesta,
   foto: Blob | null,
   codigo: string | null,
+  fotoSitio: Blob | null = null,
 ): Promise<{ persistida: boolean }> {
   if (!cargada) await cargarCola();
   const persistida = await guardar({
@@ -162,6 +170,8 @@ export async function encolar(
     args,
     foto,
     foto_path: null,
+    foto_sitio: fotoSitio,
+    foto_sitio_path: null,
     codigo,
     intentos: 0,
     proximo: 0,
@@ -208,7 +218,11 @@ async function credencial(): Promise<Credencial | null> {
 
 type Paso = { ok: true } | { ok: false; codigo: string };
 
-async function subirFoto(item: EnCola, c: Credencial, gen: number): Promise<Paso> {
+type CualFoto = 'foto' | 'foto_sitio';
+
+/** Reserva una ruta (/api/url-subida), sube una de las dos fotos y guarda su ruta en el envío. */
+async function subirFoto(item: EnCola, cual: CualFoto, c: Credencial, gen: number): Promise<Paso> {
+  const blob = item[cual]!;
   let reserva: Response;
   try {
     reserva = await fetch('/api/url-subida', {
@@ -231,8 +245,8 @@ async function subirFoto(item: EnCola, c: Credencial, gen: number): Promise<Paso
     const subida = await fetch(cuerpo.url, {
       method: 'PUT',
       signal: conLimite(LIMITES_RED.foto),
-      headers: { 'Content-Type': item.foto!.type || 'image/jpeg' },
-      body: item.foto,
+      headers: { 'Content-Type': blob.type || 'image/jpeg' },
+      body: blob,
     });
     if (!subida.ok) return { ok: false, codigo: SIN_SERVIDOR };
   } catch {
@@ -241,7 +255,7 @@ async function subirFoto(item: EnCola, c: Credencial, gen: number): Promise<Paso
   // Si la cola se vació mientras subía, o el envío ya no está, no se resucita nada.
   const actual = items.find((i) => i.clave_local === item.clave_local);
   if (gen !== generacion || !actual) return { ok: false, codigo: COLA_VACIADA };
-  await guardar({ ...actual, foto_path: cuerpo.foto_path });
+  await guardar({ ...actual, [cual === 'foto' ? 'foto_path' : 'foto_sitio_path']: cuerpo.foto_path });
   return { ok: true };
 }
 
@@ -249,7 +263,12 @@ async function enviarUno(clave: string, c: Credencial, gen: number): Promise<Pas
   let item = items.find((i) => i.clave_local === clave);
   if (!item) return { ok: true };
   if (item.foto && !item.foto_path) {
-    const r = await subirFoto(item, c, gen);
+    const r = await subirFoto(item, 'foto', c, gen);
+    if (!r.ok) return r;
+    item = items.find((i) => i.clave_local === clave)!;
+  }
+  if (item.foto_sitio && !item.foto_sitio_path) {
+    const r = await subirFoto(item, 'foto_sitio', c, gen);
     if (!r.ok) return r;
     item = items.find((i) => i.clave_local === clave)!;
   }
@@ -258,12 +277,23 @@ async function enviarUno(clave: string, c: Credencial, gen: number): Promise<Pas
     ...item.args,
     token: 'token' in c ? c.token : null,
     foto_path: item.foto_path,
+    // Firma nueva (0035): la clave va siempre, a null si no hay foto del sitio. Sin la clave, PostgREST
+    // elegiría la de antes y un alta entraría sin foto del sitio. Un envío de la versión anterior no
+    // tiene el campo y sale con la firma vieja: nada de lo que había en cola se pierde (DEC-150).
+    ...('foto_sitio' in item ? { foto_sitio_path: item.foto_sitio_path ?? null } : {}),
   });
   if (gen !== generacion) return { ok: false, codigo: COLA_VACIADA };
   if (!r.ok) {
-    if (r.codigo === 'FOTO_NO_RESERVADA' && item.foto) {
-      // La reserva caducó o se perdió: se sube otra vez en el siguiente intento.
-      await guardar({ ...item, foto_path: null });
+    if (r.codigo === 'FOTO_NO_RESERVADA') {
+      // La reserva caducó o se perdió: se sube otra vez, en el siguiente intento, la que falte. El
+      // servidor lo dice en el texto ("La foto del sitio no se subió…"); sin él, las dos.
+      const delSitio = /del sitio/i.test(r.mensaje ?? '');
+      const deLaConexion = !!r.mensaje && !delSitio;
+      await guardar({
+        ...item,
+        ...(item.foto && !delSitio ? { foto_path: null } : {}),
+        ...(item.foto_sitio && !deLaConexion ? { foto_sitio_path: null } : {}),
+      });
     }
     return r;
   }

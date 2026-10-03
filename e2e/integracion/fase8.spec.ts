@@ -106,7 +106,11 @@ test('camino crítico: alta con pin manual y foto, aprobación con dirección, m
   await page
     .getByTestId('entrada-foto')
     .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: await jpeg(page) });
-  await expect(page.getByText(/Foto añadida/)).toBeVisible({ timeout: 30_000 });
+  // docs/24 RV-103: el alta lleva también la foto del sitio.
+  await page
+    .getByTestId('entrada-foto-sitio')
+    .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: await jpeg(page) });
+  await expect(page.getByTestId('hueco-entrada-foto').getByText(/\d+ kB/)).toBeVisible({ timeout: 30_000 });
   await page.getByLabel(T.formulario.descripcionOpcional).fill(marca);
   await page.getByRole('button', { name: T.envio.enviarRevision, exact: true }).click();
   await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible({ timeout: 30_000 });

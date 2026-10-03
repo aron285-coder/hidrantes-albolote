@@ -50,6 +50,8 @@ export interface Formulario {
   gps?: (Coordenadas & { precision: number }) | null;
   exif?: Coordenadas | null;
   hayFoto?: boolean;
+  /** La foto del sitio, en alta y en corregir ubicación (docs/24 RV-103). */
+  hayFotoSitio?: boolean;
 }
 
 const lleno = (s?: string) => !!s && s.trim().length > 0;
@@ -100,6 +102,7 @@ export function queFalta(f: Formulario, p: Punto | null): string | null {
       if (!f.caudal) return a.eligeEstado;
       if (f.caudal === 'no_funciona' && !lleno(f.fallo)) return a.describeFallo;
       if (!f.hayFoto) return a.faltaFoto;
+      if (!f.hayFotoSitio) return a.faltaFotoSitio;
       return null;
     case 'revision':
       return f.hayFoto ? null : a.faltaFoto;
@@ -116,7 +119,8 @@ export function queFalta(f: Formulario, p: Punto | null): string | null {
     }
     case 'ubicacion':
       if (!f.pin || !p || !f.pinMovido) return a.muevePin;
-      return f.hayFoto ? null : a.faltaFoto;
+      if (!f.hayFoto) return a.faltaFoto;
+      return f.hayFotoSitio ? null : a.faltaFotoSitio;
     case 'retirada':
       if (!f.motivoRapido) return a.eligeMotivo;
       if (!lleno(f.motivo)) return a.explicaMotivo;
@@ -228,6 +232,9 @@ export function argumentos(
     exif_lng: f.exif?.lng ?? null,
   };
 }
+
+/** Alta y corregir ubicación llevan además la foto del sitio (FR-21, docs/24 RV-103). */
+export const necesitaFotoSitio = (o: Operacion) => o === 'alta' || o === 'ubicacion';
 
 /** Las operaciones que llevan foto obligatoria (FR-21; corregir datos no, 05 §6). */
 export const necesitaFoto = (o: Operacion) => o !== 'datos';

@@ -7,6 +7,17 @@ export const LADO_MAXIMO = 1600;
 /** Objetivo medio de TR-15 (≈ 250 kB); se baja la calidad hasta acercarse. */
 export const OBJETIVO_BYTES = 300 * 1024;
 export const MAXIMO_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Cómo se procesa cada foto. La de la conexión, como siempre (TR-15). La del sitio enseña un
+ * entorno, no un detalle: 1280 px y ≈ 150 kB (docs/24 RV-103).
+ */
+export interface PerfilFoto {
+  ladoMaximo: number;
+  objetivoBytes: number;
+}
+export const PERFIL_CONEXION: PerfilFoto = { ladoMaximo: LADO_MAXIMO, objetivoBytes: OBJETIVO_BYTES };
+export const PERFIL_SITIO: PerfilFoto = { ladoMaximo: 1280, objetivoBytes: 150 * 1024 };
 const CALIDADES = [0.82, 0.72, 0.62, 0.52];
 
 export interface FotoProcesada {
@@ -79,11 +90,11 @@ function gpsDeTiff(v: DataView, tiff: number): { lat: number; lng: number } | nu
 }
 
 /** Endereza, reduce y recomprime. El resultado nunca lleva EXIF ni pasa de 5 MB. */
-export async function procesarFoto(archivo: Blob): Promise<FotoProcesada> {
+export async function procesarFoto(archivo: Blob, perfil: PerfilFoto = PERFIL_CONEXION): Promise<FotoProcesada> {
   const exif = leerGpsExif(await archivo.slice(0, 256 * 1024).arrayBuffer());
   // 'from-image' aplica la orientación EXIF de la cámara al dibujar (es el valor por defecto).
   const imagen = await createImageBitmap(archivo, { imageOrientation: 'from-image' });
-  const { ancho, alto } = dimensiones(imagen.width, imagen.height);
+  const { ancho, alto } = dimensiones(imagen.width, imagen.height, perfil.ladoMaximo);
   const lienzo = document.createElement('canvas');
   lienzo.width = ancho;
   lienzo.height = alto;
@@ -95,7 +106,7 @@ export async function procesarFoto(archivo: Blob): Promise<FotoProcesada> {
   let blob: Blob | null = null;
   for (const calidad of CALIDADES) {
     blob = await new Promise<Blob | null>((r) => lienzo.toBlob(r, 'image/jpeg', calidad));
-    if (blob && blob.size <= OBJETIVO_BYTES) break;
+    if (blob && blob.size <= perfil.objetivoBytes) break;
   }
   if (!blob || blob.size > MAXIMO_BYTES) throw new Error('Foto demasiado grande');
   return { blob, ancho, alto, exif };

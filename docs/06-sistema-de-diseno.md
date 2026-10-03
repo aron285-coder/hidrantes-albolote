@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -245,6 +245,7 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Hoja inferior** (`.sheet`) | radio 16 arriba, asa de 34 × 4 px, sombra `0 -6px 20px rgba(14,27,48,.22)`, sobre un velo `rgba(14,27,48,.38)`. Filas de 44 px con icono 26 px, título 11,5 px y descripción 9,5 px. |
 | **Aviso** (`.warn-callout`) | `--oro-100` fondo, borde `--oro-600`, texto `--ambar-700` (`#7F5C07`, DEC-081), ⚠ delante. Nunca bloquea. |
 | **Toast** | `--verde-600`, blanco, radio 9, arriba bajo la barra, con cierre; para "tu propuesta se aprobó". |
+| **Dos fotos** (alta y corregir ubicación, `docs/24` RV-103) | dos huecos iguales lado a lado, cada uno con una sola palabra: **Conexión** y **Sitio**; vacío, botón de borde `--naranja-600` con la cámara y la palabra; hecho, fondo `--verde-100` con "Sitio · N kB" y "repetir". En la ficha, la de la conexión; si hay foto del sitio, debajo dos botones de 44 px con un punto y su palabra para pasar de una a otra (también deslizando). En el panel, las dos lado a lado, cada una con su palabra. |
 | **Foto** | relación 16:9 en ficha, 84–86 px de alto en móvil, etiqueta de fecha abajo-izquierda sobre `rgba(14,27,48,.6)`. Placeholder mientras carga: degradado gris-azulado. |
 | **Racor de referencia** | tres tarjetas iguales; Granada y Barcelona con su foto real de 48 × 48 px encima del nombre (`alt=""`: el nombre ya va en el botón) y «Otro» sin foto; la elegida con borde `--marino-950` doble. Tocar la foto elige, sin ampliar. Las fotos (`public/racores/*.webp`, 160 × 160, ≤ 25 kB) las pone el desarrollador y las prepara `scripts/preparar-racores.ts`; entran en el precache. Sin la foto, la tarjeta se ve solo con el nombre, nunca con un icono roto (`docs/24` RV-104). |
 | **Minimapa de los formularios** | 336 px de alto, pin arrastrable y botón "Mi posición" arriba a la derecha; no se recentra solo (DEC-066). |
@@ -436,7 +437,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
 `Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Racor [Granada]` ·
-`Foto no disponible sin cobertura` · `Sin foto` · `Estado desconocido · actualiza la aplicación` (RV-102a).
+`Foto no disponible sin cobertura` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
@@ -459,13 +460,13 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
 `Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `No funciona` ·
-`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` ·
+`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `repetir · [Sitio]` · `[Sitio] · [150] kB` ·
 `Hacer foto · obligatoria` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
 `¿Por qué ya no existe?` · `Obras` · `Asfaltado` · `Sustituido` · `Otro` ·
 `Cuéntalo brevemente · obligatorio`.
 
-**Avisos del formulario.** `Falta la foto para poder enviar` · `Elige el estado` ·
+**Avisos del formulario.** `Falta la foto para poder enviar` · `Falta la foto del sitio` · `Elige el estado` ·
 `Describe el fallo` · `Elige el tipo` · `Elige el diámetro` · `Indica la medida` ·
 `Elige el racor` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
 `Explica brevemente qué has visto` ·
@@ -488,7 +489,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se ha podido enviar y ya no se enviará. No se puede deshacer.` · `¿Retirar esta propuesta?` ·
 `Jefatura ya no la verá. No se puede deshacer.` · `Aprobada [HID-0147]` · `Rechazada [HID-0147]` ·
 `El punto ya no está activo: no se ha enviado.` · `Faltan datos o no son válidos: no se ha enviado.` ·
-`Falta la foto: no se ha enviado.` ·
+`Falta la foto: no se ha enviado.` · `Falta la foto del sitio: no se ha enviado.` ·
 `El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.` · `No se ha podido enviar.` ·
 `Sin conexión: esta es la última lista guardada.`
 
@@ -566,7 +567,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distancia] del GPS del móvil` ·
 `GPS poco preciso · ±[metros] m` · `La foto se hizo a [distancia] del pin` ·
 `Revisión anterior: [cuando]` · `este mes` · `Posible duplicado de [codigo] · a [distancia]` ·
-`Diámetro "otra medida": hay que fijar 70 o 100 mm` · `Boca de otra medida: [32] mm` · `El punto cambió después de esta propuesta` ·
+`Diámetro "otra medida": hay que fijar 70 o 100 mm` · `Boca de otra medida: [32] mm` · `sin foto del sitio` · `El punto cambió después de esta propuesta` ·
 `Con foto` · `Fija el diámetro en 70 o 100 mm para poder aprobar.` ·
 `la del pin propuesto (a [distancia])` · `la de [codigo] (existente)` · `desactualizada` ·
 `el punto ya no está activo` · `diámetro sin fijar` · `ya estaba resuelta` · `datos no válidos` · `cambia el tipo, que no se puede cambiar: recházala` ·
@@ -596,7 +597,7 @@ a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distan
 `El punto cambió mientras revisabas: vuelve a mirar el detalle y confirma.` ·
 `Sin motivo no se puede continuar.` · `Solo se fusionan puntos del mismo tipo.` ·
 `Solo se puede fusionar un alta.` ·
-`El resultado no cumple las reglas del punto: revisa los valores.` ·
+`El resultado no cumple las reglas del punto: revisa los valores.` · `Falta la foto del sitio.` ·
 `Ha pasado el plazo de la papelera: ya no se puede restaurar.` · `El código son 6 cifras.` ·
 `Algún valor está fuera de rango: revisa los parámetros.` ·
 `Tu cuenta ya no tiene acceso de administrador.` ·
