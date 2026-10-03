@@ -49,7 +49,8 @@ migración de una línea; renombrar uno exige dos pasos (04 §12).
 | `descripcion_fallo` | `text` | sí | obligatoria si `caudal = 'no_funciona'`, y solo se guarda con ese estado: con cualquier otro, `barro` incluido, se borra (RV-42, 0034) |
 | `descripcion` | `text` | sí | libre; el seed usa prefijo `[PRUEBA]` |
 | `direccion` | `text` | sí | deducida al revisar, corregible (FR-15) |
-| `foto_path` | `text` | no | ruta en el bucket, `fotos/<uuid>.jpg` |
+| `foto_path` | `text` | no | ruta en el bucket, `fotos/<uuid>.jpg`: la foto de la conexión |
+| `foto_sitio_path` | `text` | sí | la foto del sitio, para encontrarlo (0035, DEC-146); `null` en los puntos de antes |
 | `municipio` | `municipio` | no | deducido |
 | `nucleo` | `text` | sí | deducido; `null` si fuera de zona |
 | `situacion` | `situacion_punto` | no | default `activo` |
@@ -94,6 +95,7 @@ check ((situacion = 'borrado') = (borrado_en is not null))
 | `distancia_duplicado_m` | `real` | sí | |
 | `direccion_sugerida` | `text` | sí | la escribe `/api/direccion` |
 | `foto_path` | `text` | sí | obligatoria salvo en `retirada`… no: también en retirada (FR-46); `null` solo en `datos` si no se cambió la foto |
+| `foto_sitio_path` | `text` | sí | foto del sitio; solo en `alta` y `ubicacion`, distinta de `foto_path`. Obligatoria con la firma nueva de `fn_proponer`; `null` en las de la app anterior, que la cola señala con `sin_foto_sitio` (0035, DEC-146) |
 | `estado` | `estado_moderacion` | no | default `pendiente` |
 | `motivo_rechazo` | `text` | sí | obligatorio si `rechazada` |
 | `correcciones` | `jsonb` | sí | lo que jefatura cambió al aprobar |
@@ -108,6 +110,7 @@ check ((operacion = 'alta') = (punto_id is null))
 check (estado <> 'rechazada' or coalesce(length(trim(motivo_rechazo)), 0) > 0)
 check (operacion not in ('alta','revision','estado','ubicacion','retirada') or foto_path is not null)
 check (operacion not in ('alta','ubicacion') or (geom is not null and origen_ubicacion is not null))
+check (foto_sitio_path is null or (operacion in ('alta','ubicacion') and foto_sitio_path <> foto_path))  -- 0035
 ```
 
 Índices: `unique (clave_local)`, `btree (dispositivo_id)`, `btree (estado, creada_en)`,
@@ -226,7 +229,7 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `max_altas_ip_dia` | `150` | canjes **buenos** por IP en 24 h (RV-14, DEC-086) |
 | `max_altas_global_hora` | `150` | canjes buenos en total por hora (RV-14, DEC-086) |
 | `dias_caducidad_token` | `365` | |
-| `max_subidas_dispositivo_dia` | `40` | |
+| `max_subidas_dispositivo_dia` | `80` | cuenta reservas: un alta o una ubicación gastan dos (conexión y sitio). Era 40; 0035 lo dobla solo si seguía en 40 (DEC-146) |
 | `dias_reserva_subida` | `7` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084); `fn_proponer` acepta como mínimo 1 día y la purga protege como mínimo 2, también si se pone a 1 (0026, RV-48) |
 | `max_incidencias_dispositivo_dia` | `5` | |
 | `max_errores_global_dia` | `2000` | |
@@ -294,8 +297,8 @@ rechaza con 429 lo aplaza `fn_aplazar_notificaciones`: vuelve a poder reclamarse
 
 | Vista | Contenido |
 |---|---|
-| `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_path`. La URL pública de la foto la compone el cliente con la URL de Supabase y el bucket del entorno (DEC-058). Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). Jefatura la lee entera por páginas de 1.000 por clave: `order(codigo)` y `gt(codigo, último)` (RV-15, RV-65). |
-| `v_cola_revision` | propuestas con `estado = 'pendiente'` más el punto afectado, el diff (`antes`/`despues` calculados), y señales: `origen_ubicacion`, `precision_gps_m`, `distancia_gps_m`, `distancia_exif_m`, `fuera_de_zona`, `meses_desde_revision`, `duplicado_de` + `distancia_duplicado_m`, `otra_medida boolean`, `desactualizada boolean` (`puntos.actualizado_en > propuestas.creada_en`), `nucleo` (el del punto o, en un alta, el deducido del pin) y `punto_actualizado_en` (DEC-065). |
+| `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_path` y, al final, `foto_sitio_path` (0035). La URL pública de la foto la compone el cliente con la URL de Supabase y el bucket del entorno (DEC-058). Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). Jefatura la lee entera por páginas de 1.000 por clave: `order(codigo)` y `gt(codigo, último)` (RV-15, RV-65). |
+| `v_cola_revision` | propuestas con `estado = 'pendiente'` más el punto afectado, el diff (`antes`/`despues` calculados), y señales: `origen_ubicacion`, `precision_gps_m`, `distancia_gps_m`, `distancia_exif_m`, `fuera_de_zona`, `meses_desde_revision`, `duplicado_de` + `distancia_duplicado_m`, `otra_medida boolean`, `desactualizada boolean` (`puntos.actualizado_en > propuestas.creada_en`), `nucleo` (el del punto o, en un alta, el deducido del pin) y `punto_actualizado_en` (DEC-065); al final, `foto_sitio_path`, `foto_sitio_path_actual` y la señal `sin_foto_sitio` (alta o ubicación sin foto del sitio: la mandó la app anterior; 0035, DEC-146). |
 | `v_revisiones_caducadas` | puntos activos con `revision_caducada`, con `direccion` o coordenadas, agrupables por `nucleo`. |
 | `v_registro` | `registro` legible: `momento`, `actor`, `accion`, `codigo` del punto, resumen. |
 
@@ -370,9 +373,18 @@ fn_proponer(
   exif_lat double precision, exif_lng double precision,
   foto_path text
 ) returns jsonb  -- { propuesta_id, estado, aplicada boolean, codigo }
+  -- FIRMA DE ANTES (16 parámetros): la sigue llamando la app anterior (04 §12). Alta y ubicación entran
+  -- sin foto del sitio y llegan a la cola con sin_foto_sitio.
+
+fn_proponer(…los 16 de arriba…, foto_sitio_path text) returns jsonb   -- FIRMA NUEVA, 0035 (DEC-146)
+  -- foto_sitio_path obligatoria en alta y ubicación (FOTO_SITIO_OBLIGATORIA) y no admitida en las demás
+  -- (PAYLOAD_INVALIDO(foto_sitio_path)); reservada por el mismo dispositivo (FOTO_NO_RESERVADA) y
+  -- distinta de foto_path. PostgREST elige la firma por los nombres de los parámetros; ninguna lleva
+  -- default en el último, para que no haya ambigüedad. Las dos llaman a fn_proponer_interno (§6.3).
   -- idempotente por clave_local: si existe, devuelve la existente sin crear otra.
   -- si quien llama es authenticated + fn_es_admin(): aplica vía fn_aprobar y devuelve aplicada = true.
-  -- errores: PAYLOAD_INVALIDO(<campo>) · FOTO_OBLIGATORIA · FOTO_NO_RESERVADA · PUNTO_NO_ACTIVO
+  -- errores: PAYLOAD_INVALIDO(<campo>) · FOTO_OBLIGATORIA · FOTO_SITIO_OBLIGATORIA (firma nueva) ·
+  --          FOTO_NO_RESERVADA · PUNTO_NO_ACTIVO
 
 fn_mis_propuestas(token text) returns setof jsonb
   -- solo las del dispositivo del token; estado, motivo_rechazo, correcciones, revisada_en.
@@ -404,6 +416,8 @@ fn_aprobar(propuesta_id uuid, correcciones jsonb default null, confirmar_desactu
   -- aplica a puntos (crea o actualiza) fusionando correcciones; deduce municipio/nucleo;
   -- guarda direccion (correcciones.direccion ?? direccion_sugerida ?? null);
   -- fecha_ultima_revision = current_date; foto_path del punto = el de la propuesta (no se copia);
+  -- foto_sitio_path: el alta la copia; una ubicación la sustituye si trae una; las demás no la tocan
+  -- (0035). La fusión, como foto_path: la de la propuesta si la trae.
   -- errores: PROPUESTA_NO_PENDIENTE · PUNTO_NO_ACTIVO · PROPUESTA_DESACTUALIZADA (salvo confirmar) ·
   --          DIAMETRO_SIN_FIJAR (alta de hidrante con "otra medida" sin correcciones.diametro_mm; una boca
   --          con otra medida se aprueba tal cual, 0032) · PAYLOAD_INVALIDO
@@ -463,7 +477,7 @@ fn_salud() returns jsonb
   --   actualizado_en de esa fila y tareas_error = el SQLSTATE. En vivo, falta = true solo para
   --   una tarea que estaba en esa foto y ya no está (o no se ve) en cron.job; la lista de esperadas
   --   (scripts/sql/tareas-esperadas.txt) solo la compara la vigilancia.
-fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
+fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- con foto_path y foto_sitio_path desde 0035; datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
 fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
 fn_renombrar_nucleo(nombre_actual text, nombre_nuevo text) returns void   -- 0009, DEC-068 (FR-166)
 fn_anadir_nucleo(nombre text, lat double precision, lng double precision) returns void   -- 0009
@@ -476,6 +490,8 @@ fn_registrar_workflow(workflow text) returns void               -- la usa /api/l
 -- (1.000) cualquier RPC que devuelva un conjunto, y la purga comprueba que fotos y total cuadran
 -- (0020, docs/18 RV-33).
 fn_fotos_referenciadas_lista() returns jsonb   -- {"fotos": [text], "total": int}, sin repetidas
+  -- protege foto_path y foto_sitio_path de puntos y de propuestas pendientes o aprobadas, y las
+  -- reservas recientes. Sin foto_sitio_path, la purga borraría las fotos del sitio (0035, DEC-146).
 fn_fotos_referenciadas() returns setof text    -- OBSOLETA desde 0.5.0: truncada a 1.000 por PostgREST; sin uso, se retira en la siguiente versión mayor
 -- Solo service_role (la llama /api/push): reclama avisos pendientes con skip locked y los marca
 -- enviados en la misma transacción; después se anota el resultado de cada uno.
@@ -509,6 +525,9 @@ fn_email_jwt() returns text                  -- correo del JWT, en minúsculas, 
                                              -- 'oauth'; si no, null (0022, DEC-094)
 fn_exigir_admin() returns text               -- NO_AUTORIZADO si no es administrador; devuelve su correo
 fn_dispositivo_admin(email text) returns uuid -- md5 del correo: identidad técnica estable de un administrador
+fn_proponer_interno(…los 17 de la firma nueva…, exigir_foto_sitio boolean) returns jsonb
+                                             -- 0035: el cuerpo común de las dos firmas de fn_proponer;
+                                             -- sin execute para anon ni authenticated
 fn_aplicar_propuesta(propuesta_id uuid, correcciones jsonb, confirmar_desactualizada boolean, actor text) returns jsonb
                                              -- núcleo de fn_aprobar, fn_aprobar_lote y fn_proponer de jefatura
 fn_purgar_papelera_interna(actor text) returns integer   -- la llama pg_cron cada noche y fn_purgar_papelera
@@ -527,11 +546,11 @@ fn_tareas_programadas() returns jsonb        -- 0031, RV-92: las tareas hidrante
 
 | Operación | `datos` (solo lo que cambia) | Obligatorio además |
 |---|---|---|
-| `alta` | `{ tipo, diametro_mm?, diametro_otro?, caudal, racor?, descripcion_fallo?, descripcion? }` | `geom`, `origen`, `foto_path`. Nunca `diametro_mm` y `diametro_otro` a la vez; con `diametro_otro`, la propuesta queda marcada `otra_medida`. **Hidrante:** `diametro_mm` 70 o 100, o `diametro_otro` (número), que jefatura fija antes de aprobar (`DIAMETRO_SIN_FIJAR`). **Boca de riego:** `racor`; `diametro_mm` 45 o 70, o `diametro_otro` entero de 20 a 150, que se aprueba tal cual; sin ninguno de los dos, 45 (la app anterior no lo manda, 04 §12). Al aprobar, una boca guarda `coalesce(diametro_mm, diametro_otro, 45)` (0032, DEC-144). |
+| `alta` | `{ tipo, diametro_mm?, diametro_otro?, caudal, racor?, descripcion_fallo?, descripcion? }` | `geom`, `origen`, `foto_path` y, con la firma nueva, `foto_sitio_path` (0035). Nunca `diametro_mm` y `diametro_otro` a la vez; con `diametro_otro`, la propuesta queda marcada `otra_medida`. **Hidrante:** `diametro_mm` 70 o 100, o `diametro_otro` (número), que jefatura fija antes de aprobar (`DIAMETRO_SIN_FIJAR`). **Boca de riego:** `racor`; `diametro_mm` 45 o 70, o `diametro_otro` entero de 20 a 150, que se aprueba tal cual; sin ninguno de los dos, 45 (la app anterior no lo manda, 04 §12). Al aprobar, una boca guarda `coalesce(diametro_mm, diametro_otro, 45)` (0032, DEC-144). |
 | `revision` | `{}` (o `{ nota? }`) | `foto_path` |
 | `estado` | `{ caudal, descripcion_fallo?, nota? }` | `foto_path`. `descripcion_fallo` solo es obligatoria con `no_funciona`; `barro` no la pide (0033, DEC-145) |
 | `datos` | subconjunto de `{ diametro_mm, diametro_otro, racor, descripcion }`; `tipo` solo si es **igual** al actual (el frontend anterior lo manda siempre, 04 §12): uno distinto da `TIPO_NO_MODIFICABLE` (0023, DEC-090). El diámetro sigue las reglas del alta según el tipo del punto: un hidrante, solo `diametro_mm` 70 o 100; una boca, 45, 70 o `diametro_otro` entero de 20 a 150 (0032, DEC-144) | — |
-| `ubicacion` | `{ nota? }` | `geom`, `origen`, `foto_path`; el servidor calcula `desplazamiento_m` contra `puntos.geom` |
+| `ubicacion` | `{ nota? }` | `geom`, `origen`, `foto_path` y, con la firma nueva, `foto_sitio_path` (0035); el servidor calcula `desplazamiento_m` contra `puntos.geom` |
 | `retirada` | `{ motivo_rapido: 'obras'|'asfaltado'|'sustituido'|'otro', motivo: text }` | `foto_path` |
 
 `correcciones` (en `fn_aprobar`) admite cualquiera de: `tipo, diametro_mm, caudal, racor,
@@ -552,7 +571,7 @@ resultado fusionado antes de escribir.
 
 Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTENTOS`,
 `TOKEN_INVALIDO`, `TOKEN_REVOCADO`, `TOKEN_CADUCADO`, `PAYLOAD_INVALIDO`, `FOTO_OBLIGATORIA`,
-`FOTO_NO_RESERVADA`, `CUOTA_SUBIDAS_AGOTADA`, `CUOTA_INCIDENCIAS_AGOTADA`, `PUNTO_NO_ENCONTRADO`,
+`FOTO_SITIO_OBLIGATORIA` ("falta la foto del sitio", 0035), `FOTO_NO_RESERVADA`, `CUOTA_SUBIDAS_AGOTADA`, `CUOTA_INCIDENCIAS_AGOTADA`, `PUNTO_NO_ENCONTRADO`,
 `PUNTO_NO_ACTIVO`, `PROPUESTA_NO_PENDIENTE`, `PROPUESTA_AJENA`, `PROPUESTA_DESACTUALIZADA`,
 `DIAMETRO_SIN_FIJAR`, `MOTIVO_OBLIGATORIO`, `TIPO_DISTINTO`, `PROPUESTA_NO_ALTA`,
 `FUERA_DE_PLAZO_PAPELERA`, `CODIGO_FORMATO`, `ULTIMO_ADMINISTRADOR`, `CONFIG_INVALIDA`,
@@ -699,7 +718,9 @@ de producción si está en el entorno, en `deploy-prod.yml` o en `scripts/arranq
   se re-derivan con los de por defecto (RV-44). Cerrar sesión durante una sincronización descarta su
   resultado sin escribir (FL-12, RV-45).
 - La cola local guarda por propuesta: `clave_local` (uuid v4), payload de `fn_proponer`, blob de la
-  foto, `creada_en` local, intentos. Envío: `url-subida` → `PUT` → `fn_proponer`. Si `fn_proponer`
+  foto (y, en alta y ubicación, el de la foto del sitio, 0035), `creada_en` local, intentos. Envío:
+  `url-subida` → `PUT` (una reserva por foto) → `fn_proponer`. Un elemento antiguo sin foto del sitio va
+  con la firma de antes. Si `fn_proponer`
   devuelve la propuesta existente (misma `clave_local`), se considera enviada.
 - `config` recibida se aplica en el cliente (radios, meses de revisión) en la siguiente carga del mapa:
   el móvil deriva `revision_caducada` y `radio_px` con la `config` recibida, en **todos** los puntos

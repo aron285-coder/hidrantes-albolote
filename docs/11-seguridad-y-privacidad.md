@@ -96,7 +96,7 @@ la cola las propuestas de las últimas horas antes de aprobar nada. Procedimient
 ## 4. Fotos y almacenamiento
 
 - La `anon key` **no puede escribir** en el bucket. Subida solo con URL firmada que emite la Pages
-  Function tras validar el token y la cuota (40 por dispositivo y día); nombre de archivo asignado
+  Function tras validar el token y la cuota (80 por dispositivo y día desde 0035, DEC-146); nombre de archivo asignado
   por el servidor; 5 MB; solo JPEG/WebP (04 §7).
 - **Lectura pública** por URL no enumerable (uuid). Decisión consciente (DEC-011): las URL firmadas
   de lectura romperían la caché offline. La foto retrata un hidrante; **14** pide no fotografiar

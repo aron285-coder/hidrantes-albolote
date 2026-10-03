@@ -33,6 +33,24 @@ describe('el guion que se genera', () => {
     expect(SQL_GENERADOR).not.toMatch(/fn_siguiente_codigo/);
   });
 
+  it('lleva también la foto del sitio de puntos y propuestas (0035, DEC-146)', () => {
+    expect(SQL_GENERADOR).toContain(' descripcion, direccion, foto_path, foto_sitio_path, municipio,');
+    expect(SQL_GENERADOR).toContain('p.foto_path, p.foto_sitio_path,');
+    expect(SQL_GENERADOR).toContain('direccion_sugerida, foto_path, foto_sitio_path,');
+    expect(SQL_GENERADOR).toContain('r.foto_path, r.foto_sitio_path,');
+  });
+
+  it('en cada insert, tantas columnas como %L (más el now() de actualizado_en)', () => {
+    for (const tabla of ['puntos', 'propuestas']) {
+      const inicio = SQL_GENERADOR.indexOf(`'insert into hidrantes.${tabla} (`);
+      const fin = SQL_GENERADOR.indexOf('do nothing;', inicio);
+      const plantilla = SQL_GENERADOR.slice(inicio, fin).replace(/'\s*\|\|\s*'/g, '');
+      const columnas = /\(([^)]*)\) values/.exec(plantilla)![1].split(',').length;
+      const marcas = (plantilla.match(/%L/g) ?? []).length + (plantilla.includes('now())') ? 1 : 0);
+      expect(marcas, tabla).toBe(columnas);
+    }
+  });
+
   it('se puede pasar dos veces: cada tabla trae su guarda', () => {
     // puntos y propuestas conservan su id; registro lo genera, así que va por "no existe ya".
     expect(SQL_GENERADOR.match(/on conflict (\(id\) )?do nothing/g)).toHaveLength(2);
