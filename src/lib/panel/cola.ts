@@ -160,7 +160,11 @@ export function lineaCola(p: PropuestaPanel, ahora = new Date()): string {
 
 /** ¿Lleva algún aviso que merezca el ⚠ en la lista? */
 export const tieneAviso = (p: PropuestaPanel) =>
-  p.desactualizada || p.otra_medida || !!p.duplicado_de || !!p.fuera_de_zona || senales(p).some((s) => s.aviso);
+  p.desactualizada ||
+  bloqueoPorMedida(p) !== null ||
+  !!p.duplicado_de ||
+  !!p.fuera_de_zona ||
+  senales(p).some((s) => s.aviso);
 
 /** Búsqueda global (FR-145): código, dirección o nombre de quien propuso. */
 export function coincide(p: PropuestaPanel, texto: string): boolean {
@@ -198,8 +202,9 @@ export function filasDiff(p: PropuestaPanel, punto?: Punto): FilaDiff[] {
       filas.push({
         campo: T.panelCola.campoDiametro,
         despues:
+          // Una boca de otra medida se lee como su número: se aprueba tal cual (docs/24 RV-101).
           d.tipo === 'boca_riego'
-            ? T.formato.mm(45)
+            ? T.formato.mm(texto(d.diametro_otro ?? d.diametro_mm ?? 45))
             : d.diametro_otro != null
               ? T.panelCola.otraMedida(texto(d.diametro_otro))
               : valorDe('diametro_mm', d.diametro_mm),
@@ -245,6 +250,14 @@ export function filasDiff(p: PropuestaPanel, punto?: Punto): FilaDiff[] {
           campo: etiquetaCampo(campo),
           antes: campo in antes ? valorDe(campo, antes[campo]) : undefined,
           despues: valorDe(campo, d[campo]),
+        });
+      }
+      // Una boca corregida a otra medida (docs/24 RV-101): el número, frente al diámetro que tenía.
+      if ('diametro_otro' in d) {
+        filas.push({
+          campo: T.panelCola.campoDiametro,
+          antes: 'diametro_mm' in antes ? valorDe('diametro_mm', antes.diametro_mm) : undefined,
+          despues: T.formato.mm(texto(d.diametro_otro)),
         });
       }
       break;
@@ -325,7 +338,13 @@ export function senales(p: PropuestaPanel): Senal[] {
       aviso: true,
     });
   }
-  if (p.otra_medida) s.push({ texto: T.panelCola.senalOtraMedida, aviso: true });
+  if (p.otra_medida) {
+    s.push(
+      tipoDePropuesta(p) === 'boca_riego'
+        ? { texto: T.panelCola.senalOtraMedidaBoca(texto(p.datos.diametro_otro)), aviso: false }
+        : { texto: T.panelCola.senalOtraMedida, aviso: true },
+    );
+  }
   if (p.foto_path) s.push({ texto: T.panelCola.conFoto, aviso: false });
   if (p.desactualizada) s.push({ texto: T.panelCola.senalDesactualizada, aviso: true });
   return s;
@@ -352,7 +371,7 @@ export function valoresPropuestos(p: PropuestaPanel, punto?: Punto): ValoresPunt
   const tipo = (d.tipo as TipoPunto | undefined) ?? punto?.tipo ?? 'hidrante';
   const diametro =
     tipo === 'boca_riego'
-      ? 45
+      ? (numeroDe(d.diametro_otro ?? d.diametro_mm) ?? punto?.diametro_mm ?? 45)
       : d.diametro_otro != null
         ? null
         : ((d.diametro_mm as number | undefined) ?? punto?.diametro_mm ?? null);
@@ -373,7 +392,9 @@ export function valoresPropuestos(p: PropuestaPanel, punto?: Punto): ValoresPunt
 export function correccionesDe(propuesto: ValoresPunto, final: ValoresPunto): Record<string, unknown> {
   const c: Record<string, unknown> = {};
   if (final.tipo !== propuesto.tipo) c.tipo = final.tipo;
-  if (final.tipo !== 'boca_riego' && final.diametro_mm !== propuesto.diametro_mm) c.diametro_mm = final.diametro_mm;
+  // Jefatura fija el de un hidrante (70 o 100) y corrige el de una boca con cualquier entero de 20 a 150.
+  // Si cambia el tipo, va siempre: si no, el servidor tomaría el diametro_otro de lo propuesto.
+  if (final.diametro_mm !== propuesto.diametro_mm || final.tipo !== propuesto.tipo) c.diametro_mm = final.diametro_mm;
   if (final.caudal !== propuesto.caudal) c.caudal = final.caudal;
   if (final.tipo === 'boca_riego' && final.racor !== propuesto.racor) c.racor = final.racor;
   if (final.caudal === 'no_funciona' && final.descripcion_fallo.trim() !== propuesto.descripcion_fallo.trim()) {
@@ -383,9 +404,38 @@ export function correccionesDe(propuesto: ValoresPunto, final: ValoresPunto): Re
   return c;
 }
 
+const numeroDe = (v: unknown): number | null => {
+  const n = typeof v === 'string' ? Number(v) : v;
+  return typeof n === 'number' && Number.isFinite(n) ? n : null;
+};
+
+/** Diámetro de una boca: entero de 20 a 150 mm (restricción puntos_diametro_boca, DEC-144). */
+export const diametroBocaValido = (d: number | null) => d != null && Number.isInteger(d) && d >= 20 && d <= 150;
+
+/**
+ * Qué impide aprobar tal cual por el diámetro: un hidrante de "otra medida" hasta que jefatura fije 70
+ * o 100 (FR-17, DIAMETRO_SIN_FIJAR). Una boca de otra medida se aprueba tal cual (FR-16, DEC-144).
+ */
+export function bloqueoPorMedida(p: PropuestaPanel, punto?: Punto): string | null {
+  if (!p.otra_medida) return null;
+  return tipoDePropuesta(p, punto) === 'boca_riego' ? null : T.panelCola.fijaDiametro;
+}
+
+/**
+ * El tipo del punto de una propuesta: el del alta, el del punto si se tiene a mano o, si no (la lista
+ * de la cola), el del código: "corregir datos" no trae el tipo en `datos` (DEC-090).
+ */
+export function tipoDePropuesta(p: PropuestaPanel, punto?: Punto): TipoPunto {
+  const tipo = p.datos?.tipo as TipoPunto | undefined;
+  if (tipo === 'hidrante' || tipo === 'boca_riego') return tipo;
+  if (punto) return punto.tipo;
+  return p.codigo?.startsWith('BOC-') ? 'boca_riego' : 'hidrante';
+}
+
 /** Qué impide guardar el formulario de correcciones, o null si se puede (UI-02). */
 export function faltaEnCorrecciones(v: ValoresPunto): string | null {
   if (v.tipo === 'hidrante' && v.diametro_mm !== 70 && v.diametro_mm !== 100) return T.panelCola.fijaDiametro;
+  if (v.tipo === 'boca_riego' && !diametroBocaValido(v.diametro_mm)) return T.avisosFormulario.indicaMedida;
   if (v.tipo === 'boca_riego' && !v.racor) return T.avisosFormulario.eligeRacor;
   if (v.caudal === 'no_funciona' && !v.descripcion_fallo.trim()) return T.avisosFormulario.describeFallo;
   return null;

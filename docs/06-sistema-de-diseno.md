@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -451,13 +451,13 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Toca el mapa donde está realmente. La posición anterior queda registrada.` ·
 `Sin posición GPS: toca el mapa donde está el punto.` · `±[9] m · a [12 m] del pin` · `Qué impide usarlo` ·
 `Ej.: sale menos fuerza que en mayo` · `Qué has encontrado en el sitio` ·
-`Medida en mm (jefatura la comprobará)` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` ·
+`Medida en mm (jefatura la comprobará)` · `Medida en mm, de 20 a 150` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` ·
 `Enviando…` · `Se enviará sola cuando haya conexión.` · `El cambio ya está en el mapa de todos.` ·
 `No se pudo guardar en el móvil. Inténtalo otra vez.`.
 
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
-`Diámetro de la salida mayor` · `70 mm` · `100 mm` · `Otra medida` ·
-`45 mm · fijo en bocas de riego` · `Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
+`Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
+`Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `No funciona` ·
 `Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` ·
 `Hacer foto · obligatoria` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
@@ -566,7 +566,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distancia] del GPS del móvil` ·
 `GPS poco preciso · ±[metros] m` · `La foto se hizo a [distancia] del pin` ·
 `Revisión anterior: [cuando]` · `este mes` · `Posible duplicado de [codigo] · a [distancia]` ·
-`Diámetro "otra medida": hay que fijar 70 o 100 mm` · `El punto cambió después de esta propuesta` ·
+`Diámetro "otra medida": hay que fijar 70 o 100 mm` · `Boca de otra medida: [32] mm` · `El punto cambió después de esta propuesta` ·
 `Con foto` · `Fija el diámetro en 70 o 100 mm para poder aprobar.` ·
 `la del pin propuesto (a [distancia])` · `la de [codigo] (existente)` · `desactualizada` ·
 `el punto ya no está activo` · `diámetro sin fijar` · `ya estaba resuelta` · `datos no válidos` · `cambia el tipo, que no se puede cambiar: recházala` ·

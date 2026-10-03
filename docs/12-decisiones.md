@@ -967,6 +967,19 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **Quitar la firma de antes:** rompería a los móviles que aún no se han actualizado (04 §12). Se retira en la siguiente versión mayor, como `fn_fotos_referenciadas()`.
 - **Afecta a:** 01 FR-21, FR-41, FR-45 y FR-66; 03 TR-45; 04 §7; 05 §2.1, §2.2, §2.10, §4, §6.1–§6.3, §7, §8 y §10; 11; `supabase/migrations/0035_foto_del_sitio.sql`, `supabase/tests/31_foto_del_sitio.test.sql`, `scripts/promover-piloto.ts`, `scripts/compatibilidad.ts`, `e2e/integracion/fase5.spec.ts`.
 
+### DEC-148 · Pantalla de las bocas de 45, 70 u otra medida
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-101, pantalla de DEC-144). Sesión Frontend. El número estaba reservado para subir el presupuesto por RV-104; no hizo falta (`npm run presupuesto` solo mide el JavaScript inicial), así que se usa aquí.
+- **Contexto:** con 0032 una boca admite 45, 70 u otra medida, pero el formulario enseñaba "45 mm · fijo en bocas de riego" y corregir datos de una boca proponía volver a 45 siempre.
+- **Decisión:**
+  1. **Alta y corregir datos:** la boca tiene los mismos tres botones que el hidrante (45 · 70 · Otra medida) y, con Otra medida, el campo numérico. **Hay que elegir**, como en el hidrante ("Elige el diámetro"): sin un 45 marcado de antemano, que se quedaría sin mirar en las de 70. La otra medida es un **entero de 20 a 150**; fuera de eso, "Indica la medida" (`medidaBocaValida`).
+  2. Cambiar el tipo en el alta borra un diámetro que el tipo nuevo no admite (45 en hidrante, 100 en boca) y vuelve a pedirlo (`diametroPermitido`).
+  3. **Jefatura** también ve Otra medida en una boca (se aprueba tal cual); en el hidrante sigue sin verla (RV-19).
+  4. **Tamaño en el móvil:** `radioPx` usa los tramos de 0032 (≤ 45 → 1, ≤ 70 → 2, > 70 → 3; sin diámetro, 0), como `fn_radio_px`.
+  5. **Panel:** "Aprobar" solo se bloquea por un *hidrante* de otra medida (`bloqueoPorMedida`); en una boca, la señal es informativa ("Boca de otra medida: 32 mm") y no lleva ⚠. Diff, comparación y valores enseñan el número. Al aprobar con correcciones y en el inventario, jefatura corrige el diámetro de una boca con un número de 20 a 150. Si jefatura cambia un alta de hidrante a boca, el diámetro (45) va también en las correcciones: si no, el servidor tomaría el del hidrante propuesto.
+  6. `e2e/integracion/fase6.spec.ts` (de Backend) elige 45 en su alta de boca, porque ahora la pantalla lo pide; avisado en #409.
+- **Descartado:** dejar 45 marcado por defecto (un toque menos, pero las bocas de 70 entrarían como 45 sin que nadie lo decidiera).
+- **Afecta a:** 06 Apéndice A; `src/lib/propuestas.ts`, `src/lib/derivar.ts`, `src/lib/panel/cola.ts`, `src/lib/panel/inventario.ts`, `src/paginas/Proponer.tsx`, `src/componentes/panel/DetallePropuesta.tsx`, `src/componentes/panel/dialogos.tsx`.
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**
@@ -1847,7 +1860,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

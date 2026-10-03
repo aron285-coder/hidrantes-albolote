@@ -25,6 +25,7 @@ import {
   rechazar,
   senales,
   valoresPropuestos,
+  bloqueoPorMedida,
 } from '@/lib/panel/cola';
 import { textoError } from '@/lib/panel/errores';
 import type { Caudal, Punto, Racor, TipoPunto } from '@/lib/puntos';
@@ -86,7 +87,8 @@ export function DetallePropuesta({ p, puntos, alHecho }: { p: PropuestaPanel; pu
 
   const titulo = `${p.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[p.operacion]}`;
   const foto = urlFoto(p.foto_path);
-  const bloqueoAprobar = p.otra_medida ? T.panelCola.fijaDiametro : null;
+  // Solo un hidrante de "otra medida" impide aprobar tal cual; una boca se aprueba con su número (DEC-144).
+  const bloqueoAprobar = bloqueoPorMedida(p, punto);
   const comparar = pendiente && p.operacion === 'alta' && duplicado;
 
   return (
@@ -406,7 +408,8 @@ function FormularioCorrecciones({
               setV((x) => ({
                 ...x,
                 tipo,
-                diametro_mm: tipo === 'boca_riego' ? 45 : x.diametro_mm === 45 ? null : x.diametro_mm,
+                diametro_mm:
+                  tipo === 'boca_riego' ? 45 : x.diametro_mm === 70 || x.diametro_mm === 100 ? x.diametro_mm : null,
                 racor: tipo === 'boca_riego' ? x.racor : null,
               }));
             }}
@@ -432,20 +435,36 @@ function FormularioCorrecciones({
           </select>
         </Fila>
       ) : (
-        <Fila etiqueta={T.panelCola.campoRacor}>
-          <select
-            value={v.racor ?? ''}
-            onChange={(e) => cambia('racor', (e.target.value || null) as Racor | null)}
-            className="border-linea rounded-campo min-h-9 flex-1 border px-2"
-          >
-            {!v.racor && <option value="">—</option>}
-            {RACORES.map((r) => (
-              <option key={r} value={r}>
-                {nombreRacor(r)}
-              </option>
-            ))}
-          </select>
-        </Fila>
+        <>
+          {/* Jefatura corrige el diámetro de una boca con cualquier entero de 20 a 150 (DEC-144). */}
+          <Fila etiqueta={T.panelCola.campoDiametro}>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={20}
+              max={150}
+              step={1}
+              value={v.diametro_mm ?? ''}
+              onChange={(e) => cambia('diametro_mm', e.target.value === '' ? null : Number(e.target.value))}
+              aria-label={T.panelCola.campoDiametro}
+              className="border-linea rounded-campo min-h-9 flex-1 border px-2"
+            />
+          </Fila>
+          <Fila etiqueta={T.panelCola.campoRacor}>
+            <select
+              value={v.racor ?? ''}
+              onChange={(e) => cambia('racor', (e.target.value || null) as Racor | null)}
+              className="border-linea rounded-campo min-h-9 flex-1 border px-2"
+            >
+              {!v.racor && <option value="">—</option>}
+              {RACORES.map((r) => (
+                <option key={r} value={r}>
+                  {nombreRacor(r)}
+                </option>
+              ))}
+            </select>
+          </Fila>
+        </>
       )}
       <Fila etiqueta={T.panelCola.campoEstado}>
         <select

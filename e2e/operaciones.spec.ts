@@ -249,6 +249,7 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     for (let i = 0; i < 3; i++) {
       await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
       await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+      await page.getByRole('radio', { name: T.formulario.d45 }).click();
       await page.getByRole('radio', { name: T.formulario.granada }).click();
       await page.getByRole('radio', { name: T.formulario.bueno }).click();
       await hacerFoto(page);
@@ -268,6 +269,31 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     expect(new Set(s.propuestas.map((p) => p.clave_local)).size).toBe(3);
     expect(s.subidas).toHaveLength(3);
     expect(s.propuestas.every((p) => p.datos && (p.datos as { diametro_mm: number }).diametro_mm === 45)).toBe(true);
+  });
+
+  // docs/24 RV-101: una boca de 70 mm se da de alta con su diámetro; otra medida pide el número.
+  test('alta de una boca de riego de 70 mm', async ({ page }) => {
+    const s = await servidor(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await expect(page.getByText(T.avisosFormulario.eligeDiametro)).toBeVisible();
+    await page.getByRole('radio', { name: T.formulario.otraMedida }).click();
+    await expect(page.getByText(T.avisosFormulario.indicaMedida)).toBeVisible();
+    await page.getByLabel(T.formulario.otraMedida).fill('200');
+    await expect(page.getByText(T.avisosFormulario.indicaMedida)).toBeVisible();
+    await page.getByRole('radio', { name: T.formulario.d70 }).click();
+    await page.getByRole('radio', { name: T.formulario.barcelona }).click();
+    await page.getByRole('radio', { name: T.formulario.bueno }).click();
+    await hacerFoto(page);
+    await enviar(page).click();
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+    expect(s.propuestas[0]?.datos).toEqual({
+      tipo: 'boca_riego',
+      diametro_mm: 70,
+      racor: 'barcelona',
+      caudal: 'bueno',
+    });
   });
 
   test('Mis propuestas lista lo enviado y "Algo no funciona" llega a jefatura', async ({ page }) => {
@@ -347,6 +373,7 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await page.goto('/');
     await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
     await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await page.getByRole('radio', { name: T.formulario.d45 }).click();
     await page.getByRole('radio', { name: T.formulario.granada }).click();
     await page.getByRole('radio', { name: T.formulario.bueno }).click();
     await hacerFoto(page);
@@ -375,6 +402,7 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await page.goto('/');
     await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
     await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await page.getByRole('radio', { name: T.formulario.d45 }).click();
     await page.getByRole('radio', { name: T.formulario.granada }).click();
     await page.getByRole('radio', { name: T.formulario.bueno }).click();
     await hacerFoto(page);
@@ -458,6 +486,7 @@ test('un alta fuera de la zona avisa y deja continuar (FR-55)', async ({ page, c
   await page.goto('/proponer/alta');
   await expect(page.getByText(T.avisosFormulario.fueraDeZona)).toBeVisible();
   await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+  await page.getByRole('radio', { name: T.formulario.d45 }).click();
   await page.getByRole('radio', { name: T.formulario.granada }).click();
   await page.getByRole('radio', { name: T.formulario.bueno }).click();
   await hacerFoto(page);

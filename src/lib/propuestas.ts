@@ -33,7 +33,8 @@ export function coordenadasDe(lat: string | null, lng: string | null): Coordenad
 export interface Formulario {
   operacion: Operacion;
   tipo?: TipoPunto;
-  diametro?: 70 | 100 | 'otro';
+  /** Hidrante: 70, 100 u otra medida (FR-17). Boca: 45, 70 u otra medida (FR-16, docs/24 RV-101). */
+  diametro?: 45 | 70 | 100 | 'otro';
   diametroOtro?: string;
   racor?: Racor;
   caudal?: Caudal;
@@ -54,13 +55,24 @@ export interface Formulario {
 const lleno = (s?: string) => !!s && s.trim().length > 0;
 
 /**
+ * La otra medida de una boca al corregir datos: la escrita o, si no se ha tocado el campo, la que ya
+ * tiene la boca (la pantalla la enseña precargada). Así volver a "Otra medida" no pide escribirla.
+ */
+const otraMedidaDatos = (f: Formulario, p: Punto) => f.diametroOtro ?? String(p.diametro_mm);
+
+/**
  * Campos que cambian en "corregir datos" respecto al punto (FR-44). El tipo no está entre ellos: no
  * se cambia una vez creado; se corrige retirando el punto y dando de alta el correcto (FR-11, DEC-090).
  */
 export function cambiosDatos(f: Formulario, p: Punto): Record<string, unknown> {
   const c: Record<string, unknown> = {};
   if (p.tipo === 'boca_riego') {
-    if (p.diametro_mm !== 45) c.diametro_mm = 45;
+    // 45 o 70 como diametro_mm; otra medida como diametro_otro entero (DEC-144). Lo que ya tiene no viaja.
+    if ((f.diametro === 45 || f.diametro === 70) && f.diametro !== p.diametro_mm) c.diametro_mm = f.diametro;
+    const otra = otraMedidaDatos(f, p);
+    if (f.diametro === 'otro' && medidaBocaValida(otra) && Number(otra) !== p.diametro_mm) {
+      c.diametro_otro = Number(otra);
+    }
     if ((f.racor ?? p.racor) !== p.racor) c.racor = f.racor ?? p.racor;
   } else {
     const d = f.diametro === 70 || f.diametro === 100 ? f.diametro : p.diametro_mm;
@@ -81,8 +93,9 @@ export function queFalta(f: Formulario, p: Punto | null): string | null {
     case 'alta':
       if (!f.pin) return a.muevePin;
       if (!f.tipo) return a.eligeTipo;
-      if (f.tipo === 'hidrante' && !f.diametro) return a.eligeDiametro;
+      if (!diametroPermitido(f.tipo, f.diametro)) return a.eligeDiametro;
       if (f.tipo === 'hidrante' && f.diametro === 'otro' && !medidaValida(f.diametroOtro)) return a.indicaMedida;
+      if (f.tipo === 'boca_riego' && f.diametro === 'otro' && !medidaBocaValida(f.diametroOtro)) return a.indicaMedida;
       if (f.tipo === 'boca_riego' && !f.racor) return a.eligeRacor;
       if (!f.caudal) return a.eligeEstado;
       if (f.caudal === 'no_funciona' && !lleno(f.fallo)) return a.describeFallo;
@@ -96,6 +109,8 @@ export function queFalta(f: Formulario, p: Punto | null): string | null {
       return f.hayFoto ? null : a.faltaFoto;
     case 'datos': {
       if (!p) return a.sinCambios;
+      if (p.tipo === 'boca_riego' && f.diametro === 'otro' && !medidaBocaValida(otraMedidaDatos(f, p)))
+        return a.indicaMedida;
       if (p.tipo === 'boca_riego' && !(f.racor ?? p.racor)) return a.eligeRacor;
       return Object.keys(cambiosDatos(f, p)).length ? null : a.sinCambios;
     }
@@ -112,6 +127,23 @@ export function queFalta(f: Formulario, p: Punto | null): string | null {
 export function medidaValida(texto?: string): boolean {
   const n = Number(String(texto ?? '').replace(',', '.'));
   return Number.isFinite(n) && n >= 20 && n <= 300;
+}
+
+/** Los diámetros que admite cada tipo: hidrante 70 · 100 · otra (FR-17); boca 45 · 70 · otra (FR-16). */
+export function diametroPermitido(tipo: TipoPunto | undefined, d: Formulario['diametro']): boolean {
+  if (d === 'otro') return true;
+  return tipo === 'hidrante' ? d === 70 || d === 100 : tipo === 'boca_riego' ? d === 45 || d === 70 : false;
+}
+
+/**
+ * Otra medida de una boca: un entero de 20 a 150 mm, como lo valida fn_proponer (DEC-144). Sin
+ * decimales: nadie mide una boca al medio milímetro, y 32,5 daría PAYLOAD_INVALIDO.
+ */
+export function medidaBocaValida(texto?: string): boolean {
+  const t = String(texto ?? '').trim();
+  if (!/^\d+$/.test(t)) return false;
+  const n = Number(t);
+  return n >= 20 && n <= 150;
 }
 
 /** Argumentos de fn_proponer salvo token y foto_path, que se ponen al enviar (05 §6, §7). */
@@ -141,10 +173,15 @@ export function datosDe(f: Formulario, p: Punto | null): Record<string, unknown>
   switch (f.operacion) {
     case 'alta': {
       const hidrante = f.tipo === 'hidrante';
+      const otro = f.diametro === 'otro';
       return sinVacios({
         tipo: f.tipo,
-        diametro_mm: hidrante ? (f.diametro === 'otro' ? undefined : f.diametro) : 45,
-        diametro_otro: hidrante && f.diametro === 'otro' ? Number(String(f.diametroOtro).replace(',', '.')) : undefined,
+        diametro_mm: otro ? undefined : f.diametro,
+        diametro_otro: !otro
+          ? undefined
+          : hidrante
+            ? Number(String(f.diametroOtro).replace(',', '.'))
+            : Number(String(f.diametroOtro).trim()),
         racor: hidrante ? undefined : f.racor,
         caudal: f.caudal,
         descripcion_fallo: f.caudal === 'no_funciona' ? f.fallo?.trim() : undefined,
