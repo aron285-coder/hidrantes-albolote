@@ -5,7 +5,11 @@
 import { anotarServidor } from './conexion';
 import { supabase } from './supabase';
 
-export type Resultado<T> = { ok: true; datos: T } | { ok: false; codigo: string };
+/**
+ * `mensaje`: el texto del error de la RPC, tal cual. Solo para distinguir dos errores con el mismo
+ * código (FOTO_NO_RESERVADA de una foto o de la otra, docs/24 RV-103); nunca se enseña.
+ */
+export type Resultado<T> = { ok: true; datos: T } | { ok: false; codigo: string; mensaje?: string };
 
 export const SIN_SERVIDOR = 'SERVIDOR_NO_DISPONIBLE';
 
@@ -38,7 +42,8 @@ export async function rpc<T>(nombre: string, argumentos: Record<string, unknown>
       // status 0 o >= 500: no llegó al servidor o este falló; lo demás es una respuesta válida
       const caido = !status || status >= 500;
       anotarServidor(!caido);
-      return { ok: false, codigo: caido ? SIN_SERVIDOR : codigoDeError(error.message, status, error.code) };
+      if (caido) return { ok: false, codigo: SIN_SERVIDOR };
+      return { ok: false, codigo: codigoDeError(error.message, status, error.code), mensaje: error.message };
     }
     anotarServidor(true);
     return { ok: true, datos: data as T };

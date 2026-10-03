@@ -35,6 +35,7 @@ const ESTADOS: { valor: FiltrosInventario['caudal']; nombre: string }[] = [
   { valor: 'bueno', nombre: T.formulario.bueno },
   { valor: 'regular', nombre: T.formulario.regular },
   { valor: 'malo', nombre: T.formulario.malo },
+  { valor: 'barro', nombre: T.formulario.barro },
   { valor: 'no_funciona', nombre: T.formulario.noFunciona },
 ];
 const REVISIONES: { valor: 'todas' | 'sin_revisar'; nombre: string }[] = [
@@ -151,8 +152,8 @@ export default function Inventario() {
     </>
   );
   const estadoDe = (p: Punto) => (
-    <span className={cn('rounded-chip px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap', claseChip[p.caudal])}>
-      {nombreCaudal[p.caudal]}
+    <span className={cn('rounded-chip px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap', claseChip(p.caudal))}>
+      {nombreCaudal(p.caudal)}
     </span>
   );
   // Nunca "— pen": el campo mide al menos lo que su texto de "pendiente" (RV-79).

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.44 — 25 de septiembre de 2026 (DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.45 — 3 de octubre de 2026 (DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,13 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-151 · El ensayo de la primera purga programada deja su marca, y la siguiente ya borra
+- **Fecha:** 3 oct 2026 · **Estado:** vigente. Corrige DEC-129 (sesión Ops, `docs/24`).
+- **Contexto:** la primera pasada programada (28-09, run 36414479358) hizo ensayo y abrió #405, como debía. Pero «primera vez» solo se medía por `ultima_purga_fotos`, que escribe una pasada que **borra**. Sin ella, cada lunes volvía a ser la primera vez: el 5-10 habría vuelto a hacer ensayo, y así para siempre. #405 y DEC-129 prometen que «la pasada del lunes que viene borra».
+- **Decisión:** el ensayo de la primera pasada programada escribe `config.primera_purga_ensayada`. `hayUltimaPurga` cuenta las dos marcas, así que la siguiente programada borra. `probar-purga.ts` (en `ci-sql`) prueba ese caso.
+- **Consecuencia en producción:** el ensayo del 28-09 se hizo con el código anterior y no dejó la marca. La pasada del 5-10 será ensayo una vez más (con el bucket vacío no cambia nada) y la dejará. La del 12-10 ya borra. Se dice en #405.
+- **Afecta a:** 04 §9 (sin cambio de texto); 15 §4.
+
 ### DEC-141 · Las issues se enlazan con «Closes #»: se cierran solas al fusionar
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-96). Sesión Ops.
 - **Contexto:** la plantilla de PR empezaba con «Cierra #». GitHub solo cierra issues con sus palabras clave en inglés (`Closes`, `Fixes`, `Resolves`), así que ninguna se cerraba sola. Cerrarlas dependía de acordarse (skill `paquete-rv`), y #326 siguió abierta dos días después de arreglarse en #327.
@@ -899,6 +906,109 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Contexto:** `purgar-fotos.yml` solo mide el bucket de producción (DEC-129), así que en staging `storage_bytes` es siempre `null` y Salud del sistema decía "sin dato" para siempre, como una avería.
 - **Decisión:** el mismo criterio que "Último respaldo" (RV-78): con `ENTORNO === 'staging'` y `storage_bytes` a `null`, "no se mide en pruebas". Con un número, el número (también en staging, por si algún día se mide). En producción y en local, `null` sigue siendo "sin dato". `textoAlmacenamiento(bytes, entorno)` recibe el entorno como parámetro para probar los dos casos con vitest sin depender del build.
 - **Afecta a:** 06 Apéndice A; `src/lib/panel/ajustes.ts`, `src/componentes/panel/Ajustes.tsx`.
+
+### DEC-144 · Bocas de riego de 45, 70 u otra medida, que se aprueba tal cual
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-101, migración 0032). Sesión Backend. Conformidad del desarrollador el 3 oct 2026; la de jefatura, en `docs/24` §5. Corrige DEC-008 en lo que dice de las bocas ("45 fijo").
+- **Contexto:** hay bocas de 70 mm y alguna de otra medida, y `puntos_diametro_boca` exigía 45. Además, la aprobación de cualquier operación y `fn_editar_punto` ponían 45 a toda boca, así que un diámetro distinto se habría perdido en la siguiente revisión.
+- **Decisión:**
+  1. **Boca:** `diametro_mm` 45 o 70, o `diametro_otro` **entero** de 20 a 150. Se aprueba tal cual: no hay `DIAMETRO_SIN_FIJAR` en bocas. Fuera de eso, `PAYLOAD_INVALIDO(diametro_otro)` (o `(diametro_mm)` si es un `diametro_mm` que no es 45 ni 70). Las dos a la vez, `PAYLOAD_INVALIDO(diametro_otro)`.
+  2. **Sin diámetro, 45:** la app anterior no lo manda en las bocas (04 §12).
+  3. **Restricción:** `puntos_diametro_boca` pasa a `between 20 and 150`. Las filas de hoy (todas 45) la cumplen.
+  4. **Se conserva:** aprobar una revisión, un estado o una ubicación, y `fn_editar_punto`, ya no ponen 45; dejan el diámetro que tenía la boca. La fusión con "diámetro de la propuesta" sigue las reglas del alta: en una boca, `diametro_mm`, `diametro_otro` o 45; en un hidrante con otra medida, `DIAMETRO_SIN_FIJAR` (antes se ignoraba la elección sin decir nada).
+  4 bis. **Jefatura** corrige el diámetro de una boca con `diametro_mm` y cualquier valor de 20 a 150 (correcciones al aprobar y `fn_editar_punto`): el voluntario elige entre 45, 70 u otra medida, y jefatura escribe el número. Lo valida la restricción, y un número que no cabe en `smallint` da `PAYLOAD_INVALIDO`, no un error crudo que tumbaría el lote.
+  5. **Corregir datos** admite el mismo diámetro en bocas. Lo comprueba `fn_proponer` contra el tipo del punto: un hidrante solo admite 70 o 100 y nunca `diametro_otro` (antes, un 45 en un hidrante entraba y fallaba al aprobar).
+  6. **`fn_radio_px`:** el factor de diámetro es ≤ 45 → 1, ≤ 70 → 2, > 70 → 3 (antes, 0 para lo que no era 45, 70 o 100), con el criterio de 06 §4: más diámetro, más agua aprovechable.
+  7. **Hidrante:** no cambia (70 · 100 · otra medida que jefatura fija, FR-17).
+  8. **App anterior en "corregir datos" de una boca:** manda `diametro_mm: 45` si la boca no tiene 45 (`cambiosDatos` de la 0.6.5). Mientras quede alguna, una corrección de datos de una boca de 70 propone volver a 45, y jefatura lo ve en el diff de la cola. No rompe nada y desaparece al actualizar.
+  9. **Hallazgo al escribir el test:** un alta aprobada **sin** correcciones se quedaba con `correcciones = NULL`, porque `nullif(c, '{}') || {punto_id}` es NULL (`||` con NULL da NULL). Se perdía el punto creado: Mis propuestas no enseñaba el código del alta y un reenvío de la misma `clave_local` devolvía `codigo: null`. 0032 lo arregla en `fn_aplicar_propuesta` y completa las altas ya aprobadas con el `punto_id` de su fila de `registro`.
+- **Descartado:** aceptar decimales en la otra medida de una boca. Nadie mide una boca al medio milímetro, y un entero es lo que se enseña en la ficha ("32 mm").
+- **Afecta a:** 01 FR-16 y FR-17; 05 §2.1, §6.2, §6.3 y §7; `supabase/migrations/0032_diametro_bocas.sql`, `supabase/tests/29_diametro_bocas.test.sql`.
+
+### DEC-145 · Estado "Barro": no utilizable, sin descripción obligatoria
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-102, migraciones 0033 y 0034). Sesión Backend; las decisiones de fondo son del desarrollador (3 oct 2026). La parte de pantalla (color, botón, leyenda, filtro) es de la sesión Frontend (DEC-149).
+- **Contexto:** hay puntos de los que sale agua con barro. No es "No funciona" (sí sale agua) ni "Malo" (no es poco caudal): no se puede meter en una bomba.
+- **Decisión:**
+  1. **Enum:** `estado_caudal` gana `'barro'` detrás de `'no_funciona'`, en su propia migración (0033): un valor nuevo de un enum no se puede usar en la misma transacción en que se añade. `scripts/migrar.ts` aplica cada archivo en su propia transacción (`begin` y `commit` por archivo en `aplicar()`), así que 0034 ya lo ve.
+  2. **No utilizable:** tamaño mínimo del marcador (`fn_radio_px`, factor 0) y tachado, como "No funciona" (FR-61). Cercanos (FR-74) ya lo excluye porque solo lista bueno y regular; se calcula en el móvil.
+  3. **Sin descripción obligatoria:** `puntos_fallo_descrito` no cambia (solo "No funciona").
+  4. **La nota de fallo solo vale con "No funciona"** (regla de RV-42): con "Barro" se borra, como con cualquier otro estado. El alta y la fusión guardaban la nota que llegara con cualquier estado; desde 0034 siguen la misma regla que la aprobación y `fn_editar_punto`.
+  5. **Orden de despliegue:** 0034 entra en `develop` solo con RV-102a (un estado desconocido no rompe la app) ya fusionado. En rigor, desde 0033 `fn_proponer` ya aceptaría `barro` (lo valida el cast al enum), pero ningún cliente lo manda hasta la pantalla de RV-102, que espera a 0034.
+- **Repaso de cada comparación de `caudal`** (`grep no_funciona supabase/migrations`): `puntos_fallo_descrito` (igual), `fn_validar_datos` (igual: la descripción solo se exige con no funciona), `fn_aplicar_propuesta` y `fn_editar_punto` (nota solo con no funciona, punto 4), `fn_fusionar_con_existente` (ídem), `fn_radio_px` (factor 0). No hay vistas ni otras funciones que comparen el caudal.
+- **Afecta a:** 01 FR-18, FR-61 y FR-68; 05 §1, §2.1, §6.3 y §7; `supabase/migrations/0033_estado_barro.sql`, `0034_estado_barro_uso.sql`, `supabase/tests/30_estado_barro.test.sql`.
+
+### DEC-147 · Como mucho un botón primario por pantalla, arriba del grupo de acciones
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-100). Sesión Frontend.
+- **Contexto:** en "¿Qué hay aquí?" la acción más usada, *Añadir un punto aquí*, era la última de cuatro botones iguales. En la pantalla de resultado sin IndexedDB había dos primarios naranjas (*Reintentar ahora* y *Volver al mapa*).
+- **Decisión:**
+  1. Una pantalla o una hoja tiene **como mucho un primario** (`--naranja-600`), arriba del grupo de acciones, y es la acción más usada (06 §5).
+  2. En "¿Qué hay aquí?" es *Añadir un punto aquí*, primero y en naranja, el mismo color que el + del mapa: un color dice "añadir" en toda la app. Cercanos, Medir y Compartir siguen como secundarios.
+  3. Repaso: la **ficha** no tiene primario y no se le inventa (sus acciones, *Proponer un cambio*, *Cómo llegar* y *Compartir*, no tienen una más usada clara). La hoja **"Proponer un cambio"** es una lista de filas, sin botones primarios. El **formulario** tiene uno, el de envío. La **pantalla de resultado** con *Reintentar ahora* dejaba dos: *Volver al mapa* pasa a secundario mientras hay que reintentar.
+  4. Lo comprueban `src/componentes/mapa/acciones-campo.test.tsx` (QueHayAqui y Ficha) y `e2e/operaciones.spec.ts` (pantalla de resultado).
+- **Descartado:** el primario abajo, como en un formulario: en una hoja de acciones la que más se usa tiene que ser la primera que se ve.
+- **Afecta a:** 06 §5; 01 FR-72; `src/componentes/mapa/QueHayAqui.tsx`, `src/paginas/Proponer.tsx`.
+
+### DEC-146 · Foto del sitio: firma nueva de fn_proponer, la de antes se queda, y la purga la protege
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-103, migración 0035). Sesión Backend; que sea obligatoria en alta y en corregir ubicación lo decidió el desarrollador (3 oct 2026). La pantalla, la cola del móvil y el panel son de la sesión Frontend.
+- **Contexto:** una segunda foto, la del sitio ("el hidrante al lado de la gasolinera"), para encontrar el punto. La app anterior seguirá enviando altas sin ella hasta que se actualice, y la purga de los lunes borra todo lo que `fn_fotos_referenciadas` no nombra.
+- **Decisión:**
+  1. **Columnas nullables:** `puntos.foto_sitio_path` y `propuestas.foto_sitio_path`. Restricción `propuestas_foto_sitio`: solo en alta y ubicación, y distinta de `foto_path`.
+  2. **Dos firmas de `fn_proponer`:** la de antes (16 parámetros) y la nueva (17, con `foto_sitio_path` al final, **sin default**, para que una llamada de 16 no sea ambigua). PostgREST elige por los nombres. Las dos son envoltorios de `fn_proponer_interno(…, foto_sitio_path, exigir_foto_sitio)`, sin `execute` para `anon` ni `authenticated`: un solo cuerpo, sin copiar 150 líneas dos veces. La nueva tiene los mismos permisos que la de antes (`anon` y `authenticated`).
+  3. **Con la firma nueva:** obligatoria en alta y ubicación (`FOTO_SITIO_OBLIGATORIA`), no admitida en las demás (`PAYLOAD_INVALIDO(foto_sitio_path)`), distinta de `foto_path` y reservada por el mismo dispositivo con la misma ventana (`FOTO_NO_RESERVADA`). La reserva queda confirmada, como la de la conexión.
+  4. **Con la de antes:** alta y ubicación entran sin ella y `v_cola_revision` las señala con `sin_foto_sitio`. **Contrato para el cliente nuevo:** PostgREST elige la firma por las claves del JSON y `JSON.stringify` quita las que valen `undefined`; si la app nueva no mandara la clave, caería en la firma de antes sin error. La app nueva manda **siempre** `foto_sitio_path`, con `null` si no hay (y entonces el servidor responde `FOTO_SITIO_OBLIGATORIA` en alta y ubicación); solo los elementos antiguos de la cola, sin el campo, van a la de antes. La vista trae también `foto_sitio_path` y `foto_sitio_path_actual` (la del punto), para enseñar las dos lado a lado.
+  5. **Aprobación** (una, lote y alta directa de jefatura, que pasan por `fn_aplicar_propuesta`): el alta la copia; una ubicación la sustituye si trae una; sin ella (app anterior) se queda la que había; las demás operaciones no la tocan. **Fusión:** como la foto de la conexión, la de la propuesta si la trae. "Corregir ubicación" corrige un pin mal puesto, no mueve el hidrante: la foto del sitio de antes sigue enseñando su entorno, así que una ubicación de la app anterior, sin foto del sitio, la conserva en vez de dejarla vacía. Una foto del sitio sustituida deja de estar referenciada y la purga la borra, igual que una `foto_path` sustituida: el registro guarda la ruta, pero la imagen ya no está (límite aceptado desde 04 §7).
+  6. **Purga:** `fn_fotos_referenciadas()` añade `foto_sitio_path` de puntos (todos, como `foto_path`) y de propuestas pendientes o aprobadas. `fn_fotos_referenciadas_lista()` la lee, así que también queda cubierta. Es lo más importante del punto.
+  7. **Sincronización y exportación:** `v_puntos_activos` la trae al final (y con ella `fn_listar_puntos` y `fn_ficha_punto`, que leen la vista entera). `fn_exportar_inventario` añade `foto_path` y `foto_sitio_path` al objeto de cada fila; el panel anterior elige sus columnas y no las ve.
+  8. **Tope diario de subidas:** cuenta reservas y un alta gasta dos. `max_subidas_dispositivo_dia` pasa de 40 a 80 **solo si seguía en 40 y la fila es de la migración** (`actualizado_por = 'migracion'`); si jefatura lo guardó desde Ajustes, aunque fuera 40, se respeta y lo sube ella. El respaldo de `fn_reservar_subida_para`, por si faltara la fila, también es 80. TR-45, 04 §7 y 11 lo dicen.
+  9. **`promover-piloto.ts`** copia también `foto_sitio_path` de puntos y propuestas, y con ella su archivo (las rutas salen del guion generado).
+  10. **Compatibilidad:** el caso de integración de la Fase 5 de la versión anterior comprueba con una lista cerrada que `v_puntos_activos` no trae autores; la columna nueva lo haría fallar sin que el frontend anterior tenga ningún problema. `scripts/compatibilidad.ts` le añade las columnas que ya documenta 05 §4 (`COLUMNAS_NUEVAS_PUNTOS`); un autor seguiría fallando.
+- **Almacenamiento (TR-53):** 600 × (250 + 150) kB ≈ 240 MB de fotos vigentes; cabe en el gigabyte del plan gratuito y el aviso al 80 % no cambia (04 §7).
+- **Descartado:**
+  - **Un default `null` en el parámetro nuevo:** con él, una llamada de 16 argumentos sería ambigua entre las dos firmas.
+  - **Quitar la firma de antes:** rompería a los móviles que aún no se han actualizado (04 §12). Se retira en la siguiente versión mayor, como `fn_fotos_referenciadas()`.
+- **Afecta a:** 01 FR-21, FR-41, FR-45 y FR-66; 03 TR-45; 04 §7; 05 §2.1, §2.2, §2.10, §4, §6.1–§6.3, §7, §8 y §10; 11; `supabase/migrations/0035_foto_del_sitio.sql`, `supabase/tests/31_foto_del_sitio.test.sql`, `scripts/promover-piloto.ts`, `scripts/compatibilidad.ts`, `e2e/integracion/fase5.spec.ts`.
+
+### DEC-148 · Pantalla de las bocas de 45, 70 u otra medida
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-101, pantalla de DEC-144). Sesión Frontend. El número estaba reservado para subir el presupuesto por RV-104; no hizo falta (`npm run presupuesto` solo mide el JavaScript inicial), así que se usa aquí.
+- **Contexto:** con 0032 una boca admite 45, 70 u otra medida, pero el formulario enseñaba "45 mm · fijo en bocas de riego" y corregir datos de una boca proponía volver a 45 siempre.
+- **Decisión:**
+  1. **Alta y corregir datos:** la boca tiene los mismos tres botones que el hidrante (45 · 70 · Otra medida) y, con Otra medida, el campo numérico. **Hay que elegir**, como en el hidrante ("Elige el diámetro"): sin un 45 marcado de antemano, que se quedaría sin mirar en las de 70. La otra medida es un **entero de 20 a 150**; fuera de eso, "Indica la medida" (`medidaBocaValida`).
+  2. Cambiar el tipo en el alta borra un diámetro que el tipo nuevo no admite (45 en hidrante, 100 en boca) y vuelve a pedirlo (`diametroPermitido`).
+  3. **Jefatura** también ve Otra medida en una boca (se aprueba tal cual); en el hidrante sigue sin verla (RV-19).
+  4. **Tamaño en el móvil:** `radioPx` usa los tramos de 0032 (≤ 45 → 1, ≤ 70 → 2, > 70 → 3; sin diámetro, 0), como `fn_radio_px`.
+  5. **Panel:** "Aprobar" solo se bloquea por un *hidrante* de otra medida (`bloqueoPorMedida`); en una boca, la señal es informativa ("Boca de otra medida: 32 mm") y no lleva ⚠. Diff, comparación y valores enseñan el número. Al aprobar con correcciones y en el inventario, jefatura corrige el diámetro de una boca con un número de 20 a 150. Si jefatura cambia un alta de hidrante a boca, el diámetro (45) va también en las correcciones: si no, el servidor tomaría el del hidrante propuesto.
+  6. `e2e/integracion/fase6.spec.ts` (de Backend) elige 45 en su alta de boca, porque ahora la pantalla lo pide; avisado en #409.
+- **Descartado:** dejar 45 marcado por defecto (un toque menos, pero las bocas de 70 entrarían como 45 sin que nadie lo decidiera).
+- **Afecta a:** 06 Apéndice A; `src/lib/propuestas.ts`, `src/lib/derivar.ts`, `src/lib/panel/cola.ts`, `src/lib/panel/inventario.ts`, `src/paginas/Proponer.tsx`, `src/componentes/panel/DetallePropuesta.tsx`, `src/componentes/panel/dialogos.tsx`.
+
+### DEC-149 · Pantalla de "Barro": marrón medido, rejilla 2 + 3 y «No utilizable»
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-102, pantalla de DEC-145). Sesión Frontend.
+- **Contexto:** `docs/24` proponía `#6B4423` para el relleno y pedía medir el contraste y una distancia de color frente a Regular y Malo, también con daltonismo. Medido: con protanopía simulada, `#6B4423` y `--rojo-700` quedan a ΔE2000 1,1 (indistinguibles); y un marrón medio que se separe de los dos se queda por debajo de 3:1 sobre los árboles y el agua del mapa claro.
+- **Decisión:**
+  1. **Tokens:** relleno `--marron-600` `#806460`; fondo del chip `--marron-100` `#EFE3D6`; texto del chip `--marron-700` `#5A4632` (7,1:1). El relleno se eligió por búsqueda entre marrones (R > G > B) con dos condiciones: ≥ 3:1 sobre las cinco superficies del mapa claro y ΔE2000 ≥ 15 frente a Regular y Malo con visión normal, protanopía y deuteranopía (Machado 2009, gravedad 1). Da 21,1/19,5 (normal), 20,0/17,6 (protanopía), 19,5/16,3 (deuteranopía). Es un marrón rojizo, de barro de vega; los marrones más amarillos que cumplen el contraste se quedan en ΔE ≈ 14,8. Lo comprueba `accesibilidad.test.ts`, con la fórmula verificada contra los pares publicados por Sharma.
+  2. **Marcador:** tamaño mínimo y tachado, con su color y sin la opacidad 0,5 de No funciona (FR-61).
+  3. **Rejilla de estados:** 2 + 3 en el móvil (Bueno · Regular / Malo · Barro · No funciona) y una fila de cinco desde `sm`. A 360 px los cinco caben en una línea con 44 px de alto (`e2e/anchos.spec.ts`). No hizo falta el 2 + 2 + 1.
+  4. **Lista (FR-68):** el filtro «No funciona» pasa a **«No utilizable»** (no funciona y barro). El filtro guardado en el móvil con el valor de antes (`no_funciona`) se lee como el nuevo (`leerFiltro`).
+  5. **Cercanos:** no cambia la consulta (solo bueno y regular). Si el más cercano tiene barro, el aviso lo dice: «El más cercano, [código] a [distancia], tiene barro».
+  6. **Orden por estado:** Barro va entre Malo y No funciona, el orden de FR-18.
+  7. Ficha, panel (diff, correcciones, edición) e inventario (filtro por estado) tienen «Barro»; la nota de fallo sigue solo con No funciona (0034).
+- **Descartado:** quedarse con `#6B4423` y confiar solo en el tachado: con protanopía Barro y Malo se verían iguales en la ficha y en la lista, donde no hay tachado.
+- **Afecta a:** 06 §2.2, §4.3, §4.5 y Apéndice A; `src/index.css`, `src/lib/caudal.ts`, `simbologia.ts`, `derivar.ts`, `ficha.ts`, `puntos.ts`, `src/componentes/**` (pastillas, leyenda, lista, cercanos, panel).
+
+### DEC-150 · Pantalla de la foto del sitio: dos huecos, cola compatible y qué foto se vuelve a subir
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-103, pantalla de DEC-146). Sesión Frontend.
+- **Contexto:** desde 0035 `fn_proponer` tiene una firma nueva con `foto_sitio_path`, obligatoria en alta y ubicación; la de antes se queda para la app anterior. PostgREST elige la firma por los nombres de los parámetros: si falta la clave, entra por la vieja sin error.
+- **Decisión:**
+  1. **Formulario:** en alta y corregir ubicación, dos huecos lado a lado, **Conexión** y **Sitio**, los dos obligatorios; el botón dice "Falta la foto del sitio" (UI-05). Revisión, estado, datos y retirada siguen con una. Nombre accesible de cada hueco: "Hacer foto · Sitio · obligatoria" y "repetir · Sitio".
+  2. **Procesado:** la del sitio a 1280 px y objetivo ≈ 150 kB (`PERFIL_SITIO` en `foto.ts`); la de la conexión no cambia (TR-15).
+  3. **Cola:** cada envío nuevo guarda `foto_sitio` y `foto_sitio_path` (a `null` si no hay) y llama a `fn_proponer` **siempre con la clave** `foto_sitio_path`. Uno guardado por la versión anterior no tiene el campo: se lee tal cual y sale con la firma vieja, así que nada de lo que había en cola se pierde al actualizar ni hace falta migrar IndexedDB (el almacén guarda objetos enteros). Se suben las dos, cada una con su reserva, antes de `fn_proponer`.
+  4. **`FOTO_NO_RESERVADA`:** el código es el mismo para las dos fotos y solo el texto del servidor dice cuál ("La foto del sitio no se subió…"). `rpc` devuelve ahora también ese texto (`mensaje`, que nunca se enseña) y la cola vuelve a subir solo la que falta; sin texto, las dos. Pedir a Backend un código distinto habría cambiado 0035 ya fusionada.
+  5. `FOTO_SITIO_OBLIGATORIA` es un error permanente en la cola y se traduce en Mis propuestas ("Falta la foto del sitio: no se ha enviado.") y en el panel.
+  6. **Ficha:** la de la conexión y, si hay foto del sitio, dos botones de 44 px con un punto y su palabra, y se puede deslizar. Las dos se cargan con la ficha abierta (`loading="lazy"`).
+  7. **Panel:** el detalle enseña las dos fotos lado a lado, cada una con su palabra; la señal "sin foto del sitio" es aviso (la mandó la app anterior). El historial lee también `foto_sitio_path`. El inventario no cambia.
+  8. **Exportación (FR-160):** dos columnas al final, "Foto" y "Foto del sitio", con la URL pública; en GeoJSON, `foto` y `foto_sitio`. La exportación no tenía la foto de la conexión: se añade también, porque la del sitio sola no tiene sentido.
+  9. Los e2e de integración de Backend (`fase6`, `fase7`, `fase8`) suben también la foto del sitio en sus altas, y `fase6` comprueba que las tres altas llegan a la cola del panel con las dos fotos; avisado en #409.
+- **Descartado:** reenviar con la firma nueva los envíos antiguos de alta y ubicación: fallarían con `FOTO_SITIO_OBLIGATORIA` y se perderían.
+- **Afecta a:** 02 FL-03 y FL-07; 06 §5 y Apéndice A; `src/lib/api.ts`, `cola.ts`, `foto.ts`, `propuestas.ts`, `nombres-operacion.ts`, `panel/cola.ts`, `panel/errores.ts`, `panel/exportar.ts`, `src/componentes/operaciones/Campos.tsx`, `src/componentes/mapa/Ficha.tsx`, `src/componentes/panel/DetallePropuesta.tsx`, `src/paginas/Proponer.tsx`.
 
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
@@ -1780,7 +1890,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

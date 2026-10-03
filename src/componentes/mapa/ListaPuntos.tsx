@@ -11,7 +11,7 @@ import { nombreCaudal } from '@/lib/ficha';
 import { distancia, hace } from '@/lib/formato';
 import { leerLatLng } from '@/lib/coordenadas';
 import { activarPosicion, posicionActual } from '@/lib/posicion';
-import { type Filtro, type Orden, buscar, filtrar, metros, ordenar } from '@/lib/puntos';
+import { type Filtro, type Orden, buscar, filtrar, leerFiltro, metros, ordenar } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -19,7 +19,7 @@ const FILTROS: [Filtro, string][] = [
   ['todos', T.mapa.todos],
   ['hidrantes', T.mapa.hidrantes],
   ['bocas', T.mapa.bocas],
-  ['no_funciona', T.mapa.noFunciona],
+  ['no_utilizable', T.mapa.noUtilizable],
   ['sin_revisar', T.mapa.sinRevisar],
 ];
 
@@ -48,7 +48,7 @@ export function ListaPuntos({
   const gps = posicionActual();
   const pos = incidente ?? gps;
   const [texto, setTexto] = useState('');
-  const [filtro, setFiltro] = useState<Filtro>(() => leer<Filtro>('filtro_lista') ?? 'todos');
+  const [filtro, setFiltro] = useState<Filtro>(() => leerFiltro(leer<unknown>('filtro_lista')));
   const [orden, setOrden] = useState<Orden>(() => leer<Orden>('orden_lista') ?? 'distancia');
 
   // Además de los puntos, calles, lugares, direcciones y coordenadas (FR-73).
@@ -156,7 +156,7 @@ export function ListaPuntos({
                     <span className="font-datos">{p.codigo}</span> · {T.formato.mm(p.diametro_mm)}
                   </span>
                   <span className="text-texto-suave block truncate text-[13px]">
-                    {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal[p.caudal]} ·{' '}
+                    {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal(p.caudal)} ·{' '}
                     {/* FR-68: la última revisión en todas las filas; caducada, en rojo (RV-24). */}
                     {p.revision_caducada ? (
                       <span className="text-rojo-700 font-semibold">

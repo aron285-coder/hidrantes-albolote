@@ -10,6 +10,7 @@ const FILAS: [Simbolo, string][] = [
   [{ tipo: 'boca_riego', caudal: 'bueno', radio_px: 5.5, revision_caducada: false }, T.formulario.bocaRiego],
   [{ tipo: 'hidrante', caudal: 'regular', radio_px: 6, revision_caducada: false }, T.formulario.regular],
   [{ tipo: 'hidrante', caudal: 'malo', radio_px: 6, revision_caducada: false }, T.formulario.malo],
+  [{ tipo: 'hidrante', caudal: 'barro', radio_px: 6, revision_caducada: false }, T.formulario.barro],
   [{ tipo: 'hidrante', caudal: 'no_funciona', radio_px: 6, revision_caducada: false }, T.formulario.noFunciona],
   [{ tipo: 'hidrante', caudal: 'bueno', radio_px: 6, revision_caducada: true }, T.mapa.sinRevisar],
 ];

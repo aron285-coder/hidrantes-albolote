@@ -107,7 +107,7 @@ describe('sincronización (05 §10)', () => {
     rpc.mockResolvedValueOnce(ok({ puntos: [p('1')], bajas: [], sincronizado_en: 'S1' }));
     await sincronizar(TOKEN);
     rpc.mockResolvedValueOnce({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: x' } });
-    expect(await sincronizar(TOKEN)).toEqual({ ok: false, codigo: 'TOKEN_REVOCADO' });
+    expect(await sincronizar(TOKEN)).toMatchObject({ ok: false, codigo: 'TOKEN_REVOCADO' });
     expect(estadoPuntos().puntos).toHaveLength(1);
   });
 
@@ -141,7 +141,7 @@ describe('búsqueda, filtros y orden', () => {
   it('filtros rápidos de FR-68', () => {
     expect(filtrar(lista, 'bocas').map((x) => x.id)).toEqual(['0003']);
     expect(filtrar(lista, 'hidrantes')).toHaveLength(2);
-    expect(filtrar(lista, 'no_funciona').map((x) => x.id)).toEqual(['0003']);
+    expect(filtrar(lista, 'no_utilizable').map((x) => x.id)).toEqual(['0003']);
     expect(filtrar(lista, 'sin_revisar').map((x) => x.id)).toEqual(['0088']);
   });
 

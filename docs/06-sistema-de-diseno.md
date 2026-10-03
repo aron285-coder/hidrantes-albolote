@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.14 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): estado Barro, marrón y tachado (§2.2, §4.3, §4.5, Apéndice A; RV-102, DEC-149). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -49,7 +49,7 @@ El naranja de acción bajó de `#DD5A1F` a `#C94F16` el 20 sep 2026: con texto b
 quedaba en 3,78:1 y TR-31 pide 4,5:1. Cuando el naranja es **texto sobre una superficie** se usa
 `--naranja-texto`: `#BE4811` en claro (4,56:1 sobre `--fondo`) y `#F0A070` en oscuro (DEC-072).
 
-### 2.2 Tokens de estado (los cuatro niveles de caudal)
+### 2.2 Tokens de estado (los cinco niveles de caudal)
 
 Se usan **idénticos** en marcador, chip, leyenda y panel; no se retocan por contexto.
 
@@ -62,7 +62,14 @@ Para **texto sobre `--verde-100`** (las etiquetas "bueno", "alta" y "resuelta") 
 El relleno del marcador sigue siendo el `--verde-600` de §4.2 (DEC-072).
 | regular | `--naranja-estado-600` `#A85300` | `--naranja-estado-100` `#FDE8D6` | `--naranja-estado-700` `#8F4505` |
 | malo | `--rojo-700` `#9C2B1E` | `--rojo-100` `#FBE0DB` | `#9C2B1E` |
+| barro | `--marron-600` `#806460` | `--marron-100` `#EFE3D6` | `--marron-700` `#5A4632` |
 | no funciona | `--gris-700` `#40453D` | `--gris-100` `#E5E4DC` | `#40453D` |
+
+**Barro** (`docs/24` RV-102, DEC-145 y DEC-149): el `#6B4423` propuesto se confundía con `--rojo-700` con
+protanopía (ΔE2000 1,1). El relleno `#806460` queda a ΔE2000 ≥ 15 de Regular y de Malo con visión
+normal, protanopía y deuteranopía simuladas (Machado 2009), y a ≥ 3:1 sobre todas las superficies del
+mapa claro; sobre el oscuro vale el borde blanco, como para `--gris-700`. El texto del chip es el
+marrón oscuro (7,1:1 sobre `--marron-100`). Lo mide `src/lib/accesibilidad.test.ts`.
 
 El **regular es naranja** desde el 21 sep 2026 (DEC-076): el ámbar `#8A6408` de antes se leía
 marrón mostaza en el móvil a pleno sol. El naranja nuevo tiene el mismo claror —3,22:1 sobre las
@@ -74,7 +81,7 @@ propuesta pendiente): eso no es caudal. Como aviso es **texto**, y el texto del 
 `--ambar-700` es `#7F5C07` desde el 22 sep 2026 (4,93:1 sobre el oro; DEC-081). De relleno de
 marcador le bastaba con 3:1 y por eso nadie lo había medido como texto.
 
-Contraste de los cuatro rellenos sobre el fondo del mapa claro (`#EFECE3`) y oscuro (`#1B2536`):
+Contraste de los cinco rellenos sobre el fondo del mapa claro (`#EFECE3`) y oscuro (`#1B2536`):
 ≥ 3:1 en todos los casos; el borde blanco de 2,5 px garantiza la separación en cualquier fondo de
 tesela (TR-31).
 
@@ -167,7 +174,9 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 | Boca de riego | cuadrado de lado `2 × radio_px`, esquinas `rx = 3` (a 5,5 px, `rx = 2.5`; a 5 px, `rx = 2`) |
 | Borde | blanco (`#FFFFFF`), 2,5 px (2 px si `radio_px ≤ 5.5`); en modo oscuro `#111826` |
 | Relleno | color de estado (§2.2) |
+| Barro | tamaño mínimo y la misma línea blanca cruzada que No funciona, **sin** atenuar: el tachado dice "no se puede usar" y el color marrón dice por qué (FR-61, WCAG 1.4.1) |
 | No funciona | opacidad **0,5** + línea blanca cruzada de 2 px de esquina inferior izquierda a superior derecha, largo `2 × radio_px` |
+| Estado desconocido | un `caudal` que esta versión de la app no conoce (el servidor añadió uno nuevo y el móvil aún no se ha actualizado) se dibuja **como No funciona**: color `--gris-700`, radio mínimo, opacidad 0,5 y tachado. La ficha dice "Estado desconocido · actualiza la aplicación" y la lista lo cuenta con No funciona (`docs/24` RV-102a) |
 | Sin revisar > `meses_revision` | borde **discontinuo** `3 2.5`, mismo tamaño y color |
 | Seleccionado | anillo exterior `--marino-950` de 2 px a 3 px del borde (en oscuro, `--anillo-seleccion` de §2.4) |
 | Propuesto (solo panel) | pin naranja `--naranja-600` con punto blanco; el punto existente en comparación, con opacidad .8 |
@@ -196,7 +205,7 @@ Plegable (§5, DEC-123): la primera vez y cuando se despliega, en el mapa (móvi
 igual con 9–10 px). Contenido fijo y en este orden:
 
 1. ● Hidrante · ■ Boca de riego (forma)
-2. Regular · Malo · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde)
+2. Regular · Malo · Barro · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde)
 3. Sin revisar (borde discontinuo)
 4. Línea final: "Más grande = más agua aprovechable"
 
@@ -232,6 +241,7 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Barra superior** (móvil) | `--marino-950`, 16 px Barlow 600, título a la izquierda, acción a la derecha en círculo 22 px `rgba(255,255,255,.16)`. Etiqueta **Jefatura**: `--oro-600`, 9 px, radio 4. |
 | **Barra de estado** (móvil) | debajo de la barra: "Sincronizado hace N min" y badge "N sin enviar" (`--naranja-100`/`--naranja-600`). Sin cobertura: banda `--gris-700` con texto blanco 9,5 px. |
 | **Botón primario** | `--naranja-600`, blanco, 600, 13 px, alto ≥ 44 px, radio 9. Deshabilitado: `--linea` con `--texto-suave` **y una línea debajo que dice por qué** ("Falta la foto para poder enviar"). |
+| **Un primario por pantalla** | Una pantalla o una hoja tiene **como mucho un botón primario**, arriba del grupo de acciones, y es la acción más usada. No se inventa un primario donde no hay una acción clara (la ficha no lo tiene). En *¿Qué hay aquí?* es *Añadir un punto aquí*, el mismo naranja del + del mapa: un color dice "añadir" en toda la app (DEC-147). |
 | **Botón secundario** | blanco, borde 1,5 px `--marino-950`, texto `--marino-950`. |
 | **Botón destructivo** | `--rojo-700` relleno (confirmar retirada / rechazo / cambio de código). |
 | **Segmentado** (`.seg`) | opciones iguales, borde `--linea`, activa `--marino-950` con blanco. Para tipo y diámetro. |
@@ -243,8 +253,9 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Hoja inferior** (`.sheet`) | radio 16 arriba, asa de 34 × 4 px, sombra `0 -6px 20px rgba(14,27,48,.22)`, sobre un velo `rgba(14,27,48,.38)`. Filas de 44 px con icono 26 px, título 11,5 px y descripción 9,5 px. |
 | **Aviso** (`.warn-callout`) | `--oro-100` fondo, borde `--oro-600`, texto `--ambar-700` (`#7F5C07`, DEC-081), ⚠ delante. Nunca bloquea. |
 | **Toast** | `--verde-600`, blanco, radio 9, arriba bajo la barra, con cierre; para "tu propuesta se aprobó". |
+| **Dos fotos** (alta y corregir ubicación, `docs/24` RV-103) | dos huecos iguales lado a lado, cada uno con una sola palabra: **Conexión** y **Sitio**; vacío, botón de borde `--naranja-600` con la cámara y la palabra; hecho, fondo `--verde-100` con "Sitio · N kB" y "repetir". En la ficha, la de la conexión; si hay foto del sitio, debajo dos botones de 44 px con un punto y su palabra para pasar de una a otra (también deslizando). En el panel, las dos lado a lado, cada una con su palabra. |
 | **Foto** | relación 16:9 en ficha, 84–86 px de alto en móvil, etiqueta de fecha abajo-izquierda sobre `rgba(14,27,48,.6)`. Placeholder mientras carga: degradado gris-azulado. |
-| **Racor de referencia** | tres tarjetas iguales con foto real 34 px de alto y nombre; la elegida con borde `--marino-950` doble. |
+| **Racor de referencia** | tres tarjetas iguales; Granada y Barcelona con su foto real de 48 × 48 px encima del nombre (`alt=""`: el nombre ya va en el botón) y «Otro» sin foto; la elegida con borde `--marino-950` doble. Tocar la foto elige, sin ampliar. Las fotos (`public/racores/*.webp`, 160 × 160, ≤ 25 kB) las pone el desarrollador y las prepara `scripts/preparar-racores.ts`; entran en el precache. Sin la foto, la tarjeta se ve solo con el nombre, nunca con un icono roto (`docs/24` RV-104). |
 | **Minimapa de los formularios** | 336 px de alto, pin arrastrable y botón "Mi posición" arriba a la derecha; no se recentra solo (DEC-066). |
 | **Controles del mapa** | blancos, radio 7–9, sombra `0 1px 5px rgba(0,0,0,.18)`. Patrón de las apps de mapas (DEC-123): herramientas arriba a la derecha y acciones principales abajo, al alcance del pulgar. **Búsqueda** arriba, ancho completo. **Columna de la derecha**, solo iconos: 44 px de ancho fijo, pegada al borde con 8 px de margen (`right-2`), con los botones alineados a su borde derecho; de arriba abajo, Capas, Medir y Mi posición (44 × 44, con `aria-label` y `title`) y el zoom "+/−" en **una sola pieza** vertical de 44 × 88 con separador (alternativa de un dedo al pellizco, WCAG 2.5.1). **Abajo a la derecha**: "Cercanos" como botón extendido (icono `Crosshair` y texto visible, 48 px de alto, `--marino-950` con texto blanco) encima del **botón + de nuevo punto**, flotante de **56 px** `--naranja-600`, con 12 px entre los dos (UI-15); igual en ordenador, con la lista lateral a la izquierda. **Leyenda** abajo a la izquierda, plegada en una ficha "Leyenda" de 44 px: al tocarla se despliega (§4.5) y se cierra con la X o tocando fuera; el primer uso la enseña desplegada una vez y después se recuerda cómo la dejó el voluntario. Atribución abajo a la derecha, 6,5 px, sin que la toquen los botones. La ficha flotante (tableta y ordenador) va a la izquierda de la columna y termina por encima de los botones de abajo: no tapa ningún control. Las medidas viven en `src/lib/disposicion-mapa.ts` (`CONTROLES`): las usan la ficha, los avisos flotantes y el encuadre del incidente. Resultados de la búsqueda (FR-73): en grupos, por este orden, *Coordenadas*, *Puntos*, *Calles y lugares* (© OpenStreetMap) y *Direcciones* (CartoCiudad · IGN), cada fila de ≥ 52 px; mientras están abiertos en el móvil y la tableta, la columna de la derecha se oculta, porque la lista la taparía a medias. |
 | **Navegación inferior** | 50 px, blanco, tres destinos (Mapa · Lista · Ajustes), activo `--marino-950` 700. |
@@ -286,6 +297,11 @@ estilo. Los seis iconos de operación: `check` (sigue igual), `activity` (actual
 - Fechas relativas con la absoluta al lado: "20 ago 2026 · hace 1 mes".
 - Nunca "defecto": el cuarto nivel se llama **No funciona** en toda la interfaz (DEC en 12).
 - Términos fijos del glosario de 00 §6.
+- **Pantallas de campo** (`docs/24` RV-99): enseñan **solo** lo que el voluntario necesita para decidir
+  o lo que evita un error que de verdad se comete. Las definiciones van a la sesión presencial y a la
+  ayuda (FR-94), no debajo de los campos. Un campo nuevo tiene que servir a jefatura para aprobar o a
+  quien acude a un incendio; si no, no se añade. Lo que ya dice la banda de conexión de arriba no se
+  repite al pie del formulario.
 
 ---
 
@@ -364,6 +380,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.` ·
 `Añadir un punto son cuatro toques` ·
 `Pulsa +, ajusta el pin, elige tipo y estado, haz la foto. Sin cobertura también: se enviará solo cuando vuelva la señal.` ·
+`Malo: se probó y sale débil.` · `No funciona: no se pudo usar (tapa, válvula, arqueta).` (debajo, una línea cada una; docs/24 RV-99) ·
 `Todo pasa por jefatura` ·
 `Lo que propongas no aparece en el mapa hasta que jefatura lo apruebe. Te avisaremos del resultado, y si algo se rechaza, del motivo.` ·
 `Siguiente` · `Empezar` · `Saltar` · `Pantalla [1] de 3`.
@@ -387,7 +404,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
-`No funciona` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` · `desde el incidente` (lista ordenada desde el incidente, RV-62) ·
+`No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` · `desde el incidente` (lista ordenada desde el incidente, RV-62) ·
 `Nada coincide con ese filtro.` · `revisado [hace 3 meses]` (en cada fila de la Lista, FR-68) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
 `[12] puntos` · `Sincronizando…` ·
 `Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` (nunca sincronizado) ·
@@ -405,7 +422,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089). `Coordenadas` · `Decimal` ·
 `UTM ETRS89 · huso 30` · `Copiar [decimal]` · `Copiado` ·
 `No se ha podido copiar: mantén pulsado el texto para copiarlo` · `¿Qué hay aquí?` ·
-`Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Junto a [Calle Real]` · `Compartir` · `Ubicación` ·
+`Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Compartir` · `Ubicación` ·
 `[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[37.230500, -3.656000] · UTM [30S 441808 4120645] (ETRS89)` ·
 `Copiado: pégalo donde quieras` · `No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo` ·
 `Cercanos` · `Incidente` · `Desde tu posición` · `Desde el punto marcado` · `Posición de [hace 3 min]` ·
@@ -414,7 +431,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Buscando tu posición… (puedes marcar el incidente en el mapa)` · `±[12] m` (en `Desde tu posición · ±12 m · hace 2 min`, RV-59) ·
 `Posición poco precisa (±[800] m): si sabes dónde es, mantén pulsado el mapa` · `Marcar en el mapa` ·
 `Ningún punto que funcione a menos de 2 km del incidente` · `Ver todos en la lista` ·
-`El más cercano, [HID-0012] a [40 m], no funciona` · `El más cercano, [HID-0012] a [40 m], está en mal estado` ·
+`El más cercano, [HID-0012] a [40 m], no funciona` · `El más cercano, [HID-0012] a [40 m], está en mal estado` · `El más cercano, [HID-0012] a [40 m], tiene barro` ·
 `[140 m] · [NE] · [≥ 8 tramos]` · `≥ 1 tramo` · `≥ [8] tramos` · `Compartir el incidente` · `Datos de [hace 3 min]` ·
 `Distancias desde el incidente` · `Cerrar el incidente` · `Ver más cercanos` · `Ver más mapa` (las dos alturas de la hoja, RV-61) · `Volver a la lista` · `Volver a Cercanos` (la columna en ordenador, RV-60) · `Medir` · `Medir distancia` · `Medir desde aquí` ·
 `Medir tendido` · `Toca el mapa para poner los puntos del tendido` · `[186 m] · [10] tramos de [20] m` ·
@@ -428,7 +445,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
 `Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Racor [Granada]` ·
-`Foto no disponible sin cobertura` · `Sin foto`.
+`Foto no disponible sin cobertura` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
@@ -443,28 +460,26 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Toca el mapa donde está realmente. La posición anterior queda registrada.` ·
 `Sin posición GPS: toca el mapa donde está el punto.` · `±[9] m · a [12 m] del pin` · `Qué impide usarlo` ·
 `Ej.: sale menos fuerza que en mayo` · `Qué has encontrado en el sitio` ·
-`Medida en mm (jefatura la comprobará)` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` ·
+`Medida en mm (jefatura la comprobará)` · `Medida en mm, de 20 a 150` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` ·
 `Enviando…` · `Se enviará sola cuando haya conexión.` · `El cambio ya está en el mapa de todos.` ·
 `No se pudo guardar en el móvil. Inténtalo otra vez.`.
 
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
-`Diámetro de la salida mayor` · `70 mm` · `100 mm` · `Otra medida` ·
-`La salida, no la tubería. Si hay varias, marca la mayor` ·
-`45 mm · fijo en bocas de riego` · `Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
-`Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `No funciona` ·
-`Malo = probado y sale débil. No funciona = no se pudo probar (tapa, válvula, arqueta).` ·
-`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` ·
+`Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
+`Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
+`Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
+`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `repetir · [Sitio]` · `[Sitio] · [150] kB` ·
 `Hacer foto · obligatoria` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
 `¿Por qué ya no existe?` · `Obras` · `Asfaltado` · `Sustituido` · `Otro` ·
 `Cuéntalo brevemente · obligatorio`.
 
-**Avisos del formulario.** `Falta la foto para poder enviar` · `Elige el estado` ·
+**Avisos del formulario.** `Falta la foto para poder enviar` · `Falta la foto del sitio` · `Elige el estado` ·
 `Describe el fallo` · `Elige el tipo` · `Elige el diámetro` · `Indica la medida` ·
 `Elige el racor` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
 `Explica brevemente qué has visto` ·
 `⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.` ·
-`Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±[9] m)` ·
+`Toca el mapa para ajustar el pin` ·
 `La posición no está al día: coloca el pin a mano o espera a que el GPS responda`.
 
 **Envío.** `Enviar para revisión` · `Enviar propuesta de retirada` · `Aplicar ahora` ·
@@ -472,9 +487,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Enviado para revisión` · `Guardado en el móvil` · `Aplicado` · `Volver al mapa` ·
 `Ver mis propuestas` · `Sin guardar en el móvil` ·
 `No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.` · `Reintentar ahora` ·
-`Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.` ·
-`Sin cobertura · lo que envíes se guardará en el móvil y saldrá al recuperar señal` ·
-`Sin conexión con el servidor · seguimos con los datos guardados; lo que envíes esperará y se reintentará solo`.
+`Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.`.
 
 **Mis propuestas.** `Pendiente` · `Aprobada` · `Rechazada` · `Retirada por ti` · `Sin enviar` ·
 `Retirar` · `Motivo: [texto]` · `con correcciones: [texto]` ·
@@ -484,7 +497,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se ha podido enviar y ya no se enviará. No se puede deshacer.` · `¿Retirar esta propuesta?` ·
 `Jefatura ya no la verá. No se puede deshacer.` · `Aprobada [HID-0147]` · `Rechazada [HID-0147]` ·
 `El punto ya no está activo: no se ha enviado.` · `Faltan datos o no son válidos: no se ha enviado.` ·
-`Falta la foto: no se ha enviado.` ·
+`Falta la foto: no se ha enviado.` · `Falta la foto del sitio: no se ha enviado.` ·
 `El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.` · `No se ha podido enviar.` ·
 `Sin conexión: esta es la última lista guardada.`
 
@@ -562,7 +575,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distancia] del GPS del móvil` ·
 `GPS poco preciso · ±[metros] m` · `La foto se hizo a [distancia] del pin` ·
 `Revisión anterior: [cuando]` · `este mes` · `Posible duplicado de [codigo] · a [distancia]` ·
-`Diámetro "otra medida": hay que fijar 70 o 100 mm` · `El punto cambió después de esta propuesta` ·
+`Diámetro "otra medida": hay que fijar 70 o 100 mm` · `Boca de otra medida: [32] mm` · `sin foto del sitio` · `El punto cambió después de esta propuesta` ·
 `Con foto` · `Fija el diámetro en 70 o 100 mm para poder aprobar.` ·
 `la del pin propuesto (a [distancia])` · `la de [codigo] (existente)` · `desactualizada` ·
 `el punto ya no está activo` · `diámetro sin fijar` · `ya estaba resuelta` · `datos no válidos` · `cambia el tipo, que no se puede cambiar: recházala` ·
@@ -592,7 +605,7 @@ a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distan
 `El punto cambió mientras revisabas: vuelve a mirar el detalle y confirma.` ·
 `Sin motivo no se puede continuar.` · `Solo se fusionan puntos del mismo tipo.` ·
 `Solo se puede fusionar un alta.` ·
-`El resultado no cumple las reglas del punto: revisa los valores.` ·
+`El resultado no cumple las reglas del punto: revisa los valores.` · `Falta la foto del sitio.` ·
 `Ha pasado el plazo de la papelera: ya no se puede restaurar.` · `El código son 6 cifras.` ·
 `Algún valor está fuera de rango: revisa los parámetros.` ·
 `Tu cuenta ya no tiene acceso de administrador.` ·

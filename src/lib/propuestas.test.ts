@@ -45,17 +45,23 @@ describe('alta (FL-03)', () => {
     expect(queFalta(base, null)).toBe(a.eligeTipo);
     expect(queFalta({ ...base, tipo: 'hidrante' }, null)).toBe(a.eligeDiametro);
     expect(queFalta({ ...base, tipo: 'hidrante', diametro: 'otro', diametroOtro: '5' }, null)).toBe(a.indicaMedida);
-    expect(queFalta({ ...base, tipo: 'boca_riego' }, null)).toBe(a.eligeRacor);
+    expect(queFalta({ ...base, tipo: 'boca_riego' }, null)).toBe(a.eligeDiametro);
+    expect(queFalta({ ...base, tipo: 'boca_riego', diametro: 45 }, null)).toBe(a.eligeRacor);
     expect(queFalta({ ...base, tipo: 'hidrante', diametro: 70 }, null)).toBe(a.eligeEstado);
     expect(queFalta({ ...base, tipo: 'hidrante', diametro: 70, caudal: 'no_funciona', fallo: ' ' }, null)).toBe(
       a.describeFallo,
     );
     expect(queFalta({ ...base, tipo: 'hidrante', diametro: 70, caudal: 'bueno' }, null)).toBe(a.faltaFoto);
-    expect(queFalta({ ...base, tipo: 'hidrante', diametro: 70, caudal: 'bueno', hayFoto: true }, null)).toBeNull();
+    expect(queFalta({ ...base, tipo: 'hidrante', diametro: 70, caudal: 'bueno', hayFoto: true }, null)).toBe(
+      a.faltaFotoSitio,
+    );
+    expect(
+      queFalta({ ...base, tipo: 'hidrante', diametro: 70, caudal: 'bueno', hayFoto: true, hayFotoSitio: true }, null),
+    ).toBeNull();
   });
 
-  it('boca de riego: 45 mm fijo y racor; hidrante: sin racor', () => {
-    expect(datosDe({ ...base, tipo: 'boca_riego', racor: 'granada', caudal: 'regular' }, null)).toEqual({
+  it('boca de riego: el diámetro elegido y racor; hidrante: sin racor', () => {
+    expect(datosDe({ ...base, tipo: 'boca_riego', diametro: 45, racor: 'granada', caudal: 'regular' }, null)).toEqual({
       tipo: 'boca_riego',
       diametro_mm: 45,
       racor: 'granada',
@@ -116,7 +122,10 @@ describe('operaciones sobre un punto', () => {
 
   it('corregir ubicación: hay que mover el pin', () => {
     expect(queFalta({ operacion: 'ubicacion', pin: PIN, hayFoto: true }, P)).toBe(a.muevePin);
-    expect(queFalta({ operacion: 'ubicacion', pin: PIN, pinMovido: true, hayFoto: true }, P)).toBeNull();
+    expect(queFalta({ operacion: 'ubicacion', pin: PIN, pinMovido: true, hayFoto: true }, P)).toBe(a.faltaFotoSitio);
+    expect(
+      queFalta({ operacion: 'ubicacion', pin: PIN, pinMovido: true, hayFoto: true, hayFotoSitio: true }, P),
+    ).toBeNull();
     const args = argumentos(
       { operacion: 'ubicacion', pin: PIN, pinMovido: true },
       P,

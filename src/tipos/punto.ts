@@ -1,7 +1,8 @@
 // Tipos del punto tal como llega de v_puntos_activos (05 §4). Sin imports: también los usan los e2e.
 
 export type TipoPunto = 'hidrante' | 'boca_riego';
-export type Caudal = 'bueno' | 'regular' | 'malo' | 'no_funciona';
+/** Cinco niveles (FR-18): "barro" desde 0033/0034 (docs/24 RV-102). */
+export type Caudal = 'bueno' | 'regular' | 'malo' | 'barro' | 'no_funciona';
 export type Racor = 'granada' | 'barcelona' | 'otro';
 
 /** Una fila de v_puntos_activos (05 §4). */
@@ -16,6 +17,8 @@ export interface Punto {
   descripcion: string | null;
   direccion: string | null;
   foto_path: string | null;
+  /** La foto del sitio (0035, docs/24 RV-103). Opcional: los puntos guardados en el móvil antes no la traen. */
+  foto_sitio_path?: string | null;
   municipio: string;
   nucleo: string | null;
   fecha_ultima_revision: string;

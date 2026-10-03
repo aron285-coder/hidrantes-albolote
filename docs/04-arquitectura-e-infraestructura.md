@@ -247,12 +247,12 @@ sequenceDiagram
   participant ST as Storage
   M->>PF: token
   PF->>DB: token
-  DB->>DB: valida token · cuota 40/día · inserta en subidas
+  DB->>DB: valida token · cuota 80/día · inserta en subidas
   DB-->>PF: foto_path = fotos/<uuid>.jpg
   PF->>ST: createSignedUploadUrl(foto_path, 2 h)
   PF-->>M: URL firmada
   M->>ST: PUT blob (≤ 5 MB, jpeg/webp)
-  M->>DB: fn_proponer(…, foto_path)
+  M->>DB: fn_proponer(…, foto_path, foto_sitio_path)
 ```
 
 - **Ninguna política de escritura para `anon`.** Límites del bucket (fijados por `arranque.ts`): 5 MB,
@@ -261,8 +261,10 @@ sequenceDiagram
   offline de fichas; se descarta a sabiendas. La foto retrata un hidrante, no una persona (11).
 - **Las fotos no se mueven al aprobar.** Storage guarda los bytes fuera de Postgres; una función SQL
   no puede copiar archivos. `puntos.foto_path` pasa a apuntar al archivo ya subido.
+- **Dos fotos en alta y en corregir ubicación** (0035, DEC-146): la de la conexión y la del sitio, cada una
+  con su reserva y su `PUT`. Por eso la cuota de fábrica es 80 al día.
 - **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas_lista()`
-  la lista de paths protegidos (puntos, propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 7 días, DEC-084), lista
+  la lista de paths protegidos (`foto_path` y `foto_sitio_path` de puntos y de propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 7 días, DEC-084), lista
   el bucket y borra el resto. La lista llega en una sola fila con su total, porque PostgREST corta en
   1.000 filas cualquier RPC que devuelva un conjunto. El guion no borra nada si la lista no cuadra con
   el total, si trae un múltiplo exacto de 1.000 o si la pasada borraría más de max(50, 10 %) del
@@ -270,7 +272,11 @@ sequenceDiagram
   lista (docs/18 RV-33). Desde Ajustes se lanza el mismo workflow vía `/api/lanzar-workflow`. Una
   foto referenciada por un punto nunca se borra, aunque su propuesta original se rechazara después.
 - **El tratamiento de la imagen es en el móvil:** orientación EXIF aplicada, ≤ 1600 px, recompresión
-  (elimina metadatos), y coordenadas EXIF leídas antes y enviadas aparte como `exif_geom`.
+  (elimina metadatos), y coordenadas EXIF leídas antes y enviadas aparte como `exif_geom`. La foto del
+  sitio, ≤ 1280 px y unos 150 kB: se ve un entorno, no un detalle.
+- **Almacenamiento (TR-53):** con 600 puntos, 600 × (250 + 150) kB ≈ **240 MB** de fotos vigentes, más
+  las de las propuestas pendientes y las reservas de menos de 7 días. Cabe en el gigabyte del plan
+  gratuito; el aviso de Salud del sistema al 80 % no cambia.
 
 ---
 

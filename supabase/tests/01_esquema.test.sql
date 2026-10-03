@@ -34,8 +34,8 @@ end $$;
 -- ---------- puntos: constraints de 05 §2.1 ----------
 
 select lives_ok($$ select pg_temp.punto('{}') $$, 'un punto válido entra');
-select throws_ok($$ select pg_temp.punto('{"codigo":"BOC-0101","tipo":"boca_riego","diametro_mm":70,"racor":"granada"}') $$,
-  '23514', null, 'boca de riego con diámetro distinto de 45: rechazada');
+select throws_ok($$ select pg_temp.punto('{"codigo":"BOC-0101","tipo":"boca_riego","diametro_mm":151,"racor":"granada"}') $$,
+  '23514', null, 'boca de riego de más de 150 mm: rechazada (de 20 a 150 desde 0032, DEC-144)');
 select throws_ok($$ select pg_temp.punto('{"codigo":"HID-0102","diametro_mm":45}') $$,
   '23514', null, 'hidrante de 45 mm: rechazado');
 select lives_ok($$ select pg_temp.punto('{"codigo":"HID-0103","diametro_mm":70}') $$, 'hidrante de 70 mm: válido');

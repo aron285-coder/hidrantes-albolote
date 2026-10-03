@@ -42,12 +42,18 @@ async function foto(page: Page): Promise<Buffer> {
 async function altaBocaDeRiego(page: Page, descripcion: string, boton: string) {
   await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
   await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+  // docs/24 RV-101: la boca también pide el diámetro.
+  await page.getByRole('radio', { name: T.formulario.d45 }).click();
   await page.getByRole('radio', { name: T.formulario.barcelona }).click();
   await page.getByRole('radio', { name: T.formulario.bueno }).click();
   await page
     .getByTestId('entrada-foto')
     .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: await foto(page) });
-  await expect(page.getByText(/Foto añadida/)).toBeVisible();
+  // docs/24 RV-103: el alta lleva también la foto del sitio.
+  await page
+    .getByTestId('entrada-foto-sitio')
+    .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: await foto(page) });
+  await expect(page.getByTestId('hueco-entrada-foto').getByText(/\d+ kB/)).toBeVisible();
   await page.getByLabel(T.formulario.descripcionOpcional).fill(descripcion);
   await page.getByRole('button', { name: boton, exact: true }).click();
 }
@@ -97,6 +103,15 @@ test('tres altas sin cobertura llegan una vez cada una; un reenvío duplicado no
   expect(
     consulta(
       `select count(distinct foto_path) from hidrantes.propuestas where datos ->> 'descripcion' like '${marca}%'`,
+    ),
+  ).toBe('3');
+  // docs/24 RV-103: cada alta llega a la cola del panel con las dos fotos, distintas entre sí.
+  expect(
+    consulta(
+      `select count(*) from hidrantes.v_cola_revision r join hidrantes.propuestas p on p.id = r.id
+        where p.datos ->> 'descripcion' like '${marca}%'
+          and r.foto_path is not null and r.foto_sitio_path is not null and r.foto_sitio_path <> r.foto_path
+          and not r.sin_foto_sitio`,
     ),
   ).toBe('3');
 

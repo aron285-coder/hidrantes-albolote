@@ -4,7 +4,9 @@
 
 import type { LatLng } from './coordenadas';
 import { metros, rumbo, tramos } from './geometria';
+import { caudalParaDibujar } from './caudal';
 import type { Punto } from './puntos';
+import { T } from './textos';
 
 export interface Candidato {
   punto: Punto;
@@ -131,3 +133,11 @@ export const parametroGps = (p: { precision: number; momento?: number }, ahora =
 /** El momento del origen si ya tiene más de un minuto; si no, o sin datos, null. */
 export const origenViejo = (g: OrigenGps | null, ahora = Date.now()): number | null =>
   g?.momento != null && ahora - g.momento > ORIGEN_VIEJO_MS ? g.momento : null;
+
+/** El aviso cuando el más cercano no sirve: por qué, con su código y su distancia (docs/24 RV-102). */
+export function textoMasCercano(p: Pick<Punto, 'caudal' | 'codigo'>, distancia: string): string {
+  const c = caudalParaDibujar(p.caudal);
+  if (c === 'no_funciona') return T.incidente.masCercanoNoFunciona(p.codigo, distancia);
+  if (c === 'barro') return T.incidente.masCercanoBarro(p.codigo, distancia);
+  return T.incidente.masCercanoMalo(p.codigo, distancia);
+}

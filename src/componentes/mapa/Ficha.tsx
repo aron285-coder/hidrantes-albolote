@@ -1,5 +1,5 @@
 import { Activity, Check, Crosshair, Navigation, Pencil, PenLine, X } from 'lucide-react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Hoja } from '../Hoja';
 import { BloqueCoordenadas, BotonCompartir } from './Coordenadas';
@@ -22,8 +22,9 @@ const Chip = ({ className, children }: { className?: string; children: React.Rea
   </span>
 );
 
-function Foto({ punto }: { punto: Punto }) {
-  const url = urlFoto(punto.foto_path);
+/** Una foto de la ficha. Sin red ni caché, o sin foto, lo dice en vez de enseñar un icono roto. */
+function UnaFoto({ fotoPath, alt }: { fotoPath: string | null; alt: string }) {
+  const url = urlFoto(fotoPath);
   const [fallo, setFallo] = useState(false);
   const conexion = useConexion();
   if (!url || fallo) {
@@ -40,7 +41,7 @@ function Foto({ punto }: { punto: Punto }) {
         // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
         crossOrigin="anonymous"
         src={url}
-        alt={punto.codigo}
+        alt={alt}
         loading="lazy"
         onError={() => setFallo(true)}
         className="aspect-video w-full bg-[linear-gradient(135deg,#C9CFD6,#9AA8BE)] object-cover"
@@ -49,6 +50,60 @@ function Foto({ punto }: { punto: Punto }) {
         {T.ficha.ampliar}
       </span>
     </a>
+  );
+}
+
+/** Al deslizar más de esto en horizontal se pasa a la otra foto. */
+const DESLIZ_PX = 40;
+
+/**
+ * La foto de la conexión, como siempre, y, si la hay, la del sitio (FR-66, docs/24 RV-103): se pasa
+ * de una a otra deslizando o con los dos botones de debajo, cada uno con su palabra. Las dos se
+ * cargan solo con la ficha abierta.
+ */
+function Foto({ punto }: { punto: Punto }) {
+  const [cual, setCual] = useState<'conexion' | 'sitio'>('conexion');
+  const inicio = useRef<number | null>(null);
+  const haySitio = !!punto.foto_sitio_path;
+  if (!haySitio) return <UnaFoto fotoPath={punto.foto_path} alt={punto.codigo} />;
+  const fotos = [
+    ['conexion', punto.foto_path, T.formulario.conexion],
+    ['sitio', punto.foto_sitio_path ?? null, T.formulario.sitio],
+  ] as const;
+  const actual = fotos.find(([c]) => c === cual)!;
+  return (
+    <div
+      onTouchStart={(e) => (inicio.current = e.touches[0]?.clientX ?? null)}
+      onTouchEnd={(e) => {
+        const x0 = inicio.current;
+        const x1 = e.changedTouches[0]?.clientX;
+        inicio.current = null;
+        if (x0 == null || x1 == null || Math.abs(x1 - x0) < DESLIZ_PX) return;
+        setCual(x1 < x0 ? 'sitio' : 'conexion');
+      }}
+    >
+      <UnaFoto key={actual[0]} fotoPath={actual[1]} alt={T.ficha.fotoDe(punto.codigo, actual[2])} />
+      <div className="mt-1 flex justify-center gap-2">
+        {fotos.map(([c, , nombre]) => (
+          <button
+            key={c}
+            type="button"
+            aria-pressed={cual === c}
+            onClick={() => setCual(c)}
+            className="text-texto flex min-h-11 items-center gap-1.5 px-2 text-[13px] font-semibold"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                'size-2 rounded-full',
+                cual === c ? 'bg-texto' : 'border-texto-suave border bg-transparent',
+              )}
+            />
+            {nombre}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -102,9 +157,9 @@ export function Ficha({
         <Chip className="bg-linea text-texto">{nombreTipo[punto.tipo]}</Chip>
         <Chip className="bg-linea text-texto">{T.formato.mm(punto.diametro_mm)}</Chip>
         {punto.racor && <Chip className="bg-linea text-texto">{T.ficha.racor(nombreRacor(punto.racor))}</Chip>}
-        <Chip className={claseChip[punto.caudal]}>
+        <Chip className={claseChip(punto.caudal)}>
           <span className="size-2 rounded-full bg-current" aria-hidden />
-          {nombreCaudal[punto.caudal]}
+          {nombreCaudal(punto.caudal)}
         </Chip>
       </div>
       {/* La nota de fallo solo vale mientras no funciona (docs/18 RV-42). */}

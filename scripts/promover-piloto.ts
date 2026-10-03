@@ -69,20 +69,20 @@ suyas as (
 select sentencia from (
 select format(
   'insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, racor, descripcion_fallo,'
-  || ' descripcion, direccion, foto_path, municipio, nucleo, situacion, fecha_ultima_revision,'
-  || ' creado_en, actualizado_en) values (%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, now())'
+  || ' descripcion, direccion, foto_path, foto_sitio_path, municipio, nucleo, situacion, fecha_ultima_revision,'
+  || ' creado_en, actualizado_en) values (%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, now())'
   || ' on conflict (id) do nothing;',
   p.id, p.codigo, p.tipo, p.geom, p.diametro_mm, p.caudal, p.racor, p.descripcion_fallo,
-  p.descripcion, p.direccion, p.foto_path, p.municipio, p.nucleo, p.situacion, p.fecha_ultima_revision,
+  p.descripcion, p.direccion, p.foto_path, p.foto_sitio_path, p.municipio, p.nucleo, p.situacion, p.fecha_ultima_revision,
   p.creado_en) as sentencia, 1 as orden
 from elegidos p
 union all
 select format(
   'insert into hidrantes.propuestas (id, punto_id, operacion, datos, autor_nombre, autor_apellido,'
   || ' dispositivo_id, clave_local, origen_ubicacion, geom, gps_geom, precision_gps_m, exif_geom,'
-  || ' distancia_gps_m, duplicado_de, distancia_duplicado_m, direccion_sugerida, foto_path, estado,'
-  || ' motivo_rechazo, correcciones, revisada_por, revisada_en, creada_en)'
-  || ' values (%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)'
+  || ' distancia_gps_m, duplicado_de, distancia_duplicado_m, direccion_sugerida, foto_path, foto_sitio_path,'
+  || ' estado, motivo_rechazo, correcciones, revisada_por, revisada_en, creada_en)'
+  || ' values (%L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L, %L)'
   || ' on conflict do nothing;',
   r.id, r.punto_id, r.operacion, r.datos, r.autor_nombre, r.autor_apellido,
   r.dispositivo_id, r.clave_local, r.origen_ubicacion, r.geom, r.gps_geom, r.precision_gps_m, r.exif_geom,
@@ -90,7 +90,7 @@ select format(
   -- duplicado_de apunta a un punto que quizá no viaje (uno del seed): entonces se deja en blanco,
   -- porque en destino esa clave ajena no existiría.
   (select e.id from elegidos e where e.id = r.duplicado_de), r.distancia_duplicado_m,
-  r.direccion_sugerida, r.foto_path, r.estado, r.motivo_rechazo, r.correcciones, r.revisada_por,
+  r.direccion_sugerida, r.foto_path, r.foto_sitio_path, r.estado, r.motivo_rechazo, r.correcciones, r.revisada_por,
   r.revisada_en, r.creada_en), 2
 from suyas r
 union all

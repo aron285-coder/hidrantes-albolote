@@ -12,7 +12,7 @@ select ok((select 'lock_timeout=5s' = any (proconfig) from pg_proc where proname
 select ok((select not exists (select 1 from unnest(proconfig) c where c like 'statement_timeout=%')
            from pg_proc where proname = 'fn_aplicar_propuesta'),
   'y no statement_timeout');
-select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+select is((select count(distinct p.proname)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
            where n.nspname = 'hidrantes'
              and p.proname in ('fn_rechazar', 'fn_fusionar_con_existente', 'fn_editar_punto', 'fn_retirar_punto',
                                'fn_borrar_punto', 'fn_restaurar_punto', 'fn_gestionar_administrador',

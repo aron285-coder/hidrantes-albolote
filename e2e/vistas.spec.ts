@@ -150,6 +150,66 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByRole('article')).toBeVisible(),
   },
   {
+    // docs/24 RV-99 y RV-100: sin título visible, «Añadir un punto aquí» primero y en naranja.
+    nombre: 'que-hay-aqui',
+    ruta: `/?aqui=${P0.lat.toFixed(6)},${P0.lng.toFixed(6)}`,
+    preparar: voluntario,
+    lista: (p) => expect(p.getByRole('dialog', { name: T.aqui.titulo })).toBeVisible(),
+  },
+  {
+    // docs/24 RV-99: el formulario de alta sin las definiciones debajo de los campos.
+    nombre: 'nuevo-punto',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: (p) => expect(p.getByRole('radio', { name: T.formulario.hidrante })).toBeVisible(),
+  },
+  {
+    // docs/24 RV-104: los tres racores, con foto si el desarrollador ya las ha puesto.
+    nombre: 'nuevo-punto-boca',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: async (p) => {
+      await p.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+      const racor = p.getByRole('radiogroup', { name: T.formulario.racor });
+      await racor.scrollIntoViewIfNeeded();
+      await expect(racor).toBeVisible();
+    },
+  },
+  {
+    // docs/24 RV-102: la rejilla de estados 2 + 3 con Barro marcado.
+    nombre: 'nuevo-punto-barro',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: async (p) => {
+      await p.getByRole('radio', { name: T.formulario.hidrante }).click();
+      await p.getByRole('radio', { name: T.formulario.barro }).click();
+      await p.getByRole('radiogroup', { name: T.formulario.caudal }).scrollIntoViewIfNeeded();
+      await expect(p.getByRole('radio', { name: T.formulario.barro })).toHaveAttribute('aria-checked', 'true');
+    },
+  },
+  {
+    // docs/24 RV-102: la leyenda con la fila de Barro.
+    nombre: 'leyenda',
+    ruta: '/',
+    preparar: voluntario,
+    lista: async (p) => {
+      const leyenda = p.getByRole('button', { name: T.mapa.leyenda, exact: true });
+      if (await leyenda.isVisible()) await leyenda.click();
+      await expect(p.getByText(T.mapa.leyendaTamano)).toBeVisible();
+    },
+  },
+  {
+    // docs/24 RV-103: las dos fotos del alta, Conexión y Sitio, lado a lado.
+    nombre: 'nuevo-punto-fotos',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: async (p) => {
+      const hueco = p.getByTestId('hueco-entrada-foto-sitio');
+      await hueco.scrollIntoViewIfNeeded();
+      await expect(hueco).toBeVisible();
+    },
+  },
+  {
     nombre: 'lista',
     ruta: '/lista',
     preparar: voluntario,

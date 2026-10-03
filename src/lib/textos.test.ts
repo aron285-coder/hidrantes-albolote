@@ -42,3 +42,36 @@ describe('textos.ts', () => {
     expect(T.formulario.noFunciona).toBe('No funciona');
   });
 });
+
+// docs/24 RV-99: menos texto en las pantallas de campo. Que no vuelvan por descuido.
+describe('textos quitados de las pantallas de campo (docs/24 RV-99)', () => {
+  const todas = new Set(hojas(T).map(([ruta]) => ruta));
+  it.each([
+    'aqui.junto',
+    'formulario.diametroAyuda',
+    'formulario.caudalAyuda',
+    'envio.avisoSinServidor',
+    'envio.avisoSinCobertura',
+  ])('%s ya no existe', (ruta) => {
+    expect(todas.has(ruta)).toBe(false);
+  });
+
+  it('"Toca el mapa para ajustar el pin" ya no habla del círculo azul ni lleva parámetro', () => {
+    expect(T.avisosFormulario.ajustaPin).toBe('Toca el mapa para ajustar el pin');
+  });
+
+  it.each(['La salida, no la tubería', 'Malo = probado', 'el círculo azul es tu GPS', 'Junto a '])(
+    '"%s" tampoco sigue en el Apéndice A',
+    (trozo) => {
+      expect([...literalesDelApendice()].some((l) => l.includes(trozo))).toBe(false);
+    },
+  );
+
+  it('Malo y No funciona se explican en la segunda pantalla de primer uso (FR-94, FR-18)', () => {
+    const segunda = T.bienvenida.pantallas[1];
+    expect(segunda.lineas).toEqual([
+      'Malo: se probó y sale débil.',
+      'No funciona: no se pudo usar (tapa, válvula, arqueta).',
+    ]);
+  });
+});

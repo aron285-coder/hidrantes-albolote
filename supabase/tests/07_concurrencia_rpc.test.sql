@@ -28,7 +28,9 @@ select dblink_exec('s0', format($f$
   insert into hidrantes.dispositivos (dispositivo_id, token_hash) values (%3$L, hidrantes.fn_sha256(%4$L));
   insert into hidrantes.subidas (dispositivo_id, foto_path) values (%3$L, 'fotos/conc-' || %3$L || '.jpg');
   insert into hidrantes.subidas (dispositivo_id, foto_path, reservada_en)
-  select %3$L, 'fotos/relleno-' || %3$L || '-' || i || '.jpg', now() from generate_series(2, 39) i;
+  -- hasta una menos que el tope del día, sea cual sea (40 hasta 0035, 80 desde entonces)
+  select %3$L, 'fotos/relleno-' || %3$L || '-' || i || '.jpg', now()
+    from generate_series(2, (hidrantes.fn_config('max_subidas_dispositivo_dia', '40') #>> '{}')::int - 1) i;
 $f$, (select punto from conexion), (select propuesta from conexion), (select dispositivo from conexion),
      (select token from conexion)));
 
@@ -76,7 +78,7 @@ select is((select count(*)::int from dblink('s0', format(
   1, 'dos envíos simultáneos con la misma clave_local: una sola propuesta');
 select is((select id from p2), (select id from p1), 'y los dos reciben la misma propuesta');
 
--- ---------- reservas 40 y 41 a la vez ----------
+-- ---------- las dos últimas reservas del día a la vez (40 y 41 hasta 0035; 80 y 81 desde entonces) ----------
 
 select dblink_exec(s, 'begin') from unnest(array['s1', 's2']) s;
 select * from dblink('s1', format('select hidrantes.fn_reservar_subida(%L)', (select token from conexion))) as t(r text);
@@ -87,7 +89,7 @@ create temp table e41 as select dblink_error_message('s2') as e;
 select * from dblink_get_result('s2', false) as t(r text);
 select dblink_exec('s2', 'rollback');
 select matches((select e from e41), 'CUOTA_SUBIDAS_AGOTADA',
-  'reservas 40 y 41 simultáneas: una pasa y la otra choca con la cuota');
+  'las dos últimas reservas del día, simultáneas: una pasa y la otra choca con la cuota');
 
 -- Limpieza de lo confirmado (el registro es append-only y se queda; en CI la base es efímera).
 select dblink_exec('s0', format($f$

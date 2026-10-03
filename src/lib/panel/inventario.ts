@@ -3,9 +3,11 @@
 // van por RPC (05 §6.2) y devuelven Resultado.
 
 import { type Resultado, rpc } from '../api';
+import { CAUDALES, caudalParaDibujar } from '../caudal';
 import { type Caudal, type Punto, type TipoPunto, sincronizar } from '../puntos';
 import type { FiltrosExportacion } from './exportar';
 import { T } from '../textos';
+import { diametroBocaValido } from './cola';
 import { leerLista, leerPagina } from './consultas';
 import { sinAcentos } from './cola';
 
@@ -43,7 +45,8 @@ export function filtrosExportacion(f: FiltrosInventario): FiltrosExportacion {
   };
 }
 
-const ORDEN_CAUDAL = { bueno: 0, regular: 1, malo: 2, no_funciona: 3 };
+/** Un estado que esta versión no conoce va con no funciona (docs/24 RV-102a). */
+const rangoCaudal = (p: Punto) => CAUDALES.indexOf(caudalParaDibujar(p.caudal));
 
 /** Inventario en pantalla: filtros de FR-120 más la búsqueda global (FR-145). */
 export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
@@ -51,7 +54,7 @@ export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
   return puntos.filter(
     (p) =>
       (f.tipo === 'todos' || p.tipo === f.tipo) &&
-      (f.caudal === 'todos' || p.caudal === f.caudal) &&
+      (f.caudal === 'todos' || caudalParaDibujar(p.caudal) === f.caudal) &&
       (!f.sin_revisar || p.revision_caducada) &&
       (!f.nucleo || p.nucleo === f.nucleo) &&
       (!f.diametro || String(p.diametro_mm) === f.diametro) &&
@@ -63,7 +66,7 @@ export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
 export function ordenarPor(puntos: Punto[], { columna, ascendente }: Orden): Punto[] {
   const signo = ascendente ? 1 : -1;
   return [...puntos].sort((a, b) => {
-    if (columna === 'caudal') return signo * (ORDEN_CAUDAL[a.caudal] - ORDEN_CAUDAL[b.caudal]);
+    if (columna === 'caudal') return signo * (rangoCaudal(a) - rangoCaudal(b));
     if (columna === 'diametro_mm') return signo * (a.diametro_mm - b.diametro_mm);
     const x = a[columna] ?? '';
     const y = b[columna] ?? '';
@@ -225,6 +228,17 @@ export async function restaurarPunto(id: string): Promise<Resultado<null>> {
 
 export const purgarPapelera = () => rpc<number>('fn_purgar_papelera');
 
+/**
+ * Qué impide guardar la edición de un punto desde el inventario (UI-02), o null: el diámetro de una
+ * boca (entero de 20 a 150, DEC-144), su racor, la descripción del fallo y que haya algún cambio.
+ */
+export function faltaEnEdicion(p: Punto, v: CambiosPunto): string | null {
+  if (p.tipo === 'boca_riego' && !diametroBocaValido(v.diametro_mm ?? null)) return T.avisosFormulario.indicaMedida;
+  if (p.tipo === 'boca_riego' && !v.racor) return T.avisosFormulario.eligeRacor;
+  if (v.caudal === 'no_funciona' && !v.descripcion_fallo?.trim()) return T.avisosFormulario.describeFallo;
+  return Object.keys(cambiosDe(p, v)).length ? null : T.avisosFormulario.sinCambios;
+}
+
 /** Lo que cambia respecto al punto actual: `fn_editar_punto` rechaza un objeto vacío. */
 export function cambiosDe(p: Punto, v: CambiosPunto): CambiosPunto {
   const c: CambiosPunto = {};
@@ -233,7 +247,8 @@ export function cambiosDe(p: Punto, v: CambiosPunto): CambiosPunto {
     campo in v && (a?.trim() || null) !== b;
   // El tipo no se cambia desde el inventario: se retira el punto y se da de alta el correcto (DEC-090).
   const tipoFinal = p.tipo;
-  if (tipoFinal === 'hidrante' && v.diametro_mm && v.diametro_mm !== p.diametro_mm) c.diametro_mm = v.diametro_mm;
+  // En una boca también: 45, 70 o la medida que tenga, de 20 a 150 (docs/24 RV-101, DEC-144).
+  if (v.diametro_mm && v.diametro_mm !== p.diametro_mm) c.diametro_mm = v.diametro_mm;
   if (v.caudal && v.caudal !== p.caudal) c.caudal = v.caudal;
   if (tipoFinal === 'boca_riego' && cambia('racor', v.racor, p.racor)) c.racor = v.racor ?? null;
   const caudalFinal = v.caudal ?? p.caudal;

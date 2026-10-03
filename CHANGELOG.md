@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.7.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.5...hidrantes-albolote-v0.7.0) (2026-10-03)
+
+
+### Novedades
+
+* **formulario:** al dar de alta un punto o corregir su ubicación se hace también una foto del sitio ([#430](https://github.com/aron285-coder/hidrantes-albolote/issues/430)) ([233386b](https://github.com/aron285-coder/hidrantes-albolote/commit/233386be758f8c55ee9ee870e09ab81e1a2e6aaa))
+* **formulario:** fotos de referencia de los racores Granada y Barcelona ([#423](https://github.com/aron285-coder/hidrantes-albolote/issues/423)) ([f7820ad](https://github.com/aron285-coder/hidrantes-albolote/commit/f7820adfa622d2d11dcf7fa1f8973d5e3bb8ba7c))
+* **formulario:** las bocas de riego pueden ser de 45, 70 u otra medida ([#426](https://github.com/aron285-coder/hidrantes-albolote/issues/426)) ([1cc6e16](https://github.com/aron285-coder/hidrantes-albolote/commit/1cc6e16c4a5d794eb30df218467f7dc99392f337))
+* **mapa:** nuevo estado «Barro» para los puntos de los que sale agua con barro ([#428](https://github.com/aron285-coder/hidrantes-albolote/issues/428)) ([1acda0f](https://github.com/aron285-coder/hidrantes-albolote/commit/1acda0fd135bc579951f86cea508c00d27a7af3e))
+* **mapa:** pantallas de campo más limpias y «Añadir un punto aquí» arriba y en naranja ([#420](https://github.com/aron285-coder/hidrantes-albolote/issues/420)) ([739745a](https://github.com/aron285-coder/hidrantes-albolote/commit/739745a3b6d376a35a5c77b6e2633553c5836c55))
+* **sql:** bocas de riego de 45, 70 u otra medida (RV-101) ([#416](https://github.com/aron285-coder/hidrantes-albolote/issues/416)) ([adc9292](https://github.com/aron285-coder/hidrantes-albolote/commit/adc92925ffc49ef76ea4ac9bcc35e1f8930eaa40))
+* **sql:** estado barro, sale agua con barro (RV-102) ([#419](https://github.com/aron285-coder/hidrantes-albolote/issues/419)) ([6243ed6](https://github.com/aron285-coder/hidrantes-albolote/commit/6243ed6066fe410a88a306d7aa5ea11c7adf4741))
+* **sql:** foto del sitio en alta y corregir ubicación (RV-103) ([#421](https://github.com/aron285-coder/hidrantes-albolote/issues/421)) ([d6359a2](https://github.com/aron285-coder/hidrantes-albolote/commit/d6359a2b471f8989455f63f17f6f52934672bd43))
+
+
+### Correcciones
+
+* **mapa:** un estado que la aplicación aún no conoce se ve como «no funciona» y pide actualizarla ([#415](https://github.com/aron285-coder/hidrantes-albolote/issues/415)) ([7dc3585](https://github.com/aron285-coder/hidrantes-albolote/commit/7dc35855612165838fc1e847b37a897a2c2ab4bf))
+
 ## [0.6.5](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.4...hidrantes-albolote-v0.6.5) (2026-09-25)
 
 

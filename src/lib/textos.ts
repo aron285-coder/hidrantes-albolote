@@ -54,16 +54,20 @@ export const T = {
         titulo: 'Cuanto más grande, más agua da',
         texto:
           'Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.',
+        lineas: [] as string[],
       },
       {
         titulo: 'Añadir un punto son cuatro toques',
         texto:
           'Pulsa +, ajusta el pin, elige tipo y estado, haz la foto. Sin cobertura también: se enviará solo cuando vuelva la señal.',
+        // Las definiciones de FR-18 salen del formulario y vienen aquí (docs/24 RV-99).
+        lineas: ['Malo: se probó y sale débil.', 'No funciona: no se pudo usar (tapa, válvula, arqueta).'],
       },
       {
         titulo: 'Todo pasa por jefatura',
         texto:
           'Lo que propongas no aparece en el mapa hasta que jefatura lo apruebe. Te avisaremos del resultado, y si algo se rechaza, del motivo.',
+        lineas: [] as string[],
       },
     ],
     siguiente: 'Siguiente',
@@ -126,7 +130,8 @@ export const T = {
     todos: 'Todos',
     hidrantes: 'Hidrantes',
     bocas: 'Bocas',
-    noFunciona: 'No funciona',
+    // FR-68 (DEC-145): no funciona y barro.
+    noUtilizable: 'No utilizable',
     sinRevisar: 'Sin revisar',
     revisado: (hace: Parametro) => `revisado ${hace}`,
     leyendaTamano: 'Más grande = más agua aprovechable',
@@ -188,6 +193,10 @@ export const T = {
     racor: (racor: Parametro) => `Racor ${racor}`,
     fotoNoDisponible: 'Foto no disponible sin cobertura',
     sinFoto: 'Sin foto',
+    // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
+    fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
+    // docs/24 RV-102a: un estado que esta versión de la app no conoce.
+    estadoDesconocido: 'Estado desconocido · actualiza la aplicación',
   },
 
   // Funciones de mapa para emergencias (FR-72, FR-75; docs/18 GM-02 y GM-05).
@@ -205,7 +214,6 @@ export const T = {
     cercanosDesdeAqui: 'Cercanos desde aquí',
     compartirUbicacion: 'Compartir esta ubicación',
     anadirPunto: 'Añadir un punto aquí',
-    junto: (calle: Parametro) => `Junto a ${calle}`,
   },
 
   // Búsqueda de calles, lugares, direcciones y coordenadas (FR-73, docs/18 GM-04).
@@ -247,6 +255,8 @@ export const T = {
       `El más cercano, ${codigo} a ${distancia}, no funciona`,
     masCercanoMalo: (codigo: Parametro, distancia: Parametro) =>
       `El más cercano, ${codigo} a ${distancia}, está en mal estado`,
+    masCercanoBarro: (codigo: Parametro, distancia: Parametro) =>
+      `El más cercano, ${codigo} a ${distancia}, tiene barro`,
     fila: (distancia: Parametro, rumbo: Parametro, tramos: Parametro) => `${distancia} · ${rumbo} · ${tramos}`,
     tramos: (n: Parametro) => (n === 1 ? '≥ 1 tramo' : `≥ ${n} tramos`),
     compartirIncidente: 'Compartir el incidente',
@@ -317,6 +327,7 @@ export const T = {
     phNota: 'Ej.: sale menos fuerza que en mayo',
     phMotivo: 'Qué has encontrado en el sitio',
     phOtraMedida: 'Medida en mm (jefatura la comprobará)',
+    phOtraMedidaBoca: 'Medida en mm, de 20 a 150',
     preparandoFoto: 'Preparando la foto…',
     fotoIlegible: 'No se pudo leer la foto. Prueba otra vez.',
     enviando: 'Enviando…',
@@ -330,11 +341,10 @@ export const T = {
     hidrante: 'Hidrante',
     bocaRiego: 'Boca de riego',
     diametro: 'Diámetro de la salida mayor',
+    d45: '45 mm',
     d70: '70 mm',
     d100: '100 mm',
     otraMedida: 'Otra medida',
-    diametroAyuda: 'La salida, no la tubería. Si hay varias, marca la mayor',
-    diametroBoca: '45 mm · fijo en bocas de riego',
     racor: 'Racor · compara con lo que ves',
     granada: 'Granada',
     barcelona: 'Barcelona',
@@ -343,15 +353,22 @@ export const T = {
     bueno: 'Bueno',
     regular: 'Regular',
     malo: 'Malo',
+    barro: 'Barro',
     noFunciona: 'No funciona',
-    caudalAyuda: 'Malo = probado y sale débil. No funciona = no se pudo probar (tapa, válvula, arqueta).',
     descripcionFallo: 'Descripción del fallo · obligatoria',
     foto: 'Foto',
     fotoDeHoy: 'Foto de hoy',
     fotoDelSitio: 'Foto del sitio',
+    // docs/24 RV-103: los dos huecos de foto del alta y de corregir ubicación, una palabra cada uno.
+    conexion: 'Conexión',
+    sitio: 'Sitio',
     hacerFoto: 'Hacer foto · obligatoria',
     fotoAnadida: (kb: Parametro) => `Foto añadida · ${kb} kB`,
     repetir: 'repetir',
+    // Nombre de los huecos de las dos fotos (docs/24 RV-103) para quien no ve la pantalla.
+    hacerFotoDe: (que: Parametro) => `Hacer foto · ${que} · obligatoria`,
+    repetirDe: (que: Parametro) => `repetir · ${que}`,
+    huecoHecho: (que: Parametro, kb: Parametro) => `${que} · ${kb} kB`,
     descripcionOpcional: 'Descripción (opcional)',
     descripcionAyuda: 'Referencia de calle, acceso…',
     notaOpcional: 'Nota (opcional)',
@@ -366,6 +383,7 @@ export const T = {
 
   avisosFormulario: {
     faltaFoto: 'Falta la foto para poder enviar',
+    faltaFotoSitio: 'Falta la foto del sitio',
     eligeEstado: 'Elige el estado',
     describeFallo: 'Describe el fallo',
     eligeTipo: 'Elige el tipo',
@@ -377,7 +395,7 @@ export const T = {
     eligeMotivo: 'Elige un motivo',
     explicaMotivo: 'Explica brevemente qué has visto',
     fueraDeZona: '⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.',
-    ajustaPin: (metros: Parametro) => `Toca el mapa para ajustar el pin · el círculo azul es tu GPS (±${metros} m)`,
+    ajustaPin: 'Toca el mapa para ajustar el pin',
     posicionNoAlDia: 'La posición no está al día: coloca el pin a mano o espera a que el GPS responda',
   },
 
@@ -396,9 +414,6 @@ export const T = {
     volverAlMapa: 'Volver al mapa',
     verMisPropuestas: 'Ver mis propuestas',
     jefaturaRevisara: 'Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.',
-    avisoSinCobertura: 'Sin cobertura · lo que envíes se guardará en el móvil y saldrá al recuperar señal',
-    avisoSinServidor:
-      'Sin conexión con el servidor · seguimos con los datos guardados; lo que envíes esperará y se reintentará solo',
   },
 
   misPropuestas: {
@@ -425,6 +440,7 @@ export const T = {
     errorNoActivo: 'El punto ya no está activo: no se ha enviado.',
     errorDatos: 'Faltan datos o no son válidos: no se ha enviado.',
     errorFoto: 'Falta la foto: no se ha enviado.',
+    errorFotoSitio: 'Falta la foto del sitio: no se ha enviado.',
     errorTipo: 'El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.',
     errorGenerico: 'No se ha podido enviar.',
     yaRevisada: 'Jefatura ya la ha revisado',
@@ -614,6 +630,9 @@ export const T = {
     esteMes: 'este mes',
     senalDuplicado: (codigo: Parametro, distancia: Parametro) => `Posible duplicado de ${codigo} · a ${distancia}`,
     senalOtraMedida: 'Diámetro "otra medida": hay que fijar 70 o 100 mm',
+    senalOtraMedidaBoca: (mm: Parametro) => `Boca de otra medida: ${mm} mm`,
+    // docs/24 RV-103: alta o ubicación enviada por la versión anterior de la app.
+    senalSinFotoSitio: 'sin foto del sitio',
     senalDesactualizada: 'El punto cambió después de esta propuesta',
     conFoto: 'Con foto',
     fijaDiametro: 'Fija el diámetro en 70 o 100 mm para poder aprobar.',
@@ -925,6 +944,7 @@ export const T = {
     tipoDistinto: 'Solo se fusionan puntos del mismo tipo.',
     soloAltas: 'Solo se puede fusionar un alta.',
     datos: 'El resultado no cumple las reglas del punto: revisa los valores.',
+    fotoSitio: 'Falta la foto del sitio.',
     fueraDePlazo: 'Ha pasado el plazo de la papelera: ya no se puede restaurar.',
     codigoFormato: 'El código son 6 cifras.',
     config: 'Algún valor está fuera de rango: revisa los parámetros.',

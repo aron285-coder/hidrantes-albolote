@@ -1,8 +1,9 @@
 import { Camera, Check } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 import type { Caudal, Racor } from '@/tipos/punto';
-import { type FotoProcesada, procesarFoto } from '@/lib/foto';
+import { type FotoProcesada, type PerfilFoto, PERFIL_CONEXION, PERFIL_SITIO, procesarFoto } from '@/lib/foto';
 import { claseChip, nombreCaudal, nombreRacor } from '@/lib/ficha';
+import { type EstadoFoto, type RacorConFoto, URL_FOTO_RACOR, estadoFotoRacor, marcarFotoRacor } from '@/lib/racores';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -50,7 +51,7 @@ export function Segmentado<V extends string | number>({
   );
 }
 
-const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'no_funciona'];
+const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
 
 /** Píldoras de estado (06 §5): la activa con el fondo y el texto de su color. */
 export function PildorasCaudal({
@@ -63,8 +64,10 @@ export function PildorasCaudal({
   etiqueta: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={etiqueta} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {CAUDALES.map((c) => (
+    // Rejilla 2 + 3 en el móvil (Bueno · Regular / Malo · Barro · No funciona) y una fila de cinco desde
+    // sm; cada botón ≥ 44 px de alto y cabe a 360 px (docs/24 RV-102, DEC-149).
+    <div role="radiogroup" aria-label={etiqueta} className="grid grid-cols-6 gap-2 sm:grid-cols-5">
+      {CAUDALES.map((c, i) => (
         <button
           key={c}
           type="button"
@@ -72,11 +75,12 @@ export function PildorasCaudal({
           aria-checked={valor === c}
           onClick={() => alCambiar(c)}
           className={cn(
-            'rounded-chip min-h-11 border px-3 text-[15px] font-semibold',
-            valor === c ? `${claseChip[c]} border-current` : 'border-linea bg-papel text-texto',
+            'rounded-chip min-h-11 border px-1.5 text-[15px] leading-tight font-semibold sm:col-span-1',
+            i < 2 ? 'col-span-3' : 'col-span-2',
+            valor === c ? `${claseChip(c)} border-current` : 'border-linea bg-papel text-texto',
           )}
         >
-          {nombreCaudal[c]}
+          {nombreCaudal(c)}
         </button>
       ))}
     </div>
@@ -86,9 +90,31 @@ export function PildorasCaudal({
 const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
 
 /**
- * Racor de la boca de riego (FR-20). Las fotos de referencia llegan cuando jefatura las haga
- * (DEC-063); hasta entonces, tarjetas con el nombre.
+ * La foto de 48 × 48 encima del nombre. Mientras no se sabe si existe, se pide escondida; si no
+ * carga (aún no la ha puesto el desarrollador, o no hay red ni caché), desaparece y el botón se ve
+ * solo con el nombre, nunca con un icono roto. alt vacío: el nombre ya va en el botón.
  */
+function FotoRacor({ racor }: { racor: RacorConFoto }) {
+  const [estado, setEstado] = useState<EstadoFoto | undefined>(estadoFotoRacor(racor));
+  if (estado === 'falta') return null;
+  const fijar = (e: EstadoFoto) => {
+    marcarFotoRacor(racor, e);
+    setEstado(e);
+  };
+  return (
+    <img
+      src={URL_FOTO_RACOR[racor]}
+      alt=""
+      width={48}
+      height={48}
+      onLoad={() => fijar('ok')}
+      onError={() => fijar('falta')}
+      className={cn('rounded-campo mx-auto mb-1 size-12 object-cover', estado !== 'ok' && 'hidden')}
+    />
+  );
+}
+
+/** Racor de la boca de riego (FR-20): tres tarjetas; Granada y Barcelona con su foto de referencia. */
 export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: (r: Racor) => void }) {
   return (
     <div role="radiogroup" aria-label={T.formulario.racor} className="grid grid-cols-3 gap-2">
@@ -98,12 +124,14 @@ export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: 
           type="button"
           role="radio"
           aria-checked={valor === r}
+          // Tocar la foto selecciona igual que tocar el nombre: es parte del botón.
           onClick={() => alCambiar(r)}
           className={cn(
-            'bg-papel rounded-tarjeta min-h-14 border px-2 text-[15px]',
+            'bg-papel rounded-tarjeta flex min-h-14 flex-col items-center justify-center border px-2 py-1.5 text-[15px]',
             valor === r ? 'border-texto border-[3px] border-double font-semibold' : 'border-linea',
           )}
         >
+          {r !== 'otro' && <FotoRacor racor={r} />}
           {nombreRacor(r)}
         </button>
       ))}
@@ -111,15 +139,24 @@ export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: 
   );
 }
 
-/** Foto obligatoria con la cámara (FR-21): se procesa en el móvil antes de guardarla (TR-15, TR-47). */
-export function CampoFoto({
+/**
+ * Un hueco de foto con la cámara (FR-21): se procesa en el móvil antes de guardarla (TR-15, TR-47).
+ * `compacto`: medio ancho, con una sola palabra encima del botón (las dos fotos del alta, RV-103).
+ */
+function HuecoFoto({
   etiqueta,
   foto,
   alCambiar,
+  perfil = PERFIL_CONEXION,
+  testId,
+  compacto = false,
 }: {
   etiqueta: string;
   foto: FotoProcesada | null;
   alCambiar: (f: FotoProcesada | null) => void;
+  perfil?: PerfilFoto;
+  testId: string;
+  compacto?: boolean;
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
@@ -130,7 +167,7 @@ export function CampoFoto({
     setProcesando(true);
     setFallo(false);
     try {
-      alCambiar(await procesarFoto(archivo));
+      alCambiar(await procesarFoto(archivo, perfil));
     } catch {
       setFallo(true);
     } finally {
@@ -140,7 +177,7 @@ export function CampoFoto({
   }
 
   return (
-    <Campo etiqueta={etiqueta}>
+    <div data-testid={`hueco-${testId}`} className="flex min-w-0 flex-col gap-1">
       <input
         ref={entrada}
         type="file"
@@ -148,14 +185,28 @@ export function CampoFoto({
         capture="environment"
         className="sr-only"
         aria-label={etiqueta}
-        data-testid="entrada-foto"
+        data-testid={testId}
         onChange={(e) => void elegida(e.target.files?.[0])}
       />
       {foto ? (
-        <div className="bg-verde-100 text-verde-700 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold">
+        <div
+          className={cn(
+            'bg-verde-100 text-verde-700 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold',
+            compacto && 'flex-wrap gap-x-2 gap-y-0 py-1 text-[13px]',
+          )}
+        >
           <Check size={18} aria-hidden />
-          <span className="flex-1">{T.formulario.fotoAnadida(Math.round(foto.blob.size / 1024))}</span>
-          <button type="button" className="min-h-11 px-1 underline" onClick={() => entrada.current?.click()}>
+          <span className="flex-1">
+            {compacto
+              ? T.formulario.huecoHecho(etiqueta, Math.round(foto.blob.size / 1024))
+              : T.formulario.fotoAnadida(Math.round(foto.blob.size / 1024))}
+          </span>
+          <button
+            type="button"
+            className="min-h-11 px-1 underline"
+            aria-label={compacto ? T.formulario.repetirDe(etiqueta) : undefined}
+            onClick={() => entrada.current?.click()}
+          >
             {T.formulario.repetir}
           </button>
         </div>
@@ -164,13 +215,71 @@ export function CampoFoto({
           type="button"
           disabled={procesando}
           onClick={() => entrada.current?.click()}
+          aria-label={compacto ? T.formulario.hacerFotoDe(etiqueta) : undefined}
           className="border-naranja-600 text-naranja-texto bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold"
         >
           <Camera size={18} aria-hidden />
-          {procesando ? T.operaciones.preparandoFoto : T.formulario.hacerFoto}
+          {procesando ? T.operaciones.preparandoFoto : compacto ? etiqueta : T.formulario.hacerFoto}
         </button>
       )}
       {fallo && <span className="text-rojo-700 text-[13px]">{T.operaciones.fotoIlegible}</span>}
+    </div>
+  );
+}
+
+/** Foto obligatoria con la cámara (FR-21), una sola: revisión, estado, retirada y datos. */
+export function CampoFoto({
+  etiqueta,
+  foto,
+  alCambiar,
+}: {
+  etiqueta: string;
+  foto: FotoProcesada | null;
+  alCambiar: (f: FotoProcesada | null) => void;
+}) {
+  return (
+    <Campo etiqueta={etiqueta}>
+      <HuecoFoto etiqueta={etiqueta} foto={foto} alCambiar={alCambiar} testId="entrada-foto" />
+    </Campo>
+  );
+}
+
+/**
+ * Las dos fotos del alta y de corregir ubicación (docs/24 RV-103), lado a lado: «Conexión», como
+ * siempre, y «Sitio», un entorno para encontrarlo (1280 px). Las dos obligatorias.
+ */
+export function DosFotos({
+  etiqueta,
+  conexion,
+  sitio,
+  alCambiarConexion,
+  alCambiarSitio,
+}: {
+  etiqueta: string;
+  conexion: FotoProcesada | null;
+  sitio: FotoProcesada | null;
+  alCambiarConexion: (f: FotoProcesada | null) => void;
+  alCambiarSitio: (f: FotoProcesada | null) => void;
+}) {
+  return (
+    <Campo etiqueta={etiqueta}>
+      <div className="grid grid-cols-2 gap-2">
+        <HuecoFoto
+          etiqueta={T.formulario.conexion}
+          foto={conexion}
+          alCambiar={alCambiarConexion}
+          testId="entrada-foto"
+          compacto
+        />
+        <HuecoFoto
+          etiqueta={T.formulario.sitio}
+          foto={sitio}
+          alCambiar={alCambiarSitio}
+          perfil={PERFIL_SITIO}
+          testId="entrada-foto-sitio"
+          compacto
+        />
+      </div>
     </Campo>
   );
 }

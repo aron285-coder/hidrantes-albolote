@@ -514,7 +514,10 @@ describe('mantenimiento de docs/22', () => {
     expect(texto).toContain("if: ${{ steps.purga.outputs.primera_vez == '1' }}");
     expect(texto).toContain('Primera purga de fotos: revisa el ensayo');
     const script = readFileSync(path.resolve(import.meta.dirname, 'purgar-fotos.ts'), 'utf8');
-    expect(script).toContain("fn_config('ultima_purga_fotos'");
+    expect(script).toContain("hayMarca(bd, 'ultima_purga_fotos')");
+    // DEC-151: el ensayo de la primera programada también cuenta, y la siguiente ya borra.
+    expect(script).toContain("hayMarca(bd, 'primera_purga_ensayada')");
+    expect(script).toContain('if (primeraVez && bd) anotarEnsayoInicial(bd);');
   });
 });
 

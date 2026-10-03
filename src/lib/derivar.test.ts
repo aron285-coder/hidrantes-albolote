@@ -22,9 +22,9 @@ const TABLA: [number, Caudal, number][] = [
   [45, 'regular', 3],
   [45, 'malo', 3],
   [45, 'no_funciona', 4],
-  [80, 'bueno', 4],
-  [80, 'regular', 4],
-  [80, 'malo', 4],
+  [80, 'bueno', 0],
+  [80, 'regular', 1],
+  [80, 'malo', 2],
   [80, 'no_funciona', 4],
 ];
 
@@ -32,6 +32,14 @@ describe('radioPx (réplica de fn_radio_px)', () => {
   it.each(TABLA)('%i mm %s → índice %i con la escala por defecto y con otra', (d, caudal, indice) => {
     expect(radioPx(d, caudal, POR_DEFECTO)).toBe(POR_DEFECTO[indice]);
     expect(radioPx(d, caudal, OTRA)).toBe(OTRA[indice]);
+  });
+});
+
+// docs/24 RV-102a: un caudal que esta versión no conoce no da NaN ni undefined.
+describe('caudal desconocido (RV-102a)', () => {
+  it.each(['otro_valor', 'constructor', 'toString'])('%s → el radio mínimo de la escala', (c) => {
+    expect(radioPx(100, c as Caudal, POR_DEFECTO)).toBe(POR_DEFECTO[4]);
+    expect(radioPx(45, c as Caudal, OTRA)).toBe(OTRA[4]);
   });
 });
 

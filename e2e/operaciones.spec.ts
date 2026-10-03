@@ -88,7 +88,18 @@ async function hacerFoto(page: Page) {
     mimeType: 'image/jpeg',
     buffer: await fotoConExif(page),
   });
-  await expect(page.getByText(/Foto añadida · \d+ kB/)).toBeVisible();
+  await expect(page.getByTestId('hueco-entrada-foto').getByText(/\d+ kB/)).toBeVisible();
+  // Alta y corregir ubicación piden además la del sitio (docs/24 RV-103).
+  if (await page.getByTestId('entrada-foto-sitio').count()) await hacerFotoSitio(page);
+}
+
+async function hacerFotoSitio(page: Page) {
+  await page.getByTestId('entrada-foto-sitio').setInputFiles({
+    name: 'sitio.jpg',
+    mimeType: 'image/jpeg',
+    buffer: await fotoConExif(page),
+  });
+  await expect(page.getByTestId('hueco-entrada-foto-sitio').getByText(/\d+ kB/)).toBeVisible();
 }
 
 const enviar = (page: Page, texto: string = T.envio.enviarRevision) =>
@@ -111,6 +122,10 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByRole('radio', { name: T.formulario.hidrante }).click();
     await expect(page.getByText(T.avisosFormulario.eligeDiametro)).toBeVisible();
     await page.getByRole('radio', { name: T.formulario.d100 }).click();
+    // docs/24 RV-99: sin las definiciones debajo de los campos (van al primer uso y a la sesión).
+    await expect(page.getByText('La salida, no la tubería')).toHaveCount(0);
+    await expect(page.getByText('Malo =')).toHaveCount(0);
+    await expect(page.getByText('círculo azul')).toHaveCount(0);
     await page.getByRole('radio', { name: T.formulario.noFunciona }).click();
     await expect(page.getByText(T.avisosFormulario.describeFallo)).toBeVisible();
     await page.getByLabel(T.formulario.descripcionFallo).fill('Tapa soldada');
@@ -141,6 +156,33 @@ test.describe('operaciones (FL-03–FL-08)', () => {
       return [img.width, img.height];
     }, subida.toString('base64'));
     expect(dimensiones).toEqual([1600, 1200]);
+    // docs/24 RV-103: la foto del sitio va aparte, con su reserva, y a 1280 px.
+    expect(p.foto_sitio_path).toBe('fotos/2.jpg');
+    const sitio = await page.evaluate(async (b64) => {
+      const img = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${b64}`)).blob());
+      return [img.width, img.height];
+    }, s.subidas[1].toString('base64'));
+    expect(sitio).toEqual([1280, 960]);
+  });
+
+  test('alta: sin la foto del sitio el botón dice qué falta (docs/24 RV-103)', async ({ page }) => {
+    await servidor(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await page.getByRole('radio', { name: T.formulario.hidrante }).click();
+    await page.getByRole('radio', { name: T.formulario.d70 }).click();
+    await page.getByRole('radio', { name: T.formulario.bueno }).click();
+    await expect(page.getByTestId('hueco-entrada-foto')).toContainText(T.formulario.conexion);
+    await expect(page.getByTestId('hueco-entrada-foto-sitio')).toContainText(T.formulario.sitio);
+    await page.getByTestId('entrada-foto').setInputFiles({
+      name: 'foto.jpg',
+      mimeType: 'image/jpeg',
+      buffer: await fotoConExif(page),
+    });
+    await expect(page.getByText(T.avisosFormulario.faltaFotoSitio)).toBeVisible();
+    await expect(enviar(page)).toBeDisabled();
+    await hacerFotoSitio(page);
+    await expect(enviar(page)).toBeEnabled();
   });
 
   // Las cinco operaciones sobre un punto, desde la ficha. Una prueba por operación: las cinco seguidas,
@@ -157,7 +199,8 @@ test.describe('operaciones (FL-03–FL-08)', () => {
         await expect(page.getByText(T.operaciones.revisionAviso)).toBeVisible();
         await hacerFoto(page);
       },
-      esperado: { operacion: 'revision' },
+      // docs/24 RV-103: sin hueco del sitio; la firma nueva lleva la clave a null.
+      esperado: { operacion: 'revision', foto_sitio_path: null },
     },
     {
       nombre: T.operaciones.actualizarEstado,
@@ -189,7 +232,14 @@ test.describe('operaciones (FL-03–FL-08)', () => {
         }).toPass();
         await hacerFoto(page);
       },
-      esperado: { operacion: 'ubicacion', origen: 'manual', datos: {} },
+      // docs/24 RV-103: corregir ubicación pide también la foto del sitio.
+      esperado: {
+        operacion: 'ubicacion',
+        origen: 'manual',
+        datos: {},
+        foto_path: 'fotos/1.jpg',
+        foto_sitio_path: 'fotos/2.jpg',
+      },
     },
     {
       nombre: T.operaciones.proponerRetirada,
@@ -245,6 +295,7 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     for (let i = 0; i < 3; i++) {
       await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
       await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+      await page.getByRole('radio', { name: T.formulario.d45 }).click();
       await page.getByRole('radio', { name: T.formulario.granada }).click();
       await page.getByRole('radio', { name: T.formulario.bueno }).click();
       await hacerFoto(page);
@@ -262,8 +313,50 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     expect(Date.now() - vueltaLaSenal).toBeLessThan(60_000);
     expect(s.propuestas).toHaveLength(3);
     expect(new Set(s.propuestas.map((p) => p.clave_local)).size).toBe(3);
-    expect(s.subidas).toHaveLength(3);
+    // Dos fotos por alta: la de la conexión y la del sitio (docs/24 RV-103).
+    expect(s.subidas).toHaveLength(6);
+    expect(s.propuestas.every((p) => typeof p.foto_sitio_path === 'string')).toBe(true);
     expect(s.propuestas.every((p) => p.datos && (p.datos as { diametro_mm: number }).diametro_mm === 45)).toBe(true);
+  });
+
+  // docs/24 RV-101: una boca de 70 mm se da de alta con su diámetro; otra medida pide el número.
+  test('alta de una boca de riego de 70 mm', async ({ page }) => {
+    const s = await servidor(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await expect(page.getByText(T.avisosFormulario.eligeDiametro)).toBeVisible();
+    await page.getByRole('radio', { name: T.formulario.otraMedida }).click();
+    await expect(page.getByText(T.avisosFormulario.indicaMedida)).toBeVisible();
+    await page.getByLabel(T.formulario.otraMedida).fill('200');
+    await expect(page.getByText(T.avisosFormulario.indicaMedida)).toBeVisible();
+    await page.getByRole('radio', { name: T.formulario.d70 }).click();
+    await page.getByRole('radio', { name: T.formulario.barcelona }).click();
+    await page.getByRole('radio', { name: T.formulario.bueno }).click();
+    await hacerFoto(page);
+    await enviar(page).click();
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+    expect(s.propuestas[0]?.datos).toEqual({
+      tipo: 'boca_riego',
+      diametro_mm: 70,
+      racor: 'barcelona',
+      caudal: 'bueno',
+    });
+  });
+
+  // docs/24 RV-102: "Barro" no pide descripción del fallo y viaja tal cual.
+  test('alta con Barro: sin descripción del fallo', async ({ page }) => {
+    const s = await servidor(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await page.getByRole('radio', { name: T.formulario.hidrante }).click();
+    await page.getByRole('radio', { name: T.formulario.d100 }).click();
+    await page.getByRole('radio', { name: T.formulario.barro }).click();
+    await expect(page.getByLabel(T.formulario.descripcionFallo)).toHaveCount(0);
+    await hacerFoto(page);
+    await enviar(page).click();
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+    expect(s.propuestas[0]?.datos).toEqual({ tipo: 'hidrante', diametro_mm: 100, caudal: 'barro' });
   });
 
   test('Mis propuestas lista lo enviado y "Algo no funciona" llega a jefatura', async ({ page }) => {
@@ -343,6 +436,7 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await page.goto('/');
     await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
     await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await page.getByRole('radio', { name: T.formulario.d45 }).click();
     await page.getByRole('radio', { name: T.formulario.granada }).click();
     await page.getByRole('radio', { name: T.formulario.bueno }).click();
     await hacerFoto(page);
@@ -350,6 +444,12 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await expect(page.getByRole('heading', { level: 2, name: T.envio.soloEnMemoria })).toBeVisible();
     await expect(page.getByText(T.envio.soloEnMemoriaDetalle)).toBeVisible();
     await expect(page.getByRole('button', { name: T.envio.reintentarAhora })).toBeVisible();
+    // Un solo primario por pantalla (docs/24 RV-100, DEC-147): reintentar; volver al mapa, secundario.
+    await expect(page.locator('[data-variante="primario"]')).toHaveCount(1);
+    await expect(page.getByRole('button', { name: T.envio.volverAlMapa })).toHaveAttribute(
+      'data-variante',
+      'secundario',
+    );
   });
 
   // docs/18 RV-39: la pantalla no se quedaba en "Solo en memoria" tras un reintento bueno.
@@ -365,6 +465,7 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await page.goto('/');
     await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
     await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await page.getByRole('radio', { name: T.formulario.d45 }).click();
     await page.getByRole('radio', { name: T.formulario.granada }).click();
     await page.getByRole('radio', { name: T.formulario.bueno }).click();
     await hacerFoto(page);
@@ -448,6 +549,7 @@ test('un alta fuera de la zona avisa y deja continuar (FR-55)', async ({ page, c
   await page.goto('/proponer/alta');
   await expect(page.getByText(T.avisosFormulario.fueraDeZona)).toBeVisible();
   await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+  await page.getByRole('radio', { name: T.formulario.d45 }).click();
   await page.getByRole('radio', { name: T.formulario.granada }).click();
   await page.getByRole('radio', { name: T.formulario.bueno }).click();
   await hacerFoto(page);

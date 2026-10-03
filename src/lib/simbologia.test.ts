@@ -48,11 +48,12 @@ describe('las doce combinaciones (06 §4.2)', () => {
     if (tipo === 'boca_riego') expect(Number(s.esquina)).toBe(esquina(radio));
   });
 
-  it('cuatro colores de estado, uno por nivel y sin "defecto"', () => {
+  it('cinco colores de estado, uno por nivel y sin "defecto" (Barro: docs/24 RV-102)', () => {
     expect(COLOR_CAUDAL).toEqual({
       bueno: 'var(--verde-600)',
       regular: 'var(--naranja-estado-600)',
       malo: 'var(--rojo-700)',
+      barro: 'var(--marron-600)',
       no_funciona: 'var(--gris-700)',
     });
   });
@@ -82,6 +83,23 @@ describe('variantes (06 §4.3)', () => {
   it('lienzo de 44 px: el objetivo táctil no depende del radio', () => {
     const svg = svgMarcador({ tipo: 'boca_riego', caudal: 'malo', radio_px: 5.5, revision_caducada: false });
     expect(svg).toMatch(/width="44" height="44" viewBox="-22 -22 44 44"/);
+  });
+});
+
+// docs/24 RV-102a: el servidor puede traer un estado nuevo antes de que el móvil se actualice.
+describe('caudal desconocido (RV-102a)', () => {
+  it('se dibuja como no funciona y sin «undefined» en el SVG', () => {
+    const svg = svgMarcador({
+      tipo: 'boca_riego',
+      caudal: 'otro_valor' as Caudal,
+      radio_px: 5,
+      revision_caducada: false,
+    });
+    const s = dibujar(svg);
+    expect(svg).not.toContain('undefined');
+    expect(s.relleno).toBe(COLOR_CAUDAL.no_funciona);
+    expect(s.tachado).toBe(true);
+    expect(s.opacidad).toBe('0.5');
   });
 });
 

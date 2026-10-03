@@ -88,6 +88,10 @@ test('alta: "Mi posición" devuelve el pin al GPS después de moverlo a mano', a
   await page
     .getByTestId('entrada-foto')
     .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
+  // docs/24 RV-103: el alta lleva también la foto del sitio.
+  await page
+    .getByTestId('entrada-foto-sitio')
+    .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
   await page.getByRole('button', { name: T.envio.enviarRevision, exact: true }).click();
   await expect.poll(() => propuesta).not.toBeNull();
   expect(propuesta).toMatchObject({ origen: 'gps' });
@@ -200,6 +204,10 @@ test.describe('alta con una posición que no está al día (RV-40)', () => {
     await page
       .getByTestId('entrada-foto')
       .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
+    // docs/24 RV-103: el alta lleva también la foto del sitio.
+    await page
+      .getByTestId('entrada-foto-sitio')
+      .setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
     await page.getByRole('button', { name: T.envio.enviarRevision, exact: true }).click();
     await expect.poll(() => propuesta).not.toBeNull();
     expect(propuesta).toMatchObject({ origen: 'manual', gps_lat: null, gps_lng: null, precision_gps_m: null });
@@ -211,6 +219,6 @@ test.describe('alta con una posición que no está al día (RV-40)', () => {
     await fix(page, 37.231, -3.6567);
     await expect(page.getByText(T.avisosFormulario.posicionNoAlDia)).toHaveCount(0);
     await expect(page.getByText(T.avisosFormulario.muevePin)).toHaveCount(0);
-    await expect(page.getByText(T.avisosFormulario.ajustaPin(9))).toBeVisible();
+    await expect(page.getByText(T.avisosFormulario.ajustaPin)).toBeVisible();
   });
 });
