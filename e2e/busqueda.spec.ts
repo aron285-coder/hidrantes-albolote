@@ -45,7 +45,8 @@ test('sin red, "calle real" enseña la calle; al elegirla, la resalta y abre ¿Q
   await calles.getByRole('button', { name: /^Calle Real · Albolote$/ }).click();
   await expect(page).toHaveURL(/\?aqui=37\.\d+,-3\.\d+/);
   await expect(hojaAqui(page)).toBeVisible();
-  await expect(hojaAqui(page)).toContainText(T.aqui.junto('Calle Real'));
+  // La calle ya no se enseña en la hoja: va en el texto de Compartir (docs/24 RV-99).
+  await expect(hojaAqui(page)).not.toContainText('Junto a');
   await expect(page.locator('path.linea-calle')).toHaveCount(1);
   // Desde ahí, el incidente con un toque (FL-36).
   await expect(hojaAqui(page).getByRole('button', { name: T.aqui.cercanosDesdeAqui })).toBeVisible();

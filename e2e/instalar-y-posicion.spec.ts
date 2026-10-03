@@ -211,6 +211,6 @@ test.describe('alta con una posición que no está al día (RV-40)', () => {
     await fix(page, 37.231, -3.6567);
     await expect(page.getByText(T.avisosFormulario.posicionNoAlDia)).toHaveCount(0);
     await expect(page.getByText(T.avisosFormulario.muevePin)).toHaveCount(0);
-    await expect(page.getByText(T.avisosFormulario.ajustaPin(9))).toBeVisible();
+    await expect(page.getByText(T.avisosFormulario.ajustaPin)).toBeVisible();
   });
 });

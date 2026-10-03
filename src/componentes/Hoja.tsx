@@ -5,7 +5,18 @@ import { createPortal } from 'react-dom';
  * Hoja inferior sobre un velo (06 §5). Se cierra con el velo o con Escape. Se pinta en <body> para
  * quedar siempre encima, aunque se abra desde la ficha flotante sobre el mapa.
  */
-export function Hoja({ titulo, alCerrar, children }: { titulo: string; alCerrar: () => void; children: ReactNode }) {
+export function Hoja({
+  titulo,
+  alCerrar,
+  children,
+  tituloVisible = true,
+}: {
+  titulo: string;
+  alCerrar: () => void;
+  children: ReactNode;
+  /** Sin título a la vista, el diálogo sigue teniendo nombre (aria-label, WCAG 4.1.2; docs/24 RV-99). */
+  tituloVisible?: boolean;
+}) {
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       if (e.key === 'Escape') alCerrar();
@@ -23,7 +34,7 @@ export function Hoja({ titulo, alCerrar, children }: { titulo: string; alCerrar:
         className="bg-papel rounded-t-hoja relative w-full max-w-md p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-6px_20px_rgba(14,27,48,.22)]"
       >
         <div className="bg-linea mx-auto mb-3 h-1 w-[34px] rounded-full" aria-hidden />
-        <h2 className="mb-1 text-[15px] font-bold">{titulo}</h2>
+        {tituloVisible && <h2 className="mb-1 text-[15px] font-bold">{titulo}</h2>}
         {children}
       </div>
     </div>,
