@@ -900,6 +900,22 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:** el mismo criterio que "Último respaldo" (RV-78): con `ENTORNO === 'staging'` y `storage_bytes` a `null`, "no se mide en pruebas". Con un número, el número (también en staging, por si algún día se mide). En producción y en local, `null` sigue siendo "sin dato". `textoAlmacenamiento(bytes, entorno)` recibe el entorno como parámetro para probar los dos casos con vitest sin depender del build.
 - **Afecta a:** 06 Apéndice A; `src/lib/panel/ajustes.ts`, `src/componentes/panel/Ajustes.tsx`.
 
+### DEC-144 · Bocas de riego de 45, 70 u otra medida, que se aprueba tal cual
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-101, migración 0032). Sesión Backend. Conformidad del desarrollador el 3 oct 2026; la de jefatura, en `docs/24` §5. Corrige DEC-008 en lo que dice de las bocas ("45 fijo").
+- **Contexto:** hay bocas de 70 mm y alguna de otra medida, y `puntos_diametro_boca` exigía 45. Además, la aprobación de cualquier operación y `fn_editar_punto` ponían 45 a toda boca, así que un diámetro distinto se habría perdido en la siguiente revisión.
+- **Decisión:**
+  1. **Boca:** `diametro_mm` 45 o 70, o `diametro_otro` **entero** de 20 a 150. Se aprueba tal cual: no hay `DIAMETRO_SIN_FIJAR` en bocas. Fuera de eso, `PAYLOAD_INVALIDO(diametro_otro)` (o `(diametro_mm)` si es un `diametro_mm` que no es 45 ni 70). Las dos a la vez, `PAYLOAD_INVALIDO(diametro_otro)`.
+  2. **Sin diámetro, 45:** la app anterior no lo manda en las bocas (04 §12).
+  3. **Restricción:** `puntos_diametro_boca` pasa a `between 20 and 150`. Las filas de hoy (todas 45) la cumplen.
+  4. **Se conserva:** aprobar una revisión, un estado o una ubicación, y `fn_editar_punto`, ya no ponen 45; dejan el diámetro que tenía la boca. La fusión con "diámetro de la propuesta" usa también `diametro_otro` en bocas.
+  5. **Corregir datos** admite el mismo diámetro en bocas. Lo comprueba `fn_proponer` contra el tipo del punto: un hidrante solo admite 70 o 100 y nunca `diametro_otro` (antes, un 45 en un hidrante entraba y fallaba al aprobar).
+  6. **`fn_radio_px`:** el factor de diámetro es ≤ 45 → 1, ≤ 70 → 2, > 70 → 3 (antes, 0 para lo que no era 45, 70 o 100), con el criterio de 06 §4: más diámetro, más agua aprovechable.
+  7. **Hidrante:** no cambia (70 · 100 · otra medida que jefatura fija, FR-17).
+  8. **App anterior en "corregir datos" de una boca:** manda `diametro_mm: 45` si la boca no tiene 45 (`cambiosDatos` de la 0.6.5). Mientras quede alguna, una corrección de datos de una boca de 70 propone volver a 45, y jefatura lo ve en el diff de la cola. No rompe nada y desaparece al actualizar.
+  9. **Hallazgo al escribir el test:** un alta aprobada **sin** correcciones se quedaba con `correcciones = NULL`, porque `nullif(c, '{}') || {punto_id}` es NULL (`||` con NULL da NULL). Se perdía el punto creado: Mis propuestas no enseñaba el código del alta y un reenvío de la misma `clave_local` devolvía `codigo: null`. 0032 lo arregla en `fn_aplicar_propuesta` y completa las altas ya aprobadas con el `punto_id` de su fila de `registro`.
+- **Descartado:** aceptar decimales en la otra medida de una boca. Nadie mide una boca al medio milímetro, y un entero es lo que se enseña en la ficha ("32 mm").
+- **Afecta a:** 01 FR-16 y FR-17; 05 §2.1, §6.2, §6.3 y §7; `supabase/migrations/0032_diametro_bocas.sql`, `supabase/tests/29_diametro_bocas.test.sql`.
+
 ### DEC-112 · Margen de TR-10: la porción con sesión se enseña sin `Suspense`
 - **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/20` RV-80). Decisión de bajo riesgo de la sesión Frontend: TR-10 y su umbral no cambian.
 - **Contexto:**

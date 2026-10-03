@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(21);
+select plan(22);
 
 insert into hidrantes.config (clave, valor, actualizado_por)
 values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen_salt('bf', 4))), 'test')
@@ -47,6 +47,8 @@ end $$;
 select is(pg_temp.aprobar(pg_temp.proponer('diam-boca-45', 'alta', null,
   '{"tipo":"boca_riego","diametro_mm":45,"caudal":"bueno","racor":"granada"}', 37.2001, -3.6001)), 45::smallint,
   'boca de 45: aprobada con 45');
+select isnt((select correcciones ->> 'punto_id' from hidrantes.propuestas where clave_local = 'diam-boca-45'), null,
+  'un alta aprobada sin correcciones guarda el punto creado (Mis propuestas enseña su código)');
 select is(pg_temp.aprobar(pg_temp.proponer('diam-boca-70', 'alta', null,
   '{"tipo":"boca_riego","diametro_mm":70,"caudal":"bueno","racor":"granada"}', 37.2011, -3.6011)), 70::smallint,
   'boca de 70: aprobada con 70');
