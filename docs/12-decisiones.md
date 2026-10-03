@@ -924,6 +924,18 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** aceptar decimales en la otra medida de una boca. Nadie mide una boca al medio milímetro, y un entero es lo que se enseña en la ficha ("32 mm").
 - **Afecta a:** 01 FR-16 y FR-17; 05 §2.1, §6.2, §6.3 y §7; `supabase/migrations/0032_diametro_bocas.sql`, `supabase/tests/29_diametro_bocas.test.sql`.
 
+### DEC-145 · Estado "Barro": no utilizable, sin descripción obligatoria
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-102, migraciones 0033 y 0034). Sesión Backend; las decisiones de fondo son del desarrollador (3 oct 2026). La parte de pantalla (color, botón, leyenda, filtro) es de la sesión Frontend (DEC-149).
+- **Contexto:** hay puntos de los que sale agua con barro. No es "No funciona" (sí sale agua) ni "Malo" (no es poco caudal): no se puede meter en una bomba.
+- **Decisión:**
+  1. **Enum:** `estado_caudal` gana `'barro'` detrás de `'no_funciona'`, en su propia migración (0033): un valor nuevo de un enum no se puede usar en la misma transacción en que se añade. `scripts/migrar.ts` aplica cada archivo en su propia transacción (`begin` y `commit` por archivo en `aplicar()`), así que 0034 ya lo ve.
+  2. **No utilizable:** tamaño mínimo del marcador (`fn_radio_px`, factor 0) y tachado, como "No funciona" (FR-61). Cercanos (FR-74) ya lo excluye porque solo lista bueno y regular; se calcula en el móvil.
+  3. **Sin descripción obligatoria:** `puntos_fallo_descrito` no cambia (solo "No funciona").
+  4. **La nota de fallo solo vale con "No funciona"** (regla de RV-42): con "Barro" se borra, como con cualquier otro estado. El alta y la fusión guardaban la nota que llegara con cualquier estado; desde 0034 siguen la misma regla que la aprobación y `fn_editar_punto`.
+  5. **Orden de despliegue:** 0034 entra en `develop` solo con RV-102a (un estado desconocido no rompe la app) ya fusionado. En rigor, desde 0033 `fn_proponer` ya aceptaría `barro` (lo valida el cast al enum), pero ningún cliente lo manda hasta la pantalla de RV-102, que espera a 0034.
+- **Repaso de cada comparación de `caudal`** (`grep no_funciona supabase/migrations`): `puntos_fallo_descrito` (igual), `fn_validar_datos` (igual: la descripción solo se exige con no funciona), `fn_aplicar_propuesta` y `fn_editar_punto` (nota solo con no funciona, punto 4), `fn_fusionar_con_existente` (ídem), `fn_radio_px` (factor 0). No hay vistas ni otras funciones que comparen el caudal.
+- **Afecta a:** 01 FR-18, FR-61 y FR-68; 05 §1, §2.1, §6.3 y §7; `supabase/migrations/0033_estado_barro.sql`, `0034_estado_barro_uso.sql`, `supabase/tests/30_estado_barro.test.sql`.
+
 ### DEC-147 · Como mucho un botón primario por pantalla, arriba del grupo de acciones
 - **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-100). Sesión Frontend.
 - **Contexto:** en "¿Qué hay aquí?" la acción más usada, *Añadir un punto aquí*, era la última de cuatro botones iguales. En la pantalla de resultado sin IndexedDB había dos primarios naranjas (*Reintentar ahora* y *Volver al mapa*).
