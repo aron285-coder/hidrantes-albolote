@@ -42,7 +42,7 @@ migración de una línea; renombrar uno exige dos pasos (04 §12).
 | `codigo` | `text` | no | `HID-####` / `BOC-####`, único, de `fn_siguiente_codigo` |
 | `tipo` | `tipo_punto` | no | |
 | `geom` | `geography(Point,4326)` | no | |
-| `diametro_mm` | `smallint` | no | 45 / 70 / 100 |
+| `diametro_mm` | `smallint` | no | hidrante 70 / 100; boca de riego de 20 a 150: 45, 70 u otra medida (0032, DEC-144) |
 | `caudal` | `estado_caudal` | no | |
 | `racor` | `tipo_racor` | sí | solo bocas de riego |
 | `descripcion_fallo` | `text` | sí | obligatoria si `caudal = 'no_funciona'` |
@@ -60,7 +60,7 @@ migración de una línea; renombrar uno exige dos pasos (04 §12).
 Constraints:
 
 ```sql
-check (tipo <> 'boca_riego' or diametro_mm = 45)
+check (tipo <> 'boca_riego' or diametro_mm between 20 and 150)  -- 0032, DEC-144; hasta entonces, = 45
 check (tipo <> 'hidrante'   or diametro_mm in (70, 100))
 check ((tipo = 'boca_riego') = (racor is not null))
 check (caudal <> 'no_funciona' or coalesce(length(trim(descripcion_fallo)), 0) > 0)  -- sin coalesce, NULL pasaría
@@ -404,7 +404,9 @@ fn_aprobar(propuesta_id uuid, correcciones jsonb default null, confirmar_desactu
   -- guarda direccion (correcciones.direccion ?? direccion_sugerida ?? null);
   -- fecha_ultima_revision = current_date; foto_path del punto = el de la propuesta (no se copia);
   -- errores: PROPUESTA_NO_PENDIENTE · PUNTO_NO_ACTIVO · PROPUESTA_DESACTUALIZADA (salvo confirmar) ·
-  --          DIAMETRO_SIN_FIJAR (alta con "otra medida" sin correcciones.diametro_mm) · PAYLOAD_INVALIDO
+  --          DIAMETRO_SIN_FIJAR (alta de hidrante con "otra medida" sin correcciones.diametro_mm; una boca
+  --          con otra medida se aprueba tal cual, 0032) · PAYLOAD_INVALIDO
+  -- en las demás operaciones, el diámetro de una boca se conserva (hasta 0032 se forzaba a 45).
 
 fn_aprobar_lote(propuesta_ids uuid[])
   returns table (propuesta_id uuid, resultado text, motivo text)
@@ -418,13 +420,16 @@ fn_fusionar_con_existente(propuesta_id uuid, punto_id uuid, prevalece jsonb defa
   -- prevalece: { "racor": "propuesta"|"existente", "caudal": …, "diametro_mm": …, "descripcion": …,
   --              "ubicacion": … }
   -- por defecto prevalece lo existente salvo foto y fecha de revisión, que son los de la propuesta.
+  -- "diametro_mm": "propuesta" sigue las reglas del alta: boca, diametro_mm, diametro_otro o 45;
+  -- hidrante con otra medida → DIAMETRO_SIN_FIJAR (0032, DEC-144).
   -- con "ubicacion": "propuesta" se recalculan municipio y núcleo y la dirección pasa a la sugerida
   -- (si no la hay, se conserva), como en fn_aplicar_propuesta (0017, RV-18).
-  -- errores: TIPO_DISTINTO · PUNTO_NO_ACTIVO · PROPUESTA_NO_ALTA
+  -- errores: TIPO_DISTINTO · PUNTO_NO_ACTIVO · PROPUESTA_NO_ALTA · DIAMETRO_SIN_FIJAR
 
 fn_editar_punto(punto_id uuid, cambios jsonb) returns void
   -- un caudal distinto de 'no_funciona' borra descripcion_fallo, como en fn_aplicar_propuesta (0024, RV-42)
   -- edición directa de administrador (FR-151 desde el inventario); registro es_admin = true.
+  -- diametro_mm en una boca: de 20 a 150; ya no se fuerza a 45 (0032, DEC-144)
 
 fn_retirar_punto(punto_id uuid, motivo text) returns void
 fn_borrar_punto(punto_id uuid, motivo text) returns void        -- situacion = 'borrado', borrado_en = now()
@@ -492,7 +497,9 @@ fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
 fn_siguiente_codigo(tipo tipo_punto) returns text
 fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con respaldo
 fn_es_admin() returns boolean       -- fn_email_jwt() presente y activo en administradores
-fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4
+fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4; factor de diámetro
+                                             -- ≤ 45 → 1, ≤ 70 → 2, > 70 → 3 (0032; antes, 0 para lo
+                                             -- que no era 45, 70 o 100)
 fn_registrar(actor text, dispositivo_id uuid, es_admin boolean, accion text, punto_id uuid, propuesta_id uuid, antes jsonb, despues jsonb)
 fn_error(codigo text, texto text)            -- lanza P0001 'CODIGO: texto'
 fn_email_jwt() returns text                  -- correo del JWT, en minúsculas, solo si la sesión es de Google:
@@ -518,10 +525,10 @@ fn_tareas_programadas() returns jsonb        -- 0031, RV-92: las tareas hidrante
 
 | Operación | `datos` (solo lo que cambia) | Obligatorio además |
 |---|---|---|
-| `alta` | `{ tipo, diametro_mm?, diametro_otro?, caudal, racor?, descripcion_fallo?, descripcion? }` | `geom`, `origen`, `foto_path`. Si `tipo = 'boca_riego'`: `racor`, y `diametro_mm` se fija a 45. Si `diametro_otro` viene, `diametro_mm` es `null` y la propuesta queda marcada `otra_medida`. |
+| `alta` | `{ tipo, diametro_mm?, diametro_otro?, caudal, racor?, descripcion_fallo?, descripcion? }` | `geom`, `origen`, `foto_path`. Nunca `diametro_mm` y `diametro_otro` a la vez; con `diametro_otro`, la propuesta queda marcada `otra_medida`. **Hidrante:** `diametro_mm` 70 o 100, o `diametro_otro` (número), que jefatura fija antes de aprobar (`DIAMETRO_SIN_FIJAR`). **Boca de riego:** `racor`; `diametro_mm` 45 o 70, o `diametro_otro` entero de 20 a 150, que se aprueba tal cual; sin ninguno de los dos, 45 (la app anterior no lo manda, 04 §12). Al aprobar, una boca guarda `coalesce(diametro_mm, diametro_otro, 45)` (0032, DEC-144). |
 | `revision` | `{}` (o `{ nota? }`) | `foto_path` |
 | `estado` | `{ caudal, descripcion_fallo?, nota? }` | `foto_path` |
-| `datos` | subconjunto de `{ diametro_mm, racor, descripcion }`; `tipo` solo si es **igual** al actual (el frontend anterior lo manda siempre, 04 §12): uno distinto da `TIPO_NO_MODIFICABLE` (0023, DEC-090) | — |
+| `datos` | subconjunto de `{ diametro_mm, diametro_otro, racor, descripcion }`; `tipo` solo si es **igual** al actual (el frontend anterior lo manda siempre, 04 §12): uno distinto da `TIPO_NO_MODIFICABLE` (0023, DEC-090). El diámetro sigue las reglas del alta según el tipo del punto: un hidrante, solo `diametro_mm` 70 o 100; una boca, 45, 70 o `diametro_otro` entero de 20 a 150 (0032, DEC-144) | — |
 | `ubicacion` | `{ nota? }` | `geom`, `origen`, `foto_path`; el servidor calcula `desplazamiento_m` contra `puntos.geom` |
 | `retirada` | `{ motivo_rapido: 'obras'|'asfaltado'|'sustituido'|'otro', motivo: text }` | `foto_path` |
 
