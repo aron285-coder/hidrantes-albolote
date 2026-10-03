@@ -3,6 +3,7 @@ import { type ReactNode, useRef, useState } from 'react';
 import type { Caudal, Racor } from '@/tipos/punto';
 import { type FotoProcesada, procesarFoto } from '@/lib/foto';
 import { claseChip, nombreCaudal, nombreRacor } from '@/lib/ficha';
+import { type EstadoFoto, type RacorConFoto, URL_FOTO_RACOR, estadoFotoRacor, marcarFotoRacor } from '@/lib/racores';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -86,9 +87,31 @@ export function PildorasCaudal({
 const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
 
 /**
- * Racor de la boca de riego (FR-20). Las fotos de referencia llegan cuando jefatura las haga
- * (DEC-063); hasta entonces, tarjetas con el nombre.
+ * La foto de 48 × 48 encima del nombre. Mientras no se sabe si existe, se pide escondida; si no
+ * carga (aún no la ha puesto el desarrollador, o no hay red ni caché), desaparece y el botón se ve
+ * solo con el nombre, nunca con un icono roto. alt vacío: el nombre ya va en el botón.
  */
+function FotoRacor({ racor }: { racor: RacorConFoto }) {
+  const [estado, setEstado] = useState<EstadoFoto | undefined>(estadoFotoRacor(racor));
+  if (estado === 'falta') return null;
+  const fijar = (e: EstadoFoto) => {
+    marcarFotoRacor(racor, e);
+    setEstado(e);
+  };
+  return (
+    <img
+      src={URL_FOTO_RACOR[racor]}
+      alt=""
+      width={48}
+      height={48}
+      onLoad={() => fijar('ok')}
+      onError={() => fijar('falta')}
+      className={cn('rounded-campo mx-auto mb-1 size-12 object-cover', estado !== 'ok' && 'hidden')}
+    />
+  );
+}
+
+/** Racor de la boca de riego (FR-20): tres tarjetas; Granada y Barcelona con su foto de referencia. */
 export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: (r: Racor) => void }) {
   return (
     <div role="radiogroup" aria-label={T.formulario.racor} className="grid grid-cols-3 gap-2">
@@ -98,12 +121,14 @@ export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: 
           type="button"
           role="radio"
           aria-checked={valor === r}
+          // Tocar la foto selecciona igual que tocar el nombre: es parte del botón.
           onClick={() => alCambiar(r)}
           className={cn(
-            'bg-papel rounded-tarjeta min-h-14 border px-2 text-[15px]',
+            'bg-papel rounded-tarjeta flex min-h-14 flex-col items-center justify-center border px-2 py-1.5 text-[15px]',
             valor === r ? 'border-texto border-[3px] border-double font-semibold' : 'border-linea',
           )}
         >
+          {r !== 'otro' && <FotoRacor racor={r} />}
           {nombreRacor(r)}
         </button>
       ))}
