@@ -344,6 +344,21 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     });
   });
 
+  // docs/24 RV-102: "Barro" no pide descripción del fallo y viaja tal cual.
+  test('alta con Barro: sin descripción del fallo', async ({ page }) => {
+    const s = await servidor(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await page.getByRole('radio', { name: T.formulario.hidrante }).click();
+    await page.getByRole('radio', { name: T.formulario.d100 }).click();
+    await page.getByRole('radio', { name: T.formulario.barro }).click();
+    await expect(page.getByLabel(T.formulario.descripcionFallo)).toHaveCount(0);
+    await hacerFoto(page);
+    await enviar(page).click();
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+    expect(s.propuestas[0]?.datos).toEqual({ tipo: 'hidrante', diametro_mm: 100, caudal: 'barro' });
+  });
+
   test('Mis propuestas lista lo enviado y "Algo no funciona" llega a jefatura', async ({ page }) => {
     const s = await servidor(page);
     await page.goto('/?p=' + PUNTOS[0].id);

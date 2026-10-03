@@ -980,6 +980,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** dejar 45 marcado por defecto (un toque menos, pero las bocas de 70 entrarían como 45 sin que nadie lo decidiera).
 - **Afecta a:** 06 Apéndice A; `src/lib/propuestas.ts`, `src/lib/derivar.ts`, `src/lib/panel/cola.ts`, `src/lib/panel/inventario.ts`, `src/paginas/Proponer.tsx`, `src/componentes/panel/DetallePropuesta.tsx`, `src/componentes/panel/dialogos.tsx`.
 
+### DEC-149 · Pantalla de "Barro": marrón medido, rejilla 2 + 3 y «No utilizable»
+- **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-102, pantalla de DEC-145). Sesión Frontend.
+- **Contexto:** `docs/24` proponía `#6B4423` para el relleno y pedía medir el contraste y una distancia de color frente a Regular y Malo, también con daltonismo. Medido: con protanopía simulada, `#6B4423` y `--rojo-700` quedan a ΔE2000 1,1 (indistinguibles); y un marrón medio que se separe de los dos se queda por debajo de 3:1 sobre los árboles y el agua del mapa claro.
+- **Decisión:**
+  1. **Tokens:** relleno `--marron-600` `#806460`; fondo del chip `--marron-100` `#EFE3D6`; texto del chip `--marron-700` `#5A4632` (7,1:1). El relleno se eligió por búsqueda entre marrones (R > G > B) con dos condiciones: ≥ 3:1 sobre las cinco superficies del mapa claro y ΔE2000 ≥ 15 frente a Regular y Malo con visión normal, protanopía y deuteranopía (Machado 2009, gravedad 1). Da 21,1/19,5 (normal), 20,0/17,6 (protanopía), 19,5/16,3 (deuteranopía). Es un marrón rojizo, de barro de vega; los marrones más amarillos que cumplen el contraste se quedan en ΔE ≈ 14,8. Lo comprueba `accesibilidad.test.ts`, con la fórmula verificada contra los pares publicados por Sharma.
+  2. **Marcador:** tamaño mínimo y tachado, con su color y sin la opacidad 0,5 de No funciona (FR-61).
+  3. **Rejilla de estados:** 2 + 3 en el móvil (Bueno · Regular / Malo · Barro · No funciona) y una fila de cinco desde `sm`. A 360 px los cinco caben en una línea con 44 px de alto (`e2e/anchos.spec.ts`). No hizo falta el 2 + 2 + 1.
+  4. **Lista (FR-68):** el filtro «No funciona» pasa a **«No utilizable»** (no funciona y barro). El filtro guardado en el móvil con el valor de antes (`no_funciona`) se lee como el nuevo (`leerFiltro`).
+  5. **Cercanos:** no cambia la consulta (solo bueno y regular). Si el más cercano tiene barro, el aviso lo dice: «El más cercano, [código] a [distancia], tiene barro».
+  6. **Orden por estado:** Barro va entre Malo y No funciona, el orden de FR-18.
+  7. Ficha, panel (diff, correcciones, edición) e inventario (filtro por estado) tienen «Barro»; la nota de fallo sigue solo con No funciona (0034).
+- **Descartado:** quedarse con `#6B4423` y confiar solo en el tachado: con protanopía Barro y Malo se verían iguales en la ficha y en la lista, donde no hay tachado.
+- **Afecta a:** 06 §2.2, §4.3, §4.5 y Apéndice A; `src/index.css`, `src/lib/caudal.ts`, `simbologia.ts`, `derivar.ts`, `ficha.ts`, `puntos.ts`, `src/componentes/**` (pastillas, leyenda, lista, cercanos, panel).
+
 ### DEC-150 · Pantalla de la foto del sitio: dos huecos, cola compatible y qué foto se vuelve a subir
 - **Fecha:** 3 oct 2026 · **Estado:** vigente (`docs/24` RV-103, pantalla de DEC-146). Sesión Frontend.
 - **Contexto:** desde 0035 `fn_proponer` tiene una firma nueva con `foto_sitio_path`, obligatoria en alta y ubicación; la de antes se queda para la app anterior. PostgREST elige la firma por los nombres de los parámetros: si falta la clave, entra por la vieja sin error.
@@ -1876,7 +1890,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 150 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

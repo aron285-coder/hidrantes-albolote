@@ -267,3 +267,33 @@ test.describe('panel de jefatura en tableta en vertical (RV-79)', () => {
     });
   }
 });
+
+// docs/24 RV-102 y RV-104 (DEC-149): a 360 px los cinco estados van en 2 + 3 y los tres racores en una
+// fila, cada botón de 44 px de alto como mínimo y sin salirse de la pantalla ni partir el nombre.
+test('360 px: la rejilla de estados 2 + 3 y la fila de racores caben', async ({ page }, info) => {
+  await abrir(page, 360, 780);
+  await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+  await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+  const filas = new Map<number, number>();
+  for (const nombre of [
+    T.formulario.bueno,
+    T.formulario.regular,
+    T.formulario.malo,
+    T.formulario.barro,
+    T.formulario.noFunciona,
+  ]) {
+    const caja = (await page.getByRole('radio', { name: nombre, exact: true }).boundingBox())!;
+    expect(caja.height, nombre).toBeGreaterThanOrEqual(44);
+    // Una sola línea: el alto no pasa del mínimo más un margen.
+    expect(caja.height, `${nombre} en una línea`).toBeLessThan(60);
+    expect(caja.x + caja.width, nombre).toBeLessThanOrEqual(360);
+    filas.set(Math.round(caja.y), (filas.get(Math.round(caja.y)) ?? 0) + 1);
+  }
+  expect([...filas.values()]).toEqual([2, 3]);
+  for (const nombre of [T.formulario.granada, T.formulario.barcelona, T.formulario.otro]) {
+    const caja = (await page.getByRole('radio', { name: nombre, exact: true }).boundingBox())!;
+    expect(caja.x + caja.width, nombre).toBeLessThanOrEqual(360);
+  }
+  await page.getByRole('radiogroup', { name: T.formulario.caudal }).scrollIntoViewIfNeeded();
+  await captura(page, info, 'estados-360');
+});

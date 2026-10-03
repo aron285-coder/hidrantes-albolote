@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.14 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): estado Barro, marrón y tachado (§2.2, §4.3, §4.5, Apéndice A; RV-102, DEC-149). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -49,7 +49,7 @@ El naranja de acción bajó de `#DD5A1F` a `#C94F16` el 20 sep 2026: con texto b
 quedaba en 3,78:1 y TR-31 pide 4,5:1. Cuando el naranja es **texto sobre una superficie** se usa
 `--naranja-texto`: `#BE4811` en claro (4,56:1 sobre `--fondo`) y `#F0A070` en oscuro (DEC-072).
 
-### 2.2 Tokens de estado (los cuatro niveles de caudal)
+### 2.2 Tokens de estado (los cinco niveles de caudal)
 
 Se usan **idénticos** en marcador, chip, leyenda y panel; no se retocan por contexto.
 
@@ -62,7 +62,14 @@ Para **texto sobre `--verde-100`** (las etiquetas "bueno", "alta" y "resuelta") 
 El relleno del marcador sigue siendo el `--verde-600` de §4.2 (DEC-072).
 | regular | `--naranja-estado-600` `#A85300` | `--naranja-estado-100` `#FDE8D6` | `--naranja-estado-700` `#8F4505` |
 | malo | `--rojo-700` `#9C2B1E` | `--rojo-100` `#FBE0DB` | `#9C2B1E` |
+| barro | `--marron-600` `#806460` | `--marron-100` `#EFE3D6` | `--marron-700` `#5A4632` |
 | no funciona | `--gris-700` `#40453D` | `--gris-100` `#E5E4DC` | `#40453D` |
+
+**Barro** (`docs/24` RV-102, DEC-145 y DEC-149): el `#6B4423` propuesto se confundía con `--rojo-700` con
+protanopía (ΔE2000 1,1). El relleno `#806460` queda a ΔE2000 ≥ 15 de Regular y de Malo con visión
+normal, protanopía y deuteranopía simuladas (Machado 2009), y a ≥ 3:1 sobre todas las superficies del
+mapa claro; sobre el oscuro vale el borde blanco, como para `--gris-700`. El texto del chip es el
+marrón oscuro (7,1:1 sobre `--marron-100`). Lo mide `src/lib/accesibilidad.test.ts`.
 
 El **regular es naranja** desde el 21 sep 2026 (DEC-076): el ámbar `#8A6408` de antes se leía
 marrón mostaza en el móvil a pleno sol. El naranja nuevo tiene el mismo claror —3,22:1 sobre las
@@ -74,7 +81,7 @@ propuesta pendiente): eso no es caudal. Como aviso es **texto**, y el texto del 
 `--ambar-700` es `#7F5C07` desde el 22 sep 2026 (4,93:1 sobre el oro; DEC-081). De relleno de
 marcador le bastaba con 3:1 y por eso nadie lo había medido como texto.
 
-Contraste de los cuatro rellenos sobre el fondo del mapa claro (`#EFECE3`) y oscuro (`#1B2536`):
+Contraste de los cinco rellenos sobre el fondo del mapa claro (`#EFECE3`) y oscuro (`#1B2536`):
 ≥ 3:1 en todos los casos; el borde blanco de 2,5 px garantiza la separación en cualquier fondo de
 tesela (TR-31).
 
@@ -167,6 +174,7 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 | Boca de riego | cuadrado de lado `2 × radio_px`, esquinas `rx = 3` (a 5,5 px, `rx = 2.5`; a 5 px, `rx = 2`) |
 | Borde | blanco (`#FFFFFF`), 2,5 px (2 px si `radio_px ≤ 5.5`); en modo oscuro `#111826` |
 | Relleno | color de estado (§2.2) |
+| Barro | tamaño mínimo y la misma línea blanca cruzada que No funciona, **sin** atenuar: el tachado dice "no se puede usar" y el color marrón dice por qué (FR-61, WCAG 1.4.1) |
 | No funciona | opacidad **0,5** + línea blanca cruzada de 2 px de esquina inferior izquierda a superior derecha, largo `2 × radio_px` |
 | Estado desconocido | un `caudal` que esta versión de la app no conoce (el servidor añadió uno nuevo y el móvil aún no se ha actualizado) se dibuja **como No funciona**: color `--gris-700`, radio mínimo, opacidad 0,5 y tachado. La ficha dice "Estado desconocido · actualiza la aplicación" y la lista lo cuenta con No funciona (`docs/24` RV-102a) |
 | Sin revisar > `meses_revision` | borde **discontinuo** `3 2.5`, mismo tamaño y color |
@@ -197,7 +205,7 @@ Plegable (§5, DEC-123): la primera vez y cuando se despliega, en el mapa (móvi
 igual con 9–10 px). Contenido fijo y en este orden:
 
 1. ● Hidrante · ■ Boca de riego (forma)
-2. Regular · Malo · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde)
+2. Regular · Malo · Barro · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde)
 3. Sin revisar (borde discontinuo)
 4. Línea final: "Más grande = más agua aprovechable"
 
@@ -396,7 +404,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
-`No funciona` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` · `desde el incidente` (lista ordenada desde el incidente, RV-62) ·
+`No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` · `desde el incidente` (lista ordenada desde el incidente, RV-62) ·
 `Nada coincide con ese filtro.` · `revisado [hace 3 meses]` (en cada fila de la Lista, FR-68) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
 `[12] puntos` · `Sincronizando…` ·
 `Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` (nunca sincronizado) ·
@@ -423,7 +431,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Buscando tu posición… (puedes marcar el incidente en el mapa)` · `±[12] m` (en `Desde tu posición · ±12 m · hace 2 min`, RV-59) ·
 `Posición poco precisa (±[800] m): si sabes dónde es, mantén pulsado el mapa` · `Marcar en el mapa` ·
 `Ningún punto que funcione a menos de 2 km del incidente` · `Ver todos en la lista` ·
-`El más cercano, [HID-0012] a [40 m], no funciona` · `El más cercano, [HID-0012] a [40 m], está en mal estado` ·
+`El más cercano, [HID-0012] a [40 m], no funciona` · `El más cercano, [HID-0012] a [40 m], está en mal estado` · `El más cercano, [HID-0012] a [40 m], tiene barro` ·
 `[140 m] · [NE] · [≥ 8 tramos]` · `≥ 1 tramo` · `≥ [8] tramos` · `Compartir el incidente` · `Datos de [hace 3 min]` ·
 `Distancias desde el incidente` · `Cerrar el incidente` · `Ver más cercanos` · `Ver más mapa` (las dos alturas de la hoja, RV-61) · `Volver a la lista` · `Volver a Cercanos` (la columna en ordenador, RV-60) · `Medir` · `Medir distancia` · `Medir desde aquí` ·
 `Medir tendido` · `Toca el mapa para poner los puntos del tendido` · `[186 m] · [10] tramos de [20] m` ·
@@ -459,7 +467,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
 `Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
-`Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `No funciona` ·
+`Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
 `Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `repetir · [Sitio]` · `[Sitio] · [150] kB` ·
 `Hacer foto · obligatoria` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·

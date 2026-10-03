@@ -48,9 +48,9 @@ beforeEach(() => {
 });
 
 describe('caudal desconocido (docs/24 RV-102a)', () => {
-  it('se reconoce: los cuatro de hoy sí, cualquier otro no', () => {
-    for (const c of ['bueno', 'regular', 'malo', 'no_funciona']) expect(esCaudalConocido(c)).toBe(true);
-    for (const c of ['otro_valor', 'barro', 'constructor', 'toString', '', null, undefined, 3]) {
+  it('se reconoce: los cinco de hoy sí, cualquier otro no', () => {
+    for (const c of ['bueno', 'regular', 'malo', 'barro', 'no_funciona']) expect(esCaudalConocido(c)).toBe(true);
+    for (const c of ['otro_valor', 'lodo', 'constructor', 'toString', '', null, undefined, 3]) {
       expect(esCaudalConocido(c)).toBe(false);
     }
   });
@@ -88,7 +88,7 @@ describe('caudal desconocido (docs/24 RV-102a)', () => {
 
   it('en la lista va con «No funciona» y al final del orden por estado', () => {
     const lista = [punto('0003', DESCONOCIDO), punto('0001', 'no_funciona'), punto('0002', 'bueno')];
-    expect(filtrar(lista, 'no_funciona').map((p) => p.id)).toEqual(['0003', '0001']);
+    expect(filtrar(lista, 'no_utilizable').map((p) => p.id)).toEqual(['0003', '0001']);
     expect(ordenar(lista, 'estado', null).map((p) => p.id)).toEqual(['0002', '0001', '0003']);
   });
 

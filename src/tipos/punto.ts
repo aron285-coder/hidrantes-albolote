@@ -1,7 +1,8 @@
 // Tipos del punto tal como llega de v_puntos_activos (05 §4). Sin imports: también los usan los e2e.
 
 export type TipoPunto = 'hidrante' | 'boca_riego';
-export type Caudal = 'bueno' | 'regular' | 'malo' | 'no_funciona';
+/** Cinco niveles (FR-18): "barro" desde 0033/0034 (docs/24 RV-102). */
+export type Caudal = 'bueno' | 'regular' | 'malo' | 'barro' | 'no_funciona';
 export type Racor = 'granada' | 'barcelona' | 'otro';
 
 /** Una fila de v_puntos_activos (05 §4). */

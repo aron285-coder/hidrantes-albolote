@@ -51,7 +51,7 @@ export function Segmentado<V extends string | number>({
   );
 }
 
-const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'no_funciona'];
+const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
 
 /** Píldoras de estado (06 §5): la activa con el fondo y el texto de su color. */
 export function PildorasCaudal({
@@ -64,8 +64,10 @@ export function PildorasCaudal({
   etiqueta: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={etiqueta} className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {CAUDALES.map((c) => (
+    // Rejilla 2 + 3 en el móvil (Bueno · Regular / Malo · Barro · No funciona) y una fila de cinco desde
+    // sm; cada botón ≥ 44 px de alto y cabe a 360 px (docs/24 RV-102, DEC-149).
+    <div role="radiogroup" aria-label={etiqueta} className="grid grid-cols-6 gap-2 sm:grid-cols-5">
+      {CAUDALES.map((c, i) => (
         <button
           key={c}
           type="button"
@@ -73,7 +75,8 @@ export function PildorasCaudal({
           aria-checked={valor === c}
           onClick={() => alCambiar(c)}
           className={cn(
-            'rounded-chip min-h-11 border px-3 text-[15px] font-semibold',
+            'rounded-chip min-h-11 border px-1.5 text-[15px] leading-tight font-semibold sm:col-span-1',
+            i < 2 ? 'col-span-3' : 'col-span-2',
             valor === c ? `${claseChip(c)} border-current` : 'border-linea bg-papel text-texto',
           )}
         >
