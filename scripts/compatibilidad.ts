@@ -61,7 +61,35 @@ export function adaptarSesiones(texto: string): string {
   );
 }
 
+/**
+ * Columnas que `v_puntos_activos` ganó después de la referencia (05 §4). El caso de la Fase 5 de
+ * entonces comprueba que la respuesta no trae autores con una lista cerrada de columnas, así que
+ * cualquier columna nueva, aunque no sea personal, lo haría fallar sin que el frontend anterior
+ * tenga ningún problema: ese frontend no la lee. Solo se añaden a su lista las que 05 §4 ya
+ * documenta; un autor seguiría fallando.
+ */
+export const COLUMNAS_NUEVAS_PUNTOS = ['foto_sitio_path'] as const; // 0035, DEC-146
+
+export function adaptarColumnasPermitidas(texto: string): string {
+  if (!texto.includes('const PERMITIDAS = new Set([')) return texto;
+  const faltan = COLUMNAS_NUEVAS_PUNTOS.filter((c) => !texto.includes(`'${c}'`));
+  if (!faltan.length || !texto.includes("  'foto_path',\n")) return texto;
+  return texto.replace("  'foto_path',\n", `  'foto_path',\n${faltan.map((c) => `  '${c}',\n`).join('')}`);
+}
+
+function adaptarColumnasAnteriores(): void {
+  const ruta = path.join(DESTINO, 'e2e', 'integracion', 'fase5.spec.ts');
+  if (!existsSync(ruta)) return;
+  const texto = readFileSync(ruta, 'utf8');
+  const adaptado = adaptarColumnasPermitidas(texto);
+  if (adaptado !== texto) {
+    writeFileSync(ruta, adaptado);
+    log.info(`fase5.spec.ts: admite las columnas nuevas de v_puntos_activos (${COLUMNAS_NUEVAS_PUNTOS.join(', ')})`);
+  }
+}
+
 function adaptarArnesAnterior(): void {
+  adaptarColumnasAnteriores();
   const carpeta = path.join(DESTINO, 'e2e', 'integracion');
   if (!existsSync(carpeta) || existsSync(path.join(carpeta, 'sesion-google.ts'))) return;
   copyFileSync(path.join(RAIZ, 'e2e', 'integracion', 'sesion-google.ts'), path.join(carpeta, 'sesion-google.ts'));

@@ -70,10 +70,10 @@ select is((select autor_apellido from hidrantes.propuestas where clave_local = '
 
 -- ---------- RV-17: fn_proponer con lock_timeout y sin statement_timeout ----------
 
-select ok((select 'lock_timeout=5s' = any (proconfig) from pg_proc where proname = 'fn_proponer'),
-  'fn_proponer tiene lock_timeout=5s');
-select ok((select not exists (select 1 from unnest(proconfig) c where c like 'statement_timeout=%')
-           from pg_proc where proname = 'fn_proponer'),
+select ok((select bool_and('lock_timeout=5s' = any (proconfig)) from pg_proc where proname in ('fn_proponer', 'fn_proponer_interno')),
+  'fn_proponer (las dos firmas, 0035) y su núcleo tienen lock_timeout=5s');
+select ok((select bool_and(not exists (select 1 from unnest(proconfig) c where c like 'statement_timeout=%'))
+           from pg_proc where proname in ('fn_proponer', 'fn_proponer_interno')),
   'y ya no statement_timeout, que como atributo no hacía nada');
 
 select * from finish();

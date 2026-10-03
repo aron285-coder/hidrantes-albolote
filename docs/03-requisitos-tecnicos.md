@@ -78,7 +78,7 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 | TR-42 | La validación del código responde en **tiempo constante** (no filtra por duración si el código estaba cerca). | Test: tiempos de código correcto e incorrecto no difieren significativamente. |
 | TR-43 | El código de acceso **no se almacena en el móvil** después del primer canje; solo la credencial de dispositivo. Esa credencial caduca a los **365 días** sin uso (configurable). | Inspección del almacenamiento local; test SQL de caducidad. |
 | TR-44 | Ningún secreto de servidor llega al navegador: solo la `anon key` y las URL públicas. | Inspección del build y de las respuestas de red. |
-| TR-45 | Subida de fotos: máximo **40 por dispositivo y día** (configurable), archivos **≤ 5 MB**, tipos `image/jpeg` e `image/webp`, nombre de archivo asignado por el servidor. | Tests SQL y de almacenamiento. |
+| TR-45 | Subida de fotos: máximo **80 por dispositivo y día** (configurable; era 40: un alta o una corrección de ubicación gastan dos, la conexión y el sitio, DEC-146), archivos **≤ 5 MB**, tipos `image/jpeg` e `image/webp`, nombre de archivo asignado por el servidor. | Tests SQL y de almacenamiento. |
 | TR-46 | El registro de auditoría es **append-only**: no admite modificación ni borrado por ningún rol, ni siquiera administrador. (FR-123) | Test SQL: `update` y `delete` fallan. |
 | TR-47 | Los metadatos EXIF de las fotos (posición, dispositivo, fecha) **no se suben**: la recompresión en el móvil los elimina. Las coordenadas EXIF se envían aparte como dato del punto. | Test unitario: la imagen resultante no tiene EXIF. |
 

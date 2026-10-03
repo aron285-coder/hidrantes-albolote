@@ -164,6 +164,18 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByRole('radio', { name: T.formulario.hidrante })).toBeVisible(),
   },
   {
+    // docs/24 RV-104: los tres racores, con foto si el desarrollador ya las ha puesto.
+    nombre: 'nuevo-punto-boca',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: async (p) => {
+      await p.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+      const racor = p.getByRole('radiogroup', { name: T.formulario.racor });
+      await racor.scrollIntoViewIfNeeded();
+      await expect(racor).toBeVisible();
+    },
+  },
+  {
     nombre: 'lista',
     ruta: '/lista',
     preparar: voluntario,

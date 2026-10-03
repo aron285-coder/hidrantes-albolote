@@ -17,6 +17,7 @@ const PERMITIDAS = new Set([
   'descripcion',
   'direccion',
   'foto_path',
+  'foto_sitio_path',
   'municipio',
   'nucleo',
   'fecha_ultima_revision',
