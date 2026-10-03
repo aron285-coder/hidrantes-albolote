@@ -181,7 +181,7 @@ function FormularioOperacion({
                 {T.formato.mm(punto.diametro_mm)}
               </div>
               <div className="text-texto-suave text-[13px]">
-                {T.operaciones.constaComo(nombreCaudal[punto.caudal], hace(punto.fecha_ultima_revision))}
+                {T.operaciones.constaComo(nombreCaudal(punto.caudal), hace(punto.fecha_ultima_revision))}
               </div>
             </div>
           </div>

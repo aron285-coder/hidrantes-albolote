@@ -2,10 +2,11 @@
 // comparten Mis propuestas (qué corrigió jefatura) y el panel (diff, fusión), para que nadie vea
 // "diametro mm: 70 · racor: granada" (docs/17 RV-23). Sin nombres ni correos de nadie.
 
+import { esCaudalConocido } from './caudal';
 import { nombreCaudal, nombreRacor, nombreTipo } from './ficha';
 import type { MotivoRapido } from './propuestas';
 import { T } from './textos';
-import type { Caudal, TipoPunto } from '../tipos/punto';
+import type { TipoPunto } from '../tipos/punto';
 
 export const texto = (v: unknown) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v));
 
@@ -42,7 +43,7 @@ export function valorDe(campo: string, v: unknown): string {
     case 'diametro_otro':
       return T.formato.mm(texto(v));
     case 'caudal':
-      return nombreCaudal[v as Caudal] ?? texto(v);
+      return esCaudalConocido(v) ? nombreCaudal(v) : texto(v);
     case 'racor':
       return v ? nombreRacor(texto(v)) : T.panelCola.ninguno;
     case 'motivo_rapido':

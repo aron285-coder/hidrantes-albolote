@@ -33,9 +33,14 @@ export function leerMetrosTramo(v: unknown): number {
 const PUNTOS_DIAMETRO: Record<number, number> = { 100: 3, 70: 2, 45: 1 };
 const FACTOR_CAUDAL: Record<Caudal, number> = { bueno: 1, regular: 0.66, malo: 0.33, no_funciona: 0 };
 
-/** Réplica exacta de hidrantes.fn_radio_px (0002_vistas.sql). */
+/**
+ * Réplica exacta de hidrantes.fn_radio_px (0002_vistas.sql). Un caudal que esta versión no conoce
+ * da el radio mínimo, como no funciona (docs/24 RV-102a). Sin importar caudal.ts: este archivo
+ * lo usan también los e2e de integración en Node.
+ */
 export function radioPx(diametro_mm: number, caudal: Caudal, escala: EscalaRadios): number {
-  const puntuacion = (PUNTOS_DIAMETRO[diametro_mm] ?? 0) * (FACTOR_CAUDAL[caudal] ?? 0);
+  const puntuacion =
+    (PUNTOS_DIAMETRO[diametro_mm] ?? 0) * (Object.hasOwn(FACTOR_CAUDAL, caudal) ? FACTOR_CAUDAL[caudal] : 0);
   const indice = puntuacion >= 3.0 ? 0 : puntuacion >= 1.9 ? 1 : puntuacion >= 0.9 ? 2 : puntuacion > 0 ? 3 : 4;
   return escala[indice];
 }

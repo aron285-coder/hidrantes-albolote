@@ -292,7 +292,7 @@ function Comparacion({ p, existente, direccion }: { p: PropuestaPanel; existente
       v.racor ? nombreRacor(v.racor) : '—',
       existente.racor ? nombreRacor(existente.racor) : '—',
     ],
-    [T.panelCola.campoEstado, nombreCaudal[v.caudal], nombreCaudal[existente.caudal]],
+    [T.panelCola.campoEstado, nombreCaudal(v.caudal), nombreCaudal(existente.caudal)],
     [T.panelCola.campoRevision, fechaCorta(p.creada_en), fechaCorta(existente.fecha_ultima_revision)],
     [T.ficha.direccion, direccion || T.ficha.sinDireccion, existente.direccion ?? T.ficha.sinDireccion],
   ];
@@ -454,7 +454,7 @@ function FormularioCorrecciones({
         >
           {CAUDALES.map((c) => (
             <option key={c} value={c}>
-              {nombreCaudal[c]}
+              {nombreCaudal(c)}
             </option>
           ))}
         </select>

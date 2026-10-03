@@ -112,7 +112,7 @@ export function DialogoEditar({
           >
             {CAUDALES.map((c) => (
               <option key={c} value={c}>
-                {nombreCaudal[c]}
+                {nombreCaudal(c)}
               </option>
             ))}
           </select>

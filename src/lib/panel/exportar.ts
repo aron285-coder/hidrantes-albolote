@@ -64,7 +64,7 @@ export function celdas(f: FilaExportada): (string | number)[] {
     f.codigo,
     nombreTipo[f.tipo],
     f.diametro_mm,
-    nombreCaudal[f.caudal],
+    nombreCaudal(f.caudal),
     f.racor ? nombreRacor(f.racor) : '',
     f.direccion ?? '',
     f.nucleo ?? '',

@@ -102,9 +102,9 @@ export function Ficha({
         <Chip className="bg-linea text-texto">{nombreTipo[punto.tipo]}</Chip>
         <Chip className="bg-linea text-texto">{T.formato.mm(punto.diametro_mm)}</Chip>
         {punto.racor && <Chip className="bg-linea text-texto">{T.ficha.racor(nombreRacor(punto.racor))}</Chip>}
-        <Chip className={claseChip[punto.caudal]}>
+        <Chip className={claseChip(punto.caudal)}>
           <span className="size-2 rounded-full bg-current" aria-hidden />
-          {nombreCaudal[punto.caudal]}
+          {nombreCaudal(punto.caudal)}
         </Chip>
       </div>
       {/* La nota de fallo solo vale mientras no funciona (docs/18 RV-42). */}
