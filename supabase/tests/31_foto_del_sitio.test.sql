@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(29);
+select plan(36);
 
 insert into hidrantes.config (clave, valor, actualizado_por)
 values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen_salt('bf', 4))), 'test')
@@ -87,6 +87,9 @@ select throws_like($$ select pg_temp.proponer('sitio-ubic-sin', 'ubicacion', '00
 select throws_like($$ select pg_temp.proponer('sitio-rev', 'revision', '00000000-0000-4000-8000-0000000e3151',
   '{}', null, null, pg_temp.foto(), pg_temp.foto()) $$,
   'PAYLOAD_INVALIDO(foto_sitio_path)%', 'revisión con foto del sitio: PAYLOAD_INVALIDO(foto_sitio_path)');
+select throws_like($ select pg_temp.proponer('sitio-est', 'estado', '00000000-0000-4000-8000-0000000e3151',
+  '{"caudal":"malo"}', null, null, pg_temp.foto(), pg_temp.foto()) $,
+  'PAYLOAD_INVALIDO(foto_sitio_path)%', 'cambio de estado con foto del sitio: PAYLOAD_INVALIDO(foto_sitio_path)');
 select set_config('test.misma', pg_temp.foto(), true);
 select throws_like($$ select pg_temp.proponer('sitio-misma', 'alta', null,
   '{"tipo":"hidrante","diametro_mm":100,"caudal":"bueno"}', 37.2311, -3.6311,
@@ -109,6 +112,9 @@ select is((select foto_sitio_path || '|' || sin_foto_sitio::text from hidrantes.
   current_setting('test.sitio1') || '|false', 'la cola trae la foto del sitio, sin la señal');
 select ok(current_setting('test.sitio1') in (select hidrantes.fn_fotos_referenciadas()),
   'la foto del sitio de una propuesta pendiente está entre las referenciadas');
+select is(pg_temp.proponer('sitio-alta-01', 'alta', null, '{"tipo":"hidrante","diametro_mm":100,"caudal":"bueno"}',
+  37.2321, -3.6321, 'fotos/otra.jpg', 'fotos/otra-sitio.jpg'), current_setting('test.alta')::uuid,
+  'un reenvío con la misma clave_local por la firma nueva devuelve la misma propuesta');
 select pg_temp.jefatura();
 select set_config('test.punto', hidrantes.fn_aprobar(current_setting('test.alta')::uuid) ->> 'punto_id', true);
 select is((select (foto_path is not null and foto_path <> foto_sitio_path)::text || '|' || foto_sitio_path
@@ -128,6 +134,26 @@ select ok((hidrantes.fn_fotos_referenciadas_lista() -> 'fotos') ? 'fotos/s-sitio
 update hidrantes.subidas set reservada_en = now() - interval '60 days' where foto_path = current_setting('test.sitio1');
 select ok((hidrantes.fn_fotos_referenciadas_lista() -> 'fotos') ? current_setting('test.sitio1'),
   'con la reserva caducada, la protege el punto');
+
+-- Sin reserva que la proteja: solo la propuesta. Pendiente y aprobada, sí; rechazada, no.
+insert into hidrantes.propuestas (id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id, clave_local,
+                                  origen_ubicacion, geom, foto_path, foto_sitio_path, estado, motivo_rechazo)
+values ('00000000-0000-4000-8000-0000000e3171', 'alta', '{"tipo":"hidrante","diametro_mm":100,"caudal":"bueno"}',
+        'Ana', 'Ruiz', gen_random_uuid(), 'sitio-purga-01', 'gps', 'SRID=4326;POINT(-3.6401 37.2401)',
+        'fotos/p-pend.jpg', 'fotos/p-pend-sitio.jpg', 'pendiente', null),
+       ('00000000-0000-4000-8000-0000000e3172', 'alta', '{"tipo":"hidrante","diametro_mm":100,"caudal":"bueno"}',
+        'Ana', 'Ruiz', gen_random_uuid(), 'sitio-purga-02', 'gps', 'SRID=4326;POINT(-3.6411 37.2411)',
+        'fotos/p-rech.jpg', 'fotos/p-rech-sitio.jpg', 'rechazada', 'Repetida'),
+       ('00000000-0000-4000-8000-0000000e3173', 'alta', '{"tipo":"hidrante","diametro_mm":100,"caudal":"bueno"}',
+        'Ana', 'Ruiz', gen_random_uuid(), 'sitio-purga-03', 'gps', 'SRID=4326;POINT(-3.6421 37.2421)',
+        'fotos/p-apro.jpg', 'fotos/p-apro-sitio.jpg', 'aprobada', null);
+select ok((hidrantes.fn_fotos_referenciadas_lista() -> 'fotos') ? 'fotos/p-pend-sitio.jpg'
+          and 'fotos/p-pend-sitio.jpg' in (select hidrantes.fn_fotos_referenciadas()),
+  'la foto del sitio de una propuesta pendiente, sin reserva, la protege la propuesta');
+select ok((hidrantes.fn_fotos_referenciadas_lista() -> 'fotos') ? 'fotos/p-apro-sitio.jpg',
+  'y la de una aprobada, también');
+select ok(not ((hidrantes.fn_fotos_referenciadas_lista() -> 'fotos') ? 'fotos/p-rech-sitio.jpg'),
+  'la de una propuesta rechazada, sin reserva ni punto, no se protege (la purga puede borrarla)');
 
 -- ---------- firma de antes ----------
 select set_config('test.vieja', pg_temp.proponer_vieja('sitio-vieja-01', 'alta', null,
@@ -156,12 +182,23 @@ select is((select foto_sitio_path from hidrantes.puntos where id = '00000000-000
   current_setting('test.sitio2'), 'un cambio de estado aprobado no toca la foto del sitio');
 select set_config('test.ubic2', pg_temp.proponer_vieja('sitio-ubic-02', 'ubicacion', '00000000-0000-4000-8000-0000000e3151',
   '{}', 37.2304, -3.6304, pg_temp.foto())::text, true);
+select is((select sin_foto_sitio from hidrantes.v_cola_revision where id = current_setting('test.ubic2')::uuid), true,
+  'una ubicación de la app anterior llega con la señal sin_foto_sitio');
 select pg_temp.jefatura();
 select hidrantes.fn_aprobar(current_setting('test.ubic2')::uuid, null, true);
 select is((select foto_sitio_path from hidrantes.puntos where id = '00000000-0000-4000-8000-0000000e3151'),
   current_setting('test.sitio2'), 'una ubicación de la app anterior, sin foto del sitio, no borra la que había');
 
--- ---------- jefatura y fusión ----------
+-- ---------- lote, jefatura y fusión ----------
+select set_config('test.sitio3', pg_temp.foto(), true);
+select set_config('test.alta_lote', pg_temp.proponer('sitio-lote-01', 'alta', null,
+  '{"tipo":"hidrante","diametro_mm":70,"caudal":"bueno"}', 37.2351, -3.6351, pg_temp.foto(),
+  current_setting('test.sitio3'))::text, true);
+select pg_temp.jefatura();
+select hidrantes.fn_aprobar_lote(array[current_setting('test.alta_lote')::uuid]);
+select is((select p.foto_sitio_path from hidrantes.puntos p join hidrantes.propuestas r
+             on p.id = (r.correcciones ->> 'punto_id')::uuid where r.id = current_setting('test.alta_lote')::uuid),
+  current_setting('test.sitio3'), 'aprobada en lote: el punto también la tiene');
 select pg_temp.jefatura();
 select set_config('test.foto_admin', hidrantes.fn_reservar_subida_admin(), true);
 select set_config('test.sitio_admin', hidrantes.fn_reservar_subida_admin(), true);

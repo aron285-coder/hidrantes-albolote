@@ -573,7 +573,7 @@ do $tope$
 declare n integer;
 begin
   update hidrantes.config set valor = '80'::jsonb, actualizado_por = 'migracion'
-   where clave = 'max_subidas_dispositivo_dia' and valor = '40'::jsonb;
+   where clave = 'max_subidas_dispositivo_dia' and valor = '40'::jsonb and actualizado_por = 'migracion';
   get diagnostics n = row_count;
   raise notice 'max_subidas_dispositivo_dia de 40 a 80: %', case when n = 1 then 'sí' else 'no (jefatura lo había cambiado)' end;
 end
