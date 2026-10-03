@@ -30,17 +30,17 @@ export function leerMetrosTramo(v: unknown): number {
   return n !== null && Number.isInteger(n) && n >= 10 && n <= 30 ? n : METROS_TRAMO_POR_DEFECTO;
 }
 
-const PUNTOS_DIAMETRO: Record<number, number> = { 100: 3, 70: 2, 45: 1 };
+/** Factor de diámetro de fn_radio_px desde 0032 (docs/24 RV-101): ≤ 45 → 1, ≤ 70 → 2, > 70 → 3. */
+const puntosDiametro = (d: number | null) => (d == null || !Number.isFinite(d) ? 0 : d <= 45 ? 1 : d <= 70 ? 2 : 3);
 const FACTOR_CAUDAL: Record<Caudal, number> = { bueno: 1, regular: 0.66, malo: 0.33, barro: 0, no_funciona: 0 };
 
 /**
- * Réplica exacta de hidrantes.fn_radio_px (0002_vistas.sql). Un caudal que esta versión no conoce
+ * Réplica exacta de hidrantes.fn_radio_px (0002_vistas.sql, con el factor de diámetro de 0032). Un caudal que esta versión no conoce
  * da el radio mínimo, como no funciona (docs/24 RV-102a). Sin importar caudal.ts: este archivo
  * lo usan también los e2e de integración en Node.
  */
 export function radioPx(diametro_mm: number, caudal: Caudal, escala: EscalaRadios): number {
-  const puntuacion =
-    (PUNTOS_DIAMETRO[diametro_mm] ?? 0) * (Object.hasOwn(FACTOR_CAUDAL, caudal) ? FACTOR_CAUDAL[caudal] : 0);
+  const puntuacion = puntosDiametro(diametro_mm) * (Object.hasOwn(FACTOR_CAUDAL, caudal) ? FACTOR_CAUDAL[caudal] : 0);
   const indice = puntuacion >= 3.0 ? 0 : puntuacion >= 1.9 ? 1 : puntuacion >= 0.9 ? 2 : puntuacion > 0 ? 3 : 4;
   return escala[indice];
 }

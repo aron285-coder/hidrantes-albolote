@@ -20,6 +20,7 @@ import {
   type Operacion,
   argumentos,
   coordenadasDe,
+  diametroPermitido,
   necesitaFoto,
   queFalta,
 } from '@/lib/propuestas';
@@ -346,8 +347,37 @@ function DatosPunto({
   jefatura: boolean;
 }) {
   const tipo = f.tipo;
-  const diametroActual =
-    f.diametro ?? (punto?.tipo === 'hidrante' && tipo === 'hidrante' ? (punto.diametro_mm as 70 | 100) : undefined);
+  // Lo que tiene el punto al corregir datos: en una boca, 45, 70 u otra medida con su número (docs/24 RV-101).
+  const diametroDelPunto: Formulario['diametro'] =
+    !punto || punto.tipo !== tipo
+      ? undefined
+      : tipo === 'hidrante'
+        ? (punto.diametro_mm as 70 | 100)
+        : punto.diametro_mm === 45 || punto.diametro_mm === 70
+          ? punto.diametro_mm
+          : 'otro';
+  const diametroActual = f.diametro ?? diametroDelPunto;
+  const otraMedidaActual = diametroDelPunto === 'otro' && punto ? String(punto.diametro_mm) : '';
+  const opcionesDiametro: [NonNullable<Formulario['diametro']>, string][] =
+    tipo === 'boca_riego'
+      ? // Una boca de otra medida se aprueba tal cual (FR-16, DEC-144): la ofrecen también jefatura y corregir datos.
+        [
+          [45, T.formulario.d45],
+          [70, T.formulario.d70],
+          ['otro', T.formulario.otraMedida],
+        ]
+      : // "Otra medida" de un hidrante la resuelve jefatura al moderar; jefatura aplica al momento (FR-151),
+        // así que fija 70 o 100 directamente (RV-19). Corregir datos tampoco la admite en un hidrante.
+        f.operacion === 'alta' && !jefatura
+        ? [
+            [70, T.formulario.d70],
+            [100, T.formulario.d100],
+            ['otro', T.formulario.otraMedida],
+          ]
+        : [
+            [70, T.formulario.d70],
+            [100, T.formulario.d100],
+          ];
   const racorActual = f.racor ?? (punto?.tipo === 'boca_riego' ? (punto.racor ?? undefined) : undefined);
   return (
     <>
@@ -375,38 +405,30 @@ function DatosPunto({
               ['boca_riego', T.formulario.bocaRiego],
             ]}
             valor={tipo}
-            alCambiar={(t) => cambiar({ tipo: t })}
+            alCambiar={(t) =>
+              cambiar({
+                tipo: t,
+                diametro: diametroPermitido(t, f.diametro) && f.diametro !== 'otro' ? f.diametro : undefined,
+              })
+            }
             etiqueta={T.formulario.tipoElemento}
           />
         </Campo>
       )}
-      {tipo === 'hidrante' && (
+      {tipo && (
         <Campo etiqueta={T.formulario.diametro}>
           <Segmentado
-            opciones={
-              // "Otra medida" la resuelve jefatura al moderar; jefatura aplica al momento (FR-151), así
-              // que fija 70 o 100 directamente (RV-19).
-              f.operacion === 'alta' && !jefatura
-                ? [
-                    [70, T.formulario.d70],
-                    [100, T.formulario.d100],
-                    ['otro', T.formulario.otraMedida],
-                  ]
-                : [
-                    [70, T.formulario.d70],
-                    [100, T.formulario.d100],
-                  ]
-            }
+            opciones={opcionesDiametro}
             valor={diametroActual}
-            alCambiar={(d) => cambiar({ diametro: d as 70 | 100 | 'otro' })}
+            alCambiar={(d) => cambiar({ diametro: d })}
             etiqueta={T.formulario.diametro}
           />
-          {f.diametro === 'otro' && (
+          {diametroActual === 'otro' && (
             <input
-              value={f.diametroOtro ?? ''}
-              onChange={(e) => cambiar({ diametroOtro: e.target.value })}
+              value={f.diametroOtro ?? otraMedidaActual}
+              onChange={(e) => cambiar({ diametro: 'otro', diametroOtro: e.target.value })}
               inputMode="numeric"
-              placeholder={T.operaciones.phOtraMedida}
+              placeholder={tipo === 'boca_riego' ? T.operaciones.phOtraMedidaBoca : T.operaciones.phOtraMedida}
               aria-label={T.formulario.otraMedida}
               className={cn(areaTexto, 'mt-1')}
             />
@@ -414,16 +436,9 @@ function DatosPunto({
         </Campo>
       )}
       {tipo === 'boca_riego' && (
-        <>
-          <Campo etiqueta={T.formulario.diametro}>
-            <p className="bg-papel border-linea rounded-campo text-texto-suave min-h-11 border px-3 py-2">
-              {T.formulario.diametroBoca}
-            </p>
-          </Campo>
-          <Campo etiqueta={T.formulario.racor}>
-            <SelectorRacor valor={racorActual} alCambiar={(r) => cambiar({ racor: r })} />
-          </Campo>
-        </>
+        <Campo etiqueta={T.formulario.racor}>
+          <SelectorRacor valor={racorActual} alCambiar={(r) => cambiar({ racor: r })} />
+        </Campo>
       )}
       {f.operacion === 'datos' && (
         <Campo etiqueta={T.formulario.descripcionOpcional}>
