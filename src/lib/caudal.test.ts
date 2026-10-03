@@ -14,6 +14,8 @@ const { CONFIG_POR_DEFECTO, derivar, radioPx } = await import('./derivar');
 const { textoPunto } = await import('./compartir');
 const { filtrar, ordenar } = await import('./puntos');
 const { T } = await import('./textos');
+const { inventario, ordenarPor } = await import('./panel/inventario');
+const { valorDe } = await import('./campos');
 
 import type { Caudal, Punto } from '../tipos/punto';
 
@@ -104,5 +106,35 @@ describe('caudal desconocido (docs/24 RV-102a)', () => {
     expect(caudalParaDibujar('malo')).toBe('malo');
     nombreCaudal('bueno');
     expect(anotarError).not.toHaveBeenCalled();
+  });
+
+  it('si anotar el error falla, el dibujo sigue y no se reintenta', () => {
+    anotarError.mockImplementationOnce(() => {
+      throw new Error('almacenamiento bloqueado');
+    });
+    expect(caudalParaDibujar(DESCONOCIDO)).toBe('no_funciona');
+    expect(caudalParaDibujar(DESCONOCIDO)).toBe('no_funciona');
+    expect(anotarError).toHaveBeenCalledTimes(1);
+  });
+
+  it('el inventario del panel lo filtra con «No funciona» y lo ordena con él', () => {
+    const lista = [punto('0003', DESCONOCIDO), punto('0002', 'bueno'), punto('0001', 'no_funciona')];
+    const filtros = {
+      tipo: 'todos',
+      caudal: 'no_funciona',
+      sin_revisar: false,
+      nucleo: '',
+      diametro: '',
+      busqueda: '',
+    } as const;
+    expect(inventario(lista, filtros).map((p) => p.id)).toEqual(['0003', '0001']);
+    const orden = ordenarPor(lista, { columna: 'caudal', ascendente: true }).map((p) => p.id);
+    expect(orden[0]).toBe('0002');
+    expect(orden.slice(1).sort()).toEqual(['0001', '0003']);
+  });
+
+  it('en los cambios de una propuesta se lee el mismo texto que en la ficha', () => {
+    expect(valorDe('caudal', 'otro_valor')).toBe(T.ficha.estadoDesconocido);
+    expect(valorDe('caudal', 'malo')).toBe(T.formulario.malo);
   });
 });
