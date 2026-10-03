@@ -99,9 +99,10 @@ set local role service_role;
 select set_config('test.foto_a', hidrantes.fn_reservar_subida(current_setting('test.token_a')), true);
 select set_config('test.foto_b', hidrantes.fn_reservar_subida(current_setting('test.token_b')), true);
 select matches(current_setting('test.foto_a'), '^fotos/[0-9a-f-]{36}\.jpg$', 'el servidor asigna el nombre de la foto');
-select hidrantes.fn_reservar_subida(current_setting('test.token_a')) from generate_series(2, 40);
+select hidrantes.fn_reservar_subida(current_setting('test.token_a'))
+  from generate_series(2, (hidrantes.fn_config('max_subidas_dispositivo_dia', '40') #>> '{}')::int);
 select throws_like($$ select hidrantes.fn_reservar_subida(current_setting('test.token_a')) $$,
-  'CUOTA_SUBIDAS_AGOTADA%', 'la reserva 41 del día: rechazada (TR-45)');
+  'CUOTA_SUBIDAS_AGOTADA%', 'la reserva siguiente al tope del día: rechazada (TR-45)');
 reset role;
 
 -- ---------- propuestas ----------

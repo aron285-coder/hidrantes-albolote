@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adaptarSesiones, referenciaPorDefecto, tocaMigraciones } from './compatibilidad.ts';
+import { adaptarColumnasPermitidas, adaptarSesiones, referenciaPorDefecto, tocaMigraciones } from './compatibilidad.ts';
 
 describe('referenciaPorDefecto', () => {
   it('en un PR, la rama contra la que se fusiona: es la que está publicada', () => {
@@ -57,5 +57,24 @@ describe('adaptarSesiones', () => {
   it('un caso sin sesión de jefatura no se toca', () => {
     const otro = "import { T } from '../../src/lib/textos.ts';\ntest('x', () => {});\n";
     expect(adaptarSesiones(otro)).toBe(otro);
+  });
+});
+
+describe('adaptarColumnasPermitidas', () => {
+  const anterior = "const PERMITIDAS = new Set([\n  'id',\n  'foto_path',\n  'municipio',\n]);\n";
+
+  it('el caso de la Fase 5 de antes admite la foto del sitio (0035), y nada más', () => {
+    const adaptado = adaptarColumnasPermitidas(anterior);
+    expect(adaptado).toBe(
+      "const PERMITIDAS = new Set([\n  'id',\n  'foto_path',\n  'foto_sitio_path',\n  'municipio',\n]);\n",
+    );
+    expect(adaptado).not.toContain('autor');
+  });
+
+  it('si ya la admite, o el archivo no tiene esa lista, no lo toca', () => {
+    const ya = adaptarColumnasPermitidas(anterior);
+    expect(adaptarColumnasPermitidas(ya)).toBe(ya);
+    const otro = "test('x', () => {});\n";
+    expect(adaptarColumnasPermitidas(otro)).toBe(otro);
   });
 });
