@@ -6,7 +6,9 @@ import type { Caudal, Punto } from '../tipos/punto';
 import { CAUDALES, esCaudalConocido } from './caudal';
 import { CONFIG_POR_DEFECTO, radioPx } from './derivar';
 import { claseChip, nombreCaudal } from './ficha';
-import { cercanos, masCercanoQueNoFunciona } from './incidente';
+import { cercanos, masCercanoQueNoFunciona, textoMasCercano } from './incidente';
+import { datosDe, queFalta } from './propuestas';
+import { correccionesDe, faltaEnCorrecciones, valoresPropuestos, type PropuestaPanel } from './panel/cola';
 import { filtrar, leerFiltro, ordenar } from './puntos';
 import { COLOR_CAUDAL, svgMarcador } from './simbologia';
 import { T } from './textos';
@@ -82,5 +84,42 @@ describe('Barro, un estado conocido (RV-102)', () => {
     expect(leerFiltro('bocas')).toBe('bocas');
     expect(leerFiltro(null)).toBe('todos');
     expect(leerFiltro('x')).toBe('todos');
+  });
+
+  it('el aviso del más cercano dice por qué no sirve', () => {
+    expect(textoMasCercano({ codigo: 'HID-0001', caudal: BARRO }, '30 m')).toBe(
+      T.incidente.masCercanoBarro('HID-0001', '30 m'),
+    );
+    expect(textoMasCercano({ codigo: 'HID-0001', caudal: 'no_funciona' }, '30 m')).toBe(
+      T.incidente.masCercanoNoFunciona('HID-0001', '30 m'),
+    );
+    expect(textoMasCercano({ codigo: 'HID-0001', caudal: 'malo' }, '30 m')).toBe(
+      T.incidente.masCercanoMalo('HID-0001', '30 m'),
+    );
+  });
+
+  it('no pide descripción del fallo ni la envía, en alta y en actualizar estado (DEC-145)', () => {
+    const alta = {
+      operacion: 'alta',
+      pin: O,
+      tipo: 'hidrante',
+      diametro: 100,
+      caudal: BARRO,
+      fallo: 'x',
+      hayFoto: true,
+    } as const;
+    expect(queFalta(alta, null)).toBeNull();
+    expect(datosDe(alta, null)).not.toHaveProperty('descripcion_fallo');
+    const estado = { operacion: 'estado', caudal: BARRO, fallo: 'x', hayFoto: true } as const;
+    expect(queFalta(estado, p(1))).toBeNull();
+    expect(datosDe(estado, p(1))).toEqual({ caudal: 'barro' });
+  });
+
+  it('jefatura puede corregir a Barro sin descripción y no viaja la nota de fallo', () => {
+    const prop = { id: 'x', operacion: 'estado', datos: { caudal: 'malo' }, antes: null } as unknown as PropuestaPanel;
+    const v = valoresPropuestos(prop, p(1));
+    const final = { ...v, caudal: BARRO, descripcion_fallo: '' };
+    expect(faltaEnCorrecciones(final)).toBeNull();
+    expect(correccionesDe(v, final)).toEqual({ caudal: 'barro' });
   });
 });
