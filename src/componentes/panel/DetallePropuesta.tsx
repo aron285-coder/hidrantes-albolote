@@ -3,6 +3,7 @@ import { usePanel } from './usar-panel';
 import { MinimapaPropuesta } from './MinimapaPropuesta';
 import { Boton } from '@/componentes/Boton';
 import { distancia, fechaCorta, hace } from '@/lib/formato';
+import { esCaudalConocido } from '@/lib/caudal';
 import { nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
 import {
@@ -292,7 +293,7 @@ function Comparacion({ p, existente, direccion }: { p: PropuestaPanel; existente
       v.racor ? nombreRacor(v.racor) : '—',
       existente.racor ? nombreRacor(existente.racor) : '—',
     ],
-    [T.panelCola.campoEstado, nombreCaudal[v.caudal], nombreCaudal[existente.caudal]],
+    [T.panelCola.campoEstado, nombreCaudal(v.caudal), nombreCaudal(existente.caudal)],
     [T.panelCola.campoRevision, fechaCorta(p.creada_en), fechaCorta(existente.fecha_ultima_revision)],
     [T.ficha.direccion, direccion || T.ficha.sinDireccion, existente.direccion ?? T.ficha.sinDireccion],
   ];
@@ -452,9 +453,15 @@ function FormularioCorrecciones({
           onChange={(e) => cambia('caudal', e.target.value as Caudal)}
           className="border-linea rounded-campo min-h-9 flex-1 border px-2"
         >
+          {/* Un estado que esta versión no conoce no se cambia por otro sin querer (docs/24 RV-102a). */}
+          {!esCaudalConocido(v.caudal) && (
+            <option value={String(v.caudal)} disabled>
+              {T.ficha.estadoDesconocido}
+            </option>
+          )}
           {CAUDALES.map((c) => (
             <option key={c} value={c}>
-              {nombreCaudal[c]}
+              {nombreCaudal(c)}
             </option>
           ))}
         </select>

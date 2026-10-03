@@ -5,11 +5,12 @@
 import { type Resultado, rpc } from './api';
 import { type Almacen, almacenPuntos } from './bd';
 import { supabase } from './supabase';
+import { CAUDALES, caudalParaDibujar } from './caudal';
 import { anotarServidor } from './conexion';
 import { type ConfigMovil, METROS_TRAMO_POR_DEFECTO, derivar, diaLocal, leerConfig, leerMetrosTramo } from './derivar';
 import { metros } from './geometria';
 
-import type { Caudal, Punto } from '../tipos/punto';
+import type { Punto } from '../tipos/punto';
 
 export type { Caudal, Punto, Racor, TipoPunto } from '../tipos/punto';
 
@@ -301,7 +302,8 @@ export function filtrar(puntos: Punto[], f: Filtro): Punto[] {
     case 'bocas':
       return puntos.filter((p) => p.tipo === 'boca_riego');
     case 'no_funciona':
-      return puntos.filter((p) => p.caudal === 'no_funciona');
+      // Un estado que esta versión no conoce cuenta como no funciona (docs/24 RV-102a).
+      return puntos.filter((p) => caudalParaDibujar(p.caudal) === 'no_funciona');
     case 'sin_revisar':
       return puntos.filter((p) => p.revision_caducada);
     default:
@@ -310,11 +312,12 @@ export function filtrar(puntos: Punto[], f: Filtro): Punto[] {
 }
 
 export type Orden = 'distancia' | 'codigo' | 'estado';
-const ORDEN_CAUDAL: Caudal[] = ['bueno', 'regular', 'malo', 'no_funciona'];
 
 /** Metros entre dos puntos (haversine); suficiente a escala de municipio. */
 // Se movió a geometria.ts (docs/18 GM-01); se reexporta para no romper los imports.
 export { metros };
+
+const rangoCaudal = (p: Punto) => CAUDALES.indexOf(caudalParaDibujar(p.caudal));
 
 /** Sin posición, "distancia" ordena por código. */
 export function ordenar(puntos: Punto[], orden: Orden, desde: { lat: number; lng: number } | null): Punto[] {
@@ -322,7 +325,7 @@ export function ordenar(puntos: Punto[], orden: Orden, desde: { lat: number; lng
   const porCodigo = (a: Punto, b: Punto) => a.codigo.localeCompare(b.codigo);
   if (orden === 'distancia' && desde) return copia.sort((a, b) => metros(desde, a) - metros(desde, b));
   if (orden === 'estado') {
-    return copia.sort((a, b) => ORDEN_CAUDAL.indexOf(a.caudal) - ORDEN_CAUDAL.indexOf(b.caudal) || porCodigo(a, b));
+    return copia.sort((a, b) => rangoCaudal(a) - rangoCaudal(b) || porCodigo(a, b));
   }
   return copia.sort(porCodigo);
 }

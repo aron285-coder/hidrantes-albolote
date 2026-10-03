@@ -473,7 +473,7 @@ export function Mapa() {
                               <MarcadorSvg punto={p} tamano={20} />
                               <span className="truncate">
                                 <b className="font-datos">{p.codigo}</b> · {p.direccion ?? T.ficha.sinDireccion} ·{' '}
-                                {nombreCaudal[p.caudal]}
+                                {nombreCaudal(p.caudal)}
                               </span>
                             </button>
                           </li>

@@ -3,6 +3,7 @@ import { Dialogo } from './Dialogo';
 import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
 import { useCarga } from '@/hooks/carga';
+import { esCaudalConocido } from '@/lib/caudal';
 import { nombreCaudal, nombreRacor, nombreTipo } from '@/lib/ficha';
 import { fechaCorta, hace } from '@/lib/formato';
 import {
@@ -110,9 +111,15 @@ export function DialogoEditar({
             value={v.caudal}
             onChange={(e) => setV((x) => ({ ...x, caudal: e.target.value as Caudal }))}
           >
+            {/* Un estado que esta versión no conoce no se cambia por otro sin querer (docs/24 RV-102a). */}
+            {!esCaudalConocido(v.caudal) && (
+              <option value={String(v.caudal)} disabled>
+                {T.ficha.estadoDesconocido}
+              </option>
+            )}
             {CAUDALES.map((c) => (
               <option key={c} value={c}>
-                {nombreCaudal[c]}
+                {nombreCaudal(c)}
               </option>
             ))}
           </select>

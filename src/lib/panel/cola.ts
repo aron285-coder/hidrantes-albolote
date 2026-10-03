@@ -215,7 +215,7 @@ export function filasDiff(p: PropuestaPanel, punto?: Punto): FilaDiff[] {
       if (punto) {
         filas.push({
           campo: T.panelCola.campoEstado,
-          despues: T.panelCola.sinCambios(nombreCaudal[punto.caudal]),
+          despues: T.panelCola.sinCambios(nombreCaudal(punto.caudal)),
           sinCambios: true,
         });
         filas.push({

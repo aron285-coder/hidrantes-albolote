@@ -151,8 +151,8 @@ export default function Inventario() {
     </>
   );
   const estadoDe = (p: Punto) => (
-    <span className={cn('rounded-chip px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap', claseChip[p.caudal])}>
-      {nombreCaudal[p.caudal]}
+    <span className={cn('rounded-chip px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap', claseChip(p.caudal))}>
+      {nombreCaudal(p.caudal)}
     </span>
   );
   // Nunca "— pen": el campo mide al menos lo que su texto de "pendiente" (RV-79).
