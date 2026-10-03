@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(11);
+select plan(15);
 
 insert into hidrantes.config (clave, valor, actualizado_por)
 values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen_salt('bf', 4))), 'test')
@@ -57,9 +57,41 @@ select is((select estado::text from hidrantes.propuestas where id = current_sett
 select set_config('test.alta2', pg_temp.proponer('barro-alta-02', 'alta', null,
   '{"tipo":"boca_riego","caudal":"barro","racor":"granada","descripcion_fallo":"Sale marrón"}', 37.2111, -3.6111)::text, true);
 select pg_temp.jefatura();
-select is((select p.descripcion_fallo from hidrantes.puntos p
+select is((select p.caudal::text || '|' || coalesce(p.descripcion_fallo, '-') from hidrantes.puntos p
             where p.id = (hidrantes.fn_aprobar(current_setting('test.alta2')::uuid) ->> 'punto_id')::uuid),
-  null, 'un alta en barro no guarda nota de fallo, como cualquier estado que no es no funciona');
+  'barro|-', 'un alta en barro no guarda nota de fallo, como cualquier estado que no es no funciona');
+select set_config('test.alta3', pg_temp.proponer('barro-alta-03', 'alta', null,
+  '{"tipo":"hidrante","diametro_mm":70,"caudal":"no_funciona","descripcion_fallo":"Tapa soldada"}', 37.2141, -3.6141)::text, true);
+select pg_temp.jefatura();
+select is((select p.caudal::text || '|' || coalesce(p.descripcion_fallo, '-') from hidrantes.puntos p
+            where p.id = (hidrantes.fn_aprobar(current_setting('test.alta3')::uuid) ->> 'punto_id')::uuid),
+  'no_funciona|Tapa soldada', 'un alta en no funciona sí guarda su nota de fallo');
+
+-- Fusión eligiendo el estado de la propuesta: la nota sigue la misma regla.
+insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, descripcion_fallo, foto_path, municipio,
+                              fecha_ultima_revision)
+values ('00000000-0000-4000-8000-0000000e3011', 'HID-8511', 'hidrante', 'SRID=4326;POINT(-3.6151 37.2151)', 100,
+        'no_funciona', 'Válvula rota', 'fotos/b1.jpg', 'albolote', current_date),
+       ('00000000-0000-4000-8000-0000000e3012', 'HID-8512', 'hidrante', 'SRID=4326;POINT(-3.6161 37.2161)', 100,
+        'bueno', null, 'fotos/b2.jpg', 'albolote', current_date);
+insert into hidrantes.propuestas (id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id, clave_local,
+                                  origen_ubicacion, geom, foto_path)
+values ('00000000-0000-4000-8000-0000000e3021', 'alta',
+        '{"tipo":"hidrante","diametro_mm":100,"caudal":"barro","descripcion_fallo":"Sale marrón"}',
+        'Ana', 'Ruiz', gen_random_uuid(), 'barro-fusion-01', 'gps', 'SRID=4326;POINT(-3.6151 37.2151)', 'fotos/b3.jpg'),
+       ('00000000-0000-4000-8000-0000000e3022', 'alta',
+        '{"tipo":"hidrante","diametro_mm":100,"caudal":"no_funciona","descripcion_fallo":"Tapa soldada"}',
+        'Ana', 'Ruiz', gen_random_uuid(), 'barro-fusion-02', 'gps', 'SRID=4326;POINT(-3.6161 37.2161)', 'fotos/b4.jpg');
+select hidrantes.fn_fusionar_con_existente('00000000-0000-4000-8000-0000000e3021', '00000000-0000-4000-8000-0000000e3011',
+  '{"caudal":"propuesta"}');
+select hidrantes.fn_fusionar_con_existente('00000000-0000-4000-8000-0000000e3022', '00000000-0000-4000-8000-0000000e3012',
+  '{"caudal":"propuesta"}');
+select is((select caudal::text || '|' || coalesce(descripcion_fallo, '-') from hidrantes.puntos
+            where id = '00000000-0000-4000-8000-0000000e3011'),
+  'barro|-', 'fusión con el estado de una propuesta en barro: la nota de fallo anterior se borra');
+select is((select caudal::text || '|' || coalesce(descripcion_fallo, '-') from hidrantes.puntos
+            where id = '00000000-0000-4000-8000-0000000e3012'),
+  'no_funciona|Tapa soldada', 'fusión con una propuesta en no funciona: se queda su nota');
 
 insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, descripcion_fallo, foto_path, municipio,
                               fecha_ultima_revision)
@@ -80,6 +112,7 @@ select lives_ok($$ insert into hidrantes.puntos (codigo, tipo, geom, diametro_mm
 -- ---------- tamaño del marcador: el mínimo, como no funciona ----------
 select is(hidrantes.fn_radio_px(100::smallint, 'barro'), 5::numeric, 'fn_radio_px(100, barro) = el mínimo');
 select is(hidrantes.fn_radio_px(45::smallint, 'barro'), 5::numeric, 'fn_radio_px(45, barro) = el mínimo');
+select is(hidrantes.fn_radio_px(70::smallint, 'barro'), 5::numeric, 'fn_radio_px(70, barro) = el mínimo');
 select is((select radio_px from hidrantes.v_puntos_activos where codigo = 'HID-8502'), 5::numeric,
   'y v_puntos_activos lo dibuja al mínimo');
 
