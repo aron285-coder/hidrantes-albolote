@@ -1,18 +1,9 @@
 {
-  "version": "0.6.5",
-  "fecha": "2026-09-25",
+  "version": "0.6.2",
+  "fecha": "2026-09-24",
   "lineas": [
-    {
-      "version": "0.6.5",
-      "texto": "Las novedades enseñan lo último de cada versión, cada una con su número"
-    },
-    {
-      "version": "0.6.4",
-      "texto": "Activar los avisos dice qué ha fallado y cómo arreglarlo"
-    },
-    {
-      "version": "0.6.4",
-      "texto": "Los avisos se activan de verdad y ya no se pierden por un fallo pasajero"
-    }
+    "Calles, lugares, direcciones y coordenadas",
+    "Los cinco puntos más cercanos que funcionan",
+    "Mantener pulsado el mapa abre \"¿Qué hay aquí?\", y la ficha enseña las coordenadas y se puede compartir"
   ]
 }

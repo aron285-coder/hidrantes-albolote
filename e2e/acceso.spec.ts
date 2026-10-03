@@ -79,6 +79,8 @@ test.describe('entrada del voluntario (FL-01)', () => {
 
     for (const [i, p] of T.bienvenida.pantallas.entries()) {
       await expect(page.getByRole('heading', { name: p.titulo })).toBeVisible();
+      // docs/24 RV-99: las definiciones de Malo y No funciona, una línea cada una.
+      for (const l of p.lineas) await expect(page.getByText(l)).toBeVisible();
       const ultima = i === T.bienvenida.pantallas.length - 1;
       await page.getByRole('button', { name: ultima ? T.bienvenida.empezar : T.bienvenida.siguiente }).click();
     }

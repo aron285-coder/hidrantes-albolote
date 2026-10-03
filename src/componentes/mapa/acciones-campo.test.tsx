@@ -34,7 +34,8 @@ const pintar = (n: ReactNode) => renderToStaticMarkup(<MemoryRouter>{n}</MemoryR
 function acciones(html: string) {
   return [...html.matchAll(/<(button|a)\b([^>]*)>(.*?)<\/\1>/gs)].map(([, , atributos, dentro]) => ({
     texto: dentro.replace(/<[^>]+>/g, '').trim(),
-    primario: /data-variante="primario"/.test(atributos),
+    // Primario: el Boton de 06 §5 o cualquier botón con el relleno naranja del primario.
+    primario: /data-variante="primario"|bg-naranja-600/.test(atributos),
   }));
 }
 
@@ -91,6 +92,8 @@ describe('«¿Qué hay aquí?» (RV-99, RV-100)', () => {
 describe('como mucho un primario por hoja (06 §5, DEC-147)', () => {
   it('ficha del punto', () => {
     const html = pintar(<Ficha punto={PUNTO} posicion={null} guardadoEn={null} alCerrar={() => {}} />);
-    expect(acciones(html).filter((a) => a.primario).length).toBeLessThanOrEqual(1);
+    const lista = acciones(html);
+    expect(lista.map((a) => a.texto)).toEqual(expect.arrayContaining([T.ficha.proponerCambio, T.ficha.comoLlegar]));
+    expect(lista.filter((a) => a.primario).length).toBeLessThanOrEqual(1);
   });
 });
