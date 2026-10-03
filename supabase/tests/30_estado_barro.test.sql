@@ -57,14 +57,16 @@ select is((select estado::text from hidrantes.propuestas where id = current_sett
 select set_config('test.alta2', pg_temp.proponer('barro-alta-02', 'alta', null,
   '{"tipo":"boca_riego","caudal":"barro","racor":"granada","descripcion_fallo":"Sale marrón"}', 37.2111, -3.6111)::text, true);
 select pg_temp.jefatura();
+select set_config('test.punto2', hidrantes.fn_aprobar(current_setting('test.alta2')::uuid) ->> 'punto_id', true);
 select is((select p.caudal::text || '|' || coalesce(p.descripcion_fallo, '-') from hidrantes.puntos p
-            where p.id = (hidrantes.fn_aprobar(current_setting('test.alta2')::uuid) ->> 'punto_id')::uuid),
+            where p.id = current_setting('test.punto2')::uuid),
   'barro|-', 'un alta en barro no guarda nota de fallo, como cualquier estado que no es no funciona');
 select set_config('test.alta3', pg_temp.proponer('barro-alta-03', 'alta', null,
   '{"tipo":"hidrante","diametro_mm":70,"caudal":"no_funciona","descripcion_fallo":"Tapa soldada"}', 37.2141, -3.6141)::text, true);
 select pg_temp.jefatura();
+select set_config('test.punto3', hidrantes.fn_aprobar(current_setting('test.alta3')::uuid) ->> 'punto_id', true);
 select is((select p.caudal::text || '|' || coalesce(p.descripcion_fallo, '-') from hidrantes.puntos p
-            where p.id = (hidrantes.fn_aprobar(current_setting('test.alta3')::uuid) ->> 'punto_id')::uuid),
+            where p.id = current_setting('test.punto3')::uuid),
   'no_funciona|Tapa soldada', 'un alta en no funciona sí guarda su nota de fallo');
 
 -- Fusión eligiendo el estado de la propuesta: la nota sigue la misma regla.
