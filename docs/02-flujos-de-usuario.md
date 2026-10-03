@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -60,9 +60,9 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 3. Si el pin queda fuera de la zona: aviso "esto queda fuera de la zona habitual, ¿seguro?". Puede continuar. (FR-55)
 4. Elige el **tipo**. (FR-11)
    - Hidrante: elige **diámetro de la salida mayor** 70 / 100 / otra medida. (FR-16, FR-17)
-   - Boca de riego: el diámetro no se pregunta (45 mm); elige el **racor** comparando con las fotos de referencia. (FR-16, FR-20)
+   - Boca de riego: elige **diámetro** 45 / 70 / otra medida (entero de 20 a 150 mm) y el **racor**, comparando con las fotos de referencia. (FR-16, FR-20; `docs/24` RV-101 y RV-104)
 5. Elige **caudal / estado**. Si es *no funciona*, aparece la **descripción del fallo**, obligatoria. (FR-18, FR-19)
-6. Hace la **foto** con la cámara. Hasta que hay foto, el botón de envío está deshabilitado y dice por qué. (FR-21)
+6. Hace las **dos fotos** con la cámara, lado a lado: **Conexión** (la de siempre) y **Sitio** (un entorno para encontrarlo). Hasta que están las dos, el botón de envío está deshabilitado y dice cuál falta ("Falta la foto del sitio"). (FR-21; `docs/24` RV-103)
 7. Añade **descripción** si quiere. (FR-22)
 8. Pulsa *Enviar para revisión*. El autor y la posición del móvil van solos. (FR-23)
 
@@ -123,7 +123,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 
 1. El mapa muestra la posición actual como círculo gris y el pin naranja encima.
 2. Arrastra el pin al sitio real. La pantalla muestra el desplazamiento en metros y la distancia del pin al GPS del móvil. (FR-45, FR-13)
-3. Foto de hoy y nota opcional.
+3. Las dos fotos de hoy, Conexión y Sitio (`docs/24` RV-103), y nota opcional.
 4. *Enviar para revisión*.
 
 **Resultado:** propuesta pendiente con posición anterior, nueva y desplazamiento. Jefatura verá ambas.

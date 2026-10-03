@@ -49,13 +49,17 @@ describe('rpc (FR-168)', () => {
 
   it('un "no" del servidor (4xx) es un código, y el servidor sigue vivo', async () => {
     rpcCliente.mockResolvedValue({ data: null, error: { message: 'MOTIVO_OBLIGATORIO: falta' }, status: 400 });
-    await expect(rpc('fn_rechazar')).resolves.toEqual({ ok: false, codigo: 'MOTIVO_OBLIGATORIO' });
+    await expect(rpc('fn_rechazar')).resolves.toEqual({
+      ok: false,
+      codigo: 'MOTIVO_OBLIGATORIO',
+      mensaje: 'MOTIVO_OBLIGATORIO: falta',
+    });
     expect(estadoConexion()).toBe('bien');
   });
 
   it('un 401 de la RPC llega como NO_AUTORIZADO (RV-03)', async () => {
     rpcCliente.mockResolvedValue({ data: null, error: { message: 'JWT expired', code: 'PGRST301' }, status: 401 });
-    await expect(rpc('fn_proponer')).resolves.toEqual({ ok: false, codigo: 'NO_AUTORIZADO' });
+    await expect(rpc('fn_proponer')).resolves.toMatchObject({ ok: false, codigo: 'NO_AUTORIZADO' });
   });
 
   it('un 500 o una red caída son SERVIDOR_NO_DISPONIBLE y encienden el aviso', async () => {

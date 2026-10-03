@@ -5,7 +5,7 @@
 
 import { zipSync, strToU8 } from 'fflate';
 import { type Resultado, rpc } from '../api';
-import { nombreCaudal, nombreRacor, nombreTipo } from '../ficha';
+import { nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '../ficha';
 import { fechaCorta } from '../formato';
 import type { Caudal, Racor, TipoPunto } from '../puntos';
 import { T } from '../textos';
@@ -24,6 +24,9 @@ export interface FilaExportada {
   fecha_ultima_revision: string;
   lat: number;
   lng: number;
+  /** Desde 0035 (docs/24 RV-103); opcionales por si el servidor aún es el anterior. */
+  foto_path?: string | null;
+  foto_sitio_path?: string | null;
 }
 
 /** Filtros que admite fn_exportar_inventario (05 §6.2): los del inventario que entiende el servidor. */
@@ -50,6 +53,9 @@ export const CABECERAS = [
   T.panelInventario.colRevision,
   T.panelInventario.colLat,
   T.panelInventario.colLng,
+  // Las dos fotos, con su URL pública (docs/24 RV-103).
+  T.formulario.foto,
+  T.formulario.fotoDelSitio,
 ];
 
 const MUNICIPIOS: Record<string, string> = {
@@ -72,6 +78,8 @@ export function celdas(f: FilaExportada): (string | number)[] {
     fechaCorta(f.fecha_ultima_revision),
     f.lat,
     f.lng,
+    urlFoto(f.foto_path ?? null) ?? '',
+    urlFoto(f.foto_sitio_path ?? null) ?? '',
   ];
 }
 
@@ -98,6 +106,8 @@ export function geojson(filas: FilaExportada[]): string {
           diametro_mm: f.diametro_mm,
           caudal: f.caudal,
           racor: f.racor,
+          foto: urlFoto(f.foto_path ?? null),
+          foto_sitio: urlFoto(f.foto_sitio_path ?? null),
           direccion: f.direccion,
           nucleo: f.nucleo,
           municipio: f.municipio,

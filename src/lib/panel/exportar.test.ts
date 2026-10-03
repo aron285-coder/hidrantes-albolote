@@ -1,5 +1,6 @@
 import { unzipSync, strFromU8 } from 'fflate';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { T } from '../textos';
 import { type FilaExportada, CABECERAS, celdas, csv, geojson, hojaXml, nombreArchivo, xlsx } from './exportar';
 
 const FILAS: FilaExportada[] = [
@@ -45,9 +46,23 @@ describe('exportación (FR-160, FL-32)', () => {
       '20 ago 2026',
       37.2308,
       -3.6569,
+      '',
+      '',
     ]);
     expect(celdas(FILAS[1])[3]).toBe('No funciona');
     expect(celdas(FILAS[1])[7]).toBe('Fuera de zona');
+  });
+
+  // docs/24 RV-103: la foto y la del sitio, con su URL pública, al final de cada fila.
+  it('las dos fotos salen con su URL, en las dos últimas columnas', () => {
+    vi.stubEnv('VITE_SUPABASE_URL', 'https://x.supabase.co');
+    const fila = celdas({ ...FILAS[0], foto_path: 'fotos/a.jpg', foto_sitio_path: 'fotos/b.jpg' });
+    expect(fila.slice(-2)).toEqual([
+      'https://x.supabase.co/storage/v1/object/public/hidrantes-fotos-dev/fotos/a.jpg',
+      'https://x.supabase.co/storage/v1/object/public/hidrantes-fotos-dev/fotos/b.jpg',
+    ]);
+    expect(CABECERAS.slice(-2)).toEqual([T.formulario.foto, T.formulario.fotoDelSitio]);
+    vi.unstubAllEnvs();
   });
 
   it('CSV con BOM, punto y coma y comillas escapadas para Excel en español', () => {

@@ -44,6 +44,10 @@ export interface PropuestaPanel {
   codigo_duplicado: string | null;
   otra_medida: boolean;
   desactualizada: boolean;
+  /** 0035 (docs/24 RV-103): la foto del sitio que trae, la que tiene el punto y si falta en un alta o ubicación. */
+  foto_sitio_path?: string | null;
+  foto_sitio_path_actual?: string | null;
+  sin_foto_sitio?: boolean;
   nucleo: string | null;
   punto_actualizado_en: string | null;
   // solo en el historial
@@ -71,6 +75,7 @@ interface FilaHistorial {
   punto_id: string | null;
   datos: Record<string, unknown>;
   foto_path: string | null;
+  foto_sitio_path: string | null;
   direccion_sugerida: string | null;
   motivo_rechazo: string | null;
   correcciones: Record<string, unknown> | null;
@@ -90,7 +95,7 @@ export async function cargarHistorial(
     c
       .from('propuestas')
       .select(
-        'id, operacion, estado, creada_en, autor_nombre, autor_apellido, punto_id, datos, foto_path, ' +
+        'id, operacion, estado, creada_en, autor_nombre, autor_apellido, punto_id, datos, foto_path, foto_sitio_path, ' +
           'direccion_sugerida, motivo_rechazo, correcciones, revisada_por, revisada_en, ' +
           'punto:puntos!punto_id(codigo, direccion, nucleo)',
       )
@@ -115,6 +120,7 @@ export function desdeHistorial(f: FilaHistorial): PropuestaPanel {
     codigo: f.punto?.codigo ?? null,
     datos: f.datos ?? {},
     foto_path: f.foto_path,
+    foto_sitio_path: f.foto_sitio_path,
     direccion_sugerida: f.direccion_sugerida,
     direccion_actual: f.punto?.direccion ?? null,
     lat: null,
@@ -346,6 +352,8 @@ export function senales(p: PropuestaPanel): Senal[] {
     );
   }
   if (p.foto_path) s.push({ texto: T.panelCola.conFoto, aviso: false });
+  // La mandó la versión anterior de la app: se puede aprobar, pero el punto se queda sin foto del sitio.
+  if (p.sin_foto_sitio) s.push({ texto: T.panelCola.senalSinFotoSitio, aviso: true });
   if (p.desactualizada) s.push({ texto: T.panelCola.senalDesactualizada, aviso: true });
   return s;
 }

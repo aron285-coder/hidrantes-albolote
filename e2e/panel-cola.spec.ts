@@ -159,8 +159,8 @@ interface Llamada {
 }
 
 /** Supabase simulado con estado: aprobar o rechazar quita la propuesta de la cola. */
-async function prepararPanel(page: Page) {
-  let pendientes = cola();
+async function prepararPanel(page: Page, extra: Record<string, unknown>[] = []) {
+  let pendientes = [...cola(), ...extra];
   const llamadas: Llamada[] = [];
   const quitar = (ids: string[]) => (pendientes = pendientes.filter((p) => !ids.includes(p.id as string)));
   await conGoogle(page, 'jefe@example.org');
@@ -359,4 +359,43 @@ test('sin servidor: aviso en el panel y la lista explica el fallo (FR-168)', asy
     timeout: 20_000,
   });
   await expect(page.getByRole('button', { name: T.mapa.reintentar }).first()).toBeVisible();
+});
+
+// docs/24 RV-103: el detalle enseña las dos fotos lado a lado y señala lo que llegó sin la del sitio.
+test('alta con las dos fotos y alta sin foto del sitio (RV-103)', async ({ page }) => {
+  await page.route(`${SUPABASE_PRUEBAS}/storage/v1/object/public/**`, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="9"/>',
+    }),
+  );
+  const alta = (id: string, extra: Record<string, unknown>) =>
+    fila({
+      id,
+      operacion: 'alta',
+      creada_en: hace(1),
+      punto_id: null,
+      codigo: null,
+      datos: { tipo: 'hidrante', diametro_mm: 100, caudal: 'bueno', descripcion: `Alta ${id}` },
+      lat: 37.2305,
+      lng: -3.656,
+      foto_path: `fotos/${id}-conexion.jpg`,
+      ...extra,
+    });
+  await prepararPanel(page, [
+    alta('s1', { foto_sitio_path: 'fotos/s1-sitio.jpg', sin_foto_sitio: false, autor_nombre: 'Dos' }),
+    alta('s2', { foto_sitio_path: null, sin_foto_sitio: true, autor_nombre: 'Una' }),
+  ]);
+  await page.goto('/admin/cola');
+  await abrir(page, /Dos Ruiz/);
+  const detalle = page.getByRole('article');
+  await expect(detalle.locator('figcaption')).toHaveText([T.formulario.conexion, T.formulario.sitio]);
+  await expect(detalle.locator('figure img')).toHaveCount(2);
+  await expect(detalle.getByText(T.panelCola.senalSinFotoSitio)).toHaveCount(0);
+
+  await abrir(page, /Una Ruiz/);
+  await expect(detalle.locator('figcaption')).toHaveCount(0);
+  await expect(detalle.locator('figure img')).toHaveCount(1);
+  await expect(detalle.getByText(T.panelCola.senalSinFotoSitio)).toBeVisible();
 });

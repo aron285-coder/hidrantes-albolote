@@ -5,7 +5,14 @@ import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { Boton } from '@/componentes/Boton';
 import { LimiteError } from '@/componentes/LimiteError';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
-import { Campo, CampoFoto, PildorasCaudal, Segmentado, SelectorRacor } from '@/componentes/operaciones/Campos';
+import {
+  Campo,
+  CampoFoto,
+  DosFotos,
+  PildorasCaudal,
+  Segmentado,
+  SelectorRacor,
+} from '@/componentes/operaciones/Campos';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useAcceso, useConexion, usePosicion, usePuntos } from '@/hooks/estado';
 import { colaActual, encolar, estaPersistida, procesarCola, reintentarCola } from '@/lib/cola';
@@ -22,6 +29,7 @@ import {
   coordenadasDe,
   diametroPermitido,
   necesitaFoto,
+  necesitaFotoSitio,
   queFalta,
 } from '@/lib/propuestas';
 import { TITULO_OPERACION } from '@/lib/nombres-operacion';
@@ -87,6 +95,8 @@ function FormularioOperacion({
   const posicionVieja = !!ultimaPosicion && !gps;
   const jefatura = acceso.tipo === 'jefatura';
   const [foto, setFoto] = useState<FotoProcesada | null>(null);
+  // La del sitio, en alta y corregir ubicación (docs/24 RV-103).
+  const [fotoSitio, setFotoSitio] = useState<FotoProcesada | null>(null);
   useEffect(() => activarPosicion(), []);
   const [f, setF] = useState<Formulario>(() => {
     return {
@@ -110,6 +120,7 @@ function FormularioOperacion({
     gps: gps ? { lat: gps.lat, lng: gps.lng, precision: gps.precision } : null,
     exif: foto?.exif ?? null,
     hayFoto: !!foto,
+    hayFotoSitio: !!fotoSitio,
   };
   const falta = queFalta(formulario, punto);
   const pinFuera = formulario.pin && !dentroDeZona(formulario.pin.lat, formulario.pin.lng);
@@ -132,6 +143,7 @@ function FormularioOperacion({
         argumentos(formulario, punto, autor, clave),
         necesitaFoto(operacion) || foto ? (foto?.blob ?? null) : null,
         punto?.codigo ?? null,
+        necesitaFotoSitio(operacion) ? (fotoSitio?.blob ?? null) : null,
       ));
       await procesarCola();
     } catch {
@@ -284,8 +296,18 @@ function FormularioOperacion({
           </>
         )}
 
-        {(necesitaFoto(operacion) || operacion === 'datos') && (
-          <CampoFoto etiqueta={etiquetaFoto} foto={foto} alCambiar={setFoto} />
+        {necesitaFotoSitio(operacion) ? (
+          <DosFotos
+            etiqueta={etiquetaFoto}
+            conexion={foto}
+            sitio={fotoSitio}
+            alCambiarConexion={setFoto}
+            alCambiarSitio={setFotoSitio}
+          />
+        ) : (
+          (necesitaFoto(operacion) || operacion === 'datos') && (
+            <CampoFoto etiqueta={etiquetaFoto} foto={foto} alCambiar={setFoto} />
+          )
         )}
 
         {operacion === 'alta' && (

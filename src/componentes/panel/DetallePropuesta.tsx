@@ -87,6 +87,7 @@ export function DetallePropuesta({ p, puntos, alHecho }: { p: PropuestaPanel; pu
 
   const titulo = `${p.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[p.operacion]}`;
   const foto = urlFoto(p.foto_path);
+  const fotoSitio = urlFoto(p.foto_sitio_path ?? null);
   // Solo un hidrante de "otra medida" impide aprobar tal cual; una boca se aprueba con su número (DEC-144).
   const bloqueoAprobar = bloqueoPorMedida(p, punto);
   const comparar = pendiente && p.operacion === 'alta' && duplicado;
@@ -151,15 +152,27 @@ export function DetallePropuesta({ p, puntos, alHecho }: { p: PropuestaPanel; pu
       )}
 
       {foto ? (
-        <a href={foto} target="_blank" rel="noreferrer" className="rounded-tarjeta mb-3 block overflow-hidden">
-          <img
-            // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
-            crossOrigin="anonymous"
-            src={foto}
-            alt={T.panelCola.fotoVoluntario}
-            className="max-h-72 w-full bg-[linear-gradient(180deg,#C6D2DA,#8C968F)] object-contain"
-          />
-        </a>
+        // Las dos fotos lado a lado (docs/24 RV-103): la de la conexión y, si la trae, la del sitio.
+        <div className={cn('mb-3 grid gap-2', fotoSitio && 'grid-cols-2')}>
+          {[[foto, T.formulario.conexion], ...(fotoSitio ? [[fotoSitio, T.formulario.sitio]] : [])].map(
+            ([url, nombre]) => (
+              <figure key={url} className="min-w-0">
+                {fotoSitio && (
+                  <figcaption className="text-texto-suave mb-1 text-[13px] font-semibold">{nombre}</figcaption>
+                )}
+                <a href={url} target="_blank" rel="noreferrer" className="rounded-tarjeta block overflow-hidden">
+                  <img
+                    // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
+                    crossOrigin="anonymous"
+                    src={url}
+                    alt={T.panelCola.fotoVoluntario}
+                    className="max-h-72 w-full bg-[linear-gradient(180deg,#C6D2DA,#8C968F)] object-contain"
+                  />
+                </a>
+              </figure>
+            ),
+          )}
+        </div>
       ) : (
         <p className="text-texto-suave mb-3 text-[13px]">{T.panelCola.fotoSinDatos}</p>
       )}

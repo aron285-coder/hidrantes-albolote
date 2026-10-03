@@ -193,6 +193,8 @@ export const T = {
     racor: (racor: Parametro) => `Racor ${racor}`,
     fotoNoDisponible: 'Foto no disponible sin cobertura',
     sinFoto: 'Sin foto',
+    // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
+    fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
     // docs/24 RV-102a: un estado que esta versión de la app no conoce.
     estadoDesconocido: 'Estado desconocido · actualiza la aplicación',
   },
@@ -357,9 +359,16 @@ export const T = {
     foto: 'Foto',
     fotoDeHoy: 'Foto de hoy',
     fotoDelSitio: 'Foto del sitio',
+    // docs/24 RV-103: los dos huecos de foto del alta y de corregir ubicación, una palabra cada uno.
+    conexion: 'Conexión',
+    sitio: 'Sitio',
     hacerFoto: 'Hacer foto · obligatoria',
     fotoAnadida: (kb: Parametro) => `Foto añadida · ${kb} kB`,
     repetir: 'repetir',
+    // Nombre de los huecos de las dos fotos (docs/24 RV-103) para quien no ve la pantalla.
+    hacerFotoDe: (que: Parametro) => `Hacer foto · ${que} · obligatoria`,
+    repetirDe: (que: Parametro) => `repetir · ${que}`,
+    huecoHecho: (que: Parametro, kb: Parametro) => `${que} · ${kb} kB`,
     descripcionOpcional: 'Descripción (opcional)',
     descripcionAyuda: 'Referencia de calle, acceso…',
     notaOpcional: 'Nota (opcional)',
@@ -374,6 +383,7 @@ export const T = {
 
   avisosFormulario: {
     faltaFoto: 'Falta la foto para poder enviar',
+    faltaFotoSitio: 'Falta la foto del sitio',
     eligeEstado: 'Elige el estado',
     describeFallo: 'Describe el fallo',
     eligeTipo: 'Elige el tipo',
@@ -430,6 +440,7 @@ export const T = {
     errorNoActivo: 'El punto ya no está activo: no se ha enviado.',
     errorDatos: 'Faltan datos o no son válidos: no se ha enviado.',
     errorFoto: 'Falta la foto: no se ha enviado.',
+    errorFotoSitio: 'Falta la foto del sitio: no se ha enviado.',
     errorTipo: 'El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.',
     errorGenerico: 'No se ha podido enviar.',
     yaRevisada: 'Jefatura ya la ha revisado',
@@ -620,6 +631,8 @@ export const T = {
     senalDuplicado: (codigo: Parametro, distancia: Parametro) => `Posible duplicado de ${codigo} · a ${distancia}`,
     senalOtraMedida: 'Diámetro "otra medida": hay que fijar 70 o 100 mm',
     senalOtraMedidaBoca: (mm: Parametro) => `Boca de otra medida: ${mm} mm`,
+    // docs/24 RV-103: alta o ubicación enviada por la versión anterior de la app.
+    senalSinFotoSitio: 'sin foto del sitio',
     senalDesactualizada: 'El punto cambió después de esta propuesta',
     conFoto: 'Con foto',
     fijaDiametro: 'Fija el diámetro en 70 o 100 mm para poder aprobar.',
@@ -931,6 +944,7 @@ export const T = {
     tipoDistinto: 'Solo se fusionan puntos del mismo tipo.',
     soloAltas: 'Solo se puede fusionar un alta.',
     datos: 'El resultado no cumple las reglas del punto: revisa los valores.',
+    fotoSitio: 'Falta la foto del sitio.',
     fueraDePlazo: 'Ha pasado el plazo de la papelera: ya no se puede restaurar.',
     codigoFormato: 'El código son 6 cifras.',
     config: 'Algún valor está fuera de rango: revisa los parámetros.',

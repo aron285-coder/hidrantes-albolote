@@ -88,7 +88,18 @@ async function hacerFoto(page: Page) {
     mimeType: 'image/jpeg',
     buffer: await fotoConExif(page),
   });
-  await expect(page.getByText(/Foto añadida · \d+ kB/)).toBeVisible();
+  await expect(page.getByTestId('hueco-entrada-foto').getByText(/\d+ kB/)).toBeVisible();
+  // Alta y corregir ubicación piden además la del sitio (docs/24 RV-103).
+  if (await page.getByTestId('entrada-foto-sitio').count()) await hacerFotoSitio(page);
+}
+
+async function hacerFotoSitio(page: Page) {
+  await page.getByTestId('entrada-foto-sitio').setInputFiles({
+    name: 'sitio.jpg',
+    mimeType: 'image/jpeg',
+    buffer: await fotoConExif(page),
+  });
+  await expect(page.getByTestId('hueco-entrada-foto-sitio').getByText(/\d+ kB/)).toBeVisible();
 }
 
 const enviar = (page: Page, texto: string = T.envio.enviarRevision) =>
@@ -145,6 +156,33 @@ test.describe('operaciones (FL-03–FL-08)', () => {
       return [img.width, img.height];
     }, subida.toString('base64'));
     expect(dimensiones).toEqual([1600, 1200]);
+    // docs/24 RV-103: la foto del sitio va aparte, con su reserva, y a 1280 px.
+    expect(p.foto_sitio_path).toBe('fotos/2.jpg');
+    const sitio = await page.evaluate(async (b64) => {
+      const img = await createImageBitmap(await (await fetch(`data:image/jpeg;base64,${b64}`)).blob());
+      return [img.width, img.height];
+    }, s.subidas[1].toString('base64'));
+    expect(sitio).toEqual([1280, 960]);
+  });
+
+  test('alta: sin la foto del sitio el botón dice qué falta (docs/24 RV-103)', async ({ page }) => {
+    await servidor(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await page.getByRole('radio', { name: T.formulario.hidrante }).click();
+    await page.getByRole('radio', { name: T.formulario.d70 }).click();
+    await page.getByRole('radio', { name: T.formulario.bueno }).click();
+    await expect(page.getByTestId('hueco-entrada-foto')).toContainText(T.formulario.conexion);
+    await expect(page.getByTestId('hueco-entrada-foto-sitio')).toContainText(T.formulario.sitio);
+    await page.getByTestId('entrada-foto').setInputFiles({
+      name: 'foto.jpg',
+      mimeType: 'image/jpeg',
+      buffer: await fotoConExif(page),
+    });
+    await expect(page.getByText(T.avisosFormulario.faltaFotoSitio)).toBeVisible();
+    await expect(enviar(page)).toBeDisabled();
+    await hacerFotoSitio(page);
+    await expect(enviar(page)).toBeEnabled();
   });
 
   // Las cinco operaciones sobre un punto, desde la ficha. Una prueba por operación: las cinco seguidas,
@@ -161,7 +199,8 @@ test.describe('operaciones (FL-03–FL-08)', () => {
         await expect(page.getByText(T.operaciones.revisionAviso)).toBeVisible();
         await hacerFoto(page);
       },
-      esperado: { operacion: 'revision' },
+      // docs/24 RV-103: sin hueco del sitio; la firma nueva lleva la clave a null.
+      esperado: { operacion: 'revision', foto_sitio_path: null },
     },
     {
       nombre: T.operaciones.actualizarEstado,
@@ -193,7 +232,14 @@ test.describe('operaciones (FL-03–FL-08)', () => {
         }).toPass();
         await hacerFoto(page);
       },
-      esperado: { operacion: 'ubicacion', origen: 'manual', datos: {} },
+      // docs/24 RV-103: corregir ubicación pide también la foto del sitio.
+      esperado: {
+        operacion: 'ubicacion',
+        origen: 'manual',
+        datos: {},
+        foto_path: 'fotos/1.jpg',
+        foto_sitio_path: 'fotos/2.jpg',
+      },
     },
     {
       nombre: T.operaciones.proponerRetirada,
@@ -267,7 +313,9 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     expect(Date.now() - vueltaLaSenal).toBeLessThan(60_000);
     expect(s.propuestas).toHaveLength(3);
     expect(new Set(s.propuestas.map((p) => p.clave_local)).size).toBe(3);
-    expect(s.subidas).toHaveLength(3);
+    // Dos fotos por alta: la de la conexión y la del sitio (docs/24 RV-103).
+    expect(s.subidas).toHaveLength(6);
+    expect(s.propuestas.every((p) => typeof p.foto_sitio_path === 'string')).toBe(true);
     expect(s.propuestas.every((p) => p.datos && (p.datos as { diametro_mm: number }).diametro_mm === 45)).toBe(true);
   });
 

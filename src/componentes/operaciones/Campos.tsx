@@ -1,7 +1,7 @@
 import { Camera, Check } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 import type { Caudal, Racor } from '@/tipos/punto';
-import { type FotoProcesada, procesarFoto } from '@/lib/foto';
+import { type FotoProcesada, type PerfilFoto, PERFIL_CONEXION, PERFIL_SITIO, procesarFoto } from '@/lib/foto';
 import { claseChip, nombreCaudal, nombreRacor } from '@/lib/ficha';
 import { type EstadoFoto, type RacorConFoto, URL_FOTO_RACOR, estadoFotoRacor, marcarFotoRacor } from '@/lib/racores';
 import { T } from '@/lib/textos';
@@ -139,15 +139,24 @@ export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: 
   );
 }
 
-/** Foto obligatoria con la cámara (FR-21): se procesa en el móvil antes de guardarla (TR-15, TR-47). */
-export function CampoFoto({
+/**
+ * Un hueco de foto con la cámara (FR-21): se procesa en el móvil antes de guardarla (TR-15, TR-47).
+ * `compacto`: medio ancho, con una sola palabra encima del botón (las dos fotos del alta, RV-103).
+ */
+function HuecoFoto({
   etiqueta,
   foto,
   alCambiar,
+  perfil = PERFIL_CONEXION,
+  testId,
+  compacto = false,
 }: {
   etiqueta: string;
   foto: FotoProcesada | null;
   alCambiar: (f: FotoProcesada | null) => void;
+  perfil?: PerfilFoto;
+  testId: string;
+  compacto?: boolean;
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
@@ -158,7 +167,7 @@ export function CampoFoto({
     setProcesando(true);
     setFallo(false);
     try {
-      alCambiar(await procesarFoto(archivo));
+      alCambiar(await procesarFoto(archivo, perfil));
     } catch {
       setFallo(true);
     } finally {
@@ -168,7 +177,7 @@ export function CampoFoto({
   }
 
   return (
-    <Campo etiqueta={etiqueta}>
+    <div data-testid={`hueco-${testId}`} className="flex min-w-0 flex-col gap-1">
       <input
         ref={entrada}
         type="file"
@@ -176,14 +185,28 @@ export function CampoFoto({
         capture="environment"
         className="sr-only"
         aria-label={etiqueta}
-        data-testid="entrada-foto"
+        data-testid={testId}
         onChange={(e) => void elegida(e.target.files?.[0])}
       />
       {foto ? (
-        <div className="bg-verde-100 text-verde-700 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold">
+        <div
+          className={cn(
+            'bg-verde-100 text-verde-700 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold',
+            compacto && 'flex-wrap gap-x-2 gap-y-0 py-1 text-[13px]',
+          )}
+        >
           <Check size={18} aria-hidden />
-          <span className="flex-1">{T.formulario.fotoAnadida(Math.round(foto.blob.size / 1024))}</span>
-          <button type="button" className="min-h-11 px-1 underline" onClick={() => entrada.current?.click()}>
+          <span className="flex-1">
+            {compacto
+              ? T.formulario.huecoHecho(etiqueta, Math.round(foto.blob.size / 1024))
+              : T.formulario.fotoAnadida(Math.round(foto.blob.size / 1024))}
+          </span>
+          <button
+            type="button"
+            className="min-h-11 px-1 underline"
+            aria-label={compacto ? T.formulario.repetirDe(etiqueta) : undefined}
+            onClick={() => entrada.current?.click()}
+          >
             {T.formulario.repetir}
           </button>
         </div>
@@ -192,13 +215,71 @@ export function CampoFoto({
           type="button"
           disabled={procesando}
           onClick={() => entrada.current?.click()}
+          aria-label={compacto ? T.formulario.hacerFotoDe(etiqueta) : undefined}
           className="border-naranja-600 text-naranja-texto bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold"
         >
           <Camera size={18} aria-hidden />
-          {procesando ? T.operaciones.preparandoFoto : T.formulario.hacerFoto}
+          {procesando ? T.operaciones.preparandoFoto : compacto ? etiqueta : T.formulario.hacerFoto}
         </button>
       )}
       {fallo && <span className="text-rojo-700 text-[13px]">{T.operaciones.fotoIlegible}</span>}
+    </div>
+  );
+}
+
+/** Foto obligatoria con la cámara (FR-21), una sola: revisión, estado, retirada y datos. */
+export function CampoFoto({
+  etiqueta,
+  foto,
+  alCambiar,
+}: {
+  etiqueta: string;
+  foto: FotoProcesada | null;
+  alCambiar: (f: FotoProcesada | null) => void;
+}) {
+  return (
+    <Campo etiqueta={etiqueta}>
+      <HuecoFoto etiqueta={etiqueta} foto={foto} alCambiar={alCambiar} testId="entrada-foto" />
+    </Campo>
+  );
+}
+
+/**
+ * Las dos fotos del alta y de corregir ubicación (docs/24 RV-103), lado a lado: «Conexión», como
+ * siempre, y «Sitio», un entorno para encontrarlo (1280 px). Las dos obligatorias.
+ */
+export function DosFotos({
+  etiqueta,
+  conexion,
+  sitio,
+  alCambiarConexion,
+  alCambiarSitio,
+}: {
+  etiqueta: string;
+  conexion: FotoProcesada | null;
+  sitio: FotoProcesada | null;
+  alCambiarConexion: (f: FotoProcesada | null) => void;
+  alCambiarSitio: (f: FotoProcesada | null) => void;
+}) {
+  return (
+    <Campo etiqueta={etiqueta}>
+      <div className="grid grid-cols-2 gap-2">
+        <HuecoFoto
+          etiqueta={T.formulario.conexion}
+          foto={conexion}
+          alCambiar={alCambiarConexion}
+          testId="entrada-foto"
+          compacto
+        />
+        <HuecoFoto
+          etiqueta={T.formulario.sitio}
+          foto={sitio}
+          alCambiar={alCambiarSitio}
+          perfil={PERFIL_SITIO}
+          testId="entrada-foto-sitio"
+          compacto
+        />
+      </div>
     </Campo>
   );
 }

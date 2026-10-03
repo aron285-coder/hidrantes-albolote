@@ -17,6 +17,8 @@ export interface Punto {
   descripcion: string | null;
   direccion: string | null;
   foto_path: string | null;
+  /** La foto del sitio (0035, docs/24 RV-103). Opcional: los puntos guardados en el móvil antes no la traen. */
+  foto_sitio_path?: string | null;
   municipio: string;
   nucleo: string | null;
   fecha_ultima_revision: string;

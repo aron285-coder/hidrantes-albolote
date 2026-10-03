@@ -20,6 +20,8 @@ export function textoError(codigo: string): string {
       return T.panelErrores.tipoDistinto;
     case 'PROPUESTA_NO_ALTA':
       return T.panelErrores.soloAltas;
+    case 'FOTO_SITIO_OBLIGATORIA':
+      return T.panelErrores.fotoSitio;
     case 'PAYLOAD_INVALIDO':
       return T.panelErrores.datos;
     case 'FUERA_DE_PLAZO_PAPELERA':
