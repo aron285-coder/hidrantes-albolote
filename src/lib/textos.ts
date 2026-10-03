@@ -130,7 +130,8 @@ export const T = {
     todos: 'Todos',
     hidrantes: 'Hidrantes',
     bocas: 'Bocas',
-    noFunciona: 'No funciona',
+    // FR-68 (DEC-145): no funciona y barro.
+    noUtilizable: 'No utilizable',
     sinRevisar: 'Sin revisar',
     revisado: (hace: Parametro) => `revisado ${hace}`,
     leyendaTamano: 'Más grande = más agua aprovechable',
@@ -252,6 +253,8 @@ export const T = {
       `El más cercano, ${codigo} a ${distancia}, no funciona`,
     masCercanoMalo: (codigo: Parametro, distancia: Parametro) =>
       `El más cercano, ${codigo} a ${distancia}, está en mal estado`,
+    masCercanoBarro: (codigo: Parametro, distancia: Parametro) =>
+      `El más cercano, ${codigo} a ${distancia}, tiene barro`,
     fila: (distancia: Parametro, rumbo: Parametro, tramos: Parametro) => `${distancia} · ${rumbo} · ${tramos}`,
     tramos: (n: Parametro) => (n === 1 ? '≥ 1 tramo' : `≥ ${n} tramos`),
     compartirIncidente: 'Compartir el incidente',
@@ -347,6 +350,7 @@ export const T = {
     bueno: 'Bueno',
     regular: 'Regular',
     malo: 'Malo',
+    barro: 'Barro',
     noFunciona: 'No funciona',
     descripcionFallo: 'Descripción del fallo · obligatoria',
     foto: 'Foto',

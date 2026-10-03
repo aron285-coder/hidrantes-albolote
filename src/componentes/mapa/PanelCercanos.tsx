@@ -176,7 +176,9 @@ export function PanelCercanos({
         <p role="alert" className="text-rojo-700 -mt-1.5 shrink-0 truncate text-[13px] font-semibold">
           {caudalParaDibujar(aviso.punto.caudal) === 'no_funciona'
             ? T.incidente.masCercanoNoFunciona(aviso.punto.codigo, distancia(aviso.metros))
-            : T.incidente.masCercanoMalo(aviso.punto.codigo, distancia(aviso.metros))}
+            : aviso.punto.caudal === 'barro'
+              ? T.incidente.masCercanoBarro(aviso.punto.codigo, distancia(aviso.metros))
+              : T.incidente.masCercanoMalo(aviso.punto.codigo, distancia(aviso.metros))}
         </p>
       )}
 

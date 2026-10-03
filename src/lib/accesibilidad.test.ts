@@ -45,6 +45,7 @@ const ESTADOS = {
   bueno: '--verde-600',
   regular: '--naranja-estado-600',
   malo: '--rojo-700',
+  barro: '--marron-600',
   no_funciona: '--gris-700',
 };
 
@@ -132,9 +133,118 @@ for (const modo of ['claro', 'oscuro'] as const) {
         ['--naranja-estado-700', '--naranja-estado-100'],
         ['--rojo-700', '--rojo-100'],
         ['--gris-700', '--gris-100'],
+        ['--marron-700', '--marron-100'],
       ]) {
         expect(contraste(t[texto], t[fondo]), `${texto} sobre ${fondo}`).toBeGreaterThanOrEqual(4.5);
       }
     });
   });
 }
+
+// docs/24 RV-102 (DEC-149): el marrón de "Barro". Contraste como los demás estados y, además, que
+// se distinga de Regular y de Malo también con daltonismo: ΔE2000 ≥ 15 con visión normal y con
+// protanopía y deuteranopía simuladas (matrices de Machado, Oliveira y Fernandes, 2009, gravedad 1).
+const MACHADO = {
+  protanopia: [
+    [0.152286, 1.052583, -0.204868],
+    [0.114503, 0.786281, 0.099216],
+    [-0.003882, -0.048116, 1.051998],
+  ],
+  deuteranopia: [
+    [0.367322, 0.860646, -0.227968],
+    [0.280085, 0.672501, 0.047413],
+    [-0.01182, 0.04294, 0.968881],
+  ],
+} as const;
+
+const lineal = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
+function rgbLineal(hex: string, vision: keyof typeof MACHADO | 'normal'): [number, number, number] {
+  const l = [1, 3, 5].map((i) => lineal(parseInt(hex.slice(i, i + 2), 16) / 255));
+  if (vision === 'normal') return l as [number, number, number];
+  return MACHADO[vision].map((f) => Math.min(1, Math.max(0, f[0] * l[0] + f[1] * l[1] + f[2] * l[2]))) as [
+    number,
+    number,
+    number,
+  ];
+}
+
+function lab([r, g, b]: [number, number, number]): [number, number, number] {
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+
+/** CIEDE2000 (Sharma, Wu y Dalal, 2005). */
+export function deltaE2000([L1, a1, b1]: number[], [L2, a2, b2]: number[]): number {
+  const rad = Math.PI / 180;
+  const Cm = (Math.hypot(a1, b1) + Math.hypot(a2, b2)) / 2;
+  const G = 0.5 * (1 - Math.sqrt(Cm ** 7 / (Cm ** 7 + 25 ** 7)));
+  const a1p = (1 + G) * a1;
+  const a2p = (1 + G) * a2;
+  const C1p = Math.hypot(a1p, b1);
+  const C2p = Math.hypot(a2p, b2);
+  const tono = (b: number, a: number) => {
+    const v = Math.atan2(b, a) / rad;
+    return v < 0 ? v + 360 : v;
+  };
+  const h1p = tono(b1, a1p);
+  const h2p = tono(b2, a2p);
+  let dhp = 0;
+  if (C1p * C2p !== 0) {
+    dhp = h2p - h1p;
+    if (dhp > 180) dhp -= 360;
+    else if (dhp < -180) dhp += 360;
+  }
+  const dLp = L2 - L1;
+  const dCp = C2p - C1p;
+  const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin((dhp / 2) * rad);
+  const Lm = (L1 + L2) / 2;
+  const Cmp = (C1p + C2p) / 2;
+  let hm = h1p + h2p;
+  if (C1p * C2p !== 0) {
+    if (Math.abs(h1p - h2p) > 180) hm += h1p + h2p < 360 ? 360 : -360;
+    hm /= 2;
+  }
+  const T =
+    1 -
+    0.17 * Math.cos((hm - 30) * rad) +
+    0.24 * Math.cos(2 * hm * rad) +
+    0.32 * Math.cos((3 * hm + 6) * rad) -
+    0.2 * Math.cos((4 * hm - 63) * rad);
+  const giro = 30 * Math.exp(-(((hm - 275) / 25) ** 2));
+  const Rc = 2 * Math.sqrt(Cmp ** 7 / (Cmp ** 7 + 25 ** 7));
+  const Sl = 1 + (0.015 * (Lm - 50) ** 2) / Math.sqrt(20 + (Lm - 50) ** 2);
+  const Sc = 1 + 0.045 * Cmp;
+  const Sh = 1 + 0.015 * Cmp * T;
+  const Rt = -Math.sin(2 * giro * rad) * Rc;
+  return Math.sqrt((dLp / Sl) ** 2 + (dCp / Sc) ** 2 + (dHp / Sh) ** 2 + Rt * (dCp / Sc) * (dHp / Sh));
+}
+
+const distanciaColor = (a: string, b: string, vision: keyof typeof MACHADO | 'normal') =>
+  deltaE2000(lab(rgbLineal(a, vision)), lab(rgbLineal(b, vision)));
+
+describe('Barro (docs/24 RV-102, DEC-149)', () => {
+  const t = tokens('claro');
+
+  it('la fórmula de ΔE2000 da los valores publicados por Sharma (pares 1 y 7)', () => {
+    expect(deltaE2000([50, 2.6772, -79.7751], [50, 0, -82.7485])).toBeCloseTo(2.0425, 3);
+    expect(deltaE2000([50, 0, 0], [50, -1, 2])).toBeCloseTo(2.3669, 3);
+  });
+
+  it('el texto del chip llega a 4,5:1 sobre su fondo, y el relleno a 3:1 sobre el mapa claro', () => {
+    expect(contraste(t['--marron-700'], t['--marron-100'])).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(t['--marron-600'], COLORES_MAPA.claro.fondo)).toBeGreaterThanOrEqual(3);
+  });
+
+  for (const vision of ['normal', 'protanopia', 'deuteranopia'] as const) {
+    it(`se distingue de Regular y de Malo con visión ${vision}: ΔE2000 ≥ 15`, () => {
+      for (const otro of ['--naranja-estado-600', '--rojo-700']) {
+        const d = distanciaColor(t['--marron-600'], t[otro], vision);
+        expect(d, `barro frente a ${otro}`).toBeGreaterThanOrEqual(15);
+      }
+    });
+  }
+});

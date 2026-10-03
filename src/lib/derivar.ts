@@ -31,7 +31,7 @@ export function leerMetrosTramo(v: unknown): number {
 }
 
 const PUNTOS_DIAMETRO: Record<number, number> = { 100: 3, 70: 2, 45: 1 };
-const FACTOR_CAUDAL: Record<Caudal, number> = { bueno: 1, regular: 0.66, malo: 0.33, no_funciona: 0 };
+const FACTOR_CAUDAL: Record<Caudal, number> = { bueno: 1, regular: 0.66, malo: 0.33, barro: 0, no_funciona: 0 };
 
 /**
  * Réplica exacta de hidrantes.fn_radio_px (0002_vistas.sql). Un caudal que esta versión no conoce

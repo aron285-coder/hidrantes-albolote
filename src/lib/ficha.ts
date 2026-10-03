@@ -29,6 +29,7 @@ const NOMBRE_CAUDAL: Record<Caudal, string> = {
   bueno: T.formulario.bueno,
   regular: T.formulario.regular,
   malo: T.formulario.malo,
+  barro: T.formulario.barro,
   no_funciona: T.formulario.noFunciona,
 };
 
@@ -54,6 +55,7 @@ const CLASE_CHIP: Record<Caudal, string> = {
   bueno: 'bg-verde-100 text-verde-700',
   regular: 'bg-naranja-estado-100 text-naranja-estado-700',
   malo: 'bg-rojo-100 text-rojo-700',
+  barro: 'bg-marron-100 text-marron-700',
   no_funciona: 'bg-gris-100 text-gris-700',
 };
 

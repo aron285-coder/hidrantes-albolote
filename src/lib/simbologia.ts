@@ -10,6 +10,8 @@ export const COLOR_CAUDAL: Record<Caudal, string> = {
   bueno: 'var(--verde-600)',
   regular: 'var(--naranja-estado-600)',
   malo: 'var(--rojo-700)',
+  // docs/24 RV-102 (DEC-149): marrón, con tamaño mínimo y tachado; sin atenuar.
+  barro: 'var(--marron-600)',
   no_funciona: 'var(--gris-700)',
 };
 
@@ -43,13 +45,15 @@ export function svgMarcador(p: Simbolo, { tamano = OBJETIVO_TACTIL, seleccionado
   // Un caudal que esta versión no conoce se dibuja como no funciona (docs/24 RV-102a).
   const caudal = caudalParaDibujar(p.caudal);
   const nf = caudal === 'no_funciona';
+  // Tachado = no se puede usar; el color dice por qué (WCAG 1.4.1, FR-61).
+  const tachar = nf || caudal === 'barro';
   const trazo = `stroke="var(--borde-marcador)" stroke-width="${bw}"${p.revision_caducada ? ' stroke-dasharray="3 2.5"' : ''}`;
   const relleno = `fill="${COLOR_CAUDAL[caudal]}"${nf ? ' opacity="0.5"' : ''}`;
   const forma =
     p.tipo === 'hidrante'
       ? `<circle data-forma="circulo" r="${r}" ${relleno} ${trazo}/>`
       : `<rect data-forma="cuadrado" x="${-r}" y="${-r}" width="${2 * r}" height="${2 * r}" rx="${esquina(r)}" ${relleno} ${trazo}/>`;
-  const tachado = nf
+  const tachado = tachar
     ? `<line data-tachado x1="${-r}" y1="${r}" x2="${r}" y2="${-r}" stroke="var(--borde-marcador)" stroke-width="2"/>`
     : '';
   const anillo = seleccionado

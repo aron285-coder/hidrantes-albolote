@@ -7,7 +7,13 @@ import type { Caudal } from '../tipos/punto';
 import { anotarError } from './errores';
 
 /** En el orden de la escala, de mejor a peor (también el del orden "por estado" de la lista). */
-export const CAUDALES: readonly Caudal[] = ['bueno', 'regular', 'malo', 'no_funciona'];
+export const CAUDALES: readonly Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
+
+/** No se pueden usar (FR-68, filtro «No utilizable»): no funciona y barro (DEC-145). */
+export const esNoUtilizable = (c: string) => {
+  const conocido = caudalParaDibujar(c);
+  return conocido === 'no_funciona' || conocido === 'barro';
+};
 
 export function esCaudalConocido(c: unknown): c is Caudal {
   return typeof c === 'string' && (CAUDALES as readonly string[]).includes(c);
