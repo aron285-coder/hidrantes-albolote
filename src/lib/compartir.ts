@@ -17,7 +17,7 @@ export function lineaCoordenadas(l: LatLng): string {
 /** El texto de un punto, en el formato de docs/18 GM-05. */
 export function textoPunto(p: Punto): string {
   const tipo = nombreTipo[p.tipo].toLowerCase();
-  const estado = nombreCaudal[p.caudal].toLowerCase();
+  const estado = nombreCaudal(p.caudal).toLowerCase();
   const lugar = [p.direccion, p.nucleo ?? null].filter(Boolean).join(', ');
   return [
     T.compartir.lineaPunto(p.codigo, tipo, T.formato.mm(p.diametro_mm), estado),

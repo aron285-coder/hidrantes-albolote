@@ -1,5 +1,6 @@
 // Datos derivados de la ficha (FR-66, FR-161): URL de la foto, enlace "Cómo llegar" y nombres.
 
+import { caudalParaDibujar, esCaudalConocido } from './caudal';
 import { ENTORNO } from './entorno';
 import type { Caudal, Punto, TipoPunto } from './puntos';
 import { T } from './textos';
@@ -24,12 +25,22 @@ export function enlaceComoLlegar(p: Pick<Punto, 'lat' | 'lng' | 'codigo'>, agent
   return `https://www.google.com/maps/dir/?api=1&destination=${coords}`;
 }
 
-export const nombreCaudal: Record<Caudal, string> = {
+const NOMBRE_CAUDAL: Record<Caudal, string> = {
   bueno: T.formulario.bueno,
   regular: T.formulario.regular,
   malo: T.formulario.malo,
   no_funciona: T.formulario.noFunciona,
 };
+
+/**
+ * El nombre del estado. Uno que esta versión no conoce se lee «Estado desconocido · actualiza la
+ * aplicación» (docs/24 RV-102a); la llamada anota el error una vez por sesión.
+ */
+export function nombreCaudal(c: string): string {
+  if (esCaudalConocido(c)) return NOMBRE_CAUDAL[c];
+  caudalParaDibujar(c);
+  return T.ficha.estadoDesconocido;
+}
 
 export const nombreTipo: Record<TipoPunto, string> = {
   hidrante: T.formulario.hidrante,
@@ -39,10 +50,12 @@ export const nombreTipo: Record<TipoPunto, string> = {
 export const nombreRacor = (r: string) =>
   r === 'granada' ? T.formulario.granada : r === 'barcelona' ? T.formulario.barcelona : T.formulario.otro;
 
-/** Chip de estado (06 §5): fondo y texto de su color. */
-export const claseChip: Record<Caudal, string> = {
+const CLASE_CHIP: Record<Caudal, string> = {
   bueno: 'bg-verde-100 text-verde-700',
   regular: 'bg-naranja-estado-100 text-naranja-estado-700',
   malo: 'bg-rojo-100 text-rojo-700',
   no_funciona: 'bg-gris-100 text-gris-700',
 };
+
+/** Chip de estado (06 §5): fondo y texto de su color. Uno desconocido, como no funciona. */
+export const claseChip = (c: string): string => CLASE_CHIP[caudalParaDibujar(c)];

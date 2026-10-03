@@ -85,6 +85,23 @@ describe('variantes (06 §4.3)', () => {
   });
 });
 
+// docs/24 RV-102a: el servidor puede traer un estado nuevo antes de que el móvil se actualice.
+describe('caudal desconocido (RV-102a)', () => {
+  it('se dibuja como no funciona y sin «undefined» en el SVG', () => {
+    const svg = svgMarcador({
+      tipo: 'boca_riego',
+      caudal: 'otro_valor' as Caudal,
+      radio_px: 5,
+      revision_caducada: false,
+    });
+    const s = dibujar(svg);
+    expect(svg).not.toContain('undefined');
+    expect(s.relleno).toBe(COLOR_CAUDAL.no_funciona);
+    expect(s.tachado).toBe(true);
+    expect(s.opacidad).toBe('0.5');
+  });
+});
+
 describe('declutter por zoom (06 §4.4)', () => {
   it('z ≤ 13 solo R1–R2; 14–15 hasta R3; desde 16 todos', () => {
     expect([radioMinimo(12), radioMinimo(13), radioMinimo(14), radioMinimo(15), radioMinimo(16)]).toEqual([

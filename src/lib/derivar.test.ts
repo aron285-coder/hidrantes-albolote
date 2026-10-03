@@ -35,6 +35,14 @@ describe('radioPx (réplica de fn_radio_px)', () => {
   });
 });
 
+// docs/24 RV-102a: un caudal que esta versión no conoce no da NaN ni undefined.
+describe('caudal desconocido (RV-102a)', () => {
+  it.each(['otro_valor', 'constructor', 'toString'])('%s → el radio mínimo de la escala', (c) => {
+    expect(radioPx(100, c as Caudal, POR_DEFECTO)).toBe(POR_DEFECTO[4]);
+    expect(radioPx(45, c as Caudal, OTRA)).toBe(OTRA[4]);
+  });
+});
+
 describe('revisionCaducada (réplica de current_date - make_interval(months))', () => {
   const hoy = new Date(2026, 2, 31); // 31 mar 2026
   it('la resta de meses se queda en el último día del mes, como Postgres', () => {

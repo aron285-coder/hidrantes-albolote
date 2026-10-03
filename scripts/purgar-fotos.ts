@@ -195,7 +195,8 @@ export async function purgar(
 /**
  * ¿Borra de verdad esta pasada? La primera pasada programada no: la primera vez que se borra lo
  * revisa una persona (docs/22 RV-94, DEC-129). Una a mano sin --ensayo, o la programada de la semana
- * siguiente, ya borra.
+ * siguiente, ya borra. `hayUltimaPurga` es «ya hubo una primera pasada»: una que borró, o el ensayo de
+ * la primera programada (DEC-151; antes solo contaba la que borró, y cada lunes volvía a ser ensayo).
  */
 export function modoDePurga(p: { programada: boolean; ensayoPedido: boolean; hayUltimaPurga: boolean }): {
   ensayo: boolean;
@@ -206,19 +207,35 @@ export function modoDePurga(p: { programada: boolean; ensayoPedido: boolean; hay
   return { ensayo: false, primeraVez: false };
 }
 
-/** ¿Hay ya una purga que borró de verdad? Sin poder leerlo, se da por que no: mejor un ensayo de más. */
-export function hayUltimaPurga(bd: string): boolean {
-  const r = psql(bd, "select hidrantes.fn_config('ultima_purga_fotos', 'null') is distinct from 'null'::jsonb;", {
+const hayMarca = (bd: string, clave: string) => {
+  const r = psql(bd, `select hidrantes.fn_config('${clave}', 'null') is distinct from 'null'::jsonb;`, {
     tuplas: true,
   });
   return r.codigo === 0 && r.salida.trim() === 't';
-}
+};
 
-export function anotarUltimaPurga(bd: string): void {
+const anotarMarca = (bd: string, clave: string) =>
   psqlOk(
     bd,
-    "insert into hidrantes.config (clave, valor, actualizado_por) values ('ultima_purga_fotos', to_jsonb(now()), 'purgar-fotos.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;",
+    `insert into hidrantes.config (clave, valor, actualizado_por) values ('${clave}', to_jsonb(now()), 'purgar-fotos.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;`,
   );
+
+/**
+ * ¿Ya hubo una primera pasada? Una purga que borró de verdad (`ultima_purga_fotos`) o el ensayo de la
+ * primera programada (`primera_purga_ensayada`). Sin poder leerlo, se da por que no: mejor un ensayo de más.
+ */
+export function hayUltimaPurga(bd: string): boolean {
+  return hayMarca(bd, 'ultima_purga_fotos') || hayMarca(bd, 'primera_purga_ensayada');
+}
+
+/** Una pasada que ha borrado de verdad. */
+export function anotarUltimaPurga(bd: string): void {
+  anotarMarca(bd, 'ultima_purga_fotos');
+}
+
+/** El ensayo de la primera pasada programada: la siguiente programada ya borra (DEC-151). */
+export function anotarEnsayoInicial(bd: string): void {
+  anotarMarca(bd, 'primera_purga_ensayada');
 }
 
 async function principal(): Promise<void> {
@@ -257,8 +274,10 @@ async function principal(): Promise<void> {
   console.log(`bytes_restantes=${bytesDe(enBucket) - liberados}`);
   console.log(`ensayo=${ensayo ? 1 : 0}`);
   console.log(`primera_vez=${primeraVez ? 1 : 0}`);
-  // Solo una pasada que ha podido borrar de verdad cuenta como «ya se ha purgado» (DEC-129).
+  // Solo una pasada que ha podido borrar de verdad cuenta como «ya se ha purgado» (DEC-129). El ensayo
+  // de la primera programada deja su propia marca, para que la siguiente programada borre (DEC-151).
   if (!ensayo && bd) anotarUltimaPurga(bd);
+  if (primeraVez && bd) anotarEnsayoInicial(bd);
   log.ok(resumen(enBucket, sobran, ensayo));
 }
 

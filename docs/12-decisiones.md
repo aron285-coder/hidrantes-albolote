@@ -660,6 +660,13 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-151 · El ensayo de la primera purga programada deja su marca, y la siguiente ya borra
+- **Fecha:** 3 oct 2026 · **Estado:** vigente. Corrige DEC-129 (sesión Ops, `docs/24`).
+- **Contexto:** la primera pasada programada (28-09, run 36414479358) hizo ensayo y abrió #405, como debía. Pero «primera vez» solo se medía por `ultima_purga_fotos`, que escribe una pasada que **borra**. Sin ella, cada lunes volvía a ser la primera vez: el 5-10 habría vuelto a hacer ensayo, y así para siempre. #405 y DEC-129 prometen que «la pasada del lunes que viene borra».
+- **Decisión:** el ensayo de la primera pasada programada escribe `config.primera_purga_ensayada`. `hayUltimaPurga` cuenta las dos marcas, así que la siguiente programada borra. `probar-purga.ts` (en `ci-sql`) prueba ese caso.
+- **Consecuencia en producción:** el ensayo del 28-09 se hizo con el código anterior y no dejó la marca. La pasada del 5-10 será ensayo una vez más (con el bucket vacío no cambia nada) y la dejará. La del 12-10 ya borra. Se dice en #405.
+- **Afecta a:** 04 §9 (sin cambio de texto); 15 §4.
+
 ### DEC-141 · Las issues se enlazan con «Closes #»: se cierran solas al fusionar
 - **Fecha:** 25 sep 2026 · **Estado:** vigente (`docs/23` RV-96). Sesión Ops.
 - **Contexto:** la plantilla de PR empezaba con «Cierra #». GitHub solo cierra issues con sus palabras clave en inglés (`Closes`, `Fixes`, `Resolves`), así que ninguna se cerraba sola. Cerrarlas dependía de acordarse (skill `paquete-rv`), y #326 siguió abierta dos días después de arreglarse en #327.
