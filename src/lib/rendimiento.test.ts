@@ -73,6 +73,6 @@ describe('con 1.000 puntos encima (TR-13)', () => {
 
   it('filtrar y ordenar por distancia, lo que hace la lista al abrirse', () => {
     const desde = { lat: 37.2308, lng: -3.6569 };
-    expect(mediana(11, () => ordenar(filtrar(puntos, 'no_funciona'), 'distancia', desde))).toBeLessThan(200);
+    expect(mediana(11, () => ordenar(filtrar(puntos, 'no_utilizable'), 'distancia', desde))).toBeLessThan(200);
   });
 });

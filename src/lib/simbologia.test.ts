@@ -48,11 +48,12 @@ describe('las doce combinaciones (06 §4.2)', () => {
     if (tipo === 'boca_riego') expect(Number(s.esquina)).toBe(esquina(radio));
   });
 
-  it('cuatro colores de estado, uno por nivel y sin "defecto"', () => {
+  it('cinco colores de estado, uno por nivel y sin "defecto" (Barro: docs/24 RV-102)', () => {
     expect(COLOR_CAUDAL).toEqual({
       bueno: 'var(--verde-600)',
       regular: 'var(--naranja-estado-600)',
       malo: 'var(--rojo-700)',
+      barro: 'var(--marron-600)',
       no_funciona: 'var(--gris-700)',
     });
   });

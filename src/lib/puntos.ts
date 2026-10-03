@@ -5,7 +5,7 @@
 import { type Resultado, rpc } from './api';
 import { type Almacen, almacenPuntos } from './bd';
 import { supabase } from './supabase';
-import { CAUDALES, caudalParaDibujar } from './caudal';
+import { CAUDALES, caudalParaDibujar, esNoUtilizable } from './caudal';
 import { anotarServidor } from './conexion';
 import { type ConfigMovil, METROS_TRAMO_POR_DEFECTO, derivar, diaLocal, leerConfig, leerMetrosTramo } from './derivar';
 import { metros } from './geometria';
@@ -293,7 +293,16 @@ export function buscar(puntos: Punto[], texto: string): Punto[] {
   });
 }
 
-export type Filtro = 'todos' | 'hidrantes' | 'bocas' | 'no_funciona' | 'sin_revisar';
+export type Filtro = 'todos' | 'hidrantes' | 'bocas' | 'no_utilizable' | 'sin_revisar';
+
+/**
+ * El filtro guardado en el móvil. "no_funciona" era el de antes de "No utilizable" (docs/24 RV-102):
+ * se lee como el nuevo; uno que no se conoce, como "todos".
+ */
+export function leerFiltro(v: unknown): Filtro {
+  if (v === 'no_funciona') return 'no_utilizable';
+  return v === 'hidrantes' || v === 'bocas' || v === 'no_utilizable' || v === 'sin_revisar' ? v : 'todos';
+}
 
 export function filtrar(puntos: Punto[], f: Filtro): Punto[] {
   switch (f) {
@@ -301,9 +310,9 @@ export function filtrar(puntos: Punto[], f: Filtro): Punto[] {
       return puntos.filter((p) => p.tipo === 'hidrante');
     case 'bocas':
       return puntos.filter((p) => p.tipo === 'boca_riego');
-    case 'no_funciona':
-      // Un estado que esta versión no conoce cuenta como no funciona (docs/24 RV-102a).
-      return puntos.filter((p) => caudalParaDibujar(p.caudal) === 'no_funciona');
+    case 'no_utilizable':
+      // No funciona y barro (FR-68, DEC-145); un estado que esta versión no conoce, como no funciona (RV-102a).
+      return puntos.filter((p) => esNoUtilizable(p.caudal));
     case 'sin_revisar':
       return puntos.filter((p) => p.revision_caducada);
     default:

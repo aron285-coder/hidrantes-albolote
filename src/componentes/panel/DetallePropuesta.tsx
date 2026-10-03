@@ -363,7 +363,7 @@ function Decision({ p, puntos }: { p: PropuestaPanel; puntos: Punto[] }) {
   );
 }
 
-const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'no_funciona'];
+const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
 const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
 
 function FormularioCorrecciones({

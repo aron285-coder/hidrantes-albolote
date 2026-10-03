@@ -176,6 +176,29 @@ const VISTAS: Vista[] = [
     },
   },
   {
+    // docs/24 RV-102: la rejilla de estados 2 + 3 con Barro marcado.
+    nombre: 'nuevo-punto-barro',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: async (p) => {
+      await p.getByRole('radio', { name: T.formulario.hidrante }).click();
+      await p.getByRole('radio', { name: T.formulario.barro }).click();
+      await p.getByRole('radiogroup', { name: T.formulario.caudal }).scrollIntoViewIfNeeded();
+      await expect(p.getByRole('radio', { name: T.formulario.barro })).toHaveAttribute('aria-checked', 'true');
+    },
+  },
+  {
+    // docs/24 RV-102: la leyenda con la fila de Barro.
+    nombre: 'leyenda',
+    ruta: '/',
+    preparar: voluntario,
+    lista: async (p) => {
+      const leyenda = p.getByRole('button', { name: T.mapa.leyenda, exact: true });
+      if (await leyenda.isVisible()) await leyenda.click();
+      await expect(p.getByText(T.mapa.leyendaTamano)).toBeVisible();
+    },
+  },
+  {
     nombre: 'lista',
     ruta: '/lista',
     preparar: voluntario,

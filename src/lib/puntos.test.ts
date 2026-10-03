@@ -141,7 +141,7 @@ describe('búsqueda, filtros y orden', () => {
   it('filtros rápidos de FR-68', () => {
     expect(filtrar(lista, 'bocas').map((x) => x.id)).toEqual(['0003']);
     expect(filtrar(lista, 'hidrantes')).toHaveLength(2);
-    expect(filtrar(lista, 'no_funciona').map((x) => x.id)).toEqual(['0003']);
+    expect(filtrar(lista, 'no_utilizable').map((x) => x.id)).toEqual(['0003']);
     expect(filtrar(lista, 'sin_revisar').map((x) => x.id)).toEqual(['0088']);
   });
 

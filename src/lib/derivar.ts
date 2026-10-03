@@ -32,7 +32,7 @@ export function leerMetrosTramo(v: unknown): number {
 
 /** Factor de diámetro de fn_radio_px desde 0032 (docs/24 RV-101): ≤ 45 → 1, ≤ 70 → 2, > 70 → 3. */
 const puntosDiametro = (d: number | null) => (d == null || !Number.isFinite(d) ? 0 : d <= 45 ? 1 : d <= 70 ? 2 : 3);
-const FACTOR_CAUDAL: Record<Caudal, number> = { bueno: 1, regular: 0.66, malo: 0.33, no_funciona: 0 };
+const FACTOR_CAUDAL: Record<Caudal, number> = { bueno: 1, regular: 0.66, malo: 0.33, barro: 0, no_funciona: 0 };
 
 /**
  * Réplica exacta de hidrantes.fn_radio_px (0002_vistas.sql, con el factor de diámetro de 0032). Un caudal que esta versión no conoce

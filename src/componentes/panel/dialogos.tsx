@@ -20,7 +20,7 @@ import { textoError } from '@/lib/panel/errores';
 import type { Caudal, Punto, Racor } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 
-const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'no_funciona'];
+const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
 const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
 
 const campo = 'border-linea rounded-campo min-h-9 w-full border px-2';

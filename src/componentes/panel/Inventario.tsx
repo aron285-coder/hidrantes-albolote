@@ -35,6 +35,7 @@ const ESTADOS: { valor: FiltrosInventario['caudal']; nombre: string }[] = [
   { valor: 'bueno', nombre: T.formulario.bueno },
   { valor: 'regular', nombre: T.formulario.regular },
   { valor: 'malo', nombre: T.formulario.malo },
+  { valor: 'barro', nombre: T.formulario.barro },
   { valor: 'no_funciona', nombre: T.formulario.noFunciona },
 ];
 const REVISIONES: { valor: 'todas' | 'sin_revisar'; nombre: string }[] = [

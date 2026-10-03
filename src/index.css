@@ -47,6 +47,11 @@
   --rojo-100: #fbe0db;
   --gris-700: #40453d;
   --gris-100: #e5e4dc;
+  /* Barro (docs/24 RV-102, DEC-149): el #6B4423 propuesto se confundía con --rojo-700 con protanopía
+     (ΔE2000 1,1). Relleno con ΔE2000 ≥ 15 frente a Regular y Malo y 3:1 sobre el mapa; texto oscuro. */
+  --marron-600: #806460;
+  --marron-700: #5a4632;
+  --marron-100: #efe3d6;
 
   /* Superficies que cambian en oscuro (06 §2.4) */
   --barra: var(--marino-950);
@@ -126,6 +131,9 @@
   --color-rojo-100: var(--rojo-100);
   --color-gris-700: var(--gris-700);
   --color-gris-100: var(--gris-100);
+  --color-marron-600: var(--marron-600);
+  --color-marron-700: var(--marron-700);
+  --color-marron-100: var(--marron-100);
 
   /* 06 §3 */
   --font-titulo: 'Barlow Condensed', sans-serif;

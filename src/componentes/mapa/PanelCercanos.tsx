@@ -4,12 +4,11 @@ import { BotonCompartir } from './Coordenadas';
 import { MarcadorSvg } from './MarcadorSvg';
 import type { LatLng } from '@/lib/coordenadas';
 import { textoUbicacion } from '@/lib/compartir';
-import { caudalParaDibujar } from '@/lib/caudal';
 import { enlaceComoLlegar, nombreCaudal, nombreTipo } from '@/lib/ficha';
 import { distancia, hace } from '@/lib/formato';
 import { rumboCorto } from '@/lib/geometria';
 import { type AlturaHoja, alturaHoja, alturaTrasArrastrar, guardarAlturaHoja } from '@/lib/hoja-cercanos';
-import { type Candidato, PRECISION_POCA_M } from '@/lib/incidente';
+import { type Candidato, PRECISION_POCA_M, textoMasCercano } from '@/lib/incidente';
 import type { Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
@@ -174,9 +173,7 @@ export function PanelCercanos({
       {origen && aviso && (
         // Una línea bajo la cabecera, no un bloque: así caben tres candidatos en el móvil (RV-61).
         <p role="alert" className="text-rojo-700 -mt-1.5 shrink-0 truncate text-[13px] font-semibold">
-          {caudalParaDibujar(aviso.punto.caudal) === 'no_funciona'
-            ? T.incidente.masCercanoNoFunciona(aviso.punto.codigo, distancia(aviso.metros))
-            : T.incidente.masCercanoMalo(aviso.punto.codigo, distancia(aviso.metros))}
+          {textoMasCercano(aviso.punto, distancia(aviso.metros))}
         </p>
       )}
 
