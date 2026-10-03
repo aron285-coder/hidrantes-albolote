@@ -77,6 +77,72 @@ test('falta una foto: el script lo dice y no escribe nada', async ({ page, isMob
   expect(existsSync(info.outputPath('salida'))).toBe(false);
 });
 
+test('una foto que no se puede leer no deja la otra puesta a medias', async ({ page, isMobile }, info) => {
+  test.skip(!!isMobile, 'basta con una pasada');
+  await page.setContent('<html><body></body></html>');
+  const png = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 300;
+    const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), 'image/png'));
+    return [...new Uint8Array(await blob.arrayBuffer())];
+  });
+  const entrada = info.outputPath('una-rota');
+  mkdirSync(entrada, { recursive: true });
+  writeFileSync(path.join(entrada, 'granada.png'), Buffer.from(png));
+  writeFileSync(path.join(entrada, 'barcelona.png'), Buffer.from('no es una imagen'));
+  await expect(prepararRacores(entrada, info.outputPath('salida'), page)).rejects.toThrow(/barcelona\.png/);
+  expect(existsSync(info.outputPath('salida'))).toBe(false);
+});
+
+test('dos fotos del mismo racor: lo dice en vez de elegir una al azar', async ({ page, isMobile }, info) => {
+  test.skip(!!isMobile, 'basta con una pasada');
+  const entrada = info.outputPath('dos-granada');
+  mkdirSync(entrada, { recursive: true });
+  for (const a of ['granada.jpg', 'granada-vieja.png', 'barcelona.jpg']) writeFileSync(path.join(entrada, a), '');
+  await expect(prepararRacores(entrada, info.outputPath('salida'), page)).rejects.toThrow(/más de una foto de granada/);
+});
+
+async function abrirBoca(page: import('@playwright/test').Page) {
+  await conSesion(page);
+  await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+  await page.goto('/proponer/alta');
+  await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+}
+
+test('sin las fotos en el servidor, los botones se ven solo con el nombre', async ({ page }) => {
+  await page.route('**/racores/*.webp', (r) => r.fulfill({ status: 404, body: '' }));
+  await abrirBoca(page);
+  for (const nombre of [T.formulario.granada, T.formulario.barcelona, T.formulario.otro]) {
+    const boton = page.getByRole('radio', { name: nombre });
+    await expect(boton).toBeVisible();
+    await expect(boton.locator('img')).toHaveCount(0);
+  }
+});
+
+test('con las fotos, se ven encima del nombre y tocar la foto elige el racor', async ({ page }) => {
+  await page.setContent('<html><body></body></html>');
+  const webp = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 160;
+    const ctx = c.getContext('2d')!;
+    ctx.fillStyle = '#6b4423';
+    ctx.fillRect(0, 0, 160, 160);
+    const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), 'image/webp', 0.8));
+    return [...new Uint8Array(await blob.arrayBuffer())];
+  });
+  await page.route('**/racores/*.webp', (r) =>
+    r.fulfill({ status: 200, contentType: 'image/webp', body: Buffer.from(webp) }),
+  );
+  await abrirBoca(page);
+  const barcelona = page.getByRole('radio', { name: T.formulario.barcelona });
+  const img = barcelona.locator('img');
+  await expect(img).toBeVisible();
+  expect(await img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(LADO);
+  await expect(page.getByRole('radio', { name: T.formulario.otro }).locator('img')).toHaveCount(0);
+  await img.click();
+  await expect(barcelona).toHaveAttribute('aria-checked', 'true');
+});
+
 const HAY_FOTOS = ['granada', 'barcelona'].every((r) =>
   existsSync(path.resolve(import.meta.dirname, `../public/racores/${r}.webp`)),
 );

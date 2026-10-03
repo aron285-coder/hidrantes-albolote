@@ -29,9 +29,14 @@ export function buscarOriginales(carpeta: string): Record<(typeof RACORES)[numbe
   const archivos = readdirSync(carpeta);
   const encontrados = {} as Record<(typeof RACORES)[number], string>;
   for (const racor of RACORES) {
-    const archivo = archivos.find((a) => a.toLowerCase().startsWith(racor) && TIPOS[path.extname(a).toLowerCase()]);
-    if (!archivo) throw new Error(`Falta la foto de ${racor} en ${carpeta} (${racor}.jpg, .png o .webp)`);
-    encontrados[racor] = path.join(carpeta, archivo);
+    const candidatos = archivos.filter(
+      (a) => a.toLowerCase().startsWith(racor) && TIPOS[path.extname(a).toLowerCase()],
+    );
+    if (candidatos.length === 0)
+      throw new Error(`Falta la foto de ${racor} en ${carpeta} (${racor}.jpg, .png o .webp)`);
+    // Con dos candidatas, cuál se usaría dependería del orden de la carpeta: mejor decirlo.
+    if (candidatos.length > 1) throw new Error(`Hay más de una foto de ${racor}: ${candidatos.join(', ')}. Deja una.`);
+    encontrados[racor] = path.join(carpeta, candidatos[0]);
   }
   return encontrados;
 }
@@ -54,7 +59,8 @@ export async function prepararFoto(pagina: Page, original: Buffer, tipo: string)
       ctx.drawImage(img, (img.width - corte) / 2, (img.height - corte) / 2, corte, corte, 0, 0, lado, lado);
       for (let calidad = 0.9; calidad >= 0.3; calidad -= 0.1) {
         const salida = await new Promise<Blob | null>((r) => lienzo.toBlob(r, 'image/webp', calidad));
-        if (!salida || salida.type !== 'image/webp') throw new Error('El navegador no codifica WebP');
+        if (!salida) throw new Error('El navegador no ha podido codificar la imagen');
+        if (salida.type !== 'image/webp') throw new Error('El navegador no codifica WebP');
         if (salida.size <= maximo) {
           const bytes = new Uint8Array(await salida.arrayBuffer());
           let binario = '';
@@ -62,26 +68,35 @@ export async function prepararFoto(pagina: Page, original: Buffer, tipo: string)
           return btoa(binario);
         }
       }
-      throw new Error('No cabe en 25 kB ni con la calidad más baja');
+      throw new Error(`No cabe en ${Math.round(maximo / 1024)} kB ni con la calidad más baja`);
     },
     { datos: original.toString('base64'), tipo, lado: LADO, maximo: MAXIMO_BYTES },
   );
   return Buffer.from(base64, 'base64');
 }
 
-/** Prepara las dos fotos de `carpeta` y las escribe en `salida`. Devuelve las rutas escritas. */
+/**
+ * Prepara las dos fotos de `carpeta` y las escribe en `salida`. Devuelve las rutas escritas. Primero
+ * las codifica las dos y solo después escribe: si una falla, no queda una sola foto puesta (la app
+ * enseñaría foto en un botón y en el otro no).
+ */
 export async function prepararRacores(carpeta: string, salida: string, pagina: Page): Promise<string[]> {
   const originales = buscarOriginales(carpeta);
-  mkdirSync(salida, { recursive: true });
-  const escritas: string[] = [];
+  const preparadas: [string, Buffer][] = [];
   for (const racor of RACORES) {
     const origen = originales[racor];
-    const webp = await prepararFoto(pagina, readFileSync(origen), TIPOS[path.extname(origen).toLowerCase()]);
-    const destino = path.join(salida, `${racor}.webp`);
-    writeFileSync(destino, webp);
-    escritas.push(destino);
+    try {
+      const webp = await prepararFoto(pagina, readFileSync(origen), TIPOS[path.extname(origen).toLowerCase()]);
+      preparadas.push([path.join(salida, `${racor}.webp`), webp]);
+    } catch (e) {
+      throw new Error(`No se ha podido preparar ${origen}: ${e instanceof Error ? e.message : String(e)}`, {
+        cause: e,
+      });
+    }
   }
-  return escritas;
+  mkdirSync(salida, { recursive: true });
+  for (const [destino, webp] of preparadas) writeFileSync(destino, webp);
+  return preparadas.map(([destino]) => destino);
 }
 
 async function principal() {
