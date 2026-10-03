@@ -156,7 +156,7 @@ export function ListaPuntos({
                     <span className="font-datos">{p.codigo}</span> · {T.formato.mm(p.diametro_mm)}
                   </span>
                   <span className="text-texto-suave block truncate text-[13px]">
-                    {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal[p.caudal]} ·{' '}
+                    {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal(p.caudal)} ·{' '}
                     {/* FR-68: la última revisión en todas las filas; caducada, en rojo (RV-24). */}
                     {p.revision_caducada ? (
                       <span className="text-rojo-700 font-semibold">

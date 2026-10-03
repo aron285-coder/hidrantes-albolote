@@ -192,6 +192,8 @@ export const T = {
     racor: (racor: Parametro) => `Racor ${racor}`,
     fotoNoDisponible: 'Foto no disponible sin cobertura',
     sinFoto: 'Sin foto',
+    // docs/24 RV-102a: un estado que esta versión de la app no conoce.
+    estadoDesconocido: 'Estado desconocido · actualiza la aplicación',
   },
 
   // Funciones de mapa para emergencias (FR-72, FR-75; docs/18 GM-02 y GM-05).

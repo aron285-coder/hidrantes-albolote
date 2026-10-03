@@ -3,6 +3,7 @@
 // van por RPC (05 §6.2) y devuelven Resultado.
 
 import { type Resultado, rpc } from '../api';
+import { CAUDALES, caudalParaDibujar } from '../caudal';
 import { type Caudal, type Punto, type TipoPunto, sincronizar } from '../puntos';
 import type { FiltrosExportacion } from './exportar';
 import { T } from '../textos';
@@ -43,7 +44,8 @@ export function filtrosExportacion(f: FiltrosInventario): FiltrosExportacion {
   };
 }
 
-const ORDEN_CAUDAL = { bueno: 0, regular: 1, malo: 2, no_funciona: 3 };
+/** Un estado que esta versión no conoce va con no funciona (docs/24 RV-102a). */
+const rangoCaudal = (p: Punto) => CAUDALES.indexOf(caudalParaDibujar(p.caudal));
 
 /** Inventario en pantalla: filtros de FR-120 más la búsqueda global (FR-145). */
 export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
@@ -51,7 +53,7 @@ export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
   return puntos.filter(
     (p) =>
       (f.tipo === 'todos' || p.tipo === f.tipo) &&
-      (f.caudal === 'todos' || p.caudal === f.caudal) &&
+      (f.caudal === 'todos' || caudalParaDibujar(p.caudal) === f.caudal) &&
       (!f.sin_revisar || p.revision_caducada) &&
       (!f.nucleo || p.nucleo === f.nucleo) &&
       (!f.diametro || String(p.diametro_mm) === f.diametro) &&
@@ -63,7 +65,7 @@ export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
 export function ordenarPor(puntos: Punto[], { columna, ascendente }: Orden): Punto[] {
   const signo = ascendente ? 1 : -1;
   return [...puntos].sort((a, b) => {
-    if (columna === 'caudal') return signo * (ORDEN_CAUDAL[a.caudal] - ORDEN_CAUDAL[b.caudal]);
+    if (columna === 'caudal') return signo * (rangoCaudal(a) - rangoCaudal(b));
     if (columna === 'diametro_mm') return signo * (a.diametro_mm - b.diametro_mm);
     const x = a[columna] ?? '';
     const y = b[columna] ?? '';

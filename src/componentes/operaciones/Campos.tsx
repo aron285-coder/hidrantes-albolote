@@ -73,10 +73,10 @@ export function PildorasCaudal({
           onClick={() => alCambiar(c)}
           className={cn(
             'rounded-chip min-h-11 border px-3 text-[15px] font-semibold',
-            valor === c ? `${claseChip[c]} border-current` : 'border-linea bg-papel text-texto',
+            valor === c ? `${claseChip(c)} border-current` : 'border-linea bg-papel text-texto',
           )}
         >
-          {nombreCaudal[c]}
+          {nombreCaudal(c)}
         </button>
       ))}
     </div>

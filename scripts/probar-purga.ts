@@ -9,7 +9,14 @@
 
 import { abortar, ejecutar, ejecutarScript, log, psqlOk } from './lib/comun.ts';
 import { LOCAL_POSTGRES } from './migrar.ts';
-import { MAX_FILAS_POSTGREST, anotarUltimaPurga, hayUltimaPurga, modoDePurga, referenciadas } from './purgar-fotos.ts';
+import {
+  MAX_FILAS_POSTGREST,
+  anotarEnsayoInicial,
+  anotarUltimaPurga,
+  hayUltimaPurga,
+  modoDePurga,
+  referenciadas,
+} from './purgar-fotos.ts';
 
 const SEMBRADOS = 1100;
 const PREFIJO = 'rv33-integracion/';
@@ -66,7 +73,11 @@ async function principal(): Promise<void> {
 // docs/22 RV-94, DEC-129: la primera pasada programada es ensayo; tras una de verdad, ya borra.
 function primeraVez(): void {
   log.paso('Guarda de la primera purga');
-  const borrarMarca = () => psqlOk(LOCAL_POSTGRES, "delete from hidrantes.config where clave = 'ultima_purga_fotos';");
+  const borrarMarca = () =>
+    psqlOk(
+      LOCAL_POSTGRES,
+      "delete from hidrantes.config where clave in ('ultima_purga_fotos', 'primera_purga_ensayada');",
+    );
   borrarMarca();
   try {
     const antes = modoDePurga({
@@ -83,6 +94,17 @@ function primeraVez(): void {
     });
     if (aMano.ensayo) abortar('A mano y sin ensayo, la primera pasada tenía que borrar.');
     log.ok('primera vez, a mano sin ensayo → borra');
+    // DEC-151: tras el ensayo de la primera programada, la siguiente programada ya borra. Antes, sin
+    // una purga de verdad, cada lunes volvía a ser ensayo (28-09 y lo que habría sido el 5-10).
+    anotarEnsayoInicial(LOCAL_POSTGRES);
+    const segunda = modoDePurga({
+      programada: true,
+      ensayoPedido: false,
+      hayUltimaPurga: hayUltimaPurga(LOCAL_POSTGRES),
+    });
+    if (segunda.ensayo) abortar('Tras el ensayo de la primera programada, la siguiente programada tenía que borrar.');
+    log.ok('segunda programada, tras el ensayo de la primera → borra');
+    borrarMarca();
     anotarUltimaPurga(LOCAL_POSTGRES);
     const despues = modoDePurga({
       programada: true,

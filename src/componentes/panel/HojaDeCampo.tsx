@@ -69,7 +69,7 @@ export function HojaDeCampo({ grupos, alCerrar }: { grupos: GrupoCaducadas[]; al
                     </td>
                     <td className="border border-black px-1.5 py-1 whitespace-nowrap">{T.formato.mm(p.diametro_mm)}</td>
                     <td className="border border-black px-1.5 py-1 whitespace-nowrap">
-                      {nombreCaudal[p.caudal]} · {fechaCorta(p.fecha_ultima_revision)}
+                      {nombreCaudal(p.caudal)} · {fechaCorta(p.fecha_ultima_revision)}
                     </td>
                     <td className="h-8 w-40 border border-black px-1.5 py-1" />
                   </tr>

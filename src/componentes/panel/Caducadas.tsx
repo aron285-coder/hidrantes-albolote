@@ -72,7 +72,7 @@ export default function Caducadas() {
                     <span className="text-texto-suave">
                       {' · '}
                       {nombreTipo[p.tipo]} {T.formato.mm(p.diametro_mm)} · {p.direccion ?? T.ficha.sinDireccion} ·{' '}
-                      {nombreCaudal[p.caudal]} ·{' '}
+                      {nombreCaudal(p.caudal)} ·{' '}
                       {T.panelCaducadas.revisado(hace(p.fecha_ultima_revision), fechaCorta(p.fecha_ultima_revision))}
                     </span>
                   </li>

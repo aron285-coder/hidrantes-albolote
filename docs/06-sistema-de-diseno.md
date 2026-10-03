@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -168,6 +168,7 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 | Borde | blanco (`#FFFFFF`), 2,5 px (2 px si `radio_px ≤ 5.5`); en modo oscuro `#111826` |
 | Relleno | color de estado (§2.2) |
 | No funciona | opacidad **0,5** + línea blanca cruzada de 2 px de esquina inferior izquierda a superior derecha, largo `2 × radio_px` |
+| Estado desconocido | un `caudal` que esta versión de la app no conoce (el servidor añadió uno nuevo y el móvil aún no se ha actualizado) se dibuja **como No funciona**: color `--gris-700`, radio mínimo, opacidad 0,5 y tachado. La ficha dice "Estado desconocido · actualiza la aplicación" y la lista lo cuenta con No funciona (`docs/24` RV-102a) |
 | Sin revisar > `meses_revision` | borde **discontinuo** `3 2.5`, mismo tamaño y color |
 | Seleccionado | anillo exterior `--marino-950` de 2 px a 3 px del borde (en oscuro, `--anillo-seleccion` de §2.4) |
 | Propuesto (solo panel) | pin naranja `--naranja-600` con punto blanco; el punto existente en comparación, con opacidad .8 |
@@ -435,7 +436,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
 `Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Racor [Granada]` ·
-`Foto no disponible sin cobertura` · `Sin foto`.
+`Foto no disponible sin cobertura` · `Sin foto` · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
