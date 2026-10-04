@@ -169,6 +169,14 @@ for (const modo of ['claro', 'oscuro'] as const) {
       expect(contraste(t['--marino-950'], t['--amarillo-500'])).toBeGreaterThanOrEqual(4.5);
     });
 
+    // DEC-164: la etiqueta «Jefatura» de la barra es un enlace; su texto, marino sobre oro (el blanco
+    // se queda por debajo de 4,5:1), y la etiqueta se distingue de la barra marino.
+    it('la etiqueta Jefatura se lee y se ve sobre la barra', () => {
+      expect(contraste(t['--marino-950'], t['--oro-600'])).toBeGreaterThanOrEqual(4.5);
+      expect(contraste('#ffffff', t['--oro-600'])).toBeLessThan(4.5);
+      expect(contraste(t['--oro-600'], t['--barra'] ?? t['--marino-950'])).toBeGreaterThanOrEqual(3);
+    });
+
     // DEC-154: regular y malo se distinguen también por su claridad, sin depender del tono.
     it('el amarillo de regular y el rojo de malo se separan en luminancia: 3:1', () => {
       expect(contraste(t['--amarillo-500'], t['--rojo-700'])).toBeGreaterThanOrEqual(3);
