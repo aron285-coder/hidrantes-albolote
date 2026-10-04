@@ -471,7 +471,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Ficha.** `Dirección` · `sin dirección` · `revisado [hace 2 meses] · [4 ago 2026]` · `sin revisar desde [hace 1 año]` · `Tipo` · `Diámetro` · `Tipo de enganche` · `a [80 m] de ti` · `[Conexión] · [1]/[2]` (banda y rejilla, RV-108) ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
 `Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Enganche [Granada]` ·
-`Foto no disponible sin cobertura` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
+`Foto no disponible sin cobertura` · `No se ha podido cargar la foto` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·

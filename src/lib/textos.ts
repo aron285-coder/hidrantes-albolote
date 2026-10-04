@@ -202,6 +202,7 @@ export const T = {
     fallo: 'Fallo:',
     racor: (racor: Parametro) => `Enganche ${racor}`,
     fotoNoDisponible: 'Foto no disponible sin cobertura',
+    fotoNoCarga: 'No se ha podido cargar la foto',
     sinFoto: 'Sin foto',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
     fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,

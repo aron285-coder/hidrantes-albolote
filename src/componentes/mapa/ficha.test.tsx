@@ -190,6 +190,11 @@ describe('ficha con banda de estado (RV-108)', () => {
     expect(html).not.toContain('<img');
   });
 
+  it('una foto que no se puede pedir (sin URL de Supabase) lo dice, no desaparece', () => {
+    // En vitest no hay VITE_SUPABASE_URL: urlFoto() da null aunque haya ruta.
+    expect(texto(pintar({ ...BOCA, foto_path: 'a.jpg' }))).toContain(T.ficha.fotoNoCarga);
+  });
+
   it('con las dos fotos, la etiqueta "Conexión · 1/2"', () => {
     const html = pintar({ ...BOCA, foto_path: 'a.jpg', foto_sitio_path: 'b.jpg' });
     expect(texto(html)).toContain('Conexión · 1/2');

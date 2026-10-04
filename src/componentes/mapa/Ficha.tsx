@@ -30,16 +30,18 @@ function UnaFoto({
   etiqueta?: string;
 }) {
   const url = urlFoto(fotoPath);
-  const [fallo, setFallo] = useState(false);
   const conexion = useConexion();
-  if (!url && !etiqueta) return null;
+  // Con qué cobertura falló. Si falló sin cobertura y ya la hay, la foto se vuelve a pedir.
+  const [falloCon, setFalloCon] = useState<string | null>(null);
+  const fallo = falloCon !== null && !(conexion === 'bien' && falloCon !== 'bien');
+  if (!fotoPath && !etiqueta) return null;
   if (!url || fallo) {
     return (
       // text-texto: el suave sobre bg-linea se queda en 4,28:1 (axe, docs/18 GM-05).
       <div
         className={cn('bg-linea text-texto rounded-tarjeta relative flex items-center justify-center text-sm', alto)}
       >
-        {url && conexion !== 'bien' ? T.ficha.fotoNoDisponible : T.ficha.sinFoto}
+        {!fotoPath ? T.ficha.sinFoto : conexion !== 'bien' ? T.ficha.fotoNoDisponible : T.ficha.fotoNoCarga}
         {etiqueta && <EtiquetaFoto texto={etiqueta} />}
       </div>
     );
@@ -52,7 +54,7 @@ function UnaFoto({
         src={url}
         alt={alt}
         loading="lazy"
-        onError={() => setFallo(true)}
+        onError={() => setFalloCon(conexion)}
         className={cn('w-full bg-[linear-gradient(135deg,#C9CFD6,#9AA8BE)] object-cover', alto)}
       />
       {etiqueta && <EtiquetaFoto texto={etiqueta} />}
@@ -211,7 +213,10 @@ export function Ficha({
   const direccion = punto.direccion ?? <span className="text-texto-suave font-normal">{T.ficha.sinDireccion}</span>;
 
   return (
-    <article className="flex flex-col gap-2.5" aria-labelledby="ficha-codigo">
+    <article
+      className="flex flex-col gap-2.5"
+      {...(conCabecera ? { 'aria-labelledby': 'ficha-codigo' } : { 'aria-label': punto.codigo })}
+    >
       <header
         data-banda={punto.caudal}
         className={cn(
@@ -242,9 +247,12 @@ export function Ficha({
         )}
       </header>
       <div className="flex items-baseline gap-2.5">
-        <h2 id="ficha-codigo" className={cn('font-datos text-[21px] font-medium', !conCabecera && 'sr-only')}>
-          {punto.codigo}
-        </h2>
+        {/* En el móvil el código ya es el título de la barra: aquí no se repite (UI-16). */}
+        {conCabecera && (
+          <h2 id="ficha-codigo" className="font-datos text-[21px] font-medium">
+            {punto.codigo}
+          </h2>
+        )}
         <p className={cn('text-texto-suave text-[13.5px]', conCabecera && 'ml-auto text-right')}>
           {[punto.nucleo, m !== null ? T.ficha.aDistancia(distancia(m)) : null].filter(Boolean).join(' · ')}
         </p>
@@ -276,7 +284,8 @@ export function Ficha({
           target="_blank"
           rel="noreferrer"
           data-variante="primario"
-          className="bg-marino-950 rounded-boton flex min-h-[46px] flex-1 items-center justify-center gap-2 px-3 text-[15px] font-semibold text-white"
+          // El borde --texto: en oscuro, el marino casi no se separa del fondo y el botón perdería su forma.
+          className="bg-marino-950 border-texto rounded-boton flex border-[1.5px] min-h-[46px] flex-1 items-center justify-center gap-2 px-3 text-[15px] font-semibold text-white"
         >
           <Navigation size={18} aria-hidden />
           {T.ficha.comoLlegar}
