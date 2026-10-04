@@ -53,6 +53,17 @@ describe('BarraSuperior · etiqueta Jefatura (RV-113)', () => {
     expect(enlaces(html)[0].a).toMatch(/\bshrink-0\b/);
   });
 
+  it('en un formulario (enlacePanel={false}), la etiqueta se ve pero no lleva al panel', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter>
+        <BarraSuperior titulo="Nuevo punto" jefatura enlacePanel={false} />
+      </MemoryRouter>,
+    );
+    expect(enlaces(html)).toEqual([]);
+    expect(html).toContain(T.navegacion.jefatura);
+    expect(html).toContain('text-marino-950');
+  });
+
   it('sin jefatura, no hay enlace ni etiqueta', () => {
     const html = pintar(false);
     expect(enlaces(html)).toEqual([]);

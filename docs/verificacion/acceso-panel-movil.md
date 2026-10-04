@@ -21,6 +21,7 @@ Especificación: `docs/26-acceso-al-panel-desde-el-movil.md`. Una sesión (Front
 
 - **El texto de la etiqueta pasa de blanco a `--marino-950`.** Blanco sobre `--oro-600` da 3,2:1; al ser un control, el axe del e2e lo marca (`color-contrast`). Marino da 5,3:1. Lo comprueba `src/lib/accesibilidad.test.ts` («la etiqueta Jefatura se lee y se ve sobre la barra»). El fondo de oro, la negrita y el tamaño no cambian.
 - **El botón de Ajustes usa `--texto`, no `--marino-950`**, en borde y texto (los colores del secundario de 06 §5). En claro son casi el mismo color; en oscuro `--marino-950` no cambia y se quedaría sin contraste sobre `--papel`.
+- **En los formularios de las operaciones, la etiqueta no es un enlace** (`enlacePanel={false}` en `Proponer`). Un toque sin querer desmontaba el formulario sin preguntar, con las fotos y los datos. Lo encontró `pr-review-toolkit` (silent-failure-hunter); lo comprueban `BarraSuperior.test.tsx` y el e2e «en el formulario de alta…».
 - **Los dos accesos son `<Link>` del router, no botones con `navigate`.** Navegan igual, sin recargar ni abrir otra pestaña, y para un lector de pantalla son un enlace a otra pantalla.
 
 ## 3. El panel a 412 × 915 (punto 5)
@@ -49,7 +50,7 @@ Las pestañas del panel salen en tres filas y la cabecera ocupa unos 200 px, per
 | `src/componentes/BarraSuperior.test.tsx` | con jefatura, enlace a `/admin` con su `aria-label` y chevron; 44 × 44 (`min-h-11 min-w-11`); texto marino; título truncable; sin jefatura, sin enlace | sí (3 de 4; «sin jefatura» ya pasaba) |
 | `src/paginas/Ajustes.test.tsx` | con jefatura, «Panel de jefatura» enlaza a `/admin`, secundario, a todo el ancho; con voluntario, no está | sí (1 de 2; «voluntario» ya pasaba) |
 | `src/lib/accesibilidad.test.ts` · etiqueta Jefatura | marino sobre oro ≥ 4,5:1; blanco no llega; oro se distingue de la barra | — (prueba de tokens) |
-| `e2e/jefatura-movil.spec.ts` (proyecto `movil`, 412 × 915) | 1 · «Jefatura» abre `/admin/cola`; 2 · «Ir al mapa» vuelve a `/`; 3 · Ajustes → «Panel de jefatura» abre el panel; 4 · `goBack()` vuelve a Ajustes; 5 · voluntario sin etiqueta ni botón; axe de la barra y de Ajustes | sí (los 4 tests) |
+| `e2e/jefatura-movil.spec.ts` (proyecto `movil`, 412 × 915) | 1 · «Jefatura» abre `/admin/cola`; 2 · «Ir al mapa» vuelve a `/`; 3 · Ajustes → «Panel de jefatura» abre el panel; 4 · `goBack()` vuelve a Ajustes; 5 · voluntario sin etiqueta ni botón; axe de la barra y de Ajustes; en el formulario de alta la etiqueta no es enlace | sí (los 4 primeros; el del formulario se añadió tras la revisión) |
 
 En local, además: `acceso`, `accesibilidad`, `anchos` y `controles` en `movil` y `escritorio`, en
 verde salvo `anchos.spec.ts:273` («360 px: la rejilla de estados…», proyecto `escritorio`), que

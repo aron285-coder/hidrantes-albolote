@@ -177,7 +177,13 @@ function FormularioOperacion({
 
   return (
     <div className="flex flex-1 flex-col">
-      <BarraSuperior titulo={TITULO_OPERACION[operacion]} alVolver={() => navegar(-1)} jefatura={jefatura} />
+      {/* En el formulario, la etiqueta no lleva al panel: se perderían las fotos y los datos (DEC-164). */}
+      <BarraSuperior
+        titulo={TITULO_OPERACION[operacion]}
+        alVolver={() => navegar(-1)}
+        jefatura={jefatura}
+        enlacePanel={false}
+      />
       <form
         className="mx-auto flex w-full max-w-lg flex-col gap-3 p-3 pb-8"
         onSubmit={(e) => {

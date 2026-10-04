@@ -58,6 +58,21 @@ test('Ajustes → «Panel de jefatura» abre el panel y «atrás» vuelve a Ajus
   await expect(botonAjustes(page)).toBeVisible();
 });
 
+// DEC-164: en un formulario a medias, un toque sin querer en la esquina se llevaría las fotos y los datos.
+test('en el formulario de alta, la etiqueta Jefatura se ve pero no lleva al panel (DEC-164)', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 37.2309, longitude: -3.6566, accuracy: 9 });
+  await comoJefatura(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+  await expect(page.getByRole('radio', { name: T.formulario.hidrante })).toBeVisible();
+  await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();
+  await expect(etiqueta(page)).toHaveCount(0);
+});
+
 test('con sesión de voluntario no están ni la etiqueta ni el botón (RV-113 · 5)', async ({ page }) => {
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });

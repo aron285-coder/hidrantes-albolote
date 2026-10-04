@@ -212,7 +212,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 1. Inicia sesión con su cuenta de Google. (FR-36)
 2. Si su correo está en la lista de administradores y activo, entra; si no, ve "No autorizado". (FR-37)
 3. En el móvil, ve el mapa con la etiqueta *Jefatura* (FL-28). En el ordenador, el *Panel*.
-4. En el móvil, abre el *Panel* con un toque: la etiqueta *Jefatura* de la barra superior, o *Ajustes* → *Panel de jefatura*. Vuelve con *Ir al mapa* o con el botón "atrás" del móvil, a la pantalla de la que venía, sin salir de la app. (FR-150, DEC-164)
+4. En el móvil, abre el *Panel* con un toque: la etiqueta *Jefatura* de la barra superior (salvo dentro de un formulario de operación, para no perder lo escrito), o *Ajustes* → *Panel de jefatura*. Vuelve con *Ir al mapa* o con el botón "atrás" del móvil, a la pantalla de la que venía, sin salir de la app. (FR-150, DEC-164)
 
 ---
 
