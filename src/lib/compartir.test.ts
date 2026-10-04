@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { compartir, textoPunto, textoUbicacion } from './compartir';
+import { interpretar } from './coordenadas';
 import type { Punto } from './puntos';
 
 const PUNTO: Punto = {
@@ -66,6 +67,16 @@ describe('textos para compartir', () => {
     expect(texto).toContain('WGS84');
     expect(texto).toContain('ETRS89 · UTM huso 30N');
     expect(texto).not.toContain('(ETRS89)');
+  });
+
+  it('cada línea de coordenadas que se comparte se puede pegar en la búsqueda (FR-73)', () => {
+    const [wgs84, utm] = textoUbicacion({ lat: 37.2305, lng: -3.656 }).split('\n');
+    for (const linea of [wgs84!, utm!]) {
+      const p = interpretar(linea);
+      expect(p, linea).not.toBeNull();
+      expect(Math.abs(p!.lat - 37.2305)).toBeLessThan(0.00002);
+      expect(Math.abs(p!.lng + 3.656)).toBeLessThan(0.00002);
+    }
   });
 
   it('fuera del huso 30 solo va la línea WGS84, sin UTM', () => {

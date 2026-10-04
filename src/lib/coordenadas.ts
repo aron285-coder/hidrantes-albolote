@@ -252,6 +252,13 @@ function desdeDecimal(texto: string): Interpretadas | null {
 const sinTextoDelante = (t: string) => t.replace(/^[^\d+-]*[:\s](?=\s*[+-]?\d)/, '').trim();
 
 /**
+ * Una etiqueta con números delante de los dos puntos, como en las líneas que manda *Compartir*
+ * ("WGS84 · grados decimales: 37.230500, -3.656000", "ETRS89 · UTM huso 30N: 30S 441808 4120645";
+ * docs/25 RV-109): se quita hasta los primeros dos puntos seguidos de espacio.
+ */
+const sinEtiqueta = (t: string) => t.replace(/^[^:]*:\s+/, '').trim();
+
+/**
  * Coordenadas pegadas en la búsqueda: decimal, grados-minutos-segundos, grados y minutos decimales,
  * UTM 30 ETRS89 o un enlace de Google Maps, Apple Plans o `geo:`, con o sin texto delante. Null si no
  * lo son, también un enlace corto (`esEnlaceCorto`). Unas coordenadas lejos de la zona se aceptan (el
@@ -266,6 +273,9 @@ export function interpretar(texto: string): Interpretadas | null {
   const leer = (s: string) => desdeGms(s) ?? desdeUtmTexto(s) ?? desdeDecimal(s);
   const directo = leer(t);
   if (directo) return directo;
-  const resto = sinTextoDelante(t);
-  return resto && resto !== t ? leer(resto) : null;
+  for (const resto of [sinTextoDelante(t), sinEtiqueta(t)]) {
+    const p = resto && resto !== t ? leer(resto) : null;
+    if (p) return p;
+  }
+  return null;
 }

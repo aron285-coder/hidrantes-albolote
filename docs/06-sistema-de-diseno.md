@@ -431,7 +431,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `ETRS89 · UTM huso 30N` · `Copiar [WGS84 · grados decimales]` · `Copiado` ·
 `No se ha podido copiar: mantén pulsado el texto para copiarlo` · `¿Qué hay aquí?` ·
 `Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Compartir` · `Ubicación` ·
-`[HID-0123] · [hidrante] [100 mm] · [bueno]` · `WGS84 · grados decimales: [37.230500, -3.656000]` y, en la línea siguiente, `ETRS89 · UTM huso 30N: [30S 441808 4120645]` ·
+`[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[sistema]: [coordenadas]`, una línea por sistema: `WGS84 · grados decimales: [37.230500, -3.656000]` y, debajo, `ETRS89 · UTM huso 30N: [30S 441808 4120645]` ·
 `Copiado: pégalo donde quieras` · `No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo` ·
 `Cercanos` · `Incidente` · `Desde tu posición` · `Desde el punto marcado` · `Posición de [hace 3 min]` ·
 `Solo hidrantes` · `Distancias en línea recta` ·
