@@ -37,8 +37,8 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-11 | Encuadre y límite | Abrir el mapa | Encuadrado sobre Albolote/Calicasas; límite discontinuo visible | FR-54 | | |
 | AC-12 | Forma y color | Localizar un hidrante y una boca de riego con estados distintos | Círculo vs cuadrado; verde/ámbar/rojo/gris según estado | FR-60, TR-30 | | |
 | AC-13 | Cinco tamaños a pleno sol | Al mediodía, con brillo automático, mirar puntos de 100·bueno, 70·bueno, 45·bueno, 45·regular y uno que no funciona | Se distinguen los cinco tamaños; el que no funciona va atenuado y tachado | FR-60, FR-61, TR-33 | | |
-| AC-14 | Sin revisar > 12 meses | Localizar un punto con revisión antigua | Borde discontinuo, mismo tamaño y color | FR-61 | | |
-| AC-15 | Leyenda | Mirar la leyenda | Muestra forma, colores, tachado y borde discontinuo | FR-62 | | |
+| AC-14 | Sin revisar > 12 meses | Localizar un punto con revisión antigua | Anillo de rayas alrededor, borde continuo, mismo tamaño y color | FR-61 | | |
+| AC-15 | Leyenda | Mirar la leyenda | Muestra forma, colores, tachado y anillo de rayas | FR-62 | | |
 | AC-16 | Declutter | Alejar el zoom hasta ver todo el término | Quedan solo los puntos grandes; al acercar aparecen los demás; nunca racimos numerados | FR-64 | | |
 | AC-17 | Las cuatro capas | Cambiar a Calle, Satélite, Catastro y volver al mapa base | Las cuatro cargan con cobertura; el selector recuerda la elegida al reabrir | FR-63 | | |
 | AC-18 | Capas sin cobertura | Modo avión → selector de capas | Calle, Satélite y Catastro en gris con "necesita cobertura"; el mapa base sigue | FR-63, FR-80 | | |
@@ -141,7 +141,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-101 | Cambiar código sin revocar | Generar uno nuevo sin revocar → confirmar | Los móviles registrados siguen; un móvil nuevo necesita el código nuevo; el antiguo ya no vale | FR-34, FR-140 | | |
 | AC-102 | Cambiar código revocando | Generar con "Revocar todos" → confirmar | Todos los móviles piden el código al abrir; conservan el nombre | FR-34, FR-35 | | |
 | AC-103 | Administradores | Añadir un correo, entrar con él; desactivarlo, volver a entrar | Entra / "No autorizado". No deja desactivar al último activo | FR-141 | | |
-| AC-104 | Parámetros | Cambiar meses de revisión a 6 → Guardar → sincronizar un móvil | Más puntos con borde discontinuo | FR-142 | | |
+| AC-104 | Parámetros | Cambiar meses de revisión a 6 → Guardar → sincronizar un móvil | Más puntos con anillo de rayas | FR-142 | | |
 | AC-105 | Salud | Abrir Ajustes | Los ocho indicadores con valores plausibles; fecha del último respaldo de la semana | FR-143 | | |
 | AC-106 | Purga | Lanzar purga | Aviso de que tarda unos minutos; después Storage usado baja o queda igual y hay entrada en el registro | FR-144 | | |
 | AC-107 | Descargar inventario | Descargar JSON | Archivo con todos los puntos activos | FR-144 | | |
