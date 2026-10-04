@@ -19,4 +19,11 @@
 
 ## 3. P-14
 
-(se completa al cerrar)
+Producción en la **0.7.0** el 4 oct 2026 a las 06:36 UTC (#434, run 37155680542), con la aprobación del desarrollador y la paridad en verde. Los detalles están en `campo.md` §3 y en `paridad-produccion.md`.
+
+## 4. Decisiones del desarrollador del 4-10
+
+- **Racores:** aún no hay fotos. Hay esquemas provisionales (#435, DEC-152).
+- **Conformidad de jefatura** sobre `docs/24`: sí, anotada en `docs/01`.
+- **Sesión presencial (#84):** más adelante.
+- **GitHub App de release-please:** no se hace (DEC-153). #396 cerrada y #406 cerrado sin fusionar.

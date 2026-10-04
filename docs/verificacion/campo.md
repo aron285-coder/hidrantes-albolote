@@ -1,6 +1,6 @@
 # Verificación · Pantallas de campo más simples, "Barro", 70 mm en bocas, dos fotos y fotos del racor (docs/24)
 
-**Estado: hecho en staging el 3 oct 2026; producción con P-14 (`paridad-produccion.md`).**
+**Estado: hecho el 4 oct 2026, en staging y en producción (0.7.0).** Los esquemas provisionales de los racores (#435, DEC-152) llegan a producción con la siguiente versión.
 Especificación: `docs/24-campo-mas-simple.md`. Tres sesiones en paralelo, coordinadas en #409. Los
 registros de cada sesión son `campo-backend.md`, `campo-frontend.md` y `campo-ops.md`.
 
@@ -21,7 +21,7 @@ registros de cada sesión son `campo-backend.md`, `campo-frontend.md` y `campo-o
   - Frontend: DEC-147 a DEC-150.
   - Ops: DEC-151, la purga tras el primer ensayo, que salió al revisar #405.
 - **Migraciones:** 0032 a 0035, con pgTAP 29 a 31 (32, 15 y 36 casos). `npm run compatibilidad` en verde en los tres PR de Backend.
-- **Requisitos:** `docs/01` v1.6 (Backend) y v1.7 (Frontend), con conformidad del desarrollador del 3-10. Falta la de jefatura (§3).
+- **Requisitos:** `docs/01` v1.6 (Backend) y v1.7 (Frontend), con conformidad del desarrollador del 3-10 y de jefatura, recogida por el desarrollador el 4-10.
 
 ## 2. Lo que la especificación no esperaba
 
@@ -36,18 +36,21 @@ registros de cada sesión son `campo-backend.md`, `campo-frontend.md` y `campo-o
 
 - [x] **RV-99:** ninguno de los textos de la tabla aparece (`textos.test.ts`). Hay capturas antes y después en `ci-vistas`.
 - [x] **RV-100:** «Añadir un punto aquí» arriba y en naranja, y como mucho un primario por hoja.
-- [ ] **RV-104:** las fotos de los racores las pone el desarrollador (§4). Sin ellas, el botón se ve bien. El e2e sin cobertura se activa solo cuando existan.
+- [x] **RV-104:** Granada y Barcelona llevan imagen, por ahora un esquema provisional (DEC-152), y el e2e sin cobertura ya corre. Queda sustituirlas por fotos propias (§4).
 - [x] **RV-101:** pgTAP con altas de 45, 70 y 32 aprobadas; la app anterior sigue dando 45 (`compatibilidad`).
 - [x] **RV-102a, antes que 0034,** y RV-102 con «Barro» marrón y tachado, fuera de Cercanos y en «No utilizable». En producción las dos van en la misma release (`campo-ops.md` §3).
 - [x] **RV-103:** alta y ubicación piden las dos fotos, y la ficha y el panel las enseñan. La purga no toca las fotos del sitio (pgTAP). La cola vieja no pierde nada (`cola-foto-sitio.test.ts`).
 - [x] **Documentos:** `docs/01` en versión nueva; 05, 06 y 04 al día.
-- [ ] **P-14:** producción en la versión nueva, con la paridad en verde.
+- [x] **P-14:** producción en la **0.7.0** el 4 oct 2026 a las 06:36 UTC (#434, run 37155680542), con 0032 a 0035 en orden y la paridad en verde. La purga en ensayo (run 37183337683) no propone borrar nada.
+  - RV-102a va en la misma release que 0034, como permite `docs/24` §0: «barro» solo aparece en datos aprobados después del despliegue. `npm run compatibilidad` pasó en `ci-sql` en los tres PR de Backend.
+  - El aviso de 0035 sobre el tope de subidas no sale en el log de `deploy-prod`, porque `migrar.ts` corre `psql` en silencio. El valor se ve en Ajustes → Parámetros del panel: 80 si seguía en el de fábrica.
+  - Las imágenes de los racores aún no estaban en esta release.
 
 ## 4. Lo que queda para personas (docs/24 §5)
 
-1. **Fotos de los racores:** una foto propia de un racor Granada y otra de un Barcelona, de frente y con fondo liso, nunca de internet.
+1. **Fotos de los racores:** desde el 4-10 hay dos **esquemas provisionales** dibujados para este repositorio (DEC-152). La foto propia de cada racor, de frente y con fondo liso y nunca de internet, los sustituye cuando el desarrollador la tenga.
    - Se preparan con `npx tsx scripts/preparar-racores.ts <carpeta>`, en un PR aparte.
-2. **Conformidad de jefatura** sobre «Barro», los 70 mm y otra medida en bocas, y la foto del sitio obligatoria. Basta un sí por escrito, que se anota en la versión de `docs/01`.
+2. ~~Conformidad de jefatura~~ **Hecho:** recogida por el desarrollador el 4-10 y anotada en `docs/01` v1.6 y v1.7.
 3. **Sesión presencial (F9.9, #84):** Malo, Barro y No funciona con una frase cada uno. El guion está en `docs/02`.
 4. **P-14:** las dos aprobaciones de producción.
 
