@@ -134,9 +134,14 @@ export const T = {
     noUtilizable: 'No utilizable',
     sinRevisar: 'Sin revisar',
     revisado: (hace: Parametro) => `revisado ${hace}`,
-    // En la fila de la Lista, con la revisión caducada (docs/25 RV-106).
-    sinRevisarDesde: (hace: Parametro) => `sin revisar desde ${hace}`,
+    // En la fila de la Lista, con la revisión caducada: "sin revisar desde hace 1 año". En dos partes
+    // porque, si no cabe, se acorta la fecha y nunca "sin revisar" (docs/25 RV-106).
+    sinRevisarPalabra: 'sin revisar',
+    sinRevisarFecha: (hace: Parametro) => `desde ${hace}`,
     leyendaTamano: 'Más grande = más agua aprovechable',
+    // Solo para el lector de pantalla, detrás de la distancia de cada fila de la Lista (docs/25 RV-106).
+    desdeTi: 'desde ti',
+    desdeIncidente: 'desde el incidente',
     filtroVacio: 'Nada coincide con ese filtro.',
     sinCoberturaSolo: 'Sin cobertura',
     reintentar: 'Reintentar',

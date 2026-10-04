@@ -73,10 +73,11 @@ const pintar = () =>
     </MemoryRouter>,
   );
 
-/** El texto de cada fila de la lista, sin etiquetas. */
+/** El texto que se ve en cada fila de la lista: sin etiquetas ni lo que es solo para el lector de pantalla. */
 const filas = (html: string) =>
   [...html.matchAll(/<li>(.*?)<\/li>/gs)].map(([, f]) =>
     f
+      .replace(/<span class="sr-only">.*?<\/span>/g, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim(),
@@ -106,8 +107,9 @@ describe('Lista de puntos (docs/25 RV-106)', () => {
     const [cerca, lejos] = filas(pintar());
     expect(cerca).toMatch(/\b120 m$/);
     expect(lejos).toMatch(/\b1,1 km$/);
-    // Solo la distancia: "desde ti" ya lo dice la cabecera de la lista.
-    expect(cerca).not.toContain('desde ti');
+    // A la vista, solo la distancia; "desde ti" lo oye el lector de pantalla, no se ve.
+    expect(cerca).not.toContain(T.mapa.desdeTi);
+    expect(pintar()).toContain(`<span class="sr-only"> ${T.mapa.desdeTi}</span>`);
   });
 
   it('sin posición no hay distancia, ni un guion en su lugar', () => {
@@ -120,10 +122,13 @@ describe('Lista de puntos (docs/25 RV-106)', () => {
   it('caducada: "sin revisar desde hace N" en el naranja de aviso, no en el rojo de malo', () => {
     const html = pintar();
     const caducada = filas(html).find((f) => f.includes('BOC-0088'));
-    expect(caducada).toContain(`Regular · ${T.mapa.sinRevisarDesde(hace('2025-08-01'))}`);
+    expect(caducada).toContain(`Regular · ${T.mapa.sinRevisarPalabra} ${T.mapa.sinRevisarFecha(hace('2025-08-01'))}`);
     expect(caducada).not.toContain(`${T.mapa.sinRevisar} ·`);
     const fila = html.match(/<li>((?:(?!<\/li>).)*BOC-0088.*?)<\/li>/s)?.[1] ?? '';
     expect(fila).toContain('text-naranja-texto');
     expect(fila).not.toContain('text-rojo-700');
+    // Si no cabe, se recorta solo la fecha: "sin revisar" y el estado no se encogen.
+    expect(fila).toMatch(new RegExp(`<span class="shrink-0">${T.mapa.sinRevisarPalabra} </span>`));
+    expect(fila).toMatch(/<span class="truncate">desde hace/);
   });
 });

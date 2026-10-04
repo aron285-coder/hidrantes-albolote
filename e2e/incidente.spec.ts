@@ -305,11 +305,11 @@ test.describe('cabos sueltos del modo incidente (RV-62)', () => {
     // En ordenador Cercanos ocupa la columna (RV-60): la lista, con "Volver a la lista".
     await hoja(page).getByRole('button', { name: T.incidente.volverALista }).click();
     const lista = page.locator('aside').filter({ has: page.locator('#buscar-lista') });
-    // Lo dice la cabecera de la lista; las filas llevan solo la distancia (docs/25 RV-106).
-    await expect(lista.getByText(T.incidente.desdeIncidente).first()).toBeVisible();
+    await expect(lista.getByText(T.mapa.desdeIncidente).first()).toBeVisible();
+    await expect(lista.getByText(T.mapa.desdeTi)).toHaveCount(0);
     await page.getByRole('button', { name: T.incidente.volverACercanos }).click();
     await hoja(page).getByRole('button', { name: T.incidente.cerrarIncidente }).click();
-    await expect(lista.getByText(T.incidente.desdeIncidente)).toHaveCount(0);
+    await expect(lista.getByText(T.mapa.desdeIncidente)).toHaveCount(0);
   });
 
   test('jefatura con tramos de 25 m los ve en el primer incidente y en la medición', async ({ page }) => {

@@ -157,20 +157,25 @@ export function ListaPuntos({
                   </span>
                   {/* Estado y última revisión (FR-68). La dirección solo en la ficha (docs/25 RV-106).
                       Caducada, en el naranja de aviso: el rojo es "malo". Si no cabe, se acorta la
-                      fecha, nunca "sin revisar". */}
+                      fecha, nunca "sin revisar" ni el estado. */}
                   <span className="text-texto-suave flex min-w-0 text-[13px] whitespace-pre">
                     <span className="shrink-0">{nombreCaudal(p.caudal)} · </span>
-                    <span className={cn('truncate', p.revision_caducada && 'text-naranja-texto font-semibold')}>
-                      {p.revision_caducada
-                        ? T.mapa.sinRevisarDesde(hace(p.fecha_ultima_revision))
-                        : T.mapa.revisado(hace(p.fecha_ultima_revision))}
-                    </span>
+                    {p.revision_caducada ? (
+                      <span className="text-naranja-texto flex min-w-0 font-semibold">
+                        <span className="shrink-0">{T.mapa.sinRevisarPalabra} </span>
+                        <span className="truncate">{T.mapa.sinRevisarFecha(hace(p.fecha_ultima_revision))}</span>
+                      </span>
+                    ) : (
+                      <span className="truncate">{T.mapa.revisado(hace(p.fecha_ultima_revision))}</span>
+                    )}
                   </span>
                 </span>
-                {/* La distancia, con el formato de Cercanos; sin posición, nada (docs/25 RV-106). */}
+                {/* La distancia, con el formato de Cercanos; sin posición, nada (docs/25 RV-106). Desde
+                    dónde se mide lo dice la cabecera; el lector de pantalla lo oye en cada fila. */}
                 {pos && (
                   <span className="text-texto-suave shrink-0 text-[13px] whitespace-nowrap tabular-nums">
                     {distancia(metros(pos, p))}
+                    <span className="sr-only"> {incidente ? T.mapa.desdeIncidente : T.mapa.desdeTi}</span>
                   </span>
                 )}
               </button>
