@@ -106,7 +106,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-70 | Diff y señales | Abrir una propuesta de estado | Antes tachado, después en verde; señales de GPS y foto | FR-102, FR-104 | | |
+| AC-70 | Diff y origen | Abrir una propuesta de estado | Antes tachado, después en verde; origen de la ubicación en Datos del punto; sin chips de señales | FR-102, FR-104 | | |
 | AC-71 | Minimapa | Abrir un alta | Pin propuesto con los aprobados alrededor | FR-103 | | |
 | AC-72 | Dirección deducida | Abrir un alta con cobertura en el panel | Campo "Dirección" relleno y marcado "deducida · editable" | FR-15, FR-105 | | |
 | AC-73 | Dirección corregida | Editar el campo y aprobar | La ficha del voluntario muestra la dirección corregida | FR-15, FR-105 | | |

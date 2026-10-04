@@ -221,7 +221,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 **Actor:** administrador. **Parte de:** *Panel* → *Cola de revisión*.
 
 1. Elige una propuesta de la lista, filtrando por operación si quiere. (FR-101)
-2. Lee el detalle: minimapa (FR-103), dirección deducida en campo editable (FR-105), diff campo a campo (FR-102), señales de fiabilidad (FR-104) y foto.
+2. Lee el detalle: minimapa (FR-103), dirección deducida en campo editable (FR-105), diff campo a campo (FR-102), los datos del punto, con su origen (FR-104), y foto.
 3. Decide:
    - **Aprobar.** (FR-106)
    - **Aprobar con correcciones:** edita los valores que haga falta en el formulario que se despliega y pulsa *Guardar y aprobar*. Si el diámetro venía como "otra medida", debe fijar 70 o 100 antes. (FR-17, FR-106)

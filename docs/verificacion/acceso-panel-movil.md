@@ -59,3 +59,5 @@ falla 2 de cada 3 veces **también en `develop` sin este cambio**: inestable y a
 **Pendiente del desarrollador (docs/26 §3):** en el Android, con la app instalada y la sesión de
 Google, tocar «Jefatura» y comprobar que abre el panel, y que «atrás» vuelve a la app. Anotar aquí
 el resultado.
+
+**Hecho (docs/28 §6):** el desarrollador lo probó en el Android con la app instalada: «Jefatura» abre el panel. El documento no dice nada del botón «atrás»; lo cubre el e2e (caso 4).
