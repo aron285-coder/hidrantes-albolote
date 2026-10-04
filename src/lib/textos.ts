@@ -610,6 +610,9 @@ export const T = {
     desactualizada: (cuando: Parametro) =>
       `El diff está calculado sobre un estado que ya no existe: el punto cambió ${cuando}. Se pide confirmación expresa en lugar del botón normal.`,
     posibleDuplicado: 'Posible duplicado: compara antes de decidir. En ámbar, lo que difiere.',
+    // docs/28 RV-115 (DEC-166): el duplicado que no está en el inventario cargado, sin chip.
+    duplicadoSinComparar: (codigo: Parametro, distancia: Parametro) =>
+      `Posible duplicado de ${codigo} · a ${distancia}. No está en el inventario cargado: no se puede comparar ni fusionar.`,
     colaVacia: 'No queda ninguna propuesta pendiente. Buen trabajo.',
     deducidaEditable: 'deducida · editable',
     delPunto: 'del punto',
@@ -707,6 +710,7 @@ export const T = {
     sinDato: '—',
     fotos: 'Fotos',
     fotosConActual: 'la actual del punto y las nuevas de la propuesta',
+    sinFotoSitio: 'llegó sin foto del sitio (versión anterior de la app)',
     noTraeNuevas: 'no trae nuevas',
     sinFotos: 'Ni la propuesta ni el punto tienen fotos.',
     fotoNoCarga: 'No se ha podido cargar esta foto',

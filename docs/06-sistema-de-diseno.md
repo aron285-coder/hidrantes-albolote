@@ -600,6 +600,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `Sin motivo no se puede rechazar.` ·
 `El diff está calculado sobre un estado que ya no existe: el punto cambió [ayer]. Se pide confirmación expresa en lugar del botón normal.` ·
 `Posible duplicado: compara antes de decidir. En ámbar, lo que difiere.` ·
+`Posible duplicado de [codigo] · a [distancia]. No está en el inventario cargado: no se puede comparar ni fusionar.` ·
 `No queda ninguna propuesta pendiente. Buen trabajo.` · `deducida · editable` · `del punto`.
 
 **Panel: detalle de la cola (docs/25 RV-110, DEC-158).** `Datos del punto` · `1 cambio` ·
@@ -608,6 +609,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `Origen de la ubicación` · `Propuesto por` · `se asigna al aprobar` · `se fija al aprobar` ·
 `GPS · ±[4] m` · `Pin puesto a mano` · `la que ya tiene el punto` · `—` · `Fotos` ·
 `la actual del punto y las nuevas de la propuesta` · `no trae nuevas` ·
+`llegó sin foto del sitio (versión anterior de la app)` ·
 `Ni la propuesta ni el punto tienen fotos.` · `No se ha podido cargar esta foto` · `conexión` · `sitio` · `Foto actual del punto` ·
 `Nueva · [conexión]` · `Foto actual · [sitio]` · `[Nueva · sitio] · toca para ampliar` · `Mapa` ·
 `Satélite` · `Capa del mapa` · `Abrir en grande` · `Cerrar el mapa grande` · `posición de ahora` ·

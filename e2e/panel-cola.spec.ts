@@ -345,6 +345,10 @@ test('desactualizada: "Confirmar y aprobar" con confirmación expresa (FR-108)',
   const detalle = page.getByRole('article');
   await expect(detalle.getByText(T.panelCola.desactualizada('hace 20 h'))).toBeVisible();
   await expect(detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toHaveCount(0);
+  // Al corregir, los botones se van y el aviso sigue encima del formulario (docs/28 RV-115).
+  await detalle.getByRole('button', { name: T.panelCola.aprobarConCorrecciones }).click();
+  await expect(detalle.getByText(T.panelCola.desactualizada('hace 20 h'))).toBeVisible();
+  await detalle.getByRole('button', { name: T.panelCola.cancelar }).click();
   await detalle.getByRole('button', { name: T.panelCola.confirmarYAprobar }).click();
   await expect
     .poll(() => llamadaA(llamadas, 'fn_aprobar'))
@@ -439,11 +443,12 @@ test('alta con las dos fotos y alta sin foto del sitio (RV-103)', async ({ page 
   const detalle = page.getByRole('article');
   await expect(detalle.locator('figcaption')).toHaveText([T.formulario.conexion, T.formulario.sitio]);
   await expect(detalle.locator('figure img')).toHaveCount(2);
+  await expect(detalle.getByText(T.panelCola.sinFotoSitio)).toHaveCount(0);
 
   await abrir(page, /Una Ruiz/);
   await expect(detalle.locator('figcaption')).toHaveText([T.formulario.conexion]);
   await expect(detalle.locator('figure img')).toHaveCount(1);
-  await expect(detalle.getByText('sin foto del sitio')).toHaveCount(0);
+  await expect(detalle.getByRole('heading', { name: T.panelCola.fotos })).toContainText(T.panelCola.sinFotoSitio);
 });
 
 // ---------- docs/25 RV-110: mapa arriba, datos completos y fotos, a todo el ancho ----------
@@ -629,13 +634,7 @@ test('el detalle sin señales y el ⚠ de la lista solo por lo que el detalle av
   const detalle = page.getByRole('article');
   await expect(detalle.getByRole('heading', { name: T.panelCola.datosDelPunto })).toHaveText(T.panelCola.datosDelPunto);
   await expect(detalle.getByRole('list', { name: 'Señales de fiabilidad' })).toHaveCount(0);
-  for (const t of [
-    'La foto se hizo',
-    'Pin puesto a mano ·',
-    'Con foto',
-    'sin foto del sitio',
-    'datos del voluntario',
-  ]) {
+  for (const t of ['La foto se hizo', 'Pin puesto a mano ·', 'Con foto', 'datos del voluntario']) {
     await expect(detalle.getByText(t)).toHaveCount(0);
   }
   // Lo que decía el chip del pin sigue en "Origen de la ubicación".

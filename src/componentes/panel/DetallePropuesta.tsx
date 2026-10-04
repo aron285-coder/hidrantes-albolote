@@ -150,11 +150,7 @@ export function DetallePropuesta({
               <h2 className="font-titulo text-texto mr-3 inline text-[22px] leading-tight font-semibold">{titulo}</h2>
             )}
             <span className="text-texto-suave text-[13.5px]">
-              {T.panelCola.propuestoPor(
-                autor(p),
-                `${hace(p.creada_en)} (${fechaCorta(p.creada_en)})`,
-                p.nucleo ?? (p.fuera_de_zona ? T.panelCola.fueraDeZona : T.panelCola.sinNucleo),
-              )}
+              {T.panelCola.propuestoPor(autor(p), `${hace(p.creada_en)} (${fechaCorta(p.creada_en)})`, dondeEsta(p))}
             </span>
           </header>
 
@@ -166,6 +162,15 @@ export function DetallePropuesta({
           />
 
           {comparar && <Comparacion p={p} existente={duplicado} direccion={direccion} />}
+          {/* El duplicado no está en el inventario cargado: no se puede comparar ni fusionar, pero se dice. */}
+          {pendiente && p.operacion === 'alta' && p.duplicado_de && !duplicado && (
+            <p className="border-oro-600 bg-oro-100 text-ambar-700 rounded-campo border px-3 py-2 text-[13px]">
+              {T.panelCola.duplicadoSinComparar(
+                p.codigo_duplicado ?? '—',
+                p.distancia_duplicado_m == null ? '—' : distancia(p.distancia_duplicado_m),
+              )}
+            </p>
+          )}
 
           <DatosDelPunto
             campos={ficha.campos}
@@ -178,6 +183,7 @@ export function DetallePropuesta({
           <div ref={formulario} className="scroll-mb-28">
             {pendiente ? (
               <>
+                {p.desactualizada && (modo === 'corregir' || modo === 'fusionar') && <AvisoDesactualizada p={p} />}
                 {modo === 'corregir' && (
                   <FormularioCorrecciones
                     p={p}
@@ -234,11 +240,7 @@ export function DetallePropuesta({
             !pantalla && 'sticky bottom-0',
           )}
         >
-          {p.desactualizada && (
-            <p className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo mb-2 border px-3 py-2 text-[13px]">
-              {T.panelCola.desactualizada(p.punto_actualizado_en ? hace(p.punto_actualizado_en) : '—')}
-            </p>
-          )}
+          {p.desactualizada && <AvisoDesactualizada p={p} />}
           {bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>}
           <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
             <Boton
@@ -412,6 +414,8 @@ function Fotos({ p, punto }: { p: PropuestaPanel; punto?: Punto }) {
             {nuevas ? T.panelCola.fotosConActual : T.panelCola.noTraeNuevas}
           </small>
         )}
+        {/* La mandó la versión anterior de la app (docs/24 RV-103): se dice aquí, no con un chip (DEC-166). */}
+        {p.sin_foto_sitio && <small className="text-texto-suave text-[13px]">{T.panelCola.sinFotoSitio}</small>}
       </h3>
       {fotos.length ? (
         <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${fotos.length}, minmax(0, 1fr))` }}>
@@ -423,6 +427,21 @@ function Fotos({ p, punto }: { p: PropuestaPanel; punto?: Punto }) {
         <p className="text-texto-suave text-[13px]">{T.panelCola.sinFotos}</p>
       )}
     </section>
+  );
+}
+
+/** Núcleo y, si lo está, "Fuera de zona", también cuando hay núcleo (DEC-166: ya no hay chip). */
+function dondeEsta(p: PropuestaPanel): string {
+  if (!p.fuera_de_zona) return p.nucleo ?? T.panelCola.sinNucleo;
+  return p.nucleo ? `${p.nucleo} · ${T.panelCola.fueraDeZona}` : T.panelCola.fueraDeZona;
+}
+
+/** El punto cambió después de la propuesta (FR-108): encima de los botones y de Corregir y Fusionar. */
+function AvisoDesactualizada({ p }: { p: PropuestaPanel }) {
+  return (
+    <p className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo mb-2 border px-3 py-2 text-[13px]">
+      {T.panelCola.desactualizada(p.punto_actualizado_en ? hace(p.punto_actualizado_en) : '—')}
+    </p>
   );
 }
 

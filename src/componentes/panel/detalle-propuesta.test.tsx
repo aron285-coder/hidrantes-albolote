@@ -181,9 +181,40 @@ describe('DetallePropuesta sin señales (RV-115)', () => {
   it.each(['alta', 'revision', 'ubicacion'] as Operacion[])('%s: sin la lista de señales ni sus textos', (op) => {
     const html = pintar(propuesta(op, conTodo));
     expect(html).not.toContain('aria-label="Señales de fiabilidad"');
-    for (const t of ['Con foto', 'La foto se hizo', 'Pin puesto a mano ·', 'Revisión anterior', 'sin foto del sitio']) {
+    for (const t of [
+      'Con foto',
+      'La foto se hizo',
+      'Pin puesto a mano ·',
+      'Revisión anterior',
+      '⚠ sin foto del sitio',
+    ]) {
       expect(html).not.toContain(t);
     }
+  });
+
+  // Lo que decían los chips sigue en otro sitio del detalle (la tabla de docs/28 §1).
+  it('sin foto del sitio: una línea en el título de "Fotos", no un chip', () => {
+    const html = pintar(propuesta('alta', conTodo));
+    const i = html.indexOf('id="fotos-propuesta"');
+    expect(html.slice(i, html.indexOf('</h3>', i))).toContain(T.panelCola.sinFotoSitio);
+    expect(pintar(propuesta('alta'))).not.toContain(T.panelCola.sinFotoSitio);
+  });
+
+  it('fuera de zona se ve en la cabecera aunque la propuesta tenga núcleo', () => {
+    const html = pintar(propuesta('ubicacion', { fuera_de_zona: true, nucleo: 'Albolote' }));
+    expect(html).toContain(`Albolote · ${T.panelCola.fueraDeZona}`);
+    expect(pintar(propuesta('ubicacion', { fuera_de_zona: true, nucleo: null }))).toContain(
+      ` · ${T.panelCola.fueraDeZona}</span>`,
+    );
+    expect(pintar(propuesta('ubicacion'))).not.toContain(T.panelCola.fueraDeZona);
+  });
+
+  it('un duplicado que no está en el inventario cargado se dice con su código y distancia', () => {
+    const html = pintar(
+      propuesta('alta', { duplicado_de: 'no-cargado', codigo_duplicado: 'BOC-0088', distancia_duplicado_m: 8 }),
+    );
+    expect(html).toContain(T.panelCola.duplicadoSinComparar('BOC-0088', '8 m'));
+    expect(html).not.toContain(T.panelCola.posibleDuplicado);
   });
 
   it('en un alta, solo el título "Datos del punto", sin "datos del voluntario" ni "deduce el sistema"', () => {
