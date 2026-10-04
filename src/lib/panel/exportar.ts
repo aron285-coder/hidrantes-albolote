@@ -105,7 +105,8 @@ export function geojson(filas: FilaExportada[]): string {
           tipo: f.tipo,
           diametro_mm: f.diametro_mm,
           caudal: f.caudal,
-          racor: f.racor,
+          // En pantalla y en el archivo, «tipo de enganche»; el dato sigue siendo racor (DEC-163).
+          tipo_enganche: f.racor,
           foto: urlFoto(f.foto_path ?? null),
           foto_sitio: urlFoto(f.foto_sitio_path ?? null),
           direccion: f.direccion,

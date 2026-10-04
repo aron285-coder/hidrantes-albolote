@@ -75,3 +75,21 @@ describe('textos quitados de las pantallas de campo (docs/24 RV-99)', () => {
     ]);
   });
 });
+
+// docs/25 RV-112 (DEC-163): en una boca de riego el campo es el «tipo de enganche». Las claves
+// siguen llamándose racor (contrato con la app anterior, 04 §12); lo que se lee, no.
+describe('tipo de enganche, no racor (docs/25 RV-112)', () => {
+  it('ningún texto visible dice "racor"', () => {
+    const conRacor = hojas(T).filter(([, texto]) => /racor/i.test(texto));
+    expect(conRacor).toEqual([]);
+  });
+
+  it('los textos del enganche', () => {
+    expect(T.formulario.racor).toBe('Tipo de enganche');
+    expect(T.avisosFormulario.eligeRacor).toBe('Elige el tipo de enganche');
+    expect(T.ficha.racor('Granada')).toBe('Enganche Granada');
+    expect(T.panelCola.campoRacor).toBe('Tipo de enganche');
+    expect(T.operaciones.corregirDatosDetalle).toBe('Diámetro, tipo de enganche o descripción mal anotados');
+    expect(T.panelInventario.enganche('Granada')).toBe('enganche Granada');
+  });
+});

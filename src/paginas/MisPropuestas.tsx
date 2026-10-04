@@ -31,7 +31,7 @@ const ESTADOS: Record<EstadoPropuesta | 'sin_enviar', [string, string]> = {
   retirada_por_autor: [T.misPropuestas.retiradaPorTi, 'bg-linea text-texto'],
 };
 
-/** Correcciones de jefatura en español: "Diámetro: 70 mm · Racor: Granada" (UI-20, RV-23). */
+/** Correcciones de jefatura en español: "Diámetro: 70 mm · Tipo de enganche: Granada" (UI-20, RV-23). */
 const textoCorrecciones = (c: Record<string, unknown> | null) => textoCambios(c);
 
 function Tarjeta({

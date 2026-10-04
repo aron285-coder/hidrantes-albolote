@@ -21,7 +21,8 @@ import type { Caudal, Punto, Racor } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 
 const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
-const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
+// Barcelona, Granada, Otro: en este orden (docs/25 RV-112, DEC-163).
+const RACORES: Racor[] = ['barcelona', 'granada', 'otro'];
 
 const campo = 'border-linea rounded-campo min-h-9 w-full border px-2';
 const etiqueta = 'text-texto-suave text-[13px]';

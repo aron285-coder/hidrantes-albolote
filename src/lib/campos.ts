@@ -52,7 +52,7 @@ export function valorDe(campo: string, v: unknown): string {
   }
 }
 
-/** "Diámetro: 70 mm · Racor: Granada". Lo que no es un campo del punto (ids internos) no sale. */
+/** "Diámetro: 70 mm · Tipo de enganche: Granada". Lo que no es un campo del punto (ids internos) no sale. */
 export function textoCambios(c: Record<string, unknown> | null | undefined): string | null {
   const partes = Object.entries(c ?? {})
     .filter(([k]) => k in ETIQUETA_CAMPO)

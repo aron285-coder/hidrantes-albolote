@@ -65,7 +65,7 @@ export function HojaDeCampo({ grupos, alCerrar }: { grupos: GrupoCaducadas[]; al
                     </td>
                     <td className="border border-black px-1.5 py-1">
                       {nombreTipo[p.tipo]}
-                      {p.racor ? ` · ${nombreRacor(p.racor)}` : ''}
+                      {p.racor ? ` · ${T.panelInventario.enganche(nombreRacor(p.racor))}` : ''}
                     </td>
                     <td className="border border-black px-1.5 py-1 whitespace-nowrap">{T.formato.mm(p.diametro_mm)}</td>
                     <td className="border border-black px-1.5 py-1 whitespace-nowrap">

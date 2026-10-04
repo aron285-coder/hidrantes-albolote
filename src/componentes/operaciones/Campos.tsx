@@ -87,7 +87,8 @@ export function PildorasCaudal({
   );
 }
 
-const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
+// Barcelona, Granada, Otro: en este orden (docs/25 RV-112, DEC-163).
+const RACORES: Racor[] = ['barcelona', 'granada', 'otro'];
 
 /**
  * La foto de 48 × 48 encima del nombre. Mientras no se sabe si existe, se pide escondida; si no
@@ -114,7 +115,7 @@ function FotoRacor({ racor }: { racor: RacorConFoto }) {
   );
 }
 
-/** Racor de la boca de riego (FR-20): tres tarjetas; Granada y Barcelona con su foto de referencia. */
+/** Tipo de enganche de la boca de riego (FR-20; el dato es «racor»): tres tarjetas; Barcelona y Granada con su foto de referencia. */
 export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: (r: Racor) => void }) {
   return (
     <div role="radiogroup" aria-label={T.formulario.racor} className="grid grid-cols-3 gap-2">

@@ -79,7 +79,17 @@ describe('exportación (FR-160, FL-32)', () => {
     const g = JSON.parse(geojson(FILAS));
     expect(g.type).toBe('FeatureCollection');
     expect(g.features[0].geometry.coordinates).toEqual([-3.6569, 37.2308]);
-    expect(g.features[1].properties).toMatchObject({ codigo: 'BOC-0002', racor: 'granada', nucleo: null });
+    expect(g.features[1].properties).toMatchObject({ codigo: 'BOC-0002', tipo_enganche: 'granada', nucleo: null });
+  });
+
+  // docs/25 RV-112 (DEC-163): la columna es el tipo de enganche; el dato sigue siendo racor.
+  it('la columna del enganche se llama "Tipo de enganche" y en GeoJSON tipo_enganche', () => {
+    expect(CABECERAS[4]).toBe('Tipo de enganche');
+    expect(CABECERAS.some((c) => /racor/i.test(c))).toBe(false);
+    expect(celdas(FILAS[1])[4]).toBe('Granada');
+    const propiedades = JSON.parse(geojson(FILAS)).features[1].properties;
+    expect(propiedades.tipo_enganche).toBe('granada');
+    expect('racor' in propiedades).toBe(false);
   });
 
   it('el .xlsx es un zip con las partes que Excel espera y los números como números', () => {
