@@ -644,28 +644,49 @@ test('el detalle sin señales y el ⚠ de la lista solo por lo que el detalle av
   await expect(detalle.getByRole('heading', { name: T.panelCola.datosDelPunto })).toContainText(T.panelCola.restoIgual);
 });
 
-// Las reglas de accesibilidad.spec.ts: axe del detalle de un alta y de una revisión, en los dos modos.
+/** axe del detalle abierto, con las reglas de accesibilidad.spec.ts. */
+async function auditarDetalle(page: Page, contexto: string) {
+  await page.waitForLoadState('networkidle');
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .include('article')
+    .exclude('.leaflet-marker-pane')
+    .analyze();
+  const resumen = violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`));
+  expect(resumen, contexto).toEqual([]);
+}
+
+// axe del detalle de un alta, una revisión, un cambio de estado y un alta con duplicado, en los dos
+// modos. Sin exclusiones: en oscuro, el texto ámbar, rojo y verde usa los tokens -texto (RV-117).
 for (const tema of ['claro', 'oscuro'] as const) {
   test(`axe del detalle de la cola · ${tema} (RV-115)`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: tema === 'oscuro' ? 'dark' : 'light' });
     await conFotos(page);
     await prepararPanel(page, [PIN_A_MANO]);
     await page.goto('/admin/cola');
-    for (const quien of [/Prueba Cinco/, new RegExp(P4.codigo), new RegExp(P0.codigo)]) {
+    for (const quien of [/Prueba Cinco/, new RegExp(P4.codigo), new RegExp(P0.codigo), /Javier Ortiz/]) {
       await abrir(page, quien);
       await expect(page.getByRole('article').getByRole('heading').first()).toBeVisible();
-      await page.waitForLoadState('networkidle');
-      const axe = new AxeBuilder({ page })
-        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-        .include('article')
-        .exclude('.leaflet-marker-pane');
-      // En oscuro, --rojo-700, --ambar-700 y --verde-600 no cambian: el texto con ellos sobre fondo
-      // oscuro lo arregla RV-117 (docs/28 §3), que quita esta exclusión.
-      if (tema === 'oscuro') axe.exclude('.text-rojo-700').exclude('.text-ambar-700').exclude('.text-verde-600');
-      const { violations } = await axe.analyze();
-      const resumen = violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`));
-      expect(resumen, `${quien} · ${tema}`).toEqual([]);
+      await auditarDetalle(page, `${quien} · ${tema}`);
     }
+  });
+
+  // docs/28 RV-117: Fusionar, Rechazar, la comparación y el aviso de motivo, también en oscuro.
+  test(`axe de fusionar y rechazar · ${tema} (RV-117)`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: tema === 'oscuro' ? 'dark' : 'light' });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await abrir(page, /Javier Ortiz/);
+    const detalle = page.getByRole('article');
+    await expect(detalle.getByText(T.panelCola.posibleDuplicado)).toBeVisible();
+    await detalle.getByRole('button', { name: T.panelCola.fusionarCon(P8.codigo) }).click();
+    await expect(detalle.getByRole('button', { name: T.panelCola.fusionar, exact: true })).toBeVisible();
+    await auditarDetalle(page, `fusionar · ${tema}`);
+    await detalle.getByRole('button', { name: T.panelCola.cancelar }).click();
+    await detalle.getByRole('button', { name: T.panelCola.rechazar }).click();
+    await detalle.getByRole('button', { name: T.panelCola.confirmarRechazo }).click();
+    await expect(detalle.getByText(T.panelCola.sinMotivo)).toBeVisible();
+    await auditarDetalle(page, `rechazar · ${tema}`);
   });
 }
 

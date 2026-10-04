@@ -170,7 +170,7 @@ export default function Inventario() {
     />
   );
   const revisionDe = (p: Punto) => (
-    <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-700 font-semibold')}>
+    <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-texto font-semibold')}>
       {hace(p.fecha_ultima_revision)}
       <span className="text-texto-suave font-normal"> · {fechaCorta(p.fecha_ultima_revision)}</span>
     </span>
@@ -184,7 +184,7 @@ export default function Inventario() {
           onClick={() => setDialogo({ punto: p, que })}
           className={cn(
             'min-h-8 px-2 whitespace-nowrap underline',
-            que === 'borrar' && 'text-rojo-700 ml-3',
+            que === 'borrar' && 'text-rojo-texto ml-3',
             que === 'historial' && 'text-texto-suave',
           )}
         >
