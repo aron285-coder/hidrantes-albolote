@@ -660,15 +660,20 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-162 · Los mockups definitivos de una especificación van en `docs/mockups/`
+- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-111).
+- **Decisión:** los mockups HTML que una especificación elige como referencia entran en el repositorio en `docs/mockups/NN-nombre.html`, con el número de la especificación. Antes se revisan con `detectar-secretos` y se cambia cualquier nombre de persona por «Voluntario de prueba» (FR-27, repositorio público, DEC-053). Los apartados superados se marcan dentro del archivo. Los mockups descartados no entran: se borran o se guardan fuera del repositorio.
+- **Afecta a:** 06 §5; `docs/INDICE.md`.
+
 ### DEC-157 · Cada coordenada lleva el nombre de su sistema: WGS84 y ETRS89 / UTM huso 30N
 - **Fecha:** 4 oct 2026 (desarrollador, `docs/25` RV-109) · **Estado:** vigente.
 - **Contexto:** la ficha y *¿Qué hay aquí?* decían "Decimal" y "UTM ETRS89 · huso 30", y el texto de *Compartir* juntaba las dos en una línea con "(ETRS89)" al final. Quien recibe las coordenadas (bomberos, el 112, otro grupo) tiene que saber en qué sistema están sin preguntar, y "30S" se podía leer como "huso 30 sur".
 - **Decisión:**
-  1. Las etiquetas son **"WGS84 · grados decimales"** (`37.230500, -3.656000`, 6 decimales) y **"ETRS89 · UTM huso 30N"** (`30S 445175 4125393`, a metro), en la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte. Cada línea, con su botón de copiar, como hasta ahora.
+  1. Las etiquetas son **"WGS84 · grados decimales"** (`37.230500, -3.656000`, 6 decimales) y **"ETRS89 · UTM huso 30N"** (`30S 441808 4120645`, el mismo sitio, a metro), en la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte. Cada línea, con su botón de copiar, como hasta ahora.
   2. **Compartir** (FR-75) lleva una línea por sistema con su nombre delante: `WGS84 · grados decimales: …` y `ETRS89 · UTM huso 30N: …`. Fuera del huso 30 solo va la línea WGS84.
   3. La conversión sigue igual: ETRS89 / UTM 30N (EPSG:25830, GRS80, serie de Krüger), con ETRS89 y WGS84 tratados como iguales (difieren en menos de un metro). La **S** de `30S` es la banda de latitud de MGRS (32° a 40° N), no "sur"; lo dice una nota en 06, Apéndice A.
 - **Comprobación:** un caso conocido en `coordenadas.test.ts`, la Plaza de España de Albolote (OpenStreetMap), con la UTM calculada aparte por las fórmulas de Snyder (USGS PP 1395), ±1 m.
-- **Descartado:** dejar "Decimal" sin sistema (ambiguo para quien lo recibe fuera de la app); quitar la letra de banda (`30 445175 4125393`): cambiaría el formato que ya se copia y se pega en la búsqueda; la nota de 06 basta para que nadie la lea como "sur".
+- **Descartado:** dejar "Decimal" sin sistema (ambiguo para quien lo recibe fuera de la app); quitar la letra de banda (`30 441808 4120645`): cambiaría el formato que ya se copia y se pega en la búsqueda; la nota de 06 basta para que nadie la lea como "sur".
 - **Afecta a:** 01 FR-72 y FR-75 (lo actualiza Ops, #440); 06 Apéndice A; `src/lib/textos.ts` (`coordenadas`, `compartir`).
 
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
