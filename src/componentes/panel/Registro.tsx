@@ -1,15 +1,27 @@
 import { useMemo, useState } from 'react';
+import { Dato, FilaApilada, FilasApiladas } from './filas-apiladas';
 import { ErrorCarga } from './piezas';
 import { usePanel } from './usar-panel';
+import { useAncho } from '@/hooks/ancho';
 import { useCarga } from '@/hooks/carga';
 import { fechaCorta, hace } from '@/lib/formato';
 import { NOMBRE_ACCION, POR_PAGINA, cargarRegistro, nombreAccion, paginas } from '@/lib/panel/inventario';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
+const COLUMNAS = [
+  T.panelRegistro.colMomento,
+  T.panelRegistro.colActor,
+  T.panelRegistro.colAccion,
+  T.panelRegistro.colPunto,
+  T.panelRegistro.colDetalle,
+];
+
 /** Registro de auditoría (FR-123, FL-26): solo lectura, con filtro por acción y paginación. */
 export default function Registro() {
   const { busqueda } = usePanel();
+  // Por debajo de md, filas apiladas: a 412 px la tabla se salía por la derecha (docs/28 RV-116).
+  const ancha = useAncho() !== 'movil';
   const [accion, setAccion] = useState('');
   const [n, setN] = useState(0);
   const carga = useCarga(() => cargarRegistro(accion, busqueda, n), [accion, busqueda, n]);
@@ -52,44 +64,66 @@ export default function Registro() {
         </p>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr>
-                {[
-                  T.panelRegistro.colMomento,
-                  T.panelRegistro.colActor,
-                  T.panelRegistro.colAccion,
-                  T.panelRegistro.colPunto,
-                  T.panelRegistro.colDetalle,
-                ].map((c) => (
-                  <th
-                    key={c}
-                    scope="col"
-                    className="border-barra bg-fondo font-titulo text-texto-suave sticky top-0 border-b-2 px-3 py-2 text-left font-semibold"
-                  >
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+          {!ancha ? (
+            <FilasApiladas nombre={T.panelCola.registro} columnas={COLUMNAS}>
               {filas.map((e) => (
-                <tr key={e.id} className="border-linea bg-papel border-b">
-                  <td className="px-3 py-1.5 whitespace-nowrap">
+                <FilaApilada key={e.id}>
+                  <div role="cell">
                     {fechaCorta(e.momento)}
                     <span className="text-texto-suave"> · {hace(e.momento)}</span>
-                  </td>
-                  <td className="px-3 py-1.5">
+                  </div>
+                  <div role="cell" className="[overflow-wrap:anywhere]">
                     {e.actor}
                     {e.es_admin && <span className="text-texto-suave"> · {T.navegacion.jefatura}</span>}
-                  </td>
-                  <td className="px-3 py-1.5 font-semibold">{nombreAccion(e.accion)}</td>
-                  <td className="font-datos px-3 py-1.5 whitespace-nowrap">{e.codigo ?? '—'}</td>
-                  <td className="text-texto-suave px-3 py-1.5">{e.resumen}</td>
-                </tr>
+                  </div>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <div role="cell" className="font-semibold">
+                      {nombreAccion(e.accion)}
+                    </div>
+                    <Dato etiqueta={T.panelRegistro.colPunto}>
+                      <span className="font-datos">{e.codigo ?? '—'}</span>
+                    </Dato>
+                  </div>
+                  <div role="cell" className="text-texto-suave [overflow-wrap:anywhere]">
+                    {e.resumen}
+                  </div>
+                </FilaApilada>
               ))}
-            </tbody>
-          </table>
+            </FilasApiladas>
+          ) : (
+            <table className="w-full text-[13px]">
+              <thead>
+                <tr>
+                  {COLUMNAS.map((c) => (
+                    <th
+                      key={c}
+                      scope="col"
+                      className="border-barra bg-fondo font-titulo text-texto-suave sticky top-0 border-b-2 px-3 py-2 text-left font-semibold"
+                    >
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map((e) => (
+                  <tr key={e.id} className="border-linea bg-papel border-b">
+                    <td className="px-3 py-1.5 whitespace-nowrap">
+                      {fechaCorta(e.momento)}
+                      <span className="text-texto-suave"> · {hace(e.momento)}</span>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      {e.actor}
+                      {e.es_admin && <span className="text-texto-suave"> · {T.navegacion.jefatura}</span>}
+                    </td>
+                    <td className="px-3 py-1.5 font-semibold">{nombreAccion(e.accion)}</td>
+                    <td className="font-datos px-3 py-1.5 whitespace-nowrap">{e.codigo ?? '—'}</td>
+                    <td className="text-texto-suave px-3 py-1.5">{e.resumen}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           {paginasTotales > 1 && (
             <nav aria-label={T.panelInventario.paginas} className="flex flex-wrap gap-1 px-3 py-2">
