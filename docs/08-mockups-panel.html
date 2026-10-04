@@ -18,14 +18,14 @@
     --naranja-100:#FBE2D2;
     --oro-600:#B08A2E;
     --oro-100:#F3E6C4;
-    --verde-600:#2E7D4F;
+    --verde-600:#237E51;
     --verde-100:#DCEEE1;
     --amarillo-500:#F9A900;
     --amarillo-800:#6B4E00;
     --amarillo-100:#FFF1C2;
     --ambar-700:#7F5C07;
     --ambar-100:#FBEDCB;
-    --rojo-700:#9C2B1E;
+    --rojo-700:#9B2423;
     --rojo-100:#FBE0DB;
     --gris-700:#40453D;
     --gris-100:#E5E4DC;
@@ -591,7 +591,7 @@
   var ADMIN='jefatura@albolote-pc.es', HOY=new Date(2026,8,17,10,30);
   var OPS={alta:['Alta','lbl-alta'],revision:['Revisión','lbl-rev'],estado:['Estado','lbl-estado'],datos:['Datos','lbl-datos'],ubicacion:['Ubicación','lbl-datos'],retirada:['Retirada','lbl-ret']};
   var NOM={bueno:'Bueno',regular:'Regular',malo:'Malo',no_funciona:'No funciona'}, CH={bueno:'chip-verde',regular:'chip-ambar',malo:'chip-rojo',no_funciona:'chip-gris'}, DOT={bueno:'dot-verde',regular:'dot-ambar',malo:'dot-rojo',no_funciona:'dot-gris'};
-  var COL={bueno:'#2E7D4F',regular:'#A85300',malo:'#9C2B1E',no_funciona:'#40453D'};
+  var COL={bueno:'#237E51',regular:'#F9A900',malo:'#9B2423',no_funciona:'#40453D'};
   var config={meses_revision:12,radio_duplicado_m:25,dias_papelera:30,buffer_zona_m:400,escala_radios:'11 · 9 · 7 · 5,5 · 5',max_subidas_dispositivo_dia:40,codigo:'482917',codigo_cambiado:'2 sep 2026',codigo_por:'jefe@albolote-pc.es',dispositivos:61,ultimo_respaldo:'hace 2 días · restaurado con éxito el 3 sep',storage_mb:112,version_zona:'14 jul 2026',version_mapabase:'jul 2026 · 12 MB'};
   var nucleos=['Albolote','El Chaparral','Pol. Ind. Juncaril','Cortijo del Aire','Parque del Cubillas','Pretel','Loma Verde','Calicasas'];
   var d=function(dias){ return new Date(HOY.getTime()-dias*86400000) };
@@ -668,7 +668,7 @@
   function flash(t,panel){ var f=document.createElement('div'); f.className='flash'; f.textContent=t; var c=$('[data-panel="'+(panel||'cola')+'"]'); c.insertBefore(f,c.children[1]); setTimeout(function(){f.remove()},3400) }
   function radio(dm,c){ var cap={100:3,70:2,45:1}[dm]||2, f={bueno:1,regular:.66,malo:.33,no_funciona:0}[c], p=cap*f; return p>=3?11:p>=1.9?9:p>=.9?7:p>0?5.5:5 }
   function marcador(p,x,y,op){ op=op||{}; var r=radio(p.d,p.caudal)*(op.k||1), nf=p.caudal==='no_funciona', dash=caducado(p)?' stroke-dasharray="3 2.5"':'', s='';
-    if(p.tipo==='hidrante') s+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+COL[p.caudal]+'" stroke="#fff" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>'; else s+='<rect x="'+(x-r)+'" y="'+(y-r)+'" width="'+(2*r)+'" height="'+(2*r)+'" rx="3" fill="'+COL[p.caudal]+'" stroke="#fff" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>';
+    if(p.tipo==='hidrante') s+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+COL[p.caudal]+'" stroke="'+(p.caudal==='regular'?'#563E00':'#fff')+'" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>'; else s+='<rect x="'+(x-r)+'" y="'+(y-r)+'" width="'+(2*r)+'" height="'+(2*r)+'" rx="3" fill="'+COL[p.caudal]+'" stroke="'+(p.caudal==='regular'?'#563E00':'#fff')+'" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>';
     if(nf) s+='<line x1="'+(x-r)+'" y1="'+(y+r)+'" x2="'+(x+r)+'" y2="'+(y-r)+'" stroke="#fff" stroke-width="2"/>'; return s }
   function fondo(w,h){ return '<rect width="'+w+'" height="'+h+'" fill="#EFECE3"/><g fill="#E2DED3"><rect x="30" y="24" width="170" height="60" rx="2"/><rect x="240" y="24" width="140" height="60" rx="2"/><rect x="430" y="24" width="200" height="60" rx="2"/><rect x="30" y="126" width="170" height="66" rx="2"/><rect x="240" y="126" width="140" height="66" rx="2"/><rect x="30" y="232" width="170" height="46" rx="2"/><rect x="240" y="232" width="140" height="46" rx="2"/><rect x="430" y="232" width="200" height="46" rx="2"/></g><rect x="430" y="126" width="200" height="66" rx="4" fill="#D3E0C6"/><rect x="665" y="0" width="60" height="'+h+'" fill="#E9EDE2"/><g stroke="#fff" stroke-linecap="round" fill="none"><path d="M0 100 H700" stroke-width="15"/><path d="M0 210 H700" stroke-width="11"/><path d="M220 0 V290" stroke-width="12"/><path d="M405 0 V290" stroke-width="15"/></g><circle cx="405" cy="100" r="21" fill="none" stroke="#fff" stroke-width="13"/><circle cx="405" cy="100" r="12" fill="#D3E0C6"/><path d="M660 -4 L668 300" stroke="#28517F" stroke-width="2" stroke-dasharray="9 7" opacity=".5"/><g font-family="Source Sans 3, sans-serif" font-size="10" fill="#8A9090"><text x="34" y="96">Av. de Andalucía</text><text x="34" y="206">C/ Real</text><text x="446" y="186">Parque del Cubillas</text><text x="672" y="20">fuera</text></g>' }
 
@@ -689,7 +689,7 @@
   function minimapa(p){ var x=p.x||300, y=p.y||150, ex=p.dup?punto(p.dup):null, orig=p.op==='ubicacion'&&p.pid?punto(p.pid):null;
     var s='<div class="minimap" style="height:70px;"><svg viewBox="'+(x-150)+' '+(y-35)+' 300 70" width="100%" height="70" preserveAspectRatio="xMidYMid slice">'+fondo(700,290)+activos().filter(function(q){return !ex||q.id!==ex.id}).map(function(q){return marcador(q,q.x,q.y,{})}).join('');
     if(ex) s+=marcador(ex,ex.x,ex.y,{})+'<text x="'+(ex.x+10)+'" y="'+(ex.y-10)+'" font-size="8" fill="#5A6472">'+ex.cod+' existente · a 11 m</text><line x1="'+x+'" y1="'+y+'" x2="'+ex.x+'" y2="'+ex.y+'" stroke="#7F5C07" stroke-width="1" stroke-dasharray="2 2"/>';
-    if(orig) s+='<circle cx="'+orig.x+'" cy="'+orig.y+'" r="6" fill="none" stroke="#9C2B1E" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="'+orig.x+'" y1="'+orig.y+'" x2="'+x+'" y2="'+y+'" stroke="#9C2B1E" stroke-width="1"/>';
+    if(orig) s+='<circle cx="'+orig.x+'" cy="'+orig.y+'" r="6" fill="none" stroke="#9B2423" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="'+orig.x+'" y1="'+orig.y+'" x2="'+x+'" y2="'+y+'" stroke="#9B2423" stroke-width="1"/>';
     s+='<path d="M'+x+' '+(y-24)+' C'+(x+7)+' '+(y-24)+' '+(x+12)+' '+(y-19)+' '+(x+12)+' '+(y-12)+' C'+(x+12)+' '+(y-4)+' '+x+' '+(y+4)+' '+x+' '+(y+4)+' C'+x+' '+(y+4)+' '+(x-12)+' '+(y-4)+' '+(x-12)+' '+(y-12)+' C'+(x-12)+' '+(y-19)+' '+(x-7)+' '+(y-24)+' '+x+' '+(y-24)+' Z" fill="#C94F16" stroke="#fff" stroke-width="1.5"/></svg><div style="position:absolute;right:5px;bottom:3px;font-size:8px;color:#5A6472;background:rgba(255,255,255,.8);padding:0 3px;border-radius:2px;">'+(p.fuera?'límite municipal ┆':'puntos aprobados alrededor')+'</div></div>'; return s }
   function diffRows(p){ var q=p.pid?punto(p.pid):null, rows=[], dt=p.datos;
     if(p.op==='alta'){ rows=[['Tipo','',dt.tipo==='boca'?'Boca de riego':'Hidrante'],['Diámetro','',dt.d==='otro'?'Otra medida: "'+dt.otro+'"':dt.d+' mm']]; if(dt.racor) rows.push(['Racor','',dt.racor.charAt(0).toUpperCase()+dt.racor.slice(1)]); rows.push(['Estado','',NOM[dt.caudal]]); if(dt.fallo) rows.push(['Fallo','','"'+dt.fallo+'"']); rows.push(['Núcleo','',p.fuera?'fuera de zona':p.nucleo+' (deducido)']) }

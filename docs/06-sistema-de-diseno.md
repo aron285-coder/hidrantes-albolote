@@ -79,8 +79,10 @@ además por su claridad (4,0:1), así que no dependen del tono. A cambio, el ama
 - **Borde propio en el marcador** (`--borde-marcador-regular`, §4.3). Sobre el fondo del mapa claro
   el amarillo se queda en 1,66:1: lo separa un borde `#563E00` (8,53:1 sobre el fondo, 3,10:1 sobre
   los rótulos, 5,13:1 contra el relleno). Es el `#5C4300` de los mockups un punto más oscuro, porque
-  aquel se quedaba en 2,87:1 sobre los rótulos. En el mapa oscuro manda el relleno (≥ 4,5:1 sobre
-  todas las superficies) y el borde es `#111826`: uno blanco no se separaría del amarillo.
+  aquel se quedaba en 2,87:1 sobre los rótulos. En el mapa oscuro manda el relleno (de 4,56:1 sobre
+  las calles a 7,84:1 sobre el fondo) y el borde es `#111826`: uno blanco no se separaría del
+  amarillo. Sobre los rótulos del mapa oscuro (`#7E8A99`) el relleno se queda en 1,79:1, y ahí lo
+  separa ese borde oscuro (5,06:1).
 
 El amarillo de estado **no es el de aviso**: `--oro-*` y `--ambar-*` (duplicado, fuera de zona,
 propuesta pendiente) se quedan como están, más apagados, como borde y fondo de avisos.
@@ -255,6 +257,8 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 ---
 
 ## 5. Componentes
+
+Mockups de `docs/25` (referencia visual; si no coinciden con este documento, manda el documento): la lista en [`mockups/25-lista.html`](mockups/25-lista.html) (solo §1), la ficha con banda de estado y los colores en [`mockups/25-ficha.html`](mockups/25-ficha.html), y la cola de revisión en [`mockups/25-cola.html`](mockups/25-cola.html).
 
 | Componente | Especificación |
 |---|---|

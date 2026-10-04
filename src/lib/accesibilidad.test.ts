@@ -175,6 +175,19 @@ describe('colores de estado RAL (docs/25 RV-105, DEC-154)', () => {
     expect(css).not.toContain('naranja-estado');
   });
 
+  // El modo oscuro se escribe dos veces en index.css: por el sistema (@media) y elegido a mano
+  // (data-tema). Los tests de arriba leen el segundo; aquí se comprueba que el primero dice lo mismo.
+  it('los dos bloques del modo oscuro definen los mismos tokens con los mismos valores', () => {
+    const bloque = (re: RegExp) =>
+      Object.fromEntries(
+        [...(re.exec(css)?.[1] ?? '').matchAll(/(--[a-z0-9-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]),
+      );
+    const porSistema = bloque(/:root:not\(\[data-tema='claro'\]\)\s*\{([^}]*)\}/);
+    const aMano = bloque(/:root\[data-tema='oscuro'\]\s*\{([^}]*)\}/);
+    expect(Object.keys(aMano).length).toBeGreaterThan(5);
+    expect(porSistema).toEqual(aMano);
+  });
+
   it('en oscuro cambia el borde del amarillo; el de los demás sigue blanco', () => {
     const o = tokens('oscuro');
     expect(o['--borde-marcador-regular']).not.toBe(t['--borde-marcador-regular']);
