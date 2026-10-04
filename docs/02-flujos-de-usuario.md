@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.7 — 5 de octubre de 2026 (`docs/26` RV-113, conformidad del desarrollador: en el móvil, jefatura abre el panel desde la etiqueta *Jefatura* o desde Ajustes, FL-20 paso 4 y FL-28 paso 3, DEC-164). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -212,6 +212,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 1. Inicia sesión con su cuenta de Google. (FR-36)
 2. Si su correo está en la lista de administradores y activo, entra; si no, ve "No autorizado". (FR-37)
 3. En el móvil, ve el mapa con la etiqueta *Jefatura* (FL-28). En el ordenador, el *Panel*.
+4. En el móvil, abre el *Panel* con un toque: la etiqueta *Jefatura* de la barra superior, o *Ajustes* → *Panel de jefatura*. Vuelve con *Ir al mapa* o con el botón "atrás" del móvil, a la pantalla de la que venía, sin salir de la app. (FR-150, DEC-164)
 
 ---
 
@@ -306,6 +307,7 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 
 1. Todo es igual que para un voluntario (FL-02 a FL-08), con la etiqueta *Jefatura* en la barra.
 2. En cualquier operación, la pantalla dice que el cambio se aplicará al momento y el botón es *Aplicar ahora*. (FR-151)
+3. Para ir al *Panel* (la cola, el inventario…), toca la etiqueta *Jefatura* de la barra o *Ajustes* → *Panel de jefatura* (FL-20 paso 4). Sin conexión también navega: el panel enseña su propio aviso de servidor. (FR-150, DEC-164)
 
 **Resultado:** el punto cambia en el mapa de todos sin pasar por la cola; el registro lo anota como acción de administrador.
 
