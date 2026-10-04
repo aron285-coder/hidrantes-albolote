@@ -134,7 +134,12 @@ export const T = {
     noUtilizable: 'No utilizable',
     sinRevisar: 'Sin revisar',
     revisado: (hace: Parametro) => `revisado ${hace}`,
+    // En la fila de la Lista, con la revisión caducada: "sin revisar desde hace 1 año". En dos partes
+    // porque, si no cabe, se acorta la fecha y nunca "sin revisar" (docs/25 RV-106).
+    sinRevisarPalabra: 'sin revisar',
+    sinRevisarFecha: (hace: Parametro) => `desde ${hace}`,
     leyendaTamano: 'Más grande = más agua aprovechable',
+    // Solo para el lector de pantalla, detrás de la distancia de cada fila de la Lista (docs/25 RV-106).
     desdeTi: 'desde ti',
     desdeIncidente: 'desde el incidente',
     filtroVacio: 'Nada coincide con ese filtro.',
@@ -190,7 +195,7 @@ export const T = {
     noEncontrado: 'Punto no encontrado.',
     datosSincronizados: (hace: Parametro) => `Datos sincronizados ${hace}`,
     fallo: 'Fallo:',
-    racor: (racor: Parametro) => `Racor ${racor}`,
+    racor: (racor: Parametro) => `Enganche ${racor}`,
     fotoNoDisponible: 'Foto no disponible sin cobertura',
     sinFoto: 'Sin foto',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
@@ -202,8 +207,10 @@ export const T = {
   // Funciones de mapa para emergencias (FR-72, FR-75; docs/18 GM-02 y GM-05).
   coordenadas: {
     titulo: 'Coordenadas',
-    decimal: 'Decimal',
-    utm: 'UTM ETRS89 · huso 30',
+    // Cada coordenada con el nombre de su sistema (docs/25 RV-109, DEC-157). La S de «30S» es la
+    // banda de latitud de MGRS (32° a 40° N), no «sur».
+    decimal: 'WGS84 · grados decimales',
+    utm: 'ETRS89 · UTM huso 30N',
     copiar: (que: Parametro) => `Copiar ${que}`,
     copiado: 'Copiado',
     noSeCopia: 'No se ha podido copiar: mantén pulsado el texto para copiarlo',
@@ -289,7 +296,8 @@ export const T = {
     tituloUbicacion: 'Ubicación',
     lineaPunto: (codigo: Parametro, tipo: Parametro, diametro: Parametro, estado: Parametro) =>
       `${codigo} · ${tipo} ${diametro} · ${estado}`,
-    lineaCoordenadas: (decimal: Parametro, utm: Parametro) => `${decimal} · UTM ${utm} (ETRS89)`,
+    /** Una línea por sistema, con su nombre delante (DEC-157): «WGS84 · grados decimales: 37.230500, -3.656000». */
+    lineaSistema: (sistema: Parametro, valor: Parametro) => `${sistema}: ${valor}`,
     copiado: 'Copiado: pégalo donde quieras',
     noSePuede: 'No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo',
   },
@@ -301,7 +309,7 @@ export const T = {
     actualizarEstado: 'Actualizar estado',
     actualizarEstadoDetalle: 'El caudal ha cambiado o ya no funciona',
     corregirDatos: 'Corregir datos',
-    corregirDatosDetalle: 'Diámetro, racor o descripción mal anotados',
+    corregirDatosDetalle: 'Diámetro, tipo de enganche o descripción mal anotados',
     tipoNoCambia: '¿El tipo está mal? Propón retirarlo y da de alta el correcto',
     corregirUbicacion: 'Corregir ubicación',
     corregirUbicacionDetalle: 'El pin está desplazado',
@@ -345,7 +353,7 @@ export const T = {
     d70: '70 mm',
     d100: '100 mm',
     otraMedida: 'Otra medida',
-    racor: 'Racor · compara con lo que ves',
+    racor: 'Tipo de enganche',
     granada: 'Granada',
     barcelona: 'Barcelona',
     otro: 'Otro',
@@ -389,7 +397,7 @@ export const T = {
     eligeTipo: 'Elige el tipo',
     eligeDiametro: 'Elige el diámetro',
     indicaMedida: 'Indica la medida',
-    eligeRacor: 'Elige el racor',
+    eligeRacor: 'Elige el tipo de enganche',
     muevePin: 'Mueve el pin al sitio correcto',
     sinCambios: 'No has cambiado nada',
     eligeMotivo: 'Elige un motivo',
@@ -608,7 +616,7 @@ export const T = {
     nuevo: 'nuevo',
     campoTipo: 'Tipo',
     campoDiametro: 'Diámetro',
-    campoRacor: 'Racor',
+    campoRacor: 'Tipo de enganche',
     campoEstado: 'Estado',
     campoFallo: 'Fallo',
     campoDescripcion: 'Descripción',
@@ -758,6 +766,8 @@ export const T = {
     colLng: 'Longitud',
     albolote: 'Albolote',
     calicasas: 'Calicasas',
+    // docs/25 RV-112 (DEC-163): detrás del diámetro de una boca, en el inventario y la hoja de campo.
+    enganche: (nombre: Parametro) => `enganche ${nombre}`,
     ordenarPor: (columna: Parametro) => `Ordenar por ${columna}`,
     direccionDe: (codigo: Parametro) => `Dirección de ${codigo}`,
     ayudaTabla: 'pulsa una columna para ordenar · la dirección se edita en la propia celda',

@@ -148,7 +148,7 @@ export default function Inventario() {
   const diametroDe = (p: Punto) => (
     <>
       {T.formato.mm(p.diametro_mm)}
-      {p.racor && <span className="text-texto-suave"> · {nombreRacor(p.racor)}</span>}
+      {p.racor && <span className="text-texto-suave"> · {T.panelInventario.enganche(nombreRacor(p.racor))}</span>}
     </>
   );
   const estadoDe = (p: Punto) => (

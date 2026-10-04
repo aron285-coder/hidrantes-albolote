@@ -127,3 +127,18 @@ test('sin red, con número, lo mismo y sin preguntar a nadie', async ({ page, co
   expect(preguntas).toBe(0);
   await context.setOffline(false);
 });
+
+// docs/25 RV-106: la fila de la Lista ya no enseña la dirección, pero se sigue buscando por ella (FR-69).
+test('en la Lista, buscar por una calle sigue encontrando el punto, aunque la fila no la enseñe', async ({ page }) => {
+  await page.route('**/api/geocodificar', (ruta) => ruta.fulfill({ json: { resultados: [], fuente: '' } }));
+  await conSesion(page);
+  await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+  await page.goto('/lista');
+  await expect(page.getByRole('button', { name: /HID-9001/ })).toBeVisible();
+  await buscador(page).fill('calle real 14');
+  const fila = page.getByRole('button', { name: /HID-9001/ });
+  await expect(fila).toBeVisible();
+  await expect(page.getByRole('button', { name: /HID-9002/ })).toHaveCount(0);
+  await expect(fila).not.toContainText('Calle Real');
+  await expect(fila).not.toContainText(T.ficha.sinDireccion);
+});

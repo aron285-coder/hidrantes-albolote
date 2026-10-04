@@ -8,8 +8,9 @@ import { cn } from '@/lib/utils';
 const aviso = 'text-texto-suave text-[13px]';
 
 /**
- * Coordenadas en decimal y en UTM ETRS89 huso 30, cada una con su botón de copiar (FR-75). Si el
- * navegador no deja copiar, se dice y el texto queda a la vista para copiarlo a mano (UI-05).
+ * Coordenadas en WGS84 (grados decimales) y en ETRS89 / UTM huso 30N, cada una con el nombre de su
+ * sistema (DEC-157) y su botón de copiar (FR-75). Si el navegador no deja copiar, se dice y el texto
+ * queda a la vista para copiarlo a mano (UI-05).
  */
 export function BloqueCoordenadas({ l }: { l: LatLng }) {
   const [estado, setEstado] = useState<'copiado' | 'fallo' | null>(null);
@@ -88,7 +89,7 @@ export function BotonCompartir({
             readOnly
             value={texto}
             aria-label={titulo}
-            rows={4}
+            rows={texto.split('\n').length}
             className="border-linea rounded-campo font-datos mt-1 w-full border p-2 text-[13px] select-all"
           />
         </div>

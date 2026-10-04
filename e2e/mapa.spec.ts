@@ -534,7 +534,9 @@ test.describe('compartir y coordenadas (FR-75)', () => {
     );
     expect(datos!.title).toBe(PUNTOS[0].codigo);
     expect(datos!.text).toContain(PUNTOS[0].codigo);
-    expect(datos!.text).toContain('UTM 30S');
+    // Cada coordenada con el nombre de su sistema delante (docs/25 RV-109, DEC-157).
+    expect(datos!.text).toContain(`${T.coordenadas.decimal}: `);
+    expect(datos!.text).toContain(`${T.coordenadas.utm}: 30S `);
     expect(datos!.text).toContain('https://www.google.com/maps/search/?api=1&query=');
   });
 
@@ -578,8 +580,11 @@ test('cada fila de la lista enseña la última revisión (RV-24, FR-68)', async 
   const filas = page.locator('ul li button');
   await expect(filas.first()).toBeVisible();
   const n = await filas.count();
-  for (let i = 0; i < n; i++) await expect(filas.nth(i)).toContainText(/revisado hace|Sin revisar/);
-  await expect(page.getByRole('button', { name: /HID-9005/ })).toContainText(T.mapa.sinRevisar);
+  for (let i = 0; i < n; i++) await expect(filas.nth(i)).toContainText(/revisado hace|sin revisar desde hace/);
+  // Caducada: "sin revisar desde hace …" (docs/25 RV-106).
+  await expect(page.getByRole('button', { name: /HID-9005/ })).toContainText(
+    `${T.mapa.sinRevisarPalabra} ${T.mapa.sinRevisarFecha('hace')}`,
+  );
 });
 
 // FR-65 (RV-30): "Mi posición" centra el mapa en ti y dibuja el halo de precisión.

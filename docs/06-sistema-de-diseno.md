@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.14 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): estado Barro, marrón y tachado (§2.2, §4.3, §4.5, Apéndice A; RV-102, DEC-149). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.16 — 4 de octubre de 2026 (`docs/25`, conformidad del desarrollador): colores de estado RAL, regular en amarillo con borde propio en el marcador (§2.2, §2.4, §4.3, §4.5, §4.6; RV-105, DEC-154). v1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.14 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): estado Barro, marrón y tachado (§2.2, §4.3, §4.5, Apéndice A; RV-102, DEC-149). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -53,17 +53,39 @@ quedaba en 3,78:1 y TR-31 pide 4,5:1. Cuando el naranja es **texto sobre una sup
 
 Se usan **idénticos** en marcador, chip, leyenda y panel; no se retocan por contexto.
 
-| Estado | Relleno | Fondo del chip | Texto del chip |
-|---|---|---|---|
-| bueno | `--verde-600` `#2E7D4F` | `--verde-100` `#DCEEE1` | `#2E7D4F` |
+Son los colores de seguridad de ISO 3864 (UNE-EN ISO 7010) en RAL, los mismos que la escala de
+caudal de NFPA 291: verde, amarillo y rojo (DEC-154).
+
+| Estado | Relleno | Fondo del chip | Texto del chip | Borde del marcador (claro / oscuro) |
+|---|---|---|---|---|
+| bueno | `--verde-600` `#237E51` (RAL 6032) | `--verde-100` `#DCEEE1` | `--verde-700` `#1E6B45` | `--borde-marcador` blanco / blanco |
+| regular | `--amarillo-500` `#F9A900` (RAL 1003) | `--amarillo-100` `#FFF1C2` | `--amarillo-800` `#6B4E00` | `--borde-marcador-regular` `#563E00` / `#111826` |
+| malo | `--rojo-700` `#9B2423` (RAL 3001) | `--rojo-100` `#FBE0DB` | `--rojo-700` `#9B2423` | `--borde-marcador` blanco / blanco |
+| barro | `--marron-600` `#806460` | `--marron-100` `#EFE3D6` | `--marron-700` `#5A4632` | `--borde-marcador` blanco / blanco |
+| no funciona | `--gris-700` `#40453D` | `--gris-100` `#E5E4DC` | `#40453D` | `--borde-marcador` blanco / blanco |
 
 Para **texto sobre `--verde-100`** (las etiquetas "bueno", "alta" y "resuelta") se usa
-`--verde-700` `#276B42`: el `--verde-600` sobre ese fondo se queda en 4,17:1 y TR-31 pide 4,5:1.
-El relleno del marcador sigue siendo el `--verde-600` de §4.2 (DEC-072).
-| regular | `--naranja-estado-600` `#A85300` | `--naranja-estado-100` `#FDE8D6` | `--naranja-estado-700` `#8F4505` |
-| malo | `--rojo-700` `#9C2B1E` | `--rojo-100` `#FBE0DB` | `#9C2B1E` |
-| barro | `--marron-600` `#806460` | `--marron-100` `#EFE3D6` | `--marron-700` `#5A4632` |
-| no funciona | `--gris-700` `#40453D` | `--gris-100` `#E5E4DC` | `#40453D` |
+`--verde-700`: el `--verde-600` sobre ese fondo se queda en 4,16:1 y TR-31 pide 4,5:1.
+El relleno del marcador sigue siendo el `--verde-600` de §4.2 (DEC-072). El RAL 6032 es `#237F52`;
+se usa un punto más oscuro, `#237E51`, porque el otro se queda en 2,97:1 sobre el agua y los árboles
+del mapa claro, donde el borde blanco no ayuda (DEC-154).
+
+**Regular es amarillo RAL 1003** desde el 4 oct 2026 (DEC-154, que sustituye a DEC-076): el naranja
+`#A85300` se parecía al rojo de "malo", también con daltonismo. El amarillo y el rojo se separan
+además por su claridad (4,0:1), así que no dependen del tono. A cambio, el amarillo pide dos cosas:
+
+- **Texto oscuro encima.** Donde el amarillo es fondo (el chip, la banda de la ficha), el texto va en
+  `--marino-950` (8,79:1) o `--amarillo-800`, **nunca en blanco** (1,96:1).
+- **Borde propio en el marcador** (`--borde-marcador-regular`, §4.3). Sobre el fondo del mapa claro
+  el amarillo se queda en 1,66:1: lo separa un borde `#563E00` (8,53:1 sobre el fondo, 3,10:1 sobre
+  los rótulos, 5,13:1 contra el relleno). Es el `#5C4300` de los mockups un punto más oscuro, porque
+  aquel se quedaba en 2,87:1 sobre los rótulos. En el mapa oscuro manda el relleno (de 4,56:1 sobre
+  las calles a 7,84:1 sobre el fondo) y el borde es `#111826`: uno blanco no se separaría del
+  amarillo. Sobre los rótulos del mapa oscuro (`#7E8A99`) el relleno se queda en 1,79:1, y ahí lo
+  separa ese borde oscuro (5,06:1).
+
+El amarillo de estado **no es el de aviso**: `--oro-*` y `--ambar-*` (duplicado, fuera de zona,
+propuesta pendiente) se quedan como están, más apagados, como borde y fondo de avisos.
 
 **Barro** (`docs/24` RV-102, DEC-145 y DEC-149): el `#6B4423` propuesto se confundía con `--rojo-700` con
 protanopía (ΔE2000 1,1). El relleno `#806460` queda a ΔE2000 ≥ 15 de Regular y de Malo con visión
@@ -71,19 +93,17 @@ normal, protanopía y deuteranopía simuladas (Machado 2009), y a ≥ 3:1 sobre 
 mapa claro; sobre el oscuro vale el borde blanco, como para `--gris-700`. El texto del chip es el
 marrón oscuro (7,1:1 sobre `--marron-100`). Lo mide `src/lib/accesibilidad.test.ts`.
 
-El **regular es naranja** desde el 21 sep 2026 (DEC-076): el ámbar `#8A6408` de antes se leía
-marrón mostaza en el móvil a pleno sol. El naranja nuevo tiene el mismo claror —3,22:1 sobre las
-superficies más oscuras del mapa claro, que es donde el borde blanco no ayuda— y no se puede
-aclarar más sin bajar de los 3:1 de TR-31. El texto del chip va un punto más oscuro, como en el
-verde. El `--ambar-*` sigue existiendo para lo que es **aviso** (señales de fiabilidad, diferencias,
+Historia: el regular fue ámbar `#8A6408` hasta el 21 sep 2026, cuando pasó a naranja `#A85300`
+porque el ámbar se leía marrón mostaza en el móvil a pleno sol (DEC-076); el 4 oct 2026 pasó al
+amarillo RAL 1003 (DEC-154), que es mucho más claro. El `--ambar-*` sigue existiendo para lo que es **aviso** (señales de fiabilidad, diferencias,
 propuesta pendiente): eso no es caudal. Como aviso es **texto**, y el texto del aviso va sobre
 `--oro-100`: ahí el `#8A6408` de antes se quedaba en 4,33:1 y TR-31 pide 4,5:1, así que
 `--ambar-700` es `#7F5C07` desde el 22 sep 2026 (4,93:1 sobre el oro; DEC-081). De relleno de
 marcador le bastaba con 3:1 y por eso nadie lo había medido como texto.
 
-Contraste de los cinco rellenos sobre el fondo del mapa claro (`#EFECE3`) y oscuro (`#1B2536`):
-≥ 3:1 en todos los casos; el borde blanco de 2,5 px garantiza la separación en cualquier fondo de
-tesela (TR-31).
+Contraste sobre cualquier superficie del mapa claro y oscuro (§2.3): el relleno o su borde llegan a
+3:1, y el relleno se separa de su borde a 3:1 (TR-31). Lo mide `src/lib/accesibilidad.test.ts` con
+los tokens leídos de `src/index.css`.
 
 ### 2.3 Colores del mapa base propio
 
@@ -114,7 +134,9 @@ Las capas en línea (OSM, PNOA, Catastro) no se recolorean.
 | anillo del marcador seleccionado (`--anillo-seleccion`) | `#E6EAF0` (el `--marino-950` de claro no se ve sobre el mapa oscuro; DEC-062) |
 
 Los rellenos de estado y el naranja de acción **no cambian**, y el **borde del marcador sigue
-blanco** (`--borde-marcador`): es lo que lo separa del mapa. Un borde oscuro sobre el mapa oscuro se
+blanco** (`--borde-marcador`): es lo que lo separa del mapa. La excepción es el amarillo de regular,
+cuyo borde (`--borde-marcador-regular`) pasa a `#111826`, porque allí ya lo separa su relleno (§2.2,
+DEC-154). Un borde oscuro sobre el mapa oscuro se
 queda en 1,16:1 y el marcador se pierde; con el blanco, el borde contra el mapa da 13,6:1 y el
 relleno contra el borde, entre 5,0:1 y 9,8:1 (TR-31, medido en `src/lib/accesibilidad.test.ts`;
 DEC-072).
@@ -172,7 +194,7 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 |---|---|
 | Hidrante | círculo, `r = radio_px` |
 | Boca de riego | cuadrado de lado `2 × radio_px`, esquinas `rx = 3` (a 5,5 px, `rx = 2.5`; a 5 px, `rx = 2`) |
-| Borde | blanco (`#FFFFFF`), 2,5 px (2 px si `radio_px ≤ 5.5`); en modo oscuro `#111826` |
+| Borde | `--borde-marcador`, blanco en claro y en oscuro (DEC-072), 2,5 px (2 px si `radio_px ≤ 5.5`). **Regular** lleva `--borde-marcador-regular`: `#563E00` en claro y `#111826` en oscuro (§2.2, DEC-154). Es el mismo dibujo en el mapa, la lista, la ficha, la leyenda, el panel y el minimapa |
 | Relleno | color de estado (§2.2) |
 | Barro | tamaño mínimo y la misma línea blanca cruzada que No funciona, **sin** atenuar: el tachado dice "no se puede usar" y el color marrón dice por qué (FR-61, WCAG 1.4.1) |
 | No funciona | opacidad **0,5** + línea blanca cruzada de 2 px de esquina inferior izquierda a superior derecha, largo `2 × radio_px` |
@@ -205,14 +227,14 @@ Plegable (§5, DEC-123): la primera vez y cuando se despliega, en el mapa (móvi
 igual con 9–10 px). Contenido fijo y en este orden:
 
 1. ● Hidrante · ■ Boca de riego (forma)
-2. Regular · Malo · Barro · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde)
+2. Regular · Malo · Barro · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde). Cada muestra lleva el borde de su estado (§4.3): la de Regular, amarillo con el borde oscuro
 3. Sin revisar (borde discontinuo)
 4. Línea final: "Más grande = más agua aprovechable"
 
 ### 4.6 Ejemplos de lectura
 
 - Círculo grande verde: hidrante de 100 mm que funciona bien. El mejor recurso de la zona.
-- Cuadrado pequeño ámbar: boca de riego que da menos de lo que podría.
+- Cuadrado pequeño amarillo: boca de riego que da menos de lo que podría.
 - Punto gris pequeño tachado: no se pudo usar; hay que comunicarlo, pero no compite visualmente.
 - Cualquiera con borde discontinuo: el dato es el último conocido, pero tiene más de un año.
 
@@ -236,6 +258,8 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 
 ## 5. Componentes
 
+Mockups de `docs/25` (referencia visual; si no coinciden con este documento, manda el documento): la lista en [`mockups/25-lista.html`](mockups/25-lista.html) (solo §1), la ficha con banda de estado y los colores en [`mockups/25-ficha.html`](mockups/25-ficha.html), y la cola de revisión en [`mockups/25-cola.html`](mockups/25-cola.html).
+
 | Componente | Especificación |
 |---|---|
 | **Barra superior** (móvil) | `--marino-950`, 16 px Barlow 600, título a la izquierda, acción a la derecha en círculo 22 px `rgba(255,255,255,.16)`. Etiqueta **Jefatura**: `--oro-600`, 9 px, radio 4. |
@@ -255,7 +279,7 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Toast** | `--verde-600`, blanco, radio 9, arriba bajo la barra, con cierre; para "tu propuesta se aprobó". |
 | **Dos fotos** (alta y corregir ubicación, `docs/24` RV-103) | dos huecos iguales lado a lado, cada uno con una sola palabra: **Conexión** y **Sitio**; vacío, botón de borde `--naranja-600` con la cámara y la palabra; hecho, fondo `--verde-100` con "Sitio · N kB" y "repetir". En la ficha, la de la conexión; si hay foto del sitio, debajo dos botones de 44 px con un punto y su palabra para pasar de una a otra (también deslizando). En el panel, las dos lado a lado, cada una con su palabra. |
 | **Foto** | relación 16:9 en ficha, 84–86 px de alto en móvil, etiqueta de fecha abajo-izquierda sobre `rgba(14,27,48,.6)`. Placeholder mientras carga: degradado gris-azulado. |
-| **Racor de referencia** | tres tarjetas iguales; Granada y Barcelona con su foto real de 48 × 48 px encima del nombre (`alt=""`: el nombre ya va en el botón) y «Otro» sin foto; la elegida con borde `--marino-950` doble. Tocar la foto elige, sin ampliar. Las fotos (`public/racores/*.webp`, 160 × 160, ≤ 25 kB) las pone el desarrollador y las prepara `scripts/preparar-racores.ts`; entran en el precache. Sin la foto, la tarjeta se ve solo con el nombre, nunca con un icono roto (`docs/24` RV-104). |
+| **Tipo de enganche de referencia** | en una boca de riego el campo se llama «Tipo de enganche» (el dato es `racor`, DEC-163); tres tarjetas iguales en este orden: Barcelona, Granada y Otro; Barcelona y Granada con su foto real de 48 × 48 px encima del nombre (`alt=""`: el nombre ya va en el botón) y «Otro» sin foto; la elegida con borde `--marino-950` doble. Tocar la foto elige, sin ampliar. Las fotos (`public/racores/*.webp`, 160 × 160, ≤ 25 kB) las pone el desarrollador y las prepara `scripts/preparar-racores.ts`; entran en el precache. Sin la foto, la tarjeta se ve solo con el nombre, nunca con un icono roto (`docs/24` RV-104). |
 | **Minimapa de los formularios** | 336 px de alto, pin arrastrable y botón "Mi posición" arriba a la derecha; no se recentra solo (DEC-066). |
 | **Controles del mapa** | blancos, radio 7–9, sombra `0 1px 5px rgba(0,0,0,.18)`. Patrón de las apps de mapas (DEC-123): herramientas arriba a la derecha y acciones principales abajo, al alcance del pulgar. **Búsqueda** arriba, ancho completo. **Columna de la derecha**, solo iconos: 44 px de ancho fijo, pegada al borde con 8 px de margen (`right-2`), con los botones alineados a su borde derecho; de arriba abajo, Capas, Medir y Mi posición (44 × 44, con `aria-label` y `title`) y el zoom "+/−" en **una sola pieza** vertical de 44 × 88 con separador (alternativa de un dedo al pellizco, WCAG 2.5.1). **Abajo a la derecha**: "Cercanos" como botón extendido (icono `Crosshair` y texto visible, 48 px de alto, `--marino-950` con texto blanco) encima del **botón + de nuevo punto**, flotante de **56 px** `--naranja-600`, con 12 px entre los dos (UI-15); igual en ordenador, con la lista lateral a la izquierda. **Leyenda** abajo a la izquierda, plegada en una ficha "Leyenda" de 44 px: al tocarla se despliega (§4.5) y se cierra con la X o tocando fuera; el primer uso la enseña desplegada una vez y después se recuerda cómo la dejó el voluntario. Atribución abajo a la derecha, 6,5 px, sin que la toquen los botones. La ficha flotante (tableta y ordenador) va a la izquierda de la columna y termina por encima de los botones de abajo: no tapa ningún control. Las medidas viven en `src/lib/disposicion-mapa.ts` (`CONTROLES`): las usan la ficha, los avisos flotantes y el encuadre del incidente. Resultados de la búsqueda (FR-73): en grupos, por este orden, *Coordenadas*, *Puntos*, *Calles y lugares* (© OpenStreetMap) y *Direcciones* (CartoCiudad · IGN), cada fila de ≥ 52 px; mientras están abiertos en el móvil y la tableta, la columna de la derecha se oculta, porque la lista la taparía a medias. |
 | **Navegación inferior** | 50 px, blanco, tres destinos (Mapa · Lista · Ajustes), activo `--marino-950` 700. |
@@ -328,7 +352,7 @@ terminado; los casos de aceptación AC-140 a AC-146 las comprueban.
 | ID | Regla |
 |---|---|
 | UI-10 | **Nada de texto pegado.** Nunca `HID-0147C/ Real 14` ni `100 mmBueno`: los datos compuestos se separan con ` · ` (espacio, punto medio, espacio) o van en líneas distintas. |
-| UI-11 | **Notación canónica de los datos compuestos**, siempre igual: punto `HID-0147 · Hidrante 100 mm`; estado y revisión `Bueno · revisado hace 1 mes`; boca de riego `BOC-0088 · 45 mm · racor Granada`; propuesta en la cola `Autor · hace 2 h · C/ Real 14 · Albolote`; sin dato, `sin dirección` en `--texto-suave`, nunca un hueco. |
+| UI-11 | **Notación canónica de los datos compuestos**, siempre igual: punto `HID-0147 · Hidrante 100 mm`; estado y revisión `Bueno · revisado hace 1 mes`; boca de riego `BOC-0088 · 45 mm · enganche Granada`; propuesta en la cola `Autor · hace 2 h · C/ Real 14 · Albolote`; sin dato, `sin dirección` en `--texto-suave`, nunca un hueco. |
 | UI-12 | **Fechas** siempre relativas con la absoluta disponible (`hace 1 mes`, con `20 ago 2026` en el detalle). **Distancias** en metros hasta 999 y en km con un decimal después. |
 | UI-13 | **Los códigos internos no se muestran al voluntario** salvo el del propio punto (`HID-####`, que es su nombre). Identificadores de dispositivo, de propuesta y de foto no aparecen en la app; en el panel, solo donde sirven. |
 | UI-14 | **Acciones destructivas separadas** de las afirmativas: ≥ 12 px entre "Aprobar" y "Rechazar…", entre "+" y "×"; nunca contiguas ni del mismo color. |
@@ -406,8 +430,9 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
-`No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` · `desde el incidente` (lista ordenada desde el incidente, RV-62) ·
-`Nada coincide con ese filtro.` · `revisado [hace 3 meses]` (en cada fila de la Lista, FR-68) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
+`No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
+`Nada coincide con ese filtro.` · `revisado [hace 3 meses]` · `sin revisar` + `desde [hace 1 año]` = "sin revisar desde hace 1 año" (en `--naranja-texto`; si no cabe, se acorta la fecha, nunca `sin revisar`) (segunda línea de cada fila de la Lista, sin la dirección; a la derecha solo la distancia, y solo si hay posición: FR-68, docs/25 RV-106) ·
+`desde ti` · `desde el incidente` (solo para el lector de pantalla, detrás de la distancia de cada fila) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
 `[12] puntos` · `Sincronizando…` ·
 `Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` (nunca sincronizado) ·
 `Todavía no hay ningún punto en el inventario. Mantén pulsado el mapa donde haya uno para darlo de alta.` · `Añadir un punto` (sincronizado y sin ningún punto, en el mapa y en la lista, RV-76) ·
@@ -421,11 +446,17 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Cerrar la leyenda` · `Zoom` · `Acercar` · `Alejar` ·
 `funciona sin cobertura` · `solo en línea` · `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
 
-**Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089). `Coordenadas` · `Decimal` ·
-`UTM ETRS89 · huso 30` · `Copiar [decimal]` · `Copiado` ·
+> **Coordenadas con su sistema (DEC-157).** Cada coordenada lleva delante el nombre de su sistema, en
+> la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte: `WGS84 · grados decimales`
+> (6 decimales, lo que da el GPS) y `ETRS89 · UTM huso 30N` (EPSG:25830, redondeada a metro). En
+> `30S 441808 4120645`, la **S es la banda de latitud de MGRS** (de 32° a 40° N; Albolote está a 37° N),
+> **no "sur"**: el huso es el 30 **norte**, y por eso la etiqueta dice `30N`.
+
+**Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089, DEC-157). `Coordenadas` · `WGS84 · grados decimales` ·
+`ETRS89 · UTM huso 30N` · `Copiar [WGS84 · grados decimales]` · `Copiado` ·
 `No se ha podido copiar: mantén pulsado el texto para copiarlo` · `¿Qué hay aquí?` ·
 `Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Compartir` · `Ubicación` ·
-`[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[37.230500, -3.656000] · UTM [30S 441808 4120645] (ETRS89)` ·
+`[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[sistema]: [coordenadas]`, una línea por sistema: `WGS84 · grados decimales: [37.230500, -3.656000]` y, debajo, `ETRS89 · UTM huso 30N: [30S 441808 4120645]` ·
 `Copiado: pégalo donde quieras` · `No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo` ·
 `Cercanos` · `Incidente` · `Desde tu posición` · `Desde el punto marcado` · `Posición de [hace 3 min]` ·
 `Solo hidrantes` · `Distancias en línea recta` ·
@@ -446,13 +477,13 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
-`Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Racor [Granada]` ·
+`Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Enganche [Granada]` ·
 `Foto no disponible sin cobertura` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
 `El caudal ha cambiado o ya no funciona` · `Corregir datos` ·
-`Diámetro, racor o descripción mal anotados` ·
+`Diámetro, tipo de enganche o descripción mal anotados` ·
 `¿El tipo está mal? Propón retirarlo y da de alta el correcto` · `Corregir ubicación` · `El pin está desplazado` ·
 `Proponer retirada` · `Ya no existe. Pide un motivo breve` · `Alta` · `Revisión` · `Estado` · `Datos` ·
 `Ubicación` · `Retirada` · `Consta como [Bueno] · revisado [hace 1 mes]` · `Caudal / estado ahora` ·
@@ -468,7 +499,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
-`Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
+`Tipo de enganche` · `Barcelona` · `Granada` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
 `Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `repetir · [Sitio]` · `[Sitio] · [150] kB` ·
 `Hacer foto · obligatoria` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
@@ -478,7 +509,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Avisos del formulario.** `Falta la foto para poder enviar` · `Falta la foto del sitio` · `Elige el estado` ·
 `Describe el fallo` · `Elige el tipo` · `Elige el diámetro` · `Indica la medida` ·
-`Elige el racor` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
+`Elige el tipo de enganche` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
 `Explica brevemente qué has visto` ·
 `⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.` ·
 `Toca el mapa para ajustar el pin` ·
@@ -585,7 +616,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `— pendiente, escribe aquí`.
 
 **Panel: cola, detalle y errores (Fase 7, DEC-065).** `Fuera de zona` · `sin núcleo` · `ninguno` ·
-`Tipo` · `Diámetro` · `Racor` · `Fallo` · `Descripción` · `Nota` · `Situación` · `Motivo` · `Activo` ·
+`Tipo` · `Diámetro` · `Tipo de enganche` · `Fallo` · `Descripción` · `Nota` · `Situación` · `Motivo` · `Activo` ·
 `Retirado` · `[valor] · sin cambios` · `Otra medida: [mm] mm` · `GPS en campo · ±[precision] m ·
 a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distancia] del GPS del móvil` ·
 `GPS poco preciso · ±[metros] m` · `La foto se hizo a [distancia] del pin` ·
@@ -629,7 +660,7 @@ a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distan
 
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
 `Filtrar por diámetro` · `cualquier Ø` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` ·
-`Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `Ordenar por [columna]` ·
+`Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `enganche [Granada]` · `Ordenar por [columna]` ·
 `Dirección de [codigo]` · `pulsa una columna para ordenar ·
 la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con esos filtros.` ·
 `Guardado [codigo].` · `[codigo] retirado. Sigue en el histórico.` · `[codigo] está en la papelera.` ·

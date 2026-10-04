@@ -25,7 +25,7 @@ describe('campos (RV-23)', () => {
   });
 
   it('las correcciones se leen en español, sin nombres de columna', () => {
-    expect(textoCambios({ diametro_mm: 70, racor: 'granada' })).toBe('Diámetro: 70 mm · Racor: Granada');
+    expect(textoCambios({ diametro_mm: 70, racor: 'granada' })).toBe('Diámetro: 70 mm · Tipo de enganche: Granada');
     expect(textoCambios({ caudal: 'no_funciona', descripcion_fallo: 'Tapa soldada' })).toBe(
       'Estado: No funciona · Fallo: Tapa soldada',
     );

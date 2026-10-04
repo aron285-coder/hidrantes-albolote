@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.46 — 4 de octubre de 2026 (DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.48 — 4 de octubre de 2026 (DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,31 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-163 · En una boca de riego se lee «Tipo de enganche», no «racor»
+- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente (`docs/25` RV-112).
+- **Contexto:** los voluntarios no llaman «racor» a la pieza donde se engancha la manguera de una boca de riego; dicen «enganche». El formulario, la ficha y el panel usaban la palabra técnica.
+- **Decisión:** en todo lo que se lee (app, panel, exportación) el campo se llama **«Tipo de enganche»**, con las opciones **Barcelona, Granada y Otro**, en ese orden. Textos cortos: «Enganche Granada» en la ficha y «· enganche Granada» en el inventario y la hoja de campo. La exportación (FR-160) titula la columna «Tipo de enganche» en CSV y XLSX, igual que las demás columnas, que van en palabras («Código», «Diámetro»…); en GeoJSON, que lleva los datos crudos, la propiedad pasa a `tipo_enganche` con el valor del enum (`granada`, `barcelona`, `otro`).
+- **Lo que no cambia, a propósito:** la columna `racor`, el enum `hidrantes.tipo_racor`, los payloads de `fn_proponer` (`racor: 'barcelona'`), los tipos de TypeScript, los nombres de las claves de `textos.ts` (`racor`, `campoRacor`, `eligeRacor`) y los archivos `public/racores/*.webp`. Cambiarlos obligaría a una migración y rompería la versión anterior de la app (04 §12) para cambiar solo lo que se lee.
+- **Descartado:** escribir la cabecera del CSV como `tipo_enganche`, en minúsculas y con guion bajo, como dice la tabla de `docs/25`: las demás cabeceras van en palabras y una sola en formato interno se leería como un fallo.
+- **Afecta a:** 01 FR-20, FR-41, FR-44 y FR-66 (lo escribe Ops); 02 FL-02, FL-03 y FL-06; 05 §2 (una línea); 06 §5 y Apéndice A.
+
+### DEC-162 · Los mockups definitivos de una especificación van en `docs/mockups/`
+- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-111).
+- **Decisión:** los mockups HTML que una especificación elige como referencia entran en el repositorio en `docs/mockups/NN-nombre.html`, con el número de la especificación. Antes se revisan con `detectar-secretos` y se cambia cualquier nombre de persona por «Voluntario de prueba» (FR-27, repositorio público, DEC-053). Los apartados superados se marcan dentro del archivo. Los mockups descartados no entran: se borran o se guardan fuera del repositorio.
+- **Afecta a:** 06 §5; `docs/INDICE.md`.
+
+### DEC-160 · La cola trae el punto entero, y el historial tiene su vista
+- **Fecha:** 4 oct 2026 (sesión Backend, `docs/25` RV-110) · **Estado:** vigente.
+- **Contexto:** el detalle nuevo de la cola enseña todos los datos del punto, no solo los que cambian, y un mapa en las seis operaciones. `v_cola_revision` solo traía del punto el código, el tipo, la dirección, el núcleo y las fotos, y su posición no venía en ninguna operación (`lat`/`lng` son el pin de la propuesta, `null` en datos, revisión, estado y retirada). El historial lo leía el panel de `propuestas` con un *embed* de `puntos`, que no puede dar la posición (es `geography`).
+- **Decisión:**
+  1. `v_cola_revision` (0036, `create or replace view`) gana tres columnas **al final**: `punto jsonb` con `codigo`, `tipo`, `diametro_mm`, `caudal`, `racor`, `descripcion`, `descripcion_fallo`, `direccion`, `nucleo`, `fecha_ultima_revision`, `foto_path`, `foto_sitio_path`, `situacion` y `borrado_en`, y `punto_lat`, `punto_lng`. `situacion` y `borrado_en` van porque una propuesta pendiente puede ser de un punto que jefatura retiró o mandó a la papelera después, y el detalle no debe enseñarlo como activo. En un alta, las tres `null` (no hay punto: `punto_id` es `null` también después de aprobarla, así que el historial de un alta aprobada no enlaza al punto creado; su código está en el Registro). El cliente decide por `operacion`, no por `punto is null`.
+  2. El objeto se construye con `jsonb_build_object` y una lista cerrada de claves, no con `to_jsonb(p)`: una columna nueva de `puntos` no aparece sola en el panel, y nada de FR-27 puede colarse. `puntos` no tiene autores hoy; la lista cerrada lo garantiza mañana.
+  3. **Historial:** vista nueva `v_historial_revision` (`security_invoker`, `estado <> 'pendiente'`) con las columnas que el panel ya pedía a `propuestas`, más `codigo`, `direccion_actual`, `nucleo`, el pin (`lat`, `lng`), `origen_ubicacion`, `precision_gps_m` y las tres de arriba. Sin `antes` ni señales: el punto de hoy ya no es el de cuando se decidió, y un diff contra él mentiría.
+  4. La UTM no viaja: la calcula el cliente con la función de la ficha (RV-109). Los puntos de alrededor tampoco: el panel ya tiene el inventario.
+- **Descartado:** una RPC del detalle (otra firma que mantener una versión atrás, y una llamada más por propuesta); seguir leyendo el historial de `propuestas` con más columnas en el *embed* (no da la posición); `antes` en el historial.
+- **Compatibilidad (04 §12):** el panel anterior pide `select('*')` a la cola y no mira columnas de más; sigue leyendo el historial de `propuestas`, que no cambia. Lo comprueba `npm run compatibilidad` en `ci-sql`.
+- **Afecta a:** 05 §4; `docs/25` RV-110.
+
 ### DEC-159 · Detalle de la cola: de dónde salen los datos, el radio y los mapitas
 - **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-110).
 - **Contexto:** el detalle nuevo enseña todos los datos del punto, su posición y sus fotos actuales en las seis operaciones. Esos datos los trae 0036 (DEC-160), que se hizo a la vez que la pantalla; el panel tiene que seguir funcionando contra la vista de antes una versión (04 §12).
@@ -674,11 +699,37 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 06 §5 (panel); `src/lib/panel/cola.ts`.
 
 ### DEC-158 · Cola de revisión: mapa arriba, datos completos y fotos, a todo el ancho
-- **Fecha:** 4 oct 2026 (desarrollador, sobre `docs/mockups-cola-opcion-a.html`) · **Estado:** vigente (`docs/25` RV-110).
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `docs/mockups/25-cola.html`) · **Estado:** vigente (`docs/25` RV-110).
 - **Contexto:** el detalle de la cola dejaba media pantalla vacía en el ordenador, solo enseñaba los campos que cambiaban y una corrección de datos no tenía mapa: para juzgar un cambio había que ir al inventario.
 - **Decisión:** el detalle es igual en las seis operaciones y de arriba abajo: título con autor y fecha, señales; **mapa a todo el ancho** (300 px en ordenador, 280 en tableta, 200 de borde a borde y fijo arriba en el móvil), con Mapa / Satélite (las ubicaciones se abren en Satélite), zoom, "Abrir en grande" y una leyenda de una línea; **todos los datos del punto** en dos columnas (una en el móvil), con lo que cambia primero y marcado ("Cambia", banda naranja, antes → después) y, encima, "N cambios · el resto se queda igual" o, en un alta, "N datos del voluntario"; **fotos lado a lado** (en una ubicación o un estado, la actual del punto delante de las nuevas); y los **botones fijos abajo** ("Corregir" en el móvil, con el nombre largo para el lector). Desde **1.100 px**, la cola a la izquierda en 340 px fijos y el detalle en todo el resto; por debajo, la cola y el detalle son **dos pantallas** (la abierta va en `?p=`, y "‹" o "atrás" vuelven), cada fila con su mapita y una barra abajo para aprobar en bloque. El historial usa el mismo detalle sin botones.
 - **Descartado:** el mapa en una columna lateral (`mockups-cola-con-mapa.html`) y el detalle en pestañas (`mockups-cola-opcion-b.html`): obligaban a mirar a dos sitios o a tocar para ver los datos.
 - **Afecta a:** 01 FR-102 a FR-105 (los lleva Ops); 06 §5 (panel) y Apéndice A.
+
+### DEC-157 · Cada coordenada lleva el nombre de su sistema: WGS84 y ETRS89 / UTM huso 30N
+- **Fecha:** 4 oct 2026 (desarrollador, `docs/25` RV-109) · **Estado:** vigente.
+- **Contexto:** la ficha y *¿Qué hay aquí?* decían "Decimal" y "UTM ETRS89 · huso 30", y el texto de *Compartir* juntaba las dos en una línea con "(ETRS89)" al final. Quien recibe las coordenadas (bomberos, el 112, otro grupo) tiene que saber en qué sistema están sin preguntar, y "30S" se podía leer como "huso 30 sur".
+- **Decisión:**
+  1. Las etiquetas son **"WGS84 · grados decimales"** (`37.230500, -3.656000`, 6 decimales) y **"ETRS89 · UTM huso 30N"** (`30S 441808 4120645`, el mismo sitio, a metro), en la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte. Cada línea, con su botón de copiar, como hasta ahora.
+  2. **Compartir** (FR-75) lleva una línea por sistema con su nombre delante: `WGS84 · grados decimales: …` y `ETRS89 · UTM huso 30N: …`. Fuera del huso 30 solo va la línea WGS84.
+  3. La conversión sigue igual: ETRS89 / UTM 30N (EPSG:25830, GRS80, serie de Krüger), con ETRS89 y WGS84 tratados como iguales (difieren en menos de un metro). La **S** de `30S` es la banda de latitud de MGRS (32° a 40° N), no "sur"; lo dice una nota en 06, Apéndice A.
+- **Comprobación:** un caso conocido en `coordenadas.test.ts`, la Plaza de España de Albolote (OpenStreetMap), con la UTM calculada aparte por las fórmulas de Snyder (USGS PP 1395), ±1 m.
+- **Descartado:** dejar "Decimal" sin sistema (ambiguo para quien lo recibe fuera de la app); quitar la letra de banda (`30 441808 4120645`): cambiaría el formato que ya se copia y se pega en la búsqueda; la nota de 06 basta para que nadie la lea como "sur".
+- **Afecta a:** 01 FR-72 y FR-75 (lo actualiza Ops, #440); 06 Apéndice A; `src/lib/textos.ts` (`coordenadas`, `compartir`).
+
+### DEC-154 · Colores de estado RAL: regular pasa a amarillo, con borde propio en el marcador
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `docs/mockups-ficha-banda.html`) · **Estado:** vigente. Sustituye a DEC-076 (`docs/25` RV-105). Sesión Frontend-campo.
+- **Contexto:** el naranja de regular (`#A85300`, DEC-076) se parecía al rojo de "malo", y más con daltonismo. Los colores de seguridad de ISO 3864 (UNE-EN ISO 7010) y la escala de caudal de NFPA 291 usan verde, amarillo y rojo.
+- **Decisión:**
+  - **Rellenos RAL:** bueno `--verde-600` `#237E51` (RAL 6032), regular `--amarillo-500` `#F9A900` (RAL 1003), malo `--rojo-700` `#9B2423` (RAL 3001). Chips: `#DCEEE1`/`--verde-700` `#1E6B45`, `--amarillo-100` `#FFF1C2`/`--amarillo-800` `#6B4E00`, `#FBE0DB`/`#9B2423`. No funciona y barro no cambian. Se quitan los `--naranja-estado-*`; el `--naranja-600` de las acciones y los `--oro-*`/`--ambar-*` de los avisos se quedan como están.
+  - **Texto oscuro sobre el amarillo**, nunca blanco (1,96:1): `--marino-950` (8,79:1) o `--amarillo-800`.
+  - **Borde por estado en el marcador.** `svgMarcador` pone `--borde-marcador-regular` a regular y `--borde-marcador` (blanco en los dos modos, DEC-072) a los demás. Es el mismo dibujo en el mapa, la lista, la ficha, la leyenda, el panel y el minimapa, porque todos pasan por `svgMarcador`.
+  - **Tres ajustes a los valores de `docs/25`**, para pasar las comprobaciones de TR-31 que ya existían en `accesibilidad.test.ts` (que miden sobre **todas** las superficies del mapa, no solo el fondo):
+    1. El borde del amarillo en claro es `#563E00`, no `#5C4300`: aquel se quedaba en 2,87:1 sobre los rótulos del mapa (`#8A9090`); este llega a 3,10:1, y a 8,53:1 sobre el fondo y 5,13:1 contra el relleno.
+    2. El verde es `#237E51`, no `#237F52`: aquel se quedaba en 2,97:1 sobre el agua y los árboles del mapa claro, donde el borde blanco no ayuda; este llega a 3,01:1. La diferencia no se ve.
+    3. En el mapa oscuro, el borde del amarillo es `#111826`, como dice la tabla de `docs/25`, y no "el `--borde-marcador` de siempre" del punto 2 del mismo texto: el blanco contra el amarillo da 1,96:1 y el relleno no se separaría de su borde (el discontinuo de "sin revisar" no se vería). Con `#111826`, 9,05:1. El relleno contra las superficies del mapa oscuro da de 4,56:1 (calles) a 7,84:1 (fondo); sobre los rótulos (`#7E8A99`) se queda en 1,79:1, y ahí lo separa el borde oscuro (5,06:1). Los demás estados **siguen con borde blanco en oscuro**, aunque la tabla de `docs/25` y el mockup digan `#111826` para todos: DEC-072 midió que un borde oscuro sobre el mapa oscuro se queda en 1,16:1 y el verde, el rojo o el gris desaparecen.
+- **Descartado:** dejar el naranja (se confunde con el rojo); un amarillo más oscuro para no necesitar borde (vuelve al ámbar mostaza de DEC-076); borde oscuro para todos los estados en el mapa oscuro (DEC-072).
+- **Pendiente:** el desarrollador mira el amarillo en un móvil a pleno sol (comprobación de campo de `docs/25` RV-105).
+- **Afecta a:** 01 (texto de los colores, lo lleva Ops); 06 §2.2, §2.4, §4.3, §4.5 y §4.6; `src/index.css`; `src/lib/simbologia.ts`; `src/lib/ficha.ts`; DEC-076.
 
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
@@ -1679,7 +1730,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   `src/paginas/Proponer.tsx`.
 
 ### DEC-076 · El estado "regular" es naranja, no ámbar
-- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Fecha:** 21 sep 2026 · **Estado:** **sustituida por DEC-154** (4 oct 2026): regular es amarillo RAL 1003.
 - **Contexto:** en la prueba con un Android real, el desarrollador pidió que **regular se vea
   naranja**. El token de 06 §2.2 era `--ambar-700` `#8A6408`, que en pantalla, y más a pleno sol,
   se lee marrón mostaza; junto al rojo de "malo" no se distingue de un vistazo, que es justo lo que
@@ -1918,11 +1969,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |
