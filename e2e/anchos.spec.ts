@@ -277,10 +277,12 @@ test('360 px: la rejilla de estados 2 + 3 y la fila de racores caben', async ({ 
   // RV-118: las fotos de los racores están ocultas hasta que cargan y entonces las tarjetas crecen y
   // empujan la rejilla de estados unos 34 px hacia abajo. Medir antes partía las filas ([2, 1, 2]):
   // se espera a que cada foto haya cargado (o fallado: entonces desaparece) y se mide todo de una vez.
+  const racores = page.getByRole('radiogroup', { name: T.formulario.racor });
+  // Primero, que el grupo esté montado: sobre una lista vacía, la espera de las fotos pasaría sin más.
+  await expect(racores.getByRole('radio')).toHaveCount(3);
   await expect
     .poll(() =>
-      page
-        .getByRole('radiogroup', { name: T.formulario.racor })
+      racores
         .locator('img')
         .evaluateAll((fotos) => fotos.every((f) => (f as HTMLImageElement).complete && f.checkVisibility())),
     )
