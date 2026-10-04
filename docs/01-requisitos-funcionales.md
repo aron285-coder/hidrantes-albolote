@@ -254,7 +254,7 @@ exportación FR-160 cubre el intercambio de datos).
 
 | ID | Requisito |
 |---|---|
-| FR-150 | Un administrador con sesión de Google usa **la misma aplicación** que el voluntario en el móvil, con una etiqueta "Jefatura" en la barra. Desde la app, jefatura abre el panel con un toque: la etiqueta "Jefatura" de la barra o "Panel de jefatura" en Ajustes (DEC-164). Al entrar con Google en el móvil se sigue volviendo al mapa. |
+| FR-150 | Un administrador con sesión de Google usa **la misma aplicación** que el voluntario en el móvil, con una etiqueta "Jefatura" en la barra. Desde la app, jefatura abre el panel con un toque: la etiqueta "Jefatura" de la barra o "Panel de jefatura" en Ajustes. Dentro de un formulario de operación la etiqueta no lleva al panel, para no perder lo escrito (DEC-164). Al entrar con Google en el móvil se sigue volviendo al mapa. |
 | FR-151 | Cualquiera de las seis operaciones hecha por un administrador **se aplica al momento**, sin pasar por la cola, y queda en el registro como acción de administrador. La pantalla lo dice antes de confirmar ("Aplicar ahora" en lugar de "Enviar para revisión"). |
 
 ---
