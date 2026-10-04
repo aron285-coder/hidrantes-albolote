@@ -1,6 +1,6 @@
 # Verificación · Pantallas de campo más simples, "Barro", 70 mm en bocas, dos fotos y fotos del racor (docs/24)
 
-**Estado: hecho en staging el 3 oct 2026; producción con P-14 (`paridad-produccion.md`).**
+**Estado: hecho el 4 oct 2026, en staging y en producción (0.7.0).** Los esquemas provisionales de los racores (#435, DEC-152) llegan a producción con la siguiente versión.
 Especificación: `docs/24-campo-mas-simple.md`. Tres sesiones en paralelo, coordinadas en #409. Los
 registros de cada sesión son `campo-backend.md`, `campo-frontend.md` y `campo-ops.md`.
 
@@ -41,7 +41,10 @@ registros de cada sesión son `campo-backend.md`, `campo-frontend.md` y `campo-o
 - [x] **RV-102a, antes que 0034,** y RV-102 con «Barro» marrón y tachado, fuera de Cercanos y en «No utilizable». En producción las dos van en la misma release (`campo-ops.md` §3).
 - [x] **RV-103:** alta y ubicación piden las dos fotos, y la ficha y el panel las enseñan. La purga no toca las fotos del sitio (pgTAP). La cola vieja no pierde nada (`cola-foto-sitio.test.ts`).
 - [x] **Documentos:** `docs/01` en versión nueva; 05, 06 y 04 al día.
-- [ ] **P-14:** producción en la versión nueva, con la paridad en verde.
+- [x] **P-14:** producción en la **0.7.0** el 4 oct 2026 a las 06:36 UTC (#434, run 37155680542), con 0032 a 0035 en orden y la paridad en verde. La purga en ensayo (run 37183337683) no propone borrar nada.
+  - RV-102a va en la misma release que 0034, como permite `docs/24` §0: «barro» solo aparece en datos aprobados después del despliegue. `npm run compatibilidad` pasó en `ci-sql` en los tres PR de Backend.
+  - El aviso de 0035 sobre el tope de subidas no sale en el log de `deploy-prod`, porque `migrar.ts` corre `psql` en silencio. El valor se ve en Ajustes → Parámetros del panel: 80 si seguía en el de fábrica.
+  - Las imágenes de los racores aún no estaban en esta release.
 
 ## 4. Lo que queda para personas (docs/24 §5)
 
