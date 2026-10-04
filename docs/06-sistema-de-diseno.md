@@ -255,7 +255,7 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Toast** | `--verde-600`, blanco, radio 9, arriba bajo la barra, con cierre; para "tu propuesta se aprobó". |
 | **Dos fotos** (alta y corregir ubicación, `docs/24` RV-103) | dos huecos iguales lado a lado, cada uno con una sola palabra: **Conexión** y **Sitio**; vacío, botón de borde `--naranja-600` con la cámara y la palabra; hecho, fondo `--verde-100` con "Sitio · N kB" y "repetir". En la ficha, la de la conexión; si hay foto del sitio, debajo dos botones de 44 px con un punto y su palabra para pasar de una a otra (también deslizando). En el panel, las dos lado a lado, cada una con su palabra. |
 | **Foto** | relación 16:9 en ficha, 84–86 px de alto en móvil, etiqueta de fecha abajo-izquierda sobre `rgba(14,27,48,.6)`. Placeholder mientras carga: degradado gris-azulado. |
-| **Racor de referencia** | tres tarjetas iguales; Granada y Barcelona con su foto real de 48 × 48 px encima del nombre (`alt=""`: el nombre ya va en el botón) y «Otro» sin foto; la elegida con borde `--marino-950` doble. Tocar la foto elige, sin ampliar. Las fotos (`public/racores/*.webp`, 160 × 160, ≤ 25 kB) las pone el desarrollador y las prepara `scripts/preparar-racores.ts`; entran en el precache. Sin la foto, la tarjeta se ve solo con el nombre, nunca con un icono roto (`docs/24` RV-104). |
+| **Tipo de enganche de referencia** | en una boca de riego el campo se llama «Tipo de enganche» (el dato es `racor`, DEC-163); tres tarjetas iguales en este orden: Barcelona, Granada y Otro; Barcelona y Granada con su foto real de 48 × 48 px encima del nombre (`alt=""`: el nombre ya va en el botón) y «Otro» sin foto; la elegida con borde `--marino-950` doble. Tocar la foto elige, sin ampliar. Las fotos (`public/racores/*.webp`, 160 × 160, ≤ 25 kB) las pone el desarrollador y las prepara `scripts/preparar-racores.ts`; entran en el precache. Sin la foto, la tarjeta se ve solo con el nombre, nunca con un icono roto (`docs/24` RV-104). |
 | **Minimapa de los formularios** | 336 px de alto, pin arrastrable y botón "Mi posición" arriba a la derecha; no se recentra solo (DEC-066). |
 | **Controles del mapa** | blancos, radio 7–9, sombra `0 1px 5px rgba(0,0,0,.18)`. Patrón de las apps de mapas (DEC-123): herramientas arriba a la derecha y acciones principales abajo, al alcance del pulgar. **Búsqueda** arriba, ancho completo. **Columna de la derecha**, solo iconos: 44 px de ancho fijo, pegada al borde con 8 px de margen (`right-2`), con los botones alineados a su borde derecho; de arriba abajo, Capas, Medir y Mi posición (44 × 44, con `aria-label` y `title`) y el zoom "+/−" en **una sola pieza** vertical de 44 × 88 con separador (alternativa de un dedo al pellizco, WCAG 2.5.1). **Abajo a la derecha**: "Cercanos" como botón extendido (icono `Crosshair` y texto visible, 48 px de alto, `--marino-950` con texto blanco) encima del **botón + de nuevo punto**, flotante de **56 px** `--naranja-600`, con 12 px entre los dos (UI-15); igual en ordenador, con la lista lateral a la izquierda. **Leyenda** abajo a la izquierda, plegada en una ficha "Leyenda" de 44 px: al tocarla se despliega (§4.5) y se cierra con la X o tocando fuera; el primer uso la enseña desplegada una vez y después se recuerda cómo la dejó el voluntario. Atribución abajo a la derecha, 6,5 px, sin que la toquen los botones. La ficha flotante (tableta y ordenador) va a la izquierda de la columna y termina por encima de los botones de abajo: no tapa ningún control. Las medidas viven en `src/lib/disposicion-mapa.ts` (`CONTROLES`): las usan la ficha, los avisos flotantes y el encuadre del incidente. Resultados de la búsqueda (FR-73): en grupos, por este orden, *Coordenadas*, *Puntos*, *Calles y lugares* (© OpenStreetMap) y *Direcciones* (CartoCiudad · IGN), cada fila de ≥ 52 px; mientras están abiertos en el móvil y la tableta, la columna de la derecha se oculta, porque la lista la taparía a medias. |
 | **Navegación inferior** | 50 px, blanco, tres destinos (Mapa · Lista · Ajustes), activo `--marino-950` 700. |
@@ -326,7 +326,7 @@ terminado; los casos de aceptación AC-140 a AC-146 las comprueban.
 | ID | Regla |
 |---|---|
 | UI-10 | **Nada de texto pegado.** Nunca `HID-0147C/ Real 14` ni `100 mmBueno`: los datos compuestos se separan con ` · ` (espacio, punto medio, espacio) o van en líneas distintas. |
-| UI-11 | **Notación canónica de los datos compuestos**, siempre igual: punto `HID-0147 · Hidrante 100 mm`; estado y revisión `Bueno · revisado hace 1 mes`; boca de riego `BOC-0088 · 45 mm · racor Granada`; propuesta en la cola `Autor · hace 2 h · C/ Real 14 · Albolote`; sin dato, `sin dirección` en `--texto-suave`, nunca un hueco. |
+| UI-11 | **Notación canónica de los datos compuestos**, siempre igual: punto `HID-0147 · Hidrante 100 mm`; estado y revisión `Bueno · revisado hace 1 mes`; boca de riego `BOC-0088 · 45 mm · enganche Granada`; propuesta en la cola `Autor · hace 2 h · C/ Real 14 · Albolote`; sin dato, `sin dirección` en `--texto-suave`, nunca un hueco. |
 | UI-12 | **Fechas** siempre relativas con la absoluta disponible (`hace 1 mes`, con `20 ago 2026` en el detalle). **Distancias** en metros hasta 999 y en km con un decimal después. |
 | UI-13 | **Los códigos internos no se muestran al voluntario** salvo el del propio punto (`HID-####`, que es su nombre). Identificadores de dispositivo, de propuesta y de foto no aparecen en la app; en el panel, solo donde sirven. |
 | UI-14 | **Acciones destructivas separadas** de las afirmativas: ≥ 12 px entre "Aprobar" y "Rechazar…", entre "+" y "×"; nunca contiguas ni del mismo color. |
@@ -444,13 +444,13 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Ficha.** `Dirección` · `Última revisión` · `A ti` · `sin dirección` · `caducada` ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
-`Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Racor [Granada]` ·
+`Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Enganche [Granada]` ·
 `Foto no disponible sin cobertura` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
 `El caudal ha cambiado o ya no funciona` · `Corregir datos` ·
-`Diámetro, racor o descripción mal anotados` ·
+`Diámetro, tipo de enganche o descripción mal anotados` ·
 `¿El tipo está mal? Propón retirarlo y da de alta el correcto` · `Corregir ubicación` · `El pin está desplazado` ·
 `Proponer retirada` · `Ya no existe. Pide un motivo breve` · `Alta` · `Revisión` · `Estado` · `Datos` ·
 `Ubicación` · `Retirada` · `Consta como [Bueno] · revisado [hace 1 mes]` · `Caudal / estado ahora` ·
@@ -466,7 +466,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
-`Racor · compara con lo que ves` · `Granada` · `Barcelona` ·
+`Tipo de enganche` · `Barcelona` · `Granada` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
 `Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `repetir · [Sitio]` · `[Sitio] · [150] kB` ·
 `Hacer foto · obligatoria` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
@@ -476,7 +476,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
 **Avisos del formulario.** `Falta la foto para poder enviar` · `Falta la foto del sitio` · `Elige el estado` ·
 `Describe el fallo` · `Elige el tipo` · `Elige el diámetro` · `Indica la medida` ·
-`Elige el racor` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
+`Elige el tipo de enganche` · `Mueve el pin al sitio correcto` · `No has cambiado nada` · `Elige un motivo` ·
 `Explica brevemente qué has visto` ·
 `⚠ Esto queda fuera de la zona habitual. Puedes continuar; jefatura lo verá señalado.` ·
 `Toca el mapa para ajustar el pin` ·
@@ -570,7 +570,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `— pendiente, escribe aquí`.
 
 **Panel: cola, detalle y errores (Fase 7, DEC-065).** `Fuera de zona` · `sin núcleo` · `ninguno` ·
-`Tipo` · `Diámetro` · `Racor` · `Fallo` · `Descripción` · `Nota` · `Situación` · `Motivo` · `Activo` ·
+`Tipo` · `Diámetro` · `Tipo de enganche` · `Fallo` · `Descripción` · `Nota` · `Situación` · `Motivo` · `Activo` ·
 `Retirado` · `[valor] · sin cambios` · `Otra medida: [mm] mm` · `GPS en campo · ±[precision] m ·
 a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distancia] del GPS del móvil` ·
 `GPS poco preciso · ±[metros] m` · `La foto se hizo a [distancia] del pin` ·
@@ -614,7 +614,7 @@ a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distan
 
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
 `Filtrar por diámetro` · `cualquier Ø` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` ·
-`Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `Ordenar por [columna]` ·
+`Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `enganche [Granada]` · `Ordenar por [columna]` ·
 `Dirección de [codigo]` · `pulsa una columna para ordenar ·
 la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con esos filtros.` ·
 `Guardado [codigo].` · `[codigo] retirado. Sigue en el histórico.` · `[codigo] está en la papelera.` ·

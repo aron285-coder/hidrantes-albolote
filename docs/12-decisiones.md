@@ -660,6 +660,14 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-163 · En una boca de riego se lee «Tipo de enganche», no «racor»
+- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente (`docs/25` RV-112).
+- **Contexto:** los voluntarios no llaman «racor» a la pieza donde se engancha la manguera de una boca de riego; dicen «enganche». El formulario, la ficha y el panel usaban la palabra técnica.
+- **Decisión:** en todo lo que se lee (app, panel, exportación) el campo se llama **«Tipo de enganche»**, con las opciones **Barcelona, Granada y Otro**, en ese orden. Textos cortos: «Enganche Granada» en la ficha y «· enganche Granada» en el inventario y la hoja de campo. La exportación (FR-160) titula la columna «Tipo de enganche» en CSV y XLSX, igual que las demás columnas, que van en palabras («Código», «Diámetro»…); en GeoJSON, que lleva los datos crudos, la propiedad pasa a `tipo_enganche` con el valor del enum (`granada`, `barcelona`, `otro`).
+- **Lo que no cambia, a propósito:** la columna `racor`, el enum `hidrantes.tipo_racor`, los payloads de `fn_proponer` (`racor: 'barcelona'`), los tipos de TypeScript, los nombres de las claves de `textos.ts` (`racor`, `campoRacor`, `eligeRacor`) y los archivos `public/racores/*.webp`. Cambiarlos obligaría a una migración y rompería la versión anterior de la app (04 §12) para cambiar solo lo que se lee.
+- **Descartado:** escribir la cabecera del CSV como `tipo_enganche`, en minúsculas y con guion bajo, como dice la tabla de `docs/25`: las demás cabeceras van en palabras y una sola en formato interno se leería como un fallo.
+- **Afecta a:** 01 FR-20, FR-41, FR-44 y FR-66 (lo escribe Ops); 02 FL-02, FL-03 y FL-06; 05 §2 (una línea); 06 §5 y Apéndice A.
+
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
 - **Decisión:** la GitHub App del proyecto no se crea. `release-please.yml` vuelve a lo de DEC-079, sin el paso de la App ni la rama de reserva, porque ya no hay nada que reservar. Cada PR de versión necesita el empujón de una persona (un commit vacío a su rama) para que corra su CI. Los runs «expired» del bot siguen saliendo en la lista de fallos de Actions: se saben y no se miran.

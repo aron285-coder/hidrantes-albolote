@@ -45,7 +45,7 @@ migración de una línea; renombrar uno exige dos pasos (04 §12).
 | `geom` | `geography(Point,4326)` | no | |
 | `diametro_mm` | `smallint` | no | hidrante 70 / 100; boca de riego de 20 a 150: 45, 70 u otra medida (0032, DEC-144) |
 | `caudal` | `estado_caudal` | no | |
-| `racor` | `tipo_racor` | sí | solo bocas de riego |
+| `racor` | `tipo_racor` | sí | solo bocas de riego; en pantalla y en la exportación se llama «tipo de enganche» (DEC-163) |
 | `descripcion_fallo` | `text` | sí | obligatoria si `caudal = 'no_funciona'`, y solo se guarda con ese estado: con cualquier otro, `barro` incluido, se borra (RV-42, 0034) |
 | `descripcion` | `text` | sí | libre; el seed usa prefijo `[PRUEBA]` |
 | `direccion` | `text` | sí | deducida al revisar, corregible (FR-15) |
