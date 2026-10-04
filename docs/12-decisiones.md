@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.45 — 3 de octubre de 2026 (DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.46 — 4 de octubre de 2026 (DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,18 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
+- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
+- **Decisión:** la GitHub App del proyecto no se crea. `release-please.yml` vuelve a lo de DEC-079, sin el paso de la App ni la rama de reserva, porque ya no hay nada que reservar. Cada PR de versión necesita el empujón de una persona (un commit vacío a su rama) para que corra su CI. Los runs «expired» del bot siguen saliendo en la lista de fallos de Actions: se saben y no se miran.
+- **Consecuencias:** se quitan los pasos de la App de 15 §2 y la fila de la credencial. Se cierra #396. La actualización de `actions/create-github-app-token` de Dependabot (#406) se cierra sin fusionar.
+- **Afecta a:** 04 §11; 15 §2; DEC-079 y DEC-140.
+
+### DEC-152 · Esquemas provisionales en lugar de las fotos de los racores
+- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente hasta que haya fotos propias (`docs/24` RV-104).
+- **Contexto:** RV-104 pide una foto propia de cada racor, y el desarrollador aún no las tiene. Sin ellas, los botones Granada y Barcelona iban solo con texto.
+- **Decisión:** dos **esquemas** dibujados para este repositorio, sin nada sacado de internet, en `public/racores/granada.webp` y `barcelona.webp`. Granada es una tuerca hexagonal con su rosca; Barcelona, una cara redonda con dos garras. Llevan el `--marino-700` de 06 sobre fondo claro. Pasaron por `scripts/preparar-racores.ts` (160 × 160 px, 4,5 y 4,1 kB). Son una ayuda para comparar la forma, no una foto. Cuando haya fotos propias, se pasan por el mismo script y sustituyen a estas, sin tocar código.
+- **Afecta a:** 01 FR-20 (sin cambio de texto); 06 §5.
+
 ### DEC-151 · El ensayo de la primera purga programada deja su marca, y la siguiente ya borra
 - **Fecha:** 3 oct 2026 · **Estado:** vigente. Corrige DEC-129 (sesión Ops, `docs/24`).
 - **Contexto:** la primera pasada programada (28-09, run 36414479358) hizo ensayo y abrió #405, como debía. Pero «primera vez» solo se medía por `ultima_purga_fotos`, que escribe una pasada que **borra**. Sin ella, cada lunes volvía a ser la primera vez: el 5-10 habría vuelto a hacer ensayo, y así para siempre. #405 y DEC-129 prometen que «la pasada del lunes que viene borra».
@@ -677,7 +689,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** CLAUDE.md §5; `docs/trabajo-en-paralelo.md` §5.
 
 ### DEC-140 · release-please con una GitHub App propia, y reserva con GITHUB_TOKEN mientras no exista
-- **Fecha:** 25 sep 2026 · **Estado:** vigente, con la App **pendiente del desarrollador** (`docs/23` RV-97). Sustituye a DEC-079 cuando la App está puesta.
+- **Fecha:** 25 sep 2026 · **Estado:** **descartada por DEC-153** (4 oct 2026): la App no se crea y sigue DEC-079.
 - **Contexto:** release-please abre y actualiza su PR con `GITHUB_TOKEN`, y lo que hace ese token no dispara workflows (DEC-079). Los runs que quedan esperando la aprobación del bot caducan en rojo («This workflow run required approval but was not approved before it expired»): #549 (0.6.1), #570 (0.6.2), #617 (0.6.3) y #693 (0.6.4). Llenan la lista de fallos y esconden los de verdad. Además, cada release necesita el empujón de una persona.
 - **Decisión:**
   1. Una **GitHub App** del proyecto, solo en este repositorio, con *Contents* y *Pull requests* de lectura y escritura y *Actions* de lectura. La crea el desarrollador con los pasos de 15 §2 y guarda `RELEASE_APP_ID` (variable) y `RELEASE_APP_KEY` (secreto). Claude Code nunca maneja la clave.
@@ -1592,7 +1604,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §7 y §9; 06 Apéndice A (el texto ya estaba); 09 Fase 8.
 
 ### DEC-079 · El PR de versión necesita un empujón humano para poder fusionarse
-- **Fecha:** 22 sep 2026 · **Estado:** vigente mientras no exista la GitHub App de las versiones; **sustituida por DEC-140 en cuanto esté puesta**
+- **Fecha:** 22 sep 2026 · **Estado:** vigente (la GitHub App de DEC-140 no se hace, DEC-153)
 - **Contexto:** `release-please` abre su PR con `GITHUB_TOKEN`, y GitHub, por diseño, **no dispara
   workflows con eventos hechos por ese token**: el PR nace sin checks y `develop` exige tres. El
   workflow lanzaba la CI sobre la rama con `workflow_dispatch` creyendo que bastaba; al fusionar la

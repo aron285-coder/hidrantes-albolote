@@ -521,28 +521,17 @@ describe('mantenimiento de docs/22', () => {
   });
 });
 
-// docs/23 RV-97, DEC-140: el PR de versión con el token de una GitHub App, y reserva sin ella.
-describe('release-please con la GitHub App (RV-97)', () => {
+// DEC-153: sin GitHub App, el PR de versión sigue necesitando el empujón de DEC-079.
+describe('release-please sin GitHub App (DEC-153)', () => {
   const texto = leer('release-please.yml');
 
-  it('saca un token de la App con create-github-app-token, solo si existe RELEASE_APP_ID', () => {
-    expect(texto).toContain('uses: actions/create-github-app-token@v2');
-    expect(texto).toMatch(/- id: app\n\s+if: vars\.RELEASE_APP_ID != ''/);
-    expect(texto).toContain('app-id: ${{ vars.RELEASE_APP_ID }}');
-    expect(texto).toContain('private-key: ${{ secrets.RELEASE_APP_KEY }}');
+  it('no usa ninguna GitHub App ni sus secretos', () => {
+    expect(texto).not.toMatch(/create-github-app-token|RELEASE_APP_ID|RELEASE_APP_KEY|steps\.app/);
   });
 
-  it('release-please usa ese token y, sin App, GITHUB_TOKEN', () => {
-    expect(texto).toContain('token: ${{ steps.app.outputs.token || secrets.GITHUB_TOKEN }}');
-  });
-
-  it('el empujón y el workflow_dispatch de la CI solo salen sin la App', () => {
-    expect(texto).toContain("- if: steps.release.outputs.pr && vars.RELEASE_APP_ID == ''");
+  it('con un PR de versión, lanza la CI y deja el comando del empujón', () => {
+    expect(texto).toContain('- if: steps.release.outputs.pr\n');
     expect(texto).toContain('gh workflow run ci.yml');
-  });
-
-  it('ninguna clave en claro', () => {
-    expect(texto).not.toMatch(/-----BEGIN [A-Z ]*PRIVATE KEY/);
-    expect(texto).not.toMatch(/app-id: ['"]?\d+/);
+    expect(texto).toContain("git commit --allow-empty -m 'chore(release): lanzar la CI del PR de versión'");
   });
 });
