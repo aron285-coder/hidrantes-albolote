@@ -155,24 +155,22 @@ export function ListaPuntos({
                   <span className="block text-[15px] font-semibold">
                     <span className="font-datos">{p.codigo}</span> · {T.formato.mm(p.diametro_mm)}
                   </span>
-                  <span className="text-texto-suave block truncate text-[13px]">
-                    {p.direccion ?? T.ficha.sinDireccion} · {nombreCaudal(p.caudal)} ·{' '}
-                    {/* FR-68: la última revisión en todas las filas; caducada, en rojo (RV-24). */}
-                    {p.revision_caducada ? (
-                      <span className="text-rojo-700 font-semibold">
-                        {T.mapa.sinRevisar} · {hace(p.fecha_ultima_revision)}
-                      </span>
-                    ) : (
-                      T.mapa.revisado(hace(p.fecha_ultima_revision))
-                    )}
+                  {/* Estado y última revisión (FR-68). La dirección solo en la ficha (docs/25 RV-106).
+                      Caducada, en el naranja de aviso: el rojo es "malo". Si no cabe, se acorta la
+                      fecha, nunca "sin revisar". */}
+                  <span className="text-texto-suave flex min-w-0 text-[13px] whitespace-pre">
+                    <span className="shrink-0">{nombreCaudal(p.caudal)} · </span>
+                    <span className={cn('truncate', p.revision_caducada && 'text-naranja-texto font-semibold')}>
+                      {p.revision_caducada
+                        ? T.mapa.sinRevisarDesde(hace(p.fecha_ultima_revision))
+                        : T.mapa.revisado(hace(p.fecha_ultima_revision))}
+                    </span>
                   </span>
                 </span>
+                {/* La distancia, con el formato de Cercanos; sin posición, nada (docs/25 RV-106). */}
                 {pos && (
-                  <span className="text-right text-[13px] font-semibold whitespace-nowrap">
+                  <span className="text-texto-suave shrink-0 text-[13px] whitespace-nowrap tabular-nums">
                     {distancia(metros(pos, p))}
-                    <small className="text-texto-suave block font-normal">
-                      {incidente ? T.mapa.desdeIncidente : T.mapa.desdeTi}
-                    </small>
                   </span>
                 )}
               </button>

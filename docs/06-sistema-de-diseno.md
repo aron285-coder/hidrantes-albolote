@@ -404,8 +404,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
-`No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` · `desde ti` · `desde el incidente` (lista ordenada desde el incidente, RV-62) ·
-`Nada coincide con ese filtro.` · `revisado [hace 3 meses]` (en cada fila de la Lista, FR-68) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
+`No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
+`Nada coincide con ese filtro.` · `revisado [hace 3 meses]` · `sin revisar desde [hace 1 año]` (en `--naranja-texto`) (segunda línea de cada fila de la Lista, sin la dirección; a la derecha solo la distancia, y solo si hay posición: FR-68, docs/25 RV-106) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
 `[12] puntos` · `Sincronizando…` ·
 `Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` (nunca sincronizado) ·
 `Todavía no hay ningún punto en el inventario. Mantén pulsado el mapa donde haya uno para darlo de alta.` · `Añadir un punto` (sincronizado y sin ningún punto, en el mapa y en la lista, RV-76) ·
