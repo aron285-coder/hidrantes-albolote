@@ -178,10 +178,15 @@ export const T = {
 
   ficha: {
     direccion: 'Dirección',
-    ultimaRevision: 'Última revisión',
-    aTi: 'A ti',
     sinDireccion: 'sin dirección',
-    caducada: 'caducada',
+    // docs/25 RV-108 (DEC-156): la banda del estado y la rejilla de datos fijos.
+    revisado: (hace: Parametro, fecha: Parametro) => `revisado ${hace} · ${fecha}`,
+    sinRevisarDesde: (hace: Parametro) => `sin revisar desde ${hace}`,
+    tipo: 'Tipo',
+    diametro: 'Diámetro',
+    enganche: 'Tipo de enganche',
+    aDistancia: (distancia: Parametro) => `a ${distancia} de ti`,
+    fotoNumero: (que: Parametro, n: Parametro, total: Parametro) => `${que} · ${n}/${total}`,
     proponerCambio: 'Proponer un cambio',
     comoLlegar: 'Cómo llegar',
     datosDe: (hace: Parametro) => `Datos de ${hace} · sin cobertura`,

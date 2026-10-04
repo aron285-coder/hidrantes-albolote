@@ -685,6 +685,18 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Compatibilidad (04 §12):** el panel anterior pide `select('*')` a la cola y no mira columnas de más; sigue leyendo el historial de `propuestas`, que no cambia. Lo comprueba `npm run compatibilidad` en `ci-sql`.
 - **Afecta a:** 05 §4; `docs/25` RV-110.
 
+### DEC-156 · La ficha de un punto: banda de estado arriba y ficha compacta
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `mockups-ficha-banda.html`) · **Estado:** vigente (`docs/25` RV-108).
+- **Contexto:** la ficha ponía el estado en un chip pequeño entre otros tres (tipo, diámetro, racor), y la revisión y la dirección en dos tarjetas sueltas. Para saber "¿sirve este hidrante?", que es lo primero que se pregunta en una emergencia, había que buscarlo. Además no tenía primario, y "Cómo llegar" pesaba lo mismo que "Proponer un cambio".
+- **Decisión:** arriba, una banda del color del estado con el estado en mayúsculas y la revisión. Debajo van el código con el núcleo, la foto, una rejilla con los datos fijos y **Cómo llegar** como único primario, con Compartir en icono. Después, Proponer un cambio con borde naranja, las coordenadas y la antigüedad de los datos. El detalle está en 06 §5. El texto de la banda es blanco, salvo en el amarillo de regular, que lleva `--marino-950`. Los colores y los textos de cada banda están en `bandaDe()` (`src/lib/ficha.ts`), y un test mide que el texto llegue a 4,5:1 en claro y en oscuro.
+- **Ajustes al escribirlo:**
+  1. **Móvil:** la ficha sigue siendo una pantalla propia con su barra (código y volver), como hasta ahora. No es una hoja sobre el mapa como dibuja el mockup: docs/25 dice "como hoy", y cambiar el contenedor es otra pantalla (`Mapa.tsx`). Por eso, en el móvil, la banda va sin X ni asa, y el código va solo para el lector de pantalla (UI-16).
+  2. **Distancia (FR-66):** el mockup no la dibuja, pero FR-66 la pide. Va en la línea del código, junto al núcleo: "Albolote · a 80 m de ti".
+  3. **Compartir en icono:** `BotonCompartir` (de RV-109) siempre lleva texto, así que la ficha tiene su propio botón de 46 px con `aria-label`. Hace lo mismo: el menú del sistema, si no se puede, el portapapeles, y si tampoco, el texto a la vista.
+  4. **Foto que no carga:** sin foto no se enseña nada. Si la hay y no carga, se sigue diciendo con palabras ("Foto no disponible sin cobertura"), sin dejar un hueco mudo (UI-05).
+  5. El ancho de la ficha flotante sigue siendo `ANCHO_FICHA` (360 px) en tableta y ordenador. Los 370 px del ordenador en el mockup son dibujo, no medida (docs/25 §0.2).
+- **Afecta a:** 06 §5 (ficha, foto, un primario) y Apéndice A; 01 FR-66 sin cambio de texto.
+
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
 - **Decisión:** la GitHub App del proyecto no se crea. `release-please.yml` vuelve a lo de DEC-079, sin el paso de la App ni la rama de reserva, porque ya no hay nada que reservar. Cada PR de versión necesita el empujón de una persona (un commit vacío a su rama) para que corra su CI. Los runs «expired» del bot siguen saliendo en la lista de fallos de Actions: se saben y no se miran.
