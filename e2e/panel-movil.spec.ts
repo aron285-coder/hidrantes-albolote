@@ -79,6 +79,7 @@ const PAPELERA = [
 ];
 
 async function prepararPanel(page: Page) {
+  const errores: string[] = [];
   await conGoogle(page, 'jefatura@example.org');
   await simularTablas(page, {
     v_puntos_activos: PUNTOS,
@@ -94,9 +95,14 @@ async function prepararPanel(page: Page) {
     const json = (d: unknown) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(d) });
     if (nombre === 'fn_es_admin') return json(true);
     if (nombre === 'fn_actividad_voluntarios') return json(ACTIVIDAD);
-    if (nombre === 'fn_registrar_error') return json(null);
+    if (nombre === 'fn_registrar_error') {
+      errores.push(nombre);
+      return json(null);
+    }
     return route.abort('connectionrefused');
   });
+  // Una lectura que falla deja la pestaña en «Reintentar» y el test mediría una pantalla vacía.
+  return { sinErrores: () => expect(errores, 'errores registrados por el panel').toEqual([]) };
 }
 
 /** Lo que se sale a lo ancho: la página y cada caja con desplazamiento propio. */
@@ -112,6 +118,13 @@ async function desbordes(page: Page) {
         fuera.push(
           `${el.tagName.toLowerCase()}.${el.className.split(' ').slice(0, 3).join('.')} ${el.scrollWidth} > ${el.clientWidth}`,
         );
+      }
+    }
+    // Y lo que se corta sin desplazamiento: ninguna celda acaba fuera de la pantalla.
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('td, th, [role="cell"]'))) {
+      const caja = el.getBoundingClientRect();
+      if (caja.width && caja.right > window.innerWidth + 1) {
+        fuera.push(`celda «${el.textContent?.slice(0, 30)}» acaba en ${Math.round(caja.right)}`);
       }
     }
     return fuera;
@@ -135,11 +148,12 @@ test.describe('a 412 × 915', () => {
   test.use({ viewport: { width: 412, height: 915 } });
 
   test('Voluntarios cabe a lo ancho y «Anonimizar…» se toca sin desplazar (RV-116)', async ({ page }) => {
-    await prepararPanel(page);
+    const panel = await prepararPanel(page);
     await page.goto('/admin/voluntarios');
     await expect(page.getByRole('cell', { name: ACTIVIDAD[1].autor })).toBeVisible({ timeout: CARGA });
     await expect(page.getByText(T.panelVoluntarios.abiertas(1))).toBeVisible({ timeout: CARGA });
     expect(await desbordes(page)).toEqual([]);
+    panel.sinErrores();
 
     const fila = page.getByRole('row').filter({ hasText: ACTIVIDAD[1].autor });
     const anonimizar = fila.getByRole('button', { name: T.panel.anonimizar });
@@ -158,7 +172,9 @@ test.describe('a 412 × 915', () => {
     await page.getByRole('dialog').getByRole('button', { name: T.panelCola.cancelar }).click();
 
     // «Última» y «Marcar resuelta» enteros a la vista.
-    await expect(fila.getByText(T.panelVoluntarios.colUltima)).toBeVisible();
+    const ultima = fila.getByRole('cell').filter({ hasText: T.panelVoluntarios.colUltima });
+    await ultima.scrollIntoViewIfNeeded();
+    await expect(ultima).toBeInViewport({ ratio: 1 });
     const resuelta = page.getByRole('button', { name: T.panel.marcarResuelta });
     await resuelta.scrollIntoViewIfNeeded();
     await expect(resuelta).toBeInViewport({ ratio: 1 });
@@ -166,18 +182,21 @@ test.describe('a 412 × 915', () => {
   });
 
   test('Registro con filas cabe a lo ancho (RV-116)', async ({ page }) => {
-    await prepararPanel(page);
+    const panel = await prepararPanel(page);
     await page.goto('/admin/registro');
     await expect(page.getByText(REGISTRO[0].codigo!)).toBeVisible({ timeout: CARGA });
     expect(await desbordes(page)).toEqual([]);
+    panel.sinErrores();
     await auditar(page, 'Registro en el móvil');
   });
 
+  // Papelera sigue en tabla: con cuatro columnas cabe a 412 px (docs/28 RV-116, comprobado aquí).
   test('Papelera con filas cabe a lo ancho y «Restaurar» se toca (RV-116)', async ({ page }) => {
-    await prepararPanel(page);
+    const panel = await prepararPanel(page);
     await page.goto('/admin/papelera');
     await expect(page.getByText(PAPELERA[1].codigo)).toBeVisible({ timeout: CARGA });
     expect(await desbordes(page)).toEqual([]);
+    panel.sinErrores();
     const restaurar = page.getByRole('button', { name: T.panel.restaurar }).last();
     await expect(restaurar).toBeInViewport({ ratio: 1 });
     await auditar(page, 'Papelera en el móvil');
@@ -186,16 +205,29 @@ test.describe('a 412 × 915', () => {
 
 test.describe('desde md', () => {
   test.skip(({ isMobile }) => isMobile, 'la tabla, en escritorio');
-  test.use({ viewport: { width: 1440, height: 900 } });
 
-  test('Voluntarios sigue siendo la tabla de siempre (RV-116)', async ({ page }) => {
-    await prepararPanel(page);
-    await page.goto('/admin/voluntarios');
-    await expect(page.getByRole('cell', { name: ACTIVIDAD[1].autor })).toBeVisible({ timeout: CARGA });
-    await expect(page.locator('table')).toHaveCount(2);
-    await expect(page.getByRole('columnheader', { name: T.panelVoluntarios.colUltima })).toBeVisible();
-    expect(await desbordes(page)).toEqual([]);
-  });
+  // 768 es el primer ancho con tabla: si cabe ahí, cabe en todos los demás.
+  for (const [ancho, alto] of [
+    [768, 1024],
+    [1440, 900],
+  ] as const) {
+    test(`a ${ancho} px, Voluntarios y Registro siguen en tabla y caben (RV-116)`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: alto });
+      const panel = await prepararPanel(page);
+      await page.goto('/admin/voluntarios');
+      await expect(page.getByRole('cell', { name: ACTIVIDAD[1].autor })).toBeVisible({ timeout: CARGA });
+      await expect(page.getByText(T.panelVoluntarios.abiertas(1))).toBeVisible({ timeout: CARGA });
+      await expect(page.locator('table')).toHaveCount(2);
+      await expect(page.getByRole('columnheader', { name: T.panelVoluntarios.colUltima })).toBeVisible();
+      expect(await desbordes(page)).toEqual([]);
+
+      await page.goto('/admin/registro');
+      await expect(page.getByText(REGISTRO[0].codigo).first()).toBeVisible({ timeout: CARGA });
+      await expect(page.locator('table')).toHaveCount(1);
+      expect(await desbordes(page)).toEqual([]);
+      panel.sinErrores();
+    });
+  }
 });
 
 // Capturas para la revisión a ojo (skill revisar-pantallas): PW_CAPTURAS=1, en claro y en oscuro.
