@@ -1,5 +1,6 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { LayoutDashboard } from 'lucide-react';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
 import { SelectorCapas } from '@/componentes/mapa/SelectorCapas';
@@ -30,12 +31,26 @@ import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 import { NOVEDADES, hayNovedadesSinVer, marcarNovedadesVistas } from '@/lib/novedades';
 
-function Fila({ titulo, detalle, children }: { titulo: ReactNode; detalle?: ReactNode; children?: ReactNode }) {
+function Fila({
+  titulo,
+  detalle,
+  children,
+  sinMarco = false,
+}: {
+  titulo: ReactNode;
+  detalle?: ReactNode;
+  children?: ReactNode;
+  /** Dentro de una tarjeta que ya pone el marco (la cuenta de jefatura, RV-113). */
+  sinMarco?: boolean;
+}) {
   return (
     <div
       role="group"
       aria-label={typeof titulo === 'string' ? titulo : undefined}
-      className="bg-papel border-linea rounded-tarjeta flex min-h-12 items-center gap-2 border px-3 py-1.5"
+      className={cn(
+        'flex min-h-12 items-center gap-2',
+        !sinMarco && 'bg-papel border-linea rounded-tarjeta border px-3 py-1.5',
+      )}
     >
       <div className="min-w-0 flex-1">
         <div className="text-[15px]">{titulo}</div>
@@ -85,11 +100,24 @@ export function Ajustes() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-col gap-2 p-3">
       {acceso.tipo === 'jefatura' && (
-        <Fila titulo={T.ajustes.cuentaJefatura} detalle={T.ajustes.sesionGoogle(acceso.correo)}>
-          <Boton variante="enlace" className="text-sm" onClick={() => void salirDeGoogle()}>
-            {T.ajustes.cerrarSesionGoogle}
-          </Boton>
-        </Fila>
+        <div className="bg-papel border-linea rounded-tarjeta flex flex-col gap-1.5 border px-3 py-1.5">
+          <Fila titulo={T.ajustes.cuentaJefatura} detalle={T.ajustes.sesionGoogle(acceso.correo)} sinMarco>
+            <Boton variante="enlace" className="text-sm" onClick={() => void salirDeGoogle()}>
+              {T.ajustes.cerrarSesionGoogle}
+            </Boton>
+          </Fila>
+          {/* En el móvil, el camino al panel desde Ajustes (RV-113, DEC-164). Con el aspecto del botón
+              secundario de 06 §5: en Ajustes no hay principal (DEC-147), y --texto en vez de
+              --marino-950 para que se lea también en oscuro (06 §2.4). Es un enlace del router: no
+              recarga ni abre otra pestaña. */}
+          <Link
+            to="/admin"
+            className="rounded-boton bg-papel text-texto border-texto mb-1.5 flex min-h-11 w-full items-center justify-center gap-2 border-[1.5px] px-4 text-[15px] font-semibold"
+          >
+            <LayoutDashboard size={18} aria-hidden="true" />
+            {T.ajustes.irAlPanel}
+          </Link>
+        </div>
       )}
 
       {sesion && !editando && (

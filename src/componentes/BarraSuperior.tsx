@@ -1,18 +1,28 @@
 import { ChevronLeft } from 'lucide-react';
+import { Link } from 'react-router';
 import { AvisoConexion } from './AvisoConexion';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
+
+// Texto --marino-950: el blanco sobre --oro-600 se queda en 3,2:1 y no llega a 4,5:1 (DEC-164).
+const ETIQUETA = 'bg-oro-600 text-marino-950 flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-bold';
 
 /** Barra superior del móvil (06 §5) con la banda de conexión debajo. */
 export function BarraSuperior({
   titulo,
   alVolver,
   jefatura = false,
+  enlacePanel = true,
   centrado = false,
 }: {
   titulo: string;
   alVolver?: () => void;
   jefatura?: boolean;
+  /**
+   * Con `false`, la etiqueta Jefatura no lleva al panel: en un formulario a medias, un toque sin
+   * querer se llevaría las fotos y los datos sin preguntar (DEC-164).
+   */
+  enlacePanel?: boolean;
   centrado?: boolean;
 }) {
   return (
@@ -28,14 +38,32 @@ export function BarraSuperior({
             <ChevronLeft size={22} aria-hidden />
           </button>
         )}
-        <h1 className={cn('font-titulo flex-1 text-base font-semibold tracking-wide', centrado && 'text-center')}>
+        {/* Con un título largo a 360 px, se acorta el título con «…», nunca la etiqueta (RV-113). */}
+        <h1
+          className={cn(
+            'font-titulo min-w-0 flex-1 truncate text-base font-semibold tracking-wide',
+            centrado && 'text-center',
+          )}
+        >
           {titulo}
         </h1>
-        {jefatura && (
-          <span className="bg-oro-600 rounded px-1.5 py-0.5 text-[11px] font-bold text-white">
-            {T.navegacion.jefatura}
-          </span>
+        {jefatura && enlacePanel && (
+          // En el móvil, el camino al panel desde el mapa (RV-113, DEC-164). El área que se toca es de
+          // 44 × 44 px (UI-15); la etiqueta de oro conserva su tamaño dentro.
+          <Link
+            to="/admin"
+            aria-label={T.jefatura.abrirPanel}
+            className="-mr-2 flex min-h-11 min-w-11 shrink-0 items-center justify-center px-1"
+          >
+            <span className={ETIQUETA}>
+              <span>{T.navegacion.jefatura}</span>
+              <span aria-hidden="true" className="text-[13px] leading-none">
+                ›
+              </span>
+            </span>
+          </Link>
         )}
+        {jefatura && !enlacePanel && <span className={cn(ETIQUETA, 'shrink-0')}>{T.navegacion.jefatura}</span>}
       </header>
       <AvisoConexion />
     </div>

@@ -482,6 +482,8 @@ export const T = {
     cuentaJefatura: 'Cuenta de jefatura',
     sesionGoogle: (correo: Parametro) => `Sesión de Google · ${correo}`,
     cerrarSesionGoogle: 'Cerrar la sesión de Google',
+    /** Botón de la fila «Cuenta de jefatura» que abre el panel (RV-113, DEC-164). */
+    irAlPanel: 'Panel de jefatura',
     ver: 'Ver',
     siempre: 'Siempre',
     nunca: 'Nunca',
@@ -559,6 +561,8 @@ export const T = {
   jefatura: {
     panel: 'Panel de jefatura',
     irAlMapa: 'Ir al mapa',
+    /** aria-label de la etiqueta «Jefatura» de la barra superior, que abre el panel (RV-113). */
+    abrirPanel: 'Abrir el panel de jefatura',
   },
 
   formato: {
