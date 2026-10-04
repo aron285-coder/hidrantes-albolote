@@ -29,13 +29,13 @@ describe('foto de referencia del racor (RV-104)', () => {
     marcarFotoRacor('granada', 'falta');
     marcarFotoRacor('barcelona', 'falta');
     const b = pintar('granada');
-    expect(b.map((x) => x.texto)).toEqual([T.formulario.granada, T.formulario.barcelona, T.formulario.otro]);
+    expect(b.map((x) => x.texto)).toEqual([T.formulario.barcelona, T.formulario.granada, T.formulario.otro]);
     expect(b.every((x) => x.img === null)).toBe(true);
-    expect(b[0].marcado).toBe(true);
+    expect(b[1].marcado).toBe(true);
   });
 
   it('antes de saber si están, la imagen se pide pero no se ve (nunca un icono roto)', () => {
-    const [granada] = pintar();
+    const [, granada] = pintar();
     expect(granada.img).toContain(`src="${URL_FOTO_RACOR.granada}"`);
     expect(granada.img).toMatch(/class="[^"]*\bhidden\b/);
   });
@@ -44,7 +44,7 @@ describe('foto de referencia del racor (RV-104)', () => {
     marcarFotoRacor('granada', 'ok');
     marcarFotoRacor('barcelona', 'ok');
     for (const valor of [undefined, 'barcelona'] as const) {
-      const [granada, barcelona, otro] = pintar(valor);
+      const [barcelona, granada, otro] = pintar(valor);
       for (const x of [granada, barcelona]) {
         expect(x.img).toContain('alt=""');
         expect(x.img).toContain('width="48"');
@@ -55,6 +55,13 @@ describe('foto de referencia del racor (RV-104)', () => {
       expect([granada.marcado, barcelona.marcado, otro.marcado]).toEqual([false, valor === 'barcelona', false]);
       expect(granada.texto).toBe(T.formulario.granada);
     }
+  });
+
+  // docs/25 RV-112 (DEC-163): «Tipo de enganche», con Barcelona, Granada y Otro en este orden.
+  it('el grupo se llama "Tipo de enganche" y las opciones van Barcelona, Granada, Otro', () => {
+    const html = renderToStaticMarkup(<SelectorRacor alCambiar={() => {}} />);
+    expect(html).toContain('role="radiogroup" aria-label="Tipo de enganche"');
+    expect(botones(html).map((x) => x.texto)).toEqual(['Barcelona', 'Granada', 'Otro']);
   });
 
   it('las fotos van en public/racores', () => {

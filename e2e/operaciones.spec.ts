@@ -331,7 +331,12 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByLabel(T.formulario.otraMedida).fill('200');
     await expect(page.getByText(T.avisosFormulario.indicaMedida)).toBeVisible();
     await page.getByRole('radio', { name: T.formulario.d70 }).click();
-    await page.getByRole('radio', { name: T.formulario.barcelona }).click();
+    // docs/25 RV-112 (DEC-163): «Tipo de enganche», con Barcelona, Granada y Otro en este orden.
+    await expect(page.getByText('Elige el tipo de enganche')).toBeVisible();
+    const enganche = page.getByRole('radiogroup', { name: 'Tipo de enganche' });
+    await expect(enganche.getByRole('radio')).toHaveText(['Barcelona', 'Granada', 'Otro']);
+    await expect(page.getByText(/racor/i)).toHaveCount(0);
+    await enganche.getByRole('radio', { name: T.formulario.barcelona }).click();
     await page.getByRole('radio', { name: T.formulario.bueno }).click();
     await hacerFoto(page);
     await enviar(page).click();
@@ -351,6 +356,8 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
     await page.getByRole('radio', { name: T.formulario.hidrante }).click();
     await page.getByRole('radio', { name: T.formulario.d100 }).click();
+    // Un hidrante no tiene tipo de enganche (docs/25 RV-112).
+    await expect(page.getByRole('radiogroup', { name: T.formulario.racor })).toHaveCount(0);
     await page.getByRole('radio', { name: T.formulario.barro }).click();
     await expect(page.getByLabel(T.formulario.descripcionFallo)).toHaveCount(0);
     await hacerFoto(page);
@@ -534,7 +541,9 @@ test.describe('Mis propuestas (RV-23)', () => {
   test('las correcciones se leen en español', async ({ page }) => {
     await conPropuestas(page, [PROPIA({ estado: 'aprobada', correcciones: { diametro_mm: 70, racor: 'granada' } })]);
     await page.goto('/mis-propuestas');
-    await expect(page.getByText(T.misPropuestas.conCorrecciones('Diámetro: 70 mm · Racor: Granada'))).toBeVisible();
+    await expect(
+      page.getByText(T.misPropuestas.conCorrecciones('Diámetro: 70 mm · Tipo de enganche: Granada')),
+    ).toBeVisible();
     await expect(page.getByText(/diametro mm/)).toHaveCount(0);
   });
 });

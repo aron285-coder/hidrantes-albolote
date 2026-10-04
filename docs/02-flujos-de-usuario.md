@@ -39,7 +39,7 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 
 1. Localiza el punto: acercando el mapa, con *centrar en mi posición* (FR-65), desde la *Lista* ordenada por distancia (FR-68), o con la *búsqueda* por código, calle o descripción (FR-69).
 2. Toca el marcador o la fila. → *Ficha*. (FR-66)
-3. Lee estado, diámetro, racor, foto, dirección, distancia y fecha de la última revisión. La ficha indica de cuándo son los datos si no hay cobertura. (FR-80)
+3. Lee estado, diámetro, tipo de enganche, foto, dirección, distancia y fecha de la última revisión. La ficha indica de cuándo son los datos si no hay cobertura. (FR-80)
 4. Opcionalmente pulsa *Proponer un cambio* → FL-04 a FL-08.
 
 **Resultado:** el voluntario sabe dónde está, cómo está y cuándo se comprobó. (FR-02)
@@ -60,7 +60,7 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 3. Si el pin queda fuera de la zona: aviso "esto queda fuera de la zona habitual, ¿seguro?". Puede continuar. (FR-55)
 4. Elige el **tipo**. (FR-11)
    - Hidrante: elige **diámetro de la salida mayor** 70 / 100 / otra medida. (FR-16, FR-17)
-   - Boca de riego: elige **diámetro** 45 / 70 / otra medida (entero de 20 a 150 mm) y el **racor**, comparando con las fotos de referencia. (FR-16, FR-20; `docs/24` RV-101 y RV-104)
+   - Boca de riego: elige **diámetro** 45 / 70 / otra medida (entero de 20 a 150 mm) y el **tipo de enganche** (Barcelona, Granada u Otro), comparando con las fotos de referencia. (FR-16, FR-20; `docs/24` RV-101 y RV-104)
 5. Elige **caudal / estado**. Si es *no funciona*, aparece la **descripción del fallo**, obligatoria. (FR-18, FR-19)
 6. Hace las **dos fotos** con la cámara, lado a lado: **Conexión** (la de siempre) y **Sitio** (un entorno para encontrarlo). Hasta que están las dos, el botón de envío está deshabilitado y dice cuál falta ("Falta la foto del sitio"). (FR-21; `docs/24` RV-103)
 7. Añade **descripción** si quiere. (FR-22)
@@ -107,7 +107,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 
 **Actor:** voluntario. **Parte de:** *Ficha* → *Proponer un cambio* → *Corregir datos*.
 
-1. Cambia diámetro, racor o descripción. Las reglas de FR-16 y FR-20 aplican igual que en el alta.
+1. Cambia diámetro, tipo de enganche o descripción. Las reglas de FR-16 y FR-20 aplican igual que en el alta.
    El tipo se ve pero no se cambia (FR-11): si está mal, el enlace *Proponer retirada* lleva a FL-08 de
    ese punto, y después se da de alta el correcto (FL-03).
 2. Foto de hoy y nota opcional.
