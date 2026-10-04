@@ -660,6 +660,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-162 · Los mockups definitivos de una especificación van en `docs/mockups/`
+- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-111).
+- **Decisión:** los mockups HTML que una especificación elige como referencia entran en el repositorio en `docs/mockups/NN-nombre.html`, con el número de la especificación. Antes se revisan con `detectar-secretos` y se cambia cualquier nombre de persona por «Voluntario de prueba» (FR-27, repositorio público, DEC-053). Los apartados superados se marcan dentro del archivo. Los mockups descartados no entran: se borran o se guardan fuera del repositorio.
+- **Afecta a:** 06 §5; `docs/INDICE.md`.
+
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
 - **Decisión:** la GitHub App del proyecto no se crea. `release-please.yml` vuelve a lo de DEC-079, sin el paso de la App ni la rama de reserva, porque ya no hay nada que reservar. Cada PR de versión necesita el empujón de una persona (un commit vacío a su rama) para que corra su CI. Los runs «expired» del bot siguen saliendo en la lista de fallos de Actions: se saben y no se miran.
