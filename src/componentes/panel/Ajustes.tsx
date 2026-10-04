@@ -203,7 +203,7 @@ function Administradores() {
                 onChange={(e) => void cambiar(a.email, e.target.checked)}
                 aria-label={T.panelAjustes.accesoDe(a.email)}
               />
-              <span className={cn('text-[13px]', a.activo ? 'text-verde-600' : 'text-texto-suave')}>
+              <span className={cn('text-[13px]', a.activo ? 'text-verde-texto' : 'text-texto-suave')}>
                 {a.activo ? T.panelAjustes.activo : T.panelAjustes.sinAcceso}
               </span>
             </label>
@@ -564,7 +564,7 @@ function SaludDelSistema() {
                     {s.tareas.map((t) => (
                       <li key={t.tarea} className="flex gap-2">
                         <span className="font-datos flex-1 text-[13px]">{t.tarea.replace(/^hidrantes_/, '')}</span>
-                        <span className={cn('font-semibold', t.problema && 'text-rojo-700')}>
+                        <span className={cn('font-semibold', t.problema && 'text-rojo-texto')}>
                           {t.falta
                             ? T.panelAjustes.tareaFalta
                             : !t.ultima

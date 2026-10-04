@@ -105,6 +105,20 @@ for (const modo of ['claro', 'oscuro'] as const) {
       }
     });
 
+    // docs/28 RV-117: el ámbar, el rojo y el verde como texto sobre una superficie (Fusionar,
+    // Rechazar, la comparación de duplicados, el "después" de un cambio). Los 700/600 no cambian en
+    // oscuro y allí se quedaban en 2–3:1; estos se aclaran.
+    it.each(['--ambar-texto', '--rojo-texto', '--verde-texto'])('%s llega a 4,5:1 sobre --papel y --fondo', (token) => {
+      for (const superficie of ['--papel', '--fondo']) {
+        expect(t[token], `${token} definido`).toMatch(/^#/);
+        expect(contraste(t[token], t[superficie]), `${token} sobre ${superficie}`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it('el borde de Fusionar (--oro-600) llega a 3:1 sobre --papel', () => {
+      expect(contraste(t['--oro-600'], t['--papel'])).toBeGreaterThanOrEqual(3);
+    });
+
     // Un marcador se distingue del mapa en dos saltos (06 §4.2): el relleno de estado contra el
     // borde, y uno de los dos contra el mapa. En claro manda el relleno, porque el mapa es claro;
     // en oscuro, el borde blanco (DEC-072). El amarillo de regular es la excepción (DEC-154): es tan
