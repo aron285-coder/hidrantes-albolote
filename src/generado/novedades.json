@@ -1,18 +1,9 @@
 {
-  "version": "0.8.0",
-  "fecha": "2026-10-04",
+  "version": "0.6.2",
+  "fecha": "2026-09-24",
   "lineas": [
-    {
-      "version": "0.7.0",
-      "texto": "Nuevo estado «Barro» para los puntos de los que sale agua con barro"
-    },
-    {
-      "version": "0.7.0",
-      "texto": "Pantallas de campo más limpias y «Añadir un punto aquí» arriba y en naranja"
-    },
-    {
-      "version": "0.6.5",
-      "texto": "Las novedades enseñan lo último de cada versión, cada una con su número"
-    }
+    "Calles, lugares, direcciones y coordenadas",
+    "Los cinco puntos más cercanos que funcionan",
+    "Mantener pulsado el mapa abre \"¿Qué hay aquí?\", y la ficha enseña las coordenadas y se puede compartir"
   ]
 }
