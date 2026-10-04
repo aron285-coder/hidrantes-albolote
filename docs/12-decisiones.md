@@ -696,6 +696,19 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** dejar "Decimal" sin sistema (ambiguo para quien lo recibe fuera de la app); quitar la letra de banda (`30 441808 4120645`): cambiaría el formato que ya se copia y se pega en la búsqueda; la nota de 06 basta para que nadie la lea como "sur".
 - **Afecta a:** 01 FR-72 y FR-75 (lo actualiza Ops, #440); 06 Apéndice A; `src/lib/textos.ts` (`coordenadas`, `compartir`).
 
+### DEC-156 · La ficha de un punto: banda de estado arriba y ficha compacta
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `mockups-ficha-banda.html`) · **Estado:** vigente (`docs/25` RV-108).
+- **Contexto:** la ficha ponía el estado en un chip pequeño entre otros tres (tipo, diámetro, racor), y la revisión y la dirección en dos tarjetas sueltas. Para saber "¿sirve este hidrante?", que es lo primero que se pregunta en una emergencia, había que buscarlo. Además no tenía primario, y "Cómo llegar" pesaba lo mismo que "Proponer un cambio".
+- **Decisión:** arriba, una banda del color del estado con el estado en mayúsculas y la revisión. Debajo van el código con el núcleo, la foto, una rejilla con los datos fijos y **Cómo llegar** como único primario, con Compartir en icono. Después, Proponer un cambio con borde naranja, las coordenadas y la antigüedad de los datos. El detalle está en 06 §5. El texto de la banda es blanco, salvo en el amarillo de regular, que lleva `--marino-950`. Los colores y los textos de cada banda están en `bandaDe()` (`src/lib/ficha.ts`), y un test mide que el texto llegue a 4,5:1 en claro y en oscuro.
+- **Ajustes al escribirlo:**
+  1. **Móvil:** la ficha sigue siendo una pantalla propia con su barra (código y volver), como hasta ahora. No es una hoja sobre el mapa como dibuja el mockup: docs/25 dice "como hoy", y cambiar el contenedor es otra pantalla (`Mapa.tsx`). Por eso, en el móvil, la banda va sin X ni asa, y el código no se repite: la ficha toma su nombre de él (`aria-label`) y el título de la barra lo enseña (UI-16).
+  2. **Distancia (FR-66):** el mockup no la dibuja, pero FR-66 la pide. Va en la línea del código, junto al núcleo: "Albolote · a 80 m de ti".
+  3. **Compartir en icono:** `BotonCompartir` (de RV-109) siempre lleva texto, así que la ficha tiene su propio botón de 46 px con `aria-label`. Hace lo mismo: el menú del sistema, si no se puede, el portapapeles, y si tampoco, el texto a la vista.
+  4. **Foto que no carga:** sin foto no se enseña nada. Si la hay y no carga, se sigue diciendo con palabras ("Foto no disponible sin cobertura"), sin dejar un hueco mudo (UI-05).
+  5. **Cómo llegar en oscuro:** `--marino-950` no cambia en oscuro y casi no se separa del fondo, así que el botón lleva un borde `--texto` de 1,5 px que en oscuro es claro y le da forma.
+  6. El ancho de la ficha flotante sigue siendo `ANCHO_FICHA` (360 px) en tableta y ordenador. Los 370 px del ordenador en el mockup son dibujo, no medida (docs/25 §0.2).
+- **Afecta a:** 06 §5 (ficha, foto, un primario) y Apéndice A; 01 FR-66 sin cambio de texto.
+
 ### DEC-154 · Colores de estado RAL: regular pasa a amarillo, con borde propio en el marcador
 - **Fecha:** 4 oct 2026 (desarrollador, sobre `docs/mockups-ficha-banda.html`) · **Estado:** vigente. Sustituye a DEC-076 (`docs/25` RV-105). Sesión Frontend-campo.
 - **Contexto:** el naranja de regular (`#A85300`, DEC-076) se parecía al rojo de "malo", y más con daltonismo. Los colores de seguridad de ISO 3864 (UNE-EN ISO 7010) y la escala de caudal de NFPA 291 usan verde, amarillo y rojo.

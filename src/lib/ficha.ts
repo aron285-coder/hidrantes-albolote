@@ -61,3 +61,26 @@ const CLASE_CHIP: Record<Caudal, string> = {
 
 /** Chip de estado (06 §5): fondo y texto de su color. Uno desconocido, como no funciona. */
 export const claseChip = (c: string): string => CLASE_CHIP[caudalParaDibujar(c)];
+
+/**
+ * Banda de la ficha (docs/25 RV-108, DEC-156): el relleno del estado y el texto que se lee encima.
+ * `fondo` y `texto` son los tokens que mide el test de contraste (≥ 4,5:1); `clase`, las mismas en
+ * Tailwind, escritas enteras para que Tailwind las encuentre. Blanco sobre todos menos el amarillo,
+ * que lleva --marino-950 (el blanco se queda en 1,96:1).
+ */
+export interface Banda {
+  clase: string;
+  fondo: string;
+  texto: string;
+}
+
+const BANDA: Record<Caudal, Banda> = {
+  bueno: { clase: 'bg-verde-600 text-white', fondo: '--verde-600', texto: '#ffffff' },
+  regular: { clase: 'bg-amarillo-500 text-marino-950', fondo: '--amarillo-500', texto: '--marino-950' },
+  malo: { clase: 'bg-rojo-700 text-white', fondo: '--rojo-700', texto: '#ffffff' },
+  barro: { clase: 'bg-marron-600 text-white', fondo: '--marron-600', texto: '#ffffff' },
+  no_funciona: { clase: 'bg-gris-700 text-white', fondo: '--gris-700', texto: '#ffffff' },
+};
+
+/** La banda de un estado. Uno desconocido, como no funciona (docs/24 RV-102a). */
+export const bandaDe = (c: string): Banda => BANDA[caudalParaDibujar(c)];
