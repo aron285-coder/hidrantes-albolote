@@ -264,7 +264,7 @@ export function DetallePropuesta({
             {comparar && (
               <Boton
                 variante="secundario"
-                className="border-oro-600 text-ambar-700"
+                className="border-oro-600 text-ambar-texto"
                 disabled={ocupado}
                 onClick={() => setModo('fusionar')}
               >
@@ -273,7 +273,7 @@ export function DetallePropuesta({
             )}
             <Boton
               variante="secundario"
-              className="border-rojo-700 text-rojo-700"
+              className="border-rojo-texto text-rojo-texto"
               disabled={ocupado}
               onClick={() => setModo('rechazar')}
             >
@@ -365,7 +365,7 @@ function DatosDelPunto({
 function Antes({ texto }: { texto: string }) {
   return (
     <>
-      <del className="text-rojo-700">{texto}</del>
+      <del className="text-rojo-texto">{texto}</del>
       <span aria-hidden> → </span>
     </>
   );
@@ -390,7 +390,9 @@ function Valor({ campo: c }: { campo: CampoFicha }) {
     <span
       className={cn(
         datos && !c.suave && 'font-datos',
-        c.suave ? 'text-texto-suave text-[13px]' : c.cambia && c.antes !== undefined && 'text-verde-600 font-semibold',
+        c.suave
+          ? 'text-texto-suave text-[13px]'
+          : c.cambia && c.antes !== undefined && 'text-verde-texto font-semibold',
       )}
     >
       {c.valor}
@@ -537,7 +539,13 @@ function Comparacion({ p, existente, direccion }: { p: PropuestaPanel; existente
                 {k}
               </th>
               {[a, b].map((x, i) => (
-                <td key={i} className={cn('border-linea border-b px-2 py-1', a !== b && 'bg-ambar-100 text-ambar-700')}>
+                <td
+                  key={i}
+                  className={cn(
+                    'border-linea border-b px-2 py-1',
+                    a !== b && 'text-ambar-texto bg-[color-mix(in_srgb,var(--oro-600)_14%,var(--papel))] font-semibold',
+                  )}
+                >
                   {x}
                 </td>
               ))}
@@ -774,7 +782,7 @@ function FormularioRechazo({
         />
       </label>
       <p className="text-texto-suave mt-1 text-[12px]">{T.panelCola.avisoNombres}</p>
-      {intentado && !motivo.trim() && <p className="text-rojo-700 mt-1 text-[12px]">{T.panelCola.sinMotivo}</p>}
+      {intentado && !motivo.trim() && <p className="text-rojo-texto mt-1 text-[12px]">{T.panelCola.sinMotivo}</p>}
       <div className="mt-2 flex gap-3">
         <Boton
           variante="destructivo"
@@ -810,7 +818,7 @@ function FormularioFusion({
   const difs = useMemo(() => diferenciasFusion(p, existente), [p, existente]);
   const [elegido, setElegido] = useState<Partial<Record<CampoFusion, Prevalece>>>({});
   return (
-    <div className="border-oro-600 bg-oro-100 rounded-campo border p-3">
+    <div className="border-oro-600 rounded-campo border bg-[color-mix(in_srgb,var(--oro-600)_10%,var(--papel))] p-3">
       <p className="font-semibold">{T.panelCola.fusionTitulo(existente.codigo)}</p>
       <p className="mb-2 text-[13px]">{T.panelCola.fusionExplica(existente.codigo)}</p>
       {difs.map((d) => (
@@ -832,7 +840,7 @@ function FormularioFusion({
       <div className="mt-2 flex gap-3">
         <Boton
           variante="secundario"
-          className="border-oro-600 text-ambar-700"
+          className="border-oro-600 text-ambar-texto"
           disabled={ocupado}
           onClick={() => alConfirmar(elegido)}
         >

@@ -48,6 +48,13 @@
   --ambar-100: #fbedcb;
   --rojo-700: #9b2423;
   --rojo-100: #fbe0db;
+  /* Ámbar, rojo y verde cuando son texto o borde sobre una superficie (--papel, --fondo), como
+     --naranja-texto: en claro, los de siempre; en oscuro se aclaran para llegar a 4,5:1, porque
+     los 700/600 no cambian y allí se quedaban en 2–3:1 (docs/28 RV-117). Sobre los fondos claros
+     de aviso (--ambar-100, --rojo-100, --oro-100) se siguen usando los 700. */
+  --ambar-texto: var(--ambar-700);
+  --rojo-texto: var(--rojo-700);
+  --verde-texto: var(--verde-600);
   --gris-700: #40453d;
   --gris-100: #e5e4dc;
   /* Barro (docs/24 RV-102, DEC-149): el #6B4423 propuesto se confundía con --rojo-700 con protanopía
@@ -90,6 +97,9 @@
     --badge-pendiente-fondo: #3a2a1e;
     --badge-pendiente-texto: #f0a070;
     --naranja-texto: #f0a070;
+    --ambar-texto: #e8b54a;
+    --rojo-texto: #f28b82;
+    --verde-texto: #5fc48e;
     --anillo-seleccion: #e6eaf0;
     --anillo-sin-revisar: #c9cfd8;
     --linea-incidente: rgba(230, 234, 240, 0.7);
@@ -110,6 +120,9 @@
   --badge-pendiente-fondo: #3a2a1e;
   --badge-pendiente-texto: #f0a070;
   --naranja-texto: #f0a070;
+  --ambar-texto: #e8b54a;
+  --rojo-texto: #f28b82;
+  --verde-texto: #5fc48e;
   --anillo-seleccion: #e6eaf0;
   --anillo-sin-revisar: #c9cfd8;
   --linea-incidente: rgba(230, 234, 240, 0.7);
@@ -124,6 +137,9 @@
   --color-marino-600: var(--marino-600);
   --color-naranja-600: var(--naranja-600);
   --color-naranja-texto: var(--naranja-texto);
+  --color-ambar-texto: var(--ambar-texto);
+  --color-rojo-texto: var(--rojo-texto);
+  --color-verde-texto: var(--verde-texto);
   --color-naranja-500: var(--naranja-500);
   --color-naranja-100: var(--naranja-100);
   --color-oro-600: var(--oro-600);

@@ -424,7 +424,7 @@ function Lista({
                 <EtiquetaOperacion operacion={p.operacion} />
                 <span className="font-datos text-texto-suave text-[13px]">{p.codigo ?? T.panelCola.nuevo}</span>
                 {pendientes && tieneAviso(p) && (
-                  <TriangleAlert size={14} className="text-ambar-700" aria-label={T.panelCola.senalAviso} />
+                  <TriangleAlert size={14} className="text-ambar-texto" aria-label={T.panelCola.senalAviso} />
                 )}
               </span>
               <span className="text-texto-suave block truncate text-[13px]">{lineaCola(p)}</span>
@@ -534,7 +534,7 @@ function RechazoLote({
         />
       </label>
       <p className="text-texto-suave mt-1 text-xs">{T.panelCola.avisoNombres}</p>
-      {intentado && !motivo.trim() && <p className="text-rojo-700 mt-1 text-xs">{T.panelCola.sinMotivo}</p>}
+      {intentado && !motivo.trim() && <p className="text-rojo-texto mt-1 text-xs">{T.panelCola.sinMotivo}</p>}
       <div className="mt-2 flex gap-3">
         <Boton
           variante="destructivo"

@@ -216,7 +216,7 @@ export function DialogoMotivo({
         <span className={etiqueta}>{T.panelInventario.motivo}</span>
         <textarea className={`${campo} p-2`} rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
       </label>
-      {intentado && !motivo.trim() && <p className="text-rojo-700 mt-1 text-[12px]">{T.panelInventario.sinMotivo}</p>}
+      {intentado && !motivo.trim() && <p className="text-rojo-texto mt-1 text-[12px]">{T.panelInventario.sinMotivo}</p>}
       <div className="mt-3 flex gap-3">
         <Boton variante="destructivo" disabled={ocupado} onClick={() => void confirmar()}>
           {retirar ? T.panel.retirar : T.panel.borrar}

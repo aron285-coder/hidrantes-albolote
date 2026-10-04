@@ -180,7 +180,7 @@ export default function Voluntarios({ alCambiar }: { alCambiar: () => void }) {
           <div role="cell" className="pt-1.5">
             <Boton
               variante="secundario"
-              className="border-rojo-700 text-rojo-700 w-full"
+              className="border-rojo-texto text-rojo-texto w-full"
               onClick={() => setAAnonimizar(v)}
             >
               {T.panel.anonimizar}
