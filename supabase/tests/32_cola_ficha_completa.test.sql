@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(25);
+select plan(29);
 
 insert into hidrantes.administradores (email, creado_por) values ('cola-ficha@example.com', 'test') on conflict do nothing;
 
@@ -49,6 +49,11 @@ values ('00000000-0000-4000-8000-0000000e3601', 'BOC-8601', 'boca_riego', 'SRID=
         'fotos/f-sitio.jpg', 'albolote', 'Centro', date '2026-03-15'),
        ('00000000-0000-4000-8000-0000000e3602', 'HID-8602', 'hidrante', 'SRID=4326;POINT(-3.6522 37.2355)', 100,
         'bueno', null, null, null, null, 'fotos/f-hid.jpg', null, 'albolote', 'Centro', current_date);
+-- Uno que jefatura mandó a la papelera con una propuesta suya aún pendiente.
+insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, fecha_ultima_revision,
+                              situacion, borrado_en)
+values ('00000000-0000-4000-8000-0000000e3603', 'HID-8603', 'hidrante', 'SRID=4326;POINT(-3.6552 37.2385)', 70,
+        'regular', 'fotos/f-bor.jpg', 'albolote', current_date, 'borrado', now());
 
 insert into hidrantes.propuestas (id, punto_id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id,
                                   clave_local, origen_ubicacion, geom, foto_path, foto_sitio_path, estado,
@@ -63,6 +68,8 @@ values
   ('00000000-0000-4000-8000-0000000e3613', '00000000-0000-4000-8000-0000000e3602', 'ubicacion', '{}',
    'Ana', 'Ruiz', gen_random_uuid(), 'cola-ficha-ubic', 'gps', 'SRID=4326;POINT(-3.6524 37.2357)',
    'fotos/u-con.jpg', 'fotos/u-sitio.jpg', 'pendiente', null, null, null),
+  ('00000000-0000-4000-8000-0000000e3614', '00000000-0000-4000-8000-0000000e3603', 'estado', '{"caudal": "malo"}',
+   'Ana', 'Ruiz', gen_random_uuid(), 'cola-ficha-borrado', null, null, 'fotos/b.jpg', null, 'pendiente', null, null, null),
   -- decididas
   ('00000000-0000-4000-8000-0000000e3621', '00000000-0000-4000-8000-0000000e3601', 'estado', '{"caudal": "malo"}',
    'Ana', 'Ruiz', gen_random_uuid(), 'cola-ficha-rech', null, null, 'fotos/r.jpg', null, 'rechazada',
@@ -79,8 +86,8 @@ select is((select punto from hidrantes.v_cola_revision where id = '00000000-0000
   jsonb_build_object('codigo', 'BOC-8601', 'tipo', 'boca_riego', 'diametro_mm', 45, 'caudal', 'no_funciona',
     'racor', 'granada', 'descripcion', 'Junto al quiosco', 'descripcion_fallo', 'No abre la llave',
     'direccion', 'Calle Real 3', 'nucleo', 'Centro', 'fecha_ultima_revision', '2026-03-15',
-    'foto_path', 'fotos/f-con.jpg', 'foto_sitio_path', 'fotos/f-sitio.jpg'),
-  'una propuesta de datos trae punto con los doce campos y sus valores de hoy');
+    'foto_path', 'fotos/f-con.jpg', 'foto_sitio_path', 'fotos/f-sitio.jpg', 'situacion', 'activo', 'borrado_en', null),
+  'una propuesta de datos trae punto con los catorce campos y sus valores de hoy');
 select is((select round(punto_lat::numeric, 6) || ',' || round(punto_lng::numeric, 6)
              from hidrantes.v_cola_revision where id = '00000000-0000-4000-8000-0000000e3611'),
   '37.234500,-3.651200', 'punto_lat y punto_lng son la geometría del punto');
@@ -101,25 +108,44 @@ select is((select round(punto_lat::numeric, 4) || ',' || round(punto_lng::numeri
   '37.2355,-3.6522|37.2357,-3.6524', 'una ubicación trae la posición de ahora (punto_*) y la propuesta (lat/lng)');
 select ok((select punto ? 'racor' and jsonb_typeof(punto -> 'racor') = 'null' from hidrantes.v_cola_revision
             where id = '00000000-0000-4000-8000-0000000e3613'),
-  'un hidrante: racor va con la clave y valor null; el objeto tiene siempre las mismas doce claves');
+  'un hidrante: racor va con la clave y valor null; el objeto tiene siempre las mismas catorce claves');
+select ok((select punto ->> 'situacion' = 'borrado' and punto ->> 'borrado_en' is not null
+                  and punto ->> 'codigo' = 'HID-8603' and punto_lat is not null
+             from hidrantes.v_cola_revision where id = '00000000-0000-4000-8000-0000000e3614'),
+  'una propuesta pendiente sobre un punto en la papelera lo dice: situacion borrado y borrado_en');
 
--- FR-27: ninguna clave de autor, de dispositivo ni de revisor, y ningún correo.
-select is((select count(*)::int from hidrantes.v_cola_revision c, jsonb_object_keys(c.punto) k
-            where k ~ '^(autor|dispositivo|revisad|creado_por|actualizado_por|email)'), 0,
-  'punto no contiene autores, dispositivo ni revisor (FR-27)');
-select is((select count(*)::int from hidrantes.v_cola_revision where punto::text like '%@%'), 0,
-  'punto no contiene ningún correo');
+-- El invariante del que depende el cliente (decide por operacion): para jefatura, toda propuesta
+-- que no es un alta trae su punto, en la cola y en el historial.
+select is((select count(*)::int from hidrantes.v_cola_revision where operacion <> 'alta' and punto is null), 0,
+  'cola: ninguna propuesta que no sea un alta sin punto');
+select is((select count(*)::int from hidrantes.v_historial_revision where operacion <> 'alta' and punto is null), 0,
+  'historial: ninguna propuesta que no sea un alta sin punto');
+
+-- FR-27: ninguna clave de autor, de dispositivo ni de revisor, y ningún correo. Sobre nuestras
+-- cuatro filas con punto (no sobre un conjunto que pudiera venir vacío).
+select is((select count(*)::int from hidrantes.v_cola_revision
+            where id in ('00000000-0000-4000-8000-0000000e3611', '00000000-0000-4000-8000-0000000e3613',
+                         '00000000-0000-4000-8000-0000000e3614')
+              and punto is not null
+              and punto::text not like '%@%'
+              and not exists (select 1 from jsonb_object_keys(punto) k
+                               where k ~ '^(autor|dispositivo|revisad|creado_por|actualizado_por|email)')), 3,
+  'punto no contiene autores, dispositivo, revisor ni correos (FR-27)');
+select is((select punto::text not like '%@%' from hidrantes.v_historial_revision
+            where id = '00000000-0000-4000-8000-0000000e3621'), true,
+  'en el historial tampoco, aunque revisada_por sea un correo');
 select is((select array_agg(k order by k) from (select distinct jsonb_object_keys(punto) k
              from hidrantes.v_cola_revision where punto is not null) s),
-  array['caudal', 'codigo', 'descripcion', 'descripcion_fallo', 'diametro_mm', 'direccion', 'fecha_ultima_revision',
-        'foto_path', 'foto_sitio_path', 'nucleo', 'racor', 'tipo'],
-  'las claves de punto son exactamente las doce del contrato');
+  array['borrado_en', 'caudal', 'codigo', 'descripcion', 'descripcion_fallo', 'diametro_mm', 'direccion',
+        'fecha_ultima_revision', 'foto_path', 'foto_sitio_path', 'nucleo', 'racor', 'situacion', 'tipo'],
+  'las claves de punto son exactamente las catorce del contrato');
 
 -- historial
-select is((select count(*)::int from hidrantes.v_historial_revision
-            where id in ('00000000-0000-4000-8000-0000000e3611', '00000000-0000-4000-8000-0000000e3612',
-                         '00000000-0000-4000-8000-0000000e3613')), 0,
+select is((select count(*)::int from hidrantes.v_historial_revision where estado = 'pendiente'), 0,
   'el historial no trae pendientes');
+select is((select count(*)::int from hidrantes.v_historial_revision
+            where id in ('00000000-0000-4000-8000-0000000e3621', '00000000-0000-4000-8000-0000000e3622')), 2,
+  'y sí las dos decididas');
 select is((select (punto ->> 'codigo') || '|' || round(punto_lat::numeric, 4) || '|' || motivo_rechazo || '|' || codigo
              from hidrantes.v_historial_revision where id = '00000000-0000-4000-8000-0000000e3621'),
   'BOC-8601|37.2345|Foto movida|BOC-8601', 'una rechazada trae el punto, su posición y el motivo');

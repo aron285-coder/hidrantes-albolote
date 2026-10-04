@@ -6,9 +6,13 @@
 --   1. v_cola_revision: tres columnas nuevas AL FINAL (create or replace view no deja otra cosa, y
 --      así el panel anterior, que pide select('*'), no ve nada roto; 04 §12):
 --        punto      jsonb con una lista CERRADA de claves (nunca to_jsonb(p): una columna nueva de
---                   puntos no aparece sola, y nada de FR-27 se cuela);
+--                   puntos no aparece sola, y nada de FR-27 se cuela). Lleva situacion y
+--                   borrado_en: una propuesta sobre un punto retirado o en la papelera se ve así,
+--                   no como un punto activo;
 --        punto_lat, punto_lng  la posición actual del punto.
 --      En un alta, las tres null: no hay punto (punto_id es null también después de aprobarla).
+--      El cliente decide por operacion, no por punto is null: con la RLS, un punto que no se
+--      pudiera leer también daría null (el pgTAP comprueba que, para jefatura, no pasa).
 --   2. v_historial_revision (nueva): lo decidido, con las mismas tres columnas, para el detalle en
 --      solo lectura. Sin antes ni señales: el punto de hoy ya no es el de entonces.
 -- La UTM no viaja: la calcula el cliente (RV-109).
@@ -47,7 +51,8 @@ select
     'codigo', p.codigo, 'tipo', p.tipo, 'diametro_mm', p.diametro_mm, 'caudal', p.caudal,
     'racor', p.racor, 'descripcion', p.descripcion, 'descripcion_fallo', p.descripcion_fallo,
     'direccion', p.direccion, 'nucleo', p.nucleo, 'fecha_ultima_revision', p.fecha_ultima_revision,
-    'foto_path', p.foto_path, 'foto_sitio_path', p.foto_sitio_path) end as punto,
+    'foto_path', p.foto_path, 'foto_sitio_path', p.foto_sitio_path,
+    'situacion', p.situacion, 'borrado_en', p.borrado_en) end as punto,
   extensions.st_y(p.geom::extensions.geometry) as punto_lat,
   extensions.st_x(p.geom::extensions.geometry) as punto_lng
 from hidrantes.propuestas r
@@ -71,7 +76,8 @@ select
     'codigo', p.codigo, 'tipo', p.tipo, 'diametro_mm', p.diametro_mm, 'caudal', p.caudal,
     'racor', p.racor, 'descripcion', p.descripcion, 'descripcion_fallo', p.descripcion_fallo,
     'direccion', p.direccion, 'nucleo', p.nucleo, 'fecha_ultima_revision', p.fecha_ultima_revision,
-    'foto_path', p.foto_path, 'foto_sitio_path', p.foto_sitio_path) end as punto,
+    'foto_path', p.foto_path, 'foto_sitio_path', p.foto_sitio_path,
+    'situacion', p.situacion, 'borrado_en', p.borrado_en) end as punto,
   extensions.st_y(p.geom::extensions.geometry) as punto_lat,
   extensions.st_x(p.geom::extensions.geometry) as punto_lng
 from hidrantes.propuestas r
