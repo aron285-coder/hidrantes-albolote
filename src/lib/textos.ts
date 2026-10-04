@@ -252,28 +252,22 @@ export const T = {
     boton: 'Cercanos',
     titulo: 'Cercanos',
     diana: 'Incidente',
-    desdeTuPosicion: 'Desde tu posición',
-    desdePuntoMarcado: 'Desde el punto marcado',
-    posicionDe: (hace: Parametro) => `Posición de ${hace}`,
+    // El subtítulo va en minúscula detrás de "Cercanos ·" y solo avisa cuando importa (DEC-165):
+    // "Cercanos · en línea recta · posición de hace 5 min".
+    desdePuntoMarcado: 'desde el punto marcado',
+    posicionDe: (hace: Parametro) => `posición de ${hace}`,
     soloHidrantes: 'Solo hidrantes',
-    lineaRecta: 'Distancias en línea recta',
+    lineaRecta: 'en línea recta',
     sinPosicion: 'Sin posición: mantén pulsado el mapa donde está el incidente o busca la calle',
     buscandoPosicion: 'Buscando tu posición… (puedes marcar el incidente en el mapa)',
-    precision: (m: Parametro) => `±${m} m`,
-    pocoPrecisa: (m: Parametro) => `Posición poco precisa (±${m} m): si sabes dónde es, mantén pulsado el mapa`,
+    pocoPrecisa: (m: Parametro) => `posición poco precisa (±${m} m)`,
     marcarEnMapa: 'Marcar en el mapa',
+    /** Tras "Marcar en el mapa", encima del mapa hasta que se marca el sitio (RV-114). */
+    marcaElSitio: 'Mantén pulsado el mapa donde está el incidente',
     vacio: 'Ningún punto que funcione a menos de 2 km del incidente',
     verTodos: 'Ver todos en la lista',
-    masCercanoNoFunciona: (codigo: Parametro, distancia: Parametro) =>
-      `El más cercano, ${codigo} a ${distancia}, no funciona`,
-    masCercanoMalo: (codigo: Parametro, distancia: Parametro) =>
-      `El más cercano, ${codigo} a ${distancia}, está en mal estado`,
-    masCercanoBarro: (codigo: Parametro, distancia: Parametro) =>
-      `El más cercano, ${codigo} a ${distancia}, tiene barro`,
-    fila: (distancia: Parametro, rumbo: Parametro, tramos: Parametro) => `${distancia} · ${rumbo} · ${tramos}`,
-    tramos: (n: Parametro) => (n === 1 ? '≥ 1 tramo' : `≥ ${n} tramos`),
-    compartirIncidente: 'Compartir el incidente',
-    datos: (hace: Parametro) => `Datos de ${hace}`,
+    /** La segunda línea de cada fila: "100 mm · Regular" (RV-114). */
+    detalle: (diametro: Parametro, estado: Parametro) => `${diametro} · ${estado}`,
     desdeIncidente: 'Distancias desde el incidente',
     cerrarIncidente: 'Cerrar el incidente',
     ampliarHoja: 'Ver más cercanos',
@@ -286,7 +280,6 @@ export const T = {
     boton: 'Medir',
     titulo: 'Medir distancia',
     desdeAqui: 'Medir desde aquí',
-    tendido: 'Medir tendido',
     empezar: 'Toca el mapa para poner los puntos del tendido',
     resultado: (distancia: Parametro, n: Parametro, largo: Parametro) =>
       n === 1 ? `${distancia} · 1 tramo de ${largo} m` : `${distancia} · ${n} tramos de ${largo} m`,

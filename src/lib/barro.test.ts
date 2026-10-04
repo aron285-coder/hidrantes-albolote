@@ -6,7 +6,7 @@ import type { Caudal, Punto } from '../tipos/punto';
 import { CAUDALES, esCaudalConocido } from './caudal';
 import { CONFIG_POR_DEFECTO, radioPx } from './derivar';
 import { claseChip, nombreCaudal } from './ficha';
-import { cercanos, masCercanoQueNoFunciona, textoMasCercano } from './incidente';
+import { cercanos } from './incidente';
 import { datosDe, queFalta } from './propuestas';
 import { correccionesDe, faltaEnCorrecciones, valoresPropuestos, type PropuestaPanel } from './panel/cola';
 import { filtrar, leerFiltro, ordenar } from './puntos';
@@ -56,16 +56,7 @@ describe('Barro, un estado conocido (RV-102)', () => {
 
   it('Cercanos no lo lista (FR-74: solo bueno y regular)', () => {
     const lista = [p(30, BARRO), p(60, 'regular')];
-    expect(cercanos(lista, O, { soloHidrantes: false, metrosTramo: 20 }).map((c) => c.punto.caudal)).toEqual([
-      'regular',
-    ]);
-  });
-
-  it('si el más cercano tiene barro, el aviso lo dice', () => {
-    const lista = [p(30, BARRO), p(600)];
-    const c = cercanos(lista, O, { soloHidrantes: false, metrosTramo: 20 });
-    expect(masCercanoQueNoFunciona(lista, O, { soloHidrantes: false }, c)?.punto.caudal).toBe('barro');
-    expect(T.incidente.masCercanoBarro('HID-0001', '30 m')).toBe('El más cercano, HID-0001 a 30 m, tiene barro');
+    expect(cercanos(lista, O, { soloHidrantes: false }).map((c) => c.punto.caudal)).toEqual(['regular']);
   });
 
   it('el filtro «No utilizable» recoge No funciona y Barro (FR-68)', () => {
@@ -84,18 +75,6 @@ describe('Barro, un estado conocido (RV-102)', () => {
     expect(leerFiltro('bocas')).toBe('bocas');
     expect(leerFiltro(null)).toBe('todos');
     expect(leerFiltro('x')).toBe('todos');
-  });
-
-  it('el aviso del más cercano dice por qué no sirve', () => {
-    expect(textoMasCercano({ codigo: 'HID-0001', caudal: BARRO }, '30 m')).toBe(
-      T.incidente.masCercanoBarro('HID-0001', '30 m'),
-    );
-    expect(textoMasCercano({ codigo: 'HID-0001', caudal: 'no_funciona' }, '30 m')).toBe(
-      T.incidente.masCercanoNoFunciona('HID-0001', '30 m'),
-    );
-    expect(textoMasCercano({ codigo: 'HID-0001', caudal: 'malo' }, '30 m')).toBe(
-      T.incidente.masCercanoMalo('HID-0001', '30 m'),
-    );
   });
 
   it('no pide descripción del fallo ni la envía, en alta y en actualizar estado (DEC-145)', () => {

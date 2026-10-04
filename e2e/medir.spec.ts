@@ -104,16 +104,6 @@ test('atrás sale de la medición', async ({ page }) => {
   await expect(page).not.toHaveURL(/medir=1/);
 });
 
-test('"Medir tendido" desde el incidente trae la recta precargada', async ({ page }) => {
-  await preparar(page);
-  await page.goto(`/?incidente=${A.lat.toFixed(6)},${(A.lng + 59 / M_POR_GRADO_LNG).toFixed(6)}`);
-  const hoja = page.getByRole('region', { name: T.incidente.titulo });
-  await hoja.getByRole('listitem').first().getByRole('button', { name: T.medir.tendido }).click();
-  await expect.poll(() => resultado(page)).toBe(T.medir.resultado(distancia(59), 3, 20));
-  await barra(page).getByRole('button', { name: T.medir.terminar }).click();
-  await expect(hoja).toBeVisible();
-});
-
 // docs/19 RV-67: la etiqueta iba centrada sobre la línea y la línea la tachaba.
 test('la etiqueta del tramo queda al lado de la línea, sin que la corte', async ({ page }) => {
   await preparar(page);

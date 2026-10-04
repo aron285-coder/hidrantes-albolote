@@ -3,18 +3,14 @@
 // lo que se puede saber sin un servicio de rutas (16 §2).
 
 import type { LatLng } from './coordenadas';
-import { metros, rumbo, tramos } from './geometria';
-import { caudalParaDibujar } from './caudal';
+import { metros, rumbo } from './geometria';
 import type { Punto } from './puntos';
-import { T } from './textos';
 
 export interface Candidato {
   punto: Punto;
   metros: number;
   /** Grados desde el norte, del incidente al punto. */
   rumbo: number;
-  /** Tramos de manguera mínimos para llegar en línea recta. */
-  tramos: number;
 }
 
 export interface OpcionesCercanos {
@@ -23,7 +19,6 @@ export interface OpcionesCercanos {
   n?: number;
   /** A partir de aquí ya no son "cercanos" (2 km). */
   maxMetros?: number;
-  metrosTramo: number;
 }
 
 export const CERCANOS_N = 5;
@@ -76,39 +71,12 @@ export function cercanos(puntos: Punto[], origen: LatLng, o: OpcionesCercanos): 
       punto,
       metros: m,
       rumbo: rumbo(origen, punto),
-      tramos: tramos(m, o.metrosTramo),
     }));
 }
 
 /**
- * El más cercano de todos (del tipo que se mira) si **no** funciona y está más cerca que el más
- * cercano de los que sí: para avisar y que nadie vaya a él por costumbre. Null si no hace falta avisar.
- * Se compara con la distancia mínima de los candidatos, no con el primero de la lista, que puede ir
- * delante por el desempate de radio (docs/19 RV-54).
- */
-export function masCercanoQueNoFunciona(
-  puntos: Punto[],
-  origen: LatLng,
-  o: Pick<OpcionesCercanos, 'soloHidrantes' | 'maxMetros'>,
-  candidatos: Candidato[],
-): { punto: Punto; metros: number } | null {
-  const tipo = delTipo(o.soloHidrantes);
-  const max = o.maxMetros ?? CERCANOS_MAX_M;
-  let mejor: { punto: Punto; metros: number } | null = null;
-  for (const p of puntos) {
-    if (!tipo(p)) continue;
-    const m = metros(origen, p);
-    if (m <= max && (!mejor || m < mejor.metros)) mejor = { punto: p, metros: m };
-  }
-  if (!mejor || funciona(mejor.punto)) return null;
-  const minimo = Math.min(...candidatos.map((c) => c.metros));
-  if (candidatos.length && minimo <= mejor.metros) return null;
-  return mejor;
-}
-
-/**
- * El origen del GPS tal como va en la URL: `&gps=<momento_ms>,<precision_m>` (docs/19 RV-59). Así la
- * cabecera, el aviso de poca precisión y el de posición vieja miran la posición que se usó, no la de
+ * El origen del GPS tal como va en la URL: `&gps=<momento_ms>,<precision_m>` (docs/19 RV-59). Así los
+ * avisos de poca precisión y de posición vieja del subtítulo (DEC-165) miran la posición que se usó, no la de
  * ahora, y sobreviven a una recarga. `gps=1` (versión anterior) es GPS sin esos datos.
  */
 export interface OrigenGps {
@@ -133,11 +101,3 @@ export const parametroGps = (p: { precision: number; momento?: number }, ahora =
 /** El momento del origen si ya tiene más de un minuto; si no, o sin datos, null. */
 export const origenViejo = (g: OrigenGps | null, ahora = Date.now()): number | null =>
   g?.momento != null && ahora - g.momento > ORIGEN_VIEJO_MS ? g.momento : null;
-
-/** El aviso cuando el más cercano no sirve: por qué, con su código y su distancia (docs/24 RV-102). */
-export function textoMasCercano(p: Pick<Punto, 'caudal' | 'codigo'>, distancia: string): string {
-  const c = caudalParaDibujar(p.caudal);
-  if (c === 'no_funciona') return T.incidente.masCercanoNoFunciona(p.codigo, distancia);
-  if (c === 'barro') return T.incidente.masCercanoBarro(p.codigo, distancia);
-  return T.incidente.masCercanoMalo(p.codigo, distancia);
-}
