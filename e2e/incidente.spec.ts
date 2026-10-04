@@ -219,6 +219,18 @@ test.describe('Cercanos con GPS (RV-59)', () => {
     await hoja(page).getByRole('button', { name: T.incidente.marcarEnMapa }).click();
     await expect(hoja(page)).toHaveCount(0);
     await expect(page).not.toHaveURL(/incidente=/);
+    // La hoja se cierra, pero el mapa dice qué hacer ahora (RV-114).
+    const aviso = page.getByRole('status').filter({ hasText: T.incidente.marcaElSitio });
+    await expect(aviso).toBeVisible();
+    // Al mantener pulsado el mapa se abre ¿Qué hay aquí? y el aviso se va.
+    const mapa = page.locator('[data-testid="mapa"]');
+    const caja = (await mapa.boundingBox())!;
+    const centro = { clientX: caja.x + caja.width / 2, clientY: caja.y + caja.height / 2 };
+    await mapa.dispatchEvent('pointerdown', { ...centro, pointerType: 'touch', isPrimary: true });
+    await page.waitForTimeout(700);
+    await mapa.dispatchEvent('pointerup', centro, { timeout: 1000 }).catch(() => {});
+    await expect(page.getByRole('dialog', { name: T.aqui.titulo })).toBeVisible();
+    await expect(aviso).toHaveCount(0);
   });
 
   test('con ±8 m no hay aviso de poca precisión', async ({ page, context }) => {
@@ -442,7 +454,7 @@ test.describe('hoja de Cercanos en el móvil (RV-61)', () => {
       const fila = filas(page).nth(i);
       await expect(fila.getByRole('link')).toHaveCount(1);
       await expect(fila.getByRole('button')).toHaveCount(1); // la propia fila, que abre la ficha
-      await expect(fila.getByRole('button', { name: T.medir.desdeAqui })).toHaveCount(0);
+      await expect(fila.getByRole('button', { name: /Medir/ })).toHaveCount(0);
     }
     const enlace = filas(page).first().getByRole('link', { name: T.ficha.comoLlegar });
     await expect(enlace).toBeVisible();

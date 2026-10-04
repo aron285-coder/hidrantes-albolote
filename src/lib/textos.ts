@@ -262,6 +262,8 @@ export const T = {
     buscandoPosicion: 'Buscando tu posición… (puedes marcar el incidente en el mapa)',
     pocoPrecisa: (m: Parametro) => `posición poco precisa (±${m} m)`,
     marcarEnMapa: 'Marcar en el mapa',
+    /** Tras "Marcar en el mapa", encima del mapa hasta que se marca el sitio (RV-114). */
+    marcaElSitio: 'Mantén pulsado el mapa donde está el incidente',
     vacio: 'Ningún punto que funcione a menos de 2 km del incidente',
     verTodos: 'Ver todos en la lista',
     /** La segunda línea de cada fila: "100 mm · Regular" (RV-114). */

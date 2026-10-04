@@ -472,7 +472,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuando importa (§4.7, DEC-165):
 `en línea recta` (`Cercanos · en línea recta`) · `desde el punto marcado` (`Cercanos · desde el punto marcado · en línea recta`) ·
 `posición de [hace 5 min]` (`Cercanos · en línea recta · posición de hace 5 min`) ·
-`posición poco precisa (±[80] m)`, con el enlace `Marcar en el mapa` al lado ·
+`posición poco precisa (±[80] m)`, con el enlace `Marcar en el mapa` al lado, que cierra la hoja y deja encima del mapa `Mantén pulsado el mapa donde está el incidente` hasta que se marca ·
 `Solo hidrantes` (chip) · `[100 mm] · [Regular]` (la segunda línea de cada fila; la distancia, `[264 m]`, y el rumbo, `[N]`, van aparte a la derecha) ·
 `Sin posición: mantén pulsado el mapa donde está el incidente o busca la calle` ·
 `Buscando tu posición… (puedes marcar el incidente en el mapa)` ·

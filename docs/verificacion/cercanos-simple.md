@@ -17,6 +17,7 @@
 | GPS al día: el subtítulo es solo "· en línea recta", sin `role="status"` | vitest; e2e › "sin red: cinco que funcionan…" | ✓ (falló sobre `develop`) |
 | Posición vieja: "· en línea recta · posición de hace 5 min", en `--naranja-texto`, sin recuadro (`bg-oro-100` no aparece), con `role="status"` | vitest; e2e › "tras recargar con gps=…&momento de hace 5 min…" | ✓ (falló sobre `develop`) |
 | Poco precisa: "· posición poco precisa (±80 m)" y *Marcar en el mapa* llama a `alMarcarEnMapa`; vieja y poco precisa a la vez → solo poco precisa | vitest (dos casos); e2e › "precisión de 800 m avisa y ofrece marcar en el mapa" | ✓ (falló sobre `develop`) |
+| Tras *Marcar en el mapa*, la hoja se cierra y encima del mapa queda "Mantén pulsado el mapa donde está el incidente" hasta que se mantiene pulsado (se abre *¿Qué hay aquí?*) | e2e › "precisión de 800 m avisa y ofrece marcar en el mapa" (hallazgo de silent-failure-hunter) | ✓ |
 | Origen marcado: "· desde el punto marcado · en línea recta" | vitest; e2e (tres casos con `?incidente=` sin GPS) | ✓ (falló sobre `develop`) |
 | *Solo hidrantes* es un chip `role="switch"` que llama a `alCambiarSoloHidrantes` | vitest; e2e › "«Solo hidrantes» cambia la lista" | ✓ |
 | A 412 × 915, con la hoja a media altura, las tres primeras filas enteras sin desplazar, con ±8 m y con ±80 m (el aviso más largo) | e2e › "a 412 × 915, tres candidatos se ven enteros sin desplazar" | ✓ |

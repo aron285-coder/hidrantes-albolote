@@ -107,7 +107,7 @@ export function Mapa() {
   const [soloHidrantes, setSoloHidrantes] = useState(false);
   const buscador = useRef<HTMLInputElement>(null);
   // Medición (FR-76): en la URL (`?medir=1`) para que *atrás* salga; los vértices, en memoria, y los
-  // de partida llegan en el estado de la navegación ("Medir desde aquí", "Medir tendido").
+  // de partida llegan en el estado de la navegación ("Medir desde aquí").
   const ubicacion = useLocation();
   const midiendo = params.get('medir') === '1';
   const verticesIniciales = (ubicacion.state as { vertices?: LatLngMedida[] } | null)?.vertices;
@@ -280,16 +280,23 @@ export function Mapa() {
   const hayCercanos = !midiendo && (!!incidente || ((sinPosicion || esperandoFix) && !aqui));
   const [listaEnColumna, setListaEnColumna] = useState(false);
   const [incidenteVisto, setIncidenteVisto] = useState(incidenteParam);
+  // Tras "Marcar en el mapa", un aviso dice qué hacer hasta que se mantiene pulsado el mapa (se abre
+  // ¿Qué hay aquí?), se mide o se abre otro incidente (docs/27 RV-114).
+  const [marcando, setMarcando] = useState(false);
   if (incidenteParam !== incidenteVisto) {
     setIncidenteVisto(incidenteParam);
     setListaEnColumna(false);
+    if (incidenteParam) setMarcando(false);
   }
+  if (marcando && (aqui || midiendo)) setMarcando(false);
   /** "Marcar en el mapa" (RV-59): cierra la hoja y deja el mapa sobre el sitio, listo para la pulsación larga. */
   const marcarEnMapa = () => {
     const o = incidente;
     cerrarIncidente();
+    setMarcando(true);
     if (o) control.current?.centrar(o.lat, o.lng, 17);
   };
+  const avisoMarcar = marcando && !incidente ? T.incidente.marcaElSitio : null;
   const panelCercanos = (variante: 'hoja' | 'columna') => (
     <PanelCercanos
       estado={{
@@ -547,6 +554,14 @@ export function Mapa() {
                 className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-1.5 text-[13px]"
               >
                 {avisoPosicion ?? avisoCapa}
+              </p>
+            )}
+            {avisoMarcar && (
+              <p
+                role="status"
+                className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-1.5 text-[13px]"
+              >
+                {avisoMarcar}
               </p>
             )}
             {/* El aviso de la capa sin cobertura manda: ya incluye el del mapa base (FR-81). */}
