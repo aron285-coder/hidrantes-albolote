@@ -261,7 +261,9 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 | **Navegación inferior** | 50 px, blanco, tres destinos (Mapa · Lista · Ajustes), activo `--marino-950` 700. |
 | **Panel: pestañas** | fondo `#F5F6F2`, activa blanca con borde inferior 2 px `--naranja-600`, badge naranja para pendientes y gris para totales. Sin salto de línea; scroll horizontal si no cabe. |
 | **Panel: tablas** (`.desktop-table`) | 12 px, cabecera Barlow 11 px `--texto-suave` con borde inferior 2 px `--marino-950`, celdas 6 × 10 px, códigos y Ø sin salto de línea, cabeceras ordenables con ▲▼. |
-| **Panel: diff** | dos columnas, clave 32 % sobre `#FAFAF7`; valor anterior tachado `--rojo-700` opacidad .75 → nuevo `--verde-600` 600; "sin cambios" en `--texto-suave`. |
+| **Panel: diff** | dentro de "Datos del punto" (abajo): valor anterior tachado `--rojo-700` opacidad .75 → nuevo `--verde-600` 600. |
+| **Panel: detalle de la cola** (DEC-158) | igual en las seis operaciones, de arriba abajo y a todo el ancho del detalle: título (Barlow 22 px) con autor, antigüedad, fecha y núcleo, y las señales debajo; **mapa** de 300 px (≥ 1.100 px), 280 (tableta) y 200 de borde a borde y fijo arriba (móvil), con el punto rodeado de un anillo `--anillo-seleccion`, los de alrededor a opacidad 0,55, el pin propuesto `--naranja-600` con punto blanco, el círculo de duplicado discontinuo `--oro-600` con el código del que choca, y en una ubicación la posición de ahora en gris unida a la propuesta por una flecha discontinua con los metros; Mapa / Satélite arriba a la derecha (Satélite en las ubicaciones), zoom abajo a la derecha, "Abrir en grande" abajo a la izquierda y una leyenda de una línea debajo. **Datos del punto**: título Barlow 17 px con "N cambios · el resto se queda igual" (en un alta, "N datos del voluntario · los demás los deduce el sistema"); rejilla de dos columnas (una en el móvil) separadas por 1 px `--linea`, etiqueta a la izquierda y valor a la derecha; lo que cambia va primero, con fondo cálido (`#FFF8EC` en claro), banda `--naranja-600` de 4 px a la izquierda y "Cambia" en `--naranja-600` 10,5 px mayúsculas bajo la etiqueta; el estado con su chip; código y coordenadas en JetBrains Mono. **Fotos** lado a lado, 200 px (ordenador), 220 (tableta), 110 (móvil), etiqueta abajo a la izquierda sobre `rgba(14,27,48,.8)`, o `--naranja-600` si es nueva frente a la actual. **Botones** fijos abajo sobre `--papel` con borde superior; por debajo de 1.100 px, repartidos a lo ancho, y en el móvil "Corregir" en lugar de "Aprobar con correcciones". |
+| **Panel: cola en tableta y móvil** (DEC-158) | por debajo de 1.100 px, la cola y el detalle son dos pantallas: el detalle ocupa la pantalla con una barra `--marino-950` con "‹" y el título. Cada fila de la cola lleva un mapita de 62 × 48 px, radio 6, con el mapa base propio y el punto (naranja si es propuesto, marino si existe). Abajo, una barra `--marino-950` dice "Toca una para revisarla" o, con propuestas marcadas, aprueba o rechaza en bloque. |
 | **Panel: señales** (`.meta-tag`) | 10 px, borde `--linea`; ok: borde y texto `--verde-600` con ✓; aviso: `--oro-600`/`--ambar-700` sobre `--ambar-100` con ⚠. |
 | **Panel: hoja de campo** | una página por núcleo, tabla en blanco y negro con casilla vacía para anotar; al imprimir solo se ve la hoja (FR-122, DEC-067). |
 | **Panel: acciones** | Aprobar `--verde-600` relleno; Aprobar con correcciones borde `--marino-950`; Fusionar borde `--oro-600` texto `--ambar-700`; Rechazar borde `--rojo-700`; Confirmar y aprobar (desactualizada) `--rojo-700` relleno. |
@@ -558,6 +560,19 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `El diff está calculado sobre un estado que ya no existe: el punto cambió [ayer]. Se pide confirmación expresa en lugar del botón normal.` ·
 `Posible duplicado: compara antes de decidir. En ámbar, lo que difiere.` ·
 `No queda ninguna propuesta pendiente. Buen trabajo.` · `deducida · editable` · `del punto`.
+
+**Panel: detalle de la cola (docs/25 RV-110, DEC-158).** `Datos del punto` · `1 cambio` ·
+`[n] cambios` · `el resto se queda igual` · `1 dato del voluntario` · `[n] datos del voluntario` ·
+`los demás los deduce el sistema` · `Cambia` · `Código` · `Núcleo` · `Última revisión` ·
+`Origen de la ubicación` · `Propuesto por` · `se asigna al aprobar` · `se fija al aprobar` ·
+`GPS · ±[4] m` · `Pin puesto a mano` · `la que ya tiene el punto` · `—` · `Fotos` ·
+`la actual del punto y las nuevas de la propuesta` · `no trae nuevas` ·
+`Ni la propuesta ni el punto tienen fotos.` · `conexión` · `sitio` · `Foto actual del punto` ·
+`Nueva · [conexión]` · `Foto actual · [sitio]` · `[Nueva · sitio] · toca para ampliar` · `Mapa` ·
+`Satélite` · `Capa del mapa` · `Abrir en grande` · `Cerrar el mapa grande` · `posición de ahora` ·
+`propuesta` · `el punto` · `puntos de alrededor` · `radio de duplicado · [25] m` ·
+`Sin posición: el punto no está en el inventario cargado. Recarga la página para traerlo.` ·
+`Volver a la cola` · `Corregir` · `Toca una para revisarla`.
 
 **Panel: resto.** `Editar` · `Retirar` · `Borrar` · `Historial` · `Restaurar` ·
 `Borrar definitivamente…` · `Vaciar la papelera…` · `Marcar resuelta` · `Anonimizar…` ·

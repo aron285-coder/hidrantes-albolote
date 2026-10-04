@@ -3,8 +3,8 @@
 // Lo que se calcula aquí no toca la red y tiene tests; las acciones devuelven Resultado.
 
 import { type Resultado, rpc } from '../api';
-import { MOTIVO_RAPIDO, etiquetaCampo, texto, valorDe } from '../campos';
-import { nombreCaudal } from '../ficha';
+import { MOTIVO_RAPIDO, texto, valorDe } from '../campos';
+import { type LatLng, aUtm, dentroDelHuso, formatoDecimal, formatoUtm } from '../coordenadas';
 import { distancia, fechaCorta, hace } from '../formato';
 import type { MotivoRapido, Operacion } from '../propuestas';
 import { type Caudal, type Punto, type Racor, type TipoPunto, metros, sincronizar } from '../puntos';
@@ -15,6 +15,25 @@ export { etiquetaCampo } from '../campos';
 import { pedirEnvioComoJefatura } from './push-jefatura';
 
 export type EstadoModeracion = 'pendiente' | 'aprobada' | 'rechazada' | 'retirada_por_autor';
+
+/** La fila actual del punto que trae la cola desde 0036 (DEC-160). Nunca autores (FR-27). */
+export interface PuntoCola {
+  codigo: string;
+  tipo: TipoPunto;
+  diametro_mm: number | null;
+  caudal: Caudal;
+  racor: Racor | null;
+  descripcion: string | null;
+  descripcion_fallo: string | null;
+  direccion: string | null;
+  nucleo: string | null;
+  fecha_ultima_revision: string | null;
+  foto_path: string | null;
+  foto_sitio_path: string | null;
+  /** 0036: si el punto ya no está activo (retirado, o en la papelera con `borrado_en`). */
+  situacion?: 'activo' | 'retirado' | 'borrado';
+  borrado_en?: string | null;
+}
 
 /** Una propuesta tal como la ve el panel: fila de v_cola_revision o, en el historial, de propuestas. */
 export interface PropuestaPanel {
@@ -50,6 +69,16 @@ export interface PropuestaPanel {
   sin_foto_sitio?: boolean;
   nucleo: string | null;
   punto_actualizado_en: string | null;
+  /** 0035: el tipo y las fotos que tiene ahora el punto (null en un alta). */
+  tipo_actual?: TipoPunto | null;
+  foto_path_actual?: string | null;
+  /**
+   * 0036 (docs/25 RV-110, DEC-160): la fila actual del punto y su posición. Opcionales: el panel
+   * sigue funcionando contra la vista de antes, con los datos del inventario cargado (DEC-159).
+   */
+  punto?: PuntoCola | null;
+  punto_lat?: number | null;
+  punto_lng?: number | null;
   // solo en el historial
   motivo_rechazo?: string | null;
   correcciones?: Record<string, unknown> | null;
@@ -65,6 +94,7 @@ export function cargarCola(): Promise<Resultado<PropuestaPanel[]>> {
   );
 }
 
+/** Una fila de v_historial_revision (0036, DEC-160): lo decidido, sin señales ni `antes`. */
 interface FilaHistorial {
   id: string;
   operacion: Operacion;
@@ -73,15 +103,24 @@ interface FilaHistorial {
   autor_nombre: string;
   autor_apellido: string;
   punto_id: string | null;
-  datos: Record<string, unknown>;
+  codigo: string | null;
+  datos: Record<string, unknown> | null;
   foto_path: string | null;
   foto_sitio_path: string | null;
   direccion_sugerida: string | null;
+  direccion_actual: string | null;
+  lat: number | null;
+  lng: number | null;
+  origen_ubicacion: 'gps' | 'manual' | null;
+  precision_gps_m: number | null;
+  nucleo: string | null;
   motivo_rechazo: string | null;
   correcciones: Record<string, unknown> | null;
   revisada_por: string | null;
   revisada_en: string | null;
-  punto: { codigo: string; direccion: string | null; nucleo: string | null } | null;
+  punto: PuntoCola | null;
+  punto_lat: number | null;
+  punto_lng: number | null;
 }
 
 /** Cuántas decididas se traen: el historial completo está en el Registro (FR-123). */
@@ -93,12 +132,8 @@ export async function cargarHistorial(
 ): Promise<Resultado<PropuestaPanel[]>> {
   const r = await leerLista<FilaHistorial>((c) =>
     c
-      .from('propuestas')
-      .select(
-        'id, operacion, estado, creada_en, autor_nombre, autor_apellido, punto_id, datos, foto_path, foto_sitio_path, ' +
-          'direccion_sugerida, motivo_rechazo, correcciones, revisada_por, revisada_en, ' +
-          'punto:puntos!punto_id(codigo, direccion, nucleo)',
-      )
+      .from('v_historial_revision')
+      .select('*')
       .eq('estado', estado)
       .order('revisada_en', { ascending: false, nullsFirst: false })
       .order('creada_en', { ascending: false })
@@ -117,17 +152,18 @@ export function desdeHistorial(f: FilaHistorial): PropuestaPanel {
     autor_nombre: f.autor_nombre,
     autor_apellido: f.autor_apellido,
     punto_id: f.punto_id,
-    codigo: f.punto?.codigo ?? null,
+    codigo: f.codigo ?? f.punto?.codigo ?? null,
     datos: f.datos ?? {},
     foto_path: f.foto_path,
     foto_sitio_path: f.foto_sitio_path,
     direccion_sugerida: f.direccion_sugerida,
-    direccion_actual: f.punto?.direccion ?? null,
-    lat: null,
-    lng: null,
+    direccion_actual: f.direccion_actual ?? f.punto?.direccion ?? null,
+    lat: f.lat,
+    lng: f.lng,
+    // Sin `antes`: el punto de hoy ya no es el de entonces (05, v_historial_revision).
     antes: null,
-    origen_ubicacion: null,
-    precision_gps_m: null,
+    origen_ubicacion: f.origen_ubicacion,
+    precision_gps_m: f.precision_gps_m,
     distancia_gps_m: null,
     distancia_exif_m: null,
     fuera_de_zona: null,
@@ -137,8 +173,11 @@ export function desdeHistorial(f: FilaHistorial): PropuestaPanel {
     codigo_duplicado: null,
     otra_medida: false,
     desactualizada: false,
-    nucleo: f.punto?.nucleo ?? null,
+    nucleo: f.nucleo ?? f.punto?.nucleo ?? null,
     punto_actualizado_en: null,
+    punto: f.punto,
+    punto_lat: f.punto_lat,
+    punto_lng: f.punto_lng,
     motivo_rechazo: f.motivo_rechazo,
     correcciones: f.correcciones,
     revisada_por: f.revisada_por,
@@ -185,109 +224,7 @@ export const sinAcentos = (s: string) =>
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase();
 
-export interface FilaDiff {
-  campo: string;
-  antes?: string;
-  despues: string;
-  sinCambios?: boolean;
-}
-
 const entreComillas = (v: unknown) => `"${texto(v)}"`;
-
-/** El antes y el después campo a campo (FR-102). `punto` es el estado actual, si existe. */
-export function filasDiff(p: PropuestaPanel, punto?: Punto): FilaDiff[] {
-  const d = p.datos ?? {};
-  const antes = p.antes ?? {};
-  const filas: FilaDiff[] = [];
-  const nota = () => {
-    if (texto(d.nota)) filas.push({ campo: T.panelCola.campoNota, despues: entreComillas(d.nota) });
-  };
-  switch (p.operacion) {
-    case 'alta':
-      filas.push({ campo: T.panelCola.campoTipo, despues: valorDe('tipo', d.tipo) });
-      filas.push({
-        campo: T.panelCola.campoDiametro,
-        despues:
-          // Una boca de otra medida se lee como su número: se aprueba tal cual (docs/24 RV-101).
-          d.tipo === 'boca_riego'
-            ? T.formato.mm(texto(d.diametro_otro ?? d.diametro_mm ?? 45))
-            : d.diametro_otro != null
-              ? T.panelCola.otraMedida(texto(d.diametro_otro))
-              : valorDe('diametro_mm', d.diametro_mm),
-      });
-      if (d.racor) filas.push({ campo: T.panelCola.campoRacor, despues: valorDe('racor', d.racor) });
-      filas.push({ campo: T.panelCola.campoEstado, despues: valorDe('caudal', d.caudal) });
-      if (texto(d.descripcion_fallo))
-        filas.push({ campo: T.panelCola.campoFallo, despues: entreComillas(d.descripcion_fallo) });
-      if (texto(d.descripcion))
-        filas.push({ campo: T.panelCola.campoDescripcion, despues: entreComillas(d.descripcion) });
-      break;
-    case 'revision':
-      if (punto) {
-        filas.push({
-          campo: T.panelCola.campoEstado,
-          despues: T.panelCola.sinCambios(nombreCaudal(punto.caudal)),
-          sinCambios: true,
-        });
-        filas.push({
-          campo: T.panelCola.campoRevision,
-          antes: fechaCorta(punto.fecha_ultima_revision),
-          despues: fechaCorta(p.creada_en),
-        });
-      } else {
-        filas.push({ campo: T.panelCola.campoRevision, despues: fechaCorta(p.creada_en) });
-      }
-      nota();
-      break;
-    case 'estado':
-      filas.push({
-        campo: T.panelCola.campoEstado,
-        antes: antes.caudal != null ? valorDe('caudal', antes.caudal) : undefined,
-        despues: valorDe('caudal', d.caudal),
-      });
-      if (texto(d.descripcion_fallo))
-        filas.push({ campo: T.panelCola.campoFallo, despues: entreComillas(d.descripcion_fallo) });
-      nota();
-      break;
-    case 'datos':
-      for (const campo of ['tipo', 'diametro_mm', 'racor', 'descripcion']) {
-        if (!(campo in d)) continue;
-        filas.push({
-          campo: etiquetaCampo(campo),
-          antes: campo in antes ? valorDe(campo, antes[campo]) : undefined,
-          despues: valorDe(campo, d[campo]),
-        });
-      }
-      // Una boca corregida a otra medida (docs/24 RV-101): el número, frente al diámetro que tenía.
-      if ('diametro_otro' in d) {
-        filas.push({
-          campo: T.panelCola.campoDiametro,
-          antes: 'diametro_mm' in antes ? valorDe('diametro_mm', antes.diametro_mm) : undefined,
-          despues: T.formato.mm(texto(d.diametro_otro)),
-        });
-      }
-      break;
-    case 'ubicacion':
-      if (punto && p.lat != null && p.lng != null) {
-        filas.push({
-          campo: T.panelCola.campoDesplazamiento,
-          despues: distancia(metros(punto, { lat: p.lat, lng: p.lng })),
-        });
-      }
-      nota();
-      break;
-    case 'retirada':
-      filas.push({ campo: T.panelCola.campoSituacion, antes: T.panelCola.activo, despues: T.panelCola.retirado });
-      filas.push({
-        campo: T.panelCola.campoMotivo,
-        despues: [MOTIVO_RAPIDO[d.motivo_rapido as MotivoRapido], texto(d.motivo) && entreComillas(d.motivo)]
-          .filter(Boolean)
-          .join(' · '),
-      });
-      break;
-  }
-  return filas;
-}
 
 export interface Senal {
   texto: string;
@@ -361,6 +298,378 @@ export function senales(p: PropuestaPanel): Senal[] {
 /** ¿Tiene pin (y por tanto minimapa y dirección deducida editable)? (FR-103, FR-105) */
 export const conUbicacion = (p: PropuestaPanel) =>
   (p.operacion === 'alta' || p.operacion === 'ubicacion') && p.lat != null && p.lng != null;
+
+// ---------- el detalle completo: mapa, datos del punto y fotos (docs/25 RV-110, DEC-158) ----------
+
+/** El punto de hoy: la columna `punto` de 0036 o, con la vista de antes, el del inventario (DEC-159). */
+export function puntoActual(p: PropuestaPanel, inventario?: Punto): PuntoCola | null {
+  if (p.punto) return p.punto;
+  if (!inventario) return null;
+  return {
+    codigo: inventario.codigo,
+    tipo: inventario.tipo,
+    diametro_mm: inventario.diametro_mm,
+    caudal: inventario.caudal,
+    racor: inventario.racor,
+    descripcion: inventario.descripcion,
+    descripcion_fallo: inventario.descripcion_fallo,
+    direccion: inventario.direccion,
+    nucleo: inventario.nucleo,
+    fecha_ultima_revision: inventario.fecha_ultima_revision,
+    foto_path: inventario.foto_path,
+    foto_sitio_path: inventario.foto_sitio_path ?? null,
+  };
+}
+
+/** Dónde está hoy el punto: `punto_lat`/`punto_lng` de 0036 o, si no vienen, el inventario. */
+export function posicionActual(p: PropuestaPanel, inventario?: Punto): LatLng | null {
+  if (p.punto_lat != null && p.punto_lng != null) return { lat: p.punto_lat, lng: p.punto_lng };
+  return inventario ? { lat: inventario.lat, lng: inventario.lng } : null;
+}
+
+export type ClaveCampo =
+  | 'situacion'
+  | 'codigo'
+  | 'tipo'
+  | 'diametro_mm'
+  | 'caudal'
+  | 'racor'
+  | 'descripcion'
+  | 'descripcion_fallo'
+  | 'direccion'
+  | 'nucleo'
+  | 'wgs84'
+  | 'utm'
+  | 'revision'
+  | 'origen'
+  | 'autor'
+  | 'motivo'
+  | 'nota';
+
+/** Un campo de "Datos del punto": su valor y, si la propuesta lo cambia, el de antes. */
+export interface CampoFicha {
+  clave: ClaveCampo;
+  etiqueta: string;
+  valor: string;
+  antes?: string;
+  cambia: boolean;
+  /** Un valor que aún no existe ("se asigna al aprobar"): se lee en gris. */
+  suave?: boolean;
+  /** El estado resultante, para pintar su chip (06 §5). */
+  caudal?: string;
+}
+
+export interface FichaCompleta {
+  campos: CampoFicha[];
+  /** Cuántos campos cambian (en un alta, cuántos datos puso el voluntario). */
+  cambios: number;
+  alta: boolean;
+}
+
+const coordenadasDe = (l: LatLng | null): [string, string] =>
+  l
+    ? [formatoDecimal(l), dentroDelHuso(l) ? formatoUtm(aUtm(l), l.lat) : T.panelCola.sinDato]
+    : [T.panelCola.sinDato, T.panelCola.sinDato];
+
+/**
+ * Todos los datos del punto, no solo los cambios (RV-110): lo que cambia primero y marcado, con su
+ * antes y su después; después las notas (nota, motivo); y el resto sin marcar, en el orden fijo de
+ * la lista. En un alta se marcan solo los datos que puso el voluntario: lo que deduce el sistema
+ * (coordenadas, dirección, núcleo) va sin marcar, y el código y la revisión se fijan al aprobar.
+ */
+export function fichaCompleta(p: PropuestaPanel, inventario?: Punto): FichaCompleta {
+  const a = puntoActual(p, inventario);
+  const d = p.datos ?? {};
+  const antes = p.antes ?? {};
+  const op = p.operacion;
+  const alta = op === 'alta';
+  const sinDato = T.panelCola.sinDato;
+  // El antes de un campo: lo que trae la propuesta (calculado al proponer) o, si no, el punto de hoy.
+  // Decidida, el punto de hoy ya lleva el cambio: solo vale el antes que trae la propia propuesta.
+  const pendiente = p.estado === 'pendiente';
+  const antesDe = (campo: string, actual: unknown) => {
+    const v = campo in antes ? antes[campo] : pendiente ? actual : undefined;
+    return v == null || v === '' ? undefined : valorDe(campo, v);
+  };
+  const propone = (campo: string) => op === 'datos' && campo in d;
+  const resto: CampoFicha[] = [];
+  const extras: CampoFicha[] = [];
+  const poner = (c: Omit<CampoFicha, 'cambia'> & { cambia?: boolean }) => resto.push({ cambia: false, ...c });
+
+  if (op === 'retirada') {
+    poner({
+      clave: 'situacion',
+      etiqueta: T.panelCola.campoSituacion,
+      antes: T.panelCola.activo,
+      valor: T.panelCola.retirado,
+      cambia: true,
+    });
+    extras.push({
+      clave: 'motivo',
+      etiqueta: T.panelCola.campoMotivo,
+      valor:
+        [MOTIVO_RAPIDO[d.motivo_rapido as MotivoRapido], texto(d.motivo) && entreComillas(d.motivo)]
+          .filter(Boolean)
+          .join(' · ') || sinDato,
+      cambia: false,
+    });
+  }
+  // Un punto que ya no está activo se dice arriba: aprobar sobre él fallaría (PUNTO_NO_ACTIVO).
+  if (op !== 'retirada' && a?.situacion && a.situacion !== 'activo') {
+    extras.push({
+      clave: 'situacion',
+      etiqueta: T.panelCola.campoSituacion,
+      valor: a.situacion === 'borrado' ? T.panelCola.papelera : T.panelCola.retirado,
+      cambia: false,
+    });
+  }
+  if (texto(d.nota)) {
+    extras.push({ clave: 'nota', etiqueta: T.panelCola.campoNota, valor: entreComillas(d.nota), cambia: false });
+  }
+
+  poner(
+    alta
+      ? { clave: 'codigo', etiqueta: T.panelCola.campoCodigo, valor: T.panelCola.seAsignaAlAprobar, suave: true }
+      : { clave: 'codigo', etiqueta: T.panelCola.campoCodigo, valor: p.codigo ?? a?.codigo ?? sinDato },
+  );
+
+  const tipo: TipoPunto = (d.tipo as TipoPunto | undefined) ?? a?.tipo ?? p.tipo_actual ?? tipoDePropuesta(p);
+  poner({
+    clave: 'tipo',
+    etiqueta: T.panelCola.campoTipo,
+    valor: valorDe('tipo', tipo),
+    cambia: alta || propone('tipo'),
+    antes: propone('tipo') ? antesDe('tipo', a?.tipo) : undefined,
+  });
+
+  if (alta) {
+    poner({
+      clave: 'diametro_mm',
+      etiqueta: T.panelCola.campoDiametro,
+      // Una boca de otra medida se lee como su número; un hidrante, como "otra medida" (docs/24 RV-101).
+      valor:
+        tipo === 'boca_riego'
+          ? T.formato.mm(texto(d.diametro_otro ?? d.diametro_mm ?? 45))
+          : d.diametro_otro != null
+            ? T.panelCola.otraMedida(texto(d.diametro_otro))
+            : valorDe('diametro_mm', d.diametro_mm),
+      cambia: true,
+    });
+  } else if (propone('diametro_mm') || propone('diametro_otro')) {
+    poner({
+      clave: 'diametro_mm',
+      etiqueta: T.panelCola.campoDiametro,
+      valor: 'diametro_otro' in d ? T.formato.mm(texto(d.diametro_otro)) : valorDe('diametro_mm', d.diametro_mm),
+      antes: antesDe('diametro_mm', a?.diametro_mm),
+      cambia: true,
+    });
+  } else {
+    poner({
+      clave: 'diametro_mm',
+      etiqueta: T.panelCola.campoDiametro,
+      valor: a?.diametro_mm != null ? valorDe('diametro_mm', a.diametro_mm) : sinDato,
+    });
+  }
+
+  const cambiaCaudal = alta || op === 'estado';
+  const caudal = cambiaCaudal ? texto(d.caudal) : (a?.caudal ?? '');
+  poner({
+    clave: 'caudal',
+    etiqueta: T.panelCola.campoEstado,
+    valor: caudal ? valorDe('caudal', caudal) : sinDato,
+    caudal: caudal || undefined,
+    cambia: cambiaCaudal,
+    antes: op === 'estado' ? antesDe('caudal', a?.caudal) : undefined,
+  });
+
+  if (tipo === 'boca_riego') {
+    const cambiaRacor = (alta && !!d.racor) || propone('racor');
+    poner({
+      clave: 'racor',
+      etiqueta: T.panelCola.campoRacor,
+      valor: cambiaRacor ? valorDe('racor', d.racor) : a?.racor ? valorDe('racor', a.racor) : sinDato,
+      antes: propone('racor') ? antesDe('racor', a?.racor) : undefined,
+      cambia: cambiaRacor,
+    });
+  }
+
+  const cambiaDescripcion = (alta && !!texto(d.descripcion)) || propone('descripcion');
+  poner({
+    clave: 'descripcion',
+    etiqueta: T.panelCola.campoDescripcion,
+    valor: (cambiaDescripcion ? texto(d.descripcion) : texto(a?.descripcion)) || sinDato,
+    antes: propone('descripcion') ? antesDe('descripcion', a?.descripcion) : undefined,
+    cambia: cambiaDescripcion,
+  });
+
+  // El fallo, solo si el punto queda en "no funciona" (o la propuesta lo describe).
+  const cambiaFallo = (alta || op === 'estado') && !!texto(d.descripcion_fallo);
+  if (cambiaFallo || caudal === 'no_funciona') {
+    poner({
+      clave: 'descripcion_fallo',
+      etiqueta: T.panelCola.campoFallo,
+      valor: (cambiaFallo ? texto(d.descripcion_fallo) : texto(a?.descripcion_fallo)) || sinDato,
+      antes: cambiaFallo && op === 'estado' ? antesDe('descripcion_fallo', a?.descripcion_fallo) : undefined,
+      cambia: cambiaFallo,
+    });
+  }
+
+  const direccionHoy = a?.direccion ?? p.direccion_actual;
+  const sugerida = texto(p.direccion_sugerida);
+  const cambiaDireccion = op === 'ubicacion' && !!sugerida && sugerida !== texto(direccionHoy);
+  poner({
+    clave: 'direccion',
+    etiqueta: T.ficha.direccion,
+    valor: (alta || cambiaDireccion ? sugerida : texto(direccionHoy)) || sinDato,
+    antes: cambiaDireccion ? texto(direccionHoy) || undefined : undefined,
+    cambia: cambiaDireccion,
+  });
+
+  poner({
+    clave: 'nucleo',
+    etiqueta: T.panelCola.campoNucleo,
+    valor: p.nucleo ?? a?.nucleo ?? (p.fuera_de_zona ? T.panelCola.fueraDeZona : T.panelCola.sinNucleo),
+  });
+
+  const pin = conUbicacion(p) ? { lat: p.lat!, lng: p.lng! } : null;
+  const hoy = alta ? null : posicionActual(p, inventario);
+  const moverse = op === 'ubicacion' && !!pin && !!hoy;
+  const [wgs, utm] = coordenadasDe(pin ?? hoy);
+  const [wgsAntes, utmAntes] = coordenadasDe(hoy);
+  poner({
+    clave: 'wgs84',
+    etiqueta: T.coordenadas.decimal,
+    valor: wgs,
+    antes: moverse ? wgsAntes : undefined,
+    cambia: moverse,
+  });
+  poner({
+    clave: 'utm',
+    etiqueta: T.coordenadas.utm,
+    valor: utm,
+    antes: moverse ? utmAntes : undefined,
+    cambia: moverse,
+  });
+
+  if (alta) {
+    poner({
+      clave: 'revision',
+      etiqueta: T.panelCola.campoUltimaRevision,
+      valor: T.panelCola.seFijaAlAprobar,
+      suave: true,
+    });
+  } else {
+    const ultima = a?.fecha_ultima_revision ? fechaCorta(a.fecha_ultima_revision) : undefined;
+    poner(
+      op === 'revision'
+        ? {
+            clave: 'revision',
+            etiqueta: T.panelCola.campoUltimaRevision,
+            antes: pendiente ? ultima : undefined,
+            valor: fechaCorta(p.creada_en),
+            cambia: true,
+          }
+        : { clave: 'revision', etiqueta: T.panelCola.campoUltimaRevision, valor: ultima ?? sinDato },
+    );
+  }
+
+  poner({
+    clave: 'origen',
+    etiqueta: T.panelCola.campoOrigen,
+    valor: !pin
+      ? T.panelCola.origenDelPunto
+      : p.origen_ubicacion === 'gps'
+        ? T.panelCola.origenGps(Math.round(p.precision_gps_m ?? 0))
+        : p.origen_ubicacion === 'manual'
+          ? T.panelCola.origenManual
+          : sinDato,
+  });
+  poner({ clave: 'autor', etiqueta: T.panelCola.campoPropuestoPor, valor: autor(p) || sinDato });
+
+  const cambian = resto.filter((c) => c.cambia);
+  return {
+    campos: [...cambian, ...extras, ...resto.filter((c) => !c.cambia)],
+    cambios: cambian.length,
+    alta,
+  };
+}
+
+/** Qué dibuja el mapa del detalle (RV-110): en las seis operaciones, con la capa con la que se abre. */
+export interface PlanMapa {
+  /** Dónde se centra; null si no se sabe dónde está el punto (se dice con palabras). */
+  centro: LatLng | null;
+  /** El pin propuesto (alta y ubicación), en naranja. */
+  propuesta: LatLng | null;
+  /** Dónde está hoy el punto: con anillo, o en gris si la propuesta lo mueve. */
+  actual: LatLng | null;
+  /** Corregir ubicación: la flecha de la posición de ahora a la propuesta, con los metros. */
+  flecha: { metros: number } | null;
+  /** Alta: el círculo del radio de duplicado alrededor del pin. */
+  circulo: boolean;
+  capa: 'base' | 'satelite';
+  puntoId: string | null;
+  duplicadoId: string | null;
+}
+
+export function planMapa(p: PropuestaPanel, inventario?: Punto): PlanMapa {
+  const propuesta = conUbicacion(p) ? { lat: p.lat!, lng: p.lng! } : null;
+  const actual = p.operacion === 'alta' ? null : posicionActual(p, inventario);
+  const ubicacion = p.operacion === 'ubicacion';
+  return {
+    centro: propuesta ?? actual,
+    propuesta,
+    actual,
+    flecha: ubicacion && propuesta && actual ? { metros: metros(actual, propuesta) } : null,
+    circulo: p.operacion === 'alta' && !!propuesta,
+    // Una ubicación se juzga mejor sobre la foto aérea; lo demás, sobre el mapa.
+    capa: ubicacion ? 'satelite' : 'base',
+    puntoId: p.punto_id,
+    duplicadoId: p.duplicado_de,
+  };
+}
+
+export interface FotoDetalle {
+  path: string;
+  etiqueta: string;
+  /** Nueva frente a la actual del punto: etiqueta en naranja. */
+  nueva: boolean;
+}
+
+/**
+ * Las fotos del detalle (RV-110). Alta: conexión y sitio. Con fotos nuevas sobre un punto que ya
+ * existe: la actual del punto delante de las nuevas, para ver si es el mismo. Sin fotos nuevas: las
+ * actuales del punto, y `nuevas: false` para decirlo en el título.
+ */
+export function fotosDe(p: PropuestaPanel, inventario?: Punto): { fotos: FotoDetalle[]; nuevas: boolean } {
+  const a = puntoActual(p, inventario);
+  const conexionHoy = a?.foto_path ?? p.foto_path_actual ?? null;
+  const sitioHoy = a?.foto_sitio_path ?? p.foto_sitio_path_actual ?? null;
+  const sitioNuevo = p.foto_sitio_path ?? null;
+  if (p.foto_path) {
+    if (p.operacion === 'alta') {
+      return {
+        nuevas: true,
+        fotos: [
+          { path: p.foto_path, etiqueta: T.formulario.conexion, nueva: false },
+          ...(sitioNuevo ? [{ path: sitioNuevo, etiqueta: T.formulario.sitio, nueva: false }] : []),
+        ],
+      };
+    }
+    return {
+      nuevas: true,
+      fotos: [
+        ...(conexionHoy ? [{ path: conexionHoy, etiqueta: T.panelCola.fotoActualPunto, nueva: false }] : []),
+        { path: p.foto_path, etiqueta: T.panelCola.fotoNueva(T.panelCola.conexion), nueva: true },
+        ...(sitioNuevo ? [{ path: sitioNuevo, etiqueta: T.panelCola.fotoNueva(T.panelCola.sitio), nueva: true }] : []),
+      ],
+    };
+  }
+  const fotos: FotoDetalle[] = [];
+  if (conexionHoy)
+    fotos.push({ path: conexionHoy, etiqueta: T.panelCola.fotoActual(T.panelCola.conexion), nueva: false });
+  if (sitioHoy) fotos.push({ path: sitioHoy, etiqueta: T.panelCola.fotoActual(T.panelCola.sitio), nueva: false });
+  return { fotos, nuevas: false };
+}
 
 // ---------- aprobar con correcciones (FR-106) ----------
 

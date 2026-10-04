@@ -660,6 +660,26 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-159 · Detalle de la cola: de dónde salen los datos, el radio y los mapitas
+- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-110).
+- **Contexto:** el detalle nuevo enseña todos los datos del punto, su posición y sus fotos actuales en las seis operaciones. Esos datos los trae 0036 (DEC-160), que se hizo a la vez que la pantalla; el panel tiene que seguir funcionando contra la vista de antes una versión (04 §12).
+- **Decisión:**
+  1. **Datos y posición del punto:** `punto`, `punto_lat` y `punto_lng` de `v_cola_revision` y `v_historial_revision`. Si no vienen (vista anterior), los del inventario que el panel ya tiene cargado (`v_puntos_activos`); si tampoco, "—" y, en el mapa, "Sin posición" con palabras. Un alta se decide por `operacion`, nunca por `punto` nulo.
+  2. **El "antes"** de un campo es el `antes` de la propuesta o, solo si está **pendiente**, el punto de hoy. En el historial el punto de hoy ya lleva el cambio y daría "70 mm → 70 mm".
+  3. **El historial** lee `v_historial_revision` (0036) en vez de `propuestas` con el punto embebido.
+  4. **Radio del círculo de duplicado:** `radio_duplicado_m` de `config`, leído una vez al abrir la cola; sin poder leerlo, 25 m (el de por defecto de 05).
+  5. **Mapitas de la lista (62 × 48 px, tableta y móvil):** un Leaflet sin controles con el mapa base propio (sin red), creado solo cuando la fila entra en la vista.
+  6. **"Tocar una foto la amplía":** abre la foto entera en otra pestaña, como hasta ahora; sin visor propio.
+- **Descartado:** una RPC nueva para los puntos de alrededor (el inventario ya está en memoria); dibujar los mapitas como SVG sin mapa base (la especificación pide el mapa base propio).
+- **Afecta a:** 06 §5 (panel); `src/lib/panel/cola.ts`.
+
+### DEC-158 · Cola de revisión: mapa arriba, datos completos y fotos, a todo el ancho
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `docs/mockups-cola-opcion-a.html`) · **Estado:** vigente (`docs/25` RV-110).
+- **Contexto:** el detalle de la cola dejaba media pantalla vacía en el ordenador, solo enseñaba los campos que cambiaban y una corrección de datos no tenía mapa: para juzgar un cambio había que ir al inventario.
+- **Decisión:** el detalle es igual en las seis operaciones y de arriba abajo: título con autor y fecha, señales; **mapa a todo el ancho** (300 px en ordenador, 280 en tableta, 200 de borde a borde y fijo arriba en el móvil), con Mapa / Satélite (las ubicaciones se abren en Satélite), zoom, "Abrir en grande" y una leyenda de una línea; **todos los datos del punto** en dos columnas (una en el móvil), con lo que cambia primero y marcado ("Cambia", banda naranja, antes → después) y, encima, "N cambios · el resto se queda igual" o, en un alta, "N datos del voluntario"; **fotos lado a lado** (en una ubicación o un estado, la actual del punto delante de las nuevas); y los **botones fijos abajo** ("Corregir" en el móvil, con el nombre largo para el lector). Desde **1.100 px**, la cola a la izquierda en 340 px fijos y el detalle en todo el resto; por debajo, la cola y el detalle son **dos pantallas** (la abierta va en `?p=`, y "‹" o "atrás" vuelven), cada fila con su mapita y una barra abajo para aprobar en bloque. El historial usa el mismo detalle sin botones.
+- **Descartado:** el mapa en una columna lateral (`mockups-cola-con-mapa.html`) y el detalle en pestañas (`mockups-cola-opcion-b.html`): obligaban a mirar a dos sitios o a tocar para ver los datos.
+- **Afecta a:** 01 FR-102 a FR-105 (los lleva Ops); 06 §5 (panel) y Apéndice A.
+
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
 - **Decisión:** la GitHub App del proyecto no se crea. `release-please.yml` vuelve a lo de DEC-079, sin el paso de la App ni la rama de reserva, porque ya no hay nada que reservar. Cada PR de versión necesita el empujón de una persona (un commit vacío a su rama) para que corra su CI. Los runs «expired» del bot siguen saliendo en la lista de fallos de Actions: se saben y no se miran.
