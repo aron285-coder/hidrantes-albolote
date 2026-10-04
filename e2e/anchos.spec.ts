@@ -274,15 +274,38 @@ test('360 px: la rejilla de estados 2 + 3 y la fila de racores caben', async ({ 
   await abrir(page, 360, 780);
   await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
   await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
-  const filas = new Map<number, number>();
-  for (const nombre of [
+  // RV-118: las fotos de los racores están ocultas hasta que cargan y entonces las tarjetas crecen y
+  // empujan la rejilla de estados unos 34 px hacia abajo. Medir antes partía las filas ([2, 1, 2]):
+  // se espera a que cada foto haya cargado (o fallado: entonces desaparece) y se mide todo de una vez.
+  const racores = page.getByRole('radiogroup', { name: T.formulario.racor });
+  // Primero, que el grupo esté montado: sobre una lista vacía, la espera de las fotos pasaría sin más.
+  await expect(racores.getByRole('radio')).toHaveCount(3);
+  await expect
+    .poll(() =>
+      racores
+        .locator('img')
+        .evaluateAll((fotos) => fotos.every((f) => (f as HTMLImageElement).complete && f.checkVisibility())),
+    )
+    .toBe(true);
+  const estados = [
     T.formulario.bueno,
     T.formulario.regular,
     T.formulario.malo,
     T.formulario.barro,
     T.formulario.noFunciona,
-  ]) {
-    const caja = (await page.getByRole('radio', { name: nombre, exact: true }).boundingBox())!;
+  ];
+  const cajas = await page
+    .getByRole('radiogroup', { name: T.formulario.caudal })
+    .getByRole('radio')
+    .evaluateAll((radios) =>
+      radios.map((r) => {
+        const { x, y, width, height } = r.getBoundingClientRect();
+        return { nombre: r.textContent?.trim() ?? '', x, y, width, height };
+      }),
+    );
+  expect(cajas.map((c) => c.nombre)).toEqual(estados);
+  const filas = new Map<number, number>();
+  for (const { nombre, ...caja } of cajas) {
     expect(caja.height, nombre).toBeGreaterThanOrEqual(44);
     // Una sola línea: el alto no pasa del mínimo más un margen.
     expect(caja.height, `${nombre} en una línea`).toBeLessThan(60);
