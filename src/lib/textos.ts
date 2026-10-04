@@ -213,8 +213,10 @@ export const T = {
   // Funciones de mapa para emergencias (FR-72, FR-75; docs/18 GM-02 y GM-05).
   coordenadas: {
     titulo: 'Coordenadas',
-    decimal: 'Decimal',
-    utm: 'UTM ETRS89 · huso 30',
+    // Cada coordenada con el nombre de su sistema (docs/25 RV-109, DEC-157). La S de «30S» es la
+    // banda de latitud de MGRS (32° a 40° N), no «sur».
+    decimal: 'WGS84 · grados decimales',
+    utm: 'ETRS89 · UTM huso 30N',
     copiar: (que: Parametro) => `Copiar ${que}`,
     copiado: 'Copiado',
     noSeCopia: 'No se ha podido copiar: mantén pulsado el texto para copiarlo',
@@ -300,7 +302,8 @@ export const T = {
     tituloUbicacion: 'Ubicación',
     lineaPunto: (codigo: Parametro, tipo: Parametro, diametro: Parametro, estado: Parametro) =>
       `${codigo} · ${tipo} ${diametro} · ${estado}`,
-    lineaCoordenadas: (decimal: Parametro, utm: Parametro) => `${decimal} · UTM ${utm} (ETRS89)`,
+    /** Una línea por sistema, con su nombre delante (DEC-157): «WGS84 · grados decimales: 37.230500, -3.656000». */
+    lineaSistema: (sistema: Parametro, valor: Parametro) => `${sistema}: ${valor}`,
     copiado: 'Copiado: pégalo donde quieras',
     noSePuede: 'No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo',
   },
