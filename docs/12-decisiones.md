@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.46 — 4 de octubre de 2026 (DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.47 — 4 de octubre de 2026 (DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,18 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-160 · La cola trae el punto entero, y el historial tiene su vista
+- **Fecha:** 4 oct 2026 (sesión Backend, `docs/25` RV-110) · **Estado:** vigente.
+- **Contexto:** el detalle nuevo de la cola enseña todos los datos del punto, no solo los que cambian, y un mapa en las seis operaciones. `v_cola_revision` solo traía del punto el código, el tipo, la dirección, el núcleo y las fotos, y su posición no venía en ninguna operación (`lat`/`lng` son el pin de la propuesta, `null` en datos, revisión, estado y retirada). El historial lo leía el panel de `propuestas` con un *embed* de `puntos`, que no puede dar la posición (es `geography`).
+- **Decisión:**
+  1. `v_cola_revision` (0036, `create or replace view`) gana tres columnas **al final**: `punto jsonb` con `codigo`, `tipo`, `diametro_mm`, `caudal`, `racor`, `descripcion`, `descripcion_fallo`, `direccion`, `nucleo`, `fecha_ultima_revision`, `foto_path` y `foto_sitio_path`, y `punto_lat`, `punto_lng`. En un alta, las tres `null` (no hay punto: `punto_id` es `null` también después de aprobarla).
+  2. El objeto se construye con `jsonb_build_object` y una lista cerrada de claves, no con `to_jsonb(p)`: una columna nueva de `puntos` no aparece sola en el panel, y nada de FR-27 puede colarse. `puntos` no tiene autores hoy; la lista cerrada lo garantiza mañana.
+  3. **Historial:** vista nueva `v_historial_revision` (`security_invoker`, `estado <> 'pendiente'`) con las columnas que el panel ya pedía a `propuestas`, más `codigo`, `direccion_actual`, `nucleo`, el pin (`lat`, `lng`), `origen_ubicacion`, `precision_gps_m` y las tres de arriba. Sin `antes` ni señales: el punto de hoy ya no es el de cuando se decidió, y un diff contra él mentiría.
+  4. La UTM no viaja: la calcula el cliente con la función de la ficha (RV-109). Los puntos de alrededor tampoco: el panel ya tiene el inventario.
+- **Descartado:** una RPC del detalle (otra firma que mantener una versión atrás, y una llamada más por propuesta); seguir leyendo el historial de `propuestas` con más columnas en el *embed* (no da la posición); `antes` en el historial.
+- **Compatibilidad (04 §12):** el panel anterior pide `select('*')` a la cola y no mira columnas de más; sigue leyendo el historial de `propuestas`, que no cambia. Lo comprueba `npm run compatibilidad` en `ci-sql`.
+- **Afecta a:** 05 §4; `docs/25` RV-110.
 
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
