@@ -236,6 +236,8 @@ texto visible en móvil y ningún control muerto (UI-01, UI-02).
 
 ## 5. Componentes
 
+Mockups de `docs/25` (referencia visual; si no coinciden con este documento, manda el documento): la lista en [`mockups/25-lista.html`](mockups/25-lista.html) (solo §1), la ficha con banda de estado y los colores en [`mockups/25-ficha.html`](mockups/25-ficha.html), y la cola de revisión en [`mockups/25-cola.html`](mockups/25-cola.html).
+
 | Componente | Especificación |
 |---|---|
 | **Barra superior** (móvil) | `--marino-950`, 16 px Barlow 600, título a la izquierda, acción a la derecha en círculo 22 px `rgba(255,255,255,.16)`. Etiqueta **Jefatura**: `--oro-600`, 9 px, radio 4. |

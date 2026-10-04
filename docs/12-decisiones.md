@@ -660,6 +660,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-162 · Los mockups definitivos de una especificación van en `docs/mockups/`
+- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-111).
+- **Decisión:** los mockups HTML que una especificación elige como referencia entran en el repositorio en `docs/mockups/NN-nombre.html`, con el número de la especificación. Antes se revisan con `detectar-secretos` y se cambia cualquier nombre de persona por «Voluntario de prueba» (FR-27, repositorio público, DEC-053). Los apartados superados se marcan dentro del archivo. Los mockups descartados no entran: se borran o se guardan fuera del repositorio.
+- **Afecta a:** 06 §5; `docs/INDICE.md`.
+
 ### DEC-160 · La cola trae el punto entero, y el historial tiene su vista
 - **Fecha:** 4 oct 2026 (sesión Backend, `docs/25` RV-110) · **Estado:** vigente.
 - **Contexto:** el detalle nuevo de la cola enseña todos los datos del punto, no solo los que cambian, y un mapa en las seis operaciones. `v_cola_revision` solo traía del punto el código, el tipo, la dirección, el núcleo y las fotos, y su posición no venía en ninguna operación (`lat`/`lng` son el pin de la propuesta, `null` en datos, revisión, estado y retirada). El historial lo leía el panel de `propuestas` con un *embed* de `puntos`, que no puede dar la posición (es `geography`).

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ficha con banda de estado</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+ --marino-950:#0E1B30;--marino-700:#1D3A63;--marino-600:#28517F;--naranja-600:#C94F16;--naranja-texto:#BE4811;
+ --fondo:#F1F3EE;--papel:#FFFFFF;--linea:#D8DBD2;--texto:#1B2430;--texto-suave:#5A6472;
+ --bueno:#237F52;--bueno-100:#DCEEE1;--bueno-txt:#1E6B45;
+ --regular:#F9A900;--regular-100:#FFF1C2;--regular-txt:#6B4E00;--regular-borde:#5C4300;
+ --malo:#9B2423;--malo-100:#FBE0DB;--malo-txt:#9B2423;
+ --nofunciona:#40453D;
+}
+*{box-sizing:border-box}
+body{margin:0;background:#E4E6E0;color:var(--texto);font-family:'Source Sans 3',system-ui,sans-serif}
+header.doc{background:var(--marino-950);color:#fff;padding:26px 24px 22px}
+header.doc h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;margin:0 0 6px}
+header.doc p{margin:0;opacity:.85;max-width:860px;line-height:1.5}
+section.doc{padding:30px 24px 6px;max-width:1360px;margin:0 auto}
+section.doc>h2{font-family:'Barlow Condensed',sans-serif;font-size:24px;margin:0 0 4px;color:var(--marino-950)}
+p.intro{margin:0 0 16px;color:var(--texto-suave);max-width:920px;line-height:1.55}
+p.intro b{color:var(--texto)}
+.mono{font-family:'JetBrains Mono',monospace;font-weight:500}
+.scroll{overflow-x:auto;padding-bottom:10px}
+/* Dispositivos */
+.disp{background:#11161f;border-radius:30px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.2);display:inline-block}
+.disp.tablet{border-radius:26px;padding:14px}
+.disp.pc{border-radius:12px;padding:0;background:#C9CCC2}
+.pantalla{background:var(--fondo);border-radius:22px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.disp.tablet .pantalla{border-radius:14px}
+.disp.pc .pantalla{border-radius:12px}
+.pc-barra{height:30px;background:#DADDD4;display:flex;align-items:center;gap:6px;padding:0 12px}
+.pc-barra i{width:11px;height:11px;border-radius:50%;background:#B9BDB2;display:block}
+.pc-barra span{margin-left:14px;font-size:12px;color:var(--texto-suave);background:#fff;border-radius:6px;padding:2px 10px}
+.bar{background:var(--marino-950);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex:none}
+.bar small{margin-left:auto;font-family:'Source Sans 3',sans-serif;font-weight:400;font-size:13px;opacity:.8}
+.mapa{position:relative;flex:1;overflow:hidden;background:#ECEAE1}
+.mapa>svg{position:absolute;inset:0;width:100%;height:100%}
+.buscar{position:absolute;left:12px;right:64px;top:12px;background:#fff;border-radius:10px;padding:10px 12px;color:var(--texto-suave);font-size:15px;box-shadow:0 1px 5px rgba(0,0,0,.18)}
+.ctrls{position:absolute;right:8px;top:12px;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+.ctrls span{width:44px;height:44px;background:#fff;border-radius:9px;box-shadow:0 1px 5px rgba(0,0,0,.18);display:grid;place-items:center;color:var(--marino-950);font-weight:700}
+.ctrls span.zoom{height:88px;grid-template-rows:1fr 1fr}
+.tabbar{display:flex;background:#fff;border-top:1px solid var(--linea);flex:none}
+.tabbar span{flex:1;text-align:center;padding:8px 0;font-size:12px;color:var(--texto-suave)}
+.tabbar span.on{color:var(--marino-950);font-weight:700}
+/* Ficha */
+.ficha{background:var(--papel);display:flex;flex-direction:column;overflow:hidden}
+.ficha.hoja{position:absolute;left:0;right:0;bottom:0;border-radius:18px 18px 0 0;box-shadow:0 -6px 20px rgba(0,0,0,.18)}
+.ficha.flot{position:absolute;border-radius:14px;box-shadow:0 8px 28px rgba(0,0,0,.22)}
+.banda{padding:12px 14px;display:flex;align-items:center;gap:10px;color:#fff;flex:none}
+.banda .grande{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:24px;letter-spacing:.4px;line-height:1}
+.banda .rev{font-size:13px;opacity:.95;margin-top:3px}
+.banda .x{margin-left:auto;width:32px;height:32px;display:grid;place-items:center}
+.banda.bueno{background:var(--bueno)} .banda.malo{background:var(--malo)}
+.banda.regular{background:var(--regular);color:var(--marino-950)}
+.banda .asa{position:absolute;left:50%;top:5px;width:36px;height:4px;margin-left:-18px;border-radius:2px;background:rgba(255,255,255,.6)}
+.banda.regular .asa{background:rgba(14,27,48,.35)}
+.cuerpo{padding:10px 14px 14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.cab{display:flex;align-items:baseline;gap:10px}
+.cab .codigo{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:21px}
+.cab .nucleo{margin-left:auto;font-size:13.5px;color:var(--texto-suave)}
+.foto{border-radius:10px;background:linear-gradient(135deg,#8D9A86,#B9C2B1 55%,#D6DACE);position:relative;flex:none}
+.foto .et{position:absolute;left:8px;bottom:8px;background:rgba(14,27,48,.78);color:#fff;font-size:12px;padding:3px 8px;border-radius:6px}
+.datos{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--linea);border:1px solid var(--linea);border-radius:10px;overflow:hidden}
+.datos>div{background:var(--papel);padding:7px 11px}
+.k{font-size:12px;color:var(--texto-suave)} .v{font-size:15px;font-weight:600}
+.ic{width:19px;height:19px;flex:none}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:10px;font-weight:700;font-size:15.5px;border:2px solid transparent;padding:0 12px}
+.btn.prim{background:var(--marino-950);color:#fff}
+.btn.sec{background:#fff;color:var(--marino-950);border-color:var(--marino-950)}
+.btn.sec-n{background:#fff;color:var(--naranja-texto);border-color:var(--naranja-600)}
+.btn.icono{width:46px;padding:0;flex:none}
+.dos{display:flex;gap:8px}.dos>.btn:first-child{flex:1}
+.coords{border:1px solid var(--linea);border-radius:10px;padding:8px 11px}
+.coords .fila{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 0}
+.coords .fila+.fila{border-top:1px solid #ECEDE7}
+.coords .sis{font-size:12px;color:var(--texto-suave)}
+.coords .val{font-family:'JetBrains Mono',monospace;font-size:14.5px}
+.meta{font-size:12.5px;color:var(--texto-suave);text-align:center}
+/* Lista lateral (ordenador) */
+.lateral{width:330px;background:#fff;border-right:1px solid var(--linea);display:flex;flex-direction:column;flex:none}
+.lateral .busc{margin:12px;border:1px solid var(--linea);border-radius:9px;padding:9px 11px;color:var(--texto-suave);font-size:14.5px}
+.lateral .filtros{display:flex;gap:6px;padding:0 12px 10px;font-size:13px}
+.lateral .filtros span{border:1px solid var(--linea);border-radius:999px;padding:5px 10px}
+.lateral .filtros span.on{background:var(--marino-950);color:#fff;border-color:var(--marino-950)}
+.item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid var(--linea)}
+.item.sel{background:#EEF1F6}
+.item .mk{width:24px;display:flex;justify-content:center}
+.item .t{flex:1;min-width:0}.item .l1{font-size:15px}.item .l2{font-size:12.5px;color:var(--texto-suave)}
+.item .d{font-size:12.5px;color:var(--texto-suave)}
+/* Colores */
+.muestras{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.muestra{background:#fff;border:1px solid var(--linea);border-radius:12px;overflow:hidden}
+.muestra .b{padding:12px 14px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px}
+.muestra .t{padding:10px 14px;font-size:13.5px;color:var(--texto-suave);line-height:1.5}
+.marcadores{display:flex;gap:18px;align-items:center;padding:10px 14px;background:#EFECE3}
+.marcadores.osc{background:#1B2536}
+.nota{font-size:14px;color:var(--texto-suave);line-height:1.55;max-width:920px;margin:12px 0 0}
+.nota b{color:var(--texto)}
+footer{padding:26px 24px 40px;max-width:1360px;margin:0 auto;color:var(--texto-suave);font-size:14px;line-height:1.6}
+</style></head><body>
+<header class="doc"><h1>Ficha de un punto · banda de color arriba</h1>
+<p>Decisiones del 4 oct 2026: la ficha lleva el estado en una banda de color arriba y debajo la ficha compacta. Las coordenadas van en grados (WGS84) y en UTM (ETRS89, huso 30), cada una con su sistema. <b>Regular pasa de naranja a amarillo</b>, para que no se parezca al rojo de malo. Abajo, cómo se ve en el móvil, la tableta y el ordenador.</p></header>
+
+<section class="doc"><h2>Móvil · 360 px · punto en estado regular (amarillo)</h2>
+<p class="intro">La ficha sube como hoja desde abajo y la banda de color es su cabecera. Sobre el amarillo el texto va en azul marino, porque el blanco no se lee. El resto, como en la ficha compacta: la foto, los datos fijos, <b>Cómo llegar</b> (el único botón principal), Proponer un cambio y las coordenadas en los dos sistemas.</p>
+<div class="scroll"><div class="disp"><div class="pantalla" style="width:360px;height:780px">
+ <div class="bar">Puntos de agua</div>
+ <div class="mapa" data-mapa="mov">
+  <div class="buscar">Buscar código, calle…</div>
+  <div class="ctrls"><span>≋</span><span>⟷</span><span>◎</span></div>
+ </div>
+ <div class="tabbar"><span class="on">Mapa</span><span>Lista</span><span>Ajustes</span></div>
+ <div class="ficha hoja" style="top:150px" data-ficha="regular" data-variante="movil"></div>
+</div></div></div>
+<p class="nota">Con la hoja a media altura se ven la banda, el código y la foto; al subirla, el resto. Coordenadas, en dos líneas: <b>WGS84</b> en grados decimales (la que pegan Google Maps y el 112) y <b>ETRS89 · UTM huso 30N</b> (la oficial en España, la de los mapas del IGN y de bomberos). Cada una con su botón de copiar.</p>
+</section>
+
+<section class="doc"><h2>Tableta · 820 px · punto en buen estado</h2>
+<p class="intro">Como dice 06 §5: mapa y ficha a la vez. La ficha flota a la izquierda de la columna de controles y termina encima de los botones de abajo, sin tapar ningún control. Mide 360 px de ancho.</p>
+<div class="scroll"><div class="disp tablet"><div class="pantalla" style="width:820px;height:1060px">
+ <div class="bar">Puntos de agua</div>
+ <div class="mapa" data-mapa="tab">
+  <div class="buscar" style="right:auto;width:360px">Buscar código, calle, dirección o coordenadas…</div>
+  <div class="ctrls"><span>≋</span><span>⟷</span><span>◎</span><span class="zoom"><b>+</b><b>−</b></span></div>
+  <div class="ficha flot" style="left:12px;top:66px;width:360px;bottom:120px" data-ficha="bueno" data-variante="tableta"></div>
+ </div>
+ <div class="tabbar"><span class="on">Mapa</span><span>Lista</span><span>Ajustes</span></div>
+</div></div></div>
+</section>
+
+<section class="doc"><h2>Ordenador · 1280 px · punto en mal estado</h2>
+<p class="intro">Con la lista lateral a la izquierda (FR-70), sin la dirección (como se eligió), el mapa en el centro y la ficha flotante a la derecha de la lista. Al elegir un punto en la lista se abre su ficha y el mapa se centra en él.</p>
+<div class="scroll"><div class="disp pc"><div class="pc-barra"><i></i><i></i><i></i><span>hidrantes-albolote.pages.dev</span></div><div class="pantalla" style="width:1280px;height:800px">
+ <div class="bar">Puntos de agua <small>Sincronizado hace 4 min · 10 puntos</small></div>
+ <div style="display:flex;flex:1;min-height:0">
+  <div class="lateral">
+   <div class="busc">Buscar código, calle…</div>
+   <div class="filtros"><span class="on">Todos</span><span>Hidrantes</span><span>Bocas</span><span>No utilizable</span></div>
+   <div data-lista></div>
+  </div>
+  <div class="mapa" data-mapa="pc">
+   <div class="ctrls"><span>≋</span><span>⟷</span><span>◎</span><span class="zoom"><b>+</b><b>−</b></span></div>
+   <div class="ficha flot" style="left:14px;top:14px;width:370px;bottom:14px" data-ficha="malo" data-variante="pc"></div>
+  </div>
+ </div>
+</div></div></div>
+</section>
+
+<section class="doc"><h2>Colores de estado · regular en amarillo</h2>
+<p class="intro">El amarillo es el oficial de seguridad, <b>RAL 1003</b> (ISO 3864), y el verde y el rojo siguen siendo RAL 6032 y RAL 3001. El amarillo y el rojo se distinguen también por lo claro que es cada uno (4:1), así que no se confunden con daltonismo, cosa que con el naranja no pasaba. A cambio, el amarillo necesita dos ajustes: <b>texto oscuro</b> encima y, en el mapa claro, <b>un borde oscuro</b> en el marcador. Sin él se queda en 1,66:1 sobre el fondo y TR-31 pide 3:1.</p>
+<div class="muestras">
+ <div class="muestra"><div class="b" style="background:var(--bueno);color:#fff">BUENO</div><div class="marcadores"><svg width="120" height="30"><circle cx="15" cy="15" r="11" fill="var(--bueno)" stroke="#fff" stroke-width="2.5"/><rect x="40" y="6" width="18" height="18" rx="3" fill="var(--bueno)" stroke="#fff" stroke-width="2.5"/></svg></div><div class="marcadores osc"><svg width="120" height="30"><circle cx="15" cy="15" r="11" fill="var(--bueno)" stroke="#111826" stroke-width="2.5"/><rect x="40" y="6" width="18" height="18" rx="3" fill="var(--bueno)" stroke="#111826" stroke-width="2.5"/></svg></div><div class="t">RAL 6032 · <span class="mono">#237F52</span><br>texto blanco 4,97:1 · chip <span class="mono">#DCEEE1</span>/<span class="mono">#1E6B45</span></div></div>
+ <div class="muestra"><div class="b" style="background:var(--regular);color:var(--marino-950)">REGULAR</div><div class="marcadores"><svg width="120" height="30"><circle cx="15" cy="15" r="11" fill="var(--regular)" stroke="var(--regular-borde)" stroke-width="2.5"/><rect x="40" y="6" width="18" height="18" rx="3" fill="var(--regular)" stroke="var(--regular-borde)" stroke-width="2.5"/></svg></div><div class="marcadores osc"><svg width="120" height="30"><circle cx="15" cy="15" r="11" fill="var(--regular)" stroke="#111826" stroke-width="2.5"/><rect x="40" y="6" width="18" height="18" rx="3" fill="var(--regular)" stroke="#111826" stroke-width="2.5"/></svg></div><div class="t">RAL 1003 · <span class="mono">#F9A900</span><br>texto marino 8,79:1 · chip <span class="mono">#FFF1C2</span>/<span class="mono">#6B4E00</span> (6,86:1) · borde en mapa claro <span class="mono">#5C4300</span> (7,87:1)</div></div>
+ <div class="muestra"><div class="b" style="background:var(--malo);color:#fff">MALO</div><div class="marcadores"><svg width="120" height="30"><circle cx="15" cy="15" r="11" fill="var(--malo)" stroke="#fff" stroke-width="2.5"/><rect x="40" y="6" width="18" height="18" rx="3" fill="var(--malo)" stroke="#fff" stroke-width="2.5"/></svg></div><div class="marcadores osc"><svg width="120" height="30"><circle cx="15" cy="15" r="11" fill="var(--malo)" stroke="#111826" stroke-width="2.5"/><rect x="40" y="6" width="18" height="18" rx="3" fill="var(--malo)" stroke="#111826" stroke-width="2.5"/></svg></div><div class="t">RAL 3001 · <span class="mono">#9B2423</span><br>texto blanco 7,86:1 · chip <span class="mono">#FBE0DB</span>/<span class="mono">#9B2423</span></div></div>
+</div>
+<p class="nota"><b>Ojo con el historial:</b> en septiembre el regular era un ámbar oscuro (<span class="mono">#8A6408</span>) y se veía marrón mostaza a pleno sol (DEC-076). El RAL 1003 es mucho más claro y no tiene ese problema, pero hay que verlo en un móvil a pleno sol antes de cerrarlo. Y el amarillo de estado no puede ser el mismo que el de los avisos (<span class="mono">--oro-*</span>), que son más apagados.</p>
+</section>
+
+<footer><b>Para la especificación:</b>
+<ul style="margin:6px 0 0;padding-left:18px">
+<li><b>Banda arriba</b> del color del estado, con la palabra en mayúsculas (Barlow Condensed, 24 px) y "revisado hace N · fecha". Texto blanco sobre verde, rojo y gris; azul marino sobre amarillo. En el móvil, la banda es la cabecera de la hoja (con el asa); en tableta y ordenador, la de la ficha flotante.</li>
+<li>Debajo, la ficha compacta: código y núcleo; la foto (conexión y sitio, deslizando); los datos fijos: tipo, diámetro, racor (solo en bocas) y dirección; la revisión ya va en la banda; <b>Cómo llegar</b> como único botón principal, con Compartir como icono; y <b>Proponer un cambio</b>, con borde naranja.</li>
+<li><b>Coordenadas en dos sistemas, con su nombre:</b> "WGS84 · grados decimales" y "ETRS89 · UTM huso 30N", cada una con su botón de copiar. Lo mismo en "¿Qué hay aquí?" y en lo que se comparte.</li>
+<li><b>Regular = amarillo RAL 1003</b> <span class="mono">#F9A900</span>: chip <span class="mono">#FFF1C2</span>/<span class="mono">#6B4E00</span>, borde del marcador <span class="mono">#5C4300</span> en el mapa claro (en el oscuro, el de siempre). Hay que actualizar 06 §2.2 y §4.3, la leyenda y <span class="mono">accesibilidad.test.ts</span>.</li>
+<li>Tableta: la ficha flota a la izquierda de los controles, 360 px. Ordenador: lista lateral de 330 px y la ficha flotante a su derecha.</li>
+</ul></footer>
+
+<script>
+const calles = `<rect width="600" height="400" fill="#ECEAE1"/>
+  <path d="M-20 300 C 120 260, 220 280, 330 210 S 520 120, 640 140" stroke="#fff" stroke-width="16" fill="none"/>
+  <path d="M-20 300 C 120 260, 220 280, 330 210 S 520 120, 640 140" stroke="#F3D9A6" stroke-width="10" fill="none"/>
+  <path d="M180 -10 L 230 420" stroke="#fff" stroke-width="9"/>
+  <path d="M60 80 L 560 60" stroke="#fff" stroke-width="7"/>
+  <path d="M380 -10 L 420 420" stroke="#fff" stroke-width="7"/>
+  <path d="M40 180 L 600 330" stroke="#fff" stroke-width="6"/>
+  <rect x="250" y="95" width="110" height="70" rx="6" fill="#DADDD0"/>
+  <rect x="440" y="200" width="120" height="90" rx="8" fill="#D3E1C8"/>
+  <rect x="60" y="320" width="100" height="60" rx="6" fill="#DADDD0"/>
+  <text x="260" y="135" font-size="15" fill="#6E7569" font-family="Source Sans 3, sans-serif">Plaza de la Iglesia</text>
+  <text x="455" y="250" font-size="14" fill="#6E7569" font-family="Source Sans 3, sans-serif">Parque</text>
+  <text x="20" y="283" font-size="13" fill="#8A7A55" font-family="Source Sans 3, sans-serif" transform="rotate(-8 20 283)">Ctra. de Sierra Nevada</text>
+  <!-- vecinos atenuados -->
+  <g opacity=".55">
+    <circle cx="120" cy="120" r="7" fill="var(--bueno)" stroke="#fff" stroke-width="2"/>
+    <rect x="500" y="100" width="12" height="12" rx="2.5" fill="var(--regular)" stroke="#fff" stroke-width="2"/>
+    <circle cx="470" cy="340" r="6" fill="var(--malo)" stroke="#fff" stroke-width="2"/>
+    <rect x="90" y="215" width="11" height="11" rx="2.5" fill="var(--bueno)" stroke="#fff" stroke-width="2"/>
+  </g>`;
+const COL = {bueno:'var(--bueno)', regular:'var(--regular)', malo:'var(--malo)'};
+const BORDE = e => e==='regular' ? 'var(--regular-borde)' : '#fff';
+function mk(tipo, estado, r, x, y, sel){
+  const s = sel ? `<circle cx="${x}" cy="${y}" r="${r+6}" fill="none" stroke="var(--marino-950)" stroke-width="2.5"/>` : '';
+  if (tipo==='h') return s+`<circle cx="${x}" cy="${y}" r="${r}" fill="${COL[estado]}" stroke="${BORDE(estado)}" stroke-width="2.5"/>`;
+  return s+`<rect x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}" rx="3" fill="${COL[estado]}" stroke="${BORDE(estado)}" stroke-width="2.5"/>`;
+}
+const puntos = s => mk('h','bueno',11,120,140) + mk('b','regular',7,470,110) + mk('h','malo',8,420,330) + mk('b','bueno',7,90,230) + mk('h','regular',9,250,300) + s;
+const mapas = {
+  mov: puntos(mk('h','regular',9,300,95,true)),
+  tab: puntos(mk('h','bueno',11,520,200,true)),
+  pc:  puntos(mk('h','malo',8,520,210,true))
+};
+document.querySelectorAll('[data-mapa]').forEach(m => {
+  m.insertAdjacentHTML('afterbegin', `<svg viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice">${calles}${mapas[m.dataset.mapa]}</svg>`);
+});
+const DATOS = {
+  regular:{palabra:'REGULAR', rev:'revisado hace 2 meses · 4 ago 2026', cod:'HID-9002', nucleo:'Barrio Seco', tipo:'Hidrante', diam:'100 mm', d3k:'Revisado por', d3v:'—', dir:'Calle Real, 14', dec:'37.271820, −3.621050', utm:'30S 444983 4123142'},
+  bueno:{palabra:'BUENO', rev:'revisado hace 1 mes · 29 ago 2026', cod:'BOC-9001', nucleo:'Calicasas', tipo:'Boca de riego', diam:'45 mm', d3k:'Racor', d3v:'Granada', dir:'Pl. de la Iglesia, 3', dec:'37.273500, −3.618400', utm:'30S 445175 4125393'},
+  malo:{palabra:'MALO', rev:'revisado hace 1 año · 2 sept 2025', cod:'HID-9003', nucleo:'Pretel', tipo:'Hidrante', diam:'100 mm', d3k:'Revisado', d3v:'hace 1 año', dir:'Camino de Pretel, 2', dec:'37.268900, −3.630200', utm:'30S 444121 4124610'}
+};
+const icX='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const icNav='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-8z"/></svg>';
+const icSh='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>';
+const icEd='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>';
+const icCp='<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg>';
+document.querySelectorAll('[data-ficha]').forEach(f => {
+  const e = f.dataset.ficha, d = DATOS[e], movil = f.dataset.variante==='movil';
+  const fotoH = movil ? 150 : 170;
+  f.innerHTML = `
+   <div class="banda ${e}" style="position:relative;${movil?'padding-top:16px':''}">${movil?'<span class="asa"></span>':''}
+     <div><div class="grande">${d.palabra}</div><div class="rev">${d.rev}</div></div><span class="x">${icX}</span></div>
+   <div class="cuerpo">
+     <div class="cab"><span class="codigo">${d.cod}</span><span class="nucleo">${d.nucleo}</span></div>
+     <div class="foto" style="height:${fotoH}px"><span class="et">Conexión · 1/2</span></div>
+     <div class="datos">
+       <div><div class="k">Tipo</div><div class="v">${d.tipo}</div></div>
+       <div><div class="k">Diámetro</div><div class="v">${d.diam}</div></div>
+       ${d.tipo==='Boca de riego' ? `<div><div class="k">Racor</div><div class="v">${d.d3v}</div></div><div><div class="k">Dirección</div><div class="v">${d.dir}</div></div>` : `<div style="grid-column:1/3"><div class="k">Dirección</div><div class="v">${d.dir}</div></div>`}
+     </div>
+     <div class="dos"><div class="btn prim">${icNav}Cómo llegar</div><div class="btn sec icono">${icSh}</div></div>
+     <div class="btn sec-n">${icEd}Proponer un cambio</div>
+     <div class="coords">
+       <div class="fila"><div><div class="sis">WGS84 · grados decimales</div><div class="val">${d.dec}</div></div>${icCp}</div>
+       <div class="fila"><div><div class="sis">ETRS89 · UTM huso 30N</div><div class="val">${d.utm}</div></div>${icCp}</div>
+     </div>
+     <div class="meta">Datos sincronizados hace 4 min</div>
+   </div>`;
+});
+const lista = [['h','malo',8,'HID-9003','100 mm','Malo · hace 1 año','80 m',true],['b','bueno',7,'BOC-9001','45 mm','Bueno · hace 1 mes','120 m'],['b','regular',6,'BOC-9002','45 mm','Regular · hace 1 año','340 m'],['h','bueno',10,'HID-9001','100 mm','Bueno · hace 1 mes','410 m'],['h','regular',9,'HID-9002','100 mm','Regular · hace 2 meses','0,9 km'],['h','bueno',9,'HID-9005','70 mm','Bueno · hace 3 meses','1,1 km'],['b','bueno',7,'BOC-9004','45 mm','Bueno · hace 2 meses','1,3 km']];
+document.querySelector('[data-lista]').innerHTML = lista.map(([t,e,r,c,dm,l2,dist,sel]) =>
+  `<div class="item${sel?' sel':''}"><div class="mk"><svg width="24" height="24">${mk(t,e,r,12,12)}</svg></div><div class="t"><div class="l1"><span class="mono">${c}</span> · ${dm}</div><div class="l2">${l2}</div></div><div class="d">${dist}</div></div>`).join('');
+</script>
+</body></html>
