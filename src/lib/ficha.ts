@@ -53,7 +53,7 @@ export const nombreRacor = (r: string) =>
 
 const CLASE_CHIP: Record<Caudal, string> = {
   bueno: 'bg-verde-100 text-verde-700',
-  regular: 'bg-naranja-estado-100 text-naranja-estado-700',
+  regular: 'bg-amarillo-100 text-amarillo-800',
   malo: 'bg-rojo-100 text-rojo-700',
   barro: 'bg-marron-100 text-marron-700',
   no_funciona: 'bg-gris-100 text-gris-700',

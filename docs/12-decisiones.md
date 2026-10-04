@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.47 — 4 de octubre de 2026 (DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.48 — 4 de octubre de 2026 (DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -684,6 +684,21 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Descartado:** una RPC del detalle (otra firma que mantener una versión atrás, y una llamada más por propuesta); seguir leyendo el historial de `propuestas` con más columnas en el *embed* (no da la posición); `antes` en el historial.
 - **Compatibilidad (04 §12):** el panel anterior pide `select('*')` a la cola y no mira columnas de más; sigue leyendo el historial de `propuestas`, que no cambia. Lo comprueba `npm run compatibilidad` en `ci-sql`.
 - **Afecta a:** 05 §4; `docs/25` RV-110.
+
+### DEC-154 · Colores de estado RAL: regular pasa a amarillo, con borde propio en el marcador
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `docs/mockups-ficha-banda.html`) · **Estado:** vigente. Sustituye a DEC-076 (`docs/25` RV-105). Sesión Frontend-campo.
+- **Contexto:** el naranja de regular (`#A85300`, DEC-076) se parecía al rojo de "malo", y más con daltonismo. Los colores de seguridad de ISO 3864 (UNE-EN ISO 7010) y la escala de caudal de NFPA 291 usan verde, amarillo y rojo.
+- **Decisión:**
+  - **Rellenos RAL:** bueno `--verde-600` `#237E51` (RAL 6032), regular `--amarillo-500` `#F9A900` (RAL 1003), malo `--rojo-700` `#9B2423` (RAL 3001). Chips: `#DCEEE1`/`--verde-700` `#1E6B45`, `--amarillo-100` `#FFF1C2`/`--amarillo-800` `#6B4E00`, `#FBE0DB`/`#9B2423`. No funciona y barro no cambian. Se quitan los `--naranja-estado-*`; el `--naranja-600` de las acciones y los `--oro-*`/`--ambar-*` de los avisos se quedan como están.
+  - **Texto oscuro sobre el amarillo**, nunca blanco (1,96:1): `--marino-950` (8,79:1) o `--amarillo-800`.
+  - **Borde por estado en el marcador.** `svgMarcador` pone `--borde-marcador-regular` a regular y `--borde-marcador` (blanco en los dos modos, DEC-072) a los demás. Es el mismo dibujo en el mapa, la lista, la ficha, la leyenda, el panel y el minimapa, porque todos pasan por `svgMarcador`.
+  - **Tres ajustes a los valores de `docs/25`**, para pasar las comprobaciones de TR-31 que ya existían en `accesibilidad.test.ts` (que miden sobre **todas** las superficies del mapa, no solo el fondo):
+    1. El borde del amarillo en claro es `#563E00`, no `#5C4300`: aquel se quedaba en 2,87:1 sobre los rótulos del mapa (`#8A9090`); este llega a 3,10:1, y a 8,53:1 sobre el fondo y 5,13:1 contra el relleno.
+    2. El verde es `#237E51`, no `#237F52`: aquel se quedaba en 2,97:1 sobre el agua y los árboles del mapa claro, donde el borde blanco no ayuda; este llega a 3,01:1. La diferencia no se ve.
+    3. En el mapa oscuro, el borde del amarillo es `#111826`, como dice la tabla de `docs/25`, y no "el `--borde-marcador` de siempre" del punto 2 del mismo texto: el blanco contra el amarillo da 1,96:1 y el relleno no se separaría de su borde (el discontinuo de "sin revisar" no se vería). Con `#111826`, 9,05:1. El relleno contra las superficies del mapa oscuro da de 4,56:1 (calles) a 7,84:1 (fondo); sobre los rótulos (`#7E8A99`) se queda en 1,79:1, y ahí lo separa el borde oscuro (5,06:1). Los demás estados **siguen con borde blanco en oscuro**, aunque la tabla de `docs/25` y el mockup digan `#111826` para todos: DEC-072 midió que un borde oscuro sobre el mapa oscuro se queda en 1,16:1 y el verde, el rojo o el gris desaparecen.
+- **Descartado:** dejar el naranja (se confunde con el rojo); un amarillo más oscuro para no necesitar borde (vuelve al ámbar mostaza de DEC-076); borde oscuro para todos los estados en el mapa oscuro (DEC-072).
+- **Pendiente:** el desarrollador mira el amarillo en un móvil a pleno sol (comprobación de campo de `docs/25` RV-105).
+- **Afecta a:** 01 (texto de los colores, lo lleva Ops); 06 §2.2, §2.4, §4.3, §4.5 y §4.6; `src/index.css`; `src/lib/simbologia.ts`; `src/lib/ficha.ts`; DEC-076.
 
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
@@ -1684,7 +1699,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   `src/paginas/Proponer.tsx`.
 
 ### DEC-076 · El estado "regular" es naranja, no ámbar
-- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Fecha:** 21 sep 2026 · **Estado:** **sustituida por DEC-154** (4 oct 2026): regular es amarillo RAL 1003.
 - **Contexto:** en la prueba con un Android real, el desarrollador pidió que **regular se vea
   naranja**. El token de 06 §2.2 era `--ambar-700` `#8A6408`, que en pantalla, y más a pleno sol,
   se lee marrón mostaza; junto al rojo de "malo" no se distingue de un vistazo, que es justo lo que
@@ -1927,7 +1942,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

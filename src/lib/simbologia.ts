@@ -8,7 +8,7 @@ import type { Caudal, TipoPunto } from './puntos';
 /** Rellenos de estado (06 §2.2), idénticos en claro y oscuro. */
 export const COLOR_CAUDAL: Record<Caudal, string> = {
   bueno: 'var(--verde-600)',
-  regular: 'var(--naranja-estado-600)',
+  regular: 'var(--amarillo-500)',
   malo: 'var(--rojo-700)',
   // docs/24 RV-102 (DEC-149): marrón, con tamaño mínimo y tachado; sin atenuar.
   barro: 'var(--marron-600)',
@@ -37,7 +37,8 @@ export const grosorBorde = (r: number) => (r <= 5.5 ? 2 : 2.5);
 
 /**
  * SVG del marcador centrado en (0, 0). `tamano` es el lado del lienzo (44 en el mapa para el
- * objetivo táctil). El borde usa --borde-marcador, blanco en los dos modos (DEC-072).
+ * objetivo táctil). El borde usa --borde-marcador, blanco en los dos modos (DEC-072), salvo el
+ * amarillo de regular, que lleva --borde-marcador-regular: oscuro, porque es claro (DEC-154).
  */
 export function svgMarcador(p: Simbolo, { tamano = OBJETIVO_TACTIL, seleccionado = false } = {}): string {
   const r = p.radio_px;
@@ -47,7 +48,8 @@ export function svgMarcador(p: Simbolo, { tamano = OBJETIVO_TACTIL, seleccionado
   const nf = caudal === 'no_funciona';
   // Tachado = no se puede usar; el color dice por qué (WCAG 1.4.1, FR-61).
   const tachar = nf || caudal === 'barro';
-  const trazo = `stroke="var(--borde-marcador)" stroke-width="${bw}"${p.revision_caducada ? ' stroke-dasharray="3 2.5"' : ''}`;
+  const borde = caudal === 'regular' ? 'var(--borde-marcador-regular)' : 'var(--borde-marcador)';
+  const trazo = `stroke="${borde}" stroke-width="${bw}"${p.revision_caducada ? ' stroke-dasharray="3 2.5"' : ''}`;
   const relleno = `fill="${COLOR_CAUDAL[caudal]}"${nf ? ' opacity="0.5"' : ''}`;
   const forma =
     p.tipo === 'hidrante'

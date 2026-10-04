@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.14 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): estado Barro, marrón y tachado (§2.2, §4.3, §4.5, Apéndice A; RV-102, DEC-149). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.16 — 4 de octubre de 2026 (`docs/25`, conformidad del desarrollador): colores de estado RAL, regular en amarillo con borde propio en el marcador (§2.2, §2.4, §4.3, §4.5, §4.6; RV-105, DEC-154). v1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.14 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): estado Barro, marrón y tachado (§2.2, §4.3, §4.5, Apéndice A; RV-102, DEC-149). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -53,17 +53,39 @@ quedaba en 3,78:1 y TR-31 pide 4,5:1. Cuando el naranja es **texto sobre una sup
 
 Se usan **idénticos** en marcador, chip, leyenda y panel; no se retocan por contexto.
 
-| Estado | Relleno | Fondo del chip | Texto del chip |
-|---|---|---|---|
-| bueno | `--verde-600` `#2E7D4F` | `--verde-100` `#DCEEE1` | `#2E7D4F` |
+Son los colores de seguridad de ISO 3864 (UNE-EN ISO 7010) en RAL, los mismos que la escala de
+caudal de NFPA 291: verde, amarillo y rojo (DEC-154).
+
+| Estado | Relleno | Fondo del chip | Texto del chip | Borde del marcador (claro / oscuro) |
+|---|---|---|---|---|
+| bueno | `--verde-600` `#237E51` (RAL 6032) | `--verde-100` `#DCEEE1` | `--verde-700` `#1E6B45` | `--borde-marcador` blanco / blanco |
+| regular | `--amarillo-500` `#F9A900` (RAL 1003) | `--amarillo-100` `#FFF1C2` | `--amarillo-800` `#6B4E00` | `--borde-marcador-regular` `#563E00` / `#111826` |
+| malo | `--rojo-700` `#9B2423` (RAL 3001) | `--rojo-100` `#FBE0DB` | `--rojo-700` `#9B2423` | `--borde-marcador` blanco / blanco |
+| barro | `--marron-600` `#806460` | `--marron-100` `#EFE3D6` | `--marron-700` `#5A4632` | `--borde-marcador` blanco / blanco |
+| no funciona | `--gris-700` `#40453D` | `--gris-100` `#E5E4DC` | `#40453D` | `--borde-marcador` blanco / blanco |
 
 Para **texto sobre `--verde-100`** (las etiquetas "bueno", "alta" y "resuelta") se usa
-`--verde-700` `#276B42`: el `--verde-600` sobre ese fondo se queda en 4,17:1 y TR-31 pide 4,5:1.
-El relleno del marcador sigue siendo el `--verde-600` de §4.2 (DEC-072).
-| regular | `--naranja-estado-600` `#A85300` | `--naranja-estado-100` `#FDE8D6` | `--naranja-estado-700` `#8F4505` |
-| malo | `--rojo-700` `#9C2B1E` | `--rojo-100` `#FBE0DB` | `#9C2B1E` |
-| barro | `--marron-600` `#806460` | `--marron-100` `#EFE3D6` | `--marron-700` `#5A4632` |
-| no funciona | `--gris-700` `#40453D` | `--gris-100` `#E5E4DC` | `#40453D` |
+`--verde-700`: el `--verde-600` sobre ese fondo se queda en 4,16:1 y TR-31 pide 4,5:1.
+El relleno del marcador sigue siendo el `--verde-600` de §4.2 (DEC-072). El RAL 6032 es `#237F52`;
+se usa un punto más oscuro, `#237E51`, porque el otro se queda en 2,97:1 sobre el agua y los árboles
+del mapa claro, donde el borde blanco no ayuda (DEC-154).
+
+**Regular es amarillo RAL 1003** desde el 4 oct 2026 (DEC-154, que sustituye a DEC-076): el naranja
+`#A85300` se parecía al rojo de "malo", también con daltonismo. El amarillo y el rojo se separan
+además por su claridad (4,0:1), así que no dependen del tono. A cambio, el amarillo pide dos cosas:
+
+- **Texto oscuro encima.** Donde el amarillo es fondo (el chip, la banda de la ficha), el texto va en
+  `--marino-950` (8,79:1) o `--amarillo-800`, **nunca en blanco** (1,96:1).
+- **Borde propio en el marcador** (`--borde-marcador-regular`, §4.3). Sobre el fondo del mapa claro
+  el amarillo se queda en 1,66:1: lo separa un borde `#563E00` (8,53:1 sobre el fondo, 3,10:1 sobre
+  los rótulos, 5,13:1 contra el relleno). Es el `#5C4300` de los mockups un punto más oscuro, porque
+  aquel se quedaba en 2,87:1 sobre los rótulos. En el mapa oscuro manda el relleno (de 4,56:1 sobre
+  las calles a 7,84:1 sobre el fondo) y el borde es `#111826`: uno blanco no se separaría del
+  amarillo. Sobre los rótulos del mapa oscuro (`#7E8A99`) el relleno se queda en 1,79:1, y ahí lo
+  separa ese borde oscuro (5,06:1).
+
+El amarillo de estado **no es el de aviso**: `--oro-*` y `--ambar-*` (duplicado, fuera de zona,
+propuesta pendiente) se quedan como están, más apagados, como borde y fondo de avisos.
 
 **Barro** (`docs/24` RV-102, DEC-145 y DEC-149): el `#6B4423` propuesto se confundía con `--rojo-700` con
 protanopía (ΔE2000 1,1). El relleno `#806460` queda a ΔE2000 ≥ 15 de Regular y de Malo con visión
@@ -71,19 +93,17 @@ normal, protanopía y deuteranopía simuladas (Machado 2009), y a ≥ 3:1 sobre 
 mapa claro; sobre el oscuro vale el borde blanco, como para `--gris-700`. El texto del chip es el
 marrón oscuro (7,1:1 sobre `--marron-100`). Lo mide `src/lib/accesibilidad.test.ts`.
 
-El **regular es naranja** desde el 21 sep 2026 (DEC-076): el ámbar `#8A6408` de antes se leía
-marrón mostaza en el móvil a pleno sol. El naranja nuevo tiene el mismo claror —3,22:1 sobre las
-superficies más oscuras del mapa claro, que es donde el borde blanco no ayuda— y no se puede
-aclarar más sin bajar de los 3:1 de TR-31. El texto del chip va un punto más oscuro, como en el
-verde. El `--ambar-*` sigue existiendo para lo que es **aviso** (señales de fiabilidad, diferencias,
+Historia: el regular fue ámbar `#8A6408` hasta el 21 sep 2026, cuando pasó a naranja `#A85300`
+porque el ámbar se leía marrón mostaza en el móvil a pleno sol (DEC-076); el 4 oct 2026 pasó al
+amarillo RAL 1003 (DEC-154), que es mucho más claro. El `--ambar-*` sigue existiendo para lo que es **aviso** (señales de fiabilidad, diferencias,
 propuesta pendiente): eso no es caudal. Como aviso es **texto**, y el texto del aviso va sobre
 `--oro-100`: ahí el `#8A6408` de antes se quedaba en 4,33:1 y TR-31 pide 4,5:1, así que
 `--ambar-700` es `#7F5C07` desde el 22 sep 2026 (4,93:1 sobre el oro; DEC-081). De relleno de
 marcador le bastaba con 3:1 y por eso nadie lo había medido como texto.
 
-Contraste de los cinco rellenos sobre el fondo del mapa claro (`#EFECE3`) y oscuro (`#1B2536`):
-≥ 3:1 en todos los casos; el borde blanco de 2,5 px garantiza la separación en cualquier fondo de
-tesela (TR-31).
+Contraste sobre cualquier superficie del mapa claro y oscuro (§2.3): el relleno o su borde llegan a
+3:1, y el relleno se separa de su borde a 3:1 (TR-31). Lo mide `src/lib/accesibilidad.test.ts` con
+los tokens leídos de `src/index.css`.
 
 ### 2.3 Colores del mapa base propio
 
@@ -114,7 +134,9 @@ Las capas en línea (OSM, PNOA, Catastro) no se recolorean.
 | anillo del marcador seleccionado (`--anillo-seleccion`) | `#E6EAF0` (el `--marino-950` de claro no se ve sobre el mapa oscuro; DEC-062) |
 
 Los rellenos de estado y el naranja de acción **no cambian**, y el **borde del marcador sigue
-blanco** (`--borde-marcador`): es lo que lo separa del mapa. Un borde oscuro sobre el mapa oscuro se
+blanco** (`--borde-marcador`): es lo que lo separa del mapa. La excepción es el amarillo de regular,
+cuyo borde (`--borde-marcador-regular`) pasa a `#111826`, porque allí ya lo separa su relleno (§2.2,
+DEC-154). Un borde oscuro sobre el mapa oscuro se
 queda en 1,16:1 y el marcador se pierde; con el blanco, el borde contra el mapa da 13,6:1 y el
 relleno contra el borde, entre 5,0:1 y 9,8:1 (TR-31, medido en `src/lib/accesibilidad.test.ts`;
 DEC-072).
@@ -172,7 +194,7 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 |---|---|
 | Hidrante | círculo, `r = radio_px` |
 | Boca de riego | cuadrado de lado `2 × radio_px`, esquinas `rx = 3` (a 5,5 px, `rx = 2.5`; a 5 px, `rx = 2`) |
-| Borde | blanco (`#FFFFFF`), 2,5 px (2 px si `radio_px ≤ 5.5`); en modo oscuro `#111826` |
+| Borde | `--borde-marcador`, blanco en claro y en oscuro (DEC-072), 2,5 px (2 px si `radio_px ≤ 5.5`). **Regular** lleva `--borde-marcador-regular`: `#563E00` en claro y `#111826` en oscuro (§2.2, DEC-154). Es el mismo dibujo en el mapa, la lista, la ficha, la leyenda, el panel y el minimapa |
 | Relleno | color de estado (§2.2) |
 | Barro | tamaño mínimo y la misma línea blanca cruzada que No funciona, **sin** atenuar: el tachado dice "no se puede usar" y el color marrón dice por qué (FR-61, WCAG 1.4.1) |
 | No funciona | opacidad **0,5** + línea blanca cruzada de 2 px de esquina inferior izquierda a superior derecha, largo `2 × radio_px` |
@@ -205,14 +227,14 @@ Plegable (§5, DEC-123): la primera vez y cuando se despliega, en el mapa (móvi
 igual con 9–10 px). Contenido fijo y en este orden:
 
 1. ● Hidrante · ■ Boca de riego (forma)
-2. Regular · Malo · Barro · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde)
+2. Regular · Malo · Barro · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde). Cada muestra lleva el borde de su estado (§4.3): la de Regular, amarillo con el borde oscuro
 3. Sin revisar (borde discontinuo)
 4. Línea final: "Más grande = más agua aprovechable"
 
 ### 4.6 Ejemplos de lectura
 
 - Círculo grande verde: hidrante de 100 mm que funciona bien. El mejor recurso de la zona.
-- Cuadrado pequeño ámbar: boca de riego que da menos de lo que podría.
+- Cuadrado pequeño amarillo: boca de riego que da menos de lo que podría.
 - Punto gris pequeño tachado: no se pudo usar; hay que comunicarlo, pero no compite visualmente.
 - Cualquiera con borde discontinuo: el dato es el último conocido, pero tiene más de un año.
 
