@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.7 — 5 de octubre de 2026 (`docs/27` RV-114, conformidad del desarrollador: la hoja de Cercanos sin tramos, *Medir tendido* ni compartir, y los avisos de posición en el subtítulo, en FL-35, FL-37 y FL-38, DEC-165). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -380,12 +380,13 @@ No hace falta desplegar nada ni tocar código.
 1. Abre la aplicación. El mapa pinta lo guardado en el móvil y la barra dice "sin cobertura · datos de hace N min". (FR-80, FR-168)
 2. Pulsa **Cercanos**, junto a *centrar en mí*. Con la posición del GPS al día, el incidente es esa posición. (FR-74)
 3. El mapa marca el incidente con una diana, traza líneas discontinuas a los candidatos y encuadra el incidente y los tres primeros. Se abre la hoja *Cercanos* con, como mucho, los cinco puntos activos más cercanos en estado *bueno* o *regular*. (FR-74)
-4. Cada fila da código, tipo y diámetro, estado, distancia en línea recta, rumbo (N, NE…) y tramos de manguera. Si el más cercano de todos no funciona, un aviso lo dice para que nadie vaya a él por costumbre. (FR-74, FR-142)
+4. Cada fila da código, diámetro y estado, distancia en línea recta y rumbo (N, NE…), con un solo botón, *Cómo llegar*. Un punto que no funciona no sale en la lista. (FR-74, DEC-165)
 5. *Solo hidrantes* limita la lista. Tocar una fila abre la ficha sin cerrar el incidente; *Cómo llegar* abre la app de mapas del móvil. (FR-74, FR-161)
 6. *Atrás* cierra el modo incidente. (FR-74)
 
 **Variantes**
-- La posición no está al día (el GPS dejó de responder): el origen es la última posición, y un aviso dice "posición de hace N min". (FR-74)
+- La posición no está al día (el GPS dejó de responder): el origen es la última posición, y el subtítulo de la hoja lo dice en la misma línea: "en línea recta · posición de hace N min". (FR-74, DEC-165)
+- La posición es poco precisa (más de 50 m): el subtítulo dice "posición poco precisa (±N m)", con *Marcar en el mapa* al lado. Si además es vieja, solo sale este aviso. (FR-74, DEC-165)
 - Sin posición: la hoja lo explica ("mantén pulsado el mapa donde está el incidente o busca la calle") y enfoca la búsqueda. Ningún botón se queda sin hacer nada. (FR-74, FR-72, FR-73)
 - Ningún punto que funcione a menos de 2 km: estado vacío con *Ver todos en la lista*, ordenada por distancia desde el incidente. (FR-74, FR-68)
 
@@ -416,16 +417,16 @@ No hace falta desplegar nada ni tocar código.
 
 **Variantes**
 - Sin menú de compartir (ordenador, algunos navegadores): el texto se copia y un aviso dice "Copiado". Si tampoco se puede copiar, el aviso enseña el texto seleccionable. (FR-75, UI-05)
-- Compartir el incidente o un sitio de *¿Qué hay aquí?*: el mismo texto sin los datos del punto. (FR-75, FR-72, FR-74)
+- Compartir un sitio de *¿Qué hay aquí?*: el mismo texto sin los datos del punto. La hoja de *Cercanos* no comparte: para mandar el sitio del incidente, *¿Qué hay aquí?* en él (DEC-165). (FR-75, FR-72)
 - Sin cobertura: el menú del móvil funciona igual; el mensaje sale cuando haya señal. (FR-75)
 
 ---
 
 ### FL-38 · Medir el tendido desde un hidrante
 
-**Actor:** voluntario en una salida. (FR-76, FR-74)
+**Actor:** voluntario en una salida. (FR-76)
 
-1. Desde una fila de *Cercanos*, *Medir tendido*: la medición empieza con la recta incidente → punto ya puesta. También desde *¿Qué hay aquí?* (*Medir desde aquí*) o desde el botón *Medir* del menú de herramientas del mapa. (FR-76, FR-72, FR-74)
+1. Desde *¿Qué hay aquí?* en el sitio del incidente (*Medir desde aquí*) o desde el botón *Medir* del menú de herramientas del mapa. La fila de *Cercanos* ya no lleva *Medir tendido* (DEC-165). (FR-76, FR-72)
 2. Mientras mide, cada toque en el mapa añade un vértice (y se imanta a un marcador si cae cerca); tocar no abre fichas. (FR-76)
 3. La barra inferior dice la distancia total y los tramos: "186 m · 10 tramos de 20 m". Cada tramo de más de 30 m lleva su etiqueta. (FR-76, FR-142)
 4. *Deshacer* quita el último vértice; *Borrar* empieza de nuevo; *Terminar* o *atrás* salen. La medición no se guarda. (FR-76)

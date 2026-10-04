@@ -36,7 +36,6 @@ const NO_SE_PULSAN = new Map<string, string>([
   // cubren los tests de compartir de mapa.spec.ts (FR-75).
   [T.compartir.boton, 'abre el menú de compartir del móvil, fuera del navegador (FR-75)'],
   [T.aqui.compartirUbicacion, 'ídem'],
-  [T.incidente.compartirIncidente, 'ídem'],
 ]);
 
 const RESPUESTAS = {

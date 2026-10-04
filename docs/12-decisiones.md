@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.50 — 4 de octubre de 2026 (DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.51 — 5 de octubre de 2026 (DEC-165; v1.50: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,19 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-165 · Cercanos: un botón por fila, y la posición solo se avisa cuando importa
+- **Fecha:** 5 oct 2026 (desarrollador) · **Estado:** vigente (`docs/27` RV-114).
+- **Contexto:** en una captura de Android el desarrollador tachó casi todo lo que llevaba la hoja de *Cercanos*: el origen y la precisión bajo el título, "El más cercano… no funciona", el recuadro "Posición de hace N", los tramos, la fecha de revisión y el tipo en cada fila, *Medir tendido*, *Compartir el incidente* y "Datos de hace N". En un servicio hay que leer la hoja de un vistazo, y con todo eso en el móvil apenas cabían los candidatos. Eligió el mockup A, "un botón por fila".
+- **Decisión:**
+  1. Cada fila da el marcador, el código, "diámetro · estado", la distancia y el rumbo, y **un solo botón, *Cómo llegar*** (principal: marino con el icono blanco). Tocar el resto de la fila abre la ficha. *Solo hidrantes* pasa a un chip.
+  2. El origen y la antigüedad de la posición **solo se dicen cuando importan**, en la misma línea del subtítulo y en `--naranja-texto`, sin recuadros: "· en línea recta" con el GPS al día y preciso; "· posición de hace N" si es vieja; "· posición poco precisa (±N m)" con *Marcar en el mapa* si pasa de 50 m; "· desde el punto marcado" si el origen se marcó a mano. **Un aviso a la vez**; si es vieja y poco precisa, gana poco precisa porque lleva acción. Con aviso, el subtítulo es `role="status"`.
+  3. Fuera de la hoja: "El más cercano…" (un punto que no funciona tampoco sale en la lista), *Compartir el incidente* (compartir sigue en la ficha y en *¿Qué hay aquí?*), "Datos de hace N" (lo dice la barra de estado), tramos y *Medir tendido* (siguen en *Medir*, FR-76, que no cambia). Se borran sus textos y su código (`masCercanoQueNoFunciona`, `textoMasCercano`, los tramos del candidato y `T.medir.tendido`, que solo usaba la fila).
+  4. La segunda línea de la fila tiene su texto, `T.incidente.detalle` ("100 mm · Regular"); `T.incidente.fila` desaparece: la distancia y el rumbo se pintan por separado con `distancia()` y `rumboCorto()`.
+  5. La distancia va en `--texto` y no en `--marino-950`, como pedía `docs/27`: el marino no cambia en oscuro y no se lee sobre la tarjeta (`--papel` #1A2333); en claro, los dos colores son casi iguales. Por lo mismo, *Cómo llegar* lleva un borde de 1,5 px `--texto` que lo separa de la tarjeta en oscuro.
+- **Por qué no se quita del todo el aviso de posición:** una posición vieja o imprecisa hace que las distancias estén mal, y en un incendio eso cuenta. Pero solo ocupa sitio cuando pasa.
+- **Descartado:** el mockup B (la distancia primero, con *Medir* en la fila) y el C (sin botones: *Cómo llegar* a dos toques, en la ficha).
+- **Afecta a:** 01 FR-74 (v1.10); 02 FL-35, FL-37 y FL-38; 06 §4.7 y Apéndice A; 10 AC-152 y AC-154.
 
 ### DEC-163 · En una boca de riego se lee «Tipo de enganche», no «racor»
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente (`docs/25` RV-112).

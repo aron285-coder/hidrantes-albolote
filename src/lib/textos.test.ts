@@ -43,6 +43,32 @@ describe('textos.ts', () => {
   });
 });
 
+// docs/27 RV-114 (DEC-165): la hoja de Cercanos sin tramos, compartir ni "El más cercano…".
+describe('textos quitados de Cercanos (docs/27 RV-114)', () => {
+  const todas = new Set(hojas(T).map(([ruta]) => ruta));
+  it.each([
+    'incidente.desdeTuPosicion',
+    'incidente.precision',
+    'incidente.masCercanoNoFunciona',
+    'incidente.masCercanoMalo',
+    'incidente.masCercanoBarro',
+    'incidente.fila',
+    'incidente.tramos',
+    'incidente.compartirIncidente',
+    'incidente.datos',
+    'medir.tendido',
+  ])('%s ya no existe', (ruta) => {
+    expect(todas.has(ruta)).toBe(false);
+  });
+
+  it('el subtítulo va en minúscula, detrás de "Cercanos ·"', () => {
+    expect(T.incidente.lineaRecta).toBe('en línea recta');
+    expect(T.incidente.posicionDe('hace 5 min')).toBe('posición de hace 5 min');
+    expect(T.incidente.pocoPrecisa(80)).toBe('posición poco precisa (±80 m)');
+    expect(T.incidente.desdePuntoMarcado).toBe('desde el punto marcado');
+  });
+});
+
 // docs/24 RV-99: menos texto en las pantallas de campo. Que no vuelvan por descuido.
 describe('textos quitados de las pantallas de campo (docs/24 RV-99)', () => {
   const todas = new Set(hojas(T).map(([ruta]) => ruta));

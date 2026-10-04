@@ -1,15 +1,12 @@
-import { ChevronDown, ChevronUp, List, Navigation, Ruler, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, List, Navigation, X } from 'lucide-react';
 import { useRef, useState } from 'react';
-import { BotonCompartir } from './Coordenadas';
 import { MarcadorSvg } from './MarcadorSvg';
 import type { LatLng } from '@/lib/coordenadas';
-import { textoUbicacion } from '@/lib/compartir';
-import { enlaceComoLlegar, nombreCaudal, nombreTipo } from '@/lib/ficha';
+import { enlaceComoLlegar, nombreCaudal } from '@/lib/ficha';
 import { distancia, hace } from '@/lib/formato';
 import { rumboCorto } from '@/lib/geometria';
 import { type AlturaHoja, alturaHoja, alturaTrasArrastrar, guardarAlturaHoja } from '@/lib/hoja-cercanos';
-import { type Candidato, PRECISION_POCA_M, textoMasCercano } from '@/lib/incidente';
-import type { Punto } from '@/lib/puntos';
+import { type Candidato, PRECISION_POCA_M } from '@/lib/incidente';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -19,28 +16,23 @@ export interface EstadoCercanos {
   desdeGps: boolean;
   /** Sin origen todavía: el GPS está buscando el primer fix (RV-59). */
   buscando: boolean;
-  /** Precisión (m) y momento (ms) de la posición de origen, de la URL (RV-59). */
+  /** Precisión (m) de la posición de origen, de la URL (RV-59). */
   precision: number | null;
-  momento: number | null;
   /** Momento de la posición si ya no está al día (RV-40). */
   posicionVieja: number | null;
   candidatos: Candidato[];
-  aviso: { punto: Punto; metros: number } | null;
   soloHidrantes: boolean;
-  guardadoEn: number | null;
 }
 
 const boton =
   'bg-papel border-texto text-texto rounded-boton flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[14px] font-semibold';
-/** Botón de icono de la fila: 44 × 44 (UI-13, TR-113). */
-const icono =
-  'bg-papel border-texto text-texto rounded-boton flex size-11 shrink-0 items-center justify-center border-[1.5px]';
 
 /**
  * Hoja "Cercanos" del modo incidente (FR-74, docs/18 GM-03): como mucho cinco puntos que funcionan,
- * en orden de distancia en línea recta, con rumbo y tramos. En el móvil y la tableta va abajo, en una
- * hoja; en ordenador ocupa la columna de la lista, y nunca flota sobre el plano ni tapa la ficha
- * (docs/19 RV-60).
+ * en orden de distancia en línea recta. Cada fila da lo justo para un servicio (docs/27 RV-114,
+ * DEC-165): el código, "diámetro · estado", la distancia y el rumbo, y un solo botón, Cómo llegar.
+ * En el móvil y la tableta va abajo, en una hoja; en ordenador ocupa la columna de la lista, y nunca
+ * flota sobre el plano ni tapa la ficha (docs/19 RV-60).
  */
 export function PanelCercanos({
   estado,
@@ -52,7 +44,6 @@ export function PanelCercanos({
   alCambiarSoloHidrantes,
   alElegir,
   alVerLista,
-  alMedir,
 }: {
   estado: EstadoCercanos;
   /** `hoja`: abajo, en el móvil y la tableta; `columna`: en la columna de la lista, en ordenador. */
@@ -67,32 +58,16 @@ export function PanelCercanos({
   alCambiarSoloHidrantes: (si: boolean) => void;
   alElegir: (id: string) => void;
   alVerLista: () => void;
-  /** "Medir tendido": la medición con la recta incidente → punto ya puesta (FR-76). */
-  alMedir: (hasta: LatLng) => void;
 }) {
-  const {
-    origen,
-    desdeGps,
-    buscando,
-    precision,
-    momento,
-    posicionVieja,
-    candidatos,
-    aviso,
-    soloHidrantes,
-    guardadoEn,
-  } = estado;
-  // "Desde tu posición · ±12 m · hace 2 min": lo que se sabe del origen (RV-59).
-  const desde = desdeGps
-    ? [
-        T.incidente.desdeTuPosicion,
-        precision !== null ? T.incidente.precision(precision) : null,
-        momento !== null ? hace(momento) : null,
-      ]
-        .filter(Boolean)
-        .join(' · ')
-    : T.incidente.desdePuntoMarcado;
+  const { origen, desdeGps, buscando, precision, posicionVieja, candidatos, soloHidrantes } = estado;
+  // Un solo aviso a la vez, y solo cuando importa (DEC-165): una posición poco precisa o vieja hace
+  // que las distancias estén mal. Gana el de poco precisa, que lleva acción.
   const pocoPrecisa = desdeGps && precision !== null && precision > PRECISION_POCA_M;
+  const aviso = pocoPrecisa
+    ? T.incidente.pocoPrecisa(precision)
+    : posicionVieja !== null
+      ? T.incidente.posicionDe(hace(posicionVieja))
+      : null;
   // En el móvil, dos alturas: 55 % por defecto y 90 % arrastrando el asa o con su botón (RV-61).
   const [altura, setAltura] = useState<AlturaHoja>(alturaHoja);
   const cambiarAltura = (a: AlturaHoja) => {
@@ -140,14 +115,31 @@ export function PanelCercanos({
         </div>
       )}
       <header className="flex items-center gap-2">
-        <h2 className="flex-1 text-[15px] font-bold">
-          {T.incidente.titulo}
+        {/* "Cercanos · en línea recta", y el aviso en la misma línea cuando lo hay (DEC-165). */}
+        <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-1.5">
+          <h2 className="font-titulo text-[22px] leading-tight font-bold">{T.incidente.titulo}</h2>
           {origen && (
-            <span className="text-texto-suave block text-[13px] font-normal">
-              {desde} · {T.incidente.lineaRecta}
-            </span>
+            <p data-subtitulo role={aviso ? 'status' : undefined} className="text-texto-suave text-[13px]">
+              · {!desdeGps && <>{T.incidente.desdePuntoMarcado} · </>}
+              {T.incidente.lineaRecta}
+              {aviso && (
+                <>
+                  {' · '}
+                  <span className="text-naranja-texto font-semibold whitespace-nowrap">{aviso}</span>
+                </>
+              )}
+            </p>
           )}
-        </h2>
+          {origen && pocoPrecisa && (
+            <button
+              type="button"
+              onClick={alMarcarEnMapa}
+              className="text-texto -my-3 min-h-11 px-1 text-[13px] font-semibold underline"
+            >
+              {T.incidente.marcarEnMapa}
+            </button>
+          )}
+        </div>
         {enHoja && (
           <button
             type="button"
@@ -170,12 +162,6 @@ export function PanelCercanos({
           <X size={20} aria-hidden />
         </button>
       </header>
-      {origen && aviso && (
-        // Una línea bajo la cabecera, no un bloque: así caben tres candidatos en el móvil (RV-61).
-        <p role="alert" className="text-rojo-700 -mt-1.5 shrink-0 truncate text-[13px] font-semibold">
-          {textoMasCercano(aviso.punto, distancia(aviso.metros))}
-        </p>
-      )}
 
       {origen && alVolverALista && (
         <button type="button" onClick={alVolverALista} className={cn(boton, 'shrink-0 self-start')}>
@@ -193,34 +179,18 @@ export function PanelCercanos({
         </p>
       ) : (
         <>
-          {pocoPrecisa && (
-            <div
-              role="status"
-              className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta flex flex-col gap-1.5 border px-2.5 py-2 text-[13px]"
-            >
-              <p>{T.incidente.pocoPrecisa(precision)}</p>
-              <button type="button" onClick={alMarcarEnMapa} className={cn(boton, 'self-start')}>
-                {T.incidente.marcarEnMapa}
-              </button>
-            </div>
-          )}
-          {posicionVieja !== null && (
-            <p
-              role="status"
-              className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-1.5 text-[13px]"
-            >
-              {T.incidente.posicionDe(hace(posicionVieja))}
-            </p>
-          )}
-          <label className="flex min-h-11 items-center justify-between gap-3 text-[15px]">
-            <span>{T.incidente.soloHidrantes}</span>
-            <input
-              type="checkbox"
-              role="switch"
-              checked={soloHidrantes}
-              onChange={(e) => alCambiarSoloHidrantes(e.target.checked)}
-              className="size-6"
-            />
+          {/* Un chip pequeño, pero con 44 px de alto para el dedo (UI-15). */}
+          <label className="flex min-h-11 shrink-0 cursor-pointer items-center self-start">
+            <span className="border-linea bg-papel rounded-chip flex items-center gap-2 border px-3 py-1.5 text-[14px]">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={soloHidrantes}
+                onChange={(e) => alCambiarSoloHidrantes(e.target.checked)}
+                className="size-4"
+              />
+              {T.incidente.soloHidrantes}
+            </span>
           </label>
           {candidatos.length === 0 ? (
             <div className="flex flex-col gap-2">
@@ -234,24 +204,31 @@ export function PanelCercanos({
               {candidatos.map((c) => (
                 <li
                   key={c.punto.id}
-                  className="bg-papel border-linea rounded-tarjeta flex items-center gap-2 border py-1 pr-1 pl-2"
+                  className="bg-papel border-linea rounded-tarjeta flex items-center gap-2 border py-1.5 pr-1.5 pl-2.5"
                 >
-                  {/* Fila compacta (RV-61): dos líneas y dos botones de icono de 44 px, 8 px entre ellos. */}
+                  {/* Tocar la fila abre la ficha; el único botón es Cómo llegar (RV-114). */}
                   <button
                     type="button"
                     onClick={() => alElegir(c.punto.id)}
-                    className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left"
+                    className="flex min-h-11 min-w-0 flex-1 items-center gap-3 text-left"
                   >
-                    <MarcadorSvg punto={c.punto} tamano={24} />
+                    <span className="flex w-[30px] shrink-0 justify-center">
+                      <MarcadorSvg punto={c.punto} tamano={26} />
+                    </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px]">
-                        <b className="font-datos">{c.punto.codigo}</b> · {nombreTipo[c.punto.tipo].toLowerCase()}{' '}
-                        {T.formato.mm(c.punto.diametro_mm)} · {nombreCaudal(c.punto.caudal).toLowerCase()}
+                      <span className="font-datos block text-[17px] leading-tight font-medium whitespace-nowrap">
+                        {c.punto.codigo}
                       </span>
-                      <span className="font-datos text-texto-suave block truncate text-[12px]">
-                        {T.incidente.fila(distancia(c.metros), rumboCorto(c.rumbo), T.incidente.tramos(c.tramos))} ·{' '}
-                        {T.mapa.revisado(hace(c.punto.fecha_ultima_revision))}
+                      <span className="text-texto-suave block truncate text-[13.5px]">
+                        {T.incidente.detalle(T.formato.mm(c.punto.diametro_mm), nombreCaudal(c.punto.caudal))}
                       </span>
+                    </span>
+                    <span className="shrink-0 text-right">
+                      {/* --texto y no --marino-950: el marino no se lee sobre la tarjeta oscura (06 §2.4). */}
+                      <span className="font-datos text-texto block text-[18px] leading-tight font-medium whitespace-nowrap">
+                        {distancia(c.metros)}
+                      </span>
+                      <span className="text-texto-suave block text-[12.5px]">{rumboCorto(c.rumbo)}</span>
                     </span>
                   </button>
                   <a
@@ -260,33 +237,15 @@ export function PanelCercanos({
                     rel="noreferrer"
                     aria-label={T.ficha.comoLlegar}
                     title={T.ficha.comoLlegar}
-                    className={icono}
+                    // Principal de la fila: marino con el icono blanco. El borde de --texto lo separa de
+                    // la tarjeta en oscuro, donde el marino casi no se distingue de ella.
+                    className="bg-marino-950 border-texto rounded-boton flex size-11 shrink-0 items-center justify-center border-[1.5px] text-white"
                   >
                     <Navigation size={20} aria-hidden />
                   </a>
-                  <button
-                    type="button"
-                    onClick={() => alMedir(c.punto)}
-                    aria-label={T.medir.tendido}
-                    title={T.medir.tendido}
-                    className={icono}
-                  >
-                    <Ruler size={20} aria-hidden />
-                  </button>
                 </li>
               ))}
             </ol>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <BotonCompartir
-              titulo={T.incidente.diana}
-              texto={textoUbicacion(origen)}
-              etiqueta={T.incidente.compartirIncidente}
-              className="flex-1"
-            />
-          </div>
-          {guardadoEn && (
-            <p className="text-texto-suave text-center text-[12px]">{T.incidente.datos(hace(guardadoEn))}</p>
           )}
         </>
       )}
