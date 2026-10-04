@@ -151,7 +151,7 @@ export function SelectorPin({
             [original.lat, original.lng],
             [pin.lat, pin.lng],
           ],
-          { color: '#9C2B1E', weight: 1.5, dashArray: '3 3', interactive: false },
+          { color: 'var(--rojo-700)', weight: 1.5, dashArray: '3 3', interactive: false },
         ).addTo(g);
       }
     }

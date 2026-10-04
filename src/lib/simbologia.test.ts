@@ -2,7 +2,15 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Caudal, TipoPunto } from './puntos';
-import { COLOR_CAUDAL, esquina, grosorBorde, radioMinimo, svgMarcador, visibleEnZoom } from './simbologia';
+import {
+  COLOR_CAUDAL,
+  OBJETIVO_TACTIL,
+  esquina,
+  grosorBorde,
+  radioMinimo,
+  svgMarcador,
+  visibleEnZoom,
+} from './simbologia';
 
 /** Radios de la escala inicial tal como los calcula fn_radio_px (06 §4.1). */
 const R = { R1: 11, R2: 9, R3: 7, R4: 5.5, R5: 5 };
@@ -29,7 +37,7 @@ function dibujar(svg: string) {
     relleno: attr(/fill="(var\([^)]+\))"/),
     opacidad: attr(/opacity="([\d.]+)"/),
     borde: attr(/stroke-width="([\d.]+)"/),
-    discontinuo: svg.includes('stroke-dasharray="3 2.5"'),
+    discontinuo: /data-forma="\w+"[^>]*stroke-dasharray/.test(svg),
     tachado: svg.includes('data-tachado'),
     esquina: attr(/rx="([\d.]+)"/),
   };
@@ -67,10 +75,10 @@ describe('borde por estado (docs/25 RV-105, DEC-154)', () => {
     expect(trazo(svg)).toBe(caudal === 'regular' ? 'var(--borde-marcador-regular)' : 'var(--borde-marcador)');
   });
 
-  it('regular sin revisar: el borde oscuro, discontinuo', () => {
+  it('regular sin revisar: el borde oscuro y continuo; "sin revisar" lo dice el anillo', () => {
     const svg = svgMarcador({ tipo: 'boca_riego', caudal: 'regular', radio_px: 7, revision_caducada: true });
     expect(trazo(svg)).toBe('var(--borde-marcador-regular)');
-    expect(svg).toContain('stroke-dasharray="3 2.5"');
+    expect(svg).toContain('data-sin-revisar');
   });
 
   it('barro, con el borde de siempre también en el tachado', () => {
@@ -81,9 +89,9 @@ describe('borde por estado (docs/25 RV-105, DEC-154)', () => {
 });
 
 describe('variantes (06 §4.3)', () => {
-  it('sin revisar: borde discontinuo con el mismo tamaño y color', () => {
+  it('sin revisar: mismo tamaño y color, con el borde continuo (DEC-155)', () => {
     const s = dibujar(svgMarcador({ tipo: 'hidrante', caudal: 'bueno', radio_px: 11, revision_caducada: true }));
-    expect(s.discontinuo).toBe(true);
+    expect(s.discontinuo).toBe(false);
     expect(Number(s.r)).toBe(11);
     expect(s.relleno).toBe(COLOR_CAUDAL.bueno);
   });
@@ -104,6 +112,118 @@ describe('variantes (06 §4.3)', () => {
   it('lienzo de 44 px: el objetivo táctil no depende del radio', () => {
     const svg = svgMarcador({ tipo: 'boca_riego', caudal: 'malo', radio_px: 5.5, revision_caducada: false });
     expect(svg).toMatch(/width="44" height="44" viewBox="-22 -22 44 44"/);
+  });
+});
+
+// docs/25 RV-107 (DEC-155): un borde discontinuo de 3 2.5 sobre un radio de 5 a 7 px parecía una
+// rueda dentada. El borde es siempre continuo y "sin revisar" es un anillo exterior de 8 rayas.
+describe('sin revisar: anillo exterior de 8 rayas (docs/25 RV-107, DEC-155)', () => {
+  const RADIOS = Object.entries(R);
+  const anillo = (svg: string) => /<(circle|rect) data-sin-revisar[^>]*\/>/.exec(svg)?.[0];
+  const num = (el: string, a: string) => Number(new RegExp(` ${a}="(-?[\\d.]+)"`).exec(el)?.[1]);
+  const dash = (el: string) => /stroke-dasharray="([\d.]+) ([\d.]+)"/.exec(el)?.slice(1).map(Number);
+  /** De la cara exterior del borde a la cara interior del anillo (anillo de 1,5 px). */
+  const SEPARACION = 2.5;
+
+  it.each(RADIOS)('hidrante %s (r %d): borde continuo y anillo con dash = gap = perímetro / 16', (_n, r) => {
+    const svg = svgMarcador({ tipo: 'hidrante', caudal: 'bueno', radio_px: r, revision_caducada: true });
+    expect(/data-forma="circulo"[^>]*stroke-dasharray/.test(svg)).toBe(false);
+    const el = anillo(svg)!;
+    expect(el).toMatch(/^<circle/);
+    const ra = num(el, 'r');
+    expect(ra - 0.75 - (r + grosorBorde(r) / 2)).toBeCloseTo(SEPARACION, 5);
+    expect(el).toContain('stroke-width="1.5"');
+    expect(el).toContain('fill="none"');
+    expect(el).toContain('stroke="var(--anillo-sin-revisar)"');
+    const [d, g] = dash(el)!;
+    expect(d).toBeCloseTo((2 * Math.PI * ra) / 16, 2);
+    expect(g).toBeCloseTo(d!, 5);
+  });
+
+  it.each(RADIOS)('boca de riego %s (r %d): cuadrado concéntrico, dash = perímetro / 16', (_n, r) => {
+    const svg = svgMarcador({ tipo: 'boca_riego', caudal: 'malo', radio_px: r, revision_caducada: true });
+    expect(/data-forma="cuadrado"[^>]*stroke-dasharray/.test(svg)).toBe(false);
+    const el = anillo(svg)!;
+    expect(el).toMatch(/^<rect/);
+    const lado = num(el, 'width');
+    const rx = num(el, 'rx');
+    expect(num(el, 'height')).toBe(lado);
+    expect(num(el, 'x')).toBeCloseTo(-lado / 2, 5);
+    expect(lado / 2 - 0.75 - (r + grosorBorde(r) / 2)).toBeCloseTo(SEPARACION, 5);
+    const perimetro = 4 * lado - (8 - 2 * Math.PI) * rx;
+    const [d, g] = dash(el)!;
+    expect(d).toBeCloseTo(perimetro / 16, 2);
+    expect(g).toBeCloseTo(d!, 5);
+  });
+
+  it('un punto revisado no lleva anillo', () => {
+    for (const tipo of ['hidrante', 'boca_riego'] as const) {
+      const svg = svgMarcador({ tipo, caudal: 'bueno', radio_px: 7, revision_caducada: false });
+      expect(svg).not.toContain('data-sin-revisar');
+      expect(svg).not.toContain('stroke-dasharray');
+    }
+  });
+
+  /** El punto del anillo de sin revisar más lejos del centro (en el cuadrado, sobre el arco de la esquina). */
+  function lejosAnillo(el: string): number {
+    if (el.startsWith('<circle')) return num(el, 'r') + 0.75;
+    const h = num(el, 'width') / 2;
+    const rx = num(el, 'rx');
+    return Math.SQRT2 * (h - rx) + rx + 0.75;
+  }
+  /** Medio lado de la caja que ocupa el dibujo, en unidades del viewBox (el lienzo es cuadrado). */
+  function alcance(svg: string): number {
+    const sel = /<circle data-seleccion r="([\d.]+)"/.exec(svg);
+    const el = anillo(svg);
+    const delAnillo = !el ? 0 : el.startsWith('<circle') ? num(el, 'r') + 0.75 : num(el, 'width') / 2 + 0.75;
+    return Math.max(delAnillo, sel ? Number(sel[1]) + 1 : 0);
+  }
+  const viewBox = (svg: string) => Number(/viewBox="(-?[\d.]+)/.exec(svg)?.[1]);
+  /** Los tamaños que existen (06 §4.1): hidrantes de R1 a R5 y bocas de R3 a R5. */
+  const REALES = [
+    ...RADIOS.map(([, r]) => ['hidrante', r] as const),
+    ...[R.R3, R.R4, R.R5].map((r) => ['boca_riego', r] as const),
+  ];
+
+  it('en el mapa (44 px) cabe sin recortarse, también seleccionado, y el objetivo táctil no cambia', () => {
+    for (const [tipo, r] of REALES)
+      for (const seleccionado of [false, true]) {
+        const svg = svgMarcador({ tipo, caudal: 'bueno', radio_px: r, revision_caducada: true }, { seleccionado });
+        expect(svg).toMatch(/width="44" height="44" viewBox="-22 -22 44 44"/);
+        expect(alcance(svg), `${tipo} ${r} ${seleccionado}`).toBeLessThanOrEqual(OBJETIVO_TACTIL / 2);
+      }
+  });
+
+  it.each(Object.entries(R))('seleccionado y sin revisar (%s): la selección va 2 px por fuera del anillo', (_n, r) => {
+    for (const tipo of ['hidrante', 'boca_riego'] as const) {
+      const svg = svgMarcador({ tipo, caudal: 'bueno', radio_px: r, revision_caducada: true }, { seleccionado: true });
+      const rs = Number(/<circle data-seleccion r="([\d.]+)"/.exec(svg)?.[1]);
+      expect(rs - 1 - lejosAnillo(anillo(svg)!), tipo).toBeGreaterThanOrEqual(2 - 1e-3);
+      expect(alcance(svg), `${tipo} cabe en el viewBox`).toBeLessThanOrEqual(-viewBox(svg) + 1e-3);
+    }
+  });
+
+  it.each([16, 18, 20, 24, 28])('en un lienzo de %i px (lista, leyenda, ficha) el anillo cabe', (tamano) => {
+    for (const [, r] of RADIOS)
+      for (const tipo of ['hidrante', 'boca_riego'] as const) {
+        const svg = svgMarcador({ tipo, caudal: 'bueno', radio_px: r, revision_caducada: true }, { tamano });
+        expect(svg).toContain(`width="${tamano}" height="${tamano}"`);
+        expect(alcance(svg), `${tipo} ${r}`).toBeLessThanOrEqual(-viewBox(svg) + 1e-3);
+      }
+  });
+
+  it('un mismo radio se dibuja a la misma escala revisado o sin revisar', () => {
+    for (const [, r] of RADIOS) {
+      const a = svgMarcador(
+        { tipo: 'hidrante', caudal: 'bueno', radio_px: r, revision_caducada: false },
+        { tamano: 24 },
+      );
+      const b = svgMarcador(
+        { tipo: 'hidrante', caudal: 'bueno', radio_px: r, revision_caducada: true },
+        { tamano: 24 },
+      );
+      expect(viewBox(a)).toBe(viewBox(b));
+    }
   });
 });
 
