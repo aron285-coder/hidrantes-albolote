@@ -598,11 +598,11 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `Origen de la ubicación` · `Propuesto por` · `se asigna al aprobar` · `se fija al aprobar` ·
 `GPS · ±[4] m` · `Pin puesto a mano` · `la que ya tiene el punto` · `—` · `Fotos` ·
 `la actual del punto y las nuevas de la propuesta` · `no trae nuevas` ·
-`Ni la propuesta ni el punto tienen fotos.` · `conexión` · `sitio` · `Foto actual del punto` ·
+`Ni la propuesta ni el punto tienen fotos.` · `No se ha podido cargar esta foto` · `conexión` · `sitio` · `Foto actual del punto` ·
 `Nueva · [conexión]` · `Foto actual · [sitio]` · `[Nueva · sitio] · toca para ampliar` · `Mapa` ·
 `Satélite` · `Capa del mapa` · `Abrir en grande` · `Cerrar el mapa grande` · `posición de ahora` ·
 `propuesta` · `el punto` · `puntos de alrededor` · `radio de duplicado · [25] m` ·
-`Sin posición: el punto no está en el inventario cargado. Recarga la página para traerlo.` ·
+`Sin posición: el punto no está entre los activos del inventario (puede estar retirado o en la papelera).` ·
 `Volver a la cola` · `Corregir` · `Toca una para revisarla`.
 
 **Panel: resto.** `Editar` · `Retirar` · `Borrar` · `Historial` · `Restaurar` ·

@@ -723,6 +723,7 @@ export const T = {
     fotosConActual: 'la actual del punto y las nuevas de la propuesta',
     noTraeNuevas: 'no trae nuevas',
     sinFotos: 'Ni la propuesta ni el punto tienen fotos.',
+    fotoNoCarga: 'No se ha podido cargar esta foto',
     conexion: 'conexión',
     sitio: 'sitio',
     fotoActualPunto: 'Foto actual del punto',
@@ -739,7 +740,8 @@ export const T = {
     leyendaPunto: 'el punto',
     leyendaAlrededor: 'puntos de alrededor',
     leyendaRadio: (m: Parametro) => `radio de duplicado · ${m} m`,
-    sinPosicion: 'Sin posición: el punto no está en el inventario cargado. Recarga la página para traerlo.',
+    sinPosicion:
+      'Sin posición: el punto no está entre los activos del inventario (puede estar retirado o en la papelera).',
     volverCola: 'Volver a la cola',
     corregirCorto: 'Corregir',
     tocaUna: 'Toca una para revisarla',

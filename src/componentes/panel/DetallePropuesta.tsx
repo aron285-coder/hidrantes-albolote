@@ -5,10 +5,12 @@ import { MinimapaPropuesta } from './MinimapaPropuesta';
 import { Boton } from '@/componentes/Boton';
 import { distancia, fechaCorta, hace } from '@/lib/formato';
 import { esCaudalConocido } from '@/lib/caudal';
+import { anotarError } from '@/lib/errores';
 import { claseChip, nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
 import {
   type CampoFicha,
+  type FotoDetalle,
   type CampoFusion,
   type PropuestaPanel,
   type Prevalece,
@@ -53,7 +55,7 @@ export function DetallePropuesta({
 }: {
   p: PropuestaPanel;
   puntos: Punto[];
-  radioDuplicado: number;
+  radioDuplicado: number | null;
   alHecho: () => void;
   alVolver?: () => void;
 }) {
@@ -432,41 +434,64 @@ function Fotos({ p, punto }: { p: PropuestaPanel; punto?: Punto }) {
       </h3>
       {fotos.length ? (
         <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${fotos.length}, minmax(0, 1fr))` }}>
-          {fotos.map((f) => {
-            const url = urlFoto(f.path);
-            return (
-              <figure key={f.path} className="relative min-w-0">
-                <a
-                  href={url ?? undefined}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-tarjeta block overflow-hidden"
-                  aria-label={T.panelCola.ampliarFoto(f.etiqueta)}
-                >
-                  <img
-                    // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
-                    crossOrigin="anonymous"
-                    src={url ?? undefined}
-                    alt={f.etiqueta}
-                    className="h-[110px] w-full bg-[linear-gradient(180deg,#C6D2DA,#8C968F)] object-cover md:max-[1099px]:h-[220px] min-[1100px]:h-[200px]"
-                  />
-                </a>
-                <figcaption
-                  className={cn(
-                    'pointer-events-none absolute bottom-2 left-2 rounded-md px-2 py-0.5 text-[12px] text-white',
-                    f.nueva ? 'bg-naranja-600' : 'bg-[rgba(14,27,48,.8)]',
-                  )}
-                >
-                  {f.etiqueta}
-                </figcaption>
-              </figure>
-            );
-          })}
+          {fotos.map((f) => (
+            <UnaFoto key={f.path} foto={f} />
+          ))}
         </div>
       ) : (
         <p className="text-texto-suave text-[13px]">{T.panelCola.sinFotos}</p>
       )}
     </section>
+  );
+}
+
+const ALTO_FOTO = 'h-[110px] md:max-[1099px]:h-[220px] min-[1100px]:h-[200px]';
+
+/** Una foto del detalle. Si no carga, lo dice con palabras en su hueco y queda anotado (UI-04). */
+function UnaFoto({ foto: f }: { foto: FotoDetalle }) {
+  const url = urlFoto(f.path);
+  const [fallo, setFallo] = useState(false);
+  return (
+    <figure className="relative min-w-0">
+      {url && !fallo ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-tarjeta block overflow-hidden"
+          aria-label={T.panelCola.ampliarFoto(f.etiqueta)}
+        >
+          <img
+            // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
+            crossOrigin="anonymous"
+            src={url}
+            alt={f.etiqueta}
+            onError={() => {
+              setFallo(true);
+              anotarError(new Error('panel: una foto de la cola no carga'));
+            }}
+            className={cn('w-full bg-[linear-gradient(180deg,#C6D2DA,#8C968F)] object-cover', ALTO_FOTO)}
+          />
+        </a>
+      ) : (
+        <div
+          className={cn(
+            'bg-linea text-texto rounded-tarjeta flex items-center justify-center px-2 pb-8 text-center text-[13px]',
+            ALTO_FOTO,
+          )}
+        >
+          {T.panelCola.fotoNoCarga}
+        </div>
+      )}
+      <figcaption
+        className={cn(
+          'pointer-events-none absolute bottom-2 left-2 rounded-md px-2 py-0.5 text-[12px] text-white',
+          f.nueva ? 'bg-naranja-600' : 'bg-[rgba(14,27,48,.8)]',
+        )}
+      >
+        {f.etiqueta}
+      </figcaption>
+    </figure>
   );
 }
 
@@ -556,7 +581,8 @@ function Decision({ p, puntos }: { p: PropuestaPanel; puntos: Punto[] }) {
 }
 
 const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
-const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
+// El mismo orden que el formulario del voluntario (docs/25 RV-112).
+const RACORES: Racor[] = ['barcelona', 'granada', 'otro'];
 
 function FormularioCorrecciones({
   p,

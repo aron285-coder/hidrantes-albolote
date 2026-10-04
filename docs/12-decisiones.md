@@ -692,7 +692,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   1. **Datos y posición del punto:** `punto`, `punto_lat` y `punto_lng` de `v_cola_revision` y `v_historial_revision`. Si no vienen (vista anterior), los del inventario que el panel ya tiene cargado (`v_puntos_activos`); si tampoco, "—" y, en el mapa, "Sin posición" con palabras. Un alta se decide por `operacion`, nunca por `punto` nulo.
   2. **El "antes"** de un campo es el `antes` de la propuesta o, solo si está **pendiente**, el punto de hoy. En el historial el punto de hoy ya lleva el cambio y daría "70 mm → 70 mm".
   3. **El historial** lee `v_historial_revision` (0036) en vez de `propuestas` con el punto embebido.
-  4. **Radio del círculo de duplicado:** `radio_duplicado_m` de `config`, leído una vez al abrir la cola; sin poder leerlo, 25 m (el de por defecto de 05).
+  4. **Radio del círculo de duplicado:** `radio_duplicado_m` de `config`, leído una vez al abrir la cola. Sin poder leerlo, el círculo no se dibuja: uno supuesto podría contradecir el aviso de duplicado, que usa el de verdad.
   5. **Mapitas de la lista (62 × 48 px, tableta y móvil):** un Leaflet sin controles con el mapa base propio (sin red), creado solo cuando la fila entra en la vista.
   6. **"Tocar una foto la amplía":** abre la foto entera en otra pestaña, como hasta ahora; sin visor propio.
 - **Descartado:** una RPC nueva para los puntos de alrededor (el inventario ya está en memoria); dibujar los mapitas como SVG sin mapa base (la especificación pide el mapa base propio).

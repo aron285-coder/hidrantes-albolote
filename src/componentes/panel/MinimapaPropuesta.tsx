@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { capasDe } from '../mapa/capas-leaflet';
 import { ICONO_PIN, iconoPunto } from '../mapa/iconos-leaflet';
 import { useModo, usePuntos } from '@/hooks/estado';
@@ -25,25 +25,32 @@ type Capa = PlanMapa['capa'];
  * Mapa / Satélite, zoom y "Abrir en grande". Debajo, una leyenda de una línea.
  */
 export function MinimapaPropuesta({
-  plan,
+  plan: planRecibido,
   radioDuplicado,
   className,
 }: {
   plan: PlanMapa;
-  radioDuplicado: number;
+  /** El de config; null mientras no se sabe (no se dibuja un radio que no es el de verdad). */
+  radioDuplicado: number | null;
   className?: string;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<L.Map | null>(null);
   const grupo = useRef<L.LayerGroup | null>(null);
+  const encuadre = useRef<string | null>(null);
   const modo = useModo();
   const { puntos } = usePuntos();
+  // La cola se recarga cada minuto y trae objetos nuevos: el plan se fija por su contenido, para no
+  // redibujar ni volver a encuadrar el mapa que jefatura está moviendo.
+  const firma = JSON.stringify(planRecibido);
+  const plan = useMemo(() => JSON.parse(firma) as PlanMapa, [firma]);
   const [capa, setCapa] = useState<Capa>(plan.capa);
   const [grande, setGrande] = useState(false);
   const { centro } = plan;
+  const hayCentro = !!centro;
 
   useEffect(() => {
-    if (!contenedor.current || !centro) return;
+    if (!contenedor.current || !hayCentro) return;
     const m = L.map(contenedor.current, { zoomControl: false, attributionControl: false, minZoom: 12, maxZoom: 20 });
     L.control.zoom({ position: 'bottomright', zoomInTitle: '+', zoomOutTitle: '−' }).addTo(m);
     grupo.current = L.layerGroup().addTo(m);
@@ -53,8 +60,7 @@ export function MinimapaPropuesta({
       mapa.current = null;
     };
     // El mapa se crea una vez: el detalle se monta con key = id de la propuesta.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!centro]);
+  }, [hayCentro]);
 
   useEffect(() => {
     const m = mapa.current;
@@ -62,14 +68,14 @@ export function MinimapaPropuesta({
     const capas = capasDe(capa, modo);
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
-  }, [capa, modo, centro]);
+  }, [capa, modo, hayCentro]);
 
   useEffect(() => {
     const m = mapa.current;
     const g = grupo.current;
     if (!m || !g || !centro) return;
     g.clearLayers();
-    const encuadre = L.latLngBounds([centro, centro]);
+    const caja = L.latLngBounds([centro, centro]);
     for (const p of puntos) {
       if (p.id === plan.puntoId || metros(p, centro) > ALREDEDOR_M) continue;
       const duplicado = p.id === plan.duplicadoId;
@@ -82,7 +88,7 @@ export function MinimapaPropuesta({
       // El código del punto que choca con el alta, siempre a la vista.
       if (duplicado) {
         marca.bindTooltip(p.codigo, { permanent: true, direction: 'right', className: 'font-datos' });
-        encuadre.extend([p.lat, p.lng]);
+        caja.extend([p.lat, p.lng]);
       }
     }
     const { actual, propuesta, flecha } = plan;
@@ -113,11 +119,21 @@ export function MinimapaPropuesta({
           .setContent(distancia(flecha.metros))
           .addTo(g);
       }
-      encuadre.extend(actual);
+      caja.extend(actual);
     } else if (actual) {
       // El punto de la propuesta, con su marcador y un anillo que lo destaca.
       const propio = puntos.find((p) => p.id === plan.puntoId);
       if (propio) L.marker(actual, { icon: iconoPunto(propio), keyboard: false, interactive: false }).addTo(g);
+      // Sin él en el inventario (retirado o en la papelera), un punto neutro donde estaba.
+      else
+        L.circleMarker(actual, {
+          radius: 7,
+          color: '#fff',
+          weight: 2,
+          fillColor: GRIS_AHORA,
+          fillOpacity: 1,
+          interactive: false,
+        }).addTo(g);
       L.circleMarker(actual, {
         radius: 17,
         weight: 3,
@@ -127,7 +143,7 @@ export function MinimapaPropuesta({
       }).addTo(g);
     }
     if (propuesta) {
-      if (plan.circulo) {
+      if (plan.circulo && radioDuplicado != null) {
         L.circle(propuesta, {
           radius: radioDuplicado,
           weight: 1.5,
@@ -137,13 +153,18 @@ export function MinimapaPropuesta({
           interactive: false,
         }).addTo(g);
         // Sin circle.getBounds(): pide la vista del mapa, que la primera vez aún no existe.
-        encuadre.extend(L.latLng(propuesta).toBounds(radioDuplicado * 2));
+        caja.extend(L.latLng(propuesta).toBounds(radioDuplicado * 2));
       }
       L.marker(propuesta, { icon: ICONO_PIN, keyboard: false, interactive: false }).addTo(g);
-      encuadre.extend(propuesta);
+      caja.extend(propuesta);
     }
-    m.fitBounds(encuadre.pad(0.6), { maxZoom: 18 });
-  }, [plan, centro, puntos, radioDuplicado]);
+    // Se encuadra al abrir y cuando cambia lo que se enseña; no cuando solo se refrescan los datos.
+    const clave = `${firma}|${radioDuplicado}`;
+    if (encuadre.current !== clave) {
+      encuadre.current = clave;
+      m.fitBounds(caja.pad(0.6), { maxZoom: 18 });
+    }
+  }, [plan, firma, centro, puntos, radioDuplicado]);
 
   // A pantalla completa y de vuelta: Leaflet tiene que volver a medir su caja. Escape cierra.
   useEffect(() => {
@@ -166,7 +187,9 @@ export function MinimapaPropuesta({
   }
 
   return (
-    <div className={className}>
+    // En grande, sin las clases de quien lo pone (sticky y z-index en el móvil): crearían un contexto de
+    // apilamiento y la barra de botones taparía "Cerrar el mapa grande" y el zoom.
+    <div className={grande ? undefined : className}>
       <div
         data-testid="minimapa-propuesta"
         data-capa={capa}
@@ -214,7 +237,7 @@ export function MinimapaPropuesta({
 }
 
 /** Una línea con lo que se ve en el mapa (RV-110). */
-function Leyenda({ plan, radioDuplicado }: { plan: PlanMapa; radioDuplicado: number }) {
+function Leyenda({ plan, radioDuplicado }: { plan: PlanMapa; radioDuplicado: number | null }) {
   const punto = (color: string) => (
     <span aria-hidden className="mr-1 inline-block size-2.5 rounded-full align-[-1px]" style={{ background: color }} />
   );
@@ -230,7 +253,7 @@ function Leyenda({ plan, radioDuplicado }: { plan: PlanMapa; radioDuplicado: num
       T.panelCola.leyendaPunto,
     ]);
   if (plan.propuesta) elementos.push([punto('var(--naranja-600)'), T.panelCola.leyendaPropuesta]);
-  if (plan.circulo)
+  if (plan.circulo && radioDuplicado != null)
     elementos.push([
       <span
         key="radio"

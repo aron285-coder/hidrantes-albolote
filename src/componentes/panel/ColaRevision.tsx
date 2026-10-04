@@ -11,7 +11,7 @@ import { Boton } from '@/componentes/Boton';
 import { useCarga } from '@/hooks/carga';
 import { useModo, usePuntos } from '@/hooks/estado';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
-import { PARAMETROS, cargarParametros } from '@/lib/panel/ajustes';
+import { cargarParametros } from '@/lib/panel/ajustes';
 import {
   type EstadoModeracion,
   type PlanMapa,
@@ -81,9 +81,10 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     [estado],
     estado === 'pendiente' ? 60_000 : undefined,
   );
-  // El radio del círculo de duplicado (FR-51) es el de config; sin poder leerlo, el de por defecto.
+  // El radio del círculo de duplicado (FR-51) es el de config. Sin poder leerlo no se dibuja: un radio
+  // supuesto podría no coincidir con el aviso de duplicado, que usa el de verdad (DEC-159).
   const parametros = useCarga(() => cargarParametros(), []);
-  const radioDuplicado = parametros.datos?.radio_duplicado_m ?? PARAMETROS.radio_duplicado_m;
+  const radioDuplicado = parametros.datos?.radio_duplicado_m ?? null;
   const todas = useMemo(() => carga.datos ?? [], [carga.datos]);
   const nucleos = useMemo(
     () =>
@@ -113,6 +114,14 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
       { replace: !apilar },
     );
   }
+
+  // Una ?p= que ya no está en la lista (resuelta por otra persona, otra pestaña): fuera de la URL,
+  // para que la dirección no diga una propuesta y la pantalla enseñe otra.
+  const sinAbierta = !!activa && !!carga.datos && !todas.some((p) => p.id === activa);
+  useEffect(() => {
+    if (sinAbierta) abrir(null, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sinAbierta]);
 
   function cambiarEstado(e: EstadoModeracion) {
     setEstado(e);

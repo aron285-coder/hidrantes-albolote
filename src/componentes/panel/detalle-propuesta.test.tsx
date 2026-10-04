@@ -177,6 +177,11 @@ describe('MinimapaPropuesta (RV-110)', () => {
     expect(html).toContain(T.panelCola.leyendaRadio(25));
   });
 
+  it('sin el radio de config, ni círculo ni leyenda de un radio supuesto', () => {
+    const html = renderToStaticMarkup(<MinimapaPropuesta plan={planMapa(propuesta('alta'))} radioDuplicado={null} />);
+    expect(html).not.toContain(T.panelCola.leyendaRadio(25));
+  });
+
   it('sin posición, lo dice en vez de un mapa vacío', () => {
     const html = pintarMapa(propuesta('datos', { punto_lat: null, punto_lng: null }));
     expect(html).toContain(T.panelCola.sinPosicion);

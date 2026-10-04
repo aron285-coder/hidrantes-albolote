@@ -541,6 +541,10 @@ test('una ubicación: satélite, la foto actual junto a las nuevas, mapa en gran
   await detalle.getByRole('button', { name: T.panelCola.abrirEnGrande }).click();
   await expect(detalle.getByRole('button', { name: T.panelCola.cerrarGrande })).toBeVisible();
   expect((await mapa.boundingBox())!.width).toBe(page.viewportSize()!.width);
+  // "Cerrar" se puede tocar: en el móvil, la barra de botones no lo tapa.
+  await detalle.getByRole('button', { name: T.panelCola.cerrarGrande }).click();
+  await expect(detalle.getByRole('button', { name: T.panelCola.abrirEnGrande })).toBeVisible();
+  await detalle.getByRole('button', { name: T.panelCola.abrirEnGrande }).click();
   await page.keyboard.press('Escape');
   await expect(detalle.getByRole('button', { name: T.panelCola.abrirEnGrande })).toBeVisible();
 });
