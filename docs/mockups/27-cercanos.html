@@ -1,0 +1,93 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cercanos simplificado</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--marino-950:#0E1B30;--marino-700:#1D3A63;--naranja-600:#C94F16;--fondo:#F1F3EE;--papel:#fff;--linea:#D8DBD2;--texto:#1B2430;--texto-suave:#5A6472;
+--bueno:#237F52;--regular:#F9A900;--regular-borde:#5C4300;--malo:#9B2423;--oro-600:#B08A2E}
+*{box-sizing:border-box}body{margin:0;background:#E4E6E0;color:var(--texto);font-family:'Source Sans 3',system-ui,sans-serif}
+header.doc{background:var(--marino-950);color:#fff;padding:26px 24px 22px}
+header.doc h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;margin:0 0 6px}
+header.doc p{margin:0;opacity:.85;max-width:900px;line-height:1.5}
+main{max-width:1300px;margin:0 auto;padding:28px 24px}
+.fila{display:flex;flex-wrap:wrap;gap:30px;align-items:flex-start}
+.bloque{width:380px;display:flex;flex-direction:column;gap:10px}
+.bloque h2{font-family:'Barlow Condensed',sans-serif;font-size:22px;margin:0;color:var(--marino-950)}
+.nota{font-size:14px;color:var(--texto-suave);line-height:1.55;margin:0}.nota b{color:var(--texto)}
+.mono{font-family:'JetBrains Mono',monospace;font-weight:500}
+.disp{background:#11161f;border-radius:30px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.2)}
+.pantalla{width:360px;height:760px;background:var(--fondo);border-radius:22px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.entorno{background:#C9541D;color:#fff;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;letter-spacing:2px;font-size:13px;padding:4px}
+.bar{background:var(--marino-950);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;padding:12px 14px;display:flex;align-items:center}
+.bar .jef{margin-left:auto;font-family:'Source Sans 3',sans-serif;font-size:12.5px;font-weight:700;background:var(--oro-600);color:#fff;padding:4px 9px;border-radius:6px}
+.mapa{position:relative;height:230px;background:#ECEAE1;flex:none;overflow:hidden}
+.mapa svg{position:absolute;inset:0;width:100%;height:100%}
+.buscar{position:absolute;left:10px;right:10px;top:10px;background:#fff;border-radius:10px;padding:10px 12px;color:var(--texto-suave);font-size:14.5px;box-shadow:0 1px 5px rgba(0,0,0,.18)}
+.hoja{flex:1;background:var(--papel);border-radius:18px 18px 0 0;margin-top:-16px;position:relative;box-shadow:0 -6px 18px rgba(0,0,0,.14);padding:8px 14px 0;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.asa{width:38px;height:4px;border-radius:2px;background:var(--linea);margin:0 auto 2px}
+.cab{display:flex;align-items:center;gap:8px}
+.cab h3{margin:0;font-family:'Barlow Condensed',sans-serif;font-size:22px;color:var(--marino-950)}
+.cab .sub{font-size:13px;color:var(--texto-suave)}
+.cab .x{margin-left:auto;width:40px;height:40px;display:grid;place-items:center;color:var(--texto)}
+.seg{display:flex;background:#ECEDE7;border-radius:10px;padding:3px;gap:3px}
+.seg span{flex:1;text-align:center;padding:8px 0;border-radius:8px;font-size:14.5px;font-weight:600;color:var(--texto-suave)}
+.seg span.on{background:#fff;color:var(--marino-950);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--linea);border-radius:999px;padding:6px 12px;font-size:14px;color:var(--texto)}
+.chip i{width:16px;height:16px;border:2px solid var(--texto-suave);border-radius:4px;display:inline-block}
+.item{display:flex;align-items:center;gap:12px;border:1px solid var(--linea);border-radius:12px;padding:10px 12px;min-height:64px}
+.item .mk{width:30px;display:flex;justify-content:center;flex:none}
+.item .t{flex:1;min-width:0}
+.item .cod{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:17px;white-space:nowrap}
+.item .det{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .cod .det{font-family:'Source Sans 3',sans-serif;font-size:13.5px}
+.b .item{gap:9px;padding:10px}.b .cod{font-size:15.5px}.b .grande{width:58px}.b .mk{width:22px}
+.item .det{font-size:13.5px;color:var(--texto-suave)}
+.item .dist{text-align:right;flex:none}
+.item .dist b{display:block;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:500;color:var(--marino-950)}
+.item .dist small{font-size:12.5px;color:var(--texto-suave)}
+.ib{width:44px;height:44px;border:2px solid var(--marino-950);border-radius:10px;display:grid;place-items:center;color:var(--marino-950);flex:none}
+.ib.prim{background:var(--marino-950);color:#fff}
+.lista{display:flex;flex-direction:column;gap:8px}
+.lista.sinborde{gap:0}.lista.sinborde .item{border:0;border-bottom:1px solid var(--linea);border-radius:0;padding:12px 2px}
+.grande{display:flex;flex-direction:column;align-items:flex-start;width:70px;flex:none}
+.grande b{font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:500;color:var(--marino-950);line-height:1.1}
+.grande small{font-size:12.5px;color:var(--texto-suave);display:flex;align-items:center;gap:3px}
+.tabbar{display:flex;background:#fff;border-top:1px solid var(--linea);flex:none}
+.tabbar span{flex:1;text-align:center;padding:9px 0;font-size:12px;color:var(--texto-suave)}.tabbar span.on{color:var(--marino-950);font-weight:700}
+.comparar{margin-top:34px}
+.comparar table{border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:14px}
+.comparar th,.comparar td{padding:8px 12px;border-bottom:1px solid var(--linea);text-align:left;vertical-align:top}
+.comparar th{background:#ECEDE7}
+.tach{text-decoration:line-through;color:#9B2423}
+footer{max-width:1300px;margin:0 auto;padding:0 24px 40px;color:var(--texto-suave);font-size:14px;line-height:1.6}
+</style></head><body>
+<header class="doc"><h1>Cercanos · simplificado</h1>
+<p>La hoja "Cercanos" elegida (versión A), sin lo tachado en tu captura. Fuera los tramos, la línea de tu posición, el aviso "El más cercano no funciona", el recuadro "Posición de hace N min" y el botón "Compartir el incidente". Queda: qué punto es, cómo está, a cuánto y hacia dónde, y cómo llegar. Con los colores nuevos (regular en amarillo).</p></header>
+<main>
+<div class="fila">
+ <div class="bloque"><h2>A · Un botón por fila</h2><div class="disp"><div class="pantalla"><div class="entorno">ENTORNO DE PRUEBAS</div><div class="bar">Puntos de agua<span class="jef">Jefatura</span></div>
+<div class="mapa"><svg viewBox="0 0 360 230" preserveAspectRatio="xMidYMid slice"><rect width="360" height="230" fill="#ECEAE1"/>
+<path d="M-20 200 L 380 40" stroke="#fff" stroke-width="12"/><path d="M60 -10 L 200 240" stroke="#fff" stroke-width="10"/>
+<path d="M250 -10 L 330 240" stroke="#fff" stroke-width="8"/><path d="M-10 120 L 370 170" stroke="#fff" stroke-width="7"/>
+<rect x="210" y="70" width="70" height="45" rx="5" fill="#DADDD0"/><rect x="20" y="150" width="60" height="50" rx="5" fill="#D3E1C8"/>
+<text x="120" y="96" font-size="11" fill="#7A8072" transform="rotate(-24 120 96)" font-family="Source Sans 3">Calle de Alfonso XIII</text>
+<circle cx="180" cy="150" r="30" fill="#28517F" opacity=".16"/><circle cx="180" cy="150" r="5" fill="#28517F" stroke="#fff" stroke-width="1.5"/>
+<g stroke-width="2"><circle cx="178" cy="78" r="8" fill="#F9A900" stroke="#5C4300"/><circle cx="255" cy="196" r="6" fill="#F9A900" stroke="#5C4300"/><circle cx="96" cy="70" r="6" fill="#237F52" stroke="#fff"/></g></svg><div class="buscar">Buscar código, calle, dirección…</div></div>
+<div class="hoja"><div class="asa"></div><div class="cab"><h3>Cercanos</h3><span class="sub">· en línea recta</span><span class="x"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></span></div>
+<div><span class="chip"><i></i>Solo hidrantes</span></div>
+<div class="lista"><div class="item"><div class="mk"><svg width="30" height="30"><circle cx="15" cy="15" r="11" fill="var(--regular)" stroke="#5C4300" stroke-width="2.5"/></svg></div><div class="t"><div class="cod">HID-9002</div><div class="det">100 mm · Regular</div></div><div class="dist"><b>264 m</b><small>N</small></div><div class="ib prim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-8z"/></svg></div></div><div class="item"><div class="mk"><svg width="30" height="30"><circle cx="15" cy="15" r="9" fill="var(--regular)" stroke="#5C4300" stroke-width="2.5"/></svg></div><div class="t"><div class="cod">HID-9006</div><div class="det">70 mm · Regular</div></div><div class="dist"><b>357 m</b><small>SE</small></div><div class="ib prim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-8z"/></svg></div></div><div class="item"><div class="mk"><svg width="30" height="30"><circle cx="15" cy="15" r="9" fill="var(--bueno)" stroke="#fff" stroke-width="2.5"/></svg></div><div class="t"><div class="cod">HID-9001</div><div class="det">70 mm · Bueno</div></div><div class="dist"><b>667 m</b><small>NO</small></div><div class="ib prim"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-8-8 18-2-8z"/></svg></div></div></div></div>
+<div class="tabbar"><span class="on">Mapa</span><span>Lista</span><span>Ajustes</span></div></div></div>
+ <p class="nota"><b>Lo justo.</b> En cada fila: el código, el diámetro y el estado, la distancia con el rumbo a la derecha, y un solo botón, <b>Cómo llegar</b>. "Medir" se quita de la fila; sigue en la ficha del punto. "Solo hidrantes" pasa a un chip pequeño.</p></div>
+</div>
+<div class="comparar"><table>
+<tr><th>Hoy</th><th>A (elegida)</th></tr>
+<tr><td><span class="tach">Desde tu posición ±21 m · hace 3 min</span></td><td>fuera</td></tr>
+<tr><td><span class="tach">El más cercano, HID-9001 a 8 m, no funciona</span></td><td>fuera (no aparece en la lista porque no funciona)</td></tr>
+<tr><td><span class="tach">Recuadro "Posición de hace 3 min"</span></td><td>fuera; una línea en el subtítulo solo cuando importa (DEC-165)</td></tr>
+<tr><td><span class="tach">≥ 14 tramos</span></td><td>fuera de la lista; los tramos siguen en "Medir"</td></tr>
+<tr><td><span class="tach">Compartir el incidente</span></td><td>fuera</td></tr>
+<tr><td>Distancias en línea recta</td><td>junto al título</td></tr>
+<tr><td>Cómo llegar · Medir, en cada fila</td><td>Cómo llegar</td></tr>
+</table></div>
+</main>
+<footer><b>Elegida: A · Un botón por fila</b> (docs/27 RV-114, DEC-165). Las versiones B y C se descartaron y se quitaron de esta copia. Si este dibujo y docs/27 no coinciden, manda docs/27: la posición vieja o poco precisa se dice en el subtítulo, en naranja de texto, y la poco precisa con «Marcar en el mapa».</footer>
+</body></html>
