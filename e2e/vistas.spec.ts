@@ -78,6 +78,25 @@ async function voluntario(page: Page) {
   });
 }
 
+/**
+ * docs/25 RV-107: los doce puntos sin revisar (los cinco tamaños, círculo y cuadrado), y el mapa
+ * a z17 sobre ellos, para mirar el anillo de 8 rayas en el mapa y en la lista.
+ */
+async function voluntarioSinRevisar(page: Page) {
+  await conSesion(page);
+  await simularRpc(page, {
+    fn_listar_puntos: { ...LISTADO, puntos: PUNTOS.map((p) => ({ ...p, revision_caducada: true })) },
+    fn_ficha_punto: { ...P0, revision_caducada: true },
+    fn_mis_propuestas: [],
+    fn_registrar_error: null,
+  });
+  // La clave es VISTA de src/lib/vista.ts; no se importa porque arrastra imports sin extensión.
+  await page.addInitScript(([clave, vista]) => localStorage.setItem(clave, vista), [
+    'hidrantes.vista',
+    JSON.stringify({ centro: [37.2326, -3.6554], zoom: 17 }),
+  ] as const);
+}
+
 const SALUD_STAGING = {
   pendientes_14d: 2,
   incidencias_abiertas: 0,
@@ -127,6 +146,8 @@ interface Vista {
   lista: (p: Page) => Promise<void>;
   /** Solo en escritorio: el panel es de ordenador (FR-100). */
   soloEscritorio?: boolean;
+  /** Ancho del escritorio si no es el de siempre (1280). */
+  anchoEscritorio?: number;
 }
 
 const VISTAS: Vista[] = [
@@ -216,6 +237,25 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByRole('button', { name: new RegExp(P0.codigo) }).first()).toBeVisible(),
   },
   {
+    // docs/25 RV-107: el anillo de "sin revisar" en los cinco tamaños, a 412 y 1440 px.
+    nombre: 'mapa-sin-revisar',
+    ruta: '/',
+    preparar: voluntarioSinRevisar,
+    lista: (p) => expect(p.locator('.leaflet-marker-pane [data-sin-revisar]')).toHaveCount(PUNTOS.length),
+    anchoEscritorio: 1440,
+  },
+  {
+    nombre: 'lista-sin-revisar',
+    ruta: '/lista',
+    preparar: voluntarioSinRevisar,
+    lista: async (p) => {
+      const fila = p.getByRole('button', { name: new RegExp(P0.codigo) }).first();
+      await expect(fila).toBeVisible();
+      await expect(fila.locator('[data-sin-revisar]')).toHaveCount(1);
+    },
+    anchoEscritorio: 1440,
+  },
+  {
     nombre: 'ajustes',
     ruta: '/ajustes',
     preparar: voluntario,
@@ -257,12 +297,12 @@ for (const tema of ['claro', 'oscuro'] as const) {
     test(`${vista.nombre} · ${tema}`, async ({ page, isMobile }, info) => {
       test.skip(!!isMobile && !!vista.soloEscritorio, 'el panel de jefatura es de ordenador');
       // Escritorio a 1280 × 800; el móvil es el Pixel 7 del proyecto (412 × 915).
-      if (!isMobile) await page.setViewportSize({ width: 1280, height: 800 });
+      if (!isMobile) await page.setViewportSize({ width: vista.anchoEscritorio ?? 1280, height: 800 });
       await page.emulateMedia({ colorScheme: tema === 'oscuro' ? 'dark' : 'light' });
       await vista.preparar(page);
       await page.goto(vista.ruta);
       await vista.lista(page);
-      await capturar(page, info, `${vista.nombre}-${isMobile ? '412' : '1280'}-${tema}`);
+      await capturar(page, info, `${vista.nombre}-${isMobile ? '412' : (vista.anchoEscritorio ?? 1280)}-${tema}`);
     });
   }
 }

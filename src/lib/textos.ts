@@ -53,7 +53,7 @@ export const T = {
       {
         titulo: 'Cuanto más grande, más agua da',
         texto:
-          'Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.',
+          'Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un anillo de rayas alrededor significa que nadie lo ha revisado en más de un año.',
         lineas: [] as string[],
       },
       {

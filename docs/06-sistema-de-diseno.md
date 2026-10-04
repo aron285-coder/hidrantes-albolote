@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. La escala de radios es la excepción: es un parámetro (`config.escala_radios`, FR-142) y se afina en campo sin tocar este documento; aquí constan los valores iniciales. |
-| **Versión** | 1.16 — 4 de octubre de 2026 (`docs/25`, conformidad del desarrollador): colores de estado RAL, regular en amarillo con borde propio en el marcador (§2.2, §2.4, §4.3, §4.5, §4.6; RV-105, DEC-154). v1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.14 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): estado Barro, marrón y tachado (§2.2, §4.3, §4.5, Apéndice A; RV-102, DEC-149). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
+| **Versión** | 1.17 — 4 de octubre de 2026 (`docs/25`, conformidad del desarrollador): "sin revisar" pasa a un anillo exterior de 8 rayas y el borde queda continuo (§1, §2.4, §4.3, §4.5, §4.6, Apéndice A; RV-107, DEC-155). v1.16 — 4 de octubre de 2026 (`docs/25`, conformidad del desarrollador): colores de estado RAL, regular en amarillo con borde propio en el marcador (§2.2, §2.4, §4.3, §4.5, §4.6; RV-105, DEC-154). v1.15 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): dos fotos, Conexión y Sitio (§5, Apéndice A; RV-103, DEC-150). v1.14 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): estado Barro, marrón y tachado (§2.2, §4.3, §4.5, Apéndice A; RV-102, DEC-149). v1.13 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): bocas de 45, 70 u otra medida en los formularios (Apéndice A, RV-101, DEC-148). v1.12 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): fotos de referencia del racor (§5, RV-104). v1.11 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): menos texto en las pantallas de campo (§8, Apéndice A, RV-99); un primario por pantalla (§5, DEC-147, RV-100). v1.10 — 3 de octubre de 2026 (`docs/24`, conformidad del desarrollador): un estado de caudal que la app no conoce se dibuja como No funciona (§4.3, RV-102a). v1.9 — 23 de septiembre de 2026: §4.7, marcas de trabajo del incidente y la medición, sin colores nuevos (DEC-089); los textos de las funciones de mapa para emergencias se añaden al Apéndice A con cada función (GM-01 a GM-06). v1.8 — 22 de septiembre de 2026: el texto del aviso se oscurece para llegar a 4,5:1 sobre el fondo del aviso (DEC-081). v1.7: el estado regular pasa a naranja (DEC-076). v1.6: tope de zoom del mapa en §4.4 (DEC-075). v1.5: aviso de almacenamiento en Salud del sistema (DEC-073). v1.4: textos de la Fase 6 en el Apéndice A (DEC-063). v1.3: textos de la Fase 5 en el Apéndice A y el anillo de selección en oscuro (DEC-062). v1.2: textos de la Fase 4 (DEC-060). v1.1 — 17 de septiembre de 2026. Añade §10 (reglas de interfaz numeradas `UI-nn`) y el Apéndice A (textos exactos), tras revisar la especificación de la app de uniformidad (DEC-047). |
 | **Propietario de** | colores, tipografía, espaciado, componentes y, sobre todo, la **especificación de la simbología del marcador**. La app del voluntario, el panel y el mapa base la aplican de forma idéntica. |
 | **Complemento** | `06-sistema-de-diseno.html`: la misma especificación renderizada (muestras, las 12 combinaciones dibujadas por la fórmula, componentes, modo oscuro). |
 
@@ -12,7 +12,7 @@
 ## 1. Principios
 
 1. **La información de estado viaja por dos canales como mínimo.** Forma para el tipo, color para el
-   estado, tamaño para lo aprovechable, tachado para "no funciona", borde para "sin revisar". Nada
+   estado, tamaño para lo aprovechable, tachado para "no funciona", anillo de rayas para "sin revisar". Nada
    depende solo del color (TR-30).
 2. **Legible en la calle.** A pleno sol, con guantes, deprisa: contraste alto, objetivos táctiles de
    44 px, texto de 16 px o más en el móvil, una acción principal por pantalla.
@@ -132,6 +132,7 @@ Las capas en línea (OSM, PNOA, Catastro) no se recolorean.
 | controles flotantes del mapa | `rgba(20,29,45,.94)` |
 | badge pendientes | fondo `#3A2A1E`, texto `#F0A070` |
 | anillo del marcador seleccionado (`--anillo-seleccion`) | `#E6EAF0` (el `--marino-950` de claro no se ve sobre el mapa oscuro; DEC-062) |
+| anillo de "sin revisar" (`--anillo-sin-revisar`) | `#C9CFD8` (en claro es `--texto-suave`; §4.3, DEC-155) |
 
 Los rellenos de estado y el naranja de acción **no cambian**, y el **borde del marcador sigue
 blanco** (`--borde-marcador`): es lo que lo separa del mapa. La excepción es el amarillo de regular,
@@ -199,7 +200,7 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 | Barro | tamaño mínimo y la misma línea blanca cruzada que No funciona, **sin** atenuar: el tachado dice "no se puede usar" y el color marrón dice por qué (FR-61, WCAG 1.4.1) |
 | No funciona | opacidad **0,5** + línea blanca cruzada de 2 px de esquina inferior izquierda a superior derecha, largo `2 × radio_px` |
 | Estado desconocido | un `caudal` que esta versión de la app no conoce (el servidor añadió uno nuevo y el móvil aún no se ha actualizado) se dibuja **como No funciona**: color `--gris-700`, radio mínimo, opacidad 0,5 y tachado. La ficha dice "Estado desconocido · actualiza la aplicación" y la lista lo cuenta con No funciona (`docs/24` RV-102a) |
-| Sin revisar > `meses_revision` | borde **discontinuo** `3 2.5`, mismo tamaño y color |
+| Sin revisar > `meses_revision` | **anillo exterior discontinuo** de 1,5 px, `--anillo-sin-revisar` (`--texto-suave` en claro, `#C9CFD8` en oscuro), separado 2,5 px de la cara exterior del borde; el borde sigue **continuo** y el marcador mantiene tamaño y color. Las rayas se calculan para que salgan **8** sea cual sea el tamaño: `dash = gap = perímetro / 16`. En la boca, un cuadrado concéntrico (esquina `rx` del marcador + lo que se separa) con el perímetro del cuadrado redondeado. Si además está seleccionado, el anillo de selección va 2 px por fuera de este. En un lienzo pequeño (lista, leyenda, ficha) el dibujo se escala lo justo para que el anillo no se recorte, igual para un punto revisado que para uno sin revisar del mismo radio (DEC-155) |
 | Seleccionado | anillo exterior `--marino-950` de 2 px a 3 px del borde (en oscuro, `--anillo-seleccion` de §2.4) |
 | Propuesto (solo panel) | pin naranja `--naranja-600` con punto blanco; el punto existente en comparación, con opacidad .8 |
 | Posición del usuario | punto `--marino-600` r 4,5 con borde blanco 1,5 y halo del mismo color con opacidad .16 cuyo radio representa la precisión GPS |
@@ -228,7 +229,7 @@ igual con 9–10 px). Contenido fijo y en este orden:
 
 1. ● Hidrante · ■ Boca de riego (forma)
 2. Regular · Malo · Barro · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde). Cada muestra lleva el borde de su estado (§4.3): la de Regular, amarillo con el borde oscuro
-3. Sin revisar (borde discontinuo)
+3. Sin revisar (anillo exterior de rayas, DEC-155)
 4. Línea final: "Más grande = más agua aprovechable"
 
 ### 4.6 Ejemplos de lectura
@@ -236,7 +237,7 @@ igual con 9–10 px). Contenido fijo y en este orden:
 - Círculo grande verde: hidrante de 100 mm que funciona bien. El mejor recurso de la zona.
 - Cuadrado pequeño amarillo: boca de riego que da menos de lo que podría.
 - Punto gris pequeño tachado: no se pudo usar; hay que comunicarlo, pero no compite visualmente.
-- Cualquiera con borde discontinuo: el dato es el último conocido, pero tiene más de un año.
+- Cualquiera con un anillo de rayas alrededor: el dato es el último conocido, pero tiene más de un año.
 
 ### 4.7 Marcas de trabajo (incidente, medición y "¿Qué hay aquí?")
 
@@ -402,7 +403,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Comprobando tu cuenta…` · `Aviso legal y privacidad · v[0.1.0]` · `Aviso legal`.
 
 **Primer uso** (FR-94). `Cuanto más grande, más agua da` ·
-`Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.` ·
+`Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un anillo de rayas alrededor significa que nadie lo ha revisado en más de un año.` ·
 `Añadir un punto son cuatro toques` ·
 `Pulsa +, ajusta el pin, elige tipo y estado, haz la foto. Sin cobertura también: se enviará solo cuando vuelva la señal.` ·
 `Malo: se probó y sale débil.` · `No funciona: no se pudo usar (tapa, válvula, arqueta).` (debajo, una línea cada una; docs/24 RV-99) ·

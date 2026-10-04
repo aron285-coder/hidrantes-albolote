@@ -130,6 +130,19 @@ for (const modo of ['claro', 'oscuro'] as const) {
       expect(contraste(t['--anillo-seleccion'], mapa.fondo)).toBeGreaterThanOrEqual(3);
     });
 
+    // DEC-155: "sin revisar" es un anillo fino aparte del marcador, sobre el mapa y no sobre el
+    // relleno, así que es él el que tiene que verse contra el fondo del mapa y contra el panel.
+    it('el anillo de "sin revisar" se ve sobre el mapa y sobre las superficies (DEC-155)', () => {
+      expect(t['--anillo-sin-revisar'], 'token del anillo').toMatch(/^#/);
+      for (const [donde, fondo] of [
+        ['mapa', mapa.fondo],
+        ['--papel', t['--papel']],
+        ['--fondo', t['--fondo']],
+      ] as const) {
+        expect(contraste(t['--anillo-sin-revisar'], fondo!), `anillo sobre ${donde}`).toBeGreaterThanOrEqual(3);
+      }
+    });
+
     // El aviso (06 §5) es texto ámbar sobre fondo oro o ámbar claro, y sale en los dos modos con
     // los mismos colores: es una banda que avisa, no una superficie del tema. Se mide aquí porque
     // axe solo lo ve si el aviso está en pantalla, y casi nunca lo está (DEC-081).
