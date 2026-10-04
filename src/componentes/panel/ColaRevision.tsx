@@ -1,26 +1,34 @@
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { TriangleAlert } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useSearchParams } from 'react-router';
+import { capasDe } from '../mapa/capas-leaflet';
 import { usePanel } from './usar-panel';
 import { DetallePropuesta } from './DetallePropuesta';
 import { ErrorCarga, EtiquetaOperacion } from './piezas';
 import { Boton } from '@/componentes/Boton';
 import { useCarga } from '@/hooks/carga';
-import { usePuntos } from '@/hooks/estado';
+import { useModo, usePuntos } from '@/hooks/estado';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
+import { cargarParametros } from '@/lib/panel/ajustes';
 import {
   type EstadoModeracion,
+  type PlanMapa,
   type PropuestaPanel,
   aprobarLote,
   cargarCola,
   cargarHistorial,
   coincide,
   lineaCola,
+  planMapa,
   rechazarLote,
   resumenLote,
   tieneAviso,
 } from '@/lib/panel/cola';
 import { textoError } from '@/lib/panel/errores';
 import type { Operacion } from '@/lib/propuestas';
+import type { Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -33,24 +41,50 @@ const ESTADOS: { valor: EstadoModeracion; nombre: string }[] = [
 
 const OPERACIONES: Operacion[] = ['alta', 'revision', 'estado', 'datos', 'ubicacion', 'retirada'];
 
-/** Cola de revisión (FR-100–FR-110, FL-21–FL-23): lista con filtros y casillas, y el detalle al lado. */
+/**
+ * Desde 1.100 px, la cola a la izquierda (340 px) y el detalle en todo el resto; por debajo, dos
+ * pantallas (docs/25 RV-110, DEC-158). El mismo corte que las clases `min-[1100px]:` de abajo.
+ */
+const COLA_Y_DETALLE = '(min-width: 1100px)';
+
+function suscribirAncho(o: () => void) {
+  const m = window.matchMedia(COLA_Y_DETALLE);
+  m.addEventListener('change', o);
+  return () => m.removeEventListener('change', o);
+}
+const useColaYDetalle = () =>
+  useSyncExternalStore(
+    suscribirAncho,
+    () => window.matchMedia(COLA_Y_DETALLE).matches,
+    () => true,
+  );
+
+/** La propuesta abierta va en la URL (?p=…): en tableta y móvil, "atrás" vuelve a la cola. */
+const PARAMETRO = 'p';
+
+/** Cola de revisión (FR-100–FR-110, FL-21–FL-23): lista con filtros y casillas, y el detalle. */
 export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   const { busqueda, avisar } = usePanel();
   const { puntos } = usePuntos();
+  const ancho = useColaYDetalle();
+  const [params, setParams] = useSearchParams();
   const [estado, setEstado] = useState<EstadoModeracion>('pendiente');
   const [operacion, setOperacion] = useState<Operacion | ''>('');
   const [nucleo, setNucleo] = useState('');
-  const [activa, setActiva] = useState<string | null>(null);
   const [marcadas, setMarcadas] = useState<Set<string>>(new Set());
   const [rechazoLote, setRechazoLote] = useState(false);
   const [ocupado, setOcupado] = useState(false);
-  const detalle = useRef<HTMLDivElement>(null);
+  const activa = params.get(PARAMETRO);
 
   const carga = useCarga(
     () => (estado === 'pendiente' ? cargarCola() : cargarHistorial(estado)),
     [estado],
     estado === 'pendiente' ? 60_000 : undefined,
   );
+  // El radio del círculo de duplicado (FR-51) es el de config. Sin poder leerlo no se dibuja: un radio
+  // supuesto podría no coincidir con el aviso de duplicado, que usa el de verdad (DEC-159).
+  const parametros = useCarga(() => cargarParametros(), []);
+  const radioDuplicado = parametros.datos?.radio_duplicado_m ?? null;
   const todas = useMemo(() => carga.datos ?? [], [carga.datos]);
   const nucleos = useMemo(
     () =>
@@ -64,24 +98,40 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
       ),
     [todas, operacion, nucleo, busqueda],
   );
-  const seleccion = visibles.find((p) => p.id === activa) ?? visibles[0] ?? null;
+  // En el ordenador siempre hay una abierta; en tableta y móvil, solo la que se ha tocado.
+  const seleccion = visibles.find((p) => p.id === activa) ?? (ancho ? (visibles[0] ?? null) : null);
   const pendientes = estado === 'pendiente';
   const elegidas = visibles.filter((p) => marcadas.has(p.id));
+
+  function abrir(id: string | null, apilar: boolean) {
+    setParams(
+      (actual) => {
+        const n = new URLSearchParams(actual);
+        if (id) n.set(PARAMETRO, id);
+        else n.delete(PARAMETRO);
+        return n;
+      },
+      { replace: !apilar },
+    );
+  }
+
+  // Una ?p= que ya no está en la lista (resuelta por otra persona, otra pestaña): fuera de la URL,
+  // para que la dirección no diga una propuesta y la pantalla enseñe otra.
+  const sinAbierta = !!activa && !!carga.datos && !todas.some((p) => p.id === activa);
+  useEffect(() => {
+    if (sinAbierta) abrir(null, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sinAbierta]);
 
   function cambiarEstado(e: EstadoModeracion) {
     setEstado(e);
     setMarcadas(new Set());
-    setActiva(null);
+    abrir(null, false);
     setRechazoLote(false);
   }
 
-  function elegir(p: PropuestaPanel) {
-    setActiva(p.id);
-    // En tableta, el detalle va debajo de la lista: se lleva la vista hasta él.
-    if (detalle.current && window.matchMedia('(max-width: 1023px)').matches) {
-      detalle.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }
+  // En tableta y móvil, abrir una propuesta es otra pantalla: se apila para que "atrás" vuelva.
+  const elegir = (p: PropuestaPanel) => abrir(p.id, !ancho);
 
   function marcar(id: string) {
     setMarcadas((m) => {
@@ -94,6 +144,8 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
 
   async function hecho() {
     alCambiar();
+    // Resuelta la abierta, en tableta y móvil se vuelve a la cola.
+    if (!ancho) abrir(null, false);
     await carga.recargar();
   }
 
@@ -127,6 +179,17 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     await hecho();
   }
 
+  const botonesLote = (
+    <>
+      <BotonBarra disabled={!elegidas.length || ocupado} onClick={() => void aprobarMarcadas()}>
+        {T.panelCola.aprobarSeleccionadas}
+      </BotonBarra>
+      <BotonBarra disabled={!elegidas.length || ocupado} onClick={() => setRechazoLote(true)}>
+        {T.panelCola.rechazarSeleccionadas}
+      </BotonBarra>
+    </>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="border-linea bg-fondo flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm">
@@ -145,12 +208,8 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
                 {elegidas.length ? T.panelCola.seleccionadas(elegidas.length) : T.panelCola.ningunaSeleccionada}
               </span>
             </label>
-            <BotonBarra disabled={!elegidas.length || ocupado} onClick={() => void aprobarMarcadas()}>
-              {T.panelCola.aprobarSeleccionadas}
-            </BotonBarra>
-            <BotonBarra disabled={!elegidas.length || ocupado} onClick={() => setRechazoLote(true)} className="ml-1">
-              {T.panelCola.rechazarSeleccionadas}
-            </BotonBarra>
+            {/* En tableta y móvil, la barra de abajo (FR-107). */}
+            {ancho && botonesLote}
           </>
         ) : (
           <span className="text-texto-suave">{T.panelCola.soloLectura}</span>
@@ -210,38 +269,76 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
         />
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col min-[1100px]:flex-row">
         <section
           aria-label={T.panelCola.colaRevision}
-          className="border-linea bg-papel lg:w-[47%] lg:overflow-y-auto lg:border-r"
+          className="border-linea bg-papel flex-1 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:max-h-dvh min-[1100px]:w-[340px] min-[1100px]:flex-none min-[1100px]:self-start min-[1100px]:overflow-y-auto min-[1100px]:border-r"
         >
           <Lista
             carga={carga}
             visibles={visibles}
             pendientes={pendientes}
-            seleccion={seleccion}
+            seleccion={ancho ? seleccion : null}
             marcadas={marcadas}
             busqueda={busqueda}
             hayFiltro={!!operacion || !!nucleo}
+            puntos={ancho ? null : puntos}
             alElegir={elegir}
             alMarcar={marcar}
           />
         </section>
-        <section
-          ref={detalle}
-          aria-label={
-            seleccion
-              ? `${seleccion.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[seleccion.operacion]}`
-              : undefined
-          }
-          className="border-linea bg-fondo flex-1 scroll-mt-2 border-t p-4 lg:overflow-y-auto lg:border-t-0"
-        >
-          {seleccion ? (
-            <DetallePropuesta key={seleccion.id} p={seleccion} puntos={puntos} alHecho={() => void hecho()} />
-          ) : (
-            carga.estado !== 'cargando' && <p className="text-texto-suave text-sm">{T.panelCola.eligeUna}</p>
-          )}
-        </section>
+        {ancho ? (
+          <section
+            aria-label={
+              seleccion
+                ? `${seleccion.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[seleccion.operacion]}`
+                : undefined
+            }
+            className="bg-fondo min-w-0 flex-1"
+          >
+            {seleccion ? (
+              <DetallePropuesta
+                key={seleccion.id}
+                p={seleccion}
+                puntos={puntos}
+                radioDuplicado={radioDuplicado}
+                alHecho={() => void hecho()}
+              />
+            ) : (
+              carga.estado !== 'cargando' && <p className="text-texto-suave p-4 text-sm">{T.panelCola.eligeUna}</p>
+            )}
+          </section>
+        ) : (
+          <>
+            {pendientes && visibles.length > 0 && (
+              <div className="bg-barra sticky bottom-0 z-10 flex flex-wrap items-center gap-2 px-3 py-2 text-sm text-white">
+                {elegidas.length ? (
+                  <>
+                    <span className="mr-auto font-semibold">{T.panelCola.seleccionadas(elegidas.length)}</span>
+                    {botonesLote}
+                  </>
+                ) : (
+                  <span className="min-h-9 py-2 font-semibold">{T.panelCola.tocaUna}</span>
+                )}
+              </div>
+            )}
+            {seleccion && (
+              <section
+                aria-label={`${seleccion.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[seleccion.operacion]}`}
+                className="bg-fondo fixed inset-0 z-40"
+              >
+                <DetallePropuesta
+                  key={seleccion.id}
+                  p={seleccion}
+                  puntos={puntos}
+                  radioDuplicado={radioDuplicado}
+                  alHecho={() => void hecho()}
+                  alVolver={() => abrir(null, false)}
+                />
+              </section>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -255,6 +352,7 @@ function Lista({
   marcadas,
   busqueda,
   hayFiltro,
+  puntos,
   alElegir,
   alMarcar,
 }: {
@@ -265,6 +363,8 @@ function Lista({
   marcadas: Set<string>;
   busqueda: string;
   hayFiltro: boolean;
+  /** En tableta y móvil, cada fila lleva su mapita: hace falta el inventario para situarla. */
+  puntos: Punto[] | null;
   alElegir: (p: PropuestaPanel) => void;
   alMarcar: (id: string) => void;
 }) {
@@ -293,24 +393,32 @@ function Lista({
           <li
             key={p.id}
             className={cn(
-              'border-linea flex items-start gap-2 border-b px-3 py-2',
+              'border-linea flex items-center gap-2.5 border-b px-3 py-2',
               activa && 'bg-[#EFF3F8] shadow-[inset_3px_0_0_var(--marino-700)] dark:bg-white/5',
             )}
           >
             {pendientes && (
               <input
                 type="checkbox"
-                className="mt-1.5 size-4 shrink-0"
+                className="size-4 shrink-0"
                 checked={marcadas.has(p.id)}
                 onChange={() => alMarcar(p.id)}
                 aria-label={T.panelCola.seleccionar(nombre)}
+              />
+            )}
+            {puntos && (
+              <Mapita
+                plan={planMapa(
+                  p,
+                  puntos.find((x) => x.id === p.punto_id),
+                )}
               />
             )}
             <button
               type="button"
               onClick={() => alElegir(p)}
               aria-current={activa || undefined}
-              className="min-h-11 flex-1 text-left"
+              className="min-h-11 min-w-0 flex-1 text-left"
             >
               <span className="flex items-center gap-1.5">
                 <EtiquetaOperacion operacion={p.operacion} />
@@ -319,12 +427,71 @@ function Lista({
                   <TriangleAlert size={14} className="text-ambar-700" aria-label={T.panelCola.senalAviso} />
                 )}
               </span>
-              <span className="text-texto-suave block text-[13px]">{lineaCola(p)}</span>
+              <span className="text-texto-suave block truncate text-[13px]">{lineaCola(p)}</span>
             </button>
           </li>
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * El mapita de 62 × 48 px de cada fila en tableta y móvil (RV-110): el sitio del punto, siempre sobre
+ * el mapa base propio (sin red). Se dibuja al entrar en la vista, para no crear todos a la vez.
+ */
+function Mapita({ plan }: { plan: PlanMapa }) {
+  const caja = useRef<HTMLDivElement>(null);
+  const modo = useModo();
+  const [visible, setVisible] = useState(false);
+  const sitio = plan.propuesta ?? plan.actual;
+  const lat = sitio?.lat;
+  const lng = sitio?.lng;
+  const naranja = !!plan.propuesta;
+
+  useEffect(() => {
+    const el = caja.current;
+    if (!el || visible) return;
+    const o = new IntersectionObserver((e) => e.some((x) => x.isIntersecting) && setVisible(true));
+    o.observe(el);
+    return () => o.disconnect();
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible || !caja.current || lat == null || lng == null) return;
+    const m = L.map(caja.current, {
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      touchZoom: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+    }).setView([lat, lng], 17);
+    capasDe('base', modo).forEach((c) => c.addTo(m));
+    // Naranja, el pin propuesto (06 §4.3); marino, un punto que ya existe.
+    L.circleMarker([lat, lng], {
+      radius: 4.5,
+      weight: 2,
+      color: '#fff',
+      // Con los tokens de 06 (clase CSS): un color escrito a mano no sigue a los cambios de paleta.
+      className: naranja ? '[fill:var(--naranja-600)]' : '[fill:var(--marino-950)]',
+      fillOpacity: 1,
+      interactive: false,
+    }).addTo(m);
+    return () => {
+      m.remove();
+    };
+  }, [visible, lat, lng, modo, naranja]);
+
+  return (
+    <div
+      ref={caja}
+      aria-hidden
+      data-testid="mapita"
+      className="border-linea pointer-events-none isolate h-12 w-[62px] shrink-0 overflow-hidden rounded-md border bg-[#ECEAE1]"
+    />
   );
 }
 

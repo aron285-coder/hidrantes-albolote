@@ -22,7 +22,7 @@ import {
   correccionesDe,
   diferenciasFusion,
   faltaEnCorrecciones,
-  filasDiff,
+  fichaCompleta,
   lineaCola,
   motivoOmitida,
   resumenLote,
@@ -111,9 +111,15 @@ describe('lista de la cola', () => {
   });
 });
 
+// El diff vive dentro de "Datos del punto" desde docs/25 RV-110: lo que cambia va primero.
 describe('diff (FR-102)', () => {
+  const cambios = (p: PropuestaPanel, punto?: Punto) =>
+    fichaCompleta(p, punto)
+      .campos.filter((c) => c.cambia)
+      .map(({ etiqueta, antes, valor }) => (antes === undefined ? { etiqueta, valor } : { etiqueta, antes, valor }));
+
   it('cambio de estado: antes tachado y después', () => {
-    expect(filasDiff(propuesta())).toEqual([{ campo: 'Estado', antes: 'Bueno', despues: 'Regular' }]);
+    expect(cambios(propuesta({ foto_path: null }))).toEqual([{ etiqueta: 'Estado', antes: 'Bueno', valor: 'Regular' }]);
   });
 
   it('alta: todo es nuevo y "otra medida" se ve tal cual', () => {
@@ -123,37 +129,39 @@ describe('diff (FR-102)', () => {
       antes: null,
       datos: { tipo: 'hidrante', diametro_otro: 80, caudal: 'no_funciona', descripcion_fallo: 'Tapa soldada' },
     });
-    expect(filasDiff(p)).toEqual([
-      { campo: 'Tipo', despues: 'Hidrante' },
-      { campo: 'Diámetro', despues: 'Otra medida: 80 mm' },
-      { campo: 'Estado', despues: 'No funciona' },
-      { campo: 'Fallo', despues: '"Tapa soldada"' },
+    expect(cambios(p)).toEqual([
+      { etiqueta: 'Tipo', valor: 'Hidrante' },
+      { etiqueta: 'Diámetro', valor: 'Otra medida: 80 mm' },
+      { etiqueta: 'Estado', valor: 'No funciona' },
+      { etiqueta: 'Fallo', valor: 'Tapa soldada' },
     ]);
   });
 
   it('revisión: el estado sigue igual y la fecha cambia', () => {
-    const filas = filasDiff(propuesta({ operacion: 'revision', datos: {}, antes: null }), PUNTO);
-    expect(filas[0]).toEqual({ campo: 'Estado', despues: 'Bueno · sin cambios', sinCambios: true });
-    expect(filas[1].campo).toBe('Revisión');
-    expect(filas[1].antes).toBe('1 jun 2025');
+    const f = fichaCompleta(propuesta({ operacion: 'revision', datos: {}, antes: null }), PUNTO);
+    expect(f.campos[0]).toMatchObject({ clave: 'revision', antes: '1 jun 2025', cambia: true });
+    expect(f.campos.find((c) => c.clave === 'caudal')).toMatchObject({ valor: 'Bueno', cambia: false });
   });
 
   it('corregir datos: solo los campos que cambian', () => {
     const p = propuesta({ operacion: 'datos', datos: { diametro_mm: 70 }, antes: { diametro_mm: 100 } });
-    expect(filasDiff(p)).toEqual([{ campo: 'Diámetro', antes: '100 mm', despues: '70 mm' }]);
+    expect(cambios(p)).toEqual([{ etiqueta: 'Diámetro', antes: '100 mm', valor: '70 mm' }]);
   });
 
-  it('ubicación: el desplazamiento en metros', () => {
+  it('ubicación: cambian las coordenadas, de las del punto a las del pin', () => {
     const p = propuesta({ operacion: 'ubicacion', datos: {}, antes: null, lat: 37.2301, lng: -3.656 });
-    expect(filasDiff(p, PUNTO)).toEqual([{ campo: 'Desplazamiento', despues: '11 m' }]);
+    expect(cambios(p, PUNTO)[0]).toEqual({
+      etiqueta: T.coordenadas.decimal,
+      antes: '37.230000, -3.656000',
+      valor: '37.230100, -3.656000',
+    });
   });
 
   it('retirada: situación y motivo', () => {
     const p = propuesta({ operacion: 'retirada', datos: { motivo_rapido: 'obras', motivo: 'Calle levantada' } });
-    expect(filasDiff(p)).toEqual([
-      { campo: 'Situación', antes: 'Activo', despues: 'Retirado' },
-      { campo: 'Motivo', despues: 'Obras · "Calle levantada"' },
-    ]);
+    const f = fichaCompleta(p);
+    expect(f.campos[0]).toMatchObject({ etiqueta: 'Situación', antes: 'Activo', valor: 'Retirado' });
+    expect(f.campos[1]).toMatchObject({ etiqueta: 'Motivo', valor: 'Obras · "Calle levantada"' });
   });
 });
 

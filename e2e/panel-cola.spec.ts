@@ -36,7 +36,32 @@ function fila(extra: Record<string, unknown>): Record<string, unknown> {
     desactualizada: false,
     nucleo: 'Albolote',
     punto_actualizado_en: null,
+    ...delPunto(PUNTOS.find((p) => p.id === extra.punto_id)),
     ...extra,
+  };
+}
+
+/** Las columnas de 0036 (docs/25 RV-110, DEC-160): la fila del punto de hoy y su posición; en un alta, nulas. */
+function delPunto(p: (typeof PUNTOS)[number] | undefined) {
+  if (!p) return { punto: null, punto_lat: null, punto_lng: null };
+  const { codigo, tipo, diametro_mm, caudal, racor, descripcion, descripcion_fallo, direccion, nucleo } = p;
+  return {
+    punto: {
+      codigo,
+      tipo,
+      diametro_mm,
+      caudal,
+      racor,
+      descripcion,
+      descripcion_fallo,
+      direccion,
+      nucleo,
+      fecha_ultima_revision: p.fecha_ultima_revision,
+      foto_path: p.foto_path,
+      foto_sitio_path: null,
+    },
+    punto_lat: p.lat,
+    punto_lng: p.lng,
   };
 }
 
@@ -142,14 +167,23 @@ const RECHAZADAS = [
     autor_nombre: 'Luis',
     autor_apellido: 'Martín',
     punto_id: P0.id,
+    codigo: P0.codigo,
     datos: {},
     foto_path: null,
+    foto_sitio_path: null,
     direccion_sugerida: null,
+    direccion_actual: P0.direccion,
+    lat: null,
+    lng: null,
+    origen_ubicacion: null,
+    precision_gps_m: null,
+    nucleo: 'Albolote',
     motivo_rechazo: 'La foto es del hidrante de al lado',
     correcciones: null,
     revisada_por: 'jefe@example.org',
     revisada_en: hace(100),
-    punto: { codigo: P0.codigo, direccion: P0.direccion, nucleo: 'Albolote' },
+    // v_historial_revision (0036): las mismas columnas del punto que la cola.
+    ...delPunto(P0),
   },
 ];
 
@@ -167,11 +201,10 @@ async function prepararPanel(page: Page, extra: Record<string, unknown>[] = []) 
   await simularTablas(page, {
     v_puntos_activos: PUNTOS,
     v_cola_revision: () => pendientes,
-    propuestas: (url) => {
-      const estado = url.searchParams.get('estado');
-      if (estado === 'eq.rechazada') return RECHAZADAS;
-      return estado === 'eq.pendiente' ? pendientes : [];
-    },
+    propuestas: (url) => (url.searchParams.get('estado') === 'eq.pendiente' ? pendientes : []),
+    v_historial_revision: (url) => (url.searchParams.get('estado') === 'eq.rechazada' ? RECHAZADAS : []),
+    puntos: [],
+    config: [],
   });
   await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/*`, async (route) => {
     const nombre = new URL(route.request().url()).pathname.split('/').pop()!;
@@ -208,7 +241,10 @@ async function prepararPanel(page: Page, extra: Record<string, unknown>[] = []) 
 
 const llamadaA = (llamadas: Llamada[], nombre: string) => llamadas.find((l) => l.nombre === nombre)?.cuerpo;
 
+/** Abre una propuesta. Por debajo de 1.100 px el detalle es otra pantalla: antes se vuelve a la cola. */
 async function abrir(page: Page, texto: RegExp) {
+  const volver = page.getByRole('button', { name: T.panelCola.volverCola });
+  if (await volver.isVisible()) await volver.click();
   await page.getByRole('button', { name: texto }).click();
 }
 
@@ -235,7 +271,8 @@ test('aprobar en bloque dos revisiones (FL-22)', async ({ page }) => {
   await page.goto('/admin/cola');
   await page.getByLabel(T.panelCola.filtroOperacion).selectOption('revision');
   await page.getByLabel(T.panelCola.seleccionarTodas).check();
-  await expect(page.getByText(T.panelCola.seleccionadas(2))).toBeVisible();
+  // En el móvil se lee también en la barra de abajo (RV-110).
+  await expect(page.getByText(T.panelCola.seleccionadas(2)).first()).toBeVisible();
   await page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas }).click();
   await expect(page.getByRole('status').filter({ hasText: T.panelCola.loteAprobadas(2) })).toBeVisible();
   expect((llamadaA(llamadas, 'fn_aprobar_lote')!.propuesta_ids as string[]).sort()).toEqual(['c2', 'c3']);
@@ -338,10 +375,18 @@ test('historial de rechazadas en solo lectura (FR-109)', async ({ page }) => {
   await page.goto('/admin/cola');
   await page.getByRole('radio', { name: T.panelCola.rechazadas }).click();
   await expect(page.getByText(T.panelCola.soloLectura)).toBeVisible();
+  // En tableta y móvil no hay ninguna abierta hasta tocarla.
+  if (!(await page.getByRole('article').isVisible())) await abrir(page, /Luis Martín/);
   const detalle = page.getByRole('article');
   await expect(detalle.getByText(T.panelCola.motivo('La foto es del hidrante de al lado'))).toBeVisible();
   await expect(detalle.getByText(/Rechazada por jefe@example.org/)).toBeVisible();
-  await expect(detalle.getByRole('button')).toHaveCount(0);
+  // El mismo detalle (mapa y datos del punto), sin ningún botón para decidir (RV-110).
+  await expect(detalle.getByTestId('minimapa-propuesta')).toBeVisible();
+  await expect(detalle.getByText(T.panelCola.datosDelPunto)).toBeVisible();
+  await expect(detalle.getByTestId('acciones-propuesta')).toHaveCount(0);
+  for (const nombre of [T.panelCola.aprobar, T.panelCola.aprobarConCorrecciones, T.panelCola.rechazar]) {
+    await expect(detalle.getByRole('button', { name: nombre, exact: true })).toHaveCount(0);
+  }
 });
 
 test('sin servidor: aviso en el panel y la lista explica el fallo (FR-168)', async ({ page }) => {
@@ -395,7 +440,187 @@ test('alta con las dos fotos y alta sin foto del sitio (RV-103)', async ({ page 
   await expect(detalle.getByText(T.panelCola.senalSinFotoSitio)).toHaveCount(0);
 
   await abrir(page, /Una Ruiz/);
-  await expect(detalle.locator('figcaption')).toHaveCount(0);
+  await expect(detalle.locator('figcaption')).toHaveText([T.formulario.conexion]);
   await expect(detalle.locator('figure img')).toHaveCount(1);
   await expect(detalle.getByText(T.panelCola.senalSinFotoSitio)).toBeVisible();
 });
+
+// ---------- docs/25 RV-110: mapa arriba, datos completos y fotos, a todo el ancho ----------
+
+const [, , P2] = PUNTOS;
+
+/** Una corrección de datos y una de ubicación con fotos, como en los mockups. */
+function rv110() {
+  return [
+    fila({
+      id: 'd1',
+      operacion: 'datos',
+      creada_en: hace(1),
+      punto_id: P2.id,
+      codigo: P2.codigo,
+      datos: { diametro_mm: 70 },
+      antes: { diametro_mm: 100 },
+      direccion_actual: P2.direccion,
+      autor_nombre: 'Prueba',
+      autor_apellido: 'Tres',
+    }),
+    fila({
+      id: 'u1',
+      operacion: 'ubicacion',
+      creada_en: hace(3),
+      punto_id: P1.id,
+      codigo: P1.codigo,
+      datos: {},
+      lat: P1.lat + 0.0003,
+      lng: P1.lng + 0.0002,
+      origen_ubicacion: 'manual',
+      direccion_sugerida: 'Calle Olivo 8',
+      foto_path: 'fotos/u1-conexion.jpg',
+      foto_sitio_path: 'fotos/u1-sitio.jpg',
+      foto_path_actual: 'fotos/actual.jpg',
+      autor_nombre: 'Prueba',
+      autor_apellido: 'Cuatro',
+    }),
+  ];
+}
+
+async function conFotos(page: Page) {
+  await page.route(`${SUPABASE_PRUEBAS}/storage/v1/object/public/**`, (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="9"><rect width="16" height="9" fill="#8D9A86"/></svg>',
+    }),
+  );
+}
+
+test('a 1440 px el detalle ocupa todo el ancho y los botones se ven sin desplazar (RV-110)', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!!isMobile, 'el ordenador, en los proyectos de escritorio');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await prepararPanel(page, rv110());
+  await page.goto('/admin/cola');
+  await abrir(page, /Prueba Tres/);
+  const detalle = page.getByRole('article');
+  const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+  expect(Math.abs((await lista.boundingBox())!.width - 340)).toBeLessThanOrEqual(1);
+  const caja = (await detalle.boundingBox())!;
+  const mapa = (await detalle.getByTestId('minimapa-propuesta').boundingBox())!;
+  // El detalle llega al borde derecho y el mapa mide lo que él, menos su margen interior (2 × 20 px).
+  expect(Math.abs(caja.x + caja.width - 1440)).toBeLessThanOrEqual(2);
+  expect(Math.abs(mapa.width - (caja.width - 40))).toBeLessThanOrEqual(2);
+  expect(Math.abs(mapa.height - 300)).toBeLessThanOrEqual(1);
+  // Todos los datos, con solo el diámetro marcado.
+  await expect(detalle.locator('[data-cambia="true"]')).toHaveCount(1);
+  await expect(detalle.locator('[data-cambia="true"]')).toHaveAttribute('data-campo', 'diametro_mm');
+  await expect(detalle.getByText(T.coordenadas.utm, { exact: true })).toBeVisible();
+  const aprobar = detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true });
+  await expect(aprobar).toBeInViewport();
+  // Y siguen a la vista al desplazar.
+  await page.mouse.wheel(0, 2000);
+  await expect(aprobar).toBeInViewport();
+});
+
+test('una ubicación: satélite, la foto actual junto a las nuevas, mapa en grande (RV-110)', async ({ page }) => {
+  await conFotos(page);
+  await prepararPanel(page, rv110());
+  await page.goto('/admin/cola');
+  await abrir(page, /Prueba Cuatro/);
+  const detalle = page.getByRole('article');
+  const mapa = detalle.getByTestId('minimapa-propuesta');
+  await expect(mapa).toHaveAttribute('data-capa', 'satelite');
+  await expect(detalle.locator('figcaption')).toHaveText([
+    T.panelCola.fotoActualPunto,
+    T.panelCola.fotoNueva(T.panelCola.conexion),
+    T.panelCola.fotoNueva(T.panelCola.sitio),
+  ]);
+  await detalle.getByRole('radio', { name: T.panelCola.capaMapa }).click();
+  await expect(mapa).toHaveAttribute('data-capa', 'base');
+  await detalle.getByRole('button', { name: T.panelCola.abrirEnGrande }).click();
+  await expect(detalle.getByRole('button', { name: T.panelCola.cerrarGrande })).toBeVisible();
+  expect((await mapa.boundingBox())!.width).toBe(page.viewportSize()!.width);
+  // "Cerrar" se puede tocar: en el móvil, la barra de botones no lo tapa.
+  await detalle.getByRole('button', { name: T.panelCola.cerrarGrande }).click();
+  await expect(detalle.getByRole('button', { name: T.panelCola.abrirEnGrande })).toBeVisible();
+  await detalle.getByRole('button', { name: T.panelCola.abrirEnGrande }).click();
+  await page.keyboard.press('Escape');
+  await expect(detalle.getByRole('button', { name: T.panelCola.abrirEnGrande })).toBeVisible();
+});
+
+for (const ancho of [820, 412]) {
+  test(`a ${ancho} px la cola y el detalle son dos pantallas; "‹" vuelve (RV-110)`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: ancho === 820 ? 1180 : 915 });
+    await prepararPanel(page, rv110());
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await expect(lista.getByRole('listitem').first()).toBeVisible();
+    await expect(lista.getByTestId('mapita').first()).toBeVisible();
+    await expect(page.getByRole('article')).toHaveCount(0);
+    await expect(page.getByText(T.panelCola.tocaUna)).toBeVisible();
+
+    await abrir(page, /Prueba Tres/);
+    const detalle = page.getByRole('article');
+    expect((await detalle.boundingBox())!.width).toBe(ancho);
+    const mapa = (await detalle.getByTestId('minimapa-propuesta').boundingBox())!;
+    expect(Math.abs(mapa.height - (ancho === 820 ? 280 : 200))).toBeLessThanOrEqual(1);
+    const corregir = detalle.getByRole('button', { name: T.panelCola.aprobarConCorrecciones });
+    await expect(corregir).toBeInViewport();
+    // Lo que se ve (innerText): "Corregir" en el móvil, el nombre largo en tableta.
+    expect(await corregir.innerText()).toBe(
+      ancho === 412 ? T.panelCola.corregirCorto : T.panelCola.aprobarConCorrecciones,
+    );
+    const desborde = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(desborde).toBeLessThanOrEqual(1);
+
+    await page.getByRole('button', { name: T.panelCola.volverCola }).click();
+    await expect(page.getByRole('article')).toHaveCount(0);
+    await expect(lista).toBeVisible();
+    // "Atrás" del navegador también vuelve a la cola.
+    await abrir(page, /Prueba Tres/);
+    await expect(page.getByRole('article')).toBeVisible();
+    await page.goBack();
+    await expect(page.getByRole('article')).toHaveCount(0);
+
+    // Con propuestas marcadas, la barra de abajo aprueba en bloque (FR-107).
+    await lista.getByRole('checkbox').first().check();
+    await expect(page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toBeVisible();
+  });
+}
+
+// Capturas para revisar a ojo (skill revisar-pantallas): los tres tamaños, en claro y en oscuro.
+for (const tema of ['claro', 'oscuro'] as const) {
+  for (const [ancho, alto] of [
+    [412, 915],
+    [820, 1180],
+    [1440, 900],
+  ] as const) {
+    test(`captura de la cola · ${ancho} · ${tema} (RV-110)`, async ({ page }, info) => {
+      test.skip(info.project.name !== 'escritorio', 'una vez, en el Chrome de escritorio');
+      await page.setViewportSize({ width: ancho, height: alto });
+      await page.emulateMedia({ colorScheme: tema === 'oscuro' ? 'dark' : 'light' });
+      await conFotos(page);
+      await prepararPanel(page, rv110());
+      await page.goto('/admin/cola');
+      const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+      await expect(lista.getByRole('listitem').first()).toBeVisible();
+      const capturar = async (nombre: string) => {
+        await page.waitForLoadState('networkidle');
+        const ruta = info.outputPath(`${nombre}.png`);
+        await page.screenshot({ path: ruta, animations: 'disabled', caret: 'hide' });
+        await info.attach(nombre, { path: ruta, contentType: 'image/png' });
+      };
+      if (ancho < 1100) await capturar(`cola-${ancho}-${tema}`);
+      for (const [nombre, quien] of [
+        ['datos', /Prueba Tres/],
+        ['ubicacion', /Prueba Cuatro/],
+        ['alta', /Javier Ortiz/],
+      ] as const) {
+        await abrir(page, quien);
+        await expect(page.getByRole('article').getByRole('heading').first()).toBeVisible();
+        await capturar(`detalle-${nombre}-${ancho}-${tema}`);
+      }
+    });
+  }
+}
