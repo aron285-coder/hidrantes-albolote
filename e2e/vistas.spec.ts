@@ -248,7 +248,11 @@ const VISTAS: Vista[] = [
     nombre: 'lista-sin-revisar',
     ruta: '/lista',
     preparar: voluntarioSinRevisar,
-    lista: (p) => expect(p.getByRole('button', { name: new RegExp(P0.codigo) }).first()).toBeVisible(),
+    lista: async (p) => {
+      const fila = p.getByRole('button', { name: new RegExp(P0.codigo) }).first();
+      await expect(fila).toBeVisible();
+      await expect(fila.locator('[data-sin-revisar]')).toHaveCount(1);
+    },
     anchoEscritorio: 1440,
   },
   {

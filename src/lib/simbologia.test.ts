@@ -79,6 +79,7 @@ describe('borde por estado (docs/25 RV-105, DEC-154)', () => {
     const svg = svgMarcador({ tipo: 'boca_riego', caudal: 'regular', radio_px: 7, revision_caducada: true });
     expect(trazo(svg)).toBe('var(--borde-marcador-regular)');
     expect(svg).toContain('data-sin-revisar');
+    expect(svg).not.toMatch(/data-forma="\w+"[^>]*stroke-dasharray/);
   });
 
   it('barro, con el borde de siempre también en el tachado', () => {
@@ -156,6 +157,15 @@ describe('sin revisar: anillo exterior de 8 rayas (docs/25 RV-107, DEC-155)', ()
     expect(g).toBeCloseTo(d!, 5);
   });
 
+  it.each([null, undefined, Number.NaN, 0, -3])('un radio roto (%s) se dibuja con el mínimo, sin NaN', (radio) => {
+    const svg = svgMarcador(
+      { tipo: 'hidrante', caudal: 'bueno', radio_px: radio as unknown as number, revision_caducada: true },
+      { tamano: 24, seleccionado: true },
+    );
+    expect(svg).not.toMatch(/NaN|null|undefined/);
+    expect(svg).toContain('<circle data-forma="circulo" r="5"');
+  });
+
   it('un punto revisado no lleva anillo', () => {
     for (const tipo of ['hidrante', 'boca_riego'] as const) {
       const svg = svgMarcador({ tipo, caudal: 'bueno', radio_px: 7, revision_caducada: false });
@@ -190,6 +200,7 @@ describe('sin revisar: anillo exterior de 8 rayas (docs/25 RV-107, DEC-155)', ()
       for (const seleccionado of [false, true]) {
         const svg = svgMarcador({ tipo, caudal: 'bueno', radio_px: r, revision_caducada: true }, { seleccionado });
         expect(svg).toMatch(/width="44" height="44" viewBox="-22 -22 44 44"/);
+        expect(anillo(svg), `${tipo} ${r} lleva anillo`).toBeDefined();
         expect(alcance(svg), `${tipo} ${r} ${seleccionado}`).toBeLessThanOrEqual(OBJETIVO_TACTIL / 2);
       }
   });
@@ -208,6 +219,7 @@ describe('sin revisar: anillo exterior de 8 rayas (docs/25 RV-107, DEC-155)', ()
       for (const tipo of ['hidrante', 'boca_riego'] as const) {
         const svg = svgMarcador({ tipo, caudal: 'bueno', radio_px: r, revision_caducada: true }, { tamano });
         expect(svg).toContain(`width="${tamano}" height="${tamano}"`);
+        expect(anillo(svg), `${tipo} ${r} lleva anillo`).toBeDefined();
         expect(alcance(svg), `${tipo} ${r}`).toBeLessThanOrEqual(-viewBox(svg) + 1e-3);
       }
   });

@@ -35,6 +35,9 @@ export function esquina(r: number): number {
 /** Grosor del borde: 2,5 px, o 2 px si el radio es ≤ 5,5. */
 export const grosorBorde = (r: number) => (r <= 5.5 ? 2 : 2.5);
 
+/** Radio con el que se dibuja un `radio_px` roto: el mínimo de la escala (R5, 06 §4.1). */
+const RADIO_DE_RESERVA = 5;
+
 /** Anillo de "sin revisar" (06 §4.3, DEC-155): grosor y separación desde la cara exterior del borde. */
 const ANILLO_GROSOR = 1.5;
 const ANILLO_SEPARACION = 2.5;
@@ -78,7 +81,9 @@ function anilloSinRevisar(tipo: TipoPunto, r: number): string {
  * dos puntos del mismo radio se ven del mismo tamaño en la misma lista.
  */
 export function svgMarcador(p: Simbolo, { tamano = OBJETIVO_TACTIL, seleccionado = false } = {}): string {
-  const r = p.radio_px;
+  // Un radio que no es un número positivo (dato roto) se dibuja con el mínimo, R5, como un estado
+  // desconocido: así no sale un anillo de "sin revisar" vacío ni un viewBox con NaN.
+  const r = Number.isFinite(p.radio_px) && p.radio_px > 0 ? p.radio_px : RADIO_DE_RESERVA;
   const bw = grosorBorde(r);
   // Un caudal que esta versión no conoce se dibuja como no funciona (docs/24 RV-102a).
   const caudal = caudalParaDibujar(p.caudal);
