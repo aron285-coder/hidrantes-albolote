@@ -203,13 +203,12 @@ export function lineaCola(p: PropuestaPanel, ahora = new Date()): string {
   ].join(' · ');
 }
 
-/** ¿Lleva algún aviso que merezca el ⚠ en la lista? */
+/**
+ * ¿Lleva el ⚠ en la lista? Solo por lo que el detalle enseña como aviso (DEC-166): desactualizada, un
+ * hidrante de otra medida, posible duplicado o fuera de zona.
+ */
 export const tieneAviso = (p: PropuestaPanel) =>
-  p.desactualizada ||
-  bloqueoPorMedida(p) !== null ||
-  !!p.duplicado_de ||
-  !!p.fuera_de_zona ||
-  senales(p).some((s) => s.aviso);
+  p.desactualizada || bloqueoPorMedida(p) !== null || !!p.duplicado_de || !!p.fuera_de_zona;
 
 /** Búsqueda global (FR-145): código, dirección o nombre de quien propuso. */
 export function coincide(p: PropuestaPanel, texto: string): boolean {
@@ -225,75 +224,6 @@ export const sinAcentos = (s: string) =>
     .toLowerCase();
 
 const entreComillas = (v: unknown) => `"${texto(v)}"`;
-
-export interface Senal {
-  texto: string;
-  aviso: boolean;
-}
-
-/** Por encima de esto, la precisión del GPS se señala (m). */
-export const GPS_IMPRECISO_M = 20;
-/** Si la foto se hizo más lejos del pin que esto, se señala (m). */
-export const FOTO_LEJOS_M = 30;
-
-/** Señales automáticas de fiabilidad (FR-104). Las de aviso llevan ⚠; las buenas, ✓. */
-export function senales(p: PropuestaPanel): Senal[] {
-  const s: Senal[] = [];
-  if (p.origen_ubicacion === 'gps') {
-    s.push({
-      texto: T.panelCola.senalGps(
-        Math.round(p.precision_gps_m ?? 0),
-        p.distancia_gps_m == null ? '—' : distancia(p.distancia_gps_m),
-      ),
-      aviso: false,
-    });
-  } else if (p.origen_ubicacion === 'manual') {
-    s.push({
-      texto:
-        p.distancia_gps_m == null
-          ? T.panelCola.senalManual
-          : T.panelCola.senalManualLejos(distancia(p.distancia_gps_m)),
-      aviso: true,
-    });
-  }
-  if (p.precision_gps_m != null && p.precision_gps_m > GPS_IMPRECISO_M) {
-    s.push({ texto: T.panelCola.senalGpsImpreciso(Math.round(p.precision_gps_m)), aviso: true });
-  }
-  if (p.distancia_exif_m != null && p.distancia_exif_m > FOTO_LEJOS_M) {
-    s.push({ texto: T.panelCola.senalFotoLejos(distancia(p.distancia_exif_m)), aviso: true });
-  }
-  if (p.fuera_de_zona) s.push({ texto: T.panelCola.fueraDeZona, aviso: true });
-  if (p.meses_desde_revision != null) {
-    s.push({
-      texto: T.panelCola.senalRevisionAnterior(
-        p.meses_desde_revision < 1
-          ? T.panelCola.esteMes
-          : p.meses_desde_revision === 1
-            ? T.formato.haceUnMes
-            : T.formato.haceMeses(p.meses_desde_revision),
-      ),
-      aviso: false,
-    });
-  }
-  if (p.duplicado_de) {
-    s.push({
-      texto: T.panelCola.senalDuplicado(p.codigo_duplicado ?? '—', distancia(p.distancia_duplicado_m ?? 0)),
-      aviso: true,
-    });
-  }
-  if (p.otra_medida) {
-    s.push(
-      tipoDePropuesta(p) === 'boca_riego'
-        ? { texto: T.panelCola.senalOtraMedidaBoca(texto(p.datos.diametro_otro)), aviso: false }
-        : { texto: T.panelCola.senalOtraMedida, aviso: true },
-    );
-  }
-  if (p.foto_path) s.push({ texto: T.panelCola.conFoto, aviso: false });
-  // La mandó la versión anterior de la app: se puede aprobar, pero el punto se queda sin foto del sitio.
-  if (p.sin_foto_sitio) s.push({ texto: T.panelCola.senalSinFotoSitio, aviso: true });
-  if (p.desactualizada) s.push({ texto: T.panelCola.senalDesactualizada, aviso: true });
-  return s;
-}
 
 /** ¿Tiene pin (y por tanto minimapa y dirección deducida editable)? (FR-103, FR-105) */
 export const conUbicacion = (p: PropuestaPanel) =>

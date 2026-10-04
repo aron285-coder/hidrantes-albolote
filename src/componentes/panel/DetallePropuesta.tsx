@@ -29,7 +29,6 @@ import {
   fusionar,
   planMapa,
   rechazar,
-  senales,
   valoresPropuestos,
   bloqueoPorMedida,
 } from '@/lib/panel/cola';
@@ -42,7 +41,7 @@ type Modo = null | 'corregir' | 'rechazar' | 'fusionar';
 
 /**
  * Detalle de una propuesta (FR-102–FR-109, FL-21; docs/25 RV-110, DEC-158), igual en las seis
- * operaciones y a todo el ancho: título y señales, el mapa, todos los datos del punto con lo que
+ * operaciones y a todo el ancho: el título, el mapa, todos los datos del punto con lo que
  * cambia primero y marcado, las fotos y, fijos abajo, los botones. El historial usa el mismo detalle
  * en solo lectura. Con `alVolver` (tableta y móvil) ocupa la pantalla entera, con "‹" para volver.
  */
@@ -127,7 +126,6 @@ export function DetallePropuesta({
   // Solo un hidrante de "otra medida" impide aprobar tal cual; una boca se aprueba con su número (DEC-144).
   const bloqueoAprobar = bloqueoPorMedida(p, punto);
   const comparar = pendiente && p.operacion === 'alta' && duplicado;
-  const lasSenales = pendiente ? senales(p) : [];
 
   return (
     <article className={cn('flex flex-col text-sm', pantalla ? 'h-full' : 'min-h-full')}>
@@ -158,22 +156,6 @@ export function DetallePropuesta({
                 p.nucleo ?? (p.fuera_de_zona ? T.panelCola.fueraDeZona : T.panelCola.sinNucleo),
               )}
             </span>
-            {lasSenales.length > 0 && (
-              <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={T.panelCola.senales}>
-                {lasSenales.map((s) => (
-                  <li
-                    key={s.texto}
-                    className={cn(
-                      'rounded-campo border px-2 py-0.5 text-[12.5px]',
-                      s.aviso ? 'border-oro-600 bg-ambar-100 text-ambar-700' : 'border-verde-600 text-verde-600',
-                    )}
-                  >
-                    {s.aviso ? '⚠ ' : '✓ '}
-                    {s.texto}
-                  </li>
-                ))}
-              </ul>
-            )}
           </header>
 
           {/* En el móvil, el mapa de borde a borde y fijo arriba mientras se desplaza lo demás. */}
@@ -187,8 +169,7 @@ export function DetallePropuesta({
 
           <DatosDelPunto
             campos={ficha.campos}
-            cambios={ficha.cambios}
-            alta={ficha.alta}
+            cambios={ficha.alta ? null : ficha.cambios}
             direccion={editable ? { valor: direccion, cambiar: setDireccion } : null}
           />
 
@@ -310,25 +291,25 @@ export function DetallePropuesta({
 function DatosDelPunto({
   campos,
   cambios,
-  alta,
   direccion,
 }: {
   campos: CampoFicha[];
-  cambios: number;
-  alta: boolean;
+  /** Cuántos campos cambian; `null` en un alta, que lleva solo el título. */
+  cambios: number | null;
   direccion: { valor: string; cambiar: (v: string) => void } | null;
 }) {
   return (
     <section aria-labelledby="datos-del-punto">
       <h3 id="datos-del-punto" className="mb-1.5 flex flex-wrap items-baseline gap-x-2.5">
         <span className="font-titulo text-texto text-[17px] font-bold">{T.panelCola.datosDelPunto}</span>
-        <small className="text-texto-suave text-[13px]">
-          <b className="text-naranja-600 font-bold">
-            {alta ? T.panelCola.datosVoluntario(cambios) : T.panelCola.cambios(cambios)}
-          </b>
-          {' · '}
-          {alta ? T.panelCola.restoDeducido : T.panelCola.restoIgual}
-        </small>
+        {/* En un alta, solo el título: todo es nuevo (docs/28 RV-115). */}
+        {cambios !== null && (
+          <small className="text-texto-suave text-[13px]">
+            <b className="text-naranja-texto font-bold">{T.panelCola.cambios(cambios)}</b>
+            {' · '}
+            {T.panelCola.restoIgual}
+          </small>
+        )}
       </h3>
       <div className="border-linea bg-linea rounded-tarjeta grid gap-px overflow-hidden border md:grid-cols-2">
         {campos.map((c) => (
@@ -347,7 +328,7 @@ function DatosDelPunto({
             <span className={cn('text-[13.5px]', c.cambia ? 'text-texto font-semibold' : 'text-texto-suave')}>
               {c.etiqueta}
               {c.cambia && (
-                <span className="text-naranja-600 block text-[10.5px] font-bold tracking-wide uppercase">
+                <span className="text-naranja-texto block text-[10.5px] font-bold tracking-wide uppercase">
                   {T.panelCola.cambia}
                 </span>
               )}
@@ -382,7 +363,7 @@ function DatosDelPunto({
 function Antes({ texto }: { texto: string }) {
   return (
     <>
-      <del className="text-rojo-700 opacity-75">{texto}</del>
+      <del className="text-rojo-700">{texto}</del>
       <span aria-hidden> → </span>
     </>
   );

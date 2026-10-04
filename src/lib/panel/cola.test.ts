@@ -26,7 +26,6 @@ import {
   lineaCola,
   motivoOmitida,
   resumenLote,
-  senales,
   tieneAviso,
   valoresPropuestos,
 } from './cola';
@@ -165,46 +164,24 @@ describe('diff (FR-102)', () => {
   });
 });
 
-describe('señales (FR-104)', () => {
-  it('GPS en campo con buena precisión: sin avisos', () => {
-    const s = senales(propuesta({ origen_ubicacion: 'gps', precision_gps_m: 4, distancia_gps_m: 6 }));
-    expect(s.map((x) => x.texto)).toContain('GPS en campo · ±4 m · a 6 m del pin');
-    expect(s.some((x) => x.aviso)).toBe(false);
-    expect(tieneAviso(propuesta({ origen_ubicacion: 'gps', precision_gps_m: 4 }))).toBe(false);
+// docs/28 RV-115 (DEC-166): el ⚠ de la lista, solo por lo que el detalle enseña como aviso.
+describe('el ⚠ de la lista de la cola (FR-104, DEC-166)', () => {
+  it.each([
+    ['desactualizada', { desactualizada: true }],
+    ['un hidrante de otra medida', { otra_medida: true }],
+    ['posible duplicado', { duplicado_de: 'x2', codigo_duplicado: 'BOC-0088', distancia_duplicado_m: 8 }],
+    ['fuera de zona', { fuera_de_zona: true }],
+  ] as [string, Partial<PropuestaPanel>][])('avisa: %s', (_, extra) => {
+    expect(tieneAviso(propuesta(extra))).toBe(true);
   });
 
-  it('pin manual, GPS impreciso, foto lejos, fuera de zona, duplicado, otra medida y desactualizada avisan', () => {
-    const p = propuesta({
-      origen_ubicacion: 'manual',
-      distancia_gps_m: 40,
-      precision_gps_m: 35,
-      distancia_exif_m: 120,
-      fuera_de_zona: true,
-      duplicado_de: 'x2',
-      codigo_duplicado: 'BOC-0088',
-      distancia_duplicado_m: 8,
-      otra_medida: true,
-      desactualizada: true,
-    });
-    const avisos = senales(p)
-      .filter((x) => x.aviso)
-      .map((x) => x.texto);
-    expect(avisos).toEqual([
-      'Pin puesto a mano · a 40 m del GPS del móvil',
-      'GPS poco preciso · ±35 m',
-      'La foto se hizo a 120 m del pin',
-      'Fuera de zona',
-      'Posible duplicado de BOC-0088 · a 8 m',
-      T.panelCola.senalOtraMedida,
-      T.panelCola.senalDesactualizada,
-    ]);
-    expect(tieneAviso(p)).toBe(true);
-  });
-
-  it('antigüedad de la revisión anterior', () => {
-    expect(senales(propuesta({ meses_desde_revision: 14 })).map((x) => x.texto)).toContain(
-      'Revisión anterior: hace 14 meses',
-    );
+  it.each([
+    ['pin puesto a mano', { origen_ubicacion: 'manual', distancia_gps_m: 40 }],
+    ['foto lejos del pin', { distancia_exif_m: 120 }],
+    ['GPS poco preciso', { origen_ubicacion: 'gps', precision_gps_m: 35 }],
+    ['sin foto del sitio', { sin_foto_sitio: true }],
+  ] as [string, Partial<PropuestaPanel>][])('no avisa: solo %s', (_, extra) => {
+    expect(tieneAviso(propuesta(extra))).toBe(false);
   });
 });
 

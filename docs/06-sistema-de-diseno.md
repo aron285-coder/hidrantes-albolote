@@ -604,8 +604,8 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `No queda ninguna propuesta pendiente. Buen trabajo.` · `deducida · editable` · `del punto`.
 
 **Panel: detalle de la cola (docs/25 RV-110, DEC-158).** `Datos del punto` · `1 cambio` ·
-`[n] cambios` · `el resto se queda igual` · `1 dato del voluntario` · `[n] datos del voluntario` ·
-`los demás los deduce el sistema` · `Cambia` · `Código` · `Núcleo` · `Última revisión` ·
+`[n] cambios` · `el resto se queda igual` ·
+`Cambia` · `Código` · `Núcleo` · `Última revisión` ·
 `Origen de la ubicación` · `Propuesto por` · `se asigna al aprobar` · `se fija al aprobar` ·
 `GPS · ±[4] m` · `Pin puesto a mano` · `la que ya tiene el punto` · `—` · `Fotos` ·
 `la actual del punto y las nuevas de la propuesta` · `no trae nuevas` ·
@@ -628,12 +628,8 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 
 **Panel: cola, detalle y errores (Fase 7, DEC-065).** `Fuera de zona` · `sin núcleo` · `ninguno` ·
 `Tipo` · `Diámetro` · `Tipo de enganche` · `Fallo` · `Descripción` · `Nota` · `Situación` · `Motivo` · `Activo` ·
-`Retirado` · `[valor] · sin cambios` · `Otra medida: [mm] mm` · `GPS en campo · ±[precision] m ·
-a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distancia] del GPS del móvil` ·
-`GPS poco preciso · ±[metros] m` · `La foto se hizo a [distancia] del pin` ·
-`Revisión anterior: [cuando]` · `este mes` · `Posible duplicado de [codigo] · a [distancia]` ·
-`Diámetro "otra medida": hay que fijar 70 o 100 mm` · `Boca de otra medida: [32] mm` · `sin foto del sitio` · `El punto cambió después de esta propuesta` ·
-`Con foto` · `Fija el diámetro en 70 o 100 mm para poder aprobar.` ·
+`Retirado` · `[valor] · sin cambios` · `Otra medida: [mm] mm` ·
+`Fija el diámetro en 70 o 100 mm para poder aprobar.` ·
 `la del pin propuesto (a [distancia])` · `la de [codigo] (existente)` · `desactualizada` ·
 `el punto ya no está activo` · `diámetro sin fijar` · `ya estaba resuelta` · `datos no válidos` · `cambia el tipo, que no se puede cambiar: recházala` ·
 `[n] aprobadas, cada una con su entrada en el Registro.` · `Quedan pendientes: [lista].` ·
@@ -655,7 +651,7 @@ a [distancia] del pin` · `Pin puesto a mano` · `Pin puesto a mano · a [distan
 `↩ Retirada por el autor · [cuando]` · `Motivo: "[texto]"` · `Con correcciones: [texto]` ·
 `Fusionada con [codigo]. No se creó un punto nuevo.` · `Código asignado: [codigo]` ·
 `Consta en el Registro. Solo lectura.` · `Pin propuesto y puntos aprobados alrededor` ·
-`Señales de fiabilidad` · `con avisos` · `Hidrantes Albolote · Panel de jefatura` ·
+`con avisos` · `Hidrantes Albolote · Panel de jefatura` ·
 `Direcciones deducidas con Nominatim · © OpenStreetMap contributors` · `datos de [hace]` ·
 `Esta propuesta ya no está pendiente: otra persona la ha resuelto. La lista se ha actualizado.` ·
 `El punto ya no está activo.` ·
