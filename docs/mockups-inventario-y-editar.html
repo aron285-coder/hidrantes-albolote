@@ -1,0 +1,423 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inventario y Editar · propuestas</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--marino-950:#0E1B30;--marino-700:#1D3A63;--naranja-600:#C94F16;--naranja-texto:#BE4811;--fondo:#F1F3EE;--papel:#FFFFFF;--linea:#D8DBD2;--texto:#1B2430;--texto-suave:#5A6472;
+--verde-600:#237E51;--verde-700:#1E6B45;--verde-100:#DCEEE1;--amarillo-500:#F9A900;--amarillo-800:#6B4E00;--amarillo-100:#FFF1C2;--rojo-700:#9B2423;--rojo-100:#FBE0DB;
+--marron-600:#806460;--marron-700:#5A4632;--marron-100:#EFE3D6;--gris-700:#40453D;--gris-100:#E5E4DC;--oro-600:#B08A2E;--oro-100:#F3E6C4;--ambar-700:#7F5C07}
+*{box-sizing:border-box}
+body{margin:0;background:#E4E6E0;color:var(--texto);font-family:'Source Sans 3',system-ui,sans-serif}
+header.doc{background:var(--marino-950);color:#fff;padding:26px 24px 22px}
+header.doc h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;margin:0 0 6px}
+header.doc p{margin:0;opacity:.85;max-width:960px;line-height:1.5}
+nav.indice{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+nav.indice a{color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:5px 12px;font-size:14px;text-decoration:none}
+section.doc{padding:30px 24px 10px;max-width:1560px;margin:0 auto}
+section.doc>h2{font-family:'Barlow Condensed',sans-serif;font-size:26px;margin:0 0 4px;color:var(--marino-950)}
+section.doc>h3{font-family:'Barlow Condensed',sans-serif;font-size:20px;margin:26px 0 8px;color:var(--marino-950)}
+p.intro{margin:0 0 16px;color:var(--texto-suave);max-width:980px;line-height:1.55}
+p.intro b{color:var(--texto)}
+.cambios{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin:8px 0 6px}
+.cambio{background:var(--papel);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;line-height:1.5;font-size:15px}
+.cambio h4{margin:0 0 6px;font-family:'Barlow Condensed',sans-serif;font-size:19px;color:var(--marino-950)}
+.cambio ul{margin:0;padding-left:18px}.cambio li{margin:3px 0}
+.decidir{border-left:4px solid var(--naranja-600);background:#FFF8EC}
+.decidir h4::before{content:'A decidir · ';color:var(--naranja-texto)}
+.mono{font-family:'JetBrains Mono',monospace;font-weight:500}
+.fila-disp{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;margin:10px 0 8px}
+.scroll{overflow-x:auto;padding-bottom:10px}
+.etq{font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--texto-suave);margin:0 0 6px}
+.disp{background:#11161f;border-radius:30px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.2);display:inline-block}
+.disp.tablet{border-radius:26px;padding:14px}
+.disp.pc{border-radius:12px;padding:0;background:#C9CCC2}
+.pc-barra{height:30px;background:#DADDD4;display:flex;align-items:center;gap:6px;padding:0 12px;border-radius:12px 12px 0 0}
+.pc-barra i{width:11px;height:11px;border-radius:50%;background:#B9BDB2;display:block}
+.pc-barra span{margin-left:14px;font-size:12px;color:var(--texto-suave);background:#fff;border-radius:6px;padding:2px 10px}
+.pantalla{background:var(--fondo);border-radius:22px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.disp.tablet .pantalla{border-radius:14px}.disp.pc .pantalla{border-radius:0 0 12px 12px}
+/* barra del panel */
+.bar{background:var(--marino-950);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;padding:0 16px;min-height:52px;display:flex;align-items:center;gap:12px;flex:none}
+.bar .ir{margin-left:auto;font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;border:1px solid rgba(255,255,255,.4);border-radius:8px;padding:5px 10px}
+.bar .x{margin-left:auto;font-family:'Source Sans 3',sans-serif;font-size:26px;font-weight:400;line-height:1}
+.tabs{display:flex;gap:24px;padding:0 20px;border-bottom:1px solid var(--linea);font-size:15.5px;background:var(--fondo);flex:none;white-space:nowrap;overflow:hidden}
+.tabs>span{padding:13px 0 11px;color:var(--texto-suave)}.tabs>span.on{color:var(--texto);font-weight:700;border-bottom:3px solid var(--naranja-600)}
+.tabs.m{gap:14px;padding:0 12px;font-size:14.5px}
+.badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:var(--naranja-600);color:#fff;font-size:12px;font-weight:700;text-align:center;margin-left:4px}
+.badge.g{background:#E1E3DB;color:var(--texto)}
+/* filtros */
+.filtros{display:flex;align-items:flex-end;gap:10px;padding:12px 20px;border-bottom:1px solid var(--linea);flex:none;flex-wrap:wrap}
+.sel{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sel>span{font-size:12.5px;font-weight:600;color:var(--texto-suave)}
+.sel>div{display:flex;align-items:center;gap:8px;min-height:44px;border:1px solid #BFC3B8;background:var(--papel);border-radius:7px;padding:0 12px;font-size:15px;white-space:nowrap}
+.sel>div::after{content:'';margin-left:auto;width:8px;height:8px;border-right:2px solid var(--texto);border-bottom:2px solid var(--texto);transform:rotate(45deg) translate(-2px,-2px);flex:none}
+.sel.activo>div{border:2px solid var(--marino-950);font-weight:700;padding:0 11px}
+.sel .p{width:10px;height:10px;border-radius:50%;flex:none}
+.quitar{font-size:14px;color:var(--marino-700);text-decoration:underline;padding:0 4px 12px}
+.der{margin-left:auto;display:flex;gap:10px;align-items:flex-end}
+.seg{display:flex;border:1px solid #BFC3B8;border-radius:7px;overflow:hidden;min-height:44px}
+.seg span{display:grid;place-items:center;padding:0 16px;font-size:15px;background:var(--papel)}
+.seg span.on{background:var(--texto);color:#fff;font-weight:600}
+.menu{position:absolute;z-index:5;background:var(--papel);border:1px solid var(--linea);border-radius:9px;box-shadow:0 10px 26px rgba(14,27,48,.18);padding:6px 0;font-size:15px;min-width:220px}
+.menu div{display:flex;align-items:center;gap:10px;padding:9px 14px;min-height:40px}
+.menu div.on{background:#EEF1F6;font-weight:700}
+.menu div .n{margin-left:auto;color:var(--texto-suave);font-size:13px;font-weight:400}
+.menu hr{border:0;border-top:1px solid var(--linea);margin:4px 0}
+.menu small{display:block;color:var(--texto-suave);font-size:12.5px;font-weight:400}
+/* tabla */
+table.inv{width:100%;border-collapse:collapse;background:var(--papel);font-size:14.5px}
+table.inv th{font-family:'Barlow Condensed',sans-serif;font-size:15.5px;text-align:left;padding:10px 10px;border-bottom:2px solid var(--texto);white-space:nowrap}
+table.inv td{padding:11px 10px;border-bottom:1px solid var(--linea);white-space:nowrap}
+table.inv tr.rsel td{background:#EEF1F6}
+table.inv td.cod{font-family:'JetBrains Mono',monospace;font-weight:500;font-size:15px}
+table.inv td.sug{color:var(--texto-suave)}
+table.inv .acc a{color:var(--marino-700);text-decoration:underline;margin-right:12px}
+table.inv .acc a.borrar{color:var(--rojo-700)}
+.viejo{color:var(--rojo-700);font-weight:700}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;font-size:13.5px;font-weight:600}
+.c-bueno{background:var(--verde-100);color:var(--verde-700)}.c-regular{background:var(--amarillo-100);color:var(--amarillo-800)}.c-malo{background:var(--rojo-100);color:var(--rojo-700)}.c-barro{background:var(--marron-100);color:var(--marron-700)}.c-nf{background:var(--gris-100);color:var(--gris-700)}
+/* filas apiladas (móvil) */
+.tarj{background:var(--papel);border-bottom:1px solid var(--linea);padding:11px 14px;display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:14.5px}
+.tarj .cod{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500}
+.tarj .s{color:var(--texto-suave);font-size:13.5px}
+.tarj .e{color:var(--marino-700);text-decoration:underline;font-weight:600;align-self:center;grid-row:1/3;grid-column:2;padding:10px 4px}
+/* formulario (como el alta) */
+.form{display:flex;flex-direction:column;gap:16px}
+.campo{display:flex;flex-direction:column;gap:5px}
+.campo>span{font-size:13px;font-weight:600;color:var(--texto-suave)}
+.campo>small{font-size:13px;color:var(--texto-suave)}
+.segm{display:flex;border:1px solid var(--linea);border-radius:7px;overflow:hidden}
+.segm span{flex:1;min-height:44px;display:grid;place-items:center;font-size:15px;background:var(--papel);padding:0 6px;text-align:center}
+.segm span+span{border-left:1px solid var(--linea)}
+.segm span.on{background:var(--texto);color:#fff;font-weight:600}
+.segm.bloq span{color:#9AA0A8}.segm.bloq span.on{background:#D9DCD4;color:var(--texto)}
+.racores{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.racores span{background:var(--papel);border:1px solid var(--linea);border-radius:9px;min-height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:6px;font-size:15px}
+.racores span.on{border:3px double var(--texto);font-weight:600}
+.racores svg{width:46px;height:46px;border-radius:7px;margin-bottom:3px}
+.pild{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.pild.m{grid-template-columns:repeat(6,1fr)}.pild.m span:nth-child(-n+2){grid-column:span 3}.pild.m span:nth-child(n+3){grid-column:span 2}
+.pild span:not(.on){background:var(--papel)}
+.pild span{min-height:44px;border:1px solid var(--linea);border-radius:999px;display:grid;place-items:center;font-size:15px;font-weight:600;padding:0 4px;text-align:center;line-height:1.1}
+.pild span.on{border-color:currentColor}
+.inp{min-height:44px;border:1px solid #BFC3B8;border-radius:7px;background:var(--papel);display:flex;align-items:center;padding:8px 12px;font-size:15px}
+.inp.area{min-height:64px;align-items:flex-start}
+.inp.foco{border:2px solid var(--marino-950);padding:7px 11px}
+.botones{display:flex;gap:10px;align-items:center}
+.bp{white-space:nowrap;background:var(--naranja-600);color:#fff;border-radius:9px;min-height:48px;display:grid;place-items:center;padding:0 22px;font-weight:700;font-size:16px}
+.bs{white-space:nowrap;background:var(--papel);color:var(--texto);border:1.5px solid var(--texto);border-radius:9px;min-height:48px;display:grid;place-items:center;padding:0 20px;font-weight:600;font-size:16px}
+.pie{border-top:1px solid var(--linea);background:var(--papel);padding:12px 16px;flex:none}
+.pie .resumen{font-size:13.5px;color:var(--texto-suave);margin-right:auto}
+.pie .resumen b{color:var(--naranja-texto)}
+/* marcado de cambios (variante B) */
+.campo.cambia{background:#FFF8EC;box-shadow:inset 4px 0 0 var(--naranja-600);margin:0 -16px;padding:10px 16px 10px 20px}
+.campo.cambia>span::after{content:' · cambia';color:var(--naranja-texto);font-weight:700}
+.antes{font-size:13px;color:var(--texto-suave)}.antes s{color:var(--rojo-700)}
+.segm2{display:flex;border:1px solid var(--linea);border-radius:7px;overflow:hidden;background:var(--papel)}
+.segm2 span{flex:1;min-height:52px;display:grid;place-items:center;font-size:16px;padding:0 6px;text-align:center}
+.segm2 span.on{background:var(--marino-950);color:#fff;font-weight:700}
+.segm2.bloq span{color:#9AA0A8}.segm2.bloq span.on{background:#D9DCD4;color:var(--texto)}
+.racores4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.racores4 span{background:var(--papel);border:1px solid var(--linea);border-radius:9px;min-height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:8px 4px;font-size:15.5px}
+.racores4 span.on{border:3px double var(--texto);font-weight:700}
+.racores4 .ico{width:58px;height:58px;border-radius:8px;background:#E6EBF1;display:grid;place-items:center}
+.racores4 .ico svg{width:44px;height:44px}
+.racores4.m{gap:6px}.racores4.m span{min-height:92px;font-size:14.5px;padding:6px 2px}.racores4.m .ico{width:48px;height:48px}.racores4.m .ico svg{width:36px;height:36px}
+.mapa-f{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--linea)}
+.mapa-f svg{position:absolute;inset:0;width:100%;height:100%}
+.mapa-f .loc{position:absolute;top:10px;right:10px;width:44px;height:44px;background:#fff;border-radius:8px;display:grid;place-items:center;font-size:24px;color:var(--marino-950);box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.mapa-f.grande{border-radius:0;border:0;flex:1}
+.toca{margin:6px 0 0;text-align:center;font-size:14px;color:var(--texto-suave)}
+.coords{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;padding:10px 16px;font-size:13.5px;background:var(--papel);border-top:1px solid var(--linea)}
+.coords span{color:var(--texto-suave)}
+/* capas */
+.velo{position:absolute;inset:0;background:rgba(14,27,48,.42);z-index:3}
+.dialogo{position:absolute;z-index:4;background:var(--papel);border-radius:14px;box-shadow:0 18px 50px rgba(14,27,48,.35);display:flex;flex-direction:column;overflow:hidden}
+.dialogo .cab{display:flex;align-items:center;gap:10px;padding:16px 20px 6px;font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:700}
+.dialogo .cab .x{margin-left:auto;font-family:'Source Sans 3';font-weight:400;font-size:26px}
+.dialogo .cuerpo{padding:10px 20px 18px;overflow:hidden;flex:1}
+.cajon{position:absolute;z-index:4;top:0;right:0;bottom:0;background:var(--papel);box-shadow:-14px 0 40px rgba(14,27,48,.25);display:flex;flex-direction:column}
+.banda{color:#fff;padding:12px 16px;display:flex;align-items:center;gap:10px;flex:none}
+.banda .cod{font-family:'JetBrains Mono',monospace;font-size:19px}
+.banda .est{margin-left:auto;font-weight:700;font-size:15px}
+.banda .x{font-size:26px;line-height:1;margin-left:8px}
+.mapa{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--linea);background:#ECEAE1}
+.mapa svg{position:absolute;inset:0;width:100%;height:100%}
+.fotos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.foto{position:relative;border-radius:9px;overflow:hidden;background:linear-gradient(135deg,#9AA59A,#6F7A70);aspect-ratio:4/3}
+.foto span{position:absolute;left:6px;bottom:6px;background:rgba(14,27,48,.8);color:#fff;font-size:12px;padding:2px 7px;border-radius:5px}
+.foto i{position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,255,255,.75);font-style:normal;font-size:26px}
+.datos{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;background:var(--papel);border:1px solid var(--linea);border-radius:10px;padding:12px 14px}
+.datos b{font-weight:500;color:var(--texto-suave)}.datos .mono{white-space:nowrap;font-size:13px}
+.nota-c{font-size:13px;color:var(--texto-suave);line-height:1.45}
+.nota-c a{color:var(--marino-700);text-decoration:underline;font-weight:600}
+.titulo-p{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700}
+.migas{font-size:14px;color:var(--marino-700);text-decoration:underline}
+.lado h5{font-family:'Barlow Condensed',sans-serif;font-size:17px;margin:0 0 6px;color:var(--marino-950)}
+.lista-fin{font-size:14.5px;line-height:1.6;color:var(--texto);max-width:980px}
+footer.doc{padding:24px;color:var(--texto-suave);font-size:13px;text-align:center}
+</style></head><body>
+
+<header class="doc">
+  <h1>Panel · Inventario y Editar (propuesta)</h1>
+  <p>Menos pestañas, filtros en desplegables y <b>Editar</b> con los mismos controles que <i>Añadir un punto</i>. Datos de prueba (los de staging). Tres versiones de Editar, ahora con el mapa como en el alta, cada una en móvil (412 px), tableta (768 px) y ordenador (1280 px).</p>
+  <nav class="indice"><a href="#cambios">Qué cambia</a><a href="#inventario">Inventario</a><a href="#ea">Editar · A</a><a href="#eb">Editar · B</a><a href="#ec">Editar · C</a></nav>
+</header>
+
+<section class="doc" id="cambios">
+  <h2>Qué cambia</h2>
+  <div class="cambios">
+    <div class="cambio"><h4>Pestañas: de 7 a 5</h4><ul>
+      <li>Quedan: <b>Cola de revisión · Inventario · Registro · Papelera · Ajustes</b>.</li>
+      <li>Fuera: <b>Revisiones caducadas</b> y <b>Voluntarios</b>.</li>
+      <li>Lo caducado se sigue viendo en la tabla: "hace 1 año" en rojo, y la columna <i>Última revisión</i> se puede ordenar.</li></ul></div>
+    <div class="cambio"><h4>Solo dos filtros, en desplegables</h4><ul>
+      <li>Quedan <b>Tipo</b> y <b>Estado</b>, los dos como desplegable.</li>
+      <li>Fuera: <b>Revisión</b>, <b>Núcleo</b> y <b>Diámetro</b>. El núcleo y el diámetro siguen siendo columnas que se pueden ordenar.</li>
+      <li>Con un filtro activo, el desplegable lleva borde grueso y sale "Quitar filtros".</li>
+      <li>Excel / CSV / GeoJSON pasan a un solo botón <b>Exportar ▾</b>. Tabla / Mapa no cambia.</li></ul></div>
+    <div class="cambio"><h4>Tipo de enganche: cuatro opciones</h4><ul>
+      <li><b>Barcelona · Granada · Directo · Otro</b>, en ese orden, cada una con su dibujo.</li>
+      <li>Vale para el alta del móvil, para Editar y para el inventario ("45 mm · enganche Directo").</li>
+      <li>Hace falta una migración: el valor nuevo <span class="mono">directo</span> en <span class="mono">racor</span>.</li></ul></div>
+    <div class="cambio"><h4>Editar como "Añadir un punto"</h4><ul>
+      <li><b>Mapa arriba</b>, con el pin y "Toca el mapa para ajustar el pin"; debajo, los mismos controles del alta.</li>
+      <li>El tipo se ve, pero bloqueado: no se cambia.</li>
+      <li>El fallo solo sale si el estado es Malo o No funciona.</li>
+      <li>Tres versiones: <b>A</b> ventana, <b>B</b> panel lateral con los cambios marcados, <b>C</b> página con el mapa grande al lado.</li></ul></div>
+    <div class="cambio decidir"><h4>lo que hacían las dos pestañas</h4><ul>
+      <li><b>Hoja de campo imprimible</b> (FR-122) → <i>Exportar ▾ › Hoja de campo</i>.</li>
+      <li><b>Anonimizar a un voluntario</b> (FR-131, RGPD: <u>tiene que seguir existiendo</u>) → <i>Ajustes › Privacidad</i>.</li>
+      <li><b>Incidencias de la aplicación</b> ("Algo no funciona", el badge "2") → <i>Ajustes › Incidencias</i>.</li>
+      <li><b>Actividad de voluntarios</b> (FR-130) → desaparece.</li></ul></div>
+    <div class="cambio decidir"><h4>mover el pin desde Editar</h4><ul>
+      <li>Con el mapa en Editar, jefatura <b>mueve el punto directamente</b>, sin pasar por la cola.</li>
+      <li>Queda en el Registro con la posición de antes y la nueva, como cualquier otro cambio de jefatura.</li>
+      <li>Los voluntarios siguen moviendo un punto con <i>Corregir ubicación</i>, que pasa por la cola.</li></ul></div>
+  </div>
+</section>
+
+<section class="doc" id="inventario">
+  <h2>Inventario: Tipo y Estado</h2>
+  <p class="intro">En el ordenador, el desplegable <b>Estado</b> está abierto: cada estado con su color y cuántos hay. En la tableta hay un filtro activo (<i>Bocas de riego</i>) y el menú de Exportar abierto.</p>
+  <div class="etq">Ordenador · 1280 px</div>
+  <div class="scroll"><div id="inv-pc"></div></div>
+  <div class="fila-disp">
+    <div><div class="etq">Tableta · 768 px</div><div id="inv-tab"></div></div>
+    <div><div class="etq">Móvil · 412 px</div><div id="inv-mov"></div></div>
+  </div>
+</section>
+
+<section class="doc" id="ea">
+  <h2>Editar · A · Ventana con el mapa arriba</h2>
+  <p class="intro">La misma ventana de hoy, pero por dentro igual que <i>Añadir un punto</i>: mapa a todo el ancho, y debajo tipo, diámetro, enganche y estado. <b>En el móvil, pantalla completa</b> con "Guardar cambios" fijo abajo, que se queda gris hasta que cambias algo.</p>
+  <div class="etq">Ordenador · 1280 px</div>
+  <div class="scroll"><div id="a-pc"></div></div>
+  <div class="fila-disp">
+    <div><div class="etq">Tableta · 768 px</div><div id="a-tab"></div></div>
+    <div><div class="etq">Móvil · 412 px</div><div id="a-mov"></div></div>
+  </div>
+</section>
+
+<section class="doc" id="eb">
+  <h2>Editar · B · Panel lateral con los cambios marcados</h2>
+  <p class="intro">Se abre desde la derecha y <b>la tabla sigue a la vista</b>. Arriba, la banda del estado; debajo, el mapa y los campos. Lo que tocas se marca como en la cola: banda naranja, "cambia" y "antes: …". En el mapa, la posición de antes queda en gris, unida a la nueva con los metros. Aquí se ha movido el pin 6 m y se ha cambiado el enganche a <b>Directo</b>.</p>
+  <div class="etq">Ordenador · 1280 px</div>
+  <div class="scroll"><div id="b-pc"></div></div>
+  <div class="fila-disp">
+    <div><div class="etq">Tableta · 768 px</div><div id="b-tab"></div></div>
+    <div><div class="etq">Móvil · 412 px</div><div id="b-mov"></div></div>
+  </div>
+</section>
+
+<section class="doc" id="ec">
+  <h2>Editar · C · Página con el mapa grande al lado</h2>
+  <p class="intro">Una página propia (<span class="mono">/admin/inventario/BOC-0001</span>). En el ordenador, <b>el mapa ocupa media pantalla</b> a la izquierda y se queda fijo; el formulario va a la derecha. En la tableta y el móvil, mapa arriba y formulario debajo, igual que en la captura del alta. Para colocar el pin con precisión es la mejor, pero es una pantalla más.</p>
+  <div class="etq">Ordenador · 1280 px</div>
+  <div class="scroll"><div id="c-pc"></div></div>
+  <div class="fila-disp">
+    <div><div class="etq">Tableta · 768 px</div><div id="c-tab"></div></div>
+    <div><div class="etq">Móvil · 412 px</div><div id="c-mov"></div></div>
+  </div>
+</section>
+
+<section class="doc">
+  <h2>Mi consejo</h2>
+  <div class="lista-fin">
+    <p><b>Editar · B.</b> Con el mapa dentro, mover un punto es fácil y también es fácil hacerlo sin querer. B enseña lo que has movido ("6 m") y lo que has cambiado antes de guardar. En el móvil es igual que la A.</p>
+    <p><b>Las dos pestañas:</b> la hoja de campo en Exportar, y anonimizar e incidencias en Ajustes. Anonimizar tiene que quedarse: es la manera de cumplir el derecho de supresión.</p>
+  </div>
+</section>
+<footer class="doc">Mockup, no es la app. Colores y tipos de docs/06 · datos de prueba de staging.</footer>
+
+<script>
+// ---------- datos ----------
+const PUNTOS=[
+ ['BOC-0001','Boca de riego','45 mm · enganche Granada','nf','Ciclovía Maracena - Albolote','Barrio Seco','hace 15 h · 4 oct 2026',0],
+ ['BOC-0002','Boca de riego','45 mm · enganche Otro','bueno','','La Farfana','hace 15 h · 4 oct 2026',0],
+ ['BOC-9001','Boca de riego','45 mm · enganche Granada','bueno','','Calicasas','hace 1 mes · 29 ago 2026',0],
+ ['BOC-9002','Boca de riego','45 mm · enganche Barcelona','regular','','Parque del Cubillas','hace 1 año · 14 ago 2025',1],
+ ['BOC-9004','Boca de riego','45 mm · enganche Granada','nf','','Calicasas','hace 26 días · 8 sept 2026',0],
+ ['HID-9001','Hidrante','70 mm','bueno','','Albolote','hace 1 mes · 19 ago 2026',0],
+ ['HID-9002','Hidrante','100 mm','regular','','Barrio Seco','hace 2 meses · 20 jul 2026',0],
+ ['HID-9003','Hidrante','100 mm','malo','','Cortijo del Aire','hace 1 año · 15 jul 2025',1],
+ ['HID-9005','Hidrante','70 mm','bueno','','Pretel','hace 1 mes · 3 sept 2026',0],
+ ['HID-9006','Hidrante','70 mm','regular','','La Farfana','hace 1 año · 6 may 2025',1],
+ ['HID-9007','Hidrante','70 mm','malo','','Urbanización Buenavista','hace 2 meses · 4 ago 2026',0]];
+const EST={bueno:['Bueno','c-bueno','var(--verde-600)'],regular:['Regular','c-regular','var(--amarillo-500)'],malo:['Malo','c-malo','var(--rojo-700)'],barro:['Barro','c-barro','var(--marron-600)'],nf:['No funciona','c-nf','var(--gris-700)']};
+const chip=e=>`<span class="chip ${EST[e][1]}">${EST[e][0]}</span>`;
+const fecha=(t,v)=>{const [a,b]=t.split(' · ');return v?`<span class="viejo">${a}</span> · ${b}`:t};
+
+// ---------- marcos ----------
+function marco(tipo,ancho,alto,html){
+  if(tipo==='pc')return `<div class="disp pc" style="width:${ancho}px"><div class="pc-barra"><i></i><i></i><i></i><span>hidrantes-albolote · /admin/inventario</span></div><div class="pantalla" style="height:${alto}px">${html}</div></div>`;
+  return `<div class="disp ${tipo}"><div class="pantalla" style="width:${ancho}px;height:${alto}px">${html}</div></div>`;
+}
+const barPanel=m=>`<div class="bar">${m?'Panel':'Panel de jefatura'}<span class="ir">Ir al mapa</span></div>`;
+const tabs=(m,activa='Inventario')=>{
+  const t=[['Cola de revisión','<span class="badge">7</span>'],['Inventario','<span class="badge g">11</span>'],['Registro',''],['Papelera','<span class="badge g">2</span>'],['Ajustes','<span class="badge">2</span>']];
+  return `<div class="tabs${m?' m':''}">${t.map(([n,b])=>`<span class="${n===activa?'on':''}">${m&&n==='Cola de revisión'?'Cola':n}${b}</span>`).join('')}</div>`;
+};
+const sel=(etq,val,{activo,punto,ancho}={})=>`<label class="sel${activo?' activo':''}" style="${ancho?`width:${ancho}`:''}"><span>${etq}</span><div>${punto?`<i class="p" style="background:${punto}"></i>`:''}${val}</div></label>`;
+
+// ---------- inventario ----------
+function tablaPc(filas,selec){
+  return `<table class="inv"><thead><tr><th>Código ▲</th><th>Tipo</th><th>Diámetro</th><th>Estado</th><th>Dirección</th><th>Núcleo</th><th>Última revisión</th><th>Acciones</th></tr></thead><tbody>${
+   filas.map(p=>`<tr class="${p[0]===selec?'rsel':''}"><td class="cod">${p[0]}</td><td>${p[1]}</td><td>${p[2]}</td><td>${chip(p[3])}</td><td class="${p[4]?'':'sug'}">${p[4]||'— pendiente, escribe aquí'}</td><td>${p[5]}</td><td>${fecha(p[6],p[7])}</td><td class="acc"><a>Editar</a><a>Retirar</a><a>Historial</a><a class="borrar">Borrar</a></td></tr>`).join('')}</tbody></table>`;
+}
+function tablaTab(filas,selec){
+  return `<table class="inv"><thead><tr><th>Código ▲</th><th>Diámetro</th><th>Estado</th><th>Núcleo</th><th>Revisión</th><th></th></tr></thead><tbody>${
+   filas.map(p=>`<tr class="${p[0]===selec?'rsel':''}"><td class="cod">${p[0]}</td><td>${p[2].replace(' · enganche ',' · ')}</td><td>${chip(p[3])}</td><td>${p[5]}</td><td>${p[7]?'<span class="viejo">hace 1 año</span>':p[6].split(' · ')[0]}</td><td class="acc"><a>Editar</a><a>⋯</a></td></tr>`).join('')}</tbody></table>`;
+}
+function tarjetas(filas){
+  return filas.map(p=>`<div class="tarj"><span class="cod">${p[0]}</span><span class="e">Editar</span><span class="s">${p[2]} · ${chip(p[3])}</span><span class="s" style="grid-column:1/-1">${p[5]} · ${p[7]?'<span class="viejo">hace 1 año</span>':p[6].split(' · ')[0]}</span></div>`).join('');
+}
+const derecha=`<div class="der"><label class="sel"><span>&nbsp;</span><div>Exportar</div></label><div class="seg"><span class="on">Tabla</span><span>Mapa</span></div></div>`;
+function filtrosPc(conMenu){
+  return `<div class="filtros" style="position:relative">
+   ${sel('Tipo','Todos',{ancho:'210px'})}${sel('Estado','Todos',{ancho:'210px'})}${derecha}
+   ${conMenu?`<div class="menu" style="left:240px;top:80px;width:240px">
+     <div class="on">Todos<span class="n">11</span></div><hr>
+     ${['bueno','regular','malo','barro','nf'].map(e=>`<div><i class="p" style="width:11px;height:11px;border-radius:50%;background:${EST[e][2]}"></i>${EST[e][0]}<span class="n">${{bueno:4,regular:3,malo:2,barro:0,nf:2}[e]}</span></div>`).join('')}</div>`:''}
+  </div>`;
+}
+function invPc(){return marco('pc',1280,760,`${barPanel()}${tabs()}${filtrosPc(true)}<div style="overflow:hidden">${tablaPc(PUNTOS)}</div>`)}
+function invTab(){
+  const bocas=PUNTOS.filter(p=>p[1]==='Boca de riego');
+  return marco('tablet',768,900,`${barPanel()}${tabs()}
+   <div class="filtros" style="position:relative;flex-wrap:nowrap">
+    ${sel('Tipo','Bocas de riego',{activo:1,ancho:'200px'})}${sel('Estado','Todos',{ancho:'150px'})}<a class="quitar" style="white-space:nowrap">Quitar filtros</a>${derecha}
+    <div class="menu" style="right:118px;top:84px;width:270px">
+      <div>Excel</div><div>CSV</div><div>GeoJSON</div><hr>
+      <div style="display:block">Hoja de campo<small>revisiones caducadas, por núcleo, para imprimir</small></div></div>
+   </div>
+   <div style="overflow:hidden">${tablaTab(bocas)}</div>`);
+}
+function invMov(){
+  const bocas=PUNTOS.filter(p=>p[1]==='Boca de riego');
+  return marco('movil',412,860,`${barPanel(1)}${tabs(1)}
+   <div class="filtros" style="padding:12px 14px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%">${sel('Tipo','Bocas de riego',{activo:1})}${sel('Estado','Todos')}</div>
+    <div style="display:flex;gap:10px;width:100%;align-items:flex-end"><a class="quitar" style="padding-bottom:12px">Quitar filtros</a><div class="der"><label class="sel"><div>Exportar</div></label><div class="seg"><span class="on">Tabla</span><span>Mapa</span></div></div></div>
+   </div>
+   <div style="padding:8px 14px;font-size:13.5px;color:var(--texto-suave)">5 de 11 puntos</div>
+   <div style="overflow:hidden">${tarjetas(bocas)}</div>`);
+}
+
+// ---------- dibujos de los enganches (como los de la app: trazo marino sobre gris azulado) ----------
+const ICONO={
+ barcelona:`<svg viewBox="0 0 48 48" fill="none" stroke="#1D3A63" stroke-width="2.2" stroke-linejoin="round"><path d="M12 17h-3l-3 4v6l3 4h3M36 17h3l3 4v6l-3 4h-3"/><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="6"/><circle cx="24" cy="24" r="2" fill="#1D3A63"/></svg>`,
+ granada:`<svg viewBox="0 0 48 48" fill="none" stroke="#1D3A63" stroke-width="2.2" stroke-linejoin="round"><polygon points="24,7 39,15.5 39,32.5 24,41 9,32.5 9,15.5"/><circle cx="24" cy="24" r="10"/><circle cx="24" cy="24" r="6" stroke-dasharray="2.4 2"/><circle cx="24" cy="24" r="2" fill="#1D3A63"/></svg>`,
+ directo:`<svg viewBox="0 0 48 48" fill="none" stroke="#1D3A63" stroke-width="2.2" stroke-linejoin="round"><rect x="6" y="17" width="16" height="14" rx="1.5"/><rect x="22" y="14" width="6" height="20" rx="1"/><path d="M28 18h12v12H28"/><path d="M31 18v12M34 18v12M37 18v12"/></svg>`
+};
+const NOMBRE_R={barcelona:'Barcelona',granada:'Granada',directo:'Directo',otro:'Otro'};
+function enganches(valor,movil){
+  return `<div class="racores4${movil?' m':''}">${['barcelona','granada','directo','otro'].map(r=>`<span class="${r===valor?'on':''}">${r!=='otro'?`<i class="ico">${ICONO[r]}</i>`:''}${NOMBRE_R[r]}</span>`).join('')}</div>`;
+}
+
+// ---------- mapa del formulario (como el del alta) ----------
+function mapaForm(h,{antes=false,grande=false,w=600}={}){
+  const cx=w*0.5, cy=h*0.45, m=Math.min(w,h*1.6);
+  return `<div class="mapa-f" style="height:${h}px"><svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid slice">
+   <rect width="${w}" height="${h}" fill="#EDEAE2"/>
+   <path d="M0 0H${w*0.35}L${w*0.25} ${h}H0Z" fill="#E7DDD6"/>
+   <path d="M${w*0.55} 0H${w}V${h*0.25}Q${w*0.7} ${h*0.2} ${w*0.55} 0Z" fill="#C8DDBF"/>
+   <path d="M${w*0.38} ${h*0.7}L${w*0.62} ${h*0.66}L${w*0.6} ${h}H${w*0.35}Z" fill="#C8DDBF"/>
+   <path d="M0 ${h*0.27}L${w*0.3} ${h*0.3}Q${w*0.4} ${h*0.15} ${w*0.5} ${h*0.25}" stroke="#fff" stroke-width="14" fill="none"/>
+   <path d="M${w*0.6} ${h*0.48}L${w} ${h*0.2}" stroke="#fff" stroke-width="16"/>
+   <path d="M${w*0.6} ${h*0.55}L${w*0.62} ${h}" stroke="#fff" stroke-width="16"/>
+   <path d="M${w*0.7} ${h*0.95}L${w} ${h*0.72}" stroke="#fff" stroke-width="12"/>
+   <circle cx="${w*0.6}" cy="${h*0.5}" r="${m*0.07}" fill="none" stroke="#fff" stroke-width="12"/>
+   <path d="M${w*0.12} 0L${w*0.08} ${h}" stroke="#7C8AA0" stroke-width="2" stroke-dasharray="8 6"/>
+   <text x="${w*0.6}" y="${h*0.72}" font-size="13" fill="#6F7680" transform="rotate(80 ${w*0.6} ${h*0.72})" font-family="Source Sans 3">Avenida de los Llanos</text>
+   <text x="${w*0.82}" y="${h*0.86}" font-size="13" fill="#6F7680" transform="rotate(-28 ${w*0.82} ${h*0.86})" font-family="Source Sans 3">Calle Viena</text>
+   <circle cx="${cx}" cy="${cy}" r="${m*0.27}" fill="#7C8696" opacity=".22"/>
+   ${antes?`<g opacity=".55"><circle cx="${cx-46}" cy="${cy+22}" r="7" fill="#7C8696" stroke="#fff" stroke-width="2.5"/></g>
+     <path d="M${cx-38} ${cy+18}L${cx-12} ${cy+4}" stroke="#40453D" stroke-width="2" stroke-dasharray="5 4"/>
+     <text x="${cx-60}" y="${cy+48}" font-size="13" font-weight="700" fill="#40453D" font-family="Source Sans 3">antes · 6 m</text>`:''}
+   <g transform="translate(${cx} ${cy})"><path d="M0 0C-4 -9 -15 -14 -15 -27A15 15 0 0 1 15 -27C15 -14 4 -9 0 0Z" fill="#C94F16" stroke="#fff" stroke-width="2"/><circle cy="-27" r="5.5" fill="#fff"/></g>
+  </svg><span class="loc">⌖</span></div><p class="toca">Toca el mapa para ajustar el pin</p>`;
+}
+
+// ---------- formulario de editar ----------
+function camposEditar({movil=false,estado='nf',marcar=false,racor='granada',mapa=true,mapaH=230,antes=false}={}){
+  const pild=`<div class="pild${movil?' m':''}">${['bueno','regular','malo','barro','nf'].map(e=>`<span class="${e===estado?'on '+EST[e][1]:''}">${EST[e][0]}</span>`).join('')}</div>`;
+  const conFallo=estado==='nf'||estado==='malo';
+  const ubic=mapa?`<div class="${marcar&&antes?'campo cambia':'campo'}">${marcar&&antes?'<span>Ubicación</span>':''}${mapaForm(mapaH,{antes})}</div>`:'';
+  const tipo=`<div class="campo"><span>Tipo de elemento</span><div class="segm2 bloq"><span>Hidrante</span><span class="on">🔒 Boca de riego</span></div><small>El tipo no se cambia: retíralo y da de alta el correcto.</small></div>`;
+  const diam=`<div class="campo"><span>Diámetro de la salida mayor</span><div class="segm2"><span class="on">45 mm</span><span>70 mm</span><span>Otra medida</span></div></div>`;
+  const rCambia=marcar&&racor!=='granada';
+  const rac=`<div class="${rCambia?'campo cambia':'campo'}"><span>Tipo de enganche</span>${enganches(racor,movil)}${rCambia?'<div class="antes">antes: <s>Granada</s></div>':''}</div>`;
+  const est=`<div class="campo"><span>Caudal / estado</span>${pild}</div>`;
+  const fallo=conFallo?`<div class="campo"><span>Descripción del fallo · obligatoria</span><div class="inp">No abre</div></div>`:'';
+  const dir=`<div class="campo"><span>Dirección</span><div class="inp">Ciclovía Maracena - Albolote, Albolote</div></div>`;
+  const desc=`<div class="campo"><span>Descripción (opcional)</span><div class="inp area">En la entrada de la protección civil de Albolote</div></div>`;
+  return `<div class="form">${ubic}${tipo}${diam}${rac}${est}${fallo}${dir}${desc}</div>`;
+}
+const gris='background:#D6D8CF;color:#7A8079';
+const fondoTabla=(w)=>`${barPanel(w<500)}${tabs(w<500)}${w>1000?filtrosPc(false):''}<div style="overflow:hidden">${w>1000?tablaPc(PUNTOS,'BOC-0001'):tablaTab(PUNTOS,'BOC-0001')}</div>`;
+const pieA=`<div class="pie botones"><span class="resumen">No has cambiado nada</span><span class="bs">Cancelar</span><span class="bp" style="${gris}">Guardar cambios</span></div>`;
+
+// A · ventana
+function aPc(){return marco('pc',1280,1180,`${fondoTabla(1280)}<div class="velo"></div>
+ <div class="dialogo" style="left:320px;top:40px;width:640px;height:1100px"><div class="cab"><span class="mono" style="font-size:21px">BOC-0001</span> · Editar<span class="x">×</span></div>
+ <div class="cuerpo">${camposEditar({mapaH:250})}</div>${pieA}</div>`)}
+function aTab(){return marco('tablet',768,1100,`${fondoTabla(768)}<div class="velo"></div>
+ <div class="dialogo" style="left:40px;top:36px;width:688px;height:1030px"><div class="cab"><span class="mono" style="font-size:21px">BOC-0001</span> · Editar<span class="x">×</span></div>
+ <div class="cuerpo">${camposEditar({mapaH:220})}</div>${pieA}</div>`)}
+function aMov(){return marco('movil',412,915,`<div class="bar"><span class="mono" style="font-size:18px">BOC-0001</span> · Editar<span class="x">×</span></div>
+ <div style="flex:1;overflow:hidden;padding:12px 14px">${camposEditar({movil:true,mapaH:230})}</div>
+ <div class="pie"><span class="bp" style="${gris}">Guardar cambios</span></div>`)}
+
+// B · panel lateral
+const bandaB=`<div class="banda" style="background:var(--gris-700)"><span class="cod">BOC-0001</span><span style="opacity:.85;font-size:14px">Editar</span><span class="est">No funciona</span><span class="x">×</span></div>`;
+const pieB=`<div class="pie botones"><span class="resumen"><b>2 cambios</b> · ubicación, enganche</span><span class="bs">Cancelar</span><span class="bp">Guardar cambios</span></div>`;
+const optB={estado:'nf',marcar:true,racor:'directo',antes:true};
+function bPc(){return marco('pc',1280,1180,`${fondoTabla(1280)}
+ <div class="cajon" style="width:540px">${bandaB}<div style="flex:1;overflow:hidden;padding:14px 16px">${camposEditar({...optB,mapaH:230})}</div>${pieB}</div>`)}
+function bTab(){return marco('tablet',768,1100,`${fondoTabla(768)}<div class="velo" style="background:rgba(14,27,48,.25)"></div>
+ <div class="cajon" style="width:500px">${bandaB}<div style="flex:1;overflow:hidden;padding:14px 16px">${camposEditar({...optB,mapaH:210})}</div>${pieB}</div>`)}
+function bMov(){return marco('movil',412,915,`${bandaB}
+ <div style="flex:1;overflow:hidden;padding:12px 14px">${camposEditar({...optB,movil:true,mapaH:200})}</div>
+ <div class="pie"><div style="display:flex;align-items:center;gap:10px"><span class="resumen" style="font-size:13.5px;color:var(--texto-suave)"><b style="color:var(--naranja-texto)">2 cambios</b></span><span class="bp" style="flex:1">Guardar cambios</span></div></div>`)}
+
+// C · página con el mapa grande
+const cabC=`<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span class="migas">‹ Inventario</span><span class="titulo-p"><span class="mono" style="font-size:23px">BOC-0001</span> · Editar</span><span class="chip c-nf" style="margin-left:auto">No funciona · hace 15 h</span></div>`;
+function cPc(){return marco('pc',1280,1000,`${barPanel()}${tabs()}
+ <div style="flex:1;overflow:hidden;display:grid;grid-template-columns:1fr 560px">
+  <div style="position:relative;border-right:1px solid var(--linea);display:flex;flex-direction:column">${mapaForm(750,{grande:true,w:720}).replace('class="mapa-f"','class="mapa-f grande"')}
+   <div class="coords"><span>WGS84 · grados decimales</span><b class="mono">37.268140, -3.651820</b><span>ETRS89 · UTM huso 30N</span><b class="mono">442147 E · 4124512 N</b></div></div>
+  <div style="overflow:hidden;padding:18px 24px;display:flex;flex-direction:column;gap:14px">${cabC}${camposEditar({mapa:false})}</div></div>
+ <div class="pie botones" style="padding:12px 24px"><span class="resumen">No has cambiado nada</span><span class="bs">Cancelar</span><span class="bp" style="${gris}">Guardar cambios</span></div>`)}
+function cTab(){return marco('tablet',768,1100,`${barPanel()}${tabs()}
+ <div style="flex:1;overflow:hidden;padding:14px 20px;display:flex;flex-direction:column;gap:12px">${cabC}${camposEditar({mapaH:300})}</div>
+ ${pieA}`)}
+function cMov(){return marco('movil',412,915,`<div class="bar"><span style="font-size:24px">‹</span><span class="mono" style="font-size:18px">BOC-0001</span> · Editar</div>
+ <div style="flex:1;overflow:hidden;padding:12px 14px">${camposEditar({movil:true,mapaH:260})}</div>
+ <div class="pie"><span class="bp" style="${gris}">Guardar cambios</span></div>`)}
+const pon=(id,html)=>{document.getElementById(id).innerHTML=html};
+pon('inv-pc',invPc());pon('inv-tab',invTab());pon('inv-mov',invMov());
+pon('a-pc',aPc());pon('a-tab',aTab());pon('a-mov',aMov());
+pon('b-pc',bPc());pon('b-tab',bTab());pon('b-mov',bMov());
+pon('c-pc',cPc());pon('c-tab',cTab());pon('c-mov',cMov());
+</script>
+</body></html>
