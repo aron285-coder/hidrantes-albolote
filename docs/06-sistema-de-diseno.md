@@ -445,11 +445,17 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Cerrar la leyenda` · `Zoom` · `Acercar` · `Alejar` ·
 `funciona sin cobertura` · `solo en línea` · `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
 
-**Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089). `Coordenadas` · `Decimal` ·
-`UTM ETRS89 · huso 30` · `Copiar [decimal]` · `Copiado` ·
+> **Coordenadas con su sistema (DEC-157).** Cada coordenada lleva delante el nombre de su sistema, en
+> la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte: `WGS84 · grados decimales`
+> (6 decimales, lo que da el GPS) y `ETRS89 · UTM huso 30N` (EPSG:25830, redondeada a metro). En
+> `30S 441808 4120645`, la **S es la banda de latitud de MGRS** (de 32° a 40° N; Albolote está a 37° N),
+> **no "sur"**: el huso es el 30 **norte**, y por eso la etiqueta dice `30N`.
+
+**Funciones de mapa para emergencias** (FR-72 a FR-76, DEC-089, DEC-157). `Coordenadas` · `WGS84 · grados decimales` ·
+`ETRS89 · UTM huso 30N` · `Copiar [WGS84 · grados decimales]` · `Copiado` ·
 `No se ha podido copiar: mantén pulsado el texto para copiarlo` · `¿Qué hay aquí?` ·
 `Cercanos desde aquí` · `Compartir esta ubicación` · `Añadir un punto aquí` · `Compartir` · `Ubicación` ·
-`[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[37.230500, -3.656000] · UTM [30S 441808 4120645] (ETRS89)` ·
+`[HID-0123] · [hidrante] [100 mm] · [bueno]` · `[sistema]: [coordenadas]`, una línea por sistema: `WGS84 · grados decimales: [37.230500, -3.656000]` y, debajo, `ETRS89 · UTM huso 30N: [30S 441808 4120645]` ·
 `Copiado: pégalo donde quieras` · `No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo` ·
 `Cercanos` · `Incidente` · `Desde tu posición` · `Desde el punto marcado` · `Posición de [hace 3 min]` ·
 `Solo hidrantes` · `Distancias en línea recta` ·
