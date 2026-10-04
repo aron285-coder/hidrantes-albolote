@@ -51,11 +51,32 @@ describe('las doce combinaciones (06 §4.2)', () => {
   it('cinco colores de estado, uno por nivel y sin "defecto" (Barro: docs/24 RV-102)', () => {
     expect(COLOR_CAUDAL).toEqual({
       bueno: 'var(--verde-600)',
-      regular: 'var(--naranja-estado-600)',
+      regular: 'var(--amarillo-500)',
       malo: 'var(--rojo-700)',
       barro: 'var(--marron-600)',
       no_funciona: 'var(--gris-700)',
     });
+  });
+});
+
+describe('borde por estado (docs/25 RV-105, DEC-154)', () => {
+  const trazo = (svg: string) => /data-forma="\w+"[^>]* stroke="(var\([^)]+\))"/.exec(svg)?.[1];
+
+  it.each(TABLA)('%s %i mm %s lleva el borde de su estado', (tipo, _d, caudal, radio) => {
+    const svg = svgMarcador({ tipo, caudal, radio_px: radio, revision_caducada: false });
+    expect(trazo(svg)).toBe(caudal === 'regular' ? 'var(--borde-marcador-regular)' : 'var(--borde-marcador)');
+  });
+
+  it('regular sin revisar: el borde oscuro, discontinuo', () => {
+    const svg = svgMarcador({ tipo: 'boca_riego', caudal: 'regular', radio_px: 7, revision_caducada: true });
+    expect(trazo(svg)).toBe('var(--borde-marcador-regular)');
+    expect(svg).toContain('stroke-dasharray="3 2.5"');
+  });
+
+  it('barro, con el borde de siempre también en el tachado', () => {
+    const svg = svgMarcador({ tipo: 'hidrante', caudal: 'barro', radio_px: 9, revision_caducada: false });
+    expect(trazo(svg)).toBe('var(--borde-marcador)');
+    expect(svg).toMatch(/<line data-tachado[^>]* stroke="var\(--borde-marcador\)"/);
   });
 });
 

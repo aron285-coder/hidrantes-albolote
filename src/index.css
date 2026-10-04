@@ -24,26 +24,29 @@
   --texto: #1b2430;
   --texto-suave: #5a6472;
 
-  /* 06 §2.2 · estados (idénticos en claro y oscuro) */
-  --verde-600: #2e7d4f;
-  /* Solo para texto sobre --verde-100: el 600 se queda en 4,17:1 y TR-31 pide 4,5:1 (DEC-072).
+  /* 06 §2.2 · estados (idénticos en claro y oscuro). Colores de seguridad RAL de ISO 3864
+     (DEC-154): verde RAL 6032, amarillo RAL 1003 y rojo RAL 3001. */
+  /* RAL 6032 es #237F52; un punto más oscuro para llegar a 3:1 sobre el agua y los árboles del
+     mapa claro (2,97:1 → 3,01:1), donde el borde blanco no ayuda (DEC-154). */
+  --verde-600: #237e51;
+  /* Solo para texto sobre --verde-100: el 600 se queda en 4,16:1 y TR-31 pide 4,5:1 (DEC-072).
      El relleno de los marcadores sigue siendo el 600, tal y como lo fija 06 §4.2. */
-  --verde-700: #276b42;
+  --verde-700: #1e6b45;
   --verde-100: #dceee1;
-  /* "regular" es naranja desde el 21 sep 2026: el ámbar de antes (#8A6408) se leía marrón en el
-     móvil, a pleno sol (DEC-076). Es el mismo claror que tenía el ámbar —3,22:1 sobre las
-     superficies más oscuras del mapa claro, donde el borde blanco no ayuda— pero naranja de verdad.
-     Más claro no se puede: #CC6600 se queda en 2,30:1 sobre el agua y TR-31 pide 3:1. */
-  --naranja-estado-600: #a85300;
-  /* Solo para el texto del chip sobre --naranja-estado-100: el 600 ahí se queda en 3,31:1. */
-  --naranja-estado-700: #8f4505;
-  --naranja-estado-100: #fde8d6;
+  /* "regular" es amarillo RAL 1003 desde el 4 oct 2026 (DEC-154): el naranja de antes se
+     parecía al rojo de "malo", también con daltonismo. El amarillo se separa del rojo por su
+     claridad (4,0:1). Es tan claro que necesita texto oscuro encima (nunca blanco, 1,96:1) y un
+     borde propio en el marcador (--borde-marcador-regular). */
+  --amarillo-500: #f9a900;
+  /* Texto del chip sobre --amarillo-100 (6,86:1). */
+  --amarillo-800: #6b4e00;
+  --amarillo-100: #fff1c2;
   /* El ámbar se queda para lo que es aviso (señales, diferencias, pendiente), que no es caudal.
      Bajó de #8A6408 a #7F5C07 el 22 sep 2026: como caudal era un relleno de marcador y le bastaba
      con 3:1, pero como texto del aviso va sobre --oro-100 y ahí se quedaba en 4,33:1 (DEC-081). */
   --ambar-700: #7f5c07;
   --ambar-100: #fbedcb;
-  --rojo-700: #9c2b1e;
+  --rojo-700: #9b2423;
   --rojo-100: #fbe0db;
   --gris-700: #40453d;
   --gris-100: #e5e4dc;
@@ -58,6 +61,10 @@
   /* Blanco en los dos modos: el borde es lo que separa el marcador del mapa (06 §4.2). Un borde
      oscuro sobre el mapa oscuro se queda en 1,16:1 y el marcador desaparece (TR-31, DEC-072). */
   --borde-marcador: #ffffff;
+  /* El borde de "regular" (DEC-154): el amarillo sobre el mapa claro se queda en 1,66:1, así que
+     lo separa un borde oscuro (5,13:1 con el relleno, 8,53:1 con el fondo del mapa). Es #5C4300
+     un punto más oscuro, para llegar a 3:1 también sobre los rótulos (#8A9090). */
+  --borde-marcador-regular: #563e00;
   --anillo-seleccion: var(--marino-950);
   /* Líneas del incidente a cada candidato (06 §4.7). */
   --linea-incidente: var(--marino-600);
@@ -83,6 +90,8 @@
     --naranja-texto: #f0a070;
     --anillo-seleccion: #e6eaf0;
     --linea-incidente: rgba(230, 234, 240, 0.7);
+    /* En el mapa oscuro manda el relleno amarillo (≥ 4,5:1); el blanco no se separaría de él. */
+    --borde-marcador-regular: #111826;
     color-scheme: dark;
   }
 }
@@ -99,6 +108,7 @@
   --naranja-texto: #f0a070;
   --anillo-seleccion: #e6eaf0;
   --linea-incidente: rgba(230, 234, 240, 0.7);
+  --borde-marcador-regular: #111826;
   color-scheme: dark;
 }
 
@@ -122,9 +132,9 @@
   --color-verde-600: var(--verde-600);
   --color-verde-700: var(--verde-700);
   --color-verde-100: var(--verde-100);
-  --color-naranja-estado-600: var(--naranja-estado-600);
-  --color-naranja-estado-700: var(--naranja-estado-700);
-  --color-naranja-estado-100: var(--naranja-estado-100);
+  --color-amarillo-500: var(--amarillo-500);
+  --color-amarillo-800: var(--amarillo-800);
+  --color-amarillo-100: var(--amarillo-100);
   --color-ambar-700: var(--ambar-700);
   --color-ambar-100: var(--ambar-100);
   --color-rojo-700: var(--rojo-700);
