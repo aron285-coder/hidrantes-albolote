@@ -33,7 +33,8 @@ describe('textos para compartir', () => {
       [
         'HID-0123 · hidrante 100 mm · bueno',
         'Calle Real 5, Albolote',
-        '37.230500, -3.656000 · UTM 30S 441808 4120645 (ETRS89)',
+        'WGS84 · grados decimales: 37.230500, -3.656000',
+        'ETRS89 · UTM huso 30N: 30S 441808 4120645',
         'https://www.google.com/maps/search/?api=1&query=37.230500,-3.656000',
       ].join('\n'),
     );
@@ -52,11 +53,25 @@ describe('textos para compartir', () => {
     expect(textoUbicacion({ lat: 37.2305, lng: -3.656 }, 'Calle Real')).toBe(
       [
         'Calle Real',
-        '37.230500, -3.656000 · UTM 30S 441808 4120645 (ETRS89)',
+        'WGS84 · grados decimales: 37.230500, -3.656000',
+        'ETRS89 · UTM huso 30N: 30S 441808 4120645',
         'https://www.google.com/maps/search/?api=1&query=37.230500,-3.656000',
       ].join('\n'),
     );
-    expect(textoUbicacion({ lat: 37.2305, lng: -3.656 }).split('\n')).toHaveLength(2);
+    expect(textoUbicacion({ lat: 37.2305, lng: -3.656 }).split('\n')).toHaveLength(3);
+  });
+
+  it('cada coordenada lleva delante el nombre de su sistema (RV-109, DEC-157)', () => {
+    const texto = textoPunto(PUNTO);
+    expect(texto).toContain('WGS84');
+    expect(texto).toContain('ETRS89 · UTM huso 30N');
+    expect(texto).not.toContain('(ETRS89)');
+  });
+
+  it('fuera del huso 30 solo va la línea WGS84, sin UTM', () => {
+    const texto = textoUbicacion({ lat: 41.3874, lng: 2.1686 });
+    expect(texto.split('\n')[0]).toBe('WGS84 · grados decimales: 41.387400, 2.168600');
+    expect(texto).not.toContain('UTM');
   });
 });
 

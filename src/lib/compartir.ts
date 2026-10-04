@@ -8,10 +8,14 @@ import { nombreCaudal, nombreTipo } from './ficha';
 import type { Punto } from './puntos';
 import { T } from './textos';
 
-/** Coordenadas en decimal y, si caen en el huso 30, también en UTM. */
+/**
+ * Las coordenadas, una línea por sistema y con su nombre delante (docs/25 RV-109, DEC-157): WGS84 en
+ * grados decimales y, si caen en el huso 30, también ETRS89 / UTM 30N. Las mismas etiquetas que la ficha.
+ */
 export function lineaCoordenadas(l: LatLng): string {
-  const decimal = formatoDecimal(l);
-  return dentroDelHuso(l) ? T.compartir.lineaCoordenadas(decimal, formatoUtm(aUtm(l), l.lat)) : decimal;
+  const lineas = [T.compartir.lineaSistema(T.coordenadas.decimal, formatoDecimal(l))];
+  if (dentroDelHuso(l)) lineas.push(T.compartir.lineaSistema(T.coordenadas.utm, formatoUtm(aUtm(l), l.lat)));
+  return lineas.join('\n');
 }
 
 /** El texto de un punto, en el formato de docs/18 GM-05. */

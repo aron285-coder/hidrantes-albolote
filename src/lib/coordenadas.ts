@@ -89,7 +89,10 @@ export function desdeUtm(u: { x: number; y: number }): LatLng {
 /** "37.230500, -3.656000": seis decimales, unos 10 cm. */
 export const formatoDecimal = (p: LatLng) => `${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}`;
 
-/** Letra de la banda de latitud: la zona está en la S (32° a 40° N). */
+/**
+ * Letra de la banda de latitud de MGRS: la zona está en la S (32° a 40° N). No es "sur": el huso es
+ * el 30 norte (EPSG:25830, docs/25 RV-109).
+ */
 function banda(lat: number): string {
   const letras = 'CDEFGHJKLMNPQRSTUVWX';
   return letras[Math.min(letras.length - 1, Math.max(0, Math.floor((lat + 80) / 8)))]!;

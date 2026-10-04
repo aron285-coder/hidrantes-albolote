@@ -660,6 +660,17 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-157 · Cada coordenada lleva el nombre de su sistema: WGS84 y ETRS89 / UTM huso 30N
+- **Fecha:** 4 oct 2026 (desarrollador, `docs/25` RV-109) · **Estado:** vigente.
+- **Contexto:** la ficha y *¿Qué hay aquí?* decían "Decimal" y "UTM ETRS89 · huso 30", y el texto de *Compartir* juntaba las dos en una línea con "(ETRS89)" al final. Quien recibe las coordenadas (bomberos, el 112, otro grupo) tiene que saber en qué sistema están sin preguntar, y "30S" se podía leer como "huso 30 sur".
+- **Decisión:**
+  1. Las etiquetas son **"WGS84 · grados decimales"** (`37.230500, -3.656000`, 6 decimales) y **"ETRS89 · UTM huso 30N"** (`30S 445175 4125393`, a metro), en la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte. Cada línea, con su botón de copiar, como hasta ahora.
+  2. **Compartir** (FR-75) lleva una línea por sistema con su nombre delante: `WGS84 · grados decimales: …` y `ETRS89 · UTM huso 30N: …`. Fuera del huso 30 solo va la línea WGS84.
+  3. La conversión sigue igual: ETRS89 / UTM 30N (EPSG:25830, GRS80, serie de Krüger), con ETRS89 y WGS84 tratados como iguales (difieren en menos de un metro). La **S** de `30S` es la banda de latitud de MGRS (32° a 40° N), no "sur"; lo dice una nota en 06, Apéndice A.
+- **Comprobación:** un caso conocido en `coordenadas.test.ts`, la Plaza de España de Albolote (OpenStreetMap), con la UTM calculada aparte por las fórmulas de Snyder (USGS PP 1395), ±1 m.
+- **Descartado:** dejar "Decimal" sin sistema (ambiguo para quien lo recibe fuera de la app); quitar la letra de banda (`30 445175 4125393`): cambiaría el formato que ya se copia y se pega en la búsqueda; la nota de 06 basta para que nadie la lea como "sur".
+- **Afecta a:** 01 FR-72 y FR-75 (lo actualiza Ops, #440); 06 Apéndice A; `src/lib/textos.ts` (`coordenadas`, `compartir`).
+
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
 - **Decisión:** la GitHub App del proyecto no se crea. `release-please.yml` vuelve a lo de DEC-079, sin el paso de la App ni la rama de reserva, porque ya no hay nada que reservar. Cada PR de versión necesita el empujón de una persona (un commit vacío a su rama) para que corra su CI. Los runs «expired» del bot siguen saliendo en la lista de fallos de Actions: se saben y no se miran.
@@ -1898,11 +1909,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 157 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

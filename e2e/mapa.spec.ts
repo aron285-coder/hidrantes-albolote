@@ -534,7 +534,9 @@ test.describe('compartir y coordenadas (FR-75)', () => {
     );
     expect(datos!.title).toBe(PUNTOS[0].codigo);
     expect(datos!.text).toContain(PUNTOS[0].codigo);
-    expect(datos!.text).toContain('UTM 30S');
+    // Cada coordenada con el nombre de su sistema delante (docs/25 RV-109, DEC-157).
+    expect(datos!.text).toContain(`${T.coordenadas.decimal}: `);
+    expect(datos!.text).toContain(`${T.coordenadas.utm}: 30S `);
     expect(datos!.text).toContain('https://www.google.com/maps/search/?api=1&query=');
   });
 
