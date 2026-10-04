@@ -1,5 +1,6 @@
 // Panel de jefatura · cola de revisión (FL-21–FL-23, FR-100–FR-110) contra un Supabase simulado.
 
+import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
@@ -344,6 +345,10 @@ test('desactualizada: "Confirmar y aprobar" con confirmación expresa (FR-108)',
   const detalle = page.getByRole('article');
   await expect(detalle.getByText(T.panelCola.desactualizada('hace 20 h'))).toBeVisible();
   await expect(detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toHaveCount(0);
+  // Al corregir, los botones se van y el aviso sigue encima del formulario (docs/28 RV-115).
+  await detalle.getByRole('button', { name: T.panelCola.aprobarConCorrecciones }).click();
+  await expect(detalle.getByText(T.panelCola.desactualizada('hace 20 h'))).toBeVisible();
+  await detalle.getByRole('button', { name: T.panelCola.cancelar }).click();
   await detalle.getByRole('button', { name: T.panelCola.confirmarYAprobar }).click();
   await expect
     .poll(() => llamadaA(llamadas, 'fn_aprobar'))
@@ -406,7 +411,8 @@ test('sin servidor: aviso en el panel y la lista explica el fallo (FR-168)', asy
   await expect(page.getByRole('button', { name: T.mapa.reintentar }).first()).toBeVisible();
 });
 
-// docs/24 RV-103: el detalle enseña las dos fotos lado a lado y señala lo que llegó sin la del sitio.
+// docs/24 RV-103: el detalle enseña las dos fotos lado a lado; lo que llegó sin la del sitio enseña solo
+// la de la conexión, sin señal aparte (docs/28 RV-115, DEC-166).
 test('alta con las dos fotos y alta sin foto del sitio (RV-103)', async ({ page }) => {
   await page.route(`${SUPABASE_PRUEBAS}/storage/v1/object/public/**`, (r) =>
     r.fulfill({
@@ -437,12 +443,12 @@ test('alta con las dos fotos y alta sin foto del sitio (RV-103)', async ({ page 
   const detalle = page.getByRole('article');
   await expect(detalle.locator('figcaption')).toHaveText([T.formulario.conexion, T.formulario.sitio]);
   await expect(detalle.locator('figure img')).toHaveCount(2);
-  await expect(detalle.getByText(T.panelCola.senalSinFotoSitio)).toHaveCount(0);
+  await expect(detalle.getByText(T.panelCola.sinFotoSitio)).toHaveCount(0);
 
   await abrir(page, /Una Ruiz/);
   await expect(detalle.locator('figcaption')).toHaveText([T.formulario.conexion]);
   await expect(detalle.locator('figure img')).toHaveCount(1);
-  await expect(detalle.getByText(T.panelCola.senalSinFotoSitio)).toBeVisible();
+  await expect(detalle.getByRole('heading', { name: T.panelCola.fotos })).toContainText(T.panelCola.sinFotoSitio);
 });
 
 // ---------- docs/25 RV-110: mapa arriba, datos completos y fotos, a todo el ancho ----------
@@ -589,6 +595,80 @@ for (const ancho of [820, 412]) {
   });
 }
 
+// ---------- docs/28 RV-115 (DEC-166): sin señales en el detalle; el ⚠ de la lista, solo por avisos ----------
+
+/** Un alta con pin a mano lejos del GPS y la foto lejos del pin: antes, dos chips ⚠ y el ⚠ en la lista. */
+const PIN_A_MANO = fila({
+  id: 'm1',
+  operacion: 'alta',
+  creada_en: hace(4),
+  codigo: null,
+  datos: { tipo: 'hidrante', diametro_mm: 100, caudal: 'bueno' },
+  lat: 37.2335,
+  lng: -3.649,
+  origen_ubicacion: 'manual',
+  precision_gps_m: 35,
+  distancia_gps_m: 40,
+  distancia_exif_m: 120,
+  foto_path: 'fotos/m1-conexion.jpg',
+  sin_foto_sitio: true,
+  autor_nombre: 'Prueba',
+  autor_apellido: 'Cinco',
+});
+
+test('el detalle sin señales y el ⚠ de la lista solo por lo que el detalle avisa (RV-115)', async ({ page }) => {
+  await conFotos(page);
+  await prepararPanel(page, [PIN_A_MANO]);
+  await page.goto('/admin/cola');
+  const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+  const fila = (quien: RegExp) => lista.getByRole('listitem').filter({ hasText: quien });
+  const aviso = (quien: RegExp) => fila(quien).getByLabel(T.panelCola.senalAviso);
+  // Duplicado, otra medida de hidrante y desactualizada: ⚠. Pin a mano y foto lejos, no.
+  await expect(aviso(/Javier Ortiz/)).toHaveCount(1);
+  await expect(aviso(/Marta León/)).toHaveCount(1);
+  await expect(aviso(/Ana García/)).toHaveCount(1);
+  await expect(aviso(/Prueba Cinco/)).toHaveCount(0);
+  await expect(aviso(/Sara Ruiz/)).toHaveCount(0);
+
+  await abrir(page, /Prueba Cinco/);
+  const detalle = page.getByRole('article');
+  await expect(detalle.getByRole('heading', { name: T.panelCola.datosDelPunto })).toHaveText(T.panelCola.datosDelPunto);
+  await expect(detalle.getByRole('list', { name: 'Señales de fiabilidad' })).toHaveCount(0);
+  for (const t of ['La foto se hizo', 'Pin puesto a mano ·', 'Con foto', 'datos del voluntario']) {
+    await expect(detalle.getByText(t)).toHaveCount(0);
+  }
+  // Lo que decía el chip del pin sigue en "Origen de la ubicación".
+  await expect(detalle.locator('[data-campo="origen"]')).toContainText(T.panelCola.origenManual);
+
+  await abrir(page, new RegExp(P4.codigo));
+  await expect(detalle.getByRole('heading', { name: T.panelCola.datosDelPunto })).toContainText(T.panelCola.restoIgual);
+});
+
+// Las reglas de accesibilidad.spec.ts: axe del detalle de un alta y de una revisión, en los dos modos.
+for (const tema of ['claro', 'oscuro'] as const) {
+  test(`axe del detalle de la cola · ${tema} (RV-115)`, async ({ page }) => {
+    await page.emulateMedia({ colorScheme: tema === 'oscuro' ? 'dark' : 'light' });
+    await conFotos(page);
+    await prepararPanel(page, [PIN_A_MANO]);
+    await page.goto('/admin/cola');
+    for (const quien of [/Prueba Cinco/, new RegExp(P4.codigo), new RegExp(P0.codigo)]) {
+      await abrir(page, quien);
+      await expect(page.getByRole('article').getByRole('heading').first()).toBeVisible();
+      await page.waitForLoadState('networkidle');
+      const axe = new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+        .include('article')
+        .exclude('.leaflet-marker-pane');
+      // En oscuro, --rojo-700, --ambar-700 y --verde-600 no cambian: el texto con ellos sobre fondo
+      // oscuro lo arregla RV-117 (docs/28 §3), que quita esta exclusión.
+      if (tema === 'oscuro') axe.exclude('.text-rojo-700').exclude('.text-ambar-700').exclude('.text-verde-600');
+      const { violations } = await axe.analyze();
+      const resumen = violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`));
+      expect(resumen, `${quien} · ${tema}`).toEqual([]);
+    }
+  });
+}
+
 // Capturas para revisar a ojo (skill revisar-pantallas): los tres tamaños, en claro y en oscuro.
 for (const tema of ['claro', 'oscuro'] as const) {
   for (const [ancho, alto] of [
@@ -616,6 +696,7 @@ for (const tema of ['claro', 'oscuro'] as const) {
         ['datos', /Prueba Tres/],
         ['ubicacion', /Prueba Cuatro/],
         ['alta', /Javier Ortiz/],
+        ['revision', new RegExp(P4.codigo)],
       ] as const) {
         await abrir(page, quien);
         await expect(page.getByRole('article').getByRole('heading').first()).toBeVisible();

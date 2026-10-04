@@ -239,7 +239,10 @@ test('propuesta desactualizada: exige confirmación; las correcciones llegan al 
   await expect(lista.getByRole('listitem')).toHaveCount(1, { timeout: 20_000 });
   await lista.getByRole('listitem').first().getByRole('button').click();
   const detalle = page.getByRole('article');
-  await expect(detalle.getByText(T.panelCola.senalDesactualizada)).toBeVisible({ timeout: 20_000 });
+  // El aviso rojo encima de los botones (las señales salieron del detalle, DEC-166).
+  await expect(detalle.getByRole('button', { name: T.panelCola.confirmarYAprobar })).toBeVisible({
+    timeout: 20_000,
+  });
   // El botón normal no está: hay que confirmar expresamente (FR-108).
   await expect(detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toHaveCount(0);
 

@@ -116,7 +116,6 @@ describe('DetallePropuesta (RV-110)', () => {
   it('en un alta, el código dice "se asigna al aprobar"', () => {
     const html = pintar(propuesta('alta'));
     expect(html).toContain(T.panelCola.seAsignaAlAprobar);
-    expect(html).toContain(T.panelCola.datosVoluntario(3));
   });
 
   it('en una ubicación hay tres fotos y la primera es la actual del punto', () => {
@@ -156,6 +155,86 @@ describe('DetallePropuesta (RV-110)', () => {
     expect(html).not.toContain('data-testid="acciones-propuesta"');
     expect(html).toContain('data-testid="minimapa-propuesta"');
     expect(campos(html).length).toBeGreaterThanOrEqual(12);
+  });
+});
+
+// docs/28 RV-115 (DEC-166): fuera los chips de señales y, en un alta, la línea "N datos del voluntario".
+describe('DetallePropuesta sin señales (RV-115)', () => {
+  // Todo lo que antes salía como chip: pin a mano lejos del GPS, foto lejos, revisión anterior, con
+  // foto y sin foto del sitio.
+  const conTodo: Partial<PropuestaPanel> = {
+    origen_ubicacion: 'manual',
+    precision_gps_m: 35,
+    distancia_gps_m: 40,
+    distancia_exif_m: 120,
+    meses_desde_revision: 14,
+    foto_path: 'fotos/n-conexion.jpg',
+    sin_foto_sitio: true,
+  };
+
+  /** El trozo de HTML de la fila `clave` de "Datos del punto". */
+  const fila = (html: string, clave: string) => {
+    const i = html.indexOf(`data-campo="${clave}"`);
+    return html.slice(i, html.indexOf('data-campo=', i + 1));
+  };
+
+  it.each(['alta', 'revision', 'ubicacion'] as Operacion[])('%s: sin la lista de señales ni sus textos', (op) => {
+    const html = pintar(propuesta(op, conTodo));
+    expect(html).not.toContain('aria-label="Señales de fiabilidad"');
+    for (const t of [
+      'Con foto',
+      'La foto se hizo',
+      'Pin puesto a mano ·',
+      'Revisión anterior',
+      '⚠ sin foto del sitio',
+    ]) {
+      expect(html).not.toContain(t);
+    }
+  });
+
+  // Lo que decían los chips sigue en otro sitio del detalle (la tabla de docs/28 §1).
+  it('sin foto del sitio: una línea en el título de "Fotos", no un chip', () => {
+    const html = pintar(propuesta('alta', conTodo));
+    const i = html.indexOf('id="fotos-propuesta"');
+    expect(html.slice(i, html.indexOf('</h3>', i))).toContain(T.panelCola.sinFotoSitio);
+    expect(pintar(propuesta('alta'))).not.toContain(T.panelCola.sinFotoSitio);
+  });
+
+  it('fuera de zona se ve en la cabecera aunque la propuesta tenga núcleo', () => {
+    const html = pintar(propuesta('ubicacion', { fuera_de_zona: true, nucleo: 'Albolote' }));
+    expect(html).toContain(`Albolote · ${T.panelCola.fueraDeZona}`);
+    expect(pintar(propuesta('ubicacion', { fuera_de_zona: true, nucleo: null }))).toContain(
+      ` · ${T.panelCola.fueraDeZona}</span>`,
+    );
+    expect(pintar(propuesta('ubicacion'))).not.toContain(T.panelCola.fueraDeZona);
+  });
+
+  it('un duplicado que no está en el inventario cargado se dice con su código y distancia', () => {
+    const html = pintar(
+      propuesta('alta', { duplicado_de: 'no-cargado', codigo_duplicado: 'BOC-0088', distancia_duplicado_m: 8 }),
+    );
+    expect(html).toContain(T.panelCola.duplicadoSinComparar('BOC-0088', '8 m'));
+    expect(html).not.toContain(T.panelCola.posibleDuplicado);
+  });
+
+  it('en un alta, solo el título "Datos del punto", sin "datos del voluntario" ni "deduce el sistema"', () => {
+    const html = pintar(propuesta('alta'));
+    const i = html.indexOf('id="datos-del-punto"');
+    const titulo = html.slice(i, html.indexOf('</h3>', i));
+    expect(titulo).toContain(T.panelCola.datosDelPunto);
+    expect(titulo).not.toContain('<small');
+    expect(html).not.toContain('datos del voluntario');
+    expect(html).not.toContain('deduce el sistema');
+  });
+
+  it('en una revisión sigue "1 cambio · el resto se queda igual"', () => {
+    const html = pintar(propuesta('revision', { datos: { caudal: 'regular' }, antes: { caudal: 'bueno' } }));
+    expect(html).toContain(`${T.panelCola.cambios(1)}</b> · ${T.panelCola.restoIgual}`);
+  });
+
+  it('la fila "Origen de la ubicación" sigue diciendo GPS o pin a mano', () => {
+    expect(fila(pintar(propuesta('alta')), 'origen')).toContain(T.panelCola.origenGps(4));
+    expect(fila(pintar(propuesta('ubicacion', conTodo)), 'origen')).toContain(T.panelCola.origenManual);
   });
 });
 

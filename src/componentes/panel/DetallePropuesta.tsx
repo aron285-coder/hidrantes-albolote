@@ -29,7 +29,6 @@ import {
   fusionar,
   planMapa,
   rechazar,
-  senales,
   valoresPropuestos,
   bloqueoPorMedida,
 } from '@/lib/panel/cola';
@@ -42,7 +41,7 @@ type Modo = null | 'corregir' | 'rechazar' | 'fusionar';
 
 /**
  * Detalle de una propuesta (FR-102–FR-109, FL-21; docs/25 RV-110, DEC-158), igual en las seis
- * operaciones y a todo el ancho: título y señales, el mapa, todos los datos del punto con lo que
+ * operaciones y a todo el ancho: el título, el mapa, todos los datos del punto con lo que
  * cambia primero y marcado, las fotos y, fijos abajo, los botones. El historial usa el mismo detalle
  * en solo lectura. Con `alVolver` (tableta y móvil) ocupa la pantalla entera, con "‹" para volver.
  */
@@ -127,7 +126,6 @@ export function DetallePropuesta({
   // Solo un hidrante de "otra medida" impide aprobar tal cual; una boca se aprueba con su número (DEC-144).
   const bloqueoAprobar = bloqueoPorMedida(p, punto);
   const comparar = pendiente && p.operacion === 'alta' && duplicado;
-  const lasSenales = pendiente ? senales(p) : [];
 
   return (
     <article className={cn('flex flex-col text-sm', pantalla ? 'h-full' : 'min-h-full')}>
@@ -152,28 +150,8 @@ export function DetallePropuesta({
               <h2 className="font-titulo text-texto mr-3 inline text-[22px] leading-tight font-semibold">{titulo}</h2>
             )}
             <span className="text-texto-suave text-[13.5px]">
-              {T.panelCola.propuestoPor(
-                autor(p),
-                `${hace(p.creada_en)} (${fechaCorta(p.creada_en)})`,
-                p.nucleo ?? (p.fuera_de_zona ? T.panelCola.fueraDeZona : T.panelCola.sinNucleo),
-              )}
+              {T.panelCola.propuestoPor(autor(p), `${hace(p.creada_en)} (${fechaCorta(p.creada_en)})`, dondeEsta(p))}
             </span>
-            {lasSenales.length > 0 && (
-              <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={T.panelCola.senales}>
-                {lasSenales.map((s) => (
-                  <li
-                    key={s.texto}
-                    className={cn(
-                      'rounded-campo border px-2 py-0.5 text-[12.5px]',
-                      s.aviso ? 'border-oro-600 bg-ambar-100 text-ambar-700' : 'border-verde-600 text-verde-600',
-                    )}
-                  >
-                    {s.aviso ? '⚠ ' : '✓ '}
-                    {s.texto}
-                  </li>
-                ))}
-              </ul>
-            )}
           </header>
 
           {/* En el móvil, el mapa de borde a borde y fijo arriba mientras se desplaza lo demás. */}
@@ -184,11 +162,19 @@ export function DetallePropuesta({
           />
 
           {comparar && <Comparacion p={p} existente={duplicado} direccion={direccion} />}
+          {/* El duplicado no está en el inventario cargado: no se puede comparar ni fusionar, pero se dice. */}
+          {pendiente && p.operacion === 'alta' && p.duplicado_de && !duplicado && (
+            <p className="border-oro-600 bg-oro-100 text-ambar-700 rounded-campo border px-3 py-2 text-[13px]">
+              {T.panelCola.duplicadoSinComparar(
+                p.codigo_duplicado ?? '—',
+                p.distancia_duplicado_m == null ? '—' : distancia(p.distancia_duplicado_m),
+              )}
+            </p>
+          )}
 
           <DatosDelPunto
             campos={ficha.campos}
-            cambios={ficha.cambios}
-            alta={ficha.alta}
+            cambios={ficha.alta ? null : ficha.cambios}
             direccion={editable ? { valor: direccion, cambiar: setDireccion } : null}
           />
 
@@ -197,6 +183,7 @@ export function DetallePropuesta({
           <div ref={formulario} className="scroll-mb-28">
             {pendiente ? (
               <>
+                {p.desactualizada && (modo === 'corregir' || modo === 'fusionar') && <AvisoDesactualizada p={p} />}
                 {modo === 'corregir' && (
                   <FormularioCorrecciones
                     p={p}
@@ -253,11 +240,7 @@ export function DetallePropuesta({
             !pantalla && 'sticky bottom-0',
           )}
         >
-          {p.desactualizada && (
-            <p className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo mb-2 border px-3 py-2 text-[13px]">
-              {T.panelCola.desactualizada(p.punto_actualizado_en ? hace(p.punto_actualizado_en) : '—')}
-            </p>
-          )}
+          {p.desactualizada && <AvisoDesactualizada p={p} />}
           {bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>}
           <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
             <Boton
@@ -310,25 +293,25 @@ export function DetallePropuesta({
 function DatosDelPunto({
   campos,
   cambios,
-  alta,
   direccion,
 }: {
   campos: CampoFicha[];
-  cambios: number;
-  alta: boolean;
+  /** Cuántos campos cambian; `null` en un alta, que lleva solo el título. */
+  cambios: number | null;
   direccion: { valor: string; cambiar: (v: string) => void } | null;
 }) {
   return (
     <section aria-labelledby="datos-del-punto">
       <h3 id="datos-del-punto" className="mb-1.5 flex flex-wrap items-baseline gap-x-2.5">
         <span className="font-titulo text-texto text-[17px] font-bold">{T.panelCola.datosDelPunto}</span>
-        <small className="text-texto-suave text-[13px]">
-          <b className="text-naranja-600 font-bold">
-            {alta ? T.panelCola.datosVoluntario(cambios) : T.panelCola.cambios(cambios)}
-          </b>
-          {' · '}
-          {alta ? T.panelCola.restoDeducido : T.panelCola.restoIgual}
-        </small>
+        {/* En un alta, solo el título: todo es nuevo (docs/28 RV-115). */}
+        {cambios !== null && (
+          <small className="text-texto-suave text-[13px]">
+            <b className="text-naranja-texto font-bold">{T.panelCola.cambios(cambios)}</b>
+            {' · '}
+            {T.panelCola.restoIgual}
+          </small>
+        )}
       </h3>
       <div className="border-linea bg-linea rounded-tarjeta grid gap-px overflow-hidden border md:grid-cols-2">
         {campos.map((c) => (
@@ -347,7 +330,7 @@ function DatosDelPunto({
             <span className={cn('text-[13.5px]', c.cambia ? 'text-texto font-semibold' : 'text-texto-suave')}>
               {c.etiqueta}
               {c.cambia && (
-                <span className="text-naranja-600 block text-[10.5px] font-bold tracking-wide uppercase">
+                <span className="text-naranja-texto block text-[10.5px] font-bold tracking-wide uppercase">
                   {T.panelCola.cambia}
                 </span>
               )}
@@ -382,7 +365,7 @@ function DatosDelPunto({
 function Antes({ texto }: { texto: string }) {
   return (
     <>
-      <del className="text-rojo-700 opacity-75">{texto}</del>
+      <del className="text-rojo-700">{texto}</del>
       <span aria-hidden> → </span>
     </>
   );
@@ -431,6 +414,8 @@ function Fotos({ p, punto }: { p: PropuestaPanel; punto?: Punto }) {
             {nuevas ? T.panelCola.fotosConActual : T.panelCola.noTraeNuevas}
           </small>
         )}
+        {/* La mandó la versión anterior de la app (docs/24 RV-103): se dice aquí, no con un chip (DEC-166). */}
+        {p.sin_foto_sitio && <small className="text-texto-suave text-[13px]">{T.panelCola.sinFotoSitio}</small>}
       </h3>
       {fotos.length ? (
         <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${fotos.length}, minmax(0, 1fr))` }}>
@@ -442,6 +427,21 @@ function Fotos({ p, punto }: { p: PropuestaPanel; punto?: Punto }) {
         <p className="text-texto-suave text-[13px]">{T.panelCola.sinFotos}</p>
       )}
     </section>
+  );
+}
+
+/** Núcleo y, si lo está, "Fuera de zona", también cuando hay núcleo (DEC-166: ya no hay chip). */
+function dondeEsta(p: PropuestaPanel): string {
+  if (!p.fuera_de_zona) return p.nucleo ?? T.panelCola.sinNucleo;
+  return p.nucleo ? `${p.nucleo} · ${T.panelCola.fueraDeZona}` : T.panelCola.fueraDeZona;
+}
+
+/** El punto cambió después de la propuesta (FR-108): encima de los botones y de Corregir y Fusionar. */
+function AvisoDesactualizada({ p }: { p: PropuestaPanel }) {
+  return (
+    <p className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo mb-2 border px-3 py-2 text-[13px]">
+      {T.panelCola.desactualizada(p.punto_actualizado_en ? hace(p.punto_actualizado_en) : '—')}
+    </p>
   );
 }
 

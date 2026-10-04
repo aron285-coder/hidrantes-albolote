@@ -200,7 +200,7 @@ export function MinimapaPropuesta({
             : 'border-linea rounded-tarjeta relative h-[200px] border max-md:rounded-none max-md:border-x-0 md:max-[1099px]:h-[280px] min-[1100px]:h-[300px]',
         )}
       >
-        <div ref={contenedor} role="img" aria-label={T.panelCola.minimapa} className="absolute inset-0" />
+        <div ref={contenedor} role="group" aria-label={T.panelCola.minimapa} className="absolute inset-0" />
         <div
           role="radiogroup"
           aria-label={T.panelCola.capaDelMapa}
