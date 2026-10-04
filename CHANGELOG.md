@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.7.0...hidrantes-albolote-v0.8.0) (2026-10-04)
+
+
+### Novedades
+
+* **formulario:** los racores Granada y Barcelona enseñan un dibujo para compararlos ([#435](https://github.com/aron285-coder/hidrantes-albolote/issues/435)) ([479a525](https://github.com/aron285-coder/hidrantes-albolote/commit/479a52511385f204bfeecc5b08ada695f50e5256))
+
 ## [0.7.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.6.5...hidrantes-albolote-v0.7.0) (2026-10-03)
 
 
