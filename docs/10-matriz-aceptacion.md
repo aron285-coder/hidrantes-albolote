@@ -229,7 +229,7 @@ se ven al recorrer los anteriores: aquí se anotan una vez.
 | AC-167 | Núcleos desde Ajustes | Ajustes → Núcleos: renombrar uno y añadir otro | El renombrado se ve en el inventario y la lista; el nuevo sale con su recuento de puntos | FR-166 | | e2e `panel-ajustes.spec.ts` |
 | AC-168 | Enganche Directo | Alta de una boca eligiendo Directo, a 360 px | Cuatro opciones Barcelona · Granada · Directo · Otro en una fila; la ficha, el inventario, la cola y las exportaciones dicen «Directo» | FR-20 | | |
 | AC-169 | Inventario con dos filtros | Filtrar por Bocas de riego y Regular → Quitar filtros → Exportar ▾ CSV | El desplegable de Estado da los números del tipo elegido; Quitar filtros vuelve a todos; el CSV trae lo filtrado | FR-120 | | |
-| AC-170 | Editar y mover | Inventario → Editar → mover el pin unos metros y cambiar el enganche → Guardar | Los dos campos marcados con «antes»; el pie dice «2 cambios»; en el Registro, una entrada `edicion_admin` con el desplazamiento; el núcleo recalculado | FR-120, FR-151 | | |
+| AC-170 | Editar y mover | Inventario → Editar → mover el pin unos metros y cambiar el enganche → Guardar | Los dos campos marcados con «antes»; el pie dice «2 cambios»; en el Registro, una entrada `edicion_admin` con el desplazamiento; el núcleo recalculado. Guardar con el pin en la misma posición (±0,1 m) no cuenta como movimiento; unas coordenadas fuera de los límites dan `PAYLOAD_INVALIDO(ubicacion)` | FR-120, FR-151 | | |
 | AC-171 | Cinco pestañas | Abrir el panel; ir a /admin/caducadas y /admin/voluntarios | Cola · Inventario · Registro · Papelera · Ajustes; las dos rutas viejas llevan al Inventario | FR-120 | | |
 
 ---
