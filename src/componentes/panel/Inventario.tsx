@@ -1,6 +1,8 @@
 import { ChevronDown } from 'lucide-react';
 import {
   type KeyboardEvent as ReactKeyboardEvent,
+  Suspense,
+  lazy,
   useCallback,
   useEffect,
   useId,
@@ -9,7 +11,10 @@ import {
   useState,
 } from 'react';
 import { DialogoHistorial, DialogoMotivo } from './dialogos';
-import { ConfirmarDescartar, EditarPunto, type EstadoEditar, quitarEntradaDeEditar } from './EditarPunto';
+import { ConfirmarDescartar, type EstadoEditar, quitarEntradaDeEditar } from './descartar';
+
+// Editar en su propia porción: ver descartar.tsx (RV-80).
+const EditarPunto = lazy(() => import('./EditarPunto'));
 import { usePanel } from './usar-panel';
 import { MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { usePanelAncho } from '@/hooks/ancho';
@@ -587,13 +592,15 @@ export default function Inventario() {
       )}
 
       {editando && (
-        <EditarPunto
-          key={editando.id}
-          punto={editando}
-          alCerrar={cerrarEditar}
-          alEstado={setEstadoEditar}
-          enPausa={!!dialogo || !!pasarA}
-        />
+        <Suspense fallback={null}>
+          <EditarPunto
+            key={editando.id}
+            punto={editando}
+            alCerrar={cerrarEditar}
+            alEstado={setEstadoEditar}
+            enPausa={!!dialogo || !!pasarA}
+          />
+        </Suspense>
       )}
       {pasarA && (
         <ConfirmarDescartar
