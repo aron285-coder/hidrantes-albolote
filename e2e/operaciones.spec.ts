@@ -331,10 +331,11 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByLabel(T.formulario.otraMedida).fill('200');
     await expect(page.getByText(T.avisosFormulario.indicaMedida)).toBeVisible();
     await page.getByRole('radio', { name: T.formulario.d70 }).click();
-    // docs/25 RV-112 (DEC-163): «Tipo de enganche», con Barcelona, Granada y Otro en este orden.
+    // docs/25 RV-112 (DEC-163) y docs/29 RV-121 (DEC-170): «Tipo de enganche», con Barcelona,
+    // Granada, Directo y Otro en este orden.
     await expect(page.getByText('Elige el tipo de enganche')).toBeVisible();
     const enganche = page.getByRole('radiogroup', { name: 'Tipo de enganche' });
-    await expect(enganche.getByRole('radio')).toHaveText(['Barcelona', 'Granada', 'Otro']);
+    await expect(enganche.getByRole('radio')).toHaveText(['Barcelona', 'Granada', 'Directo', 'Otro']);
     await expect(page.getByText(/racor/i)).toHaveCount(0);
     await enganche.getByRole('radio', { name: T.formulario.barcelona }).click();
     await page.getByRole('radio', { name: T.formulario.bueno }).click();
@@ -348,6 +349,42 @@ test.describe('operaciones (FL-03–FL-08)', () => {
       caudal: 'bueno',
     });
   });
+
+  // docs/29 RV-121 (DEC-170): las cuatro tarjetas en una fila, ≥ 44 × 44, sin desplazar a lo ancho.
+  for (const ancho of [360, 412]) {
+    test(`alta de una boca con enganche Directo a ${ancho} px`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: 800 });
+      // Sin la foto de Directo en el servidor (la pone el desarrollador): la tarjeta, solo con el nombre.
+      await page.route('**/racores/directo.webp', (r) => r.fulfill({ status: 404, body: '' }));
+      const s = await servidor(page);
+      await page.goto('/');
+      await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+      await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+      await page.getByRole('radio', { name: T.formulario.d45 }).click();
+      const enganche = page.getByRole('radiogroup', { name: T.formulario.racor });
+      const tarjetas = enganche.getByRole('radio');
+      await expect(tarjetas).toHaveText(['Barcelona', 'Granada', 'Directo', 'Otro']);
+      await expect(enganche.getByRole('radio', { name: T.formulario.directo }).locator('img')).toHaveCount(0);
+      const cajas = await Promise.all((await tarjetas.all()).map((t) => t.boundingBox()));
+      for (const c of cajas) {
+        expect(c!.width).toBeGreaterThanOrEqual(44);
+        expect(c!.height).toBeGreaterThanOrEqual(44);
+        expect(Math.abs(c!.y - cajas[0]!.y), 'las cuatro en la misma fila').toBeLessThan(1);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(ancho);
+      await enganche.getByRole('radio', { name: T.formulario.directo }).click();
+      await page.getByRole('radio', { name: T.formulario.bueno }).click();
+      await hacerFoto(page);
+      await enviar(page).click();
+      await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+      expect(s.propuestas[0]?.datos).toEqual({
+        tipo: 'boca_riego',
+        diametro_mm: 45,
+        racor: 'directo',
+        caudal: 'bueno',
+      });
+    });
+  }
 
   // docs/24 RV-102: "Barro" no pide descripción del fallo y viaja tal cual.
   test('alta con Barro: sin descripción del fallo', async ({ page }) => {

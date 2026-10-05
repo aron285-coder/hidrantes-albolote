@@ -1,4 +1,4 @@
-// Panel · voluntarios, incidencias y ajustes (FR-130–FR-132, FR-140–FR-145, FR-162–FR-167).
+// Panel · ajustes (FR-140–FR-145, FR-162–FR-167).
 
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
@@ -10,40 +10,6 @@ import { novedadesDe } from '../scripts/generar-novedades.ts';
 
 /** Lo que `npm run build` genera desde el CHANGELOG, que es lo que lleva la app probada. */
 const NOVEDADES = novedadesDe(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8'));
-
-const ACTIVIDAD = [
-  {
-    autor: 'Luis Martín',
-    dispositivo_id: 'd1',
-    propuestas: 16,
-    aprobadas: 14,
-    rechazadas: 1,
-    tasa: 0.93,
-    ultima: '2026-09-19T08:00:00Z',
-  },
-  {
-    autor: 'Marta León',
-    dispositivo_id: 'd2',
-    propuestas: 6,
-    aprobadas: 4,
-    rechazadas: 2,
-    tasa: 0.67,
-    ultima: '2026-09-18T08:00:00Z',
-  },
-];
-
-const INCIDENCIAS: Record<string, unknown>[] = [
-  {
-    id: 'i1',
-    momento: '2026-09-17T06:06:00Z',
-    descripcion: 'Al hacer la foto la app se cierra',
-    version_app: '1.0.3',
-    ruta: '/proponer/alta',
-    estado: 'abierta',
-    resuelta_por: null,
-    resuelta_en: null,
-  },
-];
 
 const CONFIG = [
   { clave: 'codigo_acceso', valor: '482917' },
@@ -103,7 +69,6 @@ interface Llamada {
 
 async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as Record<string, unknown> } = {}) {
   const llamadas: Llamada[] = [];
-  let incidencias = INCIDENCIAS;
   let administradores = ADMINISTRADORES;
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
@@ -111,7 +76,6 @@ async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as 
     v_cola_revision: [],
     propuestas: [],
     puntos: [],
-    incidencias_app: () => incidencias,
     config: (url) => {
       const filtro = url.searchParams.get('clave') ?? '';
       const claves = filtro.startsWith('in.') ? filtro.slice(4, -1).split(',') : null;
@@ -132,18 +96,6 @@ async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as 
     switch (nombre) {
       case 'fn_es_admin':
         return json(true);
-      case 'fn_actividad_voluntarios':
-        return json(ACTIVIDAD);
-      case 'fn_anonimizar_autor':
-        return json(7);
-      case 'fn_resolver_incidencia':
-        incidencias = incidencias.map((i) => ({
-          ...i,
-          estado: 'resuelta',
-          resuelta_por: 'jefe@example.org',
-          resuelta_en: new Date().toISOString(),
-        }));
-        return json(null);
       case 'fn_salud':
         return json(salud);
       case 'fn_exportar_inventario':
@@ -175,27 +127,6 @@ async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as 
 }
 
 const llamadaA = (llamadas: Llamada[], nombre: string) => llamadas.find((l) => l.nombre === nombre)?.cuerpo;
-
-test('voluntarios: actividad, anonimizar e incidencias (FR-130–FR-132, FL-27)', async ({ page }) => {
-  const llamadas = await prepararPanel(page);
-  await page.goto('/admin/voluntarios');
-  await expect(page.getByRole('cell', { name: 'Luis Martín' })).toBeVisible();
-  await expect(page.getByText(T.panelVoluntarios.porcentaje(93))).toBeVisible();
-  await expect(page.getByText(T.panelVoluntarios.convieneHablar)).toBeVisible();
-  expect(llamadaA(llamadas, 'fn_actividad_voluntarios')).toEqual({ meses: 3 });
-
-  const fila = page.getByRole('row').filter({ hasText: 'Marta León' });
-  await fila.getByRole('button', { name: T.panel.anonimizar }).click();
-  const dialogo = page.getByRole('dialog');
-  await expect(dialogo.getByText(T.panelVoluntarios.avisoAnonimizar('Marta León'))).toBeVisible();
-  await dialogo.getByRole('button', { name: T.panelVoluntarios.confirmarAnonimizar }).click();
-  await expect(page.getByRole('status').filter({ hasText: T.panelVoluntarios.anonimizado(7) })).toBeVisible();
-  expect(llamadaA(llamadas, 'fn_anonimizar_autor')).toEqual({ dispositivo_id: 'd2' });
-
-  await page.getByRole('button', { name: T.panel.marcarResuelta }).click();
-  await expect(page.getByRole('status').filter({ hasText: T.panelVoluntarios.incidenciaResuelta })).toBeVisible();
-  expect(llamadaA(llamadas, 'fn_resolver_incidencia')).toEqual({ incidencia_id: 'i1' });
-});
 
 test('ajustes: código de acceso con confirmación y revocación (FR-140, FL-29)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
@@ -291,7 +222,7 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
 
   await page.getByRole('button', { name: T.panelAjustes.imprimirA4 }).click();
   await expect(page.getByText(T.panelAjustes.escaneaParaInstalar)).toBeVisible();
-  await page.locator('.hoja-campo').getByRole('button', { name: T.panelCaducadas.cerrarHoja, exact: true }).click();
+  await page.locator('.hoja-campo').getByRole('button', { name: T.panelAjustes.cerrarHoja, exact: true }).click();
   await expect(page.getByText(T.panelAjustes.escaneaParaInstalar)).toHaveCount(0);
 });
 

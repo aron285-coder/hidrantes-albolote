@@ -206,8 +206,9 @@ exportó y cuándo.
 
 ### 6.4 Derechos: acceso, rectificación, supresión
 
-- **Acceso:** jefatura exporta desde el panel (Voluntarios → actividad + Registro filtrado por el
-  dispositivo) lo que consta de esa persona y se lo entrega.
+- **Acceso:** el desarrollador localiza el dispositivo con `npm run anonimizar -- --buscar` (paso 2
+  de abajo, no cambia nada) y jefatura exporta el Registro filtrado por ese dispositivo con lo que
+  consta de esa persona y se lo entrega. La pestaña Voluntarios ya no existe (DEC-167).
 - **Rectificación:** el nombre se corrige desde Ajustes en el móvil (afecta a lo nuevo); para lo
   anterior, jefatura lo pide a construcción como corrección puntual anotada en `registro`.
 - **Supresión:** se **anonimiza, no se borra**. Borrar la fila destruiría la auditoría de un cambio
@@ -215,19 +216,46 @@ exportó y cuándo.
   trazabilidad. Se identifica a la persona **por su dispositivo**, no por nombre, porque los nombres
   se repiten entre 65 personas.
 
-  Procedimiento (13 lo repite paso a paso):
-  1. La persona lo pide a jefatura por el canal habitual; jefatura anota fecha.
-  2. Panel → Voluntarios → localizar su fila (nombre + última actividad) → confirmar con ella que
-     es su móvil.
-  3. *Anonimizar…* → confirmar. `fn_anonimizar_autor(dispositivo_id)` sustituye nombre y apellido
-     por "voluntario dado de baja" en `propuestas` y `registro`; conserva las filas y el
-     `dispositivo_id`. El registro sigue siendo de solo añadir: con la anonimización activa, el
-     trigger solo deja cambiar `actor`, y solo al texto exacto "voluntario dado de baja" (RV-26).
+  Procedimiento. Desde docs/29 (DEC-167, RV-126) no hay botón en el panel: lo hace el
+  desarrollador en su PC con `npm run anonimizar`, nunca en CI.
+  1. La persona lo pide a jefatura por el canal habitual; jefatura anota la fecha y se lo pasa al
+     desarrollador con el nombre que usa en la app y el correo del administrador que lo atiende.
+     Nada de eso va a una issue, un PR ni un commit: el repositorio es público (DEC-053).
+  2. **Localizar el dispositivo** (no cambia nada; la transacción se deshace):
+
+     ```
+     npm run anonimizar -- --entorno produccion --admin <correo del administrador> --buscar "nombre"
+     ```
+
+     Pide la cadena de `hidrantes_migrador` de ese entorno (o la toma de `SUPABASE_DB_URL`) y se
+     niega si es de otro proyecto o de otro usuario, como `npm run restaurar`. Lista por la
+     terminal, con `fn_actividad_voluntarios`, cada dispositivo cuyo autor coincide:
+     identificador, nombre, número de propuestas y última actividad. Confirmar con la persona
+     cuál es su móvil (fecha de su última aportación).
+  3. **Anonimizar:**
+
+     ```
+     npm run anonimizar -- --entorno produccion --admin <correo del administrador> --dispositivo <id>
+     ```
+
+     Comprueba que el correo es de un administrador activo y que el dispositivo no es de un
+     administrador, enseña cuántas propuestas y entradas del registro llevan aún su nombre (si
+     ninguna, ya estaba anonimizado y sale sin cambiar nada) y pide escribir
+     `ANONIMIZAR`; cualquier otra respuesta sale sin cambiar nada. Sin `--dispositivo`, el script
+     no cambia nada nunca. Llama a `fn_anonimizar_autor(dispositivo_id)` con los claims de ese
+     administrador puestos solo en su transacción, así que el registro apunta `anonimizacion` a su
+     nombre. La función sustituye nombre y apellido por "voluntario dado de baja" en `propuestas`
+     y `registro`; conserva las filas y el `dispositivo_id`. El registro sigue siendo de solo
+     añadir: con la anonimización activa, el trigger solo deja cambiar `actor`, y solo al texto
+     exacto "voluntario dado de baja" (RV-26).
   4. Si tenía el móvil registrado, en Ajustes del móvil → Cerrar sesión. Su token caduca; no se
      revoca a los demás.
-  5. Anotar la atención en `registro` (lo hace la RPC: `anonimizacion`) y en la tabla de §8.
+  5. Anotar la atención en la tabla de §8 (el `registro` ya lo tiene: `anonimizacion`).
   6. Los respaldos anteriores a la fecha conservan el nombre hasta que caducan (90 días); se
      informa de ello a la persona.
+
+  Los nombres solo salen por la terminal de quien lo ejecuta: el script no escribe archivos.
+  Primero se prueba en staging (`--entorno staging`) con un dispositivo de prueba.
 
 ---
 

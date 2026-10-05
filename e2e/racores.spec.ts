@@ -45,9 +45,10 @@ test('preparar-racores recorta al centro y deja 160 × 160 en ≤ 25 kB', async 
   mkdirSync(entrada, { recursive: true });
   writeFileSync(path.join(entrada, 'granada.png'), Buffer.from(png));
   writeFileSync(path.join(entrada, 'Barcelona-frente.png'), Buffer.from(png));
+  writeFileSync(path.join(entrada, 'directo.png'), Buffer.from(png));
 
   const escritas = await prepararRacores(entrada, salida, page);
-  expect(escritas.map((r) => path.basename(r))).toEqual(['granada.webp', 'barcelona.webp']);
+  expect(escritas.map((r) => path.basename(r))).toEqual(['granada.webp', 'barcelona.webp', 'directo.webp']);
   for (const archivo of escritas) {
     const bytes = readFileSync(archivo);
     expect(bytes.length).toBeLessThanOrEqual(MAXIMO_BYTES);
@@ -90,8 +91,27 @@ test('una foto que no se puede leer no deja la otra puesta a medias', async ({ p
   mkdirSync(entrada, { recursive: true });
   writeFileSync(path.join(entrada, 'granada.png'), Buffer.from(png));
   writeFileSync(path.join(entrada, 'barcelona.png'), Buffer.from('no es una imagen'));
-  await expect(prepararRacores(entrada, info.outputPath('salida'), page)).rejects.toThrow(/barcelona\.png/);
+  await expect(prepararRacores(entrada, info.outputPath('salida'), page, ['granada', 'barcelona'])).rejects.toThrow(
+    /barcelona\.png/,
+  );
   expect(existsSync(info.outputPath('salida'))).toBe(false);
+});
+
+// docs/29 RV-121: la de Directo llega después; con la lista, solo esa, sin rehacer las otras dos.
+test('con la lista de racores prepara solo esos', async ({ page, isMobile }, info) => {
+  test.skip(!!isMobile, 'basta con una pasada');
+  await page.setContent('<html><body></body></html>');
+  const png = await page.evaluate(async () => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 300;
+    const blob = await new Promise<Blob>((r) => c.toBlob((b) => r(b!), 'image/png'));
+    return [...new Uint8Array(await blob.arrayBuffer())];
+  });
+  const entrada = info.outputPath('solo-directo');
+  mkdirSync(entrada, { recursive: true });
+  writeFileSync(path.join(entrada, 'directo.png'), Buffer.from(png));
+  const escritas = await prepararRacores(entrada, info.outputPath('salida'), page, ['directo']);
+  expect(escritas.map((r) => path.basename(r))).toEqual(['directo.webp']);
 });
 
 test('dos fotos del mismo racor: lo dice en vez de elegir una al azar', async ({ page, isMobile }, info) => {
@@ -112,7 +132,7 @@ async function abrirBoca(page: import('@playwright/test').Page) {
 test('sin las fotos en el servidor, los botones se ven solo con el nombre', async ({ page }) => {
   await page.route('**/racores/*.webp', (r) => r.fulfill({ status: 404, body: '' }));
   await abrirBoca(page);
-  for (const nombre of [T.formulario.granada, T.formulario.barcelona, T.formulario.otro]) {
+  for (const nombre of [T.formulario.granada, T.formulario.barcelona, T.formulario.directo, T.formulario.otro]) {
     const boton = page.getByRole('radio', { name: nombre });
     await expect(boton).toBeVisible();
     await expect(boton.locator('img')).toHaveCount(0);

@@ -38,7 +38,7 @@ de la cola es `lista-ficha-cola-panel.md`; el del resto está en cada PR.
 
 ## 3. Pendiente
 
-1. **Desarrollador:** mirar el amarillo en un móvil a pleno sol antes de P-15 (docs/25 §4.1).
-2. **Desarrollador:** conformidad de jefatura sobre `docs/01` v1.8 (color de regular, ficha nueva, cola nueva y «Tipo de enganche»). Basta un sí por escrito.
+1. ~~El amarillo a pleno sol~~ **Hecho (5 oct 2026):** el desarrollador lo miró en el móvil: se ve bien.
+2. ~~Conformidad de jefatura~~ **Hecho (5 oct 2026):** recogida por el desarrollador para `docs/01` v1.8 a v1.11. Era sobre `docs/01` v1.8 (color de regular, ficha nueva, cola nueva y «Tipo de enganche»). Basta un sí por escrito.
 3. **P-15:** las dos aprobaciones de producción.
 4. **Conocido y fuera de alcance:** en el panel oscuro, la tabla de comparación de duplicados y los botones Fusionar/Rechazar tienen poco contraste (ya pasaba antes de docs/25); la escala de radios no tiene tope superior.
