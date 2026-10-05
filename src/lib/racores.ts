@@ -1,7 +1,12 @@
-// Fotos de referencia del racor (FR-20, docs/24 RV-104). Las pone el desarrollador en
-// public/racores (scripts/preparar-racores.ts) y entran en el precache. «Otro» no tiene foto.
+// Fotos de referencia del racor (FR-20, docs/24 RV-104, docs/29 RV-121). Las pone el desarrollador en
+// public/racores (scripts/preparar-racores.ts) y entran en el precache. «Otro» no tiene foto. Si
+// una falta (Directo, hasta que el desarrollador la ponga), la tarjeta se ve solo con el nombre.
 
-export const URL_FOTO_RACOR = { granada: '/racores/granada.webp', barcelona: '/racores/barcelona.webp' } as const;
+export const URL_FOTO_RACOR = {
+  granada: '/racores/granada.webp',
+  barcelona: '/racores/barcelona.webp',
+  directo: '/racores/directo.webp',
+} as const;
 export type RacorConFoto = keyof typeof URL_FOTO_RACOR;
 export type EstadoFoto = 'ok' | 'falta';
 
@@ -16,6 +21,5 @@ export function marcarFotoRacor(r: RacorConFoto, e: EstadoFoto): void {
 
 /** Solo para los tests. */
 export function olvidarFotosRacor(): void {
-  delete estadoFotos.granada;
-  delete estadoFotos.barcelona;
+  for (const r of Object.keys(estadoFotos) as RacorConFoto[]) delete estadoFotos[r];
 }

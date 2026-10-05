@@ -84,6 +84,17 @@ describe('tipo de enganche en la ficha (RV-112)', () => {
     expect(texto(html)).not.toMatch(/racor/i);
   });
 
+  // docs/29 RV-121 (DEC-170).
+  it('una boca con enganche Directo dice "Directo"', () => {
+    expect(rejilla(pintar({ ...BOCA, racor: 'directo' }))).toContainEqual(['Tipo de enganche', 'Directo']);
+  });
+
+  // Compatibilidad (04 §12): un valor que esta versión no conoce se lee como «Otro», sin romperse.
+  it('un enganche desconocido se enseña como "Otro"', () => {
+    const raro = { ...BOCA, racor: 'nuevo_tipo' } as unknown as Punto;
+    expect(rejilla(pintar(raro))).toContainEqual(['Tipo de enganche', 'Otro']);
+  });
+
   it('un hidrante no enseña enganche', () => {
     expect(texto(pintar(HIDRANTE))).not.toMatch(/enganche/i);
   });

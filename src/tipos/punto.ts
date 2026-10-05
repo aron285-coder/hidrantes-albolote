@@ -3,7 +3,7 @@
 export type TipoPunto = 'hidrante' | 'boca_riego';
 /** Cinco niveles (FR-18): "barro" desde 0033/0034 (docs/24 RV-102). */
 export type Caudal = 'bueno' | 'regular' | 'malo' | 'barro' | 'no_funciona';
-export type Racor = 'granada' | 'barcelona' | 'otro';
+export type Racor = 'granada' | 'barcelona' | 'directo' | 'otro';
 
 /** Una fila de v_puntos_activos (05 §4). */
 export interface Punto {

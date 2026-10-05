@@ -87,11 +87,12 @@ export function PildorasCaudal({
   );
 }
 
-// Barcelona, Granada, Otro: en este orden (docs/25 RV-112, DEC-163).
-const RACORES: Racor[] = ['barcelona', 'granada', 'otro'];
+// Barcelona, Granada, Directo, Otro: en este orden (docs/25 RV-112, DEC-163; docs/29 RV-121, DEC-170).
+const RACORES: Racor[] = ['barcelona', 'granada', 'directo', 'otro'];
 
 /**
- * La foto de 48 × 48 encima del nombre. Mientras no se sabe si existe, se pide escondida; si no
+ * La foto encima del nombre: 48 × 48, y 40 × 40 por debajo de 400 px de ancho para que quepan las
+ * cuatro tarjetas en una fila (RV-121). Mientras no se sabe si existe, se pide escondida; si no
  * carga (aún no la ha puesto el desarrollador, o no hay red ni caché), desaparece y el botón se ve
  * solo con el nombre, nunca con un icono roto. alt vacío: el nombre ya va en el botón.
  */
@@ -110,15 +111,18 @@ function FotoRacor({ racor }: { racor: RacorConFoto }) {
       height={48}
       onLoad={() => fijar('ok')}
       onError={() => fijar('falta')}
-      className={cn('rounded-campo mx-auto mb-1 size-12 object-cover', estado !== 'ok' && 'hidden')}
+      className={cn('rounded-campo mx-auto mb-1 size-10 object-cover min-[400px]:size-12', estado !== 'ok' && 'hidden')}
     />
   );
 }
 
-/** Tipo de enganche de la boca de riego (FR-20; el dato es «racor»): tres tarjetas; Barcelona y Granada con su foto de referencia. */
+/**
+ * Tipo de enganche de la boca de riego (FR-20; el dato es «racor»): cuatro tarjetas en una fila,
+ * también a 360 px (RV-121); todas menos «Otro» con su foto de referencia.
+ */
 export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: (r: Racor) => void }) {
   return (
-    <div role="radiogroup" aria-label={T.formulario.racor} className="grid grid-cols-3 gap-2">
+    <div role="radiogroup" aria-label={T.formulario.racor} className="grid grid-cols-4 gap-1.5 min-[400px]:gap-2">
       {RACORES.map((r) => (
         <button
           key={r}
@@ -128,7 +132,8 @@ export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: 
           // Tocar la foto selecciona igual que tocar el nombre: es parte del botón.
           onClick={() => alCambiar(r)}
           className={cn(
-            'bg-papel rounded-tarjeta flex min-h-14 flex-col items-center justify-center border px-2 py-1.5 text-[15px]',
+            // Estrechas a 360 px: menos relleno y letra de 14 px para que «Barcelona» quepa entera.
+            'bg-papel rounded-tarjeta flex min-h-14 min-w-0 flex-col items-center justify-center border px-1 py-1.5 text-[14px] min-[400px]:px-2 min-[400px]:text-[15px]',
             valor === r ? 'border-texto border-[3px] border-double font-semibold' : 'border-linea',
           )}
         >
