@@ -7,7 +7,6 @@ import { T } from '@/lib/textos';
 import { Ajustes } from '@/paginas/Ajustes';
 import { Armazon } from '@/paginas/Armazon';
 import { Bienvenida } from '@/paginas/Bienvenida';
-import { Incidencia } from '@/paginas/Incidencia';
 import { Legal } from '@/paginas/Legal';
 import { Lista } from '@/paginas/Lista';
 import { Mapa } from '@/paginas/Mapa';
@@ -47,7 +46,8 @@ export default function RutasDentro({ acceso }: { acceso: Extract<Acceso, { tipo
         path="/mis-propuestas"
         element={acceso.tipo === 'voluntario' ? <MisPropuestas /> : <Navigate to="/" replace />}
       />
-      <Route path="/incidencia" element={acceso.tipo === 'voluntario' ? <Incidencia /> : <Navigate to="/" replace />} />
+      {/* docs/29 RV-125 (DEC-167): «Algo no funciona» ya no existe; un enlace viejo lleva a Ajustes. */}
+      <Route path="/incidencia" element={<Navigate to="/ajustes" replace />} />
       <Route
         path="/admin/*"
         element={

@@ -43,7 +43,6 @@ const RESPUESTAS = {
   fn_ficha_punto: PUNTOS[0],
   fn_mis_propuestas: [],
   fn_registrar_error: null,
-  fn_reportar_incidencia: '0f1e2d3c-4b5a-4968-8776-6a5b4c3d2e1f',
 };
 
 interface Pantalla {
@@ -121,7 +120,6 @@ const PANTALLAS: Pantalla[] = [
   },
   { nombre: 'mis propuestas', ruta: '/mis-propuestas', listo: (p) => p.getByRole('heading').first() },
   { nombre: 'ajustes', ruta: '/ajustes', listo: (p) => p.getByText(T.ajustes.firma) },
-  { nombre: 'incidencia', ruta: '/incidencia', listo: (p) => p.getByLabel(T.incidencia.queHaPasado) },
 ];
 
 /**

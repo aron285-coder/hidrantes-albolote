@@ -469,8 +469,6 @@ export const T = {
     modoOscuro: 'Modo oscuro',
     segunMovil: 'Según el móvil',
     avisarResolucion: 'Avisarme cuando jefatura resuelva mis propuestas',
-    algoNoFunciona: 'Algo no funciona en la aplicación',
-    avisarJefatura: 'Avisar a jefatura',
     comoSeUsa: 'Cómo se usa (3 pantallas)',
     cerrarSesion: 'Cerrar sesión en este móvil',
     cerrarSesionDetalle: 'Se borran tu acceso, tu nombre y los puntos guardados.',
@@ -506,17 +504,6 @@ export const T = {
     perderasEnvios: (n: Parametro) => `Tienes ${n} envíos sin mandar: se perderán.`,
   },
 
-  incidencia: {
-    intro: 'Para problemas de la aplicación. Si lo que quieres es cambiar un hidrante, hazlo desde su ficha.',
-    queHaPasado: 'Qué ha pasado',
-    ph: 'Ej.: al hacer la foto la app se cierra…',
-    seEnviaCon: (version: Parametro) =>
-      `Se enviará con la versión (${version}) y la pantalla en la que estabas. Lo verá jefatura en su panel.`,
-    describe: 'Describe el problema',
-    enviado: 'Aviso enviado a jefatura',
-    cuota: 'Ya has enviado varios avisos hoy. Inténtalo mañana.',
-  },
-
   instalar: {
     titulo: 'Instalar la aplicación',
     boton: 'Instalar',
@@ -547,10 +534,10 @@ export const T = {
       'Este móvil no puede recibir avisos ahora (servicio de avisos no disponible). Comprueba que tiene conexión y los servicios de Google actualizados.',
     sinServiceWorker: 'La aplicación aún se está preparando. Ciérrala del todo, ábrela y vuelve a intentarlo.',
     claveDistinta:
-      'No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
+      'No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, díselo a jefatura.',
     servidorSinConexion: 'Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.',
     servidorNoGuarda:
-      'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
+      'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, díselo a jefatura.',
   },
 
   fallo: {
