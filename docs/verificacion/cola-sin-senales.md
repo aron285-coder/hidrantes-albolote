@@ -34,5 +34,5 @@ Ops). El detalle de cada punto está en el cuerpo de su PR.
 
 ## Pendiente
 
-1. **Desarrollador (docs/28 §8):** en staging, en el Android, abrir un alta y una revisión de la cola; probar Cercanos; el amarillo a pleno sol; conformidad de jefatura sobre `docs/01` v1.8 a v1.11; P-15; las fotos propias de los racores.
+1. **Desarrollador (docs/28 §8):** en staging, en el Android, abrir un alta y una revisión de la cola; probar Cercanos; P-15; las fotos propias de los racores. Hechos el 5 oct 2026: el amarillo a pleno sol (se ve bien) y la conformidad de jefatura sobre `docs/01` v1.8 a v1.11.
 2. **Fuera de alcance, propuesto como tarea:** la app del voluntario tiene texto rojo y verde sobre la superficie que en oscuro se lee a ~2:1 (`Entrada.tsx`, `Incidencia.tsx`, `Ajustes.tsx`, `Mapa.tsx`, `MisPropuestas.tsx`, `Proponer.tsx`); se arregla con los tokens de RV-117.
