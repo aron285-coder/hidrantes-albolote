@@ -32,6 +32,7 @@ import {
   valoresPropuestos,
   bloqueoPorMedida,
 } from '@/lib/panel/cola';
+import { ORDEN_RACORES } from '@/lib/racores';
 import { textoError } from '@/lib/panel/errores';
 import type { Caudal, Punto, Racor, TipoPunto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -589,8 +590,7 @@ function Decision({ p, puntos }: { p: PropuestaPanel; puntos: Punto[] }) {
 }
 
 const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
-// El mismo orden que el formulario del voluntario (docs/25 RV-112).
-const RACORES: Racor[] = ['barcelona', 'granada', 'otro'];
+// El mismo orden que el formulario del voluntario (docs/25 RV-112, docs/29 RV-121): ORDEN_RACORES.
 
 function FormularioCorrecciones({
   p,
@@ -683,7 +683,7 @@ function FormularioCorrecciones({
               className="border-linea rounded-campo min-h-9 flex-1 border px-2"
             >
               {!v.racor && <option value="">—</option>}
-              {RACORES.map((r) => (
+              {ORDEN_RACORES.map((r) => (
                 <option key={r} value={r}>
                   {nombreRacor(r)}
                 </option>

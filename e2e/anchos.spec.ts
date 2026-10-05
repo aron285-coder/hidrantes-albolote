@@ -327,6 +327,11 @@ test('360 px: la rejilla de estados 2 + 3 y la fila de racores caben', async ({ 
       0,
     );
   }
+  // Marcada, con el borde doble de 3 px y en negrita, «Barcelona» (la más larga) sigue cabiendo.
+  const barcelona = racores.getByRole('radio', { name: T.formulario.barcelona, exact: true });
+  await barcelona.click();
+  await expect(barcelona).toHaveAttribute('aria-checked', 'true');
+  expect(await barcelona.evaluate((t) => t.scrollWidth <= t.clientWidth), 'Barcelona marcada cabe').toBe(true);
   await page.getByRole('radiogroup', { name: T.formulario.caudal }).scrollIntoViewIfNeeded();
   await captura(page, info, 'estados-360');
 });

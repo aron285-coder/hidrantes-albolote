@@ -3,7 +3,14 @@ import { type ReactNode, useRef, useState } from 'react';
 import type { Caudal, Racor } from '@/tipos/punto';
 import { type FotoProcesada, type PerfilFoto, PERFIL_CONEXION, PERFIL_SITIO, procesarFoto } from '@/lib/foto';
 import { claseChip, nombreCaudal, nombreRacor } from '@/lib/ficha';
-import { type EstadoFoto, type RacorConFoto, URL_FOTO_RACOR, estadoFotoRacor, marcarFotoRacor } from '@/lib/racores';
+import {
+  type EstadoFoto,
+  ORDEN_RACORES,
+  type RacorConFoto,
+  URL_FOTO_RACOR,
+  estadoFotoRacor,
+  marcarFotoRacor,
+} from '@/lib/racores';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -87,9 +94,6 @@ export function PildorasCaudal({
   );
 }
 
-// Barcelona, Granada, Directo, Otro: en este orden (docs/25 RV-112, DEC-163; docs/29 RV-121, DEC-170).
-const RACORES: Racor[] = ['barcelona', 'granada', 'directo', 'otro'];
-
 /**
  * La foto encima del nombre: 48 × 48, y 40 × 40 por debajo de 400 px de ancho para que quepan las
  * cuatro tarjetas en una fila (RV-121). Mientras no se sabe si existe, se pide escondida; si no
@@ -123,7 +127,7 @@ function FotoRacor({ racor }: { racor: RacorConFoto }) {
 export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: (r: Racor) => void }) {
   return (
     <div role="radiogroup" aria-label={T.formulario.racor} className="grid grid-cols-4 gap-1.5 min-[400px]:gap-2">
-      {RACORES.map((r) => (
+      {ORDEN_RACORES.map((r) => (
         <button
           key={r}
           type="button"

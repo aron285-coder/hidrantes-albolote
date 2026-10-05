@@ -2,6 +2,14 @@
 // public/racores (scripts/preparar-racores.ts) y entran en el precache. «Otro» no tiene foto. Si
 // una falta (Directo, hasta que el desarrollador la ponga), la tarjeta se ve solo con el nombre.
 
+import type { Racor } from '../tipos/punto';
+
+/**
+ * El orden de las opciones del tipo de enganche en todas partes (DEC-163, DEC-170): Barcelona,
+ * Granada, Directo, Otro. Para cualquier selector de enganche, también los del panel.
+ */
+export const ORDEN_RACORES: readonly Racor[] = ['barcelona', 'granada', 'directo', 'otro'];
+
 export const URL_FOTO_RACOR = {
   granada: '/racores/granada.webp',
   barcelona: '/racores/barcelona.webp',

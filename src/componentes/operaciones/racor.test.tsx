@@ -3,12 +3,12 @@
 // docs/29 RV-121 (DEC-170): «Directo» entra entre Granada y Otro, también con su foto.
 // Vitest corre en Node: se pinta a HTML con react-dom/server.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { SelectorRacor } from './Campos';
-import { URL_FOTO_RACOR, marcarFotoRacor, olvidarFotosRacor } from '@/lib/racores';
+import { ORDEN_RACORES, URL_FOTO_RACOR, marcarFotoRacor, olvidarFotosRacor } from '@/lib/racores';
 import { T } from '@/lib/textos';
 import type { Racor } from '@/tipos/punto';
 
@@ -104,6 +104,21 @@ describe('foto de referencia del racor (RV-104)', () => {
     expect(directo, 'no hay tarjeta «Directo»').toBeDefined();
     directo!.props.onClick();
     expect(elegidos).toEqual(['directo']);
+  });
+
+  // Una copia de la lista que se quede en tres opciones enseñaría «Barcelona» en un <select> cuyo
+  // valor es «directo» (la primera opción), y jefatura lo aprobaría sin saberlo.
+  it('ningún selector de enganche lleva su propia lista: todos usan ORDEN_RACORES (RV-121)', () => {
+    expect(ORDEN_RACORES).toEqual(['barcelona', 'granada', 'directo', 'otro']);
+    const raiz = path.resolve(import.meta.dirname, '../..');
+    const copias = (readdirSync(raiz, { recursive: true }) as string[])
+      .filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f))
+      .map((f) => f.replaceAll('\\', '/'))
+      .filter(
+        (f) => f !== 'lib/racores.ts' && /\[\s*'barcelona',\s*'granada'/.test(readFileSync(path.join(raiz, f), 'utf8')),
+      );
+    // dialogos.tsx (Editar del inventario) es de la sesión de panel: lo cambia EditarPunto (RV-124).
+    expect(copias.filter((f) => f !== 'componentes/panel/dialogos.tsx')).toEqual([]);
   });
 
   it('las fotos van en public/racores; la de Directo también, aunque aún no esté', () => {
