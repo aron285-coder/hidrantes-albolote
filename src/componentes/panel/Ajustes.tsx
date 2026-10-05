@@ -477,7 +477,6 @@ function SaludDelSistema() {
   const filas: [string, string, boolean?][] = s
     ? [
         [T.panelAjustes.pendientes14, String(s.pendientes_14d)],
-        [T.panelAjustes.incidenciasAbiertas, String(s.incidencias_abiertas)],
         [T.panelAjustes.errores7, String(s.errores_7d)],
         [T.panelAjustes.sinDireccion, String(s.sin_direccion)],
         [

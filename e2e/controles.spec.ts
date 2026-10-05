@@ -328,9 +328,7 @@ const PANTALLAS_PANEL: Pantalla[] = [
     ruta: '/admin/inventario',
     listo: (p) => p.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length)),
   },
-  { nombre: 'caducadas', ruta: '/admin/caducadas', listo: (p) => p.getByRole('main') },
   { nombre: 'registro', ruta: '/admin/registro', listo: (p) => p.getByRole('main') },
-  { nombre: 'voluntarios', ruta: '/admin/voluntarios', listo: (p) => p.getByRole('main') },
   { nombre: 'papelera', ruta: '/admin/papelera', listo: (p) => p.getByRole('main') },
   { nombre: 'ajustes', ruta: '/admin/ajustes', listo: (p) => p.getByRole('region', { name: T.panel.saludSistema }) },
 ];
@@ -353,7 +351,6 @@ async function prepararPanel(page: Page) {
     v_registro: [],
     propuestas: [],
     puntos: [],
-    incidencias_app: [],
     config: [],
     administradores: [
       { email: 'jefe@example.org', activo: true, creado_en: '2026-08-01T10:00:00Z', creado_por: 'migracion' },
@@ -364,7 +361,6 @@ async function prepararPanel(page: Page) {
   await simularRpcLento(page, {
     fn_es_admin: true,
     fn_salud: { pendientes_14d: 0, incidencias_abiertas: 0, errores_7d: 0, sin_direccion: 0, dispositivos_activos: 3 },
-    fn_actividad_voluntarios: [],
     fn_exportar_inventario: [],
     fn_registrar_error: null,
   });
