@@ -548,8 +548,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
 `Descargado · [12] MB · [jul 2026]` · `No descargado` · `Descargar` · `Actualizar` ·
 `Puntos guardados` · `Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
-`Avisarme cuando jefatura resuelva mis propuestas` · `Algo no funciona en la aplicación` ·
-`Avisar a jefatura` · `Cómo se usa (3 pantallas)` · `Cerrar sesión en este móvil` ·
+`Avisarme cuando jefatura resuelva mis propuestas` ·
+`Cómo se usa (3 pantallas)` · `Cerrar sesión en este móvil` ·
 `Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
 `novedades` · `Cuenta de jefatura` · `Sesión de Google · [correo]` · `Cerrar la sesión de Google` ·
 `Panel de jefatura` (botón de la cuenta de jefatura, RV-113) · `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
@@ -558,11 +558,6 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `No se pudo descargar. Inténtalo de nuevo con wifi.` · `[438] · sincronizado [hace 5 min]` ·
 `Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167; cada línea, `[0.6.4] · [texto]` con la versión que la trajo, DEC-142) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
 ha concedido, o no, no desalojar lo guardado; TR-07).
-
-**Algo no funciona** (FR-92). `Para problemas de la aplicación. Si lo que quieres es cambiar un hidrante, hazlo desde su ficha.` ·
-`Qué ha pasado` · `Ej.: al hacer la foto la app se cierra…` ·
-`Se enviará con la versión ([0.1.0]) y la pantalla en la que estabas. Lo verá jefatura en su panel.` ·
-`Describe el problema` · `Aviso enviado a jefatura` · `Ya has enviado varios avisos hoy. Inténtalo mañana.`.
 
 **Instalar la aplicación.** `Instalar la aplicación` · `Instalar` ·
 `Instala la aplicación en la pantalla de inicio: se abre más rápido y funciona sin cobertura.` ·
@@ -579,9 +574,9 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `Los avisos de esta aplicación están bloqueados en el móvil. En Android: Ajustes → Aplicaciones → esta aplicación → Notificaciones. Actívalas y vuelve aquí.` ·
 `Este móvil no puede recibir avisos ahora (servicio de avisos no disponible). Comprueba que tiene conexión y los servicios de Google actualizados.` ·
 `La aplicación aún se está preparando. Ciérrala del todo, ábrela y vuelve a intentarlo.` ·
-`No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.` ·
+`No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, díselo a jefatura.` ·
 `Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.` ·
-`El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.`
+`El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, díselo a jefatura.`
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·

@@ -1,5 +1,5 @@
-// Fase 6: las seis operaciones, la foto sin EXIF, la cola sin cobertura, Mis propuestas y
-// "Algo no funciona" (FL-03–FL-11), con el servidor simulado.
+// Fase 6: las seis operaciones, la foto sin EXIF, la cola sin cobertura y Mis propuestas
+// (FL-03–FL-10), con el servidor simulado. "Algo no funciona" salió en docs/29 RV-125.
 
 import { expect, test, type Page } from '@playwright/test';
 import { conExif } from '../src/lib/exif-prueba.ts';
@@ -12,12 +12,11 @@ const SB = 'https://supabase.invalid';
 interface Servidor {
   propuestas: Record<string, unknown>[];
   subidas: Buffer[];
-  incidencias: Record<string, unknown>[];
 }
 
 /** Servidor simulado: guarda lo que llega y responde como las RPC de 05 §6 (idempotente por clave_local). */
 async function servidor(page: Page, { caido = false } = {}): Promise<Servidor> {
-  const s: Servidor = { propuestas: [], subidas: [], incidencias: [] };
+  const s: Servidor = { propuestas: [], subidas: [] };
   await page.route('**/api/url-subida', (r) =>
     caido
       ? r.abort('connectionrefused')
@@ -57,10 +56,6 @@ async function servidor(page: Page, { caido = false } = {}): Promise<Servidor> {
           revisada_en: null,
         })),
       );
-    }
-    if (nombre === 'fn_reportar_incidencia') {
-      s.incidencias.push(cuerpo);
-      return json('00000000-0000-4000-8000-000000000001');
     }
     return json(null);
   });
@@ -403,7 +398,7 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     expect(s.propuestas[0]?.datos).toEqual({ tipo: 'hidrante', diametro_mm: 100, caudal: 'barro' });
   });
 
-  test('Mis propuestas lista lo enviado y "Algo no funciona" llega a jefatura', async ({ page }) => {
+  test('Mis propuestas lista lo enviado', async ({ page }) => {
     const s = await servidor(page);
     await page.goto('/?p=' + PUNTOS[0].id);
     await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
@@ -416,12 +411,22 @@ test.describe('operaciones (FL-03–FL-08)', () => {
 
     await page.goto('/ajustes');
     await expect(page.getByText(T.misPropuestas.resumen(1, 0))).toBeVisible();
-    await page.getByRole('button', { name: T.ajustes.avisarJefatura }).click();
-    await expect(page.getByRole('button', { name: T.ajustes.avisarJefatura })).toBeDisabled();
-    await page.getByLabel(T.incidencia.queHaPasado).fill('Al hacer la foto la app se cierra');
-    await page.getByRole('button', { name: T.ajustes.avisarJefatura }).click();
-    await expect(page.getByRole('heading', { level: 2, name: T.incidencia.enviado })).toBeVisible();
-    expect(s.incidencias[0]).toMatchObject({ token: TOKEN, descripcion: 'Al hacer la foto la app se cierra' });
+    expect(s.propuestas).toHaveLength(1);
+  });
+
+  // docs/29 RV-125 (DEC-167): sin la lista de incidencias en el panel nadie leería los avisos.
+  test('Ajustes ya no ofrece "Algo no funciona" y /incidencia lleva a Ajustes', async ({ page }) => {
+    const s = await servidor(page);
+    await page.goto('/ajustes');
+    await expect(page.getByText(T.ajustes.comoSeUsa)).toBeVisible();
+    await expect(page.getByText(/Algo no funciona/)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Avisar a jefatura' })).toHaveCount(0);
+    // Un enlace guardado o el historial de una versión vieja: a Ajustes, sin formulario.
+    await page.goto('/incidencia');
+    await expect(page).toHaveURL(/\/ajustes$/);
+    await expect(page.getByText(T.ajustes.comoSeUsa)).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Qué ha pasado' })).toHaveCount(0);
+    expect(s.propuestas).toHaveLength(0);
   });
 });
 

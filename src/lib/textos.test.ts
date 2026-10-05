@@ -69,6 +69,27 @@ describe('textos quitados de Cercanos (docs/27 RV-114)', () => {
   });
 });
 
+// docs/29 RV-125 (DEC-167): fuera "Algo no funciona en la aplicación"; nadie leería los avisos.
+describe('textos quitados con "Algo no funciona" (docs/29 RV-125)', () => {
+  const todas = hojas(T);
+  const rutas = new Set(todas.map(([ruta]) => ruta));
+  it.each([
+    'ajustes.algoNoFunciona',
+    'ajustes.avisarJefatura',
+    'incidencia.intro',
+    'incidencia.queHaPasado',
+    'incidencia.enviado',
+  ])('%s ya no existe', (ruta) => {
+    expect(rutas.has(ruta)).toBe(false);
+  });
+
+  it('ningún texto de la app manda a "Algo no funciona"', () => {
+    for (const [ruta, texto] of todas.filter(([r]) => !r.startsWith('panel'))) {
+      expect(texto, ruta).not.toMatch(/Algo no funciona/);
+    }
+  });
+});
+
 // docs/24 RV-99: menos texto en las pantallas de campo. Que no vuelvan por descuido.
 describe('textos quitados de las pantallas de campo (docs/24 RV-99)', () => {
   const todas = new Set(hojas(T).map(([ruta]) => ruta));
