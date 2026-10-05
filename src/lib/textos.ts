@@ -738,10 +738,10 @@ export const T = {
 
   panelInventario: {
     bocasDeRiego: 'Bocas de riego',
-    filtroRevision: 'Revisión',
-    todas: 'Todas',
-    filtroDiametro: 'Filtrar por diámetro',
-    cualquierDiametro: 'cualquier Ø',
+    // docs/29 RV-123 (DEC-168): Tipo y Estado en desplegables; Revisión, Núcleo y Diámetro fuera.
+    quitarFiltros: 'Quitar filtros',
+    conNumero: (nombre: Parametro, n: Parametro) => `${nombre} · ${n}`,
+    nadaQueExportar: 'Nada que exportar con estos filtros',
     vista: 'Vista',
     tabla: 'Tabla',
     mapa: 'Mapa',
@@ -965,6 +965,7 @@ export const T = {
     borrarDefinitivamente: 'Borrar definitivamente…',
     vaciarPapelera: 'Vaciar la papelera…',
     exportar: 'Exportar',
+    exportando: 'Exportando…',
     excel: 'Excel',
     csv: 'CSV',
     geojson: 'GeoJSON',

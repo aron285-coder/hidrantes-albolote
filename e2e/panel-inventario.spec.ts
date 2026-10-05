@@ -1,5 +1,6 @@
 // Panel · inventario, registro y papelera (FR-120, FR-123–FR-125, FR-160; FL-24, FL-26, FL-32).
 
+import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
@@ -111,6 +112,10 @@ async function prepararPanel(page: Page) {
   return llamadas;
 }
 
+/** Los dos filtros del inventario (docs/29 RV-123): desplegables con la etiqueta encima. */
+const tipo = (page: Page) => page.getByRole('combobox', { name: T.panelInventario.colTipo, exact: true });
+const estado = (page: Page) => page.getByRole('combobox', { name: T.panelInventario.colEstado, exact: true });
+
 const llamadaA = (llamadas: Llamada[], nombre: string) => llamadas.find((l) => l.nombre === nombre)?.cuerpo;
 
 test('inventario: filtros, orden y búsqueda global (FR-120, FR-145)', async ({ page }) => {
@@ -120,12 +125,9 @@ test('inventario: filtros, orden y búsqueda global (FR-120, FR-145)', async ({ 
   await expect(filas).toHaveCount(PUNTOS.length + 1); // + la cabecera
   await expect(page.getByRole('cell', { name: P0.codigo })).toBeVisible();
 
-  await page.getByRole('radio', { name: T.panelInventario.bocasDeRiego }).click();
+  await tipo(page).selectOption('boca_riego');
   await expect(filas).toHaveCount(5);
-  await page
-    .getByRole('radiogroup', { name: T.panelInventario.colTipo })
-    .getByRole('radio', { name: T.mapa.todos })
-    .click();
+  await tipo(page).selectOption('todos');
 
   await page.getByRole('button', { name: T.panelInventario.ordenarPor(T.panelInventario.colCodigo) }).click();
   await expect(filas.nth(1).getByRole('cell').first()).toHaveText('HID-9008');
@@ -209,7 +211,8 @@ test('inventario: exportar en los tres formatos (FR-160, FL-32)', async ({ page 
     [T.panel.geojson, 'geojson'],
   ]) {
     const descarga = page.waitForEvent('download');
-    await page.getByRole('button', { name: boton, exact: true }).click();
+    await page.getByRole('button', { name: T.panel.exportar }).click();
+    await page.getByRole('menuitem', { name: boton, exact: true }).click();
     expect((await descarga).suggestedFilename()).toMatch(
       new RegExp(`^hidrantes-albolote-\\d{4}-\\d{2}-\\d{2}\\.${extension}$`),
     );
@@ -244,20 +247,15 @@ test('filtrar hidrantes regulares y exportar CSV da solo esas filas (RV-24)', as
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/inventario');
   const filas = page.getByRole('row');
-  await page
-    .getByRole('radiogroup', { name: T.panelInventario.colTipo })
-    .getByRole('radio', { name: T.mapa.hidrantes })
-    .click();
-  await page
-    .getByRole('radiogroup', { name: T.panelInventario.colEstado })
-    .getByRole('radio', { name: T.formulario.regular })
-    .click();
+  await tipo(page).selectOption('hidrante');
+  await estado(page).selectOption('regular');
   const regulares = PUNTOS.filter((p) => p.tipo === 'hidrante' && p.caudal === 'regular').map((p) => p.codigo);
   await expect(filas).toHaveCount(regulares.length + 1);
 
   const leerCsv = async () => {
     const descarga = page.waitForEvent('download');
-    await page.getByRole('button', { name: T.panel.csv, exact: true }).click();
+    await page.getByRole('button', { name: T.panel.exportar }).click();
+    await page.getByRole('menuitem', { name: T.panel.csv, exact: true }).click();
     const texto = await (await descarga).createReadStream().then(
       (flujo) =>
         new Promise<string>((ok) => {
@@ -281,4 +279,207 @@ test('filtrar hidrantes regulares y exportar CSV da solo esas filas (RV-24)', as
   await expect(filas).toHaveCount(2);
   expect(await leerCsv()).toEqual([regulares[1]]);
   await expect(page.getByRole('status').filter({ hasText: T.panelInventario.exportado(1) })).toBeVisible();
+});
+
+// ---------- docs/29 RV-123 (DEC-168): Tipo y Estado en desplegables, Exportar ▾ ----------
+
+test('Tipo y Estado: desplegables con los números de cada estado y "Quitar filtros" (RV-123)', async ({ page }) => {
+  await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  const filas = page.getByRole('row');
+  await expect(filas).toHaveCount(PUNTOS.length + 1);
+  // Los filtros quitados no están: ni chips, ni núcleo, ni diámetro, ni revisión.
+  await expect(page.getByRole('radiogroup', { name: T.panelInventario.colTipo })).toHaveCount(0);
+  await expect(page.getByRole('main').getByRole('combobox')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: T.panelInventario.quitarFiltros })).toHaveCount(0);
+
+  const cuantos = (deTipo: string, caudal: string) =>
+    PUNTOS.filter((p) => (deTipo === 'todos' || p.tipo === deTipo) && p.caudal === caudal).length;
+  expect(await estado(page).locator('option').allTextContents()).toEqual([
+    T.panelInventario.conNumero(T.mapa.todos, PUNTOS.length),
+    T.panelInventario.conNumero(T.formulario.bueno, cuantos('todos', 'bueno')),
+    T.panelInventario.conNumero(T.formulario.regular, cuantos('todos', 'regular')),
+    T.panelInventario.conNumero(T.formulario.malo, cuantos('todos', 'malo')),
+    T.panelInventario.conNumero(T.formulario.barro, cuantos('todos', 'barro')),
+    T.panelInventario.conNumero(T.formulario.noFunciona, cuantos('todos', 'no_funciona')),
+  ]);
+  expect(await tipo(page).locator('option').allTextContents()).toEqual([
+    T.mapa.todos,
+    T.mapa.hidrantes,
+    T.panelInventario.bocasDeRiego,
+  ]);
+
+  // Con el tipo elegido, los números son los de ese tipo; el filtro activo va en negrita.
+  await tipo(page).selectOption('boca_riego');
+  const bocas = PUNTOS.filter((p) => p.tipo === 'boca_riego');
+  await expect(filas).toHaveCount(bocas.length + 1);
+  await expect(estado(page).locator('option').first()).toHaveText(
+    T.panelInventario.conNumero(T.mapa.todos, bocas.length),
+  );
+  await expect(estado(page).locator('option[value="regular"]')).toHaveText(
+    T.panelInventario.conNumero(T.formulario.regular, cuantos('boca_riego', 'regular')),
+  );
+  expect(await tipo(page).evaluate((e) => getComputedStyle(e).fontWeight)).toBe('600');
+  expect(await estado(page).evaluate((e) => getComputedStyle(e).fontWeight)).toBe('400');
+
+  await estado(page).selectOption('malo');
+  await expect(filas).toHaveCount(cuantos('boca_riego', 'malo') + 1);
+
+  await page.getByRole('button', { name: T.panelInventario.quitarFiltros }).click();
+  await expect(filas).toHaveCount(PUNTOS.length + 1);
+  await expect(tipo(page)).toHaveValue('todos');
+  await expect(estado(page)).toHaveValue('todos');
+  await expect(page.getByRole('button', { name: T.panelInventario.quitarFiltros })).toHaveCount(0);
+});
+
+test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (RV-123)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  const boton = page.getByRole('button', { name: T.panel.exportar });
+  const menu = page.getByRole('menu');
+  await expect(boton).toHaveAttribute('aria-haspopup', 'menu');
+  await expect(boton).toHaveAttribute('aria-expanded', 'false');
+  await expect(menu).toHaveCount(0);
+
+  // Con el teclado: flecha abajo abre y entra en Excel; las flechas dan la vuelta; Esc devuelve el foco.
+  await boton.focus();
+  await page.keyboard.press('ArrowDown');
+  await expect(boton).toHaveAttribute('aria-expanded', 'true');
+  await expect(menu.getByRole('menuitem')).toHaveText([T.panel.excel, T.panel.csv, T.panel.geojson]);
+  await expect(menu.getByRole('menuitem', { name: T.panel.excel })).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(menu.getByRole('menuitem', { name: T.panel.csv })).toBeFocused();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('ArrowUp');
+  await expect(menu.getByRole('menuitem', { name: T.panel.geojson })).toBeFocused();
+  await page.keyboard.press('Home');
+  await expect(menu.getByRole('menuitem', { name: T.panel.excel })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toHaveCount(0);
+  await expect(boton).toBeFocused();
+  await expect(boton).toHaveAttribute('aria-expanded', 'false');
+
+  // Tocar fuera lo cierra.
+  await boton.click();
+  await expect(menu).toBeVisible();
+  await page.getByText(T.panelInventario.ayudaTabla).click();
+  await expect(menu).toHaveCount(0);
+
+  // Elegir con Intro: exporta lo filtrado y el foco vuelve al botón.
+  await tipo(page).selectOption('hidrante');
+  await estado(page).selectOption('malo');
+  await boton.focus();
+  await page.keyboard.press('ArrowUp');
+  await expect(menu.getByRole('menuitem', { name: T.panel.geojson })).toBeFocused();
+  const descarga = page.waitForEvent('download');
+  await page.keyboard.press('Enter');
+  expect((await descarga).suggestedFilename()).toMatch(/\.geojson$/);
+  await expect(boton).toBeFocused();
+  expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: { tipo: 'hidrante', caudal: 'malo' } });
+});
+
+test('Inventario con filtros: axe en claro y oscuro, y a 412 px nada se sale a lo ancho (RV-123)', async ({ page }) => {
+  await prepararPanel(page);
+  for (const tema of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: tema });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/admin/inventario');
+    await tipo(page).selectOption('boca_riego');
+    await page.getByRole('button', { name: T.panel.exportar }).click();
+    await expect(page.getByRole('menu')).toBeVisible();
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .exclude('.leaflet-marker-pane')
+      .analyze();
+    expect(
+      violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`)),
+      `inventario · ${tema}`,
+    ).toEqual([]);
+  }
+
+  // Tableta: todo en una fila, también con "Quitar filtros" a la vista.
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto('/admin/inventario');
+  await tipo(page).selectOption('boca_riego');
+  const enTableta = await Promise.all(
+    [
+      tipo(page),
+      page.getByRole('button', { name: T.panelInventario.quitarFiltros }),
+      page.getByRole('button', { name: T.panel.exportar }),
+      page.getByRole('radio', { name: T.panelInventario.mapa }),
+    ].map((l) => l.boundingBox()),
+  );
+  const [st] = enTableta.map((c) => c!);
+  for (const c of enTableta) expect(c!.y + c!.height / 2).toBeGreaterThan(st.y);
+  for (const c of enTableta) expect(c!.y + c!.height / 2).toBeLessThan(st.y + st.height);
+
+  // Móvil: Tipo y Estado lado a lado; debajo, Quitar filtros, Exportar y Tabla/Mapa.
+  await page.setViewportSize({ width: 412, height: 915 });
+  await page.goto('/admin/inventario');
+  await tipo(page).selectOption('boca_riego');
+  const cajas = await Promise.all(
+    [
+      tipo(page),
+      estado(page),
+      page.getByRole('button', { name: T.panelInventario.quitarFiltros }),
+      page.getByRole('button', { name: T.panel.exportar }),
+    ].map((l) => l.boundingBox()),
+  );
+  const [t, e, q, x] = cajas.map((c) => c!);
+  expect(Math.abs(t.y - e.y)).toBeLessThan(2);
+  expect(e.x).toBeGreaterThan(t.x + t.width - 1);
+  expect(t.height).toBeGreaterThanOrEqual(44);
+  expect(q.y).toBeGreaterThan(t.y + t.height);
+  expect(x.y).toBeGreaterThan(t.y + t.height);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  // El menú abierto cabe en la pantalla del móvil.
+  await page.getByRole('button', { name: T.panel.exportar }).click();
+  const menu = (await page.getByRole('menu').boundingBox())!;
+  expect(menu.x).toBeGreaterThanOrEqual(0);
+  expect(menu.x + menu.width).toBeLessThanOrEqual(412);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test('un filtro sin puntos: estado vacío, Exportar deshabilitado con el motivo y "Quitar filtros" (RV-123)', async ({
+  page,
+}) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  await expect(page.getByRole('row')).toHaveCount(PUNTOS.length + 1);
+  // En los datos de prueba no hay ningún punto con barro.
+  await estado(page).selectOption('barro');
+  await expect(page.getByText(T.panelInventario.vacio)).toBeVisible();
+  await expect(page.getByRole('row')).toHaveCount(0);
+  const boton = page.getByRole('button', { name: T.panel.exportar });
+  await expect(boton).toBeDisabled();
+  await expect(boton).toHaveAccessibleDescription(T.panelInventario.nadaQueExportar);
+  await expect(page.getByText(T.panelInventario.nadaQueExportar)).toBeVisible();
+  expect(llamadaA(llamadas, 'fn_exportar_inventario')).toBeUndefined();
+
+  await page.getByRole('button', { name: T.panelInventario.quitarFiltros }).click();
+  await expect(page.getByRole('row')).toHaveCount(PUNTOS.length + 1);
+  await expect(boton).toBeEnabled();
+  await expect(page.getByText(T.panelInventario.nadaQueExportar)).toHaveCount(0);
+});
+
+test('mientras exporta, Exportar dice "Exportando…" y no abre el menú otra vez (RV-123)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  let soltar = () => {};
+  const espera = new Promise<void>((ok) => (soltar = ok));
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_exportar_inventario`, async (route) => {
+    llamadas.push({ nombre: 'fn_exportar_inventario', cuerpo: {} });
+    await espera;
+    await route.fulfill({ contentType: 'application/json', body: '[]' });
+  });
+  await page.goto('/admin/inventario');
+  await page.getByRole('button', { name: T.panel.exportar }).click();
+  await page.getByRole('menuitem', { name: T.panel.csv }).click();
+  const ocupado = page.getByRole('button', { name: T.panel.exportando });
+  await expect(ocupado).toHaveAttribute('aria-busy', 'true');
+  await expect(ocupado).toBeFocused();
+  await ocupado.click({ force: true });
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  expect(llamadas.filter((l) => l.nombre === 'fn_exportar_inventario')).toHaveLength(1);
+  soltar();
+  await expect(page.getByRole('button', { name: T.panel.exportar })).not.toHaveAttribute('aria-busy');
 });

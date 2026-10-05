@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { DialogoEditar, DialogoHistorial, DialogoMotivo } from './dialogos';
 import { usePanel } from './usar-panel';
 import { MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
@@ -7,15 +8,16 @@ import { useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { claseChip, nombreCaudal, nombreRacor, nombreTipo } from '@/lib/ficha';
 import { fechaCorta, hace } from '@/lib/formato';
 import { type Formato, exportar } from '@/lib/panel/exportar';
+import { anotarError } from '@/lib/errores';
 import { textoError } from '@/lib/panel/errores';
 import {
   type Columna,
   type FiltrosInventario,
   type Orden,
+  cuentaPorEstado,
   editarPunto,
   filtrosExportacion,
   inventario,
-  nucleosDe,
   ordenarPor,
   pagina,
   paginas,
@@ -24,7 +26,7 @@ import { type Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
-// FR-120: tipo, estado y revisión son tres controles independientes, combinables (RV-24).
+// FR-120: Tipo y Estado, dos desplegables independientes y combinables (docs/29 RV-123, DEC-168).
 const TIPOS: { valor: FiltrosInventario['tipo']; nombre: string }[] = [
   { valor: 'todos', nombre: T.mapa.todos },
   { valor: 'hidrante', nombre: T.mapa.hidrantes },
@@ -38,12 +40,13 @@ const ESTADOS: { valor: FiltrosInventario['caudal']; nombre: string }[] = [
   { valor: 'barro', nombre: T.formulario.barro },
   { valor: 'no_funciona', nombre: T.formulario.noFunciona },
 ];
-const REVISIONES: { valor: 'todas' | 'sin_revisar'; nombre: string }[] = [
-  { valor: 'todas', nombre: T.panelInventario.todas },
-  { valor: 'sin_revisar', nombre: T.mapa.sinRevisar },
-];
 
-function Chips<V extends string>({
+/**
+ * Un filtro del inventario: `<select>` nativo con la etiqueta encima, 44 px de alto. Activo (no
+ * "Todos"): borde de 2 px y negrita. El borde es --anillo-seleccion, que es --marino-950 en claro y
+ * se aclara en oscuro, donde el marino no se vería sobre el fondo.
+ */
+function Desplegable<V extends string>({
   etiqueta,
   opciones,
   valor,
@@ -54,24 +57,157 @@ function Chips<V extends string>({
   valor: V;
   alCambiar: (v: V) => void;
 }) {
+  const id = useId();
+  const activo = valor !== 'todos';
   return (
-    <div role="radiogroup" aria-label={etiqueta} className="flex flex-wrap items-center gap-1.5">
-      <span className="text-texto-suave text-[12px]">{etiqueta}</span>
-      {opciones.map((o) => (
-        <button
-          key={o.valor}
-          type="button"
-          role="radio"
-          aria-checked={valor === o.valor}
-          onClick={() => alCambiar(o.valor)}
-          className={cn(
-            'border-linea min-h-9 rounded-full border px-3 text-[13px]',
-            valor === o.valor ? 'bg-barra border-barra text-white' : 'bg-papel text-texto-suave',
-          )}
+    <div className="flex min-w-0 flex-col gap-1 md:w-44 xl:w-52">
+      <label htmlFor={id} className="text-texto-suave text-[12px]">
+        {etiqueta}
+      </label>
+      <select
+        id={id}
+        value={valor}
+        onChange={(e) => alCambiar(e.target.value as V)}
+        className={cn(
+          'bg-papel text-texto rounded-campo min-h-11 w-full min-w-0 text-[14px]',
+          activo
+            ? 'border-2 border-[var(--anillo-seleccion)] px-[10px] font-semibold'
+            : 'border-linea border px-[11px]',
+        )}
+      >
+        {opciones.map((o) => (
+          <option key={o.valor} value={o.valor}>
+            {o.nombre}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+const FORMATOS: { formato: Formato; nombre: string }[] = [
+  { formato: 'xlsx', nombre: T.panel.excel },
+  { formato: 'csv', nombre: T.panel.csv },
+  { formato: 'geojson', nombre: T.panel.geojson },
+];
+
+/**
+ * Exportar ▾ (docs/29 RV-123): un botón secundario que abre un menú con los tres formatos. Patrón
+ * de botón de menú de WAI-ARIA: flechas, Inicio y Fin dentro del menú; Esc lo cierra y devuelve el
+ * foco al botón; tocar fuera o Tab lo cierran sin quitar el foco de donde vaya. Sin filas que
+ * exportar, deshabilitado y con el motivo debajo (UI-02). Mientras exporta, ocupado: dice
+ * «Exportando…» y no abre el menú, pero no se deshabilita, porque un botón deshabilitado pierde el foco
+ * que el menú le acaba de devolver.
+ */
+function MenuExportar({
+  deshabilitado,
+  ocupado,
+  alElegir,
+}: {
+  deshabilitado: boolean;
+  ocupado: boolean;
+  alElegir: (f: Formato) => void;
+}) {
+  const [abierto, setAbierto] = useState<false | 'primero' | 'ultimo'>(false);
+  const boton = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const id = useId();
+
+  const opciones = () => [...(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+  const cerrar = (devolverFoco: boolean) => {
+    setAbierto(false);
+    if (devolverFoco) boton.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!abierto) return;
+    const lista = opciones();
+    (abierto === 'ultimo' ? lista.at(-1) : lista[0])?.focus();
+    const fuera = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!menu.current?.contains(t) && !boton.current?.contains(t)) setAbierto(false);
+    };
+    document.addEventListener('pointerdown', fuera);
+    return () => document.removeEventListener('pointerdown', fuera);
+  }, [abierto]);
+
+  function teclaMenu(e: ReactKeyboardEvent) {
+    const lista = opciones();
+    const i = lista.indexOf(document.activeElement as HTMLButtonElement);
+    const ir = (n: number) => lista[(n + lista.length) % lista.length]?.focus();
+    if (e.key === 'ArrowDown') ir(i + 1);
+    else if (e.key === 'ArrowUp') ir(i - 1);
+    else if (e.key === 'Home') ir(0);
+    else if (e.key === 'End') ir(lista.length - 1);
+    else if (e.key === 'Escape') cerrar(true);
+    else if (e.key === 'Tab') return setAbierto(false);
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  const motivo = `${id}-motivo`;
+  return (
+    <div className="relative flex flex-col items-end">
+      {/* Las clases de <Boton variante="secundario">: Boton no reenvía la referencia del foco. */}
+      <button
+        ref={boton}
+        type="button"
+        id={`${id}-boton`}
+        aria-haspopup="menu"
+        aria-expanded={!!abierto}
+        aria-controls={abierto ? `${id}-menu` : undefined}
+        disabled={deshabilitado}
+        aria-disabled={ocupado || undefined}
+        aria-busy={ocupado || undefined}
+        aria-describedby={deshabilitado ? motivo : undefined}
+        onClick={() => {
+          if (ocupado) return;
+          if (abierto) cerrar(false);
+          else setAbierto('primero');
+        }}
+        onKeyDown={(e) => {
+          if (ocupado) return;
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+          e.preventDefault();
+          setAbierto(e.key === 'ArrowUp' ? 'ultimo' : 'primero');
+        }}
+        className="rounded-boton bg-papel text-texto border-texto disabled:bg-linea disabled:text-texto-suave flex min-h-11 min-w-11 items-center gap-1.5 border-[1.5px] px-4 text-[14px] font-semibold disabled:cursor-not-allowed aria-disabled:cursor-progress aria-disabled:opacity-60"
+      >
+        {ocupado ? T.panel.exportando : T.panel.exportar}
+        <ChevronDown size={16} aria-hidden />
+      </button>
+      {deshabilitado && (
+        <p id={motivo} className="text-texto-suave mt-0.5 text-[11px]">
+          {T.panelInventario.nadaQueExportar}
+        </p>
+      )}
+      {abierto && (
+        <div
+          ref={menu}
+          id={`${id}-menu`}
+          role="menu"
+          aria-labelledby={`${id}-boton`}
+          onKeyDown={teclaMenu}
+          className="bg-papel border-linea rounded-tarjeta absolute top-full right-0 z-[500] mt-1 flex min-w-44 flex-col border py-1 shadow-[0_6px_24px_rgba(14,27,48,.28)]"
         >
-          {o.nombre}
-        </button>
-      ))}
+          {FORMATOS.map(({ formato, nombre }) => (
+            <button
+              key={formato}
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                cerrar(true);
+                alElegir(formato);
+              }}
+              className="hover:bg-fondo focus:bg-fondo min-h-11 px-4 text-left text-[14px]"
+            >
+              {nombre}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -97,9 +233,6 @@ export default function Inventario() {
   const ancha = usePanelAncho();
   const [tipo, setTipo] = useState<FiltrosInventario['tipo']>('todos');
   const [caudal, setCaudal] = useState<FiltrosInventario['caudal']>('todos');
-  const [sinRevisar, setSinRevisar] = useState(false);
-  const [nucleo, setNucleo] = useState('');
-  const [diametro, setDiametro] = useState('');
   const [orden, setOrden] = useState<Orden>({ columna: 'codigo', ascendente: true });
   const [n, setN] = useState(0);
   const [mapa, setMapa] = useState(false);
@@ -107,13 +240,14 @@ export default function Inventario() {
   const [exportando, setExportando] = useState(false);
   const [seleccion, setSeleccion] = useState<string | null>(null);
 
-  const nucleos = useMemo(() => nucleosDe(puntos), [puntos]);
-  const filtros: FiltrosInventario = { tipo, caudal, sin_revisar: sinRevisar, nucleo, diametro, busqueda };
+  const filtros: FiltrosInventario = { tipo, caudal, busqueda };
   const filtrados = useMemo(
     () => ordenarPor(inventario(puntos, filtros), orden),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [puntos, tipo, caudal, sinRevisar, nucleo, diametro, busqueda, orden],
+    [puntos, tipo, caudal, busqueda, orden],
   );
+  const cuenta = useMemo(() => cuentaPorEstado(puntos, tipo), [puntos, tipo]);
+  const conFiltro = tipo !== 'todos' || caudal !== 'todos';
   const total = paginas(filtrados.length);
   const pag = Math.min(n, total - 1);
   const visibles = pagina(filtrados, pag);
@@ -132,16 +266,23 @@ export default function Inventario() {
 
   async function exportarCon(formato: Formato) {
     setExportando(true);
-    // El servidor filtra lo que entiende (05 §6.2); la búsqueda no la conoce, así que con búsqueda
-    // el archivo lleva solo lo que se ve en la tabla (FR-160, RV-24).
-    const r = await exportar(
-      formato,
-      filtrosExportacion(filtros),
-      busqueda.trim() ? filtrados.map((p) => p.codigo) : undefined,
-    );
-    setExportando(false);
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
-    avisar(T.panelInventario.exportado(r.datos));
+    try {
+      // El servidor filtra lo que entiende (05 §6.2); la búsqueda no la conoce, así que con búsqueda
+      // el archivo lleva solo lo que se ve en la tabla (FR-160, RV-24).
+      const r = await exportar(
+        formato,
+        filtrosExportacion(filtros),
+        busqueda.trim() ? filtrados.map((p) => p.codigo) : undefined,
+      );
+      if (!r.ok) return avisar(textoError(r.codigo), 'error');
+      avisar(T.panelInventario.exportado(r.datos));
+    } catch (e) {
+      // Generar el archivo en el navegador puede fallar (memoria, Blob): se dice y se anota (TR-90).
+      anotarError(e);
+      avisar(T.panelErrores.generico, 'error');
+    } finally {
+      setExportando(false);
+    }
   }
 
   // Piezas de cada punto, iguales en la tabla y en las filas de dos líneas (docs/20 RV-79).
@@ -290,78 +431,45 @@ export default function Inventario() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="border-linea bg-fondo flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm">
-        <Chips
-          etiqueta={T.panelInventario.colTipo}
-          opciones={TIPOS}
-          valor={tipo}
-          alCambiar={(v) => {
-            setTipo(v);
-            setN(0);
-          }}
-        />
-        <Chips
-          etiqueta={T.panelInventario.colEstado}
-          opciones={ESTADOS}
-          valor={caudal}
-          alCambiar={(v) => {
-            setCaudal(v);
-            setN(0);
-          }}
-        />
-        <Chips
-          etiqueta={T.panelInventario.filtroRevision}
-          opciones={REVISIONES}
-          valor={sinRevisar ? 'sin_revisar' : 'todas'}
-          alCambiar={(v) => {
-            setSinRevisar(v === 'sin_revisar');
-            setN(0);
-          }}
-        />
-        <select
-          aria-label={T.panelCola.filtroNucleo}
-          value={nucleo}
-          onChange={(e) => {
-            setNucleo(e.target.value);
-            setN(0);
-          }}
-          className="border-linea bg-papel rounded-campo min-h-9 border px-2"
-        >
-          <option value="">{T.panelCola.todosNucleos}</option>
-          {nucleos.map((x) => (
-            <option key={x}>{x}</option>
-          ))}
-        </select>
-        <select
-          aria-label={T.panelInventario.filtroDiametro}
-          value={diametro}
-          onChange={(e) => {
-            setDiametro(e.target.value);
-            setN(0);
-          }}
-          className="border-linea bg-papel rounded-campo min-h-9 border px-2"
-        >
-          <option value="">{T.panelInventario.cualquierDiametro}</option>
-          {[45, 70, 100].map((d) => (
-            <option key={d} value={d}>
-              {T.formato.mm(d)}
-            </option>
-          ))}
-        </select>
+      {/* docs/29 RV-123: Tipo y Estado a la izquierda, Exportar y Tabla/Mapa a la derecha, en una fila
+          desde la tableta. En el móvil, los dos desplegables lado a lado y el resto debajo. */}
+      <div className="border-linea bg-fondo flex flex-wrap items-end gap-x-3 gap-y-2 border-b px-3 py-2 text-sm">
+        <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto">
+          <Desplegable
+            etiqueta={T.panelInventario.colTipo}
+            opciones={TIPOS}
+            valor={tipo}
+            alCambiar={(v) => {
+              setTipo(v);
+              setN(0);
+            }}
+          />
+          <Desplegable
+            etiqueta={T.panelInventario.colEstado}
+            opciones={ESTADOS.map((e) => ({ ...e, nombre: T.panelInventario.conNumero(e.nombre, cuenta[e.valor]) }))}
+            valor={caudal}
+            alCambiar={(v) => {
+              setCaudal(v);
+              setN(0);
+            }}
+          />
+        </div>
+        {conFiltro && (
+          <button
+            type="button"
+            onClick={() => {
+              setTipo('todos');
+              setCaudal('todos');
+              setN(0);
+            }}
+            className="text-texto min-h-11 px-1 underline"
+          >
+            {T.panelInventario.quitarFiltros}
+          </button>
+        )}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <span className="text-texto-suave">{T.panel.exportar}</span>
-          {(['xlsx', 'csv', 'geojson'] as Formato[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              disabled={exportando || !filtrados.length}
-              onClick={() => void exportarCon(f)}
-              className="border-linea bg-papel rounded-campo min-h-9 border px-3 text-[13px] font-semibold disabled:opacity-50"
-            >
-              {f === 'xlsx' ? T.panel.excel : f === 'csv' ? T.panel.csv : T.panel.geojson}
-            </button>
-          ))}
+          <MenuExportar deshabilitado={!filtrados.length} ocupado={exportando} alElegir={(f) => void exportarCon(f)} />
           <div role="radiogroup" aria-label={T.panelInventario.vista} className="flex gap-1.5">
             {[false, true].map((esMapa) => (
               <button

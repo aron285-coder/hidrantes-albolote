@@ -442,7 +442,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
 `No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
 `Nada coincide con ese filtro.` · `revisado [hace 3 meses]` · `sin revisar` + `desde [hace 1 año]` = "sin revisar desde hace 1 año" (en `--naranja-texto`; si no cabe, se acorta la fecha, nunca `sin revisar`) (segunda línea de cada fila de la Lista, sin la dirección; a la derecha solo la distancia, y solo si hay posición: FR-68, docs/25 RV-106) ·
-`desde ti` · `desde el incidente` (solo para el lector de pantalla, detrás de la distancia de cada fila) · `Revisión` · `Todas` (filtros del Inventario, FR-120) · `Sin cobertura` · `Reintentar` ·
+`desde ti` · `desde el incidente` (solo para el lector de pantalla, detrás de la distancia de cada fila) · `Sin cobertura` · `Reintentar` ·
 `[12] puntos` · `Sincronizando…` ·
 `Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` (nunca sincronizado) ·
 `Todavía no hay ningún punto en el inventario. Mantén pulsado el mapa donde haya uno para darlo de alta.` · `Añadir un punto` (sincronizado y sin ningún punto, en el mapa y en la lista, RV-76) ·
@@ -620,7 +620,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 
 **Panel: resto.** `Editar` · `Retirar` · `Borrar` · `Historial` · `Restaurar` ·
 `Borrar definitivamente…` · `Vaciar la papelera…` · `Marcar resuelta` · `Anonimizar…` ·
-`Hoja de campo por núcleo` · `Exportar` · `Excel` · `CSV` · `GeoJSON` ·
+`Hoja de campo por núcleo` · `Exportar` · `Exportando…` · `Excel` · `CSV` · `GeoJSON` ·
 `Descargar inventario (JSON)` · `Purgar fotos huérfanas` · `Generar uno nuevo` ·
 `Revocar todos los dispositivos` · `Guardar cambios` · `Añadir` ·
 `Regenerar zona de cobertura` · `Regenerar mapa base` · `Respaldo ahora` ·
@@ -668,7 +668,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `No se ha podido completar. Inténtalo de nuevo.`.
 
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
-`Filtrar por diámetro` · `cualquier Ø` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
+`Quitar filtros` · `[Regular] · [3]` (opciones del desplegable Estado, docs/29 RV-123) · `Nada que exportar con estos filtros` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
 `Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `enganche [Granada]` · `Ordenar por [columna]` ·
 `Dirección de [codigo]` · `pulsa una columna para ordenar ·
 la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con esos filtros.` ·
