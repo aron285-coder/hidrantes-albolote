@@ -686,6 +686,10 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Código de acceso cambiado` · `Dispositivos revocados` · `Administrador añadido` ·
 `Administrador desactivado` · `Parámetros cambiados` · `Incidencia resuelta` · `Anonimización` ·
 `Exportación` · `Mantenimiento lanzado` ·
+`[campo]: [antes] → [despues]` · `[campo]: [valor]` · `Movido [m] m` · `cambiada` · `adjunta` · `Sin cambios en los datos` · `sí` · `no` · `Activo` ·
+`Retirado` · `Borrado` · `Estado` ·
+`Enganche` · `Diámetro` · `Tipo` · `Fallo` · `Dirección` · `Descripción` · `Núcleo` ·
+`Última revisión` · `Foto` · `Foto del sitio` · `Situación` · `Código` · `Motivo` ·
 `Los borrados se conservan [dias] días y después se purgan.` · `Purgar lo caducado…` ·
 `Purgar ahora` ·
 `Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de [dias] días en la papelera. No se puede deshacer.` ·

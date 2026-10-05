@@ -6,6 +6,7 @@ import { useAncho } from '@/hooks/ancho';
 import { useCarga } from '@/hooks/carga';
 import { fechaCorta, hace } from '@/lib/formato';
 import { NOMBRE_ACCION, POR_PAGINA, cargarRegistro, nombreAccion, paginas } from '@/lib/panel/inventario';
+import { detalleLegible } from '@/lib/panel/registro-legible';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -85,7 +86,7 @@ export default function Registro() {
                     </Dato>
                   </div>
                   <div role="cell" className="text-texto-suave [overflow-wrap:anywhere]">
-                    {e.resumen}
+                    {detalleLegible(e)}
                   </div>
                 </FilaApilada>
               ))}
@@ -118,7 +119,7 @@ export default function Registro() {
                     </td>
                     <td className="px-3 py-1.5 font-semibold">{nombreAccion(e.accion)}</td>
                     <td className="font-datos px-3 py-1.5 whitespace-nowrap">{e.codigo ?? '—'}</td>
-                    <td className="text-texto-suave px-3 py-1.5">{e.resumen}</td>
+                    <td className="text-texto-suave px-3 py-1.5">{detalleLegible(e)}</td>
                   </tr>
                 ))}
               </tbody>

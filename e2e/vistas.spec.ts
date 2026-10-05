@@ -115,11 +115,67 @@ const SALUD_STAGING = {
   tareas_origen: 'en_vivo',
 };
 
+/**
+ * docs/30 RV-127: entradas del Registro como las deja la base de datos (0006, 0038), para mirar el
+ * detalle legible: una edición con movimiento, un alta, un borrado y un cambio de parámetros.
+ */
+const REGISTRO = [
+  {
+    id: 4,
+    momento: hace(1),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'edicion_admin',
+    punto_id: P0.id,
+    codigo: P0.codigo,
+    resumen: `edicion_admin · ${P0.codigo} · actualizado_en, caudal, codigo, desplazamiento_m, lat, lng`,
+    antes: { ...P0, caudal: 'no_funciona', descripcion_fallo: '[PRUEBA] Tapa soldada' },
+    despues: { ...P0, caudal: 'regular', descripcion_fallo: null, lat: P0.lat + 0.00005, desplazamiento_m: 5.6 },
+  },
+  {
+    id: 3,
+    momento: hace(3),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'aprobacion',
+    punto_id: P1.id,
+    codigo: P1.codigo,
+    resumen: `aprobacion · ${P1.codigo} · caudal, codigo, tipo`,
+    antes: null,
+    despues: P1,
+  },
+  {
+    id: 2,
+    momento: hace(20),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'borrado',
+    punto_id: P1.id,
+    codigo: P1.codigo,
+    resumen: `borrado · ${P1.codigo} · motivo, situacion`,
+    antes: P1,
+    despues: { situacion: 'borrado', motivo: '[PRUEBA] Duplicado de otro punto' },
+  },
+  {
+    id: 1,
+    momento: hace(50),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'config_cambiada',
+    punto_id: null,
+    codigo: null,
+    resumen: 'config_cambiada · dias_papelera',
+    antes: { dias_papelera: 30 },
+    despues: { dias_papelera: 45 },
+  },
+];
+
 async function jefatura(page: Page) {
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
     v_puntos_activos: PUNTOS,
     v_cola_revision: COLA,
+    v_registro: REGISTRO,
     propuestas: (url) => (url.searchParams.get('estado') === 'eq.pendiente' ? COLA : []),
     puntos: [],
     config: [],
@@ -132,6 +188,7 @@ async function jefatura(page: Page) {
     // Salud del sistema como en staging: sin respaldo ni medida del bucket (docs/23 RV-98).
     if (nombre === 'fn_salud') return json(SALUD_STAGING);
     if (nombre === 'fn_registrar_error') return json(null);
+    if (nombre === 'fn_historial_punto') return json([...REGISTRO].reverse());
     return route.abort('connectionrefused');
   });
   await page.route('**/api/direccion?*', (r) =>
@@ -281,6 +338,25 @@ const VISTAS: Vista[] = [
     preparar: jefatura,
     lista: (p) => expect(p.getByText(P0.codigo).first()).toBeVisible(),
     soloEscritorio: true,
+  },
+  {
+    // docs/30 RV-127: el Registro dice qué cambió, con palabras, en la tabla y en las filas apiladas.
+    nombre: 'panel-registro',
+    ruta: '/admin/registro',
+    preparar: jefatura,
+    lista: (p) => expect(p.getByText(/Movido 5,6 m/)).toBeVisible(),
+    anchoEscritorio: 1440,
+  },
+  {
+    // docs/30 RV-127: el Historial del punto, con la segunda línea del detalle.
+    nombre: 'panel-historial',
+    ruta: '/admin/inventario',
+    preparar: jefatura,
+    lista: async (p) => {
+      await p.getByRole('button', { name: T.panel.historial }).first().click();
+      await expect(p.getByRole('dialog').getByText(/Movido 5,6 m/)).toBeVisible();
+    },
+    anchoEscritorio: 1440,
   },
 ];
 
