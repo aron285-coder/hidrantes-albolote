@@ -98,7 +98,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-60 | Aviso de aprobación | Jefatura aprueba un alta del móvil A; abrir la app en A | Aviso "tu alta … se aprobó como HID-…" | FR-90 | | |
 | AC-61 | Aviso de rechazo con motivo | Jefatura rechaza con motivo; abrir la app | El aviso y Mis propuestas muestran el motivo | FR-90, FR-91 | | |
 | AC-62 | Correcciones visibles | Jefatura aprueba con correcciones; abrir Mis propuestas | Se ve qué se corrigió | FR-91, FR-106 | | |
-| AC-63 | Algo no funciona | Ajustes → Algo no funciona → describir → Avisar | Aparece en Voluntarios → Incidencias, abierta, con versión y pantalla | FR-92, FR-132 | | |
+| AC-63 | Algo no funciona | *Retirado (DEC-167).* Ajustes → Algo no funciona → describir → Avisar | Aparece en Voluntarios → Incidencias, abierta, con versión y pantalla | FR-92, FR-132 | | |
 | AC-64 | Cerrar sesión con cola pendiente | Con una propuesta sin enviar, Cerrar sesión | Pide confirmación explícita y avisa de que se perderá | FR-93 | | |
 | AC-65 | Primer uso desde Ajustes | Ajustes → Cómo se usa | Vuelven a verse las tres pantallas | FR-94 | | |
 
@@ -127,17 +127,17 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-90 | Inventario: filtros y orden | Filtrar por núcleo y ordenar por última revisión | Correcto; "mostrando X de N" | FR-120 | | |
+| AC-90 | Inventario: filtros y orden | Filtrar por tipo y estado y ordenar por última revisión | Correcto; "mostrando X de N" | FR-120 | | |
 | AC-91 | Dirección en celda | Editar una dirección en la tabla | Se guarda; la ficha la muestra | FR-120, FR-15 | | |
 | AC-92 | Retirar | Retirar un punto con motivo | Desaparece del mapa; sigue en el registro e historial | FR-124 | | |
 | AC-93 | Borrar y restaurar | Borrar un punto → Papelera → Restaurar | Vuelve al mapa | FR-124 | | |
 | AC-94 | Historial de un punto | Inventario → Historial | Todas las acciones sobre ese punto | FR-123 | | |
-| AC-95 | Revisiones caducadas por núcleo | Abrir la pestaña | Agrupadas por núcleo con recuento | FR-121 | | |
-| AC-96 | Hoja de campo | Hoja de campo por núcleo → imprimir a PDF | Una hoja por núcleo con código, dirección (o coordenadas), tipo, Ø, estado y casilla | FR-122 | | |
+| AC-95 | Revisiones caducadas por núcleo | *Retirado (DEC-167).* Abrir la pestaña | Agrupadas por núcleo con recuento | FR-121 | | |
+| AC-96 | Hoja de campo | *Retirado (DEC-167).* Hoja de campo por núcleo → imprimir a PDF | Una hoja por núcleo con código, dirección (o coordenadas), tipo, Ø, estado y casilla | FR-122 | | |
 | AC-97 | Registro inmutable | Intentar editar o borrar una entrada (por API con cuenta de administrador) | Falla | FR-123, TR-46 | | |
-| AC-98 | Actividad de voluntarios | Pestaña Voluntarios, 3 y 12 meses | Cifras coherentes con lo aprobado y rechazado en el piloto | FR-130 | | |
-| AC-99 | Anonimizar | Anonimizar a un voluntario de prueba | Sus filas muestran "voluntario dado de baja"; el punto y el registro siguen | FR-131 | | |
-| AC-100 | Incidencia resuelta | Marcar resuelta la de AC-63 | Estado resuelta; Salud baja en uno | FR-132, FR-143 | | |
+| AC-98 | Actividad de voluntarios | *Retirado (DEC-167).* Pestaña Voluntarios, 3 y 12 meses | Cifras coherentes con lo aprobado y rechazado en el piloto | FR-130 | | |
+| AC-99 | Anonimizar | `npm run anonimizar -- --entorno staging` con un dispositivo de prueba (11) | Sus filas muestran "voluntario dado de baja"; el punto y el registro siguen | FR-131 | | |
+| AC-100 | Incidencia resuelta | *Retirado (DEC-167).* Marcar resuelta la de AC-63 | Estado resuelta; Salud baja en uno | FR-132, FR-143 | | |
 | AC-101 | Cambiar código sin revocar | Generar uno nuevo sin revocar → confirmar | Los móviles registrados siguen; un móvil nuevo necesita el código nuevo; el antiguo ya no vale | FR-34, FR-140 | | |
 | AC-102 | Cambiar código revocando | Generar con "Revocar todos" → confirmar | Todos los móviles piden el código al abrir; conservan el nombre | FR-34, FR-35 | | |
 | AC-103 | Administradores | Añadir un correo, entrar con él; desactivarlo, volver a entrar | Entra / "No autorizado". No deja desactivar al último activo | FR-141 | | |
@@ -225,8 +225,12 @@ se ven al recorrer los anteriores: aquí se anotan una vez.
 | AC-163 | Zona de cobertura | Colocar un pin en Albolote, en Calicasas y fuera | Dentro, sin aviso; fuera (más de unos 400 m), aviso y se puede continuar | FR-53, FR-55 | | |
 | AC-164 | Panel en ordenador y tableta | Abrir el panel en un portátil y en una tableta con una cuenta autorizada y con otra no autorizada | La autorizada entra y se usa en los dos; la otra ve "no autorizado" | FR-100 | | e2e `anchos.spec.ts` |
 | AC-165 | Pendientes a la vista | Con tres propuestas pendientes, abrir el panel | La cola dice 3 en todo momento, y baja al aprobar | FR-110 | | |
-| AC-166 | Caducadas sin correos | Dejar puntos sin revisar más de 12 meses | Salen en Caducadas del panel; no llega ningún correo automático | FR-125 | | |
+| AC-166 | Caducadas sin correos | Dejar puntos sin revisar más de 12 meses | Salen con «hace N» en rojo en el Inventario; no llega ningún correo automático | FR-125 | | |
 | AC-167 | Núcleos desde Ajustes | Ajustes → Núcleos: renombrar uno y añadir otro | El renombrado se ve en el inventario y la lista; el nuevo sale con su recuento de puntos | FR-166 | | e2e `panel-ajustes.spec.ts` |
+| AC-168 | Enganche Directo | Alta de una boca eligiendo Directo, a 360 px | Cuatro opciones Barcelona · Granada · Directo · Otro en una fila; la ficha, el inventario, la cola y las exportaciones dicen «Directo» | FR-20 | | |
+| AC-169 | Inventario con dos filtros | Filtrar por Bocas de riego y Regular → Quitar filtros → Exportar ▾ CSV | El desplegable de Estado da los números del tipo elegido; Quitar filtros vuelve a todos; el CSV trae lo filtrado | FR-120 | | |
+| AC-170 | Editar y mover | Inventario → Editar → mover el pin unos metros y cambiar el enganche → Guardar | Los dos campos marcados con «antes»; el pie dice «2 cambios»; en el Registro, una entrada `edicion_admin` con el desplazamiento; el núcleo recalculado | FR-120, FR-151 | | |
+| AC-171 | Cinco pestañas | Abrir el panel; ir a /admin/caducadas y /admin/voluntarios | Cola · Inventario · Registro · Papelera · Ajustes; las dos rutas viejas llevan al Inventario | FR-120 | | |
 
 ---
 

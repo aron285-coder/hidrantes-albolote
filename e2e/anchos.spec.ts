@@ -268,8 +268,9 @@ test.describe('panel de jefatura en tableta en vertical (RV-79)', () => {
   }
 });
 
-// docs/24 RV-102 y RV-104 (DEC-149): a 360 px los cinco estados van en 2 + 3 y los tres racores en una
-// fila, cada botón de 44 px de alto como mínimo y sin salirse de la pantalla ni partir el nombre.
+// docs/24 RV-102 y RV-104 (DEC-149): a 360 px los cinco estados van en 2 + 3 y los racores (cuatro
+// desde docs/29 RV-121) en una fila, cada botón de 44 px de alto como mínimo y sin salirse de la
+// pantalla ni partir el nombre.
 test('360 px: la rejilla de estados 2 + 3 y la fila de racores caben', async ({ page }, info) => {
   await abrir(page, 360, 780);
   await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
@@ -279,7 +280,7 @@ test('360 px: la rejilla de estados 2 + 3 y la fila de racores caben', async ({ 
   // se espera a que cada foto haya cargado (o fallado: entonces desaparece) y se mide todo de una vez.
   const racores = page.getByRole('radiogroup', { name: T.formulario.racor });
   // Primero, que el grupo esté montado: sobre una lista vacía, la espera de las fotos pasaría sin más.
-  await expect(racores.getByRole('radio')).toHaveCount(3);
+  await expect(racores.getByRole('radio')).toHaveCount(4);
   await expect
     .poll(() =>
       racores
@@ -313,10 +314,24 @@ test('360 px: la rejilla de estados 2 + 3 y la fila de racores caben', async ({ 
     filas.set(Math.round(caja.y), (filas.get(Math.round(caja.y)) ?? 0) + 1);
   }
   expect([...filas.values()]).toEqual([2, 3]);
-  for (const nombre of [T.formulario.granada, T.formulario.barcelona, T.formulario.otro]) {
-    const caja = (await page.getByRole('radio', { name: nombre, exact: true }).boundingBox())!;
+  for (const nombre of [T.formulario.granada, T.formulario.barcelona, T.formulario.directo, T.formulario.otro]) {
+    const tarjeta = page.getByRole('radio', { name: nombre, exact: true });
+    const caja = (await tarjeta.boundingBox())!;
     expect(caja.x + caja.width, nombre).toBeLessThanOrEqual(360);
+    expect(caja.width, nombre).toBeGreaterThanOrEqual(44);
+    expect(caja.height, nombre).toBeGreaterThanOrEqual(44);
+    // El nombre entero dentro de la tarjeta: ni cortado ni partido en dos líneas.
+    expect(await tarjeta.evaluate((t) => t.scrollWidth <= t.clientWidth), `${nombre} cabe`).toBe(true);
+    expect(caja.y, `${nombre} en la misma fila`).toBeCloseTo(
+      (await racores.getByRole('radio').first().boundingBox())!.y,
+      0,
+    );
   }
+  // Marcada, con el borde doble de 3 px y en negrita, «Barcelona» (la más larga) sigue cabiendo.
+  const barcelona = racores.getByRole('radio', { name: T.formulario.barcelona, exact: true });
+  await barcelona.click();
+  await expect(barcelona).toHaveAttribute('aria-checked', 'true');
+  expect(await barcelona.evaluate((t) => t.scrollWidth <= t.clientWidth), 'Barcelona marcada cabe').toBe(true);
   await page.getByRole('radiogroup', { name: T.formulario.caudal }).scrollIntoViewIfNeeded();
   await captura(page, info, 'estados-360');
 });
