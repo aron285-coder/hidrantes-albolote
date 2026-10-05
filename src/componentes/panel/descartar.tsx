@@ -1,5 +1,6 @@
 // Lo de Editar que el Inventario necesita sin cargar Editar (docs/29 RV-124): la pregunta de
-// descartar, el estado que Editar le cuenta y la entrada de historial. Editar va en su propia porción
+// descartar y el estado que Editar le cuenta (la entrada de historial está en
+// `@/lib/panel/historial-editar`, RV-129). Editar va en su propia porción
 // (lazy): con el mapa y los controles del alta dentro de la porción del Inventario, Rollup juntaba en
 // una sola las piezas que comparte con la app y la carga con sesión se hacía más lenta (RV-80).
 
@@ -66,16 +67,4 @@ export function ConfirmarDescartar({
 export interface EstadoEditar {
   pendientes: number;
   ocupado: boolean;
-}
-
-/** La entrada de historial de Editar lleva este campo, con un valor distinto en cada apertura. */
-export const MARCA = 'editarPunto';
-export const marcaActual = () => (window.history.state as Record<string, unknown> | null)?.[MARCA];
-
-/**
- * Quita la entrada de historial de Editar si es la de arriba. Para cuando el Inventario cierra Editar
- * por su cuenta (se ha retirado o borrado el punto que se editaba).
- */
-export function quitarEntradaDeEditar() {
-  if (marcaActual()) window.history.back();
 }
