@@ -117,8 +117,7 @@ describe('foto de referencia del racor (RV-104)', () => {
       .filter(
         (f) => f !== 'lib/racores.ts' && /\[\s*'barcelona',\s*'granada'/.test(readFileSync(path.join(raiz, f), 'utf8')),
       );
-    // dialogos.tsx (Editar del inventario) es de la sesión de panel: lo cambia EditarPunto (RV-124).
-    expect(copias.filter((f) => f !== 'componentes/panel/dialogos.tsx')).toEqual([]);
+    expect(copias).toEqual([]);
   });
 
   it('las fotos van en public/racores; la de Directo también, aunque aún no esté', () => {

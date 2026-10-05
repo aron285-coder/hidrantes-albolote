@@ -157,7 +157,8 @@ test('inventario: editar la dirección en la celda y editar el punto (FR-15, FR-
   await fila.getByRole('button', { name: T.panel.editar }).click();
   const dialogo = page.getByRole('dialog');
   await expect(dialogo.getByRole('button', { name: T.panel.guardarCambios })).toBeDisabled();
-  await dialogo.getByLabel(T.panelCola.campoEstado).selectOption('malo');
+  // Editar es el panel lateral con las píldoras de estado del alta (docs/29 RV-124).
+  await dialogo.getByRole('radio', { name: T.formulario.malo }).click();
   await dialogo.getByRole('button', { name: T.panel.guardarCambios }).click();
   await expect(page.getByRole('status').filter({ hasText: T.panelInventario.guardado(P0.codigo) })).toBeVisible();
   expect(llamadas.filter((l) => l.nombre === 'fn_editar_punto').at(-1)?.cuerpo).toEqual({
@@ -173,8 +174,10 @@ test('panel-inventario: editar no ofrece el tipo', async ({ page }) => {
   const fila = page.getByRole('row').filter({ hasText: P0.codigo });
   await fila.getByRole('button', { name: T.panel.editar }).click();
   const dialogo = page.getByRole('dialog');
-  await expect(dialogo.getByLabel(T.panelCola.campoEstado)).toBeVisible();
-  await expect(dialogo.getByLabel(T.panelCola.campoTipo)).toHaveCount(0);
+  // El segmentado del tipo está, pero bloqueado (docs/29 RV-124).
+  const tipo = dialogo.getByRole('radiogroup', { name: T.formulario.tipoElemento });
+  await expect(tipo.getByRole('radio', { name: T.formulario.hidrante })).toHaveAttribute('aria-checked', 'true');
+  for (const r of await tipo.getByRole('radio').all()) await expect(r).toBeDisabled();
   await expect(dialogo.getByText(T.panelErrores.tipoNoModificable)).toBeVisible();
 });
 

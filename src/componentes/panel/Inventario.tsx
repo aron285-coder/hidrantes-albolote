@@ -355,8 +355,10 @@ export default function Inventario() {
       <span className="text-texto-suave font-normal"> · {fechaCorta(p.fecha_ultima_revision)}</span>
     </span>
   );
-  const accionesDe = (p: Punto) => (
-    <div className="flex flex-wrap items-center gap-1">
+  // En la tabla, en una línea: con Editar abierto al lado, la tabla se desplaza a lo ancho en vez de
+  // partir las acciones en cuatro líneas (RV-124).
+  const accionesDe = (p: Punto, enTabla = false) => (
+    <div className={cn('flex items-center gap-1', enTabla ? 'flex-nowrap' : 'flex-wrap')}>
       {(['editar', 'retirar', 'historial', 'borrar'] as const).map((que) => (
         <button
           key={que}
@@ -419,7 +421,7 @@ export default function Inventario() {
             <td className="px-3 py-1.5">{direccionDe(p)}</td>
             <td className="px-3 py-1.5">{p.nucleo ?? T.panelCola.sinNucleo}</td>
             <td className="px-3 py-1.5">{revisionDe(p)}</td>
-            <td className="px-3 py-1.5">{accionesDe(p)}</td>
+            <td className="px-3 py-1.5">{accionesDe(p, true)}</td>
           </tr>
         ))}
       </tbody>
