@@ -19,7 +19,8 @@ Postgres 15 con PostGIS.
 create type hidrantes.tipo_punto        as enum ('hidrante', 'boca_riego');
 create type hidrantes.estado_caudal     as enum ('bueno', 'regular', 'malo', 'no_funciona', 'barro');
   -- "No funciona" en la UI; 'barro' (sale agua con barro) lo añade 0033 detrás de no_funciona (DEC-145)
-create type hidrantes.tipo_racor        as enum ('granada', 'barcelona', 'otro');
+create type hidrantes.tipo_racor        as enum ('granada', 'barcelona', 'directo', 'otro');
+  -- 'directo' lo añade 0037 delante de 'otro' (DEC-170); en pantalla: Barcelona · Granada · Directo · Otro
 create type hidrantes.operacion         as enum ('alta', 'revision', 'estado', 'datos', 'ubicacion', 'retirada');
 create type hidrantes.estado_moderacion as enum ('pendiente', 'aprobada', 'rechazada', 'retirada_por_autor');
 create type hidrantes.situacion_punto   as enum ('activo', 'retirado', 'borrado');
@@ -179,6 +180,11 @@ menos de `dias_reserva_subida` días, y un día de margen evita aprobar un `foto
 `pg_cron` borra las reservas de más de 30 días (`hidrantes_purgar_subidas`). DEC-084.
 
 ### 2.7 `incidencias_app` (FR-92, FR-132)
+
+**En desuso desde docs/29 (DEC-167):** la app ya no tiene «Algo no funciona» ni el panel la lista de
+incidencias. La tabla, `fn_resolver_incidencia` e `incidencias_abiertas` de `fn_salud` se quedan
+(compatibilidad con la versión anterior del frontend, 04 §12), pendientes de limpiar en una
+migración posterior. Nada nuevo debe escribir en ella ni leerla.
 
 | Columna | Tipo | Notas |
 |---|---|---|
@@ -446,6 +452,20 @@ fn_editar_punto(punto_id uuid, cambios jsonb) returns void
   -- un caudal distinto de 'no_funciona' borra descripcion_fallo, como en fn_aplicar_propuesta (0024, RV-42)
   -- edición directa de administrador (FR-151 desde el inventario); registro es_admin = true.
   -- diametro_mm en una boca: de 20 a 150; ya no se fuerza a 45 (0032, DEC-144)
+  -- claves: tipo (solo igual al actual), diametro_mm, caudal, racor, descripcion_fallo, descripcion,
+  --   direccion y, desde 0038 (docs/29 RV-120, DEC-169), lat y lng: mover el punto desde Editar.
+  -- lat y lng van las dos o ninguna. Una sola, un valor que no es número o fuera de los límites del
+  --   check puntos_coordenadas (lat 36,6 a 38,2; lng −4,5 a −2,5) → PAYLOAD_INVALIDO(ubicacion).
+  --   Fuera de la zona habitual pero dentro de esos límites se acepta (municipio 'fuera_de_zona';
+  --   lo avisa la pantalla).
+  -- al mover: geom nueva, y municipio y núcleo recalculados con fn_municipio_de, como al aprobar una
+  --   ubicación. La misma posición que ya tiene (a 0,1 m) no cuenta como movimiento: el panel puede
+  --   mandarla sin haber tocado el pin. Una sola entrada 'edicion_admin' por llamada aunque cambien varias cosas; si se
+  --   movió, `despues` lleva desplazamiento_m (redondeado a 0,1 m), como fn_aprobar con 'ubicacion'.
+  -- toda edición cambia puntos.actualizado_en (trigger puntos_actualizado_en): las propuestas
+  --   pendientes anteriores salen desactualizadas en v_cola_revision.
+  -- errores: NO_AUTORIZADO · PAYLOAD_INVALIDO(cambios|ubicacion|<constraint>) · PUNTO_NO_ACTIVO ·
+  --   TIPO_NO_MODIFICABLE
 
 fn_retirar_punto(punto_id uuid, motivo text) returns void
 fn_borrar_punto(punto_id uuid, motivo text) returns void        -- situacion = 'borrado', borrado_en = now()
