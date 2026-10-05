@@ -2,7 +2,7 @@ import { Lock, X } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
-import { ConfirmarDescartar, type EstadoEditar, MARCA, marcaActual } from './descartar';
+import { ConfirmarDescartar, type EstadoEditar } from './descartar';
 import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
 import { Campo, PildorasCaudal, Segmentado, SelectorRacor } from '@/componentes/operaciones/Campos';
@@ -11,6 +11,7 @@ import { usePosicion } from '@/hooks/estado';
 import { bandaDe, nombreCaudal, nombreRacor } from '@/lib/ficha';
 import { distancia } from '@/lib/formato';
 import { textoError } from '@/lib/panel/errores';
+import { MARCA, marcaActual } from '@/lib/panel/historial-editar';
 import {
   type CampoEditado,
   MOVIDO_DESDE_M,

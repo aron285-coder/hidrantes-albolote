@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react';
 import { DialogoHistorial, DialogoMotivo } from './dialogos';
-import { ConfirmarDescartar, type EstadoEditar, quitarEntradaDeEditar } from './descartar';
+import { ConfirmarDescartar, type EstadoEditar } from './descartar';
 
 // Editar en su propia porción: ver descartar.tsx (RV-80).
 const EditarPunto = lazy(() => import('./EditarPunto'));
@@ -22,6 +22,7 @@ import { useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { claseChip, nombreCaudal, nombreRacor, nombreTipo } from '@/lib/ficha';
 import { fechaCorta, hace } from '@/lib/formato';
 import { type Formato, exportar } from '@/lib/panel/exportar';
+import { quitarEntradaDeEditar } from '@/lib/panel/historial-editar';
 import { anotarError } from '@/lib/errores';
 import { textoError } from '@/lib/panel/errores';
 import {
