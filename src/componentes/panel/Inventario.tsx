@@ -1,6 +1,15 @@
 import { ChevronDown } from 'lucide-react';
-import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { DialogoEditar, DialogoHistorial, DialogoMotivo } from './dialogos';
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { DialogoHistorial, DialogoMotivo } from './dialogos';
+import { ConfirmarDescartar, EditarPunto } from './EditarPunto';
 import { usePanel } from './usar-panel';
 import { MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { usePanelAncho } from '@/hooks/ancho';
@@ -222,7 +231,7 @@ const COLUMNAS: { clave: Columna; nombre: string }[] = [
   { clave: 'fecha_ultima_revision', nombre: T.panelInventario.colRevision },
 ];
 
-type Dialogo = { punto: Punto; que: 'editar' | 'retirar' | 'borrar' | 'historial' } | null;
+type Dialogo = { punto: Punto; que: 'retirar' | 'borrar' | 'historial' } | null;
 
 /** Inventario (FR-120, FL-24): tabla o mapa, con filtros, orden, páginas y acciones de jefatura. */
 export default function Inventario() {
@@ -237,6 +246,27 @@ export default function Inventario() {
   const [n, setN] = useState(0);
   const [mapa, setMapa] = useState(false);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
+  // Editar (docs/29 RV-124): el punto abierto, cuántos cambios lleva sin guardar, el punto al que se
+  // quiere pasar si los hay, y el "Editar" que lo abrió, para devolverle el foco al cerrar.
+  const [editando, setEditando] = useState<Punto | null>(null);
+  const [pendientes, setPendientes] = useState(0);
+  const [pasarA, setPasarA] = useState<{ punto: Punto; boton: HTMLElement } | null>(null);
+  const origen = useRef<HTMLElement | null>(null);
+
+  function abrirEditar(p: Punto, boton: HTMLElement) {
+    if (editando?.id === p.id) return;
+    // En el ordenador la tabla sigue a mano: con cambios sin guardar, pregunta antes de cambiar de punto.
+    if (editando && pendientes > 0) return setPasarA({ punto: p, boton });
+    origen.current = boton;
+    setPendientes(0);
+    setEditando(p);
+  }
+
+  const cerrarEditar = useCallback(() => {
+    setEditando(null);
+    setPendientes(0);
+    origen.current?.focus();
+  }, []);
   const [exportando, setExportando] = useState(false);
   const [seleccion, setSeleccion] = useState<string | null>(null);
 
@@ -285,6 +315,15 @@ export default function Inventario() {
     }
   }
 
+  // La fila que se está editando, marcada como el campo que cambia (banda naranja a la izquierda).
+  const claseFila = (p: Punto) =>
+    cn(
+      'border-linea border-b',
+      editando?.id === p.id
+        ? 'bg-[color-mix(in_srgb,#FFB000_8%,var(--papel))] shadow-[inset_4px_0_0_var(--naranja-600)]'
+        : 'bg-papel',
+    );
+
   // Piezas de cada punto, iguales en la tabla y en las filas de dos líneas (docs/20 RV-79).
   const diametroDe = (p: Punto) => (
     <>
@@ -322,7 +361,8 @@ export default function Inventario() {
         <button
           key={que}
           type="button"
-          onClick={() => setDialogo({ punto: p, que })}
+
+          onClick={(e) => (que === 'editar' ? abrirEditar(p, e.currentTarget) : setDialogo({ punto: p, que }))}
           className={cn(
             'min-h-8 px-2 whitespace-nowrap underline',
             que === 'borrar' && 'text-rojo-texto ml-3',
@@ -371,7 +411,7 @@ export default function Inventario() {
       </thead>
       <tbody>
         {visibles.map((p) => (
-          <tr key={p.id} className="border-linea bg-papel border-b">
+          <tr key={p.id} data-editando={editando?.id === p.id || undefined} className={claseFila(p)}>
             <td className="font-datos px-3 py-1.5 whitespace-nowrap">{p.codigo}</td>
             <td className="px-3 py-1.5 whitespace-nowrap">{nombreTipo[p.tipo]}</td>
             <td className="px-3 py-1.5 whitespace-nowrap">{diametroDe(p)}</td>
@@ -399,7 +439,12 @@ export default function Inventario() {
         ))}
       </div>
       {visibles.map((p) => (
-        <div key={p.id} role="row" className="border-linea bg-papel border-b px-3 py-1.5">
+        <div
+          key={p.id}
+          role="row"
+          data-editando={editando?.id === p.id || undefined}
+          className={cn(claseFila(p), 'px-3 py-1.5')}
+        >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span role="cell" className="font-datos font-semibold whitespace-nowrap">
               {p.codigo}
@@ -430,7 +475,9 @@ export default function Inventario() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Con Editar abierto en el ordenador (panel de 540 px sin velo), el Inventario se estrecha a su
+    // lado: la tabla se sigue viendo y desplazando, y el Editar de otra fila queda a mano (RV-124).
+    <div className={cn('flex min-h-0 flex-1 flex-col', editando && 'min-[1100px]:mr-[540px]')}>
       {/* docs/29 RV-123: Tipo y Estado a la izquierda, Exportar y Tabla/Mapa a la derecha, en una fila
           desde la tableta. En el móvil, los dos desplegables lado a lado y el resto debajo. */}
       <div className="border-linea bg-fondo flex flex-wrap items-end gap-x-3 gap-y-2 border-b px-3 py-2 text-sm">
@@ -534,8 +581,20 @@ export default function Inventario() {
         </div>
       )}
 
-      {dialogo?.que === 'editar' && (
-        <DialogoEditar punto={dialogo.punto} alCerrar={() => setDialogo(null)} alHecho={() => setDialogo(null)} />
+      {editando && (
+        <EditarPunto key={editando.id} punto={editando} alCerrar={cerrarEditar} alPendientes={setPendientes} />
+      )}
+      {pasarA && (
+        <ConfirmarDescartar
+          n={pendientes}
+          alDescartar={() => {
+            origen.current = pasarA.boton;
+            setPendientes(0);
+            setEditando(pasarA.punto);
+            setPasarA(null);
+          }}
+          alSeguir={() => setPasarA(null)}
+        />
       )}
       {(dialogo?.que === 'retirar' || dialogo?.que === 'borrar') && (
         <DialogoMotivo

@@ -667,6 +667,11 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `Esta acción aún no está configurada en el servidor.` ·
 `No se ha podido completar. Inténtalo de nuevo.`.
 
+**Panel: Editar (docs/29 RV-124, DEC-169).** `Editar` · `Ubicación` · `[Tipo de enganche] · cambia` · `antes:` · `—` · `antes · [6 m]` ·
+`⚠ Esto queda fuera de la zona habitual.` · `Has movido el punto [30 m]: revisa la dirección.` ·
+`[2 cambios] · [ubicación, enganche]` · `ubicación` · `diámetro` · `enganche` · `estado` · `fallo` · `dirección` ·
+`descripción` · `¿Descartar [n] cambios?` (`¿Descartar 1 cambio?` con uno) · `Descartar` · `Seguir editando`.
+
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
 `Quitar filtros` · `[Regular] · [3]` (opciones del desplegable Estado, docs/29 RV-123) · `Nada que exportar con estos filtros` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
 `Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `enganche [Granada]` · `Ordenar por [columna]` ·

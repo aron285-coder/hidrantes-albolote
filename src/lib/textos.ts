@@ -774,6 +774,30 @@ export const T = {
     exportado: (n: Parametro) => `Exportadas ${n} filas. La exportación consta en el Registro.`,
   },
 
+  // docs/29 RV-124 (DEC-169): Editar como panel lateral con mapa y los cambios marcados.
+  panelEditar: {
+    editar: 'Editar',
+    ubicacion: 'Ubicación',
+    // Detrás de la etiqueta de un campo que cambia: "Tipo de enganche · cambia".
+    conCambio: (etiqueta: Parametro) => `${etiqueta} · cambia`,
+    antes: 'antes:',
+    vacio: '—',
+    antesMetros: (distancia: Parametro) => `antes · ${distancia}`,
+    fueraDeZona: '⚠ Esto queda fuera de la zona habitual.',
+    revisaDireccion: (distancia: Parametro) => `Has movido el punto ${distancia}: revisa la dirección.`,
+    resumen: (cambios: Parametro, cuales: Parametro) => `${cambios} · ${cuales}`,
+    campoUbicacion: 'ubicación',
+    campoDiametro: 'diámetro',
+    campoEnganche: 'enganche',
+    campoEstado: 'estado',
+    campoFallo: 'fallo',
+    campoDireccion: 'dirección',
+    campoDescripcion: 'descripción',
+    descartarN: (n: number) => (n === 1 ? '¿Descartar 1 cambio?' : `¿Descartar ${n} cambios?`),
+    descartar: 'Descartar',
+    seguirEditando: 'Seguir editando',
+  },
+
   panelRegistro: {
     filtroAccion: 'Filtrar por acción',
     todasAcciones: 'todas las acciones',

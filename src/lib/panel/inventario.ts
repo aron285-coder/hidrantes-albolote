@@ -4,7 +4,8 @@
 
 import { type Resultado, rpc } from '../api';
 import { CAUDALES, caudalParaDibujar } from '../caudal';
-import { type Caudal, type Punto, type TipoPunto, sincronizar } from '../puntos';
+import { metros } from '../geometria';
+import { type Caudal, type Punto, type Racor, type TipoPunto, sincronizar } from '../puntos';
 import type { FiltrosExportacion } from './exportar';
 import { T } from '../textos';
 import { diametroBocaValido } from './cola';
@@ -190,6 +191,19 @@ export interface CambiosPunto {
   descripcion_fallo?: string | null;
   descripcion?: string | null;
   direccion?: string | null;
+  /** Mover el punto desde Editar (0038, docs/29 RV-124, DEC-169): las dos o ninguna. */
+  lat?: number;
+  lng?: number;
+}
+
+/** Desde cuántos metros cuenta como movido el pin de Editar (docs/29 RV-124). */
+export const MOVIDO_DESDE_M = 0.5;
+/** Desde cuántos metros movido se pide revisar la dirección, que no cambia sola (docs/29 RV-124). */
+export const REVISAR_DIRECCION_DESDE_M = 25;
+
+/** Metros entre la posición guardada y la del formulario; 0 si el formulario no trae posición. */
+export function movidoM(p: Punto, v: CambiosPunto): number {
+  return v.lat === undefined || v.lng === undefined ? 0 : metros(p, { lat: v.lat, lng: v.lng });
 }
 
 export async function editarPunto(id: string, cambios: CambiosPunto): Promise<Resultado<null>> {
@@ -239,7 +253,72 @@ export function cambiosDe(p: Punto, v: CambiosPunto): CambiosPunto {
   }
   if (cambia('descripcion', v.descripcion, p.descripcion)) c.descripcion = v.descripcion?.trim() || null;
   if (cambia('direccion', v.direccion, p.direccion)) c.direccion = v.direccion?.trim() || null;
+  // La ubicación, solo si se ha movido de verdad (≥ 0,5 m): un toque sin querer no la cambia.
+  if (movidoM(p, v) >= MOVIDO_DESDE_M) {
+    c.lat = v.lat;
+    c.lng = v.lng;
+  }
   return c;
+}
+
+/** Lo que se está escribiendo en Editar, en la forma de los controles del alta. */
+export interface Valores {
+  pin: { lat: number; lng: number };
+  diametro: number | 'otro' | undefined;
+  diametroOtro: string;
+  racor: Racor | null;
+  caudal: Caudal;
+  fallo: string;
+  direccion: string;
+  descripcion: string;
+}
+
+/** Los valores guardados del punto. Una boca de otra medida que 45 o 70 abre "Otra medida" con su número. */
+export function valoresDe(p: Punto): Valores {
+  const otra = p.tipo === 'boca_riego' && p.diametro_mm !== 45 && p.diametro_mm !== 70;
+  return {
+    pin: { lat: p.lat, lng: p.lng },
+    diametro: otra ? 'otro' : p.diametro_mm,
+    diametroOtro: otra ? String(p.diametro_mm) : '',
+    racor: p.racor,
+    caudal: p.caudal,
+    fallo: p.descripcion_fallo ?? '',
+    direccion: p.direccion ?? '',
+    descripcion: p.descripcion ?? '',
+  };
+}
+
+/** Los valores en la forma de `fn_editar_punto`; `cambiosDe` decide después qué cambia de verdad. */
+export function formularioDe(v: Valores): CambiosPunto {
+  return {
+    diametro_mm: v.diametro === 'otro' ? (v.diametroOtro.trim() ? Number(v.diametroOtro) : undefined) : v.diametro,
+    racor: v.racor,
+    caudal: v.caudal,
+    descripcion_fallo: v.fallo,
+    descripcion: v.descripcion,
+    direccion: v.direccion,
+    lat: v.pin.lat,
+    lng: v.pin.lng,
+  };
+}
+
+/** Los campos de Editar, en el orden de la pantalla (docs/29 RV-124). */
+export type CampoEditado = 'ubicacion' | 'diametro' | 'enganche' | 'estado' | 'fallo' | 'direccion' | 'descripcion';
+
+/**
+ * Qué campos cambian, en el orden de la pantalla: de aquí salen el recuento y la lista del pie de
+ * Editar ("2 cambios · ubicación, enganche") y qué campo va marcado. La ubicación cuenta una vez.
+ */
+export function camposCambiados(c: CambiosPunto): CampoEditado[] {
+  const lista: CampoEditado[] = [];
+  if (c.lat !== undefined) lista.push('ubicacion');
+  if (c.diametro_mm !== undefined) lista.push('diametro');
+  if ('racor' in c) lista.push('enganche');
+  if (c.caudal !== undefined) lista.push('estado');
+  if ('descripcion_fallo' in c) lista.push('fallo');
+  if ('direccion' in c) lista.push('direccion');
+  if ('descripcion' in c) lista.push('descripcion');
+  return lista;
 }
 
 // ---------- parámetros que el panel necesita leer (05 §2.10) ----------

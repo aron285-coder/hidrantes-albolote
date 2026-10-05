@@ -23,6 +23,8 @@ export function SelectorPin({
   alMover,
   alUsarMiPosicion,
   etiqueta,
+  alto = 'h-84',
+  rotuloOriginal,
 }: {
   pin: Coordenadas | undefined;
   gps: Posicion | null;
@@ -31,6 +33,10 @@ export function SelectorPin({
   /** Se llama al pulsar "Mi posición" con GPS disponible. */
   alUsarMiPosicion?: () => void;
   etiqueta: string;
+  /** Alto del mapa (clase de Tailwind). En Editar del panel, 230 px y 200 px en el móvil (docs/29 RV-124). */
+  alto?: string;
+  /** Rótulo fijo junto a la posición de antes, p. ej. "antes · 6 m" (docs/29 RV-124). Sin él, solo el círculo. */
+  rotuloOriginal?: string;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<L.Map | null>(null);
@@ -137,7 +143,7 @@ export function SelectorPin({
       }).addTo(g);
     }
     if (original) {
-      L.circleMarker([original.lat, original.lng], {
+      const antes = L.circleMarker([original.lat, original.lng], {
         radius: 7,
         color: '#7A8582',
         weight: 1.5,
@@ -145,6 +151,14 @@ export function SelectorPin({
         fill: false,
         interactive: false,
       }).addTo(g);
+      if (rotuloOriginal) {
+        antes.bindTooltip(rotuloOriginal, {
+          permanent: true,
+          direction: 'bottom',
+          offset: [0, 6],
+          className: 'rotulo-antes',
+        });
+      }
       if (pin) {
         L.polyline(
           [
@@ -155,7 +169,7 @@ export function SelectorPin({
         ).addTo(g);
       }
     }
-  }, [gps, original, pin]);
+  }, [gps, original, pin, rotuloOriginal]);
 
   // El primer arreglo del GPS puede tardar medio minuto en la calle: sin este "buscando", el botón
   // de posición parece roto y se pulsa tres veces (UI-01, UI-05). Es el mismo aviso que el mapa.
@@ -172,7 +186,7 @@ export function SelectorPin({
     <div className="relative isolate">
       <div
         ref={contenedor}
-        className="rounded-tarjeta border-linea h-84 overflow-hidden border"
+        className={`rounded-tarjeta border-linea overflow-hidden border ${alto}`}
         data-testid="selector-pin"
       />
       <button
