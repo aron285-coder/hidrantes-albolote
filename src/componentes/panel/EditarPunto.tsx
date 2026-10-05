@@ -9,6 +9,7 @@ import { Campo, PildorasCaudal, Segmentado, SelectorRacor } from '@/componentes/
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { usePosicion } from '@/hooks/estado';
 import { bandaDe, nombreCaudal, nombreRacor } from '@/lib/ficha';
+import { useModal } from '@/lib/foco-modal';
 import { distancia } from '@/lib/formato';
 import { textoError } from '@/lib/panel/errores';
 import { MARCA, marcaActual } from '@/lib/panel/historial-editar';
@@ -324,6 +325,9 @@ export default function EditarPunto({
   const idFalta = useId();
   const dialogo = useRef<HTMLDivElement>(null);
   const cuerpo = useRef<HTMLDivElement>(null);
+  // Con velo o a pantalla completa es modal y deja el resto inert; al lado de la tabla, no: la tabla
+  // sigue a mano (DEC-169). Al cambiar de forma sin cerrar se activa o se desactiva (RV-128).
+  useModal(dialogo, forma !== 'lateral');
   // Una marca por apertura: en StrictMode el efecto se monta dos veces y no debe apilar dos entradas.
   const [marca] = useState(() => `${punto.id}:${Math.random().toString(36).slice(2)}`);
   const [v, setV] = useState<Valores>(() => valoresDe(punto));
@@ -473,61 +477,71 @@ export default function EditarPunto({
 
   return createPortal(
     <>
-      {forma === 'velo' && (
-        <div className="fixed inset-0 z-[940] bg-[rgba(14,27,48,.25)]" onClick={intentarCerrar} aria-hidden />
-      )}
-      <div
-        ref={dialogo}
-        role="dialog"
-        aria-modal={forma !== 'lateral'}
-        aria-labelledby={titulo}
-        aria-busy={ocupado || undefined}
-        data-forma={forma}
-        className="bg-papel text-texto fixed inset-y-0 right-0 z-[950] flex w-full flex-col shadow-[0_6px_24px_rgba(14,27,48,.28)] md:max-[1099px]:w-[500px] min-[1100px]:w-[540px]"
-      >
-        {/* La banda enseña el estado guardado, no el que se está eligiendo. */}
-        <div className={cn('flex min-h-14 shrink-0 items-center gap-3 px-4', banda.clase)}>
-          <h2 id={titulo} className="flex min-w-0 items-baseline gap-2">
-            <span className="font-datos text-[18px] font-semibold">{punto.codigo}</span>
-            <span className="text-[13px]">{T.panelEditar.editar}</span>
-          </h2>
-          <span className="ml-auto text-[14px] font-semibold">{nombreCaudal(punto.caudal)}</span>
-          {/* Mientras guarda, la X no cierra: el motivo es "Guardando…" en el botón de guardar. */}
-          <button
-            type="button"
-            onClick={intentarCerrar}
-            disabled={ocupado}
-            aria-label={T.ficha.cerrar}
-            className="-mr-2 flex size-11 items-center justify-center disabled:opacity-50"
-          >
-            <X size={20} aria-hidden />
-          </button>
-        </div>
+      {/* El velo y el panel van juntos en un solo hijo de <body>: con Editar modal, el resto queda inert
+          (RV-128) y el velo tiene que seguir recibiendo el toque que cierra. La pregunta de descartar
+          es otro hijo de <body>, encima. */}
+      <div>
+        {forma === 'velo' && (
+          <div className="fixed inset-0 z-[940] bg-[rgba(14,27,48,.25)]" onClick={intentarCerrar} aria-hidden />
+        )}
+        <div
+          ref={dialogo}
+          role="dialog"
+          aria-modal={forma !== 'lateral'}
+          aria-labelledby={titulo}
+          aria-busy={ocupado || undefined}
+          data-forma={forma}
+          className="bg-papel text-texto fixed inset-y-0 right-0 z-[950] flex w-full flex-col shadow-[0_6px_24px_rgba(14,27,48,.28)] md:max-[1099px]:w-[500px] min-[1100px]:w-[540px]"
+        >
+          {/* La banda enseña el estado guardado, no el que se está eligiendo. */}
+          <div className={cn('flex min-h-14 shrink-0 items-center gap-3 px-4', banda.clase)}>
+            <h2 id={titulo} className="flex min-w-0 items-baseline gap-2">
+              <span className="font-datos text-[18px] font-semibold">{punto.codigo}</span>
+              <span className="text-[13px]">{T.panelEditar.editar}</span>
+            </h2>
+            <span className="ml-auto text-[14px] font-semibold">{nombreCaudal(punto.caudal)}</span>
+            {/* Mientras guarda, la X no cierra: el motivo es "Guardando…" en el botón de guardar. */}
+            <button
+              type="button"
+              onClick={intentarCerrar}
+              disabled={ocupado}
+              aria-label={T.ficha.cerrar}
+              className="-mr-2 flex size-11 items-center justify-center disabled:opacity-50"
+            >
+              <X size={20} aria-hidden />
+            </button>
+          </div>
 
-        <div ref={cuerpo} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-2">
-          <CamposEditar punto={punto} v={v} cambiar={cambiar} gps={posicion.tipo === 'ok' ? posicion.posicion : null} />
-        </div>
+          <div ref={cuerpo} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-2">
+            <CamposEditar
+              punto={punto}
+              v={v}
+              cambiar={cambiar}
+              gps={posicion.tipo === 'ok' ? posicion.posicion : null}
+            />
+          </div>
 
-        <div className="border-linea flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t px-4 py-3">
-          <ResumenCambios campos={campos} id={idResumen} />
-          <div className="flex flex-col items-end gap-1 max-md:ml-auto">
-            <div className="flex gap-3">
-              <Boton variante="secundario" disabled={ocupado} onClick={intentarCerrar}>
-                {T.panelCola.cancelar}
-              </Boton>
-              <Boton
-                disabled={ocupado || !!falta}
-                aria-describedby={motivo ? idFalta : idResumen}
-                onClick={() => void guardar()}
-              >
-                {ocupado ? T.panelEditar.guardando : T.panel.guardarCambios}
-              </Boton>
+          <div className="border-linea flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t px-4 py-3">
+            <ResumenCambios campos={campos} id={idResumen} />
+            <div className="flex flex-col items-end gap-1 max-md:ml-auto">
+              <div className="flex gap-3">
+                <Boton variante="secundario" disabled={ocupado} onClick={intentarCerrar}>
+                  {T.panelCola.cancelar}
+                </Boton>
+                <Boton
+                  disabled={ocupado || !!falta}
+                  aria-describedby={motivo ? idFalta : idResumen}
+                  onClick={() => void guardar()}
+                >
+                  {ocupado ? T.panelEditar.guardando : T.panel.guardarCambios}
+                </Boton>
+              </div>
+              {motivo && (
+                <p id={idFalta} className="text-texto-suave text-[11px]">
+                  {motivo}
+                </p>
+              )}
             </div>
-            {motivo && (
-              <p id={idFalta} className="text-texto-suave text-[11px]">
-                {motivo}
-              </p>
-            )}
           </div>
         </div>
       </div>

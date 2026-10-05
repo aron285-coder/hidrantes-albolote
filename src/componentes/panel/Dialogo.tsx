@@ -1,9 +1,13 @@
 import { X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useModal } from '@/lib/foco-modal';
 import { T } from '@/lib/textos';
 
-/** Diálogo centrado del panel: se cierra con Escape o con el velo, y el foco entra dentro (TR-35). */
+/**
+ * Diálogo centrado del panel: se cierra con Escape o con el velo, el foco entra dentro (TR-35) y no
+ * sale con Tab, porque el resto de la página queda inert mientras está abierto (RV-128).
+ */
 export function Dialogo({
   titulo,
   ancho = 'max-w-lg',
@@ -16,6 +20,8 @@ export function Dialogo({
   children: ReactNode;
 }) {
   const caja = useRef<HTMLDivElement>(null);
+  // Modal de verdad: lo de detrás queda inert y Tab no sale del diálogo (RV-128).
+  useModal(caja);
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {

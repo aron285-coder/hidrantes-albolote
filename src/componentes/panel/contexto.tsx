@@ -1,6 +1,8 @@
 import { X } from 'lucide-react';
 import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Contexto, type TipoAviso } from './usar-panel';
+import { FUERA_DE_MODAL } from '@/lib/foco-modal';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -22,26 +24,31 @@ export function ProveedorPanel({ children }: { children: ReactNode }) {
   return (
     <Contexto.Provider value={valor}>
       {children}
-      {aviso && (
-        <div
-          key={aviso.n}
-          role={aviso.tipo === 'error' ? 'alert' : 'status'}
-          className={cn(
-            'rounded-boton fixed top-3 left-1/2 z-[1100] flex max-w-[min(640px,calc(100vw-2rem))] -translate-x-1/2 items-start gap-2 py-2 pr-1 pl-4 text-sm text-white shadow-lg',
-            aviso.tipo === 'ok' ? 'bg-verde-600' : 'bg-rojo-700',
-          )}
-        >
-          <span className="flex-1 py-1">{aviso.texto}</span>
-          <button
-            type="button"
-            onClick={() => setAviso(null)}
-            aria-label={T.ficha.cerrar}
-            className="flex size-8 shrink-0 items-center justify-center"
+      {/* En su propio hijo de <body> y fuera de la inertización (RV-128): con una ventana abierta, #raiz
+          queda inert y un aviso dentro no se anunciaría ni se podría cerrar ("no se ha guardado"). */}
+      {aviso &&
+        createPortal(
+          <div
+            key={aviso.n}
+            {...{ [FUERA_DE_MODAL]: '' }}
+            role={aviso.tipo === 'error' ? 'alert' : 'status'}
+            className={cn(
+              'rounded-boton fixed top-3 left-1/2 z-[1100] flex max-w-[min(640px,calc(100vw-2rem))] -translate-x-1/2 items-start gap-2 py-2 pr-1 pl-4 text-sm text-white shadow-lg',
+              aviso.tipo === 'ok' ? 'bg-verde-600' : 'bg-rojo-700',
+            )}
           >
-            <X size={16} aria-hidden />
-          </button>
-        </div>
-      )}
+            <span className="flex-1 py-1">{aviso.texto}</span>
+            <button
+              type="button"
+              onClick={() => setAviso(null)}
+              aria-label={T.ficha.cerrar}
+              className="flex size-8 shrink-0 items-center justify-center"
+            >
+              <X size={16} aria-hidden />
+            </button>
+          </div>,
+          document.body,
+        )}
     </Contexto.Provider>
   );
 }

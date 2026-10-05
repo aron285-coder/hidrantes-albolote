@@ -271,11 +271,20 @@ export default function Inventario() {
   }
 
   // Solo cierra si sigue abierto ese punto: un guardado que acaba tarde no cierra otro.
+  // El foco vuelve al "Editar" de la fila cuando Editar ya se ha cerrado: con velo o a pantalla
+  // completa, hasta entonces la tabla está inert (RV-128) y no lo aceptaría. Si lo que cambia es que
+  // se abre otro punto (un guardado tardío no cerró nada), no se mueve.
+  const devolverFoco = useRef(false);
   const cerrarEditar = useCallback((id: string) => {
     setEditando((e) => (e?.id === id ? null : e));
     setEstadoEditar({ pendientes: 0, ocupado: false });
-    origen.current?.focus();
+    devolverFoco.current = true;
   }, []);
+  useEffect(() => {
+    const devolver = devolverFoco.current;
+    devolverFoco.current = false;
+    if (devolver && !editando) origen.current?.focus();
+  }, [editando]);
   const [exportando, setExportando] = useState(false);
   const [seleccion, setSeleccion] = useState<string | null>(null);
 

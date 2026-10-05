@@ -7,6 +7,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Boton } from '@/componentes/Boton';
+import { useModal } from '@/lib/foco-modal';
 import { T } from '@/lib/textos';
 
 /** "¿Descartar N cambios?" antes de cerrar Editar o de pasar a otro punto con cambios sin guardar. */
@@ -21,6 +22,9 @@ export function ConfirmarDescartar({
 }) {
   const titulo = useId();
   const seguir = useRef<HTMLButtonElement>(null);
+  const caja = useRef<HTMLDivElement>(null);
+  // Modal de verdad: lo de detrás (Editar incluido) queda inert mientras pregunta (RV-128).
+  useModal(caja);
   useEffect(() => {
     seguir.current?.focus();
     const tecla = (e: KeyboardEvent) => {
@@ -32,7 +36,7 @@ export function ConfirmarDescartar({
     return () => window.removeEventListener('keydown', tecla, true);
   }, [alSeguir]);
   return createPortal(
-    <div className="fixed inset-0 z-[1050] flex items-center justify-center p-4">
+    <div ref={caja} className="fixed inset-0 z-[1050] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-[rgba(14,27,48,.38)]" onClick={alSeguir} aria-hidden />
       <div
         role="alertdialog"
