@@ -185,7 +185,7 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByRole('radio', { name: T.formulario.hidrante })).toBeVisible(),
   },
   {
-    // docs/24 RV-104: los tres racores, con foto si el desarrollador ya las ha puesto.
+    // docs/24 RV-104 y docs/29 RV-121: los cuatro racores, con foto si el desarrollador ya las ha puesto.
     nombre: 'nuevo-punto-boca',
     ruta: '/proponer/alta',
     preparar: voluntario,

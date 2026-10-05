@@ -229,6 +229,12 @@ test.describe('app del voluntario', () => {
     await expect(page.getByTestId('selector-pin')).toBeVisible();
     await auditar(page, 'alta');
     await geometria(page, 'alta', { movil: !!isMobile });
+    // docs/29 RV-121: con boca de riego aparece el tipo de enganche, con sus cuatro tarjetas.
+    await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await page.getByRole('radio', { name: T.formulario.d45 }).click();
+    await expect(page.getByRole('radio', { name: T.formulario.directo })).toBeVisible();
+    await auditar(page, 'alta de boca con tipo de enganche');
+    await geometria(page, 'alta de boca con tipo de enganche', { movil: !!isMobile });
   });
 
   test('mis propuestas y ajustes', async ({ page, isMobile }) => {
@@ -304,7 +310,7 @@ test.describe('panel de jefatura', () => {
   });
 
   // docs/18 RV-50: la geometría en todas las pantallas del panel, no solo en la cola y el inventario.
-  test('caducadas, registro, voluntarios, papelera y ajustes', async ({ page }) => {
+  test('registro, papelera y ajustes', async ({ page }) => {
     await conGoogle(page, 'jefa@example.org');
     await simularTablas(page, {
       v_puntos_activos: PUNTOS,
@@ -312,7 +318,6 @@ test.describe('panel de jefatura', () => {
       v_registro: [],
       propuestas: [],
       puntos: [],
-      incidencias_app: [],
       config: [],
       administradores: [
         { email: 'jefa@example.org', activo: true, creado_en: '2026-08-01T10:00:00Z', creado_por: 'migracion' },
@@ -329,13 +334,10 @@ test.describe('panel de jefatura', () => {
         sin_direccion: 0,
         dispositivos_activos: 3,
       },
-      fn_actividad_voluntarios: [],
       fn_registrar_error: null,
     });
     const pantallas: [string, string, (p: Page) => ReturnType<Page['getByRole']>][] = [
-      ['caducadas', '/admin/caducadas', (p) => p.getByRole('main')],
       ['registro', '/admin/registro', (p) => p.getByRole('main')],
-      ['voluntarios', '/admin/voluntarios', (p) => p.getByRole('main')],
       ['papelera', '/admin/papelera', (p) => p.getByRole('main')],
       ['ajustes', '/admin/ajustes', (p) => p.getByRole('region', { name: T.panel.saludSistema })],
     ];

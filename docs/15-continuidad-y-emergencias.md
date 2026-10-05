@@ -318,7 +318,9 @@ de Cloudflare durante los partidos, casi siempre en fin de semana y durante unas
 
 ### 5.10 Un voluntario pide que se borre su nombre
 
-No es una emergencia: 11 §6.4 y 13. Panel → Voluntarios → *Anonimizar*.
+No es una emergencia: 11 §6.4. Ya no hay botón en el panel (DEC-167): el desarrollador lo hace en
+su PC con `npm run anonimizar` (`--buscar` para localizar el dispositivo, `--dispositivo` para
+anonimizarlo, escribiendo `ANONIMIZAR`).
 
 ---
 

@@ -2,7 +2,7 @@
 
 import { caudalParaDibujar, esCaudalConocido } from './caudal';
 import { ENTORNO } from './entorno';
-import type { Caudal, Punto, TipoPunto } from './puntos';
+import type { Caudal, Punto, Racor, TipoPunto } from './puntos';
 import { T } from './textos';
 
 /** Bucket de fotos del entorno (04 §7): producción el suyo; staging y local, el de dev. */
@@ -48,8 +48,20 @@ export const nombreTipo: Record<TipoPunto, string> = {
   boca_riego: T.formulario.bocaRiego,
 };
 
-export const nombreRacor = (r: string) =>
-  r === 'granada' ? T.formulario.granada : r === 'barcelona' ? T.formulario.barcelona : T.formulario.otro;
+const NOMBRE_RACOR: Record<Racor, string> = {
+  granada: T.formulario.granada,
+  barcelona: T.formulario.barcelona,
+  directo: T.formulario.directo,
+  otro: T.formulario.otro,
+};
+
+/**
+ * El nombre del tipo de enganche (FR-20, DEC-170). Un valor que esta versión no conoce (uno que
+ * añada una versión más nueva de la base de datos, 04 §12) se lee como «Otro»: nunca un hueco ni
+ * el código crudo.
+ */
+export const nombreRacor = (r: string): string =>
+  Object.hasOwn(NOMBRE_RACOR, r) ? NOMBRE_RACOR[r as Racor] : T.formulario.otro;
 
 const CLASE_CHIP: Record<Caudal, string> = {
   bueno: 'bg-verde-100 text-verde-700',
