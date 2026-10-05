@@ -22,15 +22,13 @@ export interface Orden {
 }
 
 /**
- * Filtros del inventario (FR-120): tipo **y** estado, combinables, más revisión, núcleo y diámetro
- * (RV-24). No reutiliza el filtro de chips de la Lista del móvil, que es de uno en uno (FR-68).
+ * Filtros del inventario (FR-120): solo tipo **y** estado, combinables, en dos desplegables
+ * (docs/29 RV-123, DEC-168). Núcleo, diámetro y última revisión ya no filtran: se ordenan por
+ * columna. No reutiliza el filtro de chips de la Lista del móvil, que es de uno en uno (FR-68).
  */
 export interface FiltrosInventario {
   tipo: 'todos' | TipoPunto;
   caudal: 'todos' | Caudal;
-  sin_revisar: boolean;
-  nucleo: string;
-  diametro: string;
   busqueda: string;
 }
 
@@ -39,10 +37,28 @@ export function filtrosExportacion(f: FiltrosInventario): FiltrosExportacion {
   return {
     ...(f.tipo !== 'todos' ? { tipo: f.tipo } : {}),
     ...(f.caudal !== 'todos' ? { caudal: f.caudal } : {}),
-    ...(f.sin_revisar ? { revision_caducada: true } : {}),
-    ...(f.nucleo ? { nucleo: f.nucleo } : {}),
-    ...(f.diametro ? { diametro_mm: Number(f.diametro) } : {}),
   };
+}
+
+/**
+ * Cuántos puntos hay de cada estado con el filtro de tipo elegido, para el desplegable de Estado
+ * ("Regular · 3", docs/29 RV-123). `todos` es el total de ese tipo; la búsqueda no cuenta.
+ */
+export function cuentaPorEstado(puntos: Punto[], tipo: FiltrosInventario['tipo']): Record<'todos' | Caudal, number> {
+  const cuenta: Record<'todos' | Caudal, number> = {
+    todos: 0,
+    bueno: 0,
+    regular: 0,
+    malo: 0,
+    barro: 0,
+    no_funciona: 0,
+  };
+  for (const p of puntos) {
+    if (tipo !== 'todos' && p.tipo !== tipo) continue;
+    cuenta.todos++;
+    cuenta[caudalParaDibujar(p.caudal)]++;
+  }
+  return cuenta;
 }
 
 /** Un estado que esta versión no conoce va con no funciona (docs/24 RV-102a). */
@@ -55,9 +71,6 @@ export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
     (p) =>
       (f.tipo === 'todos' || p.tipo === f.tipo) &&
       (f.caudal === 'todos' || caudalParaDibujar(p.caudal) === f.caudal) &&
-      (!f.sin_revisar || p.revision_caducada) &&
-      (!f.nucleo || p.nucleo === f.nucleo) &&
-      (!f.diametro || String(p.diametro_mm) === f.diametro) &&
       (!texto ||
         sinAcentos([p.codigo, p.direccion, p.nucleo, p.descripcion].filter(Boolean).join(' ')).includes(texto)),
   );
@@ -77,10 +90,6 @@ export function ordenarPor(puntos: Punto[], { columna, ascendente }: Orden): Pun
 export const paginas = (total: number) => Math.max(1, Math.ceil(total / POR_PAGINA));
 
 export const pagina = <T>(filas: T[], n: number) => filas.slice(n * POR_PAGINA, (n + 1) * POR_PAGINA);
-
-/** Núcleos presentes, para el desplegable (y para Ajustes). */
-export const nucleosDe = (puntos: Punto[]) =>
-  [...new Set(puntos.map((p) => p.nucleo).filter((n): n is string => !!n))].sort((a, b) => a.localeCompare(b, 'es'));
 
 // ---------- papelera (FR-124) ----------
 

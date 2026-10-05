@@ -7,7 +7,7 @@ import {
   escapar,
   inventario,
   nombreAccion,
-  nucleosDe,
+  cuentaPorEstado,
   ordenarPor,
   pagina,
   paginas,
@@ -57,20 +57,44 @@ const PUNTOS = [
 const sinFiltro = {
   tipo: 'todos' as const,
   caudal: 'todos' as const,
-  sin_revisar: false,
-  nucleo: '',
-  diametro: '',
   busqueda: '',
 };
 
 describe('inventario (FR-120)', () => {
-  it('filtra por tipo, estado, caducidad, núcleo y diámetro', () => {
+  it('filtra por tipo y por estado', () => {
     expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'hidrante' })).toHaveLength(3);
     expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'boca_riego' })).toHaveLength(1);
     expect(inventario(PUNTOS, { ...sinFiltro, caudal: 'no_funciona' })).toHaveLength(1);
-    expect(inventario(PUNTOS, { ...sinFiltro, sin_revisar: true })).toHaveLength(2);
-    expect(inventario(PUNTOS, { ...sinFiltro, nucleo: 'Pretel' })).toHaveLength(2);
-    expect(inventario(PUNTOS, { ...sinFiltro, diametro: '45' })).toHaveLength(1);
+  });
+
+  // docs/29 RV-123 (DEC-168): solo Tipo y Estado. Un filtro de antes (núcleo, diámetro, revisión)
+  // que llegue en el objeto se ignora sin error.
+  it('los filtros quitados ya no filtran ni van a la exportación (RV-123)', () => {
+    const viejo = { ...sinFiltro, sin_revisar: true, nucleo: 'Pretel', diametro: '45' };
+    expect(inventario(PUNTOS, viejo)).toHaveLength(PUNTOS.length);
+    expect(filtrosExportacion(viejo)).toEqual({});
+  });
+
+  it('cuenta cada estado según el filtro de tipo, para el desplegable (RV-123)', () => {
+    expect(cuentaPorEstado(PUNTOS, 'todos')).toEqual({
+      todos: 4,
+      bueno: 1,
+      regular: 1,
+      malo: 1,
+      barro: 0,
+      no_funciona: 1,
+    });
+    expect(cuentaPorEstado(PUNTOS, 'boca_riego')).toEqual({
+      todos: 1,
+      bueno: 0,
+      regular: 1,
+      malo: 0,
+      barro: 0,
+      no_funciona: 0,
+    });
+    // Un estado que esta versión no conoce cuenta como no funciona, igual que se dibuja (RV-102a).
+    const raro = punto({ codigo: 'HID-0009', caudal: 'desconocido' as Punto['caudal'] });
+    expect(cuentaPorEstado([raro], 'hidrante').no_funciona).toBe(1);
   });
 
   // FR-120: tipo **y** estado, combinables (RV-24).
@@ -84,19 +108,10 @@ describe('inventario (FR-120)', () => {
     ]);
   });
 
-  it('sin revisar se combina con tipo', () => {
-    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'hidrante', sin_revisar: true })).toHaveLength(2);
-    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'boca_riego', sin_revisar: true })).toEqual([]);
-  });
-
   it('los filtros del panel van a la exportación en la forma de fn_exportar_inventario', () => {
-    expect(
-      filtrosExportacion({ ...sinFiltro, tipo: 'hidrante', caudal: 'malo', sin_revisar: true, diametro: '70' }),
-    ).toEqual({
+    expect(filtrosExportacion({ ...sinFiltro, tipo: 'hidrante', caudal: 'malo' })).toEqual({
       tipo: 'hidrante',
       caudal: 'malo',
-      revision_caducada: true,
-      diametro_mm: 70,
     });
     expect(filtrosExportacion(sinFiltro)).toEqual({});
   });
@@ -122,10 +137,6 @@ describe('inventario (FR-120)', () => {
     expect(paginas(muchos.length)).toBe(3);
     expect(pagina(muchos, 2)).toHaveLength(20);
     expect(paginas(0)).toBe(1);
-  });
-
-  it('lista los núcleos presentes, ordenados y sin repetir', () => {
-    expect(nucleosDe(PUNTOS)).toEqual(['Albolote', 'Pretel']);
   });
 });
 
