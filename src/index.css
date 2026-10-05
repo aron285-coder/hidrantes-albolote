@@ -253,6 +253,20 @@ path.vertice-medicion {
   background: var(--fondo);
   font-family: var(--font-texto);
 }
+/* "antes · N m" junto a la posición guardada en Editar (docs/29 RV-124): papel y texto del tema, para
+   que también se lea en oscuro (el tooltip de Leaflet es blanco fijo). */
+.leaflet-tooltip.rotulo-antes {
+  background: var(--papel);
+  color: var(--texto);
+  border-color: var(--linea);
+  font-family: var(--font-datos);
+  font-size: 12px;
+  padding: 2px 6px;
+  box-shadow: 0 1px 4px rgba(14, 27, 48, 0.25);
+}
+.leaflet-tooltip-bottom.rotulo-antes::before {
+  border-bottom-color: var(--papel);
+}
 
 /* Hoja de campo (FR-122): al imprimir queda solo la hoja, sin panel ni barras. */
 @media print {

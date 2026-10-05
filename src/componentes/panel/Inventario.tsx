@@ -1,6 +1,20 @@
 import { ChevronDown } from 'lucide-react';
-import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { DialogoEditar, DialogoHistorial, DialogoMotivo } from './dialogos';
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { DialogoHistorial, DialogoMotivo } from './dialogos';
+import { ConfirmarDescartar, type EstadoEditar, quitarEntradaDeEditar } from './descartar';
+
+// Editar en su propia porción: ver descartar.tsx (RV-80).
+const EditarPunto = lazy(() => import('./EditarPunto'));
 import { usePanel } from './usar-panel';
 import { MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { usePanelAncho } from '@/hooks/ancho';
@@ -222,7 +236,7 @@ const COLUMNAS: { clave: Columna; nombre: string }[] = [
   { clave: 'fecha_ultima_revision', nombre: T.panelInventario.colRevision },
 ];
 
-type Dialogo = { punto: Punto; que: 'editar' | 'retirar' | 'borrar' | 'historial' } | null;
+type Dialogo = { punto: Punto; que: 'retirar' | 'borrar' | 'historial' } | null;
 
 /** Inventario (FR-120, FL-24): tabla o mapa, con filtros, orden, páginas y acciones de jefatura. */
 export default function Inventario() {
@@ -237,6 +251,30 @@ export default function Inventario() {
   const [n, setN] = useState(0);
   const [mapa, setMapa] = useState(false);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
+  // Editar (docs/29 RV-124): el punto abierto, cuántos cambios lleva sin guardar, el punto al que se
+  // quiere pasar si los hay, y el "Editar" que lo abrió, para devolverle el foco al cerrar.
+  const [editando, setEditando] = useState<Punto | null>(null);
+  const [estadoEditar, setEstadoEditar] = useState<EstadoEditar>({ pendientes: 0, ocupado: false });
+  const [pasarA, setPasarA] = useState<{ punto: Punto; boton: HTMLElement } | null>(null);
+  const origen = useRef<HTMLElement | null>(null);
+
+  function abrirEditar(p: Punto, boton: HTMLElement) {
+    if (editando?.id === p.id) return;
+    // Mientras guarda, el punto abierto se queda: el botón dice «Guardando…».
+    if (editando && estadoEditar.ocupado) return;
+    // En el ordenador la tabla sigue a mano: con cambios sin guardar, pregunta antes de cambiar de punto.
+    if (editando && estadoEditar.pendientes > 0) return setPasarA({ punto: p, boton });
+    origen.current = boton;
+    setEstadoEditar({ pendientes: 0, ocupado: false });
+    setEditando(p);
+  }
+
+  // Solo cierra si sigue abierto ese punto: un guardado que acaba tarde no cierra otro.
+  const cerrarEditar = useCallback((id: string) => {
+    setEditando((e) => (e?.id === id ? null : e));
+    setEstadoEditar({ pendientes: 0, ocupado: false });
+    origen.current?.focus();
+  }, []);
   const [exportando, setExportando] = useState(false);
   const [seleccion, setSeleccion] = useState<string | null>(null);
 
@@ -285,6 +323,15 @@ export default function Inventario() {
     }
   }
 
+  // La fila que se está editando, marcada como el campo que cambia (banda naranja a la izquierda).
+  const claseFila = (p: Punto) =>
+    cn(
+      'border-linea border-b',
+      editando?.id === p.id
+        ? 'bg-[color-mix(in_srgb,#FFB000_8%,var(--papel))] shadow-[inset_4px_0_0_var(--naranja-600)]'
+        : 'bg-papel',
+    );
+
   // Piezas de cada punto, iguales en la tabla y en las filas de dos líneas (docs/20 RV-79).
   const diametroDe = (p: Punto) => (
     <>
@@ -316,13 +363,16 @@ export default function Inventario() {
       <span className="text-texto-suave font-normal"> · {fechaCorta(p.fecha_ultima_revision)}</span>
     </span>
   );
-  const accionesDe = (p: Punto) => (
-    <div className="flex flex-wrap items-center gap-1">
+  // En la tabla, en una línea: con Editar abierto al lado, la tabla se desplaza a lo ancho en vez de
+  // partir las acciones en cuatro líneas (RV-124).
+  const accionesDe = (p: Punto, enTabla = false) => (
+    <div className={cn('flex items-center gap-1', enTabla ? 'flex-nowrap' : 'flex-wrap')}>
       {(['editar', 'retirar', 'historial', 'borrar'] as const).map((que) => (
         <button
           key={que}
           type="button"
-          onClick={() => setDialogo({ punto: p, que })}
+
+          onClick={(e) => (que === 'editar' ? abrirEditar(p, e.currentTarget) : setDialogo({ punto: p, que }))}
           className={cn(
             'min-h-8 px-2 whitespace-nowrap underline',
             que === 'borrar' && 'text-rojo-texto ml-3',
@@ -371,7 +421,7 @@ export default function Inventario() {
       </thead>
       <tbody>
         {visibles.map((p) => (
-          <tr key={p.id} className="border-linea bg-papel border-b">
+          <tr key={p.id} data-editando={editando?.id === p.id || undefined} className={claseFila(p)}>
             <td className="font-datos px-3 py-1.5 whitespace-nowrap">{p.codigo}</td>
             <td className="px-3 py-1.5 whitespace-nowrap">{nombreTipo[p.tipo]}</td>
             <td className="px-3 py-1.5 whitespace-nowrap">{diametroDe(p)}</td>
@@ -379,7 +429,7 @@ export default function Inventario() {
             <td className="px-3 py-1.5">{direccionDe(p)}</td>
             <td className="px-3 py-1.5">{p.nucleo ?? T.panelCola.sinNucleo}</td>
             <td className="px-3 py-1.5">{revisionDe(p)}</td>
-            <td className="px-3 py-1.5">{accionesDe(p)}</td>
+            <td className="px-3 py-1.5">{accionesDe(p, true)}</td>
           </tr>
         ))}
       </tbody>
@@ -399,7 +449,12 @@ export default function Inventario() {
         ))}
       </div>
       {visibles.map((p) => (
-        <div key={p.id} role="row" className="border-linea bg-papel border-b px-3 py-1.5">
+        <div
+          key={p.id}
+          role="row"
+          data-editando={editando?.id === p.id || undefined}
+          className={cn(claseFila(p), 'px-3 py-1.5')}
+        >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span role="cell" className="font-datos font-semibold whitespace-nowrap">
               {p.codigo}
@@ -430,7 +485,9 @@ export default function Inventario() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Con Editar abierto en el ordenador (panel de 540 px sin velo), el Inventario se estrecha a su
+    // lado: la tabla se sigue viendo y desplazando, y el Editar de otra fila queda a mano (RV-124).
+    <div className={cn('flex min-h-0 flex-1 flex-col', editando && 'min-[1100px]:mr-[540px]')}>
       {/* docs/29 RV-123: Tipo y Estado a la izquierda, Exportar y Tabla/Mapa a la derecha, en una fila
           desde la tableta. En el móvil, los dos desplegables lado a lado y el resto debajo. */}
       <div className="border-linea bg-fondo flex flex-wrap items-end gap-x-3 gap-y-2 border-b px-3 py-2 text-sm">
@@ -534,15 +591,43 @@ export default function Inventario() {
         </div>
       )}
 
-      {dialogo?.que === 'editar' && (
-        <DialogoEditar punto={dialogo.punto} alCerrar={() => setDialogo(null)} alHecho={() => setDialogo(null)} />
+      {editando && (
+        <Suspense fallback={null}>
+          <EditarPunto
+            key={editando.id}
+            punto={editando}
+            alCerrar={cerrarEditar}
+            alEstado={setEstadoEditar}
+            enPausa={!!dialogo || !!pasarA}
+          />
+        </Suspense>
+      )}
+      {pasarA && (
+        <ConfirmarDescartar
+          n={estadoEditar.pendientes}
+          alDescartar={() => {
+            origen.current = pasarA.boton;
+            setEstadoEditar({ pendientes: 0, ocupado: false });
+            setEditando(pasarA.punto);
+            setPasarA(null);
+          }}
+          alSeguir={() => setPasarA(null)}
+        />
       )}
       {(dialogo?.que === 'retirar' || dialogo?.que === 'borrar') && (
         <DialogoMotivo
           punto={dialogo.punto}
           accion={dialogo.que}
           alCerrar={() => setDialogo(null)}
-          alHecho={() => setDialogo(null)}
+          alHecho={() => {
+            // Retirado o borrado el punto que se estaba editando: Editar ya no tiene qué guardar.
+            if (editando?.id === dialogo.punto.id) {
+              quitarEntradaDeEditar();
+              setEditando(null);
+              setEstadoEditar({ pendientes: 0, ocupado: false });
+            }
+            setDialogo(null);
+          }}
         />
       )}
       {dialogo?.que === 'historial' && <DialogoHistorial punto={dialogo.punto} alCerrar={() => setDialogo(null)} />}

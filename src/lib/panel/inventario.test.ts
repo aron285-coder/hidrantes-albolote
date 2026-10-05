@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   POR_PAGINA,
+  MOVIDO_DESDE_M,
+  REVISAR_DIRECCION_DESDE_M,
   cambiosDe,
+  camposCambiados,
+  faltaEnEdicion,
+  movidoM,
   diasQueQuedan,
   escapar,
   inventario,
@@ -177,6 +182,56 @@ describe('editar un punto (FR-120, FR-151)', () => {
       descripcion_fallo: 'Tapa soldada',
     });
     expect(cambiosDe(p, { caudal: 'malo', descripcion_fallo: 'da igual' })).toEqual({ caudal: 'malo' });
+  });
+});
+
+// docs/29 RV-124 (DEC-169): mover el punto desde Editar y el pie "N cambios · cuáles".
+describe('Editar: la ubicación y la lista de cambios (RV-124)', () => {
+  const p = punto({ tipo: 'boca_riego', diametro_mm: 45, racor: 'granada', lat: 37.23, lng: -3.65 });
+  // ~1 m de latitud son 0,000009°.
+  const aMetros = (m: number) => ({ lat: 37.23 + m * 0.000009, lng: -3.65 });
+
+  it('sin mover el pin no se envían lat ni lng', () => {
+    expect(cambiosDe(p, { lat: 37.23, lng: -3.65 })).toEqual({});
+    expect(cambiosDe(p, { ...aMetros(0.3) })).toEqual({});
+    expect(movidoM(p, {})).toBe(0);
+  });
+
+  it('desde 0,5 m cuenta como movido y se envían las dos', () => {
+    const v = aMetros(6);
+    expect(cambiosDe(p, v)).toEqual({ lat: v.lat, lng: v.lng });
+    expect(movidoM(p, v)).toBeGreaterThan(5.9);
+    expect(movidoM(p, v)).toBeLessThan(6.1);
+    expect(MOVIDO_DESDE_M).toBe(0.5);
+    expect(REVISAR_DIRECCION_DESDE_M).toBe(25);
+  });
+
+  it('el recuento y la lista salen de los mismos cambios, en el orden de la pantalla', () => {
+    expect(camposCambiados(cambiosDe(p, { racor: 'directo', ...aMetros(6) }))).toEqual(['ubicacion', 'enganche']);
+    expect(camposCambiados(cambiosDe(p, { racor: 'directo' }))).toEqual(['enganche']);
+    // Volver a Granada lo desmarca y deja de contar.
+    expect(camposCambiados(cambiosDe(p, { racor: 'granada' }))).toEqual([]);
+    expect(
+      camposCambiados(
+        cambiosDe(p, {
+          descripcion: 'x',
+          direccion: 'Calle Nueva 1',
+          caudal: 'no_funciona',
+          descripcion_fallo: 'No abre',
+          diametro_mm: 70,
+        }),
+      ),
+    ).toEqual(['diametro', 'estado', 'fallo', 'direccion', 'descripcion']);
+  });
+
+  it('mover el punto no basta para guardar si falta algo obligatorio', () => {
+    expect(faltaEnEdicion(p, { racor: 'granada', diametro_mm: 45, ...aMetros(6) })).toBeNull();
+    expect(faltaEnEdicion(p, { racor: 'granada', diametro_mm: 45, caudal: 'no_funciona', ...aMetros(6) })).toBe(
+      T.avisosFormulario.describeFallo,
+    );
+    expect(faltaEnEdicion(p, { racor: 'granada', diametro_mm: 45, ...aMetros(0.2) })).toBe(
+      T.avisosFormulario.sinCambios,
+    );
   });
 });
 
