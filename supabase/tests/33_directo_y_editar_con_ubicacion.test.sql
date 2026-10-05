@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(24);
+select plan(28);
 
 -- ---------- zona de prueba: Albolote con dos núcleos a ~4,8 km ----------
 delete from hidrantes.nucleos;
@@ -26,7 +26,13 @@ values
   ('00000000-0000-4000-8000-0000000e3303', 'BOC-8602', 'boca_riego', 'SRID=4326;POINT(-3.6550 37.2312)', 45, 'bueno', 'barcelona',
    'fotos/m3.jpg', 'albolote', 'Albolote', current_date - 30, now() - interval '5 days'),
   ('00000000-0000-4000-8000-0000000e3304', 'HID-8602', 'hidrante', 'SRID=4326;POINT(-3.6540 37.2314)', 70, 'bueno', null,
-   'fotos/m4.jpg', 'albolote', 'Albolote', current_date - 30, now() - interval '5 days');
+   'fotos/m4.jpg', 'albolote', 'Albolote', current_date - 30, now() - interval '5 days'),
+  ('00000000-0000-4000-8000-0000000e3305', 'HID-8603', 'hidrante', 'SRID=4326;POINT(-3.6535 37.2316)', 70, 'bueno', null,
+   'fotos/m5.jpg', 'albolote', 'Albolote', current_date - 30, now() - interval '5 days');
+insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, nucleo,
+                              fecha_ultima_revision, situacion, borrado_en)
+values ('00000000-0000-4000-8000-0000000e3306', 'HID-8604', 'hidrante', 'SRID=4326;POINT(-3.6530 37.2318)', 70, 'bueno',
+        'fotos/m6.jpg', 'albolote', 'Albolote', current_date - 30, 'borrado', now());
 
 -- Una propuesta pendiente sobre el hidrante, de antes de la edición.
 insert into hidrantes.propuestas (id, punto_id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id,
@@ -115,6 +121,21 @@ select throws_like($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-
 select throws_like($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-0000000e3302',
                                                        '{"lat":"norte","lng":-3.6}') $$,
   'PAYLOAD_INVALIDO(ubicacion)%', 'una coordenada que no es número: PAYLOAD_INVALIDO(ubicacion)');
+
+select throws_like($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-0000000e3302',
+                                                       '{"lat":null,"lng":-3.6}') $$,
+  'PAYLOAD_INVALIDO(ubicacion)%', 'una coordenada nula: PAYLOAD_INVALIDO(ubicacion)');
+select throws_like($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-0000000e3306',
+                                                       '{"lat":37.2320,"lng":-3.6530}') $$,
+  'PUNTO_NO_ACTIVO%', 'un punto en la papelera no se mueve');
+
+-- La misma posición que ya tiene no es un movimiento (el panel puede mandarla sin tocar el pin).
+select lives_ok($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-0000000e3305',
+                                                    '{"lat":37.2316,"lng":-3.6535,"diametro_mm":100}') $$,
+  'editar con la misma posición');
+select is((select (despues ? 'desplazamiento_m')::text || ' · ' || (despues ->> 'diametro_mm') from hidrantes.registro
+            where punto_id = '00000000-0000-4000-8000-0000000e3305' and accion = 'edicion_admin'),
+  'false · 100', 'con la misma posición no hay desplazamiento_m, y el resto del cambio se guarda');
 
 select set_config('request.jwt.claims', '', true);
 select throws_like($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-0000000e3302',

@@ -8,6 +8,8 @@
 --     como al aprobar una ubicación (lo avisa la pantalla).
 --   - Con lat y lng: geom nueva y municipio y núcleo de fn_municipio_de, como fn_aplicar_propuesta
 --     con 'ubicacion'. Por eso el search_path lleva extensions.
+--   - La misma posición que ya tiene (a 0,1 m) no es un movimiento: el panel puede mandarla
+--     aunque no se haya tocado el pin, y no debe dejar un desplazamiento de 0 m en el registro.
 --   - Registro: una sola entrada 'edicion_admin' por llamada, aunque cambien varias cosas; si se
 --     movió, despues lleva desplazamiento_m redondeado a 0,1 m, como fn_aprobar con 'ubicacion'.
 --   - Desactualizadas: el update dispara puntos_actualizado_en (0001), que pone actualizado_en =
@@ -50,9 +52,12 @@ begin
     exception when invalid_text_representation or numeric_value_out_of_range then
       perform hidrantes.fn_error('PAYLOAD_INVALIDO(ubicacion)', 'Las coordenadas no son válidas');
     end;
-    -- Los límites de puntos_coordenadas (0001). NaN no está "between" nada: también se rechaza.
-    if lat_nueva is null or lng_nueva is null
-       or lat_nueva not between 36.6 and 38.2 or lng_nueva not between -4.5 and -2.5 then
+    if lat_nueva is null or lng_nueva is null then
+      perform hidrantes.fn_error('PAYLOAD_INVALIDO(ubicacion)', 'Faltan coordenadas: van la latitud y la longitud');
+    end if;
+    -- Los límites de puntos_coordenadas (0001). Postgres ordena NaN por encima de todo número, y
+    -- ±Infinity quedan fuera: los tres se rechazan aquí.
+    if lat_nueva not between 36.6 and 38.2 or lng_nueva not between -4.5 and -2.5 then
       perform hidrantes.fn_error('PAYLOAD_INVALIDO(ubicacion)', 'Coordenadas fuera de la provincia');
     end if;
     geom_nueva := st_setsrid(st_makepoint(lng_nueva, lat_nueva), 4326)::geography;
@@ -65,6 +70,11 @@ begin
   end if;
   antes := hidrantes.fn_punto_json(p);
   geom_antes := p.geom;
+  -- El panel puede mandar la posición aunque no se haya tocado el pin: si no cambia (a 0,1 m), no
+  -- es un movimiento; ni geom, ni municipio, ni núcleo, ni desplazamiento_m en el registro.
+  if mueve and round(st_distance(geom_antes, geom_nueva)::numeric, 1) = 0 then
+    mueve := false;
+  end if;
   if cambios ? 'tipo' and cambios ->> 'tipo' is distinct from p.tipo::text then
     perform hidrantes.fn_error('TIPO_NO_MODIFICABLE', 'El tipo no se cambia: propón retirarlo y da de alta el correcto');
   end if;

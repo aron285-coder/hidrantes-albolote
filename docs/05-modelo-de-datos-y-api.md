@@ -459,7 +459,8 @@ fn_editar_punto(punto_id uuid, cambios jsonb) returns void
   --   Fuera de la zona habitual pero dentro de esos límites se acepta (municipio 'fuera_de_zona';
   --   lo avisa la pantalla).
   -- al mover: geom nueva, y municipio y núcleo recalculados con fn_municipio_de, como al aprobar una
-  --   ubicación. Una sola entrada 'edicion_admin' por llamada aunque cambien varias cosas; si se
+  --   ubicación. La misma posición que ya tiene (a 0,1 m) no cuenta como movimiento: el panel puede
+  --   mandarla sin haber tocado el pin. Una sola entrada 'edicion_admin' por llamada aunque cambien varias cosas; si se
   --   movió, `despues` lleva desplazamiento_m (redondeado a 0,1 m), como fn_aprobar con 'ubicacion'.
   -- toda edición cambia puntos.actualizado_en (trigger puntos_actualizado_en): las propuestas
   --   pendientes anteriores salen desactualizadas en v_cola_revision.
