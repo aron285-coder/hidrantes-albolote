@@ -1,4 +1,4 @@
-// Panel · inventario, caducadas, registro y papelera (FR-120–FR-125, FR-160; FL-24–FL-26, FL-32).
+// Panel · inventario, registro y papelera (FR-120, FR-123–FR-125, FR-160; FL-24, FL-26, FL-32).
 
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
@@ -7,7 +7,7 @@ import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 import { conGoogle, simularTablas } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
-const [P0, , , , P4] = PUNTOS;
+const [P0] = PUNTOS;
 
 const REGISTRO = [
   {
@@ -219,20 +219,6 @@ test('inventario: exportar en los tres formatos (FR-160, FL-32)', async ({ page 
   }
   await expect(page.getByRole('status').filter({ hasText: T.panelInventario.exportado(2) })).toBeVisible();
   expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: {} });
-});
-
-test('revisiones caducadas por núcleo y hoja de campo imprimible (FR-121, FR-122)', async ({ page }) => {
-  await prepararPanel(page);
-  await page.goto('/admin/caducadas');
-  await expect(page.getByText(T.panelCaducadas.resumen(1))).toBeVisible();
-  await page.getByRole('button', { name: T.panelCaducadas.verPuntos }).first().click();
-  await expect(page.getByText(P4.codigo, { exact: false }).first()).toBeVisible();
-
-  await page.getByRole('button', { name: T.panelCaducadas.hoja, exact: true }).first().click();
-  await expect(page.getByRole('heading', { name: T.panelCaducadas.tituloHoja('Albolote') })).toBeVisible();
-  await expect(page.getByRole('columnheader', { name: T.panelCaducadas.colAnotar })).toBeVisible();
-  await page.getByRole('button', { name: T.panelCaducadas.cerrarHoja, exact: true }).click();
-  await expect(page.getByRole('heading', { name: T.panelCaducadas.tituloHoja('Albolote') })).toHaveCount(0);
 });
 
 test('registro: filtro por acción, solo lectura (FR-123, FL-26)', async ({ page }) => {

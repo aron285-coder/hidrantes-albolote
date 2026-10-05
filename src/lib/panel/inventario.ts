@@ -1,4 +1,4 @@
-// Inventario, papelera, registro y revisiones caducadas del panel (FR-120–FR-125, FL-24–FL-26).
+// Inventario, papelera y registro del panel (FR-120, FR-123–FR-125, FL-24–FL-26).
 // Lo que se calcula (filtros, orden, páginas, días de papelera) es puro y tiene tests; las acciones
 // van por RPC (05 §6.2) y devuelven Resultado.
 
@@ -174,33 +174,6 @@ export const escapar = (texto: string) => texto.replace(/[,()"%*]/g, ' ').trim()
 
 /** Historial de un punto (FR-123, FL-24). */
 export const historialPunto = (puntoId: string) => rpc<EntradaRegistro[]>('fn_historial_punto', { punto_id: puntoId });
-
-// ---------- revisiones caducadas (FR-121, FR-122) ----------
-
-export interface GrupoCaducadas {
-  nucleo: string;
-  puntos: Punto[];
-  /** Cuántos puntos activos tiene ese núcleo en total. */
-  total: number;
-}
-
-/** Caducadas agrupadas por núcleo, de más urgente (más caducadas) a menos (FR-121). */
-export function caducadasPorNucleo(puntos: Punto[]): GrupoCaducadas[] {
-  const totales = new Map<string, number>();
-  const caducadas = new Map<string, Punto[]>();
-  for (const p of puntos) {
-    const n = p.nucleo ?? T.panelCola.sinNucleo;
-    totales.set(n, (totales.get(n) ?? 0) + 1);
-    if (p.revision_caducada) caducadas.set(n, [...(caducadas.get(n) ?? []), p]);
-  }
-  return [...caducadas.entries()]
-    .map(([nucleo, lista]) => ({
-      nucleo,
-      puntos: [...lista].sort((a, b) => a.codigo.localeCompare(b.codigo, 'es', { numeric: true })),
-      total: totales.get(nucleo) ?? lista.length,
-    }))
-    .sort((a, b) => b.puntos.length - a.puntos.length || a.nucleo.localeCompare(b.nucleo, 'es'));
-}
 
 // ---------- acciones sobre un punto (FR-120, FR-124) ----------
 

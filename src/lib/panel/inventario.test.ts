@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   POR_PAGINA,
   cambiosDe,
-  caducadasPorNucleo,
   diasQueQuedan,
   escapar,
   inventario,
@@ -186,19 +185,6 @@ describe('papelera (FR-124)', () => {
     const ahora = new Date('2026-09-20T12:00:00Z');
     expect(diasQueQuedan('2026-09-18T12:00:00Z', 30, ahora)).toBe(28);
     expect(diasQueQuedan('2026-07-01T12:00:00Z', 30, ahora)).toBe(0);
-  });
-});
-
-describe('revisiones caducadas (FR-121)', () => {
-  it('agrupa por núcleo, de más urgente a menos, con el total del núcleo', () => {
-    const grupos = caducadasPorNucleo([
-      ...PUNTOS,
-      punto({ codigo: 'HID-0005', nucleo: 'Pretel', revision_caducada: true }),
-    ]);
-    expect(grupos.map((g) => [g.nucleo, g.puntos.length, g.total])).toEqual([
-      ['Pretel', 2, 3],
-      [T.panelCola.sinNucleo, 1, 1],
-    ]);
   });
 });
 

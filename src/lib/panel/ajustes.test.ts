@@ -13,7 +13,6 @@ import {
   faltaEnParametros,
   generarCodigo,
 } from './ajustes';
-import { filtrarActividad, porcentaje } from './voluntarios';
 import { NOVEDADES, normalizarNovedades } from '../novedades';
 import { T } from '../textos';
 
@@ -45,40 +44,6 @@ describe('parámetros (FR-142)', () => {
     expect(faltaEnParametros({ ...v, buffer_zona_m: 0 })).toBeNull();
     expect(faltaEnParametros({ ...v, escala_radios: [11, 9, 7] })).toBe('escala_radios');
     expect(faltaEnParametros({ ...v, escala_radios: [40, 9, 7, 5.5, 5] })).toBe('escala_radios');
-  });
-});
-
-describe('voluntarios (FR-130)', () => {
-  const filas = [
-    {
-      autor: 'Luis Martín',
-      dispositivo_id: 'd1',
-      propuestas: 4,
-      aprobadas: 3,
-      rechazadas: 1,
-      tasa: 0.75,
-      ultima: '2026-09-19T08:00:00Z',
-    },
-    {
-      autor: 'Ángela Ruiz',
-      dispositivo_id: 'd2',
-      propuestas: 1,
-      aprobadas: 0,
-      rechazadas: 0,
-      tasa: null,
-      ultima: '2026-09-18T08:00:00Z',
-    },
-  ];
-
-  it('la tasa se enseña en porcentaje entero, y sin resolver es null', () => {
-    expect(porcentaje(0.75)).toBe(75);
-    expect(porcentaje(0.666)).toBe(67);
-    expect(porcentaje(null)).toBeNull();
-  });
-
-  it('la búsqueda global también filtra la actividad, sin acentos', () => {
-    expect(filtrarActividad(filas, 'angela')).toHaveLength(1);
-    expect(filtrarActividad(filas, '')).toHaveLength(2);
   });
 });
 

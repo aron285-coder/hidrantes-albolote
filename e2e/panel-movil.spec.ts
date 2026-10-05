@@ -1,7 +1,6 @@
-// docs/28 RV-116 (#454): en el móvil, Voluntarios, Registro y Papelera caben a lo ancho. A 412 px la
-// tabla de Voluntarios se desplazaba dentro de su caja: «Última» salía cortada y «Anonimizar…» quedaba
-// fuera, a la derecha. Por debajo de md las filas se apilan, como en Inventario; desde md, la tabla.
-// Todos los datos son simulados (repositorio público: nada de nombres reales).
+// docs/28 RV-116 (#454): en el móvil, Registro y Papelera caben a lo ancho. Por debajo de md las filas
+// de Registro se apilan, como en Inventario; desde md, la tabla. La pestaña Voluntarios ya no existe
+// (docs/29 RV-122, DEC-167). Todos los datos son simulados (repositorio público: nada de nombres reales).
 
 import { AxeBuilder } from '@axe-core/playwright';
 import type { NodeResult, Result } from 'axe-core';
@@ -16,50 +15,6 @@ test.describe.configure({ timeout: 60_000 });
 const CARGA = 15_000;
 
 const hace = (horas: number) => new Date(Date.now() - horas * 3_600_000).toISOString();
-
-const ACTIVIDAD = [
-  {
-    autor: 'Voluntaria Primera Ejemplo',
-    dispositivo_id: 'd1',
-    propuestas: 116,
-    aprobadas: 104,
-    rechazadas: 11,
-    tasa: 0.9,
-    ultima: hace(30),
-  },
-  {
-    autor: 'Voluntario Segundo de Pruebas Apellidolargo',
-    dispositivo_id: 'd2',
-    propuestas: 6,
-    aprobadas: 2,
-    rechazadas: 4,
-    tasa: 0.33,
-    ultima: hace(400),
-  },
-];
-
-const INCIDENCIAS = [
-  {
-    id: 'i1',
-    momento: hace(5),
-    descripcion: 'Al hacer la foto la app se cierra y vuelve al mapa sin guardar nada de lo escrito',
-    version_app: '1.0.3',
-    ruta: '/proponer/alta/con-una-ruta-bastante-larga',
-    estado: 'abierta',
-    resuelta_por: null,
-    resuelta_en: null,
-  },
-  {
-    id: 'i2',
-    momento: hace(80),
-    descripcion: 'No carga el mapa',
-    version_app: '1.0.2',
-    ruta: '/',
-    estado: 'resuelta',
-    resuelta_por: 'jefatura-de-pruebas@example.org',
-    resuelta_en: hace(50),
-  },
-];
 
 const REGISTRO = Array.from({ length: 6 }, (_, i) => ({
   id: i + 1,
@@ -87,14 +42,12 @@ async function prepararPanel(page: Page) {
     propuestas: [],
     puntos: PAPELERA,
     v_registro: REGISTRO,
-    incidencias_app: INCIDENCIAS,
     config: [{ clave: 'dias_papelera', valor: 30 }],
   });
   await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/*`, (route) => {
     const nombre = new URL(route.request().url()).pathname.split('/').pop()!;
     const json = (d: unknown) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(d) });
     if (nombre === 'fn_es_admin') return json(true);
-    if (nombre === 'fn_actividad_voluntarios') return json(ACTIVIDAD);
     if (nombre === 'fn_registrar_error') {
       errores.push(nombre);
       return json(null);
@@ -147,40 +100,6 @@ test.describe('a 412 × 915', () => {
   test.skip(({ isMobile }) => !isMobile, 'las filas apiladas son del móvil (proyecto movil)');
   test.use({ viewport: { width: 412, height: 915 } });
 
-  test('Voluntarios cabe a lo ancho y «Anonimizar…» se toca sin desplazar (RV-116)', async ({ page }) => {
-    const panel = await prepararPanel(page);
-    await page.goto('/admin/voluntarios');
-    await expect(page.getByRole('cell', { name: ACTIVIDAD[1].autor })).toBeVisible({ timeout: CARGA });
-    await expect(page.getByText(T.panelVoluntarios.abiertas(1))).toBeVisible({ timeout: CARGA });
-    expect(await desbordes(page)).toEqual([]);
-    panel.sinErrores();
-
-    const fila = page.getByRole('row').filter({ hasText: ACTIVIDAD[1].autor });
-    const anonimizar = fila.getByRole('button', { name: T.panel.anonimizar });
-    await anonimizar.scrollIntoViewIfNeeded();
-    await expect(anonimizar).toBeInViewport({ ratio: 1 });
-    const caja = (await anonimizar.boundingBox())!;
-    expect(caja.x).toBeGreaterThanOrEqual(0);
-    expect(caja.x + caja.width).toBeLessThanOrEqual(412);
-    expect(caja.height).toBeGreaterThanOrEqual(44);
-    // Después de llevarlo a la vista, la página sigue sin desplazarse a lo ancho.
-    expect(await page.evaluate(() => [window.scrollX, document.scrollingElement!.scrollLeft])).toEqual([0, 0]);
-    await anonimizar.click();
-    await expect(
-      page.getByRole('dialog').getByText(T.panelVoluntarios.avisoAnonimizar(ACTIVIDAD[1].autor)),
-    ).toBeVisible();
-    await page.getByRole('dialog').getByRole('button', { name: T.panelCola.cancelar }).click();
-
-    // «Última» y «Marcar resuelta» enteros a la vista.
-    const ultima = fila.getByRole('cell').filter({ hasText: T.panelVoluntarios.colUltima });
-    await ultima.scrollIntoViewIfNeeded();
-    await expect(ultima).toBeInViewport({ ratio: 1 });
-    const resuelta = page.getByRole('button', { name: T.panel.marcarResuelta });
-    await resuelta.scrollIntoViewIfNeeded();
-    await expect(resuelta).toBeInViewport({ ratio: 1 });
-    await auditar(page, 'Voluntarios en el móvil');
-  });
-
   test('Registro con filas cabe a lo ancho (RV-116)', async ({ page }) => {
     const panel = await prepararPanel(page);
     await page.goto('/admin/registro');
@@ -211,18 +130,16 @@ test.describe('desde md', () => {
     [768, 1024],
     [1440, 900],
   ] as const) {
-    test(`a ${ancho} px, Voluntarios y Registro siguen en tabla y caben (RV-116)`, async ({ page }) => {
+    test(`a ${ancho} px, Registro y Papelera siguen en tabla y caben (RV-116)`, async ({ page }) => {
       await page.setViewportSize({ width: ancho, height: alto });
       const panel = await prepararPanel(page);
-      await page.goto('/admin/voluntarios');
-      await expect(page.getByRole('cell', { name: ACTIVIDAD[1].autor })).toBeVisible({ timeout: CARGA });
-      await expect(page.getByText(T.panelVoluntarios.abiertas(1))).toBeVisible({ timeout: CARGA });
-      await expect(page.locator('table')).toHaveCount(2);
-      await expect(page.getByRole('columnheader', { name: T.panelVoluntarios.colUltima })).toBeVisible();
-      expect(await desbordes(page)).toEqual([]);
-
       await page.goto('/admin/registro');
       await expect(page.getByText(REGISTRO[0].codigo).first()).toBeVisible({ timeout: CARGA });
+      await expect(page.locator('table')).toHaveCount(1);
+      expect(await desbordes(page)).toEqual([]);
+
+      await page.goto('/admin/papelera');
+      await expect(page.getByText(PAPELERA[1].codigo)).toBeVisible({ timeout: CARGA });
       await expect(page.locator('table')).toHaveCount(1);
       expect(await desbordes(page)).toEqual([]);
       panel.sinErrores();
@@ -239,12 +156,11 @@ test.describe('capturas', () => {
     [1440, 900],
   ] as const;
   const ESPERA: Record<string, string> = {
-    voluntarios: ACTIVIDAD[1].autor,
     registro: REGISTRO[0].codigo,
     papelera: PAPELERA[1].codigo,
   };
   for (const [ancho, alto] of TAMAÑOS) {
-    test(`Voluntarios, Registro y Papelera a ${ancho} px`, async ({ page }, info) => {
+    test(`Registro y Papelera a ${ancho} px`, async ({ page }, info) => {
       await page.setViewportSize({ width: ancho, height: alto });
       await prepararPanel(page);
       for (const [pestaña, texto] of Object.entries(ESPERA)) {
