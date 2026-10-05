@@ -229,6 +229,12 @@ test.describe('app del voluntario', () => {
     await expect(page.getByTestId('selector-pin')).toBeVisible();
     await auditar(page, 'alta');
     await geometria(page, 'alta', { movil: !!isMobile });
+    // docs/29 RV-121: con boca de riego aparece el tipo de enganche, con sus cuatro tarjetas.
+    await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+    await page.getByRole('radio', { name: T.formulario.d45 }).click();
+    await expect(page.getByRole('radio', { name: T.formulario.directo })).toBeVisible();
+    await auditar(page, 'alta de boca con tipo de enganche');
+    await geometria(page, 'alta de boca con tipo de enganche', { movil: !!isMobile });
   });
 
   test('mis propuestas y ajustes', async ({ page, isMobile }) => {

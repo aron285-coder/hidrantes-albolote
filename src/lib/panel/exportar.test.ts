@@ -92,6 +92,14 @@ describe('exportación (FR-160, FL-32)', () => {
     expect('racor' in propiedades).toBe(false);
   });
 
+  // docs/29 RV-121 (DEC-170): el enganche Directo sale con su nombre en Excel y CSV, y crudo en GeoJSON.
+  it('una boca con enganche Directo sale como "Directo", y en GeoJSON tipo_enganche "directo"', () => {
+    const directo: FilaExportada = { ...FILAS[1], racor: 'directo' };
+    expect(celdas(directo)[4]).toBe('Directo');
+    expect(csv([directo]).split('\r\n')[1]).toContain(';"Directo";');
+    expect(JSON.parse(geojson([directo])).features[0].properties.tipo_enganche).toBe('directo');
+  });
+
   it('el .xlsx es un zip con las partes que Excel espera y los números como números', () => {
     const archivos = unzipSync(xlsx(FILAS));
     expect(Object.keys(archivos).sort()).toEqual([

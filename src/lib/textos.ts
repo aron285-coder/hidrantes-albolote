@@ -355,6 +355,7 @@ export const T = {
     racor: 'Tipo de enganche',
     granada: 'Granada',
     barcelona: 'Barcelona',
+    directo: 'Directo',
     otro: 'Otro',
     caudal: 'Caudal / estado',
     bueno: 'Bueno',
