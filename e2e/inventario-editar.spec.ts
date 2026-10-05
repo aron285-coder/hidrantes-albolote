@@ -242,7 +242,10 @@ test.describe('Editar del Inventario (docs/29 RV-124)', () => {
     await page.getByRole('link', { name: T.panelCola.registro, exact: true }).click();
     const fila = page.getByRole('row').filter({ hasText: T.panelRegistro.edicionAdmin });
     await expect(fila).toContainText(BOCA.codigo);
-    await expect(fila).toContainText('desplazamiento_m');
+    // Qué cambió, con palabras (docs/30 RV-127): el estado nuevo y "Movido N m", sin claves técnicas.
+    await expect(fila).toContainText(new RegExp(`${T.panelRegistro.campos.caudal}: [^·]+ → ${T.formulario.malo}`));
+    await expect(fila).toContainText(/Movido \d+(,\d)? m/);
+    await expect(fila).not.toContainText(/desplazamiento_m|actualizado_en|\blat\b|\blng\b/);
   });
 
   test('sin mover el pin no se envían lat ni lng; un error deja el panel abierto con lo escrito', async ({ page }) => {

@@ -6,6 +6,7 @@ import { useCarga } from '@/hooks/carga';
 import { fechaCorta, hace } from '@/lib/formato';
 import { borrarPunto, historialPunto, nombreAccion, retirarPunto } from '@/lib/panel/inventario';
 import { textoError } from '@/lib/panel/errores';
+import { detalleLegible } from '@/lib/panel/registro-legible';
 import type { Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 
@@ -90,6 +91,8 @@ export function DialogoHistorial({ punto, alCerrar }: { punto: Punto; alCerrar: 
               </span>
               <strong>{nombreAccion(e.accion)}</strong>
               <span className="text-texto-suave"> · {e.actor}</span>
+              {/* Qué cambió, con palabras (docs/30 RV-127). */}
+              <p className="text-texto-suave mt-0.5 [overflow-wrap:anywhere]">{detalleLegible(e)}</p>
             </li>
           ))}
         </ol>
