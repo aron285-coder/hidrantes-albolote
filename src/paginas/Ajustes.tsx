@@ -193,17 +193,6 @@ export function Ajustes() {
 
       <Seccion>{T.ajustes.ayuda}</Seccion>
       <FilaInstalar />
-      {sesion && (
-        <Fila titulo={T.ajustes.algoNoFunciona}>
-          <Boton
-            variante="enlace"
-            className="text-sm"
-            onClick={() => navegar('/incidencia', { state: { desde: '/ajustes' } })}
-          >
-            {T.ajustes.avisarJefatura}
-          </Boton>
-        </Fila>
-      )}
       <Fila titulo={T.ajustes.comoSeUsa}>
         <Boton variante="enlace" className="text-sm" onClick={() => navegar('/bienvenida')}>
           {T.ajustes.ver}
