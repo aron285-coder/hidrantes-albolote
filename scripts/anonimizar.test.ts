@@ -150,7 +150,9 @@ function dependencias(respuesta: string, vista: Record<string, unknown> = {}) {
       consultas.push(sql);
       if (sql.includes('fn_anonimizar_autor')) return '5';
       if (sql.includes('fn_actividad_voluntarios')) {
-        return JSON.stringify([{ dispositivo_id: D, autor: 'Ana Ruiz', propuestas: 3, ultima: '2026-09-01T10:00:00+00' }]);
+        return JSON.stringify([
+          { dispositivo_id: D, autor: 'Ana Ruiz', propuestas: 3, ultima: '2026-09-01T10:00:00+00' },
+        ]);
       }
       return JSON.stringify({ admin_activo: true, de_administrador: false, propuestas: 3, registro: 2, ...vista });
     }),
@@ -163,11 +165,14 @@ function dependencias(respuesta: string, vista: Record<string, unknown> = {}) {
 const ORDEN = { modo: 'anonimizar', entorno: 'staging', admin: ADMIN, dispositivo: D } as const;
 
 describe('anonimizar', () => {
-  it.each(['', 'anonimizar', 'si', ' ANONIMIZAR '])('sin escribir exactamente ANONIMIZAR (%j) no cambia nada', async (r) => {
-    const { d, consultas } = dependencias(r);
-    await expect(anonimizar(ORDEN, d)).rejects.toThrow(/no se ha cambiado nada/);
-    expect(consultas.some((s) => s.includes('fn_anonimizar_autor'))).toBe(false);
-  });
+  it.each(['', 'anonimizar', 'si', ' ANONIMIZAR '])(
+    'sin escribir exactamente ANONIMIZAR (%j) no cambia nada',
+    async (r) => {
+      const { d, consultas } = dependencias(r);
+      await expect(anonimizar(ORDEN, d)).rejects.toThrow(/no se ha cambiado nada/);
+      expect(consultas.some((s) => s.includes('fn_anonimizar_autor'))).toBe(false);
+    },
+  );
 
   it('con ANONIMIZAR, enseña antes cuántas filas y llama a fn_anonimizar_autor como el administrador', async () => {
     const { d, consultas } = dependencias(CONFIRMACION);

@@ -50,7 +50,8 @@
     "comprobar-auth": "tsx scripts/comprobar-auth.ts",
     "comprobar-produccion": "tsx scripts/comprobar-produccion.ts",
     "paridad": "tsx scripts/paridad.ts",
-    "tareas-esperadas": "tsx scripts/generar-tareas-esperadas.ts"
+    "tareas-esperadas": "tsx scripts/generar-tareas-esperadas.ts",
+    "anonimizar": "tsx scripts/anonimizar.ts"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",

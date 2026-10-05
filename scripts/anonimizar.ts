@@ -80,7 +80,9 @@ export function analizarArgumentos(banderas: Set<string>, valores: Map<string, s
     if (!TEXTO.test(texto)) abortar('--buscar: de 2 a 60 letras, números, espacios, punto, guion o apóstrofo.');
     return { modo: 'buscar', entorno: entorno as Entorno, admin, texto };
   }
-  abortar('Indica --buscar "texto" para localizar el dispositivo o --dispositivo <id> para anonimizar. No se ha cambiado nada.');
+  abortar(
+    'Indica --buscar "texto" para localizar el dispositivo o --dispositivo <id> para anonimizar. No se ha cambiado nada.',
+  );
 }
 
 /**
@@ -91,14 +93,15 @@ export function comprobarDestino(entorno: Entorno, url: string, ci: string | und
   const p: string[] = [];
   if (ci) p.push('En CI no se ejecuta: los nombres no pueden salir en Actions (el repositorio es público).');
   if (entorno === 'local') return p;
-  let usuario = '';
+  let usuario: string;
   try {
     usuario = decodeURIComponent(new URL(url).username);
   } catch {
     p.push('La cadena de conexión no es una URL de PostgreSQL.');
     return p;
   }
-  if (!usuario.startsWith('hidrantes_migrador')) p.push(`La cadena usa el usuario "${usuario}"; debe ser hidrantes_migrador (DEC-052).`);
+  if (!usuario.startsWith('hidrantes_migrador'))
+    p.push(`La cadena usa el usuario "${usuario}"; debe ser hidrantes_migrador (DEC-052).`);
   const ref = refDeUrl(url);
   if (ref !== REF_DE[entorno]) {
     p.push(`Esa cadena apunta al proyecto ${ref ?? 'desconocido'}, y --entorno ${entorno} es ${REF_DE[entorno]}.`);
