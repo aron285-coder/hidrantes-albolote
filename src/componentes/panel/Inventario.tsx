@@ -9,7 +9,7 @@ import {
   useState,
 } from 'react';
 import { DialogoHistorial, DialogoMotivo } from './dialogos';
-import { ConfirmarDescartar, EditarPunto } from './EditarPunto';
+import { ConfirmarDescartar, EditarPunto, type EstadoEditar, quitarEntradaDeEditar } from './EditarPunto';
 import { usePanel } from './usar-panel';
 import { MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { usePanelAncho } from '@/hooks/ancho';
@@ -249,22 +249,25 @@ export default function Inventario() {
   // Editar (docs/29 RV-124): el punto abierto, cuántos cambios lleva sin guardar, el punto al que se
   // quiere pasar si los hay, y el "Editar" que lo abrió, para devolverle el foco al cerrar.
   const [editando, setEditando] = useState<Punto | null>(null);
-  const [pendientes, setPendientes] = useState(0);
+  const [estadoEditar, setEstadoEditar] = useState<EstadoEditar>({ pendientes: 0, ocupado: false });
   const [pasarA, setPasarA] = useState<{ punto: Punto; boton: HTMLElement } | null>(null);
   const origen = useRef<HTMLElement | null>(null);
 
   function abrirEditar(p: Punto, boton: HTMLElement) {
     if (editando?.id === p.id) return;
+    // Mientras guarda, el punto abierto se queda: el botón dice «Guardando…».
+    if (editando && estadoEditar.ocupado) return;
     // En el ordenador la tabla sigue a mano: con cambios sin guardar, pregunta antes de cambiar de punto.
-    if (editando && pendientes > 0) return setPasarA({ punto: p, boton });
+    if (editando && estadoEditar.pendientes > 0) return setPasarA({ punto: p, boton });
     origen.current = boton;
-    setPendientes(0);
+    setEstadoEditar({ pendientes: 0, ocupado: false });
     setEditando(p);
   }
 
-  const cerrarEditar = useCallback(() => {
-    setEditando(null);
-    setPendientes(0);
+  // Solo cierra si sigue abierto ese punto: un guardado que acaba tarde no cierra otro.
+  const cerrarEditar = useCallback((id: string) => {
+    setEditando((e) => (e?.id === id ? null : e));
+    setEstadoEditar({ pendientes: 0, ocupado: false });
     origen.current?.focus();
   }, []);
   const [exportando, setExportando] = useState(false);
@@ -584,14 +587,20 @@ export default function Inventario() {
       )}
 
       {editando && (
-        <EditarPunto key={editando.id} punto={editando} alCerrar={cerrarEditar} alPendientes={setPendientes} />
+        <EditarPunto
+          key={editando.id}
+          punto={editando}
+          alCerrar={cerrarEditar}
+          alEstado={setEstadoEditar}
+          enPausa={!!dialogo || !!pasarA}
+        />
       )}
       {pasarA && (
         <ConfirmarDescartar
-          n={pendientes}
+          n={estadoEditar.pendientes}
           alDescartar={() => {
             origen.current = pasarA.boton;
-            setPendientes(0);
+            setEstadoEditar({ pendientes: 0, ocupado: false });
             setEditando(pasarA.punto);
             setPasarA(null);
           }}
@@ -603,7 +612,15 @@ export default function Inventario() {
           punto={dialogo.punto}
           accion={dialogo.que}
           alCerrar={() => setDialogo(null)}
-          alHecho={() => setDialogo(null)}
+          alHecho={() => {
+            // Retirado o borrado el punto que se estaba editando: Editar ya no tiene qué guardar.
+            if (editando?.id === dialogo.punto.id) {
+              quitarEntradaDeEditar();
+              setEditando(null);
+              setEstadoEditar({ pendientes: 0, ocupado: false });
+            }
+            setDialogo(null);
+          }}
         />
       )}
       {dialogo?.que === 'historial' && <DialogoHistorial punto={dialogo.punto} alCerrar={() => setDialogo(null)} />}

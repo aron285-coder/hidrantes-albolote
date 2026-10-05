@@ -1,6 +1,7 @@
 import { Lock, X } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router';
 import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
 import { Campo, PildorasCaudal, Segmentado, SelectorRacor } from '@/componentes/operaciones/Campos';
@@ -344,30 +345,60 @@ export function ConfirmarDescartar({
   );
 }
 
+/** Lo que el Inventario necesita saber de Editar: cambios sin guardar y si está guardando. */
+export interface EstadoEditar {
+  pendientes: number;
+  ocupado: boolean;
+}
+
+/** La entrada de historial de Editar lleva este campo, con un valor distinto en cada apertura. */
+const MARCA = 'editarPunto';
+const marcaActual = () => (window.history.state as Record<string, unknown> | null)?.[MARCA];
+
+/**
+ * Quita la entrada de historial de Editar si es la de arriba. Para cuando el Inventario cierra Editar
+ * por su cuenta (se ha retirado o borrado el punto que se editaba).
+ */
+export function quitarEntradaDeEditar() {
+  if (marcaActual()) window.history.back();
+}
+
+type Pregunta = { para: 'cerrar' } | { para: 'salir'; destino: string };
+
 /**
  * Editar un punto: la banda del estado guardado, el mapa, los campos y el pie fijo con el recuento y
- * Guardar. `alPendientes` avisa al Inventario de cuántos cambios hay sin guardar, para preguntar
- * antes de pasar a otro punto.
+ * Guardar.
+ * - `alEstado` avisa al Inventario de los cambios sin guardar y de si está guardando, para preguntar
+ *   (o no hacer nada) antes de pasar a otro punto.
+ * - `enPausa`: hay otro diálogo encima (Retirar, Borrar, Historial, la pregunta de cambiar de punto).
+ *   Esc, el velo y "atrás" son de ese diálogo, no de Editar.
+ * - `alCerrar(id)`: el Inventario solo cierra si sigue abierto ese mismo punto.
  */
 export function EditarPunto({
   punto,
   alCerrar,
-  alPendientes,
+  alEstado,
+  enPausa = false,
 }: {
   punto: Punto;
-  alCerrar: () => void;
-  alPendientes?: (n: number) => void;
+  alCerrar: (id: string) => void;
+  alEstado?: (e: EstadoEditar) => void;
+  enPausa?: boolean;
 }) {
   const { avisar } = usePanel();
+  const navegar = useNavigate();
   const posicion = usePosicion();
   const forma = useFormaEditar();
   const titulo = useId();
   const idResumen = useId();
   const idFalta = useId();
+  const dialogo = useRef<HTMLDivElement>(null);
   const cuerpo = useRef<HTMLDivElement>(null);
+  // Una marca por apertura: en StrictMode el efecto se monta dos veces y no debe apilar dos entradas.
+  const [marca] = useState(() => `${punto.id}:${Math.random().toString(36).slice(2)}`);
   const [v, setV] = useState<Valores>(() => valoresDe(punto));
   const [ocupado, setOcupado] = useState(false);
-  const [preguntar, setPreguntar] = useState(false);
+  const [pregunta, setPregunta] = useState<Pregunta | null>(null);
 
   const formulario = formularioDe(v);
   const cambios = cambiosDe(punto, formulario);
@@ -376,18 +407,37 @@ export function EditarPunto({
   const falta = faltaEnEdicion(punto, formulario);
   const cambiar = useCallback((c: Partial<Valores>) => setV((x) => ({ ...x, ...c })), []);
 
-  useEffect(() => alPendientes?.(n), [n, alPendientes]);
+  useEffect(() => alEstado?.({ pendientes: n, ocupado }), [n, ocupado, alEstado]);
 
-  const nRef = useRef(n);
+  // Lo que leen los manejadores de teclado, historial y enlaces sin volver a suscribirse.
+  const estado = useRef({ n, ocupado, enPausa, pregunta: false, montado: true });
   useEffect(() => {
-    nRef.current = n;
-  }, [n]);
-
-  // Cerrar con cambios sin guardar pregunta antes.
-  const intentarCerrar = useCallback(() => {
-    if (nRef.current > 0) setPreguntar(true);
-    else alCerrar();
+    estado.current = { ...estado.current, n, ocupado, enPausa, pregunta: !!pregunta };
+  }, [n, ocupado, enPausa, pregunta]);
+  const cerrarRef = useRef(alCerrar);
+  useEffect(() => {
+    cerrarRef.current = alCerrar;
   }, [alCerrar]);
+  useEffect(() => {
+    estado.current.montado = true;
+    return () => {
+      estado.current.montado = false;
+    };
+  }, []);
+
+  /** Cierra de verdad: quita la entrada de historial propia, si es la de arriba, y avisa al Inventario. */
+  const cerrar = useCallback(() => {
+    if (marcaActual() === marca) window.history.back();
+    cerrarRef.current(punto.id);
+  }, [marca, punto.id]);
+
+  /** Mientras guarda no se cierra; con cambios sin guardar, pregunta antes. */
+  const intentarCerrar = useCallback(() => {
+    const e = estado.current;
+    if (e.ocupado || e.enPausa || e.pregunta) return;
+    if (e.n > 0) setPregunta({ para: 'cerrar' });
+    else cerrar();
+  }, [cerrar]);
 
   // El foco entra en el primer control; al cerrar lo devuelve el Inventario al "Editar" de la fila.
   useEffect(() => {
@@ -396,60 +446,95 @@ export function EditarPunto({
     });
   }, []);
 
-  // Esc y la X cierran (con la pregunta si hay cambios). La pregunta abierta se queda Esc para sí.
+  // Esc cierra (con la pregunta si hay cambios), salvo con otro diálogo encima.
   useEffect(() => {
-    if (preguntar) return;
     const tecla = (e: KeyboardEvent) => {
       if (e.key === 'Escape') intentarCerrar();
     };
     window.addEventListener('keydown', tecla);
     return () => window.removeEventListener('keydown', tecla);
-  }, [intentarCerrar, preguntar]);
+  }, [intentarCerrar]);
 
-  const cerrarRef = useRef(alCerrar);
+  // "Atrás" cierra Editar y no sale del Inventario: una entrada de historial propia, con el estado del
+  // router para que no navegue. En el móvil es el "atrás" de Android (pantalla completa); en el
+  // ordenador evita perder los cambios con el botón del navegador. Con cambios (o guardando, o con
+  // otro diálogo encima) se vuelve a poner la entrada y, si toca, se pregunta. Al pasar de un punto a
+  // otro, el nuevo reemplaza la entrada del anterior en vez de apilar otra.
   useEffect(() => {
-    cerrarRef.current = alCerrar;
-  }, [alCerrar]);
-
-  // A pantalla completa, el "atrás" de Android cierra Editar y no sale del panel: una entrada de
-  // historial propia, con el mismo estado del router para que no navegue. Con cambios, pregunta y
-  // vuelve a poner la entrada. Al cerrar por la X, Cancelar o Guardar, se quita la entrada para que
-  // "atrás" no la repita.
-  useEffect(() => {
-    if (forma !== 'completa') return;
-    const marca = { ...(window.history.state as object | null), editarPunto: punto.id };
-    window.history.pushState(marca, '');
-    let activa = true;
+    if (marcaActual() !== marca) {
+      const con = { ...(window.history.state as object | null), [MARCA]: marca };
+      if (marcaActual()) window.history.replaceState(con, '');
+      else window.history.pushState(con, '');
+    }
     const atras = () => {
-      if (!activa) return;
-      if (nRef.current > 0) {
-        window.history.pushState(marca, '');
-        setPreguntar(true);
-      } else {
-        activa = false;
-        cerrarRef.current();
+      const e = estado.current;
+      if (e.ocupado || e.enPausa || e.pregunta || e.n > 0) {
+        window.history.pushState({ ...(window.history.state as object | null), [MARCA]: marca }, '');
+        if (!e.ocupado && !e.enPausa && !e.pregunta) setPregunta({ para: 'cerrar' });
+        return;
       }
+      cerrarRef.current(punto.id);
     };
     window.addEventListener('popstate', atras);
-    return () => {
-      window.removeEventListener('popstate', atras);
-      if (activa && (window.history.state as { editarPunto?: string } | null)?.editarPunto === punto.id) {
-        window.history.back();
-      }
+    return () => window.removeEventListener('popstate', atras);
+  }, [marca, punto.id]);
+
+  /** Salir del Inventario por un enlace del panel: la entrada de Editar se reemplaza por el destino. */
+  const salirA = useCallback(
+    (destino: string) => {
+      const arriba = marcaActual() === marca;
+      cerrarRef.current(punto.id);
+      navegar(destino, { replace: arriba });
+    },
+    [marca, punto.id, navegar],
+  );
+
+  // Salir del Inventario con cambios sin guardar pregunta: los enlaces del panel (pestañas, "Ir al
+  // mapa") se paran aquí. Es un BrowserRouter, sin useBlocker. Cerrar o recargar la pestaña, con el
+  // aviso del navegador.
+  useEffect(() => {
+    const enlace = (ev: MouseEvent) => {
+      const a = (ev.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!a || dialogo.current?.contains(a) || ev.defaultPrevented) return;
+      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      if ((a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+      const url = new URL(a.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const e = estado.current;
+      const destino = url.pathname + url.search + url.hash;
+      if (e.ocupado || e.pregunta) return;
+      if (e.n > 0) setPregunta({ para: 'salir', destino });
+      else salirA(destino);
     };
-  }, [forma, punto.id]);
+    const recargar = (ev: BeforeUnloadEvent) => {
+      if (estado.current.n === 0) return;
+      ev.preventDefault();
+      ev.returnValue = '';
+    };
+    document.addEventListener('click', enlace, true);
+    window.addEventListener('beforeunload', recargar);
+    return () => {
+      document.removeEventListener('click', enlace, true);
+      window.removeEventListener('beforeunload', recargar);
+    };
+  }, [salirA]);
 
   async function guardar() {
     setOcupado(true);
+    estado.current.ocupado = true;
     try {
       // lat y lng solo si se ha movido: cambiosDe ya los deja fuera si no.
       const r = await editarPunto(punto.id, cambios);
       if (!r.ok) return avisar(textoError(r.codigo), 'error');
       avisar(T.panelInventario.guardado(punto.codigo));
-      nRef.current = 0;
-      alCerrar();
+      if (!estado.current.montado) return;
+      estado.current.n = 0;
+      cerrar();
     } finally {
-      setOcupado(false);
+      estado.current.ocupado = false;
+      if (estado.current.montado) setOcupado(false);
     }
   }
 
@@ -462,9 +547,11 @@ export function EditarPunto({
         <div className="fixed inset-0 z-[940] bg-[rgba(14,27,48,.25)]" onClick={intentarCerrar} aria-hidden />
       )}
       <div
+        ref={dialogo}
         role="dialog"
         aria-modal={forma !== 'lateral'}
         aria-labelledby={titulo}
+        aria-busy={ocupado || undefined}
         data-forma={forma}
         className="bg-papel text-texto fixed inset-y-0 right-0 z-[950] flex w-full flex-col shadow-[0_6px_24px_rgba(14,27,48,.28)] md:max-[1099px]:w-[500px] min-[1100px]:w-[540px]"
       >
@@ -475,11 +562,13 @@ export function EditarPunto({
             <span className="text-[13px]">{T.panelEditar.editar}</span>
           </h2>
           <span className="ml-auto text-[14px] font-semibold">{nombreCaudal(punto.caudal)}</span>
+          {/* Mientras guarda, la X no cierra: el motivo es "Guardando…" en el botón de guardar. */}
           <button
             type="button"
             onClick={intentarCerrar}
+            disabled={ocupado}
             aria-label={T.ficha.cerrar}
-            className="-mr-2 flex size-11 items-center justify-center"
+            className="-mr-2 flex size-11 items-center justify-center disabled:opacity-50"
           >
             <X size={20} aria-hidden />
           </button>
@@ -493,7 +582,7 @@ export function EditarPunto({
           <ResumenCambios campos={campos} id={idResumen} />
           <div className="flex flex-col items-end gap-1 max-md:ml-auto">
             <div className="flex gap-3">
-              <Boton variante="secundario" onClick={intentarCerrar}>
+              <Boton variante="secundario" disabled={ocupado} onClick={intentarCerrar}>
                 {T.panelCola.cancelar}
               </Boton>
               <Boton
@@ -501,7 +590,7 @@ export function EditarPunto({
                 aria-describedby={motivo ? idFalta : idResumen}
                 onClick={() => void guardar()}
               >
-                {T.panel.guardarCambios}
+                {ocupado ? T.panelEditar.guardando : T.panel.guardarCambios}
               </Boton>
             </div>
             {motivo && (
@@ -512,15 +601,16 @@ export function EditarPunto({
           </div>
         </div>
       </div>
-      {preguntar && (
+      {pregunta && (
         <ConfirmarDescartar
           n={n}
           alDescartar={() => {
-            setPreguntar(false);
-            nRef.current = 0;
-            alCerrar();
+            setPregunta(null);
+            estado.current.n = 0;
+            if (pregunta.para === 'salir') salirA(pregunta.destino);
+            else cerrar();
           }}
-          alSeguir={() => setPreguntar(false)}
+          alSeguir={() => setPregunta(null)}
         />
       )}
     </>,

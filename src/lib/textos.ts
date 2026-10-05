@@ -783,6 +783,7 @@ export const T = {
     descartarN: (n: number) => (n === 1 ? '¿Descartar 1 cambio?' : `¿Descartar ${n} cambios?`),
     descartar: 'Descartar',
     seguirEditando: 'Seguir editando',
+    guardando: 'Guardando…',
   },
 
   panelRegistro: {

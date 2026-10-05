@@ -27,12 +27,12 @@ function metros(a: { lat: number; lng: number }, b: { lat: number; lng: number }
   return 2 * 6_371_000 * Math.asin(Math.sqrt(h));
 }
 
-async function preparar(page: Page) {
+async function preparar(page: Page, extra: typeof PUNTOS = []) {
   const llamadas: Llamada[] = [];
   const registro: Record<string, unknown>[] = [];
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
-    v_puntos_activos: PUNTOS,
+    v_puntos_activos: [...PUNTOS, ...extra],
     v_cola_revision: [],
     v_registro: () => registro,
     puntos: [],
@@ -48,7 +48,7 @@ async function preparar(page: Page) {
     if (nombre === 'fn_registrar_error') return json(null);
     if (nombre === 'fn_editar_punto') {
       // Como 0038: una sola entrada edicion_admin; si se movió, despues lleva desplazamiento_m.
-      const punto = PUNTOS.find((p) => p.id === cuerpo.punto_id)!;
+      const punto = [...PUNTOS, ...extra].find((p) => p.id === cuerpo.punto_id)!;
       const cambios = cuerpo.cambios as Record<string, unknown>;
       const despues: Record<string, unknown> = { ...punto, ...cambios };
       if (typeof cambios.lat === 'number' && typeof cambios.lng === 'number') {
@@ -273,6 +273,172 @@ test.describe('Editar del Inventario (docs/29 RV-124)', () => {
     await expect(p.getByRole('radio', { name: T.formulario.directo })).toHaveAttribute('aria-checked', 'true');
     // Sin mover el pin, la llamada no llevó la ubicación.
     expect(enviados).toEqual([{ punto_id: BOCA.id, cambios: { racor: 'directo' } }]);
+  });
+
+  test('mientras guarda no se cierra ni se cambia de punto, y al acabar cierra el mismo', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    let soltar = () => {};
+    const espera = new Promise<void>((ok) => (soltar = ok));
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_editar_punto`, async (r) => {
+      await espera;
+      await r.fulfill({ contentType: 'application/json', body: 'null' });
+    });
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await p.getByRole('radio', { name: T.formulario.malo }).click();
+    await p.getByRole('button', { name: T.panel.guardarCambios }).click();
+
+    const guardando = p.getByRole('button', { name: T.panelEditar.guardando });
+    await expect(guardando).toBeDisabled();
+    await expect(p).toHaveAttribute('aria-busy', 'true');
+    await expect(p.getByRole('button', { name: T.ficha.cerrar })).toBeDisabled();
+    await expect(p.getByRole('button', { name: T.panelCola.cancelar })).toBeDisabled();
+    await page.keyboard.press('Escape');
+    await editarDe(page, HIDRANTE.codigo).click();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(p.getByRole('heading')).toContainText(BOCA.codigo);
+
+    soltar();
+    await expect(page.getByRole('status').filter({ hasText: T.panelInventario.guardado(BOCA.codigo) })).toBeVisible();
+    await expect(p).toHaveCount(0);
+  });
+
+  test('salir del Inventario con cambios pregunta; sin cambios, sale; y cerrar la pestaña avisa', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await p.getByRole('radio', { name: T.formulario.regular }).click();
+
+    const registro = page.getByRole('link', { name: T.panelCola.registro, exact: true });
+    await registro.click();
+    const pregunta = page.getByRole('alertdialog', { name: T.panelEditar.descartarN(1) });
+    await expect(pregunta).toBeVisible();
+    await pregunta.getByRole('button', { name: T.panelEditar.seguirEditando }).click();
+    await expect(page).toHaveURL(/\/admin\/inventario$/);
+    await expect(p).toBeVisible();
+
+    // Cerrar la pestaña con cambios: el aviso del navegador.
+    let aviso = '';
+    page.once('dialog', (d) => {
+      aviso = d.type();
+      void d.dismiss();
+    });
+    await page.evaluate(() => window.dispatchEvent(new Event('beforeunload', { cancelable: true })));
+    const cancelado = await page.evaluate(() => {
+      const e = new Event('beforeunload', { cancelable: true });
+      window.dispatchEvent(e);
+      return e.defaultPrevented;
+    });
+    expect(cancelado || aviso === 'beforeunload').toBe(true);
+
+    await registro.click();
+    await page.getByRole('alertdialog').getByRole('button', { name: T.panelEditar.descartar }).click();
+    await expect(page).toHaveURL(/\/admin\/registro$/);
+    await expect(p).toHaveCount(0);
+    // "Atrás" vuelve al Inventario, sin una entrada de Editar de más por medio.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/admin\/inventario$/);
+    await expect(p).toHaveCount(0);
+
+    // Sin cambios, el enlace sale sin preguntar.
+    await editarDe(page, BOCA.codigo).click();
+    await page.getByRole('link', { name: T.panelCola.registro, exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/registro$/);
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  });
+
+  test('Esc en Retirar no cierra Editar, y retirar el punto que se edita cierra Editar', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_retirar_punto`, (r) =>
+      r.fulfill({ contentType: 'application/json', body: 'null' }),
+    );
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    const fila = page.getByRole('row').filter({ hasText: BOCA.codigo });
+
+    await fila.getByRole('button', { name: T.panel.historial }).click();
+    await expect(page.getByRole('dialog', { name: new RegExp(T.panel.historial) })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: new RegExp(T.panel.historial) })).toHaveCount(0);
+    await expect(p).toBeVisible();
+
+    await fila.getByRole('button', { name: T.panel.retirar }).click();
+    const retirar = page.getByRole('dialog').filter({ hasText: T.panelInventario.avisoRetirar });
+    await expect(retirar).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(retirar).toHaveCount(0);
+    await expect(p).toBeVisible();
+
+    await fila.getByRole('button', { name: T.panel.retirar }).click();
+    await retirar.getByLabel(T.panelInventario.motivo).fill('Sustituido por obra');
+    await retirar.getByRole('button', { name: T.panel.retirar }).click();
+    await expect(retirar).toHaveCount(0);
+    await expect(p).toHaveCount(0);
+  });
+
+  test('Esc en la pregunta de cambiar de fila sigue en el mismo punto', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await p.getByRole('radio', { name: T.formulario.malo }).click();
+    await editarDe(page, HIDRANTE.codigo).click();
+    await expect(page.getByRole('alertdialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(p.getByRole('heading')).toContainText(BOCA.codigo);
+    await expect(p.getByRole('radio', { name: T.formulario.malo })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('Guardar deshabilitado dice por qué: sin cambios, fallo vacío, otra medida vacía', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    const guardar = p.getByRole('button', { name: T.panel.guardarCambios });
+
+    await expect(guardar).toBeDisabled();
+    await expect(guardar).toHaveAccessibleDescription(T.avisosFormulario.sinCambios);
+
+    await p.getByRole('radio', { name: T.formulario.noFunciona }).click();
+    await expect(guardar).toBeDisabled();
+    await expect(guardar).toHaveAccessibleDescription(T.avisosFormulario.describeFallo);
+    await expect(p.getByText(T.avisosFormulario.describeFallo, { exact: true })).toBeVisible();
+    await p.getByRole('textbox', { name: T.formulario.descripcionFallo }).fill('No abre');
+    await expect(guardar).toBeEnabled();
+
+    await p.getByRole('radio', { name: T.formulario.otraMedida }).click();
+    await expect(guardar).toBeDisabled();
+    await expect(guardar).toHaveAccessibleDescription(T.avisosFormulario.indicaMedida);
+    await p.getByRole('textbox', { name: T.formulario.otraMedida }).fill('60');
+    await expect(guardar).toBeEnabled();
+  });
+
+  test('fuera de la zona habitual avisa y se puede guardar', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    // Dentro de los límites del check de puntos (0038), lejos de Albolote y Calicasas.
+    const fuera = { ...BOCA, id: '5eed0000-0000-4000-8000-000000000099', codigo: 'BOC-9099', lat: 37.6, lng: -3.0 };
+    const { llamadas } = await preparar(page, [fuera]);
+    await page.goto('/admin/inventario');
+    await editarDe(page, fuera.codigo).click();
+    const p = panel(page);
+    await expect(p.getByText(T.panelEditar.fueraDeZona)).toBeVisible();
+    await moverPin(page, 20);
+    await p.getByRole('button', { name: T.panel.guardarCambios }).click();
+    await expect(page.getByRole('status').filter({ hasText: T.panelInventario.guardado(fuera.codigo) })).toBeVisible();
+    const cambios = llamadas.filter((l) => l.nombre === 'fn_editar_punto').at(-1)!.cuerpo.cambios as Record<
+      string,
+      unknown
+    >;
+    expect(Object.keys(cambios).sort()).toEqual(['lat', 'lng']);
   });
 
   for (const [ancho, alto] of [
