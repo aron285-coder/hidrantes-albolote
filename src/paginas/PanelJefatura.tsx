@@ -18,10 +18,8 @@ import { cn } from '@/lib/utils';
 
 const ColaRevision = lazy(() => import('@/componentes/panel/ColaRevision'));
 const Inventario = lazy(() => import('@/componentes/panel/Inventario'));
-const Caducadas = lazy(() => import('@/componentes/panel/Caducadas'));
 const Registro = lazy(() => import('@/componentes/panel/Registro'));
 const Papelera = lazy(() => import('@/componentes/panel/Papelera'));
-const Voluntarios = lazy(() => import('@/componentes/panel/Voluntarios'));
 const Ajustes = lazy(() => import('@/componentes/panel/Ajustes'));
 
 /** Cada cuánto se refresca el número de pendientes (FR-110). */
@@ -34,7 +32,7 @@ interface Pestana {
   naranja?: boolean;
 }
 
-/** Ruta /admin (FR-100): panel de jefatura, escritorio primero y usable en tableta (TR-35). */
+/** Ruta /admin (FR-100): panel de jefatura, escritorio primero y usable en tableta (TR-35). Cinco pestañas (DEC-167). */
 export function PanelJefatura({ correo }: { correo: string }) {
   return (
     <ProveedorPanel>
@@ -55,15 +53,9 @@ function Armazon({ correo }: { correo: string }) {
     [],
     REFRESCO_MS,
   );
-  const incidencias = useCarga(
-    () => contar((c) => c.from('incidencias_app').select('id', { count: 'exact', head: true }).eq('estado', 'abierta')),
-    [],
-    REFRESCO_MS,
-  );
   const recargarContadores = () => {
     void pendientes.recargar();
     void enPapelera.recargar();
-    void incidencias.recargar();
   };
   // Al abrir el panel, que salgan los avisos que haya en cola (05 §9, FR-164).
   useEffect(() => {
@@ -72,14 +64,8 @@ function Armazon({ correo }: { correo: string }) {
   const pestanas: Pestana[] = [
     { ruta: 'cola', nombre: T.panelCola.colaRevision, badge: pendientes.datos, naranja: true },
     { ruta: 'inventario', nombre: T.panelCola.inventario, badge: puntos.length },
-    {
-      ruta: 'caducadas',
-      nombre: T.panelCola.revisionesCaducadas,
-      badge: puntos.filter((p) => p.revision_caducada).length,
-    },
     { ruta: 'registro', nombre: T.panelCola.registro },
     { ruta: 'papelera', nombre: T.panelCola.papelera, badge: enPapelera.datos },
-    { ruta: 'voluntarios', nombre: T.panelCola.voluntarios, badge: incidencias.datos, naranja: true },
     { ruta: 'ajustes', nombre: T.panelCola.ajustes },
   ];
   return (
@@ -125,11 +111,12 @@ function Armazon({ correo }: { correo: string }) {
               <Route index element={<Navigate to="cola" replace />} />
               <Route path="cola" element={<ColaRevision alCambiar={recargarContadores} />} />
               <Route path="inventario" element={<Inventario />} />
-              <Route path="caducadas" element={<Caducadas />} />
               <Route path="registro" element={<Registro />} />
               <Route path="papelera" element={<Papelera alCambiar={recargarContadores} />} />
-              <Route path="voluntarios" element={<Voluntarios alCambiar={recargarContadores} />} />
               <Route path="ajustes" element={<Ajustes />} />
+              {/* Pestañas retiradas (DEC-167): quien las tenga guardadas llega al Inventario. */}
+              <Route path="caducadas" element={<Navigate to="/admin/inventario" replace />} />
+              <Route path="voluntarios" element={<Navigate to="/admin/inventario" replace />} />
               <Route path="*" element={<Navigate to="cola" replace />} />
             </Routes>
           </Suspense>

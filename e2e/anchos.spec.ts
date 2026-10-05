@@ -249,10 +249,8 @@ test.describe('panel de jefatura en tableta en vertical (RV-79)', () => {
       for (const nombre of [
         T.panelCola.colaRevision,
         T.panelCola.inventario,
-        T.panelCola.revisionesCaducadas,
         T.panelCola.registro,
         T.panelCola.papelera,
-        T.panelCola.voluntarios,
         T.panelCola.ajustes,
       ]) {
         const caja = (await nav.getByRole('link', { name: new RegExp(`^${nombre}`) }).boundingBox())!;
