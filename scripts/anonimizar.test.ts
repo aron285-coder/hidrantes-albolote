@@ -55,13 +55,17 @@ describe('argumentos', () => {
     });
   });
 
+  it('acepta prod, como npm run restaurar', () => {
+    expect(analizar(['--entorno', 'prod', '--admin', ADMIN, '--dispositivo', D]).entorno).toBe('produccion');
+  });
+
   it('sin --buscar ni --dispositivo no hace nada', () => {
     expect(() => analizar(['--entorno', 'staging', '--admin', ADMIN])).toThrow(/No se ha cambiado nada/);
   });
 
   it.each([
     [['--admin', ADMIN, '--dispositivo', D], /--entorno/],
-    [['--entorno', 'prod', '--admin', ADMIN, '--dispositivo', D], /Entorno desconocido/],
+    [['--entorno', 'pre', '--admin', ADMIN, '--dispositivo', D], /Entorno desconocido/],
     [['--entorno', 'staging', '--dispositivo', D], /--admin/],
     [['--entorno', 'staging', '--admin', 'no-es-correo', '--dispositivo', D], /correo/],
     [['--entorno', 'staging', '--admin', "x'@example.com", '--dispositivo', D], /correo/],
@@ -143,23 +147,45 @@ describe('SQL', () => {
   });
 });
 
-function dependencias(respuesta: string, vista: Record<string, unknown> = {}) {
-  const consultas: string[] = [];
+const VISTA = {
+  admin_activo: true,
+  de_administrador: false,
+  propuestas: 3,
+  registro: 2,
+  pendientes_propuestas: 3,
+  pendientes_registro: 2,
+};
+
+function dependencias(
+  respuesta: string,
+  {
+    vista = {},
+    resultado = '5',
+    busqueda,
+  }: { vista?: Record<string, unknown>; resultado?: string; busqueda?: string } = {},
+) {
+  const lecturas: string[] = [];
+  const escrituras: string[] = [];
   const d: Dependencias = {
     consultar: vi.fn((sql: string) => {
-      consultas.push(sql);
-      if (sql.includes('fn_anonimizar_autor')) return '5';
+      lecturas.push(sql);
       if (sql.includes('fn_actividad_voluntarios')) {
-        return JSON.stringify([
-          { dispositivo_id: D, autor: 'Ana Ruiz', propuestas: 3, ultima: '2026-09-01T10:00:00+00' },
-        ]);
+        return (
+          busqueda ??
+          JSON.stringify([{ dispositivo_id: D, autor: 'Ana Ruiz', propuestas: 3, ultima: '2026-09-01T10:00:00+00' }])
+        );
       }
-      return JSON.stringify({ admin_activo: true, de_administrador: false, propuestas: 3, registro: 2, ...vista });
+      return JSON.stringify({ ...VISTA, ...vista });
+    }),
+    escribir: vi.fn((sql: string) => {
+      escrituras.push(sql);
+      return resultado;
     }),
     preguntar: vi.fn(async () => respuesta),
     info: vi.fn(),
+    aviso: vi.fn(),
   };
-  return { d, consultas };
+  return { d, lecturas, escrituras };
 }
 
 const ORDEN = { modo: 'anonimizar', entorno: 'staging', admin: ADMIN, dispositivo: D } as const;
@@ -168,41 +194,87 @@ describe('anonimizar', () => {
   it.each(['', 'anonimizar', 'si', ' ANONIMIZAR '])(
     'sin escribir exactamente ANONIMIZAR (%j) no cambia nada',
     async (r) => {
-      const { d, consultas } = dependencias(r);
+      const { d, lecturas, escrituras } = dependencias(r);
       await expect(anonimizar(ORDEN, d)).rejects.toThrow(/no se ha cambiado nada/);
-      expect(consultas.some((s) => s.includes('fn_anonimizar_autor'))).toBe(false);
+      expect(escrituras).toEqual([]);
+      expect(lecturas.some((s) => s.includes('fn_anonimizar_autor'))).toBe(false);
     },
   );
 
   it('con ANONIMIZAR, enseña antes cuántas filas y llama a fn_anonimizar_autor como el administrador', async () => {
-    const { d, consultas } = dependencias(CONFIRMACION);
+    const { d, lecturas, escrituras } = dependencias(CONFIRMACION);
     await expect(anonimizar(ORDEN, d)).resolves.toBe(5);
     expect(vi.mocked(d.info).mock.calls.flat().join('\n')).toMatch(/3 propuestas y 2 entradas/);
-    expect(consultas).toHaveLength(2);
-    expect(consultas[0]).not.toContain('fn_anonimizar_autor');
-    expect(consultas[1]).toContain(`hidrantes.fn_anonimizar_autor('${D}'::uuid)`);
-    expect(consultas[1]).toContain(`"email":"${ADMIN}"`);
+    expect(lecturas).toHaveLength(1);
+    expect(lecturas[0]).not.toContain('fn_anonimizar_autor');
+    expect(escrituras).toHaveLength(1);
+    expect(escrituras[0]).toContain(`hidrantes.fn_anonimizar_autor('${D}'::uuid)`);
+    expect(escrituras[0]).toContain(`"email":"${ADMIN}"`);
+    expect(d.aviso).not.toHaveBeenCalled();
+  });
+
+  it('cuenta solo lo que aún tiene nombre', async () => {
+    const { d } = dependencias(CONFIRMACION, { vista: { pendientes_propuestas: 1, pendientes_registro: 0 } });
+    await anonimizar(ORDEN, d);
+    expect(vi.mocked(d.info).mock.calls.flat().join('\n')).toMatch(/1 propuestas y 0 entradas/);
   });
 
   it.each([
     [{ admin_activo: false }, /administrador activo/],
     [{ de_administrador: true }, /de un administrador/],
-    [{ propuestas: 0, registro: 0 }, /No hay nada/],
+    [{ propuestas: 0, registro: 0, pendientes_propuestas: 0, pendientes_registro: 0 }, /No hay nada/],
+    [{ pendientes_propuestas: 0, pendientes_registro: 0 }, /ya está anonimizado/],
+    [{ propuestas: undefined }, /Respuesta inesperada/],
+    [{ admin_activo: 'sí' }, /Respuesta inesperada/],
   ])('no llega a preguntar si %j', async (vista, error) => {
-    const { d, consultas } = dependencias(CONFIRMACION, vista);
+    const { d, escrituras } = dependencias(CONFIRMACION, { vista });
     await expect(anonimizar(ORDEN, d)).rejects.toThrow(error);
     expect(d.preguntar).not.toHaveBeenCalled();
-    expect(consultas).toHaveLength(1);
+    expect(escrituras).toEqual([]);
+  });
+
+  it('una respuesta que no es JSON da un error limpio, sin repetirla', async () => {
+    const { d } = dependencias(CONFIRMACION);
+    vi.mocked(d.consultar).mockReturnValue('Ana Ruiz no es JSON');
+    const error = await anonimizar(ORDEN, d).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ErrorDeScript);
+    expect(String(error)).not.toContain('Ana');
+    expect(d.preguntar).not.toHaveBeenCalled();
+  });
+
+  it.each(['', 'null', 'x'])('si la anonimización no devuelve un número (%j), no dice que ha ido bien', async (r) => {
+    const { d } = dependencias(CONFIRMACION, { resultado: r });
+    await expect(anonimizar(ORDEN, d)).rejects.toThrow(/comprueba en el Registro/);
+  });
+
+  it('avisa si cambian más filas de las que contó la vista previa', async () => {
+    const { d } = dependencias(CONFIRMACION, { resultado: '6' });
+    await expect(anonimizar(ORDEN, d)).resolves.toBe(6);
+    expect(vi.mocked(d.aviso).mock.calls.flat().join()).toMatch(/6 filas y la vista previa contaba 5/);
   });
 });
 
 describe('buscar', () => {
   it('lista dispositivo, nombre, propuestas y última actividad, sin cambiar nada', async () => {
-    const { d, consultas } = dependencias('');
+    const { d, lecturas, escrituras } = dependencias('');
     await buscar({ modo: 'buscar', entorno: 'staging', admin: ADMIN, texto: 'Ana' }, d);
     const salida = vi.mocked(d.info).mock.calls.flat().join('\n');
     expect(salida).toContain(`${D} · Ana Ruiz · 3 propuestas · última: 2026-09-01`);
-    expect(consultas.every((s) => !s.includes('fn_anonimizar_autor'))).toBe(true);
+    expect(lecturas.every((s) => !s.includes('fn_anonimizar_autor'))).toBe(true);
+    expect(escrituras).toEqual([]);
     expect(d.preguntar).not.toHaveBeenCalled();
+  });
+
+  it('sin coincidencias lo dice y explica que busca el nombre más reciente', async () => {
+    const { d } = dependencias('', { busqueda: '[]' });
+    await buscar({ modo: 'buscar', entorno: 'staging', admin: ADMIN, texto: 'Ana' }, d);
+    expect(vi.mocked(d.info).mock.calls.flat().join('\n')).toMatch(/Ningún autor[\s\S]*más reciente/);
+  });
+
+  it('una respuesta que no es una lista da un error limpio', async () => {
+    const { d } = dependencias('', { busqueda: '{"a":1}' });
+    await expect(buscar({ modo: 'buscar', entorno: 'staging', admin: ADMIN, texto: 'Ana' }, d)).rejects.toThrow(
+      /Respuesta inesperada/,
+    );
   });
 });

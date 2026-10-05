@@ -239,7 +239,8 @@ exportó y cuándo.
      ```
 
      Comprueba que el correo es de un administrador activo y que el dispositivo no es de un
-     administrador, enseña cuántas propuestas y entradas del registro cambian y pide escribir
+     administrador, enseña cuántas propuestas y entradas del registro llevan aún su nombre (si
+     ninguna, ya estaba anonimizado y sale sin cambiar nada) y pide escribir
      `ANONIMIZAR`; cualquier otra respuesta sale sin cambiar nada. Sin `--dispositivo`, el script
      no cambia nada nunca. Llama a `fn_anonimizar_autor(dispositivo_id)` con los claims de ese
      administrador puestos solo en su transacción, así que el registro apunta `anonimizacion` a su

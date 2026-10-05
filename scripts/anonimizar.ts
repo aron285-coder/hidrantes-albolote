@@ -58,7 +58,9 @@ export function analizarArgumentos(banderas: Set<string>, valores: Map<string, s
   }
   for (const clave of banderas) abortar(`--${clave} necesita un valor.`);
 
-  const entorno = valores.get('entorno') ?? abortar('Indica --entorno staging, produccion o local.');
+  const crudo = valores.get('entorno') ?? abortar('Indica --entorno staging, produccion o local.');
+  // `prod` es como lo llama npm run restaurar: se acepta igual.
+  const entorno = crudo === 'prod' ? 'produccion' : crudo;
   if (!(ENTORNOS as readonly string[]).includes(entorno)) {
     abortar(`Entorno desconocido: ${entorno} (staging, produccion o local).`);
   }
@@ -138,74 +140,130 @@ export function sqlBuscar(admin: string, texto: string): string {
   const patron = literal(`%${texto}%`);
   return comoAdmin(
     admin,
-    `select coalesce(json_agg(json_build_object('dispositivo_id', a.dispositivo_id, 'autor', a.autor,
-         'propuestas', a.propuestas, 'ultima', a.ultima) order by a.ultima desc), '[]'::json)
+    `select coalesce(jsonb_agg(jsonb_build_object('dispositivo_id', a.dispositivo_id, 'autor', a.autor,
+         'propuestas', a.propuestas, 'ultima', a.ultima) order by a.ultima desc), '[]'::jsonb)
        from hidrantes.fn_actividad_voluntarios(${MESES_BUSQUEDA}) a
       where a.autor ilike ${patron};`,
     'rollback',
   );
 }
 
-/** Lo que cambiaría, sin cambiar nada: lo lee el dueño del esquema, sin claims. */
+/**
+ * Lo que cambiaría, sin cambiar nada: lo lee el dueño del esquema, sin claims. `pendientes_*` son
+ * las filas que aún llevan un nombre; si las dos son 0, ya estaba anonimizado.
+ */
 export function sqlVistaPrevia(admin: string, dispositivo: string): string {
   const d = `${literal(dispositivo)}::uuid`;
+  const baja = literal(TEXTO_BAJA);
   return `select json_build_object(
   'admin_activo', exists (select 1 from hidrantes.administradores a where a.email = ${literal(admin)} and a.activo),
   'de_administrador', exists (select 1 from hidrantes.administradores a where hidrantes.fn_dispositivo_admin(a.email) = ${d}),
   'propuestas', (select count(*) from hidrantes.propuestas r where r.dispositivo_id = ${d}),
-  'registro', (select count(*) from hidrantes.registro g where g.dispositivo_id = ${d} and not g.es_admin));`;
+  'registro', (select count(*) from hidrantes.registro g where g.dispositivo_id = ${d} and not g.es_admin),
+  'pendientes_propuestas', (select count(*) from hidrantes.propuestas r where r.dispositivo_id = ${d}
+                              and (r.autor_nombre <> ${baja} or r.autor_apellido <> '')),
+  'pendientes_registro', (select count(*) from hidrantes.registro g where g.dispositivo_id = ${d} and not g.es_admin
+                            and g.actor <> ${baja}));`;
 }
 
 export function sqlAnonimizar(admin: string, dispositivo: string): string {
   return comoAdmin(admin, `select hidrantes.fn_anonimizar_autor(${literal(dispositivo)}::uuid) as filas;`, 'commit');
 }
 
+/** El texto que pone fn_anonimizar_autor (0006, y el único que admite el registro, 0019). */
+export const TEXTO_BAJA = 'voluntario dado de baja';
+
 export interface VistaPrevia {
   admin_activo: boolean;
   de_administrador: boolean;
   propuestas: number;
   registro: number;
+  pendientes_propuestas: number;
+  pendientes_registro: number;
 }
 
 export interface Dependencias {
-  /** Ejecuta SQL y devuelve la última línea de la salida (psql -A -t). Aborta si falla. */
+  /** Ejecuta SQL que no cambia nada y devuelve la última línea (psql -A -t). Aborta si falla. */
   consultar: (sql: string) => string;
+  /** Ejecuta la anonimización. Si falla, aborta diciendo que no se sabe si se aplicó. */
+  escribir: (sql: string) => string;
   preguntar: (texto: string) => Promise<string>;
   info: (texto: string) => void;
+  aviso: (texto: string) => void;
+}
+
+/** JSON de psql, o un error limpio (sin pila ni el texto recibido, que podría llevar un nombre). */
+export function leerJson(texto: string, que: string): unknown {
+  try {
+    return JSON.parse(texto);
+  } catch {
+    abortar(`Respuesta inesperada de la base de datos (${que}). No se ha cambiado nada.`);
+  }
+}
+
+function esVistaPrevia(v: unknown): v is VistaPrevia {
+  if (typeof v !== 'object' || v === null) return false;
+  const o = v as Record<string, unknown>;
+  const numeros = ['propuestas', 'registro', 'pendientes_propuestas', 'pendientes_registro'];
+  return (
+    typeof o.admin_activo === 'boolean' &&
+    typeof o.de_administrador === 'boolean' &&
+    numeros.every((k) => Number.isInteger(o[k]) && (o[k] as number) >= 0)
+  );
+}
+
+interface Encontrado {
+  dispositivo_id: string;
+  autor: string;
+  propuestas: number;
+  ultima: string;
 }
 
 export async function buscar(orden: Extract<Orden, { modo: 'buscar' }>, d: Dependencias): Promise<void> {
-  const filas = JSON.parse(d.consultar(sqlBuscar(orden.admin, orden.texto))) as {
-    dispositivo_id: string;
-    autor: string;
-    propuestas: number;
-    ultima: string;
-  }[];
+  const filas = leerJson(d.consultar(sqlBuscar(orden.admin, orden.texto)), 'búsqueda');
+  if (!Array.isArray(filas)) abortar('Respuesta inesperada de la base de datos (búsqueda). No se ha cambiado nada.');
   if (!filas.length) {
     d.info(`Ningún autor coincide con «${orden.texto}». No se ha cambiado nada.`);
+    d.info('Solo se busca el nombre más reciente de cada móvil: prueba con parte del nombre o del apellido.');
     return;
   }
-  for (const f of filas) {
-    d.info(`${f.dispositivo_id} · ${f.autor} · ${f.propuestas} propuestas · última: ${f.ultima.slice(0, 10)}`);
+  for (const f of filas as Encontrado[]) {
+    d.info(`${f.dispositivo_id} · ${f.autor} · ${f.propuestas} propuestas · última: ${String(f.ultima).slice(0, 10)}`);
   }
   d.info('Confirma con la persona cuál es su móvil y repite con --dispositivo <id>. No se ha cambiado nada.');
 }
 
 /** Devuelve las filas cambiadas. Sin escribir exactamente ANONIMIZAR, no cambia nada. */
 export async function anonimizar(orden: Extract<Orden, { modo: 'anonimizar' }>, d: Dependencias): Promise<number> {
-  const v = JSON.parse(d.consultar(sqlVistaPrevia(orden.admin, orden.dispositivo))) as VistaPrevia;
+  const v = leerJson(d.consultar(sqlVistaPrevia(orden.admin, orden.dispositivo)), 'vista previa');
+  if (!esVistaPrevia(v)) abortar('Respuesta inesperada de la base de datos (vista previa). No se ha cambiado nada.');
   if (!v.admin_activo) abortar('--admin no es el correo de un administrador activo. No se ha cambiado nada.');
   if (v.de_administrador) abortar('Ese dispositivo es de un administrador: no se anonimiza. No se ha cambiado nada.');
   if (v.propuestas + v.registro === 0) abortar('No hay nada de ese dispositivo. Revisa el identificador con --buscar.');
+  if (v.pendientes_propuestas + v.pendientes_registro === 0) {
+    abortar('Ese dispositivo ya está anonimizado: no queda ningún nombre. No se ha cambiado nada.');
+  }
 
   d.info(`Dispositivo ${orden.dispositivo} en ${orden.entorno}:`);
-  d.info(`${v.propuestas} propuestas y ${v.registro} entradas del registro pasan a «voluntario dado de baja».`);
+  d.info(
+    `${v.pendientes_propuestas} propuestas y ${v.pendientes_registro} entradas del registro con nombre pasan a «${TEXTO_BAJA}».`,
+  );
   d.info('Las filas y el dispositivo se conservan; el nombre no se puede recuperar.');
   const escrito = await d.preguntar(`Escribe ${CONFIRMACION} para continuar`);
   if (escrito !== CONFIRMACION) abortar(`No se ha escrito ${CONFIRMACION}: no se ha cambiado nada.`);
 
-  const filas = Number(d.consultar(sqlAnonimizar(orden.admin, orden.dispositivo)));
-  if (!Number.isInteger(filas)) abortar('La anonimización no devolvió el número de filas: compruébalo en el Registro.');
+  const salida = d.escribir(sqlAnonimizar(orden.admin, orden.dispositivo));
+  const filas = salida === '' ? NaN : Number(salida);
+  if (!Number.isInteger(filas)) {
+    abortar('La anonimización no devolvió el número de filas: comprueba en el Registro si hay una «anonimizacion».');
+  }
+  // fn_anonimizar_autor reescribe todas las filas del dispositivo, también las que ya estaban de baja.
+  if (filas !== v.propuestas + v.registro) {
+    d.aviso(
+      `Han cambiado ${filas} filas y la vista previa contaba ${v.propuestas + v.registro}: ` +
+        'el móvil ha mandado algo mientras tanto. Está anonimizado igualmente; repasa el Registro.',
+    );
+  }
   return filas;
 }
 
@@ -223,7 +281,8 @@ export function ultimaLinea(salida: string): string {
 async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   const orden = analizarArgumentos(banderas, valores);
-  if (process.env.CI) abortar(comprobarDestino(orden.entorno, LOCAL_MIGRADOR, process.env.CI)[0]);
+  const enCi = comprobarDestino(orden.entorno, LOCAL_MIGRADOR, process.env.CI);
+  if (enCi.length) abortar(enCi[0]);
 
   const url =
     orden.entorno === 'local'
@@ -232,17 +291,28 @@ async function principal(): Promise<void> {
         (await preguntar(`Cadena de conexión de ${orden.entorno} (hidrantes_migrador)`, { oculto: true })));
   const problemas = comprobarDestino(orden.entorno, url, process.env.CI);
   if (problemas.length) abortar(`Guarda del destino:\n  - ${problemas.join('\n  - ')}`);
-  if (psql(url, 'select 1;').codigo !== 0) abortar('No se puede conectar con esa cadena.');
+  const prueba = psql(url, 'select 1;', { terse: true });
+  if (prueba.codigo !== 0) {
+    abortar(`No se puede conectar con esa cadena:\n${errorSeguro(prueba.error || prueba.salida)}`);
+  }
 
+  // terse: un error no arrastra DETAIL con datos de la fila (RV-53).
+  const ejecutarSql = (sql: string, siFalla: string): string => {
+    const r = psql(url, sql, { tuplas: true, terse: true });
+    if (r.codigo !== 0) abortar(`psql falló (${siFalla}):\n${errorSeguro(r.error || r.salida)}`);
+    return ultimaLinea(r.salida);
+  };
   const deps: Dependencias = {
-    consultar: (sql) => {
-      // terse: un error no arrastra DETAIL con datos de la fila (RV-53).
-      const r = psql(url, sql, { tuplas: true, terse: true });
-      if (r.codigo !== 0) abortar(`psql falló (no se ha cambiado nada):\n${errorSeguro(r.error || r.salida)}`);
-      return ultimaLinea(r.salida);
-    },
+    consultar: (sql) => ejecutarSql(sql, 'no se ha cambiado nada'),
+    // Si la conexión se corta durante el commit, puede haberse aplicado: no se dice "nada".
+    escribir: (sql) =>
+      ejecutarSql(
+        sql,
+        'no se sabe si se aplicó: busca en el Registro una «anonimizacion» de ese dispositivo antes de repetir',
+      ),
     preguntar: (texto) => preguntar(texto),
     info: log.info,
+    aviso: log.aviso,
   };
 
   if (orden.modo === 'buscar') {
