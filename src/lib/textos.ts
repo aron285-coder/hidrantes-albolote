@@ -742,6 +742,7 @@ export const T = {
     // docs/29 RV-123 (DEC-168): Tipo y Estado en desplegables; Revisión, Núcleo y Diámetro fuera.
     quitarFiltros: 'Quitar filtros',
     conNumero: (nombre: Parametro, n: Parametro) => `${nombre} · ${n}`,
+    nadaQueExportar: 'Nada que exportar con estos filtros',
     vista: 'Vista',
     tabla: 'Tabla',
     mapa: 'Mapa',
@@ -1016,6 +1017,7 @@ export const T = {
     anonimizar: 'Anonimizar…',
     hojaDeCampo: 'Hoja de campo por núcleo',
     exportar: 'Exportar',
+    exportando: 'Exportando…',
     excel: 'Excel',
     csv: 'CSV',
     geojson: 'GeoJSON',

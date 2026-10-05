@@ -620,7 +620,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 
 **Panel: resto.** `Editar` · `Retirar` · `Borrar` · `Historial` · `Restaurar` ·
 `Borrar definitivamente…` · `Vaciar la papelera…` · `Marcar resuelta` · `Anonimizar…` ·
-`Hoja de campo por núcleo` · `Exportar` · `Excel` · `CSV` · `GeoJSON` ·
+`Hoja de campo por núcleo` · `Exportar` · `Exportando…` · `Excel` · `CSV` · `GeoJSON` ·
 `Descargar inventario (JSON)` · `Purgar fotos huérfanas` · `Generar uno nuevo` ·
 `Revocar todos los dispositivos` · `Guardar cambios` · `Añadir` ·
 `Regenerar zona de cobertura` · `Regenerar mapa base` · `Respaldo ahora` ·
@@ -668,7 +668,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `No se ha podido completar. Inténtalo de nuevo.`.
 
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
-`Quitar filtros` · `[Regular] · [3]` (opciones del desplegable Estado, docs/29 RV-123) · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
+`Quitar filtros` · `[Regular] · [3]` (opciones del desplegable Estado, docs/29 RV-123) · `Nada que exportar con estos filtros` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
 `Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `enganche [Granada]` · `Ordenar por [columna]` ·
 `Dirección de [codigo]` · `pulsa una columna para ordenar ·
 la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con esos filtros.` ·

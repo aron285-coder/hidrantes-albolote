@@ -8,6 +8,7 @@ import { useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { claseChip, nombreCaudal, nombreRacor, nombreTipo } from '@/lib/ficha';
 import { fechaCorta, hace } from '@/lib/formato';
 import { type Formato, exportar } from '@/lib/panel/exportar';
+import { anotarError } from '@/lib/errores';
 import { textoError } from '@/lib/panel/errores';
 import {
   type Columna,
@@ -94,8 +95,9 @@ const FORMATOS: { formato: Formato; nombre: string }[] = [
  * Exportar ▾ (docs/29 RV-123): un botón secundario que abre un menú con los tres formatos. Patrón
  * de botón de menú de WAI-ARIA: flechas, Inicio y Fin dentro del menú; Esc lo cierra y devuelve el
  * foco al botón; tocar fuera o Tab lo cierran sin quitar el foco de donde vaya. Sin filas que
- * exportar, deshabilitado (el motivo es el estado vacío de la tabla). Mientras exporta, ocupado: no
- * se deshabilita, porque un botón deshabilitado pierde el foco que el menú le acaba de devolver.
+ * exportar, deshabilitado y con el motivo debajo (UI-02). Mientras exporta, ocupado: dice
+ * «Exportando…» y no abre el menú, pero no se deshabilita, porque un botón deshabilitado pierde el foco
+ * que el menú le acaba de devolver.
  */
 function MenuExportar({
   deshabilitado,
@@ -144,8 +146,9 @@ function MenuExportar({
     e.stopPropagation();
   }
 
+  const motivo = `${id}-motivo`;
   return (
-    <div className="relative">
+    <div className="relative flex flex-col items-end">
       {/* Las clases de <Boton variante="secundario">: Boton no reenvía la referencia del foco. */}
       <button
         ref={boton}
@@ -157,6 +160,7 @@ function MenuExportar({
         disabled={deshabilitado}
         aria-disabled={ocupado || undefined}
         aria-busy={ocupado || undefined}
+        aria-describedby={deshabilitado ? motivo : undefined}
         onClick={() => {
           if (ocupado) return;
           if (abierto) cerrar(false);
@@ -168,11 +172,16 @@ function MenuExportar({
           e.preventDefault();
           setAbierto(e.key === 'ArrowUp' ? 'ultimo' : 'primero');
         }}
-        className="rounded-boton bg-papel text-texto border-texto disabled:bg-linea disabled:text-texto-suave flex min-h-11 min-w-11 items-center gap-1.5 border-[1.5px] px-4 text-[14px] font-semibold disabled:cursor-not-allowed"
+        className="rounded-boton bg-papel text-texto border-texto disabled:bg-linea disabled:text-texto-suave flex min-h-11 min-w-11 items-center gap-1.5 border-[1.5px] px-4 text-[14px] font-semibold disabled:cursor-not-allowed aria-disabled:cursor-progress aria-disabled:opacity-60"
       >
-        {T.panel.exportar}
+        {ocupado ? T.panel.exportando : T.panel.exportar}
         <ChevronDown size={16} aria-hidden />
       </button>
+      {deshabilitado && (
+        <p id={motivo} className="text-texto-suave mt-0.5 text-[11px]">
+          {T.panelInventario.nadaQueExportar}
+        </p>
+      )}
       {abierto && (
         <div
           ref={menu}
@@ -257,16 +266,23 @@ export default function Inventario() {
 
   async function exportarCon(formato: Formato) {
     setExportando(true);
-    // El servidor filtra lo que entiende (05 §6.2); la búsqueda no la conoce, así que con búsqueda
-    // el archivo lleva solo lo que se ve en la tabla (FR-160, RV-24).
-    const r = await exportar(
-      formato,
-      filtrosExportacion(filtros),
-      busqueda.trim() ? filtrados.map((p) => p.codigo) : undefined,
-    );
-    setExportando(false);
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
-    avisar(T.panelInventario.exportado(r.datos));
+    try {
+      // El servidor filtra lo que entiende (05 §6.2); la búsqueda no la conoce, así que con búsqueda
+      // el archivo lleva solo lo que se ve en la tabla (FR-160, RV-24).
+      const r = await exportar(
+        formato,
+        filtrosExportacion(filtros),
+        busqueda.trim() ? filtrados.map((p) => p.codigo) : undefined,
+      );
+      if (!r.ok) return avisar(textoError(r.codigo), 'error');
+      avisar(T.panelInventario.exportado(r.datos));
+    } catch (e) {
+      // Generar el archivo en el navegador puede fallar (memoria, Blob): se dice y se anota (TR-90).
+      anotarError(e);
+      avisar(T.panelErrores.generico, 'error');
+    } finally {
+      setExportando(false);
+    }
   }
 
   // Piezas de cada punto, iguales en la tabla y en las filas de dos líneas (docs/20 RV-79).

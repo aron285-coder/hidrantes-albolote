@@ -131,6 +131,27 @@ describe('inventario (FR-120)', () => {
     expect(ordenarPor(PUNTOS, { columna: 'direccion', ascendente: true })[0].direccion).toBeNull();
   });
 
+  // RV-123: núcleo, diámetro y última revisión ya no filtran; se ordenan por columna.
+  it('ordena por núcleo, diámetro y última revisión', () => {
+    expect(ordenarPor(PUNTOS, { columna: 'nucleo', ascendente: true }).map((p) => p.nucleo)).toEqual([
+      null,
+      'Albolote',
+      'Pretel',
+      'Pretel',
+    ]);
+    expect(ordenarPor(PUNTOS, { columna: 'diametro_mm', ascendente: false }).map((p) => p.diametro_mm)).toEqual([
+      100, 100, 70, 45,
+    ]);
+    const conFechas = [
+      punto({ codigo: 'HID-0007', fecha_ultima_revision: '2026-01-02' }),
+      punto({ codigo: 'HID-0008', fecha_ultima_revision: '2025-06-30' }),
+    ];
+    expect(ordenarPor(conFechas, { columna: 'fecha_ultima_revision', ascendente: true }).map((p) => p.codigo)).toEqual([
+      'HID-0008',
+      'HID-0007',
+    ]);
+  });
+
   it('pagina de 50 en 50', () => {
     const muchos = Array.from({ length: 120 }, (_, i) => punto({ codigo: `HID-${i}` }));
     expect(POR_PAGINA).toBe(50);

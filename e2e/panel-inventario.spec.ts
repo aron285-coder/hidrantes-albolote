@@ -314,7 +314,7 @@ test('Tipo y Estado: desplegables con los números de cada estado y "Quitar filt
     T.panelInventario.conNumero(T.formulario.bueno, cuantos('todos', 'bueno')),
     T.panelInventario.conNumero(T.formulario.regular, cuantos('todos', 'regular')),
     T.panelInventario.conNumero(T.formulario.malo, cuantos('todos', 'malo')),
-    T.panelInventario.conNumero(T.formulario.barro, 0),
+    T.panelInventario.conNumero(T.formulario.barro, cuantos('todos', 'barro')),
     T.panelInventario.conNumero(T.formulario.noFunciona, cuantos('todos', 'no_funciona')),
   ]);
   expect(await tipo(page).locator('option').allTextContents()).toEqual([
@@ -446,4 +446,54 @@ test('Inventario con filtros: axe en claro y oscuro, y a 412 px nada se sale a l
   expect(q.y).toBeGreaterThan(t.y + t.height);
   expect(x.y).toBeGreaterThan(t.y + t.height);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  // El menú abierto cabe en la pantalla del móvil.
+  await page.getByRole('button', { name: T.panel.exportar }).click();
+  const menu = (await page.getByRole('menu').boundingBox())!;
+  expect(menu.x).toBeGreaterThanOrEqual(0);
+  expect(menu.x + menu.width).toBeLessThanOrEqual(412);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test('un filtro sin puntos: estado vacío, Exportar deshabilitado con el motivo y "Quitar filtros" (RV-123)', async ({
+  page,
+}) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  await expect(page.getByRole('row')).toHaveCount(PUNTOS.length + 1);
+  // En los datos de prueba no hay ningún punto con barro.
+  await estado(page).selectOption('barro');
+  await expect(page.getByText(T.panelInventario.vacio)).toBeVisible();
+  await expect(page.getByRole('row')).toHaveCount(0);
+  const boton = page.getByRole('button', { name: T.panel.exportar });
+  await expect(boton).toBeDisabled();
+  await expect(boton).toHaveAccessibleDescription(T.panelInventario.nadaQueExportar);
+  await expect(page.getByText(T.panelInventario.nadaQueExportar)).toBeVisible();
+  expect(llamadaA(llamadas, 'fn_exportar_inventario')).toBeUndefined();
+
+  await page.getByRole('button', { name: T.panelInventario.quitarFiltros }).click();
+  await expect(page.getByRole('row')).toHaveCount(PUNTOS.length + 1);
+  await expect(boton).toBeEnabled();
+  await expect(page.getByText(T.panelInventario.nadaQueExportar)).toHaveCount(0);
+});
+
+test('mientras exporta, Exportar dice "Exportando…" y no abre el menú otra vez (RV-123)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  let soltar = () => {};
+  const espera = new Promise<void>((ok) => (soltar = ok));
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_exportar_inventario`, async (route) => {
+    llamadas.push({ nombre: 'fn_exportar_inventario', cuerpo: {} });
+    await espera;
+    await route.fulfill({ contentType: 'application/json', body: '[]' });
+  });
+  await page.goto('/admin/inventario');
+  await page.getByRole('button', { name: T.panel.exportar }).click();
+  await page.getByRole('menuitem', { name: T.panel.csv }).click();
+  const ocupado = page.getByRole('button', { name: T.panel.exportando });
+  await expect(ocupado).toHaveAttribute('aria-busy', 'true');
+  await expect(ocupado).toBeFocused();
+  await ocupado.click({ force: true });
+  await expect(page.getByRole('menu')).toHaveCount(0);
+  expect(llamadas.filter((l) => l.nombre === 'fn_exportar_inventario')).toHaveLength(1);
+  soltar();
+  await expect(page.getByRole('button', { name: T.panel.exportar })).not.toHaveAttribute('aria-busy');
 });
