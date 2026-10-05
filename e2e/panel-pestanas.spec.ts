@@ -61,8 +61,11 @@ test('el panel enseña exactamente cinco pestañas, sin badge de incidencias (RV
   await prepararPanel(page);
   const pedidas: string[] = [];
   page.on('request', (r) => pedidas.push(new URL(r.url()).pathname));
+  // Los contadores salen juntos al abrir el panel: cuando ha salido el de la papelera, habría salido el de incidencias.
+  const papelera = page.waitForRequest((r) => new URL(r.url()).pathname.endsWith('/rest/v1/puntos'));
   await page.goto('/admin/cola');
   await expect(pestanas(page)).toHaveCount(5, { timeout: CARGA });
+  await papelera;
   // Cada pestaña empieza por su nombre; detrás puede ir su contador.
   const textos = await pestanas(page).allInnerTexts();
   expect(textos.map((t, i) => t.startsWith(CINCO[i]))).toEqual(CINCO.map(() => true));
@@ -77,12 +80,14 @@ test('el panel enseña exactamente cinco pestañas, sin badge de incidencias (RV
 for (const vieja of ['caducadas', 'voluntarios']) {
   test(`/admin/${vieja} lleva al Inventario (RV-122)`, async ({ page }) => {
     await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await expect(pestanas(page)).toHaveCount(5, { timeout: CARGA });
     await page.goto(`/admin/${vieja}`);
     await expect(page).toHaveURL(/\/admin\/inventario$/, { timeout: CARGA });
     await expect(page.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length))).toBeVisible({ timeout: CARGA });
-    // Con replace: "atrás" no vuelve a la ruta vieja.
-    const largo = await page.evaluate(() => history.length);
-    expect(largo).toBeLessThanOrEqual(2);
+    // Con replace, "atrás" vuelve a la cola y no a la ruta vieja (que redirigiría otra vez al Inventario).
+    await page.goBack();
+    await expect(page).toHaveURL(/\/admin\/cola$/, { timeout: CARGA });
   });
 }
 

@@ -963,7 +963,6 @@ export const T = {
     restaurar: 'Restaurar',
     borrarDefinitivamente: 'Borrar definitivamente…',
     vaciarPapelera: 'Vaciar la papelera…',
-    hojaDeCampo: 'Hoja de campo por núcleo',
     exportar: 'Exportar',
     excel: 'Excel',
     csv: 'CSV',
