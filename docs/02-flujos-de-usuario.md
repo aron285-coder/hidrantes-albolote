@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.8 — 5 de octubre de 2026 (`docs/27` RV-114, conformidad del desarrollador: la hoja de Cercanos sin tramos, *Medir tendido* ni compartir, y los avisos de posición en el subtítulo, en FL-35, FL-37 y FL-38, DEC-165). 1.7 — 5 de octubre de 2026 (`docs/26` RV-113, conformidad del desarrollador: en el móvil, jefatura abre el panel desde la etiqueta *Jefatura* o desde Ajustes, FL-20 paso 4 y FL-28 paso 3, DEC-164). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.9 — oct 2026 (`docs/29`, conformidad del desarrollador: FL-24 con los dos filtros y Editar en panel lateral; FL-11, FL-25 y FL-27 retirados, DEC-167 a DEC-169). 1.8 — 5 de octubre de 2026 (`docs/27` RV-114, conformidad del desarrollador: la hoja de Cercanos sin tramos, *Medir tendido* ni compartir, y los avisos de posición en el subtítulo, en FL-35, FL-37 y FL-38, DEC-165). 1.7 — 5 de octubre de 2026 (`docs/26` RV-113, conformidad del desarrollador: en el móvil, jefatura abre el panel desde la etiqueta *Jefatura* o desde Ajustes, FL-20 paso 4 y FL-28 paso 3, DEC-164). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -170,6 +170,8 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 
 ### FL-11 · Avisar de que algo no funciona en la aplicación
 
+> **Retirado (DEC-167, `docs/29`).** La opción ya no está en Ajustes; se conserva el texto como historia.
+
 **Actor:** voluntario. **Parte de:** *Ajustes* → *Algo no funciona en la aplicación*.
 
 1. Describe el problema en texto libre. La versión y la pantalla van solas. (FR-92)
@@ -260,9 +262,9 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 
 **Actor:** administrador. **Parte de:** *Panel* → *Inventario*. (FR-120)
 
-1. Filtra (tipo, estado, núcleo, diámetro, sin revisar) y ordena por columna; busca por código o calle con la búsqueda global. (FR-145)
+1. Filtra por tipo y estado (dos desplegables, DEC-168) y ordena por columna (también núcleo, diámetro y última revisión); busca por código o calle con la búsqueda global. (FR-145)
 2. Sobre un punto:
-   - **Editar:** corrige un valor; se aplica al momento y queda en el registro como acción de administrador. (FR-151)
+   - **Editar:** se abre un panel lateral (a pantalla completa en el móvil) con el mapa y los controles del alta; lo que cambia se marca. Puede mover el pin y cambiar diámetro, enganche, estado, fallo, dirección y descripción; el tipo no. *Guardar cambios* se aplica al momento y queda en el registro como acción de administrador, con los metros si se movió. (FR-120, FR-151, DEC-169)
    - **Dirección:** se edita en la propia celda. (FR-15)
    - **Retirar:** el punto existió y ya no está; pide motivo. (FR-124)
    - **Borrar:** el registro nunca debió existir; pide motivo y va a la papelera. (FR-124)
@@ -272,6 +274,8 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 ---
 
 ### FL-25 · Repartir revisiones caducadas
+
+> **Retirado (DEC-167, `docs/29`).** La pestaña y la hoja de campo ya no existen. Lo caducado se ve en el Inventario: «hace 1 año» en rojo, y la columna *Última revisión* se ordena.
 
 **Actor:** administrador. **Parte de:** *Panel* → *Revisiones caducadas*.
 
@@ -292,6 +296,8 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 ---
 
 ### FL-27 · Voluntarios e incidencias
+
+> **Retirado (DEC-167, `docs/29`).** La pestaña ya no existe. La supresión la hace el desarrollador con `npm run anonimizar` (11).
 
 **Actor:** administrador. **Parte de:** *Panel* → *Voluntarios*.
 

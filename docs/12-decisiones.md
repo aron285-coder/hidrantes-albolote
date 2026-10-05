@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.53 — oct 2026 (DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.54 — oct 2026 (DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,26 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-170 · Enganche «Directo», cuarto tipo de las bocas de riego
+- **Fecha:** oct 2026 (desarrollador) · **Estado:** vigente (`docs/29` RV-120, RV-121).
+- **Decisión:** el enum `tipo_racor` gana `directo` (0037, sola en su migración, como Barro). El orden en pantalla es Barcelona · Granada · Directo · Otro, en una fila de cuatro también a 360 px. Directo tiene foto de referencia (`/racores/directo.webp`); mientras el desarrollador no la ponga, sale solo el nombre. Una versión vieja de la app que lea `directo` lo enseña como «Otro».
+- **Afecta a:** 01 FR-20; 05 `tipo_racor`; 06 Apéndice A.
+
+### DEC-169 · Editar es un panel lateral con el mapa, y jefatura mueve el punto desde ahí
+- **Fecha:** oct 2026 (desarrollador; versión B del mockup) · **Estado:** vigente (`docs/29` RV-120, RV-124).
+- **Decisión:** `DialogoEditar` se sustituye por `EditarPunto`: panel de 540 px a la derecha sin velo (≥ 1100 px), de 500 px con velo ligero (768–1099) o a pantalla completa con su entrada de historial (< 768). Lleva la banda del estado guardado, el mapa del alta con el pin y los mismos controles del alta (`Segmentado`, `SelectorRacor`, `PildorasCaudal`, `SelectorPin`), con el tipo bloqueado. Lo que cambia se marca como en la cola; la ubicación cuenta desde 0,5 m. Jefatura puede mover el punto sin pasar por la cola: `fn_editar_punto` acepta `lat`/`lng` (las dos o ninguna), recalcula municipio y núcleo y deja `desplazamiento_m` en el registro `edicion_admin` (0038). Los voluntarios siguen con *Corregir ubicación* por la cola.
+- **Afecta a:** 01 FR-120; 02 FL-24; 05 `fn_editar_punto`; 06 §5; 10 AC-170.
+
+### DEC-168 · El Inventario filtra solo por Tipo y Estado
+- **Fecha:** oct 2026 (desarrollador) · **Estado:** vigente (`docs/29` RV-123).
+- **Decisión:** dos `<select>` nativos (Tipo; Estado con el número de cada uno según el tipo), con «Quitar filtros». Fuera los chips de Revisión y los filtros de Núcleo y Diámetro, que siguen como columnas ordenables. Excel, CSV y GeoJSON pasan a un menú «Exportar ▾», que exporta lo filtrado. No se hace un desplegable propio para enseñar el punto de color: el nativo es accesible y usa el selector del móvil.
+- **Afecta a:** 01 FR-120; 02 FL-24; 06 §5; 10 AC-90 y AC-169.
+
+### DEC-167 · El panel se queda con cinco pestañas
+- **Fecha:** oct 2026 (desarrollador) · **Estado:** vigente (`docs/29` RV-122, RV-125, RV-126).
+- **Decisión:** quedan Cola de revisión · Inventario · Registro · Papelera · Ajustes. Fuera *Revisiones caducadas* y *Voluntarios*, con la hoja de campo (FR-122), la actividad de voluntarios (FR-130), la lista de incidencias (FR-132) y, con ella, «Algo no funciona» en la app (FR-92). Las rutas viejas llevan al Inventario. Lo caducado se sigue viendo en el Inventario («hace 1 año» en rojo) y en el anillo del mapa. El derecho de supresión sigue: lo atiende el desarrollador con `npm run anonimizar` (FR-131, 11). La tabla `incidencias_app` y sus RPC se quedan mientras quede una versión vieja de la app que pueda escribir en ellas; se limpian después, en una issue aparte.
+- **Afecta a:** 01 FR-92, FR-121, FR-122, FR-130 a FR-132 y FR-143; 02 FL-11, FL-25 y FL-27; 05; 06 §5; 10; 11.
 
 ### DEC-166 · Las señales salen del detalle de la cola; el ⚠ de la lista, solo por lo que el detalle enseña
 - **Fecha:** oct 2026 (desarrollador) · **Estado:** vigente (`docs/28` RV-115).
