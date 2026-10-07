@@ -49,7 +49,8 @@ describe('guarda de producción', () => {
     ['anon key de staging', { anonKey: jwt({ ref: STAGING, role: 'anon' }) }, 'otro proyecto'],
     ['service_role en lugar de anon', { anonKey: jwt({ ref: REF, role: 'service_role' }) }, 'no es la clave anon'],
     ['anon key vacía', { anonKey: undefined }, 'no es un JWT'],
-    ['anon key que no es un JWT', { anonKey: 'sb_publishable_algo' }, 'no es un JWT'],
+    ['anon key que no es un JWT', { anonKey: 'no-es-un-jwt' }, 'no es un JWT'],
+    ['una clave secreta nueva', { anonKey: 'sb_secret_algo' }, 'clave secreta'],
     ['anon key con la carga rota', { anonKey: 'a.%%%.c' }, 'no es un JWT'],
   ])('bloquea el frontend: %s', (_n, cambio, motivo) => {
     const problemas = comprobarGuarda({ ...bien, ...cambio });
@@ -57,6 +58,17 @@ describe('guarda de producción', () => {
       problemas.some((p) => p.includes(motivo)),
       problemas.join('; '),
     ).toBe(true);
+  });
+
+  it('la clave publishable nueva (la que arranque.ts guarda si no hay anon antigua) pasa, con la URL bien', () => {
+    expect(comprobarGuarda({ ...bien, anonKey: 'sb_publishable_AbC-12_x' })).toEqual([]);
+    expect(
+      comprobarGuarda({
+        ...bien,
+        anonKey: 'sb_publishable_AbC-12_x',
+        viteSupabaseUrl: `https://${STAGING}.supabase.co`,
+      }),
+    ).toEqual(['VITE_SUPABASE_URL no es el proyecto de SUPABASE_PROJECT_REF (RV-136)']);
   });
 
   it('una SUPABASE_URL que no es una URL se avisa, no revienta', () => {

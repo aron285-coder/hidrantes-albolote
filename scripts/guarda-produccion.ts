@@ -62,8 +62,16 @@ export function comprobarGuarda(e: EntradaGuarda): string[] {
     if (host(e.viteSupabaseUrl) !== `${e.ref}.supabase.co`) {
       p.push('VITE_SUPABASE_URL no es el proyecto de SUPABASE_PROJECT_REF (RV-136)');
     }
-    const carga = cargaJwt(e.anonKey);
-    if (!carga) p.push('VITE_SUPABASE_ANON_KEY falta o no es un JWT (RV-136)');
+    // arranque.ts guarda la clave publishable (sb_publishable_…) si el proyecto ya no tiene la anon
+    // antigua (scripts/lib/servicios.ts, elegirClaves). No lleva el ref dentro: basta con la URL.
+    // Una sb_secret_ en el frontend sería la clave de servicio a la vista de todos.
+    const clave = e.anonKey?.trim() ?? '';
+    const carga = cargaJwt(clave);
+    if (clave.startsWith('sb_secret_'))
+      p.push('VITE_SUPABASE_ANON_KEY es una clave secreta: nunca en el frontend (RV-136)');
+    else if (/^sb_publishable_[\w-]+$/.test(clave)) {
+      // Sin ref dentro: la comprobación de VITE_SUPABASE_URL es la que vale.
+    } else if (!carga) p.push('VITE_SUPABASE_ANON_KEY falta o no es un JWT ni una clave publishable (RV-136)');
     else {
       if (carga.ref !== e.ref) p.push('VITE_SUPABASE_ANON_KEY es de otro proyecto (RV-136)');
       if (carga.role !== 'anon') p.push('VITE_SUPABASE_ANON_KEY no es la clave anon (RV-136)');

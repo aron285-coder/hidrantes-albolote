@@ -242,9 +242,10 @@ jobs:
           #    cualquier final que no sea success: también cancelled, que es lo que queda si nadie
           #    aprueba el environment (0.8.0, run 37184600515) y deploy-prod no llega a avisar él
           #    mismo. Uno que espera la aprobación no tapa al anterior; si espera más de un día,
-          #    también se avisa.
-          if ultimo=$(gh run list --repo "$REPO" --workflow deploy-prod.yml --status completed --limit 1 \
-            --json conclusion,headSha --jq '.[0] // empty | "\(.conclusion) \(.headSha)"') &&
+          #    también se avisa. «Último» es el que terminó más tarde, no el creado más tarde: con
+          #    concurrency, GitHub cancela uno que esperaba en cola aunque el anterior acabe bien.
+          if ultimo=$(gh run list --repo "$REPO" --workflow deploy-prod.yml --status completed --limit 20 \
+            --json conclusion,headSha,updatedAt --jq 'sort_by(.updatedAt) | .[-1] // empty | "\(.conclusion) \(.headSha)"') &&
             esperando=$(gh run list --repo "$REPO" --workflow deploy-prod.yml --status waiting --limit 20 \
               --json createdAt,headSha --jq '.[-1] // empty | "\(.createdAt | fromdateiso8601) \(.headSha)"'); then
             read -r final sha <<< "${ultimo:-}"

@@ -340,6 +340,18 @@ describe('deploy de producción fallido (RV-136)', () => {
       expect(vigilar([])).toBe('');
     });
 
+    it.skipIf(!tieneJq)(
+      'cuenta el que terminó más tarde: uno cancelado en cola antes de que el bueno acabe no avisa',
+      () => {
+        const terminados = [
+          { conclusion: 'cancelled', headSha: 'd'.repeat(40), updatedAt: '2026-10-07T10:05:00Z' },
+          { conclusion: 'success', headSha: SHA, updatedAt: '2026-10-07T11:00:00Z' },
+        ];
+        expect(vigilar(terminados)).toBe('');
+        expect(vigilar([...terminados].reverse())).toBe('');
+      },
+    );
+
     it.skipIf(!tieneJq)('cancelado sin aprobar (0.8.0) o fallido: avisa con el commit', () => {
       for (const conclusion of ['cancelled', 'failure', 'timed_out']) {
         const p = vigilar([{ conclusion, headSha: SHA }]);
