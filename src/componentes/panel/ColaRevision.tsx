@@ -10,6 +10,7 @@ import { ErrorCarga, EtiquetaOperacion } from './piezas';
 import { Boton } from '@/componentes/Boton';
 import { useCarga } from '@/hooks/carga';
 import { useModo, usePuntos } from '@/hooks/estado';
+import { LIMITES } from '@/lib/limites';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
 import { cargarParametros } from '@/lib/panel/ajustes';
 import {
@@ -415,7 +416,7 @@ function Lista({
             key={p.id}
             className={cn(
               'border-linea flex items-center gap-2.5 border-b px-3 py-2',
-              activa && 'bg-[#EFF3F8] shadow-[inset_3px_0_0_var(--marino-700)] dark:bg-white/5',
+              activa && 'bg-fila-elegida shadow-[inset_3px_0_0_var(--marino-700)]',
             )}
           >
             {pendientes && (
@@ -558,6 +559,7 @@ function RechazoLote({
         <textarea
           ref={campo}
           value={motivo}
+          maxLength={LIMITES.motivo}
           onChange={(e) => setMotivo(e.target.value)}
           className="border-linea rounded-campo mt-1 block w-full border p-2"
           rows={2}
