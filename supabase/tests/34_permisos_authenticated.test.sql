@@ -133,7 +133,19 @@ select is(
                                                  or r.funcion like n || '(%')),
   '{}'::text[], 'el bucle prueba las catorce RPC que no tenían prueba negativa (docs/31 RV-149)'
 );
-select cmp_ok((select count(*)::int from r_google), '>=', 25, 'y prueba todas las de jefatura, no un puñado');
+select set_eq(
+  $$ select distinct split_part(regexp_replace(funcion, '^hidrantes\.', ''), '(', 1) from r_google $$,
+  array[
+    'fn_aprobar', 'fn_aprobar_lote', 'fn_rechazar', 'fn_fusionar_con_existente',
+    'fn_editar_punto', 'fn_retirar_punto', 'fn_borrar_punto', 'fn_restaurar_punto', 'fn_purgar_papelera',
+    'fn_cambiar_codigo_acceso', 'fn_gestionar_administrador', 'fn_guardar_config',
+    'fn_resolver_incidencia', 'fn_actividad_voluntarios', 'fn_anonimizar_autor', 'fn_historial_punto',
+    'fn_salud', 'fn_exportar_inventario', 'fn_guardar_suscripcion_push_admin',
+    'fn_guardar_direccion_sugerida', 'fn_registrar_workflow', 'fn_reservar_subida_admin',
+    'fn_renombrar_nucleo', 'fn_anadir_nucleo'
+  ],
+  'y prueba exactamente las RPC de jefatura, todas'
+);
 -- Los ayudantes exentos no dan nada a quien no es jefatura.
 select is(hidrantes.fn_es_admin(), false, 'fn_es_admin: false para un no administrador');
 select is((select count(*)::int from hidrantes.config), 0, 'y config sale vacía: fn_config solo da su valor por defecto');
