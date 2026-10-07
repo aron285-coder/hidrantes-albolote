@@ -80,6 +80,20 @@ async function rpc(e: Entorno, nombre: string, cuerpo: object): Promise<Response
 /** Los pedidos sin lanzar. Una respuesta rara para todo: mejor no despachar que despachar mal. */
 export async function pendientes(e: Entorno): Promise<Pedido[]> {
   const r = await rpc(e, 'fn_pedidos_pendientes', {});
+  // Sin 0040 (producción antes de 0.9.0) no puede haber pedidos: el panel de esa versión aún lanza
+  // los workflows él mismo. Solo «la función no existe» de PostgREST; cualquier otro 404 se para.
+  if (r.status === 404) {
+    const codigo = (
+      (await r
+        .clone()
+        .json()
+        .catch(() => null)) as { code?: unknown } | null
+    )?.code;
+    if (codigo === 'PGRST202') {
+      log.aviso('La base de datos aún no tiene fn_pedidos_pendientes (0040): no hay pedidos que despachar.');
+      return [];
+    }
+  }
   if (!r.ok) abortar(`fn_pedidos_pendientes respondió ${r.status}.`);
   const filas: unknown = await r.json().catch(() => null);
   if (!Array.isArray(filas)) abortar('fn_pedidos_pendientes no devolvió una lista.');
