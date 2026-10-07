@@ -1,5 +1,9 @@
-# TR-101: las actualizaciones de parche y menores de Dependabot se fusionan solas con CI verde.
-# Las mayores abren PR y esperan a que alguien las mire.
+# TR-101 y docs/31 RV-132 (DEC-172): solo los parches de las dependencias de desarrollo de Dependabot
+# se fusionan solos, con CI verde. Los menores, los mayores, las actions y cualquier dependencia que
+# vaya en el bundle de producción abren PR y esperan a que una persona los mire.
+#
+# Se mira el autor del PR, no el actor del evento: el actor es quien provoca el evento (por ejemplo, quien
+# vuelve a lanzar la ejecución), y no dice quién escribió el cambio.
 name: Fusión automática de Dependabot
 
 on: pull_request
@@ -10,13 +14,21 @@ permissions:
 
 jobs:
   fusionar:
-    if: github.actor == 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:
       - id: meta
-        uses: dependabot/fetch-metadata@v3
-      - if: steps.meta.outputs.update-type != 'version-update:semver-major'
-        run: gh pr merge --auto --squash "$PR"
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      # Cada dependencia del PR (un grupo trae varias) tiene que ser de desarrollo y de parche.
+      - name: Fusionar si todo es un parche de desarrollo
         env:
           PR: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPENDENCIAS: ${{ steps.meta.outputs.updated-dependencies-json }}
+        run: |
+          set -euo pipefail
+          if printf '%s' "$DEPENDENCIAS" | jq -e 'length > 0 and all(.[]; .dependencyType == "direct:development" and .updateType == "version-update:semver-patch")' >/dev/null; then
+            gh pr merge --auto --squash "$PR"
+          else
+            echo "### Dependabot: este PR espera a una persona (no es solo parches de desarrollo)" >> "$GITHUB_STEP_SUMMARY"
+          fi

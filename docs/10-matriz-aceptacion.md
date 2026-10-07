@@ -174,7 +174,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-129 | Cabeceras | Analizador de cabeceras sobre producción | Puntuación A; CSP sin `unsafe-eval` | TR-100 | | |
 | AC-130 | Vigilancia | Ver la última ejecución de `vigilancia.yml` | En verde; al forzar un fallo se abre una issue | TR-102 | | |
 | AC-131 | Lighthouse | Informe del último despliegue a staging | Rendimiento ≥ 85, accesibilidad ≥ 95, PWA instalable | TR-103 | | |
-| AC-132 | Dependabot | Ver PRs cerrados del último mes | Parches fusionados solos con CI verde | TR-101 | | |
+| AC-132 | Dependabot | Ver PRs cerrados del último mes | Parches de desarrollo fusionados solos con CI verde; menores y de producción, abiertos para revisión | TR-101 | | |
 | AC-133 | Rechazo sin nombres | Jefatura rechaza con un motivo; el autor abre Mis propuestas | Ve el motivo y "jefatura" como quien decidió; ningún correo ni nombre ajeno | FR-27 | | |
 | AC-134 | Ningún nombre en las respuestas al voluntario | Con el inspector del navegador, revisar todas las respuestas de `fn_listar_puntos`, `fn_ficha_punto`, `fn_mis_propuestas` y las notificaciones push recibidas durante el recorrido | No aparece ningún nombre de voluntario ajeno ni correo de administrador | FR-27, TR-40 | | |
 

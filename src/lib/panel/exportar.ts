@@ -85,7 +85,11 @@ export function celdas(f: FilaExportada): (string | number)[] {
 
 // ---------- CSV (UTF-8 con BOM, para que Excel no rompa los acentos) ----------
 
-const campo = (v: string | number) => (typeof v === 'number' ? String(v) : `"${v.replace(/"/g, '""')}"`);
+// Un texto que empieza por =, +, -, @, tabulador o retorno, Excel lo abre como fórmula
+// (=HYPERLINK…): lleva delante un apóstrofo y se lee como texto (docs/31 RV-168). Los números no
+// pasan por aquí: la longitud es negativa y tiene que seguir siendo un número.
+const sinFormula = (v: string) => (/^[=+\-@\t\r]/.test(v) ? `'${v}` : v);
+const campo = (v: string | number) => (typeof v === 'number' ? String(v) : `"${sinFormula(v).replace(/"/g, '""')}"`);
 
 export function csv(filas: FilaExportada[]): string {
   return '﻿' + [CABECERAS, ...filas.map(celdas)].map((f) => f.map(campo).join(';')).join('\r\n') + '\r\n';

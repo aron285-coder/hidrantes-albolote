@@ -160,7 +160,7 @@ Un `dispositivo_id` puede tener varios tokens en el tiempo (revocación y nuevo 
 | `momento` | `timestamptz` | |
 | `exito` | `boolean` | |
 | `bloqueado` | `boolean` | `true` en la fila que anota un `DEMASIADOS_INTENTOS` (0015); no cuenta como fallo |
-| `tope` | `text` | qué tope saltó: `dispositivo`, `ip`, `global`, `altas_ip`, `altas_global` |
+| `tope` | `text` | qué tope saltó: `dispositivo`, `ip`, `global`, `altas_ip`, `altas_global`; o `dispositivo_reservado` en el canje bueno que se rechazó por usar el `dispositivo_id` de un administrador (0039, RV-143) |
 
 Índices sobre `(dispositivo_id, momento)`, `(ip_hash, momento)`, `(momento)`. Purga > 24 h por `pg_cron`.
 
@@ -178,6 +178,14 @@ Un `dispositivo_id` puede tener varios tokens en el tiempo (revocación y nuevo 
 (`FOTO_NO_RESERVADA`, el móvil vuelve a subir la foto): la purga de fotos respeta las reservas de
 menos de `dias_reserva_subida` días, y un día de margen evita aprobar un `foto_path` ya borrado.
 `pg_cron` borra las reservas de más de 30 días (`hidrantes_purgar_subidas`). DEC-084.
+
+Desde 0039 (docs/31 RV-142, DEC-174) `dias_reserva_subida` es **2**: una reserva sin confirmar se
+protege 48 h y `fn_proponer` la acepta durante 24 h. Además del tope por dispositivo hay un **tope
+global**, `max_subidas_dia_total` (400) reservas en 24 h entre todos los voluntarios; las de los
+administradores (`fn_dispositivo_admin` de una fila de `administradores`) ni cuentan ni se paran.
+Índice nuevo `btree (reservada_en)` para esa cuenta. `fn_reservas_sin_confirmar_lista()` da a la
+purga las reservas **nunca confirmadas** de más de 48 h que nada referencia, para que no cuenten en
+su freno del 10 %.
 
 ### 2.7 `incidencias_app` (FR-92, FR-132)
 
@@ -236,7 +244,9 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `max_altas_global_hora` | `150` | canjes buenos en total por hora (RV-14, DEC-086) |
 | `dias_caducidad_token` | `365` | |
 | `max_subidas_dispositivo_dia` | `80` | cuenta reservas: un alta o una ubicación gastan dos (conexión y sitio). Era 40; 0035 lo dobla solo si seguía en 40 (DEC-146) |
-| `dias_reserva_subida` | `7` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084); `fn_proponer` acepta como mínimo 1 día y la purga protege como mínimo 2, también si se pone a 1 (0026, RV-48) |
+| `max_subidas_dia_total` | `400` | reservas en 24 h entre todos los voluntarios; los administradores no cuentan. Al llegar, `CUOTA_SUBIDAS_AGOTADA` para todos (0039, RV-142, DEC-174). Editable en Ajustes, de 1 a 5.000 |
+| `max_propuestas_dia` | `60` | propuestas por dispositivo y día natural (Europe/Madrid); un reintento con la misma `clave_local` no cuenta y los administradores no tienen tope. Al llegar, `CUOTA_PROPUESTAS_AGOTADA` (0039, RV-141, DEC-174). Editable en Ajustes, de 1 a 500 |
+| `dias_reserva_subida` | `2` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084); `fn_proponer` acepta como mínimo 1 día y la purga protege como mínimo 2, también si se pone a 1 (0026, RV-48). Era 7; 0039 la baja a 2: 48 h de protección y 24 h para confirmar (RV-142, DEC-174) |
 | `max_incidencias_dispositivo_dia` | `5` | |
 | `max_errores_global_dia` | `2000` | |
 | `escala_radios` | `[11, 9, 7, 5.5, 5]` | 06 §4 |
@@ -320,7 +330,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida` |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni
@@ -355,10 +365,17 @@ fn_verificar_codigo(codigo text, dispositivo_id uuid, ip_hash text)
   returns table (token text, caduca_en timestamptz, error text)
   -- error en la columna, no lanzado: una excepción desharía la anotación del intento (DEC-059).
   -- error: CODIGO_INCORRECTO · DEMASIADOS_INTENTOS (dispositivo | ip | global). Solo cuentan los fallos.
+  -- DISPOSITIVO_RESERVADO (0039, RV-143, DEC-175): el código es bueno pero dispositivo_id es el
+  --   fn_dispositivo_admin(email) de alguna fila de administradores, activa o no. No se emite token
+  --   ni se dice de quién es; el intento se anota como canje bueno (cuenta en max_altas_*) con
+  --   tope = 'dispositivo_reservado'. Se comprueba solo con el código bueno, para que sin él no sirva
+  --   para adivinar correos.
 
 -- Helper: devuelve el dispositivo_id, actualiza ultimo_uso.
 fn_validar_token(token text) returns uuid
   -- errores: TOKEN_INVALIDO · TOKEN_REVOCADO · TOKEN_CADUCADO
+  -- TOKEN_REVOCADO también si el dispositivo_id del token es el de un administrador (0039, RV-143):
+  --   0039 revoca los que hubiera, y esto cubre a quien se dé de alta como administrador más tarde.
 
 fn_listar_puntos(token text, desde timestamptz default null)
   returns jsonb  -- { puntos: v_puntos_activos[], bajas: uuid[], sincronizado_en, config: {meses_revision, radio_duplicado_m, escala_radios, version_zona, version_mapabase, epoca_datos, metros_tramo_manguera} }
@@ -368,7 +385,7 @@ fn_ficha_punto(token text, punto_id uuid) returns jsonb
 
 -- Solo service_role (la llama /api/url-subida).
 fn_reservar_subida(token text) returns text  -- foto_path
-  -- errores: CUOTA_SUBIDAS_AGOTADA
+  -- errores: CUOTA_SUBIDAS_AGOTADA (tope del dispositivo o, desde 0039, el global max_subidas_dia_total)
 -- Jefatura desde el móvil (authenticated + fn_es_admin): misma cuota, su dispositivo técnico.
 fn_reservar_subida_admin() returns text
 
@@ -391,7 +408,18 @@ fn_proponer(…los 16 de arriba…, foto_sitio_path text) returns jsonb   -- FIR
   -- idempotente por clave_local: si existe, devuelve la existente sin crear otra.
   -- si quien llama es authenticated + fn_es_admin(): aplica vía fn_aprobar y devuelve aplicada = true.
   -- errores: PAYLOAD_INVALIDO(<campo>) · FOTO_OBLIGATORIA · FOTO_SITIO_OBLIGATORIA (firma nueva) ·
-  --          FOTO_NO_RESERVADA · PUNTO_NO_ACTIVO
+  --          FOTO_NO_RESERVADA · PUNTO_NO_ACTIVO · CUOTA_PROPUESTAS_AGOTADA (0039)
+  -- longitudes (0039, RV-140, DEC-174): las de §7.1; si se pasa o no es texto, PAYLOAD_INVALIDO(<campo>);
+  --   datos de más de 4.000 caracteres en total (datos::text), PAYLOAD_INVALIDO(datos). Nombre o
+  --   apellido vacíos siguen siendo PAYLOAD_INVALIDO(autor); de más de 60, PAYLOAD_INVALIDO(autor_nombre)
+  --   o PAYLOAD_INVALIDO(autor_apellido).
+  -- cuota (0039, RV-141): max_propuestas_dia (60) por dispositivo y día natural de Europe/Madrid. Un
+  --   reintento con la misma clave_local devuelve la existente antes de contar; jefatura no tiene tope.
+  --   Mensaje: 'CUOTA_PROPUESTAS_AGOTADA: maximo=<n> reintentar_en_s=<s>' (s: segundos hasta la
+  --   medianoche de Madrid); el cliente solo lee el message y saca de ahí los dos números. `details`
+  --   lleva lo mismo en JSON. La cuenta va bajo un bloqueo por dispositivo y, tomado el bloqueo, se
+  --   vuelve a mirar la clave_local: un envío doble que entró mientras tanto recibe la propuesta
+  --   existente, no el tope.
 
 fn_mis_propuestas(token text) returns setof jsonb
   -- solo las del dispositivo del token; estado, motivo_rechazo, correcciones, revisada_en.
@@ -429,13 +457,18 @@ fn_aprobar(propuesta_id uuid, correcciones jsonb default null, confirmar_desactu
   --          DIAMETRO_SIN_FIJAR (alta de hidrante con "otra medida" sin correcciones.diametro_mm; una boca
   --          con otra medida se aprueba tal cual, 0032) · PAYLOAD_INVALIDO
   -- en las demás operaciones, el diámetro de una boca se conserva (hasta 0032 se forzaba a 45).
+  -- correcciones con textos más largos que §7.1 → PAYLOAD_INVALIDO(<campo>) (0039, RV-140).
+  -- direccion (0039, docs/31 RV-162): sin la clave, como antes (alta: direccion_sugerida; ubicación:
+  --   la sugerida y si no la que tenía; resto: la que tenía). Con la clave y null, vacía o en blanco,
+  --   el punto queda sin dirección; con texto, ese texto recortado. {direccion: null} es una corrección
+  --   ('aprobacion_con_correcciones').
 
 fn_aprobar_lote(propuesta_ids uuid[])
   returns table (propuesta_id uuid, resultado text, motivo text)
   -- cada una en su propia transacción (savepoint); resultado 'aprobada' | 'omitida'; motivo = código de error.
 
 fn_rechazar(propuesta_id uuid, motivo text) returns void
-  -- errores: MOTIVO_OBLIGATORIO · PROPUESTA_NO_PENDIENTE
+  -- errores: MOTIVO_OBLIGATORIO · PROPUESTA_NO_PENDIENTE · PAYLOAD_INVALIDO(motivo) (más de 1.000, 0039)
 
 fn_fusionar_con_existente(propuesta_id uuid, punto_id uuid, prevalece jsonb default '{}')
   returns jsonb  -- { punto_id, codigo }
@@ -464,11 +497,11 @@ fn_editar_punto(punto_id uuid, cambios jsonb) returns void
   --   movió, `despues` lleva desplazamiento_m (redondeado a 0,1 m), como fn_aprobar con 'ubicacion'.
   -- toda edición cambia puntos.actualizado_en (trigger puntos_actualizado_en): las propuestas
   --   pendientes anteriores salen desactualizadas en v_cola_revision.
-  -- errores: NO_AUTORIZADO · PAYLOAD_INVALIDO(cambios|ubicacion|<constraint>) · PUNTO_NO_ACTIVO ·
-  --   TIPO_NO_MODIFICABLE
+  -- errores: NO_AUTORIZADO · PAYLOAD_INVALIDO(cambios|ubicacion|<constraint>|<campo>) · PUNTO_NO_ACTIVO ·
+  --   TIPO_NO_MODIFICABLE. <campo>: descripcion, descripcion_fallo o direccion más largas que §7.1 (0039)
 
-fn_retirar_punto(punto_id uuid, motivo text) returns void
-fn_borrar_punto(punto_id uuid, motivo text) returns void        -- situacion = 'borrado', borrado_en = now()
+fn_retirar_punto(punto_id uuid, motivo text) returns void       -- PAYLOAD_INVALIDO(motivo) con más de 1.000 (0039)
+fn_borrar_punto(punto_id uuid, motivo text) returns void        -- situacion = 'borrado', borrado_en = now(); ídem
 fn_restaurar_punto(punto_id uuid) returns void                  -- error: FUERA_DE_PLAZO_PAPELERA
 fn_purgar_papelera() returns integer                            -- también la llama pg_cron
 
@@ -478,6 +511,9 @@ fn_gestionar_administrador(email text, activo boolean) returns void
   -- error: ULTIMO_ADMINISTRADOR
 fn_guardar_config(cambios jsonb) returns void
   -- solo claves de la lista blanca de §2.10; valida tipos y rangos. error: CONFIG_INVALIDA(<clave>)
+  -- lista blanca: meses_revision, radio_duplicado_m, dias_papelera, buffer_zona_m,
+  --   max_subidas_dispositivo_dia, metros_tramo_manguera, escala_radios y, desde 0039,
+  --   max_propuestas_dia (1–500) y max_subidas_dia_total (1–5.000)
 fn_resolver_incidencia(incidencia_id uuid) returns void
 fn_actividad_voluntarios(meses integer)
   returns table (autor text, dispositivo_id uuid, propuestas int, aprobadas int, rechazadas int, tasa numeric, ultima timestamptz)
@@ -514,6 +550,12 @@ fn_fotos_referenciadas_lista() returns jsonb   -- {"fotos": [text], "total": int
   -- protege foto_path y foto_sitio_path de puntos y de propuestas pendientes o aprobadas, y las
   -- reservas recientes. Sin foto_sitio_path, la purga borraría las fotos del sitio (0035, DEC-146).
 fn_fotos_referenciadas() returns setof text    -- OBSOLETA desde 0.5.0: truncada a 1.000 por PostgREST; sin uso, se retira en la siguiente versión mayor
+-- Solo service_role (purgar-fotos.ts, 0039, RV-142). Las reservas nunca confirmadas de más de 48 h
+-- que nada referencia: basura segura que la purga no cuenta en su freno del 10 %. Una sola fila.
+fn_reservas_sin_confirmar_lista() returns jsonb   -- {"fotos": [text], "total": int}
+  -- subidas con confirmada_en null y reservada_en < now() - 48 h, menos las de
+  -- fn_fotos_referenciadas_lista(). Las reservas de más de 30 días ya no están en subidas
+  -- (hidrantes_purgar_subidas): sus archivos, si quedan, siguen contando en el freno.
 -- Solo service_role (la llama /api/push): reclama avisos pendientes con skip locked y los marca
 -- enviados en la misma transacción; después se anota el resultado de cada uno.
 fn_reclamar_notificaciones(limite integer default 100)
@@ -546,6 +588,11 @@ fn_email_jwt() returns text                  -- correo del JWT, en minúsculas, 
                                              -- 'oauth'; si no, null (0022, DEC-094)
 fn_exigir_admin() returns text               -- NO_AUTORIZADO si no es administrador; devuelve su correo
 fn_dispositivo_admin(email text) returns uuid -- md5 del correo: identidad técnica estable de un administrador
+fn_validar_longitudes(datos jsonb) returns void   -- 0039, RV-140: las claves de §7.1 que traiga datos;
+                                             -- PAYLOAD_INVALIDO(<campo>) si alguna se pasa
+fn_validar_longitud(campo text, valor text, maximo integer) returns void   -- 0039: lo mismo para un parámetro
+fn_es_dispositivo_admin(d uuid) returns boolean   -- 0039: d es fn_dispositivo_admin de alguna fila de
+                                             -- administradores, activa o no (RV-142, RV-143)
 fn_proponer_interno(…los 17 de la firma nueva…, exigir_foto_sitio boolean) returns jsonb
                                              -- 0035: el cuerpo común de las dos firmas de fn_proponer;
                                              -- sin execute para anon ni authenticated
@@ -580,6 +627,19 @@ operaciones, y en `fn_editar_punto`, un tipo distinto del actual da `TIPO_NO_MOD
 DEC-090); `fn_aprobar_lote` omite con ese código una pendiente antigua que lo cambie. Las mismas constraints de `puntos` se validan sobre el
 resultado fusionado antes de escribir.
 
+### 7.1 Longitud de los textos libres (0039, docs/31 RV-140, DEC-174)
+
+Se mide en caracteres, tal como llegan (antes de recortar), y solo en lo que entra desde 0039: lo que
+ya hay en la base de datos no se toca. Si se pasa, `PAYLOAD_INVALIDO(<campo>)`. El frontend pone el
+mismo `maxLength` (`src/lib/limites.ts`).
+
+| Campo | Máx. | Dónde se comprueba |
+|---|---|---|
+| `descripcion`, `descripcion_fallo` | 500 | `datos` de `fn_proponer`, `correcciones` de `fn_aprobar`, `cambios` de `fn_editar_punto` |
+| `direccion` | 200 | `correcciones` de `fn_aprobar`, `cambios` de `fn_editar_punto` |
+| `nota`, `motivo` | 1.000 | `datos` de `fn_proponer` (revisión, estado, ubicación, retirada); `motivo` de `fn_rechazar`, `fn_retirar_punto` y `fn_borrar_punto` |
+| `autor_nombre`, `autor_apellido` | 60 | `fn_proponer` (ya desde 0005) |
+
 ---
 
 ## 8. Vocabulario de `registro.accion` y códigos de error
@@ -598,7 +658,11 @@ Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTE
 `FUERA_DE_PLAZO_PAPELERA`, `CODIGO_FORMATO`, `ULTIMO_ADMINISTRADOR`, `CONFIG_INVALIDA`,
 `NO_AUTORIZADO`, `TIPO_NO_MODIFICABLE` ("el tipo no se cambia: propón retirarlo y da de alta el
 correcto", 0023), `PUNTO_OCUPADO` ("otra persona está cambiando este punto; inténtalo en unos
-segundos": lo devuelve `fn_aprobar_lote` en la propuesta cuyo punto no consigue en 5 s, RV-17). El cliente traduce cada código a un texto en español (TR-36); ningún error de
+segundos": lo devuelve `fn_aprobar_lote` en la propuesta cuyo punto no consigue en 5 s, RV-17),
+`CUOTA_PROPUESTAS_AGOTADA` ("has llegado al máximo de propuestas de hoy"; el message es
+`CUOTA_PROPUESTAS_AGOTADA: maximo=<n> reintentar_en_s=<s>`, 0039, RV-141), `DISPOSITIVO_RESERVADO` (en la columna `error` de
+`fn_verificar_codigo` y como `409` de `/api/verificar-codigo`; el móvil genera otro `dispositivo_id` y
+repite el canje una vez, 0039, RV-143). El cliente traduce cada código a un texto en español (TR-36); ningún error de
 Postgres llega crudo.
 
 `DESCONOCIDO` es un código **solo de cliente** y no sale de ninguna RPC: lo pone `src/lib/api.ts`
@@ -619,9 +683,12 @@ con el estado HTTP indicado.
 → { "codigo": "482917", "dispositivo_id": "uuid" }
 ← 200 { "token": "base64url(32 bytes)", "caduca_en": "2027-09-17T…" }
 ← 401 { "error": "CODIGO_INCORRECTO" }
+← 409 { "error": "DISPOSITIVO_RESERVADO" }   // 0039, RV-143: ese dispositivo_id es el de un administrador
 ← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 3600 }
 ```
 Lee `CF-Connecting-IP`, calcula `ip_hash`, llama a `fn_verificar_codigo` con `service_role`.
+`409 DISPOSITIVO_RESERVADO`: el `dispositivo_id` coincide con el de un administrador (RV-143, DEC-175);
+no dice de quién. El móvil genera otro id y repite el canje una vez (RV-159).
 Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (TR-42).
 
 ### `POST /api/url-subida`
@@ -704,7 +771,11 @@ Un pedido pendiente del mismo trabajo → `409 { "error": "YA_PEDIDO" }`; la bas
 secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. Reclama **20** avisos (el plan gratuito de Workers
 permite 50 peticiones de salida por invocación y cada aviso gasta dos, más una para aplazar: 43), envía cada uno con Web Push
 (VAPID) y anota su resultado. Marca `suscripcion_caducada` **solo** con 404 o 410; cualquier otro
-error se anota como fallo (§2.12). Con un **429** el servicio pide esperar: el aviso no se anota
+error HTTP se anota como fallo (§2.12). **Sin respuesta** del servicio (corte de red, DNS o 10 s sin
+contestar) es un fallo transitorio: el aviso no se anota (ni error, ni fallo de la suscripción), cuenta
+en `sin_anotar` y se reclama otra vez a los 15 minutos, con el mismo tope de tres intentos (RV-144).
+Si las claves VAPID no sirven para firmar → `503 NO_CONFIGURADO` sin anotar nada: no es culpa de las
+suscripciones. Con un **429** el servicio pide esperar: el aviso no se anota
 (ni fallo en la suscripción ni error en el aviso); lo que quede en el lote para ese mismo servicio
 (origen del endpoint) ya no se intenta en esa invocación, y todos esos avisos se aplazan con **una**
 llamada a `fn_aplazar_notificaciones` con el `Retry-After` mayor (60 s si no viene). Si esa llamada
@@ -770,7 +841,8 @@ sin ese cuello de botella:
 | `fn_aprobar_lote` | Ordena los ids antes de bloquear (evita interbloqueos) y procesa cada propuesta en su propio *savepoint*: una que falle no tumba el lote. |
 | Asignación de código | `nextval` sobre la secuencia, fuera de cualquier lectura de `max(codigo)`. Dos altas simultáneas obtienen códigos distintos por construcción. |
 | `fn_proponer` | `insert … on conflict (clave_local) do nothing returning …`; si no devuelve fila, lee la existente. Dos envíos simultáneos del mismo móvil crean una sola propuesta. |
-| `fn_reservar_subida` | `pg_advisory_xact_lock(hashtext('subidas:' || dispositivo))` y después cuenta y reserva: las reservas del mismo dispositivo van de una en una y dos peticiones a la vez no pasan las dos el tope (0005). |
+| `fn_reservar_subida` | `pg_advisory_xact_lock(hashtext('subidas:' || dispositivo))` y después cuenta y reserva: las reservas del mismo dispositivo van de una en una y dos peticiones a la vez no pasan las dos el tope (0005). Desde 0039, después y en ese orden, `pg_advisory_xact_lock(hashtext('subidas:global'))` para el tope global: siempre el del dispositivo primero, así que no hay interbloqueos. |
+| Cuota de propuestas (`fn_proponer`, 0039) | `pg_advisory_xact_lock(hashtext('propuestas:' || dispositivo))` después de la comprobación de `clave_local` y antes de contar: dos envíos del mismo móvil a la vez no pasan los dos la propuesta 60. |
 | `fn_verificar_codigo` | Empieza con `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). |
 | `fn_guardar_config`, `fn_gestionar_administrador` | `for update` sobre las filas afectadas; la regla del último administrador activo se comprueba **dentro** de la transacción. |
 | Escrituras largas | Ninguna RPC hace peticiones de red: Nominatim y GitHub se llaman desde las *Pages Functions*, nunca con una transacción abierta. |

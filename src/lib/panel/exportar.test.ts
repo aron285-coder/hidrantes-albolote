@@ -75,6 +75,19 @@ describe('exportación (FR-160, FL-32)', () => {
     expect(lineas[1]).toContain(';37.2308;');
   });
 
+  // docs/31 RV-168: un texto que empieza por =, +, -, @, tabulador o retorno sería una fórmula al
+  // abrir el CSV en Excel; lleva delante un apóstrofo. Los números (la longitud, negativa) no.
+  it('el CSV neutraliza las fórmulas con un apóstrofo, y deja los números como están', () => {
+    const peligrosas = ['=HYPERLINK("https://ejemplo.invalid","pulsa")', '+1', '-2', '@SUMA(A1)', '\tx', '\rx'];
+    for (const direccion of peligrosas) {
+      const linea = csv([{ ...FILAS[0], direccion }]).split('\r\n')[1];
+      expect(linea).toContain(`;"'${direccion.replace(/"/g, '""')}";`);
+    }
+    const linea = csv([{ ...FILAS[0], direccion: 'Calle = Real' }]).split('\r\n')[1];
+    expect(linea).toContain(';"Calle = Real";');
+    expect(linea).toContain(';-3.6569;');
+  });
+
   it('GeoJSON con las coordenadas en el orden correcto y los datos crudos', () => {
     const g = JSON.parse(geojson(FILAS));
     expect(g.type).toBe('FeatureCollection');
