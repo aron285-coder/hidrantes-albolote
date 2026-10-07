@@ -546,7 +546,9 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `El punto ya no está activo: no se ha enviado.` · `Faltan datos o no son válidos: no se ha enviado.` ·
 `Falta la foto: no se ha enviado.` · `Falta la foto del sitio: no se ha enviado.` ·
 `El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.` · `No se ha podido enviar.` ·
-`Sin conexión: esta es la última lista guardada.`
+`Sin conexión: esta es la última lista guardada.` ·
+`Has llegado al máximo de propuestas de hoy ([60]). Se enviará mañana.` ·
+`Has llegado al máximo de propuestas de hoy. Se enviará mañana.`
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
 `Descargado · [12] MB · [jul 2026]` · `No descargado` · `Descargar` · `Actualizar` ·
