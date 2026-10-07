@@ -105,7 +105,9 @@ describe('motivoParaNoBorrar', () => {
     const basura = bucket.slice(600, 960).map((a) => a.ruta); // 360 de ellas, sin confirmar
     expect(motivoParaNoBorrar(bucket, vivas, { basura })).toBeNull();
     // Con menos basura, el resto vuelve a pasar del tope: 400 - 250 = 150 > 100.
-    expect(motivoParaNoBorrar(bucket, vivas, { basura: basura.slice(0, 250) })).toMatch(/150 de 1000/);
+    expect(motivoParaNoBorrar(bucket, vivas, { basura: basura.slice(0, 250) })).toMatch(
+      /150 de 1000 fotos \(15 %\) sin contar 250 reservas sin confirmar de más de 48 h \(en total, 400\)/,
+    );
   });
 
   it('una «basura» que la base de datos referencia no rebaja el freno', () => {
@@ -247,6 +249,20 @@ describe('sinConfirmar (RV-142)', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(new Response(JSON.stringify({ code: 'PGRST202' }), { status: 404 }));
     expect(await sinConfirmar(URL_BASE, SERVICIO)).toEqual([]);
+    espia.mockRestore();
+  });
+
+  it('otro 404 (una URL mal puesta, un proxy) no se toma por «aún no existe»: aborta', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Not found', { status: 404 }));
+    await expect(sinConfirmar(URL_BASE, SERVICIO)).rejects.toThrow(/respondió 404 al pedir las reservas/);
+    espia.mockRestore();
+  });
+
+  it('sin red, aborta diciendo por qué', async () => {
+    const espia = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } }));
+    await expect(sinConfirmar(URL_BASE, SERVICIO)).rejects.toThrow(/nada \(ENOTFOUND\)/);
     espia.mockRestore();
   });
 });

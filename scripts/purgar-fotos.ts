@@ -80,11 +80,16 @@ export function motivoParaNoBorrar(
   }
   // Solo descuenta la basura que de verdad es huérfana: una que la base de datos referencia no es basura.
   const segura = new Set(basura);
-  const sobran = huerfanas(enBucket, referenciadas).filter((a) => !segura.has(a.ruta)).length;
+  const todas = huerfanas(enBucket, referenciadas);
+  const sobran = todas.filter((a) => !segura.has(a.ruta)).length;
   const tope = Math.max(MAX_BORRADO.fotos, Math.floor(enBucket.length * MAX_BORRADO.fraccion));
   if (!forzar && sobran > tope) {
     const pct = Math.round((sobran / enBucket.length) * 100);
-    const aparte = segura.size ? ` sin contar las reservas sin confirmar de más de 48 h` : '';
+    // La cifra que cuenta para el freno y, aparte, cuántas borraría en total.
+    const descontadas = todas.length - sobran;
+    const aparte = descontadas
+      ? ` sin contar ${descontadas} reservas sin confirmar de más de 48 h (en total, ${todas.length})`
+      : '';
     return `Esta pasada borraría ${sobran} de ${enBucket.length} fotos (${pct} %)${aparte}, más de max(${MAX_BORRADO.fotos}, 10 %): revisa un --ensayo y, si está bien, lánzala a mano con --forzar. No se borra nada.`;
   }
   return null;
@@ -124,14 +129,22 @@ export async function sinConfirmar(url: string, servicio: string): Promise<strin
       'Accept-Profile': 'hidrantes',
     },
     body: '{}',
-  }).catch(() => null);
-  if (r?.status === 404) {
-    log.aviso(
-      'La base de datos aún no tiene fn_reservas_sin_confirmar_lista (0039): el freno cuenta todas las huérfanas.',
-    );
-    return [];
+  }).catch((e: unknown) => String((e as { cause?: { code?: unknown } })?.cause?.code ?? e));
+  // Solo «la función no existe» de PostgREST (PGRST202) se deja pasar; cualquier otro 404 aborta.
+  if (typeof r !== 'string' && r.status === 404) {
+    const codigo = ((await r.json().catch(() => null)) as { code?: unknown } | null)?.code;
+    if (codigo === 'PGRST202') {
+      log.aviso(
+        'La base de datos aún no tiene fn_reservas_sin_confirmar_lista (0039): el freno cuenta todas las huérfanas.',
+      );
+      return [];
+    }
   }
-  if (!r?.ok) abortar(`La base de datos respondió ${r ? r.status : 'nada'} al pedir las reservas sin confirmar.`);
+  if (typeof r === 'string' || !r.ok) {
+    abortar(
+      `La base de datos respondió ${typeof r === 'string' ? `nada (${r})` : r.status} al pedir las reservas sin confirmar (solo sirven para aflojar el freno, pero sin ellas no se borra nada).`,
+    );
+  }
   const cuerpo = (await r.json().catch(() => null)) as { fotos?: unknown; total?: unknown } | null;
   const fotos = cuerpo && !Array.isArray(cuerpo) ? (cuerpo.fotos ?? []) : null;
   if (!Array.isArray(fotos) || typeof cuerpo?.total !== 'number') {
@@ -226,7 +239,8 @@ export async function purgar(
 ): Promise<{ enBucket: Archivo[]; sobran: Archivo[]; borradas: number }> {
   const enBucket = await d.archivos();
   const { fotos: vivas, total } = await d.referenciadas();
-  const basura = d.sinConfirmar ? await d.sinConfirmar() : [];
+  const enElBucket = new Set(enBucket.map((a) => a.ruta));
+  const basura = (d.sinConfirmar ? await d.sinConfirmar() : []).filter((r) => enElBucket.has(r));
   log.info(
     `${enBucket.length} fotos en el bucket · ${vivas.length} referenciadas por la base de datos · ${basura.length} reservas sin confirmar de más de 48 h`,
   );
