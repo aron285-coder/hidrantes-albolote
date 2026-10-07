@@ -207,6 +207,11 @@ describe('despachador.yml', () => {
   const carpeta = path.resolve(import.meta.dirname, '../.github/workflows');
   const yml = readFileSync(path.join(carpeta, 'despachador.yml'), 'utf8');
 
+  // Los pedidos no se reclaman en la base de datos: dos pasadas a la vez lanzarían el mismo dos veces.
+  it('nunca dos pasadas a la vez', () => {
+    expect(yml).toMatch(/^concurrency:\n {2}group: despachador\n {2}cancel-in-progress: false$/m);
+  });
+
   it('cada 15 minutos y a mano', () => {
     expect(yml).toMatch(/^\s{4}- cron: '7,22,37,52 \* \* \* \*'$/m);
     expect(yml).toMatch(/^\s{2}workflow_dispatch:$/m);
