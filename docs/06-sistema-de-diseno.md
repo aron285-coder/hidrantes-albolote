@@ -134,6 +134,7 @@ Las capas en línea (OSM, PNOA, Catastro) no se recolorean.
 | badge pendientes | fondo `#3A2A1E`, texto `#F0A070` |
 | anillo del marcador seleccionado (`--anillo-seleccion`) | `#E6EAF0` (el `--marino-950` de claro no se ve sobre el mapa oscuro; DEC-062) |
 | anillo de "sin revisar" (`--anillo-sin-revisar`) | `#C9CFD8` (en claro es `--texto-suave`; §4.3, DEC-155) |
+| fila elegida de una lista del panel (`--fila-elegida`) | `#243149` (en claro `#EFF3F8`; texto suave a ≥ 4,5:1 en los dos; docs/31 RV-169) |
 
 Los rellenos de estado y el naranja de acción **no cambian**, y el **borde del marcador sigue
 blanco** (`--borde-marcador`): es lo que lo separa del mapa. La excepción es el amarillo de regular,
@@ -142,6 +143,8 @@ DEC-154). Un borde oscuro sobre el mapa oscuro se
 queda en 1,16:1 y el marcador se pierde; con el blanco, el borde contra el mapa da 13,6:1 y el
 relleno contra el borde, entre 5,0:1 y 9,8:1 (TR-31, medido en `src/lib/accesibilidad.test.ts`;
 DEC-072).
+
+Todo lo que cambia en oscuro va en un token definido en los **dos** bloques de `index.css` (por el sistema y elegido a mano con `data-tema`), nunca con la variante `dark:` de Tailwind, que solo sigue al sistema: con el tema forzado a oscuro sobre un sistema claro no se aplicaría (docs/31 RV-169).
 
 ---
 
@@ -300,7 +303,7 @@ Mockups de `docs/25` (referencia visual; si no coinciden con este documento, man
 | **Panel: detalle de la cola** (DEC-158) | igual en las seis operaciones, de arriba abajo y a todo el ancho del detalle: título (Barlow 22 px) con autor, antigüedad, fecha y núcleo (sin chips de señales, DEC-166); **mapa** de 300 px (≥ 1.100 px), 280 (tableta) y 200 de borde a borde y fijo arriba (móvil), con el punto rodeado de un anillo `--anillo-seleccion`, los de alrededor a opacidad 0,55, el pin propuesto `--naranja-600` con punto blanco, el círculo de duplicado discontinuo `--oro-600` con el código del que choca, y en una ubicación la posición de ahora en gris unida a la propuesta por una flecha discontinua con los metros; Mapa / Satélite arriba a la derecha (Satélite en las ubicaciones), zoom abajo a la derecha, "Abrir en grande" abajo a la izquierda y una leyenda de una línea debajo. **Datos del punto**: título Barlow 17 px con "N cambios · el resto se queda igual" (en un alta, solo el título); rejilla de dos columnas (una en el móvil) separadas por 1 px `--linea`, etiqueta a la izquierda y valor a la derecha; lo que cambia va primero, con fondo cálido (`#FFF8EC` en claro), banda `--naranja-600` de 4 px a la izquierda y "Cambia" en `--naranja-texto` 10,5 px mayúsculas bajo la etiqueta (y "N cambios" también en `--naranja-texto`); el antes tachado en `--rojo-texto`, sin transparencia; el estado con su chip; código y coordenadas en JetBrains Mono. **Fotos** lado a lado, 200 px (ordenador), 220 (tableta), 110 (móvil), etiqueta abajo a la izquierda sobre `rgba(14,27,48,.8)`, o `--naranja-600` si es nueva frente a la actual. **Botones** fijos abajo sobre `--papel` con borde superior; por debajo de 1.100 px, repartidos a lo ancho, y en el móvil "Corregir" en lugar de "Aprobar con correcciones". **Sin chips de señales** (DEC-166): con núcleo y fuera de zona, la cabecera dice "[núcleo] · Fuera de zona"; si el duplicado no está en el inventario cargado, un recuadro `--oro-100`/`--oro-600` con "Posible duplicado de [código] · a [distancia]…" donde iría la comparación; "Fotos" lleva "llegó sin foto del sitio (versión anterior de la app)" en pequeño si toca; el aviso de desactualizada se repite encima de Corregir y Fusionar. En oscuro, la tabla de comparación y la caja de Fusionar usan un tinte `color-mix` de `--oro-600` sobre `--papel` (en vez de `--ambar-100`), para que el texto `--ambar-texto` se lea. El contenedor del mapa es `role="group"` (lleva controles de zoom dentro). |
 | **Panel: cola en tableta y móvil** (DEC-158) | por debajo de 1.100 px, la cola y el detalle son dos pantallas: el detalle ocupa la pantalla con una barra `--marino-950` con "‹" y el título. Cada fila de la cola lleva un mapita de 62 × 48 px, radio 6, con el mapa base propio y el punto (naranja si es propuesto, marino si existe). Abajo, una barra `--marino-950` dice "Toca una para revisarla" o, con propuestas marcadas, aprueba o rechaza en bloque. "‹" y aprobar o rechazar vuelven a la cola quitando la entrada del historial que se abrió al tocar la propuesta, no añadiendo otra; si se llegó con la propuesta en la dirección (un enlace, recargar), se quita sin salir del panel. "Rechazar seleccionadas…", en la barra de abajo, abre el motivo arriba, lo pone a la vista y le da el foco (`docs/31` RV-163). Desde 1.100 px, la propuesta abierta se fija por su código en la dirección (`?p=`, sin apilar): una que llega después sale arriba de la lista sin mover el detalle ni borrar lo escrito; solo cambia si jefatura toca otra, si se resuelve la abierta (pasa a la primera) o si desaparece (`docs/31` RV-161). La fila de la abierta usa `--fila-elegida` (§2.4). |
 | **Panel: Inventario, filtros** (DEC-168) | dos `<select>` nativos de 44 px con la etiqueta encima: **Tipo** (Todos · Hidrantes · Bocas de riego) y **Estado** (Todos y los cinco estados, cada uno con su número según el tipo, «Regular · 3»). Con un filtro activo, borde de 2 px `--anillo-seleccion` y negrita, y al lado el enlace «Quitar filtros». **Exportar ▾**: un solo botón secundario (`aria-haspopup="menu"`, `aria-expanded`) que abre Excel, CSV y GeoJSON (`role="menu"`, flechas, Inicio/Fin, Esc devuelve el foco); sin filas, deshabilitado con «Nada que exportar con estos filtros». ≥ 768 px: una fila, filtros a la izquierda y Exportar y Tabla/Mapa a la derecha; en el móvil, Tipo y Estado lado a lado y debajo el resto. |
-| **Panel: Editar** (DEC-169) | panel lateral: 540 px a la derecha sin velo (≥ 1.100 px, la tabla sigue usable con la fila marcada), 500 px con velo `rgba(14,27,48,.25)` (768–1.099) o pantalla completa (< 768), con su entrada de historial a todos los anchos. De arriba abajo: banda del estado **guardado** (`bandaDe`) con el código, «Editar» y la X; el mapa del alta (`SelectorPin`, 230 px; 200 en el móvil) con «Toca el mapa para ajustar el pin», la posición de antes en gris unida por una línea discontinua con «antes · N m»; Tipo bloqueado (con candado y su motivo); Diámetro, Tipo de enganche (bocas), Caudal / estado, fallo (solo No funciona), Dirección («Has movido el punto N m: revisa la dirección» desde 25 m) y Descripción, con las piezas del alta. Lo que cambia se marca como en la cola: fondo cálido, banda `--naranja-600` de 4 px, «· cambia» y «antes: …» tachado en `--rojo-texto`; la ubicación cuenta desde 0,5 m. Pie fijo: «N cambios · cuáles» o «No has cambiado nada», Cancelar y Guardar cambios (deshabilitado con su motivo). Cerrar o salir del Inventario con cambios pregunta «¿Descartar N cambios?»; mientras guarda («Guardando…») no se cierra ni cambia de punto. |
+| **Panel: Editar** (DEC-169) | panel lateral: 540 px a la derecha sin velo (≥ 1.100 px, la tabla sigue usable con la fila marcada), 500 px con velo `rgba(14,27,48,.25)` (768–1.099) o pantalla completa (< 768), con su entrada de historial a todos los anchos. De arriba abajo: banda del estado **guardado** (`bandaDe`) con el código, «Editar» y la X; el mapa del alta (`SelectorPin`, 230 px; 200 en el móvil) con «Toca el mapa para ajustar el pin», la posición de antes en gris unida por una línea discontinua con «antes · N m»; Tipo bloqueado (con candado y su motivo); Diámetro, Tipo de enganche (bocas), Caudal / estado, fallo (solo No funciona), Dirección («Has movido el punto N m: revisa la dirección» desde 25 m) y Descripción, con las piezas del alta. Lo que cambia se marca como en la cola: fondo cálido, banda `--naranja-600` de 4 px, «· cambia» y «antes: …» tachado en `--rojo-texto`; la ubicación cuenta desde 0,5 m. Pie fijo: «N cambios · cuáles» o «No has cambiado nada», Cancelar y Guardar cambios (deshabilitado con su motivo). Cerrar o salir del Inventario con cambios pregunta «¿Descartar N cambios?»; mientras guarda («Guardando…») no se cierra ni cambia de punto. **Al día** (docs/31 RV-165): si el punto cambia por fuera mientras Editar está abierto (otro administrador, al sincronizar), sin cambios sin guardar Editar se pone al día sin cerrarse; con cambios, un aviso encima de los campos, «Otro administrador ha cambiado este punto.» con «Ver lo nuevo», que pregunta «¿Descartar N cambios?» y, al descartar, carga lo nuevo. Hasta entonces, «antes» y la comparación siguen siendo con lo que se abrió. Mientras una fila está abierta en Editar, su dirección en la tabla se ve como texto (se cambia en Editar). Cerrada la pregunta sin cerrar Editar, el foco vuelve a donde estaba (o al primer control). |
 | **Panel: acciones** | Aprobar `--verde-600` relleno; Aprobar con correcciones borde `--marino-950`; Fusionar borde `--oro-600` texto `--ambar-700`; Rechazar borde `--rojo-700`; Confirmar y aprobar (desactualizada) `--rojo-700` relleno. |
 | **Panel: registro** (DEC-171) | la columna Detalle del Registro (tabla y filas apiladas) y la segunda línea, en texto suave, de cada entrada del Historial de un punto dicen **qué cambió, con palabras**, calculado en el cliente con `antes` y `despues` (`detalleLegible`): solo lo que cambia, «Estado: No funciona → Regular · Enganche: Granada → Directo · Movido 6,2 m». Nombres: Estado, Enganche, Diámetro, Tipo, Fallo, Dirección, Descripción, Núcleo, Última revisión, Foto y Foto del sitio («cambiada», sin la ruta), Situación (con palabras), Código y Motivo; «Movido N m» al final, desde `desplazamiento_m` si lo anotó la base de datos o, si no, calculado (desde 0,5 m). Textos de más de 60 caracteres se recortan con «…»; vacío o nulo, «—»; booleanos «sí/no». Un alta o restauración: resumen del punto («Boca de riego · 45 mm · Bueno · Barrio Seco»); un borrado o purga: «Código: X · Tipo · Motivo: …»; sin cambios visibles: «Sin cambios en los datos». Nunca salen `*_id` (tampoco `dispositivo_id`), `autor_nombre`, `autor_apellido` ni `actor`. Una clave que no está en la lista sale con su nombre tal cual. **Límite conocido:** la búsqueda del Registro sigue siendo la del servidor (`resumen`), que encuentra por nombre de campo («caudal»), no por los valores que se ven («Regular»). |
 | **Panel: ventanas modales y foco** (`docs/30` RV-128) | mientras está abierta una ventana modal del panel (Retirar, Borrar, Historial, «¿Descartar N cambios?» y Editar con velo o a pantalla completa), el resto de la página queda `inert`: Tab no sale de la ventana y el lector de pantalla no lee lo de detrás. Desde el último control, el foco vuelve al primero pasando por la barra del navegador, como en un `<dialog>` modal nativo. Con varias ventanas, solo responde la de encima; al cerrarla, vuelve a responder la de debajo. Editar al lado de la tabla (≥ 1.100 px) no es modal (`aria-modal=false`) y la tabla sigue a mano (DEC-169); si cambia de forma sin cerrarse, pasa a ser modal o deja de serlo, y si el foco estaba en la tabla, entra en Editar. El aviso de arriba («Guardado…», errores) va en su propio portal fuera de la inertización: se ve, se anuncia y se cierra aunque haya una ventana abierta. El foco entra en la ventana solo al abrirla: un repintado del panel (los contadores, cada minuto) no lo saca del campo en que se escribe. Al cerrarla, con Escape, la ✕, el velo o una acción, el foco vuelve al elemento que lo tenía al abrir (Retirar, Borrar, Historial, Purgar, Código, Núcleo), o se queda en la página si ese elemento ya no existe (`docs/31` RV-160). |
@@ -509,7 +512,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Ej.: sale menos fuerza que en mayo` · `Qué has encontrado en el sitio` ·
 `Medida en mm (jefatura la comprobará)` · `Medida en mm, de 20 a 150` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` ·
 `Enviando…` · `Se enviará sola cuando haya conexión.` · `El cambio ya está en el mapa de todos.` ·
-`No se pudo guardar en el móvil. Inténtalo otra vez.`.
+`No se pudo guardar en el móvil. Inténtalo otra vez.` ·
+`Este punto ya no está en el mapa: lo han retirado o borrado` (el formulario de un punto que ya no está, docs/31 RV-152).
 
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
@@ -531,6 +535,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 
 **Envío.** `Enviar para revisión` · `Enviar propuesta de retirada` · `Aplicar ahora` ·
 `Guardar · se enviará con cobertura` · `Guardar · se enviará al volver el servidor` ·
+`Guardar en el móvil` (jefatura sin conexión, docs/31 RV-151) ·
 `Enviado para revisión` · `Guardado en el móvil` · `Aplicado` · `Volver al mapa` ·
 `Ver mis propuestas` · `Sin guardar en el móvil` ·
 `No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.` · `Reintentar ahora` ·
@@ -582,6 +587,11 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, díselo a jefatura.` ·
 `Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.` ·
 `El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, díselo a jefatura.`
+
+**Aviso o versión nueva con un formulario a medias** (docs/31 RV-157). Al tocar una notificación con
+un formulario abierto, la app no sale de él: enseña `Ha llegado un aviso.` con `Ver` y `Cerrar`; al
+tocar «Ver», o «recargar» por una versión nueva, pregunta: `¿Salir del formulario?` / `¿Recargar ahora?` ·
+`Lo que llevas del formulario, fotos incluidas, se perderá.` · `Salir` · `Recargar` · `Seguir con el formulario`.
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·
@@ -665,12 +675,13 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `Algún valor está fuera de rango: revisa los parámetros.` ·
 `Tu cuenta ya no tiene acceso de administrador.` ·
 `Esta acción aún no está configurada en el servidor.` ·
-`No se ha podido completar. Inténtalo de nuevo.`.
+`No se ha podido completar. Inténtalo de nuevo.` · `Esto solo se hace en producción.` · `Ya está pedido: empezará en unos minutos.` (docs/31 RV-146).
 
 **Panel: Editar (docs/29 RV-124, DEC-169).** `Editar` · `Ubicación` · `[Tipo de enganche] · cambia` · `antes:` · `—` · `antes · [6 m]` ·
 `⚠ Esto queda fuera de la zona habitual.` · `Has movido el punto [30 m]: revisa la dirección.` ·
 `[2 cambios] · [ubicación, enganche]` · `ubicación` · `diámetro` · `enganche` · `estado` · `fallo` · `dirección` ·
-`descripción` · `¿Descartar [n] cambios?` (`¿Descartar 1 cambio?` con uno) · `Descartar` · `Seguir editando` · `Guardando…`.
+`descripción` · `¿Descartar [n] cambios?` (`¿Descartar 1 cambio?` con uno) · `Descartar` · `Seguir editando` · `Guardando…` ·
+`Otro administrador ha cambiado este punto.` · `Ver lo nuevo`.
 
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
 `Quitar filtros` · `[Regular] · [3]` (opciones del desplegable Estado, docs/29 RV-123) · `Nada que exportar con estos filtros` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
@@ -715,9 +726,9 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `[correo] ya puede entrar en el panel.` · `[correo] se queda sin acceso al panel.` · `Parámetros` ·
 `Los móviles los aplican en su próxima sincronización.` · `Meses entre revisiones` ·
 `Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` · `Tramo de manguera (m)` ·
-`Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Parámetros guardados.` · `Núcleos` ·
+`Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.` (debajo del campo, al salir de él o al guardar, docs/31 RV-167) · `Parámetros guardados.` · `Núcleos` ·
 `Deducidos de OpenStreetMap. Se puede renombrar uno o añadir el que falte.` · `añadido a mano` ·
-`Renombrar` · `Nombre de [nucleo]` · `Añadir un núcleo` · `Nombre del núcleo` ·
+`Renombrar` · `Nombre de [nucleo]` · `Todavía no hay núcleos.` · `Todavía no hay administradores.` (docs/31 RV-167) · `Añadir un núcleo` · `Nombre del núcleo` ·
 `Toca el mapa en el centro del núcleo: de ahí sale el municipio y a qué núcleo pertenece cada punto.` ·
 `Centro del núcleo` · `Escribe el nombre del núcleo` · `Toca el mapa para situarlo` ·
 `Núcleo "[nombre]" añadido.` · `"[antes]" ahora se llama "[ahora]".` ·
@@ -731,13 +742,13 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) · `no se mide en pruebas` (Almacenamiento usado en staging sin dato, docs/23 RV-98, DEC-143) ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
-`"[nombre]" lanzado. Tarda unos minutos.` · `Avisos para jefatura` ·
+`"[nombre]": pedido. Empezará en unos minutos.` (el panel deja un pedido que recoge un workflow, docs/31 RV-146) · `Solo en producción` (debajo de «Purgar fotos huérfanas» y «Respaldo ahora», deshabilitados fuera de producción, RV-167) · `Avisos para jefatura` ·
 `Notificaciones en este navegador. Opcionales y apagadas por defecto.` ·
 `Nuevas propuestas pendientes` · `agrupadas: como mucho una por hora` · `Resumen semanal` ·
 `los lunes: revisiones caducadas y pendientes antiguas` ·
 `Este navegador tiene los avisos bloqueados. Actívalos en la configuración del sitio.` ·
 `En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.` ·
-`Este navegador no admite avisos.` · `No se han podido activar los avisos.` · `Código QR del enlace` ·
+`Este navegador no admite avisos.` · `No se han podido activar los avisos.` · `No se han podido cambiar los avisos. Inténtalo de nuevo.` (docs/31 RV-167) · `Código QR del enlace` ·
 `Para la sede y las reuniones: quien lo escanea abre la aplicación.` · `Imprimir A4` ·
 `Escanea para instalar` ·
 `Mapa de hidrantes y bocas de riego. Entra con el código de acceso que te haya dado jefatura.` ·

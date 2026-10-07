@@ -12,6 +12,8 @@ import {
   cambiosParametros,
   faltaEnParametros,
   generarCodigo,
+  leerRadios,
+  textoRadios,
 } from './ajustes';
 import { NOVEDADES, normalizarNovedades } from '../novedades';
 import { T } from '../textos';
@@ -44,6 +46,30 @@ describe('parámetros (FR-142)', () => {
     expect(faltaEnParametros({ ...v, buffer_zona_m: 0 })).toBeNull();
     expect(faltaEnParametros({ ...v, escala_radios: [11, 9, 7] })).toBe('escala_radios');
     expect(faltaEnParametros({ ...v, escala_radios: [40, 9, 7, 5.5, 5] })).toBe('escala_radios');
+  });
+});
+
+// docs/31 RV-167: los radios se escriben como texto libre y se leen al salir del campo y al guardar.
+describe('radios del marcador como texto (docs/31 RV-167)', () => {
+  it('se escriben con coma decimal y se leen con coma o punto, con cualquier separador', () => {
+    expect(textoRadios([11, 9, 7, 5.5, 5])).toBe('11 · 9 · 7 · 5,5 · 5');
+    expect(leerRadios('11 · 9 · 7 · 5,5 · 5')).toEqual([11, 9, 7, 5.5, 5]);
+    expect(leerRadios('12 9 7 5.5 4')).toEqual([12, 9, 7, 5.5, 4]);
+    expect(leerRadios('12; 9; 7; 5,5; 4')).toEqual([12, 9, 7, 5.5, 4]);
+    expect(leerRadios(textoRadios([12, 9, 7, 5.5, 4]))).toEqual([12, 9, 7, 5.5, 4]);
+  });
+
+  it('lo que no es un número no se convierte en otro: no deja guardar', () => {
+    const v = PARAMETROS_POR_DEFECTO;
+    expect(faltaEnParametros({ ...v, escala_radios: leerRadios('11 · 9 · 7 · 5,5') })).toBe('escala_radios');
+    expect(faltaEnParametros({ ...v, escala_radios: leerRadios('11 · 9 · 7 · 5,5,5 · 5') })).toBe('escala_radios');
+    expect(faltaEnParametros({ ...v, escala_radios: leerRadios('') })).toBe('escala_radios');
+  });
+
+  it('de mayor a menor, como R1 a R5 de 06 §4.1 (iguales sí)', () => {
+    const v = PARAMETROS_POR_DEFECTO;
+    expect(faltaEnParametros({ ...v, escala_radios: [5, 5.5, 7, 9, 11] })).toBe('escala_radios');
+    expect(faltaEnParametros({ ...v, escala_radios: [11, 9, 9, 5, 5] })).toBeNull();
   });
 });
 

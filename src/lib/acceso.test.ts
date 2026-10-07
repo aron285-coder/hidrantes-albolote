@@ -104,6 +104,29 @@ describe('canje del código (FR-31, FR-33)', () => {
     expect(reintentarCola).toHaveBeenCalledTimes(1);
   });
 
+  it('DISPOSITIVO_RESERVADO: otro identificador y un solo reintento (docs/31 RV-159)', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(respuesta(409, { error: 'DISPOSITIVO_RESERVADO' }))
+      .mockResolvedValueOnce(respuesta(200, { token: TOKEN, caduca_en: '2027-09-19T00:00:00Z' }));
+    vi.stubGlobal('fetch', fetch);
+    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const id = (n: number) =>
+      JSON.parse((fetch.mock.calls[n] as unknown as [string, RequestInit])[1].body as string).dispositivo_id;
+    expect(id(1)).not.toBe(id(0));
+    expect(id(1)).toMatch(/^[0-9a-f-]{36}$/);
+    expect(acceso().tipo).toBe('voluntario');
+  });
+
+  it('DISPOSITIVO_RESERVADO dos veces: el error de siempre, sin más reintentos (docs/31 RV-159)', async () => {
+    const fetch = vi.fn(async () => respuesta(409, { error: 'DISPOSITIVO_RESERVADO' }));
+    vi.stubGlobal('fetch', fetch);
+    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBe('DISPOSITIVO_RESERVADO');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(acceso().tipo).toBe('fuera');
+  });
+
   it('demasiados intentos bloquea la entrada una hora', async () => {
     vi.stubGlobal(
       'fetch',

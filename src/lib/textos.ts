@@ -341,6 +341,7 @@ export const T = {
     guardadoDetalle: 'Se enviará sola cuando haya conexión.',
     aplicadoDetalle: 'El cambio ya está en el mapa de todos.',
     errorGuardar: 'No se pudo guardar en el móvil. Inténtalo otra vez.',
+    puntoYaNoEsta: 'Este punto ya no está en el mapa: lo han retirado o borrado',
   },
 
   formulario: {
@@ -413,6 +414,7 @@ export const T = {
     aplicarAhora: 'Aplicar ahora',
     guardarSinCobertura: 'Guardar · se enviará con cobertura',
     guardarSinServidor: 'Guardar · se enviará al volver el servidor',
+    guardarEnMovil: 'Guardar en el móvil',
     enviado: 'Enviado para revisión',
     guardadoEnMovil: 'Guardado en el móvil',
     soloEnMemoria: 'Sin guardar en el móvil',
@@ -543,6 +545,19 @@ export const T = {
     servidorSinConexion: 'Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.',
     servidorNoGuarda:
       'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, díselo a jefatura.',
+  },
+
+  // docs/31 RV-157: una notificación o una versión nueva con un formulario a medias.
+  avisoFormulario: {
+    avisoNuevo: 'Ha llegado un aviso.',
+    ver: 'Ver',
+    cerrar: 'Cerrar',
+    salir: '¿Salir del formulario?',
+    recargar: '¿Recargar ahora?',
+    sePierde: 'Lo que llevas del formulario, fotos incluidas, se perderá.',
+    botonSalir: 'Salir',
+    botonRecargar: 'Recargar',
+    seguir: 'Seguir con el formulario',
   },
 
   fallo: {
@@ -788,6 +803,9 @@ export const T = {
     descartar: 'Descartar',
     seguirEditando: 'Seguir editando',
     guardando: 'Guardando…',
+    // docs/31 RV-165: el punto cambió por fuera mientras Editar tenía cambios sin guardar.
+    otroAdministrador: 'Otro administrador ha cambiado este punto.',
+    verLoNuevo: 'Ver lo nuevo',
   },
 
   panelRegistro: {
@@ -952,7 +970,13 @@ export const T = {
     mantenimiento: 'Mantenimiento',
     ayudaMantenimiento:
       'Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.',
-    trabajoLanzado: (nombre: Parametro) => `"${nombre}" lanzado. Tarda unos minutos.`,
+    // docs/31 RV-146 y RV-167: el panel deja un pedido que un workflow recoge; en staging, Purgar fotos y
+    // el respaldo no se piden (trabajan contra producción).
+    trabajoPedido: (nombre: Parametro) => `"${nombre}": pedido. Empezará en unos minutos.`,
+    soloEnProduccion: 'Solo en producción',
+    radiosInvalidos: 'Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.',
+    nucleosVacio: 'Todavía no hay núcleos.',
+    administradoresVacio: 'Todavía no hay administradores.',
     avisosJefatura: 'Avisos para jefatura',
     ayudaAvisos: 'Notificaciones en este navegador. Opcionales y apagadas por defecto.',
     nuevasPropuestas: 'Nuevas propuestas pendientes',
@@ -963,6 +987,7 @@ export const T = {
     avisosInstalar: 'En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.',
     avisosNoDisponibles: 'Este navegador no admite avisos.',
     avisosNoActivados: 'No se han podido activar los avisos.',
+    avisosNoCambiados: 'No se han podido cambiar los avisos. Inténtalo de nuevo.',
     codigoQr: 'Código QR del enlace',
     ayudaQr: 'Para la sede y las reuniones: quien lo escanea abre la aplicación.',
     imprimirA4: 'Imprimir A4',
@@ -993,6 +1018,8 @@ export const T = {
     puntoOcupado: 'Otra persona está cambiando este punto; inténtalo en unos segundos.',
     tipoNoModificable: 'El tipo de un punto no se cambia: retíralo y da de alta el correcto.',
     generico: 'No se ha podido completar. Inténtalo de nuevo.',
+    soloEnProduccion: 'Esto solo se hace en producción.',
+    yaPedido: 'Ya está pedido: empezará en unos minutos.',
   },
 
   panel: {

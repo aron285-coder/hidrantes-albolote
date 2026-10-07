@@ -80,6 +80,10 @@
   --control-mapa: #ffffff;
   --badge-pendiente-fondo: var(--naranja-100);
   --badge-pendiente-texto: var(--naranja-600);
+  /* La fila elegida de una lista del panel (la propuesta abierta en la Cola). Token, no la variante
+     dark: de Tailwind, que solo sigue al sistema: con el tema forzado a oscuro sobre un sistema claro
+     quedaba un fondo claro bajo texto claro (docs/31 RV-169). Texto suave a ≥ 4,5:1 en los dos modos. */
+  --fila-elegida: #eff3f8;
 
   color-scheme: light;
 }
@@ -106,6 +110,7 @@
     /* En el mapa oscuro manda el relleno amarillo (≥ 4,56:1 sobre las superficies; sobre los
        rótulos, 1,79:1, lo separa este borde, 5,06:1). Uno blanco no se separaría de él (1,96:1). */
     --borde-marcador-regular: #111826;
+    --fila-elegida: #243149;
     color-scheme: dark;
   }
 }
@@ -127,6 +132,7 @@
   --anillo-sin-revisar: #c9cfd8;
   --linea-incidente: rgba(230, 234, 240, 0.7);
   --borde-marcador-regular: #111826;
+  --fila-elegida: #243149;
   color-scheme: dark;
 }
 
@@ -146,6 +152,7 @@
   --color-oro-100: var(--oro-100);
   --color-fondo: var(--fondo);
   --color-papel: var(--papel);
+  --color-fila-elegida: var(--fila-elegida);
   --color-linea: var(--linea);
   --color-texto: var(--texto);
   --color-texto-suave: var(--texto-suave);

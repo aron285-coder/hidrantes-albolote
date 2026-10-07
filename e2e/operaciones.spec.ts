@@ -264,6 +264,35 @@ test.describe('operaciones (FL-03–FL-08)', () => {
       expect(s.propuestas[0]).toMatchObject({ ...op.esperado, punto_id: hid.id });
     });
   }
+  // docs/31 RV-157: una notificación tocada con el formulario a medias no se lo lleva sin preguntar.
+  test('un aviso con el formulario a medias pregunta antes de salir', async ({ page }) => {
+    await servidor(page);
+    const hid = PUNTOS[0];
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.sigueIgual}`) }).click();
+    await expect(page).toHaveURL(/\/proponer\//);
+    // Lo que manda public/sw-push.js en vez de navegar.
+    await page.evaluate(() =>
+      navigator.serviceWorker.dispatchEvent(
+        new MessageEvent('message', { data: { tipo: 'aviso_push', url: '/mis-propuestas' } }),
+      ),
+    );
+    await expect(page.getByText(T.avisoFormulario.avisoNuevo)).toBeVisible();
+    await page.getByRole('button', { name: T.avisoFormulario.ver, exact: true }).click();
+    const hoja = page.getByRole('dialog', { name: T.avisoFormulario.salir });
+    await expect(hoja.getByText(T.avisoFormulario.sePierde)).toBeVisible();
+    await hoja.getByRole('button', { name: T.avisoFormulario.seguir }).click();
+    await expect(page).toHaveURL(/\/proponer\//);
+    await page.getByRole('button', { name: T.avisoFormulario.ver, exact: true }).click();
+    await page
+      .getByRole('dialog', { name: T.avisoFormulario.salir })
+      .getByRole('button', { name: T.avisoFormulario.botonSalir })
+      .click();
+    await expect(page).toHaveURL(/\/mis-propuestas$/);
+    await expect(page.getByText(T.avisoFormulario.avisoNuevo)).toHaveCount(0);
+  });
+
   // docs/18 RV-41, DEC-090: el tipo no se cambia; se retira el punto y se da de alta el correcto.
   test('corregir datos no ofrece cambiar el tipo y enlaza a retirar', async ({ page }) => {
     await servidor(page);
@@ -520,8 +549,17 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await hacerFoto(page);
     await page.getByRole('button', { name: /^(Enviar para revisión|Guardar · se enviará)/ }).click();
     await expect(page.getByRole('heading', { level: 2, name: T.envio.soloEnMemoria })).toBeVisible();
+    // La pantalla sigue a la cola (docs/31 RV-151) y la cola reintenta sola: lo que salga antes del
+    // toque espera a que se pulse, para que el botón siga ahí y sea el toque el que lo lleve.
+    let pulsado!: () => void;
+    const tocado = new Promise<void>((r) => (pulsado = r));
+    await page.route(`${SB}/rest/v1/rpc/fn_proponer`, async (r) => {
+      await tocado;
+      await r.fallback();
+    });
     caido = false;
     await page.getByRole('button', { name: T.envio.reintentarAhora }).click();
+    pulsado();
     await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
     await expect(page.getByRole('button', { name: T.envio.reintentarAhora })).toHaveCount(0);
   });
@@ -608,4 +646,66 @@ test('un alta fuera de la zona avisa y deja continuar (FR-55)', async ({ page, c
   await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
   expect(s.propuestas[0]).toMatchObject({ operacion: 'alta' });
   expect(s.propuestas[0].lat as number).toBeCloseTo(37.1773, 3);
+});
+
+// docs/31 RV-151: con señal débil, Enviar esperaba a la cola entera (reserva, fotos y RPC) y el
+// voluntario se quedaba minutos en "Enviando…". Ahora basta con que quede guardada en el móvil.
+test('Enviar no espera a la cola: con la red parada, el resultado sale al momento y cambia al salir', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 37.2309, longitude: -3.6566, accuracy: 9 });
+  await conSesion(page);
+  const s = await servidor(page);
+  // La reserva de la foto no contesta: hay red, pero no pasa nada por ella.
+  let soltar!: () => void;
+  const suelta = new Promise<void>((r) => (soltar = r));
+  await page.route('**/api/url-subida', async (r) => {
+    await suelta;
+    await r.fallback();
+  });
+  await page.goto('/proponer/alta');
+  await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+  await page.getByRole('radio', { name: T.formulario.d45 }).click();
+  await page.getByRole('radio', { name: T.formulario.granada }).click();
+  await page.getByRole('radio', { name: T.formulario.bueno }).click();
+  await hacerFoto(page);
+  await enviar(page).click();
+  await expect(page.getByRole('heading', { level: 2, name: T.envio.guardadoEnMovil })).toBeVisible({ timeout: 1000 });
+  await expect(page.getByText(T.operaciones.guardadoDetalle)).toBeVisible();
+  expect(s.propuestas).toHaveLength(0);
+
+  // Cuando la red responde, la misma pantalla pasa a "Enviado", sin tocar nada.
+  soltar();
+  await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+  expect(s.propuestas).toHaveLength(1);
+});
+
+// docs/31 RV-152: si Android descarta la pestaña mientras está la cámara, al volver se recarga el
+// formulario antes de que hayan cargado los puntos, y mandaba al mapa.
+test.describe('el formulario de un punto al recargar (RV-152)', () => {
+  test.beforeEach(async ({ page }) => {
+    await conSesion(page);
+    await servidor(page);
+  });
+
+  test('recargar el formulario de un punto lo vuelve a abrir, sin mandar al mapa', async ({ page }) => {
+    const hid = PUNTOS[0];
+    await page.goto('/');
+    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length))).toBeVisible();
+    await page.goto(`/proponer/revision?p=${hid.id}`);
+    await expect(page.getByText(hid.codigo, { exact: true })).toBeVisible();
+    await expect(page).toHaveURL((u) => u.pathname === '/proponer/revision');
+  });
+
+  test('un punto que ya no está: lo dice y no redirige', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length))).toBeVisible();
+    await page.goto('/proponer/estado?p=no-existe');
+    await expect(page.getByRole('alert').filter({ hasText: T.operaciones.puntoYaNoEsta })).toBeVisible();
+    await expect(page).toHaveURL((u) => u.pathname === '/proponer/estado');
+    await page.getByRole('button', { name: T.envio.volverAlMapa }).click();
+    await expect(page).toHaveURL((u) => u.pathname === '/');
+  });
 });

@@ -190,9 +190,11 @@ su freno del 10 %.
 ### 2.7 `incidencias_app` (FR-92, FR-132)
 
 **En desuso desde docs/29 (DEC-167):** la app ya no tiene «Algo no funciona» ni el panel la lista de
-incidencias. La tabla, `fn_resolver_incidencia` e `incidencias_abiertas` de `fn_salud` se quedan
-(compatibilidad con la versión anterior del frontend, 04 §12), pendientes de limpiar en una
-migración posterior. Nada nuevo debe escribir en ella ni leerla.
+incidencias. La tabla y `fn_resolver_incidencia` se quedan (compatibilidad con la versión anterior del
+frontend, 04 §12), pendientes de limpiar en una migración posterior (#472). Nada nuevo debe escribir en
+ella ni leerla. Desde 0040 (docs/31 RV-148) `fn_reportar_incidencia` ya no tiene `execute` para `anon`
+ni `authenticated` (una app antigua que la llame recibe un 401/403 y lo trata como cualquier fallo) y
+`fn_salud` ya no devuelve `incidencias_abiertas`.
 
 | Columna | Tipo | Notas |
 |---|---|---|
@@ -209,7 +211,9 @@ migración posterior. Nada nuevo debe escribir en ella ni leerla.
 ### 2.8 `errores_cliente` (TR-90)
 
 `id bigint identity`, `momento timestamptz`, `dispositivo_id uuid`, `mensaje text`,
-`pila text` (≤ 4 kB, truncada), `ruta text`, `agente text`. Borrado > 90 días por `pg_cron`.
+`pila text` (≤ 4 kB, truncada), `ruta text`, `agente text` y, desde 0040, `ip_hash text` (el de
+`/api/error`, calculado como en `intentos_codigo`; `null` en lo que llega por la RPC de 5 argumentos de
+la app anterior). Índice `btree (ip_hash, momento)`. Borrado > 90 días por `pg_cron`.
 
 ### 2.9 `administradores` (FR-37, FR-141)
 
@@ -249,6 +253,9 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `dias_reserva_subida` | `2` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084); `fn_proponer` acepta como mínimo 1 día y la purga protege como mínimo 2, también si se pone a 1 (0026, RV-48). Era 7; 0039 la baja a 2: 48 h de protección y 24 h para confirmar (RV-142, DEC-174) |
 | `max_incidencias_dispositivo_dia` | `5` | |
 | `max_errores_global_dia` | `2000` | |
+| `revertir_despliegue_ajeno` | `false` | si la vigilancia ve un despliegue de producción que no viene de `deploy-prod`, además de abrir la issue vuelve a promover el último bueno (0040, docs/31 RV-130). No está en la lista blanca de Ajustes |
+| `max_errores_ip_dia` | `100` | errores al día por `ip_hash`, los que llegan por `/api/error` (0040, docs/31 RV-148) |
+| `max_errores_sin_ip_dia` | `500` | errores al día que llegan sin `ip_hash` (la RPC de 5 argumentos de la app anterior): quien rote `dispositivo_id` llena este cupo, no el global (0040) |
 | `escala_radios` | `[11, 9, 7, 5.5, 5]` | 06 §4 |
 | `metros_tramo_manguera` | `20` | entero de 10 a 30: longitud del tramo de manguera para los tramos de FR-74 y FR-76 (FR-142, GM-01) |
 | `version_callejero` | | la escribe cada despliegue con la versión de `datos/callejero.json` (FR-73, GM-04); Salud del sistema la enseña |
@@ -290,9 +297,30 @@ administrador en el mismo ordenador, se la queda). Hasta 0030 el único era solo
 `/api/push`; se purgan a los 30 días por `pg_cron`. Reclamar **no** es enviar:
 `fn_reclamar_notificaciones` (como mucho 50) anota `reclamada_en` e `intentos`, y `enviada_en` solo
 lo pone `fn_resultado_notificacion` con `ok`. Lo reclamado sin resultado vuelve a salir a los
-15 minutos; al cuarto intento queda `error = 'SIN_RESPUESTA'` (DEC-088). Lo que un servicio de push
+15 minutos; al cuarto intento queda `error = 'SIN_RESPUESTA'` (DEC-088) y, desde 0040 (docs/31
+RV-144), eso suma un fallo a su suscripción con la regla de borrado de §2.12: un servicio que no
+contesta nunca ya no deja la suscripción para siempre. Lo que un servicio de push
 rechaza con 429 lo aplaza `fn_aplazar_notificaciones`: vuelve a poder reclamarse pasado el
 `Retry-After` y se le devuelve el intento (0030, DEC-118).
+
+### 2.15 `pedidos_trabajo` — trabajos pedidos desde Ajustes (0040, docs/31 RV-146)
+
+El panel ya no lanza workflows con un token de GitHub: `/api/lanzar-workflow` deja aquí un pedido con
+`fn_pedir_trabajo` y `despachador.yml` (programado, solo producción) lo recoge con
+`fn_pedidos_pendientes`, lo despacha y lo marca con `fn_marcar_pedido`. En staging nadie despacha.
+
+| Columna | Tipo | Nulo | Notas |
+|---|---|---|---|
+| `id` | `bigint` identity | no | PK |
+| `workflow` | `text` | no | `purgar-fotos` · `regenerar-zona` · `regenerar-mapabase` · `respaldo` (check) |
+| `pedido_por` | `text` | no | correo del administrador |
+| `pedido_en` | `timestamptz` | no | default `now()` |
+| `lanzado_en` | `timestamptz` | sí | cuándo lo marcó el despachador; `null` = pendiente |
+| `resultado` | `text` | sí | `lanzado` o `error: <motivo>`, de 1 a 500 caracteres; va con `lanzado_en` (check: los dos o ninguno) |
+
+Único parcial `(workflow) where lanzado_en is null`: como mucho un pedido pendiente por trabajo. RLS
+y permisos como las demás tablas (lectura solo para administradores; nadie escribe salvo por RPC;
+`service_role` todo).
 
 ### 2.14 `migraciones_aplicadas`
 
@@ -330,7 +358,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida` |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni
@@ -430,14 +458,24 @@ fn_retirar_propuesta(token text, propuesta_id uuid) returns void
 
 fn_reportar_incidencia(token text, descripcion text, version_app text, ruta text) returns uuid
   -- errores: CUOTA_INCIDENCIAS_AGOTADA
+  -- SIN execute para anon ni authenticated desde 0040 (docs/31 RV-148): nadie la llama desde docs/29.
 
 fn_guardar_suscripcion_push(token text, suscripcion jsonb, temas text[]) returns uuid
 fn_borrar_suscripcion_push(token text) returns void
 
--- Única RPC anónima sin token.
+-- 0040 (docs/31 RV-158): cerrar sesión. Revoca el token con el que se llama (y cualquier otro sin
+-- revocar del mismo dispositivo_id) y borra las suscripciones push de ese dispositivo. No dice si el token existía: uno desconocido, ya revocado o mal formado no
+-- hace nada y no falla. anon y authenticated, como las demás de voluntario.
+fn_cerrar_sesion(token text) returns void
+
+-- Única RPC anónima sin token. Desde 0040 es la de la app anterior: lo que entra por aquí va sin
+-- ip_hash y tiene su propio techo, max_errores_sin_ip_dia (500).
 fn_registrar_error(dispositivo_id uuid, mensaje text, pila text, ruta text, agente text) returns void
   -- pila truncada a 4 kB; techo diario de 100 por dispositivo y max_errores_global_dia en total;
   -- nunca lanza error al cliente.
+-- 0040 (RV-148): firma nueva, solo service_role; la llama /api/error con el ip_hash de CF-Connecting-IP.
+-- Mismos techos más max_errores_ip_dia (100) por ip_hash. Nunca lanza error.
+fn_registrar_error(dispositivo_id uuid, mensaje text, pila text, ruta text, agente text, ip_hash text) returns void
 ```
 
 No existe RPC de voluntario para "puntos cercanos": el duplicado se calcula en `fn_proponer` y solo
@@ -503,7 +541,13 @@ fn_editar_punto(punto_id uuid, cambios jsonb) returns void
 fn_retirar_punto(punto_id uuid, motivo text) returns void       -- PAYLOAD_INVALIDO(motivo) con más de 1.000 (0039)
 fn_borrar_punto(punto_id uuid, motivo text) returns void        -- situacion = 'borrado', borrado_en = now(); ídem
 fn_restaurar_punto(punto_id uuid) returns void                  -- error: FUERA_DE_PLAZO_PAPELERA
+  -- desde 0040 (docs/31 RV-145) vuelve a la situación de antes del borrado, la del 'antes' del último
+  --   registro 'borrado' del punto: un retirado vuelve retirado. Sin ese dato, 'activo', como antes, y
+  --   el registro de la restauración lleva situacion_deducida = true.
 fn_purgar_papelera() returns integer                            -- también la llama pg_cron
+  -- desde 0040 (RV-147) se lleva también las propuestas de alta que crearon el punto o se fusionaron
+  --   con él (correcciones.punto_id, o el registro de su aprobación o fusión): sus fotos dejan de
+  --   estar referenciadas y el nombre del autor se va con ellas.
 
 fn_cambiar_codigo_acceso(nuevo text, revocar_dispositivos boolean) returns void
   -- errores: CODIGO_FORMATO (6 dígitos)
@@ -520,12 +564,18 @@ fn_actividad_voluntarios(meses integer)
 fn_anonimizar_autor(dispositivo_id uuid) returns integer      -- filas afectadas
 fn_historial_punto(punto_id uuid) returns setof v_registro
 fn_salud() returns jsonb
-  -- { pendientes_14d, incidencias_abiertas, errores_7d, sin_direccion, ultimo_respaldo, storage_bytes,
+  -- { pendientes_14d, errores_7d, sin_direccion, ultimo_respaldo, storage_bytes,
   --   version_zona, version_mapabase (la escribe cada despliegue, RV-21), version_callejero (0028,
   --   GM-04, ídem), ultima_vigilancia,
   --   vigilancia_ok (0011), dispositivos_activos, intentos_fallidos_24h, topes_alcanzados_24h,
   --   topes_globales_24h (0015, RV-14), bd_bytes, esquema_bytes, tareas (0018, RV-22),
-  --   tareas_origen, tareas_medidas_en, tareas_error (0031, docs/22 RV-92, DEC-132) }
+  --   tareas_origen, tareas_medidas_en, tareas_error (0031, docs/22 RV-92, DEC-132),
+  --   subidas_24h, dispositivos_reservados_24h (0040) }
+  -- 0040 (docs/31 RV-148): sin incidencias_abiertas. topes_globales_24h suma 1 si el tope global de
+  --   subidas (max_subidas_dia_total, 0039) está lleno ahora: el error deshace la transacción y no deja
+  --   rastro, así que se deduce de subidas_24h (reservas de voluntarios de las últimas 24 h, las mismas
+  --   que cuenta el tope). dispositivos_reservados_24h: canjes con el dispositivo_id de un administrador
+  --   (intentos_codigo.tope = 'dispositivo_reservado', RV-143).
   -- tareas: una fila por tarea hidrantes_% de pg_cron, { tarea, ultima, fallo, falta, problema }.
   --   Desde 0031 sale **en vivo** de fn_tareas_programadas() y tareas_origen = 'en_vivo'. Si esa
   --   llamada falla por permisos o porque pg_cron no está (insufficient_privilege, undefined_table,
@@ -536,12 +586,23 @@ fn_salud() returns jsonb
   --   (scripts/sql/tareas-esperadas.txt) solo la compara la vigilancia.
 fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- con foto_path y foto_sitio_path desde 0035; datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
 fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
+-- 0040 (docs/31 RV-167): apagar los avisos de jefatura en este navegador. Borra solo la fila de jefatura
+-- (dispositivo_id null) con ese endpoint; la del voluntario del mismo navegador no se toca. Sin fila, no
+-- hace nada. error: PAYLOAD_INVALIDO(endpoint) si viene vacío.
+fn_borrar_suscripcion_push_admin(endpoint text) returns void
 fn_renombrar_nucleo(nombre_actual text, nombre_nuevo text) returns void   -- 0009, DEC-068 (FR-166)
 fn_anadir_nucleo(nombre text, lat double precision, lng double precision) returns void   -- 0009
 fn_encolar_resumen_semanal() returns integer                   -- 0009; solo pg_cron, los lunes (FR-164)
-fn_novedades() returns jsonb                                    -- OBSOLETA desde 0.5.0: sin uso (las novedades salen del build, DEC-087); se retira en la siguiente versión mayor
+fn_novedades() returns jsonb                                    -- OBSOLETA desde 0.5.0: sin uso (las novedades salen del build, DEC-087); se retira en la siguiente versión mayor. Sin execute para authenticated desde 0040 (no empezaba por fn_exigir_admin; RV-149)
 fn_guardar_direccion_sugerida(propuesta_id uuid, direccion text) returns void   -- la usa /api/direccion con el JWT
-fn_registrar_workflow(workflow text) returns void               -- 'workflow_lanzado'; /api/lanzar-workflow ya no la usa (RV-146)
+fn_registrar_workflow(workflow text) returns void               -- la usaba /api/lanzar-workflow ('workflow_lanzado'); se queda para la Function anterior (04 §12)
+-- 0040 (docs/31 RV-146): la llama /api/lanzar-workflow con el JWT del administrador, en vez de lanzar el
+-- workflow con un token de GitHub. Registra 'workflow_lanzado' con { workflow, pedido_id }.
+fn_pedir_trabajo(workflow text) returns jsonb                   -- { pedido_id, workflow, pedido_en }
+  -- errores: NO_AUTORIZADO · PAYLOAD_INVALIDO(workflow) (fuera de la lista de §2.15) ·
+  --   YA_PEDIDO (ya hay uno pendiente de ese trabajo; la Function lo responde con 409)
+  -- un pendiente de más de 24 h no bloquea: se cierra con resultado 'error: caducado' y entra el nuevo
+  --   (en staging nadie despacha; sin esto el botón se quedaría en YA_PEDIDO para siempre).
 
 -- Solo service_role (la llama el workflow de purga). Una sola fila: PostgREST corta en max_rows
 -- (1.000) cualquier RPC que devuelva un conjunto, y la purga comprueba que fotos y total cuadran
@@ -560,6 +621,15 @@ fn_reservas_sin_confirmar_lista() returns jsonb   -- {"fotos": [text], "total": 
 -- enviados en la misma transacción; después se anota el resultado de cada uno.
 fn_reclamar_notificaciones(limite integer default 100)
   returns table (id bigint, titulo text, cuerpo text, url text, suscripcion_id uuid, suscripcion jsonb)
+  -- desde 0040 (RV-144) cada aviso que da por perdido (SIN_RESPUESTA) suma un fallo a su suscripción,
+  --   con la regla de borrado de fn_resultado_notificacion (§2.12), pero solo borra si en las últimas
+  --   24 h ha salido algún aviso: con /api/push caído, los perdidos no son culpa de la suscripción.
+-- Solo service_role (despachador.yml, 0040, docs/31 RV-146). Una sola fila: el array de pendientes.
+fn_pedidos_pendientes() returns jsonb   -- [{ id, workflow, pedido_en }], orden de pedido_en; [] si no hay
+fn_marcar_pedido(id bigint, resultado text) returns void
+  -- resultado: 'lanzado' o 'error: <motivo>', hasta 500 caracteres; otra cosa, PAYLOAD_INVALIDO(resultado).
+  -- Pone lanzado_en = now(): ya no sale en pendientes, tampoco con error (jefatura lo vuelve a pedir).
+  -- error: PEDIDO_NO_PENDIENTE (ya marcado o no existe).
 fn_resultado_notificacion(notificacion_id bigint, ok boolean, error text, suscripcion_caducada boolean default false)
   returns void   -- un 404/410 (caducada) borra la suscripción; otro error, con 10 fallos seguidos y sin envío bueno en 7 días (0030, DEC-118)
 fn_aplazar_notificaciones(ids bigint[], segundos integer) returns integer
@@ -662,7 +732,8 @@ segundos": lo devuelve `fn_aprobar_lote` en la propuesta cuyo punto no consigue 
 `CUOTA_PROPUESTAS_AGOTADA` ("has llegado al máximo de propuestas de hoy"; el message es
 `CUOTA_PROPUESTAS_AGOTADA: maximo=<n> reintentar_en_s=<s>`, 0039, RV-141), `DISPOSITIVO_RESERVADO` (en la columna `error` de
 `fn_verificar_codigo` y como `409` de `/api/verificar-codigo`; el móvil genera otro `dispositivo_id` y
-repite el canje una vez, 0039, RV-143). El cliente traduce cada código a un texto en español (TR-36); ningún error de
+repite el canje una vez, 0039, RV-143), `YA_PEDIDO` ("ya hay un pedido de ese trabajo esperando",
+`fn_pedir_trabajo`, 0040, RV-146), `PEDIDO_NO_PENDIENTE` (`fn_marcar_pedido`, 0040). El cliente traduce cada código a un texto en español (TR-36); ningún error de
 Postgres llega crudo.
 
 `DESCONOCIDO` es un código **solo de cliente** y no sale de ninguna RPC: lo pone `src/lib/api.ts`
@@ -851,6 +922,7 @@ sin ese cuello de botella:
 | Asignación de código | `nextval` sobre la secuencia, fuera de cualquier lectura de `max(codigo)`. Dos altas simultáneas obtienen códigos distintos por construcción. |
 | `fn_proponer` | `insert … on conflict (clave_local) do nothing returning …`; si no devuelve fila, lee la existente. Dos envíos simultáneos del mismo móvil crean una sola propuesta. |
 | `fn_reservar_subida` | `pg_advisory_xact_lock(hashtext('subidas:' || dispositivo))` y después cuenta y reserva: las reservas del mismo dispositivo van de una en una y dos peticiones a la vez no pasan las dos el tope (0005). Desde 0039, después y en ese orden, `pg_advisory_xact_lock(hashtext('subidas:global'))` para el tope global: siempre el del dispositivo primero, así que no hay interbloqueos. |
+| `fn_pedir_trabajo`, `fn_marcar_pedido` (0040) | El único parcial `(workflow) where lanzado_en is null` y `insert … on conflict do nothing`: dos pedidos a la vez del mismo trabajo dejan uno y el otro recibe `YA_PEDIDO`. Marcar bloquea la fila (`for update`). |
 | Cuota de propuestas (`fn_proponer`, 0039) | `pg_advisory_xact_lock(hashtext('propuestas:' || dispositivo))` después de la comprobación de `clave_local` y antes de contar: dos envíos del mismo móvil a la vez no pasan los dos la propuesta 60. |
 | `fn_verificar_codigo` | Empieza con `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). |
 | `fn_guardar_config`, `fn_gestionar_administrador` | `for update` sobre las filas afectadas; la regla del último administrador activo se comprueba **dentro** de la transacción. |

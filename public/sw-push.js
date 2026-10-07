@@ -99,12 +99,36 @@ self.addEventListener('notificationclick', (evento) => {
       return false;
     }
   };
+  // docs/31 RV-157: una ventana con un formulario a medias (/proponer) no se navega, que se perdería
+  // lo escrito y las fotos. Se le da el foco y se avisa a la app, que pregunta antes de salir.
+  const enFormulario = (v) => {
+    try {
+      return new URL(v.url).pathname.startsWith('/proponer');
+    } catch {
+      return false;
+    }
+  };
   evento.waitUntil(
     self.clients
       .matchAll({ type: 'window' })
       .catch(() => [])
       .then((controladas) => {
-        const propia = controladas.find(deEsteOrigen);
+        const propias = controladas.filter(deEsteOrigen);
+        const propia = propias.find((v) => !enFormulario(v));
+        if (!propia && propias.length) {
+          // La que se ve, si hay varias con formulario.
+          const formulario =
+            propias.find((v) => v.focused) || propias.find((v) => v.visibilityState === 'visible') || propias[0];
+          const destinoUrl = new URL(destino);
+          return (
+            Promise.resolve()
+              .then(() => formulario.focus())
+              .catch(() => null)
+              .then(() => formulario.postMessage({ tipo: 'aviso_push', url: destinoUrl.pathname + destinoUrl.search }))
+              // Si no se le puede avisar, una ventana nueva: el formulario no se toca.
+              .catch(abrir)
+          );
+        }
         if (!propia) return abrir();
         // Primero el foco: el navegador solo lo permite poco después del toque, y navegar con datos
         // móviles puede tardar. Un foco que falla no abre otra ventana; un navigate que falla, sí.
