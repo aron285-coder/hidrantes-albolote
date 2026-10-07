@@ -1,0 +1,91 @@
+# Traspaso de un secreto con clave efímera (docs/31 §1.2, RV-131, DEC-172). Lo lanza
+# `scripts/traspasar-secreto.ts`, nunca una persona: GitHub no deja leer un secreto, así que para
+# moverlo de sitio (del repositorio a un environment, o entre environments) se cifra aquí con una clave
+# pública RSA de un solo uso cuya privada solo existe en la memoria del script local.
+#
+# Lo único que sale de aquí es el texto cifrado, como artefacto de 1 día. El valor nunca se imprime:
+# va del secreto a una variable de entorno y de ella, por tubería, a openssl. El script borra el
+# artefacto y la ejecución al terminar. scripts/seguridad-ci.test.ts comprueba que ningún `run:` de
+# este archivo escribe el valor.
+name: Traspaso de secreto
+run-name: Traspaso ${{ inputs.id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      secreto:
+        description: Nombre del secreto (solo el nombre)
+        type: string
+        required: true
+      origen:
+        description: "'repositorio' o el environment donde está ahora"
+        type: string
+        required: true
+      clave:
+        description: Clave pública RSA de un solo uso (DER en base64)
+        type: string
+        required: true
+      id:
+        description: Identificador de esta ejecución, para que el script la encuentre
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+# Un trabajo lleva un environment o ninguno: uno para cada caso, con el mismo guion. Sin `echo` ni
+# `printf` del valor a la salida: solo por tubería a openssl. Un secreto que no existe llega vacío, y
+# eso es un error (no se traspasa un vacío).
+jobs:
+  desde-repositorio:
+    if: inputs.origen == 'repositorio'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Cifrar con la clave efímera
+        env:
+          NOMBRE: ${{ inputs.secreto }}
+          CLAVE: ${{ inputs.clave }}
+          VALOR: ${{ secrets[inputs.secreto] }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$NOMBRE" =~ ^[A-Z][A-Z0-9_]{0,99}$ ]]; then echo '::error::Nombre de secreto no válido'; exit 1; fi
+          if [ -z "${VALOR:-}" ]; then echo "::error::$NOMBRE no existe en el origen o está vacío"; exit 1; fi
+          if ! [[ "$CLAVE" =~ ^[A-Za-z0-9+/=]{500,1200}$ ]]; then echo '::error::Clave pública no válida'; exit 1; fi
+          base64 -d <<< "$CLAVE" > clave.der
+          printf '%s' "$VALOR" | openssl pkeyutl -encrypt -pubin -keyform DER -inkey clave.der -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 | base64 -w0 > cifrado.b64
+          rm -f clave.der
+          echo "$NOMBRE cifrado ($(wc -c < cifrado.b64) caracteres en base64)"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cifrado
+          path: cifrado.b64
+          retention-days: 1
+          if-no-files-found: error
+
+  desde-environment:
+    if: inputs.origen != 'repositorio'
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.origen }}
+    timeout-minutes: 5
+    steps:
+      - name: Cifrar con la clave efímera
+        env:
+          NOMBRE: ${{ inputs.secreto }}
+          CLAVE: ${{ inputs.clave }}
+          VALOR: ${{ secrets[inputs.secreto] }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$NOMBRE" =~ ^[A-Z][A-Z0-9_]{0,99}$ ]]; then echo '::error::Nombre de secreto no válido'; exit 1; fi
+          if [ -z "${VALOR:-}" ]; then echo "::error::$NOMBRE no existe en el origen o está vacío"; exit 1; fi
+          if ! [[ "$CLAVE" =~ ^[A-Za-z0-9+/=]{500,1200}$ ]]; then echo '::error::Clave pública no válida'; exit 1; fi
+          base64 -d <<< "$CLAVE" > clave.der
+          printf '%s' "$VALOR" | openssl pkeyutl -encrypt -pubin -keyform DER -inkey clave.der -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 | base64 -w0 > cifrado.b64
+          rm -f clave.der
+          echo "$NOMBRE cifrado ($(wc -c < cifrado.b64) caracteres en base64)"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cifrado
+          path: cifrado.b64
+          retention-days: 1
+          if-no-files-found: error

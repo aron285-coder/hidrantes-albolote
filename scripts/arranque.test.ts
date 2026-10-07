@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { ErrorDeScript } from './lib/comun.ts';
 import {
   ENTORNOS,
+  ENV_TAREAS,
+  sitioSecretoTareas,
   type EscrituraWorker,
   type OpsFaltantes,
   ROTABLES,
@@ -47,6 +51,39 @@ describe('secreto de la vigilancia (RV-08)', () => {
   it('su secreto de repositorio lleva el sufijo del entorno', () => {
     expect(sufijoDe({ clave: 'staging' })).toBe('STAGING');
     expect(sufijoDe({ clave: 'production' })).toBe('PROD');
+  });
+});
+
+// docs/31 RV-131, DEC-172: ningún secreto de producción en el nivel del repositorio.
+describe('environment prod-tareas (RV-131)', () => {
+  const fuente = readFileSync(path.join(import.meta.dirname, 'arranque.ts'), 'utf8');
+
+  it('los secretos _PROD de las tareas van a prod-tareas; los de staging, al repositorio', () => {
+    expect(ENV_TAREAS).toBe('prod-tareas');
+    expect(sitioSecretoTareas('SUPABASE_DB_URL_PROD')).toBe('prod-tareas');
+    expect(sitioSecretoTareas('SUPABASE_SERVICE_ROLE_KEY_PROD')).toBe('prod-tareas');
+    expect(sitioSecretoTareas('VIGILANCIA_SECRETO_PROD')).toBe('prod-tareas');
+    expect(sitioSecretoTareas('VIGILANCIA_SECRETO_STAGING')).toBeUndefined();
+  });
+
+  it('el arranque crea prod-tareas sin revisores y solo para develop', () => {
+    expect(fuente).toContain("{ nombre: ENV_TAREAS, rama: 'develop', revisor: false }");
+    expect(fuente).toContain('`repos/${REPO}/environments/${e.nombre}/deployment-branch-policies`');
+  });
+
+  it('ningún secreto _PROD se escribe en el repositorio sin pasar por sitioSecretoTareas', () => {
+    // fijarSecreto(nombre, valor) sin tercer argumento es el repositorio.
+    const alRepositorio = [...fuente.matchAll(/fijarSecreto\(([^,]+),[^,)]+\)/g)].map((m) => m[1]!.trim());
+    expect(alRepositorio.filter((n) => /PROD|sufijo/.test(n))).toEqual([]);
+  });
+
+  it('entornos.md y su plantilla no dejan ningún secreto de producción en el repositorio', () => {
+    const entornos = readFileSync(path.join(import.meta.dirname, '../docs/entornos.md'), 'utf8');
+    for (const texto of [entornos, fuente.replaceAll('\\`', '`')]) {
+      const fila = texto.split('\n').find((l) => l.startsWith('| Secretos del repositorio |'))!;
+      expect(fila).not.toMatch(/PROD\b|\{STAGING,PROD\}/);
+      expect(texto).toContain('| Environment `prod-tareas` (sin revisores, solo `develop`) |');
+    }
   });
 });
 
