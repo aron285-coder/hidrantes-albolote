@@ -16,6 +16,9 @@ select plan(9);
 --    salen vacíos para un no administrador (se comprueba abajo).
 --  · las nueve RPC de voluntario: también las concede a anon (02_permisos), porque jefatura usa la
 --    misma app (FR-150). No las protege la sesión sino el token del dispositivo.
+--  · fn_novedades: OBSOLETA desde 0.5.0 (05, DEC-087), sin uso. SECURITY DEFINER sin
+--    fn_exigir_admin: da config.novedades, lo mismo que sale del build. Avisado en #484 para
+--    quitarle el permiso en una migración; cuando llegue, sale de aquí y de la lista.
 create temp table exentas (nombre text primary key, motivo text not null);
 insert into exentas values
   ('fn_es_admin', 'ayudante de RLS'),
@@ -30,7 +33,8 @@ insert into exentas values
   ('fn_reportar_incidencia', 'voluntario, con token'),
   ('fn_guardar_suscripcion_push', 'voluntario, con token'),
   ('fn_borrar_suscripcion_push', 'voluntario, con token'),
-  ('fn_registrar_error', 'voluntario, con token');
+  ('fn_registrar_error', 'voluntario, con token'),
+  ('fn_novedades', 'obsoleta, solo novedades públicas (#484)');
 
 -- ---------- la lista exacta ----------
 
