@@ -64,13 +64,19 @@ export const SECRETOS_PAGES = [
   'VAPID_SUBJECT',
   'VIGILANCIA_SECRETO',
 ];
-/** Los de los trabajos automáticos, sin environment (DEC-071; `arranque.ts`, `sufijoDe`). */
-export const SECRETOS_REPO = [
+/**
+ * Los de las tareas automáticas de producción, en el environment prod-tareas: sin revisores y solo
+ * para develop (DEC-071, docs/31 RV-131, DEC-172; `arranque.ts`, `sitioSecretoTareas`).
+ */
+export const SECRETOS_TAREAS = [
   'SUPABASE_DB_URL_PROD',
   'SUPABASE_SERVICE_ROLE_KEY_PROD',
   'VIGILANCIA_SECRETO_PROD',
-  'GPG_PUBLIC_KEY',
+  'CLOUDFLARE_API_TOKEN',
+  'CLOUDFLARE_ACCOUNT_ID',
 ];
+/** En el repositorio solo la clave pública del respaldo; ninguno de producción (DEC-172). */
+export const SECRETOS_REPO = ['GPG_PUBLIC_KEY'];
 /** La paginación de RV-15 y RV-33 da por hecho este tope de PostgREST (04 §5). */
 export const MAX_ROWS_ESPERADO = 1000;
 
@@ -95,6 +101,7 @@ export interface Fuentes {
   secretosEntorno(): string[] | null;
   variablesEntorno(): string[] | null;
   secretosRepo(): string[] | null;
+  secretosTareas(): string[] | null;
   secretosPages(): string[] | null;
   migracionesAplicadas(): Map<string, string> | null;
   esquemasExpuestos(): Promise<string[] | null>;
@@ -155,7 +162,21 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
     ...presentes('repositorio · secretos', SECRETOS_REPO, repo, {
       sinAcceso: 'sin sesión de gh con permisos de administrador',
     }),
+    ...presentes('environment prod-tareas · secretos', SECRETOS_TAREAS, f.secretosTareas(), {
+      sinAcceso: 'sin sesión de gh con permisos de administrador',
+    }),
   );
+  // Un secreto de producción en el repositorio lo puede leer un workflow de cualquier rama (DEC-172).
+  if (repo) {
+    const enRepo = repo.filter((n) => n.endsWith('_PROD'));
+    filas.push({
+      grupo: 'repositorio · secretos',
+      nombre: 'ninguno de producción',
+      estado: enRepo.length ? 'FALTA' : 'OK',
+      imprescindible: true,
+      nota: enRepo.length ? `bórralos tras comprobar prod-tareas: ${enRepo.join(', ')}` : undefined,
+    });
+  }
 
   // Base de datos: lo pendiente se aplica al desplegar; un hash distinto lo impide (migrar.ts).
   const aplicadas = f.migracionesAplicadas();
@@ -350,6 +371,7 @@ function fuentesReales(): Fuentes {
     secretosEntorno: () => nombresGh(`repos/${REPO}/environments/production/secrets`, 'secrets'),
     variablesEntorno: () => nombresGh(`repos/${REPO}/environments/production/variables`, 'variables'),
     secretosRepo: () => nombresGh(`repos/${REPO}/actions/secrets`, 'secrets'),
+    secretosTareas: () => nombresGh(`repos/${REPO}/environments/prod-tareas/secrets`, 'secrets'),
     secretosPages: () => {
       const r = ejecutar('npx', ['--no-install', 'wrangler', 'pages', 'secret', 'list', '--project-name', PAGES_PROD]);
       return r.codigo === 0 ? nombresWrangler(r.salida) : null;

@@ -5,9 +5,11 @@
 #     Git no se puede purgar (04 §9, 11 §2).
 #   - Fotos: el bucket entero, el primer domingo de cada mes, con el mismo cifrado.
 #
-# Sin `environment: production` a propósito: ese entorno exige aprobación humana en cada ejecución
-# (es lo que protege los despliegues), y un respaldo que espera a que alguien pulse un botón no es
-# un respaldo. Usa secretos del repositorio (DEC-071).
+# En el environment `prod-tareas` y no en `production`: production exige aprobación humana en cada
+# ejecución (es lo que protege los despliegues), y un respaldo que espera a que alguien pulse un botón
+# no es un respaldo (DEC-071). prod-tareas no tiene revisores, pero solo admite la rama develop: los
+# secretos de producción ya no están al alcance de un workflow de cualquier rama (docs/31 RV-131,
+# DEC-172).
 name: Respaldo
 
 on:
@@ -32,6 +34,7 @@ concurrency:
 jobs:
   respaldo:
     runs-on: ubuntu-24.04
+    environment: prod-tareas
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

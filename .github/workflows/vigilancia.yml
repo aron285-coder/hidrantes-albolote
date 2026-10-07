@@ -5,8 +5,8 @@
 # una issue con la etiqueta `vigilancia`; si todo va bien y había una abierta, la cierra. Salud del
 # sistema enseña cuándo corrió y cómo fue.
 #
-# Sin servicio externo y sin `environment` (DEC-071): usa las variables públicas del repositorio y,
-# para lo que necesita la base de datos, el secreto de repositorio del respaldo.
+# Sin servicio externo. Lo de producción, en el environment `prod-tareas` (sin revisores, solo develop;
+# docs/31 RV-131, DEC-172), no en `production`, que pediría aprobación en cada pasada (DEC-071).
 name: Vigilancia
 
 on:
@@ -105,6 +105,7 @@ jobs:
 
   mirar:
     needs: [worker, staging]
+    environment: prod-tareas
     # Aunque no se haya podido mirar el Worker o staging: el resto se comprueba igual y eso ya es un problema.
     if: always()
     runs-on: ubuntu-24.04
@@ -168,7 +169,7 @@ jobs:
           if [ -n "${BD:-}" ]; then
             revisar_bd produccion "$BD"
           else
-            problemas+=("falta SUPABASE_DB_URL_PROD: la vigilancia no puede mirar el respaldo (DEC-071)")
+            problemas+=("falta SUPABASE_DB_URL_PROD en prod-tareas: la vigilancia no puede mirar el respaldo (DEC-172)")
           fi
           if [ "${STAGING_RESULTADO:-}" != success ]; then
             problemas+=("staging: su vigilancia no terminó (${STAGING_RESULTADO:-sin resultado})")
