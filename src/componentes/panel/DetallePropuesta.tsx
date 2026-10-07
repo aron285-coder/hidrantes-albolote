@@ -88,10 +88,11 @@ export function DetallePropuesta({
     if (!editable || p.direccion_sugerida) return;
     let vigente = true;
     void deducirDireccion(p).then((d) => {
-      // La deducida se guarda en el servidor como sugerida: pasa a ser la enseñada, si nadie ha escrito.
       if (!vigente || !d || tocada.current) return;
-      setDireccion(d);
-      setEnsenada(d);
+      setDireccion(d.direccion);
+      // Guardada en el servidor como sugerida, es la que se aplica sin tocarla: pasa a ser la enseñada.
+      // Si no se pudo guardar, se queda la de antes como referencia y la deducida va como corrección.
+      if (d.guardada) setEnsenada(d.direccion);
     });
     return () => {
       vigente = false;

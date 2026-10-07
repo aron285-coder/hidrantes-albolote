@@ -759,6 +759,29 @@ test('RV-162 caso 1: aprobar un alta con la dirección deducida sin tocar no lle
     .toEqual({ propuesta_id: 'a9', correcciones: null, confirmar_desactualizada: false });
 });
 
+test('RV-162 caso 1: si la deducida no se pudo guardar, aprobar la manda como corrección', async ({ page }) => {
+  const llamadas = await prepararPanel(page, [ALTA_SIN_DIRECCION]);
+  // La Function la deduce pero no la guarda como sugerida: sin mandarla, el punto quedaría sin dirección.
+  await page.route('**/api/direccion?*', (r) =>
+    r.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ direccion: 'Camino del Cubillas 2', fuente: 'nominatim', guardada: false }),
+    }),
+  );
+  await page.goto('/admin/cola');
+  await abrir(page, /Prueba Seis/);
+  const detalle = page.getByRole('article');
+  await expect(detalle.getByLabel(T.ficha.direccion)).toHaveValue('Camino del Cubillas 2');
+  await detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_aprobar'))
+    .toEqual({
+      propuesta_id: 'a9',
+      correcciones: { direccion: 'Camino del Cubillas 2' },
+      confirmar_desactualizada: false,
+    });
+});
+
 test('RV-162 caso 2: corregir el estado no añade la dirección que el formulario rellena', async ({ page }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/cola');
@@ -849,6 +872,25 @@ test.describe('a 412 × 915 (RV-163)', () => {
     await expect(page.getByRole('article')).toHaveCount(0);
     await expect(page).not.toHaveURL(/[?&]p=/);
     expect(await largo()).toBe(inicio + 1);
+  });
+
+  test('con ?p= en la dirección (un enlace, recargar), "‹" y aprobar se quedan en la cola', async ({ page }) => {
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await page.goto('/admin/cola?p=c1');
+    const largo = () => page.evaluate(() => history.length);
+    const inicio = await largo();
+    await expect(page.getByRole('article')).toBeVisible();
+    // No hay una entrada apilada por la cola: atrás saldría del panel. Se quita ?p= sin apilar.
+    await page.getByRole('button', { name: T.panelCola.volverCola }).click();
+    await expect(page).toHaveURL(/\/admin\/cola$/);
+    await expect(page.getByRole('region', { name: T.panelCola.colaRevision })).toBeVisible();
+    expect(await largo()).toBe(inicio);
+
+    await page.goto('/admin/cola?p=c2');
+    await page.getByRole('article').getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/cola$/);
+    await expect(page.getByRole('region', { name: T.panelCola.colaRevision })).toBeVisible();
   });
 
   test('"Rechazar seleccionadas" lleva al formulario de arriba con el foco en el motivo', async ({ page }) => {
