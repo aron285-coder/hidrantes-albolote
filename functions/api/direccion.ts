@@ -77,19 +77,18 @@ export const onRequestGet: Manejador = async ({ request, env }) => {
     { jwt: jwt! },
   );
   if (!guardado.ok) {
-    // Nunca falla hacia el panel: rpc no lanza y fn_registrar_error tampoco.
-    await rpc(
-      env,
-      'fn_registrar_error',
-      {
-        dispositivo_id: null,
-        mensaje: `direccion_no_guardada: ${guardado.codigo}`,
-        pila: null,
-        ruta: '/api/direccion',
-        agente: null,
-      },
-      { jwt: jwt! },
-    );
+    // Con service_role y la firma de seis argumentos (0040): vale aunque el JWT haya caducado entre
+    // medias (que puede ser justo el motivo del fallo), y con un ip_hash fijo tiene su propio cupo,
+    // que no llena nadie rotando dispositivo_id. Si tampoco esto llega, el panel ya sabe por
+    // `guardada: false` que tiene que mandar la dirección; rpc no lanza.
+    await rpc(env, 'fn_registrar_error', {
+      dispositivo_id: null,
+      mensaje: `direccion_no_guardada: ${guardado.codigo}`,
+      pila: null,
+      ruta: '/api/direccion',
+      agente: null,
+      ip_hash: 'funcion:direccion',
+    });
   }
   return json({ direccion, fuente: 'nominatim', cacheada: false, guardada: guardado.ok }, 200, cabeceras);
 };

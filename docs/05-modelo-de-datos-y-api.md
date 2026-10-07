@@ -717,9 +717,12 @@ Cabecera `Authorization: Bearer <JWT de Supabase>`; la Function reenvía el JWT 
 
 `guardada` (RV-162) solo viene con `propuesta_id` y una dirección: `true` si ya estaba guardada en la
 propuesta (`cacheada: true`) o si `fn_guardar_direccion_sugerida` ha ido bien; `false` si ha fallado.
-Entonces se anota con `fn_registrar_error` (con el JWT de jefatura, mensaje
-`direccion_no_guardada: <código>`, sin la dirección) y el panel manda la dirección como corrección al
-aprobar. Sin el campo (Function anterior), el panel la da por guardada.
+Entonces se anota con `fn_registrar_error` de seis argumentos (`service_role`, `ip_hash` fijo
+`funcion:direccion`, con su propio cupo; mensaje `direccion_no_guardada: <código>`, sin la dirección) y
+el panel manda la dirección como corrección al aprobar. Sin el campo (Function anterior), el panel la da
+por guardada. Límite: `fn_guardar_direccion_sugerida` no falla si la propuesta ya no está pendiente
+(actualiza cero filas), así que ahí sale `guardada: true`; no importa, porque esa propuesta ya no se
+aprueba.
 
 Nominatim exige un `User-Agent` con contacto: `hidrantes-albolote/1.0 (+<URL del repositorio>)`,
 nunca un correo (DEC-053). La respuesta se guarda en la caché de Cloudflare (`caches.default`) 30 días

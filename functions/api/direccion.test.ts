@@ -131,23 +131,26 @@ describe('GET /api/direccion', () => {
   // corrección al aprobar; y el fallo queda anotado, no se pierde en silencio.
   it('si no se puede guardar en la propuesta, guardada: false y el error queda registrado', async () => {
     for (const fallo of [
-      new Response(JSON.stringify({ code: 'P0001', message: 'PROPUESTA_NO_PENDIENTE: ya no' }), { status: 400 }),
+      // La sesión de jefatura ha caducado entre fn_es_admin y el guardado.
+      new Response(JSON.stringify({ code: 'PGRST301', message: 'JWT expired' }), { status: 401 }),
+      new Response('{}', { status: 500 }),
       new TypeError('fetch failed'),
     ]) {
-      const { espia, llamadas } = fingirRed({ guardado: fallo });
+      const { espia } = fingirRed({ guardado: fallo });
       const r = await responder(peticion({ ...ALBOLOTE, propuesta_id: PROPUESTA }));
       expect(r.status).toBe(200);
       expect(await r.json()).toEqual(expect.objectContaining({ direccion: 'Calle Real, Albolote', guardada: false }));
       const registro = espia.mock.calls.find(([u]) => String(u).includes('fn_registrar_error'));
       expect(registro).toBeDefined();
       const cuerpo = JSON.parse((registro![1] as RequestInit).body as string) as Record<string, unknown>;
-      // Con la sesión de jefatura y sin la dirección: solo qué falló.
+      // Con service_role (vale aunque el JWT haya caducado), la firma de seis argumentos con su
+      // propio cupo, y sin la dirección: solo qué falló.
       expect((registro![1] as RequestInit).headers).toEqual(
-        expect.objectContaining({ Authorization: 'Bearer aaa.bbb.ccc' }),
+        expect.objectContaining({ Authorization: 'Bearer clave-de-servicio' }),
       );
+      expect(cuerpo.ip_hash).toBe('funcion:direccion');
       expect(String(cuerpo.mensaje)).toMatch(/^direccion_no_guardada: /);
       expect(JSON.stringify(cuerpo)).not.toContain('Calle Real');
-      expect(llamadas.length).toBeGreaterThan(0);
       espia.mockRestore();
     }
   });
