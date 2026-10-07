@@ -43,7 +43,7 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Clave GPG privada del respaldo (huella `BD378A1E0E09843032B3A70254A89DD4FC82E6CE`) | descifrar un respaldo | guardada el 21 sep 2026 por el desarrollador fuera del repositorio; **no está en GitHub ni en ningún ordenador de trabajo**. La pública sí: secreto `GPG_PUBLIC_KEY` | ídem |
 | Contraseñas de las bases de datos (dev, prod) | `pg_dump`, restauración | mismo sitio; también en los secretos de GitHub (cifrados) | ídem |
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub; se puede regenerar en un minuto | — |
-| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
+| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
@@ -99,6 +99,9 @@ En orden de fiabilidad:
 6. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
    `githubstatus.com`. Si está caído el proveedor, no hay nada que hacer salvo esperar; la app sigue
    mostrando los datos guardados en los móviles (FR-168).
+8. **Issue «El despachador de trabajos ha fallado»** (etiqueta `vigilancia`, `despachador.yml`, docs/31 RV-137): los botones de mantenimiento de Ajustes (purgar fotos, respaldo ahora, regenerar la zona o el mapa base) ya no lanzan nada directamente: dejan un **pedido**, y el despachador lo lanza cada 15 minutos, solo en producción. Desde staging no se lanza nada de producción.
+   - **Qué hacer:** abrir la ejecución que enlaza la issue. Si un pedido se anotó con `error: GitHub respondió …`, el workflow de ese trabajo está desactivado o roto: arreglarlo y volver a pulsar el botón. Si falla al leer los pedidos, mirar que `prod-tareas` tiene `SUPABASE_SERVICE_ROLE_KEY_PROD`.
+   - La issue se cierra sola en la siguiente pasada buena. Para no esperar los 15 minutos: `gh workflow run despachador.yml --ref develop`.
 
 ---
 
@@ -277,7 +280,7 @@ respaldo sigue de baja. Nada de eso se escribe en disco.
 
 **Gravedad:** baja hasta el 90 %. **Tiempo:** semanas. **Quién:** jefatura.
 
-1. Ajustes → *Purgar fotos huérfanas*. Esperar unos minutos; ver Storage en Salud.
+1. Ajustes → *Purgar fotos huérfanas*, en el panel de **producción** (en staging no se puede). Es un pedido: empieza en hasta 15 minutos (`entornos.md`, «Trabajos que pide el panel»). Después, ver Storage en Salud.
 2. Si sigue alto: pedir a Claude Code bajar la calidad de compresión (TR-15) y redesplegar.
 3. Si no basta: mover las fotos a Cloudflare R2 (04 §5 lo prevé; `foto_path` no cambia). Es una tarea
    de Claude Code de un día.

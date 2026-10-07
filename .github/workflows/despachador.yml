@@ -1,0 +1,70 @@
+# El despachador de los trabajos que pide jefatura desde el panel (docs/31 RV-137 y RV-146, DEC-172).
+# El panel deja un pedido en la base de datos de producción (fn_pedir_trabajo); este workflow, cada
+# 15 minutos, lo recoge con fn_pedidos_pendientes, lanza el workflow que toca con su propio
+# GITHUB_TOKEN y lo marca con fn_marcar_pedido (scripts/despachar.ts). Así ningún proyecto de Pages
+# guarda un token de GitHub, y staging no puede lanzar nada contra producción: sus pedidos se quedan
+# en la base de datos de staging, que nadie despacha.
+#
+# Environment prod-tareas (RV-131): solo la rama develop alcanza la clave de servicio de producción.
+# Sin npm ci: scripts/despachar.ts solo usa módulos de Node, y ninguna dependencia de npm corre con
+# la clave de servicio a mano.
+name: Despachador
+
+on:
+  schedule:
+    # Cada 15 minutos. GitHub retrasa los cron cortos; un pedido puede tardar algo más en empezar.
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Lanzar los workflows de los pedidos (workflow_dispatch). Un GITHUB_TOKEN sí crea ejecuciones con
+  # workflow_dispatch, a diferencia de los demás eventos.
+  actions: write
+  issues: write
+
+concurrency:
+  group: despachador
+  cancel-in-progress: false
+
+jobs:
+  despachar:
+    runs-on: ubuntu-24.04
+    environment: prod-tareas
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Lanzar los trabajos pedidos
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/despachar.ts
+
+      # Una issue, no una por pasada: cada 15 minutos llenaría la lista. Se cierra sola cuando vuelve
+      # a ir bien.
+      - name: Abrir o cerrar la issue del despachador
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ESTADO: ${{ job.status }}
+          EJECUCION: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          titulo='El despachador de trabajos ha fallado'
+          abierta=$(gh issue list --label vigilancia --state open --json number,title \
+            --jq "[.[] | select(.title == \"$titulo\")] | .[0].number // empty")
+          if [ "$ESTADO" = success ]; then
+            if [ -n "$abierta" ]; then
+              gh issue close "$abierta" --comment "El despachador vuelve a ir bien: $EJECUCION"
+            fi
+          elif [ -z "$abierta" ]; then
+            gh issue create --title "$titulo" --label vigilancia --body "Los trabajos que jefatura pide desde el panel (purgar fotos, respaldo, regenerar la zona o el mapa base) no se están lanzando, o alguno se ha anotado con error. Mira la ejecución: $EJECUCION
+
+          Qué hacer: docs/15 §4."
+          fi
