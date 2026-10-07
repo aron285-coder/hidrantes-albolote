@@ -9,7 +9,7 @@
 // Solo lee los pedidos de **producción**: los de staging se quedan en su base de datos y nadie los
 // despacha (RV-146). Un pedido con error no se reintenta solo: jefatura lo vuelve a pedir.
 //
-//   npx tsx scripts/despachar.ts        (en despachador.yml; en local no hay nada que despachar)
+//   node scripts/despachar.ts        (en despachador.yml, sin npm ci; en local no hay nada que despachar)
 
 import { appendFileSync } from 'node:fs';
 import { abortar, ejecutarScript, log } from './lib/comun.ts';
@@ -46,7 +46,19 @@ export interface Entorno {
 export interface Resumen {
   lanzados: number;
   fallidos: number;
+  /** «trabajo: error: …», uno por pedido que no se ha lanzado. */
+  errores: string[];
 }
+
+/** El motivo de un fallo de red (DNS, TLS, tiempo agotado), sin la URL ni las cabeceras. */
+function motivoRed(e: unknown): string {
+  const causa = (e as { cause?: { code?: unknown } } | null)?.cause?.code;
+  if (typeof causa === 'string') return causa;
+  return e instanceof Error ? e.name : 'desconocido';
+}
+
+/** Una línea, corta: lo que se anota en el pedido y en la issue. */
+const unaLinea = (t: string) => t.replace(/\s+/g, ' ').trim().slice(0, 200);
 
 async function rpc(e: Entorno, nombre: string, cuerpo: object): Promise<Response> {
   const f = e.fetch ?? fetch;
@@ -60,8 +72,8 @@ async function rpc(e: Entorno, nombre: string, cuerpo: object): Promise<Response
       'Accept-Profile': 'hidrantes',
     },
     body: JSON.stringify(cuerpo),
-  }).catch(() => null);
-  if (!r) abortar(`La base de datos no respondió a ${nombre}.`);
+  }).catch((x: unknown) => motivoRed(x));
+  if (typeof r === 'string') abortar(`La base de datos no respondió a ${nombre} (${r}).`);
   return r;
 }
 
@@ -93,20 +105,36 @@ export async function lanzar(e: Entorno, workflow: string): Promise<string> {
       'User-Agent': 'hidrantes-albolote-despachador',
     },
     body: JSON.stringify({ ref: RAMA, ...(entradas ? { inputs: entradas } : {}) }),
-  }).catch(() => null);
-  if (!r) return 'error: GitHub no respondió';
-  if (r.status !== 204) return `error: GitHub respondió ${r.status}`;
+  }).catch((x: unknown) => motivoRed(x));
+  if (typeof r === 'string') return `error: GitHub no respondió (${r})`;
+  if (r.status !== 204) {
+    // El mensaje de GitHub dice el porqué: una entrada que el workflow no declara, sin
+    // workflow_dispatch, sin permiso… No lleva el token.
+    const cuerpo = await r.text().catch(() => '');
+    let mensaje = cuerpo;
+    try {
+      const m = (JSON.parse(cuerpo) as { message?: unknown } | null)?.message;
+      if (typeof m === 'string') mensaje = m;
+    } catch {
+      // No era JSON: se anota el texto tal cual, recortado.
+    }
+    return unaLinea(`error: GitHub respondió ${r.status}${mensaje ? `: ${mensaje}` : ''}`);
+  }
   return 'lanzado';
 }
 
-/** Anota el resultado. Si no se puede, se para: el siguiente pase lo lanzaría otra vez. */
+/**
+ * Anota el resultado. Si no se puede, se para y la ejecución falla: el pedido sigue pendiente y el
+ * siguiente pase lo lanzaría otra vez (los workflows de la tabla aguantan una segunda ejecución:
+ * todos tienen concurrency sin cancelar).
+ */
 export async function marcar(e: Entorno, id: Pedido['id'], resultado: string): Promise<void> {
   const r = await rpc(e, 'fn_marcar_pedido', { id, resultado });
   if (!r.ok) abortar(`fn_marcar_pedido respondió ${r.status} para el pedido ${id} (${resultado}).`);
 }
 
 export async function despachar(e: Entorno): Promise<Resumen> {
-  const resumen: Resumen = { lanzados: 0, fallidos: 0 };
+  const resumen: Resumen = { lanzados: 0, fallidos: 0, errores: [] };
   for (const p of await pendientes(e)) {
     const resultado = await lanzar(e, p.workflow);
     await marcar(e, p.id, resultado);
@@ -115,6 +143,7 @@ export async function despachar(e: Entorno): Promise<Resumen> {
       log.ok(`${p.workflow}: lanzado`);
     } else {
       resumen.fallidos++;
+      resumen.errores.push(`${p.workflow}: ${resultado}`);
       log.error(`${p.workflow}: ${resultado}`);
     }
   }
@@ -135,7 +164,12 @@ async function principal(): Promise<void> {
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Despachador\n\n${texto}\n`);
   }
-  if (r.fallidos) abortar(`${r.fallidos} pedidos no se han podido lanzar: están anotados con su error.`);
+  // Un pedido con error no hace fallar la ejecución: ya está anotado y no se reintenta, así que la
+  // pasada siguiente iría bien y cerraría la issue sin que nadie la viera. Va a su propia issue, que
+  // no se cierra sola (despachador.yml). Fallar es para lo que impide despachar: leer o marcar.
+  if (r.errores.length && process.env.GITHUB_OUTPUT) {
+    appendFileSync(process.env.GITHUB_OUTPUT, `con_error<<FIN_CON_ERROR\n${r.errores.join('\n')}\nFIN_CON_ERROR\n`);
+  }
 }
 
 if (import.meta.main) ejecutarScript(principal);

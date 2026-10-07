@@ -1,6 +1,8 @@
 // docs/31 RV-137: el despachador recoge los pedidos del panel en producción y lanza su workflow.
 
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { ARCHIVO, RAMA, WORKFLOWS, despachar, lanzar, pendientes, type Entorno } from './despachar.ts';
@@ -35,7 +37,7 @@ function simulado(respuestas: {
     const m = /\/actions\/workflows\/([^/]+)\/dispatches$/.exec(u);
     if (m) {
       const r = respuestas.github ? respuestas.github(m[1]!, cuerpo) : new Response(null, { status: 204 });
-      if (!r) throw new TypeError('fetch failed');
+      if (!r) throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
       return r;
     }
     throw new Error(`URL inesperada: ${u}`);
@@ -56,7 +58,7 @@ const marcados = (llamadas: Llamada[]) =>
 describe('despachar', () => {
   it('sin pedidos no lanza ni marca nada', async () => {
     const { entorno, llamadas } = simulado({});
-    expect(await despachar(entorno)).toEqual({ lanzados: 0, fallidos: 0 });
+    expect(await despachar(entorno)).toEqual({ lanzados: 0, fallidos: 0, errores: [] });
     expect(llamadas.map((l) => l.url)).toEqual([`${SUPABASE}/rest/v1/rpc/fn_pedidos_pendientes`]);
   });
 
@@ -67,7 +69,7 @@ describe('despachar', () => {
         { id: 2, workflow: 'regenerar-zona', pedido_en: '2026-10-07T10:01:00Z' },
       ]),
     });
-    expect(await despachar(entorno)).toEqual({ lanzados: 2, fallidos: 0 });
+    expect(await despachar(entorno)).toEqual({ lanzados: 2, fallidos: 0, errores: [] });
     const despachos = llamadas.filter((l) => l.url.includes('/dispatches'));
     expect(despachos.map((l) => [l.url, l.cuerpo])).toEqual([
       ['https://api.github.com/repos/dueno/repo/actions/workflows/purgar-fotos.yml/dispatches', { ref: 'develop' }],
@@ -102,27 +104,43 @@ describe('despachar', () => {
       ]),
       github: (archivo) =>
         archivo === 'respaldo.yml'
-          ? new Response('{}', { status: 422 })
+          ? Response.json({ message: 'Unexpected inputs provided:\n ["x"]' }, { status: 422 })
           : archivo === 'purgar-fotos.yml'
             ? null
             : new Response(null, { status: 204 }),
     });
-    expect(await despachar(entorno)).toEqual({ lanzados: 1, fallidos: 2 });
+    const errores = [
+      'error: GitHub respondió 422: Unexpected inputs provided: ["x"]',
+      'error: GitHub no respondió (ENOTFOUND)',
+    ];
+    expect(await despachar(entorno)).toEqual({
+      lanzados: 1,
+      fallidos: 2,
+      errores: [`respaldo: ${errores[0]}`, `purgar-fotos: ${errores[1]}`],
+    });
     expect(marcados(llamadas)).toEqual([
-      { id: 'a', resultado: 'error: GitHub respondió 422' },
-      { id: 'b', resultado: 'error: GitHub no respondió' },
+      { id: 'a', resultado: errores[0] },
+      { id: 'b', resultado: errores[1] },
       { id: 'c', resultado: 'lanzado' },
     ]);
   });
 
+  it('un cuerpo de GitHub que no es JSON se anota recortado, en una línea', async () => {
+    const { entorno } = simulado({ github: () => new Response(`Bad\ngateway ${'x'.repeat(400)}`, { status: 502 }) });
+    const r = await lanzar(entorno, 'respaldo');
+    expect(r.startsWith('error: GitHub respondió 502: Bad gateway xxx')).toBe(true);
+    expect(r).not.toContain('\n');
+    expect(r.length).toBe(200);
+  });
+
   it('un trabajo que no conoce no se lanza: se marca con error', async () => {
     const { entorno, llamadas } = simulado({ pendientes: Response.json([{ id: 9, workflow: 'borrar-todo' }]) });
-    expect(await despachar(entorno)).toEqual({ lanzados: 0, fallidos: 1 });
+    expect(await despachar(entorno)).toMatchObject({ lanzados: 0, fallidos: 1 });
     expect(llamadas.some((l) => l.url.includes('/dispatches'))).toBe(false);
     expect(marcados(llamadas)).toEqual([{ id: 9, resultado: 'error: trabajo desconocido (borrar-todo)' }]);
   });
 
-  it('si no puede marcar un pedido, se para: el siguiente pase no lo lanzaría a ciegas otra vez sin aviso', async () => {
+  it('si no puede marcar un pedido, se para (y falla) antes de lanzar el siguiente', async () => {
     const { entorno, llamadas } = simulado({
       pendientes: Response.json([
         { id: 1, workflow: 'respaldo' },
@@ -154,10 +172,10 @@ describe('pendientes: una respuesta rara para todo', () => {
   it('sin red, se para', async () => {
     const { entorno } = simulado({
       pendientes: () => {
-        throw new TypeError('fetch failed');
+        throw new TypeError('fetch failed', { cause: { code: 'ECONNRESET' } });
       },
     });
-    await expect(pendientes(entorno)).rejects.toThrow(/no respondió a fn_pedidos_pendientes/);
+    await expect(pendientes(entorno)).rejects.toThrow(/no respondió a fn_pedidos_pendientes \(ECONNRESET\)/);
   });
 });
 
@@ -210,18 +228,94 @@ describe('despachador.yml', () => {
     // Solo módulos de Node: lo que importa despachar.ts y lo que importa a su vez.
     for (const archivo of ['despachar.ts', 'lib/comun.ts']) {
       const fuente = readFileSync(path.resolve(import.meta.dirname, archivo), 'utf8');
-      for (const [, modulo] of fuente.matchAll(/^import .* from '([^']+)';$/gm)) {
+      // También los import de varias líneas: basta con el `from '…'`.
+      for (const [, modulo] of fuente.matchAll(/\bfrom '([^']+)'/g)) {
         expect(modulo, `${archivo}: ${modulo}`).toMatch(/^(node:|\.\/)/);
       }
     }
   });
 
-  it('una sola issue, que se abre al fallar y se cierra al ir bien', () => {
-    const paso = yml.slice(yml.indexOf('- name: Abrir o cerrar la issue del despachador'));
-    expect(paso).toContain('if: always()');
-    expect(paso).toContain("titulo='El despachador de trabajos ha fallado'");
-    expect(paso).toContain('gh issue close');
-    expect(paso).toContain('elif [ -z "$abierta" ]; then');
+  // Lo que corre en despachador.yml, tal cual: Node quita los tipos, sin tsx. Si alguien mete en
+  // despachar.ts o lib/comun.ts algo que no se pueda quitar (enum, namespace…), esto falla.
+  it('node lo carga sin tsx y, sin variables, se para diciendo qué falta', () => {
+    const env = { ...process.env };
+    for (const v of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'GH_TOKEN', 'GITHUB_REPOSITORY']) delete env[v];
+    const r = spawnSync(process.execPath, ['scripts/despachar.ts'], {
+      cwd: path.resolve(import.meta.dirname, '..'),
+      encoding: 'utf8',
+      env,
+    });
+    expect(r.status, r.stderr).toBe(1);
+    expect(r.stderr + r.stdout).toContain('Faltan SUPABASE_URL');
+  });
+
+  describe('las issues', () => {
+    const desde = yml.indexOf('- name: Abrir o cerrar las issues del despachador');
+    const paso = yml.slice(desde);
+    const guion = paso
+      .slice(paso.indexOf('run: |\n') + 'run: |\n'.length)
+      .split('\n')
+      .map((l) => l.replace(/^ {10}/, ''))
+      .join('\n');
+    const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
+    const FALLO = 'El despachador de trabajos ha fallado';
+    const PEDIDO = 'Un trabajo pedido desde el panel no se ha lanzado';
+    /** gh simulado con jq de verdad; lo que no es leer se anota. */
+    const correr = (estado: string, conError: string, issues: { number: number; title: string }[]) => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'despachador-'));
+      const anotado = path.join(dir, 'anotado');
+      try {
+        const gh = [
+          'gh() {',
+          '  local filtro="" a=("$@") i',
+          '  for ((i = 0; i < ${#a[@]}; i++)); do if [ "${a[i]}" = --jq ]; then filtro="${a[i+1]}"; fi; done',
+          '  if [ "$1 $2" = "issue list" ]; then printf "%s" "$ISSUES" | jq -r "$filtro"; return; fi',
+          '  echo "gh $1 $2 $3" >> "$ANOTADO"',
+          '}',
+        ].join('\n');
+        const r = spawnSync('bash', ['-e', '-c', `${gh}\n${guion}`], {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            ANOTADO: anotado,
+            ESTADO: estado,
+            CON_ERROR: conError,
+            EJECUCION: 'https://ejecucion',
+            ISSUES: JSON.stringify(issues.map((i) => ({ ...i, state: 'OPEN' }))),
+          },
+        });
+        expect(r.status, r.stderr).toBe(0);
+        return existsSync(anotado) ? readFileSync(anotado, 'utf8') : '';
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+
+    it('corre siempre y lee la salida de despachar.ts por env, no dentro del guion', () => {
+      expect(desde).toBeGreaterThan(-1);
+      expect(paso).toContain('if: always()');
+      expect(paso).toContain('CON_ERROR: ${{ steps.despachar.outputs.con_error }}');
+      expect(guion).not.toContain('${{');
+    });
+
+    it.skipIf(!tieneJq)('todo bien: cierra la del fallo, y la de un pedido con error no la toca', () => {
+      const issues = [
+        { number: 3, title: FALLO },
+        { number: 4, title: PEDIDO },
+      ];
+      expect(correr('success', '', issues)).toBe('gh issue close 3\n');
+    });
+
+    it.skipIf(!tieneJq)('la ejecución falla: abre la del fallo una sola vez', () => {
+      expect(correr('failure', '', [])).toBe('gh issue create --title\n');
+      expect(correr('failure', '', [{ number: 3, title: FALLO }])).toBe('');
+    });
+
+    it.skipIf(!tieneJq)('un pedido con error: abre su issue, o comenta en la abierta, y no la cierra', () => {
+      const conError = 'respaldo: error: GitHub respondió 422: x';
+      expect(correr('success', conError, [])).toBe('gh issue create --title\n');
+      expect(correr('success', conError, [{ number: 4, title: PEDIDO }])).toBe('gh issue comment 4\n');
+    });
   });
 
   it('está en las listas de workflows programados que se mantienen activos', () => {

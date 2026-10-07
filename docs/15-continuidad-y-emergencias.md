@@ -100,8 +100,8 @@ En orden de fiabilidad:
    `githubstatus.com`. Si está caído el proveedor, no hay nada que hacer salvo esperar; la app sigue
    mostrando los datos guardados en los móviles (FR-168).
 8. **Issue «El despachador de trabajos ha fallado»** (etiqueta `vigilancia`, `despachador.yml`, docs/31 RV-137): los botones de mantenimiento de Ajustes (purgar fotos, respaldo ahora, regenerar la zona o el mapa base) ya no lanzan nada directamente: dejan un **pedido**, y el despachador lo lanza cada 15 minutos, solo en producción. Desde staging no se lanza nada de producción.
-   - **Qué hacer:** abrir la ejecución que enlaza la issue. Si un pedido se anotó con `error: GitHub respondió …`, el workflow de ese trabajo está desactivado o roto: arreglarlo y volver a pulsar el botón. Si falla al leer los pedidos, mirar que `prod-tareas` tiene `SUPABASE_SERVICE_ROLE_KEY_PROD`.
-   - La issue se cierra sola en la siguiente pasada buena. Para no esperar los 15 minutos: `gh workflow run despachador.yml --ref develop`.
+   - **Qué hacer:** no ha podido leer o anotar los pedidos, así que no se lanza nada. Abrir la ejecución que enlaza la issue y mirar que `prod-tareas` tiene `SUPABASE_SERVICE_ROLE_KEY_PROD` y que la base de datos responde. La issue se cierra sola en la siguiente pasada buena. Para no esperar los 15 minutos: `gh workflow run despachador.yml --ref develop`.
+   - **Issue «Un trabajo pedido desde el panel no se ha lanzado»:** un pedido concreto se anotó con error y **no se reintenta**. La issue dice cuál y por qué (`GitHub respondió 422: …` suele ser un workflow desactivado o una entrada que ya no declara; `trabajo desconocido`, un panel más nuevo que el despachador). Arreglarlo, volver a pulsar el botón en Ajustes y **cerrar la issue a mano**: no se cierra sola.
 
 ---
 

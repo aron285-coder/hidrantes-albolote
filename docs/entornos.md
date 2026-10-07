@@ -40,5 +40,5 @@ El panel ya no lanza workflows con un token de GitHub, y ningún proyecto de Pag
 
 - **Tarda hasta 15 minutos en empezar** (algo más si GitHub retrasa el cron). Para no esperar: `gh workflow run despachador.yml --ref develop`.
 - **Solo en producción.** El despachador lee los pedidos de la base de datos de producción. En staging, «Purgar fotos» y «Respaldo» responden `SOLO_EN_PRODUCCION`, y los demás se anotan en la base de datos de staging, que nadie despacha: **desde staging no se lanza nada de producción**.
-- Cada pedido se marca con `lanzado` o `error: …` (`fn_marcar_pedido`). Uno con error no se reintenta: se vuelve a pedir. Si algo falla, el despachador abre la issue «El despachador de trabajos ha fallado» (etiqueta `vigilancia`) y la cierra cuando vuelve a ir bien.
+- Cada pedido se marca con `lanzado` o `error: …` (`fn_marcar_pedido`). Uno con error no se reintenta: se vuelve a pedir, y abre la issue «Un trabajo pedido desde el panel no se ha lanzado», que se cierra a mano. Si el despachador no puede leer o anotar los pedidos, abre «El despachador de trabajos ha fallado», que se cierra sola cuando vuelve a ir bien (15 §4).
 - Sin `npm ci`: el despachador solo usa módulos de Node, así que ninguna dependencia de npm corre con la clave de servicio de producción.
