@@ -69,7 +69,9 @@ describe('avisos.yml (RV-08)', () => {
     expect(texto).toContain('X-Vigilancia');
   });
   it('no declara environment: production pediría aprobación en cada ejecución (DEC-071)', () => {
-    expect(texto).not.toMatch(/^\s*environment:/m);
+    expect(texto).not.toMatch(/^\s*environment:.*production/m);
+    // La fila de producción, en prod-tareas (docs/31 RV-131, DEC-172).
+    expect(texto).toContain("environment: ${{ matrix.entorno == 'PROD' && 'prod-tareas' || 'staging' }}");
   });
   it('repite mientras queden avisos, como mucho diez veces', () => {
     expect(texto).toContain('"quedan":true');

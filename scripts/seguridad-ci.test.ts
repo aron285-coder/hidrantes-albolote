@@ -66,3 +66,69 @@ describe('dependencias y actions (RV-132)', () => {
     expect(texto).toContain('.updateType == "version-update:semver-patch"');
   });
 });
+
+/** Los trabajos de un workflow: nombre, environment (o '') y su texto. */
+export function trabajos(texto: string): { nombre: string; environment: string; texto: string }[] {
+  const desde = texto.search(/^jobs:\n/m);
+  if (desde === -1) return [];
+  const partes = texto
+    .slice(desde)
+    .split(/^(?= {2}[\w-]+:\s*$)/m)
+    .slice(1);
+  return partes.map((p) => {
+    const nombre = /^ {2}([\w-]+):/.exec(p)![1]!;
+    const env = /^ {4}environment:[ \t]*(.*)$/m.exec(p);
+    let environment = env?.[1]?.trim() ?? '';
+    if (env && environment === '') environment = /^ {6}name:\s*(.+)$/m.exec(p.slice(env.index))?.[1]?.trim() ?? '';
+    return { nombre, environment, texto: p };
+  });
+}
+
+/** Los secretos de producción que usa un trabajo, por nombre o con un índice calculado (secrets[…]). */
+const secretosProd = (texto: string) => [
+  ...[...texto.matchAll(/secrets\.(\w+_PROD)\b/g)].map((m) => m[1]!),
+  // Con un índice calculado no se sabe cuál es: puede ser uno de producción.
+  ...[...texto.matchAll(/secrets\[[^\]]+\]/g)].map((m) => m[0]),
+];
+
+describe('secretos de producción solo en prod-tareas o production (RV-131)', () => {
+  it('la comprobación ve un _PROD en un trabajo sin environment, o en staging', () => {
+    const malo =
+      'jobs:\n  a:\n    runs-on: x\n    steps:\n      - env:\n          B: ${{ secrets.SUPABASE_DB_URL_PROD }}\n';
+    const [t] = trabajos(malo);
+    expect(t).toMatchObject({ nombre: 'a', environment: '' });
+    expect(secretosProd(t!.texto)).toEqual(['SUPABASE_DB_URL_PROD']);
+    const conNombre = 'jobs:\n  b:\n    environment:\n      name: production\n      url: x\n    steps: []\n';
+    expect(trabajos(conNombre)[0]!.environment).toBe('production');
+  });
+
+  it('ningún secrets.*_PROD fuera de un trabajo con environment prod-tareas o production', () => {
+    // traspaso.yml lee el secreto que se le pide de donde esté: solo lo lanza el propietario (DEC-172).
+    const malos = archivos
+      .filter((a) => a !== 'traspaso.yml')
+      .flatMap((a) =>
+        trabajos(leer(a))
+          .filter((t) => secretosProd(t.texto).length > 0)
+          .filter((t) => !/^(prod-tareas|production)$/.test(t.environment) && !t.environment.includes("'prod-tareas'"))
+          .map((t) => `${a}:${t.nombre} (${t.environment || 'sin environment'})`),
+      );
+    expect(malos).toEqual([]);
+  });
+
+  it('las tareas de producción declaran prod-tareas', () => {
+    const env = (a: string, j: string) => trabajos(leer(a)).find((t) => t.nombre === j)?.environment;
+    expect(env('respaldo.yml', 'respaldo')).toBe('prod-tareas');
+    expect(env('purgar-fotos.yml', 'purgar')).toBe('prod-tareas');
+    expect(env('vigilancia.yml', 'mirar')).toBe('prod-tareas');
+    expect(env('comprobar-produccion.yml', 'comprobar')).toBe('prod-tareas');
+    expect(env('avisos.yml', 'enviar')).toBe("${{ matrix.entorno == 'PROD' && 'prod-tareas' || 'staging' }}");
+    expect(env('deploy-prod.yml', 'desplegar')).toBe('production');
+  });
+
+  it('respaldo y purga ya no dicen que van sin environment', () => {
+    for (const a of ['respaldo.yml', 'purgar-fotos.yml']) {
+      expect(leer(a)).not.toContain('Sin `environment: production`');
+      expect(leer(a)).toContain('prod-tareas');
+    }
+  });
+});
