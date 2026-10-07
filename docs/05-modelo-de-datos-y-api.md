@@ -836,6 +836,20 @@ Según la variable `ENTORNO` del proyecto de Pages (RV-130):
 Un pedido pendiente del mismo trabajo → `409 { "error": "YA_PEDIDO" }`; la base de datos sin responder →
 `503 SERVIDOR_NO_DISPONIBLE`. `SOLO_EN_PRODUCCION` es un código solo de esta Function, no de una RPC.
 
+### `POST /api/error`
+
+```json
+→ { "mensaje": "TypeError: …", "dispositivo_id": "uuid" | null, "pila": "…" | null, "ruta": "/mapa" | null, "agente": "…" | null }
+← 204
+← 400 { "error": "PAYLOAD_INVALIDO" }        // sin mensaje, id que no es uuid o un campo que no es texto
+← 503 { "error": "SERVIDOR_NO_DISPONIBLE" }  // el móvil lo deja en su cola y lo reintenta
+```
+Sin credencial (los errores pueden ocurrir antes de tener token). Lee `CF-Connecting-IP` y calcula
+`ip_hash = sha256(SAL_IP + ip normalizada)` como `/api/verificar-codigo` (IPv6 por /64, RV-14); sin la
+cabecera, `ip_hash` nulo. Recorta como la base de datos (mensaje 1000, pila 4096, ruta 200, agente
+300) y llama con `service_role` a `fn_registrar_error` de **seis** argumentos (0040, RV-148), que
+aplica el tope por IP y nunca falla hacia el cliente. La IP no se guarda en claro ni se registra.
+
 ### `POST /api/push`
 
 `→ { "token": "…" }` (voluntario) o cabecera de administrador, o cabecera `X-Vigilancia` con el
