@@ -136,7 +136,12 @@ export interface ResultadoEnvio {
    * del aviso ni fallo de la suscripción: se deja pendiente para la siguiente pasada (RV-144).
    */
   transitorio?: true;
+  /** Las claves VAPID del servidor no sirven para firmar: es configuración, no la suscripción. */
+  vapid_invalida?: true;
 }
+
+/** Lo que se espera a un servicio de push antes de darlo por no contestado (RV-144). */
+export const TIEMPO_MAXIMO_MS = 10_000;
 
 /** Espera por defecto si un 429 no trae Retry-After, o trae algo que no se entiende. */
 export const APLAZAR_POR_DEFECTO_S = 60;
@@ -162,13 +167,20 @@ export async function enviar(
   vapid: { publica: string; privada: string; sujeto: string },
   destino: string = s.endpoint,
 ): Promise<ResultadoEnvio> {
-  // Cifrar y firmar no dependen de la red: si fallan (claves de la suscripción o VAPID que no se
-  // pueden usar), reintentar no lo arregla. Es un fallo del aviso, con su motivo.
-  let cuerpo: Awaited<ReturnType<typeof cifrar>>;
+  // Firmar depende solo de las claves VAPID del servidor: si fallan, no es culpa de la suscripción
+  // y no se le puede sumar un fallo (con tres, se borraría la de todo el mundo). /api/push para y
+  // responde NO_CONFIGURADO; lo reclamado sale otra vez a los 15 minutos.
   let autorizacion: string;
   try {
-    cuerpo = await cifrar(te.encode(JSON.stringify(aviso)), s.keys.p256dh, s.keys.auth);
     autorizacion = await cabeceraVapid(s.endpoint, vapid.publica, vapid.privada, vapid.sujeto);
+  } catch {
+    return { ok: false, caducada: false, vapid_invalida: true };
+  }
+  // Cifrar depende de las claves de la suscripción: si no se pueden usar, reintentar no lo arregla.
+  // Es un fallo del aviso, con su motivo.
+  let cuerpo: Awaited<ReturnType<typeof cifrar>>;
+  try {
+    cuerpo = await cifrar(te.encode(JSON.stringify(aviso)), s.keys.p256dh, s.keys.auth);
   } catch (e) {
     return { ok: false, caducada: false, error: (e as Error).message.slice(0, 200) };
   }
@@ -184,6 +196,8 @@ export async function enviar(
         Urgency: 'normal',
       },
       body: cuerpo,
+      // Un servicio que deja la conexión colgada no puede parar el lote entero (van en serie).
+      signal: AbortSignal.timeout(TIEMPO_MAXIMO_MS),
     });
   } catch {
     // Sin respuesta (corte de red, DNS, tiempo agotado): no se sabe si salió. No es un fallo del

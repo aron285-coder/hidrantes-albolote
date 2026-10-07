@@ -206,4 +206,22 @@ describe('enviar', () => {
     expect(espia).not.toHaveBeenCalled();
     espia.mockRestore();
   });
+
+  // Unas claves VAPID del servidor que no sirven no son culpa de la suscripción: si contara como
+  // fallo de cada una, en tres pasadas se borrarían las de todos.
+  it('si no se puede firmar, lo dice aparte y sin error de la suscripción', async () => {
+    const espia = fingirFetch(new Response(null, { status: 201 }));
+    const r = await enviar(suscripcion, aviso, { ...vapid, privada: 'no-es-una-clave' });
+    expect(r).toEqual({ ok: false, caducada: false, vapid_invalida: true });
+    expect(espia).not.toHaveBeenCalled();
+    espia.mockRestore();
+  });
+
+  it('no espera para siempre a un servicio que no contesta', async () => {
+    const espia = fingirFetch(new Response(null, { status: 201 }));
+    await enviar(suscripcion, aviso, vapid);
+    const opciones = espia.mock.calls[0]![1] as RequestInit;
+    expect(opciones.signal).toBeInstanceOf(AbortSignal);
+    espia.mockRestore();
+  });
 });

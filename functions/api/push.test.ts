@@ -211,6 +211,17 @@ describe('POST /api/push', () => {
     espia.mockRestore();
   });
 
+  it('con claves VAPID que no sirven, NO_CONFIGURADO y no se anota nada contra las suscripciones', async () => {
+    const { espia, llamadas } = fingirRed({ admin: true, pendientes: [pendiente(1), pendiente(2)] });
+    const rotas = { ...ENV, VAPID_PRIVATE_KEY: 'no-es-una-clave' } as Env; // detectar-secretos:permitir (valor de prueba)
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: rotas });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
+    expect(llamadas.some((l) => l.url === SUSCRIPCION.endpoint)).toBe(false);
+    expect(llamadas.some((l) => l.url.includes('fn_resultado_notificacion'))).toBe(false);
+    espia.mockRestore();
+  });
+
   // RV-84: con un 429 el servicio pide esperar. El aviso no se anota (ni fallo en la suscripción ni
   // error en el aviso): se aplaza lo que diga Retry-After, sin gastar intento. Lo que quede para ese
   // mismo servicio en esta invocación tampoco se manda; el de los otros servicios, sí.
