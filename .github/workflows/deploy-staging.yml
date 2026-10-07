@@ -90,6 +90,24 @@ jobs:
             npx wrangler deploy --config workers/avisos/wrangler.toml --var "VERSION_CODIGO:$version"
           fi
 
+      # El Worker de solo escritura de los respaldos (docs/31 RV-133, DEC-173), igual que el de los
+      # avisos: desde develop, en cada push. Su secreto (RESPALDO_SUBIDA_SECRETO) y el bucket ya están
+      # en Cloudflare y un deploy no los toca. Sin permiso de Workers, aviso como arriba.
+      - name: Desplegar el Worker de los respaldos
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/scripts/hidrantes-respaldos/secrets" || echo 000)
+          if [ "$codigo" = "401" ] || [ "$codigo" = "403" ]; then
+            aviso="El token de Cloudflare no tiene permiso de Workers (HTTP $codigo): el Worker de los respaldos no se despliega desde aquí. Añade «Account · Workers Scripts: Edit» al token (15 §2, DEC-173)."
+            echo "::warning::$aviso"
+            echo "$aviso" >> "$GITHUB_STEP_SUMMARY"
+          else
+            npx wrangler deploy --config workers/respaldos/wrangler.toml
+          fi
+
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
         env:

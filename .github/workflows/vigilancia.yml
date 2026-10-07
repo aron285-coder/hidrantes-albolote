@@ -67,6 +67,47 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+  # La segunda copia del respaldo (docs/31 RV-133, DEC-173): /estado del Worker de solo escritura dice
+  # la fecha y el tamaño del último volcado en R2. Con el secreto de subida, que está en prod-tareas;
+  # /estado no deja leer, listar ni borrar nada. Solo saca una línea de problema, o nada.
+  respaldos:
+    runs-on: ubuntu-24.04
+    environment: prod-tareas
+    timeout-minutes: 5
+    outputs:
+      problema: ${{ steps.mirar.outputs.problema }}
+    steps:
+      - name: Último respaldo en R2
+        id: mirar
+        env:
+          RESPALDOS_URL: ${{ vars.RESPALDOS_URL }}
+          RESPALDO_SUBIDA_SECRETO: ${{ secrets.RESPALDO_SUBIDA_SECRETO }}
+        run: |
+          set -uo pipefail
+          problema=''
+          if [ -z "${RESPALDOS_URL:-}" ] || [ -z "${RESPALDO_SUBIDA_SECRETO:-}" ]; then
+            problema='falta RESPALDOS_URL o RESPALDO_SUBIDA_SECRETO: la vigilancia no puede mirar la copia en R2 (DEC-173)'
+          else
+            estado=$(mktemp)
+            # La cabecera por un archivo de curl (-H @archivo), no en la línea de órdenes.
+            cabecera=$(mktemp)
+            printf 'Authorization: Bearer %s\n' "$RESPALDO_SUBIDA_SECRETO" > "$cabecera"
+            codigo=$(curl -s -o "$estado" -w '%{http_code}' --max-time 20 -H @"$cabecera" "${RESPALDOS_URL%/}/estado" || echo 000)
+            rm -f "$cabecera"
+            fecha=$(jq -r '.bd.fecha // empty' "$estado" 2>/dev/null || echo '')
+            if [ "$codigo" != "200" ]; then
+              problema="el Worker de los respaldos no responde a /estado (HTTP $codigo): 15 §5.3"
+            elif [ -z "$fecha" ]; then
+              problema='no hay ningún respaldo en R2 (DEC-173)'
+            else
+              dias=$(( ($(date -u +%s) - $(date -u -d "$fecha" +%s)) / 86400 ))
+              if [ "$dias" -ge 8 ]; then
+                problema="el respaldo más reciente en R2 tiene $dias días (límite 8): 15 §5.3"
+              fi
+            fi
+          fi
+          echo "problema=$problema" >> "$GITHUB_OUTPUT"
+
   # Staging, donde se hace el piloto (docs/20 RV-78, DEC-104): avisos sin salir y tareas de pg_cron,
   # con la base de datos de su environment, que no pide aprobación. Anota allí su última vigilancia y
   # si lo de staging respondía. Sus problemas van a la misma issue, con «staging:» delante.
@@ -104,7 +145,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   mirar:
-    needs: [worker, staging]
+    needs: [worker, staging, respaldos]
     # Aunque no se haya podido mirar el Worker o staging: el resto se comprueba igual y eso ya es un problema.
     if: always()
     runs-on: ubuntu-24.04
@@ -135,6 +176,8 @@ jobs:
           REPO: ${{ github.repository }}
           WORKER_CRON: ${{ needs.worker.outputs.cron }}
           WORKER_VERSION: ${{ needs.worker.outputs.version }}
+          R2_PROBLEMA: ${{ needs.respaldos.outputs.problema }}
+          R2_RESULTADO: ${{ needs.respaldos.result }}
           # La misma lista que mantener-activo.yml; scripts/workflows.test.ts comprueba que coinciden.
           WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml
         run: |
@@ -236,6 +279,13 @@ jobs:
             problemas+=("el Worker hidrantes-avisos no dice qué código lleva (VERSION_CODIGO): vuelve a desplegar staging (docs/20 RV-74)")
           elif [ "$WORKER_VERSION" != "$esperada" ]; then
             problemas+=("el Worker hidrantes-avisos lleva el código de ${WORKER_VERSION:0:7} y develop tiene el de ${esperada:0:7}: vuelve a desplegar staging (docs/20 RV-74)")
+          fi
+
+          # 9. La segunda copia del respaldo, en R2, tiene menos de 8 días (docs/31 RV-133, DEC-173).
+          if [ "${R2_RESULTADO:-}" != success ]; then
+            problemas+=("no se ha podido mirar la copia del respaldo en R2 (${R2_RESULTADO:-sin resultado})")
+          elif [ -n "${R2_PROBLEMA:-}" ]; then
+            problemas+=("$R2_PROBLEMA")
           fi
 
           # 5. Se anota en Salud del sistema, salga como salga (TR-102). La de staging la anota su trabajo.

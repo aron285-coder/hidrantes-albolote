@@ -1,0 +1,17 @@
+# Worker de solo escritura para la segunda copia del respaldo (docs/31 RV-133, DEC-173). respaldo.yml
+# le sube el mismo archivo cifrado que deja como artefacto, y él lo guarda en el bucket R2
+# hidrantes-respaldos (regla de ciclo de vida: 400 días). No lista, no lee y no borra; no sobrescribe.
+#
+# En workers.dev porque lo llama GitHub Actions. Sin secreto, todo responde 401.
+#
+#   secreto (nunca aquí): RESPALDO_SUBIDA_SECRETO, el mismo que el del environment prod-tareas de
+#   GitHub. Lo pone la sesión de Ops con `wrangler secret put` por tubería (15 §5.3).
+name = "hidrantes-respaldos"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+workers_dev = true
+preview_urls = false
+
+[[r2_buckets]]
+binding = "RESPALDOS"
+bucket_name = "hidrantes-respaldos"

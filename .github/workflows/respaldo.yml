@@ -4,6 +4,9 @@
 #     días. Nunca se escribe en una rama: el volcado lleva nombres de voluntarios y el historial de
 #     Git no se puede purgar (04 §9, 11 §2).
 #   - Fotos: el bucket entero, el primer domingo de cada mes, con el mismo cifrado.
+#   - Dos sitios (docs/31 RV-133, DEC-173): el artefacto de GitHub y, el mismo archivo cifrado, el
+#     bucket R2 hidrantes-respaldos a través del Worker de solo escritura (400 días). Nunca se
+#     descifra en CI. Descargar de R2: npm run descargar-respaldo (15 §5.3).
 #
 # Sin `environment: production` a propósito: ese entorno exige aprobación humana en cada ejecución
 # (es lo que protege los despliegues), y un respaldo que espera a que alguien pulse un botón no es
@@ -140,6 +143,17 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
+      # Segunda copia, fuera de GitHub (docs/31 RV-133, DEC-173): el mismo archivo cifrado, al Worker
+      # de solo escritura hidrantes-respaldos, que lo guarda en R2 400 días. El script comprueba que
+      # R2 ha guardado los mismos bytes y que /estado lo ve. Si falla, el job falla y abre la issue.
+      # El secreto solo va en env: nunca en la línea de órdenes ni en el registro.
+      - name: Segunda copia del volcado en R2
+        env:
+          RESPALDOS_URL: ${{ vars.RESPALDOS_URL }}
+          RESPALDO_SUBIDA_SECRETO: ${{ secrets.RESPALDO_SUBIDA_SECRETO }}
+          FECHA: ${{ steps.cuando.outputs.fecha }}
+        run: npx tsx scripts/subir-respaldo.ts --tipo bd --archivo "hidrantes-$FECHA.sql.gpg" --nombre "$FECHA.sql.gpg"
+
       - name: Fotos del bucket, cifradas (mensual)
         id: fotos
         if: steps.cuando.outputs.mensual == 'true' || inputs.fotos
@@ -153,6 +167,9 @@ jobs:
           npm run respaldo-fotos -- --destino "fotos-$FECHA" | tee salida.txt
           bytes=$(grep -oP '^bytes=\K[0-9]+' salida.txt)
           echo "bytes=$bytes" >> "$GITHUB_OUTPUT"
+          # Sin fotos todavía, respaldo-fotos no crea la carpeta y tar fallaba (4 oct 2026, #439):
+          # un tar vacío es un respaldo correcto de un bucket vacío.
+          mkdir -p "fotos-$FECHA"
           tar -cf - "fotos-$FECHA" \
             | gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
                   --output "fotos-$FECHA.tar.gpg"
@@ -166,6 +183,16 @@ jobs:
           path: fotos-*.tar.gpg
           retention-days: 90
           if-no-files-found: error
+
+      # Las fotos, también a R2, por partes de 50 MB; una por mes (AAAA-MM). Si ese mes ya está (una
+      # ejecución a mano con fotos), el Worker no la sobrescribe y el paso lo avisa sin fallar.
+      - name: Segunda copia de las fotos en R2
+        if: steps.fotos.outcome == 'success'
+        env:
+          RESPALDOS_URL: ${{ vars.RESPALDOS_URL }}
+          RESPALDO_SUBIDA_SECRETO: ${{ secrets.RESPALDO_SUBIDA_SECRETO }}
+          FECHA: ${{ steps.cuando.outputs.fecha }}
+        run: npx tsx scripts/subir-respaldo.ts --tipo fotos --archivo "fotos-$FECHA.tar.gpg" --nombre "${FECHA:0:7}.tar.gpg"
 
       - name: Anotar el respaldo en Salud del sistema
         env:

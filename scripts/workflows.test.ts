@@ -253,7 +253,7 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     expect(staging).toContain("'vigilancia_ok'");
     expect(staging).toContain("echo 'problemas<<FIN_PROBLEMAS'");
     const mirar = texto.slice(texto.indexOf('\n  mirar:\n'));
-    expect(mirar).toContain('needs: [worker, staging]');
+    expect(mirar).toContain('needs: [worker, staging, respaldos]');
     expect(mirar).toContain('revisar_bd produccion "$BD"');
     expect(mirar).toContain('STAGING_PROBLEMAS: ${{ needs.staging.outputs.problemas }}');
     expect(mirar).toContain('"${STAGING_RESULTADO:-}" != success');

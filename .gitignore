@@ -21,6 +21,8 @@ dev-dist/
 *.tar.gz
 respaldos/
 /respaldos/
+# …salvo el código del Worker de solo escritura de los respaldos (docs/31 RV-133): no lleva datos.
+!workers/respaldos/
 fotos/
 # Un volcado descifrado lleva datos personales en claro (docs/18 RV-37); supabase/**/*.sql sí va
 /*.sql
