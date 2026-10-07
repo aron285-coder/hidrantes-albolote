@@ -474,3 +474,182 @@ test.describe('Editar del Inventario (docs/29 RV-124)', () => {
     }
   }
 });
+
+// docs/30 RV-128: con una ventana modal abierta, el resto de la página queda inert y Tab no sale de
+// ella. Editar al lado de la tabla (>= 1100 px) no es modal: la tabla sigue a mano (DEC-169).
+test.describe('El foco no se escapa de las ventanas del panel (docs/30 RV-128)', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'los anchos se fijan a mano en el proyecto de escritorio');
+
+  type Sitio = 'editar' | 'ventana' | 'raiz' | 'body' | 'otro';
+  interface Foco {
+    sitio: Sitio;
+    etiqueta: string | null;
+  }
+  /** Dónde está el foco: en Editar, en otra ventana (Retirar…), en la página (#raiz) o en ninguna parte. */
+  const dondeFoco = (page: Page) =>
+    page.evaluate((): Foco => {
+      const a = document.activeElement;
+      const etiqueta = a?.getAttribute('aria-label') ?? null;
+      if (!a || a === document.body) return { sitio: 'body', etiqueta };
+      if (a.closest('[role="dialog"][data-forma]')) return { sitio: 'editar', etiqueta };
+      if (a.closest('[role="dialog"], [role="alertdialog"]')) return { sitio: 'ventana', etiqueta };
+      if (a.closest('#raiz')) return { sitio: 'raiz', etiqueta };
+      return { sitio: 'otro', etiqueta };
+    });
+  async function tabular(page: Page, veces: number) {
+    const sitios: Foco[] = [];
+    for (let i = 0; i < veces; i++) {
+      await page.keyboard.press('Tab');
+      sitios.push(await dondeFoco(page));
+    }
+    return sitios;
+  }
+  async function axe(page: Page) {
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .exclude('.leaflet-marker-pane')
+      .analyze();
+    expect(violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+  }
+  const inertes = (page: Page) => page.evaluate(() => document.querySelectorAll('[inert]').length);
+
+  test('a 768 px, con Editar abierto, Tab da la vuelta dentro del panel y nunca llega a la tabla', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await expect(p).toHaveAttribute('aria-modal', 'true');
+    expect(await p.evaluate((d) => d.contains(document.activeElement))).toBe(true);
+    await expect(page.locator('#raiz')).toHaveAttribute('inert', '');
+
+    const sitios = await tabular(page, 80);
+    // Fuera del panel solo puede estar "en ninguna parte" (la barra del navegador, al dar la vuelta).
+    expect(sitios.filter((s) => s.sitio !== 'editar' && s.sitio !== 'body')).toEqual([]);
+    // Desde el último control vuelve al primero del panel: la X de cerrar.
+    expect(sitios.some((s) => s.sitio === 'editar' && s.etiqueta === T.ficha.cerrar)).toBe(true);
+    await axe(page);
+
+    // Al cerrar no queda nada inert.
+    await page.keyboard.press('Escape');
+    await expect(p).toHaveCount(0);
+    expect(await inertes(page)).toBe(0);
+  });
+
+  test('a 1440 px, con Editar al lado de la tabla, Tab sí llega a la tabla', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await expect(p).toHaveAttribute('aria-modal', 'false');
+    expect(await inertes(page)).toBe(0);
+    const sitios = await tabular(page, 80);
+    expect(sitios.some((s) => s.sitio === 'raiz')).toBe(true);
+    await axe(page);
+  });
+
+  test('al estrechar la ventana con el foco en la tabla, Editar pasa a modal y el foco entra en él', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await expect(p).toHaveAttribute('aria-modal', 'false');
+    await editarDe(page, HIDRANTE.codigo).focus();
+    expect((await dondeFoco(page)).sitio).toBe('raiz');
+    // 1050 px: Editar con velo, y la tabla sigue siendo tabla (por debajo de 1024 px pasa a filas
+    // apiladas y el botón con el foco se desmonta, que es otra cosa).
+    await page.setViewportSize({ width: 1050, height: 900 });
+    await expect(p).toHaveAttribute('aria-modal', 'true');
+    await expect.poll(async () => (await dondeFoco(page)).sitio).toBe('editar');
+    // Y al volver a ensanchar, la tabla vuelve a estar viva sin cerrar Editar.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(p).toHaveAttribute('aria-modal', 'false');
+    expect(await inertes(page)).toBe(0);
+  });
+
+  test('con Retirar encima de Editar (768 px), Tab no sale de Retirar y al cerrarlo Editar vuelve a responder', async ({
+    page,
+  }) => {
+    // Retirar se abre desde la tabla, que a 768 px está detrás del velo: se abre con Editar al lado de
+    // la tabla y después la ventana se estrecha, así que Editar pasa a ser modal sin cerrarse.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await page.getByRole('row').filter({ hasText: BOCA.codigo }).getByRole('button', { name: T.panel.retirar }).click();
+    const retirar = page.getByRole('dialog').filter({ hasText: T.panelInventario.avisoRetirar });
+    await expect(retirar).toBeVisible();
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await expect(p).toHaveAttribute('aria-modal', 'true');
+
+    const sitios = await tabular(page, 30);
+    expect(sitios.filter((s) => s.sitio !== 'ventana' && s.sitio !== 'body')).toEqual([]);
+    expect(sitios.some((s) => s.sitio === 'ventana')).toBe(true);
+    await axe(page);
+
+    await page.keyboard.press('Escape');
+    await expect(retirar).toHaveCount(0);
+    // Editar vuelve a estar vivo; la tabla, no.
+    expect(await p.evaluate((d) => d.closest('[inert]') === null)).toBe(true);
+    await expect(page.locator('#raiz')).toHaveAttribute('inert', '');
+    const directo = p.getByRole('radio', { name: T.formulario.directo });
+    await directo.click();
+    await expect(directo).toHaveAttribute('aria-checked', 'true');
+    await directo.focus();
+    const despues = await tabular(page, 60);
+    expect(despues.filter((s) => s.sitio !== 'editar' && s.sitio !== 'body')).toEqual([]);
+  });
+
+  test('el aviso de error se ve, se anuncia y se cierra con Editar abierto a 768 px', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await preparar(page);
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_editar_punto`, (r) =>
+      r.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          code: 'P0001',
+          message: 'PUNTO_OCUPADO: otro lo está cambiando',
+          details: null,
+          hint: null,
+        }),
+      }),
+    );
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await p.getByRole('radio', { name: T.formulario.directo }).click();
+    await p.getByRole('button', { name: T.panel.guardarCambios }).click();
+    const aviso = page.getByRole('alert').filter({ hasText: T.panelErrores.puntoOcupado });
+    await expect(aviso).toBeVisible();
+    await expect(p).toBeVisible();
+    // Fuera de cualquier nodo inert: el lector de pantalla lo lee y la X responde.
+    expect(await aviso.evaluate((a) => a.closest('[inert]') === null)).toBe(true);
+    await aviso.getByRole('button', { name: T.ficha.cerrar }).click();
+    await expect(aviso).toHaveCount(0);
+  });
+
+  test('el aviso de «Guardado» sigue vivo si se abre otra ventana mientras se ve', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await p.getByRole('radio', { name: T.formulario.directo }).click();
+    await p.getByRole('button', { name: T.panel.guardarCambios }).click();
+    await expect(p).toHaveCount(0);
+    const aviso = page.getByRole('status').filter({ hasText: T.panelInventario.guardado(BOCA.codigo) });
+    await expect(aviso).toBeVisible();
+    // Al cerrar Editar, el foco vuelve al "Editar" de la fila (con #raiz ya sin inert).
+    await expect(editarDe(page, BOCA.codigo)).toBeFocused();
+    await editarDe(page, HIDRANTE.codigo).click();
+    await expect(p).toBeVisible();
+    await expect(page.locator('#raiz')).toHaveAttribute('inert', '');
+    expect(await aviso.evaluate((a) => a.closest('[inert]') === null)).toBe(true);
+  });
+});
