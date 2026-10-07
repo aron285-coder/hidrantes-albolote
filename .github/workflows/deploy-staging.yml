@@ -22,7 +22,7 @@ jobs:
       url: https://hidrantes-albolote-staging.pages.dev
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Historia completa: VERSION_CODIGO del Worker es el último commit que tocó workers/ (docs/20
           # RV-74), y con una historia corta saldría otro.
@@ -115,7 +115,7 @@ jobs:
       # sobre lo desplegado y con el móvil emulado que trae Lighthouse por defecto. Los umbrales
       # están en .github/lighthouse.json. La acción no necesita ninguna dependencia del proyecto.
       - name: Lighthouse sobre staging (TR-103)
-        uses: treosh/lighthouse-ci-action@v12
+        uses: treosh/lighthouse-ci-action@3e7e23fb74242897f95c0ba9cabad3d0227b9b18 # v12.6.2
         with:
           urls: https://hidrantes-albolote-staging.pages.dev/
           configPath: .github/lighthouse.json
