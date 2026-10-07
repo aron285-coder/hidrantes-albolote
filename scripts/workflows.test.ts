@@ -181,6 +181,198 @@ describe('paridad de producción (P-03)', () => {
   });
 });
 
+// docs/31 RV-136: un deploy de producción que falla avisa, y la vigilancia mira el último.
+describe('deploy de producción fallido (RV-136)', () => {
+  const prod = leer('deploy-prod.yml');
+  const paso = (texto: string, nombre: string) => {
+    const desde = texto.indexOf(`- name: ${nombre}`);
+    expect(desde, nombre).toBeGreaterThan(-1);
+    return texto.slice(desde).split(/\n\s{6}- /)[0]!;
+  };
+
+  /** El guion de un `run: |`, sin la sangría del YAML. */
+  const guionDe = (p: string) =>
+    p
+      .slice(p.indexOf('run: |\n') + 'run: |\n'.length)
+      .split('\n')
+      .map((l) => l.replace(/^ {10}/, ''))
+      .join('\n');
+  const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
+  /**
+   * gh simulado con jq de verdad: `--jq` se aplica a la respuesta que toque, así que los filtros del
+   * YAML se ejecutan. Lo que no es una lectura se anota en $ANOTADO.
+   */
+  const ghSimulado = [
+    'gh() {',
+    '  local filtro="" estado="" cuerpo="" a=("$@") i',
+    '  for ((i = 0; i < ${#a[@]}; i++)); do',
+    '    if [ "${a[i]}" = --jq ]; then filtro="${a[i+1]}"; fi',
+    '    if [ "${a[i]}" = --status ]; then estado="${a[i+1]}"; fi',
+    '    if [ "${a[i]}" = --body ]; then cuerpo="${a[i+1]}"; fi',
+    '  done',
+    '  if [ -n "$cuerpo" ]; then printf "%s" "$cuerpo" > "$ANOTADO.cuerpo"; fi',
+    '  case "$1 $2" in',
+    '    "api "*) printf "%s" "$JOBS" | jq -r "$filtro" ;;',
+    '    "issue list") printf "%s" "$ISSUES" | jq -r "$filtro" ;;',
+    '    "run list") if [ "$estado" = waiting ]; then printf "%s" "$ESPERANDO"; else printf "%s" "$TERMINADOS"; fi | jq -r "$filtro" ;;',
+    '    *) echo "gh $1 $2 $3" >> "$ANOTADO" ;;',
+    '  esac',
+    '}',
+  ].join('\n');
+  const correr = (guion: string, datos: Record<string, string>) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'deploy-fallido-'));
+    try {
+      const anotado = path.join(dir, 'anotado');
+      const r = spawnSync('bash', ['-e', '-c', `${ghSimulado}\n${guion}`], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          ANOTADO: anotado,
+          GITHUB_SHA: 'a'.repeat(40),
+          GH_REPO: 'o/r',
+          REPO: 'o/r',
+          RUN_ID: '1',
+          EJECUCION: 'https://ejecucion',
+          ...datos,
+        },
+      });
+      const leerSi = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
+      return { ...r, anotado: leerSi(anotado), cuerpo: leerSi(`${anotado}.cuerpo`) };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const JOBS = JSON.stringify({
+    jobs: [
+      {
+        steps: [
+          { name: 'Guarda de seguridad', conclusion: 'success' },
+          { name: 'Paridad con develop', conclusion: 'failure' },
+        ],
+      },
+    ],
+  });
+  const issue = (number: number, state: string, title = 'Deploy de producción fallido') => ({ number, state, title });
+
+  it('con un paso fallido o cancelado, abre o reabre la issue y dice qué paso falló', () => {
+    const p = paso(prod, 'Avisar del fallo');
+    expect(p).toContain('if: failure() || cancelled()');
+    expect(p).toContain('ESTADO: ${{ job.status }}');
+    expect(p).toContain("titulo='Deploy de producción fallido'");
+    // Después de todos los pasos que pueden fallar.
+    expect(prod.indexOf('- name: Avisar del fallo')).toBeGreaterThan(prod.indexOf('npm run paridad'));
+  });
+
+  it.skipIf(!tieneJq)('sin issue, la crea con el paso que falló', () => {
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), { JOBS, ISSUES: '[]', ESTADO: 'failure' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue create --title\n');
+    expect(r.cuerpo).toContain('ha terminado con **failure**, en: **Paridad con develop**');
+    expect(r.cuerpo).toContain('`aaaaaaa`');
+  });
+
+  it.skipIf(!tieneJq)('si no puede leer los pasos, abre la issue igual y lo dice', () => {
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), { JOBS: 'no es json', ISSUES: '[]', ESTADO: 'failure' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue create --title\n');
+    expect(r.cuerpo).toContain('no lo he podido saber');
+  });
+
+  it.skipIf(!tieneJq)('con la issue cerrada, la reabre y comenta; con otra de otro título, no la toca', () => {
+    const ISSUES = JSON.stringify([issue(7, 'OPEN', 'Vigilancia diaria: algo no responde'), issue(5, 'CLOSED')]);
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), { JOBS, ISSUES, ESTADO: 'cancelled' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue reopen 5\ngh issue comment 5\n');
+  });
+
+  it.skipIf(!tieneJq)('con la issue abierta, solo comenta en ella, aunque haya otra cerrada más antigua', () => {
+    const ISSUES = JSON.stringify([issue(3, 'CLOSED'), issue(9, 'OPEN')]);
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), { JOBS, ISSUES, ESTADO: 'failure' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue comment 9\n');
+  });
+
+  it('con el despliegue bien, cierra la issue de un fallo anterior', () => {
+    const p = paso(prod, 'Cerrar el aviso de un fallo anterior');
+    expect(p).toContain('if: success()');
+    expect(p).toContain("titulo='Deploy de producción fallido'");
+    expect(p).toContain('gh issue close');
+  });
+
+  it('tiene permiso para las issues y para leer los pasos de su ejecución', () => {
+    expect(prod).toMatch(/^\s{2}issues: write$/m);
+    expect(prod).toMatch(/^\s{2}actions: read$/m);
+  });
+
+  it.skipIf(!tieneJq)('con todo bien, cierra solo la issue abierta de ese título', () => {
+    const ISSUES = JSON.stringify([issue(7, 'OPEN', 'Vigilancia diaria: algo no responde'), issue(9, 'OPEN')]);
+    const r = correr(guionDe(paso(prod, 'Cerrar el aviso de un fallo anterior')), { ISSUES });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue close 9\n');
+  });
+
+  describe('la vigilancia mira el último deploy-prod', () => {
+    const v = leer('vigilancia.yml');
+    const bloque = v
+      .slice(v.indexOf('# 9. El último despliegue'), v.indexOf('# 5. Se anota'))
+      .split('\n')
+      .map((l) => l.replace(/^ {10}/, ''))
+      .join('\n');
+    const ahora = Math.floor(Date.UTC(2026, 9, 7, 12) / 1000);
+    const vigilar = (terminados: object[], esperando: object[] = []) => {
+      const r = correr(
+        ['problemas=()', `ahora=${ahora}`, bloque, 'printf "%s\\n" "${problemas[@]}"', 'echo FIN'].join('\n'),
+        { TERMINADOS: JSON.stringify(terminados), ESPERANDO: JSON.stringify(esperando) },
+      );
+      expect(r.status, r.stderr).toBe(0);
+      return r.stdout.replace(/\n?FIN\n$/, '').trim();
+    };
+    const SHA = 'b'.repeat(40);
+
+    it('el bloque está entre los puntos 8 y 5', () => {
+      expect(bloque).toContain('--status completed');
+      expect(bloque).toContain('--status waiting');
+    });
+
+    it.skipIf(!tieneJq)('el último terminado con success: nada', () => {
+      expect(vigilar([{ conclusion: 'success', headSha: SHA }])).toBe('');
+    });
+
+    it.skipIf(!tieneJq)('sin ningún deploy todavía: nada', () => {
+      expect(vigilar([])).toBe('');
+    });
+
+    it.skipIf(!tieneJq)(
+      'cuenta el que terminó más tarde: uno cancelado en cola antes de que el bueno acabe no avisa',
+      () => {
+        const terminados = [
+          { conclusion: 'cancelled', headSha: 'd'.repeat(40), updatedAt: '2026-10-07T10:05:00Z' },
+          { conclusion: 'success', headSha: SHA, updatedAt: '2026-10-07T11:00:00Z' },
+        ];
+        expect(vigilar(terminados)).toBe('');
+        expect(vigilar([...terminados].reverse())).toBe('');
+      },
+    );
+
+    it.skipIf(!tieneJq)('cancelado sin aprobar (0.8.0) o fallido: avisa con el commit', () => {
+      for (const conclusion of ['cancelled', 'failure', 'timed_out']) {
+        const p = vigilar([{ conclusion, headSha: SHA }]);
+        expect(p).toContain(`(bbbbbbb) terminó con ${conclusion}`);
+        expect(p).toContain('Deploy de producción fallido');
+      }
+    });
+
+    it.skipIf(!tieneJq)('uno esperando la aprobación más de un día avisa; menos, no', () => {
+      const hace = (h: number) => new Date((ahora - h * 3600) * 1000).toISOString().replace('.000', '');
+      const bien = [{ conclusion: 'success', headSha: SHA }];
+      expect(vigilar(bien, [{ createdAt: hace(30), headSha: 'c'.repeat(40) }])).toContain(
+        'el despliegue de producción de ccccccc lleva 30 h esperando',
+      );
+      expect(vigilar(bien, [{ createdAt: hace(2), headSha: 'c'.repeat(40) }])).toBe('');
+    });
+  });
+});
+
 // docs/19 RV-52, DEC-097: el Worker de los avisos, su despliegue y su vigilancia.
 describe('Worker hidrantes-avisos (RV-52)', () => {
   const toml = readFileSync(path.resolve(import.meta.dirname, '../workers/avisos/wrangler.toml'), 'utf8');

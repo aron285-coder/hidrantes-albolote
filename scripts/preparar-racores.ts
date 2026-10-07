@@ -6,9 +6,14 @@
 //   npx tsx scripts/preparar-racores.ts <carpeta-con-las-fotos> [granada|barcelona|directo …]
 //
 // En la carpeta, un archivo por racor cuyo nombre empiece por «granada», «barcelona» o «directo»
-// (JPEG, PNG o WebP; p. ej. granada.jpg). Sin lista, los tres; con lista, solo esos (p. ej.
-// `… <carpeta> directo` para poner la de Directo sin rehacer las otras dos). Nunca imágenes sacadas de internet: fotos propias, porque
-// el repositorio es público. En local sin Chromium descargado: PW_CANAL=chrome.
+// (JPEG, PNG, WebP o un dibujo SVG; p. ej. granada.jpg). Sin lista, los tres; con lista, solo esos
+// (p. ej. `… <carpeta> directo` para poner la de Directo sin rehacer las otras dos). Nunca imágenes
+// sacadas de internet: fotos o dibujos propios, porque el repositorio es público. Los dibujos de
+// referencia (DEC-152, DEC-178) guardan su fuente en public/racores/fuentes/:
+//
+//   npx tsx scripts/preparar-racores.ts public/racores/fuentes directo
+//
+// En local sin Chromium descargado: PW_CANAL=chrome.
 
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -26,6 +31,7 @@ const TIPOS: Record<string, string> = {
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
 };
 
 /** La foto original de cada racor pedido en la carpeta; error claro si falta alguna. */
@@ -55,8 +61,17 @@ export function buscarOriginales(
 export async function prepararFoto(pagina: Page, original: Buffer, tipo: string): Promise<Buffer> {
   const base64 = await pagina.evaluate(
     async ({ datos, tipo, lado, maximo }) => {
-      const blob = await (await fetch(`data:${tipo};base64,${datos}`)).blob();
-      const img = await createImageBitmap(blob);
+      const url = `data:${tipo};base64,${datos}`;
+      let img: ImageBitmap | HTMLImageElement;
+      if (tipo === 'image/svg+xml') {
+        // Un dibujo (docs/31 RV-157b): createImageBitmap no lee SVG; <img> sí, y lo pinta como
+        // vector al tamaño final, sin pasar por un mapa de bits intermedio.
+        img = new Image();
+        img.src = url;
+        await img.decode();
+      } else {
+        img = await createImageBitmap(await (await fetch(url)).blob());
+      }
       const corte = Math.min(img.width, img.height);
       const lienzo = document.createElement('canvas');
       lienzo.width = lado;
