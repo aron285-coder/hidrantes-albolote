@@ -546,7 +546,9 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `El punto ya no está activo: no se ha enviado.` · `Faltan datos o no son válidos: no se ha enviado.` ·
 `Falta la foto: no se ha enviado.` · `Falta la foto del sitio: no se ha enviado.` ·
 `El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.` · `No se ha podido enviar.` ·
-`Sin conexión: esta es la última lista guardada.`
+`Sin conexión: esta es la última lista guardada.` ·
+`Has llegado al máximo de propuestas de hoy ([60]). Se enviará mañana.` ·
+`Has llegado al máximo de propuestas de hoy. Se enviará mañana.`
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
 `Descargado · [12] MB · [jul 2026]` · `No descargado` · `Descargar` · `Actualizar` ·
@@ -683,6 +685,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Filtrar por acción` · `todas las acciones` ·
 `[n] entradas` · `no se puede editar ni borrar` · `Momento` · `Actor` · `Acción` · `Punto` ·
 `Detalle` · `[n] entradas por página` · `Todavía no hay entradas con ese filtro.` ·
+`[motivo] Las filas que ves son las de antes.` ·
 `Propuesta retirada por su autor` · `Aprobación` · `Aprobación con correcciones` · `Rechazo` ·
 `Fusión` · `Edición directa` · `Borrado` · `Restauración` · `Purga de la papelera` ·
 `Código de acceso cambiado` · `Dispositivos revocados` · `Administrador añadido` ·

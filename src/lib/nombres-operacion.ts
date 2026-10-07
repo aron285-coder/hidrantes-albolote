@@ -1,5 +1,6 @@
 // Nombres de las operaciones y de los errores de envío para la interfaz (TR-36).
 
+import type { EnCola } from './cola';
 import type { Operacion } from './propuestas';
 import { T } from './textos';
 
@@ -22,6 +23,13 @@ export const ETIQUETA_OPERACION: Record<Operacion, string> = {
   ubicacion: T.operaciones.etiquetaUbicacion,
   retirada: T.operaciones.etiquetaRetirada,
 };
+
+/** Por qué espera un envío sin ser un error (docs/31 RV-154); null si no hay nada que decir. */
+export function textoEspera(envio: Pick<EnCola, 'en_espera' | 'fallo'>): string | null {
+  if (envio.fallo || envio.en_espera?.motivo !== 'cuota_propuestas') return null;
+  const { maximo } = envio.en_espera;
+  return maximo ? T.misPropuestas.cuotaPropuestas(maximo) : T.misPropuestas.cuotaPropuestasSinNumero;
+}
 
 /** Error permanente de la cola en palabras del voluntario. */
 export function textoFallo(codigo: string): string {

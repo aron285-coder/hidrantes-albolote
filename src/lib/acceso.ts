@@ -18,7 +18,7 @@ import {
   olvidarToken,
 } from './sesion';
 import { alEnviarPropuesta, iniciarCola, reintentarCola, vaciarCola } from './cola';
-import { cargarMisPropuestas } from './mis-propuestas';
+import { cargarMisPropuestas, olvidarMisPropuestas } from './mis-propuestas';
 import {
   borrarPuntos,
   cargarGuardados,
@@ -248,6 +248,7 @@ export async function cerrarSesionVoluntario(): Promise<void> {
   // Primero lo que necesita el token: dejar de recibir avisos en este móvil.
   if (estadoPush() === 'activo') await desactivarPush().catch(() => undefined);
   cerrarSesion();
+  olvidarMisPropuestas();
   void borrarPuntos();
   void vaciarCola();
   fijar({ tipo: 'fuera', caducado: false });

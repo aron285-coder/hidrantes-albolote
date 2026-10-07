@@ -239,3 +239,17 @@ describe('la dirección tras volver de Google (RV-57)', () => {
     expect(replaceState).not.toHaveBeenCalled();
   });
 });
+
+describe('cerrar sesión con el móvil compartido (RV-153)', () => {
+  it('no deja a la vista las propuestas del anterior', async () => {
+    const { cerrarSesionVoluntario } = await import('./acceso');
+    const { cargarMisPropuestas, misPropuestas } = await import('./mis-propuestas');
+    guardarSesion(TOKEN, { nombre: 'Sara', apellido: 'Ruiz' });
+    rpc.mockResolvedValue({ data: [{ id: 'p1', estado: 'rechazada', motivo_rechazo: 'x' }], error: null, status: 200 });
+    await cargarMisPropuestas();
+    expect(misPropuestas()).toHaveLength(1);
+
+    await cerrarSesionVoluntario();
+    expect(misPropuestas()).toEqual([]);
+  });
+});
