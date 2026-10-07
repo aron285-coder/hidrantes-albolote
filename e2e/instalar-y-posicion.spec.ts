@@ -213,6 +213,28 @@ test.describe('alta con una posición que no está al día (RV-40)', () => {
     expect(propuesta).toMatchObject({ origen: 'manual', gps_lat: null, gps_lng: null, precision_gps_m: null });
   });
 
+  // docs/31 RV-157, punto 6: el pin se pintaba naranja, como colocado, mientras el formulario pedía
+  // «Mueve el pin». Ahora va gris y discontinuo hasta que se toca el mapa o llega un fix nuevo.
+  test('con la posición vieja, el pin se ve sin colocar hasta que se toca el mapa', async ({ page }) => {
+    await altaConPosicionVieja(page);
+    const mapa = page.getByTestId('selector-pin');
+    await expect(mapa.locator('.pin-sin-colocar')).toHaveCount(1);
+    const caja = (await mapa.boundingBox())!;
+    await mapa.click({ position: { x: caja.width / 3, y: caja.height / 3 } });
+    await expect(page.getByText(T.avisosFormulario.muevePin)).toHaveCount(0);
+    await expect(mapa.locator('.pin-sin-colocar')).toHaveCount(0);
+    await expect(mapa.locator('.leaflet-marker-icon.marcador')).toHaveCount(1);
+  });
+
+  test('con la posición vieja, un fix nuevo coloca el pin y deja de verse sin colocar', async ({ page }) => {
+    await altaConPosicionVieja(page);
+    const mapa = page.getByTestId('selector-pin');
+    await expect(mapa.locator('.pin-sin-colocar')).toHaveCount(1);
+    await fix(page, 37.231, -3.6567);
+    await expect(mapa.locator('.pin-sin-colocar')).toHaveCount(0);
+    await expect(mapa.locator('.leaflet-marker-icon.marcador')).toHaveCount(1);
+  });
+
   test('en cuanto llega un fix nuevo, el pin se coloca solo', async ({ page }) => {
     await altaConPosicionVieja(page);
     await expect(page.getByText(T.avisosFormulario.muevePin)).toBeVisible();
