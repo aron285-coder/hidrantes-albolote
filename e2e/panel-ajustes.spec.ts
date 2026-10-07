@@ -31,7 +31,6 @@ const ADMINISTRADORES = [
 
 const SALUD = {
   pendientes_14d: 2,
-  incidencias_abiertas: 1,
   errores_7d: 0,
   sin_direccion: 3,
   ultimo_respaldo: '2026-09-18T03:00:00Z',

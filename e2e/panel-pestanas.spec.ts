@@ -40,7 +40,7 @@ async function prepararPanel(page: Page) {
   await simularRpc(page, {
     fn_es_admin: true,
     // La RPC de salud puede seguir devolviendo el campo: el panel lo ignora.
-    fn_salud: { pendientes_14d: 0, incidencias_abiertas: 4, errores_7d: 0, sin_direccion: 0, dispositivos_activos: 3 },
+    fn_salud: { pendientes_14d: 0, errores_7d: 0, sin_direccion: 0, dispositivos_activos: 3 },
     fn_registrar_error: null,
   });
 }
