@@ -77,5 +77,5 @@ Docker no funciona en este equipo, así que la base de datos local no se puede l
 
 ## 6. Lo que queda abierto
 
-- La conformidad de jefatura con FR-50 v1.3 y FR-72 a FR-76 y la prueba en campo de G2: validación F9.1 (#76).
+- La prueba en campo de G2: validación F9.1 (#76). La conformidad sobre FR-50 v1.3 y FR-72 a FR-76 es la del desarrollador (DEC-177).
 - El PR a `main` (#79), con el resto de la Fase 9.

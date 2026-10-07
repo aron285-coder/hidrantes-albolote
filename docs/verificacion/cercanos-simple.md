@@ -61,4 +61,5 @@ repositorio. Lo comprobado:
 ## Pendiente
 
 - Desarrollador (docs/27 §3): probar en staging en el Android que se lee de un vistazo y que
-  *Cómo llegar* abre Google Maps; la conformidad de jefatura sobre FR-74 v1.10.
+  *Cómo llegar* abre Google Maps. (La conformidad de jefatura sobre FR-74 v1.10 ya no es un paso
+  pendiente: basta la del desarrollador, DEC-177.)

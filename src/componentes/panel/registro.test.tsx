@@ -6,12 +6,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EntradaRegistro } from '@/lib/panel/inventario';
 
-const estado = vi.hoisted(() => ({ ancho: 'escritorio', datos: null as unknown }));
+const estado = vi.hoisted(() => ({ ancho: 'escritorio', datos: null as unknown, carga: 'listo', codigo: '' }));
 
 vi.mock('@/hooks/ancho', () => ({ useAncho: () => estado.ancho }));
 vi.mock('@/hooks/carga', () => ({
   useCarga: () => ({
-    estado: 'listo',
+    estado: estado.carga,
+    codigo: estado.codigo,
     datos: estado.datos,
     recargar: async () => undefined,
   }),
@@ -22,6 +23,8 @@ vi.mock('./Dialogo', () => ({
 }));
 
 const { default: Registro } = await import('./Registro');
+const { T } = await import('@/lib/textos');
+const { textoError } = await import('@/lib/panel/errores');
 const { DialogoHistorial } = await import('./dialogos');
 type Punto = import('@/lib/puntos').Punto;
 
@@ -68,6 +71,27 @@ const texto = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' 
 beforeEach(() => {
   // Registro carga una página; el Historial, la lista de entradas del punto.
   estado.datos = { filas: [EDICION], total: 1 };
+  estado.carga = 'listo';
+  estado.codigo = '';
+});
+
+// docs/31 RV-166: un error con filas a la vista se dice; antes solo se decía sin filas.
+describe('Registro · error con filas visibles (docs/31 RV-166)', () => {
+  it.each(['escritorio', 'movil'])('en %s, aviso encima de las filas con el motivo y Reintentar', (ancho) => {
+    estado.ancho = ancho;
+    estado.carga = 'error';
+    estado.codigo = 'SIN_SERVIDOR';
+    const html = renderToStaticMarkup(<Registro />);
+    expect(html).toContain('role="alert"');
+    expect(texto(html)).toContain(T.panelRegistro.errorConFilas(textoError('SIN_SERVIDOR')));
+    expect(texto(html)).toContain(T.mapa.reintentar);
+    expect(html).toContain(LEGIBLE);
+  });
+
+  it('sin error no hay aviso', () => {
+    estado.ancho = 'escritorio';
+    expect(renderToStaticMarkup(<Registro />)).not.toContain('role="alert"');
+  });
 });
 
 describe('Registro · columna Detalle (docs/30 RV-127)', () => {

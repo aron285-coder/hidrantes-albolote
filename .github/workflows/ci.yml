@@ -25,7 +25,7 @@ jobs:
     outputs:
       codigo: ${{ steps.calcular.outputs.codigo }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - id: calcular
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       # docs/31 RV-135, DEC-096: en un PR a main, main no puede tener nada fuera de la historia de la
@@ -93,7 +93,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -211,13 +211,13 @@ jobs:
       matrix:
         parte: [1, 2, 3]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
       - uses: ./.github/actions/navegadores
       - name: E2e (sin los de rendimiento), parte ${{ matrix.parte }} de 3
         run: npx playwright test --grep-invert @rendimiento --fully-parallel --shard=${{ matrix.parte }}/3
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-${{ matrix.parte }}
           path: playwright-report/
@@ -231,13 +231,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
       - uses: ./.github/actions/navegadores
       - name: E2e de rendimiento, un worker
         run: npx playwright test --grep @rendimiento --workers=1
       - if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report-rendimiento
           path: playwright-report/
@@ -272,7 +272,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - id: pantallas
@@ -294,7 +294,7 @@ jobs:
         if: steps.pantallas.outputs.tocan == 'true'
         run: npx playwright test e2e/vistas.spec.ts
       - if: steps.pantallas.outputs.tocan == 'true' && always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: vistas
           path: test-results/vistas-*/*.png
