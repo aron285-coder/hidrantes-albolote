@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(45);
+select plan(49);
 
 -- ---------- datos de prueba ----------
 
@@ -48,16 +48,17 @@ create function pg_temp.datos(token text, clave text, d jsonb, nombre text defau
   select hidrantes.fn_proponer(token, clave, nombre, 'Ruiz', 'datos', '00000000-0000-4000-8000-0000000e3401', d,
     null, null, null, null, null, null, null, null, null);
 $$;
--- El detail de un error, para leer reintentar_en_s.
-create function pg_temp.detalle(sentencia text) returns text language plpgsql as $$
+-- El mensaje y el detail de un error, para leer maximo y reintentar_en_s.
+create function pg_temp.error_de(sentencia text) returns text[] language plpgsql as $$
 declare
+  m text;
   d text;
 begin
   execute sentencia;
   return null;
 exception when others then
-  get stacked diagnostics d = pg_exception_detail;
-  return d;
+  get stacked diagnostics m = message_text, d = pg_exception_detail;
+  return array[m, d];
 end $$;
 
 -- ---------- RV-140: longitudes ----------
@@ -68,7 +69,12 @@ select lives_ok($$ select pg_temp.datos(current_setting('test.token_a'), 'l34-de
   'y de 500, entra');
 select throws_like($$ select pg_temp.datos(current_setting('test.token_a'), 'l34-desc-obj',
     jsonb_build_object('descripcion', jsonb_build_object('a', repeat('x', 600)))) $$,
-  'PAYLOAD_INVALIDO(descripcion)%', 'un objeto enorme en descripcion tampoco pasa');
+  'PAYLOAD_INVALIDO(descripcion)%', 'un objeto en descripcion no pasa: tiene que ser un texto');
+select throws_like($$ select pg_temp.datos(current_setting('test.token_a'), 'l34-desc-num', '{"descripcion": 123}') $$,
+  'PAYLOAD_INVALIDO(descripcion)%', 'ni un número');
+select throws_like($$ select pg_temp.datos(current_setting('test.token_a'), 'l34-enorme',
+    jsonb_build_object('diametro_otro', repeat('9', 5000)::numeric)) $$,
+  'PAYLOAD_INVALIDO(datos)%', 'datos de más de 4.000 caracteres en total, aunque sea en una clave sin límite propio');
 
 insert into hidrantes.subidas (dispositivo_id, foto_path, reservada_en) values
   ('aaaaaaaa-0000-4000-8000-0000000e3401', 'fotos/l34-nota.jpg', now());
@@ -152,9 +158,13 @@ select set_config('test.p60', pg_temp.datos(current_setting('test.token_b'), 'c3
 select isnt(current_setting('test.p60'), '', 'la 60.ª del día entra (las de ayer no cuentan)');
 select throws_like($$ select pg_temp.datos(current_setting('test.token_b'), 'c34-la-61', '{"descripcion":"z"}') $$,
   'CUOTA_PROPUESTAS_AGOTADA%', 'la 61.ª: CUOTA_PROPUESTAS_AGOTADA');
-select ok((pg_temp.detalle($$ select pg_temp.datos(current_setting('test.token_b'), 'c34-la-61', '{"descripcion":"z"}') $$)::jsonb
-           ->> 'reintentar_en_s')::int between 1 and 90000,
-  'con reintentar_en_s hasta la medianoche de Madrid en details');
+select set_config('test.error61',
+  array_to_string(pg_temp.error_de($$ select pg_temp.datos(current_setting('test.token_b'), 'c34-la-61', '{"descripcion":"z"}') $$), '|'),
+  true);
+select ok(current_setting('test.error61') ~ '^CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=[0-9]+\|'
+          and substring(current_setting('test.error61') from 'reintentar_en_s=([0-9]+)')::int between 1 and 90000
+          and (split_part(current_setting('test.error61'), '|', 2)::jsonb ->> 'maximo')::int = 60,
+  'el mensaje lleva maximo=60 y reintentar_en_s hasta la medianoche de Madrid (y el detail, lo mismo en JSON)');
 select is(pg_temp.datos(current_setting('test.token_b'), 'c34-la-60', '{"descripcion":"y"}') ->> 'propuesta_id',
   current_setting('test.p60'), 'un reintento de la 60.ª con su clave_local no cuenta: devuelve la misma');
 select lives_ok($$ select pg_temp.datos(current_setting('test.token_a'), 'c34-otro', '{"descripcion":"y"}') $$,
@@ -242,6 +252,9 @@ select is((select error from hidrantes.fn_verificar_codigo('482917', hidrantes.f
   'DISPOSITIVO_RESERVADO', 'el dispositivo_id de un administrador activo: DISPOSITIVO_RESERVADO');
 select is((select error from hidrantes.fn_verificar_codigo('482917', hidrantes.fn_dispositivo_admin('antigua34@example.com'), 'ip-34r')),
   'DISPOSITIVO_RESERVADO', 'también el de uno desactivado');
+select is((select tope from hidrantes.intentos_codigo
+            where dispositivo_id = hidrantes.fn_dispositivo_admin('jefa34@example.com') order by id desc limit 1),
+  'dispositivo_reservado', 'el intento queda marcado como dispositivo reservado');
 select is((select count(*)::int from hidrantes.dispositivos
             where dispositivo_id in (hidrantes.fn_dispositivo_admin('jefa34@example.com'),
                                      hidrantes.fn_dispositivo_admin('antigua34@example.com'))), 0,
@@ -251,6 +264,12 @@ select is((select error from hidrantes.fn_verificar_codigo('000000', hidrantes.f
 select ok((select token is not null and error is null
              from hidrantes.fn_verificar_codigo('482917', 'cccccccc-0000-4000-8000-0000000e3403', 'ip-34r')),
   'un dispositivo_id normal recibe su token');
+-- Un token que alguien canjeó con el id de un administrador antes de 0039 (o antes de que esa persona
+-- fuera administradora) ya no vale.
+insert into hidrantes.dispositivos (dispositivo_id, token_hash)
+values (hidrantes.fn_dispositivo_admin('jefa34@example.com'), hidrantes.fn_sha256('token-antiguo-con-id-de-jefatura-34'));
+select throws_like($$ select hidrantes.fn_listar_puntos('token-antiguo-con-id-de-jefatura-34') $$, 'TOKEN_REVOCADO%',
+  'un token antiguo con el dispositivo_id de un administrador: TOKEN_REVOCADO');
 
 select * from finish();
 rollback;

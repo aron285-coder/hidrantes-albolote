@@ -8,12 +8,15 @@
 --    De paso (petición de Frontend-panel para RV-162 en #484): en correcciones, la clave direccion con
 --    null o vacía deja el punto sin dirección; sin la clave, como antes.
 -- 2. RV-141: max_propuestas_dia (60) por dispositivo y día natural de Madrid. Un reintento con la
---    misma clave_local sale antes de contar; jefatura no tiene tope. CUOTA_PROPUESTAS_AGOTADA con
---    details = {"reintentar_en_s": n}. Editable en Ajustes con fn_guardar_config.
+--    misma clave_local sale antes de contar; jefatura no tiene tope. Mensaje
+--    "CUOTA_PROPUESTAS_AGOTADA: maximo=<n> reintentar_en_s=<s>" (el cliente solo lee el message).
+--    Editable en Ajustes con fn_guardar_config.
 -- 3. RV-142: max_subidas_dia_total (400) entre todos los voluntarios; dias_reserva_subida de 7 a 2
 --    (48 h de protección, 24 h para confirmar); fn_reservas_sin_confirmar_lista para la purga.
 -- 4. RV-143: fn_verificar_codigo no da token al dispositivo_id técnico de un administrador:
---    DISPOSITIVO_RESERVADO.
+--    DISPOSITIVO_RESERVADO (y marca el intento). Los tokens que ya tuviera ese id se revocan, y
+--    fn_validar_token no acepta ninguno (también si la persona se da de alta como administradora
+--    después).
 --
 -- Mismas firmas y mismos permisos (04 §12): create or replace conserva los grant. Cada función que
 -- llevaba lock_timeout (0016, 0035, 0038) lo vuelve a declarar, porque create or replace sustituye
@@ -33,9 +36,9 @@ end $$;
 
 revoke all on function hidrantes.fn_validar_longitud(text, text, integer) from public, anon, authenticated;
 
--- Las claves de 05 §7.1 que traiga un objeto (datos, correcciones o cambios). Las demás no se miran.
--- Se mide el texto que acabaría en la columna (->>), sea cual sea el tipo JSON del valor: un objeto
--- enorme en "descripcion" tampoco pasa.
+-- Las claves de 05 §7.1 que traiga un objeto (datos, correcciones o cambios): texto (o null) y no más
+-- largo que su límite. Las demás claves no se miran aquí; el tamaño total de datos lo frena
+-- fn_validar_datos.
 create function hidrantes.fn_validar_longitudes(datos jsonb) returns void
 language plpgsql immutable set search_path = pg_catalog as $$
 declare
@@ -48,6 +51,10 @@ begin
   end if;
   for k in select jsonb_object_keys(limites) loop
     if datos ? k then
+      -- Son textos: un número, un booleano o un objeto acabarían en la columna como su texto JSON.
+      if jsonb_typeof(datos -> k) not in ('string', 'null') then
+        perform hidrantes.fn_error('PAYLOAD_INVALIDO(' || k || ')', 'Tiene que ser un texto');
+      end if;
       perform hidrantes.fn_validar_longitud(k, datos ->> k, (limites ->> k)::int);
     end if;
   end loop;
@@ -55,12 +62,18 @@ end $$;
 
 revoke all on function hidrantes.fn_validar_longitudes(jsonb) from public, anon, authenticated;
 
--- Misma firma que 0005; el cuerpo de 0032 con los límites de §7.1 al principio.
+-- Misma firma que 0005; el cuerpo de 0032 con los límites de §7.1 al principio, y un tope al tamaño
+-- total: las claves sin límite propio (diametro_otro, por ejemplo, es un número sin rango en un
+-- hidrante) no pueden traer un valor enorme. Lo más largo que cabe de verdad (retirada con motivo de
+-- 1.000, o estado con nota y fallo) no llega a 2.000.
 create or replace function hidrantes.fn_validar_datos(operacion hidrantes.operacion, datos jsonb) returns void
 language plpgsql immutable set search_path = pg_catalog, hidrantes as $$
 declare
   tipo text := datos ->> 'tipo';
 begin
+  if length(datos::text) > 4000 then
+    perform hidrantes.fn_error('PAYLOAD_INVALIDO(datos)', 'Demasiados datos');
+  end if;
   perform hidrantes.fn_validar_longitudes(datos);
   begin
     perform (datos ->> 'tipo')::hidrantes.tipo_punto, (datos ->> 'caudal')::hidrantes.estado_caudal,
@@ -408,9 +421,9 @@ insert into hidrantes.config (clave, valor, actualizado_por) values
 on conflict (clave) do nothing;
 
 -- 48 h de protección y 24 h para confirmar (fn_proponer acepta dias - 1). No está en la lista blanca
--- de Ajustes, así que nadie la ha cambiado: se fija sin mirar el valor anterior.
-update hidrantes.config set valor = '2'::jsonb, actualizado_por = 'migracion'
- where clave = 'dias_reserva_subida';
+-- de Ajustes, así que nadie la ha cambiado: se fija sin mirar el valor anterior (y se crea si faltara).
+insert into hidrantes.config (clave, valor, actualizado_por) values ('dias_reserva_subida', '2', 'migracion')
+on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;
 
 -- Igual que 0027 con los dos topes nuevos en la lista blanca de Ajustes (FR-142).
 create or replace function hidrantes.fn_guardar_config(cambios jsonb) returns void
@@ -487,6 +500,7 @@ declare
   hoy_madrid timestamptz := date_trunc('day', now() at time zone 'Europe/Madrid') at time zone 'Europe/Madrid';
   manana_madrid timestamptz := (date_trunc('day', now() at time zone 'Europe/Madrid') + interval '1 day')
                                at time zone 'Europe/Madrid';
+  tope_propuestas integer;
 begin
   -- Identidad: administrador con sesión de Google o voluntario con token (FR-151).
   d := case when admin_email is not null then hidrantes.fn_dispositivo_admin(admin_email)
@@ -595,15 +609,24 @@ begin
   -- Tope diario por dispositivo (RV-141, DEC-174). Jefatura no tiene. Bajo un bloqueo por
   -- dispositivo: dos envíos a la vez no pasan los dos la última plaza (05 §11). Un reintento con la
   -- misma clave_local ya ha salido arriba, así que no cuenta.
+  -- El cliente solo ve el message: los dos números van en el texto, como pidió Frontend-campo en
+  -- #484 ("CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=12345"), y repetidos en detail.
   if admin_email is null then
     perform pg_advisory_xact_lock(hashtext('propuestas:' || d::text));
+    -- Un envío con la misma clave_local que entró mientras se esperaba el bloqueo es un reintento: se
+    -- devuelve ese, no un "máximo de hoy" de una propuesta que sí existe.
+    if exists (select 1 from hidrantes.propuestas x where x.clave_local = fn_proponer_interno.clave_local) then
+      return hidrantes.fn_proponer_interno(token, clave_local, autor_nombre, autor_apellido, operacion, punto_id, datos,
+        origen, lat, lng, gps_lat, gps_lng, precision_gps_m, exif_lat, exif_lng, foto_path, foto_sitio_path, exigir_foto_sitio);
+    end if;
+    tope_propuestas := (hidrantes.fn_config('max_propuestas_dia', '60') #>> '{}')::int;
     if (select count(*) from hidrantes.propuestas x
-         where x.dispositivo_id = d and x.creada_en >= hoy_madrid)
-       >= (hidrantes.fn_config('max_propuestas_dia', '60') #>> '{}')::int then
+         where x.dispositivo_id = d and x.creada_en >= hoy_madrid) >= tope_propuestas then
       raise exception using errcode = 'P0001',
-        message = 'CUOTA_PROPUESTAS_AGOTADA: Has llegado al máximo de propuestas de hoy',
-        detail = jsonb_build_object('reintentar_en_s',
-                   ceil(extract(epoch from manana_madrid - now()))::int)::text;
+        message = format('CUOTA_PROPUESTAS_AGOTADA: maximo=%s reintentar_en_s=%s', tope_propuestas,
+                         ceil(extract(epoch from manana_madrid - now()))::int),
+        detail = jsonb_build_object('maximo', tope_propuestas,
+                   'reintentar_en_s', ceil(extract(epoch from manana_madrid - now()))::int)::text;
     end if;
   end if;
 
@@ -701,7 +724,7 @@ language sql stable security definer set search_path = pg_catalog, hidrantes as 
     'total', count(*))
   from (select distinct s.foto_path from hidrantes.subidas s
          where s.confirmada_en is null and s.reservada_en < now() - interval '48 hours'
-           and s.foto_path not in (select x from hidrantes.fn_fotos_referenciadas() x where x is not null)) f;
+           and s.foto_path not in (select jsonb_array_elements_text(hidrantes.fn_fotos_referenciadas_lista() -> 'fotos'))) f;
 $$;
 
 -- Solo service_role, como la de las referenciadas (CLAUDE.md §3, 11 §3).
@@ -709,6 +732,57 @@ revoke all on function hidrantes.fn_reservas_sin_confirmar_lista() from public, 
 grant execute on function hidrantes.fn_reservas_sin_confirmar_lista() to service_role;
 
 -- ---------- 4. dispositivo reservado (RV-143) ----------
+
+-- Los tokens que ya se hubieran canjeado con el dispositivo_id de un administrador dejan de valer, y
+-- fn_validar_token no acepta ninguno más: también cubre a un administrador que se dé de alta después
+-- de que alguien canjeara con su id. Sin esto, ese token seguiría compartiendo la cuota de fotos del
+-- administrador, viendo sus propuestas y saltándose el tope global.
+update hidrantes.dispositivos set revocado_en = now()
+ where revocado_en is null and hidrantes.fn_es_dispositivo_admin(dispositivo_id);
+
+-- Misma firma que 0005; el cuerpo de entonces más la comprobación del dispositivo reservado.
+create or replace function hidrantes.fn_validar_token(token text) returns uuid
+language plpgsql security definer set search_path = pg_catalog, hidrantes as $$
+declare
+  d hidrantes.dispositivos;
+  caducidad integer := (hidrantes.fn_config('dias_caducidad_token', '365') #>> '{}')::int;
+begin
+  if token is null or length(token) < 20 then
+    perform hidrantes.fn_error('TOKEN_INVALIDO', 'Acceso no válido');
+  end if;
+  select * into d from hidrantes.dispositivos where token_hash = hidrantes.fn_sha256(token);
+  if not found then
+    perform hidrantes.fn_error('TOKEN_INVALIDO', 'Acceso no válido');
+  end if;
+  if d.revocado_en is not null or hidrantes.fn_es_dispositivo_admin(d.dispositivo_id) then
+    perform hidrantes.fn_error('TOKEN_REVOCADO', 'El acceso de este móvil se ha revocado');
+  end if;
+  if d.ultimo_uso < now() - make_interval(days => caducidad) then
+    perform hidrantes.fn_error('TOKEN_CADUCADO', 'El acceso de este móvil ha caducado');
+  end if;
+  -- Uso reciente: se anota como mucho una vez por hora para no escribir en cada lectura.
+  if d.ultimo_uso < now() - interval '1 hour' then
+    update hidrantes.dispositivos set ultimo_uso = now() where id = d.id;
+  end if;
+  return d.dispositivo_id;
+end $$;
+
+-- El intento con un dispositivo reservado queda marcado (tope = 'dispositivo_reservado'), para que se
+-- vea en Salud del sistema y no pase por un canje bueno cualquiera.
+do $tope$
+declare
+  nombre text;
+begin
+  select c.conname into nombre from pg_constraint c
+   where c.conrelid = 'hidrantes.intentos_codigo'::regclass and c.contype = 'c'
+     and pg_get_constraintdef(c.oid) like '%tope%';
+  if nombre is not null then
+    execute format('alter table hidrantes.intentos_codigo drop constraint %I', nombre);
+  end if;
+end
+$tope$;
+alter table hidrantes.intentos_codigo add constraint intentos_codigo_tope_check
+  check (tope in ('dispositivo', 'ip', 'global', 'altas_ip', 'altas_global', 'dispositivo_reservado'));
 -- El cuerpo de 0026 más una comprobación con el código ya bueno: el dispositivo_id técnico de un
 -- administrador (fn_dispositivo_admin de cualquier fila de administradores, activa o no) no recibe
 -- token. DISPOSITIVO_RESERVADO, sin decir de quién es. Solo con el código bueno, para que sin él no
@@ -729,6 +803,7 @@ declare
   tope_alcanzado text;
   correcto boolean;
   nuevo text;
+  intento bigint;
   caducidad integer := (hidrantes.fn_config('dias_caducidad_token', '365') #>> '{}')::int;
 begin
   -- Un canje cada vez: la cuenta y la anotación van bajo el mismo bloqueo, así que peticiones en
@@ -773,7 +848,8 @@ begin
               and coalesce(codigo, '') ~ '^[0-9]{6}$';
 
   insert into hidrantes.intentos_codigo (dispositivo_id, ip_hash, exito)
-  values (fn_verificar_codigo.dispositivo_id, fn_verificar_codigo.ip_hash, correcto);
+  values (fn_verificar_codigo.dispositivo_id, fn_verificar_codigo.ip_hash, correcto)
+  returning id into intento;
 
   if not correcto then
     return query select null::text, null::timestamptz, 'CODIGO_INCORRECTO'::text;
@@ -781,6 +857,7 @@ begin
   end if;
 
   if hidrantes.fn_es_dispositivo_admin(fn_verificar_codigo.dispositivo_id) then
+    update hidrantes.intentos_codigo i set tope = 'dispositivo_reservado' where i.id = intento;
     return query select null::text, null::timestamptz, 'DISPOSITIVO_RESERVADO'::text;
     return;
   end if;

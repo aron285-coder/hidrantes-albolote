@@ -109,7 +109,8 @@ la cola las propuestas de las últimas horas antes de aprobar nada. Procedimient
   canje del código crea un dispositivo con su cuota, y dos o tres llenarían el gigabyte gratuito, que
   comparte uniformidad. `max_subidas_dia_total` (400 reservas en 24 h entre todos los voluntarios; los
   administradores no cuentan) da `CUOTA_SUBIDAS_AGOTADA` a todos; Salud del sistema y la vigilancia lo
-  ven en `topes_globales_24h`. Las reservas sin confirmar se protegen 48 h (antes 7 días), y la purga no
+  ven en `topes_globales_24h` desde 0040 (el error deshace la transacción y no deja rastro: se deduce
+  de las reservas de las últimas 24 h). Las reservas sin confirmar se protegen 48 h (antes 7 días), y la purga no
   cuenta en su freno del 10 % las nunca confirmadas de más de 48 h (`fn_reservas_sin_confirmar_lista`).
 - **Textos y propuestas con límite** (0039, RV-140 y RV-141, DEC-174). Con un token se podía mandar una
   propuesta de 1 MB o miles al día, en una base de datos de 500 MB que también es de uniformidad.

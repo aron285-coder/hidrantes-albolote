@@ -160,7 +160,7 @@ Un `dispositivo_id` puede tener varios tokens en el tiempo (revocación y nuevo 
 | `momento` | `timestamptz` | |
 | `exito` | `boolean` | |
 | `bloqueado` | `boolean` | `true` en la fila que anota un `DEMASIADOS_INTENTOS` (0015); no cuenta como fallo |
-| `tope` | `text` | qué tope saltó: `dispositivo`, `ip`, `global`, `altas_ip`, `altas_global` |
+| `tope` | `text` | qué tope saltó: `dispositivo`, `ip`, `global`, `altas_ip`, `altas_global`; o `dispositivo_reservado` en el canje bueno que se rechazó por usar el `dispositivo_id` de un administrador (0039, RV-143) |
 
 Índices sobre `(dispositivo_id, momento)`, `(ip_hash, momento)`, `(momento)`. Purga > 24 h por `pg_cron`.
 
@@ -367,12 +367,15 @@ fn_verificar_codigo(codigo text, dispositivo_id uuid, ip_hash text)
   -- error: CODIGO_INCORRECTO · DEMASIADOS_INTENTOS (dispositivo | ip | global). Solo cuentan los fallos.
   -- DISPOSITIVO_RESERVADO (0039, RV-143, DEC-175): el código es bueno pero dispositivo_id es el
   --   fn_dispositivo_admin(email) de alguna fila de administradores, activa o no. No se emite token
-  --   ni se dice de quién es; el intento se anota como canje bueno (cuenta en max_altas_*). Se
-  --   comprueba solo con el código bueno, para que sin él no sirva para adivinar correos.
+  --   ni se dice de quién es; el intento se anota como canje bueno (cuenta en max_altas_*) con
+  --   tope = 'dispositivo_reservado'. Se comprueba solo con el código bueno, para que sin él no sirva
+  --   para adivinar correos.
 
 -- Helper: devuelve el dispositivo_id, actualiza ultimo_uso.
 fn_validar_token(token text) returns uuid
   -- errores: TOKEN_INVALIDO · TOKEN_REVOCADO · TOKEN_CADUCADO
+  -- TOKEN_REVOCADO también si el dispositivo_id del token es el de un administrador (0039, RV-143):
+  --   0039 revoca los que hubiera, y esto cubre a quien se dé de alta como administrador más tarde.
 
 fn_listar_puntos(token text, desde timestamptz default null)
   returns jsonb  -- { puntos: v_puntos_activos[], bajas: uuid[], sincronizado_en, config: {meses_revision, radio_duplicado_m, escala_radios, version_zona, version_mapabase, epoca_datos, metros_tramo_manguera} }
@@ -406,13 +409,17 @@ fn_proponer(…los 16 de arriba…, foto_sitio_path text) returns jsonb   -- FIR
   -- si quien llama es authenticated + fn_es_admin(): aplica vía fn_aprobar y devuelve aplicada = true.
   -- errores: PAYLOAD_INVALIDO(<campo>) · FOTO_OBLIGATORIA · FOTO_SITIO_OBLIGATORIA (firma nueva) ·
   --          FOTO_NO_RESERVADA · PUNTO_NO_ACTIVO · CUOTA_PROPUESTAS_AGOTADA (0039)
-  -- longitudes (0039, RV-140, DEC-174): las de §7.1; si se pasa, PAYLOAD_INVALIDO(<campo>). Nombre o
+  -- longitudes (0039, RV-140, DEC-174): las de §7.1; si se pasa o no es texto, PAYLOAD_INVALIDO(<campo>);
+  --   datos de más de 4.000 caracteres en total (datos::text), PAYLOAD_INVALIDO(datos). Nombre o
   --   apellido vacíos siguen siendo PAYLOAD_INVALIDO(autor); de más de 60, PAYLOAD_INVALIDO(autor_nombre)
   --   o PAYLOAD_INVALIDO(autor_apellido).
   -- cuota (0039, RV-141): max_propuestas_dia (60) por dispositivo y día natural de Europe/Madrid. Un
   --   reintento con la misma clave_local devuelve la existente antes de contar; jefatura no tiene tope.
-  --   El error lleva en `details` (el campo de PostgREST) el JSON {"reintentar_en_s": n}: los segundos
-  --   que faltan para la medianoche de Madrid. La cuenta va bajo un bloqueo por dispositivo.
+  --   Mensaje: 'CUOTA_PROPUESTAS_AGOTADA: maximo=<n> reintentar_en_s=<s>' (s: segundos hasta la
+  --   medianoche de Madrid); el cliente solo lee el message y saca de ahí los dos números. `details`
+  --   lleva lo mismo en JSON. La cuenta va bajo un bloqueo por dispositivo y, tomado el bloqueo, se
+  --   vuelve a mirar la clave_local: un envío doble que entró mientras tanto recibe la propuesta
+  --   existente, no el tope.
 
 fn_mis_propuestas(token text) returns setof jsonb
   -- solo las del dispositivo del token; estado, motivo_rechazo, correcciones, revisada_en.
@@ -652,8 +659,8 @@ Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTE
 `NO_AUTORIZADO`, `TIPO_NO_MODIFICABLE` ("el tipo no se cambia: propón retirarlo y da de alta el
 correcto", 0023), `PUNTO_OCUPADO` ("otra persona está cambiando este punto; inténtalo en unos
 segundos": lo devuelve `fn_aprobar_lote` en la propuesta cuyo punto no consigue en 5 s, RV-17),
-`CUOTA_PROPUESTAS_AGOTADA` ("has llegado al máximo de propuestas de hoy", con `details` =
-`{"reintentar_en_s": n}`, 0039, RV-141), `DISPOSITIVO_RESERVADO` (en la columna `error` de
+`CUOTA_PROPUESTAS_AGOTADA` ("has llegado al máximo de propuestas de hoy"; el message es
+`CUOTA_PROPUESTAS_AGOTADA: maximo=<n> reintentar_en_s=<s>`, 0039, RV-141), `DISPOSITIVO_RESERVADO` (en la columna `error` de
 `fn_verificar_codigo` y como `409` de `/api/verificar-codigo`; el móvil genera otro `dispositivo_id` y
 repite el canje una vez, 0039, RV-143). El cliente traduce cada código a un texto en español (TR-36); ningún error de
 Postgres llega crudo.
