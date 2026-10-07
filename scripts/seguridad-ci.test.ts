@@ -132,3 +132,52 @@ describe('secretos de producción solo en prod-tareas o production (RV-131)', ()
     }
   });
 });
+
+describe('staging no nombra el proyecto de producción (RV-130)', () => {
+  /** Las menciones del proyecto de Pages de producción: hidrantes-albolote sin -staging detrás. */
+  const nombraProduccion = (texto: string) =>
+    texto
+      .split('\n')
+      .filter((l) => !/^\s*#/.test(l))
+      .filter((l) => /(^|[^\w.-])hidrantes-albolote(?![\w-])(?!\.pages\.dev)/.test(l));
+
+  it('la comprobación ve el proyecto de producción y no confunde el de staging ni las URL', () => {
+    expect(
+      nombraProduccion('        run: npx wrangler pages deploy dist --project-name hidrantes-albolote --branch x'),
+    ).toHaveLength(1);
+    expect(nombraProduccion('        run: poner_entorno hidrantes-albolote produccion')).toHaveLength(1);
+    expect(
+      nombraProduccion('        run: npx wrangler pages deploy dist --project-name hidrantes-albolote-staging'),
+    ).toEqual([]);
+    expect(nombraProduccion('      url: https://hidrantes-albolote.pages.dev')).toEqual([]);
+  });
+
+  it('ningún trabajo del environment staging nombra el proyecto de producción, ni lo toma de una variable', () => {
+    const malos = archivos.flatMap((a) =>
+      trabajos(leer(a))
+        .filter((t) => t.environment === 'staging')
+        .flatMap((t) => nombraProduccion(t.texto).map((l) => `${a}:${t.nombre}: ${l.trim()}`)),
+    );
+    expect(malos).toEqual([]);
+    const staging = leer('deploy-staging.yml');
+    expect(staging).toContain(
+      'npx wrangler pages deploy dist --project-name hidrantes-albolote-staging --branch develop',
+    );
+    expect(staging).not.toMatch(/--project-name\s+"?\$\{\{/);
+  });
+
+  it('los dos despliegues ponen ENTORNO en su proyecto antes de desplegar, y VITE_ENTORNO en el build', () => {
+    for (const [a, proyecto, valor] of [
+      ['deploy-staging.yml', 'hidrantes-albolote-staging', 'staging'],
+      ['deploy-prod.yml', 'hidrantes-albolote', 'produccion'],
+    ] as const) {
+      const texto = leer(a);
+      const poner = texto.indexOf(`poner_entorno ${proyecto} ${valor}\n`);
+      expect(poner, a).toBeGreaterThan(-1);
+      expect(poner, a).toBeLessThan(texto.indexOf('wrangler pages deploy'));
+      expect(texto).toContain('source .github/scripts/entorno-pages.sh');
+      const build = texto.slice(texto.indexOf('- run: npm run build'));
+      expect(build.slice(0, build.indexOf('\n      - '))).toContain('VITE_ENTORNO: ${{ vars.VITE_ENTORNO }}');
+    }
+  });
+});
