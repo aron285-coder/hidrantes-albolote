@@ -52,6 +52,8 @@ interface Red {
   resultadoCae?: boolean;
   /** fn_aplazar_notificaciones no contesta. */
   aplazarCae?: boolean;
+  /** Servicios de push (origen) que no contestan: corte de red, DNS o tiempo agotado. */
+  serviciosCaidos?: string[];
 }
 
 function fingirRed(red: Red = {}) {
@@ -79,6 +81,7 @@ function fingirRed(red: Red = {}) {
         ? Promise.reject(new TypeError('Too many subrequests'))
         : Promise.resolve(new Response('null'));
     }
+    if (red.serviciosCaidos?.some((o) => url.startsWith(o))) return Promise.reject(new TypeError('fetch failed'));
     if (red.servicioPushPor) return Promise.resolve(red.servicioPushPor(url));
     return Promise.resolve(red.servicioPush ?? new Response(null, { status: 201 }));
   });
@@ -177,6 +180,45 @@ describe('POST /api/push', () => {
       error: 'HTTP 500',
       suscripcion_caducada: false,
     });
+    espia.mockRestore();
+  });
+
+  // RV-144: un corte de red no es un fallo del aviso. No se anota (un error lo dejaría fuera de
+  // fn_reclamar_notificaciones para siempre, y la suscripción sumaría un fallo): queda reclamado y
+  // sale en la siguiente pasada, con el mismo tope de tres intentos. Un 500 sí se anota (arriba).
+  it('un fallo de red no se anota: el aviso se reintenta y la suscripción no suma fallos', async () => {
+    const otro = {
+      ...pendiente(9),
+      suscripcion: { ...SUSCRIPCION, endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/otro' },
+    };
+    const { espia, llamadas } = fingirRed({
+      admin: true,
+      pendientes: [pendiente(1), otro, pendiente(2)],
+      serviciosCaidos: ['https://push.example.net/'],
+    });
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+
+    expect(r.status).toBe(200);
+    // Los dos de push.example.net se intentan (no hay 429 que frene ese servicio) y quedan sin
+    // anotar; el del otro servicio sale y se anota.
+    expect(await r.json()).toEqual({ enviadas: 1, fallidas: 0, sin_anotar: 2, aplazadas: 0, quedan: false });
+    expect(llamadas.filter((l) => l.url === SUSCRIPCION.endpoint)).toHaveLength(2);
+    const resultados = llamadas.filter((l) => l.url.includes('fn_resultado_notificacion'));
+    expect(resultados.map((l) => l.cuerpo)).toEqual([
+      { notificacion_id: 9, ok: true, error: null, suscripcion_caducada: false },
+    ]);
+    expect(llamadas.some((l) => l.url.includes('fn_aplazar_notificaciones'))).toBe(false);
+    espia.mockRestore();
+  });
+
+  it('con claves VAPID que no sirven, NO_CONFIGURADO y no se anota nada contra las suscripciones', async () => {
+    const { espia, llamadas } = fingirRed({ admin: true, pendientes: [pendiente(1), pendiente(2)] });
+    const rotas = { ...ENV, VAPID_PRIVATE_KEY: 'no-es-una-clave' } as Env; // detectar-secretos:permitir (valor de prueba)
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: rotas });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
+    expect(llamadas.some((l) => l.url === SUSCRIPCION.endpoint)).toBe(false);
+    expect(llamadas.some((l) => l.url.includes('fn_resultado_notificacion'))).toBe(false);
     espia.mockRestore();
   });
 

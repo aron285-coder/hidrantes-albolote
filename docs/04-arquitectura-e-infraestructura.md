@@ -347,7 +347,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Mantener activos los proyectos de Supabase (DEC-054) | GitHub Actions `mantener-activo.yml` | diario |
 | Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | diario |
 | Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml` (por `workflow_dispatch` desde Ajustes, DEC-069); abre un PR a `develop` con lo regenerado | bajo demanda |
-| Actualización de dependencias | Dependabot + `automerge.yml` (parches y menores con CI verde) | semanal |
+| Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de dependencias de desarrollo, con CI verde; lo demás espera a una persona, docs/31 RV-132) | semanal |
 | Lighthouse y cabeceras | dentro de `deploy-staging.yml`, tras desplegar | cada despliegue |
 
 Regla: lo que es puro SQL va por `pg_cron`; lo que necesita `service_role` fuera de la base de datos
@@ -430,7 +430,7 @@ e2e/                    # Playwright
 | `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
 | Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` en cada push a `develop` con `VERSION_CODIGO` (el último commit de `workers/`), que la vigilancia compara con `develop` (docs/20 RV-74); sin superficie HTTP (DEC-097) |
 | `avisos.yml` | solo a mano (`workflow_dispatch`) | lo mismo que el Worker, como envío de emergencia si fallara (DEC-097) |
-| `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
+| `automerge.yml` | PR de Dependabot (mira el autor del PR) | fusión automática, con CI verde, solo de los parches de dependencias de desarrollo; los menores, los mayores, las actions y lo que va en el bundle esperan a una persona (TR-101, docs/31 RV-132). Todas las actions de fuera del repositorio van fijadas por SHA con la etiqueta en un comentario, y `scripts/seguridad-ci.test.ts` falla si una no lo está |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) La GitHub App que lo habría evitado no se hace (DEC-153) |
 
 Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml`: `ci-calidad`,

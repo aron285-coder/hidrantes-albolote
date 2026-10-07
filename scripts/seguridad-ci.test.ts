@@ -1,0 +1,68 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+// docs/31 §2 (RV-130 a RV-132): cómo se protege producción en los workflows. Sin parser de YAML,
+// como scripts/workflows.test.ts (DEC-085): expresiones acotadas sobre los archivos.
+const raiz = path.resolve(import.meta.dirname, '..');
+const carpeta = path.join(raiz, '.github/workflows');
+const archivos = readdirSync(carpeta).filter((a) => a.endsWith('.yml'));
+const leer = (a: string) => readFileSync(path.join(carpeta, a), 'utf8');
+const acciones = readdirSync(path.join(raiz, '.github/actions')).map((d) => `.github/actions/${d}/action.yml`);
+const todos: [string, string][] = [
+  ...archivos.map((a): [string, string] => [`.github/workflows/${a}`, leer(a)]),
+  ...acciones.map((a): [string, string] => [a, readFileSync(path.join(raiz, a), 'utf8')]),
+];
+
+describe('dependencias y actions (RV-132)', () => {
+  /** Los `uses:` de fuera del repositorio que no van fijados por un SHA de 40 caracteres con su etiqueta. */
+  const sinSha = (texto: string) =>
+    [...texto.matchAll(/^\s*(?:-\s+)?uses:\s*(\S+)(.*)$/gm)]
+      .filter((m) => !m[1]!.startsWith('./'))
+      .filter((m) => !/^[\w.-]+\/[\w./-]+@[0-9a-f]{40}$/.test(m[1]!) || !/^\s+#\s*v?\d+\.\d+\.\d+\s*$/.test(m[2]!))
+      .map((m) => m[0]!.trim());
+
+  it('la comprobación falla con un uses: de terceros sin SHA', () => {
+    expect(sinSha('      - uses: treosh/lighthouse-ci-action@v12\n')).toHaveLength(1);
+    expect(sinSha('        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1\n')).toHaveLength(1);
+    expect(sinSha('      - uses: x/y@3d3c42e5aac5ba805825da76410c181273ba9 # v1.0.0\n')).toHaveLength(1);
+    expect(sinSha('      - uses: x/y@3d3c42e5aac5ba805825da76410c181273ba90b1 # v1.0.0\n')).toEqual([]);
+    expect(sinSha('      - uses: ./.github/actions/preparar\n')).toEqual([]);
+  });
+
+  it('todas las actions de fuera del repositorio van fijadas por SHA, con la etiqueta en un comentario', () => {
+    const malas = todos.flatMap(([a, t]) => sinSha(t).map((l) => `${a}: ${l}`));
+    expect(malas).toEqual([]);
+    expect(todos.some(([, t]) => /uses: actions\/checkout@[0-9a-f]{40}/.test(t))).toBe(true);
+  });
+
+  it('setup-node está en la versión 7, fijada por SHA', () => {
+    const preparar = readFileSync(path.join(raiz, '.github/actions/preparar/action.yml'), 'utf8');
+    expect(preparar).toMatch(/uses: actions\/setup-node@[0-9a-f]{40} # v7\.\d+\.\d+$/m);
+  });
+
+  it('Dependabot espera 7 días antes de proponer una versión, en npm y en actions', () => {
+    const dependabot = readFileSync(path.join(raiz, '.github/dependabot.yml'), 'utf8');
+    const bloques = dependabot.split(/\n\s{2}- package-ecosystem: /).slice(1);
+    expect(bloques.map((b) => b.split('\n')[0])).toEqual(['npm', 'github-actions']);
+    for (const b of bloques) expect(b).toMatch(/\n\s{4}cooldown:\n\s{6}default-days: 7\n/);
+  });
+
+  it('Dependabot agrupa aparte los parches de desarrollo, que son lo único que se fusiona solo', () => {
+    const dependabot = readFileSync(path.join(raiz, '.github/dependabot.yml'), 'utf8');
+    const grupos = dependabot.slice(dependabot.indexOf('    groups:'));
+    expect(grupos.indexOf('parches-desarrollo:')).toBeGreaterThan(-1);
+    expect(grupos.indexOf('parches-desarrollo:')).toBeLessThan(grupos.indexOf('resto:'));
+    expect(grupos).toMatch(/parches-desarrollo:\n\s+dependency-type: development\n\s+update-types: \[patch\]/);
+  });
+
+  it('automerge mira el autor del PR, no quien lo lanza, y solo fusiona parches de desarrollo', () => {
+    const texto = leer('automerge.yml');
+    expect(texto).not.toContain('github.actor');
+    expect(texto).toContain("github.event.pull_request.user.login == 'dependabot[bot]'");
+    expect(texto).not.toContain('semver-major');
+    expect(texto).toContain('updated-dependencies-json');
+    expect(texto).toContain('.dependencyType == "direct:development"');
+    expect(texto).toContain('.updateType == "version-update:semver-patch"');
+  });
+});
