@@ -665,7 +665,7 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `Algún valor está fuera de rango: revisa los parámetros.` ·
 `Tu cuenta ya no tiene acceso de administrador.` ·
 `Esta acción aún no está configurada en el servidor.` ·
-`No se ha podido completar. Inténtalo de nuevo.`.
+`No se ha podido completar. Inténtalo de nuevo.` · `Esto solo se hace en producción.` · `Ya está pedido: empezará en unos minutos.` (docs/31 RV-146).
 
 **Panel: Editar (docs/29 RV-124, DEC-169).** `Editar` · `Ubicación` · `[Tipo de enganche] · cambia` · `antes:` · `—` · `antes · [6 m]` ·
 `⚠ Esto queda fuera de la zona habitual.` · `Has movido el punto [30 m]: revisa la dirección.` ·
@@ -715,9 +715,9 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `[correo] ya puede entrar en el panel.` · `[correo] se queda sin acceso al panel.` · `Parámetros` ·
 `Los móviles los aplican en su próxima sincronización.` · `Meses entre revisiones` ·
 `Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` · `Tramo de manguera (m)` ·
-`Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Parámetros guardados.` · `Núcleos` ·
+`Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.` (debajo del campo, al salir de él o al guardar, docs/31 RV-167) · `Parámetros guardados.` · `Núcleos` ·
 `Deducidos de OpenStreetMap. Se puede renombrar uno o añadir el que falte.` · `añadido a mano` ·
-`Renombrar` · `Nombre de [nucleo]` · `Añadir un núcleo` · `Nombre del núcleo` ·
+`Renombrar` · `Nombre de [nucleo]` · `Todavía no hay núcleos.` · `Todavía no hay administradores.` (docs/31 RV-167) · `Añadir un núcleo` · `Nombre del núcleo` ·
 `Toca el mapa en el centro del núcleo: de ahí sale el municipio y a qué núcleo pertenece cada punto.` ·
 `Centro del núcleo` · `Escribe el nombre del núcleo` · `Toca el mapa para situarlo` ·
 `Núcleo "[nombre]" añadido.` · `"[antes]" ahora se llama "[ahora]".` ·
@@ -731,13 +731,13 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) · `no se mide en pruebas` (Almacenamiento usado en staging sin dato, docs/23 RV-98, DEC-143) ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
-`"[nombre]" lanzado. Tarda unos minutos.` · `Avisos para jefatura` ·
+`"[nombre]": pedido. Empezará en unos minutos.` (el panel deja un pedido que recoge un workflow, docs/31 RV-146) · `Solo en producción` (debajo de «Purgar fotos huérfanas» y «Respaldo ahora», deshabilitados fuera de producción, RV-167) · `Avisos para jefatura` ·
 `Notificaciones en este navegador. Opcionales y apagadas por defecto.` ·
 `Nuevas propuestas pendientes` · `agrupadas: como mucho una por hora` · `Resumen semanal` ·
 `los lunes: revisiones caducadas y pendientes antiguas` ·
 `Este navegador tiene los avisos bloqueados. Actívalos en la configuración del sitio.` ·
 `En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.` ·
-`Este navegador no admite avisos.` · `No se han podido activar los avisos.` · `Código QR del enlace` ·
+`Este navegador no admite avisos.` · `No se han podido activar los avisos.` · `No se han podido cambiar los avisos. Inténtalo de nuevo.` (docs/31 RV-167) · `Código QR del enlace` ·
 `Para la sede y las reuniones: quien lo escanea abre la aplicación.` · `Imprimir A4` ·
 `Escanea para instalar` ·
 `Mapa de hidrantes y bocas de riego. Entra con el código de acceso que te haya dado jefatura.` ·
