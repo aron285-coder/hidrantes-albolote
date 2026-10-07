@@ -276,3 +276,53 @@ describe('cerrar sesión con el móvil compartido (RV-153)', () => {
     expect(misPropuestas()).toEqual([]);
   });
 });
+
+describe('cerrar sesión revoca el token (docs/31 RV-158)', () => {
+  const llamadas = (nombre: string) => rpc.mock.calls.filter((c) => c[0] === nombre);
+  const erroresAnotados = () => JSON.parse(datos.get('hidrantes.errores_pendientes') ?? '[]') as { mensaje: string }[];
+
+  it('llama a fn_cerrar_sesion con el token antes de borrar lo local', async () => {
+    const { cerrarSesionVoluntario } = await import('./acceso');
+    guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+    rpc.mockResolvedValue({ data: null, error: null, status: 204 });
+    await cerrarSesionVoluntario();
+    expect(llamadas('fn_cerrar_sesion')).toEqual([['fn_cerrar_sesion', { token: TOKEN }]]);
+    expect(acceso().tipo).toBe('fuera');
+    expect(leerFirma()).toBeNull();
+  });
+
+  it('sin red, la sesión se cierra igual y queda anotado', async () => {
+    const { cerrarSesionVoluntario } = await import('./acceso');
+    guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+    rpc.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
+    await cerrarSesionVoluntario();
+    expect(acceso().tipo).toBe('fuera');
+    expect(leerFirma()).toBeNull();
+    expect(erroresAnotados().some((e) => e.mensaje.includes('fn_cerrar_sesion'))).toBe(true);
+  });
+
+  it('si el servidor no contesta, no se espera más de su límite', async () => {
+    const { cerrarSesionVoluntario } = await import('./acceso');
+    const { LIMITES_RED } = await import('./red');
+    expect(LIMITES_RED.cerrarSesion).toBe(5000);
+    LIMITES_RED.cerrarSesion = 30;
+    try {
+      guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+      rpc.mockImplementation((nombre: string) =>
+        nombre === 'fn_cerrar_sesion' ? new Promise(() => undefined) : Promise.resolve({ data: null, error: null }),
+      );
+      await cerrarSesionVoluntario();
+      expect(acceso().tipo).toBe('fuera');
+      // Aquí el servidor sí acepta el error: sale a fn_registrar_error en vez de quedarse en la cola.
+      await vi.waitFor(() =>
+        expect(
+          llamadas('fn_registrar_error').some((c) =>
+            String((c[1] as { mensaje: string }).mensaje).includes('fn_cerrar_sesion: TIEMPO_AGOTADO'),
+          ),
+        ).toBe(true),
+      );
+    } finally {
+      LIMITES_RED.cerrarSesion = 5000;
+    }
+  }, 2000);
+});
