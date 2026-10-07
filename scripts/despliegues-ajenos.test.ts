@@ -33,7 +33,7 @@ const ejecuciones = {
       head_sha: SHA_BUENO,
       status: 'completed',
       conclusion: 'success',
-      run_started_at: '2026-10-06T10:00:00Z',
+      created_at: '2026-10-06T10:00:00Z',
       updated_at: '2026-10-06T10:08:00Z',
     },
     // Cancelada: no autoriza nada.
@@ -41,7 +41,7 @@ const ejecuciones = {
       head_sha: SHA_OTRO,
       status: 'completed',
       conclusion: 'cancelled',
-      run_started_at: '2026-10-06T12:00:00Z',
+      created_at: '2026-10-06T12:00:00Z',
       updated_at: '2026-10-06T12:01:00Z',
     },
   ],
@@ -69,7 +69,7 @@ describe.skipIf(saltar)('ajenos (RV-130)', () => {
       'ejec.json': ejecuciones,
     });
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout.trim()).toBe(`${ID_AJENO} bbbbbbb 2026-10-06T12:00:30.5Z`);
+    expect(r.stdout.trim()).toBe(`${ID_AJENO} bbbbbbb 2026-10-06T12:00:30.5Z production`);
   });
 
   it('el mismo commit fuera de la ejecución de deploy-prod no basta: --commit-hash acepta cualquiera', () => {
@@ -77,7 +77,7 @@ describe.skipIf(saltar)('ajenos (RV-130)', () => {
       'lista.json': [despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T15:00:00Z')],
       'ejec.json': ejecuciones,
     });
-    expect(r.stdout.trim()).toBe(`${ID_AJENO} aaaaaaa 2026-10-06T15:00:00Z`);
+    expect(r.stdout.trim()).toBe(`${ID_AJENO} aaaaaaa 2026-10-06T15:00:00Z production`);
   });
 
   it('los anteriores a DESDE no se miran, salvo el activo, que se mira siempre', () => {
@@ -88,15 +88,63 @@ describe.skipIf(saltar)('ajenos (RV-130)', () => {
       ],
       'ejec.json': ejecuciones,
     });
-    expect(r.stdout.trim()).toBe(`${ID_AJENO} bbbbbbb 2026-09-02T00:00:00Z`);
+    expect(r.stdout.trim()).toBe(`${ID_AJENO} bbbbbbb 2026-09-02T00:00:00Z production`);
   });
 
-  it('los de preview no son de producción', () => {
+  it('un preview en el proyecto de producción nunca viene de deploy-prod, aunque coincida el commit y la hora', () => {
     const r = correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
-      'lista.json': [despliegue(ID_AJENO, SHA_OTRO, '2026-10-06T12:00:00Z', { environment: 'preview' })],
+      'lista.json': [despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:05:00Z', { environment: 'preview' })],
       'ejec.json': ejecuciones,
     });
+    expect(r.stdout.trim()).toBe(`${ID_AJENO} aaaaaaa 2026-10-06T10:05:00Z preview`);
+  });
+
+  it('una ejecución relanzada cuenta desde que se creó, no desde el último intento', () => {
+    const relanzada = {
+      workflow_runs: [
+        {
+          head_sha: SHA_BUENO,
+          status: 'completed',
+          conclusion: 'success',
+          created_at: '2026-10-06T10:00:00Z',
+          run_started_at: '2026-10-06T11:00:00Z',
+          updated_at: '2026-10-06T11:08:00Z',
+        },
+      ],
+    };
+    const r = correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
+      'lista.json': [despliegue(ID_BUENO, SHA_BUENO, '2026-10-06T10:05:00Z', { activo: true })],
+      'ejec.json': relanzada,
+    });
+    expect(r.status, r.stderr).toBe(0);
     expect(r.stdout.trim()).toBe('');
+  });
+
+  it('una ejecución que espera la aprobación de production no autoriza nada; una en marcha, sí', () => {
+    const ejec = (status: string) => ({
+      workflow_runs: [
+        {
+          head_sha: SHA_BUENO,
+          status,
+          conclusion: null,
+          created_at: '2026-10-06T10:00:00Z',
+          updated_at: '2026-10-06T10:00:05Z',
+        },
+      ],
+    });
+    const lista = [despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:30:00Z')];
+    expect(
+      correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
+        'lista.json': lista,
+        'ejec.json': ejec('waiting'),
+      }).stdout.trim(),
+    ).toContain(ID_AJENO);
+    expect(
+      correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
+        'lista.json': lista,
+        'ejec.json': ejec('in_progress'),
+      }).stdout.trim(),
+    ).toBe('');
   });
 
   it('ultimo_bueno es el autorizado y correcto más reciente que no está activo', () => {
@@ -114,12 +162,12 @@ describe.skipIf(saltar)('ajenos (RV-130)', () => {
 
 describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => {
   /** curl, gh y psql simulados; anotan lo que se pide en $D/anotado. */
-  const simulados = (revertir: string, issueAbierta = '') => `
+  const simulados = (revertir: string, issueAbierta = '', avisados = '', admins = '2') => `
     : > "$D/anotado"
     curl() {
       local salida="" url=""
       while [ $# -gt 0 ]; do
-        case "$1" in -o) salida="$2"; shift 2 ;; -X) echo "curl $1 $2" >> "$D/anotado"; shift 2 ;; -*) shift ;; *) url="$1"; shift ;; esac
+        case "$1" in -o) salida="$2"; shift 2 ;; -X) echo "curl $1 $2" >> "$D/anotado"; shift 2 ;; -w|-H|--max-time) shift 2 ;; -*) shift ;; *) url="$1"; shift ;; esac
       done
       case "$url" in
         */rollback) echo "rollback $url" >> "$D/anotado"; printf 200 ;;
@@ -130,6 +178,7 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
     gh() {
       case "$*" in
         *deploy-prod.yml/runs*) cat "$D/ejec.json" ;;
+        "issue list"*"--state all"*) printf '%s\n' "${avisados}" ;;
         "issue list"*) printf '%s' "${issueAbierta}" ;;
         "issue create"*) echo "issue create" >> "$D/anotado" ;;
         "issue comment"*) echo "issue comment" >> "$D/anotado" ;;
@@ -139,7 +188,7 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
     psql() {
       case "$*" in
         *revertir_despliegue_ajeno*) echo ${revertir} ;;
-        *notificaciones*) echo "aviso jefatura" >> "$D/anotado" ;;
+        *notificaciones*) echo "aviso jefatura" >> "$D/anotado"; echo ${admins} ;;
       esac
     }
     problemas=()
@@ -162,7 +211,7 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
         head_sha: SHA_BUENO,
         status: 'completed',
         conclusion: 'success',
-        run_started_at: hace(130),
+        created_at: hace(130),
         updated_at: hace(120),
       },
     ],
@@ -220,13 +269,9 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
     );
   });
 
-  it('con la issue ya abierta y el mismo despliegue, no se repite el aviso', () => {
-    const guion = simulados('false', '7').replace(
-      '*) echo "gh $*" >> "$D/anotado" ;;',
-      `"issue view"*) echo "${ID_AJENO}" ;;\n        *) echo "gh $*" >> "$D/anotado" ;;`,
-    );
+  it('con la issue ya abierta y el mismo despliegue, no se repite el aviso; la vigilancia dice que sigue abierta', () => {
     const r = correr(
-      guion,
+      simulados('false', '7', `- ${ID_AJENO} bbbbbbb`),
       {
         'proyecto.json': { result: { canonical_deployment: despliegue(ID_AJENO, SHA_OTRO, hace(30)) } },
         'recientes.json': { result: [despliegue(ID_AJENO, SHA_OTRO, hace(30))] },
@@ -234,9 +279,33 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
       },
       env,
     );
-    expect(r.stdout).toContain('P:despliegue de producción no autorizado');
+    expect(r.stdout).toContain('P:sigue abierta la issue #7');
     expect(r.stdout).not.toContain('issue comment');
     expect(r.stdout).not.toContain('aviso jefatura');
+  });
+
+  const ajenoActivo = () => ({
+    'proyecto.json': { result: { canonical_deployment: despliegue(ID_AJENO, SHA_OTRO, hace(30)) } },
+    'recientes.json': { result: [despliegue(ID_AJENO, SHA_OTRO, hace(30))] },
+    'ejec.json': ejecReciente,
+  });
+
+  it('cerrar la issue es darlo por atendido: no se vuelve a abrir ni a avisar', () => {
+    const r = correr(simulados('false', '', `- ${ID_AJENO} bbbbbbb`), ajenoActivo(), env);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout.trim()).toBe('P:');
+  });
+
+  it('con la issue abierta y un despliegue nuevo, la comenta y vuelve a avisar', () => {
+    const r = correr(simulados('false', '7', `- ${ID_VIEJO} bbbbbbb`), ajenoActivo(), env);
+    expect(r.stdout).toContain('P:despliegue de producción no autorizado');
+    expect(r.stdout).toContain('issue comment');
+    expect(r.stdout).toContain('aviso jefatura');
+  });
+
+  it('sin administradores con avisos, lo dice: nadie ha recibido el aviso', () => {
+    const r = correr(simulados('false', '', '', '0'), ajenoActivo(), env);
+    expect(r.stdout).toContain('P:ningún administrador tiene los avisos activados');
   });
 
   it('sin token de Cloudflare es un problema, no un silencio', () => {
@@ -303,7 +372,7 @@ describe.skipIf(saltar)('poner_entorno (RV-130)', () => {
       env,
     );
     expect(r.status).not.toBe(0);
-    expect(r.stdout).toContain('ha perdido variables: VAPID_SUBJECT');
+    expect(r.stdout).toContain('ha perdido variables: production:VAPID_SUBJECT');
   });
 
   it('un valor que no es staging ni produccion no se manda', () => {
