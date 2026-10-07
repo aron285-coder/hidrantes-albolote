@@ -19,3 +19,6 @@ script entra con un nombre neutro y avisa si encuentra cualquier otro (FR-27, DE
 | `08-nuevo-punto.png` | Nuevo punto: el pin sobre el mapa y el formulario |
 | `09-mis-propuestas.png` | Mis propuestas, con el estado de cada envío |
 | `10-ajustes.png` | Ajustes: mapa base, avisos, modo oscuro y aviso legal |
+
+Las capturas de la versión actual, con datos simulados de la CI, están en `vistas/` (su
+`LEEME.md` dice de dónde salen). Son las que usan los borradores de 13 y 14.

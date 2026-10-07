@@ -48,4 +48,4 @@ DEC-062.
 
 - Los cinco tamaños a la luz del día en el móvil del desarrollador (TR-33).
 - Carga de las cuatro capas con una red 3G real.
-- Conformidad de jefatura con el token `--anillo-seleccion` añadido a 06 §2.4.
+- ~~Conformidad de jefatura con el token `--anillo-seleccion` añadido a 06 §2.4.~~ Basta la del desarrollador (DEC-177).

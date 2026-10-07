@@ -36,7 +36,7 @@ cuerpo de su PR.
    - La foto de Directo: `npx tsx scripts/preparar-racores.ts <carpeta> directo`.
    - En staging: editar un punto en el ordenador, moverlo unos metros y cambiar el enganche, y mirar el Registro; en el Android, editar a pantalla completa y comprobar que «atrás» cierra el panel.
    - `npm run anonimizar` en staging con un dispositivo de prueba.
-   - La conformidad de jefatura sobre `docs/01` v1.12.
+   - ~~La conformidad de jefatura sobre `docs/01` v1.12.~~ Ya no es un paso pendiente: basta la del desarrollador (DEC-177).
    - Las aprobaciones de producción.
 2. **El Registro enseña los nombres de los campos de una edición** («… desplazamiento_m, …»), no «movido N m»: `v_registro` lista las claves de `despues`. **Hecho en docs/30** (RV-127, #478): el Registro y el Historial dicen qué cambió, con palabras.
 3. **`incidencias_app`:** se limpia cuando no quede ninguna versión vieja de la app (#472).
