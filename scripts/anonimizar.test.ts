@@ -49,14 +49,14 @@ describe('argumentos', () => {
   it('--dispositivo con entorno y administrador', () => {
     expect(analizar(['--entorno', 'produccion', '--admin', ADMIN, '--dispositivo', D.toUpperCase()])).toEqual({
       modo: 'anonimizar',
-      entorno: 'produccion',
+      entorno: 'prod',
       admin: ADMIN,
       dispositivo: D,
     });
   });
 
   it('acepta prod, como npm run restaurar', () => {
-    expect(analizar(['--entorno', 'prod', '--admin', ADMIN, '--dispositivo', D]).entorno).toBe('produccion');
+    expect(analizar(['--entorno', 'prod', '--admin', ADMIN, '--dispositivo', D]).entorno).toBe('prod');
   });
 
   it('sin --buscar ni --dispositivo no hace nada', () => {
@@ -84,18 +84,16 @@ describe('argumentos', () => {
 describe('guarda del destino', () => {
   it('staging y producción, cada uno con su proyecto y hidrantes_migrador', () => {
     expect(comprobarDestino('staging', POOLER(REF_DE.staging), undefined)).toEqual([]);
-    expect(comprobarDestino('produccion', POOLER(REF_DE.produccion), undefined)).toEqual([]);
+    expect(comprobarDestino('prod', POOLER(REF_DE.prod), undefined)).toEqual([]);
   });
 
   it('rechaza la cadena de staging con --entorno produccion, y al revés', () => {
-    expect(comprobarDestino('produccion', POOLER(REF_DE.staging), undefined).join()).toMatch(/apunta al proyecto/);
-    expect(comprobarDestino('staging', POOLER(REF_DE.produccion), undefined).join()).toMatch(/apunta al proyecto/);
+    expect(comprobarDestino('prod', POOLER(REF_DE.staging), undefined).join()).toMatch(/apunta al proyecto/);
+    expect(comprobarDestino('staging', POOLER(REF_DE.prod), undefined).join()).toMatch(/apunta al proyecto/);
   });
 
   it('rechaza otro usuario que no sea hidrantes_migrador (DEC-052)', () => {
-    expect(comprobarDestino('produccion', POOLER(REF_DE.produccion, 'postgres'), undefined).join()).toMatch(
-      /hidrantes_migrador/,
-    );
+    expect(comprobarDestino('prod', POOLER(REF_DE.prod, 'postgres'), undefined).join()).toMatch(/hidrantes_migrador/);
   });
 
   it('rechaza una cadena que no es URL', () => {

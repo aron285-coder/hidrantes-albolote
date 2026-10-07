@@ -18,6 +18,8 @@ import {
 /** Toda respuesta tarda al menos esto: el tiempo no revela si el código estaba cerca (TR-42). */
 export const DURACION_MINIMA_MS = 800;
 
+const DISPOSITIVO_RESERVADO = 'DISPOSITIVO_RESERVADO';
+
 interface Canje {
   token: string | null;
   caduca_en: string | null;
@@ -42,8 +44,12 @@ async function canjear(request: Request, env: Env): Promise<Response> {
     dispositivo_id: cuerpo.dispositivo_id,
     ip_hash: await sha256Hex(env.SAL_IP + normalizarIp(ip)),
   });
+  // RV-143 (DEC-175): el id de un administrador no se canjea. 409 sin decir de quién es; el móvil
+  // genera otro id y repite una vez (RV-159). Se acepta como fila o como excepción de la base.
+  if (!r.ok && r.codigo === DISPOSITIVO_RESERVADO) return error(409, DISPOSITIVO_RESERVADO);
   if (!r.ok) return error(r.estado === 503 ? 503 : 500, r.codigo);
   const fila = r.datos[0];
+  if (fila?.error === DISPOSITIVO_RESERVADO) return error(409, DISPOSITIVO_RESERVADO);
   if (fila?.error === 'DEMASIADOS_INTENTOS') return error(429, 'DEMASIADOS_INTENTOS', { reintentar_en_s: 3600 });
   if (!fila?.token) return error(401, 'CODIGO_INCORRECTO');
   return json({ token: fila.token, caduca_en: fila.caduca_en });

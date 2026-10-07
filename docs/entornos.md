@@ -17,8 +17,9 @@ en GitHub Environments y en Cloudflare Pages (04 §10).
 | Secretos por environment | `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (+ `GPG_PUBLIC_KEY` en production) |
 | Variables por environment | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` |
 | Variables del repositorio | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` (mantener-activo.yml, DEC-054) |
-| Secretos del repositorio | `SUPABASE_DB_URL_{STAGING,PROD}`, `SUPABASE_SERVICE_ROLE_KEY_{STAGING,PROD}`, `GPG_PUBLIC_KEY` (respaldo y promoción del piloto: DEC-071, DEC-078), `VIGILANCIA_SECRETO_{STAGING,PROD}` (vigilancia y envío manual de avisos, DEC-088) |
-| Secretos del Worker `hidrantes-avisos` | `VIGILANCIA_SECRETO_{STAGING,PROD}`, con los mismos valores que Pages y el repositorio (docs/19 RV-52, DEC-097) |
+| Environment `prod-tareas` (sin revisores, solo `develop`) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`: las tareas de producción que no pueden esperar una aprobación (respaldo, purga de fotos, vigilancia, avisos a mano, comprobar-produccion; DEC-071, docs/31 RV-131, DEC-172) |
+| Secretos del repositorio | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078), `GPG_PUBLIC_KEY` (pública: cifra el respaldo, DEC-071), `VIGILANCIA_SECRETO_STAGING` (DEC-088), `PROPIETARIO_EMAIL` (DEC-053). Ninguno de producción: cualquier rama los podría leer (DEC-172) |
+| Secretos del Worker `hidrantes-avisos` | `VIGILANCIA_SECRETO_{STAGING,PROD}`, con los mismos valores que Pages y GitHub (docs/19 RV-52, DEC-097) |
 | Variables cifradas de Pages | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `VIGILANCIA_SECRETO` (DEC-088) |
 
 Rotar un secreto: `npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|vigilancia|todo>` (15).

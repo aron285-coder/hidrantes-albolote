@@ -458,6 +458,10 @@ export const T = {
     yaRevisada: 'Jefatura ya la ha revisado',
     errorRetirar: 'No se ha podido retirar. Inténtalo de nuevo.',
     listaGuardada: 'Sin conexión: esta es la última lista guardada.',
+    // docs/31 RV-154: el tope de propuestas al día (RV-141).
+    cuotaPropuestas: (maximo: Parametro) =>
+      `Has llegado al máximo de propuestas de hoy (${maximo}). Se enviará mañana.`,
+    cuotaPropuestasSinNumero: 'Has llegado al máximo de propuestas de hoy. Se enviará mañana.',
   },
 
   ajustes: {
@@ -802,6 +806,8 @@ export const T = {
     colDetalle: 'Detalle',
     porPagina: (n: Parametro) => `${n} entradas por página`,
     vacio: 'Todavía no hay entradas con ese filtro.',
+    // docs/31 RV-166: falló la última carga y siguen a la vista las filas de antes.
+    errorConFilas: (motivo: Parametro) => `${motivo} Las filas que ves son las de antes.`,
     propuestaCreada: 'Propuesta',
     propuestaRetiradaAutor: 'Propuesta retirada por su autor',
     aprobacion: 'Aprobación',

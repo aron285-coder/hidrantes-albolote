@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <!-- Directo (DEC-178): salida roscada sin pieza de enganche, vista de lado. Mismo estilo que
+       granada.webp y barcelona.webp (DEC-152): trazo marino-700 (#1d3a63) sobre gris azulado
+       claro. En un comentario de XML no puede ir un guion doble. -->
+  <rect width="160" height="160" fill="#eef2f5"/>
+  <g fill="#ffffff" stroke="#1d3a63" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Cuerpo de la boca, del que sale la rosca -->
+    <rect x="24" y="34" width="26" height="92" rx="5"/>
+    <!-- Tubo con la rosca a la vista, sin nada enroscado -->
+    <path d="M50 52 H122 V108 H50 Z"/>
+    <path d="M66 52 L58 108 M81 52 L73 108 M96 52 L88 108 M111 52 L103 108" fill="none"/>
+    <!-- Boca abierta -->
+    <ellipse cx="122" cy="80" rx="12" ry="28"/>
+  </g>
+  <ellipse cx="122" cy="80" rx="5" ry="16" fill="#1d3a63"/>
+</svg>
