@@ -688,10 +688,20 @@ export function faltaEnCorrecciones(v: ValoresPunto): string | null {
   return null;
 }
 
-/** La dirección escrita en el panel va en las correcciones solo si difiere de la deducida (FR-105). */
-export function conDireccion(c: Record<string, unknown>, escrita: string, sugerida: string | null) {
+/**
+ * La dirección va en las correcciones solo si jefatura la ha cambiado respecto a la que se le enseñó al
+ * abrir (la sugerida o deducida, o la del punto), no respecto al `direccion_sugerida` del momento, que
+ * sigue a null hasta recargar aunque la deducida ya esté guardada. Vaciarla manda null: el servidor la
+ * quita (FR-105, docs/31 RV-162).
+ */
+export function conDireccion(
+  c: Record<string, unknown>,
+  escrita: string,
+  ensenada: string | null,
+): Record<string, unknown> {
   const d = escrita.trim();
-  return d && d !== (sugerida ?? '').trim() ? { ...c, direccion: d } : c;
+  if (d === (ensenada ?? '').trim()) return c;
+  return { ...c, direccion: d || null };
 }
 
 // ---------- fusionar con el existente (FR-51, FR-106) ----------
@@ -815,12 +825,23 @@ export async function fusionar(
   return refrescar(await rpc('fn_fusionar_con_existente', { propuesta_id: id, punto_id: puntoId, prevalece }));
 }
 
+export interface DireccionDeducida {
+  direccion: string;
+  /**
+   * Si el servidor la guardó como sugerida de la propuesta. Solo entonces es la que se aplica al aprobar
+   * sin tocarla; si no, el panel la manda como corrección (docs/31 RV-162). Una Function anterior que no
+   * lo dice la guardaba siempre, salvo un fallo que no contaba: se da por guardada.
+   */
+  guardada: boolean;
+}
+
 /** Dirección deducida con Nominatim (FR-105). Nunca bloquea: sin respuesta, null. */
-export async function deducirDireccion(p: PropuestaPanel): Promise<string | null> {
+export async function deducirDireccion(p: PropuestaPanel): Promise<DireccionDeducida | null> {
   if (p.lat == null || p.lng == null) return null;
   const q = new URLSearchParams({ lat: String(p.lat), lng: String(p.lng), propuesta_id: p.id });
-  const r = await funcion<{ direccion: string | null }>(`/api/direccion?${q}`);
-  return r.ok ? r.datos.direccion : null;
+  const r = await funcion<{ direccion: string | null; guardada?: boolean }>(`/api/direccion?${q}`);
+  if (!r.ok || !r.datos.direccion) return null;
+  return { direccion: r.datos.direccion, guardada: r.datos.guardada !== false };
 }
 
 // ---------- resultados en palabras (TR-36, UI-04) ----------

@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { capasDe } from '../mapa/capas-leaflet';
 import { usePanel } from './usar-panel';
 import { DetallePropuesta } from './DetallePropuesta';
@@ -61,6 +61,8 @@ const useColaYDetalle = () =>
 
 /** La propuesta abierta va en la URL (?p=…): en tableta y móvil, "atrás" vuelve a la cola. */
 const PARAMETRO = 'p';
+/** Marca, en el estado del historial, la entrada que se apiló al abrir una propuesta (RV-163). */
+const APILADA = 'colaApilada';
 
 /** Cola de revisión (FR-100–FR-110, FL-21–FL-23): lista con filtros y casillas, y el detalle. */
 export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
@@ -68,6 +70,8 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   const { puntos } = usePuntos();
   const ancho = useColaYDetalle();
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const navegar = useNavigate();
   const [estado, setEstado] = useState<EstadoModeracion>('pendiente');
   const [operacion, setOperacion] = useState<Operacion | ''>('');
   const [nucleo, setNucleo] = useState('');
@@ -99,7 +103,11 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     [todas, operacion, nucleo, busqueda],
   );
   // En el ordenador siempre hay una abierta; en tableta y móvil, solo la que se ha tocado.
-  const seleccion = visibles.find((p) => p.id === activa) ?? (ancho ? (visibles[0] ?? null) : null);
+  const abierta = visibles.find((p) => p.id === activa) ?? null;
+  // La primera del ordenador se fija por id en ?p= (efecto de abajo): una propuesta nueva entra arriba
+  // de la lista y, si no, el detalle saltaría a ella con el formulario a medias (docs/31 RV-161).
+  // Hasta que el efecto la fija, la misma primera, para no pintar un detalle vacío.
+  const seleccion = abierta ?? (ancho ? (visibles[0] ?? null) : null);
   const pendientes = estado === 'pendiente';
   const elegidas = visibles.filter((p) => marcadas.has(p.id));
 
@@ -111,17 +119,30 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
         else n.delete(PARAMETRO);
         return n;
       },
-      { replace: !apilar },
+      // La entrada apilada se marca: al volver, "atrás" la quita en vez de añadir otra (RV-163).
+      apilar ? { state: { [APILADA]: true } } : { replace: true },
     );
   }
 
+  // Volver a la cola desde el detalle a pantalla completa: si la entrada de arriba es la que se apiló
+  // al abrir, se vuelve atrás; si se llegó con ?p= en la dirección, se quita sin apilar (RV-163).
+  function volverACola() {
+    if ((location.state as Record<string, unknown> | null)?.[APILADA]) navegar(-1);
+    else abrir(null, false);
+  }
+
   // Una ?p= que ya no está en la lista (resuelta por otra persona, otra pestaña): fuera de la URL,
-  // para que la dirección no diga una propuesta y la pantalla enseñe otra.
-  const sinAbierta = !!activa && !!carga.datos && !todas.some((p) => p.id === activa);
+  // para que la dirección no diga una propuesta y la pantalla enseñe otra. En el ordenador, en su
+  // lugar la primera, fija por id: solo cambia si jefatura toca otra o si la abierta se va (RV-161).
+  const cargada = !!carga.datos;
+  const sinAbierta = !!activa && cargada && !todas.some((p) => p.id === activa);
+  const fijar = ancho && cargada && !abierta ? (visibles[0]?.id ?? null) : undefined;
   useEffect(() => {
-    if (sinAbierta) abrir(null, false);
+    if (fijar !== undefined) {
+      if (fijar !== activa) abrir(fijar, false);
+    } else if (sinAbierta) abrir(null, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sinAbierta]);
+  }, [sinAbierta, fijar]);
 
   function cambiarEstado(e: EstadoModeracion) {
     setEstado(e);
@@ -145,7 +166,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   async function hecho() {
     alCambiar();
     // Resuelta la abierta, en tableta y móvil se vuelve a la cola.
-    if (!ancho) abrir(null, false);
+    if (!ancho) volverACola();
     await carga.recargar();
   }
 
@@ -333,7 +354,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
                   puntos={puntos}
                   radioDuplicado={radioDuplicado}
                   alHecho={() => void hecho()}
-                  alVolver={() => abrir(null, false)}
+                  alVolver={volverACola}
                 />
               </section>
             )}
@@ -521,12 +542,21 @@ function RechazoLote({
 }) {
   const [motivo, setMotivo] = useState('');
   const [intentado, setIntentado] = useState(false);
+  const caja = useRef<HTMLDivElement>(null);
+  const campo = useRef<HTMLTextAreaElement>(null);
+  // Sale arriba de la cola y el botón que lo abre está en la barra de abajo: en el móvil quedaría fuera
+  // de la vista. Al abrirlo se pone a la vista y el foco va al motivo (docs/31 RV-163).
+  useEffect(() => {
+    caja.current?.scrollIntoView?.({ block: 'start' });
+    campo.current?.focus({ preventScroll: true });
+  }, []);
   return (
-    <div className="border-linea bg-papel border-b p-3 text-sm">
+    <div ref={caja} className="border-linea bg-papel border-b p-3 text-sm">
       <p className="font-semibold">{T.panelCola.rechazarVarias(n)}</p>
       <label className="mt-2 block">
         <span className="text-texto-suave text-[13px]">{T.panelCola.motivoComun}</span>
         <textarea
+          ref={campo}
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
           className="border-linea rounded-campo mt-1 block w-full border p-2"
