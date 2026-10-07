@@ -10,6 +10,7 @@ import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { usePosicion } from '@/hooks/estado';
 import { bandaDe, nombreCaudal, nombreRacor } from '@/lib/ficha';
 import { useModal } from '@/lib/foco-modal';
+import { LIMITES } from '@/lib/limites';
 import { distancia } from '@/lib/formato';
 import { textoError } from '@/lib/panel/errores';
 import { MARCA, marcaActual } from '@/lib/panel/historial-editar';
@@ -251,7 +252,7 @@ export function CamposEditar({
             onChange={(e) => cambiar({ fallo: e.target.value })}
             placeholder={T.operaciones.phFallo}
             aria-label={T.formulario.descripcionFallo}
-            maxLength={500}
+            maxLength={LIMITES.descripcion_fallo}
             className={areaTexto}
           />
         </Marcado>
@@ -267,6 +268,7 @@ export function CamposEditar({
           value={v.direccion}
           onChange={(e) => cambiar({ direccion: e.target.value })}
           aria-label={T.ficha.direccion}
+          maxLength={LIMITES.direccion}
           className={areaTexto}
         />
         {/* La dirección no cambia sola al mover el punto: se avisa para que se revise. */}
@@ -286,7 +288,7 @@ export function CamposEditar({
           onChange={(e) => cambiar({ descripcion: e.target.value })}
           placeholder={T.formulario.descripcionAyuda}
           aria-label={T.formulario.descripcionOpcional}
-          maxLength={500}
+          maxLength={LIMITES.descripcion}
           className={areaTexto}
         />
       </Marcado>
