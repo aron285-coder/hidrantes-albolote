@@ -106,6 +106,9 @@ async function esperarFin(run: number): Promise<string> {
 function limpiar(run: number): void {
   const quedan: string[] = [];
   const artefactos = ejecutar('gh', ['api', `repos/${REPO}/actions/runs/${run}/artifacts`, '--jq', '.artifacts[].id']);
+  // Si no se pueden listar, se borra igual la ejecución, que se lleva sus artefactos.
+  if (artefactos.codigo !== 0)
+    log.aviso('No se pudo leer la lista de artefactos: se borra la ejecución, que se los lleva');
   for (const a of artefactos.salida.split('\n').filter(Boolean)) {
     if (ejecutar('gh', ['api', '-X', 'DELETE', `repos/${REPO}/actions/artifacts/${a}`]).codigo !== 0)
       quedan.push(`artefacto ${a}`);
@@ -162,10 +165,31 @@ async function traspasar(nombre: string, desde: string, hacia: string): Promise<
   }
 }
 
+/** Los nombres de los secretos de un sitio. Un environment que no existe es un error, no una lista vacía. */
+function secretosDe(sitio: string): string[] {
+  if (sitio !== 'repositorio' && ejecutar('gh', ['api', `repos/${REPO}/environments/${sitio}`]).codigo !== 0) {
+    abortar(`El environment ${sitio} no existe (un trabajo que lo nombre lo crearía sin protección)`);
+  }
+  const extra = sitio === 'repositorio' ? [] : ['--env', sitio];
+  return gh(['secret', 'list', '--repo', REPO, ...extra, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/);
+}
+
+/**
+ * Antes de lanzar nada: el secreto tiene que estar en el origen. Un trabajo con environment también
+ * ve los del repositorio, así que sin esta comprobación `--desde staging` copiaría en silencio el del
+ * repositorio si staging no lo tuviera. Y los dos environments tienen que existir.
+ */
+export function comprobarOrigen(secretos: string[], enOrigen: string[], desde: string): void {
+  const faltan = secretos.filter((s) => !enOrigen.includes(s));
+  if (faltan.length) abortar(`No están en ${desde}: ${faltan.join(', ')}. No se lanza nada.`);
+}
+
 async function principal(): Promise<void> {
   const { secretos, desde, hacia } = pedidoDe(argumentos().valores);
   const sesion = ejecutar('gh', ['auth', 'status']);
   if (sesion.codigo !== 0) abortar('Hace falta la sesión de gh: gh auth login');
+  comprobarOrigen(secretos, secretosDe(desde), desde);
+  secretosDe(hacia);
   for (const s of secretos) {
     try {
       await traspasar(s, desde, hacia);

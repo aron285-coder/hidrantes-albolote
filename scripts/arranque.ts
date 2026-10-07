@@ -454,6 +454,14 @@ export function sitioSecretoTareas(nombre: string): string | undefined {
   return nombre.endsWith('_PROD') ? ENV_TAREAS : undefined;
 }
 
+/** De las listas del repositorio y de prod-tareas, solo los nombres que están en su sitio. */
+export function secretosEnSuSitio(repositorio: string[], tareas: string[]): string[] {
+  return [
+    ...repositorio.filter((n) => n && !sitioSecretoTareas(n)),
+    ...tareas.filter((n) => sitioSecretoTareas(n) === ENV_TAREAS),
+  ];
+}
+
 function fijarSecretoTareas(nombre: string, valor: string): void {
   fijarSecreto(nombre, valor, sitioSecretoTareas(nombre));
 }
@@ -840,10 +848,12 @@ export interface OpsFaltantes {
 }
 
 const OPS_REALES: OpsFaltantes = {
-  // Los del repositorio y los de prod-tareas: planFaltantes busca cada uno por su nombre (DEC-172).
+  // Cada uno donde debe estar (DEC-172): un _PROD que siga en el repositorio pero falte en
+  // prod-tareas cuenta como que falta.
   secretosRepo: () =>
-    [[], ['--env', ENV_TAREAS]].flatMap((extra) =>
-      gh(['secret', 'list', '--repo', REPO, ...extra, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/),
+    secretosEnSuSitio(
+      gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/),
+      gh(['secret', 'list', '--repo', REPO, '--env', ENV_TAREAS, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/),
     ),
   secretosWorker: () => ejecutar('npx', ['--no-install', 'wrangler', 'secret', 'list', '--config', CONFIG_WORKER]),
   secretosPages: nombresSecretosPages,

@@ -5,6 +5,7 @@ import { ErrorDeScript } from './lib/comun.ts';
 import {
   ENTORNOS,
   ENV_TAREAS,
+  secretosEnSuSitio,
   sitioSecretoTareas,
   type EscrituraWorker,
   type OpsFaltantes,
@@ -64,6 +65,22 @@ describe('environment prod-tareas (RV-131)', () => {
     expect(sitioSecretoTareas('SUPABASE_SERVICE_ROLE_KEY_PROD')).toBe('prod-tareas');
     expect(sitioSecretoTareas('VIGILANCIA_SECRETO_PROD')).toBe('prod-tareas');
     expect(sitioSecretoTareas('VIGILANCIA_SECRETO_STAGING')).toBeUndefined();
+  });
+
+  it('un _PROD que sigue en el repositorio pero no en prod-tareas cuenta como que falta', () => {
+    const hay = secretosEnSuSitio(
+      ['VIGILANCIA_SECRETO_PROD', 'VIGILANCIA_SECRETO_STAGING', ''],
+      ['SUPABASE_DB_URL_PROD', 'VIGILANCIA_SECRETO_STAGING'],
+    );
+    expect(hay).toEqual(['VIGILANCIA_SECRETO_STAGING', 'SUPABASE_DB_URL_PROD']);
+    expect(
+      planFaltantes({
+        clave: 'production',
+        pages: ['VIGILANCIA_SECRETO'],
+        repo: hay,
+        worker: ['VIGILANCIA_SECRETO_PROD'],
+      }).vigilancia,
+    ).toBe(true);
   });
 
   it('el arranque crea prod-tareas sin revisores y solo para develop', () => {

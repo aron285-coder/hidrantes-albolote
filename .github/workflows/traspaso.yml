@@ -33,12 +33,16 @@ on:
 permissions:
   contents: read
 
+# Solo lo puede lanzar el propietario del repositorio: con su propia clave pública, cualquiera que lo
+# lanzara se llevaría cifrado cualquier secreto, también los de prod-tareas (DEC-172). Con otro actor,
+# los dos trabajos se saltan y no hay artefacto.
+#
 # Un trabajo lleva un environment o ninguno: uno para cada caso, con el mismo guion. Sin `echo` ni
 # `printf` del valor a la salida: solo por tubería a openssl. Un secreto que no existe llega vacío, y
 # eso es un error (no se traspasa un vacío).
 jobs:
   desde-repositorio:
-    if: inputs.origen == 'repositorio'
+    if: inputs.origen == 'repositorio' && github.triggering_actor == 'aron285-coder'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -64,7 +68,7 @@ jobs:
           if-no-files-found: error
 
   desde-environment:
-    if: inputs.origen != 'repositorio'
+    if: inputs.origen != 'repositorio' && github.triggering_actor == 'aron285-coder'
     runs-on: ubuntu-24.04
     environment: ${{ inputs.origen }}
     timeout-minutes: 5

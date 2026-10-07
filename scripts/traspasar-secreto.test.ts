@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { descifrar, ejecucionDe, parEfimero, pedidoDe } from './traspasar-secreto.ts';
+import { comprobarOrigen, descifrar, ejecucionDe, parEfimero, pedidoDe } from './traspasar-secreto.ts';
 
 const raiz = path.resolve(import.meta.dirname, '..');
 const traspaso = readFileSync(path.join(raiz, '.github/workflows/traspaso.yml'), 'utf8');
@@ -39,8 +39,15 @@ describe('traspaso.yml no imprime el secreto (docs/31 §1.2, RV-131)', () => {
     expect(runs[0]).toBe(runs[1]);
     expect(traspaso).toMatch(/^on:\n {2}workflow_dispatch:\n/m);
     expect(traspaso).not.toMatch(/^\s{2}(push|pull_request|schedule):/m);
-    expect(traspaso).toContain("if: inputs.origen == 'repositorio'");
     expect(traspaso).toContain('environment: ${{ inputs.origen }}');
+  });
+
+  it('solo lo puede lanzar el propietario: los dos trabajos lo exigen', () => {
+    const condiciones = [...traspaso.matchAll(/^ {4}if: (.+)$/gm)].map((m) => m[1]);
+    expect(condiciones).toEqual([
+      "inputs.origen == 'repositorio' && github.triggering_actor == 'aron285-coder'",
+      "inputs.origen != 'repositorio' && github.triggering_actor == 'aron285-coder'",
+    ]);
   });
 
   it('el secreto solo entra por env, nunca dentro de un run:', () => {
@@ -81,6 +88,15 @@ describe('pedidoDe', () => {
     expect(() => pedido({ desde: 'repositorio', hacia: 'x' })).toThrow(/Falta --secreto/);
     expect(() => pedido({ secreto: 'A', desde: 'Repo $(x)', hacia: 'x' })).toThrow(/--desde/);
     expect(() => pedido({ secreto: 'A', desde: 'staging', hacia: 'staging' })).toThrow(/mismo sitio/);
+  });
+});
+
+describe('comprobarOrigen', () => {
+  it('para antes de lanzar nada si el secreto no está en el origen: el trabajo vería el del repositorio', () => {
+    expect(() => comprobarOrigen(['CLOUDFLARE_API_TOKEN'], ['SUPABASE_DB_URL'], 'staging')).toThrow(
+      /No están en staging: CLOUDFLARE_API_TOKEN/,
+    );
+    expect(() => comprobarOrigen(['A', 'B'], ['B', 'A', 'C'], 'repositorio')).not.toThrow();
   });
 });
 
