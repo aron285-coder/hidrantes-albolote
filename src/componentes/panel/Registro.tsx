@@ -26,9 +26,12 @@ export default function Registro() {
   // Por debajo de md, filas apiladas: a 412 px la tabla se salía por la derecha (docs/28 RV-116).
   const ancha = useAncho() !== 'movil';
   const [accion, setAccion] = useState('');
-  // La página va con la búsqueda para la que se eligió: otra búsqueda empieza en la primera, sin
-  // pedir antes una página fuera de rango (docs/31 RV-166). La acción ya vuelve a 0 al cambiar.
+  // La página va con la búsqueda para la que se eligió: otra búsqueda (también volver a la de antes)
+  // empieza en la primera, sin pedir antes una página fuera de rango (docs/31 RV-166). Se ajusta
+  // durante el render, como recomienda React, para que la primera carga ya sea la de la página 0. La
+  // acción vuelve a 0 en su onChange.
   const [pagina, setPagina] = useState({ n: 0, busqueda });
+  if (pagina.busqueda !== busqueda) setPagina({ n: 0, busqueda });
   const n = pagina.busqueda === busqueda ? pagina.n : 0;
   const setN = (i: number) => setPagina({ n: i, busqueda });
   const carga = useCarga(() => cargarRegistro(accion, busqueda, n), [accion, busqueda, n]);

@@ -300,6 +300,7 @@ test('registro: buscar desde otra página vuelve a la primera (docs/31 RV-166)',
     resumen: `propuesta_creada · ${i % 10 === 0 ? 'HID-9001' : 'HID-9002'}`,
   }));
   const desplazamientos: number[] = [];
+  const conBusqueda: number[] = [];
   // Como PostgREST: con búsqueda filtra, y una página fuera de rango es un 416.
   await page.route(`${SUPABASE_PRUEBAS}/rest/v1/v_registro?*`, (route) => {
     const url = new URL(route.request().url());
@@ -308,6 +309,7 @@ test('registro: buscar desde otra página vuelve a la primera (docs/31 RV-166)',
     const desde = Number(url.searchParams.get('offset') ?? 0);
     const cuantas = Number(url.searchParams.get('limit') ?? filas.length);
     desplazamientos.push(desde);
+    if (busca) conBusqueda.push(desde);
     const cabeceras = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Expose-Headers': 'Content-Range',
@@ -337,6 +339,15 @@ test('registro: buscar desde otra página vuelve a la primera (docs/31 RV-166)',
   await expect(page.getByText(T.panelRegistro.entradas(12))).toBeVisible();
   await expect(page.getByRole('cell', { name: 'HID-9002', exact: true })).toHaveCount(0);
   await expect(page.getByRole('cell', { name: 'HID-9001', exact: true })).toHaveCount(12);
+  // Ninguna petición con búsqueda ha pedido la página 3: ni un 416 ni el aviso de error de paso.
+  expect(conBusqueda.length).toBeGreaterThan(0);
+  expect(conBusqueda.every((d) => d === 0)).toBe(true);
+  await expect(page.getByRole('alert')).toHaveCount(0);
+
+  // Volver a la búsqueda de antes (vacía) también empieza en la primera página.
+  await page.getByPlaceholder(T.panelCola.buscar).fill('');
+  await expect(page.getByText(T.panelRegistro.entradas(120))).toBeVisible();
+  await expect(paginas.getByRole('button', { name: '1', exact: true })).toHaveAttribute('aria-current', 'true');
   expect(desplazamientos.at(-1)).toBe(0);
 });
 

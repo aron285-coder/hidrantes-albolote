@@ -233,14 +233,29 @@ function MenuExportar({
  * menos lo que su texto de "pendiente" (RV-79).
  */
 function CeldaDireccion({ punto, alGuardar }: { punto: Punto; alGuardar: (p: Punto, valor: string) => Promise<void> }) {
-  const [valor, setValor] = useState(punto.direccion ?? '');
+  const dato = punto.direccion ?? '';
+  const [valor, setValor] = useState(dato);
+  // La dirección que enseñaba al empezar; si el dato cambia (Editar, otro administrador), la celda
+  // vuelve a empezar con lo nuevo. Mientras se escribe en ella no: lo escrito no se pierde sin avisar,
+  // y al salir se guarda encima, que es lo que se quería.
+  const [base, setBase] = useState(dato);
+  const [escribiendo, setEscribiendo] = useState(false);
+  if (dato !== base && !escribiendo) {
+    setBase(dato);
+    setValor(dato);
+  }
   return (
     <input
       value={valor}
       onChange={(e) => setValor(e.target.value)}
       placeholder={T.panel.pendienteEscribe}
       aria-label={T.panelInventario.direccionDe(punto.codigo)}
-      onBlur={() => void alGuardar(punto, valor)}
+      onFocus={() => setEscribiendo(true)}
+      onBlur={() => {
+        setEscribiendo(false);
+        setBase(dato);
+        void alGuardar(punto, valor);
+      }}
       className="border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]"
     />
   );
@@ -380,11 +395,7 @@ export default function Inventario() {
       {nombreCaudal(p.caudal)}
     </span>
   );
-  // La clave lleva la dirección: si el dato cambia (Editar, otro administrador), la celda vuelve a
-  // empezar con lo nuevo en vez de quedarse con lo escrito antes (docs/31 RV-164).
-  const direccionDe = (p: Punto) => (
-    <CeldaDireccion key={`${p.id}|${p.direccion ?? ''}`} punto={p} alGuardar={guardarDireccion} />
-  );
+  const direccionDe = (p: Punto) => <CeldaDireccion key={p.id} punto={p} alGuardar={guardarDireccion} />;
   const revisionDe = (p: Punto) => (
     <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-texto font-semibold')}>
       {hace(p.fecha_ultima_revision)}
