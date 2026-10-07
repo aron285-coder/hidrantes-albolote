@@ -603,3 +603,25 @@ test('mientras exporta, Exportar dice "Exportando…" y no abre el menú otra ve
   soltar();
   await expect(page.getByRole('button', { name: T.panel.exportar })).not.toHaveAttribute('aria-busy');
 });
+
+// docs/31 RV-169: el oscuro elegido a mano (data-tema) con el sistema en claro. La variante dark: de
+// Tailwind solo sigue al sistema; con un token en los dos bloques de index.css se ve igual.
+test('Inventario, Registro y Ajustes: axe con el oscuro forzado sobre un sistema claro (RV-169)', async ({ page }) => {
+  await prepararPanel(page);
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.addInitScript(() => localStorage.setItem('hidrantes.tema', JSON.stringify('oscuro')));
+  for (const ruta of ['/admin/inventario', '/admin/registro', '/admin/ajustes']) {
+    await page.goto(ruta);
+    await expect(page.locator('html')).toHaveAttribute('data-tema', 'oscuro');
+    await expect(page.getByRole('main').first()).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .exclude('.leaflet-marker-pane')
+      .analyze();
+    expect(
+      violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`)),
+      ruta,
+    ).toEqual([]);
+  }
+});
