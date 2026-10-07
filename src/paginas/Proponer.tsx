@@ -15,7 +15,8 @@ import {
 } from '@/componentes/operaciones/Campos';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useAcceso, useConexion, usePosicion, usePuntos } from '@/hooks/estado';
-import { colaActual, encolar, estaPersistida, procesarCola, reintentarCola } from '@/lib/cola';
+import { useCola } from '@/hooks/cola';
+import { type EnCola, encolar, estaPersistida, reintentarCola } from '@/lib/cola';
 import { nombreCaudal, nombreTipo } from '@/lib/ficha';
 import type { FotoProcesada } from '@/lib/foto';
 import { distancia, hace } from '@/lib/formato';
@@ -57,11 +58,16 @@ export function Proponer() {
   const { operacion: op } = useParams();
   const [params] = useSearchParams();
   const operacion = OPERACIONES.includes(op as Operacion) ? (op as Operacion) : null;
-  const { puntos } = usePuntos();
+  const { puntos, cargado, sincronizadoEn, sincronizando } = usePuntos();
   const punto = useMemo(() => puntos.find((p) => p.id === params.get('p')) ?? null, [puntos, params]);
   // Alta empezada con una pulsación larga sobre el mapa: el pin nace donde se pulsó (DEC-077).
   const pinInicial = useMemo(() => coordenadasDe(params.get('lat'), params.get('lng')), [params]);
-  if (!operacion || (operacion !== 'alta' && !punto)) return <Navigate to="/" replace />;
+  if (!operacion) return <Navigate to="/" replace />;
+  // Sin punto no se manda al mapa (docs/31 RV-152): al volver de la cámara, si Android descartó la
+  // pestaña, los puntos aún no han cargado; y si una sincronización lo ha quitado, hay que decirlo.
+  // Con el móvil sin nada guardado aún, la primera sincronización todavía puede traerlo.
+  const cargando = !cargado || (sincronizadoEn === null && sincronizando);
+  if (operacion !== 'alta' && !punto) return <SinPunto operacion={operacion} cargando={cargando} />;
   return (
     <LimiteError>
       <FormularioOperacion
@@ -108,7 +114,8 @@ function FormularioOperacion({
     };
   });
   const [enviando, setEnviando] = useState(false);
-  const [resultado, setResultado] = useState<{ que: Resultado; clave: string } | null>(null);
+  // La clave_local de lo enviado: la pantalla de resultado sigue en la cola qué pasa con ello.
+  const [resultado, setResultado] = useState<string | null>(null);
   const [falloGuardar, setFalloGuardar] = useState(false);
   const cambiar = (c: Partial<Formulario>) => setF((x) => ({ ...x, ...c }));
 
@@ -137,28 +144,32 @@ function FormularioOperacion({
           // en autor_* ni choca con su límite de 60 caracteres.
           { nombre: T.navegacion.jefatura, apellido: T.navegacion.jefatura };
     const clave = crypto.randomUUID();
-    let persistida: boolean;
     try {
-      ({ persistida } = await encolar(
+      // Solo se espera a que quede guardada en el móvil: encolar ya lanza el envío, y la pantalla de
+      // resultado cambia sola cuando sale. Con señal débil, esperar al envío eran minutos en
+      // "Enviando…", y el voluntario la volvía a rellenar: un duplicado de verdad (docs/31 RV-151).
+      await encolar(
         argumentos(formulario, punto, autor, clave),
         necesitaFoto(operacion) || foto ? (foto?.blob ?? null) : null,
         punto?.codigo ?? null,
         necesitaFotoSitio(operacion) ? (fotoSitio?.blob ?? null) : null,
-      ));
-      await procesarCola();
+      );
     } catch {
       setFalloGuardar(true);
       setEnviando(false);
       return;
     }
-    setResultado({ que: resultadoDe(clave, jefatura, persistida), clave });
+    setResultado(clave);
     setEnviando(false);
   }
 
-  if (resultado) return <PantallaResultado inicial={resultado.que} clave={resultado.clave} jefatura={jefatura} />;
+  if (resultado) return <PantallaResultado clave={resultado} jefatura={jefatura} />;
 
   const textoBoton = jefatura
-    ? T.envio.aplicarAhora
+    ? // Sin conexión, jefatura tampoco aplica al momento: se guarda y se aplica al volver (RV-151).
+      disponible
+      ? T.envio.aplicarAhora
+      : T.envio.guardarEnMovil
     : !disponible
       ? conexion === 'sin_cobertura'
         ? T.envio.guardarSinCobertura
@@ -359,6 +370,43 @@ function FormularioOperacion({
   );
 }
 
+/**
+ * El formulario de un punto que no está (docs/31 RV-152): mientras cargan los puntos guardados,
+ * "Cargando…"; si ya han cargado y no está, se dice por qué y no se manda al mapa sin explicación.
+ */
+function SinPunto({ operacion, cargando }: { operacion: Operacion; cargando: boolean }) {
+  const navegar = useNavigate();
+  const acceso = useAcceso();
+  return (
+    <div className="flex flex-1 flex-col">
+      <BarraSuperior
+        titulo={TITULO_OPERACION[operacion]}
+        alVolver={() => navegar('/', { replace: true })}
+        jefatura={acceso.tipo === 'jefatura'}
+      />
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-3 p-3">
+        {cargando ? (
+          <p role="status" className="text-texto-suave py-6 text-center">
+            {T.app.cargando}
+          </p>
+        ) : (
+          <>
+            <p
+              role="alert"
+              className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm"
+            >
+              {T.operaciones.puntoYaNoEsta}
+            </p>
+            <Boton className="w-full" onClick={() => navegar('/', { replace: true })}>
+              {T.envio.volverAlMapa}
+            </Boton>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const Aviso = ({ children }: { children: React.ReactNode }) => (
   <p className="bg-marino-600/10 border-marino-600 text-texto rounded-tarjeta border px-2.5 py-2 text-sm">{children}</p>
 );
@@ -488,19 +536,22 @@ function DatosPunto({
  * Qué ha pasado con un envío: sigue en la cola y no llegó a IndexedDB, solo vive en memoria y se
  * perdería al cerrar (RV-02); si ya salió, enviado o aplicado.
  */
-function resultadoDe(clave: string, jefatura: boolean, persistida = estaPersistida(clave)): Resultado {
-  const sigue = colaActual().some((i) => i.clave_local === clave);
-  if (sigue) return persistida ? 'guardado' : 'solo_en_memoria';
+function resultadoDe(cola: readonly EnCola[], clave: string, jefatura: boolean): Resultado {
+  const sigue = cola.some((i) => i.clave_local === clave);
+  if (sigue) return estaPersistida(clave) ? 'guardado' : 'solo_en_memoria';
   return jefatura ? 'aplicado' : 'enviado';
 }
 
-/** Confirmación de 07 §7.5: qué ha pasado con lo enviado (UI-05). */
-function PantallaResultado({ inicial, clave, jefatura }: { inicial: Resultado; clave: string; jefatura: boolean }) {
+/**
+ * Confirmación de 07 §7.5: qué ha pasado con lo enviado (UI-05). Sale en cuanto está guardado en el
+ * móvil y sigue a la cola: "Guardado en el móvil" pasa a "Enviado" (o "Aplicado") cuando sale, y
+ * tras "Reintentar ahora" también (RV-39, docs/31 RV-151).
+ */
+function PantallaResultado({ clave, jefatura }: { clave: string; jefatura: boolean }) {
   const navegar = useNavigate();
   const acceso = useAcceso();
   const [reintentando, setReintentando] = useState(false);
-  // Tras "Reintentar ahora" se vuelve a mirar: puede haber salido o haber llegado al móvil (RV-39).
-  const [resultado, setResultado] = useState(inicial);
+  const resultado = resultadoDe(useCola(), clave, jefatura);
   const titulo = {
     aplicado: T.envio.aplicado,
     guardado: T.envio.guardadoEnMovil,
@@ -531,10 +582,7 @@ function PantallaResultado({ inicial, clave, jefatura }: { inicial: Resultado; c
             disabled={reintentando}
             onClick={() => {
               setReintentando(true);
-              void reintentarCola().finally(() => {
-                setReintentando(false);
-                setResultado(resultadoDe(clave, jefatura));
-              });
+              void reintentarCola().finally(() => setReintentando(false));
             }}
           >
             {reintentando ? T.operaciones.enviando : T.envio.reintentarAhora}
