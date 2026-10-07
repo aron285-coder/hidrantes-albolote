@@ -666,6 +666,8 @@ ${filas.join('\n')}
 | Secretos del Worker \`hidrantes-avisos\` | \`VIGILANCIA_SECRETO_{STAGING,PROD}\`, con los mismos valores que Pages y GitHub (docs/19 RV-52, DEC-097) |
 | Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_PUBLIC_KEY\`, \`VAPID_SUBJECT\`, \`VIGILANCIA_SECRETO\` (DEC-088) |
 
+El token de Cloudflare (\`CLOUDFLARE_API_TOKEN\`) es uno para toda la cuenta: el permiso **Cloudflare Pages: Edit** es de cuenta y no se puede limitar a un proyecto ([Cloudflare, permisos de los tokens de API](https://developers.cloudflare.com/fundamentals/api/reference/permissions/), comprobado el 7 oct 2026). Con el que despliega staging se podría desplegar producción. Separarlo exigiría otra cuenta de Cloudflare; en su lugar, la vigilancia compara cada despliegue de producción con las ejecuciones de \`deploy-prod.yml\` y abre la issue «Despliegue de producción no autorizado» si alguno no corresponde (docs/31 RV-130, \`.github/scripts/despliegues-ajenos.sh\`). Revertir solo es \`config.revertir_despliegue_ajeno\`, apagada si no existe. Los dos proyectos de Pages tienen la variable \`ENTORNO\` (\`staging\` | \`produccion\`), que ponen los \`deploy-*.yml\` antes de desplegar.
+
 Rotar un secreto: \`npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|vigilancia|todo>\` (15).
 
 Pages aplica sus secretos solo a los despliegues nuevos: tras rotar uno, el arranque vuelve a desplegar

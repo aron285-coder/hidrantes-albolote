@@ -905,3 +905,26 @@ test.describe('a 412 × 915 (RV-163)', () => {
     await expect(motivo).toBeInViewport();
   });
 });
+
+// docs/31 RV-169: la fila abierta con el oscuro elegido a mano (data-tema) y el sistema en claro. La
+// variante dark: solo sigue al sistema: con #EFF3F8 fijo, el texto claro del oscuro no se leía.
+test('Cola: la fila abierta y la lista pasan axe con el oscuro forzado sobre un sistema claro (RV-169)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.addInitScript(() => localStorage.setItem('hidrantes.tema', JSON.stringify('oscuro')));
+  await prepararPanel(page);
+  await page.goto('/admin/cola');
+  await expect(page.locator('html')).toHaveAttribute('data-tema', 'oscuro');
+  const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+  const abierta = lista.getByRole('listitem').filter({ has: page.locator('[aria-current="true"]') });
+  await expect(abierta).toHaveCount(1);
+  await expect(abierta).toHaveCSS('background-color', 'rgb(36, 49, 73)');
+  await page.waitForLoadState('networkidle');
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .include(`section[aria-label="${T.panelCola.colaRevision}"]`)
+    .analyze();
+  expect(violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+});

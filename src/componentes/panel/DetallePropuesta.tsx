@@ -32,6 +32,7 @@ import {
   valoresPropuestos,
   bloqueoPorMedida,
 } from '@/lib/panel/cola';
+import { LIMITES } from '@/lib/limites';
 import { ORDEN_RACORES } from '@/lib/racores';
 import { textoError } from '@/lib/panel/errores';
 import type { Caudal, Punto, Racor, TipoPunto } from '@/lib/puntos';
@@ -356,6 +357,7 @@ function DatosDelPunto({
                   {c.antes && <Antes texto={c.antes} />}
                   <input
                     value={direccion.valor}
+                    maxLength={LIMITES.direccion}
                     onChange={(e) => direccion.cambiar(e.target.value)}
                     placeholder={T.ficha.sinDireccion}
                     aria-label={T.ficha.direccion}
@@ -731,6 +733,7 @@ function FormularioCorrecciones({
         <Fila etiqueta={T.panelCola.campoFallo}>
           <input
             value={v.descripcion_fallo}
+            maxLength={LIMITES.descripcion_fallo}
             onChange={(e) => cambia('descripcion_fallo', e.target.value)}
             className="border-linea rounded-campo min-h-9 flex-1 border px-2"
           />
@@ -739,6 +742,7 @@ function FormularioCorrecciones({
       <Fila etiqueta={T.panelCola.campoDescripcion}>
         <input
           value={v.descripcion}
+          maxLength={LIMITES.descripcion}
           onChange={(e) => cambia('descripcion', e.target.value)}
           className="border-linea rounded-campo min-h-9 flex-1 border px-2"
         />
@@ -746,6 +750,7 @@ function FormularioCorrecciones({
       <Fila etiqueta={T.ficha.direccion}>
         <input
           value={dir}
+          maxLength={LIMITES.direccion}
           onChange={(e) => setEscrita(e.target.value)}
           className="border-linea rounded-campo min-h-9 flex-1 border px-2"
         />
@@ -791,6 +796,7 @@ function FormularioRechazo({
         <span className="text-texto-suave text-[13px]">{T.panelCola.motivoRechazo}</span>
         <textarea
           value={motivo}
+          maxLength={LIMITES.motivo}
           onChange={(e) => setMotivo(e.target.value)}
           placeholder={T.panelCola.phMotivo}
           rows={3}

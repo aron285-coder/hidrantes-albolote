@@ -781,11 +781,20 @@ Cabecera `Authorization: Bearer <JWT de Supabase>`; la Function reenvía el JWT 
 `comprobar-despliegue` para ver la caché (docs/19 RV-63). La respuesta lleva `x-hidrantes-cache: hit|miss`.
 
 ```json
-← 200 { "direccion": "Calle Real 14, Albolote", "fuente": "nominatim", "cacheada": false }
+← 200 { "direccion": "Calle Real 14, Albolote", "fuente": "nominatim", "cacheada": false, "guardada": true }
 ← 200 { "direccion": null, "fuente": "nominatim", "motivo": "sin_respuesta" }   // nunca bloquea
 ← 403 { "error": "NO_AUTORIZADO" }
 ← 503 { "error": "NO_CONFIGURADO" }   // sin NOMINATIM_USER_AGENT no se llama a Nominatim (RV-25)
 ```
+
+`guardada` (RV-162) solo viene con `propuesta_id` y una dirección: `true` si ya estaba guardada en la
+propuesta (`cacheada: true`) o si `fn_guardar_direccion_sugerida` ha ido bien; `false` si ha fallado.
+Entonces se anota con `fn_registrar_error` de seis argumentos (`service_role`, `ip_hash` fijo
+`funcion:direccion`, con su propio cupo; mensaje `direccion_no_guardada: <código>`, sin la dirección) y
+el panel manda la dirección como corrección al aprobar. Sin el campo (Function anterior), el panel la da
+por guardada. Límite: `fn_guardar_direccion_sugerida` no falla si la propuesta ya no está pendiente
+(actualiza cero filas), así que ahí sale `guardada: true`; no importa, porque esa propuesta ya no se
+aprueba.
 
 Nominatim exige un `User-Agent` con contacto: `hidrantes-albolote/1.0 (+<URL del repositorio>)`,
 nunca un correo (DEC-053). La respuesta se guarda en la caché de Cloudflare (`caches.default`) 30 días
@@ -834,7 +843,7 @@ Según la variable `ENTORNO` del proyecto de Pages (RV-130):
   que trabajan contra producción, → `409 { "error": "SOLO_EN_PRODUCCION" }` sin pedir nada; los demás
   se piden en la base de datos de staging, donde nadie los despacha.
 
-Un pedido pendiente del mismo trabajo → `409 { "error": "YA_PEDIDO" }`; la base de datos sin responder →
+Un pedido pendiente del mismo trabajo (de menos de 24 h, 0040) → `409 { "error": "YA_PEDIDO" }`; la base de datos sin responder →
 `503 SERVIDOR_NO_DISPONIBLE`. `SOLO_EN_PRODUCCION` es un código solo de esta Function, no de una RPC.
 
 ### `POST /api/error`

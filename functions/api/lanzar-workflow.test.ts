@@ -110,6 +110,14 @@ describe('POST /api/lanzar-workflow', () => {
       espia.mockRestore();
     });
 
+    it('si la base de datos no admite el trabajo, 400 PAYLOAD_INVALIDO (0040 lo lanza con su campo)', async () => {
+      const { espia } = fingirRed({ pedido: raise('PAYLOAD_INVALIDO(workflow)') });
+      const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: PRODUCCION });
+      expect(r.status).toBe(400);
+      expect(await r.json()).toEqual({ error: 'PAYLOAD_INVALIDO' });
+      espia.mockRestore();
+    });
+
     it('si la base de datos no contesta, 503 y no se da por pedido (UI-04)', async () => {
       const { espia } = fingirRed({ pedido: new TypeError('fetch failed') });
       const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: PRODUCCION });
