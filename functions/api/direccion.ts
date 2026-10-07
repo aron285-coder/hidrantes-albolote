@@ -39,7 +39,7 @@ export const onRequestGet: Manejador = async ({ request, env }) => {
     ).catch(() => null);
     const filas = r?.ok ? ((await r.json()) as { direccion_sugerida: string | null }[]) : [];
     if (filas[0]?.direccion_sugerida) {
-      return json({ direccion: filas[0].direccion_sugerida, fuente: 'nominatim', cacheada: true });
+      return json({ direccion: filas[0].direccion_sugerida, fuente: 'nominatim', cacheada: true, guardada: true });
     }
   }
 
@@ -67,8 +67,29 @@ export const onRequestGet: Manejador = async ({ request, env }) => {
     }
   }
   if (!direccion) return json({ direccion: null, fuente: 'nominatim', motivo: 'sin_respuesta' }, 200, cabeceras);
-  if (propuestaId) {
-    await rpc(env, 'fn_guardar_direccion_sugerida', { propuesta_id: propuestaId, direccion }, { jwt: jwt! });
+  if (!propuestaId) return json({ direccion, fuente: 'nominatim', cacheada: false }, 200, cabeceras);
+  // RV-162: al aprobar, el servidor aplica la direccion_sugerida guardada. Si no se ha guardado, el
+  // panel tiene que saberlo para mandarla como corrección; y el fallo se anota, sin la dirección.
+  const guardado = await rpc(
+    env,
+    'fn_guardar_direccion_sugerida',
+    { propuesta_id: propuestaId, direccion },
+    { jwt: jwt! },
+  );
+  if (!guardado.ok) {
+    // Nunca falla hacia el panel: rpc no lanza y fn_registrar_error tampoco.
+    await rpc(
+      env,
+      'fn_registrar_error',
+      {
+        dispositivo_id: null,
+        mensaje: `direccion_no_guardada: ${guardado.codigo}`,
+        pila: null,
+        ruta: '/api/direccion',
+        agente: null,
+      },
+      { jwt: jwt! },
+    );
   }
-  return json({ direccion, fuente: 'nominatim', cacheada: false }, 200, cabeceras);
+  return json({ direccion, fuente: 'nominatim', cacheada: false, guardada: guardado.ok }, 200, cabeceras);
 };

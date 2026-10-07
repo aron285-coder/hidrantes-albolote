@@ -25,6 +25,8 @@ interface Red {
   admin?: boolean;
   cola?: Response;
   nominatim?: Response | Error;
+  /** Lo que contesta fn_guardar_direccion_sugerida. */
+  guardado?: Response | Error;
 }
 
 /** Encamina por destino: fn_es_admin, la vista de la cola, Nominatim o la RPC de guardado. */
@@ -38,6 +40,9 @@ function fingirRed(red: Red) {
     if (url.includes('nominatim')) {
       const r = red.nominatim ?? new Response(JSON.stringify({ address: { road: 'Calle Real', town: 'Albolote' } }));
       return r instanceof Error ? Promise.reject(r) : Promise.resolve(r);
+    }
+    if (url.includes('fn_guardar_direccion_sugerida') && red.guardado) {
+      return red.guardado instanceof Error ? Promise.reject(red.guardado) : Promise.resolve(red.guardado);
     }
     return Promise.resolve(new Response('null'));
   });
@@ -103,15 +108,54 @@ describe('GET /api/direccion', () => {
     });
     const r = await responder(peticion({ ...ALBOLOTE, propuesta_id: PROPUESTA }));
 
-    expect(await r.json()).toEqual({ direccion: 'Calle Real 14, Albolote', fuente: 'nominatim', cacheada: true });
+    expect(await r.json()).toEqual({
+      direccion: 'Calle Real 14, Albolote',
+      fuente: 'nominatim',
+      cacheada: true,
+      guardada: true,
+    });
     expect(llamadas.some((u) => u.includes('nominatim'))).toBe(false);
     espia.mockRestore();
   });
 
   it('lo deducido se guarda en la propuesta para el resto de la revisión', async () => {
     const { espia, llamadas } = fingirRed({});
-    await responder(peticion({ ...ALBOLOTE, propuesta_id: PROPUESTA }));
+    const r = await responder(peticion({ ...ALBOLOTE, propuesta_id: PROPUESTA }));
     expect(llamadas.some((u) => u.includes('fn_guardar_direccion_sugerida'))).toBe(true);
+    expect(await r.json()).toEqual(expect.objectContaining({ direccion: 'Calle Real, Albolote', guardada: true }));
+    expect(llamadas.some((u) => u.includes('fn_registrar_error'))).toBe(false);
+    espia.mockRestore();
+  });
+
+  // RV-162: si no se ha podido guardar, el panel lo tiene que saber para mandar la dirección como
+  // corrección al aprobar; y el fallo queda anotado, no se pierde en silencio.
+  it('si no se puede guardar en la propuesta, guardada: false y el error queda registrado', async () => {
+    for (const fallo of [
+      new Response(JSON.stringify({ code: 'P0001', message: 'PROPUESTA_NO_PENDIENTE: ya no' }), { status: 400 }),
+      new TypeError('fetch failed'),
+    ]) {
+      const { espia, llamadas } = fingirRed({ guardado: fallo });
+      const r = await responder(peticion({ ...ALBOLOTE, propuesta_id: PROPUESTA }));
+      expect(r.status).toBe(200);
+      expect(await r.json()).toEqual(expect.objectContaining({ direccion: 'Calle Real, Albolote', guardada: false }));
+      const registro = espia.mock.calls.find(([u]) => String(u).includes('fn_registrar_error'));
+      expect(registro).toBeDefined();
+      const cuerpo = JSON.parse((registro![1] as RequestInit).body as string) as Record<string, unknown>;
+      // Con la sesión de jefatura y sin la dirección: solo qué falló.
+      expect((registro![1] as RequestInit).headers).toEqual(
+        expect.objectContaining({ Authorization: 'Bearer aaa.bbb.ccc' }),
+      );
+      expect(String(cuerpo.mensaje)).toMatch(/^direccion_no_guardada: /);
+      expect(JSON.stringify(cuerpo)).not.toContain('Calle Real');
+      expect(llamadas.length).toBeGreaterThan(0);
+      espia.mockRestore();
+    }
+  });
+
+  it('sin propuesta no hay nada que guardar: la respuesta no lleva guardada', async () => {
+    const { espia } = fingirRed({});
+    const r = await responder(peticion(ALBOLOTE));
+    expect(await r.json()).toEqual({ direccion: 'Calle Real, Albolote', fuente: 'nominatim', cacheada: false });
     espia.mockRestore();
   });
 
