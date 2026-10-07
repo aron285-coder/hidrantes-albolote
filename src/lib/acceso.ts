@@ -16,6 +16,7 @@ import {
   guardarSesion,
   leerSesion,
   olvidarToken,
+  renovarDispositivoId,
 } from './sesion';
 import { alEnviarPropuesta, iniciarCola, reintentarCola, vaciarCola } from './cola';
 import { cargarMisPropuestas, olvidarMisPropuestas } from './mis-propuestas';
@@ -189,7 +190,10 @@ export async function comprobarAcceso(): Promise<void> {
 
 /** Canje del código (FR-31). Devuelve null si ha entrado, o el código de error de 05 §8. */
 export async function entrarConCodigo(codigo: string, firma: Firma): Promise<string | null> {
-  const r: Resultado<{ token: string }> = await verificarCodigo(codigo, dispositivoId());
+  let r: Resultado<{ token: string }> = await verificarCodigo(codigo, dispositivoId());
+  // El identificador de este móvil está reservado (DEC-175): otro y una sola vez más (docs/31 RV-159).
+  // Si vuelve a pasar, el error de siempre.
+  if (!r.ok && r.codigo === 'DISPOSITIVO_RESERVADO') r = await verificarCodigo(codigo, renovarDispositivoId());
   if (!r.ok) {
     if (r.codigo === 'DEMASIADOS_INTENTOS') bloquear();
     return r.codigo;
