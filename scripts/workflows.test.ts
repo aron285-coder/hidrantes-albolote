@@ -538,7 +538,8 @@ describe('release-please sin GitHub App (DEC-153)', () => {
 
 // docs/31 RV-135, DEC-096: un PR develop → main fusionado con squash deja en main cambios fuera de la
 // historia de develop, y el siguiente PR a main choca. ci-calidad lo para en el PR a main.
-describe('main dentro de la historia de la rama en los PR a main (RV-135)', () => {
+// Cada caso crea un repositorio con una docena de llamadas a git: en Windows pasa de los 5 s.
+describe('main dentro de la historia de la rama en los PR a main (RV-135)', { timeout: 30_000 }, () => {
   const guion = path.resolve(import.meta.dirname, '../.github/scripts/main-en-la-rama.sh').replaceAll('\\', '/');
 
   /** Un repositorio con develop y origin/main. `fusion` dice cómo llegó la release 1 a main. */
@@ -609,8 +610,13 @@ describe('main dentro de la historia de la rama en los PR a main (RV-135)', () =
     });
   });
 
-  it('sin cabeza, falla en vez de dar por bueno', () => {
-    con('merge', (dir) => expect(comprobar(dir, '').status).toBe(2));
+  it('sin cabeza, o con una que no está en el clon, falla con 2 en vez de dar por bueno', () => {
+    con('merge', (dir) => {
+      expect(comprobar(dir, '').status).toBe(2);
+      const r = comprobar(dir, 'f'.repeat(40));
+      expect(r.status).toBe(2);
+      expect(r.stdout).toContain('No encuentro la cabeza del PR');
+    });
   });
 
   it('ci-calidad lo comprueba solo en PR a main, con la cabeza del PR y no con HEAD', () => {

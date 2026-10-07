@@ -9,9 +9,12 @@
 # Con merge commit (DEC-096), la punta de `main` no es ancestro de `develop`, pero su árbol es el de
 # su padre de `develop`, que sí lo es: el árbol del merge-base es el de `main`. Con squash (#296,
 # #438), el merge-base se queda en la release anterior y los árboles difieren: el PR chocará en
-# CHANGELOG.md y package.json. Sale con 1 y explica el arreglo.
+# CHANGELOG.md y package.json.
+#
+# Sale con 0 si se puede fusionar, 1 si main tiene cambios fuera de la rama (con el arreglo), y 2 si
+# no se ha podido comprobar (git falló): nunca da por bueno lo que no ha mirado.
 main_en_la_rama() {
-  local cabeza="$1" base
+  local cabeza="$1" base rc
   if [ -z "$cabeza" ]; then
     echo "::error::main_en_la_rama: falta el sha de la cabeza del PR"
     return 2
@@ -20,16 +23,31 @@ main_en_la_rama() {
     echo "::error::No encuentro origin/main: ¿falta fetch-depth: 0?"
     return 2
   fi
-  if ! base=$(git merge-base origin/main "$cabeza"); then
+  if ! git rev-parse -q --verify "$cabeza^{commit}" >/dev/null; then
+    echo "::error::No encuentro la cabeza del PR ($cabeza) en el clon: ¿falta fetch-depth: 0?"
+    return 2
+  fi
+  rc=0
+  base=$(git merge-base origin/main "$cabeza") || rc=$?
+  if [ "$rc" -eq 1 ]; then
     echo "::error::main y la rama no comparten historia."
     return 1
+  elif [ "$rc" -ne 0 ]; then
+    echo "::error::git merge-base falló con $rc: no se ha podido comprobar."
+    return 2
   fi
-  if git diff --quiet "$base" origin/main; then
+  rc=0
+  git diff --quiet "$base" origin/main || rc=$?
+  if [ "$rc" -eq 0 ]; then
     echo "main no tiene nada que la rama no tenga: se puede fusionar con merge commit."
     return 0
+  elif [ "$rc" -ne 1 ]; then
+    echo "::error::git diff falló con $rc: no se ha podido comprobar."
+    return 2
   fi
-  echo "::error::main tiene cambios fuera de la historia de esta rama: un PR develop → main se fusionó" \
-    "con squash (DEC-096). Arreglo: un PR a develop con 'git merge -s ours origin/main' (como #352 y" \
-    "RV-135), fusionado con merge commit. Y este PR, también con merge commit (gh pr merge --merge)."
+  echo "::error::main tiene cambios fuera de la historia de esta rama: lo normal es que un PR develop → main" \
+    "se fusionara con squash (DEC-096), o un cambio directo en main. Arreglo: un PR a develop con" \
+    "'git merge -s ours origin/main' (como #352 y RV-135) si develop ya tiene esos cambios, o un merge" \
+    "normal de origin/main si no; fusionado con merge commit. Y este PR, también con merge commit (gh pr merge --merge)."
   return 1
 }
