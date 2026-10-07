@@ -243,6 +243,11 @@ test.describe('con sesión guardada', () => {
       if (nombre === 'fn_registrar_error') enviados.push(r.request().postDataJSON());
       await r.fulfill({ status: 200, contentType: 'application/json', body: '{"puntos":[],"bajas":[]}' });
     });
+    // docs/31 RV-148: el error sale por la Function /api/error (la RPC queda para una app anterior).
+    await page.route('**/api/error', async (r) => {
+      enviados.push(r.request().postDataJSON());
+      await r.fulfill({ status: 204 });
+    });
     await page.goto('/');
     await page.getByRole('link', { name: T.navegacion.lista }).click();
     await expect(page.getByRole('alert')).toContainText(T.fallo.titulo);
