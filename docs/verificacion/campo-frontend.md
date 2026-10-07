@@ -61,7 +61,7 @@ por `hidrantes-albolote-staging.pages.dev` tras los despliegues de #426 y #428:
 
 ## 4. Suposiciones y pendiente
 
-- **Fotos de los racores:** las pone el desarrollador (docs/24 §5): una foto propia de cada racor, de frente y con
+- **Fotos de los racores:** no hacen falta: los dibujos de `public/racores/` (Granada, Barcelona y Directo) son la referencia definitiva (DEC-178, `docs/31` RV-157b).
   fondo liso. Se preparan con `npx tsx scripts/preparar-racores.ts <carpeta>` y se suben en un PR aparte. El e2e del
   precache sin cobertura deja de saltarse solo en cuanto estén.
 - **Boca:** el diámetro hay que elegirlo, sin 45 por defecto (DEC-148).
