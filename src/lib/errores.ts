@@ -3,6 +3,8 @@
 // pantalla, agente y el identificador aleatorio del móvil.
 
 import { rpc } from './api';
+import { anotarServidor } from './conexion';
+import { LIMITES_RED, fetchConLimite } from './red';
 import { escribir, leer } from './almacen';
 import { dispositivoId } from './sesion';
 
@@ -34,6 +36,38 @@ export function anotarError(e: unknown, ruta = location.pathname): void {
 
 let enviando = false;
 
+type Cuerpo = { dispositivo_id: string; mensaje: string; pila: string | null; ruta: string; agente: string };
+
+/**
+ * Un error al servidor (docs/31 RV-148): por POST /api/error, que pone el tope por IP. Si la
+ * Function no existe aún (una app servida antes de su despliegue: 404, 405 o la página de la app),
+ * por la RPC de 5 argumentos, como antes. Sin red o con el servidor caído, se queda en la cola.
+ */
+async function enviarUno(cuerpo: Cuerpo): Promise<boolean> {
+  let respuesta: Response;
+  try {
+    respuesta = await fetchConLimite(() => LIMITES_RED.rpc)('/api/error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cuerpo),
+    });
+  } catch {
+    anotarServidor(false);
+    return false;
+  }
+  const html = (respuesta.headers.get('Content-Type') ?? '').includes('text/html');
+  if (respuesta.ok && !html) {
+    anotarServidor(true);
+    return true;
+  }
+  if (respuesta.status === 404 || respuesta.status === 405 || html) {
+    const r = await rpc('fn_registrar_error', cuerpo);
+    return r.ok;
+  }
+  anotarServidor(respuesta.status < 500);
+  return false;
+}
+
 /** Envía la cola; lo que no llega se queda para la próxima vez. */
 export async function enviarErrores(): Promise<number> {
   if (enviando) return 0;
@@ -43,14 +77,15 @@ export async function enviarErrores(): Promise<number> {
     const cola = leer<ErrorCliente[]>(CLAVE) ?? [];
     while (cola.length) {
       const e = cola[0];
-      const r = await rpc('fn_registrar_error', {
+      const cuerpo = {
         dispositivo_id: dispositivoId(),
         mensaje: e.mensaje,
         pila: e.pila,
         ruta: e.ruta,
         agente: e.agente,
-      });
-      if (!r.ok) break;
+      };
+      const r = await enviarUno(cuerpo);
+      if (!r) break;
       cola.shift();
       enviados++;
       escribir(CLAVE, cola);
