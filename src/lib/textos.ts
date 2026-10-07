@@ -946,7 +946,12 @@ export const T = {
     mantenimiento: 'Mantenimiento',
     ayudaMantenimiento:
       'Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.',
-    trabajoLanzado: (nombre: Parametro) => `"${nombre}" lanzado. Tarda unos minutos.`,
+    // docs/31 RV-146 y RV-167: el panel deja un pedido que un workflow recoge; en staging, Purgar fotos y
+    // el respaldo no se piden (trabajan contra producción).
+    trabajoPedido: (nombre: Parametro) => `"${nombre}": pedido. Empezará en unos minutos.`,
+    soloEnProduccion: 'Solo en producción',
+    radiosInvalidos: 'Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.',
+    nucleosVacio: 'Todavía no hay núcleos.',
     avisosJefatura: 'Avisos para jefatura',
     ayudaAvisos: 'Notificaciones en este navegador. Opcionales y apagadas por defecto.',
     nuevasPropuestas: 'Nuevas propuestas pendientes',
@@ -987,6 +992,8 @@ export const T = {
     puntoOcupado: 'Otra persona está cambiando este punto; inténtalo en unos segundos.',
     tipoNoModificable: 'El tipo de un punto no se cambia: retíralo y da de alta el correcto.',
     generico: 'No se ha podido completar. Inténtalo de nuevo.',
+    soloEnProduccion: 'Esto solo se hace en producción.',
+    yaPedido: 'Ya está pedido: empezará en unos minutos.',
   },
 
   panel: {

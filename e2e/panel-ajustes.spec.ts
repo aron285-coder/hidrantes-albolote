@@ -188,6 +188,60 @@ test('ajustes: el tramo de manguera se guarda y fuera de 10–30 no deja guardar
   await expect.poll(() => llamadaA(llamadas, 'fn_guardar_config')).toEqual({ cambios: { metros_tramo_manguera: 25 } });
 });
 
+// docs/31 RV-167: los radios se escriben como texto y se leen al salir. Antes se re-formateaban en
+// cada tecla: "5,5" se quedaba en "5" y no se podía añadir un quinto valor.
+test('ajustes: los radios del marcador se escriben libres y se validan al salir (RV-167)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  const parametros = page.getByRole('region').filter({ hasText: T.panelAjustes.parametros }).first();
+  const radios = parametros.getByLabel(T.panelAjustes.radiosMarcador);
+  const guardar = parametros.getByRole('button', { name: T.panel.guardarCambios });
+  await expect(radios).toHaveValue('11 · 9 · 7 · 5,5 · 5');
+
+  // Escribir tecla a tecla: lo escrito se queda tal cual.
+  await radios.fill('');
+  await radios.pressSequentially('11 · 9');
+  await expect(radios).toHaveValue('11 · 9');
+  await radios.blur();
+  await expect(parametros.getByText(T.panelAjustes.radiosInvalidos).first()).toBeVisible();
+  await expect(radios).toHaveAttribute('aria-invalid', 'true');
+  await expect(guardar).toBeDisabled();
+
+  await radios.fill('');
+  await radios.pressSequentially('12 · 9 · 7 · 5,5 · 4');
+  await expect(radios).toHaveValue('12 · 9 · 7 · 5,5 · 4');
+  await radios.blur();
+  await expect(radios).not.toHaveAttribute('aria-invalid', 'true');
+  await guardar.click();
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_guardar_config'))
+    .toEqual({ cambios: { escala_radios: [12, 9, 7, 5.5, 4] } });
+});
+
+// docs/31 RV-167: con la lista sin cargar, Administradores y Núcleos se quedaban en «Cargando…».
+test('ajustes: si no cargan Administradores ni Núcleos, lo dicen y dejan reintentar (RV-167)', async ({ page }) => {
+  await prepararPanel(page);
+  let fallan = true;
+  await page.route(/\/rest\/v1\/(administradores|nucleos)\?/, (r) =>
+    fallan ? r.abort('connectionrefused') : r.fallback(),
+  );
+  await page.goto('/admin/ajustes');
+  for (const [titulo, fila] of [
+    [T.panelAjustes.administradores, 'jefe@example.org'],
+    [T.panelAjustes.nucleos, 'Pretel'],
+  ] as const) {
+    const tarjeta = page.getByRole('region', { name: titulo, exact: true });
+    const error = tarjeta.getByRole('alert');
+    await expect(error).toContainText(T.panelErrores.sinServidor);
+    await expect(tarjeta.getByText(T.panelCola.cargando)).toHaveCount(0);
+    fallan = false;
+    await error.getByRole('button', { name: T.mapa.reintentar }).click();
+    await expect(tarjeta.getByText(fila).first()).toBeVisible();
+    await expect(tarjeta.getByRole('alert')).toHaveCount(0);
+    fallan = true;
+  }
+});
+
 test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR-165, FR-167)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/ajustes');
@@ -199,19 +253,21 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
   await salud.getByRole('button', { name: T.panel.descargarInventario }).click();
   expect((await descarga).suggestedFilename()).toMatch(/^hidrantes-albolote-\d{4}-\d{2}-\d{2}\.json$/);
 
+  // docs/31 RV-146 y RV-167: el panel deja un pedido; el aviso lo dice así.
+  const pedido = page.waitForRequest((r) => r.url().includes('/api/lanzar-workflow') && r.method() === 'POST');
   await page.getByRole('button', { name: T.panel.regenerarZona }).click();
+  expect((await pedido).postDataJSON()).toEqual({ workflow: 'regenerar-zona' });
   await expect(
-    page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoLanzado(T.panel.regenerarZona) }),
+    page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoPedido(T.panel.regenerarZona) }),
   ).toBeVisible();
 
-  // FR-144: la purga de fotos huérfanas es un trabajo más de mantenimiento, con su aviso de que
-  // tarda unos minutos y su confirmación (AC-106).
-  const purga = page.waitForRequest((r) => r.url().includes('/api/lanzar-workflow') && r.method() === 'POST');
-  await page.getByRole('button', { name: T.panel.purgarFotos }).click();
-  expect((await purga).postDataJSON()).toEqual({ workflow: 'purgar-fotos' });
-  await expect(
-    page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoLanzado(T.panel.purgarFotos) }),
-  ).toBeVisible();
+  // FR-144: la purga de fotos huérfanas y el respaldo trabajan contra producción: este build es de
+  // staging (VITE_ENTORNO), así que salen deshabilitados con su motivo y no se piden (RV-167).
+  for (const nombre of [T.panel.purgarFotos, T.panel.respaldoAhora]) {
+    const boton = page.getByRole('button', { name: nombre });
+    await expect(boton).toBeDisabled();
+    await expect(boton).toHaveAccessibleDescription(T.panelAjustes.soloEnProduccion);
+  }
 
   // Las novedades salen del build, no de fn_novedades (RV-20): sin simular la RPC, se ven igual.
   // Cada línea lleva su propio número, no el de la última versión (docs/23 RV-95).
