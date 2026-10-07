@@ -99,6 +99,9 @@ En orden de fiabilidad:
 6. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
    `githubstatus.com`. Si está caído el proveedor, no hay nada que hacer salvo esperar; la app sigue
    mostrando los datos guardados en los móviles (FR-168).
+7. **Issue «Deploy de producción fallido»** (etiqueta `vigilancia`, docs/31 RV-136): la abre (o la reabre) `deploy-prod.yml` cuando falla un paso, y dice cuál. Se cierra sola con el siguiente despliegue bueno. La vigilancia, además, avisa si el último `deploy-prod` no terminó en *success*, también si se canceló sin aprobar.
+   - **Qué hacer según el paso:** la guarda, nada ha cambiado: corrige la variable que nombra en el *environment* `production`. Las migraciones, §5.2. El despliegue o la comprobación de versión y cabeceras, §5.1. La paridad, producción ya está desplegada: mira qué no coincide en el resumen de la ejecución y `docs/verificacion/paridad-produccion.md`.
+   - **Cancelado:** nadie aprobó el *environment* a tiempo, así que producción sigue en la versión anterior. Se vuelve a lanzar con la siguiente fusión en `main`.
 
 ---
 
