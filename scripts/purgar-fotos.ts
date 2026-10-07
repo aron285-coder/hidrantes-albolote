@@ -54,7 +54,20 @@ export function huerfanas(enBucket: Archivo[], referenciadas: Iterable<string>):
 export function motivoParaNoBorrar(
   enBucket: Archivo[],
   referenciadas: string[],
-  { forzar = false, total }: { forzar?: boolean; total?: number } = {},
+  {
+    forzar = false,
+    total,
+    basura = [],
+  }: {
+    forzar?: boolean;
+    total?: number;
+    /**
+     * Reservas nunca confirmadas de más de 48 h que nada referencia (`fn_reservas_sin_confirmar_lista`,
+     * docs/31 RV-142, DEC-174). Se borran igual, pero no cuentan en el freno de max(50, 10 %): un
+     * dispositivo que reserva y no envía no debe bloquear la purga de la semana.
+     */
+    basura?: Iterable<string>;
+  } = {},
 ): string | null {
   if (!enBucket.length) return null;
   if (!referenciadas.length) {
@@ -65,11 +78,14 @@ export function motivoParaNoBorrar(
   if (total !== referenciadas.length && referenciadas.length % MAX_FILAS_POSTGREST === 0) {
     return `La base de datos referencia exactamente ${referenciadas.length} fotos, un múltiplo de max_rows (${MAX_FILAS_POSTGREST}): la lista puede venir truncada, no se borra nada.`;
   }
-  const sobran = huerfanas(enBucket, referenciadas).length;
+  // Solo descuenta la basura que de verdad es huérfana: una que la base de datos referencia no es basura.
+  const segura = new Set(basura);
+  const sobran = huerfanas(enBucket, referenciadas).filter((a) => !segura.has(a.ruta)).length;
   const tope = Math.max(MAX_BORRADO.fotos, Math.floor(enBucket.length * MAX_BORRADO.fraccion));
   if (!forzar && sobran > tope) {
     const pct = Math.round((sobran / enBucket.length) * 100);
-    return `Esta pasada borraría ${sobran} de ${enBucket.length} fotos (${pct} %), más de max(${MAX_BORRADO.fotos}, 10 %): revisa un --ensayo y, si está bien, lánzala a mano con --forzar. No se borra nada.`;
+    const aparte = segura.size ? ` sin contar las reservas sin confirmar de más de 48 h` : '';
+    return `Esta pasada borraría ${sobran} de ${enBucket.length} fotos (${pct} %)${aparte}, más de max(${MAX_BORRADO.fotos}, 10 %): revisa un --ensayo y, si está bien, lánzala a mano con --forzar. No se borra nada.`;
   }
   return null;
 }
@@ -90,6 +106,44 @@ export function lotes<T>(items: T[], tamano = POR_LOTE): T[][] {
   const partes: T[][] = [];
   for (let i = 0; i < items.length; i += tamano) partes.push(items.slice(i, i + tamano));
   return partes;
+}
+
+/**
+ * Las reservas nunca confirmadas de más de 48 h que nada referencia (docs/31 RV-142, 0039). Solo
+ * service_role. Misma forma que `fn_fotos_referenciadas_lista`, y se comprueba igual contra su total.
+ * Sin la función (404: producción antes de 0.9.0), no descuenta nada: el freno cuenta todas, como antes.
+ */
+export async function sinConfirmar(url: string, servicio: string): Promise<string[]> {
+  const r = await fetch(`${url}/rest/v1/rpc/fn_reservas_sin_confirmar_lista`, {
+    method: 'POST',
+    headers: {
+      apikey: servicio,
+      Authorization: `Bearer ${servicio}`,
+      'Content-Type': 'application/json',
+      'Content-Profile': 'hidrantes',
+      'Accept-Profile': 'hidrantes',
+    },
+    body: '{}',
+  }).catch(() => null);
+  if (r?.status === 404) {
+    log.aviso(
+      'La base de datos aún no tiene fn_reservas_sin_confirmar_lista (0039): el freno cuenta todas las huérfanas.',
+    );
+    return [];
+  }
+  if (!r?.ok) abortar(`La base de datos respondió ${r ? r.status : 'nada'} al pedir las reservas sin confirmar.`);
+  const cuerpo = (await r.json().catch(() => null)) as { fotos?: unknown; total?: unknown } | null;
+  const fotos = cuerpo && !Array.isArray(cuerpo) ? (cuerpo.fotos ?? []) : null;
+  if (!Array.isArray(fotos) || typeof cuerpo?.total !== 'number') {
+    abortar('Respuesta inesperada al pedir las reservas sin confirmar.');
+  }
+  const validas = fotos.filter((f): f is string => typeof f === 'string' && f.length > 0);
+  if (validas.length !== cuerpo.total) {
+    abortar(
+      `La lista de reservas sin confirmar no cuadra: llegan ${validas.length} válidas y la base de datos dice ${cuerpo.total}. No se borra nada.`,
+    );
+  }
+  return validas;
 }
 
 /** Lo que la base de datos manda conservar (04 §7). Solo la puede llamar service_role (11 §3). */
@@ -158,6 +212,8 @@ export interface Dependencias {
    */
   referenciadas: () => Promise<{ fotos: string[]; total?: number }>;
   borrar: (rutas: string[]) => Promise<void>;
+  /** Reservas sin confirmar de más de 48 h: no cuentan en el freno (RV-142). Sin ella, ninguna. */
+  sinConfirmar?: () => Promise<string[]>;
 }
 
 /**
@@ -170,9 +226,12 @@ export async function purgar(
 ): Promise<{ enBucket: Archivo[]; sobran: Archivo[]; borradas: number }> {
   const enBucket = await d.archivos();
   const { fotos: vivas, total } = await d.referenciadas();
-  log.info(`${enBucket.length} fotos en el bucket · ${vivas.length} referenciadas por la base de datos`);
+  const basura = d.sinConfirmar ? await d.sinConfirmar() : [];
+  log.info(
+    `${enBucket.length} fotos en el bucket · ${vivas.length} referenciadas por la base de datos · ${basura.length} reservas sin confirmar de más de 48 h`,
+  );
 
-  const motivo = motivoParaNoBorrar(enBucket, vivas, { forzar, total });
+  const motivo = motivoParaNoBorrar(enBucket, vivas, { forzar, total, basura });
   if (motivo) abortar(motivo);
 
   let sobran = huerfanas(enBucket, vivas);
@@ -181,7 +240,7 @@ export async function purgar(
   if (ensayo || !sobran.length) return { enBucket, sobran, borradas: 0 };
 
   const { fotos: segunda, total: total2 } = await d.referenciadas();
-  const motivo2 = motivoParaNoBorrar(enBucket, segunda, { forzar, total: total2 });
+  const motivo2 = motivoParaNoBorrar(enBucket, segunda, { forzar, total: total2, basura });
   if (motivo2) abortar(motivo2);
   const antes = sobran.length;
   sobran = huerfanas(sobran, segunda);
@@ -263,6 +322,7 @@ async function principal(): Promise<void> {
         return { fotos, total: fotos.length };
       },
       borrar: (rutas) => borrar(url, servicio, bucket, rutas),
+      sinConfirmar: () => sinConfirmar(url, servicio),
     },
     { ensayo, forzar },
   );
