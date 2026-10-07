@@ -44,6 +44,10 @@ jobs:
           # docs/31 RV-136: las mismas con las que se construye el frontend, antes de migrar nada.
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          # Para leer los nombres (no los valores) de las variables del proyecto de Pages: SAL_IP y las
+          # demás que necesitan las Functions.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Migraciones (hidrantes_migrador, DEC-052)
         run: npm run migrar

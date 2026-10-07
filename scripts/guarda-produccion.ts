@@ -23,6 +23,8 @@ export interface EntradaGuarda {
   pushEndpointPruebas?: string;
   /** scripts/arranque.ts, que es quien sube los secretos de Pages: no puede subir esa variable. */
   arranque?: string;
+  /** Nombres de las variables de production del proyecto de Pages; null si no se han podido leer. */
+  variablesPages: readonly string[] | null;
 }
 
 const PUSH_PRUEBAS = 'PUSH_ENDPOINT_PRUEBAS';
@@ -88,7 +90,43 @@ export function comprobarGuarda(e: EntradaGuarda): string[] {
   if (lineas.some((l) => l.includes(PUSH_PRUEBAS))) p.push('deploy-prod.yml menciona PUSH_ENDPOINT_PRUEBAS');
   if (e.arranque?.includes(PUSH_PRUEBAS))
     p.push('scripts/arranque.ts menciona PUSH_ENDPOINT_PRUEBAS (subiría a Pages)');
+  // Las variables que las Functions necesitan para funcionar. Sin SAL_IP, /api/verificar-codigo y
+  // /api/error responden 503 NO_CONFIGURADO: nadie podría entrar con el código (docs/31, #484).
+  if (e.variablesPages === null) {
+    p.push('no se pueden leer las variables del proyecto de Pages (¿CLOUDFLARE_API_TOKEN?)');
+  } else {
+    for (const v of VARIABLES_PAGES) {
+      if (!e.variablesPages.includes(v))
+        p.push(`al proyecto de Pages le falta ${v}: npm run arranque -- --solo-faltantes`);
+    }
+  }
   return p;
+}
+
+/** Lo que las Functions de producción no pueden no tener (functions/_lib/comun.ts, Env). */
+export const VARIABLES_PAGES = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SAL_IP'] as const;
+
+/**
+ * Los **nombres** de las variables de production del proyecto de Pages (nunca los valores: los
+ * secretos no los devuelve la API). null si no se pueden leer: la guarda lo trata como un problema.
+ */
+export async function variablesDePages(
+  proyecto: string,
+  cuenta: string | undefined,
+  token: string | undefined,
+  f: typeof fetch = fetch,
+): Promise<string[] | null> {
+  if (!cuenta || !token) return null;
+  const r = await f(`https://api.cloudflare.com/client/v4/accounts/${cuenta}/pages/projects/${proyecto}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => null);
+  if (!r?.ok) return null;
+  const j = (await r.json().catch(() => null)) as {
+    result?: { deployment_configs?: { production?: { env_vars?: Record<string, unknown> | null } } };
+  } | null;
+  const vars = j?.result?.deployment_configs?.production?.env_vars;
+  if (!vars || typeof vars !== 'object') return null;
+  return Object.keys(vars).sort();
 }
 
 async function principal(): Promise<void> {
@@ -103,6 +141,11 @@ async function principal(): Promise<void> {
     flujo: readFileSync(path.join(RAIZ, '.github', 'workflows', 'deploy-prod.yml'), 'utf8'),
     pushEndpointPruebas: process.env.PUSH_ENDPOINT_PRUEBAS,
     arranque: readFileSync(path.join(RAIZ, 'scripts', 'arranque.ts'), 'utf8'),
+    variablesPages: await variablesDePages(
+      'hidrantes-albolote',
+      process.env.CLOUDFLARE_ACCOUNT_ID,
+      process.env.CLOUDFLARE_API_TOKEN,
+    ),
   });
   if (problemas.length) abortar(`Guarda de producción:\n  - ${problemas.join('\n  - ')}`);
   log.ok('Guarda de producción superada');
