@@ -161,6 +161,72 @@ export function psqlOk(url: string, sql: string, opciones: { tuplas?: boolean; t
   return r.salida;
 }
 
+// ---------- entornos (docs/31 RV-134) ----------
+
+/**
+ * Los únicos entornos de los scripts que tocan una base de datos o un despliegue. `produccion` se
+ * admite como otro nombre de `prod`: así lo escribían anonimizar y revertir, y con ese nombre
+ * restaurar.ts no encontraba el ref y **no comprobaba el proyecto** (docs/31 RV-134).
+ */
+export const ENTORNOS = ['local', 'staging', 'prod'] as const;
+export type Entorno = (typeof ENTORNOS)[number];
+const ALIAS: Record<string, Entorno> = { produccion: 'prod', 'producción': 'prod' };
+
+/** Refs de Supabase por entorno (docs/entornos.md). No son secretos: identifican el proyecto. */
+export const REFS: Readonly<Record<Exclude<Entorno, 'local'>, string>> = {
+  staging: 'jowapbzawsebfpksnlqx',
+  prod: 'cbgqirjqyltadpydpeyr',
+};
+
+/** El ref viaja en el usuario del pooler (`hidrantes_migrador.«ref»`) o en el host de la directa. */
+export function refDeUrl(url: string): string | null {
+  return (
+    /:\/\/[^:/@]+\.([a-z0-9]{20})[:@]/.exec(url)?.[1] ?? /@db\.([a-z0-9]{20})\.supabase\.co/.exec(url)?.[1] ?? null
+  );
+}
+
+/**
+ * `--entorno` validado: exactamente uno de `admitidos` (por defecto local, staging y prod), con
+ * `produccion` como alias de `prod`. Cualquier otra cosa aborta antes de tocar nada.
+ */
+export function leerEntorno(crudo: string | undefined, admitidos: readonly Entorno[] = ENTORNOS): Entorno {
+  const lista = admitidos.join(', ');
+  if (crudo === undefined || crudo.trim() === '') abortar(`Indica --entorno (${lista}).`);
+  const valor = crudo.trim().toLowerCase();
+  const entorno = (ALIAS[valor] ?? valor) as Entorno;
+  if (!admitidos.includes(entorno)) abortar(`Entorno desconocido: ${crudo} (${lista}; produccion vale por prod).`);
+  return entorno;
+}
+
+/**
+ * Por qué esa cadena no es del entorno pedido, o null si lo es. En staging y prod, el ref del
+ * proyecto tiene que ser el suyo; en local, la base tiene que estar en esta máquina. Restaurar
+ * producción sobre staging, o al revés, sería peor que el problema.
+ */
+export function motivoCadenaAjena(entorno: Entorno, url: string): string | null {
+  if (entorno === 'local') {
+    let host = '';
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      return 'La cadena de conexión no es una URL de PostgreSQL.';
+    }
+    return ['127.0.0.1', 'localhost', '[::1]'].includes(host)
+      ? null
+      : `--entorno local, pero la cadena apunta a ${host}, que no es esta máquina.`;
+  }
+  const ref = refDeUrl(url);
+  return ref === REFS[entorno]
+    ? null
+    : `Esa cadena apunta al proyecto ${ref ?? 'desconocido'}, y --entorno ${entorno} es ${REFS[entorno]}.`;
+}
+
+/** Como `motivoCadenaAjena`, pero aborta. */
+export function comprobarCadena(entorno: Entorno, url: string): void {
+  const motivo = motivoCadenaAjena(entorno, url);
+  if (motivo) abortar(motivo);
+}
+
 // ---------- entrada interactiva ----------
 
 // Una sola interfaz de lectura para todo el proceso: crear una por pregunta deja escuchas de

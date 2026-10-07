@@ -1,7 +1,7 @@
 // La restauración borra el esquema entero antes de recrearlo: lo que se comprueba aquí es que no
 // se pueda disparar contra el proyecto equivocado ni con un archivo que no sea nuestro (15 §5.3).
 
-import { rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -12,8 +12,13 @@ import {
   motivoSinAcceso,
   motivoVersionPsql,
   REFS,
+  canalizar,
   carpetaTemporal,
   confirmacionAutomatica,
+  copiaPrevia,
+  huellaRespaldo,
+  ordenesCopiaPrevia,
+  rutaPgDump,
   ignoradoPorGit,
   motivoArchivoInseguro,
   pareceVolcado,
@@ -41,7 +46,7 @@ describe('a qué proyecto apunta una cadena', () => {
     expect(refDeUrl('postgresql://postgres:x@db.jowapbzawsebfpksnlqx.supabase.co:5432/postgres')).toBe(REFS.staging);
   });
 
-  it('el Supabase local no tiene ref: por eso --entorno local no comprueba nada', () => {
+  it('el Supabase local no tiene ref: --entorno local mira que la base sea de esta máquina (RV-134)', () => {
     expect(refDeUrl('postgresql://hidrantes_migrador:x@127.0.0.1:55422/postgres')).toBeNull();
   });
 
@@ -385,5 +390,109 @@ describe('versión de psql antes de restaurar (RV-64)', () => {
 
   it('sin poder leer la versión de psql → aborta', () => {
     expect(motivoVersionPsql('', volcado('17.6', true))).toContain('No se puede saber la versión de psql');
+  });
+});
+
+// docs/31 RV-134: antes de vaciar el esquema, lo que hay ahora, cifrado y fuera del repositorio.
+describe('copia previa antes de LIMPIAR_ESQUEMA (RV-134)', () => {
+  const HUELLA = 'BD378A1E0E09843032B3A70254A89DD4FC82E6CE';
+  const ok: typeof canalizar = async (_a, b) => {
+    // Lo que haría gpg: escribir el archivo de --output.
+    writeFileSync(b.args[b.args.indexOf('--output') + 1]!, 'cifrado');
+    return { codigoA: 0, codigoB: 0, error: '' };
+  };
+
+  it('la huella sale de docs/entornos.md, o de RESPALDO_GPG_HUELLA', () => {
+    expect(huellaRespaldo(undefined, undefined)).toMatch(/^[0-9A-F]{40}$/);
+    expect(huellaRespaldo('| Huella GPG de respaldos | `' + HUELLA + '` |', undefined)).toBe(HUELLA);
+    expect(huellaRespaldo('nada', 'A'.repeat(40))).toBe('A'.repeat(40));
+    expect(() => huellaRespaldo('nada', undefined)).toThrow(ErrorDeScript);
+  });
+
+  it('pg_dump del esquema hidrantes, con la contraseña en el entorno, a gpg con la clave de respaldo', () => {
+    const [a, b] = ordenesCopiaPrevia(POOLER, '/fuera/copia.sql.gpg', HUELLA, 'pg_dump');
+    expect(a.comando).toBe('pg_dump');
+    expect(a.args).toEqual(['--schema=hidrantes', '--no-owner', '--format=plain']);
+    expect(a.args.join(' ')).not.toContain('clave');
+    expect(a.env).toMatchObject({ PGPASSWORD: 'clave', PGUSER: `hidrantes_migrador.${REFS.prod}` });
+    expect(b.args).toEqual(expect.arrayContaining(['--encrypt', '--recipient', HUELLA, '--output', '/fuera/copia.sql.gpg']));
+    expect(rutaPgDump('psql')).toBe('pg_dump');
+    expect(rutaPgDump('C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe')).toBe(
+      'C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe',
+    );
+  });
+
+  it('deja el archivo fuera del repositorio y dice dónde', async () => {
+    const carpeta = mkdtempSync(path.join(os.tmpdir(), 'copia-previa-'));
+    try {
+      const ahora = new Date('2026-10-07T19:30:05Z');
+      const archivo = await copiaPrevia(POOLER, 'prod', { carpeta, huella: HUELLA, canal: ok, ahora });
+      expect(archivo).toBe(path.join(carpeta, 'hidrantes-prod-antes-de-restaurar-20261007-193005.sql.gpg'));
+      expect(readFileSync(archivo, 'utf8')).toBe('cifrado');
+    } finally {
+      rmSync(carpeta, { recursive: true, force: true });
+    }
+  });
+
+  it('dentro del repositorio, no', async () => {
+    await expect(copiaPrevia(POOLER, 'prod', { carpeta: path.join(RAIZ, 'copias'), huella: HUELLA, canal: ok })).rejects.toThrow(
+      /dentro del repositorio/,
+    );
+  });
+
+  it('si pg_dump o gpg fallan, o el archivo queda vacío, aborta y no deja nada a medias', async () => {
+    const carpeta = mkdtempSync(path.join(os.tmpdir(), 'copia-previa-'));
+    try {
+      const casos: [typeof canalizar, RegExp][] = [
+        [async () => ({ codigoA: 1, codigoB: 0, error: 'pg_dump: error: connection failed' }), /pg_dump 1/],
+        [
+          async (_a, b) => {
+            writeFileSync(b.args[b.args.indexOf('--output') + 1]!, 'a medias');
+            return { codigoA: 0, codigoB: 2, error: 'gpg: public key not found' };
+          },
+          /importado la clave/,
+        ],
+        [async () => ({ codigoA: 0, codigoB: 0, error: '' }), /no se restaura/],
+      ];
+      for (const [canal, mensaje] of casos) {
+        await expect(copiaPrevia(POOLER, 'staging', { carpeta, huella: HUELLA, canal })).rejects.toThrow(mensaje);
+        expect(readdirSync(carpeta)).toEqual([]);
+      }
+    } finally {
+      rmSync(carpeta, { recursive: true, force: true });
+    }
+  });
+
+  it('canalizar pasa la salida de uno a la entrada del otro, sin shell', async () => {
+    const carpeta = mkdtempSync(path.join(os.tmpdir(), 'canal-'));
+    const destino = path.join(carpeta, 'salida.txt');
+    try {
+      const r = await canalizar(
+        { comando: process.execPath, args: ['-e', 'process.stdout.write("hola " + process.env.PRUEBA)'], env: { PRUEBA: 'mundo' } },
+        { comando: process.execPath, args: ['-e', `process.stdin.pipe(require("fs").createWriteStream(${JSON.stringify(destino)}))`] },
+      );
+      expect(r).toMatchObject({ codigoA: 0, codigoB: 0 });
+      expect(readFileSync(destino, 'utf8')).toBe('hola mundo');
+      const falla = await canalizar(
+        { comando: 'no-existe-este-programa-rv134', args: [] },
+        { comando: process.execPath, args: ['-e', 'process.stdin.resume()'] },
+      );
+      expect(falla.codigoA).not.toBe(0);
+    } finally {
+      rmSync(carpeta, { recursive: true, force: true });
+    }
+  });
+
+  it('se hace después de confirmar y antes de la restauración, salvo en local', () => {
+    const texto = readFileSync(path.join(RAIZ, 'scripts', 'restaurar.ts'), 'utf8');
+    const principal = texto.slice(texto.indexOf('async function principal'));
+    const confirmar = principal.indexOf("escrito.trim() !== 'RESTAURAR'");
+    const copia = principal.indexOf('await copiaPrevia(url, entorno)');
+    const restaurar = principal.indexOf('sqlRestauracion(volcado');
+    expect(confirmar).toBeGreaterThan(-1);
+    expect(copia).toBeGreaterThan(confirmar);
+    expect(restaurar).toBeGreaterThan(copia);
+    expect(principal).toContain("if (hayEsquema && entorno !== 'local')");
+    expect(principal).toContain('comprobarCadena(entorno, url)');
   });
 });
