@@ -62,6 +62,19 @@ describe('respaldo.yml comprueba el respaldo restaurándolo (RV-134)', () => {
     expect(script).not.toMatch(/\bcat\b|\bhead\b|\btail\b/);
   });
 
+  it('silencia el registro del servidor antes de restaurar: Actions lo imprime al parar el contenedor', () => {
+    for (const ajuste of [
+      "log_statement = 'none'",
+      "log_min_messages = 'fatal'",
+      "log_min_error_statement = 'panic'",
+    ]) {
+      expect(script).toContain(`alter system set ${ajuste}`);
+    }
+    expect(script).toContain('select pg_reload_conf()');
+    expect(script).toContain('"$silencio" != "none panic "');
+    expect(script.indexOf('pg_reload_conf')).toBeLessThan(script.indexOf('scripts/restaurar.ts'));
+  });
+
   it('sin fotos en el bucket, el tar vacío no falla (#439)', () => {
     const cuerpo = paso('Fotos del bucket, cifradas (mensual)');
     expect(cuerpo.indexOf('mkdir -p "fotos-$FECHA"')).toBeGreaterThan(-1);

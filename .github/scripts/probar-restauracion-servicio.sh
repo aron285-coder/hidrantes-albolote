@@ -17,10 +17,28 @@ shift
 # Credenciales del Postgres de servicio, efímero y sin datos hasta este paso (como el Supabase local).
 PG=postgresql://postgres:postgres@127.0.0.1:55422/postgres # detectar-secretos:permitir (Postgres de servicio efímero)
 
+ADMIN=postgresql://supabase_admin:postgres@127.0.0.1:55422/postgres # detectar-secretos:permitir (Postgres de servicio efímero)
+
 for _ in $(seq 1 60); do
   pg_isready -q -h 127.0.0.1 -p 55422 -U postgres && break
   sleep 2
 done
+
+# Antes de nada, el registro del servidor en silencio. Al parar el contenedor, Actions imprime su
+# registro en el log del trabajo, que es público; la imagen registra las sentencias DDL y, con un
+# error, la sentencia entera y el CONTEXT de un COPY con la fila. Con datos de producción eso no
+# puede salir. Si no se puede silenciar, no se restaura.
+psql "$ADMIN" -X -q -v ON_ERROR_STOP=1 \
+  -c "alter system set log_statement = 'none'" \
+  -c "alter system set log_min_messages = 'fatal'" \
+  -c "alter system set log_min_error_statement = 'panic'" \
+  -c "alter system set log_error_verbosity = 'terse'" \
+  -c 'select pg_reload_conf()' > /dev/null
+silencio=$(psql "$PG" -X -A -t -v ON_ERROR_STOP=1 -c 'show log_statement' -c 'show log_min_error_statement' | tr '\n' ' ')
+if [ "$silencio" != "none panic " ]; then
+  echo "::error::No se ha podido silenciar el registro del Postgres de servicio ($silencio): no se restaura."
+  exit 1
+fi
 
 # Como un proyecto recién hecho: el rol hidrantes_migrador, PostGIS y pg_cron (arranque-bd.sql, igual
 # que arranque.ts), pero **sin** el esquema hidrantes, que es lo que se ha perdido. Sin esquema,

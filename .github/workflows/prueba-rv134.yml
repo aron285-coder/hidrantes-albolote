@@ -60,17 +60,6 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: volcado-prueba
-      - name: Silenciar el registro del Postgres de servicio
-        run: |
-          for _ in $(seq 1 60); do pg_isready -q -h 127.0.0.1 -p 55422 -U postgres && break; sleep 2; done
-          psql "postgresql://supabase_admin:postgres@127.0.0.1:55422/postgres" -XAt -c "select current_user, rolsuper from pg_roles where rolname = current_user" || echo "supabase_admin no entra" # detectar-secretos:permitir (Postgres de servicio efímero)
-          psql "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -XAt -c "alter system set log_statement = 'none'" || echo "postgres no puede alter system" # detectar-secretos:permitir (Postgres de servicio efímero)
-          psql "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -XAt -c "select rolname from pg_roles r join pg_auth_members m on m.roleid = r.oid where m.member = 'postgres'::regrole" || true # detectar-secretos:permitir (Postgres de servicio efímero)
-          psql "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -XAt -c "show log_statement" -c "show log_min_messages" -c "show log_min_error_statement" || true # detectar-secretos:permitir (Postgres de servicio efímero)
-      - name: Quién soy en el Postgres de servicio
-        run: |
-          for _ in $(seq 1 60); do pg_isready -q -h 127.0.0.1 -p 55422 -U postgres && break; sleep 2; done
-          psql "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -XAt -c "select current_user, rolsuper from pg_roles where rolname = current_user" -c "select string_agg(rolname, ',') from pg_roles where rolname in ('anon','authenticated','service_role','supabase_admin')" -c "show shared_preload_libraries" || true # detectar-secretos:permitir (Postgres de servicio efímero)
       - run: |
           mv volcado-prueba.txt "$RUNNER_TEMP/volcado.sql"
           bash .github/scripts/probar-restauracion-servicio.sh "$RUNNER_TEMP/volcado.sql" "${{ needs.volcado.outputs.puntos }}"
@@ -79,3 +68,12 @@ jobs:
           if bash .github/scripts/probar-restauracion-servicio.sh "$RUNNER_TEMP/volcado.sql" 999999; then
             echo "::error::no ha fallado con un número de puntos distinto"; exit 1
           fi
+      - name: Un error con datos no llega al registro del contenedor
+        run: |
+          psql "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -X -q -c "select 'MARCA-RV134-NO-DEBE-SALIR'::int" || true # detectar-secretos:permitir (Postgres de servicio efímero)
+          psql "postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres" -X -q -c "insert into hidrantes.puntos (id) values ('MARCA-RV134-FILA')" || true # detectar-secretos:permitir (Postgres de servicio efímero)
+          contenedor=$(docker ps -q | head -1)
+          docker logs "$contenedor" > registro.txt 2>&1 || true
+          echo "lineas del registro: $(wc -l < registro.txt)"
+          if grep -q 'MARCA-RV134\|PRUEBA' registro.txt; then echo "::error::el registro tiene datos"; grep -c 'MARCA-RV134\|PRUEBA' registro.txt; exit 1; fi
+          echo "el registro no tiene ni la marca ni el seed"
