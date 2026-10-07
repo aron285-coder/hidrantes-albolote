@@ -788,6 +788,9 @@ export const T = {
     descartar: 'Descartar',
     seguirEditando: 'Seguir editando',
     guardando: 'Guardando…',
+    // docs/31 RV-165: el punto cambió por fuera mientras Editar tenía cambios sin guardar.
+    otroAdministrador: 'Otro administrador ha cambiado este punto.',
+    verLoNuevo: 'Ver lo nuevo',
   },
 
   panelRegistro: {
