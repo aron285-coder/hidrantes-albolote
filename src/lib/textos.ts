@@ -954,6 +954,7 @@ export const T = {
     soloEnProduccion: 'Solo en producción',
     radiosInvalidos: 'Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.',
     nucleosVacio: 'Todavía no hay núcleos.',
+    administradoresVacio: 'Todavía no hay administradores.',
     avisosJefatura: 'Avisos para jefatura',
     ayudaAvisos: 'Notificaciones en este navegador. Opcionales y apagadas por defecto.',
     nuevasPropuestas: 'Nuevas propuestas pendientes',

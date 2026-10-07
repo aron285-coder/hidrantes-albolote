@@ -1,5 +1,5 @@
 import { Eye, EyeOff, TriangleAlert } from 'lucide-react';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { CodigoQR } from './CodigoQR';
 import { Dialogo } from './Dialogo';
 import { usePanel } from './usar-panel';
@@ -179,13 +179,28 @@ function EstadoLista({
   };
   vacio: string | null;
 }) {
+  const [reintentando, setReintentando] = useState(false);
   const hay = !!carga.datos?.length;
+  async function reintentar() {
+    setReintentando(true);
+    try {
+      await carga.recargar();
+    } finally {
+      setReintentando(false);
+    }
+  }
   if (carga.estado === 'error')
     return (
       <li role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-[13px]">
         <span className="min-w-0 flex-1">{textoError(carga.codigo ?? '')}</span>
-        <Boton variante="secundario" className="min-h-9 text-[13px]" onClick={() => void carga.recargar()}>
-          {T.mapa.reintentar}
+        {/* Mientras reintenta, dice «Cargando…»: si vuelve a fallar, se ve que lo ha intentado. */}
+        <Boton
+          variante="secundario"
+          className="min-h-9 text-[13px]"
+          disabled={reintentando}
+          onClick={() => void reintentar()}
+        >
+          {reintentando ? T.panelCola.cargando : T.mapa.reintentar}
         </Boton>
       </li>
     );
@@ -243,7 +258,7 @@ function Administradores() {
             </label>
           </li>
         ))}
-        <EstadoLista carga={carga} vacio={null} />
+        <EstadoLista carga={carga} vacio={T.panelAjustes.administradoresVacio} />
       </ul>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
@@ -303,14 +318,17 @@ function ParametrosTarjeta() {
   const setV = (cambio: (x: Parametros) => Parametros) => setEditado(cambio(v));
   const conRadios = (x: Parametros): Parametros => (radios === null ? x : { ...x, escala_radios: leerRadios(radios) });
 
-  const cambios = useMemo(() => cambiosParametros(guardados, v), [guardados, v]);
-  const invalido = faltaEnParametros(v);
+  // Lo que se guardaría ahora, con los radios tal como están escritos: el motivo de Guardar
+  // deshabilitado habla siempre de lo que se ve, también mientras se corrige.
+  const efectivo = conRadios(v);
+  const cambios = cambiosParametros(guardados, efectivo);
+  const invalido = faltaEnParametros(efectivo);
   const radiosMal = invalido === 'escala_radios';
   const falta = radiosMal
     ? T.panelAjustes.radiosInvalidos
     : invalido
       ? T.panelAjustes.fueraDeRango(NOMBRE_PARAMETRO[invalido as ClaveParametro])
-      : !Object.keys(cambios).length && radios === null
+      : !Object.keys(cambios).length
         ? T.avisosFormulario.sinCambios
         : null;
 
@@ -322,11 +340,10 @@ function ParametrosTarjeta() {
 
   async function guardar() {
     // Guardar con el campo de radios aún abierto: se lee aquí y, si no vale, se dice y no se envía.
-    const final = conRadios(v);
     if (radios !== null) leerCampoRadios();
-    if (faltaEnParametros(final)) return;
+    if (invalido) return;
     setOcupado(true);
-    const r = await guardarParametros(cambiosParametros(guardados, final));
+    const r = await guardarParametros(cambios);
     setOcupado(false);
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     avisar(T.panelAjustes.parametrosGuardados);

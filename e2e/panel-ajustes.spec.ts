@@ -207,12 +207,14 @@ test('ajustes: los radios del marcador se escriben libres y se validan al salir 
   await expect(radios).toHaveAttribute('aria-invalid', 'true');
   await expect(guardar).toBeDisabled();
 
+  // Corregido sin salir del campo, Guardar ya responde: el motivo habla de lo que se ve.
   await radios.fill('');
   await radios.pressSequentially('12 · 9 · 7 · 5,5 · 4');
   await expect(radios).toHaveValue('12 · 9 · 7 · 5,5 · 4');
-  await radios.blur();
-  await expect(radios).not.toHaveAttribute('aria-invalid', 'true');
+  await expect(guardar).toBeEnabled();
+  await expect(parametros.getByText(T.panelAjustes.radiosInvalidos)).toHaveCount(0);
   await guardar.click();
+  await expect(radios).not.toHaveAttribute('aria-invalid', 'true');
   await expect
     .poll(() => llamadaA(llamadas, 'fn_guardar_config'))
     .toEqual({ cambios: { escala_radios: [12, 9, 7, 5.5, 4] } });

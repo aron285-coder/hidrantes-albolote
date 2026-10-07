@@ -715,7 +715,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` · `Tramo de manguera (m)` ·
 `Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.` (debajo del campo, al salir de él o al guardar, docs/31 RV-167) · `Parámetros guardados.` · `Núcleos` ·
 `Deducidos de OpenStreetMap. Se puede renombrar uno o añadir el que falte.` · `añadido a mano` ·
-`Renombrar` · `Nombre de [nucleo]` · `Todavía no hay núcleos.` (docs/31 RV-167) · `Añadir un núcleo` · `Nombre del núcleo` ·
+`Renombrar` · `Nombre de [nucleo]` · `Todavía no hay núcleos.` · `Todavía no hay administradores.` (docs/31 RV-167) · `Añadir un núcleo` · `Nombre del núcleo` ·
 `Toca el mapa en el centro del núcleo: de ahí sale el municipio y a qué núcleo pertenece cada punto.` ·
 `Centro del núcleo` · `Escribe el nombre del núcleo` · `Toca el mapa para situarlo` ·
 `Núcleo "[nombre]" añadido.` · `"[antes]" ahora se llama "[ahora]".` ·

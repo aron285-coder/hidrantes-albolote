@@ -85,6 +85,33 @@ describe('avisos de jefatura (docs/31 RV-167)', () => {
     expect(anotado()).toMatch(/fn_guardar_suscripcion_push_admin/);
   });
 
+  it('quitar todos: se borra la suscripción y no quedan temas', async () => {
+    const s = suscripcion();
+    pushManager.getSubscription.mockResolvedValue(s);
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    await expect(fijarTemas([])).resolves.toEqual({ temas: [], ok: true });
+    expect(s.unsubscribe).toHaveBeenCalled();
+    expect(datos.get('hidrantes.push_jefatura')).toBe('[]');
+  });
+
+  it('quitar todos y que falle: se dice, se anota y los temas siguen como estaban', async () => {
+    const s = suscripcion();
+    s.unsubscribe.mockRejectedValue(new Error('no'));
+    pushManager.getSubscription.mockResolvedValue(s);
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    await expect(fijarTemas([])).resolves.toEqual({ temas: ['resumen_semanal'], ok: false });
+    expect(anotado()).toMatch(/fijar/);
+  });
+
+  it('con temas ya activos, un Service Worker colgado los deja como estaban', async () => {
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['nuevas_propuestas']));
+    listo = new Promise(() => undefined);
+    await expect(fijarTemas(['nuevas_propuestas', 'resumen_semanal'], { limiteSwMs: 20 })).resolves.toEqual({
+      temas: ['nuevas_propuestas'],
+      ok: false,
+    });
+  });
+
   it('sin permiso no es un fallo de la aplicación: se dice, sin anotar', async () => {
     vi.stubGlobal('Notification', { permission: 'default', requestPermission: vi.fn(async () => 'default') });
     await expect(fijarTemas(['nuevas_propuestas'])).resolves.toEqual({ temas: [], ok: false });
