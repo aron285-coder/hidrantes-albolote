@@ -223,7 +223,14 @@ test('ajustes: si no cargan Administradores ni Núcleos, lo dicen y dejan reinte
   await prepararPanel(page);
   let fallan = true;
   await page.route(/\/rest\/v1\/(administradores|nucleos)\?/, (r) =>
-    fallan ? r.abort('connectionrefused') : r.fallback(),
+    fallan
+      ? r.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: '{"message":"caído"}',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+        })
+      : r.fallback(),
   );
   await page.goto('/admin/ajustes');
   for (const [titulo, fila] of [

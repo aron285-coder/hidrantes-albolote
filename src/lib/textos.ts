@@ -964,6 +964,7 @@ export const T = {
     avisosInstalar: 'En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.',
     avisosNoDisponibles: 'Este navegador no admite avisos.',
     avisosNoActivados: 'No se han podido activar los avisos.',
+    avisosNoCambiados: 'No se han podido cambiar los avisos. Inténtalo de nuevo.',
     codigoQr: 'Código QR del enlace',
     ayudaQr: 'Para la sede y las reuniones: quien lo escanea abre la aplicación.',
     imprimirA4: 'Imprimir A4',

@@ -735,7 +735,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `los lunes: revisiones caducadas y pendientes antiguas` ·
 `Este navegador tiene los avisos bloqueados. Actívalos en la configuración del sitio.` ·
 `En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.` ·
-`Este navegador no admite avisos.` · `No se han podido activar los avisos.` · `Código QR del enlace` ·
+`Este navegador no admite avisos.` · `No se han podido activar los avisos.` · `No se han podido cambiar los avisos. Inténtalo de nuevo.` (docs/31 RV-167) · `Código QR del enlace` ·
 `Para la sede y las reuniones: quien lo escanea abre la aplicación.` · `Imprimir A4` ·
 `Escanea para instalar` ·
 `Mapa de hidrantes y bocas de riego. Entra con el código de acceso que te haya dado jefatura.` ·

@@ -8,6 +8,7 @@ import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useCarga } from '@/hooks/carga';
 import { usePosicion, usePuntos } from '@/hooks/estado';
 import { ENTORNO } from '@/lib/entorno';
+import { anotarError } from '@/lib/errores';
 import { fechaCorta, hace, megas } from '@/lib/formato';
 import { textoError } from '@/lib/panel/errores';
 import {
@@ -722,10 +723,17 @@ function AvisosJefatura() {
   async function cambiar(tema: TemaJefatura, activo: boolean) {
     const siguientes = activo ? [...new Set([...temas, tema])] : temas.filter((t) => t !== tema);
     setOcupado(true);
-    const quedan = await fijarTemas(siguientes);
-    setOcupado(false);
-    setTemas(quedan);
-    if (activo && !quedan.includes(tema)) avisar(T.panelAjustes.avisosNoActivados, 'error');
+    // Las casillas vuelven a responder pase lo que pase, y un fallo se dice (docs/31 RV-167).
+    try {
+      const r = await fijarTemas(siguientes);
+      setTemas(r.temas);
+      if (!r.ok) avisar(activo ? T.panelAjustes.avisosNoActivados : T.panelAjustes.avisosNoCambiados, 'error');
+    } catch (e) {
+      anotarError(e);
+      avisar(T.panelErrores.generico, 'error');
+    } finally {
+      setOcupado(false);
+    }
   }
 
   return (
