@@ -299,7 +299,8 @@ describe('principal() con --entorno staging (#532)', () => {
     );
     const salida = r.stdout + r.stderr;
     expect(salida).not.toMatch(/proyecto desconocido|Guarda del destino/);
-    expect(salida).toContain('No se puede conectar');
+    // Los dos salen solo después de la guarda: sin conexión, o en un PC sin psql.
+    expect(salida).toMatch(/No se puede conectar|No encuentro psql/);
     expect(r.status).toBe(1);
   }, 90_000);
 });
