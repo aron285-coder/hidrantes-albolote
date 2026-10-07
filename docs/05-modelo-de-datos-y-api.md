@@ -505,7 +505,7 @@ fn_anadir_nucleo(nombre text, lat double precision, lng double precision) return
 fn_encolar_resumen_semanal() returns integer                   -- 0009; solo pg_cron, los lunes (FR-164)
 fn_novedades() returns jsonb                                    -- OBSOLETA desde 0.5.0: sin uso (las novedades salen del build, DEC-087); se retira en la siguiente versión mayor
 fn_guardar_direccion_sugerida(propuesta_id uuid, direccion text) returns void   -- la usa /api/direccion con el JWT
-fn_registrar_workflow(workflow text) returns void               -- la usa /api/lanzar-workflow ('workflow_lanzado')
+fn_registrar_workflow(workflow text) returns void               -- 'workflow_lanzado'; /api/lanzar-workflow ya no la usa (RV-146)
 
 -- Solo service_role (la llama el workflow de purga). Una sola fila: PostgREST corta en max_rows
 -- (1.000) cualquier RPC que devuelva un conjunto, y la purga comprueba que fotos y total cuadran
@@ -685,11 +685,18 @@ Números de portal para la búsqueda (FR-73, DEC-092). **Nunca anónimo**: no es
 ### `POST /api/lanzar-workflow`
 
 Cabecera `Authorization` de administrador. `→ { "workflow": "purgar-fotos" | "regenerar-zona" | "regenerar-mapabase" | "respaldo" }`;
-cualquier otro valor → `400`. Despacha el workflow que atiende ese trabajo con **`workflow_dispatch`**
-(`POST /repos/…/actions/workflows/{archivo}/dispatches`, `{ "ref": "develop", "inputs": { "trabajo": "…" } }`)
-y `GITHUB_DISPATCH_TOKEN`, que así solo necesita `actions:write` (DEC-069). `← 202 { "lanzada": true, "workflow": "…" }`.
-Sin `GITHUB_DISPATCH_TOKEN`, o si el trabajo aún no tiene workflow (`purgar-fotos` y `respaldo` llegan
-en la Fase 8) → `503 { "error": "NO_CONFIGURADO" }`, sin llamar a GitHub.
+cualquier otro valor → `400`. **No habla con GitHub ni guarda ningún token** (RV-146, DEC-175): llama
+a `fn_pedir_trabajo(workflow)` con el JWT de quien lo pide (la RPC comprueba que es administrador y lo
+anota como `workflow_lanzado`), y `despachador.yml`, en producción, recoge el pedido cada 15 minutos y
+lanza el workflow que toca. `← 202 { "pedido": true, "workflow": "…" }`.
+Según la variable `ENTORNO` del proyecto de Pages (RV-130):
+- `produccion`: todos se piden.
+- cualquier otro valor, o sin la variable (cuenta como staging, lo seguro): `purgar-fotos` y `respaldo`,
+  que trabajan contra producción, → `409 { "error": "SOLO_EN_PRODUCCION" }` sin pedir nada; los demás
+  se piden en la base de datos de staging, donde nadie los despacha.
+
+Un pedido pendiente del mismo trabajo → `409 { "error": "YA_PEDIDO" }`; la base de datos sin responder →
+`503 SERVIDOR_NO_DISPONIBLE`. `SOLO_EN_PRODUCCION` es un código solo de esta Function, no de una RPC.
 
 ### `POST /api/push`
 
