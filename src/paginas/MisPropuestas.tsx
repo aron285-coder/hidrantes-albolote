@@ -13,7 +13,7 @@ import {
   type EstadoPropuesta,
   type PropuestaPropia,
   cargarMisPropuestas,
-  marcarVistas,
+  cargarYMarcarVistas,
   retirarPropuesta,
   textoErrorRetirar,
 } from '@/lib/mis-propuestas';
@@ -85,7 +85,8 @@ export function MisPropuestas() {
   }, []);
 
   useEffect(() => {
-    void cargarMisPropuestas().then(() => marcarVistas());
+    // Solo tras una carga buena se da lo resuelto por visto (RV-153).
+    void cargarYMarcarVistas();
   }, []);
 
   // Una propuesta enviada ya está en la lista del servidor; la cola solo guarda lo que falta.
