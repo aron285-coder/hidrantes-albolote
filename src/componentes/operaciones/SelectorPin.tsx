@@ -4,8 +4,8 @@ import { LocateFixed } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { capasDe } from '../mapa/capas-leaflet';
 import { ICONO_PIN } from '../mapa/iconos-leaflet';
-import { useModo, usePosicion } from '@/hooks/estado';
-import { ZOOM_MAX, capaGuardada } from '@/lib/capas';
+import { useConexion, useMapabase, useModo, usePosicion } from '@/hooks/estado';
+import { ZOOM_MAX, baseDebajo, capaGuardada } from '@/lib/capas';
 import type { Coordenadas } from '@/lib/propuestas';
 import { type Posicion, activarPosicion } from '@/lib/posicion';
 import { T } from '@/lib/textos';
@@ -44,6 +44,8 @@ export function SelectorPin({
   const extras = useRef<L.LayerGroup | null>(null);
   const alMoverRef = useRef(alMover);
   const modo = useModo();
+  const conexion = useConexion();
+  const mapabase = useMapabase();
   const estadoPos = usePosicion();
   const pendiente = useRef(false);
   const alUsarRef = useRef(alUsarMiPosicion);
@@ -93,13 +95,17 @@ export function SelectorPin({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Las mismas capas que el mapa principal (FR-63): la elegida y, sin cobertura y con el mapa base en
+  // el móvil, el mapa base debajo. Al cambiar la conexión se vuelven a pintar: con Satélite elegido y
+  // sin señal, el pin ya no se pone sobre un mapa gris (docs/31 RV-150).
+  const debajo = baseDebajo(conexion, mapabase.descargado !== null);
   useEffect(() => {
     const m = mapa.current;
     if (!m) return;
-    const capas = capasDe(capaGuardada() === 'satelite' ? 'satelite' : 'base', modo);
+    const capas = capasDe(capaGuardada(), modo, debajo);
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
-  }, [modo]);
+  }, [modo, debajo]);
 
   // El pin se mueve (GPS que llega, botón de posición…): solo se mueve el pin. El mapa no se
   // recentra solo, que descoloca mientras se ajusta a mano; para eso está "Mi posición" (DEC-066).
