@@ -70,6 +70,13 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
       sin_anotar++;
       continue;
     }
+    if (r.transitorio) {
+      // RV-144: sin respuesta del servicio. Se trata igual que arriba: sin anotar el error (que lo
+      // dejaría fuera de fn_reclamar_notificaciones para siempre) ni sumar un fallo a la
+      // suscripción. Vuelve a salir a los 15 minutos, con el mismo tope de intentos.
+      sin_anotar++;
+      continue;
+    }
     if (r.aplazar_s !== undefined) {
       // 429 (RV-84): no es un fallo de la suscripción ni del aviso. No se anota: se aplaza abajo.
       enEspera.add(servicio);

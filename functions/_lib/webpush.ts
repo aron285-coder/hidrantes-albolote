@@ -131,6 +131,11 @@ export interface ResultadoEnvio {
   error?: string;
   /** Solo con 429: segundos que el servicio pide esperar (Retry-After) antes de volver a enviar. */
   aplazar_s?: number;
+  /**
+   * Sin respuesta del servicio (corte de red, DNS, tiempo agotado): no se sabe si salió. Ni error
+   * del aviso ni fallo de la suscripción: se deja pendiente para la siguiente pasada (RV-144).
+   */
+  transitorio?: true;
 }
 
 /** Espera por defecto si un 429 no trae Retry-After, o trae algo que no se entiende. */
@@ -157,12 +162,22 @@ export async function enviar(
   vapid: { publica: string; privada: string; sujeto: string },
   destino: string = s.endpoint,
 ): Promise<ResultadoEnvio> {
+  // Cifrar y firmar no dependen de la red: si fallan (claves de la suscripción o VAPID que no se
+  // pueden usar), reintentar no lo arregla. Es un fallo del aviso, con su motivo.
+  let cuerpo: Awaited<ReturnType<typeof cifrar>>;
+  let autorizacion: string;
   try {
-    const cuerpo = await cifrar(te.encode(JSON.stringify(aviso)), s.keys.p256dh, s.keys.auth);
-    const r = await fetch(destino, {
+    cuerpo = await cifrar(te.encode(JSON.stringify(aviso)), s.keys.p256dh, s.keys.auth);
+    autorizacion = await cabeceraVapid(s.endpoint, vapid.publica, vapid.privada, vapid.sujeto);
+  } catch (e) {
+    return { ok: false, caducada: false, error: (e as Error).message.slice(0, 200) };
+  }
+  let r: Response;
+  try {
+    r = await fetch(destino, {
       method: 'POST',
       headers: {
-        Authorization: await cabeceraVapid(s.endpoint, vapid.publica, vapid.privada, vapid.sujeto),
+        Authorization: autorizacion,
         'Content-Encoding': 'aes128gcm',
         'Content-Type': 'application/octet-stream',
         TTL: '86400',
@@ -170,19 +185,21 @@ export async function enviar(
       },
       body: cuerpo,
     });
-    // 404/410: la suscripción ya no existe en el servicio de push. Solo estos dos caducan (RV-84).
-    if (r.status === 404 || r.status === 410) return { ok: false, caducada: true, error: `HTTP ${r.status}` };
-    // 429: pasajero; el servicio dice cuánto esperar.
-    if (r.status === 429) {
-      return {
-        ok: false,
-        caducada: false,
-        error: 'HTTP 429',
-        aplazar_s: segundosDeRetryAfter(r.headers.get('Retry-After')),
-      };
-    }
-    return r.ok ? { ok: true, caducada: false } : { ok: false, caducada: false, error: `HTTP ${r.status}` };
-  } catch (e) {
-    return { ok: false, caducada: false, error: (e as Error).message.slice(0, 200) };
+  } catch {
+    // Sin respuesta (corte de red, DNS, tiempo agotado): no se sabe si salió. No es un fallo del
+    // aviso ni de la suscripción; /api/push lo deja pendiente para reintentarlo (RV-144, RV-08).
+    return { ok: false, caducada: false, transitorio: true };
   }
+  // 404/410: la suscripción ya no existe en el servicio de push. Solo estos dos caducan (RV-84).
+  if (r.status === 404 || r.status === 410) return { ok: false, caducada: true, error: `HTTP ${r.status}` };
+  // 429: pasajero; el servicio dice cuánto esperar.
+  if (r.status === 429) {
+    return {
+      ok: false,
+      caducada: false,
+      error: 'HTTP 429',
+      aplazar_s: segundosDeRetryAfter(r.headers.get('Retry-After')),
+    };
+  }
+  return r.ok ? { ok: true, caducada: false } : { ok: false, caducada: false, error: `HTTP ${r.status}` };
 }

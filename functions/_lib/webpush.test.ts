@@ -184,13 +184,26 @@ describe('enviar', () => {
     for (const raro of ['1.5', '-5', 'pronto', '', null]) expect(segundosDeRetryAfter(raro, ahora)).toBe(60);
   });
 
-  it('si la red falla, devuelve el motivo en lugar de lanzar', async () => {
-    const espia = fingirFetch(new Error('fetch failed'));
-    expect(await enviar(suscripcion, aviso, vapid)).toEqual({
-      ok: false,
-      caducada: false,
-      error: 'fetch failed',
-    });
+  // RV-144: un corte de red, de DNS o un tiempo agotado no es un fallo del aviso ni de la
+  // suscripción: se marca transitorio para que /api/push lo deje pendiente y se reintente.
+  it('si la red falla, devuelve un fallo transitorio en lugar de lanzar', async () => {
+    for (const fallo of [new TypeError('fetch failed'), new DOMException('tiempo', 'TimeoutError')]) {
+      const espia = fingirFetch(fallo);
+      expect(await enviar(suscripcion, aviso, vapid)).toEqual({ ok: false, caducada: false, transitorio: true });
+      espia.mockRestore();
+    }
+  });
+
+  // Unas claves de la suscripción que no se pueden usar no se arreglan reintentando: es un fallo
+  // del aviso, no transitorio, y no llega a salir ninguna petición.
+  it('si no se puede cifrar, es un fallo con motivo y no transitorio', async () => {
+    const espia = fingirFetch(new Response(null, { status: 201 }));
+    const mala = { ...suscripcion, keys: { p256dh: 'AAAA', auth: 'BBBB' } };
+    const r = await enviar(mala, aviso, vapid);
+    expect(r).toEqual(expect.objectContaining({ ok: false, caducada: false }));
+    expect(r.transitorio).toBeUndefined();
+    expect(r.error).toEqual(expect.any(String));
+    expect(espia).not.toHaveBeenCalled();
     espia.mockRestore();
   });
 });
