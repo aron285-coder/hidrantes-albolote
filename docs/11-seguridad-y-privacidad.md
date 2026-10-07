@@ -160,7 +160,7 @@ sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausen
 |---|---|---|---|
 | Nombre y apellido | `propuestas.autor_*`, `registro.actor` | saber a quién preguntar cuando un dato no cuadra; auditoría | solo administradores (panel); **nunca** otros voluntarios ni ninguna respuesta de red dirigida a un voluntario |
 | `dispositivo_id` (uuid aleatorio) | `propuestas`, `dispositivos`, `registro`, `subidas`, `incidencias_app`, `errores_cliente`, `intentos_codigo` | propiedad de propuestas, cuotas, anonimización | administradores; no identifica al hardware ni a la persona |
-| Hash de IP con sal | `intentos_codigo` | límite de intentos | nadie (se purga a las 24 h) |
+| Hash de IP con sal | `intentos_codigo`; desde 0040 también `errores_cliente.ip_hash` | límite de intentos; tope de errores por IP (docs/31 RV-148) | nadie (`intentos_codigo` se purga a las 24 h; `errores_cliente`, a los 90 días) |
 | Coordenadas GPS del móvil en el momento de una propuesta | `propuestas.gps_geom`, `precision_gps_m` | señal de fiabilidad para jefatura | administradores |
 | Descripción libre de incidencias | `incidencias_app` | soporte | administradores |
 | Correo de Google | `administradores`, `registro.actor`, `propuestas.revisada_por` | acceso y auditoría de administradores | administradores |
@@ -266,8 +266,9 @@ exportó y cuándo.
      y `registro`; conserva las filas y el `dispositivo_id`. El registro sigue siendo de solo
      añadir: con la anonimización activa, el trigger solo deja cambiar `actor`, y solo al texto
      exacto "voluntario dado de baja" (RV-26).
-  4. Si tenía el móvil registrado, en Ajustes del móvil → Cerrar sesión. Su token caduca; no se
-     revoca a los demás.
+  4. Si tenía el móvil registrado, en Ajustes del móvil → Cerrar sesión. Desde 0040 (docs/31
+     RV-158) cerrar sesión revoca su token en el servidor y borra su suscripción push
+     (`fn_cerrar_sesion`); no se revoca a los demás.
   5. Anotar la atención en la tabla de §8 (el `registro` ya lo tiene: `anonimizacion`).
   6. Los respaldos anteriores a la fecha conservan el nombre hasta que caducan (90 días); se
      informa de ello a la persona.
@@ -330,6 +331,9 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota por dispositivo y tope global (0039). |
 | Llenar la base de datos con un token | Longitud máxima de cada texto y 60 propuestas por dispositivo y día (0039, DEC-174). |
 | Usar el `dispositivo_id` de un administrador | `DISPOSITIVO_RESERVADO` en el canje (0039, DEC-175). |
+| Un token copiado sigue valiendo tras cerrar sesión | `fn_cerrar_sesion` lo revoca en el servidor (0040, RV-158). |
+| Agotar el cupo diario de errores rotando `dispositivo_id` | Tope por `ip_hash` en `/api/error` y cupo propio para lo que llega sin IP (0040, RV-148). |
+| El panel de staging lanza trabajos de producción con un token de GitHub | Sin token: pedidos en la base de datos de cada entorno, que solo despacha `despachador.yml` en producción (0040, RV-146). |
 | Filtración de la `service_role key` | Solo en variables cifradas de Cloudflare y en GitHub Environments; nunca en el frontend ni en el repositorio; rotar = relanzar `arranque.ts`. |
 | Cuenta de Google de un administrador comprometida | Desactivación inmediata desde Ajustes por otro administrador; registro de todo lo que hizo; 2FA obligatorio en las cuentas de jefatura (13). |
 | Nombres de voluntarios expuestos a otros voluntarios | RLS: `anon` no lee tablas; `fn_ficha_punto` y `fn_listar_puntos` no incluyen autores; comprobado en la respuesta de red (AC-21). |

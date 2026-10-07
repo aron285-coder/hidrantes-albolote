@@ -42,6 +42,11 @@ export function textoError(codigo: string): string {
       return T.panelErrores.puntoOcupado;
     case 'TIPO_NO_MODIFICABLE':
       return T.panelErrores.tipoNoModificable;
+    // docs/31 RV-146: /api/lanzar-workflow en staging, y un trabajo que ya está pedido.
+    case 'SOLO_EN_PRODUCCION':
+      return T.panelErrores.soloEnProduccion;
+    case 'YA_PEDIDO':
+      return T.panelErrores.yaPedido;
     default:
       return T.panelErrores.generico;
   }
