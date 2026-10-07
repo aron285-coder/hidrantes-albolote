@@ -1,4 +1,4 @@
-import { CheckCircle2, CloudUpload } from 'lucide-react';
+import { CheckCircle2, CloudUpload, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
@@ -16,7 +16,7 @@ import {
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useAcceso, useConexion, usePosicion, usePuntos } from '@/hooks/estado';
 import { useCola } from '@/hooks/cola';
-import { type EnCola, encolar, estaPersistida, reintentarCola } from '@/lib/cola';
+import { type EnCola, encolar, estadoDeEnvio, reintentarCola } from '@/lib/cola';
 import { nombreCaudal, nombreTipo } from '@/lib/ficha';
 import type { FotoProcesada } from '@/lib/foto';
 import { distancia, hace } from '@/lib/formato';
@@ -33,7 +33,7 @@ import {
   necesitaFotoSitio,
   queFalta,
 } from '@/lib/propuestas';
-import { TITULO_OPERACION } from '@/lib/nombres-operacion';
+import { TITULO_OPERACION, textoEspera, textoFallo } from '@/lib/nombres-operacion';
 import { metros } from '@/lib/puntos';
 import { LIMITES } from '@/lib/limites';
 import { T } from '@/lib/textos';
@@ -52,7 +52,7 @@ const MOTIVOS: [MotivoRapido, string][] = [
 const areaTexto =
   'bg-papel border-linea rounded-campo text-texto min-h-11 w-full border px-3 py-2 text-base placeholder:text-texto-suave';
 
-type Resultado = 'enviado' | 'guardado' | 'aplicado' | 'solo_en_memoria';
+type Resultado = 'enviado' | 'guardado' | 'aplicado' | 'solo_en_memoria' | 'fallido';
 
 /** Formulario de las seis operaciones (FL-03–FL-08, 07 §7.3). `/proponer/:operacion?p=<punto>`. */
 export function Proponer() {
@@ -538,8 +538,8 @@ function DatosPunto({
  * perdería al cerrar (RV-02); si ya salió, enviado o aplicado.
  */
 function resultadoDe(cola: readonly EnCola[], clave: string, jefatura: boolean): Resultado {
-  const sigue = cola.some((i) => i.clave_local === clave);
-  if (sigue) return estaPersistida(clave) ? 'guardado' : 'solo_en_memoria';
+  const estado = estadoDeEnvio(cola, clave);
+  if (estado !== 'salio') return estado;
   return jefatura ? 'aplicado' : 'enviado';
 }
 
@@ -552,21 +552,27 @@ function PantallaResultado({ clave, jefatura }: { clave: string; jefatura: boole
   const navegar = useNavigate();
   const acceso = useAcceso();
   const [reintentando, setReintentando] = useState(false);
-  const resultado = resultadoDe(useCola(), clave, jefatura);
+  const cola = useCola();
+  const resultado = resultadoDe(cola, clave, jefatura);
+  const envio = cola.find((i) => i.clave_local === clave);
   const titulo = {
     aplicado: T.envio.aplicado,
     guardado: T.envio.guardadoEnMovil,
     solo_en_memoria: T.envio.soloEnMemoria,
     enviado: T.envio.enviado,
+    fallido: T.envio.noEnviado,
   }[resultado];
   const detalle = {
     aplicado: T.operaciones.aplicadoDetalle,
-    guardado: T.operaciones.guardadoDetalle,
+    // Esperando al día siguiente por el tope (RV-154): se dice por qué, no «se enviará sola».
+    guardado: (envio && textoEspera(envio)) || T.operaciones.guardadoDetalle,
+    // Con un error permanente no se enviará sola (#484): se dice qué pasa, como en Mis propuestas.
+    fallido: envio?.fallo ? textoFallo(envio.fallo) : T.misPropuestas.errorGenerico,
     solo_en_memoria: T.envio.soloEnMemoriaDetalle,
     enviado: T.envio.jefaturaRevisara,
   }[resultado];
   const pendiente = resultado === 'guardado' || resultado === 'solo_en_memoria';
-  const Icono = pendiente ? CloudUpload : CheckCircle2;
+  const Icono = resultado === 'fallido' ? TriangleAlert : pendiente ? CloudUpload : CheckCircle2;
   return (
     <div className="flex flex-1 flex-col">
       <BarraSuperior titulo={titulo} jefatura={acceso.tipo === 'jefatura'} />
@@ -574,7 +580,11 @@ function PantallaResultado({ clave, jefatura }: { clave: string; jefatura: boole
         role="status"
         className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-3 p-6 text-center"
       >
-        <Icono size={44} className={pendiente ? 'text-naranja-600' : 'text-verde-600'} aria-hidden />
+        <Icono
+          size={44}
+          className={resultado === 'fallido' ? 'text-rojo-700' : pendiente ? 'text-naranja-600' : 'text-verde-600'}
+          aria-hidden
+        />
         <h2 className="font-titulo text-2xl font-bold">{titulo}</h2>
         <p className="text-texto-suave">{detalle}</p>
         {resultado === 'solo_en_memoria' && (

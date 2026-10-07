@@ -539,7 +539,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Enviado para revisión` · `Guardado en el móvil` · `Aplicado` · `Volver al mapa` ·
 `Ver mis propuestas` · `Sin guardar en el móvil` ·
 `No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.` · `Reintentar ahora` ·
-`Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.`.
+`Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.` · `No se ha enviado`.
 
 **Mis propuestas.** `Pendiente` · `Aprobada` · `Rechazada` · `Retirada por ti` · `Sin enviar` ·
 `Retirar` · `Motivo: [texto]` · `con correcciones: [texto]` ·

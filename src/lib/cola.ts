@@ -173,6 +173,20 @@ const persistidas = new Set<string>();
 export const estaPersistida = (clave: string) => persistidas.has(clave);
 
 /**
+ * Qué ha pasado con un envío, para la pantalla de resultado: ya salió; tiene un error permanente y
+ * no se enviará solo (#484); o espera, guardado en el móvil o solo en memoria (RV-02).
+ */
+export function estadoDeEnvio(
+  cola: readonly EnCola[],
+  clave: string,
+): 'salio' | 'fallido' | 'guardado' | 'solo_en_memoria' {
+  const item = cola.find((i) => i.clave_local === clave);
+  if (!item) return 'salio';
+  if (item.fallo) return 'fallido';
+  return persistidas.has(clave) ? 'guardado' : 'solo_en_memoria';
+}
+
+/**
  * Publica en memoria y escribe en IndexedDB. Nunca lanza: sin IndexedDB (navegación privada, cuota
  * agotada) se puede enviar igual con cobertura. Devuelve si quedó guardado en el móvil (RV-02); el
  * primer fallo de la sesión se anota para que llegue a errores_cliente.
@@ -191,16 +205,28 @@ async function guardar(item: EnCola, gen?: number): Promise<boolean> {
         .catch(() => undefined);
       return false;
     }
-    persistidas.add(item.clave_local);
+    marcarPersistida(item.clave_local, true);
     return true;
   } catch (e) {
-    persistidas.delete(item.clave_local);
+    marcarPersistida(item.clave_local, false);
     if (!errorGuardadoAnotado) {
       errorGuardadoAnotado = true;
       anotarError(e, 'cola');
     }
     return false;
   }
+}
+
+/**
+ * Anota si un envío está guardado en IndexedDB y, si cambia, vuelve a publicar la cola: quien la
+ * sigue (la pantalla de resultado, «Guardado en el móvil» o «Sin guardar», docs/31 #501) se entera.
+ * Antes se cambiaba después de publicar y sin avisar a nadie.
+ */
+function marcarPersistida(clave: string, si: boolean) {
+  if (persistidas.has(clave) === si) return;
+  if (si) persistidas.add(clave);
+  else persistidas.delete(clave);
+  if (items.some((i) => i.clave_local === clave)) publicar(items);
 }
 
 async function quitar(clave: string) {
@@ -566,9 +592,9 @@ async function adelantar(clave: string, gen: number, ya: boolean): Promise<void>
       const base = guardado && persistidas.has(clave) ? guardado : enMemoria;
       return ya ? { ...base, proximo: 0 } : base;
     });
-    if (escrito && gen === generacion) persistidas.add(clave);
+    if (escrito && gen === generacion) marcarPersistida(clave, true);
   } catch (e) {
-    persistidas.delete(clave);
+    marcarPersistida(clave, false);
     if (!errorGuardadoAnotado) {
       errorGuardadoAnotado = true;
       anotarError(e, 'cola');

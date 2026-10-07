@@ -674,6 +674,49 @@ describe('cola: una reserva por foto mientras no caduque (docs/31 RV-156)', () =
   });
 });
 
+describe('cola: quien la sigue se entera de si está guardado en el móvil (#484, tras #501)', () => {
+  it('al llegar a IndexedDB se vuelve a publicar, con estaPersistida ya cierto', async () => {
+    vi.stubGlobal('navigator', { onLine: false }); // que no salga: solo se mira el guardado
+    const vistos: boolean[] = [];
+    cola.suscribirCola(() => vistos.push(cola.estaPersistida('k-000901')));
+    await cola.encolar(args('k-000901'), null, null);
+    expect(vistos.at(-1)).toBe(true);
+  });
+
+  it('si IndexedDB falla después, también se publica', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    const almacen = colaEnMemoria<EnCola>();
+    cola._usarAlmacenCola(almacen);
+    await cola.encolar(args('k-000902'), null, null);
+    almacen.guardar = async () => {
+      throw new Error('QuotaExceededError');
+    };
+    const vistos: boolean[] = [];
+    cola.suscribirCola(() => vistos.push(cola.estaPersistida('k-000902')));
+    await cola.reintentarFallido('k-000902');
+    expect(vistos.at(-1)).toBe(false);
+  });
+});
+
+describe('cola: qué ha pasado con un envío (pantalla de resultado)', () => {
+  const item = (o: Partial<EnCola>): EnCola => ({
+    clave_local: 'k-1',
+    creada_en: 0,
+    args: args('k-1'),
+    foto: null,
+    foto_path: null,
+    codigo: null,
+    intentos: 0,
+    proximo: 0,
+    fallo: null,
+    ...o,
+  });
+  it('fuera de la cola, salió; con fallo permanente, no se enviará sola', () => {
+    expect(cola.estadoDeEnvio([], 'k-1')).toBe('salio');
+    expect(cola.estadoDeEnvio([item({ fallo: 'PUNTO_NO_ACTIVO' })], 'k-1')).toBe('fallido');
+  });
+});
+
 describe('cola: el tipo no se cambia (docs/18 RV-41)', () => {
   it('TIPO_NO_MODIFICABLE es permanente: no se reintenta', () => {
     expect(cola.esPermanente('TIPO_NO_MODIFICABLE')).toBe(true);

@@ -424,6 +424,8 @@ export const T = {
     volverAlMapa: 'Volver al mapa',
     verMisPropuestas: 'Ver mis propuestas',
     jefaturaRevisara: 'Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.',
+    // Un error permanente en la cola: no se enviará sola (#484).
+    noEnviado: 'No se ha enviado',
   },
 
   misPropuestas: {
