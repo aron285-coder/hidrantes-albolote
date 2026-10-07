@@ -286,7 +286,9 @@ export function ultimaLinea(salida: string): string {
 async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   const orden = analizarArgumentos(banderas, valores);
-  const enCi = comprobarDestino(orden.entorno, LOCAL_MIGRADOR, process.env.CI);
+  // Antes de pedir la cadena, solo "¿estamos en CI?": con la cadena local, como entorno local. Con el
+  // entorno remoto, la guarda del proyecto rechazaba la cadena local y staging/prod no arrancaban (#532).
+  const enCi = comprobarDestino('local', LOCAL_MIGRADOR, process.env.CI);
   if (enCi.length) abortar(enCi[0]);
 
   const url =

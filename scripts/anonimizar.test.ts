@@ -1,6 +1,8 @@
 // Anonimizar sin panel (docs/29 RV-126): los argumentos, la guarda del destino y que sin escribir
 // ANONIMIZAR no se cambie nada. fn_anonimizar_autor tiene su pgTAP (17_registro_anonimizacion).
 
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { ErrorDeScript } from './lib/comun.ts';
 import {
@@ -275,4 +277,30 @@ describe('buscar', () => {
       /Respuesta inesperada/,
     );
   });
+});
+
+// #532 (docs/31 RV-139b): principal() comprobaba "¿estamos en CI?" con la cadena local y el entorno
+// remoto, y con --entorno staging o prod abortaba siempre con "proyecto desconocido". Se ejecuta el
+// script de verdad con una cadena de staging bien formada que no conecta (puerto 1 de esta máquina):
+// tiene que pasar la guarda y pararse al conectar.
+describe('principal() con --entorno staging (#532)', () => {
+  it('una cadena de staging pasa la guarda del destino y se para al conectar', () => {
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      SUPABASE_DB_URL: `postgresql://hidrantes_migrador.${REF_DE.staging}:clave@127.0.0.1:1/postgres`, // detectar-secretos:permitir (cadena de ejemplo que no conecta)
+      PGCONNECT_TIMEOUT: '3',
+    };
+    delete env.CI;
+    delete env.GITHUB_ACTIONS;
+    const r = spawnSync(
+      process.execPath,
+      ['--import', 'tsx', 'scripts/anonimizar.ts', '--entorno', 'staging', '--admin', ADMIN, '--dispositivo', D],
+      { cwd: path.resolve(import.meta.dirname, '..'), encoding: 'utf8', env, input: '', timeout: 60_000 },
+    );
+    const salida = r.stdout + r.stderr;
+    expect(salida).not.toMatch(/proyecto desconocido|Guarda del destino/);
+    // Los dos salen solo después de la guarda: sin conexión, o en un PC sin psql.
+    expect(salida).toMatch(/No se puede conectar|No encuentro psql/);
+    expect(r.status).toBe(1);
+  }, 90_000);
 });
