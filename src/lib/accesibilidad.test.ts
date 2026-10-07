@@ -337,3 +337,20 @@ describe('Barro (docs/24 RV-102, DEC-149)', () => {
     });
   }
 });
+
+// docs/31 RV-169: la fila elegida de la Cola usaba `dark:bg-white/5`, que solo sigue al sistema.
+// Con el tema forzado a oscuro sobre un sistema claro quedaba #EFF3F8 bajo texto claro (~1,1:1).
+// Un token en los dos bloques de oscuro lo arregla en las dos formas de llegar a oscuro.
+describe('la fila elegida en los dos modos (docs/31 RV-169)', () => {
+  it.each(['claro', 'oscuro'] as const)('en %s, el texto se lee sobre --fila-elegida', (modo) => {
+    const m = tokens(modo);
+    expect(m['--fila-elegida'], 'falta --fila-elegida').toMatch(/^#/);
+    expect(contraste(m['--texto']!, m['--fila-elegida']!)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(m['--texto-suave']!, m['--fila-elegida']!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('en oscuro, la fila elegida se distingue del papel', () => {
+    const o = tokens('oscuro');
+    expect(o['--fila-elegida']).not.toBe(o['--papel']);
+  });
+});
