@@ -116,13 +116,18 @@ self.addEventListener('notificationclick', (evento) => {
         const propias = controladas.filter(deEsteOrigen);
         const propia = propias.find((v) => !enFormulario(v));
         if (!propia && propias.length) {
-          const formulario = propias[0];
+          // La que se ve, si hay varias con formulario.
+          const formulario =
+            propias.find((v) => v.focused) || propias.find((v) => v.visibilityState === 'visible') || propias[0];
           const destinoUrl = new URL(destino);
-          return Promise.resolve()
-            .then(() => formulario.focus())
-            .catch(() => null)
-            .then(() => formulario.postMessage({ tipo: 'aviso_push', url: destinoUrl.pathname + destinoUrl.search }))
-            .catch(() => null);
+          return (
+            Promise.resolve()
+              .then(() => formulario.focus())
+              .catch(() => null)
+              .then(() => formulario.postMessage({ tipo: 'aviso_push', url: destinoUrl.pathname + destinoUrl.search }))
+              // Si no se le puede avisar, una ventana nueva: el formulario no se toca.
+              .catch(abrir)
+          );
         }
         if (!propia) return abrir();
         // Primero el foco: el navegador solo lo permite poco después del toque, y navegar con datos

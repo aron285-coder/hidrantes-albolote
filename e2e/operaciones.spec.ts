@@ -264,7 +264,6 @@ test.describe('operaciones (FL-03–FL-08)', () => {
       expect(s.propuestas[0]).toMatchObject({ ...op.esperado, punto_id: hid.id });
     });
   }
-  // docs/18 RV-41, DEC-090: el tipo no se cambia; se retira el punto y se da de alta el correcto.
   // docs/31 RV-157: una notificación tocada con el formulario a medias no se lo lleva sin preguntar.
   test('un aviso con el formulario a medias pregunta antes de salir', async ({ page }) => {
     await servidor(page);
@@ -294,6 +293,7 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await expect(page.getByText(T.avisoFormulario.avisoNuevo)).toHaveCount(0);
   });
 
+  // docs/18 RV-41, DEC-090: el tipo no se cambia; se retira el punto y se da de alta el correcto.
   test('corregir datos no ofrece cambiar el tipo y enlaza a retirar', async ({ page }) => {
     await servidor(page);
     const hid = PUNTOS[0];

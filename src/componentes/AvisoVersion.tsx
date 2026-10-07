@@ -26,6 +26,9 @@ export function AvisoVersion() {
   useEffect(() => escucharAvisosPush(setAviso), []);
 
   const formulario = enFormulario(pathname);
+  // Fuera del formulario el aviso sobra (y taparía los botones del mapa): lo resuelto se ve en Mis
+  // propuestas. Estado derivado del render, el patrón de React para ello.
+  if (aviso && !formulario) setAviso(null);
   // Fuera del formulario el aviso ya no hace falta: se va a donde llevaba sin preguntar.
   const ir = (ruta: string) => {
     setAviso(null);
@@ -48,7 +51,8 @@ export function AvisoVersion() {
       {aviso && (
         <div
           role="status"
-          className="bg-marino-700 rounded-boton fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+5rem)] z-30 mx-auto flex min-h-11 max-w-md items-center gap-2 pl-3 text-sm font-semibold text-white shadow-lg"
+          // Arriba, bajo la barra (y bajo el de versión nueva si está): abajo taparía Enviar.
+          className={`bg-marino-700 rounded-boton fixed inset-x-3 ${hay ? 'top-[calc(env(safe-area-inset-top)+6.75rem)]' : 'top-[calc(env(safe-area-inset-top)+3.5rem)]'} z-30 mx-auto flex min-h-11 max-w-md items-center gap-2 pl-3 text-sm font-semibold text-white shadow-lg`}
         >
           <Bell size={18} aria-hidden />
           <span className="flex-1">{T.avisoFormulario.avisoNuevo}</span>
