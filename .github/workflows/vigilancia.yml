@@ -238,6 +238,19 @@ jobs:
             problemas+=("el Worker hidrantes-avisos lleva el código de ${WORKER_VERSION:0:7} y develop tiene el de ${esperada:0:7}: vuelve a desplegar staging (docs/20 RV-74)")
           fi
 
+          # 9. El último despliegue de producción terminó bien (docs/31 RV-136). Mal es cualquier
+          #    final que no sea success: también cancelled, que es lo que queda si nadie aprueba el
+          #    environment (0.8.0, run 37184600515) y deploy-prod no llega a avisar él mismo.
+          if ultimo=$(gh run list --repo "$REPO" --workflow deploy-prod.yml --limit 1 --json status,conclusion,headSha \
+            --jq '.[0] // empty | "\(.status) \(.conclusion) \(.headSha)"'); then
+            read -r estado final sha <<< "${ultimo:-}"
+            if [ "${estado:-}" = completed ] && [ "${final:-}" != success ]; then
+              problemas+=("el último despliegue de producción (${sha:0:7}) terminó con $final: producción puede no tener esa versión o tenerla a medias; mira la issue «Deploy de producción fallido» y 15 §4 (RV-136)")
+            fi
+          else
+            problemas+=("no se puede leer el último despliegue de producción")
+          fi
+
           # 5. Se anota en Salud del sistema, salga como salga (TR-102). La de staging la anota su trabajo.
           if [ -n "${BD:-}" ]; then
             ok=$([ ${#problemas[@]} -eq 0 ] && echo true || echo false)

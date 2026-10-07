@@ -179,6 +179,47 @@ describe('paridad de producción (P-03)', () => {
   });
 });
 
+// docs/31 RV-136: un deploy de producción que falla avisa, y la vigilancia mira el último.
+describe('deploy de producción fallido (RV-136)', () => {
+  const prod = leer('deploy-prod.yml');
+  const paso = (texto: string, nombre: string) => {
+    const desde = texto.indexOf(`- name: ${nombre}`);
+    expect(desde, nombre).toBeGreaterThan(-1);
+    return texto.slice(desde).split(/\n\s{6}- /)[0]!;
+  };
+
+  it('con un paso fallido, abre o reabre la issue y dice qué paso falló', () => {
+    const p = paso(prod, 'Avisar del fallo');
+    expect(p).toContain('if: failure()');
+    expect(p).toContain("titulo='Deploy de producción fallido'");
+    expect(p).toContain('select(.conclusion == "failure") | .name');
+    expect(p).toContain('--state all');
+    expect(p).toContain('gh issue reopen');
+    expect(p).toContain('gh issue create --title "$titulo" --label vigilancia');
+    // Después de todos los pasos que pueden fallar.
+    expect(prod.indexOf('- name: Avisar del fallo')).toBeGreaterThan(prod.indexOf('npm run paridad'));
+  });
+
+  it('con el despliegue bien, cierra la issue de un fallo anterior', () => {
+    const p = paso(prod, 'Cerrar el aviso de un fallo anterior');
+    expect(p).toContain('if: success()');
+    expect(p).toContain("titulo='Deploy de producción fallido'");
+    expect(p).toContain('gh issue close');
+  });
+
+  it('tiene permiso para las issues y para leer los pasos de su ejecución', () => {
+    expect(prod).toMatch(/^\s{2}issues: write$/m);
+    expect(prod).toMatch(/^\s{2}actions: read$/m);
+  });
+
+  it('la vigilancia avisa si el último deploy-prod terminó en algo que no es success, también cancelado', () => {
+    const v = leer('vigilancia.yml');
+    expect(v).toContain('gh run list --repo "$REPO" --workflow deploy-prod.yml --limit 1');
+    expect(v).toContain('[ "${estado:-}" = completed ] && [ "${final:-}" != success ]');
+    expect(v).toContain('no se puede leer el último despliegue de producción');
+  });
+});
+
 // docs/19 RV-52, DEC-097: el Worker de los avisos, su despliegue y su vigilancia.
 describe('Worker hidrantes-avisos (RV-52)', () => {
   const toml = readFileSync(path.resolve(import.meta.dirname, '../workers/avisos/wrangler.toml'), 'utf8');
