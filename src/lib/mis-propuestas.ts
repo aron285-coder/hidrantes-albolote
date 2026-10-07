@@ -48,10 +48,21 @@ export function calcularNovedades(
   return propuestas.filter((p) => (p.estado === 'aprobada' || p.estado === 'rechazada') && vistas[p.id] !== p.estado);
 }
 
+/**
+ * Código solo de cliente: la sesión se cerró mientras llegaba la respuesta (RV-153). La lista era
+ * del anterior y se tira; no es un error que enseñar.
+ */
+export const SESION_CAMBIADA = 'SESION_CAMBIADA';
+
+/** Sube al cerrar sesión: una carga empezada antes ya no escribe (como en cola y puntos). */
+let generacion = 0;
+
 export async function cargarMisPropuestas(): Promise<Resultado<PropuestaPropia[]>> {
   const sesion = leerSesion();
   if (!sesion) return { ok: true, datos: [] };
+  const gen = generacion;
   const r = await rpc<PropuestaPropia[]>('fn_mis_propuestas', { token: sesion.token });
+  if (gen !== generacion) return { ok: false, codigo: SESION_CAMBIADA };
   if (!r.ok) return r;
   // Nunca fiarse de la forma de una respuesta: una lista rara no debe tumbar la pantalla (TR-106).
   lista = Array.isArray(r.datos) ? r.datos : [];
@@ -66,6 +77,27 @@ export async function cargarMisPropuestas(): Promise<Resultado<PropuestaPropia[]
 /** El voluntario ha visto el aviso: no se repite. */
 export function marcarVistas(): void {
   escribir(VISTAS, Object.fromEntries(lista.map((p) => [p.id, p.estado])));
+  novedades = [];
+  avisar();
+}
+
+/**
+ * Al abrir Mis propuestas: cargar y, solo si la carga ha ido bien, dar lo resuelto por visto
+ * (RV-153). Con la carga fallida, lo nuevo sigue avisando la próxima vez.
+ */
+export async function cargarYMarcarVistas(): Promise<Resultado<PropuestaPropia[]>> {
+  const r = await cargarMisPropuestas();
+  if (r.ok && leerSesion()) marcarVistas();
+  return r;
+}
+
+/**
+ * Cerrar sesión (RV-153): en un móvil compartido, quien entra después no ve las propuestas, los
+ * motivos de rechazo ni los avisos del anterior. Lo guardado lo borra `cerrarSesion`.
+ */
+export function olvidarMisPropuestas(): void {
+  generacion++;
+  lista = [];
   novedades = [];
   avisar();
 }
@@ -89,6 +121,7 @@ export function textoErrorRetirar(codigo: string): string {
 
 /** Solo para los tests. */
 export function _reiniciarMisPropuestas() {
+  generacion++;
   lista = [];
   novedades = [];
   oyentes.clear();

@@ -27,6 +27,7 @@ import { cambiarFirma, cerrarSesionVoluntario, salirDeGoogle } from '@/lib/acces
 import { VERSION } from '@/lib/entorno';
 import { recargar } from '@/lib/pwa';
 import { type Tema, guardarTema, leerTema } from '@/lib/tema';
+import { LIMITES } from '@/lib/limites';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 import { NOVEDADES, hayNovedadesSinVer, marcarNovedadesVistas } from '@/lib/novedades';
@@ -134,7 +135,7 @@ export function Ajustes() {
             <input
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
-              maxLength={60}
+              maxLength={LIMITES.autor_nombre}
               className="bg-papel border-linea rounded-campo text-texto mt-1 block min-h-11 w-full border px-3 text-base font-normal"
             />
           </label>
@@ -143,7 +144,7 @@ export function Ajustes() {
             <input
               value={apellido}
               onChange={(e) => setApellido(e.target.value)}
-              maxLength={60}
+              maxLength={LIMITES.autor_apellido}
               className="bg-papel border-linea rounded-campo text-texto mt-1 block min-h-11 w-full border px-3 text-base font-normal"
             />
           </label>

@@ -210,7 +210,7 @@ select set_eq(
   $$ values ('f8/9a.jpg'), ('f8/9b.jpg'), ('f8/p-00000000-0000-4000-8000-00000000a001.jpg'),
             ('f8/p-00000000-0000-4000-8000-00000000a002.jpg'), ('f8/p-00000000-0000-4000-8000-00000000a004.jpg'), ('f8/p-00000000-0000-4000-8000-00000000b001.jpg'),
             ('f8/p-00000000-0000-4000-8000-00000000c001.jpg'), ('f8/reciente.jpg') $$,
-  'en uso: las de los puntos, las de propuestas vivas y las reservas de menos de dias_reserva_subida (7, RV-07); la rechazada y la reserva vieja, no'
+  'en uso: las de los puntos, las de propuestas vivas y las reservas de menos de dias_reserva_subida (2 desde 0039, RV-07, RV-142); la rechazada y la reserva vieja, no'
 );
 
 -- ---------- el registro no se reescribe (11 §6) ----------
