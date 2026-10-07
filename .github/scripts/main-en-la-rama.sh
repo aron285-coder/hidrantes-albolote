@@ -45,8 +45,13 @@ main_en_la_rama() {
     echo "::error::git diff falló con $rc: no se ha podido comprobar."
     return 2
   fi
+  # El motivo exacto, antes del diagnóstico: qué commits y qué archivos tiene main que la rama no.
+  echo "Commits de main desde el merge-base (${base:0:7}):"
+  git log --oneline "$base..origin/main" || true
+  echo "Archivos que difieren:"
+  git diff --stat "$base" origin/main || true
   echo "::error::main tiene cambios fuera de la historia de esta rama: lo normal es que un PR develop → main" \
-    "se fusionara con squash (DEC-096), o un cambio directo en main. Arreglo: un PR a develop con" \
+    "se fusionara con squash (DEC-096); también puede ser un conflicto resuelto en GitHub o un cambio directo en main. Arreglo: un PR a develop con" \
     "'git merge -s ours origin/main' (como #352 y RV-135) si develop ya tiene esos cambios, o un merge" \
     "normal de origin/main si no; fusionado con merge commit. Y este PR, también con merge commit (gh pr merge --merge)."
   return 1

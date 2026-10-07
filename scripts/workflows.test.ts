@@ -600,6 +600,9 @@ describe('main dentro de la historia de la rama en los PR a main (RV-135)', { ti
       expect(r.status).toBe(1);
       expect(r.stdout).toContain('::error::main tiene cambios fuera de la historia de esta rama');
       expect(r.stdout).toContain('git merge -s ours origin/main');
+      // Y el motivo exacto: el commit y el archivo que main tiene y la rama no.
+      expect(r.stdout).toContain('squash de develop');
+      expect(r.stdout).toContain('version.txt');
     });
   });
 
