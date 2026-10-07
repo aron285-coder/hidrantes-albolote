@@ -728,6 +728,8 @@ test.describe('Editar con el punto al día (docs/31 RV-165)', () => {
     const pregunta = page.getByRole('alertdialog', { name: T.panelEditar.descartarN(1) });
     await pregunta.getByRole('button', { name: T.panelEditar.seguirEditando }).click();
     await expect(descripcion).toHaveValue('[PRUEBA] Mía');
+    // El foco vuelve a «Ver lo nuevo», no a <body> detrás del panel.
+    await expect(aviso.getByRole('button', { name: T.panelEditar.verLoNuevo })).toBeFocused();
 
     // "Descartar" pone Editar al día.
     await aviso.getByRole('button', { name: T.panelEditar.verLoNuevo }).click();
@@ -737,7 +739,37 @@ test.describe('Editar con el punto al día (docs/31 RV-165)', () => {
     await expect(p.getByText(T.avisosFormulario.sinCambios)).toBeVisible();
     await expect(p.getByText(T.panelEditar.otroAdministrador)).toHaveCount(0);
     await expect(p).toBeVisible();
+    // «Ver lo nuevo» ya no está: el foco pasa al primer control de Editar.
+    expect(await p.evaluate((d) => d.contains(document.activeElement) && document.activeElement !== d)).toBe(true);
     // Nada se ha guardado en el punto que se editaba.
     expect(llamadas.filter((l) => l.nombre === 'fn_editar_punto' && l.cuerpo.punto_id === HIDRANTE.id)).toEqual([]);
+  });
+
+  test('guardar con el aviso a la vista manda solo lo propio', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const vista = { lista: PUNTOS.map((x) => ({ ...x })) };
+    const { llamadas } = await preparar(page, [], vista);
+    await page.goto('/admin/inventario');
+    await editarDe(page, HIDRANTE.codigo).click();
+    const p = panel(page);
+    await p.getByRole('textbox', { name: T.formulario.descripcionOpcional }).fill('[PRUEBA] Mía');
+    await otroAdministrador(page, vista, { caudal: 'malo' });
+    await expect(p.getByText(T.panelEditar.otroAdministrador)).toBeVisible();
+    await p.getByRole('button', { name: T.panel.guardarCambios }).click();
+    await expect(p).toHaveCount(0);
+    expect(llamadas.filter((l) => l.nombre === 'fn_editar_punto' && l.cuerpo.punto_id === HIDRANTE.id)).toEqual([
+      { nombre: 'fn_editar_punto', cuerpo: { punto_id: HIDRANTE.id, cambios: { descripcion: '[PRUEBA] Mía' } } },
+    ]);
+  });
+
+  test('la fila abierta en Editar no deja cambiar la dirección en la tabla', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, HIDRANTE.codigo).click();
+    await expect(panel(page)).toBeVisible();
+    await expect(page.getByLabel(T.panelInventario.direccionDe(HIDRANTE.codigo))).toHaveCount(0);
+    await expect(page.getByRole('row').filter({ hasText: HIDRANTE.codigo })).toContainText(HIDRANTE.direccion!);
+    await expect(page.getByLabel(T.panelInventario.direccionDe(OTRA.codigo))).toBeEditable();
   });
 });

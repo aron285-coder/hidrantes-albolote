@@ -355,18 +355,23 @@ export default function Inventario() {
     </span>
   );
   // Nunca "— pen": el campo mide al menos lo que su texto de "pendiente" (RV-79).
-  const direccionDe = (p: Punto, clase?: string) => (
-    <input
-      defaultValue={p.direccion ?? ''}
-      placeholder={T.panel.pendienteEscribe}
-      aria-label={T.panelInventario.direccionDe(p.codigo)}
-      onBlur={(e) => void guardarDireccion(p, e.target.value)}
-      className={cn(
-        'border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]',
-        clase,
-      )}
-    />
-  );
+  // La fila que está abierta en Editar enseña la dirección como texto: se cambia en Editar. Si se
+  // pudiera guardar también aquí, Editar lo tomaría por un cambio de otro administrador (RV-165).
+  const direccionDe = (p: Punto, clase?: string) =>
+    editando?.id === p.id ? (
+      <span className={cn('block min-h-8 min-w-[27ch] px-1 py-1', clase)}>{p.direccion ?? T.panelEditar.vacio}</span>
+    ) : (
+      <input
+        defaultValue={p.direccion ?? ''}
+        placeholder={T.panel.pendienteEscribe}
+        aria-label={T.panelInventario.direccionDe(p.codigo)}
+        onBlur={(e) => void guardarDireccion(p, e.target.value)}
+        className={cn(
+          'border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]',
+          clase,
+        )}
+      />
+    );
   const revisionDe = (p: Punto) => (
     <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-texto font-semibold')}>
       {hace(p.fecha_ultima_revision)}

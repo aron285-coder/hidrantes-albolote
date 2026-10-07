@@ -341,6 +341,13 @@ export default function EditarPunto({
   const [v, setV] = useState<Valores>(() => valoresDe(punto));
   const [ocupado, setOcupado] = useState(false);
   const [pregunta, setPregunta] = useState<Pregunta | null>(null);
+  // Dónde estaba el foco al preguntar: si se sigue en Editar, vuelve ahí (o, si ya no está, al primer
+  // control), en vez de quedarse en <body> detrás del panel (RV-128, docs/31 RV-165).
+  const focoAntes = useRef<HTMLElement | null>(null);
+  const preguntar = useCallback((p: Pregunta) => {
+    focoAntes.current = document.activeElement as HTMLElement | null;
+    setPregunta(p);
+  }, []);
 
   const formulario = formularioDe(v);
   const cambios = cambiosDe(punto, formulario);
@@ -390,16 +397,28 @@ export default function EditarPunto({
   const intentarCerrar = useCallback(() => {
     const e = estado.current;
     if (e.ocupado || e.enPausa || e.pregunta) return;
-    if (e.n > 0) setPregunta({ para: 'cerrar' });
+    if (e.n > 0) preguntar({ para: 'cerrar' });
     else cerrar();
-  }, [cerrar]);
+  }, [cerrar, preguntar]);
 
   // El foco entra en el primer control; al cerrar lo devuelve el Inventario al "Editar" de la fila.
-  useEffect(() => {
+  const alPrimerControl = useCallback(() => {
     cuerpo.current?.querySelector<HTMLElement>('button:not(:disabled), input, select, textarea')?.focus({
       preventScroll: true,
     });
   }, []);
+  useEffect(alPrimerControl, [alPrimerControl]);
+
+  // Cerrada la pregunta sin cerrar Editar ("Seguir editando", o "Ver lo nuevo" → "Descartar"). Va en
+  // un efecto: hasta que la pregunta se desmonta, Editar está inert y no aceptaría el foco.
+  useEffect(() => {
+    if (pregunta || !focoAntes.current) return;
+    const antes = focoAntes.current;
+    focoAntes.current = null;
+    if (!estado.current.montado) return;
+    if (antes.isConnected && dialogo.current?.contains(antes)) antes.focus({ preventScroll: true });
+    else alPrimerControl();
+  }, [pregunta, alPrimerControl]);
 
   // Esc cierra (con la pregunta si hay cambios), salvo con otro diálogo encima.
   useEffect(() => {
@@ -425,14 +444,14 @@ export default function EditarPunto({
       const e = estado.current;
       if (e.ocupado || e.enPausa || e.pregunta || e.n > 0) {
         window.history.pushState({ ...(window.history.state as object | null), [MARCA]: marca }, '');
-        if (!e.ocupado && !e.enPausa && !e.pregunta) setPregunta({ para: 'cerrar' });
+        if (!e.ocupado && !e.enPausa && !e.pregunta) preguntar({ para: 'cerrar' });
         return;
       }
       cerrarRef.current(punto.id);
     };
     window.addEventListener('popstate', atras);
     return () => window.removeEventListener('popstate', atras);
-  }, [marca, punto.id]);
+  }, [marca, punto.id, preguntar]);
 
   /** Salir del Inventario por un enlace del panel: la entrada de Editar se reemplaza por el destino. */
   const salirA = useCallback(
@@ -460,7 +479,7 @@ export default function EditarPunto({
       const e = estado.current;
       const destino = url.pathname + url.search + url.hash;
       if (e.ocupado || e.pregunta) return;
-      if (e.n > 0) setPregunta({ para: 'salir', destino });
+      if (e.n > 0) preguntar({ para: 'salir', destino });
       else salirA(destino);
     };
     const recargar = (ev: BeforeUnloadEvent) => {
@@ -474,7 +493,7 @@ export default function EditarPunto({
       document.removeEventListener('click', enlace, true);
       window.removeEventListener('beforeunload', recargar);
     };
-  }, [salirA]);
+  }, [salirA, preguntar]);
 
   async function guardar() {
     setOcupado(true);
@@ -541,7 +560,7 @@ export default function EditarPunto({
               className="bg-oro-100 border-oro-600 text-ambar-700 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm"
             >
               <span className="min-w-0 flex-1">{T.panelEditar.otroAdministrador}</span>
-              <Boton variante="secundario" onClick={() => setPregunta({ para: 'nuevo' })}>
+              <Boton variante="secundario" onClick={() => preguntar({ para: 'nuevo' })}>
                 {T.panelEditar.verLoNuevo}
               </Boton>
             </div>
