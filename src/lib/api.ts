@@ -3,6 +3,7 @@
 // (TR-36). Cada llamada anota si el servidor respondió, para la degradación controlada (FR-168).
 
 import { anotarServidor } from './conexion';
+import { LIMITES_RED, fetchConLimite } from './red';
 import { supabase } from './supabase';
 
 /**
@@ -61,7 +62,8 @@ export interface Canje {
 /** Canje del código por un token (FR-31). El código solo viaja aquí y no se guarda. */
 export async function verificarCodigo(codigo: string, dispositivoId: string): Promise<Resultado<Canje>> {
   try {
-    const r = await fetch('/api/verificar-codigo', {
+    // Con un límite, como el resto: con señal débil, «Entrar» no se queda girando para siempre.
+    const r = await fetchConLimite(() => LIMITES_RED.canje)('/api/verificar-codigo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ codigo, dispositivo_id: dispositivoId }),

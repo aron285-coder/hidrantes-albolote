@@ -132,3 +132,28 @@ describe('Lista de puntos (docs/25 RV-106)', () => {
     expect(fila).toMatch(/<span class="truncate">desde hace/);
   });
 });
+
+describe('Lista y lector de pantalla (docs/31 RV-157)', () => {
+  it('la lista no es una región viva: no se lee entera cada vez que cambia', () => {
+    estado.posicion = AQUI;
+    expect(pintar()).not.toMatch(/<ul[^>]*aria-live/);
+  });
+
+  it('hay una región de estado para el número de resultados, vacía sin filtro', () => {
+    const html = pintar();
+    const region = html.match(/<p role="status"[^>]*>(.*?)<\/p>/s);
+    expect(region).not.toBeNull();
+    expect(region![1]).toBe('');
+  });
+
+  it('el orden por distancia no cambia por moverse 10 m o menos', async () => {
+    const { posicionParaOrden } = await import('@/lib/puntos');
+    const a = { lat: 37.2305, lng: -3.656 };
+    const cerca = { lat: 37.23058, lng: -3.656 }; // unos 9 m al norte
+    const lejos = { lat: 37.2306, lng: -3.656 }; // unos 11 m
+    expect(posicionParaOrden(a, cerca)).toBe(a);
+    expect(posicionParaOrden(a, lejos)).toBe(lejos);
+    expect(posicionParaOrden(null, a)).toBe(a);
+    expect(posicionParaOrden(a, null)).toBeNull();
+  });
+});

@@ -11,7 +11,7 @@ import { nombreCaudal } from '@/lib/ficha';
 import { distancia, hace } from '@/lib/formato';
 import { leerLatLng } from '@/lib/coordenadas';
 import { activarPosicion, posicionActual } from '@/lib/posicion';
-import { type Filtro, type Orden, buscar, filtrar, leerFiltro, metros, ordenar } from '@/lib/puntos';
+import { type Filtro, type Orden, buscar, filtrar, leerFiltro, metros, ordenar, posicionParaOrden } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +46,12 @@ export function ListaPuntos({
   const incidenteParam = params.get('incidente');
   const incidente = useMemo(() => leerLatLng(incidenteParam), [incidenteParam]);
   const gps = posicionActual();
-  const pos = incidente ?? gps;
+  // Estado derivado del render anterior (el patrón de React para ello): una posición nueva solo se
+  // fija a más de 10 m de la anterior.
+  const [gpsOrden, setGpsOrden] = useState(gps);
+  const gpsEstable = posicionParaOrden(gpsOrden, gps);
+  if (gpsEstable !== gpsOrden) setGpsOrden(gpsEstable);
+  const pos = incidente ?? gpsEstable;
   const [texto, setTexto] = useState('');
   const [filtro, setFiltro] = useState<Filtro>(() => leerFiltro(leer<unknown>('filtro_lista')));
   const [orden, setOrden] = useState<Orden>(() => leer<Orden>('orden_lista') ?? 'distancia');
@@ -142,7 +147,12 @@ export function ListaPuntos({
       <div className="min-h-0 flex-1 overflow-y-auto">
         {texto && <ResultadoCoordenadas lugares={lugares} alElegir={irA} />}
         {conLugares && visibles.length > 0 && <CabeceraGrupo titulo={T.busqueda.puntos} />}
-        <ul aria-live="polite">
+        {/* La lista no es una región viva: se leería entera con cada cambio. Solo se anuncia el número
+            de resultados al buscar o filtrar (docs/31 RV-157). */}
+        <p role="status" className="sr-only">
+          {texto || filtro !== 'todos' ? T.mapa.nPuntos(visibles.length) : ''}
+        </p>
+        <ul>
           {visibles.map((p) => (
             <li key={p.id}>
               <button
