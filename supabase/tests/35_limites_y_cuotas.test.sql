@@ -189,10 +189,10 @@ insert into hidrantes.subidas (dispositivo_id, foto_path, reservada_en, confirma
   ('aaaaaaaa-0000-4000-8000-0000000e3401', 'fotos/s34-49h-conf.jpg', now() - interval '49 hours', now() - interval '48 hours'),
   ('aaaaaaaa-0000-4000-8000-0000000e3401', 'fotos/s34-49h-punto.jpg', now() - interval '49 hours', null);
 
-select throws_like($$ select hidrantes.fn_proponer(current_setting('test.token_a'), 'r34-25h', 'Ana', 'Ruiz', 'revision',
+select throws_like($$ select hidrantes.fn_proponer(current_setting('test.token_a'), 'r34-res-25h', 'Ana', 'Ruiz', 'revision',
     '00000000-0000-4000-8000-0000000e3403', '{}', null, null, null, null, null, null, null, null, 'fotos/s34-25h.jpg') $$,
   'FOTO_NO_RESERVADA%', 'una reserva sin confirmar de hace 25 h ya no se acepta');
-select is(hidrantes.fn_proponer(current_setting('test.token_a'), 'r34-23h', 'Ana', 'Ruiz', 'revision',
+select is(hidrantes.fn_proponer(current_setting('test.token_a'), 'r34-res-23h', 'Ana', 'Ruiz', 'revision',
     '00000000-0000-4000-8000-0000000e3403', '{}', null, null, null, null, null, null, null, null, 'fotos/s34-23h.jpg') ->> 'estado',
   'pendiente', 'una de hace 23 h, sí');
 select ok('fotos/s34-47h.jpg' in (select hidrantes.fn_fotos_referenciadas()),

@@ -82,6 +82,13 @@ límite. Cinco capas, y por qué no basta con la primera:
    intentos, así que activar el techo global no deja a nadie fuera.
 5. **Nadie salta la Function.** `fn_verificar_codigo` no tiene `execute` para `anon` ni
    `authenticated`; solo la llama la Function con `service_role`. Test pgTAP.
+6. **Nadie se hace pasar por un administrador** (0039, docs/31 RV-143, DEC-175). El `dispositivo_id`
+   técnico de un administrador es `md5('administrador:' || correo)`: lo calcula quien sepa el correo.
+   Con él, un voluntario compartiría la cuota de fotos del administrador, vería sus propuestas y no se
+   podría anonimizar. `fn_verificar_codigo` no da token a un `dispositivo_id` que sea el de cualquier
+   fila de `administradores` (activa o no): `DISPOSITIVO_RESERVADO`, sin decir de quién. Solo se
+   comprueba con el código bueno, así que sin él no sirve para adivinar qué correos son de jefatura; con
+   él, cada prueba cuenta en el tope de canjes buenos (3b).
 
 Además: tiempo de respuesta constante (no filtra por duración), rotación en un minuto desde
 Ajustes con elección entre cerrar accesos nuevos o revocar todos los dispositivos (FR-34), y
@@ -98,6 +105,16 @@ la cola las propuestas de las últimas horas antes de aprobar nada. Procedimient
 - La `anon key` **no puede escribir** en el bucket. Subida solo con URL firmada que emite la Pages
   Function tras validar el token y la cuota (80 por dispositivo y día desde 0035, DEC-146); nombre de archivo asignado
   por el servidor; 5 MB; solo JPEG/WebP (04 §7).
+- **Tope global de subidas** (0039, docs/31 RV-142, DEC-174). El tope por dispositivo no basta: cada
+  canje del código crea un dispositivo con su cuota, y dos o tres llenarían el gigabyte gratuito, que
+  comparte uniformidad. `max_subidas_dia_total` (400 reservas en 24 h entre todos los voluntarios; los
+  administradores no cuentan) da `CUOTA_SUBIDAS_AGOTADA` a todos; Salud del sistema y la vigilancia lo
+  ven en `topes_globales_24h`. Las reservas sin confirmar se protegen 48 h (antes 7 días), y la purga no
+  cuenta en su freno del 10 % las nunca confirmadas de más de 48 h (`fn_reservas_sin_confirmar_lista`).
+- **Textos y propuestas con límite** (0039, RV-140 y RV-141, DEC-174). Con un token se podía mandar una
+  propuesta de 1 MB o miles al día, en una base de datos de 500 MB que también es de uniformidad.
+  Longitudes máximas en el servidor (05 §7.1) y `max_propuestas_dia` (60 por dispositivo y día; los
+  administradores sin tope).
 - **Lectura pública** por URL no enumerable (uuid). Decisión consciente (DEC-011): las URL firmadas
   de lectura romperían la caché offline. La foto retrata un hidrante; **14** pide no fotografiar
   personas ni matrículas, y jefatura rechaza cualquier foto que las incluya.
@@ -309,7 +326,9 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | Fuerza bruta sobre 6 dígitos | Las cinco capas de §3. |
 | Esquivar el límite con `dispositivo_id` nuevos o `x-forwarded-for` falso | Límite por `CF-Connecting-IP` en la Function + techo global. |
 | El techo global deja fuera a los 65 | Token de dispositivo: quien entró no vuelve a pasar por el control. |
-| Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota. |
+| Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota por dispositivo y tope global (0039). |
+| Llenar la base de datos con un token | Longitud máxima de cada texto y 60 propuestas por dispositivo y día (0039, DEC-174). |
+| Usar el `dispositivo_id` de un administrador | `DISPOSITIVO_RESERVADO` en el canje (0039, DEC-175). |
 | Filtración de la `service_role key` | Solo en variables cifradas de Cloudflare y en GitHub Environments; nunca en el frontend ni en el repositorio; rotar = relanzar `arranque.ts`. |
 | Cuenta de Google de un administrador comprometida | Desactivación inmediata desde Ajustes por otro administrador; registro de todo lo que hizo; 2FA obligatorio en las cuentas de jefatura (13). |
 | Nombres de voluntarios expuestos a otros voluntarios | RLS: `anon` no lee tablas; `fn_ficha_punto` y `fn_listar_puntos` no incluyen autores; comprobado en la respuesta de red (AC-21). |
