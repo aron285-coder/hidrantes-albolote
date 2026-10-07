@@ -27,6 +27,8 @@ import {
   rederivarSiCambiaElDia,
   sincronizar,
 } from './puntos';
+import { anotarError } from './errores';
+import { LIMITES_RED } from './red';
 import { desactivarPush, estadoPush, pedirEnvioPush, resincronizarPush } from './push';
 import { supabase } from './supabase';
 
@@ -244,9 +246,27 @@ export function cambiarFirma(firma: Firma): void {
   if (sesion && estado.tipo === 'voluntario') fijar({ tipo: 'voluntario', sesion });
 }
 
+/**
+ * El servidor revoca el token y borra la suscripción push de este móvil (docs/31 RV-158): un token
+ * copiado deja de valer. Como mucho `LIMITES_RED.cerrarSesion`; sin red o si falla, la sesión se
+ * cierra igual (lo local manda) y queda anotado en errores_cliente.
+ */
+async function revocarToken(): Promise<void> {
+  const sesion = leerSesion();
+  if (!sesion) return;
+  let temporizador: ReturnType<typeof setTimeout> | undefined;
+  const limite = new Promise<Resultado<null>>((r) => {
+    temporizador = setTimeout(() => r({ ok: false, codigo: 'TIEMPO_AGOTADO' }), LIMITES_RED.cerrarSesion);
+  });
+  const r = await Promise.race([rpc<null>('fn_cerrar_sesion', { token: sesion.token }), limite]);
+  clearTimeout(temporizador);
+  if (!r.ok) anotarError(new Error(`fn_cerrar_sesion: ${r.codigo}`), 'cerrar-sesion');
+}
+
 export async function cerrarSesionVoluntario(): Promise<void> {
   // Primero lo que necesita el token: dejar de recibir avisos en este móvil.
   if (estadoPush() === 'activo') await desactivarPush().catch(() => undefined);
+  await revocarToken();
   cerrarSesion();
   olvidarMisPropuestas();
   void borrarPuntos();

@@ -10,6 +10,8 @@ export const LIMITES_RED = {
   foto: 120_000,
   /** Cada RPC y cada petición de supabase-js. */
   rpc: 30_000,
+  /** fn_cerrar_sesion al cerrar sesión: sin respuesta, se cierra igual (docs/31 RV-158). */
+  cerrarSesion: 5_000,
 };
 
 function temporizada(ms: number): AbortSignal {
