@@ -1,4 +1,9 @@
-# TR-101: dependencias al día sin intervención. Parches y menores se fusionan solos (automerge.yml).
+# TR-101: dependencias al día sin intervención en lo que no llega a producción. Solo los parches de
+# las dependencias de desarrollo se fusionan solos (automerge.yml); los menores, los mayores y todo
+# lo que va en el bundle esperan a una persona (docs/31 RV-132, DEC-172).
+#
+# cooldown: una versión recién publicada no se propone hasta pasados 7 días. Si un paquete o una
+# action se publica comprometida, suele detectarse y retirarse antes (docs/31 RV-132).
 version: 2
 updates:
   - package-ecosystem: npm
@@ -7,18 +12,28 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     commit-message:
       prefix: chore(deps)
+    # El primer grupo que encaja se queda la dependencia: los parches de desarrollo van en su PR,
+    # que es el único que automerge.yml fusiona solo.
     groups:
-      menores:
+      parches-desarrollo:
+        dependency-type: development
+        update-types: [patch]
+      resto:
         update-types: [minor, patch]
 
+  # Las actions van fijadas por SHA con la etiqueta en un comentario; Dependabot actualiza los dos.
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: chore(ci)

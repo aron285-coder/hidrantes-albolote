@@ -833,7 +833,11 @@ en la Fase 8) → `503 { "error": "NO_CONFIGURADO" }`, sin llamar a GitHub.
 secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. Reclama **20** avisos (el plan gratuito de Workers
 permite 50 peticiones de salida por invocación y cada aviso gasta dos, más una para aplazar: 43), envía cada uno con Web Push
 (VAPID) y anota su resultado. Marca `suscripcion_caducada` **solo** con 404 o 410; cualquier otro
-error se anota como fallo (§2.12). Con un **429** el servicio pide esperar: el aviso no se anota
+error HTTP se anota como fallo (§2.12). **Sin respuesta** del servicio (corte de red, DNS o 10 s sin
+contestar) es un fallo transitorio: el aviso no se anota (ni error, ni fallo de la suscripción), cuenta
+en `sin_anotar` y se reclama otra vez a los 15 minutos, con el mismo tope de tres intentos (RV-144).
+Si las claves VAPID no sirven para firmar → `503 NO_CONFIGURADO` sin anotar nada: no es culpa de las
+suscripciones. Con un **429** el servicio pide esperar: el aviso no se anota
 (ni fallo en la suscripción ni error en el aviso); lo que quede en el lote para ese mismo servicio
 (origen del endpoint) ya no se intenta en esa invocación, y todos esos avisos se aplazan con **una**
 llamada a `fn_aplazar_notificaciones` con el `Retry-After` mayor (60 s si no viene). Si esa llamada

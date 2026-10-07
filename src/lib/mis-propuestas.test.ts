@@ -10,9 +10,12 @@ const {
   _reiniciarMisPropuestas,
   calcularNovedades,
   cargarMisPropuestas,
+  cargarYMarcarVistas,
   marcarVistas,
   misPropuestas,
   novedadesPendientes,
+  olvidarMisPropuestas,
+  suscribirMisPropuestas,
 } = await import('./mis-propuestas');
 const { guardarSesion } = await import('./sesion');
 const { _reiniciar } = await import('./conexion');
@@ -94,6 +97,54 @@ describe('cargarMisPropuestas (FR-91)', () => {
     expect(novedadesPendientes().map((p) => p.id)).toEqual(['a']);
 
     marcarVistas();
+    expect(novedadesPendientes()).toEqual([]);
+  });
+
+  it('olvidarMisPropuestas vacía la lista y los avisos, y avisa a la pantalla (RV-153)', async () => {
+    guardarSesion('t-1', { nombre: 'Sara', apellido: 'Ruiz' });
+    rpcCliente.mockResolvedValue({ data: [fila('a', 'pendiente')], error: null, status: 200 });
+    await cargarMisPropuestas();
+    rpcCliente.mockResolvedValue({ data: [fila('a', 'rechazada')], error: null, status: 200 });
+    await cargarMisPropuestas();
+    expect(novedadesPendientes()).toHaveLength(1);
+    const oyente = vi.fn();
+    suscribirMisPropuestas(oyente);
+
+    olvidarMisPropuestas();
+    expect(misPropuestas()).toEqual([]);
+    expect(novedadesPendientes()).toEqual([]);
+    expect(oyente).toHaveBeenCalled();
+  });
+
+  it('una carga que vuelve después de cerrar sesión no repone la lista del anterior (RV-153)', async () => {
+    guardarSesion('t-1', { nombre: 'Sara', apellido: 'Ruiz' });
+    let responder: (v: unknown) => void = () => undefined;
+    rpcCliente.mockReturnValue(new Promise((r) => (responder = r)));
+    const carga = cargarMisPropuestas();
+    olvidarMisPropuestas();
+    responder({ data: [fila('a', 'rechazada')], error: null, status: 200 });
+    const r = await carga;
+    expect(r.ok).toBe(false);
+    expect(misPropuestas()).toEqual([]);
+    expect(almacen.has('hidrantes.mis_propuestas')).toBe(false);
+  });
+
+  it('con la carga fallida no se marca nada como visto (RV-153)', async () => {
+    guardarSesion('t-1', { nombre: 'Sara', apellido: 'Ruiz' });
+    rpcCliente.mockResolvedValue({ data: [fila('a', 'pendiente')], error: null, status: 200 });
+    await cargarMisPropuestas();
+    rpcCliente.mockResolvedValue({ data: [fila('a', 'aprobada')], error: null, status: 200 });
+    await cargarMisPropuestas();
+    expect(novedadesPendientes()).toHaveLength(1);
+    const vistasAntes = almacen.get('hidrantes.propuestas_vistas');
+
+    rpcCliente.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
+    await cargarYMarcarVistas();
+    expect(novedadesPendientes()).toHaveLength(1);
+    expect(almacen.get('hidrantes.propuestas_vistas')).toBe(vistasAntes);
+
+    rpcCliente.mockResolvedValue({ data: [fila('a', 'aprobada')], error: null, status: 200 });
+    await cargarYMarcarVistas();
     expect(novedadesPendientes()).toEqual([]);
   });
 

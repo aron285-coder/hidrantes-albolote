@@ -1,7 +1,8 @@
 # CLAUDE.md — Mapa de hidrantes · Protección Civil de Albolote
 
 Lee este archivo entero al empezar cada sesión. Después, lee **solo** lo que la tarea necesite de
-`docs/` (§2). No leas todo `docs/` de golpe: son 16 documentos y este archivo te dice cuál abrir.
+`docs/` (§2). No leas todo `docs/` de golpe: son 32 documentos numerados (00 a 31), más los de
+apoyo que lista `docs/INDICE.md`, y este archivo te dice cuál abrir.
 
 ## 1. Qué es esto
 
