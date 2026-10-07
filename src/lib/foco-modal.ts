@@ -70,10 +70,22 @@ export function activarModal(el: Element, body: Element = el.ownerDocument.body)
  * cerrar. Con `useLayoutEffect`, el resto queda inert antes de pintarse y se libera al desmontar antes
  * de que corran los efectos que devuelven el foco.
  */
-export function useModal(ref: RefObject<Element | null>, activo = true) {
+export function useModal(ref: RefObject<HTMLElement | null>, activo = true) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!activo || !el) return;
-    return activarModal(el);
+    // Dónde estaba el foco antes de inertizar: al poner inert, el navegador lo suelta en <body>.
+    const antes = el.ownerDocument.activeElement;
+    const desactivar = activarModal(el);
+    // Si estaba en lo que acaba de quedar inert (Editar pasa de al lado de la tabla a velo con el foco
+    // en la tabla), se quedaría en ninguna parte: entra en la ventana. Al abrir, el foco inicial de
+    // cada componente llega después, en su efecto, y es el que manda.
+    if (antes && antes !== el.ownerDocument.body && antes.closest('[inert]')) {
+      const primero = el.querySelector<HTMLElement>(
+        'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      );
+      (primero ?? el).focus({ preventScroll: true });
+    }
+    return desactivar;
   }, [ref, activo]);
 }

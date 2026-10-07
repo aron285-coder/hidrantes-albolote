@@ -549,6 +549,28 @@ test.describe('El foco no se escapa de las ventanas del panel (docs/30 RV-128)',
     await axe(page);
   });
 
+  test('al estrechar la ventana con el foco en la tabla, Editar pasa a modal y el foco entra en él', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preparar(page);
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await expect(p).toHaveAttribute('aria-modal', 'false');
+    await editarDe(page, HIDRANTE.codigo).focus();
+    expect((await dondeFoco(page)).sitio).toBe('raiz');
+    // 1050 px: Editar con velo, y la tabla sigue siendo tabla (por debajo de 1024 px pasa a filas
+    // apiladas y el botón con el foco se desmonta, que es otra cosa).
+    await page.setViewportSize({ width: 1050, height: 900 });
+    await expect(p).toHaveAttribute('aria-modal', 'true');
+    await expect.poll(async () => (await dondeFoco(page)).sitio).toBe('editar');
+    // Y al volver a ensanchar, la tabla vuelve a estar viva sin cerrar Editar.
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await expect(p).toHaveAttribute('aria-modal', 'false');
+    expect(await inertes(page)).toBe(0);
+  });
+
   test('con Retirar encima de Editar (768 px), Tab no sale de Retirar y al cerrarlo Editar vuelve a responder', async ({
     page,
   }) => {
