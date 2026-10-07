@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(47);
+select plan(51);
 
 insert into hidrantes.config (clave, valor, actualizado_por)
 values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen_salt('bf', 4))), 'test')
@@ -85,6 +85,19 @@ select hidrantes.fn_marcar_pedido(current_setting('test.pedido2')::bigint, 'erro
 reset role;
 select is((select resultado from hidrantes.pedidos_trabajo where id = current_setting('test.pedido2')::bigint),
   'error: GitHub 422', 'un despacho fallido queda marcado con su motivo');
+set local role service_role;
+select throws_like($$ select hidrantes.fn_marcar_pedido(current_setting('test.pedido2')::bigint + 1000, 'lanzdo') $$,
+  'PAYLOAD_INVALIDO(resultado)%', 'un resultado que no es lanzado ni error: …, rechazado');
+reset role;
+-- Un pedido pendiente de hace más de 24 h (nadie lo despachó, como en staging) no bloquea el siguiente.
+select pg_temp.jefatura();
+select set_config('test.pedido3', hidrantes.fn_pedir_trabajo('regenerar-zona') ->> 'pedido_id', true);
+update hidrantes.pedidos_trabajo set pedido_en = now() - interval '25 hours' where id = current_setting('test.pedido3')::bigint;
+select lives_ok($$ select hidrantes.fn_pedir_trabajo('regenerar-zona') $$,
+  'un pedido sin despachar de hace 25 h no deja el botón en YA_PEDIDO');
+select is((select resultado from hidrantes.pedidos_trabajo where id = current_setting('test.pedido3')::bigint),
+  'error: caducado', 'y el viejo se cierra como caducado');
+select pg_temp.voluntario();
 
 set local role anon;
 select throws_ok($$ select hidrantes.fn_pedir_trabajo('respaldo') $$, '42501', null, 'anon no ejecuta fn_pedir_trabajo');
@@ -154,6 +167,11 @@ select is((hidrantes.fn_salud() ->> 'topes_globales_24h')::int, current_setting(
 select pg_temp.voluntario();
 
 -- errores: 100 de una IP ya hoy; 500 sin IP ya hoy.
+set local role anon;
+select hidrantes.fn_registrar_error(gen_random_uuid(), 'antes del tope', null, '/', 'x');
+reset role;
+select is((select count(*)::int from hidrantes.errores_cliente where mensaje = 'antes del tope' and ip_hash is null), 1,
+  'por la firma anterior, por debajo del tope, el error se anota (sin IP)');
 insert into hidrantes.errores_cliente (mensaje, ip_hash) select 'e', 'ip36-llena' from generate_series(1, 100);
 insert into hidrantes.errores_cliente (mensaje, ip_hash) select 'e', null from generate_series(1, 500);
 set local role service_role;
@@ -198,6 +216,9 @@ insert into hidrantes.suscripciones_push (id, email, suscripcion, temas, fallos,
 insert into hidrantes.notificaciones (suscripcion_id, titulo, cuerpo, intentos, reclamada_en) values
   ('00000000-0000-4000-8000-0000000e3621', 'a', 'x', 3, now() - interval '16 minutes'),
   ('00000000-0000-4000-8000-0000000e3622', 'b', 'x', 3, now() - interval '16 minutes');
+-- /api/push funciona: hoy ha salido algún aviso (sin eso no se borra ninguna suscripción).
+insert into hidrantes.notificaciones (suscripcion_id, titulo, cuerpo, enviada_en) values
+  ('00000000-0000-4000-8000-0000000e3622', 'c', 'x', now() - interval '1 hour');
 select count(*) from hidrantes.fn_reclamar_notificaciones(10);
 select is((select fallos::int from hidrantes.suscripciones_push where id = '00000000-0000-4000-8000-0000000e3622'), 1,
   'un aviso dado por perdido suma un fallo a su suscripción');
