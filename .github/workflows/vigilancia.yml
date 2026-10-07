@@ -136,6 +136,10 @@ jobs:
           REPO: ${{ github.repository }}
           WORKER_CRON: ${{ needs.worker.outputs.cron }}
           WORKER_VERSION: ${{ needs.worker.outputs.version }}
+          # Despliegues de producción que no vienen de deploy-prod.yml (docs/31 RV-130): el token de
+          # Cloudflare de prod-tareas, el mismo de toda la cuenta.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # La misma lista que mantener-activo.yml; scripts/workflows.test.ts comprueba que coinciden.
           WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml
         run: |
@@ -238,6 +242,12 @@ jobs:
           elif [ "$WORKER_VERSION" != "$esperada" ]; then
             problemas+=("el Worker hidrantes-avisos lleva el código de ${WORKER_VERSION:0:7} y develop tiene el de ${esperada:0:7}: vuelve a desplegar staging (docs/20 RV-74)")
           fi
+
+          # 9. Ningún despliegue de producción que no venga de deploy-prod.yml (docs/31 RV-130). Si hay
+          #    alguno, abre su propia issue y avisa a jefatura; con config.revertir_despliegue_ajeno,
+          #    vuelve al último bueno. Lo que no puede mirar, también es un problema.
+          source .github/scripts/despliegues-ajenos.sh
+          mirar_despliegues
 
           # 5. Se anota en Salud del sistema, salga como salga (TR-102). La de staging la anota su trabajo.
           if [ -n "${BD:-}" ]; then

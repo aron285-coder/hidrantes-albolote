@@ -63,6 +63,17 @@ jobs:
           VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL }}
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
 
+      # ENTORNO para las Functions (docs/31 RV-130; la usa RV-146). Antes de desplegar: Pages solo
+      # aplica sus variables a los despliegues nuevos.
+      - name: Variable ENTORNO en Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/entorno-pages.sh
+          poner_entorno hidrantes-albolote produccion
+
       - name: Desplegar a Cloudflare Pages
         run: npx wrangler pages deploy dist --project-name hidrantes-albolote --branch main --commit-hash "${{ github.sha }}"
         env:
