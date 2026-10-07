@@ -340,6 +340,8 @@ async function subirFoto(item: EnCola, cual: CualFoto, c: Credencial, gen: numbe
     const actual = items.find((i) => i.clave_local === item.clave_local);
     if (gen !== generacion || !actual) return { ok: false, codigo: COLA_VACIADA };
     await guardar({ ...actual, [campoReserva(cual)]: reserva }, gen);
+    // Si se cerró sesión mientras se guardaba, no se sube una foto que ya no va a ningún sitio.
+    if (gen !== generacion) return { ok: false, codigo: COLA_VACIADA };
   }
   try {
     const subida = await fetch(reserva.url, {
@@ -536,31 +538,35 @@ export async function reintentarCola(): Promise<void> {
   for (const clave of items.map((i) => i.clave_local)) {
     if (gen !== generacion) return;
     const i = items.find((x) => x.clave_local === clave);
+    if (!i || i.fallo) continue;
+    // La espera que fijó el servidor (el tope de propuestas, RV-154) no se adelanta: volvería a
+    // chocar con el tope en cada reintento. Se respeta hasta su hora.
+    const ya = i.proximo > 0 && !i.en_espera;
     // Lo que solo estaba en memoria vuelve a intentar llegar a IndexedDB (RV-39).
-    if (!i || i.fallo || (i.proximo <= 0 && persistidas.has(clave))) continue;
-    if (i.proximo > 0) publicar(items.map((x) => (x.clave_local === clave ? { ...x, proximo: 0 } : x)));
-    await adelantar(clave, gen);
+    if (!ya && persistidas.has(clave)) continue;
+    if (ya) publicar(items.map((x) => (x.clave_local === clave ? { ...x, proximo: 0 } : x)));
+    await adelantar(clave, gen, ya);
   }
   if (gen !== generacion) return;
   await procesarCola();
 }
 
 /**
- * Pone `proximo` a 0 en IndexedDB leyendo y escribiendo en la misma transacción (docs/31 RV-156): no
- * escribe una copia vieja encima de lo que una pasada acaba de guardar (la ruta de una foto), ni
- * resucita un envío que ya salió o una cola vaciada al cerrar sesión.
+ * Pone `proximo` a 0 (con `ya`) en IndexedDB leyendo y escribiendo en la misma transacción
+ * (docs/31 RV-156): no escribe una copia vieja encima de lo que una pasada acaba de guardar (la ruta
+ * de una foto), ni resucita un envío que ya salió o una cola vaciada al cerrar sesión.
  */
-async function adelantar(clave: string, gen: number): Promise<void> {
+async function adelantar(clave: string, gen: number, ya: boolean): Promise<void> {
   try {
     const escrito = await bd().actualizar(clave, (guardado) => {
       if (gen !== generacion) return null;
       const enMemoria = items.find((x) => x.clave_local === clave);
       if (!enMemoria || enMemoria.fallo) return null;
       // Guardado y al día: solo cambia `proximo`. Si el último guardado falló, manda la memoria.
-      if (guardado && persistidas.has(clave)) return { ...guardado, proximo: 0 };
-      return { ...enMemoria, proximo: 0 };
+      const base = guardado && persistidas.has(clave) ? guardado : enMemoria;
+      return ya ? { ...base, proximo: 0 } : base;
     });
-    if (escrito) persistidas.add(clave);
+    if (escrito && gen === generacion) persistidas.add(clave);
   } catch (e) {
     persistidas.delete(clave);
     if (!errorGuardadoAnotado) {

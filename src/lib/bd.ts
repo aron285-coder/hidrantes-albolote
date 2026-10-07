@@ -134,14 +134,25 @@ export function almacenCola<T extends { clave_local: string }>(): AlmacenCola<T>
     guardar: (item) => escribirUno((s) => s.put(item)),
     async actualizar(clave, f) {
       let escrito: T | null = null;
-      await escribirUno((s) => {
-        const p = s.get(clave);
-        // Dentro de onsuccess la transacción sigue viva: el put va en la misma.
-        p.onsuccess = () => {
-          escrito = f((p.result as T | undefined) ?? null);
-          if (escrito) s.put(escrito);
-        };
-      });
+      let fallo: unknown = null;
+      try {
+        await escribirUno((s) => {
+          const p = s.get(clave);
+          // Dentro de onsuccess la transacción sigue viva: el put va en la misma.
+          p.onsuccess = () => {
+            try {
+              escrito = f((p.result as T | undefined) ?? null);
+              if (escrito) s.put(escrito);
+            } catch (e) {
+              // Que se sepa el error de verdad, no el AbortError de la transacción.
+              fallo = e;
+              s.transaction.abort();
+            }
+          };
+        });
+      } catch (e) {
+        throw fallo ?? e;
+      }
       return escrito;
     },
     quitar: (clave) => escribirUno((s) => s.delete(clave)),

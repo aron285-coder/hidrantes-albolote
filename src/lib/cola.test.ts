@@ -486,6 +486,17 @@ describe('cola: los topes nuevos (docs/31 RV-154)', () => {
     expect(textoEspera(a!)).toBe('Has llegado al máximo de propuestas de hoy. Se enviará mañana.');
   });
 
+  it('un reintento (vuelta de la red, «Reintentar») no adelanta la espera del tope', async () => {
+    rpc.mockResolvedValue(cuota('CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=5000'));
+    await cola.encolar(args('k-000706'), null, null);
+    await cola.procesarCola();
+    const llamadas = rpc.mock.calls.length;
+    const proximo = cola.colaActual()[0]!.proximo;
+    await cola.reintentarCola();
+    expect(rpc.mock.calls.length).toBe(llamadas);
+    expect(cola.colaActual()[0]!.proximo).toBe(proximo);
+  });
+
   it('al enviarse después, el aviso se va', async () => {
     rpc.mockResolvedValueOnce(cuota('CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=10'));
     await cola.encolar(args('k-000704'), null, null);
