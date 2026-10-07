@@ -2,13 +2,24 @@
 // Nunca `supabase db push`: la base de datos es compartida con la app de uniformidad.
 //
 //   npm run migrar -- --local        Supabase local (supabase start); prepara también el rol
-//   npm run migrar                   usa SUPABASE_DB_URL (rol hidrantes_migrador), como en CI
+//   npm run migrar -- --entorno staging   SUPABASE_DB_URL, y comprueba que es del proyecto de staging
+//   npm run migrar                   usa SUPABASE_DB_URL (rol hidrantes_migrador) sin mirar el proyecto
 //   npm run migrar -- --comprobar    solo lista lo pendiente y verifica hashes; no aplica nada
 
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { RAIZ, abortar, argumentos, ejecutarScript, log, psqlOk } from './lib/comun.ts';
+import {
+  RAIZ,
+  abortar,
+  argumentos,
+  comprobarCadena,
+  type Entorno,
+  ejecutarScript,
+  leerEntorno,
+  log,
+  psqlOk,
+} from './lib/comun.ts';
 
 const DIR_MIGRACIONES = path.join(RAIZ, 'supabase', 'migrations');
 const PATRON = /^\d{4}_[a-z0-9_]+\.sql$/;
@@ -123,10 +134,26 @@ export function prepararLocal(): void {
   psqlOk(LOCAL_POSTGRES, readFileSync(path.join(RAIZ, 'supabase', 'sql', 'local-storage.sql'), 'utf8'));
 }
 
+/**
+ * Qué entorno se pide (docs/31 RV-134): `--local` es `--entorno local`; `--entorno` acepta local,
+ * staging y prod (produccion vale por prod). Sin ninguno de los dos, null: se migra lo que diga
+ * SUPABASE_DB_URL sin comprobar el proyecto, como hasta ahora.
+ */
+export function entornoPedido(banderas: Set<string>, valores: Map<string, string>): Entorno | null {
+  const conEntorno = valores.has('entorno') || banderas.has('entorno');
+  const entorno = conEntorno ? leerEntorno(valores.get('entorno')) : null;
+  if (banderas.has('local')) {
+    if (entorno && entorno !== 'local') abortar(`--local y --entorno ${entorno} a la vez: elige uno.`);
+    return 'local';
+  }
+  return entorno;
+}
+
 async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
+  const entorno = entornoPedido(banderas, valores);
   let url: string;
-  if (banderas.has('local')) {
+  if (entorno === 'local') {
     log.paso('Supabase local: preparando el rol hidrantes_migrador');
     prepararLocal();
     url = LOCAL_MIGRADOR;
@@ -136,12 +163,16 @@ async function principal(): Promise<void> {
     if (!usuario.startsWith('hidrantes_migrador')) {
       abortar(`SUPABASE_DB_URL usa el usuario "${usuario}"; debe ser hidrantes_migrador (DEC-052).`);
     }
+    // Con --entorno, la cadena tiene que ser de ese proyecto: migrar staging con la de producción
+    // aplicaría en producción lo que aún no se ha probado.
+    if (entorno) comprobarCadena(entorno, url);
   }
+  const local = entorno === 'local';
 
   log.paso('Migraciones');
   const hasta = valores.get('hasta');
-  if (hasta && !banderas.has('local')) abortar('--hasta solo se admite con --local (CI, RV-13).');
-  const locales = leerMigraciones(dirMigraciones(banderas.has('local')));
+  if (hasta && !local) abortar('--hasta solo se admite con --local (CI, RV-13).');
+  const locales = leerMigraciones(dirMigraciones(local));
   const pendientes = planificar(locales, leerAplicadas(url));
   log.info(`${locales.length} en el repositorio, ${pendientes.length} pendientes`);
   if (banderas.has('comprobar')) {

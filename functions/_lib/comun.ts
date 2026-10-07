@@ -9,7 +9,11 @@ export interface Env {
   SUPABASE_SERVICE_ROLE_KEY: string;
   SAL_IP: string;
   NOMINATIM_USER_AGENT?: string;
-  GITHUB_DISPATCH_TOKEN?: string;
+  /**
+   * `produccion` | `staging`, lo pone deploy-*.yml en cada proyecto de Pages (RV-130). Si falta, o
+   * trae otra cosa, las Functions lo tratan como staging: lo seguro (RV-146).
+   */
+  ENTORNO?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;

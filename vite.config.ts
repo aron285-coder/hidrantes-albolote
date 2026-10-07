@@ -94,6 +94,8 @@ export default defineConfig(({ mode }) => {
           // Sin .pbf ni .pmtiles: las teselas sueltas van por runtimeCaching (docs/20 RV-71).
           // webp: las fotos de referencia del racor, para verlas sin cobertura (docs/24 RV-104).
           globPatterns: ['**/*.{js,css,html,woff2,svg,png,webp}'],
+          // El dibujo fuente de un racor (docs/31 RV-157b) no lo usa la app: se usa su .webp.
+          globIgnores: ['**/node_modules/**/*', 'racores/fuentes/**'],
           // El callejero, aparte y con su revisión: se baja al instalar y funciona sin cobertura (TR-117).
           additionalManifestEntries: [entradaCallejero(path.resolve(import.meta.dirname, 'public', 'callejero.json'))],
           // Rutas de la SPA sin red: el armazón precacheado. Las Functions nunca desde la caché.

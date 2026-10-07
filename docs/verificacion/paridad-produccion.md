@@ -1,8 +1,4 @@
 # Verificación · Paridad de producción con develop (docs/19 bloque P)
-| 25 sep 2026, 06:04 UTC | `387c469` (merge commit de #351) | 0.6.3 (`docs/20`) | ninguna nueva: las 29 con su hash | **todo en verde**: árbol igual que el develop fusionado (`6712a63`), commit servido `387c469`, las 29 migraciones, `/api/push` y `/api/geocodificar` con 401, y las versiones de datos. Además, `comprobar-despliegue` vio una tesela del mapa base (MVT) y el `.pmtiles` entero | 36065099327 |
-| 25 sep 2026, 15:18 UTC | `880b6e7` (merge commit de #390) | 0.6.4 (`docs/21` y `docs/22`) | 2: `0030_suscripciones_por_duenio` y `0031_salud_tareas_en_vivo` | **todo en verde**: árbol igual que el develop fusionado (`dfa1a64`), commit servido `880b6e7`, las 31 migraciones, las Functions y las versiones de datos | 36141770642 |
-| 25 sep 2026, 20:28 UTC | `b7145b4` (merge commit de #403) | 0.6.5 (`docs/23`) | ninguna nueva: las 31 con su hash | **todo en verde**: árbol igual que el develop fusionado (`65c6143`), commit servido `b7145b4`, migraciones, Functions y versiones de datos. El código servido lleva Novedades con su número: `0.6.5 · Las novedades enseñan lo último de cada versión…`, y dos de la `0.6.4` sobre los avisos (RV-95) | 36184349766 |
-| 4 oct 2026, 06:36 UTC | `c378291` (merge commit de #434) | 0.7.0 (`docs/24`) | 4, en orden y cada una en su transacción: `0032_diametro_bocas`, `0033_estado_barro`, `0034_estado_barro_uso` y `0035_foto_del_sitio` | **todo en verde**: árbol igual que el develop fusionado (`7864e87`), commit servido `c378291`, las 35 migraciones, las Functions y las versiones de datos. Después, una purga en ensayo (run 37183337683): 0 fotos en el bucket, nada que borrar, y `fn_fotos_referenciadas_lista` responde con 0035 | 37155680542 |
 
 **Estado: hecho el 24 sep 2026.** Especificación: `docs/19-paridad-avisos-y-revision-3.md` §1 (P-01
 a P-04) y DEC-096. Cada vez que se repita P-02 se añade aquí una entrada al registro (§2).
@@ -21,6 +17,11 @@ a P-04) y DEC-096. Cada vez que se repita P-02 se añade aquí una entrada al re
 | Fecha | Commit | Versión | Migraciones aplicadas | Paridad | Run |
 |---|---|---|---|---|---|
 | 24 sep 2026, 16:35 UTC | `42988df` (#296, fusionado con squash: ver abajo) | 0.6.1 | 20, de 0010 a 0029, todas en el primer intento | árbol, commit servido, migraciones con su hash, `/api/push` (401), `version_mapabase = 20260919` y `version_callejero = 20260923`, bien. `/api/geocodificar` dio 405 al comprobar y 401 minutos después (§3) | 36027754885 |
+| 25 sep 2026, 06:04 UTC | `387c469` (merge commit de #351) | 0.6.3 (`docs/20`) | ninguna nueva: las 29 con su hash | **todo en verde**: árbol igual que el develop fusionado (`6712a63`), commit servido `387c469`, las 29 migraciones, `/api/push` y `/api/geocodificar` con 401, y las versiones de datos. Además, `comprobar-despliegue` vio una tesela del mapa base (MVT) y el `.pmtiles` entero | 36065099327 |
+| 25 sep 2026, 15:18 UTC | `880b6e7` (merge commit de #390) | 0.6.4 (`docs/21` y `docs/22`) | 2: `0030_suscripciones_por_duenio` y `0031_salud_tareas_en_vivo` | **todo en verde**: árbol igual que el develop fusionado (`dfa1a64`), commit servido `880b6e7`, las 31 migraciones, las Functions y las versiones de datos | 36141770642 |
+| 25 sep 2026, 20:28 UTC | `b7145b4` (merge commit de #403) | 0.6.5 (`docs/23`) | ninguna nueva: las 31 con su hash | **todo en verde**: árbol igual que el develop fusionado (`65c6143`), commit servido `b7145b4`, migraciones, Functions y versiones de datos. El código servido lleva Novedades con su número: `0.6.5 · Las novedades enseñan lo último de cada versión…`, y dos de la `0.6.4` sobre los avisos (RV-95) | 36184349766 |
+| 4 oct 2026, 06:36 UTC | `c378291` (merge commit de #434) | 0.7.0 (`docs/24`) | 4, en orden y cada una en su transacción: `0032_diametro_bocas`, `0033_estado_barro`, `0034_estado_barro_uso` y `0035_foto_del_sitio` | **todo en verde**: árbol igual que el develop fusionado (`7864e87`), commit servido `c378291`, las 35 migraciones, las Functions y las versiones de datos. Después, una purga en ensayo (run 37183337683): 0 fotos en el bucket, nada que borrar, y `fn_fotos_referenciadas_lista` responde con 0035 | 37155680542 |
+| 4 oct 2026, 07:02 UTC | `fb310b5` (#438, **fusionado con squash**: ver §3c) | 0.8.0 (los racores Granada y Barcelona) | **ninguna: no se desplegó.** La ejecución esperó la aprobación del *environment* `production` y se canceló a las 11:49 UTC sin aprobar | sin paridad: producción siguió en 0.7.0 (`c378291`), comprobado el 7 oct con `<meta name="commit">` y `<meta name="version">` | 37184600515 (cancelada) |
 
 `comprobar-despliegue` dio la versión 0.6.1 y las cabeceras de TR-100 en producción.
 
@@ -37,6 +38,13 @@ a P-04) y DEC-096. Cada vez que se repita P-02 se añade aquí una entrada al re
 - **Qué pasó:** `42988df` tiene un solo padre. `main` y `develop` no compartían historia desde la Fase 0, y #351 (`develop → main`) daba conflicto en cada archivo. La paridad de aquel despliegue sí pasó el árbol: sin `HEAD^2`, comparó con origin/develop.
 - **Arreglo:** #352 fusionó `main` en `develop` con `-s ours` y con merge commit. El árbol de `42988df` era idéntico al de `4854be9` de develop, así que no se perdió nada. Después, #351 se fusionó con merge commit.
 - **Para la próxima vez:** los PR `develop → main` se fusionan con **merge commit** (DEC-096). Si uno se fusiona con squash, se repite #352.
+
+## 3c. 0.8.0 se fusionó con squash y no llegó a producción (docs/31 RV-135, 7 oct 2026)
+
+- **Qué pasó:** #438 se fusionó con squash, como #296: `fb310b5` tiene un solo padre. `main` dejó de estar en la historia de `develop` (merge-base `7864e87`, 0.7.0). Además, su `deploy-prod` se canceló esperando la aprobación: producción sigue en 0.7.0.
+- **Arreglo:** #485 fusionó `main` en `develop` con `-s ours` y con merge commit. El árbol de `fb310b5` era idéntico al de `49278aa` de `develop`, así que no se perdió nada.
+- **Para que no vuelva a pasar:** `ci-calidad`, en los PR a `main`, falla si `main` tiene cambios fuera de la historia de la rama (`.github/scripts/main-en-la-rama.sh`). No exige que la punta de `main` sea ancestro: con merge commit no lo es, pero su árbol es el del merge-base. Y vigilancia avisa si el último `deploy-prod` no terminó bien, también si se canceló (RV-136).
+- **0.9.0** llevará a producción lo de 0.8.0 y lo de después, con 0036 en adelante (RV-139c).
 
 ## 4. El Worker de los avisos en producción
 

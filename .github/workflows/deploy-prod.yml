@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
   deployments: write
+  # RV-136: la issue «Deploy de producción fallido»; actions: read, para saber qué paso falló.
+  issues: write
+  actions: read
 
 concurrency:
   group: deploy-prod
@@ -38,6 +41,9 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
           VITE_ENTORNO: ${{ vars.VITE_ENTORNO }}
           PAGES_PROYECTO: ${{ vars.PAGES_PROYECTO }}
+          # docs/31 RV-136: las mismas con las que se construye el frontend, antes de migrar nada.
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
 
       - name: Migraciones (hidrantes_migrador, DEC-052)
         run: npm run migrar
@@ -95,3 +101,46 @@ jobs:
         run: npm run paridad -- --url https://hidrantes-albolote.pages.dev
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      # docs/31 RV-136: si algo falla, producción puede haber cambiado a medias (migrada y sin
+      # desplegar, o desplegada sin paridad). Se abre o se reabre la issue, con el paso que falló.
+      # También si se cancela a mitad (a mano o por timeout-minutes): el caso es el mismo.
+      - name: Avisar del fallo
+        if: failure() || cancelled()
+        env:
+          ESTADO: ${{ job.status }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EJECUCION: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          titulo='Deploy de producción fallido'
+          fallidos=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
+            --jq '[.jobs[].steps[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .name] | join(", ")' || true)
+          cuerpo="El despliegue de producción de \`${GITHUB_SHA::7}\` ha terminado con **$ESTADO**, en: **${fallidos:-no lo he podido saber, mira la ejecución}**.
+
+          Producción puede haber quedado a medias: las migraciones van antes que el despliegue, y la paridad después. Mira la ejecución y el procedimiento de docs/15: $EJECUCION"
+          numero=$(gh issue list --label vigilancia --state all --limit 100 --json number,title,state \
+            --jq "[.[] | select(.title == \"$titulo\")] | sort_by(.state != \"OPEN\") | .[0] // empty | \"\(.number) \(.state)\"")
+          if [ -z "$numero" ]; then
+            gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"
+          else
+            if [ "${numero#* }" != OPEN ]; then gh issue reopen "${numero%% *}"; fi
+            gh issue comment "${numero%% *}" --body "$cuerpo"
+          fi
+
+      # Con el despliegue bien, la issue de un fallo anterior se cierra sola.
+      - name: Cerrar el aviso de un fallo anterior
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          titulo='Deploy de producción fallido'
+          abierta=$(gh issue list --label vigilancia --state open --json number,title \
+            --jq "[.[] | select(.title == \"$titulo\")] | .[0].number // empty")
+          if [ -n "$abierta" ]; then
+            gh issue close "$abierta" --comment "El despliegue de producción de \`${GITHUB_SHA::7}\` ha ido bien, con la paridad en verde."
+          fi

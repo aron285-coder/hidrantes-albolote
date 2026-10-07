@@ -131,7 +131,17 @@ export interface ResultadoEnvio {
   error?: string;
   /** Solo con 429: segundos que el servicio pide esperar (Retry-After) antes de volver a enviar. */
   aplazar_s?: number;
+  /**
+   * Sin respuesta del servicio (corte de red, DNS, tiempo agotado): no se sabe si salió. Ni error
+   * del aviso ni fallo de la suscripción: se deja pendiente para la siguiente pasada (RV-144).
+   */
+  transitorio?: true;
+  /** Las claves VAPID del servidor no sirven para firmar: es configuración, no la suscripción. */
+  vapid_invalida?: true;
 }
+
+/** Lo que se espera a un servicio de push antes de darlo por no contestado (RV-144). */
+export const TIEMPO_MAXIMO_MS = 10_000;
 
 /** Espera por defecto si un 429 no trae Retry-After, o trae algo que no se entiende. */
 export const APLAZAR_POR_DEFECTO_S = 60;
@@ -157,32 +167,53 @@ export async function enviar(
   vapid: { publica: string; privada: string; sujeto: string },
   destino: string = s.endpoint,
 ): Promise<ResultadoEnvio> {
+  // Firmar depende solo de las claves VAPID del servidor: si fallan, no es culpa de la suscripción
+  // y no se le puede sumar un fallo (con tres, se borraría la de todo el mundo). /api/push para y
+  // responde NO_CONFIGURADO; lo reclamado sale otra vez a los 15 minutos.
+  let autorizacion: string;
   try {
-    const cuerpo = await cifrar(te.encode(JSON.stringify(aviso)), s.keys.p256dh, s.keys.auth);
-    const r = await fetch(destino, {
+    autorizacion = await cabeceraVapid(s.endpoint, vapid.publica, vapid.privada, vapid.sujeto);
+  } catch {
+    return { ok: false, caducada: false, vapid_invalida: true };
+  }
+  // Cifrar depende de las claves de la suscripción: si no se pueden usar, reintentar no lo arregla.
+  // Es un fallo del aviso, con su motivo.
+  let cuerpo: Awaited<ReturnType<typeof cifrar>>;
+  try {
+    cuerpo = await cifrar(te.encode(JSON.stringify(aviso)), s.keys.p256dh, s.keys.auth);
+  } catch (e) {
+    return { ok: false, caducada: false, error: (e as Error).message.slice(0, 200) };
+  }
+  let r: Response;
+  try {
+    r = await fetch(destino, {
       method: 'POST',
       headers: {
-        Authorization: await cabeceraVapid(s.endpoint, vapid.publica, vapid.privada, vapid.sujeto),
+        Authorization: autorizacion,
         'Content-Encoding': 'aes128gcm',
         'Content-Type': 'application/octet-stream',
         TTL: '86400',
         Urgency: 'normal',
       },
       body: cuerpo,
+      // Un servicio que deja la conexión colgada no puede parar el lote entero (van en serie).
+      signal: AbortSignal.timeout(TIEMPO_MAXIMO_MS),
     });
-    // 404/410: la suscripción ya no existe en el servicio de push. Solo estos dos caducan (RV-84).
-    if (r.status === 404 || r.status === 410) return { ok: false, caducada: true, error: `HTTP ${r.status}` };
-    // 429: pasajero; el servicio dice cuánto esperar.
-    if (r.status === 429) {
-      return {
-        ok: false,
-        caducada: false,
-        error: 'HTTP 429',
-        aplazar_s: segundosDeRetryAfter(r.headers.get('Retry-After')),
-      };
-    }
-    return r.ok ? { ok: true, caducada: false } : { ok: false, caducada: false, error: `HTTP ${r.status}` };
-  } catch (e) {
-    return { ok: false, caducada: false, error: (e as Error).message.slice(0, 200) };
+  } catch {
+    // Sin respuesta (corte de red, DNS, tiempo agotado): no se sabe si salió. No es un fallo del
+    // aviso ni de la suscripción; /api/push lo deja pendiente para reintentarlo (RV-144, RV-08).
+    return { ok: false, caducada: false, transitorio: true };
   }
+  // 404/410: la suscripción ya no existe en el servicio de push. Solo estos dos caducan (RV-84).
+  if (r.status === 404 || r.status === 410) return { ok: false, caducada: true, error: `HTTP ${r.status}` };
+  // 429: pasajero; el servicio dice cuánto esperar.
+  if (r.status === 429) {
+    return {
+      ok: false,
+      caducada: false,
+      error: 'HTTP 429',
+      aplazar_s: segundosDeRetryAfter(r.headers.get('Retry-After')),
+    };
+  }
+  return r.ok ? { ok: true, caducada: false } : { ok: false, caducada: false, error: `HTTP ${r.status}` };
 }

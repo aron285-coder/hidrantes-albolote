@@ -1,12 +1,13 @@
 import { X } from 'lucide-react';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useModal } from '@/lib/foco-modal';
 import { T } from '@/lib/textos';
 
 /**
- * Diálogo centrado del panel: se cierra con Escape o con el velo, el foco entra dentro (TR-35) y no
- * sale con Tab, porque el resto de la página queda inert mientras está abierto (RV-128).
+ * Diálogo centrado del panel: se cierra con Escape o con el velo, el foco entra dentro al abrir (TR-35)
+ * y no sale con Tab, porque el resto de la página queda inert mientras está abierto (RV-128). Al
+ * cerrar, el foco vuelve al elemento que lo tenía al abrir (docs/31 RV-160).
  */
 export function Dialogo({
   titulo,
@@ -20,17 +21,36 @@ export function Dialogo({
   children: ReactNode;
 }) {
   const caja = useRef<HTMLDivElement>(null);
+  // Quien llama pasa una flecha nueva en cada render (y el panel se repinta cada minuto): se lee por
+  // ref, para que Escape cierre con la última sin volver a montar nada (docs/31 RV-160).
+  const cerrar = useRef(alCerrar);
+  useLayoutEffect(() => {
+    cerrar.current = alCerrar;
+  });
+  // Dónde estaba el foco al abrir, para devolverlo al cerrar. Antes que useModal: al poner inert lo de
+  // detrás, el navegador suelta el foco en <body> y ya no se sabría.
+  const previo = useRef<HTMLElement | null>(null);
+  useLayoutEffect(() => {
+    const el = document.activeElement;
+    previo.current = el instanceof HTMLElement && el !== document.body ? el : null;
+  }, []);
   // Modal de verdad: lo de detrás queda inert y Tab no sale del diálogo (RV-128).
   useModal(caja);
 
+  // El foco entra solo al abrir: un repintado del padre no lo saca del campo en que se escribe.
+  // Al cerrar vuelve a donde estaba; useModal ya ha quitado el inert (es un efecto de layout).
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') alCerrar();
+      if (e.key === 'Escape') cerrar.current();
     };
     window.addEventListener('keydown', tecla);
     caja.current?.focus();
-    return () => window.removeEventListener('keydown', tecla);
-  }, [alCerrar]);
+    return () => {
+      window.removeEventListener('keydown', tecla);
+      const el = previo.current;
+      if (el?.isConnected) el.focus();
+    };
+  }, []);
 
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
