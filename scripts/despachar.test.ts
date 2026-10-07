@@ -169,6 +169,18 @@ describe('pendientes: una respuesta rara para todo', () => {
     expect(llamadas.some((l) => l.url.includes('/dispatches'))).toBe(false);
   });
 
+  // Producción va por detrás hasta 0.9.0: sin 0040 no puede haber pedidos, y el despachador no debe
+  // abrir una issue cada 15 minutos. Solo «la función no existe» (PGRST202); otro 404 se para.
+  it('sin la función (404 PGRST202, producción antes de 0040): no hay pedidos', async () => {
+    const { entorno } = simulado({ pendientes: Response.json({ code: 'PGRST202' }, { status: 404 }) });
+    expect(await pendientes(entorno)).toEqual([]);
+  });
+
+  it('otro 404 sí se para', async () => {
+    const { entorno } = simulado({ pendientes: new Response('Not found', { status: 404 }) });
+    await expect(pendientes(entorno)).rejects.toThrow(/respondió 404/);
+  });
+
   it('sin red, se para', async () => {
     const { entorno } = simulado({
       pendientes: () => {
