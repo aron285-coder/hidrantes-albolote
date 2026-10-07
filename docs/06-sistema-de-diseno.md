@@ -134,6 +134,7 @@ Las capas en línea (OSM, PNOA, Catastro) no se recolorean.
 | badge pendientes | fondo `#3A2A1E`, texto `#F0A070` |
 | anillo del marcador seleccionado (`--anillo-seleccion`) | `#E6EAF0` (el `--marino-950` de claro no se ve sobre el mapa oscuro; DEC-062) |
 | anillo de "sin revisar" (`--anillo-sin-revisar`) | `#C9CFD8` (en claro es `--texto-suave`; §4.3, DEC-155) |
+| fila elegida de una lista del panel (`--fila-elegida`) | `#243149` (en claro `#EFF3F8`; texto suave a ≥ 4,5:1 en los dos; docs/31 RV-169) |
 
 Los rellenos de estado y el naranja de acción **no cambian**, y el **borde del marcador sigue
 blanco** (`--borde-marcador`): es lo que lo separa del mapa. La excepción es el amarillo de regular,
@@ -142,6 +143,8 @@ DEC-154). Un borde oscuro sobre el mapa oscuro se
 queda en 1,16:1 y el marcador se pierde; con el blanco, el borde contra el mapa da 13,6:1 y el
 relleno contra el borde, entre 5,0:1 y 9,8:1 (TR-31, medido en `src/lib/accesibilidad.test.ts`;
 DEC-072).
+
+Todo lo que cambia en oscuro va en un token definido en los **dos** bloques de `index.css` (por el sistema y elegido a mano con `data-tema`), nunca con la variante `dark:` de Tailwind, que solo sigue al sistema: con el tema forzado a oscuro sobre un sistema claro no se aplicaría (docs/31 RV-169).
 
 ---
 
