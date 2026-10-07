@@ -60,6 +60,13 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: volcado-prueba
+      - name: Silenciar el registro del Postgres de servicio
+        run: |
+          for _ in $(seq 1 60); do pg_isready -q -h 127.0.0.1 -p 55422 -U postgres && break; sleep 2; done
+          psql "postgresql://supabase_admin:postgres@127.0.0.1:55422/postgres" -XAt -c "select current_user, rolsuper from pg_roles where rolname = current_user" || echo "supabase_admin no entra" # detectar-secretos:permitir (Postgres de servicio efímero)
+          psql "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -XAt -c "alter system set log_statement = 'none'" || echo "postgres no puede alter system" # detectar-secretos:permitir (Postgres de servicio efímero)
+          psql "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -XAt -c "select rolname from pg_roles r join pg_auth_members m on m.roleid = r.oid where m.member = 'postgres'::regrole" || true # detectar-secretos:permitir (Postgres de servicio efímero)
+          psql "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -XAt -c "show log_statement" -c "show log_min_messages" -c "show log_min_error_statement" || true # detectar-secretos:permitir (Postgres de servicio efímero)
       - name: Quién soy en el Postgres de servicio
         run: |
           for _ in $(seq 1 60); do pg_isready -q -h 127.0.0.1 -p 55422 -U postgres && break; sleep 2; done
