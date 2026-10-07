@@ -129,6 +129,18 @@ describe('POST /api/verificar-codigo', () => {
     espia.mockRestore();
   });
 
+  it('sin SAL_IP no se canjea nada: el hash de la IP sin sal se podría deshacer', async () => {
+    const espia = fingir(canje({ token: TOKEN, caduca_en: null, error: null }));
+    const r = await onRequestPost({
+      request: peticion({ codigo: '123456', dispositivo_id: DISPOSITIVO }),
+      env: { ...ENV, SAL_IP: '' } as Env,
+    });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
+    expect(espia).not.toHaveBeenCalled();
+    espia.mockRestore();
+  });
+
   it('rechaza lo que no tiene la forma esperada, sin preguntar a la base de datos', async () => {
     const espia = fingir(canje({ token: null, caduca_en: null, error: null }));
     const cuerpos = [
