@@ -801,6 +801,8 @@ export const T = {
     colDetalle: 'Detalle',
     porPagina: (n: Parametro) => `${n} entradas por página`,
     vacio: 'Todavía no hay entradas con ese filtro.',
+    // docs/31 RV-166: falló la última carga y siguen a la vista las filas de antes.
+    errorConFilas: (motivo: Parametro) => `${motivo} Las filas que ves son las de antes.`,
     propuestaCreada: 'Propuesta',
     propuestaRetiradaAutor: 'Propuesta retirada por su autor',
     aprobacion: 'Aprobación',
