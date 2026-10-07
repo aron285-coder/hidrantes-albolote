@@ -509,7 +509,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Ej.: sale menos fuerza que en mayo` · `Qué has encontrado en el sitio` ·
 `Medida en mm (jefatura la comprobará)` · `Medida en mm, de 20 a 150` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` ·
 `Enviando…` · `Se enviará sola cuando haya conexión.` · `El cambio ya está en el mapa de todos.` ·
-`No se pudo guardar en el móvil. Inténtalo otra vez.`.
+`No se pudo guardar en el móvil. Inténtalo otra vez.` ·
+`Este punto ya no está en el mapa: lo han retirado o borrado` (el formulario de un punto que ya no está, docs/31 RV-152).
 
 **Formularios.** `Tipo de elemento` · `Hidrante` · `Boca de riego` ·
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
@@ -531,6 +532,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 
 **Envío.** `Enviar para revisión` · `Enviar propuesta de retirada` · `Aplicar ahora` ·
 `Guardar · se enviará con cobertura` · `Guardar · se enviará al volver el servidor` ·
+`Guardar en el móvil` (jefatura sin conexión, docs/31 RV-151) ·
 `Enviado para revisión` · `Guardado en el móvil` · `Aplicado` · `Volver al mapa` ·
 `Ver mis propuestas` · `Sin guardar en el móvil` ·
 `No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.` · `Reintentar ahora` ·

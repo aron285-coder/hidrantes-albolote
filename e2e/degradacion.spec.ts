@@ -182,4 +182,25 @@ test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
     await page.getByRole('button', { name: T.mapa.capas }).click();
     await expect(calle).toBeChecked();
   });
+
+  // docs/31 RV-150: el mapa del alta no pasaba baseDebajo. Con Satélite y sin señal, el pin se ponía
+  // sobre un mapa gris, y no cambiaba de capa al perder la conexión.
+  test('con "Satélite" elegido y sin cobertura, el mapa del alta enseña el mapa base', async ({ page, context }) => {
+    await conSesion(page);
+    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+    await page.goto('/ajustes');
+    await expect(page.getByText(/Descargado · /)).toBeVisible({ timeout: 20_000 });
+    await page.evaluate(() => localStorage.setItem('hidrantes.capa', JSON.stringify('satelite')));
+    await page.route('https://www.ign.es/**', (r) => r.abort('internetdisconnected'));
+    await page.goto('/proponer/alta');
+    const selector = page.getByTestId('selector-pin');
+    await expect(selector).toBeVisible();
+    // La capa elegida es la del mapa principal: Satélite (PNOA).
+    await expect(selector.locator('img.leaflet-tile[src*="ign.es"]').first()).toBeAttached();
+
+    await context.setOffline(true);
+    await expect(selector.locator('.leaflet-tile-container canvas, canvas.leaflet-tile').first()).toBeVisible();
+    // Satélite sigue encima, con lo que el navegador tenga: la elección no cambia.
+    await expect(selector.locator('img.leaflet-tile[src*="ign.es"]').first()).toBeAttached();
+  });
 });

@@ -341,6 +341,7 @@ export const T = {
     guardadoDetalle: 'Se enviará sola cuando haya conexión.',
     aplicadoDetalle: 'El cambio ya está en el mapa de todos.',
     errorGuardar: 'No se pudo guardar en el móvil. Inténtalo otra vez.',
+    puntoYaNoEsta: 'Este punto ya no está en el mapa: lo han retirado o borrado',
   },
 
   formulario: {
@@ -413,6 +414,7 @@ export const T = {
     aplicarAhora: 'Aplicar ahora',
     guardarSinCobertura: 'Guardar · se enviará con cobertura',
     guardarSinServidor: 'Guardar · se enviará al volver el servidor',
+    guardarEnMovil: 'Guardar en el móvil',
     enviado: 'Enviado para revisión',
     guardadoEnMovil: 'Guardado en el móvil',
     soloEnMemoria: 'Sin guardar en el móvil',

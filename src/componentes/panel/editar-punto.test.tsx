@@ -10,7 +10,13 @@ vi.mock('leaflet', () => ({ default: {} }));
 vi.mock('leaflet/dist/leaflet.css', () => ({}));
 vi.mock('../mapa/capas-leaflet', () => ({ capasDe: () => [] }));
 vi.mock('../mapa/iconos-leaflet', () => ({ ICONO_PIN: null, iconoPunto: () => null }));
-vi.mock('@/hooks/estado', () => ({ useModo: () => 'claro', usePosicion: () => ({ tipo: 'inactiva' }) }));
+vi.mock('@/hooks/estado', () => ({
+  useModo: () => 'claro',
+  usePosicion: () => ({ tipo: 'inactiva' }),
+  // SelectorPin pinta el mapa base debajo sin cobertura (docs/31 RV-150).
+  useConexion: () => 'bien',
+  useMapabase: () => ({ descargado: null }),
+}));
 vi.mock('./usar-panel', () => ({ usePanel: () => ({ avisar: () => undefined }) }));
 
 const { CamposEditar, ResumenCambios } = await import('./EditarPunto');
