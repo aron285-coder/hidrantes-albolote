@@ -19,9 +19,8 @@ select plan(11);
 --    (FR-150). No las protege la sesión sino el token del dispositivo (05_rpc_voluntario y
 --    13_codigo_acceso prueban el token). fn_registrar_error no pide token: es la telemetría de
 --    errores, abierta y con tope diario (05 §6.1).
---  · fn_novedades: OBSOLETA desde 0.5.0 (05, DEC-087), sin uso. SECURITY DEFINER sin
---    fn_exigir_admin: da config.novedades, lo mismo que sale del build. Avisado en #484 para
---    quitarle el permiso en una migración; cuando llegue, sale de aquí y de la lista.
+--  · fn_novedades (obsoleta, sin fn_exigir_admin) y fn_reportar_incidencia ya no se conceden desde
+--    0040 (RV-149, RV-148); fn_cerrar_sesion (0040, RV-158) es de voluntario, con token.
 create temp table exentas (firma text primary key, motivo text not null);
 insert into exentas values
   ('hidrantes.fn_es_admin()', 'ayudante de RLS'),
@@ -36,11 +35,10 @@ insert into exentas values
    'voluntario, con token'),
   ('hidrantes.fn_mis_propuestas(text)', 'voluntario, con token'),
   ('hidrantes.fn_retirar_propuesta(text,uuid)', 'voluntario, con token'),
-  ('hidrantes.fn_reportar_incidencia(text,text,text,text)', 'voluntario, con token'),
+  ('hidrantes.fn_cerrar_sesion(text)', 'voluntario, con token (0040, RV-158)'),
   ('hidrantes.fn_guardar_suscripcion_push(text,jsonb,text[])', 'voluntario, con token'),
   ('hidrantes.fn_borrar_suscripcion_push(text)', 'voluntario, con token'),
-  ('hidrantes.fn_registrar_error(uuid,text,text,text,text)', 'telemetría de errores, con tope diario'),
-  ('hidrantes.fn_novedades()', 'obsoleta, solo novedades públicas (#484)');
+  ('hidrantes.fn_registrar_error(uuid,text,text,text,text)', 'telemetría de errores, con tope diario');
 
 -- Las de jefatura: cada una empieza por fn_exigir_admin.
 create temp table jefatura (nombre text primary key);
@@ -53,7 +51,9 @@ insert into jefatura values
   ('fn_salud'), ('fn_exportar_inventario'), ('fn_guardar_suscripcion_push_admin'),
   ('fn_guardar_direccion_sugerida'), ('fn_registrar_workflow'), ('fn_reservar_subida_admin'),
   -- 0009
-  ('fn_renombrar_nucleo'), ('fn_anadir_nucleo');
+  ('fn_renombrar_nucleo'), ('fn_anadir_nucleo'),
+  -- 0040 (docs/31 RV-146, RV-167)
+  ('fn_pedir_trabajo'), ('fn_borrar_suscripcion_push_admin');
 
 -- ---------- la lista exacta ----------
 
