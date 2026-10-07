@@ -265,6 +265,35 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     });
   }
   // docs/18 RV-41, DEC-090: el tipo no se cambia; se retira el punto y se da de alta el correcto.
+  // docs/31 RV-157: una notificación tocada con el formulario a medias no se lo lleva sin preguntar.
+  test('un aviso con el formulario a medias pregunta antes de salir', async ({ page }) => {
+    await servidor(page);
+    const hid = PUNTOS[0];
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.sigueIgual}`) }).click();
+    await expect(page).toHaveURL(/\/proponer\//);
+    // Lo que manda public/sw-push.js en vez de navegar.
+    await page.evaluate(() =>
+      navigator.serviceWorker.dispatchEvent(
+        new MessageEvent('message', { data: { tipo: 'aviso_push', url: '/mis-propuestas' } }),
+      ),
+    );
+    await expect(page.getByText(T.avisoFormulario.avisoNuevo)).toBeVisible();
+    await page.getByRole('button', { name: T.avisoFormulario.ver, exact: true }).click();
+    const hoja = page.getByRole('dialog', { name: T.avisoFormulario.salir });
+    await expect(hoja.getByText(T.avisoFormulario.sePierde)).toBeVisible();
+    await hoja.getByRole('button', { name: T.avisoFormulario.seguir }).click();
+    await expect(page).toHaveURL(/\/proponer\//);
+    await page.getByRole('button', { name: T.avisoFormulario.ver, exact: true }).click();
+    await page
+      .getByRole('dialog', { name: T.avisoFormulario.salir })
+      .getByRole('button', { name: T.avisoFormulario.botonSalir })
+      .click();
+    await expect(page).toHaveURL(/\/mis-propuestas$/);
+    await expect(page.getByText(T.avisoFormulario.avisoNuevo)).toHaveCount(0);
+  });
+
   test('corregir datos no ofrece cambiar el tipo y enlaza a retirar', async ({ page }) => {
     await servidor(page);
     const hid = PUNTOS[0];

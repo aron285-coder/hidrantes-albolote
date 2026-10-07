@@ -583,6 +583,11 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 `Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.` ·
 `El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, díselo a jefatura.`
 
+**Aviso o versión nueva con un formulario a medias** (docs/31 RV-157). Al tocar una notificación con
+un formulario abierto, la app no sale de él: enseña `Ha llegado un aviso.` con `Ver` y `Cerrar`; al
+tocar «Ver», o «recargar» por una versión nueva, pregunta: `¿Salir del formulario?` / `¿Recargar ahora?` ·
+`Lo que llevas del formulario, fotos incluidas, se perderá.` · `Salir` · `Recargar` · `Seguir con el formulario`.
+
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·
 `Ir al mapa` · `Abrir el panel de jefatura` (nombre accesible de la etiqueta *Jefatura* de la barra, RV-113).

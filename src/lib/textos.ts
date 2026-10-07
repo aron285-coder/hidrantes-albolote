@@ -545,6 +545,19 @@ export const T = {
       'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, díselo a jefatura.',
   },
 
+  // docs/31 RV-157: una notificación o una versión nueva con un formulario a medias.
+  avisoFormulario: {
+    avisoNuevo: 'Ha llegado un aviso.',
+    ver: 'Ver',
+    cerrar: 'Cerrar',
+    salir: '¿Salir del formulario?',
+    recargar: '¿Recargar ahora?',
+    sePierde: 'Lo que llevas del formulario, fotos incluidas, se perderá.',
+    botonSalir: 'Salir',
+    botonRecargar: 'Recargar',
+    seguir: 'Seguir con el formulario',
+  },
+
   fallo: {
     titulo: 'Algo ha fallado en esta pantalla',
     detalle: 'Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.',
