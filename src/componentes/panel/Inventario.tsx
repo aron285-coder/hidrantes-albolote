@@ -395,7 +395,14 @@ export default function Inventario() {
       {nombreCaudal(p.caudal)}
     </span>
   );
-  const direccionDe = (p: Punto) => <CeldaDireccion key={p.id} punto={p} alGuardar={guardarDireccion} />;
+  // La fila que está abierta en Editar enseña la dirección como texto: se cambia en Editar. Si se
+  // pudiera guardar también aquí, Editar lo tomaría por un cambio de otro administrador (RV-165).
+  const direccionDe = (p: Punto) =>
+    editando?.id === p.id ? (
+      <span className="block min-h-8 min-w-[27ch] px-1 py-1">{p.direccion ?? T.panelEditar.vacio}</span>
+    ) : (
+      <CeldaDireccion key={p.id} punto={p} alGuardar={guardarDireccion} />
+    );
   const revisionDe = (p: Punto) => (
     <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-texto font-semibold')}>
       {hace(p.fecha_ultima_revision)}
@@ -635,6 +642,7 @@ export default function Inventario() {
           <EditarPunto
             key={editando.id}
             punto={editando}
+            actual={puntos.find((p) => p.id === editando.id)}
             alCerrar={cerrarEditar}
             alEstado={setEstadoEditar}
             enPausa={!!dialogo || !!pasarA}

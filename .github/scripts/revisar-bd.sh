@@ -24,9 +24,12 @@ revisar_bd() {
     problemas+=("${pre}no se puede consultar la base de datos")
     return
   fi
-  pendientes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c \
-    "select count(*) from hidrantes.notificaciones where enviada_en is null and error is null and creada_en < now() - interval '30 minutes';" 2>/dev/null || echo 0)
-  if [ "${pendientes:-0}" -gt 0 ]; then
+  # Una consulta que falla es un problema, no un cero (docs/31 RV-138): antes un fallo de psql se
+  # cambiaba por 0, y la cola de avisos atascada se veía como vacía.
+  if ! pendientes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c \
+    "select count(*) from hidrantes.notificaciones where enviada_en is null and error is null and creada_en < now() - interval '30 minutes';" 2>/dev/null); then
+    problemas+=("${pre}no se pueden contar los avisos push sin salir")
+  elif [ "${pendientes:-0}" -gt 0 ]; then
     problemas+=("${pre}$pendientes avisos push llevan más de 30 minutos sin salir: mira el Worker hidrantes-avisos (docs/19 RV-52)")
   fi
   # Tareas de pg_cron (TR-54, RV-22): cuándo corrió cada una y si falló. Se guarda para
@@ -55,14 +58,18 @@ revisar_bd() {
   fi
   [ "$entorno" = produccion ] || return 0
   # La base de datos de 500 MB la comparte uniformidad: aviso al 80 % (TR-53, RV-22).
-  tam=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c "select pg_database_size(current_database());" 2>/dev/null || echo 0)
-  if [ "${tam:-0}" -gt $((400 * 1024 * 1024)) ]; then
+  if ! tam=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c "select pg_database_size(current_database());" 2>/dev/null); then
+    problemas+=("no se puede medir el tamaño de la base de datos")
+  elif [ "${tam:-0}" -gt $((400 * 1024 * 1024)) ]; then
     problemas+=("la base de datos ocupa $((tam / 1024 / 1024)) MB de 500 (más del 80 %)")
   fi
   # Intentos del código de acceso (RV-14, TR-41): muchos fallos o un tope de todo el grupo
   # alcanzado son la huella de un ataque, y los voluntarios con móvil nuevo no podrían entrar.
-  intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$bd" -c \
-    "select count(*) filter (where not exito and not bloqueado), count(*) filter (where bloqueado and tope in ('global', 'altas_global')) from hidrantes.intentos_codigo where momento > now() - interval '24 hours';" 2>/dev/null || echo '0 0')
+  if ! intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$bd" -c \
+    "select count(*) filter (where not exito and not bloqueado), count(*) filter (where bloqueado and tope in ('global', 'altas_global')) from hidrantes.intentos_codigo where momento > now() - interval '24 hours';" 2>/dev/null); then
+    problemas+=("no se pueden leer los intentos del código de acceso")
+    return 0
+  fi
   read -r fallidos globales <<< "$intentos"
   if [ "${fallidos:-0}" -gt 300 ] || [ "${globales:-0}" -gt 0 ]; then
     problemas+=("posible ataque al código de acceso ($fallidos fallos y $globales bloqueos de todo el grupo en 24 h): cambia el código (15 §5.4)")

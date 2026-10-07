@@ -266,6 +266,13 @@ const VISTAS: Vista[] = [
     },
   },
   {
+    // docs/31 RV-152: el formulario de un punto que ya no está lo dice, sin mandar al mapa.
+    nombre: 'punto-ya-no-esta',
+    ruta: '/proponer/estado?p=no-existe',
+    preparar: voluntario,
+    lista: (p) => expect(p.getByText(T.operaciones.puntoYaNoEsta)).toBeVisible(),
+  },
+  {
     // docs/24 RV-102: la leyenda con la fila de Barro.
     nombre: 'leyenda',
     ruta: '/',

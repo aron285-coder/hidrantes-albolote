@@ -1,8 +1,7 @@
 # ¿Tiene producción lo que la versión actual necesita? (docs/19 P-01, DEC-096). Solo lectura.
-# La parte que en local no se puede hacer: la base de datos de producción, con el secreto del
-# repositorio de los trabajos automáticos (DEC-071), y el token de Cloudflare. El token es el mismo
-# en los dos environments (arranque.ts lo pone en ambos); se lee del de staging, que no pide
-# aprobación. Lo de GitHub y Pages se comprueba en local: GITHUB_TOKEN no puede listar secretos.
+# La parte que en local no se puede hacer: la base de datos de producción y el token de Cloudflare,
+# los dos del environment prod-tareas, el de las tareas de producción (sin revisores, solo develop;
+# docs/31 RV-131, DEC-172). Lo de GitHub y Pages se comprueba en local: GITHUB_TOKEN no puede listar secretos.
 name: Comprobar producción
 
 on:
@@ -14,7 +13,7 @@ permissions:
 jobs:
   comprobar:
     runs-on: ubuntu-24.04
-    environment: staging
+    environment: prod-tareas
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

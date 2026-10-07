@@ -341,6 +341,7 @@ export const T = {
     guardadoDetalle: 'Se enviará sola cuando haya conexión.',
     aplicadoDetalle: 'El cambio ya está en el mapa de todos.',
     errorGuardar: 'No se pudo guardar en el móvil. Inténtalo otra vez.',
+    puntoYaNoEsta: 'Este punto ya no está en el mapa: lo han retirado o borrado',
   },
 
   formulario: {
@@ -413,6 +414,7 @@ export const T = {
     aplicarAhora: 'Aplicar ahora',
     guardarSinCobertura: 'Guardar · se enviará con cobertura',
     guardarSinServidor: 'Guardar · se enviará al volver el servidor',
+    guardarEnMovil: 'Guardar en el móvil',
     enviado: 'Enviado para revisión',
     guardadoEnMovil: 'Guardado en el móvil',
     soloEnMemoria: 'Sin guardar en el móvil',
@@ -454,6 +456,10 @@ export const T = {
     yaRevisada: 'Jefatura ya la ha revisado',
     errorRetirar: 'No se ha podido retirar. Inténtalo de nuevo.',
     listaGuardada: 'Sin conexión: esta es la última lista guardada.',
+    // docs/31 RV-154: el tope de propuestas al día (RV-141).
+    cuotaPropuestas: (maximo: Parametro) =>
+      `Has llegado al máximo de propuestas de hoy (${maximo}). Se enviará mañana.`,
+    cuotaPropuestasSinNumero: 'Has llegado al máximo de propuestas de hoy. Se enviará mañana.',
   },
 
   ajustes: {
@@ -784,6 +790,9 @@ export const T = {
     descartar: 'Descartar',
     seguirEditando: 'Seguir editando',
     guardando: 'Guardando…',
+    // docs/31 RV-165: el punto cambió por fuera mientras Editar tenía cambios sin guardar.
+    otroAdministrador: 'Otro administrador ha cambiado este punto.',
+    verLoNuevo: 'Ver lo nuevo',
   },
 
   panelRegistro: {

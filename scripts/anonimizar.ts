@@ -5,7 +5,7 @@
 //       lista los dispositivos cuyo autor coincide: dispositivo, nombre, propuestas y última actividad
 //   npm run anonimizar -- --entorno staging --admin <correo> --dispositivo <uuid>
 //       enseña cuántas filas cambia, pide que se escriba ANONIMIZAR y anonimiza
-//   (--entorno produccion igual; --entorno local contra `supabase start`)
+//   (--entorno prod o produccion igual; --entorno local contra `supabase start`)
 //
 // Sin --dispositivo no se cambia nada. --buscar abre una transacción que siempre se deshace.
 //
@@ -24,15 +24,27 @@
 // Privacidad: los nombres solo salen por la terminal de quien lo ejecuta. Nada se escribe en
 // archivos, y en CI el script se niega a arrancar.
 
-import { abortar, argumentos, ejecutarScript, errorSeguro, log, preguntar, psql } from './lib/comun.ts';
+import {
+  abortar,
+  argumentos,
+  ENTORNOS,
+  type Entorno,
+  ejecutarScript,
+  errorSeguro,
+  leerEntorno,
+  log,
+  motivoCadenaAjena,
+  preguntar,
+  psql,
+  REFS,
+} from './lib/comun.ts';
 import { LOCAL_MIGRADOR } from './migrar.ts';
-import { REFS, refDeUrl } from './restaurar.ts';
 
-export const ENTORNOS = ['local', 'staging', 'produccion'] as const;
-export type Entorno = (typeof ENTORNOS)[number];
+// local, staging y prod, con produccion como alias: la función compartida (docs/31 RV-134).
+export { ENTORNOS, type Entorno };
 
 /** Ref de Supabase de cada entorno remoto (docs/entornos.md). */
-export const REF_DE: Record<Exclude<Entorno, 'local'>, string> = { staging: REFS.staging, produccion: REFS.prod };
+export const REF_DE = REFS;
 
 export const CONFIRMACION = 'ANONIMIZAR';
 /** fn_actividad_voluntarios mira hacia atrás tantos meses: con 100 años, todo el historial. */
@@ -58,12 +70,7 @@ export function analizarArgumentos(banderas: Set<string>, valores: Map<string, s
   }
   for (const clave of banderas) abortar(`--${clave} necesita un valor.`);
 
-  const crudo = valores.get('entorno') ?? abortar('Indica --entorno staging, produccion o local.');
-  // `prod` es como lo llama npm run restaurar: se acepta igual.
-  const entorno = crudo === 'prod' ? 'produccion' : crudo;
-  if (!(ENTORNOS as readonly string[]).includes(entorno)) {
-    abortar(`Entorno desconocido: ${entorno} (staging, produccion o local).`);
-  }
+  const entorno = leerEntorno(valores.get('entorno'));
   const admin = (valores.get('admin') ?? abortar('Indica --admin con el correo de un administrador activo.'))
     .trim()
     .toLowerCase();
@@ -75,12 +82,12 @@ export function analizarArgumentos(banderas: Set<string>, valores: Map<string, s
   if (dispositivo !== undefined) {
     const id = dispositivo.trim().toLowerCase();
     if (!UUID.test(id)) abortar('--dispositivo tiene que ser el identificador (uuid) que da --buscar.');
-    return { modo: 'anonimizar', entorno: entorno as Entorno, admin, dispositivo: id };
+    return { modo: 'anonimizar', entorno, admin, dispositivo: id };
   }
   if (buscar !== undefined) {
     const texto = buscar.trim();
     if (!TEXTO.test(texto)) abortar('--buscar: de 2 a 60 letras, números, espacios, punto, guion o apóstrofo.');
-    return { modo: 'buscar', entorno: entorno as Entorno, admin, texto };
+    return { modo: 'buscar', entorno, admin, texto };
   }
   abortar(
     'Indica --buscar "texto" para localizar el dispositivo o --dispositivo <id> para anonimizar. No se ha cambiado nada.',
@@ -104,10 +111,8 @@ export function comprobarDestino(entorno: Entorno, url: string, ci: string | und
   }
   if (!usuario.startsWith('hidrantes_migrador'))
     p.push(`La cadena usa el usuario "${usuario}"; debe ser hidrantes_migrador (DEC-052).`);
-  const ref = refDeUrl(url);
-  if (ref !== REF_DE[entorno]) {
-    p.push(`Esa cadena apunta al proyecto ${ref ?? 'desconocido'}, y --entorno ${entorno} es ${REF_DE[entorno]}.`);
-  }
+  const ajena = motivoCadenaAjena(entorno, url);
+  if (ajena) p.push(ajena);
   return p;
 }
 

@@ -294,7 +294,7 @@ export function CamposEditar({
   );
 }
 
-type Pregunta = { para: 'cerrar' } | { para: 'salir'; destino: string };
+type Pregunta = { para: 'cerrar' } | { para: 'salir'; destino: string } | { para: 'nuevo' };
 
 /**
  * Editar un punto: la banda del estado guardado, el mapa, los campos y el pie fijo con el recuento y
@@ -304,18 +304,26 @@ type Pregunta = { para: 'cerrar' } | { para: 'salir'; destino: string };
  * - `enPausa`: hay otro diálogo encima (Retirar, Borrar, Historial, la pregunta de cambiar de punto).
  *   Esc, el velo y "atrás" son de ese diálogo, no de Editar.
  * - `alCerrar(id)`: el Inventario solo cierra si sigue abierto ese mismo punto.
+ * - `actual`: ese punto tal como está ahora en el inventario. Si cambia por fuera (otro
+ *   administrador; se nota por `actualizado_en`), sin cambios sin guardar Editar se pone al día; con
+ *   cambios, avisa y "Ver lo nuevo" los descarta tras preguntar (docs/31 RV-165). Hasta entonces,
+ *   "antes" y la comparación siguen siendo con el punto que se abrió.
  */
 export default function EditarPunto({
-  punto,
+  punto: abierto,
+  actual,
   alCerrar,
   alEstado,
   enPausa = false,
 }: {
   punto: Punto;
+  actual?: Punto;
   alCerrar: (id: string) => void;
   alEstado?: (e: EstadoEditar) => void;
   enPausa?: boolean;
 }) {
+  // El punto con el que se compara: el que se abrió, o lo nuevo cuando se carga.
+  const [punto, setPunto] = useState(abierto);
   const { avisar } = usePanel();
   const navegar = useNavigate();
   const posicion = usePosicion();
@@ -333,6 +341,13 @@ export default function EditarPunto({
   const [v, setV] = useState<Valores>(() => valoresDe(punto));
   const [ocupado, setOcupado] = useState(false);
   const [pregunta, setPregunta] = useState<Pregunta | null>(null);
+  // Dónde estaba el foco al preguntar: si se sigue en Editar, vuelve ahí (o, si ya no está, al primer
+  // control), en vez de quedarse en <body> detrás del panel (RV-128, docs/31 RV-165).
+  const focoAntes = useRef<HTMLElement | null>(null);
+  const preguntar = useCallback((p: Pregunta) => {
+    focoAntes.current = document.activeElement as HTMLElement | null;
+    setPregunta(p);
+  }, []);
 
   const formulario = formularioDe(v);
   const cambios = cambiosDe(punto, formulario);
@@ -340,6 +355,19 @@ export default function EditarPunto({
   const n = campos.length;
   const falta = faltaEnEdicion(punto, formulario);
   const cambiar = useCallback((c: Partial<Valores>) => setV((x) => ({ ...x, ...c })), []);
+
+  // Cambiado por fuera: sin nada propio (ni guardando ni preguntando), se carga lo nuevo al momento,
+  // durante el render, como recomienda React para un estado que sigue a una prop.
+  const nuevo = actual && actual.actualizado_en !== punto.actualizado_en ? actual : null;
+  if (nuevo && n === 0 && !ocupado && !pregunta) {
+    setPunto(nuevo);
+    setV(valoresDe(nuevo));
+  }
+  const cargarNuevo = () => {
+    if (!nuevo) return;
+    setPunto(nuevo);
+    setV(valoresDe(nuevo));
+  };
 
   useEffect(() => alEstado?.({ pendientes: n, ocupado }), [n, ocupado, alEstado]);
 
@@ -369,16 +397,28 @@ export default function EditarPunto({
   const intentarCerrar = useCallback(() => {
     const e = estado.current;
     if (e.ocupado || e.enPausa || e.pregunta) return;
-    if (e.n > 0) setPregunta({ para: 'cerrar' });
+    if (e.n > 0) preguntar({ para: 'cerrar' });
     else cerrar();
-  }, [cerrar]);
+  }, [cerrar, preguntar]);
 
   // El foco entra en el primer control; al cerrar lo devuelve el Inventario al "Editar" de la fila.
-  useEffect(() => {
+  const alPrimerControl = useCallback(() => {
     cuerpo.current?.querySelector<HTMLElement>('button:not(:disabled), input, select, textarea')?.focus({
       preventScroll: true,
     });
   }, []);
+  useEffect(alPrimerControl, [alPrimerControl]);
+
+  // Cerrada la pregunta sin cerrar Editar ("Seguir editando", o "Ver lo nuevo" → "Descartar"). Va en
+  // un efecto: hasta que la pregunta se desmonta, Editar está inert y no aceptaría el foco.
+  useEffect(() => {
+    if (pregunta || !focoAntes.current) return;
+    const antes = focoAntes.current;
+    focoAntes.current = null;
+    if (!estado.current.montado) return;
+    if (antes.isConnected && dialogo.current?.contains(antes)) antes.focus({ preventScroll: true });
+    else alPrimerControl();
+  }, [pregunta, alPrimerControl]);
 
   // Esc cierra (con la pregunta si hay cambios), salvo con otro diálogo encima.
   useEffect(() => {
@@ -404,14 +444,14 @@ export default function EditarPunto({
       const e = estado.current;
       if (e.ocupado || e.enPausa || e.pregunta || e.n > 0) {
         window.history.pushState({ ...(window.history.state as object | null), [MARCA]: marca }, '');
-        if (!e.ocupado && !e.enPausa && !e.pregunta) setPregunta({ para: 'cerrar' });
+        if (!e.ocupado && !e.enPausa && !e.pregunta) preguntar({ para: 'cerrar' });
         return;
       }
       cerrarRef.current(punto.id);
     };
     window.addEventListener('popstate', atras);
     return () => window.removeEventListener('popstate', atras);
-  }, [marca, punto.id]);
+  }, [marca, punto.id, preguntar]);
 
   /** Salir del Inventario por un enlace del panel: la entrada de Editar se reemplaza por el destino. */
   const salirA = useCallback(
@@ -439,7 +479,7 @@ export default function EditarPunto({
       const e = estado.current;
       const destino = url.pathname + url.search + url.hash;
       if (e.ocupado || e.pregunta) return;
-      if (e.n > 0) setPregunta({ para: 'salir', destino });
+      if (e.n > 0) preguntar({ para: 'salir', destino });
       else salirA(destino);
     };
     const recargar = (ev: BeforeUnloadEvent) => {
@@ -453,7 +493,7 @@ export default function EditarPunto({
       document.removeEventListener('click', enlace, true);
       window.removeEventListener('beforeunload', recargar);
     };
-  }, [salirA]);
+  }, [salirA, preguntar]);
 
   async function guardar() {
     setOcupado(true);
@@ -512,6 +552,20 @@ export default function EditarPunto({
             </button>
           </div>
 
+          {/* Cambiado por fuera con cambios propios sin guardar (RV-165). Mientras guarda no sale:
+              "Ver lo nuevo" no podría hacer nada. */}
+          {nuevo && !ocupado && (
+            <div
+              role="status"
+              className="bg-oro-100 border-oro-600 text-ambar-700 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm"
+            >
+              <span className="min-w-0 flex-1">{T.panelEditar.otroAdministrador}</span>
+              <Boton variante="secundario" onClick={() => preguntar({ para: 'nuevo' })}>
+                {T.panelEditar.verLoNuevo}
+              </Boton>
+            </div>
+          )}
+
           <div ref={cuerpo} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-2">
             <CamposEditar
               punto={punto}
@@ -550,6 +604,7 @@ export default function EditarPunto({
           n={n}
           alDescartar={() => {
             setPregunta(null);
+            if (pregunta.para === 'nuevo') return cargarNuevo();
             estado.current.n = 0;
             if (pregunta.para === 'salir') salirA(pregunta.destino);
             else cerrar();

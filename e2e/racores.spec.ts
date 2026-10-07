@@ -1,8 +1,8 @@
 // Fotos de referencia del racor (FR-20, docs/24 RV-104).
 // 1. scripts/preparar-racores.ts con una imagen de prueba generada aquí: 160 × 160 y ≤ 25 kB. Va en
 //    Playwright y no en vitest porque necesita el navegador, y el job de vitest del CI no lo tiene.
-// 2. Sin cobertura tras la primera carga, la foto del racor se sigue viendo (precache del Service
-//    Worker). Solo cuando el desarrollador ya ha puesto las fotos en public/racores (docs/24 §5).
+// 2. Sin cobertura tras la primera carga, el dibujo de los tres racores se sigue viendo (precache del
+//    Service Worker). Los dibujos son la referencia definitiva (DEC-152, docs/31 RV-157b, DEC-178).
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -163,12 +163,48 @@ test('con las fotos, se ven encima del nombre y tocar la foto elige el racor', a
   await expect(barcelona).toHaveAttribute('aria-checked', 'true');
 });
 
-const HAY_FOTOS = ['granada', 'barcelona'].every((r) =>
-  existsSync(path.resolve(import.meta.dirname, `../public/racores/${r}.webp`)),
-);
+// docs/31 RV-157b, DEC-178: los tres dibujos son la referencia definitiva y están en el repositorio.
+const PUBLICO = path.resolve(import.meta.dirname, '../public/racores');
+const CON_DIBUJO = ['granada', 'barcelona', 'directo'] as const;
 
-test('sin cobertura, la foto del racor se sigue viendo (precache)', async ({ page, context }) => {
-  test.skip(!HAY_FOTOS, 'las fotos de los racores aún no están en public/racores (las pone el desarrollador)');
+test('los tres dibujos están: 160 × 160, ≤ 25 kB, y el de Directo sale de su fuente', async ({
+  page,
+  isMobile,
+}, info) => {
+  test.skip(!!isMobile, 'basta con una pasada');
+  await page.setContent('<html><body></body></html>');
+  for (const r of CON_DIBUJO) {
+    const bytes = readFileSync(path.join(PUBLICO, `${r}.webp`));
+    expect(bytes.length, r).toBeLessThanOrEqual(MAXIMO_BYTES);
+    const medida = await page.evaluate(async (b64) => {
+      const img = await createImageBitmap(await (await fetch(`data:image/webp;base64,${b64}`)).blob());
+      return [img.width, img.height];
+    }, bytes.toString('base64'));
+    expect(medida, r).toEqual([LADO, LADO]);
+  }
+  // La fuente pasa por el script (el SVG necesita <img>, no createImageBitmap) y da la misma imagen.
+  const [escrita] = await prepararRacores(path.join(PUBLICO, 'fuentes'), info.outputPath('salida'), page, ['directo']);
+  const pixeles = async (b: Buffer) =>
+    page.evaluate(async (b64) => {
+      const img = await createImageBitmap(await (await fetch(`data:image/webp;base64,${b64}`)).blob());
+      const c = document.createElement('canvas');
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      return [...ctx.getImageData(0, 0, img.width, img.height).data];
+    }, b.toString('base64'));
+  const [nueva, guardada] = [
+    await pixeles(readFileSync(escrita)),
+    await pixeles(readFileSync(path.join(PUBLICO, 'directo.webp'))),
+  ];
+  const diferencia = nueva.reduce((s, v, i) => s + Math.abs(v - guardada[i]), 0) / nueva.length;
+  expect(diferencia, 'directo.webp no coincide con fuentes/directo.svg: vuelve a pasarlo por el script').toBeLessThan(
+    4,
+  );
+});
+
+test('sin cobertura, el dibujo de los tres racores se sigue viendo (precache)', async ({ page, context }) => {
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
   await page.goto('/');
@@ -179,8 +215,16 @@ test('sin cobertura, la foto del racor se sigue viendo (precache)', async ({ pag
   await context.setOffline(true);
   await page.goto('/proponer/alta');
   await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
-  const granada = page.getByRole('radio', { name: T.formulario.granada });
-  const img = granada.locator('img');
-  await expect(img).toBeVisible();
-  expect(await img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth)).toBe(LADO);
+  for (const nombre of [T.formulario.granada, T.formulario.barcelona, T.formulario.directo]) {
+    const img = page.getByRole('radio', { name: nombre }).locator('img');
+    await expect(img, nombre).toBeVisible();
+    expect(await img.evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth), nombre).toBe(LADO);
+  }
+  // La fuente del dibujo no entra en el precache: la app solo usa el .webp.
+  const fuentes = await page.evaluate(async () => {
+    const claves = await Promise.all((await caches.keys()).map(async (n) => (await caches.open(n)).keys()));
+    return claves.flat().map((r) => r.url);
+  });
+  expect(fuentes.some((u) => u.includes('/racores/directo.webp'))).toBe(true);
+  expect(fuentes.filter((u) => u.includes('/racores/fuentes/'))).toEqual([]);
 });

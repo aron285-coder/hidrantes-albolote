@@ -7,6 +7,7 @@ import {
   SECRETOS_ENTORNO,
   SECRETOS_PAGES,
   SECRETOS_REPO,
+  SECRETOS_TAREAS,
   VARIABLES_ENTORNO,
   codigoSalida,
   comprobar,
@@ -30,6 +31,7 @@ function fuentes(cambios: Partial<Fuentes> = {}): Fuentes {
     secretosEntorno: () => SECRETOS_ENTORNO.filter((s) => s !== 'PROPIETARIO_EMAIL'),
     variablesEntorno: () => [...VARIABLES_ENTORNO],
     secretosRepo: () => [...SECRETOS_REPO, 'PROPIETARIO_EMAIL'],
+    secretosTareas: () => [...SECRETOS_TAREAS],
     secretosPages: () => [...SECRETOS_PAGES],
     migracionesAplicadas: () =>
       new Map([
@@ -48,6 +50,21 @@ describe('comprobar-produccion (docs/19 P-01)', () => {
     const filas = await comprobar(fuentes(), LOCALES);
     expect(filas.filter((f) => f.estado !== 'OK')).toEqual([]);
     expect(codigoSalida(filas)).toBe(0);
+  });
+
+  // docs/31 RV-131, DEC-172.
+  it('los secretos de las tareas se buscan en prod-tareas, y uno _PROD en el repositorio es un fallo', async () => {
+    const filas = await comprobar(
+      fuentes({
+        secretosRepo: () => [...SECRETOS_REPO, 'SUPABASE_DB_URL_PROD'],
+        secretosTareas: () => SECRETOS_TAREAS.filter((s) => s !== 'VIGILANCIA_SECRETO_PROD'),
+      }),
+      LOCALES,
+    );
+    const texto = tabla(filas);
+    expect(texto).toMatch(/environment prod-tareas · secretos \| VIGILANCIA_SECRETO_PROD \| FALTA/);
+    expect(texto).toMatch(/repositorio · secretos \| ninguno de producción \| FALTA \| .*SUPABASE_DB_URL_PROD/);
+    expect(codigoSalida(filas)).toBe(1);
   });
 
   it('faltan un secreto de Pages y una migración: la tabla lo dice y el código de salida es 1', async () => {

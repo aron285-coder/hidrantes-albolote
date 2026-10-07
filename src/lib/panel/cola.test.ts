@@ -231,13 +231,30 @@ describe('aprobar con correcciones (FR-106)', () => {
     );
   });
 
-  it('la dirección escrita va en las correcciones solo si difiere de la deducida (FR-105)', () => {
+  it('la dirección escrita va en las correcciones solo si difiere de la enseñada al abrir (FR-105)', () => {
     expect(conDireccion({}, 'C/ Real 14', 'C/ Real 14')).toEqual({});
     expect(conDireccion({}, '  ', null)).toEqual({});
+    expect(conDireccion({}, '  ', '')).toEqual({});
     expect(conDireccion({ caudal: 'malo' }, 'C/ Real 16', 'C/ Real 14')).toEqual({
       caudal: 'malo',
       direccion: 'C/ Real 16',
     });
+  });
+
+  // docs/31 RV-162: aprobar no se registra "con correcciones" si nadie ha corregido.
+  it('caso 1: la deducida al abrir, sin tocar, no es una corrección', () => {
+    // La propuesta llegó sin dirección y el panel la dedujo: se compara con lo enseñado, no con null.
+    expect(conDireccion({}, 'Camino del Cubillas 2', 'Camino del Cubillas 2')).toEqual({});
+    expect(conDireccion({}, ' Camino del Cubillas 2 ', 'Camino del Cubillas 2')).toEqual({});
+  });
+
+  it('caso 2: la dirección actual que rellena el formulario, sin tocar, no va en las correcciones', () => {
+    expect(conDireccion({ caudal: 'malo' }, 'Calle Real 14', 'Calle Real 14')).toEqual({ caudal: 'malo' });
+  });
+
+  it('caso 3: vaciar la dirección manda null para quitarla', () => {
+    expect(conDireccion({}, '', 'Calle Real 14')).toEqual({ direccion: null });
+    expect(conDireccion({ caudal: 'malo' }, '   ', 'Calle Real 14')).toEqual({ caudal: 'malo', direccion: null });
   });
 });
 
