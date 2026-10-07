@@ -177,6 +177,13 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    gh run list --workflow respaldo.yml --limit 20
    gh run download «ID» --name respaldo-hidrantes
    ```
+   Si no está en GitHub (artefacto caducado, workflow borrado, cuenta perdida), la segunda copia está
+   en el bucket R2 `hidrantes-respaldos` (400 días, docs/31 RV-133, DEC-173). Se descarga con la
+   sesión de `wrangler` de este ordenador, cifrada y fuera del repositorio:
+   ```
+   npm run descargar-respaldo -- --fecha «AAAA-MM-DD»      (sin --fecha: el domingo más reciente)
+   npm run descargar-respaldo -- --fotos «AAAA-MM»         (el tar de fotos de ese mes)
+   ```
 3. Descifrar con la clave privada del sobre (importarla una sola vez en este ordenador; borrarla al
    terminar) **en un directorio fuera del repositorio**. El `.sql` lleva en claro nombres, correos y
    el hash del código, y el repositorio es público (docs/18 RV-37):
