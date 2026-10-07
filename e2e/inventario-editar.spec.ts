@@ -27,12 +27,16 @@ function metros(a: { lat: number; lng: number }, b: { lat: number; lng: number }
   return 2 * 6_371_000 * Math.asin(Math.sqrt(h));
 }
 
-async function preparar(page: Page, extra: typeof PUNTOS = []) {
+/**
+ * `vista`: los puntos que devuelve la vista en cada sincronización; cambiarla es como si otro
+ * administrador hubiera cambiado un punto (docs/31 RV-165).
+ */
+async function preparar(page: Page, extra: typeof PUNTOS = [], vista?: { lista: typeof PUNTOS }) {
   const llamadas: Llamada[] = [];
   const registro: Record<string, unknown>[] = [];
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
-    v_puntos_activos: [...PUNTOS, ...extra],
+    v_puntos_activos: () => vista?.lista ?? [...PUNTOS, ...extra],
     v_cola_revision: [],
     v_registro: () => registro,
     puntos: [],
@@ -651,5 +655,89 @@ test.describe('El foco no se escapa de las ventanas del panel (docs/30 RV-128)',
     await expect(p).toBeVisible();
     await expect(page.locator('#raiz')).toHaveAttribute('inert', '');
     expect(await aviso.evaluate((a) => a.closest('[inert]') === null)).toBe(true);
+  });
+});
+
+// docs/31 RV-165: Editar no se queda con una foto vieja del punto. Sin cambios propios se pone al
+// día solo; con cambios, avisa y deja ver lo nuevo tras confirmar que se descartan los propios.
+test.describe('Editar con el punto al día (docs/31 RV-165)', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'los anchos se fijan a mano en el proyecto de escritorio');
+
+  /** Otro administrador cambia el punto; se ve al sincronizar, que aquí lo dispara guardar otra celda. */
+  async function otroAdministrador(
+    page: Page,
+    vista: { lista: typeof PUNTOS },
+    cambios: Partial<(typeof PUNTOS)[number]>,
+  ) {
+    vista.lista = vista.lista.map((x) =>
+      x.id === HIDRANTE.id ? { ...x, ...cambios, actualizado_en: new Date().toISOString() } : x,
+    );
+    const celda = page.getByLabel(T.panelInventario.direccionDe(OTRA.codigo));
+    await celda.fill('Calle Prueba 1 bis');
+    await celda.blur();
+  }
+
+  test('sin cambios sin guardar, Editar se actualiza sin cerrarse', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const vista = { lista: PUNTOS.map((x) => ({ ...x })) };
+    await preparar(page, [], vista);
+    await page.goto('/admin/inventario');
+    await editarDe(page, HIDRANTE.codigo).click();
+    const p = panel(page);
+    await expect(p.getByRole('radio', { name: T.formulario.bueno })).toHaveAttribute('aria-checked', 'true');
+
+    await otroAdministrador(page, vista, { caudal: 'regular', descripcion: '[PRUEBA] Cambiada por otro' });
+    await expect(p.getByRole('radio', { name: T.formulario.regular })).toHaveAttribute('aria-checked', 'true');
+    await expect(p.getByRole('textbox', { name: T.formulario.descripcionOpcional })).toHaveValue(
+      '[PRUEBA] Cambiada por otro',
+    );
+    // "Antes" y la comparación usan lo nuevo: no hay nada cambiado ni aviso.
+    await expect(p.getByText(T.avisosFormulario.sinCambios)).toBeVisible();
+    await expect(p.getByText(T.panelEditar.otroAdministrador)).toHaveCount(0);
+    await expect(p).toBeVisible();
+  });
+
+  test('con cambios, avisa y "Ver lo nuevo" descarta lo propio tras confirmar', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const vista = { lista: PUNTOS.map((x) => ({ ...x })) };
+    const { llamadas } = await preparar(page, [], vista);
+    await page.goto('/admin/inventario');
+    await editarDe(page, HIDRANTE.codigo).click();
+    const p = panel(page);
+    const descripcion = p.getByRole('textbox', { name: T.formulario.descripcionOpcional });
+    await descripcion.fill('[PRUEBA] Mía');
+
+    await otroAdministrador(page, vista, { caudal: 'malo' });
+    const aviso = p.getByRole('status').filter({ hasText: T.panelEditar.otroAdministrador });
+    await expect(aviso).toBeVisible();
+    // Lo propio sigue escrito y la comparación sigue siendo con lo que se abrió.
+    await expect(descripcion).toHaveValue('[PRUEBA] Mía');
+    await expect(p.getByRole('radio', { name: T.formulario.bueno })).toHaveAttribute('aria-checked', 'true');
+    // El aviso, sin fallos de axe en claro ni en oscuro.
+    for (const tema of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: tema });
+      const { violations } = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+        .include('[role="dialog"] [role="status"]')
+        .analyze();
+      expect(violations.flatMap((v) => v.nodes.map((n) => `${tema} · ${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+    }
+
+    // "Seguir editando" no toca nada.
+    await aviso.getByRole('button', { name: T.panelEditar.verLoNuevo }).click();
+    const pregunta = page.getByRole('alertdialog', { name: T.panelEditar.descartarN(1) });
+    await pregunta.getByRole('button', { name: T.panelEditar.seguirEditando }).click();
+    await expect(descripcion).toHaveValue('[PRUEBA] Mía');
+
+    // "Descartar" pone Editar al día.
+    await aviso.getByRole('button', { name: T.panelEditar.verLoNuevo }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: T.panelEditar.descartar }).click();
+    await expect(p.getByRole('radio', { name: T.formulario.malo })).toHaveAttribute('aria-checked', 'true');
+    await expect(descripcion).toHaveValue(HIDRANTE.descripcion!);
+    await expect(p.getByText(T.avisosFormulario.sinCambios)).toBeVisible();
+    await expect(p.getByText(T.panelEditar.otroAdministrador)).toHaveCount(0);
+    await expect(p).toBeVisible();
+    // Nada se ha guardado en el punto que se editaba.
+    expect(llamadas.filter((l) => l.nombre === 'fn_editar_punto' && l.cuerpo.punto_id === HIDRANTE.id)).toEqual([]);
   });
 });

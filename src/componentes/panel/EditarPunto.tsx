@@ -294,7 +294,7 @@ export function CamposEditar({
   );
 }
 
-type Pregunta = { para: 'cerrar' } | { para: 'salir'; destino: string };
+type Pregunta = { para: 'cerrar' } | { para: 'salir'; destino: string } | { para: 'nuevo' };
 
 /**
  * Editar un punto: la banda del estado guardado, el mapa, los campos y el pie fijo con el recuento y
@@ -304,18 +304,26 @@ type Pregunta = { para: 'cerrar' } | { para: 'salir'; destino: string };
  * - `enPausa`: hay otro diálogo encima (Retirar, Borrar, Historial, la pregunta de cambiar de punto).
  *   Esc, el velo y "atrás" son de ese diálogo, no de Editar.
  * - `alCerrar(id)`: el Inventario solo cierra si sigue abierto ese mismo punto.
+ * - `actual`: ese punto tal como está ahora en el inventario. Si cambia por fuera (otro
+ *   administrador; se nota por `actualizado_en`), sin cambios sin guardar Editar se pone al día; con
+ *   cambios, avisa y "Ver lo nuevo" los descarta tras preguntar (docs/31 RV-165). Hasta entonces,
+ *   "antes" y la comparación siguen siendo con el punto que se abrió.
  */
 export default function EditarPunto({
-  punto,
+  punto: abierto,
+  actual,
   alCerrar,
   alEstado,
   enPausa = false,
 }: {
   punto: Punto;
+  actual?: Punto;
   alCerrar: (id: string) => void;
   alEstado?: (e: EstadoEditar) => void;
   enPausa?: boolean;
 }) {
+  // El punto con el que se compara: el que se abrió, o lo nuevo cuando se carga.
+  const [punto, setPunto] = useState(abierto);
   const { avisar } = usePanel();
   const navegar = useNavigate();
   const posicion = usePosicion();
@@ -340,6 +348,19 @@ export default function EditarPunto({
   const n = campos.length;
   const falta = faltaEnEdicion(punto, formulario);
   const cambiar = useCallback((c: Partial<Valores>) => setV((x) => ({ ...x, ...c })), []);
+
+  // Cambiado por fuera: sin nada propio (ni guardando ni preguntando), se carga lo nuevo al momento,
+  // durante el render, como recomienda React para un estado que sigue a una prop.
+  const nuevo = actual && actual.actualizado_en !== punto.actualizado_en ? actual : null;
+  if (nuevo && n === 0 && !ocupado && !pregunta) {
+    setPunto(nuevo);
+    setV(valoresDe(nuevo));
+  }
+  const cargarNuevo = () => {
+    if (!nuevo) return;
+    setPunto(nuevo);
+    setV(valoresDe(nuevo));
+  };
 
   useEffect(() => alEstado?.({ pendientes: n, ocupado }), [n, ocupado, alEstado]);
 
@@ -512,6 +533,20 @@ export default function EditarPunto({
             </button>
           </div>
 
+          {/* Cambiado por fuera con cambios propios sin guardar (RV-165). Mientras guarda no sale:
+              "Ver lo nuevo" no podría hacer nada. */}
+          {nuevo && !ocupado && (
+            <div
+              role="status"
+              className="bg-oro-100 border-oro-600 text-ambar-700 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm"
+            >
+              <span className="min-w-0 flex-1">{T.panelEditar.otroAdministrador}</span>
+              <Boton variante="secundario" onClick={() => setPregunta({ para: 'nuevo' })}>
+                {T.panelEditar.verLoNuevo}
+              </Boton>
+            </div>
+          )}
+
           <div ref={cuerpo} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-2">
             <CamposEditar
               punto={punto}
@@ -550,6 +585,7 @@ export default function EditarPunto({
           n={n}
           alDescartar={() => {
             setPregunta(null);
+            if (pregunta.para === 'nuevo') return cargarNuevo();
             estado.current.n = 0;
             if (pregunta.para === 'salir') salirA(pregunta.destino);
             else cerrar();

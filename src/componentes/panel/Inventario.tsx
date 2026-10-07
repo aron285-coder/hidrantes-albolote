@@ -606,6 +606,7 @@ export default function Inventario() {
           <EditarPunto
             key={editando.id}
             punto={editando}
+            actual={puntos.find((p) => p.id === editando.id)}
             alCerrar={cerrarEditar}
             alEstado={setEstadoEditar}
             enPausa={!!dialogo || !!pasarA}
