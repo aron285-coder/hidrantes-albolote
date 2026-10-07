@@ -227,6 +227,25 @@ function MenuExportar({
   );
 }
 
+/**
+ * La dirección, editable en la celda (FR-15). Controlada: enseña lo que se escribe y, al salir, solo
+ * guarda si difiere de la dirección actual del punto (docs/31 RV-164). Nunca "— pen": el campo mide al
+ * menos lo que su texto de "pendiente" (RV-79).
+ */
+function CeldaDireccion({ punto, alGuardar }: { punto: Punto; alGuardar: (p: Punto, valor: string) => Promise<void> }) {
+  const [valor, setValor] = useState(punto.direccion ?? '');
+  return (
+    <input
+      value={valor}
+      onChange={(e) => setValor(e.target.value)}
+      placeholder={T.panel.pendienteEscribe}
+      aria-label={T.panelInventario.direccionDe(punto.codigo)}
+      onBlur={() => void alGuardar(punto, valor)}
+      className="border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]"
+    />
+  );
+}
+
 const COLUMNAS: { clave: Columna; nombre: string }[] = [
   { clave: 'codigo', nombre: T.panelInventario.colCodigo },
   { clave: 'tipo', nombre: T.panelInventario.colTipo },
@@ -305,8 +324,15 @@ export default function Inventario() {
     setN(0);
   }
 
+  // El punto tal como está ahora, para la celda: un blur que llega con el punto ya cambiado
+  // (por Editar o por otro administrador) compara con lo último, no con lo que había al pintar.
+  const actuales = useRef(puntos);
+  useEffect(() => {
+    actuales.current = puntos;
+  }, [puntos]);
   async function guardarDireccion(p: Punto, valor: string) {
-    if ((valor.trim() || null) === p.direccion) return;
+    const ahora = actuales.current.find((x) => x.id === p.id) ?? p;
+    if ((valor.trim() || null) === (ahora.direccion?.trim() || null)) return;
     const r = await editarPunto(p.id, { direccion: valor.trim() || null });
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     avisar(T.panelInventario.guardado(p.codigo));
@@ -354,18 +380,10 @@ export default function Inventario() {
       {nombreCaudal(p.caudal)}
     </span>
   );
-  // Nunca "— pen": el campo mide al menos lo que su texto de "pendiente" (RV-79).
-  const direccionDe = (p: Punto, clase?: string) => (
-    <input
-      defaultValue={p.direccion ?? ''}
-      placeholder={T.panel.pendienteEscribe}
-      aria-label={T.panelInventario.direccionDe(p.codigo)}
-      onBlur={(e) => void guardarDireccion(p, e.target.value)}
-      className={cn(
-        'border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]',
-        clase,
-      )}
-    />
+  // La clave lleva la dirección: si el dato cambia (Editar, otro administrador), la celda vuelve a
+  // empezar con lo nuevo en vez de quedarse con lo escrito antes (docs/31 RV-164).
+  const direccionDe = (p: Punto) => (
+    <CeldaDireccion key={`${p.id}|${p.direccion ?? ''}`} punto={p} alGuardar={guardarDireccion} />
   );
   const revisionDe = (p: Punto) => (
     <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-texto font-semibold')}>

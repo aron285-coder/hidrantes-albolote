@@ -51,12 +51,16 @@ interface Llamada {
   cuerpo: Record<string, unknown>;
 }
 
-async function prepararPanel(page: Page) {
+/**
+ * `puntos`: la vista del inventario, que se vuelve a leer en cada sincronización; con ella, una
+ * edición cambia el punto como haría el servidor, y otro administrador puede cambiarlo por fuera.
+ */
+async function prepararPanel(page: Page, puntos?: { lista: typeof PUNTOS }) {
   const llamadas: Llamada[] = [];
   let borrados = BORRADOS;
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
-    v_puntos_activos: PUNTOS,
+    v_puntos_activos: () => puntos?.lista ?? PUNTOS,
     v_cola_revision: [],
     v_registro: (url) => {
       const accion = url.searchParams.get('accion');
@@ -74,7 +78,14 @@ async function prepararPanel(page: Page) {
     switch (nombre) {
       case 'fn_es_admin':
         return json(true);
-      case 'fn_editar_punto':
+      case 'fn_editar_punto': {
+        if (puntos) {
+          const { punto_id, cambios } = cuerpo as { punto_id: string; cambios: Record<string, unknown> };
+          const ahora = new Date().toISOString();
+          puntos.lista = puntos.lista.map((p) => (p.id === punto_id ? { ...p, ...cambios, actualizado_en: ahora } : p));
+        }
+        return json(null);
+      }
       case 'fn_retirar_punto':
         return json(null);
       case 'fn_restaurar_punto':
@@ -167,6 +178,49 @@ test('inventario: editar la dirección en la celda y editar el punto (FR-15, FR-
   });
 });
 
+// docs/31 RV-164: la celda de la dirección sigue al dato. Tocada una vez, ya no se quedaba con lo
+// escrito, y pasar por ella con Tab volvía a guardar la dirección vieja encima de una más nueva.
+test('la dirección de la celda no deshace un cambio más nuevo (docs/31 RV-164)', async ({ page }) => {
+  const puntos = { lista: PUNTOS.map((p) => ({ ...p })) };
+  const llamadas = await prepararPanel(page, puntos);
+  const ediciones = () => llamadas.filter((l) => l.nombre === 'fn_editar_punto').map((l) => l.cuerpo);
+  await page.goto('/admin/inventario');
+  const celda = page.getByLabel(T.panelInventario.direccionDe(P0.codigo));
+
+  // 1 · En la celda y después en Editar.
+  await celda.fill('Calle Real 16');
+  await celda.blur();
+  await expect.poll(() => ediciones().length).toBe(1);
+  const fila = page.getByRole('row').filter({ hasText: P0.codigo });
+  await fila.getByRole('button', { name: T.panel.editar }).click();
+  const dialogo = page.getByRole('dialog');
+  await dialogo.getByRole('textbox', { name: T.ficha.direccion, exact: true }).fill('Calle Nueva 1');
+  await dialogo.getByRole('button', { name: T.panel.guardarCambios }).click();
+  await expect(dialogo).toBeHidden();
+  await expect(celda).toHaveValue('Calle Nueva 1');
+  await celda.focus();
+  await celda.blur();
+
+  // 2 · Otro administrador la cambia; se ve al sincronizar (aquí, tras guardar otra celda).
+  puntos.lista = puntos.lista.map((p) =>
+    p.id === P0.id ? { ...p, direccion: 'Calle Otra 3', actualizado_en: new Date().toISOString() } : p,
+  );
+  const otra = page.getByLabel(T.panelInventario.direccionDe(PUNTOS[2].codigo));
+  await otra.fill('Calle Prueba 2 bis');
+  await otra.blur();
+  await expect(celda).toHaveValue('Calle Otra 3');
+  await celda.focus();
+  await celda.blur();
+
+  // Tres guardados (celda, Editar, la otra celda) y ninguno vuelve a escribir lo viejo en P0.
+  await page.waitForTimeout(300);
+  expect(ediciones()).toEqual([
+    { punto_id: P0.id, cambios: { direccion: 'Calle Real 16' } },
+    { punto_id: P0.id, cambios: { direccion: 'Calle Nueva 1' } },
+    { punto_id: PUNTOS[2].id, cambios: { direccion: 'Calle Prueba 2 bis' } },
+  ]);
+});
+
 // docs/18 RV-41, DEC-090: el tipo no se cambia desde el inventario.
 test('panel-inventario: editar no ofrece el tipo', async ({ page }) => {
   await prepararPanel(page);
@@ -232,6 +286,58 @@ test('registro: filtro por acción, solo lectura (FR-123, FL-26)', async ({ page
   await page.getByLabel(T.panelRegistro.filtroAccion).selectOption('aprobacion');
   await expect(page.getByRole('row')).toHaveCount(2);
   await expect(page.getByRole('cell', { name: T.panelRegistro.aprobacion })).toBeVisible();
+});
+
+// docs/31 RV-166: buscar desde la página 3 vuelve a la primera. Antes pedía una página fuera de
+// rango, el servidor daba error y se quedaban las filas sin filtrar como si fueran el resultado.
+test('registro: buscar desde otra página vuelve a la primera (docs/31 RV-166)', async ({ page }) => {
+  await prepararPanel(page);
+  const ENTRADAS = Array.from({ length: 120 }, (_, i) => ({
+    ...REGISTRO[1],
+    id: 1000 - i,
+    momento: new Date(Date.parse('2026-09-18T09:30:00Z') - i * 60_000).toISOString(),
+    codigo: i % 10 === 0 ? 'HID-9001' : 'HID-9002',
+    resumen: `propuesta_creada · ${i % 10 === 0 ? 'HID-9001' : 'HID-9002'}`,
+  }));
+  const desplazamientos: number[] = [];
+  // Como PostgREST: con búsqueda filtra, y una página fuera de rango es un 416.
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/v_registro?*`, (route) => {
+    const url = new URL(route.request().url());
+    const busca = url.searchParams.get('or') ?? '';
+    const filas = busca.includes('HID-9001') ? ENTRADAS.filter((e) => e.codigo === 'HID-9001') : ENTRADAS;
+    const desde = Number(url.searchParams.get('offset') ?? 0);
+    const cuantas = Number(url.searchParams.get('limit') ?? filas.length);
+    desplazamientos.push(desde);
+    const cabeceras = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Expose-Headers': 'Content-Range',
+      'Content-Range': `${desde}-${Math.min(desde + cuantas, filas.length) - 1}/${filas.length}`,
+    };
+    if (desde >= filas.length)
+      return route.fulfill({
+        status: 416,
+        contentType: 'application/json',
+        headers: { ...cabeceras, 'Content-Range': `*/${filas.length}` },
+        body: JSON.stringify({ code: 'PGRST103', message: 'Requested range not satisfiable' }),
+      });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: cabeceras,
+      body: JSON.stringify(filas.slice(desde, desde + cuantas)),
+    });
+  });
+  await page.goto('/admin/registro');
+  const paginas = page.getByRole('navigation', { name: T.panelInventario.paginas });
+  await paginas.getByRole('button', { name: '3', exact: true }).click();
+  await expect(paginas.getByRole('button', { name: '3', exact: true })).toHaveAttribute('aria-current', 'true');
+  await expect.poll(() => desplazamientos.at(-1)).toBe(100);
+
+  await page.getByPlaceholder(T.panelCola.buscar).fill('HID-9001');
+  await expect(page.getByText(T.panelRegistro.entradas(12))).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'HID-9002', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('cell', { name: 'HID-9001', exact: true })).toHaveCount(12);
+  expect(desplazamientos.at(-1)).toBe(0);
 });
 
 test('papelera: restaurar dentro de plazo (FR-124, FL-24)', async ({ page }) => {
