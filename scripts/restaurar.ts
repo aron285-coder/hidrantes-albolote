@@ -312,7 +312,12 @@ export interface Orden {
 }
 
 /** pg_dump del esquema hidrantes, igual que respaldo.yml, cifrado con gpg sin pasar por el disco. */
-export function ordenesCopiaPrevia(url: string, archivo: string, huella: string, pgDump = rutaPgDump()): [Orden, Orden] {
+export function ordenesCopiaPrevia(
+  url: string,
+  archivo: string,
+  huella: string,
+  pgDump = rutaPgDump(),
+): [Orden, Orden] {
   return [
     { comando: pgDump, args: ['--schema=hidrantes', '--no-owner', '--format=plain'], env: entornoPg(url) },
     {

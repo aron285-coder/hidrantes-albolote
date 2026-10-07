@@ -33,6 +33,16 @@ jobs:
   respaldo:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    # Donde se comprueba de verdad el respaldo (docs/31 RV-134): el volcado de esta semana se restaura
+    # aquí con restaurar.ts y se cuentan los puntos. La misma imagen que `supabase start` (roles de
+    # Supabase, PostGIS, pg_cron), en el puerto del Supabase local. Efímero: muere con el trabajo.
+    services:
+      postgres:
+        image: ghcr.io/supabase/postgres:17.6.1.171
+        env:
+          POSTGRES_PASSWORD: postgres # detectar-secretos:permitir (Postgres de servicio efímero)
+        ports:
+          - 55422:5432
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
@@ -116,10 +126,24 @@ jobs:
           # deja a anon sin las nueve RPC de voluntario y la aplicación no arranca. Se vio en el
           # ensayo de restauración de la Fase 8. Sin propietarios, en cambio, porque quien restaura
           # es hidrantes_migrador y los objetos han de quedar suyos.
-          pg_dump --schema=hidrantes --no-owner --format=plain "$BD" \
-            | gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
-                  --output "hidrantes-$FECHA.sql.gpg"
-          echo "TAMANO_DATOS=$(stat -c %s "hidrantes-$FECHA.sql.gpg")" >> "$GITHUB_ENV"
+          #
+          # Sin cifrar, primero, en la carpeta temporal del runner (fuera del espacio de trabajo y solo
+          # legible por el runner): es lo que se restaura después en el Postgres de servicio (docs/31
+          # RV-134). Se cifra ese mismo archivo, nunca sale del runner y se borra al final aunque algo
+          # falle. Los puntos se cuentan antes y después del volcado: el restaurado tiene que tener
+          # uno de los dos números.
+          umask 077
+          plano="$RUNNER_TEMP/hidrantes-$FECHA.sql"
+          puntos_antes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c 'select count(*) from hidrantes.puntos')
+          pg_dump --schema=hidrantes --no-owner --format=plain --file "$plano" "$BD"
+          puntos_despues=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c 'select count(*) from hidrantes.puntos')
+          gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
+              --output "hidrantes-$FECHA.sql.gpg" "$plano"
+          {
+            echo "PLANO=$plano"
+            echo "PUNTOS_ORIGEN=$puntos_antes $puntos_despues"
+            echo "TAMANO_DATOS=$(stat -c %s "hidrantes-$FECHA.sql.gpg")"
+          } >> "$GITHUB_ENV"
 
       - name: Comprobar que el volcado no está vacío
         env:
@@ -153,6 +177,9 @@ jobs:
           npm run respaldo-fotos -- --destino "fotos-$FECHA" | tee salida.txt
           bytes=$(grep -oP '^bytes=\K[0-9]+' salida.txt)
           echo "bytes=$bytes" >> "$GITHUB_OUTPUT"
+          # Sin fotos todavía, respaldo-fotos no crea la carpeta y tar fallaba (4 oct 2026, #439):
+          # un tar vacío es un respaldo correcto de un bucket vacío.
+          mkdir -p "fotos-$FECHA"
           tar -cf - "fotos-$FECHA" \
             | gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
                   --output "fotos-$FECHA.tar.gpg"
@@ -179,6 +206,20 @@ jobs:
           guardar() { psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('$1', $2, 'respaldo.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;"; }
           guardar ultimo_respaldo 'to_jsonb(now())'
           if [ -n "${BYTES_FOTOS:-}" ]; then guardar storage_bytes "to_jsonb(${BYTES_FOTOS}::bigint)"; fi
+
+      # Que el respaldo de verdad se pueda restaurar (docs/31 RV-134): antes solo se miraba que el
+      # archivo pesara más de 10 kB. Después de guardarlo en sus dos sitios, para que un fallo aquí no
+      # deje la semana sin copia: si falla, el job falla y abre la issue de siempre.
+      - name: Restaurar el volcado en el Postgres de servicio y contar los puntos
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086 # PUNTOS_ORIGEN son dos números: van como dos argumentos.
+          bash .github/scripts/probar-restauracion-servicio.sh "$PLANO" $PUNTOS_ORIGEN
+          echo "Restauración de prueba: los mismos puntos que producción." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Borrar el volcado sin cifrar
+        if: always()
+        run: if [ -n "${PLANO:-}" ]; then shred -u "$PLANO" 2>/dev/null || rm -f "$PLANO"; fi
 
       - name: Avisar si el respaldo ha fallado
         if: failure()

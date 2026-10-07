@@ -97,7 +97,8 @@ describe('scripts sin errores en crudo (RV-53)', () => {
 // docs/31 RV-134: con `--entorno produccion`, restaurar.ts no encontraba el ref y no comprobaba nada.
 describe('entornos compartidos (RV-134)', () => {
   // detectar-secretos:permitir (cadenas ficticias, sin contraseña de verdad)
-  const POOLER = (ref: string) => `postgresql://hidrantes_migrador.${ref}:x@aws-0-eu-west-1.pooler.supabase.com:5432/postgres`;
+  const POOLER = (ref: string) =>
+    `postgresql://hidrantes_migrador.${ref}:x@aws-0-eu-west-1.pooler.supabase.com:5432/postgres`;
   const LOCAL = 'postgresql://hidrantes_migrador:x@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (ficticia)
 
   it('solo local, staging y prod; produccion es prod', () => {

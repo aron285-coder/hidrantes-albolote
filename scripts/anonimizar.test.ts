@@ -93,9 +93,7 @@ describe('guarda del destino', () => {
   });
 
   it('rechaza otro usuario que no sea hidrantes_migrador (DEC-052)', () => {
-    expect(comprobarDestino('prod', POOLER(REF_DE.prod, 'postgres'), undefined).join()).toMatch(
-      /hidrantes_migrador/,
-    );
+    expect(comprobarDestino('prod', POOLER(REF_DE.prod, 'postgres'), undefined).join()).toMatch(/hidrantes_migrador/);
   });
 
   it('rechaza una cadena que no es URL', () => {

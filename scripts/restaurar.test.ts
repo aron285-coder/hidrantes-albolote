@@ -415,7 +415,9 @@ describe('copia previa antes de LIMPIAR_ESQUEMA (RV-134)', () => {
     expect(a.args).toEqual(['--schema=hidrantes', '--no-owner', '--format=plain']);
     expect(a.args.join(' ')).not.toContain('clave');
     expect(a.env).toMatchObject({ PGPASSWORD: 'clave', PGUSER: `hidrantes_migrador.${REFS.prod}` });
-    expect(b.args).toEqual(expect.arrayContaining(['--encrypt', '--recipient', HUELLA, '--output', '/fuera/copia.sql.gpg']));
+    expect(b.args).toEqual(
+      expect.arrayContaining(['--encrypt', '--recipient', HUELLA, '--output', '/fuera/copia.sql.gpg']),
+    );
     expect(rutaPgDump('psql')).toBe('pg_dump');
     expect(rutaPgDump('C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe')).toBe(
       'C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe',
@@ -435,9 +437,9 @@ describe('copia previa antes de LIMPIAR_ESQUEMA (RV-134)', () => {
   });
 
   it('dentro del repositorio, no', async () => {
-    await expect(copiaPrevia(POOLER, 'prod', { carpeta: path.join(RAIZ, 'copias'), huella: HUELLA, canal: ok })).rejects.toThrow(
-      /dentro del repositorio/,
-    );
+    await expect(
+      copiaPrevia(POOLER, 'prod', { carpeta: path.join(RAIZ, 'copias'), huella: HUELLA, canal: ok }),
+    ).rejects.toThrow(/dentro del repositorio/);
   });
 
   it('si pg_dump o gpg fallan, o el archivo queda vacío, aborta y no deja nada a medias', async () => {
@@ -468,8 +470,15 @@ describe('copia previa antes de LIMPIAR_ESQUEMA (RV-134)', () => {
     const destino = path.join(carpeta, 'salida.txt');
     try {
       const r = await canalizar(
-        { comando: process.execPath, args: ['-e', 'process.stdout.write("hola " + process.env.PRUEBA)'], env: { PRUEBA: 'mundo' } },
-        { comando: process.execPath, args: ['-e', `process.stdin.pipe(require("fs").createWriteStream(${JSON.stringify(destino)}))`] },
+        {
+          comando: process.execPath,
+          args: ['-e', 'process.stdout.write("hola " + process.env.PRUEBA)'],
+          env: { PRUEBA: 'mundo' },
+        },
+        {
+          comando: process.execPath,
+          args: ['-e', `process.stdin.pipe(require("fs").createWriteStream(${JSON.stringify(destino)}))`],
+        },
       );
       expect(r).toMatchObject({ codigoA: 0, codigoB: 0 });
       expect(readFileSync(destino, 'utf8')).toBe('hola mundo');

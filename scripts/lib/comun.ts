@@ -170,7 +170,7 @@ export function psqlOk(url: string, sql: string, opciones: { tuplas?: boolean; t
  */
 export const ENTORNOS = ['local', 'staging', 'prod'] as const;
 export type Entorno = (typeof ENTORNOS)[number];
-const ALIAS: Record<string, Entorno> = { produccion: 'prod', 'producción': 'prod' };
+const ALIAS: Record<string, Entorno> = { produccion: 'prod', producción: 'prod' };
 
 /** Refs de Supabase por entorno (docs/entornos.md). No son secretos: identifican el proyecto. */
 export const REFS: Readonly<Record<Exclude<Entorno, 'local'>, string>> = {
@@ -205,7 +205,7 @@ export function leerEntorno(crudo: string | undefined, admitidos: readonly Entor
  */
 export function motivoCadenaAjena(entorno: Entorno, url: string): string | null {
   if (entorno === 'local') {
-    let host = '';
+    let host: string;
     try {
       host = new URL(url).hostname;
     } catch {

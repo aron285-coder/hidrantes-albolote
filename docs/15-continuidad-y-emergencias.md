@@ -153,6 +153,16 @@ tres cosas que habrían estropeado la restauración de verdad:
 
 El respaldo semanal corrió en verde contra producción el 21 sep 2026 y dejó su artefacto cifrado.
 
+**Cada semana se comprueba de verdad** (docs/31 RV-134). Antes solo se miraba que el archivo pesara
+más de 10 kB. Ahora `respaldo.yml`, en el mismo trabajo:
+
+1. restaura el volcado **todavía sin cifrar** en un Postgres de servicio de usar y tirar, con la
+   misma imagen que `supabase start` y el mismo `restaurar.ts --entorno local` de esta sección;
+2. compara cuántos puntos quedan con los que tenía producción al volcar.
+
+Si no cuadra o la restauración falla, el trabajo falla y abre la issue de siempre. El volcado sin
+cifrar no sale del runner y se borra al terminar.
+
 Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con GPG, de las últimas
 13 semanas (datos) y 3 meses (fotos).
 
@@ -182,6 +192,19 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    algo falla a la mitad, la base se queda como estaba. Antes comprueba que el archivo es un volcado
    nuestro, que no toca `public` y que el `PROJECT_REF` de la cadena es el de producción. Pide
    confirmación escribiendo `RESTAURAR`.
+
+   `--entorno` admite exactamente `local`, `staging` y `prod`; `produccion` vale igual que `prod`.
+   Cualquier otro valor aborta. Con cualquiera de los dos nombres, la cadena tiene que ser del proyecto
+   de ese entorno (docs/31 RV-134). Lo mismo hacen `revertir`, `anonimizar` y `migrar --entorno`.
+
+   **Copia previa** (docs/31 RV-134). Después de escribir `RESTAURAR` y **antes** de vaciar nada, el
+   script guarda lo que hay ahora:
+   - con `pg_dump --schema=hidrantes`, cifrado con la misma clave de respaldo (la del paso 3);
+   - en `hidrantes-copias-previas` de tu carpeta personal, fuera del repositorio;
+   - y dice el nombre del archivo.
+
+   Si la copia previa falla, no se restaura nada: lo normal es que falte importar la clave (paso 3).
+   Si la restauración resulta ser un error, esa copia se restaura igual que un respaldo (pasos 3 y 4).
 
    **Hace falta psql 17.6 o posterior** (docs/19 RV-64). `pg_dump` 17.6 escribe `\restrict` en el
    volcado y un psql anterior lo rechaza a medias. El script compara `psql --version` con la cabecera
@@ -225,9 +248,12 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    `restauracion_respaldo`).
 8. Borrar la clave privada del ordenador (`gpg --delete-secret-keys «id»`) y el volcado descifrado
    (`del "%TEMP%\hidrantes.sql"` o `rm /tmp/hidrantes.sql`). El guion temporal de la restauración
-   ya lo borra el script, también si falla.
+   ya lo borra el script, también si falla. La copia previa (cifrada) se guarda hasta que el panel y
+   la app estén comprobados; después se borra de `hidrantes-copias-previas`.
 
-Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Lo que
+Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Las
+**fotos** se respaldan una vez al mes (el primer domingo): se pueden perder hasta unas **5 semanas**
+de fotos. Lo que
 los voluntarios **enviaron** después del respaldo se pierde también: salió de la cola del móvil al
 enviarse y no vuelve solo. Jefatura avisa al grupo con la **fecha del respaldo** para que repitan lo
 que hicieron desde entonces. Solo lo que aún estuviera sin enviar en un móvil se envía solo al volver
@@ -238,6 +264,32 @@ de acceso, los dispositivos y los administradores de **ahora**, y los repone al 
 nuevo del paso 1 sigue valiendo, el viejo no vuelve, los móviles revocados siguen revocados, los que
 entraron después con el código nuevo siguen entrando y un administrador dado de baja después del
 respaldo sigue de baja. Nada de eso se escribe en disco.
+
+#### Se ha perdido el proyecto de Supabase entero
+
+**Gravedad:** máxima. **Tiempo:** un día. **Quién:** quien maneje Claude Code, con el sobre.
+
+El respaldo es `pg_dump --schema=hidrantes`: los datos, las funciones, las vistas y los permisos
+del esquema. **No lleva** lo que vive fuera de él, y en un proyecto nuevo hay que rehacerlo:
+
+| No está en el respaldo | Cómo se rehace |
+|---|---|
+| Las tareas de `pg_cron` (están en `cron.job`, no en `hidrantes`) | las crean las migraciones; `npm run tareas-esperadas` dice cuáles deben existir |
+| Los roles: `hidrantes_migrador` y sus permisos fuera del esquema, PostGIS y `pg_cron` | `npm run arranque` (ejecuta `supabase/sql/arranque-bd.sql` como `postgres`) |
+| Los administradores de Auth (las cuentas de Google en `auth.users`) | vuelven a entrar con Google; la lista de quién es administrador sí está en el respaldo |
+| Las políticas y los límites del bucket de fotos de Storage | `npm run arranque` crea el bucket con sus límites (04 §7); las fotos, con el paso 5 |
+
+El proyecto es el de la app de uniformidad (`uniformidad-prod`): si se ha perdido, se ha perdido
+también para ella, y lo vuelve a crear quien la mantiene, con el mismo nombre. Después:
+
+1. `npm run arranque`: encuentra el proyecto por su nombre, crea `hidrantes_migrador`, las extensiones,
+   el esquema con todas las migraciones (y con ellas las tareas de `pg_cron`) y el bucket, y pone las
+   claves nuevas en GitHub y Cloudflare. Reescribe también `docs/entornos.md` con el ref nuevo.
+2. Cambiar ese ref en `REFS` de `scripts/lib/comun.ts`, con un PR. Sin eso, las guardas de entorno
+   rechazan la cadena del proyecto nuevo.
+3. Restaurar el último respaldo (pasos 2 a 4) y las fotos (paso 5). El esquema está vacío pero
+   existe, así que la copia previa sale casi vacía: es lo esperado.
+4. Desplegar otra vez producción para que el frontend use las claves nuevas, y comprobar (pasos 6 a 8).
 
 ### 5.4 El código de acceso se ha filtrado
 
