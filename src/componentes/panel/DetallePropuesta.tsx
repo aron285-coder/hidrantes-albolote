@@ -66,7 +66,17 @@ export function DetallePropuesta({
   const ficha = useMemo(() => fichaCompleta(p, punto), [p, punto]);
   const [modo, setModo] = useState<Modo>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [direccion, setDireccion] = useState(p.direccion_sugerida ?? '');
+  // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
+  // la del punto. Es con lo que se compara al aprobar: lo que no se toca no es una corrección (RV-162).
+  const [ensenada, setEnsenada] = useState(
+    () => p.direccion_sugerida ?? (p.operacion === 'alta' ? null : p.direccion_actual) ?? '',
+  );
+  const [direccion, setDireccion] = useState(ensenada);
+  const tocada = useRef(false);
+  const escribirDireccion = (v: string) => {
+    tocada.current = true;
+    setDireccion(v);
+  };
   const formulario = useRef<HTMLDivElement>(null);
   const volver = useRef<HTMLButtonElement>(null);
   const pendiente = p.estado === 'pendiente';
@@ -78,7 +88,10 @@ export function DetallePropuesta({
     if (!editable || p.direccion_sugerida) return;
     let vigente = true;
     void deducirDireccion(p).then((d) => {
-      if (vigente && d) setDireccion((actual) => (actual ? actual : d));
+      // La deducida se guarda en el servidor como sugerida: pasa a ser la enseñada, si nadie ha escrito.
+      if (!vigente || !d || tocada.current) return;
+      setDireccion(d);
+      setEnsenada(d);
     });
     return () => {
       vigente = false;
@@ -117,7 +130,7 @@ export function DetallePropuesta({
   const aprobarTalCual = () =>
     ejecutar(
       async () => {
-        const r = await aprobar(p.id, conDireccion({}, direccion, p.direccion_sugerida), p.desactualizada);
+        const r = await aprobar(p.id, conDireccion({}, direccion, ensenada), p.desactualizada);
         return r.ok ? { ok: true as const, datos: r.datos } : r;
       },
       T.panelCola.aprobada(p.codigo ?? T.panelCola.nuevo),
@@ -176,7 +189,7 @@ export function DetallePropuesta({
           <DatosDelPunto
             campos={ficha.campos}
             cambios={ficha.alta ? null : ficha.cambios}
-            direccion={editable ? { valor: direccion, cambiar: setDireccion } : null}
+            direccion={editable ? { valor: direccion, cambiar: escribirDireccion } : null}
           />
 
           <Fotos p={p} punto={punto} />
@@ -195,7 +208,7 @@ export function DetallePropuesta({
                     alGuardar={(c, dir) =>
                       void ejecutar(
                         async () => {
-                          const r = await aprobar(p.id, conDireccion(c, dir, p.direccion_sugerida), p.desactualizada);
+                          const r = await aprobar(p.id, conDireccion(c, dir, ensenada), p.desactualizada);
                           return r.ok ? { ok: true as const } : r;
                         },
                         T.panelCola.aprobadaConCorrecciones(p.codigo ?? T.panelCola.nuevo),
@@ -609,7 +622,9 @@ function FormularioCorrecciones({
 }) {
   const propuesto = useMemo(() => valoresPropuestos(p, punto), [p, punto]);
   const [v, setV] = useState<ValoresPunto>(propuesto);
-  const [dir, setDir] = useState(direccion || p.direccion_actual || '');
+  // Sin tocar aquí (null), la del detalle tal como esté, también si la deducida llega con esto abierto.
+  const [escrita, setEscrita] = useState<string | null>(null);
+  const dir = escrita ?? direccion;
   const falta = faltaEnCorrecciones(v);
   const cambia = <K extends keyof ValoresPunto>(k: K, valor: ValoresPunto[K]) => setV((x) => ({ ...x, [k]: valor }));
 
@@ -730,7 +745,7 @@ function FormularioCorrecciones({
       <Fila etiqueta={T.ficha.direccion}>
         <input
           value={dir}
-          onChange={(e) => setDir(e.target.value)}
+          onChange={(e) => setEscrita(e.target.value)}
           className="border-linea rounded-campo min-h-9 flex-1 border px-2"
         />
       </Fila>

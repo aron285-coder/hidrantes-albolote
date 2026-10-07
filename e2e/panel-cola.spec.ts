@@ -237,7 +237,8 @@ async function prepararPanel(page: Page, extra: Record<string, unknown>[] = []) 
       body: JSON.stringify({ direccion: 'Camino del Cubillas 2', fuente: 'nominatim' }),
     }),
   );
-  return llamadas;
+  // Una propuesta que llega después, la más nueva: sale la primera en la siguiente carga (RV-161).
+  return Object.assign(llamadas, { llega: (f: Record<string, unknown>) => pendientes.unshift(f) });
 }
 
 const llamadaA = (llamadas: Llamada[], nombre: string) => llamadas.find((l) => l.nombre === nombre)?.cuerpo;
@@ -318,7 +319,8 @@ test('"otra medida": aprobar exige fijar el diámetro con correcciones (FR-17, F
   ).toBeVisible();
   expect(llamadaA(llamadas, 'fn_aprobar')).toEqual({
     propuesta_id: 'c5',
-    correcciones: { diametro_mm: 70, direccion: 'Camino del Cubillas 2' },
+    // La dirección deducida al abrir no se ha tocado: no es una corrección (docs/31 RV-162).
+    correcciones: { diametro_mm: 70 },
     confirmar_desactualizada: false,
   });
 });
@@ -726,3 +728,138 @@ for (const tema of ['claro', 'oscuro'] as const) {
     });
   }
 }
+
+// ---------- docs/31 RV-161 a RV-163 ----------
+
+/** Un alta que llega sin dirección: el panel la deduce al abrir (FR-105). */
+const ALTA_SIN_DIRECCION = fila({
+  id: 'a9',
+  operacion: 'alta',
+  creada_en: hace(1),
+  codigo: null,
+  datos: { tipo: 'hidrante', diametro_mm: 100, caudal: 'bueno' },
+  lat: 37.2335,
+  lng: -3.651,
+  origen_ubicacion: 'gps',
+  precision_gps_m: 4,
+  direccion_sugerida: null,
+  autor_nombre: 'Prueba',
+  autor_apellido: 'Seis',
+});
+
+test('RV-162 caso 1: aprobar un alta con la dirección deducida sin tocar no lleva correcciones', async ({ page }) => {
+  const llamadas = await prepararPanel(page, [ALTA_SIN_DIRECCION]);
+  await page.goto('/admin/cola');
+  await abrir(page, /Prueba Seis/);
+  const detalle = page.getByRole('article');
+  await expect(detalle.getByLabel(T.ficha.direccion)).toHaveValue('Camino del Cubillas 2');
+  await detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_aprobar'))
+    .toEqual({ propuesta_id: 'a9', correcciones: null, confirmar_desactualizada: false });
+});
+
+test('RV-162 caso 2: corregir el estado no añade la dirección que el formulario rellena', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/cola');
+  await abrir(page, new RegExp(P0.codigo));
+  const detalle = page.getByRole('article');
+  await detalle.getByRole('button', { name: T.panelCola.aprobarConCorrecciones }).click();
+  await expect(detalle.getByLabel(T.ficha.direccion)).toHaveValue('Calle Real 14');
+  await detalle.getByLabel(T.panelCola.campoEstado).selectOption('malo');
+  await detalle.getByRole('button', { name: T.panelCola.guardarYAprobar }).click();
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_aprobar'))
+    .toEqual({ propuesta_id: 'c1', correcciones: { caudal: 'malo' }, confirmar_desactualizada: false });
+});
+
+test('RV-162 caso 3: vaciar la dirección la quita (manda null)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/cola');
+  await abrir(page, new RegExp(P0.codigo));
+  const detalle = page.getByRole('article');
+  await detalle.getByRole('button', { name: T.panelCola.aprobarConCorrecciones }).click();
+  await detalle.getByLabel(T.ficha.direccion).fill('');
+  await detalle.getByRole('button', { name: T.panelCola.guardarYAprobar }).click();
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_aprobar'))
+    .toEqual({ propuesta_id: 'c1', correcciones: { direccion: null }, confirmar_desactualizada: false });
+});
+
+test('RV-161: una propuesta nueva no mueve el detalle abierto ni borra lo escrito', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.clock.install();
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/cola');
+  const detalle = page.getByRole('article');
+  const titulo = detalle.getByRole('heading', { name: `${P0.codigo} · ${T.operaciones.etiquetaEstado}` });
+  await expect(titulo).toBeVisible();
+  // La abierta queda fija en la dirección, sin apilar una entrada.
+  await expect(page).toHaveURL(/[?&]p=c1\b/);
+  await detalle.getByRole('button', { name: T.panelCola.rechazar }).click();
+  await detalle.getByLabel(T.panelCola.motivoRechazo).fill('La foto no se ve');
+
+  llamadas.llega(
+    fila({
+      id: 'n1',
+      operacion: 'revision',
+      creada_en: hace(0),
+      punto_id: P5.id,
+      codigo: P5.codigo,
+      datos: {},
+      autor_nombre: 'Prueba',
+      autor_apellido: 'Nueva',
+    }),
+  );
+  await page.clock.runFor(61_000);
+  const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+  await expect(lista.getByRole('listitem').first()).toContainText('Prueba Nueva');
+
+  await expect(titulo).toBeVisible();
+  await expect(detalle.getByLabel(T.panelCola.motivoRechazo)).toHaveValue('La foto no se ve');
+  await expect(page).toHaveURL(/[?&]p=c1\b/);
+  await detalle.getByRole('button', { name: T.panelCola.confirmarRechazo }).click();
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_rechazar'))
+    .toEqual({ propuesta_id: 'c1', motivo: 'La foto no se ve' });
+});
+
+test.describe('a 412 × 915 (RV-163)', () => {
+  test.beforeEach(async ({ page }) => page.setViewportSize({ width: 412, height: 915 }));
+
+  test('"‹" y aprobar vuelven atrás en el historial: no se apila una entrada por propuesta', async ({ page }) => {
+    await prepararPanel(page, rv110());
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await expect(lista.getByRole('listitem').first()).toBeVisible();
+    const largo = () => page.evaluate(() => history.length);
+    const inicio = await largo();
+
+    await abrir(page, new RegExp(P0.codigo));
+    await page.getByRole('button', { name: T.panelCola.volverCola }).click();
+    await expect(page.getByRole('article')).toHaveCount(0);
+    await abrir(page, new RegExp(P4.codigo));
+    await page.getByRole('button', { name: T.panelCola.volverCola }).click();
+    await expect(page.getByRole('article')).toHaveCount(0);
+    expect(await largo()).toBe(inicio + 1);
+
+    // Después de aprobar, igual: la cola, sin una entrada de más.
+    await abrir(page, new RegExp(P5.codigo));
+    await page.getByRole('article').getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect(page.getByRole('article')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/[?&]p=/);
+    expect(await largo()).toBe(inicio + 1);
+  });
+
+  test('"Rechazar seleccionadas" lleva al formulario de arriba con el foco en el motivo', async ({ page }) => {
+    await prepararPanel(page, rv110());
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await lista.getByRole('checkbox').last().check();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.getByRole('button', { name: T.panelCola.rechazarSeleccionadas }).click();
+    const motivo = page.getByLabel(T.panelCola.motivoComun);
+    await expect(motivo).toBeFocused();
+    await expect(motivo).toBeInViewport();
+  });
+});

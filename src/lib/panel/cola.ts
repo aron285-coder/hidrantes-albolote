@@ -688,10 +688,20 @@ export function faltaEnCorrecciones(v: ValoresPunto): string | null {
   return null;
 }
 
-/** La dirección escrita en el panel va en las correcciones solo si difiere de la deducida (FR-105). */
-export function conDireccion(c: Record<string, unknown>, escrita: string, sugerida: string | null) {
+/**
+ * La dirección va en las correcciones solo si jefatura la ha cambiado respecto a la que se le enseñó al
+ * abrir (la sugerida o deducida, o la del punto), no respecto al `direccion_sugerida` del momento, que
+ * sigue a null hasta recargar aunque la deducida ya esté guardada. Vaciarla manda null: el servidor la
+ * quita (FR-105, docs/31 RV-162).
+ */
+export function conDireccion(
+  c: Record<string, unknown>,
+  escrita: string,
+  ensenada: string | null,
+): Record<string, unknown> {
   const d = escrita.trim();
-  return d && d !== (sugerida ?? '').trim() ? { ...c, direccion: d } : c;
+  if (d === (ensenada ?? '').trim()) return c;
+  return { ...c, direccion: d || null };
 }
 
 // ---------- fusionar con el existente (FR-51, FR-106) ----------
