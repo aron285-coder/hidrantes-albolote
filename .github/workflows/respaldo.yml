@@ -134,13 +134,14 @@ jobs:
           # uno de los dos números.
           umask 077
           plano="$RUNNER_TEMP/hidrantes-$FECHA.sql"
+          # Ya, antes de escribirlo: si pg_dump o gpg fallan, el paso de borrado tiene que saber dónde está.
+          echo "PLANO=$plano" >> "$GITHUB_ENV"
           puntos_antes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c 'select count(*) from hidrantes.puntos')
           pg_dump --schema=hidrantes --no-owner --format=plain --file "$plano" "$BD"
           puntos_despues=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c 'select count(*) from hidrantes.puntos')
           gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
               --output "hidrantes-$FECHA.sql.gpg" "$plano"
           {
-            echo "PLANO=$plano"
             echo "PUNTOS_ORIGEN=$puntos_antes $puntos_despues"
             echo "TAMANO_DATOS=$(stat -c %s "hidrantes-$FECHA.sql.gpg")"
           } >> "$GITHUB_ENV"
@@ -194,6 +195,18 @@ jobs:
           retention-days: 90
           if-no-files-found: error
 
+      # Que el respaldo de verdad se pueda restaurar (docs/31 RV-134): antes solo se miraba que el
+      # archivo pesara más de 10 kB. Después de guardar los artefactos (también el de fotos), para que
+      # un fallo aquí no deje la semana sin copia; antes de anotarlo en Salud del sistema, para que un
+      # respaldo que no se puede restaurar no salga como bueno. Si falla, el job falla y abre la issue.
+      - name: Restaurar el volcado en el Postgres de servicio y contar los puntos
+        id: prueba
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086 # PUNTOS_ORIGEN son dos números: van como dos argumentos.
+          bash .github/scripts/probar-restauracion-servicio.sh "$PLANO" $PUNTOS_ORIGEN
+          echo "Restauración de prueba: los mismos puntos que producción." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Anotar el respaldo en Salud del sistema
         env:
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
@@ -206,16 +219,6 @@ jobs:
           guardar() { psql -X -q -v ON_ERROR_STOP=1 "$BD" -c "insert into hidrantes.config (clave, valor, actualizado_por) values ('$1', $2, 'respaldo.yml') on conflict (clave) do update set valor = excluded.valor, actualizado_por = excluded.actualizado_por;"; }
           guardar ultimo_respaldo 'to_jsonb(now())'
           if [ -n "${BYTES_FOTOS:-}" ]; then guardar storage_bytes "to_jsonb(${BYTES_FOTOS}::bigint)"; fi
-
-      # Que el respaldo de verdad se pueda restaurar (docs/31 RV-134): antes solo se miraba que el
-      # archivo pesara más de 10 kB. Después de guardarlo en sus dos sitios, para que un fallo aquí no
-      # deje la semana sin copia: si falla, el job falla y abre la issue de siempre.
-      - name: Restaurar el volcado en el Postgres de servicio y contar los puntos
-        run: |
-          set -euo pipefail
-          # shellcheck disable=SC2086 # PUNTOS_ORIGEN son dos números: van como dos argumentos.
-          bash .github/scripts/probar-restauracion-servicio.sh "$PLANO" $PUNTOS_ORIGEN
-          echo "Restauración de prueba: los mismos puntos que producción." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Borrar el volcado sin cifrar
         if: always()
@@ -231,6 +234,9 @@ jobs:
           titulo="El respaldo semanal ha fallado"
           existe=$(gh issue list --label vigilancia --state open --search "$titulo" --json number --jq '.[0].number // empty')
           cuerpo="La ejecución ${{ github.run_id }} no terminó. Revisa el registro del workflow y 15 §5.3."
+          if [ "${{ steps.prueba.outcome }}" = failure ]; then
+            cuerpo="$cuerpo El volcado se guardó, pero **no se ha podido restaurar** en la prueba semanal (docs/31 RV-134): no es fiable hasta que se arregle."
+          fi
           if [ -n "$existe" ]; then
             gh issue comment "$existe" --body "$cuerpo"
           else

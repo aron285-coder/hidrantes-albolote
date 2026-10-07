@@ -29,9 +29,12 @@ describe('respaldo.yml comprueba el respaldo restaurándolo (RV-134)', () => {
     expect(cuerpo).toContain('plano="$RUNNER_TEMP/hidrantes-$FECHA.sql"');
     expect(cuerpo).toContain('pg_dump --schema=hidrantes --no-owner --format=plain --file "$plano" "$BD"');
     expect(cuerpo).toMatch(/--output "hidrantes-\$FECHA\.sql\.gpg" "\$plano"/);
-    expect(cuerpo.indexOf('puntos_antes=')).toBeLessThan(cuerpo.indexOf('pg_dump'));
-    expect(cuerpo.indexOf('puntos_despues=')).toBeGreaterThan(cuerpo.indexOf('pg_dump'));
+    expect(cuerpo.indexOf('puntos_antes=')).toBeLessThan(cuerpo.indexOf('pg_dump --schema'));
+    expect(cuerpo.indexOf('puntos_despues=')).toBeGreaterThan(cuerpo.indexOf('pg_dump --schema'));
     expect(cuerpo).toContain('echo "PUNTOS_ORIGEN=$puntos_antes $puntos_despues"');
+    // Dónde está, antes de escribirlo: si pg_dump o gpg fallan, el borrado lo encuentra igual.
+    expect(cuerpo.indexOf('echo "PLANO=$plano" >> "$GITHUB_ENV"')).toBeGreaterThan(-1);
+    expect(cuerpo.indexOf('echo "PLANO=$plano" >> "$GITHUB_ENV"')).toBeLessThan(cuerpo.indexOf('pg_dump --schema'));
   });
 
   it('restaura después de guardar el respaldo, y el job falla si no cuadra', () => {
@@ -39,8 +42,13 @@ describe('respaldo.yml comprueba el respaldo restaurándolo (RV-134)', () => {
     expect(cuerpo).toContain('bash .github/scripts/probar-restauracion-servicio.sh "$PLANO" $PUNTOS_ORIGEN');
     expect(cuerpo).not.toContain('continue-on-error');
     const restaurar = yml.indexOf('- name: Restaurar el volcado en el Postgres de servicio');
+    // Tras guardar los dos artefactos (un fallo aquí no deja la semana sin copia) y antes de anotar el
+    // respaldo en Salud del sistema (uno que no se restaura no sale como bueno).
     expect(restaurar).toBeGreaterThan(yml.indexOf('name: respaldo-hidrantes'));
+    expect(restaurar).toBeGreaterThan(yml.indexOf('name: respaldo-fotos'));
+    expect(restaurar).toBeLessThan(yml.indexOf('- name: Anotar el respaldo en Salud del sistema'));
     expect(restaurar).toBeLessThan(yml.indexOf('- name: Avisar si el respaldo ha fallado'));
+    expect(paso('Avisar si el respaldo ha fallado')).toContain('steps.prueba.outcome');
   });
 
   it('el volcado sin cifrar se borra siempre y ningún artefacto lo lleva', () => {

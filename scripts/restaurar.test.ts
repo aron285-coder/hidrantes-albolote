@@ -492,6 +492,26 @@ describe('copia previa antes de LIMPIAR_ESQUEMA (RV-134)', () => {
     }
   });
 
+  // Revisión del PR: con gpg sin la clave, gpg sale enseguida y pg_dump se quedaba bloqueado al
+  // escribir, para siempre. Tiene que terminar con el error de gpg.
+  it('si el segundo termina antes, el primero se para y no se queda colgado', async () => {
+    const carpeta = mkdtempSync(path.join(os.tmpdir(), 'canal-'));
+    try {
+      const escritor = {
+        comando: process.execPath,
+        args: ['-e', 'const t = Buffer.alloc(1 << 20, 120); (function e() { process.stdout.write(t, e); })()'],
+      };
+      const r = await canalizar(escritor, { comando: process.execPath, args: ['-e', 'process.exit(2)'] });
+      expect(r.codigoB).toBe(2);
+      expect(r.codigoA).not.toBe(0);
+      const sinGpg = await canalizar(escritor, { comando: 'no-existe-este-gpg-rv134', args: [] });
+      expect(sinGpg.codigoB).not.toBe(0);
+      expect(sinGpg.codigoA).not.toBe(0);
+    } finally {
+      rmSync(carpeta, { recursive: true, force: true });
+    }
+  });
+
   it('se hace después de confirmar y antes de la restauración, salvo en local', () => {
     const texto = readFileSync(path.join(RAIZ, 'scripts', 'restaurar.ts'), 'utf8');
     const principal = texto.slice(texto.indexOf('async function principal'));

@@ -354,9 +354,15 @@ export function canalizar(a: Orden, b: Orden): Promise<Canal> {
       fin.a ??= 127;
       terminar();
     });
+    // Si b termina (o no arranca) con a aún vivo, nadie lee ya la salida de a: en cuanto se llenara la
+    // tubería, pg_dump se quedaría esperando para siempre y la restauración, colgada sin decir nada.
+    const pararA = () => {
+      if (fin.a === undefined && pa.exitCode === null) pa.kill();
+    };
     pb.on('error', (e) => {
       error += `\n${b.comando}: ${e.message}`;
       fin.b ??= 127;
+      pararA();
       terminar();
     });
     pa.on('close', (c) => {
@@ -365,6 +371,7 @@ export function canalizar(a: Orden, b: Orden): Promise<Canal> {
     });
     pb.on('close', (c) => {
       fin.b ??= c ?? 1;
+      pararA();
       terminar();
     });
   });
