@@ -45,7 +45,9 @@ export function comprobarNombre(tipo: string, nombre: string): Tipo {
 /** Solo el código y el error del Worker: nunca la URL con su subida, ni cabeceras. */
 async function motivo(r: Response): Promise<string> {
   const cuerpo = (await r.json().catch(() => null)) as { error?: string } | null;
-  return `HTTP ${r.status}${cuerpo?.error ? ` ${cuerpo.error}` : ''}`;
+  // Es un código fijo del Worker (NO_AUTORIZADO, YA_EXISTE…), no la salida de un proceso.
+  const codigo = typeof cuerpo?.error === 'string' && /^[A-Z_]{1,40}$/.test(cuerpo.error) ? cuerpo.error : '';
+  return `HTTP ${r.status}${codigo ? ` ${codigo}` : ''}`;
 }
 
 const esperar = (ms: number) => new Promise((ok) => setTimeout(ok, ms));

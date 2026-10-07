@@ -93,7 +93,7 @@ async function principal(): Promise<void> {
     }
     // Lo que haya quedado a medias no sirve y bloquearía repetir.
     rmSync(archivo, { force: true });
-    if (/not logged in|login|authentication/i.test(`${r.error}\n${r.salida}`)) {
+    if (/not logged in|login|authentication/i.test(r.error + '\n' + r.salida)) {
       abortar('La sesión de wrangler ha caducado: npx wrangler login, y repite.');
     }
     if (claves.length === 1) abortar(`No está ${clave} en R2 (o no se ha podido leer).`);
