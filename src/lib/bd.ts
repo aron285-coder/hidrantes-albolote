@@ -107,6 +107,12 @@ export function almacenEnMemoria<T extends { id: string }>(): Almacen<T> {
 export interface AlmacenCola<T extends { clave_local: string }> {
   todos(): Promise<T[]>;
   guardar(item: T): Promise<void>;
+  /**
+   * Lee el elemento, lo cambia con `f` y lo escribe, todo en la misma transacción (docs/31 RV-156):
+   * nada se cuela entre la lectura y la escritura. `f` recibe null si no está; si devuelve null, no
+   * se escribe nada. Devuelve lo escrito.
+   */
+  actualizar(clave: string, f: (actual: T | null) => T | null): Promise<T | null>;
   quitar(clave: string): Promise<void>;
   vaciar(): Promise<void>;
 }
@@ -126,6 +132,18 @@ export function almacenCola<T extends { clave_local: string }>(): AlmacenCola<T>
       return promesa(bd.transaction('cola').objectStore('cola').getAll()) as Promise<T[]>;
     },
     guardar: (item) => escribirUno((s) => s.put(item)),
+    async actualizar(clave, f) {
+      let escrito: T | null = null;
+      await escribirUno((s) => {
+        const p = s.get(clave);
+        // Dentro de onsuccess la transacción sigue viva: el put va en la misma.
+        p.onsuccess = () => {
+          escrito = f((p.result as T | undefined) ?? null);
+          if (escrito) s.put(escrito);
+        };
+      });
+      return escrito;
+    },
     quitar: (clave) => escribirUno((s) => s.delete(clave)),
     vaciar: () => escribirUno((s) => s.clear()),
   };
@@ -136,6 +154,11 @@ export function colaEnMemoria<T extends { clave_local: string }>(): AlmacenCola<
   return {
     todos: async () => [...items.values()],
     guardar: async (item) => void items.set(item.clave_local, item),
+    actualizar: async (clave, f) => {
+      const nuevo = f(items.get(clave) ?? null);
+      if (nuevo) items.set(clave, nuevo);
+      return nuevo;
+    },
     quitar: async (clave) => void items.delete(clave),
     vaciar: async () => items.clear(),
   };

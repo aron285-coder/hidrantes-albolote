@@ -17,7 +17,7 @@ import {
   retirarPropuesta,
   textoErrorRetirar,
 } from '@/lib/mis-propuestas';
-import { ETIQUETA_OPERACION, textoFallo } from '@/lib/nombres-operacion';
+import { ETIQUETA_OPERACION, textoEspera, textoFallo } from '@/lib/nombres-operacion';
 import { textoCambios } from '@/lib/campos';
 import type { Operacion } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
@@ -138,6 +138,10 @@ export function MisPropuestas() {
                 {c.fallo ? (
                   <p className="bg-rojo-100 text-rojo-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
                     {textoFallo(c.fallo)}
+                  </p>
+                ) : textoEspera(c) ? (
+                  <p className="bg-ambar-100 text-ambar-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
+                    {textoEspera(c)}
                   </p>
                 ) : (
                   ahora - c.creada_en > ATASCADO_MS && (
