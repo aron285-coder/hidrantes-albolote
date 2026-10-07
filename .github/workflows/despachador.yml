@@ -1,0 +1,87 @@
+# El despachador de los trabajos que pide jefatura desde el panel (docs/31 RV-137 y RV-146, DEC-172).
+# El panel deja un pedido en la base de datos de producción (fn_pedir_trabajo); este workflow, cada
+# 15 minutos, lo recoge con fn_pedidos_pendientes, lanza el workflow que toca con su propio
+# GITHUB_TOKEN y lo marca con fn_marcar_pedido (scripts/despachar.ts). Así ningún proyecto de Pages
+# guarda un token de GitHub, y staging no puede lanzar nada contra producción: sus pedidos se quedan
+# en la base de datos de staging, que nadie despacha.
+#
+# Environment prod-tareas (RV-131): solo la rama develop alcanza la clave de servicio de producción.
+# Sin npm ci: scripts/despachar.ts solo usa módulos de Node, y ninguna dependencia de npm corre con
+# la clave de servicio a mano.
+name: Despachador
+
+on:
+  schedule:
+    # Cada 15 minutos. GitHub retrasa los cron cortos; un pedido puede tardar algo más en empezar.
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Lanzar los workflows de los pedidos (workflow_dispatch). Un GITHUB_TOKEN sí crea ejecuciones con
+  # workflow_dispatch, a diferencia de los demás eventos.
+  actions: write
+  issues: write
+
+concurrency:
+  group: despachador
+  cancel-in-progress: false
+
+jobs:
+  despachar:
+    runs-on: ubuntu-24.04
+    environment: prod-tareas
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Lanzar los trabajos pedidos
+        id: despachar
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/despachar.ts
+
+      # Dos issues distintas:
+      # - «El despachador de trabajos ha fallado»: no ha podido leer o marcar los pedidos. Una sola,
+      #   no una por pasada (cada 15 minutos llenaría la lista), y se cierra sola cuando vuelve a ir bien.
+      # - «Un trabajo pedido desde el panel no se ha lanzado»: un pedido anotado con error. Ese pedido
+      #   no se reintenta, así que la pasada siguiente va bien: esta issue no se cierra sola, la
+      #   cierra quien lo arregla (15 §4).
+      - name: Abrir o cerrar las issues del despachador
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ESTADO: ${{ job.status }}
+          CON_ERROR: ${{ steps.despachar.outputs.con_error }}
+          EJECUCION: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          abierta() {
+            gh issue list --label vigilancia --state open --json number,title \
+              --jq "[.[] | select(.title == \"$1\")] | .[0].number // empty"
+          }
+          titulo='El despachador de trabajos ha fallado'
+          numero=$(abierta "$titulo")
+          if [ "$ESTADO" = success ]; then
+            if [ -n "$numero" ]; then
+              gh issue close "$numero" --comment "El despachador vuelve a ir bien: $EJECUCION"
+            fi
+          elif [ -z "$numero" ]; then
+            gh issue create --title "$titulo" --label vigilancia --body "El despachador no ha podido leer o anotar los pedidos del panel (purgar fotos, respaldo, regenerar la zona o el mapa base): no se está lanzando nada. Mira la ejecución: $EJECUCION
+
+          Qué hacer: docs/15 §4."
+          fi
+          if [ -n "${CON_ERROR:-}" ]; then
+            titulo='Un trabajo pedido desde el panel no se ha lanzado'
+            cuerpo=$(printf 'El despachador ha anotado estos pedidos con error, y no los reintenta:\n\n%s\n\nEjecución: %s\n\nQué hacer: docs/15 §4. Arreglado, vuelve a pulsar el botón en Ajustes y cierra esta issue.\n' \
+              "$(printf '%s\n' "$CON_ERROR" | sed 's/^/- /')" "$EJECUCION")
+            numero=$(abierta "$titulo")
+            if [ -n "$numero" ]; then gh issue comment "$numero" --body "$cuerpo"
+            else gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"; fi
+          fi
