@@ -311,13 +311,15 @@ describe('cerrar sesión revoca el token (docs/31 RV-158)', () => {
       rpc.mockImplementation((nombre: string) =>
         nombre === 'fn_cerrar_sesion' ? new Promise(() => undefined) : Promise.resolve({ data: null, error: null }),
       );
+      // Los errores salen por POST /api/error desde #524 (RV-148): aquí el servidor los acepta.
+      const fetch = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => respuesta(200, {}));
+      vi.stubGlobal('fetch', fetch);
       await cerrarSesionVoluntario();
       expect(acceso().tipo).toBe('fuera');
-      // Aquí el servidor sí acepta el error: sale a fn_registrar_error en vez de quedarse en la cola.
       await vi.waitFor(() =>
         expect(
-          llamadas('fn_registrar_error').some((c) =>
-            String((c[1] as { mensaje: string }).mensaje).includes('fn_cerrar_sesion: TIEMPO_AGOTADO'),
+          fetch.mock.calls.some(
+            ([url, init]) => url === '/api/error' && String(init?.body).includes('fn_cerrar_sesion: TIEMPO_AGOTADO'),
           ),
         ).toBe(true),
       );
