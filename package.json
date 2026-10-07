@@ -52,7 +52,8 @@
     "paridad": "tsx scripts/paridad.ts",
     "tareas-esperadas": "tsx scripts/generar-tareas-esperadas.ts",
     "anonimizar": "tsx scripts/anonimizar.ts",
-    "traspasar-secreto": "tsx scripts/traspasar-secreto.ts"
+    "traspasar-secreto": "tsx scripts/traspasar-secreto.ts",
+    "publicar": "tsx scripts/publicar.ts"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",

@@ -504,6 +504,65 @@ Fase 0.
 - Los tres procedimientos (revertir frontend, revertir migración, restaurar respaldo) están escritos
   paso a paso en **15**.
 
+### 12.1 Publicar en producción: `npm run publicar` (DEC-176)
+
+Una release la hace una sesión de Claude Code, sin pasos a mano, con la sesión de `gh` y `git` del
+propietario. `scripts/publicar.ts` repite siempre los mismos seis pasos; se puede relanzar, y cada
+paso mira el estado real y sigue (PR ya fusionado, deploy ya aprobado…):
+
+| Paso | Qué hace |
+|---|---|
+| 1 · `release` | Localiza el PR abierto de release-please (rama `release-please--…`, etiqueta `autorelease: pending`). Si no hay CI de `pull_request` para su cabeza, hace el empujón de DEC-079 sin cambiar de rama: `git commit-tree` de un commit vacío encima de la cabeza y `git push origin <sha>:refs/heads/<rama>`. Espera los checks obligatorios y lo fusiona con **squash**. |
+| 2 · `main` | Abre el PR `develop → main` (o usa el abierto), espera su CI y lo fusiona con **merge commit**, nunca squash (DEC-096; `ci-calidad` lo comprueba, RV-135). |
+| 3 · `despliegue` | Espera a que la ejecución de `deploy-prod.yml` de ese merge pida la aprobación (`waiting`). |
+| 4 · `puerta` | La puerta automática, abajo. |
+| 5 · `aprobar` | Puerta en verde: `POST repos/…/actions/runs/{id}/pending_deployments` con `state: approved`, el `id` del *environment* `production` y el resumen de la puerta como comentario. En rojo: lo mismo con `state: rejected`, y abre una issue con la etiqueta `bloquea-release` y el motivo; termina con error. |
+| 6 · `paridad` | Espera al final del deploy (que ya comprueba la paridad con `develop`) y repite `npm run comprobar-produccion -- --completo`. |
+
+**La puerta** aprueba solo si se cumplen las cuatro:
+
+- la CI (`ci.yml`) del *push* a `main` de ese commit ha terminado en verde;
+- la comprobación en staging (RV-139b) está en verde **con el mismo commit de `develop`** que llega a
+  `main` (el segundo padre del merge). Se admite un commit anterior de `develop` si desde él solo
+  cambian `docs/**`, `CHANGELOG.md`, `.release-please-manifest.json` y la línea `"version"` de
+  `package.json` y `package-lock.json`: lo que añade el propio registro y el PR de release;
+- `npm run comprobar-produccion -- --completo` termina con 0 (con 1 falta algo imprescindible; con 2
+  algo imprescindible queda sin comprobar: las dos cierran la puerta). Ese script lee
+  `deploy-prod.yml` y las migraciones del checkout local, así que `publicar` se lanza desde
+  `develop` al día: si esos archivos no son los del commit que se publica, la puerta se cierra;
+- no hay ninguna issue abierta con la etiqueta `bloquea-release` (si no se pueden consultar, tampoco
+  pasa).
+
+**El marcador de la comprobación en staging.** Quien haga RV-139b añade, al final de
+`docs/verificacion/revision-completa-staging.md`, una línea por comprobación, sola y con este formato
+exacto (el sha, de 7 a 40 caracteres, es el commit de `develop` desplegado en staging que se
+comprobó):
+
+```
+commit: 04d2e86 · resultado: verde
+```
+
+`resultado` es `verde` o `rojo`. Puede ir como elemento de lista (`- commit: …`) o entre comillas de
+código. **Manda la última línea** con ese formato: una comprobación posterior en rojo cierra la puerta
+aunque haya una verde antes. El script lee el archivo en el commit de `develop` que se publica.
+
+**Uso:**
+
+```
+npm run publicar                        # los seis pasos
+npm run publicar -- --solo-comprobar    # no empuja, no fusiona ni aprueba: dice qué haría y qué
+                                        # diría la puerta ahora (con la cabeza de develop)
+npm run publicar -- --hasta puerta      # para después de ese paso (nombre o número, 1 a 6)
+```
+
+`--solo-comprobar` no cambia nada en el repositorio ni en producción, pero sí lanza
+`comprobar-produccion.yml` (de solo lectura) y espera unos minutos a que acabe. Una opción
+desconocida es un error. Un deploy rechazado no se reintenta solo: se arregla lo que dice
+la issue, se cierra, y se relanza la ejecución (`gh run rerun <id>`) o se publica un commit nuevo.
+Después de publicar, se anota la versión en `docs/verificacion/paridad-produccion.md` §2. El revisor
+humano del *environment* sigue configurado: quien pueda usar la sesión de `gh` del propietario en
+este PC puede publicar (contrapartida aceptada en DEC-176).
+
 ---
 
 ## 13. Piloto y promoción de datos
