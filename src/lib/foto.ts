@@ -160,11 +160,31 @@ export function opcionesDecodificar(
   return { ...base, resizeWidth: final.ancho, resizeQuality: 'high' };
 }
 
+/**
+ * Tamaño final. Con la cabecera, el de la foto girada: al reducir solo por el ancho, el navegador
+ * puede redondear el alto un píxel (961 en vez de 960 en Chromium de Linux). Si la imagen
+ * decodificada no tiene esa proporción (cabecera rara), manda la imagen.
+ */
+function tamanoFinal(
+  cabecera: { ancho: number; alto: number; orientacion: number } | null,
+  imagen: { width: number; height: number },
+  perfil: PerfilFoto,
+): { ancho: number; alto: number } {
+  const deLaImagen = dimensiones(imagen.width, imagen.height, perfil.ladoMaximo);
+  if (!cabecera) return deLaImagen;
+  const girada = cabecera.orientacion >= 5;
+  const ancho = girada ? cabecera.alto : cabecera.ancho;
+  const alto = girada ? cabecera.ancho : cabecera.alto;
+  if (Math.abs(ancho / alto - imagen.width / imagen.height) > 0.01 * (ancho / alto)) return deLaImagen;
+  return dimensiones(ancho, alto, perfil.ladoMaximo);
+}
+
 /** Endereza, reduce y recomprime. El resultado nunca lleva EXIF ni pasa de 5 MB. */
 export async function procesarFoto(archivo: Blob, perfil: PerfilFoto = PERFIL_CONEXION): Promise<FotoProcesada> {
   const cabecera = await archivo.slice(0, 256 * 1024).arrayBuffer();
   const exif = leerGpsExif(cabecera);
-  const opciones = opcionesDecodificar(cabeceraJpeg(cabecera), perfil);
+  const datos = cabeceraJpeg(cabecera);
+  const opciones = opcionesDecodificar(datos, perfil);
   let imagen: ImageBitmap;
   try {
     imagen = await createImageBitmap(archivo, opciones);
@@ -177,7 +197,7 @@ export async function procesarFoto(archivo: Blob, perfil: PerfilFoto = PERFIL_CO
   let ancho: number;
   let alto: number;
   try {
-    ({ ancho, alto } = dimensiones(imagen.width, imagen.height, perfil.ladoMaximo));
+    ({ ancho, alto } = tamanoFinal(datos, imagen, perfil));
     lienzo.width = ancho;
     lienzo.height = alto;
     const ctx = lienzo.getContext('2d');

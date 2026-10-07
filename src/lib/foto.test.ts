@@ -132,6 +132,12 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
       expect(cerrar).toHaveBeenCalledTimes(1);
     });
 
+    it('si el navegador redondea el alto un píxel, el tamaño final sigue siendo el exacto', async () => {
+      crear.mockImplementationOnce(async () => ({ width: 1280, height: 961, close: cerrar }));
+      const r = await procesarFoto(new Blob([jpegConCabecera(2400, 1800)]), PERFIL_SITIO);
+      expect(r).toMatchObject({ ancho: 1280, alto: 960 });
+    });
+
     it('si el navegador no sabe reducir al decodificar, lo hace como antes', async () => {
       crear.mockImplementationOnce(async () => {
         throw new TypeError('resizeWidth no admitido');
