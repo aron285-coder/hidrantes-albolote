@@ -13,6 +13,7 @@ import {
   decidir,
   diffSoloDeVersion,
   empujon,
+  esperarChecks,
   estadoChecks,
   estadoEjecucion,
   evaluarPuerta,
@@ -307,6 +308,11 @@ describe('PR de release-please y empujón (DEC-079)', () => {
     expect(() => localizarRelease(dos.ctx)).toThrow(/2 PR de release/);
   });
 
+  it('la CI del bot en action_required no cuenta: hace falta el empujón', () => {
+    const runs = [{ headSha: VERIF, conclusion: 'action_required' }];
+    expect(hayCiDePr(simulado([[/^gh run list/, ok(JSON.stringify(runs))]]).ctx, pr)).toBe(false);
+  });
+
   it('hace falta el empujón si ninguna CI de pull_request es de su cabeza', () => {
     expect(hayCiDePr(simulado([[/^gh run list/, ok(JSON.stringify([{ headSha: DEV }]))]]).ctx, pr)).toBe(false);
     expect(hayCiDePr(simulado([[/^gh run list/, ok(JSON.stringify([{ headSha: VERIF }]))]]).ctx, pr)).toBe(true);
@@ -354,6 +360,7 @@ describe('la puerta con gh, git y npm simulados', () => {
       [/^git merge-base --is-ancestor/, ok()],
       [/^git diff --name-only/, ok(diff)],
       [/^git diff -U0/, ok(diffVersion)],
+      [/^git diff --quiet HEAD/, ok()],
       [
         /^npm run --silent comprobar-produccion -- --completo/,
         { codigo: produccion, salida: '| bd | migraciones | FALTA | x |', error: '' },
@@ -395,6 +402,16 @@ describe('la puerta con gh, git y npm simulados', () => {
     }
   });
 
+  it('rojo si el checkout local no tiene las migraciones y deploy-prod.yml de lo que se publica', async () => {
+    const reglas = reglasPuerta();
+    reglas.unshift([/^git diff --quiet HEAD/, falla('', 1)]);
+    const s = simulado(reglas);
+    const r = evaluarPuerta(await datosPuerta(s.ctx, MAIN, DEV, { esperarCi: false }));
+    expect(r.verde).toBe(false);
+    expect(resumenPuerta(r, MAIN)).toContain('no se ha comprobado la versión que se publica');
+    expect(s.lineas().some((l) => l.startsWith('npm run'))).toBe(false);
+  });
+
   it('rojo con una issue bloquea-release abierta', async () => {
     const d = await datosPuerta(simulado(reglasPuerta({ issues: '[{"number":600,"title":"Algo"}]' })).ctx, MAIN, DEV, {
       esperarCi: false,
@@ -419,6 +436,27 @@ describe('la puerta con gh, git y npm simulados', () => {
     const d = await datosPuerta(simulado(reglas).ctx, MAIN, DEV, { esperarCi: true });
     expect(d.ciMain).toBe('verde');
     expect(n).toBe(3);
+  });
+});
+
+describe('esperar a los checks del PR', () => {
+  it('no da por buenos los checks de la cabeza anterior', async () => {
+    let vistas = 0;
+    const s = simulado([
+      [/^gh pr view 545/, () => ok(++vistas < 3 ? VERIF : DEV)],
+      [/^gh pr checks 545/, ok('[{"name":"ci-calidad","bucket":"pass"}]')],
+    ]);
+    await esperarChecks(s.ctx, 545, DEV);
+    expect(vistas).toBe(3);
+    expect(s.lineas().filter((l) => l.startsWith('gh pr checks'))).toHaveLength(1);
+  });
+
+  it('en rojo, se para', async () => {
+    const s = simulado([
+      [/^gh pr view/, ok(DEV)],
+      [/^gh pr checks/, { codigo: 1, salida: '[{"name":"ci-sql","bucket":"fail"}]', error: '' }],
+    ]);
+    await expect(esperarChecks(s.ctx, 545, DEV)).rejects.toThrow(/en rojo/);
   });
 });
 
@@ -504,6 +542,7 @@ describe('--solo-comprobar no cambia nada', () => {
         ],
         [new RegExp(`^git show ${DEV}:`), ok(`commit: ${DEV} · resultado: verde`)],
         [/^git rev-parse --verify/, ok(DEV)],
+        [/^git diff --quiet HEAD/, ok()],
         [/^npm run --silent comprobar-produccion/, ok('')],
         [/^gh issue list/, ok('[]')],
       ],

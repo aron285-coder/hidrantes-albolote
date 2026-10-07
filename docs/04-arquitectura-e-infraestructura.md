@@ -527,7 +527,9 @@ paso mira el estado real y sigue (PR ya fusionado, deploy ya aprobado…):
   cambian `docs/**`, `CHANGELOG.md`, `.release-please-manifest.json` y la línea `"version"` de
   `package.json` y `package-lock.json`: lo que añade el propio registro y el PR de release;
 - `npm run comprobar-produccion -- --completo` termina con 0 (con 1 falta algo imprescindible; con 2
-  algo imprescindible queda sin comprobar: las dos cierran la puerta);
+  algo imprescindible queda sin comprobar: las dos cierran la puerta). Ese script lee
+  `deploy-prod.yml` y las migraciones del checkout local, así que `publicar` se lanza desde
+  `develop` al día: si esos archivos no son los del commit que se publica, la puerta se cierra;
 - no hay ninguna issue abierta con la etiqueta `bloquea-release` (si no se pueden consultar, tampoco
   pasa).
 
@@ -553,7 +555,9 @@ npm run publicar -- --solo-comprobar    # no empuja, no fusiona ni aprueba: dice
 npm run publicar -- --hasta puerta      # para después de ese paso (nombre o número, 1 a 6)
 ```
 
-Una opción desconocida es un error. Un deploy rechazado no se reintenta solo: se arregla lo que dice
+`--solo-comprobar` no cambia nada en el repositorio ni en producción, pero sí lanza
+`comprobar-produccion.yml` (de solo lectura) y espera unos minutos a que acabe. Una opción
+desconocida es un error. Un deploy rechazado no se reintenta solo: se arregla lo que dice
 la issue, se cierra, y se relanza la ejecución (`gh run rerun <id>`) o se publica un commit nuevo.
 Después de publicar, se anota la versión en `docs/verificacion/paridad-produccion.md` §2. El revisor
 humano del *environment* sigue configurado: quien pueda usar la sesión de `gh` del propietario en

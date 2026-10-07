@@ -16,7 +16,8 @@
 //
 //   npm run publicar                         todo
 //   npm run publicar -- --solo-comprobar     no empuja, no fusiona ni aprueba: dice qué haría y qué
-//                                            diría la puerta ahora mismo
+//                                            diría la puerta ahora mismo (lanza comprobar-produccion.yml,
+//                                            que solo lee, y espera unos minutos)
 //   npm run publicar -- --hasta puerta       para después de ese paso (nombre o número, 1 a 6)
 //
 // Se puede relanzar: cada paso mira el estado real (PR ya fusionado, deploy ya aprobado…) y sigue.
@@ -182,7 +183,9 @@ export function evaluarPuerta(d: DatosPuerta): ResultadoPuerta {
         ? 'falta algo imprescindible'
         : d.produccion.codigo === 2
           ? 'algo imprescindible queda sin comprobar'
-          : `ha terminado con ${d.produccion.codigo}`;
+          : d.produccion.codigo === 3
+            ? 'no se ha comprobado la versión que se publica'
+            : `ha terminado con ${d.produccion.codigo}`;
   const lineas: LineaPuerta[] = [
     {
       que: 'CI de main',
@@ -193,7 +196,11 @@ export function evaluarPuerta(d: DatosPuerta): ResultadoPuerta {
     {
       que: 'comprobar-produccion --completo',
       ok: d.produccion.codigo === 0,
-      detalle: d.produccion.filas.length ? `${prod}: ${d.produccion.filas.join('; ')}` : prod,
+      detalle: !d.produccion.filas.length
+        ? prod
+        : d.produccion.codigo === 0
+          ? `${prod} (no imprescindibles: ${d.produccion.filas.join('; ')})`
+          : `${prod}: ${d.produccion.filas.join('; ')}`,
     },
     {
       que: `Issues abiertas con «${ETIQUETA_BLOQUEO}»`,
@@ -307,12 +314,31 @@ function checksDe(ctx: Contexto, pr: number): EstadoCi {
   return leerChecks(ctx.ej('gh', ['pr', 'checks', String(pr), '--repo', REPO, '--required', '--json', 'name,bucket']));
 }
 
-async function esperarChecks(ctx: Contexto, pr: number): Promise<void> {
+/** Espera a los checks obligatorios **de `cabeza`**: justo después de un push, el PR aún enseña los de antes. */
+export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string): Promise<void> {
   log.info(`Esperando a los checks obligatorios del PR #${pr}…`);
+  // Sin ningún check al cabo de un rato, no van a llegar (p. ej., una CI del bot en action_required).
+  const limiteSinChecks = Date.now() + Math.min(ctx.limites.checks, 15 * 60_000);
   const estado = await sondear(
     ctx,
     () => {
+      const actual = ctx.ej('gh', [
+        'pr',
+        'view',
+        String(pr),
+        '--repo',
+        REPO,
+        '--json',
+        'headRefOid',
+        '--jq',
+        '.headRefOid',
+      ]);
+      if (actual.codigo !== 0) abortar(`No se ha podido leer el PR #${pr}: ${actual.error || actual.salida}`);
+      if (actual.salida.trim() !== cabeza) return null;
       const e = checksDe(ctx, pr);
+      if (e === 'sin checks' && Date.now() > limiteSinChecks) {
+        abortar(`El PR #${pr} sigue sin checks: ¿ha corrido su CI? Míralo en Actions.`);
+      }
       return e === 'verde' || e === 'rojo' ? e : null;
     },
     ctx.limites.checks,
@@ -358,7 +384,7 @@ export function localizarRelease(ctx: Contexto): PrRelease | null {
 
 /** ¿Hay ya una CI de pull_request para la cabeza del PR? Si no, hace falta el empujón (DEC-079). */
 export function hayCiDePr(ctx: Contexto, pr: PrRelease): boolean {
-  const runs = json<{ headSha: string }[]>(
+  const runs = json<{ headSha: string; conclusion: string | null }[]>(
     ctx,
     [
       'run',
@@ -374,11 +400,12 @@ export function hayCiDePr(ctx: Contexto, pr: PrRelease): boolean {
       '-L',
       '20',
       '--json',
-      'headSha',
+      'headSha,conclusion',
     ],
     'No se han podido listar las ejecuciones de la CI',
   );
-  return runs.some((r) => r.headSha === pr.headRefOid);
+  // Las del bot salen con action_required y sin ningún trabajo: no cuentan (DEC-079).
+  return runs.some((r) => r.headSha === pr.headRefOid && r.conclusion !== 'action_required');
 }
 
 /** Commit vacío encima de la cabeza del PR, sin cambiar de rama, y push de ese sha a la rama. */
@@ -413,7 +440,7 @@ async function pasoRelease(ctx: Contexto): Promise<void> {
     log.info(`Checks ahora: ${checksDe(ctx, pr.number)}. Esperaría a que estén en verde y lo fusionaría con squash.`);
     return;
   }
-  await esperarChecks(ctx, pr.number);
+  await esperarChecks(ctx, pr.number, cabeza);
   const r = ctx.ej('gh', ['pr', 'merge', String(pr.number), '--repo', REPO, '--squash', '--match-head-commit', cabeza]);
   if (r.codigo !== 0) abortar(`No se ha podido fusionar el PR #${pr.number}: ${r.error || r.salida}`);
   log.ok(`PR #${pr.number} fusionado con squash en develop.`);
@@ -500,14 +527,17 @@ async function pasoMain(ctx: Contexto): Promise<string> {
     if (!numero) abortar(`No he entendido la respuesta de gh pr create: ${r.salida}`);
     log.ok(`PR #${numero} abierto.`);
   }
-  await esperarChecks(ctx, numero);
+  await esperarChecks(ctx, numero, develop);
   const m = ctx.ej('gh', ['pr', 'merge', String(numero), '--repo', REPO, '--merge', '--match-head-commit', develop]);
   if (m.codigo !== 0) abortar(`No se ha podido fusionar el PR #${numero}: ${m.error || m.salida}`);
-  const sha = json<string>(
+  const sha = json<string | null>(
     ctx,
     ['pr', 'view', String(numero), '--repo', REPO, '--json', 'mergeCommit', '--jq', '.mergeCommit.oid | tojson'],
     'No se ha podido leer el merge commit',
   );
+  if (!sha) abortar(`El PR #${numero} no tiene merge commit: ¿está en una cola de fusión? Míralo y relanza.`);
+  // El merge commit lo ha creado GitHub: sin traerlo, git no conoce sus padres (paso 4).
+  gitOk(ctx, ['fetch', 'origin', 'main'], 'git fetch de main');
   log.ok(`PR #${numero} fusionado con merge commit: ${sha.slice(0, 7)} en main.`);
   return sha;
 }
@@ -586,7 +616,9 @@ export function comprobarStaging(ctx: Contexto, develop: string): Comprobacion {
   }
   const anc = git(ctx, ['merge-base', '--is-ancestor', verificado, develop]);
   if (anc.codigo > 1) abortar(`git merge-base: ${anc.error}`);
-  const archivos = gitOk(ctx, ['diff', '--name-only', verificado, develop], 'git diff').split(/\r?\n/).filter(Boolean);
+  const archivos = gitOk(ctx, ['diff', '--name-only', '--no-renames', verificado, develop], 'git diff')
+    .split(/\r?\n/)
+    .filter(Boolean);
   const diff = gitOk(
     ctx,
     ['diff', '-U0', verificado, develop, '--', 'package.json', 'package-lock.json'],
@@ -602,7 +634,27 @@ export function comprobarStaging(ctx: Contexto, develop: string): Comprobacion {
   });
 }
 
-export function comprobarProduccion(ctx: Contexto): DatosPuerta['produccion'] {
+/** Lo que comprobar-produccion lee del checkout local: tiene que ser lo de la versión que se publica. */
+export const LEIDO_EN_LOCAL = [
+  '.github/workflows/deploy-prod.yml',
+  'supabase/migrations',
+  'scripts/comprobar-produccion.ts',
+];
+
+/**
+ * comprobar-produccion lee deploy-prod.yml y las migraciones del checkout local: si no son las de
+ * `develop` (el commit que se publica), no comprueba lo que la versión necesita, y sale con 3.
+ */
+export function comprobarProduccion(ctx: Contexto, develop: string): DatosPuerta['produccion'] {
+  const igual = git(ctx, ['diff', '--quiet', 'HEAD', develop, '--', ...LEIDO_EN_LOCAL]);
+  if (igual.codigo !== 0) {
+    return {
+      codigo: 3,
+      filas: [
+        `el checkout local no tiene ${LEIDO_EN_LOCAL.join(', ')} de ${develop.slice(0, 7)}: lanza npm run publicar desde develop al día`,
+      ],
+    };
+  }
   log.info('npm run comprobar-produccion -- --completo (lanza comprobar-produccion.yml y espera)…');
   const r = ctx.ej('npm', ['run', '--silent', 'comprobar-produccion', '--', '--completo']);
   return { codigo: r.codigo, filas: filasQueBloquean(`${r.salida}\n${r.error}`) };
@@ -629,14 +681,17 @@ export function bloqueosAbiertos(ctx: Contexto): DatosPuerta['bloqueos'] {
   }
 }
 
-/** `develop`: el commit de develop que se publica (el segundo padre del merge en main). */
+/**
+ * `ciDe`: el commit cuya CI de push cuenta (el merge en main; con --solo-comprobar, la cabeza de
+ * develop). `develop`: el commit de develop que se publica (el segundo padre del merge en main).
+ */
 export async function datosPuerta(
   ctx: Contexto,
-  main: string,
+  ciDe: string,
   develop: string,
   { esperarCi }: { esperarCi: boolean },
 ): Promise<DatosPuerta> {
-  const leerCi = () => estadoEjecucion(ejecucionDe(ctx, 'ci.yml', main));
+  const leerCi = () => estadoEjecucion(ejecucionDe(ctx, 'ci.yml', ciDe));
   const ciMain = esperarCi
     ? await sondear(
         ctx,
@@ -651,7 +706,7 @@ export async function datosPuerta(
   return {
     ciMain,
     staging: comprobarStaging(ctx, develop),
-    produccion: comprobarProduccion(ctx),
+    produccion: comprobarProduccion(ctx, develop),
     bloqueos: bloqueosAbiertos(ctx),
   };
 }
@@ -687,7 +742,7 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
     return;
   }
   log.error(`Despliegue rechazado para ${main.slice(0, 7)}.`);
-  ctx.ej('gh', [
+  const etiqueta = ctx.ej('gh', [
     'label',
     'create',
     ETIQUETA_BLOQUEO,
@@ -699,6 +754,8 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
     'La puerta de producción no deja publicar (DEC-176)',
     '--force',
   ]);
+  if (etiqueta.codigo !== 0)
+    log.aviso(`No se ha podido crear la etiqueta ${ETIQUETA_BLOQUEO}: ${etiqueta.error || etiqueta.salida}`);
   const issue = ctx.ej(
     'gh',
     [
@@ -730,16 +787,17 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
 
 // ---------- paso 6: final del deploy y comprobación ----------
 
-async function pasoParidad(ctx: Contexto, run: Ejecucion): Promise<void> {
+async function pasoParidad(ctx: Contexto, run: Ejecucion, develop: string): Promise<void> {
   log.paso('6 · Final del deploy y comprobación de producción');
   const fin = await sondear(
     ctx,
     () => {
-      const r = json<Ejecucion>(
+      const r = json<Ejecucion | null>(
         ctx,
         ['api', `repos/${REPO}/actions/runs/${run.id}`, '--jq', '{id, status, conclusion, html_url}'],
         'No se ha podido leer el deploy',
       );
+      if (!r) abortar(`No se ha podido leer la ejecución ${run.id} de deploy-prod.yml.`);
       return r.status === 'completed' ? r : null;
     },
     ctx.limites.despliegue,
@@ -751,7 +809,7 @@ async function pasoParidad(ctx: Contexto, run: Ejecucion): Promise<void> {
     );
   }
   log.ok('deploy-prod.yml en verde (incluye la paridad con develop).');
-  const prod = comprobarProduccion(ctx);
+  const prod = comprobarProduccion(ctx, develop);
   if (prod.codigo !== 0)
     abortar(`comprobar-produccion ha salido con ${prod.codigo}: ${prod.filas.join('; ') || 'mira su salida'}`);
   log.ok('Producción tiene todo lo que la versión necesita.');
@@ -769,25 +827,27 @@ export async function publicar(ctx: Contexto): Promise<void> {
   const run = await pasoDespliegue(ctx, main);
   if (!llegaA(o, 'puerta')) return;
 
+  // Con --solo-comprobar, lo que se publicaría: la cabeza de develop, aunque aún no esté en main.
+  const develop = o.soloComprobar
+    ? gitOk(ctx, ['rev-parse', 'origin/develop'], 'git rev-parse origin/develop')
+    : developDe(ctx, main);
+
   if (run?.status === 'in_progress' && !o.soloComprobar) {
-    log.info('Ese deploy ya está aprobado y en marcha: se espera a que acabe.');
-    if (llegaA(o, 'paridad')) await pasoParidad(ctx, run);
+    log.aviso('Ese deploy ya está aprobado y en marcha: esta ejecución no ha pasado la puerta. Se espera a que acabe.');
+    if (llegaA(o, 'paridad')) await pasoParidad(ctx, run, develop);
     return;
   }
   if (run?.status === 'completed' && !o.soloComprobar) {
     if (run.conclusion !== 'success')
       abortar(`deploy-prod.yml de ${main.slice(0, 7)} ya terminó con ${run.conclusion}. ${run.html_url}`);
-    log.info('Ese deploy ya terminó bien: no hay nada que aprobar.');
-    if (llegaA(o, 'paridad')) await pasoParidad(ctx, run);
+    log.aviso('Ese deploy ya terminó bien, sin pasar por esta ejecución de la puerta: no hay nada que aprobar.');
+    if (llegaA(o, 'paridad')) await pasoParidad(ctx, run, develop);
     return;
   }
 
   log.paso(`4 · Puerta automática (DEC-176) para ${main.slice(0, 7)}`);
-  // Con --solo-comprobar, lo que se publicaría: la cabeza de develop, aunque aún no esté en main.
-  const develop = o.soloComprobar
-    ? gitOk(ctx, ['rev-parse', 'origin/develop'], 'git rev-parse origin/develop')
-    : developDe(ctx, main);
-  const puerta = evaluarPuerta(await datosPuerta(ctx, main, develop, { esperarCi: !o.soloComprobar }));
+  const ciDe = o.soloComprobar ? develop : main;
+  const puerta = evaluarPuerta(await datosPuerta(ctx, ciDe, develop, { esperarCi: !o.soloComprobar }));
   mostrarPuerta(puerta);
   if (o.soloComprobar) {
     const accion = run?.status === 'waiting' ? `la ejecución ${run.id}` : 'el próximo deploy';
@@ -802,7 +862,7 @@ export async function publicar(ctx: Contexto): Promise<void> {
   log.paso('5 · Aprobación del environment production');
   decidir(ctx, run, main, puerta);
   if (!llegaA(o, 'paridad')) return;
-  await pasoParidad(ctx, run);
+  await pasoParidad(ctx, run, develop);
   log.ok('Publicado. Anota la versión en docs/verificacion/paridad-produccion.md §2.');
 }
 
