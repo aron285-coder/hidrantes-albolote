@@ -37,6 +37,7 @@ import {
   pagina,
   paginas,
 } from '@/lib/panel/inventario';
+import { LIMITES } from '@/lib/limites';
 import { type Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
@@ -250,6 +251,7 @@ function CeldaDireccion({ punto, alGuardar }: { punto: Punto; alGuardar: (p: Pun
       onChange={(e) => setValor(e.target.value)}
       placeholder={T.panel.pendienteEscribe}
       aria-label={T.panelInventario.direccionDe(punto.codigo)}
+      maxLength={LIMITES.direccion}
       onFocus={() => setEscribiendo(true)}
       onBlur={() => {
         setEscribiendo(false);

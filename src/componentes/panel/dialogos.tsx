@@ -4,6 +4,7 @@ import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
 import { useCarga } from '@/hooks/carga';
 import { fechaCorta, hace } from '@/lib/formato';
+import { LIMITES } from '@/lib/limites';
 import { borrarPunto, historialPunto, nombreAccion, retirarPunto } from '@/lib/panel/inventario';
 import { textoError } from '@/lib/panel/errores';
 import { detalleLegible } from '@/lib/panel/registro-legible';
@@ -50,7 +51,13 @@ export function DialogoMotivo({
       <p className="text-sm">{retirar ? T.panelInventario.avisoRetirar : T.panelInventario.avisoBorrar}</p>
       <label className="mt-2 block text-sm">
         <span className={etiqueta}>{T.panelInventario.motivo}</span>
-        <textarea className={`${campo} p-2`} rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+        <textarea
+          className={`${campo} p-2`}
+          rows={3}
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          maxLength={LIMITES.motivo}
+        />
       </label>
       {intentado && !motivo.trim() && <p className="text-rojo-texto mt-1 text-[12px]">{T.panelInventario.sinMotivo}</p>}
       <div className="mt-3 flex gap-3">
