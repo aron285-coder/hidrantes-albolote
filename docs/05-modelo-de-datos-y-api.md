@@ -683,9 +683,8 @@ con el estado HTTP indicado.
 → { "codigo": "482917", "dispositivo_id": "uuid" }
 ← 200 { "token": "base64url(32 bytes)", "caduca_en": "2027-09-17T…" }
 ← 401 { "error": "CODIGO_INCORRECTO" }
-← 409 { "error": "DISPOSITIVO_RESERVADO" }
-← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 3600 }
 ← 409 { "error": "DISPOSITIVO_RESERVADO" }   // 0039, RV-143: ese dispositivo_id es el de un administrador
+← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 3600 }
 ```
 Lee `CF-Connecting-IP`, calcula `ip_hash`, llama a `fn_verificar_codigo` con `service_role`.
 `409 DISPOSITIVO_RESERVADO`: el `dispositivo_id` coincide con el de un administrador (RV-143, DEC-175);
