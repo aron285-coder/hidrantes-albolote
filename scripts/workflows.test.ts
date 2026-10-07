@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -533,5 +533,93 @@ describe('release-please sin GitHub App (DEC-153)', () => {
     expect(texto).toContain('- if: steps.release.outputs.pr\n');
     expect(texto).toContain('gh workflow run ci.yml');
     expect(texto).toContain("git commit --allow-empty -m 'chore(release): lanzar la CI del PR de versión'");
+  });
+});
+
+// docs/31 RV-135, DEC-096: un PR develop → main fusionado con squash deja en main cambios fuera de la
+// historia de develop, y el siguiente PR a main choca. ci-calidad lo para en el PR a main.
+describe('main dentro de la historia de la rama en los PR a main (RV-135)', () => {
+  const guion = path.resolve(import.meta.dirname, '../.github/scripts/main-en-la-rama.sh').replaceAll('\\', '/');
+
+  /** Un repositorio con develop y origin/main. `fusion` dice cómo llegó la release 1 a main. */
+  function repo(fusion: 'merge' | 'squash' | 'squash-arreglado') {
+    const dir = mkdtempSync(path.join(tmpdir(), 'main-en-la-rama-'));
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...a], {
+        cwd: dir,
+        encoding: 'utf8',
+      }).trim();
+    const version = (v: string) => {
+      writeFileSync(path.join(dir, 'version.txt'), v);
+      git('add', 'version.txt');
+      git('commit', '-q', '-m', `versión ${v}`);
+    };
+    git('init', '-q', '-b', 'develop');
+    version('0');
+    git('branch', 'main');
+    version('1');
+    git('switch', '-q', 'main');
+    if (fusion === 'merge') git('merge', '-q', '--no-ff', 'develop', '-m', 'merge de develop');
+    else {
+      git('merge', '-q', '--squash', 'develop');
+      git('commit', '-q', '-m', 'squash de develop');
+    }
+    git('update-ref', 'refs/remotes/origin/main', 'main');
+    git('switch', '-q', 'develop');
+    if (fusion === 'squash-arreglado') git('merge', '-q', '-s', 'ours', 'origin/main', '-m', 'main en develop');
+    version('2');
+    return { dir, cabeza: git('rev-parse', 'HEAD') };
+  }
+
+  const comprobar = (dir: string, cabeza: string) =>
+    spawnSync('bash', ['-c', `set -euo pipefail; source "${guion}"; main_en_la_rama "${cabeza}"`], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+
+  function con(fusion: Parameters<typeof repo>[0], prueba: (dir: string, cabeza: string) => void) {
+    const { dir, cabeza } = repo(fusion);
+    try {
+      prueba(dir, cabeza);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('pasa si la release anterior llegó a main con merge commit (aunque su punta no sea ancestro)', () => {
+    con('merge', (dir, cabeza) => {
+      const r = comprobar(dir, cabeza);
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+    });
+  });
+
+  it('falla si llegó con squash, y dice cómo arreglarlo', () => {
+    con('squash', (dir, cabeza) => {
+      const r = comprobar(dir, cabeza);
+      expect(r.status).toBe(1);
+      expect(r.stdout).toContain('::error::main tiene cambios fuera de la historia de esta rama');
+      expect(r.stdout).toContain('git merge -s ours origin/main');
+    });
+  });
+
+  it('pasa otra vez después del merge -s ours de origin/main en develop', () => {
+    con('squash-arreglado', (dir, cabeza) => {
+      const r = comprobar(dir, cabeza);
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+    });
+  });
+
+  it('sin cabeza, falla en vez de dar por bueno', () => {
+    con('merge', (dir) => expect(comprobar(dir, '').status).toBe(2));
+  });
+
+  it('ci-calidad lo comprueba solo en PR a main, con la cabeza del PR y no con HEAD', () => {
+    const ci = leer('ci.yml');
+    const calidad = ci.slice(ci.indexOf('\n  calidad:\n'), ci.indexOf('\n  sql:\n'));
+    const paso = calidad.slice(calidad.indexOf('- name: main dentro de la historia de la rama')).split(/\n\s{6}- /)[0]!;
+    expect(paso).toContain("if: github.event_name == 'pull_request' && github.base_ref == 'main'");
+    expect(paso).toContain('CABEZA: ${{ github.event.pull_request.head.sha }}');
+    expect(paso).toContain('main_en_la_rama "$CABEZA"');
+    expect(calidad).toMatch(/fetch-depth: 0/);
   });
 });
