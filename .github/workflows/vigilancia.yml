@@ -137,7 +137,7 @@ jobs:
           WORKER_CRON: ${{ needs.worker.outputs.cron }}
           WORKER_VERSION: ${{ needs.worker.outputs.version }}
           # La misma lista que mantener-activo.yml; scripts/workflows.test.ts comprueba que coinciden.
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml despachador.yml
         run: |
           set -uo pipefail
           problemas=()
@@ -285,7 +285,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml despachador.yml
         run: |
           set -eu
           for w in $WORKFLOWS; do gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"; done

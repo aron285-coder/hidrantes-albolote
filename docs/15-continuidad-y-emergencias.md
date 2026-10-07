@@ -43,7 +43,7 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Clave GPG privada del respaldo (huella `BD378A1E0E09843032B3A70254A89DD4FC82E6CE`) | descifrar un respaldo | guardada el 21 sep 2026 por el desarrollador fuera del repositorio; **no está en GitHub ni en ningún ordenador de trabajo**. La pública sí: secreto `GPG_PUBLIC_KEY` | ídem |
 | Contraseñas de las bases de datos (dev, prod) | `pg_dump`, restauración | mismo sitio; también en los secretos de GitHub (cifrados) | ídem |
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub; se puede regenerar en un minuto | — |
-| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
+| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
@@ -102,6 +102,9 @@ En orden de fiabilidad:
 7. **Issue «Deploy de producción fallido»** (etiqueta `vigilancia`, docs/31 RV-136): la abre (o la reabre) `deploy-prod.yml` cuando falla un paso, y dice cuál. Se cierra sola con el siguiente despliegue bueno. La vigilancia, además, avisa si el último `deploy-prod` no terminó en *success*, también si se canceló sin aprobar.
    - **Qué hacer según el paso:** la guarda, nada ha cambiado: corrige la variable que nombra en el *environment* `production`. Las migraciones, §5.2. El despliegue o la comprobación de versión y cabeceras, §5.1. La paridad, producción ya está desplegada: mira qué no coincide en el resumen de la ejecución y `docs/verificacion/paridad-produccion.md`.
    - **Cancelado:** nadie aprobó el *environment* a tiempo, así que producción sigue en la versión anterior. Se vuelve a lanzar con la siguiente fusión en `main`.
+8. **Issue «El despachador de trabajos ha fallado»** (etiqueta `vigilancia`, `despachador.yml`, docs/31 RV-137): los botones de mantenimiento de Ajustes (purgar fotos, respaldo ahora, regenerar la zona o el mapa base) ya no lanzan nada directamente: dejan un **pedido**, y el despachador lo lanza cada 15 minutos, solo en producción. Desde staging no se lanza nada de producción.
+   - **Qué hacer:** no ha podido leer o anotar los pedidos, así que no se lanza nada. Abrir la ejecución que enlaza la issue y mirar que `prod-tareas` tiene `SUPABASE_SERVICE_ROLE_KEY_PROD` y que la base de datos responde. La issue se cierra sola en la siguiente pasada buena. Para no esperar los 15 minutos: `gh workflow run despachador.yml --ref develop`.
+   - **Issue «Un trabajo pedido desde el panel no se ha lanzado»:** un pedido concreto se anotó con error y **no se reintenta**. La issue dice cuál y por qué (`GitHub respondió 422: …` suele ser un workflow desactivado o una entrada que ya no declara; `trabajo desconocido`, un panel más nuevo que el despachador). Arreglarlo, volver a pulsar el botón en Ajustes y **cerrar la issue a mano**: no se cierra sola.
 
 ---
 
@@ -332,7 +335,7 @@ también para ella, y lo vuelve a crear quien la mantiene, con el mismo nombre. 
 
 **Gravedad:** baja hasta el 90 %. **Tiempo:** semanas. **Quién:** jefatura.
 
-1. Ajustes → *Purgar fotos huérfanas*. Esperar unos minutos; ver Storage en Salud.
+1. Ajustes → *Purgar fotos huérfanas*, en el panel de **producción** (en staging no se puede). Es un pedido: empieza en hasta 15 minutos (`entornos.md`, «Trabajos que pide el panel»). Después, ver Storage en Salud.
 2. Si sigue alto: pedir a Claude Code bajar la calidad de compresión (TR-15) y redesplegar.
 3. Si no basta: mover las fotos a Cloudflare R2 (04 §5 lo prevé; `foto_path` no cambia). Es una tarea
    de Claude Code de un día.
