@@ -32,6 +32,19 @@ describe('workflows programados (DEC-085)', () => {
     expect(listas('mantener-activo.yml')).toEqual([programados]);
   });
 
+  // docs/31 RV-138: abría «Supabase X no responde» y nunca la cerraba.
+  it('mantener-activo.yml cierra su issue cuando el entorno vuelve a responder', () => {
+    const texto = leer('mantener-activo.yml');
+    const paso = texto.slice(texto.indexOf('- name: Cerrar la issue si vuelve a responder')).split(/\n\s{6}- /)[0]!;
+    expect(paso).toContain('if: success()');
+    expect(paso).toContain('titulo="Supabase $ENTORNO no responde"');
+    expect(paso).toContain('select(.title == \\"$titulo\\")');
+    expect(paso).toContain('gh issue close "$abierta"');
+    // El mismo título que abre el paso de fallo.
+    expect(texto).toContain('titulo="Supabase ${{ matrix.entorno }} no responde"');
+    expect(texto).toContain('ENTORNO: ${{ matrix.entorno }}');
+  });
+
   it('vigilancia.yml comprueba y rehabilita la misma lista', () => {
     const texto = leer('vigilancia.yml');
     const ls = listas('vigilancia.yml');
@@ -562,10 +575,12 @@ describe('revisar_bd (RV-78)', () => {
   const raiz = path.resolve(import.meta.dirname, '..');
   const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
   /** psql simulado: responde según la consulta; `tareas` es lo que da tareas-programadas.sql. */
-  const correr = (entorno: string, tareas: string) => {
+  /** `falla`: un trozo de la consulta con el que psql sale con error (docs/31 RV-138). */
+  const correr = (entorno: string, tareas: string, falla = '') => {
     const guion = [
       'set -uo pipefail',
       `psql() {
+        if [ -n "$FALLA" ] && [[ "$*" == *"$FALLA"* ]]; then echo 'ERROR: simulado' >&2; return 1; fi
         case "$*" in
           *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
           *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
@@ -588,7 +603,7 @@ describe('revisar_bd (RV-78)', () => {
         cwd: raiz,
         encoding: 'utf8',
         // docs/22 RV-90: el JSON de las tareas va a RUNNER_TEMP, no a la raíz del repositorio.
-        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado'), RUNNER_TEMP: dir },
+        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado'), RUNNER_TEMP: dir, FALLA: falla },
       });
       const archivo = `tareas-${entorno}.json`;
       return {
@@ -626,6 +641,24 @@ describe('revisar_bd (RV-78)', () => {
     expect(r.codigo).toBe(0);
     expect(r.salida).toContain('staging: faltan tareas programadas de pg_cron: hidrantes_purgar_errores');
     expect(r.salida.trim().endsWith('FIN')).toBe(true);
+  });
+
+  // docs/31 RV-138: con `|| echo 0`, una consulta que fallaba contaba como «todo bien».
+  it.skipIf(!tieneJq).each([
+    ['notificaciones', 'produccion', 'no se pueden contar los avisos push sin salir'],
+    ['notificaciones', 'staging', 'staging: no se pueden contar los avisos push sin salir'],
+    ['pg_database_size', 'produccion', 'no se puede medir el tamaño de la base de datos'],
+    ['intentos_codigo', 'produccion', 'no se pueden leer los intentos del código de acceso'],
+  ])('si falla la consulta de %s (%s), es un problema, y sigue con lo demás', (falla, entorno, problema) => {
+    const r = correr(entorno, BIEN, falla);
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain(problema);
+    expect(r.salida.trim().endsWith('FIN')).toBe(true);
+  });
+
+  it('ninguna consulta convierte un fallo en un número con || echo', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
+    expect(guion).not.toMatch(/\|\| echo ['"]?0/);
   });
 
   it('staging no mira el respaldo, el tamaño ni los intentos del código', () => {
