@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.55 — oct 2026 (DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.56 — oct 2026 (DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,95 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-179 · Detalles de docs/31 que la especificación no fijaba
+- **Fecha:** oct 2026 · **Estado:** vigente (`docs/31`).
+- **Radios del marcador** (RV-167): se validan de mayor a menor (R1 ≥ … ≥ R5, 06 §4.1), no «crecientes» como decía docs/31, que rechazaría el valor por defecto `[11, 9, 7, 5.5, 5]`. El servidor sigue comprobando cinco valores entre 2 y 30. Fuera de producción (`VITE_ENTORNO` distinto de `produccion`, o sin él), Purgar fotos y Respaldo ahora salen deshabilitados con «Solo en producción».
+- **Dirección en el Inventario** (RV-164, RV-165): la celda se reinicia con el dato nuevo, salvo mientras se escribe en ella, y al salir solo guarda si difiere del dato actual. Mientras una fila está abierta en Editar, su dirección en la tabla se ve como texto. Editar se pone al día si no hay cambios propios; con cambios, avisa y ofrece «Ver lo nuevo».
+- **Reserva de subida** (RV-156): se guarda en el envío y se reutiliza mientras a su URL firmada le queden más de 120 s + 5 min; un PUT que contesta «Duplicate» con una URL reutilizada cuenta como subida hecha.
+- **Fotos grandes** (RV-157): se decodifican ya reducidas pidiendo solo el ancho (`resizeWidth`), para que un navegador que redujera antes de girar dé una foto más pequeña y nunca deformada.
+- **Pin sin colocar** (RV-157): en un alta sin pin (sin GPS, o con la posición vieja, que `Proponer` descarta), el marcador es gris y discontinuo, como dice «Mueve el pin».
+- **Afecta a:** 06 §4 y §5.
+
+### DEC-178 · Los dibujos de los enganches son la referencia definitiva
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** vigente (`docs/31` RV-157b). Cierra lo que DEC-152 dejaba abierto («hasta que haya fotos propias»).
+- **Contexto:** DEC-152 puso esquemas dibujados de Granada y Barcelona como solución provisional a la espera de fotos propias, y Directo (DEC-170) seguía sin imagen. Las fotos dependían de que alguien saliera a hacerlas y no llegaban.
+- **Decisión:** no se esperan fotos. Los dibujos de `public/racores/` (Granada, Barcelona y el nuevo `directo.webp`, desde `public/racores/fuentes/directo.svg` con `scripts/preparar-racores.ts`), con el mismo trazo `--marino-700` sobre gris azulado claro y los mismos márgenes, son la referencia definitiva del tipo de enganche. Si algún día hay fotos propias, entran por el mismo script como un cambio normal, no como un pendiente.
+- **Afecta a:** 01 FR-20 (sin cambio de texto); 06 §5; DEC-152 (pasa a «sustituida por DEC-178»); 09 §8.
+
+### DEC-177 · La conformidad de los requisitos es la del desarrollador, dada al pedir el cambio
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** vigente (`docs/31` RV-139). Sustituye, para 01–08, la conformidad de jefatura como paso previo a una versión nueva.
+- **Contexto:** `docs/01` llevaba en la cabecera conformidades de jefatura «pendientes» (v1.3, v1.4, v1.10) y otras «recogidas por el desarrollador» (v1.6 a v1.11), y los registros de `docs/verificacion` se contradecían entre sí. Era un paso que dependía de una persona y no bloqueaba nada.
+- **Decisión:** cada versión de 01 (y del resto de 01–08) queda aprobada por el desarrollador al pedir el cambio en su especificación. Jefatura recibe la versión nueva con la release (Novedades) y valida sobre la app real en la validación y el piloto (#76, #77, DEC-043). `docs/01` lo dice en una sola fila «Conformidad»; los registros ya no dejan «pendiente de conformidad».
+- **Afecta a:** 01 (cabecera); 02, 10, 12, 16 y 18 (menciones de conformidad pendiente, limpiadas); 09 §8; `docs/verificacion`.
+
+### DEC-176 · La release la aprueba una puerta automática
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** vigente (`docs/31` RV-135, RV-136, RV-139c). Matiza DEC-096.
+- **Contexto:** cada release esperaba a que el desarrollador aprobara el environment `production`. La 0.8.0 esperó días y se canceló (producción siguió en 0.7.0), y un PR `develop → main` se fusionó con squash, contra DEC-096, lo que rompió la historia de `main`.
+- **Decisión:**
+  - El revisor humano del environment `production` sigue configurado, pero la aprobación la da la sesión de Claude Code con la sesión de `gh` del propietario (`gh api …/pending_deployments`, `state: approved`) **solo si** la CI de `main` está en verde, la comprobación en staging (RV-139b) está en verde con el mismo commit, `npm run comprobar-produccion` dice que producción tiene lo que la versión necesita y no hay ninguna issue abierta con la etiqueta `bloquea-release`. Si algo falla, se rechaza con el motivo y se abre la issue.
+  - `npm run publicar` (`scripts/publicar.ts`) repite los pasos: empujón de la CI del PR de release (DEC-079), fusión, PR `develop → main` con merge commit, puerta y aprobación.
+  - En los PR a `main`, `ci-calidad` falla si `main` tiene cambios fuera de la historia de la rama (compara el árbol del merge-base con el de `main`, `main-en-la-rama.sh`). No exige que `main` sea ancestro, porque con merge commit no lo es nunca. Si falla, el arreglo es el de #352 y #485: merge `-s ours` de `origin/main` en `develop`, con merge commit.
+  - Antes de migrar, la guarda de `deploy-prod` comprueba que `VITE_SUPABASE_URL` es la de producción y que la anon key lleva ese `ref` y `role = anon` (sin verificar la firma); con una clave `sb_publishable_…` vale solo la URL, y una `sb_secret_…` se bloquea siempre. Exige además `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` y `SAL_IP` en las Functions del proyecto de producción. Un deploy de producción fallido o cancelado abre «Deploy de producción fallido», y la vigilancia avisa si el último no acabó bien o si uno espera aprobación más de 24 h.
+- **Contrapartida aceptada:** quien pueda usar la sesión de `gh` del propietario en este PC puede publicar en producción.
+- **Afecta a:** 04 §12; 15 §4; `CLAUDE.md` §5; DEC-096.
+
+### DEC-175 · El `dispositivo_id` de un administrador está reservado
+- **Fecha:** oct 2026 · **Estado:** vigente (`docs/31` RV-143).
+
+- **Contexto.**
+  - La identidad técnica de un administrador es `md5('administrador:' || correo)` (DEC-059), así que la calcula quien sepa el correo.
+  - `/api/verificar-codigo` aceptaba cualquier UUID. Con ese id, un voluntario compartía y agotaba la cuota de fotos del administrador, veía sus propuestas en Mis propuestas, quedaba fuera de la actividad y no se podía anonimizar.
+- **Decisión** (0039, la Function y la app):
+  - `fn_verificar_codigo` no emite token si el `dispositivo_id` coincide con el de cualquier fila de `administradores`, activa o no. Devuelve `DISPOSITIVO_RESERVADO`, sin decir de quién es, y la Function responde `409`.
+  - Solo se comprueba con el código bueno, para que sin él no sirva para adivinar qué correos son de jefatura. Con él, cada prueba cuenta en el tope de canjes buenos y queda marcada (`intentos_codigo.tope = 'dispositivo_reservado'`, que Salud del sistema cuenta en 0040).
+  - Los tokens que ya tuviera ese id se revocan, y `fn_validar_token` no acepta ninguno, también si alguien se da de alta como administrador después del canje.
+  - El móvil, con `409`, genera un `dispositivo_id` nuevo y repite el canje una sola vez (RV-159).
+- **Alternativa descartada.** Cambiar la fórmula del id técnico a un secreto: rompería las reservas y propuestas de jefatura ya guardadas, y el id seguiría viajando en claro.
+
+**Backend · agente SQL → Ops (RV-137, `despachador.yml`): 0040 se ajusta a tu contrato**
+
+### DEC-174 · Límites de texto, de propuestas y de subidas en el servidor
+- **Fecha:** oct 2026 · **Estado:** vigente (`docs/31` RV-140 a RV-142).
+
+- **Contexto.**
+  - Con un token se podía mandar una propuesta de 1 MB o miles al día. `fn_proponer` va directo a PostgREST, y "corregir datos" ni siquiera gasta una foto.
+  - Cada canje del código crea un dispositivo con su cuota de 80 fotos de hasta 5 MB. Dos o tres dispositivos llenaban el GB gratuito de Storage.
+  - La base de datos (500 MB) y Storage los comparte la app de uniformidad.
+- **Decisión** (0039):
+  - **Longitud máxima** de cada texto libre, en el servidor y con el mismo `maxLength` en la app y el panel (`src/lib/limites.ts`): `descripcion` y `descripcion_fallo` 500 · `direccion` 200 · `nota` y `motivo` 1.000 · nombre y apellido 60.
+  - Un valor que no es texto en esas claves, o `datos` de más de 4.000 caracteres, se rechaza (`PAYLOAD_INVALIDO`). Lo ya guardado no se toca.
+  - **60 propuestas por dispositivo y día natural** de Madrid (`max_propuestas_dia`, editable en Ajustes). Un reintento con la misma `clave_local` no cuenta y jefatura no tiene tope. Al llegar: `CUOTA_PROPUESTAS_AGOTADA`; la cola espera a medianoche.
+  - **400 reservas de foto en 24 h entre todos los voluntarios** (`max_subidas_dia_total`, editable en Ajustes). Jefatura no cuenta. Al llegar: `CUOTA_SUBIDAS_AGOTADA` para todos. Salud del sistema y la vigilancia lo ven en `topes_globales_24h` (0040).
+  - Las reservas sin confirmar se protegen **48 h** (antes 7 días; `dias_reserva_subida` = 2). La purga no cuenta en su freno del 10 % las nunca confirmadas de más de 48 h (`fn_reservas_sin_confirmar_lista`).
+- **Por qué esos números.**
+  - 60 propuestas cubren de sobra la jornada más larga de un voluntario (una revisión cada 8 minutos durante 8 horas).
+  - 400 fotos son unas 200 altas o ubicaciones al día en todo el grupo, varias veces el máximo visto.
+  - Los dos se pueden subir desde Ajustes sin desplegar.
+- **Alternativas descartadas.**
+  - Un límite solo en la app: se salta con la clave anon.
+  - Cuotas en las Pages Functions: `fn_proponer` no pasa por ellas.
+  - Un tope de bytes por día: Storage no lo da sin listar el bucket.
+
+### DEC-173 · Segunda copia del respaldo en R2: aplazada
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** **aplazada**: de momento solo la copia de GitHub (`docs/31` RV-133).
+- **Contexto:** la única copia del respaldo es el artefacto de GitHub de 90 días. Un token con `actions:write` puede borrar artefactos y ejecuciones, y perder la cuenta de GitHub se lo llevaría todo.
+- **Lo que se preparó:** un Worker `hidrantes-respaldos` de solo escritura (no lista, no lee, no borra ni sobrescribe; `GET /estado` con fecha y tamaño), la subida del mismo archivo cifrado desde `respaldo.yml`, la vigilancia de la copia en R2 y `npm run descargar-respaldo`, con sus tests, en la rama `fase-9/ops-rv133`, sin fusionar.
+- **Por qué se aplaza:** R2 no está activado en la cuenta de Cloudflare (código 10042) y activarlo pide un medio de pago, aunque se quede en el plan gratuito (CLAUDE.md §3: sin servicios que exijan tarjeta). El desarrollador eligió el 7 oct 2026 quedarse con la copia de GitHub. La prueba semanal de restauración (RV-134) comprueba que esa copia sirve.
+- **Si se retoma:** activar R2, crear el bucket con la regla de 400 días, `wrangler deploy` del Worker, el secreto por tubería en el Worker y en `prod-tareas`, la variable `RESPALDOS_URL`, fusionar la rama y lanzar `respaldo.yml` una vez.
+- **Afecta a:** 04 §9; 15 §2 y §5.3.
+
+### DEC-172 · Secretos de producción en `prod-tareas` y vigilancia de despliegues ajenos
+- **Fecha:** oct 2026 · **Estado:** vigente. Matiza DEC-071 (`docs/31` RV-130 a RV-132).
+- **Contexto:** los secretos de producción de las tareas automáticas estaban en el repositorio (DEC-071), al alcance de cualquier workflow de cualquier rama. El permiso «Cloudflare Pages: Edit» es de toda la cuenta y no se puede limitar a un proyecto (https://developers.cloudflare.com/fundamentals/api/reference/permissions/), así que el token con el que se despliega staging también podría desplegar producción. Dependabot fusionaba solo los menores, y las actions iban fijadas por etiqueta.
+- **Decisión:**
+  - Environment `prod-tareas`, sin revisores y solo para `develop`, con `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD`, `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Respaldo, purga de fotos, el trabajo `mirar` de la vigilancia, la fila de producción de avisos, comprobar-produccion y el despachador lo declaran. Ningún secreto de producción queda en el repositorio, y `scripts/seguridad-ci.test.ts` falla con cualquier `secrets.*_PROD` fuera de un trabajo con `prod-tareas` o `production`.
+  - Los secretos se mueven con `npm run traspasar-secreto` y `traspaso.yml`: un par RSA-OAEP de 4096 bits de un solo uso (en lugar de age, que no está ni en el PC ni en el runner). Solo sale el texto cifrado (artefacto de 1 día); el script descifra en memoria, lo pasa por stdin a `gh secret set` y borra el artefacto y la ejecución. Solo lo puede lanzar el propietario.
+  - No se separa el token de Cloudflare: haría falta otra cuenta. La vigilancia compara los despliegues del proyecto de producción (también los previews) con las ejecuciones de `deploy-prod.yml` en marcha a esa hora; si alguno no corresponde, abre «Despliegue de producción no autorizado» y avisa por push a jefatura. Con `config.revertir_despliegue_ajeno = true` (apagada por defecto) vuelve al último despliegue bueno.
+  - `deploy-staging` despliega con el nombre de proyecto fijo. Los dos `deploy-*.yml` ponen `ENTORNO` (`staging` | `produccion`) en su proyecto de Pages.
+  - Los trabajos que pide el panel ya no se lanzan con un token de GitHub: quedan como pedido en la base de datos (`fn_pedir_trabajo`) y los despacha `despachador.yml` (`prod-tareas`, cada 15 min, `GITHUB_TOKEN` con `actions: write`), leyendo solo la base de datos de producción; un pedido con error se marca y no se reintenta. Sin `npm ci`: `scripts/despachar.ts` solo usa módulos de Node, para que ninguna dependencia de npm corra con la clave de servicio. En staging, purgar fotos y respaldo no se piden (`SOLO_EN_PRODUCCION`).
+  - Dependabot espera 7 días (`cooldown`) y solo se fusionan solos los parches de dependencias de desarrollo, comprobando el autor del PR. Todas las actions de terceros van fijadas por SHA de 40 caracteres.
+- **Afecta a:** 03 TR-101; 04 §9 a §11; 10 AC-132; 15; `entornos.md`; `arranque.ts`; DEC-071.
+
 ### DEC-171 · El detalle del Registro se calcula en el cliente con `antes` y `despues`
 - **Fecha:** oct 2026 · **Estado:** vigente (`docs/30` RV-127).
 - **Contexto:** `v_registro.resumen` (0002) es «acción · código · todas las claves de `despues`». En una edición de jefatura `despues` es el punto entero, así que el Detalle listaba claves técnicas y no decía qué cambió ni de qué a qué (FR-123). El Historial de un punto no enseñaba ni eso.
@@ -827,7 +916,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §11; 15 §2; DEC-079 y DEC-140.
 
 ### DEC-152 · Esquemas provisionales en lugar de las fotos de los racores
-- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente hasta que haya fotos propias (`docs/24` RV-104).
+- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** sustituida por DEC-178 (los dibujos son la referencia definitiva).
 - **Contexto:** RV-104 pide una foto propia de cada racor, y el desarrollador aún no las tiene. Sin ellas, los botones Granada y Barcelona iban solo con texto.
 - **Decisión:** dos **esquemas** dibujados para este repositorio, sin nada sacado de internet, en `public/racores/granada.webp` y `barcelona.webp`. Granada es una tuerca hexagonal con su rosca; Barcelona, una cara redonda con dos garras. Llevan el `--marino-700` de 06 sobre fondo claro. Pasaron por `scripts/preparar-racores.ts` (160 × 160 px, 4,5 y 4,1 kB). Son una ayuda para comparar la forma, no una foto. Cuando haya fotos propias, se pasan por el mismo script y sustituyen a estas, sin tocar código.
 - **Afecta a:** 01 FR-20 (sin cambio de texto); 06 §5.
@@ -1369,7 +1458,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 03 TR-10, TR-11 y TR-103 (sin cambio de texto); 10 AC-115 y AC-131.
 
 ### DEC-098 · Sin cobertura, el mapa base propio va debajo de la capa en línea
-- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/19` RV-58). Pendiente de conformidad de jefatura con 01 v1.4 (F9.1, #76).
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/19` RV-58). Conformidad del desarrollador (DEC-177).
 - **Contexto:** con la capa de calle (OSM) o el satélite (PNOA) elegida, al perder la cobertura el mapa se quedaba en blanco con los marcadores y un aviso. En una emergencia sin señal eso deja al voluntario sin calles, aunque tenga el mapa base en el móvil.
 - **Decisión:**
   - Mientras la conexión no esté bien (`conexion !== 'bien'`) y el mapa base esté descargado, se pinta **debajo** de la capa en línea. Encima sigue la capa elegida, con lo que el navegador tenga en caché o nada. Es el mismo mecanismo que ya usaba Catastro, generalizado en `capasPintadas` (`src/lib/capas.ts`).
@@ -1437,7 +1526,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 06 §9 (UI-20), 03 TR-111, `eslint.config.js`.
 
 ### DEC-093 · Callejero sin conexión desde OpenStreetMap
-- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); pendiente de conformidad de jefatura en F9.1 (#76)
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); conformidad del desarrollador (DEC-177)
 - **Contexto:** la búsqueda de calles y lugares tiene que funcionar **sin cobertura** (FR-73), igual que el resto del mapa. Necesita un callejero de la zona dentro del móvil.
 - **Decisión:**
   - `scripts/generar-callejero.ts` (`npm run callejero`) lo genera desde OSM vía Overpass, con los mismos servidores y el mismo `User-Agent` que la zona. Solo corre a mano o en el workflow de regenerar (FR-165), nunca en el build de CI (TR-77).
@@ -1455,7 +1544,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 01 FR-73, 03 TR-77 y TR-117, 05 (config `version_callejero`), 11 §6.1.
 
 ### DEC-092 · Números de portal con CartoCiudad, a través de una Function
-- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); pendiente de conformidad de jefatura en F9.1 (#76)
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); conformidad del desarrollador (DEC-177)
 - **Contexto:** con cobertura, la búsqueda tiene que encontrar también el portal ("calle real 12"), y el callejero de OSM no trae portales. CartoCiudad (IGN/CNIG) los tiene para toda España. Es gratuito y no pide cuenta, así que cumple DEC-037.
 - **Comprobado el 23 sep 2026:**
   - **Documentación oficial** (`github.com/IDEESpain/Cartociudad` y *CartoCiudad_ServiciosWeb.pdf* del IDEE):
@@ -1542,7 +1631,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** `scripts/generar-novedades.ts`, CLAUDE.md §5, 10 (AC-127).
 
 ### DEC-090 · El tipo de un punto no se cambia
-- **Fecha:** 23 sep 2026 · **Estado:** vigente. Decisión del desarrollador (`docs/18` §0.3.1, RV-41); pendiente de conformidad de jefatura en F9.1 (#76).
+- **Fecha:** 23 sep 2026 · **Estado:** vigente. Decisión del desarrollador (`docs/18` §0.3.1, RV-41); conformidad del desarrollador (DEC-177).
 - **Contexto:** "corregir datos", `fn_editar_punto` y las correcciones de `fn_aplicar_propuesta` admitían `tipo`, pero el `codigo` no cambia. Una boca de riego podía quedarse como `HID-0123`: rompía FR-10 ("coherente con su prefijo"), y del tipo salen el radio del marcador y el diámetro fijo de 45 mm.
 - **Decisión:**
   - Fuera de un alta, un `tipo` distinto del actual da `TIPO_NO_MODIFICABLE` en:

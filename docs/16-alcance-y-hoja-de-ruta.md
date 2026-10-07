@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.2 — 23 de septiembre de 2026 (§2.1: el modo incidente cubre "lo más cercano que funciona" sin rutas, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.1 — 17 de septiembre de 2026 (añade §2.1) |
+| **Versión** | 1.2 — 23 de septiembre de 2026 (§2.1: el modo incidente cubre "lo más cercano que funciona" sin rutas, DEC-089; conformidad del desarrollador, DEC-177). 1.1 — 17 de septiembre de 2026 (añade §2.1) |
 | **Propietario de** | qué está **fuera** de la versión 1, por qué, y qué habría que decidir para meterlo después. |
 | **Regla de alcance (DEC-037)** | Está **dentro** de la versión 1 todo lo que Claude Code pueda construir sin trabajo adicional del desarrollador, sin cuentas externas nuevas y sin coste. Este documento es, por tanto, corto: solo lo que no cumple ese criterio. |
 

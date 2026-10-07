@@ -42,9 +42,11 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Códigos de recuperación de 2FA (Google, GitHub, Cloudflare, Supabase) | recuperar acceso si se pierde el móvil del 2FA | mismo sitio, entrada aparte | ídem |
 | Clave GPG privada del respaldo (huella `BD378A1E0E09843032B3A70254A89DD4FC82E6CE`) | descifrar un respaldo | guardada el 21 sep 2026 por el desarrollador fuera del repositorio; **no está en GitHub ni en ningún ordenador de trabajo**. La pública sí: secreto `GPG_PUBLIC_KEY` | ídem |
 | Contraseñas de las bases de datos (dev, prod) | `pg_dump`, restauración | mismo sitio; también en los secretos de GitHub (cifrados) | ídem |
-| Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub; se puede regenerar en un minuto | — |
+| Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub (environments `staging`, `production` y `prod-tareas`); se puede regenerar en un minuto | — |
 | Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
+
+**Dónde viven los secretos de producción (DEC-172):** en los environments `production` (el despliegue, con su aprobación, DEC-176) y `prod-tareas` (respaldo, purga de fotos, vigilancia, avisos, comprobar-produccion y el despachador; sin revisores y solo desde `develop`). **Ninguno está en el nivel del repositorio.** Para moverlos sin verlos: `npm run traspasar-secreto` (`traspaso.yml`, solo lo lanza el propietario). Si la vigilancia abre «Despliegue de producción no autorizado», alguien desplegó el proyecto de Pages de producción sin `deploy-prod`: mirar el despliegue que nombra la issue en Cloudflare y, si no es legítimo, volver al anterior (`wrangler pages deployment …`) y rotar el token de Cloudflare (`npm run arranque -- --rotar CLOUDFLARE_API_TOKEN`).
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
 contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
