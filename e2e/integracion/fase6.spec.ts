@@ -75,7 +75,7 @@ test('tres altas sin cobertura llegan una vez cada una; un reenvío duplicado no
   await page.getByLabel(T.entrada.apellido).fill('Fase Seis');
   await page.getByRole('button', { name: T.entrada.entrar, exact: true }).click();
   await page.getByRole('button', { name: T.bienvenida.saltar }).click();
-  await expect(page.getByText(/Sincronizado/)).toBeVisible();
+  await expect(page.getByText(/Sincronizado .+/)).toBeVisible();
 
   await context.setOffline(true);
   for (let i = 1; i <= 3; i++) {

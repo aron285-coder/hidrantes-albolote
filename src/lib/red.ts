@@ -6,6 +6,8 @@
 export const LIMITES_RED = {
   /** POST /api/url-subida. */
   reserva: 20_000,
+  /** POST /api/verificar-codigo: el canje del código (docs/31 RV-157). */
+  canje: 20_000,
   /** PUT de la foto: 5 MB en 3G son unos 30 s; el resto es margen. */
   foto: 120_000,
   /** Cada RPC y cada petición de supabase-js. */

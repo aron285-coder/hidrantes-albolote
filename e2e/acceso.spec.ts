@@ -169,11 +169,12 @@ test.describe('con sesión guardada', () => {
     await simularRpc(page, { fn_listar_puntos: { puntos: [], bajas: [] } });
     await page.goto('/');
     await context.setOffline(true);
-    await expect(page.getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
+    // La banda (div): la barra de estado lo dice también, solo al lector de pantalla (docs/31 RV-157).
+    await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
     await page.getByRole('link', { name: T.navegacion.lista }).click();
     await expect(page.getByRole('radio', { name: T.mapa.todos })).toBeVisible();
     await context.setOffline(false);
-    await expect(page.getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeHidden();
+    await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeHidden();
   });
 
   test('primer uso saltable y recuperable desde Ajustes (FR-94)', async ({ page }) => {

@@ -449,7 +449,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
 `Nada coincide con ese filtro.` · `revisado [hace 3 meses]` · `sin revisar` + `desde [hace 1 año]` = "sin revisar desde hace 1 año" (en `--naranja-texto`; si no cabe, se acorta la fecha, nunca `sin revisar`) (segunda línea de cada fila de la Lista, sin la dirección; a la derecha solo la distancia, y solo si hay posición: FR-68, docs/25 RV-106) ·
 `desde ti` · `desde el incidente` (solo para el lector de pantalla, detrás de la distancia de cada fila) · `Sin cobertura` · `Reintentar` ·
-`[12] puntos` · `Sincronizando…` ·
+`[12] puntos` · `Sincronizando…` · `Sincronizado` (solo para el lector de pantalla, en la barra de estado) ·
 `Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.` (nunca sincronizado) ·
 `Todavía no hay ningún punto en el inventario. Mantén pulsado el mapa donde haya uno para darlo de alta.` · `Añadir un punto` (sincronizado y sin ningún punto, en el mapa y en la lista, RV-76) ·
 `Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.` ·
@@ -510,7 +510,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Toca el mapa donde está realmente. La posición anterior queda registrada.` ·
 `Sin posición GPS: toca el mapa donde está el punto.` · `±[9] m · a [12 m] del pin` · `Qué impide usarlo` ·
 `Ej.: sale menos fuerza que en mayo` · `Qué has encontrado en el sitio` ·
-`Medida en mm (jefatura la comprobará)` · `Medida en mm, de 20 a 150` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` ·
+`Medida en mm (jefatura la comprobará)` · `Medida en mm, de 20 a 150` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` · `No se pudo leer la foto nueva: sigue la anterior. Prueba otra vez.` ·
 `Enviando…` · `Se enviará sola cuando haya conexión.` · `El cambio ya está en el mapa de todos.` ·
 `No se pudo guardar en el móvil. Inténtalo otra vez.` ·
 `Este punto ya no está en el mapa: lo han retirado o borrado` (el formulario de un punto que ya no está, docs/31 RV-152).

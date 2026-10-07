@@ -308,6 +308,26 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await expect(page.getByLabel(T.formulario.motivoRetirada)).toBeVisible();
   });
 
+  // docs/31 RV-157: «Repetir» con una foto que no se puede leer deja la anterior, con el aviso.
+  test('repetir una foto que falla deja la anterior y lo dice', async ({ page }) => {
+    await servidor(page);
+    const hid = PUNTOS[0];
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.sigueIgual}`) }).click();
+    await hacerFoto(page);
+    const hueco = page.getByTestId('hueco-entrada-foto');
+    const tamano = await hueco.getByText(/\d+ kB/).textContent();
+    await page.getByTestId('entrada-foto').setInputFiles({
+      name: 'rota.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from('esto no es una foto'),
+    });
+    await expect(hueco.getByRole('alert')).toHaveText(T.operaciones.fotoRepetidaIlegible);
+    await expect(hueco.getByText(/\d+ kB/)).toHaveText(tamano!);
+    await expect(enviar(page)).toBeEnabled();
+  });
+
   test('sin cobertura: tres altas se guardan y salen solas al volver, una vez cada una (criterio)', async ({
     page,
     context,

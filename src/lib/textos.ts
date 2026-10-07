@@ -144,6 +144,8 @@ export const T = {
     desdeIncidente: 'desde el incidente',
     filtroVacio: 'Nada coincide con ese filtro.',
     sinCoberturaSolo: 'Sin cobertura',
+    // docs/31 RV-157: lo que anuncia la barra de estado al lector de pantalla, sin la hora.
+    sincronizadoSolo: 'Sincronizado',
     reintentar: 'Reintentar',
     nPuntos: (n: Parametro) => `${n} puntos`,
     sincronizando: 'Sincronizando…',
@@ -337,6 +339,8 @@ export const T = {
     phOtraMedidaBoca: 'Medida en mm, de 20 a 150',
     preparandoFoto: 'Preparando la foto…',
     fotoIlegible: 'No se pudo leer la foto. Prueba otra vez.',
+    // docs/31 RV-157: «Repetir» que falla; sigue la foto de antes.
+    fotoRepetidaIlegible: 'No se pudo leer la foto nueva: sigue la anterior. Prueba otra vez.',
     enviando: 'Enviando…',
     guardadoDetalle: 'Se enviará sola cuando haya conexión.',
     aplicadoDetalle: 'El cambio ya está en el mapa de todos.',

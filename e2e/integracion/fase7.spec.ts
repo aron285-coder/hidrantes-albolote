@@ -160,7 +160,7 @@ test('duplicado a 8 m: se detecta al proponer y se fusiona sin crear un punto nu
   await page.getByLabel(T.entrada.apellido).fill(apellido);
   await page.getByRole('button', { name: T.entrada.entrar, exact: true }).click();
   await page.getByRole('button', { name: T.bienvenida.saltar }).click();
-  await expect(page.getByText(/Sincronizado/)).toBeVisible();
+  await expect(page.getByText(/Sincronizado .+/)).toBeVisible();
 
   await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
   await page.getByRole('radio', { name: T.formulario.hidrante }).click();

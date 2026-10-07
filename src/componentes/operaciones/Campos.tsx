@@ -1,7 +1,14 @@
 import { Camera, Check } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 import type { Caudal, Racor } from '@/tipos/punto';
-import { type FotoProcesada, type PerfilFoto, PERFIL_CONEXION, PERFIL_SITIO, procesarFoto } from '@/lib/foto';
+import {
+  type FotoProcesada,
+  type PerfilFoto,
+  PERFIL_CONEXION,
+  PERFIL_SITIO,
+  cambiarFoto,
+  procesarFoto,
+} from '@/lib/foto';
 import { claseChip, nombreCaudal, nombreRacor } from '@/lib/ficha';
 import {
   type EstadoFoto,
@@ -170,16 +177,17 @@ function HuecoFoto({
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
-  const [fallo, setFallo] = useState(false);
+  /** `repetida`: la nueva no se pudo leer y sigue la anterior (docs/31 RV-157). */
+  const [fallo, setFallo] = useState<'nueva' | 'repetida' | null>(null);
 
   async function elegida(archivo: File | undefined) {
     if (!archivo) return;
     setProcesando(true);
-    setFallo(false);
+    setFallo(null);
+    const anterior = foto;
     try {
-      alCambiar(await procesarFoto(archivo, perfil));
-    } catch {
-      setFallo(true);
+      const bien = await cambiarFoto(anterior, () => procesarFoto(archivo, perfil), alCambiar);
+      if (!bien) setFallo(anterior ? 'repetida' : 'nueva');
     } finally {
       setProcesando(false);
       if (entrada.current) entrada.current.value = '';
@@ -201,7 +209,9 @@ function HuecoFoto({
       {foto ? (
         <div
           className={cn(
-            'bg-verde-100 text-verde-700 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold',
+            'rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold',
+            // Si la nueva falló, la anterior no se pinta como recién hecha: el aviso va con ella.
+            fallo === 'repetida' ? 'bg-ambar-100 text-ambar-700' : 'bg-verde-100 text-verde-700',
             compacto && 'flex-wrap gap-x-2 gap-y-0 py-1 text-[13px]',
           )}
         >
@@ -232,7 +242,11 @@ function HuecoFoto({
           {procesando ? T.operaciones.preparandoFoto : compacto ? etiqueta : T.formulario.hacerFoto}
         </button>
       )}
-      {fallo && <span className="text-rojo-700 text-[13px]">{T.operaciones.fotoIlegible}</span>}
+      {fallo && (
+        <span role="alert" className="text-rojo-700 text-[13px]">
+          {fallo === 'repetida' ? T.operaciones.fotoRepetidaIlegible : T.operaciones.fotoIlegible}
+        </span>
+      )}
     </div>
   );
 }
