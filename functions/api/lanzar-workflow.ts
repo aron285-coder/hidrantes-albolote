@@ -34,7 +34,8 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
   if (!r.ok) {
     if (r.codigo === 'YA_PEDIDO') return error(409, 'YA_PEDIDO');
     if (r.codigo === 'NO_AUTORIZADO') return error(403, 'NO_AUTORIZADO');
-    if (r.codigo === 'PAYLOAD_INVALIDO') return error(400, 'PAYLOAD_INVALIDO');
+    // 0040 lo lanza como `PAYLOAD_INVALIDO(workflow)`.
+    if (r.codigo.startsWith('PAYLOAD_INVALIDO')) return error(400, 'PAYLOAD_INVALIDO');
     return error(r.estado === 503 ? 503 : 500, r.codigo);
   }
   return json({ pedido: true, workflow }, 202);
