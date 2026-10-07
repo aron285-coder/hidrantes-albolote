@@ -38,6 +38,8 @@ async function canjear(request: Request, env: Env): Promise<Response> {
   if (!cuerpo || typeof cuerpo.codigo !== 'string' || !esUuid(cuerpo.dispositivo_id)) {
     return error(400, 'PAYLOAD_INVALIDO');
   }
+  // Sin sal, el hash de una IPv4 se deshace por fuerza bruta: no se canjea nada.
+  if (!env.SAL_IP) return error(503, 'NO_CONFIGURADO');
   const ip = request.headers.get('CF-Connecting-IP') ?? 'desconocida';
   const r = await rpc<Canje[]>(env, 'fn_verificar_codigo', {
     codigo: cuerpo.codigo.trim().slice(0, 12),

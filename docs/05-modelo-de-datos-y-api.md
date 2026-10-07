@@ -760,7 +760,8 @@ con el estado HTTP indicado.
 Lee `CF-Connecting-IP`, calcula `ip_hash`, llama a `fn_verificar_codigo` con `service_role`.
 `409 DISPOSITIVO_RESERVADO`: el `dispositivo_id` coincide con el de un administrador (RV-143, DEC-175);
 no dice de quién. El móvil genera otro id y repite el canje una vez (RV-159).
-Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (TR-42).
+Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (TR-42). Sin `SAL_IP`
+→ `503 NO_CONFIGURADO` sin canjear nada (un hash de IP sin sal se deshace por fuerza bruta).
 
 ### `POST /api/url-subida`
 
@@ -842,8 +843,12 @@ Un pedido pendiente del mismo trabajo → `409 { "error": "YA_PEDIDO" }`; la bas
 → { "mensaje": "TypeError: …", "dispositivo_id": "uuid" | null, "pila": "…" | null, "ruta": "/mapa" | null, "agente": "…" | null }
 ← 204
 ← 400 { "error": "PAYLOAD_INVALIDO" }        // sin mensaje, id que no es uuid o un campo que no es texto
-← 503 { "error": "SERVIDOR_NO_DISPONIBLE" }  // el móvil lo deja en su cola y lo reintenta
+← 413 { "error": "PAYLOAD_INVALIDO" }        // cuerpo de más de 16 KB: no se lee
+← 503 { "error": "SERVIDOR_NO_DISPONIBLE" }  // la base de datos no contesta
+← 503 { "error": "NO_CONFIGURADO" }          // sin SAL_IP: no se anota nada
+← 500 { "error": "<código>" }                // la base de datos lo ha rechazado
 ```
+Con 5xx el error sigue en la cola del móvil.
 Sin credencial (los errores pueden ocurrir antes de tener token). Lee `CF-Connecting-IP` y calcula
 `ip_hash = sha256(SAL_IP + ip normalizada)` como `/api/verificar-codigo` (IPv6 por /64, RV-14); sin la
 cabecera, `ip_hash` nulo. Recorta como la base de datos (mensaje 1000, pila 4096, ruta 200, agente

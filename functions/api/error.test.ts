@@ -98,6 +98,7 @@ describe('POST /api/error', () => {
       { ...bueno, pila: 7 },
       { ...bueno, ruta: {} },
       { ...bueno, agente: ['x'] },
+      { ...bueno, mensaje: '   ' },
     ]) {
       const r = await onRequestPost({ request: peticion(cuerpo), env: ENV });
       expect(r.status, JSON.stringify(cuerpo)).toBe(400);
@@ -112,6 +113,49 @@ describe('POST /api/error', () => {
     const r = await onRequestPost({ request: peticion(bueno), env: ENV });
     expect(r.status).toBe(503);
     expect(await r.json()).toEqual({ error: 'SERVIDOR_NO_DISPONIBLE' });
+    espia.mockRestore();
+  });
+
+  it('si la base de datos lo rechaza, 500 con su código, no un éxito', async () => {
+    const { espia } = fingirRed(
+      new Response(JSON.stringify({ code: '42501', message: 'permission denied' }), { status: 403 }),
+    );
+    const r = await onRequestPost({ request: peticion(bueno), env: ENV });
+    expect(r.status).toBe(500);
+    expect(await r.json()).toEqual({ error: 'NO_AUTORIZADO' });
+    espia.mockRestore();
+  });
+
+  it('una IPv4 mapeada en IPv6 cuenta como esa IPv4', async () => {
+    const { espia, llamadas } = fingirRed();
+    await onRequestPost({ request: peticion(bueno, '::ffff:203.0.113.7'), env: ENV });
+    expect(llamadas[0]!.cuerpo.ip_hash).toBe(await sha256Hex('sal-larga-de-pruebas' + '203.0.113.7'));
+    espia.mockRestore();
+  });
+
+  it('un cuerpo de más de 16 KB no se lee ni llega a la base de datos (413)', async () => {
+    const { espia, llamadas } = fingirRed();
+    const grande = JSON.stringify({ mensaje: 'x'.repeat(20_000) });
+    // Con Content-Length y sin él (envío por trozos).
+    const conLargo = new Request('https://hidrantes-albolote-staging.pages.dev/api/error', {
+      method: 'POST',
+      headers: { 'Content-Length': String(grande.length) },
+      body: grande,
+    });
+    for (const request of [conLargo, peticion(grande)]) {
+      const r = await onRequestPost({ request, env: ENV });
+      expect(r.status).toBe(413);
+    }
+    expect(llamadas).toHaveLength(0);
+    espia.mockRestore();
+  });
+
+  it('sin SAL_IP no anota nada: el hash de la IP sin sal se podría deshacer', async () => {
+    const { espia, llamadas } = fingirRed();
+    const r = await onRequestPost({ request: peticion(bueno), env: { ...ENV, SAL_IP: '' } as Env });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
+    expect(llamadas).toHaveLength(0);
     espia.mockRestore();
   });
 });

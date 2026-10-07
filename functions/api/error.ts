@@ -11,8 +11,18 @@ const MAXIMO = { mensaje: 1000, pila: 4096, ruta: 200, agente: 300 } as const;
 const textoOpcional = (v: unknown, max: number): string | null | undefined =>
   v === undefined || v === null ? null : typeof v === 'string' ? v.slice(0, max) : undefined;
 
+/** Más que todos los campos recortados juntos: lo que pase de aquí no se lee. */
+export const CUERPO_MAXIMO = 16 * 1024;
+
 export const onRequestPost: Manejador = async ({ request, env }) => {
-  const cuerpo = await leerJson(request);
+  // Sin sal, el hash de una IPv4 se deshace por fuerza bruta: mejor no anotar que anotar mal.
+  if (!env.SAL_IP) return error(503, 'NO_CONFIGURADO');
+  const largo = Number(request.headers.get('Content-Length') ?? '0');
+  if (!Number.isFinite(largo) || largo > CUERPO_MAXIMO) return error(413, 'PAYLOAD_INVALIDO');
+  // Sin Content-Length (envío por trozos) también se mira después de leer.
+  const texto = await request.text().catch(() => '');
+  if (texto.length > CUERPO_MAXIMO) return error(413, 'PAYLOAD_INVALIDO');
+  const cuerpo = await leerJson(new Request(request.url, { method: 'POST', body: texto }));
   if (!cuerpo || typeof cuerpo.mensaje !== 'string' || cuerpo.mensaje.trim() === '') {
     return error(400, 'PAYLOAD_INVALIDO');
   }
@@ -34,6 +44,8 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     agente,
     ip_hash: ip ? await sha256Hex(env.SAL_IP + normalizarIp(ip)) : null,
   });
+  // 503: la base de datos no contesta. 500 con su código: lo ha rechazado (permiso, función que aún
+  // no existe tras un despliegue). En los dos casos el error sigue en la cola del móvil.
   if (!r.ok) return error(r.estado === 503 ? 503 : 500, r.codigo);
   return new Response(null, { status: 204, headers: { 'Cache-Control': 'no-store' } });
 };
