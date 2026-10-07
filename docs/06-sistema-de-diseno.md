@@ -683,6 +683,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Filtrar por acción` · `todas las acciones` ·
 `[n] entradas` · `no se puede editar ni borrar` · `Momento` · `Actor` · `Acción` · `Punto` ·
 `Detalle` · `[n] entradas por página` · `Todavía no hay entradas con ese filtro.` ·
+`[motivo] Las filas que ves son las de antes.` ·
 `Propuesta retirada por su autor` · `Aprobación` · `Aprobación con correcciones` · `Rechazo` ·
 `Fusión` · `Edición directa` · `Borrado` · `Restauración` · `Purga de la papelera` ·
 `Código de acceso cambiado` · `Dispositivos revocados` · `Administrador añadido` ·

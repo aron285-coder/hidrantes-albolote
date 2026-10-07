@@ -27,23 +27,24 @@ create function pg_temp.revision(clave text, ruta text) returns jsonb language s
 $$;
 
 -- ---------- RV-07: reservas viejas ----------
+-- Desde 0039 (docs/31 RV-142) la ventana es de 2 días: 48 h de protección y 24 h para confirmar.
 
-select pg_temp.reserva('fotos/vieja.jpg', interval '6 days 1 hour');
-select pg_temp.reserva('fotos/reciente.jpg', interval '5 days');
-select pg_temp.reserva('fotos/ocho.jpg', interval '8 days');
+select pg_temp.reserva('fotos/vieja.jpg', interval '1 day 1 hour');
+select pg_temp.reserva('fotos/reciente.jpg', interval '20 hours');
+select pg_temp.reserva('fotos/ocho.jpg', interval '49 hours');
 
 select throws_like($$ select pg_temp.revision('clave-reserva-vieja', 'fotos/vieja.jpg') $$, 'FOTO_NO_RESERVADA%',
-  'fn_proponer rechaza una reserva sin confirmar de hace 6 días y 1 hora con FOTO_NO_RESERVADA');
+  'fn_proponer rechaza una reserva sin confirmar de hace 1 día y 1 hora con FOTO_NO_RESERVADA');
 select is(pg_temp.revision('clave-reserva-reciente', 'fotos/reciente.jpg') ->> 'estado', 'pendiente',
-  'fn_proponer acepta una reserva sin confirmar de hace 5 días');
+  'fn_proponer acepta una reserva sin confirmar de hace 20 horas');
 
--- La de hace 6 días (sin confirmar) y la de 8, frente a la purga de fotos.
-select pg_temp.reserva('fotos/seis.jpg', interval '6 days');
+-- La de hace 47 h (sin confirmar) y la de 49 h, frente a la purga de fotos.
+select pg_temp.reserva('fotos/seis.jpg', interval '47 hours');
 select ok('fotos/seis.jpg' in (select hidrantes.fn_fotos_referenciadas()),
-  'fn_fotos_referenciadas incluye una reserva de hace 6 días');
+  'fn_fotos_referenciadas incluye una reserva de hace 47 h');
 select ok('fotos/ocho.jpg' not in (select hidrantes.fn_fotos_referenciadas()),
-  'fn_fotos_referenciadas excluye una de hace 8');
-select is(hidrantes.fn_config('dias_reserva_subida', 'null'), '7'::jsonb, 'la ventana es config: 7 días');
+  'fn_fotos_referenciadas excluye una de hace 49 h');
+select is(hidrantes.fn_config('dias_reserva_subida', 'null'), '2'::jsonb, 'la ventana es config: 2 días (0039)');
 
 select is((select count(*)::int from cron.job where jobname = 'hidrantes_purgar_subidas' and schedule = '57 3 * * *'), 1,
   'la tarea hidrantes_purgar_subidas existe y corre a las 03:57');
