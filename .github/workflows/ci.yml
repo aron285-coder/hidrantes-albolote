@@ -54,6 +54,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      # docs/31 RV-135, DEC-096: en un PR a main, main no puede tener nada fuera de la historia de la
+      # rama. Si lo tiene, un PR develop → main anterior se fusionó con squash. Dentro de ci-calidad,
+      # que es obligatorio.
+      - name: main dentro de la historia de la rama
+        if: github.event_name == 'pull_request' && github.base_ref == 'main'
+        env:
+          CABEZA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/main-en-la-rama.sh
+          main_en_la_rama "$CABEZA"
       - uses: ./.github/actions/preparar
       # Migraciones nuevas por encima de la última de la base, y ninguna aplicada cambiada (DEC-100).
       - name: Migraciones nuevas en orden
