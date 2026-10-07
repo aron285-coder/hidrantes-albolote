@@ -3,7 +3,7 @@ import L from 'leaflet';
 import { LocateFixed } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { capasDe } from '../mapa/capas-leaflet';
-import { ICONO_PIN } from '../mapa/iconos-leaflet';
+import { ICONO_PIN, ICONO_PIN_SIN_COLOCAR } from '../mapa/iconos-leaflet';
 import { useConexion, useMapabase, useModo, usePosicion } from '@/hooks/estado';
 import { ZOOM_MAX, baseDebajo, capaGuardada } from '@/lib/capas';
 import type { Coordenadas } from '@/lib/propuestas';
@@ -109,6 +109,16 @@ export function SelectorPin({
 
   // El pin se mueve (GPS que llega, botón de posición…): solo se mueve el pin. El mapa no se
   // recentra solo, que descoloca mientras se ajusta a mano; para eso está "Mi posición" (DEC-066).
+  // Sin pin (un alta sin GPS, o con la posición `antigua`), el marcador está pero no colocado: gris y
+  // discontinuo, como dice «Mueve el pin al sitio correcto» (docs/31 RV-157, punto 6). Al tocar el
+  // mapa o arrastrarlo, el formulario recibe el pin y vuelve el naranja.
+  // Solo cuando cambia de colocado a sin colocar: setIcon rehace el elemento del marcador, y hacerlo
+  // con cada lectura del GPS cortaría un arrastre a medias.
+  const colocado = !!pin;
+  useEffect(() => {
+    marcador.current?.setIcon(colocado ? ICONO_PIN : ICONO_PIN_SIN_COLOCAR);
+  }, [colocado]);
+
   useEffect(() => {
     if (!pin) return;
     marcador.current?.setLatLng([pin.lat, pin.lng]);
