@@ -34,6 +34,7 @@ import {
 } from '@/lib/propuestas';
 import { TITULO_OPERACION } from '@/lib/nombres-operacion';
 import { metros } from '@/lib/puntos';
+import { LIMITES } from '@/lib/limites';
 import { T } from '@/lib/textos';
 import { dentroDeZona } from '@/lib/zona';
 import { cn } from '@/lib/utils';
@@ -270,7 +271,7 @@ function FormularioOperacion({
                   onChange={(e) => cambiar({ fallo: e.target.value })}
                   placeholder={T.operaciones.phFallo}
                   aria-label={T.formulario.descripcionFallo}
-                  maxLength={500}
+                  maxLength={LIMITES.descripcion_fallo}
                   className={areaTexto}
                 />
               </Campo>
@@ -294,7 +295,7 @@ function FormularioOperacion({
                 onChange={(e) => cambiar({ motivo: e.target.value })}
                 placeholder={T.operaciones.phMotivo}
                 aria-label={T.formulario.motivoRetirada}
-                maxLength={1000}
+                maxLength={LIMITES.motivo}
                 rows={3}
                 className={areaTexto}
               />
@@ -323,7 +324,7 @@ function FormularioOperacion({
               onChange={(e) => cambiar({ descripcion: e.target.value })}
               placeholder={T.formulario.descripcionAyuda}
               aria-label={T.formulario.descripcionOpcional}
-              maxLength={500}
+              maxLength={LIMITES.descripcion}
               className={areaTexto}
             />
           </Campo>
@@ -336,7 +337,7 @@ function FormularioOperacion({
               onChange={(e) => cambiar({ nota: e.target.value })}
               placeholder={T.operaciones.phNota}
               aria-label={T.formulario.notaOpcional}
-              maxLength={500}
+              maxLength={LIMITES.nota}
               className={areaTexto}
             />
           </Campo>
@@ -475,7 +476,7 @@ function DatosPunto({
             onChange={(e) => cambiar({ descripcion: e.target.value })}
             placeholder={T.formulario.descripcionAyuda}
             aria-label={T.formulario.descripcionOpcional}
-            maxLength={500}
+            maxLength={LIMITES.descripcion}
             className={areaTexto}
           />
         </Campo>

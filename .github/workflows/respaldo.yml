@@ -8,9 +8,11 @@
 #     bucket R2 hidrantes-respaldos a través del Worker de solo escritura (400 días). Nunca se
 #     descifra en CI. Descargar de R2: npm run descargar-respaldo (15 §5.3).
 #
-# Sin `environment: production` a propósito: ese entorno exige aprobación humana en cada ejecución
-# (es lo que protege los despliegues), y un respaldo que espera a que alguien pulse un botón no es
-# un respaldo. Usa secretos del repositorio (DEC-071).
+# En el environment `prod-tareas` y no en `production`: production exige aprobación humana en cada
+# ejecución (es lo que protege los despliegues), y un respaldo que espera a que alguien pulse un botón
+# no es un respaldo (DEC-071). prod-tareas no tiene revisores, pero solo admite la rama develop: los
+# secretos de producción ya no están al alcance de un workflow de cualquier rama (docs/31 RV-131,
+# DEC-172).
 name: Respaldo
 
 on:
@@ -35,9 +37,20 @@ concurrency:
 jobs:
   respaldo:
     runs-on: ubuntu-24.04
+    environment: prod-tareas
     timeout-minutes: 45
+    # Donde se comprueba de verdad el respaldo (docs/31 RV-134): el volcado de esta semana se restaura
+    # aquí con restaurar.ts y se cuentan los puntos. La misma imagen que `supabase start` (roles de
+    # Supabase, PostGIS, pg_cron), en el puerto del Supabase local. Efímero: muere con el trabajo.
+    services:
+      postgres:
+        image: ghcr.io/supabase/postgres:17.6.1.171
+        env:
+          POSTGRES_PASSWORD: postgres # detectar-secretos:permitir (Postgres de servicio efímero)
+        ports:
+          - 55422:5432
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -119,10 +132,25 @@ jobs:
           # deja a anon sin las nueve RPC de voluntario y la aplicación no arranca. Se vio en el
           # ensayo de restauración de la Fase 8. Sin propietarios, en cambio, porque quien restaura
           # es hidrantes_migrador y los objetos han de quedar suyos.
-          pg_dump --schema=hidrantes --no-owner --format=plain "$BD" \
-            | gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
-                  --output "hidrantes-$FECHA.sql.gpg"
-          echo "TAMANO_DATOS=$(stat -c %s "hidrantes-$FECHA.sql.gpg")" >> "$GITHUB_ENV"
+          #
+          # Sin cifrar, primero, en la carpeta temporal del runner (fuera del espacio de trabajo y solo
+          # legible por el runner): es lo que se restaura después en el Postgres de servicio (docs/31
+          # RV-134). Se cifra ese mismo archivo, nunca sale del runner y se borra al final aunque algo
+          # falle. Los puntos se cuentan antes y después del volcado: el restaurado tiene que tener
+          # uno de los dos números.
+          umask 077
+          plano="$RUNNER_TEMP/hidrantes-$FECHA.sql"
+          # Ya, antes de escribirlo: si pg_dump o gpg fallan, el paso de borrado tiene que saber dónde está.
+          echo "PLANO=$plano" >> "$GITHUB_ENV"
+          puntos_antes=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c 'select count(*) from hidrantes.puntos')
+          pg_dump --schema=hidrantes --no-owner --format=plain --file "$plano" "$BD"
+          puntos_despues=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c 'select count(*) from hidrantes.puntos')
+          gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
+              --output "hidrantes-$FECHA.sql.gpg" "$plano"
+          {
+            echo "PUNTOS_ORIGEN=$puntos_antes $puntos_despues"
+            echo "TAMANO_DATOS=$(stat -c %s "hidrantes-$FECHA.sql.gpg")"
+          } >> "$GITHUB_ENV"
 
       - name: Comprobar que el volcado no está vacío
         env:
@@ -136,7 +164,7 @@ jobs:
           fi
           echo "Datos: hidrantes-$FECHA.sql.gpg ($((TAMANO_DATOS / 1024)) kB)" >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: respaldo-hidrantes
           path: hidrantes-*.sql.gpg
@@ -176,7 +204,7 @@ jobs:
           rm -rf "fotos-$FECHA"
           echo "Fotos: fotos-$FECHA.tar.gpg ($((bytes / 1024 / 1024)) MB en origen)" >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.fotos.outcome == 'success'
         with:
           name: respaldo-fotos
@@ -194,6 +222,18 @@ jobs:
           FECHA: ${{ steps.cuando.outputs.fecha }}
         run: npx tsx scripts/subir-respaldo.ts --tipo fotos --archivo "fotos-$FECHA.tar.gpg" --nombre "${FECHA:0:7}.tar.gpg"
 
+      # Que el respaldo de verdad se pueda restaurar (docs/31 RV-134): antes solo se miraba que el
+      # archivo pesara más de 10 kB. Después de guardar los artefactos (también el de fotos), para que
+      # un fallo aquí no deje la semana sin copia; antes de anotarlo en Salud del sistema, para que un
+      # respaldo que no se puede restaurar no salga como bueno. Si falla, el job falla y abre la issue.
+      - name: Restaurar el volcado en el Postgres de servicio y contar los puntos
+        id: prueba
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086 # PUNTOS_ORIGEN son dos números: van como dos argumentos.
+          bash .github/scripts/probar-restauracion-servicio.sh "$PLANO" $PUNTOS_ORIGEN
+          echo "Restauración de prueba: los mismos puntos que producción." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Anotar el respaldo en Salud del sistema
         env:
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
@@ -207,6 +247,10 @@ jobs:
           guardar ultimo_respaldo 'to_jsonb(now())'
           if [ -n "${BYTES_FOTOS:-}" ]; then guardar storage_bytes "to_jsonb(${BYTES_FOTOS}::bigint)"; fi
 
+      - name: Borrar el volcado sin cifrar
+        if: always()
+        run: if [ -n "${PLANO:-}" ]; then shred -u "$PLANO" 2>/dev/null || rm -f "$PLANO"; fi
+
       - name: Avisar si el respaldo ha fallado
         if: failure()
         env:
@@ -217,6 +261,9 @@ jobs:
           titulo="El respaldo semanal ha fallado"
           existe=$(gh issue list --label vigilancia --state open --search "$titulo" --json number --jq '.[0].number // empty')
           cuerpo="La ejecución ${{ github.run_id }} no terminó. Revisa el registro del workflow y 15 §5.3."
+          if [ "${{ steps.prueba.outcome }}" = failure ]; then
+            cuerpo="$cuerpo El volcado se guardó, pero **no se ha podido restaurar** en la prueba semanal (docs/31 RV-134): no es fiable hasta que se arregle."
+          fi
           if [ -n "$existe" ]; then
             gh issue comment "$existe" --body "$cuerpo"
           else

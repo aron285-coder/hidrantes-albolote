@@ -9,23 +9,35 @@
 // `gpg --decrypt hidrantes-«fecha».sql.gpg > /tmp/hidrantes.sql`); dentro solo si Git lo ignora.
 // La cadena de conexión sale de SUPABASE_DB_URL, o se pide sin mostrarla.
 //
+// --entorno es exactamente local, staging o prod (produccion vale por prod), y la cadena tiene que
+// ser de ese proyecto (docs/31 RV-134). En staging y prod, antes de vaciar el esquema guarda una
+// copia previa cifrada de lo que hay en ~/hidrantes-copias-previas; si no puede, no sigue.
+//
 // Nunca toca el esquema `public`: es de la app de uniformidad (CLAUDE.md §3). Todo va en una
 // transacción, así que un volcado a medias deja la base como estaba.
 
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
   abortar,
   argumentos,
+  comprobarCadena,
+  type Entorno,
   ejecutar,
   ejecutarScript,
+  entornoPg,
   errorSeguro,
+  leerEntorno,
   log,
   preguntar,
   psql,
   RAIZ,
+  REFS,
+  refDeUrl,
   type Resultado,
+  rutaPsql,
 } from './lib/comun.ts';
 import {
   type AccesoActual,
@@ -40,19 +52,9 @@ import { leerSecuencias, SQL_LEER_SECUENCIAS, sqlSecuenciasAlMenos } from './lib
 import { LOCAL_MIGRADOR, dirMigraciones, migrarPendientes } from './migrar.ts';
 
 export { sqlReponerAcceso, sqlSecuenciasAlMenos };
-
-/** Refs de Supabase por entorno (docs/entornos.md). No son secretos: identifican el proyecto. */
-export const REFS: Record<string, string> = {
-  staging: 'jowapbzawsebfpksnlqx',
-  prod: 'cbgqirjqyltadpydpeyr',
-};
-
-/** El ref viaja en el usuario del pooler (`hidrantes_migrador.«ref»`) o en el host de la directa. */
-export function refDeUrl(url: string): string | null {
-  return (
-    /:\/\/[^:/@]+\.([a-z0-9]{20})[:@]/.exec(url)?.[1] ?? /@db\.([a-z0-9]{20})\.supabase\.co/.exec(url)?.[1] ?? null
-  );
-}
+// Los refs y la guarda del proyecto viven en lib/comun.ts (docs/31 RV-134); se reexportan para
+// quien ya los importaba de aquí.
+export { REFS, refDeUrl };
 
 /**
  * Un volcado nuestro solo habla de `hidrantes`. Si menciona objetos de `public`, o es de otra
@@ -278,9 +280,139 @@ export function motivoVersionPsql(salidaVersion: string, volcado: string): strin
   );
 }
 
+// ---------- copia previa (docs/31 RV-134) ----------
+
+/** Donde quedan las copias previas: en la carpeta personal, nunca bajo el repositorio público. */
+export const CARPETA_COPIAS = path.join(os.homedir(), 'hidrantes-copias-previas');
+
+/**
+ * La huella de la clave de respaldo, la de docs/entornos.md (la mantiene arranque.ts). Quien restaura
+ * la ha importado en el paso 3 de 15 §5.3, así que puede descifrar la copia previa con la misma clave.
+ */
+export function huellaRespaldo(
+  texto = readFileSync(path.join(RAIZ, 'docs', 'entornos.md'), 'utf8'),
+  env = process.env.RESPALDO_GPG_HUELLA,
+): string {
+  const huella = env?.trim() || /Huella GPG de respaldos \| `([0-9A-F]{40})`/.exec(texto)?.[1];
+  if (!huella || !/^[0-9A-F]{40}$/.test(huella)) {
+    abortar('No encuentro la huella de la clave de respaldo en docs/entornos.md (o en RESPALDO_GPG_HUELLA).');
+  }
+  return huella;
+}
+
+/** pg_dump, de la misma instalación que psql. */
+export function rutaPgDump(psqlRuta = rutaPsql()): string {
+  return psqlRuta === 'psql' ? 'pg_dump' : psqlRuta.replace(/psql(\.exe)?$/i, (_m, exe = '') => `pg_dump${exe}`);
+}
+
+export interface Orden {
+  comando: string;
+  args: string[];
+  env?: NodeJS.ProcessEnv;
+}
+
+/** pg_dump del esquema hidrantes, igual que respaldo.yml, cifrado con gpg sin pasar por el disco. */
+export function ordenesCopiaPrevia(
+  url: string,
+  archivo: string,
+  huella: string,
+  pgDump = rutaPgDump(),
+): [Orden, Orden] {
+  return [
+    { comando: pgDump, args: ['--schema=hidrantes', '--no-owner', '--format=plain'], env: entornoPg(url) },
+    {
+      comando: 'gpg',
+      args: ['--batch', '--yes', '--trust-model', 'always', '--encrypt', '--recipient', huella, '--output', archivo],
+    },
+  ];
+}
+
+export interface Canal {
+  codigoA: number;
+  codigoB: number;
+  error: string;
+}
+
+/** `a | b` sin shell: la salida de a entra por la entrada de b. Nunca guarda en disco lo de en medio. */
+export function canalizar(a: Orden, b: Orden): Promise<Canal> {
+  return new Promise((listo) => {
+    let error = '';
+    const fin: { a?: number; b?: number } = {};
+    const terminar = () => {
+      if (fin.a !== undefined && fin.b !== undefined) listo({ codigoA: fin.a, codigoB: fin.b, error });
+    };
+    const pa = spawn(a.comando, a.args, { env: { ...process.env, ...a.env }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const pb = spawn(b.comando, b.args, { env: { ...process.env, ...b.env }, stdio: ['pipe', 'ignore', 'pipe'] });
+    pa.stderr.on('data', (d) => (error += d));
+    pb.stderr.on('data', (d) => (error += d));
+    pa.stdout.pipe(pb.stdin);
+    // Si gpg se cierra antes (no está, o falla), pg_dump recibe EPIPE: no es otro error que contar.
+    pb.stdin.on('error', () => {});
+    pa.on('error', (e) => {
+      error += `\n${a.comando}: ${e.message}`;
+      pb.stdin.end();
+      fin.a ??= 127;
+      terminar();
+    });
+    // Si b termina (o no arranca) con a aún vivo, nadie lee ya la salida de a: en cuanto se llenara la
+    // tubería, pg_dump se quedaría esperando para siempre y la restauración, colgada sin decir nada.
+    const pararA = () => {
+      if (fin.a === undefined && pa.exitCode === null) pa.kill();
+    };
+    pb.on('error', (e) => {
+      error += `\n${b.comando}: ${e.message}`;
+      fin.b ??= 127;
+      pararA();
+      terminar();
+    });
+    pa.on('close', (c) => {
+      fin.a ??= c ?? 1;
+      terminar();
+    });
+    pb.on('close', (c) => {
+      fin.b ??= c ?? 1;
+      pararA();
+      terminar();
+    });
+  });
+}
+
+/** Un nombre que no se repite y se ordena por fecha: hidrantes-prod-antes-de-restaurar-AAAAMMDD-HHMMSS.sql.gpg. */
+export const nombreCopiaPrevia = (entorno: Entorno, ahora = new Date()): string =>
+  `hidrantes-${entorno}-antes-de-restaurar-${ahora.toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')}.sql.gpg`;
+
+/**
+ * Antes de vaciar el esquema, lo que hay ahora, cifrado y fuera del repositorio (docs/31 RV-134). Si
+ * algo falla, aborta: sin copia previa no se restaura. Devuelve la ruta del archivo.
+ */
+export async function copiaPrevia(
+  url: string,
+  entorno: Entorno,
+  opciones: { carpeta?: string; huella?: string; canal?: typeof canalizar; ahora?: Date } = {},
+): Promise<string> {
+  const carpeta = path.resolve(opciones.carpeta ?? CARPETA_COPIAS);
+  const relativa = path.relative(RAIZ, carpeta);
+  if (relativa === '' || (!relativa.startsWith('..') && !path.isAbsolute(relativa))) {
+    abortar('La carpeta de la copia previa está dentro del repositorio, que es público: no se sigue.');
+  }
+  mkdirSync(carpeta, { recursive: true, mode: 0o700 });
+  const archivo = path.join(carpeta, nombreCopiaPrevia(entorno, opciones.ahora));
+  const [volcar, cifrar] = ordenesCopiaPrevia(url, archivo, opciones.huella ?? huellaRespaldo());
+  const r = await (opciones.canal ?? canalizar)(volcar, cifrar);
+  const tamano = existsSync(archivo) ? statSync(archivo).size : 0;
+  if (r.codigoA !== 0 || r.codigoB !== 0 || tamano === 0) {
+    rmSync(archivo, { force: true });
+    const pista = r.codigoB !== 0 ? ' ¿Has importado la clave de respaldo (15 §5.3, paso 3)?' : '';
+    abortar(
+      `No se ha podido guardar la copia previa (pg_dump ${r.codigoA}, gpg ${r.codigoB}): no se restaura y no se ha tocado nada.${pista}\n${errorSeguro(r.error)}`,
+    );
+  }
+  return archivo;
+}
+
 async function principal(): Promise<void> {
   const { valores } = argumentos();
-  const entorno = valores.get('entorno') ?? abortar('Indica --entorno local, staging o prod.');
+  const entorno = leerEntorno(valores.get('entorno'));
   const archivo = valores.get('archivo') ?? abortar('Indica --archivo <volcado.sql> ya descifrado.');
   const sinPreguntar = confirmacionAutomatica(entorno, valores.get('confirmar'));
   const ruta = path.resolve(RAIZ, archivo);
@@ -300,13 +432,8 @@ async function principal(): Promise<void> {
         (await preguntar(`Cadena de conexión de ${entorno} (hidrantes_migrador)`, { oculto: true })));
 
   // Guarda del proyecto: restaurar producción sobre staging, o al revés, sería peor que el problema.
-  const esperado = REFS[entorno];
-  if (esperado) {
-    const ref = refDeUrl(url);
-    if (ref !== esperado) {
-      abortar(`Esa cadena apunta al proyecto ${ref ?? 'desconocido'}, y --entorno ${entorno} es ${esperado}.`);
-    }
-  }
+  // Con cualquier nombre del entorno (produccion = prod), y también en local (docs/31 RV-134).
+  comprobarCadena(entorno, url);
   if (psql(url, 'select 1;').codigo !== 0) abortar('No se puede conectar con esa cadena.');
 
   // El caso normal de 15 §5.3 son datos dañados: el esquema sigue ahí y se vacía. Si además ha
@@ -339,6 +466,14 @@ async function principal(): Promise<void> {
   if (!sinPreguntar) {
     const escrito = await preguntar('Escribe RESTAURAR para continuar');
     if (escrito.trim() !== 'RESTAURAR') return log.info('Cancelado: no se ha tocado nada.');
+  }
+  // Lo que hay ahora, antes de vaciarlo (docs/31 RV-134): si la restauración resulta ser un error, se
+  // puede volver. Cifrado con la clave de respaldo y fuera del repositorio. En local no: es el
+  // Supabase de pruebas o el Postgres de servicio de respaldo.yml.
+  if (hayEsquema && entorno !== 'local') {
+    log.paso('Copia previa de lo que hay ahora');
+    const copia = await copiaPrevia(url, entorno);
+    log.ok(`copia previa cifrada en ${copia} (${(statSync(copia).size / 1024).toFixed(0)} kB)`);
   }
   const inicio = psql(url, 'select clock_timestamp();', { tuplas: true }).salida.trim();
   // Los códigos no retroceden nunca (FR-10, docs/18 RV-34): el volcado trae las secuencias de la

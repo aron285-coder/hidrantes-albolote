@@ -1,25 +1,28 @@
 # Documentación · Mapa de hidrantes · Protección Civil de Albolote
 
-Estado al 23 de septiembre de 2026. La referencia completa está en `00-README.md`.
+Estado al 7 de octubre de 2026. La referencia completa está en `00-README.md`.
+
+«Congelado, versionado»: no se reescribe; cada cambio es una versión nueva, anotada en su cabecera y
+pedida por una especificación (01 va por la v1.12; DEC-177).
 
 | # | Documento | Estado |
 |---|---|---|
 | — | `../CLAUDE.md` (raíz del repositorio) | vivo |
 | 00 | `00-README.md` · índice y reglas de propiedad | vivo |
-| 01 | `01-requisitos-funcionales.md` | congelado |
-| 02 | `02-flujos-de-usuario.md` | congelado |
-| 03 | `03-requisitos-tecnicos.md` | congelado |
-| 04 | `04-arquitectura-e-infraestructura.md` | congelado |
-| 05 | `05-modelo-de-datos-y-api.md` | congelado |
-| 06 | `06-sistema-de-diseno.md` + `06-sistema-de-diseno.html` | congelado |
-| 07 | `07-mockups-app.html` · prototipo interactivo | congelado |
-| 08 | `08-mockups-panel.html` · prototipo interactivo | congelado |
+| 01 | `01-requisitos-funcionales.md` | congelado, versionado (v1.12) |
+| 02 | `02-flujos-de-usuario.md` | congelado, versionado |
+| 03 | `03-requisitos-tecnicos.md` | congelado, versionado |
+| 04 | `04-arquitectura-e-infraestructura.md` | congelado, versionado |
+| 05 | `05-modelo-de-datos-y-api.md` | congelado, versionado |
+| 06 | `06-sistema-de-diseno.md` + `06-sistema-de-diseno.html` | congelado, versionado |
+| 07 | `07-mockups-app.html` · prototipo interactivo | congelado, versionado |
+| 08 | `08-mockups-panel.html` · prototipo interactivo | congelado, versionado |
 | 09 | `09-plan-implementacion.md` | vivo |
 | 10 | `10-matriz-aceptacion.md` | vivo |
 | 11 | `11-seguridad-y-privacidad.md` | vivo |
 | 12 | `12-decisiones.md` | vivo |
-| 13 | manual de jefatura — **pendiente**, tras el piloto (DEC-041) | — |
-| 14 | manual del voluntario — **pendiente**, tras el piloto (DEC-041) | — |
+| 13 | `13-manual-jefatura.md` · manual de jefatura (`docs/31` RV-139) | borrador, se revisa tras el piloto |
+| 14 | `14-manual-voluntario.md` · manual del voluntario (`docs/31` RV-139) | borrador, se revisa tras el piloto |
 | 15 | `15-continuidad-y-emergencias.md` | vivo |
 | 16 | `16-alcance-y-hoja-de-ruta.md` | congelado |
 | 17 | `17-cambios-revision-2026-09.md` · especificación de cambios tras la revisión del 23 sep 2026 (RV-01 a RV-32) | aplicado |
@@ -36,10 +39,11 @@ Estado al 23 de septiembre de 2026. La referencia completa está en `00-README.m
 | 28 | `28-cola-sin-senales-y-pendientes.md` · detalle de la cola sin señales (RV-115), Voluntarios en el móvil (RV-116), contraste del panel oscuro (RV-117), test inestable de anchos (RV-118) y tope de los marcadores (RV-119), en dos sesiones | hecho en staging (oct 2026); producción con la siguiente release |
 | 29 | `29-inventario-y-editar.md` · panel con cinco pestañas (RV-122), Inventario con Tipo y Estado (RV-123), Editar en panel lateral con mover el punto (RV-124), enganche Directo (RV-120, RV-121), sin «Algo no funciona» (RV-125) y anonimizar por script (RV-126), en cuatro sesiones | hecho en staging (oct 2026); producción con la siguiente release |
 | 30 | `30-registro-legible-y-foco.md` · el Registro dice qué cambió (RV-127), el foco no sale de las ventanas del panel (RV-128) y lint sin advertencias (RV-129), en una sesión | hecho en staging (oct 2026); producción con la siguiente release |
+| 31 | `31-revision-completa.md` · revisión completa del 7 oct 2026: producción protegida, copias fuera de GitHub, release y defectos (RV-130 a RV-169), en cuatro sesiones y tres oleadas | en curso (coordinación en #484) |
 | — | `mockups/` · mockups definitivos de las especificaciones: `25-lista.html` (solo §1), `25-ficha.html` y `25-cola.html` y `27-cercanos.html` (solo la versión A) y `29-inventario-y-editar.html` (solo la versión B) | vivo |
 | — | `trabajo-en-paralelo.md` · cómo repartir una especificación grande entre tres sesiones de Claude Code (Ops, Backend, Frontend), y PAR-01 (DEC-100) | vivo |
 | — | `entornos.md` · lo que dejó el arranque (refs, buckets, secretos por nombre) | vivo |
 | — | `verificacion/fase-N.md` · qué se ejecutó al cerrar cada fase y con qué resultado | vivo |
 | — | `capturas/` · pantallas de la app para 13 y 14, con su `LEEME.md` (`npm run capturas`) | vivo |
 | — | `notas-para-14-ios.md` · lo que hay que contar de iPhone en el manual | vivo |
-| — | `archivo/` · los dos documentos originales, sustituidos | histórico |
+| — | `archivo/` · los dos documentos originales, sustituidos: `requisitos-hidrantes.html` v6.1 y `plan-implementacion-hidrantes.md` v2.1 | histórico |

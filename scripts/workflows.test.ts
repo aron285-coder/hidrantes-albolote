@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -32,6 +32,19 @@ describe('workflows programados (DEC-085)', () => {
     expect(listas('mantener-activo.yml')).toEqual([programados]);
   });
 
+  // docs/31 RV-138: abría «Supabase X no responde» y nunca la cerraba.
+  it('mantener-activo.yml cierra su issue cuando el entorno vuelve a responder', () => {
+    const texto = leer('mantener-activo.yml');
+    const paso = texto.slice(texto.indexOf('- name: Cerrar la issue si vuelve a responder')).split(/\n\s{6}- /)[0]!;
+    expect(paso).toContain('if: success()');
+    expect(paso).toContain('titulo="Supabase $ENTORNO no responde"');
+    expect(paso).toContain('select(.title == \\"$titulo\\")');
+    expect(paso).toContain('gh issue close "$abierta"');
+    // El mismo título que abre el paso de fallo.
+    expect(texto).toContain('titulo="Supabase ${{ matrix.entorno }} no responde"');
+    expect(texto).toContain('ENTORNO: ${{ matrix.entorno }}');
+  });
+
   it('vigilancia.yml comprueba y rehabilita la misma lista', () => {
     const texto = leer('vigilancia.yml');
     const ls = listas('vigilancia.yml');
@@ -56,7 +69,9 @@ describe('avisos.yml (RV-08)', () => {
     expect(texto).toContain('X-Vigilancia');
   });
   it('no declara environment: production pediría aprobación en cada ejecución (DEC-071)', () => {
-    expect(texto).not.toMatch(/^\s*environment:/m);
+    expect(texto).not.toMatch(/^\s*environment:.*production/m);
+    // La fila de producción, en prod-tareas (docs/31 RV-131, DEC-172).
+    expect(texto).toContain("environment: ${{ matrix.entorno == 'PROD' && 'prod-tareas' || 'staging' }}");
   });
   it('repite mientras queden avisos, como mucho diez veces', () => {
     expect(texto).toContain('"quedan":true');
@@ -176,6 +191,198 @@ describe('paridad de producción (P-03)', () => {
     expect(texto).toMatch(/"\$dias_atras" -gt 7/);
     expect(texto).toContain('haz P-02');
     expect(texto).toMatch(/fetch-depth: 0/);
+  });
+});
+
+// docs/31 RV-136: un deploy de producción que falla avisa, y la vigilancia mira el último.
+describe('deploy de producción fallido (RV-136)', () => {
+  const prod = leer('deploy-prod.yml');
+  const paso = (texto: string, nombre: string) => {
+    const desde = texto.indexOf(`- name: ${nombre}`);
+    expect(desde, nombre).toBeGreaterThan(-1);
+    return texto.slice(desde).split(/\n\s{6}- /)[0]!;
+  };
+
+  /** El guion de un `run: |`, sin la sangría del YAML. */
+  const guionDe = (p: string) =>
+    p
+      .slice(p.indexOf('run: |\n') + 'run: |\n'.length)
+      .split('\n')
+      .map((l) => l.replace(/^ {10}/, ''))
+      .join('\n');
+  const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
+  /**
+   * gh simulado con jq de verdad: `--jq` se aplica a la respuesta que toque, así que los filtros del
+   * YAML se ejecutan. Lo que no es una lectura se anota en $ANOTADO.
+   */
+  const ghSimulado = [
+    'gh() {',
+    '  local filtro="" estado="" cuerpo="" a=("$@") i',
+    '  for ((i = 0; i < ${#a[@]}; i++)); do',
+    '    if [ "${a[i]}" = --jq ]; then filtro="${a[i+1]}"; fi',
+    '    if [ "${a[i]}" = --status ]; then estado="${a[i+1]}"; fi',
+    '    if [ "${a[i]}" = --body ]; then cuerpo="${a[i+1]}"; fi',
+    '  done',
+    '  if [ -n "$cuerpo" ]; then printf "%s" "$cuerpo" > "$ANOTADO.cuerpo"; fi',
+    '  case "$1 $2" in',
+    '    "api "*) printf "%s" "$JOBS" | jq -r "$filtro" ;;',
+    '    "issue list") printf "%s" "$ISSUES" | jq -r "$filtro" ;;',
+    '    "run list") if [ "$estado" = waiting ]; then printf "%s" "$ESPERANDO"; else printf "%s" "$TERMINADOS"; fi | jq -r "$filtro" ;;',
+    '    *) echo "gh $1 $2 $3" >> "$ANOTADO" ;;',
+    '  esac',
+    '}',
+  ].join('\n');
+  const correr = (guion: string, datos: Record<string, string>) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'deploy-fallido-'));
+    try {
+      const anotado = path.join(dir, 'anotado');
+      const r = spawnSync('bash', ['-e', '-c', `${ghSimulado}\n${guion}`], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          ANOTADO: anotado,
+          GITHUB_SHA: 'a'.repeat(40),
+          GH_REPO: 'o/r',
+          REPO: 'o/r',
+          RUN_ID: '1',
+          EJECUCION: 'https://ejecucion',
+          ...datos,
+        },
+      });
+      const leerSi = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : '');
+      return { ...r, anotado: leerSi(anotado), cuerpo: leerSi(`${anotado}.cuerpo`) };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+  const JOBS = JSON.stringify({
+    jobs: [
+      {
+        steps: [
+          { name: 'Guarda de seguridad', conclusion: 'success' },
+          { name: 'Paridad con develop', conclusion: 'failure' },
+        ],
+      },
+    ],
+  });
+  const issue = (number: number, state: string, title = 'Deploy de producción fallido') => ({ number, state, title });
+
+  it('con un paso fallido o cancelado, abre o reabre la issue y dice qué paso falló', () => {
+    const p = paso(prod, 'Avisar del fallo');
+    expect(p).toContain('if: failure() || cancelled()');
+    expect(p).toContain('ESTADO: ${{ job.status }}');
+    expect(p).toContain("titulo='Deploy de producción fallido'");
+    // Después de todos los pasos que pueden fallar.
+    expect(prod.indexOf('- name: Avisar del fallo')).toBeGreaterThan(prod.indexOf('npm run paridad'));
+  });
+
+  it.skipIf(!tieneJq)('sin issue, la crea con el paso que falló', () => {
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), { JOBS, ISSUES: '[]', ESTADO: 'failure' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue create --title\n');
+    expect(r.cuerpo).toContain('ha terminado con **failure**, en: **Paridad con develop**');
+    expect(r.cuerpo).toContain('`aaaaaaa`');
+  });
+
+  it.skipIf(!tieneJq)('si no puede leer los pasos, abre la issue igual y lo dice', () => {
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), { JOBS: 'no es json', ISSUES: '[]', ESTADO: 'failure' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue create --title\n');
+    expect(r.cuerpo).toContain('no lo he podido saber');
+  });
+
+  it.skipIf(!tieneJq)('con la issue cerrada, la reabre y comenta; con otra de otro título, no la toca', () => {
+    const ISSUES = JSON.stringify([issue(7, 'OPEN', 'Vigilancia diaria: algo no responde'), issue(5, 'CLOSED')]);
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), { JOBS, ISSUES, ESTADO: 'cancelled' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue reopen 5\ngh issue comment 5\n');
+  });
+
+  it.skipIf(!tieneJq)('con la issue abierta, solo comenta en ella, aunque haya otra cerrada más antigua', () => {
+    const ISSUES = JSON.stringify([issue(3, 'CLOSED'), issue(9, 'OPEN')]);
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), { JOBS, ISSUES, ESTADO: 'failure' });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue comment 9\n');
+  });
+
+  it('con el despliegue bien, cierra la issue de un fallo anterior', () => {
+    const p = paso(prod, 'Cerrar el aviso de un fallo anterior');
+    expect(p).toContain('if: success()');
+    expect(p).toContain("titulo='Deploy de producción fallido'");
+    expect(p).toContain('gh issue close');
+  });
+
+  it('tiene permiso para las issues y para leer los pasos de su ejecución', () => {
+    expect(prod).toMatch(/^\s{2}issues: write$/m);
+    expect(prod).toMatch(/^\s{2}actions: read$/m);
+  });
+
+  it.skipIf(!tieneJq)('con todo bien, cierra solo la issue abierta de ese título', () => {
+    const ISSUES = JSON.stringify([issue(7, 'OPEN', 'Vigilancia diaria: algo no responde'), issue(9, 'OPEN')]);
+    const r = correr(guionDe(paso(prod, 'Cerrar el aviso de un fallo anterior')), { ISSUES });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('gh issue close 9\n');
+  });
+
+  describe('la vigilancia mira el último deploy-prod', () => {
+    const v = leer('vigilancia.yml');
+    const bloque = v
+      .slice(v.indexOf('# 9. El último despliegue'), v.indexOf('# 5. Se anota'))
+      .split('\n')
+      .map((l) => l.replace(/^ {10}/, ''))
+      .join('\n');
+    const ahora = Math.floor(Date.UTC(2026, 9, 7, 12) / 1000);
+    const vigilar = (terminados: object[], esperando: object[] = []) => {
+      const r = correr(
+        ['problemas=()', `ahora=${ahora}`, bloque, 'printf "%s\\n" "${problemas[@]}"', 'echo FIN'].join('\n'),
+        { TERMINADOS: JSON.stringify(terminados), ESPERANDO: JSON.stringify(esperando) },
+      );
+      expect(r.status, r.stderr).toBe(0);
+      return r.stdout.replace(/\n?FIN\n$/, '').trim();
+    };
+    const SHA = 'b'.repeat(40);
+
+    it('el bloque está entre los puntos 8 y 5', () => {
+      expect(bloque).toContain('--status completed');
+      expect(bloque).toContain('--status waiting');
+    });
+
+    it.skipIf(!tieneJq)('el último terminado con success: nada', () => {
+      expect(vigilar([{ conclusion: 'success', headSha: SHA }])).toBe('');
+    });
+
+    it.skipIf(!tieneJq)('sin ningún deploy todavía: nada', () => {
+      expect(vigilar([])).toBe('');
+    });
+
+    it.skipIf(!tieneJq)(
+      'cuenta el que terminó más tarde: uno cancelado en cola antes de que el bueno acabe no avisa',
+      () => {
+        const terminados = [
+          { conclusion: 'cancelled', headSha: 'd'.repeat(40), updatedAt: '2026-10-07T10:05:00Z' },
+          { conclusion: 'success', headSha: SHA, updatedAt: '2026-10-07T11:00:00Z' },
+        ];
+        expect(vigilar(terminados)).toBe('');
+        expect(vigilar([...terminados].reverse())).toBe('');
+      },
+    );
+
+    it.skipIf(!tieneJq)('cancelado sin aprobar (0.8.0) o fallido: avisa con el commit', () => {
+      for (const conclusion of ['cancelled', 'failure', 'timed_out']) {
+        const p = vigilar([{ conclusion, headSha: SHA }]);
+        expect(p).toContain(`(bbbbbbb) terminó con ${conclusion}`);
+        expect(p).toContain('Deploy de producción fallido');
+      }
+    });
+
+    it.skipIf(!tieneJq)('uno esperando la aprobación más de un día avisa; menos, no', () => {
+      const hace = (h: number) => new Date((ahora - h * 3600) * 1000).toISOString().replace('.000', '');
+      const bien = [{ conclusion: 'success', headSha: SHA }];
+      expect(vigilar(bien, [{ createdAt: hace(30), headSha: 'c'.repeat(40) }])).toContain(
+        'el despliegue de producción de ccccccc lleva 30 h esperando',
+      );
+      expect(vigilar(bien, [{ createdAt: hace(2), headSha: 'c'.repeat(40) }])).toBe('');
+    });
   });
 });
 
@@ -370,10 +577,12 @@ describe('revisar_bd (RV-78)', () => {
   const raiz = path.resolve(import.meta.dirname, '..');
   const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
   /** psql simulado: responde según la consulta; `tareas` es lo que da tareas-programadas.sql. */
-  const correr = (entorno: string, tareas: string) => {
+  /** `falla`: un trozo de la consulta con el que psql sale con error (docs/31 RV-138). */
+  const correr = (entorno: string, tareas: string, falla = '') => {
     const guion = [
       'set -uo pipefail',
       `psql() {
+        if [ -n "$FALLA" ] && [[ "$*" == *"$FALLA"* ]]; then echo 'ERROR: simulado' >&2; return 1; fi
         case "$*" in
           *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
           *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
@@ -396,7 +605,7 @@ describe('revisar_bd (RV-78)', () => {
         cwd: raiz,
         encoding: 'utf8',
         // docs/22 RV-90: el JSON de las tareas va a RUNNER_TEMP, no a la raíz del repositorio.
-        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado'), RUNNER_TEMP: dir },
+        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado'), RUNNER_TEMP: dir, FALLA: falla },
       });
       const archivo = `tareas-${entorno}.json`;
       return {
@@ -434,6 +643,24 @@ describe('revisar_bd (RV-78)', () => {
     expect(r.codigo).toBe(0);
     expect(r.salida).toContain('staging: faltan tareas programadas de pg_cron: hidrantes_purgar_errores');
     expect(r.salida.trim().endsWith('FIN')).toBe(true);
+  });
+
+  // docs/31 RV-138: con `|| echo 0`, una consulta que fallaba contaba como «todo bien».
+  it.skipIf(!tieneJq).each([
+    ['notificaciones', 'produccion', 'no se pueden contar los avisos push sin salir'],
+    ['notificaciones', 'staging', 'staging: no se pueden contar los avisos push sin salir'],
+    ['pg_database_size', 'produccion', 'no se puede medir el tamaño de la base de datos'],
+    ['intentos_codigo', 'produccion', 'no se pueden leer los intentos del código de acceso'],
+  ])('si falla la consulta de %s (%s), es un problema, y sigue con lo demás', (falla, entorno, problema) => {
+    const r = correr(entorno, BIEN, falla);
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain(problema);
+    expect(r.salida.trim().endsWith('FIN')).toBe(true);
+  });
+
+  it('ninguna consulta convierte un fallo en un número con || echo', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
+    expect(guion).not.toMatch(/\|\| echo ['"]?0/);
   });
 
   it('staging no mira el respaldo, el tamaño ni los intentos del código', () => {
@@ -533,5 +760,102 @@ describe('release-please sin GitHub App (DEC-153)', () => {
     expect(texto).toContain('- if: steps.release.outputs.pr\n');
     expect(texto).toContain('gh workflow run ci.yml');
     expect(texto).toContain("git commit --allow-empty -m 'chore(release): lanzar la CI del PR de versión'");
+  });
+});
+
+// docs/31 RV-135, DEC-096: un PR develop → main fusionado con squash deja en main cambios fuera de la
+// historia de develop, y el siguiente PR a main choca. ci-calidad lo para en el PR a main.
+// Cada caso crea un repositorio con una docena de llamadas a git: en Windows pasa de los 5 s.
+describe('main dentro de la historia de la rama en los PR a main (RV-135)', { timeout: 30_000 }, () => {
+  const guion = path.resolve(import.meta.dirname, '../.github/scripts/main-en-la-rama.sh').replaceAll('\\', '/');
+
+  /** Un repositorio con develop y origin/main. `fusion` dice cómo llegó la release 1 a main. */
+  function repo(fusion: 'merge' | 'squash' | 'squash-arreglado') {
+    const dir = mkdtempSync(path.join(tmpdir(), 'main-en-la-rama-'));
+    const git = (...a: string[]) =>
+      execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...a], {
+        cwd: dir,
+        encoding: 'utf8',
+      }).trim();
+    const version = (v: string) => {
+      writeFileSync(path.join(dir, 'version.txt'), v);
+      git('add', 'version.txt');
+      git('commit', '-q', '-m', `versión ${v}`);
+    };
+    git('init', '-q', '-b', 'develop');
+    version('0');
+    git('branch', 'main');
+    version('1');
+    git('switch', '-q', 'main');
+    if (fusion === 'merge') git('merge', '-q', '--no-ff', 'develop', '-m', 'merge de develop');
+    else {
+      git('merge', '-q', '--squash', 'develop');
+      git('commit', '-q', '-m', 'squash de develop');
+    }
+    git('update-ref', 'refs/remotes/origin/main', 'main');
+    git('switch', '-q', 'develop');
+    if (fusion === 'squash-arreglado') git('merge', '-q', '-s', 'ours', 'origin/main', '-m', 'main en develop');
+    version('2');
+    return { dir, cabeza: git('rev-parse', 'HEAD') };
+  }
+
+  const comprobar = (dir: string, cabeza: string) =>
+    spawnSync('bash', ['-c', `set -euo pipefail; source "${guion}"; main_en_la_rama "${cabeza}"`], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+
+  function con(fusion: Parameters<typeof repo>[0], prueba: (dir: string, cabeza: string) => void) {
+    const { dir, cabeza } = repo(fusion);
+    try {
+      prueba(dir, cabeza);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  it('pasa si la release anterior llegó a main con merge commit (aunque su punta no sea ancestro)', () => {
+    con('merge', (dir, cabeza) => {
+      const r = comprobar(dir, cabeza);
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+    });
+  });
+
+  it('falla si llegó con squash, y dice cómo arreglarlo', () => {
+    con('squash', (dir, cabeza) => {
+      const r = comprobar(dir, cabeza);
+      expect(r.status).toBe(1);
+      expect(r.stdout).toContain('::error::main tiene cambios fuera de la historia de esta rama');
+      expect(r.stdout).toContain('git merge -s ours origin/main');
+      // Y el motivo exacto: el commit y el archivo que main tiene y la rama no.
+      expect(r.stdout).toContain('squash de develop');
+      expect(r.stdout).toContain('version.txt');
+    });
+  });
+
+  it('pasa otra vez después del merge -s ours de origin/main en develop', () => {
+    con('squash-arreglado', (dir, cabeza) => {
+      const r = comprobar(dir, cabeza);
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+    });
+  });
+
+  it('sin cabeza, o con una que no está en el clon, falla con 2 en vez de dar por bueno', () => {
+    con('merge', (dir) => {
+      expect(comprobar(dir, '').status).toBe(2);
+      const r = comprobar(dir, 'f'.repeat(40));
+      expect(r.status).toBe(2);
+      expect(r.stdout).toContain('No encuentro la cabeza del PR');
+    });
+  });
+
+  it('ci-calidad lo comprueba solo en PR a main, con la cabeza del PR y no con HEAD', () => {
+    const ci = leer('ci.yml');
+    const calidad = ci.slice(ci.indexOf('\n  calidad:\n'), ci.indexOf('\n  sql:\n'));
+    const paso = calidad.slice(calidad.indexOf('- name: main dentro de la historia de la rama')).split(/\n\s{6}- /)[0]!;
+    expect(paso).toContain("if: github.event_name == 'pull_request' && github.base_ref == 'main'");
+    expect(paso).toContain('CABEZA: ${{ github.event.pull_request.head.sha }}');
+    expect(paso).toContain('main_en_la_rama "$CABEZA"');
+    expect(calidad).toMatch(/fetch-depth: 0/);
   });
 });

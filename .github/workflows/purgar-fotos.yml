@@ -7,9 +7,9 @@
 #   - La primera pasada programada, en ensayo: la primera vez que se borra lo revisa una persona
 #     (docs/22 RV-94, DEC-129).
 #
-# Sin `environment: production` por el mismo motivo que el respaldo: ese entorno exige aprobación
-# humana en cada ejecución y una tarea de mantenimiento periódica no puede esperar a nadie
-# (DEC-071). Qué se conserva lo decide `fn_fotos_referenciadas_lista`, no este workflow.
+# En el environment `prod-tareas`, como el respaldo: `production` exige aprobación humana en cada
+# ejecución y una tarea de mantenimiento periódica no puede esperar a nadie (DEC-071); prod-tareas
+# solo admite develop, y una rama cualquiera no ve sus secretos (docs/31 RV-131, DEC-172). Qué se conserva lo decide `fn_fotos_referenciadas_lista`, no este workflow.
 # Nunca pasa --forzar: una pasada que borraría más de max(50, 10 %) del bucket se para (RV-33).
 name: Purgar fotos
 
@@ -36,9 +36,10 @@ concurrency:
 jobs:
   purgar:
     runs-on: ubuntu-24.04
+    environment: prod-tareas
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
