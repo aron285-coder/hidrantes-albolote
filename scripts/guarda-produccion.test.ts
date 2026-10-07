@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { comprobarGuarda } from './guarda-produccion.ts';
+import { describe, expect, it, vi } from 'vitest';
+import { comprobarGuarda, variablesDePages } from './guarda-produccion.ts';
 
 const REF = 'abcdefghijklmnopqrst';
 const STAGING = 'zzzzzzzzzzzzzzzzzzzz';
@@ -20,6 +20,7 @@ const bien = {
   anonKey: jwt({ iss: 'supabase', ref: REF, role: 'anon' }),
   flujo: flujoReal,
   arranque: readFileSync(path.resolve(import.meta.dirname, 'arranque.ts'), 'utf8'),
+  variablesPages: ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'SAL_IP', 'VAPID_PRIVATE_KEY'],
 };
 
 describe('guarda de producción', () => {
@@ -82,5 +83,56 @@ describe('guarda de producción', () => {
     expect(guarda).toContain('VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}');
     expect(guarda).toContain('VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}');
     expect(flujoReal.indexOf('- name: Guarda de seguridad')).toBeLessThan(flujoReal.indexOf('npm run migrar'));
+  });
+
+  // docs/31 (#484): sin SAL_IP, /api/verificar-codigo y /api/error responden 503 NO_CONFIGURADO, y
+  // nadie podría entrar con el código. Se mira en el proyecto de Pages, solo los nombres.
+  it.each([
+    ['sin SAL_IP en Pages', ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'], 'SAL_IP'],
+    ['sin la clave de servicio en Pages', ['SUPABASE_URL', 'SAL_IP'], 'SUPABASE_SERVICE_ROLE_KEY'],
+    ['sin poder leer las variables de Pages', null, 'no se pueden leer'],
+  ])('bloquea: %s', (_n, variablesPages, motivo) => {
+    const problemas = comprobarGuarda({ ...bien, variablesPages });
+    expect(
+      problemas.some((p) => p.includes(motivo)),
+      problemas.join('; '),
+    ).toBe(true);
+  });
+
+  it('deploy-prod.yml da a la guarda el token de Cloudflare para leer los nombres de las variables de Pages', () => {
+    const guarda = flujoReal.slice(flujoReal.indexOf('- name: Guarda de seguridad')).split(/\n\s{6}- /)[0]!;
+    expect(guarda).toContain('CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}');
+    expect(guarda).toContain('CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}');
+  });
+});
+
+describe('variablesDePages', () => {
+  const respuesta = (cuerpo: unknown, status = 200) => new Response(JSON.stringify(cuerpo), { status });
+
+  it('devuelve los nombres de production, sin valores', async () => {
+    const f = vi.fn().mockResolvedValue(
+      respuesta({
+        success: true,
+        result: {
+          deployment_configs: {
+            production: {
+              env_vars: { SAL_IP: { type: 'secret_text' }, ENTORNO: { type: 'plain_text', value: 'produccion' } },
+            },
+          },
+        },
+      }),
+    );
+    expect(await variablesDePages('hidrantes-albolote', 'cuenta', 'token', f)).toEqual(['ENTORNO', 'SAL_IP']);
+    expect(String(f.mock.calls[0]![0])).toBe(
+      'https://api.cloudflare.com/client/v4/accounts/cuenta/pages/projects/hidrantes-albolote',
+    );
+  });
+
+  it('sin token, con un error o sin red, null (y la guarda bloquea)', async () => {
+    expect(await variablesDePages('p', 'c', undefined, vi.fn())).toBeNull();
+    expect(
+      await variablesDePages('p', 'c', 't', vi.fn().mockResolvedValue(respuesta({ success: false }, 403))),
+    ).toBeNull();
+    expect(await variablesDePages('p', 'c', 't', vi.fn().mockRejectedValue(new TypeError('fetch failed')))).toBeNull();
   });
 });
