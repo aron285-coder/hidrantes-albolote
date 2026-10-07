@@ -93,9 +93,11 @@ jobs:
 
       # docs/31 RV-136: si algo falla, producción puede haber cambiado a medias (migrada y sin
       # desplegar, o desplegada sin paridad). Se abre o se reabre la issue, con el paso que falló.
+      # También si se cancela a mitad (a mano o por timeout-minutes): el caso es el mismo.
       - name: Avisar del fallo
-        if: failure()
+        if: failure() || cancelled()
         env:
+          ESTADO: ${{ job.status }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           EJECUCION: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -104,8 +106,8 @@ jobs:
           set -euo pipefail
           titulo='Deploy de producción fallido'
           fallidos=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
-            --jq '[.jobs[].steps[] | select(.conclusion == "failure") | .name] | join(", ")' || true)
-          cuerpo="El despliegue de producción de \`${GITHUB_SHA::7}\` ha fallado en: **${fallidos:-no lo he podido saber, mira la ejecución}**.
+            --jq '[.jobs[].steps[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .name] | join(", ")' || true)
+          cuerpo="El despliegue de producción de \`${GITHUB_SHA::7}\` ha terminado con **$ESTADO**, en: **${fallidos:-no lo he podido saber, mira la ejecución}**.
 
           Producción puede haber quedado a medias: las migraciones van antes que el despliegue, y la paridad después. Mira la ejecución y el procedimiento de docs/15: $EJECUCION"
           numero=$(gh issue list --label vigilancia --state all --limit 100 --json number,title,state \
