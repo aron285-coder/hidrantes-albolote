@@ -94,13 +94,42 @@ describe('avisos de jefatura (docs/31 RV-167)', () => {
     expect(datos.get('hidrantes.push_jefatura')).toBe('[]');
   });
 
-  it('quitar todos y que falle: se dice, se anota y los temas siguen como estaban', async () => {
+  it('quitar todos borra en el servidor solo la de jefatura de este navegador', async () => {
+    const s = suscripcion();
+    pushManager.getSubscription.mockResolvedValue(s);
+    await fijarTemas([]);
+    expect(rpc).toHaveBeenCalledWith('fn_borrar_suscripcion_push_admin', { endpoint: ENDPOINT });
+  });
+
+  it('con los avisos del voluntario activos en este navegador, su suscripción no se toca', async () => {
+    const s = suscripcion();
+    pushManager.getSubscription.mockResolvedValue(s);
+    datos.set('hidrantes.token', JSON.stringify('t'.repeat(43)));
+    datos.set('hidrantes.firma', JSON.stringify({ nombre: 'Ana', apellido: 'Prueba' }));
+    datos.set('hidrantes.push', 'true');
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    await expect(fijarTemas([])).resolves.toEqual({ temas: [], ok: true });
+    expect(rpc).toHaveBeenCalledWith('fn_borrar_suscripcion_push_admin', { endpoint: ENDPOINT });
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it('si el servidor no la borra, se dice, se anota y no se toca nada', async () => {
+    const s = suscripcion();
+    pushManager.getSubscription.mockResolvedValue(s);
+    rpc.mockResolvedValue({ ok: false, codigo: 'NO_AUTORIZADO' });
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    await expect(fijarTemas([])).resolves.toEqual({ temas: ['resumen_semanal'], ok: false });
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+    expect(anotado()).toMatch(/fn_borrar_suscripcion_push_admin: NO_AUTORIZADO/);
+  });
+
+  it('borrada en el servidor, un unsubscribe que falla solo se anota', async () => {
     const s = suscripcion();
     s.unsubscribe.mockRejectedValue(new Error('no'));
     pushManager.getSubscription.mockResolvedValue(s);
     datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
-    await expect(fijarTemas([])).resolves.toEqual({ temas: ['resumen_semanal'], ok: false });
-    expect(anotado()).toMatch(/fijar/);
+    await expect(fijarTemas([])).resolves.toEqual({ temas: [], ok: true });
+    expect(anotado()).toMatch(/unsubscribe/);
   });
 
   it('con temas ya activos, un Service Worker colgado los deja como estaban', async () => {

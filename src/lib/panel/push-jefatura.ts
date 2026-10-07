@@ -4,12 +4,15 @@
 import { SIN_SERVIDOR, rpc } from '../api';
 import { escribir, leer } from '../almacen';
 import { anotarError } from '../errores';
+
 import { jwt } from './consultas';
 
 export type TemaJefatura = 'nuevas_propuestas' | 'resumen_semanal';
 export type EstadoPushJefatura = 'no_disponible' | 'instalar_primero' | 'denegado' | 'listo';
 
 const CLAVE = 'push_jefatura';
+/** La que marca `activarPush` del voluntario (lib/push.ts) cuando tiene los avisos activos aquí. */
+const CLAVE_VOLUNTARIO = 'push';
 const PUBLICA = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
 const esIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -59,6 +62,32 @@ function registroListo(limiteMs: number): Promise<ServiceWorkerRegistration> {
   ]).finally(() => clearTimeout(t));
 }
 
+/**
+ * Sin temas: se borra en el servidor **solo** la suscripción de jefatura de este navegador
+ * (`fn_borrar_suscripcion_push_admin`, 0040). La del navegador se comparte con la del voluntario
+ * (0030): solo se da de baja si el voluntario no tiene los avisos activos aquí (docs/31 RV-167).
+ */
+async function quitarTodos(registro: ServiceWorkerRegistration): Promise<ResultadoTemas> {
+  const suscripcion = await registro.pushManager.getSubscription();
+  if (suscripcion) {
+    const r = await rpc('fn_borrar_suscripcion_push_admin', { endpoint: suscripcion.endpoint });
+    if (!r.ok) {
+      if (r.codigo !== SIN_SERVIDOR) {
+        anotarError(new Error(`fn_borrar_suscripcion_push_admin: ${r.codigo}`.slice(0, 500)), 'push-jefatura');
+      }
+      return { temas: temasActivos(), ok: false };
+    }
+    if (!leer<boolean>(CLAVE_VOLUNTARIO)) {
+      // Borrada ya en el servidor, no llegará nada aunque esto falle: se anota y basta.
+      await suscripcion
+        .unsubscribe()
+        .catch((e: unknown) => anotarError(errorSinDatos(e, 'unsubscribe'), 'push-jefatura'));
+    }
+  }
+  escribir(CLAVE, []);
+  return { temas: [], ok: true };
+}
+
 /** Los temas que han quedado activos y si se ha hecho lo pedido. */
 export interface ResultadoTemas {
   temas: TemaJefatura[];
@@ -81,11 +110,7 @@ export async function fijarTemas(temas: TemaJefatura[], { limiteSwMs = LIMITE_SW
     return { temas: temasActivos(), ok: false };
   }
   try {
-    if (!temas.length) {
-      await (await registro.pushManager.getSubscription())?.unsubscribe();
-      escribir(CLAVE, []);
-      return { temas: [], ok: true };
-    }
+    if (!temas.length) return await quitarTodos(registro);
     const permiso = await Notification.requestPermission();
     if (permiso !== 'granted') return { temas: temasActivos(), ok: false };
     let suscripcion: PushSubscription;

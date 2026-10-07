@@ -194,7 +194,6 @@ export async function anadirNucleo(nombre: string, lat: number, lng: number): Pr
 
 export interface Salud {
   pendientes_14d: number;
-  incidencias_abiertas: number;
   errores_7d: number;
   sin_direccion: number;
   ultimo_respaldo: string | null;
