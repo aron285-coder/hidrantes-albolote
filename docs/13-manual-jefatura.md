@@ -39,8 +39,8 @@ administrador.
 
 ## 3. El panel
 
-Cinco pestañas: **Cola de revisión**, **Inventario**, **Registro**, **Papelera** y **Ajustes**. El
-número junto a cada una dice cuántas cosas tiene. La búsqueda de arriba encuentra por código, calle
+Cinco pestañas: **Cola de revisión**, **Inventario**, **Registro**, **Papelera** y **Ajustes**. Cola de
+revisión, Inventario y Papelera llevan al lado cuántas cosas tienen. La búsqueda de arriba encuentra por código, calle
 o voluntario.
 
 ## 4. Cola de revisión
