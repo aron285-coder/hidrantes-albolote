@@ -23,7 +23,7 @@
 // Se puede relanzar: cada paso mira el estado real (PR ya fusionado, deploy ya aprobado…) y sigue.
 // Nunca imprime valores de secretos: solo usa la sesión de gh y git del propietario (DEC-176).
 
-import { abortar, ejecutar, ejecutarScript, log, type Resultado } from './lib/comun.ts';
+import { abortar, ejecutar, ejecutarScript, errorSeguro, log, type Resultado } from './lib/comun.ts';
 
 export const REPO = 'aron285-coder/hidrantes-albolote';
 export const ETIQUETA_BLOQUEO = 'bloquea-release';
@@ -244,8 +244,8 @@ export function estadoChecks(checks: { name: string; bucket: string }[]): Estado
 /** `gh pr checks --json` sale con 1 y sin JSON si no hay checks, y con 8 si hay pendientes. */
 export function leerChecks(r: Resultado): EstadoCi {
   if (r.salida.startsWith('[')) return estadoChecks(JSON.parse(r.salida) as { name: string; bucket: string }[]);
-  if (/no (required )?checks reported/i.test(`${r.error} ${r.salida}`)) return 'sin checks';
-  abortar(`No se han podido leer los checks: ${r.error || r.salida}`);
+  if (/no (required )?checks reported/i.test([r.error, r.salida].join(' '))) return 'sin checks';
+  abortar(`No se han podido leer los checks: ${errorSeguro(r.error || r.salida)}`);
 }
 
 /** Una ejecución de Actions (status/conclusion de la API) como estado de CI. */
@@ -286,7 +286,7 @@ export interface Contexto {
 
 function json<T>(ctx: Contexto, args: string[], que: string): T {
   const r = ctx.ej('gh', args);
-  if (r.codigo !== 0) abortar(`${que}: ${r.error || r.salida}`);
+  if (r.codigo !== 0) abortar(`${que}: ${errorSeguro(r.error || r.salida)}`);
   return JSON.parse(r.salida || 'null') as T;
 }
 
@@ -296,7 +296,7 @@ function git(ctx: Contexto, args: string[]): Resultado {
 
 function gitOk(ctx: Contexto, args: string[], que: string): string {
   const r = git(ctx, args);
-  if (r.codigo !== 0) abortar(`${que}: ${r.error || r.salida}`);
+  if (r.codigo !== 0) abortar(`${que}: ${errorSeguro(r.error || r.salida)}`);
   return r.salida.trim();
 }
 
@@ -333,7 +333,8 @@ export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string): 
         '--jq',
         '.headRefOid',
       ]);
-      if (actual.codigo !== 0) abortar(`No se ha podido leer el PR #${pr}: ${actual.error || actual.salida}`);
+      if (actual.codigo !== 0)
+        abortar(`No se ha podido leer el PR #${pr}: ${errorSeguro(actual.error || actual.salida)}`);
       if (actual.salida.trim() !== cabeza) return null;
       const e = checksDe(ctx, pr);
       if (e === 'sin checks' && Date.now() > limiteSinChecks) {
@@ -442,7 +443,7 @@ async function pasoRelease(ctx: Contexto): Promise<void> {
   }
   await esperarChecks(ctx, pr.number, cabeza);
   const r = ctx.ej('gh', ['pr', 'merge', String(pr.number), '--repo', REPO, '--squash', '--match-head-commit', cabeza]);
-  if (r.codigo !== 0) abortar(`No se ha podido fusionar el PR #${pr.number}: ${r.error || r.salida}`);
+  if (r.codigo !== 0) abortar(`No se ha podido fusionar el PR #${pr.number}: ${errorSeguro(r.error || r.salida)}`);
   log.ok(`PR #${pr.number} fusionado con squash en develop.`);
 }
 
@@ -522,14 +523,14 @@ async function pasoMain(ctx: Contexto): Promise<string> {
       ],
       { entrada: cuerpo },
     );
-    if (r.codigo !== 0) abortar(`No se ha podido abrir el PR develop → main: ${r.error || r.salida}`);
+    if (r.codigo !== 0) abortar(`No se ha podido abrir el PR develop → main: ${errorSeguro(r.error || r.salida)}`);
     numero = Number(/\/pull\/(\d+)/.exec(r.salida)?.[1]);
     if (!numero) abortar(`No he entendido la respuesta de gh pr create: ${r.salida}`);
     log.ok(`PR #${numero} abierto.`);
   }
   await esperarChecks(ctx, numero, develop);
   const m = ctx.ej('gh', ['pr', 'merge', String(numero), '--repo', REPO, '--merge', '--match-head-commit', develop]);
-  if (m.codigo !== 0) abortar(`No se ha podido fusionar el PR #${numero}: ${m.error || m.salida}`);
+  if (m.codigo !== 0) abortar(`No se ha podido fusionar el PR #${numero}: ${errorSeguro(m.error || m.salida)}`);
   const sha = json<string | null>(
     ctx,
     ['pr', 'view', String(numero), '--repo', REPO, '--json', 'mergeCommit', '--jq', '.mergeCommit.oid | tojson'],
@@ -615,7 +616,7 @@ export function comprobarStaging(ctx: Contexto, develop: string): Comprobacion {
     return evaluarStaging({ marcador, develop, verificado, esAntecesor: false, archivos: [], soloVersion: false });
   }
   const anc = git(ctx, ['merge-base', '--is-ancestor', verificado, develop]);
-  if (anc.codigo > 1) abortar(`git merge-base: ${anc.error}`);
+  if (anc.codigo > 1) abortar(`git merge-base: ${errorSeguro(anc.error)}`);
   const archivos = gitOk(ctx, ['diff', '--name-only', '--no-renames', verificado, develop], 'git diff')
     .split(/\r?\n/)
     .filter(Boolean);
@@ -657,7 +658,7 @@ export function comprobarProduccion(ctx: Contexto, develop: string): DatosPuerta
   }
   log.info('npm run comprobar-produccion -- --completo (lanza comprobar-produccion.yml y espera)…');
   const r = ctx.ej('npm', ['run', '--silent', 'comprobar-produccion', '--', '--completo']);
-  return { codigo: r.codigo, filas: filasQueBloquean(`${r.salida}\n${r.error}`) };
+  return { codigo: r.codigo, filas: filasQueBloquean([r.salida, r.error].join('\n')) };
 }
 
 export function bloqueosAbiertos(ctx: Contexto): DatosPuerta['bloqueos'] {
@@ -736,7 +737,9 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
     },
   );
   if (r.codigo !== 0)
-    abortar(`No se ha podido ${puerta.verde ? 'aprobar' : 'rechazar'} el despliegue: ${r.error || r.salida}`);
+    abortar(
+      `No se ha podido ${puerta.verde ? 'aprobar' : 'rechazar'} el despliegue: ${errorSeguro(r.error || r.salida)}`,
+    );
   if (puerta.verde) {
     log.ok(`Environment production aprobado para ${main.slice(0, 7)}.`);
     return;
@@ -755,7 +758,9 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
     '--force',
   ]);
   if (etiqueta.codigo !== 0)
-    log.aviso(`No se ha podido crear la etiqueta ${ETIQUETA_BLOQUEO}: ${etiqueta.error || etiqueta.salida}`);
+    log.aviso(
+      `No se ha podido crear la etiqueta ${ETIQUETA_BLOQUEO}: ${errorSeguro(etiqueta.error || etiqueta.salida)}`,
+    );
   const issue = ctx.ej(
     'gh',
     [
@@ -780,7 +785,7 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
       ].join('\n'),
     },
   );
-  if (issue.codigo !== 0) log.error(`Tampoco se ha podido abrir la issue: ${issue.error || issue.salida}`);
+  if (issue.codigo !== 0) log.error(`Tampoco se ha podido abrir la issue: ${errorSeguro(issue.error || issue.salida)}`);
   else log.info(`Issue abierta: ${issue.salida.trim()}`);
   abortar('La puerta está en rojo: producción no se ha tocado.');
 }
