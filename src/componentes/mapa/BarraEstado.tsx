@@ -43,8 +43,11 @@ export function BarraEstado() {
         </span>
         {cola.length > 0 && (
           // 44 × 44 de objetivo táctil (UI-15) sin cambiar la barra: el enlace sobresale por arriba y
-          // por abajo con márgenes negativos y la etiqueta de dentro se ve igual que antes.
-          <Link to="/mis-propuestas" className="-my-2 inline-flex min-h-11 min-w-11 items-center justify-center">
+          // por abajo con márgenes negativos, por encima del mapa, y la etiqueta de dentro se ve igual que antes.
+          <Link
+            to="/mis-propuestas"
+            className="relative z-10 -my-2 inline-flex min-h-11 min-w-11 items-center justify-center"
+          >
             <span className="rounded-chip bg-[var(--badge-pendiente-fondo)] px-2.5 py-0.5 font-semibold text-[var(--badge-pendiente-texto)]">
               {T.mapa.sinEnviar(cola.length)}
             </span>

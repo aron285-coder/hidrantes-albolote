@@ -155,7 +155,9 @@ export function opcionesDecodificar(
   const alto = girada ? cabecera.ancho : cabecera.alto;
   const final = dimensiones(ancho, alto, perfil.ladoMaximo);
   if (final.ancho >= ancho) return base;
-  return { ...base, resizeWidth: final.ancho, resizeHeight: final.alto, resizeQuality: 'high' };
+  // Solo el ancho: el navegador guarda la proporción. Si alguno redujera antes de girar, la foto
+  // saldría más pequeña, nunca deformada (con alto y ancho a la vez, sí lo estaría).
+  return { ...base, resizeWidth: final.ancho, resizeQuality: 'high' };
 }
 
 /** Endereza, reduce y recomprime. El resultado nunca lleva EXIF ni pasa de 5 MB. */

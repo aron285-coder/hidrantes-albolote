@@ -89,12 +89,10 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
     expect(opcionesDecodificar({ ancho: 12000, alto: 9000, orientacion: 6 }, PERFIL_CONEXION)).toEqual({
       imageOrientation: 'from-image',
       resizeWidth: 1200,
-      resizeHeight: 1600,
       resizeQuality: 'high',
     });
     expect(opcionesDecodificar({ ancho: 4000, alto: 3000, orientacion: 1 }, PERFIL_SITIO)).toMatchObject({
       resizeWidth: 1280,
-      resizeHeight: 960,
     });
     // Pequeña o sin cabecera: como siempre.
     expect(opcionesDecodificar({ ancho: 800, alto: 600, orientacion: 1 }, PERFIL_CONEXION)).toEqual({
@@ -112,7 +110,8 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
       crear.mockReset();
       crear.mockImplementation(async (_b: Blob, o: ImageBitmapOptions) => ({
         width: o.resizeWidth ?? 12000,
-        height: o.resizeHeight ?? 9000,
+        // De pie (orientación 6): el navegador gira y reduce guardando la proporción.
+        height: o.resizeWidth ? Math.round((o.resizeWidth * 4) / 3) : 9000,
         close: cerrar,
       }));
       lienzo2d = { drawImage: vi.fn() };
@@ -128,10 +127,7 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
 
     it('decodifica ya reducida una foto enorme', async () => {
       const r = await procesarFoto(new Blob([jpegConCabecera(12000, 9000, 6)]));
-      expect(crear).toHaveBeenCalledWith(
-        expect.any(Blob),
-        expect.objectContaining({ resizeWidth: 1200, resizeHeight: 1600 }),
-      );
+      expect(crear).toHaveBeenCalledWith(expect.any(Blob), expect.objectContaining({ resizeWidth: 1200 }));
       expect(r).toMatchObject({ ancho: 1200, alto: 1600 });
       expect(cerrar).toHaveBeenCalledTimes(1);
     });

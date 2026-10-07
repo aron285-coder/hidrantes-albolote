@@ -328,7 +328,6 @@ export { metros };
 
 const rangoCaudal = (p: Punto) => CAUDALES.indexOf(caudalParaDibujar(p.caudal));
 
-/** Sin posición, "distancia" ordena por código. */
 /**
  * La posición desde la que se ordena por distancia: solo cambia si te has movido más de `umbral` m.
  * Así el GPS, que baila unos metros, no reordena la lista bajo el dedo (docs/31 RV-157).
@@ -342,6 +341,7 @@ export function posicionParaOrden<P extends { lat: number; lng: number }>(
   return metros(anterior, nueva) > umbral ? nueva : anterior;
 }
 
+/** Sin posición, "distancia" ordena por código. */
 export function ordenar(puntos: Punto[], orden: Orden, desde: { lat: number; lng: number } | null): Punto[] {
   const copia = [...puntos];
   const porCodigo = (a: Punto, b: Punto) => a.codigo.localeCompare(b.codigo);
