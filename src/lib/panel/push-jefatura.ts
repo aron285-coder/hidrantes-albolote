@@ -1,8 +1,9 @@
 // Avisos push para jefatura (FR-164): nuevas propuestas (agrupadas, como mucho una por hora) y
 // resumen semanal de los lunes. Opcionales y apagados por defecto, como los del voluntario.
 
+import { acceso } from '../acceso';
 import { type Resultado, SIN_SERVIDOR, rpc } from '../api';
-import { borrar } from '../almacen';
+import { borrar, escribir, leer } from '../almacen';
 import { anotarError } from '../errores';
 
 import { jwt } from './consultas';
@@ -15,11 +16,69 @@ const esTema = (t: unknown): t is TemaJefatura => TEMAS.includes(t as TemaJefatu
 
 /**
  * Donde hasta docs/31 se recordaban los temas en este navegador, sin saber de qué administrador
- * eran: con dos en el mismo navegador, uno veía los del otro (docs/32 RV-264). Ya no se usa: los
- * temas se preguntan al servidor, y la clave vieja se borra al leerlos.
+ * eran: con dos en el mismo navegador, uno veía los del otro (docs/32 RV-264). La clave vieja se
+ * borra; los temas se preguntan al servidor y, como respaldo, se recuerdan por administrador en
+ * `push_jefatura:<hash del correo>`, que se borra al cerrar la sesión de jefatura.
  */
 const CLAVE_ANTIGUA = 'push_jefatura';
+const PREFIJO_TEMAS = 'push_jefatura:';
 const PUBLICA = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+/**
+ * La clave de los temas de un administrador: un hash del correo (FNV-1a de 64 bits), para no dejar
+ * el correo escrito en la clave. Basta con que no se confundan dos administradores.
+ */
+export function claveTemas(correo: string): string {
+  let h = 0xcbf29ce484222325n;
+  for (const c of new TextEncoder().encode(correo.trim().toLowerCase())) {
+    h = BigInt.asUintN(64, (h ^ BigInt(c)) * 0x100000001b3n);
+  }
+  return PREFIJO_TEMAS + h.toString(16).padStart(16, '0');
+}
+
+/** El correo de jefatura con sesión ahora, o null. */
+function correoJefatura(): string | null {
+  const a = acceso();
+  return a.tipo === 'jefatura' ? a.correo : null;
+}
+
+/** Lo que se recuerda de este administrador en este navegador (respaldo de `temasActivos`). */
+function recordar(temas: TemaJefatura[]): void {
+  const correo = correoJefatura();
+  if (!correo) return;
+  if (temas.length) escribir(claveTemas(correo), temas);
+  else borrar(claveTemas(correo));
+}
+
+/** Borra lo que se recuerda de los avisos de jefatura en este navegador, de todos los administradores. */
+export function olvidarTemasJefatura(): void {
+  try {
+    const claves: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(`hidrantes.${CLAVE_ANTIGUA}`)) claves.push(k);
+    }
+    for (const k of claves) localStorage.removeItem(k);
+  } catch {
+    // sin almacenamiento no hay nada que borrar
+  }
+}
+
+/**
+ * Los temas de jefatura que se recuerdan en este navegador para el administrador con sesión, sin
+ * preguntar al servidor (lo usa `lib/push.ts` como respaldo, RV-258). Sin sesión de jefatura,
+ * ninguno: lo recordado se borra al cerrarla. La verdad está en el servidor (`cargarTemas`).
+ */
+export function temasActivos(): TemaJefatura[] {
+  const a = acceso();
+  if (a.tipo !== 'jefatura') {
+    // Sesión de jefatura cerrada (o nunca abierta): nada que recordar. Mientras se comprueba, se espera.
+    if (a.tipo !== 'comprobando') olvidarTemasJefatura();
+    return [];
+  }
+  const t = leer<unknown>(claveTemas(a.correo));
+  return Array.isArray(t) ? t.filter(esTema) : [];
+}
 
 const esIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const instalada = () =>
@@ -95,6 +154,7 @@ export async function cargarTemas({ limiteSwMs = LIMITE_SW_MS } = {}): Promise<R
     return r;
   }
   const temas = Array.isArray(r.datos?.temas) ? r.datos.temas.filter(esTema) : [];
+  recordar(temas);
   return { ok: true, datos: temas };
 }
 
@@ -113,6 +173,7 @@ async function quitarTodos(registro: ServiceWorkerRegistration, antes: TemaJefat
       return { temas: antes, ok: false };
     }
   }
+  recordar([]);
   return { temas: [], ok: true };
 }
 
@@ -158,6 +219,7 @@ export async function fijarTemas(
       anotarRpc('fn_guardar_suscripcion_push_admin', r.codigo);
       return { temas: antes, ok: false };
     }
+    recordar(temas);
     return { temas, ok: true };
   } catch (e) {
     // Lo imprevisto (un navegador con la API a medias) también se dice y queda anotado.

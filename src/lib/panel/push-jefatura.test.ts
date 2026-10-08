@@ -12,13 +12,16 @@ vi.mock('../api', async (original) => ({
 }));
 vi.mock('../errores', () => ({ anotarError: (...a: unknown[]) => anotarError(...a) }));
 vi.mock('./consultas', () => ({ jwt: async () => null }));
+// La sesión: fuera, salvo en los tests de RV-264, que entran como un administrador u otro.
+const sesion = vi.hoisted(() => ({ valor: { tipo: 'fuera' } as { tipo: string; correo?: string } }));
+vi.mock('../acceso', () => ({ acceso: () => sesion.valor }));
 
 // Clave pública de prueba del RFC 8291 (la misma que functions/api/push.test.ts).
 vi.stubEnv(
   'VITE_VAPID_PUBLIC_KEY',
   'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8',
 );
-const { cargarTemas, fijarTemas } = await import('./push-jefatura');
+const { cargarTemas, claveTemas, fijarTemas, olvidarTemasJefatura, temasActivos } = await import('./push-jefatura');
 
 const ENDPOINT = `https://fcm.googleapis.com/fcm/send/${'x'.repeat(120)}`;
 const suscripcion = () => ({
@@ -116,62 +119,95 @@ describe('avisos de jefatura (docs/31 RV-167)', () => {
   });
 });
 
-// docs/32 RV-264: con dos administradores en el mismo navegador, cada uno ve y apaga solo lo suyo.
-// Antes los temas salían de localStorage (los del último que los tocó) y apagarlos daba de baja la
-// suscripción del navegador, con lo que el otro administrador dejaba de recibir los suyos.
+// docs/32 RV-264: dos administradores en el mismo navegador. El servidor guarda una sola fila de
+// jefatura por endpoint (0030: el último que activa sus avisos se la queda) y, desde 0041, solo
+// enseña y borra la del administrador que llama. Antes los temas salían de localStorage (los del
+// último que los tocó, para los dos) y apagarlos daba de baja la suscripción del navegador.
 describe('avisos de jefatura por administrador (docs/32 RV-264)', () => {
-  /** El servidor: una fila por administrador y endpoint, y el administrador que llama. */
-  let filas: Map<string, string[]>;
-  let quien: string;
+  /** La fila de jefatura de este endpoint en el servidor (como 0030 y 0041), o null. */
+  let fila: { email: string; temas: string[] } | null;
+  const A = 'a@example.org';
+  const B = 'b@example.org';
+  const como = (correo: string) => (sesion.valor = { tipo: 'jefatura', correo });
   beforeEach(() => {
-    filas = new Map([['a@example.org', ['nuevas_propuestas', 'resumen_semanal']]]);
-    quien = 'a@example.org';
+    fila = { email: A, temas: ['nuevas_propuestas', 'resumen_semanal'] };
+    como(A);
     pushManager.getSubscription.mockResolvedValue(suscripcion());
     rpc.mockReset().mockImplementation(async (nombre: string, args: { endpoint?: string; temas?: string[] }) => {
-      if (args.endpoint !== undefined && args.endpoint !== ENDPOINT) return { ok: false, codigo: 'PAYLOAD_INVALIDO' };
+      const quien = sesion.valor.correo;
       if (nombre === 'fn_suscripcion_push_admin') {
-        const t = filas.get(quien);
-        return { ok: true, datos: { suscrita: !!t, temas: t ?? [] } };
+        const mia = fila?.email === quien ? fila : null;
+        return { ok: true, datos: { suscrita: !!mia, temas: mia?.temas ?? [] } };
       }
       if (nombre === 'fn_borrar_suscripcion_push_admin') {
-        filas.delete(quien);
+        if (fila?.email === quien) fila = null;
         return { ok: true, datos: null };
       }
       if (nombre === 'fn_guardar_suscripcion_push_admin') {
-        filas.set(quien, args.temas ?? []);
+        fila = { email: quien!, temas: args.temas ?? [] };
         return { ok: true, datos: 'id' };
       }
       return { ok: false, codigo: 'NO_SIMULADA' };
     });
     vi.stubGlobal('window', { matchMedia: () => ({ matches: false }), PushManager: class {}, Notification: {} });
   });
+  afterEach(() => {
+    sesion.valor = { tipo: 'fuera' };
+  });
 
-  it('los temas se leen del servidor: cada administrador ve los suyos', async () => {
+  it('los temas se leen del servidor: B no ve los de A', async () => {
     await expect(cargarTemas()).resolves.toEqual({ ok: true, datos: ['nuevas_propuestas', 'resumen_semanal'] });
-    quien = 'b@example.org';
+    como(B);
     await expect(cargarTemas()).resolves.toEqual({ ok: true, datos: [] });
     expect(rpc).toHaveBeenCalledWith('fn_suscripcion_push_admin', { endpoint: ENDPOINT });
   });
 
-  it('lo que recordaba el navegador de antes se borra y no cuenta', async () => {
-    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
-    quien = 'b@example.org';
-    await expect(cargarTemas()).resolves.toEqual({ ok: true, datos: [] });
-    expect(datos.has('hidrantes.push_jefatura')).toBe(false);
-  });
-
-  it('desactivar los de B no toca los de A ni da de baja el navegador', async () => {
+  it('A apaga los suyos cuando la fila ya es de B: los de B siguen y el navegador no se da de baja', async () => {
     const s = suscripcion();
     pushManager.getSubscription.mockResolvedValue(s);
-    quien = 'b@example.org';
+    como(B);
     await fijarTemas(['resumen_semanal']);
-    expect(filas.get('b@example.org')).toEqual(['resumen_semanal']);
-    await expect(fijarTemas([], { antes: ['resumen_semanal'] })).resolves.toEqual({ temas: [], ok: true });
-    expect(filas.has('b@example.org')).toBe(false);
-    expect(filas.get('a@example.org')).toEqual(['nuevas_propuestas', 'resumen_semanal']);
+    expect(fila).toEqual({ email: B, temas: ['resumen_semanal'] });
+    como(A);
+    // A ya no tiene fila: lo que ve es la verdad, ninguno.
+    await expect(cargarTemas()).resolves.toEqual({ ok: true, datos: [] });
+    await expect(fijarTemas([], { antes: ['nuevas_propuestas'] })).resolves.toEqual({ temas: [], ok: true });
+    expect(fila).toEqual({ email: B, temas: ['resumen_semanal'] });
     expect(s.unsubscribe).not.toHaveBeenCalled();
-    quien = 'a@example.org';
-    await expect(cargarTemas()).resolves.toEqual({ ok: true, datos: ['nuevas_propuestas', 'resumen_semanal'] });
+    como(B);
+    await expect(cargarTemas()).resolves.toEqual({ ok: true, datos: ['resumen_semanal'] });
+  });
+
+  it('desactivar borra solo la fila de quien llama', async () => {
+    await expect(fijarTemas([], { antes: ['resumen_semanal'] })).resolves.toEqual({ temas: [], ok: true });
+    expect(fila).toBeNull();
+    expect(rpc).toHaveBeenCalledWith('fn_borrar_suscripcion_push_admin', { endpoint: ENDPOINT });
+  });
+
+  it('lo que se recuerda va por administrador (hash del correo), no con el correo, y se borra al cerrar sesión', async () => {
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    await cargarTemas();
+    // La clave vieja, común a todos, ya no está.
+    expect(datos.has('hidrantes.push_jefatura')).toBe(false);
+    expect(claveTemas(A)).not.toContain('example');
+    expect(claveTemas(A)).not.toBe(claveTemas(B));
+    expect(JSON.parse(datos.get(`hidrantes.${claveTemas(A)}`)!)).toEqual(['nuevas_propuestas', 'resumen_semanal']);
+    expect(temasActivos()).toEqual(['nuevas_propuestas', 'resumen_semanal']);
+    como(B);
+    expect(temasActivos()).toEqual([]);
+    // Cerrada la sesión de jefatura, no queda nada.
+    sesion.valor = { tipo: 'voluntario' };
+    expect(temasActivos()).toEqual([]);
+    expect([...datos.keys()].filter((k) => k.startsWith('hidrantes.push_jefatura'))).toEqual([]);
+  });
+
+  it('mientras se comprueba la sesión, lo recordado no se borra', async () => {
+    await cargarTemas();
+    sesion.valor = { tipo: 'comprobando' };
+    expect(temasActivos()).toEqual([]);
+    expect(datos.has(`hidrantes.${claveTemas(A)}`)).toBe(true);
+    olvidarTemasJefatura();
+    expect(datos.has(`hidrantes.${claveTemas(A)}`)).toBe(false);
   });
 
   it('sin suscripción en el navegador, ninguno, sin preguntar al servidor', async () => {
@@ -186,8 +222,15 @@ describe('avisos de jefatura por administrador (docs/32 RV-264)', () => {
     expect(anotado()).toMatch(/fn_suscripcion_push_admin: NO_AUTORIZADO/);
   });
 
+  it('un Service Worker que nunca está listo no deja la tarjeta en «Cargando…»', async () => {
+    listo = new Promise(() => undefined);
+    await expect(cargarTemas({ limiteSwMs: 20 })).resolves.toEqual({ ok: false, codigo: 'SERVICE_WORKER' });
+    expect(anotado()).toMatch(/leer/);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it('un tema que el panel no conoce no se enseña', async () => {
-    filas.set('a@example.org', ['nuevas_propuestas', 'otro']);
+    fila = { email: A, temas: ['nuevas_propuestas', 'otro'] };
     await expect(cargarTemas()).resolves.toEqual({ ok: true, datos: ['nuevas_propuestas'] });
   });
 });
