@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   type Env,
   bucketPara,
+  detalleTope,
   error,
   esAdmin,
   esUuid,
@@ -112,6 +113,24 @@ describe('estadoDe (05 §8)', () => {
     expect(estadoDe('ERROR_INTERNO')).toBe(500);
     expect(estadoDe('PAYLOAD_INVALIDO(descripcion)')).toBe(400);
   });
+
+  // docs/32 RV-220, RV-221 (0041): los topes nuevos son esperas, como las cuotas. Nunca 5xx: el móvil
+  // leería "sin servidor" y perdería el código con el que pone la cola en espera (RV-232).
+  it.each(['SIN_ESPACIO_FOTOS', 'RESERVAS_ABIERTAS', 'SIN_ESPACIO'])('%s es 429', (codigo) => {
+    expect(estadoDe(codigo)).toBe(429);
+  });
+});
+
+describe('detalleTope (docs/32 RV-232)', () => {
+  it('saca maximo y reintentar_en_s del texto del error', () => {
+    expect(detalleTope('maximo=6 reintentar_en_s=3600')).toEqual({ maximo: 6, reintentar_en_s: 3600 });
+    expect(detalleTope('reintentar_en_s=120')).toEqual({ reintentar_en_s: 120 });
+  });
+
+  it('sin números, o sin texto, no inventa nada', () => {
+    expect(detalleTope('Hoy se ha llegado al máximo de fotos de todo el grupo')).toEqual({});
+    expect(detalleTope(undefined)).toEqual({});
+  });
 });
 
 describe('sha256Hex', () => {
@@ -157,6 +176,7 @@ describe('rpc', () => {
       ok: false,
       codigo: 'CUOTA_SUBIDAS_AGOTADA',
       estado: 400,
+      mensaje: 'Has llegado al máximo de fotos de hoy',
     });
     espia.mockRestore();
   });
