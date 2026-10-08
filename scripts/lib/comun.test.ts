@@ -178,7 +178,7 @@ describe('repositorio (docs/32 RV-208)', () => {
 
   // arranque.ts (lo fija la primera vez y comprueba git user.name) y publicar.ts son de otras sesiones
   // de docs/32; pasan a repositorio() en su propio PR.
-  const PENDIENTES = ['arranque.ts', 'publicar.ts'];
+  const PENDIENTES = ['arranque.ts'];
 
   it('ningún script escribe el titular a mano: lo lee de repositorio()', () => {
     const dir = path.resolve(import.meta.dirname, '..');

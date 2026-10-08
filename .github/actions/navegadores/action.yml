@@ -1,20 +1,38 @@
 name: Navegadores de Playwright
-description: Chromium y Firefox (TR-21, RV-28) con caché por versión de @playwright/test (DEC-100).
+description: Chromium y Firefox (TR-21, RV-28) con caché por versión de @playwright/test (DEC-100); cada instalación con tope y un reintento (docs/32 RV-207).
+inputs:
+  navegadores:
+    description: Los navegadores que se instalan, separados por espacios.
+    default: chromium firefox
 runs:
   using: composite
   steps:
     - id: version
       shell: bash
-      run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
+      env:
+        NAVEGADORES: ${{ inputs.navegadores }}
+      run: |
+        echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
+        echo "navegadores=$(echo $NAVEGADORES | tr ' ' '-')" >> "$GITHUB_OUTPUT"
+    # Los navegadores en la clave: una caché solo con chromium no sirve a quien necesita firefox.
     - id: cache
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.cache/ms-playwright
-        key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}
+        key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}-${{ steps.version.outputs.navegadores }}
     # Con acierto, los navegadores ya están: solo faltan las bibliotecas del sistema.
     - if: steps.cache.outputs.cache-hit == 'true'
       shell: bash
-      run: npx playwright install-deps chromium firefox
+      env:
+        NAVEGADORES: ${{ inputs.navegadores }}
+      run: |
+        source .github/scripts/instalar-navegadores.sh
+        # Sin comillas: un argumento por navegador.
+        con_reintento 200 npx playwright install-deps $NAVEGADORES
     - if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
-      run: npx playwright install --with-deps chromium firefox
+      env:
+        NAVEGADORES: ${{ inputs.navegadores }}
+      run: |
+        source .github/scripts/instalar-navegadores.sh
+        con_reintento 200 npx playwright install --with-deps $NAVEGADORES
