@@ -159,6 +159,13 @@ export const T = {
     mapabaseFalta: 'El mapa base no está en el móvil: sin cobertura el fondo quedará vacío.',
     descargarMapabase: (mb: Parametro) => `Descargar (${mb} MB)`,
     descargarVersionNueva: 'Descargar versión nueva',
+    // Lo que oye el lector de pantalla durante la descarga (docs/32 RV-236).
+    anuncioDescarga: {
+      inicio: 'Descargando el mapa base',
+      mitad: 'Mapa base: descargada la mitad',
+      final: 'Mapa base descargado',
+      error: 'No se ha podido descargar el mapa base',
+    },
     ocultarAviso: 'Ocultar aviso',
     capaSinCobertura: (capa: Parametro) =>
       `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia al mapa base.`,

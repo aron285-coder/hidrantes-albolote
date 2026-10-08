@@ -1,11 +1,16 @@
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router';
+import { EnPilaAvisos } from '@/componentes/PilaAvisos';
+import { ORDEN_AVISO } from '@/lib/orden-avisos';
 import { useNovedades } from '@/hooks/cola';
 import { marcarVistas } from '@/lib/mis-propuestas';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
-/** Al abrir, el resultado de lo propuesto desde la última vez (FR-90). Toast de 06 §5. */
+/**
+ * Al abrir, el resultado de lo propuesto desde la última vez (FR-90). Toast de 06 §5, en la pila de
+ * avisos de arriba, debajo del de versión nueva (docs/32 RV-238).
+ */
 export function AvisoNovedades() {
   const novedades = useNovedades();
   const navegar = useNavigate();
@@ -17,37 +22,39 @@ export function AvisoNovedades() {
       ? T.misPropuestas.rechazadaAviso(principal.codigo ?? T.misPropuestas.nuevo)
       : T.misPropuestas.aprobadaAviso(principal.codigo ?? T.misPropuestas.nuevo);
   return (
-    <div
-      role="status"
-      className={cn(
-        'rounded-boton fixed inset-x-3 top-[calc(env(safe-area-inset-top)+3.5rem)] z-30 mx-auto flex max-w-md items-start gap-2 px-3 py-2 text-white shadow-lg',
-        principal.estado === 'rechazada' ? 'bg-rojo-700' : 'bg-verde-600',
-      )}
-    >
-      <button
-        type="button"
-        className="min-h-11 flex-1 text-left"
-        onClick={() => {
-          marcarVistas();
-          navegar('/mis-propuestas');
-        }}
-      >
-        <span className="block font-semibold">
-          {texto}
-          {novedades.length > 1 && ` · +${novedades.length - 1}`}
-        </span>
-        {principal.motivo_rechazo && (
-          <span className="block text-sm opacity-90">{T.misPropuestas.motivo(principal.motivo_rechazo)}</span>
+    <EnPilaAvisos orden={ORDEN_AVISO.novedades}>
+      <div
+        role="status"
+        className={cn(
+          'rounded-boton flex items-start gap-2 px-3 py-2 text-white shadow-lg',
+          principal.estado === 'rechazada' ? 'bg-rojo-700' : 'bg-verde-600',
         )}
-      </button>
-      <button
-        type="button"
-        onClick={marcarVistas}
-        aria-label={T.ficha.cerrar}
-        className="flex size-11 items-center justify-center"
       >
-        <X size={18} aria-hidden />
-      </button>
-    </div>
+        <button
+          type="button"
+          className="min-h-11 flex-1 text-left"
+          onClick={() => {
+            marcarVistas();
+            navegar('/mis-propuestas');
+          }}
+        >
+          <span className="block font-semibold">
+            {texto}
+            {novedades.length > 1 && ` · +${novedades.length - 1}`}
+          </span>
+          {principal.motivo_rechazo && (
+            <span className="block text-sm opacity-90">{T.misPropuestas.motivo(principal.motivo_rechazo)}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={marcarVistas}
+          aria-label={T.ficha.cerrar}
+          className="flex size-11 items-center justify-center"
+        >
+          <X size={18} aria-hidden />
+        </button>
+      </div>
+    </EnPilaAvisos>
   );
 }
