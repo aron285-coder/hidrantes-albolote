@@ -13,6 +13,7 @@ vi.mock('../puntos', async (original) => ({
 
 import {
   aprobar,
+  fusionar,
   aprobarLote,
   rechazar,
   rechazarLote,
@@ -353,5 +354,25 @@ describe('moderar pide el envío de avisos (RV-08, FR-163)', () => {
     rpcPanel.mockResolvedValueOnce({ ok: false, codigo: 'PROPUESTA_NO_PENDIENTE' });
     await rechazar('p2', 'x');
     expect(pedirEnvioComoJefatura).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('fusionar con la dirección editada (docs/32 RV-253, 0041)', () => {
+  beforeEach(() => rpcPanel.mockReset().mockResolvedValue({ ok: true, datos: { punto_id: 'x', codigo: 'BOC-0001' } }));
+
+  it('la dirección escrita va en prevalece.direccion', async () => {
+    await fusionar('p1', 'x', { caudal: 'propuesta' }, 'Calle Fuente 5');
+    expect(rpcPanel).toHaveBeenCalledWith('fn_fusionar_con_existente', {
+      propuesta_id: 'p1',
+      punto_id: 'x',
+      prevalece: { caudal: 'propuesta', direccion: 'Calle Fuente 5' },
+    });
+  });
+
+  it('vaciada, manda null; sin tocarla, ni la clave (el servidor hace lo de antes)', async () => {
+    await fusionar('p1', 'x', {}, null);
+    expect(rpcPanel.mock.calls[0]![1]).toMatchObject({ prevalece: { direccion: null } });
+    await fusionar('p1', 'x', {});
+    expect(rpcPanel.mock.calls[1]![1]).toEqual({ propuesta_id: 'p1', punto_id: 'x', prevalece: {} });
   });
 });

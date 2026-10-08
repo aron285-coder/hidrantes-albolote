@@ -617,6 +617,8 @@ export const T = {
     confirmarYAprobar: 'Confirmar y aprobar',
     // docs/32 RV-251: el punto cambió con el formulario de correcciones abierto; lo no tocado se pone al día.
     puntoHaCambiado: 'El punto ha cambiado: revisa los datos.',
+    cargandoPunto: 'Cargando el punto de hoy…',
+    puntoNoCarga: 'No se ha podido cargar el punto de hoy: sin verlo no se aprueba.',
     cancelar: 'Cancelar',
     motivoRechazo: 'Motivo del rechazo (obligatorio, lo verá quien lo propuso)',
     sinMotivo: 'Sin motivo no se puede rechazar.',

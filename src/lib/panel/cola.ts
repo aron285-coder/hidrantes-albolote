@@ -864,12 +864,19 @@ export async function rechazarLote(ids: string[], motivo: string): Promise<{ hec
   return { hechas, fallos };
 }
 
+/**
+ * Fusionar con el existente. `direccion`: la que jefatura ha escrito en el detalle, solo si la ha
+ * cambiado (la misma regla que al aprobar, `conDireccion`); null la quita. Va en `prevalece.direccion`
+ * y gana sobre la sugerida (0041, docs/32 RV-253). Sin ella, el servidor hace lo de antes.
+ */
 export async function fusionar(
   id: string,
   puntoId: string,
   prevalece: Partial<Record<CampoFusion, Prevalece>>,
+  direccion?: string | null,
 ): Promise<Resultado<{ punto_id: string; codigo: string }>> {
-  return refrescar(await rpc('fn_fusionar_con_existente', { propuesta_id: id, punto_id: puntoId, prevalece }));
+  const conDir = direccion === undefined ? prevalece : { ...prevalece, direccion };
+  return refrescar(await rpc('fn_fusionar_con_existente', { propuesta_id: id, punto_id: puntoId, prevalece: conDir }));
 }
 
 export interface DireccionDeducida {

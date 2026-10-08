@@ -75,7 +75,7 @@ function propuesta(operacion: Operacion, extra: Partial<PropuestaPanel> = {}): P
 
 const pintar = (p: PropuestaPanel) =>
   renderToStaticMarkup(
-    <DetallePropuesta p={p} puntos={[]} radioDuplicado={25} alHecho={() => undefined} alRecargar={() => undefined} />,
+    <DetallePropuesta p={p} puntos={[]} radioDuplicado={25} alHecho={() => undefined} alRecargar={async () => true} />,
   );
 
 /** Los campos de "Datos del punto", en orden: etiqueta y si lleva "CAMBIA". */

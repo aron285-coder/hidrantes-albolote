@@ -166,11 +166,16 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   const lista = useRef<HTMLElement>(null);
   const idPantalla = ancho ? null : (seleccion?.id ?? null);
   const pantallaAntes = useRef<string | null>(null);
+  // La que se acaba de resolver aquí: su fila aún está hasta que llegue la recarga, y luego se va.
+  const resuelta = useRef<string | null>(null);
   useEffect(() => {
     const antes = pantallaAntes.current;
     pantallaAntes.current = idPantalla;
     if (!antes || idPantalla) return;
-    const fila = lista.current?.querySelector<HTMLElement>(`[data-propuesta="${CSS.escape(antes)}"]`);
+    const fila =
+      antes === resuelta.current
+        ? null
+        : lista.current?.querySelector<HTMLElement>(`[data-propuesta="${CSS.escape(antes)}"]`);
     (fila ?? lista.current)?.focus();
   }, [idPantalla]);
 
@@ -182,7 +187,10 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   }
 
   // En tableta y móvil, abrir una propuesta es otra pantalla: se apila para que "atrás" vuelva.
-  const elegir = (p: PropuestaPanel) => abrir(p.id, !ancho);
+  // Tocar la que ya está abierta no apila otra entrada igual (un doble toque).
+  const elegir = (p: PropuestaPanel) => {
+    if (p.id !== activa) abrir(p.id, !ancho);
+  };
 
   function marcar(id: string) {
     setMarcadas((m) => {
@@ -196,14 +204,16 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   async function hecho() {
     alCambiar();
     // Resuelta la abierta, en tableta y móvil se vuelve a la cola.
+    resuelta.current = activa;
     if (!ancho) volverACola();
     await carga.recargar();
   }
 
-  // Un error al decidir: se ve el estado real sin cerrar el detalle ni perder lo escrito (RV-252).
+  // Un error al decidir: se ve el estado real sin cerrar el detalle ni perder lo escrito (RV-252). El
+  // detalle sabe si ha llegado: sin la lista nueva no pide confirmar lo que no ha visto.
   function recargar() {
     alCambiar();
-    void carga.recargar();
+    return carga.recargarYVer();
   }
 
   const nombre = (id: string) => {

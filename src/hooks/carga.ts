@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Resultado } from '@/lib/api';
 import { registrarComprobacion } from '@/lib/conexion';
+import { anotarError } from '@/lib/errores';
 
 export type Carga<T> =
   | { estado: 'cargando'; datos: T | null }
@@ -28,7 +29,7 @@ export function useCarga<T>(
   deps: readonly unknown[],
   cadaMs?: number,
   { vaciarAlCambiar = false }: { vaciarAlCambiar?: boolean } = {},
-): Carga<T> & { en: number | null; recargar: () => Promise<void> } {
+): Carga<T> & { en: number | null; recargar: () => Promise<void>; recargarYVer: () => Promise<boolean> } {
   const [carga, setCarga] = useState<Carga<T>>({ estado: 'cargando', datos: null });
   const [en, setEn] = useState<number | null>(null);
   const ultimo = useRef(0);
@@ -36,16 +37,27 @@ export function useCarga<T>(
   // Las dependencias las da quien llama, como en useEffect.
   const cargarRef = useCallback(cargar, deps);
 
-  const recargar = useCallback(async () => {
+  // Devuelve si la carga ha ido bien: quien espera datos nuevos (la Cola tras un DESACTUALIZADA) sabe
+  // si los tiene.
+  const recargar = useCallback(async (): Promise<boolean> => {
     const n = ++ultimo.current;
-    const r = await cargarRef();
-    if (n !== ultimo.current) return; // llegó tarde: ya hay una carga más nueva
+    let r: Resultado<T>;
+    try {
+      r = await cargarRef();
+    } catch (e) {
+      // Una fila que no se sabe leer no deja la pantalla en "Cargando…" para siempre.
+      anotarError(e);
+      r = { ok: false, codigo: 'ERROR_INTERNO' };
+    }
+    if (n !== ultimo.current) return r.ok; // llegó tarde: ya hay una carga más nueva
     if (r.ok) {
       setCarga({ estado: 'ok', datos: r.datos });
       setEn(Date.now());
     } else {
-      setCarga((c) => ({ estado: 'error', datos: c.datos, codigo: r.codigo }));
+      const codigo = r.codigo;
+      setCarga((c) => ({ estado: 'error', datos: c.datos, codigo }));
     }
+    return r.ok;
   }, [cargarRef]);
 
   useEffect(() => {
@@ -63,5 +75,9 @@ export function useCarga<T>(
     return () => clearInterval(t);
   }, [cadaMs, recargar]);
 
-  return { ...carga, en, recargar };
+  // `recargar` sigue sin devolver nada para quien ya la usa; `recargarYVer` dice si ha ido bien.
+  const recargarSinMas = useCallback(async () => {
+    await recargar();
+  }, [recargar]);
+  return { ...carga, en, recargar: recargarSinMas, recargarYVer: recargar };
 }

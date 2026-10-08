@@ -1041,7 +1041,9 @@ test('RV-250: si una recarga falla, el error se ve aunque haya filas', async ({ 
 test.describe('a 412 × 915 (docs/32)', () => {
   test.beforeEach(async ({ page }) => page.setViewportSize({ width: 412, height: 915 }));
 
-  test('RV-251 y RV-252: DESACTUALIZADA no cierra el detalle; corregir manda solo lo tocado', async ({ page }) => {
+  test('RV-251 y RV-252: DESACTUALIZADA no cierra el detalle; corregir manda solo lo tocado', async ({
+    page,
+  }, info) => {
     const fila6 = cambioDeEstado();
     await prepararPanel(page, [fila6]);
     // Otra persona cambia el diámetro del punto justo antes de aprobar.
@@ -1065,6 +1067,8 @@ test.describe('a 412 × 915 (docs/32)', () => {
     await expect(detalle).toBeVisible();
     await expect(formulario.getByLabel(T.panelCola.campoDescripcion)).toHaveValue('[PRUEBA] Tapa nueva');
     await expect(formulario.getByLabel(T.panelCola.campoDiametro)).toHaveValue('100');
+    await formulario.scrollIntoViewIfNeeded();
+    await info.attach('punto-ha-cambiado-412', { body: await page.screenshot(), contentType: 'image/png' });
     await formulario.getByRole('button', { name: T.panelCola.confirmarYAprobar }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
 
@@ -1076,23 +1080,46 @@ test.describe('a 412 × 915 (docs/32)', () => {
   test('RV-252: aprobar tal cual con DESACTUALIZADA se queda en el detalle y pide confirmar', async ({ page }) => {
     const fila6 = cambioDeEstado();
     await prepararPanel(page, [fila6]);
-    const cuerpos = await aprobarFallaUnaVez(page, 'PROPUESTA_DESACTUALIZADA', () =>
-      Object.assign(fila6, { desactualizada: true, punto_actualizado_en: hace(0) }),
+    // Y la recarga de después no llega: sin ver el punto de hoy no se confirma; al llegar, sí.
+    let caida = false;
+    await page.route(new RegExp(`/rest/v1/v_cola_revision\\b`), (route) =>
+      caida ? route.abort('connectionrefused') : route.fallback(),
     );
+    const cuerpos = await aprobarFallaUnaVez(page, 'PROPUESTA_DESACTUALIZADA', () => (caida = true));
     await page.goto('/admin/cola');
     await page.getByRole('button', { name: new RegExp(P6.codigo) }).click();
     const detalle = page.getByRole('dialog');
     await detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
     await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.desactualizada })).toBeVisible();
     await expect(detalle).toBeVisible();
-    await detalle.getByRole('button', { name: T.panelCola.confirmarYAprobar }).click();
+    const confirmar = detalle.getByRole('button', { name: T.panelCola.confirmarYAprobar });
+    await expect(detalle.getByText(T.panelCola.puntoNoCarga)).toBeVisible({ timeout: 20_000 });
+    await expect(confirmar).toBeDisabled();
+    // Vuelve la red: "Reintentar" trae el punto de hoy (ya desactualizado) y se puede confirmar.
+    Object.assign(fila6, { desactualizada: true, punto_actualizado_en: hace(0) });
+    caida = false;
+    await detalle.getByRole('button', { name: T.mapa.reintentar }).click();
+    await expect(confirmar).toBeEnabled();
+    await confirmar.click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     expect(cuerpos[1]).toMatchObject({ propuesta_id: 'e6', confirmar_desactualizada: true });
   });
 
-  test('RV-253 y RV-254: fusionar con una descripción de 500 caracteres cabe a lo ancho', async ({ page }) => {
+  test('RV-252: con PUNTO_NO_ACTIVO el detalle se queda abierto y lo dice', async ({ page }) => {
+    await prepararPanel(page, [cambioDeEstado()]);
+    await aprobarFallaUnaVez(page, 'PUNTO_NO_ACTIVO', () => undefined);
+    await page.goto('/admin/cola');
+    await page.getByRole('button', { name: new RegExp(P6.codigo) }).click();
+    const detalle = page.getByRole('dialog');
+    await detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.puntoNoActivo })).toBeVisible();
+    await expect(detalle).toBeVisible();
+    await expect(page).toHaveURL(/[?&]p=e6/);
+  });
+
+  test('RV-253 y RV-254: fusionar con una descripción de 500 caracteres cabe a lo ancho', async ({ page }, info) => {
     const larga = `[PRUEBA] ${'Junto a la fuente de la plaza, detrás del banco. '.repeat(10)}`.slice(0, 500);
-    await prepararPanel(page, [
+    const llamadas = await prepararPanel(page, [
       fila({
         id: 'f1',
         operacion: 'alta',
@@ -1136,6 +1163,17 @@ test.describe('a 412 × 915 (docs/32)', () => {
       return fuera;
     });
     expect(ancho).toEqual([]);
+    await info.attach('fusionar-412', { body: await page.screenshot(), contentType: 'image/png' });
+
+    // Elegir la medida de la propuesta y la dirección escrita en el detalle llegan al servidor (RV-253).
+    await detalle.getByLabel(T.panelCola.campoDiametro).selectOption('propuesta');
+    await detalle.getByRole('textbox', { name: T.ficha.direccion }).fill('Calle Fuente 5');
+    await detalle.getByRole('button', { name: T.panelCola.fusionar, exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(llamadaA(llamadas, 'fn_fusionar_con_existente')).toMatchObject({
+      propuesta_id: 'f1',
+      prevalece: { diametro_mm: 'propuesta', direccion: 'Calle Fuente 5' },
+    });
   });
 
   test('RV-263: el detalle es una ventana modal; al cerrarlo el foco vuelve a la fila', async ({ page }) => {
@@ -1148,11 +1186,18 @@ test.describe('a 412 × 915 (docs/32)', () => {
     await expect(detalle.getByRole('button', { name: T.panelCola.volverCola })).toBeFocused();
     // Lo de detrás queda inert: con Tab el foco no sale de la ventana.
     await expect(page.locator('#raiz')).toHaveAttribute('inert', '');
+    let dentro = 0;
     for (let i = 0; i < 25; i++) {
       await page.keyboard.press('Tab');
       // Pasado el último control, el foco sale a la barra del navegador (<body>), nunca a la cola.
-      expect(await page.evaluate(() => !!document.activeElement?.closest('#raiz'))).toBe(false);
+      const donde = await page.evaluate(() => ({
+        cola: !!document.activeElement?.closest('#raiz'),
+        ventana: !!document.activeElement?.closest('[role="dialog"]'),
+      }));
+      expect(donde.cola).toBe(false);
+      if (donde.ventana) dentro++;
     }
+    expect(dentro).toBeGreaterThan(5);
     const { violations } = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
       .include('[role="dialog"]')
@@ -1162,6 +1207,13 @@ test.describe('a 412 × 915 (docs/32)', () => {
     await detalle.getByRole('button', { name: T.panelCola.volverCola }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await expect(lista.getByRole('button', { name: new RegExp(P0.codigo) })).toBeFocused();
+
+    // Aprobada aquí, su fila se va con la recarga: el foco queda en la lista, no en <body>.
+    await lista.getByRole('button', { name: new RegExp(P4.codigo) }).click();
+    await page.getByRole('dialog').getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(lista.getByRole('button', { name: new RegExp(P4.codigo) })).toHaveCount(0);
+    await expect(lista).toBeFocused();
   });
 
   test('RV-263: resuelta en otro sitio, el detalle se cierra sin duplicar la entrada del historial', async ({

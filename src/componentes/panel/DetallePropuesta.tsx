@@ -65,7 +65,7 @@ export function DetallePropuesta({
   /** La acción ha terminado de verdad (aprobada, rechazada, fusionada): en el móvil, vuelve a la cola. */
   alHecho: () => void;
   /** Un error que pide ver el estado real (otra persona, el punto cambió): se recarga sin cerrar nada. */
-  alRecargar: () => void;
+  alRecargar: () => Promise<boolean>;
   alVolver?: () => void;
 }) {
   const { avisar } = usePanel();
@@ -75,9 +75,11 @@ export function DetallePropuesta({
   const ficha = useMemo(() => fichaCompleta(p, punto), [p, punto]);
   const [modo, setModo] = useState<Modo>(null);
   const [ocupado, setOcupado] = useState(false);
-  // El servidor ha dicho PROPUESTA_DESACTUALIZADA: aunque la recarga tarde o falle, lo siguiente es
-  // "Confirmar y aprobar" con confirmación expresa (FR-108, docs/32 RV-251).
+  // El servidor ha dicho PROPUESTA_DESACTUALIZADA: lo siguiente es "Confirmar y aprobar" con
+  // confirmación expresa (FR-108, docs/32 RV-251), cuando haya llegado el punto de hoy.
   const [puntoCambiado, setPuntoCambiado] = useState(false);
+  // La recarga que sigue a un error al decidir: mientras no llega, no se aprueba.
+  const [recarga, setRecarga] = useState<'lista' | 'cargando' | 'error'>('lista');
   const desactualizada = p.desactualizada || puntoCambiado;
   // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
   // la del punto. Es con lo que se compara al aprobar: lo que no se toca no es una corrección (RV-162).
@@ -137,12 +139,33 @@ export function DetallePropuesta({
       if (r.codigo.startsWith('PROPUESTA_DESACTUALIZADA')) setPuntoCambiado(true);
       // Otra persona la resolvió o el punto cambió: se recarga para ver el estado real. Con un error el
       // detalle no se cierra (RV-252): si otra persona la resolvió, se va de la lista y entonces sí.
-      if (/PROPUESTA_NO_PENDIENTE|PROPUESTA_DESACTUALIZADA|PUNTO_NO_ACTIVO/.test(r.codigo)) alRecargar();
+      if (/PROPUESTA_NO_PENDIENTE|PROPUESTA_DESACTUALIZADA|PUNTO_NO_ACTIVO/.test(r.codigo)) void verDeNuevo();
       return;
     }
     avisar(exito);
     alHecho();
   }
+
+  // Hasta que llega la lista nueva no se aprueba: la confirmación expresa (FR-108) es sobre lo que se ve.
+  async function verDeNuevo() {
+    setRecarga('cargando');
+    setRecarga((await alRecargar()) ? 'lista' : 'error');
+  }
+  const esperando = recarga !== 'lista';
+  const avisoEspera = esperando && (
+    <div role={recarga === 'error' ? 'alert' : 'status'} className="text-texto-suave mb-1.5 text-[12px]">
+      {recarga === 'cargando' ? (
+        T.panelCola.cargandoPunto
+      ) : (
+        <span className="flex flex-wrap items-center gap-2">
+          {T.panelCola.puntoNoCarga}
+          <Boton variante="secundario" onClick={() => void verDeNuevo()}>
+            {T.mapa.reintentar}
+          </Boton>
+        </span>
+      )}
+    </div>
+  );
 
   const aprobarTalCual = () =>
     ejecutar(
@@ -220,7 +243,8 @@ export function DetallePropuesta({
                     p={p}
                     punto={punto}
                     direccion={direccion}
-                    ocupado={ocupado}
+                    ocupado={ocupado || esperando}
+                    espera={avisoEspera}
                     desactualizada={desactualizada}
                     puntoCambiado={puntoCambiado}
                     alCancelar={() => setModo(null)}
@@ -250,7 +274,11 @@ export function DetallePropuesta({
                     alCancelar={() => setModo(null)}
                     alConfirmar={(prev) =>
                       void ejecutar(async () => {
-                        const r = await fusionar(p.id, duplicado.id, prev);
+                        // La dirección editada en el detalle, si se ha cambiado (docs/32 RV-253).
+                        const { direccion: dir } = conDireccion({}, direccion, ensenada) as {
+                          direccion?: string | null;
+                        };
+                        const r = await fusionar(p.id, duplicado.id, prev, dir);
                         return r.ok ? { ok: true as const } : r;
                       }, T.panelCola.fusionada(duplicado.codigo))
                     }
@@ -275,10 +303,11 @@ export function DetallePropuesta({
         >
           {desactualizada && <AvisoDesactualizada p={p} />}
           {bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>}
+          {avisoEspera}
           <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
             <Boton
               className={desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
-              disabled={ocupado || !!bloqueoAprobar}
+              disabled={ocupado || !!bloqueoAprobar || esperando}
               onClick={() => void aprobarTalCual()}
             >
               {desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
@@ -627,6 +656,7 @@ function FormularioCorrecciones({
   punto,
   direccion,
   ocupado,
+  espera,
   desactualizada,
   puntoCambiado,
   alGuardar,
@@ -636,6 +666,8 @@ function FormularioCorrecciones({
   punto?: Punto;
   direccion: string;
   ocupado: boolean;
+  /** Por qué no se puede aprobar todavía (se espera el punto de hoy), o nada. */
+  espera: React.ReactNode;
   /** Se aprueba con confirmación expresa: el botón dice "Confirmar y aprobar" (FR-108). */
   desactualizada: boolean;
   /** El servidor ha dicho que el punto cambió con esto abierto (PROPUESTA_DESACTUALIZADA). */
@@ -653,7 +685,9 @@ function FormularioCorrecciones({
   if (JSON.stringify(propuesto) !== JSON.stringify(visto)) {
     setV(ponerAlDia(visto, v, propuesto));
     setVisto(propuesto);
-    setAlDia(true);
+    // Solo avisa si lo que cambia es la fila del punto que trae la cola, no el inventario que llega
+    // después (la vista de antes, sin `punto`).
+    if (p.punto) setAlDia(true);
   }
   // Sin tocar aquí (null), la del detalle tal como esté, también si la deducida llega con esto abierto.
   const [escrita, setEscrita] = useState<string | null>(null);
@@ -793,6 +827,7 @@ function FormularioCorrecciones({
           className="border-linea rounded-campo min-h-9 flex-1 border px-2"
         />
       </Fila>
+      {espera}
       <div className="flex flex-wrap items-start gap-3">
         <div>
           <Boton
