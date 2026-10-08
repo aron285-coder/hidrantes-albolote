@@ -100,10 +100,12 @@ self.addEventListener('notificationclick', (evento) => {
     }
   };
   // docs/31 RV-157: una ventana con un formulario a medias (/proponer) no se navega, que se perdería
-  // lo escrito y las fotos. Se le da el foco y se avisa a la app, que pregunta antes de salir.
+  // lo escrito y las fotos. Se le da el foco y se avisa a la app, que pregunta antes de salir. La
+  // pantalla de resultado (/proponer/hecho) ya no es un formulario: se navega (docs/32 RV-240).
   const enFormulario = (v) => {
     try {
-      return new URL(v.url).pathname.startsWith('/proponer');
+      const ruta = new URL(v.url).pathname;
+      return ruta.startsWith('/proponer') && !ruta.startsWith('/proponer/hecho');
     } catch {
       return false;
     }

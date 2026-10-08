@@ -1,8 +1,9 @@
 import { CheckCircle2, CloudUpload, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { Boton } from '@/componentes/Boton';
+import { Hoja } from '@/componentes/Hoja';
 import { LimiteError } from '@/componentes/LimiteError';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
 import {
@@ -16,6 +17,9 @@ import {
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useAcceso, useConexion, usePosicion, usePuntos } from '@/hooks/estado';
 import { useCola } from '@/hooks/cola';
+import { useSalidaFormulario } from '@/hooks/formulario-a-medias';
+import { RUTA_HECHO } from '@/lib/aviso-formulario';
+import { hayCambios } from '@/lib/formulario-cambios';
 import { type EnCola, encolar, estadoDeEnvio, reintentarCola } from '@/lib/cola';
 import { nombreCaudal, nombreTipo } from '@/lib/ficha';
 import type { FotoProcesada } from '@/lib/foto';
@@ -63,6 +67,8 @@ export function Proponer() {
   const punto = useMemo(() => puntos.find((p) => p.id === params.get('p')) ?? null, [puntos, params]);
   // Alta empezada con una pulsación larga sobre el mapa: el pin nace donde se pulsó (DEC-077).
   const pinInicial = useMemo(() => coordenadasDe(params.get('lat'), params.get('lng')), [params]);
+  // Después de enviar, la pantalla de resultado tiene su propia ruta: no es un formulario (RV-240).
+  if (op === 'hecho') return <ResultadoEnvio />;
   if (!operacion) return <Navigate to="/" replace />;
   // Sin punto no se manda al mapa (docs/31 RV-152): al volver de la cámara, si Android descartó la
   // pestaña, los puntos aún no han cargado; y si una sincronización lo ha quitado, hay que decirlo.
@@ -90,7 +96,6 @@ function FormularioOperacion({
   punto: ReturnType<typeof usePuntos>['puntos'][number] | null;
   pinInicial: Coordenadas | null;
 }) {
-  const navegar = useNavigate();
   const acceso = useAcceso();
   const conexion = useConexion();
   usePosicion();
@@ -105,7 +110,8 @@ function FormularioOperacion({
   // La del sitio, en alta y corregir ubicación (docs/24 RV-103).
   const [fotoSitio, setFotoSitio] = useState<FotoProcesada | null>(null);
   useEffect(() => activarPosicion(), []);
-  const [f, setF] = useState<Formulario>(() => {
+  // Cómo se abrió: lo que se compara para saber si está a medias (docs/32 RV-239).
+  const [inicial] = useState<Formulario>(() => {
     return {
       operacion,
       pin: operacion === 'ubicacion' && punto ? { lat: punto.lat, lng: punto.lng } : (pinInicial ?? undefined),
@@ -114,11 +120,16 @@ function FormularioOperacion({
       tipo: operacion === 'datos' ? punto?.tipo : undefined,
     };
   });
+  const [f, setF] = useState<Formulario>(inicial);
   const [enviando, setEnviando] = useState(false);
-  // La clave_local de lo enviado: la pantalla de resultado sigue en la cola qué pasa con ello.
-  const [resultado, setResultado] = useState<string | null>(null);
   const [falloGuardar, setFalloGuardar] = useState(false);
   const cambiar = (c: Partial<Formulario>) => setF((x) => ({ ...x, ...c }));
+  // Salir con algo rellenado o alguna foto pregunta: con la flecha y con el "atrás" de Android (RV-239).
+  const sucio = !!foto || !!fotoSitio || hayCambios(f, inicial);
+  const [preguntaSalir, setPreguntaSalir] = useState(false);
+  const preguntar = () => setPreguntaSalir(true);
+  const cerrarPregunta = () => setPreguntaSalir(false);
+  const { salir, reemplazarPor } = useSalidaFormulario(sucio, preguntar);
 
   // Alta: el pin sale de la posición GPS en cuanto la hay, hasta que el voluntario lo mueve.
   const pinAlta = operacion === 'alta' && !f.pinMovido && gps ? { lat: gps.lat, lng: gps.lng } : f.pin;
@@ -160,11 +171,11 @@ function FormularioOperacion({
       setEnviando(false);
       return;
     }
-    setResultado(clave);
-    setEnviando(false);
+    // La pantalla de resultado sigue en la cola qué pasa con lo enviado. Va en su ruta, en lugar del
+    // formulario: recargar o tocar una notificación desde ahí no pregunta (docs/32 RV-240).
+    enviadasAqui.add(clave);
+    reemplazarPor(RUTA_HECHO, { state: { clave } });
   }
-
-  if (resultado) return <PantallaResultado clave={resultado} jefatura={jefatura} />;
 
   const textoBoton = jefatura
     ? // Sin conexión, jefatura tampoco aplica al momento: se guarda y se aplica al volver (RV-151).
@@ -192,7 +203,7 @@ function FormularioOperacion({
       {/* En el formulario, la etiqueta no lleva al panel: se perderían las fotos y los datos (DEC-164). */}
       <BarraSuperior
         titulo={TITULO_OPERACION[operacion]}
-        alVolver={() => navegar(-1)}
+        alVolver={() => (sucio ? setPreguntaSalir(true) : salir())}
         jefatura={jefatura}
         enlacePanel={false}
       />
@@ -367,8 +378,44 @@ function FormularioOperacion({
           </p>
         )}
       </form>
+      {preguntaSalir && (
+        <Hoja titulo={T.avisoFormulario.salirSinEnviar} alCerrar={cerrarPregunta}>
+          <p className="text-texto-suave mb-3 text-sm">{T.avisoFormulario.sePierdeTodo}</p>
+          <Boton
+            variante="destructivo"
+            className="w-full"
+            onClick={() => {
+              setPreguntaSalir(false);
+              salir();
+            }}
+          >
+            {T.avisoFormulario.botonSalir}
+          </Boton>
+          <Boton variante="secundario" className="mt-3 w-full" onClick={cerrarPregunta}>
+            {T.avisoFormulario.seguirCorto}
+          </Boton>
+        </Hoja>
+      )}
     </div>
   );
+}
+
+/** Lo enviado desde esta pestaña, en esta carga de la app: la pantalla de resultado sabe de qué habla. */
+const enviadasAqui = new Set<string>();
+
+/**
+ * /proponer/hecho (docs/32 RV-240). Con lo recién enviado, su resultado. Tras recargar (la memoria
+ * se ha ido y la cola puede no haber cargado aún) no se adivina: se va a Mis propuestas, que dice
+ * qué ha pasado con todo; jefatura, al mapa.
+ */
+function ResultadoEnvio() {
+  const acceso = useAcceso();
+  const { state } = useLocation();
+  const clave = (state as { clave?: unknown } | null)?.clave;
+  if (typeof clave !== 'string' || !enviadasAqui.has(clave)) {
+    return <Navigate to={acceso.tipo === 'voluntario' ? '/mis-propuestas' : '/'} replace />;
+  }
+  return <PantallaResultado clave={clave} jefatura={acceso.tipo === 'jefatura'} />;
 }
 
 /**

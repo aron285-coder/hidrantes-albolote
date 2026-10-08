@@ -3,6 +3,8 @@
 // metadatos: la foto que sube no lleva EXIF. La posición EXIF, si la hay, se lee antes y viaja
 // aparte como dato de la propuesta (exif_lat/exif_lng).
 
+import { cabeceraHeic, comprobarTamano } from './foto-grande';
+
 export const LADO_MAXIMO = 1600;
 /** Objetivo medio de TR-15 (≈ 250 kB); se baja la calidad hasta acercarse. */
 export const OBJETIVO_BYTES = 300 * 1024;
@@ -185,6 +187,9 @@ export async function procesarFoto(archivo: Blob, perfil: PerfilFoto = PERFIL_CO
   const exif = leerGpsExif(cabecera);
   const datos = cabeceraJpeg(cabecera);
   const opciones = opcionesDecodificar(datos, perfil);
+  // Una foto enorme en un navegador que no reduce al decodificar puede cerrar la pestaña: se avisa
+  // antes de abrirla (docs/32 RV-244). El tamaño sale de la cabecera, JPEG o HEIC, sin decodificar.
+  await comprobarTamano(datos ?? cabeceraHeic(cabecera));
   let imagen: ImageBitmap;
   try {
     imagen = await createImageBitmap(archivo, opciones);
