@@ -74,9 +74,11 @@ límite. Cinco capas, y por qué no basta con la primera:
    bloqueo, así que peticiones en paralelo no lo pasan. El techo se puede usar para dejar sin
    entrar a los voluntarios con móvil nuevo mientras dure el ataque; la defensa completa
    (Turnstile o una regla de Cloudflare) queda para una decisión (`docs/17` §12).
-3b. **Tope de canjes buenos (150 por IP y día, 150 por hora en total).** Quien tenga el código no
-   puede crear dispositivos sin fin para saltarse las cuotas por dispositivo. Los valores cubren la
-   sesión presencial de 65 personas en la misma wifi (DEC-086).
+3b. **Tope de canjes buenos (20 por IP y día, 40 por hora en total desde 0041; antes 150 y 150).**
+   Quien tenga el código no puede crear dispositivos sin fin para saltarse las cuotas por dispositivo.
+   Con 150 por IP y día se sacaban unas 9.000 propuestas al día desde una sola IP (docs/32 RV-221,
+   DEC-183). Son 65 voluntarios: una sesión presencial en la misma wifi se reparte en dos días o en
+   dos redes (DEC-086). Además, un token nuevo solo propone 10 al día durante sus primeras 24 h (§4).
 4. **Token de dispositivo.** Tras el primer canje, el móvil usa un token aleatorio de 32 bytes (se
    guarda su hash); el código no vuelve a viajar. Los 65 voluntarios dejan de tocar el sistema de
    intentos, así que activar el techo global no deja a nadie fuera.
@@ -105,17 +107,32 @@ la cola las propuestas de las últimas horas antes de aprobar nada. Procedimient
 - La `anon key` **no puede escribir** en el bucket. Subida solo con URL firmada que emite la Pages
   Function tras validar el token y la cuota (80 por dispositivo y día desde 0035, DEC-146); nombre de archivo asignado
   por el servidor; 5 MB; solo JPEG/WebP (04 §7).
-- **Tope global de subidas** (0039, docs/31 RV-142, DEC-174). El tope por dispositivo no basta: cada
+- **Tope global de subidas** (0039, docs/31 RV-142, DEC-174; contado de otra forma desde 0041, abajo). El tope por dispositivo no basta: cada
   canje del código crea un dispositivo con su cuota, y dos o tres llenarían el gigabyte gratuito, que
   comparte uniformidad. `max_subidas_dia_total` (400 reservas en 24 h entre todos los voluntarios; los
   administradores no cuentan) da `CUOTA_SUBIDAS_AGOTADA` a todos; Salud del sistema y la vigilancia lo
   ven en `topes_globales_24h` desde 0040 (el error deshace la transacción y no deja rastro: se deduce
   de las reservas de las últimas 24 h). Las reservas sin confirmar se protegen 48 h (antes 7 días), y la purga no
   cuenta en su freno del 10 % las nunca confirmadas de más de 48 h (`fn_reservas_sin_confirmar_lista`).
+- **Espacio, no solo número** (0041, docs/32 RV-220, DEC-182). 400 reservas de 5 MB eran 2 GB al día en
+  un Storage de 1 GB compartido, y cinco tokens llenaban el tope global con reservas que nunca se
+  subían: nadie podía mandar fotos en 24 h. Ahora: `SIN_ESPACIO_FOTOS` si el bucket más 5 MB por reserva
+  abierta pasa de `max_bytes_fotos` (800 MB); como mucho 6 reservas abiertas por dispositivo
+  (`RESERVAS_ABIERTAS`); el tope global baja a 150 y solo cuenta confirmadas y abiertas de menos de 2 h,
+  así que reservar sin subir no bloquea al grupo; revocar un móvil libera sus reservas; las filas de
+  reservas nunca confirmadas de más de 48 h se purgan cada día. Salud enseña el espacio y los 5 móviles
+  con más reservas en 24 h (8 caracteres de su id) con "Revocar este móvil" (`fn_revocar_dispositivo`).
+  Para medir el bucket, `hidrantes_migrador` lee `storage.objects` **solo** en las filas de los dos
+  buckets de fotos y solo `bucket_id`, `name` y `metadata` (política y `grant` por columnas de
+  `supabase/sql/arranque-bd.sql`): no ve los archivos de uniformidad ni puede escribir.
 - **Textos y propuestas con límite** (0039, RV-140 y RV-141, DEC-174). Con un token se podía mandar una
   propuesta de 1 MB o miles al día, en una base de datos de 500 MB que también es de uniformidad.
   Longitudes máximas en el servidor (05 §7.1) y `max_propuestas_dia` (60 por dispositivo y día; los
   administradores sin tope).
+- **Propuestas que no se esquivan con tokens nuevos** (0041, docs/32 RV-221, DEC-183): 10 al día durante
+  las primeras 24 h de un token, 600 al día entre todos los voluntarios (`max_propuestas_dia_total`) y
+  `SIN_ESPACIO` si la base de datos pasa de `max_bytes_bd` (400 MB de los 500 compartidos). La
+  vigilancia avisa al 70 % de los dos espacios (`fn_espacio`).
 - **Lectura pública** por URL no enumerable (uuid). Decisión consciente (DEC-011): las URL firmadas
   de lectura romperían la caché offline. La foto retrata un hidrante; **14** pide no fotografiar
   personas ni matrículas, y jefatura rechaza cualquier foto que las incluya.
@@ -328,8 +345,10 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | Fuerza bruta sobre 6 dígitos | Las cinco capas de §3. |
 | Esquivar el límite con `dispositivo_id` nuevos o `x-forwarded-for` falso | Límite por `CF-Connecting-IP` en la Function + techo global. |
 | El techo global deja fuera a los 65 | Token de dispositivo: quien entró no vuelve a pasar por el control. |
-| Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota por dispositivo y tope global (0039). |
+| Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota por dispositivo y tope global (0039); tope de espacio, 6 reservas abiertas por móvil y tope global que no cuenta lo que no se sube (0041, DEC-182). |
 | Llenar la base de datos con un token | Longitud máxima de cada texto y 60 propuestas por dispositivo y día (0039, DEC-174). |
+| Llenar la base de datos sacando tokens nuevos | 20 canjes por IP y día y 40 por hora; 10 propuestas al día las primeras 24 h de un token; 600 al día entre todos; `SIN_ESPACIO` a 400 MB (0041, DEC-183). |
+| Agotar el cupo de errores con la RPC vieja de 5 argumentos | Cupo propio: 200 al día y 10 por dispositivo, que no gasta el de `/api/error` (0041, RV-222); se le quita `anon` con #472. |
 | Usar el `dispositivo_id` de un administrador | `DISPOSITIVO_RESERVADO` en el canje (0039, DEC-175). |
 | Un token copiado sigue valiendo tras cerrar sesión | `fn_cerrar_sesion` lo revoca en el servidor (0040, RV-158). |
 | Agotar el cupo diario de errores rotando `dispositivo_id` | Tope por `ip_hash` en `/api/error` y cupo propio para lo que llega sin IP (0040, RV-148). |

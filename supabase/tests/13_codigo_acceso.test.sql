@@ -11,8 +11,8 @@ insert into hidrantes.config (clave, valor, actualizado_por)
 values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen_salt('bf', 4))), 'test')
 on conflict (clave) do update set valor = excluded.valor;
 
-select is(hidrantes.fn_config('max_altas_ip_dia', 'null'), '150'::jsonb, 'tope de canjes buenos por IP y día: 150');
-select is(hidrantes.fn_config('max_altas_global_hora', 'null'), '150'::jsonb, 'tope de canjes buenos por hora: 150');
+select is(hidrantes.fn_config('max_altas_ip_dia', 'null'), '20'::jsonb, 'tope de canjes buenos por IP y día: 20 desde 0041 (DEC-183)');
+select is(hidrantes.fn_config('max_altas_global_hora', 'null'), '40'::jsonb, 'tope de canjes buenos por hora: 40 desde 0041 (DEC-183)');
 
 -- ---------- dos sesiones a la vez con 199 fallos (dblink) ----------
 -- Va primero: fn_verificar_codigo toma un bloqueo consultivo hasta el final de la transacción, y si

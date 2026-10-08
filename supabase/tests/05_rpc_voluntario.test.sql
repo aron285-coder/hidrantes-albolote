@@ -96,6 +96,8 @@ select throws_ok($$ select hidrantes.fn_reservar_subida(current_setting('test.to
 reset role;
 -- El tope del día, leído antes de cambiar de rol: service_role no ejecuta fn_config.
 select set_config('test.tope', hidrantes.fn_config('max_subidas_dispositivo_dia', '40') #>> '{}', true);
+-- Aquí se prueba el tope del día: sin el de reservas abiertas a la vez (0041, en 37) ni el global.
+update hidrantes.config set valor = '1000' where clave in ('max_reservas_abiertas', 'max_subidas_dia_total');
 
 set local role service_role;
 select set_config('test.foto_a', hidrantes.fn_reservar_subida(current_setting('test.token_a')), true);

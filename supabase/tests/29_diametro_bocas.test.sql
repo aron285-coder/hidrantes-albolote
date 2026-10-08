@@ -14,6 +14,8 @@ insert into hidrantes.config (clave, valor, actualizado_por) values ('escala_rad
 on conflict (clave) do update set valor = excluded.valor;
 select set_config('test.token',
   (select token from hidrantes.fn_verificar_codigo('482917', 'dddddddd-0000-4000-8000-0000000e2901', 'ip-diametro')), true);
+-- Tokens de más de 24 h: el tope de un token nuevo (0041, docs/32 RV-221) se prueba en 37.
+update hidrantes.dispositivos set emitido_en = now() - interval '2 days' where dispositivo_id in ('dddddddd-0000-4000-8000-0000000e2901');
 insert into hidrantes.administradores (email, creado_por) values ('diametro@example.com', 'test') on conflict do nothing;
 
 -- Propuesta de voluntario (sin sesión de jefatura), con su foto reservada. Devuelve el id.
