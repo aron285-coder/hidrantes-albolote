@@ -254,7 +254,8 @@ test('lista, contador, filtros y búsqueda global (FR-101, FR-110, FR-145)', asy
   await prepararPanel(page);
   await page.goto('/admin');
   // Desde 1.100 px la primera propuesta queda fijada en ?p= en cuanto llega la lista (RV-161): sin
-  // ?p= la dirección solo dura lo que tarda la carga, y comprobarla así era una carrera.
+  // ?p= la dirección solo dura lo que tarda la carga, y comprobarla así era una carrera. El corte es
+  // COLA_Y_DETALLE de src/componentes/panel/ColaRevision.tsx.
   const conDetalle = page.viewportSize()!.width >= 1100;
   await expect(page).toHaveURL(conDetalle ? /\/admin\/cola\?p=c1$/ : /\/admin\/cola$/);
   await expect(page.getByRole('link', { name: `${T.panelCola.colaRevision} 6` })).toBeVisible();
