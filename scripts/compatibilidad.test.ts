@@ -4,11 +4,14 @@ import {
   URL_PRODUCCION,
   adaptarColumnasPermitidas,
   adaptarSesiones,
+  cambianMigraciones,
   elegirReferencia,
   leerCommitProduccion,
   referenciaPorDefecto,
   tocaMigraciones,
+  traerReferencia,
 } from './compatibilidad.ts';
+import type { Resultado } from './lib/comun.ts';
 
 describe('referenciaPorDefecto', () => {
   it('en un PR, la rama contra la que se fusiona: es la que está publicada', () => {
@@ -27,46 +30,108 @@ describe('elegirReferencia', () => {
   const SHA = 'c37829132d4fcac60c9820abb122fe0bacca0d13';
 
   it('en un PR a main, el commit de <meta name="commit"> de producción', () => {
-    expect(elegirReferencia({ GITHUB_BASE_REF: 'main' }, SHA)).toEqual({ ref: SHA, aviso: null });
+    expect(elegirReferencia({ GITHUB_BASE_REF: 'main' }, { commit: SHA, motivo: null })).toEqual({
+      ref: SHA,
+      aviso: null,
+    });
   });
 
-  it('si no se puede leer, origin/main con un aviso', () => {
-    expect(elegirReferencia({ GITHUB_BASE_REF: 'main' }, null)).toEqual({
-      ref: 'origin/main',
-      aviso: AVISO_SIN_PRODUCCION,
-    });
-    // Un commit corto no se puede traer con git fetch: tampoco vale.
-    expect(elegirReferencia({ GITHUB_BASE_REF: 'main' }, SHA.slice(0, 7)).ref).toBe('origin/main');
+  it('si no se puede leer, origin/main con un aviso que dice por qué', () => {
+    const r = elegirReferencia({ GITHUB_BASE_REF: 'main' }, { commit: null, motivo: 'responde 503' });
+    expect(r.ref).toBe('origin/main');
+    expect(r.aviso).toContain(AVISO_SIN_PRODUCCION);
+    expect(r.aviso).toContain('Motivo: responde 503');
+    // Un commit corto no se puede traer con git fetch: tampoco vale, y lo dice.
+    const corto = elegirReferencia({ GITHUB_BASE_REF: 'main' }, { commit: SHA.slice(0, 7), motivo: null });
+    expect(corto.ref).toBe('origin/main');
+    expect(corto.aviso).toContain('no es un commit completo');
   });
 
   it('en un PR a develop, o fuera de un PR, como antes', () => {
-    expect(elegirReferencia({ GITHUB_BASE_REF: 'develop' }, SHA)).toEqual({ ref: 'origin/develop', aviso: null });
+    expect(elegirReferencia({ GITHUB_BASE_REF: 'develop' }, { commit: SHA, motivo: null })).toEqual({
+      ref: 'origin/develop',
+      aviso: null,
+    });
     expect(elegirReferencia({}, null)).toEqual({ ref: 'origin/develop', aviso: null });
   });
 });
 
 describe('leerCommitProduccion', () => {
   const SHA = 'c37829132d4fcac60c9820abb122fe0bacca0d13';
-  const respuesta = (ok: boolean, html: string) => async () => ({ ok, text: async () => html });
+  const respuesta = (ok: boolean, html: string, status?: number) => async () => ({
+    ok,
+    status,
+    text: async () => html,
+  });
 
   it('lee el commit de la portada de producción', async () => {
     let pedida = '';
-    const commit = await leerCommitProduccion(async (url) => {
+    const lectura = await leerCommitProduccion(async (url) => {
       pedida = url;
       return { ok: true, text: async () => `<head><meta name="commit" content="${SHA}"></head>` };
     });
-    expect(commit).toBe(SHA);
+    expect(lectura).toEqual({ commit: SHA, motivo: null });
     expect(pedida).toBe(URL_PRODUCCION);
   });
 
-  it('null si no responde, responde con error o no dice su commit', async () => {
-    expect(await leerCommitProduccion(respuesta(false, ''))).toBeNull();
-    expect(await leerCommitProduccion(respuesta(true, '<head></head>'))).toBeNull();
-    expect(
-      await leerCommitProduccion(async () => {
-        throw new Error('timeout');
-      }),
-    ).toBeNull();
+  it('sin commit, con el motivo: error HTTP, sin meta o sin respuesta', async () => {
+    expect((await leerCommitProduccion(respuesta(false, '', 503))).motivo).toContain('responde 503');
+    expect((await leerCommitProduccion(respuesta(true, '<head></head>'))).motivo).toContain('<meta name="commit">');
+    const caida = await leerCommitProduccion(async () => {
+      throw new Error('The operation was aborted due to timeout');
+    });
+    expect(caida.commit).toBeNull();
+    expect(caida.motivo).toContain('no responde (The operation was aborted due to timeout)');
+  });
+});
+
+describe('traerReferencia y cambianMigraciones', () => {
+  const SHA = 'c37829132d4fcac60c9820abb122fe0bacca0d13';
+  /** git simulado: cada orden, su resultado; lo no previsto sale bien y vacío. */
+  const git = (reglas: [RegExp, Resultado][]) => {
+    const lineas: string[] = [];
+    const ej = (comando: string, args: string[]): Resultado => {
+      const linea = [comando, ...args].join(' ');
+      lineas.push(linea);
+      return reglas.find(([re]) => re.test(linea))?.[1] ?? { codigo: 0, salida: '', error: '' };
+    };
+    return { ej, lineas };
+  };
+  const mal: Resultado = { codigo: 128, salida: '', error: 'fatal: remote error: upload-pack: not our ref' };
+
+  it('el commit de producción que se trae bien es la referencia', () => {
+    const avisos: string[] = [];
+    const { ej, lineas } = git([[/is-shallow/, { codigo: 0, salida: 'true', error: '' }]]);
+    expect(traerReferencia(ej, SHA, false, (t) => avisos.push(t))).toBe(SHA);
+    expect(lineas).toContain(`git fetch --depth 1 origin ${SHA}`);
+    expect(avisos).toEqual([]);
+  });
+
+  it('si no se puede traer, origin/main con un aviso que dice por qué', () => {
+    const avisos: string[] = [];
+    const { ej, lineas } = git([[new RegExp(`fetch .*${SHA}`), mal]]);
+    expect(traerReferencia(ej, SHA, false, (t) => avisos.push(t))).toBe('origin/main');
+    expect(avisos[0]).toContain('not our ref');
+    expect(lineas).toContain('git fetch origin main');
+  });
+
+  it('con --ref, un commit que no se puede traer para', () => {
+    const { ej } = git([[new RegExp(`fetch .*${SHA}`), mal]]);
+    expect(() => traerReferencia(ej, SHA, true, () => {})).toThrow(/not our ref/);
+  });
+
+  it('una rama que no se puede traer se avisa, no se calla', () => {
+    const avisos: string[] = [];
+    const { ej } = git([[/fetch origin develop/, mal]]);
+    expect(traerReferencia(ej, 'origin/develop', false, (t) => avisos.push(t))).toBe('origin/develop');
+    expect(avisos[0]).toContain('No se ha podido traer origin/develop');
+  });
+
+  it('si git diff falla, se para: no es «no cambian las migraciones»', () => {
+    const { ej } = git([[/^git diff --name-only/, { codigo: 128, salida: '', error: 'fatal: bad revision' }]]);
+    expect(() => cambianMigraciones(ej, SHA)).toThrow(/bad revision/);
+    const bien = git([[/^git diff --name-only/, { codigo: 0, salida: 'supabase/migrations/0041_x.sql', error: '' }]]);
+    expect(cambianMigraciones(bien.ej, SHA)).toBe(true);
   });
 });
 

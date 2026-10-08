@@ -4,8 +4,10 @@
 #   con_reintento <segundos> <orden…>
 #
 # Cada intento tiene un tope (`timeout`, y KILL 15 s después si no se para); si falla o se pasa, se
-# reintenta una vez. Dos intentos de 225 s caben en los 8 minutos del paso (timeout-minutes: 8 en
-# ci.yml), y un paso colgado no se come los 90 minutos que `npm run publicar` espera a la CI.
+# reintenta una vez. Con 200 s, lo peor son 2 × (200 + 15) = 430 s: caben en los 8 minutos del paso
+# (timeout-minutes: 8 en ci.yml y deploy-staging.yml) con margen para la caché y para que el
+# ::error:: final llegue a escribirse. Un paso colgado no se come los 90 minutos que
+# `npm run publicar` espera a la CI.
 con_reintento() {
   local tope="$1"
   shift

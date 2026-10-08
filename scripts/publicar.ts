@@ -392,6 +392,10 @@ export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string, b
   const obligatorios = checksObligatorios(ctx, base);
   // Sin ningún check al cabo de un rato, no van a llegar (p. ej., una CI del bot en action_required).
   const limiteSinChecks = Date.now() + Math.min(ctx.limites.checks, 15 * 60_000);
+  // Justo después de un push, el PR aún puede enseñar la cabeza anterior unos segundos. Si ya enseñó
+  // `cabeza` y luego otra, o no la enseña nunca, alguien ha empujado a la rama: se para con ese motivo.
+  const limiteCabeza = Date.now() + Math.min(ctx.limites.checks, 5 * 60_000);
+  let vistaCabeza = false;
   const estado = await sondear(
     ctx,
     () => {
@@ -408,7 +412,15 @@ export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string, b
       ]);
       if (actual.codigo !== 0)
         abortar(`No se ha podido leer el PR #${pr}: ${errorSeguro(actual.error || actual.salida)}`);
-      if (actual.salida.trim() !== cabeza) return null;
+      const ahora = actual.salida.trim();
+      if (ahora !== cabeza) {
+        if (vistaCabeza || Date.now() > limiteCabeza)
+          abortar(
+            `La cabeza del PR #${pr} es ${ahora.slice(0, 7)}, no ${cabeza.slice(0, 7)}: alguien ha empujado a la rama. Míralo y vuelve a lanzar npm run publicar.`,
+          );
+        return null;
+      }
+      vistaCabeza = true;
       const e = checksDe(ctx, pr, obligatorios);
       if (e === 'sin checks' && Date.now() > limiteSinChecks) {
         abortar(`El PR #${pr} sigue sin checks: ¿ha corrido su CI? Míralo en Actions.`);
@@ -782,6 +794,10 @@ export function comprobarServido(ctx: Contexto, verificado: string, develop: str
   if (completo === verificado) return null;
   if (!esAntecesor(ctx, verificado, completo))
     return `staging sirve ${completo.slice(0, 7)}, que no viene después del commit comprobado`;
+  // develop puede avanzar mientras corre la CI de main (un parche de Dependabot, un registro): si
+  // staging ya sirve algo posterior a lo que se publica, el camino de la marca a `develop` lo mira
+  // comprobarStaging con cambiosFuera; aquí no hay nada más que comprobar.
+  if (esAntecesor(ctx, develop, completo)) return null;
   if (!esAntecesor(ctx, completo, develop))
     return `staging sirve ${completo.slice(0, 7)}, que no está en lo que se publica (${develop.slice(0, 7)})`;
   const fuera = cambiosFuera(ctx, verificado, completo);
@@ -832,8 +848,11 @@ export const LEIDO_EN_LOCAL = [
  * `develop` (el commit que se publica), no comprueba lo que la versión necesita, y sale con 3.
  */
 export function comprobarProduccion(ctx: Contexto, develop: string): DatosPuerta['produccion'] {
-  const igual = git(ctx, ['diff', '--quiet', 'HEAD', develop, '--', ...LEIDO_EN_LOCAL]);
-  if (igual.codigo !== 0) {
+  // El árbol de trabajo (no solo HEAD) contra `develop`, y sin archivos no seguidos en esas rutas:
+  // una migración sin añadir o un cambio sin commit también los leería comprobar-produccion.
+  const igual = git(ctx, ['diff', '--quiet', develop, '--', ...LEIDO_EN_LOCAL]);
+  const sueltos = git(ctx, ['ls-files', '--others', '--exclude-standard', '--', ...LEIDO_EN_LOCAL]);
+  if (igual.codigo !== 0 || sueltos.codigo !== 0 || sueltos.salida.trim()) {
     return {
       codigo: 3,
       filas: [
@@ -859,9 +878,11 @@ export function bloqueosAbiertos(ctx: Contexto): DatosPuerta['bloqueos'] {
     '--json',
     'number,title',
   ]);
-  if (r.codigo !== 0) return null;
+  // Cerrado ante la duda: una salida vacía o que no es una lista no dice «ninguna».
+  if (r.codigo !== 0 || !r.salida.trim()) return null;
   try {
-    return JSON.parse(r.salida || '[]') as { number: number; title: string }[];
+    const lista = JSON.parse(r.salida) as unknown;
+    return Array.isArray(lista) ? (lista as { number: number; title: string }[]) : null;
   } catch {
     return null;
   }

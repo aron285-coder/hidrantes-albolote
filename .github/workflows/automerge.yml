@@ -7,7 +7,10 @@
 # vuelve a lanzar la ejecución), y no dice quién escribió el cambio.
 name: Fusión automática de Dependabot
 
-on: pull_request
+# pull_request_target: el workflow y las actions que usa salen de la rama base. Con pull_request saldrían
+# del PR, y un PR de Dependabot que sube fetch-metadata ejecutaría la versión nueva con permiso de
+# escritura. Nunca se hace checkout del código del PR: solo de la lista y el script de la base.
+on: pull_request_target
 
 permissions:
   contents: write

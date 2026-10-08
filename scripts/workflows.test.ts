@@ -519,6 +519,11 @@ describe('CI en paralelo (PAR-01)', () => {
     expect(t).toContain('name: playwright-report-${{ matrix.parte }}');
   });
 
+  // docs/32 RV-205: publicar exige ci.yml en verde con el commit de la marca; un push detrás no la cancela.
+  it('solo se cancela la CI anterior de un PR, nunca la de un push', () => {
+    expect(leer('ci.yml')).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
+  });
+
   // docs/32 RV-206: ci-sql es obligatorio (protección de main) y en un PR a main no se salta nunca.
   it('en un PR a main se prueba todo, aunque solo traiga documentación', () => {
     expect(trabajo('cambios')).toContain('if [ "$EVENTO" != pull_request ] || [ "$BASE" = main ]; then');
@@ -544,8 +549,11 @@ describe('CI en paralelo (PAR-01)', () => {
       'key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}-${{ steps.version.outputs.navegadores }}',
     );
     expect(accion).toContain('default: chromium firefox');
-    expect(accion).toContain('con_reintento 225 npx playwright install-deps $NAVEGADORES');
-    expect(accion).toContain('con_reintento 225 npx playwright install --with-deps $NAVEGADORES');
+    expect(accion).toContain('con_reintento 200 npx playwright install-deps $NAVEGADORES');
+    expect(accion).toContain('con_reintento 200 npx playwright install --with-deps $NAVEGADORES');
+    // Dos intentos con su KILL a los 15 s caben en los 8 minutos del paso con margen para la caché
+    // y para escribir el ::error:: final.
+    for (const m of accion.matchAll(/con_reintento (\d+) /g)) expect(2 * (Number(m[1]) + 15)).toBeLessThanOrEqual(450);
   });
 
   // docs/32 RV-207: un paso de instalar navegadores colgado no puede gastar la espera de publicar.

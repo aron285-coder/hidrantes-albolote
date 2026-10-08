@@ -16,7 +16,7 @@
 import { copyFileSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
-import { abortar, argumentos, ejecutar, ejecutarScript, errorSeguro, log, RAIZ } from './lib/comun.ts';
+import { abortar, argumentos, ejecutar, ejecutarScript, errorSeguro, log, RAIZ, type Resultado } from './lib/comun.ts';
 import { commitDeHtml } from './paridad.ts';
 
 const CARPETA = '.anterior';
@@ -41,24 +41,74 @@ export const AVISO_SIN_PRODUCCION =
  */
 export function elegirReferencia(
   env: NodeJS.ProcessEnv,
-  commitProduccion: string | null,
+  lectura: LecturaProduccion | null,
 ): { ref: string; aviso: string | null } {
   if (env.GITHUB_BASE_REF !== 'main') return { ref: referenciaPorDefecto(env), aviso: null };
-  if (commitProduccion && /^[0-9a-f]{40}$/.test(commitProduccion)) return { ref: commitProduccion, aviso: null };
-  return { ref: 'origin/main', aviso: AVISO_SIN_PRODUCCION };
+  if (lectura?.commit && /^[0-9a-f]{40}$/.test(lectura.commit)) return { ref: lectura.commit, aviso: null };
+  const motivo = lectura?.commit
+    ? `dice ${lectura.commit}, que no es un commit completo`
+    : (lectura?.motivo ?? 'no se ha consultado');
+  return { ref: 'origin/main', aviso: `${AVISO_SIN_PRODUCCION} Motivo: ${motivo}.` };
 }
 
-/** El commit que sirve producción; null si no responde o no lo dice. Solo un GET a la portada. */
+export interface LecturaProduccion {
+  commit: string | null;
+  /** Por qué no hay commit (null si lo hay). */
+  motivo: string | null;
+}
+
+/** El commit que sirve producción, o por qué no se ha podido leer. Solo un GET a la portada. */
 export async function leerCommitProduccion(
-  pedir: (url: string) => Promise<{ ok: boolean; text: () => Promise<string> }> = (url) =>
+  pedir: (url: string) => Promise<{ ok: boolean; status?: number; text: () => Promise<string> }> = (url) =>
     fetch(url, { signal: AbortSignal.timeout(20_000), headers: { 'cache-control': 'no-cache' } }),
-): Promise<string | null> {
+): Promise<LecturaProduccion> {
   try {
     const r = await pedir(URL_PRODUCCION);
-    return r.ok ? commitDeHtml(await r.text()) : null;
-  } catch {
-    return null;
+    if (!r.ok) return { commit: null, motivo: `${URL_PRODUCCION} responde ${r.status ?? 'con error'}` };
+    const commit = commitDeHtml(await r.text());
+    return commit ? { commit, motivo: null } : { commit: null, motivo: 'la portada no trae <meta name="commit">' };
+  } catch (e) {
+    return {
+      commit: null,
+      motivo: `${URL_PRODUCCION} no responde (${errorSeguro(e instanceof Error ? e.message : String(e))})`,
+    };
   }
+}
+
+type Ej = (comando: string, args: string[]) => Resultado;
+
+/**
+ * Trae la referencia al clon (en CI, superficial) y devuelve la que se usa. El commit de producción
+ * que no se puede traer pasa a origin/main con aviso (RV-206), salvo si se pidió con --ref: entonces
+ * se para. Un fallo al traer una rama se avisa; si además no está en el clon, se para después.
+ */
+export function traerReferencia(ej: Ej, ref: string, explicita: boolean, aviso: (t: string) => void): string {
+  // `--depth 1` solo si el clon YA es superficial: en uno completo lo volvería superficial, y a partir
+  // de ahí `git pull` de esa rama falla con "refusing to merge unrelated histories".
+  const superficial = ej('git', ['rev-parse', '--is-shallow-repository']).salida === 'true';
+  const traer = (que: string) => ej('git', ['fetch', ...(superficial ? ['--depth', '1'] : []), 'origin', que]);
+  const rama = (r: string) => {
+    const f = traer(r.slice('origin/'.length));
+    if (f.codigo !== 0)
+      aviso(`No se ha podido traer ${r}: ${errorSeguro(f.error || f.salida)}. Se usa la copia local.`);
+    return r;
+  };
+  if (ref.startsWith('origin/')) return rama(ref);
+  if (!/^[0-9a-f]{40}$/.test(ref)) return ref;
+  const f = traer(ref);
+  if (f.codigo === 0) return ref;
+  if (explicita) abortar(`No se ha podido traer ${ref}: ${errorSeguro(f.error || f.salida)}`);
+  aviso(
+    `No se ha podido traer ${ref.slice(0, 7)}, el commit de producción (${errorSeguro(f.error || f.salida)}). ${AVISO_SIN_PRODUCCION}`,
+  );
+  return rama('origin/main');
+}
+
+/** ¿Cambian las migraciones de `ref` a HEAD? Si git falla, se para: un fallo no es «no cambian». */
+export function cambianMigraciones(ej: Ej, ref: string): boolean {
+  const r = ej('git', ['diff', '--name-only', ref, 'HEAD', '--', 'supabase/migrations']);
+  if (r.codigo !== 0) abortar(`git diff contra ${ref} ha fallado: ${errorSeguro(r.error || r.salida)}`);
+  return tocaMigraciones(r.salida);
 }
 
 function avisar(texto: string): void {
@@ -182,25 +232,14 @@ async function principal(): Promise<void> {
     if (elegida.aviso) avisar(elegida.aviso);
   }
 
-  // La referencia puede no estar todavía en el clon superficial de CI (fetch-depth 1). `--depth 1`
-  // solo si el clon YA es superficial: en uno completo lo volvería superficial, y a partir de ahí
-  // `git pull` de esa rama falla con "refusing to merge unrelated histories" (me pasó al probarlo).
-  const superficial = ejecutar('git', ['rev-parse', '--is-shallow-repository']).salida === 'true';
-  const traer = (que: string) => ejecutar('git', ['fetch', ...(superficial ? ['--depth', '1'] : []), 'origin', que]);
-  if (ref.startsWith('origin/')) traer(ref.slice('origin/'.length));
-  else if (/^[0-9a-f]{40}$/.test(ref) && traer(ref).codigo !== 0 && !valores.get('ref')) {
-    // El commit de producción tiene que estar en el repositorio; si no se puede traer, main y aviso.
-    avisar(`No se ha podido traer ${ref.slice(0, 7)}, el commit de producción. ${AVISO_SIN_PRODUCCION}`);
-    ref = 'origin/main';
-    traer('main');
-  }
+  // La referencia puede no estar todavía en el clon superficial de CI (fetch-depth 1).
+  ref = traerReferencia(ejecutar, ref, valores.has('ref'), avisar);
 
   log.paso(`Compatibilidad hacia atrás: el frontend de ${ref} contra esta base de datos (TR-107)`);
   const existe = ejecutar('git', ['rev-parse', '--verify', `${ref}^{commit}`]);
   if (existe.codigo !== 0) abortar(`No encuentro ${ref}. Pasa --ref con una rama que exista.`);
 
-  const cambios = ejecutar('git', ['diff', '--name-only', `${ref}`, 'HEAD', '--', 'supabase/migrations']);
-  if (!banderas.has('forzar') && !tocaMigraciones(cambios.salida)) {
+  if (!banderas.has('forzar') && !cambianMigraciones(ejecutar, ref)) {
     log.ok('Esta rama no cambia las migraciones: el frontend publicado ve la misma base de datos.');
     return;
   }

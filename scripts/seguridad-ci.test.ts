@@ -63,6 +63,11 @@ describe('dependencias y actions (RV-132)', () => {
     expect(texto).toContain("github.event.pull_request.user.login == 'dependabot[bot]'");
     expect(texto).toContain('updated-dependencies-json');
     expect(texto).toContain('ref: ${{ github.event.pull_request.base.sha }}');
+    // El workflow y sus actions, de la base: un PR que sube fetch-metadata no se ejecuta a sí mismo.
+    expect(texto).toMatch(/^on: pull_request_target$/m);
+    // Ningún checkout del código del PR (con pull_request_target, eso sí sería peligroso).
+    expect(texto.match(/uses: actions\/checkout@/g)).toHaveLength(1);
+    expect(texto).not.toMatch(/head\.(sha|ref)|github\.head_ref/);
     expect(texto).toContain('node .github/scripts/automerge-permitido.mjs .github/automerge-permitidos.txt');
     // Solo fusiona si el script lo dice: ningún otro camino llega a gh pr merge.
     expect(texto.match(/gh pr merge/g)).toHaveLength(1);

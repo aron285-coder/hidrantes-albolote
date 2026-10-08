@@ -28,11 +28,11 @@ runs:
       run: |
         source .github/scripts/instalar-navegadores.sh
         # Sin comillas: un argumento por navegador.
-        con_reintento 225 npx playwright install-deps $NAVEGADORES
+        con_reintento 200 npx playwright install-deps $NAVEGADORES
     - if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       env:
         NAVEGADORES: ${{ inputs.navegadores }}
       run: |
         source .github/scripts/instalar-navegadores.sh
-        con_reintento 225 npx playwright install --with-deps $NAVEGADORES
+        con_reintento 200 npx playwright install --with-deps $NAVEGADORES

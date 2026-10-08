@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ErrorDeScript, type Resultado } from './lib/comun.ts';
 import {
   ARCHIVO_STAGING,
@@ -448,7 +448,8 @@ describe('la puerta con gh, git y npm simulados', () => {
         new RegExp(`^gh api repos/\\S+/commits/${BOT} `),
         ok(JSON.stringify([{ filename: 'CHANGELOG.md', patch: patchBot }])),
       ],
-      [/^git diff --quiet HEAD/, ok()],
+      [/^git diff --quiet /, ok()],
+      [/^git ls-files --others/, ok()],
       [
         /^npm run --silent comprobar-produccion -- --completo/,
         { codigo: produccion, salida: '| bd | migraciones | FALTA | x |', error: '' },
@@ -483,6 +484,7 @@ describe('la puerta con gh, git y npm simulados', () => {
     reglas.unshift(
       [new RegExp(`^git rev-parse --verify --quiet ${SERV}`), ok(SERV)],
       [new RegExp(`^git diff --name-only --no-renames ${VERIF} ${SERV}`), ok('src/app.tsx')],
+      [new RegExp(`^git merge-base --is-ancestor ${DEV} ${SERV}`), falla('', 1)],
     );
     const r = comprobarStaging(simulado(reglas).ctx, DEV);
     expect(r.ok).toBe(false);
@@ -505,8 +507,22 @@ describe('la puerta con gh, git y npm simulados', () => {
     reglas.unshift(
       [new RegExp(`^git rev-parse --verify --quiet ${SERV}`), ok(SERV)],
       [new RegExp(`^git diff --name-only --no-renames ${VERIF} ${SERV}`), ok(ARCHIVO_STAGING)],
+      [new RegExp(`^git merge-base --is-ancestor ${DEV} ${SERV}`), falla('', 1)],
     );
     expect(comprobarStaging(simulado(reglas).ctx, DEV).ok).toBe(true);
+  });
+
+  it('verde si staging ya sirve algo posterior a lo que se publica (develop avanzó durante la CI de main)', () => {
+    const SERV = '9'.repeat(40);
+    const reglas = reglasPuerta({ html: `<meta name="commit" content="${SERV}">` });
+    reglas.unshift(
+      [new RegExp(`^git rev-parse --verify --quiet ${SERV}`), ok(SERV)],
+      // Lo de después de develop no se publica: no se mira.
+      [new RegExp(`^git diff --name-only --no-renames ${VERIF} ${SERV}`), ok('src/app.tsx')],
+    );
+    const s = simulado(reglas);
+    expect(comprobarStaging(s.ctx, DEV).ok).toBe(true);
+    expect(s.lineas()).toContain(`git merge-base --is-ancestor ${DEV} ${SERV}`);
   });
 
   it('rojo si CHANGELOG.md tiene una línea que no puso release-please', () => {
@@ -576,12 +592,37 @@ describe('la puerta con gh, git y npm simulados', () => {
 
   it('rojo si el checkout local no tiene las migraciones y deploy-prod.yml de lo que se publica', async () => {
     const reglas = reglasPuerta();
-    reglas.unshift([/^git diff --quiet HEAD/, falla('', 1)]);
+    reglas.unshift([/^git diff --quiet /, falla('', 1)]);
     const s = simulado(reglas);
     const r = evaluarPuerta(await datosPuerta(s.ctx, MAIN, DEV, { esperarCi: false }));
     expect(r.verde).toBe(false);
     expect(resumenPuerta(r, MAIN)).toContain('no se ha comprobado la versión que se publica');
     expect(s.lineas().some((l) => l.startsWith('npm run'))).toBe(false);
+  });
+
+  it('compara el árbol de trabajo con develop, no solo HEAD', async () => {
+    const s = simulado(reglasPuerta());
+    await datosPuerta(s.ctx, MAIN, DEV, { esperarCi: false });
+    expect(s.lineas()).toContain(
+      `git diff --quiet ${DEV} -- .github/workflows/deploy-prod.yml supabase/migrations scripts/comprobar-produccion.ts`,
+    );
+  });
+
+  it('rojo si hay archivos no seguidos en lo que lee comprobar-produccion (una migración sin añadir)', async () => {
+    const reglas = reglasPuerta();
+    reglas.unshift([/^git ls-files --others/, ok('supabase/migrations/0041_nueva.sql')]);
+    const s = simulado(reglas);
+    const r = evaluarPuerta(await datosPuerta(s.ctx, MAIN, DEV, { esperarCi: false }));
+    expect(r.verde).toBe(false);
+    expect(s.lineas().some((l) => l.startsWith('npm run'))).toBe(false);
+  });
+
+  it('las issues bloquea-release: una salida vacía o que no es una lista cierra la puerta', async () => {
+    for (const issues of ['', '{"mensaje":"x"}', 'no es json']) {
+      const d = await datosPuerta(simulado(reglasPuerta({ issues })).ctx, MAIN, DEV, { esperarCi: false });
+      expect(d.bloqueos).toBeNull();
+      expect(evaluarPuerta(d).verde).toBe(false);
+    }
   });
 
   it('rojo con una issue bloquea-release abierta', async () => {
@@ -624,6 +665,34 @@ describe('esperar a los checks del PR', () => {
     await esperarChecks(s.ctx, 545, DEV, 'develop');
     expect(vistas).toBe(3);
     expect(s.lineas().filter((l) => l.startsWith('gh pr checks'))).toHaveLength(1);
+  });
+
+  it('si la cabeza del PR cambia después de verla, se para con ese motivo', async () => {
+    let vistas = 0;
+    const s = simulado([
+      proteccion,
+      [/^gh pr view 545/, () => ok(++vistas < 2 ? DEV : MAIN)],
+      [/^gh pr checks 545/, ok('[{"name":"ci-calidad","bucket":"pending"}]')],
+    ]);
+    await expect(esperarChecks(s.ctx, 545, DEV, 'develop')).rejects.toThrow(/alguien ha empujado a la rama/);
+    expect(vistas).toBe(2);
+  });
+
+  it('si el PR no llega a enseñar la cabeza esperada, se para pronto', async () => {
+    const s = simulado([proteccion, [/^gh pr view 545/, ok(MAIN)]]);
+    // Reloj simulado: cada espera son 4 minutos; el límite general (90 min) queda muy lejos.
+    let t = 0;
+    const reloj = vi.spyOn(Date, 'now').mockImplementation(() => t);
+    s.ctx.limites.checks = 90 * 60_000;
+    s.ctx.esperar = async () => {
+      t += 4 * 60_000;
+    };
+    try {
+      await expect(esperarChecks(s.ctx, 545, DEV, 'develop')).rejects.toThrow(/cabeza del PR #545 es ccccccc/);
+      expect(t).toBe(8 * 60_000);
+    } finally {
+      reloj.mockRestore();
+    }
   });
 
   it('espera a que aparezca ci-e2e aunque los demás obligatorios ya estén en verde', async () => {
@@ -742,7 +811,8 @@ describe('--solo-comprobar no cambia nada', () => {
         ],
         [new RegExp(`^git show ${DEV}:`), ok(`commit: ${DEV} · resultado: verde`)],
         [/^git rev-parse --verify/, ok(DEV)],
-        [/^git diff --quiet HEAD/, ok()],
+        [/^git diff --quiet /, ok()],
+        [/^git ls-files --others/, ok()],
         [/^npm run --silent comprobar-produccion/, ok('')],
         [/^gh issue list/, ok('[]')],
       ],

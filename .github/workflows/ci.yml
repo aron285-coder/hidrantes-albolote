@@ -11,9 +11,12 @@ on:
 permissions:
   contents: read
 
+# Solo se cancela la CI anterior de un PR. La de un push a develop o main no: publicar exige ci.yml en
+# verde con el commit comprobado en staging (docs/32 RV-205), y el commit del registro que llega
+# detrás la cancelaría.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # docs/trabajo-en-paralelo.md §9.2, DEC-100: un PR que solo toca documentación no espera a e2e ni
