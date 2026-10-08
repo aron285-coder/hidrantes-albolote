@@ -34,6 +34,8 @@ select set_config('test.token_a',
   (select token from hidrantes.fn_verificar_codigo('482917', 'aaaaaaaa-0000-4000-8000-0000000e3401', 'ip-34')), true);
 select set_config('test.token_b',
   (select token from hidrantes.fn_verificar_codigo('482917', 'bbbbbbbb-0000-4000-8000-0000000e3402', 'ip-34')), true);
+-- Tokens de más de 24 h: el tope de un token nuevo (0041, docs/32 RV-221) se prueba en 37.
+update hidrantes.dispositivos set emitido_en = now() - interval '2 days' where dispositivo_id in ('aaaaaaaa-0000-4000-8000-0000000e3401', 'bbbbbbbb-0000-4000-8000-0000000e3402');
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims',
@@ -231,10 +233,8 @@ reset role;
 -- Tope global: 5 reservas de jefatura de hoy que no cuentan, y el tope justo en lo que hay + 1.
 insert into hidrantes.subidas (dispositivo_id, foto_path)
 select hidrantes.fn_dispositivo_admin('jefa34@example.com'), 'fotos/g34-jefa-' || i || '.jpg' from generate_series(1, 5) i;
-update hidrantes.config set valor = to_jsonb(1 + (
-  select count(*) from hidrantes.subidas s where s.reservada_en > now() - interval '1 day'
-     and not exists (select 1 from hidrantes.administradores a
-                      where hidrantes.fn_dispositivo_admin(a.email) = s.dispositivo_id)))
+-- Desde 0041 cuentan las confirmadas y las abiertas (fn_subidas_contadas; el detalle, en 37).
+update hidrantes.config set valor = to_jsonb(1 + hidrantes.fn_subidas_contadas())
  where clave = 'max_subidas_dia_total';
 set local role service_role;
 select lives_ok($$ select hidrantes.fn_reservar_subida(current_setting('test.token_b')) $$,

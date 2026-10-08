@@ -86,7 +86,10 @@ describe('POST /api/lanzar-workflow', () => {
       const r = await onRequestPost({ request: peticion({ workflow }), env: PRODUCCION });
 
       expect(r.status).toBe(202);
-      expect(await r.json()).toEqual({ pedido: true, workflow });
+      const cuerpo = await r.json();
+      expect(cuerpo).toEqual({ pedido: true, workflow });
+      // En producción no lleva `staging`, ni siquiera a false: el panel solo mira `staging === true`.
+      expect(cuerpo).not.toHaveProperty('staging');
       const pedido = llamadas.find((l) => l.url.includes('/rpc/fn_pedir_trabajo'))!;
       expect(pedido.cuerpo).toEqual({ workflow });
       // Con el JWT del administrador: la base de datos comprueba quién es y lo anota en el registro.
@@ -142,12 +145,13 @@ describe('POST /api/lanzar-workflow', () => {
     });
 
     it.each(WORKFLOWS.filter((w) => !(SOLO_PRODUCCION as readonly string[]).includes(w)))(
-      '%s se pide en la base de datos de staging',
+      '%s se pide en la base de datos de staging y la respuesta dice que es staging (RV-224)',
       async (workflow) => {
         const { espia, llamadas } = fingirRed();
         const r = await onRequestPost({ request: peticion({ workflow }), env: STAGING });
         expect(r.status).toBe(202);
-        expect(await r.json()).toEqual({ pedido: true, workflow });
+        // En staging nadie lo despacha: el panel dice "En staging no se lanza: queda anotado" (RV-260).
+        expect(await r.json()).toEqual({ pedido: true, workflow, staging: true });
         expect(llamadas.some((l) => l.url.includes('fn_pedir_trabajo'))).toBe(true);
         espia.mockRestore();
       },
@@ -164,6 +168,20 @@ describe('POST /api/lanzar-workflow', () => {
         });
         expect(r.status).toBe(409);
         expect(await r.json()).toEqual({ error: 'SOLO_EN_PRODUCCION' });
+        espia.mockRestore();
+      },
+    );
+
+    it.each([undefined, '', 'production'])(
+      'con ENTORNO=%s, regenerar la zona también dice staging',
+      async (entorno) => {
+        const { espia } = fingirRed();
+        const r = await onRequestPost({
+          request: peticion({ workflow: 'regenerar-zona' }),
+          env: { ...BASE, ENTORNO: entorno } as Env,
+        });
+        expect(r.status).toBe(202);
+        expect(await r.json()).toEqual({ pedido: true, workflow: 'regenerar-zona', staging: true });
         espia.mockRestore();
       },
     );

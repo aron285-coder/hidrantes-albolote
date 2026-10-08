@@ -19,8 +19,10 @@ select plan(11);
 --    (FR-150). No las protege la sesión sino el token del dispositivo (05_rpc_voluntario y
 --    13_codigo_acceso prueban el token). fn_registrar_error no pide token: es la telemetría de
 --    errores, abierta y con tope diario (05 §6.1).
---  · fn_novedades (obsoleta, sin fn_exigir_admin) y fn_reportar_incidencia ya no se conceden desde
---    0040 (RV-149, RV-148); fn_cerrar_sesion (0040, RV-158) es de voluntario, con token.
+--  · fn_novedades (obsoleta, sin fn_exigir_admin) ya no se concede desde 0040 (RV-149);
+--    fn_cerrar_sesion (0040, RV-158) es de voluntario, con token. fn_reportar_incidencia se quitó en
+--    0040 y vuelve en 0041 (docs/32 RV-223) como sumidero SECURITY INVOKER que no toca nada, para la
+--    app 0.7.0; se quita con #472.
 create temp table exentas (firma text primary key, motivo text not null);
 insert into exentas values
   ('hidrantes.fn_es_admin()', 'ayudante de RLS'),
@@ -38,7 +40,8 @@ insert into exentas values
   ('hidrantes.fn_cerrar_sesion(text)', 'voluntario, con token (0040, RV-158)'),
   ('hidrantes.fn_guardar_suscripcion_push(text,jsonb,text[])', 'voluntario, con token'),
   ('hidrantes.fn_borrar_suscripcion_push(text)', 'voluntario, con token'),
-  ('hidrantes.fn_registrar_error(uuid,text,text,text,text)', 'telemetría de errores, con tope diario');
+  ('hidrantes.fn_registrar_error(uuid,text,text,text,text)', 'telemetría de errores, con tope diario'),
+  ('hidrantes.fn_reportar_incidencia(text,text,text,text)', 'sumidero para la app 0.7.0 (0041, RV-223)');
 
 -- Las de jefatura: cada una empieza por fn_exigir_admin.
 create temp table jefatura (nombre text primary key);
@@ -53,7 +56,9 @@ insert into jefatura values
   -- 0009
   ('fn_renombrar_nucleo'), ('fn_anadir_nucleo'),
   -- 0040 (docs/31 RV-146, RV-167)
-  ('fn_pedir_trabajo'), ('fn_borrar_suscripcion_push_admin');
+  ('fn_pedir_trabajo'), ('fn_borrar_suscripcion_push_admin'),
+  -- 0041 (docs/32 RV-225, RV-260, RV-262)
+  ('fn_suscripcion_push_admin'), ('fn_pedidos_recientes'), ('fn_revocar_dispositivo');
 
 -- ---------- la lista exacta ----------
 
