@@ -72,7 +72,7 @@ describe('exportación (FR-160, FL-32)', () => {
     expect(lineas).toHaveLength(3);
     expect(lineas[0]).toContain(CABECERAS[0]);
     expect(lineas[1]).toContain('"Calle ""Real"" 14"');
-    expect(lineas[1]).toContain(';37.2308;');
+    expect(lineas[1]).toContain(';37,2308;');
   });
 
   // docs/31 RV-168: un texto que empieza por =, +, -, @, tabulador o retorno sería una fórmula al
@@ -85,7 +85,17 @@ describe('exportación (FR-160, FL-32)', () => {
     }
     const linea = csv([{ ...FILAS[0], direccion: 'Calle = Real' }]).split('\r\n')[1];
     expect(linea).toContain(';"Calle = Real";');
-    expect(linea).toContain(';-3.6569;');
+    expect(linea).toContain(';-3,6569;');
+  });
+
+  // docs/32 RV-263b: con ; de separador, Excel en español lee 37.2308 como texto (o como fecha); con
+  // coma decimal, como número. Los enteros no cambian.
+  it('el CSV escribe las coordenadas con coma decimal, sin comillas (docs/32 RV-263b)', () => {
+    const lineas = csv(FILAS).trimEnd().split('\r\n');
+    expect(lineas[1]).toContain(';37,2308;-3,6569;');
+    expect(lineas[2]).toContain(';37,24;-3,66;');
+    expect(lineas[1]).toMatch(/^"HID-0001";"[^"]+";100;/);
+    expect(lineas.join('|')).not.toMatch(/;-?\d+\.\d+;/);
   });
 
   it('GeoJSON con las coordenadas en el orden correcto y los datos crudos', () => {

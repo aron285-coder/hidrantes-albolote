@@ -221,6 +221,38 @@ test('la dirección de la celda no deshace un cambio más nuevo (docs/31 RV-164)
   ]);
 });
 
+// docs/32 RV-256: con el foco en la celda sin escribir, una sincronización trae otra dirección. Antes
+// el blur guardaba la vieja encima; ahora solo se guarda lo escrito, y la celda enseña lo nuevo.
+test('la celda con el foco y sin escribir no guarda al llegar otra dirección (docs/32 RV-256)', async ({ page }) => {
+  const puntos = { lista: PUNTOS.map((p) => ({ ...p })) };
+  const llamadas = await prepararPanel(page, puntos);
+  const ediciones = () => llamadas.filter((l) => l.nombre === 'fn_editar_punto').map((l) => l.cuerpo);
+  await page.goto('/admin/inventario');
+  const celda = page.getByLabel(T.panelInventario.direccionDe(P0.codigo));
+  await expect(celda).toHaveValue(P0.direccion ?? '');
+  await celda.focus();
+
+  // Otro administrador la cambia y llega la sincronización (al volver la red) con el foco dentro.
+  puntos.lista = puntos.lista.map((p) =>
+    p.id === P0.id ? { ...p, direccion: 'Calle Otra 3', actualizado_en: new Date().toISOString() } : p,
+  );
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(celda).toHaveValue('Calle Otra 3');
+  await expect(celda).toBeFocused();
+  await celda.blur();
+  await page.waitForTimeout(300);
+  expect(ediciones()).toEqual([]);
+
+  // Lo escrito sí se guarda, aunque llegue otra dirección mientras tanto.
+  await celda.fill('Calle Mía 7');
+  puntos.lista = puntos.lista.map((p) => (p.id === P0.id ? { ...p, direccion: 'Calle Tercera 9' } : p));
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await page.waitForTimeout(300);
+  await expect(celda).toHaveValue('Calle Mía 7');
+  await celda.blur();
+  await expect.poll(ediciones).toEqual([{ punto_id: P0.id, cambios: { direccion: 'Calle Mía 7' } }]);
+});
+
 // docs/18 RV-41, DEC-090: el tipo no se cambia desde el inventario.
 test('panel-inventario: editar no ofrece el tipo', async ({ page }) => {
   await prepararPanel(page);

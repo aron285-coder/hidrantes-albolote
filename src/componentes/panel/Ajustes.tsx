@@ -2,6 +2,7 @@ import { Eye, EyeOff, TriangleAlert } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { CodigoQR } from './CodigoQR';
 import { Dialogo } from './Dialogo';
+import { ErrorReintentar } from './dialogos';
 import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
@@ -19,6 +20,7 @@ import {
   PARAMETROS,
   PARAMETROS_POR_DEFECTO,
   anadirNucleo,
+  avisoPedido,
   cambiarCodigo,
   cambiosParametros,
   cargarAdministradores,
@@ -87,12 +89,11 @@ function CodigoDeAcceso() {
   const [visible, setVisible] = useState(false);
   const [revocar, setRevocar] = useState(false);
   const [confirmar, setConfirmar] = useState<string | null>(null);
-  const [moviles, setMoviles] = useState(0);
+  // Cuántos móviles tienen acceso; null si no se ha podido saber (docs/32 RV-261): entonces no se
+  // dice ningún número, y la ventana de revocar avisa de que no se sabe, sin impedir seguir.
+  const cuenta = useCarga(() => contarDispositivos(), []);
+  const moviles = cuenta.estado === 'error' ? null : cuenta.datos;
   const [ocupado, setOcupado] = useState(false);
-
-  useEffect(() => {
-    void contarDispositivos().then(setMoviles);
-  }, []);
 
   async function generar() {
     const nuevo = generarCodigo();
@@ -107,34 +108,44 @@ function CodigoDeAcceso() {
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     setVisible(true);
     avisar(T.panelAjustes.codigoCambiado(nuevo));
-    await carga.recargar();
+    await Promise.all([carga.recargar(), cuenta.recargar()]);
   }
 
   const datos = carga.datos;
+  const fecha = datos?.cambiadoEn ? fechaCorta(datos.cambiadoEn) : null;
+  const ayuda =
+    moviles === null
+      ? fecha
+        ? T.panelAjustes.cambiadoPorSinCuenta(fecha, datos?.cambiadoPor ?? '—')
+        : T.panelAjustes.sinCambiosSinCuenta
+      : fecha
+        ? T.panelAjustes.cambiadoPor(fecha, datos?.cambiadoPor ?? '—', moviles)
+        : T.panelAjustes.sinCambios(moviles);
   return (
-    <Tarjeta
-      titulo={T.panelAjustes.codigoAcceso}
-      ayuda={
-        datos?.cambiadoEn
-          ? T.panelAjustes.cambiadoPor(fechaCorta(datos.cambiadoEn), datos.cambiadoPor ?? '—', moviles)
-          : T.panelAjustes.sinCambios(moviles)
-      }
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <output
-          className={cn(campo, 'font-datos flex min-w-32 items-center bg-[var(--fondo)] text-lg tracking-[0.3em]')}
-        >
-          {visible ? (datos?.codigo ?? '—') : '••••••'}
-        </output>
-        <button
-          type="button"
-          onClick={() => setVisible((v) => !v)}
-          className="text-texto-suave flex min-h-9 items-center gap-1 px-2 underline"
-        >
-          {visible ? <EyeOff size={15} aria-hidden /> : <Eye size={15} aria-hidden />}
-          {visible ? T.panelAjustes.ocultar : T.panelAjustes.ver}
-        </button>
-      </div>
+    <Tarjeta titulo={T.panelAjustes.codigoAcceso} ayuda={ayuda}>
+      {/* El código que no se ha podido leer se dice, con Reintentar; nunca «—» (docs/32 RV-261). */}
+      {carga.estado === 'error' && !datos ? (
+        <ErrorReintentar
+          texto={`${T.panelAjustes.codigoNoCarga} ${textoError(carga.codigo)}`}
+          reintentar={carga.recargar}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <output
+            className={cn(campo, 'font-datos flex min-w-32 items-center bg-[var(--fondo)] text-lg tracking-[0.3em]')}
+          >
+            {!datos ? T.panelCola.cargando : visible ? (datos.codigo ?? T.panelAjustes.sinDato) : '••••••'}
+          </output>
+          <button
+            type="button"
+            onClick={() => setVisible((v) => !v)}
+            className="text-texto-suave flex min-h-9 items-center gap-1 px-2 underline"
+          >
+            {visible ? <EyeOff size={15} aria-hidden /> : <Eye size={15} aria-hidden />}
+            {visible ? T.panelAjustes.ocultar : T.panelAjustes.ver}
+          </button>
+        </div>
+      )}
       <label className="mt-3 flex items-center gap-2 text-sm">
         <input type="checkbox" className="size-4" checked={revocar} onChange={(e) => setRevocar(e.target.checked)} />
         {T.panel.revocarTodos}
@@ -148,7 +159,13 @@ function CodigoDeAcceso() {
 
       {confirmar && (
         <Dialogo titulo={T.panel.generarNuevo} alCerrar={() => setConfirmar(null)}>
-          <p className="text-sm">{revocar ? T.panelAjustes.avisoRevocando(moviles) : T.panelAjustes.avisoSinRevocar}</p>
+          <p className="text-sm">
+            {!revocar
+              ? T.panelAjustes.avisoSinRevocar
+              : moviles === null
+                ? T.panelAjustes.avisoRevocandoSinCuenta
+                : T.panelAjustes.avisoRevocando(moviles)}
+          </p>
           <div className="mt-3 flex gap-3">
             <Boton variante="destructivo" disabled={ocupado} onClick={() => void aplicar(confirmar)}>
               {T.panelAjustes.confirmarCodigo}
@@ -313,8 +330,13 @@ function ParametrosTarjeta() {
   // al guardar. Re-formatearlos en cada tecla no dejaba escribir "5,5" ni un quinto valor.
   const [radios, setRadios] = useState<string | null>(null);
   const idRadios = useId();
-  const guardados = carga.datos ?? PARAMETROS_POR_DEFECTO;
-  const v = editado ?? guardados;
+  // Lo guardado de verdad, o null mientras no ha cargado: hasta entonces no se edita nada, y los
+  // cambios nunca se calculan contra los valores por defecto (docs/32 RV-257). Sin cargar, los
+  // campos van vacíos y deshabilitados: un valor por defecto a la vista parecería el guardado.
+  const guardados = carga.datos;
+  const sinCargar = !guardados;
+  const fallo = sinCargar && carga.estado === 'error' ? textoError(carga.codigo) : null;
+  const v = editado ?? guardados ?? PARAMETROS_POR_DEFECTO;
   const setV = (cambio: (x: Parametros) => Parametros) => setEditado(cambio(v));
   const conRadios = (x: Parametros): Parametros => (radios === null ? x : { ...x, escala_radios: leerRadios(radios) });
 
@@ -322,15 +344,17 @@ function ParametrosTarjeta() {
   // deshabilitado habla siempre de lo que se ve, también mientras se corrige.
   const efectivo = conRadios(v);
   const cambios = cambiosParametros(guardados, efectivo);
-  const invalido = faltaEnParametros(efectivo);
+  const invalido = sinCargar ? null : faltaEnParametros(efectivo);
   const radiosMal = invalido === 'escala_radios';
-  const falta = radiosMal
-    ? T.panelAjustes.radiosInvalidos
-    : invalido
-      ? T.panelAjustes.fueraDeRango(NOMBRE_PARAMETRO[invalido as ClaveParametro])
-      : !Object.keys(cambios).length
-        ? T.avisosFormulario.sinCambios
-        : null;
+  const falta = sinCargar
+    ? (fallo ?? T.panelCola.cargando)
+    : radiosMal
+      ? T.panelAjustes.radiosInvalidos
+      : invalido
+        ? T.panelAjustes.fueraDeRango(NOMBRE_PARAMETRO[invalido as ClaveParametro])
+        : !Object.keys(cambios).length
+          ? T.avisosFormulario.sinCambios
+          : null;
 
   function leerCampoRadios() {
     if (radios === null) return;
@@ -340,6 +364,7 @@ function ParametrosTarjeta() {
 
   async function guardar() {
     // Guardar con el campo de radios aún abierto: se lee aquí y, si no vale, se dice y no se envía.
+    if (sinCargar) return;
     if (radios !== null) leerCampoRadios();
     if (invalido) return;
     setOcupado(true);
@@ -353,13 +378,20 @@ function ParametrosTarjeta() {
 
   return (
     <Tarjeta titulo={T.panelAjustes.parametros} ayuda={T.panelAjustes.ayudaParametros}>
+      {/* Sin cargar: «Cargando…», o el error con Reintentar (docs/32 RV-257). */}
+      {fallo ? (
+        <ErrorReintentar texto={fallo} reintentar={carga.recargar} className="mb-2" />
+      ) : (
+        sinCargar && <p className="text-texto-suave mb-2 text-sm">{T.panelCola.cargando}</p>
+      )}
       <div className="grid gap-2 sm:grid-cols-2">
         {(Object.keys(PARAMETROS) as ClaveParametro[]).map((clave) => (
           <label key={clave} className="flex items-center gap-2 text-sm">
             <span className="text-texto-suave flex-1">{NOMBRE_PARAMETRO[clave]}</span>
             <input
               type="number"
-              value={v[clave]}
+              value={sinCargar ? '' : v[clave]}
+              disabled={sinCargar}
               onChange={(e) => setV((x) => ({ ...x, [clave]: Number(e.target.value) }))}
               className={cn(campo, 'w-24 text-right')}
             />
@@ -369,7 +401,8 @@ function ParametrosTarjeta() {
           <label className="flex items-center gap-2">
             <span className="text-texto-suave flex-1">{T.panelAjustes.radiosMarcador}</span>
             <input
-              value={radios ?? textoRadios(v.escala_radios)}
+              value={sinCargar ? '' : (radios ?? textoRadios(v.escala_radios))}
+              disabled={sinCargar}
               onChange={(e) => setRadios(e.target.value)}
               onBlur={leerCampoRadios}
               onKeyDown={(e) => e.key === 'Enter' && leerCampoRadios()}
@@ -688,7 +721,8 @@ function Mantenimiento() {
     try {
       const r = await lanzarWorkflow(w);
       if (!r.ok) return avisar(textoError(r.codigo), 'error');
-      avisar(T.panelAjustes.trabajoPedido(nombre));
+      // En staging nadie lo despacha: el aviso lo dice en vez de prometer que empezará (RV-260).
+      avisar(avisoPedido(nombre, r.datos));
     } finally {
       setOcupado(false);
     }

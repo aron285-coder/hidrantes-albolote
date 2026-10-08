@@ -701,7 +701,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Fusión` · `Edición directa` · `Borrado` · `Restauración` · `Purga de la papelera` ·
 `Código de acceso cambiado` · `Dispositivos revocados` · `Administrador añadido` ·
 `Administrador desactivado` · `Parámetros cambiados` · `Incidencia resuelta` · `Anonimización` ·
-`Exportación` · `Mantenimiento lanzado` ·
+`Exportación` · `Mantenimiento pedido` (el panel solo lo pide; lo lanza el despachador, docs/32 RV-260) ·
 `[campo]: [antes] → [despues]` · `[campo]: [valor]` · `Movido [m] m` · `cambiada` · `adjunta` · `Sin cambios en los datos` · `sí` · `no` · `Activo` ·
 `Retirado` · `Borrado` · `Estado` ·
 `Enganche` · `Diámetro` · `Tipo` · `Fallo` · `Dirección` · `Descripción` · `Núcleo` ·
@@ -714,11 +714,12 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 
 **Panel: ajustes (Fase 7, DEC-068; la parte de voluntarios e incidencias se retiró con DEC-167).** `Código de acceso` ·
 `Cambiado por última vez el [fecha] por [quien]. [moviles] móviles registrados.` ·
-`Sin cambios desde el arranque. [moviles] móviles registrados.` · `ver` · `ocultar` ·
+`Sin cambios desde el arranque. [moviles] móviles registrados.` · sin poder contar los móviles (docs/32 RV-261): `Cambiado por última vez el [fecha] por [quien].` · `Sin cambios desde el arranque.` · `No se ha podido leer el código.` (con «Reintentar») · `ver` · `ocultar` ·
 `Sin revocar: quien ya entró sigue trabajando y solo los móviles nuevos necesitan el código nuevo.` ·
 `Revocando: todos vuelven a teclearlo. Es lo que se usa si el código se ha filtrado.` ·
 `Se pondrá en vigor un código nuevo. Los móviles que ya tienen acceso siguen funcionando.` ·
 `Se pondrá en vigor un código nuevo y [moviles] móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.` ·
+`Se pondrá en vigor un código nuevo. No se sabe cuántos móviles se desconectarán: todos los que tienen acceso tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.` (RV-261) ·
 `Generar y poner en vigor` · `Código nuevo en vigor: [codigo]. Comunícalo al grupo.` ·
 `Acceso de administradores` · `Lista propia de hidrantes, independiente de la app de uniformidad.` ·
 `añadido el [fecha] por [quien]` · `Acceso de [correo]` · `activo` · `sin acceso` ·
@@ -742,7 +743,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) · `no se mide en pruebas` (Almacenamiento usado en staging sin dato, docs/23 RV-98, DEC-143) ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
-`"[nombre]": pedido. Empezará en unos minutos.` (el panel deja un pedido que recoge un workflow, docs/31 RV-146) · `Solo en producción` (debajo de «Purgar fotos huérfanas» y «Respaldo ahora», deshabilitados fuera de producción, RV-167) · `Avisos para jefatura` ·
+`"[nombre]": pedido. Empezará en unos minutos.` (el panel deja un pedido que recoge un workflow, docs/31 RV-146) · `"[nombre]": pedido. En staging no se lanza: queda anotado.` (la respuesta lleva `staging: true`, docs/32 RV-224 y RV-260) · `Solo en producción` (debajo de «Purgar fotos huérfanas» y «Respaldo ahora», deshabilitados fuera de producción, RV-167) · `Avisos para jefatura` ·
 `Notificaciones en este navegador. Opcionales y apagadas por defecto.` ·
 `Nuevas propuestas pendientes` · `agrupadas: como mucho una por hora` · `Resumen semanal` ·
 `los lunes: revisiones caducadas y pendientes antiguas` ·
