@@ -144,18 +144,20 @@ select ok('fotos/otra36.jpg' in (select hidrantes.fn_fotos_referenciadas()), 'co
 
 select pg_temp.voluntario();
 set local role anon;
-select throws_ok($$ select hidrantes.fn_reportar_incidencia('x', 'y', 'z', 'w') $$, '42501', null,
-  'anon ya no ejecuta fn_reportar_incidencia');
+-- 0041 (docs/32 RV-223) se la devuelve a la app 0.7.0 como sumidero: el detalle, en 37.
+select lives_ok($$ select hidrantes.fn_reportar_incidencia('x', 'y', 'z', 'w') $$,
+  'anon vuelve a ejecutar fn_reportar_incidencia desde 0041 (sumidero)');
 reset role;
 set local role authenticated;
-select throws_ok($$ select hidrantes.fn_reportar_incidencia('x', 'y', 'z', 'w') $$, '42501', null,
-  'authenticated tampoco');
+select lives_ok($$ select hidrantes.fn_reportar_incidencia('x', 'y', 'z', 'w') $$,
+  'y authenticated también');
 select throws_ok($$ select hidrantes.fn_novedades() $$, '42501', null,
   'ni fn_novedades, obsoleta y sin fn_exigir_admin (RV-149)');
 reset role;
 
 select pg_temp.jefatura();
-select ok(not hidrantes.fn_salud() ? 'incidencias_abiertas', 'fn_salud ya no trae incidencias_abiertas');
+select is(hidrantes.fn_salud() -> 'incidencias_abiertas', '0'::jsonb,
+  'fn_salud trae incidencias_abiertas siempre a 0 desde 0041 (para el panel de 0.7.0, RV-223)');
 select ok(hidrantes.fn_salud() ? 'subidas_24h', 'y trae subidas_24h');
 insert into hidrantes.subidas (dispositivo_id, foto_path) values
   ('aaaaaaaa-0000-4000-8000-0000000e3601', 'fotos/s36-1.jpg'), ('aaaaaaaa-0000-4000-8000-0000000e3601', 'fotos/s36-2.jpg');
@@ -181,14 +183,17 @@ reset role;
 select is((select count(*)::int from hidrantes.errores_cliente where ip_hash = 'ip36-llena'), 100,
   'una IP con 100 errores hoy no anota más (sobre develop: la firma con ip_hash no existe)');
 select is((select count(*)::int from hidrantes.errores_cliente where ip_hash = 'ip36-libre'), 1, 'otra IP sí');
+-- Desde 0041 la firma anterior tiene su propio cupo (37); el de sin IP es el de /api/error sin IP.
+set local role service_role;
+select hidrantes.fn_registrar_error(gen_random_uuid(), 'sin IP', null, '/', 'x', null);
+reset role;
 set local role anon;
-select hidrantes.fn_registrar_error(gen_random_uuid(), 'sin IP', null, '/', 'x');
 select throws_ok($$ select hidrantes.fn_registrar_error(null, 'x', null, '/', 'x', 'ip36-falsa') $$, '42501', null,
   'anon no ejecuta la firma con ip_hash');
 reset role;
 select is((select count(*)::int from hidrantes.errores_cliente where ip_hash is null and momento > now() - interval '1 day'
               and mensaje = 'sin IP'), 0,
-  'por la firma anterior, con 500 sin IP hoy, no entra ninguno más aunque cambie de dispositivo_id');
+  'por /api/error sin IP, con 500 sin IP hoy, no entra ninguno más aunque cambie de dispositivo_id');
 
 -- ---------- RV-158: cerrar sesión ----------
 

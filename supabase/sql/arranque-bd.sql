@@ -45,6 +45,25 @@ grant usage on schema cron to hidrantes_migrador;
 grant execute on all functions in schema cron to hidrantes_migrador;
 grant select on cron.job, cron.job_run_details to hidrantes_migrador;
 
+-- 0041 (docs/32 RV-220, DEC-182): fn_reservar_subida y Salud miden lo que ocupa el bucket de fotos.
+-- Solo lectura, solo tres columnas y solo las filas de los dos buckets de fotos: hidrantes_migrador
+-- no ve los archivos de uniformidad. Sin esto, las funciones usan config.storage_bytes y Salud lo dice
+-- (fotos_origen); por eso un fallo aquí avisa y no para el arranque.
+do $storage$
+begin
+  grant usage on schema storage to hidrantes_migrador;
+  grant select (bucket_id, name, metadata) on storage.objects to hidrantes_migrador;
+  if not exists (select 1 from pg_policies where schemaname = 'storage' and tablename = 'objects'
+                   and policyname = 'hidrantes_migrador_mide_fotos') then
+    create policy hidrantes_migrador_mide_fotos on storage.objects for select to hidrantes_migrador
+      using (bucket_id in ('hidrantes-fotos', 'hidrantes-fotos-dev'));
+  end if;
+exception when others then
+  raise warning 'hidrantes_migrador no puede leer storage.objects (% %): el espacio de fotos saldrá de config.storage_bytes',
+    sqlstate, sqlerrm;
+end
+$storage$;
+
 -- No se concede nada en el esquema auth (propiedad de supabase_auth_admin; postgres no puede).
 -- Las RPC leen el JWT con current_setting('request.jwt.claims', true), que no lo necesita.
 
