@@ -615,6 +615,8 @@ export const T = {
     confirmarRechazo: 'Confirmar rechazo',
     fusionarCon: (codigo: Parametro) => `Fusionar con ${codigo}`,
     confirmarYAprobar: 'Confirmar y aprobar',
+    // docs/32 RV-251: el punto cambió con el formulario de correcciones abierto; lo no tocado se pone al día.
+    puntoHaCambiado: 'El punto ha cambiado: revisa los datos.',
     cancelar: 'Cancelar',
     motivoRechazo: 'Motivo del rechazo (obligatorio, lo verá quien lo propuso)',
     sinMotivo: 'Sin motivo no se puede rechazar.',

@@ -74,7 +74,9 @@ function propuesta(operacion: Operacion, extra: Partial<PropuestaPanel> = {}): P
 }
 
 const pintar = (p: PropuestaPanel) =>
-  renderToStaticMarkup(<DetallePropuesta p={p} puntos={[]} radioDuplicado={25} alHecho={() => undefined} />);
+  renderToStaticMarkup(
+    <DetallePropuesta p={p} puntos={[]} radioDuplicado={25} alHecho={() => undefined} alRecargar={() => undefined} />,
+  );
 
 /** Los campos de "Datos del punto", en orden: etiqueta y si lleva "CAMBIA". */
 function campos(html: string) {
@@ -264,5 +266,22 @@ describe('MinimapaPropuesta (RV-110)', () => {
   it('sin posición, lo dice en vez de un mapa vacío', () => {
     const html = pintarMapa(propuesta('datos', { punto_lat: null, punto_lng: null }));
     expect(html).toContain(T.panelCola.sinPosicion);
+  });
+});
+
+describe('historial de la propuesta (docs/32 RV-255)', () => {
+  it('las correcciones, en palabras: sin "null" ni la clave del enganche', () => {
+    const html = pintar(
+      propuesta('datos', {
+        estado: 'aprobada',
+        revisada_por: 'jefatura',
+        revisada_en: '2026-09-21T10:00:00Z',
+        correcciones: { direccion: null, racor: 'barcelona', diametro_mm: 70 },
+      }),
+    );
+    expect(html).toContain(
+      T.panelCola.conCorrecciones('Dirección → —, Tipo de enganche → Barcelona, Diámetro → 70 mm'),
+    );
+    expect(html).not.toContain('null');
   });
 });

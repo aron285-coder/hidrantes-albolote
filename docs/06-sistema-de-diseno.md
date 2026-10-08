@@ -606,7 +606,7 @@ tocar «Ver», o «recargar» por una versión nueva, pregunta: `¿Salir del for
 `Ninguna seleccionada` · `[N] seleccionadas` · `Aprobar seleccionadas` ·
 `Rechazar seleccionadas…` · `todas las operaciones` · `todos los núcleos` · `Aprobar` ·
 `Aprobar con correcciones` · `Guardar y aprobar` · `Rechazar…` · `Confirmar rechazo` ·
-`Fusionar con [BOC-0088]` · `Confirmar y aprobar` · `Cancelar` ·
+`Fusionar con [BOC-0088]` · `Confirmar y aprobar` · `El punto ha cambiado: revisa los datos.` · `Cancelar` ·
 `Motivo del rechazo (obligatorio, lo verá quien lo propuso)` ·
 `Sin motivo no se puede rechazar.` ·
 `El diff está calculado sobre un estado que ya no existe: el punto cambió [ayer]. Se pide confirmación expresa en lugar del botón normal.` ·

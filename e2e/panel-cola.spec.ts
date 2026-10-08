@@ -238,7 +238,11 @@ async function prepararPanel(page: Page, extra: Record<string, unknown>[] = []) 
     }),
   );
   // Una propuesta que llega después, la más nueva: sale la primera en la siguiente carga (RV-161).
-  return Object.assign(llamadas, { llega: (f: Record<string, unknown>) => pendientes.unshift(f) });
+  // Y una que resuelve otra persona: sale de la cola en la siguiente carga (docs/32 RV-263).
+  return Object.assign(llamadas, {
+    llega: (f: Record<string, unknown>) => pendientes.unshift(f),
+    quita: (id: string) => quitar([id]),
+  });
 }
 
 const llamadaA = (llamadas: Llamada[], nombre: string) => llamadas.find((l) => l.nombre === nombre)?.cuerpo;
@@ -927,4 +931,262 @@ test('Cola: la fila abierta y la lista pasan axe con el oscuro forzado sobre un 
     .include(`section[aria-label="${T.panelCola.colaRevision}"]`)
     .analyze();
   expect(violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+});
+
+// ---------- docs/32: RV-250 a RV-255 y la parte de la Cola de RV-263 ----------
+
+/** Una lectura que espera hasta `soltar()`: para ver la pantalla mientras carga. */
+async function retener(page: Page, tabla: string) {
+  let soltar: () => void = () => undefined;
+  let retenida = false;
+  const puerta = new Promise<void>((r) => (soltar = r));
+  await page.route(new RegExp(`/rest/v1/${tabla}\\b`), async (route) => {
+    if (retenida) {
+      await puerta;
+    }
+    return route.fallback();
+  });
+  return {
+    activar: () => (retenida = true),
+    soltar: () => soltar(),
+  };
+}
+
+/** Lo que llega a `fn_aprobar`; la primera llamada contesta `codigo` y hace `antes` (otra persona). */
+async function aprobarFallaUnaVez(page: Page, codigo: string, antes: () => void) {
+  const cuerpos: Record<string, unknown>[] = [];
+  let fallar = true;
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_aprobar`, (route) => {
+    cuerpos.push(route.request().postDataJSON() as Record<string, unknown>);
+    if (!fallar) return route.fallback();
+    fallar = false;
+    antes();
+    return route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'P0001', message: `${codigo}: simulado` }),
+    });
+  });
+  return cuerpos;
+}
+
+const P6 = PUNTOS[6]!;
+
+/** Un cambio de estado de un hidrante de 70 mm: el punto que otra persona cambia mientras se corrige. */
+function cambioDeEstado() {
+  return fila({
+    id: 'e6',
+    operacion: 'estado',
+    creada_en: hace(1),
+    punto_id: P6.id,
+    codigo: P6.codigo,
+    datos: { caudal: 'regular' },
+    antes: { caudal: P6.caudal },
+    direccion_actual: P6.direccion,
+    autor_nombre: 'Prueba',
+    autor_apellido: 'Seis',
+  });
+}
+
+test('RV-250: al pasar de Pendientes a Rechazadas y volver no quedan las filas del filtro anterior', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await prepararPanel(page);
+  const historial = await retener(page, 'v_historial_revision');
+  await page.goto('/admin/cola');
+  const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+  await expect(lista.getByRole('listitem')).toHaveCount(cola().length);
+
+  historial.activar();
+  await page.getByRole('radio', { name: T.panelCola.rechazadas }).click();
+  // Mientras carga: ni las pendientes como "solo lectura" ni un detalle con Aprobar.
+  await expect(lista.getByText(T.panelCola.cargando)).toBeVisible();
+  await expect(lista.getByRole('listitem')).toHaveCount(0);
+  await expect(page.getByRole('article')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toHaveCount(0);
+  historial.soltar();
+  await expect(lista.getByRole('listitem')).toHaveCount(RECHAZADAS.length);
+
+  const pendientes = await retener(page, 'v_cola_revision');
+  pendientes.activar();
+  await page.getByRole('radio', { name: T.panelCola.pendientes }).click();
+  // Y al volver, las rechazadas no salen con casillas: un lote mandaría ids ya resueltos.
+  await expect(lista.getByText(T.panelCola.cargando)).toBeVisible();
+  await expect(lista.getByRole('checkbox')).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: T.panelCola.seleccionarTodas })).toBeDisabled();
+  await expect(page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toBeDisabled();
+  pendientes.soltar();
+  await expect(lista.getByRole('listitem')).toHaveCount(cola().length);
+});
+
+test('RV-250: si una recarga falla, el error se ve aunque haya filas', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await prepararPanel(page);
+  let caida = false;
+  await page.route(new RegExp(`/rest/v1/v_cola_revision\\b`), (route) =>
+    caida ? route.abort('connectionrefused') : route.fallback(),
+  );
+  await page.goto('/admin/cola');
+  const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+  await expect(lista.getByRole('listitem')).toHaveCount(cola().length);
+  caida = true;
+  // Aprobar la abierta recarga la cola, que ya no llega.
+  await page.getByRole('article').getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+  await expect(lista.getByRole('alert')).toBeVisible({ timeout: 20_000 });
+  await expect(lista.getByRole('button', { name: T.mapa.reintentar })).toBeVisible();
+  await expect(lista.getByRole('listitem').first()).toBeVisible();
+});
+
+test.describe('a 412 × 915 (docs/32)', () => {
+  test.beforeEach(async ({ page }) => page.setViewportSize({ width: 412, height: 915 }));
+
+  test('RV-251 y RV-252: DESACTUALIZADA no cierra el detalle; corregir manda solo lo tocado', async ({ page }) => {
+    const fila6 = cambioDeEstado();
+    await prepararPanel(page, [fila6]);
+    // Otra persona cambia el diámetro del punto justo antes de aprobar.
+    const cuerpos = await aprobarFallaUnaVez(page, 'PROPUESTA_DESACTUALIZADA', () => {
+      Object.assign(fila6, {
+        desactualizada: true,
+        punto_actualizado_en: hace(0),
+        punto: { ...(fila6.punto as Record<string, unknown>), diametro_mm: 100 },
+      });
+    });
+    await page.goto('/admin/cola');
+    await page.getByRole('button', { name: new RegExp(P6.codigo) }).click();
+    const detalle = page.getByRole('dialog');
+    await detalle.getByRole('button', { name: T.panelCola.aprobarConCorrecciones }).click();
+    const formulario = detalle.locator('form');
+    await formulario.getByLabel(T.panelCola.campoDescripcion).fill('[PRUEBA] Tapa nueva');
+    await formulario.getByRole('button', { name: T.panelCola.guardarYAprobar }).click();
+
+    // El detalle sigue, con lo escrito, el aviso y lo no tocado al día (el diámetro de hoy).
+    await expect(formulario.getByText(T.panelCola.puntoHaCambiado)).toBeVisible();
+    await expect(detalle).toBeVisible();
+    await expect(formulario.getByLabel(T.panelCola.campoDescripcion)).toHaveValue('[PRUEBA] Tapa nueva');
+    await expect(formulario.getByLabel(T.panelCola.campoDiametro)).toHaveValue('100');
+    await formulario.getByRole('button', { name: T.panelCola.confirmarYAprobar }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    expect(cuerpos).toHaveLength(2);
+    for (const c of cuerpos) expect(c.correcciones).toEqual({ descripcion: '[PRUEBA] Tapa nueva' });
+    expect(cuerpos[1]).toMatchObject({ propuesta_id: 'e6', confirmar_desactualizada: true });
+  });
+
+  test('RV-252: aprobar tal cual con DESACTUALIZADA se queda en el detalle y pide confirmar', async ({ page }) => {
+    const fila6 = cambioDeEstado();
+    await prepararPanel(page, [fila6]);
+    const cuerpos = await aprobarFallaUnaVez(page, 'PROPUESTA_DESACTUALIZADA', () =>
+      Object.assign(fila6, { desactualizada: true, punto_actualizado_en: hace(0) }),
+    );
+    await page.goto('/admin/cola');
+    await page.getByRole('button', { name: new RegExp(P6.codigo) }).click();
+    const detalle = page.getByRole('dialog');
+    await detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.desactualizada })).toBeVisible();
+    await expect(detalle).toBeVisible();
+    await detalle.getByRole('button', { name: T.panelCola.confirmarYAprobar }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    expect(cuerpos[1]).toMatchObject({ propuesta_id: 'e6', confirmar_desactualizada: true });
+  });
+
+  test('RV-253 y RV-254: fusionar con una descripción de 500 caracteres cabe a lo ancho', async ({ page }) => {
+    const larga = `[PRUEBA] ${'Junto a la fuente de la plaza, detrás del banco. '.repeat(10)}`.slice(0, 500);
+    await prepararPanel(page, [
+      fila({
+        id: 'f1',
+        operacion: 'alta',
+        creada_en: hace(1),
+        codigo: null,
+        datos: { tipo: 'boca_riego', diametro_otro: 38, caudal: 'regular', racor: 'granada', descripcion: larga },
+        lat: P8.lat + 0.00004,
+        lng: P8.lng,
+        origen_ubicacion: 'gps',
+        precision_gps_m: 4,
+        duplicado_de: P8.id,
+        codigo_duplicado: P8.codigo,
+        distancia_duplicado_m: 4,
+        autor_nombre: 'Prueba',
+        autor_apellido: 'Larga',
+      }),
+    ]);
+    await page.goto('/admin/cola');
+    await page.getByRole('button', { name: /Prueba Larga/ }).click();
+    const detalle = page.getByRole('dialog');
+    await detalle.getByRole('button', { name: T.panelCola.fusionarCon(P8.codigo) }).click();
+    const descripcion = detalle.getByLabel(T.panelCola.campoDescripcion);
+    await expect(descripcion).toBeVisible();
+    // La otra medida de la boca también se elige (RV-253).
+    await expect(detalle.getByLabel(T.panelCola.campoDiametro)).toBeVisible();
+
+    const opciones = await descripcion
+      .locator('option')
+      .evaluateAll((os) => os.map((o) => ({ texto: o.textContent ?? '', title: o.getAttribute('title') ?? '' })));
+    for (const o of opciones) expect(o.texto.length).toBeLessThanOrEqual(60);
+    expect(opciones.some((o) => o.title.includes(larga.trim()))).toBe(true);
+    // Ni la página ni la caja que desplaza el detalle se salen a lo ancho, y ningún select acaba fuera.
+    const ancho = await page.evaluate(() => {
+      const fuera: string[] = [];
+      if (document.documentElement.scrollWidth > innerWidth + 1) fuera.push('página');
+      const cajas = document.querySelectorAll<HTMLElement>('[role="dialog"] .overflow-y-auto, [role="dialog"] select');
+      for (const el of Array.from(cajas)) {
+        if (el.getBoundingClientRect().right > innerWidth + 1) fuera.push(`${el.tagName.toLowerCase()} acaba fuera`);
+        if (el.scrollWidth > el.clientWidth + 1) fuera.push(`${el.tagName.toLowerCase()} desplaza a lo ancho`);
+      }
+      return fuera;
+    });
+    expect(ancho).toEqual([]);
+  });
+
+  test('RV-263: el detalle es una ventana modal; al cerrarlo el foco vuelve a la fila', async ({ page }) => {
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await lista.getByRole('button', { name: new RegExp(P0.codigo) }).click();
+    const detalle = page.getByRole('dialog');
+    await expect(detalle).toHaveAttribute('aria-modal', 'true');
+    await expect(detalle.getByRole('button', { name: T.panelCola.volverCola })).toBeFocused();
+    // Lo de detrás queda inert: con Tab el foco no sale de la ventana.
+    await expect(page.locator('#raiz')).toHaveAttribute('inert', '');
+    for (let i = 0; i < 25; i++) {
+      await page.keyboard.press('Tab');
+      // Pasado el último control, el foco sale a la barra del navegador (<body>), nunca a la cola.
+      expect(await page.evaluate(() => !!document.activeElement?.closest('#raiz'))).toBe(false);
+    }
+    const { violations } = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+      .include('[role="dialog"]')
+      .analyze();
+    expect(violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+
+    await detalle.getByRole('button', { name: T.panelCola.volverCola }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(lista.getByRole('button', { name: new RegExp(P0.codigo) })).toBeFocused();
+  });
+
+  test('RV-263: resuelta en otro sitio, el detalle se cierra sin duplicar la entrada del historial', async ({
+    page,
+  }) => {
+    const llamadas = await prepararPanel(page);
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_aprobar`, (route) => {
+      llamadas.quita('c2');
+      return route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'P0001', message: 'PROPUESTA_NO_PENDIENTE: simulado' }),
+      });
+    });
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await expect(lista.getByRole('listitem').first()).toBeVisible();
+    const posicion = () => page.evaluate(() => (history.state as { idx?: number } | null)?.idx);
+    const antes = await posicion();
+    await lista.getByRole('button', { name: new RegExp(P4.codigo) }).click();
+    await page.getByRole('dialog').getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page).not.toHaveURL(/[?&]p=/);
+    // Se ha vuelto a la entrada de la cola, no se ha puesto otra encima.
+    expect(await posicion()).toBe(antes);
+    await expect(lista).toBeFocused();
+  });
 });

@@ -2,6 +2,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { capasDe } from '../mapa/capas-leaflet';
 import { usePanel } from './usar-panel';
@@ -10,6 +11,7 @@ import { ErrorCarga, EtiquetaOperacion } from './piezas';
 import { Boton } from '@/componentes/Boton';
 import { useCarga } from '@/hooks/carga';
 import { useModo, usePuntos } from '@/hooks/estado';
+import { useModal } from '@/lib/foco-modal';
 import { LIMITES } from '@/lib/limites';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
 import { cargarParametros } from '@/lib/panel/ajustes';
@@ -85,7 +87,10 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     () => (estado === 'pendiente' ? cargarCola() : cargarHistorial(estado)),
     [estado],
     estado === 'pendiente' ? 60_000 : undefined,
+    // Al cambiar de Pendientes a Aprobadas, nada de las filas de antes mientras carga (docs/32 RV-250).
+    { vaciarAlCambiar: true },
   );
+  const cargando = carga.estado === 'cargando';
   // El radio del círculo de duplicado (FR-51) es el de config. Sin poder leerlo no se dibuja: un radio
   // supuesto podría no coincidir con el aviso de duplicado, que usa el de verdad (DEC-159).
   const parametros = useCarga(() => cargarParametros(), []);
@@ -127,9 +132,18 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
 
   // Volver a la cola desde el detalle a pantalla completa: si la entrada de arriba es la que se apiló
   // al abrir, se vuelve atrás; si se llegó con ?p= en la dirección, se quita sin apilar (RV-163).
+  // Mientras "atrás" no ha llegado, otra llamada (la recarga que ve la propuesta ya resuelta) no vuelve
+  // a ir atrás: saldría de la cola.
+  const volviendo = useRef(false);
+  useEffect(() => {
+    volviendo.current = false;
+  }, [activa]);
   function volverACola() {
-    if ((location.state as Record<string, unknown> | null)?.[APILADA]) navegar(-1);
-    else abrir(null, false);
+    if (volviendo.current) return;
+    if ((location.state as Record<string, unknown> | null)?.[APILADA]) {
+      volviendo.current = true;
+      navegar(-1);
+    } else abrir(null, false);
   }
 
   // Una ?p= que ya no está en la lista (resuelta por otra persona, otra pestaña): fuera de la URL,
@@ -141,9 +155,24 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   useEffect(() => {
     if (fijar !== undefined) {
       if (fijar !== activa) abrir(fijar, false);
-    } else if (sinAbierta) abrir(null, false);
+      // En tableta y móvil, la entrada que se apiló al abrirla se quita, en vez de dejar dos de la cola
+      // y que "atrás" no haga nada (docs/32 RV-263).
+    } else if (sinAbierta) volverACola();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sinAbierta, fijar]);
+
+  // En tableta y móvil, al cerrar el detalle el foco vuelve a la fila de la propuesta o, si ya no está
+  // (resuelta), a la lista: no se queda en <body> (TR-35, docs/32 RV-263).
+  const lista = useRef<HTMLElement>(null);
+  const idPantalla = ancho ? null : (seleccion?.id ?? null);
+  const pantallaAntes = useRef<string | null>(null);
+  useEffect(() => {
+    const antes = pantallaAntes.current;
+    pantallaAntes.current = idPantalla;
+    if (!antes || idPantalla) return;
+    const fila = lista.current?.querySelector<HTMLElement>(`[data-propuesta="${CSS.escape(antes)}"]`);
+    (fila ?? lista.current)?.focus();
+  }, [idPantalla]);
 
   function cambiarEstado(e: EstadoModeracion) {
     setEstado(e);
@@ -169,6 +198,12 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     // Resuelta la abierta, en tableta y móvil se vuelve a la cola.
     if (!ancho) volverACola();
     await carga.recargar();
+  }
+
+  // Un error al decidir: se ve el estado real sin cerrar el detalle ni perder lo escrito (RV-252).
+  function recargar() {
+    alCambiar();
+    void carga.recargar();
   }
 
   const nombre = (id: string) => {
@@ -203,10 +238,10 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
 
   const botonesLote = (
     <>
-      <BotonBarra disabled={!elegidas.length || ocupado} onClick={() => void aprobarMarcadas()}>
+      <BotonBarra disabled={!elegidas.length || ocupado || cargando} onClick={() => void aprobarMarcadas()}>
         {T.panelCola.aprobarSeleccionadas}
       </BotonBarra>
-      <BotonBarra disabled={!elegidas.length || ocupado} onClick={() => setRechazoLote(true)}>
+      <BotonBarra disabled={!elegidas.length || ocupado || cargando} onClick={() => setRechazoLote(true)}>
         {T.panelCola.rechazarSeleccionadas}
       </BotonBarra>
     </>
@@ -222,7 +257,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
                 type="checkbox"
                 className="size-4"
                 checked={elegidas.length > 0 && elegidas.length === visibles.length}
-                disabled={!visibles.length}
+                disabled={!visibles.length || cargando}
                 onChange={(e) => setMarcadas(new Set(e.target.checked ? visibles.map((p) => p.id) : []))}
                 aria-label={T.panelCola.seleccionarTodas}
               />
@@ -293,8 +328,10 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
 
       <div className="flex min-h-0 flex-1 flex-col min-[1100px]:flex-row">
         <section
+          ref={lista}
+          tabIndex={-1}
           aria-label={T.panelCola.colaRevision}
-          className="border-linea bg-papel flex-1 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:max-h-dvh min-[1100px]:w-[340px] min-[1100px]:flex-none min-[1100px]:self-start min-[1100px]:overflow-y-auto min-[1100px]:border-r"
+          className="border-linea outline-none bg-papel flex-1 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:max-h-dvh min-[1100px]:w-[340px] min-[1100px]:flex-none min-[1100px]:self-start min-[1100px]:overflow-y-auto min-[1100px]:border-r"
         >
           <Lista
             carga={carga}
@@ -325,6 +362,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
                 puntos={puntos}
                 radioDuplicado={radioDuplicado}
                 alHecho={() => void hecho()}
+                alRecargar={recargar}
               />
             ) : (
               carga.estado !== 'cargando' && <p className="text-texto-suave p-4 text-sm">{T.panelCola.eligeUna}</p>
@@ -345,9 +383,8 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
               </div>
             )}
             {seleccion && (
-              <section
-                aria-label={`${seleccion.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[seleccion.operacion]}`}
-                className="bg-fondo fixed inset-0 z-40"
+              <PantallaDetalle
+                titulo={`${seleccion.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[seleccion.operacion]}`}
               >
                 <DetallePropuesta
                   key={seleccion.id}
@@ -355,9 +392,10 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
                   puntos={puntos}
                   radioDuplicado={radioDuplicado}
                   alHecho={() => void hecho()}
+                  alRecargar={recargar}
                   alVolver={volverACola}
                 />
-              </section>
+              </PantallaDetalle>
             )}
           </>
         )}
@@ -393,9 +431,11 @@ function Lista({
   if (carga.estado === 'cargando' && !carga.datos) {
     return <p className="text-texto-suave p-4 text-sm">{T.panelCola.cargando}</p>;
   }
-  if (carga.estado === 'error' && !carga.datos) {
-    return <ErrorCarga codigo={carga.codigo} alReintentar={() => void carga.recargar()} />;
-  }
+  // Un error se enseña aunque haya filas: las de la última carga buena pueden ser viejas (RV-250).
+  const error = carga.estado === 'error' && (
+    <ErrorCarga codigo={carga.codigo} alReintentar={() => void carga.recargar()} />
+  );
+  if (error && !carga.datos) return error;
   if (!visibles.length) {
     const texto = busqueda.trim()
       ? T.panelCola.busquedaVacia(busqueda.trim())
@@ -404,57 +444,82 @@ function Lista({
         : hayFiltro
           ? T.panelCola.filtroVacio
           : T.panelCola.colaVacia;
-    return <p className="text-texto-suave p-6 text-center text-sm">{texto}</p>;
+    return (
+      <>
+        {error}
+        <p className="text-texto-suave p-6 text-center text-sm">{texto}</p>
+      </>
+    );
   }
   return (
-    <ul>
-      {visibles.map((p) => {
-        const nombre = `${ETIQUETA_OPERACION[p.operacion]} ${p.codigo ?? T.panelCola.nuevo}`;
-        const activa = p.id === seleccion?.id;
-        return (
-          <li
-            key={p.id}
-            className={cn(
-              'border-linea flex items-center gap-2.5 border-b px-3 py-2',
-              activa && 'bg-fila-elegida shadow-[inset_3px_0_0_var(--marino-700)]',
-            )}
-          >
-            {pendientes && (
-              <input
-                type="checkbox"
-                className="size-4 shrink-0"
-                checked={marcadas.has(p.id)}
-                onChange={() => alMarcar(p.id)}
-                aria-label={T.panelCola.seleccionar(nombre)}
-              />
-            )}
-            {puntos && (
-              <Mapita
-                plan={planMapa(
-                  p,
-                  puntos.find((x) => x.id === p.punto_id),
-                )}
-              />
-            )}
-            <button
-              type="button"
-              onClick={() => alElegir(p)}
-              aria-current={activa || undefined}
-              className="min-h-11 min-w-0 flex-1 text-left"
+    <>
+      {error}
+      <ul>
+        {visibles.map((p) => {
+          const nombre = `${ETIQUETA_OPERACION[p.operacion]} ${p.codigo ?? T.panelCola.nuevo}`;
+          const activa = p.id === seleccion?.id;
+          return (
+            <li
+              key={p.id}
+              className={cn(
+                'border-linea flex items-center gap-2.5 border-b px-3 py-2',
+                activa && 'bg-fila-elegida shadow-[inset_3px_0_0_var(--marino-700)]',
+              )}
             >
-              <span className="flex items-center gap-1.5">
-                <EtiquetaOperacion operacion={p.operacion} />
-                <span className="font-datos text-texto-suave text-[13px]">{p.codigo ?? T.panelCola.nuevo}</span>
-                {pendientes && tieneAviso(p) && (
-                  <TriangleAlert size={14} className="text-ambar-texto" aria-label={T.panelCola.senalAviso} />
-                )}
-              </span>
-              <span className="text-texto-suave block truncate text-[13px]">{lineaCola(p)}</span>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
+              {pendientes && (
+                <input
+                  type="checkbox"
+                  className="size-4 shrink-0"
+                  checked={marcadas.has(p.id)}
+                  onChange={() => alMarcar(p.id)}
+                  aria-label={T.panelCola.seleccionar(nombre)}
+                />
+              )}
+              {puntos && (
+                <Mapita
+                  plan={planMapa(
+                    p,
+                    puntos.find((x) => x.id === p.punto_id),
+                  )}
+                />
+              )}
+              <button
+                type="button"
+                data-propuesta={p.id}
+                onClick={() => alElegir(p)}
+                aria-current={activa || undefined}
+                className="min-h-11 min-w-0 flex-1 text-left"
+              >
+                <span className="flex items-center gap-1.5">
+                  <EtiquetaOperacion operacion={p.operacion} />
+                  <span className="font-datos text-texto-suave text-[13px]">{p.codigo ?? T.panelCola.nuevo}</span>
+                  {pendientes && tieneAviso(p) && (
+                    <TriangleAlert size={14} className="text-ambar-texto" aria-label={T.panelCola.senalAviso} />
+                  )}
+                </span>
+                <span className="text-texto-suave block truncate text-[13px]">{lineaCola(p)}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </>
+  );
+}
+
+/**
+ * El detalle a pantalla completa de tableta y móvil (RV-110) es una ventana modal (docs/32 RV-263): va
+ * en un portal para que `useModal` deje inert la cola de detrás. El foco inicial lo pone el detalle, en
+ * su "‹"; la vuelta del foco a la fila, la cola.
+ */
+function PantallaDetalle({ titulo, children }: { titulo: string; children: React.ReactNode }) {
+  const caja = useRef<HTMLElement>(null);
+  useModal(caja);
+  return createPortal(
+    <section ref={caja} role="dialog" aria-modal="true" aria-label={titulo} className="bg-fondo fixed inset-0 z-40">
+      {children}
+    </section>,
+    document.body,
   );
 }
 

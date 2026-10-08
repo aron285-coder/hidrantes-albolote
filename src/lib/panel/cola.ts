@@ -3,7 +3,7 @@
 // Lo que se calcula aquí no toca la red y tiene tests; las acciones devuelven Resultado.
 
 import { type Resultado, rpc } from '../api';
-import { MOTIVO_RAPIDO, texto, valorDe } from '../campos';
+import { ETIQUETA_CAMPO, MOTIVO_RAPIDO, etiquetaCampo, texto, valorDe } from '../campos';
 import { type LatLng, aUtm, dentroDelHuso, formatoDecimal, formatoUtm } from '../coordenadas';
 import { distancia, fechaCorta, hace } from '../formato';
 import type { MotivoRapido, Operacion } from '../propuestas';
@@ -612,8 +612,12 @@ export interface ValoresPunto {
   descripcion: string;
 }
 
-/** Cómo quedaría el punto si se aprueba tal cual: el estado actual con lo que la propuesta cambia. */
-export function valoresPropuestos(p: PropuestaPanel, punto?: Punto): ValoresPunto {
+/**
+ * Cómo quedaría el punto si se aprueba tal cual: el estado actual con lo que la propuesta cambia. El
+ * estado actual es la fila `punto` que trae la cola (0036) y, si falta, el inventario (docs/32 RV-251).
+ */
+export function valoresPropuestos(p: PropuestaPanel, inventario?: Punto): ValoresPunto {
+  const punto = puntoActual(p, inventario);
   const d = p.datos ?? {};
   const tipo = (d.tipo as TipoPunto | undefined) ?? punto?.tipo ?? 'hidrante';
   const diametro =
@@ -649,6 +653,21 @@ export function correccionesDe(propuesto: ValoresPunto, final: ValoresPunto): Re
   }
   if (final.descripcion.trim() !== propuesto.descripcion.trim()) c.descripcion = final.descripcion.trim();
   return c;
+}
+
+/**
+ * El formulario de correcciones al día cuando cambia lo propuesto con él abierto (una sincronización,
+ * un `PROPUESTA_DESACTUALIZADA`; docs/32 RV-251): lo que jefatura ha tocado respecto a lo que vio se
+ * queda; lo demás pasa a lo nuevo. Así "Guardar y aprobar" no manda como correcciones valores viejos.
+ */
+export function ponerAlDia(visto: ValoresPunto, escrito: ValoresPunto, nuevo: ValoresPunto): ValoresPunto {
+  // Cambiar el tipo (solo en un alta) arrastra diámetro y enganche: lo escrito va entero.
+  if (escrito.tipo !== visto.tipo) return escrito;
+  const r = { ...nuevo };
+  for (const k of Object.keys(escrito) as (keyof ValoresPunto)[]) {
+    if (escrito[k] !== visto[k]) (r as Record<keyof ValoresPunto, unknown>)[k] = escrito[k];
+  }
+  return r;
 }
 
 const numeroDe = (v: unknown): number | null => {
@@ -719,10 +738,14 @@ export interface DiferenciaFusion {
 export function diferenciasFusion(p: PropuestaPanel, existente: Punto): DiferenciaFusion[] {
   const d = p.datos ?? {};
   const difs: DiferenciaFusion[] = [];
-  if (d.diametro_mm != null && Number(d.diametro_mm) !== existente.diametro_mm) {
+  // Una boca de otra medida trae `diametro_otro`, y es el que se copia al fusionar (0032, DEC-144); el
+  // servidor lo pasa a entero. Un hidrante de otra medida no tiene diámetro que copiar.
+  const diametro =
+    existente.tipo === 'boca_riego' ? numeroDe(d.diametro_mm ?? d.diametro_otro) : numeroDe(d.diametro_mm);
+  if (diametro != null && Math.round(diametro) !== existente.diametro_mm) {
     difs.push({
       campo: 'diametro_mm',
-      propuesta: valorDe('diametro_mm', d.diametro_mm),
+      propuesta: valorDe('diametro_mm', Math.round(diametro)),
       existente: valorDe('diametro_mm', existente.diametro_mm),
     });
   }
@@ -753,6 +776,30 @@ export function diferenciasFusion(p: PropuestaPanel, existente: Punto): Diferenc
     });
   }
   return difs;
+}
+
+/** Lo más largo que cabe en una opción de un `<select>` a 412 px; el texto entero va en `title` (RV-254). */
+export const MAXIMO_OPCION = 60;
+
+/** Un texto recortado a `maximo` caracteres, "…" incluido. */
+export function recortarOpcion(texto: string, maximo = MAXIMO_OPCION): string {
+  return texto.length > maximo ? `${texto.slice(0, maximo - 1).trimEnd()}…` : texto;
+}
+
+// ---------- historial (FR-109) ----------
+
+const vacio = (v: unknown) => v == null || (typeof v === 'string' && !v.trim());
+
+/**
+ * Las correcciones de una propuesta ya decidida, en palabras (docs/32 RV-255): "Dirección → —",
+ * "Tipo de enganche → Barcelona", "Diámetro → 70 mm". Lo que no es un campo del punto (ids internos,
+ * `fusionada_con`) no sale. Sin nada que enseñar, null.
+ */
+export function cambiosDecision(c: Record<string, unknown> | null | undefined): string | null {
+  const partes = Object.entries(c ?? {})
+    .filter(([k]) => Object.hasOwn(ETIQUETA_CAMPO, k))
+    .map(([k, v]) => `${etiquetaCampo(k)} → ${vacio(v) ? '—' : valorDe(k, v)}`);
+  return partes.length ? partes.join(', ') : null;
 }
 
 // ---------- acciones (05 §6.2) ----------
