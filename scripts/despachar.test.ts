@@ -378,7 +378,7 @@ describe('despachador.yml', () => {
         const gh = [
           'gh() {',
           '  echo "gh $*" >> "$ANOTADO"',
-          '  if [ -n "$CORTA" ] && [[ "$*" == *"/$CORTA/"* ]]; then kill -TERM $$; sleep 5; fi',
+          '  if [ -n "$CORTA" ] && [[ "$*" == *"/$CORTA/"* ]]; then kill -KILL $$; exit 1; fi',
           '  if [ -n "$FALLA" ] && [[ "$*" == *"/$FALLA/"* ]]; then echo "gh: Unexpected inputs provided (HTTP 422)" >&2; return 1; fi',
           '}',
         ].join('\n');
