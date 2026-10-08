@@ -17,11 +17,9 @@ on:
     - cron: '41 19 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: write
-  # Leer las ejecuciones de los workflows programados y rehabilitarlos (DEC-085).
-  actions: write
+# Nada por defecto: cada trabajo pide lo suyo (docs/32 RV-201, DEC-180). actions: write también borra
+# artifacts, y el respaldo es un artifact y el único: solo lo tiene «rehabilitar», que no hace checkout.
+permissions: {}
 
 concurrency:
   group: vigilancia
@@ -35,6 +33,8 @@ jobs:
     runs-on: ubuntu-24.04
     environment: staging
     timeout-minutes: 5
+    # Solo llama a Cloudflare: nada de GitHub.
+    permissions: {}
     outputs:
       cron: ${{ steps.mirar.outputs.cron }}
       version: ${{ steps.mirar.outputs.version }}
@@ -74,6 +74,8 @@ jobs:
     runs-on: ubuntu-24.04
     environment: staging
     timeout-minutes: 10
+    permissions:
+      contents: read
     outputs:
       problemas: ${{ steps.mirar.outputs.problemas }}
     steps:
@@ -110,6 +112,12 @@ jobs:
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    # Corre código del repositorio con la base de datos de producción: lee las ejecuciones y los
+    # artifacts (actions: read), no los puede borrar.
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -175,6 +183,11 @@ jobs:
           else
             problemas+=("falta SUPABASE_DB_URL_PROD en prod-tareas: la vigilancia no puede mirar el respaldo (DEC-172)")
           fi
+          # La copia del respaldo sigue ahí (docs/32 RV-201, DEC-180): el artifact de la última ejecución
+          # correcta de respaldo.yml, no solo la fecha de config.ultimo_respaldo. Es la única copia: si
+          # falta, además de la issue, un aviso push a jefatura (.github/scripts/revisar-respaldo.sh).
+          source .github/scripts/revisar-respaldo.sh
+          mirar_respaldo
           if [ "${STAGING_RESULTADO:-}" != success ]; then
             problemas+=("staging: su vigilancia no terminó (${STAGING_RESULTADO:-sin resultado})")
           fi
@@ -285,21 +298,6 @@ jobs:
           printf '%s\n' "${problemas[@]}" > problemas.txt
           echo "hay=$([ ${#problemas[@]} -eq 0 ] && echo no || echo si)" >> "$GITHUB_OUTPUT"
 
-      # Salga como salga lo anterior: rehabilitar los workflows programados reinicia el contador de
-      # inactividad de GitHub. mantener-activo.yml hace lo mismo, así que se sostienen el uno al
-      # otro (DEC-085).
-      - name: Rehabilitar los workflows programados
-        if: always()
-        # Si falla, la issue se abre igual (RV-38).
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml despachador.yml
-        run: |
-          set -eu
-          for w in $WORKFLOWS; do gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"; done
-
       - name: Abrir o cerrar la issue de vigilancia
         if: always()
         env:
@@ -332,3 +330,22 @@ jobs:
           if [ -n "$abierta" ]; then gh issue comment "$abierta" --body "$cuerpo"
           else gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"; fi
           exit 1
+
+  # Rehabilitar los workflows programados reinicia el contador de inactividad de GitHub.
+  # mantener-activo.yml hace lo mismo, así que se sostienen el uno al otro (DEC-085). En su propio
+  # trabajo, sin depender de los demás (corre salga como salga la comprobación) y sin checkout: es el
+  # único de la vigilancia con actions: write (docs/32 RV-201, DEC-180).
+  rehabilitar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    steps:
+      - name: Rehabilitar los workflows programados
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml despachador.yml
+        run: |
+          set -eu
+          for w in $WORKFLOWS; do gh api -X PUT "repos/$REPO/actions/workflows/$w/enable" && echo "$w habilitado"; done

@@ -5,7 +5,8 @@ import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
 // docs/31 RV-130: un despliegue de producción que no viene de deploy-prod.yml se detecta. Con listas
-// simuladas de la API de Pages y de las ejecuciones de deploy-prod.yml; curl, gh y psql simulados.
+// simuladas de la API de Pages y de los jobs de deploy-prod.yml; curl, gh y psql simulados.
+// docs/32 RV-203: solo autoriza la ventana del paso que despliega, no toda la ejecución.
 const raiz = path.resolve(import.meta.dirname, '..');
 const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
 // En la CI hay jq: ahí estos tests no se pueden saltar.
@@ -18,6 +19,7 @@ const SHA_OTRO = 'b'.repeat(40);
 const ID_BUENO = '11111111-1111-1111-1111-111111111111';
 const ID_AJENO = '22222222-2222-2222-2222-222222222222';
 const ID_VIEJO = '33333333-3333-3333-3333-333333333333';
+const PASO = 'Desplegar a Cloudflare Pages';
 
 const despliegue = (id: string, sha: string, creado: string, extra: object = {}) => ({
   id,
@@ -27,25 +29,33 @@ const despliegue = (id: string, sha: string, creado: string, extra: object = {})
   deployment_trigger: { type: 'ad_hoc', metadata: { commit_hash: sha } },
   ...extra,
 });
-const ejecuciones = {
-  workflow_runs: [
-    {
-      head_sha: SHA_BUENO,
-      status: 'completed',
-      conclusion: 'success',
-      created_at: '2026-10-06T10:00:00Z',
-      updated_at: '2026-10-06T10:08:00Z',
-    },
-    // Cancelada: no autoriza nada.
-    {
-      head_sha: SHA_OTRO,
-      status: 'completed',
-      conclusion: 'cancelled',
-      created_at: '2026-10-06T12:00:00Z',
-      updated_at: '2026-10-06T12:01:00Z',
-    },
-  ],
-};
+/** Un paso de un job, como lo da la API de jobs. */
+const paso = (name: string, ini: string | null, fin: string | null, conclusion: string | null = 'success') => ({
+  name,
+  status: fin ? 'completed' : ini ? 'in_progress' : 'queued',
+  conclusion,
+  started_at: ini,
+  completed_at: fin,
+});
+/** El job «desplegar» de deploy-prod.yml, con sus pasos. */
+const job = (runId: number, sha: string, pasos: object[], extra: object = {}) => ({
+  run_id: runId,
+  head_sha: sha,
+  name: 'desplegar',
+  status: 'completed',
+  conclusion: 'success',
+  steps: pasos,
+  ...extra,
+});
+/** deploy-prod aprobado a las 10:00; el paso que despliega, de 10:05 a 10:06; la paridad, después. */
+const jobBueno = job(1, SHA_BUENO, [
+  paso('Guarda de seguridad', '2026-10-06T10:00:10Z', '2026-10-06T10:00:20Z'),
+  paso('Migraciones (hidrantes_migrador, DEC-052)', '2026-10-06T10:00:20Z', '2026-10-06T10:04:50Z'),
+  paso(PASO, '2026-10-06T10:05:00Z', '2026-10-06T10:06:00Z'),
+  paso('Paridad con develop', '2026-10-06T10:06:10Z', '2026-10-06T10:08:00Z'),
+]);
+/** Rechazado en el environment production: el job falla sin correr ningún paso. */
+const jobRechazado = job(2, SHA_OTRO, [], { conclusion: 'failure' });
 const DESDE = Date.parse('2026-10-01T00:00:00Z') / 1000;
 
 function correr(guion: string, archivos: Record<string, unknown>, env: Record<string, string> = {}) {
@@ -59,104 +69,135 @@ function correr(guion: string, archivos: Record<string, unknown>, env: Record<st
   });
 }
 
-describe.skipIf(saltar)('ajenos (RV-130)', () => {
-  it('uno de deploy-prod pasa; uno sin ejecución correspondiente sale', () => {
-    const r = correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
-      'lista.json': [
+/** Los no autorizados de la lista, con las ventanas de esos jobs. */
+const ajenos = (lista: object[], jobs: object[]) =>
+  correr(`ventanas "$D/jobs.json" > "$D/ventanas.json"\najenos "$D/lista.json" "$D/ventanas.json" ${DESDE}`, {
+    'lista.json': lista,
+    'jobs.json': jobs,
+  });
+
+describe.skipIf(saltar)('ajenos (RV-130, RV-203)', () => {
+  it('uno durante el paso que despliega pasa; uno sin ejecución correspondiente sale', () => {
+    const r = ajenos(
+      [
         despliegue(ID_BUENO, SHA_BUENO, '2026-10-06T10:05:12.123456Z', { activo: true }),
         despliegue(ID_AJENO, SHA_OTRO, '2026-10-06T12:00:30.5Z'),
       ],
-      'ejec.json': ejecuciones,
-    });
+      [jobBueno, jobRechazado],
+    );
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout.trim()).toBe(`${ID_AJENO} bbbbbbb 2026-10-06T12:00:30.5Z production`);
   });
 
   it('el mismo commit fuera de la ejecución de deploy-prod no basta: --commit-hash acepta cualquiera', () => {
-    const r = correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
-      'lista.json': [despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T15:00:00Z')],
-      'ejec.json': ejecuciones,
-    });
+    const r = ajenos([despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T15:00:00Z')], [jobBueno]);
     expect(r.stdout.trim()).toBe(`${ID_AJENO} aaaaaaa 2026-10-06T15:00:00Z production`);
   });
 
   it('los anteriores a DESDE no se miran, salvo el activo, que se mira siempre', () => {
-    const r = correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
-      'lista.json': [
+    const r = ajenos(
+      [
         despliegue(ID_VIEJO, SHA_OTRO, '2026-09-01T00:00:00Z'),
         despliegue(ID_AJENO, SHA_OTRO, '2026-09-02T00:00:00Z', { activo: true }),
       ],
-      'ejec.json': ejecuciones,
-    });
+      [jobBueno],
+    );
     expect(r.stdout.trim()).toBe(`${ID_AJENO} bbbbbbb 2026-09-02T00:00:00Z production`);
   });
 
   it('un preview en el proyecto de producción nunca viene de deploy-prod, aunque coincida el commit y la hora', () => {
-    const r = correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
-      'lista.json': [despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:05:00Z', { environment: 'preview' })],
-      'ejec.json': ejecuciones,
-    });
-    expect(r.stdout.trim()).toBe(`${ID_AJENO} aaaaaaa 2026-10-06T10:05:00Z preview`);
+    const r = ajenos([despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:05:30Z', { environment: 'preview' })], [jobBueno]);
+    expect(r.stdout.trim()).toBe(`${ID_AJENO} aaaaaaa 2026-10-06T10:05:30Z preview`);
   });
 
-  it('una ejecución relanzada cuenta desde que se creó, no desde el último intento', () => {
-    const relanzada = {
-      workflow_runs: [
-        {
-          head_sha: SHA_BUENO,
-          status: 'completed',
-          conclusion: 'success',
-          created_at: '2026-10-06T10:00:00Z',
-          run_started_at: '2026-10-06T11:00:00Z',
-          updated_at: '2026-10-06T11:08:00Z',
-        },
-      ],
-    };
-    const r = correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
-      'lista.json': [despliegue(ID_BUENO, SHA_BUENO, '2026-10-06T10:05:00Z', { activo: true })],
-      'ejec.json': relanzada,
-    });
+  // RV-203: los tres casos de la especificación.
+  it('un despliegue durante la espera de la aprobación da alarma, aunque luego se apruebe', () => {
+    // Creada a las 9:00, aprobada a las 10:00: a las 9:30 nadie ha aprobado nada.
+    const r = ajenos([despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T09:30:00Z')], [jobBueno]);
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout.trim()).toBe(`${ID_AJENO} aaaaaaa 2026-10-06T09:30:00Z production`);
+  });
+
+  it('un despliegue durante el paso que despliega no da alarma', () => {
+    const r = ajenos([despliegue(ID_BUENO, SHA_BUENO, '2026-10-06T10:05:40Z', { activo: true })], [jobBueno]);
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout.trim()).toBe('');
   });
 
-  it('una ejecución que espera la aprobación de production no autoriza nada; una en marcha, sí', () => {
-    const ejec = (status: string) => ({
-      workflow_runs: [
-        {
-          head_sha: SHA_BUENO,
-          status,
-          conclusion: null,
-          created_at: '2026-10-06T10:00:00Z',
-          updated_at: '2026-10-06T10:00:05Z',
-        },
+  it('un despliegue de una ejecución rechazada da alarma', () => {
+    const rechazada = job(3, SHA_BUENO, [], { conclusion: 'failure' });
+    const r = ajenos([despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:05:40Z')], [rechazada]);
+    expect(r.stdout.trim()).toBe(`${ID_AJENO} aaaaaaa 2026-10-06T10:05:40Z production`);
+  });
+
+  it('ni los pasos de antes ni los de después de la misma ejecución autorizan nada', () => {
+    const r = ajenos(
+      [
+        despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:02:00Z'),
+        despliegue(ID_VIEJO, SHA_BUENO, '2026-10-06T10:07:30Z'),
       ],
+      [jobBueno],
+    );
+    expect(r.stdout.trim().split('\n').sort()).toEqual(
+      [
+        `${ID_AJENO} aaaaaaa 2026-10-06T10:02:00Z production`,
+        `${ID_VIEJO} aaaaaaa 2026-10-06T10:07:30Z production`,
+      ].sort(),
+    );
+  });
+
+  it('el paso que despliega cuenta aunque termine en failure o cancelled, o siga en marcha; saltado, no', () => {
+    // wrangler puede haber creado el despliegue antes de fallar, y el paso solo corre tras la aprobación.
+    const lista = [despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:05:30Z')];
+    for (const conclusion of ['failure', 'cancelled']) {
+      const terminado = job(4, SHA_BUENO, [paso(PASO, '2026-10-06T10:05:00Z', '2026-10-06T10:06:00Z', conclusion)], {
+        conclusion: 'failure',
+      });
+      expect(ajenos(lista, [terminado]).stdout.trim(), conclusion).toBe('');
+    }
+    const saltado = job(6, SHA_BUENO, [paso(PASO, '2026-10-06T10:05:00Z', '2026-10-06T10:05:00Z', 'skipped')]);
+    expect(ajenos(lista, [saltado]).stdout.trim()).toContain(ID_AJENO);
+    const enMarcha = job(5, SHA_BUENO, [paso(PASO, '2026-10-06T10:05:00Z', null, null)], {
+      status: 'in_progress',
+      conclusion: null,
     });
-    const lista = [despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:30:00Z')];
-    expect(
-      correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
-        'lista.json': lista,
-        'ejec.json': ejec('waiting'),
-      }).stdout.trim(),
-    ).toContain(ID_AJENO);
-    expect(
-      correr('ajenos "$D/lista.json" "$D/ejec.json" ' + DESDE, {
-        'lista.json': lista,
-        'ejec.json': ejec('in_progress'),
-      }).stdout.trim(),
-    ).toBe('');
+    expect(ajenos(lista, [enMarcha]).stdout.trim()).toBe('');
+  });
+
+  it('el reintento de una ejecución autoriza su propia ventana', () => {
+    const reintento = job(1, SHA_BUENO, [paso(PASO, '2026-10-06T11:05:00Z', '2026-10-06T11:06:00Z')], {
+      run_attempt: 2,
+    });
+    const r = ajenos(
+      [despliegue(ID_BUENO, SHA_BUENO, '2026-10-06T11:05:30Z', { activo: true })],
+      [jobBueno, reintento],
+    );
+    expect(r.stdout.trim()).toBe('');
   });
 
   it('ultimo_bueno es el autorizado y correcto más reciente que no está activo', () => {
-    const r = correr('ultimo_bueno "$D/lista.json" "$D/ejec.json"', {
+    const r = correr('ventanas "$D/jobs.json" > "$D/ventanas.json"\nultimo_bueno "$D/lista.json" "$D/ventanas.json"', {
       'lista.json': [
         despliegue(ID_AJENO, SHA_OTRO, '2026-10-06T12:00:30Z', { activo: true }),
         despliegue(ID_BUENO, SHA_BUENO, '2026-10-06T10:05:00Z'),
-        despliegue(ID_VIEJO, SHA_BUENO, '2026-10-06T10:06:00Z', { latest_stage: { status: 'failure' } }),
+        despliegue(ID_VIEJO, SHA_BUENO, '2026-10-06T10:05:50Z', { latest_stage: { status: 'failure' } }),
       ],
-      'ejec.json': ejecuciones,
+      'jobs.json': [jobBueno],
     });
     expect(r.stdout.trim()).toBe(ID_BUENO);
+  });
+});
+
+describe('deploy-prod.yml tiene el paso que despliega con el nombre que busca la vigilancia (RV-203)', () => {
+  it('se llama así, y es el que corre wrangler pages deploy en el proyecto de producción', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/despliegues-ajenos.sh'), 'utf8');
+    expect(guion).toContain(`PASO_DESPLIEGUE='${PASO}'`);
+    const deploy = readFileSync(path.join(raiz, '.github/workflows/deploy-prod.yml'), 'utf8');
+    const pasos = deploy.split(/\n(?= {6}- )/);
+    const desplegar = pasos.filter((p) => /wrangler pages deploy/.test(p));
+    expect(desplegar).toHaveLength(1);
+    expect(desplegar[0]).toContain(`- name: ${PASO}\n`);
+    expect(desplegar[0]).toContain('--project-name hidrantes-albolote ');
   });
 });
 
@@ -178,7 +219,13 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
     gh() {
       case "$*" in
         *deploy-prod.yml/runs*) cat "$D/ejec.json" ;;
-        "issue list"*"--state all"*) printf '%s\n' "${avisados}" ;;
+        *"/jobs?"*)
+          local id
+          id=$(printf '%s' "$1 $2" | sed -E 's|.*/runs/([0-9]+)/jobs.*|\\1|')
+          echo "jobs $id" >> "$D/anotado"
+          if [ -f "$D/jobs-roto" ]; then printf 'HTTP 502: Bad Gateway\\nmás detalle\\n' >&2; return 1; fi
+          jq -c --argjson id "$id" '.[] | select(.run_id == $id)' "$D/jobs.json" ;;
+        "issue list"*"--state all"*) printf '%s\\n' "${avisados}" ;;
         "issue list"*) printf '%s' "${issueAbierta}" ;;
         "issue create"*) echo "issue create" >> "$D/anotado" ;;
         "issue comment"*) echo "issue comment" >> "$D/anotado" ;;
@@ -208,27 +255,71 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
   const ejecReciente = {
     workflow_runs: [
       {
+        id: 41,
         head_sha: SHA_BUENO,
         status: 'completed',
         conclusion: 'success',
         created_at: hace(130),
         updated_at: hace(120),
       },
+      // Esperando la aprobación: aún no ha corrido nada; sus jobs no dan ventana.
+      { id: 42, head_sha: SHA_OTRO, status: 'waiting', conclusion: null, created_at: hace(40), updated_at: hace(40) },
     ],
   };
+  const jobsRecientes = [job(41, SHA_BUENO, [paso(PASO, hace(126), hace(124))])];
 
-  it('todo de deploy-prod: ningún problema, ni issue ni aviso', () => {
+  it('una relanzada que espera la aprobación sigue autorizando lo que desplegó su intento anterior', () => {
+    const relanzada = {
+      workflow_runs: [
+        {
+          id: 43,
+          head_sha: SHA_BUENO,
+          status: 'waiting',
+          conclusion: null,
+          created_at: hace(300),
+          updated_at: hace(5),
+        },
+      ],
+    };
+    const intentos = [
+      job(
+        43,
+        SHA_BUENO,
+        [paso(PASO, hace(126), hace(124)), paso('Paridad con develop', hace(124), hace(120), 'failure')],
+        {
+          conclusion: 'failure',
+          run_attempt: 1,
+        },
+      ),
+      job(43, SHA_BUENO, [], { status: 'waiting', conclusion: null, run_attempt: 2 }),
+    ];
+    const r = correr(
+      simulados('true'),
+      {
+        'proyecto.json': { result: { canonical_deployment: despliegue(ID_BUENO, SHA_BUENO, hace(125)) } },
+        'recientes.json': { result: [despliegue(ID_BUENO, SHA_BUENO, hace(125))] },
+        'ejec.json': relanzada,
+        'jobs.json': intentos,
+      },
+      env,
+    );
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout.trim()).toBe('P:\njobs 43');
+  });
+
+  it('todo de deploy-prod: ningún problema, ni issue ni aviso; pide los jobs de las ejecuciones de sus commits', () => {
     const r = correr(
       simulados('false'),
       {
         'proyecto.json': { result: { canonical_deployment: despliegue(ID_BUENO, SHA_BUENO, hace(125)) } },
         'recientes.json': { result: [despliegue(ID_BUENO, SHA_BUENO, hace(125))] },
         'ejec.json': ejecReciente,
+        'jobs.json': jobsRecientes,
       },
       env,
     );
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout.trim()).toBe('P:');
+    expect(r.stdout.trim()).toBe('P:\njobs 41');
   });
 
   it('uno sin ejecución correspondiente abre la issue y avisa a jefatura; sin la opción, no revierte', () => {
@@ -240,6 +331,7 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
           result: [despliegue(ID_AJENO, SHA_OTRO, hace(30)), despliegue(ID_BUENO, SHA_BUENO, hace(125))],
         },
         'ejec.json': ejecReciente,
+        'jobs.json': jobsRecientes,
       },
       env,
     );
@@ -250,6 +342,8 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
     expect(r.stdout).toContain('issue create');
     expect(r.stdout).toContain('aviso jefatura');
     expect(r.stdout).not.toContain('rollback');
+    // La del commit pendiente espera la aprobación: se piden sus jobs, pero no autorizan nada.
+    expect(r.stdout).toContain('jobs 42');
   });
 
   it('con config.revertir_despliegue_ajeno, vuelve al último despliegue bueno', () => {
@@ -261,12 +355,37 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
           result: [despliegue(ID_AJENO, SHA_OTRO, hace(30)), despliegue(ID_BUENO, SHA_BUENO, hace(125))],
         },
         'ejec.json': ejecReciente,
+        'jobs.json': jobsRecientes,
       },
       env,
     );
     expect(r.stdout).toContain(
       `rollback https://api.cloudflare.com/client/v4/accounts/c/pages/projects/hidrantes-albolote/deployments/${ID_BUENO}/rollback`,
     );
+  });
+
+  it('si no puede leer los pasos de una ejecución, es un problema y no mira nada más', () => {
+    writeFileSync(path.join(dir, 'jobs-roto'), '');
+    try {
+      const r = correr(
+        simulados('false'),
+        {
+          'proyecto.json': { result: { canonical_deployment: despliegue(ID_BUENO, SHA_BUENO, hace(125)) } },
+          'recientes.json': { result: [despliegue(ID_BUENO, SHA_BUENO, hace(125))] },
+          'ejec.json': ejecReciente,
+          'jobs.json': jobsRecientes,
+        },
+        env,
+      );
+      expect(r.status, r.stderr).toBe(0);
+      // Con la primera línea del error de gh, no tragada.
+      expect(r.stdout).toContain(
+        'P:no se pueden leer los pasos de la ejecución 41 de deploy-prod.yml (HTTP 502: Bad Gateway)',
+      );
+      expect(r.stdout).not.toContain('issue create');
+    } finally {
+      rmSync(path.join(dir, 'jobs-roto'), { force: true });
+    }
   });
 
   it('con la issue ya abierta y el mismo despliegue, no se repite el aviso; la vigilancia dice que sigue abierta', () => {
@@ -276,6 +395,7 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
         'proyecto.json': { result: { canonical_deployment: despliegue(ID_AJENO, SHA_OTRO, hace(30)) } },
         'recientes.json': { result: [despliegue(ID_AJENO, SHA_OTRO, hace(30))] },
         'ejec.json': ejecReciente,
+        'jobs.json': jobsRecientes,
       },
       env,
     );
@@ -288,12 +408,13 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
     'proyecto.json': { result: { canonical_deployment: despliegue(ID_AJENO, SHA_OTRO, hace(30)) } },
     'recientes.json': { result: [despliegue(ID_AJENO, SHA_OTRO, hace(30))] },
     'ejec.json': ejecReciente,
+    'jobs.json': jobsRecientes,
   });
 
   it('cerrar la issue es darlo por atendido: no se vuelve a abrir ni a avisar', () => {
     const r = correr(simulados('false', '', `- ${ID_AJENO} bbbbbbb`), ajenoActivo(), env);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout.trim()).toBe('P:');
+    expect(r.stdout.trim()).toBe('P:\njobs 42');
   });
 
   it('con la issue abierta y un despliegue nuevo, la comenta y vuelve a avisar', () => {

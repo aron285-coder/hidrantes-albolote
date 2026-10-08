@@ -7,6 +7,7 @@
 import { PMTiles, type RangeResponse, type Source } from 'pmtiles';
 import info from '../../datos/mapabase.json';
 import { borrar, escribir, leer } from './almacen';
+import { anotarError } from './errores';
 
 export const URL_MAPABASE = import.meta.env.VITE_MAPABASE_URL || '/mapabase/albolote.pmtiles';
 export const VERSION_MAPABASE: string = info.version;
@@ -29,9 +30,11 @@ export interface EstadoMapabase {
   /** 0–100 mientras descarga. */
   progreso: number | null;
   fallo: boolean;
+  /** El fallo fue que la descarga se paró: 30 s sin llegar nada (docs/32 RV-235). */
+  parada: boolean;
 }
 
-let estado: EstadoMapabase = { descargado: leer<Descarga>(CLAVE), progreso: null, fallo: false };
+let estado: EstadoMapabase = { descargado: leer<Descarga>(CLAVE), progreso: null, fallo: false, parada: false };
 const oyentes = new Set<() => void>();
 function fijar(c: Partial<EstadoMapabase>) {
   estado = { ...estado, ...c };
@@ -120,24 +123,47 @@ export function esMapabaseValido(inicio: Uint8Array, tamano: number, esperado = 
   return Math.abs(tamano - esperado) <= esperado * 0.01;
 }
 
+/** Sin llegar ningún trozo en este tiempo, la descarga se da por parada (docs/32 RV-235). Mutable para los tests. */
+export const LIMITES_DESCARGA = { sinDatosMs: 30_000 };
+
 /** Descarga completa con progreso; al terminar, el mapa ya no depende de la red. */
 export async function descargarMapabase(): Promise<boolean> {
   if (estado.progreso !== null) return false;
-  fijar({ progreso: 0, fallo: false });
+  fijar({ progreso: 0, fallo: false, parada: false });
+  // Si en 30 s no llega nada (la petición o un trozo), se aborta: antes "Descargando… N %" no se
+  // acababa nunca y no se podía reintentar (docs/32 RV-235).
+  const control = new AbortController();
+  let vigilante: ReturnType<typeof setTimeout> | undefined;
+  const vigilar = () => {
+    clearTimeout(vigilante);
+    vigilante = setTimeout(
+      () => control.abort(new DOMException('Sin datos', 'TimeoutError')),
+      LIMITES_DESCARGA.sinDatosMs,
+    );
+  };
+  const abortada = new Promise<never>((_, rechazar) =>
+    control.signal.addEventListener('abort', () => rechazar(control.signal.reason), { once: true }),
+  );
+  abortada.catch(() => undefined);
   try {
-    const r = await fetch(URL_MAPABASE, { cache: 'no-store' });
+    vigilar();
+    const r = await Promise.race([fetch(URL_MAPABASE, { cache: 'no-store', signal: control.signal }), abortada]);
     if (!r.ok || !r.body) throw new Error(`HTTP ${r.status}`);
     const total = Number(r.headers.get('content-length')) || BYTES_MAPABASE;
     const lector = r.body.getReader();
+    control.signal.addEventListener('abort', () => void lector.cancel().catch(() => undefined), { once: true });
+    // Lo parcial solo vive aquí: si se para, se suelta con la función y no se guarda nada.
     const trozos: Uint8Array[] = [];
     let recibido = 0;
     for (;;) {
-      const { done, value } = await lector.read();
+      vigilar();
+      const { done, value } = await Promise.race([lector.read(), abortada]);
       if (done) break;
       trozos.push(value);
       recibido += value.length;
       fijar({ progreso: Math.min(99, Math.round((recibido / total) * 100)) });
     }
+    clearTimeout(vigilante);
     const archivo = new Blob(trozos as BlobPart[], { type: 'application/octet-stream' });
     // Una página de error o una descarga a medias no se guarda como mapa base (docs/19 RV-68).
     const inicio = new Uint8Array(await archivo.slice(0, 8).arrayBuffer());
@@ -148,9 +174,13 @@ export async function descargarMapabase(): Promise<boolean> {
     blob = Promise.resolve(archivo);
     fijar({ descargado, progreso: null });
     return true;
-  } catch {
-    fijar({ progreso: null, fallo: true });
+  } catch (e) {
+    // Se libera el bloqueo (progreso a null): se puede reintentar ya. Queda anotado para jefatura.
+    anotarError(control.signal.aborted ? new Error('mapabase: 30 s sin datos') : e, 'mapabase');
+    fijar({ progreso: null, fallo: true, parada: control.signal.aborted });
     return false;
+  } finally {
+    clearTimeout(vigilante);
   }
 }
 

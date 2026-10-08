@@ -1,15 +1,18 @@
 // El despachador de los trabajos que pide jefatura desde el panel (docs/31 RV-137 y RV-146). El panel
 // ya no lanza workflows con un token de GitHub: /api/lanzar-workflow deja un pedido en la base de datos
-// (fn_pedir_trabajo) y despachador.yml, cada 15 minutos, lo recoge aquí:
+// (fn_pedir_trabajo) y despachador.yml, cada 15 minutos, lo recoge en tres trabajos (docs/32 RV-201):
 //
-//   1. fn_pedidos_pendientes()            → los pedidos sin lanzar (solo service_role).
-//   2. workflow_dispatch del archivo que toca, con el GITHUB_TOKEN del propio despachador.
-//   3. fn_marcar_pedido(id, resultado)    → 'lanzado' o 'error: …' (solo service_role).
+//   leer     node scripts/despachar.ts leer     fn_pedidos_pendientes() → los pedidos sin lanzar, con
+//                                               el trabajo validado contra la lista (solo service_role)
+//   lanzar   (en el propio despachador.yml)     workflow_dispatch de cada uno; el único trabajo con
+//                                               actions: write, sin checkout ni la clave de servicio
+//   marcar   node scripts/despachar.ts marcar   fn_marcar_pedido(id, resultado) → 'lanzado' o 'error: …'
+//
+// Así el código que lee la base de datos con la clave de servicio no tiene un token que pueda borrar
+// artifacts (el único respaldo, DEC-180), y el que lo tiene no corre nada del repositorio.
 //
 // Solo lee los pedidos de **producción**: los de staging se quedan en su base de datos y nadie los
 // despacha (RV-146). Un pedido con error no se reintenta solo: jefatura lo vuelve a pedir.
-//
-//   node scripts/despachar.ts        (en despachador.yml, sin npm ci; en local no hay nada que despachar)
 
 import { appendFileSync } from 'node:fs';
 import { abortar, ejecutarScript, log } from './lib/comun.ts';
@@ -18,7 +21,8 @@ export const WORKFLOWS = ['purgar-fotos', 'regenerar-zona', 'regenerar-mapabase'
 export type Workflow = (typeof WORKFLOWS)[number];
 
 // Qué archivo atiende cada trabajo, y con qué entradas: GitHub rechaza con 422 una entrada que el
-// workflow no declara. La misma tabla que tenía /api/lanzar-workflow antes de RV-146.
+// workflow no declara. El trabajo «lanzar» de despachador.yml tiene la misma tabla en un `case`;
+// scripts/despachar.test.ts comprueba que coinciden.
 export const ARCHIVO: Record<Workflow, { archivo: string; entradas?: Record<string, string> }> = {
   'purgar-fotos': { archivo: 'purgar-fotos.yml' },
   'regenerar-zona': { archivo: 'mantenimiento.yml', entradas: { trabajo: 'regenerar-zona' } },
@@ -34,12 +38,16 @@ export interface Pedido {
   workflow: string;
 }
 
+/** Un pedido con lo que le ha pasado: lo que se anota con fn_marcar_pedido. */
+export interface Resultado {
+  id: string | number;
+  trabajo: string;
+  resultado: string;
+}
+
 export interface Entorno {
   supabaseUrl: string;
   servicio: string;
-  githubToken: string;
-  /** owner/repo */
-  repo: string;
   fetch?: typeof fetch;
 }
 
@@ -48,6 +56,8 @@ export interface Resumen {
   fallidos: number;
   /** «trabajo: error: …», uno por pedido que no se ha lanzado. */
   errores: string[];
+  /** Los pedidos que el trabajo «lanzar» no ha devuelto: siguen pendientes. */
+  sinResultado: string[];
 }
 
 /** El motivo de un fallo de red (DNS, TLS, tiempo agotado), sin la URL ni las cabeceras. */
@@ -106,35 +116,23 @@ export async function pendientes(e: Entorno): Promise<Pedido[]> {
   });
 }
 
-/** Lanza el workflow del pedido. Devuelve el resultado que se anota: 'lanzado' o 'error: …'. */
-export async function lanzar(e: Entorno, workflow: string): Promise<string> {
-  if (!(WORKFLOWS as readonly string[]).includes(workflow)) return `error: trabajo desconocido (${workflow})`;
-  const { archivo, entradas } = ARCHIVO[workflow as Workflow];
-  const f = e.fetch ?? fetch;
-  const r = await f(`https://api.github.com/repos/${e.repo}/actions/workflows/${archivo}/dispatches`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${e.githubToken}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'hidrantes-albolote-despachador',
-    },
-    body: JSON.stringify({ ref: RAMA, ...(entradas ? { inputs: entradas } : {}) }),
-  }).catch((x: unknown) => motivoRed(x));
-  if (typeof r === 'string') return `error: GitHub no respondió (${r})`;
-  if (r.status !== 204) {
-    // El mensaje de GitHub dice el porqué: una entrada que el workflow no declara, sin
-    // workflow_dispatch, sin permiso… No lleva el token.
-    const cuerpo = await r.text().catch(() => '');
-    let mensaje = cuerpo;
-    try {
-      const m = (JSON.parse(cuerpo) as { message?: unknown } | null)?.message;
-      if (typeof m === 'string') mensaje = m;
-    } catch {
-      // No era JSON: se anota el texto tal cual, recortado.
-    }
-    return unaLinea(`error: GitHub respondió ${r.status}${mensaje ? `: ${mensaje}` : ''}`);
+/**
+ * Los que se pueden lanzar (con un trabajo de la lista) y los que no, ya con su error. Al trabajo
+ * «lanzar» solo le llegan nombres de la lista; él los vuelve a comprobar en su `case`.
+ */
+export function separar(pedidos: Pedido[]): { lanzar: Pedido[]; rechazados: Resultado[] } {
+  const lanzar: Pedido[] = [];
+  const rechazados: Resultado[] = [];
+  for (const p of pedidos) {
+    if ((WORKFLOWS as readonly string[]).includes(p.workflow)) lanzar.push(p);
+    else
+      rechazados.push({
+        id: p.id,
+        trabajo: p.workflow,
+        resultado: unaLinea(`error: trabajo desconocido (${p.workflow})`),
+      });
   }
-  return 'lanzado';
+  return { lanzar, rechazados };
 }
 
 /**
@@ -147,42 +145,119 @@ export async function marcar(e: Entorno, id: Pedido['id'], resultado: string): P
   if (!r.ok) abortar(`fn_marcar_pedido respondió ${r.status} para el pedido ${id} (${resultado}).`);
 }
 
-export async function despachar(e: Entorno): Promise<Resumen> {
-  const resumen: Resumen = { lanzados: 0, fallidos: 0, errores: [] };
-  for (const p of await pendientes(e)) {
-    const resultado = await lanzar(e, p.workflow);
-    await marcar(e, p.id, resultado);
+/** Lo que llega del trabajo «lanzar»: solo 'lanzado' o 'error: …', en una línea. */
+function normalizar(resultado: unknown): string {
+  if (resultado === 'lanzado') return resultado;
+  if (typeof resultado === 'string' && resultado.startsWith('error: ')) return unaLinea(resultado);
+  return 'error: el trabajo lanzar devolvió un resultado que no se entiende';
+}
+
+/**
+ * Anota los pedidos que se han intentado lanzar (con lo que devolvió el trabajo «lanzar») y los
+ * rechazados por «leer». Un pedido sin resultado (el trabajo «lanzar» no llegó a él) no se anota:
+ * sigue pendiente y la pasada siguiente lo lanza.
+ *
+ * Va llenando `resumen` a medida que anota: si se para a mitad (fn_marcar_pedido falla), el que
+ * llama aún sabe qué errores se han anotado ya y los lleva a su issue.
+ */
+export async function marcarTodos(
+  e: Entorno,
+  pedidos: Pedido[],
+  rechazados: Resultado[],
+  resultados: Resultado[],
+  resumen: Resumen = { lanzados: 0, fallidos: 0, errores: [], sinResultado: [] },
+): Promise<Resumen> {
+  const porId = new Map(resultados.map((r) => [String(r.id), r.resultado]));
+  const anotar = async (id: Pedido['id'], trabajo: string, resultado: string) => {
+    await marcar(e, id, resultado);
     if (resultado === 'lanzado') {
       resumen.lanzados++;
-      log.ok(`${p.workflow}: lanzado`);
+      log.ok(`${trabajo}: lanzado`);
     } else {
       resumen.fallidos++;
-      resumen.errores.push(`${p.workflow}: ${resultado}`);
-      log.error(`${p.workflow}: ${resultado}`);
+      resumen.errores.push(`${trabajo}: ${resultado}`);
+      log.error(`${trabajo}: ${resultado}`);
     }
+  };
+  for (const p of pedidos) {
+    if (!porId.has(String(p.id))) {
+      resumen.sinResultado.push(`${p.workflow} (pedido ${p.id})`);
+      continue;
+    }
+    await anotar(p.id, p.workflow, normalizar(porId.get(String(p.id))));
   }
+  for (const r of rechazados) await anotar(r.id, r.trabajo, normalizar(r.resultado));
   return resumen;
 }
 
+/**
+ * Un JSON de las salidas de otro trabajo, que tiene que ser una lista. Si es `obligatoria`, vacía o
+ * sin definir es un error: PEDIDOS y RECHAZADOS los escribe siempre «leer», y sin ellos «marcar» no
+ * sabe qué pedidos se han intentado lanzar. RESULTADOS sí puede faltar: «lanzar» no corre sin pedidos.
+ */
+export function lista<T>(nombre: string, texto: string | undefined, obligatoria = false): T[] {
+  if (obligatoria && !texto?.trim()) abortar(`Falta ${nombre}: el trabajo leer no lo ha pasado.`);
+  let valor: unknown;
+  try {
+    valor = JSON.parse(texto?.trim() || '[]');
+  } catch {
+    abortar(`${nombre} no es JSON.`);
+  }
+  if (!Array.isArray(valor)) abortar(`${nombre} no es una lista.`);
+  return valor as T[];
+}
+
+function salida(nombre: string, valor: string): void {
+  if (!process.env.GITHUB_OUTPUT) return;
+  appendFileSync(
+    process.env.GITHUB_OUTPUT,
+    `${nombre}<<FIN_${nombre.toUpperCase()}\n${valor}\nFIN_${nombre.toUpperCase()}\n`,
+  );
+}
+
 async function principal(): Promise<void> {
+  const modo = process.argv[2];
+  if (modo !== 'leer' && modo !== 'marcar') abortar('Uso: node scripts/despachar.ts leer|marcar');
   const supabaseUrl = process.env.SUPABASE_URL;
   const servicio = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const githubToken = process.env.GH_TOKEN;
-  const repo = process.env.GITHUB_REPOSITORY;
-  if (!supabaseUrl || !servicio || !githubToken || !repo) {
-    abortar('Faltan SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GH_TOKEN o GITHUB_REPOSITORY.');
+  if (!supabaseUrl || !servicio) abortar('Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY.');
+  const e: Entorno = { supabaseUrl, servicio };
+
+  if (modo === 'leer') {
+    const { lanzar, rechazados } = separar(await pendientes(e));
+    log.info(`${lanzar.length} pedidos que lanzar, ${rechazados.length} desconocidos.`);
+    salida('pedidos', JSON.stringify(lanzar.map((p) => ({ id: p.id, trabajo: p.workflow }))));
+    salida('rechazados', JSON.stringify(rechazados));
+    salida('hay', lanzar.length + rechazados.length > 0 ? 'si' : 'no');
+    return;
   }
-  const r = await despachar({ supabaseUrl, servicio, githubToken, repo });
-  const texto = `${r.lanzados} lanzados, ${r.fallidos} con error.`;
+
+  const pedidos = lista<{ id: Pedido['id']; trabajo: string }>('PEDIDOS', process.env.PEDIDOS, true).map((p) => ({
+    id: p.id,
+    workflow: p.trabajo,
+  }));
+  const rechazados = lista<Resultado>('RECHAZADOS', process.env.RECHAZADOS, true);
+  const resultados = lista<Resultado>('RESULTADOS', process.env.RESULTADOS);
+  const r: Resumen = { lanzados: 0, fallidos: 0, errores: [], sinResultado: [] };
+  try {
+    await marcarTodos(e, pedidos, rechazados, resultados, r);
+  } finally {
+    // También si se para a mitad: los errores ya anotados no se reintentan y tienen que llegar a su
+    // issue, que solo se abre con con_error.
+    if (r.errores.length) salida('con_error', r.errores.join('\n'));
+  }
+  const texto = `${r.lanzados} lanzados, ${r.fallidos} con error, ${r.sinResultado.length} sin lanzar.`;
   log.info(texto);
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Despachador\n\n${texto}\n`);
   }
   // Un pedido con error no hace fallar la ejecución: ya está anotado y no se reintenta, así que la
   // pasada siguiente iría bien y cerraría la issue sin que nadie la viera. Va a su propia issue, que
-  // no se cierra sola (despachador.yml). Fallar es para lo que impide despachar: leer o marcar.
-  if (r.errores.length && process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `con_error<<FIN_CON_ERROR\n${r.errores.join('\n')}\nFIN_CON_ERROR\n`);
+  // no se cierra sola (despachador.yml). Fallar es para lo que impide despachar: leer, lanzar o marcar.
+  if (r.sinResultado.length) {
+    abortar(
+      `El trabajo lanzar no ha devuelto el resultado de: ${r.sinResultado.join(', ')}. Se quedan pendientes y la pasada siguiente los vuelve a lanzar; si «lanzar» se cortó después de lanzar alguno, ese correrá dos veces (los cuatro workflows lo aguantan: concurrency sin cancelar).`,
+    );
   }
 }
 

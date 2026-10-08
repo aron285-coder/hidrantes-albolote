@@ -555,7 +555,17 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.` · `No se ha podido enviar.` ·
 `Sin conexión: esta es la última lista guardada.` ·
 `Has llegado al máximo de propuestas de hoy ([60]). Se enviará mañana.` ·
-`Has llegado al máximo de propuestas de hoy. Se enviará mañana.`
+`Has llegado al máximo de propuestas de hoy. Se enviará mañana.` ·
+la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a las 00:05]`, en hora de Albolote):
+`En espera: un móvil recién dado de alta puede enviar [10] propuestas al día. Se enviará [a las 14:30].` ·
+`En espera: un móvil recién dado de alta tiene un máximo de propuestas al día. Se enviará [a las 14:30].` ·
+`En espera: el grupo ha llegado al máximo de propuestas de hoy. Se enviará [mañana a las 00:05].` ·
+`En espera: has llegado al máximo de fotos de hoy. Se enviará [a las 14:30].` ·
+`En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará [a las 14:30].` ·
+`En espera: el servidor no tiene sitio para más fotos. Se volverá a intentar [a las 14:30].` ·
+`En espera: el servidor no tiene sitio para más propuestas. Se volverá a intentar [a las 14:30].` ·
+`En espera: este móvil tiene varias fotos a medio enviar. Se volverá a intentar [a las 14:30].` ·
+`a las [14:30]` · `mañana a las [00:05]`.
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
 `Descargado · [12] MB · [jul 2026]` · `No descargado` · `Descargar` · `Actualizar` ·
@@ -565,9 +575,9 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
 `novedades` · `Cuenta de jefatura` · `Sesión de Google · [correo]` · `Cerrar la sesión de Google` ·
 `Panel de jefatura` (botón de la cuenta de jefatura, RV-113) · `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
-`¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Versión [0.1.0]` · `Descargando… [40] %` ·
+`¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Cerrando sesión…` (el botón, deshabilitado, mientras se cierra; docs/32 RV-234) · `No se ha podido cerrar la sesión. Inténtalo de nuevo.` · `Versión [0.1.0]` · `Descargando… [40] %` ·
 `No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
-`No se pudo descargar. Inténtalo de nuevo con wifi.` · `[438] · sincronizado [hace 5 min]` ·
+`No se pudo descargar. Inténtalo de nuevo con wifi.` · `La descarga se ha parado.` con `Reintentar` (30 s sin llegar nada; docs/32 RV-235) · `[438] · sincronizado [hace 5 min]` ·
 `Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167; cada línea, `[0.6.4] · [texto]` con la versión que la trajo, DEC-142) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
 ha concedido, o no, no desalojar lo guardado; TR-07).
 
@@ -594,6 +604,15 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 un formulario abierto, la app no sale de él: enseña `Ha llegado un aviso.` con `Ver` y `Cerrar`; al
 tocar «Ver», o «recargar» por una versión nueva, pregunta: `¿Salir del formulario?` / `¿Recargar ahora?` ·
 `Lo que llevas del formulario, fotos incluidas, se perderá.` · `Salir` · `Recargar` · `Seguir con el formulario`.
+
+**Versión nueva con envíos sin guardar en el móvil** (docs/32 RV-230). Desde cualquier pantalla, si hay
+envíos que solo están en memoria no se recarga: `Espera antes de actualizar` ·
+`Hay [2] propuestas que no se han podido guardar en el móvil. Espera a que se envíen antes de actualizar.`
+(con una, `Hay 1 propuesta que no se ha podido guardar en el móvil. Espera a que se envíe antes de actualizar.`) ·
+`Esperar` · `Actualizar igualmente`; y al insistir, `¿Actualizar igualmente?` ·
+`Las [2] propuestas sin guardar se perderán. No se puede deshacer.` (con una,
+`La propuesta sin guardar se perderá. No se puede deshacer.`) · `Actualizar y perderlas`. Si mientras
+tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·

@@ -89,6 +89,29 @@ describe('POST /api/url-subida', () => {
     espia.mockRestore();
   });
 
+  // docs/32 RV-220 (0041): los topes nuevos de fotos llegan con su código y, si la base de datos los da,
+  // con maximo y reintentar_en_s, para que la cola espere hasta esa hora (RV-232). Nunca el texto.
+  it.each([
+    ['SIN_ESPACIO_FOTOS', 'SIN_ESPACIO_FOTOS: reintentar_en_s=3600', { reintentar_en_s: 3600 }],
+    ['RESERVAS_ABIERTAS', 'RESERVAS_ABIERTAS: maximo=6 reintentar_en_s=900', { maximo: 6, reintentar_en_s: 900 }],
+    [
+      'CUOTA_SUBIDAS_AGOTADA',
+      'CUOTA_SUBIDAS_AGOTADA: maximo=150 reintentar_en_s=40000',
+      { maximo: 150, reintentar_en_s: 40000 },
+    ],
+    ['SIN_ESPACIO_FOTOS', 'SIN_ESPACIO_FOTOS: Se ha llenado el espacio de fotos', {}],
+  ])('%s llega como 429 con su espera (%s)', async (codigo, mensaje, detalle) => {
+    const espia = fingirRed({
+      reserva: new Response(JSON.stringify({ code: 'P0001', message: mensaje }), { status: 400 }),
+    });
+    const r = await onRequestPost({ request: peticion({ token: TOKEN }), env: ENV });
+    expect(r.status).toBe(429);
+    expect(await r.json()).toEqual({ error: codigo, ...detalle });
+    // Con un tope no se pide firma a Storage.
+    expect(espia.mock.calls.some((c) => String(c[0]).includes('/storage/'))).toBe(false);
+    espia.mockRestore();
+  });
+
   it('un token caducado es 401 y la app vuelve a pedir el código', async () => {
     const espia = fingirRed({
       reserva: new Response(JSON.stringify({ code: 'P0001', message: 'TOKEN_CADUCADO: vuelve a entrar' }), {

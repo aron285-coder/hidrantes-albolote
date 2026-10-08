@@ -25,12 +25,13 @@ vi.mock('@/lib/push', () => ({
   sePuedeReintentar: () => false,
   textoMotivoPush: () => '',
 }));
+vi.mock('@/lib/errores', () => ({ anotarError: vi.fn() }));
 vi.mock('@/lib/acceso', () => ({ cambiarFirma: vi.fn(), cerrarSesionVoluntario: vi.fn(), salirDeGoogle: vi.fn() }));
 vi.mock('@/lib/almacen', () => ({ leer: () => null }));
 vi.mock('@/lib/conexion', () => ({ reintentarAhora: vi.fn() }));
 vi.mock('@/lib/instalar', () => ({ instalar: vi.fn() }));
 vi.mock('@/lib/mapabase', () => ({ descargarMapabase: vi.fn(), hayVersionNuevaMapabase: () => false }));
-vi.mock('@/lib/pwa', () => ({ recargar: vi.fn() }));
+vi.mock('@/lib/pwa', () => ({ pedirRecarga: vi.fn() }));
 vi.mock('@/lib/tema', () => ({ guardarTema: vi.fn(), leerTema: () => 'sistema' }));
 vi.mock('@/lib/capas', () => ({
   NOMBRE_CAPA: { calles: 'Calles' },

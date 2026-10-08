@@ -4,18 +4,24 @@ import { useLocation, useNavigate } from 'react-router';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
 import { EnPilaAvisos } from '@/componentes/PilaAvisos';
-import { ORDEN_AVISO } from '@/lib/orden-avisos';
+import { useCola } from '@/hooks/cola';
 import { useVersionNueva } from '@/hooks/version';
 import { enFormulario, escucharAvisosPush } from '@/lib/aviso-formulario';
-import { recargar } from '@/lib/pwa';
+import { alPedirRecarga, pedirRecarga, queHacerAlRecargar, recargar, soloEnMemoria } from '@/lib/pwa';
+import { ORDEN_AVISO } from '@/lib/orden-avisos';
 import { T } from '@/lib/textos';
 
-type Pregunta = { tipo: 'recargar' } | { tipo: 'ir'; ruta: string };
+type Pregunta =
+  | { tipo: 'recargar' }
+  | { tipo: 'ir'; ruta: string }
+  // Envíos solo en memoria (docs/32 RV-230): primero se avisa y luego, si insiste, se confirma.
+  | { tipo: 'memoria'; paso: 'aviso' | 'confirmar' };
 
 /**
  * Aviso de versión nueva (TR-24): arriba, bajo la barra, hasta que se recargue. Y el de una
  * notificación tocada con un formulario a medias (docs/31 RV-157): el Service Worker no navega y la
- * app lo enseña aquí. Desde un formulario, recargar o ir al aviso preguntan antes.
+ * app lo enseña aquí. Desde un formulario, recargar o ir al aviso preguntan antes. Y recargar, desde
+ * cualquier pantalla (también Ajustes), no se hace si hay envíos solo en memoria (docs/32 RV-230).
  */
 export function AvisoVersion() {
   const hay = useVersionNueva();
@@ -28,6 +34,18 @@ export function AvisoVersion() {
   useEffect(() => escucharAvisosPush(setAviso), []);
 
   const formulario = enFormulario(pathname);
+  const sinGuardar = soloEnMemoria(useCola());
+
+  // «Recargar» del aviso o de Ajustes: se decide aquí, que es quien pregunta.
+  useEffect(
+    () =>
+      alPedirRecarga(() => {
+        const hacer = queHacerAlRecargar(formulario);
+        if (hacer === 'recargar') recargar();
+        else setPregunta(hacer === 'memoria' ? { tipo: 'memoria', paso: 'aviso' } : { tipo: 'recargar' });
+      }),
+    [formulario],
+  );
   // Fuera del formulario el aviso sobra (y taparía los botones del mapa): lo resuelto se ve en Mis
   // propuestas. Estado derivado del render, el patrón de React para ello.
   if (aviso && !formulario) setAviso(null);
@@ -44,7 +62,7 @@ export function AvisoVersion() {
         <EnPilaAvisos orden={ORDEN_AVISO.version}>
           <button
             type="button"
-            onClick={() => (formulario ? setPregunta({ tipo: 'recargar' }) : recargar())}
+            onClick={pedirRecarga}
             className="bg-marino-700 rounded-boton flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-semibold text-white shadow-lg"
           >
             <RefreshCw size={18} aria-hidden />
@@ -79,7 +97,50 @@ export function AvisoVersion() {
           </div>
         </EnPilaAvisos>
       )}
-      {pregunta && (
+      {pregunta?.tipo === 'memoria' && (
+        <Hoja
+          titulo={pregunta.paso === 'aviso' ? T.recarga.titulo : T.recarga.confirmarTitulo}
+          alCerrar={cerrarPregunta}
+        >
+          {sinGuardar === 0 ? (
+            // Mientras se leía el aviso se han guardado o enviado: ya no se pierde nada.
+            <>
+              <p className="text-texto-suave mb-3 text-sm">{T.recarga.yaGuardadas}</p>
+              <Boton className="w-full" onClick={recargar}>
+                {T.avisoFormulario.botonRecargar}
+              </Boton>
+            </>
+          ) : pregunta.paso === 'aviso' ? (
+            <>
+              <p className="text-texto-suave mb-3 text-sm">{T.recarga.sinGuardar(sinGuardar)}</p>
+              <Boton className="w-full" onClick={cerrarPregunta}>
+                {T.recarga.esperar}
+              </Boton>
+              <Boton
+                variante="secundario"
+                className="mt-3 w-full"
+                onClick={() => setPregunta({ tipo: 'memoria', paso: 'confirmar' })}
+              >
+                {T.recarga.igualmente}
+              </Boton>
+            </>
+          ) : (
+            <>
+              <p className="text-texto-suave mb-3 text-sm">
+                {T.recarga.sePierden(sinGuardar)}
+                {formulario && <span className="block">{T.avisoFormulario.sePierde}</span>}
+              </p>
+              <Boton variante="destructivo" className="w-full" onClick={recargar}>
+                {T.recarga.confirmar}
+              </Boton>
+              <Boton variante="secundario" className="mt-3 w-full" onClick={cerrarPregunta}>
+                {T.recarga.esperar}
+              </Boton>
+            </>
+          )}
+        </Hoja>
+      )}
+      {pregunta && pregunta.tipo !== 'memoria' && (
         <Hoja
           titulo={pregunta.tipo === 'recargar' ? T.avisoFormulario.recargar : T.avisoFormulario.salir}
           alCerrar={cerrarPregunta}

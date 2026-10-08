@@ -1,14 +1,43 @@
 // docs/31 RV-137: el despachador recoge los pedidos del panel en producción y lanza su workflow.
+// docs/32 RV-201: en tres trabajos; solo el que lanza tiene actions: write (podría borrar el respaldo).
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { ARCHIVO, RAMA, WORKFLOWS, despachar, lanzar, pendientes, type Entorno } from './despachar.ts';
+import { ARCHIVO, RAMA, WORKFLOWS, lista, marcarTodos, pendientes, separar, type Entorno } from './despachar.ts';
 import { ErrorDeScript } from './lib/comun.ts';
 
 const SUPABASE = 'https://proyecto.supabase.co';
+const raiz = path.resolve(import.meta.dirname, '..');
+const carpeta = path.join(raiz, '.github/workflows');
+const yml = readFileSync(path.join(carpeta, 'despachador.yml'), 'utf8');
+const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
+// En la CI hay jq: ahí los tests de los guiones no se pueden saltar.
+const sinJq = !tieneJq && !process.env.CI;
+
+/** Un trabajo de despachador.yml, de su cabecera a la del siguiente. */
+function trabajo(nombre: string): string {
+  const desde = yml.indexOf(`\n  ${nombre}:\n`);
+  expect(desde, nombre).toBeGreaterThan(-1);
+  const resto = yml.slice(desde + 1);
+  const fin = resto.slice(1).search(/\n {2}[a-z-]+:\n/);
+  return fin === -1 ? resto : resto.slice(0, fin + 1);
+}
+
+/** El guion `run: |` de un paso, sin la sangría. */
+function guionDe(texto: string, paso: string): string {
+  const desde = texto.indexOf(`- name: ${paso}`);
+  expect(desde, paso).toBeGreaterThan(-1);
+  const resto = texto.slice(desde);
+  return resto
+    .slice(resto.indexOf('run: |\n') + 'run: |\n'.length)
+    .split('\n')
+    .filter((l, i, ls) => !(i === ls.length - 1 && l === ''))
+    .map((l) => l.replace(/^ {10}/, ''))
+    .join('\n');
+}
 
 interface Llamada {
   url: string;
@@ -20,7 +49,6 @@ interface Llamada {
 function simulado(respuestas: {
   pendientes?: Response | (() => Response);
   marcar?: (cuerpo: { id: unknown; resultado: string }) => Response;
-  github?: (archivo: string, cuerpo: unknown) => Response | null;
 }) {
   const llamadas: Llamada[] = [];
   const f = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
@@ -34,19 +62,11 @@ function simulado(respuestas: {
     if (u.endsWith('/rpc/fn_marcar_pedido')) {
       return respuestas.marcar?.(cuerpo as { id: unknown; resultado: string }) ?? new Response(null, { status: 204 });
     }
-    const m = /\/actions\/workflows\/([^/]+)\/dispatches$/.exec(u);
-    if (m) {
-      const r = respuestas.github ? respuestas.github(m[1]!, cuerpo) : new Response(null, { status: 204 });
-      if (!r) throw new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } });
-      return r;
-    }
     throw new Error(`URL inesperada: ${u}`);
   });
   const entorno: Entorno = {
     supabaseUrl: SUPABASE,
     servicio: 'clave-de-servicio', // detectar-secretos:permitir (valor de prueba)
-    githubToken: 'token-de-prueba', // detectar-secretos:permitir (valor de prueba)
-    repo: 'dueno/repo',
     fetch: f as unknown as typeof fetch,
   };
   return { entorno, llamadas };
@@ -55,39 +75,90 @@ function simulado(respuestas: {
 const marcados = (llamadas: Llamada[]) =>
   llamadas.filter((l) => l.url.endsWith('/rpc/fn_marcar_pedido')).map((l) => l.cuerpo);
 
-describe('despachar', () => {
-  it('sin pedidos no lanza ni marca nada', async () => {
-    const { entorno, llamadas } = simulado({});
-    expect(await despachar(entorno)).toEqual({ lanzados: 0, fallidos: 0, errores: [] });
-    expect(llamadas.map((l) => l.url)).toEqual([`${SUPABASE}/rest/v1/rpc/fn_pedidos_pendientes`]);
-  });
-
-  it('lanza cada pedido en develop, con sus entradas, y lo marca como lanzado', async () => {
-    const { entorno, llamadas } = simulado({
-      pendientes: Response.json([
-        { id: 1, workflow: 'purgar-fotos', pedido_en: '2026-10-07T10:00:00Z' },
-        { id: 2, workflow: 'regenerar-zona', pedido_en: '2026-10-07T10:01:00Z' },
+describe('leer: separar', () => {
+  it('los de la lista se lanzan; uno desconocido sale ya con su error', () => {
+    expect(
+      separar([
+        { id: 1, workflow: 'purgar-fotos' },
+        { id: 9, workflow: 'borrar-todo' },
+        { id: 2, workflow: 'regenerar-zona' },
       ]),
-    });
-    expect(await despachar(entorno)).toEqual({ lanzados: 2, fallidos: 0, errores: [] });
-    const despachos = llamadas.filter((l) => l.url.includes('/dispatches'));
-    expect(despachos.map((l) => [l.url, l.cuerpo])).toEqual([
-      ['https://api.github.com/repos/dueno/repo/actions/workflows/purgar-fotos.yml/dispatches', { ref: 'develop' }],
-      [
-        'https://api.github.com/repos/dueno/repo/actions/workflows/mantenimiento.yml/dispatches',
-        { ref: 'develop', inputs: { trabajo: 'regenerar-zona' } },
+    ).toEqual({
+      lanzar: [
+        { id: 1, workflow: 'purgar-fotos' },
+        { id: 2, workflow: 'regenerar-zona' },
       ],
-    ]);
-    expect(despachos[0]!.cabeceras.Authorization).toBe('Bearer token-de-prueba');
+      rechazados: [{ id: 9, trabajo: 'borrar-todo', resultado: 'error: trabajo desconocido (borrar-todo)' }],
+    });
+  });
+});
+
+describe('marcar: marcarTodos', () => {
+  it('anota cada pedido con lo que devolvió el trabajo lanzar (los id llegan como texto) y los rechazados', async () => {
+    const { entorno, llamadas } = simulado({});
+    const r = await marcarTodos(
+      entorno,
+      [
+        { id: 1, workflow: 'purgar-fotos' },
+        { id: 2, workflow: 'respaldo' },
+      ],
+      [{ id: 9, trabajo: 'borrar-todo', resultado: 'error: trabajo desconocido (borrar-todo)' }],
+      [
+        { id: '1', trabajo: 'purgar-fotos', resultado: 'lanzado' },
+        { id: '2', trabajo: 'respaldo', resultado: 'error: GitHub: HTTP 422 Unexpected inputs' },
+      ],
+    );
     expect(marcados(llamadas)).toEqual([
       { id: 1, resultado: 'lanzado' },
-      { id: 2, resultado: 'lanzado' },
+      { id: 2, resultado: 'error: GitHub: HTTP 422 Unexpected inputs' },
+      { id: 9, resultado: 'error: trabajo desconocido (borrar-todo)' },
     ]);
+    expect(r).toEqual({
+      lanzados: 1,
+      fallidos: 2,
+      errores: [
+        'respaldo: error: GitHub: HTTP 422 Unexpected inputs',
+        'borrar-todo: error: trabajo desconocido (borrar-todo)',
+      ],
+      sinResultado: [],
+    });
+  });
+
+  it('un pedido sin resultado (lanzar no llegó a él) no se anota: sigue pendiente y se dice', async () => {
+    const { entorno, llamadas } = simulado({});
+    const r = await marcarTodos(entorno, [{ id: 3, workflow: 'respaldo' }], [], []);
+    expect(marcados(llamadas)).toEqual([]);
+    expect(r.sinResultado).toEqual(['respaldo (pedido 3)']);
+  });
+
+  it('un resultado que no es lanzado ni error se anota como error, en una línea', async () => {
+    const { entorno, llamadas } = simulado({});
+    await marcarTodos(
+      entorno,
+      [
+        { id: 1, workflow: 'respaldo' },
+        { id: 2, workflow: 'purgar-fotos' },
+      ],
+      [],
+      [
+        { id: '1', trabajo: 'respaldo', resultado: 'ok' },
+        { id: '2', trabajo: 'purgar-fotos', resultado: `error: a\nb ${'x'.repeat(400)}` },
+      ],
+    );
+    const [uno, dos] = marcados(llamadas) as { resultado: string }[];
+    expect(uno!.resultado).toBe('error: el trabajo lanzar devolvió un resultado que no se entiende');
+    expect(dos!.resultado.startsWith('error: a b xxx')).toBe(true);
+    expect(dos!.resultado.length).toBe(200);
   });
 
   it('llama a la base de datos con la clave de servicio y el esquema hidrantes', async () => {
     const { entorno, llamadas } = simulado({});
-    await despachar(entorno);
+    await marcarTodos(
+      entorno,
+      [{ id: 1, workflow: 'respaldo' }],
+      [],
+      [{ id: '1', trabajo: 'respaldo', resultado: 'lanzado' }],
+    );
     expect(llamadas[0]!.cabeceras).toMatchObject({
       Authorization: 'Bearer clave-de-servicio',
       'Content-Profile': 'hidrantes',
@@ -95,61 +166,56 @@ describe('despachar', () => {
     });
   });
 
-  it('si GitHub no acepta uno, lo marca con el error, sigue con los demás y lo cuenta', async () => {
-    const { entorno, llamadas } = simulado({
-      pendientes: Response.json([
-        { id: 'a', workflow: 'respaldo' },
-        { id: 'b', workflow: 'purgar-fotos' },
-        { id: 'c', workflow: 'regenerar-mapabase' },
-      ]),
-      github: (archivo) =>
-        archivo === 'respaldo.yml'
-          ? Response.json({ message: 'Unexpected inputs provided:\n ["x"]' }, { status: 422 })
-          : archivo === 'purgar-fotos.yml'
-            ? null
-            : new Response(null, { status: 204 }),
+  it('si se para a mitad, el resumen ya tiene los errores anotados antes (llegan a la issue)', async () => {
+    let n = 0;
+    const { entorno } = simulado({
+      marcar: () => (++n === 1 ? new Response(null, { status: 204 }) : new Response('{}', { status: 500 })),
     });
-    const errores = [
-      'error: GitHub respondió 422: Unexpected inputs provided: ["x"]',
-      'error: GitHub no respondió (ENOTFOUND)',
-    ];
-    expect(await despachar(entorno)).toEqual({
-      lanzados: 1,
-      fallidos: 2,
-      errores: [`respaldo: ${errores[0]}`, `purgar-fotos: ${errores[1]}`],
-    });
-    expect(marcados(llamadas)).toEqual([
-      { id: 'a', resultado: errores[0] },
-      { id: 'b', resultado: errores[1] },
-      { id: 'c', resultado: 'lanzado' },
-    ]);
+    const resumen = { lanzados: 0, fallidos: 0, errores: [] as string[], sinResultado: [] as string[] };
+    await expect(
+      marcarTodos(
+        entorno,
+        [
+          { id: 1, workflow: 'respaldo' },
+          { id: 2, workflow: 'purgar-fotos' },
+        ],
+        [],
+        [
+          { id: '1', trabajo: 'respaldo', resultado: 'error: GitHub: HTTP 422' },
+          { id: '2', trabajo: 'purgar-fotos', resultado: 'lanzado' },
+        ],
+        resumen,
+      ),
+    ).rejects.toThrow(/fn_marcar_pedido respondió 500 para el pedido 2/);
+    expect(resumen.errores).toEqual(['respaldo: error: GitHub: HTTP 422']);
   });
 
-  it('un cuerpo de GitHub que no es JSON se anota recortado, en una línea', async () => {
-    const { entorno } = simulado({ github: () => new Response(`Bad\ngateway ${'x'.repeat(400)}`, { status: 502 }) });
-    const r = await lanzar(entorno, 'respaldo');
-    expect(r.startsWith('error: GitHub respondió 502: Bad gateway xxx')).toBe(true);
-    expect(r).not.toContain('\n');
-    expect(r.length).toBe(200);
+  it('PEDIDOS y RECHAZADOS son obligatorios; RESULTADOS puede faltar', () => {
+    expect(() => lista('PEDIDOS', undefined, true)).toThrow(/Falta PEDIDOS: el trabajo leer no lo ha pasado/);
+    expect(() => lista('RECHAZADOS', '  ', true)).toThrow(/Falta RECHAZADOS/);
+    expect(lista('PEDIDOS', '[]', true)).toEqual([]);
+    expect(lista('RESULTADOS', '')).toEqual([]);
+    expect(() => lista('RESULTADOS', '{"a":1}')).toThrow(/no es una lista/);
+    expect(() => lista('RESULTADOS', 'roto')).toThrow(/no es JSON/);
   });
 
-  it('un trabajo que no conoce no se lanza: se marca con error', async () => {
-    const { entorno, llamadas } = simulado({ pendientes: Response.json([{ id: 9, workflow: 'borrar-todo' }]) });
-    expect(await despachar(entorno)).toMatchObject({ lanzados: 0, fallidos: 1 });
-    expect(llamadas.some((l) => l.url.includes('/dispatches'))).toBe(false);
-    expect(marcados(llamadas)).toEqual([{ id: 9, resultado: 'error: trabajo desconocido (borrar-todo)' }]);
-  });
-
-  it('si no puede marcar un pedido, se para (y falla) antes de lanzar el siguiente', async () => {
-    const { entorno, llamadas } = simulado({
-      pendientes: Response.json([
-        { id: 1, workflow: 'respaldo' },
-        { id: 2, workflow: 'purgar-fotos' },
-      ]),
-      marcar: () => new Response('{}', { status: 500 }),
-    });
-    await expect(despachar(entorno)).rejects.toThrow(/fn_marcar_pedido respondió 500 para el pedido 1/);
-    expect(llamadas.filter((l) => l.url.includes('/dispatches'))).toHaveLength(1);
+  it('si no puede marcar un pedido, se para (y falla)', async () => {
+    const { entorno, llamadas } = simulado({ marcar: () => new Response('{}', { status: 500 }) });
+    await expect(
+      marcarTodos(
+        entorno,
+        [
+          { id: 1, workflow: 'respaldo' },
+          { id: 2, workflow: 'purgar-fotos' },
+        ],
+        [],
+        [
+          { id: '1', trabajo: 'respaldo', resultado: 'lanzado' },
+          { id: '2', trabajo: 'purgar-fotos', resultado: 'lanzado' },
+        ],
+      ),
+    ).rejects.toThrow(/fn_marcar_pedido respondió 500 para el pedido 1/);
+    expect(marcados(llamadas)).toHaveLength(1);
   });
 });
 
@@ -162,11 +228,10 @@ describe('pendientes: una respuesta rara para todo', () => {
     ['una fila sin id', Response.json([{ workflow: 'respaldo' }]), /sin id o sin workflow/],
     ['una fila nula', Response.json([null]), /sin id o sin workflow/],
   ])('%s', async (_n, respuesta, motivo) => {
-    const { entorno, llamadas } = simulado({ pendientes: respuesta });
+    const { entorno } = simulado({ pendientes: respuesta });
     const e = await pendientes(entorno).catch((x: unknown) => x);
     expect(e).toBeInstanceOf(ErrorDeScript);
     expect((e as Error).message).toMatch(motivo);
-    expect(llamadas.some((l) => l.url.includes('/dispatches'))).toBe(false);
   });
 
   // Producción va por detrás hasta 0.9.0: sin 0040 no puede haber pedidos, y el despachador no debe
@@ -192,8 +257,6 @@ describe('pendientes: una respuesta rara para todo', () => {
 });
 
 describe('la tabla de trabajos', () => {
-  const carpeta = path.resolve(import.meta.dirname, '../.github/workflows');
-
   it('tiene los cuatro de siempre', () => {
     expect([...WORKFLOWS].sort()).toEqual(['purgar-fotos', 'regenerar-mapabase', 'regenerar-zona', 'respaldo']);
     expect(RAMA).toBe('develop');
@@ -208,17 +271,9 @@ describe('la tabla de trabajos', () => {
       expect(texto).toContain(valor);
     }
   });
-
-  it('lanzar devuelve el error, no lanza una excepción, con un nombre desconocido', async () => {
-    const { entorno } = simulado({});
-    expect(await lanzar(entorno, 'x')).toBe('error: trabajo desconocido (x)');
-  });
 });
 
 describe('despachador.yml', () => {
-  const carpeta = path.resolve(import.meta.dirname, '../.github/workflows');
-  const yml = readFileSync(path.join(carpeta, 'despachador.yml'), 'utf8');
-
   // Los pedidos no se reclaman en la base de datos: dos pasadas a la vez lanzarían el mismo dos veces.
   it('nunca dos pasadas a la vez', () => {
     expect(yml).toMatch(/^concurrency:\n {2}group: despachador\n {2}cancel-in-progress: false$/m);
@@ -229,19 +284,59 @@ describe('despachador.yml', () => {
     expect(yml).toMatch(/^\s{2}workflow_dispatch:$/m);
   });
 
-  it('en el environment prod-tareas, con la clave de servicio de producción y el GITHUB_TOKEN', () => {
-    expect(yml).toMatch(/^\s{4}environment: prod-tareas$/m);
-    expect(yml).toContain('SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}');
-    expect(yml).toContain('SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}');
-    expect(yml).toContain('GH_TOKEN: ${{ github.token }}');
-    expect(yml).toMatch(/^\s{2}actions: write$/m);
-    expect(yml).not.toMatch(/GITHUB_DISPATCH_TOKEN|secrets\.GITHUB_TOKEN_/);
+  // RV-201: el GITHUB_TOKEN con actions: write puede borrar artifacts, y el respaldo es uno, el único.
+  describe('solo el trabajo que lanza tiene actions: write (RV-201, DEC-180)', () => {
+    it('nada por defecto en el workflow; cada trabajo, lo suyo', () => {
+      expect(yml).toMatch(/^permissions: \{\}$/m);
+      const permisos = (t: string) =>
+        [...trabajo(t).matchAll(/^ {4}permissions:\n((?: {6}.+\n)+)/gm)].map((m) => m[1]!.trim().split(/\n\s*/).sort());
+      expect(permisos('leer')).toEqual([['contents: read']]);
+      expect(permisos('lanzar')).toEqual([['actions: write']]);
+      expect(permisos('marcar')).toEqual([['contents: read']]);
+      expect(permisos('avisar')).toEqual([['issues: write']]);
+      expect(yml.replace(/^\s*#.*$/gm, '').match(/actions: write/g)).toHaveLength(1);
+    });
+
+    it('el que lanza no hace checkout, no instala nada ni ve la clave de servicio ni un environment', () => {
+      const lanzar = trabajo('lanzar');
+      const sinComentarios = lanzar.replace(/^\s*#.*$/gm, '');
+      expect(sinComentarios).not.toMatch(/actions\/checkout|setup-node|npm |npx |\.\/\.github|scripts\//);
+      expect(sinComentarios).not.toMatch(/secrets\.|environment:/);
+      expect(lanzar).toContain('PEDIDOS: ${{ needs.leer.outputs.pedidos }}');
+    });
+
+    it('los que leen y marcan con la clave de servicio, en prod-tareas y sin actions', () => {
+      for (const t of ['leer', 'marcar']) {
+        const texto = trabajo(t);
+        expect(texto, t).toMatch(/^ {4}environment: prod-tareas$/m);
+        expect(texto, t).toContain('SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}');
+        expect(texto, t).toContain('SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}');
+        expect(texto, t).not.toMatch(/GH_TOKEN|github\.token|actions:/);
+      }
+      expect(trabajo('leer')).toContain('run: node scripts/despachar.ts leer');
+      expect(trabajo('marcar')).toContain('run: node scripts/despachar.ts marcar');
+      expect(yml).not.toMatch(/GITHUB_DISPATCH_TOKEN|secrets\.GITHUB_TOKEN_/);
+    });
+
+    it('el case de lanzar es la misma tabla que ARCHIVO', () => {
+      const guion = guionDe(trabajo('lanzar'), 'Lanzar los trabajos pedidos');
+      const casos = new Map<string, { archivo: string; entrada: boolean }>();
+      for (const [, nombres, cuerpo] of guion.matchAll(/^\s+([a-z| -]+)\) (archivo=[^;\n]+(?:;[^\n]*)?) ;;$/gm)) {
+        const archivo = /archivo=([a-z.-]+)/.exec(cuerpo!)![1]!;
+        for (const n of nombres!.split('|').map((x) => x.trim())) {
+          casos.set(n, { archivo, entrada: cuerpo!.includes('entrada="$trabajo"') });
+        }
+      }
+      const esperado = new Map(
+        WORKFLOWS.map((w) => [w, { archivo: ARCHIVO[w].archivo, entrada: ARCHIVO[w].entradas?.trabajo === w }]),
+      );
+      expect(casos).toEqual(esperado);
+    });
   });
 
   it('sin npm ci: ninguna dependencia de npm corre con la clave de servicio', () => {
     const sinComentarios = yml.replace(/^\s*#.*$/gm, '');
     expect(sinComentarios).not.toMatch(/npm (ci|install|run)|npx |\.\/\.github\/actions\/preparar/);
-    expect(yml).toContain('run: node scripts/despachar.ts');
     // Solo módulos de Node: lo que importa despachar.ts y lo que importa a su vez.
     for (const archivo of ['despachar.ts', 'lib/comun.ts']) {
       const fuente = readFileSync(path.resolve(import.meta.dirname, archivo), 'utf8');
@@ -254,27 +349,122 @@ describe('despachador.yml', () => {
 
   // Lo que corre en despachador.yml, tal cual: Node quita los tipos, sin tsx. Si alguien mete en
   // despachar.ts o lib/comun.ts algo que no se pueda quitar (enum, namespace…), esto falla.
-  it('node lo carga sin tsx y, sin variables, se para diciendo qué falta', () => {
+  it('node lo carga sin tsx; sin modo o sin variables, se para diciendo qué falta', () => {
     const env = { ...process.env };
-    for (const v of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'GH_TOKEN', 'GITHUB_REPOSITORY']) delete env[v];
-    const r = spawnSync(process.execPath, ['scripts/despachar.ts'], {
-      cwd: path.resolve(import.meta.dirname, '..'),
-      encoding: 'utf8',
-      env,
+    for (const v of ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']) delete env[v];
+    const correr = (...args: string[]) =>
+      spawnSync(process.execPath, ['scripts/despachar.ts', ...args], { cwd: raiz, encoding: 'utf8', env });
+    const sinModo = correr();
+    expect(sinModo.status, sinModo.stderr).toBe(1);
+    expect(sinModo.stderr + sinModo.stdout).toContain('Uso: node scripts/despachar.ts leer|marcar');
+    const sinVariables = correr('leer');
+    expect(sinVariables.status, sinVariables.stderr).toBe(1);
+    expect(sinVariables.stderr + sinVariables.stdout).toContain('Faltan SUPABASE_URL');
+  });
+
+  describe.skipIf(sinJq)('el guion de lanzar, con gh simulado', () => {
+    const guion = guionDe(trabajo('lanzar'), 'Lanzar los trabajos pedidos');
+    /**
+     * gh simulado: anota la llamada; falla con el archivo que se le diga, o corta el guion entero (como
+     * un runner perdido) con el que se diga en CORTA. Devuelve la última línea de la salida: la que lee
+     * GitHub cuando una clave se escribe varias veces.
+     */
+    const correr = (pedidos: unknown, falla = '', corta = '', cortado = false) => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'lanzar-'));
+      try {
+        const salida = path.join(dir, 'salida');
+        const anotado = path.join(dir, 'anotado');
+        writeFileSync(salida, '');
+        const gh = [
+          'gh() {',
+          '  echo "gh $*" >> "$ANOTADO"',
+          '  if [ -n "$CORTA" ] && [[ "$*" == *"/$CORTA/"* ]]; then kill -KILL $$; exit 1; fi',
+          '  if [ -n "$FALLA" ] && [[ "$*" == *"/$FALLA/"* ]]; then echo "gh: Unexpected inputs provided (HTTP 422)" >&2; return 1; fi',
+          '}',
+        ].join('\n');
+        const r = spawnSync('bash', ['-e', '-c', `${gh}\n${guion}`], {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            GITHUB_OUTPUT: salida,
+            ANOTADO: anotado,
+            FALLA: falla,
+            CORTA: corta,
+            GH_REPO: 'dueno/repo',
+            PEDIDOS: JSON.stringify(pedidos),
+          },
+        });
+        if (cortado) expect(r.status).not.toBe(0);
+        else expect(r.status, r.stderr).toBe(0);
+        const linea = readFileSync(salida, 'utf8').trim().split('\n').at(-1)!;
+        expect(linea.startsWith('resultados=')).toBe(true);
+        return {
+          resultados: JSON.parse(linea.slice('resultados='.length)) as unknown,
+          llamadas: existsSync(anotado) ? readFileSync(anotado, 'utf8').trim().split('\n') : [],
+        };
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+
+    it('si el paso se corta a mitad, lo ya lanzado queda en la salida (no se relanza)', () => {
+      const { resultados } = correr(
+        [
+          { id: 1, trabajo: 'purgar-fotos' },
+          { id: 2, trabajo: 'respaldo' },
+        ],
+        '',
+        'respaldo.yml',
+        true,
+      );
+      expect(resultados).toEqual([{ id: '1', trabajo: 'purgar-fotos', resultado: 'lanzado' }]);
     });
-    expect(r.status, r.stderr).toBe(1);
-    expect(r.stderr + r.stdout).toContain('Faltan SUPABASE_URL');
+
+    it('lanza cada pedido en develop, con su entrada, y devuelve el resultado de cada uno', () => {
+      const { resultados, llamadas } = correr([
+        { id: 1, trabajo: 'purgar-fotos' },
+        { id: 2, trabajo: 'regenerar-zona' },
+      ]);
+      expect(llamadas).toEqual([
+        'gh api -X POST repos/dueno/repo/actions/workflows/purgar-fotos.yml/dispatches -f ref=develop',
+        'gh api -X POST repos/dueno/repo/actions/workflows/mantenimiento.yml/dispatches -f ref=develop -f inputs[trabajo]=regenerar-zona',
+      ]);
+      expect(resultados).toEqual([
+        { id: '1', trabajo: 'purgar-fotos', resultado: 'lanzado' },
+        { id: '2', trabajo: 'regenerar-zona', resultado: 'lanzado' },
+      ]);
+    });
+
+    it('si GitHub no acepta uno, devuelve su error y sigue con los demás', () => {
+      const { resultados } = correr(
+        [
+          { id: 1, trabajo: 'respaldo' },
+          { id: 2, trabajo: 'purgar-fotos' },
+        ],
+        'respaldo.yml',
+      );
+      expect(resultados).toEqual([
+        { id: '1', trabajo: 'respaldo', resultado: 'error: GitHub: gh: Unexpected inputs provided (HTTP 422)' },
+        { id: '2', trabajo: 'purgar-fotos', resultado: 'lanzado' },
+      ]);
+    });
+
+    it('un trabajo que no está en su case no se lanza, aunque llegue de leer; un id raro, tampoco', () => {
+      const { resultados, llamadas } = correr([
+        { id: 9, trabajo: 'borrar-todo' },
+        { id: '1; rm -rf /', trabajo: 'respaldo' },
+      ]);
+      expect(llamadas).toEqual([]);
+      // El del id raro no vuelve: marcar lo deja pendiente y falla diciéndolo.
+      expect(resultados).toEqual([
+        { id: '9', trabajo: 'borrar-todo', resultado: 'error: trabajo desconocido (borrar-todo)' },
+      ]);
+    });
   });
 
   describe('las issues', () => {
-    const desde = yml.indexOf('- name: Abrir o cerrar las issues del despachador');
-    const paso = yml.slice(desde);
-    const guion = paso
-      .slice(paso.indexOf('run: |\n') + 'run: |\n'.length)
-      .split('\n')
-      .map((l) => l.replace(/^ {10}/, ''))
-      .join('\n');
-    const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
+    const avisar = trabajo('avisar');
+    const guion = guionDe(avisar, 'Abrir o cerrar las issues del despachador');
     const FALLO = 'El despachador de trabajos ha fallado';
     const PEDIDO = 'Un trabajo pedido desde el panel no se ha lanzado';
     /** gh simulado con jq de verdad; lo que no es leer se anota. */
@@ -308,14 +498,17 @@ describe('despachador.yml', () => {
       }
     };
 
-    it('corre siempre y lee la salida de despachar.ts por env, no dentro del guion', () => {
-      expect(desde).toBeGreaterThan(-1);
-      expect(paso).toContain('if: always()');
-      expect(paso).toContain('CON_ERROR: ${{ steps.despachar.outputs.con_error }}');
+    it('corre siempre, mira los tres trabajos y lee la salida de marcar por env, no dentro del guion', () => {
+      expect(avisar).toMatch(/^ {4}needs: \[leer, lanzar, marcar\]$/m);
+      expect(avisar).toMatch(/^ {4}if: always\(\)$/m);
+      expect(avisar).toContain("needs.leer.result == 'success'");
+      expect(avisar).toContain('needs.lanzar.result');
+      expect(avisar).toContain('needs.marcar.result');
+      expect(avisar).toContain('CON_ERROR: ${{ needs.marcar.outputs.con_error }}');
       expect(guion).not.toContain('${{');
     });
 
-    it.skipIf(!tieneJq)('todo bien: cierra la del fallo, y la de un pedido con error no la toca', () => {
+    it.skipIf(sinJq)('todo bien: cierra la del fallo, y la de un pedido con error no la toca', () => {
       const issues = [
         { number: 3, title: FALLO },
         { number: 4, title: PEDIDO },
@@ -323,16 +516,22 @@ describe('despachador.yml', () => {
       expect(correr('success', '', issues)).toBe('gh issue close 3\n');
     });
 
-    it.skipIf(!tieneJq)('la ejecución falla: abre la del fallo una sola vez', () => {
+    it.skipIf(sinJq)('la ejecución falla: abre la del fallo una sola vez', () => {
       expect(correr('failure', '', [])).toBe('gh issue create --title\n');
       expect(correr('failure', '', [{ number: 3, title: FALLO }])).toBe('');
     });
 
-    it.skipIf(!tieneJq)('un pedido con error: abre su issue, o comenta en la abierta, y no la cierra', () => {
-      const conError = 'respaldo: error: GitHub respondió 422: x';
+    it.skipIf(sinJq)('un pedido con error: abre su issue, o comenta en la abierta, y no la cierra', () => {
+      const conError = 'respaldo: error: GitHub: HTTP 422';
       expect(correr('success', conError, [])).toBe('gh issue create --title\n');
       expect(correr('success', conError, [{ number: 4, title: PEDIDO }])).toBe('gh issue comment 4\n');
     });
+  });
+
+  it('marcar corre aunque lanzar falle o no haga falta, si leer fue bien y hay algo que anotar', () => {
+    expect(trabajo('marcar')).toContain(
+      "if: always() && needs.leer.result == 'success' && needs.leer.outputs.hay == 'si'",
+    );
   });
 
   it('está en las listas de workflows programados que se mantienen activos', () => {

@@ -6,10 +6,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const estado = vi.hoisted(() => ({
-  mapabase: { descargado: null, progreso: null, fallo: false } as {
+  mapabase: { descargado: null, progreso: null, fallo: false, parada: false } as {
     descargado: { version: string; bytes: number; fecha: string } | null;
     progreso: number | null;
     fallo: boolean;
+    parada: boolean;
   },
 }));
 
@@ -27,7 +28,7 @@ const regiones = (html: string) =>
 
 describe('AvisoMapabase: lo que anuncia la descarga (RV-236)', () => {
   beforeEach(() => {
-    estado.mapabase = { descargado: null, progreso: null, fallo: false };
+    estado.mapabase = { descargado: null, progreso: null, fallo: false, parada: false };
   });
 
   it('el porcentaje se ve, pero no está dentro de ninguna región viva', () => {
@@ -42,6 +43,14 @@ describe('AvisoMapabase: lo que anuncia la descarga (RV-236)', () => {
     expect(regiones(renderToStaticMarkup(<AnuncioDescarga />))).toEqual([T.mapa.anuncioDescarga.inicio]);
     estado.mapabase.progreso = 64;
     expect(regiones(renderToStaticMarkup(<AnuncioDescarga />))).toEqual([T.mapa.anuncioDescarga.mitad]);
+  });
+
+  it('la descarga parada lo dice y ofrece reintentar (RV-235)', () => {
+    estado.mapabase = { ...estado.mapabase, fallo: true, parada: true };
+    const html = renderToStaticMarkup(<AvisoMapabase sinRed={false} />);
+    expect(html).toContain(T.ajustes.descargaParada);
+    expect(html).toContain(T.ajustes.reintentar);
+    expect(html).not.toContain(T.ajustes.falloDescarga);
   });
 
   it('sin descarga en marcha no se anuncia nada', () => {

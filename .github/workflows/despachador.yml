@@ -5,6 +5,12 @@
 # guarda un token de GitHub, y staging no puede lanzar nada contra producción: sus pedidos se quedan
 # en la base de datos de staging, que nadie despacha.
 #
+# Cuatro trabajos (docs/32 RV-201, DEC-180): solo «lanzar» tiene actions: write, que también serviría
+# para borrar artifacts, y el respaldo es un artifact y el único que hay. Ese trabajo no hace checkout
+# ni ve la clave de servicio: recibe de «leer» los nombres de los trabajos ya validados contra la lista,
+# los vuelve a comprobar en su `case` y solo llama a la API de dispatches. «leer» y «marcar», que
+# corren código del repositorio con la clave de servicio, solo tienen contents: read.
+#
 # Environment prod-tareas (RV-131): solo la rama develop alcanza la clave de servicio de producción.
 # Sin npm ci: scripts/despachar.ts solo usa módulos de Node, y ninguna dependencia de npm corre con
 # la clave de servicio a mano.
@@ -16,49 +22,142 @@ on:
     - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  # Lanzar los workflows de los pedidos (workflow_dispatch). Un GITHUB_TOKEN sí crea ejecuciones con
-  # workflow_dispatch, a diferencia de los demás eventos.
-  actions: write
-  issues: write
+# Nada por defecto: cada trabajo pide lo suyo.
+permissions: {}
 
 concurrency:
   group: despachador
   cancel-in-progress: false
 
 jobs:
-  despachar:
+  leer:
     runs-on: ubuntu-24.04
     environment: prod-tareas
     timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      pedidos: ${{ steps.leer.outputs.pedidos }}
+      rechazados: ${{ steps.leer.outputs.rechazados }}
+      hay: ${{ steps.leer.outputs.hay }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
 
-      - name: Lanzar los trabajos pedidos
-        id: despachar
+      - name: Leer los pedidos pendientes
+        id: leer
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/despachar.ts
+        run: node scripts/despachar.ts leer
 
-      # Dos issues distintas:
-      # - «El despachador de trabajos ha fallado»: no ha podido leer o marcar los pedidos. Una sola,
-      #   no una por pasada (cada 15 minutos llenaría la lista), y se cierra sola cuando vuelve a ir bien.
-      # - «Un trabajo pedido desde el panel no se ha lanzado»: un pedido anotado con error. Ese pedido
-      #   no se reintenta, así que la pasada siguiente va bien: esta issue no se cierra sola, la
-      #   cierra quien lo arregla (15 §4).
-      - name: Abrir o cerrar las issues del despachador
-        if: always()
+  lanzar:
+    needs: leer
+    if: needs.leer.outputs.pedidos != '' && needs.leer.outputs.pedidos != '[]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # Lanzar los workflows de los pedidos (workflow_dispatch). Un GITHUB_TOKEN sí crea ejecuciones con
+    # workflow_dispatch, a diferencia de los demás eventos. Nada más: ni contents ni la clave de servicio.
+    permissions:
+      actions: write
+    outputs:
+      resultados: ${{ steps.lanzar.outputs.resultados }}
+    steps:
+      # Sin checkout: aquí no corre nada del repositorio, solo este guion, gh y jq.
+      - name: Lanzar los trabajos pedidos
+        id: lanzar
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          ESTADO: ${{ job.status }}
-          CON_ERROR: ${{ steps.despachar.outputs.con_error }}
+          PEDIDOS: ${{ needs.leer.outputs.pedidos }}
+        run: |
+          set -uo pipefail
+          resultados='[]'
+          while IFS=$'\t' read -r id trabajo; do
+            # La misma tabla que ARCHIVO en scripts/despachar.ts (lo comprueba su test). Lo que no está
+            # aquí no se lanza, venga de donde venga.
+            entrada=''
+            case "$trabajo" in
+              purgar-fotos) archivo=purgar-fotos.yml ;;
+              respaldo) archivo=respaldo.yml ;;
+              regenerar-zona | regenerar-mapabase) archivo=mantenimiento.yml; entrada="$trabajo" ;;
+              *) archivo='' ;;
+            esac
+            if ! [[ "$id" =~ ^[0-9]+$ ]]; then
+              continue
+            elif [ -z "$archivo" ]; then
+              resultado="error: trabajo desconocido ($trabajo)"
+            else
+              argumentos=(-X POST "repos/$GH_REPO/actions/workflows/$archivo/dispatches" -f ref=develop)
+              if [ -n "$entrada" ]; then argumentos+=(-f "inputs[trabajo]=$entrada"); fi
+              if salida=$(gh api "${argumentos[@]}" 2>&1); then
+                resultado=lanzado
+              else
+                # El mensaje de GitHub dice el porqué (una entrada que el workflow no declara, sin
+                # workflow_dispatch…). No lleva el token. En una línea y corto.
+                resultado="error: GitHub: $(printf '%s' "$salida" | tr -s '[:space:]' ' ' | cut -c1-180)"
+              fi
+            fi
+            resultados=$(jq -c --arg id "$id" --arg t "$trabajo" --arg r "$resultado" \
+              '. + [{id: $id, trabajo: $t, resultado: $r}]' <<< "$resultados")
+            # En cuanto se sabe, no al final: si el paso se corta a mitad, GitHub lee igual la última
+            # línea, y «marcar» anota los ya lanzados en vez de dejarlos pendientes para relanzarlos.
+            echo "resultados=$resultados" >> "$GITHUB_OUTPUT"
+          done < <(jq -r '.[] | [(.id | tostring), .trabajo] | @tsv' <<< "$PEDIDOS")
+
+  marcar:
+    needs: [leer, lanzar]
+    # También si «lanzar» ha fallado o no ha hecho falta: los rechazados se anotan igual, y los pedidos
+    # sin resultado se quedan pendientes (despachar.ts falla y lo dice). Si «lanzar» se cortó justo
+    # después de lanzar uno y antes de anotar su resultado, ese se relanza en la pasada siguiente.
+    if: always() && needs.leer.result == 'success' && needs.leer.outputs.hay == 'si'
+    runs-on: ubuntu-24.04
+    environment: prod-tareas
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      con_error: ${{ steps.marcar.outputs.con_error }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Anotar lo que ha pasado con cada pedido
+        id: marcar
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          PEDIDOS: ${{ needs.leer.outputs.pedidos }}
+          RECHAZADOS: ${{ needs.leer.outputs.rechazados }}
+          RESULTADOS: ${{ needs.lanzar.outputs.resultados }}
+        run: node scripts/despachar.ts marcar
+
+  # Dos issues distintas:
+  # - «El despachador de trabajos ha fallado»: no ha podido leer, lanzar o marcar los pedidos. Una
+  #   sola, no una por pasada (cada 15 minutos llenaría la lista), y se cierra sola cuando vuelve a ir
+  #   bien.
+  # - «Un trabajo pedido desde el panel no se ha lanzado»: un pedido anotado con error. Ese pedido
+  #   no se reintenta, así que la pasada siguiente va bien: esta issue no se cierra sola, la
+  #   cierra quien lo arregla (15 §4).
+  avisar:
+    needs: [leer, lanzar, marcar]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Abrir o cerrar las issues del despachador
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          # Bien solo si «leer» fue bien y los otros dos fueron bien o no hicieron falta.
+          ESTADO: ${{ (needs.leer.result == 'success' && contains(fromJSON('["success","skipped"]'), needs.lanzar.result) && contains(fromJSON('["success","skipped"]'), needs.marcar.result)) && 'success' || 'failure' }}
+          CON_ERROR: ${{ needs.marcar.outputs.con_error }}
           EJECUCION: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
@@ -73,7 +172,7 @@ jobs:
               gh issue close "$numero" --comment "El despachador vuelve a ir bien: $EJECUCION"
             fi
           elif [ -z "$numero" ]; then
-            gh issue create --title "$titulo" --label vigilancia --body "El despachador no ha podido leer o anotar los pedidos del panel (purgar fotos, respaldo, regenerar la zona o el mapa base): no se está lanzando nada. Mira la ejecución: $EJECUCION
+            gh issue create --title "$titulo" --label vigilancia --body "El despachador no ha podido leer, lanzar o anotar los pedidos del panel (purgar fotos, respaldo, regenerar la zona o el mapa base): no se está lanzando nada. Mira la ejecución: $EJECUCION
 
           Qué hacer: docs/15 §4."
           fi

@@ -34,7 +34,11 @@ export function AvisoMapabase({ sinRed }: { sinRed: boolean }) {
       <span className="font-semibold">{T.ajustes.descargando(mapabase.progreso)}</span>
     ) : (
       <button type="button" className="min-h-11 font-semibold underline" onClick={() => void descargarMapabase()}>
-        {mapabase.descargado ? T.mapa.descargarVersionNueva : T.mapa.descargarMapabase(megas(BYTES_MAPABASE))}
+        {mapabase.parada
+          ? T.ajustes.reintentar
+          : mapabase.descargado
+            ? T.mapa.descargarVersionNueva
+            : T.mapa.descargarMapabase(megas(BYTES_MAPABASE))}
       </button>
     );
   // Sin role="status": el porcentaje cambia a cada trozo y el lector lo leería entero cada vez. Lo que
@@ -43,7 +47,12 @@ export function AvisoMapabase({ sinRed }: { sinRed: boolean }) {
     <div className={cn(clase, 'flex flex-wrap items-center gap-x-3')} data-testid="aviso-mapabase">
       <span className="flex-1">{mapabase.descargado ? T.ajustes.versionNuevaMapa : T.mapa.mapabaseFalta}</span>
       {accion}
-      {mapabase.fallo && <span className="text-rojo-700 w-full">{T.ajustes.falloDescarga}</span>}
+      {mapabase.fallo && (
+        // La descarga parada (30 s sin llegar nada, RV-235) lo dice; el botón de al lado es «Reintentar».
+        <span className="text-rojo-700 w-full">
+          {mapabase.parada ? T.ajustes.descargaParada : T.ajustes.falloDescarga}
+        </span>
+      )}
       {mapabase.descargado && mapabase.progreso === null && (
         <button
           type="button"
