@@ -49,10 +49,13 @@ export function generarCodigo(): string {
 export const cambiarCodigo = (nuevo: string, revocarDispositivos: boolean) =>
   rpc<null>('fn_cambiar_codigo_acceso', { nuevo, revocar_dispositivos: revocarDispositivos });
 
-/** Cuántos móviles tienen acceso ahora mismo, para explicar qué pasa al revocar. */
-export const contarDispositivos = async (): Promise<number> => {
+/**
+ * Cuántos móviles tienen acceso ahora mismo, para explicar qué pasa al revocar. Si no se puede
+ * leer, el error: nunca un 0, que haría creer que revocar no desconecta a nadie (docs/32 RV-261).
+ */
+export const contarDispositivos = async (): Promise<Resultado<number>> => {
   const r = await leerLista<{ id: string }>((c) => c.from('dispositivos').select('id').is('revocado_en', null));
-  return r.ok ? r.datos.length : 0;
+  return r.ok ? { ok: true, datos: r.datos.length } : r;
 };
 
 // ---------- administradores (FR-141, FL-30) ----------
@@ -119,9 +122,14 @@ export async function cargarParametros(): Promise<Resultado<Parametros>> {
   return { ok: true, datos: valores };
 }
 
-/** Solo viaja lo que cambia: fn_guardar_config rechaza un objeto vacío y anota lo demás en el registro. */
-export function cambiosParametros(antes: Parametros, ahora: Parametros): Record<string, unknown> {
+/**
+ * Solo viaja lo que cambia: fn_guardar_config rechaza un objeto vacío y anota lo demás en el registro.
+ * `antes` es lo cargado de verdad: sin cargar (null) no hay cambios, nunca contra los valores por
+ * defecto, que mandarían como cambio lo que no ha tocado nadie (docs/32 RV-257).
+ */
+export function cambiosParametros(antes: Parametros | null, ahora: Parametros): Record<string, unknown> {
   const cambios: Record<string, unknown> = {};
+  if (!antes) return cambios;
   for (const clave of Object.keys(PARAMETROS) as ClaveParametro[]) {
     if (ahora[clave] !== antes[clave]) cambios[clave] = ahora[clave];
   }
@@ -290,8 +298,13 @@ export function avisoAlmacenamiento(bytes: number | null): number | null {
 export type Workflow = 'purgar-fotos' | 'regenerar-zona' | 'regenerar-mapabase' | 'respaldo';
 
 export const lanzarWorkflow = (workflow: Workflow) =>
-  // Desde docs/31 RV-146 la Function deja un pedido ({ pedido: true }) que recoge despachador.yml.
-  funcion<{ pedido?: boolean }>('/api/lanzar-workflow', { metodo: 'POST', cuerpo: { workflow } });
+  // Desde docs/31 RV-146 la Function deja un pedido ({ pedido: true }) que recoge despachador.yml. En
+  // staging nadie lo recoge y la respuesta lleva `staging: true` (docs/32 RV-224, RV-260).
+  funcion<{ pedido?: boolean; staging?: boolean }>('/api/lanzar-workflow', { metodo: 'POST', cuerpo: { workflow } });
+
+/** El aviso al pedir un trabajo: en staging no se lanza y queda anotado; si no, empezará pronto (RV-260). */
+export const avisoPedido = (nombre: string, respuesta: { pedido?: boolean; staging?: boolean } | null | undefined) =>
+  respuesta?.staging === true ? T.panelAjustes.trabajoAnotadoStaging(nombre) : T.panelAjustes.trabajoPedido(nombre);
 
 /** Descarga de consulta en JSON (FR-144). No es el respaldo: eso vive en 15. */
 export async function descargarInventarioJson(): Promise<Resultado<number>> {

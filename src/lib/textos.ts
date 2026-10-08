@@ -895,7 +895,8 @@ export const T = {
     incidenciaResuelta: 'Incidencia resuelta',
     anonimizacion: 'Anonimización',
     exportacion: 'Exportación',
-    workflowLanzado: 'Mantenimiento lanzado',
+    // docs/32 RV-260: el panel solo lo pide; lo lanza el despachador (o nadie, en staging).
+    workflowLanzado: 'Mantenimiento pedido',
     // Detalle legible (docs/30 RV-127, DEC-171): qué cambió, con palabras.
     cambio: (campo: Parametro, antes: Parametro, despues: Parametro) => `${campo}: ${antes} → ${despues}`,
     valor: (campo: Parametro, valor: Parametro) => `${campo}: ${valor}`,
@@ -942,6 +943,12 @@ export const T = {
     cambiadoPor: (fecha: Parametro, quien: Parametro, moviles: Parametro) =>
       `Cambiado por última vez el ${fecha} por ${quien}. ${moviles} móviles registrados.`,
     sinCambios: (moviles: Parametro) => `Sin cambios desde el arranque. ${moviles} móviles registrados.`,
+    // docs/32 RV-261: sin poder contar los móviles no se dice un número, y sin el código, tampoco «—».
+    cambiadoPorSinCuenta: (fecha: Parametro, quien: Parametro) => `Cambiado por última vez el ${fecha} por ${quien}.`,
+    sinCambiosSinCuenta: 'Sin cambios desde el arranque.',
+    codigoNoCarga: 'No se ha podido leer el código.',
+    avisoRevocandoSinCuenta:
+      'Se pondrá en vigor un código nuevo. No se sabe cuántos móviles se desconectarán: todos los que tienen acceso tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.',
     ver: 'ver',
     ocultar: 'ocultar',
     explicaSinRevocar:
@@ -1027,6 +1034,8 @@ export const T = {
     // docs/31 RV-146 y RV-167: el panel deja un pedido que un workflow recoge; en staging, Purgar fotos y
     // el respaldo no se piden (trabajan contra producción).
     trabajoPedido: (nombre: Parametro) => `"${nombre}": pedido. Empezará en unos minutos.`,
+    // docs/32 RV-224 y RV-260: en staging nadie despacha el pedido.
+    trabajoAnotadoStaging: (nombre: Parametro) => `"${nombre}": pedido. En staging no se lanza: queda anotado.`,
     soloEnProduccion: 'Solo en producción',
     radiosInvalidos: 'Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.',
     nucleosVacio: 'Todavía no hay núcleos.',
