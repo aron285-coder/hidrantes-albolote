@@ -10,6 +10,7 @@ import {
   ejecucionDe,
   parEfimero,
   pedidoDe,
+  propietarioDe,
 } from './traspasar-secreto.ts';
 
 const raiz = path.resolve(import.meta.dirname, '..');
@@ -133,16 +134,36 @@ describe('comprobarOrigen', () => {
 });
 
 describe('comprobarPropietario (docs/32 RV-208)', () => {
+  const REPO = 'titular/hidrantes-albolote';
+
   it('sin la variable PROPIETARIO para y dice cómo ponerla', () => {
-    expect(() => comprobarPropietario(null, 'titular', 'titular')).toThrow(
-      /gh variable set PROPIETARIO --body titular/,
+    expect(() => comprobarPropietario(null, 'titular', REPO)).toThrow(
+      /gh variable set PROPIETARIO --repo titular\/hidrantes-albolote --body </,
     );
-    expect(() => comprobarPropietario('', 'titular', 'titular')).toThrow(/PROPIETARIO/);
+    expect(() => comprobarPropietario('', 'titular', REPO)).toThrow(/PROPIETARIO/);
   });
 
   it('con otra sesión de gh para: los trabajos se saltarían sin artefacto', () => {
-    expect(() => comprobarPropietario('titular', 'otra', 'titular')).toThrow(/solo lo puede lanzar titular/);
-    expect(() => comprobarPropietario('titular', 'titular', 'titular')).not.toThrow();
+    expect(() => comprobarPropietario('titular', 'otra', REPO)).toThrow(/solo lo puede lanzar titular/);
+    expect(() => comprobarPropietario('titular', 'titular', REPO)).not.toThrow();
+  });
+
+  it('sin distinguir mayúsculas, como GitHub', () => {
+    expect(() => comprobarPropietario('Titular', 'titular', REPO)).not.toThrow();
+  });
+});
+
+describe('propietarioDe (docs/32 RV-208)', () => {
+  it('la variable que hay, o null si no existe', () => {
+    expect(propietarioDe({ codigo: 0, salida: 'titular\n', error: '' })).toBe('titular');
+    expect(propietarioDe({ codigo: 1, salida: '', error: 'variable PROPIETARIO was not found' })).toBeNull();
+    expect(propietarioDe({ codigo: 1, salida: '', error: 'HTTP 404: Not Found' })).toBeNull();
+  });
+
+  it('un fallo de permisos o de red no se toma por «falta»: invitaría a pisarla', () => {
+    expect(() => propietarioDe({ codigo: 1, salida: '', error: 'HTTP 403: Resource not accessible' })).toThrow(
+      /No se puede leer la variable PROPIETARIO: HTTP 403/,
+    );
   });
 });
 
@@ -195,7 +216,7 @@ describe('cifrar en el workflow y descifrar aquí (híbrido, docs/32 RV-208)', {
     const datos = Buffer.from(sobre.datos!, 'base64');
     datos[0] = datos[0]! ^ 1;
     const tocado = JSON.stringify({ ...sobre, datos: datos.toString('base64') });
-    expect(() => descifrar(privada, tocado)).toThrow(/no es para esta clave o se ha modificado/);
+    expect(() => descifrar(privada, tocado)).toThrow(/la etiqueta GCM no cuadra, se ha modificado/);
   });
 
   it('con otra clave privada no se descifra', () => {

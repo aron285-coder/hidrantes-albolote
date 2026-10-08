@@ -108,21 +108,28 @@ function leerSobre(texto: string): Sobre {
 export function descifrar(privada: KeyObject, texto: string): string {
   const sobre = leerSobre(texto);
   const b = (s: string) => Buffer.from(s, 'base64');
-  let valor: Buffer;
+  const iv = b(sobre.iv);
+  const etiqueta = b(sobre.etiqueta);
+  if (iv.length !== 12 || etiqueta.length !== 16)
+    abortar('El sobre de traspaso.yml está mal formado (IV o etiqueta de otro tamaño)');
+  let clave: Buffer;
   try {
-    const clave = privateDecrypt(
+    clave = privateDecrypt(
       { key: privada, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' },
       b(sobre.clave),
     );
-    const iv = b(sobre.iv);
-    const etiqueta = b(sobre.etiqueta);
-    if (clave.length !== 32 || iv.length !== 12 || etiqueta.length !== 16) throw new Error('tamaños');
+  } catch {
+    // Sin el mensaje de node:crypto: no lleva el valor, pero tampoco ayuda. Lo que importa es parar.
+    abortar('No se ha podido descifrar el artefacto: no es para esta clave');
+  }
+  if (clave.length !== 32) abortar('El sobre de traspaso.yml está mal formado (la clave AES no es de 256 bits)');
+  let valor: Buffer;
+  try {
     const aes = createDecipheriv('aes-256-gcm', clave, iv);
     aes.setAuthTag(etiqueta);
     valor = Buffer.concat([aes.update(b(sobre.datos)), aes.final()]);
   } catch {
-    // Sin el mensaje de node:crypto: no lleva el valor, pero tampoco ayuda. Lo que importa es parar.
-    abortar('No se ha podido descifrar el artefacto: no es para esta clave o se ha modificado');
+    abortar('No se ha podido descifrar el artefacto: la etiqueta GCM no cuadra, se ha modificado');
   }
   if (valor.length === 0) abortar('El secreto descifrado está vacío');
   return valor.toString('utf8');
@@ -133,13 +140,25 @@ export function descifrar(privada: KeyObject, texto: string): string {
  * repositorio. Si falta o es otro, los dos trabajos se saltarían y no habría artefacto; mejor decirlo
  * aquí, con lo que hay que hacer.
  */
-export function comprobarPropietario(variable: string | null, sesion: string, titular: string): void {
+export function comprobarPropietario(variable: string | null, sesion: string, repo: string): void {
   if (!variable)
     abortar(
-      `Falta (o no se puede leer) la variable del repositorio PROPIETARIO: gh variable set PROPIETARIO --body ${titular}`,
+      `Falta la variable del repositorio PROPIETARIO (la pone npm run arranque): ` +
+        `gh variable set PROPIETARIO --repo ${repo} --body <login de GitHub de quien lanza los traspasos>`,
     );
-  if (variable !== sesion)
+  // Los logins de GitHub, y el == de las expresiones de Actions, no distinguen mayúsculas.
+  if (variable.toLowerCase() !== sesion.toLowerCase())
     abortar(`traspaso.yml solo lo puede lanzar ${variable} (variable PROPIETARIO) y la sesión de gh es de ${sesion}`);
+}
+
+/**
+ * La variable PROPIETARIO, o null si no existe. Cualquier otro fallo (permisos, red) aborta con su
+ * motivo: decir «falta» invitaría a pisar una variable que sí está.
+ */
+export function propietarioDe(r: { codigo: number; salida: string; error: string }): string | null {
+  if (r.codigo === 0) return r.salida.trim() || null;
+  if (/not found|HTTP 404/i.test(r.error)) return null;
+  abortar(`No se puede leer la variable PROPIETARIO: ${errorSeguro(r.error || r.salida)}`);
 }
 
 /** La ejecución de este traspaso, por su `run-name` ("Traspaso <id>"). */
@@ -284,11 +303,7 @@ async function principal(): Promise<void> {
   const sesion = ejecutar('gh', ['auth', 'status']);
   if (sesion.codigo !== 0) abortar('Hace falta la sesión de gh: gh auth login');
   const variable = ejecutar('gh', ['variable', 'get', 'PROPIETARIO', '--repo', repositorio().completo]);
-  comprobarPropietario(
-    variable.codigo === 0 ? variable.salida : null,
-    gh(['api', 'user', '--jq', '.login']),
-    repositorio().propietario,
-  );
+  comprobarPropietario(propietarioDe(variable), gh(['api', 'user', '--jq', '.login']), repositorio().completo);
   comprobarOrigen(secretos, secretosDe(desde), desde);
   secretosDe(hacia);
   for (const s of secretos) {

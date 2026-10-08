@@ -101,7 +101,10 @@ export interface Repositorio {
  * Null si no es de GitHub: mejor parar que lanzar algo contra otro repositorio.
  */
 export function repositorioDeRemoto(url: string): Repositorio | null {
-  const m = /github\.com[:/]([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100}?)(?:\.git)?\/?$/.exec(url.trim());
+  const m =
+    /^(?:https:\/\/(?:[^@/]+@)?|ssh:\/\/git@|git@)github\.com[:/]([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100}?)(?:\.git)?\/?$/.exec(
+      url.trim(),
+    );
   if (!m) return null;
   return { propietario: m[1]!, nombre: m[2]!, completo: `${m[1]}/${m[2]}` };
 }
@@ -117,9 +120,10 @@ let repositorioCache: Repositorio | null = null;
 export function repositorio(): Repositorio {
   if (repositorioCache) return repositorioCache;
   const r = ejecutar('git', ['remote', 'get-url', 'origin']);
-  const encontrado = r.codigo === 0 ? repositorioDeRemoto(r.salida) : null;
+  if (r.codigo !== 0) abortar(`No se puede leer el remoto origin: ${errorSeguro(r.error || r.salida)}`);
+  const encontrado = repositorioDeRemoto(r.salida);
   if (!encontrado)
-    abortar('No sé de qué repositorio de GitHub es este checkout: `git remote get-url origin` no lo dice.');
+    abortar(`El remoto origin (${r.salida}) no es un repositorio de GitHub: no sé contra cuál lanzar nada.`);
   repositorioCache = encontrado;
   return encontrado;
 }

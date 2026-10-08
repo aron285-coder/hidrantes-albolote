@@ -160,10 +160,15 @@ describe('repositorio (docs/32 RV-208)', () => {
     });
   });
 
-  it.each(['', 'https://gitlab.com/titular/repo.git', 'https://github.com/solo-titular', 'C:/repos/local'])(
-    'un remoto que no es de GitHub no da repositorio: "%s"',
-    (url) => expect(repositorioDeRemoto(url)).toBeNull(),
-  );
+  it.each([
+    '',
+    'https://gitlab.com/titular/repo.git',
+    'https://github.com/solo-titular',
+    'C:/repos/local',
+    'https://notgithub.com/titular/repo.git',
+    'https://otro.host/github.com/titular/repo',
+    'git@evilgithub.com:titular/repo.git',
+  ])('un remoto que no es de GitHub no da repositorio: "%s"', (url) => expect(repositorioDeRemoto(url)).toBeNull());
 
   it('el de este checkout sale de git remote, no de un nombre escrito en los scripts', () => {
     const r = repositorio();
