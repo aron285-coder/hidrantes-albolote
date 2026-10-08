@@ -52,7 +52,32 @@ describe('workflows programados (DEC-085)', () => {
     for (const l of ls) expect(l).toEqual(programados);
     expect(texto).toContain('runs?event=schedule&per_page=1');
     expect(texto).toContain('/actions/workflows/$w/enable');
-    expect(texto).toMatch(/^\s{2}actions: write/m);
+  });
+
+  // docs/32 RV-201 (DEC-180): actions: write también borra artifacts, y el respaldo es uno, el único.
+  // Solo lo tiene el trabajo que rehabilita, sin checkout; nada por defecto en el workflow.
+  it.each(['vigilancia.yml', 'mantener-activo.yml'])(
+    '%s: actions: write solo en el trabajo que rehabilita, sin checkout',
+    (a) => {
+      const texto = leer(a);
+      expect(texto).toMatch(/^permissions: \{\}$/m);
+      const sinComentarios = texto.replace(/^\s*#.*$/gm, '');
+      expect(sinComentarios.match(/actions: write/g)).toHaveLength(1);
+      const trabajos = sinComentarios.slice(sinComentarios.indexOf('\njobs:\n')).split(/\n(?= {2}[a-z-]+:\n)/);
+      const conEscritura = trabajos.filter((t) => t.includes('actions: write'));
+      expect(conEscritura).toHaveLength(1);
+      expect(conEscritura[0]).toContain('/actions/workflows/$w/enable');
+      expect(conEscritura[0]).not.toMatch(/actions\/checkout|secrets\.(?!GITHUB_TOKEN)|environment:/);
+      // Cada trabajo declara sus permisos.
+      const nombres = [...sinComentarios.matchAll(/^ {2}([a-z-]+):\n {4}/gm)].map((m) => m[1]);
+      for (const t of trabajos.slice(1)) expect(t, nombres.join()).toMatch(/^ {4}permissions:/m);
+    },
+  );
+
+  it('vigilancia.yml: el trabajo mirar, con la base de datos de producción, solo lee las ejecuciones', () => {
+    const texto = leer('vigilancia.yml');
+    const mirar = texto.slice(texto.indexOf('\n  mirar:\n'), texto.indexOf('\n  rehabilitar:\n'));
+    expect(mirar).toMatch(/^ {4}permissions:\n {6}contents: read\n {6}actions: read\n {6}issues: write\n/m);
   });
 });
 
@@ -106,7 +131,13 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
     const texto = leer('vigilancia.yml');
     const paso = (nombre: string) => texto.slice(texto.indexOf(`- name: ${nombre}`)).split(/\n\s{6}- name:/)[0]!;
     expect(paso('Abrir o cerrar la issue de vigilancia')).toMatch(/^\s+if: always\(\)$/m);
-    expect(paso('Rehabilitar los workflows programados')).toMatch(/^\s+continue-on-error: true$/m);
+    // docs/32 RV-201: la rehabilitación va en su propio trabajo, que no depende de mirar ni mirar de él.
+    const rehabilitar = texto.slice(texto.indexOf('\n  rehabilitar:\n'));
+    expect(rehabilitar).toContain('- name: Rehabilitar los workflows programados');
+    expect(rehabilitar).not.toMatch(/^ {4}needs:/m);
+    expect(texto.slice(texto.indexOf('\n  mirar:\n'), texto.indexOf('\n  rehabilitar:\n'))).not.toContain(
+      '- name: Rehabilitar los workflows programados',
+    );
   });
 
   // docs/19 RV-56: con HAY vacío (Comprobar no terminó) la issue se cerraba con "todo responde".
