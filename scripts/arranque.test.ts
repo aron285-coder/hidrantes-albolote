@@ -12,6 +12,8 @@ import {
   ROTABLES,
   aRotar,
   pasoTrasSecretosPages,
+  planPropietario,
+  repoDestino,
   planFaltantes,
   ponerFaltantes,
   secretosWorkerDe,
@@ -285,5 +287,30 @@ describe('secretos del Worker sin rotar por un fallo (RV-72)', () => {
       },
     );
     expect(tocado).toEqual(['pages y repo']);
+  });
+});
+
+// docs/32 RV-208: traspaso.yml solo lo lanza quien diga la variable PROPIETARIO; la pone el arranque.
+describe('variable PROPIETARIO', () => {
+  const fuente = readFileSync(path.join(import.meta.dirname, 'arranque.ts'), 'utf8');
+
+  it('sin variable, se pone; con el mismo login (sin mirar mayúsculas), se deja; con otro, se avisa', () => {
+    expect(planPropietario(null, 'titular')).toBe('poner');
+    expect(planPropietario('Titular', 'titular')).toBe('ya-esta');
+    expect(planPropietario('otro', 'titular')).toBe('distinta');
+  });
+
+  it('la ponen el arranque completo (preguntando si es otra) y --solo-faltantes (sin pisarla)', () => {
+    expect(fuente).toContain("fijarVariable('PROPIETARIO', login)");
+    expect(fuente).toContain('await asegurarVariablePropietario(login, true)');
+    expect(fuente).toContain('await asegurarVariablePropietario(login, false)');
+  });
+
+  it('el repositorio sale de git remote; sin origin (primer arranque), del login de gh', () => {
+    expect(repoDestino(true, 'titular', () => 'otro/hidrantes-albolote')).toBe('otro/hidrantes-albolote');
+    const sinRemoto = () => {
+      throw new Error('no se debe leer el remoto');
+    };
+    expect(repoDestino(false, 'titular', sinRemoto)).toBe('titular/hidrantes-albolote');
   });
 });
