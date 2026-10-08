@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -56,14 +57,113 @@ describe('dependencias y actions (RV-132)', () => {
     expect(grupos).toMatch(/parches-desarrollo:\n\s+dependency-type: development\n\s+update-types: \[patch\]/);
   });
 
-  it('automerge mira el autor del PR, no quien lo lanza, y solo fusiona parches de desarrollo', () => {
+  it('automerge mira el autor del PR, no quien lo lanza, y decide con la lista de la rama base', () => {
     const texto = leer('automerge.yml');
     expect(texto).not.toContain('github.actor');
     expect(texto).toContain("github.event.pull_request.user.login == 'dependabot[bot]'");
-    expect(texto).not.toContain('semver-major');
     expect(texto).toContain('updated-dependencies-json');
-    expect(texto).toContain('.dependencyType == "direct:development"');
-    expect(texto).toContain('.updateType == "version-update:semver-patch"');
+    expect(texto).toContain('ref: ${{ github.event.pull_request.base.sha }}');
+    // El workflow y sus actions, de la base: un PR que sube fetch-metadata no se ejecuta a sí mismo.
+    expect(texto).toMatch(/^on: pull_request_target$/m);
+    // Ningún checkout del código del PR (con pull_request_target, eso sí sería peligroso).
+    expect(texto.match(/uses: actions\/checkout@/g)).toHaveLength(1);
+    expect(texto).not.toMatch(/head\.(sha|ref)|github\.head_ref/);
+    expect(texto).toContain('node .github/scripts/automerge-permitido.mjs .github/automerge-permitidos.txt');
+    // Solo fusiona si el script lo dice: ningún otro camino llega a gh pr merge.
+    expect(texto.match(/gh pr merge/g)).toHaveLength(1);
+    expect(texto).toMatch(
+      /if: steps\.decidir\.outputs\.decision == 'fusionar'\n(?:.*\n){0,4}\s+run: gh pr merge --auto --squash/,
+    );
+  });
+});
+
+// docs/32 RV-204 (DEC-181): solo los parches de desarrollo de una lista de paquetes seguros se fusionan solos.
+describe('lista de permitidos de Dependabot (RV-204)', () => {
+  const lista = path.join(raiz, '.github/automerge-permitidos.txt');
+  const script = path.join(raiz, '.github/scripts/automerge-permitido.mjs');
+  const patrones = readFileSync(lista, 'utf8')
+    .split(/\r?\n/)
+    .map((l) => l.replace(/#.*$/, '').trim())
+    .filter(Boolean);
+  const parche = (nombre: string, extra: object = {}) => ({
+    dependencyName: nombre,
+    dependencyType: 'direct:development',
+    updateType: 'version-update:semver-patch',
+    ...extra,
+  });
+  const decidir = (dependencias: unknown) => {
+    const r = spawnSync(process.execPath, [script, lista], {
+      env: { ...process.env, DEPENDENCIAS: JSON.stringify(dependencias), GITHUB_STEP_SUMMARY: '' },
+      encoding: 'utf8',
+    });
+    return { codigo: r.status, salida: r.stdout.trim(), error: r.stderr };
+  };
+
+  it('la lista es la de la especificación', () => {
+    expect(patrones).toEqual([
+      'eslint*',
+      '@eslint/*',
+      'prettier',
+      '@types/*',
+      'typescript-eslint',
+      'globals',
+      '@playwright/test',
+      '@axe-core/playwright',
+      'vitest',
+      '@vitest/*',
+    ]);
+  });
+
+  it('un parche de vite no se fusiona solo: va en el bundle', () => {
+    const r = decidir([parche('vite')]);
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toBe('decision=esperar');
+    expect(r.error).toContain('vite: no está en la lista de permitidos');
+  });
+
+  it('un parche de @types/node sí', () => {
+    const r = decidir([parche('@types/node')]);
+    expect(r.salida).toBe('decision=fusionar');
+  });
+
+  it('los paquetes que corren con los secretos de producción o van en el bundle esperan', () => {
+    for (const p of ['workbox-window', 'vite-plugin-pwa', '@tailwindcss/vite', 'wrangler', 'tsx', 'openpgp']) {
+      expect(decidir([parche(p)]).salida).toBe('decision=esperar');
+    }
+  });
+
+  it('los comodines: eslint-plugin-x y @vitest/coverage-v8 sí; algo que solo contiene el nombre, no', () => {
+    expect(decidir([parche('eslint-plugin-react-hooks'), parche('@vitest/coverage-v8')]).salida).toBe(
+      'decision=fusionar',
+    );
+    expect(decidir([parche('mi-eslint')]).salida).toBe('decision=esperar');
+    expect(decidir([parche('@typesx/node')]).salida).toBe('decision=esperar');
+  });
+
+  it('un grupo con uno solo fuera de la lista espera entero', () => {
+    expect(decidir([parche('@types/node'), parche('vite')]).salida).toBe('decision=esperar');
+  });
+
+  it('de la lista, pero menor, o de producción: espera', () => {
+    expect(decidir([parche('vitest', { updateType: 'version-update:semver-minor' })]).salida).toBe('decision=esperar');
+    expect(decidir([parche('@types/node', { dependencyType: 'direct:production' })]).salida).toBe('decision=esperar');
+  });
+
+  it('sin dependencias, o con un JSON roto, no se fusiona', () => {
+    expect(decidir([]).salida).toBe('decision=esperar');
+    const roto = spawnSync(process.execPath, [script, lista], {
+      env: { ...process.env, DEPENDENCIAS: '{no es json' },
+      encoding: 'utf8',
+    });
+    expect(roto.status).toBe(2);
+    expect(roto.stdout).not.toContain('fusionar');
+  });
+
+  it('dependabot.yml agrupa en parches-desarrollo los mismos patrones que la lista', () => {
+    const dependabot = readFileSync(path.join(raiz, '.github/dependabot.yml'), 'utf8');
+    const grupo = dependabot.slice(dependabot.indexOf('      parches-desarrollo:'), dependabot.indexOf('      resto:'));
+    const enGrupo = [...grupo.matchAll(/^\s+- '([^']+)'$/gm)].map((m) => m[1]);
+    expect(enGrupo).toEqual(patrones);
   });
 });
 

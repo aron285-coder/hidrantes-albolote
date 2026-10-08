@@ -459,7 +459,6 @@ async function prepararPages(
     await cred.cloudflare.fijarSecretos(cred.cuentaCf, e.proyectoPages, secretos);
     log.ok(`variables cifradas: ${Object.keys(secretos).join(', ')}`);
     aplicarSecretosPages(e);
-    log.info('GITHUB_DISPATCH_TOKEN se añade en la Fase 7, cuando exista /api/lanzar-workflow (DEC-053).');
   };
   return { vapidPublica, vigilancia, escribir };
 }
