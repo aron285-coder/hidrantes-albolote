@@ -1,3 +1,5 @@
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { ErrorDeScript, type Resultado } from './lib/comun.ts';
 import {
@@ -58,6 +60,20 @@ function simulado(reglas: Regla[], opciones: Partial<Contexto['opciones']> = {})
   };
   return { ctx, llamadas, lineas: () => llamadas.map((l) => l.linea) };
 }
+
+// En la release 0.9.0 pareció que un fallo de gh pr merge salía con 0. Es la tubería de quien lo
+// lanza (`npm run publicar | tail` devuelve el código de tail); el script, sin tubería, sale con 1.
+describe('código de salida', () => {
+  it('un abortar sale con un código distinto de 0 y el motivo en la salida de errores', () => {
+    const r = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/publicar.ts', '--opcion-que-no-existe'], {
+      cwd: path.resolve(import.meta.dirname, '..'),
+      encoding: 'utf8',
+      timeout: 60_000,
+    });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('Opción desconocida: --opcion-que-no-existe');
+  });
+});
 
 describe('argumentos', () => {
   it('sin nada: todos los pasos, de verdad', () => {
