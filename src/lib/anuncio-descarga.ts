@@ -9,14 +9,17 @@ export type HitoDescarga = 'inicio' | 'mitad' | 'final' | 'error';
 
 /**
  * El hito que toca anunciar con el estado `e`, sabiendo el anterior. Sin descarga en marcha se
- * mantiene el último (el final o el error siguen dichos), y un final o un error solo salen de una
- * descarga que se ha visto empezar: al abrir el mapa con el mapa base ya en el móvil no se anuncia nada.
+ * mantiene el último (el final o el error siguen dichos). El final solo sale de una descarga que se
+ * ha visto empezar: al abrir la app con el mapa base ya en el móvil no se anuncia nada. El error sale
+ * siempre: `fallo` no se guarda entre sesiones y se borra al empezar cada descarga, así que es de una
+ * descarga de esta sesión aunque no se viera empezar.
  */
 export function hitoDescarga(
   previo: HitoDescarga | null,
   e: Pick<EstadoMapabase, 'progreso' | 'fallo'>,
 ): HitoDescarga | null {
   if (e.progreso !== null) return e.progreso >= 50 ? 'mitad' : 'inicio';
-  if (previo === 'inicio' || previo === 'mitad') return e.fallo ? 'error' : 'final';
+  if (e.fallo) return 'error';
+  if (previo === 'inicio' || previo === 'mitad') return 'final';
   return previo;
 }

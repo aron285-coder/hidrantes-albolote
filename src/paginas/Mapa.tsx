@@ -5,7 +5,7 @@ import { BarraEstado } from '@/componentes/mapa/BarraEstado';
 import { Ficha } from '@/componentes/mapa/Ficha';
 import { Leyenda } from '@/componentes/mapa/Leyenda';
 import { AvisoSinPuntos } from '@/componentes/mapa/AvisoSinPuntos';
-import { AnuncioDescarga, AvisoMapabase } from '@/componentes/mapa/AvisoMapabase';
+import { AvisoMapabase } from '@/componentes/mapa/AvisoMapabase';
 import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
 import { type ControlMapa, MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
@@ -349,11 +349,8 @@ export function Mapa() {
   }
 
   return (
-    // Con avisos arriba (versión nueva, novedades), el mapa baja lo que ocupan: no tapan el buscador
-    // ni la barra de estado (docs/32 RV-238).
-    <div className="flex min-h-0 flex-1 flex-col pt-[var(--alto-avisos,0px)]">
+    <div className="flex min-h-0 flex-1 flex-col">
       <BarraEstado />
-      <AnuncioDescarga />
       <AvisoInstalar />
       <div className="relative flex min-h-0 flex-1">
         {ancho === 'escritorio' && (

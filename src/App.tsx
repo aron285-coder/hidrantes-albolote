@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { AvisoVersion } from '@/componentes/AvisoVersion';
 import { PilaAvisos } from '@/componentes/PilaAvisos';
+import { AnuncioDescarga } from '@/componentes/mapa/AvisoMapabase';
 import { BandaEntorno } from '@/componentes/BandaEntorno';
 import { LimiteCarga } from '@/componentes/LimiteError';
 import { useAcceso } from '@/hooks/estado';
@@ -88,6 +89,8 @@ export function App() {
         <Rutas />
         {/* Los avisos de arriba en las pantallas sin barra superior (el panel); con barra, van bajo ella (RV-238). */}
         <PilaAvisos reserva />
+        {/* Lo que oye el lector de pantalla de la descarga del mapa base, en cualquier pantalla (RV-236). */}
+        <AnuncioDescarga />
         <AvisoVersion />
       </div>
     </BrowserRouter>

@@ -38,7 +38,7 @@ export function AvisoMapabase({ sinRed }: { sinRed: boolean }) {
       </button>
     );
   // Sin role="status": el porcentaje cambia a cada trozo y el lector lo leería entero cada vez. Lo que
-  // se anuncia lo dice AnuncioDescarga, que está siempre montado (RV-236).
+  // se anuncia lo dice AnuncioDescarga, siempre montado en App.tsx (RV-236).
   return (
     <div className={cn(clase, 'flex flex-wrap items-center gap-x-3')} data-testid="aviso-mapabase">
       <span className="flex-1">{mapabase.descargado ? T.ajustes.versionNuevaMapa : T.mapa.mapabaseFalta}</span>
@@ -64,8 +64,8 @@ export function AvisoMapabase({ sinRed }: { sinRed: boolean }) {
 
 /**
  * La región viva de la descarga del mapa base (docs/32 RV-236): solo el inicio, la mitad, el final y
- * los errores. Va siempre montada en el mapa, porque el aviso desaparece al terminar y el final se
- * tiene que oír igual.
+ * los errores. Va siempre montada (App.tsx), en cualquier pantalla: el aviso desaparece al terminar, la
+ * descarga puede empezar en Ajustes, y el final o el error se tienen que oír igual.
  */
 export function AnuncioDescarga() {
   const mapabase = useMapabase();

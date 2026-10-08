@@ -78,8 +78,11 @@ describe('hitoDescarga (RV-236)', () => {
     ]);
   });
 
-  it('al abrir con el mapa ya descargado, o con un fallo de antes, no dice nada', () => {
+  it('al abrir con el mapa ya descargado no dice nada', () => {
     expect(anuncios([p(null), p(null)])).toEqual([]);
-    expect(anuncios([p(null, true)])).toEqual([]);
+  });
+
+  it('un fallo se anuncia aunque no se viera empezar (se empezó en otra pantalla)', () => {
+    expect(anuncios([p(null, true)])).toEqual(['error']);
   });
 });

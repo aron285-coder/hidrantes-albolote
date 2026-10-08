@@ -40,7 +40,16 @@ export function Hoja({
     ventana.current?.focus({ preventScroll: true });
     return () => {
       // Al desmontar, useModal ya ha quitado el inert (su limpieza va antes): el botón vuelve a admitir foco.
-      if (antes instanceof HTMLElement && antes.isConnected) antes.focus({ preventScroll: true });
+      if (antes instanceof HTMLElement && antes.isConnected) {
+        antes.focus({ preventScroll: true });
+        return;
+      }
+      // Lo que la abrió ya no está (Retirar quita la fila, Ver navega): al título de la pantalla, no a
+      // <body>, que devolvería al lector al principio sin decir dónde está.
+      const titulo = document.querySelector<HTMLElement>('h1');
+      if (!titulo) return;
+      titulo.tabIndex = -1;
+      titulo.focus({ preventScroll: true });
     };
   }, [antes]);
   return createPortal(
