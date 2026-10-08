@@ -455,6 +455,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Mapa base no descargado. Sin cobertura solo se ven los puntos. Descárgalo en Ajustes cuando tengas wifi.` ·
 `El mapa base no está en el móvil: sin cobertura el fondo quedará vacío.` · `Descargar ([4,4] MB)` ·
 `Descargar versión nueva` · `Ocultar aviso` (avisos del mapa base en el propio mapa, FR-81) ·
+`Descargando el mapa base` · `Mapa base: descargada la mitad` · `Mapa base descargado` ·
+`No se ha podido descargar el mapa base` (solo para el lector de pantalla: el porcentaje se ve pero no se anuncia, docs/32 RV-236) ·
 `La capa "[Satélite (PNOA)]" necesita cobertura. Los puntos siguen; cambia al mapa base.` ·
 `Sin cobertura: se ve el mapa base propio en lugar de «[Calle (OSM)]»` (con el mapa base en el móvil, RV-58) ·
 `Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Buscando tu posición…` ·

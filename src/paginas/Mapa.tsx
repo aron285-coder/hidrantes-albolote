@@ -5,6 +5,7 @@ import { BarraEstado } from '@/componentes/mapa/BarraEstado';
 import { Ficha } from '@/componentes/mapa/Ficha';
 import { Leyenda } from '@/componentes/mapa/Leyenda';
 import { AvisoSinPuntos } from '@/componentes/mapa/AvisoSinPuntos';
+import { AnuncioDescarga, AvisoMapabase } from '@/componentes/mapa/AvisoMapabase';
 import { ListaPuntos } from '@/componentes/mapa/ListaPuntos';
 import { type ControlMapa, MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { MarcadorSvg } from '@/componentes/mapa/MarcadorSvg';
@@ -27,8 +28,6 @@ import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/h
 import { type Enfoque, calleResaltada } from '@/lib/callejero';
 import { type Capa, NOMBRE_CAPA, atribucion, baseDebajo, capaGuardada, enLinea, guardarCapa } from '@/lib/capas';
 import { nombreCaudal } from '@/lib/ficha';
-import { megas } from '@/lib/formato';
-import { BYTES_MAPABASE, descargarMapabase, hayVersionNuevaMapabase } from '@/lib/mapabase';
 import { escribir } from '@/lib/almacen';
 import { FRACCION_HOJA, alturaHoja } from '@/lib/hoja-cercanos';
 import { cercanos, leerGps, origenViejo, parametroGps } from '@/lib/incidente';
@@ -45,7 +44,6 @@ import { esPruebas } from '@/lib/entorno';
 import { buscar, metrosTramoManguera } from '@/lib/puntos';
 import { ESTILO_PANEL_FLOTANTE, MARGEN_FICHA_PX, RESERVA_DERECHA } from '@/lib/disposicion-mapa';
 import { T } from '@/lib/textos';
-import { cn } from '@/lib/utils';
 
 type LatLngMedida = { lat: number; lng: number };
 
@@ -351,8 +349,11 @@ export function Mapa() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    // Con avisos arriba (versión nueva, novedades), el mapa baja lo que ocupan: no tapan el buscador
+    // ni la barra de estado (docs/32 RV-238).
+    <div className="flex min-h-0 flex-1 flex-col pt-[var(--alto-avisos,0px)]">
       <BarraEstado />
+      <AnuncioDescarga />
       <AvisoInstalar />
       <div className="relative flex min-h-0 flex-1">
         {ancho === 'escritorio' && (
@@ -642,59 +643,6 @@ export function Mapa() {
           }}
           alCerrar={() => setMenuCapas(false)}
         />
-      )}
-    </div>
-  );
-}
-
-/**
- * FR-81: si falta el mapa base, el mapa lo avisa al arrancar, con red o sin ella, y ofrece
- * descargarlo; una versión nueva también se ofrece aquí, no solo en Ajustes (RV-10). Con datos
- * móviles no se descarga sin preguntar: el botón es la pregunta.
- */
-/** "Ocultar" el aviso de versión nueva vale para toda la sesión, no solo mientras se ve el mapa. */
-let versionNuevaOculta = false;
-
-function AvisoMapabase({ sinRed }: { sinRed: boolean }) {
-  const mapabase = useMapabase();
-  const [oculto, setOculto] = useState(versionNuevaOculta);
-  const clase = 'bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-1.5 text-[13px]';
-  const nueva = hayVersionNuevaMapabase(mapabase);
-  if (mapabase.descargado && (!nueva || oculto)) return null;
-  if (!mapabase.descargado && sinRed) {
-    return (
-      <p role="status" className={clase}>
-        {T.mapa.mapaNoDescargado}
-      </p>
-    );
-  }
-  // Mientras descarga, el botón se cambia por el progreso: nunca un botón deshabilitado sin motivo (UI-02).
-  const accion =
-    mapabase.progreso !== null ? (
-      <span className="font-semibold">{T.ajustes.descargando(mapabase.progreso)}</span>
-    ) : (
-      <button type="button" className="min-h-11 font-semibold underline" onClick={() => void descargarMapabase()}>
-        {mapabase.descargado ? T.mapa.descargarVersionNueva : T.mapa.descargarMapabase(megas(BYTES_MAPABASE))}
-      </button>
-    );
-  return (
-    <div role="status" className={cn(clase, 'flex flex-wrap items-center gap-x-3')} data-testid="aviso-mapabase">
-      <span className="flex-1">{mapabase.descargado ? T.ajustes.versionNuevaMapa : T.mapa.mapabaseFalta}</span>
-      {accion}
-      {mapabase.fallo && <span className="text-rojo-700 w-full">{T.ajustes.falloDescarga}</span>}
-      {mapabase.descargado && mapabase.progreso === null && (
-        <button
-          type="button"
-          aria-label={T.mapa.ocultarAviso}
-          title={T.mapa.ocultarAviso}
-          onClick={() => {
-            versionNuevaOculta = true;
-            setOculto(true);
-          }}
-          className="-mr-2 flex size-11 items-center justify-center"
-        >
-          <X size={16} aria-hidden />
-        </button>
       )}
     </div>
   );

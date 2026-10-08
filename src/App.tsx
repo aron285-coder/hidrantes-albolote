@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { AvisoVersion } from '@/componentes/AvisoVersion';
+import { PilaAvisos } from '@/componentes/PilaAvisos';
 import { BandaEntorno } from '@/componentes/BandaEntorno';
 import { LimiteCarga } from '@/componentes/LimiteError';
 import { useAcceso } from '@/hooks/estado';
@@ -85,6 +86,8 @@ export function App() {
       <div className="bg-fondo text-texto flex min-h-dvh flex-col">
         {esPruebas && <BandaEntorno />}
         <Rutas />
+        {/* Los avisos de arriba en las pantallas sin barra superior (el panel); con barra, van bajo ella (RV-238). */}
+        <PilaAvisos reserva />
         <AvisoVersion />
       </div>
     </BrowserRouter>
