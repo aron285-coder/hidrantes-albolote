@@ -135,9 +135,10 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   // Mientras "atrás" no ha llegado, otra llamada (la recarga que ve la propuesta ya resuelta) no vuelve
   // a ir atrás: saldría de la cola.
   const volviendo = useRef(false);
+  // Cualquier navegación nueva (también una que deja el mismo ?p=) la desbloquea: "‹" nunca se queda muerto.
   useEffect(() => {
     volviendo.current = false;
-  }, [activa]);
+  }, [location.key]);
   function volverACola() {
     if (volviendo.current) return;
     if ((location.state as Record<string, unknown> | null)?.[APILADA]) {
