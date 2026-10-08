@@ -57,11 +57,12 @@ jobs:
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
           SERVICIO: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
           CLAVE_GPG: ${{ secrets.GPG_PUBLIC_KEY }}
+          GPG_HUELLA: ${{ vars.GPG_HUELLA }}
         run: |
           set -euo pipefail
           falta=0
-          for v in BD SERVICIO CLAVE_GPG; do
-            if [ -z "${!v}" ]; then echo "::error::Falta el secreto de repositorio para $v"; falta=1; fi
+          for v in BD SERVICIO CLAVE_GPG GPG_HUELLA; do
+            if [ -z "${!v}" ]; then echo "::error::Falta $v (GPG_HUELLA es una variable del repositorio, docs/32 RV-202)"; falta=1; fi
           done
           if [ "$falta" = 1 ]; then
             {
@@ -108,14 +109,20 @@ jobs:
           # Primer domingo del mes: toca también el bucket de fotos (04 §9).
           echo "mensual=$([ "$(date -u +%d)" -le 7 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
+      # La clave es la de docs/15 §2 (docs/32 RV-202): GPG_HUELLA es una variable del repositorio con
+      # su huella. Si GPG_PUBLIC_KEY trae otra, el respaldo no se podría descifrar con la clave privada
+      # que se guarda: el job falla aquí, antes de cifrar nada, y abre la issue del final.
       - name: Importar la clave pública de cifrado
         env:
           CLAVE_GPG: ${{ secrets.GPG_PUBLIC_KEY }}
+          GPG_HUELLA: ${{ vars.GPG_HUELLA }}
         run: |
           set -euo pipefail
+          source .github/scripts/clave-gpg.sh
+          printf '%s' "$CLAVE_GPG" | comprobar_clave "$GPG_HUELLA"
           printf '%s' "$CLAVE_GPG" | gpg --batch --import
           # Es una clave de respaldo, no hay cadena de confianza que validar: se cifra igualmente.
-          echo "DESTINATARIO=$(gpg --list-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')" >> "$GITHUB_ENV"
+          echo "DESTINATARIO=$GPG_HUELLA" >> "$GITHUB_ENV"
 
       - name: Volcado del esquema hidrantes, cifrado
         env:
@@ -144,6 +151,9 @@ jobs:
           puntos_despues=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c 'select count(*) from hidrantes.puntos')
           gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
               --output "hidrantes-$FECHA.sql.gpg" "$plano"
+          # Que de verdad va para esa clave y para nada más (RV-202), antes de guardarlo como artifact.
+          source .github/scripts/clave-gpg.sh
+          comprobar_cifrado "$DESTINATARIO" "hidrantes-$FECHA.sql.gpg"
           {
             echo "PUNTOS_ORIGEN=$puntos_antes $puntos_despues"
             echo "TAMANO_DATOS=$(stat -c %s "hidrantes-$FECHA.sql.gpg")"
@@ -187,6 +197,8 @@ jobs:
           tar -cf - "fotos-$FECHA" \
             | gpg --batch --yes --trust-model always --encrypt --recipient "$DESTINATARIO" \
                   --output "fotos-$FECHA.tar.gpg"
+          source .github/scripts/clave-gpg.sh
+          comprobar_cifrado "$DESTINATARIO" "fotos-$FECHA.tar.gpg"
           rm -rf "fotos-$FECHA"
           echo "Fotos: fotos-$FECHA.tar.gpg ($((bytes / 1024 / 1024)) MB en origen)" >> "$GITHUB_STEP_SUMMARY"
 

@@ -175,6 +175,11 @@ jobs:
           else
             problemas+=("falta SUPABASE_DB_URL_PROD en prod-tareas: la vigilancia no puede mirar el respaldo (DEC-172)")
           fi
+          # La copia del respaldo sigue ahí (docs/32 RV-201, DEC-180): el artifact de la última ejecución
+          # correcta de respaldo.yml, no solo la fecha de config.ultimo_respaldo. Es la única copia: si
+          # falta, además de la issue, un aviso push a jefatura (.github/scripts/revisar-respaldo.sh).
+          source .github/scripts/revisar-respaldo.sh
+          mirar_respaldo
           if [ "${STAGING_RESULTADO:-}" != success ]; then
             problemas+=("staging: su vigilancia no terminó (${STAGING_RESULTADO:-sin resultado})")
           fi
