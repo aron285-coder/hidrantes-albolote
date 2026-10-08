@@ -25,6 +25,7 @@ vi.mock('@/lib/push', () => ({
   sePuedeReintentar: () => false,
   textoMotivoPush: () => '',
 }));
+vi.mock('@/lib/errores', () => ({ anotarError: vi.fn() }));
 vi.mock('@/lib/acceso', () => ({ cambiarFirma: vi.fn(), cerrarSesionVoluntario: vi.fn(), salirDeGoogle: vi.fn() }));
 vi.mock('@/lib/almacen', () => ({ leer: () => null }));
 vi.mock('@/lib/conexion', () => ({ reintentarAhora: vi.fn() }));

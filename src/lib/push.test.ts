@@ -370,6 +370,28 @@ describe('apagar los avisos de voluntario no apaga los de jefatura (docs/32 RV-2
     expect(s.unsubscribe).toHaveBeenCalledOnce();
   });
 
+  it('si no se sabe, la suscripción se queda y queda anotado', async () => {
+    sesionJefatura = { access_token: 'jwt' };
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_suscripcion_push_admin' ? { ok: false, codigo: 'NO_AUTORIZADO' } : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+    expect(mensajesAnotados()).toContain('no se sabe si jefatura tiene avisos');
+  });
+
+  it('si la fila de voluntario no se ha podido borrar, se da de baja igual: si no, seguirían llegando', async () => {
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_borrar_suscripcion_push'
+        ? { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' }
+        : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+    expect(mensajesAnotados()).toContain('jefatura puede perder sus avisos');
+  });
+
   it('al cerrar sesión no se borra la fila en el servidor: ya lo hace fn_cerrar_sesion (RV-234)', async () => {
     await desactivarPush({ borrarEnServidor: false });
     expect(s.unsubscribe).toHaveBeenCalledOnce();

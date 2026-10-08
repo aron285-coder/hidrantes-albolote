@@ -7,6 +7,7 @@
 import { PMTiles, type RangeResponse, type Source } from 'pmtiles';
 import info from '../../datos/mapabase.json';
 import { borrar, escribir, leer } from './almacen';
+import { anotarError } from './errores';
 
 export const URL_MAPABASE = import.meta.env.VITE_MAPABASE_URL || '/mapabase/albolote.pmtiles';
 export const VERSION_MAPABASE: string = info.version;
@@ -173,8 +174,9 @@ export async function descargarMapabase(): Promise<boolean> {
     blob = Promise.resolve(archivo);
     fijar({ descargado, progreso: null });
     return true;
-  } catch {
-    // Se libera el bloqueo (progreso a null): se puede reintentar ya.
+  } catch (e) {
+    // Se libera el bloqueo (progreso a null): se puede reintentar ya. Queda anotado para jefatura.
+    anotarError(control.signal.aborted ? new Error('mapabase: 30 s sin datos') : e, 'mapabase');
     fijar({ progreso: null, fallo: true, parada: control.signal.aborted });
     return false;
   } finally {

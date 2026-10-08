@@ -290,6 +290,7 @@ function marcarPersistida(clave: string, si: boolean) {
 }
 
 let persistiendo = false;
+let otraVez = false;
 
 /**
  * Guarda en IndexedDB lo que está solo en memoria (docs/32 RV-231): al volver a abrirse IndexedDB o
@@ -297,21 +298,35 @@ let persistiendo = false;
  * o se vació al cerrar sesión no se escribe.
  */
 async function persistirPendientes(): Promise<void> {
-  if (persistiendo) return;
+  if (persistiendo) {
+    // Alguien lo pidió durante una pasada: al acabar se da otra.
+    otraVez = true;
+    return;
+  }
   persistiendo = true;
   const gen = generacion;
   try {
     for (const clave of items.filter((i) => !persistidas.has(i.clave_local)).map((i) => i.clave_local)) {
       if (gen !== generacion) return;
-      const escrito = await bd().actualizar(clave, () =>
-        gen === generacion ? (items.find((x) => x.clave_local === clave) ?? null) : null,
-      );
-      if (escrito && gen === generacion && items.some((x) => x.clave_local === clave)) marcarPersistida(clave, true);
+      try {
+        const escrito = await bd().actualizar(clave, () =>
+          gen === generacion ? (items.find((x) => x.clave_local === clave) ?? null) : null,
+        );
+        if (escrito && gen === generacion && items.some((x) => x.clave_local === clave)) marcarPersistida(clave, true);
+      } catch (e) {
+        // Este sigue «Sin guardar» y se volverá a intentar; los demás se intentan igual. El primer
+        // fallo de la sesión queda anotado, como en guardar.
+        if (!errorGuardadoAnotado) {
+          errorGuardadoAnotado = true;
+          anotarError(e, 'cola');
+        }
+      }
     }
-  } catch {
-    // Sigue sin poder guardarse: se sigue enseñando «Sin guardar» y se volverá a intentar.
   } finally {
     persistiendo = false;
+    const repetir = otraVez && gen === generacion;
+    otraVez = false;
+    if (repetir) void persistirPendientes();
   }
 }
 
@@ -625,7 +640,8 @@ async function esperarTodo(tope: Tope, elQueChoca: string, gen: number): Promise
         ...i,
         intentos: clave === elQueChoca ? i.intentos + 1 : i.intentos,
         fallos_seguidos: 0,
-        en_espera,
+        // Si ya esperaba más por otro tope, se queda con ese motivo y esa hora.
+        en_espera: i.en_espera && i.proximo > hasta ? i.en_espera : en_espera,
         proximo: Math.max(i.proximo, hasta),
       },
       gen,
@@ -779,6 +795,7 @@ export function _usarAlmacenCola(a: AlmacenCola<EnCola>) {
   huboEnvio = null;
   errorGuardadoAnotado = false;
   persistiendo = false;
+  otraVez = false;
   persistidas.clear();
   clearTimeout(temporizador);
   oyentes.clear();

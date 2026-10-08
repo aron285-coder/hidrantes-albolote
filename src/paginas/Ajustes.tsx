@@ -24,6 +24,7 @@ import {
   textoMotivoPush,
 } from '@/lib/push';
 import { cambiarFirma, cerrarSesionVoluntario, salirDeGoogle } from '@/lib/acceso';
+import { anotarError } from '@/lib/errores';
 import { VERSION } from '@/lib/entorno';
 import { pedirRecarga } from '@/lib/pwa';
 import { type Tema, guardarTema, leerTema } from '@/lib/tema';
@@ -87,10 +88,18 @@ export function Ajustes() {
   const cola = useCola();
   // Mientras se cierra la sesión (como mucho 6 s, docs/32 RV-234) el botón lo dice y no repite nada.
   const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const [errorCierre, setErrorCierre] = useState(false);
   const cerrarLaSesion = () => {
     if (cerrandoSesion) return;
     setCerrandoSesion(true);
-    void cerrarSesionVoluntario().finally(() => setCerrandoSesion(false));
+    setErrorCierre(false);
+    void cerrarSesionVoluntario()
+      .catch((e: unknown) => {
+        // Lo local falló (almacenamiento bloqueado): se dice y queda anotado, nunca en silencio.
+        anotarError(e, 'cerrar-sesion');
+        setErrorCierre(true);
+      })
+      .finally(() => setCerrandoSesion(false));
   };
 
   const sesion = acceso.tipo === 'voluntario' ? acceso.sesion : null;
@@ -243,6 +252,11 @@ export function Ajustes() {
             {T.ajustes.cerrarSesionDetalle}
             {cola.length > 0 && <b className="text-rojo-700 block">{T.ajustes.perderasEnvios(cola.length)}</b>}
           </p>
+          {errorCierre && (
+            <p role="alert" className="bg-rojo-100 text-rojo-700 rounded-campo mb-3 px-2 py-1 text-sm">
+              {T.ajustes.errorCerrarSesion}
+            </p>
+          )}
           <Boton
             variante="destructivo"
             className="w-full"

@@ -283,14 +283,18 @@ export function cerrarSesionVoluntario(): Promise<void> {
     try {
       const conAvisos = estadoPush() === 'activo';
       let temporizador: ReturnType<typeof setTimeout> | undefined;
-      await Promise.race([
+      const limite = await Promise.race([
         Promise.all([
           revocarToken(),
-          conAvisos ? desactivarPush({ borrarEnServidor: false }).catch(() => undefined) : undefined,
-        ]),
-        new Promise<void>((r) => (temporizador = setTimeout(r, LIMITE_CERRAR_SESION_MS))),
+          conAvisos
+            ? desactivarPush({ borrarEnServidor: false }).catch((e: unknown) => anotarError(e, 'cerrar-sesion'))
+            : undefined,
+        ]).then(() => false),
+        new Promise<boolean>((r) => (temporizador = setTimeout(() => r(true), LIMITE_CERRAR_SESION_MS))),
       ]);
       clearTimeout(temporizador);
+      // Lo que no acabó en 6 s sigue en segundo plano; queda anotado que se cortó.
+      if (limite) anotarError(new Error('cerrar sesión: límite de 6 s'), 'cerrar-sesion');
       cerrarSesion();
       olvidarMisPropuestas();
       void borrarPuntos();

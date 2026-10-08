@@ -175,48 +175,67 @@ export async function activarPush({ limiteSwMs = LIMITE_SW_MS } = {}): Promise<R
  * ¿Recibe este navegador avisos de jefatura? (docs/32 RV-258) La suscripción del navegador es una
  * sola y la comparten el voluntario y jefatura (0030): si jefatura tiene temas aquí, darla de baja
  * le quitaría sus avisos. Con sesión de jefatura se pregunta al servidor por los temas de ese
- * administrador en este endpoint (`fn_suscripcion_push_admin`, RV-225); sin ella, se mira lo que
- * recuerda el panel. Si no se puede saber (sin servidor), se da por que sí: no darla de baja solo
- * deja una suscripción sin filas de voluntario, que ya no recibe nada de voluntario.
+ * administrador en este endpoint (`fn_suscripcion_push_admin`, RV-225, que devuelve
+ * `{ suscrita, temas }`); sin ella, o con un servidor sin la función, vale lo que recuerda el panel.
+ * `desconocido`: no se ha podido preguntar (sin servidor, sesión caducada).
  */
-export async function hayAvisosDeJefatura(endpoint: string): Promise<boolean> {
+export async function avisosDeJefatura(endpoint: string): Promise<'si' | 'no' | 'desconocido'> {
+  const segunPanel = () => (temasActivos().length > 0 ? 'si' : 'no');
   let conJefatura: boolean;
   try {
     conJefatura = !!(await supabase()?.auth.getSession())?.data.session;
   } catch {
     conJefatura = false;
   }
-  if (!conJefatura) return temasActivos().length > 0;
+  if (!conJefatura) return segunPanel();
   const r = await rpc<unknown>('fn_suscripcion_push_admin', { endpoint });
-  // Un servidor sin 0041 aún no tiene la función: vale lo que recuerda el panel.
-  if (!r.ok && /could not find the function/i.test(r.mensaje ?? '')) return temasActivos().length > 0;
-  if (!r.ok) return true;
+  if (!r.ok && /could not find the function/i.test(r.mensaje ?? '')) return segunPanel();
+  if (!r.ok) return 'desconocido';
   // Los temas, como lista o dentro de { temas }; vacío o null: ninguno.
   const temas = Array.isArray(r.datos) ? r.datos : (r.datos as { temas?: unknown } | null)?.temas;
-  return Array.isArray(temas) && temas.length > 0;
+  return Array.isArray(temas) && temas.length > 0 ? 'si' : 'no';
 }
 
 /**
- * Apaga los avisos de voluntario en este móvil. La suscripción del navegador solo se da de baja si
- * jefatura no tiene avisos aquí (docs/32 RV-258). `borrarEnServidor: false` al cerrar sesión, porque
- * ya la borra `fn_cerrar_sesion` (docs/32 RV-234, RV-226).
+ * Apaga los avisos de voluntario en este móvil (docs/32 RV-258). Primero se borra la fila de
+ * voluntario en el servidor; `borrarEnServidor: false` al cerrar sesión, porque ya la borra
+ * `fn_cerrar_sesion` (RV-234, RV-226). Después, la suscripción del navegador:
+ * - si jefatura tiene avisos aquí, se queda: así no se le quitan los suyos;
+ * - si no se sabe, también se queda, y queda anotado;
+ * - pero si la fila de voluntario no se ha podido borrar, se da de baja igual: lo que pide el
+ *   voluntario es dejar de recibir avisos, y sin borrar su fila seguirían llegando. Queda anotado.
  */
 export async function desactivarPush({ borrarEnServidor = true } = {}): Promise<EstadoPush> {
   escribir(CLAVE, false);
-  try {
-    const registro = await registroListo(LIMITE_SW_MS);
-    const suscripcion = await registro.pushManager.getSubscription();
-    if (suscripcion && !(await hayAvisosDeJefatura(suscripcion.endpoint))) await suscripcion.unsubscribe();
-  } catch (e) {
-    // Sin suscripción local o sin Service Worker: el servidor la borra igualmente, pero queda anotado.
-    anotarError(errorSinDatos(e, 'unsubscribe'), 'push:desactivar');
-  }
+  let filaBorrada = true;
   const sesion = borrarEnServidor ? leerSesion() : null;
   if (sesion) {
     const r = await rpc('fn_borrar_suscripcion_push', { token: sesion.token });
+    filaBorrada = r.ok;
     if (!r.ok && r.codigo !== SIN_SERVIDOR) {
       anotarError(new Error(`fn_borrar_suscripcion_push: ${r.codigo}`.slice(0, 500)), 'push:desactivar');
     }
+  }
+  try {
+    const registro = await registroListo(LIMITE_SW_MS);
+    const suscripcion = await registro.pushManager.getSubscription();
+    if (suscripcion) {
+      const jefatura = await avisosDeJefatura(suscripcion.endpoint);
+      if (jefatura === 'no' || !filaBorrada) {
+        if (jefatura !== 'no') {
+          anotarError(
+            new Error('push: baja sin poder borrar la fila de voluntario; jefatura puede perder sus avisos'),
+            'push:desactivar',
+          );
+        }
+        await suscripcion.unsubscribe();
+      } else if (jefatura === 'desconocido') {
+        anotarError(new Error('push: no se sabe si jefatura tiene avisos; la suscripción se queda'), 'push:desactivar');
+      }
+    }
+  } catch (e) {
+    // Sin suscripción local o sin Service Worker: el servidor la borra igualmente, pero queda anotado.
+    anotarError(errorSinDatos(e, 'unsubscribe'), 'push:desactivar');
   }
   return estadoPush();
 }

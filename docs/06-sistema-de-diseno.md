@@ -573,7 +573,7 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 `Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
 `novedades` · `Cuenta de jefatura` · `Sesión de Google · [correo]` · `Cerrar la sesión de Google` ·
 `Panel de jefatura` (botón de la cuenta de jefatura, RV-113) · `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
-`¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Cerrando sesión…` (el botón, deshabilitado, mientras se cierra; docs/32 RV-234) · `Versión [0.1.0]` · `Descargando… [40] %` ·
+`¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Cerrando sesión…` (el botón, deshabilitado, mientras se cierra; docs/32 RV-234) · `No se ha podido cerrar la sesión. Inténtalo de nuevo.` · `Versión [0.1.0]` · `Descargando… [40] %` ·
 `No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
 `No se pudo descargar. Inténtalo de nuevo con wifi.` · `La descarga se ha parado.` con `Reintentar` (30 s sin llegar nada; docs/32 RV-235) · `[438] · sincronizado [hace 5 min]` ·
 `Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167; cada línea, `[0.6.4] · [texto]` con la versión que la trajo, DEC-142) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
@@ -605,9 +605,11 @@ tocar «Ver», o «recargar» por una versión nueva, pregunta: `¿Salir del for
 
 **Versión nueva con envíos sin guardar en el móvil** (docs/32 RV-230). Desde cualquier pantalla, si hay
 envíos que solo están en memoria no se recarga: `Espera antes de actualizar` ·
-`Hay [2] propuestas que no se han podido guardar en el móvil. Espera a que se envíen antes de actualizar.` ·
+`Hay [2] propuestas que no se han podido guardar en el móvil. Espera a que se envíen antes de actualizar.`
+(con una, `Hay 1 propuesta que no se ha podido guardar en el móvil. Espera a que se envíe antes de actualizar.`) ·
 `Esperar` · `Actualizar igualmente`; y al insistir, `¿Actualizar igualmente?` ·
-`Las [2] propuestas sin guardar se perderán. No se puede deshacer.` · `Actualizar y perderlas`. Si mientras
+`Las [2] propuestas sin guardar se perderán. No se puede deshacer.` (con una,
+`La propuesta sin guardar se perderá. No se puede deshacer.`) · `Actualizar y perderlas`. Si mientras
 tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 
 **Fallos y jefatura.** `Algo ha fallado en esta pantalla` ·

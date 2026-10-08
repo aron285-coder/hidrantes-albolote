@@ -523,6 +523,7 @@ export const T = {
     cerrarSesionBoton: 'Cerrar sesión',
     /** El botón mientras se cierra (docs/32 RV-234). */
     cerrandoSesion: 'Cerrando sesión…',
+    errorCerrarSesion: 'No se ha podido cerrar la sesión. Inténtalo de nuevo.',
     version: (version: Parametro) => `Versión ${version}`,
     descargando: (porcentaje: Parametro) => `Descargando… ${porcentaje} %`,
     noDescargadoDetalle: 'No descargado · el mapa no tendrá calles sin cobertura',
@@ -591,12 +592,17 @@ export const T = {
   // docs/32 RV-230: recargar por versión nueva con envíos que solo están en memoria.
   recarga: {
     titulo: 'Espera antes de actualizar',
-    sinGuardar: (n: Parametro) =>
-      `Hay ${n} propuestas que no se han podido guardar en el móvil. Espera a que se envíen antes de actualizar.`,
+    sinGuardar: (n: number) =>
+      n === 1
+        ? 'Hay 1 propuesta que no se ha podido guardar en el móvil. Espera a que se envíe antes de actualizar.'
+        : `Hay ${n} propuestas que no se han podido guardar en el móvil. Espera a que se envíen antes de actualizar.`,
     esperar: 'Esperar',
     igualmente: 'Actualizar igualmente',
     confirmarTitulo: '¿Actualizar igualmente?',
-    sePierden: (n: Parametro) => `Las ${n} propuestas sin guardar se perderán. No se puede deshacer.`,
+    sePierden: (n: number) =>
+      n === 1
+        ? 'La propuesta sin guardar se perderá. No se puede deshacer.'
+        : `Las ${n} propuestas sin guardar se perderán. No se puede deshacer.`,
     confirmar: 'Actualizar y perderlas',
     yaGuardadas: 'Ya están guardadas en el móvil. Puedes actualizar.',
   },

@@ -6,6 +6,9 @@ import { gzipSync } from 'node:zlib';
 import info from '../../datos/mapabase.json';
 import { escribirPmtiles, teselasDelRecuadro } from '../../scripts/lib/pmtiles.ts';
 
+const anotarError = vi.hoisted(() => vi.fn());
+vi.mock('./errores', () => ({ anotarError }));
+
 /** Un PMTiles v3 del tamaño esperado: los 7 bytes de la firma, la versión y ceros. */
 function pmtiles(tamano = info.bytes, version = 3, firma = 'PMTiles'): Uint8Array {
   const b = new Uint8Array(tamano);
@@ -166,6 +169,11 @@ describe('la descarga del mapa base no se queda colgada (RV-235)', () => {
     expect(await m.descargarMapabase()).toBe(false);
     expect(m.estadoMapabase()).toMatchObject({ progreso: null, fallo: true, parada: true, descargado: null });
     expect(parado.cancelado()).toBe(true);
+    // Que se sepa también en el panel (errores del cliente), no solo en el móvil.
+    expect(anotarError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'mapabase: 30 s sin datos' }),
+      'mapabase',
+    );
     expect(guardado.size).toBe(0);
 
     // Reintentar: otra descarga, que esta vez llega entera.
