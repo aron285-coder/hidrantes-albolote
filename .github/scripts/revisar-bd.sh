@@ -3,7 +3,7 @@
 # staging, cada uno con el secreto de su entorno. Añade cada problema al array `problemas` del que
 # lo llama y guarda las tareas de pg_cron en config.tareas_programadas de esa base.
 #
-#   revisar_bd produccion "$BD"   todo: respaldo, avisos sin salir, tareas, tamaño e intentos del código
+#   revisar_bd produccion "$BD"   todo: respaldo, avisos sin salir, tareas, espacio e intentos del código
 #   revisar_bd staging "$BD"      lo que aplica en staging: avisos sin salir y tareas programadas
 #
 # Corre con bash -e (el shell de Actions): nada de `a && b` al final de un bloque, que con `a` falso
@@ -57,12 +57,7 @@ revisar_bd() {
     fi
   fi
   [ "$entorno" = produccion ] || return 0
-  # La base de datos de 500 MB la comparte uniformidad: aviso al 80 % (TR-53, RV-22).
-  if ! tam=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c "select pg_database_size(current_database());" 2>/dev/null); then
-    problemas+=("no se puede medir el tamaño de la base de datos")
-  elif [ "${tam:-0}" -gt $((400 * 1024 * 1024)) ]; then
-    problemas+=("la base de datos ocupa $((tam / 1024 / 1024)) MB de 500 (más del 80 %)")
-  fi
+  revisar_espacio "$bd"
   # Intentos del código de acceso (RV-14, TR-41): muchos fallos o un tope de todo el grupo
   # alcanzado son la huella de un ataque, y los voluntarios con móvil nuevo no podrían entrar.
   if ! intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$bd" -c \
@@ -74,4 +69,71 @@ revisar_bd() {
   if [ "${fallidos:-0}" -gt 300 ] || [ "${globales:-0}" -gt 0 ]; then
     problemas+=("posible ataque al código de acceso ($fallidos fallos y $globales bloqueos de todo el grupo en 24 h): cambia el código (15 §5.4)")
   fi
+}
+
+# Espacio de fotos y de la base de datos (docs/32 RV-220 y RV-221, DEC-182 y DEC-183). Sustituye al
+# aviso fijo de 400 MB: hidrantes.fn_espacio() da lo que ocupa cada uno, su tope (max_bytes_fotos y
+# max_bytes_bd, en Ajustes) y el umbral del aviso (`aviso`, 0.7). Las fotos cuentan también 5 MB por
+# reserva abierta, como el tope. Al pasar del umbral: problema (la issue) y aviso push a jefatura.
+# Si el espacio de fotos no sale del bucket (`fotos_origen` distinto de `storage`), el tope trabaja
+# con la última medida de la purga o del respaldo: es un problema, y otro si esa medida es vieja
+# (`fotos_medidos_en`, 0042) o no dice de cuándo es.
+ESPACIO_DIAS_MAX=8
+
+revisar_espacio() {
+  local bd="$1" espacio origen fotos_mb max_fotos_mb fotos_alto bd_mb max_bd_mb bd_alto pct dias
+  if ! espacio=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$bd" -c "select e ->> 'fotos_origen',
+      ((e ->> 'fotos_bytes')::bigint + (e ->> 'fotos_reservado_bytes')::bigint) / 1048576,
+      (e ->> 'max_bytes_fotos')::bigint / 1048576,
+      (e ->> 'fotos_bytes')::bigint + (e ->> 'fotos_reservado_bytes')::bigint
+        >= (e ->> 'aviso')::numeric * (e ->> 'max_bytes_fotos')::bigint,
+      (e ->> 'bd_bytes')::bigint / 1048576,
+      (e ->> 'max_bytes_bd')::bigint / 1048576,
+      (e ->> 'bd_bytes')::bigint >= (e ->> 'aviso')::numeric * (e ->> 'max_bytes_bd')::bigint,
+      round((e ->> 'aviso')::numeric * 100),
+      case when e ->> 'fotos_origen' = 'storage' then 0
+           when e ->> 'fotos_medidos_en' is null then -1
+           else floor(extract(epoch from now() - (e ->> 'fotos_medidos_en')::timestamptz) / 86400)::int end
+    from hidrantes.fn_espacio() e;" 2>/dev/null); then
+    problemas+=("no se puede medir el espacio de fotos ni el de la base de datos (hidrantes.fn_espacio)")
+    return 0
+  fi
+  read -r origen fotos_mb max_fotos_mb fotos_alto bd_mb max_bd_mb bd_alto pct dias <<< "$espacio"
+  if ! [[ "${dias:-}" =~ ^-?[0-9]+$ && "${fotos_alto:-}${bd_alto:-}" =~ ^[tf][tf]$ ]]; then
+    problemas+=("hidrantes.fn_espacio ha devuelto algo que la vigilancia no entiende: no se ha comprobado el espacio")
+    return 0
+  fi
+  local lleno=0
+  if [ "$fotos_alto" = t ]; then
+    lleno=1
+    problemas+=("las fotos ocupan $fotos_mb MB de $max_fotos_mb, contando las reservas abiertas (aviso al $pct %): al llegar al tope nadie puede subir fotos (DEC-182)")
+  fi
+  if [ "$bd_alto" = t ]; then
+    lleno=1
+    problemas+=("la base de datos ocupa $bd_mb MB de $max_bd_mb (aviso al $pct %): al llegar al tope no se aceptan propuestas (DEC-183)")
+  fi
+  if [ "$lleno" = 1 ]; then avisar_espacio "$bd"; fi
+  if [ "$origen" != storage ]; then
+    problemas+=("el espacio de fotos no se mide en el bucket ($origen): falta el permiso de lectura de Storage del bloque \$storage\$ de supabase/sql/arranque-bd.sql (DEC-182)")
+    if [ "$dias" -lt 0 ]; then
+      problemas+=("la medida del espacio de fotos no dice de cuándo es: el tope de fotos puede no ver lo que ocupa el bucket")
+    elif [ "$dias" -gt "$ESPACIO_DIAS_MAX" ]; then
+      problemas+=("la medida del espacio de fotos tiene $dias días (más de $ESPACIO_DIAS_MAX): el tope de fotos puede no ver lo que ocupa el bucket")
+    fi
+  fi
+  return 0
+}
+
+# Un aviso push a cada administrador suscrito, como el del respaldo (revisar-respaldo.sh): sin datos
+# personales (FR-27), como mucho uno cada 20 horas mientras siga lleno. Lo envía el Worker
+# hidrantes-avisos en sus siguientes 5 minutos.
+avisar_espacio() {
+  local bd="$1" n
+  if ! n=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c "with reciente as (select 1 from hidrantes.notificaciones where titulo = 'Espacio casi lleno' and creada_en > now() - interval '20 hours' limit 1), n as (insert into hidrantes.notificaciones (suscripcion_id, titulo, cuerpo, url) select s.id, 'Espacio casi lleno', 'Las fotos o la base de datos se están quedando sin espacio. Mira Salud del sistema.', '/admin' from hidrantes.suscripciones_push s where s.email is not null and not exists (select 1 from reciente) returning 1) select case when exists (select 1 from reciente) then 'ya' else (select count(*) from n)::text end;" 2>/dev/null); then
+    # Sin el error de psql en el problema: puede nombrar el servidor, y la issue es pública.
+    problemas+=("no se ha podido avisar a jefatura de que el espacio está casi lleno")
+  elif [ "$n" = 0 ]; then
+    problemas+=("ningún administrador tiene los avisos activados: nadie ha recibido el aviso de que el espacio está casi lleno")
+  fi
+  return 0
 }

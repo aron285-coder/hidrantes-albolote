@@ -705,8 +705,8 @@ describe('revisar_bd (RV-78)', () => {
           *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
           *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
           *ultimo_respaldo*) echo 3 ;;
+          *fn_espacio*) echo 'storage 10 800 f 50 400 f 70 0' ;;
           *notificaciones*) echo 0 ;;
-          *pg_database_size*) echo 1000 ;;
           *intentos_codigo*) echo '0 0' ;;
           *) echo 1 ;;
         esac
@@ -767,7 +767,7 @@ describe('revisar_bd (RV-78)', () => {
   it.skipIf(!tieneJq).each([
     ['notificaciones', 'produccion', 'no se pueden contar los avisos push sin salir'],
     ['notificaciones', 'staging', 'staging: no se pueden contar los avisos push sin salir'],
-    ['pg_database_size', 'produccion', 'no se puede medir el tamaño de la base de datos'],
+    ['fn_espacio', 'produccion', 'no se puede medir el espacio de fotos ni el de la base de datos'],
     ['intentos_codigo', 'produccion', 'no se pueden leer los intentos del código de acceso'],
   ])('si falla la consulta de %s (%s), es un problema, y sigue con lo demás', (falla, entorno, problema) => {
     const r = correr(entorno, BIEN, falla);
@@ -781,15 +781,125 @@ describe('revisar_bd (RV-78)', () => {
     expect(guion).not.toMatch(/\|\| echo ['"]?0/);
   });
 
-  it('staging no mira el respaldo, el tamaño ni los intentos del código', () => {
+  it('staging no mira el respaldo, el espacio ni los intentos del código', () => {
     const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
     const antesDeStaging = guion.slice(0, guion.indexOf('elif ! psql'));
     expect(antesDeStaging).toContain('ultimo_respaldo');
+    expect(antesDeStaging).not.toContain('revisar_espacio "$bd"');
     const tras = guion.slice(guion.indexOf('[ "$entorno" = produccion ] || return 0'));
-    expect(tras).toContain('pg_database_size');
+    expect(tras).toContain('revisar_espacio "$bd"');
     expect(tras).toContain('intentos_codigo');
     // Nada de `a && b` en su propia línea: con bash -e y `a` falso, terminaría el paso.
     expect(guion.split('\n').filter((l) => /^\s*\[.*\]\s*&&/.test(l))).toEqual([]);
+  });
+});
+
+// docs/32 RV-220 y RV-221 (DEC-182, DEC-183): aviso al 70 % del espacio de fotos y de la base de datos
+// con fn_espacio(), issue y push a jefatura; y aviso si el espacio de fotos no sale del bucket o su
+// medida es vieja. Con bash -e, como en Actions, y un psql simulado.
+describe('revisar_espacio (RV-220, RV-221)', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  /**
+   * `espacio`: la línea que da la consulta de fn_espacio (origen, MB de fotos, tope, ¿alto?, MB de la
+   * base, tope, ¿alta?, %, días de la medida). `push`: lo que responde el insert del aviso.
+   */
+  const correr = (espacio: string, { push = '2', falla = '' } = {}) => {
+    const guion = [
+      'set -uo pipefail',
+      `psql() {
+        if [ -n "$FALLA" ] && [[ "$*" == *"$FALLA"* ]]; then echo 'ERROR: simulado' >&2; return 1; fi
+        case "$*" in
+          *"Espacio casi lleno"*) echo push >> "$ANOTADO"; echo "$PUSH" ;;
+          *fn_espacio*) printf '%s\\n' "$ESPACIO" ;;
+          *) echo 'consulta inesperada' >&2; return 1 ;;
+        esac
+      }`,
+      'problemas=()',
+      'source .github/scripts/revisar-bd.sh',
+      'revisar_espacio postgresql://simulada',
+      'printf "%s\\n" "${problemas[@]}"',
+      'echo FIN',
+    ].join('\n');
+    const dir = mkdtempSync(path.join(tmpdir(), 'espacio-'));
+    const anotado = path.join(dir, 'anotado');
+    try {
+      const r = spawnSync('bash', ['-e', '-c', guion], {
+        cwd: raiz,
+        encoding: 'utf8',
+        env: { ...process.env, ESPACIO: espacio, PUSH: push, FALLA: falla, ANOTADO: anotado },
+      });
+      const lineas = r.stdout.trim().split('\n');
+      return {
+        codigo: r.status,
+        fin: lineas.at(-1) === 'FIN',
+        problemas: lineas.slice(0, -1).filter(Boolean),
+        pushes: existsSync(anotado) ? readFileSync(anotado, 'utf8').trim().split('\n').length : 0,
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it('por debajo del 70 % y medido en el bucket: nada', () => {
+    const r = correr('storage 100 800 f 50 400 f 70 0');
+    expect(r).toEqual({ codigo: 0, fin: true, problemas: [], pushes: 0 });
+  });
+
+  it('las fotos al 70 % o más: problema con los MB y un aviso push', () => {
+    const r = correr('storage 560 800 t 50 400 f 70 0');
+    expect(r.codigo).toBe(0);
+    expect(r.problemas).toEqual([expect.stringContaining('las fotos ocupan 560 MB de 800')]);
+    expect(r.problemas[0]).toContain('aviso al 70 %');
+    expect(r.pushes).toBe(1);
+  });
+
+  it('la base de datos al 70 % o más: problema y un aviso push; con las dos, un solo push', () => {
+    const bd = correr('storage 100 800 f 290 400 t 70 0');
+    expect(bd.problemas).toEqual([expect.stringContaining('la base de datos ocupa 290 MB de 400')]);
+    expect(bd.pushes).toBe(1);
+    const las2 = correr('storage 700 800 t 290 400 t 70 0');
+    expect(las2.problemas).toHaveLength(2);
+    expect(las2.pushes).toBe(1);
+  });
+
+  it('si ya se avisó en 20 h no es otro problema; si no hay administradores suscritos, sí', () => {
+    expect(correr('storage 560 800 t 50 400 f 70 0', { push: 'ya' }).problemas).toHaveLength(1);
+    const nadie = correr('storage 560 800 t 50 400 f 70 0', { push: '0' });
+    expect(nadie.problemas).toContainEqual(expect.stringContaining('ningún administrador tiene los avisos activados'));
+    const falla = correr('storage 560 800 t 50 400 f 70 0', { falla: 'Espacio casi lleno' });
+    expect(falla.problemas).toContainEqual('no se ha podido avisar a jefatura de que el espacio está casi lleno');
+    expect(falla.fin).toBe(true);
+  });
+
+  it('el espacio de fotos que no sale del bucket es un problema, sin push', () => {
+    const r = correr('respaldo 100 800 f 50 400 f 70 2');
+    expect(r.problemas).toEqual([expect.stringContaining('el espacio de fotos no se mide en el bucket (respaldo)')]);
+    expect(r.pushes).toBe(0);
+  });
+
+  it('una medida vieja (más de 8 días) o sin fecha es otro problema', () => {
+    expect(correr('respaldo 100 800 f 50 400 f 70 8').problemas).toHaveLength(1);
+    const vieja = correr('respaldo 100 800 f 50 400 f 70 9');
+    expect(vieja.problemas).toContainEqual(expect.stringContaining('la medida del espacio de fotos tiene 9 días'));
+    const sinFecha = correr('sin_dato 0 800 f 50 400 f 70 -1');
+    expect(sinFecha.problemas).toContainEqual(expect.stringContaining('no dice de cuándo es'));
+  });
+
+  it('si fn_espacio falla o da algo raro, es un problema y la vigilancia sigue', () => {
+    const falla = correr('storage 100 800 f 50 400 f 70 0', { falla: 'fn_espacio' });
+    expect(falla.problemas).toEqual([expect.stringContaining('no se puede medir el espacio')]);
+    expect(falla.fin).toBe(true);
+    for (const raro of ['', 'storage 100 800', 'storage 100 800 x 50 400 f 70 0']) {
+      const r = correr(raro);
+      expect(r.problemas, raro).toEqual([expect.stringContaining('no entiende')]);
+      expect(r.fin, raro).toBe(true);
+    }
+  });
+
+  it('sustituye al aviso fijo de 400 MB', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
+    expect(guion).not.toContain('400 * 1024 * 1024');
+    expect(guion).toContain('from hidrantes.fn_espacio() e');
   });
 });
 
