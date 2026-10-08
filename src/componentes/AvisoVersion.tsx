@@ -3,10 +3,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
+import { EnPilaAvisos } from '@/componentes/PilaAvisos';
 import { useCola } from '@/hooks/cola';
 import { useVersionNueva } from '@/hooks/version';
 import { enFormulario, escucharAvisosPush } from '@/lib/aviso-formulario';
 import { alPedirRecarga, pedirRecarga, queHacerAlRecargar, recargar, soloEnMemoria } from '@/lib/pwa';
+import { ORDEN_AVISO } from '@/lib/orden-avisos';
 import { T } from '@/lib/textos';
 
 type Pregunta =
@@ -57,39 +59,43 @@ export function AvisoVersion() {
   return (
     <>
       {hay && (
-        <button
-          type="button"
-          onClick={pedirRecarga}
-          className="bg-marino-700 rounded-boton fixed inset-x-3 top-[calc(env(safe-area-inset-top)+3.5rem)] z-30 mx-auto flex min-h-11 max-w-md items-center gap-2 px-3 text-left text-sm font-semibold text-white shadow-lg"
-        >
-          <RefreshCw size={18} aria-hidden />
-          {T.ajustes.versionNueva}
-        </button>
+        <EnPilaAvisos orden={ORDEN_AVISO.version}>
+          <button
+            type="button"
+            onClick={pedirRecarga}
+            className="bg-marino-700 rounded-boton flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-semibold text-white shadow-lg"
+          >
+            <RefreshCw size={18} aria-hidden />
+            {T.ajustes.versionNueva}
+          </button>
+        </EnPilaAvisos>
       )}
       {aviso && (
-        <div
-          role="status"
-          // Arriba, bajo la barra (y bajo el de versión nueva si está): abajo taparía Enviar.
-          className={`bg-marino-700 rounded-boton fixed inset-x-3 ${hay ? 'top-[calc(env(safe-area-inset-top)+6.75rem)]' : 'top-[calc(env(safe-area-inset-top)+3.5rem)]'} z-30 mx-auto flex min-h-11 max-w-md items-center gap-2 pl-3 text-sm font-semibold text-white shadow-lg`}
-        >
-          <Bell size={18} aria-hidden />
-          <span className="flex-1">{T.avisoFormulario.avisoNuevo}</span>
-          <button
-            type="button"
-            className="min-h-11 px-3 underline"
-            onClick={() => (formulario ? setPregunta({ tipo: 'ir', ruta: aviso }) : ir(aviso))}
+        // Arriba, en la pila de avisos, bajo el de versión nueva si está: abajo taparía Enviar (RV-238).
+        <EnPilaAvisos orden={ORDEN_AVISO.notificacion}>
+          <div
+            role="status"
+            className="bg-marino-700 rounded-boton flex min-h-11 items-center gap-2 pl-3 text-sm font-semibold text-white shadow-lg"
           >
-            {T.avisoFormulario.ver}
-          </button>
-          <button
-            type="button"
-            aria-label={T.avisoFormulario.cerrar}
-            className="ml-2 flex size-11 items-center justify-center"
-            onClick={() => setAviso(null)}
-          >
-            <X size={18} aria-hidden />
-          </button>
-        </div>
+            <Bell size={18} aria-hidden />
+            <span className="flex-1">{T.avisoFormulario.avisoNuevo}</span>
+            <button
+              type="button"
+              className="min-h-11 px-3 underline"
+              onClick={() => (formulario ? setPregunta({ tipo: 'ir', ruta: aviso }) : ir(aviso))}
+            >
+              {T.avisoFormulario.ver}
+            </button>
+            <button
+              type="button"
+              aria-label={T.avisoFormulario.cerrar}
+              className="ml-2 flex size-11 items-center justify-center"
+              onClick={() => setAviso(null)}
+            >
+              <X size={18} aria-hidden />
+            </button>
+          </div>
+        </EnPilaAvisos>
       )}
       {pregunta?.tipo === 'memoria' && (
         <Hoja

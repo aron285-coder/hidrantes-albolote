@@ -250,7 +250,8 @@ test('propuesta desactualizada: exige confirmación; las correcciones llegan al 
   await detalle.getByRole('button', { name: T.panelCola.aprobarConCorrecciones }).click();
   await detalle.getByLabel(T.panelCola.campoEstado).selectOption('no_funciona');
   await detalle.getByLabel(T.panelCola.campoFallo).fill('Arqueta cegada');
-  await detalle.getByRole('button', { name: T.panelCola.guardarYAprobar }).click();
+  // Desactualizada, también el formulario pide la confirmación expresa (docs/32 RV-251).
+  await detalle.locator('form').getByRole('button', { name: T.panelCola.confirmarYAprobar }).click();
   await expect(page.getByRole('status').filter({ hasText: /Aprobada con correcciones/ })).toBeVisible();
 
   expect(consulta(`select correcciones ->> 'caudal' from hidrantes.propuestas where clave_local = '${marca}-1'`)).toBe(

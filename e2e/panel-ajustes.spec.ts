@@ -1,5 +1,6 @@
 // Panel · ajustes (FR-140–FR-145, FR-162–FR-167).
 
+import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
@@ -66,7 +67,10 @@ interface Llamada {
   cuerpo: Record<string, unknown>;
 }
 
-async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as Record<string, unknown> } = {}) {
+async function prepararPanel(
+  page: Page,
+  { conDispatch = true, salud = SALUD as Record<string, unknown>, pedidos = [] as unknown[] } = {},
+) {
   const llamadas: Llamada[] = [];
   let administradores = ADMINISTRADORES;
   await conGoogle(page, 'jefe@example.org');
@@ -108,6 +112,10 @@ async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as 
       case 'fn_guardar_config':
       case 'fn_renombrar_nucleo':
         return json(null);
+      case 'fn_pedidos_recientes':
+        return json(pedidos);
+      case 'fn_revocar_dispositivo':
+        return json(1);
       default:
         return route.abort('connectionrefused');
     }
@@ -387,4 +395,269 @@ test.describe('Salud del sistema: tareas en vivo o de la vigilancia (RV-92)', ()
     await salud.screenshot({ path: captura });
     await info.attach('salud-vigilancia', { path: captura, contentType: 'image/png' });
   });
+});
+
+// ---------- docs/32: Ajustes sin errores silenciosos ----------
+
+const caido = {
+  status: 500,
+  contentType: 'application/json',
+  body: '{"message":"caído"}',
+  headers: { 'Access-Control-Allow-Origin': '*' },
+};
+const tarjetaDe = (page: Page, titulo: string) => page.getByRole('region', { name: titulo, exact: true });
+
+// RV-257: antes, los campos enseñaban los valores por defecto y se podían editar; al guardar,
+// todo lo que difería de esos valores (y no de lo guardado) viajaba como cambio.
+test('Parámetros: deshabilitados hasta cargar; con error, el motivo y Reintentar (docs/32 RV-257)', async ({
+  page,
+}) => {
+  const llamadas = await prepararPanel(page);
+  let soltar = () => {};
+  const espera = new Promise<void>((ok) => (soltar = ok));
+  let falla = false;
+  await page.route(/\/rest\/v1\/config\?.*meses_revision/, async (r) => {
+    await espera;
+    if (falla) return r.fulfill(caido);
+    // Lo guardado no es lo de por defecto: 6 meses, 45 días.
+    return r.fulfill({
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify(
+        CONFIG.filter((c) => !c.clave.startsWith('codigo_acceso')).map((c) =>
+          c.clave === 'meses_revision' ? { ...c, valor: 6 } : c.clave === 'dias_papelera' ? { ...c, valor: 45 } : c,
+        ),
+      ),
+    });
+  });
+  await page.goto('/admin/ajustes');
+  const parametros = tarjetaDe(page, T.panelAjustes.parametros);
+  const meses = parametros.getByLabel(T.panelAjustes.mesesRevision);
+  const guardar = parametros.getByRole('button', { name: T.panel.guardarCambios });
+  await expect(parametros.getByText(T.panelCola.cargando).first()).toBeVisible();
+  await expect(meses).toBeDisabled();
+  await expect(meses).toHaveValue('');
+  await expect(parametros.getByLabel(T.panelAjustes.radiosMarcador)).toBeDisabled();
+  await expect(guardar).toBeDisabled();
+
+  soltar();
+  await expect(meses).toBeEnabled();
+  await expect(meses).toHaveValue('6');
+  await meses.fill('18');
+  await guardar.click();
+  // Solo lo tocado: ni los días de papelera (45 frente a 30 por defecto) ni nada más.
+  await expect.poll(() => llamadaA(llamadas, 'fn_guardar_config')).toEqual({ cambios: { meses_revision: 18 } });
+
+  // Sin poder cargar: el motivo y Reintentar, los campos sin tocar.
+  falla = true;
+  await page.reload();
+  const error = tarjetaDe(page, T.panelAjustes.parametros).getByRole('alert');
+  await expect(error).toContainText(T.panelErrores.sinServidor);
+  await expect(meses).toBeDisabled();
+  falla = false;
+  await error.getByRole('button', { name: T.mapa.reintentar }).click();
+  await expect(meses).toHaveValue('6');
+  await expect(tarjetaDe(page, T.panelAjustes.parametros).getByRole('alert')).toHaveCount(0);
+});
+
+// RV-261: el código que no carga ya no es «—», y sin poder contar los móviles no se dice «0».
+test('Código de acceso: lo que no carga se dice, con Reintentar (docs/32 RV-261)', async ({ page }) => {
+  await prepararPanel(page);
+  let falla = true;
+  await page.route(/\/rest\/v1\/config\?.*codigo_acceso/, (r) => (falla ? r.fulfill(caido) : r.fallback()));
+  await page.route(/\/rest\/v1\/dispositivos\?/, (r) => r.fulfill(caido));
+  await page.goto('/admin/ajustes');
+  const tarjeta = tarjetaDe(page, T.panelAjustes.codigoAcceso);
+  const error = tarjeta.getByRole('alert');
+  await expect(error).toContainText(T.panelAjustes.codigoNoCarga);
+  await expect(tarjeta).not.toContainText('—');
+  await expect(tarjeta.getByText(T.panelAjustes.sinCambiosSinCuenta)).toBeVisible();
+  falla = false;
+  await error.getByRole('button', { name: T.mapa.reintentar }).click();
+  await tarjeta.getByRole('button', { name: T.panelAjustes.ver }).click();
+  await expect(tarjeta.getByText('482917')).toBeVisible();
+
+  // La ventana de revocar dice que no se sabe cuántos, y deja seguir.
+  await tarjeta.getByLabel(T.panel.revocarTodos).check();
+  await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByText(T.panelAjustes.avisoRevocandoSinCuenta)).toBeVisible();
+  await expect(dialogo.getByRole('button', { name: T.panelAjustes.confirmarCodigo })).toBeEnabled();
+});
+
+// RV-260 y RV-224: en staging, el pedido queda anotado y nadie lo lanza; el aviso no promete minutos.
+test('Mantenimiento en staging: «queda anotado» (docs/32 RV-260)', async ({ page }) => {
+  await prepararPanel(page);
+  await page.route('**/api/lanzar-workflow', (r) =>
+    r.fulfill({
+      contentType: 'application/json',
+      status: 202,
+      body: '{"pedido":true,"workflow":"regenerar-zona","staging":true}',
+    }),
+  );
+  await page.goto('/admin/ajustes');
+  await page.getByRole('button', { name: T.panel.regenerarZona }).click();
+  await expect(
+    page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoAnotadoStaging(T.panel.regenerarZona) }),
+  ).toBeVisible();
+  await expect(page.getByText(T.panelAjustes.trabajoPedido(T.panel.regenerarZona))).toHaveCount(0);
+});
+
+// RV-263: la hoja A4 del QR es una ventana: rol, foco dentro, Tab no sale y el foco vuelve al cerrar.
+test('Hoja A4 del QR: ventana modal con el foco dentro (docs/32 RV-263)', async ({ page }) => {
+  await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  const abrir = page.getByRole('button', { name: T.panelAjustes.imprimirA4 });
+  await abrir.click();
+  const hoja = page.getByRole('dialog', { name: T.panelAjustes.imprimirA4 });
+  await expect(hoja).toHaveAttribute('aria-modal', 'true');
+  await expect(hoja.getByRole('button', { name: T.panelAjustes.imprimir })).toBeFocused();
+  // Lo de detrás queda inert: Tab va de un botón a otro de la hoja y, como mucho, pasa por el
+  // navegador (body); nunca llega al panel.
+  const sitios: string[] = [];
+  for (let i = 0; i < 6; i++) {
+    await page.keyboard.press('Tab');
+    sitios.push(
+      await hoja.evaluate((el) => {
+        const a = document.activeElement;
+        return !a || a === document.body ? 'body' : el.contains(a) ? 'hoja' : 'fuera';
+      }),
+    );
+  }
+  expect(sitios).not.toContain('fuera');
+  expect(sitios).toContain('hoja');
+  await expect(page.locator('#raiz')).toHaveAttribute('inert', '');
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+  await page.keyboard.press('Escape');
+  await expect(hoja).toHaveCount(0);
+  await expect(abrir).toBeFocused();
+});
+
+// ---------- docs/32 oleada 2 (0041) ----------
+
+const MB = 1024 ** 2;
+const SALUD_0041 = {
+  ...SALUD,
+  fotos_bytes: 200 * MB,
+  fotos_origen: 'storage',
+  reservas_abiertas: 6,
+  max_bytes_fotos: 800 * MB,
+  fotos_pct: 72.4,
+  max_bytes_bd: 400 * MB,
+  bd_pct: 9.5,
+  reservas_dispositivos_24h: [
+    { dispositivo: 'abcd1234', reservas: 37, abiertas: 4, revocado: false },
+    { dispositivo: 'ef567890', reservas: 12, abiertas: 0, revocado: true },
+  ],
+};
+
+// RV-262: el espacio de fotos y de la base de datos con su tope, y revocar el móvil que más pide.
+test('Salud: espacio de fotos y de la base, y «Revocar este móvil» (docs/32 RV-262)', async ({ page }) => {
+  const llamadas = await prepararPanel(page, { salud: SALUD_0041 });
+  await page.goto('/admin/ajustes');
+  const salud = tarjetaDe(page, T.panel.saludSistema);
+  await expect(salud.getByText(T.panelAjustes.espacioDetalle('200,0', '72,4', '800,0'))).toBeVisible();
+  await expect(salud.getByText(T.panelAjustes.espacioDetalle('38,0', '9,5', '400,0'))).toBeVisible();
+  // Al 72 %, el aviso del tope (no el del gigabyte).
+  await expect(salud.getByRole('status').filter({ hasText: T.panelAjustes.espacioFotosLleno(72) })).toBeVisible();
+
+  const moviles = salud.getByTestId('reservas-moviles');
+  await expect(moviles.getByRole('listitem')).toHaveCount(2);
+  await expect(moviles.getByRole('listitem').nth(0)).toContainText(T.panelAjustes.reservasDetalle(37, 4));
+  await expect(moviles.getByRole('listitem').nth(1)).toContainText(T.panelAjustes.movilRevocado);
+  await expect(moviles.getByRole('button')).toHaveCount(1);
+
+  await moviles.getByRole('button', { name: T.panelAjustes.revocarMovilDe('abcd1234') }).click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByText(T.panelAjustes.avisoRevocarMovil('abcd1234'))).toBeVisible();
+  await dialogo.getByRole('button', { name: T.panelAjustes.confirmarRevocarMovil, exact: true }).click();
+  await expect.poll(() => llamadaA(llamadas, 'fn_revocar_dispositivo')).toEqual({ dispositivo: 'abcd1234' });
+  await expect(
+    page.getByRole('status').filter({ hasText: T.panelAjustes.movilRevocadoAviso('abcd1234') }),
+  ).toBeVisible();
+  await expect(dialogo).toHaveCount(0);
+});
+
+test('Salud: si no se puede revocar, lo dice y la ventana sigue abierta (docs/32 RV-262)', async ({ page }) => {
+  await prepararPanel(page, { salud: SALUD_0041 });
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_revocar_dispositivo`, (r) =>
+    r.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ code: 'P0001', message: 'DISPOSITIVO_NO_ENCONTRADO: No hay ningún móvil' }),
+    }),
+  );
+  await page.goto('/admin/ajustes');
+  const salud = tarjetaDe(page, T.panel.saludSistema);
+  await salud.getByRole('button', { name: T.panelAjustes.revocarMovilDe('abcd1234') }).click();
+  const dialogo = page.getByRole('dialog');
+  const confirmar = dialogo.getByRole('button', { name: T.panelAjustes.confirmarRevocarMovil, exact: true });
+  await confirmar.click();
+  await expect(page.getByText(T.panelErrores.dispositivoNoEncontrado)).toBeVisible();
+  await expect(dialogo).toBeVisible();
+  await expect(confirmar).toBeEnabled();
+  await expect(page.getByText(T.panelAjustes.movilRevocadoAviso('abcd1234'))).toHaveCount(0);
+});
+
+test('Salud: sin móviles con fotos pedidas, lo dice (docs/32 RV-262)', async ({ page }) => {
+  await prepararPanel(page, { salud: { ...SALUD_0041, reservas_dispositivos_24h: [] } });
+  await page.goto('/admin/ajustes');
+  await expect(tarjetaDe(page, T.panel.saludSistema).getByText(T.panelAjustes.reservasVacio)).toBeVisible();
+});
+
+// RV-260: los últimos pedidos con su estado; el error, con su texto.
+test('Mantenimiento: los últimos pedidos y qué ha pasado (docs/32 RV-260)', async ({ page }) => {
+  const hace = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+  await prepararPanel(page, {
+    pedidos: [
+      { id: 3, workflow: 'regenerar-zona', pedido_en: hace(2), lanzado_en: null, estado: 'pedido', resultado: null },
+      {
+        id: 2,
+        workflow: 'regenerar-mapabase',
+        pedido_en: hace(90),
+        lanzado_en: hace(85),
+        estado: 'lanzado',
+        resultado: 'lanzado',
+      },
+      {
+        id: 1,
+        workflow: 'respaldo',
+        pedido_en: hace(3000),
+        lanzado_en: hace(1500),
+        estado: 'error',
+        resultado: 'error: caducado',
+      },
+    ],
+  });
+  await page.goto('/admin/ajustes');
+  const lista = tarjetaDe(page, T.panelAjustes.mantenimiento).getByTestId('pedidos-recientes');
+  const filas = lista.getByRole('listitem');
+  await expect(filas).toHaveCount(3);
+  await expect(filas.nth(0)).toContainText(T.panel.regenerarZona);
+  await expect(filas.nth(0)).toContainText(T.panelAjustes.pedidoPendiente);
+  await expect(filas.nth(1)).toContainText(T.panelAjustes.pedidoLanzado);
+  await expect(filas.nth(2)).toContainText(T.panel.respaldoAhora);
+  await expect(filas.nth(2)).toContainText(T.panelAjustes.pedidoError('caducado'));
+});
+
+test('Mantenimiento: sin pedidos, el estado vacío; si no cargan, el error y Reintentar (docs/32 RV-260)', async ({
+  page,
+}) => {
+  await prepararPanel(page);
+  let falla = true;
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_pedidos_recientes`, (r) =>
+    falla ? r.fulfill(caido) : r.fallback(),
+  );
+  await page.goto('/admin/ajustes');
+  const tarjeta = tarjetaDe(page, T.panelAjustes.mantenimiento);
+  const error = tarjeta.getByRole('alert');
+  await expect(error).toContainText(T.panelErrores.sinServidor);
+  await expect(tarjeta.getByText(T.panelAjustes.pedidosVacio)).toHaveCount(0);
+  falla = false;
+  await error.getByRole('button', { name: T.mapa.reintentar }).click();
+  await expect(tarjeta.getByText(T.panelAjustes.pedidosVacio)).toBeVisible();
 });

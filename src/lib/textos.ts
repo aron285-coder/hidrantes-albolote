@@ -166,6 +166,13 @@ export const T = {
     mapabaseFalta: 'El mapa base no está en el móvil: sin cobertura el fondo quedará vacío.',
     descargarMapabase: (mb: Parametro) => `Descargar (${mb} MB)`,
     descargarVersionNueva: 'Descargar versión nueva',
+    // Lo que oye el lector de pantalla durante la descarga (docs/32 RV-236).
+    anuncioDescarga: {
+      inicio: 'Descargando el mapa base',
+      mitad: 'Mapa base: descargada la mitad',
+      final: 'Mapa base descargado',
+      error: 'No se ha podido descargar el mapa base',
+    },
     ocultarAviso: 'Ocultar aviso',
     capaSinCobertura: (capa: Parametro) =>
       `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia al mapa base.`,
@@ -678,6 +685,10 @@ export const T = {
     confirmarRechazo: 'Confirmar rechazo',
     fusionarCon: (codigo: Parametro) => `Fusionar con ${codigo}`,
     confirmarYAprobar: 'Confirmar y aprobar',
+    // docs/32 RV-251: el punto cambió con el formulario de correcciones abierto; lo no tocado se pone al día.
+    puntoHaCambiado: 'El punto ha cambiado: revisa los datos.',
+    cargandoPunto: 'Cargando el punto de hoy…',
+    puntoNoCarga: 'No se ha podido cargar el punto de hoy: sin verlo no se aprueba.',
     cancelar: 'Cancelar',
     motivoRechazo: 'Motivo del rechazo (obligatorio, lo verá quien lo propuso)',
     sinMotivo: 'Sin motivo no se puede rechazar.',
@@ -910,7 +921,8 @@ export const T = {
     incidenciaResuelta: 'Incidencia resuelta',
     anonimizacion: 'Anonimización',
     exportacion: 'Exportación',
-    workflowLanzado: 'Mantenimiento lanzado',
+    // docs/32 RV-260: el panel solo lo pide; lo lanza el despachador (o nadie, en staging).
+    workflowLanzado: 'Mantenimiento pedido',
     // Detalle legible (docs/30 RV-127, DEC-171): qué cambió, con palabras.
     cambio: (campo: Parametro, antes: Parametro, despues: Parametro) => `${campo}: ${antes} → ${despues}`,
     valor: (campo: Parametro, valor: Parametro) => `${campo}: ${valor}`,
@@ -957,6 +969,12 @@ export const T = {
     cambiadoPor: (fecha: Parametro, quien: Parametro, moviles: Parametro) =>
       `Cambiado por última vez el ${fecha} por ${quien}. ${moviles} móviles registrados.`,
     sinCambios: (moviles: Parametro) => `Sin cambios desde el arranque. ${moviles} móviles registrados.`,
+    // docs/32 RV-261: sin poder contar los móviles no se dice un número, y sin el código, tampoco «—».
+    cambiadoPorSinCuenta: (fecha: Parametro, quien: Parametro) => `Cambiado por última vez el ${fecha} por ${quien}.`,
+    sinCambiosSinCuenta: 'Sin cambios desde el arranque.',
+    codigoNoCarga: 'No se ha podido leer el código.',
+    avisoRevocandoSinCuenta:
+      'Se pondrá en vigor un código nuevo. No se sabe cuántos móviles se desconectarán: todos los que tienen acceso tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.',
     ver: 'ver',
     ocultar: 'ocultar',
     explicaSinRevocar:
@@ -1038,10 +1056,34 @@ export const T = {
     inventarioDescargado: (n: Parametro) => `Inventario descargado: ${n} puntos.`,
     mantenimiento: 'Mantenimiento',
     ayudaMantenimiento:
-      'Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.',
+      'Se ejecutan fuera de la aplicación y tardan unos minutos. Debajo, los últimos pedidos y qué ha pasado con cada uno.',
+    // docs/32 RV-260: los últimos pedidos (fn_pedidos_recientes) con su estado.
+    pedidosRecientes: 'Últimos pedidos',
+    pedidosVacio: 'Todavía no se ha pedido nada.',
+    pedidoPendiente: 'pedido',
+    pedidoLanzado: 'lanzado',
+    pedidoError: (motivo: Parametro) => `error: ${motivo}`,
+    pedidoErrorSinMotivo: 'error',
+    // docs/32 RV-262: espacio de fotos y de la base de datos, y los móviles con más fotos pedidas.
+    espacioDetalle: (mb: Parametro, pct: Parametro, total: Parametro) => `${mb} MB · ${pct} % de ${total} MB`,
+    espacioFotosLleno: (porcentaje: Parametro) =>
+      `Las fotos ocupan el ${porcentaje} % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.`,
+    espacioSegunRespaldo: (texto: Parametro) => `${texto} · medido en el último respaldo`,
+    reservasPorMovil: 'Móviles con más fotos pedidas (24 h)',
+    reservasDetalle: (n: Parametro, abiertas: Parametro) => `${n} fotos · ${abiertas} sin subir`,
+    reservasVacio: 'Ningún móvil ha pedido fotos en las últimas 24 h.',
+    revocarMovil: 'Revocar este móvil',
+    revocarMovilDe: (movil: Parametro) => `Revocar este móvil (${movil})`,
+    movilRevocado: 'revocado',
+    avisoRevocarMovil: (movil: Parametro) =>
+      `El móvil ${movil} se queda sin acceso: tendrá que volver a escribir el código de acceso. Sus fotos pedidas y sin subir dejan de contar.`,
+    confirmarRevocarMovil: 'Revocar',
+    movilRevocadoAviso: (movil: Parametro) => `Móvil ${movil} revocado.`,
     // docs/31 RV-146 y RV-167: el panel deja un pedido que un workflow recoge; en staging, Purgar fotos y
     // el respaldo no se piden (trabajan contra producción).
     trabajoPedido: (nombre: Parametro) => `"${nombre}": pedido. Empezará en unos minutos.`,
+    // docs/32 RV-224 y RV-260: en staging nadie despacha el pedido.
+    trabajoAnotadoStaging: (nombre: Parametro) => `"${nombre}": pedido. En staging no se lanza: queda anotado.`,
     soloEnProduccion: 'Solo en producción',
     radiosInvalidos: 'Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.',
     nucleosVacio: 'Todavía no hay núcleos.',
@@ -1089,6 +1131,10 @@ export const T = {
     generico: 'No se ha podido completar. Inténtalo de nuevo.',
     soloEnProduccion: 'Esto solo se hace en producción.',
     yaPedido: 'Ya está pedido: empezará en unos minutos.',
+    // docs/32 RV-262: fn_revocar_dispositivo con los 8 caracteres que enseña Salud.
+    dispositivoNoEncontrado: 'No hay ningún móvil con ese identificador.',
+    dispositivoAmbiguo: 'Ese identificador no vale o es de más de un móvil: no se ha revocado ninguno.',
+    serviceWorker: 'Los avisos no responden en este navegador. Recarga la página.',
   },
 
   panel: {

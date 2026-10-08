@@ -176,15 +176,14 @@ describe('repositorio (docs/32 RV-208)', () => {
     expect(r.nombre).toBe('hidrantes-albolote');
   });
 
-  // arranque.ts (lo fija la primera vez y comprueba git user.name) y publicar.ts son de otras sesiones
-  // de docs/32; pasan a repositorio() en su propio PR.
-  const PENDIENTES = ['arranque.ts', 'publicar.ts'];
-
   it('ningún script escribe el titular a mano: lo lee de repositorio()', () => {
     const dir = path.resolve(import.meta.dirname, '..');
+    const titular = repositorio().propietario.replace(/[-]/g, '\\-');
+    // `titular/repo` entre comillas, o el titular de este checkout solo (const X = 'titular').
+    const aMano = new RegExp(`(['"\`])(?:[A-Za-z0-9-]+\\/hidrantes-albolote|${titular})\\1`);
     const conTitular = readdirSync(dir)
-      .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !PENDIENTES.includes(f))
-      .filter((f) => /(['"`])[A-Za-z0-9-]+\/hidrantes-albolote\1/.test(readFileSync(path.join(dir, f), 'utf8')));
+      .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+      .filter((f) => aMano.test(readFileSync(path.join(dir, f), 'utf8')));
     expect(conTitular).toEqual([]);
   });
 });

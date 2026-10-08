@@ -49,10 +49,13 @@ export function generarCodigo(): string {
 export const cambiarCodigo = (nuevo: string, revocarDispositivos: boolean) =>
   rpc<null>('fn_cambiar_codigo_acceso', { nuevo, revocar_dispositivos: revocarDispositivos });
 
-/** Cuántos móviles tienen acceso ahora mismo, para explicar qué pasa al revocar. */
-export const contarDispositivos = async (): Promise<number> => {
+/**
+ * Cuántos móviles tienen acceso ahora mismo, para explicar qué pasa al revocar. Si no se puede
+ * leer, el error: nunca un 0, que haría creer que revocar no desconecta a nadie (docs/32 RV-261).
+ */
+export const contarDispositivos = async (): Promise<Resultado<number>> => {
   const r = await leerLista<{ id: string }>((c) => c.from('dispositivos').select('id').is('revocado_en', null));
-  return r.ok ? r.datos.length : 0;
+  return r.ok ? { ok: true, datos: r.datos.length } : r;
 };
 
 // ---------- administradores (FR-141, FL-30) ----------
@@ -119,9 +122,14 @@ export async function cargarParametros(): Promise<Resultado<Parametros>> {
   return { ok: true, datos: valores };
 }
 
-/** Solo viaja lo que cambia: fn_guardar_config rechaza un objeto vacío y anota lo demás en el registro. */
-export function cambiosParametros(antes: Parametros, ahora: Parametros): Record<string, unknown> {
+/**
+ * Solo viaja lo que cambia: fn_guardar_config rechaza un objeto vacío y anota lo demás en el registro.
+ * `antes` es lo cargado de verdad: sin cargar (null) no hay cambios, nunca contra los valores por
+ * defecto, que mandarían como cambio lo que no ha tocado nadie (docs/32 RV-257).
+ */
+export function cambiosParametros(antes: Parametros | null, ahora: Parametros): Record<string, unknown> {
   const cambios: Record<string, unknown> = {};
+  if (!antes) return cambios;
   for (const clave of Object.keys(PARAMETROS) as ClaveParametro[]) {
     if (ahora[clave] !== antes[clave]) cambios[clave] = ahora[clave];
   }
@@ -224,6 +232,26 @@ export interface Salud {
   tareas_medidas_en?: string | null;
   /** SQLSTATE por el que no se pudo leer en vivo; para diagnóstico, no se enseña. */
   tareas_error?: string | null;
+  // ---- 0041 (docs/32 RV-220, RV-221, RV-262); ausentes con una base anterior ----
+  /** Lo que ocupa el bucket de fotos, y de dónde sale el dato. */
+  fotos_bytes?: number | null;
+  fotos_origen?: 'storage' | 'respaldo' | 'sin_dato';
+  reservas_abiertas?: number;
+  /** El tope de espacio para fotos (config `max_bytes_fotos`). */
+  max_bytes_fotos?: number;
+  /** Bucket más 5 MB por reserva abierta, en % del tope (lo que mira fn_reservar_subida). */
+  fotos_pct?: number;
+  max_bytes_bd?: number;
+  bd_pct?: number;
+  /** Los 5 móviles con más reservas en 24 h, con 8 caracteres de su id (sirven para revocarlo). */
+  reservas_dispositivos_24h?: ReservasDispositivo[];
+}
+
+export interface ReservasDispositivo {
+  dispositivo: string;
+  reservas: number;
+  abiertas: number;
+  revocado: boolean;
 }
 
 export interface TareaProgramada {
@@ -270,6 +298,48 @@ export function textoAlmacenamiento(bytes: number | null | undefined, entorno: E
   return entorno === 'staging' ? T.panelAjustes.almacenamientoNoAplica : T.panelAjustes.sinDato;
 }
 
+/**
+ * "Espacio de fotos" (docs/32 RV-262): lo que ocupa el bucket y el % del tope, con 5 MB por reserva
+ * abierta como lo cuenta el servidor. Sin el dato de 0041, como antes (`textoAlmacenamiento`).
+ */
+export function textoEspacioFotos(s: Salud, entorno: Entorno): string {
+  if (s.fotos_bytes == null || s.fotos_origen === 'sin_dato' || !s.max_bytes_fotos || s.fotos_pct == null) {
+    return textoAlmacenamiento(s.storage_bytes, entorno);
+  }
+  const texto = T.panelAjustes.espacioDetalle(megas(s.fotos_bytes), porcentaje(s.fotos_pct), megas(s.max_bytes_fotos));
+  // Sin lectura en vivo del bucket, el dato es el del último respaldo: se dice (05 §2.6, fotos_origen).
+  return s.fotos_origen === 'respaldo' ? T.panelAjustes.espacioSegunRespaldo(texto) : texto;
+}
+
+/** "Base de datos": con el tope de 0041 (`max_bytes_bd`), MB y %; si no, contra los 500 MB del plan. */
+export function textoBaseDeDatos(s: Salud): string {
+  if (s.bd_bytes == null) return T.panelAjustes.sinDato;
+  if (s.max_bytes_bd && s.bd_pct != null) {
+    return T.panelAjustes.espacioDetalle(megas(s.bd_bytes), porcentaje(s.bd_pct), megas(s.max_bytes_bd));
+  }
+  return T.panelAjustes.baseDeDatosDetalle(megas(s.bd_bytes), megas(CUOTA_BD_BYTES));
+}
+
+const porcentaje = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+
+/** Al 70 % del tope de fotos avisa también la vigilancia (DEC-182). */
+export const AVISAR_ESPACIO_PCT = 70;
+
+/**
+ * El aviso de espacio de fotos: con 0041, el % del tope desde el 70 %; sin él, el del gigabyte
+ * gratuito desde el 90 % (`avisoAlmacenamiento`). `null` mientras haya sitio.
+ */
+export function avisoEspacioFotos(s: Salud): { pct: number; delTope: boolean } | null {
+  if (s.fotos_pct != null && s.max_bytes_fotos && s.fotos_origen !== 'sin_dato') {
+    return s.fotos_pct >= AVISAR_ESPACIO_PCT ? { pct: Math.min(Math.round(s.fotos_pct), 100), delTope: true } : null;
+  }
+  const pct = avisoAlmacenamiento(s.storage_bytes);
+  return pct == null ? null : { pct, delTope: false };
+}
+
+/** Revocar un móvil desde Salud con los 8 caracteres que enseña (fn_revocar_dispositivo, 0041). */
+export const revocarDispositivo = (dispositivo: string) => rpc<number>('fn_revocar_dispositivo', { dispositivo });
+
 /** La cota gratuita de fotos de TR-53: 1 GB. */
 export const CUOTA_FOTOS_BYTES = 1024 ** 3;
 const AVISAR_DESDE = 0.9;
@@ -290,8 +360,40 @@ export function avisoAlmacenamiento(bytes: number | null): number | null {
 export type Workflow = 'purgar-fotos' | 'regenerar-zona' | 'regenerar-mapabase' | 'respaldo';
 
 export const lanzarWorkflow = (workflow: Workflow) =>
-  // Desde docs/31 RV-146 la Function deja un pedido ({ pedido: true }) que recoge despachador.yml.
-  funcion<{ pedido?: boolean }>('/api/lanzar-workflow', { metodo: 'POST', cuerpo: { workflow } });
+  // Desde docs/31 RV-146 la Function deja un pedido ({ pedido: true }) que recoge despachador.yml. En
+  // staging nadie lo recoge y la respuesta lleva `staging: true` (docs/32 RV-224, RV-260).
+  funcion<{ pedido?: boolean; staging?: boolean }>('/api/lanzar-workflow', { metodo: 'POST', cuerpo: { workflow } });
+
+/** El aviso al pedir un trabajo: en staging no se lanza y queda anotado; si no, empezará pronto (RV-260). */
+export const avisoPedido = (nombre: string, respuesta: { pedido?: boolean; staging?: boolean } | null | undefined) =>
+  respuesta?.staging === true ? T.panelAjustes.trabajoAnotadoStaging(nombre) : T.panelAjustes.trabajoPedido(nombre);
+
+/** Un pedido de mantenimiento y qué ha pasado con él (fn_pedidos_recientes, 0041, docs/32 RV-260). */
+export interface PedidoReciente {
+  id: number;
+  workflow: Workflow;
+  pedido_en: string;
+  lanzado_en: string | null;
+  estado: 'pedido' | 'lanzado' | 'error';
+  /** 'lanzado', 'error: <motivo>' o null mientras está pedido. */
+  resultado: string | null;
+}
+
+export async function cargarPedidos(): Promise<Resultado<PedidoReciente[]>> {
+  const r = await rpc<PedidoReciente[]>('fn_pedidos_recientes', { limite: 5 });
+  if (!r.ok) return r;
+  return { ok: true, datos: Array.isArray(r.datos) ? r.datos : [] };
+}
+
+/** El estado de un pedido en palabras: pedido, lanzado o el error con su motivo. */
+export function estadoPedido(p: PedidoReciente): string {
+  if (p.estado === 'lanzado') return T.panelAjustes.pedidoLanzado;
+  if (p.estado === 'error') {
+    const motivo = (p.resultado ?? '').replace(/^error:\s*/, '').trim();
+    return motivo ? T.panelAjustes.pedidoError(motivo) : T.panelAjustes.pedidoErrorSinMotivo;
+  }
+  return T.panelAjustes.pedidoPendiente;
+}
 
 /** Descarga de consulta en JSON (FR-144). No es el respaldo: eso vive en 15. */
 export async function descargarInventarioJson(): Promise<Resultado<number>> {

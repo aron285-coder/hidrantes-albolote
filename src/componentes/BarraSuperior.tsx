@@ -1,13 +1,14 @@
 import { ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router';
 import { AvisoConexion } from './AvisoConexion';
+import { PilaAvisos } from './PilaAvisos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
 // Texto --marino-950: el blanco sobre --oro-600 se queda en 3,2:1 y no llega a 4,5:1 (DEC-164).
 const ETIQUETA = 'bg-oro-600 text-marino-950 flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] font-bold';
 
-/** Barra superior del móvil (06 §5) con la banda de conexión debajo. */
+/** Barra superior del móvil (06 §5) con la banda de conexión y la pila de avisos debajo. */
 export function BarraSuperior({
   titulo,
   alVolver,
@@ -66,6 +67,8 @@ export function BarraSuperior({
         {jefatura && !enlacePanel && <span className={cn(ETIQUETA, 'shrink-0')}>{T.navegacion.jefatura}</span>}
       </header>
       <AvisoConexion />
+      {/* Los avisos de arriba, apilados justo debajo (docs/32 RV-238). */}
+      <PilaAvisos />
     </div>
   );
 }

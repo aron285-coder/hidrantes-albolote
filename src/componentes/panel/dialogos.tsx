@@ -72,6 +72,43 @@ export function DialogoMotivo({
   );
 }
 
+/**
+ * Lo que no ha podido cargar: el motivo y «Reintentar», que dice «Cargando…» mientras lo intenta
+ * (UI-04, docs/32 RV-259 y RV-261). Sin estado vacío al lado: con error no se sabe si hay algo.
+ */
+export function ErrorReintentar({
+  texto,
+  reintentar,
+  className,
+}: {
+  texto: string;
+  reintentar: () => Promise<void>;
+  className?: string;
+}) {
+  const [reintentando, setReintentando] = useState(false);
+  async function otraVez() {
+    setReintentando(true);
+    try {
+      await reintentar();
+    } finally {
+      setReintentando(false);
+    }
+  }
+  return (
+    <div role="alert" className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm ${className ?? ''}`}>
+      <span className="min-w-0 flex-1">{texto}</span>
+      <Boton
+        variante="secundario"
+        className="min-h-9 text-[13px]"
+        disabled={reintentando}
+        onClick={() => void otraVez()}
+      >
+        {reintentando ? T.panelCola.cargando : T.mapa.reintentar}
+      </Boton>
+    </div>
+  );
+}
+
 /** Historial de un punto: todo lo que le ha pasado, en solo lectura (FR-123). */
 export function DialogoHistorial({ punto, alCerrar }: { punto: Punto; alCerrar: () => void }) {
   const carga = useCarga(() => historialPunto(punto.id), [punto.id]);
@@ -81,12 +118,11 @@ export function DialogoHistorial({ punto, alCerrar }: { punto: Punto; alCerrar: 
       {carga.estado === 'cargando' && !filas.length && (
         <p className="text-texto-suave text-sm">{T.panelCola.cargando}</p>
       )}
-      {carga.estado === 'error' && !filas.length && (
-        <p role="alert" className="text-sm">
-          {textoError(carga.codigo)}
-        </p>
+      {/* Con error, solo el error y Reintentar (docs/32 RV-259): nunca a la vez que «no hay entradas». */}
+      {carga.estado === 'error' && (
+        <ErrorReintentar texto={textoError(carga.codigo)} reintentar={carga.recargar} className="mb-2" />
       )}
-      {carga.estado !== 'cargando' && !filas.length && (
+      {carga.estado !== 'cargando' && carga.estado !== 'error' && !filas.length && (
         <p className="text-texto-suave text-sm">{T.panelRegistro.vacio}</p>
       )}
       {filas.length > 0 && (

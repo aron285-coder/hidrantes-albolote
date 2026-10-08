@@ -1,12 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { spawnSync } from 'node:child_process';
+import path from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 import { ErrorDeScript, type Resultado } from './lib/comun.ts';
 import {
   ARCHIVO_STAGING,
   type Contexto,
   type DatosPuerta,
+  type DatosStaging,
   ETIQUETA_BLOQUEO,
   MENSAJE_EMPUJON,
   analizarArgumentos,
+  checksObligatorios,
+  compararChangelog,
   comprobarStaging,
   cuerpoAprobacion,
   datosPuerta,
@@ -55,6 +60,20 @@ function simulado(reglas: Regla[], opciones: Partial<Contexto['opciones']> = {})
   };
   return { ctx, llamadas, lineas: () => llamadas.map((l) => l.linea) };
 }
+
+// En la release 0.9.0 pareció que un fallo de gh pr merge salía con 0. Es la tubería de quien lo
+// lanza (`npm run publicar | tail` devuelve el código de tail); el script, sin tubería, sale con 1.
+describe('código de salida', () => {
+  it('un abortar sale con un código distinto de 0 y el motivo en la salida de errores', () => {
+    const r = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/publicar.ts', '--opcion-que-no-existe'], {
+      cwd: path.resolve(import.meta.dirname, '..'),
+      encoding: 'utf8',
+      timeout: 60_000,
+    });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain('Opción desconocida: --opcion-que-no-existe');
+  });
+});
 
 describe('argumentos', () => {
   it('sin nada: todos los pasos, de verdad', () => {
@@ -125,12 +144,26 @@ describe('qué puede cambiar desde la comprobación en staging', () => {
       fueraDeLoPermitido(
         ['docs/31-revision-completa.md', ARCHIVO_STAGING, 'CHANGELOG.md', '.release-please-manifest.json'],
         true,
+        true,
       ),
     ).toEqual([]);
     expect(fueraDeLoPermitido(['src/main.tsx', 'docs/04.md', 'supabase/migrations/0041_x.sql'], true)).toEqual([
       'src/main.tsx',
       'supabase/migrations/0041_x.sql',
     ]);
+  });
+
+  // docs/32 RV-205: CHANGELOG.md va en el bundle (Novedades); ya no está exento por su nombre.
+  it('CHANGELOG.md solo si sus líneas son las de release-please', () => {
+    expect(fueraDeLoPermitido(['CHANGELOG.md'], true)).toEqual(['CHANGELOG.md']);
+    expect(fueraDeLoPermitido(['CHANGELOG.md'], true, true)).toEqual([]);
+  });
+
+  it('compararChangelog: las mismas líneas, en cualquier orden; una de más o de menos, no', () => {
+    const rp = ['+## [0.9.0](https://x/compare/v0.8.0...v0.9.0) (2026-10-08)', '+* algo ([#500](u))'];
+    expect(compararChangelog([...rp].reverse(), rp)).toBeNull();
+    expect(compararChangelog([...rp, '+* texto a mano'], rp)).toContain('«+* texto a mano»');
+    expect(compararChangelog([rp[0]!], rp)).toContain('no tiene todas las líneas');
   });
 
   it('package.json, solo si únicamente cambia la versión', () => {
@@ -154,19 +187,33 @@ describe('qué puede cambiar desde la comprobación en staging', () => {
     );
   });
 
-  const base = { develop: DEV, verificado: VERIF, esAntecesor: true, archivos: [] as string[], soloVersion: true };
+  const base: Omit<DatosStaging, 'marcador'> = {
+    develop: DEV,
+    verificado: VERIF,
+    deployStaging: true,
+    ci: true,
+    servido: null,
+    esAntecesor: true,
+    fuera: [],
+  };
 
   it('verde con el mismo commit', () => {
     expect(evaluarStaging({ ...base, marcador: { commit: DEV, resultado: 'verde' }, verificado: DEV }).ok).toBe(true);
   });
 
-  it('verde con un antecesor, si después solo cambian docs y versión', () => {
-    const r = evaluarStaging({
-      ...base,
-      marcador: { commit: VERIF, resultado: 'verde' },
-      archivos: ['CHANGELOG.md', ARCHIVO_STAGING],
-    });
+  it('verde con un antecesor, si después solo cambian docs y lo de release-please', () => {
+    const r = evaluarStaging({ ...base, marcador: { commit: VERIF, resultado: 'verde' } });
     expect(r.ok).toBe(true);
+  });
+
+  it('rojo sin deploy-staging, sin CI o sin staging sirviéndolo, aunque sea el mismo commit (RV-205)', () => {
+    const m = { commit: DEV, resultado: 'verde' as const };
+    const mismo = { ...base, marcador: m, verificado: DEV };
+    expect(evaluarStaging({ ...mismo, deployStaging: false }).detalle).toContain('deploy-staging.yml');
+    expect(evaluarStaging({ ...mismo, ci: false }).detalle).toContain('ci.yml');
+    const r = evaluarStaging({ ...mismo, servido: 'staging no dice qué commit sirve' });
+    expect(r.ok).toBe(false);
+    expect(r.detalle).toContain('staging no dice qué commit sirve');
   });
 
   it('rojo: sin marcador, en rojo, commit desconocido, fuera de la historia o con código nuevo', () => {
@@ -181,7 +228,7 @@ describe('qué puede cambiar desde la comprobación en staging', () => {
     const r = evaluarStaging({
       ...base,
       marcador: { commit: VERIF, resultado: 'verde' },
-      archivos: ['functions/api/push.ts'],
+      fuera: ['functions/api/push.ts'],
     });
     expect(r.ok).toBe(false);
     expect(r.detalle).toContain('functions/api/push.ts');
@@ -261,6 +308,29 @@ describe('checks y ejecuciones', () => {
         { name: 'ci-e2e', bucket: 'pending' },
       ]),
     ).toBe('rojo');
+  });
+
+  // Lo que pasó en la release 0.9.0: ci-e2e no existe hasta que acaban sus partes, y gh pr checks
+  // --required solo enseña los que ya existen. Un check obligatorio que falta no es verde.
+  it('estadoChecks: un obligatorio que aún no aparece está pendiente, no en verde', () => {
+    const obligatorios = ['ci-calidad', 'ci-sql', 'ci-e2e'];
+    const sinE2e = [
+      { name: 'ci-calidad', bucket: 'pass' },
+      { name: 'ci-sql', bucket: 'pass' },
+    ];
+    expect(estadoChecks(sinE2e, obligatorios)).toBe('pendiente');
+    expect(estadoChecks([...sinE2e, { name: 'ci-e2e', bucket: 'pass' }], obligatorios)).toBe('verde');
+    expect(estadoChecks([...sinE2e, { name: 'ci-e2e', bucket: 'skipping' }], obligatorios)).toBe('verde');
+    expect(leerChecks(ok(JSON.stringify(sinE2e)), obligatorios)).toBe('pendiente');
+  });
+
+  it('checksObligatorios: los de la protección de la rama; sin ninguno, se para', () => {
+    const s = simulado([
+      [/branches\/develop\/protection\/required_status_checks/, ok('["ci-calidad","ci-sql","ci-e2e"]')],
+      [/branches\/main\/protection\/required_status_checks/, ok('[]')],
+    ]);
+    expect(checksObligatorios(s.ctx, 'develop')).toEqual(['ci-calidad', 'ci-sql', 'ci-e2e']);
+    expect(() => checksObligatorios(s.ctx, 'main')).toThrow(/no exige ningún check/);
   });
 
   it('leerChecks: sin checks es un estado, no un error; otro fallo de gh sí lo es', () => {
@@ -344,23 +414,58 @@ describe('PR de release-please y empujón (DEC-079)', () => {
 });
 
 describe('la puerta con gh, git y npm simulados', () => {
+  // El commit de release-please (en develop) y el del bot en su PR: CHANGELOG.md cambia en los dos igual.
+  const RP = '1'.repeat(40);
+  const BOT = '2'.repeat(40);
+  const LINEAS_RP = ['+## [0.9.0](https://x/compare/v0.8.0...v0.9.0) (2026-10-08)', '+* algo ([#500](u))'];
+  const ejecucion = (extra: object = {}) => ok(JSON.stringify({ id: 1, html_url: 'u', ...extra }));
+
   function reglasPuerta({
     marcador = `commit: ${VERIF} · resultado: verde`,
     diff = ['CHANGELOG.md', 'package.json', ARCHIVO_STAGING].join('\n'),
     diffVersion = '-  "version": "0.8.0",\n+  "version": "0.9.0",',
+    diffChangelog = LINEAS_RP.join('\n'),
+    patchBot = `@@ -1,3 +1,5 @@\n # Changelog\n${LINEAS_RP.join('\n')}\n `,
+    prDelCommit = [{ number: 545, head: 'release-please--branches--develop', user: 'github-actions[bot]' }] as object[],
     produccion = 0,
     issues = '[]',
     ci = { status: 'completed', conclusion: 'success' },
+    deployStaging = true,
+    ciStaging = true,
+    html = `<head><meta name="commit" content="${VERIF}"></head>` as string | null,
   } = {}): Regla[] {
     return [
-      [/actions\/workflows\/ci\.yml\/runs/, ok(JSON.stringify({ id: 1, html_url: 'u', ...ci }))],
+      [new RegExp(`actions/workflows/ci\\.yml/runs\\?head_sha=${MAIN}&event=push`), ejecucion(ci)],
+      [/actions\/workflows\/ci\.yml\/runs\?head_sha=\w+&status=success/, ciStaging ? ejecucion() : ok('null')],
+      [
+        /actions\/workflows\/deploy-staging\.yml\/runs\?head_sha=\w+&status=success/,
+        deployStaging ? ejecucion() : ok('null'),
+      ],
+      [/^curl .*hidrantes-albolote-staging\.pages\.dev/, html === null ? falla('curl: (28) timeout', 28) : ok(html)],
       [/^git show -s --format=%P/, ok(`${'f'.repeat(40)} ${DEV}`)],
       [new RegExp(`^git show ${DEV}:${ARCHIVO_STAGING}`), ok(marcador)],
-      [/^git rev-parse --verify/, ok(VERIF)],
+      [/^git rev-parse --verify --quiet (\w+)\^\{commit\}/, ok(VERIF)],
       [/^git merge-base --is-ancestor/, ok()],
       [/^git diff --name-only/, ok(diff)],
+      [/^git diff -U0 \w+ \w+ -- CHANGELOG\.md/, ok(diffChangelog)],
       [/^git diff -U0/, ok(diffVersion)],
-      [/^git diff --quiet HEAD/, ok()],
+      [/^git log --format=%H \w+\.\.\w+ -- CHANGELOG\.md/, ok(RP)],
+      [new RegExp(`^gh api repos/\\S+/commits/${RP}/pulls`), ok(JSON.stringify(prDelCommit))],
+      [
+        /^gh api repos\/\S+\/pulls\/545\/commits/,
+        ok(
+          JSON.stringify([
+            { sha: BOT, autor: 'github-actions[bot]' },
+            { sha: 'e'.repeat(40), autor: 'alguien' },
+          ]),
+        ),
+      ],
+      [
+        new RegExp(`^gh api repos/\\S+/commits/${BOT} `),
+        ok(JSON.stringify([{ filename: 'CHANGELOG.md', patch: patchBot }])),
+      ],
+      [/^git diff --quiet /, ok()],
+      [/^git ls-files --others/, ok()],
       [
         /^npm run --silent comprobar-produccion -- --completo/,
         { codigo: produccion, salida: '| bd | migraciones | FALTA | x |', error: '' },
@@ -368,6 +473,105 @@ describe('la puerta con gh, git y npm simulados', () => {
       [/^gh issue list/, ok(issues)],
     ];
   }
+
+  // docs/32 RV-205: cada motivo por el que la marca sola ya no basta.
+  it('rojo sin una ejecución de deploy-staging.yml en verde con el commit de la marca', () => {
+    const r = comprobarStaging(simulado(reglasPuerta({ deployStaging: false })).ctx, DEV);
+    expect(r.ok).toBe(false);
+    expect(r.detalle).toContain('deploy-staging.yml');
+  });
+
+  it('rojo sin una ejecución de ci.yml en verde con el commit de la marca', () => {
+    const r = comprobarStaging(simulado(reglasPuerta({ ciStaging: false })).ctx, DEV);
+    expect(r.ok).toBe(false);
+    expect(r.detalle).toContain('ci.yml');
+  });
+
+  it('rojo si staging no responde o no dice su commit', () => {
+    expect(comprobarStaging(simulado(reglasPuerta({ html: null })).ctx, DEV).detalle).toContain(
+      'no dice qué commit sirve',
+    );
+    expect(comprobarStaging(simulado(reglasPuerta({ html: '<head></head>' })).ctx, DEV).ok).toBe(false);
+  });
+
+  it('rojo si staging sirve un commit con código que no se comprobó', () => {
+    const SERV = '9'.repeat(40);
+    const reglas = reglasPuerta({ html: `<meta name="commit" content="${SERV}">` });
+    reglas.unshift(
+      [new RegExp(`^git rev-parse --verify --quiet ${SERV}`), ok(SERV)],
+      [new RegExp(`^git diff --name-only --no-renames ${VERIF} ${SERV}`), ok('src/app.tsx')],
+      [new RegExp(`^git merge-base --is-ancestor ${DEV} ${SERV}`), falla('', 1)],
+    );
+    const r = comprobarStaging(simulado(reglas).ctx, DEV);
+    expect(r.ok).toBe(false);
+    expect(r.detalle).toContain(`staging sirve ${SERV.slice(0, 7)}, con cambios no comprobados: src/app.tsx`);
+  });
+
+  it('rojo si staging sirve un commit que no viene después del comprobado', () => {
+    const SERV = '9'.repeat(40);
+    const reglas = reglasPuerta({ html: `<meta name="commit" content="${SERV}">` });
+    reglas.unshift(
+      [new RegExp(`^git rev-parse --verify --quiet ${SERV}`), ok(SERV)],
+      [new RegExp(`^git merge-base --is-ancestor ${VERIF} ${SERV}`), falla('', 1)],
+    );
+    expect(comprobarStaging(simulado(reglas).ctx, DEV).detalle).toContain('no viene después');
+  });
+
+  it('verde si staging sirve un commit posterior con solo docs (el del propio registro)', () => {
+    const SERV = '9'.repeat(40);
+    const reglas = reglasPuerta({ html: `<meta name="commit" content="${SERV}">` });
+    reglas.unshift(
+      [new RegExp(`^git rev-parse --verify --quiet ${SERV}`), ok(SERV)],
+      [new RegExp(`^git diff --name-only --no-renames ${VERIF} ${SERV}`), ok(ARCHIVO_STAGING)],
+      [new RegExp(`^git merge-base --is-ancestor ${DEV} ${SERV}`), falla('', 1)],
+    );
+    expect(comprobarStaging(simulado(reglas).ctx, DEV).ok).toBe(true);
+  });
+
+  it('verde si staging ya sirve algo posterior a lo que se publica (develop avanzó durante la CI de main)', () => {
+    const SERV = '9'.repeat(40);
+    const reglas = reglasPuerta({ html: `<meta name="commit" content="${SERV}">` });
+    reglas.unshift(
+      [new RegExp(`^git rev-parse --verify --quiet ${SERV}`), ok(SERV)],
+      // Lo de después de develop no se publica: no se mira.
+      [new RegExp(`^git diff --name-only --no-renames ${VERIF} ${SERV}`), ok('src/app.tsx')],
+    );
+    const s = simulado(reglas);
+    expect(comprobarStaging(s.ctx, DEV).ok).toBe(true);
+    expect(s.lineas()).toContain(`git merge-base --is-ancestor ${DEV} ${SERV}`);
+  });
+
+  it('rojo si CHANGELOG.md tiene una línea que no puso release-please', () => {
+    const r = comprobarStaging(
+      simulado(reglasPuerta({ diffChangelog: [...LINEAS_RP, '+* Ahora todo es gratis'].join('\n') })).ctx,
+      DEV,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.detalle).toContain('«+* Ahora todo es gratis»');
+  });
+
+  it('rojo si CHANGELOG.md cambia en un commit que no es de un PR de release-please', () => {
+    const r = comprobarStaging(
+      simulado(reglasPuerta({ prDelCommit: [{ number: 600, head: 'fase-9/algo', user: 'aron285-coder' }] })).ctx,
+      DEV,
+    );
+    expect(r.ok).toBe(false);
+    expect(r.detalle).toContain('no viene de un PR de release-please');
+  });
+
+  it('rojo si el PR de release-please lo abre otro (no su bot)', () => {
+    const prDelCommit = [{ number: 545, head: 'release-please--branches--develop', user: 'alguien' }];
+    expect(comprobarStaging(simulado(reglasPuerta({ prDelCommit })).ctx, DEV).ok).toBe(false);
+  });
+
+  it('las líneas que un commit a mano añade a la rama del PR de release no cuentan como de release-please', () => {
+    // El diff de develop trae una línea más; los commits del bot, no.
+    const r = comprobarStaging(
+      simulado(reglasPuerta({ diffChangelog: [...LINEAS_RP, '+* retocado a mano en la rama'].join('\n') })).ctx,
+      DEV,
+    );
+    expect(r.ok).toBe(false);
+  });
 
   it('verde: CI de main, staging con un antecesor y solo versión, producción y sin bloqueos', async () => {
     const { ctx } = simulado(reglasPuerta());
@@ -404,12 +608,37 @@ describe('la puerta con gh, git y npm simulados', () => {
 
   it('rojo si el checkout local no tiene las migraciones y deploy-prod.yml de lo que se publica', async () => {
     const reglas = reglasPuerta();
-    reglas.unshift([/^git diff --quiet HEAD/, falla('', 1)]);
+    reglas.unshift([/^git diff --quiet /, falla('', 1)]);
     const s = simulado(reglas);
     const r = evaluarPuerta(await datosPuerta(s.ctx, MAIN, DEV, { esperarCi: false }));
     expect(r.verde).toBe(false);
     expect(resumenPuerta(r, MAIN)).toContain('no se ha comprobado la versión que se publica');
     expect(s.lineas().some((l) => l.startsWith('npm run'))).toBe(false);
+  });
+
+  it('compara el árbol de trabajo con develop, no solo HEAD', async () => {
+    const s = simulado(reglasPuerta());
+    await datosPuerta(s.ctx, MAIN, DEV, { esperarCi: false });
+    expect(s.lineas()).toContain(
+      `git diff --quiet ${DEV} -- .github/workflows/deploy-prod.yml supabase/migrations scripts/comprobar-produccion.ts`,
+    );
+  });
+
+  it('rojo si hay archivos no seguidos en lo que lee comprobar-produccion (una migración sin añadir)', async () => {
+    const reglas = reglasPuerta();
+    reglas.unshift([/^git ls-files --others/, ok('supabase/migrations/0041_nueva.sql')]);
+    const s = simulado(reglas);
+    const r = evaluarPuerta(await datosPuerta(s.ctx, MAIN, DEV, { esperarCi: false }));
+    expect(r.verde).toBe(false);
+    expect(s.lineas().some((l) => l.startsWith('npm run'))).toBe(false);
+  });
+
+  it('las issues bloquea-release: una salida vacía o que no es una lista cierra la puerta', async () => {
+    for (const issues of ['', '{"mensaje":"x"}', 'no es json']) {
+      const d = await datosPuerta(simulado(reglasPuerta({ issues })).ctx, MAIN, DEV, { esperarCi: false });
+      expect(d.bloqueos).toBeNull();
+      expect(evaluarPuerta(d).verde).toBe(false);
+    }
   });
 
   it('rojo con una issue bloquea-release abierta', async () => {
@@ -423,7 +652,7 @@ describe('la puerta con gh, git y npm simulados', () => {
     let n = 0;
     const reglas = reglasPuerta();
     reglas[0] = [
-      /actions\/workflows\/ci\.yml\/runs/,
+      new RegExp(`actions/workflows/ci\\.yml/runs\\?head_sha=${MAIN}&event=push`),
       () =>
         ok(
           JSON.stringify(
@@ -440,23 +669,76 @@ describe('la puerta con gh, git y npm simulados', () => {
 });
 
 describe('esperar a los checks del PR', () => {
+  const proteccion: Regla = [/protection\/required_status_checks/, ok('["ci-calidad"]')];
+
   it('no da por buenos los checks de la cabeza anterior', async () => {
     let vistas = 0;
     const s = simulado([
+      proteccion,
       [/^gh pr view 545/, () => ok(++vistas < 3 ? VERIF : DEV)],
       [/^gh pr checks 545/, ok('[{"name":"ci-calidad","bucket":"pass"}]')],
     ]);
-    await esperarChecks(s.ctx, 545, DEV);
+    await esperarChecks(s.ctx, 545, DEV, 'develop');
     expect(vistas).toBe(3);
     expect(s.lineas().filter((l) => l.startsWith('gh pr checks'))).toHaveLength(1);
   });
 
+  it('si la cabeza del PR cambia después de verla, se para con ese motivo', async () => {
+    let vistas = 0;
+    const s = simulado([
+      proteccion,
+      [/^gh pr view 545/, () => ok(++vistas < 2 ? DEV : MAIN)],
+      [/^gh pr checks 545/, ok('[{"name":"ci-calidad","bucket":"pending"}]')],
+    ]);
+    await expect(esperarChecks(s.ctx, 545, DEV, 'develop')).rejects.toThrow(/alguien ha empujado a la rama/);
+    expect(vistas).toBe(2);
+  });
+
+  it('si el PR no llega a enseñar la cabeza esperada, se para pronto', async () => {
+    const s = simulado([proteccion, [/^gh pr view 545/, ok(MAIN)]]);
+    // Reloj simulado: cada espera son 4 minutos; el límite general (90 min) queda muy lejos.
+    let t = 0;
+    const reloj = vi.spyOn(Date, 'now').mockImplementation(() => t);
+    s.ctx.limites.checks = 90 * 60_000;
+    s.ctx.esperar = async () => {
+      t += 4 * 60_000;
+    };
+    try {
+      await expect(esperarChecks(s.ctx, 545, DEV, 'develop')).rejects.toThrow(/cabeza del PR #545 es ccccccc/);
+      expect(t).toBe(8 * 60_000);
+    } finally {
+      reloj.mockRestore();
+    }
+  });
+
+  it('espera a que aparezca ci-e2e aunque los demás obligatorios ya estén en verde', async () => {
+    let n = 0;
+    const s = simulado([
+      [/branches\/develop\/protection\/required_status_checks/, ok('["ci-calidad","ci-sql","ci-e2e"]')],
+      [/^gh pr view 545/, ok(DEV)],
+      [
+        /^gh pr checks 545/,
+        () =>
+          ok(
+            JSON.stringify([
+              { name: 'ci-calidad', bucket: 'pass' },
+              { name: 'ci-sql', bucket: 'pass' },
+              ...(++n < 4 ? [] : [{ name: 'ci-e2e', bucket: 'pass' }]),
+            ]),
+          ),
+      ],
+    ]);
+    await esperarChecks(s.ctx, 545, DEV, 'develop');
+    expect(n).toBe(4);
+  });
+
   it('en rojo, se para', async () => {
     const s = simulado([
+      proteccion,
       [/^gh pr view/, ok(DEV)],
       [/^gh pr checks/, { codigo: 1, salida: '[{"name":"ci-sql","bucket":"fail"}]', error: '' }],
     ]);
-    await expect(esperarChecks(s.ctx, 545, DEV)).rejects.toThrow(/en rojo/);
+    await expect(esperarChecks(s.ctx, 545, DEV, 'develop')).rejects.toThrow(/en rojo/);
   });
 });
 
@@ -528,6 +810,7 @@ describe('--solo-comprobar no cambia nada', () => {
       [
         [/^gh pr list .*--base develop/, ok(JSON.stringify([pr]))],
         [/^gh run list/, ok('[]')],
+        [/protection\/required_status_checks/, ok('["ci-calidad","ci-sql","ci-e2e"]')],
         [/^gh pr checks/, falla("no checks reported on the 'x' branch")],
         [/^git fetch origin develop main/, ok()],
         [/^git rev-parse origin\/develop/, ok(DEV)],
@@ -536,13 +819,16 @@ describe('--solo-comprobar no cambia nada', () => {
         [/^gh pr list .*--base main/, ok('[]')],
         [/^git rev-list --count/, ok('12')],
         [/actions\/workflows\/deploy-prod\.yml\/runs/, ok('null')],
+        [/actions\/workflows\/deploy-staging\.yml\/runs/, ok(JSON.stringify({ id: 2, status: 'completed' }))],
+        [/^curl /, ok(`<meta name="commit" content="${DEV}">`)],
         [
           /actions\/workflows\/ci\.yml\/runs/,
           ok(JSON.stringify({ id: 1, status: 'completed', conclusion: 'success' })),
         ],
         [new RegExp(`^git show ${DEV}:`), ok(`commit: ${DEV} · resultado: verde`)],
         [/^git rev-parse --verify/, ok(DEV)],
-        [/^git diff --quiet HEAD/, ok()],
+        [/^git diff --quiet /, ok()],
+        [/^git ls-files --others/, ok()],
         [/^npm run --silent comprobar-produccion/, ok('')],
         [/^gh issue list/, ok('[]')],
       ],
