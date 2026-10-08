@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.56 — oct 2026 (DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.57 — 8 oct 2026 (DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,87 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-184 · Recorrido completo de la app en staging después de cada documento grande
+- **Fecha:** 8 oct 2026 (desarrollador) · **Estado:** vigente (`docs/32` RV-270 y RV-271).
+- **Contexto:** las revisiones de `docs/17` a `docs/32` se hicieron leyendo el código y con tests automáticos. Nadie recorría la app entera como la usa una persona, así que los problemas de aspecto, de texto y de coherencia entre pantallas se veían tarde o no se veían.
+- **Decisión:**
+  - Después de cada documento grande (una especificación repartida entre varias sesiones), y antes de publicar su versión, una sesión de Claude Code recorre la app entera **en staging**, en una ventana de navegador visible en el PC: Playwright con Chromium, `headless: false` y `slowMo` de unos 250 ms.
+  - Lo hace en dos tamaños: móvil emulado (Pixel 7, 412 × 915, táctil) y ordenador (1440 × 900). En cada pantalla mira el modo claro, el oscuro y una pasada a 360 px.
+  - La app se recorre como voluntario contra staging real, con el código de staging que la sesión lee de su sitio. El código nunca sale en el chat, en el informe ni en las capturas.
+  - El panel de jefatura se recorre en el build de staging servido en local, con el servidor simulado de los e2e y datos realistas. La entrada con Google no se automatiza y no se escriben credenciales. Lo que hace falta de verdad en la base de staging se comprueba con claims de administrador dentro de una transacción, como en RV-139b.
+  - El recorrido no cambia código. Entrega `docs/verificacion/recorrido-staging-AAAA-MM-DD.md` con:
+    - la tabla de recorridos;
+    - los defectos, con una issue para cada uno de gravedad alta o media;
+    - la revisión visual;
+    - como mucho 15 propuestas de UI, que el desarrollador elige para el documento siguiente;
+    - la velocidad y la consola.
+
+    Las capturas van en `docs/verificacion/recorrido/AAAA-MM-DD/`, solo con datos de prueba (`[PRUEBA]` y nombres ficticios). Al acabar, staging queda como estaba.
+  - Un defecto de gravedad alta abre una issue `bloquea-release`, y la versión no se publica hasta arreglarlo y repetir la parte afectada del recorrido.
+- **Alternativas descartadas:** solo los e2e y las capturas automáticas de `revisar-pantallas`, que comprueban lo que se les pide pero no opinan; o que lo recorra el desarrollador, que no tiene tiempo (DEC-176, DEC-177).
+- **Afecta a:** 09 (cuándo está terminado un documento grande); `docs/32` RV-270 y RV-271.
+
+### DEC-183 · Propuestas: los topes no se esquivan sacando tokens nuevos
+- **Fecha:** 8 oct 2026 · **Estado:** vigente (`docs/32` RV-221, migración 0041).
+- **Contexto:** el tope de 60 propuestas era por dispositivo, y se podían sacar 150 tokens por IP y día: unas 9.000 propuestas al día por IP, en una base de datos de 500 MB compartida.
+- **Decisión:**
+  - Canjes buenos: `max_altas_ip_dia` baja de 150 a 20 y `max_altas_global_hora` de 150 a 40 (son 65 voluntarios).
+  - Un token nuevo, durante sus primeras 24 h, puede mandar 10 propuestas al día (`max_propuestas_token_nuevo`); después, 60.
+  - Tope global de 600 propuestas al día entre todos los voluntarios (`max_propuestas_dia_total`); jefatura no cuenta.
+  - `fn_proponer` da `SIN_ESPACIO` si `pg_database_size` pasa de `max_bytes_bd` (400 MB).
+  - La vigilancia avisa al 70 %.
+- **Alternativas descartadas:** captcha o Turnstile, que exigen una cuenta externa y molestan al voluntario; un tope solo por IP, que no sirve con el CGNAT de los móviles (muchos comparten una IP).
+- **Consecuencias:**
+  - Una sesión presencial de altas en la misma wifi se reparte en dos días o en dos redes.
+  - Un voluntario recién dado de alta no puede mandar más de 10 propuestas el primer día.
+  - La app 0.9.0 lee `maximo` y `reintentar_en_s` y espera. La 0.10.0 explica el motivo (`ambito=token_nuevo` o `ambito=grupo`, RV-245).
+- **Afecta a:** 05 (0041, `fn_proponer`, `config`); 03; 06 Apéndice A (RV-245).
+
+### DEC-182 · Fotos: el tope cuenta espacio y reservas abiertas
+- **Fecha:** 8 oct 2026 · **Estado:** vigente (`docs/32` RV-220, migración 0041).
+- **Contexto:** el tope global de subidas contaba reservas, 400 al día. Eso son 400 × 5 MB, 2 GB en un Storage de 1 GB compartido con uniformidad. Además, cinco tokens llenaban las 400 con reservas que nunca se subían y dejaban al grupo sin fotos durante 24 h.
+- **Decisión:**
+  1. `fn_reservar_subida` suma lo que ocupa el bucket (`storage.objects`, `metadata->>'size'`) más 5 MB por cada reserva abierta sin archivo. Por encima de `max_bytes_fotos` (800 MB, en Ajustes) da `SIN_ESPACIO_FOTOS`, también a jefatura.
+  2. **Reserva abierta** es la que no está confirmada, tiene menos de 2 h (lo que dura la URL firmada) y es de un móvil no revocado. Cada móvil tiene como mucho `max_reservas_abiertas` (6); pasado eso, `RESERVAS_ABIERTAS`.
+  3. El tope global baja a 150 y cuenta solo las confirmadas y las abiertas: reservar sin subir no bloquea al grupo.
+  4. Revocar un móvil, o cerrar su sesión, libera sus reservas abiertas.
+  5. `pg_cron` borra cada día las **filas** de las reservas nunca confirmadas de más de 48 h cuyo archivo ya no está. Los archivos los borra la purga, que pasa cada día por esa clase de objeto.
+  6. Salud enseña el espacio y los 5 móviles con más reservas en 24 h (8 caracteres del id), con «Revocar este móvil» (`fn_revocar_dispositivo`). La vigilancia avisa al 70 %.
+- **Alternativas descartadas:**
+  - limitar solo por número, que no protege el espacio;
+  - una segunda copia de Storage para crecer (DEC-180: un solo respaldo);
+  - borrar las reservas abiertas al revocar, que dejaría huérfanos contando en el freno del 10 %.
+- **Consecuencias:** `hidrantes_migrador` necesita leer `storage.objects`, solo en los buckets de fotos (política y `grant` por columnas en `supabase/sql/arranque-bd.sql`). Sin eso, el espacio sale de `config.storage_bytes` y Salud lo dice (`fotos_origen`).
+- **Afecta a:** 05 (0041, `fn_reservar_subida`, `fn_espacio`, `fn_salud`); 04 §7 y §9; 06 (Salud); DEC-084.
+
+### DEC-181 · Dependabot: solo una lista de paquetes seguros se fusiona sola
+- **Fecha:** 8 oct 2026 · **Estado:** vigente (`docs/32` RV-204). Matiza DEC-172.
+- **Contexto:** `automerge.yml` fusionaba cualquier parche de una dependencia de desarrollo. Eso incluía paquetes que van en el bundle o que corren con los secretos de producción (`vite`, `vite-plugin-pwa`, `@tailwindcss/vite`, `workbox-window`, `wrangler`, `tsx`, `openpgp`), en contra de lo que decían `dependabot.yml` y DEC-172.
+- **Decisión:**
+  - Solo se fusionan solos, con la CI en verde, los parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt`: `eslint*`, `@eslint/*`, `prettier`, `@types/*`, `typescript-eslint`, `globals`, `@playwright/test`, `@axe-core/playwright`, `vitest` y `@vitest/*`. Son herramientas de comprobación: no van en el bundle ni corren con secretos.
+  - Decide `.github/scripts/automerge-permitido.mjs`, que se lee junto con la lista desde la rama base del PR: un PR no puede cambiar lo que decide si se fusiona él mismo.
+  - `dependabot.yml` agrupa esos mismos patrones en `parches-desarrollo`, para que un paquete fuera de la lista no bloquee al resto. Un test comprueba que coinciden.
+  - Lo demás (menores, mayores, actions y cualquier paquete fuera de la lista) espera a una revisión. La hace una sesión de Claude Code con `pr-review-toolkit`, que lee el changelog del paquete; no hace falta el desarrollador (DEC-176).
+  - Ampliar la lista exige un PR que la cambie, con el motivo escrito. El paquete no puede ir en el bundle ni correr con secretos de producción.
+- **Afecta a:** 03 TR-101; 04 §9 y §11; DEC-172.
+
+### DEC-180 · Un solo respaldo: el artifact de GitHub
+- **Fecha:** 8 oct 2026 (desarrollador) · **Estado:** vigente (`docs/32` RV-201 y RV-202). Sustituye la segunda copia aplazada de DEC-173.
+- **Contexto:** DEC-173 aplazó la segunda copia del respaldo en R2. El desarrollador decide que no la habrá. Lo que hace falta es que la única copia sea fiable y que se note si falla o desaparece.
+- **Decisión:**
+  - El respaldo de los datos tiene **una sola copia**: el artifact `respaldo-hidrantes` de `respaldo.yml` (pg_dump del esquema `hidrantes` cifrado con GPG), que GitHub guarda 90 días.
+  - Las fotos, igual: el artifact `respaldo-fotos` del primer domingo de cada mes.
+  - No hay segunda copia, ni en R2 ni en ningún otro sitio.
+- **Riesgo, escrito:** si se borra la cuenta de GitHub, el repositorio o ese artifact, **no hay copia** de los datos fuera de Supabase. Tampoco la hay si los respaldos se cifran para una clave cuya privada no se ha guardado.
+- **Lo que lo mitiga:**
+  - **La vigilancia mira que la copia exista** (RV-201, `.github/scripts/revisar-respaldo.sh`). Dos veces al día comprueba que el artifact de la última ejecución correcta de `respaldo.yml` existe, no ha caducado, pesa más de 0 bytes y tiene menos de 8 días. Si no, abre la issue de vigilancia y manda un aviso push a cada administrador. Antes solo miraba `config.ultimo_respaldo`, que dice que el respaldo corrió, no que su copia siga ahí.
+  - **90 días de artifacts.** Con un respaldo semanal hay unas 12 copias a la vez: perder una no deja sin ninguna.
+  - **El código de despacho no puede borrar** (RV-201). En `despachador.yml`, solo el trabajo `lanzar` tiene `actions: write`, el permiso que también borra artifacts. Ese trabajo no hace checkout, no ve la clave de servicio y solo lanza los cuatro workflows de su `case`. Los trabajos que corren código del repositorio con la clave de servicio solo tienen `contents: read`.
+  - **La copia se puede descifrar** (RV-202). La huella de la clave de `docs/15` §2 está en la variable del repositorio `GPG_HUELLA`. Antes de cifrar, `respaldo.yml` comprueba que `GPG_PUBLIC_KEY` es esa clave. Después, con `gpg --list-packets`, comprueba que el archivo va para ella y para ninguna otra. Si no, el job falla y abre «El respaldo semanal ha fallado».
+  - La restauración de prueba semanal (`docs/31` RV-134) sigue comprobando que el volcado se puede restaurar.
+- **Revisar si** cambia la cuenta de GitHub, el plan de retención de artifacts o el número de administradores que guardan la clave privada.
+- **Afecta a:** 04 §9 y §10; 15 §2 y §5; DEC-173.
+
 ### DEC-179 · Detalles de docs/31 que la especificación no fijaba
 - **Fecha:** oct 2026 · **Estado:** vigente (`docs/31`).
 - **Radios del marcador** (RV-167): se validan de mayor a menor (R1 ≥ … ≥ R5, 06 §4.1), no «crecientes» como decía docs/31, que rechazaría el valor por defecto `[11, 9, 7, 5.5, 5]`. El servidor sigue comprobando cinco valores entre 2 y 30. Fuera de producción (`VITE_ENTORNO` distinto de `produccion`, o sin él), Purgar fotos y Respaldo ahora salen deshabilitados con «Solo en producción».
@@ -730,7 +811,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - Un tope de bytes por día: Storage no lo da sin listar el bucket.
 
 ### DEC-173 · Segunda copia del respaldo en R2: aplazada
-- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** **aplazada**: de momento solo la copia de GitHub (`docs/31` RV-133).
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** **sustituida por DEC-180** (8 oct 2026): no habrá segunda copia; antes, aplazada (`docs/31` RV-133).
 - **Contexto:** la única copia del respaldo es el artefacto de GitHub de 90 días. Un token con `actions:write` puede borrar artefactos y ejecuciones, y perder la cuenta de GitHub se lo llevaría todo.
 - **Lo que se preparó:** un Worker `hidrantes-respaldos` de solo escritura (no lista, no lee, no borra ni sobrescribe; `GET /estado` con fecha y tamaño), la subida del mismo archivo cifrado desde `respaldo.yml`, la vigilancia de la copia en R2 y `npm run descargar-respaldo`, con sus tests, en la rama `fase-9/ops-rv133`, sin fusionar.
 - **Por qué se aplaza:** R2 no está activado en la cuenta de Cloudflare (código 10042) y activarlo pide un medio de pago, aunque se quede en el plan gratuito (CLAUDE.md §3: sin servicios que exijan tarjeta). El desarrollador eligió el 7 oct 2026 quedarse con la copia de GitHub. La prueba semanal de restauración (RV-134) comprueba que esa copia sirve.

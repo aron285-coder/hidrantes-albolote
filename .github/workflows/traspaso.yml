@@ -3,10 +3,15 @@
 # moverlo de sitio (del repositorio a un environment, o entre environments) se cifra aquí con una clave
 # pública RSA de un solo uso cuya privada solo existe en la memoria del script local.
 #
+# Cifrado híbrido (docs/32 RV-208): RSA-OAEP no pasa de 446 bytes con una clave de 4096 bits, y
+# GPG_PUBLIC_KEY ocupa varios KB. Se genera una clave AES-256-GCM de un solo uso, AES cifra el valor
+# y RSA-OAEP (SHA-256) cifra solo esa clave. Lo hace Node, que viene en el runner: `openssl enc` no
+# admite GCM.
+#
 # Lo único que sale de aquí es el texto cifrado, como artefacto de 1 día. El valor nunca se imprime:
-# va del secreto a una variable de entorno y de ella, por tubería, a openssl. El script borra el
-# artefacto y la ejecución al terminar. scripts/seguridad-ci.test.ts comprueba que ningún `run:` de
-# este archivo escribe el valor.
+# va del secreto a una variable de entorno y de ella a Node, que solo escribe el sobre cifrado. El
+# script borra el artefacto y la ejecución al terminar. scripts/traspasar-secreto.test.ts comprueba
+# que ningún `run:` de este archivo escribe el valor, y descifra lo que cifra este mismo código.
 name: Traspaso de secreto
 run-name: Traspaso ${{ inputs.id }}
 
@@ -34,15 +39,17 @@ permissions:
   contents: read
 
 # Solo lo puede lanzar el propietario del repositorio: con su propia clave pública, cualquiera que lo
-# lanzara se llevaría cifrado cualquier secreto, también los de prod-tareas (DEC-172). Con otro actor,
-# los dos trabajos se saltan y no hay artefacto.
+# lanzara se llevaría cifrado cualquier secreto, también los de prod-tareas (DEC-172). El titular es la
+# variable del repositorio PROPIETARIO, no un nombre escrito aquí (docs/32 RV-208): si el repositorio
+# cambia de manos (docs/04 §16) no hay que tocar el workflow. Sin la variable, o con otro actor, los
+# dos trabajos se saltan y no hay artefacto.
 #
 # Un trabajo lleva un environment o ninguno: uno para cada caso, con el mismo guion. Sin `echo` ni
-# `printf` del valor a la salida: solo por tubería a openssl. Un secreto que no existe llega vacío, y
-# eso es un error (no se traspasa un vacío).
+# `printf` del valor a la salida: solo lo lee Node de su entorno. Un secreto que no existe llega
+# vacío, y eso es un error (no se traspasa un vacío).
 jobs:
   desde-repositorio:
-    if: inputs.origen == 'repositorio' && github.triggering_actor == 'aron285-coder'
+    if: inputs.origen == 'repositorio' && vars.PROPIETARIO != '' && github.triggering_actor == vars.PROPIETARIO
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -56,19 +63,27 @@ jobs:
           if ! [[ "$NOMBRE" =~ ^[A-Z][A-Z0-9_]{0,99}$ ]]; then echo '::error::Nombre de secreto no válido'; exit 1; fi
           if [ -z "${VALOR:-}" ]; then echo "::error::$NOMBRE no existe en el origen o está vacío"; exit 1; fi
           if ! [[ "$CLAVE" =~ ^[A-Za-z0-9+/=]{500,1200}$ ]]; then echo '::error::Clave pública no válida'; exit 1; fi
-          base64 -d <<< "$CLAVE" > clave.der
-          printf '%s' "$VALOR" | openssl pkeyutl -encrypt -pubin -keyform DER -inkey clave.der -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 | base64 -w0 > cifrado.b64
-          rm -f clave.der
-          echo "$NOMBRE cifrado ($(wc -c < cifrado.b64) caracteres en base64)"
+          node - > cifrado.json <<'JS'
+          const c = require('node:crypto');
+          const clave = c.randomBytes(32);
+          const iv = c.randomBytes(12);
+          const aes = c.createCipheriv('aes-256-gcm', clave, iv);
+          const datos = Buffer.concat([aes.update(process.env.VALOR, 'utf8'), aes.final()]);
+          const rsa = { key: Buffer.from(process.env.CLAVE, 'base64'), format: 'der', type: 'spki', padding: c.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' };
+          const b64 = (b) => b.toString('base64');
+          const sobre = { v: 1, clave: b64(c.publicEncrypt(rsa, clave)), iv: b64(iv), etiqueta: b64(aes.getAuthTag()), datos: b64(datos) };
+          process.stdout.write(JSON.stringify(sobre));
+          JS
+          echo "$NOMBRE cifrado ($(wc -c < cifrado.json) caracteres)"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cifrado
-          path: cifrado.b64
+          path: cifrado.json
           retention-days: 1
           if-no-files-found: error
 
   desde-environment:
-    if: inputs.origen != 'repositorio' && github.triggering_actor == 'aron285-coder'
+    if: inputs.origen != 'repositorio' && vars.PROPIETARIO != '' && github.triggering_actor == vars.PROPIETARIO
     runs-on: ubuntu-24.04
     environment: ${{ inputs.origen }}
     timeout-minutes: 5
@@ -83,13 +98,21 @@ jobs:
           if ! [[ "$NOMBRE" =~ ^[A-Z][A-Z0-9_]{0,99}$ ]]; then echo '::error::Nombre de secreto no válido'; exit 1; fi
           if [ -z "${VALOR:-}" ]; then echo "::error::$NOMBRE no existe en el origen o está vacío"; exit 1; fi
           if ! [[ "$CLAVE" =~ ^[A-Za-z0-9+/=]{500,1200}$ ]]; then echo '::error::Clave pública no válida'; exit 1; fi
-          base64 -d <<< "$CLAVE" > clave.der
-          printf '%s' "$VALOR" | openssl pkeyutl -encrypt -pubin -keyform DER -inkey clave.der -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -pkeyopt rsa_mgf1_md:sha256 | base64 -w0 > cifrado.b64
-          rm -f clave.der
-          echo "$NOMBRE cifrado ($(wc -c < cifrado.b64) caracteres en base64)"
+          node - > cifrado.json <<'JS'
+          const c = require('node:crypto');
+          const clave = c.randomBytes(32);
+          const iv = c.randomBytes(12);
+          const aes = c.createCipheriv('aes-256-gcm', clave, iv);
+          const datos = Buffer.concat([aes.update(process.env.VALOR, 'utf8'), aes.final()]);
+          const rsa = { key: Buffer.from(process.env.CLAVE, 'base64'), format: 'der', type: 'spki', padding: c.constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' };
+          const b64 = (b) => b.toString('base64');
+          const sobre = { v: 1, clave: b64(c.publicEncrypt(rsa, clave)), iv: b64(iv), etiqueta: b64(aes.getAuthTag()), datos: b64(datos) };
+          process.stdout.write(JSON.stringify(sobre));
+          JS
+          echo "$NOMBRE cifrado ($(wc -c < cifrado.json) caracteres)"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cifrado
-          path: cifrado.b64
+          path: cifrado.json
           retention-days: 1
           if-no-files-found: error

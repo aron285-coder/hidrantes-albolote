@@ -156,14 +156,17 @@ function normalizar(resultado: unknown): string {
  * Anota los pedidos que se han intentado lanzar (con lo que devolvió el trabajo «lanzar») y los
  * rechazados por «leer». Un pedido sin resultado (el trabajo «lanzar» no llegó a él) no se anota:
  * sigue pendiente y la pasada siguiente lo lanza.
+ *
+ * Va llenando `resumen` a medida que anota: si se para a mitad (fn_marcar_pedido falla), el que
+ * llama aún sabe qué errores se han anotado ya y los lleva a su issue.
  */
 export async function marcarTodos(
   e: Entorno,
   pedidos: Pedido[],
   rechazados: Resultado[],
   resultados: Resultado[],
+  resumen: Resumen = { lanzados: 0, fallidos: 0, errores: [], sinResultado: [] },
 ): Promise<Resumen> {
-  const resumen: Resumen = { lanzados: 0, fallidos: 0, errores: [], sinResultado: [] };
   const porId = new Map(resultados.map((r) => [String(r.id), r.resultado]));
   const anotar = async (id: Pedido['id'], trabajo: string, resultado: string) => {
     await marcar(e, id, resultado);
@@ -187,11 +190,16 @@ export async function marcarTodos(
   return resumen;
 }
 
-/** Un JSON de las salidas de otro trabajo, que tiene que ser una lista. */
-function lista<T>(nombre: string, texto: string | undefined): T[] {
+/**
+ * Un JSON de las salidas de otro trabajo, que tiene que ser una lista. Si es `obligatoria`, vacía o
+ * sin definir es un error: PEDIDOS y RECHAZADOS los escribe siempre «leer», y sin ellos «marcar» no
+ * sabe qué pedidos se han intentado lanzar. RESULTADOS sí puede faltar: «lanzar» no corre sin pedidos.
+ */
+export function lista<T>(nombre: string, texto: string | undefined, obligatoria = false): T[] {
+  if (obligatoria && !texto?.trim()) abortar(`Falta ${nombre}: el trabajo leer no lo ha pasado.`);
   let valor: unknown;
   try {
-    valor = JSON.parse(texto || '[]');
+    valor = JSON.parse(texto?.trim() || '[]');
   } catch {
     abortar(`${nombre} no es JSON.`);
   }
@@ -224,16 +232,20 @@ async function principal(): Promise<void> {
     return;
   }
 
-  const pedidos = lista<{ id: Pedido['id']; trabajo: string }>('PEDIDOS', process.env.PEDIDOS).map((p) => ({
+  const pedidos = lista<{ id: Pedido['id']; trabajo: string }>('PEDIDOS', process.env.PEDIDOS, true).map((p) => ({
     id: p.id,
     workflow: p.trabajo,
   }));
-  const r = await marcarTodos(
-    e,
-    pedidos,
-    lista<Resultado>('RECHAZADOS', process.env.RECHAZADOS),
-    lista<Resultado>('RESULTADOS', process.env.RESULTADOS),
-  );
+  const rechazados = lista<Resultado>('RECHAZADOS', process.env.RECHAZADOS, true);
+  const resultados = lista<Resultado>('RESULTADOS', process.env.RESULTADOS);
+  const r: Resumen = { lanzados: 0, fallidos: 0, errores: [], sinResultado: [] };
+  try {
+    await marcarTodos(e, pedidos, rechazados, resultados, r);
+  } finally {
+    // También si se para a mitad: los errores ya anotados no se reintentan y tienen que llegar a su
+    // issue, que solo se abre con con_error.
+    if (r.errores.length) salida('con_error', r.errores.join('\n'));
+  }
   const texto = `${r.lanzados} lanzados, ${r.fallidos} con error, ${r.sinResultado.length} sin lanzar.`;
   log.info(texto);
   if (process.env.GITHUB_STEP_SUMMARY) {
@@ -242,10 +254,9 @@ async function principal(): Promise<void> {
   // Un pedido con error no hace fallar la ejecución: ya está anotado y no se reintenta, así que la
   // pasada siguiente iría bien y cerraría la issue sin que nadie la viera. Va a su propia issue, que
   // no se cierra sola (despachador.yml). Fallar es para lo que impide despachar: leer, lanzar o marcar.
-  if (r.errores.length) salida('con_error', r.errores.join('\n'));
   if (r.sinResultado.length) {
     abortar(
-      `El trabajo lanzar no ha devuelto el resultado de: ${r.sinResultado.join(', ')}. Siguen pendientes: la pasada siguiente los lanza.`,
+      `El trabajo lanzar no ha devuelto el resultado de: ${r.sinResultado.join(', ')}. Se quedan pendientes y la pasada siguiente los vuelve a lanzar; si «lanzar» se cortó después de lanzar alguno, ese correrá dos veces (los cuatro workflows lo aguantan: concurrency sin cancelar).`,
     );
   }
 }

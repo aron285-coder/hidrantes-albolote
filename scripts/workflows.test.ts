@@ -52,7 +52,32 @@ describe('workflows programados (DEC-085)', () => {
     for (const l of ls) expect(l).toEqual(programados);
     expect(texto).toContain('runs?event=schedule&per_page=1');
     expect(texto).toContain('/actions/workflows/$w/enable');
-    expect(texto).toMatch(/^\s{2}actions: write/m);
+  });
+
+  // docs/32 RV-201 (DEC-180): actions: write también borra artifacts, y el respaldo es uno, el único.
+  // Solo lo tiene el trabajo que rehabilita, sin checkout; nada por defecto en el workflow.
+  it.each(['vigilancia.yml', 'mantener-activo.yml'])(
+    '%s: actions: write solo en el trabajo que rehabilita, sin checkout',
+    (a) => {
+      const texto = leer(a);
+      expect(texto).toMatch(/^permissions: \{\}$/m);
+      const sinComentarios = texto.replace(/^\s*#.*$/gm, '');
+      expect(sinComentarios.match(/actions: write/g)).toHaveLength(1);
+      const trabajos = sinComentarios.slice(sinComentarios.indexOf('\njobs:\n')).split(/\n(?= {2}[a-z-]+:\n)/);
+      const conEscritura = trabajos.filter((t) => t.includes('actions: write'));
+      expect(conEscritura).toHaveLength(1);
+      expect(conEscritura[0]).toContain('/actions/workflows/$w/enable');
+      expect(conEscritura[0]).not.toMatch(/actions\/checkout|secrets\.(?!GITHUB_TOKEN)|environment:/);
+      // Cada trabajo declara sus permisos.
+      const nombres = [...sinComentarios.matchAll(/^ {2}([a-z-]+):\n {4}/gm)].map((m) => m[1]);
+      for (const t of trabajos.slice(1)) expect(t, nombres.join()).toMatch(/^ {4}permissions:/m);
+    },
+  );
+
+  it('vigilancia.yml: el trabajo mirar, con la base de datos de producción, solo lee las ejecuciones', () => {
+    const texto = leer('vigilancia.yml');
+    const mirar = texto.slice(texto.indexOf('\n  mirar:\n'), texto.indexOf('\n  rehabilitar:\n'));
+    expect(mirar).toMatch(/^ {4}permissions:\n {6}contents: read\n {6}actions: read\n {6}issues: write\n/m);
   });
 });
 
@@ -106,7 +131,13 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
     const texto = leer('vigilancia.yml');
     const paso = (nombre: string) => texto.slice(texto.indexOf(`- name: ${nombre}`)).split(/\n\s{6}- name:/)[0]!;
     expect(paso('Abrir o cerrar la issue de vigilancia')).toMatch(/^\s+if: always\(\)$/m);
-    expect(paso('Rehabilitar los workflows programados')).toMatch(/^\s+continue-on-error: true$/m);
+    // docs/32 RV-201: la rehabilitación va en su propio trabajo, que no depende de mirar ni mirar de él.
+    const rehabilitar = texto.slice(texto.indexOf('\n  rehabilitar:\n'));
+    expect(rehabilitar).toContain('- name: Rehabilitar los workflows programados');
+    expect(rehabilitar).not.toMatch(/^ {4}needs:/m);
+    expect(texto.slice(texto.indexOf('\n  mirar:\n'), texto.indexOf('\n  rehabilitar:\n'))).not.toContain(
+      '- name: Rehabilitar los workflows programados',
+    );
   });
 
   // docs/19 RV-56: con HAY vacío (Comprobar no terminó) la issue se cerraba con "todo responde".
@@ -944,5 +975,51 @@ describe('main dentro de la historia de la rama en los PR a main (RV-135)', { ti
     expect(paso).toContain('CABEZA: ${{ github.event.pull_request.head.sha }}');
     expect(paso).toContain('main_en_la_rama "$CABEZA"');
     expect(calidad).toMatch(/fetch-depth: 0/);
+  });
+});
+
+// docs/32 RV-209: respaldo y purga decían «gh secret set» de repositorio cuando faltaba un secreto, y
+// seguirlas devolvía los secretos de producción al repositorio, al alcance de cualquier rama (DEC-172).
+describe('las instrucciones de reparación no deshacen DEC-172 (docs/32 RV-209)', () => {
+  const scripts = path.resolve(import.meta.dirname, '../.github/scripts');
+  const textos: [string, string][] = [
+    ...archivos.map((a): [string, string] => [a, leer(a)]),
+    ...readdirSync(scripts).map((a): [string, string] => [a, readFileSync(path.join(scripts, a), 'utf8')]),
+  ];
+
+  it('ningún mensaje sugiere gh secret set sin --env', () => {
+    const malas = textos.flatMap(([a, t]) =>
+      t
+        .split('\n')
+        .filter((l) => /gh secret set\b/.test(l) && !/--env\b/.test(l))
+        .map((l) => `${a}: ${l.trim()}`),
+    );
+    expect(malas).toEqual([]);
+  });
+
+  it('ningún mensaje manda los secretos «de repositorio»', () => {
+    const malas = textos.flatMap(([a, t]) =>
+      t
+        .split('\n')
+        .filter((l) => /\becho\b/.test(l) && /secretos? (\*\*)?de repositorio/i.test(l))
+        .map((l) => `${a}: ${l.trim()}`),
+    );
+    expect(malas).toEqual([]);
+  });
+
+  it('respaldo y purga mandan a traspasar-secreto o a gh secret set --env prod-tareas', () => {
+    for (const a of ['respaldo.yml', 'purgar-fotos.yml']) {
+      expect(leer(a), a).toContain('npm run traspasar-secreto -- --secreto ');
+      expect(leer(a), a).toMatch(/--hacia prod-tareas/);
+      expect(leer(a), a).toMatch(/gh secret set \S+ --env prod-tareas/);
+    }
+  });
+
+  it('purgar-fotos trata SUPABASE_URL_PROD como variable, no como secreto', () => {
+    const purga = leer('purgar-fotos.yml');
+    expect(purga).toContain('${{ vars.SUPABASE_URL_PROD }}');
+    expect(purga).not.toMatch(/secrets\.SUPABASE_URL_PROD|secret set SUPABASE_URL_PROD/);
+    expect(purga).toContain('gh variable set SUPABASE_URL_PROD');
+    expect(purga).toContain('la variable SUPABASE_URL_PROD');
   });
 });
