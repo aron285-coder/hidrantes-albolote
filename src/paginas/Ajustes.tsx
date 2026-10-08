@@ -25,7 +25,7 @@ import {
 } from '@/lib/push';
 import { cambiarFirma, cerrarSesionVoluntario, salirDeGoogle } from '@/lib/acceso';
 import { VERSION } from '@/lib/entorno';
-import { recargar } from '@/lib/pwa';
+import { pedirRecarga } from '@/lib/pwa';
 import { type Tema, guardarTema, leerTema } from '@/lib/tema';
 import { LIMITES } from '@/lib/limites';
 import { T } from '@/lib/textos';
@@ -85,6 +85,13 @@ export function Ajustes() {
   const [confirmar, setConfirmar] = useState(false);
   const cerrarHoja = useCallback(() => setConfirmar(false), []);
   const cola = useCola();
+  // Mientras se cierra la sesión (como mucho 6 s, docs/32 RV-234) el botón lo dice y no repite nada.
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const cerrarLaSesion = () => {
+    if (cerrandoSesion) return;
+    setCerrandoSesion(true);
+    void cerrarSesionVoluntario().finally(() => setCerrandoSesion(false));
+  };
 
   const sesion = acceso.tipo === 'voluntario' ? acceso.sesion : null;
   const [nombre, setNombre] = useState(sesion?.nombre ?? '');
@@ -223,7 +230,7 @@ export function Ajustes() {
         {hayVersion && (
           <>
             {' · '}
-            <button type="button" onClick={recargar} className="text-texto min-h-11 font-semibold underline">
+            <button type="button" onClick={pedirRecarga} className="text-texto min-h-11 font-semibold underline">
               {T.ajustes.versionNueva}
             </button>
           </>
@@ -236,8 +243,14 @@ export function Ajustes() {
             {T.ajustes.cerrarSesionDetalle}
             {cola.length > 0 && <b className="text-rojo-700 block">{T.ajustes.perderasEnvios(cola.length)}</b>}
           </p>
-          <Boton variante="destructivo" className="w-full" onClick={() => void cerrarSesionVoluntario()}>
-            {T.ajustes.cerrarSesionBoton}
+          <Boton
+            variante="destructivo"
+            className="w-full"
+            disabled={cerrandoSesion}
+            aria-busy={cerrandoSesion}
+            onClick={cerrarLaSesion}
+          >
+            {cerrandoSesion ? T.ajustes.cerrandoSesion : T.ajustes.cerrarSesionBoton}
           </Boton>
           <Boton variante="secundario" className="mt-3 w-full" onClick={cerrarHoja}>
             {T.ajustes.cancelar}
@@ -276,14 +289,18 @@ function SeccionMapa() {
         detalle={
           <>
             {detalleMapa}
-            {mapabase.fallo && <span className="text-rojo-700 block">{T.ajustes.falloDescarga}</span>}
+            {mapabase.fallo && (
+              <span className="text-rojo-700 block">
+                {mapabase.parada ? T.ajustes.descargaParada : T.ajustes.falloDescarga}
+              </span>
+            )}
             {sinRed && mapabase.progreso === null && <span className="block">{T.mapa.necesitaCobertura}</span>}
           </>
         }
       >
         {mapabase.progreso === null && (!mapabase.descargado || nueva) && (
           <Boton variante="enlace" className="text-sm" disabled={sinRed} onClick={() => void descargarMapabase()}>
-            {mapabase.descargado ? T.ajustes.actualizar : T.ajustes.descargar}
+            {mapabase.parada ? T.ajustes.reintentar : mapabase.descargado ? T.ajustes.actualizar : T.ajustes.descargar}
           </Boton>
         )}
       </Fila>

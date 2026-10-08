@@ -9,8 +9,10 @@
 import { SIN_SERVIDOR, rpc } from './api';
 import { escribir, leer } from './almacen';
 import { anotarError } from './errores';
+import { temasActivos } from './panel/push-jefatura';
 import { conLimite } from './red';
 import { leerSesion } from './sesion';
+import { supabase } from './supabase';
 import { T } from './textos';
 
 const CLAVE = 'push';
@@ -169,16 +171,47 @@ export async function activarPush({ limiteSwMs = LIMITE_SW_MS } = {}): Promise<R
   }
 }
 
-export async function desactivarPush(): Promise<EstadoPush> {
+/**
+ * ¿Recibe este navegador avisos de jefatura? (docs/32 RV-258) La suscripción del navegador es una
+ * sola y la comparten el voluntario y jefatura (0030): si jefatura tiene temas aquí, darla de baja
+ * le quitaría sus avisos. Con sesión de jefatura se pregunta al servidor por los temas de ese
+ * administrador en este endpoint (`fn_suscripcion_push_admin`, RV-225); sin ella, se mira lo que
+ * recuerda el panel. Si no se puede saber (sin servidor), se da por que sí: no darla de baja solo
+ * deja una suscripción sin filas de voluntario, que ya no recibe nada de voluntario.
+ */
+export async function hayAvisosDeJefatura(endpoint: string): Promise<boolean> {
+  let conJefatura: boolean;
+  try {
+    conJefatura = !!(await supabase()?.auth.getSession())?.data.session;
+  } catch {
+    conJefatura = false;
+  }
+  if (!conJefatura) return temasActivos().length > 0;
+  const r = await rpc<unknown>('fn_suscripcion_push_admin', { endpoint });
+  // Un servidor sin 0041 aún no tiene la función: vale lo que recuerda el panel.
+  if (!r.ok && /could not find the function/i.test(r.mensaje ?? '')) return temasActivos().length > 0;
+  if (!r.ok) return true;
+  // Los temas, como lista o dentro de { temas }; vacío o null: ninguno.
+  const temas = Array.isArray(r.datos) ? r.datos : (r.datos as { temas?: unknown } | null)?.temas;
+  return Array.isArray(temas) && temas.length > 0;
+}
+
+/**
+ * Apaga los avisos de voluntario en este móvil. La suscripción del navegador solo se da de baja si
+ * jefatura no tiene avisos aquí (docs/32 RV-258). `borrarEnServidor: false` al cerrar sesión, porque
+ * ya la borra `fn_cerrar_sesion` (docs/32 RV-234, RV-226).
+ */
+export async function desactivarPush({ borrarEnServidor = true } = {}): Promise<EstadoPush> {
   escribir(CLAVE, false);
   try {
     const registro = await registroListo(LIMITE_SW_MS);
-    await (await registro.pushManager.getSubscription())?.unsubscribe();
+    const suscripcion = await registro.pushManager.getSubscription();
+    if (suscripcion && !(await hayAvisosDeJefatura(suscripcion.endpoint))) await suscripcion.unsubscribe();
   } catch (e) {
     // Sin suscripción local o sin Service Worker: el servidor la borra igualmente, pero queda anotado.
     anotarError(errorSinDatos(e, 'unsubscribe'), 'push:desactivar');
   }
-  const sesion = leerSesion();
+  const sesion = borrarEnServidor ? leerSesion() : null;
   if (sesion) {
     const r = await rpc('fn_borrar_suscripcion_push', { token: sesion.token });
     if (!r.ok && r.codigo !== SIN_SERVIDOR) {

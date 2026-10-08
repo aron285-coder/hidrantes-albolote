@@ -33,6 +33,17 @@ export function fechaCorta(f: Date | string | number): string {
   return FECHA.format(new Date(f)).replace('.', '').replace(/ de /g, ' ');
 }
 
+const HORA = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
+const DIA = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' });
+
+/** Cuándo, en hora de Albolote: "a las 14:30", o "mañana a las 00:05" si es otro día (docs/32 RV-233). */
+export function aLaHora(cuando: number, ahora: number = Date.now()): string {
+  const hora = HORA.format(new Date(cuando));
+  return DIA.format(new Date(cuando)) === DIA.format(new Date(ahora))
+    ? T.formato.aLas(hora)
+    : T.formato.mananaALas(hora);
+}
+
 /** Metros hasta 999, después km con un decimal y coma decimal (UI-12). */
 export function distancia(metros: number): string {
   if (metros < 1000) return `${Math.round(metros)} m`;

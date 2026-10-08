@@ -267,15 +267,40 @@ async function revocarToken(): Promise<void> {
   if (!r.ok) anotarError(new Error(`fn_cerrar_sesion: ${r.codigo}`), 'cerrar-sesion');
 }
 
-export async function cerrarSesionVoluntario(): Promise<void> {
-  // Primero lo que necesita el token: dejar de recibir avisos en este móvil.
-  if (estadoPush() === 'activo') await desactivarPush().catch(() => undefined);
-  await revocarToken();
-  cerrarSesion();
-  olvidarMisPropuestas();
-  void borrarPuntos();
-  void vaciarCola();
-  fijar({ tipo: 'fuera', caducado: false });
+/** Lo más que espera cerrar sesión a la red (docs/32 RV-234): después, se cierra igual. */
+export const LIMITE_CERRAR_SESION_MS = 6000;
+
+let cerrando: Promise<void> | null = null;
+
+/**
+ * Cerrar sesión, rápido y una sola vez (docs/32 RV-234). `fn_cerrar_sesion` revoca el token y borra
+ * la suscripción de voluntario de este móvil (RV-226): no se llama aparte a fn_borrar_suscripcion_push.
+ * A la vez, la suscripción del navegador se da de baja si jefatura no tiene avisos aquí (RV-258). Todo
+ * con un máximo de 6 s; un segundo toque mientras tanto devuelve el mismo cierre, sin repetir nada.
+ */
+export function cerrarSesionVoluntario(): Promise<void> {
+  cerrando ??= (async () => {
+    try {
+      const conAvisos = estadoPush() === 'activo';
+      let temporizador: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([
+        Promise.all([
+          revocarToken(),
+          conAvisos ? desactivarPush({ borrarEnServidor: false }).catch(() => undefined) : undefined,
+        ]),
+        new Promise<void>((r) => (temporizador = setTimeout(r, LIMITE_CERRAR_SESION_MS))),
+      ]);
+      clearTimeout(temporizador);
+      cerrarSesion();
+      olvidarMisPropuestas();
+      void borrarPuntos();
+      void vaciarCola();
+      fijar({ tipo: 'fuera', caducado: false });
+    } finally {
+      cerrando = null;
+    }
+  })();
+  return cerrando;
 }
 
 /** Cada cuánto se refresca como mucho al volver a la app (la red decide el resto). */
