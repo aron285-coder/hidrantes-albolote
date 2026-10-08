@@ -26,6 +26,7 @@ import {
   preguntar,
   psql,
   psqlOk,
+  repositorio,
 } from './lib/comun.ts';
 import {
   Cloudflare,
@@ -38,11 +39,17 @@ import {
 } from './lib/servicios.ts';
 import { crearIssues } from './crear-issues.ts';
 import { prepararLocal } from './migrar.ts';
+import { propietarioDe } from './traspasar-secreto.ts';
 
 // ---------- nombres fijos (DEC-045, CLAUDE.md §7) ----------
 
-const PROPIETARIO = 'aron285-coder';
-const REPO = `${PROPIETARIO}/hidrantes-albolote`;
+/** El nombre del repositorio en el primer arranque, cuando aún no hay remoto origin. */
+const NOMBRE_REPO = 'hidrantes-albolote';
+/**
+ * `titular/nombre`: de `git remote` (repositorio(), comun.ts) si ya hay origin; en el primer
+ * arranque, el login de la sesión de gh y NOMBRE_REPO. Lo fija `comprobarSesiones` antes de tocar nada.
+ */
+let REPO = '';
 const CHECKS_OBLIGATORIOS = ['ci-calidad', 'ci-sql', 'ci-e2e'];
 /** Environment de los secretos de producción de las tareas automáticas (docs/31 RV-131, DEC-172). */
 export const ENV_TAREAS = 'prod-tareas';
@@ -97,7 +104,7 @@ export function aRotar(pedida: string | undefined): Set<Rotable> {
 
 // ---------- 1. sesiones y credenciales ----------
 
-function comprobarSesiones(): void {
+function comprobarSesiones(): string {
   log.paso('1. Sesiones de línea de comandos');
   const comprobaciones: [string, string[], string][] = [
     ['gh', ['auth', 'status'], 'gh auth login'],
@@ -110,10 +117,49 @@ function comprobarSesiones(): void {
     }
     log.ok(cmd === 'npx' ? 'wrangler' : cmd);
   }
-  if (ejecutar('git', ['config', 'user.name']).salida !== PROPIETARIO) {
-    abortar(`git user.name debe ser ${PROPIETARIO} en este repositorio.`);
+  const login = ejecutarOk('gh', ['api', 'user', '--jq', '.login']).trim();
+  if (ejecutar('git', ['config', 'user.name']).salida !== login) {
+    abortar(`git user.name debe ser ${login} (la sesión de gh) en este repositorio.`);
   }
-  log.ok(`git como ${PROPIETARIO}`);
+  log.ok(`git como ${login}`);
+  REPO = repoDestino(
+    ejecutar('git', ['remote', 'get-url', 'origin']).codigo === 0,
+    login,
+    () => repositorio().completo,
+  );
+  return login;
+}
+
+/** Repositorio de este checkout; sin origin todavía (primer arranque), el del login de gh. */
+export function repoDestino(hayOrigin: boolean, login: string, deRemoto: () => string): string {
+  return hayOrigin ? deRemoto() : `${login}/${NOMBRE_REPO}`;
+}
+
+// ---------- 2b. variable PROPIETARIO (quién lanza traspaso.yml, docs/32 RV-208) ----------
+
+export type AccionPropietario = 'ya-esta' | 'poner' | 'distinta';
+
+/** Qué hacer con la variable PROPIETARIO ya leída. Los logins de GitHub no distinguen mayúsculas. */
+export function planPropietario(actual: string | null, login: string): AccionPropietario {
+  if (!actual) return 'poner';
+  return actual.toLowerCase() === login.toLowerCase() ? 'ya-esta' : 'distinta';
+}
+
+/**
+ * Pone la variable del repositorio PROPIETARIO con el login de la sesión de gh. Si ya existe con otro
+ * login, solo la cambia el arranque completo y preguntando; `--solo-faltantes` no la pisa.
+ */
+async function asegurarVariablePropietario(login: string, puedePreguntar: boolean): Promise<void> {
+  const actual = propietarioDe(ejecutar('gh', ['variable', 'get', 'PROPIETARIO', '--repo', REPO]));
+  const plan = planPropietario(actual, login);
+  if (plan === 'ya-esta') return log.ok(`variable PROPIETARIO: ${login}`);
+  if (plan === 'distinta') {
+    if (!puedePreguntar || !(await confirmar(`La variable PROPIETARIO es ${actual}. ¿Cambiarla a ${login}?`))) {
+      return log.aviso(`La variable PROPIETARIO es ${actual}, no ${login}: solo ${actual} puede lanzar traspaso.yml.`);
+    }
+  }
+  fijarVariable('PROPIETARIO', login);
+  log.ok(`variable PROPIETARIO: ${login} (solo esa cuenta lanza traspaso.yml)`);
 }
 
 async function pedirCredenciales(necesitaBd: boolean) {
@@ -141,7 +187,7 @@ async function pedirCredenciales(necesitaBd: boolean) {
 
 // ---------- 2. repositorio GitHub ----------
 
-function asegurarRepositorio(): void {
+function asegurarRepositorio(login: string): void {
   log.paso('2. Repositorio GitHub');
   if (ejecutar('git', ['rev-parse', '--verify', 'main']).codigo !== 0) {
     abortar('No hay commits en main. Haz el primer commit antes del arranque.');
@@ -211,7 +257,7 @@ function asegurarRepositorio(): void {
   }
   log.ok('protección de main y develop: solo PR, CI verde, sin force push ni borrado');
 
-  const idPropietario = Number(ghApi(`users/${PROPIETARIO}`).match(/"id":\s*(\d+)/)?.[1]);
+  const idPropietario = Number(ghApi(`users/${login}`).match(/"id":\s*(\d+)/)?.[1]);
   // prod-tareas (docs/31 RV-131, DEC-172): los secretos de producción de las tareas automáticas, sin
   // revisores pero solo para develop; así una rama cualquiera no los puede leer.
   const environments = [
@@ -900,7 +946,11 @@ export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENT
       puestos.push('SAL_IP');
     }
     if (plan.nominatim) {
-      op.fijarPages(e.proyectoPages, 'NOMINATIM_USER_AGENT', `hidrantes-albolote/1.0 (+https://github.com/${REPO})`);
+      op.fijarPages(
+        e.proyectoPages,
+        'NOMINATIM_USER_AGENT',
+        `hidrantes-albolote/1.0 (+https://github.com/${repositorio().completo})`,
+      );
       puestos.push('NOMINATIM_USER_AGENT');
     }
     if (plan.vapid) {
@@ -923,7 +973,8 @@ export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENT
 /** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
 async function soloFaltantes(): Promise<void> {
   log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
-  comprobarSesiones();
+  const login = comprobarSesiones();
+  await asegurarVariablePropietario(login, false);
   desplegarWorkerSiFalta();
   const aMano = await ponerFaltantes(OPS_REALES);
   if (aMano.length) log.aviso(`Faltan y solo los pone el arranque completo (npm run arranque): ${aMano.join('; ')}`);
@@ -977,11 +1028,14 @@ async function principal(): Promise<void> {
   // En el arranque completo se (re)crea siempre el rol; al rotar, solo si se pide `db`.
   const tocarBd = !esRotacion || rotar.has('db');
 
-  comprobarSesiones();
+  const login = comprobarSesiones();
   const cred = await pedirCredenciales(tocarBd);
   // El token de Cloudflare va a GitHub en el arranque completo o al rotarlo; si no, no se toca.
   const tokenCf = !esRotacion || rotar.has('cloudflare') ? cred.tokenCf : null;
-  if (!esRotacion) asegurarRepositorio();
+  if (!esRotacion) {
+    asegurarRepositorio(login);
+    await asegurarVariablePropietario(login, true);
+  }
 
   const datos = new Map<string, DatosSupabase>();
   for (const e of ENTORNOS) {
