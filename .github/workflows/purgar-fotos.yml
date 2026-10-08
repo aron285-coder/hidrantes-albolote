@@ -51,14 +51,20 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$SERVICIO" ] || [ -z "$URL" ]; then
-            echo "::error::Faltan SUPABASE_URL_PROD o SUPABASE_SERVICE_ROLE_KEY_PROD como secretos de repositorio"
+            echo "::error::Falta el secreto SUPABASE_SERVICE_ROLE_KEY_PROD (environment prod-tareas) o la variable SUPABASE_URL_PROD (repositorio)"
             {
               echo "### Purga no configurada"
               echo
-              echo 'Con los mismos valores que ya están en el entorno `production` (DEC-071):'
+              echo '`SUPABASE_SERVICE_ROLE_KEY_PROD` es un **secreto** del environment `prod-tareas`, nunca'
+              echo 'del repositorio (DEC-172). Se mueve sin ver el valor con el traspaso, desde donde esté:'
               echo '```'
-              echo 'gh secret set SUPABASE_SERVICE_ROLE_KEY_PROD'
-              echo 'gh variable set SUPABASE_URL_PROD'
+              echo 'npm run traspasar-secreto -- --secreto SUPABASE_SERVICE_ROLE_KEY_PROD --desde <sitio> --hacia prod-tareas'
+              echo '```'
+              echo 'o se pone por la entrada estándar con `gh secret set SUPABASE_SERVICE_ROLE_KEY_PROD --env prod-tareas`.'
+              echo
+              echo '`SUPABASE_URL_PROD` es una **variable** del repositorio (pública, no es un secreto):'
+              echo '```'
+              echo 'gh variable set SUPABASE_URL_PROD --body https://<ref>.supabase.co'
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1

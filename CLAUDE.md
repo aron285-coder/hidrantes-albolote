@@ -155,7 +155,7 @@ Variables locales en `.env.local` (no se commitea): las genera `npm run arranque
 |---|---|
 | Repo GitHub | `aron285-coder/hidrantes-albolote` (**público**, DEC-053) |
 | Ramas | `main` (producción) · `develop` (staging) · `fase-N/…` (trabajo) |
-| GitHub Environments | `staging` · `production` |
+| GitHub Environments | `staging` · `production` · `prod-tareas` (secretos de las tareas de producción: sin revisores, solo `develop`, DEC-172) |
 | Cloudflare Pages | `hidrantes-albolote` → `hidrantes-albolote.pages.dev` · `hidrantes-albolote-staging` → `hidrantes-albolote-staging.pages.dev` |
 | Supabase | proyecto **prod** y proyecto **dev** de la app de uniformidad (refs en `docs/entornos.md`), esquema `hidrantes` en ambos |
 | Storage | `hidrantes-fotos` (prod) · `hidrantes-fotos-dev` (dev) |
