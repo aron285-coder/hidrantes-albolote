@@ -16,10 +16,9 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { RAIZ, abortar, argumentos, ejecutar, ejecutarScript, log, psql } from './lib/comun.ts';
+import { RAIZ, abortar, argumentos, ejecutar, ejecutarScript, log, psql, repositorio } from './lib/comun.ts';
 import { type Migracion, leerMigraciones } from './migrar.ts';
 
-const REPO = 'aron285-coder/hidrantes-albolote';
 const PAGES_PROD = 'hidrantes-albolote';
 
 // ---------- lo que tiene que haber ----------
@@ -349,7 +348,7 @@ function nombresGh(ruta: string, campo: 'secrets' | 'variables'): string[] | nul
 }
 
 function variableGh(nombre: string): string | null {
-  const r = ejecutar('gh', ['api', `repos/${REPO}/actions/variables/${nombre}`, '--jq', '.value']);
+  const r = ejecutar('gh', ['api', `repos/${repositorio().completo}/actions/variables/${nombre}`, '--jq', '.value']);
   return r.codigo === 0 ? r.salida.trim() : (process.env[nombre] ?? null);
 }
 
@@ -368,10 +367,10 @@ export function esquemasDeAviso(cuerpo: { code?: string; hint?: string }): strin
 function fuentesReales(): Fuentes {
   const env = process.env;
   return {
-    secretosEntorno: () => nombresGh(`repos/${REPO}/environments/production/secrets`, 'secrets'),
-    variablesEntorno: () => nombresGh(`repos/${REPO}/environments/production/variables`, 'variables'),
-    secretosRepo: () => nombresGh(`repos/${REPO}/actions/secrets`, 'secrets'),
-    secretosTareas: () => nombresGh(`repos/${REPO}/environments/prod-tareas/secrets`, 'secrets'),
+    secretosEntorno: () => nombresGh(`repos/${repositorio().completo}/environments/production/secrets`, 'secrets'),
+    variablesEntorno: () => nombresGh(`repos/${repositorio().completo}/environments/production/variables`, 'variables'),
+    secretosRepo: () => nombresGh(`repos/${repositorio().completo}/actions/secrets`, 'secrets'),
+    secretosTareas: () => nombresGh(`repos/${repositorio().completo}/environments/prod-tareas/secrets`, 'secrets'),
     secretosPages: () => {
       const r = ejecutar('npx', ['--no-install', 'wrangler', 'pages', 'secret', 'list', '--project-name', PAGES_PROD]);
       return r.codigo === 0 ? nombresWrangler(r.salida) : null;
@@ -439,7 +438,7 @@ const WORKFLOW = 'comprobar-produccion.yml';
 /** La mitad de Actions: lanza el workflow, espera y lee sus filas (artefacto sin valores). */
 async function mitadDeActions(): Promise<Fila[]> {
   const desde = new Date(Date.now() - 5_000).toISOString();
-  const lanzar = ejecutar('gh', ['workflow', 'run', WORKFLOW, '--repo', REPO, '--ref', 'develop']);
+  const lanzar = ejecutar('gh', ['workflow', 'run', WORKFLOW, '--repo', repositorio().completo, '--ref', 'develop']);
   if (lanzar.codigo !== 0) abortar(`No se ha podido lanzar ${WORKFLOW}: ${lanzar.salida.trim()}`);
   let id = '';
   for (let i = 0; i < 30 && !id; i++) {
@@ -447,7 +446,7 @@ async function mitadDeActions(): Promise<Fila[]> {
       'run',
       'list',
       '--repo',
-      REPO,
+      repositorio().completo,
       '--workflow',
       WORKFLOW,
       '--event',
@@ -464,10 +463,20 @@ async function mitadDeActions(): Promise<Fila[]> {
   }
   if (!id) abortar(`${WORKFLOW} no ha empezado: míralo en Actions.`);
   log.info(`Esperando a ${WORKFLOW} (run ${id})…`);
-  ejecutar('gh', ['run', 'watch', id, '--repo', REPO, '--exit-status', '--interval', '10']);
+  ejecutar('gh', ['run', 'watch', id, '--repo', repositorio().completo, '--exit-status', '--interval', '10']);
   const dir = mkdtempSync(path.join(tmpdir(), 'comprobar-produccion-'));
   try {
-    const bajar = ejecutar('gh', ['run', 'download', id, '--repo', REPO, '-n', 'filas-produccion', '-D', dir]);
+    const bajar = ejecutar('gh', [
+      'run',
+      'download',
+      id,
+      '--repo',
+      repositorio().completo,
+      '-n',
+      'filas-produccion',
+      '-D',
+      dir,
+    ]);
     if (bajar.codigo !== 0)
       abortar(`No se han podido leer las filas de ${WORKFLOW} (run ${id}): ${bajar.salida.trim()}`);
     return JSON.parse(readFileSync(path.join(dir, 'filas-produccion.json'), 'utf8')) as Fila[];

@@ -7,23 +7,41 @@
 // GitHub no deja leer un secreto: para moverlo de sitio sin que nadie vea su valor,
 //   1. se genera aquí un par RSA de 4096 bits de un solo uso; la privada solo vive en memoria;
 //   2. se lanza `traspaso.yml` en `develop`, en el sitio donde está el secreto, con la pública: cifra
-//      el valor con openssl y sube solo el texto cifrado como artefacto de 1 día;
+//      el valor con una clave AES-256-GCM de un solo uso, cifra esa clave con la pública (RSA-OAEP) y
+//      sube solo el sobre cifrado como artefacto de 1 día (híbrido: sirve para secretos de varios KB,
+//      como GPG_PUBLIC_KEY; docs/32 RV-208);
 //   3. se descarga, se descifra en memoria y se pasa por tubería a `gh secret set` en el destino;
 //   4. se borran el artefacto y la ejecución, pase lo que pase.
 //
 // No borra el secreto del origen: eso se hace después de comprobar que los workflows funcionan desde
 // el destino (RV-131 paso 3). El valor nunca se escribe en disco, en la salida ni en un argumento.
 //
-// Usa age en la especificación; aquí RSA-OAEP con openssl y node:crypto, que ya están en el runner y
-// en el PC, sin instalar nada (DEC-172).
+// Usa age en la especificación; aquí RSA-OAEP y AES-256-GCM con node:crypto, que ya está en el runner
+// y en el PC, sin instalar nada (DEC-172). Solo lo lanza quien diga la variable del repositorio
+// PROPIETARIO; el repositorio sale de `git remote` (scripts/lib/comun.ts).
 
-import { constants, generateKeyPairSync, type KeyObject, privateDecrypt, randomUUID } from 'node:crypto';
+import {
+  constants,
+  createDecipheriv,
+  generateKeyPairSync,
+  type KeyObject,
+  privateDecrypt,
+  randomUUID,
+} from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { abortar, argumentos, ejecutar, ejecutarOk, ejecutarScript, errorSeguro, log } from './lib/comun.ts';
+import {
+  abortar,
+  argumentos,
+  ejecutar,
+  ejecutarOk,
+  ejecutarScript,
+  errorSeguro,
+  log,
+  repositorio,
+} from './lib/comun.ts';
 
-export const REPO = 'aron285-coder/hidrantes-albolote';
 export const WORKFLOW = 'traspaso.yml';
 /** traspaso.yml solo corre en develop: es la única rama que admite el environment prod-tareas. */
 export const RAMA = 'develop';
@@ -58,16 +76,70 @@ export function parEfimero(): { publica: string; privada: KeyObject } {
   return { publica: publicKey.export({ type: 'spki', format: 'der' }).toString('base64'), privada: privateKey };
 }
 
-/** Lo que hace openssl en traspaso.yml, al revés: RSA-OAEP con SHA-256 (y MGF1 con SHA-256). */
-export function descifrar(privada: KeyObject, cifradoBase64: string): string {
-  const cifrado = Buffer.from(cifradoBase64.trim(), 'base64');
-  if (cifrado.length === 0) abortar('El artefacto cifrado está vacío');
-  const valor = privateDecrypt(
-    { key: privada, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' },
-    cifrado,
-  );
+/** El sobre que escribe traspaso.yml: todo en base64. */
+interface Sobre {
+  v: 1;
+  /** La clave AES-256 de un solo uso, cifrada con RSA-OAEP (SHA-256, MGF1 con SHA-256). */
+  clave: string;
+  iv: string;
+  etiqueta: string;
+  datos: string;
+}
+
+function leerSobre(texto: string): Sobre {
+  if (texto.trim() === '') abortar('El artefacto cifrado está vacío');
+  let sobre: Partial<Sobre>;
+  try {
+    sobre = JSON.parse(texto) as Partial<Sobre>;
+  } catch {
+    abortar('El artefacto cifrado no es el sobre de traspaso.yml (¿una versión vieja del workflow?)');
+  }
+  const campos = ['clave', 'iv', 'etiqueta', 'datos'] as const;
+  if (sobre?.v !== 1 || campos.some((c) => typeof sobre[c] !== 'string'))
+    abortar('El artefacto cifrado no es el sobre de traspaso.yml (¿una versión vieja del workflow?)');
+  return sobre as Sobre;
+}
+
+/**
+ * Lo que hace traspaso.yml, al revés (docs/32 RV-208): RSA-OAEP descifra la clave AES de un solo uso
+ * y AES-256-GCM, el valor. La etiqueta de GCM comprueba que el sobre no se ha tocado: si no cuadra,
+ * se para, no se fija un valor estropeado.
+ */
+export function descifrar(privada: KeyObject, texto: string): string {
+  const sobre = leerSobre(texto);
+  const b = (s: string) => Buffer.from(s, 'base64');
+  let valor: Buffer;
+  try {
+    const clave = privateDecrypt(
+      { key: privada, padding: constants.RSA_PKCS1_OAEP_PADDING, oaepHash: 'sha256' },
+      b(sobre.clave),
+    );
+    const iv = b(sobre.iv);
+    const etiqueta = b(sobre.etiqueta);
+    if (clave.length !== 32 || iv.length !== 12 || etiqueta.length !== 16) throw new Error('tamaños');
+    const aes = createDecipheriv('aes-256-gcm', clave, iv);
+    aes.setAuthTag(etiqueta);
+    valor = Buffer.concat([aes.update(b(sobre.datos)), aes.final()]);
+  } catch {
+    // Sin el mensaje de node:crypto: no lleva el valor, pero tampoco ayuda. Lo que importa es parar.
+    abortar('No se ha podido descifrar el artefacto: no es para esta clave o se ha modificado');
+  }
   if (valor.length === 0) abortar('El secreto descifrado está vacío');
   return valor.toString('utf8');
+}
+
+/**
+ * Antes de lanzar nada: traspaso.yml solo corre si quien lo lanza es la variable PROPIETARIO del
+ * repositorio. Si falta o es otro, los dos trabajos se saltarían y no habría artefacto; mejor decirlo
+ * aquí, con lo que hay que hacer.
+ */
+export function comprobarPropietario(variable: string | null, sesion: string, titular: string): void {
+  if (!variable)
+    abortar(
+      `Falta (o no se puede leer) la variable del repositorio PROPIETARIO: gh variable set PROPIETARIO --body ${titular}`,
+    );
+  if (variable !== sesion)
+    abortar(`traspaso.yml solo lo puede lanzar ${variable} (variable PROPIETARIO) y la sesión de gh es de ${sesion}`);
 }
 
 /** La ejecución de este traspaso, por su `run-name` ("Traspaso <id>"). */
@@ -82,7 +154,18 @@ async function buscarEjecucion(id: string): Promise<number> {
   for (let i = 0; i < 30; i++) {
     await esperar(3000);
     const lista = JSON.parse(
-      gh(['run', 'list', '--repo', REPO, '--workflow', WORKFLOW, '--limit', '20', '--json', 'databaseId,displayTitle']),
+      gh([
+        'run',
+        'list',
+        '--repo',
+        repositorio().completo,
+        '--workflow',
+        WORKFLOW,
+        '--limit',
+        '20',
+        '--json',
+        'databaseId,displayTitle',
+      ]),
     ) as { databaseId: number; displayTitle: string }[];
     const encontrada = ejecucionDe(lista, id);
     if (encontrada) return encontrada;
@@ -92,7 +175,9 @@ async function buscarEjecucion(id: string): Promise<number> {
 
 async function esperarFin(run: number): Promise<string> {
   for (let i = 0; i < 100; i++) {
-    const r = JSON.parse(gh(['run', 'view', String(run), '--repo', REPO, '--json', 'status,conclusion'])) as {
+    const r = JSON.parse(
+      gh(['run', 'view', String(run), '--repo', repositorio().completo, '--json', 'status,conclusion']),
+    ) as {
       status: string;
       conclusion: string;
     };
@@ -105,15 +190,20 @@ async function esperarFin(run: number): Promise<string> {
 /** Borra los artefactos y la ejecución. Se intenta todo aunque algo falle, y se dice qué quedó. */
 function limpiar(run: number): void {
   const quedan: string[] = [];
-  const artefactos = ejecutar('gh', ['api', `repos/${REPO}/actions/runs/${run}/artifacts`, '--jq', '.artifacts[].id']);
+  const artefactos = ejecutar('gh', [
+    'api',
+    `repos/${repositorio().completo}/actions/runs/${run}/artifacts`,
+    '--jq',
+    '.artifacts[].id',
+  ]);
   // Si no se pueden listar, se borra igual la ejecución, que se lleva sus artefactos.
   if (artefactos.codigo !== 0)
     log.aviso('No se pudo leer la lista de artefactos: se borra la ejecución, que se los lleva');
   for (const a of artefactos.salida.split('\n').filter(Boolean)) {
-    if (ejecutar('gh', ['api', '-X', 'DELETE', `repos/${REPO}/actions/artifacts/${a}`]).codigo !== 0)
+    if (ejecutar('gh', ['api', '-X', 'DELETE', `repos/${repositorio().completo}/actions/artifacts/${a}`]).codigo !== 0)
       quedan.push(`artefacto ${a}`);
   }
-  if (ejecutar('gh', ['api', '-X', 'DELETE', `repos/${REPO}/actions/runs/${run}`]).codigo !== 0)
+  if (ejecutar('gh', ['api', '-X', 'DELETE', `repos/${repositorio().completo}/actions/runs/${run}`]).codigo !== 0)
     quedan.push(`ejecución ${run}`);
   if (quedan.length)
     log.aviso(`No se pudo borrar: ${quedan.join(', ')} (el artefacto caduca en 1 día; solo lleva texto cifrado)`);
@@ -121,7 +211,7 @@ function limpiar(run: number): void {
 }
 
 function fijar(nombre: string, valor: string, hacia: string): void {
-  const args = ['secret', 'set', nombre, '--repo', REPO];
+  const args = ['secret', 'set', nombre, '--repo', repositorio().completo];
   if (hacia !== 'repositorio') args.push('--env', hacia);
   // Por stdin: nunca como argumento (CLAUDE.md §3, comun.ts).
   gh(args, valor);
@@ -136,7 +226,7 @@ async function traspasar(nombre: string, desde: string, hacia: string): Promise<
     'run',
     WORKFLOW,
     '--repo',
-    REPO,
+    repositorio().completo,
     '--ref',
     RAMA,
     '-f',
@@ -155,8 +245,8 @@ async function traspasar(nombre: string, desde: string, hacia: string): Promise<
     const conclusion = await esperarFin(run);
     if (conclusion !== 'success')
       abortar(`traspaso.yml terminó en ${conclusion}: mira la ejecución ${run} (no lleva el valor)`);
-    gh(['run', 'download', String(run), '--repo', REPO, '-n', 'cifrado', '-D', carpeta]);
-    const valor = descifrar(privada, readFileSync(path.join(carpeta, 'cifrado.b64'), 'utf8'));
+    gh(['run', 'download', String(run), '--repo', repositorio().completo, '-n', 'cifrado', '-D', carpeta]);
+    const valor = descifrar(privada, readFileSync(path.join(carpeta, 'cifrado.json'), 'utf8'));
     fijar(nombre, valor, hacia);
     log.ok(`${nombre} puesto en ${hacia}`);
   } finally {
@@ -167,11 +257,16 @@ async function traspasar(nombre: string, desde: string, hacia: string): Promise<
 
 /** Los nombres de los secretos de un sitio. Un environment que no existe es un error, no una lista vacía. */
 function secretosDe(sitio: string): string[] {
-  if (sitio !== 'repositorio' && ejecutar('gh', ['api', `repos/${REPO}/environments/${sitio}`]).codigo !== 0) {
+  if (
+    sitio !== 'repositorio' &&
+    ejecutar('gh', ['api', `repos/${repositorio().completo}/environments/${sitio}`]).codigo !== 0
+  ) {
     abortar(`El environment ${sitio} no existe (un trabajo que lo nombre lo crearía sin protección)`);
   }
   const extra = sitio === 'repositorio' ? [] : ['--env', sitio];
-  return gh(['secret', 'list', '--repo', REPO, ...extra, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/);
+  return gh(['secret', 'list', '--repo', repositorio().completo, ...extra, '--json', 'name', '--jq', '.[].name']).split(
+    /\r?\n/,
+  );
 }
 
 /**
@@ -188,6 +283,12 @@ async function principal(): Promise<void> {
   const { secretos, desde, hacia } = pedidoDe(argumentos().valores);
   const sesion = ejecutar('gh', ['auth', 'status']);
   if (sesion.codigo !== 0) abortar('Hace falta la sesión de gh: gh auth login');
+  const variable = ejecutar('gh', ['variable', 'get', 'PROPIETARIO', '--repo', repositorio().completo]);
+  comprobarPropietario(
+    variable.codigo === 0 ? variable.salida : null,
+    gh(['api', 'user', '--jq', '.login']),
+    repositorio().propietario,
+  );
   comprobarOrigen(secretos, secretosDe(desde), desde);
   secretosDe(hacia);
   for (const s of secretos) {

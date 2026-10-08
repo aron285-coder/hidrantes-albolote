@@ -11,6 +11,8 @@ import {
   leerEntorno,
   motivoCadenaAjena,
   REFS,
+  repositorio,
+  repositorioDeRemoto,
 } from './comun.ts';
 
 describe('esAfirmativo', () => {
@@ -141,5 +143,43 @@ describe('entornos compartidos (RV-134)', () => {
       expect(texto, s).toMatch(/leerEntorno\(/);
       expect(texto, s).not.toMatch(/=== 'prod' \? 'produccion'|produccion: '/);
     }
+  });
+});
+
+describe('repositorio (docs/32 RV-208)', () => {
+  it.each([
+    'https://github.com/titular/hidrantes-albolote.git',
+    'https://github.com/titular/hidrantes-albolote',
+    'git@github.com:titular/hidrantes-albolote.git',
+    'ssh://git@github.com/titular/hidrantes-albolote.git',
+  ])('lee titular y nombre de %s', (url) => {
+    expect(repositorioDeRemoto(url)).toEqual({
+      propietario: 'titular',
+      nombre: 'hidrantes-albolote',
+      completo: 'titular/hidrantes-albolote',
+    });
+  });
+
+  it.each(['', 'https://gitlab.com/titular/repo.git', 'https://github.com/solo-titular', 'C:/repos/local'])(
+    'un remoto que no es de GitHub no da repositorio: "%s"',
+    (url) => expect(repositorioDeRemoto(url)).toBeNull(),
+  );
+
+  it('el de este checkout sale de git remote, no de un nombre escrito en los scripts', () => {
+    const r = repositorio();
+    expect(r.completo).toBe(`${r.propietario}/${r.nombre}`);
+    expect(r.nombre).toBe('hidrantes-albolote');
+  });
+
+  // arranque.ts (lo fija la primera vez y comprueba git user.name) y publicar.ts son de otras sesiones
+  // de docs/32; pasan a repositorio() en su propio PR.
+  const PENDIENTES = ['arranque.ts', 'publicar.ts'];
+
+  it('ningún script escribe el titular a mano: lo lee de repositorio()', () => {
+    const dir = path.resolve(import.meta.dirname, '..');
+    const conTitular = readdirSync(dir)
+      .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts') && !PENDIENTES.includes(f))
+      .filter((f) => /(['"`])[A-Za-z0-9-]+\/hidrantes-albolote\1/.test(readFileSync(path.join(dir, f), 'utf8')));
+    expect(conTitular).toEqual([]);
   });
 });

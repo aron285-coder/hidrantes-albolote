@@ -1,9 +1,16 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { comprobarOrigen, descifrar, ejecucionDe, parEfimero, pedidoDe } from './traspasar-secreto.ts';
+import {
+  comprobarOrigen,
+  comprobarPropietario,
+  descifrar,
+  ejecucionDe,
+  parEfimero,
+  pedidoDe,
+} from './traspasar-secreto.ts';
 
 const raiz = path.resolve(import.meta.dirname, '..');
 const traspaso = readFileSync(path.join(raiz, '.github/workflows/traspaso.yml'), 'utf8');
@@ -31,6 +38,24 @@ function bloquesRun(texto: string): string[] {
   return bloques;
 }
 
+/** El programa de Node que cifra en traspaso.yml: lo que va entre `<<'JS'` y `JS`. */
+function programaDelWorkflow(run: string): string {
+  const m = /^node - > cifrado\.json <<'JS'\n([\s\S]*?)\nJS$/m.exec(run);
+  if (!m) throw new Error('traspaso.yml no cifra con el programa de Node entre <<JS y JS');
+  return m[1]!;
+}
+
+/** Cifra `valor` exactamente como traspaso.yml: el mismo programa, con VALOR y CLAVE en el entorno. */
+function cifrarComoElWorkflow(valor: string, clave: string): string {
+  const r = spawnSync(process.execPath, ['-'], {
+    input: programaDelWorkflow(bloquesRun(traspaso)[0]!),
+    env: { PATH: process.env.PATH, VALOR: valor, CLAVE: clave },
+    encoding: 'utf8',
+  });
+  expect(r.status, r.stderr).toBe(0);
+  return r.stdout;
+}
+
 describe('traspaso.yml no imprime el secreto (docs/31 §1.2, RV-131)', () => {
   const runs = bloquesRun(traspaso);
 
@@ -42,12 +67,14 @@ describe('traspaso.yml no imprime el secreto (docs/31 §1.2, RV-131)', () => {
     expect(traspaso).toContain('environment: ${{ inputs.origen }}');
   });
 
-  it('solo lo puede lanzar el propietario: los dos trabajos lo exigen', () => {
+  it('solo lo puede lanzar el titular de la variable PROPIETARIO, y sin ella no corre (docs/32 RV-208)', () => {
     const condiciones = [...traspaso.matchAll(/^ {4}if: (.+)$/gm)].map((m) => m[1]);
     expect(condiciones).toEqual([
-      "inputs.origen == 'repositorio' && github.triggering_actor == 'aron285-coder'",
-      "inputs.origen != 'repositorio' && github.triggering_actor == 'aron285-coder'",
+      "inputs.origen == 'repositorio' && vars.PROPIETARIO != '' && github.triggering_actor == vars.PROPIETARIO",
+      "inputs.origen != 'repositorio' && vars.PROPIETARIO != '' && github.triggering_actor == vars.PROPIETARIO",
     ]);
+    // Ningún titular escrito a mano.
+    expect(traspaso).not.toMatch(/triggering_actor == '/);
   });
 
   it('el secreto solo entra por env, nunca dentro de un run:', () => {
@@ -57,18 +84,23 @@ describe('traspaso.yml no imprime el secreto (docs/31 §1.2, RV-131)', () => {
     for (const r of runs) expect(r).not.toMatch(/\$\{\{/);
   });
 
-  it('ningún run: escribe el valor: solo se comprueba que no esté vacío y va por tubería a openssl', () => {
+  it('ningún run: escribe el valor: se comprueba que no esté vacío y solo lo lee el cifrado', () => {
     for (const r of runs) {
       const usos = r.split('\n').filter((l) => l.includes('VALOR'));
       expect(usos).toHaveLength(2);
       expect(usos[0]).toMatch(/^if \[ -z "\$\{VALOR:-\}" \]; then echo "::error::\$NOMBRE no existe/);
-      expect(usos[1]).toMatch(/^printf '%s' "\$VALOR" \| openssl pkeyutl -encrypt /);
+      expect(usos[1]).toBe("const datos = Buffer.concat([aes.update(process.env.VALOR, 'utf8'), aes.final()]);");
       expect(r).not.toMatch(/set -x|set -o xtrace|tee\b|GITHUB_STEP_SUMMARY|GITHUB_OUTPUT|GITHUB_ENV/);
+      // Lo único que escribe el programa es el sobre, y va al archivo, no a la salida del paso.
+      const programa = programaDelWorkflow(r);
+      expect(programa.match(/process\.stdout\.write\(/g)).toHaveLength(1);
+      expect(programa).toContain('process.stdout.write(JSON.stringify(sobre));');
+      expect(programa).not.toMatch(/console\.|process\.stderr/);
     }
   });
 
-  it('el artefacto es el texto cifrado, de 1 día', () => {
-    expect(traspaso.match(/path: cifrado\.b64\n\s+retention-days: 1\n/g)).toHaveLength(2);
+  it('el artefacto es el sobre cifrado, de 1 día', () => {
+    expect(traspaso.match(/path: cifrado\.json\n\s+retention-days: 1\n/g)).toHaveLength(2);
   });
 });
 
@@ -100,6 +132,20 @@ describe('comprobarOrigen', () => {
   });
 });
 
+describe('comprobarPropietario (docs/32 RV-208)', () => {
+  it('sin la variable PROPIETARIO para y dice cómo ponerla', () => {
+    expect(() => comprobarPropietario(null, 'titular', 'titular')).toThrow(
+      /gh variable set PROPIETARIO --body titular/,
+    );
+    expect(() => comprobarPropietario('', 'titular', 'titular')).toThrow(/PROPIETARIO/);
+  });
+
+  it('con otra sesión de gh para: los trabajos se saltarían sin artefacto', () => {
+    expect(() => comprobarPropietario('titular', 'otra', 'titular')).toThrow(/solo lo puede lanzar titular/);
+    expect(() => comprobarPropietario('titular', 'titular', 'titular')).not.toThrow();
+  });
+});
+
 describe('ejecucionDe', () => {
   it('encuentra la ejecución por su run-name', () => {
     const lista = [
@@ -111,45 +157,63 @@ describe('ejecucionDe', () => {
   });
 });
 
-describe('cifrar en el workflow y descifrar aquí', () => {
-  const hayOpenssl = spawnSync('openssl', ['version'], { encoding: 'utf8' }).status === 0;
-  const linea = bloquesRun(traspaso)[0]!
-    .split('\n')
-    .find((l) => l.startsWith('printf \'%s\' "$VALOR" | openssl'))!;
-  // El mismo openssl del workflow, con la clave en un archivo temporal.
-  const opensslDelWorkflow = linea
-    .replace(/^printf '%s' "\$VALOR" \| /, '')
-    .replace(/ \| base64 -w0 > cifrado\.b64$/, '')
-    .split(' ');
+// Cada caso arranca un Node aparte, como el runner: en Windows con la suite en paralelo tarda.
+describe('cifrar en el workflow y descifrar aquí (híbrido, docs/32 RV-208)', { timeout: 60_000 }, () => {
+  // Un solo par para todo el bloque: generar uno de 4096 bits tarda.
+  const { publica, privada } = parEfimero();
 
-  it.skipIf(!hayOpenssl)(
-    'lo que cifra el openssl de traspaso.yml se descifra con descifrar(), igual byte a byte',
-    () => {
-      const { publica, privada } = parEfimero();
-      const dir = mkdtempSync(path.join(tmpdir(), 'traspaso-test-'));
-      try {
-        const der = path.join(dir, 'clave.der');
-        writeFileSync(der, Buffer.from(publica, 'base64'));
-        const args = opensslDelWorkflow.slice(1).map((a) => (a === 'clave.der' ? der : a));
-        // Un valor de prueba con lo que lleva una cadena de conexión real: :, @, /, ?, = y %.
-        const valor = 'postgresql://usuario.ref:cl@ve%2F?=x@host:5432/postgres?sslmode=require';
-        const r = spawnSync('openssl', args, { input: valor });
-        expect(r.status, String(r.stderr)).toBe(0);
-        expect(descifrar(privada, r.stdout.toString('base64'))).toBe(valor);
-      } finally {
-        rmSync(dir, { recursive: true, force: true });
-      }
-    },
-  );
+  it('una cadena de conexión real vuelve igual byte a byte', () => {
+    // Lo que lleva una cadena de conexión real: :, @, /, ?, = y %.
+    const valor = 'postgresql://usuario.ref:cl@ve%2F?=x@host:5432/postgres?sslmode=require'; // detectar-secretos:permitir (valor ficticio)
+    expect(descifrar(privada, cifrarComoElWorkflow(valor, publica))).toBe(valor);
+  });
+
+  it('un secreto de 4 KB, más de lo que admite RSA-OAEP solo (446 bytes), también', () => {
+    const valor = randomBytes(3072).toString('base64');
+    expect(valor).toHaveLength(4096);
+    expect(descifrar(privada, cifrarComoElWorkflow(valor, publica))).toBe(valor);
+  });
+
+  it('una clave pública de GPG, con saltos de línea y acentos en el nombre, también', () => {
+    const cuerpo = randomBytes(2400)
+      .toString('base64')
+      .match(/.{1,64}/g)!
+      .join('\n');
+    const valor = `-----BEGIN PGP PUBLIC KEY BLOCK-----\nComment: Protección Civil\n\n${cuerpo}\n-----END PGP PUBLIC KEY BLOCK-----\n`;
+    expect(descifrar(privada, cifrarComoElWorkflow(valor, publica))).toBe(valor);
+  });
+
+  it('cada ejecución usa una clave AES nueva: el mismo valor no da el mismo sobre', () => {
+    const a = JSON.parse(cifrarComoElWorkflow('mismo', publica)) as Record<string, string>;
+    const b = JSON.parse(cifrarComoElWorkflow('mismo', publica)) as Record<string, string>;
+    expect(a.clave).not.toBe(b.clave);
+    expect(a.iv).not.toBe(b.iv);
+  });
+
+  it('un sobre tocado no se descifra: GCM lo detecta y no se fija un valor estropeado', () => {
+    const sobre = JSON.parse(cifrarComoElWorkflow('x'.repeat(600), publica)) as Record<string, string>;
+    const datos = Buffer.from(sobre.datos!, 'base64');
+    datos[0] = datos[0]! ^ 1;
+    const tocado = JSON.stringify({ ...sobre, datos: datos.toString('base64') });
+    expect(() => descifrar(privada, tocado)).toThrow(/no es para esta clave o se ha modificado/);
+  });
+
+  it('con otra clave privada no se descifra', () => {
+    const otra = generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey;
+    expect(() => descifrar(otra, cifrarComoElWorkflow('valor', publica))).toThrow(/no es para esta clave/);
+  });
+
+  it('el formato viejo (solo RSA, en base64) se rechaza con un mensaje claro', () => {
+    expect(() => descifrar(privada, 'QUJDRA==')).toThrow(/no es el sobre de traspaso\.yml/);
+    expect(() => descifrar(privada, '{"v":2}')).toThrow(/no es el sobre de traspaso\.yml/);
+  });
 
   it('la clave pública cabe en la validación del workflow', () => {
-    const { publica } = parEfimero();
     expect(publica).toMatch(/^[A-Za-z0-9+/=]{500,1200}$/);
     expect(traspaso).toContain('^[A-Za-z0-9+/=]{500,1200}$');
   });
 
   it('un texto cifrado vacío es un error, no un secreto vacío', () => {
-    const { privada } = parEfimero();
     expect(() => descifrar(privada, '')).toThrow(/vacío/);
   });
 });

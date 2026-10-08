@@ -85,6 +85,45 @@ export function ejecutarOk(comando: string, args: string[], opciones: Parameters
   return r.salida;
 }
 
+// ---------- repositorio (docs/32 RV-208) ----------
+
+export interface Repositorio {
+  /** El titular (usuario u organización) de GitHub. */
+  propietario: string;
+  /** El nombre del repositorio, sin titular. */
+  nombre: string;
+  /** `propietario/nombre`, como lo pide `gh --repo`. */
+  completo: string;
+}
+
+/**
+ * `propietario/nombre` a partir de la URL de un remoto de GitHub (https o ssh, con o sin `.git`).
+ * Null si no es de GitHub: mejor parar que lanzar algo contra otro repositorio.
+ */
+export function repositorioDeRemoto(url: string): Repositorio | null {
+  const m = /github\.com[:/]([A-Za-z0-9-]{1,39})\/([A-Za-z0-9._-]{1,100}?)(?:\.git)?\/?$/.exec(url.trim());
+  if (!m) return null;
+  return { propietario: m[1]!, nombre: m[2]!, completo: `${m[1]}/${m[2]}` };
+}
+
+let repositorioCache: Repositorio | null = null;
+
+/**
+ * El repositorio de este checkout: la única fuente del titular y del nombre en `scripts/`. Se lee de
+ * `git remote get-url origin` (en Actions, `actions/checkout` lo deja apuntando al repositorio), y
+ * solo la primera vez que se pide: importar comun.ts no lanza git. Así, si el repositorio cambia de
+ * titular (docs/04 §16), los scripts lo siguen sin tocar el código.
+ */
+export function repositorio(): Repositorio {
+  if (repositorioCache) return repositorioCache;
+  const r = ejecutar('git', ['remote', 'get-url', 'origin']);
+  const encontrado = r.codigo === 0 ? repositorioDeRemoto(r.salida) : null;
+  if (!encontrado)
+    abortar('No sé de qué repositorio de GitHub es este checkout: `git remote get-url origin` no lo dice.');
+  repositorioCache = encontrado;
+  return encontrado;
+}
+
 // ---------- psql ----------
 
 export function rutaPsql(): string {
