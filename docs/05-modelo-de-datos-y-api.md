@@ -768,8 +768,15 @@ Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (T
 ```json
 → { "token": "…" }            (voluntario)   ·   cabecera Authorization con el JWT (jefatura, DEC-059)
 ← 200 { "foto_path": "fotos/3f9c….jpg", "url": "https://…/object/upload/sign/…", "caduca_en_s": 7200 }
-← 401 { "error": "TOKEN_INVALIDO" } · 429 { "error": "CUOTA_SUBIDAS_AGOTADA" }
+← 401 { "error": "TOKEN_INVALIDO" }
+← 429 { "error": "SIN_ESPACIO_FOTOS" | "RESERVAS_ABIERTAS" | "CUOTA_SUBIDAS_AGOTADA", "maximo"?: 6, "reintentar_en_s"?: 3600 }
 ```
+Todo tope es `429` (también `SIN_ESPACIO_FOTOS` y `RESERVAS_ABIERTAS`, 0041, docs/32 RV-220): nunca `5xx`,
+que el móvil lee como "sin servidor". Si el texto del error de la base de datos lleva
+`maximo=<n> reintentar_en_s=<s>` (como `CUOTA_PROPUESTAS_AGOTADA`, 0039), la Function devuelve esos dos
+números como campos y la cola espera hasta esa hora (RV-232); sin ellos, no van. El texto no se reenvía.
+`estadoDe` (Functions) da también `429` a `SIN_ESPACIO` (0041, RV-221), aunque `fn_proponer` la llama el
+móvil directamente y hoy no pasa por ninguna Function.
 El móvil hace `PUT` del blob a `url` con `Content-Type: image/jpeg|image/webp`. El bucket se deduce del
 dominio: `hidrantes-fotos` solo en `hidrantes-albolote.pages.dev`; staging, previsualizaciones y local,
 `hidrantes-fotos-dev`.
@@ -841,7 +848,10 @@ Según la variable `ENTORNO` del proyecto de Pages (RV-130):
 - `produccion`: todos se piden.
 - cualquier otro valor, o sin la variable (cuenta como staging, lo seguro): `purgar-fotos` y `respaldo`,
   que trabajan contra producción, → `409 { "error": "SOLO_EN_PRODUCCION" }` sin pedir nada; los demás
-  se piden en la base de datos de staging, donde nadie los despacha.
+  se piden en la base de datos de staging, donde nadie los despacha, y la respuesta lo dice:
+  `← 202 { "pedido": true, "workflow": "…", "staging": true }` (docs/32 RV-224). El panel enseña
+  entonces "En staging no se lanza: queda anotado" (RV-260). En producción la respuesta no lleva
+  `staging`; el panel solo mira `staging === true`.
 
 Un pedido pendiente del mismo trabajo (de menos de 24 h, 0040) → `409 { "error": "YA_PEDIDO" }`; la base de datos sin responder →
 `503 SERVIDOR_NO_DISPONIBLE`. `SOLO_EN_PRODUCCION` es un código solo de esta Function, no de una RPC.
