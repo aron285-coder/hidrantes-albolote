@@ -195,19 +195,14 @@ describe('avisos de jefatura por administrador (docs/32 RV-264)', () => {
     expect(temasActivos()).toEqual(['nuevas_propuestas', 'resumen_semanal']);
     como(B);
     expect(temasActivos()).toEqual([]);
-    // Cerrada la sesión de jefatura, no queda nada.
+    // Sin sesión de jefatura (el voluntario en este navegador), lo que quedó aquí cuenta, para no
+    // darle de baja a jefatura una suscripción que usa (RV-258).
     sesion.valor = { tipo: 'voluntario' };
+    expect(temasActivos()).toEqual(['nuevas_propuestas', 'resumen_semanal']);
+    // «Cerrar sesión» en el panel lo borra todo.
+    olvidarTemasJefatura();
     expect(temasActivos()).toEqual([]);
     expect([...datos.keys()].filter((k) => k.startsWith('hidrantes.push_jefatura'))).toEqual([]);
-  });
-
-  it('mientras se comprueba la sesión, lo recordado no se borra', async () => {
-    await cargarTemas();
-    sesion.valor = { tipo: 'comprobando' };
-    expect(temasActivos()).toEqual([]);
-    expect(datos.has(`hidrantes.${claveTemas(A)}`)).toBe(true);
-    olvidarTemasJefatura();
-    expect(datos.has(`hidrantes.${claveTemas(A)}`)).toBe(false);
   });
 
   it('sin suscripción en el navegador, ninguno, sin preguntar al servidor', async () => {

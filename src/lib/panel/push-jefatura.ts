@@ -65,19 +65,31 @@ export function olvidarTemasJefatura(): void {
 }
 
 /**
- * Los temas de jefatura que se recuerdan en este navegador para el administrador con sesión, sin
- * preguntar al servidor (lo usa `lib/push.ts` como respaldo, RV-258). Sin sesión de jefatura,
- * ninguno: lo recordado se borra al cerrarla. La verdad está en el servidor (`cargarTemas`).
+ * Los temas de jefatura que se recuerdan en este navegador, sin preguntar al servidor (lo usa
+ * `lib/push.ts` como respaldo, RV-258). Con sesión de jefatura, los de ese administrador; sin ella,
+ * los de cualquiera que los dejó aquí sin cerrar sesión (y la clave antigua, de antes de RV-264),
+ * para que el voluntario no dé de baja una suscripción que jefatura usa. Al pulsar «Cerrar sesión»
+ * en el panel se borra lo de ese navegador (`olvidarTemasJefatura`). La verdad está en el servidor
+ * (`cargarTemas`).
  */
 export function temasActivos(): TemaJefatura[] {
   const a = acceso();
-  if (a.tipo !== 'jefatura') {
-    // Sesión de jefatura cerrada (o nunca abierta): nada que recordar. Mientras se comprueba, se espera.
-    if (a.tipo !== 'comprobando') olvidarTemasJefatura();
-    return [];
+  const deClave = (clave: string) => {
+    const t = leer<unknown>(clave);
+    return Array.isArray(t) ? t.filter(esTema) : [];
+  };
+  if (a.tipo === 'jefatura') return deClave(claveTemas(a.correo));
+  const temas = new Set<TemaJefatura>();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(`hidrantes.${CLAVE_ANTIGUA}`))
+        deClave(k.slice('hidrantes.'.length)).forEach((t) => temas.add(t));
+    }
+  } catch {
+    // sin almacenamiento no se recuerda nada
   }
-  const t = leer<unknown>(claveTemas(a.correo));
-  return Array.isArray(t) ? t.filter(esTema) : [];
+  return [...temas];
 }
 
 const esIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
