@@ -27,8 +27,12 @@ Staging estaba desplegado con el commit probado: el último «Desplegar staging�
 
 - **Cadena de staging.** `SUPABASE_DB_URL` del environment `staging`, traída con el traspaso de
   clave efímera de §1 (las mismas funciones que `scripts/traspasar-secreto.ts`, que solo copia a
-  otro secreto de GitHub, descifrando a un archivo temporal fuera del repositorio). Ejecución del
-  workflow y artefacto borrados; el archivo, borrado al acabar. Nunca se imprimió.
+  otro secreto de GitHub). Ejecución del workflow y artefacto borrados. Nunca se imprimió.
+  *Corrección (docs/32 RV-208):* esta vez la cadena descifrada se escribió en un archivo temporal
+  fuera del repositorio, borrado al acabar. Eso no se repite: la próxima comprobación la descifra en
+  memoria y la pasa **por tubería** al proceso que la usa (stdin, o el entorno del proceso hijo con
+  `entornoPg` para `psql`), como `traspasar-secreto` se la pasa a `gh secret set`; nunca a un
+  archivo, a un argumento ni a la salida.
 - **Entrada como voluntario.** El código de acceso de staging solo está como hash bcrypt: no se
   puede canjear sin teclearlo. Se hizo lo mismo que el final de `fn_verificar_codigo`: un token
   aleatorio cuyo sha256 se guarda en `hidrantes.dispositivos` para un dispositivo nuevo, comprobado

@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { RAIZ, argumentos, ejecutarScript, log } from './lib/comun.ts';
+import { RAIZ, argumentos, ejecutarScript, log, repositorio } from './lib/comun.ts';
 import { gh } from './lib/servicios.ts';
 
 export interface Tarea {
@@ -137,7 +137,7 @@ export function crearIssues(repo: string, simular = false): void {
 
 async function principal(): Promise<void> {
   const { banderas } = argumentos();
-  crearIssues('aron285-coder/hidrantes-albolote', banderas.has('simular'));
+  crearIssues(repositorio().completo, banderas.has('simular'));
 }
 
 if (import.meta.main) ejecutarScript(principal);

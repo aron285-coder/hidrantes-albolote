@@ -859,3 +859,49 @@ describe('main dentro de la historia de la rama en los PR a main (RV-135)', { ti
     expect(calidad).toMatch(/fetch-depth: 0/);
   });
 });
+
+// docs/32 RV-209: respaldo y purga decían «gh secret set» de repositorio cuando faltaba un secreto, y
+// seguirlas devolvía los secretos de producción al repositorio, al alcance de cualquier rama (DEC-172).
+describe('las instrucciones de reparación no deshacen DEC-172 (docs/32 RV-209)', () => {
+  const scripts = path.resolve(import.meta.dirname, '../.github/scripts');
+  const textos: [string, string][] = [
+    ...archivos.map((a): [string, string] => [a, leer(a)]),
+    ...readdirSync(scripts).map((a): [string, string] => [a, readFileSync(path.join(scripts, a), 'utf8')]),
+  ];
+
+  it('ningún mensaje sugiere gh secret set sin --env', () => {
+    const malas = textos.flatMap(([a, t]) =>
+      t
+        .split('\n')
+        .filter((l) => /gh secret set\b/.test(l) && !/--env\b/.test(l))
+        .map((l) => `${a}: ${l.trim()}`),
+    );
+    expect(malas).toEqual([]);
+  });
+
+  it('ningún mensaje manda los secretos «de repositorio»', () => {
+    const malas = textos.flatMap(([a, t]) =>
+      t
+        .split('\n')
+        .filter((l) => /\becho\b/.test(l) && /secretos? (\*\*)?de repositorio/i.test(l))
+        .map((l) => `${a}: ${l.trim()}`),
+    );
+    expect(malas).toEqual([]);
+  });
+
+  it('respaldo y purga mandan a traspasar-secreto o a gh secret set --env prod-tareas', () => {
+    for (const a of ['respaldo.yml', 'purgar-fotos.yml']) {
+      expect(leer(a), a).toContain('npm run traspasar-secreto -- --secreto ');
+      expect(leer(a), a).toMatch(/--hacia prod-tareas/);
+      expect(leer(a), a).toMatch(/gh secret set \S+ --env prod-tareas/);
+    }
+  });
+
+  it('purgar-fotos trata SUPABASE_URL_PROD como variable, no como secreto', () => {
+    const purga = leer('purgar-fotos.yml');
+    expect(purga).toContain('${{ vars.SUPABASE_URL_PROD }}');
+    expect(purga).not.toMatch(/secrets\.SUPABASE_URL_PROD|secret set SUPABASE_URL_PROD/);
+    expect(purga).toContain('gh variable set SUPABASE_URL_PROD');
+    expect(purga).toContain('la variable SUPABASE_URL_PROD');
+  });
+});
