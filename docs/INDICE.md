@@ -1,6 +1,6 @@
 # Documentación · Mapa de hidrantes · Protección Civil de Albolote
 
-Estado al 7 de octubre de 2026. La referencia completa está en `00-README.md`.
+Estado al 8 de octubre de 2026. La referencia completa está en `00-README.md`.
 
 «Congelado, versionado»: no se reescribe; cada cambio es una versión nueva, anotada en su cabecera y
 pedida por una especificación (01 va por la v1.12; DEC-177).
@@ -39,7 +39,8 @@ pedida por una especificación (01 va por la v1.12; DEC-177).
 | 28 | `28-cola-sin-senales-y-pendientes.md` · detalle de la cola sin señales (RV-115), Voluntarios en el móvil (RV-116), contraste del panel oscuro (RV-117), test inestable de anchos (RV-118) y tope de los marcadores (RV-119), en dos sesiones | hecho en staging (oct 2026); producción con la siguiente release |
 | 29 | `29-inventario-y-editar.md` · panel con cinco pestañas (RV-122), Inventario con Tipo y Estado (RV-123), Editar en panel lateral con mover el punto (RV-124), enganche Directo (RV-120, RV-121), sin «Algo no funciona» (RV-125) y anonimizar por script (RV-126), en cuatro sesiones | hecho en staging (oct 2026); producción con la siguiente release |
 | 30 | `30-registro-legible-y-foco.md` · el Registro dice qué cambió (RV-127), el foco no sale de las ventanas del panel (RV-128) y lint sin advertencias (RV-129), en una sesión | hecho en staging (oct 2026); producción con la siguiente release |
-| 31 | `31-revision-completa.md` · revisión completa del 7 oct 2026: producción protegida, copias fuera de GitHub, release y defectos (RV-130 a RV-169), en cuatro sesiones y tres oleadas | hecho en staging (8 oct 2026); producción con 0.9.0 (RV-139c); la segunda copia en R2, aplazada (DEC-173) |
+| 31 | `31-revision-completa.md` · revisión completa del 7 oct 2026: producción protegida, copias fuera de GitHub, release y defectos (RV-130 a RV-169), en cuatro sesiones y tres oleadas | hecho el 8 oct 2026, en staging y en producción (0.9.0, `docs/32` RV-200); la segunda copia en R2, descartada (DEC-180) |
+| 32 | `32-segunda-revision-y-recorrido.md` · segunda revisión completa del 8 oct 2026: 0.9.0 a producción, el único respaldo vigilado, Dependabot con lista de permitidos, topes de espacio y de propuestas (0041), arreglos de campo y del panel, y recorrido completo de la app en staging (RV-200 a RV-271), en cuatro sesiones y cuatro oleadas | en curso |
 | — | `mockups/` · mockups definitivos de las especificaciones: `25-lista.html` (solo §1), `25-ficha.html` y `25-cola.html` y `27-cercanos.html` (solo la versión A) y `29-inventario-y-editar.html` (solo la versión B) | vivo |
 | — | `trabajo-en-paralelo.md` · cómo repartir una especificación grande entre tres sesiones de Claude Code (Ops, Backend, Frontend), y PAR-01 (DEC-100) | vivo |
 | — | `entornos.md` · lo que dejó el arranque (refs, buckets, secretos por nombre) | vivo |
