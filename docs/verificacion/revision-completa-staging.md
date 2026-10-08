@@ -79,4 +79,20 @@ creado en la base (nadie teclea el código), jefatura con claims de administrado
 | `npm run anonimizar -- --entorno staging` del dispositivo de prueba | ok: 4 filas, «voluntario dado de baja» |
 | Limpieza | ok: 0 propuestas pendientes y 0 incidencias abiertas; token revocado, cadena borrada |
 
-commit: 1790560a66a23f361f632e5b689c257876ae92db · resultado: verde
+Repetición con `1790560a66a23f361f632e5b689c257876ae92db`: en verde.
+
+## Repetición con 1117c8d, la de la release (8 oct 2026)
+
+Después de #539 y #542 (migración 0041), con «Desplegar staging» en verde para el commit actual de
+`develop` (run 37749352903) y `0041_espacio_topes_y_compatibilidad.sql` anotada en
+`hidrantes.migraciones_aplicadas` de staging. El método es el mismo.
+
+| Recorrido | Resultado |
+|---|---|
+| Cercanos (móvil y escritorio), alta Directo con dos fotos sin conexión y con conexión, Mis propuestas (móvil y escritorio), revisión de HID-9001 | ok (capturas renovadas) |
+| Jefatura: aprobar el alta (BOC-0006), rechazar la revisión con «prueba», `fn_editar_punto` 6 m y enganche; `detalleLegible` da «Enganche: Directo → Granada · Movido 6 m» | ok |
+| SW de staging muestra la notificación de un push | ok |
+| `npm run anonimizar -- --entorno staging` del dispositivo de prueba | ok: 4 filas, «voluntario dado de baja» |
+| Limpieza | ok: 0 propuestas pendientes y 0 incidencias abiertas; token revocado, cadena borrada |
+
+commit: 1117c8d2e86e4e1c8160d16e3eaba4480167934f · resultado: verde
