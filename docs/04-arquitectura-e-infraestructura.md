@@ -348,7 +348,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | dos veces al día (07:41 y 19:41 UTC) |
 | Despachar los trabajos que pide jefatura desde Ajustes (purgar fotos, respaldo, regenerar zona o mapa base) | GitHub Actions `despachador.yml` (`prod-tareas`): lee los pedidos de la base de producción (`fn_pedidos_pendientes`), lanza el workflow con su `GITHUB_TOKEN` y marca el pedido (`fn_marcar_pedido`); sin token de GitHub en Pages (DEC-172) | cada 15 minutos |
 | Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml`, por pedido desde Ajustes que lanza el despachador (`fn_pedir_trabajo`, DEC-172); abre un PR a `develop` con lo regenerado | bajo demanda |
-| Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de dependencias de desarrollo, con CI verde; lo demás espera a una persona, docs/31 RV-132) | semanal |
+| Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt`, con CI verde, DEC-181; lo demás espera a una revisión, que hace una sesión con `pr-review-toolkit`) | semanal |
 | Lighthouse y cabeceras | dentro de `deploy-staging.yml`, tras desplegar | cada despliegue |
 
 Regla: lo que es puro SQL va por `pg_cron`; lo que necesita `service_role` fuera de la base de datos
@@ -437,7 +437,7 @@ e2e/                    # Playwright
 | Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` en cada push a `develop` con `VERSION_CODIGO` (el último commit de `workers/`), que la vigilancia compara con `develop` (docs/20 RV-74); sin superficie HTTP (DEC-097) |
 | `avisos.yml` | solo a mano (`workflow_dispatch`) | lo mismo que el Worker, como envío de emergencia si fallara (DEC-097) |
 | `traspaso.yml` | lo lanza `npm run traspasar-secreto` (`workflow_dispatch` en `develop`) | mueve un secreto de sitio sin que nadie vea su valor: lo cifra con una clave pública RSA de un solo uso y sube solo el texto cifrado como artefacto de 1 día; el script lo descifra en memoria, lo pone en el destino con `gh secret set` y borra el artefacto y la ejecución (docs/31 §1.2, DEC-172) |
-| `automerge.yml` | PR de Dependabot (mira el autor del PR) | fusión automática, con CI verde, solo de los parches de dependencias de desarrollo; los menores, los mayores, las actions y lo que va en el bundle esperan a una persona (TR-101, docs/31 RV-132). Todas las actions de fuera del repositorio van fijadas por SHA con la etiqueta en un comentario, y `scripts/seguridad-ci.test.ts` falla si una no lo está |
+| `automerge.yml` | PR de Dependabot (mira el autor del PR) | fusión automática, con CI verde, solo de los parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt` (DEC-181; lo decide `.github/scripts/automerge-permitido.mjs`, leído con la lista desde la rama base del PR); los menores, los mayores, las actions y todo paquete fuera de la lista esperan a una revisión (TR-101, docs/31 RV-132, docs/32 RV-204). Todas las actions de fuera del repositorio van fijadas por SHA con la etiqueta en un comentario, y `scripts/seguridad-ci.test.ts` falla si una no lo está |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) La GitHub App que lo habría evitado no se hace (DEC-153) |
 
 Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml`: `ci-calidad`,
@@ -446,7 +446,10 @@ Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml
 rendimiento aparte, y falla si alguno falla o se cancela. En un PR que solo toca `docs/` o `*.md`
 fuera de `src/`, el trabajo `cambios` salta `ci-sql` y los e2e, y cuentan como correctos. En los PR,
 `ci-calidad` comprueba además que las migraciones nuevas van por encima de la última de la base y
-que ninguna aplicada cambia (`scripts/comprobar-migraciones-nuevas.ts`). DEC-100.
+que ninguna aplicada cambia (`scripts/comprobar-migraciones-nuevas.ts`). DEC-100. Los navegadores
+de Playwright salen de una caché por versión y navegadores; cada instalación tiene un tope de 225 s y
+un reintento, y cada paso que la usa (también en `ci-sql` y `deploy-staging.yml`) lleva
+`timeout-minutes: 8` (docs/32 RV-207).
 
 `main` está protegida: solo PR con CI verde. El *environment* `production` exige una aprobación,
 que da la puerta automática de `npm run publicar` (§12.1, DEC-176).
@@ -505,7 +508,10 @@ Fase 0.
   valores de enum sí; renombrar o eliminar, en dos pasos separados por un despliegue.
   Lo comprueba `ci-sql` en cada PR que toque `supabase/migrations` (`npm run compatibilidad`,
   TR-107): monta un worktree de la rama publicada, construye aquel frontend con sus Pages Functions
-  y corre **sus** casos de integración contra la base de datos ya migrada con lo que trae el PR.
+  y corre **sus** casos de integración contra la base de datos ya migrada con lo que trae el PR. En
+  un PR a `main`, la versión publicada es el commit que sirve producción (`<meta name="commit">`); si
+  no se puede leer, compara con `origin/main` y deja un aviso. En un PR a `main`, `ci-sql` no se
+  salta aunque solo traiga documentación (docs/32 RV-206).
 - Los tres procedimientos (revertir frontend, revertir migración, restaurar respaldo) están escritos
   paso a paso en **15**.
 
@@ -517,8 +523,8 @@ paso mira el estado real y sigue (PR ya fusionado, deploy ya aprobado…):
 
 | Paso | Qué hace |
 |---|---|
-| 1 · `release` | Localiza el PR abierto de release-please (rama `release-please--…`, etiqueta `autorelease: pending`). Si no hay CI de `pull_request` para su cabeza, hace el empujón de DEC-079 sin cambiar de rama: `git commit-tree` de un commit vacío encima de la cabeza y `git push origin <sha>:refs/heads/<rama>`. Espera los checks obligatorios y lo fusiona con **squash**. |
-| 2 · `main` | Abre el PR `develop → main` (o usa el abierto), espera su CI y lo fusiona con **merge commit**, nunca squash (DEC-096; `ci-calidad` lo comprueba, RV-135). |
+| 1 · `release` | Localiza el PR abierto de release-please (rama `release-please--…`, etiqueta `autorelease: pending`). Si no hay CI de `pull_request` para su cabeza, hace el empujón de DEC-079 sin cambiar de rama: `git commit-tree` de un commit vacío encima de la cabeza y `git push origin <sha>:refs/heads/<rama>`. Espera a que estén en verde **todos** los checks obligatorios de la protección de `develop` (uno que aún no existe, como `ci-e2e` mientras corren sus partes, no cuenta como verde) y lo fusiona con **squash**. |
+| 2 · `main` | Abre el PR `develop → main` (o usa el abierto), espera a que estén en verde todos los checks obligatorios de la protección de `main` y lo fusiona con **merge commit**, nunca squash (DEC-096; `ci-calidad` lo comprueba, RV-135). |
 | 3 · `despliegue` | Espera a que la ejecución de `deploy-prod.yml` de ese merge pida la aprobación (`waiting`). |
 | 4 · `puerta` | La puerta automática, abajo. |
 | 5 · `aprobar` | Puerta en verde: `POST repos/…/actions/runs/{id}/pending_deployments` con `state: approved`, el `id` del *environment* `production` y el resumen de la puerta como comentario. En rojo: lo mismo con `state: rejected`, y abre una issue con la etiqueta `bloquea-release` y el motivo; termina con error. |
@@ -527,10 +533,15 @@ paso mira el estado real y sigue (PR ya fusionado, deploy ya aprobado…):
 **La puerta** aprueba solo si se cumplen las cuatro:
 
 - la CI (`ci.yml`) del *push* a `main` de ese commit ha terminado en verde;
-- la comprobación en staging (RV-139b) está en verde **con el mismo commit de `develop`** que llega a
-  `main` (el segundo padre del merge). Se admite un commit anterior de `develop` si desde él solo
-  cambian `docs/**`, `CHANGELOG.md`, `.release-please-manifest.json` y la línea `"version"` de
-  `package.json` y `package-lock.json`: lo que añade el propio registro y el PR de release;
+- la comprobación en staging (RV-139b) está en verde, **y además** hay una ejecución de
+  `deploy-staging.yml` y otra de `ci.yml` con `conclusion: success` y el `head_sha` de la marca, y
+  staging sirve ese código (`<meta name="commit">`). Staging puede servir un commit posterior a la
+  marca (como el que añade el propio registro) si viene después de ella, está en lo que se publica y
+  entre los dos solo cambia lo permitido. Lo permitido entre la marca y `main` (el segundo padre del
+  merge) es `docs/**`, `.release-please-manifest.json`, la línea `"version"` de `package.json` y
+  `package-lock.json`, y en `CHANGELOG.md` **solo las líneas de los commits del bot en el PR de
+  release-please**: un commit de otro PR que lo toque, o un retoque a mano en la rama del PR de
+  release, cierra la puerta. `CHANGELOG.md` ya no está exento por su nombre (docs/32 RV-205);
 - `npm run comprobar-produccion -- --completo` termina con 0 (con 1 falta algo imprescindible; con 2
   algo imprescindible queda sin comprobar: las dos cierran la puerta). Ese script lee
   `deploy-prod.yml` y las migraciones del checkout local, así que `publicar` se lanza desde
