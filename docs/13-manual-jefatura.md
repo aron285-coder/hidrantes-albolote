@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.8 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 

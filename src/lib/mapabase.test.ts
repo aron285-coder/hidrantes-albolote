@@ -6,6 +6,9 @@ import { gzipSync } from 'node:zlib';
 import info from '../../datos/mapabase.json';
 import { escribirPmtiles, teselasDelRecuadro } from '../../scripts/lib/pmtiles.ts';
 
+const anotarError = vi.hoisted(() => vi.fn());
+vi.mock('./errores', () => ({ anotarError }));
+
 /** Un PMTiles v3 del tamaño esperado: los 7 bytes de la firma, la versión y ceros. */
 function pmtiles(tamano = info.bytes, version = 3, firma = 'PMTiles'): Uint8Array {
   const b = new Uint8Array(tamano);
@@ -135,6 +138,80 @@ describe('el mapa base se valida antes de guardarlo (RV-68)', () => {
     const m = await cargar();
     expect(await m.descargarMapabase()).toBe(true);
     expect(guardado.size).toBe(1);
+  });
+});
+
+// docs/32 RV-235: si el servidor deja de mandar trozos, "Descargando… N %" no se queda para siempre.
+describe('la descarga del mapa base no se queda colgada (RV-235)', () => {
+  /** Un cuerpo que manda un trozo y luego se calla. */
+  function cuerpoQueSePara() {
+    let cancelado = false;
+    const stream = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(pmtiles().slice(0, 1000));
+      },
+      cancel() {
+        cancelado = true;
+      },
+    });
+    return { stream, cancelado: () => cancelado };
+  }
+
+  it('sin datos en el límite, se aborta, se libera y se puede reintentar', async () => {
+    prepararEntorno({ enLinea: true, tipo: 'wifi' });
+    const parado = cuerpoQueSePara();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(parado.stream, { headers: { 'content-length': String(info.bytes) } })),
+    );
+    const m = await cargar();
+    m.LIMITES_DESCARGA.sinDatosMs = 50;
+    expect(await m.descargarMapabase()).toBe(false);
+    expect(m.estadoMapabase()).toMatchObject({ progreso: null, fallo: true, parada: true, descargado: null });
+    expect(parado.cancelado()).toBe(true);
+    // Que se sepa también en el panel (errores del cliente), no solo en el móvil.
+    expect(anotarError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'mapabase: 30 s sin datos' }),
+      'mapabase',
+    );
+    expect(guardado.size).toBe(0);
+
+    // Reintentar: otra descarga, que esta vez llega entera.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(new Blob([cuerpo as BlobPart]), { headers: { 'content-length': String(cuerpo.length) } }),
+      ),
+    );
+    expect(await m.descargarMapabase()).toBe(true);
+    expect(m.estadoMapabase()).toMatchObject({ fallo: false, parada: false });
+  });
+
+  it('también si la petición ni siquiera contesta', async () => {
+    prepararEntorno({ enLinea: true, tipo: 'wifi' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        (_url: string, init?: RequestInit) =>
+          new Promise<Response>((_, mal) => init?.signal?.addEventListener('abort', () => mal(init.signal!.reason))),
+      ),
+    );
+    const m = await cargar();
+    m.LIMITES_DESCARGA.sinDatosMs = 50;
+    expect(await m.descargarMapabase()).toBe(false);
+    expect(m.estadoMapabase()).toMatchObject({ progreso: null, parada: true });
+  });
+
+  it('un fallo que no es parada no se presenta como parada', async () => {
+    prepararEntorno({ enLinea: true, tipo: 'wifi' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('no', { status: 500 })),
+    );
+    const m = await cargar();
+    expect(await m.descargarMapabase()).toBe(false);
+    expect(m.estadoMapabase()).toMatchObject({ fallo: true, parada: false });
   });
 });
 

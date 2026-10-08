@@ -140,9 +140,9 @@ export function MisPropuestas() {
                   <p className="bg-rojo-100 text-rojo-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
                     {textoFallo(c.fallo)}
                   </p>
-                ) : textoEspera(c) ? (
+                ) : textoEspera(c, ahora) ? (
                   <p className="bg-ambar-100 text-ambar-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
-                    {textoEspera(c)}
+                    {textoEspera(c, ahora)}
                   </p>
                 ) : (
                   ahora - c.creada_en > ATASCADO_MS && (
