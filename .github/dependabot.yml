@@ -1,6 +1,7 @@
 # TR-101: dependencias al día sin intervención en lo que no llega a producción. Solo los parches de
-# las dependencias de desarrollo se fusionan solos (automerge.yml); los menores, los mayores y todo
-# lo que va en el bundle esperan a una persona (docs/31 RV-132, DEC-172).
+# desarrollo de .github/automerge-permitidos.txt se fusionan solos (automerge.yml); los menores, los
+# mayores y todo lo que va en el bundle o corre con los secretos de producción esperan a una revisión
+# (docs/31 RV-132, DEC-172; docs/32 RV-204, DEC-181).
 #
 # cooldown: una versión recién publicada no se propone hasta pasados 7 días. Si un paquete o una
 # action se publica comprometida, suele detectarse y retirarse antes (docs/31 RV-132).
@@ -17,12 +18,24 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: chore(deps)
-    # El primer grupo que encaja se queda la dependencia: los parches de desarrollo van en su PR,
-    # que es el único que automerge.yml fusiona solo.
+    # El primer grupo que encaja se queda la dependencia: los parches de desarrollo de la lista de
+    # permitidos van en su PR, que es el único que automerge.yml fusiona solo. Los patrones son los
+    # de .github/automerge-permitidos.txt, en el mismo orden (scripts/seguridad-ci.test.ts).
     groups:
       parches-desarrollo:
         dependency-type: development
         update-types: [patch]
+        patterns:
+          - 'eslint*'
+          - '@eslint/*'
+          - 'prettier'
+          - '@types/*'
+          - 'typescript-eslint'
+          - 'globals'
+          - '@playwright/test'
+          - '@axe-core/playwright'
+          - 'vitest'
+          - '@vitest/*'
       resto:
         update-types: [minor, patch]
 

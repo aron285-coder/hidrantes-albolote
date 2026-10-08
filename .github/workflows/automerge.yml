@@ -1,6 +1,7 @@
-# TR-101 y docs/31 RV-132 (DEC-172): solo los parches de las dependencias de desarrollo de Dependabot
-# se fusionan solos, con CI verde. Los menores, los mayores, las actions y cualquier dependencia que
-# vaya en el bundle de producción abren PR y esperan a que una persona los mire.
+# TR-101, docs/31 RV-132 (DEC-172) y docs/32 RV-204 (DEC-181): Dependabot solo fusiona solo los
+# parches de desarrollo de las dependencias de .github/automerge-permitidos.txt, con CI verde. Lo
+# demás (menores, mayores, actions y todo lo que va en el bundle o corre con los secretos de
+# producción: vite, wrangler, tsx, openpgp, workbox…) espera a una revisión con pr-review-toolkit.
 #
 # Se mira el autor del PR, no el actor del evento: el actor es quien provoca el evento (por ejemplo, quien
 # vuelve a lanzar la ejecución), y no dice quién escribió el cambio.
@@ -16,19 +17,28 @@ jobs:
   fusionar:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
-      # Cada dependencia del PR (un grupo trae varias) tiene que ser de desarrollo y de parche.
-      - name: Fusionar si todo es un parche de desarrollo
+      # La lista y el script, de la rama base: el PR no puede cambiar lo que decide si se fusiona.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          sparse-checkout: |
+            .github/automerge-permitidos.txt
+            .github/scripts/automerge-permitido.mjs
+          sparse-checkout-cone-mode: false
+      # Cada dependencia del PR (un grupo trae varias): de desarrollo, de parche y en la lista.
+      - id: decidir
+        name: ¿Todo es un parche de desarrollo de la lista de permitidos?
+        env:
+          DEPENDENCIAS: ${{ steps.meta.outputs.updated-dependencies-json }}
+        run: node .github/scripts/automerge-permitido.mjs .github/automerge-permitidos.txt >> "$GITHUB_OUTPUT"
+      - name: Fusionar con CI verde
+        if: steps.decidir.outputs.decision == 'fusionar'
         env:
           PR: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DEPENDENCIAS: ${{ steps.meta.outputs.updated-dependencies-json }}
-        run: |
-          set -euo pipefail
-          if printf '%s' "$DEPENDENCIAS" | jq -e 'length > 0 and all(.[]; .dependencyType == "direct:development" and .updateType == "version-update:semver-patch")' >/dev/null; then
-            gh pr merge --auto --squash "$PR"
-          else
-            echo "### Dependabot: este PR espera a una persona (no es solo parches de desarrollo)" >> "$GITHUB_STEP_SUMMARY"
-          fi
+        run: gh pr merge --auto --squash "$PR"

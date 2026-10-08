@@ -35,8 +35,10 @@ jobs:
         run: |
           set -euo pipefail
           source .github/scripts/hay-codigo.sh
-          # En push a develop o main (y a mano), siempre se prueba todo.
-          if [ "$EVENTO" != pull_request ]; then
+          # En push a develop o main (y a mano), siempre se prueba todo. En un PR a main también:
+          # ci-sql (y en él la compatibilidad contra lo que sirve producción, RV-206) no se puede
+          # saltar en lo que va a producción, aunque el PR solo traiga documentación.
+          if [ "$EVENTO" != pull_request ] || [ "$BASE" = main ]; then
             echo "codigo=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -168,6 +170,11 @@ jobs:
           esperada=$(node -p "require('./datos/mapabase.json').version")
           guardada=$(psql -X -A -t -v ON_ERROR_STOP=1 "postgresql://postgres:postgres@127.0.0.1:55422/postgres" -c "select hidrantes.fn_config('version_mapabase', 'null') #>> '{}';") # detectar-secretos:permitir (Supabase local efímero)
           [ "$esperada" = "$guardada" ] || { echo "::error::version_mapabase es '$guardada' y datos/mapabase.json dice '$esperada'"; exit 1; }
+      # Chromium para la integración de abajo, con tope y un reintento (docs/32 RV-207).
+      - uses: ./.github/actions/navegadores
+        timeout-minutes: 8
+        with:
+          navegadores: chromium
       - name: Pages Functions con wrangler pages dev contra Supabase local
         run: |
           npm run arranque -- --local
@@ -178,7 +185,6 @@ jobs:
           # Las ocho pruebas de intrusión de TR-40, con la anon key desde fuera (11 §5).
           npm run intrusion || { tail -50 wrangler.log; exit 1; }
           # Integración del frontend con la pila real (Fase 4 en adelante): mismo paso, mismo wrangler.
-          npx playwright install --with-deps chromium
           INTEGRACION=1 npm run e2e || { tail -50 wrangler.log; exit 1; }
           # El siguiente paso levanta su propio wrangler en el mismo puerto con el frontend anterior.
           pkill -f 'wrangler pages dev' || true
@@ -214,6 +220,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
       - uses: ./.github/actions/navegadores
+        timeout-minutes: 8
       - name: E2e (sin los de rendimiento), parte ${{ matrix.parte }} de 3
         run: npx playwright test --grep-invert @rendimiento --fully-parallel --shard=${{ matrix.parte }}/3
       - if: failure()
@@ -234,6 +241,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
       - uses: ./.github/actions/navegadores
+        timeout-minutes: 8
       - name: E2e de rendimiento, un worker
         run: npx playwright test --grep @rendimiento --workers=1
       - if: failure()
@@ -290,6 +298,7 @@ jobs:
         uses: ./.github/actions/preparar
       - if: steps.pantallas.outputs.tocan == 'true'
         uses: ./.github/actions/navegadores
+        timeout-minutes: 8
       - name: Capturas de las pantallas
         if: steps.pantallas.outputs.tocan == 'true'
         run: npx playwright test e2e/vistas.spec.ts

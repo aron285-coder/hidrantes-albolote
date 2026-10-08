@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { adaptarColumnasPermitidas, adaptarSesiones, referenciaPorDefecto, tocaMigraciones } from './compatibilidad.ts';
+import {
+  AVISO_SIN_PRODUCCION,
+  URL_PRODUCCION,
+  adaptarColumnasPermitidas,
+  adaptarSesiones,
+  elegirReferencia,
+  leerCommitProduccion,
+  referenciaPorDefecto,
+  tocaMigraciones,
+} from './compatibilidad.ts';
 
 describe('referenciaPorDefecto', () => {
   it('en un PR, la rama contra la que se fusiona: es la que está publicada', () => {
@@ -10,6 +19,54 @@ describe('referenciaPorDefecto', () => {
   it('fuera de un PR, develop, que es lo que hay en staging', () => {
     expect(referenciaPorDefecto({})).toBe('origin/develop');
     expect(referenciaPorDefecto({ GITHUB_BASE_REF: '' })).toBe('origin/develop');
+  });
+});
+
+// docs/32 RV-206: en un PR a main, contra lo que de verdad sirve producción, que puede ir por detrás.
+describe('elegirReferencia', () => {
+  const SHA = 'c37829132d4fcac60c9820abb122fe0bacca0d13';
+
+  it('en un PR a main, el commit de <meta name="commit"> de producción', () => {
+    expect(elegirReferencia({ GITHUB_BASE_REF: 'main' }, SHA)).toEqual({ ref: SHA, aviso: null });
+  });
+
+  it('si no se puede leer, origin/main con un aviso', () => {
+    expect(elegirReferencia({ GITHUB_BASE_REF: 'main' }, null)).toEqual({
+      ref: 'origin/main',
+      aviso: AVISO_SIN_PRODUCCION,
+    });
+    // Un commit corto no se puede traer con git fetch: tampoco vale.
+    expect(elegirReferencia({ GITHUB_BASE_REF: 'main' }, SHA.slice(0, 7)).ref).toBe('origin/main');
+  });
+
+  it('en un PR a develop, o fuera de un PR, como antes', () => {
+    expect(elegirReferencia({ GITHUB_BASE_REF: 'develop' }, SHA)).toEqual({ ref: 'origin/develop', aviso: null });
+    expect(elegirReferencia({}, null)).toEqual({ ref: 'origin/develop', aviso: null });
+  });
+});
+
+describe('leerCommitProduccion', () => {
+  const SHA = 'c37829132d4fcac60c9820abb122fe0bacca0d13';
+  const respuesta = (ok: boolean, html: string) => async () => ({ ok, text: async () => html });
+
+  it('lee el commit de la portada de producción', async () => {
+    let pedida = '';
+    const commit = await leerCommitProduccion(async (url) => {
+      pedida = url;
+      return { ok: true, text: async () => `<head><meta name="commit" content="${SHA}"></head>` };
+    });
+    expect(commit).toBe(SHA);
+    expect(pedida).toBe(URL_PRODUCCION);
+  });
+
+  it('null si no responde, responde con error o no dice su commit', async () => {
+    expect(await leerCommitProduccion(respuesta(false, ''))).toBeNull();
+    expect(await leerCommitProduccion(respuesta(true, '<head></head>'))).toBeNull();
+    expect(
+      await leerCommitProduccion(async () => {
+        throw new Error('timeout');
+      }),
+    ).toBeNull();
   });
 });
 
