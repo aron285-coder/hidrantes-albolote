@@ -697,7 +697,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Algún valor está fuera de rango: revisa los parámetros.` ·
 `Tu cuenta ya no tiene acceso de administrador.` ·
 `Esta acción aún no está configurada en el servidor.` ·
-`No se ha podido completar. Inténtalo de nuevo.` · `Esto solo se hace en producción.` · `Ya está pedido: empezará en unos minutos.` (docs/31 RV-146).
+`No se ha podido completar. Inténtalo de nuevo.` · `Esto solo se hace en producción.` · `Ya está pedido: empezará en unos minutos.` (docs/31 RV-146). Revocar un móvil desde Salud (docs/32 RV-262): `No hay ningún móvil con ese identificador.` · `Ese identificador no vale o es de más de un móvil: no se ha revocado ninguno.` · avisos de jefatura sin Service Worker (RV-264): `Los avisos no responden en este navegador. Recarga la página.`
 
 **Panel: Editar (docs/29 RV-124, DEC-169).** `Editar` · `Ubicación` · `[Tipo de enganche] · cambia` · `antes:` · `—` · `antes · [6 m]` ·
 `⚠ Esto queda fuera de la zona habitual.` · `Has movido el punto [30 m]: revisa la dirección.` ·
@@ -759,12 +759,12 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Errores de la aplicación (7 días)` · `Puntos sin dirección deducida` · `Último respaldo` ·
 `Última vigilancia` · `todo respondía` · `con avisos: mira las issues` ·
 `Almacenamiento usado` ·
-`Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073) ·
+`Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073; sin los datos de 0041) · con 0041 (docs/32 RV-262): `Las fotos ocupan el [72] % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.` (desde el 70 % del tope `max_bytes_fotos`, DEC-182) · `[200,0] MB · [26,9] % de [800,0] MB` (espacio de fotos y base de datos contra su tope) · `[200,0 MB · 25 % de 800,0 MB] · medido en el último respaldo` (sin lectura en vivo del bucket, `fotos_origen = respaldo`) · `Móviles con más fotos pedidas (24 h)` · `[37] fotos · [4] sin subir` · `Ningún móvil ha pedido fotos en las últimas 24 h.` · `Revocar este móvil` (nombre accesible `Revocar este móvil ([abcd1234])`) · `revocado` · `El móvil [abcd1234] se queda sin acceso: tendrá que volver a escribir el código de acceso. Sus fotos pedidas y sin subir dejan de contar.` · `Revocar` · `Móvil [abcd1234] revocado.` ·
 `Zona de cobertura · mapa base` · `Callejero sin conexión` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Base de datos` · `[38] MB de [500] MB` · `Tareas programadas` ·
 `[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` · `no está programada` (tarea de pg_cron que falta, RV-56) · debajo del título, `Ahora mismo` · `Según la vigilancia de [hace 13 h]` · `Según la última vigilancia` (docs/22 RV-92) · `lleva más de un día sin pasar` (última vigilancia de más de 26 h, en tono de aviso, RV-93) ·
 `Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) · `no se mide en pruebas` (Almacenamiento usado en staging sin dato, docs/23 RV-98, DEC-143) ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
-`Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.` ·
+`Se ejecutan fuera de la aplicación y tardan unos minutos. Debajo, los últimos pedidos y qué ha pasado con cada uno.` · `Últimos pedidos` · `Todavía no se ha pedido nada.` · `pedido` · `lanzado` · `error: [motivo]` · `error` (los 5 últimos de `fn_pedidos_recientes`, docs/32 RV-260) ·
 `"[nombre]": pedido. Empezará en unos minutos.` (el panel deja un pedido que recoge un workflow, docs/31 RV-146) · `"[nombre]": pedido. En staging no se lanza: queda anotado.` (la respuesta lleva `staging: true`, docs/32 RV-224 y RV-260) · `Solo en producción` (debajo de «Purgar fotos huérfanas» y «Respaldo ahora», deshabilitados fuera de producción, RV-167) · `Avisos para jefatura` ·
 `Notificaciones en este navegador. Opcionales y apagadas por defecto.` ·
 `Nuevas propuestas pendientes` · `agrupadas: como mucho una por hora` · `Resumen semanal` ·

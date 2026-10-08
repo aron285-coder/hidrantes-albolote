@@ -9,6 +9,7 @@ import { useCarga } from '@/hooks/carga';
 import { useConexion, usePuntos } from '@/hooks/estado';
 import { useReloj } from '@/hooks/reloj';
 import { salirDeGoogle } from '@/lib/acceso';
+import { olvidarTemasJefatura } from '@/lib/panel/push-jefatura';
 import { reintentarAhora } from '@/lib/conexion';
 import { hace } from '@/lib/formato';
 import { contar } from '@/lib/panel/consultas';
@@ -154,7 +155,11 @@ function Cabecera({ correo }: { correo: string }) {
         </Link>
         <button
           type="button"
-          onClick={() => void salirDeGoogle()}
+          // Lo que se recuerda de los avisos de este administrador se borra al salir (docs/32 RV-264).
+          onClick={() => {
+            olvidarTemasJefatura();
+            void salirDeGoogle();
+          }}
           className="flex min-h-11 items-center gap-1 rounded px-2 hover:bg-white/10"
         >
           <LogOut size={16} aria-hidden />

@@ -1,8 +1,9 @@
 // Avisos push para jefatura (FR-164): nuevas propuestas (agrupadas, como mucho una por hora) y
 // resumen semanal de los lunes. Opcionales y apagados por defecto, como los del voluntario.
 
-import { SIN_SERVIDOR, rpc } from '../api';
-import { escribir, leer } from '../almacen';
+import { acceso } from '../acceso';
+import { type Resultado, SIN_SERVIDOR, rpc } from '../api';
+import { borrar, escribir, leer } from '../almacen';
 import { anotarError } from '../errores';
 
 import { jwt } from './consultas';
@@ -10,10 +11,86 @@ import { jwt } from './consultas';
 export type TemaJefatura = 'nuevas_propuestas' | 'resumen_semanal';
 export type EstadoPushJefatura = 'no_disponible' | 'instalar_primero' | 'denegado' | 'listo';
 
-const CLAVE = 'push_jefatura';
-/** La que marca `activarPush` del voluntario (lib/push.ts) cuando tiene los avisos activos aquí. */
-const CLAVE_VOLUNTARIO = 'push';
+const TEMAS: readonly TemaJefatura[] = ['nuevas_propuestas', 'resumen_semanal'];
+const esTema = (t: unknown): t is TemaJefatura => TEMAS.includes(t as TemaJefatura);
+
+/**
+ * Donde hasta docs/31 se recordaban los temas en este navegador, sin saber de qué administrador
+ * eran: con dos en el mismo navegador, uno veía los del otro (docs/32 RV-264). La clave vieja se
+ * borra; los temas se preguntan al servidor y, como respaldo, se recuerdan por administrador en
+ * `push_jefatura:<hash del correo>`, que se borra al cerrar la sesión de jefatura.
+ */
+const CLAVE_ANTIGUA = 'push_jefatura';
+const PREFIJO_TEMAS = 'push_jefatura:';
 const PUBLICA = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+/**
+ * La clave de los temas de un administrador: un hash del correo (FNV-1a de 64 bits), para no dejar
+ * el correo escrito en la clave. Basta con que no se confundan dos administradores.
+ */
+export function claveTemas(correo: string): string {
+  let h = 0xcbf29ce484222325n;
+  for (const c of new TextEncoder().encode(correo.trim().toLowerCase())) {
+    h = BigInt.asUintN(64, (h ^ BigInt(c)) * 0x100000001b3n);
+  }
+  return PREFIJO_TEMAS + h.toString(16).padStart(16, '0');
+}
+
+/** El correo de jefatura con sesión ahora, o null. */
+function correoJefatura(): string | null {
+  const a = acceso();
+  return a.tipo === 'jefatura' ? a.correo : null;
+}
+
+/** Lo que se recuerda de este administrador en este navegador (respaldo de `temasActivos`). */
+function recordar(temas: TemaJefatura[]): void {
+  const correo = correoJefatura();
+  if (!correo) return;
+  if (temas.length) escribir(claveTemas(correo), temas);
+  else borrar(claveTemas(correo));
+}
+
+/** Borra lo que se recuerda de los avisos de jefatura en este navegador, de todos los administradores. */
+export function olvidarTemasJefatura(): void {
+  try {
+    const claves: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(`hidrantes.${CLAVE_ANTIGUA}`)) claves.push(k);
+    }
+    for (const k of claves) localStorage.removeItem(k);
+  } catch {
+    // sin almacenamiento no hay nada que borrar
+  }
+}
+
+/**
+ * Los temas de jefatura que se recuerdan en este navegador, sin preguntar al servidor (lo usa
+ * `lib/push.ts` como respaldo, RV-258). Con sesión de jefatura, los de ese administrador; sin ella,
+ * los de cualquiera que los dejó aquí sin cerrar sesión (y la clave antigua, de antes de RV-264),
+ * para que el voluntario no dé de baja una suscripción que jefatura usa. Al pulsar «Cerrar sesión»
+ * en el panel se borra lo de ese navegador (`olvidarTemasJefatura`). La verdad está en el servidor
+ * (`cargarTemas`).
+ */
+export function temasActivos(): TemaJefatura[] {
+  const a = acceso();
+  const deClave = (clave: string) => {
+    const t = leer<unknown>(clave);
+    return Array.isArray(t) ? t.filter(esTema) : [];
+  };
+  if (a.tipo === 'jefatura') return deClave(claveTemas(a.correo));
+  const temas = new Set<TemaJefatura>();
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(`hidrantes.${CLAVE_ANTIGUA}`))
+        deClave(k.slice('hidrantes.'.length)).forEach((t) => temas.add(t));
+    }
+  } catch {
+    // sin almacenamiento no se recuerda nada
+  }
+  return [...temas];
+}
 
 const esIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent);
 const instalada = () =>
@@ -27,9 +104,6 @@ export function estadoPushJefatura(): EstadoPushJefatura {
   if (Notification.permission === 'denied') return 'denegado';
   return 'listo';
 }
-
-/** Temas activos en este navegador. El servidor guarda la suscripción; aquí solo se recuerda qué se pidió. */
-export const temasActivos = (): TemaJefatura[] => leer<TemaJefatura[]>(CLAVE) ?? [];
 
 function claveBinaria(base64url: string): Uint8Array<ArrayBuffer> {
   const b64 = base64url
@@ -62,29 +136,56 @@ function registroListo(limiteMs: number): Promise<ServiceWorkerRegistration> {
   ]).finally(() => clearTimeout(t));
 }
 
+/** Anota lo que falla en una RPC, salvo la falta de cobertura, que no es un fallo de la aplicación. */
+function anotarRpc(nombre: string, codigo: string) {
+  if (codigo !== SIN_SERVIDOR) anotarError(new Error(`${nombre}: ${codigo}`.slice(0, 500)), 'push-jefatura');
+}
+
 /**
- * Sin temas: se borra en el servidor **solo** la suscripción de jefatura de este navegador
- * (`fn_borrar_suscripcion_push_admin`, 0040). La del navegador se comparte con la del voluntario
- * (0030): solo se da de baja si el voluntario no tiene los avisos activos aquí (docs/31 RV-167).
+ * Los temas del administrador que ha entrado, en este navegador, según el servidor
+ * (`fn_suscripcion_push_admin`, 0041, docs/32 RV-264). Sin suscripción en el navegador, ninguno. Nada
+ * se recuerda en el navegador: con dos administradores en el mismo, cada uno ve solo los suyos.
+ * `limiteSwMs` solo se cambia en los tests.
  */
-async function quitarTodos(registro: ServiceWorkerRegistration): Promise<ResultadoTemas> {
+export async function cargarTemas({ limiteSwMs = LIMITE_SW_MS } = {}): Promise<Resultado<TemaJefatura[]>> {
+  borrar(CLAVE_ANTIGUA);
+  if (estadoPushJefatura() !== 'listo') return { ok: true, datos: [] };
+  let suscripcion: PushSubscription | null;
+  try {
+    suscripcion = await (await registroListo(limiteSwMs)).pushManager.getSubscription();
+  } catch (e) {
+    anotarError(errorSinDatos(e, 'leer'), 'push-jefatura');
+    return { ok: false, codigo: 'SERVICE_WORKER' };
+  }
+  if (!suscripcion) return { ok: true, datos: [] };
+  const r = await rpc<{ suscrita?: boolean; temas?: unknown }>('fn_suscripcion_push_admin', {
+    endpoint: suscripcion.endpoint,
+  });
+  if (!r.ok) {
+    anotarRpc('fn_suscripcion_push_admin', r.codigo);
+    return r;
+  }
+  const temas = Array.isArray(r.datos?.temas) ? r.datos.temas.filter(esTema) : [];
+  recordar(temas);
+  return { ok: true, datos: temas };
+}
+
+/**
+ * Sin temas: se borra en el servidor la fila de jefatura **del administrador que llama** en este
+ * navegador (`fn_borrar_suscripcion_push_admin`, 0041 RV-225). La suscripción del navegador no se
+ * da de baja: la pueden estar usando el voluntario u otro administrador en este mismo navegador, y
+ * sin filas en el servidor no llega nada por ella (docs/32 RV-264).
+ */
+async function quitarTodos(registro: ServiceWorkerRegistration, antes: TemaJefatura[]): Promise<ResultadoTemas> {
   const suscripcion = await registro.pushManager.getSubscription();
   if (suscripcion) {
     const r = await rpc('fn_borrar_suscripcion_push_admin', { endpoint: suscripcion.endpoint });
     if (!r.ok) {
-      if (r.codigo !== SIN_SERVIDOR) {
-        anotarError(new Error(`fn_borrar_suscripcion_push_admin: ${r.codigo}`.slice(0, 500)), 'push-jefatura');
-      }
-      return { temas: temasActivos(), ok: false };
-    }
-    if (!leer<boolean>(CLAVE_VOLUNTARIO)) {
-      // Borrada ya en el servidor, no llegará nada aunque esto falle: se anota y basta.
-      await suscripcion
-        .unsubscribe()
-        .catch((e: unknown) => anotarError(errorSinDatos(e, 'unsubscribe'), 'push-jefatura'));
+      anotarRpc('fn_borrar_suscripcion_push_admin', r.codigo);
+      return { temas: antes, ok: false };
     }
   }
-  escribir(CLAVE, []);
+  recordar([]);
   return { temas: [], ok: true };
 }
 
@@ -96,23 +197,26 @@ export interface ResultadoTemas {
 
 /**
  * Deja los temas que se le pasan: con alguno, pide permiso y guarda la suscripción; sin ninguno,
- * la borra. Nunca lanza ni se queda esperando (docs/31 RV-167): si algo falla, devuelve los temas
- * que siguen activos con `ok: false`, y lo que no depende de jefatura queda anotado (TR-90).
- * `limiteSwMs` solo se cambia en los tests.
+ * borra la fila de este administrador. Nunca lanza ni se queda esperando (docs/31 RV-167): si algo
+ * falla, devuelve `antes` (los temas que había) con `ok: false`, y lo que no depende de jefatura
+ * queda anotado (TR-90). `limiteSwMs` solo se cambia en los tests.
  */
-export async function fijarTemas(temas: TemaJefatura[], { limiteSwMs = LIMITE_SW_MS } = {}): Promise<ResultadoTemas> {
+export async function fijarTemas(
+  temas: TemaJefatura[],
+  { antes = [] as TemaJefatura[], limiteSwMs = LIMITE_SW_MS } = {},
+): Promise<ResultadoTemas> {
   if (!PUBLICA) return { temas: [], ok: false };
   let registro: ServiceWorkerRegistration;
   try {
     registro = await registroListo(limiteSwMs);
   } catch (e) {
     anotarError(errorSinDatos(e, 'serviceWorker.ready'), 'push-jefatura');
-    return { temas: temasActivos(), ok: false };
+    return { temas: antes, ok: false };
   }
   try {
-    if (!temas.length) return await quitarTodos(registro);
+    if (!temas.length) return await quitarTodos(registro, antes);
     const permiso = await Notification.requestPermission();
-    if (permiso !== 'granted') return { temas: temasActivos(), ok: false };
+    if (permiso !== 'granted') return { temas: antes, ok: false };
     let suscripcion: PushSubscription;
     try {
       suscripcion =
@@ -120,22 +224,19 @@ export async function fijarTemas(temas: TemaJefatura[], { limiteSwMs = LIMITE_SW
         (await registro.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: claveBinaria(PUBLICA) }));
     } catch (e) {
       anotarError(errorSinDatos(e, 'subscribe'), 'push-jefatura');
-      return { temas: temasActivos(), ok: false };
+      return { temas: antes, ok: false };
     }
     const r = await rpc('fn_guardar_suscripcion_push_admin', { suscripcion: suscripcion.toJSON(), temas });
     if (!r.ok) {
-      // Sin cobertura no es un fallo de la aplicación: se dice, pero no se anota.
-      if (r.codigo !== SIN_SERVIDOR) {
-        anotarError(new Error(`fn_guardar_suscripcion_push_admin: ${r.codigo}`.slice(0, 500)), 'push-jefatura');
-      }
-      return { temas: temasActivos(), ok: false };
+      anotarRpc('fn_guardar_suscripcion_push_admin', r.codigo);
+      return { temas: antes, ok: false };
     }
-    escribir(CLAVE, temas);
+    recordar(temas);
     return { temas, ok: true };
   } catch (e) {
     // Lo imprevisto (un navegador con la API a medias) también se dice y queda anotado.
     anotarError(errorSinDatos(e, 'fijar'), 'push-jefatura');
-    return { temas: temasActivos(), ok: false };
+    return { temas: antes, ok: false };
   }
 }
 

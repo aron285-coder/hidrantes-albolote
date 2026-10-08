@@ -10,13 +10,13 @@ import { useCarga } from '@/hooks/carga';
 import { usePosicion, usePuntos } from '@/hooks/estado';
 import { ENTORNO } from '@/lib/entorno';
 import { anotarError } from '@/lib/errores';
-import { fechaCorta, hace, megas } from '@/lib/formato';
+import { fechaCorta, hace } from '@/lib/formato';
 import { textoError } from '@/lib/panel/errores';
 import {
   type ClaveParametro,
   type Parametros,
   type Workflow,
-  CUOTA_BD_BYTES,
+  AVISAR_ESPACIO_PCT,
   PARAMETROS,
   PARAMETROS_POR_DEFECTO,
   anadirNucleo,
@@ -28,10 +28,14 @@ import {
   cargarNovedades,
   cargarNucleos,
   cargarParametros,
-  avisoAlmacenamiento,
+  avisoEspacioFotos,
+  cargarPedidos,
+  estadoPedido,
+  revocarDispositivo,
+  textoBaseDeDatos,
+  textoEspacioFotos,
   cargarSalud,
   origenTareas,
-  textoAlmacenamiento,
   vigilanciaAtrasada,
   contarDispositivos,
   descargarInventarioJson,
@@ -45,7 +49,7 @@ import {
   sugerenciasUniformidad,
   textoRadios,
 } from '@/lib/panel/ajustes';
-import { type TemaJefatura, estadoPushJefatura, fijarTemas, temasActivos } from '@/lib/panel/push-jefatura';
+import { type TemaJefatura, cargarTemas, estadoPushJefatura, fijarTemas } from '@/lib/panel/push-jefatura';
 import type { Coordenadas } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
@@ -197,29 +201,13 @@ function EstadoLista({
   };
   vacio: string | null;
 }) {
-  const [reintentando, setReintentando] = useState(false);
   const hay = !!carga.datos?.length;
-  async function reintentar() {
-    setReintentando(true);
-    try {
-      await carga.recargar();
-    } finally {
-      setReintentando(false);
-    }
-  }
+  // El aviso va dentro de un <li> normal: un <li role="alert"> deja de ser un elemento de la lista
+  // y axe lo marca (regla «list»).
   if (carga.estado === 'error')
     return (
-      <li role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-[13px]">
-        <span className="min-w-0 flex-1">{textoError(carga.codigo ?? '')}</span>
-        {/* Mientras reintenta, dice «Cargando…»: si vuelve a fallar, se ve que lo ha intentado. */}
-        <Boton
-          variante="secundario"
-          className="min-h-9 text-[13px]"
-          disabled={reintentando}
-          onClick={() => void reintentar()}
-        >
-          {reintentando ? T.panelCola.cargando : T.mapa.reintentar}
-        </Boton>
+      <li className="py-1.5 text-[13px]">
+        <ErrorReintentar texto={textoError(carga.codigo ?? '')} reintentar={carga.recargar} />
       </li>
     );
   if (hay) return null;
@@ -572,7 +560,8 @@ function SaludDelSistema() {
   const carga = useCarga(() => cargarSalud(), []);
   const [ocupado, setOcupado] = useState(false);
   const s = carga.datos;
-  const lleno = avisoAlmacenamiento(s?.storage_bytes ?? null);
+  const lleno = s ? avisoEspacioFotos(s) : null;
+  const [revocando, setRevocando] = useState<string | null>(null);
 
   async function descargar() {
     setOcupado(true);
@@ -580,6 +569,20 @@ function SaludDelSistema() {
     setOcupado(false);
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     avisar(T.panelAjustes.inventarioDescargado(r.datos));
+  }
+
+  // RV-262: revocar el móvil con más fotos pedidas; sus reservas abiertas dejan de contar (RV-220.4).
+  async function revocar(dispositivo: string) {
+    setOcupado(true);
+    try {
+      const r = await revocarDispositivo(dispositivo);
+      if (!r.ok) return avisar(textoError(r.codigo), 'error');
+      setRevocando(null);
+      avisar(T.panelAjustes.movilRevocadoAviso(dispositivo));
+      await carga.recargar();
+    } finally {
+      setOcupado(false);
+    }
   }
 
   // La tercera columna marca en tono de aviso una fila que pide atención (RV-93).
@@ -596,7 +599,7 @@ function SaludDelSistema() {
               ? T.panelAjustes.respaldoNoAplica
               : T.panelAjustes.nunca,
         ],
-        [T.panelAjustes.almacenamiento, textoAlmacenamiento(s.storage_bytes, ENTORNO)],
+        [T.panelAjustes.almacenamiento, textoEspacioFotos(s, ENTORNO), lleno != null || s.fotos_origen === 'respaldo'],
         [
           T.panelAjustes.zonaYMapa,
           `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
@@ -615,12 +618,7 @@ function SaludDelSistema() {
           vigilanciaAtrasada(s.ultima_vigilancia),
         ],
         [T.panelAjustes.dispositivosActivos, String(s.dispositivos_activos)],
-        [
-          T.panelAjustes.baseDeDatos,
-          s.bd_bytes != null
-            ? T.panelAjustes.baseDeDatosDetalle(megas(s.bd_bytes), megas(CUOTA_BD_BYTES))
-            : T.panelAjustes.sinDato,
-        ],
+        [T.panelAjustes.baseDeDatos, textoBaseDeDatos(s), (s.bd_pct ?? 0) >= AVISAR_ESPACIO_PCT],
         [T.panelAjustes.intentosFallidos24h, String(s.intentos_fallidos_24h ?? 0)],
         [
           T.panelAjustes.topesAlcanzados24h,
@@ -632,11 +630,22 @@ function SaludDelSistema() {
   return (
     <Tarjeta titulo={T.panel.saludSistema}>
       {!s ? (
-        <p className="text-texto-suave text-sm">
-          {carga.estado === 'error' ? textoError(carga.codigo) : T.panelCola.cargando}
-        </p>
+        carga.estado === 'error' ? (
+          <ErrorReintentar texto={textoError(carga.codigo)} reintentar={carga.recargar} />
+        ) : (
+          <p className="text-texto-suave text-sm">{T.panelCola.cargando}</p>
+        )
       ) : (
         <>
+          {/* Una recarga que falla (tras revocar un móvil, por ejemplo) deja los datos de antes:
+              se dice, con Reintentar (UI-04). */}
+          {carga.estado === 'error' && (
+            <ErrorReintentar
+              texto={T.panelRegistro.errorConFilas(textoError(carga.codigo))}
+              reintentar={carga.recargar}
+              className="mb-3"
+            />
+          )}
           {/* Cuando el gigabyte gratuito va lleno, avisa con tiempo: el día que se llene, la
               aplicación deja de admitir fotos (TR-53). No bloquea nada, solo se ve (06 §5). */}
           {lleno != null && (
@@ -645,7 +654,11 @@ function SaludDelSistema() {
               className="bg-oro-100 border-oro-600 text-ambar-700 rounded-campo mb-3 flex items-start gap-2 border p-2 text-sm"
             >
               <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden />
-              <span>{T.panelAjustes.almacenamientoLleno(lleno)}</span>
+              <span>
+                {lleno.delTope
+                  ? T.panelAjustes.espacioFotosLleno(lleno.pct)
+                  : T.panelAjustes.almacenamientoLleno(lleno.pct)}
+              </span>
             </p>
           )}
           <dl className="text-sm">
@@ -689,6 +702,41 @@ function SaludDelSistema() {
                 )}
               </dd>
             </div>
+            {/* RV-262: los móviles con más fotos pedidas en 24 h (0041), para poder revocar uno. Con
+                una base anterior la clave no viene y la fila no se dibuja (UI-01). */}
+            {s.reservas_dispositivos_24h && (
+              <div className="border-linea border-b py-1 last:border-b-0">
+                <dt className="text-texto-suave">{T.panelAjustes.reservasPorMovil}</dt>
+                <dd>
+                  {s.reservas_dispositivos_24h.length ? (
+                    <ul className="mt-1" data-testid="reservas-moviles">
+                      {s.reservas_dispositivos_24h.map((d) => (
+                        <li key={d.dispositivo} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5">
+                          <span className="font-datos text-[13px]">{d.dispositivo}</span>
+                          <span className="flex-1 font-semibold">
+                            {T.panelAjustes.reservasDetalle(d.reservas, d.abiertas)}
+                          </span>
+                          {d.revocado ? (
+                            <span className="text-texto-suave text-[13px]">{T.panelAjustes.movilRevocado}</span>
+                          ) : (
+                            <Boton
+                              variante="secundario"
+                              className="min-h-9 text-[13px]"
+                              aria-label={T.panelAjustes.revocarMovilDe(d.dispositivo)}
+                              onClick={() => setRevocando(d.dispositivo)}
+                            >
+                              {T.panelAjustes.revocarMovil}
+                            </Boton>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="text-[13px]">{T.panelAjustes.reservasVacio}</span>
+                  )}
+                </dd>
+              </div>
+            )}
           </dl>
         </>
       )}
@@ -697,6 +745,19 @@ function SaludDelSistema() {
           {T.panel.descargarInventario}
         </Boton>
       </div>
+      {revocando && (
+        <Dialogo titulo={T.panelAjustes.revocarMovil} alCerrar={() => !ocupado && setRevocando(null)}>
+          <p className="text-sm">{T.panelAjustes.avisoRevocarMovil(revocando)}</p>
+          <div className="mt-3 flex gap-3">
+            <Boton variante="destructivo" disabled={ocupado} onClick={() => void revocar(revocando)}>
+              {T.panelAjustes.confirmarRevocarMovil}
+            </Boton>
+            <Boton variante="secundario" disabled={ocupado} onClick={() => setRevocando(null)}>
+              {T.panelCola.cancelar}
+            </Boton>
+          </div>
+        </Dialogo>
+      )}
     </Tarjeta>
   );
 }
@@ -712,10 +773,13 @@ const TRABAJOS: { workflow: Workflow; nombre: string }[] = [
   { workflow: 'respaldo', nombre: T.panel.respaldoAhora },
 ];
 const SOLO_PRODUCCION = new Set<Workflow>(['purgar-fotos', 'respaldo']);
+const NOMBRE_TRABAJO = Object.fromEntries(TRABAJOS.map((t) => [t.workflow, t.nombre])) as Record<Workflow, string>;
 
 function Mantenimiento() {
   const { avisar } = usePanel();
   const [ocupado, setOcupado] = useState(false);
+  // Se vuelve a leer cada minuto: el despachador marca lanzado o error al rato (RV-260).
+  const pedidos = useCarga(() => cargarPedidos(), [], 60_000);
 
   const idSolo = useId();
 
@@ -726,6 +790,7 @@ function Mantenimiento() {
       if (!r.ok) return avisar(textoError(r.codigo), 'error');
       // En staging nadie lo despacha: el aviso lo dice en vez de prometer que empezará (RV-260).
       avisar(avisoPedido(nombre, r.datos));
+      await pedidos.recargar();
     } finally {
       setOcupado(false);
     }
@@ -757,6 +822,34 @@ function Mantenimiento() {
           );
         })}
       </div>
+      {/* RV-260: lo que se ha pedido y qué ha pasado (fn_pedidos_recientes, 0041). */}
+      <h3 className="mt-4 text-sm font-semibold">{T.panelAjustes.pedidosRecientes}</h3>
+      <ul className="mt-1 text-sm" data-testid="pedidos-recientes">
+        {(pedidos.datos ?? []).map((p) => (
+          <li key={p.id} className="border-linea flex flex-wrap gap-x-2 border-b py-1 last:border-b-0">
+            <span className="flex-1">
+              {NOMBRE_TRABAJO[p.workflow] ?? p.workflow}
+              <span className="text-texto-suave"> · {hace(p.pedido_en)}</span>
+            </span>
+            <span
+              className={cn('font-semibold [overflow-wrap:anywhere]', p.estado === 'error' && 'text-rojo-texto')}
+              data-estado={p.estado}
+            >
+              {estadoPedido(p)}
+            </span>
+          </li>
+        ))}
+        {pedidos.estado === 'cargando' && !pedidos.datos?.length && (
+          <li className="text-texto-suave text-[13px]">{T.panelCola.cargando}</li>
+        )}
+        {pedidos.estado === 'ok' && !pedidos.datos.length && (
+          <li className="text-texto-suave text-[13px]">{T.panelAjustes.pedidosVacio}</li>
+        )}
+      </ul>
+      {/* El error, fuera de la lista (un aviso no es un elemento de ella) y con Reintentar. */}
+      {pedidos.estado === 'error' && (
+        <ErrorReintentar texto={textoError(pedidos.codigo)} reintentar={pedidos.recargar} className="mt-1" />
+      )}
     </Tarjeta>
   );
 }
@@ -770,7 +863,11 @@ const TEMAS: { tema: TemaJefatura; nombre: string; detalle: string }[] = [
 
 function AvisosJefatura() {
   const { avisar } = usePanel();
-  const [temas, setTemas] = useState<TemaJefatura[]>(temasActivos);
+  // Los temas de este administrador en este navegador, preguntados al servidor (docs/32 RV-264).
+  // `cambiados`: lo que ha quedado tras tocar una casilla, hasta la siguiente lectura.
+  const carga = useCarga(() => cargarTemas(), []);
+  const [cambiados, setCambiados] = useState<TemaJefatura[] | null>(null);
+  const temas = cambiados ?? carga.datos ?? [];
   const [ocupado, setOcupado] = useState(false);
   const estado = estadoPushJefatura();
 
@@ -779,8 +876,8 @@ function AvisosJefatura() {
     setOcupado(true);
     // Las casillas vuelven a responder pase lo que pase, y un fallo se dice (docs/31 RV-167).
     try {
-      const r = await fijarTemas(siguientes);
-      setTemas(r.temas);
+      const r = await fijarTemas(siguientes, { antes: temas });
+      setCambiados(r.temas);
       if (!r.ok) avisar(activo ? T.panelAjustes.avisosNoActivados : T.panelAjustes.avisosNoCambiados, 'error');
     } catch (e) {
       anotarError(e);
@@ -800,6 +897,17 @@ function AvisosJefatura() {
               ? T.panelAjustes.avisosInstalar
               : T.panelAjustes.avisosNoDisponibles}
         </p>
+      ) : carga.estado === 'error' && !cambiados ? (
+        // Sin saber qué tiene activo, no se enseñan casillas que podrían mentir (RV-264, UI-04).
+        <ErrorReintentar
+          texto={textoError(carga.codigo)}
+          reintentar={async () => {
+            setCambiados(null);
+            await carga.recargar();
+          }}
+        />
+      ) : carga.estado === 'cargando' && !cambiados ? (
+        <p className="text-texto-suave text-sm">{T.panelCola.cargando}</p>
       ) : (
         <ul className="text-sm">
           {TEMAS.map((t) => (
