@@ -46,6 +46,13 @@ export const T = {
     comprobandoCuenta: 'Comprobando tu cuenta…',
     avisoLegalVersion: (version: Parametro) => `Aviso legal y privacidad · v${version}`,
     avisoLegalTitulo: 'Aviso legal',
+    // Un mensaje por error al entrar (docs/32 RV-242).
+    demasiadosIntentosHasta: (hora: Parametro) => `Demasiados intentos. Podrás volver a intentarlo a las ${hora}.`,
+    dispositivoReservado:
+      'No se ha podido registrar este móvil. Vuelve a intentarlo en un rato; si sigue igual, díselo a jefatura.',
+    cuota: 'Se ha llegado al máximo de entradas por ahora. Inténtalo más tarde; si sigue igual, díselo a jefatura.',
+    tokenNoVale: 'El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo.',
+    errorDesconocido: (codigo: Parametro) => `No se ha podido entrar (código ${codigo}). Inténtalo más tarde.`,
   },
 
   bienvenida: {
@@ -311,6 +318,9 @@ export const T = {
   },
 
   operaciones: {
+    // Mapa del pin sin cobertura y sin mapa base (docs/32 RV-243).
+    pinSinMapa:
+      'Sin conexión y sin mapa descargado: el pin se coloca sobre el contorno de la zona. Descarga el mapa en Ajustes.',
     queHaCambiado: (codigo: Parametro) => `¿Qué ha cambiado en ${codigo}?`,
     sigueIgual: 'Sigue igual',
     sigueIgualDetalle: 'Solo actualiza la fecha de revisión. Foto y listo.',
@@ -348,6 +358,8 @@ export const T = {
     fotoIlegible: 'No se pudo leer la foto. Prueba otra vez.',
     // docs/31 RV-157: «Repetir» que falla; sigue la foto de antes.
     fotoRepetidaIlegible: 'No se pudo leer la foto nueva: sigue la anterior. Prueba otra vez.',
+    // Más de 24 MP en un navegador que no reduce al decodificar (docs/32 RV-244).
+    fotoDemasiadoGrande: 'Esta foto es demasiado grande para este móvil: cambia la cámara a 12 MP o menos.',
     enviando: 'Enviando…',
     guardadoDetalle: 'Se enviará sola cuando haya conexión.',
     aplicadoDetalle: 'El cambio ya está en el mapa de todos.',
@@ -469,6 +481,9 @@ export const T = {
     yaRevisada: 'Jefatura ya la ha revisado',
     errorRetirar: 'No se ha podido retirar. Inténtalo de nuevo.',
     listaGuardada: 'Sin conexión: esta es la última lista guardada.',
+    // La carga falló (docs/32 RV-241).
+    noCargada: 'No se han podido cargar tus propuestas.',
+    noActualizada: 'Lista guardada: no se ha podido actualizar.',
     // docs/31 RV-154: el tope de propuestas al día (RV-141).
     cuotaPropuestas: (maximo: Parametro) =>
       `Has llegado al máximo de propuestas de hoy (${maximo}). Se enviará mañana.`,
@@ -594,6 +609,10 @@ export const T = {
     botonSalir: 'Salir',
     botonRecargar: 'Recargar',
     seguir: 'Seguir con el formulario',
+    // Volver atrás con el formulario a medias (docs/32 RV-239).
+    salirSinEnviar: '¿Salir sin enviar?',
+    sePierdeTodo: 'Se perderá lo que llevas, fotos incluidas.',
+    seguirCorto: 'Seguir',
   },
 
   // docs/32 RV-230: recargar por versión nueva con envíos que solo están en memoria.

@@ -3,6 +3,8 @@
 // metadatos: la foto que sube no lleva EXIF. La posición EXIF, si la hay, se lee antes y viaja
 // aparte como dato de la propuesta (exif_lat/exif_lng).
 
+import { FotoDemasiadoGrande, MAXIMO_SIN_REDUCIR, cabeceraHeic, comprobarTamano } from './foto-grande';
+
 export const LADO_MAXIMO = 1600;
 /** Objetivo medio de TR-15 (≈ 250 kB); se baja la calidad hasta acercarse. */
 export const OBJETIVO_BYTES = 300 * 1024;
@@ -183,14 +185,23 @@ function tamanoFinal(
 export async function procesarFoto(archivo: Blob, perfil: PerfilFoto = PERFIL_CONEXION): Promise<FotoProcesada> {
   const cabecera = await archivo.slice(0, 256 * 1024).arrayBuffer();
   const exif = leerGpsExif(cabecera);
-  const datos = cabeceraJpeg(cabecera);
+  // El tamaño de la cabecera, JPEG o HEIC (la HEIC, sin orientación EXIF que leer).
+  const heic = cabeceraJpeg(cabecera) ? null : cabeceraHeic(cabecera);
+  const datos = cabeceraJpeg(cabecera) ?? (heic && { ...heic, orientacion: 1 });
   const opciones = opcionesDecodificar(datos, perfil);
+  // Una foto enorme en un navegador que no reduce al decodificar puede cerrar la pestaña: se avisa
+  // antes de abrirla (docs/32 RV-244). El tamaño sale de la cabecera, JPEG o HEIC, sin decodificar.
+  await comprobarTamano(datos);
   let imagen: ImageBitmap;
   try {
     imagen = await createImageBitmap(archivo, opciones);
   } catch (e) {
-    // Un navegador que no sabe reducir al decodificar: como antes, entera.
+    // Un navegador que no sabe reducir al decodificar: como antes, entera. Pero no una enorme: es
+    // justo lo que puede cerrar la pestaña (RV-244).
     if (opciones.resizeWidth === undefined) throw e;
+    if (datos && datos.ancho * datos.alto > MAXIMO_SIN_REDUCIR) {
+      throw new FotoDemasiadoGrande(Math.round((datos.ancho * datos.alto) / 1e6));
+    }
     imagen = await createImageBitmap(archivo, { imageOrientation: 'from-image' });
   }
   const lienzo = document.createElement('canvas');

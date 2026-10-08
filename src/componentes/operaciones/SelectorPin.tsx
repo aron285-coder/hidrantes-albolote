@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { capasDe } from '../mapa/capas-leaflet';
 import { ICONO_PIN, ICONO_PIN_SIN_COLOCAR } from '../mapa/iconos-leaflet';
 import { useConexion, useMapabase, useModo, usePosicion } from '@/hooks/estado';
-import { ZOOM_MAX, baseDebajo, capaGuardada } from '@/lib/capas';
+import { ZOOM_MAX, atribucion, baseDebajo, capaGuardada } from '@/lib/capas';
 import type { Coordenadas } from '@/lib/propuestas';
 import { type Posicion, activarPosicion } from '@/lib/posicion';
 import { T } from '@/lib/textos';
@@ -198,6 +198,10 @@ export function SelectorPin({
           ? T.mapa.buscandoPosicion
           : null;
 
+  // Sin cobertura y sin el mapa base en el móvil, el fondo queda vacío: se dice encima del mapa del
+  // pin, y dónde descargarlo (docs/32 RV-243).
+  const sinFondo = conexion === 'sin_cobertura' && !mapabase.descargado;
+
   return (
     <div className="relative isolate">
       <div
@@ -218,10 +222,26 @@ export function SelectorPin({
       >
         <LocateFixed size={20} aria-hidden />
       </button>
+      {sinFondo && (
+        <p
+          role="status"
+          data-testid="aviso-pin-sin-mapa"
+          className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta absolute top-2 right-15 left-2 z-[500] border px-2 py-1 text-[13px]"
+        >
+          {T.operaciones.pinSinMapa}
+        </p>
+      )}
+      {/* Licencias de lo que se ve, compacta como en el mapa principal (OSM, PNOA; docs/32 RV-243). */}
+      <p
+        data-testid="atribucion-pin"
+        className="text-texto-suave absolute right-1 bottom-0.5 z-[400] rounded bg-[var(--control-mapa)] px-1 text-[10px]"
+      >
+        {atribucion(capaGuardada())}
+      </p>
       {aviso && (
         <p
           role="status"
-          className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta absolute inset-x-2 bottom-2 z-[500] border px-2 py-1 text-[13px]"
+          className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta absolute inset-x-2 bottom-5 z-[500] border px-2 py-1 text-[13px]"
         >
           {aviso}
         </p>

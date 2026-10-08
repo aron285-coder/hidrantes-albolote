@@ -418,7 +418,12 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Otra persona está cambiando este punto; inténtalo en unos segundos.` ·
 `El tipo de un punto no se cambia: retíralo y da de alta el correcto.` ·
 `El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo; tu nombre se conserva.` ·
-`Comprobando tu cuenta…` · `Aviso legal y privacidad · v[0.1.0]` · `Aviso legal`.
+`Comprobando tu cuenta…` · `Aviso legal y privacidad · v[0.1.0]` · `Aviso legal` ·
+`Demasiados intentos. Podrás volver a intentarlo a las [17:05].` ·
+`No se ha podido registrar este móvil. Vuelve a intentarlo en un rato; si sigue igual, díselo a jefatura.` ·
+`Se ha llegado al máximo de entradas por ahora. Inténtalo más tarde; si sigue igual, díselo a jefatura.` ·
+`El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo.` ·
+`No se ha podido entrar (código [ALGO_NUEVO]). Inténtalo más tarde.` (un mensaje por error al entrar, docs/32 RV-242).
 
 **Primer uso** (FR-94). `Cuanto más grande, más agua da` ·
 `Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un anillo de rayas alrededor significa que nadie lo ha revisado en más de un año.` ·
@@ -515,6 +520,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Sin posición GPS: toca el mapa donde está el punto.` · `±[9] m · a [12 m] del pin` · `Qué impide usarlo` ·
 `Ej.: sale menos fuerza que en mayo` · `Qué has encontrado en el sitio` ·
 `Medida en mm (jefatura la comprobará)` · `Medida en mm, de 20 a 150` · `Preparando la foto…` · `No se pudo leer la foto. Prueba otra vez.` · `No se pudo leer la foto nueva: sigue la anterior. Prueba otra vez.` ·
+`Esta foto es demasiado grande para este móvil: cambia la cámara a 12 MP o menos.` (más de 24 MP en un navegador que no reduce al decodificar, docs/32 RV-244) ·
+`Sin conexión y sin mapa descargado: el pin se coloca sobre el contorno de la zona. Descarga el mapa en Ajustes.` (encima del mapa del pin, docs/32 RV-243) ·
 `Enviando…` · `Se enviará sola cuando haya conexión.` · `El cambio ya está en el mapa de todos.` ·
 `No se pudo guardar en el móvil. Inténtalo otra vez.` ·
 `Este punto ya no está en el mapa: lo han retirado o borrado` (el formulario de un punto que ya no está, docs/31 RV-152).
@@ -556,6 +563,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Falta la foto: no se ha enviado.` · `Falta la foto del sitio: no se ha enviado.` ·
 `El tipo de un punto no se cambia: propón retirarlo y da de alta el correcto.` · `No se ha podido enviar.` ·
 `Sin conexión: esta es la última lista guardada.` ·
+`No se han podido cargar tus propuestas.` (con `Reintentar`, sin lista guardada) ·
+`Lista guardada: no se ha podido actualizar.` (con lista guardada y un error del servidor, docs/32 RV-241) ·
 `Has llegado al máximo de propuestas de hoy ([60]). Se enviará mañana.` ·
 `Has llegado al máximo de propuestas de hoy. Se enviará mañana.` ·
 la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a las 00:05]`, en hora de Albolote):
@@ -606,6 +615,8 @@ Si activarlos falla, la hoja no se cierra y dice por qué (docs/21 RV-81, DEC-12
 un formulario abierto, la app no sale de él: enseña `Ha llegado un aviso.` con `Ver` y `Cerrar`; al
 tocar «Ver», o «recargar» por una versión nueva, pregunta: `¿Salir del formulario?` / `¿Recargar ahora?` ·
 `Lo que llevas del formulario, fotos incluidas, se perderá.` · `Salir` · `Recargar` · `Seguir con el formulario`.
+Al volver atrás (flecha o "atrás" de Android) con algo rellenado o alguna foto (docs/32 RV-239):
+`¿Salir sin enviar?` · `Se perderá lo que llevas, fotos incluidas.` · `Salir` · `Seguir`.
 
 **Versión nueva con envíos sin guardar en el móvil** (docs/32 RV-230). Desde cualquier pantalla, si hay
 envíos que solo están en memoria no se recarga: `Espera antes de actualizar` ·

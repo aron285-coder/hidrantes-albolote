@@ -3,29 +3,14 @@ import { Link } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { Boton } from '@/componentes/Boton';
 import { Escudo } from '@/componentes/Escudo';
-import { SIN_SERVIDOR } from '@/lib/api';
 import { entrarConCodigo, entrarConGoogle } from '@/lib/acceso';
 import { VERSION } from '@/lib/entorno';
 import { bloqueadoHasta, leerFirma } from '@/lib/sesion';
 import { LIMITES } from '@/lib/limites';
+import { mensajeEntrada } from '@/lib/mensajes-entrada';
 import { T } from '@/lib/textos';
 
 const CIFRAS = 6;
-
-/** Error de 05 §8 → texto para el voluntario, sin pistas sobre el código (FR-33, TR-36). */
-function mensaje(codigo: string): string {
-  switch (codigo) {
-    case 'CODIGO_INCORRECTO':
-      return T.entrada.codigoIncorrecto;
-    case 'DEMASIADOS_INTENTOS':
-      return T.entrada.demasiadosIntentos;
-    case 'PAYLOAD_INVALIDO':
-      return T.entrada.codigoSeisCifras;
-    case SIN_SERVIDOR:
-    default:
-      return T.entrada.sinServidor;
-  }
-}
 
 /** Pantalla de entrada (FL-01, 07 §7.1). El código no se guarda nunca en el móvil (TR-43). */
 export function Entrada({ caducado }: { caducado: boolean }) {
@@ -81,7 +66,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
     const error = await entrarConCodigo(codigo, { nombre, apellido });
     setEnviando(false);
     if (!error) return;
-    setErrorCodigo(mensaje(error));
+    setErrorCodigo(mensajeEntrada(error, bloqueadoHasta()));
     if (error === 'DEMASIADOS_INTENTOS') setBloqueado(true);
     if (error === 'CODIGO_INCORRECTO') {
       setCifras(Array(CIFRAS).fill(''));
@@ -167,7 +152,9 @@ export function Entrada({ caducado }: { caducado: boolean }) {
         <Boton type="submit" disabled={bloqueado || enviando} className="mt-1.5">
           {enviando ? T.entrada.entrando : T.entrada.entrar}
         </Boton>
-        {bloqueado && !errorCodigo && <p className="text-texto-suave text-[13px]">{T.entrada.demasiadosIntentos}</p>}
+        {bloqueado && !errorCodigo && (
+          <p className="text-texto-suave text-[13px]">{mensajeEntrada('DEMASIADOS_INTENTOS', bloqueadoHasta())}</p>
+        )}
         <p className="text-texto-suave text-[13px]">{T.entrada.soloUnaVez}</p>
 
         <Boton variante="enlace" className="mt-3 text-sm" onClick={() => void entrarConGoogle()}>

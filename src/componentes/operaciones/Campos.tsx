@@ -18,6 +18,7 @@ import {
   estadoFotoRacor,
   marcarFotoRacor,
 } from '@/lib/racores';
+import { FotoDemasiadoGrande } from '@/lib/foto-grande';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -177,8 +178,11 @@ function HuecoFoto({
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
-  /** `repetida`: la nueva no se pudo leer y sigue la anterior (docs/31 RV-157). */
-  const [fallo, setFallo] = useState<'nueva' | 'repetida' | null>(null);
+  /**
+   * `repetida`: la nueva no se pudo leer y sigue la anterior (docs/31 RV-157). `grande`: demasiados
+   * megapíxeles para abrirla en este móvil (docs/32 RV-244).
+   */
+  const [fallo, setFallo] = useState<'nueva' | 'repetida' | 'grande' | null>(null);
 
   async function elegida(archivo: File | undefined) {
     if (!archivo) return;
@@ -186,8 +190,17 @@ function HuecoFoto({
     setFallo(null);
     const anterior = foto;
     try {
-      const bien = await cambiarFoto(anterior, () => procesarFoto(archivo, perfil), alCambiar);
-      if (!bien) setFallo(anterior ? 'repetida' : 'nueva');
+      let grande = false;
+      const bien = await cambiarFoto(
+        anterior,
+        () =>
+          procesarFoto(archivo, perfil).catch((e: unknown) => {
+            grande = e instanceof FotoDemasiadoGrande;
+            throw e;
+          }),
+        alCambiar,
+      );
+      if (!bien) setFallo(grande ? 'grande' : anterior ? 'repetida' : 'nueva');
     } finally {
       setProcesando(false);
       if (entrada.current) entrada.current.value = '';
@@ -244,7 +257,11 @@ function HuecoFoto({
       )}
       {fallo && (
         <span role="alert" className="text-rojo-700 text-[13px]">
-          {fallo === 'repetida' ? T.operaciones.fotoRepetidaIlegible : T.operaciones.fotoIlegible}
+          {fallo === 'grande'
+            ? T.operaciones.fotoDemasiadoGrande
+            : fallo === 'repetida'
+              ? T.operaciones.fotoRepetidaIlegible
+              : T.operaciones.fotoIlegible}
         </span>
       )}
     </div>

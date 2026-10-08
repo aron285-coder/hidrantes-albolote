@@ -8,11 +8,13 @@ import { useConexion } from '@/hooks/estado';
 import { useCola, useMisPropuestas } from '@/hooks/cola';
 import { useReloj } from '@/hooks/reloj';
 import { ATASCADO_MS, type EnCola, descartar, reintentarFallido } from '@/lib/cola';
+import { type Carga, avisoMisPropuestas } from '@/lib/aviso-mis-propuestas';
 import { hace } from '@/lib/formato';
 import {
   type EstadoPropuesta,
   type PropuestaPropia,
   cargarMisPropuestas,
+  SESION_CAMBIADA,
   cargarYMarcarVistas,
   retirarPropuesta,
   textoErrorRetirar,
@@ -84,14 +86,28 @@ export function MisPropuestas() {
     setErrorRetirar(null);
   }, []);
 
+  // Si la carga ha fallado se dice (docs/32 RV-241): sin lista, no es "todavía no has propuesto nada".
+  const [carga, setCarga] = useState<Carga>('cargando');
+  // Solo tras una carga buena se da lo resuelto por visto (RV-153).
+  const cargar = useCallback(
+    () =>
+      cargarYMarcarVistas()
+        .then((r) => setCarga(r.ok || r.codigo === SESION_CAMBIADA ? 'bien' : 'fallo'))
+        .catch(() => setCarga('fallo')),
+    [],
+  );
   useEffect(() => {
-    // Solo tras una carga buena se da lo resuelto por visto (RV-153).
-    void cargarYMarcarVistas();
-  }, []);
+    void cargar();
+  }, [cargar]);
+  const reintentar = () => {
+    setCarga('cargando');
+    void cargar();
+  };
 
   // Una propuesta enviada ya está en la lista del servidor; la cola solo guarda lo que falta.
   const enviadas = propias.filter((p) => !cola.some((c) => c.clave_local === p.clave_local));
-  const vacia = !cola.length && !enviadas.length;
+
+  const aviso = avisoMisPropuestas(carga, enviadas.length > 0, cola.length > 0, conexion);
 
   const retirable = (p: PropuestaPropia) => p.estado === 'pendiente' && conexion === 'bien';
 
@@ -100,8 +116,16 @@ export function MisPropuestas() {
       <BarraSuperior titulo={T.navegacion.misPropuestas} alVolver={() => navegar(-1)} />
       <LimiteError>
         <div className="mx-auto w-full max-w-lg p-3">
-          {conexion !== 'bien' && propias.length > 0 && (
+          {aviso === 'sin_conexion' && (
             <p className="text-texto-suave mb-2 text-[13px]">{T.misPropuestas.listaGuardada}</p>
+          )}
+          {aviso === 'no_actualizada' && (
+            <p role="status" className="text-texto-suave mb-2 flex items-center gap-3 text-[13px]">
+              {T.misPropuestas.noActualizada}
+              <button type="button" className="text-texto min-h-11 font-semibold underline" onClick={reintentar}>
+                {T.misPropuestas.reintentar}
+              </button>
+            </p>
           )}
           <ul className="flex flex-col gap-2">
             {cola.map((c: EnCola) => (
@@ -185,7 +209,20 @@ export function MisPropuestas() {
               </Tarjeta>
             ))}
           </ul>
-          {vacia && <p className="text-texto-suave p-6 text-center">{T.misPropuestas.vacio}</p>}
+          {aviso === 'vacia' && <p className="text-texto-suave p-6 text-center">{T.misPropuestas.vacio}</p>}
+          {aviso === 'cargando' && (
+            <p role="status" className="text-texto-suave p-6 text-center">
+              {T.app.cargando}
+            </p>
+          )}
+          {aviso === 'no_cargada' && (
+            <div role="alert" className="flex flex-col items-center gap-2 p-6 text-center">
+              <p className="text-texto">{T.misPropuestas.noCargada}</p>
+              <button type="button" className="text-texto min-h-11 font-semibold underline" onClick={reintentar}>
+                {T.misPropuestas.reintentar}
+              </button>
+            </div>
+          )}
         </div>
       </LimiteError>
 
