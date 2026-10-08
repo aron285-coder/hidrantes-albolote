@@ -48,8 +48,12 @@ select is(hidrantes.fn_config('dias_reserva_subida', 'null'), '2'::jsonb, 'la ve
 
 select is((select count(*)::int from cron.job where jobname = 'hidrantes_purgar_subidas' and schedule = '57 3 * * *'), 1,
   'la tarea hidrantes_purgar_subidas existe y corre a las 03:57');
-select ok((select command from cron.job where jobname = 'hidrantes_purgar_subidas') ~ 'delete from hidrantes\.subidas where reservada_en < now\(\) - interval ''30 days''',
-  'y solo borra las reservas de más de 30 días');
+-- Desde 0041 (docs/32 RV-220) llama a fn_purgar_subidas: las de más de 30 días y además las nunca
+-- confirmadas de más de 48 h sin archivo en el bucket (37).
+select ok((select command from cron.job where jobname = 'hidrantes_purgar_subidas') ~ 'hidrantes\.fn_purgar_subidas\(\)'
+          and pg_get_functiondef('hidrantes.fn_purgar_subidas()'::regprocedure)
+              ~ 'reservada_en < now\(\) - interval ''30 days''',
+  'y borra las reservas de más de 30 días (fn_purgar_subidas, 0041)');
 
 -- ---------- RV-19: alta de jefatura con un correo de 70 caracteres ----------
 
