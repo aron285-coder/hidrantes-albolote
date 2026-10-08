@@ -468,7 +468,15 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     const s = await servidor(page);
     await page.goto('/ajustes');
     await expect(page.getByText(T.ajustes.comoSeUsa)).toBeVisible();
-    await expect(page.getByText(/Algo no funciona/)).toHaveCount(0);
+    // Las Novedades pueden contar que se quitó (CHANGELOG de 0.9.0); fuera de ellas no queda rastro:
+    // ni la sección, ni su botón, ni un enlace.
+    const novedades = page.getByTestId('novedades');
+    await expect(novedades).toBeVisible();
+    const enNovedades = await novedades.getByText(/Algo no funciona/).count();
+    await expect(page.getByText(/Algo no funciona/)).toHaveCount(enNovedades);
+    for (const rol of ['heading', 'button', 'link'] as const) {
+      await expect(page.getByRole(rol, { name: /Algo no funciona/ })).toHaveCount(0);
+    }
     await expect(page.getByRole('button', { name: 'Avisar a jefatura' })).toHaveCount(0);
     // Un enlace guardado o el historial de una versión vieja: a Ajustes, sin formulario.
     await page.goto('/incidencia');

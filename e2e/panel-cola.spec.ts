@@ -253,7 +253,10 @@ async function abrir(page: Page, texto: RegExp) {
 test('lista, contador, filtros y búsqueda global (FR-101, FR-110, FR-145)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin');
-  await expect(page).toHaveURL(/\/admin\/cola$/);
+  // Desde 1.100 px la primera propuesta queda fijada en ?p= en cuanto llega la lista (RV-161): sin
+  // ?p= la dirección solo dura lo que tarda la carga, y comprobarla así era una carrera.
+  const conDetalle = page.viewportSize()!.width >= 1100;
+  await expect(page).toHaveURL(conDetalle ? /\/admin\/cola\?p=c1$/ : /\/admin\/cola$/);
   await expect(page.getByRole('link', { name: `${T.panelCola.colaRevision} 6` })).toBeVisible();
   await expect(page.getByText('Sara Ruiz · hace 2 h · Calle Real 14 · Albolote')).toBeVisible();
 
