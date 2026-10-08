@@ -466,6 +466,23 @@ export const T = {
     cuotaPropuestas: (maximo: Parametro) =>
       `Has llegado al máximo de propuestas de hoy (${maximo}). Se enviará mañana.`,
     cuotaPropuestasSinNumero: 'Has llegado al máximo de propuestas de hoy. Se enviará mañana.',
+    // docs/32 RV-233: la espera por los demás topes; `cuando` es «a las 14:30» o «mañana a las 00:05».
+    // docs/32 RV-245: los topes de 0041, el del móvil recién dado de alta y el de todo el grupo.
+    esperaPropuestasNuevo: (maximo: Parametro, cuando: Parametro) =>
+      `En espera: un móvil recién dado de alta puede enviar ${maximo} propuestas al día. Se enviará ${cuando}.`,
+    esperaPropuestasNuevoSinNumero: (cuando: Parametro) =>
+      `En espera: un móvil recién dado de alta tiene un máximo de propuestas al día. Se enviará ${cuando}.`,
+    esperaPropuestasGrupo: (cuando: Parametro) =>
+      `En espera: el grupo ha llegado al máximo de propuestas de hoy. Se enviará ${cuando}.`,
+    esperaFotos: (cuando: Parametro) => `En espera: has llegado al máximo de fotos de hoy. Se enviará ${cuando}.`,
+    esperaFotosGrupo: (cuando: Parametro) =>
+      `En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará ${cuando}.`,
+    esperaSinEspacioFotos: (cuando: Parametro) =>
+      `En espera: el servidor no tiene sitio para más fotos. Se volverá a intentar ${cuando}.`,
+    esperaSinEspacio: (cuando: Parametro) =>
+      `En espera: el servidor no tiene sitio para más propuestas. Se volverá a intentar ${cuando}.`,
+    esperaReservas: (cuando: Parametro) =>
+      `En espera: este móvil tiene varias fotos a medio enviar. Se volverá a intentar ${cuando}.`,
   },
 
   ajustes: {
@@ -504,11 +521,17 @@ export const T = {
     ayuda: 'Ayuda',
     confirmarCerrar: '¿Cerrar sesión en este móvil?',
     cerrarSesionBoton: 'Cerrar sesión',
+    /** El botón mientras se cierra (docs/32 RV-234). */
+    cerrandoSesion: 'Cerrando sesión…',
+    errorCerrarSesion: 'No se ha podido cerrar la sesión. Inténtalo de nuevo.',
     version: (version: Parametro) => `Versión ${version}`,
     descargando: (porcentaje: Parametro) => `Descargando… ${porcentaje} %`,
     noDescargadoDetalle: 'No descargado · el mapa no tendrá calles sin cobertura',
     versionNuevaMapa: 'Hay una versión nueva del mapa',
     falloDescarga: 'No se pudo descargar. Inténtalo de nuevo con wifi.',
+    // docs/32 RV-235: 30 s sin llegar nada.
+    descargaParada: 'La descarga se ha parado.',
+    reintentar: 'Reintentar',
     puntosGuardadosDetalle: (n: Parametro, hace: Parametro) => `${n} · sincronizado ${hace}`,
     sinSincronizar: 'Todavía sin sincronizar',
     guardadoProtegido: 'Guardado protegido',
@@ -566,6 +589,24 @@ export const T = {
     seguir: 'Seguir con el formulario',
   },
 
+  // docs/32 RV-230: recargar por versión nueva con envíos que solo están en memoria.
+  recarga: {
+    titulo: 'Espera antes de actualizar',
+    sinGuardar: (n: number) =>
+      n === 1
+        ? 'Hay 1 propuesta que no se ha podido guardar en el móvil. Espera a que se envíe antes de actualizar.'
+        : `Hay ${n} propuestas que no se han podido guardar en el móvil. Espera a que se envíen antes de actualizar.`,
+    esperar: 'Esperar',
+    igualmente: 'Actualizar igualmente',
+    confirmarTitulo: '¿Actualizar igualmente?',
+    sePierden: (n: number) =>
+      n === 1
+        ? 'La propuesta sin guardar se perderá. No se puede deshacer.'
+        : `Las ${n} propuestas sin guardar se perderán. No se puede deshacer.`,
+    confirmar: 'Actualizar y perderlas',
+    yaGuardadas: 'Ya están guardadas en el móvil. Puedes actualizar.',
+  },
+
   fallo: {
     titulo: 'Algo ha fallado en esta pantalla',
     detalle: 'Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.',
@@ -589,6 +630,9 @@ export const T = {
     haceUnAno: 'hace 1 año',
     haceAnos: (n: Parametro) => `hace ${n} años`,
     mm: (n: Parametro) => `${n} mm`,
+    // docs/32 RV-233: la hora de la espera por un tope.
+    aLas: (hora: Parametro) => `a las ${hora}`,
+    mananaALas: (hora: Parametro) => `mañana a las ${hora}`,
   },
 
   panelCola: {
@@ -615,6 +659,10 @@ export const T = {
     confirmarRechazo: 'Confirmar rechazo',
     fusionarCon: (codigo: Parametro) => `Fusionar con ${codigo}`,
     confirmarYAprobar: 'Confirmar y aprobar',
+    // docs/32 RV-251: el punto cambió con el formulario de correcciones abierto; lo no tocado se pone al día.
+    puntoHaCambiado: 'El punto ha cambiado: revisa los datos.',
+    cargandoPunto: 'Cargando el punto de hoy…',
+    puntoNoCarga: 'No se ha podido cargar el punto de hoy: sin verlo no se aprueba.',
     cancelar: 'Cancelar',
     motivoRechazo: 'Motivo del rechazo (obligatorio, lo verá quien lo propuso)',
     sinMotivo: 'Sin motivo no se puede rechazar.',

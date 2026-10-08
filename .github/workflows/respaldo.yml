@@ -62,21 +62,27 @@ jobs:
           set -euo pipefail
           falta=0
           for v in BD SERVICIO CLAVE_GPG GPG_HUELLA; do
-            if [ -z "${!v}" ]; then echo "::error::Falta $v (GPG_HUELLA es una variable del repositorio, docs/32 RV-202)"; falta=1; fi
+            if [ -z "${!v}" ]; then echo "::error::Falta $v (los secretos de producción, en el environment prod-tareas; GPG_HUELLA es una variable del repositorio, docs/32 RV-202)"; falta=1; fi
           done
           if [ "$falta" = 1 ]; then
             {
               echo "### Respaldo no configurado"
               echo
-              echo 'Faltan secretos **de repositorio** (no de entorno). Con los mismos valores que ya'
-              echo 'están en el entorno `production`:'
+              echo 'Los secretos de producción van en el environment `prod-tareas`, **nunca en el'
+              echo 'repositorio**: ahí los leería un workflow de cualquier rama (DEC-172). Se mueven sin'
+              echo 'ver el valor con el traspaso, desde donde estén ahora:'
               echo '```'
-              echo 'gh secret set SUPABASE_DB_URL_PROD'
-              echo 'gh secret set SUPABASE_SERVICE_ROLE_KEY_PROD'
-              echo 'gh secret set GPG_PUBLIC_KEY'
+              echo 'npm run traspasar-secreto -- --secreto SUPABASE_DB_URL_PROD,SUPABASE_SERVICE_ROLE_KEY_PROD --desde <sitio> --hacia prod-tareas'
               echo '```'
-              echo 'Motivo en DEC-071: el entorno `production` exige aprobación humana y un respaldo'
-              echo 'semanal no puede esperar a que alguien pulse un botón.'
+              echo 'Si no están en ningún sitio: `npm run arranque -- --rotar db` rehace la cadena, o se pone'
+              echo 'cada uno por la entrada estándar con `gh secret set <NOMBRE> --env prod-tareas`.'
+              echo
+              echo '`GPG_PUBLIC_KEY` es la clave pública (no es secreta) y es la única que va en el'
+              echo 'repositorio. Si falta: `npm run traspasar-secreto -- --secreto GPG_PUBLIC_KEY --desde production --hacia repositorio`.'
+              echo '`GPG_HUELLA` es una variable del repositorio: la huella de esa clave que da 15 §2 (docs/32 RV-202).'
+              echo
+              echo 'Por qué `prod-tareas` y no `production`: production exige aprobación humana y un'
+              echo 'respaldo semanal no puede esperar a que alguien pulse un botón (DEC-071).'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi

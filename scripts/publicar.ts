@@ -1,13 +1,17 @@
-// Publicar una versión en producción, sin pasos a mano (docs/31 RV-139c, DEC-176). Repite lo que hizo
-// la release 0.9.0, para que cualquier sesión lo haga igual:
+// Publicar una versión en producción, sin pasos a mano (docs/31 RV-139c, DEC-176). Es como se publicó
+// la 0.9.0 (docs/32 RV-200), y como se publica cada versión desde entonces, la haga quien la haga:
 //
 //   1. release     El PR abierto de release-please: el empujón vacío que lanza su CI (DEC-079, DEC-153),
-//                  con `git commit-tree` + push del sha a su rama; espera la CI y lo fusiona con squash.
+//                  con `git commit-tree` + push del sha a su rama; espera a que estén en verde **todos**
+//                  los checks obligatorios de develop (uno que aún no existe no es verde) y lo fusiona
+//                  con squash.
 //   2. main        PR develop → main: lo abre (o usa el abierto), espera la CI y lo fusiona con
 //                  **merge commit**, nunca squash (DEC-096; ci-calidad lo comprueba, RV-135).
 //   3. despliegue  Espera a que la ejecución de deploy-prod.yml de ese commit pida la aprobación.
-//   4. puerta      CI de main en verde; la comprobación en staging (RV-139b) en verde con el mismo
-//                  commit de develop; `npm run comprobar-produccion -- --completo` sin bloqueo; ninguna
+//   4. puerta      CI de main en verde; la comprobación en staging (RV-139b) en verde, y no solo por la
+//                  línea escrita (docs/32 RV-205): deploy-staging.yml y ci.yml en verde con ese commit,
+//                  staging sirviéndolo, y entre él y lo que se publica solo docs/** y lo que pone
+//                  release-please; `npm run comprobar-produccion -- --completo` sin bloqueo; ninguna
 //                  issue abierta con la etiqueta `bloquea-release`.
 //   5. aprobar     Puerta en verde: aprueba el environment production (pending_deployments, approved)
 //                  con el resumen. Si no: lo rechaza con el motivo y abre una issue `bloquea-release`.
@@ -23,13 +27,18 @@
 // Se puede relanzar: cada paso mira el estado real (PR ya fusionado, deploy ya aprobado…) y sigue.
 // Nunca imprime valores de secretos: solo usa la sesión de gh y git del propietario (DEC-176).
 
-import { abortar, ejecutar, ejecutarScript, errorSeguro, log, type Resultado } from './lib/comun.ts';
+import { abortar, ejecutar, ejecutarScript, errorSeguro, log, repositorio, type Resultado } from './lib/comun.ts';
+import { commitDeHtml } from './paridad.ts';
 
-export const REPO = 'aron285-coder/hidrantes-albolote';
+/** `propietario/nombre` del checkout (git remote), no escrito a mano (docs/32 RV-208). */
+const repo = () => repositorio().completo;
 export const ETIQUETA_BLOQUEO = 'bloquea-release';
 /** Lo escribe RV-139b; el formato del marcador está en docs/04 §12.1. */
 export const ARCHIVO_STAGING = 'docs/verificacion/revision-completa-staging.md';
 export const MENSAJE_EMPUJON = 'chore(release): lanzar la CI del PR de versión';
+export const URL_STAGING = 'https://hidrantes-albolote-staging.pages.dev/';
+/** Quien abre y escribe el PR de release-please (GITHUB_TOKEN de release-please.yml). */
+export const BOT_RELEASE = 'github-actions[bot]';
 
 export const PASOS = ['release', 'main', 'despliegue', 'puerta', 'aprobar', 'paridad'] as const;
 export type Paso = (typeof PASOS)[number];
@@ -95,23 +104,45 @@ export function ultimoMarcador(texto: string): Marcador | null {
 
 /**
  * Lo que puede cambiar entre el commit comprobado en staging y el que llega a main sin repetir la
- * comprobación: documentación (incluido el propio registro) y lo que toca el PR de release-please.
- * package.json y package-lock.json, solo en la línea de la versión (`soloVersion`).
+ * comprobación (docs/32 RV-205): docs/** y lo que pone el PR de release-please. CHANGELOG.md va en el
+ * bundle (Novedades): solo vale si sus líneas son las que escribió release-please (`changelogDeRelease`,
+ * de `comprobarChangelog`). package.json y package-lock.json, solo en la línea de la versión.
  */
-export function fueraDeLoPermitido(archivos: string[], soloVersion: boolean): string[] {
+export function fueraDeLoPermitido(archivos: string[], soloVersion: boolean, changelogDeRelease = false): string[] {
   return archivos.filter((a) => {
-    if (a.startsWith('docs/') || a === 'CHANGELOG.md' || a === '.release-please-manifest.json') return false;
+    if (a.startsWith('docs/') || a === '.release-please-manifest.json') return false;
+    if (a === 'CHANGELOG.md') return !changelogDeRelease;
     if (a === 'package.json' || a === 'package-lock.json') return !soloVersion;
     return true;
   });
 }
 
+/** Las líneas que cambian en un diff o en un `patch` de la API: con su + o su -, sin cabeceras. */
+export function lineasCambiadas(diff: string): string[] {
+  return diff.split(/\r?\n/).filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l));
+}
+
 /** `git diff -U0` de package.json y package-lock.json: ¿solo cambian líneas "version"? */
 export function diffSoloDeVersion(diff: string): boolean {
-  return diff
-    .split(/\r?\n/)
-    .filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---) /.test(l))
-    .every((l) => /^[+-]\s*"version":\s*"[^"]*",?\s*$/.test(l));
+  return lineasCambiadas(diff).every((l) => /^[+-]\s*"version":\s*"[^"]*",?\s*$/.test(l));
+}
+
+/**
+ * ¿Son las líneas de CHANGELOG.md entre dos commits exactamente las que escribió release-please en sus
+ * PR? null si sí (o si no cambia); si no, el motivo. Compara listas ordenadas, con repeticiones.
+ */
+export function compararChangelog(cambiadas: string[], deRelease: string[]): string | null {
+  const a = [...cambiadas].sort();
+  const b = [...deRelease].sort();
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if (a[i] !== b[i]) {
+      const extra = a.find((l) => !b.includes(l));
+      return extra
+        ? `CHANGELOG.md tiene una línea que no puso release-please: «${extra.slice(0, 80)}»`
+        : 'CHANGELOG.md no tiene todas las líneas que puso release-please';
+    }
+  }
+  return null;
 }
 
 export interface Comprobacion {
@@ -119,36 +150,53 @@ export interface Comprobacion {
   detalle: string;
 }
 
-export function evaluarStaging(e: {
+export interface DatosStaging {
   marcador: Marcador | null;
   /** El commit de develop que llega a main (segundo padre del merge). */
   develop: string;
   /** El commit del marcador, resuelto a sha completo; null si no existe en el repositorio. */
   verificado: string | null;
+  /** deploy-staging.yml terminó con success con el commit del marcador. */
+  deployStaging: boolean;
+  /** ci.yml terminó con success con el commit del marcador. */
+  ci: boolean;
+  /** Qué falla en lo que sirve staging (<meta name="commit">); null si sirve ese código. */
+  servido: string | null;
   esAntecesor: boolean;
-  archivos: string[];
-  soloVersion: boolean;
-}): Comprobacion {
+  /** Lo que cambia entre el marcador y develop y no debería (archivos o líneas de CHANGELOG.md). */
+  fuera: string[];
+}
+
+const lista = (xs: string[]) => `${xs.slice(0, 10).join(', ')}${xs.length > 10 ? '…' : ''}`;
+
+export function evaluarStaging(e: DatosStaging): Comprobacion {
   if (!e.marcador)
     return { ok: false, detalle: `${ARCHIVO_STAGING} no tiene ninguna línea «commit: <sha> · resultado: verde»` };
   const corto = e.marcador.commit.slice(0, 7);
   if (e.marcador.resultado !== 'verde')
     return { ok: false, detalle: `la última comprobación en staging (${corto}) está en rojo` };
   if (!e.verificado) return { ok: false, detalle: `el commit del marcador (${corto}) no está en el repositorio` };
+  // RV-205: la línea sola no basta; tiene que haber pasado de verdad por la CI y por staging.
+  if (!e.deployStaging)
+    return { ok: false, detalle: `no hay ninguna ejecución de deploy-staging.yml en verde con ${corto}` };
+  if (!e.ci) return { ok: false, detalle: `no hay ninguna ejecución de ci.yml en verde con ${corto}` };
+  if (e.servido) return { ok: false, detalle: `en verde con ${corto}, pero ${e.servido}` };
   if (e.verificado === e.develop) return { ok: true, detalle: `en verde con ${corto}, el mismo commit` };
   if (!e.esAntecesor)
     return {
       ok: false,
       detalle: `en verde con ${corto}, que no está en la historia de develop (${e.develop.slice(0, 7)})`,
     };
-  const fuera = fueraDeLoPermitido(e.archivos, e.soloVersion);
-  if (fuera.length) {
+  if (e.fuera.length) {
     return {
       ok: false,
-      detalle: `en verde con ${corto}, pero desde entonces cambian archivos que llegan a producción: ${fuera.slice(0, 10).join(', ')}${fuera.length > 10 ? '…' : ''}`,
+      detalle: `en verde con ${corto}, pero desde entonces cambia lo que llega a producción: ${lista(e.fuera)}`,
     };
   }
-  return { ok: true, detalle: `en verde con ${corto}; desde entonces solo cambian documentación y la versión` };
+  return {
+    ok: true,
+    detalle: `en verde con ${corto} (CI, deploy y staging); desde entonces solo cambian docs/** y lo de release-please`,
+  };
 }
 
 // ---------- la puerta ----------
@@ -234,16 +282,23 @@ export function cuerpoAprobacion(entorno: number, verde: boolean, comentario: st
 
 // ---------- checks de un PR ----------
 
-export function estadoChecks(checks: { name: string; bucket: string }[]): EstadoCi {
+/**
+ * `obligatorios`: los checks que exige la protección de la rama base. Uno que todavía no aparece no
+ * es verde: ci-e2e no existe hasta que acaban sus partes, y en la release 0.9.0 el paso 1 dio por
+ * verde la CI del PR de versión con las partes de e2e aún corriendo.
+ */
+export function estadoChecks(checks: { name: string; bucket: string }[], obligatorios: string[] = []): EstadoCi {
   if (!checks.length) return 'sin checks';
   if (checks.some((c) => c.bucket === 'fail' || c.bucket === 'cancel')) return 'rojo';
   if (checks.some((c) => c.bucket === 'pending')) return 'pendiente';
+  if (obligatorios.some((o) => !checks.some((c) => c.name === o))) return 'pendiente';
   return 'verde';
 }
 
 /** `gh pr checks --json` sale con 1 y sin JSON si no hay checks, y con 8 si hay pendientes. */
-export function leerChecks(r: Resultado): EstadoCi {
-  if (r.salida.startsWith('[')) return estadoChecks(JSON.parse(r.salida) as { name: string; bucket: string }[]);
+export function leerChecks(r: Resultado, obligatorios: string[] = []): EstadoCi {
+  if (r.salida.startsWith('['))
+    return estadoChecks(JSON.parse(r.salida) as { name: string; bucket: string }[], obligatorios);
   if (/no (required )?checks reported/i.test([r.error, r.salida].join(' '))) return 'sin checks';
   abortar(`No se han podido leer los checks: ${errorSeguro(r.error || r.salida)}`);
 }
@@ -310,15 +365,38 @@ async function sondear<T>(ctx: Contexto, leer: () => T | null, max: number, que:
   }
 }
 
-function checksDe(ctx: Contexto, pr: number): EstadoCi {
-  return leerChecks(ctx.ej('gh', ['pr', 'checks', String(pr), '--repo', REPO, '--required', '--json', 'name,bucket']));
+/** Los checks que exige la protección de `rama` (arranque.ts los pone; ci-calidad, ci-sql y ci-e2e). */
+export function checksObligatorios(ctx: Contexto, rama: string): string[] {
+  const nombres = json<string[] | null>(
+    ctx,
+    ['api', `repos/${repo()}/branches/${rama}/protection/required_status_checks`, '--jq', '.contexts | tojson'],
+    `No se ha podido leer la protección de ${rama}`,
+  );
+  if (!Array.isArray(nombres) || !nombres.length)
+    abortar(`La protección de ${rama} no exige ningún check: revísala (scripts/arranque.ts) antes de publicar.`);
+  return nombres;
 }
 
-/** Espera a los checks obligatorios **de `cabeza`**: justo después de un push, el PR aún enseña los de antes. */
-export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string): Promise<void> {
+function checksDe(ctx: Contexto, pr: number, obligatorios: string[]): EstadoCi {
+  return leerChecks(
+    ctx.ej('gh', ['pr', 'checks', String(pr), '--repo', repo(), '--required', '--json', 'name,bucket']),
+    obligatorios,
+  );
+}
+
+/**
+ * Espera a los checks obligatorios **de `cabeza`**: justo después de un push, el PR aún enseña los de
+ * antes. Todos los que exige la protección de `base`: uno que aún no existe no es verde.
+ */
+export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string, base: string): Promise<void> {
   log.info(`Esperando a los checks obligatorios del PR #${pr}…`);
+  const obligatorios = checksObligatorios(ctx, base);
   // Sin ningún check al cabo de un rato, no van a llegar (p. ej., una CI del bot en action_required).
   const limiteSinChecks = Date.now() + Math.min(ctx.limites.checks, 15 * 60_000);
+  // Justo después de un push, el PR aún puede enseñar la cabeza anterior unos segundos. Si ya enseñó
+  // `cabeza` y luego otra, o no la enseña nunca, alguien ha empujado a la rama: se para con ese motivo.
+  const limiteCabeza = Date.now() + Math.min(ctx.limites.checks, 5 * 60_000);
+  let vistaCabeza = false;
   const estado = await sondear(
     ctx,
     () => {
@@ -327,7 +405,7 @@ export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string): 
         'view',
         String(pr),
         '--repo',
-        REPO,
+        repo(),
         '--json',
         'headRefOid',
         '--jq',
@@ -335,8 +413,16 @@ export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string): 
       ]);
       if (actual.codigo !== 0)
         abortar(`No se ha podido leer el PR #${pr}: ${errorSeguro(actual.error || actual.salida)}`);
-      if (actual.salida.trim() !== cabeza) return null;
-      const e = checksDe(ctx, pr);
+      const ahora = actual.salida.trim();
+      if (ahora !== cabeza) {
+        if (vistaCabeza || Date.now() > limiteCabeza)
+          abortar(
+            `La cabeza del PR #${pr} es ${ahora.slice(0, 7)}, no ${cabeza.slice(0, 7)}: alguien ha empujado a la rama. Míralo y vuelve a lanzar npm run publicar.`,
+          );
+        return null;
+      }
+      vistaCabeza = true;
+      const e = checksDe(ctx, pr, obligatorios);
       if (e === 'sin checks' && Date.now() > limiteSinChecks) {
         abortar(`El PR #${pr} sigue sin checks: ¿ha corrido su CI? Míralo en Actions.`);
       }
@@ -365,7 +451,7 @@ export function localizarRelease(ctx: Contexto): PrRelease | null {
       'pr',
       'list',
       '--repo',
-      REPO,
+      repo(),
       '--base',
       'develop',
       '--state',
@@ -391,7 +477,7 @@ export function hayCiDePr(ctx: Contexto, pr: PrRelease): boolean {
       'run',
       'list',
       '--repo',
-      REPO,
+      repo(),
       '--workflow',
       'ci.yml',
       '--branch',
@@ -438,11 +524,21 @@ async function pasoRelease(ctx: Contexto): Promise<void> {
     log.ok(`Empujón hecho: ${cabeza.slice(0, 7)} en ${pr.headRefName}.`);
   }
   if (ctx.opciones.soloComprobar) {
-    log.info(`Checks ahora: ${checksDe(ctx, pr.number)}. Esperaría a que estén en verde y lo fusionaría con squash.`);
+    const ahora = checksDe(ctx, pr.number, checksObligatorios(ctx, 'develop'));
+    log.info(`Checks ahora: ${ahora}. Esperaría a que estén en verde y lo fusionaría con squash.`);
     return;
   }
-  await esperarChecks(ctx, pr.number, cabeza);
-  const r = ctx.ej('gh', ['pr', 'merge', String(pr.number), '--repo', REPO, '--squash', '--match-head-commit', cabeza]);
+  await esperarChecks(ctx, pr.number, cabeza, 'develop');
+  const r = ctx.ej('gh', [
+    'pr',
+    'merge',
+    String(pr.number),
+    '--repo',
+    repo(),
+    '--squash',
+    '--match-head-commit',
+    cabeza,
+  ]);
   if (r.codigo !== 0) abortar(`No se ha podido fusionar el PR #${pr.number}: ${errorSeguro(r.error || r.salida)}`);
   log.ok(`PR #${pr.number} fusionado con squash en develop.`);
 }
@@ -470,7 +566,7 @@ async function pasoMain(ctx: Contexto): Promise<string> {
       'pr',
       'list',
       '--repo',
-      REPO,
+      repo(),
       '--base',
       'main',
       '--head',
@@ -511,7 +607,7 @@ async function pasoMain(ctx: Contexto): Promise<string> {
         'pr',
         'create',
         '--repo',
-        REPO,
+        repo(),
         '--base',
         'main',
         '--head',
@@ -528,12 +624,12 @@ async function pasoMain(ctx: Contexto): Promise<string> {
     if (!numero) abortar(`No he entendido la respuesta de gh pr create: ${r.salida}`);
     log.ok(`PR #${numero} abierto.`);
   }
-  await esperarChecks(ctx, numero, develop);
-  const m = ctx.ej('gh', ['pr', 'merge', String(numero), '--repo', REPO, '--merge', '--match-head-commit', develop]);
+  await esperarChecks(ctx, numero, develop, 'main');
+  const m = ctx.ej('gh', ['pr', 'merge', String(numero), '--repo', repo(), '--merge', '--match-head-commit', develop]);
   if (m.codigo !== 0) abortar(`No se ha podido fusionar el PR #${numero}: ${errorSeguro(m.error || m.salida)}`);
   const sha = json<string | null>(
     ctx,
-    ['pr', 'view', String(numero), '--repo', REPO, '--json', 'mergeCommit', '--jq', '.mergeCommit.oid | tojson'],
+    ['pr', 'view', String(numero), '--repo', repo(), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid | tojson'],
     'No se ha podido leer el merge commit',
   );
   if (!sha) abortar(`El PR #${numero} no tiene merge commit: ¿está en una cola de fusión? Míralo y relanza.`);
@@ -557,7 +653,7 @@ export function ejecucionDe(ctx: Contexto, workflow: string, sha: string): Ejecu
     ctx,
     [
       'api',
-      `repos/${REPO}/actions/workflows/${workflow}/runs?head_sha=${sha}&event=push&per_page=5`,
+      `repos/${repo()}/actions/workflows/${workflow}/runs?head_sha=${sha}&event=push&per_page=5`,
       '--jq',
       '.workflow_runs[0] // null | tojson',
     ],
@@ -597,42 +693,157 @@ export function developDe(ctx: Contexto, main: string): string {
   return padres.length >= 2 ? padres[1]! : main;
 }
 
-export function comprobarStaging(ctx: Contexto, develop: string): Comprobacion {
-  const r = git(ctx, ['show', `${develop}:${ARCHIVO_STAGING}`]);
-  const marcador = r.codigo === 0 ? ultimoMarcador(r.salida) : null;
-  if (!marcador) {
-    return evaluarStaging({
-      marcador: null,
-      develop,
-      verificado: null,
-      esAntecesor: false,
-      archivos: [],
-      soloVersion: false,
-    });
+/** Una ejecución de `workflow` con conclusion success y ese head_sha, o null. */
+export function ejecucionVerdeDe(ctx: Contexto, workflow: string, sha: string): Ejecucion | null {
+  return json<Ejecucion | null>(
+    ctx,
+    [
+      'api',
+      `repos/${repo()}/actions/workflows/${workflow}/runs?head_sha=${sha}&status=success&per_page=1`,
+      '--jq',
+      '.workflow_runs[0] // null | tojson',
+    ],
+    `No se han podido leer las ejecuciones de ${workflow}`,
+  );
+}
+
+/** El commit que sirve `url` en <meta name="commit">; null si no responde o no lo dice. */
+export function commitServido(ctx: Contexto, url: string): string | null {
+  const r = ctx.ej('curl', ['-fsS', '--max-time', '30', '-H', 'Cache-Control: no-cache', url]);
+  return r.codigo === 0 ? commitDeHtml(r.salida) : null;
+}
+
+function esAntecesor(ctx: Contexto, a: string, b: string): boolean {
+  const r = git(ctx, ['merge-base', '--is-ancestor', a, b]);
+  if (r.codigo > 1) abortar(`git merge-base: ${errorSeguro(r.error)}`);
+  return r.codigo === 0;
+}
+
+/**
+ * ¿Son las líneas de CHANGELOG.md de `desde..hasta` las que puso release-please? Cada commit que lo
+ * toca tiene que venir de un PR de release-please abierto por su bot, y las líneas tienen que ser las
+ * de los commits del bot en ese PR: un empujón a mano a la rama del PR que cambie el texto no vale.
+ */
+export function comprobarChangelog(ctx: Contexto, desde: string, hasta: string): string | null {
+  const cambiadas = lineasCambiadas(
+    gitOk(ctx, ['diff', '-U0', desde, hasta, '--', 'CHANGELOG.md'], 'git diff de CHANGELOG.md'),
+  );
+  if (!cambiadas.length) return null;
+  const commits = gitOk(
+    ctx,
+    ['log', '--format=%H', `${desde}..${hasta}`, '--', 'CHANGELOG.md'],
+    'git log de CHANGELOG.md',
+  )
+    .split(/\s+/)
+    .filter(Boolean);
+  const deRelease: string[] = [];
+  const vistos = new Set<number>();
+  for (const commit of commits) {
+    const prs = json<{ number: number; head: string; user: string }[]>(
+      ctx,
+      [
+        'api',
+        `repos/${repo()}/commits/${commit}/pulls`,
+        '--jq',
+        '[.[] | {number, head: .head.ref, user: .user.login}] | tojson',
+      ],
+      `No se ha podido leer el PR de ${commit.slice(0, 7)}`,
+    );
+    const pr = prs.find((p) => p.head.startsWith('release-please--') && p.user === BOT_RELEASE);
+    if (!pr) return `CHANGELOG.md cambia en ${commit.slice(0, 7)}, que no viene de un PR de release-please`;
+    if (vistos.has(pr.number)) continue;
+    vistos.add(pr.number);
+    const delPr = json<{ sha: string; autor: string | null }[]>(
+      ctx,
+      [
+        'api',
+        `repos/${repo()}/pulls/${pr.number}/commits?per_page=100`,
+        '--jq',
+        '[.[] | {sha, autor: .author.login}] | tojson',
+      ],
+      `No se han podido leer los commits del PR #${pr.number}`,
+    );
+    for (const c of delPr.filter((x) => x.autor === BOT_RELEASE)) {
+      const archivos = json<{ filename: string; patch?: string }[]>(
+        ctx,
+        ['api', `repos/${repo()}/commits/${c.sha}`, '--jq', '[.files[] | {filename, patch}] | tojson'],
+        `No se ha podido leer el commit ${c.sha.slice(0, 7)} del PR #${pr.number}`,
+      );
+      for (const a of archivos.filter((x) => x.filename === 'CHANGELOG.md'))
+        deRelease.push(...lineasCambiadas(a.patch ?? ''));
+    }
   }
-  const v = git(ctx, ['rev-parse', '--verify', '--quiet', `${marcador.commit}^{commit}`]);
-  const verificado = v.codigo === 0 ? v.salida.trim() : null;
-  if (!verificado || verificado === develop || marcador.resultado !== 'verde') {
-    return evaluarStaging({ marcador, develop, verificado, esAntecesor: false, archivos: [], soloVersion: false });
-  }
-  const anc = git(ctx, ['merge-base', '--is-ancestor', verificado, develop]);
-  if (anc.codigo > 1) abortar(`git merge-base: ${errorSeguro(anc.error)}`);
-  const archivos = gitOk(ctx, ['diff', '--name-only', '--no-renames', verificado, develop], 'git diff')
+  return compararChangelog(cambiadas, deRelease);
+}
+
+/** Lo que cambia de `desde` a `hasta` y llega a producción sin haber pasado por staging. */
+export function cambiosFuera(ctx: Contexto, desde: string, hasta: string): string[] {
+  const archivos = gitOk(ctx, ['diff', '--name-only', '--no-renames', desde, hasta], 'git diff')
     .split(/\r?\n/)
     .filter(Boolean);
-  const diff = gitOk(
-    ctx,
-    ['diff', '-U0', verificado, develop, '--', 'package.json', 'package-lock.json'],
-    'git diff de la versión',
+  if (!archivos.length) return [];
+  const soloVersion = diffSoloDeVersion(
+    gitOk(ctx, ['diff', '-U0', desde, hasta, '--', 'package.json', 'package-lock.json'], 'git diff de la versión'),
   );
-  return evaluarStaging({
-    marcador,
+  const changelog = archivos.includes('CHANGELOG.md') ? comprobarChangelog(ctx, desde, hasta) : null;
+  const fuera = fueraDeLoPermitido(archivos, soloVersion, changelog === null);
+  return changelog ? [changelog, ...fuera.filter((a) => a !== 'CHANGELOG.md')] : fuera;
+}
+
+/**
+ * Lo que sirve staging tiene que ser el código comprobado: el mismo commit, o uno posterior del
+ * mismo camino hacia lo que se publica con solo docs/** y lo de release-please por medio. Cada
+ * commit de develop se despliega en staging, también el que solo añade el registro de la comprobación.
+ */
+export function comprobarServido(ctx: Contexto, verificado: string, develop: string): string | null {
+  const servido = commitServido(ctx, URL_STAGING);
+  if (!servido) return `staging (${URL_STAGING}) no dice qué commit sirve (<meta name="commit">)`;
+  const v = git(ctx, ['rev-parse', '--verify', '--quiet', `${servido}^{commit}`]);
+  const completo = v.codigo === 0 ? v.salida.trim() : null;
+  if (!completo) return `staging sirve ${servido.slice(0, 7)}, que no está en el repositorio`;
+  if (completo === verificado) return null;
+  if (!esAntecesor(ctx, verificado, completo))
+    return `staging sirve ${completo.slice(0, 7)}, que no viene después del commit comprobado`;
+  // develop puede avanzar mientras corre la CI de main (un parche de Dependabot, un registro): si
+  // staging ya sirve algo posterior a lo que se publica, el camino de la marca a `develop` lo mira
+  // comprobarStaging con cambiosFuera; aquí no hay nada más que comprobar.
+  if (esAntecesor(ctx, develop, completo)) return null;
+  if (!esAntecesor(ctx, completo, develop))
+    return `staging sirve ${completo.slice(0, 7)}, que no está en lo que se publica (${develop.slice(0, 7)})`;
+  const fuera = cambiosFuera(ctx, verificado, completo);
+  return fuera.length ? `staging sirve ${completo.slice(0, 7)}, con cambios no comprobados: ${lista(fuera)}` : null;
+}
+
+export function comprobarStaging(ctx: Contexto, develop: string): Comprobacion {
+  const vacio = {
     develop,
+    verificado: null,
+    deployStaging: false,
+    ci: false,
+    servido: null,
+    esAntecesor: false,
+    fuera: [],
+  };
+  const r = git(ctx, ['show', `${develop}:${ARCHIVO_STAGING}`]);
+  const marcador = r.codigo === 0 ? ultimoMarcador(r.salida) : null;
+  if (!marcador) return evaluarStaging({ ...vacio, marcador: null });
+  const v = git(ctx, ['rev-parse', '--verify', '--quiet', `${marcador.commit}^{commit}`]);
+  const verificado = v.codigo === 0 ? v.salida.trim() : null;
+  if (!verificado || marcador.resultado !== 'verde') return evaluarStaging({ ...vacio, marcador, verificado });
+  const datos: DatosStaging = {
+    ...vacio,
+    marcador,
     verificado,
-    esAntecesor: anc.codigo === 0,
-    archivos,
-    soloVersion: diffSoloDeVersion(diff),
-  });
+    deployStaging: ejecucionVerdeDe(ctx, 'deploy-staging.yml', verificado) !== null,
+    ci: ejecucionVerdeDe(ctx, 'ci.yml', verificado) !== null,
+  };
+  if (!datos.deployStaging || !datos.ci) return evaluarStaging(datos);
+  datos.servido = comprobarServido(ctx, verificado, develop);
+  if (datos.servido) return evaluarStaging(datos);
+  if (verificado === develop) return evaluarStaging({ ...datos, esAntecesor: true });
+  datos.esAntecesor = esAntecesor(ctx, verificado, develop);
+  if (datos.esAntecesor) datos.fuera = cambiosFuera(ctx, verificado, develop);
+  return evaluarStaging(datos);
 }
 
 /** Lo que comprobar-produccion lee del checkout local: tiene que ser lo de la versión que se publica. */
@@ -647,8 +858,11 @@ export const LEIDO_EN_LOCAL = [
  * `develop` (el commit que se publica), no comprueba lo que la versión necesita, y sale con 3.
  */
 export function comprobarProduccion(ctx: Contexto, develop: string): DatosPuerta['produccion'] {
-  const igual = git(ctx, ['diff', '--quiet', 'HEAD', develop, '--', ...LEIDO_EN_LOCAL]);
-  if (igual.codigo !== 0) {
+  // El árbol de trabajo (no solo HEAD) contra `develop`, y sin archivos no seguidos en esas rutas:
+  // una migración sin añadir o un cambio sin commit también los leería comprobar-produccion.
+  const igual = git(ctx, ['diff', '--quiet', develop, '--', ...LEIDO_EN_LOCAL]);
+  const sueltos = git(ctx, ['ls-files', '--others', '--exclude-standard', '--', ...LEIDO_EN_LOCAL]);
+  if (igual.codigo !== 0 || sueltos.codigo !== 0 || sueltos.salida.trim()) {
     return {
       codigo: 3,
       filas: [
@@ -666,7 +880,7 @@ export function bloqueosAbiertos(ctx: Contexto): DatosPuerta['bloqueos'] {
     'issue',
     'list',
     '--repo',
-    REPO,
+    repo(),
     '--label',
     ETIQUETA_BLOQUEO,
     '--state',
@@ -674,9 +888,11 @@ export function bloqueosAbiertos(ctx: Contexto): DatosPuerta['bloqueos'] {
     '--json',
     'number,title',
   ]);
-  if (r.codigo !== 0) return null;
+  // Cerrado ante la duda: una salida vacía o que no es una lista no dice «ninguna».
+  if (r.codigo !== 0 || !r.salida.trim()) return null;
   try {
-    return JSON.parse(r.salida || '[]') as { number: number; title: string }[];
+    const lista = JSON.parse(r.salida) as unknown;
+    return Array.isArray(lista) ? (lista as { number: number; title: string }[]) : null;
   } catch {
     return null;
   }
@@ -721,7 +937,7 @@ function mostrarPuerta(r: ResultadoPuerta): void {
 export function idProduccion(ctx: Contexto): number {
   return json<number>(
     ctx,
-    ['api', `repos/${REPO}/environments/production`, '--jq', '.id'],
+    ['api', `repos/${repo()}/environments/production`, '--jq', '.id'],
     'No se ha podido leer el environment production',
   );
 }
@@ -731,7 +947,7 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
   const cuerpo = cuerpoAprobacion(idProduccion(ctx), puerta.verde, resumen);
   const r = ctx.ej(
     'gh',
-    ['api', '-X', 'POST', `repos/${REPO}/actions/runs/${run.id}/pending_deployments`, '--input', '-'],
+    ['api', '-X', 'POST', `repos/${repo()}/actions/runs/${run.id}/pending_deployments`, '--input', '-'],
     {
       entrada: cuerpo,
     },
@@ -750,7 +966,7 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
     'create',
     ETIQUETA_BLOQUEO,
     '--repo',
-    REPO,
+    repo(),
     '--color',
     'B60205',
     '--description',
@@ -767,7 +983,7 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
       'issue',
       'create',
       '--repo',
-      REPO,
+      repo(),
       '--label',
       ETIQUETA_BLOQUEO,
       '--title',
@@ -799,7 +1015,7 @@ async function pasoParidad(ctx: Contexto, run: Ejecucion, develop: string): Prom
     () => {
       const r = json<Ejecucion | null>(
         ctx,
-        ['api', `repos/${REPO}/actions/runs/${run.id}`, '--jq', '{id, status, conclusion, html_url}'],
+        ['api', `repos/${repo()}/actions/runs/${run.id}`, '--jq', '{id, status, conclusion, html_url}'],
         'No se ha podido leer el deploy',
       );
       if (!r) abortar(`No se ha podido leer la ejecución ${run.id} de deploy-prod.yml.`);
