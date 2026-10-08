@@ -27,10 +27,11 @@
 // Se puede relanzar: cada paso mira el estado real (PR ya fusionado, deploy ya aprobado…) y sigue.
 // Nunca imprime valores de secretos: solo usa la sesión de gh y git del propietario (DEC-176).
 
-import { abortar, ejecutar, ejecutarScript, errorSeguro, log, type Resultado } from './lib/comun.ts';
+import { abortar, ejecutar, ejecutarScript, errorSeguro, log, repositorio, type Resultado } from './lib/comun.ts';
 import { commitDeHtml } from './paridad.ts';
 
-export const REPO = 'aron285-coder/hidrantes-albolote';
+/** `propietario/nombre` del checkout (git remote), no escrito a mano (docs/32 RV-208). */
+const repo = () => repositorio().completo;
 export const ETIQUETA_BLOQUEO = 'bloquea-release';
 /** Lo escribe RV-139b; el formato del marcador está en docs/04 §12.1. */
 export const ARCHIVO_STAGING = 'docs/verificacion/revision-completa-staging.md';
@@ -368,7 +369,7 @@ async function sondear<T>(ctx: Contexto, leer: () => T | null, max: number, que:
 export function checksObligatorios(ctx: Contexto, rama: string): string[] {
   const nombres = json<string[] | null>(
     ctx,
-    ['api', `repos/${REPO}/branches/${rama}/protection/required_status_checks`, '--jq', '.contexts | tojson'],
+    ['api', `repos/${repo()}/branches/${rama}/protection/required_status_checks`, '--jq', '.contexts | tojson'],
     `No se ha podido leer la protección de ${rama}`,
   );
   if (!Array.isArray(nombres) || !nombres.length)
@@ -378,7 +379,7 @@ export function checksObligatorios(ctx: Contexto, rama: string): string[] {
 
 function checksDe(ctx: Contexto, pr: number, obligatorios: string[]): EstadoCi {
   return leerChecks(
-    ctx.ej('gh', ['pr', 'checks', String(pr), '--repo', REPO, '--required', '--json', 'name,bucket']),
+    ctx.ej('gh', ['pr', 'checks', String(pr), '--repo', repo(), '--required', '--json', 'name,bucket']),
     obligatorios,
   );
 }
@@ -404,7 +405,7 @@ export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string, b
         'view',
         String(pr),
         '--repo',
-        REPO,
+        repo(),
         '--json',
         'headRefOid',
         '--jq',
@@ -450,7 +451,7 @@ export function localizarRelease(ctx: Contexto): PrRelease | null {
       'pr',
       'list',
       '--repo',
-      REPO,
+      repo(),
       '--base',
       'develop',
       '--state',
@@ -476,7 +477,7 @@ export function hayCiDePr(ctx: Contexto, pr: PrRelease): boolean {
       'run',
       'list',
       '--repo',
-      REPO,
+      repo(),
       '--workflow',
       'ci.yml',
       '--branch',
@@ -528,7 +529,16 @@ async function pasoRelease(ctx: Contexto): Promise<void> {
     return;
   }
   await esperarChecks(ctx, pr.number, cabeza, 'develop');
-  const r = ctx.ej('gh', ['pr', 'merge', String(pr.number), '--repo', REPO, '--squash', '--match-head-commit', cabeza]);
+  const r = ctx.ej('gh', [
+    'pr',
+    'merge',
+    String(pr.number),
+    '--repo',
+    repo(),
+    '--squash',
+    '--match-head-commit',
+    cabeza,
+  ]);
   if (r.codigo !== 0) abortar(`No se ha podido fusionar el PR #${pr.number}: ${errorSeguro(r.error || r.salida)}`);
   log.ok(`PR #${pr.number} fusionado con squash en develop.`);
 }
@@ -556,7 +566,7 @@ async function pasoMain(ctx: Contexto): Promise<string> {
       'pr',
       'list',
       '--repo',
-      REPO,
+      repo(),
       '--base',
       'main',
       '--head',
@@ -597,7 +607,7 @@ async function pasoMain(ctx: Contexto): Promise<string> {
         'pr',
         'create',
         '--repo',
-        REPO,
+        repo(),
         '--base',
         'main',
         '--head',
@@ -615,11 +625,11 @@ async function pasoMain(ctx: Contexto): Promise<string> {
     log.ok(`PR #${numero} abierto.`);
   }
   await esperarChecks(ctx, numero, develop, 'main');
-  const m = ctx.ej('gh', ['pr', 'merge', String(numero), '--repo', REPO, '--merge', '--match-head-commit', develop]);
+  const m = ctx.ej('gh', ['pr', 'merge', String(numero), '--repo', repo(), '--merge', '--match-head-commit', develop]);
   if (m.codigo !== 0) abortar(`No se ha podido fusionar el PR #${numero}: ${errorSeguro(m.error || m.salida)}`);
   const sha = json<string | null>(
     ctx,
-    ['pr', 'view', String(numero), '--repo', REPO, '--json', 'mergeCommit', '--jq', '.mergeCommit.oid | tojson'],
+    ['pr', 'view', String(numero), '--repo', repo(), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid | tojson'],
     'No se ha podido leer el merge commit',
   );
   if (!sha) abortar(`El PR #${numero} no tiene merge commit: ¿está en una cola de fusión? Míralo y relanza.`);
@@ -643,7 +653,7 @@ export function ejecucionDe(ctx: Contexto, workflow: string, sha: string): Ejecu
     ctx,
     [
       'api',
-      `repos/${REPO}/actions/workflows/${workflow}/runs?head_sha=${sha}&event=push&per_page=5`,
+      `repos/${repo()}/actions/workflows/${workflow}/runs?head_sha=${sha}&event=push&per_page=5`,
       '--jq',
       '.workflow_runs[0] // null | tojson',
     ],
@@ -689,7 +699,7 @@ export function ejecucionVerdeDe(ctx: Contexto, workflow: string, sha: string): 
     ctx,
     [
       'api',
-      `repos/${REPO}/actions/workflows/${workflow}/runs?head_sha=${sha}&status=success&per_page=1`,
+      `repos/${repo()}/actions/workflows/${workflow}/runs?head_sha=${sha}&status=success&per_page=1`,
       '--jq',
       '.workflow_runs[0] // null | tojson',
     ],
@@ -733,7 +743,7 @@ export function comprobarChangelog(ctx: Contexto, desde: string, hasta: string):
       ctx,
       [
         'api',
-        `repos/${REPO}/commits/${commit}/pulls`,
+        `repos/${repo()}/commits/${commit}/pulls`,
         '--jq',
         '[.[] | {number, head: .head.ref, user: .user.login}] | tojson',
       ],
@@ -747,7 +757,7 @@ export function comprobarChangelog(ctx: Contexto, desde: string, hasta: string):
       ctx,
       [
         'api',
-        `repos/${REPO}/pulls/${pr.number}/commits?per_page=100`,
+        `repos/${repo()}/pulls/${pr.number}/commits?per_page=100`,
         '--jq',
         '[.[] | {sha, autor: .author.login}] | tojson',
       ],
@@ -756,7 +766,7 @@ export function comprobarChangelog(ctx: Contexto, desde: string, hasta: string):
     for (const c of delPr.filter((x) => x.autor === BOT_RELEASE)) {
       const archivos = json<{ filename: string; patch?: string }[]>(
         ctx,
-        ['api', `repos/${REPO}/commits/${c.sha}`, '--jq', '[.files[] | {filename, patch}] | tojson'],
+        ['api', `repos/${repo()}/commits/${c.sha}`, '--jq', '[.files[] | {filename, patch}] | tojson'],
         `No se ha podido leer el commit ${c.sha.slice(0, 7)} del PR #${pr.number}`,
       );
       for (const a of archivos.filter((x) => x.filename === 'CHANGELOG.md'))
@@ -870,7 +880,7 @@ export function bloqueosAbiertos(ctx: Contexto): DatosPuerta['bloqueos'] {
     'issue',
     'list',
     '--repo',
-    REPO,
+    repo(),
     '--label',
     ETIQUETA_BLOQUEO,
     '--state',
@@ -927,7 +937,7 @@ function mostrarPuerta(r: ResultadoPuerta): void {
 export function idProduccion(ctx: Contexto): number {
   return json<number>(
     ctx,
-    ['api', `repos/${REPO}/environments/production`, '--jq', '.id'],
+    ['api', `repos/${repo()}/environments/production`, '--jq', '.id'],
     'No se ha podido leer el environment production',
   );
 }
@@ -937,7 +947,7 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
   const cuerpo = cuerpoAprobacion(idProduccion(ctx), puerta.verde, resumen);
   const r = ctx.ej(
     'gh',
-    ['api', '-X', 'POST', `repos/${REPO}/actions/runs/${run.id}/pending_deployments`, '--input', '-'],
+    ['api', '-X', 'POST', `repos/${repo()}/actions/runs/${run.id}/pending_deployments`, '--input', '-'],
     {
       entrada: cuerpo,
     },
@@ -956,7 +966,7 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
     'create',
     ETIQUETA_BLOQUEO,
     '--repo',
-    REPO,
+    repo(),
     '--color',
     'B60205',
     '--description',
@@ -973,7 +983,7 @@ export function decidir(ctx: Contexto, run: Ejecucion, main: string, puerta: Res
       'issue',
       'create',
       '--repo',
-      REPO,
+      repo(),
       '--label',
       ETIQUETA_BLOQUEO,
       '--title',
@@ -1005,7 +1015,7 @@ async function pasoParidad(ctx: Contexto, run: Ejecucion, develop: string): Prom
     () => {
       const r = json<Ejecucion | null>(
         ctx,
-        ['api', `repos/${REPO}/actions/runs/${run.id}`, '--jq', '{id, status, conclusion, html_url}'],
+        ['api', `repos/${repo()}/actions/runs/${run.id}`, '--jq', '{id, status, conclusion, html_url}'],
         'No se ha podido leer el deploy',
       );
       if (!r) abortar(`No se ha podido leer la ejecución ${run.id} de deploy-prod.yml.`);
