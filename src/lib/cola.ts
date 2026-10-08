@@ -65,7 +65,14 @@ export interface Reserva {
  * medio subir. Un envío guardado por la versión anterior solo puede traer `cuota_propuestas`.
  */
 export type MotivoEspera =
-  'cuota_propuestas' | 'cuota_fotos' | 'cuota_fotos_grupo' | 'sin_espacio_fotos' | 'sin_espacio' | 'reservas_abiertas';
+  | 'cuota_propuestas'
+  | 'cuota_propuestas_nuevo'
+  | 'cuota_propuestas_grupo'
+  | 'cuota_fotos'
+  | 'cuota_fotos_grupo'
+  | 'sin_espacio_fotos'
+  | 'sin_espacio'
+  | 'reservas_abiertas';
 
 /** La espera por un tope: `maximo` si el servidor lo dice. */
 export interface EnEspera {
@@ -130,14 +137,22 @@ export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now
   const tope = TOPES.find(([prefijo]) => codigo.startsWith(prefijo));
   if (!tope) return null;
   let motivo = tope[1];
-  if (motivo === 'cuota_propuestas') return { motivo, ...esperaCuotaPropuestas(mensaje, ahora) };
-  if (motivo === 'cuota_fotos' && codigo.includes('(global)')) motivo = 'cuota_fotos_grupo';
+  // De quién es el tope (0041/0042, docs/32 RV-245): `ambito=token_nuevo|grupo|dispositivo` en el texto.
+  const ambito = /\bambito=([a-z_]+)/.exec(mensaje ?? '')?.[1];
+  const delGrupo = ambito === 'grupo' || codigo.includes('(global)');
+  if (motivo === 'cuota_propuestas') {
+    if (ambito === 'token_nuevo') motivo = 'cuota_propuestas_nuevo';
+    else if (delGrupo) motivo = 'cuota_propuestas_grupo';
+    return { motivo, ...esperaCuotaPropuestas(mensaje, ahora) };
+  }
+  if (motivo === 'cuota_fotos' && delGrupo) motivo = 'cuota_fotos_grupo';
   const segundos = /reintentar_en_s=(\d+)/.exec(mensaje ?? '');
   const maximo = /maximo=(\d+)/.exec(mensaje ?? '');
   return {
     motivo,
     ms: Math.max(1000, segundos ? Number(segundos[1]) * 1000 : HORA),
-    maximo: maximo ? Number(maximo[1]) : null,
+    // El de espacio de fotos viene en bytes: no se enseña.
+    maximo: maximo && motivo !== 'sin_espacio_fotos' ? Number(maximo[1]) : null,
   };
 }
 
@@ -410,13 +425,15 @@ async function pedirReserva(
     mensaje?: string;
     maximo?: number;
     reintentar_en_s?: number;
+    ambito?: string;
   };
   if (!respuesta.ok || !cuerpo.url || !cuerpo.foto_path) {
     if (respuesta.status >= 500 || !cuerpo.error) return { ok: false, codigo: SIN_SERVIDOR };
-    // Los números de un tope (RV-232), si la respuesta los trae, en la forma del texto de las RPC.
+    // Los números de un tope (RV-232, RV-245), si la respuesta los trae, en la forma del texto de las RPC.
     const numeros = [
       typeof cuerpo.maximo === 'number' ? `maximo=${cuerpo.maximo}` : '',
       typeof cuerpo.reintentar_en_s === 'number' ? `reintentar_en_s=${cuerpo.reintentar_en_s}` : '',
+      typeof cuerpo.ambito === 'string' && /^[a-z_]+$/.test(cuerpo.ambito) ? `ambito=${cuerpo.ambito}` : '',
     ].join(' ');
     const texto = typeof cuerpo.mensaje === 'string' ? cuerpo.mensaje : '';
     return { ok: false, codigo: cuerpo.error, mensaje: `${texto} ${numeros}`.trim() };

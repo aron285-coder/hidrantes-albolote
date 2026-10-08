@@ -555,6 +555,9 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Has llegado al máximo de propuestas de hoy ([60]). Se enviará mañana.` ·
 `Has llegado al máximo de propuestas de hoy. Se enviará mañana.` ·
 la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a las 00:05]`, en hora de Albolote):
+`En espera: un móvil recién dado de alta puede enviar [10] propuestas al día. Se enviará [a las 14:30].` ·
+`En espera: un móvil recién dado de alta tiene un máximo de propuestas al día. Se enviará [a las 14:30].` ·
+`En espera: el grupo ha llegado al máximo de propuestas de hoy. Se enviará [mañana a las 00:05].` ·
 `En espera: has llegado al máximo de fotos de hoy. Se enviará [a las 14:30].` ·
 `En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará [a las 14:30].` ·
 `En espera: el servidor no tiene sitio para más fotos. Se volverá a intentar [a las 14:30].` ·

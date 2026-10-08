@@ -36,6 +36,12 @@ export function textoEspera(envio: Pick<EnCola, 'en_espera' | 'fallo' | 'proximo
   switch (motivo) {
     case 'cuota_propuestas':
       return maximo ? T.misPropuestas.cuotaPropuestas(maximo) : T.misPropuestas.cuotaPropuestasSinNumero;
+    case 'cuota_propuestas_nuevo':
+      return maximo
+        ? T.misPropuestas.esperaPropuestasNuevo(maximo, cuando)
+        : T.misPropuestas.esperaPropuestasNuevoSinNumero(cuando);
+    case 'cuota_propuestas_grupo':
+      return T.misPropuestas.esperaPropuestasGrupo(cuando);
     case 'cuota_fotos':
       return T.misPropuestas.esperaFotos(cuando);
     case 'cuota_fotos_grupo':

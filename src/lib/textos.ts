@@ -467,6 +467,13 @@ export const T = {
       `Has llegado al máximo de propuestas de hoy (${maximo}). Se enviará mañana.`,
     cuotaPropuestasSinNumero: 'Has llegado al máximo de propuestas de hoy. Se enviará mañana.',
     // docs/32 RV-233: la espera por los demás topes; `cuando` es «a las 14:30» o «mañana a las 00:05».
+    // docs/32 RV-245: los topes de 0041, el del móvil recién dado de alta y el de todo el grupo.
+    esperaPropuestasNuevo: (maximo: Parametro, cuando: Parametro) =>
+      `En espera: un móvil recién dado de alta puede enviar ${maximo} propuestas al día. Se enviará ${cuando}.`,
+    esperaPropuestasNuevoSinNumero: (cuando: Parametro) =>
+      `En espera: un móvil recién dado de alta tiene un máximo de propuestas al día. Se enviará ${cuando}.`,
+    esperaPropuestasGrupo: (cuando: Parametro) =>
+      `En espera: el grupo ha llegado al máximo de propuestas de hoy. Se enviará ${cuando}.`,
     esperaFotos: (cuando: Parametro) => `En espera: has llegado al máximo de fotos de hoy. Se enviará ${cuando}.`,
     esperaFotosGrupo: (cuando: Parametro) =>
       `En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará ${cuando}.`,

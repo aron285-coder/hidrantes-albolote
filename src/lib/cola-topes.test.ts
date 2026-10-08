@@ -239,3 +239,50 @@ describe('lo que solo estaba en memoria se guarda en cuanto IndexedDB vuelve (RV
     expect((await almacen.todos()).map((i) => i.clave_local).sort()).toEqual(['k-disco01', 'k-memoria']);
   });
 });
+
+// docs/32 RV-245: los errores tal como los da 0041 (y 0042, con ámbito en el de fotos).
+describe('los topes nuevos de 0041 (RV-245)', () => {
+  it('móvil recién dado de alta: espera y lo dice con su máximo', async () => {
+    rpc.mockResolvedValue(errorRpc('CUOTA_PROPUESTAS_AGOTADA: maximo=10 reintentar_en_s=3600 ambito=token_nuevo'));
+    await encolarSinRed(2, null);
+    await cola.procesarCola();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    const [a] = cola.colaActual();
+    expect(a).toMatchObject({ fallo: null, en_espera: { motivo: 'cuota_propuestas_nuevo', maximo: 10 } });
+    expect(textoEspera(a!)).toBe(
+      'En espera: un móvil recién dado de alta puede enviar 10 propuestas al día. Se enviará a las 13:00.',
+    );
+  });
+
+  it('tope de todo el grupo', async () => {
+    rpc.mockResolvedValue(errorRpc('CUOTA_PROPUESTAS_AGOTADA: maximo=600 reintentar_en_s=43200 ambito=grupo'));
+    await encolarSinRed(1, null);
+    await cola.procesarCola();
+    expect(textoEspera(cola.colaActual()[0]!)).toBe(
+      'En espera: el grupo ha llegado al máximo de propuestas de hoy. Se enviará mañana a las 00:00.',
+    );
+  });
+
+  it('RESERVAS_ABIERTAS espera lo que dice /api/url-subida', async () => {
+    respuestaReserva = () => respuesta(429, { error: 'RESERVAS_ABIERTAS', maximo: 6, reintentar_en_s: 1200 });
+    await encolarSinRed(2);
+    await cola.procesarCola();
+    expect(reservas()).toBe(1);
+    expect(cola.colaActual().map((i) => i.proximo - Date.now())).toEqual([1200_000, 1200_000]);
+    expect(cola.colaActual()[0]!.fallo).toBeNull();
+  });
+
+  it('el tope de fotos del grupo, con el ámbito en la respuesta', async () => {
+    respuestaReserva = () => respuesta(429, { error: 'CUOTA_SUBIDAS_AGOTADA', ambito: 'grupo', reintentar_en_s: 600 });
+    await encolarSinRed(1);
+    await cola.procesarCola();
+    expect(cola.colaActual()[0]!.en_espera?.motivo).toBe('cuota_fotos_grupo');
+  });
+
+  it('sin espacio de fotos: el máximo viene en bytes y no se guarda', async () => {
+    respuestaReserva = () => respuesta(429, { error: 'SIN_ESPACIO_FOTOS', maximo: 838860800, reintentar_en_s: 3600 });
+    await encolarSinRed(1);
+    await cola.procesarCola();
+    expect(cola.colaActual()[0]!.en_espera).toEqual({ motivo: 'sin_espacio_fotos', maximo: null });
+  });
+});
