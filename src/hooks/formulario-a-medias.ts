@@ -29,16 +29,26 @@ export function useSalidaFormulario(sucio: boolean, preguntar: () => void) {
   }, [sucio, preguntar]);
   /** Lo que hay que hacer cuando el navegador termine de quitar la entrada propia. */
   const despues = useRef<(() => void) | null>(null);
+  /**
+   * Ya se está saliendo: React puede tardar en desmontar el formulario (la navegación va en una
+   * transición) y el popstate de esa salida no debe tomarse por otro "atrás".
+   */
+  const saliendo = useRef(false);
 
   /** Atrás de verdad: a la pantalla anterior o, si el formulario se abrió el primero, al mapa. */
   const volver = useCallback(() => {
+    saliendo.current = true;
     if (indice() > 0) navegar(-1);
     else navegar('/', { replace: true });
   }, [navegar]);
 
   useEffect(() => {
-    if (marcaActual() !== marca)
-      window.history.pushState({ ...(window.history.state as object | null), [MARCA]: marca }, '');
+    // Tras recargar, la entrada de antes sigue arriba con su marca vieja: se reutiliza, no se apila otra.
+    if (marcaActual() !== marca) {
+      const con = { ...(window.history.state as object | null), [MARCA]: marca };
+      if (marcaActual()) window.history.replaceState(con, '');
+      else window.history.pushState(con, '');
+    }
     const atras = () => {
       const tarea = despues.current;
       if (tarea) {
@@ -46,6 +56,7 @@ export function useSalidaFormulario(sucio: boolean, preguntar: () => void) {
         tarea();
         return;
       }
+      if (saliendo.current) return;
       // Hacia delante a la entrada propia (el botón "adelante"): no es salir.
       if (marcaActual() === marca) return;
       if (sucioRef.current) {
@@ -72,7 +83,11 @@ export function useSalidaFormulario(sucio: boolean, preguntar: () => void) {
 
   const salir = useCallback(() => quitarYLuego(volver), [quitarYLuego, volver]);
   const reemplazarPor = useCallback(
-    (ruta: string, opciones: NavigateOptions = {}) => quitarYLuego(() => navegar(ruta, { ...opciones, replace: true })),
+    (ruta: string, opciones: NavigateOptions = {}) =>
+      quitarYLuego(() => {
+        saliendo.current = true;
+        navegar(ruta, { ...opciones, replace: true });
+      }),
     [quitarYLuego, navegar],
   );
   return { salir, reemplazarPor };

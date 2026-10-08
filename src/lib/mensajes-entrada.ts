@@ -14,6 +14,8 @@ const hora = (ms: number) =>
  * volver a intentar tras DEMASIADOS_INTENTOS (el bloqueo que guarda el móvil).
  */
 export function mensajeEntrada(codigo: string, bloqueadoHasta: number | null = null): string {
+  // Un proxy que conteste con `error` que no es texto: no se rompe la pantalla.
+  if (typeof codigo !== 'string') return T.entrada.errorDesconocido('?');
   if (codigo === 'CODIGO_INCORRECTO') return T.entrada.codigoIncorrecto;
   if (codigo === 'DEMASIADOS_INTENTOS') {
     return bloqueadoHasta ? T.entrada.demasiadosIntentosHasta(hora(bloqueadoHasta)) : T.entrada.demasiadosIntentos;

@@ -90,7 +90,10 @@ export function MisPropuestas() {
   const [carga, setCarga] = useState<Carga>('cargando');
   // Solo tras una carga buena se da lo resuelto por visto (RV-153).
   const cargar = useCallback(
-    () => cargarYMarcarVistas().then((r) => setCarga(r.ok || r.codigo === SESION_CAMBIADA ? 'bien' : 'fallo')),
+    () =>
+      cargarYMarcarVistas()
+        .then((r) => setCarga(r.ok || r.codigo === SESION_CAMBIADA ? 'bien' : 'fallo'))
+        .catch(() => setCarga('fallo')),
     [],
   );
   useEffect(() => {
@@ -103,9 +106,8 @@ export function MisPropuestas() {
 
   // Una propuesta enviada ya está en la lista del servidor; la cola solo guarda lo que falta.
   const enviadas = propias.filter((p) => !cola.some((c) => c.clave_local === p.clave_local));
-  const vacia = !cola.length && !enviadas.length;
 
-  const aviso = avisoMisPropuestas(carga, !vacia, conexion);
+  const aviso = avisoMisPropuestas(carga, enviadas.length > 0, cola.length > 0, conexion);
 
   const retirable = (p: PropuestaPropia) => p.estado === 'pendiente' && conexion === 'bien';
 
@@ -118,8 +120,11 @@ export function MisPropuestas() {
             <p className="text-texto-suave mb-2 text-[13px]">{T.misPropuestas.listaGuardada}</p>
           )}
           {aviso === 'no_actualizada' && (
-            <p role="status" className="text-texto-suave mb-2 text-[13px]">
+            <p role="status" className="text-texto-suave mb-2 flex items-center gap-3 text-[13px]">
               {T.misPropuestas.noActualizada}
+              <button type="button" className="text-texto min-h-11 font-semibold underline" onClick={reintentar}>
+                {T.misPropuestas.reintentar}
+              </button>
             </p>
           )}
           <ul className="flex flex-col gap-2">

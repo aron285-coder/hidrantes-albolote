@@ -62,6 +62,18 @@ test.describe('salir de un formulario a medias (RV-239)', () => {
     await expect(page).toHaveURL(/\/$/);
   });
 
+  test('tras recargar el formulario, la entrada propia no se apila: una sola pregunta y fuera', async ({ page }) => {
+    await preparar(page);
+    await page.getByRole('radio', { name: T.formulario.d70 }).click();
+    await page.reload();
+    await page.getByRole('radio', { name: T.formulario.d70 }).click();
+    await page.goBack();
+    await expect(pregunta(page)).toBeVisible();
+    await pregunta(page).getByRole('button', { name: T.avisoFormulario.botonSalir, exact: true }).click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(pregunta(page)).toHaveCount(0);
+  });
+
   test('con algo rellenado, la flecha de la barra también pregunta', async ({ page }) => {
     await preparar(page);
     await page.getByRole('radio', { name: T.formulario.d70 }).click();

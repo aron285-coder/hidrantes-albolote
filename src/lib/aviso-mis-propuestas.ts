@@ -7,20 +7,26 @@ import type { EstadoConexion } from './conexion';
 export type Carga = 'cargando' | 'bien' | 'fallo';
 
 /**
- * Qué aviso lleva la pantalla:
- * - `no_cargada`: no hay nada que enseñar y la carga ha fallado (con «Reintentar»);
+ * Qué aviso lleva la pantalla. `guardadas`: hay propuestas enviadas en la lista (la del servidor,
+ * guardada en el móvil). `enCola`: hay envíos que aún no han salido.
+ * - `no_cargada`: no hay lista guardada y la carga ha fallado (con «Reintentar»);
  * - `cargando`: no hay nada que enseñar todavía;
  * - `vacia`: cargada y de verdad no hay nada;
  * - `sin_conexion`: hay lista guardada y no hay cobertura;
- * - `no_actualizada`: hay lista guardada y el servidor no ha contestado bien;
- * - null: la lista está al día.
+ * - `no_actualizada`: hay lista guardada y el servidor no ha contestado bien (con «Reintentar»);
+ * - null: nada que decir.
  */
 export function avisoMisPropuestas(
   carga: Carga,
-  hayAlgo: boolean,
+  guardadas: boolean,
+  enCola: boolean,
   conexion: EstadoConexion,
 ): 'no_cargada' | 'cargando' | 'vacia' | 'sin_conexion' | 'no_actualizada' | null {
-  if (!hayAlgo) return carga === 'fallo' ? 'no_cargada' : carga === 'cargando' ? 'cargando' : 'vacia';
+  if (!guardadas) {
+    if (carga === 'fallo') return 'no_cargada';
+    if (enCola) return null;
+    return carga === 'cargando' ? 'cargando' : 'vacia';
+  }
   if (conexion === 'sin_cobertura') return 'sin_conexion';
   if (carga === 'fallo') return 'no_actualizada';
   return null;

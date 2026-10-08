@@ -57,8 +57,13 @@ export function reduceAlDecodificar(): Promise<boolean> {
       const bien = b.width === 2;
       b.close();
       return bien;
-    } catch {
-      return false;
+    } catch (e) {
+      // Rechaza resizeWidth: no reduce. Otro fallo (memoria, decodificador ocupado) no dice nada de
+      // eso: se vuelve a probar con la próxima foto y, mientras, se intenta reducir (si falla con una
+      // foto enorme, procesarFoto avisa en vez de abrirla entera).
+      if (e instanceof TypeError || e instanceof RangeError) return false;
+      reduce = null;
+      return true;
     }
   })();
   return reduce;

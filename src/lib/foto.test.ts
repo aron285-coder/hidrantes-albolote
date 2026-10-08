@@ -168,6 +168,19 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
       expect(crear).toHaveBeenCalledTimes(1);
     });
 
+    it('una de 50 MP cuya apertura reducida falla: aviso, no se abre entera (RV-244)', async () => {
+      crear.mockImplementationOnce(async () => {
+        throw new Error('sin memoria');
+      });
+      await expect(procesarFoto(new Blob([jpegConCabecera(8660, 5774)]))).rejects.toBeInstanceOf(FotoDemasiadoGrande);
+      expect(crear).toHaveBeenCalledTimes(1);
+    });
+
+    it('una HEIC de 50 MP en un navegador que sí reduce: se pide ya reducida (RV-244)', async () => {
+      await procesarFoto(new Blob([heicConCabecera(8160, 6120)]));
+      expect(crear).toHaveBeenCalledWith(expect.any(Blob), expect.objectContaining({ resizeWidth: 1600 }));
+    });
+
     it('una de 50 MP en un navegador que sí reduce: se abre ya reducida', async () => {
       const r = await procesarFoto(new Blob([jpegConCabecera(8660, 5774)]));
       expect(crear).toHaveBeenCalledWith(expect.any(Blob), expect.objectContaining({ resizeWidth: 1600 }));
