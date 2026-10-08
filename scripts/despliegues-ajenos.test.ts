@@ -146,12 +146,17 @@ describe.skipIf(saltar)('ajenos (RV-130, RV-203)', () => {
     );
   });
 
-  it('un paso que despliega y falla no autoriza; uno en marcha ahora, sí', () => {
-    const fallido = job(4, SHA_BUENO, [paso(PASO, '2026-10-06T10:05:00Z', '2026-10-06T10:06:00Z', 'failure')], {
-      conclusion: 'failure',
-    });
+  it('el paso que despliega cuenta aunque termine en failure o cancelled, o siga en marcha; saltado, no', () => {
+    // wrangler puede haber creado el despliegue antes de fallar, y el paso solo corre tras la aprobación.
     const lista = [despliegue(ID_AJENO, SHA_BUENO, '2026-10-06T10:05:30Z')];
-    expect(ajenos(lista, [fallido]).stdout.trim()).toContain(ID_AJENO);
+    for (const conclusion of ['failure', 'cancelled']) {
+      const terminado = job(4, SHA_BUENO, [paso(PASO, '2026-10-06T10:05:00Z', '2026-10-06T10:06:00Z', conclusion)], {
+        conclusion: 'failure',
+      });
+      expect(ajenos(lista, [terminado]).stdout.trim(), conclusion).toBe('');
+    }
+    const saltado = job(6, SHA_BUENO, [paso(PASO, '2026-10-06T10:05:00Z', '2026-10-06T10:05:00Z', 'skipped')]);
+    expect(ajenos(lista, [saltado]).stdout.trim()).toContain(ID_AJENO);
     const enMarcha = job(5, SHA_BUENO, [paso(PASO, '2026-10-06T10:05:00Z', null, null)], {
       status: 'in_progress',
       conclusion: null,
@@ -218,7 +223,7 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
           local id
           id=$(printf '%s' "$1 $2" | sed -E 's|.*/runs/([0-9]+)/jobs.*|\\1|')
           echo "jobs $id" >> "$D/anotado"
-          if [ -f "$D/jobs-roto" ]; then return 1; fi
+          if [ -f "$D/jobs-roto" ]; then printf 'HTTP 502: Bad Gateway\\nmás detalle\\n' >&2; return 1; fi
           jq -c --argjson id "$id" '.[] | select(.run_id == $id)' "$D/jobs.json" ;;
         "issue list"*"--state all"*) printf '%s\\n' "${avisados}" ;;
         "issue list"*) printf '%s' "${issueAbierta}" ;;
@@ -257,13 +262,52 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
         created_at: hace(130),
         updated_at: hace(120),
       },
-      // Esperando la aprobación: aún no ha corrido nada, no se piden sus jobs.
+      // Esperando la aprobación: aún no ha corrido nada; sus jobs no dan ventana.
       { id: 42, head_sha: SHA_OTRO, status: 'waiting', conclusion: null, created_at: hace(40), updated_at: hace(40) },
     ],
   };
   const jobsRecientes = [job(41, SHA_BUENO, [paso(PASO, hace(126), hace(124))])];
 
-  it('todo de deploy-prod: ningún problema, ni issue ni aviso; solo pide los jobs de las que han corrido', () => {
+  it('una relanzada que espera la aprobación sigue autorizando lo que desplegó su intento anterior', () => {
+    const relanzada = {
+      workflow_runs: [
+        {
+          id: 43,
+          head_sha: SHA_BUENO,
+          status: 'waiting',
+          conclusion: null,
+          created_at: hace(300),
+          updated_at: hace(5),
+        },
+      ],
+    };
+    const intentos = [
+      job(
+        43,
+        SHA_BUENO,
+        [paso(PASO, hace(126), hace(124)), paso('Paridad con develop', hace(124), hace(120), 'failure')],
+        {
+          conclusion: 'failure',
+          run_attempt: 1,
+        },
+      ),
+      job(43, SHA_BUENO, [], { status: 'waiting', conclusion: null, run_attempt: 2 }),
+    ];
+    const r = correr(
+      simulados('true'),
+      {
+        'proyecto.json': { result: { canonical_deployment: despliegue(ID_BUENO, SHA_BUENO, hace(125)) } },
+        'recientes.json': { result: [despliegue(ID_BUENO, SHA_BUENO, hace(125))] },
+        'ejec.json': relanzada,
+        'jobs.json': intentos,
+      },
+      env,
+    );
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.stdout.trim()).toBe('P:\njobs 43');
+  });
+
+  it('todo de deploy-prod: ningún problema, ni issue ni aviso; pide los jobs de las ejecuciones de sus commits', () => {
     const r = correr(
       simulados('false'),
       {
@@ -298,8 +342,8 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
     expect(r.stdout).toContain('issue create');
     expect(r.stdout).toContain('aviso jefatura');
     expect(r.stdout).not.toContain('rollback');
-    // La del commit pendiente espera la aprobación: no se piden sus jobs.
-    expect(r.stdout).not.toContain('jobs 42');
+    // La del commit pendiente espera la aprobación: se piden sus jobs, pero no autorizan nada.
+    expect(r.stdout).toContain('jobs 42');
   });
 
   it('con config.revertir_despliegue_ajeno, vuelve al último despliegue bueno', () => {
@@ -334,7 +378,10 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
         env,
       );
       expect(r.status, r.stderr).toBe(0);
-      expect(r.stdout).toContain('P:no se pueden leer los pasos de la ejecución 41 de deploy-prod.yml');
+      // Con la primera línea del error de gh, no tragada.
+      expect(r.stdout).toContain(
+        'P:no se pueden leer los pasos de la ejecución 41 de deploy-prod.yml (HTTP 502: Bad Gateway)',
+      );
       expect(r.stdout).not.toContain('issue create');
     } finally {
       rmSync(path.join(dir, 'jobs-roto'), { force: true });
@@ -367,7 +414,7 @@ describe.skipIf(saltar)('mirar_despliegues con la API simulada (RV-130)', () => 
   it('cerrar la issue es darlo por atendido: no se vuelve a abrir ni a avisar', () => {
     const r = correr(simulados('false', '', `- ${ID_AJENO} bbbbbbb`), ajenoActivo(), env);
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout.trim()).toBe('P:');
+    expect(r.stdout.trim()).toBe('P:\njobs 42');
   });
 
   it('con la issue abierta y un despliegue nuevo, la comenta y vuelve a avisar', () => {

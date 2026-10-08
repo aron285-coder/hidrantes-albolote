@@ -6,7 +6,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { ARCHIVO, RAMA, WORKFLOWS, marcarTodos, pendientes, separar, type Entorno } from './despachar.ts';
+import { ARCHIVO, RAMA, WORKFLOWS, lista, marcarTodos, pendientes, separar, type Entorno } from './despachar.ts';
 import { ErrorDeScript } from './lib/comun.ts';
 
 const SUPABASE = 'https://proyecto.supabase.co';
@@ -164,6 +164,39 @@ describe('marcar: marcarTodos', () => {
       'Content-Profile': 'hidrantes',
       'Accept-Profile': 'hidrantes',
     });
+  });
+
+  it('si se para a mitad, el resumen ya tiene los errores anotados antes (llegan a la issue)', async () => {
+    let n = 0;
+    const { entorno } = simulado({
+      marcar: () => (++n === 1 ? new Response(null, { status: 204 }) : new Response('{}', { status: 500 })),
+    });
+    const resumen = { lanzados: 0, fallidos: 0, errores: [] as string[], sinResultado: [] as string[] };
+    await expect(
+      marcarTodos(
+        entorno,
+        [
+          { id: 1, workflow: 'respaldo' },
+          { id: 2, workflow: 'purgar-fotos' },
+        ],
+        [],
+        [
+          { id: '1', trabajo: 'respaldo', resultado: 'error: GitHub: HTTP 422' },
+          { id: '2', trabajo: 'purgar-fotos', resultado: 'lanzado' },
+        ],
+        resumen,
+      ),
+    ).rejects.toThrow(/fn_marcar_pedido respondió 500 para el pedido 2/);
+    expect(resumen.errores).toEqual(['respaldo: error: GitHub: HTTP 422']);
+  });
+
+  it('PEDIDOS y RECHAZADOS son obligatorios; RESULTADOS puede faltar', () => {
+    expect(() => lista('PEDIDOS', undefined, true)).toThrow(/Falta PEDIDOS: el trabajo leer no lo ha pasado/);
+    expect(() => lista('RECHAZADOS', '  ', true)).toThrow(/Falta RECHAZADOS/);
+    expect(lista('PEDIDOS', '[]', true)).toEqual([]);
+    expect(lista('RESULTADOS', '')).toEqual([]);
+    expect(() => lista('RESULTADOS', '{"a":1}')).toThrow(/no es una lista/);
+    expect(() => lista('RESULTADOS', 'roto')).toThrow(/no es JSON/);
   });
 
   it('si no puede marcar un pedido, se para (y falla)', async () => {
@@ -331,8 +364,12 @@ describe('despachador.yml', () => {
 
   describe.skipIf(sinJq)('el guion de lanzar, con gh simulado', () => {
     const guion = guionDe(trabajo('lanzar'), 'Lanzar los trabajos pedidos');
-    /** gh simulado: anota la llamada; falla con el archivo que se le diga. */
-    const correr = (pedidos: unknown, falla = '') => {
+    /**
+     * gh simulado: anota la llamada; falla con el archivo que se le diga, o corta el guion entero (como
+     * un runner perdido) con el que se diga en CORTA. Devuelve la última línea de la salida: la que lee
+     * GitHub cuando una clave se escribe varias veces.
+     */
+    const correr = (pedidos: unknown, falla = '', corta = '', cortado = false) => {
       const dir = mkdtempSync(path.join(tmpdir(), 'lanzar-'));
       try {
         const salida = path.join(dir, 'salida');
@@ -341,6 +378,7 @@ describe('despachador.yml', () => {
         const gh = [
           'gh() {',
           '  echo "gh $*" >> "$ANOTADO"',
+          '  if [ -n "$CORTA" ] && [[ "$*" == *"/$CORTA/"* ]]; then kill -TERM $$; sleep 5; fi',
           '  if [ -n "$FALLA" ] && [[ "$*" == *"/$FALLA/"* ]]; then echo "gh: Unexpected inputs provided (HTTP 422)" >&2; return 1; fi',
           '}',
         ].join('\n');
@@ -351,12 +389,14 @@ describe('despachador.yml', () => {
             GITHUB_OUTPUT: salida,
             ANOTADO: anotado,
             FALLA: falla,
+            CORTA: corta,
             GH_REPO: 'dueno/repo',
             PEDIDOS: JSON.stringify(pedidos),
           },
         });
-        expect(r.status, r.stderr).toBe(0);
-        const linea = readFileSync(salida, 'utf8').trim();
+        if (cortado) expect(r.status).not.toBe(0);
+        else expect(r.status, r.stderr).toBe(0);
+        const linea = readFileSync(salida, 'utf8').trim().split('\n').at(-1)!;
         expect(linea.startsWith('resultados=')).toBe(true);
         return {
           resultados: JSON.parse(linea.slice('resultados='.length)) as unknown,
@@ -366,6 +406,19 @@ describe('despachador.yml', () => {
         rmSync(dir, { recursive: true, force: true });
       }
     };
+
+    it('si el paso se corta a mitad, lo ya lanzado queda en la salida (no se relanza)', () => {
+      const { resultados } = correr(
+        [
+          { id: 1, trabajo: 'purgar-fotos' },
+          { id: 2, trabajo: 'respaldo' },
+        ],
+        '',
+        'respaldo.yml',
+        true,
+      );
+      expect(resultados).toEqual([{ id: '1', trabajo: 'purgar-fotos', resultado: 'lanzado' }]);
+    });
 
     it('lanza cada pedido en develop, con su entrada, y devuelve el resultado de cada uno', () => {
       const { resultados, llamadas } = correr([
