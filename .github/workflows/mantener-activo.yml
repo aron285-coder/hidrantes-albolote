@@ -9,13 +9,16 @@ on:
     - cron: '17 6 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: read
-  issues: write
+# Nada por defecto: cada trabajo pide lo suyo (docs/32 RV-201). actions: write, que también borra
+# artifacts (el respaldo, DEC-180), solo en mantener-workflows, sin checkout.
+permissions: {}
 
 jobs:
   tocar:
     runs-on: ubuntu-24.04
+    # Sin checkout: solo curl a Supabase y gh para su issue.
+    permissions:
+      issues: write
     strategy:
       fail-fast: false
       matrix:
