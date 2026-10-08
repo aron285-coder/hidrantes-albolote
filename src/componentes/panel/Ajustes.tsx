@@ -123,8 +123,9 @@ function CodigoDeAcceso() {
         : T.panelAjustes.sinCambios(moviles);
   return (
     <Tarjeta titulo={T.panelAjustes.codigoAcceso} ayuda={ayuda}>
-      {/* El código que no se ha podido leer se dice, con Reintentar; nunca «—» (docs/32 RV-261). */}
-      {carga.estado === 'error' && !datos ? (
+      {/* El código que no se ha podido leer se dice, con Reintentar; nunca «—» (docs/32 RV-261). Si
+          falla una recarga (tras cambiarlo, por ejemplo), tampoco se enseña el de antes como vigente. */}
+      {carga.estado === 'error' ? (
         <ErrorReintentar
           texto={`${T.panelAjustes.codigoNoCarga} ${textoError(carga.codigo)}`}
           reintentar={carga.recargar}
@@ -333,9 +334,11 @@ function ParametrosTarjeta() {
   // Lo guardado de verdad, o null mientras no ha cargado: hasta entonces no se edita nada, y los
   // cambios nunca se calculan contra los valores por defecto (docs/32 RV-257). Sin cargar, los
   // campos van vacíos y deshabilitados: un valor por defecto a la vista parecería el guardado.
-  const guardados = carga.datos;
+  // Una recarga que falla (tras guardar, por ejemplo) deja datos de antes: tampoco valen como lo
+  // guardado. Se dice el error y no se edita hasta reintentar; lo escrito se conserva.
+  const guardados = carga.estado === 'error' ? null : carga.datos;
   const sinCargar = !guardados;
-  const fallo = sinCargar && carga.estado === 'error' ? textoError(carga.codigo) : null;
+  const fallo = carga.estado === 'error' ? textoError(carga.codigo) : null;
   const v = editado ?? guardados ?? PARAMETROS_POR_DEFECTO;
   const setV = (cambio: (x: Parametros) => Parametros) => setEditado(cambio(v));
   const conRadios = (x: Parametros): Parametros => (radios === null ? x : { ...x, escala_radios: leerRadios(radios) });

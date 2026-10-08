@@ -253,6 +253,37 @@ test('la celda con el foco y sin escribir no guarda al llegar otra dirección (d
   await expect.poll(ediciones).toEqual([{ punto_id: P0.id, cambios: { direccion: 'Calle Mía 7' } }]);
 });
 
+// RV-256: si no se ha podido guardar, lo escrito sigue siendo un cambio y el siguiente blur lo intenta.
+test('la dirección que no se pudo guardar se vuelve a intentar al salir otra vez (docs/32 RV-256)', async ({
+  page,
+}) => {
+  const puntos = { lista: PUNTOS.map((p) => ({ ...p })) };
+  const llamadas = await prepararPanel(page, puntos);
+  let fallos = 1;
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_editar_punto`, (r) => {
+    if (fallos-- <= 0) return r.fallback();
+    return r.fulfill({
+      status: 500,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: '{"message":"caído"}',
+    });
+  });
+  const ediciones = () => llamadas.filter((l) => l.nombre === 'fn_editar_punto').map((l) => l.cuerpo);
+  await page.goto('/admin/inventario');
+  const celda = page.getByLabel(T.panelInventario.direccionDe(P0.codigo));
+  await celda.fill('Calle Mía 7');
+  await celda.blur();
+  await expect(page.getByRole('alert').first()).toBeVisible();
+  await expect(celda).toHaveValue('Calle Mía 7');
+  expect(ediciones()).toEqual([]);
+
+  await celda.focus();
+  await celda.blur();
+  await expect.poll(ediciones).toEqual([{ punto_id: P0.id, cambios: { direccion: 'Calle Mía 7' } }]);
+  await expect(page.getByRole('status').filter({ hasText: T.panelInventario.guardado(P0.codigo) })).toBeVisible();
+});
+
 // docs/18 RV-41, DEC-090: el tipo no se cambia desde el inventario.
 test('panel-inventario: editar no ofrece el tipo', async ({ page }) => {
   await prepararPanel(page);
