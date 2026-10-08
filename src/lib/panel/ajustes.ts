@@ -306,7 +306,9 @@ export function textoEspacioFotos(s: Salud, entorno: Entorno): string {
   if (s.fotos_bytes == null || s.fotos_origen === 'sin_dato' || !s.max_bytes_fotos || s.fotos_pct == null) {
     return textoAlmacenamiento(s.storage_bytes, entorno);
   }
-  return T.panelAjustes.espacioDetalle(megas(s.fotos_bytes), porcentaje(s.fotos_pct), megas(s.max_bytes_fotos));
+  const texto = T.panelAjustes.espacioDetalle(megas(s.fotos_bytes), porcentaje(s.fotos_pct), megas(s.max_bytes_fotos));
+  // Sin lectura en vivo del bucket, el dato es el del último respaldo: se dice (05 §2.6, fotos_origen).
+  return s.fotos_origen === 'respaldo' ? T.panelAjustes.espacioSegunRespaldo(texto) : texto;
 }
 
 /** "Base de datos": con el tope de 0041 (`max_bytes_bd`), MB y %; si no, contra los 500 MB del plan. */

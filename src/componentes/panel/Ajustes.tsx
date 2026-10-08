@@ -599,7 +599,7 @@ function SaludDelSistema() {
               ? T.panelAjustes.respaldoNoAplica
               : T.panelAjustes.nunca,
         ],
-        [T.panelAjustes.almacenamiento, textoEspacioFotos(s, ENTORNO), lleno != null],
+        [T.panelAjustes.almacenamiento, textoEspacioFotos(s, ENTORNO), lleno != null || s.fotos_origen === 'respaldo'],
         [
           T.panelAjustes.zonaYMapa,
           `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
@@ -637,6 +637,15 @@ function SaludDelSistema() {
         )
       ) : (
         <>
+          {/* Una recarga que falla (tras revocar un móvil, por ejemplo) deja los datos de antes:
+              se dice, con Reintentar (UI-04). */}
+          {carga.estado === 'error' && (
+            <ErrorReintentar
+              texto={T.panelRegistro.errorConFilas(textoError(carga.codigo))}
+              reintentar={carga.recargar}
+              className="mb-3"
+            />
+          )}
           {/* Cuando el gigabyte gratuito va lleno, avisa con tiempo: el día que se llene, la
               aplicación deja de admitir fotos (TR-53). No bloquea nada, solo se ve (06 §5). */}
           {lleno != null && (

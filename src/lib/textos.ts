@@ -994,6 +994,7 @@ export const T = {
     espacioDetalle: (mb: Parametro, pct: Parametro, total: Parametro) => `${mb} MB · ${pct} % de ${total} MB`,
     espacioFotosLleno: (porcentaje: Parametro) =>
       `Las fotos ocupan el ${porcentaje} % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.`,
+    espacioSegunRespaldo: (texto: Parametro) => `${texto} · medido en el último respaldo`,
     reservasPorMovil: 'Móviles con más fotos pedidas (24 h)',
     reservasDetalle: (n: Parametro, abiertas: Parametro) => `${n} fotos · ${abiertas} sin subir`,
     reservasVacio: 'Ningún móvil ha pedido fotos en las últimas 24 h.',
@@ -1058,7 +1059,8 @@ export const T = {
     yaPedido: 'Ya está pedido: empezará en unos minutos.',
     // docs/32 RV-262: fn_revocar_dispositivo con los 8 caracteres que enseña Salud.
     dispositivoNoEncontrado: 'No hay ningún móvil con ese identificador.',
-    dispositivoAmbiguo: 'Hay más de un móvil que empieza así: no se ha revocado ninguno.',
+    dispositivoAmbiguo: 'Ese identificador no vale o es de más de un móvil: no se ha revocado ninguno.',
+    serviceWorker: 'Los avisos no responden en este navegador. Recarga la página.',
   },
 
   panel: {

@@ -55,6 +55,12 @@ describe('Salud: espacio de fotos y de la base de datos (docs/32 RV-262)', () =>
     expect(textoBaseDeDatos(con0041)).toBe(T.panelAjustes.espacioDetalle('38,0', '9,5', '400,0'));
   });
 
+  it('medido en el último respaldo (sin lectura en vivo), se dice', () => {
+    expect(textoEspacioFotos({ ...con0041, fotos_origen: 'respaldo' }, 'produccion')).toBe(
+      T.panelAjustes.espacioSegunRespaldo(T.panelAjustes.espacioDetalle('200,0', '26,9', '800,0')),
+    );
+  });
+
   it('sin el dato de 0041 (o sin medir), como antes', () => {
     expect(textoEspacioFotos(SALUD, 'staging')).toBe(T.panelAjustes.almacenamientoNoAplica);
     expect(textoEspacioFotos({ ...con0041, fotos_origen: 'sin_dato' }, 'produccion')).toBe(T.panelAjustes.sinDato);
@@ -112,6 +118,7 @@ describe('Revocar un móvil desde Salud (docs/32 RV-262)', () => {
     expect(textoError('DISPOSITIVO_NO_ENCONTRADO')).toBe(T.panelErrores.dispositivoNoEncontrado);
     expect(textoError('PAYLOAD_INVALIDO(dispositivo)')).toBe(T.panelErrores.dispositivoAmbiguo);
     expect(textoError('PAYLOAD_INVALIDO(otro)')).toBe(T.panelErrores.datos);
+    expect(textoError('SERVICE_WORKER')).toBe(T.panelErrores.serviceWorker);
   });
 });
 

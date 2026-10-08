@@ -581,6 +581,28 @@ test('Salud: espacio de fotos y de la base, y «Revocar este móvil» (docs/32 R
   await expect(dialogo).toHaveCount(0);
 });
 
+test('Salud: si no se puede revocar, lo dice y la ventana sigue abierta (docs/32 RV-262)', async ({ page }) => {
+  await prepararPanel(page, { salud: SALUD_0041 });
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_revocar_dispositivo`, (r) =>
+    r.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      headers: { 'Access-Control-Allow-Origin': '*' },
+      body: JSON.stringify({ code: 'P0001', message: 'DISPOSITIVO_NO_ENCONTRADO: No hay ningún móvil' }),
+    }),
+  );
+  await page.goto('/admin/ajustes');
+  const salud = tarjetaDe(page, T.panel.saludSistema);
+  await salud.getByRole('button', { name: T.panelAjustes.revocarMovilDe('abcd1234') }).click();
+  const dialogo = page.getByRole('dialog');
+  const confirmar = dialogo.getByRole('button', { name: T.panelAjustes.confirmarRevocarMovil, exact: true });
+  await confirmar.click();
+  await expect(page.getByText(T.panelErrores.dispositivoNoEncontrado)).toBeVisible();
+  await expect(dialogo).toBeVisible();
+  await expect(confirmar).toBeEnabled();
+  await expect(page.getByText(T.panelAjustes.movilRevocadoAviso('abcd1234'))).toHaveCount(0);
+});
+
 test('Salud: sin móviles con fotos pedidas, lo dice (docs/32 RV-262)', async ({ page }) => {
   await prepararPanel(page, { salud: { ...SALUD_0041, reservas_dispositivos_24h: [] } });
   await page.goto('/admin/ajustes');
