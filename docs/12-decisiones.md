@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.57 — 8 oct 2026 (DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.58 — 8 oct 2026 (DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -659,6 +659,21 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-186 · «Confirmar y aprobar» solo con el punto de hoy a la vista
+- **Fecha:** 8 oct 2026 · **Estado:** vigente (`docs/32` RV-251 y RV-252, PR #551).
+- **Contexto:** con `PROPUESTA_DESACTUALIZADA`, el formulario de «Aprobar con correcciones» se queda abierto, avisa de que el punto ha cambiado y pide una confirmación expresa (FR-108). Si esa confirmación se daba antes de que la cola recargara el punto, jefatura aprobaba sobre datos que no había visto.
+- **Decisión:** tras `PROPUESTA_DESACTUALIZADA`, «Confirmar y aprobar» espera a que la cola recargue el punto de hoy («Cargando el punto de hoy…», con el motivo escrito, UI-02). Si la recarga falla, no se aprueba: sale «No se ha podido cargar el punto de hoy: sin verlo no se aprueba.» con «Reintentar».
+- **Alternativas descartadas:** dejar aprobar con los datos de antes (la confirmación de FR-108 no valdría nada); cerrar el detalle y volver a la cola (se pierde lo corregido, RV-252).
+- **Afecta a:** 01 FR-108; 06 Apéndice A (panel, cola); `src/componentes/panel/**`.
+
+### DEC-185 · SQL como `postgres` en dev y prod sin la contraseña de `postgres`
+- **Fecha:** 8 oct 2026 · **Estado:** vigente (`docs/32` RV-220, PR #556).
+- **Contexto:** el bloque `$storage$` de `supabase/sql/arranque-bd.sql` (política y permisos de lectura de `storage.objects` para `fn_espacio`) tiene que correr como `postgres`, el dueño de `storage`. `hidrantes_migrador` no puede, y la contraseña de `postgres` no la tiene ninguna sesión (CLAUDE.md §1: el desarrollador no entra en paneles).
+- **Decisión:** el SQL que exige `postgres` en dev o prod se ejecuta con `npx supabase db query --linked --project-ref <ref> -f <archivo>`, que va por la Management API con el login de la CLI de Supabase de este PC. Se usó el 8 oct 2026 para el bloque `$storage$` de `arranque-bd.sql` en dev y prod; después `fn_espacio() ->> 'fotos_origen'` da `storage` en los dos. Solo para SQL idempotente que está en el repositorio (nunca migraciones: esas siguen por `scripts/migrar.ts`, y nunca `supabase db push`).
+- **Alternativas descartadas:** pedir al desarrollador la contraseña de `postgres` o que pegue el SQL en el editor del panel de Supabase; dar a `hidrantes_migrador` permisos sobre `storage`.
+- **Consecuencias:** si el login de la CLI caduca, la sesión lo dice en una línea («hace falta `npx supabase login`») y sigue con lo demás.
+- **Afecta a:** `supabase/sql/arranque-bd.sql` (cualquier bloque que exija `postgres`); 05 (`fn_espacio`).
 
 ### DEC-184 · Recorrido completo de la app en staging después de cada documento grande
 - **Fecha:** 8 oct 2026 (desarrollador) · **Estado:** vigente (`docs/32` RV-270 y RV-271).
