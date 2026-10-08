@@ -306,6 +306,11 @@ describe('variable PROPIETARIO', () => {
     expect(fuente).toContain('await asegurarVariablePropietario(login, false)');
   });
 
+  it('quien aprueba production es el login de gh, no el titular del remoto (que puede ser una organización)', () => {
+    expect(fuente).toContain('ghApi(`users/${login}`)');
+    expect(fuente).not.toMatch(/users\/\$\{REPO/);
+  });
+
   it('el repositorio sale de git remote; sin origin (primer arranque), del login de gh', () => {
     expect(repoDestino(true, 'titular', () => 'otro/hidrantes-albolote')).toBe('otro/hidrantes-albolote');
     const sinRemoto = () => {

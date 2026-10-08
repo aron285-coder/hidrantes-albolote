@@ -187,7 +187,7 @@ async function pedirCredenciales(necesitaBd: boolean) {
 
 // ---------- 2. repositorio GitHub ----------
 
-function asegurarRepositorio(): void {
+function asegurarRepositorio(login: string): void {
   log.paso('2. Repositorio GitHub');
   if (ejecutar('git', ['rev-parse', '--verify', 'main']).codigo !== 0) {
     abortar('No hay commits en main. Haz el primer commit antes del arranque.');
@@ -257,7 +257,7 @@ function asegurarRepositorio(): void {
   }
   log.ok('protección de main y develop: solo PR, CI verde, sin force push ni borrado');
 
-  const idPropietario = Number(ghApi(`users/${REPO.split('/')[0]}`).match(/"id":\s*(\d+)/)?.[1]);
+  const idPropietario = Number(ghApi(`users/${login}`).match(/"id":\s*(\d+)/)?.[1]);
   // prod-tareas (docs/31 RV-131, DEC-172): los secretos de producción de las tareas automáticas, sin
   // revisores pero solo para develop; así una rama cualquiera no los puede leer.
   const environments = [
@@ -1034,7 +1034,7 @@ async function principal(): Promise<void> {
   // El token de Cloudflare va a GitHub en el arranque completo o al rotarlo; si no, no se toca.
   const tokenCf = !esRotacion || rotar.has('cloudflare') ? cred.tokenCf : null;
   if (!esRotacion) {
-    asegurarRepositorio();
+    asegurarRepositorio(login);
     await asegurarVariablePropietario(login, true);
   }
 
