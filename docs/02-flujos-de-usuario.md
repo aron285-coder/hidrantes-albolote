@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; pendiente de conformidad de jefatura en F9.1, #76). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.9 — oct 2026 (`docs/29`, conformidad del desarrollador: FL-24 con los dos filtros y Editar en panel lateral; FL-11, FL-25 y FL-27 retirados, DEC-167 a DEC-169). 1.8 — 5 de octubre de 2026 (`docs/27` RV-114, conformidad del desarrollador: la hoja de Cercanos sin tramos, *Medir tendido* ni compartir, y los avisos de posición en el subtítulo, en FL-35, FL-37 y FL-38, DEC-165). 1.7 — 5 de octubre de 2026 (`docs/26` RV-113, conformidad del desarrollador: en el móvil, jefatura abre el panel desde la etiqueta *Jefatura* o desde Ajustes, FL-20 paso 4 y FL-28 paso 3, DEC-164). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; conformidad del desarrollador, DEC-177). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -39,7 +39,7 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 
 1. Localiza el punto: acercando el mapa, con *centrar en mi posición* (FR-65), desde la *Lista* ordenada por distancia (FR-68), o con la *búsqueda* por código, calle o descripción (FR-69).
 2. Toca el marcador o la fila. → *Ficha*. (FR-66)
-3. Lee estado, diámetro, racor, foto, dirección, distancia y fecha de la última revisión. La ficha indica de cuándo son los datos si no hay cobertura. (FR-80)
+3. Lee estado, diámetro, tipo de enganche, foto, dirección, distancia y fecha de la última revisión. La ficha indica de cuándo son los datos si no hay cobertura. (FR-80)
 4. Opcionalmente pulsa *Proponer un cambio* → FL-04 a FL-08.
 
 **Resultado:** el voluntario sabe dónde está, cómo está y cuándo se comprobó. (FR-02)
@@ -60,7 +60,7 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 3. Si el pin queda fuera de la zona: aviso "esto queda fuera de la zona habitual, ¿seguro?". Puede continuar. (FR-55)
 4. Elige el **tipo**. (FR-11)
    - Hidrante: elige **diámetro de la salida mayor** 70 / 100 / otra medida. (FR-16, FR-17)
-   - Boca de riego: elige **diámetro** 45 / 70 / otra medida (entero de 20 a 150 mm) y el **racor**, comparando con las fotos de referencia. (FR-16, FR-20; `docs/24` RV-101 y RV-104)
+   - Boca de riego: elige **diámetro** 45 / 70 / otra medida (entero de 20 a 150 mm) y el **tipo de enganche** (Barcelona, Granada u Otro), comparando con las fotos de referencia. (FR-16, FR-20; `docs/24` RV-101 y RV-104)
 5. Elige **caudal / estado**. Si es *no funciona*, aparece la **descripción del fallo**, obligatoria. (FR-18, FR-19)
 6. Hace las **dos fotos** con la cámara, lado a lado: **Conexión** (la de siempre) y **Sitio** (un entorno para encontrarlo). Hasta que están las dos, el botón de envío está deshabilitado y dice cuál falta ("Falta la foto del sitio"). (FR-21; `docs/24` RV-103)
 7. Añade **descripción** si quiere. (FR-22)
@@ -107,7 +107,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 
 **Actor:** voluntario. **Parte de:** *Ficha* → *Proponer un cambio* → *Corregir datos*.
 
-1. Cambia diámetro, racor o descripción. Las reglas de FR-16 y FR-20 aplican igual que en el alta.
+1. Cambia diámetro, tipo de enganche o descripción. Las reglas de FR-16 y FR-20 aplican igual que en el alta.
    El tipo se ve pero no se cambia (FR-11): si está mal, el enlace *Proponer retirada* lleva a FL-08 de
    ese punto, y después se da de alta el correcto (FL-03).
 2. Foto de hoy y nota opcional.
@@ -170,6 +170,8 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 
 ### FL-11 · Avisar de que algo no funciona en la aplicación
 
+> **Retirado (DEC-167, `docs/29`).** La opción ya no está en Ajustes; se conserva el texto como historia.
+
 **Actor:** voluntario. **Parte de:** *Ajustes* → *Algo no funciona en la aplicación*.
 
 1. Describe el problema en texto libre. La versión y la pantalla van solas. (FR-92)
@@ -212,6 +214,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 1. Inicia sesión con su cuenta de Google. (FR-36)
 2. Si su correo está en la lista de administradores y activo, entra; si no, ve "No autorizado". (FR-37)
 3. En el móvil, ve el mapa con la etiqueta *Jefatura* (FL-28). En el ordenador, el *Panel*.
+4. En el móvil, abre el *Panel* con un toque: la etiqueta *Jefatura* de la barra superior (salvo dentro de un formulario de operación, para no perder lo escrito), o *Ajustes* → *Panel de jefatura*. Vuelve con *Ir al mapa* o con el botón "atrás" del móvil, a la pantalla de la que venía, sin salir de la app. (FR-150, DEC-164)
 
 ---
 
@@ -220,7 +223,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 **Actor:** administrador. **Parte de:** *Panel* → *Cola de revisión*.
 
 1. Elige una propuesta de la lista, filtrando por operación si quiere. (FR-101)
-2. Lee el detalle: minimapa (FR-103), dirección deducida en campo editable (FR-105), diff campo a campo (FR-102), señales de fiabilidad (FR-104) y foto.
+2. Lee el detalle: minimapa (FR-103), dirección deducida en campo editable (FR-105), diff campo a campo (FR-102), los datos del punto, con su origen (FR-104), y foto.
 3. Decide:
    - **Aprobar.** (FR-106)
    - **Aprobar con correcciones:** edita los valores que haga falta en el formulario que se despliega y pulsa *Guardar y aprobar*. Si el diámetro venía como "otra medida", debe fijar 70 o 100 antes. (FR-17, FR-106)
@@ -259,9 +262,9 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 
 **Actor:** administrador. **Parte de:** *Panel* → *Inventario*. (FR-120)
 
-1. Filtra (tipo, estado, núcleo, diámetro, sin revisar) y ordena por columna; busca por código o calle con la búsqueda global. (FR-145)
+1. Filtra por tipo y estado (dos desplegables, DEC-168) y ordena por columna (también núcleo, diámetro y última revisión); busca por código o calle con la búsqueda global. (FR-145)
 2. Sobre un punto:
-   - **Editar:** corrige un valor; se aplica al momento y queda en el registro como acción de administrador. (FR-151)
+   - **Editar:** se abre un panel lateral (a pantalla completa en el móvil) con el mapa y los controles del alta; lo que cambia se marca. Puede mover el pin y cambiar diámetro, enganche, estado, fallo, dirección y descripción; el tipo no. *Guardar cambios* se aplica al momento y queda en el registro como acción de administrador, con los metros si se movió. (FR-120, FR-151, DEC-169)
    - **Dirección:** se edita en la propia celda. (FR-15)
    - **Retirar:** el punto existió y ya no está; pide motivo. (FR-124)
    - **Borrar:** el registro nunca debió existir; pide motivo y va a la papelera. (FR-124)
@@ -271,6 +274,8 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 ---
 
 ### FL-25 · Repartir revisiones caducadas
+
+> **Retirado (DEC-167, `docs/29`).** La pestaña y la hoja de campo ya no existen. Lo caducado se ve en el Inventario: «hace 1 año» en rojo, y la columna *Última revisión* se ordena.
 
 **Actor:** administrador. **Parte de:** *Panel* → *Revisiones caducadas*.
 
@@ -292,6 +297,8 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 
 ### FL-27 · Voluntarios e incidencias
 
+> **Retirado (DEC-167, `docs/29`).** La pestaña ya no existe. La supresión la hace el desarrollador con `npm run anonimizar` (11).
+
 **Actor:** administrador. **Parte de:** *Panel* → *Voluntarios*.
 
 1. Elige el periodo (3 o 12 meses) y ve la actividad por voluntario. (FR-130)
@@ -306,6 +313,7 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 
 1. Todo es igual que para un voluntario (FL-02 a FL-08), con la etiqueta *Jefatura* en la barra.
 2. En cualquier operación, la pantalla dice que el cambio se aplicará al momento y el botón es *Aplicar ahora*. (FR-151)
+3. Para ir al *Panel* (la cola, el inventario…), toca la etiqueta *Jefatura* de la barra o *Ajustes* → *Panel de jefatura* (FL-20 paso 4). Sin conexión también navega: el panel enseña su propio aviso de servidor. (FR-150, DEC-164)
 
 **Resultado:** el punto cambia en el mapa de todos sin pasar por la cola; el registro lo anota como acción de administrador.
 
@@ -380,12 +388,13 @@ No hace falta desplegar nada ni tocar código.
 1. Abre la aplicación. El mapa pinta lo guardado en el móvil y la barra dice "sin cobertura · datos de hace N min". (FR-80, FR-168)
 2. Pulsa **Cercanos**, junto a *centrar en mí*. Con la posición del GPS al día, el incidente es esa posición. (FR-74)
 3. El mapa marca el incidente con una diana, traza líneas discontinuas a los candidatos y encuadra el incidente y los tres primeros. Se abre la hoja *Cercanos* con, como mucho, los cinco puntos activos más cercanos en estado *bueno* o *regular*. (FR-74)
-4. Cada fila da código, tipo y diámetro, estado, distancia en línea recta, rumbo (N, NE…) y tramos de manguera. Si el más cercano de todos no funciona, un aviso lo dice para que nadie vaya a él por costumbre. (FR-74, FR-142)
+4. Cada fila da código, diámetro y estado, distancia en línea recta y rumbo (N, NE…), con un solo botón, *Cómo llegar*. Un punto que no funciona no sale en la lista. (FR-74, DEC-165)
 5. *Solo hidrantes* limita la lista. Tocar una fila abre la ficha sin cerrar el incidente; *Cómo llegar* abre la app de mapas del móvil. (FR-74, FR-161)
 6. *Atrás* cierra el modo incidente. (FR-74)
 
 **Variantes**
-- La posición no está al día (el GPS dejó de responder): el origen es la última posición, y un aviso dice "posición de hace N min". (FR-74)
+- La posición no está al día (el GPS dejó de responder): el origen es la última posición, y el subtítulo de la hoja lo dice en la misma línea: "en línea recta · posición de hace N min". (FR-74, DEC-165)
+- La posición es poco precisa (más de 50 m): el subtítulo dice "posición poco precisa (±N m)", con *Marcar en el mapa* al lado. Si además es vieja, solo sale este aviso. (FR-74, DEC-165)
 - Sin posición: la hoja lo explica ("mantén pulsado el mapa donde está el incidente o busca la calle") y enfoca la búsqueda. Ningún botón se queda sin hacer nada. (FR-74, FR-72, FR-73)
 - Ningún punto que funcione a menos de 2 km: estado vacío con *Ver todos en la lista*, ordenada por distancia desde el incidente. (FR-74, FR-68)
 
@@ -416,16 +425,16 @@ No hace falta desplegar nada ni tocar código.
 
 **Variantes**
 - Sin menú de compartir (ordenador, algunos navegadores): el texto se copia y un aviso dice "Copiado". Si tampoco se puede copiar, el aviso enseña el texto seleccionable. (FR-75, UI-05)
-- Compartir el incidente o un sitio de *¿Qué hay aquí?*: el mismo texto sin los datos del punto. (FR-75, FR-72, FR-74)
+- Compartir un sitio de *¿Qué hay aquí?*: el mismo texto sin los datos del punto. La hoja de *Cercanos* no comparte: para mandar el sitio del incidente, *¿Qué hay aquí?* en él (DEC-165). (FR-75, FR-72)
 - Sin cobertura: el menú del móvil funciona igual; el mensaje sale cuando haya señal. (FR-75)
 
 ---
 
 ### FL-38 · Medir el tendido desde un hidrante
 
-**Actor:** voluntario en una salida. (FR-76, FR-74)
+**Actor:** voluntario en una salida. (FR-76)
 
-1. Desde una fila de *Cercanos*, *Medir tendido*: la medición empieza con la recta incidente → punto ya puesta. También desde *¿Qué hay aquí?* (*Medir desde aquí*) o desde el botón *Medir* del menú de herramientas del mapa. (FR-76, FR-72, FR-74)
+1. Desde *¿Qué hay aquí?* en el sitio del incidente (*Medir desde aquí*) o desde el botón *Medir* del menú de herramientas del mapa. La fila de *Cercanos* ya no lleva *Medir tendido* (DEC-165). (FR-76, FR-72)
 2. Mientras mide, cada toque en el mapa añade un vértice (y se imanta a un marcador si cae cerca); tocar no abre fichas. (FR-76)
 3. La barra inferior dice la distancia total y los tramos: "186 m · 10 tramos de 20 m". Cada tramo de más de 30 m lleva su etiqueta. (FR-76, FR-142)
 4. *Deshacer* quita el último vértice; *Borrar* empieza de nuevo; *Terminar* o *atrás* salen. La medición no se guarda. (FR-76)

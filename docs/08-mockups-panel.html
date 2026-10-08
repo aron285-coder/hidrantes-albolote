@@ -18,14 +18,14 @@
     --naranja-100:#FBE2D2;
     --oro-600:#B08A2E;
     --oro-100:#F3E6C4;
-    --verde-600:#2E7D4F;
+    --verde-600:#237E51;
     --verde-100:#DCEEE1;
-    --naranja-estado-600:#A85300;
-    --naranja-estado-700:#8F4505;
-    --naranja-estado-100:#FDE8D6;
+    --amarillo-500:#F9A900;
+    --amarillo-800:#6B4E00;
+    --amarillo-100:#FFF1C2;
     --ambar-700:#7F5C07;
     --ambar-100:#FBEDCB;
-    --rojo-700:#9C2B1E;
+    --rojo-700:#9B2423;
     --rojo-100:#FBE0DB;
     --gris-700:#40453D;
     --gris-100:#E5E4DC;
@@ -87,13 +87,13 @@
 
   .chip{display:inline-flex; align-items:center; gap:5px; border-radius:999px; padding:3px 11px; font-size:13px; font-weight:600;}
   .chip-verde{background:var(--verde-100); color:var(--verde-600);}
-  .chip-ambar{background:var(--naranja-estado-100); color:var(--naranja-estado-700);}
+  .chip-ambar{background:var(--amarillo-100); color:var(--amarillo-800);}
   .chip-rojo{background:var(--rojo-100); color:var(--rojo-700);}
   .chip-gris{background:var(--gris-100); color:var(--gris-700);}
   .chip-neutro{background:#EDEEE8; color:var(--texto-suave);}
   .chip-azul{background:#DCE6F2; color:var(--marino-700);}
   .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
-  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--naranja-estado-600);}
+  .dot-verde{background:var(--verde-600);} .dot-ambar{background:var(--amarillo-500);}
   .dot-rojo{background:var(--rojo-700);} .dot-gris{background:var(--gris-700);}
 
   .flujo{display:flex; align-items:flex-start; margin:26px 0 8px; flex-wrap:wrap;}
@@ -448,6 +448,18 @@
   .desktop-table th[data-s]{cursor:pointer; user-select:none;} .desktop-table th.sorted{color:var(--marino-950);}
   .cad-grupo .accion{padding:2px 8px; font-size:11px; margin-left:8px;}
   .pn-tip{font-size:11px; color:var(--texto-suave); padding:6px 14px 0;}
+  /* docs/29: filtros del Inventario y menú Exportar */
+  .inv-f{display:inline-flex; flex-direction:column; gap:2px; font-size:10.5px; font-weight:600; color:var(--texto-suave);}
+  .inv-f select{min-height:28px; min-width:150px; padding:3px 6px;}
+  .inv-f select.activo{border:2px solid var(--marino-950); font-weight:700;}
+  .inv-quitar{font-size:11.5px; font-weight:600; color:var(--marino-950); align-self:flex-end; padding-bottom:6px;}
+  .exp-wrap{position:relative;}
+  button.bb{font-family:inherit; cursor:pointer;}
+  .exp-menu{display:none; position:absolute; right:0; top:calc(100% + 4px); z-index:6; background:#fff; border:1px solid var(--linea); border-radius:7px; box-shadow:0 8px 20px rgba(14,27,48,.16); padding:4px 0; min-width:130px;}
+  .exp-menu.on{display:block;}
+  .exp-menu div{padding:7px 12px; font-size:12px; color:var(--marino-950); cursor:pointer;}
+  .exp-menu div:hover,.exp-menu div:focus{background:#EEF1F6; outline:none;}
+  .nota-29{background:#FFF7E0; border:1px solid #E8C66A; border-radius:6px; padding:6px 9px; margin:6px 0 8px; font-size:11.5px; color:#563E00;}
   .qrow .dir-row{color:var(--texto-suave); font-size:10.5px;}
 </style>
 
@@ -464,24 +476,22 @@
         <circle cx="29" cy="23" r="4.2" fill="#0E1B30"/>
       </svg>
       <div>
-        <div><span class="doc-estado">Congelado</span><span class="doc-estado g">v2.1 · 17 de septiembre de 2026</span></div>
+        <div><span class="doc-estado">Congelado</span><span class="doc-estado g">v2.2 · 5 de octubre de 2026 (docs/29)</span></div>
         <h1 style="margin-top:10px;">08 · Prototipo interactivo del panel de jefatura</h1>
-        <div class="subt">Cola de revisión, inventario, revisiones caducadas, registro, papelera, voluntarios y ajustes, con todas las acciones operativas sobre datos de ejemplo.</div>
+        <div class="subt">Cola de revisión, inventario, registro, papelera y ajustes, con todas las acciones operativas sobre datos de ejemplo.</div>
         <div class="meta">Propietario del aspecto y el comportamiento de cada pantalla del panel. Cambia con conformidad de jefatura. Sustituye al mockup parcialmente interactivo de la v1.0.</div>
       </div>
     </header>
     <section id="admin">
       <h2><span class="sec-num">08</span>Panel de jefatura (prototipo interactivo)</h2>
-      <p class="lead">Todo funciona con datos de ejemplo que viven en esta página y se reinician al recargar: aprobar crea o cambia puntos del inventario, cada acción escribe en el Registro, la Salud se recalcula, la papelera y las revisiones caducadas se derivan de los datos reales. Requisitos en <strong>01</strong> §8–11 (FR-100 a FR-145); flujos en <strong>02</strong> FL-20 a FL-31; contratos en <strong>05</strong> §6.2.</p>
+      <p class="lead">Todo funciona con datos de ejemplo que viven en esta página y se reinician al recargar: aprobar crea o cambia puntos del inventario, cada acción escribe en el Registro, la Salud se recalcula y la papelera se deriva de los datos reales. <strong>Actualizado con docs/29</strong> (DEC-167 a DEC-170): cinco pestañas, Inventario filtrado solo por tipo y estado, enganche Directo y Editar como panel lateral con mapa (referencia en <code>docs/mockups/29-inventario-y-editar.html</code>). Requisitos en <strong>01</strong> §8–11 (FR-100 a FR-145); flujos en <strong>02</strong> FL-20 a FL-31; contratos en <strong>05</strong> §6.2.</p>
       <table class="doc-tabla" style="margin-bottom:8px;font-size:14px;">
         <tr><th>Pestaña</th><th>Flujos</th><th>Qué se puede hacer</th></tr>
         <tr><td>Cola de revisión</td><td>FL-21–23</td><td>filtrar por operación y núcleo, buscar, seleccionar y aprobar en bloque, rechazar en bloque con motivo común, aprobar con correcciones (formulario), rechazar con motivo, comparar y fusionar el duplicado eligiendo qué prevalece, confirmar la propuesta desactualizada, editar la dirección deducida, ver el historial de lo ya decidido</td></tr>
-        <tr><td>Inventario</td><td>FL-24</td><td>filtros por tipo, estado, núcleo, Ø y caducidad; ordenar por columna; paginar; editar un punto; editar la dirección en la celda; retirar; borrar a papelera; ver el historial del punto; vista mapa con los puntos reales</td></tr>
-        <tr><td>Revisiones caducadas</td><td>FL-25</td><td>desplegar núcleos; hoja de campo imprimible por núcleo (abre la vista de impresión)</td></tr>
+        <tr><td>Inventario</td><td>FL-24</td><td>filtros por tipo y estado en desplegables, con «Quitar filtros»; ordenar por columna (también núcleo, Ø y última revisión); paginar; exportar lo filtrado con «Exportar ▾»; editar un punto (en la aplicación, panel lateral: ver la nota del diálogo); editar la dirección en la celda; retirar; borrar a papelera; ver el historial del punto; vista mapa con los puntos reales</td></tr>
         <tr><td>Registro</td><td>FL-26</td><td>filtrar por acción y texto; exportar CSV</td></tr>
         <tr><td>Papelera</td><td>FL-24</td><td>restaurar, borrar definitivamente, purgar lo caducado</td></tr>
-        <tr><td>Voluntarios</td><td>FL-27</td><td>actividad a 3 y 12 meses (se recalcula con lo que apruebes); anonimizar con confirmación; resolver y reabrir incidencias</td></tr>
-        <tr><td>Ajustes</td><td>FL-29–31</td><td>ver y cambiar el código (con o sin revocar, con confirmación); añadir, activar y desactivar administradores; guardar parámetros (los meses de revisión cambian las caducadas); núcleos; salud; purga de fotos; descargar inventario JSON</td></tr>
+        <tr><td>Ajustes</td><td>FL-29–31</td><td>ver y cambiar el código (con o sin revocar, con confirmación); añadir, activar y desactivar administradores; guardar parámetros (los meses de revisión cambian el rojo de la última revisión); núcleos; salud; purga de fotos; descargar inventario JSON</td></tr>
       </table>
 
       <div class="sim" style="margin:0 0 10px;"><span class="lab">Simular:</span><button id="s-srv">Servidor Supabase caído</button><button id="s-prop" class="warn">Llega una propuesta nueva</button></div>
@@ -494,10 +504,8 @@
         <div class="tabs" id="tabs">
           <div class="on" data-tab="cola">Cola de revisión <span class="badge" id="badge-cola">0</span></div>
           <div data-tab="inventario">Inventario <span class="badge gris" id="badge-inv">0</span></div>
-          <div data-tab="caducadas">Revisiones caducadas <span class="badge gris" id="badge-cad">0</span></div>
           <div data-tab="registro">Registro</div>
           <div data-tab="papelera">Papelera <span class="badge gris" id="badge-pap">0</span></div>
-          <div data-tab="voluntarios">Voluntarios <span class="badge" id="badge-inc">0</span></div>
           <div data-tab="ajustes">Ajustes</div>
         </div>
 
@@ -514,21 +522,16 @@
 
         <div class="panel" data-panel="inventario">
           <div class="bulkbar">
-            <span id="inv-chips"><span class="fchip on" data-f="todos">Todos</span><span class="fchip" data-f="hidrante">Hidrantes</span><span class="fchip" data-f="boca">Bocas de riego</span><span class="fchip" data-f="nf">No funciona</span><span class="fchip" data-f="cad">Sin revisar</span></span>
-            <select id="inv-nuc" class="sel-mini"><option value="">todos los núcleos</option></select><select id="inv-dia" class="sel-mini"><option value="">cualquier Ø</option><option value="100">100 mm</option><option value="70">70 mm</option><option value="45">45 mm</option></select>
-            <span style="margin-left:auto;display:flex;gap:6px;align-items:center;"><span style="font-size:11px;color:var(--texto-suave);">Exportar:</span><span class="bb" data-exp="xlsx">Excel</span><span class="bb" data-exp="csv">CSV</span><span class="bb" data-exp="geojson">GeoJSON</span><span class="fchip on" id="vista-tabla">Tabla</span><span class="fchip" id="vista-mapa">Mapa</span></span>
+            <label class="inv-f">Tipo<select id="inv-tipo" class="sel-mini"><option value="todos">Todos</option><option value="hidrante">Hidrantes</option><option value="boca">Bocas de riego</option></select></label>
+            <label class="inv-f">Estado<select id="inv-estado" class="sel-mini"></select></label>
+            <a href="#" class="inv-quitar" id="inv-quitar" style="display:none;">Quitar filtros</a>
+            <span style="margin-left:auto;display:flex;gap:6px;align-items:center;"><span class="exp-wrap"><button type="button" class="bb" id="btn-exp" aria-haspopup="menu" aria-expanded="false" aria-controls="exp-menu">Exportar ▾</button><div class="exp-menu" id="exp-menu" role="menu"><div role="menuitem" tabindex="-1" data-exp="xlsx">Excel</div><div role="menuitem" tabindex="-1" data-exp="csv">CSV</div><div role="menuitem" tabindex="-1" data-exp="geojson">GeoJSON</div></div></span><span class="fchip on" id="vista-tabla">Tabla</span><span class="fchip" id="vista-mapa">Mapa</span></span>
           </div>
           <div id="inv-box"></div>
           <div id="inv-tabla"><table class="desktop-table"><thead id="inv-head"><tr><th data-s="cod">Código</th><th data-s="tipo">Tipo</th><th data-s="d">Ø</th><th data-s="caudal">Estado</th><th data-s="dir">Dirección</th><th data-s="nucleo">Núcleo</th><th data-s="rev">Última revisión</th><th>Acciones</th></tr></thead><tbody id="inv-body"></tbody></table>
             <div class="vacio" id="inv-vacio" style="display:none;">Ningún punto cumple ese filtro.</div>
             <div class="inv-foot"><span id="inv-cuenta"></span><span class="pg" id="inv-pg"></span></div></div>
           <div id="inv-mapa" class="pn-map" style="display:none;padding:14px;"></div>
-        </div>
-
-        <div class="panel" data-panel="caducadas">
-          <div class="bulkbar"><span id="cad-txt"></span><div class="bb" id="btn-imprimir">🖨 Hoja de campo de todos los núcleos</div></div>
-          <div id="cad-lista"></div>
-          <div class="pn-tip">La hoja se abre en la vista de impresión del navegador: una página por núcleo con código, dirección (o coordenadas), tipo, Ø, último estado y una casilla para anotar la revisión.</div>
         </div>
 
         <div class="panel" data-panel="registro">
@@ -541,14 +544,6 @@
           <div id="pap-box"></div>
           <table class="desktop-table"><thead><tr><th>Código</th><th>Tipo</th><th>Borrado</th><th>Por</th><th>Motivo</th><th>Acciones</th></tr></thead><tbody id="pap-body"></tbody></table>
           <div class="vacio" id="pap-vacio" style="display:none;">La papelera está vacía.</div>
-        </div>
-
-        <div class="panel" data-panel="voluntarios">
-          <div class="bulkbar"><span>Actividad de los últimos <select class="sel-mini" id="act-meses"><option value="3">3 meses</option><option value="12">12 meses</option></select></span><span style="margin-left:auto;">Solo visible aquí. No es un ranking público.</span></div>
-          <div id="act-box"></div>
-          <table class="desktop-table"><thead><tr><th>Voluntario</th><th>Propuestas</th><th>Aprobadas</th><th>Rechazadas</th><th>Tasa</th><th>Última</th><th></th></tr></thead><tbody id="act-body"></tbody></table>
-          <div class="bulkbar" style="border-top:1px solid var(--linea);margin-top:6px;"><span><strong style="color:var(--marino-950);">Incidencias de la aplicación</strong> · lo que llega desde "algo no funciona"</span><span style="margin-left:auto;" id="inc-cuenta"></span></div>
-          <table class="desktop-table"><thead><tr><th>Cuándo</th><th>Versión · pantalla</th><th>Descripción</th><th>Estado</th><th></th></tr></thead><tbody id="inc-body"></tbody></table>
         </div>
 
         <div class="panel" data-panel="ajustes">
@@ -591,7 +586,7 @@
   var ADMIN='jefatura@albolote-pc.es', HOY=new Date(2026,8,17,10,30);
   var OPS={alta:['Alta','lbl-alta'],revision:['Revisión','lbl-rev'],estado:['Estado','lbl-estado'],datos:['Datos','lbl-datos'],ubicacion:['Ubicación','lbl-datos'],retirada:['Retirada','lbl-ret']};
   var NOM={bueno:'Bueno',regular:'Regular',malo:'Malo',no_funciona:'No funciona'}, CH={bueno:'chip-verde',regular:'chip-ambar',malo:'chip-rojo',no_funciona:'chip-gris'}, DOT={bueno:'dot-verde',regular:'dot-ambar',malo:'dot-rojo',no_funciona:'dot-gris'};
-  var COL={bueno:'#2E7D4F',regular:'#A85300',malo:'#9C2B1E',no_funciona:'#40453D'};
+  var COL={bueno:'#237E51',regular:'#F9A900',malo:'#9B2423',no_funciona:'#40453D'};
   var config={meses_revision:12,radio_duplicado_m:25,dias_papelera:30,buffer_zona_m:400,escala_radios:'11 · 9 · 7 · 5,5 · 5',max_subidas_dispositivo_dia:40,codigo:'482917',codigo_cambiado:'2 sep 2026',codigo_por:'jefe@albolote-pc.es',dispositivos:61,ultimo_respaldo:'hace 2 días · restaurado con éxito el 3 sep',storage_mb:112,version_zona:'14 jul 2026',version_mapabase:'jul 2026 · 12 MB'};
   var nucleos=['Albolote','El Chaparral','Pol. Ind. Juncaril','Cortijo del Aire','Parque del Cubillas','Pretel','Loma Verde','Calicasas'];
   var d=function(dias){ return new Date(HOY.getTime()-dias*86400000) };
@@ -647,13 +642,8 @@
   var ACC={propuesta_creada:'Propuesta',propuesta_retirada_autor:'Retirada por el autor',aprobacion:'Aprobación',aprobacion_con_correcciones:'Aprobación con correcciones',rechazo:'Rechazo',fusion:'Fusión',edicion_admin:'Edición directa',retirada:'Retirada',borrado:'Borrado',restauracion:'Restauración',purga_papelera:'Purga de papelera',codigo_cambiado:'Configuración',dispositivos_revocados:'Configuración',administrador_alta:'Configuración',administrador_baja:'Configuración',config_cambiada:'Configuración',incidencia_resuelta:'Incidencia',anonimizacion:'Anonimización',purga_fotos:'Purga de fotos',direccion_editada:'Dirección',nucleo:'Configuración'};
   var admins=[{email:'jefe@albolote-pc.es',info:'propietario · desde el arranque',activo:true},{email:ADMIN,info:'añadido el 3 sep 2026 por jefe@',activo:true},{email:'secretaria@albolote-pc.es',info:'añadido el 3 sep 2026 por jefe@',activo:true},{email:'almacen@albolote-pc.es',info:'desactivado el 9 sep 2026',activo:false}];
   var sugerencias=['tesoreria@albolote-pc.es','formacion@albolote-pc.es','logistica@albolote-pc.es'];
-  var incidencias=[{m:d(0.1),v:'1.0.3 · Nuevo punto',t:'"Al hacer la foto la app se cierra y pierdo lo que había escrito" · Android 12',estado:'abierta'},{m:d(1.5),v:'1.0.2 · Mapa',t:'"El mapa sale en blanco en el Cortijo del Aire aunque tengo el mapa descargado"',estado:'abierta'},{m:d(13),v:'1.0.2 · Entrada',t:'"No me deja entrar, dice código incorrecto" — era el código antiguo; resuelto con el nuevo',estado:'resuelta'}];
-  var actBase={3:{'Luis Martín Peña':[16,14,1,'d-luis'],'Ana García Ruiz':[12,10,1,'d-ana'],'Sara Ruiz Molina':[8,7,0,'d-sara'],'Marta León Gil':[6,4,1,'d-marta'],'Javier Ortiz Sanz':[4,2,1,'d-javier'],'Pedro Navarro Ríos':[1,1,0,'d-pedro']},
-               12:{'Luis Martín Peña':[59,53,3,'d-luis'],'Ana García Ruiz':[46,42,2,'d-ana'],'Sara Ruiz Molina':[36,33,1,'d-sara'],'Marta León Gil':[21,17,2,'d-marta'],'Javier Ortiz Sanz':[17,11,4,'d-javier'],'Pedro Navarro Ríos':[4,4,0,'d-pedro']}};
-  var anonimizados={};
-
   /* ---------- utilidades ---------- */
-  var sel=new Set(), activa=1, filtro='', filtroNuc='', estadoF='pendiente', busca='', invF='todos', invNuc='', invDia='', invSort={k:'cod',asc:true}, invPage=0, PAGE=6, regF='', regQ='', actMeses=3, tab='cola';
+  var sel=new Set(), activa=1, filtro='', filtroNuc='', estadoF='pendiente', busca='', invF='todos', invE='', invSort={k:'cod',asc:true}, invPage=0, PAGE=6, regF='', regQ='', tab='cola';
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]}) }
   function punto(id){ return puntos.filter(function(p){return p.id===id})[0] }
   function porCod(c){ return puntos.filter(function(p){return p.cod===c})[0] }
@@ -668,13 +658,13 @@
   function flash(t,panel){ var f=document.createElement('div'); f.className='flash'; f.textContent=t; var c=$('[data-panel="'+(panel||'cola')+'"]'); c.insertBefore(f,c.children[1]); setTimeout(function(){f.remove()},3400) }
   function radio(dm,c){ var cap={100:3,70:2,45:1}[dm]||2, f={bueno:1,regular:.66,malo:.33,no_funciona:0}[c], p=cap*f; return p>=3?11:p>=1.9?9:p>=.9?7:p>0?5.5:5 }
   function marcador(p,x,y,op){ op=op||{}; var r=radio(p.d,p.caudal)*(op.k||1), nf=p.caudal==='no_funciona', dash=caducado(p)?' stroke-dasharray="3 2.5"':'', s='';
-    if(p.tipo==='hidrante') s+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+COL[p.caudal]+'" stroke="#fff" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>'; else s+='<rect x="'+(x-r)+'" y="'+(y-r)+'" width="'+(2*r)+'" height="'+(2*r)+'" rx="3" fill="'+COL[p.caudal]+'" stroke="#fff" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>';
+    if(p.tipo==='hidrante') s+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+COL[p.caudal]+'" stroke="'+(p.caudal==='regular'?'#563E00':'#fff')+'" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>'; else s+='<rect x="'+(x-r)+'" y="'+(y-r)+'" width="'+(2*r)+'" height="'+(2*r)+'" rx="3" fill="'+COL[p.caudal]+'" stroke="'+(p.caudal==='regular'?'#563E00':'#fff')+'" stroke-width="2.5"'+dash+(nf?' opacity=".5"':'')+'/>';
     if(nf) s+='<line x1="'+(x-r)+'" y1="'+(y+r)+'" x2="'+(x+r)+'" y2="'+(y-r)+'" stroke="#fff" stroke-width="2"/>'; return s }
   function fondo(w,h){ return '<rect width="'+w+'" height="'+h+'" fill="#EFECE3"/><g fill="#E2DED3"><rect x="30" y="24" width="170" height="60" rx="2"/><rect x="240" y="24" width="140" height="60" rx="2"/><rect x="430" y="24" width="200" height="60" rx="2"/><rect x="30" y="126" width="170" height="66" rx="2"/><rect x="240" y="126" width="140" height="66" rx="2"/><rect x="30" y="232" width="170" height="46" rx="2"/><rect x="240" y="232" width="140" height="46" rx="2"/><rect x="430" y="232" width="200" height="46" rx="2"/></g><rect x="430" y="126" width="200" height="66" rx="4" fill="#D3E0C6"/><rect x="665" y="0" width="60" height="'+h+'" fill="#E9EDE2"/><g stroke="#fff" stroke-linecap="round" fill="none"><path d="M0 100 H700" stroke-width="15"/><path d="M0 210 H700" stroke-width="11"/><path d="M220 0 V290" stroke-width="12"/><path d="M405 0 V290" stroke-width="15"/></g><circle cx="405" cy="100" r="21" fill="none" stroke="#fff" stroke-width="13"/><circle cx="405" cy="100" r="12" fill="#D3E0C6"/><path d="M660 -4 L668 300" stroke="#28517F" stroke-width="2" stroke-dasharray="9 7" opacity=".5"/><g font-family="Source Sans 3, sans-serif" font-size="10" fill="#8A9090"><text x="34" y="96">Av. de Andalucía</text><text x="34" y="206">C/ Real</text><text x="446" y="186">Parque del Cubillas</text><text x="672" y="20">fuera</text></g>' }
 
   /* ---------- badges ---------- */
-  function badges(){ $('#badge-cola').textContent=props.filter(function(p){return p.estado==='pendiente'}).length; $('#badge-inv').textContent=activos().length; $('#badge-cad').textContent=activos().filter(caducado).length; $('#badge-pap').textContent=puntos.filter(function(p){return p.situacion==='borrado'}).length; var ab=incidencias.filter(function(i){return i.estado==='abierta'}).length; $('#badge-inc').textContent=ab; $('#badge-inc').className='badge'+(ab?'':' gris'); $('#foot-reg').textContent=registro.length+' entradas en el registro'; }
-  function nucSelects(){ ['#filtro-nuc','#inv-nuc'].forEach(function(q){ var s=$(q), v=s.value; s.innerHTML='<option value="">todos los núcleos</option>'+nucleos.map(function(n){return '<option'+(v===n?' selected':'')+'>'+n+'</option>'}).join('') }) }
+  function badges(){ $('#badge-cola').textContent=props.filter(function(p){return p.estado==='pendiente'}).length; $('#badge-inv').textContent=activos().length; $('#badge-pap').textContent=puntos.filter(function(p){return p.situacion==='borrado'}).length; $('#foot-reg').textContent=registro.length+' entradas en el registro'; }
+  function nucSelects(){ ['#filtro-nuc'].forEach(function(q){ var s=$(q), v=s.value; s.innerHTML='<option value="">todos los núcleos</option>'+nucleos.map(function(n){return '<option'+(v===n?' selected':'')+'>'+n+'</option>'}).join('') }) }
 
   /* ---------- COLA ---------- */
   function coincide(p){ if(!busca) return true; var b=busca.toLowerCase(); return [p.cod,p.autor,p.nucleo,p.dirEd].join(' ').toLowerCase().indexOf(b)>-1 }
@@ -689,7 +679,7 @@
   function minimapa(p){ var x=p.x||300, y=p.y||150, ex=p.dup?punto(p.dup):null, orig=p.op==='ubicacion'&&p.pid?punto(p.pid):null;
     var s='<div class="minimap" style="height:70px;"><svg viewBox="'+(x-150)+' '+(y-35)+' 300 70" width="100%" height="70" preserveAspectRatio="xMidYMid slice">'+fondo(700,290)+activos().filter(function(q){return !ex||q.id!==ex.id}).map(function(q){return marcador(q,q.x,q.y,{})}).join('');
     if(ex) s+=marcador(ex,ex.x,ex.y,{})+'<text x="'+(ex.x+10)+'" y="'+(ex.y-10)+'" font-size="8" fill="#5A6472">'+ex.cod+' existente · a 11 m</text><line x1="'+x+'" y1="'+y+'" x2="'+ex.x+'" y2="'+ex.y+'" stroke="#7F5C07" stroke-width="1" stroke-dasharray="2 2"/>';
-    if(orig) s+='<circle cx="'+orig.x+'" cy="'+orig.y+'" r="6" fill="none" stroke="#9C2B1E" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="'+orig.x+'" y1="'+orig.y+'" x2="'+x+'" y2="'+y+'" stroke="#9C2B1E" stroke-width="1"/>';
+    if(orig) s+='<circle cx="'+orig.x+'" cy="'+orig.y+'" r="6" fill="none" stroke="#9B2423" stroke-width="1.5" stroke-dasharray="2 2"/><line x1="'+orig.x+'" y1="'+orig.y+'" x2="'+x+'" y2="'+y+'" stroke="#9B2423" stroke-width="1"/>';
     s+='<path d="M'+x+' '+(y-24)+' C'+(x+7)+' '+(y-24)+' '+(x+12)+' '+(y-19)+' '+(x+12)+' '+(y-12)+' C'+(x+12)+' '+(y-4)+' '+x+' '+(y+4)+' '+x+' '+(y+4)+' C'+x+' '+(y+4)+' '+(x-12)+' '+(y-4)+' '+(x-12)+' '+(y-12)+' C'+(x-12)+' '+(y-19)+' '+(x-7)+' '+(y-24)+' '+x+' '+(y-24)+' Z" fill="#C94F16" stroke="#fff" stroke-width="1.5"/></svg><div style="position:absolute;right:5px;bottom:3px;font-size:8px;color:#5A6472;background:rgba(255,255,255,.8);padding:0 3px;border-radius:2px;">'+(p.fuera?'límite municipal ┆':'puntos aprobados alrededor')+'</div></div>'; return s }
   function diffRows(p){ var q=p.pid?punto(p.pid):null, rows=[], dt=p.datos;
     if(p.op==='alta'){ rows=[['Tipo','',dt.tipo==='boca'?'Boca de riego':'Hidrante'],['Diámetro','',dt.d==='otro'?'Otra medida: "'+dt.otro+'"':dt.d+' mm']]; if(dt.racor) rows.push(['Racor','',dt.racor.charAt(0).toUpperCase()+dt.racor.slice(1)]); rows.push(['Estado','',NOM[dt.caudal]]); if(dt.fallo) rows.push(['Fallo','','"'+dt.fallo+'"']); rows.push(['Núcleo','',p.fuera?'fuera de zona':p.nucleo+' (deducido)']) }
@@ -753,9 +743,12 @@
   $('#gsearch').addEventListener('input',function(){ busca=this.value.trim(); regQ=busca; $('#reg-q').value=busca; invPage=0; ajustaActiva(); pintarInv(); pintarReg() });
 
   /* ---------- INVENTARIO ---------- */
-  function invFiltrado(){ var v=activos().filter(function(p){ if(busca&&[p.cod,p.dir,p.nucleo].join(' ').toLowerCase().indexOf(busca.toLowerCase())<0) return false; if(invNuc&&p.nucleo!==invNuc) return false; if(invDia&&p.d!==+invDia) return false; if(invF==='hidrante'||invF==='boca') return p.tipo===invF; if(invF==='nf') return p.caudal==='no_funciona'; if(invF==='cad') return caducado(p); return true });
+  function invFiltrado(){ var v=activos().filter(function(p){ if(busca&&[p.cod,p.dir,p.nucleo].join(' ').toLowerCase().indexOf(busca.toLowerCase())<0) return false; if(invF!=='todos'&&p.tipo!==invF) return false; if(invE&&p.caudal!==invE) return false; return true });
     var k=invSort.k, EL={bueno:0,regular:1,malo:2,no_funciona:3}; v.sort(function(a,b){ var x=k==='caudal'?EL[a.caudal]:k==='rev'?a.rev.getTime():a[k], y=k==='caudal'?EL[b.caudal]:k==='rev'?b.rev.getTime():b[k]; if(typeof x==='number') return invSort.asc?x-y:y-x; return invSort.asc?String(x).localeCompare(String(y),'es'):String(y).localeCompare(String(x),'es') }); return v }
-  function pintarInv(){ var v=invFiltrado(), pages=Math.max(1,Math.ceil(v.length/PAGE)); if(invPage>=pages) invPage=pages-1; var pg=v.slice(invPage*PAGE,(invPage+1)*PAGE);
+  function pintarFiltrosInv(){ var base=activos().filter(function(p){return invF==='todos'||p.tipo===invF}), se=$('#inv-estado');
+    se.innerHTML='<option value="">Todos · '+base.length+'</option>'+Object.keys(NOM).map(function(k){ var n=base.filter(function(p){return p.caudal===k}).length; return '<option value="'+k+'"'+(invE===k?' selected':'')+'>'+NOM[k]+' · '+n+'</option>' }).join('');
+    $('#inv-tipo').value=invF; $('#inv-tipo').classList.toggle('activo',invF!=='todos'); se.classList.toggle('activo',!!invE); $('#inv-quitar').style.display=(invF!=='todos'||invE)?'':'none' }
+  function pintarInv(){ pintarFiltrosInv(); var v=invFiltrado(), pages=Math.max(1,Math.ceil(v.length/PAGE)); if(invPage>=pages) invPage=pages-1; var pg=v.slice(invPage*PAGE,(invPage+1)*PAGE);
     $$('#inv-head th[data-s]').forEach(function(th){ var on=th.dataset.s===invSort.k; th.classList.toggle('sorted',on); th.textContent=th.textContent.replace(/ [▲▼]$/,'')+(on?(invSort.asc?' ▲':' ▼'):'') });
     $('#inv-body').innerHTML=pg.map(function(p){ return '<tr><td class="mono">'+p.cod+'</td><td>'+(p.tipo==='boca'?'Boca de riego':'Hidrante')+'</td><td>'+p.d+' mm</td><td><span class="chip '+CH[p.caudal]+'"><span class="dot '+DOT[p.caudal]+'"></span>'+NOM[p.caudal]+'</span></td><td><span class="dir-edit'+(p.dir?'':' pend')+'" contenteditable="true" data-dir="'+p.id+'" title="Editar dirección">'+(p.dir?esc(p.dir):'— pendiente, escribe aquí')+'</span></td><td>'+esc(p.nucleo)+'</td><td'+(caducado(p)?' style="color:var(--rojo-700);font-weight:600;"':'')+'>'+hace(p.rev)+'</td><td style="white-space:nowrap;"><span class="accion editar" data-inv="editar" data-pid="'+p.id+'">Editar</span> <span class="accion editar" data-inv="retirar" data-pid="'+p.id+'">Retirar</span> <span class="accion editar" style="color:var(--rojo-700);" data-inv="borrar" data-pid="'+p.id+'">Borrar</span> <span class="accion editar" style="color:var(--texto-suave);" data-inv="hist" data-pid="'+p.id+'">Historial</span></td></tr>' }).join('');
     $('#inv-vacio').style.display=v.length?'none':'block'; $('#inv-cuenta').innerHTML='Mostrando <strong style="color:var(--marino-950);">'+pg.length+'</strong> de '+v.length+' puntos'+(v.length!==activos().length?' (filtrados de '+activos().length+')':'')+' · '+PAGE+' por página · pulsa una columna para ordenar · la dirección se edita en la propia celda';
@@ -766,25 +759,20 @@
   $('#inv-mapa').addEventListener('click',function(e){ var g=e.target.closest('[data-mk]'); if(!g) return; var p=punto(+g.dataset.mk); busca=p.cod; $('#gsearch').value=p.cod; $('#vista-tabla').click(); pintarInv() });
   $('#inv-body').addEventListener('blur',function(e){ var d=e.target.closest('[data-dir]'); if(!d) return; var p=punto(+d.dataset.dir), v=d.textContent.trim(); if(p&&v&&v.indexOf('pendiente')<0&&v!==p.dir){ p.dir=v; log('direccion_editada',p.cod,'Dirección → "'+v+'"'); pintarInv(); flash('Dirección de '+p.cod+' guardada.','inventario') } },true);
   $('#inv-body').addEventListener('click',function(e){ var a=e.target.closest('[data-inv]'); if(!a) return; var p=punto(+a.dataset.pid), k=a.dataset.inv, box=$('#inv-box');
-    if(k==='editar'){ box.innerHTML='<div class="pn-box"><div class="row"><b>Editar '+p.cod+'</b> <span style="font-size:11px;color:var(--texto-suave);">· edición directa de administrador: se aplica al momento y queda en el registro</span></div><div class="row"><label>Diámetro</label><select id="ed-d">'+(p.tipo==='boca'?'<option value="45">45 mm</option>':'<option value="70"'+(p.d===70?' selected':'')+'>70 mm</option><option value="100"'+(p.d===100?' selected':'')+'>100 mm</option>')+'</select><label>Estado</label><select id="ed-c">'+Object.keys(NOM).map(function(c){return '<option value="'+c+'"'+(p.caudal===c?' selected':'')+'>'+NOM[c]+'</option>'}).join('')+'</select></div>'+(p.tipo==='boca'?'<div class="row"><label>Racor</label><select id="ed-r">'+['granada','barcelona','otro'].map(function(r){return '<option value="'+r+'"'+(p.racor===r?' selected':'')+'>'+r+'</option>'}).join('')+'</select></div>':'')+'<div class="row"><label>Fallo</label><input id="ed-f" value="'+esc(p.fallo||'')+'"></div><div class="row"><label>Descripción</label><input id="ed-desc" value="'+esc(p.desc||'')+'"></div><div class="row"><label>Núcleo</label><select id="ed-n">'+nucleos.map(function(n){return '<option'+(p.nucleo===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select></div><div class="row"><span class="accion aprobar" id="ed-ok">Guardar</span><span class="accion corregir" id="ed-no">Cancelar</span><span id="ed-err" style="color:var(--rojo-700);font-size:11px;"></span></div></div>';
+    if(k==='editar'){ box.innerHTML='<div class="pn-box"><div class="row"><b>Editar '+p.cod+'</b> <span style="font-size:11px;color:var(--texto-suave);">· edición directa de administrador: se aplica al momento y queda en el registro</span></div><div class="nota-29"><b>Desde docs/29 (DEC-169), Editar es un panel lateral</b> con el mapa y los controles del alta, los cambios marcados y la posibilidad de mover el punto. Este diálogo se conserva solo como referencia de los datos; el aspecto está en <code>docs/mockups/29-inventario-y-editar.html</code>.</div><div class="row"><label>Diámetro</label><select id="ed-d">'+(p.tipo==='boca'?'<option value="45">45 mm</option>':'<option value="70"'+(p.d===70?' selected':'')+'>70 mm</option><option value="100"'+(p.d===100?' selected':'')+'>100 mm</option>')+'</select><label>Estado</label><select id="ed-c">'+Object.keys(NOM).map(function(c){return '<option value="'+c+'"'+(p.caudal===c?' selected':'')+'>'+NOM[c]+'</option>'}).join('')+'</select></div>'+(p.tipo==='boca'?'<div class="row"><label>Racor</label><select id="ed-r">'+[['barcelona','Barcelona'],['granada','Granada'],['directo','Directo'],['otro','Otro']].map(function(r){return '<option value="'+r[0]+'"'+(p.racor===r[0]?' selected':'')+'>'+r[1]+'</option>'}).join('')+'</select></div>':'')+'<div class="row"><label>Fallo</label><input id="ed-f" value="'+esc(p.fallo||'')+'"></div><div class="row"><label>Descripción</label><input id="ed-desc" value="'+esc(p.desc||'')+'"></div><div class="row"><label>Núcleo</label><select id="ed-n">'+nucleos.map(function(n){return '<option'+(p.nucleo===n?' selected':'')+'>'+n+'</option>'}).join('')+'</select></div><div class="row"><span class="accion aprobar" id="ed-ok">Guardar</span><span class="accion corregir" id="ed-no">Cancelar</span><span id="ed-err" style="color:var(--rojo-700);font-size:11px;"></span></div></div>';
       $('#ed-ok').onclick=function(){ var c=$('#ed-c').value, f=$('#ed-f').value.trim(); if(c==='no_funciona'&&!f){ $('#ed-err').textContent='Con "No funciona" el fallo es obligatorio.'; return } var cambios=[]; var nd=+$('#ed-d').value; if(nd!==p.d){ cambios.push('Ø '+p.d+' → '+nd); p.d=nd } if(c!==p.caudal){ cambios.push('estado '+NOM[p.caudal]+' → '+NOM[c]); p.caudal=c } p.fallo=c==='no_funciona'?f:''; if($('#ed-r')&&$('#ed-r').value!==p.racor){ cambios.push('racor → '+$('#ed-r').value); p.racor=$('#ed-r').value } var nn=$('#ed-n').value; if(nn!==p.nucleo){ cambios.push('núcleo → '+nn); p.nucleo=nn } p.desc=$('#ed-desc').value; log('edicion_admin',p.cod,cambios.join(', ')||'descripción'); box.innerHTML=''; pintarInv(); flash(p.cod+' actualizado'+(cambios.length?': '+cambios.join(', '):'')+'.','inventario'); pintarReg() }; $('#ed-no').onclick=function(){ box.innerHTML='' } }
     if(k==='retirar'||k==='borrar'){ var ret=k==='retirar'; box.innerHTML='<div class="pn-box" style="border-color:var(--rojo-700);"><div class="row"><b>'+(ret?'Retirar':'Borrar')+' '+p.cod+'</b> <span style="font-size:11px;color:var(--texto-suave);">'+(ret?'· el punto existió y ya no está: desaparece del mapa y se conserva en el histórico':'· el registro nunca debió existir: va a la papelera '+config.dias_papelera+' días')+'</span></div><textarea id="rb-m" placeholder="Motivo (obligatorio)"></textarea><div class="row" style="margin-top:6px;"><span class="accion confirmar" id="rb-ok">'+(ret?'Retirar':'Borrar')+'</span><span class="accion corregir" id="rb-no">Cancelar</span><span id="rb-err" style="color:var(--rojo-700);font-size:11px;"></span></div></div>';
       $('#rb-ok').onclick=function(){ var m=$('#rb-m').value.trim(); if(!m){ $('#rb-err').textContent='El motivo es obligatorio.'; return } if(ret){ p.situacion='retirado'; p.retirado=HOY; p.motivoRetirada=m; log('retirada',p.cod,'"'+m+'"') } else { p.situacion='borrado'; p.borrado=HOY; p.borradoPor=ADMIN; p.motivoBorrado=m; log('borrado',p.cod,'"'+m+'" · a papelera') } box.innerHTML=''; flash(p.cod+(ret?' retirado. Sigue en el registro e historial.':' enviado a la papelera. Recuperable '+config.dias_papelera+' días.'),'inventario'); pintarTodo() }; $('#rb-no').onclick=function(){ box.innerHTML='' } }
     if(k==='hist'){ var h=registro.filter(function(r){return r.cod===p.cod}); box.innerHTML='<div class="pn-box"><div class="row"><b>Historial de '+p.cod+'</b><span class="accion corregir" id="h-no" style="margin-left:auto;">Cerrar</span></div><div class="pn-hist">'+(h.map(function(r){return '<div><span style="color:var(--texto-suave);white-space:nowrap;">'+fecha(r.m)+'</span> · <b>'+ACC[r.accion]+'</b> · '+esc(r.actor)+' · '+esc(r.det)+'</div>'}).join('')||'<div>Sin entradas: punto anterior al arranque del sistema.</div>')+'</div></div>'; $('#h-no').onclick=function(){ box.innerHTML='' } } });
-  $('#inv-chips').addEventListener('click',function(e){ var c=e.target.closest('.fchip'); if(!c) return; $$('.fchip',this).forEach(function(x){x.classList.remove('on')}); c.classList.add('on'); invF=c.dataset.f; invPage=0; pintarInv() });
-  $('#inv-nuc').onchange=function(){ invNuc=this.value; invPage=0; pintarInv() }; $('#inv-dia').onchange=function(){ invDia=this.value; invPage=0; pintarInv() };
+  $('#inv-tipo').onchange=function(){ invF=this.value; invPage=0; pintarInv() }; $('#inv-estado').onchange=function(){ invE=this.value; invPage=0; pintarInv() };
+  $('#inv-quitar').onclick=function(e){ e.preventDefault(); invF='todos'; invE=''; invPage=0; pintarInv(); $('#inv-tipo').focus() };
+  /* Exportar ▾: menú con Excel, CSV y GeoJSON; flechas, Esc y clic fuera lo cierran y el foco vuelve al botón */
+  function menuExp(abrir,foco){ var m=$('#exp-menu'), b=$('#btn-exp'); m.classList.toggle('on',abrir); b.setAttribute('aria-expanded',abrir?'true':'false'); if(abrir) $$('[role=menuitem]',m)[0].focus(); else if(foco) b.focus() }
+  $('#btn-exp').onclick=function(){ menuExp(!$('#exp-menu').classList.contains('on')) };
+  $('#exp-menu').addEventListener('keydown',function(e){ var it=$$('[role=menuitem]',this), i=it.indexOf(document.activeElement); if(e.key==='ArrowDown'){ e.preventDefault(); it[(i+1)%it.length].focus() } else if(e.key==='ArrowUp'){ e.preventDefault(); it[(i-1+it.length)%it.length].focus() } else if(e.key==='Escape'){ e.preventDefault(); menuExp(false,true) } else if(e.key==='Enter'||e.key===' '){ e.preventDefault(); document.activeElement.click() } });
+  document.addEventListener('click',function(e){ if(!e.target.closest('.exp-wrap')) menuExp(false) });
   $('#vista-tabla').onclick=function(){ this.classList.add('on'); $('#vista-mapa').classList.remove('on'); $('#inv-tabla').style.display='block'; $('#inv-mapa').style.display='none' };
   $('#vista-mapa').onclick=function(){ this.classList.add('on'); $('#vista-tabla').classList.remove('on'); $('#inv-tabla').style.display='none'; $('#inv-mapa').style.display='block' };
-
-  /* ---------- CADUCADAS ---------- */
-  function pintarCad(){ var cad=activos().filter(caducado), g={}; cad.forEach(function(p){ (g[p.nucleo]=g[p.nucleo]||[]).push(p) }); var tot={}; activos().forEach(function(p){ tot[p.nucleo]=(tot[p.nucleo]||0)+1 });
-    $('#cad-txt').innerHTML='<strong style="color:var(--marino-950);">'+cad.length+' puntos</strong> sin revisar desde hace más de '+config.meses_revision+' meses (parámetro en Ajustes)';
-    $('#cad-lista').innerHTML=Object.keys(g).sort(function(a,b){return g[b].length-g[a].length}).map(function(n,i){ return '<div class="cad-grupo" data-g="'+i+'"><div class="n">'+g[n].length+'</div><div class="g">'+n+'<div style="font-size:11px;color:var(--texto-suave);">de '+tot[n]+' puntos del núcleo</div></div><div class="barra"><i style="width:'+Math.round(g[n].length/tot[n]*100)+'%"></i></div><span class="accion editar" data-hoja="'+esc(n)+'">🖨 Hoja</span><span style="font-size:11px;color:var(--texto-suave);">▾</span></div><div class="cad-detalle" data-d="'+i+'">'+g[n].map(function(p){return '<div>'+p.cod+' · '+(p.dir?esc(p.dir):'<span style="color:var(--ambar-700)">sin dirección (37.22'+(80+p.id)+', -3.65'+(50+p.id)+')</span>')+' · '+p.d+' mm · '+NOM[p.caudal]+' · '+hace(p.rev)+'</div>'}).join('')+'</div>' }).join('')||'<div class="vacio">Ningún punto lleva más de '+config.meses_revision+' meses sin revisar.</div>'; badges(); }
-  $('#cad-lista').addEventListener('click',function(e){ var h=e.target.closest('[data-hoja]'); if(h){ hoja(h.dataset.hoja); return } var g=e.target.closest('[data-g]'); if(!g) return; $('[data-d="'+g.dataset.g+'"]').classList.toggle('on') });
-  $('#btn-imprimir').onclick=function(){ hoja(null) };
-  function hoja(nuc){ var cad=activos().filter(caducado).filter(function(p){return !nuc||p.nucleo===nuc}), g={}; cad.forEach(function(p){ (g[p.nucleo]=g[p.nucleo]||[]).push(p) });
-    var html='<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Hoja de campo</title><style>body{font-family:Arial,sans-serif;font-size:12px;margin:24px}h1{font-size:16px;margin:0 0 4px}h2{font-size:14px;margin:0 0 10px;color:#555}table{width:100%;border-collapse:collapse;margin-bottom:24px}th,td{border:1px solid #999;padding:5px 6px;text-align:left}th{background:#eee}.c{width:70px}.chk{width:60px}@media print{.pb{page-break-after:always}}</style></head><body>'+Object.keys(g).map(function(n){return '<div class="pb"><h1>Revisiones caducadas · '+n+'</h1><h2>Protección Civil Albolote · impresa el '+fechaC(HOY)+' · '+g[n].length+' puntos · revisor: ____________________</h2><table><tr><th class="c">Código</th><th>Dirección / coordenadas</th><th>Tipo</th><th>Ø</th><th>Último estado</th><th>Última revisión</th><th class="chk">Revisado ✓</th><th>Estado hoy</th><th>Observaciones</th></tr>'+g[n].map(function(p){return '<tr><td>'+p.cod+'</td><td>'+(p.dir||('37.22'+(80+p.id)+', -3.65'+(50+p.id)))+'</td><td>'+(p.tipo==='boca'?'Boca de riego':'Hidrante')+'</td><td>'+p.d+' mm</td><td>'+NOM[p.caudal]+'</td><td>'+fechaC(p.rev)+'</td><td>☐</td><td>B / R / M / NF</td><td></td></tr>'}).join('')+'</table></div>'}).join('')+'</body></html>';
-    var w=window.open('','_blank'); if(!w){ flash('El navegador ha bloqueado la ventana de impresión. Permite ventanas emergentes para esta página.','caducadas'); return } w.document.write(html); w.document.close(); setTimeout(function(){ try{w.print()}catch(x){} },300); log('config_cambiada','—','Hoja de campo generada'+(nuc?' · '+nuc:' · todos los núcleos')+' · '+cad.length+' puntos',ADMIN); pintarReg() }
 
   /* ---------- REGISTRO ---------- */
   function pintarReg(){ var sel=$('#filtro-reg'), v=sel.value, tipos=[]; registro.forEach(function(r){ if(tipos.indexOf(ACC[r.accion])<0) tipos.push(ACC[r.accion]) }); sel.innerHTML='<option value="">todas las acciones</option>'+tipos.sort().map(function(t){return '<option'+(v===t?' selected':'')+'>'+t+'</option>'}).join('');
@@ -803,15 +791,6 @@
     $('#pd-ok').onclick=function(){ puntos.splice(puntos.indexOf(p),1); log('purga_papelera',p.cod,'Borrado definitivo manual'); $('#pap-box').innerHTML=''; flash(p.cod+' borrado definitivamente.','papelera'); pintarTodo() }; $('#pd-no').onclick=function(){ $('#pap-box').innerHTML='' } });
   $('#btn-purgar-pap').onclick=function(){ var cad=puntos.filter(function(p){return p.situacion==='borrado'&&(HOY-p.borrado)/86400000>config.dias_papelera}); if(!cad.length){ flash('Nada ha superado los '+config.dias_papelera+' días todavía.','papelera'); return } cad.forEach(function(p){ puntos.splice(puntos.indexOf(p),1); log('purga_papelera',p.cod,'Purga automática · '+config.dias_papelera+' días') }); flash(cad.length+' purgados.','papelera'); pintarTodo() };
 
-  /* ---------- VOLUNTARIOS ---------- */
-  function pintarAct(){ var base=actBase[actMeses], filas=Object.keys(base).map(function(n){ var b=base[n].slice(), disp=b[3], ap=props.filter(function(p){return p.disp===disp&&p.estado==='aprobada'&&p.id<14||p.disp===disp&&p.estado==='aprobada'&&p.id>=14&&false}).length; var re=props.filter(function(p){return p.disp===disp&&p.estado==='rechazada'&&p.id<14}).length, ult=props.filter(function(p){return p.disp===disp}).sort(function(a,c){return c.creada-a.creada})[0]; return {n:anonimizados[disp]?'voluntario dado de baja':n,disp:disp,t:b[0]+ap+re,a:b[1]+ap,r:b[2]+re,u:ult?hace(ult.creada):'hace 2 meses',anon:!!anonimizados[disp]} });
-    $('#act-body').innerHTML=filas.sort(function(a,b){return b.t-a.t}).map(function(f){ var tasa=Math.round(f.a/Math.max(1,f.t)*100); return '<tr><td'+(f.anon?' style="color:var(--texto-suave);font-style:italic;"':'')+'>'+esc(f.n)+'</td><td>'+f.t+'</td><td>'+f.a+'</td><td>'+f.r+'</td><td><span class="chip '+(tasa>=85?'chip-verde':tasa>=70?'chip-ambar':'chip-rojo')+'">'+tasa+' %</span>'+(tasa<70?' <span style="font-size:10.5px;color:var(--texto-suave);">conviene hablar con él</span>':'')+'</td><td style="color:var(--texto-suave);">'+f.u+'</td><td>'+(f.anon?'<span style="font-size:11px;color:var(--texto-suave);">anonimizado</span>':'<span class="accion editar" style="color:var(--texto-suave);" data-anon="'+f.disp+'" data-nom="'+esc(f.n)+'">Anonimizar…</span>')+'</td></tr>' }).join(''); }
-  $('#act-meses').onchange=function(){ actMeses=+this.value; pintarAct() };
-  $('#act-body').addEventListener('click',function(e){ var a=e.target.closest('[data-anon]'); if(!a) return; var disp=a.dataset.anon, nom=a.dataset.nom; $('#act-box').innerHTML='<div class="pn-box" style="border-color:var(--rojo-700);"><div class="row"><b>Anonimizar a '+esc(nom)+'</b></div><div style="font-size:11.5px;color:var(--texto-suave);margin-bottom:8px;">Derecho de supresión (11 §6.4). Su nombre se sustituye por "voluntario dado de baja" en todas sus propuestas y en el registro; las filas y los puntos se conservan. Se identifica por su dispositivo ('+disp+'), no por nombre. No se puede deshacer.</div><div class="row"><label style="width:auto;"><input type="checkbox" id="an-conf"> He confirmado con la persona que es su móvil</label></div><div class="row"><span class="accion confirmar" id="an-ok">Anonimizar</span><span class="accion corregir" id="an-no">Cancelar</span><span id="an-err" style="color:var(--rojo-700);font-size:11px;"></span></div></div>';
-    $('#an-ok').onclick=function(){ if(!$('#an-conf').checked){ $('#an-err').textContent='Confirma primero con la persona.'; return } anonimizados[disp]=true; props.forEach(function(p){ if(p.disp===disp) p.autor='voluntario dado de baja' }); registro.forEach(function(r){ if(r.actor===nom) r.actor='voluntario dado de baja' }); log('anonimizacion','—','Dispositivo '+disp+' anonimizado a petición del interesado'); $('#act-box').innerHTML=''; flash('Anonimizado. Las filas se conservan sin el nombre.','voluntarios'); pintarTodo() }; $('#an-no').onclick=function(){ $('#act-box').innerHTML='' } });
-  function pintarInc(){ var ab=incidencias.filter(function(x){return x.estado==='abierta'}).length; $('#inc-body').innerHTML=incidencias.map(function(x,i){return '<tr><td style="white-space:nowrap;color:var(--texto-suave);">'+fecha(x.m)+'</td><td style="white-space:nowrap;">'+x.v+'</td><td style="color:var(--texto-suave);">'+esc(x.t)+'</td><td><span class="inc-estado inc-'+x.estado+'">'+x.estado+'</span></td><td>'+(x.estado==='abierta'?'<span class="accion aprobar" data-inc="'+i+'">Marcar resuelta</span>':'<span class="accion editar" data-inc="'+i+'" style="color:var(--texto-suave);">Reabrir</span>')+'</td></tr>'}).join(''); $('#inc-cuenta').textContent=ab+' abierta'+(ab===1?'':'s')+' · '+(incidencias.length-ab)+' resuelta'+(incidencias.length-ab===1?'':'s'); badges(); }
-  $('#inc-body').addEventListener('click',function(e){ var b=e.target.closest('[data-inc]'); if(!b) return; var x=incidencias[+b.dataset.inc]; x.estado=x.estado==='abierta'?'resuelta':'abierta'; log('incidencia_resuelta','—','Incidencia "'+x.t.slice(0,40)+'…" '+x.estado); pintarInc(); pintarSalud(); pintarReg() });
-
   /* ---------- AJUSTES ---------- */
   function pintarCodInfo(){ $('#cod-info').textContent='Cambiado por última vez el '+config.codigo_cambiado+' por '+config.codigo_por+'. '+config.dispositivos+' móviles registrados.' }
   $('#cod-ver').onclick=function(){ var v=$('#cod-valor'), oculto=v.textContent.indexOf('•')>-1; v.textContent=oculto?config.codigo:'••••••'; this.textContent=oculto?'ocultar':'ver' };
@@ -826,18 +805,18 @@
   function pintarNuc(){ $('#nuc-lista').innerHTML=nucleos.map(function(n,i){ var c=activos().filter(function(p){return p.nucleo===n}).length; return '<div class="nuc-row"><span>'+esc(n)+' <span style="color:var(--texto-suave);font-size:11px;">· '+c+' puntos</span></span><span class="accion editar" data-nuc="'+i+'">Renombrar</span></div>' }).join('') }
   $('#nuc-lista').addEventListener('click',function(e){ var a=e.target.closest('[data-nuc]'); if(!a) return; var i=+a.dataset.nuc, row=a.parentNode; row.innerHTML='<input class="sel-mini" id="nuc-ren" value="'+esc(nucleos[i])+'" style="flex:1;padding:3px 6px;"><span class="accion aprobar" id="nuc-ok" style="margin-left:6px;">Guardar</span>'; $('#nuc-ok').onclick=function(){ var v=$('#nuc-ren').value.trim(); if(!v) return; var old=nucleos[i]; nucleos[i]=v; puntos.forEach(function(p){ if(p.nucleo===old) p.nucleo=v }); props.forEach(function(p){ if(p.nucleo===old) p.nucleo=v }); log('nucleo','—','Núcleo "'+old+'" renombrado a "'+v+'"'); pintarTodo() } });
   $('#btn-nuc-add').onclick=function(){ var v=$('#nuc-nuevo').value.trim(); if(!v||nucleos.indexOf(v)>-1) return; nucleos.push(v); log('nucleo','—','Núcleo "'+v+'" añadido a mano'); $('#nuc-nuevo').value=''; pintarTodo() };
-  function pintarSalud(){ var pend14=props.filter(function(p){return p.estado==='pendiente'&&(HOY-p.creada)/86400000>14}).length, inc=incidencias.filter(function(i){return i.estado==='abierta'}).length, sinDir=activos().filter(function(p){return !p.dir}).length;
+  function pintarSalud(){ var pend14=props.filter(function(p){return p.estado==='pendiente'&&(HOY-p.creada)/86400000>14}).length, sinDir=activos().filter(function(p){return !p.dir}).length;
     var r=function(k,v,c){return '<div class="salud"><span>'+k+'</span><strong'+(c?' class="'+c+'"':'')+'>'+v+'</strong></div>'};
-    $('#salud').innerHTML=r('Propuestas pendientes >14 días',pend14,pend14?'mal':'bien')+r('Incidencias abiertas',inc,inc?'mal':'bien')+r('Errores de cliente (7 días)','0')+r('Puntos sin dirección deducida',sinDir,sinDir?'mal':'bien')+r('Último respaldo',config.ultimo_respaldo,'bien')+r('Storage usado',config.storage_mb+' MB / 1 GB')+r('Zona de cobertura · mapa base',config.version_zona+' · '+config.version_mapabase)+r('Dispositivos con acceso',config.dispositivos) }
+    $('#salud').innerHTML=r('Propuestas pendientes >14 días',pend14,pend14?'mal':'bien')+r('Errores de cliente (7 días)','0')+r('Puntos sin dirección deducida',sinDir,sinDir?'mal':'bien')+r('Último respaldo',config.ultimo_respaldo,'bien')+r('Storage usado',config.storage_mb+' MB / 1 GB')+r('Zona de cobertura · mapa base',config.version_zona+' · '+config.version_mapabase)+r('Dispositivos con acceso',config.dispositivos) }
   $('#btn-purgar').onclick=function(){ var a=$('#aviso-purga'); a.className='aj-aviso on'; a.textContent='Purga lanzada en GitHub Actions. Tarda unos minutos…'; this.className='bb off'; var btn=this; setTimeout(function(){ var n=8+Math.floor(Math.random()*10), mb=Math.round(n*0.25); config.storage_mb-=mb; a.textContent='Purga terminada: '+n+' fotos huérfanas eliminadas, '+mb+' MB liberados. Consta en el Registro.'; log('purga_fotos','—',n+' fotos huérfanas · '+mb+' MB'); btn.className='bb'; pintarSalud(); pintarReg() },2500) };
   $('#btn-json').onclick=function(){ descargar('inventario-hidrantes.json',JSON.stringify({exportado:HOY.toISOString(),puntos:activos().map(function(p){return {codigo:p.cod,tipo:p.tipo,diametro_mm:p.d,caudal:p.caudal,racor:p.racor||null,direccion:p.dir||null,nucleo:p.nucleo,ultima_revision:p.rev.toISOString().slice(0,10),descripcion:p.desc}})},null,2),'application/json'); flash('Inventario descargado ('+activos().length+' puntos). No es el respaldo: ese es semanal, automático y cifrado.','ajustes') };
 
   /* ---------- pestañas y arranque ---------- */
   $$('#tabs div').forEach(function(t){ t.onclick=function(){ $$('#tabs div').forEach(function(x){x.classList.remove('on')}); t.classList.add('on'); tab=t.dataset.tab; $$('#panel .panel').forEach(function(pp){pp.classList.toggle('on',pp.dataset.panel===tab)}) } });
-  function pintarTodo(){ nucSelects(); pintarLista(); pintarDetalle(); pintarInv(); pintarCad(); pintarReg(); pintarPap(); pintarAct(); pintarInc(); pintarUsr(); pintarPar(); pintarNuc(); pintarSalud(); pintarCodInfo(); badges(); }
+  function pintarTodo(){ nucSelects(); pintarLista(); pintarDetalle(); pintarInv(); pintarReg(); pintarPap(); pintarUsr(); pintarPar(); pintarNuc(); pintarSalud(); pintarCodInfo(); badges(); }
   /* --- P1: exportación --- */
   function filasExport(){ return invFiltrado().map(function(p){ return {codigo:p.cod,tipo:p.tipo==='boca'?'boca_riego':'hidrante',diametro_mm:p.d,caudal:p.caudal,racor:p.racor||'',direccion:p.dir||'',nucleo:p.nucleo,fecha_ultima_revision:p.rev.toISOString().slice(0,10),lat:37.2281+(p.y-150)/9000,lng:-3.6553+(p.x-350)/8000} }) }
-  document.getElementById('panel').addEventListener('click',function(e){ var a=e.target.closest('[data-exp]'); if(!a) return; var f=a.dataset.exp, filas=filasExport(), n=filas.length;
+  document.getElementById('panel').addEventListener('click',function(e){ var a=e.target.closest('[data-exp]'); if(!a) return; menuExp(false,true); var f=a.dataset.exp, filas=filasExport(), n=filas.length;
     if(f==='csv'){ var cab=Object.keys(filas[0]||{codigo:1}); descargar('inventario-hidrantes.csv','\ufeff'+cab.join(';')+'\n'+filas.map(function(r){return cab.map(function(k){return String(r[k]).replace(/;/g,',')}).join(';')}).join('\n'),'text/csv;charset=utf-8') }
     if(f==='geojson'){ descargar('inventario-hidrantes.geojson',JSON.stringify({type:'FeatureCollection',features:filas.map(function(r){return {type:'Feature',geometry:{type:'Point',coordinates:[+r.lng.toFixed(6),+r.lat.toFixed(6)]},properties:{codigo:r.codigo,tipo:r.tipo,diametro_mm:r.diametro_mm,caudal:r.caudal,racor:r.racor||null,direccion:r.direccion||null,nucleo:r.nucleo,fecha_ultima_revision:r.fecha_ultima_revision}}})},null,1),'application/geo+json') }
     if(f==='xlsx'){ if(!window.XLSX){ flash('La librería de Excel no ha cargado (sin conexión). Usa CSV.','inventario'); return } var ws=XLSX.utils.json_to_sheet(filas.map(function(r){var o=Object.assign({},r); delete o.lat; delete o.lng; return o})), wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'Inventario'); XLSX.writeFile(wb,'inventario-hidrantes.xlsx') }

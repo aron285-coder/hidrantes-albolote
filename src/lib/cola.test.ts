@@ -19,6 +19,7 @@ vi.mock('./push', () => ({ pedirEnvioPush }));
 vi.mock('./panel/push-jefatura', () => ({ pedirEnvioComoJefatura: vi.fn(async () => undefined) }));
 
 const cola = await import('./cola');
+const { textoEspera } = await import('./nombres-operacion');
 const { LIMITES_RED } = await import('./red');
 const { _reiniciar } = await import('./conexion');
 const { guardarSesion } = await import('./sesion');
@@ -447,6 +448,272 @@ describe('cola: cabos sueltos de RV-01 a RV-04 (docs/18 RV-39)', () => {
     roto = false;
     await cola.reintentarCola();
     expect(cola.estaPersistida('k-000506')).toBe(true);
+  });
+});
+
+describe('cola: los topes nuevos (docs/31 RV-154)', () => {
+  const cuota = (mensaje: string) => ({ data: null, error: { message: mensaje }, status: 400 });
+
+  it('CUOTA_PROPUESTAS_AGOTADA espera a la hora que dice el servidor, sin contar como error', async () => {
+    rpc.mockResolvedValue(cuota('CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=5000'));
+    await cola.encolar(args('k-000701'), null, 'HID-0147');
+    await cola.procesarCola();
+    const [a] = cola.colaActual();
+    expect(a).toMatchObject({ fallo: null, fallos_seguidos: 0, en_espera: { motivo: 'cuota_propuestas', maximo: 60 } });
+    expect(a!.proximo - Date.now()).toBe(5000_000);
+    expect(textoEspera(a!)).toBe('Has llegado al máximo de propuestas de hoy (60). Se enviará mañana.');
+  });
+
+  it('seis topes seguidos no lo marcan como fallo', async () => {
+    rpc.mockResolvedValue(cuota('CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=10'));
+    await cola.encolar(args('k-000702'), null, null);
+    for (let i = 0; i < 6; i++) {
+      vi.setSystemTime(Date.now() + 20_000);
+      await cola.procesarCola();
+    }
+    expect(rpc.mock.calls.length).toBeGreaterThanOrEqual(6);
+    expect(cola.colaActual()[0]).toMatchObject({ fallo: null });
+  });
+
+  it('sin los números en el texto, espera a la próxima medianoche y el aviso va sin número', async () => {
+    vi.setSystemTime(new Date(2026, 9, 7, 22, 0, 0));
+    rpc.mockResolvedValue(cuota('CUOTA_PROPUESTAS_AGOTADA: otra cosa'));
+    await cola.encolar(args('k-000703'), null, null);
+    await cola.procesarCola();
+    const [a] = cola.colaActual();
+    expect(a!.proximo).toBeGreaterThanOrEqual(new Date(2026, 9, 8, 0, 0, 0).getTime());
+    expect(a!.proximo).toBeLessThan(new Date(2026, 9, 8, 0, 30, 0).getTime());
+    expect(textoEspera(a!)).toBe('Has llegado al máximo de propuestas de hoy. Se enviará mañana.');
+  });
+
+  it('un reintento (vuelta de la red, «Reintentar») no adelanta la espera del tope', async () => {
+    rpc.mockResolvedValue(cuota('CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=5000'));
+    await cola.encolar(args('k-000706'), null, null);
+    await cola.procesarCola();
+    const llamadas = rpc.mock.calls.length;
+    const proximo = cola.colaActual()[0]!.proximo;
+    await cola.reintentarCola();
+    expect(rpc.mock.calls.length).toBe(llamadas);
+    expect(cola.colaActual()[0]!.proximo).toBe(proximo);
+  });
+
+  it('al enviarse después, el aviso se va', async () => {
+    rpc.mockResolvedValueOnce(cuota('CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=10'));
+    await cola.encolar(args('k-000704'), null, null);
+    await cola.procesarCola();
+    rpc.mockResolvedValueOnce(caido);
+    vi.setSystemTime(Date.now() + 20_000);
+    await cola.procesarCola();
+    expect(textoEspera(cola.colaActual()[0]!)).toBeNull();
+  });
+
+  it('CUOTA_SUBIDAS_AGOTADA del tope global (con sufijo) espera una hora y no es fallo', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/url-subida') return respuesta(429, { error: 'CUOTA_SUBIDAS_AGOTADA(global)' });
+      return new Response(null, { status: 200 });
+    });
+    await cola.encolar(args('k-000705'), FOTO, null);
+    for (let i = 0; i < 6; i++) {
+      await cola.procesarCola();
+      const [a] = cola.colaActual();
+      expect(a).toMatchObject({ fallo: null });
+      expect(a!.proximo - Date.now()).toBe(3600_000);
+      vi.setSystemTime(a!.proximo + 1);
+    }
+  });
+});
+
+describe('cola: reintentar sin escribir una copia vieja (docs/31 RV-156)', () => {
+  /** Retiene la primera escritura en el almacén hasta soltarla. */
+  function retenerPrimeraEscritura(almacen: ReturnType<typeof colaEnMemoria<EnCola>>) {
+    const retenido = retenida<void>();
+    let primera = true;
+    const envolver =
+      <A extends unknown[], R>(f: (...a: A) => Promise<R>) =>
+      async (...a: A): Promise<R> => {
+        if (primera) {
+          primera = false;
+          await retenido.promesa;
+        }
+        return f(...a);
+      };
+    almacen.guardar = envolver(almacen.guardar.bind(almacen));
+    const conActualizar = almacen as { actualizar?: (...a: never[]) => Promise<unknown> };
+    if (conActualizar.actualizar) conActualizar.actualizar = envolver(conActualizar.actualizar.bind(almacen));
+    return retenido;
+  }
+
+  it('un reintento durante una pasada no resucita un enviado', async () => {
+    const almacen = colaEnMemoria<EnCola>();
+    cola._usarAlmacenCola(almacen);
+    rpc.mockResolvedValue(caido);
+    await cola.encolar(args('k-000601'), null, null);
+    await cola.procesarCola();
+    await cola.encolar(args('k-000602'), null, null);
+    await cola.procesarCola();
+    expect(cola.colaActual().every((i) => i.proximo > Date.now())).toBe(true);
+
+    rpc.mockReset();
+    rpc.mockResolvedValue(ok());
+    const retenido = retenerPrimeraEscritura(almacen);
+    const reintento = cola.reintentarCola();
+    // Mientras el reintento espera a IndexedDB, una pasada envía los dos.
+    vi.setSystemTime(Date.now() + 600_000);
+    await cola.procesarCola();
+    expect(cola.colaActual()).toEqual([]);
+    retenido.soltar();
+    await reintento;
+
+    expect(cola.colaActual()).toEqual([]);
+    expect(await almacen.todos()).toEqual([]);
+    expect(rpc.mock.calls.map((c) => c[1].clave_local).sort()).toEqual(['k-000601', 'k-000602']);
+  });
+
+  it('un reintento no pisa la ruta de una foto recién subida', async () => {
+    const almacen = colaEnMemoria<EnCola>();
+    cola._usarAlmacenCola(almacen);
+    // Primer intento: la reserva no responde; el envío espera sin ruta de foto.
+    fetchMock.mockImplementationOnce(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    rpc.mockResolvedValue(caido);
+    await cola.encolar(args('k-000603'), FOTO, null);
+    await cola.procesarCola();
+    expect(cola.colaActual()[0]).toMatchObject({ foto_path: null });
+
+    // El reintento se queda a medio guardar; mientras, una pasada sube la foto (y fn_proponer falla).
+    const retenido = retenerPrimeraEscritura(almacen);
+    const reintento = cola.reintentarCola();
+    vi.setSystemTime(Date.now() + 600_000);
+    await cola.procesarCola();
+    const ruta = cola.colaActual()[0]!.foto_path;
+    expect(ruta).toEqual(expect.any(String));
+    retenido.soltar();
+    await reintento;
+
+    const [guardado] = await almacen.todos();
+    expect(guardado!.foto_path).toBe(ruta);
+  });
+
+  it('una sola escucha de la vuelta de la red: la de conexion', () => {
+    const escuchas: string[] = [];
+    vi.stubGlobal('window', { addEventListener: (tipo: string) => escuchas.push(tipo) });
+    cola.iniciarCola();
+    expect(escuchas).not.toContain('online');
+  });
+});
+
+describe('cola: una reserva por foto mientras no caduque (docs/31 RV-156)', () => {
+  const reservas = () => fetchMock.mock.calls.filter((c) => c[0] === '/api/url-subida').length;
+  const puts = () => fetchMock.mock.calls.filter((c) => c[0] === 'https://sb/subir').length;
+  let putOk = false;
+
+  beforeEach(() => {
+    putOk = false;
+    let n = 0;
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/url-subida')
+        return respuesta(200, { foto_path: `fotos/r${++n}.jpg`, url: 'https://sb/subir', caduca_en_s: 7200 });
+      return new Response(null, { status: putOk ? 200 : 503 });
+    });
+    rpc.mockResolvedValue(ok());
+  });
+
+  it('tres fallos de subida seguidos usan una sola reserva', async () => {
+    await cola.encolar(args('k-000801'), FOTO, null);
+    await cola.procesarCola();
+    for (let i = 0; i < 2; i++) {
+      vi.setSystemTime(Date.now() + 120_000);
+      await cola.procesarCola();
+    }
+    expect(puts()).toBe(3);
+    expect(reservas()).toBe(1);
+
+    putOk = true;
+    vi.setSystemTime(Date.now() + 120_000);
+    await cola.procesarCola();
+    expect(reservas()).toBe(1);
+    expect(rpc).toHaveBeenCalledWith('fn_proponer', expect.objectContaining({ foto_path: 'fotos/r1.jpg' }));
+    expect(cola.colaActual()).toEqual([]);
+  });
+
+  it('con la reserva caducada se pide otra', async () => {
+    await cola.encolar(args('k-000802'), FOTO, null);
+    await cola.procesarCola();
+    vi.setSystemTime(Date.now() + 3 * 3600_000);
+    putOk = true;
+    await cola.procesarCola();
+    expect(reservas()).toBe(2);
+    expect(rpc).toHaveBeenCalledWith('fn_proponer', expect.objectContaining({ foto_path: 'fotos/r2.jpg' }));
+  });
+
+  it('con FOTO_NO_RESERVADA se pide otra', async () => {
+    putOk = true;
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { message: 'FOTO_NO_RESERVADA: x' }, status: 400 })
+      .mockResolvedValueOnce(ok());
+    await cola.encolar(args('k-000803'), FOTO, null);
+    await cola.procesarCola();
+    vi.setSystemTime(Date.now() + 120_000);
+    await cola.procesarCola();
+    expect(reservas()).toBe(2);
+    expect(rpc).toHaveBeenLastCalledWith('fn_proponer', expect.objectContaining({ foto_path: 'fotos/r2.jpg' }));
+  });
+
+  it('si la subida anterior llegó pero no su respuesta, el «ya existe» cuenta como subida', async () => {
+    await cola.encolar(args('k-000804'), FOTO, null);
+    await cola.procesarCola();
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === '/api/url-subida') return respuesta(200, { foto_path: 'fotos/otra.jpg', url: 'https://sb/subir' });
+      return respuesta(400, { statusCode: '409', error: 'Duplicate', message: 'The resource already exists' });
+    });
+    vi.setSystemTime(Date.now() + 120_000);
+    await cola.procesarCola();
+    expect(rpc).toHaveBeenCalledWith('fn_proponer', expect.objectContaining({ foto_path: 'fotos/r1.jpg' }));
+    expect(cola.colaActual()).toEqual([]);
+  });
+});
+
+describe('cola: quien la sigue se entera de si está guardado en el móvil (#484, tras #501)', () => {
+  it('al llegar a IndexedDB se vuelve a publicar, con estaPersistida ya cierto', async () => {
+    vi.stubGlobal('navigator', { onLine: false }); // que no salga: solo se mira el guardado
+    const vistos: boolean[] = [];
+    cola.suscribirCola(() => vistos.push(cola.estaPersistida('k-000901')));
+    await cola.encolar(args('k-000901'), null, null);
+    expect(vistos.at(-1)).toBe(true);
+  });
+
+  it('si IndexedDB falla después, también se publica', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    const almacen = colaEnMemoria<EnCola>();
+    cola._usarAlmacenCola(almacen);
+    await cola.encolar(args('k-000902'), null, null);
+    almacen.guardar = async () => {
+      throw new Error('QuotaExceededError');
+    };
+    const vistos: boolean[] = [];
+    cola.suscribirCola(() => vistos.push(cola.estaPersistida('k-000902')));
+    await cola.reintentarFallido('k-000902');
+    expect(vistos.at(-1)).toBe(false);
+  });
+});
+
+describe('cola: qué ha pasado con un envío (pantalla de resultado)', () => {
+  const item = (o: Partial<EnCola>): EnCola => ({
+    clave_local: 'k-1',
+    creada_en: 0,
+    args: args('k-1'),
+    foto: null,
+    foto_path: null,
+    codigo: null,
+    intentos: 0,
+    proximo: 0,
+    fallo: null,
+    ...o,
+  });
+  it('fuera de la cola, salió; con fallo permanente, no se enviará sola', () => {
+    expect(cola.estadoDeEnvio([], 'k-1')).toBe('salio');
+    expect(cola.estadoDeEnvio([item({ fallo: 'PUNTO_NO_ACTIVO' })], 'k-1')).toBe('fallido');
   });
 });
 

@@ -1,9 +1,23 @@
 import { Camera, Check } from 'lucide-react';
 import { type ReactNode, useRef, useState } from 'react';
 import type { Caudal, Racor } from '@/tipos/punto';
-import { type FotoProcesada, type PerfilFoto, PERFIL_CONEXION, PERFIL_SITIO, procesarFoto } from '@/lib/foto';
+import {
+  type FotoProcesada,
+  type PerfilFoto,
+  PERFIL_CONEXION,
+  PERFIL_SITIO,
+  cambiarFoto,
+  procesarFoto,
+} from '@/lib/foto';
 import { claseChip, nombreCaudal, nombreRacor } from '@/lib/ficha';
-import { type EstadoFoto, type RacorConFoto, URL_FOTO_RACOR, estadoFotoRacor, marcarFotoRacor } from '@/lib/racores';
+import {
+  type EstadoFoto,
+  ORDEN_RACORES,
+  type RacorConFoto,
+  URL_FOTO_RACOR,
+  estadoFotoRacor,
+  marcarFotoRacor,
+} from '@/lib/racores';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
@@ -87,10 +101,9 @@ export function PildorasCaudal({
   );
 }
 
-const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
-
 /**
- * La foto de 48 × 48 encima del nombre. Mientras no se sabe si existe, se pide escondida; si no
+ * La foto encima del nombre: 48 × 48, y 40 × 40 por debajo de 400 px de ancho para que quepan las
+ * cuatro tarjetas en una fila (RV-121). Mientras no se sabe si existe, se pide escondida; si no
  * carga (aún no la ha puesto el desarrollador, o no hay red ni caché), desaparece y el botón se ve
  * solo con el nombre, nunca con un icono roto. alt vacío: el nombre ya va en el botón.
  */
@@ -109,16 +122,19 @@ function FotoRacor({ racor }: { racor: RacorConFoto }) {
       height={48}
       onLoad={() => fijar('ok')}
       onError={() => fijar('falta')}
-      className={cn('rounded-campo mx-auto mb-1 size-12 object-cover', estado !== 'ok' && 'hidden')}
+      className={cn('rounded-campo mx-auto mb-1 size-10 object-cover min-[400px]:size-12', estado !== 'ok' && 'hidden')}
     />
   );
 }
 
-/** Racor de la boca de riego (FR-20): tres tarjetas; Granada y Barcelona con su foto de referencia. */
+/**
+ * Tipo de enganche de la boca de riego (FR-20; el dato es «racor»): cuatro tarjetas en una fila,
+ * también a 360 px (RV-121); todas menos «Otro» con su foto de referencia.
+ */
 export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: (r: Racor) => void }) {
   return (
-    <div role="radiogroup" aria-label={T.formulario.racor} className="grid grid-cols-3 gap-2">
-      {RACORES.map((r) => (
+    <div role="radiogroup" aria-label={T.formulario.racor} className="grid grid-cols-4 gap-1.5 min-[400px]:gap-2">
+      {ORDEN_RACORES.map((r) => (
         <button
           key={r}
           type="button"
@@ -127,7 +143,8 @@ export function SelectorRacor({ valor, alCambiar }: { valor?: Racor; alCambiar: 
           // Tocar la foto selecciona igual que tocar el nombre: es parte del botón.
           onClick={() => alCambiar(r)}
           className={cn(
-            'bg-papel rounded-tarjeta flex min-h-14 flex-col items-center justify-center border px-2 py-1.5 text-[15px]',
+            // Estrechas a 360 px: menos relleno y letra de 14 px para que «Barcelona» quepa entera.
+            'bg-papel rounded-tarjeta flex min-h-14 min-w-0 flex-col items-center justify-center border px-1 py-1.5 text-[14px] min-[400px]:px-2 min-[400px]:text-[15px]',
             valor === r ? 'border-texto border-[3px] border-double font-semibold' : 'border-linea',
           )}
         >
@@ -160,16 +177,17 @@ function HuecoFoto({
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
-  const [fallo, setFallo] = useState(false);
+  /** `repetida`: la nueva no se pudo leer y sigue la anterior (docs/31 RV-157). */
+  const [fallo, setFallo] = useState<'nueva' | 'repetida' | null>(null);
 
   async function elegida(archivo: File | undefined) {
     if (!archivo) return;
     setProcesando(true);
-    setFallo(false);
+    setFallo(null);
+    const anterior = foto;
     try {
-      alCambiar(await procesarFoto(archivo, perfil));
-    } catch {
-      setFallo(true);
+      const bien = await cambiarFoto(anterior, () => procesarFoto(archivo, perfil), alCambiar);
+      if (!bien) setFallo(anterior ? 'repetida' : 'nueva');
     } finally {
       setProcesando(false);
       if (entrada.current) entrada.current.value = '';
@@ -191,7 +209,9 @@ function HuecoFoto({
       {foto ? (
         <div
           className={cn(
-            'bg-verde-100 text-verde-700 rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold',
+            'rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold',
+            // Si la nueva falló, la anterior no se pinta como recién hecha: el aviso va con ella.
+            fallo === 'repetida' ? 'bg-ambar-100 text-ambar-700' : 'bg-verde-100 text-verde-700',
             compacto && 'flex-wrap gap-x-2 gap-y-0 py-1 text-[13px]',
           )}
         >
@@ -222,7 +242,11 @@ function HuecoFoto({
           {procesando ? T.operaciones.preparandoFoto : compacto ? etiqueta : T.formulario.hacerFoto}
         </button>
       )}
-      {fallo && <span className="text-rojo-700 text-[13px]">{T.operaciones.fotoIlegible}</span>}
+      {fallo && (
+        <span role="alert" className="text-rojo-700 text-[13px]">
+          {fallo === 'repetida' ? T.operaciones.fotoRepetidaIlegible : T.operaciones.fotoIlegible}
+        </span>
+      )}
     </div>
   );
 }

@@ -142,8 +142,9 @@ select hidrantes.fn_registrar_workflow('regenerar-zona');
 select is((select despues ->> 'workflow' from hidrantes.registro where accion = 'workflow_lanzado'),
   'regenerar-zona', 'lanzar un trabajo queda registrado con su nombre');
 
--- Novedades (FR-167)
-select is(hidrantes.fn_novedades(), '[]'::jsonb, 'sin novedades cargadas, una lista vacía');
+-- Novedades (FR-167): salen del build (DEC-087); la RPC obsoleta ya no se concede (0040, RV-149)
+select throws_ok($$ select hidrantes.fn_novedades() $$, '42501', null,
+  'fn_novedades, obsoleta, ya no la ejecuta authenticated (ni siendo jefatura)');
 
 -- Retirada de un punto (FR-120)
 select throws_like($$ select hidrantes.fn_retirar_punto('00000000-0000-4000-8000-000000009002', '  ') $$,
@@ -210,7 +211,7 @@ select set_eq(
   $$ values ('f8/9a.jpg'), ('f8/9b.jpg'), ('f8/p-00000000-0000-4000-8000-00000000a001.jpg'),
             ('f8/p-00000000-0000-4000-8000-00000000a002.jpg'), ('f8/p-00000000-0000-4000-8000-00000000a004.jpg'), ('f8/p-00000000-0000-4000-8000-00000000b001.jpg'),
             ('f8/p-00000000-0000-4000-8000-00000000c001.jpg'), ('f8/reciente.jpg') $$,
-  'en uso: las de los puntos, las de propuestas vivas y las reservas de menos de dias_reserva_subida (7, RV-07); la rechazada y la reserva vieja, no'
+  'en uso: las de los puntos, las de propuestas vivas y las reservas de menos de dias_reserva_subida (2 desde 0039, RV-07, RV-142); la rechazada y la reserva vieja, no'
 );
 
 -- ---------- el registro no se reescribe (11 §6) ----------

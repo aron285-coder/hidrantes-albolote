@@ -13,11 +13,11 @@ import {
   type EstadoPropuesta,
   type PropuestaPropia,
   cargarMisPropuestas,
-  marcarVistas,
+  cargarYMarcarVistas,
   retirarPropuesta,
   textoErrorRetirar,
 } from '@/lib/mis-propuestas';
-import { ETIQUETA_OPERACION, textoFallo } from '@/lib/nombres-operacion';
+import { ETIQUETA_OPERACION, textoEspera, textoFallo } from '@/lib/nombres-operacion';
 import { textoCambios } from '@/lib/campos';
 import type { Operacion } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
@@ -31,7 +31,7 @@ const ESTADOS: Record<EstadoPropuesta | 'sin_enviar', [string, string]> = {
   retirada_por_autor: [T.misPropuestas.retiradaPorTi, 'bg-linea text-texto'],
 };
 
-/** Correcciones de jefatura en español: "Diámetro: 70 mm · Racor: Granada" (UI-20, RV-23). */
+/** Correcciones de jefatura en español: "Diámetro: 70 mm · Tipo de enganche: Granada" (UI-20, RV-23). */
 const textoCorrecciones = (c: Record<string, unknown> | null) => textoCambios(c);
 
 function Tarjeta({
@@ -85,7 +85,8 @@ export function MisPropuestas() {
   }, []);
 
   useEffect(() => {
-    void cargarMisPropuestas().then(() => marcarVistas());
+    // Solo tras una carga buena se da lo resuelto por visto (RV-153).
+    void cargarYMarcarVistas();
   }, []);
 
   // Una propuesta enviada ya está en la lista del servidor; la cola solo guarda lo que falta.
@@ -138,6 +139,10 @@ export function MisPropuestas() {
                 {c.fallo ? (
                   <p className="bg-rojo-100 text-rojo-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
                     {textoFallo(c.fallo)}
+                  </p>
+                ) : textoEspera(c) ? (
+                  <p className="bg-ambar-100 text-ambar-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
+                    {textoEspera(c)}
                   </p>
                 ) : (
                   ahora - c.creada_en > ATASCADO_MS && (

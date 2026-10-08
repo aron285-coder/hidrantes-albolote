@@ -1,12 +1,11 @@
-import { Activity, Check, Crosshair, Navigation, Pencil, PenLine, X } from 'lucide-react';
+import { Activity, Check, Crosshair, Navigation, Pencil, PenLine, Share2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Hoja } from '../Hoja';
-import { BloqueCoordenadas, BotonCompartir } from './Coordenadas';
-import { MarcadorSvg } from './MarcadorSvg';
+import { BloqueCoordenadas } from './Coordenadas';
 import { useConexion } from '@/hooks/estado';
-import { textoPunto } from '@/lib/compartir';
-import { claseChip, enlaceComoLlegar, nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
+import { compartir, textoPunto } from '@/lib/compartir';
+import { bandaDe, enlaceComoLlegar, nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
 import { distancia, fechaCorta, hace } from '@/lib/formato';
 import type { Posicion } from '@/lib/posicion';
 import type { Operacion } from '@/lib/propuestas';
@@ -14,24 +13,36 @@ import { type Punto, metros } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
-const Chip = ({ className, children }: { className?: string; children: React.ReactNode }) => (
-  <span
-    className={cn('rounded-chip inline-flex items-center gap-1.5 px-2.5 py-0.5 text-[13px] font-semibold', className)}
-  >
-    {children}
-  </span>
-);
-
-/** Una foto de la ficha. Sin red ni caché, o sin foto, lo dice en vez de enseñar un icono roto. */
-function UnaFoto({ fotoPath, alt }: { fotoPath: string | null; alt: string }) {
+/**
+ * Una foto de la ficha. Sin foto no se enseña nada (docs/25 RV-108); si la hay pero no se puede
+ * cargar (sin red ni caché), lo dice en vez de enseñar un icono roto o un hueco mudo (UI-05).
+ * `etiqueta`: "Conexión · 1/2" cuando el punto tiene las dos fotos.
+ */
+function UnaFoto({
+  fotoPath,
+  alt,
+  alto,
+  etiqueta,
+}: {
+  fotoPath: string | null;
+  alt: string;
+  alto: string;
+  etiqueta?: string;
+}) {
   const url = urlFoto(fotoPath);
-  const [fallo, setFallo] = useState(false);
   const conexion = useConexion();
+  // Con qué cobertura falló. Si falló sin cobertura y ya la hay, la foto se vuelve a pedir.
+  const [falloCon, setFalloCon] = useState<string | null>(null);
+  const fallo = falloCon !== null && !(conexion === 'bien' && falloCon !== 'bien');
+  if (!fotoPath && !etiqueta) return null;
   if (!url || fallo) {
     return (
       // text-texto: el suave sobre bg-linea se queda en 4,28:1 (axe, docs/18 GM-05).
-      <div className="bg-linea text-texto rounded-tarjeta flex aspect-video items-center justify-center text-sm">
-        {url && conexion !== 'bien' ? T.ficha.fotoNoDisponible : T.ficha.sinFoto}
+      <div
+        className={cn('bg-linea text-texto rounded-tarjeta relative flex items-center justify-center text-sm', alto)}
+      >
+        {!fotoPath ? T.ficha.sinFoto : conexion !== 'bien' ? T.ficha.fotoNoDisponible : T.ficha.fotoNoCarga}
+        {etiqueta && <EtiquetaFoto texto={etiqueta} />}
       </div>
     );
   }
@@ -43,15 +54,22 @@ function UnaFoto({ fotoPath, alt }: { fotoPath: string | null; alt: string }) {
         src={url}
         alt={alt}
         loading="lazy"
-        onError={() => setFallo(true)}
-        className="aspect-video w-full bg-[linear-gradient(135deg,#C9CFD6,#9AA8BE)] object-cover"
+        onError={() => setFalloCon(conexion)}
+        className={cn('w-full bg-[linear-gradient(135deg,#C9CFD6,#9AA8BE)] object-cover', alto)}
       />
+      {etiqueta && <EtiquetaFoto texto={etiqueta} />}
       <span className="absolute right-1.5 bottom-1.5 rounded bg-[rgba(14,27,48,.6)] px-1.5 text-xs text-white">
         {T.ficha.ampliar}
       </span>
     </a>
   );
 }
+
+const EtiquetaFoto = ({ texto }: { texto: string }) => (
+  <span className="absolute bottom-1.5 left-1.5 rounded bg-[rgba(14,27,48,.78)] px-2 py-0.5 text-xs text-white">
+    {texto}
+  </span>
+);
 
 /** Al deslizar más de esto en horizontal se pasa a la otra foto. */
 const DESLIZ_PX = 40;
@@ -61,16 +79,17 @@ const DESLIZ_PX = 40;
  * de una a otra deslizando o con los dos botones de debajo, cada uno con su palabra. Las dos se
  * cargan solo con la ficha abierta.
  */
-function Foto({ punto }: { punto: Punto }) {
+function Foto({ punto, alto }: { punto: Punto; alto: string }) {
   const [cual, setCual] = useState<'conexion' | 'sitio'>('conexion');
   const inicio = useRef<number | null>(null);
   const haySitio = !!punto.foto_sitio_path;
-  if (!haySitio) return <UnaFoto fotoPath={punto.foto_path} alt={punto.codigo} />;
+  if (!haySitio) return <UnaFoto fotoPath={punto.foto_path} alt={punto.codigo} alto={alto} />;
   const fotos = [
     ['conexion', punto.foto_path, T.formulario.conexion],
     ['sitio', punto.foto_sitio_path ?? null, T.formulario.sitio],
   ] as const;
-  const actual = fotos.find(([c]) => c === cual)!;
+  const n = fotos.findIndex(([c]) => c === cual);
+  const actual = fotos[n]!;
   return (
     <div
       onTouchStart={(e) => (inicio.current = e.touches[0]?.clientX ?? null)}
@@ -82,7 +101,13 @@ function Foto({ punto }: { punto: Punto }) {
         setCual(x1 < x0 ? 'sitio' : 'conexion');
       }}
     >
-      <UnaFoto key={actual[0]} fotoPath={actual[1]} alt={T.ficha.fotoDe(punto.codigo, actual[2])} />
+      <UnaFoto
+        key={actual[0]}
+        fotoPath={actual[1]}
+        alt={T.ficha.fotoDe(punto.codigo, actual[2])}
+        alto={alto}
+        etiqueta={T.ficha.fotoNumero(actual[2], n + 1, fotos.length)}
+      />
       <div className="mt-1 flex justify-center gap-2">
         {fotos.map(([c, , nombre]) => (
           <button
@@ -108,8 +133,63 @@ function Foto({ punto }: { punto: Punto }) {
 }
 
 /**
- * Ficha de un punto (FR-66). Nunca muestra historial ni autores: la RPC no los trae. Desde aquí,
- * "Proponer un cambio" con las cinco operaciones (FR-67).
+ * Compartir como botón de icono de 46 px junto a "Cómo llegar" (docs/25 RV-108). Hace lo mismo que
+ * el botón de Compartir de "¿Qué hay aquí?": menú del sistema, si no, al portapapeles, y si tampoco,
+ * el texto a la vista para copiarlo a mano (UI-05).
+ */
+function CompartirIcono({ titulo, texto }: { titulo: string; texto: string }) {
+  const [estado, setEstado] = useState<'copiado' | 'fallo' | null>(null);
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={T.compartir.boton}
+        title={T.compartir.boton}
+        onClick={() =>
+          void compartir(titulo, texto).then((r) => setEstado(r === 'copiado' || r === 'fallo' ? r : null))
+        }
+        className="bg-papel border-texto text-texto rounded-boton flex size-[46px] shrink-0 items-center justify-center border-[1.5px]"
+      >
+        <Share2 size={20} aria-hidden />
+      </button>
+      {estado === 'copiado' && (
+        <p role="status" className="text-texto-suave w-full text-[13px]">
+          {T.compartir.copiado}
+        </p>
+      )}
+      {estado === 'fallo' && (
+        <div role="status" className="w-full">
+          <p className="text-texto-suave text-[13px]">{T.compartir.noSePuede}</p>
+          <textarea
+            readOnly
+            value={texto}
+            aria-label={titulo}
+            rows={4}
+            className="border-linea rounded-campo font-datos mt-1 w-full border p-2 text-[13px] select-all"
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Una celda de la rejilla de datos fijos: etiqueta pequeña y valor. */
+const Dato = ({ etiqueta, ancho, children }: { etiqueta: string; ancho?: boolean; children: React.ReactNode }) => (
+  <div className={cn('bg-papel px-2.5 py-1.5', ancho && 'col-span-2')}>
+    <dt className="text-texto-suave text-[12px]">{etiqueta}</dt>
+    <dd className="text-[15px] font-semibold">{children}</dd>
+  </div>
+);
+
+/**
+ * Ficha de un punto (FR-66, docs/25 RV-108, DEC-156). De arriba abajo: la banda del color del
+ * estado con la revisión, el código y el núcleo, la foto, los datos fijos, los botones, las
+ * coordenadas y de cuándo son los datos. Nunca muestra historial ni autores: la RPC no los trae.
+ * Desde aquí, "Proponer un cambio" con las cinco operaciones (FR-67).
+ *
+ * `conCabecera` es falso en el móvil: allí la ficha es una pantalla propia y su barra ya lleva el
+ * código y la flecha de volver, así que la banda va sin X y el código no se repite a la vista (UI-16).
+ * El contenedor tiene 12 px de margen (p-3): la banda los recupera para ir a todo el ancho.
  */
 export function Ficha({
   punto,
@@ -128,95 +208,105 @@ export function Ficha({
   const [operaciones, setOperaciones] = useState(false);
   const m = posicion ? metros(posicion, punto) : null;
   const revision = new Date(punto.fecha_ultima_revision);
+  const banda = bandaDe(punto.caudal);
+  const boca = punto.tipo === 'boca_riego';
+  const direccion = punto.direccion ?? <span className="text-texto-suave font-normal">{T.ficha.sinDireccion}</span>;
 
   return (
-    <article className="flex flex-col gap-2" aria-labelledby="ficha-codigo">
-      {conCabecera && (
-        <header className="flex items-center gap-2">
-          <MarcadorSvg punto={punto} tamano={28} />
-          <h2 id="ficha-codigo" className="font-datos flex-1 text-lg">
-            {punto.codigo}
-          </h2>
+    <article
+      className="flex flex-col gap-2.5"
+      {...(conCabecera ? { 'aria-labelledby': 'ficha-codigo' } : { 'aria-label': punto.codigo })}
+    >
+      <header
+        data-banda={punto.caudal}
+        className={cn(
+          '-mx-3 -mt-3 flex items-center gap-2 py-2.5 pr-1.5 pl-3.5',
+          conCabecera && 'rounded-t-tarjeta',
+          banda.clase,
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="font-titulo text-[24px] leading-none font-bold tracking-[.4px] uppercase">
+            {nombreCaudal(punto.caudal)}
+          </p>
+          <p className="mt-1 text-[13px]">
+            {punto.revision_caducada
+              ? T.ficha.sinRevisarDesde(hace(revision))
+              : T.ficha.revisado(hace(revision), fechaCorta(revision))}
+          </p>
+        </div>
+        {conCabecera && (
           <button
             type="button"
             onClick={alCerrar}
             aria-label={T.ficha.cerrar}
-            className="flex size-11 items-center justify-center"
+            className="flex size-11 shrink-0 items-center justify-center"
           >
-            <X size={20} aria-hidden />
+            <X size={22} aria-hidden />
           </button>
-        </header>
-      )}
-      {guardadoEn && (
-        <p className="text-texto-suave text-center text-[13px]">
-          {conexion === 'bien' ? T.ficha.datosSincronizados(hace(guardadoEn)) : T.ficha.datosDe(hace(guardadoEn))}
+        )}
+      </header>
+      <div className="flex items-baseline gap-2.5">
+        {/* En el móvil el código ya es el título de la barra: aquí no se repite (UI-16). */}
+        {conCabecera && (
+          <h2 id="ficha-codigo" className="font-datos text-[21px] font-medium">
+            {punto.codigo}
+          </h2>
+        )}
+        <p className={cn('text-texto-suave text-[13.5px]', conCabecera && 'ml-auto text-right')}>
+          {[punto.nucleo, m !== null ? T.ficha.aDistancia(distancia(m)) : null].filter(Boolean).join(' · ')}
         </p>
-      )}
-      <Foto punto={punto} />
-      <div className="flex flex-wrap gap-1.5">
-        <Chip className="bg-linea text-texto">{nombreTipo[punto.tipo]}</Chip>
-        <Chip className="bg-linea text-texto">{T.formato.mm(punto.diametro_mm)}</Chip>
-        {punto.racor && <Chip className="bg-linea text-texto">{T.ficha.racor(nombreRacor(punto.racor))}</Chip>}
-        <Chip className={claseChip(punto.caudal)}>
-          <span className="size-2 rounded-full bg-current" aria-hidden />
-          {nombreCaudal(punto.caudal)}
-        </Chip>
       </div>
+      <Foto punto={punto} alto={conCabecera ? 'h-[170px]' : 'h-[150px]'} />
+      <dl className="bg-linea border-linea rounded-tarjeta grid grid-cols-2 gap-px overflow-hidden border">
+        <Dato etiqueta={T.ficha.tipo}>{nombreTipo[punto.tipo]}</Dato>
+        <Dato etiqueta={T.ficha.diametro}>{T.formato.mm(punto.diametro_mm)}</Dato>
+        {boca && punto.racor && <Dato etiqueta={T.ficha.enganche}>{nombreRacor(punto.racor)}</Dato>}
+        <Dato etiqueta={T.ficha.direccion} ancho={!(boca && punto.racor)}>
+          {direccion}
+        </Dato>
+      </dl>
       {/* La nota de fallo solo vale mientras no funciona (docs/18 RV-42). */}
       {punto.caudal === 'no_funciona' && punto.descripcion_fallo && (
         <p className="bg-gris-100 rounded-tarjeta text-gris-700 px-2.5 py-2 text-sm">
           <strong>{T.ficha.fallo}</strong> {punto.descripcion_fallo}
         </p>
       )}
-      <div className="bg-papel border-linea rounded-tarjeta flex justify-between gap-3 border px-2.5 py-2">
-        <div>
-          <div className="text-texto-suave text-[13px]">{T.ficha.direccion}</div>
-          <div className="text-[15px] font-semibold">
-            {punto.direccion ?? <span className="text-texto-suave font-normal">{T.ficha.sinDireccion}</span>}
-            {punto.nucleo && ` · ${punto.nucleo}`}
-          </div>
-        </div>
-        {m !== null && (
-          <div className="text-right">
-            <div className="text-texto-suave text-[13px]">{T.ficha.aTi}</div>
-            <div className="text-[15px] font-semibold whitespace-nowrap">{distancia(m)}</div>
-          </div>
-        )}
-      </div>
-      <div className="bg-papel border-linea rounded-tarjeta border px-2.5 py-2">
-        <div className="text-texto-suave text-[13px]">{T.ficha.ultimaRevision}</div>
-        <div className={cn('text-[15px] font-semibold', punto.revision_caducada && 'text-rojo-700')}>
-          {hace(revision)} · {fechaCorta(revision)}
-          {punto.revision_caducada && ` · ${T.ficha.caducada}`}
-        </div>
-      </div>
       {punto.descripcion && (
         <p className="bg-papel border-linea rounded-tarjeta text-texto-suave border px-2.5 py-2 text-sm">
           {punto.descripcion}
         </p>
       )}
-      {/* Coordenadas para dárselas a bomberos o al 112 (FR-75, docs/18 GM-05). */}
-      <BloqueCoordenadas l={punto} />
-      <button
-        type="button"
-        onClick={() => setOperaciones(true)}
-        className="bg-papel border-texto text-texto rounded-boton mt-1 flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
-      >
-        <PenLine size={18} aria-hidden />
-        {T.ficha.proponerCambio}
-      </button>
+      {/* Un solo botón principal: Cómo llegar (06 §5, DEC-147). */}
       <div className="flex flex-wrap gap-2">
         <a
           href={enlaceComoLlegar(punto)}
           target="_blank"
           rel="noreferrer"
-          className="bg-papel border-texto text-texto rounded-boton flex min-h-11 flex-1 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
+          data-variante="primario"
+          // El borde --texto: en oscuro, el marino casi no se separa del fondo y el botón perdería su forma.
+          className="bg-marino-950 border-texto rounded-boton flex border-[1.5px] min-h-[46px] flex-1 items-center justify-center gap-2 px-3 text-[15px] font-semibold text-white"
         >
           <Navigation size={18} aria-hidden />
           {T.ficha.comoLlegar}
         </a>
-        <BotonCompartir titulo={punto.codigo} texto={textoPunto(punto)} className="flex-1" />
+        <CompartirIcono titulo={punto.codigo} texto={textoPunto(punto)} />
       </div>
+      <button
+        type="button"
+        onClick={() => setOperaciones(true)}
+        className="bg-papel border-naranja-600 text-naranja-texto rounded-boton flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[15px] font-semibold"
+      >
+        <PenLine size={18} aria-hidden />
+        {T.ficha.proponerCambio}
+      </button>
+      {/* Coordenadas para dárselas a bomberos o al 112 (FR-75, docs/18 GM-05; sistemas de RV-109). */}
+      <BloqueCoordenadas l={punto} />
+      {guardadoEn && (
+        <p className="text-texto-suave text-center text-[13px]">
+          {conexion === 'bien' ? T.ficha.datosSincronizados(hace(guardadoEn)) : T.ficha.datosDe(hace(guardadoEn))}
+        </p>
+      )}
       {operaciones && <HojaOperaciones punto={punto} alCerrar={() => setOperaciones(false)} />}
     </article>
   );

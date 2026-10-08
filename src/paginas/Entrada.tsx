@@ -7,6 +7,7 @@ import { SIN_SERVIDOR } from '@/lib/api';
 import { entrarConCodigo, entrarConGoogle } from '@/lib/acceso';
 import { VERSION } from '@/lib/entorno';
 import { bloqueadoHasta, leerFirma } from '@/lib/sesion';
+import { LIMITES } from '@/lib/limites';
 import { T } from '@/lib/textos';
 
 const CIFRAS = 6;
@@ -142,7 +143,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           placeholder={T.entrada.nombre}
           aria-label={T.entrada.nombre}
           autoComplete="given-name"
-          maxLength={60}
+          maxLength={LIMITES.autor_nombre}
           className="bg-papel border-linea rounded-campo mt-2 min-h-11 border px-3"
         />
         <input
@@ -154,7 +155,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           placeholder={T.entrada.apellido}
           aria-label={T.entrada.apellido}
           autoComplete="family-name"
-          maxLength={60}
+          maxLength={LIMITES.autor_apellido}
           className="bg-papel border-linea rounded-campo min-h-11 border px-3"
         />
         {errorNombre && (

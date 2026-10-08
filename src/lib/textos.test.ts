@@ -43,6 +43,53 @@ describe('textos.ts', () => {
   });
 });
 
+// docs/27 RV-114 (DEC-165): la hoja de Cercanos sin tramos, compartir ni "El más cercano…".
+describe('textos quitados de Cercanos (docs/27 RV-114)', () => {
+  const todas = new Set(hojas(T).map(([ruta]) => ruta));
+  it.each([
+    'incidente.desdeTuPosicion',
+    'incidente.precision',
+    'incidente.masCercanoNoFunciona',
+    'incidente.masCercanoMalo',
+    'incidente.masCercanoBarro',
+    'incidente.fila',
+    'incidente.tramos',
+    'incidente.compartirIncidente',
+    'incidente.datos',
+    'medir.tendido',
+  ])('%s ya no existe', (ruta) => {
+    expect(todas.has(ruta)).toBe(false);
+  });
+
+  it('el subtítulo va en minúscula, detrás de "Cercanos ·"', () => {
+    expect(T.incidente.lineaRecta).toBe('en línea recta');
+    expect(T.incidente.posicionDe('hace 5 min')).toBe('posición de hace 5 min');
+    expect(T.incidente.pocoPrecisa(80)).toBe('posición poco precisa (±80 m)');
+    expect(T.incidente.desdePuntoMarcado).toBe('desde el punto marcado');
+  });
+});
+
+// docs/29 RV-125 (DEC-167): fuera "Algo no funciona en la aplicación"; nadie leería los avisos.
+describe('textos quitados con "Algo no funciona" (docs/29 RV-125)', () => {
+  const todas = hojas(T);
+  const rutas = new Set(todas.map(([ruta]) => ruta));
+  it.each([
+    'ajustes.algoNoFunciona',
+    'ajustes.avisarJefatura',
+    'incidencia.intro',
+    'incidencia.queHaPasado',
+    'incidencia.enviado',
+  ])('%s ya no existe', (ruta) => {
+    expect(rutas.has(ruta)).toBe(false);
+  });
+
+  it('ningún texto de la app manda a "Algo no funciona"', () => {
+    for (const [ruta, texto] of todas.filter(([r]) => !r.startsWith('panel'))) {
+      expect(texto, ruta).not.toMatch(/Algo no funciona/);
+    }
+  });
+});
+
 // docs/24 RV-99: menos texto en las pantallas de campo. Que no vuelvan por descuido.
 describe('textos quitados de las pantallas de campo (docs/24 RV-99)', () => {
   const todas = new Set(hojas(T).map(([ruta]) => ruta));
@@ -73,5 +120,23 @@ describe('textos quitados de las pantallas de campo (docs/24 RV-99)', () => {
       'Malo: se probó y sale débil.',
       'No funciona: no se pudo usar (tapa, válvula, arqueta).',
     ]);
+  });
+});
+
+// docs/25 RV-112 (DEC-163): en una boca de riego el campo es el «tipo de enganche». Las claves
+// siguen llamándose racor (contrato con la app anterior, 04 §12); lo que se lee, no.
+describe('tipo de enganche, no racor (docs/25 RV-112)', () => {
+  it('ningún texto visible dice "racor"', () => {
+    const conRacor = hojas(T).filter(([, texto]) => /racor/i.test(texto));
+    expect(conRacor).toEqual([]);
+  });
+
+  it('los textos del enganche', () => {
+    expect(T.formulario.racor).toBe('Tipo de enganche');
+    expect(T.avisosFormulario.eligeRacor).toBe('Elige el tipo de enganche');
+    expect(T.ficha.racor('Granada')).toBe('Enganche Granada');
+    expect(T.panelCola.campoRacor).toBe('Tipo de enganche');
+    expect(T.operaciones.corregirDatosDetalle).toBe('Diámetro, tipo de enganche o descripción mal anotados');
+    expect(T.panelInventario.enganche('Granada')).toBe('enganche Granada');
   });
 });

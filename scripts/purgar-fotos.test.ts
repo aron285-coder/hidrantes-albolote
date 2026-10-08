@@ -14,6 +14,7 @@ import {
   motivoParaNoBorrar,
   purgar,
   referenciadas,
+  sinConfirmar,
   resumen,
 } from './purgar-fotos.ts';
 import { readFileSync } from 'node:fs';
@@ -96,6 +97,25 @@ describe('motivoParaNoBorrar', () => {
       ),
     ).toMatch(/51/);
   });
+
+  // docs/31 RV-142: las reservas nunca confirmadas de más de 48 h son basura segura, no cuentan en el freno.
+  it('el freno no cuenta las reservas sin confirmar de más de 48 h', () => {
+    const bucket = Array.from({ length: 1000 }, (_, i) => archivo(`f/${i}.jpg`));
+    const vivas = bucket.slice(0, 600).map((a) => a.ruta); // sobran 400
+    const basura = bucket.slice(600, 960).map((a) => a.ruta); // 360 de ellas, sin confirmar
+    expect(motivoParaNoBorrar(bucket, vivas, { basura })).toBeNull();
+    // Con menos basura, el resto vuelve a pasar del tope: 400 - 250 = 150 > 100.
+    expect(motivoParaNoBorrar(bucket, vivas, { basura: basura.slice(0, 250) })).toMatch(
+      /150 de 1000 fotos \(15 %\) sin contar 250 reservas sin confirmar de más de 48 h \(en total, 400\)/,
+    );
+  });
+
+  it('una «basura» que la base de datos referencia no rebaja el freno', () => {
+    const bucket = Array.from({ length: 1000 }, (_, i) => archivo(`f/${i}.jpg`));
+    const vivas = bucket.slice(0, 600).map((a) => a.ruta);
+    // Las 360 están entre las referenciadas: no son huérfanas, así que no descuentan nada.
+    expect(motivoParaNoBorrar(bucket, vivas, { basura: vivas.slice(0, 360) })).toMatch(/40 %/);
+  });
 });
 
 describe('purgar', () => {
@@ -128,6 +148,16 @@ describe('purgar', () => {
     expect(d.borrados.flat()).toHaveLength(19);
     expect(d.borrados.flat()).not.toContain('f/1490.jpg');
     expect(r.borradas).toBe(19);
+  });
+
+  it('con reservas sin confirmar de más de 48 h, borra todas las huérfanas aunque pasen del 10 %', async () => {
+    const vivas = bucket.slice(0, 1200).map((a) => a.ruta); // sobran 300, más de 150
+    const basura = bucket.slice(1200, 1400).map((a) => a.ruta); // 200 sin confirmar: cuentan 100
+    const d = { ...dependencias([vivas]), sinConfirmar: () => Promise.resolve(basura) };
+    const r = await purgar(d, { ensayo: false, forzar: false });
+    expect(r.borradas).toBe(300);
+    // Sin ellas, se planta.
+    await expect(purgar(dependencias([vivas]), { ensayo: false, forzar: false })).rejects.toThrow(/300 de 1500/);
   });
 
   it('en ensayo no borra ni vuelve a preguntar', async () => {
@@ -194,6 +224,48 @@ describe('archivosDelBucket', () => {
 });
 
 const lista = (fotos: unknown[], total = fotos.length) => new Response(JSON.stringify({ fotos, total }));
+
+describe('sinConfirmar (RV-142)', () => {
+  it('pregunta a fn_reservas_sin_confirmar_lista con la clave de servicio y comprueba el total', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(lista(['fotos/a.jpg']));
+    expect(await sinConfirmar(URL_BASE, SERVICIO)).toEqual(['fotos/a.jpg']);
+    const [url, opciones] = espia.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(`${URL_BASE}/rest/v1/rpc/fn_reservas_sin_confirmar_lista`);
+    expect((opciones.headers as Record<string, string>).Authorization).toBe(`Bearer ${SERVICIO}`);
+    espia.mockRestore();
+  });
+
+  it('si no cuadra con total, o la base de datos falla, aborta', async () => {
+    for (const respuesta of [lista(['a.jpg'], 3), new Response('no', { status: 500 })]) {
+      const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(respuesta);
+      await expect(sinConfirmar(URL_BASE, SERVICIO)).rejects.toThrow(/reservas sin confirmar/);
+      espia.mockRestore();
+    }
+  });
+
+  // Producción va por detrás de develop hasta 0.9.0 (sin 0039): sin la función, el freno cuenta todas.
+  it('si la función aún no existe (404), no descuenta nada y lo avisa', async () => {
+    const espia = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ code: 'PGRST202' }), { status: 404 }));
+    expect(await sinConfirmar(URL_BASE, SERVICIO)).toEqual([]);
+    espia.mockRestore();
+  });
+
+  it('otro 404 (una URL mal puesta, un proxy) no se toma por «aún no existe»: aborta', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Not found', { status: 404 }));
+    await expect(sinConfirmar(URL_BASE, SERVICIO)).rejects.toThrow(/respondió 404 al pedir las reservas/);
+    espia.mockRestore();
+  });
+
+  it('sin red, aborta diciendo por qué', async () => {
+    const espia = vi
+      .spyOn(globalThis, 'fetch')
+      .mockRejectedValue(new TypeError('fetch failed', { cause: { code: 'ENOTFOUND' } }));
+    await expect(sinConfirmar(URL_BASE, SERVICIO)).rejects.toThrow(/nada \(ENOTFOUND\)/);
+    espia.mockRestore();
+  });
+});
 
 describe('referenciadas', () => {
   // RV-33: una RPC que devuelve un conjunto se corta en max_rows; la lista viene en una sola fila.

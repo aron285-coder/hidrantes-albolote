@@ -29,6 +29,16 @@ export function dispositivoId(): string {
   return nuevo;
 }
 
+/**
+ * Otro identificador para este móvil (docs/31 RV-159): el servidor ha dicho DISPOSITIVO_RESERVADO,
+ * que el que tenía coincide con el de un administrador (DEC-175). Se cambia y se repite el canje.
+ */
+export function renovarDispositivoId(): string {
+  const nuevo = crypto.randomUUID();
+  escribir(CLAVE_DISPOSITIVO, nuevo);
+  return nuevo;
+}
+
 export function leerSesion(): SesionVoluntario | null {
   const token = leer<string>(CLAVE_TOKEN);
   const firma = leerFirma();

@@ -74,6 +74,41 @@ test.describe('mapa y lista', () => {
     await expect(page.getByRole('button', { name: T.ficha.proponerCambio })).toBeVisible();
   });
 
+  // docs/25 RV-108 (DEC-156): la banda arriba dice el estado de cada punto, con su color.
+  test('la banda de la ficha dice el estado de cada punto (RV-108)', async ({ page }) => {
+    const barro = {
+      ...PUNTOS[1],
+      id: '5eed0000-0000-4000-8000-000000000099',
+      codigo: 'HID-9099',
+      caudal: 'barro' as const,
+    };
+    await conSesion(page);
+    await simularRpc(page, {
+      fn_listar_puntos: { ...LISTADO, puntos: [...PUNTOS, barro] },
+      fn_registrar_error: null,
+    });
+    const casos = [
+      [PUNTOS[0], 'Bueno'],
+      [PUNTOS[1], 'Regular'],
+      [PUNTOS[2], 'Malo'],
+      [PUNTOS[3], 'No funciona'],
+      [barro, 'Barro'],
+    ] as const;
+    for (const [p, estado] of casos) {
+      await page.goto(`/?p=${p.id}`);
+      const banda = page.getByRole('article').locator('header[data-banda]');
+      await expect(banda).toHaveAttribute('data-banda', p.caudal);
+      // En mayúsculas en pantalla (text-transform), y el texto, el nombre del estado.
+      await expect(banda.locator('p').first()).toHaveText(estado);
+      await expect(banda.locator('p').first()).toHaveCSS('text-transform', 'uppercase');
+      await expect(banda).toContainText(p.revision_caducada ? 'sin revisar desde' : 'revisado hace');
+    }
+    // Una boca: la rejilla dice el tipo de enganche (RV-112).
+    const boca = PUNTOS.find((p) => p.tipo === 'boca_riego')!;
+    await page.goto(`/?p=${boca.id}`);
+    await expect(page.getByRole('article').locator('dl')).toContainText(`${T.ficha.enganche}Granada`);
+  });
+
   test('un punto que cruza los 12 meses se ve sin revisar sin cambios en el servidor (RV-05, FR-61)', async ({
     page,
   }) => {
@@ -111,7 +146,7 @@ test.describe('mapa y lista', () => {
     await expect(page.getByText(T.mapa.busquedaVacia)).toBeVisible();
     await page.getByRole('searchbox', { name: T.mapa.buscar }).fill('');
     await boton(page, 'HID-9005').click();
-    await expect(page.getByRole('article')).toContainText(T.ficha.caducada);
+    await expect(page.getByRole('article')).toContainText(T.ficha.sinRevisarDesde('hace'));
   });
 
   test('capas: elegir satélite se recuerda (FR-63)', async ({ page }) => {
@@ -534,7 +569,9 @@ test.describe('compartir y coordenadas (FR-75)', () => {
     );
     expect(datos!.title).toBe(PUNTOS[0].codigo);
     expect(datos!.text).toContain(PUNTOS[0].codigo);
-    expect(datos!.text).toContain('UTM 30S');
+    // Cada coordenada con el nombre de su sistema delante (docs/25 RV-109, DEC-157).
+    expect(datos!.text).toContain(`${T.coordenadas.decimal}: `);
+    expect(datos!.text).toContain(`${T.coordenadas.utm}: 30S `);
     expect(datos!.text).toContain('https://www.google.com/maps/search/?api=1&query=');
   });
 
@@ -578,8 +615,11 @@ test('cada fila de la lista enseña la última revisión (RV-24, FR-68)', async 
   const filas = page.locator('ul li button');
   await expect(filas.first()).toBeVisible();
   const n = await filas.count();
-  for (let i = 0; i < n; i++) await expect(filas.nth(i)).toContainText(/revisado hace|Sin revisar/);
-  await expect(page.getByRole('button', { name: /HID-9005/ })).toContainText(T.mapa.sinRevisar);
+  for (let i = 0; i < n; i++) await expect(filas.nth(i)).toContainText(/revisado hace|sin revisar desde hace/);
+  // Caducada: "sin revisar desde hace …" (docs/25 RV-106).
+  await expect(page.getByRole('button', { name: /HID-9005/ })).toContainText(
+    `${T.mapa.sinRevisarPalabra} ${T.mapa.sinRevisarFecha('hace')}`,
+  );
 });
 
 // FR-65 (RV-30): "Mi posición" centra el mapa en ti y dibuja el halo de precisión.

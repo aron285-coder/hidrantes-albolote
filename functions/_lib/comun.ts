@@ -9,7 +9,11 @@ export interface Env {
   SUPABASE_SERVICE_ROLE_KEY: string;
   SAL_IP: string;
   NOMINATIM_USER_AGENT?: string;
-  GITHUB_DISPATCH_TOKEN?: string;
+  /**
+   * `produccion` | `staging`, lo pone deploy-*.yml en cada proyecto de Pages (RV-130). Si falta, o
+   * trae otra cosa, las Functions lo tratan como staging: lo seguro (RV-146).
+   */
+  ENTORNO?: string;
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
@@ -117,7 +121,8 @@ export function bucketPara(url: string, env: Pick<Env, 'BUCKET_FOTOS'>): string 
 
 // ---------- llamadas a la base de datos (PostgREST) ----------
 
-export type ResultadoRpc<T> = { ok: true; datos: T } | { ok: false; codigo: string; estado: number };
+/** `mensaje`: el texto de un error P0001 tras "CODIGO: ", si lo hay. No se reenvía tal cual al cliente. */
+export type ResultadoRpc<T> = { ok: true; datos: T } | { ok: false; codigo: string; estado: number; mensaje?: string };
 
 /**
  * Llama a una RPC del esquema hidrantes. Sin `jwt`, con service_role; con `jwt`, con la identidad
@@ -148,14 +153,32 @@ export async function rpc<T>(
   const texto = await r.text();
   if (r.ok) return { ok: true, datos: (texto ? JSON.parse(texto) : null) as T };
   let codigo = 'ERROR_INTERNO';
+  let mensaje: string | undefined;
   try {
     const e = JSON.parse(texto) as { code?: string; message?: string };
-    if (e.code === 'P0001' && e.message) codigo = e.message.split(':')[0].trim();
-    else if (e.code === '42501' || r.status === 401 || r.status === 403) codigo = 'NO_AUTORIZADO';
+    if (e.code === 'P0001' && e.message) {
+      const dosPuntos = e.message.indexOf(':');
+      codigo = (dosPuntos < 0 ? e.message : e.message.slice(0, dosPuntos)).trim();
+      if (dosPuntos >= 0) mensaje = e.message.slice(dosPuntos + 1).trim() || undefined;
+    } else if (e.code === '42501' || r.status === 401 || r.status === 403) codigo = 'NO_AUTORIZADO';
   } catch {
     // respuesta no JSON: se queda en ERROR_INTERNO
   }
-  return { ok: false, codigo, estado: r.status >= 500 ? 503 : r.status };
+  const estado = r.status >= 500 ? 503 : r.status;
+  return mensaje === undefined ? { ok: false, codigo, estado } : { ok: false, codigo, estado, mensaje };
+}
+
+/**
+ * Los números de espera de un tope, del texto de su error: `maximo=N reintentar_en_s=S` (05 §6, como
+ * CUOTA_PROPUESTAS_AGOTADA desde 0039). Solo los números: el texto no se reenvía al cliente.
+ */
+export function detalleTope(mensaje: string | undefined): { maximo?: number; reintentar_en_s?: number } {
+  const detalle: { maximo?: number; reintentar_en_s?: number } = {};
+  const maximo = /\bmaximo=(\d+)/.exec(mensaje ?? '');
+  const segundos = /\breintentar_en_s=(\d+)/.exec(mensaje ?? '');
+  if (maximo) detalle.maximo = Number(maximo[1]);
+  if (segundos) detalle.reintentar_en_s = Number(segundos[1]);
+  return detalle;
 }
 
 /** ¿El JWT es de un administrador activo? (FR-37). La comprobación la hace la base de datos. */
@@ -170,6 +193,9 @@ export function estadoDe(codigo: string): number {
   if (codigo.startsWith('TOKEN_') || codigo === 'CODIGO_INCORRECTO') return 401;
   if (codigo === 'NO_AUTORIZADO') return 403;
   if (codigo.startsWith('CUOTA_') || codigo === 'DEMASIADOS_INTENTOS') return 429;
+  // Topes de 0041 (docs/32 RV-220, RV-221): esperas, como las cuotas. Nunca 5xx, que el móvil lee
+  // como "sin servidor" y pierde el código.
+  if (codigo === 'SIN_ESPACIO_FOTOS' || codigo === 'RESERVAS_ABIERTAS' || codigo === 'SIN_ESPACIO') return 429;
   if (codigo === 'SERVIDOR_NO_DISPONIBLE') return 503;
   if (codigo === 'ERROR_INTERNO') return 500;
   return 400;

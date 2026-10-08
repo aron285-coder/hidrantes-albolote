@@ -35,11 +35,11 @@ misma regla estaba escrita en dos sitios.
 | 15 | Continuidad y emergencias | `15-continuidad-y-emergencias.md` | vivo | jefatura |
 | 16 | Alcance y hoja de ruta (lista corta tras DEC-037) | `16-alcance-y-hoja-de-ruta.md` | **congelado** | jefatura |
 
-Escritos: **00–12, 15 y 16**, más `CLAUDE.md` en la raíz del repositorio. Pendientes: 13 y 14 (tras el piloto), que se derivan de los archivos anteriores
-(`requisitos-hidrantes.html` v6.1 y `plan-implementacion-hidrantes.md` v2.1) según la tabla de la
-sección 5. Hasta que existan, esos dos archivos siguen siendo la referencia para su contenido; para
-todo lo cubierto por 00–12, **la referencia son ya estos documentos**. 09 sustituye por completo al
-plan v2.1.
+Escritos: **00–16**, más `CLAUDE.md` en la raíz del repositorio; 13 y 14, en borrador desde
+`docs/31` (RV-139), se revisan tras el piloto. Los archivos anteriores (`requisitos-hidrantes.html`
+v6.1 y `plan-implementacion-hidrantes.md` v2.1) están en `archivo/`, solo como historia; su
+contenido pasó a estos documentos según la tabla de la sección 5, y **la referencia son ya estos
+documentos**. 09 sustituye por completo al plan v2.1.
 
 ---
 

@@ -89,19 +89,124 @@ function gpsDeTiff(v: DataView, tiff: number): { lat: number; lng: number } | nu
   return resultado;
 }
 
+/**
+ * Tamaño guardado (el del SOF, antes de girar) y orientación EXIF (1–8; 1 si no hay) de un JPEG,
+ * leídos de la cabecera sin decodificar la imagen. Null si no es un JPEG o no se encuentra el SOF.
+ * Solo lee; nunca lanza.
+ */
+export function cabeceraJpeg(datos: ArrayBuffer): { ancho: number; alto: number; orientacion: number } | null {
+  try {
+    const v = new DataView(datos);
+    if (v.getUint16(0) !== 0xffd8) return null;
+    let orientacion = 1;
+    let pos = 2;
+    while (pos + 4 <= v.byteLength) {
+      const marca = v.getUint16(pos);
+      if ((marca & 0xff00) !== 0xff00 || marca === 0xffda) return null;
+      const largo = v.getUint16(pos + 2);
+      if (marca === 0xffe1 && v.getUint32(pos + 4) === 0x45786966) orientacion = orientacionDeTiff(v, pos + 10);
+      // SOF0–SOF15, salvo DHT (C4), JPG (C8) y DAC (CC), que comparten el rango.
+      if (marca >= 0xffc0 && marca <= 0xffcf && marca !== 0xffc4 && marca !== 0xffc8 && marca !== 0xffcc) {
+        const alto = v.getUint16(pos + 5);
+        const ancho = v.getUint16(pos + 7);
+        return ancho && alto ? { ancho, alto, orientacion } : null;
+      }
+      pos += 2 + largo;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function orientacionDeTiff(v: DataView, tiff: number): number {
+  try {
+    const le = v.getUint16(tiff) === 0x4949;
+    const ifd0 = tiff + v.getUint32(tiff + 4, le);
+    const n = v.getUint16(ifd0, le);
+    for (let i = 0; i < n; i++) {
+      const e = ifd0 + 2 + i * 12;
+      if (v.getUint16(e, le) === 0x0112) {
+        const o = v.getUint16(e + 8, le);
+        return o >= 1 && o <= 8 ? o : 1;
+      }
+    }
+  } catch {
+    // EXIF raro: sin orientación
+  }
+  return 1;
+}
+
+/**
+ * Cómo pedir la imagen al navegador (docs/31 RV-157). Una foto de 50 o 108 MP decodificada entera
+ * puede cerrar la pestaña en un Android medio: si es más grande que lo que se va a guardar, se pide
+ * ya reducida al tamaño final. El tamaño es el de la foto girada (orientación 5–8: de pie), porque
+ * 'from-image' gira antes de reducir.
+ */
+export function opcionesDecodificar(
+  cabecera: { ancho: number; alto: number; orientacion: number } | null,
+  perfil: PerfilFoto,
+): ImageBitmapOptions {
+  // 'from-image' aplica la orientación EXIF de la cámara al dibujar (es el valor por defecto).
+  const base: ImageBitmapOptions = { imageOrientation: 'from-image' };
+  if (!cabecera) return base;
+  const girada = cabecera.orientacion >= 5;
+  const ancho = girada ? cabecera.alto : cabecera.ancho;
+  const alto = girada ? cabecera.ancho : cabecera.alto;
+  const final = dimensiones(ancho, alto, perfil.ladoMaximo);
+  if (final.ancho >= ancho) return base;
+  // Solo el ancho: el navegador guarda la proporción. Si alguno redujera antes de girar, la foto
+  // saldría más pequeña, nunca deformada (con alto y ancho a la vez, sí lo estaría).
+  return { ...base, resizeWidth: final.ancho, resizeQuality: 'high' };
+}
+
+/**
+ * Tamaño final. Con la cabecera, el de la foto girada: al reducir solo por el ancho, el navegador
+ * puede redondear el alto un píxel (961 en vez de 960 en Chromium de Linux). Si la imagen
+ * decodificada no tiene esa proporción (cabecera rara), manda la imagen.
+ */
+function tamanoFinal(
+  cabecera: { ancho: number; alto: number; orientacion: number } | null,
+  imagen: { width: number; height: number },
+  perfil: PerfilFoto,
+): { ancho: number; alto: number } {
+  const deLaImagen = dimensiones(imagen.width, imagen.height, perfil.ladoMaximo);
+  if (!cabecera) return deLaImagen;
+  const girada = cabecera.orientacion >= 5;
+  const ancho = girada ? cabecera.alto : cabecera.ancho;
+  const alto = girada ? cabecera.ancho : cabecera.alto;
+  if (Math.abs(ancho / alto - imagen.width / imagen.height) > 0.01 * (ancho / alto)) return deLaImagen;
+  return dimensiones(ancho, alto, perfil.ladoMaximo);
+}
+
 /** Endereza, reduce y recomprime. El resultado nunca lleva EXIF ni pasa de 5 MB. */
 export async function procesarFoto(archivo: Blob, perfil: PerfilFoto = PERFIL_CONEXION): Promise<FotoProcesada> {
-  const exif = leerGpsExif(await archivo.slice(0, 256 * 1024).arrayBuffer());
-  // 'from-image' aplica la orientación EXIF de la cámara al dibujar (es el valor por defecto).
-  const imagen = await createImageBitmap(archivo, { imageOrientation: 'from-image' });
-  const { ancho, alto } = dimensiones(imagen.width, imagen.height, perfil.ladoMaximo);
+  const cabecera = await archivo.slice(0, 256 * 1024).arrayBuffer();
+  const exif = leerGpsExif(cabecera);
+  const datos = cabeceraJpeg(cabecera);
+  const opciones = opcionesDecodificar(datos, perfil);
+  let imagen: ImageBitmap;
+  try {
+    imagen = await createImageBitmap(archivo, opciones);
+  } catch (e) {
+    // Un navegador que no sabe reducir al decodificar: como antes, entera.
+    if (opciones.resizeWidth === undefined) throw e;
+    imagen = await createImageBitmap(archivo, { imageOrientation: 'from-image' });
+  }
   const lienzo = document.createElement('canvas');
-  lienzo.width = ancho;
-  lienzo.height = alto;
-  const ctx = lienzo.getContext('2d');
-  if (!ctx) throw new Error('Sin lienzo 2D');
-  ctx.drawImage(imagen, 0, 0, ancho, alto);
-  imagen.close();
+  let ancho: number;
+  let alto: number;
+  try {
+    ({ ancho, alto } = tamanoFinal(datos, imagen, perfil));
+    lienzo.width = ancho;
+    lienzo.height = alto;
+    const ctx = lienzo.getContext('2d');
+    if (!ctx) throw new Error('Sin lienzo 2D');
+    ctx.drawImage(imagen, 0, 0, ancho, alto);
+  } finally {
+    // La memoria de la imagen decodificada se suelta siempre, también si el dibujo falla.
+    imagen.close();
+  }
 
   let blob: Blob | null = null;
   for (const calidad of CALIDADES) {
@@ -110,4 +215,24 @@ export async function procesarFoto(archivo: Blob, perfil: PerfilFoto = PERFIL_CO
   }
   if (!blob || blob.size > MAXIMO_BYTES) throw new Error('Foto demasiado grande');
   return { blob, ancho, alto, exif };
+}
+
+/**
+ * Hacer o repetir una foto (docs/31 RV-157). Mientras se prepara la nueva, el hueco se queda sin
+ * foto: dice «Preparando la foto…» y Enviar espera. Si la nueva falla, vuelve la anterior (y el
+ * hueco lo dice). Devuelve si salió bien.
+ */
+export async function cambiarFoto(
+  anterior: FotoProcesada | null,
+  preparar: () => Promise<FotoProcesada>,
+  alCambiar: (f: FotoProcesada | null) => void,
+): Promise<boolean> {
+  if (anterior) alCambiar(null);
+  try {
+    alCambiar(await preparar());
+    return true;
+  } catch {
+    if (anterior) alCambiar(anterior);
+    return false;
+  }
 }

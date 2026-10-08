@@ -160,7 +160,7 @@ test('duplicado a 8 m: se detecta al proponer y se fusiona sin crear un punto nu
   await page.getByLabel(T.entrada.apellido).fill(apellido);
   await page.getByRole('button', { name: T.entrada.entrar, exact: true }).click();
   await page.getByRole('button', { name: T.bienvenida.saltar }).click();
-  await expect(page.getByText(/Sincronizado/)).toBeVisible();
+  await expect(page.getByText(/Sincronizado .+/)).toBeVisible();
 
   await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
   await page.getByRole('radio', { name: T.formulario.hidrante }).click();
@@ -239,7 +239,10 @@ test('propuesta desactualizada: exige confirmación; las correcciones llegan al 
   await expect(lista.getByRole('listitem')).toHaveCount(1, { timeout: 20_000 });
   await lista.getByRole('listitem').first().getByRole('button').click();
   const detalle = page.getByRole('article');
-  await expect(detalle.getByText(T.panelCola.senalDesactualizada)).toBeVisible({ timeout: 20_000 });
+  // El aviso rojo encima de los botones (las señales salieron del detalle, DEC-166).
+  await expect(detalle.getByRole('button', { name: T.panelCola.confirmarYAprobar })).toBeVisible({
+    timeout: 20_000,
+  });
   // El botón normal no está: hay que confirmar expresamente (FR-108).
   await expect(detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toHaveCount(0);
 

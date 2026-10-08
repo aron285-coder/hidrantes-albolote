@@ -138,9 +138,27 @@ export function faltaEnParametros(v: Parametros): string | null {
   if (!entero(v.buffer_zona_m, 0, 5000)) return 'buffer_zona_m';
   if (!entero(v.max_subidas_dispositivo_dia, 1, 500)) return 'max_subidas_dispositivo_dia';
   if (!entero(v.metros_tramo_manguera, 10, 30)) return 'metros_tramo_manguera';
-  if (v.escala_radios.length !== 5 || v.escala_radios.some((r) => !(r >= 2 && r <= 30))) return 'escala_radios';
+  // Cinco radios entre 2 y 30 (fn_guardar_config), de mayor a menor: R1 es el del punto con más
+  // capacidad (06 §4.1). Al revés, el mapa dibujaría más grande lo que menos agua da.
+  const r = v.escala_radios;
+  if (r.length !== 5 || r.some((x) => !(x >= 2 && x <= 30)) || r.some((x, i) => i > 0 && x > r[i - 1]!)) {
+    return 'escala_radios';
+  }
   return null;
 }
+
+/** Los radios como se ven en el campo: "11 · 9 · 7 · 5,5 · 5". */
+export const textoRadios = (r: number[]) => r.map((x) => String(x).replace('.', ',')).join(' · ');
+
+/**
+ * Lo escrito en el campo de radios, en números (docs/31 RV-167): coma o punto decimal y cualquier
+ * separador. Lo que no se lee como número queda como NaN, para que no deje guardar.
+ */
+export const leerRadios = (texto: string): number[] =>
+  texto
+    .split(/[^0-9.,]+/)
+    .filter(Boolean)
+    .map((n) => (/^\d+([.,]\d+)?[.,]?$/.test(n) ? Number(n.replace(',', '.').replace(/[.]$/, '')) : NaN));
 
 export async function guardarParametros(cambios: Record<string, unknown>): Promise<Resultado<null>> {
   const r = await rpc<null>('fn_guardar_config', { cambios });
@@ -176,7 +194,6 @@ export async function anadirNucleo(nombre: string, lat: number, lng: number): Pr
 
 export interface Salud {
   pendientes_14d: number;
-  incidencias_abiertas: number;
   errores_7d: number;
   sin_direccion: number;
   ultimo_respaldo: string | null;
@@ -273,7 +290,8 @@ export function avisoAlmacenamiento(bytes: number | null): number | null {
 export type Workflow = 'purgar-fotos' | 'regenerar-zona' | 'regenerar-mapabase' | 'respaldo';
 
 export const lanzarWorkflow = (workflow: Workflow) =>
-  funcion<{ lanzada: boolean }>('/api/lanzar-workflow', { metodo: 'POST', cuerpo: { workflow } });
+  // Desde docs/31 RV-146 la Function deja un pedido ({ pedido: true }) que recoge despachador.yml.
+  funcion<{ pedido?: boolean }>('/api/lanzar-workflow', { metodo: 'POST', cuerpo: { workflow } });
 
 /** Descarga de consulta en JSON (FR-144). No es el respaldo: eso vive en 15. */
 export async function descargarInventarioJson(): Promise<Resultado<number>> {

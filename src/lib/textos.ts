@@ -53,7 +53,7 @@ export const T = {
       {
         titulo: 'Cuanto más grande, más agua da',
         texto:
-          'Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un borde discontinuo significa que nadie lo ha revisado en más de un año.',
+          'Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un anillo de rayas alrededor significa que nadie lo ha revisado en más de un año.',
         lineas: [] as string[],
       },
       {
@@ -134,11 +134,18 @@ export const T = {
     noUtilizable: 'No utilizable',
     sinRevisar: 'Sin revisar',
     revisado: (hace: Parametro) => `revisado ${hace}`,
+    // En la fila de la Lista, con la revisión caducada: "sin revisar desde hace 1 año". En dos partes
+    // porque, si no cabe, se acorta la fecha y nunca "sin revisar" (docs/25 RV-106).
+    sinRevisarPalabra: 'sin revisar',
+    sinRevisarFecha: (hace: Parametro) => `desde ${hace}`,
     leyendaTamano: 'Más grande = más agua aprovechable',
+    // Solo para el lector de pantalla, detrás de la distancia de cada fila de la Lista (docs/25 RV-106).
     desdeTi: 'desde ti',
     desdeIncidente: 'desde el incidente',
     filtroVacio: 'Nada coincide con ese filtro.',
     sinCoberturaSolo: 'Sin cobertura',
+    // docs/31 RV-157: lo que anuncia la barra de estado al lector de pantalla, sin la hora.
+    sincronizadoSolo: 'Sincronizado',
     reintentar: 'Reintentar',
     nPuntos: (n: Parametro) => `${n} puntos`,
     sincronizando: 'Sincronizando…',
@@ -178,10 +185,15 @@ export const T = {
 
   ficha: {
     direccion: 'Dirección',
-    ultimaRevision: 'Última revisión',
-    aTi: 'A ti',
     sinDireccion: 'sin dirección',
-    caducada: 'caducada',
+    // docs/25 RV-108 (DEC-156): la banda del estado y la rejilla de datos fijos.
+    revisado: (hace: Parametro, fecha: Parametro) => `revisado ${hace} · ${fecha}`,
+    sinRevisarDesde: (hace: Parametro) => `sin revisar desde ${hace}`,
+    tipo: 'Tipo',
+    diametro: 'Diámetro',
+    enganche: 'Tipo de enganche',
+    aDistancia: (distancia: Parametro) => `a ${distancia} de ti`,
+    fotoNumero: (que: Parametro, n: Parametro, total: Parametro) => `${que} · ${n}/${total}`,
     proponerCambio: 'Proponer un cambio',
     comoLlegar: 'Cómo llegar',
     datosDe: (hace: Parametro) => `Datos de ${hace} · sin cobertura`,
@@ -190,8 +202,9 @@ export const T = {
     noEncontrado: 'Punto no encontrado.',
     datosSincronizados: (hace: Parametro) => `Datos sincronizados ${hace}`,
     fallo: 'Fallo:',
-    racor: (racor: Parametro) => `Racor ${racor}`,
+    racor: (racor: Parametro) => `Enganche ${racor}`,
     fotoNoDisponible: 'Foto no disponible sin cobertura',
+    fotoNoCarga: 'No se ha podido cargar la foto',
     sinFoto: 'Sin foto',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
     fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
@@ -202,8 +215,10 @@ export const T = {
   // Funciones de mapa para emergencias (FR-72, FR-75; docs/18 GM-02 y GM-05).
   coordenadas: {
     titulo: 'Coordenadas',
-    decimal: 'Decimal',
-    utm: 'UTM ETRS89 · huso 30',
+    // Cada coordenada con el nombre de su sistema (docs/25 RV-109, DEC-157). La S de «30S» es la
+    // banda de latitud de MGRS (32° a 40° N), no «sur».
+    decimal: 'WGS84 · grados decimales',
+    utm: 'ETRS89 · UTM huso 30N',
     copiar: (que: Parametro) => `Copiar ${que}`,
     copiado: 'Copiado',
     noSeCopia: 'No se ha podido copiar: mantén pulsado el texto para copiarlo',
@@ -239,28 +254,22 @@ export const T = {
     boton: 'Cercanos',
     titulo: 'Cercanos',
     diana: 'Incidente',
-    desdeTuPosicion: 'Desde tu posición',
-    desdePuntoMarcado: 'Desde el punto marcado',
-    posicionDe: (hace: Parametro) => `Posición de ${hace}`,
+    // El subtítulo va en minúscula detrás de "Cercanos ·" y solo avisa cuando importa (DEC-165):
+    // "Cercanos · en línea recta · posición de hace 5 min".
+    desdePuntoMarcado: 'desde el punto marcado',
+    posicionDe: (hace: Parametro) => `posición de ${hace}`,
     soloHidrantes: 'Solo hidrantes',
-    lineaRecta: 'Distancias en línea recta',
+    lineaRecta: 'en línea recta',
     sinPosicion: 'Sin posición: mantén pulsado el mapa donde está el incidente o busca la calle',
     buscandoPosicion: 'Buscando tu posición… (puedes marcar el incidente en el mapa)',
-    precision: (m: Parametro) => `±${m} m`,
-    pocoPrecisa: (m: Parametro) => `Posición poco precisa (±${m} m): si sabes dónde es, mantén pulsado el mapa`,
+    pocoPrecisa: (m: Parametro) => `posición poco precisa (±${m} m)`,
     marcarEnMapa: 'Marcar en el mapa',
+    /** Tras "Marcar en el mapa", encima del mapa hasta que se marca el sitio (RV-114). */
+    marcaElSitio: 'Mantén pulsado el mapa donde está el incidente',
     vacio: 'Ningún punto que funcione a menos de 2 km del incidente',
     verTodos: 'Ver todos en la lista',
-    masCercanoNoFunciona: (codigo: Parametro, distancia: Parametro) =>
-      `El más cercano, ${codigo} a ${distancia}, no funciona`,
-    masCercanoMalo: (codigo: Parametro, distancia: Parametro) =>
-      `El más cercano, ${codigo} a ${distancia}, está en mal estado`,
-    masCercanoBarro: (codigo: Parametro, distancia: Parametro) =>
-      `El más cercano, ${codigo} a ${distancia}, tiene barro`,
-    fila: (distancia: Parametro, rumbo: Parametro, tramos: Parametro) => `${distancia} · ${rumbo} · ${tramos}`,
-    tramos: (n: Parametro) => (n === 1 ? '≥ 1 tramo' : `≥ ${n} tramos`),
-    compartirIncidente: 'Compartir el incidente',
-    datos: (hace: Parametro) => `Datos de ${hace}`,
+    /** La segunda línea de cada fila: "100 mm · Regular" (RV-114). */
+    detalle: (diametro: Parametro, estado: Parametro) => `${diametro} · ${estado}`,
     desdeIncidente: 'Distancias desde el incidente',
     cerrarIncidente: 'Cerrar el incidente',
     ampliarHoja: 'Ver más cercanos',
@@ -273,7 +282,6 @@ export const T = {
     boton: 'Medir',
     titulo: 'Medir distancia',
     desdeAqui: 'Medir desde aquí',
-    tendido: 'Medir tendido',
     empezar: 'Toca el mapa para poner los puntos del tendido',
     resultado: (distancia: Parametro, n: Parametro, largo: Parametro) =>
       n === 1 ? `${distancia} · 1 tramo de ${largo} m` : `${distancia} · ${n} tramos de ${largo} m`,
@@ -289,7 +297,8 @@ export const T = {
     tituloUbicacion: 'Ubicación',
     lineaPunto: (codigo: Parametro, tipo: Parametro, diametro: Parametro, estado: Parametro) =>
       `${codigo} · ${tipo} ${diametro} · ${estado}`,
-    lineaCoordenadas: (decimal: Parametro, utm: Parametro) => `${decimal} · UTM ${utm} (ETRS89)`,
+    /** Una línea por sistema, con su nombre delante (DEC-157): «WGS84 · grados decimales: 37.230500, -3.656000». */
+    lineaSistema: (sistema: Parametro, valor: Parametro) => `${sistema}: ${valor}`,
     copiado: 'Copiado: pégalo donde quieras',
     noSePuede: 'No se ha podido compartir ni copiar: mantén pulsado el texto para copiarlo',
   },
@@ -301,7 +310,7 @@ export const T = {
     actualizarEstado: 'Actualizar estado',
     actualizarEstadoDetalle: 'El caudal ha cambiado o ya no funciona',
     corregirDatos: 'Corregir datos',
-    corregirDatosDetalle: 'Diámetro, racor o descripción mal anotados',
+    corregirDatosDetalle: 'Diámetro, tipo de enganche o descripción mal anotados',
     tipoNoCambia: '¿El tipo está mal? Propón retirarlo y da de alta el correcto',
     corregirUbicacion: 'Corregir ubicación',
     corregirUbicacionDetalle: 'El pin está desplazado',
@@ -330,10 +339,13 @@ export const T = {
     phOtraMedidaBoca: 'Medida en mm, de 20 a 150',
     preparandoFoto: 'Preparando la foto…',
     fotoIlegible: 'No se pudo leer la foto. Prueba otra vez.',
+    // docs/31 RV-157: «Repetir» que falla; sigue la foto de antes.
+    fotoRepetidaIlegible: 'No se pudo leer la foto nueva: sigue la anterior. Prueba otra vez.',
     enviando: 'Enviando…',
     guardadoDetalle: 'Se enviará sola cuando haya conexión.',
     aplicadoDetalle: 'El cambio ya está en el mapa de todos.',
     errorGuardar: 'No se pudo guardar en el móvil. Inténtalo otra vez.',
+    puntoYaNoEsta: 'Este punto ya no está en el mapa: lo han retirado o borrado',
   },
 
   formulario: {
@@ -345,9 +357,10 @@ export const T = {
     d70: '70 mm',
     d100: '100 mm',
     otraMedida: 'Otra medida',
-    racor: 'Racor · compara con lo que ves',
+    racor: 'Tipo de enganche',
     granada: 'Granada',
     barcelona: 'Barcelona',
+    directo: 'Directo',
     otro: 'Otro',
     caudal: 'Caudal / estado',
     bueno: 'Bueno',
@@ -389,7 +402,7 @@ export const T = {
     eligeTipo: 'Elige el tipo',
     eligeDiametro: 'Elige el diámetro',
     indicaMedida: 'Indica la medida',
-    eligeRacor: 'Elige el racor',
+    eligeRacor: 'Elige el tipo de enganche',
     muevePin: 'Mueve el pin al sitio correcto',
     sinCambios: 'No has cambiado nada',
     eligeMotivo: 'Elige un motivo',
@@ -405,6 +418,7 @@ export const T = {
     aplicarAhora: 'Aplicar ahora',
     guardarSinCobertura: 'Guardar · se enviará con cobertura',
     guardarSinServidor: 'Guardar · se enviará al volver el servidor',
+    guardarEnMovil: 'Guardar en el móvil',
     enviado: 'Enviado para revisión',
     guardadoEnMovil: 'Guardado en el móvil',
     soloEnMemoria: 'Sin guardar en el móvil',
@@ -414,6 +428,8 @@ export const T = {
     volverAlMapa: 'Volver al mapa',
     verMisPropuestas: 'Ver mis propuestas',
     jefaturaRevisara: 'Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.',
+    // Un error permanente en la cola: no se enviará sola (#484).
+    noEnviado: 'No se ha enviado',
   },
 
   misPropuestas: {
@@ -446,6 +462,10 @@ export const T = {
     yaRevisada: 'Jefatura ya la ha revisado',
     errorRetirar: 'No se ha podido retirar. Inténtalo de nuevo.',
     listaGuardada: 'Sin conexión: esta es la última lista guardada.',
+    // docs/31 RV-154: el tope de propuestas al día (RV-141).
+    cuotaPropuestas: (maximo: Parametro) =>
+      `Has llegado al máximo de propuestas de hoy (${maximo}). Se enviará mañana.`,
+    cuotaPropuestasSinNumero: 'Has llegado al máximo de propuestas de hoy. Se enviará mañana.',
   },
 
   ajustes: {
@@ -462,8 +482,6 @@ export const T = {
     modoOscuro: 'Modo oscuro',
     segunMovil: 'Según el móvil',
     avisarResolucion: 'Avisarme cuando jefatura resuelva mis propuestas',
-    algoNoFunciona: 'Algo no funciona en la aplicación',
-    avisarJefatura: 'Avisar a jefatura',
     comoSeUsa: 'Cómo se usa (3 pantallas)',
     cerrarSesion: 'Cerrar sesión en este móvil',
     cerrarSesionDetalle: 'Se borran tu acceso, tu nombre y los puntos guardados.',
@@ -475,6 +493,8 @@ export const T = {
     cuentaJefatura: 'Cuenta de jefatura',
     sesionGoogle: (correo: Parametro) => `Sesión de Google · ${correo}`,
     cerrarSesionGoogle: 'Cerrar la sesión de Google',
+    /** Botón de la fila «Cuenta de jefatura» que abre el panel (RV-113, DEC-164). */
+    irAlPanel: 'Panel de jefatura',
     ver: 'Ver',
     siempre: 'Siempre',
     nunca: 'Nunca',
@@ -495,17 +515,6 @@ export const T = {
     guardadoProtegidoValor: (si: boolean) => (si ? 'sí' : 'no'),
     avisos: 'Avisos',
     perderasEnvios: (n: Parametro) => `Tienes ${n} envíos sin mandar: se perderán.`,
-  },
-
-  incidencia: {
-    intro: 'Para problemas de la aplicación. Si lo que quieres es cambiar un hidrante, hazlo desde su ficha.',
-    queHaPasado: 'Qué ha pasado',
-    ph: 'Ej.: al hacer la foto la app se cierra…',
-    seEnviaCon: (version: Parametro) =>
-      `Se enviará con la versión (${version}) y la pantalla en la que estabas. Lo verá jefatura en su panel.`,
-    describe: 'Describe el problema',
-    enviado: 'Aviso enviado a jefatura',
-    cuota: 'Ya has enviado varios avisos hoy. Inténtalo mañana.',
   },
 
   instalar: {
@@ -538,10 +547,23 @@ export const T = {
       'Este móvil no puede recibir avisos ahora (servicio de avisos no disponible). Comprueba que tiene conexión y los servicios de Google actualizados.',
     sinServiceWorker: 'La aplicación aún se está preparando. Ciérrala del todo, ábrela y vuelve a intentarlo.',
     claveDistinta:
-      'No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
+      'No se ha podido renovar la suscripción de avisos de este móvil. Vuelve a intentarlo; si sigue igual, díselo a jefatura.',
     servidorSinConexion: 'Sin conexión con el servidor. Vuelve a intentarlo cuando tengas cobertura.',
     servidorNoGuarda:
-      'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, avísalo desde «Algo no funciona en la aplicación», aquí en Ajustes.',
+      'El servidor no ha guardado la suscripción. Vuelve a intentarlo; si sigue igual, díselo a jefatura.',
+  },
+
+  // docs/31 RV-157: una notificación o una versión nueva con un formulario a medias.
+  avisoFormulario: {
+    avisoNuevo: 'Ha llegado un aviso.',
+    ver: 'Ver',
+    cerrar: 'Cerrar',
+    salir: '¿Salir del formulario?',
+    recargar: '¿Recargar ahora?',
+    sePierde: 'Lo que llevas del formulario, fotos incluidas, se perderá.',
+    botonSalir: 'Salir',
+    botonRecargar: 'Recargar',
+    seguir: 'Seguir con el formulario',
   },
 
   fallo: {
@@ -552,6 +574,8 @@ export const T = {
   jefatura: {
     panel: 'Panel de jefatura',
     irAlMapa: 'Ir al mapa',
+    /** aria-label de la etiqueta «Jefatura» de la barra superior, que abre el panel (RV-113). */
+    abrirPanel: 'Abrir el panel de jefatura',
   },
 
   formato: {
@@ -570,10 +594,8 @@ export const T = {
   panelCola: {
     colaRevision: 'Cola de revisión',
     inventario: 'Inventario',
-    revisionesCaducadas: 'Revisiones caducadas',
     registro: 'Registro',
     papelera: 'Papelera',
-    voluntarios: 'Voluntarios',
     ajustes: 'Ajustes',
     buscar: 'Buscar código, calle o voluntario…',
     pendientes: 'Pendientes',
@@ -599,6 +621,9 @@ export const T = {
     desactualizada: (cuando: Parametro) =>
       `El diff está calculado sobre un estado que ya no existe: el punto cambió ${cuando}. Se pide confirmación expresa en lugar del botón normal.`,
     posibleDuplicado: 'Posible duplicado: compara antes de decidir. En ámbar, lo que difiere.',
+    // docs/28 RV-115 (DEC-166): el duplicado que no está en el inventario cargado, sin chip.
+    duplicadoSinComparar: (codigo: Parametro, distancia: Parametro) =>
+      `Posible duplicado de ${codigo} · a ${distancia}. No está en el inventario cargado: no se puede comparar ni fusionar.`,
     colaVacia: 'No queda ninguna propuesta pendiente. Buen trabajo.',
     deducidaEditable: 'deducida · editable',
     delPunto: 'del punto',
@@ -608,7 +633,7 @@ export const T = {
     nuevo: 'nuevo',
     campoTipo: 'Tipo',
     campoDiametro: 'Diámetro',
-    campoRacor: 'Racor',
+    campoRacor: 'Tipo de enganche',
     campoEstado: 'Estado',
     campoFallo: 'Fallo',
     campoDescripcion: 'Descripción',
@@ -621,20 +646,6 @@ export const T = {
     retirado: 'Retirado',
     sinCambios: (valor: Parametro) => `${valor} · sin cambios`,
     otraMedida: (mm: Parametro) => `Otra medida: ${mm} mm`,
-    senalGps: (precision: Parametro, distancia: Parametro) => `GPS en campo · ±${precision} m · a ${distancia} del pin`,
-    senalManual: 'Pin puesto a mano',
-    senalManualLejos: (distancia: Parametro) => `Pin puesto a mano · a ${distancia} del GPS del móvil`,
-    senalGpsImpreciso: (metros: Parametro) => `GPS poco preciso · ±${metros} m`,
-    senalFotoLejos: (distancia: Parametro) => `La foto se hizo a ${distancia} del pin`,
-    senalRevisionAnterior: (cuando: Parametro) => `Revisión anterior: ${cuando}`,
-    esteMes: 'este mes',
-    senalDuplicado: (codigo: Parametro, distancia: Parametro) => `Posible duplicado de ${codigo} · a ${distancia}`,
-    senalOtraMedida: 'Diámetro "otra medida": hay que fijar 70 o 100 mm',
-    senalOtraMedidaBoca: (mm: Parametro) => `Boca de otra medida: ${mm} mm`,
-    // docs/24 RV-103: alta o ubicación enviada por la versión anterior de la app.
-    senalSinFotoSitio: 'sin foto del sitio',
-    senalDesactualizada: 'El punto cambió después de esta propuesta',
-    conFoto: 'Con foto',
     fijaDiametro: 'Fija el diámetro en 70 o 100 mm para poder aprobar.',
     pinPropuesto: (distancia: Parametro) => `la del pin propuesto (a ${distancia})`,
     ubicacionDe: (codigo: Parametro) => `la de ${codigo} (existente)`,
@@ -691,16 +702,58 @@ export const T = {
     codigoAsignado: (codigo: Parametro) => `Código asignado: ${codigo}`,
     constaRegistro: 'Consta en el Registro. Solo lectura.',
     minimapa: 'Pin propuesto y puntos aprobados alrededor',
-    senales: 'Señales de fiabilidad',
     senalAviso: 'con avisos',
+    // docs/25 RV-110 (DEC-158): el detalle con el mapa arriba, todos los datos y las fotos.
+    datosDelPunto: 'Datos del punto',
+    cambios: (n: number) => (n === 1 ? '1 cambio' : `${n} cambios`),
+    restoIgual: 'el resto se queda igual',
+    cambia: 'Cambia',
+    campoCodigo: 'Código',
+    campoNucleo: 'Núcleo',
+    campoUltimaRevision: 'Última revisión',
+    campoOrigen: 'Origen de la ubicación',
+    campoPropuestoPor: 'Propuesto por',
+    seAsignaAlAprobar: 'se asigna al aprobar',
+    seFijaAlAprobar: 'se fija al aprobar',
+    origenGps: (precision: Parametro) => `GPS · ±${precision} m`,
+    origenManual: 'Pin puesto a mano',
+    origenDelPunto: 'la que ya tiene el punto',
+    sinDato: '—',
+    fotos: 'Fotos',
+    fotosConActual: 'la actual del punto y las nuevas de la propuesta',
+    sinFotoSitio: 'llegó sin foto del sitio (versión anterior de la app)',
+    noTraeNuevas: 'no trae nuevas',
+    sinFotos: 'Ni la propuesta ni el punto tienen fotos.',
+    fotoNoCarga: 'No se ha podido cargar esta foto',
+    conexion: 'conexión',
+    sitio: 'sitio',
+    fotoActualPunto: 'Foto actual del punto',
+    fotoNueva: (que: Parametro) => `Nueva · ${que}`,
+    fotoActual: (que: Parametro) => `Foto actual · ${que}`,
+    ampliarFoto: (que: Parametro) => `${que} · toca para ampliar`,
+    capaMapa: 'Mapa',
+    capaSatelite: 'Satélite',
+    capaDelMapa: 'Capa del mapa',
+    abrirEnGrande: 'Abrir en grande',
+    cerrarGrande: 'Cerrar el mapa grande',
+    leyendaAhora: 'posición de ahora',
+    leyendaPropuesta: 'propuesta',
+    leyendaPunto: 'el punto',
+    leyendaAlrededor: 'puntos de alrededor',
+    leyendaRadio: (m: Parametro) => `radio de duplicado · ${m} m`,
+    sinPosicion:
+      'Sin posición: el punto no está entre los activos del inventario (puede estar retirado o en la papelera).',
+    volverCola: 'Volver a la cola',
+    corregirCorto: 'Corregir',
+    tocaUna: 'Toca una para revisarla',
   },
 
   panelInventario: {
     bocasDeRiego: 'Bocas de riego',
-    filtroRevision: 'Revisión',
-    todas: 'Todas',
-    filtroDiametro: 'Filtrar por diámetro',
-    cualquierDiametro: 'cualquier Ø',
+    // docs/29 RV-123 (DEC-168): Tipo y Estado en desplegables; Revisión, Núcleo y Diámetro fuera.
+    quitarFiltros: 'Quitar filtros',
+    conNumero: (nombre: Parametro, n: Parametro) => `${nombre} · ${n}`,
+    nadaQueExportar: 'Nada que exportar con estos filtros',
     vista: 'Vista',
     tabla: 'Tabla',
     mapa: 'Mapa',
@@ -716,6 +769,8 @@ export const T = {
     colLng: 'Longitud',
     albolote: 'Albolote',
     calicasas: 'Calicasas',
+    // docs/25 RV-112 (DEC-163): detrás del diámetro de una boca, en el inventario y la hoja de campo.
+    enganche: (nombre: Parametro) => `enganche ${nombre}`,
     ordenarPor: (columna: Parametro) => `Ordenar por ${columna}`,
     direccionDe: (codigo: Parametro) => `Dirección de ${codigo}`,
     ayudaTabla: 'pulsa una columna para ordenar · la dirección se edita en la propia celda',
@@ -731,22 +786,32 @@ export const T = {
     exportado: (n: Parametro) => `Exportadas ${n} filas. La exportación consta en el Registro.`,
   },
 
-  panelCaducadas: {
-    resumen: (n: Parametro) => `${n} puntos sin revisar desde hace más de los meses configurados`,
-    dePuntos: (n: Parametro) => `de ${n} puntos del núcleo`,
-    verPuntos: 'Ver puntos',
-    hoja: 'Hoja',
-    hojaDeTodos: 'Hoja de campo de todos los núcleos',
-    imprimir: 'Imprimir',
-    cerrarHoja: 'Cerrar',
-    tituloHoja: (nucleo: Parametro) => `Hoja de campo · ${nucleo}`,
-    subtituloHoja: (n: Parametro, fecha: Parametro) => `${n} puntos por revisar · impresa el ${fecha}`,
-    colSitio: 'Dirección o coordenadas',
-    colUltimoEstado: 'Último estado conocido',
-    colAnotar: 'Anotar revisión',
-    revisado: (hace: Parametro, fecha: Parametro) => `revisado ${hace} (${fecha})`,
-    ayudaHoja: 'La hoja se abre para imprimir: una página por núcleo, con una casilla en blanco para anotar.',
-    vacio: 'No hay revisiones caducadas. Todo al día.',
+  // docs/29 RV-124 (DEC-169): Editar como panel lateral con mapa y los cambios marcados.
+  panelEditar: {
+    editar: 'Editar',
+    ubicacion: 'Ubicación',
+    // Detrás de la etiqueta de un campo que cambia: "Tipo de enganche · cambia".
+    conCambio: (etiqueta: Parametro) => `${etiqueta} · cambia`,
+    antes: 'antes:',
+    vacio: '—',
+    antesMetros: (distancia: Parametro) => `antes · ${distancia}`,
+    fueraDeZona: '⚠ Esto queda fuera de la zona habitual.',
+    revisaDireccion: (distancia: Parametro) => `Has movido el punto ${distancia}: revisa la dirección.`,
+    resumen: (cambios: Parametro, cuales: Parametro) => `${cambios} · ${cuales}`,
+    campoUbicacion: 'ubicación',
+    campoDiametro: 'diámetro',
+    campoEnganche: 'enganche',
+    campoEstado: 'estado',
+    campoFallo: 'fallo',
+    campoDireccion: 'dirección',
+    campoDescripcion: 'descripción',
+    descartarN: (n: number) => (n === 1 ? '¿Descartar 1 cambio?' : `¿Descartar ${n} cambios?`),
+    descartar: 'Descartar',
+    seguirEditando: 'Seguir editando',
+    guardando: 'Guardando…',
+    // docs/31 RV-165: el punto cambió por fuera mientras Editar tenía cambios sin guardar.
+    otroAdministrador: 'Otro administrador ha cambiado este punto.',
+    verLoNuevo: 'Ver lo nuevo',
   },
 
   panelRegistro: {
@@ -761,6 +826,8 @@ export const T = {
     colDetalle: 'Detalle',
     porPagina: (n: Parametro) => `${n} entradas por página`,
     vacio: 'Todavía no hay entradas con ese filtro.',
+    // docs/31 RV-166: falló la última carga y siguen a la vista las filas de antes.
+    errorConFilas: (motivo: Parametro) => `${motivo} Las filas que ves son las de antes.`,
     propuestaCreada: 'Propuesta',
     propuestaRetiradaAutor: 'Propuesta retirada por su autor',
     aprobacion: 'Aprobación',
@@ -781,6 +848,32 @@ export const T = {
     anonimizacion: 'Anonimización',
     exportacion: 'Exportación',
     workflowLanzado: 'Mantenimiento lanzado',
+    // Detalle legible (docs/30 RV-127, DEC-171): qué cambió, con palabras.
+    cambio: (campo: Parametro, antes: Parametro, despues: Parametro) => `${campo}: ${antes} → ${despues}`,
+    valor: (campo: Parametro, valor: Parametro) => `${campo}: ${valor}`,
+    movido: (m: Parametro) => `Movido ${m} m`,
+    cambiada: 'cambiada',
+    adjunta: 'adjunta',
+    sinCambios: 'Sin cambios en los datos',
+    si: 'sí',
+    no: 'no',
+    situaciones: { activo: 'Activo', retirado: 'Retirado', borrado: 'Borrado' },
+    campos: {
+      caudal: 'Estado',
+      racor: 'Enganche',
+      diametro_mm: 'Diámetro',
+      tipo: 'Tipo',
+      descripcion_fallo: 'Fallo',
+      direccion: 'Dirección',
+      descripcion: 'Descripción',
+      nucleo: 'Núcleo',
+      fecha_ultima_revision: 'Última revisión',
+      foto_path: 'Foto',
+      foto_sitio_path: 'Foto del sitio',
+      situacion: 'Situación',
+      codigo: 'Código',
+      motivo: 'Motivo',
+    },
   },
 
   panelPapelera: {
@@ -794,37 +887,6 @@ export const T = {
     colBorrado: 'Borrado',
     quedan: (dias: Parametro) => `quedan ${dias} días`,
     vacia: 'La papelera está vacía.',
-  },
-
-  panelVoluntarios: {
-    actividadDe: 'Actividad de los últimos',
-    meses: (n: Parametro) => `${n} meses`,
-    soloAqui: 'Solo visible aquí. No es un ranking público.',
-    colVoluntario: 'Voluntario',
-    colPropuestas: 'Propuestas',
-    colAprobadas: 'Aprobadas',
-    colRechazadas: 'Rechazadas',
-    colTasa: 'Tasa',
-    colUltima: 'Última',
-    porcentaje: (n: Parametro) => `${n} %`,
-    sinResolver: 'sin resolver todavía',
-    convieneHablar: 'conviene explicarle mejor el formulario',
-    vacio: 'Nadie ha propuesto nada en este periodo.',
-    avisoAnonimizar: (autor: Parametro) =>
-      `Las propuestas y el registro de ${autor} pasarán a nombre de "voluntario dado de baja". Los datos de los hidrantes se conservan. No se puede deshacer.`,
-    confirmarAnonimizar: 'Anonimizar',
-    anonimizado: (n: Parametro) => `Anonimizado: ${n} filas actualizadas.`,
-    incidencias: 'Incidencias de la aplicación',
-    deAlgoNoFunciona: 'lo que llega desde "Algo no funciona"',
-    abiertas: (n: Parametro) => `${n} abiertas`,
-    sinIncidencias: 'No hay incidencias. Nadie ha avisado de nada.',
-    colCuando: 'Cuándo',
-    colVersion: 'Versión · pantalla',
-    colDescripcion: 'Descripción',
-    abierta: 'abierta',
-    resuelta: 'resuelta',
-    resueltaPor: (quien: Parametro, cuando: Parametro) => `${quien} · ${cuando}`,
-    incidenciaResuelta: 'Incidencia marcada como resuelta.',
   },
 
   panelAjustes: {
@@ -879,7 +941,6 @@ export const T = {
     nucleoAnadido: (nombre: Parametro) => `Núcleo "${nombre}" añadido.`,
     nucleoRenombrado: (antes: Parametro, ahora: Parametro) => `"${antes}" ahora se llama "${ahora}".`,
     pendientes14: 'Propuestas pendientes de más de 14 días',
-    incidenciasAbiertas: 'Incidencias abiertas',
     errores7: 'Errores de la aplicación (7 días)',
     sinDireccion: 'Puntos sin dirección deducida',
     ultimoRespaldo: 'Último respaldo',
@@ -915,7 +976,13 @@ export const T = {
     mantenimiento: 'Mantenimiento',
     ayudaMantenimiento:
       'Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.',
-    trabajoLanzado: (nombre: Parametro) => `"${nombre}" lanzado. Tarda unos minutos.`,
+    // docs/31 RV-146 y RV-167: el panel deja un pedido que un workflow recoge; en staging, Purgar fotos y
+    // el respaldo no se piden (trabajan contra producción).
+    trabajoPedido: (nombre: Parametro) => `"${nombre}": pedido. Empezará en unos minutos.`,
+    soloEnProduccion: 'Solo en producción',
+    radiosInvalidos: 'Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.',
+    nucleosVacio: 'Todavía no hay núcleos.',
+    administradoresVacio: 'Todavía no hay administradores.',
     avisosJefatura: 'Avisos para jefatura',
     ayudaAvisos: 'Notificaciones en este navegador. Opcionales y apagadas por defecto.',
     nuevasPropuestas: 'Nuevas propuestas pendientes',
@@ -926,9 +993,12 @@ export const T = {
     avisosInstalar: 'En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.',
     avisosNoDisponibles: 'Este navegador no admite avisos.',
     avisosNoActivados: 'No se han podido activar los avisos.',
+    avisosNoCambiados: 'No se han podido cambiar los avisos. Inténtalo de nuevo.',
     codigoQr: 'Código QR del enlace',
     ayudaQr: 'Para la sede y las reuniones: quien lo escanea abre la aplicación.',
     imprimirA4: 'Imprimir A4',
+    imprimir: 'Imprimir',
+    cerrarHoja: 'Cerrar',
     escaneaParaInstalar: 'Escanea para instalar',
     pieCartel: 'Mapa de hidrantes y bocas de riego. Entra con el código de acceso que te haya dado jefatura.',
     novedades: 'Novedades',
@@ -954,6 +1024,8 @@ export const T = {
     puntoOcupado: 'Otra persona está cambiando este punto; inténtalo en unos segundos.',
     tipoNoModificable: 'El tipo de un punto no se cambia: retíralo y da de alta el correcto.',
     generico: 'No se ha podido completar. Inténtalo de nuevo.',
+    soloEnProduccion: 'Esto solo se hace en producción.',
+    yaPedido: 'Ya está pedido: empezará en unos minutos.',
   },
 
   panel: {
@@ -969,10 +1041,8 @@ export const T = {
     restaurar: 'Restaurar',
     borrarDefinitivamente: 'Borrar definitivamente…',
     vaciarPapelera: 'Vaciar la papelera…',
-    marcarResuelta: 'Marcar resuelta',
-    anonimizar: 'Anonimizar…',
-    hojaDeCampo: 'Hoja de campo por núcleo',
     exportar: 'Exportar',
+    exportando: 'Exportando…',
     excel: 'Excel',
     csv: 'CSV',
     geojson: 'GeoJSON',

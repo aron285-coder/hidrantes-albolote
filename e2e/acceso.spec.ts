@@ -169,11 +169,12 @@ test.describe('con sesión guardada', () => {
     await simularRpc(page, { fn_listar_puntos: { puntos: [], bajas: [] } });
     await page.goto('/');
     await context.setOffline(true);
-    await expect(page.getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
+    // La banda (div): la barra de estado lo dice también, solo al lector de pantalla (docs/31 RV-157).
+    await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
     await page.getByRole('link', { name: T.navegacion.lista }).click();
     await expect(page.getByRole('radio', { name: T.mapa.todos })).toBeVisible();
     await context.setOffline(false);
-    await expect(page.getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeHidden();
+    await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeHidden();
   });
 
   test('primer uso saltable y recuperable desde Ajustes (FR-94)', async ({ page }) => {
@@ -242,6 +243,11 @@ test.describe('con sesión guardada', () => {
       const nombre = new URL(r.request().url()).pathname.split('/').pop();
       if (nombre === 'fn_registrar_error') enviados.push(r.request().postDataJSON());
       await r.fulfill({ status: 200, contentType: 'application/json', body: '{"puntos":[],"bajas":[]}' });
+    });
+    // docs/31 RV-148: el error sale por la Function /api/error (la RPC queda para una app anterior).
+    await page.route('**/api/error', async (r) => {
+      enviados.push(r.request().postDataJSON());
+      await r.fulfill({ status: 204 });
     });
     await page.goto('/');
     await page.getByRole('link', { name: T.navegacion.lista }).click();

@@ -10,7 +10,7 @@ import {
   bloqueoPorMedida,
   correccionesDe,
   faltaEnCorrecciones,
-  filasDiff,
+  fichaCompleta,
   tieneAviso,
   valoresPropuestos,
 } from './panel/cola';
@@ -122,7 +122,7 @@ describe('panel: una boca de otra medida se aprueba tal cual (RV-101)', () => {
   it('el diff y los valores enseñan el número tal cual', () => {
     const p = propuesta({ tipo: 'boca_riego', diametro_otro: 32, racor: 'otro', caudal: 'bueno' });
     expect(valoresPropuestos(p).diametro_mm).toBe(32);
-    expect(filasDiff(p).find((f) => f.campo === T.panelCola.campoDiametro)?.despues).toBe(T.formato.mm(32));
+    expect(fichaCompleta(p).campos.find((f) => f.clave === 'diametro_mm')?.valor).toBe(T.formato.mm(32));
     const setenta = propuesta({ tipo: 'boca_riego', diametro_mm: 70, racor: 'otro', caudal: 'bueno' });
     expect(valoresPropuestos(setenta).diametro_mm).toBe(70);
   });
@@ -190,8 +190,13 @@ describe('revisión del PR: corregir datos de una boca en el panel (RV-101)', ()
     }) as unknown as PropuestaPanel;
 
   it('el diff enseña la otra medida frente a la que tenía', () => {
-    const fila = filasDiff(datos({ diametro_otro: 32 })).find((x) => x.campo === T.panelCola.campoDiametro);
-    expect(fila).toEqual({ campo: T.panelCola.campoDiametro, antes: T.formato.mm(45), despues: T.formato.mm(32) });
+    const fila = fichaCompleta(datos({ diametro_otro: 32 })).campos.find((x) => x.clave === 'diametro_mm');
+    expect(fila).toMatchObject({
+      etiqueta: T.panelCola.campoDiametro,
+      antes: T.formato.mm(45),
+      valor: T.formato.mm(32),
+      cambia: true,
+    });
   });
 
   it('sin el punto a mano, el tipo sale del código: ni ⚠ ni «hay que fijar 70 o 100»', () => {

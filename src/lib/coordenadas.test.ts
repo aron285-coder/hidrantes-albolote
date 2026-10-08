@@ -50,6 +50,30 @@ describe('UTM ETRS89 huso 30 (TR-119)', () => {
   });
 });
 
+// docs/25 RV-109: un caso conocido, calculado sin el código de la app.
+// · Sitio: Plaza de España de Albolote, centro de la vía peatonal de OpenStreetMap (way 223947961),
+//   37.2306696, −3.6572022 (WGS84; ETRS89 se trata como igual, difieren en menos de un metro).
+// · UTM: fórmulas de Snyder (USGS Professional Paper 1395, 1987, ec. 8-9 y 8-10) sobre GRS80, huso 30,
+//   en un script aparte. Es otra serie que la de Krüger de `aUtm`; con ella, el primer vector de pyproj
+//   de arriba (37.2305, −3.656) sale 441808.02, 4120644.54, igual al centímetro.
+describe('caso conocido: la plaza de Albolote (RV-109)', () => {
+  const PLAZA = { lat: 37.2306696, lng: -3.6572022 };
+
+  it('convierte a ETRS89 / UTM 30N: X 441701.50, Y 4120664.09 (≤ 1 m)', () => {
+    const u = aUtm(PLAZA);
+    expect(Math.abs(u.x - 441701.5)).toBeLessThanOrEqual(1);
+    expect(Math.abs(u.y - 4120664.09)).toBeLessThanOrEqual(1);
+    expect(formatoUtm(u, PLAZA.lat)).toMatch(/^30S 44170[12] 4120664$/); // X = 441701,50: en el borde del redondeo
+  });
+
+  it('la S es la banda de latitud de MGRS (32° a 40° N), no "sur"', () => {
+    expect(formatoUtm(aUtm({ lat: 32.5, lng: -3 }), 32.5)).toMatch(/^30S /);
+    expect(formatoUtm(aUtm({ lat: 39.9, lng: -3 }), 39.9)).toMatch(/^30S /);
+    expect(formatoUtm(aUtm({ lat: 31.9, lng: -3 }), 31.9)).toMatch(/^30R /);
+    expect(formatoUtm(aUtm({ lat: 40.1, lng: -3 }), 40.1)).toMatch(/^30T /);
+  });
+});
+
 describe('formatos', () => {
   const p = { lat: 37.2305, lng: -3.656 };
 

@@ -1,10 +1,11 @@
-// Inventario, papelera, registro y revisiones caducadas del panel (FR-120–FR-125, FL-24–FL-26).
+// Inventario, papelera y registro del panel (FR-120, FR-123–FR-125, FL-24–FL-26).
 // Lo que se calcula (filtros, orden, páginas, días de papelera) es puro y tiene tests; las acciones
 // van por RPC (05 §6.2) y devuelven Resultado.
 
 import { type Resultado, rpc } from '../api';
 import { CAUDALES, caudalParaDibujar } from '../caudal';
-import { type Caudal, type Punto, type TipoPunto, sincronizar } from '../puntos';
+import { metros } from '../geometria';
+import { type Caudal, type Punto, type Racor, type TipoPunto, sincronizar } from '../puntos';
 import type { FiltrosExportacion } from './exportar';
 import { T } from '../textos';
 import { diametroBocaValido } from './cola';
@@ -22,15 +23,13 @@ export interface Orden {
 }
 
 /**
- * Filtros del inventario (FR-120): tipo **y** estado, combinables, más revisión, núcleo y diámetro
- * (RV-24). No reutiliza el filtro de chips de la Lista del móvil, que es de uno en uno (FR-68).
+ * Filtros del inventario (FR-120): solo tipo **y** estado, combinables, en dos desplegables
+ * (docs/29 RV-123, DEC-168). Núcleo, diámetro y última revisión ya no filtran: se ordenan por
+ * columna. No reutiliza el filtro de chips de la Lista del móvil, que es de uno en uno (FR-68).
  */
 export interface FiltrosInventario {
   tipo: 'todos' | TipoPunto;
   caudal: 'todos' | Caudal;
-  sin_revisar: boolean;
-  nucleo: string;
-  diametro: string;
   busqueda: string;
 }
 
@@ -39,10 +38,28 @@ export function filtrosExportacion(f: FiltrosInventario): FiltrosExportacion {
   return {
     ...(f.tipo !== 'todos' ? { tipo: f.tipo } : {}),
     ...(f.caudal !== 'todos' ? { caudal: f.caudal } : {}),
-    ...(f.sin_revisar ? { revision_caducada: true } : {}),
-    ...(f.nucleo ? { nucleo: f.nucleo } : {}),
-    ...(f.diametro ? { diametro_mm: Number(f.diametro) } : {}),
   };
+}
+
+/**
+ * Cuántos puntos hay de cada estado con el filtro de tipo elegido, para el desplegable de Estado
+ * ("Regular · 3", docs/29 RV-123). `todos` es el total de ese tipo; la búsqueda no cuenta.
+ */
+export function cuentaPorEstado(puntos: Punto[], tipo: FiltrosInventario['tipo']): Record<'todos' | Caudal, number> {
+  const cuenta: Record<'todos' | Caudal, number> = {
+    todos: 0,
+    bueno: 0,
+    regular: 0,
+    malo: 0,
+    barro: 0,
+    no_funciona: 0,
+  };
+  for (const p of puntos) {
+    if (tipo !== 'todos' && p.tipo !== tipo) continue;
+    cuenta.todos++;
+    cuenta[caudalParaDibujar(p.caudal)]++;
+  }
+  return cuenta;
 }
 
 /** Un estado que esta versión no conoce va con no funciona (docs/24 RV-102a). */
@@ -55,9 +72,6 @@ export function inventario(puntos: Punto[], f: FiltrosInventario): Punto[] {
     (p) =>
       (f.tipo === 'todos' || p.tipo === f.tipo) &&
       (f.caudal === 'todos' || caudalParaDibujar(p.caudal) === f.caudal) &&
-      (!f.sin_revisar || p.revision_caducada) &&
-      (!f.nucleo || p.nucleo === f.nucleo) &&
-      (!f.diametro || String(p.diametro_mm) === f.diametro) &&
       (!texto ||
         sinAcentos([p.codigo, p.direccion, p.nucleo, p.descripcion].filter(Boolean).join(' ')).includes(texto)),
   );
@@ -77,10 +91,6 @@ export function ordenarPor(puntos: Punto[], { columna, ascendente }: Orden): Pun
 export const paginas = (total: number) => Math.max(1, Math.ceil(total / POR_PAGINA));
 
 export const pagina = <T>(filas: T[], n: number) => filas.slice(n * POR_PAGINA, (n + 1) * POR_PAGINA);
-
-/** Núcleos presentes, para el desplegable (y para Ajustes). */
-export const nucleosDe = (puntos: Punto[]) =>
-  [...new Set(puntos.map((p) => p.nucleo).filter((n): n is string => !!n))].sort((a, b) => a.localeCompare(b, 'es'));
 
 // ---------- papelera (FR-124) ----------
 
@@ -166,33 +176,6 @@ export const escapar = (texto: string) => texto.replace(/[,()"%*]/g, ' ').trim()
 /** Historial de un punto (FR-123, FL-24). */
 export const historialPunto = (puntoId: string) => rpc<EntradaRegistro[]>('fn_historial_punto', { punto_id: puntoId });
 
-// ---------- revisiones caducadas (FR-121, FR-122) ----------
-
-export interface GrupoCaducadas {
-  nucleo: string;
-  puntos: Punto[];
-  /** Cuántos puntos activos tiene ese núcleo en total. */
-  total: number;
-}
-
-/** Caducadas agrupadas por núcleo, de más urgente (más caducadas) a menos (FR-121). */
-export function caducadasPorNucleo(puntos: Punto[]): GrupoCaducadas[] {
-  const totales = new Map<string, number>();
-  const caducadas = new Map<string, Punto[]>();
-  for (const p of puntos) {
-    const n = p.nucleo ?? T.panelCola.sinNucleo;
-    totales.set(n, (totales.get(n) ?? 0) + 1);
-    if (p.revision_caducada) caducadas.set(n, [...(caducadas.get(n) ?? []), p]);
-  }
-  return [...caducadas.entries()]
-    .map(([nucleo, lista]) => ({
-      nucleo,
-      puntos: [...lista].sort((a, b) => a.codigo.localeCompare(b.codigo, 'es', { numeric: true })),
-      total: totales.get(nucleo) ?? lista.length,
-    }))
-    .sort((a, b) => b.puntos.length - a.puntos.length || a.nucleo.localeCompare(b.nucleo, 'es'));
-}
-
 // ---------- acciones sobre un punto (FR-120, FR-124) ----------
 
 function refrescar<T>(r: Resultado<T>): Resultado<T> {
@@ -208,6 +191,19 @@ export interface CambiosPunto {
   descripcion_fallo?: string | null;
   descripcion?: string | null;
   direccion?: string | null;
+  /** Mover el punto desde Editar (0038, docs/29 RV-124, DEC-169): las dos o ninguna. */
+  lat?: number;
+  lng?: number;
+}
+
+/** Desde cuántos metros cuenta como movido el pin de Editar (docs/29 RV-124). */
+export const MOVIDO_DESDE_M = 0.5;
+/** Desde cuántos metros movido se pide revisar la dirección, que no cambia sola (docs/29 RV-124). */
+export const REVISAR_DIRECCION_DESDE_M = 25;
+
+/** Metros entre la posición guardada y la del formulario; 0 si el formulario no trae posición. */
+export function movidoM(p: Punto, v: CambiosPunto): number {
+  return v.lat === undefined || v.lng === undefined ? 0 : metros(p, { lat: v.lat, lng: v.lng });
 }
 
 export async function editarPunto(id: string, cambios: CambiosPunto): Promise<Resultado<null>> {
@@ -257,7 +253,72 @@ export function cambiosDe(p: Punto, v: CambiosPunto): CambiosPunto {
   }
   if (cambia('descripcion', v.descripcion, p.descripcion)) c.descripcion = v.descripcion?.trim() || null;
   if (cambia('direccion', v.direccion, p.direccion)) c.direccion = v.direccion?.trim() || null;
+  // La ubicación, solo si se ha movido de verdad (≥ 0,5 m): un toque sin querer no la cambia.
+  if (movidoM(p, v) >= MOVIDO_DESDE_M) {
+    c.lat = v.lat;
+    c.lng = v.lng;
+  }
   return c;
+}
+
+/** Lo que se está escribiendo en Editar, en la forma de los controles del alta. */
+export interface Valores {
+  pin: { lat: number; lng: number };
+  diametro: number | 'otro' | undefined;
+  diametroOtro: string;
+  racor: Racor | null;
+  caudal: Caudal;
+  fallo: string;
+  direccion: string;
+  descripcion: string;
+}
+
+/** Los valores guardados del punto. Una boca de otra medida que 45 o 70 abre "Otra medida" con su número. */
+export function valoresDe(p: Punto): Valores {
+  const otra = p.tipo === 'boca_riego' && p.diametro_mm !== 45 && p.diametro_mm !== 70;
+  return {
+    pin: { lat: p.lat, lng: p.lng },
+    diametro: otra ? 'otro' : p.diametro_mm,
+    diametroOtro: otra ? String(p.diametro_mm) : '',
+    racor: p.racor,
+    caudal: p.caudal,
+    fallo: p.descripcion_fallo ?? '',
+    direccion: p.direccion ?? '',
+    descripcion: p.descripcion ?? '',
+  };
+}
+
+/** Los valores en la forma de `fn_editar_punto`; `cambiosDe` decide después qué cambia de verdad. */
+export function formularioDe(v: Valores): CambiosPunto {
+  return {
+    diametro_mm: v.diametro === 'otro' ? (v.diametroOtro.trim() ? Number(v.diametroOtro) : undefined) : v.diametro,
+    racor: v.racor,
+    caudal: v.caudal,
+    descripcion_fallo: v.fallo,
+    descripcion: v.descripcion,
+    direccion: v.direccion,
+    lat: v.pin.lat,
+    lng: v.pin.lng,
+  };
+}
+
+/** Los campos de Editar, en el orden de la pantalla (docs/29 RV-124). */
+export type CampoEditado = 'ubicacion' | 'diametro' | 'enganche' | 'estado' | 'fallo' | 'direccion' | 'descripcion';
+
+/**
+ * Qué campos cambian, en el orden de la pantalla: de aquí salen el recuento y la lista del pie de
+ * Editar ("2 cambios · ubicación, enganche") y qué campo va marcado. La ubicación cuenta una vez.
+ */
+export function camposCambiados(c: CambiosPunto): CampoEditado[] {
+  const lista: CampoEditado[] = [];
+  if (c.lat !== undefined) lista.push('ubicacion');
+  if (c.diametro_mm !== undefined) lista.push('diametro');
+  if ('racor' in c) lista.push('enganche');
+  if (c.caudal !== undefined) lista.push('estado');
+  if ('descripcion_fallo' in c) lista.push('fallo');
+  if ('direccion' in c) lista.push('direccion');
+  if ('descripcion' in c) lista.push('descripcion');
+  return lista;
 }
 
 // ---------- parámetros que el panel necesita leer (05 §2.10) ----------

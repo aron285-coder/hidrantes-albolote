@@ -48,7 +48,7 @@ registros de cada sesión son `campo-backend.md`, `campo-frontend.md` y `campo-o
 
 ## 4. Lo que queda para personas (docs/24 §5)
 
-1. **Fotos de los racores:** desde el 4-10 hay dos **esquemas provisionales** dibujados para este repositorio (DEC-152). La foto propia de cada racor, de frente y con fondo liso y nunca de internet, los sustituye cuando el desarrollador la tenga.
+1. ~~Fotos de los racores~~ **Cerrado (DEC-178):** los dibujos son la referencia definitiva; no se esperan fotos.
    - Se preparan con `npx tsx scripts/preparar-racores.ts <carpeta>`, en un PR aparte.
 2. ~~Conformidad de jefatura~~ **Hecho:** recogida por el desarrollador el 4-10 y anotada en `docs/01` v1.6 y v1.7.
 3. **Sesión presencial (F9.9, #84):** Malo, Barro y No funciona con una frase cada uno. El guion está en `docs/02`.

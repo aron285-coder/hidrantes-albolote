@@ -52,6 +52,24 @@ jobs:
               --body "La comprobación diaria falló: $RUN. Si el proyecto está en pausa, restáuralo desde el panel de Supabase (15)."
           fi
 
+      # docs/31 RV-138: como la vigilancia, la issue se cierra sola cuando vuelve a responder. Una
+      # issue que nadie cierra deja de mirarse (15 §4).
+      - name: Cerrar la issue si vuelve a responder
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ENTORNO: ${{ matrix.entorno }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          titulo="Supabase $ENTORNO no responde"
+          abierta=$(gh issue list --repo "$REPO" --state open --label vigilancia --json number,title \
+            --jq "[.[] | select(.title == \"$titulo\")] | .[0].number // empty")
+          if [ -n "$abierta" ]; then
+            gh issue close "$abierta" --repo "$REPO" --comment "Supabase $ENTORNO vuelve a responder: $RUN"
+          fi
+
   # GitHub desactiva los workflows con `schedule` de un repositorio público tras 60 días sin
   # actividad (DEC-085). Habilitarlos por la API reinicia ese contador. La lista es explícita:
   # scripts/workflows.test.ts rompe CI si un workflow programado no está aquí. vigilancia.yml llama
@@ -65,7 +83,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
-          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml
+          WORKFLOWS: mantener-activo.yml respaldo.yml vigilancia.yml purgar-fotos.yml canario-ubuntu.yml despachador.yml
         run: |
           set -eu
           for w in $WORKFLOWS; do

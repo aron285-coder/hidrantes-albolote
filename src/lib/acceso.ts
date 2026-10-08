@@ -16,9 +16,10 @@ import {
   guardarSesion,
   leerSesion,
   olvidarToken,
+  renovarDispositivoId,
 } from './sesion';
 import { alEnviarPropuesta, iniciarCola, reintentarCola, vaciarCola } from './cola';
-import { cargarMisPropuestas } from './mis-propuestas';
+import { cargarMisPropuestas, olvidarMisPropuestas } from './mis-propuestas';
 import {
   borrarPuntos,
   cargarGuardados,
@@ -27,6 +28,8 @@ import {
   rederivarSiCambiaElDia,
   sincronizar,
 } from './puntos';
+import { anotarError } from './errores';
+import { LIMITES_RED } from './red';
 import { desactivarPush, estadoPush, pedirEnvioPush, resincronizarPush } from './push';
 import { supabase } from './supabase';
 
@@ -189,7 +192,10 @@ export async function comprobarAcceso(): Promise<void> {
 
 /** Canje del código (FR-31). Devuelve null si ha entrado, o el código de error de 05 §8. */
 export async function entrarConCodigo(codigo: string, firma: Firma): Promise<string | null> {
-  const r: Resultado<{ token: string }> = await verificarCodigo(codigo, dispositivoId());
+  let r: Resultado<{ token: string }> = await verificarCodigo(codigo, dispositivoId());
+  // El identificador de este móvil está reservado (DEC-175): otro y una sola vez más (docs/31 RV-159).
+  // Si vuelve a pasar, el error de siempre.
+  if (!r.ok && r.codigo === 'DISPOSITIVO_RESERVADO') r = await verificarCodigo(codigo, renovarDispositivoId());
   if (!r.ok) {
     if (r.codigo === 'DEMASIADOS_INTENTOS') bloquear();
     return r.codigo;
@@ -244,10 +250,29 @@ export function cambiarFirma(firma: Firma): void {
   if (sesion && estado.tipo === 'voluntario') fijar({ tipo: 'voluntario', sesion });
 }
 
+/**
+ * El servidor revoca el token y borra la suscripción push de este móvil (docs/31 RV-158): un token
+ * copiado deja de valer. Como mucho `LIMITES_RED.cerrarSesion`; sin red o si falla, la sesión se
+ * cierra igual (lo local manda) y queda anotado en errores_cliente.
+ */
+async function revocarToken(): Promise<void> {
+  const sesion = leerSesion();
+  if (!sesion) return;
+  let temporizador: ReturnType<typeof setTimeout> | undefined;
+  const limite = new Promise<Resultado<null>>((r) => {
+    temporizador = setTimeout(() => r({ ok: false, codigo: 'TIEMPO_AGOTADO' }), LIMITES_RED.cerrarSesion);
+  });
+  const r = await Promise.race([rpc<null>('fn_cerrar_sesion', { token: sesion.token }), limite]);
+  clearTimeout(temporizador);
+  if (!r.ok) anotarError(new Error(`fn_cerrar_sesion: ${r.codigo}`), 'cerrar-sesion');
+}
+
 export async function cerrarSesionVoluntario(): Promise<void> {
   // Primero lo que necesita el token: dejar de recibir avisos en este móvil.
   if (estadoPush() === 'activo') await desactivarPush().catch(() => undefined);
+  await revocarToken();
   cerrarSesion();
+  olvidarMisPropuestas();
   void borrarPuntos();
   void vaciarCola();
   fijar({ tipo: 'fuera', caducado: false });

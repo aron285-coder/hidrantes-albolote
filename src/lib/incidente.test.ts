@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { leerLatLng as leerIncidente } from './coordenadas';
-import { cercanos, leerGps, masCercanoQueNoFunciona, origenViejo, parametroGps } from './incidente';
+import { cercanos, leerGps, origenViejo, parametroGps } from './incidente';
 import type { Punto } from './puntos';
 
 const O = { lat: 37.23, lng: -3.656 };
@@ -31,7 +31,7 @@ const p = (m: number, extra: Partial<Punto> = {}): Punto => ({
   ...extra,
 });
 
-const OP = { soloHidrantes: false, metrosTramo: 20 };
+const OP = { soloHidrantes: false };
 
 describe('cercanos', () => {
   it('excluye malo y no funciona', () => {
@@ -61,30 +61,10 @@ describe('cercanos', () => {
     expect(cercanos([p(2100)], O, { ...OP, maxMetros: 3000 })).toHaveLength(1);
   });
 
-  it('distancia, rumbo y tramos con la longitud de la config', () => {
-    const [c] = cercanos([p(140)], O, { ...OP, metrosTramo: 20 });
+  it('distancia y rumbo', () => {
+    const [c] = cercanos([p(140)], O, OP);
     expect(c!.metros).toBeCloseTo(140, 0);
     expect(c!.rumbo).toBeCloseTo(0, 1);
-    expect(c!.tramos).toBe(7);
-    expect(cercanos([p(140)], O, { ...OP, metrosTramo: 25 })[0]!.tramos).toBe(6);
-  });
-});
-
-describe('masCercanoQueNoFunciona', () => {
-  it('avisa si el más cercano de todos no funciona y está antes que el primero que sí', () => {
-    const roto = p(40, { caudal: 'no_funciona' });
-    const lista = [roto, p(120)];
-    expect(masCercanoQueNoFunciona(lista, O, OP, cercanos(lista, O, OP))?.punto.id).toBe(roto.id);
-  });
-
-  it('si el más cercano funciona, no hay aviso', () => {
-    const lista = [p(40), p(60, { caudal: 'malo' })];
-    expect(masCercanoQueNoFunciona(lista, O, OP, cercanos(lista, O, OP))).toBeNull();
-  });
-
-  it('sin ninguno que funcione, avisa del más cercano', () => {
-    const lista = [p(30, { caudal: 'malo' })];
-    expect(masCercanoQueNoFunciona(lista, O, OP, [])?.punto.caudal).toBe('malo');
   });
 });
 
@@ -159,17 +139,6 @@ describe('orden de los cercanos (RV-54)', () => {
         }
       }
     }
-  });
-
-  it('el aviso usa la distancia mínima de los candidatos, no el primero de la lista', () => {
-    // B (radio mayor) sale primero a 9 m; A funciona a 0 m. Un roto a 5 m está más lejos que A.
-    const a = p(0, { radio_px: 5 });
-    const b = p(9, { radio_px: 13 });
-    const roto = p(5, { caudal: 'no_funciona' });
-    const lista = [a, b, roto];
-    const candidatos = cercanos(lista, O, OP);
-    expect(candidatos[0]!.punto.id).toBe(b.id);
-    expect(masCercanoQueNoFunciona(lista, O, OP, candidatos)).toBeNull();
   });
 });
 

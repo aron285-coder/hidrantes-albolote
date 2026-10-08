@@ -1,8 +1,9 @@
 # Promoción del piloto a producción (04 §13, 09 Fase 9). Manual y con aprobación: declara el
 # entorno `production`, así que no se mueve hasta que el desarrollador lo apruebe en GitHub.
 #
-# Lee de staging y escribe en producción, y un trabajo solo puede llevar un environment, así que las
-# dos cadenas de conexión están como secretos del repositorio (DEC-078); las pone `arranque.ts`.
+# Lee de staging y escribe en producción, y un trabajo solo puede llevar un environment: lo de
+# producción sale de este environment (`production`, los mismos valores que pone `arranque.ts`) y lo de
+# staging, del repositorio (DEC-078). Ningún secreto de producción en el repositorio (DEC-172).
 #
 # Empieza siempre en ensayo: la primera pasada dice qué se llevaría sin tocar nada.
 name: Promover piloto
@@ -32,7 +33,7 @@ jobs:
     timeout-minutes: 20
     environment: production
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
         with:
           psql: 'true'
@@ -40,11 +41,11 @@ jobs:
       - name: Promover
         env:
           SUPABASE_DB_URL_STAGING: ${{ secrets.SUPABASE_DB_URL_STAGING }}
-          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+          SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL }}
           SUPABASE_URL_STAGING: ${{ vars.SUPABASE_URL_STAGING }}
           SUPABASE_URL_PROD: ${{ vars.SUPABASE_URL_PROD }}
           SUPABASE_SERVICE_ROLE_KEY_STAGING: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_STAGING }}
-          SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY_PROD: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           ENSAYO: ${{ inputs.ensayo }}
           CONFIRMACION: ${{ inputs.confirmacion }}
         run: |

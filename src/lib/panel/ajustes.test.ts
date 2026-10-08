@@ -12,8 +12,9 @@ import {
   cambiosParametros,
   faltaEnParametros,
   generarCodigo,
+  leerRadios,
+  textoRadios,
 } from './ajustes';
-import { filtrarActividad, porcentaje } from './voluntarios';
 import { NOVEDADES, normalizarNovedades } from '../novedades';
 import { T } from '../textos';
 
@@ -48,37 +49,27 @@ describe('parámetros (FR-142)', () => {
   });
 });
 
-describe('voluntarios (FR-130)', () => {
-  const filas = [
-    {
-      autor: 'Luis Martín',
-      dispositivo_id: 'd1',
-      propuestas: 4,
-      aprobadas: 3,
-      rechazadas: 1,
-      tasa: 0.75,
-      ultima: '2026-09-19T08:00:00Z',
-    },
-    {
-      autor: 'Ángela Ruiz',
-      dispositivo_id: 'd2',
-      propuestas: 1,
-      aprobadas: 0,
-      rechazadas: 0,
-      tasa: null,
-      ultima: '2026-09-18T08:00:00Z',
-    },
-  ];
-
-  it('la tasa se enseña en porcentaje entero, y sin resolver es null', () => {
-    expect(porcentaje(0.75)).toBe(75);
-    expect(porcentaje(0.666)).toBe(67);
-    expect(porcentaje(null)).toBeNull();
+// docs/31 RV-167: los radios se escriben como texto libre y se leen al salir del campo y al guardar.
+describe('radios del marcador como texto (docs/31 RV-167)', () => {
+  it('se escriben con coma decimal y se leen con coma o punto, con cualquier separador', () => {
+    expect(textoRadios([11, 9, 7, 5.5, 5])).toBe('11 · 9 · 7 · 5,5 · 5');
+    expect(leerRadios('11 · 9 · 7 · 5,5 · 5')).toEqual([11, 9, 7, 5.5, 5]);
+    expect(leerRadios('12 9 7 5.5 4')).toEqual([12, 9, 7, 5.5, 4]);
+    expect(leerRadios('12; 9; 7; 5,5; 4')).toEqual([12, 9, 7, 5.5, 4]);
+    expect(leerRadios(textoRadios([12, 9, 7, 5.5, 4]))).toEqual([12, 9, 7, 5.5, 4]);
   });
 
-  it('la búsqueda global también filtra la actividad, sin acentos', () => {
-    expect(filtrarActividad(filas, 'angela')).toHaveLength(1);
-    expect(filtrarActividad(filas, '')).toHaveLength(2);
+  it('lo que no es un número no se convierte en otro: no deja guardar', () => {
+    const v = PARAMETROS_POR_DEFECTO;
+    expect(faltaEnParametros({ ...v, escala_radios: leerRadios('11 · 9 · 7 · 5,5') })).toBe('escala_radios');
+    expect(faltaEnParametros({ ...v, escala_radios: leerRadios('11 · 9 · 7 · 5,5,5 · 5') })).toBe('escala_radios');
+    expect(faltaEnParametros({ ...v, escala_radios: leerRadios('') })).toBe('escala_radios');
+  });
+
+  it('de mayor a menor, como R1 a R5 de 06 §4.1 (iguales sí)', () => {
+    const v = PARAMETROS_POR_DEFECTO;
+    expect(faltaEnParametros({ ...v, escala_radios: [5, 5.5, 7, 9, 11] })).toBe('escala_radios');
+    expect(faltaEnParametros({ ...v, escala_radios: [11, 9, 9, 5, 5] })).toBeNull();
   });
 });
 

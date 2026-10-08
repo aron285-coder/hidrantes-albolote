@@ -1,5 +1,20 @@
-import { useMemo, useState } from 'react';
-import { DialogoEditar, DialogoHistorial, DialogoMotivo } from './dialogos';
+import { ChevronDown } from 'lucide-react';
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { DialogoHistorial, DialogoMotivo } from './dialogos';
+import { ConfirmarDescartar, type EstadoEditar } from './descartar';
+
+// Editar en su propia porción: ver descartar.tsx (RV-80).
+const EditarPunto = lazy(() => import('./EditarPunto'));
 import { usePanel } from './usar-panel';
 import { MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { usePanelAncho } from '@/hooks/ancho';
@@ -7,24 +22,27 @@ import { useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { claseChip, nombreCaudal, nombreRacor, nombreTipo } from '@/lib/ficha';
 import { fechaCorta, hace } from '@/lib/formato';
 import { type Formato, exportar } from '@/lib/panel/exportar';
+import { quitarEntradaDeEditar } from '@/lib/panel/historial-editar';
+import { anotarError } from '@/lib/errores';
 import { textoError } from '@/lib/panel/errores';
 import {
   type Columna,
   type FiltrosInventario,
   type Orden,
+  cuentaPorEstado,
   editarPunto,
   filtrosExportacion,
   inventario,
-  nucleosDe,
   ordenarPor,
   pagina,
   paginas,
 } from '@/lib/panel/inventario';
+import { LIMITES } from '@/lib/limites';
 import { type Punto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
-// FR-120: tipo, estado y revisión son tres controles independientes, combinables (RV-24).
+// FR-120: Tipo y Estado, dos desplegables independientes y combinables (docs/29 RV-123, DEC-168).
 const TIPOS: { valor: FiltrosInventario['tipo']; nombre: string }[] = [
   { valor: 'todos', nombre: T.mapa.todos },
   { valor: 'hidrante', nombre: T.mapa.hidrantes },
@@ -38,12 +56,13 @@ const ESTADOS: { valor: FiltrosInventario['caudal']; nombre: string }[] = [
   { valor: 'barro', nombre: T.formulario.barro },
   { valor: 'no_funciona', nombre: T.formulario.noFunciona },
 ];
-const REVISIONES: { valor: 'todas' | 'sin_revisar'; nombre: string }[] = [
-  { valor: 'todas', nombre: T.panelInventario.todas },
-  { valor: 'sin_revisar', nombre: T.mapa.sinRevisar },
-];
 
-function Chips<V extends string>({
+/**
+ * Un filtro del inventario: `<select>` nativo con la etiqueta encima, 44 px de alto. Activo (no
+ * "Todos"): borde de 2 px y negrita. El borde es --anillo-seleccion, que es --marino-950 en claro y
+ * se aclara en oscuro, donde el marino no se vería sobre el fondo.
+ */
+function Desplegable<V extends string>({
   etiqueta,
   opciones,
   valor,
@@ -54,25 +73,193 @@ function Chips<V extends string>({
   valor: V;
   alCambiar: (v: V) => void;
 }) {
+  const id = useId();
+  const activo = valor !== 'todos';
   return (
-    <div role="radiogroup" aria-label={etiqueta} className="flex flex-wrap items-center gap-1.5">
-      <span className="text-texto-suave text-[12px]">{etiqueta}</span>
-      {opciones.map((o) => (
-        <button
-          key={o.valor}
-          type="button"
-          role="radio"
-          aria-checked={valor === o.valor}
-          onClick={() => alCambiar(o.valor)}
-          className={cn(
-            'border-linea min-h-9 rounded-full border px-3 text-[13px]',
-            valor === o.valor ? 'bg-barra border-barra text-white' : 'bg-papel text-texto-suave',
-          )}
-        >
-          {o.nombre}
-        </button>
-      ))}
+    <div className="flex min-w-0 flex-col gap-1 md:w-44 xl:w-52">
+      <label htmlFor={id} className="text-texto-suave text-[12px]">
+        {etiqueta}
+      </label>
+      <select
+        id={id}
+        value={valor}
+        onChange={(e) => alCambiar(e.target.value as V)}
+        className={cn(
+          'bg-papel text-texto rounded-campo min-h-11 w-full min-w-0 text-[14px]',
+          activo
+            ? 'border-2 border-[var(--anillo-seleccion)] px-[10px] font-semibold'
+            : 'border-linea border px-[11px]',
+        )}
+      >
+        {opciones.map((o) => (
+          <option key={o.valor} value={o.valor}>
+            {o.nombre}
+          </option>
+        ))}
+      </select>
     </div>
+  );
+}
+
+const FORMATOS: { formato: Formato; nombre: string }[] = [
+  { formato: 'xlsx', nombre: T.panel.excel },
+  { formato: 'csv', nombre: T.panel.csv },
+  { formato: 'geojson', nombre: T.panel.geojson },
+];
+
+/**
+ * Exportar ▾ (docs/29 RV-123): un botón secundario que abre un menú con los tres formatos. Patrón
+ * de botón de menú de WAI-ARIA: flechas, Inicio y Fin dentro del menú; Esc lo cierra y devuelve el
+ * foco al botón; tocar fuera o Tab lo cierran sin quitar el foco de donde vaya. Sin filas que
+ * exportar, deshabilitado y con el motivo debajo (UI-02). Mientras exporta, ocupado: dice
+ * «Exportando…» y no abre el menú, pero no se deshabilita, porque un botón deshabilitado pierde el foco
+ * que el menú le acaba de devolver.
+ */
+function MenuExportar({
+  deshabilitado,
+  ocupado,
+  alElegir,
+}: {
+  deshabilitado: boolean;
+  ocupado: boolean;
+  alElegir: (f: Formato) => void;
+}) {
+  const [abierto, setAbierto] = useState<false | 'primero' | 'ultimo'>(false);
+  const boton = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLDivElement>(null);
+  const id = useId();
+
+  const opciones = () => [...(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+  const cerrar = (devolverFoco: boolean) => {
+    setAbierto(false);
+    if (devolverFoco) boton.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!abierto) return;
+    const lista = opciones();
+    (abierto === 'ultimo' ? lista.at(-1) : lista[0])?.focus();
+    const fuera = (e: PointerEvent) => {
+      const t = e.target as Node;
+      if (!menu.current?.contains(t) && !boton.current?.contains(t)) setAbierto(false);
+    };
+    document.addEventListener('pointerdown', fuera);
+    return () => document.removeEventListener('pointerdown', fuera);
+  }, [abierto]);
+
+  function teclaMenu(e: ReactKeyboardEvent) {
+    const lista = opciones();
+    const i = lista.indexOf(document.activeElement as HTMLButtonElement);
+    const ir = (n: number) => lista[(n + lista.length) % lista.length]?.focus();
+    if (e.key === 'ArrowDown') ir(i + 1);
+    else if (e.key === 'ArrowUp') ir(i - 1);
+    else if (e.key === 'Home') ir(0);
+    else if (e.key === 'End') ir(lista.length - 1);
+    else if (e.key === 'Escape') cerrar(true);
+    else if (e.key === 'Tab') return setAbierto(false);
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  const motivo = `${id}-motivo`;
+  return (
+    <div className="relative flex flex-col items-end">
+      {/* Las clases de <Boton variante="secundario">: Boton no reenvía la referencia del foco. */}
+      <button
+        ref={boton}
+        type="button"
+        id={`${id}-boton`}
+        aria-haspopup="menu"
+        aria-expanded={!!abierto}
+        aria-controls={abierto ? `${id}-menu` : undefined}
+        disabled={deshabilitado}
+        aria-disabled={ocupado || undefined}
+        aria-busy={ocupado || undefined}
+        aria-describedby={deshabilitado ? motivo : undefined}
+        onClick={() => {
+          if (ocupado) return;
+          if (abierto) cerrar(false);
+          else setAbierto('primero');
+        }}
+        onKeyDown={(e) => {
+          if (ocupado) return;
+          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+          e.preventDefault();
+          setAbierto(e.key === 'ArrowUp' ? 'ultimo' : 'primero');
+        }}
+        className="rounded-boton bg-papel text-texto border-texto disabled:bg-linea disabled:text-texto-suave flex min-h-11 min-w-11 items-center gap-1.5 border-[1.5px] px-4 text-[14px] font-semibold disabled:cursor-not-allowed aria-disabled:cursor-progress aria-disabled:opacity-60"
+      >
+        {ocupado ? T.panel.exportando : T.panel.exportar}
+        <ChevronDown size={16} aria-hidden />
+      </button>
+      {deshabilitado && (
+        <p id={motivo} className="text-texto-suave mt-0.5 text-[11px]">
+          {T.panelInventario.nadaQueExportar}
+        </p>
+      )}
+      {abierto && (
+        <div
+          ref={menu}
+          id={`${id}-menu`}
+          role="menu"
+          aria-labelledby={`${id}-boton`}
+          onKeyDown={teclaMenu}
+          className="bg-papel border-linea rounded-tarjeta absolute top-full right-0 z-[500] mt-1 flex min-w-44 flex-col border py-1 shadow-[0_6px_24px_rgba(14,27,48,.28)]"
+        >
+          {FORMATOS.map(({ formato, nombre }) => (
+            <button
+              key={formato}
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              onClick={() => {
+                cerrar(true);
+                alElegir(formato);
+              }}
+              className="hover:bg-fondo focus:bg-fondo min-h-11 px-4 text-left text-[14px]"
+            >
+              {nombre}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * La dirección, editable en la celda (FR-15). Controlada: enseña lo que se escribe y, al salir, solo
+ * guarda si difiere de la dirección actual del punto (docs/31 RV-164). Nunca "— pen": el campo mide al
+ * menos lo que su texto de "pendiente" (RV-79).
+ */
+function CeldaDireccion({ punto, alGuardar }: { punto: Punto; alGuardar: (p: Punto, valor: string) => Promise<void> }) {
+  const dato = punto.direccion ?? '';
+  const [valor, setValor] = useState(dato);
+  // La dirección que enseñaba al empezar; si el dato cambia (Editar, otro administrador), la celda
+  // vuelve a empezar con lo nuevo. Mientras se escribe en ella no: lo escrito no se pierde sin avisar,
+  // y al salir se guarda encima, que es lo que se quería.
+  const [base, setBase] = useState(dato);
+  const [escribiendo, setEscribiendo] = useState(false);
+  if (dato !== base && !escribiendo) {
+    setBase(dato);
+    setValor(dato);
+  }
+  return (
+    <input
+      value={valor}
+      onChange={(e) => setValor(e.target.value)}
+      placeholder={T.panel.pendienteEscribe}
+      aria-label={T.panelInventario.direccionDe(punto.codigo)}
+      maxLength={LIMITES.direccion}
+      onFocus={() => setEscribiendo(true)}
+      onBlur={() => {
+        setEscribiendo(false);
+        setBase(dato);
+        void alGuardar(punto, valor);
+      }}
+      className="border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]"
+    />
   );
 }
 
@@ -86,7 +273,7 @@ const COLUMNAS: { clave: Columna; nombre: string }[] = [
   { clave: 'fecha_ultima_revision', nombre: T.panelInventario.colRevision },
 ];
 
-type Dialogo = { punto: Punto; que: 'editar' | 'retirar' | 'borrar' | 'historial' } | null;
+type Dialogo = { punto: Punto; que: 'retirar' | 'borrar' | 'historial' } | null;
 
 /** Inventario (FR-120, FL-24): tabla o mapa, con filtros, orden, páginas y acciones de jefatura. */
 export default function Inventario() {
@@ -97,23 +284,54 @@ export default function Inventario() {
   const ancha = usePanelAncho();
   const [tipo, setTipo] = useState<FiltrosInventario['tipo']>('todos');
   const [caudal, setCaudal] = useState<FiltrosInventario['caudal']>('todos');
-  const [sinRevisar, setSinRevisar] = useState(false);
-  const [nucleo, setNucleo] = useState('');
-  const [diametro, setDiametro] = useState('');
   const [orden, setOrden] = useState<Orden>({ columna: 'codigo', ascendente: true });
   const [n, setN] = useState(0);
   const [mapa, setMapa] = useState(false);
   const [dialogo, setDialogo] = useState<Dialogo>(null);
+  // Editar (docs/29 RV-124): el punto abierto, cuántos cambios lleva sin guardar, el punto al que se
+  // quiere pasar si los hay, y el "Editar" que lo abrió, para devolverle el foco al cerrar.
+  const [editando, setEditando] = useState<Punto | null>(null);
+  const [estadoEditar, setEstadoEditar] = useState<EstadoEditar>({ pendientes: 0, ocupado: false });
+  const [pasarA, setPasarA] = useState<{ punto: Punto; boton: HTMLElement } | null>(null);
+  const origen = useRef<HTMLElement | null>(null);
+
+  function abrirEditar(p: Punto, boton: HTMLElement) {
+    if (editando?.id === p.id) return;
+    // Mientras guarda, el punto abierto se queda: el botón dice «Guardando…».
+    if (editando && estadoEditar.ocupado) return;
+    // En el ordenador la tabla sigue a mano: con cambios sin guardar, pregunta antes de cambiar de punto.
+    if (editando && estadoEditar.pendientes > 0) return setPasarA({ punto: p, boton });
+    origen.current = boton;
+    setEstadoEditar({ pendientes: 0, ocupado: false });
+    setEditando(p);
+  }
+
+  // Solo cierra si sigue abierto ese punto: un guardado que acaba tarde no cierra otro.
+  // El foco vuelve al "Editar" de la fila cuando Editar ya se ha cerrado: con velo o a pantalla
+  // completa, hasta entonces la tabla está inert (RV-128) y no lo aceptaría. Si lo que cambia es que
+  // se abre otro punto (un guardado tardío no cerró nada), no se mueve.
+  const devolverFoco = useRef(false);
+  const cerrarEditar = useCallback((id: string) => {
+    setEditando((e) => (e?.id === id ? null : e));
+    setEstadoEditar({ pendientes: 0, ocupado: false });
+    devolverFoco.current = true;
+  }, []);
+  useEffect(() => {
+    const devolver = devolverFoco.current;
+    devolverFoco.current = false;
+    if (devolver && !editando) origen.current?.focus();
+  }, [editando]);
   const [exportando, setExportando] = useState(false);
   const [seleccion, setSeleccion] = useState<string | null>(null);
 
-  const nucleos = useMemo(() => nucleosDe(puntos), [puntos]);
-  const filtros: FiltrosInventario = { tipo, caudal, sin_revisar: sinRevisar, nucleo, diametro, busqueda };
+  const filtros: FiltrosInventario = { tipo, caudal, busqueda };
   const filtrados = useMemo(
     () => ordenarPor(inventario(puntos, filtros), orden),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [puntos, tipo, caudal, sinRevisar, nucleo, diametro, busqueda, orden],
+    [puntos, tipo, caudal, busqueda, orden],
   );
+  const cuenta = useMemo(() => cuentaPorEstado(puntos, tipo), [puntos, tipo]);
+  const conFiltro = tipo !== 'todos' || caudal !== 'todos';
   const total = paginas(filtrados.length);
   const pag = Math.min(n, total - 1);
   const visibles = pagina(filtrados, pag);
@@ -123,8 +341,15 @@ export default function Inventario() {
     setN(0);
   }
 
+  // El punto tal como está ahora, para la celda: un blur que llega con el punto ya cambiado
+  // (por Editar o por otro administrador) compara con lo último, no con lo que había al pintar.
+  const actuales = useRef(puntos);
+  useEffect(() => {
+    actuales.current = puntos;
+  }, [puntos]);
   async function guardarDireccion(p: Punto, valor: string) {
-    if ((valor.trim() || null) === p.direccion) return;
+    const ahora = actuales.current.find((x) => x.id === p.id) ?? p;
+    if ((valor.trim() || null) === (ahora.direccion?.trim() || null)) return;
     const r = await editarPunto(p.id, { direccion: valor.trim() || null });
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     avisar(T.panelInventario.guardado(p.codigo));
@@ -132,23 +357,39 @@ export default function Inventario() {
 
   async function exportarCon(formato: Formato) {
     setExportando(true);
-    // El servidor filtra lo que entiende (05 §6.2); la búsqueda no la conoce, así que con búsqueda
-    // el archivo lleva solo lo que se ve en la tabla (FR-160, RV-24).
-    const r = await exportar(
-      formato,
-      filtrosExportacion(filtros),
-      busqueda.trim() ? filtrados.map((p) => p.codigo) : undefined,
-    );
-    setExportando(false);
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
-    avisar(T.panelInventario.exportado(r.datos));
+    try {
+      // El servidor filtra lo que entiende (05 §6.2); la búsqueda no la conoce, así que con búsqueda
+      // el archivo lleva solo lo que se ve en la tabla (FR-160, RV-24).
+      const r = await exportar(
+        formato,
+        filtrosExportacion(filtros),
+        busqueda.trim() ? filtrados.map((p) => p.codigo) : undefined,
+      );
+      if (!r.ok) return avisar(textoError(r.codigo), 'error');
+      avisar(T.panelInventario.exportado(r.datos));
+    } catch (e) {
+      // Generar el archivo en el navegador puede fallar (memoria, Blob): se dice y se anota (TR-90).
+      anotarError(e);
+      avisar(T.panelErrores.generico, 'error');
+    } finally {
+      setExportando(false);
+    }
   }
+
+  // La fila que se está editando, marcada como el campo que cambia (banda naranja a la izquierda).
+  const claseFila = (p: Punto) =>
+    cn(
+      'border-linea border-b',
+      editando?.id === p.id
+        ? 'bg-[color-mix(in_srgb,#FFB000_8%,var(--papel))] shadow-[inset_4px_0_0_var(--naranja-600)]'
+        : 'bg-papel',
+    );
 
   // Piezas de cada punto, iguales en la tabla y en las filas de dos líneas (docs/20 RV-79).
   const diametroDe = (p: Punto) => (
     <>
       {T.formato.mm(p.diametro_mm)}
-      {p.racor && <span className="text-texto-suave"> · {nombreRacor(p.racor)}</span>}
+      {p.racor && <span className="text-texto-suave"> · {T.panelInventario.enganche(nombreRacor(p.racor))}</span>}
     </>
   );
   const estadoDe = (p: Punto) => (
@@ -156,35 +397,33 @@ export default function Inventario() {
       {nombreCaudal(p.caudal)}
     </span>
   );
-  // Nunca "— pen": el campo mide al menos lo que su texto de "pendiente" (RV-79).
-  const direccionDe = (p: Punto, clase?: string) => (
-    <input
-      defaultValue={p.direccion ?? ''}
-      placeholder={T.panel.pendienteEscribe}
-      aria-label={T.panelInventario.direccionDe(p.codigo)}
-      onBlur={(e) => void guardarDireccion(p, e.target.value)}
-      className={cn(
-        'border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]',
-        clase,
-      )}
-    />
-  );
+  // La fila que está abierta en Editar enseña la dirección como texto: se cambia en Editar. Si se
+  // pudiera guardar también aquí, Editar lo tomaría por un cambio de otro administrador (RV-165).
+  const direccionDe = (p: Punto) =>
+    editando?.id === p.id ? (
+      <span className="block min-h-8 min-w-[27ch] px-1 py-1">{p.direccion ?? T.panelEditar.vacio}</span>
+    ) : (
+      <CeldaDireccion key={p.id} punto={p} alGuardar={guardarDireccion} />
+    );
   const revisionDe = (p: Punto) => (
-    <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-700 font-semibold')}>
+    <span className={cn('whitespace-nowrap', p.revision_caducada && 'text-rojo-texto font-semibold')}>
       {hace(p.fecha_ultima_revision)}
       <span className="text-texto-suave font-normal"> · {fechaCorta(p.fecha_ultima_revision)}</span>
     </span>
   );
-  const accionesDe = (p: Punto) => (
-    <div className="flex flex-wrap items-center gap-1">
+  // En la tabla, en una línea: con Editar abierto al lado, la tabla se desplaza a lo ancho en vez de
+  // partir las acciones en cuatro líneas (RV-124).
+  const accionesDe = (p: Punto, enTabla = false) => (
+    <div className={cn('flex items-center gap-1', enTabla ? 'flex-nowrap' : 'flex-wrap')}>
       {(['editar', 'retirar', 'historial', 'borrar'] as const).map((que) => (
         <button
           key={que}
           type="button"
-          onClick={() => setDialogo({ punto: p, que })}
+
+          onClick={(e) => (que === 'editar' ? abrirEditar(p, e.currentTarget) : setDialogo({ punto: p, que }))}
           className={cn(
             'min-h-8 px-2 whitespace-nowrap underline',
-            que === 'borrar' && 'text-rojo-700 ml-3',
+            que === 'borrar' && 'text-rojo-texto ml-3',
             que === 'historial' && 'text-texto-suave',
           )}
         >
@@ -230,7 +469,7 @@ export default function Inventario() {
       </thead>
       <tbody>
         {visibles.map((p) => (
-          <tr key={p.id} className="border-linea bg-papel border-b">
+          <tr key={p.id} data-editando={editando?.id === p.id || undefined} className={claseFila(p)}>
             <td className="font-datos px-3 py-1.5 whitespace-nowrap">{p.codigo}</td>
             <td className="px-3 py-1.5 whitespace-nowrap">{nombreTipo[p.tipo]}</td>
             <td className="px-3 py-1.5 whitespace-nowrap">{diametroDe(p)}</td>
@@ -238,7 +477,7 @@ export default function Inventario() {
             <td className="px-3 py-1.5">{direccionDe(p)}</td>
             <td className="px-3 py-1.5">{p.nucleo ?? T.panelCola.sinNucleo}</td>
             <td className="px-3 py-1.5">{revisionDe(p)}</td>
-            <td className="px-3 py-1.5">{accionesDe(p)}</td>
+            <td className="px-3 py-1.5">{accionesDe(p, true)}</td>
           </tr>
         ))}
       </tbody>
@@ -258,7 +497,12 @@ export default function Inventario() {
         ))}
       </div>
       {visibles.map((p) => (
-        <div key={p.id} role="row" className="border-linea bg-papel border-b px-3 py-1.5">
+        <div
+          key={p.id}
+          role="row"
+          data-editando={editando?.id === p.id || undefined}
+          className={cn(claseFila(p), 'px-3 py-1.5')}
+        >
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span role="cell" className="font-datos font-semibold whitespace-nowrap">
               {p.codigo}
@@ -289,79 +533,48 @@ export default function Inventario() {
   );
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="border-linea bg-fondo flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm">
-        <Chips
-          etiqueta={T.panelInventario.colTipo}
-          opciones={TIPOS}
-          valor={tipo}
-          alCambiar={(v) => {
-            setTipo(v);
-            setN(0);
-          }}
-        />
-        <Chips
-          etiqueta={T.panelInventario.colEstado}
-          opciones={ESTADOS}
-          valor={caudal}
-          alCambiar={(v) => {
-            setCaudal(v);
-            setN(0);
-          }}
-        />
-        <Chips
-          etiqueta={T.panelInventario.filtroRevision}
-          opciones={REVISIONES}
-          valor={sinRevisar ? 'sin_revisar' : 'todas'}
-          alCambiar={(v) => {
-            setSinRevisar(v === 'sin_revisar');
-            setN(0);
-          }}
-        />
-        <select
-          aria-label={T.panelCola.filtroNucleo}
-          value={nucleo}
-          onChange={(e) => {
-            setNucleo(e.target.value);
-            setN(0);
-          }}
-          className="border-linea bg-papel rounded-campo min-h-9 border px-2"
-        >
-          <option value="">{T.panelCola.todosNucleos}</option>
-          {nucleos.map((x) => (
-            <option key={x}>{x}</option>
-          ))}
-        </select>
-        <select
-          aria-label={T.panelInventario.filtroDiametro}
-          value={diametro}
-          onChange={(e) => {
-            setDiametro(e.target.value);
-            setN(0);
-          }}
-          className="border-linea bg-papel rounded-campo min-h-9 border px-2"
-        >
-          <option value="">{T.panelInventario.cualquierDiametro}</option>
-          {[45, 70, 100].map((d) => (
-            <option key={d} value={d}>
-              {T.formato.mm(d)}
-            </option>
-          ))}
-        </select>
+    // Con Editar abierto en el ordenador (panel de 540 px sin velo), el Inventario se estrecha a su
+    // lado: la tabla se sigue viendo y desplazando, y el Editar de otra fila queda a mano (RV-124).
+    <div className={cn('flex min-h-0 flex-1 flex-col', editando && 'min-[1100px]:mr-[540px]')}>
+      {/* docs/29 RV-123: Tipo y Estado a la izquierda, Exportar y Tabla/Mapa a la derecha, en una fila
+          desde la tableta. En el móvil, los dos desplegables lado a lado y el resto debajo. */}
+      <div className="border-linea bg-fondo flex flex-wrap items-end gap-x-3 gap-y-2 border-b px-3 py-2 text-sm">
+        <div className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto">
+          <Desplegable
+            etiqueta={T.panelInventario.colTipo}
+            opciones={TIPOS}
+            valor={tipo}
+            alCambiar={(v) => {
+              setTipo(v);
+              setN(0);
+            }}
+          />
+          <Desplegable
+            etiqueta={T.panelInventario.colEstado}
+            opciones={ESTADOS.map((e) => ({ ...e, nombre: T.panelInventario.conNumero(e.nombre, cuenta[e.valor]) }))}
+            valor={caudal}
+            alCambiar={(v) => {
+              setCaudal(v);
+              setN(0);
+            }}
+          />
+        </div>
+        {conFiltro && (
+          <button
+            type="button"
+            onClick={() => {
+              setTipo('todos');
+              setCaudal('todos');
+              setN(0);
+            }}
+            className="text-texto min-h-11 px-1 underline"
+          >
+            {T.panelInventario.quitarFiltros}
+          </button>
+        )}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <span className="text-texto-suave">{T.panel.exportar}</span>
-          {(['xlsx', 'csv', 'geojson'] as Formato[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              disabled={exportando || !filtrados.length}
-              onClick={() => void exportarCon(f)}
-              className="border-linea bg-papel rounded-campo min-h-9 border px-3 text-[13px] font-semibold disabled:opacity-50"
-            >
-              {f === 'xlsx' ? T.panel.excel : f === 'csv' ? T.panel.csv : T.panel.geojson}
-            </button>
-          ))}
+          <MenuExportar deshabilitado={!filtrados.length} ocupado={exportando} alElegir={(f) => void exportarCon(f)} />
           <div role="radiogroup" aria-label={T.panelInventario.vista} className="flex gap-1.5">
             {[false, true].map((esMapa) => (
               <button
@@ -426,15 +639,44 @@ export default function Inventario() {
         </div>
       )}
 
-      {dialogo?.que === 'editar' && (
-        <DialogoEditar punto={dialogo.punto} alCerrar={() => setDialogo(null)} alHecho={() => setDialogo(null)} />
+      {editando && (
+        <Suspense fallback={null}>
+          <EditarPunto
+            key={editando.id}
+            punto={editando}
+            actual={puntos.find((p) => p.id === editando.id)}
+            alCerrar={cerrarEditar}
+            alEstado={setEstadoEditar}
+            enPausa={!!dialogo || !!pasarA}
+          />
+        </Suspense>
+      )}
+      {pasarA && (
+        <ConfirmarDescartar
+          n={estadoEditar.pendientes}
+          alDescartar={() => {
+            origen.current = pasarA.boton;
+            setEstadoEditar({ pendientes: 0, ocupado: false });
+            setEditando(pasarA.punto);
+            setPasarA(null);
+          }}
+          alSeguir={() => setPasarA(null)}
+        />
       )}
       {(dialogo?.que === 'retirar' || dialogo?.que === 'borrar') && (
         <DialogoMotivo
           punto={dialogo.punto}
           accion={dialogo.que}
           alCerrar={() => setDialogo(null)}
-          alHecho={() => setDialogo(null)}
+          alHecho={() => {
+            // Retirado o borrado el punto que se estaba editando: Editar ya no tiene qué guardar.
+            if (editando?.id === dialogo.punto.id) {
+              quitarEntradaDeEditar();
+              setEditando(null);
+              setEstadoEditar({ pendientes: 0, ocupado: false });
+            }
+            setDialogo(null);
+          }}
         />
       )}
       {dialogo?.que === 'historial' && <DialogoHistorial punto={dialogo.punto} alCerrar={() => setDialogo(null)} />}

@@ -1,12 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePanel } from './usar-panel';
 import { MinimapaPropuesta } from './MinimapaPropuesta';
 import { Boton } from '@/componentes/Boton';
 import { distancia, fechaCorta, hace } from '@/lib/formato';
 import { esCaudalConocido } from '@/lib/caudal';
-import { nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
+import { anotarError } from '@/lib/errores';
+import { claseChip, nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
 import {
+  type CampoFicha,
+  type FotoDetalle,
   type CampoFusion,
   type PropuestaPanel,
   type Prevalece,
@@ -20,13 +24,16 @@ import {
   diferenciasFusion,
   etiquetaCampo,
   faltaEnCorrecciones,
-  filasDiff,
+  fichaCompleta,
+  fotosDe,
   fusionar,
+  planMapa,
   rechazar,
-  senales,
   valoresPropuestos,
   bloqueoPorMedida,
 } from '@/lib/panel/cola';
+import { LIMITES } from '@/lib/limites';
+import { ORDEN_RACORES } from '@/lib/racores';
 import { textoError } from '@/lib/panel/errores';
 import type { Caudal, Punto, Racor, TipoPunto } from '@/lib/puntos';
 import { T } from '@/lib/textos';
@@ -34,23 +41,59 @@ import { cn } from '@/lib/utils';
 
 type Modo = null | 'corregir' | 'rechazar' | 'fusionar';
 
-/** Detalle de una propuesta (FR-102–FR-109, FL-21): minimapa, dirección, diff, señales, foto y acciones. */
-export function DetallePropuesta({ p, puntos, alHecho }: { p: PropuestaPanel; puntos: Punto[]; alHecho: () => void }) {
+/**
+ * Detalle de una propuesta (FR-102–FR-109, FL-21; docs/25 RV-110, DEC-158), igual en las seis
+ * operaciones y a todo el ancho: el título, el mapa, todos los datos del punto con lo que
+ * cambia primero y marcado, las fotos y, fijos abajo, los botones. El historial usa el mismo detalle
+ * en solo lectura. Con `alVolver` (tableta y móvil) ocupa la pantalla entera, con "‹" para volver.
+ */
+export function DetallePropuesta({
+  p,
+  puntos,
+  radioDuplicado,
+  alHecho,
+  alVolver,
+}: {
+  p: PropuestaPanel;
+  puntos: Punto[];
+  radioDuplicado: number | null;
+  alHecho: () => void;
+  alVolver?: () => void;
+}) {
   const { avisar } = usePanel();
   const punto = useMemo(() => puntos.find((x) => x.id === p.punto_id), [puntos, p.punto_id]);
   const duplicado = useMemo(() => puntos.find((x) => x.id === p.duplicado_de), [puntos, p.duplicado_de]);
+  const plan = useMemo(() => planMapa(p, punto), [p, punto]);
+  const ficha = useMemo(() => fichaCompleta(p, punto), [p, punto]);
   const [modo, setModo] = useState<Modo>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [direccion, setDireccion] = useState(p.direccion_sugerida ?? '');
+  // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
+  // la del punto. Es con lo que se compara al aprobar: lo que no se toca no es una corrección (RV-162).
+  const [ensenada, setEnsenada] = useState(
+    () => p.direccion_sugerida ?? (p.operacion === 'alta' ? null : p.direccion_actual) ?? '',
+  );
+  const [direccion, setDireccion] = useState(ensenada);
+  const tocada = useRef(false);
+  const escribirDireccion = (v: string) => {
+    tocada.current = true;
+    setDireccion(v);
+  };
+  const formulario = useRef<HTMLDivElement>(null);
+  const volver = useRef<HTMLButtonElement>(null);
   const pendiente = p.estado === 'pendiente';
   const editable = pendiente && conUbicacion(p);
+  const pantalla = !!alVolver;
 
   // Dirección deducida (FR-105): si aún no la hay, se pide a Nominatim sin bloquear nada.
   useEffect(() => {
     if (!editable || p.direccion_sugerida) return;
     let vigente = true;
     void deducirDireccion(p).then((d) => {
-      if (vigente && d) setDireccion((actual) => (actual ? actual : d));
+      if (!vigente || !d || tocada.current) return;
+      setDireccion(d.direccion);
+      // Guardada en el servidor como sugerida, es la que se aplica sin tocarla: pasa a ser la enseñada.
+      // Si no se pudo guardar, se queda la de antes como referencia y la deducida va como corrección.
+      if (d.guardada) setEnsenada(d.direccion);
     });
     return () => {
       vigente = false;
@@ -58,6 +101,16 @@ export function DetallePropuesta({ p, puntos, alHecho }: { p: PropuestaPanel; pu
     // Una vez por propuesta: el componente se monta con key = id.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A pantalla completa, el foco entra en la pantalla nueva, por su "‹" (TR-35).
+  useEffect(() => {
+    if (pantalla) volver.current?.focus();
+  }, [pantalla]);
+
+  // Al abrir corregir, rechazar o fusionar, el formulario se pone a la vista (va debajo de las fotos).
+  useEffect(() => {
+    if (modo) formulario.current?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+  }, [modo]);
 
   async function ejecutar(
     accion: () => Promise<{ ok: true; datos?: unknown } | { ok: false; codigo: string }>,
@@ -79,215 +132,385 @@ export function DetallePropuesta({ p, puntos, alHecho }: { p: PropuestaPanel; pu
   const aprobarTalCual = () =>
     ejecutar(
       async () => {
-        const r = await aprobar(p.id, conDireccion({}, direccion, p.direccion_sugerida), p.desactualizada);
+        const r = await aprobar(p.id, conDireccion({}, direccion, ensenada), p.desactualizada);
         return r.ok ? { ok: true as const, datos: r.datos } : r;
       },
       T.panelCola.aprobada(p.codigo ?? T.panelCola.nuevo),
     );
 
   const titulo = `${p.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[p.operacion]}`;
-  const foto = urlFoto(p.foto_path);
-  const fotoSitio = urlFoto(p.foto_sitio_path ?? null);
   // Solo un hidrante de "otra medida" impide aprobar tal cual; una boca se aprueba con su número (DEC-144).
   const bloqueoAprobar = bloqueoPorMedida(p, punto);
   const comparar = pendiente && p.operacion === 'alta' && duplicado;
 
   return (
-    <article className="text-sm">
-      <h2 className="font-titulo text-texto text-[17px] font-semibold">{titulo}</h2>
-      <p className="text-texto-suave mb-3 text-[13px]">
-        {T.panelCola.propuestoPor(
-          autor(p),
-          `${hace(p.creada_en)} (${fechaCorta(p.creada_en)})`,
-          p.nucleo ?? (p.fuera_de_zona ? T.panelCola.fueraDeZona : T.panelCola.sinNucleo),
-        )}
-      </p>
-
-      {pendiente && conUbicacion(p) && (
-        <MinimapaPropuesta
-          lat={p.lat!}
-          lng={p.lng!}
-          original={p.operacion === 'ubicacion' ? punto : undefined}
-          duplicado={duplicado}
-        />
-      )}
-
-      {comparar && <Comparacion p={p} existente={duplicado} direccion={direccion} />}
-
-      <div className="border-linea bg-papel rounded-campo mb-2 flex items-center gap-2 border px-3 py-1.5">
-        <span className="text-texto-suave w-[30%] shrink-0 text-[13px]">{T.ficha.direccion}</span>
-        {editable ? (
-          <input
-            value={direccion}
-            onChange={(e) => setDireccion(e.target.value)}
-            placeholder={T.ficha.sinDireccion}
-            aria-label={T.ficha.direccion}
-            className="border-linea rounded-campo min-h-9 flex-1 border px-2"
-          />
-        ) : (
-          <span className="flex-1">{p.direccion_actual ?? p.direccion_sugerida ?? T.ficha.sinDireccion}</span>
-        )}
-        <span className="bg-fondo text-texto-suave rounded px-1.5 text-[11px]">
-          {editable ? T.panelCola.deducidaEditable : T.panelCola.delPunto}
-        </span>
-      </div>
-
-      {!comparar && <Diff p={p} punto={punto} />}
-
-      {pendiente && (
-        <ul className="mb-2 flex flex-wrap gap-1.5" aria-label={T.panelCola.senales}>
-          {senales(p).map((s) => (
-            <li
-              key={s.texto}
-              className={cn(
-                'rounded-campo border px-2 py-0.5 text-[12px]',
-                s.aviso ? 'border-oro-600 bg-ambar-100 text-ambar-700' : 'border-verde-600 text-verde-600',
-              )}
-            >
-              {s.aviso ? '⚠ ' : '✓ '}
-              {s.texto}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {foto ? (
-        // Las dos fotos lado a lado (docs/24 RV-103): la de la conexión y, si la trae, la del sitio.
-        <div className={cn('mb-3 grid gap-2', fotoSitio && 'grid-cols-2')}>
-          {[[foto, T.formulario.conexion], ...(fotoSitio ? [[fotoSitio, T.formulario.sitio]] : [])].map(
-            ([url, nombre]) => (
-              <figure key={url} className="min-w-0">
-                {fotoSitio && (
-                  <figcaption className="text-texto-suave mb-1 text-[13px] font-semibold">{nombre}</figcaption>
-                )}
-                <a href={url} target="_blank" rel="noreferrer" className="rounded-tarjeta block overflow-hidden">
-                  <img
-                    // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
-                    crossOrigin="anonymous"
-                    src={url}
-                    alt={T.panelCola.fotoVoluntario}
-                    className="max-h-72 w-full bg-[linear-gradient(180deg,#C6D2DA,#8C968F)] object-contain"
-                  />
-                </a>
-              </figure>
-            ),
-          )}
+    <article className={cn('flex flex-col text-sm', pantalla ? 'h-full' : 'min-h-full')}>
+      {pantalla && (
+        <div className="bg-barra flex min-h-12 flex-none items-center gap-1 px-1 text-white">
+          <button
+            type="button"
+            ref={volver}
+            onClick={alVolver}
+            aria-label={T.panelCola.volverCola}
+            className="grid size-11 place-items-center rounded hover:bg-white/10"
+          >
+            <ChevronLeft size={24} aria-hidden />
+          </button>
+          <h2 className="font-titulo truncate text-[18px] font-semibold">{titulo}</h2>
         </div>
-      ) : (
-        <p className="text-texto-suave mb-3 text-[13px]">{T.panelCola.fotoSinDatos}</p>
       )}
+      <div className={cn('flex-1', pantalla && 'overflow-y-auto')}>
+        <div className="grid gap-3.5 px-4 py-4 min-[1100px]:px-5">
+          <header>
+            {!pantalla && (
+              <h2 className="font-titulo text-texto mr-3 inline text-[22px] leading-tight font-semibold">{titulo}</h2>
+            )}
+            <span className="text-texto-suave text-[13.5px]">
+              {T.panelCola.propuestoPor(autor(p), `${hace(p.creada_en)} (${fechaCorta(p.creada_en)})`, dondeEsta(p))}
+            </span>
+          </header>
 
-      {pendiente ? (
-        <>
-          {p.desactualizada && (
-            <p className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo mb-2 border px-3 py-2 text-[13px]">
-              {T.panelCola.desactualizada(p.punto_actualizado_en ? hace(p.punto_actualizado_en) : '—')}
+          {/* En el móvil, el mapa de borde a borde y fijo arriba mientras se desplaza lo demás. */}
+          <MinimapaPropuesta
+            plan={plan}
+            radioDuplicado={radioDuplicado}
+            className="max-md:bg-fondo max-md:sticky max-md:top-0 max-md:z-10 max-md:order-first max-md:-mx-4 max-md:-mt-4 max-md:pb-1"
+          />
+
+          {comparar && <Comparacion p={p} existente={duplicado} direccion={direccion} />}
+          {/* El duplicado no está en el inventario cargado: no se puede comparar ni fusionar, pero se dice. */}
+          {pendiente && p.operacion === 'alta' && p.duplicado_de && !duplicado && (
+            <p className="border-oro-600 bg-oro-100 text-ambar-700 rounded-campo border px-3 py-2 text-[13px]">
+              {T.panelCola.duplicadoSinComparar(
+                p.codigo_duplicado ?? '—',
+                p.distancia_duplicado_m == null ? '—' : distancia(p.distancia_duplicado_m),
+              )}
             </p>
           )}
-          {modo === null && (
-            <div className="flex flex-wrap gap-3">
-              <div>
-                <Boton
-                  className={p.desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
-                  disabled={ocupado || !!bloqueoAprobar}
-                  onClick={() => void aprobarTalCual()}
-                >
-                  {p.desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
-                </Boton>
-                {bloqueoAprobar && <p className="text-texto-suave mt-1 max-w-48 text-[11px]">{bloqueoAprobar}</p>}
-              </div>
-              {p.operacion !== 'retirada' && (
-                <Boton variante="secundario" disabled={ocupado} onClick={() => setModo('corregir')}>
-                  {T.panelCola.aprobarConCorrecciones}
-                </Boton>
-              )}
-              {comparar && (
-                <Boton
-                  variante="secundario"
-                  className="border-oro-600 text-ambar-700"
-                  disabled={ocupado}
-                  onClick={() => setModo('fusionar')}
-                >
-                  {T.panelCola.fusionarCon(duplicado.codigo)}
-                </Boton>
-              )}
+
+          <DatosDelPunto
+            campos={ficha.campos}
+            cambios={ficha.alta ? null : ficha.cambios}
+            direccion={editable ? { valor: direccion, cambiar: escribirDireccion } : null}
+          />
+
+          <Fotos p={p} punto={punto} />
+
+          <div ref={formulario} className="scroll-mb-28">
+            {pendiente ? (
+              <>
+                {p.desactualizada && (modo === 'corregir' || modo === 'fusionar') && <AvisoDesactualizada p={p} />}
+                {modo === 'corregir' && (
+                  <FormularioCorrecciones
+                    p={p}
+                    punto={punto}
+                    direccion={direccion}
+                    ocupado={ocupado}
+                    alCancelar={() => setModo(null)}
+                    alGuardar={(c, dir) =>
+                      void ejecutar(
+                        async () => {
+                          const r = await aprobar(p.id, conDireccion(c, dir, ensenada), p.desactualizada);
+                          return r.ok ? { ok: true as const } : r;
+                        },
+                        T.panelCola.aprobadaConCorrecciones(p.codigo ?? T.panelCola.nuevo),
+                      )
+                    }
+                  />
+                )}
+                {modo === 'rechazar' && (
+                  <FormularioRechazo
+                    ocupado={ocupado}
+                    alCancelar={() => setModo(null)}
+                    alConfirmar={(m) => void ejecutar(() => rechazar(p.id, m), T.panelCola.rechazadaAviso)}
+                  />
+                )}
+                {modo === 'fusionar' && duplicado && (
+                  <FormularioFusion
+                    p={p}
+                    existente={duplicado}
+                    ocupado={ocupado}
+                    alCancelar={() => setModo(null)}
+                    alConfirmar={(prev) =>
+                      void ejecutar(async () => {
+                        const r = await fusionar(p.id, duplicado.id, prev);
+                        return r.ok ? { ok: true as const } : r;
+                      }, T.panelCola.fusionada(duplicado.codigo))
+                    }
+                  />
+                )}
+              </>
+            ) : (
+              <Decision p={p} puntos={puntos} />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Fijos abajo del detalle aunque el contenido se desplace (RV-110); en el historial, ninguno. */}
+      {pendiente && modo === null && (
+        <div
+          data-testid="acciones-propuesta"
+          className={cn(
+            'border-linea bg-papel z-20 flex-none border-t px-4 py-3 min-[1100px]:px-5',
+            !pantalla && 'sticky bottom-0',
+          )}
+        >
+          {p.desactualizada && <AvisoDesactualizada p={p} />}
+          {bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>}
+          <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
+            <Boton
+              className={p.desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
+              disabled={ocupado || !!bloqueoAprobar}
+              onClick={() => void aprobarTalCual()}
+            >
+              {p.desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
+            </Boton>
+            {p.operacion !== 'retirada' && (
               <Boton
                 variante="secundario"
-                className="border-rojo-700 text-rojo-700"
                 disabled={ocupado}
-                onClick={() => setModo('rechazar')}
+                onClick={() => setModo('corregir')}
+                aria-label={T.panelCola.aprobarConCorrecciones}
               >
-                {T.panelCola.rechazar}
+                <span className="md:hidden">{T.panelCola.corregirCorto}</span>
+                <span className="max-md:hidden">{T.panelCola.aprobarConCorrecciones}</span>
               </Boton>
-            </div>
-          )}
-          {modo === 'corregir' && (
-            <FormularioCorrecciones
-              p={p}
-              punto={punto}
-              direccion={direccion}
-              ocupado={ocupado}
-              alCancelar={() => setModo(null)}
-              alGuardar={(c, dir) =>
-                void ejecutar(
-                  async () => {
-                    const r = await aprobar(p.id, conDireccion(c, dir, p.direccion_sugerida), p.desactualizada);
-                    return r.ok ? { ok: true as const } : r;
-                  },
-                  T.panelCola.aprobadaConCorrecciones(p.codigo ?? T.panelCola.nuevo),
-                )
-              }
-            />
-          )}
-          {modo === 'rechazar' && (
-            <FormularioRechazo
-              ocupado={ocupado}
-              alCancelar={() => setModo(null)}
-              alConfirmar={(m) => void ejecutar(() => rechazar(p.id, m), T.panelCola.rechazadaAviso)}
-            />
-          )}
-          {modo === 'fusionar' && duplicado && (
-            <FormularioFusion
-              p={p}
-              existente={duplicado}
-              ocupado={ocupado}
-              alCancelar={() => setModo(null)}
-              alConfirmar={(prev) =>
-                void ejecutar(async () => {
-                  const r = await fusionar(p.id, duplicado.id, prev);
-                  return r.ok ? { ok: true as const } : r;
-                }, T.panelCola.fusionada(duplicado.codigo))
-              }
-            />
-          )}
-        </>
-      ) : (
-        <Decision p={p} puntos={puntos} />
+            )}
+            {comparar && (
+              <Boton
+                variante="secundario"
+                className="border-oro-600 text-ambar-texto"
+                disabled={ocupado}
+                onClick={() => setModo('fusionar')}
+              >
+                {T.panelCola.fusionarCon(duplicado.codigo)}
+              </Boton>
+            )}
+            <Boton
+              variante="secundario"
+              className="border-rojo-texto text-rojo-texto"
+              disabled={ocupado}
+              onClick={() => setModo('rechazar')}
+            >
+              {T.panelCola.rechazar}
+            </Boton>
+          </div>
+        </div>
       )}
     </article>
   );
 }
 
-function Diff({ p, punto }: { p: PropuestaPanel; punto?: Punto }) {
-  const filas = filasDiff(p, punto);
-  if (!filas.length) return null;
+/**
+ * "Datos del punto" (RV-110): todos los campos, en dos columnas en tableta y ordenador y en una en el
+ * móvil. Lo que cambia, primero, con fondo cálido, banda naranja, "Cambia" y antes → después.
+ */
+function DatosDelPunto({
+  campos,
+  cambios,
+  direccion,
+}: {
+  campos: CampoFicha[];
+  /** Cuántos campos cambian; `null` en un alta, que lleva solo el título. */
+  cambios: number | null;
+  direccion: { valor: string; cambiar: (v: string) => void } | null;
+}) {
   return (
-    <dl className="border-linea bg-papel rounded-campo mb-2 overflow-hidden border">
-      {filas.map((f) => (
-        <div key={f.campo} className="border-linea flex border-b last:border-b-0">
-          <dt className="text-texto-suave bg-fondo w-[30%] shrink-0 px-3 py-1.5 text-[13px]">{f.campo}</dt>
-          <dd className="flex-1 px-3 py-1.5">
-            {f.antes !== undefined && (
-              <>
-                <del className="text-rojo-700 opacity-75">{f.antes}</del>
-                <span aria-hidden> → </span>
-              </>
+    <section aria-labelledby="datos-del-punto">
+      <h3 id="datos-del-punto" className="mb-1.5 flex flex-wrap items-baseline gap-x-2.5">
+        <span className="font-titulo text-texto text-[17px] font-bold">{T.panelCola.datosDelPunto}</span>
+        {/* En un alta, solo el título: todo es nuevo (docs/28 RV-115). */}
+        {cambios !== null && (
+          <small className="text-texto-suave text-[13px]">
+            <b className="text-naranja-texto font-bold">{T.panelCola.cambios(cambios)}</b>
+            {' · '}
+            {T.panelCola.restoIgual}
+          </small>
+        )}
+      </h3>
+      <div className="border-linea bg-linea rounded-tarjeta grid gap-px overflow-hidden border md:grid-cols-2">
+        {campos.map((c) => (
+          <div
+            key={c.clave}
+            data-campo={c.clave}
+            data-cambia={c.cambia}
+            className={cn(
+              'grid grid-cols-[minmax(7rem,38%)_minmax(0,1fr)] items-baseline gap-2.5 px-3 py-2',
+              c.cambia
+                ? 'bg-[color-mix(in_srgb,#FFB000_8%,var(--papel))] shadow-[inset_4px_0_0_var(--naranja-600)]'
+                : 'bg-papel',
+              (c.clave === 'nota' || c.clave === 'motivo') && 'md:col-span-2',
             )}
-            <span className={f.sinCambios ? 'text-texto-suave' : 'text-verde-600 font-semibold'}>{f.despues}</span>
-          </dd>
+          >
+            <span className={cn('text-[13.5px]', c.cambia ? 'text-texto font-semibold' : 'text-texto-suave')}>
+              {c.etiqueta}
+              {c.cambia && (
+                <span className="text-naranja-texto block text-[10.5px] font-bold tracking-wide uppercase">
+                  {T.panelCola.cambia}
+                </span>
+              )}
+            </span>
+            <span className="min-w-0 text-[14.5px] break-words">
+              {c.clave === 'direccion' && direccion ? (
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  {c.antes && <Antes texto={c.antes} />}
+                  <input
+                    value={direccion.valor}
+                    maxLength={LIMITES.direccion}
+                    onChange={(e) => direccion.cambiar(e.target.value)}
+                    placeholder={T.ficha.sinDireccion}
+                    aria-label={T.ficha.direccion}
+                    className="border-linea bg-papel rounded-campo min-h-9 min-w-0 flex-1 border px-2"
+                  />
+                  <small className="text-texto-suave text-[12px]">{T.panelCola.deducidaEditable}</small>
+                </span>
+              ) : (
+                <>
+                  {c.antes !== undefined && <Antes texto={c.antes} />}
+                  <Valor campo={c} />
+                </>
+              )}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Antes({ texto }: { texto: string }) {
+  return (
+    <>
+      <del className="text-rojo-texto">{texto}</del>
+      <span aria-hidden> → </span>
+    </>
+  );
+}
+
+function Valor({ campo: c }: { campo: CampoFicha }) {
+  const datos = c.clave === 'codigo' || c.clave === 'wgs84' || c.clave === 'utm';
+  if (c.clave === 'caudal' && c.caudal) {
+    return (
+      <span
+        className={cn(
+          'inline-flex items-center rounded-full px-2.5 py-px text-[13.5px] font-semibold',
+          claseChip(c.caudal),
+          c.cambia && c.antes !== undefined && 'ring-verde-600 ring-1',
+        )}
+      >
+        {c.valor}
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        datos && !c.suave && 'font-datos',
+        c.suave
+          ? 'text-texto-suave text-[13px]'
+          : c.cambia && c.antes !== undefined && 'text-verde-texto font-semibold',
+      )}
+    >
+      {c.valor}
+    </span>
+  );
+}
+
+/**
+ * Las fotos a todo el ancho y lado a lado (RV-110): en un alta, conexión y sitio; si trae nuevas de un
+ * punto que existe, la actual delante; sin nuevas, las actuales y "no trae nuevas". Tocar amplía.
+ */
+function Fotos({ p, punto }: { p: PropuestaPanel; punto?: Punto }) {
+  const { fotos, nuevas } = fotosDe(p, punto);
+  const conActual = nuevas && p.operacion !== 'alta' && fotos.some((f) => !f.nueva);
+  return (
+    <section aria-labelledby="fotos-propuesta">
+      <h3 id="fotos-propuesta" className="mb-1.5 flex flex-wrap items-baseline gap-x-2.5">
+        <span className="font-titulo text-texto text-[17px] font-bold">{T.panelCola.fotos}</span>
+        {(!nuevas || conActual) && (
+          <small className="text-texto-suave text-[13px]">
+            {nuevas ? T.panelCola.fotosConActual : T.panelCola.noTraeNuevas}
+          </small>
+        )}
+        {/* La mandó la versión anterior de la app (docs/24 RV-103): se dice aquí, no con un chip (DEC-166). */}
+        {p.sin_foto_sitio && <small className="text-texto-suave text-[13px]">{T.panelCola.sinFotoSitio}</small>}
+      </h3>
+      {fotos.length ? (
+        <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${fotos.length}, minmax(0, 1fr))` }}>
+          {fotos.map((f) => (
+            <UnaFoto key={f.path} foto={f} />
+          ))}
         </div>
-      ))}
-    </dl>
+      ) : (
+        <p className="text-texto-suave text-[13px]">{T.panelCola.sinFotos}</p>
+      )}
+    </section>
+  );
+}
+
+/** Núcleo y, si lo está, "Fuera de zona", también cuando hay núcleo (DEC-166: ya no hay chip). */
+function dondeEsta(p: PropuestaPanel): string {
+  if (!p.fuera_de_zona) return p.nucleo ?? T.panelCola.sinNucleo;
+  return p.nucleo ? `${p.nucleo} · ${T.panelCola.fueraDeZona}` : T.panelCola.fueraDeZona;
+}
+
+/** El punto cambió después de la propuesta (FR-108): encima de los botones y de Corregir y Fusionar. */
+function AvisoDesactualizada({ p }: { p: PropuestaPanel }) {
+  return (
+    <p className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo mb-2 border px-3 py-2 text-[13px]">
+      {T.panelCola.desactualizada(p.punto_actualizado_en ? hace(p.punto_actualizado_en) : '—')}
+    </p>
+  );
+}
+
+const ALTO_FOTO = 'h-[110px] md:max-[1099px]:h-[220px] min-[1100px]:h-[200px]';
+
+/** Una foto del detalle. Si no carga, lo dice con palabras en su hueco y queda anotado (UI-04). */
+function UnaFoto({ foto: f }: { foto: FotoDetalle }) {
+  const url = urlFoto(f.path);
+  const [fallo, setFallo] = useState(false);
+  return (
+    <figure className="relative min-w-0">
+      {url && !fallo ? (
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-tarjeta block overflow-hidden"
+          aria-label={T.panelCola.ampliarFoto(f.etiqueta)}
+        >
+          <img
+            // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
+            crossOrigin="anonymous"
+            src={url}
+            alt={f.etiqueta}
+            onError={() => {
+              setFallo(true);
+              anotarError(new Error('panel: una foto de la cola no carga'));
+            }}
+            className={cn('w-full bg-[linear-gradient(180deg,#C6D2DA,#8C968F)] object-cover', ALTO_FOTO)}
+          />
+        </a>
+      ) : (
+        <div
+          className={cn(
+            'bg-linea text-texto rounded-tarjeta flex items-center justify-center px-2 pb-8 text-center text-[13px]',
+            ALTO_FOTO,
+          )}
+        >
+          {T.panelCola.fotoNoCarga}
+        </div>
+      )}
+      <figcaption
+        className={cn(
+          'pointer-events-none absolute bottom-2 left-2 rounded-md px-2 py-0.5 text-[12px] text-white',
+          f.nueva ? 'bg-naranja-600' : 'bg-[rgba(14,27,48,.8)]',
+        )}
+      >
+        {f.etiqueta}
+      </figcaption>
+    </figure>
   );
 }
 
@@ -333,7 +556,13 @@ function Comparacion({ p, existente, direccion }: { p: PropuestaPanel; existente
                 {k}
               </th>
               {[a, b].map((x, i) => (
-                <td key={i} className={cn('border-linea border-b px-2 py-1', a !== b && 'bg-ambar-100 text-ambar-700')}>
+                <td
+                  key={i}
+                  className={cn(
+                    'border-linea border-b px-2 py-1',
+                    a !== b && 'text-ambar-texto bg-[color-mix(in_srgb,var(--oro-600)_14%,var(--papel))] font-semibold',
+                  )}
+                >
                   {x}
                 </td>
               ))}
@@ -377,7 +606,7 @@ function Decision({ p, puntos }: { p: PropuestaPanel; puntos: Punto[] }) {
 }
 
 const CAUDALES: Caudal[] = ['bueno', 'regular', 'malo', 'barro', 'no_funciona'];
-const RACORES: Racor[] = ['granada', 'barcelona', 'otro'];
+// El mismo orden que el formulario del voluntario (docs/25 RV-112, docs/29 RV-121): ORDEN_RACORES.
 
 function FormularioCorrecciones({
   p,
@@ -396,7 +625,9 @@ function FormularioCorrecciones({
 }) {
   const propuesto = useMemo(() => valoresPropuestos(p, punto), [p, punto]);
   const [v, setV] = useState<ValoresPunto>(propuesto);
-  const [dir, setDir] = useState(direccion || p.direccion_actual || '');
+  // Sin tocar aquí (null), la del detalle tal como esté, también si la deducida llega con esto abierto.
+  const [escrita, setEscrita] = useState<string | null>(null);
+  const dir = escrita ?? direccion;
   const falta = faltaEnCorrecciones(v);
   const cambia = <K extends keyof ValoresPunto>(k: K, valor: ValoresPunto[K]) => setV((x) => ({ ...x, [k]: valor }));
 
@@ -470,7 +701,7 @@ function FormularioCorrecciones({
               className="border-linea rounded-campo min-h-9 flex-1 border px-2"
             >
               {!v.racor && <option value="">—</option>}
-              {RACORES.map((r) => (
+              {ORDEN_RACORES.map((r) => (
                 <option key={r} value={r}>
                   {nombreRacor(r)}
                 </option>
@@ -502,6 +733,7 @@ function FormularioCorrecciones({
         <Fila etiqueta={T.panelCola.campoFallo}>
           <input
             value={v.descripcion_fallo}
+            maxLength={LIMITES.descripcion_fallo}
             onChange={(e) => cambia('descripcion_fallo', e.target.value)}
             className="border-linea rounded-campo min-h-9 flex-1 border px-2"
           />
@@ -510,6 +742,7 @@ function FormularioCorrecciones({
       <Fila etiqueta={T.panelCola.campoDescripcion}>
         <input
           value={v.descripcion}
+          maxLength={LIMITES.descripcion}
           onChange={(e) => cambia('descripcion', e.target.value)}
           className="border-linea rounded-campo min-h-9 flex-1 border px-2"
         />
@@ -517,7 +750,8 @@ function FormularioCorrecciones({
       <Fila etiqueta={T.ficha.direccion}>
         <input
           value={dir}
-          onChange={(e) => setDir(e.target.value)}
+          maxLength={LIMITES.direccion}
+          onChange={(e) => setEscrita(e.target.value)}
           className="border-linea rounded-campo min-h-9 flex-1 border px-2"
         />
       </Fila>
@@ -562,6 +796,7 @@ function FormularioRechazo({
         <span className="text-texto-suave text-[13px]">{T.panelCola.motivoRechazo}</span>
         <textarea
           value={motivo}
+          maxLength={LIMITES.motivo}
           onChange={(e) => setMotivo(e.target.value)}
           placeholder={T.panelCola.phMotivo}
           rows={3}
@@ -569,7 +804,7 @@ function FormularioRechazo({
         />
       </label>
       <p className="text-texto-suave mt-1 text-[12px]">{T.panelCola.avisoNombres}</p>
-      {intentado && !motivo.trim() && <p className="text-rojo-700 mt-1 text-[12px]">{T.panelCola.sinMotivo}</p>}
+      {intentado && !motivo.trim() && <p className="text-rojo-texto mt-1 text-[12px]">{T.panelCola.sinMotivo}</p>}
       <div className="mt-2 flex gap-3">
         <Boton
           variante="destructivo"
@@ -605,7 +840,7 @@ function FormularioFusion({
   const difs = useMemo(() => diferenciasFusion(p, existente), [p, existente]);
   const [elegido, setElegido] = useState<Partial<Record<CampoFusion, Prevalece>>>({});
   return (
-    <div className="border-oro-600 bg-oro-100 rounded-campo border p-3">
+    <div className="border-oro-600 rounded-campo border bg-[color-mix(in_srgb,var(--oro-600)_10%,var(--papel))] p-3">
       <p className="font-semibold">{T.panelCola.fusionTitulo(existente.codigo)}</p>
       <p className="mb-2 text-[13px]">{T.panelCola.fusionExplica(existente.codigo)}</p>
       {difs.map((d) => (
@@ -627,7 +862,7 @@ function FormularioFusion({
       <div className="mt-2 flex gap-3">
         <Boton
           variante="secundario"
-          className="border-oro-600 text-ambar-700"
+          className="border-oro-600 text-ambar-texto"
           disabled={ocupado}
           onClick={() => alConfirmar(elegido)}
         >

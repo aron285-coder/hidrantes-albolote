@@ -1,5 +1,5 @@
 import { Eye, EyeOff, TriangleAlert } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { CodigoQR } from './CodigoQR';
 import { Dialogo } from './Dialogo';
 import { usePanel } from './usar-panel';
@@ -8,6 +8,7 @@ import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useCarga } from '@/hooks/carga';
 import { usePosicion, usePuntos } from '@/hooks/estado';
 import { ENTORNO } from '@/lib/entorno';
+import { anotarError } from '@/lib/errores';
 import { fechaCorta, hace, megas } from '@/lib/formato';
 import { textoError } from '@/lib/panel/errores';
 import {
@@ -37,8 +38,10 @@ import {
   gestionarAdministrador,
   guardarParametros,
   lanzarWorkflow,
+  leerRadios,
   renombrarNucleo,
   sugerenciasUniformidad,
+  textoRadios,
 } from '@/lib/panel/ajustes';
 import { type TemaJefatura, estadoPushJefatura, fijarTemas, temasActivos } from '@/lib/panel/push-jefatura';
 import type { Coordenadas } from '@/lib/propuestas';
@@ -160,6 +163,52 @@ function CodigoDeAcceso() {
   );
 }
 
+/**
+ * Debajo de una lista de Ajustes: «Cargando…» mientras carga, el error con «Reintentar» si falla
+ * (también con filas de antes a la vista) y, cargada y vacía, su estado vacío (docs/31 RV-167, UI-03).
+ */
+function EstadoLista({
+  carga,
+  vacio,
+}: {
+  carga: {
+    estado: 'cargando' | 'ok' | 'error';
+    datos: unknown[] | null;
+    codigo?: string;
+    recargar: () => Promise<void>;
+  };
+  vacio: string | null;
+}) {
+  const [reintentando, setReintentando] = useState(false);
+  const hay = !!carga.datos?.length;
+  async function reintentar() {
+    setReintentando(true);
+    try {
+      await carga.recargar();
+    } finally {
+      setReintentando(false);
+    }
+  }
+  if (carga.estado === 'error')
+    return (
+      <li role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-1.5 text-[13px]">
+        <span className="min-w-0 flex-1">{textoError(carga.codigo ?? '')}</span>
+        {/* Mientras reintenta, dice «Cargando…»: si vuelve a fallar, se ve que lo ha intentado. */}
+        <Boton
+          variante="secundario"
+          className="min-h-9 text-[13px]"
+          disabled={reintentando}
+          onClick={() => void reintentar()}
+        >
+          {reintentando ? T.panelCola.cargando : T.mapa.reintentar}
+        </Boton>
+      </li>
+    );
+  if (hay) return null;
+  if (carga.estado === 'cargando') return <li className="text-texto-suave text-[13px]">{T.panelCola.cargando}</li>;
+  return vacio ? <li className="text-texto-suave text-[13px]">{vacio}</li> : null;
+}
+
 // ---------- administradores (FR-141, FL-30) ----------
 
 function Administradores() {
@@ -203,13 +252,13 @@ function Administradores() {
                 onChange={(e) => void cambiar(a.email, e.target.checked)}
                 aria-label={T.panelAjustes.accesoDe(a.email)}
               />
-              <span className={cn('text-[13px]', a.activo ? 'text-verde-600' : 'text-texto-suave')}>
+              <span className={cn('text-[13px]', a.activo ? 'text-verde-texto' : 'text-texto-suave')}>
                 {a.activo ? T.panelAjustes.activo : T.panelAjustes.sinAcceso}
               </span>
             </label>
           </li>
         ))}
-        {!filas.length && <li className="text-texto-suave text-[13px]">{T.panelCola.cargando}</li>}
+        <EstadoLista carga={carga} vacio={T.panelAjustes.administradoresVacio} />
       </ul>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input
@@ -260,19 +309,39 @@ function ParametrosTarjeta() {
   // Lo editado manda mientras jefatura esté escribiendo; si no, lo que hay guardado.
   const [editado, setEditado] = useState<Parametros | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // Los radios, como texto libre mientras se escriben (docs/31 RV-167): se leen al salir del campo y
+  // al guardar. Re-formatearlos en cada tecla no dejaba escribir "5,5" ni un quinto valor.
+  const [radios, setRadios] = useState<string | null>(null);
+  const idRadios = useId();
   const guardados = carga.datos ?? PARAMETROS_POR_DEFECTO;
   const v = editado ?? guardados;
   const setV = (cambio: (x: Parametros) => Parametros) => setEditado(cambio(v));
+  const conRadios = (x: Parametros): Parametros => (radios === null ? x : { ...x, escala_radios: leerRadios(radios) });
 
-  const cambios = useMemo(() => cambiosParametros(guardados, v), [guardados, v]);
-  const invalido = faltaEnParametros(v);
-  const falta = invalido
-    ? T.panelAjustes.fueraDeRango(NOMBRE_PARAMETRO[invalido as ClaveParametro] ?? T.panelAjustes.radiosMarcador)
-    : !Object.keys(cambios).length
-      ? T.avisosFormulario.sinCambios
-      : null;
+  // Lo que se guardaría ahora, con los radios tal como están escritos: el motivo de Guardar
+  // deshabilitado habla siempre de lo que se ve, también mientras se corrige.
+  const efectivo = conRadios(v);
+  const cambios = cambiosParametros(guardados, efectivo);
+  const invalido = faltaEnParametros(efectivo);
+  const radiosMal = invalido === 'escala_radios';
+  const falta = radiosMal
+    ? T.panelAjustes.radiosInvalidos
+    : invalido
+      ? T.panelAjustes.fueraDeRango(NOMBRE_PARAMETRO[invalido as ClaveParametro])
+      : !Object.keys(cambios).length
+        ? T.avisosFormulario.sinCambios
+        : null;
+
+  function leerCampoRadios() {
+    if (radios === null) return;
+    setV(conRadios);
+    setRadios(null);
+  }
 
   async function guardar() {
+    // Guardar con el campo de radios aún abierto: se lee aquí y, si no vale, se dice y no se envía.
+    if (radios !== null) leerCampoRadios();
+    if (invalido) return;
     setOcupado(true);
     const r = await guardarParametros(cambios);
     setOcupado(false);
@@ -296,23 +365,27 @@ function ParametrosTarjeta() {
             />
           </label>
         ))}
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-texto-suave flex-1">{T.panelAjustes.radiosMarcador}</span>
-          <input
-            value={v.escala_radios.join(' · ')}
-            onChange={(e) =>
-              setV((x) => ({
-                ...x,
-                escala_radios: e.target.value
-                  .split(/[^0-9.,]+/)
-                  .filter(Boolean)
-                  .map((n) => Number(n.replace(',', '.'))),
-              }))
-            }
-            aria-label={T.panelAjustes.radiosMarcador}
-            className={cn(campo, 'w-40 text-right')}
-          />
-        </label>
+        <div className="flex flex-col gap-1 text-sm sm:col-span-2">
+          <label className="flex items-center gap-2">
+            <span className="text-texto-suave flex-1">{T.panelAjustes.radiosMarcador}</span>
+            <input
+              value={radios ?? textoRadios(v.escala_radios)}
+              onChange={(e) => setRadios(e.target.value)}
+              onBlur={leerCampoRadios}
+              onKeyDown={(e) => e.key === 'Enter' && leerCampoRadios()}
+              inputMode="decimal"
+              aria-label={T.panelAjustes.radiosMarcador}
+              aria-invalid={(radiosMal && radios === null) || undefined}
+              aria-describedby={radiosMal && radios === null ? idRadios : undefined}
+              className={cn(campo, 'w-48 text-right', radiosMal && radios === null && 'border-rojo-texto border-2')}
+            />
+          </label>
+          {radiosMal && radios === null && (
+            <p id={idRadios} className="text-rojo-texto text-right text-[13px]">
+              {T.panelAjustes.radiosInvalidos}
+            </p>
+          )}
+        </div>
       </div>
       <div className="mt-3 flex flex-wrap items-start gap-3">
         <div>
@@ -390,7 +463,7 @@ function Nucleos() {
             )}
           </li>
         ))}
-        {!filas.length && <li className="text-texto-suave text-[13px]">{T.panelCola.cargando}</li>}
+        <EstadoLista carga={carga} vacio={T.panelAjustes.nucleosVacio} />
       </ul>
       <Boton variante="secundario" className="mt-3" onClick={() => setAnadiendo(true)}>
         {T.panelAjustes.anadirNucleo}
@@ -477,7 +550,6 @@ function SaludDelSistema() {
   const filas: [string, string, boolean?][] = s
     ? [
         [T.panelAjustes.pendientes14, String(s.pendientes_14d)],
-        [T.panelAjustes.incidenciasAbiertas, String(s.incidencias_abiertas)],
         [T.panelAjustes.errores7, String(s.errores_7d)],
         [T.panelAjustes.sinDireccion, String(s.sin_direccion)],
         [
@@ -564,7 +636,7 @@ function SaludDelSistema() {
                     {s.tareas.map((t) => (
                       <li key={t.tarea} className="flex gap-2">
                         <span className="font-datos flex-1 text-[13px]">{t.tarea.replace(/^hidrantes_/, '')}</span>
-                        <span className={cn('font-semibold', t.problema && 'text-rojo-700')}>
+                        <span className={cn('font-semibold', t.problema && 'text-rojo-texto')}>
                           {t.falta
                             ? T.panelAjustes.tareaFalta
                             : !t.ultima
@@ -603,32 +675,50 @@ const TRABAJOS: { workflow: Workflow; nombre: string }[] = [
   { workflow: 'regenerar-mapabase', nombre: T.panel.regenerarMapaBase },
   { workflow: 'respaldo', nombre: T.panel.respaldoAhora },
 ];
+const SOLO_PRODUCCION = new Set<Workflow>(['purgar-fotos', 'respaldo']);
 
 function Mantenimiento() {
   const { avisar } = usePanel();
   const [ocupado, setOcupado] = useState(false);
 
+  const idSolo = useId();
+
   async function lanzar(w: Workflow, nombre: string) {
     setOcupado(true);
-    const r = await lanzarWorkflow(w);
-    setOcupado(false);
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
-    avisar(T.panelAjustes.trabajoLanzado(nombre));
+    try {
+      const r = await lanzarWorkflow(w);
+      if (!r.ok) return avisar(textoError(r.codigo), 'error');
+      avisar(T.panelAjustes.trabajoPedido(nombre));
+    } finally {
+      setOcupado(false);
+    }
   }
 
   return (
     <Tarjeta titulo={T.panelAjustes.mantenimiento} ayuda={T.panelAjustes.ayudaMantenimiento}>
-      <div className="flex flex-wrap gap-3">
-        {TRABAJOS.map((t) => (
-          <Boton
-            key={t.workflow}
-            variante="secundario"
-            disabled={ocupado}
-            onClick={() => void lanzar(t.workflow, t.nombre)}
-          >
-            {t.nombre}
-          </Boton>
-        ))}
+      <div className="flex flex-wrap items-start gap-3">
+        {TRABAJOS.map((t) => {
+          // Purgar fotos y el respaldo trabajan contra producción: fuera de ella no se piden (RV-167).
+          // Sin VITE_ENTORNO cuenta como fuera de producción (lib/entorno: 'local').
+          const soloProduccion = SOLO_PRODUCCION.has(t.workflow) && ENTORNO !== 'produccion';
+          return (
+            <div key={t.workflow} className="flex flex-col items-start gap-0.5">
+              <Boton
+                variante="secundario"
+                disabled={ocupado || soloProduccion}
+                aria-describedby={soloProduccion ? `${idSolo}-${t.workflow}` : undefined}
+                onClick={() => void lanzar(t.workflow, t.nombre)}
+              >
+                {t.nombre}
+              </Boton>
+              {soloProduccion && (
+                <p id={`${idSolo}-${t.workflow}`} className="text-texto-suave text-[11px]">
+                  {T.panelAjustes.soloEnProduccion}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </Tarjeta>
   );
@@ -650,10 +740,17 @@ function AvisosJefatura() {
   async function cambiar(tema: TemaJefatura, activo: boolean) {
     const siguientes = activo ? [...new Set([...temas, tema])] : temas.filter((t) => t !== tema);
     setOcupado(true);
-    const quedan = await fijarTemas(siguientes);
-    setOcupado(false);
-    setTemas(quedan);
-    if (activo && !quedan.includes(tema)) avisar(T.panelAjustes.avisosNoActivados, 'error');
+    // Las casillas vuelven a responder pase lo que pase, y un fallo se dice (docs/31 RV-167).
+    try {
+      const r = await fijarTemas(siguientes);
+      setTemas(r.temas);
+      if (!r.ok) avisar(activo ? T.panelAjustes.avisosNoActivados : T.panelAjustes.avisosNoCambiados, 'error');
+    } catch (e) {
+      anotarError(e);
+      avisar(T.panelErrores.generico, 'error');
+    } finally {
+      setOcupado(false);
+    }
   }
 
   return (

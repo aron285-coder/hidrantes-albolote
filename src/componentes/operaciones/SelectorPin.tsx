@@ -3,9 +3,9 @@ import L from 'leaflet';
 import { LocateFixed } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { capasDe } from '../mapa/capas-leaflet';
-import { ICONO_PIN } from '../mapa/iconos-leaflet';
-import { useModo, usePosicion } from '@/hooks/estado';
-import { ZOOM_MAX, capaGuardada } from '@/lib/capas';
+import { ICONO_PIN, ICONO_PIN_SIN_COLOCAR } from '../mapa/iconos-leaflet';
+import { useConexion, useMapabase, useModo, usePosicion } from '@/hooks/estado';
+import { ZOOM_MAX, baseDebajo, capaGuardada } from '@/lib/capas';
 import type { Coordenadas } from '@/lib/propuestas';
 import { type Posicion, activarPosicion } from '@/lib/posicion';
 import { T } from '@/lib/textos';
@@ -23,6 +23,8 @@ export function SelectorPin({
   alMover,
   alUsarMiPosicion,
   etiqueta,
+  alto = 'h-84',
+  rotuloOriginal,
 }: {
   pin: Coordenadas | undefined;
   gps: Posicion | null;
@@ -31,6 +33,10 @@ export function SelectorPin({
   /** Se llama al pulsar "Mi posición" con GPS disponible. */
   alUsarMiPosicion?: () => void;
   etiqueta: string;
+  /** Alto del mapa (clase de Tailwind). En Editar del panel, 230 px y 200 px en el móvil (docs/29 RV-124). */
+  alto?: string;
+  /** Rótulo fijo junto a la posición de antes, p. ej. "antes · 6 m" (docs/29 RV-124). Sin él, solo el círculo. */
+  rotuloOriginal?: string;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<L.Map | null>(null);
@@ -38,6 +44,8 @@ export function SelectorPin({
   const extras = useRef<L.LayerGroup | null>(null);
   const alMoverRef = useRef(alMover);
   const modo = useModo();
+  const conexion = useConexion();
+  const mapabase = useMapabase();
   const estadoPos = usePosicion();
   const pendiente = useRef(false);
   const alUsarRef = useRef(alUsarMiPosicion);
@@ -87,16 +95,30 @@ export function SelectorPin({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Las mismas capas que el mapa principal (FR-63): la elegida y, sin cobertura y con el mapa base en
+  // el móvil, el mapa base debajo. Al cambiar la conexión se vuelven a pintar: con Satélite elegido y
+  // sin señal, el pin ya no se pone sobre un mapa gris (docs/31 RV-150).
+  const debajo = baseDebajo(conexion, mapabase.descargado !== null);
   useEffect(() => {
     const m = mapa.current;
     if (!m) return;
-    const capas = capasDe(capaGuardada() === 'satelite' ? 'satelite' : 'base', modo);
+    const capas = capasDe(capaGuardada(), modo, debajo);
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
-  }, [modo]);
+  }, [modo, debajo]);
 
   // El pin se mueve (GPS que llega, botón de posición…): solo se mueve el pin. El mapa no se
   // recentra solo, que descoloca mientras se ajusta a mano; para eso está "Mi posición" (DEC-066).
+  // Sin pin (un alta sin GPS, o con la posición `antigua`), el marcador está pero no colocado: gris y
+  // discontinuo, como dice «Mueve el pin al sitio correcto» (docs/31 RV-157, punto 6). Al tocar el
+  // mapa o arrastrarlo, el formulario recibe el pin y vuelve el naranja.
+  // Solo cuando cambia de colocado a sin colocar: setIcon rehace el elemento del marcador, y hacerlo
+  // con cada lectura del GPS cortaría un arrastre a medias.
+  const colocado = !!pin;
+  useEffect(() => {
+    marcador.current?.setIcon(colocado ? ICONO_PIN : ICONO_PIN_SIN_COLOCAR);
+  }, [colocado]);
+
   useEffect(() => {
     if (!pin) return;
     marcador.current?.setLatLng([pin.lat, pin.lng]);
@@ -137,7 +159,7 @@ export function SelectorPin({
       }).addTo(g);
     }
     if (original) {
-      L.circleMarker([original.lat, original.lng], {
+      const antes = L.circleMarker([original.lat, original.lng], {
         radius: 7,
         color: '#7A8582',
         weight: 1.5,
@@ -145,17 +167,25 @@ export function SelectorPin({
         fill: false,
         interactive: false,
       }).addTo(g);
+      if (rotuloOriginal) {
+        antes.bindTooltip(rotuloOriginal, {
+          permanent: true,
+          direction: 'bottom',
+          offset: [0, 6],
+          className: 'rotulo-antes',
+        });
+      }
       if (pin) {
         L.polyline(
           [
             [original.lat, original.lng],
             [pin.lat, pin.lng],
           ],
-          { color: '#9C2B1E', weight: 1.5, dashArray: '3 3', interactive: false },
+          { color: 'var(--rojo-700)', weight: 1.5, dashArray: '3 3', interactive: false },
         ).addTo(g);
       }
     }
-  }, [gps, original, pin]);
+  }, [gps, original, pin, rotuloOriginal]);
 
   // El primer arreglo del GPS puede tardar medio minuto en la calle: sin este "buscando", el botón
   // de posición parece roto y se pulsa tres veces (UI-01, UI-05). Es el mismo aviso que el mapa.
@@ -172,7 +202,7 @@ export function SelectorPin({
     <div className="relative isolate">
       <div
         ref={contenedor}
-        className="rounded-tarjeta border-linea h-84 overflow-hidden border"
+        className={`rounded-tarjeta border-linea overflow-hidden border ${alto}`}
         data-testid="selector-pin"
       />
       <button

@@ -116,6 +116,26 @@ describe('verificarCodigo (FR-31)', () => {
     expect(estadoConexion()).toBe('sin_servidor');
   });
 
+  it('un canje que no responde se corta a su límite (docs/31 RV-157)', async () => {
+    const { LIMITES_RED } = await import('./red');
+    expect(LIMITES_RED.canje).toBe(20_000);
+    LIMITES_RED.canje = 30;
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          (_url: string, init?: RequestInit) =>
+            new Promise<Response>((_, rechazar) =>
+              init?.signal?.addEventListener('abort', () => rechazar(init.signal!.reason)),
+            ),
+        ),
+      );
+      await expect(verificarCodigo('x', 'd-1')).resolves.toEqual({ ok: false, codigo: SIN_SERVIDOR });
+    } finally {
+      LIMITES_RED.canje = 20_000;
+    }
+  }, 2000);
+
   it('el código nunca se guarda en el móvil (11 §2)', async () => {
     const almacen = almacenEnMemoria();
     vi.stubGlobal(

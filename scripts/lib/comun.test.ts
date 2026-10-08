@@ -1,7 +1,17 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { argsPsql, entornoPg, errorSeguro, esAfirmativo } from './comun.ts';
+import {
+  argsPsql,
+  comprobarCadena,
+  entornoPg,
+  ErrorDeScript,
+  errorSeguro,
+  esAfirmativo,
+  leerEntorno,
+  motivoCadenaAjena,
+  REFS,
+} from './comun.ts';
 
 describe('esAfirmativo', () => {
   it.each(['s', 'S', 'si', 'Sí', ' s ', 'y', 'yes'])('"%s" es sí', (r) => expect(esAfirmativo(r)).toBe(true));
@@ -81,5 +91,55 @@ describe('scripts sin errores en crudo (RV-53)', () => {
         });
     }
     expect(malas).toEqual([]);
+  });
+});
+
+// docs/31 RV-134: con `--entorno produccion`, restaurar.ts no encontraba el ref y no comprobaba nada.
+describe('entornos compartidos (RV-134)', () => {
+  // detectar-secretos:permitir (cadenas ficticias, sin contraseña de verdad)
+  const POOLER = (ref: string) =>
+    `postgresql://hidrantes_migrador.${ref}:x@aws-0-eu-west-1.pooler.supabase.com:5432/postgres`;
+  const LOCAL = 'postgresql://hidrantes_migrador:x@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (ficticia)
+
+  it('solo local, staging y prod; produccion es prod', () => {
+    expect(leerEntorno('local')).toBe('local');
+    expect(leerEntorno('staging')).toBe('staging');
+    expect(leerEntorno('prod')).toBe('prod');
+    expect(leerEntorno('produccion')).toBe('prod');
+    expect(leerEntorno('Producción')).toBe('prod');
+    for (const malo of ['pre', 'production', 'dev', 'prod ;', '']) {
+      expect(() => leerEntorno(malo), malo).toThrow(ErrorDeScript);
+    }
+    expect(() => leerEntorno(undefined)).toThrow(/--entorno/);
+  });
+
+  it('cada script puede limitar los entornos que admite', () => {
+    expect(() => leerEntorno('local', ['staging', 'prod'])).toThrow(/Entorno desconocido/);
+    expect(leerEntorno('produccion', ['staging', 'prod'])).toBe('prod');
+  });
+
+  it('--entorno produccion con una cadena de staging aborta, y al revés', () => {
+    expect(() => comprobarCadena(leerEntorno('produccion'), POOLER(REFS.staging))).toThrow(/apunta al proyecto/);
+    expect(() => comprobarCadena(leerEntorno('staging'), POOLER(REFS.prod))).toThrow(/apunta al proyecto/);
+    expect(() => comprobarCadena(leerEntorno('prod'), LOCAL)).toThrow(/desconocido/);
+    expect(() => comprobarCadena(leerEntorno('produccion'), POOLER(REFS.prod))).not.toThrow();
+    const directa = `postgresql://postgres:x@db.${REFS.staging}.supabase.co:5432/postgres`; // detectar-secretos:permitir (ficticia)
+    expect(() => comprobarCadena('staging', directa)).not.toThrow();
+  });
+
+  it('local solo con una base de esta máquina', () => {
+    expect(motivoCadenaAjena('local', LOCAL)).toBeNull();
+    expect(motivoCadenaAjena('local', LOCAL.replace('127.0.0.1', 'localhost'))).toBeNull();
+    expect(motivoCadenaAjena('local', POOLER(REFS.prod))).toMatch(/no es esta máquina/);
+    expect(motivoCadenaAjena('local', 'no es una url')).toMatch(/no es una URL/);
+  });
+
+  it('restaurar, revertir, anonimizar y migrar leen --entorno con la función compartida', () => {
+    const carpeta = path.resolve(import.meta.dirname, '..');
+    for (const s of ['restaurar.ts', 'revertir.ts', 'anonimizar.ts', 'migrar.ts']) {
+      const texto = readFileSync(path.join(carpeta, s), 'utf8');
+      expect(texto, s).toMatch(/leerEntorno\(/);
+      expect(texto, s).not.toMatch(/=== 'prod' \? 'produccion'|produccion: '/);
+    }
   });
 });

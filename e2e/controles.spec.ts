@@ -36,7 +36,6 @@ const NO_SE_PULSAN = new Map<string, string>([
   // cubren los tests de compartir de mapa.spec.ts (FR-75).
   [T.compartir.boton, 'abre el menú de compartir del móvil, fuera del navegador (FR-75)'],
   [T.aqui.compartirUbicacion, 'ídem'],
-  [T.incidente.compartirIncidente, 'ídem'],
 ]);
 
 const RESPUESTAS = {
@@ -44,7 +43,6 @@ const RESPUESTAS = {
   fn_ficha_punto: PUNTOS[0],
   fn_mis_propuestas: [],
   fn_registrar_error: null,
-  fn_reportar_incidencia: '0f1e2d3c-4b5a-4968-8776-6a5b4c3d2e1f',
 };
 
 interface Pantalla {
@@ -122,7 +120,6 @@ const PANTALLAS: Pantalla[] = [
   },
   { nombre: 'mis propuestas', ruta: '/mis-propuestas', listo: (p) => p.getByRole('heading').first() },
   { nombre: 'ajustes', ruta: '/ajustes', listo: (p) => p.getByText(T.ajustes.firma) },
-  { nombre: 'incidencia', ruta: '/incidencia', listo: (p) => p.getByLabel(T.incidencia.queHaPasado) },
 ];
 
 /**
@@ -329,9 +326,7 @@ const PANTALLAS_PANEL: Pantalla[] = [
     ruta: '/admin/inventario',
     listo: (p) => p.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length)),
   },
-  { nombre: 'caducadas', ruta: '/admin/caducadas', listo: (p) => p.getByRole('main') },
   { nombre: 'registro', ruta: '/admin/registro', listo: (p) => p.getByRole('main') },
-  { nombre: 'voluntarios', ruta: '/admin/voluntarios', listo: (p) => p.getByRole('main') },
   { nombre: 'papelera', ruta: '/admin/papelera', listo: (p) => p.getByRole('main') },
   { nombre: 'ajustes', ruta: '/admin/ajustes', listo: (p) => p.getByRole('region', { name: T.panel.saludSistema }) },
 ];
@@ -354,7 +349,6 @@ async function prepararPanel(page: Page) {
     v_registro: [],
     propuestas: [],
     puntos: [],
-    incidencias_app: [],
     config: [],
     administradores: [
       { email: 'jefe@example.org', activo: true, creado_en: '2026-08-01T10:00:00Z', creado_por: 'migracion' },
@@ -365,7 +359,6 @@ async function prepararPanel(page: Page) {
   await simularRpcLento(page, {
     fn_es_admin: true,
     fn_salud: { pendientes_14d: 0, incidencias_abiertas: 0, errores_7d: 0, sin_direccion: 0, dispositivos_activos: 3 },
-    fn_actividad_voluntarios: [],
     fn_exportar_inventario: [],
     fn_registrar_error: null,
   });

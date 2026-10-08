@@ -28,8 +28,9 @@ select dblink_exec('s0', format($f$
   insert into hidrantes.dispositivos (dispositivo_id, token_hash) values (%3$L, hidrantes.fn_sha256(%4$L));
   insert into hidrantes.subidas (dispositivo_id, foto_path) values (%3$L, 'fotos/conc-' || %3$L || '.jpg');
   insert into hidrantes.subidas (dispositivo_id, foto_path, reservada_en)
-  -- hasta una menos que el tope del día, sea cual sea (40 hasta 0035, 80 desde entonces)
-  select %3$L, 'fotos/relleno-' || %3$L || '-' || i || '.jpg', now()
+  -- hasta una menos que el tope del día, sea cual sea (40 hasta 0035, 80 desde entonces). De hace
+  -- 3 h: cuentan en el día pero ya no son reservas abiertas (0041, max_reservas_abiertas).
+  select %3$L, 'fotos/relleno-' || %3$L || '-' || i || '.jpg', now() - interval '3 hours'
     from generate_series(2, (hidrantes.fn_config('max_subidas_dispositivo_dia', '40') #>> '{}')::int - 1) i;
 $f$, (select punto from conexion), (select propuesta from conexion), (select dispositivo from conexion),
      (select token from conexion)));

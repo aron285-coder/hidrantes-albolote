@@ -1,4 +1,4 @@
-// Panel · voluntarios, incidencias y ajustes (FR-130–FR-132, FR-140–FR-145, FR-162–FR-167).
+// Panel · ajustes (FR-140–FR-145, FR-162–FR-167).
 
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
@@ -10,40 +10,6 @@ import { novedadesDe } from '../scripts/generar-novedades.ts';
 
 /** Lo que `npm run build` genera desde el CHANGELOG, que es lo que lleva la app probada. */
 const NOVEDADES = novedadesDe(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8'));
-
-const ACTIVIDAD = [
-  {
-    autor: 'Luis Martín',
-    dispositivo_id: 'd1',
-    propuestas: 16,
-    aprobadas: 14,
-    rechazadas: 1,
-    tasa: 0.93,
-    ultima: '2026-09-19T08:00:00Z',
-  },
-  {
-    autor: 'Marta León',
-    dispositivo_id: 'd2',
-    propuestas: 6,
-    aprobadas: 4,
-    rechazadas: 2,
-    tasa: 0.67,
-    ultima: '2026-09-18T08:00:00Z',
-  },
-];
-
-const INCIDENCIAS: Record<string, unknown>[] = [
-  {
-    id: 'i1',
-    momento: '2026-09-17T06:06:00Z',
-    descripcion: 'Al hacer la foto la app se cierra',
-    version_app: '1.0.3',
-    ruta: '/proponer/alta',
-    estado: 'abierta',
-    resuelta_por: null,
-    resuelta_en: null,
-  },
-];
 
 const CONFIG = [
   { clave: 'codigo_acceso', valor: '482917' },
@@ -65,7 +31,6 @@ const ADMINISTRADORES = [
 
 const SALUD = {
   pendientes_14d: 2,
-  incidencias_abiertas: 1,
   errores_7d: 0,
   sin_direccion: 3,
   ultimo_respaldo: '2026-09-18T03:00:00Z',
@@ -103,7 +68,6 @@ interface Llamada {
 
 async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as Record<string, unknown> } = {}) {
   const llamadas: Llamada[] = [];
-  let incidencias = INCIDENCIAS;
   let administradores = ADMINISTRADORES;
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
@@ -111,7 +75,6 @@ async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as 
     v_cola_revision: [],
     propuestas: [],
     puntos: [],
-    incidencias_app: () => incidencias,
     config: (url) => {
       const filtro = url.searchParams.get('clave') ?? '';
       const claves = filtro.startsWith('in.') ? filtro.slice(4, -1).split(',') : null;
@@ -132,18 +95,6 @@ async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as 
     switch (nombre) {
       case 'fn_es_admin':
         return json(true);
-      case 'fn_actividad_voluntarios':
-        return json(ACTIVIDAD);
-      case 'fn_anonimizar_autor':
-        return json(7);
-      case 'fn_resolver_incidencia':
-        incidencias = incidencias.map((i) => ({
-          ...i,
-          estado: 'resuelta',
-          resuelta_por: 'jefe@example.org',
-          resuelta_en: new Date().toISOString(),
-        }));
-        return json(null);
       case 'fn_salud':
         return json(salud);
       case 'fn_exportar_inventario':
@@ -175,27 +126,6 @@ async function prepararPanel(page: Page, { conDispatch = true, salud = SALUD as 
 }
 
 const llamadaA = (llamadas: Llamada[], nombre: string) => llamadas.find((l) => l.nombre === nombre)?.cuerpo;
-
-test('voluntarios: actividad, anonimizar e incidencias (FR-130–FR-132, FL-27)', async ({ page }) => {
-  const llamadas = await prepararPanel(page);
-  await page.goto('/admin/voluntarios');
-  await expect(page.getByRole('cell', { name: 'Luis Martín' })).toBeVisible();
-  await expect(page.getByText(T.panelVoluntarios.porcentaje(93))).toBeVisible();
-  await expect(page.getByText(T.panelVoluntarios.convieneHablar)).toBeVisible();
-  expect(llamadaA(llamadas, 'fn_actividad_voluntarios')).toEqual({ meses: 3 });
-
-  const fila = page.getByRole('row').filter({ hasText: 'Marta León' });
-  await fila.getByRole('button', { name: T.panel.anonimizar }).click();
-  const dialogo = page.getByRole('dialog');
-  await expect(dialogo.getByText(T.panelVoluntarios.avisoAnonimizar('Marta León'))).toBeVisible();
-  await dialogo.getByRole('button', { name: T.panelVoluntarios.confirmarAnonimizar }).click();
-  await expect(page.getByRole('status').filter({ hasText: T.panelVoluntarios.anonimizado(7) })).toBeVisible();
-  expect(llamadaA(llamadas, 'fn_anonimizar_autor')).toEqual({ dispositivo_id: 'd2' });
-
-  await page.getByRole('button', { name: T.panel.marcarResuelta }).click();
-  await expect(page.getByRole('status').filter({ hasText: T.panelVoluntarios.incidenciaResuelta })).toBeVisible();
-  expect(llamadaA(llamadas, 'fn_resolver_incidencia')).toEqual({ incidencia_id: 'i1' });
-});
 
 test('ajustes: código de acceso con confirmación y revocación (FR-140, FL-29)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
@@ -257,6 +187,69 @@ test('ajustes: el tramo de manguera se guarda y fuera de 10–30 no deja guardar
   await expect.poll(() => llamadaA(llamadas, 'fn_guardar_config')).toEqual({ cambios: { metros_tramo_manguera: 25 } });
 });
 
+// docs/31 RV-167: los radios se escriben como texto y se leen al salir. Antes se re-formateaban en
+// cada tecla: "5,5" se quedaba en "5" y no se podía añadir un quinto valor.
+test('ajustes: los radios del marcador se escriben libres y se validan al salir (RV-167)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  const parametros = page.getByRole('region').filter({ hasText: T.panelAjustes.parametros }).first();
+  const radios = parametros.getByLabel(T.panelAjustes.radiosMarcador);
+  const guardar = parametros.getByRole('button', { name: T.panel.guardarCambios });
+  await expect(radios).toHaveValue('11 · 9 · 7 · 5,5 · 5');
+
+  // Escribir tecla a tecla: lo escrito se queda tal cual.
+  await radios.fill('');
+  await radios.pressSequentially('11 · 9');
+  await expect(radios).toHaveValue('11 · 9');
+  await radios.blur();
+  await expect(parametros.getByText(T.panelAjustes.radiosInvalidos).first()).toBeVisible();
+  await expect(radios).toHaveAttribute('aria-invalid', 'true');
+  await expect(guardar).toBeDisabled();
+
+  // Corregido sin salir del campo, Guardar ya responde: el motivo habla de lo que se ve.
+  await radios.fill('');
+  await radios.pressSequentially('12 · 9 · 7 · 5,5 · 4');
+  await expect(radios).toHaveValue('12 · 9 · 7 · 5,5 · 4');
+  await expect(guardar).toBeEnabled();
+  await expect(parametros.getByText(T.panelAjustes.radiosInvalidos)).toHaveCount(0);
+  await guardar.click();
+  await expect(radios).not.toHaveAttribute('aria-invalid', 'true');
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_guardar_config'))
+    .toEqual({ cambios: { escala_radios: [12, 9, 7, 5.5, 4] } });
+});
+
+// docs/31 RV-167: con la lista sin cargar, Administradores y Núcleos se quedaban en «Cargando…».
+test('ajustes: si no cargan Administradores ni Núcleos, lo dicen y dejan reintentar (RV-167)', async ({ page }) => {
+  await prepararPanel(page);
+  let fallan = true;
+  await page.route(/\/rest\/v1\/(administradores|nucleos)\?/, (r) =>
+    fallan
+      ? r.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: '{"message":"caído"}',
+          headers: { 'Access-Control-Allow-Origin': '*' },
+        })
+      : r.fallback(),
+  );
+  await page.goto('/admin/ajustes');
+  for (const [titulo, fila] of [
+    [T.panelAjustes.administradores, 'jefe@example.org'],
+    [T.panelAjustes.nucleos, 'Pretel'],
+  ] as const) {
+    const tarjeta = page.getByRole('region', { name: titulo, exact: true });
+    const error = tarjeta.getByRole('alert');
+    await expect(error).toContainText(T.panelErrores.sinServidor);
+    await expect(tarjeta.getByText(T.panelCola.cargando)).toHaveCount(0);
+    fallan = false;
+    await error.getByRole('button', { name: T.mapa.reintentar }).click();
+    await expect(tarjeta.getByText(fila).first()).toBeVisible();
+    await expect(tarjeta.getByRole('alert')).toHaveCount(0);
+    fallan = true;
+  }
+});
+
 test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR-165, FR-167)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/ajustes');
@@ -268,19 +261,21 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
   await salud.getByRole('button', { name: T.panel.descargarInventario }).click();
   expect((await descarga).suggestedFilename()).toMatch(/^hidrantes-albolote-\d{4}-\d{2}-\d{2}\.json$/);
 
+  // docs/31 RV-146 y RV-167: el panel deja un pedido; el aviso lo dice así.
+  const pedido = page.waitForRequest((r) => r.url().includes('/api/lanzar-workflow') && r.method() === 'POST');
   await page.getByRole('button', { name: T.panel.regenerarZona }).click();
+  expect((await pedido).postDataJSON()).toEqual({ workflow: 'regenerar-zona' });
   await expect(
-    page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoLanzado(T.panel.regenerarZona) }),
+    page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoPedido(T.panel.regenerarZona) }),
   ).toBeVisible();
 
-  // FR-144: la purga de fotos huérfanas es un trabajo más de mantenimiento, con su aviso de que
-  // tarda unos minutos y su confirmación (AC-106).
-  const purga = page.waitForRequest((r) => r.url().includes('/api/lanzar-workflow') && r.method() === 'POST');
-  await page.getByRole('button', { name: T.panel.purgarFotos }).click();
-  expect((await purga).postDataJSON()).toEqual({ workflow: 'purgar-fotos' });
-  await expect(
-    page.getByRole('status').filter({ hasText: T.panelAjustes.trabajoLanzado(T.panel.purgarFotos) }),
-  ).toBeVisible();
+  // FR-144: la purga de fotos huérfanas y el respaldo trabajan contra producción: este build es de
+  // staging (VITE_ENTORNO), así que salen deshabilitados con su motivo y no se piden (RV-167).
+  for (const nombre of [T.panel.purgarFotos, T.panel.respaldoAhora]) {
+    const boton = page.getByRole('button', { name: nombre });
+    await expect(boton).toBeDisabled();
+    await expect(boton).toHaveAccessibleDescription(T.panelAjustes.soloEnProduccion);
+  }
 
   // Las novedades salen del build, no de fn_novedades (RV-20): sin simular la RPC, se ven igual.
   // Cada línea lleva su propio número, no el de la última versión (docs/23 RV-95).
@@ -291,7 +286,7 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
 
   await page.getByRole('button', { name: T.panelAjustes.imprimirA4 }).click();
   await expect(page.getByText(T.panelAjustes.escaneaParaInstalar)).toBeVisible();
-  await page.locator('.hoja-campo').getByRole('button', { name: T.panelCaducadas.cerrarHoja, exact: true }).click();
+  await page.locator('.hoja-campo').getByRole('button', { name: T.panelAjustes.cerrarHoja, exact: true }).click();
   await expect(page.getByText(T.panelAjustes.escaneaParaInstalar)).toHaveCount(0);
 });
 

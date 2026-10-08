@@ -7,7 +7,7 @@ import { type Formulario, necesitaFotoSitio, queFalta } from './propuestas';
 import { textoFallo } from './nombres-operacion';
 import { textoError } from './panel/errores';
 import { T } from './textos';
-import { type PropuestaPanel, senales } from './panel/cola';
+import { type PropuestaPanel, fotosDe, tieneAviso } from './panel/cola';
 import type { Punto } from '../tipos/punto';
 
 const a = T.avisosFormulario;
@@ -78,7 +78,7 @@ describe('la foto del sitio es obligatoria en alta y en corregir ubicación (RV-
   });
 });
 
-describe('panel: la señal «sin foto del sitio» (RV-103)', () => {
+describe('panel: un alta sin foto del sitio (RV-103, DEC-166)', () => {
   const base = {
     id: 'x',
     operacion: 'alta',
@@ -87,15 +87,16 @@ describe('panel: la señal «sin foto del sitio» (RV-103)', () => {
     foto_path: 'fotos/1.jpg',
   } as unknown as PropuestaPanel;
 
-  it('un alta de la versión anterior lleva la señal, como aviso', () => {
-    expect(senales({ ...base, sin_foto_sitio: true })).toContainEqual({
-      texto: T.panelCola.senalSinFotoSitio,
-      aviso: true,
-    });
+  // docs/28 RV-115 (DEC-166): ya no hay señal; lo dice la sección "Fotos", que enseña solo la de la
+  // conexión, y la lista no pone ⚠ por ello.
+  it('un alta de la versión anterior enseña solo la foto de la conexión, sin ⚠ en la lista', () => {
+    const p = { ...base, sin_foto_sitio: true };
+    expect(fotosDe(p).fotos.map((f) => f.etiqueta)).toEqual([T.formulario.conexion]);
+    expect(tieneAviso(p)).toBe(false);
   });
 
-  it('con las dos fotos, no', () => {
-    const s = senales({ ...base, foto_sitio_path: 'fotos/2.jpg', sin_foto_sitio: false });
-    expect(s.map((x) => x.texto)).not.toContain(T.panelCola.senalSinFotoSitio);
+  it('con las dos fotos, las dos', () => {
+    const p = { ...base, foto_sitio_path: 'fotos/2.jpg', sin_foto_sitio: false };
+    expect(fotosDe(p).fotos.map((f) => f.etiqueta)).toEqual([T.formulario.conexion, T.formulario.sitio]);
   });
 });

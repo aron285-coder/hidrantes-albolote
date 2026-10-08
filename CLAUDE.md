@@ -1,7 +1,8 @@
 # CLAUDE.md — Mapa de hidrantes · Protección Civil de Albolote
 
 Lee este archivo entero al empezar cada sesión. Después, lee **solo** lo que la tarea necesite de
-`docs/` (§2). No leas todo `docs/` de golpe: son 16 documentos y este archivo te dice cuál abrir.
+`docs/` (§2). No leas todo `docs/` de golpe: son 32 documentos numerados (00 a 31), más los de
+apoyo que lista `docs/INDICE.md`, y este archivo te dice cuál abrir.
 
 ## 1. Qué es esto
 
@@ -104,9 +105,13 @@ cobertura · fuera de zona.
    ejecutado, cómo, con qué resultado, y qué suposiciones has tomado) y actualiza
    `docs/09-plan-implementacion.md` §8. Una fase sin ese archivo no está terminada.
 
-Producción solo por PR `develop → main` con aprobación del desarrollador en el *environment*
-`production`. Al cerrar cada bloque de trabajo, abre ese PR para que producción tenga la versión
-completa de staging (DEC-096). Poner producción al día no abre el acceso: el código real se
+Producción solo por PR `develop → main`, fusionado con **merge commit** (nunca squash), y con el
+*environment* `production` aprobado. Lo hace `npm run publicar` (DEC-176, 04 §12.1): empujón y
+fusión del PR de release-please, PR `develop → main`, y la puerta automática, que aprueba solo con la
+CI de `main` en verde, la comprobación en staging (RV-139b) en verde con el mismo commit,
+`comprobar-produccion` sin bloqueo y ninguna issue `bloquea-release`; si no, rechaza y abre la issue.
+Antes, `npm run publicar -- --solo-comprobar`. Al cerrar cada bloque de trabajo, publica para que
+producción tenga la versión completa de staging (DEC-096). Poner producción al día no abre el acceso: el código real se
 comunica en F9.10.
 
 ## 6. Entorno local y comandos
@@ -130,7 +135,7 @@ npx wrangler pages dev        # Pages Functions en :8788 (proxy configurado en v
 npm test                      # vitest
 npm run test:sql              # pgTAP contra la instancia local
 npm run e2e                   # Playwright (levanta todo lo anterior)
-npm run zona | callejero | tareas-esperadas | mapabase | comprobar-produccion | codigo | revertir | restaurar | promover-piloto | capturas | purgar-fotos
+npm run zona | callejero | tareas-esperadas | mapabase | comprobar-produccion | publicar | codigo | revertir | restaurar | promover-piloto | capturas | purgar-fotos | anonimizar
 npm run arranque              # solo la primera vez o para --rotar <secreto[,secreto]|todo>
 
 git switch develop && git pull

@@ -49,21 +49,29 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test('en tableta la cola y el detalle se apilan, sin desbordar a lo ancho', async ({ page }) => {
+// docs/25 RV-110 (DEC-158): por debajo de 1.100 px, la cola y el detalle son dos pantallas.
+test('en tableta la cola y el detalle son dos pantallas, sin desbordar a lo ancho', async ({ page }) => {
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.goto('/admin/cola');
   const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
   await expect(lista).toBeVisible();
+  await expect(page.getByRole('article')).toHaveCount(0);
+
+  await lista.getByRole('button', { name: new RegExp(P0.codigo) }).click();
   const detalle = page.getByRole('article');
   await expect(detalle).toBeVisible();
-
-  // Apilados: el detalle empieza por debajo de la lista, no a su lado.
-  const cajaLista = (await lista.boundingBox())!;
-  const cajaDetalle = (await detalle.boundingBox())!;
-  expect(cajaDetalle.y).toBeGreaterThan(cajaLista.y);
+  // El detalle ocupa la pantalla entera, con los botones a la vista.
+  const caja = (await detalle.boundingBox())!;
+  expect(caja.x).toBe(0);
+  expect(caja.width).toBe(768);
+  await expect(detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeInViewport();
   // Y nada se sale de la pantalla.
   const desborde = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(desborde).toBeLessThanOrEqual(1);
+  // "‹" vuelve a la cola, con el foco en una pantalla que se puede manejar con el teclado.
+  await expect(page.getByRole('button', { name: T.panelCola.volverCola })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('article')).toHaveCount(0);
 });
 
 test('el panel se maneja con el teclado (TR-35)', async ({ page }) => {

@@ -2,7 +2,7 @@
 // Voluntario: { token }. Jefatura desde el móvil: cabecera Authorization con su JWT (DEC-059).
 // Nadie sube a Storage sin pasar por aquí: el bucket no tiene políticas de escritura.
 
-import { type Manejador, bucketPara, error, estadoDe, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
+import { type Manejador, bucketPara, detalleTope, error, estadoDe, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
 
 export const CADUCIDAD_S = 7200; // la de las URL firmadas de subida de Supabase
 
@@ -18,7 +18,13 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
   } else {
     return error(401, 'TOKEN_INVALIDO');
   }
-  if (!reserva.ok) return error(estadoDe(reserva.codigo), reserva.codigo);
+  if (!reserva.ok) {
+    const estado = estadoDe(reserva.codigo);
+    // Un tope (429) lleva, si la base de datos los da, maximo y reintentar_en_s: la cola espera hasta
+    // esa hora (docs/32 RV-232). Solo los números, nunca el texto del error.
+    if (estado === 429) return json({ error: reserva.codigo, ...detalleTope(reserva.mensaje) }, 429);
+    return error(estado, reserva.codigo);
+  }
 
   const fotoPath = reserva.datos;
   const bucket = bucketPara(request.url, env);

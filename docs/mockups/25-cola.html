@@ -1,0 +1,212 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cola de revisión · opción A</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@500&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--marino-950:#0E1B30;--marino-700:#1D3A63;--naranja-600:#C94F16;--naranja-texto:#BE4811;--fondo:#F1F3EE;--papel:#FFFFFF;--linea:#D8DBD2;--texto:#1B2430;--texto-suave:#5A6472;
+--bueno:#237F52;--regular:#F9A900;--regular-borde:#5C4300;--malo:#9B2423;--oro-100:#F3E6C4;--oro-600:#B08A2E;--verde-btn:#2E7D4F;--rojo-btn:#9C2B1E}
+*{box-sizing:border-box}
+body{margin:0;background:#E4E6E0;color:var(--texto);font-family:'Source Sans 3',system-ui,sans-serif}
+header.doc{background:var(--marino-950);color:#fff;padding:26px 24px 22px}
+header.doc h1{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:30px;margin:0 0 6px}
+header.doc p{margin:0;opacity:.85;max-width:900px;line-height:1.5}
+section.doc{padding:30px 24px 6px;max-width:1520px;margin:0 auto}
+section.doc>h2{font-family:'Barlow Condensed',sans-serif;font-size:24px;margin:0 0 4px;color:var(--marino-950)}
+p.intro{margin:0 0 16px;color:var(--texto-suave);max-width:960px;line-height:1.55}
+p.intro b,.nota b{color:var(--texto)}
+.nota{font-size:14px;color:var(--texto-suave);line-height:1.55;max-width:960px;margin:12px 0 0}
+.mono{font-family:'JetBrains Mono',monospace;font-weight:500}
+.scroll{overflow-x:auto;padding-bottom:10px}
+.disp{background:#11161f;border-radius:30px;padding:10px;box-shadow:0 12px 30px rgba(0,0,0,.2);display:inline-block}
+.disp.tablet{border-radius:26px;padding:14px}
+.disp.pc{border-radius:12px;padding:0;background:#C9CCC2}
+.pc-barra{height:30px;background:#DADDD4;display:flex;align-items:center;gap:6px;padding:0 12px}
+.pc-barra i{width:11px;height:11px;border-radius:50%;background:#B9BDB2;display:block}
+.pc-barra span{margin-left:14px;font-size:12px;color:var(--texto-suave);background:#fff;border-radius:6px;padding:2px 10px}
+.pantalla{background:var(--fondo);border-radius:22px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.disp.tablet .pantalla{border-radius:14px}.disp.pc .pantalla{border-radius:0 0 12px 12px}
+.bar{background:var(--marino-950);color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:19px;padding:12px 16px;display:flex;align-items:center;gap:10px;flex:none}
+.bar .jef{margin-left:auto;font-family:'Source Sans 3',sans-serif;font-size:12px;font-weight:700;background:var(--oro-600);color:#fff;padding:2px 8px;border-radius:5px}
+.atras{font-size:24px;line-height:1}
+.tabs{display:flex;gap:26px;padding:0 20px;border-bottom:1px solid var(--linea);font-size:15.5px;background:var(--fondo);flex:none}
+.tabs span{padding:13px 0 11px;color:var(--texto-suave)}.tabs span.on{color:var(--texto);font-weight:700;border-bottom:3px solid var(--marino-950)}
+.badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:var(--naranja-600);color:#fff;font-size:12px;font-weight:700;text-align:center;margin-left:4px}
+.badge.g{background:#E1E3DB;color:var(--texto)}
+.barra{display:flex;align-items:center;gap:8px;padding:10px 20px;border-bottom:1px solid var(--linea);font-size:14px;white-space:nowrap;flex:none}
+.pill{border:1px solid var(--linea);background:var(--papel);border-radius:999px;padding:7px 12px;color:var(--texto-suave)}.pill.on{background:var(--marino-950);color:#fff;border-color:var(--marino-950)}
+.bt{border:1px solid #BFC3B8;background:var(--papel);border-radius:9px;padding:7px 12px;font-weight:600}
+.lista{background:var(--papel);overflow:hidden}
+.fila{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--linea);align-items:center}
+.fila.sel{background:#EEF1F6;box-shadow:inset 3px 0 0 var(--marino-950)}
+.fila input{width:18px;height:18px;flex:none}.fila .t{flex:1;min-width:0}
+.fila .l1{display:flex;gap:8px;align-items:center;font-size:15px}.fila .l2{color:var(--texto-suave);font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.op{font-size:12px;font-weight:700;padding:2px 7px;border-radius:5px;background:#E6E7E0}
+.op.alta{background:#DCEEE1;color:#1E6B45}.op.rev{background:#DCE5F2;color:var(--marino-700)}.op.ubi{background:var(--oro-100);color:#7F5C07}.op.ret{background:#FBE0DB;color:var(--malo)}
+.mini{width:62px;height:48px;flex:none;border-radius:7px;border:1px solid var(--linea);overflow:hidden;background:#ECEAE1}.mini svg{width:100%;height:100%;display:block}
+/* Detalle */
+.det{display:flex;flex-direction:column;min-width:0;min-height:0;flex:1}
+.det .scrollv{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:14px;padding:16px 20px}
+.titulo{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.titulo h3{margin:0;font-family:'Barlow Condensed',sans-serif;font-size:24px}
+.titulo .sub{color:var(--texto-suave);font-size:14.5px}
+.senales{display:flex;gap:8px;flex-wrap:wrap}
+.senal{display:inline-flex;gap:6px;align-items:center;font-size:13px;border:1px solid var(--bueno);color:var(--bueno);border-radius:6px;padding:3px 8px;background:#fff}
+.senal.aviso{border-color:var(--oro-600);color:#7F5C07;background:var(--oro-100)}
+.mapa{position:relative;width:100%;border-radius:10px;overflow:hidden;border:1px solid var(--linea);background:#ECEAE1;flex:none}
+.mapa>svg{position:absolute;inset:0;width:100%;height:100%}
+.mapa .capa{position:absolute;top:8px;right:8px;display:flex;gap:4px}
+.mapa .capa span{background:#fff;border:1px solid var(--linea);border-radius:6px;font-size:12px;padding:3px 8px;color:var(--texto-suave)}
+.mapa .capa span.on{background:var(--marino-950);color:#fff;border-color:var(--marino-950)}
+.mapa .zoom{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--linea);border-radius:6px}
+.mapa .zoom span{width:30px;height:28px;display:grid;place-items:center;font-weight:700;color:var(--marino-950)}.mapa .zoom span+span{border-top:1px solid var(--linea)}
+.mapa .ampliar{position:absolute;left:8px;bottom:8px;background:#fff;border:1px solid var(--linea);border-radius:6px;font-size:12px;padding:3px 8px;color:var(--marino-700);font-weight:700}
+.leyenda{display:flex;gap:16px;font-size:12.5px;color:var(--texto-suave);flex-wrap:wrap;align-items:center}
+.leyenda i{display:inline-block;vertical-align:-2px;margin-right:4px}
+.bloque-t{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;color:var(--marino-950);margin:2px 0 -6px;display:flex;gap:10px;align-items:baseline}
+.bloque-t small{font-family:'Source Sans 3',sans-serif;font-weight:400;font-size:13px;color:var(--texto-suave)}
+.bloque-t small b{color:var(--naranja-texto)}
+.ficha{display:grid;grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));gap:1px;background:var(--linea);border:1px solid var(--linea);border-radius:10px;overflow:hidden}
+.campo{background:#fff;padding:9px 13px;display:grid;grid-template-columns:var(--k,140px) minmax(0,1fr);gap:10px;align-items:baseline}
+.campo b{font-weight:500;color:var(--texto-suave);font-size:14px}
+.campo i{font-style:normal;font-size:15px}
+.campo.cambia{background:#FFF8EC;box-shadow:inset 4px 0 0 var(--naranja-600)}
+.campo.cambia b{color:var(--texto);font-weight:600}
+.campo.cambia b::after{content:'cambia';display:block;font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--naranja-texto)}
+.campo.ancho{grid-column:1/-1}
+.antes{color:var(--malo);text-decoration:line-through;opacity:.8}.despues{color:var(--bueno);font-weight:700}
+.campo small{color:var(--texto-suave);font-size:12.5px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:1px 9px;border-radius:999px;font-size:13.5px;font-weight:600}
+.chip.bueno{background:#DCEEE1;color:#1E6B45}.chip.regular{background:#FFF1C2;color:#6B4E00}.chip.malo{background:#FBE0DB;color:var(--malo)}
+.chip .p{width:8px;height:8px;border-radius:50%}
+.fotos{display:grid;grid-template-columns:repeat(var(--nf,2),minmax(0,1fr));gap:10px}
+.foto{border-radius:10px;background:linear-gradient(135deg,#8D9A86,#B9C2B1 55%,#D6DACE);position:relative;height:var(--hf,180px)}
+.foto.sitio{background:linear-gradient(160deg,#9FB0C2,#C9D2C0 60%,#E3E0D2)}
+.foto.actual{background:linear-gradient(135deg,#9A9A92,#C8C6BC 60%,#DEDCD2)}
+.foto .et{position:absolute;left:8px;bottom:8px;background:rgba(14,27,48,.8);color:#fff;font-size:12px;padding:3px 8px;border-radius:6px}
+.foto .et.nueva{background:var(--naranja-600)}
+.acciones{display:flex;gap:10px;padding:12px 20px;border-top:1px solid var(--linea);background:#fff;flex:none}
+.acciones span{white-space:nowrap;padding:12px 18px;border-radius:9px;font-weight:700;font-size:16px;border:1px solid #BFC3B8;background:#fff;text-align:center}
+.acciones .ok{background:var(--verde-btn);color:#fff;border-color:var(--verde-btn)}.acciones .no{color:var(--rojo-btn);border-color:var(--rojo-btn)}
+.acciones.lleno span{flex:1}
+.seleccion{background:var(--marino-950);color:#fff;padding:10px 14px;display:flex;gap:8px;align-items:center;font-size:14px;flex:none}
+.seleccion span.b{margin-left:auto;background:var(--verde-btn);padding:7px 12px;border-radius:8px;font-weight:700}
+footer{padding:26px 24px 40px;max-width:1520px;margin:0 auto;color:var(--texto-suave);font-size:14px;line-height:1.6}
+</style></head><body>
+<header class="doc"><h1>Cola de revisión · opción A · mapa arriba del detalle</h1>
+<p>Decisiones del 4 oct 2026: el mapa va arriba del detalle; debajo, <b>todos los datos del punto</b> (no solo los cambios), con lo que cambia marcado; y las <b>fotos</b>. Todo ocupa el ancho entero del detalle, sin columnas laterales. Con regular en amarillo y las coordenadas en WGS84 y ETRS89 · UTM huso 30N.</p></header>
+
+<section class="doc"><h2>Ordenador · 1480 px · corregir ubicación</h2>
+<p class="intro">La lista de la cola se queda a la izquierda (340 px) y el detalle ocupa <b>todo el resto de la pantalla</b>. De arriba abajo, todo a ese ancho:</p>
+<ol class="intro" style="margin-top:-8px"><li>Título y señales.</li><li>Mapa de 300 px de alto.</li><li>Ficha completa en dos columnas, con lo que cambia arriba y marcado.</li><li>Fotos: la actual del punto y las dos nuevas, lado a lado.</li></ol>
+<p class="intro">Los botones quedan <b>fijos abajo</b> del detalle, aunque se desplace.</p>
+<div class="scroll"><div class="disp pc"><div class="pc-barra"><i></i><i></i><i></i><span>hidrantes-albolote.pages.dev/admin/cola</span></div><div class="pantalla" style="width:1480px;height:1180px">
+ <div class="bar">Panel de jefatura<span class="jef">Jefatura</span></div><div class="tabs"><span class="on">Cola de revisión <b class="badge">8</b></span><span>Inventario <b class="badge g">10</b></span><span>Revisiones caducadas <b class="badge g">3</b></span><span>Registro</span><span>Papelera <b class="badge g">1</b></span><span>Voluntarios <b class="badge">1</b></span><span>Ajustes</span></div><div class="barra"><input type="checkbox"> <b>0 seleccionadas</b> <span class="bt">Aprobar seleccionadas</span> <span class="bt">Rechazar seleccionadas…</span> <span class="pill on">Pendientes</span><span class="pill">Aprobadas</span><span class="pill">Rechazadas</span><span class="pill">Retiradas por el autor</span><span style="margin-left:auto;color:var(--texto-suave)">Filtrar:</span><span class="bt" style="font-weight:400">todas las operaciones ▾</span><span class="bt" style="font-weight:400">todos los núcleos ▾</span></div>
+ <div style="display:flex;flex:1;min-height:0">
+  <div class="lista" style="width:340px;flex:none;border-right:1px solid var(--linea)"><div class="fila"><input type="checkbox"><div class="t"><div class="l1"><span class="op ">Datos</span><span class="mono">HID-9001</span></div><div class="l2">Voluntario de prueba · hace 14 días · Albolote</div></div></div><div class="fila"><input type="checkbox"><div class="t"><div class="l1"><span class="op alta">Alta</span><span class="mono">nuevo ⚠</span></div><div class="l2">Voluntario de prueba · hace 14 días · Parque del Cubillas</div></div></div><div class="fila"><input type="checkbox"><div class="t"><div class="l1"><span class="op rev">Revisión</span><span class="mono">HID-9005</span></div><div class="l2">Prueba Dos · hace 15 días · Pretel</div></div></div><div class="fila sel"><input type="checkbox"><div class="t"><div class="l1"><span class="op ubi">Ubicación</span><span class="mono">HID-9007 ⚠</span></div><div class="l2">Prueba Dos · hace 15 días · Urb. Buenavista</div></div></div><div class="fila"><input type="checkbox"><div class="t"><div class="l1"><span class="op ">Datos</span><span class="mono">BOC-9001</span></div><div class="l2">Prueba Tres · hace 15 días · Calicasas</div></div></div><div class="fila"><input type="checkbox"><div class="t"><div class="l1"><span class="op ret">Retirada</span><span class="mono">BOC-9002</span></div><div class="l2">Prueba Tres · hace 15 días · Parque del Cubillas</div></div></div><div class="fila"><input type="checkbox"><div class="t"><div class="l1"><span class="op ">Estado</span><span class="mono">HID-9002 ⚠</span></div><div class="l2">Prueba Uno · hace 17 días · Barrio Seco</div></div></div></div>
+  <div class="det">
+   <div class="scrollv">
+    <div class="titulo"><h3>HID-9007 · Corregir ubicación</h3><span class="sub">Propuesto por Prueba Dos · hace 15 días (18 sept 2026) · Urbanización Buenavista</span></div>
+    <div class="mapa" style="height:300px"><svg viewBox="0 70 600 164" preserveAspectRatio="xMidYMid slice">CALLES<defs><marker id="flpc" markerWidth="10" markerHeight="10" refX="6" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--marino-950)"/></marker></defs>
+<circle cx="260" cy="172" r="11" fill="#9AA096" stroke="#fff" stroke-width="3"/>
+<path d="M272 165 L 328 134" stroke="var(--marino-950)" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#flpc)"/>
+<circle cx="342" cy="126" r="13" fill="var(--naranja-600)" stroke="#fff" stroke-width="3"/><circle cx="342" cy="126" r="4" fill="#fff"/>
+<rect x="238" y="114" width="54" height="22" rx="5" fill="#fff"/><text x="265" y="130" font-size="13" text-anchor="middle" font-family="JetBrains Mono, monospace" fill="var(--marino-950)">38 m</text></svg><span class="capa"><span>Mapa</span><span class="on">Satélite</span></span><span class="zoom"><span>+</span><span>−</span></span><span class="ampliar">Abrir en grande</span></div>
+    <div class="leyenda"><span><i><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#9AA096"/></svg></i>posición de ahora</span><span><i><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--naranja-600)"/></svg></i>propuesta</span><span><i><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--bueno)" opacity=".55"/></svg></i>puntos de alrededor</span></div>
+    <div class="bloque-t">Datos del punto <small><b>3 cambios</b> · el resto se queda igual</small></div>
+    <div class="ficha" style="--cols:2;--k:150px"><div class="campo cambia"><b>Coordenadas</b><i><span class="antes">37.26911, −3.62874</span> → <span class="despues">37.26937, −3.62842</span><br><small>WGS84 · grados decimales</small></i></div><div class="campo cambia"><b>UTM</b><i><span class="antes">30S 444780 4123590</span> → <span class="despues">30S 444808 4123619</span><br><small>ETRS89 · huso 30N</small></i></div><div class="campo cambia"><b>Dirección</b><i><span class="antes">Calle Olivo, 2</span> → <span class="despues">Calle Olivo, 8</span> <small>· editable</small></i></div><div class="campo"><b>Núcleo</b><i>Urbanización Buenavista</i></div><div class="campo"><b>Código</b><i><span class="mono">HID-9007</span></i></div><div class="campo"><b>Tipo</b><i>Hidrante</i></div><div class="campo"><b>Diámetro</b><i>70 mm</i></div><div class="campo"><b>Estado</b><i><span class="chip bueno"><span class="p" style="background:var(--bueno)"></span>Bueno</span></i></div><div class="campo"><b>Descripción</b><i>Frente al portal 8</i></div><div class="campo"><b>Última revisión</b><i>hace 3 meses · 2 jul 2026</i></div><div class="campo"><b>Origen</b><i>Pin colocado a mano · GPS ±12 m</i></div><div class="campo"><b>Propuesto por</b><i>Prueba Dos · hace 15 días</i></div></div>
+    <div class="bloque-t">Fotos <small>la actual del punto y las dos nuevas de la propuesta</small></div>
+    <div class="fotos" style="--nf:3;--hf:200px"><div class="foto actual"><span class="et">Foto actual del punto</span></div><div class="foto"><span class="et nueva">Nueva · conexión</span></div><div class="foto sitio"><span class="et nueva">Nueva · sitio</span></div></div>
+   </div>
+   <div class="acciones"><span class="ok">Aprobar</span><span>Aprobar con correcciones</span><span class="no">Rechazar…</span></div>
+  </div>
+ </div>
+</div></div></div>
+<p class="nota">En una corrección de ubicación, la foto actual se pone al lado de las nuevas: si es el mismo hidrante, se nota a la primera.</p>
+</section>
+
+<section class="doc"><h2>Tableta · 820 px · alta con posible duplicado</h2>
+<p class="intro">En tableta, la cola y el detalle son dos pantallas, como en el móvil: se toca una propuesta y el detalle ocupa toda la pantalla. El mapa, la ficha en dos columnas y las dos fotos van a todo el ancho. Los tres botones quedan fijos abajo, repartidos a lo ancho.</p>
+<div class="scroll"><div class="disp tablet"><div class="pantalla" style="width:820px;height:1180px">
+ <div class="bar"><span class="atras">‹</span>Alta · hidrante nuevo<span class="jef">Jefatura</span></div>
+ <div class="det">
+  <div class="scrollv" style="padding:14px 16px">
+   <div class="titulo"><span class="sub">Propuesto por Voluntario de prueba · hace 14 días · Parque del Cubillas</span></div>
+   <div class="mapa" style="height:280px"><svg viewBox="0 40 600 214" preserveAspectRatio="xMidYMid slice">CALLES<circle cx="330" cy="175" r="9" fill="var(--malo)" stroke="#fff" stroke-width="2.5"/>
+<text x="343" y="192" font-size="13" font-family="JetBrains Mono, monospace" fill="var(--texto)">HID-9003</text>
+<circle cx="300" cy="150" r="34" fill="none" stroke="var(--oro-600)" stroke-width="2" stroke-dasharray="5 4"/>
+<circle cx="300" cy="150" r="12" fill="var(--naranja-600)" stroke="#fff" stroke-width="3"/><circle cx="300" cy="150" r="3.5" fill="#fff"/></svg><span class="capa"><span class="on">Mapa</span><span>Satélite</span></span><span class="zoom"><span>+</span><span>−</span></span><span class="ampliar">Abrir en grande</span></div>
+   <div class="leyenda"><span><i><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--naranja-600)"/></svg></i>propuesta</span><span><i><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="none" stroke="var(--oro-600)" stroke-dasharray="2 2"/></svg></i>radio de duplicado · 25 m</span><span><i><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="var(--bueno)" opacity=".55"/></svg></i>puntos de alrededor</span></div>
+   <div class="bloque-t">Datos del punto</div>
+   <div class="ficha" style="--cols:2;--k:110px"><div class="campo cambia"><b>Tipo</b><i>Hidrante</i></div><div class="campo cambia"><b>Diámetro</b><i>100 mm</i></div><div class="campo cambia"><b>Estado</b><i><span class="chip bueno"><span class="p" style="background:var(--bueno)"></span>Bueno</span></i></div><div class="campo cambia"><b>Descripción</b><i>Junto a la gasolinera</i></div><div class="campo"><b>Coordenadas</b><i>37.27011, −3.62210<br><small>WGS84 · GPS ±4 m</small></i></div><div class="campo"><b>UTM</b><i>30S 444927 4124806<br><small>ETRS89 · huso 30N</small></i></div><div class="campo"><b>Dirección</b><i>Ctra. de Sierra Nevada, Atarfe <small>· deducida, editable</small></i></div><div class="campo"><b>Núcleo</b><i>Parque del Cubillas</i></div><div class="campo"><b>Código</b><i><small>se asigna al aprobar</small></i></div><div class="campo"><b>Última revisión</b><i><small>se fija al aprobar</small></i></div></div>
+   <div class="bloque-t">Fotos</div>
+   <div class="fotos" style="--nf:2;--hf:220px"><div class="foto"><span class="et">Conexión</span></div><div class="foto sitio"><span class="et">Sitio</span></div></div>
+  </div>
+  <div class="acciones lleno"><span class="ok">Aprobar</span><span>Aprobar con correcciones</span><span class="no">Rechazar…</span></div>
+ </div>
+</div></div></div>
+<p class="nota">En un alta todo es nuevo. Por eso se marcan solo los datos que pone el voluntario; los que deduce el sistema (coordenadas, dirección, núcleo) salen sin marcar, y el código y la última revisión dicen que se fijan al aprobar.</p>
+</section>
+
+<section class="doc"><h2>Móvil · 360 px · la cola y una corrección de datos</h2>
+<p class="intro">En el móvil el mapa va de borde a borde y se queda arriba. Debajo se desplazan la ficha completa (una columna) y las fotos. Los botones, fijos abajo.</p>
+<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start"><div class="disp"><div class="pantalla" style="width:360px;height:780px">
+ <div class="bar">Cola de revisión <b class="badge">8</b><span class="jef">Jefatura</span></div>
+ <div style="display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--linea);font-size:13.5px;overflow:hidden;white-space:nowrap"><span class="pill on">Pendientes</span><span class="pill">Aprobadas</span><span class="pill">Rechazadas</span></div>
+ <div class="lista" style="flex:1"><div class="fila"><input type="checkbox"><div class="mini" data-mini="bueno"></div><div class="t"><div class="l1"><span class="op ">Datos</span><span class="mono">HID-9001</span></div><div class="l2">Voluntario de prueba · hace 14 días · Albolote</div></div></div><div class="fila"><input type="checkbox"><div class="mini" data-mini="nuevo"></div><div class="t"><div class="l1"><span class="op alta">Alta</span><span class="mono">nuevo ⚠</span></div><div class="l2">Voluntario de prueba · hace 14 días · Parque del Cubillas</div></div></div><div class="fila"><input type="checkbox"><div class="mini" data-mini="regular"></div><div class="t"><div class="l1"><span class="op rev">Revisión</span><span class="mono">HID-9005</span></div><div class="l2">Prueba Dos · hace 15 días · Pretel</div></div></div><div class="fila"><input type="checkbox"><div class="mini" data-mini="ubi"></div><div class="t"><div class="l1"><span class="op ubi">Ubicación</span><span class="mono">HID-9007 ⚠</span></div><div class="l2">Prueba Dos · hace 15 días · Urb. Buenavista</div></div></div><div class="fila"><input type="checkbox"><div class="mini" data-mini="bueno"></div><div class="t"><div class="l1"><span class="op ">Datos</span><span class="mono">BOC-9001</span></div><div class="l2">Prueba Tres · hace 15 días · Calicasas</div></div></div><div class="fila"><input type="checkbox"><div class="mini" data-mini="malo"></div><div class="t"><div class="l1"><span class="op ret">Retirada</span><span class="mono">BOC-9002</span></div><div class="l2">Prueba Tres · hace 15 días · Parque del Cubillas</div></div></div><div class="fila"><input type="checkbox"><div class="mini" data-mini="regular"></div><div class="t"><div class="l1"><span class="op ">Estado</span><span class="mono">HID-9002 ⚠</span></div><div class="l2">Prueba Uno · hace 17 días · Barrio Seco</div></div></div></div>
+ <div class="seleccion"><b>Toca una para revisarla</b></div>
+</div></div><div class="disp"><div class="pantalla" style="width:360px;height:780px">
+ <div class="bar"><span class="atras">‹</span>HID-9001 · Datos<span class="jef">Jefatura</span></div>
+ <div class="det">
+  <div style="flex:none"><div class="mapa" style="height:200px;border-radius:0;border-left:0;border-right:0"><svg viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice">CALLES<circle cx="300" cy="190" r="20" fill="none" stroke="var(--marino-950)" stroke-width="3"/><circle cx="300" cy="190" r="13" fill="var(--bueno)" stroke="#fff" stroke-width="3"/></svg><span class="capa"><span class="on">Mapa</span><span>Satélite</span></span><span class="zoom"><span>+</span><span>−</span></span><span class="ampliar">Abrir en grande</span></div></div>
+  <div class="scrollv" style="padding:10px 12px;gap:10px">
+   <div class="titulo"><span class="sub">Voluntario de prueba · hace 14 días · Albolote</span></div>
+   <div class="bloque-t">Datos del punto <small><b>1 cambio</b></small></div>
+   <div class="ficha" style="--cols:1;--k:96px"><div class="campo cambia"><b>Diámetro</b><i><span class="antes">100 mm</span> → <span class="despues">70 mm</span></i></div><div class="campo"><b>Código</b><i><span class="mono">HID-9001</span></i></div><div class="campo"><b>Tipo</b><i>Hidrante</i></div><div class="campo"><b>Estado</b><i><span class="chip bueno"><span class="p" style="background:var(--bueno)"></span>Bueno</span></i></div><div class="campo"><b>Descripción</b><i>[PRUEBA] Esquina con la plaza</i></div><div class="campo"><b>Dirección</b><i>sin dirección</i></div><div class="campo"><b>Núcleo</b><i>Albolote</i></div><div class="campo"><b>Coordenadas</b><i>37.27350, −3.61840<br><small>WGS84</small></i></div><div class="campo"><b>UTM</b><i>30S 445175 4125393<br><small>ETRS89 · huso 30N</small></i></div><div class="campo"><b>Última revisión</b><i>hace 1 mes · 29 ago 2026</i></div></div>
+   <div class="bloque-t">Fotos <small>no trae nuevas</small></div>
+   <div class="fotos" style="--nf:2;--hf:110px"><div class="foto actual"><span class="et">Foto actual · conexión</span></div><div class="foto sitio"><span class="et">Foto actual · sitio</span></div></div>
+  </div>
+  <div class="acciones lleno" style="padding:10px 12px;gap:8px"><span class="ok" style="padding:12px 4px;font-size:15px">Aprobar</span><span style="padding:12px 4px;font-size:15px">Corregir</span><span class="no" style="padding:12px 4px;font-size:15px">Rechazar</span></div>
+ </div>
+</div></div></div>
+<p class="nota">Es HID-9001, el caso de tu captura: hoy enseña solo dirección y diámetro, y no tiene mapa. Ahora sale el punto en el mapa, los diez datos con el diámetro marcado y las fotos que ya tiene el punto.</p>
+</section>
+
+<footer><b>Para la especificación:</b>
+<ul style="margin:6px 0 0;padding-left:18px">
+<li><b>Orden del detalle, en las seis operaciones:</b> título y señales → mapa → <b>todos</b> los datos del punto → fotos → botones fijos abajo.</li>
+<li><b>Todo ocupa el ancho entero del detalle.</b> En el ordenador, el detalle llena la pantalla a la derecha de la lista y la ficha va en dos columnas. En tableta y móvil, el detalle es una pantalla aparte: dos columnas en tableta, una en móvil.</li>
+<li><b>Mapa:</b> 300 px de alto en el ordenador, 280 en tableta y 200 en móvil (de borde a borde). Lleva los puntos de alrededor atenuados. En un alta, el círculo de duplicado; en una ubicación, las dos posiciones con los metros, y se abre en Satélite. Hay un enlace "Abrir en grande".</li>
+<li><b>Datos completos:</b> código, tipo, diámetro, estado, racor (bocas), descripción, fallo (si no funciona), dirección (editable), núcleo, coordenadas WGS84 y UTM ETRS89 huso 30N, última revisión, origen de la ubicación y quién propuso. Lo que cambia va primero, con una banda naranja, la etiqueta "cambia" y el antes → después; encima, cuántos cambios hay.</li>
+<li><b>Fotos:</b> las nuevas de la propuesta (conexión y sitio). En una ubicación o un estado, además, la foto actual del punto, para comparar. Si la propuesta no trae fotos, las actuales, y se dice. Tocar una foto la amplía.</li>
+<li><b>Botones:</b> Aprobar · Aprobar con correcciones · Rechazar, fijos abajo. En el móvil, "Corregir" por espacio.</li>
+</ul></footer>
+<script>
+const calles = `<rect width="600" height="400" fill="#ECEAE1"/>
+  <path d="M-20 300 C 120 260, 220 280, 330 210 S 520 120, 640 140" stroke="#fff" stroke-width="16" fill="none"/>
+  <path d="M-20 300 C 120 260, 220 280, 330 210 S 520 120, 640 140" stroke="#F3D9A6" stroke-width="10" fill="none"/>
+  <path d="M180 -10 L 230 420" stroke="#fff" stroke-width="9"/>
+  <path d="M60 80 L 560 60" stroke="#fff" stroke-width="7"/>
+  <path d="M380 -10 L 420 420" stroke="#fff" stroke-width="7"/>
+  <path d="M40 180 L 600 330" stroke="#fff" stroke-width="6"/>
+  <rect x="250" y="95" width="110" height="70" rx="6" fill="#DADDD0"/>
+  <rect x="440" y="200" width="120" height="90" rx="8" fill="#D3E1C8"/>
+  <rect x="60" y="320" width="100" height="60" rx="6" fill="#DADDD0"/>
+  <text x="260" y="135" font-size="15" fill="#6E7569" font-family="Source Sans 3, sans-serif">Plaza de la Iglesia</text>
+  <text x="455" y="250" font-size="14" fill="#6E7569" font-family="Source Sans 3, sans-serif">Parque</text>
+  <text x="20" y="283" font-size="13" fill="#8A7A55" font-family="Source Sans 3, sans-serif" transform="rotate(-8 20 283)">Ctra. de Sierra Nevada</text>
+  <!-- vecinos atenuados -->
+  <g opacity=".55">
+    <circle cx="120" cy="120" r="7" fill="var(--bueno)" stroke="#fff" stroke-width="2"/>
+    <rect x="500" y="100" width="12" height="12" rx="2.5" fill="var(--regular)" stroke="#fff" stroke-width="2"/>
+    <circle cx="470" cy="340" r="6" fill="var(--malo)" stroke="#fff" stroke-width="2"/>
+    <rect x="90" y="215" width="11" height="11" rx="2.5" fill="var(--bueno)" stroke="#fff" stroke-width="2"/>
+  </g>`;
+document.querySelectorAll('.mapa > svg').forEach(s => { s.innerHTML = s.innerHTML.replace('CALLES', calles); });
+const mini = {
+ bueno:'<circle cx="300" cy="200" r="34" fill="var(--bueno)" stroke="#fff" stroke-width="8"/>',
+ regular:'<circle cx="220" cy="140" r="34" fill="var(--regular)" stroke="var(--regular-borde)" stroke-width="8"/>',
+ malo:'<rect x="380" y="230" width="60" height="60" rx="10" fill="var(--malo)" stroke="#fff" stroke-width="8"/>',
+ nuevo:'<circle cx="330" cy="230" r="34" fill="var(--naranja-600)" stroke="#fff" stroke-width="8"/><circle cx="330" cy="230" r="10" fill="#fff"/>',
+ ubi:'<circle cx="230" cy="230" r="26" fill="#9AA096" stroke="#fff" stroke-width="7"/><circle cx="370" cy="170" r="34" fill="var(--naranja-600)" stroke="#fff" stroke-width="8"/>'
+};
+document.querySelectorAll('[data-mini]').forEach(d => { d.innerHTML = '<svg viewBox="0 0 600 400" preserveAspectRatio="xMidYMid slice">' + calles + mini[d.dataset.mini] + '</svg>'; });
+</script></body></html>

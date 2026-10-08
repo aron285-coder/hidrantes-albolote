@@ -42,9 +42,11 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Códigos de recuperación de 2FA (Google, GitHub, Cloudflare, Supabase) | recuperar acceso si se pierde el móvil del 2FA | mismo sitio, entrada aparte | ídem |
 | Clave GPG privada del respaldo (huella `BD378A1E0E09843032B3A70254A89DD4FC82E6CE`) | descifrar un respaldo | guardada el 21 sep 2026 por el desarrollador fuera del repositorio; **no está en GitHub ni en ningún ordenador de trabajo**. La pública sí: secreto `GPG_PUBLIC_KEY` | ídem |
 | Contraseñas de las bases de datos (dev, prod) | `pg_dump`, restauración | mismo sitio; también en los secretos de GitHub (cifrados) | ídem |
-| Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub; se puede regenerar en un minuto | — |
-| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
+| Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub (environments `staging`, `production` y `prod-tareas`); se puede regenerar en un minuto | — |
+| Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
+
+**Dónde viven los secretos de producción (DEC-172):** en los environments `production` (el despliegue, con su aprobación, DEC-176) y `prod-tareas` (respaldo, purga de fotos, vigilancia, avisos, comprobar-produccion y el despachador; sin revisores y solo desde `develop`). **Ninguno está en el nivel del repositorio.** Para moverlos sin verlos: `npm run traspasar-secreto` (`traspaso.yml`, solo lo lanza el propietario). Si la vigilancia abre «Despliegue de producción no autorizado», alguien desplegó el proyecto de Pages de producción sin `deploy-prod`: mirar el despliegue que nombra la issue en Cloudflare y, si no es legítimo, volver al anterior (`wrangler pages deployment …`) y rotar el token de Cloudflare (`npm run arranque -- --rotar CLOUDFLARE_API_TOKEN`).
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
 contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
@@ -81,13 +83,13 @@ la sede. Se abre solo con dos personas presentes y se anota en §9.
 
 En orden de fiabilidad:
 
-1. **Salud del sistema** (Panel → Ajustes): pendientes antiguas, incidencias, errores, último
+1. **Salud del sistema** (Panel → Ajustes): pendientes antiguas, errores, último
    respaldo, almacenamiento, última vigilancia. Verde = todo bien.
 2. **Issues con etiqueta `vigilancia`** en GitHub: las abre solo el trabajo diario cuando la app, la
    base de datos o el respaldo fallan. Una issue abierta = algo que mirar en la §5 correspondiente.
    - La vigilancia corre dos veces al día (07:41 y 19:41 UTC), pero **GitHub puede retrasarla varias horas**. Una vigilancia de hace menos de 14 h es normal; más de 26 h, no (docs/22 RV-93).
    - La issue «Primera purga de fotos: revisa el ensayo» sale una sola vez: la primera pasada programada de la purga no borra (DEC-129). Mira la lista. Si está bien, no hay que hacer nada, porque el lunes siguiente ya borra.
-3. **Los voluntarios**: "Algo no funciona" en Ajustes de la app llega a Panel → Voluntarios.
+3. **Los voluntarios** avisan a jefatura directamente; los fallos de la app se ven en Salud del sistema («Algo no funciona» se retiró con DEC-167).
 4. **Correo de GitHub "scheduled workflow … disabled"**: en Actions, abre el workflow que nombra y
    pulsa *Enable workflow* (o `gh workflow enable <archivo>`); después lanza `mantener-activo.yml`
    a mano, que rehabilita los demás (DEC-085). Si pasa a menudo, el mecanismo de DEC-085 ha dejado
@@ -99,6 +101,12 @@ En orden de fiabilidad:
 6. Páginas de estado de los proveedores: `status.supabase.com`, `cloudflarestatus.com`,
    `githubstatus.com`. Si está caído el proveedor, no hay nada que hacer salvo esperar; la app sigue
    mostrando los datos guardados en los móviles (FR-168).
+7. **Issue «Deploy de producción fallido»** (etiqueta `vigilancia`, docs/31 RV-136): la abre (o la reabre) `deploy-prod.yml` cuando falla un paso, y dice cuál. Se cierra sola con el siguiente despliegue bueno. La vigilancia, además, avisa si el último `deploy-prod` no terminó en *success*, también si se canceló sin aprobar.
+   - **Qué hacer según el paso:** la guarda, nada ha cambiado: corrige la variable que nombra en el *environment* `production`. Las migraciones, §5.2. El despliegue o la comprobación de versión y cabeceras, §5.1. La paridad, producción ya está desplegada: mira qué no coincide en el resumen de la ejecución y `docs/verificacion/paridad-produccion.md`.
+   - **Cancelado:** nadie aprobó el *environment* a tiempo, así que producción sigue en la versión anterior. Se vuelve a lanzar con la siguiente fusión en `main`.
+8. **Issue «El despachador de trabajos ha fallado»** (etiqueta `vigilancia`, `despachador.yml`, docs/31 RV-137): los botones de mantenimiento de Ajustes (purgar fotos, respaldo ahora, regenerar la zona o el mapa base) ya no lanzan nada directamente: dejan un **pedido**, y el despachador lo lanza cada 15 minutos, solo en producción. Desde staging no se lanza nada de producción.
+   - **Qué hacer:** no ha podido leer o anotar los pedidos, así que no se lanza nada. Abrir la ejecución que enlaza la issue y mirar que `prod-tareas` tiene `SUPABASE_SERVICE_ROLE_KEY_PROD` y que la base de datos responde. La issue se cierra sola en la siguiente pasada buena. Para no esperar los 15 minutos: `gh workflow run despachador.yml --ref develop`.
+   - **Issue «Un trabajo pedido desde el panel no se ha lanzado»:** un pedido concreto se anotó con error y **no se reintenta**. La issue dice cuál y por qué (`GitHub respondió 422: …` suele ser un workflow desactivado o una entrada que ya no declara; `trabajo desconocido`, un panel más nuevo que el despachador). Arreglarlo, volver a pulsar el botón en Ajustes y **cerrar la issue a mano**: no se cierra sola.
 
 ---
 
@@ -153,6 +161,16 @@ tres cosas que habrían estropeado la restauración de verdad:
 
 El respaldo semanal corrió en verde contra producción el 21 sep 2026 y dejó su artefacto cifrado.
 
+**Cada semana se comprueba de verdad** (docs/31 RV-134). Antes solo se miraba que el archivo pesara
+más de 10 kB. Ahora `respaldo.yml`, en el mismo trabajo:
+
+1. restaura el volcado **todavía sin cifrar** en un Postgres de servicio de usar y tirar, con la
+   misma imagen que `supabase start` y el mismo `restaurar.ts --entorno local` de esta sección;
+2. compara cuántos puntos quedan con los que tenía producción al volcar.
+
+Si no cuadra o la restauración falla, el trabajo falla y abre la issue de siempre. El volcado sin
+cifrar no sale del runner y se borra al terminar.
+
 Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con GPG, de las últimas
 13 semanas (datos) y 3 meses (fotos).
 
@@ -182,6 +200,19 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    algo falla a la mitad, la base se queda como estaba. Antes comprueba que el archivo es un volcado
    nuestro, que no toca `public` y que el `PROJECT_REF` de la cadena es el de producción. Pide
    confirmación escribiendo `RESTAURAR`.
+
+   `--entorno` admite exactamente `local`, `staging` y `prod`; `produccion` vale igual que `prod`.
+   Cualquier otro valor aborta. Con cualquiera de los dos nombres, la cadena tiene que ser del proyecto
+   de ese entorno (docs/31 RV-134). Lo mismo hacen `revertir`, `anonimizar` y `migrar --entorno`.
+
+   **Copia previa** (docs/31 RV-134). Después de escribir `RESTAURAR` y **antes** de vaciar nada, el
+   script guarda lo que hay ahora:
+   - con `pg_dump --schema=hidrantes`, cifrado con la misma clave de respaldo (la del paso 3);
+   - en `hidrantes-copias-previas` de tu carpeta personal, fuera del repositorio;
+   - y dice el nombre del archivo.
+
+   Si la copia previa falla, no se restaura nada: lo normal es que falte importar la clave (paso 3).
+   Si la restauración resulta ser un error, esa copia se restaura igual que un respaldo (pasos 3 y 4).
 
    **Hace falta psql 17.6 o posterior** (docs/19 RV-64). `pg_dump` 17.6 escribe `\restrict` en el
    volcado y un psql anterior lo rechaza a medias. El script compara `psql --version` con la cabecera
@@ -225,9 +256,12 @@ Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con
    `restauracion_respaldo`).
 8. Borrar la clave privada del ordenador (`gpg --delete-secret-keys «id»`) y el volcado descifrado
    (`del "%TEMP%\hidrantes.sql"` o `rm /tmp/hidrantes.sql`). El guion temporal de la restauración
-   ya lo borra el script, también si falla.
+   ya lo borra el script, también si falla. La copia previa (cifrada) se guarda hasta que el panel y
+   la app estén comprobados; después se borra de `hidrantes-copias-previas`.
 
-Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Lo que
+Lo que se pierde: los cambios entre el respaldo y el incidente (como mucho una semana, TR-50). Las
+**fotos** se respaldan una vez al mes (el primer domingo): se pueden perder hasta unas **5 semanas**
+de fotos. Lo que
 los voluntarios **enviaron** después del respaldo se pierde también: salió de la cola del móvil al
 enviarse y no vuelve solo. Jefatura avisa al grupo con la **fecha del respaldo** para que repitan lo
 que hicieron desde entonces. Solo lo que aún estuviera sin enviar en un móvil se envía solo al volver
@@ -238,6 +272,32 @@ de acceso, los dispositivos y los administradores de **ahora**, y los repone al 
 nuevo del paso 1 sigue valiendo, el viejo no vuelve, los móviles revocados siguen revocados, los que
 entraron después con el código nuevo siguen entrando y un administrador dado de baja después del
 respaldo sigue de baja. Nada de eso se escribe en disco.
+
+#### Se ha perdido el proyecto de Supabase entero
+
+**Gravedad:** máxima. **Tiempo:** un día. **Quién:** quien maneje Claude Code, con el sobre.
+
+El respaldo es `pg_dump --schema=hidrantes`: los datos, las funciones, las vistas y los permisos
+del esquema. **No lleva** lo que vive fuera de él, y en un proyecto nuevo hay que rehacerlo:
+
+| No está en el respaldo | Cómo se rehace |
+|---|---|
+| Las tareas de `pg_cron` (están en `cron.job`, no en `hidrantes`) | las crean las migraciones; `npm run tareas-esperadas` dice cuáles deben existir |
+| Los roles: `hidrantes_migrador` y sus permisos fuera del esquema, PostGIS y `pg_cron` | `npm run arranque` (ejecuta `supabase/sql/arranque-bd.sql` como `postgres`) |
+| Los administradores de Auth (las cuentas de Google en `auth.users`) | vuelven a entrar con Google; la lista de quién es administrador sí está en el respaldo |
+| Las políticas y los límites del bucket de fotos de Storage | `npm run arranque` crea el bucket con sus límites (04 §7); las fotos, con el paso 5 |
+
+El proyecto es el de la app de uniformidad (`uniformidad-prod`): si se ha perdido, se ha perdido
+también para ella, y lo vuelve a crear quien la mantiene, con el mismo nombre. Después:
+
+1. `npm run arranque`: encuentra el proyecto por su nombre, crea `hidrantes_migrador`, las extensiones,
+   el esquema con todas las migraciones (y con ellas las tareas de `pg_cron`) y el bucket, y pone las
+   claves nuevas en GitHub y Cloudflare. Reescribe también `docs/entornos.md` con el ref nuevo.
+2. Cambiar ese ref en `REFS` de `scripts/lib/comun.ts`, con un PR. Sin eso, las guardas de entorno
+   rechazan la cadena del proyecto nuevo.
+3. Restaurar el último respaldo (pasos 2 a 4) y las fotos (paso 5). El esquema está vacío pero
+   existe, así que la copia previa sale casi vacía: es lo esperado.
+4. Desplegar otra vez producción para que el frontend use las claves nuevas, y comprobar (pasos 6 a 8).
 
 ### 5.4 El código de acceso se ha filtrado
 
@@ -277,7 +337,7 @@ respaldo sigue de baja. Nada de eso se escribe en disco.
 
 **Gravedad:** baja hasta el 90 %. **Tiempo:** semanas. **Quién:** jefatura.
 
-1. Ajustes → *Purgar fotos huérfanas*. Esperar unos minutos; ver Storage en Salud.
+1. Ajustes → *Purgar fotos huérfanas*, en el panel de **producción** (en staging no se puede). Es un pedido: empieza en hasta 15 minutos (`entornos.md`, «Trabajos que pide el panel»). Después, ver Storage en Salud.
 2. Si sigue alto: pedir a Claude Code bajar la calidad de compresión (TR-15) y redesplegar.
 3. Si no basta: mover las fotos a Cloudflare R2 (04 §5 lo prevé; `foto_path` no cambia). Es una tarea
    de Claude Code de un día.
@@ -318,7 +378,9 @@ de Cloudflare durante los partidos, casi siempre en fin de semana y durante unas
 
 ### 5.10 Un voluntario pide que se borre su nombre
 
-No es una emergencia: 11 §6.4 y 13. Panel → Voluntarios → *Anonimizar*.
+No es una emergencia: 11 §6.4. Ya no hay botón en el panel (DEC-167): el desarrollador lo hace en
+su PC con `npm run anonimizar` (`--buscar` para localizar el dispositivo, `--dispositivo` para
+anonimizarlo, escribiendo `ANONIMIZAR`).
 
 ---
 

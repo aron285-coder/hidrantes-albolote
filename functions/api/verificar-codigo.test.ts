@@ -71,6 +71,24 @@ describe('POST /api/verificar-codigo', () => {
         espera: { error: 'DEMASIADOS_INTENTOS', reintentar_en_s: 3600 },
       },
       {
+        // RV-143: el id de un administrador no se puede usar. 409, sin decir de quién es, para que
+        // el móvil genere otro y repita (RV-159).
+        que: 'dispositivo reservado (RV-143)',
+        codigo: '000004',
+        da: canje({ token: null, caduca_en: null, error: 'DISPOSITIVO_RESERVADO' }),
+        estado: 409,
+        espera: { error: 'DISPOSITIVO_RESERVADO' },
+      },
+      {
+        que: 'dispositivo reservado, si la base de datos lo lanza como excepción (RV-143)',
+        codigo: '000005',
+        da: new Response(JSON.stringify({ code: 'P0001', message: 'DISPOSITIVO_RESERVADO: no disponible' }), {
+          status: 400,
+        }),
+        estado: 409,
+        espera: { error: 'DISPOSITIVO_RESERVADO' },
+      },
+      {
         que: 'base de datos sin responder',
         codigo: '000003',
         da: new Error('ECONNREFUSED'),
@@ -108,6 +126,18 @@ describe('POST /api/verificar-codigo', () => {
     expect(cuerpo.ip_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.stringify(cuerpo)).not.toContain('203.0.113.7');
     expect(JSON.stringify(cuerpo)).not.toContain('10.0.0.1'); // la cabecera que el cliente sí puede inventarse
+    espia.mockRestore();
+  });
+
+  it('sin SAL_IP no se canjea nada: el hash de la IP sin sal se podría deshacer', async () => {
+    const espia = fingir(canje({ token: TOKEN, caduca_en: null, error: null }));
+    const r = await onRequestPost({
+      request: peticion({ codigo: '123456', dispositivo_id: DISPOSITIVO }),
+      env: { ...ENV, SAL_IP: '' } as Env,
+    });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
+    expect(espia).not.toHaveBeenCalled();
     espia.mockRestore();
   });
 

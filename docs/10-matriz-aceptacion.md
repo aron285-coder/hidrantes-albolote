@@ -37,8 +37,8 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-11 | Encuadre y límite | Abrir el mapa | Encuadrado sobre Albolote/Calicasas; límite discontinuo visible | FR-54 | | |
 | AC-12 | Forma y color | Localizar un hidrante y una boca de riego con estados distintos | Círculo vs cuadrado; verde/ámbar/rojo/gris según estado | FR-60, TR-30 | | |
 | AC-13 | Cinco tamaños a pleno sol | Al mediodía, con brillo automático, mirar puntos de 100·bueno, 70·bueno, 45·bueno, 45·regular y uno que no funciona | Se distinguen los cinco tamaños; el que no funciona va atenuado y tachado | FR-60, FR-61, TR-33 | | |
-| AC-14 | Sin revisar > 12 meses | Localizar un punto con revisión antigua | Borde discontinuo, mismo tamaño y color | FR-61 | | |
-| AC-15 | Leyenda | Mirar la leyenda | Muestra forma, colores, tachado y borde discontinuo | FR-62 | | |
+| AC-14 | Sin revisar > 12 meses | Localizar un punto con revisión antigua | Anillo de rayas alrededor, borde continuo, mismo tamaño y color | FR-61 | | |
+| AC-15 | Leyenda | Mirar la leyenda | Muestra forma, colores, tachado y anillo de rayas | FR-62 | | |
 | AC-16 | Declutter | Alejar el zoom hasta ver todo el término | Quedan solo los puntos grandes; al acercar aparecen los demás; nunca racimos numerados | FR-64 | | |
 | AC-17 | Las cuatro capas | Cambiar a Calle, Satélite, Catastro y volver al mapa base | Las cuatro cargan con cobertura; el selector recuerda la elegida al reabrir | FR-63 | | |
 | AC-18 | Capas sin cobertura | Modo avión → selector de capas | Calle, Satélite y Catastro en gris con "necesita cobertura"; el mapa base sigue | FR-63, FR-80 | | |
@@ -98,7 +98,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-60 | Aviso de aprobación | Jefatura aprueba un alta del móvil A; abrir la app en A | Aviso "tu alta … se aprobó como HID-…" | FR-90 | | |
 | AC-61 | Aviso de rechazo con motivo | Jefatura rechaza con motivo; abrir la app | El aviso y Mis propuestas muestran el motivo | FR-90, FR-91 | | |
 | AC-62 | Correcciones visibles | Jefatura aprueba con correcciones; abrir Mis propuestas | Se ve qué se corrigió | FR-91, FR-106 | | |
-| AC-63 | Algo no funciona | Ajustes → Algo no funciona → describir → Avisar | Aparece en Voluntarios → Incidencias, abierta, con versión y pantalla | FR-92, FR-132 | | |
+| AC-63 | Algo no funciona | *Retirado (DEC-167).* Ajustes → Algo no funciona → describir → Avisar | Aparece en Voluntarios → Incidencias, abierta, con versión y pantalla | FR-92, FR-132 | | |
 | AC-64 | Cerrar sesión con cola pendiente | Con una propuesta sin enviar, Cerrar sesión | Pide confirmación explícita y avisa de que se perderá | FR-93 | | |
 | AC-65 | Primer uso desde Ajustes | Ajustes → Cómo se usa | Vuelven a verse las tres pantallas | FR-94 | | |
 
@@ -106,7 +106,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-70 | Diff y señales | Abrir una propuesta de estado | Antes tachado, después en verde; señales de GPS y foto | FR-102, FR-104 | | |
+| AC-70 | Diff y origen | Abrir una propuesta de estado | Antes tachado, después en verde; origen de la ubicación en Datos del punto; sin chips de señales | FR-102, FR-104 | | |
 | AC-71 | Minimapa | Abrir un alta | Pin propuesto con los aprobados alrededor | FR-103 | | |
 | AC-72 | Dirección deducida | Abrir un alta con cobertura en el panel | Campo "Dirección" relleno y marcado "deducida · editable" | FR-15, FR-105 | | |
 | AC-73 | Dirección corregida | Editar el campo y aprobar | La ficha del voluntario muestra la dirección corregida | FR-15, FR-105 | | |
@@ -127,21 +127,21 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-90 | Inventario: filtros y orden | Filtrar por núcleo y ordenar por última revisión | Correcto; "mostrando X de N" | FR-120 | | |
+| AC-90 | Inventario: filtros y orden | Filtrar por tipo y estado y ordenar por última revisión | Correcto; "mostrando X de N" | FR-120 | | |
 | AC-91 | Dirección en celda | Editar una dirección en la tabla | Se guarda; la ficha la muestra | FR-120, FR-15 | | |
 | AC-92 | Retirar | Retirar un punto con motivo | Desaparece del mapa; sigue en el registro e historial | FR-124 | | |
 | AC-93 | Borrar y restaurar | Borrar un punto → Papelera → Restaurar | Vuelve al mapa | FR-124 | | |
 | AC-94 | Historial de un punto | Inventario → Historial | Todas las acciones sobre ese punto | FR-123 | | |
-| AC-95 | Revisiones caducadas por núcleo | Abrir la pestaña | Agrupadas por núcleo con recuento | FR-121 | | |
-| AC-96 | Hoja de campo | Hoja de campo por núcleo → imprimir a PDF | Una hoja por núcleo con código, dirección (o coordenadas), tipo, Ø, estado y casilla | FR-122 | | |
+| AC-95 | Revisiones caducadas por núcleo | *Retirado (DEC-167).* Abrir la pestaña | Agrupadas por núcleo con recuento | FR-121 | | |
+| AC-96 | Hoja de campo | *Retirado (DEC-167).* Hoja de campo por núcleo → imprimir a PDF | Una hoja por núcleo con código, dirección (o coordenadas), tipo, Ø, estado y casilla | FR-122 | | |
 | AC-97 | Registro inmutable | Intentar editar o borrar una entrada (por API con cuenta de administrador) | Falla | FR-123, TR-46 | | |
-| AC-98 | Actividad de voluntarios | Pestaña Voluntarios, 3 y 12 meses | Cifras coherentes con lo aprobado y rechazado en el piloto | FR-130 | | |
-| AC-99 | Anonimizar | Anonimizar a un voluntario de prueba | Sus filas muestran "voluntario dado de baja"; el punto y el registro siguen | FR-131 | | |
-| AC-100 | Incidencia resuelta | Marcar resuelta la de AC-63 | Estado resuelta; Salud baja en uno | FR-132, FR-143 | | |
+| AC-98 | Actividad de voluntarios | *Retirado (DEC-167).* Pestaña Voluntarios, 3 y 12 meses | Cifras coherentes con lo aprobado y rechazado en el piloto | FR-130 | | |
+| AC-99 | Anonimizar | `npm run anonimizar -- --entorno staging` con un dispositivo de prueba (11) | Sus filas muestran "voluntario dado de baja"; el punto y el registro siguen | FR-131 | | |
+| AC-100 | Incidencia resuelta | *Retirado (DEC-167).* Marcar resuelta la de AC-63 | Estado resuelta; Salud baja en uno | FR-132, FR-143 | | |
 | AC-101 | Cambiar código sin revocar | Generar uno nuevo sin revocar → confirmar | Los móviles registrados siguen; un móvil nuevo necesita el código nuevo; el antiguo ya no vale | FR-34, FR-140 | | |
 | AC-102 | Cambiar código revocando | Generar con "Revocar todos" → confirmar | Todos los móviles piden el código al abrir; conservan el nombre | FR-34, FR-35 | | |
 | AC-103 | Administradores | Añadir un correo, entrar con él; desactivarlo, volver a entrar | Entra / "No autorizado". No deja desactivar al último activo | FR-141 | | |
-| AC-104 | Parámetros | Cambiar meses de revisión a 6 → Guardar → sincronizar un móvil | Más puntos con borde discontinuo | FR-142 | | |
+| AC-104 | Parámetros | Cambiar meses de revisión a 6 → Guardar → sincronizar un móvil | Más puntos con anillo de rayas | FR-142 | | |
 | AC-105 | Salud | Abrir Ajustes | Los ocho indicadores con valores plausibles; fecha del último respaldo de la semana | FR-143 | | |
 | AC-106 | Purga | Lanzar purga | Aviso de que tarda unos minutos; después Storage usado baja o queda igual y hay entrada en el registro | FR-144 | | |
 | AC-107 | Descargar inventario | Descargar JSON | Archivo con todos los puntos activos | FR-144 | | |
@@ -174,7 +174,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-129 | Cabeceras | Analizador de cabeceras sobre producción | Puntuación A; CSP sin `unsafe-eval` | TR-100 | | |
 | AC-130 | Vigilancia | Ver la última ejecución de `vigilancia.yml` | En verde; al forzar un fallo se abre una issue | TR-102 | | |
 | AC-131 | Lighthouse | Informe del último despliegue a staging | Rendimiento ≥ 85, accesibilidad ≥ 95, PWA instalable | TR-103 | | |
-| AC-132 | Dependabot | Ver PRs cerrados del último mes | Parches fusionados solos con CI verde | TR-101 | | |
+| AC-132 | Dependabot | Ver PRs cerrados del último mes | Parches de desarrollo fusionados solos con CI verde; menores y de producción, abiertos para revisión | TR-101 | | |
 | AC-133 | Rechazo sin nombres | Jefatura rechaza con un motivo; el autor abre Mis propuestas | Ve el motivo y "jefatura" como quien decidió; ningún correo ni nombre ajeno | FR-27 | | |
 | AC-134 | Ningún nombre en las respuestas al voluntario | Con el inspector del navegador, revisar todas las respuestas de `fn_listar_puntos`, `fn_ficha_punto`, `fn_mis_propuestas` y las notificaciones push recibidas durante el recorrido | No aparece ningún nombre de voluntario ajeno ni correo de administrador | FR-27, TR-40 | | |
 
@@ -201,9 +201,9 @@ Pendientes de conformidad de jefatura en F9.1 (#76). Se comprueban en el piloto 
 |---|---|---|---|---|---|---|
 | AC-150 | ¿Qué hay aquí? | Sin cobertura, mantener pulsado un sitio del mapa sin marcador | Hoja con coordenadas decimales y UTM ETRS89 huso 30, la calle más cercana si la hay y las cuatro acciones; *Añadir un punto aquí* abre el alta con el pin ahí; *atrás* la cierra | FR-72, FR-50 | ✓ | 23 sep 2026 · e2e `mapa.spec.ts` y `busqueda.spec.ts` |
 | AC-151 | Buscar calle, lugar, portal o coordenadas | Sin cobertura, buscar "c/ real"; con cobertura, "calle real 12"; pegar un enlace de Google Maps | La calle sale del móvil con "© OpenStreetMap"; el portal, con "CartoCiudad · IGN"; el enlace da "Coordenadas …" arriba; sin cobertura, el portal explica que necesita cobertura y enseña la calle | FR-73, FR-69, TR-118 | ✓ | 23 sep 2026 · e2e `busqueda.spec.ts` |
-| AC-152 | Modo incidente | Sin cobertura, con GPS, pulsar *Cercanos* | Como mucho cinco puntos que funcionan (bueno o regular), en orden de distancia, con rumbo y tramos; aviso si el más cercano no funciona; *Solo hidrantes* cambia la lista; *atrás* sale; recargar lo mantiene | FR-74 | ✓ | 23 sep 2026 · e2e `incidente.spec.ts` |
+| AC-152 | Modo incidente | Sin cobertura, con GPS, pulsar *Cercanos* | Como mucho cinco puntos que funcionan (bueno o regular), en orden de distancia, con rumbo y *Cómo llegar* (sin tramos ni aviso del más cercano, DEC-165); la posición vieja o poco precisa se dice en el subtítulo; *Solo hidrantes* cambia la lista; *atrás* sale; recargar lo mantiene | FR-74 | ✓ | 23 sep 2026 · e2e `incidente.spec.ts` |
 | AC-153 | Compartir un punto | Ficha → *Compartir* → WhatsApp | Llega código, tipo, diámetro, estado, dirección, coordenadas decimales y UTM y un enlace de Google Maps; sin nombres ni descripción | FR-75, FR-27 | | |
-| AC-154 | Medir un tendido | Desde *Cercanos*, *Medir tendido*; añadir dos vértices; *Deshacer*; *Terminar* | La barra dice la distancia y los tramos de manguera; tocar no abre fichas; *Deshacer* quita el último; *atrás* sale | FR-76, FR-142 | ✓ | 23 sep 2026 · e2e `medir.spec.ts` |
+| AC-154 | Medir un tendido | Desde *Medir* en el mapa o *Medir desde aquí* (la fila de *Cercanos* ya no lo lleva, DEC-165); añadir dos vértices; *Deshacer*; *Terminar* | La barra dice la distancia y los tramos de manguera; tocar no abre fichas; *Deshacer* quita el último; *atrás* sale | FR-76, FR-142 | ✓ | 23 sep 2026 · e2e `medir.spec.ts` |
 | AC-155 | G2: el punto más cercano que funciona | Con puntos guardados y sin red, cronometrar desde abrir la app hasta ver la primera fila de *Cercanos* con un toque | Menos de 15 s en campo; en e2e con perfil móvil, menos de 3 s | G2, FR-74, TR-116 | | e2e `incidente.spec.ts` (@rendimiento) |
 | AC-156 | UTM exacto | Comparar las UTM de la app con PROJ (EPSG:4258 → EPSG:25830) en cuatro puntos de la zona | Diferencia ≤ 1 m | TR-119, FR-72, FR-75 | ✓ | 23 sep 2026 · vitest `coordenadas.test.ts` |
 
@@ -225,8 +225,12 @@ se ven al recorrer los anteriores: aquí se anotan una vez.
 | AC-163 | Zona de cobertura | Colocar un pin en Albolote, en Calicasas y fuera | Dentro, sin aviso; fuera (más de unos 400 m), aviso y se puede continuar | FR-53, FR-55 | | |
 | AC-164 | Panel en ordenador y tableta | Abrir el panel en un portátil y en una tableta con una cuenta autorizada y con otra no autorizada | La autorizada entra y se usa en los dos; la otra ve "no autorizado" | FR-100 | | e2e `anchos.spec.ts` |
 | AC-165 | Pendientes a la vista | Con tres propuestas pendientes, abrir el panel | La cola dice 3 en todo momento, y baja al aprobar | FR-110 | | |
-| AC-166 | Caducadas sin correos | Dejar puntos sin revisar más de 12 meses | Salen en Caducadas del panel; no llega ningún correo automático | FR-125 | | |
+| AC-166 | Caducadas sin correos | Dejar puntos sin revisar más de 12 meses | Salen con «hace N» en rojo en el Inventario; no llega ningún correo automático | FR-125 | | |
 | AC-167 | Núcleos desde Ajustes | Ajustes → Núcleos: renombrar uno y añadir otro | El renombrado se ve en el inventario y la lista; el nuevo sale con su recuento de puntos | FR-166 | | e2e `panel-ajustes.spec.ts` |
+| AC-168 | Enganche Directo | Alta de una boca eligiendo Directo, a 360 px | Cuatro opciones Barcelona · Granada · Directo · Otro en una fila; la ficha, el inventario, la cola y las exportaciones dicen «Directo» | FR-20 | | |
+| AC-169 | Inventario con dos filtros | Filtrar por Bocas de riego y Regular → Quitar filtros → Exportar ▾ CSV | El desplegable de Estado da los números del tipo elegido; Quitar filtros vuelve a todos; el CSV trae lo filtrado | FR-120 | | |
+| AC-170 | Editar y mover | Inventario → Editar → mover el pin unos metros y cambiar el enganche → Guardar | Los dos campos marcados con «antes»; el pie dice «2 cambios»; en el Registro, una entrada `edicion_admin` con el desplazamiento; el núcleo recalculado. Guardar con el pin en la misma posición (±0,1 m) no cuenta como movimiento; unas coordenadas fuera de los límites dan `PAYLOAD_INVALIDO(ubicacion)` | FR-120, FR-151 | | |
+| AC-171 | Cinco pestañas | Abrir el panel; ir a /admin/caducadas y /admin/voluntarios | Cola · Inventario · Registro · Papelera · Ajustes; las dos rutas viejas llevan al Inventario | FR-120 | | |
 
 ---
 

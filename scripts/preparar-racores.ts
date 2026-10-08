@@ -1,13 +1,19 @@
-// Fotos de referencia del racor (FR-20, docs/24 RV-104). Toma las fotos originales del
+// Fotos de referencia del racor (FR-20, docs/24 RV-104, docs/29 RV-121). Toma las fotos originales del
 // desarrollador de una carpeta, las recorta en cuadrado al centro, las reduce a 160 × 160 px y las
 // guarda en WebP de ≤ 25 kB en public/racores/. Usa el Chromium de Playwright, como
 // generar-iconos.ts: sin dependencias nuevas.
 //
-//   npx tsx scripts/preparar-racores.ts <carpeta-con-las-fotos>
+//   npx tsx scripts/preparar-racores.ts <carpeta-con-las-fotos> [granada|barcelona|directo …]
 //
-// En la carpeta, un archivo por racor cuyo nombre empiece por «granada» y otro por «barcelona»
-// (JPEG, PNG o WebP; p. ej. granada.jpg). Nunca imágenes sacadas de internet: fotos propias, porque
-// el repositorio es público. En local sin Chromium descargado: PW_CANAL=chrome.
+// En la carpeta, un archivo por racor cuyo nombre empiece por «granada», «barcelona» o «directo»
+// (JPEG, PNG, WebP o un dibujo SVG; p. ej. granada.jpg). Sin lista, los tres; con lista, solo esos
+// (p. ej. `… <carpeta> directo` para poner la de Directo sin rehacer las otras dos). Nunca imágenes
+// sacadas de internet: fotos o dibujos propios, porque el repositorio es público. Los dibujos de
+// referencia (DEC-152, DEC-178) guardan su fuente en public/racores/fuentes/:
+//
+//   npx tsx scripts/preparar-racores.ts public/racores/fuentes directo
+//
+// En local sin Chromium descargado: PW_CANAL=chrome.
 
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -16,19 +22,26 @@ import { type Page, chromium } from '@playwright/test';
 
 export const LADO = 160;
 export const MAXIMO_BYTES = 25 * 1024;
-export const RACORES = ['granada', 'barcelona'] as const;
+export const RACORES = ['granada', 'barcelona', 'directo'] as const;
+export type RacorConFoto = (typeof RACORES)[number];
+
+const esRacor = (r: string): r is RacorConFoto => (RACORES as readonly string[]).includes(r);
 const TIPOS: Record<string, string> = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.png': 'image/png',
   '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
 };
 
-/** La foto original de cada racor en la carpeta; error claro si falta alguna. */
-export function buscarOriginales(carpeta: string): Record<(typeof RACORES)[number], string> {
+/** La foto original de cada racor pedido en la carpeta; error claro si falta alguna. */
+export function buscarOriginales(
+  carpeta: string,
+  racores: readonly RacorConFoto[] = RACORES,
+): Partial<Record<RacorConFoto, string>> {
   const archivos = readdirSync(carpeta);
-  const encontrados = {} as Record<(typeof RACORES)[number], string>;
-  for (const racor of RACORES) {
+  const encontrados: Partial<Record<RacorConFoto, string>> = {};
+  for (const racor of racores) {
     const candidatos = archivos.filter(
       (a) => a.toLowerCase().startsWith(racor) && TIPOS[path.extname(a).toLowerCase()],
     );
@@ -48,8 +61,17 @@ export function buscarOriginales(carpeta: string): Record<(typeof RACORES)[numbe
 export async function prepararFoto(pagina: Page, original: Buffer, tipo: string): Promise<Buffer> {
   const base64 = await pagina.evaluate(
     async ({ datos, tipo, lado, maximo }) => {
-      const blob = await (await fetch(`data:${tipo};base64,${datos}`)).blob();
-      const img = await createImageBitmap(blob);
+      const url = `data:${tipo};base64,${datos}`;
+      let img: ImageBitmap | HTMLImageElement;
+      if (tipo === 'image/svg+xml') {
+        // Un dibujo (docs/31 RV-157b): createImageBitmap no lee SVG; <img> sí, y lo pinta como
+        // vector al tamaño final, sin pasar por un mapa de bits intermedio.
+        img = new Image();
+        img.src = url;
+        await img.decode();
+      } else {
+        img = await createImageBitmap(await (await fetch(url)).blob());
+      }
       const corte = Math.min(img.width, img.height);
       const lienzo = document.createElement('canvas');
       lienzo.width = lado;
@@ -76,15 +98,21 @@ export async function prepararFoto(pagina: Page, original: Buffer, tipo: string)
 }
 
 /**
- * Prepara las dos fotos de `carpeta` y las escribe en `salida`. Devuelve las rutas escritas. Primero
- * las codifica las dos y solo después escribe: si una falla, no queda una sola foto puesta (la app
- * enseñaría foto en un botón y en el otro no).
+ * Prepara las fotos pedidas de `carpeta` (sin lista, las tres) y las escribe en `salida`. Devuelve
+ * las rutas escritas. Primero las codifica todas y solo después escribe: si una falla, no queda
+ * ninguna a medias (la app enseñaría foto en un botón y en otro no).
  */
-export async function prepararRacores(carpeta: string, salida: string, pagina: Page): Promise<string[]> {
-  const originales = buscarOriginales(carpeta);
+export async function prepararRacores(
+  carpeta: string,
+  salida: string,
+  pagina: Page,
+  racores: readonly RacorConFoto[] = RACORES,
+): Promise<string[]> {
+  const originales = buscarOriginales(carpeta, racores);
   const preparadas: [string, Buffer][] = [];
-  for (const racor of RACORES) {
-    const origen = originales[racor];
+  for (const racor of racores) {
+    // buscarOriginales ya ha lanzado si faltaba alguna de las pedidas.
+    const origen = originales[racor]!;
     try {
       const webp = await prepararFoto(pagina, readFileSync(origen), TIPOS[path.extname(origen).toLowerCase()]);
       preparadas.push([path.join(salida, `${racor}.webp`), webp]);
@@ -100,13 +128,17 @@ export async function prepararRacores(carpeta: string, salida: string, pagina: P
 }
 
 async function principal() {
-  const carpeta = process.argv[2];
-  if (!carpeta) throw new Error('Uso: npx tsx scripts/preparar-racores.ts <carpeta-con-las-fotos>');
+  const [carpeta, ...pedidos] = process.argv.slice(2);
+  if (!carpeta)
+    throw new Error('Uso: npx tsx scripts/preparar-racores.ts <carpeta-con-las-fotos> [granada|barcelona|directo …]');
+  const desconocidos = pedidos.filter((r) => !esRacor(r));
+  if (desconocidos.length) throw new Error(`No conozco ${desconocidos.join(', ')}: elige entre ${RACORES.join(', ')}.`);
+  const racores = pedidos.length ? pedidos.filter(esRacor) : RACORES;
   const navegador = await chromium.launch({ channel: process.env.PW_CANAL || undefined });
   try {
     const pagina = await navegador.newPage();
     const salida = path.resolve(import.meta.dirname, '../public/racores');
-    for (const destino of await prepararRacores(path.resolve(carpeta), salida, pagina)) {
+    for (const destino of await prepararRacores(path.resolve(carpeta), salida, pagina, racores)) {
       console.log(`✓ ${path.relative(process.cwd(), destino)} (${readFileSync(destino).length} bytes)`);
     }
   } finally {

@@ -104,6 +104,29 @@ describe('canje del código (FR-31, FR-33)', () => {
     expect(reintentarCola).toHaveBeenCalledTimes(1);
   });
 
+  it('DISPOSITIVO_RESERVADO: otro identificador y un solo reintento (docs/31 RV-159)', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(respuesta(409, { error: 'DISPOSITIVO_RESERVADO' }))
+      .mockResolvedValueOnce(respuesta(200, { token: TOKEN, caduca_en: '2027-09-19T00:00:00Z' }));
+    vi.stubGlobal('fetch', fetch);
+    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const id = (n: number) =>
+      JSON.parse((fetch.mock.calls[n] as unknown as [string, RequestInit])[1].body as string).dispositivo_id;
+    expect(id(1)).not.toBe(id(0));
+    expect(id(1)).toMatch(/^[0-9a-f-]{36}$/);
+    expect(acceso().tipo).toBe('voluntario');
+  });
+
+  it('DISPOSITIVO_RESERVADO dos veces: el error de siempre, sin más reintentos (docs/31 RV-159)', async () => {
+    const fetch = vi.fn(async () => respuesta(409, { error: 'DISPOSITIVO_RESERVADO' }));
+    vi.stubGlobal('fetch', fetch);
+    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBe('DISPOSITIVO_RESERVADO');
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(acceso().tipo).toBe('fuera');
+  });
+
   it('demasiados intentos bloquea la entrada una hora', async () => {
     vi.stubGlobal(
       'fetch',
@@ -238,4 +261,70 @@ describe('la dirección tras volver de Google (RV-57)', () => {
     limpiarDireccion();
     expect(replaceState).not.toHaveBeenCalled();
   });
+});
+
+describe('cerrar sesión con el móvil compartido (RV-153)', () => {
+  it('no deja a la vista las propuestas del anterior', async () => {
+    const { cerrarSesionVoluntario } = await import('./acceso');
+    const { cargarMisPropuestas, misPropuestas } = await import('./mis-propuestas');
+    guardarSesion(TOKEN, { nombre: 'Sara', apellido: 'Ruiz' });
+    rpc.mockResolvedValue({ data: [{ id: 'p1', estado: 'rechazada', motivo_rechazo: 'x' }], error: null, status: 200 });
+    await cargarMisPropuestas();
+    expect(misPropuestas()).toHaveLength(1);
+
+    await cerrarSesionVoluntario();
+    expect(misPropuestas()).toEqual([]);
+  });
+});
+
+describe('cerrar sesión revoca el token (docs/31 RV-158)', () => {
+  const llamadas = (nombre: string) => rpc.mock.calls.filter((c) => c[0] === nombre);
+  const erroresAnotados = () => JSON.parse(datos.get('hidrantes.errores_pendientes') ?? '[]') as { mensaje: string }[];
+
+  it('llama a fn_cerrar_sesion con el token antes de borrar lo local', async () => {
+    const { cerrarSesionVoluntario } = await import('./acceso');
+    guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+    rpc.mockResolvedValue({ data: null, error: null, status: 204 });
+    await cerrarSesionVoluntario();
+    expect(llamadas('fn_cerrar_sesion')).toEqual([['fn_cerrar_sesion', { token: TOKEN }]]);
+    expect(acceso().tipo).toBe('fuera');
+    expect(leerFirma()).toBeNull();
+  });
+
+  it('sin red, la sesión se cierra igual y queda anotado', async () => {
+    const { cerrarSesionVoluntario } = await import('./acceso');
+    guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+    rpc.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
+    await cerrarSesionVoluntario();
+    expect(acceso().tipo).toBe('fuera');
+    expect(leerFirma()).toBeNull();
+    expect(erroresAnotados().some((e) => e.mensaje.includes('fn_cerrar_sesion'))).toBe(true);
+  });
+
+  it('si el servidor no contesta, no se espera más de su límite', async () => {
+    const { cerrarSesionVoluntario } = await import('./acceso');
+    const { LIMITES_RED } = await import('./red');
+    expect(LIMITES_RED.cerrarSesion).toBe(5000);
+    LIMITES_RED.cerrarSesion = 30;
+    try {
+      guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+      rpc.mockImplementation((nombre: string) =>
+        nombre === 'fn_cerrar_sesion' ? new Promise(() => undefined) : Promise.resolve({ data: null, error: null }),
+      );
+      // Los errores salen por POST /api/error desde #524 (RV-148): aquí el servidor los acepta.
+      const fetch = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => respuesta(200, {}));
+      vi.stubGlobal('fetch', fetch);
+      await cerrarSesionVoluntario();
+      expect(acceso().tipo).toBe('fuera');
+      await vi.waitFor(() =>
+        expect(
+          fetch.mock.calls.some(
+            ([url, init]) => url === '/api/error' && String(init?.body).includes('fn_cerrar_sesion: TIEMPO_AGOTADO'),
+          ),
+        ).toBe(true),
+      );
+    } finally {
+      LIMITES_RED.cerrarSesion = 5000;
+    }
+  }, 2000);
 });

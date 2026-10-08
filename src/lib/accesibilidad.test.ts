@@ -43,10 +43,19 @@ export function contraste(a: string, b: string): number {
 
 const ESTADOS = {
   bueno: '--verde-600',
-  regular: '--naranja-estado-600',
+  regular: '--amarillo-500',
   malo: '--rojo-700',
   barro: '--marron-600',
   no_funciona: '--gris-700',
+};
+
+/** El borde de cada estado (DEC-154): el amarillo lleva el suyo, oscuro en los dos mapas. */
+const BORDE: Record<keyof typeof ESTADOS, string> = {
+  bueno: '--borde-marcador',
+  regular: '--borde-marcador-regular',
+  malo: '--borde-marcador',
+  barro: '--borde-marcador',
+  no_funciona: '--borde-marcador',
 };
 
 describe('la fórmula, con los casos que todo el mundo conoce', () => {
@@ -96,19 +105,36 @@ for (const modo of ['claro', 'oscuro'] as const) {
       }
     });
 
+    // docs/28 RV-117: el ámbar, el rojo y el verde como texto sobre una superficie (Fusionar,
+    // Rechazar, la comparación de duplicados, el "después" de un cambio). Los 700/600 no cambian en
+    // oscuro y allí se quedaban en 2–3:1; estos se aclaran.
+    it.each(['--ambar-texto', '--rojo-texto', '--verde-texto'])('%s llega a 4,5:1 sobre --papel y --fondo', (token) => {
+      for (const superficie of ['--papel', '--fondo']) {
+        expect(t[token], `${token} definido`).toMatch(/^#/);
+        expect(contraste(t[token], t[superficie]), `${token} sobre ${superficie}`).toBeGreaterThanOrEqual(4.5);
+      }
+    });
+
+    it('el borde de Fusionar (--oro-600) llega a 3:1 sobre --papel', () => {
+      expect(contraste(t['--oro-600'], t['--papel'])).toBeGreaterThanOrEqual(3);
+    });
+
     // Un marcador se distingue del mapa en dos saltos (06 §4.2): el relleno de estado contra el
     // borde, y uno de los dos contra el mapa. En claro manda el relleno, porque el mapa es claro;
-    // en oscuro, el borde blanco. Por eso el borde es blanco en los dos modos (DEC-072).
-    it('el relleno de estado se separa del borde del marcador', () => {
-      for (const [nombre, token] of Object.entries(ESTADOS)) {
-        expect(contraste(t[token], t['--borde-marcador']), `${nombre} contra el borde`).toBeGreaterThanOrEqual(3);
+    // en oscuro, el borde blanco (DEC-072). El amarillo de regular es la excepción (DEC-154): es tan
+    // claro que en el mapa claro lo separa un borde oscuro, y en el oscuro el blanco no se separa
+    // de él (1,96:1), así que allí el borde es oscuro y manda el relleno.
+    it('el relleno de estado se separa de su borde', () => {
+      for (const [nombre, token] of Object.entries(ESTADOS) as [keyof typeof ESTADOS, string][]) {
+        expect(t[BORDE[nombre]], `borde de ${nombre}`).toMatch(/^#/);
+        expect(contraste(t[token], t[BORDE[nombre]]), `${nombre} contra el borde`).toBeGreaterThanOrEqual(3);
       }
     });
 
     it('sobre cualquier superficie del mapa se ve el marcador: relleno o borde llegan a 3:1', () => {
       for (const [donde, fondo] of superficies) {
-        for (const [nombre, token] of Object.entries(ESTADOS)) {
-          const mejor = Math.max(contraste(t[token], fondo), contraste(t['--borde-marcador'], fondo));
+        for (const [nombre, token] of Object.entries(ESTADOS) as [keyof typeof ESTADOS, string][]) {
+          const mejor = Math.max(contraste(t[token], fondo), contraste(t[BORDE[nombre]], fondo));
           expect(mejor, `${nombre} sobre ${donde}`).toBeGreaterThanOrEqual(3);
         }
       }
@@ -116,6 +142,19 @@ for (const modo of ['claro', 'oscuro'] as const) {
 
     it('el anillo del marcador seleccionado se ve sobre el mapa (DEC-062)', () => {
       expect(contraste(t['--anillo-seleccion'], mapa.fondo)).toBeGreaterThanOrEqual(3);
+    });
+
+    // DEC-155: "sin revisar" es un anillo fino aparte del marcador, sobre el mapa y no sobre el
+    // relleno, así que es él el que tiene que verse contra el fondo del mapa y contra el panel.
+    it('el anillo de "sin revisar" se ve sobre el mapa y sobre las superficies (DEC-155)', () => {
+      expect(t['--anillo-sin-revisar'], 'token del anillo').toMatch(/^#/);
+      for (const [donde, fondo] of [
+        ['mapa', mapa.fondo],
+        ['--papel', t['--papel']],
+        ['--fondo', t['--fondo']],
+      ] as const) {
+        expect(contraste(t['--anillo-sin-revisar'], fondo!), `anillo sobre ${donde}`).toBeGreaterThanOrEqual(3);
+      }
     });
 
     // El aviso (06 §5) es texto ámbar sobre fondo oro o ámbar claro, y sale en los dos modos con
@@ -130,7 +169,7 @@ for (const modo of ['claro', 'oscuro'] as const) {
     it('las etiquetas de estado se leen sobre su propio fondo claro', () => {
       for (const [texto, fondo] of [
         ['--verde-700', '--verde-100'],
-        ['--naranja-estado-700', '--naranja-estado-100'],
+        ['--amarillo-800', '--amarillo-100'],
         ['--rojo-700', '--rojo-100'],
         ['--gris-700', '--gris-100'],
         ['--marron-700', '--marron-100'],
@@ -138,8 +177,58 @@ for (const modo of ['claro', 'oscuro'] as const) {
         expect(contraste(t[texto], t[fondo]), `${texto} sobre ${fondo}`).toBeGreaterThanOrEqual(4.5);
       }
     });
+
+    // DEC-154: donde el amarillo es fondo (la banda de la ficha), el texto es marino, nunca blanco.
+    it('el texto marino se lee sobre el amarillo de regular', () => {
+      expect(contraste(t['--marino-950'], t['--amarillo-500'])).toBeGreaterThanOrEqual(4.5);
+    });
+
+    // DEC-164: la etiqueta «Jefatura» de la barra es un enlace; su texto, marino sobre oro (el blanco
+    // se queda por debajo de 4,5:1), y la etiqueta se distingue de la barra marino.
+    it('la etiqueta Jefatura se lee y se ve sobre la barra', () => {
+      expect(contraste(t['--marino-950'], t['--oro-600'])).toBeGreaterThanOrEqual(4.5);
+      expect(contraste('#ffffff', t['--oro-600'])).toBeLessThan(4.5);
+      expect(contraste(t['--oro-600'], t['--barra'] ?? t['--marino-950'])).toBeGreaterThanOrEqual(3);
+    });
+
+    // DEC-154: regular y malo se distinguen también por su claridad, sin depender del tono.
+    it('el amarillo de regular y el rojo de malo se separan en luminancia: 3:1', () => {
+      expect(contraste(t['--amarillo-500'], t['--rojo-700'])).toBeGreaterThanOrEqual(3);
+    });
   });
 }
+
+describe('colores de estado RAL (docs/25 RV-105, DEC-154)', () => {
+  const t = tokens('claro');
+
+  it('regular es el amarillo RAL 1003, y malo el rojo RAL 3001', () => {
+    expect(t['--amarillo-500']?.toLowerCase()).toBe('#f9a900');
+    expect(t['--rojo-700']?.toLowerCase()).toBe('#9b2423');
+  });
+
+  it('no queda ningún token de naranja de estado', () => {
+    expect(css).not.toContain('naranja-estado');
+  });
+
+  // El modo oscuro se escribe dos veces en index.css: por el sistema (@media) y elegido a mano
+  // (data-tema). Los tests de arriba leen el segundo; aquí se comprueba que el primero dice lo mismo.
+  it('los dos bloques del modo oscuro definen los mismos tokens con los mismos valores', () => {
+    const bloque = (re: RegExp) =>
+      Object.fromEntries(
+        [...(re.exec(css)?.[1] ?? '').matchAll(/(--[a-z0-9-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]),
+      );
+    const porSistema = bloque(/:root:not\(\[data-tema='claro'\]\)\s*\{([^}]*)\}/);
+    const aMano = bloque(/:root\[data-tema='oscuro'\]\s*\{([^}]*)\}/);
+    expect(Object.keys(aMano).length).toBeGreaterThan(5);
+    expect(porSistema).toEqual(aMano);
+  });
+
+  it('en oscuro cambia el borde del amarillo; el de los demás sigue blanco', () => {
+    const o = tokens('oscuro');
+    expect(o['--borde-marcador-regular']).not.toBe(t['--borde-marcador-regular']);
+    expect(o['--borde-marcador']).toBe(t['--borde-marcador']);
+  });
+});
 
 // docs/24 RV-102 (DEC-149): el marrón de "Barro". Contraste como los demás estados y, además, que
 // se distinga de Regular y de Malo también con daltonismo: ΔE2000 ≥ 15 con visión normal y con
@@ -241,10 +330,27 @@ describe('Barro (docs/24 RV-102, DEC-149)', () => {
 
   for (const vision of ['normal', 'protanopia', 'deuteranopia'] as const) {
     it(`se distingue de Regular y de Malo con visión ${vision}: ΔE2000 ≥ 15`, () => {
-      for (const otro of ['--naranja-estado-600', '--rojo-700']) {
+      for (const otro of ['--amarillo-500', '--rojo-700']) {
         const d = distanciaColor(t['--marron-600'], t[otro], vision);
         expect(d, `barro frente a ${otro}`).toBeGreaterThanOrEqual(15);
       }
     });
   }
+});
+
+// docs/31 RV-169: la fila elegida de la Cola usaba `dark:bg-white/5`, que solo sigue al sistema.
+// Con el tema forzado a oscuro sobre un sistema claro quedaba #EFF3F8 bajo texto claro (~1,1:1).
+// Un token en los dos bloques de oscuro lo arregla en las dos formas de llegar a oscuro.
+describe('la fila elegida en los dos modos (docs/31 RV-169)', () => {
+  it.each(['claro', 'oscuro'] as const)('en %s, el texto se lee sobre --fila-elegida', (modo) => {
+    const m = tokens(modo);
+    expect(m['--fila-elegida'], 'falta --fila-elegida').toMatch(/^#/);
+    expect(contraste(m['--texto']!, m['--fila-elegida']!)).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(m['--texto-suave']!, m['--fila-elegida']!)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('en oscuro, la fila elegida se distingue del papel', () => {
+    const o = tokens('oscuro');
+    expect(o['--fila-elegida']).not.toBe(o['--papel']);
+  });
 });

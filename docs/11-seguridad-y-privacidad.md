@@ -74,14 +74,23 @@ límite. Cinco capas, y por qué no basta con la primera:
    bloqueo, así que peticiones en paralelo no lo pasan. El techo se puede usar para dejar sin
    entrar a los voluntarios con móvil nuevo mientras dure el ataque; la defensa completa
    (Turnstile o una regla de Cloudflare) queda para una decisión (`docs/17` §12).
-3b. **Tope de canjes buenos (150 por IP y día, 150 por hora en total).** Quien tenga el código no
-   puede crear dispositivos sin fin para saltarse las cuotas por dispositivo. Los valores cubren la
-   sesión presencial de 65 personas en la misma wifi (DEC-086).
+3b. **Tope de canjes buenos (20 por IP y día, 40 por hora en total desde 0041; antes 150 y 150).**
+   Quien tenga el código no puede crear dispositivos sin fin para saltarse las cuotas por dispositivo.
+   Con 150 por IP y día se sacaban unas 9.000 propuestas al día desde una sola IP (docs/32 RV-221,
+   DEC-183). Son 65 voluntarios: una sesión presencial en la misma wifi se reparte en dos días o en
+   dos redes (DEC-086). Además, un token nuevo solo propone 10 al día durante sus primeras 24 h (§4).
 4. **Token de dispositivo.** Tras el primer canje, el móvil usa un token aleatorio de 32 bytes (se
    guarda su hash); el código no vuelve a viajar. Los 65 voluntarios dejan de tocar el sistema de
    intentos, así que activar el techo global no deja a nadie fuera.
 5. **Nadie salta la Function.** `fn_verificar_codigo` no tiene `execute` para `anon` ni
    `authenticated`; solo la llama la Function con `service_role`. Test pgTAP.
+6. **Nadie se hace pasar por un administrador** (0039, docs/31 RV-143, DEC-175). El `dispositivo_id`
+   técnico de un administrador es `md5('administrador:' || correo)`: lo calcula quien sepa el correo.
+   Con él, un voluntario compartiría la cuota de fotos del administrador, vería sus propuestas y no se
+   podría anonimizar. `fn_verificar_codigo` no da token a un `dispositivo_id` que sea el de cualquier
+   fila de `administradores` (activa o no): `DISPOSITIVO_RESERVADO`, sin decir de quién. Solo se
+   comprueba con el código bueno, así que sin él no sirve para adivinar qué correos son de jefatura; con
+   él, cada prueba cuenta en el tope de canjes buenos (3b).
 
 Además: tiempo de respuesta constante (no filtra por duración), rotación en un minuto desde
 Ajustes con elección entre cerrar accesos nuevos o revocar todos los dispositivos (FR-34), y
@@ -98,6 +107,32 @@ la cola las propuestas de las últimas horas antes de aprobar nada. Procedimient
 - La `anon key` **no puede escribir** en el bucket. Subida solo con URL firmada que emite la Pages
   Function tras validar el token y la cuota (80 por dispositivo y día desde 0035, DEC-146); nombre de archivo asignado
   por el servidor; 5 MB; solo JPEG/WebP (04 §7).
+- **Tope global de subidas** (0039, docs/31 RV-142, DEC-174; contado de otra forma desde 0041, abajo). El tope por dispositivo no basta: cada
+  canje del código crea un dispositivo con su cuota, y dos o tres llenarían el gigabyte gratuito, que
+  comparte uniformidad. `max_subidas_dia_total` (400 reservas en 24 h entre todos los voluntarios; los
+  administradores no cuentan) da `CUOTA_SUBIDAS_AGOTADA` a todos; Salud del sistema y la vigilancia lo
+  ven en `topes_globales_24h` desde 0040 (el error deshace la transacción y no deja rastro: se deduce
+  de las reservas de las últimas 24 h). Las reservas sin confirmar se protegen 48 h (antes 7 días), y la purga no
+  cuenta en su freno del 10 % las nunca confirmadas de más de 48 h (`fn_reservas_sin_confirmar_lista`).
+- **Espacio, no solo número** (0041, docs/32 RV-220, DEC-182). 400 reservas de 5 MB eran 2 GB al día en
+  un Storage de 1 GB compartido, y cinco tokens llenaban el tope global con reservas que nunca se
+  subían: nadie podía mandar fotos en 24 h. Ahora: `SIN_ESPACIO_FOTOS` si el bucket más 5 MB por reserva
+  abierta pasa de `max_bytes_fotos` (800 MB); como mucho 6 reservas abiertas por dispositivo
+  (`RESERVAS_ABIERTAS`); el tope global baja a 150 y solo cuenta confirmadas y abiertas de menos de 2 h,
+  así que reservar sin subir no bloquea al grupo; revocar un móvil libera sus reservas; las filas de
+  reservas nunca confirmadas de más de 48 h se purgan cada día. Salud enseña el espacio y los 5 móviles
+  con más reservas en 24 h (8 caracteres de su id) con "Revocar este móvil" (`fn_revocar_dispositivo`).
+  Para medir el bucket, `hidrantes_migrador` lee `storage.objects` **solo** en las filas de los dos
+  buckets de fotos y solo `bucket_id`, `name` y `metadata` (política y `grant` por columnas de
+  `supabase/sql/arranque-bd.sql`): no ve los archivos de uniformidad ni puede escribir.
+- **Textos y propuestas con límite** (0039, RV-140 y RV-141, DEC-174). Con un token se podía mandar una
+  propuesta de 1 MB o miles al día, en una base de datos de 500 MB que también es de uniformidad.
+  Longitudes máximas en el servidor (05 §7.1) y `max_propuestas_dia` (60 por dispositivo y día; los
+  administradores sin tope).
+- **Propuestas que no se esquivan con tokens nuevos** (0041, docs/32 RV-221, DEC-183): 10 al día durante
+  las primeras 24 h de un token, 600 al día entre todos los voluntarios (`max_propuestas_dia_total`) y
+  `SIN_ESPACIO` si la base de datos pasa de `max_bytes_bd` (400 MB de los 500 compartidos). La
+  vigilancia avisa al 70 % de los dos espacios (`fn_espacio`).
 - **Lectura pública** por URL no enumerable (uuid). Decisión consciente (DEC-011): las URL firmadas
   de lectura romperían la caché offline. La foto retrata un hidrante; **14** pide no fotografiar
   personas ni matrículas, y jefatura rechaza cualquier foto que las incluya.
@@ -142,7 +177,7 @@ sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausen
 |---|---|---|---|
 | Nombre y apellido | `propuestas.autor_*`, `registro.actor` | saber a quién preguntar cuando un dato no cuadra; auditoría | solo administradores (panel); **nunca** otros voluntarios ni ninguna respuesta de red dirigida a un voluntario |
 | `dispositivo_id` (uuid aleatorio) | `propuestas`, `dispositivos`, `registro`, `subidas`, `incidencias_app`, `errores_cliente`, `intentos_codigo` | propiedad de propuestas, cuotas, anonimización | administradores; no identifica al hardware ni a la persona |
-| Hash de IP con sal | `intentos_codigo` | límite de intentos | nadie (se purga a las 24 h) |
+| Hash de IP con sal | `intentos_codigo`; desde 0040 también `errores_cliente.ip_hash` | límite de intentos; tope de errores por IP (docs/31 RV-148) | nadie (`intentos_codigo` se purga a las 24 h; `errores_cliente`, a los 90 días) |
 | Coordenadas GPS del móvil en el momento de una propuesta | `propuestas.gps_geom`, `precision_gps_m` | señal de fiabilidad para jefatura | administradores |
 | Descripción libre de incidencias | `incidencias_app` | soporte | administradores |
 | Correo de Google | `administradores`, `registro.actor`, `propuestas.revisada_por` | acceso y auditoría de administradores | administradores |
@@ -206,8 +241,9 @@ exportó y cuándo.
 
 ### 6.4 Derechos: acceso, rectificación, supresión
 
-- **Acceso:** jefatura exporta desde el panel (Voluntarios → actividad + Registro filtrado por el
-  dispositivo) lo que consta de esa persona y se lo entrega.
+- **Acceso:** el desarrollador localiza el dispositivo con `npm run anonimizar -- --buscar` (paso 2
+  de abajo, no cambia nada) y jefatura exporta el Registro filtrado por ese dispositivo con lo que
+  consta de esa persona y se lo entrega. La pestaña Voluntarios ya no existe (DEC-167).
 - **Rectificación:** el nombre se corrige desde Ajustes en el móvil (afecta a lo nuevo); para lo
   anterior, jefatura lo pide a construcción como corrección puntual anotada en `registro`.
 - **Supresión:** se **anonimiza, no se borra**. Borrar la fila destruiría la auditoría de un cambio
@@ -215,19 +251,47 @@ exportó y cuándo.
   trazabilidad. Se identifica a la persona **por su dispositivo**, no por nombre, porque los nombres
   se repiten entre 65 personas.
 
-  Procedimiento (13 lo repite paso a paso):
-  1. La persona lo pide a jefatura por el canal habitual; jefatura anota fecha.
-  2. Panel → Voluntarios → localizar su fila (nombre + última actividad) → confirmar con ella que
-     es su móvil.
-  3. *Anonimizar…* → confirmar. `fn_anonimizar_autor(dispositivo_id)` sustituye nombre y apellido
-     por "voluntario dado de baja" en `propuestas` y `registro`; conserva las filas y el
-     `dispositivo_id`. El registro sigue siendo de solo añadir: con la anonimización activa, el
-     trigger solo deja cambiar `actor`, y solo al texto exacto "voluntario dado de baja" (RV-26).
-  4. Si tenía el móvil registrado, en Ajustes del móvil → Cerrar sesión. Su token caduca; no se
-     revoca a los demás.
-  5. Anotar la atención en `registro` (lo hace la RPC: `anonimizacion`) y en la tabla de §8.
+  Procedimiento. Desde docs/29 (DEC-167, RV-126) no hay botón en el panel: lo hace el
+  desarrollador en su PC con `npm run anonimizar`, nunca en CI.
+  1. La persona lo pide a jefatura por el canal habitual; jefatura anota la fecha y se lo pasa al
+     desarrollador con el nombre que usa en la app y el correo del administrador que lo atiende.
+     Nada de eso va a una issue, un PR ni un commit: el repositorio es público (DEC-053).
+  2. **Localizar el dispositivo** (no cambia nada; la transacción se deshace):
+
+     ```
+     npm run anonimizar -- --entorno produccion --admin <correo del administrador> --buscar "nombre"
+     ```
+
+     Pide la cadena de `hidrantes_migrador` de ese entorno (o la toma de `SUPABASE_DB_URL`) y se
+     niega si es de otro proyecto o de otro usuario, como `npm run restaurar`. Lista por la
+     terminal, con `fn_actividad_voluntarios`, cada dispositivo cuyo autor coincide:
+     identificador, nombre, número de propuestas y última actividad. Confirmar con la persona
+     cuál es su móvil (fecha de su última aportación).
+  3. **Anonimizar:**
+
+     ```
+     npm run anonimizar -- --entorno produccion --admin <correo del administrador> --dispositivo <id>
+     ```
+
+     Comprueba que el correo es de un administrador activo y que el dispositivo no es de un
+     administrador, enseña cuántas propuestas y entradas del registro llevan aún su nombre (si
+     ninguna, ya estaba anonimizado y sale sin cambiar nada) y pide escribir
+     `ANONIMIZAR`; cualquier otra respuesta sale sin cambiar nada. Sin `--dispositivo`, el script
+     no cambia nada nunca. Llama a `fn_anonimizar_autor(dispositivo_id)` con los claims de ese
+     administrador puestos solo en su transacción, así que el registro apunta `anonimizacion` a su
+     nombre. La función sustituye nombre y apellido por "voluntario dado de baja" en `propuestas`
+     y `registro`; conserva las filas y el `dispositivo_id`. El registro sigue siendo de solo
+     añadir: con la anonimización activa, el trigger solo deja cambiar `actor`, y solo al texto
+     exacto "voluntario dado de baja" (RV-26).
+  4. Si tenía el móvil registrado, en Ajustes del móvil → Cerrar sesión. Desde 0040 (docs/31
+     RV-158) cerrar sesión revoca su token en el servidor y borra su suscripción push
+     (`fn_cerrar_sesion`); no se revoca a los demás.
+  5. Anotar la atención en la tabla de §8 (el `registro` ya lo tiene: `anonimizacion`).
   6. Los respaldos anteriores a la fecha conservan el nombre hasta que caducan (90 días); se
      informa de ello a la persona.
+
+  Los nombres solo salen por la terminal de quien lo ejecuta: el script no escribe archivos.
+  Primero se prueba en staging (`--entorno staging`) con un dispositivo de prueba.
 
 ---
 
@@ -281,7 +345,14 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | Fuerza bruta sobre 6 dígitos | Las cinco capas de §3. |
 | Esquivar el límite con `dispositivo_id` nuevos o `x-forwarded-for` falso | Límite por `CF-Connecting-IP` en la Function + techo global. |
 | El techo global deja fuera a los 65 | Token de dispositivo: quien entró no vuelve a pasar por el control. |
-| Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota. |
+| Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota por dispositivo y tope global (0039); tope de espacio, 6 reservas abiertas por móvil y tope global que no cuenta lo que no se sube (0041, DEC-182). |
+| Llenar la base de datos con un token | Longitud máxima de cada texto y 60 propuestas por dispositivo y día (0039, DEC-174). |
+| Llenar la base de datos sacando tokens nuevos | 20 canjes por IP y día y 40 por hora; 10 propuestas al día las primeras 24 h de un token; 600 al día entre todos; `SIN_ESPACIO` a 400 MB (0041, DEC-183). |
+| Agotar el cupo de errores con la RPC vieja de 5 argumentos | Cupo propio: 200 al día y 10 por dispositivo, que no gasta el de `/api/error` (0041, RV-222); se le quita `anon` con #472. |
+| Usar el `dispositivo_id` de un administrador | `DISPOSITIVO_RESERVADO` en el canje (0039, DEC-175). |
+| Un token copiado sigue valiendo tras cerrar sesión | `fn_cerrar_sesion` lo revoca en el servidor (0040, RV-158). |
+| Agotar el cupo diario de errores rotando `dispositivo_id` | Tope por `ip_hash` en `/api/error` y cupo propio para lo que llega sin IP (0040, RV-148). |
+| El panel de staging lanza trabajos de producción con un token de GitHub | Sin token: pedidos en la base de datos de cada entorno, que solo despacha `despachador.yml` en producción (0040, RV-146). |
 | Filtración de la `service_role key` | Solo en variables cifradas de Cloudflare y en GitHub Environments; nunca en el frontend ni en el repositorio; rotar = relanzar `arranque.ts`. |
 | Cuenta de Google de un administrador comprometida | Desactivación inmediata desde Ajustes por otro administrador; registro de todo lo que hizo; 2FA obligatorio en las cuentas de jefatura (13). |
 | Nombres de voluntarios expuestos a otros voluntarios | RLS: `anon` no lee tablas; `fn_ficha_punto` y `fn_listar_puntos` no incluyen autores; comprobado en la respuesta de red (AC-21). |

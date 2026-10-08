@@ -3,9 +3,10 @@
 # Cron Trigger: el cron de GitHub es de mejor esfuerzo y este workflow, programado cada 15 minutos,
 # corría cada 3 a 5 horas. Queda solo `workflow_dispatch`, por si el Worker fallara.
 #
-# Sin `environment` (DEC-071): `production` pediría aprobación humana en cada ejecución. El secreto
-# de repositorio VIGILANCIA_SECRETO_<ENTORNO> es el mismo valor que la Function lee de sus
-# secretos de Pages (npm run arranque -- --rotar vigilancia). En un repositorio público los minutos
+# Sin `production` (DEC-071): pediría aprobación humana en cada ejecución. La fila de producción va en
+# `prod-tareas`, donde está VIGILANCIA_SECRETO_PROD (docs/31 RV-131, DEC-172); la de staging, en
+# `staging`, y lee VIGILANCIA_SECRETO_STAGING del repositorio. Es el mismo valor que la Function lee
+# de sus secretos de Pages (npm run arranque -- --rotar vigilancia). En un repositorio público los minutos
 # de Actions no cuentan (TR-53).
 name: Avisos
 
@@ -22,6 +23,7 @@ concurrency:
 jobs:
   enviar:
     runs-on: ubuntu-24.04
+    environment: ${{ matrix.entorno == 'PROD' && 'prod-tareas' || 'staging' }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -29,7 +31,7 @@ jobs:
         entorno: [PROD, STAGING]
     steps:
       # Solo para el cálculo del código HTTP (RV-38).
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: .github/scripts
       - name: Pedir el envío hasta que no quede nada

@@ -75,11 +75,42 @@ describe('exportación (FR-160, FL-32)', () => {
     expect(lineas[1]).toContain(';37.2308;');
   });
 
+  // docs/31 RV-168: un texto que empieza por =, +, -, @, tabulador o retorno sería una fórmula al
+  // abrir el CSV en Excel; lleva delante un apóstrofo. Los números (la longitud, negativa) no.
+  it('el CSV neutraliza las fórmulas con un apóstrofo, y deja los números como están', () => {
+    const peligrosas = ['=HYPERLINK("https://ejemplo.invalid","pulsa")', '+1', '-2', '@SUMA(A1)', '\tx', '\rx'];
+    for (const direccion of peligrosas) {
+      const linea = csv([{ ...FILAS[0], direccion }]).split('\r\n')[1];
+      expect(linea).toContain(`;"'${direccion.replace(/"/g, '""')}";`);
+    }
+    const linea = csv([{ ...FILAS[0], direccion: 'Calle = Real' }]).split('\r\n')[1];
+    expect(linea).toContain(';"Calle = Real";');
+    expect(linea).toContain(';-3.6569;');
+  });
+
   it('GeoJSON con las coordenadas en el orden correcto y los datos crudos', () => {
     const g = JSON.parse(geojson(FILAS));
     expect(g.type).toBe('FeatureCollection');
     expect(g.features[0].geometry.coordinates).toEqual([-3.6569, 37.2308]);
-    expect(g.features[1].properties).toMatchObject({ codigo: 'BOC-0002', racor: 'granada', nucleo: null });
+    expect(g.features[1].properties).toMatchObject({ codigo: 'BOC-0002', tipo_enganche: 'granada', nucleo: null });
+  });
+
+  // docs/25 RV-112 (DEC-163): la columna es el tipo de enganche; el dato sigue siendo racor.
+  it('la columna del enganche se llama "Tipo de enganche" y en GeoJSON tipo_enganche', () => {
+    expect(CABECERAS[4]).toBe('Tipo de enganche');
+    expect(CABECERAS.some((c) => /racor/i.test(c))).toBe(false);
+    expect(celdas(FILAS[1])[4]).toBe('Granada');
+    const propiedades = JSON.parse(geojson(FILAS)).features[1].properties;
+    expect(propiedades.tipo_enganche).toBe('granada');
+    expect('racor' in propiedades).toBe(false);
+  });
+
+  // docs/29 RV-121 (DEC-170): el enganche Directo sale con su nombre en Excel y CSV, y crudo en GeoJSON.
+  it('una boca con enganche Directo sale como "Directo", y en GeoJSON tipo_enganche "directo"', () => {
+    const directo: FilaExportada = { ...FILAS[1], racor: 'directo' };
+    expect(celdas(directo)[4]).toBe('Directo');
+    expect(csv([directo]).split('\r\n')[1]).toContain(';"Directo";');
+    expect(JSON.parse(geojson([directo])).features[0].properties.tipo_enganche).toBe('directo');
   });
 
   it('el .xlsx es un zip con las partes que Excel espera y los números como números', () => {

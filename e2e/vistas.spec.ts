@@ -78,6 +78,25 @@ async function voluntario(page: Page) {
   });
 }
 
+/**
+ * docs/25 RV-107: los doce puntos sin revisar (los cinco tamaños, círculo y cuadrado), y el mapa
+ * a z17 sobre ellos, para mirar el anillo de 8 rayas en el mapa y en la lista.
+ */
+async function voluntarioSinRevisar(page: Page) {
+  await conSesion(page);
+  await simularRpc(page, {
+    fn_listar_puntos: { ...LISTADO, puntos: PUNTOS.map((p) => ({ ...p, revision_caducada: true })) },
+    fn_ficha_punto: { ...P0, revision_caducada: true },
+    fn_mis_propuestas: [],
+    fn_registrar_error: null,
+  });
+  // La clave es VISTA de src/lib/vista.ts; no se importa porque arrastra imports sin extensión.
+  await page.addInitScript(([clave, vista]) => localStorage.setItem(clave, vista), [
+    'hidrantes.vista',
+    JSON.stringify({ centro: [37.2326, -3.6554], zoom: 17 }),
+  ] as const);
+}
+
 const SALUD_STAGING = {
   pendientes_14d: 2,
   incidencias_abiertas: 0,
@@ -96,11 +115,67 @@ const SALUD_STAGING = {
   tareas_origen: 'en_vivo',
 };
 
+/**
+ * docs/30 RV-127: entradas del Registro como las deja la base de datos (0006, 0038), para mirar el
+ * detalle legible: una edición con movimiento, un alta, un borrado y un cambio de parámetros.
+ */
+const REGISTRO = [
+  {
+    id: 4,
+    momento: hace(1),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'edicion_admin',
+    punto_id: P0.id,
+    codigo: P0.codigo,
+    resumen: `edicion_admin · ${P0.codigo} · actualizado_en, caudal, codigo, desplazamiento_m, lat, lng`,
+    antes: { ...P0, caudal: 'no_funciona', descripcion_fallo: '[PRUEBA] Tapa soldada' },
+    despues: { ...P0, caudal: 'regular', descripcion_fallo: null, lat: P0.lat + 0.00005, desplazamiento_m: 5.6 },
+  },
+  {
+    id: 3,
+    momento: hace(3),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'aprobacion',
+    punto_id: P1.id,
+    codigo: P1.codigo,
+    resumen: `aprobacion · ${P1.codigo} · caudal, codigo, tipo`,
+    antes: null,
+    despues: P1,
+  },
+  {
+    id: 2,
+    momento: hace(20),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'borrado',
+    punto_id: P1.id,
+    codigo: P1.codigo,
+    resumen: `borrado · ${P1.codigo} · motivo, situacion`,
+    antes: P1,
+    despues: { situacion: 'borrado', motivo: '[PRUEBA] Duplicado de otro punto' },
+  },
+  {
+    id: 1,
+    momento: hace(50),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'config_cambiada',
+    punto_id: null,
+    codigo: null,
+    resumen: 'config_cambiada · dias_papelera',
+    antes: { dias_papelera: 30 },
+    despues: { dias_papelera: 45 },
+  },
+];
+
 async function jefatura(page: Page) {
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
     v_puntos_activos: PUNTOS,
     v_cola_revision: COLA,
+    v_registro: REGISTRO,
     propuestas: (url) => (url.searchParams.get('estado') === 'eq.pendiente' ? COLA : []),
     puntos: [],
     config: [],
@@ -113,6 +188,7 @@ async function jefatura(page: Page) {
     // Salud del sistema como en staging: sin respaldo ni medida del bucket (docs/23 RV-98).
     if (nombre === 'fn_salud') return json(SALUD_STAGING);
     if (nombre === 'fn_registrar_error') return json(null);
+    if (nombre === 'fn_historial_punto') return json([...REGISTRO].reverse());
     return route.abort('connectionrefused');
   });
   await page.route('**/api/direccion?*', (r) =>
@@ -127,6 +203,8 @@ interface Vista {
   lista: (p: Page) => Promise<void>;
   /** Solo en escritorio: el panel es de ordenador (FR-100). */
   soloEscritorio?: boolean;
+  /** Ancho del escritorio si no es el de siempre (1280). */
+  anchoEscritorio?: number;
 }
 
 const VISTAS: Vista[] = [
@@ -164,7 +242,7 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByRole('radio', { name: T.formulario.hidrante })).toBeVisible(),
   },
   {
-    // docs/24 RV-104: los tres racores, con foto si el desarrollador ya las ha puesto.
+    // docs/24 RV-104 y docs/29 RV-121: los cuatro racores, con foto si el desarrollador ya las ha puesto.
     nombre: 'nuevo-punto-boca',
     ruta: '/proponer/alta',
     preparar: voluntario,
@@ -186,6 +264,13 @@ const VISTAS: Vista[] = [
       await p.getByRole('radiogroup', { name: T.formulario.caudal }).scrollIntoViewIfNeeded();
       await expect(p.getByRole('radio', { name: T.formulario.barro })).toHaveAttribute('aria-checked', 'true');
     },
+  },
+  {
+    // docs/31 RV-152: el formulario de un punto que ya no está lo dice, sin mandar al mapa.
+    nombre: 'punto-ya-no-esta',
+    ruta: '/proponer/estado?p=no-existe',
+    preparar: voluntario,
+    lista: (p) => expect(p.getByText(T.operaciones.puntoYaNoEsta)).toBeVisible(),
   },
   {
     // docs/24 RV-102: la leyenda con la fila de Barro.
@@ -216,6 +301,25 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByRole('button', { name: new RegExp(P0.codigo) }).first()).toBeVisible(),
   },
   {
+    // docs/25 RV-107: el anillo de "sin revisar" en los cinco tamaños, a 412 y 1440 px.
+    nombre: 'mapa-sin-revisar',
+    ruta: '/',
+    preparar: voluntarioSinRevisar,
+    lista: (p) => expect(p.locator('.leaflet-marker-pane [data-sin-revisar]')).toHaveCount(PUNTOS.length),
+    anchoEscritorio: 1440,
+  },
+  {
+    nombre: 'lista-sin-revisar',
+    ruta: '/lista',
+    preparar: voluntarioSinRevisar,
+    lista: async (p) => {
+      const fila = p.getByRole('button', { name: new RegExp(P0.codigo) }).first();
+      await expect(fila).toBeVisible();
+      await expect(fila.locator('[data-sin-revisar]')).toHaveCount(1);
+    },
+    anchoEscritorio: 1440,
+  },
+  {
     nombre: 'ajustes',
     ruta: '/ajustes',
     preparar: voluntario,
@@ -242,6 +346,25 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByText(P0.codigo).first()).toBeVisible(),
     soloEscritorio: true,
   },
+  {
+    // docs/30 RV-127: el Registro dice qué cambió, con palabras, en la tabla y en las filas apiladas.
+    nombre: 'panel-registro',
+    ruta: '/admin/registro',
+    preparar: jefatura,
+    lista: (p) => expect(p.getByText(/Movido 5,6 m/)).toBeVisible(),
+    anchoEscritorio: 1440,
+  },
+  {
+    // docs/30 RV-127: el Historial del punto, con la segunda línea del detalle.
+    nombre: 'panel-historial',
+    ruta: '/admin/inventario',
+    preparar: jefatura,
+    lista: async (p) => {
+      await p.getByRole('button', { name: T.panel.historial }).first().click();
+      await expect(p.getByRole('dialog').getByText(/Movido 5,6 m/)).toBeVisible();
+    },
+    anchoEscritorio: 1440,
+  },
 ];
 
 async function capturar(page: Page, info: TestInfo, nombre: string) {
@@ -257,12 +380,12 @@ for (const tema of ['claro', 'oscuro'] as const) {
     test(`${vista.nombre} · ${tema}`, async ({ page, isMobile }, info) => {
       test.skip(!!isMobile && !!vista.soloEscritorio, 'el panel de jefatura es de ordenador');
       // Escritorio a 1280 × 800; el móvil es el Pixel 7 del proyecto (412 × 915).
-      if (!isMobile) await page.setViewportSize({ width: 1280, height: 800 });
+      if (!isMobile) await page.setViewportSize({ width: vista.anchoEscritorio ?? 1280, height: 800 });
       await page.emulateMedia({ colorScheme: tema === 'oscuro' ? 'dark' : 'light' });
       await vista.preparar(page);
       await page.goto(vista.ruta);
       await vista.lista(page);
-      await capturar(page, info, `${vista.nombre}-${isMobile ? '412' : '1280'}-${tema}`);
+      await capturar(page, info, `${vista.nombre}-${isMobile ? '412' : (vista.anchoEscritorio ?? 1280)}-${tema}`);
     });
   }
 }

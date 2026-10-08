@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
   POR_PAGINA,
+  MOVIDO_DESDE_M,
+  REVISAR_DIRECCION_DESDE_M,
   cambiosDe,
-  caducadasPorNucleo,
+  camposCambiados,
+  faltaEnEdicion,
+  movidoM,
   diasQueQuedan,
   escapar,
   inventario,
   nombreAccion,
-  nucleosDe,
+  cuentaPorEstado,
   ordenarPor,
   pagina,
   paginas,
@@ -57,20 +61,44 @@ const PUNTOS = [
 const sinFiltro = {
   tipo: 'todos' as const,
   caudal: 'todos' as const,
-  sin_revisar: false,
-  nucleo: '',
-  diametro: '',
   busqueda: '',
 };
 
 describe('inventario (FR-120)', () => {
-  it('filtra por tipo, estado, caducidad, núcleo y diámetro', () => {
+  it('filtra por tipo y por estado', () => {
     expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'hidrante' })).toHaveLength(3);
     expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'boca_riego' })).toHaveLength(1);
     expect(inventario(PUNTOS, { ...sinFiltro, caudal: 'no_funciona' })).toHaveLength(1);
-    expect(inventario(PUNTOS, { ...sinFiltro, sin_revisar: true })).toHaveLength(2);
-    expect(inventario(PUNTOS, { ...sinFiltro, nucleo: 'Pretel' })).toHaveLength(2);
-    expect(inventario(PUNTOS, { ...sinFiltro, diametro: '45' })).toHaveLength(1);
+  });
+
+  // docs/29 RV-123 (DEC-168): solo Tipo y Estado. Un filtro de antes (núcleo, diámetro, revisión)
+  // que llegue en el objeto se ignora sin error.
+  it('los filtros quitados ya no filtran ni van a la exportación (RV-123)', () => {
+    const viejo = { ...sinFiltro, sin_revisar: true, nucleo: 'Pretel', diametro: '45' };
+    expect(inventario(PUNTOS, viejo)).toHaveLength(PUNTOS.length);
+    expect(filtrosExportacion(viejo)).toEqual({});
+  });
+
+  it('cuenta cada estado según el filtro de tipo, para el desplegable (RV-123)', () => {
+    expect(cuentaPorEstado(PUNTOS, 'todos')).toEqual({
+      todos: 4,
+      bueno: 1,
+      regular: 1,
+      malo: 1,
+      barro: 0,
+      no_funciona: 1,
+    });
+    expect(cuentaPorEstado(PUNTOS, 'boca_riego')).toEqual({
+      todos: 1,
+      bueno: 0,
+      regular: 1,
+      malo: 0,
+      barro: 0,
+      no_funciona: 0,
+    });
+    // Un estado que esta versión no conoce cuenta como no funciona, igual que se dibuja (RV-102a).
+    const raro = punto({ codigo: 'HID-0009', caudal: 'desconocido' as Punto['caudal'] });
+    expect(cuentaPorEstado([raro], 'hidrante').no_funciona).toBe(1);
   });
 
   // FR-120: tipo **y** estado, combinables (RV-24).
@@ -84,19 +112,10 @@ describe('inventario (FR-120)', () => {
     ]);
   });
 
-  it('sin revisar se combina con tipo', () => {
-    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'hidrante', sin_revisar: true })).toHaveLength(2);
-    expect(inventario(PUNTOS, { ...sinFiltro, tipo: 'boca_riego', sin_revisar: true })).toEqual([]);
-  });
-
   it('los filtros del panel van a la exportación en la forma de fn_exportar_inventario', () => {
-    expect(
-      filtrosExportacion({ ...sinFiltro, tipo: 'hidrante', caudal: 'malo', sin_revisar: true, diametro: '70' }),
-    ).toEqual({
+    expect(filtrosExportacion({ ...sinFiltro, tipo: 'hidrante', caudal: 'malo' })).toEqual({
       tipo: 'hidrante',
       caudal: 'malo',
-      revision_caducada: true,
-      diametro_mm: 70,
     });
     expect(filtrosExportacion(sinFiltro)).toEqual({});
   });
@@ -116,16 +135,33 @@ describe('inventario (FR-120)', () => {
     expect(ordenarPor(PUNTOS, { columna: 'direccion', ascendente: true })[0].direccion).toBeNull();
   });
 
+  // RV-123: núcleo, diámetro y última revisión ya no filtran; se ordenan por columna.
+  it('ordena por núcleo, diámetro y última revisión', () => {
+    expect(ordenarPor(PUNTOS, { columna: 'nucleo', ascendente: true }).map((p) => p.nucleo)).toEqual([
+      null,
+      'Albolote',
+      'Pretel',
+      'Pretel',
+    ]);
+    expect(ordenarPor(PUNTOS, { columna: 'diametro_mm', ascendente: false }).map((p) => p.diametro_mm)).toEqual([
+      100, 100, 70, 45,
+    ]);
+    const conFechas = [
+      punto({ codigo: 'HID-0007', fecha_ultima_revision: '2026-01-02' }),
+      punto({ codigo: 'HID-0008', fecha_ultima_revision: '2025-06-30' }),
+    ];
+    expect(ordenarPor(conFechas, { columna: 'fecha_ultima_revision', ascendente: true }).map((p) => p.codigo)).toEqual([
+      'HID-0008',
+      'HID-0007',
+    ]);
+  });
+
   it('pagina de 50 en 50', () => {
     const muchos = Array.from({ length: 120 }, (_, i) => punto({ codigo: `HID-${i}` }));
     expect(POR_PAGINA).toBe(50);
     expect(paginas(muchos.length)).toBe(3);
     expect(pagina(muchos, 2)).toHaveLength(20);
     expect(paginas(0)).toBe(1);
-  });
-
-  it('lista los núcleos presentes, ordenados y sin repetir', () => {
-    expect(nucleosDe(PUNTOS)).toEqual(['Albolote', 'Pretel']);
   });
 });
 
@@ -149,24 +185,61 @@ describe('editar un punto (FR-120, FR-151)', () => {
   });
 });
 
+// docs/29 RV-124 (DEC-169): mover el punto desde Editar y el pie "N cambios · cuáles".
+describe('Editar: la ubicación y la lista de cambios (RV-124)', () => {
+  const p = punto({ tipo: 'boca_riego', diametro_mm: 45, racor: 'granada', lat: 37.23, lng: -3.65 });
+  // ~1 m de latitud son 0,000009°.
+  const aMetros = (m: number) => ({ lat: 37.23 + m * 0.000009, lng: -3.65 });
+
+  it('sin mover el pin no se envían lat ni lng', () => {
+    expect(cambiosDe(p, { lat: 37.23, lng: -3.65 })).toEqual({});
+    expect(cambiosDe(p, { ...aMetros(0.3) })).toEqual({});
+    expect(movidoM(p, {})).toBe(0);
+  });
+
+  it('desde 0,5 m cuenta como movido y se envían las dos', () => {
+    const v = aMetros(6);
+    expect(cambiosDe(p, v)).toEqual({ lat: v.lat, lng: v.lng });
+    expect(movidoM(p, v)).toBeGreaterThan(5.9);
+    expect(movidoM(p, v)).toBeLessThan(6.1);
+    expect(MOVIDO_DESDE_M).toBe(0.5);
+    expect(REVISAR_DIRECCION_DESDE_M).toBe(25);
+  });
+
+  it('el recuento y la lista salen de los mismos cambios, en el orden de la pantalla', () => {
+    expect(camposCambiados(cambiosDe(p, { racor: 'directo', ...aMetros(6) }))).toEqual(['ubicacion', 'enganche']);
+    expect(camposCambiados(cambiosDe(p, { racor: 'directo' }))).toEqual(['enganche']);
+    // Volver a Granada lo desmarca y deja de contar.
+    expect(camposCambiados(cambiosDe(p, { racor: 'granada' }))).toEqual([]);
+    expect(
+      camposCambiados(
+        cambiosDe(p, {
+          descripcion: 'x',
+          direccion: 'Calle Nueva 1',
+          caudal: 'no_funciona',
+          descripcion_fallo: 'No abre',
+          diametro_mm: 70,
+        }),
+      ),
+    ).toEqual(['diametro', 'estado', 'fallo', 'direccion', 'descripcion']);
+  });
+
+  it('mover el punto no basta para guardar si falta algo obligatorio', () => {
+    expect(faltaEnEdicion(p, { racor: 'granada', diametro_mm: 45, ...aMetros(6) })).toBeNull();
+    expect(faltaEnEdicion(p, { racor: 'granada', diametro_mm: 45, caudal: 'no_funciona', ...aMetros(6) })).toBe(
+      T.avisosFormulario.describeFallo,
+    );
+    expect(faltaEnEdicion(p, { racor: 'granada', diametro_mm: 45, ...aMetros(0.2) })).toBe(
+      T.avisosFormulario.sinCambios,
+    );
+  });
+});
+
 describe('papelera (FR-124)', () => {
   it('cuenta los días que quedan y nunca baja de cero', () => {
     const ahora = new Date('2026-09-20T12:00:00Z');
     expect(diasQueQuedan('2026-09-18T12:00:00Z', 30, ahora)).toBe(28);
     expect(diasQueQuedan('2026-07-01T12:00:00Z', 30, ahora)).toBe(0);
-  });
-});
-
-describe('revisiones caducadas (FR-121)', () => {
-  it('agrupa por núcleo, de más urgente a menos, con el total del núcleo', () => {
-    const grupos = caducadasPorNucleo([
-      ...PUNTOS,
-      punto({ codigo: 'HID-0005', nucleo: 'Pretel', revision_caducada: true }),
-    ]);
-    expect(grupos.map((g) => [g.nucleo, g.puntos.length, g.total])).toEqual([
-      ['Pretel', 2, 3],
-      [T.panelCola.sinNucleo, 1, 1],
-    ]);
   });
 });
 

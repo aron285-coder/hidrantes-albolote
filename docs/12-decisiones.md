@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.46 — 4 de octubre de 2026 (DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.56 — oct 2026 (DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,255 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-179 · Detalles de docs/31 que la especificación no fijaba
+- **Fecha:** oct 2026 · **Estado:** vigente (`docs/31`).
+- **Radios del marcador** (RV-167): se validan de mayor a menor (R1 ≥ … ≥ R5, 06 §4.1), no «crecientes» como decía docs/31, que rechazaría el valor por defecto `[11, 9, 7, 5.5, 5]`. El servidor sigue comprobando cinco valores entre 2 y 30. Fuera de producción (`VITE_ENTORNO` distinto de `produccion`, o sin él), Purgar fotos y Respaldo ahora salen deshabilitados con «Solo en producción».
+- **Dirección en el Inventario** (RV-164, RV-165): la celda se reinicia con el dato nuevo, salvo mientras se escribe en ella, y al salir solo guarda si difiere del dato actual. Mientras una fila está abierta en Editar, su dirección en la tabla se ve como texto. Editar se pone al día si no hay cambios propios; con cambios, avisa y ofrece «Ver lo nuevo».
+- **Reserva de subida** (RV-156): se guarda en el envío y se reutiliza mientras a su URL firmada le queden más de 120 s + 5 min; un PUT que contesta «Duplicate» con una URL reutilizada cuenta como subida hecha.
+- **Fotos grandes** (RV-157): se decodifican ya reducidas pidiendo solo el ancho (`resizeWidth`), para que un navegador que redujera antes de girar dé una foto más pequeña y nunca deformada.
+- **Pin sin colocar** (RV-157): en un alta sin pin (sin GPS, o con la posición vieja, que `Proponer` descarta), el marcador es gris y discontinuo, como dice «Mueve el pin».
+- **Afecta a:** 06 §4 y §5.
+
+### DEC-178 · Los dibujos de los enganches son la referencia definitiva
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** vigente (`docs/31` RV-157b). Cierra lo que DEC-152 dejaba abierto («hasta que haya fotos propias»).
+- **Contexto:** DEC-152 puso esquemas dibujados de Granada y Barcelona como solución provisional a la espera de fotos propias, y Directo (DEC-170) seguía sin imagen. Las fotos dependían de que alguien saliera a hacerlas y no llegaban.
+- **Decisión:** no se esperan fotos. Los dibujos de `public/racores/` (Granada, Barcelona y el nuevo `directo.webp`, desde `public/racores/fuentes/directo.svg` con `scripts/preparar-racores.ts`), con el mismo trazo `--marino-700` sobre gris azulado claro y los mismos márgenes, son la referencia definitiva del tipo de enganche. Si algún día hay fotos propias, entran por el mismo script como un cambio normal, no como un pendiente.
+- **Afecta a:** 01 FR-20 (sin cambio de texto); 06 §5; DEC-152 (pasa a «sustituida por DEC-178»); 09 §8.
+
+### DEC-177 · La conformidad de los requisitos es la del desarrollador, dada al pedir el cambio
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** vigente (`docs/31` RV-139). Sustituye, para 01–08, la conformidad de jefatura como paso previo a una versión nueva.
+- **Contexto:** `docs/01` llevaba en la cabecera conformidades de jefatura «pendientes» (v1.3, v1.4, v1.10) y otras «recogidas por el desarrollador» (v1.6 a v1.11), y los registros de `docs/verificacion` se contradecían entre sí. Era un paso que dependía de una persona y no bloqueaba nada.
+- **Decisión:** cada versión de 01 (y del resto de 01–08) queda aprobada por el desarrollador al pedir el cambio en su especificación. Jefatura recibe la versión nueva con la release (Novedades) y valida sobre la app real en la validación y el piloto (#76, #77, DEC-043). `docs/01` lo dice en una sola fila «Conformidad»; los registros ya no dejan «pendiente de conformidad».
+- **Afecta a:** 01 (cabecera); 02, 10, 12, 16 y 18 (menciones de conformidad pendiente, limpiadas); 09 §8; `docs/verificacion`.
+
+### DEC-176 · La release la aprueba una puerta automática
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** vigente (`docs/31` RV-135, RV-136, RV-139c). Matiza DEC-096.
+- **Contexto:** cada release esperaba a que el desarrollador aprobara el environment `production`. La 0.8.0 esperó días y se canceló (producción siguió en 0.7.0), y un PR `develop → main` se fusionó con squash, contra DEC-096, lo que rompió la historia de `main`.
+- **Decisión:**
+  - El revisor humano del environment `production` sigue configurado, pero la aprobación la da la sesión de Claude Code con la sesión de `gh` del propietario (`gh api …/pending_deployments`, `state: approved`) **solo si** la CI de `main` está en verde, la comprobación en staging (RV-139b) está en verde con el mismo commit, `npm run comprobar-produccion` dice que producción tiene lo que la versión necesita y no hay ninguna issue abierta con la etiqueta `bloquea-release`. Si algo falla, se rechaza con el motivo y se abre la issue.
+  - `npm run publicar` (`scripts/publicar.ts`) repite los pasos: empujón de la CI del PR de release (DEC-079), fusión, PR `develop → main` con merge commit, puerta y aprobación.
+  - En los PR a `main`, `ci-calidad` falla si `main` tiene cambios fuera de la historia de la rama (compara el árbol del merge-base con el de `main`, `main-en-la-rama.sh`). No exige que `main` sea ancestro, porque con merge commit no lo es nunca. Si falla, el arreglo es el de #352 y #485: merge `-s ours` de `origin/main` en `develop`, con merge commit.
+  - Antes de migrar, la guarda de `deploy-prod` comprueba que `VITE_SUPABASE_URL` es la de producción y que la anon key lleva ese `ref` y `role = anon` (sin verificar la firma); con una clave `sb_publishable_…` vale solo la URL, y una `sb_secret_…` se bloquea siempre. Exige además `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` y `SAL_IP` en las Functions del proyecto de producción. Un deploy de producción fallido o cancelado abre «Deploy de producción fallido», y la vigilancia avisa si el último no acabó bien o si uno espera aprobación más de 24 h.
+- **Contrapartida aceptada:** quien pueda usar la sesión de `gh` del propietario en este PC puede publicar en producción.
+- **Afecta a:** 04 §12; 15 §4; `CLAUDE.md` §5; DEC-096.
+
+### DEC-175 · El `dispositivo_id` de un administrador está reservado
+- **Fecha:** oct 2026 · **Estado:** vigente (`docs/31` RV-143).
+
+- **Contexto.**
+  - La identidad técnica de un administrador es `md5('administrador:' || correo)` (DEC-059), así que la calcula quien sepa el correo.
+  - `/api/verificar-codigo` aceptaba cualquier UUID. Con ese id, un voluntario compartía y agotaba la cuota de fotos del administrador, veía sus propuestas en Mis propuestas, quedaba fuera de la actividad y no se podía anonimizar.
+- **Decisión** (0039, la Function y la app):
+  - `fn_verificar_codigo` no emite token si el `dispositivo_id` coincide con el de cualquier fila de `administradores`, activa o no. Devuelve `DISPOSITIVO_RESERVADO`, sin decir de quién es, y la Function responde `409`.
+  - Solo se comprueba con el código bueno, para que sin él no sirva para adivinar qué correos son de jefatura. Con él, cada prueba cuenta en el tope de canjes buenos y queda marcada (`intentos_codigo.tope = 'dispositivo_reservado'`, que Salud del sistema cuenta en 0040).
+  - Los tokens que ya tuviera ese id se revocan, y `fn_validar_token` no acepta ninguno, también si alguien se da de alta como administrador después del canje.
+  - El móvil, con `409`, genera un `dispositivo_id` nuevo y repite el canje una sola vez (RV-159).
+- **Alternativa descartada.** Cambiar la fórmula del id técnico a un secreto: rompería las reservas y propuestas de jefatura ya guardadas, y el id seguiría viajando en claro.
+
+**Backend · agente SQL → Ops (RV-137, `despachador.yml`): 0040 se ajusta a tu contrato**
+
+### DEC-174 · Límites de texto, de propuestas y de subidas en el servidor
+- **Fecha:** oct 2026 · **Estado:** vigente (`docs/31` RV-140 a RV-142).
+
+- **Contexto.**
+  - Con un token se podía mandar una propuesta de 1 MB o miles al día. `fn_proponer` va directo a PostgREST, y "corregir datos" ni siquiera gasta una foto.
+  - Cada canje del código crea un dispositivo con su cuota de 80 fotos de hasta 5 MB. Dos o tres dispositivos llenaban el GB gratuito de Storage.
+  - La base de datos (500 MB) y Storage los comparte la app de uniformidad.
+- **Decisión** (0039):
+  - **Longitud máxima** de cada texto libre, en el servidor y con el mismo `maxLength` en la app y el panel (`src/lib/limites.ts`): `descripcion` y `descripcion_fallo` 500 · `direccion` 200 · `nota` y `motivo` 1.000 · nombre y apellido 60.
+  - Un valor que no es texto en esas claves, o `datos` de más de 4.000 caracteres, se rechaza (`PAYLOAD_INVALIDO`). Lo ya guardado no se toca.
+  - **60 propuestas por dispositivo y día natural** de Madrid (`max_propuestas_dia`, editable en Ajustes). Un reintento con la misma `clave_local` no cuenta y jefatura no tiene tope. Al llegar: `CUOTA_PROPUESTAS_AGOTADA`; la cola espera a medianoche.
+  - **400 reservas de foto en 24 h entre todos los voluntarios** (`max_subidas_dia_total`, editable en Ajustes). Jefatura no cuenta. Al llegar: `CUOTA_SUBIDAS_AGOTADA` para todos. Salud del sistema y la vigilancia lo ven en `topes_globales_24h` (0040).
+  - Las reservas sin confirmar se protegen **48 h** (antes 7 días; `dias_reserva_subida` = 2). La purga no cuenta en su freno del 10 % las nunca confirmadas de más de 48 h (`fn_reservas_sin_confirmar_lista`).
+- **Por qué esos números.**
+  - 60 propuestas cubren de sobra la jornada más larga de un voluntario (una revisión cada 8 minutos durante 8 horas).
+  - 400 fotos son unas 200 altas o ubicaciones al día en todo el grupo, varias veces el máximo visto.
+  - Los dos se pueden subir desde Ajustes sin desplegar.
+- **Alternativas descartadas.**
+  - Un límite solo en la app: se salta con la clave anon.
+  - Cuotas en las Pages Functions: `fn_proponer` no pasa por ellas.
+  - Un tope de bytes por día: Storage no lo da sin listar el bucket.
+
+### DEC-173 · Segunda copia del respaldo en R2: aplazada
+- **Fecha:** 7 oct 2026 (desarrollador) · **Estado:** **aplazada**: de momento solo la copia de GitHub (`docs/31` RV-133).
+- **Contexto:** la única copia del respaldo es el artefacto de GitHub de 90 días. Un token con `actions:write` puede borrar artefactos y ejecuciones, y perder la cuenta de GitHub se lo llevaría todo.
+- **Lo que se preparó:** un Worker `hidrantes-respaldos` de solo escritura (no lista, no lee, no borra ni sobrescribe; `GET /estado` con fecha y tamaño), la subida del mismo archivo cifrado desde `respaldo.yml`, la vigilancia de la copia en R2 y `npm run descargar-respaldo`, con sus tests, en la rama `fase-9/ops-rv133`, sin fusionar.
+- **Por qué se aplaza:** R2 no está activado en la cuenta de Cloudflare (código 10042) y activarlo pide un medio de pago, aunque se quede en el plan gratuito (CLAUDE.md §3: sin servicios que exijan tarjeta). El desarrollador eligió el 7 oct 2026 quedarse con la copia de GitHub. La prueba semanal de restauración (RV-134) comprueba que esa copia sirve.
+- **Si se retoma:** activar R2, crear el bucket con la regla de 400 días, `wrangler deploy` del Worker, el secreto por tubería en el Worker y en `prod-tareas`, la variable `RESPALDOS_URL`, fusionar la rama y lanzar `respaldo.yml` una vez.
+- **Afecta a:** 04 §9; 15 §2 y §5.3.
+
+### DEC-172 · Secretos de producción en `prod-tareas` y vigilancia de despliegues ajenos
+- **Fecha:** oct 2026 · **Estado:** vigente. Matiza DEC-071 (`docs/31` RV-130 a RV-132).
+- **Contexto:** los secretos de producción de las tareas automáticas estaban en el repositorio (DEC-071), al alcance de cualquier workflow de cualquier rama. El permiso «Cloudflare Pages: Edit» es de toda la cuenta y no se puede limitar a un proyecto (https://developers.cloudflare.com/fundamentals/api/reference/permissions/), así que el token con el que se despliega staging también podría desplegar producción. Dependabot fusionaba solo los menores, y las actions iban fijadas por etiqueta.
+- **Decisión:**
+  - Environment `prod-tareas`, sin revisores y solo para `develop`, con `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD`, `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Respaldo, purga de fotos, el trabajo `mirar` de la vigilancia, la fila de producción de avisos, comprobar-produccion y el despachador lo declaran. Ningún secreto de producción queda en el repositorio, y `scripts/seguridad-ci.test.ts` falla con cualquier `secrets.*_PROD` fuera de un trabajo con `prod-tareas` o `production`.
+  - Los secretos se mueven con `npm run traspasar-secreto` y `traspaso.yml`: un par RSA-OAEP de 4096 bits de un solo uso (en lugar de age, que no está ni en el PC ni en el runner). Solo sale el texto cifrado (artefacto de 1 día); el script descifra en memoria, lo pasa por stdin a `gh secret set` y borra el artefacto y la ejecución. Solo lo puede lanzar el propietario.
+  - No se separa el token de Cloudflare: haría falta otra cuenta. La vigilancia compara los despliegues del proyecto de producción (también los previews) con las ejecuciones de `deploy-prod.yml` en marcha a esa hora; si alguno no corresponde, abre «Despliegue de producción no autorizado» y avisa por push a jefatura. Con `config.revertir_despliegue_ajeno = true` (apagada por defecto) vuelve al último despliegue bueno.
+  - `deploy-staging` despliega con el nombre de proyecto fijo. Los dos `deploy-*.yml` ponen `ENTORNO` (`staging` | `produccion`) en su proyecto de Pages.
+  - Los trabajos que pide el panel ya no se lanzan con un token de GitHub: quedan como pedido en la base de datos (`fn_pedir_trabajo`) y los despacha `despachador.yml` (`prod-tareas`, cada 15 min, `GITHUB_TOKEN` con `actions: write`), leyendo solo la base de datos de producción; un pedido con error se marca y no se reintenta. Sin `npm ci`: `scripts/despachar.ts` solo usa módulos de Node, para que ninguna dependencia de npm corra con la clave de servicio. En staging, purgar fotos y respaldo no se piden (`SOLO_EN_PRODUCCION`).
+  - Dependabot espera 7 días (`cooldown`) y solo se fusionan solos los parches de dependencias de desarrollo, comprobando el autor del PR. Todas las actions de terceros van fijadas por SHA de 40 caracteres.
+- **Afecta a:** 03 TR-101; 04 §9 a §11; 10 AC-132; 15; `entornos.md`; `arranque.ts`; DEC-071.
+
+### DEC-171 · El detalle del Registro se calcula en el cliente con `antes` y `despues`
+- **Fecha:** oct 2026 · **Estado:** vigente (`docs/30` RV-127).
+- **Contexto:** `v_registro.resumen` (0002) es «acción · código · todas las claves de `despues`». En una edición de jefatura `despues` es el punto entero, así que el Detalle listaba claves técnicas y no decía qué cambió ni de qué a qué (FR-123). El Historial de un punto no enseñaba ni eso.
+- **Decisión:** el detalle lo calcula el panel, con una función pura (`detalleLegible`, `src/lib/panel/registro-legible.ts`), a partir de `antes` y `despues`, que `v_registro` ya devuelve. Solo lo que cambia, con nombres y valores en palabras, y «Movido N m» si se movió; las claves técnicas, los `*_id` y los nombres de personas no salen nunca; una clave desconocida sale con su nombre, para no perder nada si la base de datos añade una. Se usa en el Registro y en el Historial del punto. **Ni la vista ni la búsqueda del servidor cambian**: no hay migración, y la búsqueda sigue encontrando por nombre de campo, no por lo que se ve (límite conocido, 06 §5).
+- **Afecta a:** 06 §5 y Apéndice A; FR-123 (sin cambio de texto).
+
+### DEC-170 · Enganche «Directo», cuarto tipo de las bocas de riego
+- **Fecha:** oct 2026 (desarrollador) · **Estado:** vigente (`docs/29` RV-120, RV-121).
+- **Decisión:** el enum `tipo_racor` gana `directo` (0037, sola en su migración, como Barro). El orden en pantalla es Barcelona · Granada · Directo · Otro, en una fila de cuatro también a 360 px. Directo tiene foto de referencia (`/racores/directo.webp`); mientras el desarrollador no la ponga, sale solo el nombre. Una versión vieja de la app que lea `directo` lo enseña como «Otro».
+- **Afecta a:** 01 FR-20; 05 `tipo_racor`; 06 Apéndice A.
+
+### DEC-169 · Editar es un panel lateral con el mapa, y jefatura mueve el punto desde ahí
+- **Fecha:** oct 2026 (desarrollador; versión B del mockup) · **Estado:** vigente (`docs/29` RV-120, RV-124).
+- **Decisión:** `DialogoEditar` se sustituye por `EditarPunto`: panel de 540 px a la derecha sin velo (≥ 1100 px), de 500 px con velo ligero (768–1099) o a pantalla completa con su entrada de historial (< 768). Lleva la banda del estado guardado, el mapa del alta con el pin y los mismos controles del alta (`Segmentado`, `SelectorRacor`, `PildorasCaudal`, `SelectorPin`), con el tipo bloqueado. Lo que cambia se marca como en la cola; la ubicación cuenta desde 0,5 m. Jefatura puede mover el punto sin pasar por la cola: `fn_editar_punto` acepta `lat`/`lng` (las dos o ninguna), recalcula municipio y núcleo y deja `desplazamiento_m` en el registro `edicion_admin` (0038). Los voluntarios siguen con *Corregir ubicación* por la cola.
+- **Afecta a:** 01 FR-120; 02 FL-24; 05 `fn_editar_punto`; 06 §5; 10 AC-170.
+
+### DEC-168 · El Inventario filtra solo por Tipo y Estado
+- **Fecha:** oct 2026 (desarrollador) · **Estado:** vigente (`docs/29` RV-123).
+- **Decisión:** dos `<select>` nativos (Tipo; Estado con el número de cada uno según el tipo), con «Quitar filtros». Fuera los chips de Revisión y los filtros de Núcleo y Diámetro, que siguen como columnas ordenables. Excel, CSV y GeoJSON pasan a un menú «Exportar ▾», que exporta lo filtrado. No se hace un desplegable propio para enseñar el punto de color: el nativo es accesible y usa el selector del móvil.
+- **Afecta a:** 01 FR-120; 02 FL-24; 06 §5; 10 AC-90 y AC-169.
+
+### DEC-167 · El panel se queda con cinco pestañas
+- **Fecha:** oct 2026 (desarrollador) · **Estado:** vigente (`docs/29` RV-122, RV-125, RV-126).
+- **Decisión:** quedan Cola de revisión · Inventario · Registro · Papelera · Ajustes. Fuera *Revisiones caducadas* y *Voluntarios*, con la hoja de campo (FR-122), la actividad de voluntarios (FR-130), la lista de incidencias (FR-132) y, con ella, «Algo no funciona» en la app (FR-92). Las rutas viejas llevan al Inventario. Lo caducado se sigue viendo en el Inventario («hace 1 año» en rojo) y en el anillo del mapa. El derecho de supresión sigue: lo atiende el desarrollador con `npm run anonimizar` (FR-131, 11). La tabla `incidencias_app` y sus RPC se quedan mientras quede una versión vieja de la app que pueda escribir en ellas; se limpian después, en una issue aparte.
+- **Afecta a:** 01 FR-92, FR-121, FR-122, FR-130 a FR-132 y FR-143; 02 FL-11, FL-25 y FL-27; 05; 06 §5; 10; 11.
+
+### DEC-166 · Las señales salen del detalle de la cola; el ⚠ de la lista, solo por lo que el detalle enseña
+- **Fecha:** oct 2026 (desarrollador) · **Estado:** vigente (`docs/28` RV-115).
+- **Contexto:** en el móvil, los chips de señales (pin a mano y su distancia al GPS, foto lejos del pin, con foto, sin foto del sitio, revisión anterior…) y la línea «N datos del voluntario · los demás los deduce el sistema» ocupaban sitio y repetían lo que ya dice el detalle.
+- **Decisión:** el detalle de la cola no enseña chips de señales en ninguna operación, y en un alta «Datos del punto» va sin subtítulo. Lo necesario para decidir sigue a la vista: origen y precisión en «Origen de la ubicación», «Última revisión», la sección de fotos, «Fuera de zona» en la cabecera, el bloque de duplicado y su círculo, el texto de *otra medida* y el aviso de desactualizada. Deja de verse la distancia del pin a mano al GPS y la de la foto al pin. El ⚠ de la lista sale solo por desactualizada, diámetro por fijar, duplicado o fuera de zona. Los datos siguen en `v_cola_revision`: no hay migración.
+- **Al construirlo** (revisión de RV-115): quitar los chips dejaba sin decir cuatro cosas que no estaban en otro sitio, y se dicen ahora sin chip: *fuera de zona* en una ubicación con núcleo (la cabecera dice "[núcleo] · Fuera de zona"); un duplicado que no está en el inventario cargado (recuadro con su código y distancia, sin comparar ni fusionar); un alta o ubicación sin foto del sitio (línea pequeña en el título de "Fotos"); y el aviso de desactualizada, que se repite encima de Corregir y Fusionar. Por contraste (axe), "Cambia" y "N cambios" pasan a `--naranja-texto` y el antes tachado pierde la transparencia.
+- **Contraste en oscuro** (RV-117): tokens `--ambar-texto`, `--rojo-texto` y `--verde-texto` (los `-700`/`-600` en claro; `#E8B54A`, `#F28B82`, `#5FC48E` en oscuro, ≥ 4,5:1 sobre `--papel` y `--fondo`). `--verde-texto` no lo pedía docs/28, pero el verde de "después" y de las tareas en verde tenía el mismo problema. La tabla de comparación y la caja de Fusionar usan un tinte `color-mix` sobre `--papel` en vez de `--ambar-100`, que no cambia en oscuro.
+- **Móvil** (RV-116): por debajo de `md`, Voluntarios y Registro pasan a tarjetas, como Inventario; Papelera ya cabía y se queda como tabla.
+- **Afecta a:** 01 FR-104; 02 FL de jefatura; 05 `v_cola_revision`; 06 §2, §5 y Apéndice A; 10 AC-70; `docs/mockups/25-cola.html`.
+
+### DEC-165 · Cercanos: un botón por fila, y la posición solo se avisa cuando importa
+- **Fecha:** 5 oct 2026 (desarrollador) · **Estado:** vigente (`docs/27` RV-114).
+- **Contexto:** en una captura de Android el desarrollador tachó casi todo lo que llevaba la hoja de *Cercanos*: el origen y la precisión bajo el título, "El más cercano… no funciona", el recuadro "Posición de hace N", los tramos, la fecha de revisión y el tipo en cada fila, *Medir tendido*, *Compartir el incidente* y "Datos de hace N". En un servicio hay que leer la hoja de un vistazo, y con todo eso en el móvil apenas cabían los candidatos. Eligió el mockup A, "un botón por fila".
+- **Decisión:**
+  1. Cada fila da el marcador, el código, "diámetro · estado", la distancia y el rumbo, y **un solo botón, *Cómo llegar*** (principal: marino con el icono blanco). Tocar el resto de la fila abre la ficha. *Solo hidrantes* pasa a un chip.
+  2. El origen y la antigüedad de la posición **solo se dicen cuando importan**, en la misma línea del subtítulo y en `--naranja-texto`, sin recuadros: "· en línea recta" con el GPS al día y preciso; "· posición de hace N" si es vieja; "· posición poco precisa (±N m)" con *Marcar en el mapa* si pasa de 50 m (al pulsarlo, la hoja se cierra y encima del mapa queda "Mantén pulsado el mapa donde está el incidente" hasta que se marca); "· desde el punto marcado" si el origen se marcó a mano. **Un aviso a la vez**; si es vieja y poco precisa, gana poco precisa porque lleva acción. Con aviso, el subtítulo es `role="status"`.
+  3. Fuera de la hoja: "El más cercano…" (un punto que no funciona tampoco sale en la lista), *Compartir el incidente* (compartir sigue en la ficha y en *¿Qué hay aquí?*), "Datos de hace N" (lo dice la barra de estado), tramos y *Medir tendido* (siguen en *Medir*, FR-76, que no cambia). Se borran sus textos y su código (`masCercanoQueNoFunciona`, `textoMasCercano`, los tramos del candidato y `T.medir.tendido`, que solo usaba la fila).
+  4. La segunda línea de la fila tiene su texto, `T.incidente.detalle` ("100 mm · Regular"); `T.incidente.fila` desaparece: la distancia y el rumbo se pintan por separado con `distancia()` y `rumboCorto()`.
+  5. La distancia va en `--texto` y no en `--marino-950`, como pedía `docs/27`: el marino no cambia en oscuro y no se lee sobre la tarjeta (`--papel` #1A2333); en claro, los dos colores son casi iguales. Por lo mismo, *Cómo llegar* lleva un borde de 1,5 px `--texto` que lo separa de la tarjeta en oscuro.
+- **Por qué no se quita del todo el aviso de posición:** una posición vieja o imprecisa hace que las distancias estén mal, y en un incendio eso cuenta. Pero solo ocupa sitio cuando pasa.
+- **Descartado:** el mockup B (la distancia primero, con *Medir* en la fila) y el C (sin botones: *Cómo llegar* a dos toques, en la ficha).
+- **Afecta a:** 01 FR-74 (v1.10); 02 FL-35, FL-37 y FL-38; 06 §4.7 y Apéndice A; 10 AC-152 y AC-154.
+
+### DEC-164 · En el móvil, jefatura abre el panel desde la etiqueta «Jefatura» o desde Ajustes
+- **Fecha:** 5 oct 2026 (desarrollador) · **Estado:** vigente (`docs/26` RV-113).
+- **Contexto:** con sesión de jefatura en la app instalada en Android no había forma de llegar al panel: al entrar con Google en el móvil se vuelve al mapa (FR-150, a propósito), la etiqueta «Jefatura» de la barra era un texto que no se podía tocar, Ajustes no enlazaba al panel y la app instalada no tiene barra de direcciones. La ruta `/admin/*` ya estaba en la misma app y el panel ya tenía «Ir al mapa».
+- **Decisión:**
+  1. **Dos accesos, solo para jefatura.** La etiqueta «Jefatura» de la barra superior pasa a ser un enlace a `/admin` (nombre accesible «Abrir el panel de jefatura», chevron `›`, objetivo táctil de 44 × 44 px que crece con relleno). En Ajustes, la fila «Cuenta de jefatura» lleva debajo del correo un botón secundario a todo el ancho, «Panel de jefatura», con el icono `LayoutDashboard` de lucide (ya era dependencia). El voluntario no ve nada nuevo.
+  2. **Los dos son enlaces del router** (`<Link to="/admin">`), no botones con `navigate`: navegan dentro de la app igual, sin recargar ni abrir otra pestaña, y para un lector de pantalla son lo que son, un enlace a otra pantalla. El «atrás» de Android vuelve a la pantalla de antes.
+  3. **Colores, por contraste.** El texto de la etiqueta pasa de blanco a `--marino-950`: blanco sobre `--oro-600` da 3,2:1, y ahora que es un control axe lo marca (`color-contrast`); marino da 5,3:1. El botón de Ajustes usa los colores del secundario de 06 §5 (`--texto` en borde y texto) en vez de `--marino-950`: es casi el mismo color en claro y, en oscuro, `--marino-950` no cambia y se quedaría sin contraste sobre `--papel` (06 §2.4).
+  4. **Sin conexión, los dos siguen navegando**: el panel ya enseña su propio aviso de servidor y la cola guardada puede servir.
+  5. Si el título de la barra no cabe a 360 px, se acorta con «…» antes que la etiqueta.
+  6. **En los formularios de las seis operaciones, la etiqueta se ve pero no es un enlace** (`enlacePanel={false}`). Un toque sin querer en la esquina desmontaría el formulario sin preguntar y se llevaría las fotos, el pin y los datos, o dejaría sin ver el resultado de un envío en curso (06 §9). La pantalla de resultado y la ficha sí llevan el enlace: ahí no hay nada que perder. Lo encontró la revisión del PR (silent-failure-hunter).
+- **Lo que no cambia:** al entrar con Google en el móvil se sigue volviendo al mapa (FR-150). El panel a 412 px no se arregla aquí: lo que no se pueda usar se anota en `docs/verificacion/acceso-panel-movil.md` y va en una issue para el siguiente documento.
+- **Descartado:** un tercer acceso en la barra de navegación inferior (es la del voluntario y tiene tres huecos fijos); volver al panel al entrar con Google en el móvil (en la calle, lo primero es el mapa).
+- **Afecta a:** 01 FR-150 (lo escribe Ops); 02 FL-20 y FL-28; 06 §5 (barra superior) y Apéndice A.
+
+### DEC-163 · En una boca de riego se lee «Tipo de enganche», no «racor»
+- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente (`docs/25` RV-112).
+- **Contexto:** los voluntarios no llaman «racor» a la pieza donde se engancha la manguera de una boca de riego; dicen «enganche». El formulario, la ficha y el panel usaban la palabra técnica.
+- **Decisión:** en todo lo que se lee (app, panel, exportación) el campo se llama **«Tipo de enganche»**, con las opciones **Barcelona, Granada y Otro**, en ese orden. Textos cortos: «Enganche Granada» en la ficha y «· enganche Granada» en el inventario y la hoja de campo. La exportación (FR-160) titula la columna «Tipo de enganche» en CSV y XLSX, igual que las demás columnas, que van en palabras («Código», «Diámetro»…); en GeoJSON, que lleva los datos crudos, la propiedad pasa a `tipo_enganche` con el valor del enum (`granada`, `barcelona`, `otro`).
+- **Lo que no cambia, a propósito:** la columna `racor`, el enum `hidrantes.tipo_racor`, los payloads de `fn_proponer` (`racor: 'barcelona'`), los tipos de TypeScript, los nombres de las claves de `textos.ts` (`racor`, `campoRacor`, `eligeRacor`) y los archivos `public/racores/*.webp`. Cambiarlos obligaría a una migración y rompería la versión anterior de la app (04 §12) para cambiar solo lo que se lee.
+- **Descartado:** escribir la cabecera del CSV como `tipo_enganche`, en minúsculas y con guion bajo, como dice la tabla de `docs/25`: las demás cabeceras van en palabras y una sola en formato interno se leería como un fallo.
+- **Afecta a:** 01 FR-20, FR-41, FR-44 y FR-66 (lo escribe Ops); 02 FL-02, FL-03 y FL-06; 05 §2 (una línea); 06 §5 y Apéndice A.
+
+### DEC-162 · Los mockups definitivos de una especificación van en `docs/mockups/`
+- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-111).
+- **Decisión:** los mockups HTML que una especificación elige como referencia entran en el repositorio en `docs/mockups/NN-nombre.html`, con el número de la especificación. Antes se revisan con `detectar-secretos` y se cambia cualquier nombre de persona por «Voluntario de prueba» (FR-27, repositorio público, DEC-053). Los apartados superados se marcan dentro del archivo. Los mockups descartados no entran: se borran o se guardan fuera del repositorio.
+- **Afecta a:** 06 §5; `docs/INDICE.md`.
+
+### DEC-160 · La cola trae el punto entero, y el historial tiene su vista
+- **Fecha:** 4 oct 2026 (sesión Backend, `docs/25` RV-110) · **Estado:** vigente.
+- **Contexto:** el detalle nuevo de la cola enseña todos los datos del punto, no solo los que cambian, y un mapa en las seis operaciones. `v_cola_revision` solo traía del punto el código, el tipo, la dirección, el núcleo y las fotos, y su posición no venía en ninguna operación (`lat`/`lng` son el pin de la propuesta, `null` en datos, revisión, estado y retirada). El historial lo leía el panel de `propuestas` con un *embed* de `puntos`, que no puede dar la posición (es `geography`).
+- **Decisión:**
+  1. `v_cola_revision` (0036, `create or replace view`) gana tres columnas **al final**: `punto jsonb` con `codigo`, `tipo`, `diametro_mm`, `caudal`, `racor`, `descripcion`, `descripcion_fallo`, `direccion`, `nucleo`, `fecha_ultima_revision`, `foto_path`, `foto_sitio_path`, `situacion` y `borrado_en`, y `punto_lat`, `punto_lng`. `situacion` y `borrado_en` van porque una propuesta pendiente puede ser de un punto que jefatura retiró o mandó a la papelera después, y el detalle no debe enseñarlo como activo. En un alta, las tres `null` (no hay punto: `punto_id` es `null` también después de aprobarla, así que el historial de un alta aprobada no enlaza al punto creado; su código está en el Registro). El cliente decide por `operacion`, no por `punto is null`.
+  2. El objeto se construye con `jsonb_build_object` y una lista cerrada de claves, no con `to_jsonb(p)`: una columna nueva de `puntos` no aparece sola en el panel, y nada de FR-27 puede colarse. `puntos` no tiene autores hoy; la lista cerrada lo garantiza mañana.
+  3. **Historial:** vista nueva `v_historial_revision` (`security_invoker`, `estado <> 'pendiente'`) con las columnas que el panel ya pedía a `propuestas`, más `codigo`, `direccion_actual`, `nucleo`, el pin (`lat`, `lng`), `origen_ubicacion`, `precision_gps_m` y las tres de arriba. Sin `antes` ni señales: el punto de hoy ya no es el de cuando se decidió, y un diff contra él mentiría.
+  4. La UTM no viaja: la calcula el cliente con la función de la ficha (RV-109). Los puntos de alrededor tampoco: el panel ya tiene el inventario.
+- **Descartado:** una RPC del detalle (otra firma que mantener una versión atrás, y una llamada más por propuesta); seguir leyendo el historial de `propuestas` con más columnas en el *embed* (no da la posición); `antes` en el historial.
+- **Compatibilidad (04 §12):** el panel anterior pide `select('*')` a la cola y no mira columnas de más; sigue leyendo el historial de `propuestas`, que no cambia. Lo comprueba `npm run compatibilidad` en `ci-sql`.
+- **Afecta a:** 05 §4; `docs/25` RV-110.
+
+### DEC-159 · Detalle de la cola: de dónde salen los datos, el radio y los mapitas
+- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-110).
+- **Contexto:** el detalle nuevo enseña todos los datos del punto, su posición y sus fotos actuales en las seis operaciones. Esos datos los trae 0036 (DEC-160), que se hizo a la vez que la pantalla; el panel tiene que seguir funcionando contra la vista de antes una versión (04 §12).
+- **Decisión:**
+  1. **Datos y posición del punto:** `punto`, `punto_lat` y `punto_lng` de `v_cola_revision` y `v_historial_revision`. Si no vienen (vista anterior), los del inventario que el panel ya tiene cargado (`v_puntos_activos`); si tampoco, "—" y, en el mapa, "Sin posición" con palabras. Un alta se decide por `operacion`, nunca por `punto` nulo.
+  2. **El "antes"** de un campo es el `antes` de la propuesta o, solo si está **pendiente**, el punto de hoy. En el historial el punto de hoy ya lleva el cambio y daría "70 mm → 70 mm".
+  3. **El historial** lee `v_historial_revision` (0036) en vez de `propuestas` con el punto embebido.
+  4. **Radio del círculo de duplicado:** `radio_duplicado_m` de `config`, leído una vez al abrir la cola. Sin poder leerlo, el círculo no se dibuja: uno supuesto podría contradecir el aviso de duplicado, que usa el de verdad.
+  5. **Mapitas de la lista (62 × 48 px, tableta y móvil):** un Leaflet sin controles con el mapa base propio (sin red), creado solo cuando la fila entra en la vista.
+  6. **"Tocar una foto la amplía":** abre la foto entera en otra pestaña, como hasta ahora; sin visor propio.
+- **Descartado:** una RPC nueva para los puntos de alrededor (el inventario ya está en memoria); dibujar los mapitas como SVG sin mapa base (la especificación pide el mapa base propio).
+- **Afecta a:** 06 §5 (panel); `src/lib/panel/cola.ts`.
+
+### DEC-158 · Cola de revisión: mapa arriba, datos completos y fotos, a todo el ancho
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `docs/mockups/25-cola.html`) · **Estado:** vigente (`docs/25` RV-110).
+- **Contexto:** el detalle de la cola dejaba media pantalla vacía en el ordenador, solo enseñaba los campos que cambiaban y una corrección de datos no tenía mapa: para juzgar un cambio había que ir al inventario.
+- **Decisión:** el detalle es igual en las seis operaciones y de arriba abajo: título con autor y fecha, señales; **mapa a todo el ancho** (300 px en ordenador, 280 en tableta, 200 de borde a borde y fijo arriba en el móvil), con Mapa / Satélite (las ubicaciones se abren en Satélite), zoom, "Abrir en grande" y una leyenda de una línea; **todos los datos del punto** en dos columnas (una en el móvil), con lo que cambia primero y marcado ("Cambia", banda naranja, antes → después) y, encima, "N cambios · el resto se queda igual" o, en un alta, "N datos del voluntario"; **fotos lado a lado** (en una ubicación o un estado, la actual del punto delante de las nuevas); y los **botones fijos abajo** ("Corregir" en el móvil, con el nombre largo para el lector). Desde **1.100 px**, la cola a la izquierda en 340 px fijos y el detalle en todo el resto; por debajo, la cola y el detalle son **dos pantallas** (la abierta va en `?p=`, y "‹" o "atrás" vuelven), cada fila con su mapita y una barra abajo para aprobar en bloque. El historial usa el mismo detalle sin botones.
+- **Descartado:** el mapa en una columna lateral (`mockups-cola-con-mapa.html`) y el detalle en pestañas (`mockups-cola-opcion-b.html`): obligaban a mirar a dos sitios o a tocar para ver los datos.
+- **Afecta a:** 01 FR-102 a FR-105 (los lleva Ops); 06 §5 (panel) y Apéndice A.
+
+### DEC-157 · Cada coordenada lleva el nombre de su sistema: WGS84 y ETRS89 / UTM huso 30N
+- **Fecha:** 4 oct 2026 (desarrollador, `docs/25` RV-109) · **Estado:** vigente.
+- **Contexto:** la ficha y *¿Qué hay aquí?* decían "Decimal" y "UTM ETRS89 · huso 30", y el texto de *Compartir* juntaba las dos en una línea con "(ETRS89)" al final. Quien recibe las coordenadas (bomberos, el 112, otro grupo) tiene que saber en qué sistema están sin preguntar, y "30S" se podía leer como "huso 30 sur".
+- **Decisión:**
+  1. Las etiquetas son **"WGS84 · grados decimales"** (`37.230500, -3.656000`, 6 decimales) y **"ETRS89 · UTM huso 30N"** (`30S 441808 4120645`, el mismo sitio, a metro), en la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte. Cada línea, con su botón de copiar, como hasta ahora.
+  2. **Compartir** (FR-75) lleva una línea por sistema con su nombre delante: `WGS84 · grados decimales: …` y `ETRS89 · UTM huso 30N: …`. Fuera del huso 30 solo va la línea WGS84.
+  3. La conversión sigue igual: ETRS89 / UTM 30N (EPSG:25830, GRS80, serie de Krüger), con ETRS89 y WGS84 tratados como iguales (difieren en menos de un metro). La **S** de `30S` es la banda de latitud de MGRS (32° a 40° N), no "sur"; lo dice una nota en 06, Apéndice A.
+- **Comprobación:** un caso conocido en `coordenadas.test.ts`, la Plaza de España de Albolote (OpenStreetMap), con la UTM calculada aparte por las fórmulas de Snyder (USGS PP 1395), ±1 m.
+- **Descartado:** dejar "Decimal" sin sistema (ambiguo para quien lo recibe fuera de la app); quitar la letra de banda (`30 441808 4120645`): cambiaría el formato que ya se copia y se pega en la búsqueda; la nota de 06 basta para que nadie la lea como "sur".
+- **Afecta a:** 01 FR-72 y FR-75 (lo actualiza Ops, #440); 06 Apéndice A; `src/lib/textos.ts` (`coordenadas`, `compartir`).
+
+### DEC-156 · La ficha de un punto: banda de estado arriba y ficha compacta
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `mockups-ficha-banda.html`) · **Estado:** vigente (`docs/25` RV-108).
+- **Contexto:** la ficha ponía el estado en un chip pequeño entre otros tres (tipo, diámetro, racor), y la revisión y la dirección en dos tarjetas sueltas. Para saber "¿sirve este hidrante?", que es lo primero que se pregunta en una emergencia, había que buscarlo. Además no tenía primario, y "Cómo llegar" pesaba lo mismo que "Proponer un cambio".
+- **Decisión:** arriba, una banda del color del estado con el estado en mayúsculas y la revisión. Debajo van el código con el núcleo, la foto, una rejilla con los datos fijos y **Cómo llegar** como único primario, con Compartir en icono. Después, Proponer un cambio con borde naranja, las coordenadas y la antigüedad de los datos. El detalle está en 06 §5. El texto de la banda es blanco, salvo en el amarillo de regular, que lleva `--marino-950`. Los colores y los textos de cada banda están en `bandaDe()` (`src/lib/ficha.ts`), y un test mide que el texto llegue a 4,5:1 en claro y en oscuro.
+- **Ajustes al escribirlo:**
+  1. **Móvil:** la ficha sigue siendo una pantalla propia con su barra (código y volver), como hasta ahora. No es una hoja sobre el mapa como dibuja el mockup: docs/25 dice "como hoy", y cambiar el contenedor es otra pantalla (`Mapa.tsx`). Por eso, en el móvil, la banda va sin X ni asa, y el código no se repite: la ficha toma su nombre de él (`aria-label`) y el título de la barra lo enseña (UI-16).
+  2. **Distancia (FR-66):** el mockup no la dibuja, pero FR-66 la pide. Va en la línea del código, junto al núcleo: "Albolote · a 80 m de ti".
+  3. **Compartir en icono:** `BotonCompartir` (de RV-109) siempre lleva texto, así que la ficha tiene su propio botón de 46 px con `aria-label`. Hace lo mismo: el menú del sistema, si no se puede, el portapapeles, y si tampoco, el texto a la vista.
+  4. **Foto que no carga:** sin foto no se enseña nada. Si la hay y no carga, se sigue diciendo con palabras ("Foto no disponible sin cobertura"), sin dejar un hueco mudo (UI-05).
+  5. **Cómo llegar en oscuro:** `--marino-950` no cambia en oscuro y casi no se separa del fondo, así que el botón lleva un borde `--texto` de 1,5 px que en oscuro es claro y le da forma.
+  6. El ancho de la ficha flotante sigue siendo `ANCHO_FICHA` (360 px) en tableta y ordenador. Los 370 px del ordenador en el mockup son dibujo, no medida (docs/25 §0.2).
+- **Afecta a:** 06 §5 (ficha, foto, un primario) y Apéndice A; 01 FR-66 sin cambio de texto.
+
+### DEC-155 · "Sin revisar" es un anillo exterior de 8 rayas; el borde queda continuo
+- **Fecha:** 4 oct 2026 (desarrollador, `docs/25` RV-107) · **Estado:** vigente. Sesión Frontend-campo.
+- **Contexto:** en la lista, un marcador pequeño con el borde discontinuo (`3 2.5` sobre un radio de 5 a 7 px) parecía una rueda dentada, no un borde discontinuo.
+- **Decisión:**
+  1. El borde del marcador es **siempre continuo**. "Sin revisar" es un **anillo exterior** de 1,5 px, `--anillo-sin-revisar` (token nuevo: `--texto-suave` en claro, `#C9CFD8` en oscuro), separado 2,5 px de la cara exterior del borde, sin relleno.
+  2. **8 rayas** sea cual sea el tamaño: `dash = gap = perímetro / 16`. En la boca, un cuadrado concéntrico cuya esquina crece lo mismo que se separa (`rx` del marcador + separación), y el perímetro es el del cuadrado redondeado (`8h − (8 − 2π)·rx`).
+  3. **Seleccionado y sin revisar:** el anillo de selección (2 px) va 2 px por fuera del punto más lejano del anillo de sin revisar, para que no se monten. Sin revisar, sigue a 3 px del borde como hasta ahora.
+  4. **Que no se recorte.** En el mapa (lienzo de 44 px, el objetivo táctil) cabe siempre: el caso más grande, un hidrante R1 sin revisar y seleccionado, llega a 20,25 px del centro. En los lienzos pequeños (lista 24 px, leyenda 16 y 18, búsqueda 20, ficha 28) el `viewBox` crece lo justo para que quepa el anillo, y crece **por el radio**, no por si el punto está revisado: dos puntos del mismo radio se ven del mismo tamaño en la misma lista. Efecto: en la lista, un R1 o un R2 se dibuja algo más pequeño que antes (antes un R1 se salía del lienzo de 24 px y se recortaba su borde); el orden de tamaños se mantiene.
+  5. Contraste (TR-31, `accesibilidad.test.ts`): el anillo contra el fondo del mapa, 5,08:1 en claro y 9,82:1 en oscuro; contra `--papel` y `--fondo`, ≥ 5,37:1.
+  6. El texto del primer uso dice "Un anillo de rayas alrededor…" en lugar de "Un borde discontinuo…" (06 Apéndice A).
+- **Descartado:** rayas de longitud fija (`3 2.5` en el anillo: en R5 salen trozos sueltos y en R1 una corona de dientes, el mismo problema); `pathLength="16"` con `1 1` (más corto, pero el test no podría medir el dash, y el tamaño de cada raya sería opaco en el SVG); dejar que el anillo se salga del lienzo pequeño con `overflow: visible` (pisa el texto de la fila).
+- **Pendiente para Ops:** `docs/01` FR-61 y FR-62 y `docs/10` AC-15 y AC-104 dicen "borde discontinuo"; pasan a "anillo de rayas".
+- **Afecta a:** 06 §1, §2.4, §4.3, §4.5, §4.6 y Apéndice A; `src/index.css`; `src/lib/simbologia.ts`; `src/lib/textos.ts`.
+
+### DEC-154 · Colores de estado RAL: regular pasa a amarillo, con borde propio en el marcador
+- **Fecha:** 4 oct 2026 (desarrollador, sobre `docs/mockups-ficha-banda.html`) · **Estado:** vigente. Sustituye a DEC-076 (`docs/25` RV-105). Sesión Frontend-campo.
+- **Contexto:** el naranja de regular (`#A85300`, DEC-076) se parecía al rojo de "malo", y más con daltonismo. Los colores de seguridad de ISO 3864 (UNE-EN ISO 7010) y la escala de caudal de NFPA 291 usan verde, amarillo y rojo.
+- **Decisión:**
+  - **Rellenos RAL:** bueno `--verde-600` `#237E51` (RAL 6032), regular `--amarillo-500` `#F9A900` (RAL 1003), malo `--rojo-700` `#9B2423` (RAL 3001). Chips: `#DCEEE1`/`--verde-700` `#1E6B45`, `--amarillo-100` `#FFF1C2`/`--amarillo-800` `#6B4E00`, `#FBE0DB`/`#9B2423`. No funciona y barro no cambian. Se quitan los `--naranja-estado-*`; el `--naranja-600` de las acciones y los `--oro-*`/`--ambar-*` de los avisos se quedan como están.
+  - **Texto oscuro sobre el amarillo**, nunca blanco (1,96:1): `--marino-950` (8,79:1) o `--amarillo-800`.
+  - **Borde por estado en el marcador.** `svgMarcador` pone `--borde-marcador-regular` a regular y `--borde-marcador` (blanco en los dos modos, DEC-072) a los demás. Es el mismo dibujo en el mapa, la lista, la ficha, la leyenda, el panel y el minimapa, porque todos pasan por `svgMarcador`.
+  - **Tres ajustes a los valores de `docs/25`**, para pasar las comprobaciones de TR-31 que ya existían en `accesibilidad.test.ts` (que miden sobre **todas** las superficies del mapa, no solo el fondo):
+    1. El borde del amarillo en claro es `#563E00`, no `#5C4300`: aquel se quedaba en 2,87:1 sobre los rótulos del mapa (`#8A9090`); este llega a 3,10:1, y a 8,53:1 sobre el fondo y 5,13:1 contra el relleno.
+    2. El verde es `#237E51`, no `#237F52`: aquel se quedaba en 2,97:1 sobre el agua y los árboles del mapa claro, donde el borde blanco no ayuda; este llega a 3,01:1. La diferencia no se ve.
+    3. En el mapa oscuro, el borde del amarillo es `#111826`, como dice la tabla de `docs/25`, y no "el `--borde-marcador` de siempre" del punto 2 del mismo texto: el blanco contra el amarillo da 1,96:1 y el relleno no se separaría de su borde (el discontinuo de "sin revisar" no se vería). Con `#111826`, 9,05:1. El relleno contra las superficies del mapa oscuro da de 4,56:1 (calles) a 7,84:1 (fondo); sobre los rótulos (`#7E8A99`) se queda en 1,79:1, y ahí lo separa el borde oscuro (5,06:1). Los demás estados **siguen con borde blanco en oscuro**, aunque la tabla de `docs/25` y el mockup digan `#111826` para todos: DEC-072 midió que un borde oscuro sobre el mapa oscuro se queda en 1,16:1 y el verde, el rojo o el gris desaparecen.
+- **Descartado:** dejar el naranja (se confunde con el rojo); un amarillo más oscuro para no necesitar borde (vuelve al ámbar mostaza de DEC-076); borde oscuro para todos los estados en el mapa oscuro (DEC-072).
+- **Pendiente:** el desarrollador mira el amarillo en un móvil a pleno sol (comprobación de campo de `docs/25` RV-105).
+- **Afecta a:** 01 (texto de los colores, lo lleva Ops); 06 §2.2, §2.4, §4.3, §4.5 y §4.6; `src/index.css`; `src/lib/simbologia.ts`; `src/lib/ficha.ts`; DEC-076.
+
 ### DEC-153 · Sin GitHub App para release-please: sigue el empujón de DEC-079
 - **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente. Descarta DEC-140 (`docs/23` RV-97).
 - **Decisión:** la GitHub App del proyecto no se crea. `release-please.yml` vuelve a lo de DEC-079, sin el paso de la App ni la rama de reserva, porque ya no hay nada que reservar. Cada PR de versión necesita el empujón de una persona (un commit vacío a su rama) para que corra su CI. Los runs «expired» del bot siguen saliendo en la lista de fallos de Actions: se saben y no se miran.
@@ -667,7 +916,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §11; 15 §2; DEC-079 y DEC-140.
 
 ### DEC-152 · Esquemas provisionales en lugar de las fotos de los racores
-- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** vigente hasta que haya fotos propias (`docs/24` RV-104).
+- **Fecha:** 4 oct 2026 (desarrollador) · **Estado:** sustituida por DEC-178 (los dibujos son la referencia definitiva).
 - **Contexto:** RV-104 pide una foto propia de cada racor, y el desarrollador aún no las tiene. Sin ellas, los botones Granada y Barcelona iban solo con texto.
 - **Decisión:** dos **esquemas** dibujados para este repositorio, sin nada sacado de internet, en `public/racores/granada.webp` y `barcelona.webp`. Granada es una tuerca hexagonal con su rosca; Barcelona, una cara redonda con dos garras. Llevan el `--marino-700` de 06 sobre fondo claro. Pasaron por `scripts/preparar-racores.ts` (160 × 160 px, 4,5 y 4,1 kB). Son una ayuda para comparar la forma, no una foto. Cuando haya fotos propias, se pasan por el mismo script y sustituyen a estas, sin tocar código.
 - **Afecta a:** 01 FR-20 (sin cambio de texto); 06 §5.
@@ -1209,7 +1458,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 03 TR-10, TR-11 y TR-103 (sin cambio de texto); 10 AC-115 y AC-131.
 
 ### DEC-098 · Sin cobertura, el mapa base propio va debajo de la capa en línea
-- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/19` RV-58). Pendiente de conformidad de jefatura con 01 v1.4 (F9.1, #76).
+- **Fecha:** 24 sep 2026 · **Estado:** vigente (`docs/19` RV-58). Conformidad del desarrollador (DEC-177).
 - **Contexto:** con la capa de calle (OSM) o el satélite (PNOA) elegida, al perder la cobertura el mapa se quedaba en blanco con los marcadores y un aviso. En una emergencia sin señal eso deja al voluntario sin calles, aunque tenga el mapa base en el móvil.
 - **Decisión:**
   - Mientras la conexión no esté bien (`conexion !== 'bien'`) y el mapa base esté descargado, se pinta **debajo** de la capa en línea. Encima sigue la capa elegida, con lo que el navegador tenga en caché o nada. Es el mismo mecanismo que ya usaba Catastro, generalizado en `capasPintadas` (`src/lib/capas.ts`).
@@ -1277,7 +1526,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 06 §9 (UI-20), 03 TR-111, `eslint.config.js`.
 
 ### DEC-093 · Callejero sin conexión desde OpenStreetMap
-- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); pendiente de conformidad de jefatura en F9.1 (#76)
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); conformidad del desarrollador (DEC-177)
 - **Contexto:** la búsqueda de calles y lugares tiene que funcionar **sin cobertura** (FR-73), igual que el resto del mapa. Necesita un callejero de la zona dentro del móvil.
 - **Decisión:**
   - `scripts/generar-callejero.ts` (`npm run callejero`) lo genera desde OSM vía Overpass, con los mismos servidores y el mismo `User-Agent` que la zona. Solo corre a mano o en el workflow de regenerar (FR-165), nunca en el build de CI (TR-77).
@@ -1295,7 +1544,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 01 FR-73, 03 TR-77 y TR-117, 05 (config `version_callejero`), 11 §6.1.
 
 ### DEC-092 · Números de portal con CartoCiudad, a través de una Function
-- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); pendiente de conformidad de jefatura en F9.1 (#76)
+- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` §0.3.3, GM-04); conformidad del desarrollador (DEC-177)
 - **Contexto:** con cobertura, la búsqueda tiene que encontrar también el portal ("calle real 12"), y el callejero de OSM no trae portales. CartoCiudad (IGN/CNIG) los tiene para toda España. Es gratuito y no pide cuenta, así que cumple DEC-037.
 - **Comprobado el 23 sep 2026:**
   - **Documentación oficial** (`github.com/IDEESpain/Cartociudad` y *CartoCiudad_ServiciosWeb.pdf* del IDEE):
@@ -1382,7 +1631,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** `scripts/generar-novedades.ts`, CLAUDE.md §5, 10 (AC-127).
 
 ### DEC-090 · El tipo de un punto no se cambia
-- **Fecha:** 23 sep 2026 · **Estado:** vigente. Decisión del desarrollador (`docs/18` §0.3.1, RV-41); pendiente de conformidad de jefatura en F9.1 (#76).
+- **Fecha:** 23 sep 2026 · **Estado:** vigente. Decisión del desarrollador (`docs/18` §0.3.1, RV-41); conformidad del desarrollador (DEC-177).
 - **Contexto:** "corregir datos", `fn_editar_punto` y las correcciones de `fn_aplicar_propuesta` admitían `tipo`, pero el `codigo` no cambia. Una boca de riego podía quedarse como `HID-0123`: rompía FR-10 ("coherente con su prefijo"), y del tipo salen el radio del marcador y el diámetro fijo de 45 mm.
 - **Decisión:**
   - Fuera de un alta, un `tipo` distinto del actual da `TIPO_NO_MODIFICABLE` en:
@@ -1659,7 +1908,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   `src/paginas/Proponer.tsx`.
 
 ### DEC-076 · El estado "regular" es naranja, no ámbar
-- **Fecha:** 21 sep 2026 · **Estado:** vigente
+- **Fecha:** 21 sep 2026 · **Estado:** **sustituida por DEC-154** (4 oct 2026): regular es amarillo RAL 1003.
 - **Contexto:** en la prueba con un Android real, el desarrollador pidió que **regular se vea
   naranja**. El token de 06 §2.2 era `--ambar-700` `#8A6408`, que en pantalla, y más a pleno sol,
   se lee marrón mostaza; junto al rojo de "malo" no se distingue de un vistazo, que es justo lo que
@@ -1898,11 +2147,11 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
 | 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
 | 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |

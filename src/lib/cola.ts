@@ -42,6 +42,27 @@ export interface EnCola {
   fallo: string | null;
   /** Intentos seguidos con un error que no es de paso (RV-03); ausente en envíos guardados antes. */
   fallos_seguidos?: number;
+  /**
+   * Reserva de subida pedida y aún sin usar (docs/31 RV-156): si la subida falla, el siguiente intento
+   * la reutiliza mientras su URL firmada no caduque, en vez de gastar otra del tope diario.
+   */
+  reserva_foto?: Reserva | null;
+  reserva_foto_sitio?: Reserva | null;
+  /** Espera sin ser un error, con su aviso en Mis propuestas (docs/31 RV-154). */
+  en_espera?: EnEspera | null;
+}
+
+/** Lo que devuelve /api/url-subida, con la hora (ms) a la que caduca su URL firmada. */
+export interface Reserva {
+  url: string;
+  foto_path: string;
+  caduca_en: number;
+}
+
+/** El tope de propuestas al día (RV-141): `maximo` si el servidor lo dice. */
+export interface EnEspera {
+  motivo: 'cuota_propuestas';
+  maximo: number | null;
 }
 
 export interface Enviada {
@@ -69,10 +90,41 @@ export const esPermanente = (codigo: string) => PERMANENTES.some((p) => codigo.s
  * Cualquier otro (DESCONOCIDO, ERROR_INTERNO…) también se reintenta, pero a los cinco seguidos se
  * marca fallo: así no se insiste para siempre y el envío sigue siendo recuperable a mano (RV-03).
  */
-const TRANSITORIOS = [SIN_SERVIDOR, 'CUOTA_SUBIDAS_AGOTADA', 'NO_AUTORIZADO', 'FOTO_NO_RESERVADA'];
+const TRANSITORIOS = [
+  SIN_SERVIDOR,
+  // Con o sin sufijo: el tope del dispositivo y el global (docs/31 RV-142) se tratan igual.
+  'CUOTA_SUBIDAS_AGOTADA',
+  'CUOTA_PROPUESTAS_AGOTADA',
+  'NO_AUTORIZADO',
+  'FOTO_NO_RESERVADA',
+];
 export const MAX_FALLOS_SEGUIDOS = 5;
 
 const HORA = 3600_000;
+
+/**
+ * El tope de propuestas al día (docs/31 RV-141, RV-154): el servidor dice en el texto del error
+ * `maximo=N reintentar_en_s=S`. Sin esos números, se espera a la próxima medianoche del móvil.
+ */
+export function esperaCuotaPropuestas(
+  mensaje: string | undefined,
+  ahora = Date.now(),
+): { ms: number; maximo: number | null } {
+  const segundos = /reintentar_en_s=(\d+)/.exec(mensaje ?? '');
+  const maximo = /maximo=(\d+)/.exec(mensaje ?? '');
+  let ms: number;
+  if (segundos) ms = Number(segundos[1]) * 1000;
+  else {
+    const medianoche = new Date(ahora);
+    medianoche.setHours(24, 0, 0, 0);
+    // Un poco después, y con algo de azar: que no lleguen todos los móviles a la vez.
+    ms = medianoche.getTime() - ahora + Math.round(60_000 + Math.random() * 10 * 60_000);
+  }
+  return { ms: Math.max(1000, ms), maximo: maximo ? Number(maximo[1]) : null };
+}
+
+/** Margen para no empezar una subida con una URL firmada a punto de caducar (RV-156). */
+const MARGEN_RESERVA_MS = 5 * 60_000;
 /** Aviso de envío atascado (FR-83). */
 export const ATASCADO_MS = 24 * HORA;
 
@@ -121,6 +173,20 @@ const persistidas = new Set<string>();
 export const estaPersistida = (clave: string) => persistidas.has(clave);
 
 /**
+ * Qué ha pasado con un envío, para la pantalla de resultado: ya salió; tiene un error permanente y
+ * no se enviará solo (#484); o espera, guardado en el móvil o solo en memoria (RV-02).
+ */
+export function estadoDeEnvio(
+  cola: readonly EnCola[],
+  clave: string,
+): 'salio' | 'fallido' | 'guardado' | 'solo_en_memoria' {
+  const item = cola.find((i) => i.clave_local === clave);
+  if (!item) return 'salio';
+  if (item.fallo) return 'fallido';
+  return persistidas.has(clave) ? 'guardado' : 'solo_en_memoria';
+}
+
+/**
  * Publica en memoria y escribe en IndexedDB. Nunca lanza: sin IndexedDB (navegación privada, cuota
  * agotada) se puede enviar igual con cobertura. Devuelve si quedó guardado en el móvil (RV-02); el
  * primer fallo de la sesión se anota para que llegue a errores_cliente.
@@ -139,16 +205,28 @@ async function guardar(item: EnCola, gen?: number): Promise<boolean> {
         .catch(() => undefined);
       return false;
     }
-    persistidas.add(item.clave_local);
+    marcarPersistida(item.clave_local, true);
     return true;
   } catch (e) {
-    persistidas.delete(item.clave_local);
+    marcarPersistida(item.clave_local, false);
     if (!errorGuardadoAnotado) {
       errorGuardadoAnotado = true;
       anotarError(e, 'cola');
     }
     return false;
   }
+}
+
+/**
+ * Anota si un envío está guardado en IndexedDB y, si cambia, vuelve a publicar la cola: quien la
+ * sigue (la pantalla de resultado, «Guardado en el móvil» o «Sin guardar», docs/31 #501) se entera.
+ * Antes se cambiaba después de publicar y sin avisar a nadie.
+ */
+function marcarPersistida(clave: string, si: boolean) {
+  if (persistidas.has(clave) === si) return;
+  if (si) persistidas.add(clave);
+  else persistidas.delete(clave);
+  if (items.some((i) => i.clave_local === clave)) publicar(items);
 }
 
 async function quitar(clave: string) {
@@ -225,16 +303,18 @@ async function credencial(): Promise<Credencial | null> {
   return data.session ? { jwt: data.session.access_token } : null;
 }
 
-type Paso = { ok: true } | { ok: false; codigo: string };
+type Paso = { ok: true } | { ok: false; codigo: string; mensaje?: string };
 
 type CualFoto = 'foto' | 'foto_sitio';
 
-/** Reserva una ruta (/api/url-subida), sube una de las dos fotos y guarda su ruta en el envío. */
-async function subirFoto(item: EnCola, cual: CualFoto, c: Credencial, gen: number): Promise<Paso> {
-  const blob = item[cual]!;
-  let reserva: Response;
+const campoRuta = (cual: CualFoto) => (cual === 'foto' ? 'foto_path' : 'foto_sitio_path');
+const campoReserva = (cual: CualFoto) => (cual === 'foto' ? 'reserva_foto' : 'reserva_foto_sitio');
+
+/** POST /api/url-subida: una ruta reservada y su URL firmada. */
+async function pedirReserva(c: Credencial): Promise<{ ok: true; reserva: Reserva } | { ok: false; codigo: string }> {
+  let respuesta: Response;
   try {
-    reserva = await fetch('/api/url-subida', {
+    respuesta = await fetch('/api/url-subida', {
       method: 'POST',
       signal: conLimite(LIMITES_RED.reserva),
       headers: {
@@ -246,25 +326,64 @@ async function subirFoto(item: EnCola, cual: CualFoto, c: Credencial, gen: numbe
   } catch {
     return { ok: false, codigo: SIN_SERVIDOR };
   }
-  const cuerpo = (await reserva.json().catch(() => ({}))) as { foto_path?: string; url?: string; error?: string };
-  if (!reserva.ok || !cuerpo.url || !cuerpo.foto_path) {
-    return { ok: false, codigo: reserva.status >= 500 || !cuerpo.error ? SIN_SERVIDOR : cuerpo.error };
+  const cuerpo = (await respuesta.json().catch(() => ({}))) as {
+    foto_path?: string;
+    url?: string;
+    caduca_en_s?: number;
+    error?: string;
+  };
+  if (!respuesta.ok || !cuerpo.url || !cuerpo.foto_path) {
+    return { ok: false, codigo: respuesta.status >= 500 || !cuerpo.error ? SIN_SERVIDOR : cuerpo.error };
+  }
+  // Sin caducidad en la respuesta no se reutiliza: se da por caducada ya.
+  const caduca_en = typeof cuerpo.caduca_en_s === 'number' ? Date.now() + cuerpo.caduca_en_s * 1000 : 0;
+  return { ok: true, reserva: { url: cuerpo.url, foto_path: cuerpo.foto_path, caduca_en } };
+}
+
+/**
+ * La subida anterior con esta misma URL llegó, pero no su respuesta: Storage contesta "ya existe"
+ * (409, o 400 con `Duplicate` en versiones anteriores). La ruta es de esta reserva: la foto está.
+ */
+async function yaSubida(r: Response): Promise<boolean> {
+  if (r.status === 409) return true;
+  if (r.status !== 400) return false;
+  const texto = await r.text().catch(() => '');
+  return /duplicate|already exists/i.test(texto);
+}
+
+/**
+ * Sube una de las dos fotos y guarda su ruta en el envío. Reutiliza la reserva del intento anterior
+ * mientras su URL firmada no haya caducado (docs/31 RV-156): con horas de señal mala, cada reintento
+ * ya no gasta una del tope diario. Una reserva nueva se guarda antes de subir.
+ */
+async function subirFoto(item: EnCola, cual: CualFoto, c: Credencial, gen: number): Promise<Paso> {
+  const blob = item[cual]!;
+  let reserva = item[campoReserva(cual)] ?? null;
+  if (!reserva || reserva.caduca_en - Date.now() < LIMITES_RED.foto + MARGEN_RESERVA_MS) {
+    const r = await pedirReserva(c);
+    if (!r.ok) return r;
+    reserva = r.reserva;
+    const actual = items.find((i) => i.clave_local === item.clave_local);
+    if (gen !== generacion || !actual) return { ok: false, codigo: COLA_VACIADA };
+    await guardar({ ...actual, [campoReserva(cual)]: reserva }, gen);
+    // Si se cerró sesión mientras se guardaba, no se sube una foto que ya no va a ningún sitio.
+    if (gen !== generacion) return { ok: false, codigo: COLA_VACIADA };
   }
   try {
-    const subida = await fetch(cuerpo.url, {
+    const subida = await fetch(reserva.url, {
       method: 'PUT',
       signal: conLimite(LIMITES_RED.foto),
       headers: { 'Content-Type': blob.type || 'image/jpeg' },
       body: blob,
     });
-    if (!subida.ok) return { ok: false, codigo: SIN_SERVIDOR };
+    if (!subida.ok && !(await yaSubida(subida))) return { ok: false, codigo: SIN_SERVIDOR };
   } catch {
     return { ok: false, codigo: SIN_SERVIDOR };
   }
   // Si la cola se vació mientras subía, o el envío ya no está, no se resucita nada.
   const actual = items.find((i) => i.clave_local === item.clave_local);
   if (gen !== generacion || !actual) return { ok: false, codigo: COLA_VACIADA };
-  await guardar({ ...actual, [cual === 'foto' ? 'foto_path' : 'foto_sitio_path']: cuerpo.foto_path });
+  await guardar({ ...actual, [campoRuta(cual)]: reserva.foto_path, [campoReserva(cual)]: null });
   return { ok: true };
 }
 
@@ -307,8 +426,9 @@ async function enviarUno(clave: string, c: Credencial, gen: number): Promise<Pas
       await guardar({
         ...item,
         no_reservada_seguidas: seguidas,
-        ...(item.foto && (lasDos || !delSitio) ? { foto_path: null } : {}),
-        ...(item.foto_sitio && (lasDos || delSitio) ? { foto_sitio_path: null } : {}),
+        // La reserva que el servidor no reconoce tampoco se reutiliza (RV-156).
+        ...(item.foto && (lasDos || !delSitio) ? { foto_path: null, reserva_foto: null } : {}),
+        ...(item.foto_sitio && (lasDos || delSitio) ? { foto_sitio_path: null, reserva_foto_sitio: null } : {}),
       });
     }
     return r;
@@ -370,8 +490,15 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
       continue;
     }
     const intentos = actual.intentos + 1;
-    const retraso = r.codigo === 'CUOTA_SUBIDAS_AGOTADA' ? HORA : espera(intentos);
-    await guardar({ ...actual, intentos, fallos_seguidos, proximo: Date.now() + retraso });
+    let retraso = r.codigo.startsWith('CUOTA_SUBIDAS_AGOTADA') ? HORA : espera(intentos);
+    let en_espera: EnEspera | null = null;
+    if (r.codigo.startsWith('CUOTA_PROPUESTAS_AGOTADA')) {
+      // Mañana, a la hora que diga el servidor; mientras, Mis propuestas dice por qué (RV-154).
+      const cuota = esperaCuotaPropuestas(r.mensaje);
+      retraso = cuota.ms;
+      en_espera = { motivo: 'cuota_propuestas', maximo: cuota.maximo };
+    }
+    await guardar({ ...actual, intentos, fallos_seguidos, en_espera, proximo: Date.now() + retraso });
     if (r.codigo === SIN_SERVIDOR) {
       anotarServidor(false);
       return 'parar'; // sin servidor no tiene sentido probar los siguientes
@@ -432,13 +559,47 @@ function pedirAvisos(c: Credencial) {
 export async function reintentarCola(): Promise<void> {
   if (!cargada) await cargarCola();
   const gen = generacion;
-  for (const i of items) {
+  // Por clave, y cada elemento leído en el momento: una pasada en curso puede haberlo cambiado o
+  // enviado mientras se esperaba al anterior (docs/31 RV-156).
+  for (const clave of items.map((i) => i.clave_local)) {
     if (gen !== generacion) return;
+    const i = items.find((x) => x.clave_local === clave);
+    if (!i || i.fallo) continue;
+    // La espera que fijó el servidor (el tope de propuestas, RV-154) no se adelanta: volvería a
+    // chocar con el tope en cada reintento. Se respeta hasta su hora.
+    const ya = i.proximo > 0 && !i.en_espera;
     // Lo que solo estaba en memoria vuelve a intentar llegar a IndexedDB (RV-39).
-    if (!i.fallo && (i.proximo > 0 || !persistidas.has(i.clave_local))) await guardar({ ...i, proximo: 0 }, gen);
+    if (!ya && persistidas.has(clave)) continue;
+    if (ya) publicar(items.map((x) => (x.clave_local === clave ? { ...x, proximo: 0 } : x)));
+    await adelantar(clave, gen, ya);
   }
   if (gen !== generacion) return;
   await procesarCola();
+}
+
+/**
+ * Pone `proximo` a 0 (con `ya`) en IndexedDB leyendo y escribiendo en la misma transacción
+ * (docs/31 RV-156): no escribe una copia vieja encima de lo que una pasada acaba de guardar (la ruta
+ * de una foto), ni resucita un envío que ya salió o una cola vaciada al cerrar sesión.
+ */
+async function adelantar(clave: string, gen: number, ya: boolean): Promise<void> {
+  try {
+    const escrito = await bd().actualizar(clave, (guardado) => {
+      if (gen !== generacion) return null;
+      const enMemoria = items.find((x) => x.clave_local === clave);
+      if (!enMemoria || enMemoria.fallo) return null;
+      // Guardado y al día: solo cambia `proximo`. Si el último guardado falló, manda la memoria.
+      const base = guardado && persistidas.has(clave) ? guardado : enMemoria;
+      return ya ? { ...base, proximo: 0 } : base;
+    });
+    if (escrito && gen === generacion) marcarPersistida(clave, true);
+  } catch (e) {
+    marcarPersistida(clave, false);
+    if (!errorGuardadoAnotado) {
+      errorGuardadoAnotado = true;
+      anotarError(e, 'cola');
+    }
+  }
 }
 
 /** "Reintentar" en un envío con fallo (Mis propuestas): se olvida el fallo y se intenta ya (RV-03). */
@@ -452,12 +613,15 @@ export async function reintentarFallido(clave: string): Promise<void> {
   await procesarCola();
 }
 
-/** Arranque: carga la cola y la engancha a los reintentos de la conexión y a la vuelta de la red. */
+/**
+ * Arranque: carga la cola y la engancha a los reintentos de la conexión. La vuelta de la red llega
+ * por ahí también: `conexion` escucha `online` y repite las comprobaciones, entre ellas esta. Una
+ * segunda escucha aquí la lanzaba dos veces (docs/31 RV-156).
+ */
 export function iniciarCola(): void {
   void cargarCola().then(procesarCola);
   pedirAlmacenPersistente();
   registrarComprobacion(reintentarCola);
-  if (typeof window !== 'undefined') window.addEventListener('online', () => void reintentarCola());
 }
 
 /**

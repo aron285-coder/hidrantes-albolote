@@ -45,9 +45,9 @@ function HojaQR({ enlace, svg, alCerrar }: { enlace: string; svg: string; alCerr
   return createPortal(
     <div className="hoja-campo fixed inset-0 z-[1100] overflow-auto bg-white p-6 text-black print:static print:p-0">
       <div className="mb-4 flex gap-3 print:hidden">
-        <Boton onClick={() => window.print()}>{T.panelCaducadas.imprimir}</Boton>
+        <Boton onClick={() => window.print()}>{T.panelAjustes.imprimir}</Boton>
         <Boton variante="secundario" onClick={alCerrar}>
-          {T.panelCaducadas.cerrarHoja}
+          {T.panelAjustes.cerrarHoja}
         </Boton>
       </div>
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">

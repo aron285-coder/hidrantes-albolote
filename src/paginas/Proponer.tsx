@@ -1,4 +1,4 @@
-import { CheckCircle2, CloudUpload } from 'lucide-react';
+import { CheckCircle2, CloudUpload, TriangleAlert } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
@@ -15,7 +15,8 @@ import {
 } from '@/componentes/operaciones/Campos';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useAcceso, useConexion, usePosicion, usePuntos } from '@/hooks/estado';
-import { colaActual, encolar, estaPersistida, procesarCola, reintentarCola } from '@/lib/cola';
+import { useCola } from '@/hooks/cola';
+import { type EnCola, encolar, estadoDeEnvio, reintentarCola } from '@/lib/cola';
 import { nombreCaudal, nombreTipo } from '@/lib/ficha';
 import type { FotoProcesada } from '@/lib/foto';
 import { distancia, hace } from '@/lib/formato';
@@ -32,8 +33,9 @@ import {
   necesitaFotoSitio,
   queFalta,
 } from '@/lib/propuestas';
-import { TITULO_OPERACION } from '@/lib/nombres-operacion';
+import { TITULO_OPERACION, textoEspera, textoFallo } from '@/lib/nombres-operacion';
 import { metros } from '@/lib/puntos';
+import { LIMITES } from '@/lib/limites';
 import { T } from '@/lib/textos';
 import { dentroDeZona } from '@/lib/zona';
 import { cn } from '@/lib/utils';
@@ -50,18 +52,23 @@ const MOTIVOS: [MotivoRapido, string][] = [
 const areaTexto =
   'bg-papel border-linea rounded-campo text-texto min-h-11 w-full border px-3 py-2 text-base placeholder:text-texto-suave';
 
-type Resultado = 'enviado' | 'guardado' | 'aplicado' | 'solo_en_memoria';
+type Resultado = 'enviado' | 'guardado' | 'aplicado' | 'solo_en_memoria' | 'fallido';
 
 /** Formulario de las seis operaciones (FL-03–FL-08, 07 §7.3). `/proponer/:operacion?p=<punto>`. */
 export function Proponer() {
   const { operacion: op } = useParams();
   const [params] = useSearchParams();
   const operacion = OPERACIONES.includes(op as Operacion) ? (op as Operacion) : null;
-  const { puntos } = usePuntos();
+  const { puntos, cargado, sincronizadoEn, sincronizando } = usePuntos();
   const punto = useMemo(() => puntos.find((p) => p.id === params.get('p')) ?? null, [puntos, params]);
   // Alta empezada con una pulsación larga sobre el mapa: el pin nace donde se pulsó (DEC-077).
   const pinInicial = useMemo(() => coordenadasDe(params.get('lat'), params.get('lng')), [params]);
-  if (!operacion || (operacion !== 'alta' && !punto)) return <Navigate to="/" replace />;
+  if (!operacion) return <Navigate to="/" replace />;
+  // Sin punto no se manda al mapa (docs/31 RV-152): al volver de la cámara, si Android descartó la
+  // pestaña, los puntos aún no han cargado; y si una sincronización lo ha quitado, hay que decirlo.
+  // Con el móvil sin nada guardado aún, la primera sincronización todavía puede traerlo.
+  const cargando = !cargado || (sincronizadoEn === null && sincronizando);
+  if (operacion !== 'alta' && !punto) return <SinPunto operacion={operacion} cargando={cargando} />;
   return (
     <LimiteError>
       <FormularioOperacion
@@ -108,7 +115,8 @@ function FormularioOperacion({
     };
   });
   const [enviando, setEnviando] = useState(false);
-  const [resultado, setResultado] = useState<{ que: Resultado; clave: string } | null>(null);
+  // La clave_local de lo enviado: la pantalla de resultado sigue en la cola qué pasa con ello.
+  const [resultado, setResultado] = useState<string | null>(null);
   const [falloGuardar, setFalloGuardar] = useState(false);
   const cambiar = (c: Partial<Formulario>) => setF((x) => ({ ...x, ...c }));
 
@@ -137,28 +145,32 @@ function FormularioOperacion({
           // en autor_* ni choca con su límite de 60 caracteres.
           { nombre: T.navegacion.jefatura, apellido: T.navegacion.jefatura };
     const clave = crypto.randomUUID();
-    let persistida: boolean;
     try {
-      ({ persistida } = await encolar(
+      // Solo se espera a que quede guardada en el móvil: encolar ya lanza el envío, y la pantalla de
+      // resultado cambia sola cuando sale. Con señal débil, esperar al envío eran minutos en
+      // "Enviando…", y el voluntario la volvía a rellenar: un duplicado de verdad (docs/31 RV-151).
+      await encolar(
         argumentos(formulario, punto, autor, clave),
         necesitaFoto(operacion) || foto ? (foto?.blob ?? null) : null,
         punto?.codigo ?? null,
         necesitaFotoSitio(operacion) ? (fotoSitio?.blob ?? null) : null,
-      ));
-      await procesarCola();
+      );
     } catch {
       setFalloGuardar(true);
       setEnviando(false);
       return;
     }
-    setResultado({ que: resultadoDe(clave, jefatura, persistida), clave });
+    setResultado(clave);
     setEnviando(false);
   }
 
-  if (resultado) return <PantallaResultado inicial={resultado.que} clave={resultado.clave} jefatura={jefatura} />;
+  if (resultado) return <PantallaResultado clave={resultado} jefatura={jefatura} />;
 
   const textoBoton = jefatura
-    ? T.envio.aplicarAhora
+    ? // Sin conexión, jefatura tampoco aplica al momento: se guarda y se aplica al volver (RV-151).
+      disponible
+      ? T.envio.aplicarAhora
+      : T.envio.guardarEnMovil
     : !disponible
       ? conexion === 'sin_cobertura'
         ? T.envio.guardarSinCobertura
@@ -177,7 +189,13 @@ function FormularioOperacion({
 
   return (
     <div className="flex flex-1 flex-col">
-      <BarraSuperior titulo={TITULO_OPERACION[operacion]} alVolver={() => navegar(-1)} jefatura={jefatura} />
+      {/* En el formulario, la etiqueta no lleva al panel: se perderían las fotos y los datos (DEC-164). */}
+      <BarraSuperior
+        titulo={TITULO_OPERACION[operacion]}
+        alVolver={() => navegar(-1)}
+        jefatura={jefatura}
+        enlacePanel={false}
+      />
       <form
         className="mx-auto flex w-full max-w-lg flex-col gap-3 p-3 pb-8"
         onSubmit={(e) => {
@@ -264,7 +282,7 @@ function FormularioOperacion({
                   onChange={(e) => cambiar({ fallo: e.target.value })}
                   placeholder={T.operaciones.phFallo}
                   aria-label={T.formulario.descripcionFallo}
-                  maxLength={500}
+                  maxLength={LIMITES.descripcion_fallo}
                   className={areaTexto}
                 />
               </Campo>
@@ -288,7 +306,7 @@ function FormularioOperacion({
                 onChange={(e) => cambiar({ motivo: e.target.value })}
                 placeholder={T.operaciones.phMotivo}
                 aria-label={T.formulario.motivoRetirada}
-                maxLength={1000}
+                maxLength={LIMITES.motivo}
                 rows={3}
                 className={areaTexto}
               />
@@ -317,7 +335,7 @@ function FormularioOperacion({
               onChange={(e) => cambiar({ descripcion: e.target.value })}
               placeholder={T.formulario.descripcionAyuda}
               aria-label={T.formulario.descripcionOpcional}
-              maxLength={500}
+              maxLength={LIMITES.descripcion}
               className={areaTexto}
             />
           </Campo>
@@ -330,7 +348,7 @@ function FormularioOperacion({
               onChange={(e) => cambiar({ nota: e.target.value })}
               placeholder={T.operaciones.phNota}
               aria-label={T.formulario.notaOpcional}
-              maxLength={500}
+              maxLength={LIMITES.nota}
               className={areaTexto}
             />
           </Campo>
@@ -349,6 +367,43 @@ function FormularioOperacion({
           </p>
         )}
       </form>
+    </div>
+  );
+}
+
+/**
+ * El formulario de un punto que no está (docs/31 RV-152): mientras cargan los puntos guardados,
+ * "Cargando…"; si ya han cargado y no está, se dice por qué y no se manda al mapa sin explicación.
+ */
+function SinPunto({ operacion, cargando }: { operacion: Operacion; cargando: boolean }) {
+  const navegar = useNavigate();
+  const acceso = useAcceso();
+  return (
+    <div className="flex flex-1 flex-col">
+      <BarraSuperior
+        titulo={TITULO_OPERACION[operacion]}
+        alVolver={() => navegar('/', { replace: true })}
+        jefatura={acceso.tipo === 'jefatura'}
+      />
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-3 p-3">
+        {cargando ? (
+          <p role="status" className="text-texto-suave py-6 text-center">
+            {T.app.cargando}
+          </p>
+        ) : (
+          <>
+            <p
+              role="alert"
+              className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm"
+            >
+              {T.operaciones.puntoYaNoEsta}
+            </p>
+            <Boton className="w-full" onClick={() => navegar('/', { replace: true })}>
+              {T.envio.volverAlMapa}
+            </Boton>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -469,7 +524,7 @@ function DatosPunto({
             onChange={(e) => cambiar({ descripcion: e.target.value })}
             placeholder={T.formulario.descripcionAyuda}
             aria-label={T.formulario.descripcionOpcional}
-            maxLength={500}
+            maxLength={LIMITES.descripcion}
             className={areaTexto}
           />
         </Campo>
@@ -482,33 +537,42 @@ function DatosPunto({
  * Qué ha pasado con un envío: sigue en la cola y no llegó a IndexedDB, solo vive en memoria y se
  * perdería al cerrar (RV-02); si ya salió, enviado o aplicado.
  */
-function resultadoDe(clave: string, jefatura: boolean, persistida = estaPersistida(clave)): Resultado {
-  const sigue = colaActual().some((i) => i.clave_local === clave);
-  if (sigue) return persistida ? 'guardado' : 'solo_en_memoria';
+function resultadoDe(cola: readonly EnCola[], clave: string, jefatura: boolean): Resultado {
+  const estado = estadoDeEnvio(cola, clave);
+  if (estado !== 'salio') return estado;
   return jefatura ? 'aplicado' : 'enviado';
 }
 
-/** Confirmación de 07 §7.5: qué ha pasado con lo enviado (UI-05). */
-function PantallaResultado({ inicial, clave, jefatura }: { inicial: Resultado; clave: string; jefatura: boolean }) {
+/**
+ * Confirmación de 07 §7.5: qué ha pasado con lo enviado (UI-05). Sale en cuanto está guardado en el
+ * móvil y sigue a la cola: "Guardado en el móvil" pasa a "Enviado" (o "Aplicado") cuando sale, y
+ * tras "Reintentar ahora" también (RV-39, docs/31 RV-151).
+ */
+function PantallaResultado({ clave, jefatura }: { clave: string; jefatura: boolean }) {
   const navegar = useNavigate();
   const acceso = useAcceso();
   const [reintentando, setReintentando] = useState(false);
-  // Tras "Reintentar ahora" se vuelve a mirar: puede haber salido o haber llegado al móvil (RV-39).
-  const [resultado, setResultado] = useState(inicial);
+  const cola = useCola();
+  const resultado = resultadoDe(cola, clave, jefatura);
+  const envio = cola.find((i) => i.clave_local === clave);
   const titulo = {
     aplicado: T.envio.aplicado,
     guardado: T.envio.guardadoEnMovil,
     solo_en_memoria: T.envio.soloEnMemoria,
     enviado: T.envio.enviado,
+    fallido: T.envio.noEnviado,
   }[resultado];
   const detalle = {
     aplicado: T.operaciones.aplicadoDetalle,
-    guardado: T.operaciones.guardadoDetalle,
+    // Esperando al día siguiente por el tope (RV-154): se dice por qué, no «se enviará sola».
+    guardado: (envio && textoEspera(envio)) || T.operaciones.guardadoDetalle,
+    // Con un error permanente no se enviará sola (#484): se dice qué pasa, como en Mis propuestas.
+    fallido: envio?.fallo ? textoFallo(envio.fallo) : T.misPropuestas.errorGenerico,
     solo_en_memoria: T.envio.soloEnMemoriaDetalle,
     enviado: T.envio.jefaturaRevisara,
   }[resultado];
   const pendiente = resultado === 'guardado' || resultado === 'solo_en_memoria';
-  const Icono = pendiente ? CloudUpload : CheckCircle2;
+  const Icono = resultado === 'fallido' ? TriangleAlert : pendiente ? CloudUpload : CheckCircle2;
   return (
     <div className="flex flex-1 flex-col">
       <BarraSuperior titulo={titulo} jefatura={acceso.tipo === 'jefatura'} />
@@ -516,7 +580,11 @@ function PantallaResultado({ inicial, clave, jefatura }: { inicial: Resultado; c
         role="status"
         className="mx-auto flex w-full max-w-sm flex-1 flex-col items-center justify-center gap-3 p-6 text-center"
       >
-        <Icono size={44} className={pendiente ? 'text-naranja-600' : 'text-verde-600'} aria-hidden />
+        <Icono
+          size={44}
+          className={resultado === 'fallido' ? 'text-rojo-700' : pendiente ? 'text-naranja-600' : 'text-verde-600'}
+          aria-hidden
+        />
         <h2 className="font-titulo text-2xl font-bold">{titulo}</h2>
         <p className="text-texto-suave">{detalle}</p>
         {resultado === 'solo_en_memoria' && (
@@ -525,10 +593,7 @@ function PantallaResultado({ inicial, clave, jefatura }: { inicial: Resultado; c
             disabled={reintentando}
             onClick={() => {
               setReintentando(true);
-              void reintentarCola().finally(() => {
-                setReintentando(false);
-                setResultado(resultadoDe(clave, jefatura));
-              });
+              void reintentarCola().finally(() => setReintentando(false));
             }}
           >
             {reintentando ? T.operaciones.enviando : T.envio.reintentarAhora}

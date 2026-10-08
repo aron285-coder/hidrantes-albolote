@@ -22,11 +22,10 @@ import {
   correccionesDe,
   diferenciasFusion,
   faltaEnCorrecciones,
-  filasDiff,
+  fichaCompleta,
   lineaCola,
   motivoOmitida,
   resumenLote,
-  senales,
   tieneAviso,
   valoresPropuestos,
 } from './cola';
@@ -111,9 +110,15 @@ describe('lista de la cola', () => {
   });
 });
 
+// El diff vive dentro de "Datos del punto" desde docs/25 RV-110: lo que cambia va primero.
 describe('diff (FR-102)', () => {
+  const cambios = (p: PropuestaPanel, punto?: Punto) =>
+    fichaCompleta(p, punto)
+      .campos.filter((c) => c.cambia)
+      .map(({ etiqueta, antes, valor }) => (antes === undefined ? { etiqueta, valor } : { etiqueta, antes, valor }));
+
   it('cambio de estado: antes tachado y después', () => {
-    expect(filasDiff(propuesta())).toEqual([{ campo: 'Estado', antes: 'Bueno', despues: 'Regular' }]);
+    expect(cambios(propuesta({ foto_path: null }))).toEqual([{ etiqueta: 'Estado', antes: 'Bueno', valor: 'Regular' }]);
   });
 
   it('alta: todo es nuevo y "otra medida" se ve tal cual', () => {
@@ -123,80 +128,60 @@ describe('diff (FR-102)', () => {
       antes: null,
       datos: { tipo: 'hidrante', diametro_otro: 80, caudal: 'no_funciona', descripcion_fallo: 'Tapa soldada' },
     });
-    expect(filasDiff(p)).toEqual([
-      { campo: 'Tipo', despues: 'Hidrante' },
-      { campo: 'Diámetro', despues: 'Otra medida: 80 mm' },
-      { campo: 'Estado', despues: 'No funciona' },
-      { campo: 'Fallo', despues: '"Tapa soldada"' },
+    expect(cambios(p)).toEqual([
+      { etiqueta: 'Tipo', valor: 'Hidrante' },
+      { etiqueta: 'Diámetro', valor: 'Otra medida: 80 mm' },
+      { etiqueta: 'Estado', valor: 'No funciona' },
+      { etiqueta: 'Fallo', valor: 'Tapa soldada' },
     ]);
   });
 
   it('revisión: el estado sigue igual y la fecha cambia', () => {
-    const filas = filasDiff(propuesta({ operacion: 'revision', datos: {}, antes: null }), PUNTO);
-    expect(filas[0]).toEqual({ campo: 'Estado', despues: 'Bueno · sin cambios', sinCambios: true });
-    expect(filas[1].campo).toBe('Revisión');
-    expect(filas[1].antes).toBe('1 jun 2025');
+    const f = fichaCompleta(propuesta({ operacion: 'revision', datos: {}, antes: null }), PUNTO);
+    expect(f.campos[0]).toMatchObject({ clave: 'revision', antes: '1 jun 2025', cambia: true });
+    expect(f.campos.find((c) => c.clave === 'caudal')).toMatchObject({ valor: 'Bueno', cambia: false });
   });
 
   it('corregir datos: solo los campos que cambian', () => {
     const p = propuesta({ operacion: 'datos', datos: { diametro_mm: 70 }, antes: { diametro_mm: 100 } });
-    expect(filasDiff(p)).toEqual([{ campo: 'Diámetro', antes: '100 mm', despues: '70 mm' }]);
+    expect(cambios(p)).toEqual([{ etiqueta: 'Diámetro', antes: '100 mm', valor: '70 mm' }]);
   });
 
-  it('ubicación: el desplazamiento en metros', () => {
+  it('ubicación: cambian las coordenadas, de las del punto a las del pin', () => {
     const p = propuesta({ operacion: 'ubicacion', datos: {}, antes: null, lat: 37.2301, lng: -3.656 });
-    expect(filasDiff(p, PUNTO)).toEqual([{ campo: 'Desplazamiento', despues: '11 m' }]);
+    expect(cambios(p, PUNTO)[0]).toEqual({
+      etiqueta: T.coordenadas.decimal,
+      antes: '37.230000, -3.656000',
+      valor: '37.230100, -3.656000',
+    });
   });
 
   it('retirada: situación y motivo', () => {
     const p = propuesta({ operacion: 'retirada', datos: { motivo_rapido: 'obras', motivo: 'Calle levantada' } });
-    expect(filasDiff(p)).toEqual([
-      { campo: 'Situación', antes: 'Activo', despues: 'Retirado' },
-      { campo: 'Motivo', despues: 'Obras · "Calle levantada"' },
-    ]);
+    const f = fichaCompleta(p);
+    expect(f.campos[0]).toMatchObject({ etiqueta: 'Situación', antes: 'Activo', valor: 'Retirado' });
+    expect(f.campos[1]).toMatchObject({ etiqueta: 'Motivo', valor: 'Obras · "Calle levantada"' });
   });
 });
 
-describe('señales (FR-104)', () => {
-  it('GPS en campo con buena precisión: sin avisos', () => {
-    const s = senales(propuesta({ origen_ubicacion: 'gps', precision_gps_m: 4, distancia_gps_m: 6 }));
-    expect(s.map((x) => x.texto)).toContain('GPS en campo · ±4 m · a 6 m del pin');
-    expect(s.some((x) => x.aviso)).toBe(false);
-    expect(tieneAviso(propuesta({ origen_ubicacion: 'gps', precision_gps_m: 4 }))).toBe(false);
+// docs/28 RV-115 (DEC-166): el ⚠ de la lista, solo por lo que el detalle enseña como aviso.
+describe('el ⚠ de la lista de la cola (FR-104, DEC-166)', () => {
+  it.each([
+    ['desactualizada', { desactualizada: true }],
+    ['un hidrante de otra medida', { otra_medida: true }],
+    ['posible duplicado', { duplicado_de: 'x2', codigo_duplicado: 'BOC-0088', distancia_duplicado_m: 8 }],
+    ['fuera de zona', { fuera_de_zona: true }],
+  ] as [string, Partial<PropuestaPanel>][])('avisa: %s', (_, extra) => {
+    expect(tieneAviso(propuesta(extra))).toBe(true);
   });
 
-  it('pin manual, GPS impreciso, foto lejos, fuera de zona, duplicado, otra medida y desactualizada avisan', () => {
-    const p = propuesta({
-      origen_ubicacion: 'manual',
-      distancia_gps_m: 40,
-      precision_gps_m: 35,
-      distancia_exif_m: 120,
-      fuera_de_zona: true,
-      duplicado_de: 'x2',
-      codigo_duplicado: 'BOC-0088',
-      distancia_duplicado_m: 8,
-      otra_medida: true,
-      desactualizada: true,
-    });
-    const avisos = senales(p)
-      .filter((x) => x.aviso)
-      .map((x) => x.texto);
-    expect(avisos).toEqual([
-      'Pin puesto a mano · a 40 m del GPS del móvil',
-      'GPS poco preciso · ±35 m',
-      'La foto se hizo a 120 m del pin',
-      'Fuera de zona',
-      'Posible duplicado de BOC-0088 · a 8 m',
-      T.panelCola.senalOtraMedida,
-      T.panelCola.senalDesactualizada,
-    ]);
-    expect(tieneAviso(p)).toBe(true);
-  });
-
-  it('antigüedad de la revisión anterior', () => {
-    expect(senales(propuesta({ meses_desde_revision: 14 })).map((x) => x.texto)).toContain(
-      'Revisión anterior: hace 14 meses',
-    );
+  it.each([
+    ['pin puesto a mano', { origen_ubicacion: 'manual', distancia_gps_m: 40 }],
+    ['foto lejos del pin', { distancia_exif_m: 120 }],
+    ['GPS poco preciso', { origen_ubicacion: 'gps', precision_gps_m: 35 }],
+    ['sin foto del sitio', { sin_foto_sitio: true }],
+  ] as [string, Partial<PropuestaPanel>][])('no avisa: solo %s', (_, extra) => {
+    expect(tieneAviso(propuesta(extra))).toBe(false);
   });
 });
 
@@ -246,13 +231,30 @@ describe('aprobar con correcciones (FR-106)', () => {
     );
   });
 
-  it('la dirección escrita va en las correcciones solo si difiere de la deducida (FR-105)', () => {
+  it('la dirección escrita va en las correcciones solo si difiere de la enseñada al abrir (FR-105)', () => {
     expect(conDireccion({}, 'C/ Real 14', 'C/ Real 14')).toEqual({});
     expect(conDireccion({}, '  ', null)).toEqual({});
+    expect(conDireccion({}, '  ', '')).toEqual({});
     expect(conDireccion({ caudal: 'malo' }, 'C/ Real 16', 'C/ Real 14')).toEqual({
       caudal: 'malo',
       direccion: 'C/ Real 16',
     });
+  });
+
+  // docs/31 RV-162: aprobar no se registra "con correcciones" si nadie ha corregido.
+  it('caso 1: la deducida al abrir, sin tocar, no es una corrección', () => {
+    // La propuesta llegó sin dirección y el panel la dedujo: se compara con lo enseñado, no con null.
+    expect(conDireccion({}, 'Camino del Cubillas 2', 'Camino del Cubillas 2')).toEqual({});
+    expect(conDireccion({}, ' Camino del Cubillas 2 ', 'Camino del Cubillas 2')).toEqual({});
+  });
+
+  it('caso 2: la dirección actual que rellena el formulario, sin tocar, no va en las correcciones', () => {
+    expect(conDireccion({ caudal: 'malo' }, 'Calle Real 14', 'Calle Real 14')).toEqual({ caudal: 'malo' });
+  });
+
+  it('caso 3: vaciar la dirección manda null para quitarla', () => {
+    expect(conDireccion({}, '', 'Calle Real 14')).toEqual({ direccion: null });
+    expect(conDireccion({ caudal: 'malo' }, '   ', 'Calle Real 14')).toEqual({ caudal: 'malo', direccion: null });
   });
 });
 

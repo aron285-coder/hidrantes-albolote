@@ -1,5 +1,5 @@
-// Fase 6: las seis operaciones, la foto sin EXIF, la cola sin cobertura, Mis propuestas y
-// "Algo no funciona" (FL-03–FL-11), con el servidor simulado.
+// Fase 6: las seis operaciones, la foto sin EXIF, la cola sin cobertura y Mis propuestas
+// (FL-03–FL-10), con el servidor simulado. "Algo no funciona" salió en docs/29 RV-125.
 
 import { expect, test, type Page } from '@playwright/test';
 import { conExif } from '../src/lib/exif-prueba.ts';
@@ -12,12 +12,11 @@ const SB = 'https://supabase.invalid';
 interface Servidor {
   propuestas: Record<string, unknown>[];
   subidas: Buffer[];
-  incidencias: Record<string, unknown>[];
 }
 
 /** Servidor simulado: guarda lo que llega y responde como las RPC de 05 §6 (idempotente por clave_local). */
 async function servidor(page: Page, { caido = false } = {}): Promise<Servidor> {
-  const s: Servidor = { propuestas: [], subidas: [], incidencias: [] };
+  const s: Servidor = { propuestas: [], subidas: [] };
   await page.route('**/api/url-subida', (r) =>
     caido
       ? r.abort('connectionrefused')
@@ -57,10 +56,6 @@ async function servidor(page: Page, { caido = false } = {}): Promise<Servidor> {
           revisada_en: null,
         })),
       );
-    }
-    if (nombre === 'fn_reportar_incidencia') {
-      s.incidencias.push(cuerpo);
-      return json('00000000-0000-4000-8000-000000000001');
     }
     return json(null);
   });
@@ -269,6 +264,35 @@ test.describe('operaciones (FL-03–FL-08)', () => {
       expect(s.propuestas[0]).toMatchObject({ ...op.esperado, punto_id: hid.id });
     });
   }
+  // docs/31 RV-157: una notificación tocada con el formulario a medias no se lo lleva sin preguntar.
+  test('un aviso con el formulario a medias pregunta antes de salir', async ({ page }) => {
+    await servidor(page);
+    const hid = PUNTOS[0];
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.sigueIgual}`) }).click();
+    await expect(page).toHaveURL(/\/proponer\//);
+    // Lo que manda public/sw-push.js en vez de navegar.
+    await page.evaluate(() =>
+      navigator.serviceWorker.dispatchEvent(
+        new MessageEvent('message', { data: { tipo: 'aviso_push', url: '/mis-propuestas' } }),
+      ),
+    );
+    await expect(page.getByText(T.avisoFormulario.avisoNuevo)).toBeVisible();
+    await page.getByRole('button', { name: T.avisoFormulario.ver, exact: true }).click();
+    const hoja = page.getByRole('dialog', { name: T.avisoFormulario.salir });
+    await expect(hoja.getByText(T.avisoFormulario.sePierde)).toBeVisible();
+    await hoja.getByRole('button', { name: T.avisoFormulario.seguir }).click();
+    await expect(page).toHaveURL(/\/proponer\//);
+    await page.getByRole('button', { name: T.avisoFormulario.ver, exact: true }).click();
+    await page
+      .getByRole('dialog', { name: T.avisoFormulario.salir })
+      .getByRole('button', { name: T.avisoFormulario.botonSalir })
+      .click();
+    await expect(page).toHaveURL(/\/mis-propuestas$/);
+    await expect(page.getByText(T.avisoFormulario.avisoNuevo)).toHaveCount(0);
+  });
+
   // docs/18 RV-41, DEC-090: el tipo no se cambia; se retira el punto y se da de alta el correcto.
   test('corregir datos no ofrece cambiar el tipo y enlaza a retirar', async ({ page }) => {
     await servidor(page);
@@ -282,6 +306,26 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByRole('link', { name: T.operaciones.proponerRetirada }).click();
     await expect(page).toHaveURL((u) => u.pathname === '/proponer/retirada' && u.searchParams.get('p') === hid.id);
     await expect(page.getByLabel(T.formulario.motivoRetirada)).toBeVisible();
+  });
+
+  // docs/31 RV-157: «Repetir» con una foto que no se puede leer deja la anterior, con el aviso.
+  test('repetir una foto que falla deja la anterior y lo dice', async ({ page }) => {
+    await servidor(page);
+    const hid = PUNTOS[0];
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.sigueIgual}`) }).click();
+    await hacerFoto(page);
+    const hueco = page.getByTestId('hueco-entrada-foto');
+    const tamano = await hueco.getByText(/\d+ kB/).textContent();
+    await page.getByTestId('entrada-foto').setInputFiles({
+      name: 'rota.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from('esto no es una foto'),
+    });
+    await expect(hueco.getByRole('alert')).toHaveText(T.operaciones.fotoRepetidaIlegible);
+    await expect(hueco.getByText(/\d+ kB/)).toHaveText(tamano!);
+    await expect(enviar(page)).toBeEnabled();
   });
 
   test('sin cobertura: tres altas se guardan y salen solas al volver, una vez cada una (criterio)', async ({
@@ -331,7 +375,13 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByLabel(T.formulario.otraMedida).fill('200');
     await expect(page.getByText(T.avisosFormulario.indicaMedida)).toBeVisible();
     await page.getByRole('radio', { name: T.formulario.d70 }).click();
-    await page.getByRole('radio', { name: T.formulario.barcelona }).click();
+    // docs/25 RV-112 (DEC-163) y docs/29 RV-121 (DEC-170): «Tipo de enganche», con Barcelona,
+    // Granada, Directo y Otro en este orden.
+    await expect(page.getByText('Elige el tipo de enganche')).toBeVisible();
+    const enganche = page.getByRole('radiogroup', { name: 'Tipo de enganche' });
+    await expect(enganche.getByRole('radio')).toHaveText(['Barcelona', 'Granada', 'Directo', 'Otro']);
+    await expect(page.getByText(/racor/i)).toHaveCount(0);
+    await enganche.getByRole('radio', { name: T.formulario.barcelona }).click();
     await page.getByRole('radio', { name: T.formulario.bueno }).click();
     await hacerFoto(page);
     await enviar(page).click();
@@ -344,6 +394,42 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     });
   });
 
+  // docs/29 RV-121 (DEC-170): las cuatro tarjetas en una fila, ≥ 44 × 44, sin desplazar a lo ancho.
+  for (const ancho of [360, 412]) {
+    test(`alta de una boca con enganche Directo a ${ancho} px`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: 800 });
+      // Sin la foto de Directo en el servidor (la pone el desarrollador): la tarjeta, solo con el nombre.
+      await page.route('**/racores/directo.webp', (r) => r.fulfill({ status: 404, body: '' }));
+      const s = await servidor(page);
+      await page.goto('/');
+      await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+      await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+      await page.getByRole('radio', { name: T.formulario.d45 }).click();
+      const enganche = page.getByRole('radiogroup', { name: T.formulario.racor });
+      const tarjetas = enganche.getByRole('radio');
+      await expect(tarjetas).toHaveText(['Barcelona', 'Granada', 'Directo', 'Otro']);
+      await expect(enganche.getByRole('radio', { name: T.formulario.directo }).locator('img')).toHaveCount(0);
+      const cajas = await Promise.all((await tarjetas.all()).map((t) => t.boundingBox()));
+      for (const c of cajas) {
+        expect(c!.width).toBeGreaterThanOrEqual(44);
+        expect(c!.height).toBeGreaterThanOrEqual(44);
+        expect(Math.abs(c!.y - cajas[0]!.y), 'las cuatro en la misma fila').toBeLessThan(1);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(ancho);
+      await enganche.getByRole('radio', { name: T.formulario.directo }).click();
+      await page.getByRole('radio', { name: T.formulario.bueno }).click();
+      await hacerFoto(page);
+      await enviar(page).click();
+      await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+      expect(s.propuestas[0]?.datos).toEqual({
+        tipo: 'boca_riego',
+        diametro_mm: 45,
+        racor: 'directo',
+        caudal: 'bueno',
+      });
+    });
+  }
+
   // docs/24 RV-102: "Barro" no pide descripción del fallo y viaja tal cual.
   test('alta con Barro: sin descripción del fallo', async ({ page }) => {
     const s = await servidor(page);
@@ -351,6 +437,8 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
     await page.getByRole('radio', { name: T.formulario.hidrante }).click();
     await page.getByRole('radio', { name: T.formulario.d100 }).click();
+    // Un hidrante no tiene tipo de enganche (docs/25 RV-112).
+    await expect(page.getByRole('radiogroup', { name: T.formulario.racor })).toHaveCount(0);
     await page.getByRole('radio', { name: T.formulario.barro }).click();
     await expect(page.getByLabel(T.formulario.descripcionFallo)).toHaveCount(0);
     await hacerFoto(page);
@@ -359,7 +447,7 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     expect(s.propuestas[0]?.datos).toEqual({ tipo: 'hidrante', diametro_mm: 100, caudal: 'barro' });
   });
 
-  test('Mis propuestas lista lo enviado y "Algo no funciona" llega a jefatura', async ({ page }) => {
+  test('Mis propuestas lista lo enviado', async ({ page }) => {
     const s = await servidor(page);
     await page.goto('/?p=' + PUNTOS[0].id);
     await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
@@ -372,12 +460,30 @@ test.describe('operaciones (FL-03–FL-08)', () => {
 
     await page.goto('/ajustes');
     await expect(page.getByText(T.misPropuestas.resumen(1, 0))).toBeVisible();
-    await page.getByRole('button', { name: T.ajustes.avisarJefatura }).click();
-    await expect(page.getByRole('button', { name: T.ajustes.avisarJefatura })).toBeDisabled();
-    await page.getByLabel(T.incidencia.queHaPasado).fill('Al hacer la foto la app se cierra');
-    await page.getByRole('button', { name: T.ajustes.avisarJefatura }).click();
-    await expect(page.getByRole('heading', { level: 2, name: T.incidencia.enviado })).toBeVisible();
-    expect(s.incidencias[0]).toMatchObject({ token: TOKEN, descripcion: 'Al hacer la foto la app se cierra' });
+    expect(s.propuestas).toHaveLength(1);
+  });
+
+  // docs/29 RV-125 (DEC-167): sin la lista de incidencias en el panel nadie leería los avisos.
+  test('Ajustes ya no ofrece "Algo no funciona" y /incidencia lleva a Ajustes', async ({ page }) => {
+    const s = await servidor(page);
+    await page.goto('/ajustes');
+    await expect(page.getByText(T.ajustes.comoSeUsa)).toBeVisible();
+    // Las Novedades pueden contar que se quitó (CHANGELOG de 0.9.0); fuera de ellas no queda rastro:
+    // ni la sección, ni su botón, ni un enlace.
+    const novedades = page.getByTestId('novedades');
+    await expect(novedades).toBeVisible();
+    const enNovedades = await novedades.getByText(/Algo no funciona/).count();
+    await expect(page.getByText(/Algo no funciona/)).toHaveCount(enNovedades);
+    for (const rol of ['heading', 'button', 'link'] as const) {
+      await expect(page.getByRole(rol, { name: /Algo no funciona/ })).toHaveCount(0);
+    }
+    await expect(page.getByRole('button', { name: 'Avisar a jefatura' })).toHaveCount(0);
+    // Un enlace guardado o el historial de una versión vieja: a Ajustes, sin formulario.
+    await page.goto('/incidencia');
+    await expect(page).toHaveURL(/\/ajustes$/);
+    await expect(page.getByText(T.ajustes.comoSeUsa)).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Qué ha pasado' })).toHaveCount(0);
+    expect(s.propuestas).toHaveLength(0);
   });
 });
 
@@ -471,8 +577,17 @@ test.describe('cola: lo que se envía mientras otro envío sube (RV-01, RV-02)',
     await hacerFoto(page);
     await page.getByRole('button', { name: /^(Enviar para revisión|Guardar · se enviará)/ }).click();
     await expect(page.getByRole('heading', { level: 2, name: T.envio.soloEnMemoria })).toBeVisible();
+    // La pantalla sigue a la cola (docs/31 RV-151) y la cola reintenta sola: lo que salga antes del
+    // toque espera a que se pulse, para que el botón siga ahí y sea el toque el que lo lleve.
+    let pulsado!: () => void;
+    const tocado = new Promise<void>((r) => (pulsado = r));
+    await page.route(`${SB}/rest/v1/rpc/fn_proponer`, async (r) => {
+      await tocado;
+      await r.fallback();
+    });
     caido = false;
     await page.getByRole('button', { name: T.envio.reintentarAhora }).click();
+    pulsado();
     await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
     await expect(page.getByRole('button', { name: T.envio.reintentarAhora })).toHaveCount(0);
   });
@@ -534,7 +649,9 @@ test.describe('Mis propuestas (RV-23)', () => {
   test('las correcciones se leen en español', async ({ page }) => {
     await conPropuestas(page, [PROPIA({ estado: 'aprobada', correcciones: { diametro_mm: 70, racor: 'granada' } })]);
     await page.goto('/mis-propuestas');
-    await expect(page.getByText(T.misPropuestas.conCorrecciones('Diámetro: 70 mm · Racor: Granada'))).toBeVisible();
+    await expect(
+      page.getByText(T.misPropuestas.conCorrecciones('Diámetro: 70 mm · Tipo de enganche: Granada')),
+    ).toBeVisible();
     await expect(page.getByText(/diametro mm/)).toHaveCount(0);
   });
 });
@@ -557,4 +674,66 @@ test('un alta fuera de la zona avisa y deja continuar (FR-55)', async ({ page, c
   await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
   expect(s.propuestas[0]).toMatchObject({ operacion: 'alta' });
   expect(s.propuestas[0].lat as number).toBeCloseTo(37.1773, 3);
+});
+
+// docs/31 RV-151: con señal débil, Enviar esperaba a la cola entera (reserva, fotos y RPC) y el
+// voluntario se quedaba minutos en "Enviando…". Ahora basta con que quede guardada en el móvil.
+test('Enviar no espera a la cola: con la red parada, el resultado sale al momento y cambia al salir', async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(['geolocation']);
+  await context.setGeolocation({ latitude: 37.2309, longitude: -3.6566, accuracy: 9 });
+  await conSesion(page);
+  const s = await servidor(page);
+  // La reserva de la foto no contesta: hay red, pero no pasa nada por ella.
+  let soltar!: () => void;
+  const suelta = new Promise<void>((r) => (soltar = r));
+  await page.route('**/api/url-subida', async (r) => {
+    await suelta;
+    await r.fallback();
+  });
+  await page.goto('/proponer/alta');
+  await page.getByRole('radio', { name: T.formulario.bocaRiego }).click();
+  await page.getByRole('radio', { name: T.formulario.d45 }).click();
+  await page.getByRole('radio', { name: T.formulario.granada }).click();
+  await page.getByRole('radio', { name: T.formulario.bueno }).click();
+  await hacerFoto(page);
+  await enviar(page).click();
+  await expect(page.getByRole('heading', { level: 2, name: T.envio.guardadoEnMovil })).toBeVisible({ timeout: 1000 });
+  await expect(page.getByText(T.operaciones.guardadoDetalle)).toBeVisible();
+  expect(s.propuestas).toHaveLength(0);
+
+  // Cuando la red responde, la misma pantalla pasa a "Enviado", sin tocar nada.
+  soltar();
+  await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+  expect(s.propuestas).toHaveLength(1);
+});
+
+// docs/31 RV-152: si Android descarta la pestaña mientras está la cámara, al volver se recarga el
+// formulario antes de que hayan cargado los puntos, y mandaba al mapa.
+test.describe('el formulario de un punto al recargar (RV-152)', () => {
+  test.beforeEach(async ({ page }) => {
+    await conSesion(page);
+    await servidor(page);
+  });
+
+  test('recargar el formulario de un punto lo vuelve a abrir, sin mandar al mapa', async ({ page }) => {
+    const hid = PUNTOS[0];
+    await page.goto('/');
+    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length))).toBeVisible();
+    await page.goto(`/proponer/revision?p=${hid.id}`);
+    await expect(page.getByText(hid.codigo, { exact: true })).toBeVisible();
+    await expect(page).toHaveURL((u) => u.pathname === '/proponer/revision');
+  });
+
+  test('un punto que ya no está: lo dice y no redirige', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length))).toBeVisible();
+    await page.goto('/proponer/estado?p=no-existe');
+    await expect(page.getByRole('alert').filter({ hasText: T.operaciones.puntoYaNoEsta })).toBeVisible();
+    await expect(page).toHaveURL((u) => u.pathname === '/proponer/estado');
+    await page.getByRole('button', { name: T.envio.volverAlMapa }).click();
+    await expect(page).toHaveURL((u) => u.pathname === '/');
+  });
 });

@@ -1,17 +1,20 @@
-// Los trabajos de mantenimiento que jefatura lanza desde Ajustes (FR-144, FR-165, DEC-069). El
-// token de GitHub que usa esta Function solo tiene `actions:write`, pero aun así solo puede
-// disparar los workflows de la lista: nada de aceptar el nombre que venga en el cuerpo.
+// Los trabajos de mantenimiento que jefatura pide desde Ajustes (FR-144, FR-165, RV-146). La Function
+// ya no habla con GitHub ni guarda ningún token: deja un pedido en la base de datos
+// (fn_pedir_trabajo) y despachador.yml lo recoge en producción. En staging, los trabajos que solo
+// actúan sobre producción (purgar fotos, respaldo) se rechazan: el bucket y la base de producción no
+// se tocan desde el panel de pruebas.
 
 import { describe, expect, it, vi } from 'vitest';
 import { type Env } from '../_lib/comun.ts';
-import { ARCHIVO, WORKFLOWS, onRequestPost } from './lanzar-workflow.ts';
+import { SOLO_PRODUCCION, WORKFLOWS, onRequestPost } from './lanzar-workflow.ts';
 
-const ENV = {
+const BASE = {
   SUPABASE_URL: 'https://proyecto.supabase.co',
   SUPABASE_SERVICE_ROLE_KEY: 'clave-de-servicio', // detectar-secretos:permitir (valor de prueba)
   SAL_IP: 'sal',
-  GITHUB_DISPATCH_TOKEN: 'token-de-despacho', // detectar-secretos:permitir (valor de prueba)
-} as Env;
+};
+const PRODUCCION = { ...BASE, ENTORNO: 'produccion' } as Env;
+const STAGING = { ...BASE, ENTORNO: 'staging' } as Env;
 
 const peticion = (cuerpo: unknown, conSesion = true) =>
   new Request('https://hidrantes-albolote.pages.dev/api/lanzar-workflow', {
@@ -20,94 +23,167 @@ const peticion = (cuerpo: unknown, conSesion = true) =>
     body: JSON.stringify(cuerpo),
   });
 
-function fingirRed({ admin = true, github = new Response(null, { status: 204 }) } = {}) {
-  const llamadas: { url: string; cuerpo: unknown }[] = [];
+interface Red {
+  admin?: boolean;
+  /** Lo que contesta fn_pedir_trabajo. */
+  pedido?: Response | Error;
+}
+
+function fingirRed({ admin = true, pedido = new Response('1') }: Red = {}) {
+  const llamadas: { url: string; cuerpo: unknown; autorizacion: string | null }[] = [];
   const espia = vi.spyOn(globalThis, 'fetch').mockImplementation((entrada, opciones) => {
     const url = String(entrada);
-    const cuerpo = (opciones as RequestInit | undefined)?.body;
-    llamadas.push({ url, cuerpo: typeof cuerpo === 'string' ? JSON.parse(cuerpo) : cuerpo });
+    const init = opciones as RequestInit | undefined;
+    const cuerpo = init?.body;
+    llamadas.push({
+      url,
+      cuerpo: typeof cuerpo === 'string' ? JSON.parse(cuerpo) : cuerpo,
+      autorizacion: new Headers(init?.headers).get('Authorization'),
+    });
     if (url.includes('fn_es_admin')) return Promise.resolve(new Response(String(admin)));
-    if (url.includes('api.github.com')) return Promise.resolve(github);
+    if (url.includes('fn_pedir_trabajo')) {
+      return pedido instanceof Error ? Promise.reject(pedido) : Promise.resolve(pedido.clone());
+    }
     return Promise.resolve(new Response('null'));
   });
   return { espia, llamadas };
 }
 
+const raise = (codigo: string) =>
+  new Response(JSON.stringify({ code: 'P0001', message: `${codigo}: detalle` }), { status: 400 });
+
 describe('POST /api/lanzar-workflow', () => {
-  it('todos los trabajos que ofrece el panel tienen workflow (FR-144, FR-165)', () => {
-    expect(WORKFLOWS.filter((w) => !ARCHIVO[w])).toEqual([]);
-  });
-
-  it('sin sesión de administrador, 403 y no se dispara nada', async () => {
-    const { espia, llamadas } = fingirRed({ admin: false });
-    const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: ENV });
-    expect(r.status).toBe(403);
-    expect(llamadas.some((l) => l.url.includes('api.github.com'))).toBe(false);
-    espia.mockRestore();
-  });
-
-  it('lanza la purga de fotos sobre develop y lo anota en el registro (FR-144)', async () => {
+  it('nunca llama a GitHub, en ningún entorno ni con ningún trabajo', async () => {
     const { espia, llamadas } = fingirRed();
-    const r = await onRequestPost({ request: peticion({ workflow: 'purgar-fotos' }), env: ENV });
-
-    expect(r.status).toBe(202);
-    expect(await r.json()).toEqual({ lanzada: true, workflow: 'purgar-fotos' });
-    const disparo = llamadas.find((l) => l.url.includes('api.github.com'))!;
-    expect(disparo.url).toContain('/actions/workflows/purgar-fotos.yml/dispatches');
-    expect(disparo.cuerpo).toEqual({ ref: 'develop' }); // sin entradas: el workflow usa sus valores por defecto
-    expect(llamadas.some((l) => l.url.includes('fn_registrar_workflow'))).toBe(true);
-    espia.mockRestore();
-  });
-
-  it('los trabajos de regeneración van al mismo workflow con su entrada (DEC-069)', async () => {
-    for (const [workflow, trabajo] of [
-      ['regenerar-zona', 'regenerar-zona'],
-      ['regenerar-mapabase', 'regenerar-mapabase'],
-    ] as const) {
-      const { espia, llamadas } = fingirRed();
-      await onRequestPost({ request: peticion({ workflow }), env: ENV });
-      const disparo = llamadas.find((l) => l.url.includes('api.github.com'))!;
-      expect(disparo.url).toContain('/actions/workflows/mantenimiento.yml/dispatches');
-      expect(disparo.cuerpo).toEqual({ ref: 'develop', inputs: { trabajo } });
-      espia.mockRestore();
+    for (const env of [PRODUCCION, STAGING]) {
+      for (const workflow of WORKFLOWS) await onRequestPost({ request: peticion({ workflow }), env });
     }
+    expect(llamadas.some((l) => l.url.includes('github.com'))).toBe(false);
+    espia.mockRestore();
   });
 
-  it('el respaldo va a su propio workflow y sin entradas: GitHub rechaza las que no declara', async () => {
-    const { espia, llamadas } = fingirRed();
-    const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: ENV });
-
-    expect(r.status).toBe(202);
-    const disparo = llamadas.find((l) => l.url.includes('api.github.com'))!;
-    expect(disparo.url).toContain('/actions/workflows/respaldo.yml/dispatches');
-    expect(disparo.cuerpo).toEqual({ ref: 'develop' });
+  it('sin sesión de administrador, 403 y no se pide nada', async () => {
+    const { espia, llamadas } = fingirRed({ admin: false });
+    const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: PRODUCCION });
+    expect(r.status).toBe(403);
+    expect(llamadas.some((l) => l.url.includes('fn_pedir_trabajo'))).toBe(false);
     espia.mockRestore();
   });
 
   it('un workflow que no está en la lista es 400, venga como venga', async () => {
     const { espia, llamadas } = fingirRed();
     for (const cuerpo of [{}, { workflow: 'despliegue' }, { workflow: 42 }, { workflow: '../../otro' }]) {
-      const r = await onRequestPost({ request: peticion(cuerpo), env: ENV });
+      const r = await onRequestPost({ request: peticion(cuerpo), env: PRODUCCION });
       expect(r.status, JSON.stringify(cuerpo)).toBe(400);
     }
-    expect(llamadas.some((l) => l.url.includes('api.github.com'))).toBe(false);
+    expect(llamadas.some((l) => l.url.includes('fn_pedir_trabajo'))).toBe(false);
     espia.mockRestore();
   });
 
-  it('sin token de GitHub lo dice con un código propio, no con un fallo mudo (UI-04)', async () => {
-    const { espia } = fingirRed();
-    const sinToken = { ...ENV, GITHUB_DISPATCH_TOKEN: undefined } as Env;
-    const r = await onRequestPost({ request: peticion({ workflow: 'purgar-fotos' }), env: sinToken });
-    expect(r.status).toBe(503);
-    expect(await r.json()).toEqual({ error: 'NO_CONFIGURADO' });
-    espia.mockRestore();
+  describe('en producción', () => {
+    it.each(WORKFLOWS)('%s se pide en la base de datos, con la sesión de quien lo pide', async (workflow) => {
+      const { espia, llamadas } = fingirRed();
+      const r = await onRequestPost({ request: peticion({ workflow }), env: PRODUCCION });
+
+      expect(r.status).toBe(202);
+      const cuerpo = await r.json();
+      expect(cuerpo).toEqual({ pedido: true, workflow });
+      // En producción no lleva `staging`, ni siquiera a false: el panel solo mira `staging === true`.
+      expect(cuerpo).not.toHaveProperty('staging');
+      const pedido = llamadas.find((l) => l.url.includes('/rpc/fn_pedir_trabajo'))!;
+      expect(pedido.cuerpo).toEqual({ workflow });
+      // Con el JWT del administrador: la base de datos comprueba quién es y lo anota en el registro.
+      expect(pedido.autorizacion).toBe('Bearer a.b.c');
+      espia.mockRestore();
+    });
+
+    it('si ya hay un pedido pendiente de ese trabajo, 409 YA_PEDIDO', async () => {
+      const { espia } = fingirRed({ pedido: raise('YA_PEDIDO') });
+      const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: PRODUCCION });
+      expect(r.status).toBe(409);
+      expect(await r.json()).toEqual({ error: 'YA_PEDIDO' });
+      espia.mockRestore();
+    });
+
+    it('si la base de datos dice que no es administrador, 403', async () => {
+      const { espia } = fingirRed({ pedido: raise('NO_AUTORIZADO') });
+      const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: PRODUCCION });
+      expect(r.status).toBe(403);
+      expect(await r.json()).toEqual({ error: 'NO_AUTORIZADO' });
+      espia.mockRestore();
+    });
+
+    it('si la base de datos no admite el trabajo, 400 PAYLOAD_INVALIDO (0040 lo lanza con su campo)', async () => {
+      const { espia } = fingirRed({ pedido: raise('PAYLOAD_INVALIDO(workflow)') });
+      const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: PRODUCCION });
+      expect(r.status).toBe(400);
+      expect(await r.json()).toEqual({ error: 'PAYLOAD_INVALIDO' });
+      espia.mockRestore();
+    });
+
+    it('si la base de datos no contesta, 503 y no se da por pedido (UI-04)', async () => {
+      const { espia } = fingirRed({ pedido: new TypeError('fetch failed') });
+      const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: PRODUCCION });
+      expect(r.status).toBe(503);
+      expect(await r.json()).toEqual({ error: 'SERVIDOR_NO_DISPONIBLE' });
+      espia.mockRestore();
+    });
   });
 
-  it('si GitHub no acepta el disparo, 503 y no se anota nada en el registro', async () => {
-    const { espia, llamadas } = fingirRed({ github: new Response('{"message":"Not Found"}', { status: 404 }) });
-    const r = await onRequestPost({ request: peticion({ workflow: 'respaldo' }), env: ENV });
-    expect(r.status).toBe(503);
-    expect(llamadas.some((l) => l.url.includes('fn_registrar_workflow'))).toBe(false);
-    espia.mockRestore();
+  describe('en staging', () => {
+    it.each(SOLO_PRODUCCION)('%s es 409 SOLO_EN_PRODUCCION y no se pide nada', async (workflow) => {
+      const { espia, llamadas } = fingirRed();
+      const r = await onRequestPost({ request: peticion({ workflow }), env: STAGING });
+      expect(r.status).toBe(409);
+      expect(await r.json()).toEqual({ error: 'SOLO_EN_PRODUCCION' });
+      expect(llamadas.some((l) => l.url.includes('fn_pedir_trabajo'))).toBe(false);
+      espia.mockRestore();
+    });
+
+    it('purgar fotos y respaldo son justo los que solo actúan sobre producción', () => {
+      expect([...SOLO_PRODUCCION].sort()).toEqual(['purgar-fotos', 'respaldo']);
+    });
+
+    it.each(WORKFLOWS.filter((w) => !(SOLO_PRODUCCION as readonly string[]).includes(w)))(
+      '%s se pide en la base de datos de staging y la respuesta dice que es staging (RV-224)',
+      async (workflow) => {
+        const { espia, llamadas } = fingirRed();
+        const r = await onRequestPost({ request: peticion({ workflow }), env: STAGING });
+        expect(r.status).toBe(202);
+        // En staging nadie lo despacha: el panel dice "En staging no se lanza: queda anotado" (RV-260).
+        expect(await r.json()).toEqual({ pedido: true, workflow, staging: true });
+        expect(llamadas.some((l) => l.url.includes('fn_pedir_trabajo'))).toBe(true);
+        espia.mockRestore();
+      },
+    );
+
+    // Sin ENTORNO (o con un valor raro) se trata como staging: lo seguro es no tocar producción.
+    it.each([undefined, '', 'Produccion', 'production', 'prod'])(
+      'con ENTORNO=%s cuenta como staging',
+      async (entorno) => {
+        const { espia } = fingirRed();
+        const r = await onRequestPost({
+          request: peticion({ workflow: 'purgar-fotos' }),
+          env: { ...BASE, ENTORNO: entorno } as Env,
+        });
+        expect(r.status).toBe(409);
+        expect(await r.json()).toEqual({ error: 'SOLO_EN_PRODUCCION' });
+        espia.mockRestore();
+      },
+    );
+
+    it.each([undefined, '', 'production'])(
+      'con ENTORNO=%s, regenerar la zona también dice staging',
+      async (entorno) => {
+        const { espia } = fingirRed();
+        const r = await onRequestPost({
+          request: peticion({ workflow: 'regenerar-zona' }),
+          env: { ...BASE, ENTORNO: entorno } as Env,
+        });
+        expect(r.status).toBe(202);
+        expect(await r.json()).toEqual({ pedido: true, workflow: 'regenerar-zona', staging: true });
+        espia.mockRestore();
+      },
+    );
   });
 });

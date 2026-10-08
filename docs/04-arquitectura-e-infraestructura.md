@@ -347,7 +347,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Mantener activos los proyectos de Supabase (DEC-054) | GitHub Actions `mantener-activo.yml` | diario |
 | Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | diario |
 | Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml` (por `workflow_dispatch` desde Ajustes, DEC-069); abre un PR a `develop` con lo regenerado | bajo demanda |
-| Actualización de dependencias | Dependabot + `automerge.yml` (parches y menores con CI verde) | semanal |
+| Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de dependencias de desarrollo, con CI verde; lo demás espera a una persona, docs/31 RV-132) | semanal |
 | Lighthouse y cabeceras | dentro de `deploy-staging.yml`, tras desplegar | cada despliegue |
 
 Regla: lo que es puro SQL va por `pg_cron`; lo que necesita `service_role` fuera de la base de datos
@@ -370,7 +370,8 @@ nombres y sin valores. Los carga `scripts/arranque.ts`.
 | GitHub (production) | `GPG_PUBLIC_KEY` | cifrar el respaldo. La privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación |
 | Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN` (permiso único `actions:write`), `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` (DEC-059), `VAPID_SUBJECT`, `VIGILANCIA_SECRETO` (DEC-088) | las Pages Functions |
 | GitHub (variables por entorno, públicas) | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MAPABASE_URL`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` | el build del frontend, que se hace en Actions y se sube con `wrangler pages deploy` (DEC-055) |
-| GitHub (repositorio, para los trabajos automáticos) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `GPG_PUBLIC_KEY`, `VIGILANCIA_SECRETO_{PROD,STAGING}` (el mismo valor que el de Pages y el del Worker; la vigilancia y el envío manual de `avisos.yml`, DEC-088) | `respaldo.yml` y los demás trabajos por calendario: no pueden usar los del *environment* `production`, que exige aprobación humana en cada ejecución (DEC-071) |
+| GitHub (*environment* `prod-tareas`: sin revisores, solo la rama `develop`) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD` (el mismo valor que el de Pages y el del Worker, DEC-088), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `respaldo.yml`, `purgar-fotos.yml`, el trabajo `mirar` de `vigilancia.yml`, `avisos.yml` y `comprobar-produccion.yml`: no pueden usar los de `production`, que exige aprobación humana en cada ejecución (DEC-071), y en el repositorio los leería un workflow de cualquier rama (docs/31 RV-131, DEC-172). Cada trabajo que usa un secreto de producción declara `environment: prod-tareas` o `production`; `scripts/seguridad-ci.test.ts` lo comprueba |
+| GitHub (repositorio) | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078), `GPG_PUBLIC_KEY` (pública), `VIGILANCIA_SECRETO_STAGING`, `PROPIETARIO_EMAIL` | lo de staging y lo que no es secreto de producción. Ninguno de producción (DEC-172) |
 | Worker `hidrantes-avisos` (cifrados) | `VIGILANCIA_SECRETO_PROD`, `VIGILANCIA_SECRETO_STAGING`, los mismos valores que Pages y el repositorio; los pone `npm run arranque` (también `--rotar vigilancia` y `--solo-faltantes`) | llamar a `/api/push` de cada entorno cada 5 minutos (docs/19 RV-52, DEC-097) |
 | GitHub (variables del repositorio, públicas) | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` | `mantener-activo.yml`, sin *environment* (DEC-054) |
 
@@ -418,19 +419,20 @@ e2e/                    # Playwright
 | Workflow | Disparo | Hace |
 |---|---|---|
 | `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP, las ocho pruebas de intrusión de TR-40 (`scripts/intrusion.ts`, 11 §5) y Playwright contra Supabase local + `wrangler pages dev`; si la rama cambia migraciones, además la compatibilidad hacia atrás de §12 |
-| `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), despliegue a Pages staging y, si cambió `workers/` o aún no existe, el Worker de los avisos (DEC-097) |
-| `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
+| `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), `ENTORNO=staging` en el proyecto de Pages y despliegue a Pages staging con el nombre del proyecto fijo (nunca el de producción: el token es de toda la cuenta, docs/31 RV-130) y, si cambió `workers/` o aún no existe, el Worker de los avisos (DEC-097) |
+| `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, `ENTORNO=produccion` en el proyecto de Pages, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
 | `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
 | `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema, también en un ensayo. La primera pasada programada es ensayo, con su issue, hasta que haya `config.ultima_purga_fotos` (DEC-129) |
 | `canario-ubuntu.yml` | miércoles 05:13 UTC, y a mano | el camino crítico (`preparar` con psql, typecheck y tests) en `ubuntu-26.04`, sin tocar ninguna base de datos. Los demás trabajos van fijos en `ubuntu-24.04` (DEC-128) |
 | `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos, con las secuencias de prod al menos en las de staging para no volver a dar un código (RV-66); empieza en ensayo y exige escribir PROMOVER (DEC-078) |
 | `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
-| `vigilancia.yml` | dos veces al día, 07:41 y 19:41 UTC (GitHub las retrasa horas; docs/22 RV-93) | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa si la base de datos pasa de 400 MB (80 % de los 500 compartidos con uniformidad); abre una issue si algo falla (TR-102, TR-54, RV-22). Staging tiene su propio trabajo, con la base de datos de su *environment*: mira los avisos sin salir y las tareas de `pg_cron`, y anota allí su última vigilancia. El respaldo solo existe en producción (docs/20 RV-78, DEC-104). Lo que se mira en cada base está en `.github/scripts/revisar-bd.sh`. La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
+| `vigilancia.yml` | dos veces al día, 07:41 y 19:41 UTC (GitHub las retrasa horas; docs/22 RV-93) | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa si la base de datos pasa de 400 MB (80 % de los 500 compartidos con uniformidad); abre una issue si algo falla (TR-102, TR-54, RV-22). Compara cada despliegue de producción de Pages (el activo y los de los últimos 3 días) con las ejecuciones de `deploy-prod.yml` del mismo commit en marcha a esa hora; si alguno no corresponde, abre la issue «Despliegue de producción no autorizado» y avisa por push a jefatura; con `config.revertir_despliegue_ajeno` a `true` (apagada si no existe) vuelve al último despliegue bueno (docs/31 RV-130). El trabajo `mirar` corre en `prod-tareas` (DEC-172). Staging tiene su propio trabajo, con la base de datos de su *environment*: mira los avisos sin salir y las tareas de `pg_cron`, y anota allí su última vigilancia. El respaldo solo existe en producción (docs/20 RV-78, DEC-104). Lo que se mira en cada base está en `.github/scripts/revisar-bd.sh`. La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
 | Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` en cada push a `develop` con `VERSION_CODIGO` (el último commit de `workers/`), que la vigilancia compara con `develop` (docs/20 RV-74); sin superficie HTTP (DEC-097) |
 | `avisos.yml` | solo a mano (`workflow_dispatch`) | lo mismo que el Worker, como envío de emergencia si fallara (DEC-097) |
-| `automerge.yml` | PR de Dependabot | fusión automática de parches y menores con CI verde (TR-101) |
+| `traspaso.yml` | lo lanza `npm run traspasar-secreto` (`workflow_dispatch` en `develop`) | mueve un secreto de sitio sin que nadie vea su valor: lo cifra con una clave pública RSA de un solo uso y sube solo el texto cifrado como artefacto de 1 día; el script lo descifra en memoria, lo pone en el destino con `gh secret set` y borra el artefacto y la ejecución (docs/31 §1.2, DEC-172) |
+| `automerge.yml` | PR de Dependabot (mira el autor del PR) | fusión automática, con CI verde, solo de los parches de dependencias de desarrollo; los menores, los mayores, las actions y lo que va en el bundle esperan a una persona (TR-101, docs/31 RV-132). Todas las actions de fuera del repositorio van fijadas por SHA con la etiqueta en un comentario, y `scripts/seguridad-ci.test.ts` falla si una no lo está |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) La GitHub App que lo habría evitado no se hace (DEC-153) |
 
 Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml`: `ci-calidad`,
@@ -501,6 +503,65 @@ Fase 0.
   y corre **sus** casos de integración contra la base de datos ya migrada con lo que trae el PR.
 - Los tres procedimientos (revertir frontend, revertir migración, restaurar respaldo) están escritos
   paso a paso en **15**.
+
+### 12.1 Publicar en producción: `npm run publicar` (DEC-176)
+
+Una release la hace una sesión de Claude Code, sin pasos a mano, con la sesión de `gh` y `git` del
+propietario. `scripts/publicar.ts` repite siempre los mismos seis pasos; se puede relanzar, y cada
+paso mira el estado real y sigue (PR ya fusionado, deploy ya aprobado…):
+
+| Paso | Qué hace |
+|---|---|
+| 1 · `release` | Localiza el PR abierto de release-please (rama `release-please--…`, etiqueta `autorelease: pending`). Si no hay CI de `pull_request` para su cabeza, hace el empujón de DEC-079 sin cambiar de rama: `git commit-tree` de un commit vacío encima de la cabeza y `git push origin <sha>:refs/heads/<rama>`. Espera los checks obligatorios y lo fusiona con **squash**. |
+| 2 · `main` | Abre el PR `develop → main` (o usa el abierto), espera su CI y lo fusiona con **merge commit**, nunca squash (DEC-096; `ci-calidad` lo comprueba, RV-135). |
+| 3 · `despliegue` | Espera a que la ejecución de `deploy-prod.yml` de ese merge pida la aprobación (`waiting`). |
+| 4 · `puerta` | La puerta automática, abajo. |
+| 5 · `aprobar` | Puerta en verde: `POST repos/…/actions/runs/{id}/pending_deployments` con `state: approved`, el `id` del *environment* `production` y el resumen de la puerta como comentario. En rojo: lo mismo con `state: rejected`, y abre una issue con la etiqueta `bloquea-release` y el motivo; termina con error. |
+| 6 · `paridad` | Espera al final del deploy (que ya comprueba la paridad con `develop`) y repite `npm run comprobar-produccion -- --completo`. |
+
+**La puerta** aprueba solo si se cumplen las cuatro:
+
+- la CI (`ci.yml`) del *push* a `main` de ese commit ha terminado en verde;
+- la comprobación en staging (RV-139b) está en verde **con el mismo commit de `develop`** que llega a
+  `main` (el segundo padre del merge). Se admite un commit anterior de `develop` si desde él solo
+  cambian `docs/**`, `CHANGELOG.md`, `.release-please-manifest.json` y la línea `"version"` de
+  `package.json` y `package-lock.json`: lo que añade el propio registro y el PR de release;
+- `npm run comprobar-produccion -- --completo` termina con 0 (con 1 falta algo imprescindible; con 2
+  algo imprescindible queda sin comprobar: las dos cierran la puerta). Ese script lee
+  `deploy-prod.yml` y las migraciones del checkout local, así que `publicar` se lanza desde
+  `develop` al día: si esos archivos no son los del commit que se publica, la puerta se cierra;
+- no hay ninguna issue abierta con la etiqueta `bloquea-release` (si no se pueden consultar, tampoco
+  pasa).
+
+**El marcador de la comprobación en staging.** Quien haga RV-139b añade, al final de
+`docs/verificacion/revision-completa-staging.md`, una línea por comprobación, sola y con este formato
+exacto (el sha, de 7 a 40 caracteres, es el commit de `develop` desplegado en staging que se
+comprobó):
+
+```
+commit: 04d2e86 · resultado: verde
+```
+
+`resultado` es `verde` o `rojo`. Puede ir como elemento de lista (`- commit: …`) o entre comillas de
+código. **Manda la última línea** con ese formato: una comprobación posterior en rojo cierra la puerta
+aunque haya una verde antes. El script lee el archivo en el commit de `develop` que se publica.
+
+**Uso:**
+
+```
+npm run publicar                        # los seis pasos
+npm run publicar -- --solo-comprobar    # no empuja, no fusiona ni aprueba: dice qué haría y qué
+                                        # diría la puerta ahora (con la cabeza de develop)
+npm run publicar -- --hasta puerta      # para después de ese paso (nombre o número, 1 a 6)
+```
+
+`--solo-comprobar` no cambia nada en el repositorio ni en producción, pero sí lanza
+`comprobar-produccion.yml` (de solo lectura) y espera unos minutos a que acabe. Una opción
+desconocida es un error. Un deploy rechazado no se reintenta solo: se arregla lo que dice
+la issue, se cierra, y se relanza la ejecución (`gh run rerun <id>`) o se publica un commit nuevo.
+Después de publicar, se anota la versión en `docs/verificacion/paridad-produccion.md` §2. El revisor
+humano del *environment* sigue configurado: quien pueda usar la sesión de `gh` del propietario en
+este PC puede publicar (contrapartida aceptada en DEC-176).
 
 ---
 
