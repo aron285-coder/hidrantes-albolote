@@ -16,10 +16,27 @@ vi.mock('virtual:pwa-register', () => ({
   },
 }));
 
-const { recargar, registrarServiceWorker, suscribirVersion, versionNueva } = await import('./pwa');
+// La cola, simulada: qué envíos hay y cuáles llegaron a IndexedDB (docs/32 RV-230).
+const cola = vi.hoisted(() => ({ items: [] as { clave_local: string }[], guardadas: new Set<string>() }));
+vi.mock('./cola', () => ({
+  colaActual: () => cola.items,
+  estaPersistida: (clave: string) => cola.guardadas.has(clave),
+}));
+
+const {
+  alPedirRecarga,
+  pedirRecarga,
+  queHacerAlRecargar,
+  recargar,
+  registrarServiceWorker,
+  suscribirVersion,
+  versionNueva,
+} = await import('./pwa');
 
 beforeEach(() => {
   actualizar.mockClear();
+  cola.items = [];
+  cola.guardadas = new Set();
   vi.stubGlobal('navigator', { serviceWorker: {} });
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -61,5 +78,42 @@ describe('versión nueva (TR-24)', () => {
   it('en un navegador sin Service Worker no se registra nada ni se rompe', () => {
     vi.stubGlobal('navigator', {});
     expect(() => registrarServiceWorker()).not.toThrow();
+  });
+});
+
+describe('recargar no pierde lo que solo está en memoria (docs/32 RV-230)', () => {
+  it('con todo guardado en el móvil, fuera de un formulario, se recarga', () => {
+    cola.items = [{ clave_local: 'a' }];
+    cola.guardadas = new Set(['a']);
+    expect(queHacerAlRecargar(false)).toBe('recargar');
+    expect(queHacerAlRecargar(true)).toBe('formulario');
+  });
+
+  it('con un envío solo en memoria, desde cualquier pantalla, se avisa y no se recarga', () => {
+    cola.items = [{ clave_local: 'a' }, { clave_local: 'b' }];
+    cola.guardadas = new Set(['a']);
+    expect(queHacerAlRecargar(false)).toBe('memoria');
+    expect(queHacerAlRecargar(true)).toBe('memoria');
+  });
+
+  it('pedir la recarga (aviso o Ajustes) la atiende quien pregunta, no recarga a ciegas', () => {
+    registrarServiceWorker();
+    cola.items = [{ clave_local: 'a' }];
+    const pregunta = vi.fn();
+    const dejar = alPedirRecarga(pregunta);
+    pedirRecarga();
+    expect(pregunta).toHaveBeenCalledOnce();
+    expect(actualizar).not.toHaveBeenCalled();
+    dejar();
+  });
+
+  it('sin nadie que pregunte, solo recarga si no se pierde nada', () => {
+    registrarServiceWorker();
+    cola.items = [{ clave_local: 'a' }];
+    pedirRecarga();
+    expect(actualizar).not.toHaveBeenCalled();
+    cola.guardadas = new Set(['a']);
+    pedirRecarga();
+    expect(actualizar).toHaveBeenCalledWith(true);
   });
 });

@@ -11,11 +11,16 @@ vi.mock('./api', async (original) => ({
   rpc: (...a: unknown[]) => rpc(...a),
 }));
 vi.mock('./errores', () => ({ anotarError: (...a: unknown[]) => anotarError(...a) }));
+/** Sesión de Google de jefatura en este navegador (docs/32 RV-258); null: ninguna. */
+let sesionJefatura: { access_token: string } | null = null;
+vi.mock('./supabase', () => ({
+  supabase: () => ({ auth: { getSession: async () => ({ data: { session: sesionJefatura } }) } }),
+}));
 
 // Clave pública de prueba del RFC 8291 (la misma que functions/api/push.test.ts).
 const PUBLICA = 'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8';
 vi.stubEnv('VITE_VAPID_PUBLIC_KEY', PUBLICA);
-const { activarPush, resincronizarPush, RESINCRONIZAR_CADA_MS, sePuedeReintentar, textoMotivoPush } =
+const { activarPush, desactivarPush, resincronizarPush, RESINCRONIZAR_CADA_MS, sePuedeReintentar, textoMotivoPush } =
   await import('./push');
 const { T } = await import('./textos');
 
@@ -62,6 +67,7 @@ beforeEach(() => {
   });
   rpc.mockReset().mockResolvedValue({ ok: true, datos: null });
   anotarError.mockReset();
+  sesionJefatura = null;
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -292,5 +298,103 @@ describe('apagar los avisos mientras se resincroniza', () => {
     });
     await resincronizarPush('t'.repeat(43));
     expect(rpc).not.toHaveBeenCalled();
+  });
+});
+
+describe('apagar los avisos de voluntario no apaga los de jefatura (docs/32 RV-258)', () => {
+  let s: ReturnType<typeof suscripcion>;
+  const llamadas = (nombre: string) => rpc.mock.calls.filter((c) => c[0] === nombre);
+  beforeEach(() => {
+    datos.set('hidrantes.push', 'true');
+    s = suscripcion();
+    pushManager.getSubscription.mockResolvedValue(s);
+    // desactivarPush devuelve el estado, que mira las API del navegador.
+    vi.stubGlobal('window', { PushManager: {}, Notification: {}, matchMedia: () => ({ matches: false }) });
+  });
+
+  it('sin avisos de jefatura en el navegador, se da de baja y se borra la fila de voluntario', async () => {
+    await desactivarPush();
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+    expect(llamadas('fn_borrar_suscripcion_push')).toHaveLength(1);
+    expect(datos.get('hidrantes.push')).toBe('false');
+  });
+
+  it('jefatura con temas según el servidor: solo se borra la fila de voluntario', async () => {
+    sesionJefatura = { access_token: 'jwt' };
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_suscripcion_push_admin' ? { ok: true, datos: ['nuevas_propuestas'] } : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(llamadas('fn_suscripcion_push_admin')).toEqual([['fn_suscripcion_push_admin', { endpoint: ENDPOINT }]]);
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+    expect(llamadas('fn_borrar_suscripcion_push')).toHaveLength(1);
+  });
+
+  it('jefatura sin temas en este endpoint según el servidor: se da de baja', async () => {
+    sesionJefatura = { access_token: 'jwt' };
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_suscripcion_push_admin' ? { ok: true, datos: [] } : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('si el servidor no contesta, no se da de baja: no se le quitan avisos a jefatura', async () => {
+    sesionJefatura = { access_token: 'jwt' };
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_suscripcion_push_admin'
+        ? { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' }
+        : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+  });
+
+  it('sin sesión de jefatura, o con un servidor sin la función, vale lo que recuerda el panel', async () => {
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    await desactivarPush();
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+
+    sesionJefatura = { access_token: 'jwt' };
+    datos.set('hidrantes.push_jefatura', JSON.stringify([]));
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_suscripcion_push_admin'
+        ? {
+            ok: false,
+            codigo: 'DESCONOCIDO',
+            mensaje: 'Could not find the function hidrantes.fn_suscripcion_push_admin',
+          }
+        : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('si no se sabe, la suscripción se queda y queda anotado', async () => {
+    sesionJefatura = { access_token: 'jwt' };
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_suscripcion_push_admin' ? { ok: false, codigo: 'NO_AUTORIZADO' } : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+    expect(mensajesAnotados()).toContain('no se sabe si jefatura tiene avisos');
+  });
+
+  it('si la fila de voluntario no se ha podido borrar, se da de baja igual: si no, seguirían llegando', async () => {
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_borrar_suscripcion_push'
+        ? { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' }
+        : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+    expect(mensajesAnotados()).toContain('jefatura puede perder sus avisos');
+  });
+
+  it('al cerrar sesión no se borra la fila en el servidor: ya lo hace fn_cerrar_sesion (RV-234)', async () => {
+    await desactivarPush({ borrarEnServidor: false });
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+    expect(llamadas('fn_borrar_suscripcion_push')).toEqual([]);
   });
 });

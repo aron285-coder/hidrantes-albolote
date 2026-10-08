@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { useCola } from '@/hooks/cola';
 import { useConexion, usePuntos } from '@/hooks/estado';
 import { useReloj } from '@/hooks/reloj';
-import { ATASCADO_MS } from '@/lib/cola';
+import { ATASCADO_MS, esperaTope } from '@/lib/cola';
 import { hace } from '@/lib/formato';
 import { T } from '@/lib/textos';
 
@@ -31,7 +31,8 @@ export function BarraEstado() {
     : conexion === 'sin_cobertura'
       ? T.mapa.sinCoberturaSolo
       : T.mapa.sincronizadoSolo;
-  const atascado = cola.some((c) => !c.fallo && ahora - c.creada_en > ATASCADO_MS);
+  // Lo que espera por un tope no espera cobertura: Mis propuestas dice por qué espera (docs/32 RV-233).
+  const atascado = cola.some((c) => !c.fallo && !esperaTope(c, ahora) && ahora - c.creada_en > ATASCADO_MS);
   return (
     <div className="bg-papel border-linea border-b">
       <span role="status" className="sr-only">

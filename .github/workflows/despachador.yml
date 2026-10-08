@@ -102,13 +102,16 @@ jobs:
             fi
             resultados=$(jq -c --arg id "$id" --arg t "$trabajo" --arg r "$resultado" \
               '. + [{id: $id, trabajo: $t, resultado: $r}]' <<< "$resultados")
+            # En cuanto se sabe, no al final: si el paso se corta a mitad, GitHub lee igual la última
+            # línea, y «marcar» anota los ya lanzados en vez de dejarlos pendientes para relanzarlos.
+            echo "resultados=$resultados" >> "$GITHUB_OUTPUT"
           done < <(jq -r '.[] | [(.id | tostring), .trabajo] | @tsv' <<< "$PEDIDOS")
-          echo "resultados=$resultados" >> "$GITHUB_OUTPUT"
 
   marcar:
     needs: [leer, lanzar]
     # También si «lanzar» ha fallado o no ha hecho falta: los rechazados se anotan igual, y los pedidos
-    # que no hayan llegado a lanzarse se quedan pendientes (despachar.ts falla y lo dice).
+    # sin resultado se quedan pendientes (despachar.ts falla y lo dice). Si «lanzar» se cortó justo
+    # después de lanzar uno y antes de anotar su resultado, ese se relanza en la pasada siguiente.
     if: always() && needs.leer.result == 'success' && needs.leer.outputs.hay == 'si'
     runs-on: ubuntu-24.04
     environment: prod-tareas

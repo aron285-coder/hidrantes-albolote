@@ -204,7 +204,9 @@ Desde 0041 (docs/32 RV-220, DEC-182) los topes de fotos cuentan **espacio** y **
   `SIN_ESPACIO_FOTOS`, para todos, también jefatura (es espacio físico). Leer `storage.objects` exige
   la lectura que da `supabase/sql/arranque-bd.sql` a `hidrantes_migrador` (§5); sin ella se usa
   `config.storage_bytes` (lo que midió la última purga o el último respaldo) y Salud lo dice
-  (`fotos_origen`).
+  (`fotos_origen`). Desde 0042, sin la política `hidrantes_migrador_mide_fotos` también (con el
+  `grant` pero sin política, la RLS daría un bucket "vacío" sin error), y un archivo sin tamaño legible
+  cuenta como 5 MB.
 - **Purga diaria de filas** (`pg_cron`, `hidrantes_purgar_subidas`, ahora `fn_purgar_subidas()`): además
   de las de más de 30 días, borra las filas de reservas **nunca confirmadas de más de 48 h cuyo archivo
   ya no está en el bucket** (nunca se subió, o la purga de fotos ya lo borró). Solo filas de `subidas`:
@@ -469,6 +471,11 @@ fn_reservar_subida(token text) returns text  -- foto_path
   --   SIN_ESPACIO_FOTOS: 'SIN_ESPACIO_FOTOS: No queda espacio para fotos; avisa a jefatura'. Para todos.
   --   /api/url-subida responde los tres con el estado de estadoDe (CUOTA_* 429; los otros dos, los que
   --   fije functions/_lib/comun.ts).
+  -- 0042: los tres llevan 'CODIGO: maximo=<n> reintentar_en_s=<s>' y lo mismo en JSON en detail:
+  --   CUOTA_SUBIDAS_AGOTADA … ambito=dispositivo (s: hasta que su reserva más antigua de 24 h cumpla
+  --   24 h) o … ambito=grupo (s: hasta que la primera que cuenta deje de contar: una confirmada a las
+  --   24 h de reservarse, una abierta a las 2 h); SIN_ESPACIO_FOTOS con maximo = max_bytes_fotos (bytes)
+  --   y s = 3600 fijo.
 -- Jefatura desde el móvil (authenticated + fn_es_admin): misma cuota, su dispositivo técnico.
 fn_reservar_subida_admin() returns text
 
@@ -738,8 +745,9 @@ fn_reservas_sin_confirmar_lista() returns jsonb   -- {"fotos": [text], "total": 
 -- 0041 (docs/32 RV-220, RV-221): service_role (y hidrantes_migrador, su dueño, desde vigilancia.yml).
 -- Lo que mide la vigilancia para avisar al 70 % de max_bytes_fotos y de max_bytes_bd.
 fn_espacio() returns jsonb
-  -- { fotos_bytes, fotos_origen, reservas_abiertas, fotos_reservado_bytes (5 MB por abierta sin
-  --   archivo), max_bytes_fotos, bd_bytes, max_bytes_bd, aviso: 0.7 }
+  -- { fotos_bytes, fotos_origen, fotos_medidos_en (0042: now() si viene del bucket; si no, el
+  --   actualizado_en de config.storage_bytes), reservas_abiertas, fotos_reservado_bytes (5 MB por
+  --   abierta sin archivo), max_bytes_fotos, bd_bytes, max_bytes_bd, aviso: 0.7 }
 -- Solo service_role (la llama /api/push): reclama avisos pendientes con skip locked y los marca
 -- enviados en la misma transacción; después se anota el resultado de cada uno.
 fn_reclamar_notificaciones(limite integer default 100)
@@ -800,6 +808,9 @@ fn_espacio_fotos(out bytes bigint, out origen text, out abiertas integer)
                                            -- sin lectura del bucket, config.storage_bytes
 fn_purgar_subidas() returns integer        -- la llama pg_cron cada noche (hidrantes_purgar_subidas)
 fn_propuestas_hoy() returns integer        -- 0041, RV-221: de voluntarios, día natural de Madrid
+fn_error_tope(codigo text, maximo bigint, espera integer, ambito text default null) returns void
+                                           -- 0042: lanza 'CODIGO: maximo=<n> reintentar_en_s=<s>[ ambito=<a>]'
+                                           -- con lo mismo en JSON en detail
 fn_tareas_programadas() returns jsonb        -- 0031, RV-92: las tareas hidrantes_% de cron.job con su
                                              -- última ejecución en cron.job_run_details, como
                                              -- scripts/sql/tareas-programadas.sql pero sin esperadas;

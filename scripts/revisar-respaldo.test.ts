@@ -27,7 +27,7 @@ const guion = `
     echo "gh $url" >> "$D/anotado"
     case "$url" in
       *respaldo.yml/runs*)
-        if [ -f "$D/roto" ]; then return 1; fi
+        if [ -f "$D/roto" ]; then echo "HTTP 503: Service Unavailable" >&2; return 1; fi
         if [ -n "\${CON_JQ:-}" ]; then jq -r "$filtro" "$D/runs.json"; else cat "$D/ejecucion"; fi ;;
       */artifacts*)
         if [ -n "\${CON_JQ:-}" ]; then jq -r "$filtro" "$D/artifacts.json"; else cat "$D/artefacto"; fi ;;
@@ -60,14 +60,17 @@ describe('mirar_respaldo (RV-201)', () => {
     const salida = correr(conArtefacto(`false 185096 ${hace(2)}`));
     expect(salida).toContain('P:\n');
     expect(salida).not.toContain('aviso jefatura');
-    expect(salida).toContain('gh repos/x/y/actions/workflows/respaldo.yml/runs?status=success&per_page=1');
+    expect(salida).toContain(
+      'gh repos/x/y/actions/workflows/respaldo.yml/runs?status=success&branch=develop&per_page=1',
+    );
     expect(salida).toContain('gh repos/x/y/actions/runs/77/artifacts?name=respaldo-hidrantes&per_page=10');
   });
 
   it.each([
     ['sin artifact (borrado)', '', 'no tiene el artifact respaldo-hidrantes'],
     ['caducado', `true 185096 ${hace(2)}`, 'ha caducado'],
-    ['vacío', `false 0 ${hace(2)}`, 'está vacío (0 bytes)'],
+    ['vacío', `false 0 ${hace(2)}`, 'ocupa 0 bytes (mínimo 10000)'],
+    ['demasiado pequeño', `false 9999 ${hace(2)}`, 'ocupa 9999 bytes (mínimo 10000): está vacío o a medias'],
     ['de hace 9 días', `false 185096 ${hace(9)}`, 'tiene 9 días (máximo 8)'],
     ['sin fecha', 'false 185096', 'no dice cuándo se creó'],
   ])('%s: problema y aviso push a jefatura', (_n, artefacto, motivo) => {
@@ -93,7 +96,7 @@ describe('mirar_respaldo (RV-201)', () => {
     });
     rmSync(path.join(dir, 'roto'), { force: true });
     expect(r.status, r.stderr).toBe(0);
-    expect(r.stdout).toContain('P:no se pueden leer las ejecuciones de respaldo.yml');
+    expect(r.stdout).toContain('P:no se pueden leer las ejecuciones de respaldo.yml (HTTP 503: Service Unavailable)');
     expect(r.stdout).not.toContain('aviso jefatura');
   });
 
@@ -101,6 +104,13 @@ describe('mirar_respaldo (RV-201)', () => {
     const salida = correr(conArtefacto(''), { BD: '' });
     expect(salida).toContain('no se ha podido avisar a jefatura de que falta el respaldo');
     expect(salida).not.toContain('aviso jefatura');
+  });
+
+  it('si ya se avisó en las últimas 20 horas, no se repite ni es otro problema', () => {
+    const salida = correr(conArtefacto(''), { ADMINS: 'ya' });
+    expect(salida).toContain('no tiene el artifact respaldo-hidrantes');
+    expect(salida).not.toContain('ningún administrador');
+    expect(salida).not.toContain('no se ha podido avisar');
   });
 
   it('sin administradores con avisos, lo dice', () => {
