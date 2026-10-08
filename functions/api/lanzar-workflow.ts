@@ -5,7 +5,7 @@
 //
 // En staging, `purgar-fotos` y `respaldo` no se piden: esos workflows trabajan contra producción, y
 // el panel de pruebas no puede tocar producción. Los demás se piden en la base de datos de staging,
-// donde nadie los despacha (docs/15). Sin ENTORNO, o con un valor que no sea `produccion`, cuenta
+// donde nadie los despacha (docs/15), y la respuesta lleva `staging: true` (RV-224). Sin ENTORNO, o con un valor que no sea `produccion`, cuenta
 // como staging: lo seguro.
 
 import { type Env, type Manejador, error, esAdmin, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
@@ -38,5 +38,7 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     if (r.codigo.startsWith('PAYLOAD_INVALIDO')) return error(400, 'PAYLOAD_INVALIDO');
     return error(r.estado === 503 ? 503 : 500, r.codigo);
   }
-  return json({ pedido: true, workflow }, 202);
+  // En staging queda anotado y nadie lo lanza: la respuesta lo dice para que el panel no prometa que
+  // "empezará en unos minutos" (RV-224, RV-260). En producción, sin el campo.
+  return json(enProduccion(env) ? { pedido: true, workflow } : { pedido: true, workflow, staging: true }, 202);
 };
