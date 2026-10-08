@@ -83,7 +83,9 @@ export function AnuncioDescarga() {
   // Estado derivado del render, el patrón de React para recordar el hito anterior.
   if (actual !== hito) setHito(actual);
   return (
-    <span role="status" className="sr-only">
+    // aria-live y no role="status": una región que está en todas las pantallas no cuenta como «el
+    // estado» de ninguna (la banda de pruebas, el sello de la barra), y sigue anunciándose igual.
+    <span aria-live="polite" aria-atomic="true" className="sr-only">
       {actual ? T.mapa.anuncioDescarga[actual] : ''}
     </span>
   );
