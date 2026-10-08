@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.4 — 24 de septiembre de 2026: TR-78, Cloudflare Workers para los avisos (DEC-097). 1.3 — 23 de septiembre de 2026: §13, requisitos de las funciones de mapa para emergencias (TR-116 a TR-119), y CartoCiudad y el callejero de OSM en §8 (DEC-089, DEC-092, DEC-093; conformidad del desarrollador, DEC-177). v1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
+| **Versión** | 1.5 — 8 de octubre de 2026: TR-92, la aprobación de producción la da la puerta automática (DEC-176, `docs/32` RV-210). 1.4 — 24 de septiembre de 2026: TR-78, Cloudflare Workers para los avisos (DEC-097). 1.3 — 23 de septiembre de 2026: §13, requisitos de las funciones de mapa para emergencias (TR-116 a TR-119), y CartoCiudad y el callejero de OSM en §8 (DEC-089, DEC-092, DEC-093; conformidad del desarrollador, DEC-177). v1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
 | **Propietario de** | las **exigencias medibles y no funcionales**: qué tiene que cumplir el sistema, no cómo se consigue. La solución elegida está en 04; si mañana cambia la solución, estas exigencias siguen en pie. |
 | **No contiene** | decisiones de producto (→ 04), reglas funcionales (→ 01), campos (→ 05). |
 
@@ -139,7 +139,7 @@ Los principios y el modelo de amenazas están en 11; aquí, lo que se puede comp
 |---|---|---|
 | TR-90 | Los errores del cliente se registran en el propio sistema (mensaje, pila truncada a 4 kB, ruta, agente, dispositivo), sin servicio externo y sin datos de usuario más allá del identificador de dispositivo; con techo diario para que no puedan usarse para llenar la base de datos. | Test SQL del techo. |
 | TR-91 | Tres capas de pruebas automatizadas en cada cambio: unitarias (simbología, geometría, formato), SQL (permisos, reglas, casos límite) y extremo a extremo (camino crítico completo), **todas contra una instancia local efímera**, nunca contra los entornos compartidos. | CI en verde obligatoria para integrar. |
-| TR-92 | Ningún cambio llega a producción sin haber pasado por el entorno de pruebas, y el despliegue a producción exige **aprobación manual**. | Configuración de ramas y entornos (04). |
+| TR-92 | Ningún cambio llega a producción sin haber pasado por el entorno de pruebas, y el despliegue a producción exige una **aprobación**: la da la puerta automática de `npm run publicar`, solo con la CI de `main` en verde, la comprobación en staging en verde con el mismo commit, `comprobar-produccion` en 0 y ninguna issue `bloquea-release` abierta (DEC-176). | Configuración de ramas y entornos (04 §4, §12.1). |
 | TR-93 | La aplicación indica su versión en Ajustes y en las incidencias enviadas. | Manual. |
 
 ---

@@ -132,7 +132,7 @@ Dos entornos completos y aislados. **Ningún dato, credencial ni bucket se compa
 | Datos | seed de 12 puntos `[PRUEBA]` (idempotente, nunca pisa datos existentes) + los del piloto | vacío al arrancar; recibe los datos del piloto con `promover-piloto.ts` |
 | Indexación | `robots.txt` `Disallow: /` y meta `noindex` | normal |
 | Aviso visual | banda naranja permanente "ENTORNO DE PRUEBAS" (`VITE_ENTORNO=staging`) | ninguna |
-| Despliegue | automático al hacer merge a `develop` | automático al hacer merge a `main`, con **aprobación manual** del *environment* de GitHub |
+| Despliegue | automático al hacer merge a `develop` | automático al hacer merge a `main`, con la **aprobación** del *environment* `production`, que da la puerta automática de `npm run publicar` (§12.1, DEC-176) |
 | Migraciones | las aplica CI | las aplica CI tras la aprobación |
 
 Nombres fijos (DEC-045): repo `hidrantes-albolote`; R2 `hidrantes-mapabase` y `hidrantes-mapabase-staging`
@@ -144,8 +144,8 @@ Reglas:
 - Las migraciones son las mismas y en el mismo orden. Producción nunca recibe una migración que no
   haya pasado por staging; lo garantiza el flujo de ramas.
 - **Producción tiene siempre la versión completa de staging** (DEC-096). Producción solo por PR
-  `develop → main` con aprobación del desarrollador en el *environment* `production`. Al cerrar cada
-  bloque de trabajo se abre ese PR, con *merge commit* para que las dos ramas compartan historia, y
+  `develop → main` y la aprobación del *environment* `production`, que da la puerta automática de
+  `npm run publicar` (§12.1, DEC-176), no una persona. Al cerrar cada bloque de trabajo se abre ese PR, con *merge commit* para que las dos ramas compartan historia, y
   el paso "Paridad con develop" de `deploy-prod.yml` comprueba que producción quedó igual. Poner
   producción al día no abre el acceso: el código real se comunica en F9.10 (#85).
 - El seed es un archivo aparte (`supabase/seed-staging.sql`) y la CI de producción **aborta** si su
@@ -345,8 +345,9 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Promoción de los datos del piloto | GitHub Actions `promover-piloto.yml` (manual, con aprobación) | una vez |
 | Versión del mapa base en `config.version_mapabase` (`cargar-version-mapabase.ts`, tras desplegar y comprobar lo servido; RV-21) | GitHub Actions `deploy-*.yml` | cada despliegue |
 | Mantener activos los proyectos de Supabase (DEC-054) | GitHub Actions `mantener-activo.yml` | diario |
-| Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | diario |
-| Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml` (por `workflow_dispatch` desde Ajustes, DEC-069); abre un PR a `develop` con lo regenerado | bajo demanda |
+| Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | dos veces al día (07:41 y 19:41 UTC) |
+| Despachar los trabajos que pide jefatura desde Ajustes (purgar fotos, respaldo, regenerar zona o mapa base) | GitHub Actions `despachador.yml` (`prod-tareas`): lee los pedidos de la base de producción (`fn_pedidos_pendientes`), lanza el workflow con su `GITHUB_TOKEN` y marca el pedido (`fn_marcar_pedido`); sin token de GitHub en Pages (DEC-172) | cada 15 minutos |
+| Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml`, por pedido desde Ajustes que lanza el despachador (`fn_pedir_trabajo`, DEC-172); abre un PR a `develop` con lo regenerado | bajo demanda |
 | Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de dependencias de desarrollo, con CI verde; lo demás espera a una persona, docs/31 RV-132) | semanal |
 | Lighthouse y cabeceras | dentro de `deploy-staging.yml`, tras desplegar | cada despliegue |
 
@@ -358,22 +359,26 @@ contienen nombres de voluntarios y el historial de Git es imposible de purgar.
 
 ## 10. Secretos
 
-Viven en **tres sitios y solo en tres**: GitHub Environments (`staging`, `production`) y las
-variables de cada proyecto de Cloudflare Pages. Ningún `.env` committeado; `.env.example` con los
-nombres y sin valores. Los carga `scripts/arranque.ts`.
+Viven solo en estos sitios: los GitHub Environments `staging`, `production` y `prod-tareas`; el
+nivel del repositorio de GitHub, solo con `GPG_PUBLIC_KEY` (pública) y lo que no es secreto de
+producción; las variables cifradas de cada proyecto de Cloudflare Pages; y el Worker
+`hidrantes-avisos`. Ningún `.env` committeado; `.env.example` con los nombres y sin valores. Los carga
+`scripts/arranque.ts`, y se mueven de un sitio a otro sin ver el valor con `npm run traspasar-secreto`
+(`traspaso.yml`: cifrado híbrido AES-256-GCM + RSA-OAEP de un solo uso, que admite secretos de varios
+KB; solo lo lanza quien diga la variable del repositorio `PROPIETARIO`; DEC-172, docs/32 RV-208).
 
 | Dónde | Secreto | Para qué |
 |---|---|---|
 | GitHub (ambos entornos) | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | desplegar a Pages y, desde staging, el Worker `hidrantes-avisos`. El token necesita **Pages: Edit** y **Workers Scripts: Edit** (docs/19 P-01) |
 | GitHub (por entorno) | `SUPABASE_DB_URL` | `psql` para `migrar.ts`, `cargar-zona.ts`, `pg_dump`. **Cadena del pooler de Supavisor en modo sesión (puerto 5432)**: los runners de GitHub no tienen IPv6. Usuario **`hidrantes_migrador`**, nunca `postgres` (DEC-052) |
-| GitHub (por entorno) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | purga de fotos, respaldo del bucket, `promover-piloto.ts` |
-| GitHub (production) | `GPG_PUBLIC_KEY` | cifrar el respaldo. La privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación |
+| GitHub (por entorno) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | `promover-piloto.ts` y lo que corre con el *environment* de su entorno. La purga de fotos y el respaldo de producción **no** los leen de aquí: leen `SUPABASE_SERVICE_ROLE_KEY_PROD` y `SUPABASE_DB_URL_PROD` de `prod-tareas` |
 | Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `GITHUB_DISPATCH_TOKEN` (permiso único `actions:write`), `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` (DEC-059), `VAPID_SUBJECT`, `VIGILANCIA_SECRETO` (DEC-088) | las Pages Functions |
 | GitHub (variables por entorno, públicas) | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MAPABASE_URL`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` | el build del frontend, que se hace en Actions y se sube con `wrangler pages deploy` (DEC-055) |
 | GitHub (*environment* `prod-tareas`: sin revisores, solo la rama `develop`) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD` (el mismo valor que el de Pages y el del Worker, DEC-088), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `respaldo.yml`, `purgar-fotos.yml`, el trabajo `mirar` de `vigilancia.yml`, `avisos.yml` y `comprobar-produccion.yml`: no pueden usar los de `production`, que exige aprobación humana en cada ejecución (DEC-071), y en el repositorio los leería un workflow de cualquier rama (docs/31 RV-131, DEC-172). Cada trabajo que usa un secreto de producción declara `environment: prod-tareas` o `production`; `scripts/seguridad-ci.test.ts` lo comprueba |
-| GitHub (repositorio) | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078), `GPG_PUBLIC_KEY` (pública), `VIGILANCIA_SECRETO_STAGING`, `PROPIETARIO_EMAIL` | lo de staging y lo que no es secreto de producción. Ninguno de producción (DEC-172) |
+| GitHub (repositorio) | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078), `GPG_PUBLIC_KEY`, `VIGILANCIA_SECRETO_STAGING`, `PROPIETARIO_EMAIL` | lo de staging y lo que no es secreto de producción. Ninguno de producción (DEC-172). `GPG_PUBLIC_KEY` es la clave **pública** que cifra el respaldo (`respaldo.yml` la lee desde `prod-tareas`, que ve las del repositorio); la privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación. `arranque.ts` deja además una copia en `production`, que solo usa para saber si ya existe |
 | Worker `hidrantes-avisos` (cifrados) | `VIGILANCIA_SECRETO_PROD`, `VIGILANCIA_SECRETO_STAGING`, los mismos valores que Pages y el repositorio; los pone `npm run arranque` (también `--rotar vigilancia` y `--solo-faltantes`) | llamar a `/api/push` de cada entorno cada 5 minutos (docs/19 RV-52, DEC-097) |
-| GitHub (variables del repositorio, públicas) | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` | `mantener-activo.yml`, sin *environment* (DEC-054) |
+| GitHub (variables del repositorio, públicas) | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` | `mantener-activo.yml`, sin *environment* (DEC-054); `SUPABASE_URL_PROD` también para `purgar-fotos.yml` |
+| GitHub (variable del repositorio, pública) | `PROPIETARIO` (login de GitHub del titular) | quién puede lanzar `traspaso.yml` (docs/32 RV-208); la pone `npm run arranque` |
 
 `GITHUB_DISPATCH_TOKEN` se añade en la Fase 7, con `/api/lanzar-workflow` (DEC-055). Es un token
 *fine-grained* del repositorio con **un solo permiso: `Actions: Read and write`**, y nada más; con eso
@@ -443,8 +448,8 @@ fuera de `src/`, el trabajo `cambios` salta `ci-sql` y los e2e, y cuentan como c
 `ci-calidad` comprueba además que las migraciones nuevas van por encima de la última de la base y
 que ninguna aplicada cambia (`scripts/comprobar-migraciones-nuevas.ts`). DEC-100.
 
-`main` está protegida: solo PR con CI verde. El *environment* `production` exige aprobación del
-propietario.
+`main` está protegida: solo PR con CI verde. El *environment* `production` exige una aprobación,
+que da la puerta automática de `npm run publicar` (§12.1, DEC-176).
 
 ### 11.1 Control de versiones (Git y GitHub)
 
@@ -455,7 +460,7 @@ repositorio salvo los secretos y los respaldos.
 |---|---|
 | **Alojamiento** | GitHub, repositorio **público** `aron285-coder/hidrantes-albolote` (cuenta personal del desarrollador hasta el traspaso a la cuenta institucional, 15 §7), publicado por `arranque.ts` con `gh repo create --source` desde la carpeta local. Público porque GitHub Free no protege ramas ni ofrece *environments* con aprobación en privados (DEC-053). El código no contiene secretos y la seguridad no depende de ocultarlo (§3); **issues, PR, commits y documentos nunca llevan nombres de voluntarios, correos ni datos de contacto**. |
 | **Ramas** | `main` = lo que hay en producción. `develop` = lo que hay en staging. `fase-N/nombre-corto` = trabajo en curso, una por issue, borrada al fusionar. Sin ramas de larga vida más. |
-| **Flujo** | rama de trabajo → PR a `develop` (CI verde obligatoria) → merge → staging se despliega solo → cuando la fase está terminada, PR `develop → main` con aprobación del *environment* `production` → producción. Nunca se hace *push* directo a `main` ni a `develop`. |
+| **Flujo** | rama de trabajo → PR a `develop` (CI verde obligatoria) → merge → staging se despliega solo → cuando la fase está terminada, PR `develop → main` con `npm run publicar`, cuya puerta automática aprueba el *environment* `production` (DEC-176) → producción. Nunca se hace *push* directo a `main` ni a `develop`. |
 | **Protección de `main`** | solo por PR; CI verde obligatoria; sin *force push*; sin borrado de rama. `develop` con CI obligatoria. Lo configura `arranque.ts` por `gh api`. |
 | **Commits** | *conventional commits* en español: `feat(mapa): …`, `fix(cola): …`, `chore(ci): …`, `docs(05): …`. El ámbito es la parte del sistema (mapa, cola, inventario, ajustes, ci, docs, sql). |
 | **Versiones y changelog** | `release-please` genera la versión semántica, el `CHANGELOG.md` y el *tag* a partir de los commits al fusionar en `main`. La versión se inyecta en `<meta name="version">`, se ve en Ajustes y alimenta las Novedades (FR-167). |
