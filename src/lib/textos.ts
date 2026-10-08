@@ -982,7 +982,28 @@ export const T = {
     inventarioDescargado: (n: Parametro) => `Inventario descargado: ${n} puntos.`,
     mantenimiento: 'Mantenimiento',
     ayudaMantenimiento:
-      'Se ejecutan fuera de la aplicación y tardan unos minutos. El resultado aparece en Salud del sistema y en el Registro.',
+      'Se ejecutan fuera de la aplicación y tardan unos minutos. Debajo, los últimos pedidos y qué ha pasado con cada uno.',
+    // docs/32 RV-260: los últimos pedidos (fn_pedidos_recientes) con su estado.
+    pedidosRecientes: 'Últimos pedidos',
+    pedidosVacio: 'Todavía no se ha pedido nada.',
+    pedidoPendiente: 'pedido',
+    pedidoLanzado: 'lanzado',
+    pedidoError: (motivo: Parametro) => `error: ${motivo}`,
+    pedidoErrorSinMotivo: 'error',
+    // docs/32 RV-262: espacio de fotos y de la base de datos, y los móviles con más fotos pedidas.
+    espacioDetalle: (mb: Parametro, pct: Parametro, total: Parametro) => `${mb} MB · ${pct} % de ${total} MB`,
+    espacioFotosLleno: (porcentaje: Parametro) =>
+      `Las fotos ocupan el ${porcentaje} % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.`,
+    reservasPorMovil: 'Móviles con más fotos pedidas (24 h)',
+    reservasDetalle: (n: Parametro, abiertas: Parametro) => `${n} fotos · ${abiertas} sin subir`,
+    reservasVacio: 'Ningún móvil ha pedido fotos en las últimas 24 h.',
+    revocarMovil: 'Revocar este móvil',
+    revocarMovilDe: (movil: Parametro) => `Revocar este móvil (${movil})`,
+    movilRevocado: 'revocado',
+    avisoRevocarMovil: (movil: Parametro) =>
+      `El móvil ${movil} se queda sin acceso: tendrá que volver a escribir el código de acceso. Sus fotos pedidas y sin subir dejan de contar.`,
+    confirmarRevocarMovil: 'Revocar',
+    movilRevocadoAviso: (movil: Parametro) => `Móvil ${movil} revocado.`,
     // docs/31 RV-146 y RV-167: el panel deja un pedido que un workflow recoge; en staging, Purgar fotos y
     // el respaldo no se piden (trabajan contra producción).
     trabajoPedido: (nombre: Parametro) => `"${nombre}": pedido. Empezará en unos minutos.`,
@@ -1035,6 +1056,9 @@ export const T = {
     generico: 'No se ha podido completar. Inténtalo de nuevo.',
     soloEnProduccion: 'Esto solo se hace en producción.',
     yaPedido: 'Ya está pedido: empezará en unos minutos.',
+    // docs/32 RV-262: fn_revocar_dispositivo con los 8 caracteres que enseña Salud.
+    dispositivoNoEncontrado: 'No hay ningún móvil con ese identificador.',
+    dispositivoAmbiguo: 'Hay más de un móvil que empieza así: no se ha revocado ninguno.',
   },
 
   panel: {
