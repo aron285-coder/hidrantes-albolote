@@ -1,5 +1,5 @@
 import { Bell, RefreshCw, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
@@ -7,7 +7,14 @@ import { EnPilaAvisos } from '@/componentes/PilaAvisos';
 import { useCola } from '@/hooks/cola';
 import { useVersionNueva } from '@/hooks/version';
 import { enFormulario, escucharAvisosPush } from '@/lib/aviso-formulario';
-import { alPedirRecarga, pedirRecarga, queHacerAlRecargar, recargar, soloEnMemoria } from '@/lib/pwa';
+import {
+  alPedirRecarga,
+  debeActualizarAlVolver,
+  pedirRecarga,
+  queHacerAlRecargar,
+  recargar,
+  soloEnMemoria,
+} from '@/lib/pwa';
 import { ORDEN_AVISO } from '@/lib/orden-avisos';
 import { T } from '@/lib/textos';
 
@@ -36,6 +43,41 @@ export function AvisoVersion() {
   const formulario = enFormulario(pathname);
   const sinGuardar = soloEnMemoria(useCola());
 
+  // Lo que ocupa el aviso de abajo, para que los botones de abajo del mapa (Cercanos, el +, la
+  // leyenda) suban y no queden debajo (docs/33 RV-313).
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = caja.current;
+    const raiz = document.documentElement;
+    if (!hay || !el) return;
+    const anotar = () => {
+      const alto = `${Math.ceil(el.offsetHeight) + 16}px`;
+      raiz.style.setProperty('--aviso-abajo', alto);
+      // En un formulario, la página crece lo que ocupa: el final del formulario (Enviar) no queda debajo.
+      document.body.style.paddingBottom = formulario ? alto : '';
+    };
+    anotar();
+    const vigilar = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(anotar);
+    vigilar?.observe(el);
+    return () => {
+      vigilar?.disconnect();
+      raiz.style.removeProperty('--aviso-abajo');
+      document.body.style.paddingBottom = '';
+    };
+  }, [hay, formulario]);
+
+  // Con un formulario abierto no se ofrece actualizar: se hace al volver al mapa, con las mismas
+  // preguntas de siempre si hay algo solo en memoria (RV-230).
+  const veniaDeFormulario = useRef(false);
+  useEffect(() => {
+    if (!hay) return;
+    if (formulario) veniaDeFormulario.current = true;
+    else if (debeActualizarAlVolver(veniaDeFormulario.current, pathname)) {
+      veniaDeFormulario.current = false;
+      pedirRecarga();
+    }
+  }, [hay, formulario, pathname]);
+
   // «Recargar» del aviso o de Ajustes: se decide aquí, que es quien pregunta.
   useEffect(
     () =>
@@ -59,16 +101,34 @@ export function AvisoVersion() {
   return (
     <>
       {hay && (
-        <EnPilaAvisos orden={ORDEN_AVISO.version}>
-          <button
-            type="button"
-            onClick={pedirRecarga}
-            className="bg-marino-700 rounded-boton flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-semibold text-white shadow-lg"
-          >
-            <RefreshCw size={18} aria-hidden />
-            {T.ajustes.versionNueva}
-          </button>
-        </EnPilaAvisos>
+        // Abajo, sobre la navegación (docs/33 RV-313, U4): fijo, no empuja el contenido ni tapa el
+        // buscador. Los botones de abajo del mapa suben lo que ocupa (--aviso-abajo).
+        <div
+          ref={caja}
+          data-testid="aviso-version"
+          className="bg-marino-950 rounded-tarjeta fixed inset-x-3 bottom-[calc(var(--nav-abajo,0px)+8px)] z-40 mx-auto flex max-w-md items-center gap-2 py-1 pr-1 pl-3 text-sm text-white shadow-lg"
+        >
+          <RefreshCw size={18} aria-hidden className="shrink-0" />
+          {formulario ? (
+            // En un formulario no se ofrece: se actualizará al volver al mapa.
+            <p role="status" className="py-2">
+              {T.version.alTerminar}
+            </p>
+          ) : (
+            <>
+              <p role="status" className="flex-1 font-semibold">
+                {T.version.hay}
+              </p>
+              <button
+                type="button"
+                onClick={pedirRecarga}
+                className="bg-papel text-texto rounded-boton min-h-11 shrink-0 px-3 font-semibold"
+              >
+                {T.version.actualizar}
+              </button>
+            </>
+          )}
+        </div>
       )}
       {aviso && (
         // Arriba, en la pila de avisos, bajo el de versión nueva si está: abajo taparía Enviar (RV-238).

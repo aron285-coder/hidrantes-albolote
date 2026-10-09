@@ -639,6 +639,13 @@ export const T = {
   },
 
   // docs/32 RV-230: recargar por versión nueva con envíos que solo están en memoria.
+  // docs/33 RV-313: el aviso de versión nueva, abajo y con botón.
+  version: {
+    hay: 'Hay una versión nueva',
+    actualizar: 'Actualizar',
+    alTerminar: 'Hay una versión nueva. Se actualizará cuando termines.',
+  },
+
   recarga: {
     titulo: 'Espera antes de actualizar',
     sinGuardar: (n: number) =>
