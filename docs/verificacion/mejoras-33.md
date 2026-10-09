@@ -1,6 +1,6 @@
 # Verificación · Mejoras elegidas, defectos y la entrada del lanzamiento (docs/33)
 
-**Estado:** en curso (oct 2026). Especificación: `docs/33-mejoras-y-defectos.md`; mockups:
+**Estado:** hecho el 9 oct 2026, en staging y en producción (0.11.0). Especificación: `docs/33-mejoras-y-defectos.md`; mockups:
 `docs/mockups/33-mejoras.html`. Cuatro sesiones (Backend, Frontend-campo, Frontend-panel, Ops) en tres
 oleadas, coordinadas en #580. Decisiones: DEC-190, DEC-191 y DEC-192 (en la especificación figuran como
 DEC-187 a DEC-189). El detalle de cada punto (pruebas, revisión, desviaciones) está en el cuerpo de su PR;
@@ -51,7 +51,7 @@ La señal para fusionar en `develop` («0.10.1 en producción», comentario de c
 |---|---|---|---|
 | RV-343 | #624 | RV-139b sobre el commit nuevo, con 25 canjes desde una IP | En verde con `9f6d7cc` (`revision-completa-staging.md`): entrada cerrada, 20 y el 21.º frenado; abierta, 25; se cierra; todo deshecho |
 | RV-344 | #626 | Recorrido corto de lo cambiado, en una ventana visible: U1 a U12 contra staging (`9f6d7cc`) a 412, 360 y 1440 px en claro y oscuro; U13 a U15 y la entrada del lanzamiento en el panel simulado | `recorrido-staging-2026-10-09.md`, cada mejora junto a la «Propuesta» del mockup. 75 pasos en verde contra staging. 12 de 15 iguales al mockup (con DEC-192); U4 (aviso fijo abajo en el formulario), U12 y U15 se apartan en detalles. Un defecto medio (#625, Mis propuestas sin la barra de arriba en el ordenador), seis bajos y diez propuestas. Ninguna `bloquea-release`. Staging como estaba: la única propuesta, rechazada con «prueba»; 0 pendientes; token revocado |
-| RV-345 | | 0.11.0 en producción | |
+| RV-345 | #627 | 0.11.0 en producción | `npm run publicar` aprobó con la puerta automática el 9 oct 2026; producción sirve `0.11.0` y el commit `9882ddf` (fila en `paridad-produccion.md`) |
 
 ## Desviaciones de la especificación
 
