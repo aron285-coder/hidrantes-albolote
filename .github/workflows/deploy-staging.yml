@@ -119,7 +119,7 @@ jobs:
       # carga sin violar su propia CSP. Solo GET a la portada: no se envía ni se lee ningún dato.
       # Chromium con caché, tope y un reintento (docs/32 RV-207).
       - uses: ./.github/actions/navegadores
-        timeout-minutes: 8
+        timeout-minutes: 9
         with:
           navegadores: chromium
       - name: Cabeceras y CSP en el navegador (TR-100)
