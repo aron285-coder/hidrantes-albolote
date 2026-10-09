@@ -435,6 +435,34 @@ export async function esperarChecks(ctx: Contexto, pr: number, cabeza: string, b
   log.ok(`CI del PR #${pr} en verde.`);
 }
 
+/** GitHub rechaza la fusión porque un check obligatorio aún corre: se espera, no es un fallo. */
+export function checkAunCorriendo(error: string): boolean {
+  return /required status checks? .*(is|are) (queued|in progress|pending|expected|waiting)/i.test(error);
+}
+
+/**
+ * `gh pr merge` con `--match-head-commit`. En la release 0.10.0, `gh pr checks` dio ci-e2e en verde
+ * (el de la CI de push del mismo commit) mientras el del PR seguía en cola, y GitHub rechazó la
+ * fusión: «Required status check "ci-e2e" is queued». Eso se espera y se reintenta; lo demás aborta.
+ */
+export async function fusionar(ctx: Contexto, pr: number, modo: '--squash' | '--merge', cabeza: string): Promise<void> {
+  await sondear(
+    ctx,
+    () => {
+      const r = ctx.ej('gh', ['pr', 'merge', String(pr), '--repo', repo(), modo, '--match-head-commit', cabeza]);
+      if (r.codigo === 0) return true;
+      const error = [r.error, r.salida].join(' ');
+      if (checkAunCorriendo(error)) {
+        log.info(`GitHub aún no deja fusionar el PR #${pr}: ${errorSeguro(error)}. Espero.`);
+        return null;
+      }
+      abortar(`No se ha podido fusionar el PR #${pr}: ${errorSeguro(r.error || r.salida)}`);
+    },
+    ctx.limites.checks,
+    `la fusión del PR #${pr}`,
+  );
+}
+
 // ---------- paso 1: el PR de release-please ----------
 
 export interface PrRelease {
@@ -529,17 +557,7 @@ async function pasoRelease(ctx: Contexto): Promise<void> {
     return;
   }
   await esperarChecks(ctx, pr.number, cabeza, 'develop');
-  const r = ctx.ej('gh', [
-    'pr',
-    'merge',
-    String(pr.number),
-    '--repo',
-    repo(),
-    '--squash',
-    '--match-head-commit',
-    cabeza,
-  ]);
-  if (r.codigo !== 0) abortar(`No se ha podido fusionar el PR #${pr.number}: ${errorSeguro(r.error || r.salida)}`);
+  await fusionar(ctx, pr.number, '--squash', cabeza);
   log.ok(`PR #${pr.number} fusionado con squash en develop.`);
 }
 
@@ -625,8 +643,7 @@ async function pasoMain(ctx: Contexto): Promise<string> {
     log.ok(`PR #${numero} abierto.`);
   }
   await esperarChecks(ctx, numero, develop, 'main');
-  const m = ctx.ej('gh', ['pr', 'merge', String(numero), '--repo', repo(), '--merge', '--match-head-commit', develop]);
-  if (m.codigo !== 0) abortar(`No se ha podido fusionar el PR #${numero}: ${errorSeguro(m.error || m.salida)}`);
+  await fusionar(ctx, numero, '--merge', develop);
   const sha = json<string | null>(
     ctx,
     ['pr', 'view', String(numero), '--repo', repo(), '--json', 'mergeCommit', '--jq', '.mergeCommit.oid | tojson'],
