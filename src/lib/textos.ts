@@ -1016,6 +1016,17 @@ export const T = {
       `Se pondrá en vigor un código nuevo y ${moviles} móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.`,
     confirmarCodigo: 'Generar y poner en vigor',
     codigoCambiado: (codigo: Parametro) => `Código nuevo en vigor: ${codigo}. Comunícalo al grupo.`,
+    // docs/33 RV-338 (RV-300): la entrada del día del lanzamiento.
+    entrada: 'Entrada',
+    abrirEntrada: 'Abrir la entrada para todos (24 h)',
+    explicaEntrada:
+      'Para el día del lanzamiento o después de cambiar el código: deja entrar a todos desde la misma wifi durante 24 horas. Quien pruebe códigos sigue frenado.',
+    entradaAbiertaHasta: (dia: Parametro, hora: Parametro) =>
+      `Entrada abierta para todos hasta el ${dia} a las ${hora}`,
+    cerrarAhora: 'Cerrar ahora',
+    entradaCerrada: 'Entrada cerrada: vuelven los topes de entradas.',
+    avisoEntradaAlRevocar: 'La entrada se abrirá 24 h para que todos puedan volver a entrar.',
+    entradaNoCarga: 'No se ha podido saber si la entrada está abierta.',
     administradores: 'Acceso de administradores',
     ayudaAdministradores: 'Lista propia de hidrantes, independiente de la app de uniformidad.',
     anadidoEl: (fecha: Parametro, quien: Parametro) => `añadido el ${fecha} por ${quien}`,
@@ -1033,6 +1044,8 @@ export const T = {
     diasPapelera: 'Días de papelera',
     bufferZona: 'Margen de la zona (m)',
     subidasDia: 'Fotos por móvil y día',
+    altasIpDia: 'Entradas desde una misma wifi al día',
+    altasGlobalHora: 'Entradas por hora, entre todos',
     metrosTramo: 'Tramo de manguera (m)',
     radiosMarcador: 'Radios de marcador (px)',
     fueraDeRango: (campo: Parametro) => `"${campo}" está fuera de rango.`,
@@ -1083,6 +1096,11 @@ export const T = {
     baseDeDatos: 'Base de datos',
     espacioDe: (mb: Parametro, total: Parametro) => `${mb} MB de ${total} MB`,
     zonaYMapaBase: 'Zona y mapa base',
+    entradasFrenadas24h: 'Entradas frenadas por el tope (24 h)',
+    abrirEntrada24h: 'abrir la entrada 24 h',
+    entradaAbiertaCorto: (dia: Parametro, hora: Parametro) => `entrada abierta hasta el ${dia} a las ${hora}`,
+    atencionFrenadas: (n: Parametro) =>
+      `${n} móviles con el código bueno no han podido entrar por el tope: abre la entrada 24 h.`,
     tareasProgramadas: 'Tareas programadas',
     tareaBien: (hace: Parametro) => `${hace} · bien`,
     tareaMal: (hace: Parametro) => `${hace} · falló o va con retraso`,

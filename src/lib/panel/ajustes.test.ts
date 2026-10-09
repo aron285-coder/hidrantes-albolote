@@ -47,6 +47,23 @@ describe('parámetros (FR-142)', () => {
     expect(faltaEnParametros({ ...v, escala_radios: [11, 9, 7] })).toBe('escala_radios');
     expect(faltaEnParametros({ ...v, escala_radios: [40, 9, 7, 5.5, 5] })).toBe('escala_radios');
   });
+
+  // docs/33 RV-338: los topes de entradas con el código, con los rangos de fn_guardar_config (0044).
+  it('entradas desde una misma wifi al día 5–500 y por hora entre todos 10–500', () => {
+    const v = PARAMETROS_POR_DEFECTO;
+    expect(v.max_altas_ip_dia).toBe(150);
+    expect(v.max_altas_global_hora).toBe(150);
+    for (const n of [5, 500]) expect(faltaEnParametros({ ...v, max_altas_ip_dia: n })).toBeNull();
+    for (const n of [4, 501, 20.5]) expect(faltaEnParametros({ ...v, max_altas_ip_dia: n })).toBe('max_altas_ip_dia');
+    for (const n of [10, 500]) expect(faltaEnParametros({ ...v, max_altas_global_hora: n })).toBeNull();
+    for (const n of [9, 501]) {
+      expect(faltaEnParametros({ ...v, max_altas_global_hora: n })).toBe('max_altas_global_hora');
+    }
+    // Solo viajan si cambian: contra una base sin 0044, no tocarlos no rompe el guardado.
+    expect(cambiosParametros(v, { ...v, max_altas_ip_dia: 300 })).toEqual({ max_altas_ip_dia: 300 });
+    expect(T.panelAjustes.altasIpDia).toBe('Entradas desde una misma wifi al día');
+    expect(T.panelAjustes.altasGlobalHora).toBe('Entradas por hora, entre todos');
+  });
 });
 
 // docs/31 RV-167: los radios se escriben como texto libre y se leen al salir del campo y al guardar.

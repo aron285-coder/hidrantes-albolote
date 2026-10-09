@@ -69,9 +69,16 @@ interface Llamada {
 
 async function prepararPanel(
   page: Page,
-  { conDispatch = true, salud = SALUD as Record<string, unknown>, pedidos = [] as unknown[] } = {},
+  {
+    conDispatch = true,
+    salud = SALUD as Record<string, unknown>,
+    pedidos = [] as unknown[],
+    // docs/33 RV-338: `config.entrada_abierta_hasta` (0044). Sin poner, la base no la tiene.
+    entrada = undefined as string | null | undefined,
+  } = {},
 ) {
   const llamadas: Llamada[] = [];
+  let entradaHasta = entrada;
   let administradores = ADMINISTRADORES;
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
@@ -82,7 +89,11 @@ async function prepararPanel(
     config: (url) => {
       const filtro = url.searchParams.get('clave') ?? '';
       const claves = filtro.startsWith('in.') ? filtro.slice(4, -1).split(',') : null;
-      return claves ? CONFIG.filter((c) => claves.includes(c.clave)) : CONFIG;
+      const filas =
+        entradaHasta === undefined ? CONFIG : [...CONFIG, { clave: 'entrada_abierta_hasta', valor: entradaHasta }];
+      const igual = url.searchParams.get('clave')?.startsWith('eq.') ? url.searchParams.get('clave')!.slice(3) : null;
+      if (igual) return filas.filter((c) => c.clave === igual);
+      return claves ? filas.filter((c) => claves.includes(c.clave)) : filas;
     },
     administradores: () => administradores,
     dispositivos: [{ id: 'x1' }, { id: 'x2' }],
@@ -100,7 +111,16 @@ async function prepararPanel(
       case 'fn_es_admin':
         return json(true);
       case 'fn_salud':
-        return json(salud);
+        // Con 0044, fn_salud dice si la entrada está abierta (RV-300).
+        return json(
+          'entradas_frenadas_24h' in salud ? { ...salud, entrada_abierta_hasta: entradaHasta ?? null } : salud,
+        );
+      case 'fn_abrir_entrada':
+        entradaHasta = new Date(Date.now() + (Number(cuerpo.horas) || 24) * 3_600_000).toISOString();
+        return json(entradaHasta);
+      case 'fn_cerrar_entrada':
+        entradaHasta = null;
+        return json(null);
       case 'fn_exportar_inventario':
         return json([]);
       case 'fn_gestionar_administrador':
@@ -109,6 +129,11 @@ async function prepararPanel(
         );
         return json(null);
       case 'fn_cambiar_codigo_acceso':
+        // Con 0044, revocar todos abre la entrada 24 h (RV-300).
+        if (cuerpo.revocar_dispositivos && entradaHasta !== undefined) {
+          entradaHasta = new Date(Date.now() + 24 * 3_600_000).toISOString();
+        }
+        return json(null);
       case 'fn_guardar_config':
       case 'fn_renombrar_nucleo':
         return json(null);
@@ -752,4 +777,158 @@ test('Mantenimiento: sin pedidos, el estado vacío; si no cargan, el error y Rei
   falla = false;
   await error.getByRole('button', { name: T.mapa.reintentar }).click();
   await expect(tarjeta.getByText(T.panelAjustes.pedidosVacio)).toBeVisible();
+});
+
+// ---------- docs/33 RV-338: la entrada del día del lanzamiento ----------
+
+test.describe('La entrada del día del lanzamiento (docs/33 RV-338)', () => {
+  const seccion = (page: Page) =>
+    tarjetaDe(page, T.panelAjustes.codigoAcceso).getByRole('region', { name: T.panelAjustes.entrada });
+
+  test('abrir y cerrar la entrada desde Código de acceso', async ({ page }) => {
+    const llamadas = await prepararPanel(page, { entrada: null });
+    await page.goto('/admin/ajustes');
+    const entrada = seccion(page);
+    const abrir = entrada.getByRole('button', { name: T.panelAjustes.abrirEntrada });
+    await expect(abrir).toHaveAccessibleDescription(T.panelAjustes.explicaEntrada);
+    await abrir.click();
+    await expect.poll(() => llamadaA(llamadas, 'fn_abrir_entrada')).toEqual({ horas: 24 });
+    const franja = entrada.getByText(/^Entrada abierta para todos hasta el \S+ \d+ a las \d\d:\d\d$/);
+    await expect(franja).toBeVisible();
+    await expect(abrir).toHaveCount(0);
+    await entrada.getByRole('button', { name: T.panelAjustes.cerrarAhora }).click();
+    await expect.poll(() => llamadas.some((l) => l.nombre === 'fn_cerrar_entrada')).toBe(true);
+    await expect(page.getByRole('status').filter({ hasText: T.panelAjustes.entradaCerrada })).toBeVisible();
+    await expect(entrada.getByRole('button', { name: T.panelAjustes.abrirEntrada })).toBeVisible();
+  });
+
+  test('abierta al cargar: la franja verde con «Cerrar ahora»', async ({ page }, info) => {
+    await prepararPanel(page, { entrada: new Date(Date.now() + 5 * 3_600_000).toISOString() });
+    await page.goto('/admin/ajustes');
+    const entrada = seccion(page);
+    await expect(entrada.getByText(/^Entrada abierta para todos hasta el /)).toBeVisible();
+    await expect(entrada.getByRole('button', { name: T.panelAjustes.cerrarAhora })).toBeVisible();
+    const captura = info.outputPath('entrada-abierta.png');
+    await tarjetaDe(page, T.panelAjustes.codigoAcceso).screenshot({ path: captura });
+    await info.attach('entrada-abierta', { path: captura, contentType: 'image/png' });
+  });
+
+  test('una hora ya pasada es entrada cerrada', async ({ page }) => {
+    await prepararPanel(page, { entrada: new Date(Date.now() - 3_600_000).toISOString() });
+    await page.goto('/admin/ajustes');
+    await expect(seccion(page).getByRole('button', { name: T.panelAjustes.abrirEntrada })).toBeVisible();
+  });
+
+  test('generar un código revocando todos avisa de que la entrada se abrirá 24 h', async ({ page }) => {
+    await prepararPanel(page, { entrada: null });
+    await page.goto('/admin/ajustes');
+    const tarjeta = tarjetaDe(page, T.panelAjustes.codigoAcceso);
+    await expect(seccion(page).getByRole('button', { name: T.panelAjustes.abrirEntrada })).toBeVisible();
+    // Sin revocar, la confirmación no lo dice.
+    await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
+    await expect(page.getByRole('dialog').getByText(T.panelAjustes.avisoEntradaAlRevocar)).toHaveCount(0);
+    await page.getByRole('dialog').getByRole('button', { name: T.panelCola.cancelar }).click();
+    await tarjeta.getByLabel(T.panel.revocarTodos).check();
+    await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
+    const dialogo = page.getByRole('dialog');
+    await expect(dialogo.getByText(T.panelAjustes.avisoEntradaAlRevocar)).toBeVisible();
+    await dialogo.getByRole('button', { name: T.panelAjustes.confirmarCodigo }).click();
+    // Después, la sección dice que está abierta (la abrió el servidor).
+    await expect(seccion(page).getByText(/^Entrada abierta para todos hasta el /)).toBeVisible();
+  });
+
+  test('los dos topes de entradas en Parámetros, con sus rangos', async ({ page }) => {
+    const llamadas = await prepararPanel(page);
+    await page.goto('/admin/ajustes');
+    const tarjeta = tarjetaDe(page, T.panelAjustes.parametros);
+    const wifi = tarjeta.getByLabel(T.panelAjustes.altasIpDia);
+    const hora = tarjeta.getByLabel(T.panelAjustes.altasGlobalHora);
+    await expect(wifi).toHaveValue('150');
+    await expect(hora).toHaveValue('150');
+    const guardar = tarjeta.getByRole('button', { name: T.panel.guardarCambios });
+    await wifi.fill('4');
+    await expect(guardar).toBeDisabled();
+    await expect(tarjeta.getByText(T.panelAjustes.fueraDeRango(T.panelAjustes.altasIpDia))).toBeVisible();
+    await wifi.fill('300');
+    await hora.fill('9');
+    await expect(tarjeta.getByText(T.panelAjustes.fueraDeRango(T.panelAjustes.altasGlobalHora))).toBeVisible();
+    await hora.fill('200');
+    await guardar.click();
+    await expect
+      .poll(() => llamadaA(llamadas, 'fn_guardar_config'))
+      .toEqual({ cambios: { max_altas_ip_dia: 300, max_altas_global_hora: 200 } });
+  });
+
+  test('Salud: entradas frenadas con el enlace que abre la entrada', async ({ page }) => {
+    const llamadas = await prepararPanel(page, {
+      entrada: null,
+      salud: { ...SALUD_0041, entradas_frenadas_24h: 7, ultima_vigilancia: new Date().toISOString() },
+    });
+    await page.goto('/admin/ajustes');
+    const salud = tarjetaDe(page, T.panel.saludSistema);
+    const fila = salud
+      .locator('dl > div')
+      .filter({ has: page.getByText(T.panelAjustes.entradasFrenadas24h, { exact: true }) });
+    await expect(fila.locator('dd')).toHaveAttribute('data-aviso', 'true');
+    await expect(salud.getByTestId('resumen-salud')).toContainText(T.panelAjustes.atencionFrenadas(7));
+    await fila.getByRole('button', { name: T.panelAjustes.abrirEntrada24h }).click();
+    await expect.poll(() => llamadaA(llamadas, 'fn_abrir_entrada')).toEqual({ horas: 24 });
+    // Abierta: la fila dice hasta cuándo, sin enlace, y Código de acceso también lo sabe.
+    await expect(fila.locator('dd')).toContainText(/^7 · entrada abierta hasta el /);
+    await expect(fila.getByRole('button')).toHaveCount(0);
+    await expect(seccion(page).getByRole('button', { name: T.panelAjustes.cerrarAhora })).toBeVisible();
+  });
+
+  test('contra una base sin 0044, nada de esto se enseña', async ({ page }) => {
+    await prepararPanel(page, { salud: SALUD_0041 });
+    await page.goto('/admin/ajustes');
+    await expect(tarjetaDe(page, T.panel.saludSistema).getByText(T.panelAjustes.ultimoRespaldo)).toBeVisible();
+    await expect(page.getByRole('region', { name: T.panelAjustes.entrada })).toHaveCount(0);
+    await expect(page.getByText(T.panelAjustes.entradasFrenadas24h)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: T.panelAjustes.abrirEntrada24h })).toHaveCount(0);
+    // La confirmación de revocar tampoco promete abrirla.
+    const tarjeta = tarjetaDe(page, T.panelAjustes.codigoAcceso);
+    await tarjeta.getByLabel(T.panel.revocarTodos).check();
+    await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
+    await expect(page.getByRole('dialog').getByText(T.panelAjustes.avisoEntradaAlRevocar)).toHaveCount(0);
+  });
+
+  test('si no se puede saber si está abierta, lo dice con Reintentar', async ({ page }) => {
+    await prepararPanel(page, { entrada: null });
+    let falla = true;
+    await page.route(/\/rest\/v1\/config\?.*entrada_abierta_hasta/, (r) =>
+      falla
+        ? r.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: '{"message":"caído"}',
+            headers: { 'Access-Control-Allow-Origin': '*' },
+          })
+        : r.fallback(),
+    );
+    await page.goto('/admin/ajustes');
+    const entrada = seccion(page);
+    await expect(entrada.getByRole('alert')).toContainText(T.panelAjustes.entradaNoCarga);
+    falla = false;
+    await entrada.getByRole('button', { name: T.mapa.reintentar }).click();
+    await expect(entrada.getByRole('button', { name: T.panelAjustes.abrirEntrada })).toBeVisible();
+  });
+});
+
+// Sin sesión de administrador no se llega a Ajustes: ni la entrada ni sus topes (RV-338).
+test('sin sesión de administrador, nada de la entrada (docs/33 RV-338)', async ({ page }) => {
+  await conGoogle(page, 'voluntario@example.org');
+  await simularTablas(page, { v_puntos_activos: PUNTOS, v_cola_revision: [], propuestas: [], config: [] });
+  const llamadas: string[] = [];
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/*`, (route) => {
+    const nombre = new URL(route.request().url()).pathname.split('/').pop()!;
+    llamadas.push(nombre);
+    if (nombre === 'fn_es_admin') return route.fulfill({ contentType: 'application/json', body: 'false' });
+    return route.abort('connectionrefused');
+  });
+  await page.goto('/admin/ajustes');
+  await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
+  await expect(page.getByText(T.panelAjustes.abrirEntrada)).toHaveCount(0);
+  await expect(page.getByText(T.panelAjustes.altasIpDia)).toHaveCount(0);
+  expect(llamadas.filter((n) => n.includes('entrada'))).toEqual([]);
 });

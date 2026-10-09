@@ -95,6 +95,9 @@ export const PARAMETROS = {
   buffer_zona_m: 400,
   max_subidas_dispositivo_dia: 40,
   metros_tramo_manguera: 20,
+  // docs/33 RV-338 (0044): los topes de entradas con el código.
+  max_altas_ip_dia: 150,
+  max_altas_global_hora: 150,
 } as const;
 
 export type ClaveParametro = keyof typeof PARAMETROS;
@@ -145,6 +148,8 @@ export function faltaEnParametros(v: Parametros): string | null {
   if (!entero(v.buffer_zona_m, 0, 5000)) return 'buffer_zona_m';
   if (!entero(v.max_subidas_dispositivo_dia, 1, 500)) return 'max_subidas_dispositivo_dia';
   if (!entero(v.metros_tramo_manguera, 10, 30)) return 'metros_tramo_manguera';
+  if (!entero(v.max_altas_ip_dia, 5, 500)) return 'max_altas_ip_dia';
+  if (!entero(v.max_altas_global_hora, 10, 500)) return 'max_altas_global_hora';
   // Cinco radios entre 2 y 30 (fn_guardar_config), de mayor a menor: R1 es el del punto con más
   // capacidad (06 §4.1). Al revés, el mapa dibujaría más grande lo que menos agua da.
   const r = v.escala_radios;
@@ -244,6 +249,11 @@ export interface Salud {
   bd_pct?: number;
   /** Los 5 móviles con más reservas en 24 h, con 8 caracteres de su id (sirven para revocarlo). */
   reservas_dispositivos_24h?: ReservasDispositivo[];
+  // ---- 0044 (docs/33 RV-300, RV-338); ausentes con una base anterior ----
+  /** Móviles con el código bueno que el tope de entradas no dejó entrar (desde la última apertura). */
+  entradas_frenadas_24h?: number;
+  /** Hasta cuándo está abierta la entrada para todos; null si está cerrada. */
+  entrada_abierta_hasta?: string | null;
 }
 
 export interface ReservasDispositivo {
