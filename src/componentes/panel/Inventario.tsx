@@ -101,28 +101,30 @@ function Desplegable<V extends string>({
   );
 }
 
-const FORMATOS: { formato: Formato; nombre: string }[] = [
+/** `completo`: no depende de los filtros ni de la búsqueda, así que vale aunque no se vea ninguna fila. */
+const FORMATOS: { formato: Formato; nombre: string; completo?: boolean }[] = [
   { formato: 'xlsx', nombre: T.panel.excel },
   { formato: 'csv', nombre: T.panel.csv },
   { formato: 'geojson', nombre: T.panel.geojson },
   // docs/33 RV-335: el inventario completo en JSON, que antes estaba en Salud del sistema.
-  { formato: 'json', nombre: T.panel.inventarioCompletoJson },
+  { formato: 'json', nombre: T.panel.inventarioCompletoJson, completo: true },
 ];
 
 /**
  * Exportar ▾ (docs/29 RV-123): un botón secundario que abre un menú con los formatos. Patrón
  * de botón de menú de WAI-ARIA: flechas, Inicio y Fin dentro del menú; Esc lo cierra y devuelve el
  * foco al botón; tocar fuera o Tab lo cierran sin quitar el foco de donde vaya. Sin filas que
- * exportar, deshabilitado y con el motivo debajo (UI-02). Mientras exporta, ocupado: dice
+ * exportar, los formatos de lo filtrado se deshabilitan con el motivo debajo (UI-02) y solo queda el
+ * inventario completo (JSON), que no depende de los filtros (docs/33 RV-335). Mientras exporta, ocupado: dice
  * «Exportando…» y no abre el menú, pero no se deshabilita, porque un botón deshabilitado pierde el foco
  * que el menú le acaba de devolver.
  */
 function MenuExportar({
-  deshabilitado,
+  sinFilas,
   ocupado,
   alElegir,
 }: {
-  deshabilitado: boolean;
+  sinFilas: boolean;
   ocupado: boolean;
   alElegir: (f: Formato) => void;
 }) {
@@ -131,7 +133,9 @@ function MenuExportar({
   const menu = useRef<HTMLDivElement>(null);
   const id = useId();
 
-  const opciones = () => [...(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+  const opciones = () => [
+    ...(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []),
+  ];
   const cerrar = (devolverFoco: boolean) => {
     setAbierto(false);
     if (devolverFoco) boton.current?.focus();
@@ -175,10 +179,9 @@ function MenuExportar({
         aria-haspopup="menu"
         aria-expanded={!!abierto}
         aria-controls={abierto ? `${id}-menu` : undefined}
-        disabled={deshabilitado}
         aria-disabled={ocupado || undefined}
         aria-busy={ocupado || undefined}
-        aria-describedby={deshabilitado ? motivo : undefined}
+        aria-describedby={sinFilas ? motivo : undefined}
         onClick={() => {
           if (ocupado) return;
           if (abierto) cerrar(false);
@@ -195,7 +198,7 @@ function MenuExportar({
         {ocupado ? T.panel.exportando : T.panel.exportar}
         <ChevronDown size={16} aria-hidden />
       </button>
-      {deshabilitado && (
+      {sinFilas && (
         <p id={motivo} className="text-texto-suave mt-0.5 text-[11px]">
           {T.panelInventario.nadaQueExportar}
         </p>
@@ -209,17 +212,19 @@ function MenuExportar({
           onKeyDown={teclaMenu}
           className="bg-papel border-linea rounded-tarjeta absolute top-full right-0 z-[500] mt-1 flex min-w-44 flex-col border py-1 shadow-[0_6px_24px_rgba(14,27,48,.28)]"
         >
-          {FORMATOS.map(({ formato, nombre }) => (
+          {FORMATOS.map(({ formato, nombre, completo }) => (
             <button
               key={formato}
               type="button"
               role="menuitem"
               tabIndex={-1}
+              disabled={sinFilas && !completo}
+              aria-describedby={sinFilas && !completo ? motivo : undefined}
               onClick={() => {
                 cerrar(true);
                 alElegir(formato);
               }}
-              className="hover:bg-fondo focus:bg-fondo min-h-11 px-4 text-left text-[14px]"
+              className="hover:bg-fondo focus:bg-fondo disabled:text-texto-suave min-h-11 px-4 text-left text-[14px] disabled:cursor-not-allowed disabled:hover:bg-transparent"
             >
               {nombre}
             </button>
@@ -603,7 +608,7 @@ export default function Inventario() {
         )}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <MenuExportar deshabilitado={!filtrados.length} ocupado={exportando} alElegir={(f) => void exportarCon(f)} />
+          <MenuExportar sinFilas={!filtrados.length} ocupado={exportando} alElegir={(f) => void exportarCon(f)} />
           <div role="radiogroup" aria-label={T.panelInventario.vista} className="flex gap-1.5">
             {[false, true].map((esMapa) => (
               <button

@@ -37,7 +37,8 @@ const BIEN: Salud = {
   max_bytes_fotos: 800 * MB,
   fotos_pct: 14,
   max_bytes_bd: 400 * MB,
-  bd_pct: 75,
+  // Como 0044: el esquema contra max_bytes_bd (38 de 400).
+  bd_pct: 9.5,
 };
 
 const etiquetas = (s: Salud) => filasSalud(s, 'produccion', ahora).map((f) => f.etiqueta);
@@ -83,10 +84,28 @@ describe('Salud: lo que queda, con nombres en palabras (RV-335)', () => {
     expect(bd.aviso).toBe(false);
   });
 
-  it('fotos medidas en el último respaldo: se dice', () => {
-    expect(fila({ ...BIEN, fotos_origen: 'respaldo' }, T.panelAjustes.fotos)!.valor).toBe(
-      T.panelAjustes.espacioSegunRespaldo('112 MB de 800 MB'),
-    );
+  it('fotos medidas en el último respaldo: se dice, sin tono de aviso ni nada que mirar arriba', () => {
+    const respaldo = { ...BIEN, fotos_origen: 'respaldo' as const };
+    expect(fila(respaldo, T.panelAjustes.fotos)!.valor).toBe(T.panelAjustes.espacioSegunRespaldo('112 MB de 800 MB'));
+    expect(fila(respaldo, T.panelAjustes.fotos)!.aviso).toBe(false);
+    expect(atencionSalud(respaldo, 'produccion', ahora)).toEqual([]);
+  });
+
+  it('una fila en tono de aviso siempre tiene su motivo en el resumen', () => {
+    const casos: Salud[] = [
+      { ...BIEN, fotos_pct: 72.4 },
+      { ...BIEN, bd_pct: 80 },
+      { ...BIEN, ultimo_respaldo: null },
+      { ...BIEN, ultimo_respaldo: haceH(9 * 24) },
+      { ...BIEN, ultima_vigilancia: haceH(27) },
+      { ...BIEN, vigilancia_ok: false },
+      { ...BIEN, ultima_vigilancia: null, vigilancia_ok: null },
+      { ...BIEN, fotos_origen: 'respaldo' },
+    ];
+    for (const c of casos) {
+      const avisan = filasSalud(c, 'produccion', ahora).some((f) => f.aviso);
+      expect(atencionSalud(c, 'produccion', ahora).length > 0, JSON.stringify(c)).toBe(avisan);
+    }
   });
 
   it('sin los datos de 0041: como antes, sin barra y sin romper', () => {
@@ -107,8 +126,14 @@ describe('Salud: lo que queda, con nombres en palabras (RV-335)', () => {
       T.panelAjustes.almacenamientoNoAplica,
     );
     expect(fila({ ...viejo, bd_bytes: undefined }, T.panelAjustes.baseDeDatos)!.valor).toBe(T.panelAjustes.sinDato);
-    // Sin intentos (base anterior a 0015): 0.
-    expect(fila({ ...viejo, intentos_fallidos_24h: undefined }, T.panelAjustes.intentosFallidos24h)!.valor).toBe('0');
+    // Un número que la base no trae dice "sin dato", nunca un 0 inventado.
+    expect(fila({ ...viejo, intentos_fallidos_24h: undefined }, T.panelAjustes.intentosFallidos24h)!.valor).toBe(
+      T.panelAjustes.sinDato,
+    );
+    const sinNumeros = { ...viejo, errores_7d: undefined, dispositivos_activos: undefined } as unknown as Salud;
+    expect(fila(sinNumeros, T.panelAjustes.errores7)!.valor).toBe(T.panelAjustes.sinDato);
+    expect(fila(sinNumeros, T.panelAjustes.dispositivosActivos)!.valor).toBe(T.panelAjustes.sinDato);
+    expect(fila({ ...BIEN, errores_7d: 0 }, T.panelAjustes.errores7)!.valor).toBe('0');
   });
 
   it('zona y mapa base: una fecha si coinciden, las dos si no', () => {
@@ -149,6 +174,25 @@ describe('Salud: el resumen de arriba (RV-335)', () => {
     expect(atencionSalud({ ...sinBd, ultimo_respaldo: null }, 'staging', ahora)).toEqual([]);
   });
 
+  it('la vigilancia que no ha pasado nunca: aviso fuera de staging', () => {
+    const nunca = { ...sinBd, ultima_vigilancia: null, vigilancia_ok: null };
+    expect(atencionSalud(nunca, 'produccion', ahora)).toEqual([T.panelAjustes.atencionSinVigilancia]);
+    expect(fila(nunca, T.panelAjustes.ultimaVigilancia)!.aviso).toBe(true);
+    expect(atencionSalud(nunca, 'staging', ahora)).toEqual([]);
+  });
+
+  it('sin saber si la vigilancia fue bien, no dice ni "bien" ni "con avisos"', () => {
+    const fila1 = fila({ ...sinBd, vigilancia_ok: null }, T.panelAjustes.ultimaVigilancia)!;
+    expect(fila1.valor).toBe('hace 1 h');
+    expect(fila1.aviso).toBe(false);
+  });
+
+  it('atrasada y con avisos a la vez: un solo mensaje, el de atrasada', () => {
+    expect(
+      atencionSalud({ ...sinBd, ultima_vigilancia: haceH(30), vigilancia_ok: false }, 'produccion', ahora),
+    ).toEqual([T.panelAjustes.atencionVigilancia]);
+  });
+
   it('la vigilancia sin pasar o con avisos', () => {
     expect(atencionSalud({ ...sinBd, ultima_vigilancia: haceH(27) }, 'produccion', ahora)).toEqual([
       T.panelAjustes.atencionVigilancia,
@@ -162,8 +206,17 @@ describe('Salud: el resumen de arriba (RV-335)', () => {
     expect(atencionSalud({ ...sinBd, fotos_pct: 72.4 }, 'produccion', ahora)).toEqual([
       T.panelAjustes.espacioFotosLleno(72),
     ]);
-    // La base de datos con los MB del esquema: 300 de 400 = 75 %.
-    expect(atencionSalud({ ...sinBd, esquema_bytes: 300 * MB }, 'produccion', ahora)).toEqual([
+    // La base de datos, con el % del servidor (0044: el esquema contra max_bytes_bd).
+    expect(atencionSalud({ ...sinBd, bd_pct: 75 }, 'produccion', ahora)).toEqual([
+      T.panelAjustes.atencionBaseDeDatos(75),
+    ]);
+    // Justo en el 70 %, ya avisa; en el 69,9 %, no.
+    expect(atencionSalud({ ...sinBd, fotos_pct: 70 }, 'produccion', ahora)).toEqual([
+      T.panelAjustes.espacioFotosLleno(70),
+    ]);
+    expect(atencionSalud({ ...sinBd, bd_pct: 69.9 }, 'produccion', ahora)).toEqual([]);
+    // Sin bd_pct (base anterior a 0041 con tope): los MB del esquema contra el tope, 300 de 400.
+    expect(atencionSalud({ ...sinBd, bd_pct: undefined, esquema_bytes: 300 * MB }, 'produccion', ahora)).toEqual([
       T.panelAjustes.atencionBaseDeDatos(75),
     ]);
   });
@@ -175,6 +228,10 @@ describe('Salud: el resumen de arriba (RV-335)', () => {
     ];
     expect(atencionSalud({ ...sinBd, tareas }, 'produccion', ahora)).toEqual([
       T.panelAjustes.atencionTarea(T.panelAjustes.nombresTareas.hidrantes_purgar_subidas),
+    ]);
+    const falta = [{ tarea: 'hidrantes_revocar_tokens', ultima: null, fallo: false, falta: true, problema: true }];
+    expect(atencionSalud({ ...sinBd, tareas: falta }, 'produccion', ahora)).toEqual([
+      T.panelAjustes.atencionTareaFalta(T.panelAjustes.nombresTareas.hidrantes_revocar_tokens),
     ]);
   });
 });

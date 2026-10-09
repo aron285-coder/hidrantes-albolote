@@ -597,7 +597,8 @@ function SaludDelSistema() {
           )}
           {/* El resumen no bloquea nada, solo se ve (06 §5). Con el espacio de fotos casi lleno dice
               qué hacer antes de que la aplicación deje de admitir fotos (TR-53). */}
-          {atencion.length === 0 ? (
+          {/* Con una recarga fallida, los datos de antes no dicen «Todo bien»: el resumen se esconde. */}
+          {carga.estado === 'error' ? null : atencion.length === 0 ? (
             <p data-testid="resumen-salud" className="mb-3">
               <span className="bg-verde-100 text-verde-700 rounded-full px-2.5 py-0.5 text-[13px] font-semibold">
                 {T.panelAjustes.todoBien}

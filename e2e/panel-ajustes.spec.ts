@@ -668,6 +668,7 @@ test.describe('Salud del sistema en palabras (docs/33 RV-335)', () => {
         ...BIEN,
         fotos_pct: 72.4,
         esquema_bytes: 300 * MB,
+        bd_pct: 75,
         ultima_vigilancia: haceH(30),
         tareas: [{ tarea: 'hidrantes_purgar_subidas', ultima: haceH(50), fallo: true, problema: true }],
       },

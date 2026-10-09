@@ -57,36 +57,33 @@ function filaFotos(s: Salud, entorno: Entorno): FilaSalud {
     return { etiqueta: T.panelAjustes.fotos, valor: textoAlmacenamiento(s.storage_bytes, entorno), aviso: lleno };
   }
   const texto = T.panelAjustes.espacioDe(mb(s.fotos_bytes), mb(s.max_bytes_fotos));
-  // Sin lectura en vivo del bucket, el dato es el del último respaldo: se dice (05 §2.6).
-  const respaldo = s.fotos_origen === 'respaldo';
+  // Sin lectura en vivo del bucket, el dato es el del último respaldo: se dice (05 §2.6), sin tono de
+  // aviso: el tono es solo para lo que el resumen de arriba pide mirar.
   return {
     etiqueta: T.panelAjustes.fotos,
-    valor: respaldo ? T.panelAjustes.espacioSegunRespaldo(texto) : texto,
-    aviso: lleno || respaldo,
+    valor: s.fotos_origen === 'respaldo' ? T.panelAjustes.espacioSegunRespaldo(texto) : texto,
+    aviso: lleno,
     // El % que mira el servidor: el bucket más las reservas abiertas.
     barra: recortar(s.fotos_pct),
   };
 }
 
 /**
- * % de la base de datos: lo que ocupa nuestro esquema contra `max_bytes_bd` (docs/33 RV-301); sin
- * esquema medido, toda la base. Sin el tope de 0041, contra los 500 MB del plan gratuito.
+ * La base de datos con su tope. Con 0044, lo que ocupa nuestro esquema contra `max_bytes_bd` y el %
+ * que da el servidor (`bd_pct`), que es lo que frena las propuestas (docs/33 RV-301). Sin esquema
+ * medido, toda la base; sin el tope de 0041, contra los 500 MB del plan gratuito.
  */
-function espacioBd(s: Salud): { bytes: number; tope: number } | null {
+function espacioBd(s: Salud): { bytes: number; tope: number; pct: number } | null {
   const bytes = s.max_bytes_bd ? (s.esquema_bytes ?? s.bd_bytes) : s.bd_bytes;
   if (bytes == null) return null;
-  return { bytes, tope: s.max_bytes_bd || CUOTA_BD_BYTES };
-}
-
-function pctBd(s: Salud): number | null {
-  const e = espacioBd(s);
-  return e ? (e.bytes / e.tope) * 100 : null;
+  const tope = s.max_bytes_bd || CUOTA_BD_BYTES;
+  return { bytes, tope, pct: s.max_bytes_bd && s.bd_pct != null ? s.bd_pct : (bytes / tope) * 100 };
 }
 
 function filaBd(s: Salud): FilaSalud {
   const e = espacioBd(s);
   if (!e) return { etiqueta: T.panelAjustes.baseDeDatos, valor: T.panelAjustes.sinDato, aviso: false };
-  const pct = (e.bytes / e.tope) * 100;
+  const { pct } = e;
   return {
     etiqueta: T.panelAjustes.baseDeDatos,
     valor: T.panelAjustes.espacioDe(mb(e.bytes), mb(e.tope)),
@@ -111,6 +108,12 @@ function textoZonaYMapa(s: Salud): string {
   return `${zona ?? T.panelAjustes.sinDato} · ${mapa ?? T.panelAjustes.sinDato}`;
 }
 
+/** Un número de fn_salud; si la base no lo trae, "sin dato" (nunca un 0 inventado). */
+const numero = (n: number | null | undefined) => (n == null ? T.panelAjustes.sinDato : String(n));
+
+/** Sin ninguna vigilancia anotada fuera de staging: nadie ha comprobado que todo responde. */
+const sinVigilancia = (s: Salud, entorno: Entorno) => !s.ultima_vigilancia && entorno !== 'staging';
+
 /** Las filas de Salud del sistema, en orden (docs/33 RV-335). */
 export function filasSalud(s: Salud, entorno: Entorno, ahora: Date = new Date()): FilaSalud[] {
   const atrasada = vigilanciaAtrasada(s.ultima_vigilancia, ahora);
@@ -131,15 +134,16 @@ export function filasSalud(s: Salud, entorno: Entorno, ahora: Date = new Date())
       valor: s.ultima_vigilancia
         ? [
             hace(s.ultima_vigilancia, ahora),
-            s.vigilancia_ok ? T.panelAjustes.vigilanciaBien : T.panelAjustes.vigilanciaMal,
+            ...(s.vigilancia_ok === true ? [T.panelAjustes.vigilanciaBien] : []),
+            ...(s.vigilancia_ok === false ? [T.panelAjustes.vigilanciaMal] : []),
             ...(atrasada ? [T.panelAjustes.vigilanciaAtrasada] : []),
           ].join(' · ')
         : T.panelAjustes.nunca,
-      aviso: atrasada || s.vigilancia_ok === false,
+      aviso: atrasada || (!!s.ultima_vigilancia && s.vigilancia_ok === false) || sinVigilancia(s, entorno),
     },
-    { etiqueta: T.panelAjustes.errores7, valor: String(s.errores_7d ?? 0), aviso: false },
-    { etiqueta: T.panelAjustes.dispositivosActivos, valor: String(s.dispositivos_activos ?? 0), aviso: false },
-    { etiqueta: T.panelAjustes.intentosFallidos24h, valor: String(s.intentos_fallidos_24h ?? 0), aviso: false },
+    { etiqueta: T.panelAjustes.errores7, valor: numero(s.errores_7d), aviso: false },
+    { etiqueta: T.panelAjustes.dispositivosActivos, valor: numero(s.dispositivos_activos), aviso: false },
+    { etiqueta: T.panelAjustes.intentosFallidos24h, valor: numero(s.intentos_fallidos_24h), aviso: false },
     { etiqueta: T.panelAjustes.zonaYMapaBase, valor: textoZonaYMapa(s), aviso: false },
   ];
 }
@@ -156,7 +160,8 @@ export function atencionSalud(s: Salud, entorno: Entorno, ahora: Date = new Date
     else if (respaldoViejo(s.ultimo_respaldo, ahora))
       lista.push(T.panelAjustes.atencionRespaldoViejo(hace(s.ultimo_respaldo, ahora)));
   }
-  if (vigilanciaAtrasada(s.ultima_vigilancia, ahora)) lista.push(T.panelAjustes.atencionVigilancia);
+  if (sinVigilancia(s, entorno)) lista.push(T.panelAjustes.atencionSinVigilancia);
+  else if (vigilanciaAtrasada(s.ultima_vigilancia, ahora)) lista.push(T.panelAjustes.atencionVigilancia);
   else if (s.ultima_vigilancia && s.vigilancia_ok === false) lista.push(T.panelAjustes.atencionVigilanciaAvisos);
   const fotos = avisoEspacioFotos(s);
   if (fotos) {
@@ -164,9 +169,12 @@ export function atencionSalud(s: Salud, entorno: Entorno, ahora: Date = new Date
       fotos.delTope ? T.panelAjustes.espacioFotosLleno(fotos.pct) : T.panelAjustes.almacenamientoLleno(fotos.pct),
     );
   }
-  const bd = pctBd(s);
-  if (bd != null && bd >= AVISAR_ESPACIO_PCT)
-    lista.push(T.panelAjustes.atencionBaseDeDatos(Math.min(Math.round(bd), 100)));
-  for (const t of tareasVisibles(s)) if (t.problema) lista.push(T.panelAjustes.atencionTarea(nombreTarea(t.tarea)));
+  const bd = espacioBd(s);
+  if (bd && bd.pct >= AVISAR_ESPACIO_PCT)
+    lista.push(T.panelAjustes.atencionBaseDeDatos(Math.min(Math.round(bd.pct), 100)));
+  for (const t of tareasVisibles(s)) {
+    if (t.falta) lista.push(T.panelAjustes.atencionTareaFalta(nombreTarea(t.tarea)));
+    else if (t.problema) lista.push(T.panelAjustes.atencionTarea(nombreTarea(t.tarea)));
+  }
   return lista;
 }

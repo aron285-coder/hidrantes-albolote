@@ -1046,9 +1046,11 @@ export const T = {
     atencionSinRespaldo: 'Todavía no hay ningún respaldo.',
     atencionRespaldoViejo: (hace: Parametro) => `El último respaldo es de ${hace}: tendría que haber uno cada semana.`,
     atencionVigilancia: 'La vigilancia lleva más de un día sin pasar.',
+    atencionSinVigilancia: 'La vigilancia no ha pasado nunca.',
     atencionVigilanciaAvisos: 'La última vigilancia dejó avisos: mira las issues.',
     atencionBaseDeDatos: (porcentaje: Parametro) => `La base de datos ocupa el ${porcentaje} % de su espacio.`,
     atencionTarea: (tarea: Parametro) => `Una tarea programada falla: ${tarea}.`,
+    atencionTareaFalta: (tarea: Parametro) => `Una tarea programada no está programada: ${tarea}.`,
     nombresTareas: {
       hidrantes_purgar_intentos: 'Borrar intentos de código viejos (cada hora)',
       hidrantes_revocar_tokens: 'Quitar el acceso a los móviles que no se usan (cada día)',
