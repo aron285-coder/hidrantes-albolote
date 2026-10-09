@@ -205,10 +205,61 @@ export function lineaCola(p: PropuestaPanel, ahora = new Date()): string {
 
 /**
  * ¿Lleva el ⚠ en la lista? Solo por lo que el detalle enseña como aviso (DEC-166): desactualizada, un
- * hidrante de otra medida, posible duplicado o fuera de zona.
+ * hidrante de otra medida, posible duplicado, fuera de zona o un punto que ya no está activo (RV-330).
  */
 export const tieneAviso = (p: PropuestaPanel) =>
-  p.desactualizada || bloqueoPorMedida(p) !== null || !!p.duplicado_de || !!p.fuera_de_zona;
+  p.desactualizada ||
+  bloqueoPorMedida(p) !== null ||
+  !!p.duplicado_de ||
+  !!p.fuera_de_zona ||
+  puntoInactivo(p) !== null;
+
+/** El punto de la propuesta ya no está activo: retirado o en la papelera, y desde cuándo (RV-330). */
+export interface PuntoInactivo {
+  situacion: 'retirado' | 'borrado';
+  /**
+   * En la papelera, `borrado_en`. Retirado, la última vez que cambió el punto (`punto_actualizado_en`):
+   * la vista no trae la fecha de retirada y un punto retirado ya no se edita. Null si no se sabe.
+   */
+  desde: string | null;
+}
+
+/**
+ * ¿Se bloquea la propuesta porque su punto ya no está activo? (docs/33 RV-330, U15/D4). Solo en las
+ * operaciones sobre un punto que existe: un alta no tiene punto y una retirada ya lo quita. Sin la
+ * fila del punto (la vista de antes de 0036) no se supone nada: lo dirá el servidor (PUNTO_NO_ACTIVO).
+ */
+export function puntoInactivo(p: PropuestaPanel, inventario?: Punto): PuntoInactivo | null {
+  if (p.operacion === 'alta' || p.operacion === 'retirada') return null;
+  const a = puntoActual(p, inventario);
+  if (!a?.situacion || a.situacion === 'activo') return null;
+  const desde = a.situacion === 'borrado' ? (a.borrado_en ?? null) : p.punto_actualizado_en;
+  return { situacion: a.situacion, desde };
+}
+
+/** El aviso rojo de arriba del detalle; sin datos (solo PUNTO_NO_ACTIVO), sin fecha. */
+export function avisoPuntoInactivo(i: PuntoInactivo | null): string {
+  if (!i?.desde) return T.panelCola.avisoNoActivo;
+  const fecha = fechaCorta(i.desde);
+  return i.situacion === 'borrado' ? T.panelCola.avisoEnPapelera(fecha) : T.panelCola.avisoRetirado(fecha);
+}
+
+/**
+ * Aprobar en bloque (FL-22) salta las de un punto que ya no está activo: no se mandan, y vuelven como
+ * omitidas con PUNTO_NO_ACTIVO para que el resumen lo diga como lo diría el servidor (RV-330).
+ */
+export function separarLote(elegidas: PropuestaPanel[]): {
+  aprobables: PropuestaPanel[];
+  saltadas: ResultadoLote[];
+} {
+  const aprobables: PropuestaPanel[] = [];
+  const saltadas: ResultadoLote[] = [];
+  for (const p of elegidas) {
+    if (puntoInactivo(p)) saltadas.push({ propuesta_id: p.id, resultado: 'omitida', motivo: 'PUNTO_NO_ACTIVO' });
+    else aprobables.push(p);
+  }
+  return { aprobables, saltadas };
+}
 
 /** Búsqueda global (FR-145): código, dirección o nombre de quien propuso. */
 export function coincide(p: PropuestaPanel, texto: string): boolean {
@@ -917,5 +968,9 @@ export function resumenLote(res: ResultadoLote[], nombre: (id: string) => string
   const fuera = res.filter((r) => r.resultado === 'omitida');
   const base = T.panelCola.loteAprobadas(aprobadas);
   if (!fuera.length) return base;
-  return `${base} ${T.panelCola.loteOmitidas(fuera.map((r) => `${nombre(r.propuesta_id)}: ${motivoOmitida(r.motivo)}`).join('; '))}`;
+  const quedan = T.panelCola.loteOmitidas(
+    fuera.map((r) => `${nombre(r.propuesta_id)}: ${motivoOmitida(r.motivo)}`).join('; '),
+  );
+  // Ninguna aprobada (todas saltadas por el panel, RV-330, u omitidas): sin "0 aprobadas".
+  return aprobadas ? `${base} ${quedan}` : quedan;
 }

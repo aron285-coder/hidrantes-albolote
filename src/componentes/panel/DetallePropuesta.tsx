@@ -35,6 +35,8 @@ import {
   recortarOpcion,
   MAXIMO_OPCION,
   bloqueoPorMedida,
+  puntoInactivo,
+  avisoPuntoInactivo,
 } from '@/lib/panel/cola';
 import { LIMITES } from '@/lib/limites';
 import { ORDEN_RACORES } from '@/lib/racores';
@@ -83,7 +85,13 @@ export function DetallePropuesta({
   // Aprobar ha fallado con PUNTO_NO_ACTIVO: repetirlo fallaría igual; solo queda rechazar (RV-270 D4,
   // UI-02). Es de esta propuesta: el componente se monta con key = id.
   const [puntoNoActivo, setPuntoNoActivo] = useState(false);
+  // El punto ya no está activo según la cola (docs/33 RV-330, U15) o según el servidor al aprobar: no se
+  // aprueba ni se corrige; se dice arriba y la acción principal pasa a ser rechazar.
+  const inactivo = useMemo(() => puntoInactivo(p, punto), [p, punto]);
+  const bloqueado = p.estado === 'pendiente' && (puntoNoActivo || inactivo !== null);
   const desactualizada = p.desactualizada || puntoCambiado;
+  // Un punto retirado también "cambió": eso no se pide confirmar, porque no se puede aprobar.
+  const confirmar = desactualizada && !bloqueado;
   // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
   // la del punto. Es con lo que se compara al aprobar: lo que no se toca no es una corrección (RV-162).
   const [ensenada, setEnsenada] = useState(
@@ -221,6 +229,15 @@ export function DetallePropuesta({
             </span>
           </header>
 
+          {bloqueado && (
+            <p
+              data-testid="aviso-punto-inactivo"
+              className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo border px-3 py-2 text-[14px] font-semibold"
+            >
+              {avisoPuntoInactivo(inactivo)}
+            </p>
+          )}
+
           {/* En el móvil, el mapa de borde a borde y fijo arriba mientras se desplaza lo demás. */}
           <MinimapaPropuesta
             plan={plan}
@@ -275,6 +292,7 @@ export function DetallePropuesta({
                 )}
                 {modo === 'rechazar' && (
                   <FormularioRechazo
+                    inicial={bloqueado ? T.panelCola.motivoNoActivo : ''}
                     ocupado={ocupado}
                     alCancelar={() => setModo(null)}
                     alConfirmar={(m) => void ejecutar(() => rechazar(p.id, m), T.panelCola.rechazadaAviso, 'rechazar')}
@@ -319,25 +337,32 @@ export function DetallePropuesta({
             !pantalla && 'sticky bottom-0',
           )}
         >
-          {desactualizada && <AvisoDesactualizada p={p} />}
-          {puntoNoActivo ? (
+          {confirmar && <AvisoDesactualizada p={p} />}
+          {bloqueado ? (
             <p className="text-texto-suave mb-1.5 text-[12px]">{T.panelCola.soloRechazar}</p>
           ) : (
             bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>
           )}
           {avisoEspera}
           <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
+            {/* La acción principal, delante, cuando el punto ya no existe (RV-330). */}
+            {bloqueado && (
+              <Boton variante="destructivo" disabled={ocupado} onClick={() => setModo('rechazar')}>
+                {T.panelCola.rechazarNoExiste}
+              </Boton>
+            )}
             <Boton
-              className={desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
-              disabled={ocupado || !!bloqueoAprobar || esperando || puntoNoActivo}
+              className={bloqueado ? undefined : confirmar ? 'bg-rojo-700' : 'bg-verde-600'}
+              variante={bloqueado ? 'secundario' : undefined}
+              disabled={ocupado || !!bloqueoAprobar || esperando || bloqueado}
               onClick={() => void aprobarTalCual()}
             >
-              {desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
+              {confirmar ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
             </Boton>
             {p.operacion !== 'retirada' && (
               <Boton
                 variante="secundario"
-                disabled={ocupado || puntoNoActivo}
+                disabled={ocupado || bloqueado}
                 onClick={() => setModo('corregir')}
                 aria-label={T.panelCola.aprobarConCorrecciones}
               >
@@ -355,14 +380,16 @@ export function DetallePropuesta({
                 {T.panelCola.fusionarCon(duplicado.codigo)}
               </Boton>
             )}
-            <Boton
-              variante="secundario"
-              className="border-rojo-texto text-rojo-texto"
-              disabled={ocupado}
-              onClick={() => setModo('rechazar')}
-            >
-              {T.panelCola.rechazar}
-            </Boton>
+            {!bloqueado && (
+              <Boton
+                variante="secundario"
+                className="border-rojo-texto text-rojo-texto"
+                disabled={ocupado}
+                onClick={() => setModo('rechazar')}
+              >
+                {T.panelCola.rechazar}
+              </Boton>
+            )}
           </div>
         </div>
       )}
@@ -879,15 +906,18 @@ function Fila({ etiqueta, children }: { etiqueta: string; children: React.ReactN
 }
 
 function FormularioRechazo({
+  inicial,
   ocupado,
   alConfirmar,
   alCancelar,
 }: {
+  /** El motivo ya escrito, editable: "El punto ya no está activo" si ya no existe (RV-330). */
+  inicial: string;
   ocupado: boolean;
   alConfirmar: (motivo: string) => void;
   alCancelar: () => void;
 }) {
-  const [motivo, setMotivo] = useState('');
+  const [motivo, setMotivo] = useState(inicial);
   const [intentado, setIntentado] = useState(false);
   return (
     <div className="border-linea bg-papel rounded-campo border p-3">
