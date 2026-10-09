@@ -298,6 +298,19 @@ test('panel-inventario: editar no ofrece el tipo', async ({ page }) => {
   await expect(dialogo.getByText(T.panelErrores.tipoNoModificable)).toBeVisible();
 });
 
+// Corte de 1100 px: a 1099 px Editar es el panel lateral de 500 px de la tableta, no la pantalla entera
+// (en Tailwind v4 `max-[1099px]` es «menor que 1099» y a 1099 exactos no valía ningún ancho).
+test('a 1099 px, Editar es el panel lateral de 500 px', async ({ page, isMobile }) => {
+  test.skip(!!isMobile, 'fija su ventana');
+  await page.setViewportSize({ width: 1099, height: 900 });
+  await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  const fila = page.getByRole('row').filter({ hasText: P0.codigo });
+  await fila.getByRole('button', { name: T.panel.editar }).click();
+  const caja = (await page.getByRole('dialog').boundingBox())!;
+  expect(Math.abs(caja.width - 500)).toBeLessThanOrEqual(1);
+});
+
 test('inventario: retirar pide motivo y el historial se puede consultar (FR-123, FR-124)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/inventario');

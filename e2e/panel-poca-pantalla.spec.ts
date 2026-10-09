@@ -210,3 +210,25 @@ test.describe('RV-331: panel con poca pantalla', () => {
     });
   }
 });
+
+// Los cortes del panel casan sin hueco: en Tailwind v4, `max-[N]` es «menor que N», así que junto a
+// `min-[1100px]` va `max-[1100px]`; con `max-[1099px]`, a 1099 px exactos no valía ninguno de los dos.
+test.describe('a 1099 px, la tableta ancha (corte de 1100 px)', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'cada test fija su ventana');
+
+  test('el detalle de la Cola lleva el mapa de 280 px y los botones repartidos', async ({ page }) => {
+    await page.setViewportSize({ width: 1099, height: 1000 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await lista.getByRole('button', { name: new RegExp(COLA[1]!.codigo) }).click();
+    const detalle = page.getByRole('article');
+    const mapa = (await detalle.getByTestId('minimapa-propuesta').boundingBox())!;
+    expect(Math.abs(mapa.height - 280)).toBeLessThanOrEqual(1);
+    const acciones = detalle.getByTestId('acciones-propuesta');
+    const aprobar = (await acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true }).boundingBox())!;
+    const rechazar = (await acciones.getByRole('button', { name: T.panelCola.rechazar }).boundingBox())!;
+    // Repartidos a partes iguales, como de 768 a 1099 px (sin el reparto, 80 px de diferencia).
+    expect(Math.abs(aprobar.width - rechazar.width)).toBeLessThanOrEqual(4);
+  });
+});
