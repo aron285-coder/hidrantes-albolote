@@ -105,10 +105,12 @@ const FORMATOS: { formato: Formato; nombre: string }[] = [
   { formato: 'xlsx', nombre: T.panel.excel },
   { formato: 'csv', nombre: T.panel.csv },
   { formato: 'geojson', nombre: T.panel.geojson },
+  // docs/33 RV-335: el inventario completo en JSON, que antes estaba en Salud del sistema.
+  { formato: 'json', nombre: T.panel.inventarioCompletoJson },
 ];
 
 /**
- * Exportar ▾ (docs/29 RV-123): un botón secundario que abre un menú con los tres formatos. Patrón
+ * Exportar ▾ (docs/29 RV-123): un botón secundario que abre un menú con los formatos. Patrón
  * de botón de menú de WAI-ARIA: flechas, Inicio y Fin dentro del menú; Esc lo cierra y devuelve el
  * foco al botón; tocar fuera o Tab lo cierran sin quitar el foco de donde vaya. Sin filas que
  * exportar, deshabilitado y con el motivo debajo (UI-02). Mientras exporta, ocupado: dice
@@ -379,6 +381,12 @@ export default function Inventario() {
   async function exportarCon(formato: Formato) {
     setExportando(true);
     try {
+      // El inventario completo (JSON) no lleva filtros ni búsqueda: es todo, para consulta (RV-335).
+      if (formato === 'json') {
+        const r = await exportar('json', {});
+        if (!r.ok) return avisar(textoError(r.codigo), 'error');
+        return avisar(T.panelAjustes.inventarioDescargado(r.datos));
+      }
       // El servidor filtra lo que entiende (05 §6.2); la búsqueda no la conoce, así que con búsqueda
       // el archivo lleva solo lo que se ve en la tabla (FR-160, RV-24).
       const r = await exportar(

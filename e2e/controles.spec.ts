@@ -332,7 +332,7 @@ const PANTALLAS_PANEL: Pantalla[] = [
 ];
 
 /** Controles del panel cuyo efecto es un archivo: se pulsan y se espera la descarga. */
-const DESCARGAS_PANEL = new Set([T.panel.excel, T.panel.csv, T.panel.geojson, T.panel.descargarInventario]);
+const DESCARGAS_PANEL = new Set([T.panel.excel, T.panel.csv, T.panel.geojson, T.panel.inventarioCompletoJson]);
 
 /** Controles del panel que no se pulsan en el recorrido, con el motivo. */
 const NO_SE_PULSAN_PANEL = new Map<string, string>([

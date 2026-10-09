@@ -1,5 +1,6 @@
 // Panel · inventario, registro y papelera (FR-120, FR-123–FR-125, FR-160; FL-24, FL-26, FL-32).
 
+import { readFileSync } from 'node:fs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
@@ -341,6 +342,29 @@ test('inventario: exportar en los tres formatos (FR-160, FL-32)', async ({ page 
   expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: {} });
 });
 
+// docs/33 RV-335: el JSON del inventario sale de Salud del sistema y es la cuarta opción de Exportar.
+// Es el inventario completo: no lleva los filtros ni la búsqueda (FR-144, consulta, no respaldo).
+test('Exportar ▾: «Inventario completo (JSON)», sin filtros (docs/33 RV-335)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  await tipo(page).selectOption('hidrante');
+  await page.getByRole('button', { name: T.panel.exportar }).click();
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([
+    T.panel.excel,
+    T.panel.csv,
+    T.panel.geojson,
+    T.panel.inventarioCompletoJson,
+  ]);
+  const descarga = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: T.panel.inventarioCompletoJson, exact: true }).click();
+  const archivo = await descarga;
+  expect(archivo.suggestedFilename()).toMatch(/^hidrantes-albolote-\d{4}-\d{2}-\d{2}\.json$/);
+  const filas = JSON.parse(readFileSync((await archivo.path())!, 'utf8')) as { codigo: string }[];
+  expect(filas.length).toBe(2);
+  expect(llamadas.filter((l) => l.nombre === 'fn_exportar_inventario').at(-1)?.cuerpo).toEqual({ filtros: {} });
+  await expect(page.getByRole('status').filter({ hasText: T.panelAjustes.inventarioDescargado(2) })).toBeVisible();
+});
+
 test('registro: filtro por acción, solo lectura (FR-123, FL-26)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/registro');
@@ -528,13 +552,20 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
   await boton.focus();
   await page.keyboard.press('ArrowDown');
   await expect(boton).toHaveAttribute('aria-expanded', 'true');
-  await expect(menu.getByRole('menuitem')).toHaveText([T.panel.excel, T.panel.csv, T.panel.geojson]);
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    T.panel.excel,
+    T.panel.csv,
+    T.panel.geojson,
+    T.panel.inventarioCompletoJson,
+  ]);
   await expect(menu.getByRole('menuitem', { name: T.panel.excel })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(menu.getByRole('menuitem', { name: T.panel.csv })).toBeFocused();
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
-  await expect(menu.getByRole('menuitem', { name: T.panel.geojson })).toBeFocused();
+  await expect(menu.getByRole('menuitem', { name: T.panel.inventarioCompletoJson })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(menu.getByRole('menuitem', { name: T.panel.inventarioCompletoJson })).toBeFocused();
   await page.keyboard.press('Home');
   await expect(menu.getByRole('menuitem', { name: T.panel.excel })).toBeFocused();
   await page.keyboard.press('Escape');
@@ -552,6 +583,7 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
   await tipo(page).selectOption('hidrante');
   await estado(page).selectOption('malo');
   await boton.focus();
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
   await expect(menu.getByRole('menuitem', { name: T.panel.geojson })).toBeFocused();
   const descarga = page.waitForEvent('download');

@@ -23,9 +23,8 @@ const {
   contarDispositivos,
   estadoPedido,
   revocarDispositivo,
-  textoBaseDeDatos,
-  textoEspacioFotos,
 } = await import('./ajustes');
+const { filasSalud } = await import('./salud');
 const { textoError } = await import('./errores');
 const { T } = await import('../textos');
 type Salud = import('./ajustes').Salud;
@@ -50,21 +49,25 @@ describe('Salud: espacio de fotos y de la base de datos (docs/32 RV-262)', () =>
     bd_pct: 9.5,
   };
 
-  it('fotos en MB y % del tope; la base de datos, igual', () => {
-    expect(textoEspacioFotos(con0041, 'produccion')).toBe(T.panelAjustes.espacioDetalle('200,0', '26,9', '800,0'));
-    expect(textoBaseDeDatos(con0041)).toBe(T.panelAjustes.espacioDetalle('38,0', '9,5', '400,0'));
+  // Desde docs/33 RV-335, "MB de [tope]" con barra (filasSalud, en salud.test.ts).
+  const valor = (s: Salud, etiqueta: string, entorno: 'produccion' | 'staging' = 'produccion') =>
+    filasSalud(s, entorno).find((f) => f.etiqueta === etiqueta)?.valor;
+
+  it('fotos en MB de su tope; la base de datos, igual', () => {
+    expect(valor(con0041, T.panelAjustes.fotos)).toBe(T.panelAjustes.espacioDe('200', '800'));
+    expect(valor(con0041, T.panelAjustes.baseDeDatos)).toBe(T.panelAjustes.espacioDe('38', '400'));
   });
 
   it('medido en el último respaldo (sin lectura en vivo), se dice', () => {
-    expect(textoEspacioFotos({ ...con0041, fotos_origen: 'respaldo' }, 'produccion')).toBe(
-      T.panelAjustes.espacioSegunRespaldo(T.panelAjustes.espacioDetalle('200,0', '26,9', '800,0')),
+    expect(valor({ ...con0041, fotos_origen: 'respaldo' }, T.panelAjustes.fotos)).toBe(
+      T.panelAjustes.espacioSegunRespaldo(T.panelAjustes.espacioDe('200', '800')),
     );
   });
 
   it('sin el dato de 0041 (o sin medir), como antes', () => {
-    expect(textoEspacioFotos(SALUD, 'staging')).toBe(T.panelAjustes.almacenamientoNoAplica);
-    expect(textoEspacioFotos({ ...con0041, fotos_origen: 'sin_dato' }, 'produccion')).toBe(T.panelAjustes.sinDato);
-    expect(textoBaseDeDatos(SALUD)).toBe(T.panelAjustes.baseDeDatosDetalle('38,0', '500,0'));
+    expect(valor(SALUD, T.panelAjustes.fotos, 'staging')).toBe(T.panelAjustes.almacenamientoNoAplica);
+    expect(valor({ ...con0041, fotos_origen: 'sin_dato' }, T.panelAjustes.fotos)).toBe(T.panelAjustes.sinDato);
+    expect(valor(SALUD, T.panelAjustes.baseDeDatos)).toBe(T.panelAjustes.espacioDe('38', '500'));
   });
 
   it('avisa desde el 70 % del tope de fotos, con el texto del tope', () => {

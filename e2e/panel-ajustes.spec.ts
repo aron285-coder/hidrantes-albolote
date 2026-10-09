@@ -264,10 +264,8 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
   const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
   await expect(salud.getByText('112,0 MB')).toBeVisible();
   await expect(salud.getByText('61')).toBeVisible();
-
-  const descarga = page.waitForEvent('download');
-  await salud.getByRole('button', { name: T.panel.descargarInventario }).click();
-  expect((await descarga).suggestedFilename()).toMatch(/^hidrantes-albolote-\d{4}-\d{2}-\d{2}\.json$/);
+  // El JSON del inventario está ahora en Inventario → Exportar (docs/33 RV-335).
+  await expect(salud.getByRole('button')).toHaveCount(0);
 
   // docs/31 RV-146 y RV-167: el panel deja un pedido; el aviso lo dice así.
   const pedido = page.waitForRequest((r) => r.url().includes('/api/lanzar-workflow') && r.method() === 'POST');
@@ -309,14 +307,18 @@ test('Salud del sistema enseña la base de datos y las tareas programadas (RV-22
   await prepararPanel(page);
   await page.goto('/admin/ajustes');
   const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
-  await expect(salud.getByText(T.panelAjustes.baseDeDatosDetalle('38,0', '500,0'))).toBeVisible();
+  await expect(salud.getByText(T.panelAjustes.espacioDe('38', '500'))).toBeVisible();
+  // Con su nombre en palabras; «Borrar errores viejos» y «Resumen semanal» ya no salen (docs/33 RV-335).
   const tareas = salud.getByTestId('tareas-programadas');
-  await expect(tareas.getByText('purgar_errores')).toBeVisible();
-  await expect(tareas.getByText(T.panelAjustes.tareaSinEjecutar)).toBeVisible();
-  await expect(tareas.getByText(/falló o va con retraso/)).toBeVisible();
-  await expect(tareas.getByRole('listitem').filter({ hasText: 'revocar_tokens' })).toContainText(
-    T.panelAjustes.tareaFalta,
-  );
+  await expect(tareas.getByRole('listitem')).toHaveCount(2);
+  await expect(tareas).not.toContainText('purgar_errores');
+  await expect(tareas).not.toContainText('resumen_semanal');
+  await expect(
+    tareas.getByRole('listitem').filter({ hasText: T.panelAjustes.nombresTareas.hidrantes_purgar_subidas }),
+  ).toContainText(/falló o va con retraso/);
+  await expect(
+    tareas.getByRole('listitem').filter({ hasText: T.panelAjustes.nombresTareas.hidrantes_revocar_tokens }),
+  ).toContainText(T.panelAjustes.tareaFalta);
 });
 
 // docs/20 RV-78: en staging no se hacen respaldos (solo de producción). "todavía ninguno" se leía
@@ -341,7 +343,7 @@ test('en staging, el almacenamiento sin dato dice que no se mide en pruebas (RV-
   const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
   const fila = salud
     .locator('div')
-    .filter({ has: page.getByText(T.panelAjustes.almacenamiento, { exact: true }) })
+    .filter({ has: page.getByText(T.panelAjustes.fotos, { exact: true }) })
     .last();
   await expect(fila).toContainText(T.panelAjustes.almacenamientoNoAplica);
   await expect(fila).not.toContainText(T.panelAjustes.sinDato);
@@ -388,7 +390,7 @@ test.describe('Salud del sistema: tareas en vivo o de la vigilancia (RV-92)', ()
     // El SQLSTATE es para diagnóstico: no se enseña (UI-13).
     await expect(page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first()).not.toContainText('42501');
     // Con el bucket vacío, 0 es un dato (RV-94).
-    await expect(filaDe(page, T.panelAjustes.almacenamiento).locator('dd')).toHaveText('0,0 MB');
+    await expect(filaDe(page, T.panelAjustes.fotos).locator('dd')).toHaveText('0,0 MB');
     // Para revisarla una persona (revisar-pantallas).
     const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
     const captura = info.outputPath('salud-vigilancia.png');
@@ -559,8 +561,9 @@ test('Salud: espacio de fotos y de la base, y «Revocar este móvil» (docs/32 R
   const llamadas = await prepararPanel(page, { salud: SALUD_0041 });
   await page.goto('/admin/ajustes');
   const salud = tarjetaDe(page, T.panel.saludSistema);
-  await expect(salud.getByText(T.panelAjustes.espacioDetalle('200,0', '72,4', '800,0'))).toBeVisible();
-  await expect(salud.getByText(T.panelAjustes.espacioDetalle('38,0', '9,5', '400,0'))).toBeVisible();
+  await expect(salud.getByText(T.panelAjustes.espacioDe('200', '800'))).toBeVisible();
+  // La base de datos, con lo que ocupa el esquema (docs/33 RV-301, RV-335).
+  await expect(salud.getByText(T.panelAjustes.espacioDe('3', '400'))).toBeVisible();
   // Al 72 %, el aviso del tope (no el del gigabyte).
   await expect(salud.getByRole('status').filter({ hasText: T.panelAjustes.espacioFotosLleno(72) })).toBeVisible();
 
@@ -607,6 +610,94 @@ test('Salud: sin móviles con fotos pedidas, lo dice (docs/32 RV-262)', async ({
   await prepararPanel(page, { salud: { ...SALUD_0041, reservas_dispositivos_24h: [] } });
   await page.goto('/admin/ajustes');
   await expect(tarjetaDe(page, T.panel.saludSistema).getByText(T.panelAjustes.reservasVacio)).toBeVisible();
+});
+
+// ---------- docs/33 RV-335 (U13): Salud del sistema en palabras ----------
+
+test.describe('Salud del sistema en palabras (docs/33 RV-335)', () => {
+  const haceH = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  const BIEN = {
+    ...SALUD_0041,
+    fotos_bytes: 112 * MB,
+    fotos_pct: 14,
+    esquema_bytes: 38 * MB,
+    ultimo_respaldo: haceH(20),
+    ultima_vigilancia: haceH(1),
+    tareas: [
+      { tarea: 'hidrantes_purgar_papelera', ultima: haceH(6), fallo: false, problema: false },
+      { tarea: 'hidrantes_resumen_semanal', ultima: null, fallo: false, problema: false },
+    ],
+  };
+
+  test('«Todo bien» arriba y lo que queda, con nombres en palabras', async ({ page }, info) => {
+    await prepararPanel(page, { salud: BIEN });
+    await page.goto('/admin/ajustes');
+    const salud = tarjetaDe(page, T.panel.saludSistema);
+    await expect(salud.getByTestId('resumen-salud')).toHaveText(T.panelAjustes.todoBien);
+    await expect(salud.locator('dl > div > dt')).toHaveText([
+      T.panelAjustes.fotos,
+      T.panelAjustes.baseDeDatos,
+      T.panelAjustes.ultimoRespaldo,
+      T.panelAjustes.ultimaVigilancia,
+      T.panelAjustes.errores7,
+      T.panelAjustes.dispositivosActivos,
+      T.panelAjustes.intentosFallidos24h,
+      T.panelAjustes.zonaYMapaBase,
+      // Debajo, las tareas (TR-54) y los móviles con más fotos pedidas (RV-262).
+      new RegExp(`^${T.panelAjustes.tareasProgramadas}`),
+      T.panelAjustes.reservasPorMovil,
+    ]);
+    await expect(salud.getByText(T.panelAjustes.espacioDe('112', '800'))).toBeVisible();
+    await expect(salud.getByTestId('barra-espacio')).toHaveCount(2);
+    await expect(salud.getByText('14 jul 2026')).toBeVisible();
+    // Fuera (indicación del desarrollador): las tareas siguen funcionando, solo no salen aquí.
+    for (const fuera of [/Propuestas pendientes/, /Puntos sin dirección/, /Resumen semanal/, /Borrar errores/]) {
+      await expect(salud).not.toContainText(fuera);
+    }
+    const tareas = salud.getByTestId('tareas-programadas').getByRole('listitem');
+    await expect(tareas).toHaveCount(1);
+    await expect(tareas).toContainText(T.panelAjustes.nombresTareas.hidrantes_purgar_papelera);
+    const captura = info.outputPath('salud-todo-bien.png');
+    await salud.screenshot({ path: captura });
+    await info.attach('salud-todo-bien', { path: captura, contentType: 'image/png' });
+  });
+
+  test('lo que necesita atención, arriba y en tono de aviso', async ({ page }, info) => {
+    await prepararPanel(page, {
+      salud: {
+        ...BIEN,
+        fotos_pct: 72.4,
+        esquema_bytes: 300 * MB,
+        ultima_vigilancia: haceH(30),
+        tareas: [{ tarea: 'hidrantes_purgar_subidas', ultima: haceH(50), fallo: true, problema: true }],
+      },
+    });
+    await page.goto('/admin/ajustes');
+    const salud = tarjetaDe(page, T.panel.saludSistema);
+    const resumen = salud.getByTestId('resumen-salud');
+    await expect(resumen).toHaveAttribute('role', 'status');
+    await expect(resumen.getByRole('listitem')).toHaveText([
+      T.panelAjustes.atencionVigilancia,
+      T.panelAjustes.espacioFotosLleno(72),
+      T.panelAjustes.atencionBaseDeDatos(75),
+      T.panelAjustes.atencionTarea(T.panelAjustes.nombresTareas.hidrantes_purgar_subidas),
+    ]);
+    await expect(resumen).not.toContainText(T.panelAjustes.todoBien);
+    const captura = info.outputPath('salud-atencion.png');
+    await salud.screenshot({ path: captura });
+    await info.attach('salud-atencion', { path: captura, contentType: 'image/png' });
+  });
+
+  test('sin los datos nuevos de la base, no rompe', async ({ page }) => {
+    await prepararPanel(page, {
+      salud: { ...SALUD, ultima_vigilancia: haceH(1), tareas: null, intentos_fallidos_24h: undefined },
+    });
+    await page.goto('/admin/ajustes');
+    const salud = tarjetaDe(page, T.panel.saludSistema);
+    await expect(salud.getByTestId('resumen-salud')).toHaveText(T.panelAjustes.todoBien);
+    await expect(salud.getByText('112,0 MB')).toBeVisible();
+    await expect(salud.getByTestId('barra-espacio')).toHaveCount(1);
+  });
 });
 
 // RV-260: los últimos pedidos con su estado; el error, con su texto.
