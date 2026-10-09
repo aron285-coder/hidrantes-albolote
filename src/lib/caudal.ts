@@ -1,7 +1,7 @@
 // Estados de caudal que esta versión de la app conoce (06 §2.2, FR-18) y qué hacer con uno que no
 // conoce (docs/24 RV-102a). El servidor puede añadir un estado nuevo antes de que todos los móviles
-// se actualicen: la app vieja no se rompe, lo dibuja como «no funciona» (tamaño mínimo, gris y
-// tachado) y avisa una vez de que hay que actualizar.
+// se actualicen: la app vieja no se rompe, lo dibuja como «no funciona» (tamaño mínimo, blanco con
+// borde gris y aspa, docs/33 RV-319) y avisa una vez de que hay que actualizar.
 
 import type { Caudal } from '../tipos/punto';
 import { anotarError } from './errores';

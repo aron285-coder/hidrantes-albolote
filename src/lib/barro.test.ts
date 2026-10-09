@@ -45,12 +45,12 @@ describe('Barro, un estado conocido (RV-102)', () => {
     expect(claseChip(BARRO)).toBe('bg-marron-100 text-marron-700');
   });
 
-  it('marcador: tamaño mínimo, tachado y marrón, sin atenuar (FR-61)', () => {
+  it('marcador: tamaño mínimo, marrón con una «B» y sin atenuar (FR-61, docs/33 RV-319)', () => {
     expect(radioPx(100, BARRO, CONFIG_POR_DEFECTO.escala_radios)).toBe(CONFIG_POR_DEFECTO.escala_radios[4]);
     const svg = svgMarcador({ tipo: 'hidrante', caudal: BARRO, radio_px: 5, revision_caducada: false });
     expect(svg).toContain(`fill="${COLOR_CAUDAL.barro}"`);
     expect(COLOR_CAUDAL.barro).toBe('var(--marron-600)');
-    expect(svg).toContain('data-tachado');
+    expect(svg).toContain('data-letra');
     expect(svg).not.toContain('opacity="0.5"');
   });
 
