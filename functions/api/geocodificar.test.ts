@@ -46,8 +46,13 @@ const CALLE_SIN_COORDENADAS = {
 };
 const LEJOS = { ...PORTAL, id: 'lejos', address: 'CALLE REAL 12, Madrid', lat: 40.4168, lng: -3.7038 };
 
+/** Lo que contesta PostgREST cuando el rol no tiene execute sobre la función. */
+const PERMISO_DENEGADO = () =>
+  new Response(JSON.stringify({ code: '42501', message: 'permission denied for function' }), { status: 401 });
+
 interface Red {
-  tokenValido?: boolean;
+  /** fn_validar_token: vale (por defecto), lo rechaza o falla por dentro (permiso denegado). */
+  tokenValido?: boolean | 'sin_permiso';
   admin?: boolean;
   candidatos?: unknown[] | Error;
   find?: unknown;
@@ -55,16 +60,25 @@ interface Red {
 
 function fingirRed(red: Red) {
   const llamadas: string[] = [];
-  const espia = vi.spyOn(globalThis, 'fetch').mockImplementation((entrada) => {
+  /** Cuerpo de cada llamada a una RPC, por nombre (la última). */
+  const cuerpos = new Map<string, unknown>();
+  const espia = vi.spyOn(globalThis, 'fetch').mockImplementation((entrada, opciones) => {
     const url = String(entrada instanceof URL ? entrada.href : entrada instanceof Request ? entrada.url : entrada);
     llamadas.push(url);
-    if (url.includes('fn_listar_puntos')) {
+    const rpc = /\/rest\/v1\/rpc\/(\w+)$/.exec(url)?.[1];
+    const texto = (opciones as RequestInit | undefined)?.body;
+    if (rpc && typeof texto === 'string') cuerpos.set(rpc, JSON.parse(texto));
+    // Como en Supabase: service_role no ejecuta fn_listar_puntos (#561); fn_validar_token sí (0043).
+    if (url.includes('fn_listar_puntos')) return Promise.resolve(PERMISO_DENEGADO());
+    if (url.includes('fn_validar_token')) {
+      if (red.tokenValido === 'sin_permiso') return Promise.resolve(PERMISO_DENEGADO());
       return Promise.resolve(
         red.tokenValido === false
           ? new Response(JSON.stringify({ code: 'P0001', message: 'TOKEN_INVALIDO: no' }), { status: 400 })
-          : new Response('{}'),
+          : new Response('"a5610000-0000-4000-8000-000000000561"'),
       );
     }
+    if (url.includes('fn_registrar_error')) return Promise.resolve(new Response(null, { status: 204 }));
     if (url.includes('fn_es_admin')) return Promise.resolve(new Response(String(red.admin ?? true)));
     if (url.includes('/candidates?')) {
       const c = red.candidatos ?? [PORTAL];
@@ -82,7 +96,7 @@ function fingirRed(red: Red) {
     }
     return Promise.resolve(new Response('null', { status: 404 }));
   });
-  return { espia, llamadas };
+  return { espia, llamadas, cuerpos };
 }
 
 /** `caches.default` de Cloudflare, en memoria. */
@@ -117,6 +131,29 @@ describe('POST /api/geocodificar', () => {
     expect((await responder(peticion({ q: 'calle real 12' }, { Authorization: 'Bearer aaa.bbb.ccc' }))).status).toBe(
       401,
     );
+  });
+
+  it('el token del voluntario se comprueba con fn_validar_token, que service_role sí puede ejecutar (#561)', async () => {
+    fingirCache();
+    const { llamadas, cuerpos } = fingirRed({});
+    const r = await responder(peticion({ token: 'tok_valido_de_un_movil_0561', q: 'calle real 12' }));
+    expect(r.status).toBe(200);
+    expect(cuerpos.get('fn_validar_token')).toEqual({ token: 'tok_valido_de_un_movil_0561' });
+    expect(llamadas.some((u) => u.includes('fn_listar_puntos'))).toBe(false);
+  });
+
+  it('si el token no se puede comprobar, 503 (no «vuelve a entrar») y queda anotado sin el token', async () => {
+    const { llamadas, cuerpos } = fingirRed({ tokenValido: 'sin_permiso' });
+    const r = await responder(peticion({ token: 'tok_valido_de_un_movil_0561', q: 'calle real 12' }));
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'SERVIDOR_NO_DISPONIBLE' });
+    expect(cuerpos.get('fn_registrar_error')).toMatchObject({
+      mensaje: 'validar_token_fallo: NO_AUTORIZADO',
+      ruta: '/api/geocodificar',
+      ip_hash: 'funcion:validar_token',
+    });
+    expect(JSON.stringify(cuerpos.get('fn_registrar_error'))).not.toContain('tok_valido_de_un_movil_0561');
+    expect(llamadas.some((u) => u.includes('cartociudad'))).toBe(false);
   });
 
   it('q de menos de 3 o más de 120 caracteres: 400', async () => {
