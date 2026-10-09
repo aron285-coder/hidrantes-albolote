@@ -66,13 +66,16 @@ describe('aviso de versión nueva (RV-313)', () => {
     expect(html).toMatch(new RegExp(`<button[^>]*>${T.version.actualizar}</button>`));
   });
 
+  // Con aria-live y no role=status: no se confunde con los demás «status» de la pantalla (la banda de pruebas).
   it('el lector de pantalla lo oye por una región que está siempre montada', () => {
     estado.hay = false;
-    expect(pintar('/')).toMatch(/<p role="status" class="sr-only"><\/p>/);
+    expect(pintar('/')).toMatch(/<p aria-live="polite" class="sr-only" data-testid="anuncio-version"><\/p>/);
     estado.hay = true;
-    expect(pintar('/')).toMatch(new RegExp(`<p role="status" class="sr-only">${T.version.hay}</p>`));
+    expect(pintar('/')).toMatch(
+      new RegExp(`<p aria-live="polite" class="sr-only" data-testid="anuncio-version">${T.version.hay}</p>`),
+    );
     expect(pintar('/proponer/alta')).toMatch(
-      new RegExp(`<p role="status" class="sr-only">${T.version.alTerminar}</p>`),
+      new RegExp(`<p aria-live="polite" class="sr-only" data-testid="anuncio-version">${T.version.alTerminar}</p>`),
     );
   });
 });

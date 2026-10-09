@@ -108,7 +108,7 @@ export function AvisoVersion() {
   return (
     <>
       {/* Siempre montada, para que el lector de pantalla anuncie el aviso cuando llega. */}
-      <p role="status" className="sr-only">
+      <p aria-live="polite" className="sr-only" data-testid="anuncio-version">
         {hay ? (formulario ? T.version.alTerminar : T.version.hay) : ''}
       </p>
       {hay && enPanel && (
