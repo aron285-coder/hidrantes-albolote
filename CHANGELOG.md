@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.11.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.11.0...hidrantes-albolote-v0.11.1) (2026-10-09)
+
+
+### Correcciones
+
+* **ajustes:** en Novedades salen también los cambios de la navegación, los formularios, Mis propuestas y la entrada ([#632](https://github.com/aron285-coder/hidrantes-albolote/issues/632)) ([852cbc7](https://github.com/aron285-coder/hidrantes-albolote/commit/852cbc7e3b621477f011ee1e651dc383aa7a26eb))
+* **ci:** las bibliotecas de los navegadores salen de una caché por imagen del runner, sin el espejo de Ubuntu ([#633](https://github.com/aron285-coder/hidrantes-albolote/issues/633)) ([6ca7b23](https://github.com/aron285-coder/hidrantes-albolote/commit/6ca7b23d8135317c22f8580f8c18aa14b084a7e2))
+* **navegacion:** en el ordenador, Mis propuestas también lleva la barra de arriba ([#628](https://github.com/aron285-coder/hidrantes-albolote/issues/628)) ([52b7050](https://github.com/aron285-coder/hidrantes-albolote/commit/52b7050e4cc3cebf6a75baa11b5ea58a2216f3a6))
+
 ## [0.11.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.10.1...hidrantes-albolote-v0.11.0) (2026-10-09)
 
 
