@@ -60,16 +60,26 @@ revisar_bd() {
   revisar_espacio "$bd"
   # Intentos del código de acceso (RV-14, TR-41): muchos fallos o un tope de todo el grupo
   # alcanzado son la huella de un ataque, y los voluntarios con móvil nuevo no podrían entrar.
+  # La tercera columna (docs/33 RV-300, 0044): móviles con el código bueno frenados por un tope de
+  # canjes buenos. Se lee con to_jsonb para que la consulta no falle en una base sin 0044.
   if ! intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$bd" -c \
-    "select count(*) filter (where not exito and not bloqueado), count(*) filter (where bloqueado and tope in ('global', 'altas_global')) from hidrantes.intentos_codigo where momento > now() - interval '24 hours';" 2>/dev/null); then
+    "select count(*) filter (where not exito and not bloqueado), count(*) filter (where bloqueado and tope in ('global', 'altas_global')), count(distinct coalesce(dispositivo_id::text, ip_hash)) filter (where bloqueado and tope in ('altas_ip', 'altas_global') and coalesce((to_jsonb(i) ->> 'codigo_correcto')::boolean, false)) from hidrantes.intentos_codigo i where momento > now() - interval '24 hours';" 2>/dev/null); then
     problemas+=("no se pueden leer los intentos del código de acceso")
     return 0
   fi
-  read -r fallidos globales <<< "$intentos"
+  read -r fallidos globales frenadas <<< "$intentos"
   if [ "${fallidos:-0}" -gt 300 ] || [ "${globales:-0}" -gt 0 ]; then
     problemas+=("posible ataque al código de acceso ($fallidos fallos y $globales bloqueos de todo el grupo en 24 h): cambia el código (15 §5.4)")
   fi
+  if [ "${frenadas:-0}" -gt "$FRENADAS_MAX" ]; then
+    problemas+=("Hay voluntarios que no pueden entrar: abre la entrada 24 h en Ajustes ($frenadas móviles con el código bueno frenados por el tope de entradas en 24 h; DEC-190)")
+    avisar_jefatura "$bd" 'Voluntarios sin poder entrar' 'Hay voluntarios que no pueden entrar: abre la entrada 24 h en Ajustes' \
+      'de que hay voluntarios que no pueden entrar'
+  fi
 }
+
+# Más de 5 móviles frenados con el código bueno en 24 h: la entrada se queda corta (docs/33 RV-300).
+FRENADAS_MAX=5
 
 # Espacio de fotos y de la base de datos (docs/32 RV-220 y RV-221, DEC-182 y DEC-183). Sustituye al
 # aviso fijo de 400 MB: hidrantes.fn_espacio() da lo que ocupa cada uno, su tope (max_bytes_fotos y
@@ -82,24 +92,40 @@ ESPACIO_DIAS_MAX=8
 
 revisar_espacio() {
   local bd="$1" espacio origen fotos_mb max_fotos_mb fotos_alto bd_mb max_bd_mb bd_alto pct dias
+  local total_mb max_total_mb total_alto pct_total hid_mb cron_mb net_mb resto_mb cron_purga
+  # docs/33 RV-301 (0044): el tope de la base de datos mide el esquema hidrantes (esquema_bytes), y el
+  # total del proyecto se vigila aparte contra 500 MB (aviso al 80 %) con su desglose. Con una base sin
+  # 0044, las claves nuevas no están: el esquema se toma del total, como antes, y el resto de 0.
   if ! espacio=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$bd" -c "select e ->> 'fotos_origen',
       ((e ->> 'fotos_bytes')::bigint + (e ->> 'fotos_reservado_bytes')::bigint) / 1048576,
       (e ->> 'max_bytes_fotos')::bigint / 1048576,
       (e ->> 'fotos_bytes')::bigint + (e ->> 'fotos_reservado_bytes')::bigint
         >= (e ->> 'aviso')::numeric * (e ->> 'max_bytes_fotos')::bigint,
-      (e ->> 'bd_bytes')::bigint / 1048576,
+      coalesce(e ->> 'esquema_bytes', e ->> 'bd_bytes')::bigint / 1048576,
       (e ->> 'max_bytes_bd')::bigint / 1048576,
-      (e ->> 'bd_bytes')::bigint >= (e ->> 'aviso')::numeric * (e ->> 'max_bytes_bd')::bigint,
+      coalesce(e ->> 'esquema_bytes', e ->> 'bd_bytes')::bigint >= (e ->> 'aviso')::numeric * (e ->> 'max_bytes_bd')::bigint,
       round((e ->> 'aviso')::numeric * 100),
       case when e ->> 'fotos_origen' = 'storage' then 0
            when e ->> 'fotos_medidos_en' is null then -1
-           else floor(extract(epoch from now() - (e ->> 'fotos_medidos_en')::timestamptz) / 86400)::int end
+           else floor(extract(epoch from now() - (e ->> 'fotos_medidos_en')::timestamptz) / 86400)::int end,
+      (e ->> 'bd_bytes')::bigint / 1048576,
+      coalesce((e ->> 'max_bytes_bd_total')::bigint, 524288000) / 1048576,
+      (e ->> 'bd_bytes')::bigint >= coalesce((e ->> 'aviso_total')::numeric, 0.8)
+                                    * coalesce((e ->> 'max_bytes_bd_total')::bigint, 524288000),
+      round(coalesce((e ->> 'aviso_total')::numeric, 0.8) * 100),
+      coalesce((e -> 'bd_desglose' ->> 'hidrantes')::bigint, 0) / 1048576,
+      coalesce((e -> 'bd_desglose' ->> 'cron')::bigint, 0) / 1048576,
+      coalesce((e -> 'bd_desglose' ->> 'net')::bigint, 0) / 1048576,
+      coalesce((e -> 'bd_desglose' ->> 'resto')::bigint, 0) / 1048576,
+      coalesce(e ->> 'cron_purga', 'ok')
     from hidrantes.fn_espacio() e;" 2>/dev/null); then
     problemas+=("no se puede medir el espacio de fotos ni el de la base de datos (hidrantes.fn_espacio)")
     return 0
   fi
-  read -r origen fotos_mb max_fotos_mb fotos_alto bd_mb max_bd_mb bd_alto pct dias <<< "$espacio"
-  if ! [[ "${dias:-}" =~ ^-?[0-9]+$ && "${fotos_alto:-}${bd_alto:-}" =~ ^[tf][tf]$ ]]; then
+  read -r origen fotos_mb max_fotos_mb fotos_alto bd_mb max_bd_mb bd_alto pct dias \
+    total_mb max_total_mb total_alto pct_total hid_mb cron_mb net_mb resto_mb cron_purga <<< "$espacio"
+  if ! [[ "${dias:-}" =~ ^-?[0-9]+$ && "${fotos_alto:-}${bd_alto:-}${total_alto:-}" =~ ^[tf][tf][tf]$
+          && "${cron_purga:-}" =~ ^(ok|sin_permiso)$ ]]; then
     problemas+=("hidrantes.fn_espacio ha devuelto algo que la vigilancia no entiende: no se ha comprobado el espacio")
     return 0
   fi
@@ -110,7 +136,15 @@ revisar_espacio() {
   fi
   if [ "$bd_alto" = t ]; then
     lleno=1
-    problemas+=("la base de datos ocupa $bd_mb MB de $max_bd_mb (aviso al $pct %): al llegar al tope no se aceptan propuestas (DEC-183)")
+    problemas+=("la base de datos ocupa $bd_mb MB de $max_bd_mb en el esquema hidrantes (aviso al $pct %): al llegar al tope no se aceptan propuestas (DEC-183)")
+  fi
+  if [ "$total_alto" = t ]; then
+    lleno=1
+    local purga=""
+    if [ "$cron_purga" = sin_permiso ]; then
+      purga="; el historial de pg_cron no se borra porque falta el grant delete de supabase/sql/arranque-bd.sql"
+    fi
+    problemas+=("toda la base de datos del proyecto ocupa $total_mb MB de $max_total_mb (aviso al $pct_total %): hidrantes $hid_mb MB, historial de pg_cron $cron_mb MB, respuestas de pg_net $net_mb MB y el resto (uniformidad, auth) $resto_mb MB$purga")
   fi
   if [ "$lleno" = 1 ]; then avisar_espacio "$bd"; fi
   if [ "$origen" != storage ]; then
@@ -128,12 +162,19 @@ revisar_espacio() {
 # personales (FR-27), como mucho uno cada 20 horas mientras siga lleno. Lo envía el Worker
 # hidrantes-avisos en sus siguientes 5 minutos.
 avisar_espacio() {
-  local bd="$1" n
-  if ! n=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c "with reciente as (select 1 from hidrantes.notificaciones where titulo = 'Espacio casi lleno' and creada_en > now() - interval '20 hours' limit 1), n as (insert into hidrantes.notificaciones (suscripcion_id, titulo, cuerpo, url) select s.id, 'Espacio casi lleno', 'Las fotos o la base de datos se están quedando sin espacio. Mira Salud del sistema.', '/admin' from hidrantes.suscripciones_push s where s.email is not null and not exists (select 1 from reciente) returning 1) select case when exists (select 1 from reciente) then 'ya' else (select count(*) from n)::text end;" 2>/dev/null); then
+  avisar_jefatura "$1" 'Espacio casi lleno' 'Las fotos o la base de datos se están quedando sin espacio. Mira Salud del sistema.' \
+    'de que el espacio está casi lleno'
+}
+
+# avisar_jefatura BD TITULO CUERPO QUE: el aviso, como mucho uno con ese título cada 20 horas. TITULO
+# y CUERPO son textos fijos de este archivo (sin comillas simples); QUE completa el problema si falla.
+avisar_jefatura() {
+  local bd="$1" titulo="$2" cuerpo="$3" que="$4" n
+  if ! n=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c "with reciente as (select 1 from hidrantes.notificaciones where titulo = '$titulo' and creada_en > now() - interval '20 hours' limit 1), n as (insert into hidrantes.notificaciones (suscripcion_id, titulo, cuerpo, url) select s.id, '$titulo', '$cuerpo', '/admin' from hidrantes.suscripciones_push s where s.email is not null and not exists (select 1 from reciente) returning 1) select case when exists (select 1 from reciente) then 'ya' else (select count(*) from n)::text end;" 2>/dev/null); then
     # Sin el error de psql en el problema: puede nombrar el servidor, y la issue es pública.
-    problemas+=("no se ha podido avisar a jefatura de que el espacio está casi lleno")
+    problemas+=("no se ha podido avisar a jefatura $que")
   elif [ "$n" = 0 ]; then
-    problemas+=("ningún administrador tiene los avisos activados: nadie ha recibido el aviso de que el espacio está casi lleno")
+    problemas+=("ningún administrador tiene los avisos activados: nadie ha recibido el aviso $que")
   fi
   return 0
 }
