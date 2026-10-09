@@ -44,6 +44,9 @@ grant usage on schema extensions to hidrantes_migrador;
 grant usage on schema cron to hidrantes_migrador;
 grant execute on all functions in schema cron to hidrantes_migrador;
 grant select on cron.job, cron.job_run_details to hidrantes_migrador;
+-- 0044 (docs/33 RV-301): la tarea hidrantes_purgar_registros_cron borra el historial de las tareas
+-- de hidrantes de más de 10 días. La RLS de pg_cron solo le deja borrar las filas de sus tareas.
+grant delete on cron.job_run_details to hidrantes_migrador;
 
 -- 0041 (docs/32 RV-220, DEC-182): fn_reservar_subida y Salud miden lo que ocupa el bucket de fotos.
 -- Solo lectura, solo tres columnas y solo las filas de los dos buckets de fotos: hidrantes_migrador

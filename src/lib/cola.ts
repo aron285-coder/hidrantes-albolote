@@ -74,10 +74,15 @@ export type MotivoEspera =
   | 'sin_espacio'
   | 'reservas_abiertas';
 
-/** La espera por un tope: `maximo` si el servidor lo dice. */
+/**
+ * La espera por un tope: `maximo` si el servidor lo dice. `ambito: 'dispositivo'` (docs/33 RV-329):
+ * el tope de fotos es el de este móvil. Va aparte del motivo para que la versión anterior, que no lo
+ * conoce, siga leyendo `cuota_fotos` y diga su texto de siempre.
+ */
 export interface EnEspera {
   motivo: MotivoEspera;
   maximo: number | null;
+  ambito?: 'dispositivo';
 }
 
 export interface Enviada {
@@ -127,6 +132,7 @@ export interface Tope {
   motivo: MotivoEspera;
   ms: number;
   maximo: number | null;
+  ambito?: 'dispositivo';
 }
 
 /**
@@ -146,6 +152,8 @@ export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now
     return { motivo, ...esperaCuotaPropuestas(mensaje, ahora) };
   }
   if (motivo === 'cuota_fotos' && delGrupo) motivo = 'cuota_fotos_grupo';
+  // docs/33 RV-329: con el ámbito del móvil se dice «tu máximo»; sin ámbito (servidor anterior), como antes.
+  const delMovil = motivo === 'cuota_fotos' && ambito === 'dispositivo';
   const segundos = /reintentar_en_s=(\d+)/.exec(mensaje ?? '');
   const maximo = /maximo=(\d+)/.exec(mensaje ?? '');
   return {
@@ -153,6 +161,7 @@ export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now
     ms: Math.max(1000, segundos ? Number(segundos[1]) * 1000 : HORA),
     // El de espacio de fotos viene en bytes: no se enseña.
     maximo: maximo && motivo !== 'sin_espacio_fotos' ? Number(maximo[1]) : null,
+    ...(delMovil ? { ambito: 'dispositivo' as const } : {}),
   };
 }
 
@@ -598,7 +607,7 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
       return 'parar';
     }
     if (esPermanente(r.codigo)) {
-      await guardar({ ...actual, fallo: r.codigo });
+      await marcarFallo(actual, r.codigo, c, {});
       continue;
     }
     const tope = esperaPorTope(r.codigo, r.mensaje);
@@ -611,7 +620,7 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
     const transitorio = TRANSITORIOS.some((t) => r.codigo.startsWith(t));
     const fallos_seguidos = transitorio ? 0 : (actual.fallos_seguidos ?? 0) + 1;
     if (fallos_seguidos >= MAX_FALLOS_SEGUIDOS) {
-      await guardar({ ...actual, fallo: r.codigo, fallos_seguidos });
+      await marcarFallo(actual, r.codigo, c, { fallos_seguidos });
       continue;
     }
     const intentos = actual.intentos + 1;
@@ -625,12 +634,49 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
 }
 
 /**
+ * Fallo definitivo de un envío (docs/33 RV-328): se guarda el fallo y se liberan en el servidor sus
+ * fotos subidas y reservas sin usar (`fn_liberar_reservas`, RV-302), para que no cuenten 2 h contra
+ * RESERVAS_ABIERTAS y paren al resto de la cola. Sin esperar la respuesta. Las rutas se olvidan
+ * aquí: la purga del servidor las borrará, así que un «Reintentar» sube otra vez la foto, que el
+ * envío conserva. Solo con token de voluntario: la función es para `anon` con token.
+ */
+async function marcarFallo(actual: EnCola, codigo: string, c: Credencial, extra: Partial<EnCola>): Promise<void> {
+  // Solo las rutas que subió esta cola (con su foto aún en el envío, para poder subirla otra vez).
+  const rutas = [
+    actual.foto ? actual.foto_path : null,
+    actual.foto_sitio ? actual.foto_sitio_path : null,
+    actual.reserva_foto?.foto_path,
+    actual.reserva_foto_sitio?.foto_path,
+  ].filter((r): r is string => typeof r === 'string' && r.length > 0);
+  const liberar = 'token' in c && rutas.length > 0;
+  await guardar({
+    ...actual,
+    ...extra,
+    fallo: codigo,
+    ...(liberar ? { reserva_foto: null, reserva_foto_sitio: null } : {}),
+    ...(liberar && actual.foto ? { foto_path: null } : {}),
+    ...(liberar && actual.foto_sitio ? { foto_sitio_path: null } : {}),
+  });
+  if (!liberar) return;
+  void rpc('fn_liberar_reservas', { token: c.token, rutas: [...new Set(rutas)] }).then((r) => {
+    // Un servidor anterior sin la función (PGRST202) no es un error: las reservas caducan solas en 2 h.
+    if (r.ok || r.codigo === SIN_SERVIDOR || /could not find the function/i.test(r.mensaje ?? '')) return;
+    // El texto del servidor no lleva las rutas (solo códigos y el nombre de la función); las rutas no se anotan.
+    anotarError(new Error(`fn_liberar_reservas: ${r.codigo} ${r.mensaje ?? ''}`.trim().slice(0, 300)), 'cola:liberar');
+  });
+}
+
+/**
  * Pone toda la cola (lo que no tiene un error permanente) en espera hasta la hora del tope. Lo que ya
  * esperaba más, sigue esperando lo suyo. El envío que chocó con el tope cuenta un intento.
  */
 async function esperarTodo(tope: Tope, elQueChoca: string, gen: number): Promise<void> {
   const hasta = Date.now() + tope.ms;
-  const en_espera: EnEspera = { motivo: tope.motivo, maximo: tope.maximo };
+  const en_espera: EnEspera = {
+    motivo: tope.motivo,
+    maximo: tope.maximo,
+    ...(tope.ambito ? { ambito: tope.ambito } : {}),
+  };
   for (const clave of items.map((i) => i.clave_local)) {
     if (gen !== generacion) return;
     const i = items.find((x) => x.clave_local === clave);

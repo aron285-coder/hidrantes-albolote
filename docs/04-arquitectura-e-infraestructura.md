@@ -340,6 +340,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Purga de `intentos_codigo` > 24 h | `pg_cron` | cada hora |
 | Purga de papelera pasado `dias_papelera` | `pg_cron` | diario |
 | Purga de reservas de subida de más de 30 días (`hidrantes_purgar_subidas`, DEC-084) | `pg_cron` | diario |
+| Borrado del historial de pg_cron de las tareas de hidrantes de más de 10 días (`hidrantes_purgar_registros_cron`, 0044, docs/33 RV-301) | `pg_cron` | diario |
 | Borrado de `errores_cliente` > 90 días | `pg_cron` | diario |
 | Revocación de tokens sin uso en `dias_caducidad_token` | `pg_cron` | diario |
 | Resumen semanal de jefatura encolado (FR-164) | `pg_cron`; lo envía `/api/push` (DEC-068) | lunes |
@@ -382,7 +383,7 @@ KB; solo lo lanza quien diga la variable del repositorio `PROPIETARIO`; DEC-172,
 | GitHub (repositorio) | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078), `GPG_PUBLIC_KEY`, `VIGILANCIA_SECRETO_STAGING`, `PROPIETARIO_EMAIL` | lo de staging y lo que no es secreto de producción. Ninguno de producción (DEC-172). `GPG_PUBLIC_KEY` es la clave **pública** que cifra el respaldo (`respaldo.yml` la lee desde `prod-tareas`, que ve las del repositorio); la privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación. `arranque.ts` deja además una copia en `production`, que solo usa para saber si ya existe |
 | Worker `hidrantes-avisos` (cifrados) | `VIGILANCIA_SECRETO_PROD`, `VIGILANCIA_SECRETO_STAGING`, los mismos valores que Pages y el repositorio; los pone `npm run arranque` (también `--rotar vigilancia` y `--solo-faltantes`) | llamar a `/api/push` de cada entorno cada 5 minutos (docs/19 RV-52, DEC-097) |
 | GitHub (variables del repositorio, públicas) | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` | `mantener-activo.yml`, sin *environment* (DEC-054); `SUPABASE_URL_PROD` también para `purgar-fotos.yml` |
-| GitHub (variables del repositorio, públicas) | `PROPIETARIO` (login de GitHub del titular), `GPG_HUELLA` (huella de `GPG_PUBLIC_KEY`, la de 15 §2) | quién puede lanzar `traspaso.yml` (docs/32 RV-208); con qué clave tiene que estar cifrado el respaldo (`respaldo.yml`, docs/32 RV-202) |
+| GitHub (variables del repositorio, públicas) | `PROPIETARIO` (login de GitHub del titular) | quién puede lanzar `traspaso.yml` (docs/32 RV-208). La huella de `GPG_PUBLIC_KEY` (la de 15 §2) ya no es una variable: es la constante `GPG_HUELLA` de `respaldo.yml`, y cambiarla exige un PR (docs/33 RV-341) |
 
 Ningún proyecto de Pages guarda un token de GitHub: el panel deja un **pedido** en la base de datos (`fn_pedir_trabajo`) y lo lanza `despachador.yml` con su `GITHUB_TOKEN` (`docs/31` RV-146, DEC-172). `GITHUB_DISPATCH_TOKEN` se borró de los dos proyectos el 8 oct 2026 (`docs/32` RV-200). El inventario
 real de lo creado lo escribe el arranque en `docs/entornos.md`, sin valores.

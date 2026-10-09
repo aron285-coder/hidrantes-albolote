@@ -26,7 +26,23 @@ vi.mock('@/lib/push', () => ({
   textoMotivoPush: () => '',
 }));
 vi.mock('@/lib/errores', () => ({ anotarError: vi.fn() }));
-vi.mock('@/lib/acceso', () => ({ cambiarFirma: vi.fn(), cerrarSesionVoluntario: vi.fn(), salirDeGoogle: vi.fn() }));
+const { olvidarTemasJefatura, pulsadores, salirDeGoogle } = vi.hoisted(() => ({
+  olvidarTemasJefatura: vi.fn(),
+  pulsadores: new Map<string, () => void>(),
+  salirDeGoogle: vi.fn(async () => undefined),
+}));
+vi.mock('@/lib/acceso', () => ({ cambiarFirma: vi.fn(), cerrarSesionVoluntario: vi.fn(), salirDeGoogle }));
+vi.mock('@/lib/panel/push-jefatura', () => ({ olvidarTemasJefatura }));
+// El Boton de verdad, pero se apunta qué hace cada uno al pulsarlo: sin DOM no se puede pulsar.
+vi.mock('@/componentes/Boton', async (original) => {
+  const { Boton: Real } = await original<typeof import('@/componentes/Boton')>();
+  return {
+    Boton: (p: Parameters<typeof Real>[0]) => {
+      if (typeof p.children === 'string' && p.onClick) pulsadores.set(p.children, p.onClick as () => void);
+      return Real(p);
+    },
+  };
+});
 vi.mock('@/lib/almacen', () => ({ leer: () => null }));
 vi.mock('@/lib/conexion', () => ({ reintentarAhora: vi.fn() }));
 vi.mock('@/lib/instalar', () => ({ instalar: vi.fn() }));
@@ -99,5 +115,23 @@ describe('Ajustes · Panel de jefatura (RV-113)', () => {
     const html = pintar();
     expect(control(html, T.ajustes.irAlPanel)).toBeUndefined();
     expect(html).not.toContain('href="/admin"');
+  });
+});
+
+describe('Ajustes · Cerrar sesión de Google (docs/33 RV-325, N5)', () => {
+  beforeEach(() => {
+    acceso = { tipo: 'jefatura', correo: 'jefa@example.org' };
+    pulsadores.clear();
+    olvidarTemasJefatura.mockClear();
+    salirDeGoogle.mockClear();
+  });
+
+  it('borra lo que este navegador recuerda de los avisos de jefatura, como «Salir» en el panel', () => {
+    pintar();
+    const pulsar = pulsadores.get(T.ajustes.cerrarSesionGoogle);
+    expect(pulsar).toBeDefined();
+    pulsar!();
+    expect(olvidarTemasJefatura).toHaveBeenCalledTimes(1);
+    expect(salirDeGoogle).toHaveBeenCalledTimes(1);
   });
 });

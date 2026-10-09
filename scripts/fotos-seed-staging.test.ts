@@ -94,9 +94,15 @@ describe('deploy-staging sube y comprueba las fotos del seed', () => {
 describe('el seed retira las cuatro bocas duplicadas de RV-139b', () => {
   const bloque = seed.slice(seed.indexOf('las cuatro bocas duplicadas de RV-139b'), seed.lastIndexOf('commit;'));
 
-  it('con fn_retirar_punto, motivo «prueba», y claims de un administrador de prueba locales a la transacción', () => {
+  it('con fn_retirar_punto, motivo «prueba», y claims de un administrador activo locales a la transacción', () => {
     expect(bloque).toContain("perform hidrantes.fn_retirar_punto(p.id, 'prueba')");
-    expect(bloque).toMatch(/set_config\('request\.jwt\.claims',[\s\S]*'jefatura\.prueba@example\.com'[\s\S]*, true\)/);
+    expect(bloque).toMatch(/order by a\.email = 'jefatura\.prueba@example\.com' desc/);
+    expect(bloque).toMatch(/set_config\('request\.jwt\.claims',[\s\S]*'email', admin,[\s\S]*, true\)/);
+  });
+
+  it('sin un administrador que pase fn_es_admin, falla en vez de seguir sin aviso', () => {
+    expect(bloque).toMatch(/if admin is null or not hidrantes\.fn_es_admin\(\) then\s+raise exception/);
+    expect(bloque).not.toMatch(/raise warning/);
     expect(bloque).toContain("'BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006'");
   });
 
