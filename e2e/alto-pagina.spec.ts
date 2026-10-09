@@ -33,31 +33,54 @@ async function abrir(page: Page, context: BrowserContext, ancho: number, alto: n
   await page.goto(ruta);
   if (ruta === '/') await expect(page.getByTestId('mapa')).toBeVisible();
   if (conLista) await expect(primero(page)).toContainText(T.mapa.desdeTi);
+  // Se mide con los avisos de arriba ya puestos (el de sin conexión, con el Supabase ficticio): ocupan alto.
+  await expect(page.getByText(T.mapa.sinServidor)).toBeVisible();
 }
+
+const altoPagina = (page: Page) => page.evaluate(() => document.documentElement.scrollHeight);
+const ventana = (page: Page) => page.evaluate(() => innerHeight);
 
 /** La página no se desplaza: ni mide más que la ventana ni se mueve al pedirle bajar. */
 async function paginaQuieta(page: Page, info: TestInfo) {
-  const { alto, ventana } = await page.evaluate(() => ({
-    alto: document.documentElement.scrollHeight,
-    ventana: innerHeight,
-  }));
+  const alto = await ventana(page);
+  await expect.poll(() => altoPagina(page), { message: 'alto de la página' }).toBeLessThanOrEqual(alto);
   await page.evaluate(() => scrollTo(0, 10000));
   // Para el PR: tras pedir bajar del todo, la cabecera sigue arriba y no queda una franja vacía.
   await info.attach('tras-bajar', { body: await page.screenshot(), contentType: 'image/png' });
-  expect(alto, 'alto de la página').toBeLessThanOrEqual(ventana);
   expect(await page.evaluate(() => scrollY), 'la página no se mueve').toBe(0);
 }
 
-/** La lista sí se desplaza: su contenedor tiene más contenido que alto y baja al pedírselo. */
-async function listaSeDesplaza(page: Page) {
-  const desplazado = await primero(page).evaluate((boton) => {
+/** La caja de la lista que se desplaza (la primera antecesora con overflow-y: auto). */
+const cajaLista = (page: Page) =>
+  primero(page).evaluateHandle((boton) => {
     let caja: HTMLElement | null = boton.parentElement;
     while (caja && getComputedStyle(caja).overflowY !== 'auto') caja = caja.parentElement;
-    if (!caja || caja.scrollHeight <= caja.clientHeight) return 0;
-    caja.scrollTop = 10000;
-    return caja.scrollTop;
+    return caja;
   });
+
+/**
+ * La lista llega hasta la barra de abajo (no se ha encogido para que la página quepa) y se desplaza: su
+ * caja tiene más contenido que alto y baja al pedírselo.
+ */
+async function listaSeDesplaza(page: Page) {
+  const caja = await cajaLista(page);
+  const { abajo, desplazado } = await caja.evaluate((c) => {
+    if (!(c instanceof HTMLElement)) return { abajo: 0, desplazado: 0 };
+    const abajo = c.getBoundingClientRect().bottom;
+    if (c.scrollHeight <= c.clientHeight) return { abajo, desplazado: 0 };
+    c.scrollTop = 10000;
+    return { abajo, desplazado: c.scrollTop };
+  });
+  const barra = (await page.getByRole('navigation').last().boundingBox())!;
+  expect(abajo, 'la lista llega a la barra de abajo').toBeGreaterThanOrEqual(barra.y - 8);
+  expect(abajo, 'la lista no se mete bajo la barra de abajo').toBeLessThanOrEqual(barra.y + 1);
   expect(desplazado, 'la lista se desplaza').toBeGreaterThan(0);
+}
+
+/** El mapa no se ha encogido para que la página quepa: mide al menos media ventana de alto. */
+async function mapaAlto(page: Page) {
+  const mapa = (await page.getByTestId('mapa').boundingBox())!;
+  expect(mapa.height, 'alto del mapa').toBeGreaterThanOrEqual((await ventana(page)) / 2);
 }
 
 const ESCRITORIO = [
@@ -75,6 +98,7 @@ test.describe('la página del mapa y de la lista mide la ventana (#562)', () => 
       test(`${ancho}×${alto} en ${ruta}`, async ({ page, context }, info) => {
         await abrir(page, context, ancho, alto, ruta);
         await paginaQuieta(page, info);
+        if (ruta === '/') await mapaAlto(page);
         await listaSeDesplaza(page);
       });
     }
@@ -85,7 +109,27 @@ test.describe('la página del mapa y de la lista mide la ventana (#562)', () => 
     test(`412×915 en ${ruta}`, async ({ page, context }, info) => {
       await abrir(page, context, 412, 915, ruta, ruta === '/lista');
       await paginaQuieta(page, info);
+      if (ruta === '/') await mapaAlto(page);
       if (ruta === '/lista') await listaSeDesplaza(page);
     });
   }
+
+  // Ajustes no se ha acotado: con contenido más largo que la ventana, la página sigue desplazándose.
+  test('1280×768 en /ajustes: la página sigue desplazándose', async ({ page, context }) => {
+    await abrir(page, context, 1280, 768, '/ajustes', false);
+    await expect(page.getByRole('heading', { name: T.ajustes.seccionNovedades })).toBeVisible();
+    await expect.poll(() => altoPagina(page)).toBeGreaterThan(768);
+    await page.evaluate(() => scrollTo(0, 10000));
+    expect(await page.evaluate(() => scrollY), 'Ajustes se desplaza').toBeGreaterThan(0);
+  });
+
+  // Ventana baja (móvil en horizontal): sin sitio para acotar, la página crece como antes y, al bajar del
+  // todo, el «+» queda por encima de la barra de abajo, sin taparse.
+  test('844×390 en /: el «+» no queda bajo la barra de abajo', async ({ page, context }) => {
+    await abrir(page, context, 844, 390, '/', false);
+    await page.evaluate(() => scrollTo(0, 10000));
+    const mas = (await page.getByRole('button', { name: T.navegacion.nuevoPunto }).boundingBox())!;
+    const barra = (await page.getByRole('navigation').last().boundingBox())!;
+    expect(mas.y + mas.height, '«+» encima de la barra').toBeLessThanOrEqual(barra.y);
+  });
 });
