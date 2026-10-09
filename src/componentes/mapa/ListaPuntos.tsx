@@ -146,7 +146,7 @@ export function ListaPuntos({
 
       {/* `relative`: los textos solo para el lector (sr-only, absolutos) se recortan aquí; si no, se salían
           de la lista y estiraban la página entera (#562). */}
-      <div className="relative min-h-0 flex-1 overflow-y-auto">
+      <div className="relative min-h-0 flex-1 overflow-y-auto pb-[var(--aviso-abajo,0px)]">
         {texto && <ResultadoCoordenadas lugares={lugares} alElegir={irA} />}
         {conLugares && visibles.length > 0 && <CabeceraGrupo titulo={T.busqueda.puntos} />}
         {/* La lista no es una región viva: se leería entera con cada cambio. Solo se anuncia el número

@@ -586,7 +586,7 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 `Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
 `Avisarme cuando jefatura resuelva mis propuestas` ·
 `Cómo se usa (3 pantallas)` · `Cerrar sesión en este móvil` ·
-`Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
+`Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` (en Ajustes) · `Hay una versión nueva` · `Hay una versión nueva. Se actualizará cuando termines.` (aviso de abajo, con el botón `Actualizar`, docs/33 RV-313) ·
 `novedades` · `Cuenta de jefatura` · `Sesión de Google · [correo]` · `Cerrar la sesión de Google` ·
 `Panel de jefatura` (botón de la cuenta de jefatura, RV-113) · `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
 `¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Cerrando sesión…` (el botón, deshabilitado, mientras se cierra; docs/32 RV-234) · `No se ha podido cerrar la sesión. Inténtalo de nuevo.` · `Versión [0.1.0]` · `Descargando… [40] %` ·

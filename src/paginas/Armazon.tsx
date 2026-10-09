@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { List, Map as IconoMapa, Settings } from 'lucide-react';
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
@@ -25,6 +26,14 @@ const TITULOS: Record<string, string> = {
 export function Armazon() {
   const acceso = useAcceso();
   const { pathname } = useLocation();
+  // Lo que ocupa la navegación de abajo: el aviso de versión nueva va justo encima (docs/33 RV-313).
+  useEffect(() => {
+    const raiz = document.documentElement;
+    raiz.style.setProperty('--nav-abajo', 'calc(50px + env(safe-area-inset-bottom))');
+    return () => {
+      raiz.style.removeProperty('--nav-abajo');
+    };
+  }, []);
   if (acceso.tipo === 'voluntario' && !primerUsoVisto()) return <Navigate to="/bienvenida" replace />;
 
   // El mapa y la lista miden la pantalla y solo se desplaza la lista (#562): con `basis-0` el armazón no

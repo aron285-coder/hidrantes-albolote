@@ -44,6 +44,13 @@ export function pedirRecarga(): void {
   else if (queHacerAlRecargar(false) === 'recargar') recargar();
 }
 
+/**
+ * Con un formulario abierto la versión nueva no se ofrece: se actualiza al volver al mapa (docs/33
+ * RV-313). No en la pantalla de «enviado», que se perdería, ni en otra cualquiera.
+ */
+export const debeActualizarAlVolver = (veniaDeFormulario: boolean, ruta: string): boolean =>
+  veniaDeFormulario && ruta === '/';
+
 /** El aviso de versión se apunta aquí para preguntar antes de recargar. */
 export function alPedirRecarga(o: () => void): () => void {
   alPedir.add(o);
