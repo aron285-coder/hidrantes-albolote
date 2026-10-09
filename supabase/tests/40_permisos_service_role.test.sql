@@ -4,7 +4,7 @@
 --
 -- La lista la saca scripts/rpc-de-servicio.ts de functions/** y scripts/**; scripts/rpc-de-servicio.test.ts
 -- falla si esta lista o el plan no coinciden con lo que encuentra. Para añadir una RPC: una fila más
--- aquí y plan + 1.
+-- aquí y plan + 1 (el plan es la lista más la comprobación fija del esquema).
 --
 -- `argumentos`: con sobrecargas, basta con que service_role ejecute una; si es nulo, cualquiera.
 -- fn_registrar_error tiene dos: la de cinco argumentos es la del navegador y la de seis (ip_hash, 0040)
@@ -14,7 +14,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(12);
+select plan(13);
+
+-- Sin usage sobre el esquema, execute no basta: todas las llamadas fallarían con 42501.
+select ok(has_schema_privilege('service_role', 'hidrantes', 'usage'), 'service_role tiene usage sobre hidrantes');
 
 with rpc_de_servicio(nombre, argumentos) as (values
   ('fn_aplazar_notificaciones', null::int),

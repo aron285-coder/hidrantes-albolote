@@ -132,8 +132,11 @@ export async function rpc<T>(
   env: Env,
   nombre: string,
   argumentos: Record<string, unknown>,
-  opciones: { jwt?: string } = {},
+  opciones: { jwt?: string | undefined } = {},
 ): Promise<ResultadoRpc<T>> {
+  // Quien pasa `jwt` pide ir con la identidad de quien llama: si viene vacío, nunca con service_role
+  // (scripts/rpc-de-servicio.ts no cuenta esas llamadas como de servicio, docs/33 RV-305).
+  if ('jwt' in opciones && !opciones.jwt) return { ok: false, codigo: 'NO_AUTORIZADO', estado: 403 };
   let r: Response;
   try {
     r = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${nombre}`, {

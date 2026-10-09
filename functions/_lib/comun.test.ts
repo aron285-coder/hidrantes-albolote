@@ -197,6 +197,20 @@ describe('rpc', () => {
     espia.mockRestore();
   });
 
+  // docs/33 RV-305: una llamada que pide ir con el JWT de quien llama nunca cae a service_role.
+  it('con jwt vacío no llama con la clave de servicio: NO_AUTORIZADO sin red', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(respuesta('true'));
+    for (const jwt of [undefined, '']) {
+      expect(await rpc(ENV, 'fn_pedir_trabajo', {}, { jwt })).toEqual({
+        ok: false,
+        codigo: 'NO_AUTORIZADO',
+        estado: 403,
+      });
+    }
+    expect(espia).not.toHaveBeenCalled();
+    espia.mockRestore();
+  });
+
   it('un error P0001 de la base de datos llega con su código de 05 §8', async () => {
     const espia = vi
       .spyOn(globalThis, 'fetch')
