@@ -24,8 +24,8 @@ import { BandaEntorno } from '@/componentes/BandaEntorno';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { useAcceso, useConexion, useMapabase, useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { useAncho } from '@/hooks/ancho';
-import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
-import { type Enfoque, calleResaltada } from '@/lib/callejero';
+import { type Destino, hayLugares, teclaBuscador, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
+import { type Enfoque, calleResaltada, llevaNumero } from '@/lib/callejero';
 import { type Capa, NOMBRE_CAPA, atribucion, baseDebajo, capaGuardada, enLinea, guardarCapa } from '@/lib/capas';
 import { nombreCaudal } from '@/lib/ficha';
 import { escribir } from '@/lib/almacen';
@@ -131,6 +131,8 @@ export function Mapa() {
   const [texto, setTexto] = useState('');
   // Con el foco en el buscador vacío, su ✕ lo cierra (RV-312).
   const [buscando, setBuscando] = useState(false);
+  // Al pasar a ordenador el buscador flotante se desmonta sin perder el foco: no queda «buscando».
+  if (buscando && ancho === 'escritorio') setBuscando(false);
   const control = useRef<ControlMapa>(null);
 
   const punto = useMemo(() => puntos.find((p) => p.id === seleccionado) ?? null, [puntos, seleccionado]);
@@ -484,7 +486,13 @@ export function Mapa() {
           {ancho !== 'escritorio' && (
             <div className="absolute inset-x-2 top-2 z-[500]">
               {/* Opaco también en oscuro (D5): translúcido, se leían los nombres del mapa a través. */}
-              <label className="rounded-tarjeta bg-papel flex min-h-11 items-center gap-2 px-2.5 shadow-[0_1px_5px_rgba(0,0,0,.18)]">
+              <label
+                // «Buscando» mientras el foco está en el campo o en su ✕: pasar del uno al otro con el
+                // tabulador no lo cierra.
+                onFocus={() => setBuscando(true)}
+                onBlur={(e) => setBuscando(e.currentTarget.contains(e.relatedTarget as Node | null))}
+                className="rounded-tarjeta bg-papel flex min-h-11 items-center gap-2 px-2.5 shadow-[0_1px_5px_rgba(0,0,0,.18)]"
+              >
                 <Search size={18} className="text-texto-suave shrink-0" aria-hidden />
                 <input
                   ref={buscador}
@@ -495,8 +503,7 @@ export function Mapa() {
                   enterKeyHint="search"
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
-                  onFocus={() => setBuscando(true)}
-                  onBlur={() => setBuscando(false)}
+                  onKeyDown={(e) => teclaBuscador(e, texto, setTexto)}
                   placeholder={T.mapa.buscar}
                   aria-label={T.mapa.buscar}
                   className="min-w-0 flex-1 bg-transparent outline-none"
@@ -507,11 +514,15 @@ export function Mapa() {
                     type="button"
                     // Sin esto, el toque quita antes el foco al campo y el ✕ desaparece sin llegar a pulsarse.
                     onPointerDown={(e) => e.preventDefault()}
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
                       if (texto) {
                         setTexto('');
                         buscador.current?.focus();
-                      } else buscador.current?.blur();
+                      } else {
+                        buscador.current?.blur();
+                        setBuscando(false);
+                      }
                     }}
                     aria-label={texto ? T.mapa.borrarBusqueda : T.mapa.cerrarBusqueda}
                     className="-mr-2 flex size-11 items-center justify-center"
@@ -552,7 +563,7 @@ export function Mapa() {
                   <ResultadosCallesYDirecciones
                     lugares={lugares}
                     alElegir={irA}
-                    direccionesPrimero={/[0-9]/.test(texto)}
+                    direccionesPrimero={llevaNumero(texto)}
                   />
                   {resultados.length === 0 && !conLugares && (
                     <p className="text-texto-suave p-3 text-sm">{T.mapa.busquedaVacia}</p>
