@@ -42,15 +42,6 @@ select distinct r from (
   union all select foto_sitio_path from hidrantes.propuestas where id::text like '5eed0000-%'
 ) x where r like 'fotos/prueba-%' order by r;`;
 
-/** Las bocas de RV-139b que el seed debería haber retirado y siguen activas (mismo criterio). */
-export const SQL_DUPLICADAS_ACTIVAS = `
-select count(*) from hidrantes.puntos x
- where x.codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
-   and x.tipo = 'boca_riego' and x.situacion = 'activo' and x.creado_en < '2026-10-10'
-   and exists (select 1 from hidrantes.puntos y
-                where y.codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
-                  and y.id <> x.id and extensions.st_dwithin(x.geom, y.geom, 15));`;
-
 export function urlPublica(base: string, bucket: string, ruta: string): string {
   return `${base.replace(/\/+$/, '')}/storage/v1/object/public/${bucket}/${ruta.split('/').map(encodeURIComponent).join('/')}`;
 }
@@ -145,8 +136,12 @@ async function subir(base: string, servicio: string, bucket: string, ruta: strin
       'x-upsert': 'true',
     },
     body: new Uint8Array(foto),
-  }).catch(() => null);
-  if (!r?.ok) abortar(`Storage respondió ${r ? r.status : 'nada'} al subir ${ruta}.`);
+  }).catch((e: unknown) =>
+    abortar(`No se pudo contactar con Storage al subir ${ruta}: ${e instanceof Error ? e.message : String(e)}`),
+  );
+  // El cuerpo de un error de Storage dice el motivo (bucket, clave, tipo); no lleva secretos.
+  if (!r.ok)
+    abortar(`Storage respondió ${r.status} al subir ${ruta}: ${(await r.text().catch(() => '')).slice(0, 300)}`);
 }
 
 async function principal(): Promise<void> {
@@ -162,14 +157,6 @@ async function principal(): Promise<void> {
   if (bd) {
     for (const r of psqlOk(bd, SQL_RUTAS_EN_LA_BASE, { tuplas: true }).split('\n')) {
       if (r.trim()) rutas.add(r.trim());
-    }
-    // El seed no rompe el despliegue si su administrador de prueba no está activo: solo avisa con un
-    // WARNING de psql. Aquí se hace visible en el resumen de la ejecución.
-    const duplicadas = Number(psqlOk(bd, SQL_DUPLICADAS_ACTIVAS, { tuplas: true }).trim());
-    if (duplicadas > 0) {
-      const aviso = `Quedan ${duplicadas} bocas duplicadas de RV-139b activas (BOC-0003 a BOC-0006): el seed no las ha retirado; ¿está activo jefatura.prueba@example.com en staging?`;
-      log.aviso(aviso);
-      if (process.env.GITHUB_ACTIONS) console.log(`::warning::${aviso}`);
     }
   } else if (!soloComprobar) {
     abortar('Falta SUPABASE_DB_URL (la del environment staging).');
