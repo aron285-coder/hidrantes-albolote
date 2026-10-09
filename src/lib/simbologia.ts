@@ -10,8 +10,9 @@ export const COLOR_CAUDAL: Record<Caudal, string> = {
   bueno: 'var(--verde-600)',
   regular: 'var(--amarillo-500)',
   malo: 'var(--rojo-700)',
-  // docs/24 RV-102 (DEC-149): marrón, con tamaño mínimo y tachado; sin atenuar.
+  // docs/24 RV-102 (DEC-149): marrón, con tamaño mínimo y sin atenuar; en el marcador, con una «B» (docs/33 RV-319).
   barro: 'var(--marron-600)',
+  // El color del estado (chips, textos). El marcador de No funciona es blanco con borde de este gris (RV-319).
   no_funciona: 'var(--gris-700)',
 };
 

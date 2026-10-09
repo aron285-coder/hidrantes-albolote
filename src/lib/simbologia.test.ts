@@ -117,6 +117,11 @@ describe('borde por estado (docs/25 RV-105, DEC-154)', () => {
     const nf = svgMarcador({ tipo: 'hidrante', caudal: 'no_funciona', radio_px: 5, revision_caducada: false });
     const sinColor = (s: string) => s.replace(/(fill|stroke)="[^"]*"/g, '');
     expect(sinColor(barro)).not.toBe(sinColor(nf));
+    // Y las marcas se ven: la «B» blanca sobre el marrón y un aspa gris de largo > 0 (su contraste, en
+    // accesibilidad.test.ts).
+    expect(barro).toMatch(/<text data-letra[^>]* fill="var\(--borde-marcador\)"/);
+    const aspa = /<line data-aspa x1="(-?[\d.]+)"[^>]* x2="(-?[\d.]+)"[^>]* stroke="var\(--gris-700\)"/.exec(nf);
+    expect(Math.abs(Number(aspa?.[2]) - Number(aspa?.[1]))).toBeGreaterThan(0);
   });
 
   it('la letra crece con el radio y cabe dentro del marcador', () => {

@@ -124,10 +124,6 @@ export const T = {
     atribucionPnoa: 'PNOA © Instituto Geográfico Nacional',
     atribucionCatastro: '© Dirección General del Catastro',
     atribucionBase: '© OpenStreetMap contributors · Protomaps',
-    mapaBasePropio: 'Mapa base propio',
-    calleOsm: 'Calle (OSM)',
-    satelitePnoa: 'Satélite (PNOA)',
-    catastro: 'Catastro',
     necesitaCobertura: 'necesita cobertura',
     miPosicion: 'Mi posición',
     // docs/33 RV-310: el aviso discreto al abrir el mapa sobre el voluntario.
@@ -178,8 +174,8 @@ export const T = {
     },
     ocultarAviso: 'Ocultar aviso',
     capaSinCobertura: (capa: Parametro) =>
-      `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia al mapa base.`,
-    capaConBaseDebajo: (capa: Parametro) => `Sin cobertura: se ve el mapa base propio en lugar de «${capa}»`,
+      `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia a «Mapa sin conexión».`,
+    capaConBaseDebajo: (capa: Parametro) => `Sin cobertura: se ve el mapa sin conexión en lugar de «${capa}»`,
     busquedaVacia: 'Nada coincide con esa búsqueda.',
     borrarBusqueda: 'Borrar búsqueda',
     buscandoPosicion: 'Buscando tu posición…',
@@ -193,14 +189,25 @@ export const T = {
     zoom: 'Zoom',
     acercar: 'Acercar',
     alejar: 'Alejar',
-    funcionaSinCobertura: 'funciona sin cobertura',
-    soloEnLinea: 'solo en línea',
     orden: 'Orden',
     filtrar: 'Filtrar',
     porDistancia: 'distancia',
     porCodigo: 'código',
     porEstado: 'estado',
     gps: (metros: Parametro) => `GPS ±${metros} m`,
+  },
+
+  // docs/33 RV-317 (U8): las capas en palabras; las siglas, solo en la línea de fuentes.
+  capas: {
+    base: 'Mapa sin conexión',
+    calle: 'Callejero',
+    satelite: 'Foto aérea',
+    catastro: 'Catastro',
+    descBase: 'Funciona sin cobertura',
+    descCalle: 'Con nombres de calles',
+    descSatelite: 'Para ver el terreno',
+    descCatastro: 'Parcelas y edificios',
+    fuentes: 'Fuentes: OpenStreetMap, PNOA (IGN), Catastro.',
   },
 
   ficha: {
