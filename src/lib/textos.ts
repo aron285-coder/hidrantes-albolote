@@ -319,7 +319,10 @@ export const T = {
     desdeAqui: 'Medir desde aquí',
     empezar: 'Toca el mapa para poner los puntos del tendido',
     resultado: (distancia: Parametro, n: Parametro, largo: Parametro) =>
-      n === 1 ? `${distancia} · 1 tramo de ${largo} m` : `${distancia} · ${n} tramos de ${largo} m`,
+      // docs/33 RV-318: «772 m · 39 tramos de manguera de 20 m».
+      n === 1
+        ? `${distancia} · 1 tramo de manguera de ${largo} m`
+        : `${distancia} · ${n} tramos de manguera de ${largo} m`,
     deshacer: 'Deshacer',
     borrar: 'Borrar',
     terminar: 'Terminar',

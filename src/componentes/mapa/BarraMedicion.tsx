@@ -29,7 +29,8 @@ export function BarraMedicion({
       aria-label={T.medir.titulo}
       className="bg-fondo absolute inset-x-0 bottom-0 z-[650] flex flex-col gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom),var(--aviso-abajo,0px))] shadow-[0_-6px_20px_rgba(14,27,48,.22)]"
     >
-      <p aria-live="polite" className="font-datos text-center text-[17px] font-semibold">
+      {/* El total en la fuente normal, que se lee mejor que la monoespaciada (docs/33 RV-318). */}
+      <p aria-live="polite" className="text-center text-[17px] font-semibold">
         {vertices.length < 2 ? T.medir.empezar : T.medir.resultado(distancia(r.metros), r.tramos, metrosTramo)}
       </p>
       {/* ≥ 12 px entre "Borrar" y las otras dos (UI-13). */}
