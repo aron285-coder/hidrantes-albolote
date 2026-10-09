@@ -660,6 +660,13 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-189 · El mapa y la lista miden la ventana; solo se desplaza la lista
+- **Fecha:** 9 oct 2026 · **Estado:** vigente (RV-270 D2, #562; PR #576).
+- **Contexto:** en el ordenador, la página del mapa y la de la lista medían siempre más que la ventana (1175 px en staging) y se desplazaban enteras con la rueda: un texto solo para lector de pantalla de cada fila escapaba de la caja que se desplaza, y nada limitaba el alto de la lista.
+- **Decisión:** en `/` y `/lista`, con 600 px de alto o más, la página mide la ventana y solo se desplaza la lista; por debajo de 600 px la página crece y se desplaza como antes, para que nada quede sin sitio. Con la página acotada, el mínimo del mapa baja del 60 % al 40 % de la ventana, para que el «+» y la leyenda no queden bajo la barra de abajo. Ajustes y el panel no cambian.
+- **Alternativas descartadas:** acotar siempre (con la banda y un aviso, la lista se quedaba sin sitio en ventanas bajas); quitar la barra de desplazamiento con `overflow: hidden` en la página (escondería contenido).
+- **Afecta a:** 06 §9 (desbordes); `src/paginas/Armazon.tsx`, `src/componentes/mapa/ListaPuntos.tsx`.
+
 ### DEC-188 · Cola: tras `PUNTO_NO_ACTIVO` al aprobar, solo rechazar
 - **Fecha:** 9 oct 2026 · **Estado:** vigente (RV-270 D4, #564; PR #575 y #577).
 - **Contexto:** cuando *Aprobar* fallaba con `PUNTO_NO_ACTIVO` (el punto se retiró o se borró mientras la propuesta esperaba), salía el aviso pero *Aprobar* seguía activo y repetía una llamada que volvería a fallar (UI-02).
