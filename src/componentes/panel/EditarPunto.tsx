@@ -342,8 +342,8 @@ export default function EditarPunto({
   const [v, setV] = useState<Valores>(() => valoresDe(punto));
   const [ocupado, setOcupado] = useState(false);
   const [pregunta, setPregunta] = useState<Pregunta | null>(null);
-  // Dónde estaba el foco al preguntar: si se sigue en Editar, vuelve ahí (o, si ya no está, al primer
-  // control), en vez de quedarse en <body> detrás del panel (RV-128, docs/31 RV-165).
+  // Dónde estaba el foco al preguntar: si se sigue en Editar, vuelve ahí (o, si ya no está, al título
+  // del panel, docs/33 RV-333), en vez de quedarse en <body> detrás del panel (RV-128, docs/31 RV-165).
   const focoAntes = useRef<HTMLElement | null>(null);
   const preguntar = useCallback((p: Pregunta) => {
     focoAntes.current = document.activeElement as HTMLElement | null;
