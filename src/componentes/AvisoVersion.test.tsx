@@ -51,12 +51,29 @@ describe('aviso de versión nueva (RV-313)', () => {
     const a = aviso(pintar('/proponer/alta'));
     expect(a).not.toBeNull();
     expect(a![1]).toContain(T.version.alTerminar);
-    expect(a![1]).not.toContain(`>${T.version.actualizar}<`);
+    expect(a![1]).not.toMatch(/<button/);
   });
 
   it('sin versión nueva, nada', () => {
     estado.hay = false;
     expect(aviso(pintar('/'))).toBeNull();
+  });
+
+  it('en el panel sigue arriba, en la pila: abajo taparía Aprobar y Rechazar', () => {
+    const html = pintar('/admin');
+    expect(aviso(html)).toBeNull();
+    expect(html).toContain(T.version.hay);
+    expect(html).toMatch(new RegExp(`<button[^>]*>${T.version.actualizar}</button>`));
+  });
+
+  it('el lector de pantalla lo oye por una región que está siempre montada', () => {
+    estado.hay = false;
+    expect(pintar('/')).toMatch(/<p role="status" class="sr-only"><\/p>/);
+    estado.hay = true;
+    expect(pintar('/')).toMatch(new RegExp(`<p role="status" class="sr-only">${T.version.hay}</p>`));
+    expect(pintar('/proponer/alta')).toMatch(
+      new RegExp(`<p role="status" class="sr-only">${T.version.alTerminar}</p>`),
+    );
   });
 });
 
