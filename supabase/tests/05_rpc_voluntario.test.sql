@@ -184,9 +184,12 @@ select throws_like($$ select hidrantes.fn_retirar_propuesta(current_setting('tes
     (current_setting('test.alta')::jsonb ->> 'propuesta_id')::uuid) $$,
   'PROPUESTA_NO_PENDIENTE%', 'retirarla otra vez: ya no está pendiente');
 
--- Errores del cliente: nunca falla hacia el cliente
+-- Errores del cliente: nunca falla hacia el cliente. Desde 0044 (docs/33 RV-306) anon ya no ejecuta
+-- esta firma: se prueba con el dueño.
+reset role;
 select lives_ok($$ select hidrantes.fn_registrar_error(null, repeat('x', 5000), repeat('y', 10000), '/mapa', 'test') $$,
   'fn_registrar_error acepta y recorta sin fallar');
+set local role anon;
 
 -- Jefatura no es cosa de anon
 select throws_ok($$ select hidrantes.fn_aprobar(gen_random_uuid()) $$, '42501', null, 'anon no puede aprobar');

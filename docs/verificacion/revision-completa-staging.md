@@ -125,3 +125,23 @@ crea en la base y llega a Playwright también por el entorno; nadie teclea el c�
 | Limpieza | ok: nada pendiente del recorrido (lo que quedara, rechazado con «prueba»), 0 pendientes, 0 incidencias abiertas, token revocado; la cadena no salió de la memoria |
 
 commit: aba87542a65cedfca72d274f7cf136a286715a0a · resultado: verde
+
+## Release 0.10.1 (9 oct 2026)
+
+Con los arreglos de los defectos D2, D3 y D4 del recorrido (#576, #574, #575 y #577) y la fusión con
+reintento de `npm run publicar` (#573). Sin migraciones nuevas: la última en staging sigue siendo
+`0043_validar_token_para_functions.sql`. «Desplegar staging» en verde con el commit de abajo. Mismo
+método que en 0.10.0 (RV-208: la cadena solo en memoria; traspaso 37910115092, borrado).
+
+| Recorrido | Resultado |
+|---|---|
+| Cercanos, alta Directo con dos fotos sin conexión y con conexión, Mis propuestas, revisión, buscar «Calle Real 10», `POST /api/push`, SW de staging con un push | ok |
+| **Nuevo (#562):** a 1440 × 900, en el mapa y en `/lista`, la página mide la ventana y `scrollTo(0, 10000)` no la mueve | ok · `07-alto-pagina-mapa-escritorio.png`, `07-alto-pagina-lista-escritorio.png` |
+| Jefatura por BD: aprobar el alta (BOC-0008), `fn_editar_punto` 6 m y enganche; `detalleLegible` da «Enganche: Directo → Granada · Movido 6 m» | ok |
+| `npm run anonimizar -- --entorno staging` del dispositivo de prueba | ok: 2 propuestas y 2 entradas del registro, «voluntario dado de baja» |
+| Limpieza | ok: 0 pendientes, 0 incidencias abiertas, token revocado |
+
+D3 y D4 son de pantalla con datos simulados (la Cola necesita entrar con Google): los cubren sus e2e
+en la CI de `develop`.
+
+commit: ad105f0f8f1a2dd229ff2f25120aef401201d6b6 · resultado: verde

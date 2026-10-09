@@ -6,6 +6,10 @@
 -- 12 puntos con las 12 combinaciones diámetro × caudal (06 §4.2), repartidos por los núcleos;
 -- tres con revisión caducada, uno retirado y uno en la papelera. 6 propuestas pendientes, una por
 -- operación, con un posible duplicado y una desactualizada.
+--
+-- Las fotos `fotos/prueba-*.jpg` las sube después scripts/fotos-seed-staging.ts (deploy-staging.yml),
+-- que comprueba que cada una responde 200 (docs/33 RV-340). Al final, las bocas duplicadas de RV-139b,
+-- retiradas.
 
 \set ON_ERROR_STOP on
 begin;
@@ -83,5 +87,55 @@ insert into hidrantes.administradores (email, creado_por) values
   ('jefatura.prueba@example.com', 'seed'),
   ('panel.prueba@example.com',    'seed')
 on conflict (email) do nothing;
+
+-- ---------- las cuatro bocas duplicadas de RV-139b, retiradas (docs/33 RV-340, D12) ----------
+-- BOC-0003 a BOC-0006 son altas de prueba que RV-139b aprobó en el mismo sitio (8 oct 2026): cuatro
+-- marcadores encima unos de otros. Se retiran como lo haría jefatura, con fn_retirar_punto (queda en el
+-- Registro) y con los claims de un administrador activo **locales a esta transacción**
+-- (set_config(…, true)), como en RV-139b: el de prueba si está activo y, si no, otro activo (el
+-- propietario lo está siempre, asegurar-propietario.ts). Si ninguno pasa fn_es_admin, falla: el seed se
+-- deshace y el despliegue lo dice, en vez de dejar las bocas sin aviso. Solo si siguen activas, son
+-- bocas, se crearon antes del 10 oct 2026 y tienen otra de las cuatro a menos de 15 m: si staging se
+-- rehace y esos códigos son otros puntos, no se toca nada. Idempotente: retiradas, ya no están activas.
+do $$
+declare
+  p record;
+  n int := 0;
+  admin text;
+begin
+  if not exists (select 1 from hidrantes.puntos where codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
+                                                  and situacion = 'activo') then
+    return;
+  end if;
+  select a.email into admin
+    from hidrantes.administradores a
+   where a.activo
+   order by a.email = 'jefatura.prueba@example.com' desc, a.email
+   limit 1;
+  perform set_config('request.jwt.claims', jsonb_build_object(
+    'role', 'authenticated', 'email', admin,
+    'amr', jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', extract(epoch from now())::bigint)),
+    'app_metadata', jsonb_build_object('provider', 'google', 'providers', jsonb_build_array('google')))::text, true);
+  if admin is null or not hidrantes.fn_es_admin() then
+    raise exception 'RV-340: ningún administrador activo pasa fn_es_admin(); revisa hidrantes.administradores y fn_email_jwt';
+  end if;
+  for p in
+    select x.id, x.codigo
+      from hidrantes.puntos x
+     where x.codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
+       and x.tipo = 'boca_riego'
+       and x.situacion = 'activo'
+       and x.creado_en < '2026-10-10'
+       and exists (select 1 from hidrantes.puntos y
+                    where y.codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
+                      and y.id <> x.id
+                      and extensions.st_dwithin(x.geom, y.geom, 15))
+     order by x.codigo
+  loop
+    perform hidrantes.fn_retirar_punto(p.id, 'prueba');
+    n := n + 1;
+  end loop;
+  raise notice 'RV-340: % bocas duplicadas de RV-139b retiradas', n;
+end $$;
 
 commit;

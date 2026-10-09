@@ -78,6 +78,52 @@ async function voluntario(page: Page) {
   });
 }
 
+/** docs/33 RV-315 (U6): Mis propuestas con una de cada estado, como en el mockup. */
+async function voluntarioConPropuestas(page: Page) {
+  await conSesion(page);
+  const base = { correcciones: null, revisada_en: null, motivo_rechazo: null };
+  await simularRpc(page, {
+    fn_listar_puntos: LISTADO,
+    fn_mis_propuestas: [
+      {
+        ...base,
+        id: 'p1',
+        clave_local: 'k1',
+        operacion: 'estado',
+        punto_id: P0.id,
+        codigo: P0.codigo,
+        datos: { caudal: 'no_funciona', descripcion_fallo: 'Tapa soldada' },
+        estado: 'pendiente',
+        creada_en: hace(0.02),
+      },
+      {
+        ...base,
+        id: 'p2',
+        clave_local: 'k2',
+        operacion: 'alta',
+        punto_id: null,
+        codigo: null,
+        datos: { tipo: 'hidrante', diametro_mm: 100, caudal: 'bueno' },
+        estado: 'aprobada',
+        creada_en: hace(26),
+      },
+      {
+        ...base,
+        id: 'p3',
+        clave_local: 'k3',
+        operacion: 'datos',
+        punto_id: P1.id,
+        codigo: P1.codigo,
+        datos: { racor: 'directo' },
+        estado: 'rechazada',
+        motivo_rechazo: 'la foto es de la boca de al lado',
+        creada_en: hace(50),
+      },
+    ],
+    fn_registrar_error: null,
+  });
+}
+
 /**
  * docs/25 RV-107: los doce puntos sin revisar (los cinco tamaños, círculo y cuadrado), y el mapa
  * a z17 sobre ellos, para mirar el anillo de 8 rayas en el mapa y en la lista.
@@ -347,6 +393,13 @@ const VISTAS: Vista[] = [
     ruta: '/ajustes',
     preparar: voluntario,
     lista: (p) => expect(p.getByText(T.ajustes.firma)).toBeVisible(),
+  },
+  {
+    nombre: 'mis-propuestas',
+    ruta: '/mis-propuestas',
+    preparar: voluntarioConPropuestas,
+    lista: (p) => expect(p.getByText(T.misPropuestas.motivo('la foto es de la boca de al lado'))).toBeVisible(),
+    anchoEscritorio: 1440,
   },
   {
     nombre: 'panel-cola',

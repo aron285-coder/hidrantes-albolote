@@ -361,7 +361,7 @@ export const T = {
     fotoIlegible: 'No se pudo leer la foto. Prueba otra vez.',
     // docs/31 RV-157: «Repetir» que falla; sigue la foto de antes.
     fotoRepetidaIlegible: 'No se pudo leer la foto nueva: sigue la anterior. Prueba otra vez.',
-    // Más de 24 MP en un navegador que no reduce al decodificar (docs/32 RV-244).
+    // Más de 26 MP en un navegador que no reduce al decodificar (docs/32 RV-244; docs/33 RV-326).
     fotoDemasiadoGrande: 'Esta foto es demasiado grande para este móvil: cambia la cámara a 12 MP o menos.',
     enviando: 'Enviando…',
     guardadoDetalle: 'Se enviará sola cuando haya conexión.',
@@ -469,6 +469,12 @@ export const T = {
     vacio: 'Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.',
     resumen: (enviadas: Parametro, sinEnviar: Parametro) => `${enviadas} enviadas · ${sinEnviar} sin enviar`,
     nuevo: 'nuevo',
+    // docs/33 RV-315 (U6): la tarjeta dice qué se propuso, en una línea.
+    puntoNuevo: 'Punto nuevo',
+    lineaCambio: (antes: Parametro, despues: Parametro) => `${antes} → ${despues}`,
+    lineaCampo: (campo: Parametro, valor: Parametro) => `${campo}: ${valor}`,
+    lineaUbicacion: 'Posición nueva en el mapa',
+    lineaRetirada: (motivo: Parametro) => `Retirada: ${motivo}`,
     descartar: 'Descartar',
     reintentar: 'Reintentar',
     confirmarDescartar: '¿Descartar este envío?',
@@ -502,6 +508,9 @@ export const T = {
     esperaPropuestasGrupo: (cuando: Parametro) =>
       `En espera: el grupo ha llegado al máximo de propuestas de hoy. Se enviará ${cuando}.`,
     esperaFotos: (cuando: Parametro) => `En espera: has llegado al máximo de fotos de hoy. Se enviará ${cuando}.`,
+    // docs/33 RV-329: el tope es el de este móvil (`ambito=dispositivo`, RV-303).
+    esperaFotosDispositivo: (cuando: Parametro) =>
+      `En espera: has llegado a tu máximo de fotos de hoy. Se enviará ${cuando}.`,
     esperaFotosGrupo: (cuando: Parametro) =>
       `En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará ${cuando}.`,
     esperaSinEspacioFotos: (cuando: Parametro) =>
