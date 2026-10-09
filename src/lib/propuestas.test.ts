@@ -176,6 +176,8 @@ describe('el hueco de la foto dice si es obligatoria (FR-21, FR-41 a FR-46)', ()
     expect(textoHacerFoto('datos')).toContain('opcional');
   });
 
+  // Alta y ubicación pintan dos huecos con «Hacer foto · [Conexión] · obligatoria»; lo comprueba el
+  // e2e «alta y revisión». Aquí solo se fija que la regla no las da por opcionales.
   it('alta, revisión, estado, ubicación y retirada: obligatoria', () => {
     for (const o of ['alta', 'revision', 'estado', 'ubicacion', 'retirada'] as const) {
       expect(textoHacerFoto(o)).toBe(T.formulario.hacerFoto);
