@@ -31,6 +31,13 @@ concurrency:
   group: respaldo
   cancel-in-progress: false
 
+# La huella de la clave con la que se cifra el respaldo: la de docs/15 §2 y docs/entornos.md
+# (docs/32 RV-202). Es una constante del workflow y no una variable del repositorio (docs/33 RV-341):
+# cambiarla exige un PR revisado, no basta con poder editar las variables. clave-gpg.test.ts comprueba
+# que coincide con la de los dos documentos.
+env:
+  GPG_HUELLA: BD378A1E0E09843032B3A70254A89DD4FC82E6CE
+
 jobs:
   respaldo:
     runs-on: ubuntu-24.04
@@ -57,12 +64,11 @@ jobs:
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
           SERVICIO: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
           CLAVE_GPG: ${{ secrets.GPG_PUBLIC_KEY }}
-          GPG_HUELLA: ${{ vars.GPG_HUELLA }}
         run: |
           set -euo pipefail
           falta=0
-          for v in BD SERVICIO CLAVE_GPG GPG_HUELLA; do
-            if [ -z "${!v}" ]; then echo "::error::Falta $v (los secretos de producción, en el environment prod-tareas; GPG_HUELLA es una variable del repositorio, docs/32 RV-202)"; falta=1; fi
+          for v in BD SERVICIO CLAVE_GPG; do
+            if [ -z "${!v}" ]; then echo "::error::Falta $v (los secretos de producción, en el environment prod-tareas)"; falta=1; fi
           done
           if [ "$falta" = 1 ]; then
             {
@@ -79,7 +85,7 @@ jobs:
               echo
               echo '`GPG_PUBLIC_KEY` es la clave pública (no es secreta) y es la única que va en el'
               echo 'repositorio. Si falta: `npm run traspasar-secreto -- --secreto GPG_PUBLIC_KEY --desde production --hacia repositorio`.'
-              echo '`GPG_HUELLA` es una variable del repositorio: la huella de esa clave que da 15 §2 (docs/32 RV-202).'
+              echo 'La huella de esa clave (la de 15 §2) es la constante `GPG_HUELLA` de este workflow (docs/33 RV-341).'
               echo
               echo 'Por qué `prod-tareas` y no `production`: production exige aprobación humana y un'
               echo 'respaldo semanal no puede esperar a que alguien pulse un botón (DEC-071).'
@@ -115,13 +121,12 @@ jobs:
           # Primer domingo del mes: toca también el bucket de fotos (04 §9).
           echo "mensual=$([ "$(date -u +%d)" -le 7 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-      # La clave es la de docs/15 §2 (docs/32 RV-202): GPG_HUELLA es una variable del repositorio con
-      # su huella. Si GPG_PUBLIC_KEY trae otra, el respaldo no se podría descifrar con la clave privada
+      # La clave es la de docs/15 §2 (docs/32 RV-202): GPG_HUELLA es la constante de arriba con su
+      # huella. Si GPG_PUBLIC_KEY trae otra, el respaldo no se podría descifrar con la clave privada
       # que se guarda: el job falla aquí, antes de cifrar nada, y abre la issue del final.
       - name: Importar la clave pública de cifrado
         env:
           CLAVE_GPG: ${{ secrets.GPG_PUBLIC_KEY }}
-          GPG_HUELLA: ${{ vars.GPG_HUELLA }}
         run: |
           set -euo pipefail
           source .github/scripts/clave-gpg.sh
