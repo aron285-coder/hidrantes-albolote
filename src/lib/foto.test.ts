@@ -177,6 +177,15 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
       expect(r).toMatchObject({ ancho: 1600, alto: 1200 });
     });
 
+    it('justo 26 MP (6500 × 4000) aún se abre en un navegador que no reduce (docs/33 RV-326)', async () => {
+      crear.mockImplementation(async (_b: Blob, o?: ImageBitmapOptions) => {
+        if (o?.resizeWidth !== undefined) throw new TypeError('resizeWidth no admitido');
+        return { width: 6500, height: 4000, close: cerrar };
+      });
+      _reiniciarReduce();
+      await expect(procesarFoto(new Blob([jpegConCabecera(6500, 4000)]))).resolves.toMatchObject({ ancho: 1600 });
+    });
+
     it('por encima de 26 MP, en un navegador que no reduce, sigue el aviso (docs/33 RV-326)', async () => {
       crear.mockImplementation(async () => {
         throw new TypeError('resizeWidth no admitido');
