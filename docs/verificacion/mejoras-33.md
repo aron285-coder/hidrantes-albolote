@@ -13,28 +13,28 @@ La señal para fusionar en `develop` («0.10.1 en producción», comentario de c
 
 | Punto | PR | Qué | Cómo se ha comprobado |
 |---|---|---|---|
-| RV-300 | | La entrada del día del lanzamiento | |
-| RV-301 | | El tope de espacio mide lo nuestro | |
-| RV-302 | | Reservas que se liberan y «token nuevo» por móvil | |
-| RV-303 | | `ambito`: tu tope o el del grupo | |
-| RV-304 | | Endurecimiento | |
-| RV-305 | | Test de permisos de `service_role` | |
-| RV-306 | | Errores que hoy pasan sin aviso | |
+| RV-300 | #592 (`0044`) | La entrada del día del lanzamiento: los dos topes en Ajustes (5–500 y 10–500), `fn_abrir_entrada` (máx. 72 h) y `fn_cerrar_entrada`, se abre sola 24 h al cambiar el código revocando; con la entrada abierta, topes `greatest(valor, 200)`; Salud con `entradas_frenadas_24h` y `entrada_abierta_hasta`; vigilancia con > 5 frenadas | pgTAP 41 (68 casos, todos los de la spec); el grant de `cron.job_run_details` dado en dev y prod (DEC-185) |
+| RV-301 | #592 | El tope de la base mide el esquema `hidrantes`; el total del proyecto solo avisa (80 % de 500 MB, con desglose); tarea diaria que borra el historial de pg_cron de hidrantes (10 días, no 7); `SIN_ESPACIO` con `reintentar_en_s` | pgTAP 41, 05 y 37; vigilancia en `workflows.test.ts`. El Storage de todo el proyecto no se vigila (DEC-190) |
+| RV-302 | #592 | `fn_liberar_reservas(rutas)`; «token nuevo» por la primera vez que se vio el `dispositivo_id` | pgTAP 41 y 02 (el veterano recibía `CUOTA_PROPUESTAS_AGOTADA`) |
+| RV-303 | #589 | `ambito` (`dispositivo`, `grupo`, `token_nuevo`) en el 429 de `/api/url-subida` | Tests de `url-subida` |
+| RV-304 | #589, #592 | `/api/push`: 30 llamadas por token y hora; el tope global de propuestas sin candado de toda la transacción | Tests de `/api/push`; pgTAP 34 y 41 |
+| RV-305 | #589 | `scripts/rpc-de-servicio.ts` y pgTAP 40: cada RPC llamada con `service_role` tiene `execute`; la CI falla si el pgTAP no coincide con lo que encuentra el script | Habría detectado D1 (#561) |
+| RV-306 | #592, #595 | `fn_registrar_error` de 5 argumentos sin `anon` ni `authenticated` (antes de la semana prevista: el acceso real no está abierto); la app manda los errores solo por `/api/error`. Contar el fallo en `SIN_RESPUESTA` ya lo hacía 0040 | pgTAP 34; `errores.test.ts` |
 
 ## Frontend-campo (oleadas 1 y 2)
 
 | Punto | PR | Qué | Capturas antes/después y comparación con el mockup |
 |---|---|---|---|
-| RV-310 a RV-321 | | U1 a U12 | |
-| RV-322 a RV-328 | | N1 a N3, N5, N6, hueco del alta, reservas liberadas | |
-| RV-329 | | Mensajes con `ambito` | |
+| RV-310 a RV-321 | #601 (U1), #607 (U2, N3), #610 (U3, D5), #614 (U4), #605 y #609 (U5), #593 y #609 (U6), #603 y #609 (U7, D3, D8, D9), #615 (U8, D11), #616 (U9, D7), #617 (U10), #606 (U11), #619 (U12, D6a, D6b) | U1 a U12 | Capturas antes/después a 412 y 1440 px, claro y oscuro, en cada PR (`docs/capturas/mejoras-33/`), comparadas con el mockup; las desviaciones, en DEC-192 |
+| RV-322 a RV-328 | #603 (N1), #587 (N2), #607 (N3), #585 (N5, N6: 26 MP), RV-327 (ver abajo), #586 (reservas liberadas) | N1 a N3, N5, N6, hueco del alta, reservas liberadas | e2e y unitarios en cada PR |
+| RV-329 | #582 | «Has llegado a tu máximo…» / «El grupo ha llegado al máximo…» en la cola y en Mis propuestas | Unitarios |
 
 ## Frontend-panel (oleadas 1 y 2)
 
 | Punto | PR | Qué | Capturas antes/después y comparación con el mockup |
 |---|---|---|---|
-| RV-330 a RV-337 | | U13 a U15, D4, D13, D14, N4, marcadores, `docs/06` | |
-| RV-338 | | La entrada del lanzamiento en Ajustes | |
+| RV-330 a RV-337 | #591 (U15, D4), #604 y #608 (U14), #599 (D13, N4), #600 (D14), #598 (U13), #612 y #618 (marcadores, cortes de 800 y 1100 px, `docs/06` v1.28) | U13 a U15, D4, D13, D14, N4, marcadores, `docs/06` | Capturas antes/después en cada PR; a 720 × 450 se ven 4 propuestas (antes 2) |
+| RV-338 | #611 | Sección «Entrada» en Ajustes → Código de acceso; aviso al revocar; los dos topes en Parámetros; «Entradas frenadas por el tope (24 h)» en Salud | 8 de 9 e2e fallaban antes; `salud.test.ts`, `ajustes.test.ts` |
 
 ## Ops (oleada 1)
 
