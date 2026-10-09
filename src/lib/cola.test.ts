@@ -107,7 +107,8 @@ describe('cola de envíos', () => {
     await cola.encolar(args('k-000003'), FOTO, 'HID-0147');
     await cola.procesarCola();
     await cola.procesarCola();
-    expect(rpc).toHaveBeenCalledTimes(1);
+    // fn_proponer una vez; la otra llamada es la que libera su foto (docs/33 RV-328).
+    expect(rpc.mock.calls.filter((c) => c[0] === 'fn_proponer')).toHaveLength(1);
     expect(cola.colaActual()[0].fallo).toBe('PUNTO_NO_ACTIVO');
     await cola.descartar('k-000003');
     expect(cola.colaActual()).toEqual([]);

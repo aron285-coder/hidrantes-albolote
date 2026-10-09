@@ -91,22 +91,33 @@ on conflict (email) do nothing;
 -- ---------- las cuatro bocas duplicadas de RV-139b, retiradas (docs/33 RV-340, D12) ----------
 -- BOC-0003 a BOC-0006 son altas de prueba que RV-139b aprobó en el mismo sitio (8 oct 2026): cuatro
 -- marcadores encima unos de otros. Se retiran como lo haría jefatura, con fn_retirar_punto (queda en el
--- Registro) y con los claims de un administrador de prueba **locales a esta transacción**
--- (set_config(…, true)), como en RV-139b. Solo si siguen activas, son bocas, se crearon antes del 10 oct
--- 2026 y tienen otra de las cuatro a menos de 15 m: si staging se rehace y esos códigos son otros puntos,
--- no se toca nada. Idempotente: retiradas, ya no están activas.
+-- Registro) y con los claims de un administrador activo **locales a esta transacción**
+-- (set_config(…, true)), como en RV-139b: el de prueba si está activo y, si no, otro activo (el
+-- propietario lo está siempre, asegurar-propietario.ts). Si ninguno pasa fn_es_admin, falla: el seed se
+-- deshace y el despliegue lo dice, en vez de dejar las bocas sin aviso. Solo si siguen activas, son
+-- bocas, se crearon antes del 10 oct 2026 y tienen otra de las cuatro a menos de 15 m: si staging se
+-- rehace y esos códigos son otros puntos, no se toca nada. Idempotente: retiradas, ya no están activas.
 do $$
 declare
   p record;
   n int := 0;
+  admin text;
 begin
+  if not exists (select 1 from hidrantes.puntos where codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
+                                                  and situacion = 'activo') then
+    return;
+  end if;
+  select a.email into admin
+    from hidrantes.administradores a
+   where a.activo
+   order by a.email = 'jefatura.prueba@example.com' desc, a.email
+   limit 1;
   perform set_config('request.jwt.claims', jsonb_build_object(
-    'role', 'authenticated', 'email', 'jefatura.prueba@example.com',
+    'role', 'authenticated', 'email', admin,
     'amr', jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', extract(epoch from now())::bigint)),
     'app_metadata', jsonb_build_object('provider', 'google', 'providers', jsonb_build_array('google')))::text, true);
-  if not hidrantes.fn_es_admin() then
-    raise warning 'RV-340: el administrador de prueba no está activo; las bocas duplicadas no se retiran';
-    return;
+  if admin is null or not hidrantes.fn_es_admin() then
+    raise exception 'RV-340: ningún administrador activo pasa fn_es_admin(); revisa hidrantes.administradores y fn_email_jwt';
   end if;
   for p in
     select x.id, x.codigo

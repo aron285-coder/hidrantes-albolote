@@ -703,7 +703,8 @@ describe('revisar_bd (RV-78)', () => {
   const tieneJq = spawnSync('bash', ['-c', 'command -v jq'], { encoding: 'utf8' }).status === 0;
   /** psql simulado: responde según la consulta; `tareas` es lo que da tareas-programadas.sql. */
   /** `falla`: un trozo de la consulta con el que psql sale con error (docs/31 RV-138). */
-  const correr = (entorno: string, tareas: string, falla = '') => {
+  /** `intentos`: fallos, bloqueos de todo el grupo y móviles frenados con el código bueno (24 h). */
+  const correr = (entorno: string, tareas: string, falla = '', intentos = '0 0 0') => {
     const guion = [
       'set -uo pipefail',
       `psql() {
@@ -712,9 +713,9 @@ describe('revisar_bd (RV-78)', () => {
           *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
           *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
           *ultimo_respaldo*) echo 3 ;;
-          *fn_espacio*) echo 'storage 10 800 f 50 400 f 70 0' ;;
+          *fn_espacio*) echo 'storage 10 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok 0' ;;
           *notificaciones*) echo 0 ;;
-          *intentos_codigo*) echo '0 0' ;;
+          *intentos_codigo*) echo "$INTENTOS" ;;
           *) echo 1 ;;
         esac
       }`,
@@ -730,7 +731,14 @@ describe('revisar_bd (RV-78)', () => {
         cwd: raiz,
         encoding: 'utf8',
         // docs/22 RV-90: el JSON de las tareas va a RUNNER_TEMP, no a la raíz del repositorio.
-        env: { ...process.env, TAREAS: tareas, ANOTADO: path.join(dir, 'anotado'), RUNNER_TEMP: dir, FALLA: falla },
+        env: {
+          ...process.env,
+          TAREAS: tareas,
+          ANOTADO: path.join(dir, 'anotado'),
+          RUNNER_TEMP: dir,
+          FALLA: falla,
+          INTENTOS: intentos,
+        },
       });
       const archivo = `tareas-${entorno}.json`;
       return {
@@ -783,6 +791,27 @@ describe('revisar_bd (RV-78)', () => {
     expect(r.salida.trim().endsWith('FIN')).toBe(true);
   });
 
+  // docs/33 RV-300: más de 5 móviles con el código bueno frenados por el tope de entradas en 24 h.
+  it.skipIf(!tieneJq)('con más de 5 móviles frenados con el código bueno, problema y aviso a jefatura', () => {
+    const r = correr('produccion', BIEN, '', '0 0 6');
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain('Hay voluntarios que no pueden entrar: abre la entrada 24 h en Ajustes (6 móviles');
+    // El psql simulado responde 0 al aviso: nadie suscrito.
+    expect(r.salida).toContain('nadie ha recibido el aviso de que hay voluntarios que no pueden entrar');
+    expect(correr('produccion', BIEN, '', '0 0 5').salida.trim()).toBe('FIN');
+    // Una base sin 0044 da dos columnas: no es un problema.
+    expect(correr('produccion', BIEN, '', '0 0').salida.trim()).toBe('FIN');
+    // Con la entrada ya abierta no se pide abrirla.
+    expect(correr('produccion', BIEN, '', '0 0 6 t').salida.trim()).toBe('FIN');
+    expect(correr('produccion', BIEN, '', '0 0 6 f').salida).toContain('Hay voluntarios que no pueden entrar');
+  });
+
+  it('la consulta de los frenados no falla en una base sin la columna codigo_correcto (0044)', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
+    expect(guion).toContain("(to_jsonb(i) ->> 'codigo_correcto')::boolean");
+    expect(guion).not.toMatch(/[^>' ]codigo_correcto/);
+  });
+
   it('ninguna consulta convierte un fallo en un número con || echo', () => {
     const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
     expect(guion).not.toMatch(/\|\| echo ['"]?0/);
@@ -810,6 +839,13 @@ describe('revisar_espacio (RV-220, RV-221)', () => {
    * `espacio`: la línea que da la consulta de fn_espacio (origen, MB de fotos, tope, ¿alto?, MB de la
    * base, tope, ¿alta?, %, días de la medida). `push`: lo que responde el insert del aviso.
    */
+  /**
+   * docs/33 RV-301 (0044): detrás van el total del proyecto (MB, tope, ¿alto?, % del aviso), el
+   * desglose (hidrantes, pg_cron, pg_net, resto) y si la purga de pg_cron tiene permiso. Una línea de
+   * las nueve columnas de antes se completa con un total bajo.
+   */
+  const conTotal = (espacio: string) =>
+    espacio.split(' ').length === 9 ? `${espacio} 120 500 f 80 50 5 1 64 ok 0` : espacio;
   const correr = (espacio: string, { push = '2', falla = '' } = {}) => {
     const guion = [
       'set -uo pipefail',
@@ -833,7 +869,7 @@ describe('revisar_espacio (RV-220, RV-221)', () => {
       const r = spawnSync('bash', ['-e', '-c', guion], {
         cwd: raiz,
         encoding: 'utf8',
-        env: { ...process.env, ESPACIO: espacio, PUSH: push, FALLA: falla, ANOTADO: anotado },
+        env: { ...process.env, ESPACIO: conTotal(espacio), PUSH: push, FALLA: falla, ANOTADO: anotado },
       });
       const lineas = r.stdout.trim().split('\n');
       return {
@@ -901,6 +937,36 @@ describe('revisar_espacio (RV-220, RV-221)', () => {
       expect(r.problemas, raro).toEqual([expect.stringContaining('no entiende')]);
       expect(r.fin, raro).toBe(true);
     }
+  });
+
+  it('toda la base de datos del proyecto al 80 % o más: problema con el desglose y un aviso push', () => {
+    const r = correr('storage 100 800 f 50 400 f 70 0 410 500 t 80 50 300 20 40 ok 0');
+    expect(r.problemas).toEqual([
+      expect.stringContaining(
+        'toda la base de datos del proyecto ocupa 410 MB de 500 (aviso al 80 %): hidrantes 50 MB, historial de pg_cron 300 MB',
+      ),
+    ]);
+    expect(r.problemas[0]).not.toContain('grant delete');
+    expect(r.pushes).toBe(1);
+  });
+
+  it('el historial de pg_cron que no se borra es un problema, con la causa si falta el permiso', () => {
+    const viejo = correr('storage 100 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok 12');
+    expect(viejo.problemas).toEqual([expect.stringContaining('el historial de pg_cron tiene 12 ejecuciones')]);
+    expect(viejo.pushes).toBe(0);
+    const sinPermiso = correr('storage 100 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 sin_permiso 12');
+    expect(sinPermiso.problemas[0]).toContain('falta el grant delete on cron.job_run_details');
+    expect(correr('storage 100 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 sin_permiso 0').problemas).toEqual([]);
+    const ilegible = correr('storage 100 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok -1');
+    expect(ilegible.problemas).toEqual([expect.stringContaining('no se puede leer el historial de pg_cron')]);
+  });
+
+  it('el tope de la base de datos lee el esquema (esquema_bytes), y sin 0044 el total como antes', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
+    expect(guion).toContain("coalesce(e ->> 'esquema_bytes', e ->> 'bd_bytes')::bigint >= (e ->> 'aviso')::numeric");
+    expect(correr('storage 100 800 f 290 400 t 70 0').problemas[0]).toContain('en el esquema hidrantes');
+    const raro = correr('storage 100 800 f 50 400 f 70 0 410 500 t 80 50 300 20 40 quizas 0');
+    expect(raro.problemas).toEqual([expect.stringContaining('no entiende')]);
   });
 
   it('sustituye al aviso fijo de 400 MB', () => {
