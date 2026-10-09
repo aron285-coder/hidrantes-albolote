@@ -44,6 +44,8 @@ export function textoEspera(envio: Pick<EnCola, 'en_espera' | 'fallo' | 'proximo
       return T.misPropuestas.esperaPropuestasGrupo(cuando);
     case 'cuota_fotos':
       return T.misPropuestas.esperaFotos(cuando);
+    case 'cuota_fotos_dispositivo':
+      return T.misPropuestas.esperaFotosDispositivo(cuando);
     case 'cuota_fotos_grupo':
       return T.misPropuestas.esperaFotosGrupo(cuando);
     case 'sin_espacio_fotos':

@@ -69,6 +69,7 @@ export type MotivoEspera =
   | 'cuota_propuestas_nuevo'
   | 'cuota_propuestas_grupo'
   | 'cuota_fotos'
+  | 'cuota_fotos_dispositivo'
   | 'cuota_fotos_grupo'
   | 'sin_espacio_fotos'
   | 'sin_espacio'
@@ -145,7 +146,9 @@ export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now
     else if (delGrupo) motivo = 'cuota_propuestas_grupo';
     return { motivo, ...esperaCuotaPropuestas(mensaje, ahora) };
   }
+  // docs/33 RV-329: con el ámbito del móvil se dice «tu máximo»; sin ámbito (servidor anterior), como antes.
   if (motivo === 'cuota_fotos' && delGrupo) motivo = 'cuota_fotos_grupo';
+  else if (motivo === 'cuota_fotos' && ambito === 'dispositivo') motivo = 'cuota_fotos_dispositivo';
   const segundos = /reintentar_en_s=(\d+)/.exec(mensaje ?? '');
   const maximo = /maximo=(\d+)/.exec(mensaje ?? '');
   return {

@@ -499,6 +499,9 @@ export const T = {
     esperaPropuestasGrupo: (cuando: Parametro) =>
       `En espera: el grupo ha llegado al máximo de propuestas de hoy. Se enviará ${cuando}.`,
     esperaFotos: (cuando: Parametro) => `En espera: has llegado al máximo de fotos de hoy. Se enviará ${cuando}.`,
+    // docs/33 RV-329: el tope es el de este móvil (`ambito=dispositivo`, RV-303).
+    esperaFotosDispositivo: (cuando: Parametro) =>
+      `En espera: has llegado a tu máximo de fotos de hoy. Se enviará ${cuando}.`,
     esperaFotosGrupo: (cuando: Parametro) =>
       `En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará ${cuando}.`,
     esperaSinEspacioFotos: (cuando: Parametro) =>
