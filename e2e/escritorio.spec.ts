@@ -2,13 +2,20 @@
 // abajo y sin «Lista» (la lista ya está a la izquierda); los filtros de la lista se parten en dos líneas
 // en vez de desplazarse; y con el mapa sin conexión no se ve el borde recto de su recorte.
 
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { novedadesDe } from '../scripts/generar-novedades.ts';
 import { T } from '../src/lib/textos.ts';
 import { conSesion, simularRpc } from './ayudas.ts';
 import { LISTADO } from './puntos.ts';
 import mapabase from '../datos/mapabase.json' with { type: 'json' };
 
 test.skip(({ isMobile }) => !!isMobile, 'los tamaños se fijan a mano en el proyecto de escritorio');
+
+// El punto de novedades solo sale si la última versión del CHANGELOG trae alguna línea propia (DEC-142):
+// en un PR de versión que solo trae correcciones no sale, y el test no puede darlo por hecho.
+const NOVEDADES = novedadesDe(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8'));
+const PUNTO = NOVEDADES.lineas.some((l) => l.version === NOVEDADES.version) ? 1 : 0;
 
 async function abrir(page: Page, ancho: number, alto: number, ruta = '/') {
   await page.setViewportSize({ width: ancho, height: alto });
@@ -48,7 +55,7 @@ for (const [ancho, alto] of [
       'page',
     );
     // El punto de las novedades sin ver, también arriba.
-    await expect(page.getByTestId('punto-novedades-arriba')).toBeVisible();
+    await expect(page.getByTestId('punto-novedades-arriba')).toHaveCount(PUNTO);
     await arriba.getByRole('link', { name: T.navegacion.misPropuestas, exact: true }).click();
     await expect(page).toHaveURL(/\/mis-propuestas/);
   });
@@ -148,7 +155,7 @@ test('1440 px: Mis propuestas lleva la navegación de arriba, marcada como actua
     'page',
   );
   // El punto de las novedades sin ver, también aquí.
-  await expect(page.getByTestId('punto-novedades-arriba')).toBeVisible();
+  await expect(page.getByTestId('punto-novedades-arriba')).toHaveCount(PUNTO);
   // Desde aquí, directa a Ajustes.
   await arriba.getByRole('link', { name: T.navegacion.ajustes }).click();
   await expect(page).toHaveURL(/\/ajustes$/);

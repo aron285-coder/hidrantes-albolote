@@ -64,6 +64,16 @@ export const AMBITOS_USUARIO = new Set([
   'incidente',
   'medir',
   'compartir',
+  // docs/33: ámbitos de commits que cambian algo para el voluntario y no estaban (sus líneas no salían).
+  'formulario',
+  'formularios',
+  'proponer',
+  'mis-propuestas',
+  'navegacion',
+  'acceso',
+  'app',
+  'sincronizacion',
+  'envio',
 ]);
 
 /**

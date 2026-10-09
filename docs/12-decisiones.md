@@ -1774,7 +1774,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/18` RV-47); completa DEC-087
 - **Contexto:** Ajustes enseñaba a los voluntarios líneas como "Scripts/capturas.ts deja las pantallas listas para 13 y 14". `generar-novedades.ts` tomaba cualquier `feat:` o `fix:` del CHANGELOG, y el e2e exigía **exactamente** tres líneas, lo que lo hacía frágil.
 - **Decisión:**
-  1. Solo entran los commits cuyo ámbito esté en esta lista: `mapa, lista, ficha, alta, operaciones, cola, envios, ajustes, avisos, panel, cola-revision, inventario, fotos, posicion, mapabase, diseño, accesibilidad, busqueda, incidente, medir, compartir`. La lista está en el propio script (`AMBITOS_USUARIO`).
+  1. Solo entran los commits cuyo ámbito esté en esta lista: `mapa, lista, ficha, alta, operaciones, cola, envios, ajustes, avisos, panel, cola-revision, inventario, fotos, posicion, mapabase, diseño, accesibilidad, busqueda, incidente, medir, compartir` y, desde docs/33 (9 oct 2026), `formulario, formularios, proponer, mis-propuestas, navegacion, acceso, app, sincronizacion, envio`, que usaban commits con cambios para el voluntario y no salían. La lista está en el propio script (`AMBITOS_USUARIO`).
   2. Se descarta la línea que, ya limpia, nombre un archivo (`.ts`, `.tsx`, `.yml`, `.sql`, `.md`) o un código interno (`RV-nn`, `F9.x`, `TR-nn`, `FR-nn`).
   3. Cada línea se corta a 140 caracteres.
   4. Sin ninguna válida, `lineas: []`, y Ajustes enseña su texto vacío.
