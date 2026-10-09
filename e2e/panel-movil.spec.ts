@@ -54,6 +54,13 @@ async function prepararPanel(page: Page) {
     }
     return route.abort('connectionrefused');
   });
+  // Los errores salen por /api/error desde RV-148: se cuentan también ahí. Salvo uno: la descarga del
+  // mapa base que corta el propio test al cambiar de página con page.goto ("network error").
+  await page.route('**/api/error', (route) => {
+    const e = (route.request().postDataJSON() ?? {}) as { ruta?: string; mensaje?: string };
+    if (!(e.ruta === 'mapabase' && e.mensaje === 'network error')) errores.push(`/api/error ${JSON.stringify(e)}`);
+    return route.fulfill({ status: 204 });
+  });
   // Una lectura que falla deja la pestaña en «Reintentar» y el test mediría una pantalla vacía.
   return { sinErrores: () => expect(errores, 'errores registrados por el panel').toEqual([]) };
 }
