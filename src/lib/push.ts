@@ -179,8 +179,9 @@ export async function activarPush({ limiteSwMs = LIMITE_SW_MS } = {}): Promise<R
  * `{ suscrita, temas }`). Sin ella se pregunta también al servidor, con el token del voluntario
  * (`fn_endpoint_tiene_jefatura`, docs/33 RV-323): lo que recuerda el panel se borra al cerrar sesión
  * de jefatura, y con eso se le quitaban sus avisos. Vale lo que recuerda el panel solo sin token, con
- * el token ya revocado (al cerrar sesión) o con un servidor sin la función.
- * `desconocido`: no se ha podido preguntar (sin servidor, sesión caducada).
+ * o con un servidor sin la función.
+ * `desconocido`: no se ha podido preguntar (sin servidor, sesión caducada, token ya revocado) o la
+ * respuesta no es un sí o un no.
  */
 export async function avisosDeJefatura(endpoint: string): Promise<'si' | 'no' | 'desconocido'> {
   const segunPanel = () => (temasActivos().length > 0 ? 'si' : 'no');
@@ -195,7 +196,9 @@ export async function avisosDeJefatura(endpoint: string): Promise<'si' | 'no' | 
     if (!token) return segunPanel();
     const r = await rpc<unknown>('fn_endpoint_tiene_jefatura', { token, endpoint });
     if (r.ok) return r.datos === true ? 'si' : r.datos === false ? 'no' : 'desconocido';
-    if (r.codigo.startsWith('TOKEN_') || /could not find the function/i.test(r.mensaje ?? '')) return segunPanel();
+    if (/could not find the function/i.test(r.mensaje ?? '')) return segunPanel();
+    // Con el token ya revocado (al cerrar sesión se revoca a la vez) no se sabe: lo que recuerda el
+    // panel puede estar vacío porque jefatura cerró su sesión, y darla de baja le quitaría sus avisos.
     return 'desconocido';
   }
   const r = await rpc<unknown>('fn_suscripcion_push_admin', { endpoint });
@@ -211,7 +214,7 @@ export async function avisosDeJefatura(endpoint: string): Promise<'si' | 'no' | 
  * voluntario en el servidor; `borrarEnServidor: false` al cerrar sesión, porque ya la borra
  * `fn_cerrar_sesion` (RV-234, RV-226). Después, la suscripción del navegador:
  * - si jefatura tiene avisos aquí, se queda: así no se le quitan los suyos;
- * - si no se sabe, también se queda, y queda anotado;
+ * - si no se sabe, también se queda, y queda anotado (salvo al cerrar sesión, docs/33 RV-323);
  * - pero si la fila de voluntario no se ha podido borrar, se da de baja igual: lo que pide el
  *   voluntario es dejar de recibir avisos, y sin borrar su fila seguirían llegando. Queda anotado.
  */
@@ -239,7 +242,9 @@ export async function desactivarPush({ borrarEnServidor = true } = {}): Promise<
           );
         }
         await suscripcion.unsubscribe();
-      } else if (jefatura === 'desconocido') {
+      } else if (jefatura === 'desconocido' && borrarEnServidor) {
+        // Al cerrar sesión es lo esperado (el token se revoca a la vez) y no se anota: la fila de
+        // voluntario ya la borra fn_cerrar_sesion, así que la suscripción que se queda no le trae avisos.
         anotarError(new Error('push: no se sabe si jefatura tiene avisos; la suscripción se queda'), 'push:desactivar');
       }
     }

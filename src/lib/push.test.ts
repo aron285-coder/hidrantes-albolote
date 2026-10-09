@@ -392,10 +392,22 @@ describe('apagar los avisos de voluntario no apaga los de jefatura (docs/32 RV-2
     expect(mensajesAnotados()).toContain('no se sabe si jefatura tiene avisos');
   });
 
-  it('con el token ya revocado (al cerrar sesión), vale lo que recuerda el panel', async () => {
+  it('al cerrar sesión con el token ya revocado y el panel sin temas: la suscripción se queda, sin anotar', async () => {
+    // fn_cerrar_sesion revoca el token a la vez; jefatura pudo cerrar antes su sesión del panel.
     tieneJefatura({ ok: false, codigo: 'TOKEN_INVALIDO' });
     await desactivarPush({ borrarEnServidor: false });
-    expect(s.unsubscribe).toHaveBeenCalledOnce();
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+    expect(anotarError).not.toHaveBeenCalled();
+  });
+
+  it('una respuesta que no es sí ni no: la suscripción se queda y queda anotado, sin el endpoint', async () => {
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_endpoint_tiene_jefatura' ? { ok: true, datos: null } : { ok: true, datos: null },
+    );
+    await desactivarPush();
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+    expect(mensajesAnotados()).toContain('no se sabe si jefatura tiene avisos');
+    expect(mensajesAnotados()).not.toContain(ENDPOINT);
   });
 
   it('sin token de voluntario no se pregunta: vale lo que recuerda el panel', async () => {
