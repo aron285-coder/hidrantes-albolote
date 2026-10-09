@@ -660,6 +660,36 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-192 · Mejoras de UI U1 a U15 del recorrido, con las indicaciones del desarrollador
+- **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-189; RV-310 a RV-321 y RV-330, RV-331, RV-335).
+- **Contexto:** el recorrido RV-270 (`verificacion/recorrido-staging-2026-10-08.md`, DEC-184) propuso mejoras de UI para la app y el panel. Las propuestas no se implementan solas: las elige el desarrollador para el documento siguiente.
+- **Decisión:** se hacen U1 a U15, cada una como la dibuja `docs/mockups/33-mejoras.html` y la describe `docs/33` (si no coinciden, manda el texto), con estas indicaciones:
+  - **U1** (el mapa se abre donde está el voluntario): con la leyenda plegada;
+  - **U6** (Mis propuestas dice qué se propuso): lo más simple posible, una línea con lo propuesto;
+  - **U13** (Salud del sistema en palabras): sin las cuatro filas;
+  - **U14** (panel con poca pantalla): sin el minimapa en la Cola.
+- **Alternativas descartadas:** las propuestas del recorrido que el desarrollador no eligió; hacer U1 con la leyenda abierta y U6 con el detalle de cada campo (más ruido en la pantalla del móvil).
+- **Afecta a:** 01 (Mis propuestas, FR-143); 06 (Apéndice A y simbología); `src/**`.
+
+### DEC-191 · El tope de grupo de 150 fotos al día no se toca
+- **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-188).
+- **Contexto:** la revisión posterior al recorrido (T2) planteaba si `max_subidas_dia_total = 150` (0041, DEC-182) podía frenar a los voluntarios un día de mucho trabajo.
+- **Decisión:** se queda en 150. Con ~65 voluntarios no es un problema, y si algún día lo fuera, jefatura lo cambia desde Ajustes (de 1 a 5.000) sin código.
+- **Alternativas descartadas:** subirlo por defecto (más espacio en riesgo para un caso que no se da); quitar el tope de grupo (deja sin freno un abuso con muchos tokens).
+- **Afecta a:** nada (05 §2 `max_subidas_dia_total` sigue igual).
+
+### DEC-190 · La entrada del día del lanzamiento: topes en Ajustes y «abrir la entrada 24 h»
+- **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-187; RV-300, RV-338, RV-342, migración 0044).
+- **Contexto:** 0041 dejó `max_altas_ip_dia = 20` y `max_altas_global_hora = 40` fuera de Ajustes. El día del lanzamiento (F9.10), o cuando jefatura genera un código nuevo revocando todos los móviles (15 §5.4), los ~65 voluntarios entran desde la misma wifi: entrarían 20 y los demás recibirían `DEMASIADOS_INTENTOS` durante un día, y a partir de 40 en una hora ya nadie. Solo se arreglaba con SQL.
+- **Decisión:**
+  - Los dos topes se cambian desde Ajustes: «Entradas desde una misma wifi al día» (5–500) y «Entradas por hora, entre todos» (10–500), y quedan en el Registro.
+  - Jefatura puede **abrir la entrada para todos durante 24 h** (`entrada_abierta_hasta`; `fn_abrir_entrada(horas)` hasta 72 h y `fn_cerrar_entrada()`, solo administradores, en el Registro). Mientras está abierta, los topes por wifi y por hora pasan a 200, y los tokens creados entonces no llevan el límite de token nuevo. **Los topes de intentos fallidos no cambian:** solo se abre la entrada a quien acierta el código.
+  - **Se abre sola** al generar un código nuevo revocando todos los móviles, en la misma transacción; un código nuevo sin revocar no la abre. **Se cierra sola** al pasar la hora, sin tarea programada.
+  - Salud muestra las entradas frenadas por el tope en 24 h y hasta cuándo está abierta; la vigilancia avisa si se frenan más de 5.
+  - En el lanzamiento, la entrada se abre **antes** de comunicar el código (15 F9.10).
+- **Alternativas descartadas:** subir los topes para siempre (se pierde el freno a quien reparte un código filtrado); relajar también los intentos fallidos (abriría la puerta a probar códigos); una tarea `pg_cron` para cerrarla (la comparación con `now()` basta y no puede fallar en silencio).
+- **Afecta a:** 01 FR-31 a FR-34 y FR-143; 05 (0044, parámetros y funciones); 06 Apéndice A (Ajustes, Salud); 13; 15 §5.4 y F9.10.
+
 ### DEC-189 · El mapa y la lista miden la ventana; solo se desplaza la lista
 - **Fecha:** 9 oct 2026 · **Estado:** vigente (RV-270 D2, #562; PR #576).
 - **Contexto:** en el ordenador, la página del mapa y la de la lista medían siempre más que la ventana (1175 px en staging) y se desplazaban enteras con la rueda: un texto solo para lector de pantalla de cada fila escapaba de la caja que se desplaza, y nada limitaba el alto de la lista.
