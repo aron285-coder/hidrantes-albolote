@@ -25,6 +25,8 @@ import {
   evaluarStaging,
   filasQueBloquean,
   fueraDeLoPermitido,
+  fusionar,
+  checkAunCorriendo,
   hayCiDePr,
   leerChecks,
   llegaA,
@@ -739,6 +741,51 @@ describe('esperar a los checks del PR', () => {
       [/^gh pr checks/, { codigo: 1, salida: '[{"name":"ci-sql","bucket":"fail"}]', error: '' }],
     ]);
     await expect(esperarChecks(s.ctx, 545, DEV, 'develop')).rejects.toThrow(/en rojo/);
+  });
+});
+
+describe('fusionar el PR', () => {
+  it('reconoce el rechazo de GitHub por un check obligatorio que aún corre', () => {
+    expect(checkAunCorriendo('Required status check "ci-e2e" is queued.')).toBe(true);
+    expect(checkAunCorriendo('Required status checks "ci-e2e" and "ci-sql" are in progress')).toBe(true);
+    expect(checkAunCorriendo('Required status check "ci-e2e" is expected.')).toBe(true);
+    expect(checkAunCorriendo('Pull request is not mergeable: the merge commit cannot be cleanly created')).toBe(false);
+    expect(checkAunCorriendo('Required status check "ci-e2e" has failed')).toBe(false);
+  });
+
+  it('si ci-e2e aún está en cola, espera y vuelve a intentarlo (release 0.10.0)', async () => {
+    let n = 0;
+    const s = simulado([
+      [
+        /^gh pr merge 568 .*--merge --match-head-commit/,
+        () => (++n < 3 ? falla('GraphQL: Required status check "ci-e2e" is queued. (mergePullRequest)') : ok()),
+      ],
+    ]);
+    await fusionar(s.ctx, 568, '--merge', DEV);
+    expect(n).toBe(3);
+  });
+
+  it('otro fallo de la fusión se para enseguida', async () => {
+    let n = 0;
+    const s = simulado([
+      [/^gh pr merge 568/, () => (++n, falla('Head branch was modified. Review and try the merge again.'))],
+    ]);
+    await expect(fusionar(s.ctx, 568, '--merge', DEV)).rejects.toThrow(/No se ha podido fusionar el PR #568/);
+    expect(n).toBe(1);
+  });
+
+  it('si el check no acaba nunca, se agota la espera', async () => {
+    const s = simulado([[/^gh pr merge 568/, falla('Required status check "ci-e2e" is queued.')]]);
+    let t = 0;
+    const reloj = vi.spyOn(Date, 'now').mockImplementation(() => t);
+    s.ctx.esperar = async () => {
+      t += 30_000;
+    };
+    try {
+      await expect(fusionar(s.ctx, 568, '--merge', DEV)).rejects.toThrow(/agotado la espera: la fusión del PR #568/);
+    } finally {
+      reloj.mockRestore();
+    }
   });
 });
 

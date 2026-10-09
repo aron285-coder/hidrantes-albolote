@@ -168,6 +168,7 @@ function HuecoFoto({
   perfil = PERFIL_CONEXION,
   testId,
   compacto = false,
+  textoHacer = T.formulario.hacerFoto,
 }: {
   etiqueta: string;
   foto: FotoProcesada | null;
@@ -175,6 +176,8 @@ function HuecoFoto({
   perfil?: PerfilFoto;
   testId: string;
   compacto?: boolean;
+  /** El texto del hueco vacío sin `compacto`: «obligatoria» u «opcional» según la operación (#563). */
+  textoHacer?: string;
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
@@ -252,7 +255,7 @@ function HuecoFoto({
           className="border-naranja-600 text-naranja-texto bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold"
         >
           <Camera size={18} aria-hidden />
-          {procesando ? T.operaciones.preparandoFoto : compacto ? etiqueta : T.formulario.hacerFoto}
+          {procesando ? T.operaciones.preparandoFoto : compacto ? etiqueta : textoHacer}
         </button>
       )}
       {fallo && (
@@ -268,19 +271,24 @@ function HuecoFoto({
   );
 }
 
-/** Foto obligatoria con la cámara (FR-21), una sola: revisión, estado, retirada y datos. */
+/**
+ * Una sola foto con la cámara: revisión, estado y retirada (obligatoria, FR-42, FR-43, FR-46) y
+ * corregir datos (opcional, FR-44). `textoHacer` lo dice en el hueco (#563).
+ */
 export function CampoFoto({
   etiqueta,
   foto,
   alCambiar,
+  textoHacer,
 }: {
   etiqueta: string;
   foto: FotoProcesada | null;
   alCambiar: (f: FotoProcesada | null) => void;
+  textoHacer: string;
 }) {
   return (
     <Campo etiqueta={etiqueta}>
-      <HuecoFoto etiqueta={etiqueta} foto={foto} alCambiar={alCambiar} testId="entrada-foto" />
+      <HuecoFoto etiqueta={etiqueta} foto={foto} alCambiar={alCambiar} testId="entrada-foto" textoHacer={textoHacer} />
     </Campo>
   );
 }

@@ -35,6 +35,7 @@ import {
   diametroPermitido,
   necesitaFoto,
   necesitaFotoSitio,
+  textoHacerFoto,
   queFalta,
 } from '@/lib/propuestas';
 import { TITULO_OPERACION, textoEspera, textoFallo } from '@/lib/nombres-operacion';
@@ -335,7 +336,7 @@ function FormularioOperacion({
           />
         ) : (
           (necesitaFoto(operacion) || operacion === 'datos') && (
-            <CampoFoto etiqueta={etiquetaFoto} foto={foto} alCambiar={setFoto} />
+            <CampoFoto etiqueta={etiquetaFoto} foto={foto} alCambiar={setFoto} textoHacer={textoHacerFoto(operacion)} />
           )
         )}
 

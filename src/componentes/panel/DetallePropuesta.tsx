@@ -80,6 +80,9 @@ export function DetallePropuesta({
   const [puntoCambiado, setPuntoCambiado] = useState(false);
   // La recarga que sigue a un error al decidir: mientras no llega, no se aprueba.
   const [recarga, setRecarga] = useState<'lista' | 'cargando' | 'error'>('lista');
+  // Aprobar ha fallado con PUNTO_NO_ACTIVO: repetirlo fallaría igual; solo queda rechazar (RV-270 D4,
+  // UI-02). Es de esta propuesta: el componente se monta con key = id.
+  const [puntoNoActivo, setPuntoNoActivo] = useState(false);
   const desactualizada = p.desactualizada || puntoCambiado;
   // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
   // la del punto. Es con lo que se compara al aprobar: lo que no se toca no es una corrección (RV-162).
@@ -129,6 +132,8 @@ export function DetallePropuesta({
   async function ejecutar(
     accion: () => Promise<{ ok: true; datos?: unknown } | { ok: false; codigo: string }>,
     exito: string,
+    /** Qué se intentaba: PUNTO_NO_ACTIVO habla del punto de la propuesta al aprobar, y del duplicado al fusionar. */
+    que: 'aprobar' | 'fusionar' | 'rechazar',
   ) {
     setOcupado(true);
     const r = await accion();
@@ -137,6 +142,13 @@ export function DetallePropuesta({
       avisar(textoError(r.codigo), 'error');
       // El punto cambió: lo escrito se queda y se pide confirmación expresa (docs/32 RV-251).
       if (r.codigo.startsWith('PROPUESTA_DESACTUALIZADA')) setPuntoCambiado(true);
+      if (r.codigo.startsWith('PUNTO_NO_ACTIVO')) {
+        // Al aprobar, es el punto de la propuesta: vuelve a los botones, con aprobar deshabilitado y el
+        // motivo escrito (RV-270 D4). Al fusionar, es el duplicado: el alta se puede aprobar igual; se
+        // cierra la fusión y la recarga quita "Fusionar con…" (el duplicado ya no está en el inventario).
+        if (que === 'aprobar') setPuntoNoActivo(true);
+        if (que !== 'rechazar') setModo(null);
+      }
       // Otra persona la resolvió o el punto cambió: se recarga para ver el estado real. Con un error el
       // detalle no se cierra (RV-252): si otra persona la resolvió, se va de la lista y entonces sí.
       if (/PROPUESTA_NO_PENDIENTE|PROPUESTA_DESACTUALIZADA|PUNTO_NO_ACTIVO/.test(r.codigo)) void verDeNuevo();
@@ -174,6 +186,7 @@ export function DetallePropuesta({
         return r.ok ? { ok: true as const, datos: r.datos } : r;
       },
       T.panelCola.aprobada(p.codigo ?? T.panelCola.nuevo),
+      'aprobar',
     );
 
   const titulo = `${p.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[p.operacion]}`;
@@ -255,6 +268,7 @@ export function DetallePropuesta({
                           return r.ok ? { ok: true as const } : r;
                         },
                         T.panelCola.aprobadaConCorrecciones(p.codigo ?? T.panelCola.nuevo),
+                        'aprobar',
                       )
                     }
                   />
@@ -263,7 +277,7 @@ export function DetallePropuesta({
                   <FormularioRechazo
                     ocupado={ocupado}
                     alCancelar={() => setModo(null)}
-                    alConfirmar={(m) => void ejecutar(() => rechazar(p.id, m), T.panelCola.rechazadaAviso)}
+                    alConfirmar={(m) => void ejecutar(() => rechazar(p.id, m), T.panelCola.rechazadaAviso, 'rechazar')}
                   />
                 )}
                 {modo === 'fusionar' && duplicado && (
@@ -273,14 +287,18 @@ export function DetallePropuesta({
                     ocupado={ocupado}
                     alCancelar={() => setModo(null)}
                     alConfirmar={(prev) =>
-                      void ejecutar(async () => {
-                        // La dirección editada en el detalle, si se ha cambiado (docs/32 RV-253).
-                        const { direccion: dir } = conDireccion({}, direccion, ensenada) as {
-                          direccion?: string | null;
-                        };
-                        const r = await fusionar(p.id, duplicado.id, prev, dir);
-                        return r.ok ? { ok: true as const } : r;
-                      }, T.panelCola.fusionada(duplicado.codigo))
+                      void ejecutar(
+                        async () => {
+                          // La dirección editada en el detalle, si se ha cambiado (docs/32 RV-253).
+                          const { direccion: dir } = conDireccion({}, direccion, ensenada) as {
+                            direccion?: string | null;
+                          };
+                          const r = await fusionar(p.id, duplicado.id, prev, dir);
+                          return r.ok ? { ok: true as const } : r;
+                        },
+                        T.panelCola.fusionada(duplicado.codigo),
+                        'fusionar',
+                      )
                     }
                   />
                 )}
@@ -302,12 +320,16 @@ export function DetallePropuesta({
           )}
         >
           {desactualizada && <AvisoDesactualizada p={p} />}
-          {bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>}
+          {puntoNoActivo ? (
+            <p className="text-texto-suave mb-1.5 text-[12px]">{T.panelCola.soloRechazar}</p>
+          ) : (
+            bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>
+          )}
           {avisoEspera}
           <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
             <Boton
               className={desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
-              disabled={ocupado || !!bloqueoAprobar || esperando}
+              disabled={ocupado || !!bloqueoAprobar || esperando || puntoNoActivo}
               onClick={() => void aprobarTalCual()}
             >
               {desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
@@ -315,7 +337,7 @@ export function DetallePropuesta({
             {p.operacion !== 'retirada' && (
               <Boton
                 variante="secundario"
-                disabled={ocupado}
+                disabled={ocupado || puntoNoActivo}
                 onClick={() => setModo('corregir')}
                 aria-label={T.panelCola.aprobarConCorrecciones}
               >

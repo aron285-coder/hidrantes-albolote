@@ -660,6 +660,27 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-189 · El mapa y la lista miden la ventana; solo se desplaza la lista
+- **Fecha:** 9 oct 2026 · **Estado:** vigente (RV-270 D2, #562; PR #576).
+- **Contexto:** en el ordenador, la página del mapa y la de la lista medían siempre más que la ventana (1175 px en staging) y se desplazaban enteras con la rueda: un texto solo para lector de pantalla de cada fila escapaba de la caja que se desplaza, y nada limitaba el alto de la lista.
+- **Decisión:** en `/` y `/lista`, con 600 px de alto o más, la página mide la ventana y solo se desplaza la lista; por debajo de 600 px la página crece y se desplaza como antes, para que nada quede sin sitio. Con la página acotada, el mínimo del mapa baja del 60 % al 40 % de la ventana, para que el «+» y la leyenda no queden bajo la barra de abajo. Ajustes y el panel no cambian.
+- **Alternativas descartadas:** acotar siempre (con la banda y un aviso, la lista se quedaba sin sitio en ventanas bajas); quitar la barra de desplazamiento con `overflow: hidden` en la página (escondería contenido).
+- **Afecta a:** 06 §9 (desbordes); `src/paginas/Armazon.tsx`, `src/componentes/mapa/ListaPuntos.tsx`.
+
+### DEC-188 · Cola: tras `PUNTO_NO_ACTIVO` al aprobar, solo rechazar
+- **Fecha:** 9 oct 2026 · **Estado:** vigente (RV-270 D4, #564; PR #575 y #577).
+- **Contexto:** cuando *Aprobar* fallaba con `PUNTO_NO_ACTIVO` (el punto se retiró o se borró mientras la propuesta esperaba), salía el aviso pero *Aprobar* seguía activo y repetía una llamada que volvería a fallar (UI-02).
+- **Decisión:** si aprobar o aprobar con correcciones falla con `PUNTO_NO_ACTIVO`, en el detalle de esa propuesta *Aprobar* y *Aprobar con correcciones* quedan deshabilitados con el motivo «El punto ya no está activo: solo se puede rechazar.»; *Rechazar* sigue activo. Es estado local del detalle: al abrir otra propuesta o recargar se reinicia. Si es la **fusión** la que falla con ese código (el que ya no está activo es el duplicado, no el alta), no se bloquea nada: se cierra la fusión, se recarga y el alta se puede aprobar.
+- **Alternativas descartadas:** marcar la propuesta en la lista de la Cola (más cambios para un caso raro); bloquear también tras una fusión fallida (impediría aprobar un alta válida).
+- **Afecta a:** 06 Apéndice A (panel, cola); `src/componentes/panel/DetallePropuesta.tsx`.
+
+### DEC-187 · El hueco de la foto dice «opcional» en corregir datos
+- **Fecha:** 9 oct 2026 · **Estado:** vigente (RV-270 D3, #563; PR #574).
+- **Contexto:** en *Corregir datos* el hueco decía «Hacer foto · obligatoria», pero FR-21 y FR-44 no exigen foto ahí y la app envía sin ella: el texto decía algo que el botón no hacía (06 §9).
+- **Decisión:** el hueco dice «Hacer foto · opcional» en corregir datos, sin cambiar el botón. Alta, revisión, actualizar estado, corregir ubicación y proponer retirada siguen con foto obligatoria (FR-21, FR-43, FR-45, FR-46 y el `check` de 05 §2.2). Texto y botón salen de la misma regla (`necesitaFoto`), para que no vuelvan a contradecirse.
+- **Alternativas descartadas:** exigir la foto también en corregir datos (es un cambio de FR-21/FR-44 que tendría que pedir jefatura).
+- **Afecta a:** 06 Apéndice A (formularios); `src/lib/propuestas.ts`.
+
 ### DEC-186 · «Confirmar y aprobar» solo con el punto de hoy a la vista
 - **Fecha:** 8 oct 2026 · **Estado:** vigente (`docs/32` RV-251 y RV-252, PR #551).
 - **Contexto:** con `PROPUESTA_DESACTUALIZADA`, el formulario de «Aprobar con correcciones» se queda abierto, avisa de que el punto ha cambiado y pide una confirmación expresa (FR-108). Si esa confirmación se daba antes de que la cola recargara el punto, jefatura aprobaba sobre datos que no había visto.

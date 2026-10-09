@@ -285,6 +285,17 @@ const VISTAS: Vista[] = [
     lista: (p) => expect(p.getByText(T.operaciones.puntoYaNoEsta)).toBeVisible(),
   },
   {
+    // #563 (RV-270 D3): corregir datos dice que la foto es opcional.
+    nombre: 'corregir-datos-foto',
+    ruta: `/proponer/datos?p=${P0.id}`,
+    preparar: voluntario,
+    lista: async (p) => {
+      const hueco = p.getByTestId('hueco-entrada-foto');
+      await hueco.scrollIntoViewIfNeeded();
+      await expect(hueco.getByRole('button', { name: T.formulario.hacerFotoOpcional })).toBeVisible();
+    },
+  },
+  {
     // docs/24 RV-102: la leyenda con la fila de Barro.
     nombre: 'leyenda',
     ruta: '/',

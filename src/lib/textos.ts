@@ -395,6 +395,8 @@ export const T = {
     conexion: 'Conexión',
     sitio: 'Sitio',
     hacerFoto: 'Hacer foto · obligatoria',
+    // #563: corregir datos se envía sin foto (FR-21, FR-44); el hueco no dice «obligatoria».
+    hacerFotoOpcional: 'Hacer foto · opcional',
     fotoAnadida: (kb: Parametro) => `Foto añadida · ${kb} kB`,
     repetir: 'repetir',
     // Nombre de los huecos de las dos fotos (docs/24 RV-103) para quien no ve la pantalla.
@@ -689,6 +691,8 @@ export const T = {
     puntoHaCambiado: 'El punto ha cambiado: revisa los datos.',
     cargandoPunto: 'Cargando el punto de hoy…',
     puntoNoCarga: 'No se ha podido cargar el punto de hoy: sin verlo no se aprueba.',
+    // RV-270 D4: aprobar ha fallado con PUNTO_NO_ACTIVO; repetirlo fallaría igual (UI-02).
+    soloRechazar: 'El punto ya no está activo: solo se puede rechazar.',
     cancelar: 'Cancelar',
     motivoRechazo: 'Motivo del rechazo (obligatorio, lo verá quien lo propuso)',
     sinMotivo: 'Sin motivo no se puede rechazar.',

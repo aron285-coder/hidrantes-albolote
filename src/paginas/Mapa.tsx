@@ -386,7 +386,9 @@ export function Mapa() {
             </div>
           </aside>
         )}
-        <div className="relative isolate min-h-[60vh] flex-1">
+        {/* Con la página a la medida de la ventana (Armazon, 600 px de alto o más, #562) el mapa ocupa lo que
+            queda; su mínimo baja para que, con avisos arriba, no se meta bajo la barra de abajo. */}
+        <div className="relative isolate min-h-[60vh] flex-1 [@media(min-height:600px)]:min-h-[40vh]">
           <MapaLeaflet
             ref={control}
             puntos={puntos}

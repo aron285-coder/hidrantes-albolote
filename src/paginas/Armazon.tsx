@@ -27,8 +27,20 @@ export function Armazon() {
   const { pathname } = useLocation();
   if (acceso.tipo === 'voluntario' && !primerUsoVisto()) return <Navigate to="/bienvenida" replace />;
 
+  // El mapa y la lista miden la pantalla y solo se desplaza la lista (#562): con `basis-0` el armazón no
+  // empuja el alto de la página y ocupa lo que queda bajo la banda. Solo con 600 px de alto o más (el mismo
+  // corte que el mínimo del mapa en Mapa.tsx): en una ventana más baja, con los avisos de arriba, la lista
+  // se quedaría sin sitio, así que la página crece y se desplaza como antes. Ajustes siempre crece.
+  const ruta = pathname.replace(/\/+$/, '') || '/'; // «/lista/» también es la lista
+  const aPantalla = ruta === '/' || ruta === '/lista';
+
   return (
-    <div className="flex flex-1 flex-col">
+    <div
+      className={cn(
+        'flex flex-1 flex-col',
+        aPantalla && '[@media(min-height:600px)]:min-h-0 [@media(min-height:600px)]:basis-0',
+      )}
+    >
       <BarraSuperior titulo={TITULOS[pathname] ?? T.app.nombre} jefatura={acceso.tipo === 'jefatura'} />
       <AvisoNovedades />
       <main className="flex min-h-0 flex-1 flex-col pb-[calc(50px+env(safe-area-inset-bottom))]">

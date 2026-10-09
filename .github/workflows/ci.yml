@@ -175,7 +175,7 @@ jobs:
           [ "$esperada" = "$guardada" ] || { echo "::error::version_mapabase es '$guardada' y datos/mapabase.json dice '$esperada'"; exit 1; }
       # Chromium para la integración de abajo, con tope y un reintento (docs/32 RV-207).
       - uses: ./.github/actions/navegadores
-        timeout-minutes: 8
+        timeout-minutes: 9
         with:
           navegadores: chromium
       - name: Pages Functions con wrangler pages dev contra Supabase local
@@ -223,7 +223,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
       - uses: ./.github/actions/navegadores
-        timeout-minutes: 8
+        timeout-minutes: 9
       - name: E2e (sin los de rendimiento), parte ${{ matrix.parte }} de 3
         run: npx playwright test --grep-invert @rendimiento --fully-parallel --shard=${{ matrix.parte }}/3
       - if: failure()
@@ -244,7 +244,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/preparar
       - uses: ./.github/actions/navegadores
-        timeout-minutes: 8
+        timeout-minutes: 9
       - name: E2e de rendimiento, un worker
         run: npx playwright test --grep @rendimiento --workers=1
       - if: failure()
@@ -301,7 +301,7 @@ jobs:
         uses: ./.github/actions/preparar
       - if: steps.pantallas.outputs.tocan == 'true'
         uses: ./.github/actions/navegadores
-        timeout-minutes: 8
+        timeout-minutes: 9
       - name: Capturas de las pantallas
         if: steps.pantallas.outputs.tocan == 'true'
         run: npx playwright test e2e/vistas.spec.ts

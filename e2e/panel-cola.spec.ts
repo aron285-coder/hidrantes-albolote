@@ -385,6 +385,33 @@ test('posible duplicado: comparar y fusionar eligiendo qué prevalece (FR-51)', 
   });
 });
 
+test('RV-270 D4: fusionar con PUNTO_NO_ACTIVO (el duplicado) no impide aprobar el alta', async ({ page }) => {
+  await prepararPanel(page);
+  let fallar = true;
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_fusionar_con_existente`, (route) => {
+    if (!fallar) return route.fallback();
+    fallar = false;
+    return route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'P0001', message: 'PUNTO_NO_ACTIVO: simulado' }),
+    });
+  });
+  await page.goto('/admin/cola');
+  await abrir(page, /Javier Ortiz/);
+  const detalle = page.getByRole('article');
+  await detalle.getByRole('button', { name: T.panelCola.fusionarCon(P8.codigo) }).click();
+  await detalle.getByRole('button', { name: T.panelCola.fusionar, exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.puntoNoActivo })).toBeVisible();
+
+  // Es el duplicado el que ya no está activo: el alta se sigue pudiendo aprobar.
+  const acciones = detalle.getByTestId('acciones-propuesta');
+  await expect(detalle.getByRole('button', { name: T.panelCola.fusionar, exact: true })).toHaveCount(0);
+  await expect(acciones.getByText(T.panelCola.soloRechazar)).toHaveCount(0);
+  await expect(acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeEnabled();
+  await expect(acciones.getByRole('button', { name: T.panelCola.aprobarConCorrecciones })).toBeEnabled();
+});
+
 test('historial de rechazadas en solo lectura (FR-109)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/cola');
@@ -1119,6 +1146,58 @@ test.describe('a 412 × 915 (docs/32)', () => {
     await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.puntoNoActivo })).toBeVisible();
     await expect(detalle).toBeVisible();
     await expect(page).toHaveURL(/[?&]p=e6/);
+  });
+
+  test('RV-270 D4: con PUNTO_NO_ACTIVO solo se puede rechazar; otra propuesta se aprueba', async ({ page }, info) => {
+    await prepararPanel(page, [cambioDeEstado()]);
+    await aprobarFallaUnaVez(page, 'PUNTO_NO_ACTIVO', () => undefined);
+    await page.goto('/admin/cola');
+    await page.getByRole('button', { name: new RegExp(P6.codigo) }).click();
+    const detalle = page.getByRole('dialog');
+    await detalle.getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.puntoNoActivo })).toBeVisible();
+
+    // Aprobar repetiría la misma llamada, que fallaría igual: deshabilitado y con el motivo escrito (UI-02).
+    const acciones = detalle.getByTestId('acciones-propuesta');
+    await expect(acciones.getByText(T.panelCola.soloRechazar)).toBeVisible();
+    await expect(acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeDisabled();
+    await expect(acciones.getByRole('button', { name: T.panelCola.aprobarConCorrecciones })).toBeDisabled();
+    await expect(acciones.getByRole('button', { name: T.panelCola.rechazar })).toBeEnabled();
+    await info.attach('punto-no-activo-412', { body: await page.screenshot(), contentType: 'image/png' });
+
+    // Otra propuesta empieza de cero: su Aprobar está activo.
+    await detalle.getByRole('button', { name: T.panelCola.volverCola }).click();
+    // c1: un cambio de estado de P0, sin nada que impida aprobarlo tal cual.
+    await page
+      .getByRole('button', { name: new RegExp(P0.codigo) })
+      .first()
+      .click();
+    const otroDetalle = page.getByRole('dialog').getByTestId('acciones-propuesta');
+    await expect(otroDetalle.getByText(T.panelCola.soloRechazar)).toHaveCount(0);
+    await expect(otroDetalle.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeEnabled();
+  });
+
+  test('RV-270 D4: con PUNTO_NO_ACTIVO al guardar correcciones, vuelve a los botones y solo rechaza', async ({
+    page,
+  }) => {
+    await prepararPanel(page, [cambioDeEstado()]);
+    const cuerpos = await aprobarFallaUnaVez(page, 'PUNTO_NO_ACTIVO', () => undefined);
+    await page.goto('/admin/cola');
+    await page.getByRole('button', { name: new RegExp(P6.codigo) }).click();
+    const detalle = page.getByRole('dialog');
+    await detalle.getByRole('button', { name: T.panelCola.aprobarConCorrecciones }).click();
+    const formulario = detalle.locator('form');
+    await formulario.getByLabel(T.panelCola.campoDescripcion).fill('[PRUEBA] Tapa nueva');
+    await formulario.getByRole('button', { name: T.panelCola.guardarYAprobar }).click();
+    await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.puntoNoActivo })).toBeVisible();
+
+    await expect(detalle.locator('form')).toHaveCount(0);
+    const acciones = detalle.getByTestId('acciones-propuesta');
+    await expect(acciones.getByText(T.panelCola.soloRechazar)).toBeVisible();
+    await expect(acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeDisabled();
+    await expect(acciones.getByRole('button', { name: T.panelCola.aprobarConCorrecciones })).toBeDisabled();
+    await expect(acciones.getByRole('button', { name: T.panelCola.rechazar })).toBeEnabled();
+    expect(cuerpos).toHaveLength(1);
   });
 
   test('RV-253 y RV-254: fusionar con una descripción de 500 caracteres cabe a lo ancho', async ({ page }, info) => {
