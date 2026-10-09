@@ -100,6 +100,23 @@ describe('POST /api/url-subida', () => {
       { maximo: 150, reintentar_en_s: 40000 },
     ],
     ['SIN_ESPACIO_FOTOS', 'SIN_ESPACIO_FOTOS: Se ha llenado el espacio de fotos', {}],
+    // docs/33 RV-303: el ámbito del tope (0042), para que el móvil diga si es suyo o del grupo.
+    [
+      'CUOTA_SUBIDAS_AGOTADA',
+      'CUOTA_SUBIDAS_AGOTADA: maximo=80 reintentar_en_s=600 ambito=dispositivo',
+      { maximo: 80, reintentar_en_s: 600, ambito: 'dispositivo' },
+    ],
+    [
+      'CUOTA_SUBIDAS_AGOTADA',
+      'CUOTA_SUBIDAS_AGOTADA: maximo=150 reintentar_en_s=40000 ambito=grupo',
+      { maximo: 150, reintentar_en_s: 40000, ambito: 'grupo' },
+    ],
+    // Un valor fuera de la lista blanca no llega al cliente.
+    [
+      'CUOTA_SUBIDAS_AGOTADA',
+      'CUOTA_SUBIDAS_AGOTADA: maximo=150 reintentar_en_s=40000 ambito=otro',
+      { maximo: 150, reintentar_en_s: 40000 },
+    ],
   ])('%s llega como 429 con su espera (%s)', async (codigo, mensaje, detalle) => {
     const espia = fingirRed({
       reserva: new Response(JSON.stringify({ code: 'P0001', message: mensaje }), { status: 400 }),

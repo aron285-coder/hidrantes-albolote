@@ -72,8 +72,8 @@ select ok(hidrantes.fn_espacio() ->> 'fotos_medidos_en' is not null, 'fn_espacio
 insert into hidrantes.config (clave, valor, actualizado_por) values ('storage_bytes', '12345', 'test')
 on conflict (clave) do update set valor = excluded.valor;
 drop policy hidrantes_migrador_mide_fotos on storage.objects;
-select is(hidrantes.fn_espacio() - 'fotos_medidos_en' - 'reservas_abiertas' - 'fotos_reservado_bytes' - 'bd_bytes'
-            - 'max_bytes_fotos' - 'max_bytes_bd' - 'aviso',
+select is(jsonb_build_object('fotos_bytes', hidrantes.fn_espacio() -> 'fotos_bytes',
+                              'fotos_origen', hidrantes.fn_espacio() -> 'fotos_origen'),
   '{"fotos_bytes": 12345, "fotos_origen": "respaldo"}'::jsonb,
   'sin la política, el bucket no sale "vacío": se usa config.storage_bytes y fotos_origen lo dice');
 select ok(hidrantes.fn_espacio() ->> 'fotos_medidos_en' is not null, 'con la fecha de esa medida');

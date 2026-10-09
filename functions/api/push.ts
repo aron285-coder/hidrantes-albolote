@@ -13,9 +13,18 @@ import {
   jwtDe,
   leerJson,
   rpc,
+  sha256Hex,
   validarToken,
 } from '../_lib/comun.ts';
+import { crearTope } from '../_lib/limite.ts';
 import { type Suscripcion, enviar } from '../_lib/webpush.ts';
+
+/**
+ * Llamadas por token de voluntario y hora (docs/33 RV-304). El móvil la pide tras sincronizar o
+ * enviar, unas pocas veces al día; 30 deja margen de sobra y frena un bucle de cliente.
+ */
+export const LIMITE_PUSH_POR_HORA = 30;
+const topePorToken = crearTope(LIMITE_PUSH_POR_HORA, 3_600_000);
 
 interface Pendiente {
   id: number;
@@ -26,8 +35,11 @@ interface Pendiente {
   suscripcion: Suscripcion;
 }
 
-/** Quién puede pedir el envío. `sin_servidor`: el token no se ha podido comprobar (503, no 401). */
-async function autorizado(request: Request, env: Env): Promise<'si' | 'no' | 'sin_servidor'> {
+/**
+ * Quién puede pedir el envío. `sin_servidor`: el token no se ha podido comprobar (503, no 401).
+ * `token:<sha256>`: un voluntario, con el tope por token (RV-304); la clave nunca lleva el token en claro.
+ */
+async function autorizado(request: Request, env: Env): Promise<'si' | 'no' | 'sin_servidor' | `token:${string}`> {
   const vigilancia = request.headers.get('X-Vigilancia');
   if (vigilancia && env.VIGILANCIA_SECRETO) return iguales(vigilancia, env.VIGILANCIA_SECRETO) ? 'si' : 'no';
   const jwt = jwtDe(request);
@@ -35,7 +47,8 @@ async function autorizado(request: Request, env: Env): Promise<'si' | 'no' | 'si
   const cuerpo = await leerJson(request);
   if (typeof cuerpo?.token !== 'string') return 'no';
   const r = await validarToken(env, cuerpo.token, '/api/push');
-  return r === 'valido' ? 'si' : r === 'invalido' ? 'no' : 'sin_servidor';
+  if (r === 'valido') return `token:${await sha256Hex(cuerpo.token)}`;
+  return r === 'invalido' ? 'no' : 'sin_servidor';
 }
 
 /**
@@ -49,6 +62,13 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
   const quien = await autorizado(request, env);
   if (quien === 'sin_servidor') return error(503, 'SERVIDOR_NO_DISPONIBLE');
   if (quien === 'no') return error(401, 'NO_AUTORIZADO');
+  if (quien.startsWith('token:')) {
+    // 30 por token y hora (RV-304). Jefatura y la vigilancia no lo tienen: son pocas y conocidas.
+    const espera = topePorToken.pedir(quien);
+    if (espera !== null) {
+      return json({ error: 'DEMASIADOS_INTENTOS', reintentar_en_s: espera }, 429, { 'Retry-After': String(espera) });
+    }
+  }
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return error(503, 'NO_CONFIGURADO');
 
   const pendientes = await rpc<Pendiente[]>(env, 'fn_reclamar_notificaciones', { limite: LOTE });

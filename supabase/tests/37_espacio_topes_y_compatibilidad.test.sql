@@ -283,7 +283,7 @@ select lives_ok($$ select pg_temp.datos(current_setting('test.te'), 'n37-sin-esp
 
 insert into hidrantes.errores_cliente (dispositivo_id, mensaje)
 select 'a3700000-0000-4000-8000-00000000e222', 'e' from generate_series(1, 10);
-set local role anon;
+-- Desde 0044 (docs/33 RV-306) anon ya no la ejecuta: se prueba su cupo con el dueño.
 select hidrantes.fn_registrar_error('a3700000-0000-4000-8000-00000000e222', 'el 11.º', null, '/', 'x');
 select hidrantes.fn_registrar_error('b3700000-0000-4000-8000-00000000e222', 'otro móvil', null, '/', 'x');
 reset role;
@@ -292,7 +292,6 @@ select is((select count(*)::int from hidrantes.errores_cliente where dispositivo
 select is((select app_anterior from hidrantes.errores_cliente where dispositivo_id = 'b3700000-0000-4000-8000-00000000e222'), true,
   'otro móvil sí entra, marcado como de la app anterior');
 insert into hidrantes.errores_cliente (mensaje, app_anterior) select 'v', true from generate_series(1, 200);
-set local role anon;
 select hidrantes.fn_registrar_error('c3700000-0000-4000-8000-00000000e222', 'por encima de 200', null, '/', 'x');
 reset role;
 select is((select count(*)::int from hidrantes.errores_cliente where dispositivo_id = 'c3700000-0000-4000-8000-00000000e222'), 0,
@@ -424,8 +423,8 @@ select throws_like($$ select hidrantes.fn_guardar_config('{"max_bytes_fotos": 21
   'CONFIG_INVALIDA(max_bytes_fotos)%', 'max_bytes_fotos por encima de 1 GB: rechazado');
 select throws_like($$ select hidrantes.fn_guardar_config('{"max_reservas_abiertas": 0}') $$,
   'CONFIG_INVALIDA(max_reservas_abiertas)%', 'max_reservas_abiertas a 0: rechazado');
-select throws_like($$ select hidrantes.fn_guardar_config('{"max_altas_ip_dia": 100}') $$,
-  'CONFIG_INVALIDA(max_altas_ip_dia)%', 'max_altas_ip_dia no se cambia desde Ajustes');
+select throws_like($$ select hidrantes.fn_guardar_config('{"max_altas_ip_dia": 1000}') $$,
+  'CONFIG_INVALIDA(max_altas_ip_dia)%', 'max_altas_ip_dia por encima de 500: rechazado (desde 0044 está en Ajustes, RV-300)');
 select pg_temp.voluntario();
 
 -- ---------- RV-221: canjes (al final: llenan los topes del código) ----------
