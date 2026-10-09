@@ -712,6 +712,14 @@ export const T = {
     puntoNoCarga: 'No se ha podido cargar el punto de hoy: sin verlo no se aprueba.',
     // RV-270 D4: aprobar ha fallado con PUNTO_NO_ACTIVO; repetirlo fallaría igual (UI-02).
     soloRechazar: 'El punto ya no está activo: solo se puede rechazar.',
+    // docs/33 RV-330 (U15): el punto ya no está activo; se dice arriba y la acción principal es rechazar.
+    avisoRetirado: (fecha: Parametro) =>
+      `Este punto ya no está activo (retirado el ${fecha}). La propuesta no se puede aprobar.`,
+    avisoEnPapelera: (fecha: Parametro) =>
+      `Este punto ya no está activo (en la papelera desde el ${fecha}). La propuesta no se puede aprobar.`,
+    avisoNoActivo: 'Este punto ya no está activo. La propuesta no se puede aprobar.',
+    rechazarNoExiste: 'Rechazar: el punto ya no existe',
+    motivoNoActivo: 'El punto ya no está activo',
     cancelar: 'Cancelar',
     motivoRechazo: 'Motivo del rechazo (obligatorio, lo verá quien lo propuso)',
     sinMotivo: 'Sin motivo no se puede rechazar.',
