@@ -17,6 +17,8 @@ const arriba = (page: Page) =>
 
 const yCabecera = async (page: Page) => Math.round((await page.getByRole('banner').boundingBox())!.y);
 
+test.skip(({ isMobile }) => !isMobile, 'RV-327 se mide en el perfil móvil');
+
 test('el alta abierta desde el mapa empieza con la cabecera arriba (RV-327)', async ({ page }, info) => {
   await page.setViewportSize({ width: 412, height: 915 });
   await conSesion(page);
@@ -33,9 +35,11 @@ test('el alta abierta desde el mapa empieza con la cabecera arriba (RV-327)', as
   const y0 = await arriba(page);
   await expect.poll(() => yCabecera(page), { message: 'cabecera arriba del todo' }).toBe(y0);
 
-  // Al bajar hasta el final del formulario, la cabecera no se va ni deja un hueco encima.
+  // Al bajar hasta el final del formulario (como en m13), la cabecera queda fija arriba. Con menos alto,
+  // para que el formulario no quepa y la página baje de verdad más que la banda.
+  await page.setViewportSize({ width: 412, height: 600 });
   await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  await expect.poll(() => page.evaluate(() => scrollY), { message: 'la página baja' }).toBeGreaterThan(y0);
   await info.attach('alta-abajo', { body: await page.screenshot(), contentType: 'image/png' });
-  await expect.poll(() => yCabecera(page), { message: 'cabecera fija arriba al bajar' }).toBeLessThanOrEqual(y0);
-  expect(await yCabecera(page)).toBeGreaterThanOrEqual(0);
+  await expect.poll(() => yCabecera(page), { message: 'cabecera fija arriba al bajar' }).toBe(0);
 });
