@@ -146,7 +146,7 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
       expect(r).toMatchObject({ ancho: 1280, alto: 960 });
     });
 
-    it('si el navegador no sabe reducir al decodificar, una foto de hasta 24 MP se abre como antes', async () => {
+    it('si el navegador no sabe reducir al decodificar, una foto de hasta 26 MP se abre como antes', async () => {
       crear.mockImplementationOnce(async () => {
         throw new TypeError('resizeWidth no admitido');
       });
@@ -155,6 +155,35 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
       expect(crear).toHaveBeenCalledTimes(2);
       expect(crear.mock.calls[1]![1]).toEqual({ imageOrientation: 'from-image' });
       expect(r).toMatchObject({ ancho: 1200, alto: 1600 });
+    });
+
+    it('la cámara por defecto de un iPhone 15 o 16 (5712 × 4284, 24,5 MP) se abre en un navegador que no reduce (docs/33 RV-326)', async () => {
+      crear.mockImplementation(async (_b: Blob, o?: ImageBitmapOptions) => {
+        if (o?.resizeWidth !== undefined) throw new TypeError('resizeWidth no admitido');
+        return { width: 5712, height: 4284, close: cerrar };
+      });
+      _reiniciarReduce();
+      const r = await procesarFoto(new Blob([jpegConCabecera(5712, 4284)]));
+      expect(r).toMatchObject({ ancho: 1600, alto: 1200 });
+    });
+
+    it('la de 24,5 MP, si falla abrirla reducida, se abre entera (docs/33 RV-326)', async () => {
+      crear.mockImplementationOnce(async () => {
+        throw new Error('sin memoria');
+      });
+      crear.mockImplementationOnce(async () => ({ width: 5712, height: 4284, close: cerrar }));
+      const r = await procesarFoto(new Blob([jpegConCabecera(5712, 4284)]));
+      expect(crear.mock.calls[1]![1]).toEqual({ imageOrientation: 'from-image' });
+      expect(r).toMatchObject({ ancho: 1600, alto: 1200 });
+    });
+
+    it('por encima de 26 MP, en un navegador que no reduce, sigue el aviso (docs/33 RV-326)', async () => {
+      crear.mockImplementation(async () => {
+        throw new TypeError('resizeWidth no admitido');
+      });
+      _reiniciarReduce();
+      // 6000 × 4500 = 27 MP.
+      await expect(procesarFoto(new Blob([jpegConCabecera(6000, 4500)]))).rejects.toBeInstanceOf(FotoDemasiadoGrande);
     });
 
     it('una foto de 50 MP en un navegador que no reduce: aviso, y no se abre (docs/32 RV-244)', async () => {
