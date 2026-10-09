@@ -122,6 +122,16 @@ jobs:
         timeout-minutes: 9
         with:
           navegadores: chromium
+      # docs/33 RV-340: las fotos `fotos/prueba-*.jpg` del seed existen en el bucket de staging. Sube las
+      # que falten (generadas en Chromium, con «[PRUEBA]» y sin datos personales) y comprueba que cada
+      # una responde 200 en su URL pública; si alguna no, falla. Después del seed y con el navegador ya
+      # instalado. Solo staging: el script se niega con otra SUPABASE_URL.
+      - name: Fotos del seed de staging (docs/33 RV-340)
+        run: npm run fotos-seed
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       - name: Cabeceras y CSP en el navegador (TR-100)
         env:
           URL_DESPLEGADA: https://hidrantes-albolote-staging.pages.dev

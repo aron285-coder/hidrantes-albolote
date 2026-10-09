@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.10.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.10.0...hidrantes-albolote-v0.10.1) (2026-10-09)
+
+
+### Correcciones
+
+* **ci:** el segundo intento de instalar navegadores libera antes el apt del primero ([#570](https://github.com/aron285-coder/hidrantes-albolote/issues/570)) ([f7ffc14](https://github.com/aron285-coder/hidrantes-albolote/commit/f7ffc1428d76c93d4f632dda5c1ba69373da10d4))
+* **cola:** si el punto ya no está activo, la propuesta solo se puede rechazar ([#575](https://github.com/aron285-coder/hidrantes-albolote/issues/575)) ([6bfb1c8](https://github.com/aron285-coder/hidrantes-albolote/commit/6bfb1c8aab5b443a96613ddfd1472f625631805e))
+* **cola:** si falla fusionar porque el punto existente ya no está activo, el alta se sigue pudiendo aprobar ([#577](https://github.com/aron285-coder/hidrantes-albolote/issues/577)) ([0006e0a](https://github.com/aron285-coder/hidrantes-albolote/commit/0006e0a34317d35bb2afc15c0ec7e424784179d5))
+* **formulario:** en «Corregir datos» la foto dice que es opcional ([#574](https://github.com/aron285-coder/hidrantes-albolote/issues/574)) ([dccc02c](https://github.com/aron285-coder/hidrantes-albolote/commit/dccc02c5afa1f519cf039f221bc83bd8e81e84c8))
+* **mapa:** en el ordenador, el mapa y la lista ya no se desplazan enteros con la rueda del ratón ([#576](https://github.com/aron285-coder/hidrantes-albolote/issues/576)) ([d50e915](https://github.com/aron285-coder/hidrantes-albolote/commit/d50e915f074fec601844bea928c193c76e05585d))
+* **publicar:** esperar y reintentar la fusión si GitHub dice que un check obligatorio aún está en cola ([#573](https://github.com/aron285-coder/hidrantes-albolote/issues/573)) ([6ae408a](https://github.com/aron285-coder/hidrantes-albolote/commit/6ae408aaee67b23057db74387a20d3b93aad38b7))
+
 ## [0.10.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.9.0...hidrantes-albolote-v0.10.0) (2026-10-09)
 
 
