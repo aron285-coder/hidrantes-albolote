@@ -773,3 +773,31 @@ test.describe('Editar con el punto al día (docs/31 RV-165)', () => {
     await expect(page.getByLabel(T.panelInventario.direccionDe(OTRA.codigo))).toBeEditable();
   });
 });
+
+// docs/33 RV-333 (D14): al abrir Editar, el foco va al título del panel y no a «Mi posición», que es
+// lo primero que se puede pulsar: con el teclado, Intro otra vez movería el pin sin querer.
+test.describe('Foco al abrir Editar (docs/33 RV-333)', () => {
+  for (const [ancho, alto] of [
+    [1440, 900],
+    [768, 1024],
+  ] as const) {
+    test(`a ${ancho} px, abierto con el teclado, el foco está en el título`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: alto });
+      await preparar(page);
+      await page.goto('/admin/inventario');
+      await editarDe(page, BOCA.codigo).focus();
+      await page.keyboard.press('Enter');
+      const p = panel(page);
+      await expect(p).toBeVisible();
+      const titulo = p.getByRole('heading', { name: new RegExp(BOCA.codigo) });
+      await expect(titulo).toBeFocused();
+      await expect(titulo).toHaveAttribute('tabindex', '-1');
+      // Intro con el foco en el título no hace nada: el punto sigue sin cambios.
+      await page.keyboard.press('Enter');
+      await expect(p.getByText(T.avisosFormulario.sinCambios)).toBeVisible();
+      // Tab sigue por el panel: el siguiente control es la X de cerrar.
+      await page.keyboard.press('Tab');
+      await expect(p.getByRole('button', { name: T.ficha.cerrar })).toBeFocused();
+    });
+  }
+});
