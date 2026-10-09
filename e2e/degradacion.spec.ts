@@ -13,7 +13,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, irALista, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 /** Nada de jerga ni de códigos internos en la pantalla (UI-04, UI-22). */
@@ -45,7 +45,7 @@ test.describe('degradación controlada (FR-168)', () => {
     await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeVisible();
     // Lo que se guardó en el móvil sigue estando: es lo que un voluntario necesita en una salida.
     await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    await irALista(page);
     await expect(page.getByText(PUNTOS[0].codigo, { exact: true }).first()).toBeVisible();
     // Y la ficha, que es donde está el dato que se consulta delante del hidrante.
     await page.getByText(PUNTOS[0].codigo, { exact: true }).first().click();

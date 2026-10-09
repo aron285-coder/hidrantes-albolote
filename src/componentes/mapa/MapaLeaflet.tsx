@@ -1,21 +1,24 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { LIMITES, capasDe } from './capas-leaflet';
-import { type Capa, ZOOM_MAX } from '@/lib/capas';
+import { LIMITES, RECORTE_MAPABASE, capasDe } from './capas-leaflet';
+import { type Capa, ZOOM_MAX, capasPintadas } from '@/lib/capas';
 import type { LatLng } from '@/lib/coordenadas';
 import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
 import { distancia } from '@/lib/formato';
 import { colocarEtiquetas, imantar } from '@/lib/medicion';
-
-/** La píldora de la distancia de un tramo (index.css, .etiqueta-medicion). */
-const TAM_ETIQUETA = { ancho: 56, alto: 22 };
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
 import { RESERVA_DERECHA, ZONA_ABAJO } from '@/lib/disposicion-mapa';
 import { T } from '@/lib/textos';
 import { guardarVista, vistaGuardada } from '@/lib/vista';
+
+/** Lo más lejos que se aleja el mapa (06 §4.4). */
+const MIN_ZOOM = 10;
+
+/** La píldora de la distancia de un tramo (index.css, .etiqueta-medicion). */
+const TAM_ETIQUETA = { ancho: 56, alto: 22 };
 
 export interface ControlMapa {
   centrar(lat: number, lng: number, zoom?: number): void;
@@ -130,7 +133,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     const m = L.map(contenedor.current, {
       zoomControl: false,
       attributionControl: false,
-      minZoom: 10,
+      minZoom: MIN_ZOOM,
       maxZoom: ZOOM_MAX,
       maxBounds: LIMITES.pad(0.5),
       maxBoundsViscosity: 0.8,
@@ -145,6 +148,8 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
       const centro = m.getCenter();
       c.dataset.zoom = String(m.getZoom());
       c.dataset.centro = `${centro.lat.toFixed(6)},${centro.lng.toFixed(6)}`;
+      const b = m.getBounds();
+      c.dataset.vista = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((x) => x.toFixed(6)).join(',');
     };
     anotarZoom();
     m.on('moveend', () => {
@@ -261,6 +266,31 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
   }, [capa, modo, baseDebajo]);
+
+  // Con el mapa sin conexión a la vista, no se aleja más de lo justo para ver su recorte entero: más
+  // lejos, el recorte se quedaba en un rectángulo de bordes rectos sobre el fondo vacío (docs/33 RV-321,
+  // D6b). Los límites para moverse no cambian (la zona con medio recuadro de aire): un punto o una
+  // posición fuera de la zona se siguen pudiendo ver (FR-55). Con las capas en línea, como antes.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!m) return;
+    if (!capasPintadas(capa, baseDebajo).includes('base')) {
+      m.setMinZoom(MIN_ZOOM);
+      return;
+    }
+    const ajustar = () => {
+      // El zoom con el que el recorte entero cabe en la ventana: «Ver toda la zona» sigue viéndola entera.
+      const minimo = Math.max(MIN_ZOOM, Math.floor(m.getBoundsZoom(RECORTE_MAPABASE, false)));
+      // Sin animación: una animación de zoom a medias pisaría el encuadre que se haga justo después.
+      if (m.getZoom() < minimo) m.setZoom(minimo, { animate: false });
+      m.setMinZoom(minimo);
+    };
+    ajustar();
+    m.on('resize', ajustar);
+    return () => {
+      m.off('resize', ajustar);
+    };
+  }, [capa, baseDebajo]);
 
   // Puntos, con declutter por zoom (06 §4.4). El seleccionado se ve siempre.
   useEffect(() => {

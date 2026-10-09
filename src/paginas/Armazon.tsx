@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { List, Map as IconoMapa, Settings } from 'lucide-react';
-import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
+import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { EstadoSincro } from '@/componentes/mapa/BarraEstado';
 import { AvisoNovedades } from '@/componentes/AvisoNovedades';
@@ -17,6 +17,49 @@ const DESTINOS = [
   { a: '/ajustes', texto: T.navegacion.ajustes, Icono: Settings },
 ] as const;
 
+/**
+ * En el ordenador (desde 1100 px), la navegación va arriba, junto al título, y sin «Lista», que ya está a
+ * la izquierda del mapa (docs/33 RV-321, U12). Con «Mis propuestas», que en el móvil se abre desde Ajustes.
+ */
+const ARRIBA = [
+  { a: '/', texto: T.navegacion.mapa },
+  { a: '/mis-propuestas', texto: T.navegacion.misPropuestas },
+  { a: '/ajustes', texto: T.navegacion.ajustes },
+] as const;
+
+function NavegacionArriba({ pathname, jefatura }: { pathname: string; jefatura: boolean }) {
+  // Mis propuestas es del voluntario (jefatura tiene la Cola del panel).
+  const destinos = ARRIBA.filter(({ a }) => !jefatura || a !== '/mis-propuestas');
+  return (
+    <nav aria-label={T.app.nombreCorto} className="mr-auto ml-6 hidden items-center gap-1 min-[1100px]:flex">
+      {destinos.map(({ a, texto }) => {
+        // La lista es parte del mapa en el ordenador: en /lista, «Mapa» también es la página activa.
+        const activa = pathname === a || (a === '/' && pathname.replace(/\/+$/, '') === '/lista');
+        return (
+          <Link
+            key={a}
+            to={a}
+            aria-current={activa ? 'page' : undefined}
+            className={cn(
+              'relative flex min-h-11 items-center border-b-2 px-3 text-[15px] font-semibold text-white',
+              activa ? 'border-naranja-600' : 'border-transparent',
+            )}
+          >
+            {texto}
+            {a === '/ajustes' && pathname !== '/ajustes' && hayNovedadesSinVer() && (
+              <span
+                data-testid="punto-novedades-arriba"
+                className="bg-naranja-600 absolute top-2 right-1 size-2 rounded-full"
+                aria-label={T.ajustes.seccionNovedades}
+              />
+            )}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 const TITULOS: Record<string, string> = {
   '/': T.navegacion.puntosDeAgua,
   '/lista': T.navegacion.puntosDeAgua,
@@ -30,7 +73,8 @@ export function Armazon() {
   // Lo que ocupa la navegación de abajo: el aviso de versión nueva va justo encima (docs/33 RV-313).
   useEffect(() => {
     const raiz = document.documentElement;
-    raiz.style.setProperty('--nav-abajo', 'calc(50px + env(safe-area-inset-bottom))');
+    // En el ordenador (desde 1100 px) no hay barra abajo: la medida la da index.css (docs/33 RV-321).
+    raiz.style.setProperty('--nav-abajo', 'var(--alto-nav-abajo)');
     return () => {
       raiz.style.removeProperty('--nav-abajo');
     };
@@ -56,16 +100,18 @@ export function Armazon() {
         jefatura={acceso.tipo === 'jefatura'}
         // En el mapa y la lista, el estado de la sincronización en la propia barra (docs/33 RV-311).
         estado={aPantalla ? <EstadoSincro /> : undefined}
+        navegacion={<NavegacionArriba pathname={pathname} jefatura={acceso.tipo === 'jefatura'} />}
       />
       <AvisoNovedades />
-      <main className="flex min-h-0 flex-1 flex-col pb-[calc(50px+env(safe-area-inset-bottom))]">
+      <main className="flex min-h-0 flex-1 flex-col pb-[calc(50px+env(safe-area-inset-bottom))] min-[1100px]:pb-0">
         <LimiteError>
           <Outlet />
         </LimiteError>
       </main>
       <nav
         aria-label={T.app.nombreCorto}
-        className="bg-papel border-linea fixed inset-x-0 bottom-0 z-20 flex border-t pb-[env(safe-area-inset-bottom)]"
+        // En el ordenador va arriba, en la barra (docs/33 RV-321).
+        className="bg-papel border-linea fixed inset-x-0 bottom-0 z-20 flex border-t pb-[env(safe-area-inset-bottom)] min-[1100px]:hidden"
       >
         {DESTINOS.map(({ a, texto, Icono }) => (
           <NavLink

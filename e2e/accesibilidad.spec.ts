@@ -9,7 +9,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import type { NodeResult, Result } from 'axe-core';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, irALista, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 
@@ -171,7 +171,7 @@ test.describe('app del voluntario', () => {
     await auditar(page, 'mapa con la leyenda desplegada');
     await geometria(page, 'mapa con la leyenda desplegada', { movil: !!isMobile });
 
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    await irALista(page);
     await expect(page.getByPlaceholder(T.mapa.buscar)).toBeVisible();
     await auditar(page, 'lista');
     await geometria(page, 'lista', { movil: !!isMobile });

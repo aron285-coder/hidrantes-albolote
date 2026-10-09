@@ -259,8 +259,8 @@ test.describe('aviso del mapa base en el propio mapa (RV-10, FR-81)', () => {
     await expect(aviso.getByRole('button', { name: T.mapa.descargarVersionNueva })).toBeVisible();
     await aviso.getByRole('button', { name: T.mapa.ocultarAviso }).click();
     await expect(aviso).toHaveCount(0);
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
-    await page.getByRole('link', { name: T.navegacion.mapa }).click();
+    await page.getByRole('link', { name: T.navegacion.ajustes }).click();
+    await page.getByRole('link', { name: T.navegacion.mapa, exact: true }).first().click();
     await expect(page.getByTestId('aviso-mapabase')).toHaveCount(0);
   });
 });

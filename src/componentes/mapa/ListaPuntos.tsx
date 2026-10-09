@@ -108,7 +108,7 @@ export function ListaPuntos({
           )}
         </label>
       </div>
-      <div role="radiogroup" aria-label={T.mapa.filtrar} className="flex gap-1.5 overflow-x-auto px-3 py-2">
+      <div role="radiogroup" aria-label={T.mapa.filtrar} className="flex flex-wrap gap-1.5 px-3 py-2">
         {FILTROS.map(([f, t]) => (
           <button
             key={f}

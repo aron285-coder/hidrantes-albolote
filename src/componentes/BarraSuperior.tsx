@@ -17,6 +17,7 @@ export function BarraSuperior({
   enlacePanel = true,
   centrado = false,
   estado,
+  navegacion,
 }: {
   titulo: string;
   alVolver?: () => void;
@@ -32,6 +33,8 @@ export function BarraSuperior({
    * banda de conexión, que ya no se pinta debajo.
    */
   estado?: ReactNode;
+  /** En el ordenador, la navegación de la app junto al título (docs/33 RV-321). */
+  navegacion?: ReactNode;
 }) {
   return (
     <div className="sticky top-0 z-20">
@@ -51,10 +54,13 @@ export function BarraSuperior({
           className={cn(
             'font-titulo min-w-0 flex-1 truncate text-base font-semibold tracking-wide',
             centrado && 'text-center',
+            // Con la navegación al lado, el título mide lo suyo y la navegación va justo detrás.
+            navegacion && 'min-[1100px]:flex-none',
           )}
         >
           {titulo}
         </h1>
+        {navegacion}
         {estado}
         {jefatura && enlacePanel && (
           // En el móvil, el camino al panel desde el mapa (RV-113, DEC-164). El área que se toca es de
