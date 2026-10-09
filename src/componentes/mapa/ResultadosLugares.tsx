@@ -51,95 +51,103 @@ export function ResultadoCoordenadas({ lugares, alElegir }: { lugares: Lugares; 
 }
 
 /**
- * Calles y lugares del callejero, que funcionan sin cobertura, y después las direcciones con número,
- * que la necesitan. Cada grupo cita su fuente (TR-76, TR-77).
+ * Calles y lugares del callejero, que funcionan sin cobertura, y las direcciones con número, que la
+ * necesitan; si lo escrito lleva un número, las direcciones primero. Cada grupo cita su fuente (TR-76, TR-77).
  */
 export function ResultadosCallesYDirecciones({
   lugares,
   alElegir,
+  direccionesPrimero = false,
 }: {
   lugares: Lugares;
   alElegir: (d: Destino) => void;
+  /** Lo escrito lleva un número (un portal): las direcciones van antes que las calles (docs/33 RV-312). */
+  direccionesPrimero?: boolean;
 }) {
   const { calles, direcciones } = lugares;
-  return (
+  const bloqueCalles = calles.length > 0 && (
+    <div role="group" aria-label={T.busqueda.calles}>
+      <Cabecera titulo={T.busqueda.calles} fuente={T.busqueda.fuenteCalles} />
+      <ul>
+        {calles.map((c) => (
+          <li key={`${c.n}|${c.m ?? ''}|${c.t}`}>
+            <button
+              type="button"
+              onClick={() =>
+                alElegir(
+                  c.t === 'calle' ? { tipo: 'calle', calle: c } : { tipo: 'sitio', l: { lat: c.c![1], lng: c.c![0] } },
+                )
+              }
+              className={fila}
+            >
+              {c.t === 'calle' ? (
+                <Route size={18} className="shrink-0" aria-hidden />
+              ) : (
+                <Landmark size={18} className="shrink-0" aria-hidden />
+              )}
+              <span className="truncate">
+                {c.n}
+                {c.m && <span className="text-texto-suave"> · {T.busqueda.municipio[c.m]}</span>}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+  const bloqueDirecciones = direcciones.estado !== 'nada' && (
+    <div role="group" aria-label={T.busqueda.direcciones}>
+      <Cabecera
+        titulo={T.busqueda.direcciones}
+        fuente={direcciones.estado === 'ok' ? T.busqueda.fuenteDirecciones : undefined}
+      />
+      {direcciones.estado === 'buscando' && (
+        <p role="status" className={aviso}>
+          {T.busqueda.buscandoDirecciones}
+        </p>
+      )}
+      {direcciones.estado === 'sin_cobertura' && (
+        <p role="status" className={aviso}>
+          {T.busqueda.portalSinCobertura}
+        </p>
+      )}
+      {direcciones.estado === 'sin_acceso' && (
+        <p role="status" className={aviso}>
+          {T.busqueda.portalSinAcceso}
+        </p>
+      )}
+      {direcciones.estado === 'ok' && direcciones.resultados.length === 0 && (
+        <p role="status" className={aviso}>
+          {T.busqueda.sinDirecciones}
+        </p>
+      )}
+      {direcciones.estado === 'ok' && direcciones.resultados.length > 0 && (
+        <ul>
+          {direcciones.resultados.map((d) => (
+            <li key={`${d.etiqueta}|${d.lat}|${d.lng}`}>
+              <button
+                type="button"
+                onClick={() => alElegir({ tipo: 'sitio', l: { lat: d.lat, lng: d.lng } })}
+                className={fila}
+              >
+                <MapPin size={18} className="shrink-0" aria-hidden />
+                <span className="truncate">{d.etiqueta}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+  return direccionesPrimero ? (
     <>
-      {calles.length > 0 && (
-        <div role="group" aria-label={T.busqueda.calles}>
-          <Cabecera titulo={T.busqueda.calles} fuente={T.busqueda.fuenteCalles} />
-          <ul>
-            {calles.map((c) => (
-              <li key={`${c.n}|${c.m ?? ''}|${c.t}`}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    alElegir(
-                      c.t === 'calle'
-                        ? { tipo: 'calle', calle: c }
-                        : { tipo: 'sitio', l: { lat: c.c![1], lng: c.c![0] } },
-                    )
-                  }
-                  className={fila}
-                >
-                  {c.t === 'calle' ? (
-                    <Route size={18} className="shrink-0" aria-hidden />
-                  ) : (
-                    <Landmark size={18} className="shrink-0" aria-hidden />
-                  )}
-                  <span className="truncate">
-                    {c.n}
-                    {c.m && <span className="text-texto-suave"> · {T.busqueda.municipio[c.m]}</span>}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {direcciones.estado !== 'nada' && (
-        <div role="group" aria-label={T.busqueda.direcciones}>
-          <Cabecera
-            titulo={T.busqueda.direcciones}
-            fuente={direcciones.estado === 'ok' ? T.busqueda.fuenteDirecciones : undefined}
-          />
-          {direcciones.estado === 'buscando' && (
-            <p role="status" className={aviso}>
-              {T.busqueda.buscandoDirecciones}
-            </p>
-          )}
-          {direcciones.estado === 'sin_cobertura' && (
-            <p role="status" className={aviso}>
-              {T.busqueda.portalSinCobertura}
-            </p>
-          )}
-          {direcciones.estado === 'sin_acceso' && (
-            <p role="status" className={aviso}>
-              {T.busqueda.portalSinAcceso}
-            </p>
-          )}
-          {direcciones.estado === 'ok' && direcciones.resultados.length === 0 && (
-            <p role="status" className={aviso}>
-              {T.busqueda.sinDirecciones}
-            </p>
-          )}
-          {direcciones.estado === 'ok' && direcciones.resultados.length > 0 && (
-            <ul>
-              {direcciones.resultados.map((d) => (
-                <li key={`${d.etiqueta}|${d.lat}|${d.lng}`}>
-                  <button
-                    type="button"
-                    onClick={() => alElegir({ tipo: 'sitio', l: { lat: d.lat, lng: d.lng } })}
-                    className={fila}
-                  >
-                    <MapPin size={18} className="shrink-0" aria-hidden />
-                    <span className="truncate">{d.etiqueta}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+      {bloqueDirecciones}
+      {bloqueCalles}
+    </>
+  ) : (
+    <>
+      {bloqueCalles}
+      {bloqueDirecciones}
     </>
   );
 }

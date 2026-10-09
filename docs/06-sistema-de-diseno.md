@@ -466,7 +466,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se ha podido descargar el mapa base` (solo para el lector de pantalla: el porcentaje se ve pero no se anuncia, docs/32 RV-236) ·
 `La capa "[Satélite (PNOA)]" necesita cobertura. Los puntos siguen; cambia al mapa base.` ·
 `Sin cobertura: se ve el mapa base propio en lugar de «[Calle (OSM)]»` (con el mapa base en el móvil, RV-58) ·
-`Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Buscando tu posición…` ·
+`Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Cerrar la búsqueda` (el mismo ✕ con el buscador vacío, docs/33 RV-312) · `Buscando tu posición…` ·
 `Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.` ·
 `No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Cerrar la leyenda` · `Zoom` · `Acercar` · `Alejar` ·
 `funciona sin cobertura` · `solo en línea` · `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.

@@ -78,7 +78,11 @@ export function ListaPuntos({
           <Search size={18} className="text-texto-suave shrink-0" aria-hidden />
           <input
             id="buscar-lista"
-            type="search"
+            // Texto y no «search»: el navegador pintaría su propio ✕ junto al nuestro (docs/33 RV-312, U3).
+            type="text"
+            role="searchbox"
+            inputMode="search"
+            enterKeyHint="search"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder={T.mapa.buscar}
@@ -194,7 +198,9 @@ export function ListaPuntos({
             </li>
           ))}
         </ul>
-        {texto && <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} />}
+        {texto && (
+          <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} direccionesPrimero={/[0-9]/.test(texto)} />
+        )}
         {cargado &&
           visibles.length === 0 &&
           !conLugares &&

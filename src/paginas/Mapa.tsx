@@ -129,6 +129,8 @@ export function Mapa() {
   const [capa, setCapa] = useState<Capa>(capaGuardada);
   const [menuCapas, setMenuCapas] = useState(false);
   const [texto, setTexto] = useState('');
+  // Con el foco en el buscador vacío, su ✕ lo cierra (RV-312).
+  const [buscando, setBuscando] = useState(false);
   const control = useRef<ControlMapa>(null);
 
   const punto = useMemo(() => puntos.find((p) => p.id === seleccionado) ?? null, [puntos, seleccionado]);
@@ -481,22 +483,37 @@ export function Mapa() {
           {/* Búsqueda (FR-69) */}
           {ancho !== 'escritorio' && (
             <div className="absolute inset-x-2 top-2 z-[500]">
-              <label className="rounded-tarjeta flex min-h-11 items-center gap-2 bg-[var(--control-mapa)] px-2.5 shadow-[0_1px_5px_rgba(0,0,0,.18)]">
+              {/* Opaco también en oscuro (D5): translúcido, se leían los nombres del mapa a través. */}
+              <label className="rounded-tarjeta bg-papel flex min-h-11 items-center gap-2 px-2.5 shadow-[0_1px_5px_rgba(0,0,0,.18)]">
                 <Search size={18} className="text-texto-suave shrink-0" aria-hidden />
                 <input
                   ref={buscador}
-                  type="search"
+                  // Texto y no «search»: el navegador pintaría su propio ✕ junto al nuestro (docs/33 RV-312, U3).
+                  type="text"
+                  role="searchbox"
+                  inputMode="search"
+                  enterKeyHint="search"
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
+                  onFocus={() => setBuscando(true)}
+                  onBlur={() => setBuscando(false)}
                   placeholder={T.mapa.buscar}
                   aria-label={T.mapa.buscar}
                   className="min-w-0 flex-1 bg-transparent outline-none"
                 />
-                {texto && (
+                {/* Un solo ✕ (U3): con texto, borra y deja escribir otra cosa; vacío, cierra la búsqueda. */}
+                {(texto || buscando) && (
                   <button
                     type="button"
-                    onClick={() => setTexto('')}
-                    aria-label={T.mapa.borrarBusqueda}
+                    // Sin esto, el toque quita antes el foco al campo y el ✕ desaparece sin llegar a pulsarse.
+                    onPointerDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      if (texto) {
+                        setTexto('');
+                        buscador.current?.focus();
+                      } else buscador.current?.blur();
+                    }}
+                    aria-label={texto ? T.mapa.borrarBusqueda : T.mapa.cerrarBusqueda}
                     className="-mr-2 flex size-11 items-center justify-center"
                   >
                     <X size={18} aria-hidden />
@@ -532,7 +549,11 @@ export function Mapa() {
                       </ul>
                     </div>
                   )}
-                  <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} />
+                  <ResultadosCallesYDirecciones
+                    lugares={lugares}
+                    alElegir={irA}
+                    direccionesPrimero={/[0-9]/.test(texto)}
+                  />
                   {resultados.length === 0 && !conLugares && (
                     <p className="text-texto-suave p-3 text-sm">{T.mapa.busquedaVacia}</p>
                   )}
