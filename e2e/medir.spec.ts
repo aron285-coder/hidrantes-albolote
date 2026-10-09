@@ -134,19 +134,31 @@ test('dos tramos en ángulo agudo: dos píldoras que no se pisan; al alejar, las
   await expect(barra(page)).toBeVisible();
   const mapa = (await page.getByTestId('mapa').boundingBox())!;
   // Lejos de A y de B (arriba del centro) para que el imán no los atrape.
-  for (const [fx, fy] of [
-    [0.12, 0.5],
-    [0.82, 0.42],
-    [0.2, 0.3],
-  ] as const) {
-    await page.mouse.click(mapa.x + mapa.width * fx, mapa.y + mapa.height * fy);
-  }
+  type Punto = { x: number; y: number };
+  const vertices: Punto[] = (
+    [
+      [0.12, 0.5],
+      [0.82, 0.42],
+      [0.2, 0.3],
+    ] as const
+  ).map(([fx, fy]) => ({ x: mapa.x + mapa.width * fx, y: mapa.y + mapa.height * fy }));
+  for (const v of vertices) await page.mouse.click(v.x, v.y);
   const etiquetas = page.locator('.etiqueta-medicion');
   await expect(etiquetas).toHaveCount(2);
   const [e1, e2] = [(await etiquetas.nth(0).boundingBox())!, (await etiquetas.nth(1).boundingBox())!];
   const solapan =
     e1.x < e2.x + e2.width && e2.x < e1.x + e1.width && e1.y < e2.y + e2.height && e2.y < e1.y + e1.height;
   expect(solapan).toBe(false);
+  // Hacia fuera del ángulo: la etiqueta de cada tramo, al otro lado del vértice libre del otro tramo.
+  const [p1, p2, p3] = vertices as [Punto, Punto, Punto];
+  const lado = (a: Punto, b: Punto, c: Punto) => Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
+  const centroDe = (e: { x: number; y: number; width: number; height: number }) => ({
+    x: e.x + e.width / 2,
+    y: e.y + e.height / 2,
+  });
+  // Las etiquetas salen en el orden de los tramos (p1→p2, p2→p3).
+  expect(lado(p1, p2, centroDe(e1))).toBe(-lado(p1, p2, p3));
+  expect(lado(p2, p3, centroDe(e2))).toBe(-lado(p2, p3, p1));
   // Una píldora opaca.
   const estilo = await etiquetas.first().evaluate((el) => {
     const s = getComputedStyle(el);
