@@ -1,18 +1,9 @@
 {
-  "version": "0.10.0",
-  "fecha": "2026-10-09",
+  "version": "0.6.2",
+  "fecha": "2026-09-24",
   "lineas": [
-    {
-      "version": "0.10.0",
-      "texto": "Buscar números de portal y el aviso inmediato vuelven a funcionar para los voluntarios"
-    },
-    {
-      "version": "0.10.0",
-      "texto": "Al llegar a un tope de fotos, el móvil sabe cuánto esperar"
-    },
-    {
-      "version": "0.9.0",
-      "texto": "Fuera «Algo no funciona en la aplicación»"
-    }
+    "Calles, lugares, direcciones y coordenadas",
+    "Los cinco puntos más cercanos que funcionan",
+    "Mantener pulsado el mapa abre \"¿Qué hay aquí?\", y la ficha enseña las coordenadas y se puede compartir"
   ]
 }
