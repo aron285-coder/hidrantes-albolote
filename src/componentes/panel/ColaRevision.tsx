@@ -40,9 +40,12 @@ const ESTADOS: { valor: EstadoModeracion; nombre: string }[] = [
 
 const OPERACIONES: Operacion[] = ['alta', 'revision', 'estado', 'datos', 'ubicacion', 'retirada'];
 
-/** Un desplegable de filtro; por debajo de 800 px se encogen a partes iguales en una línea (RV-331). */
+/**
+ * Un desplegable de filtro; por debajo de 800 px se encogen a partes iguales en una línea y miden 44 px
+ * de alto, porque ahí son el único control de los filtros en una tableta táctil (RV-331, UI-15).
+ */
 const SELECT =
-  'border-linea bg-papel rounded-campo min-h-9 border px-2 max-[799px]:w-0 max-[799px]:min-w-0 max-[799px]:flex-1 max-[799px]:px-1 max-[799px]:text-[13px]';
+  'border-linea bg-papel rounded-campo min-h-9 border px-2 max-[800px]:w-0 max-[800px]:min-w-0 max-[800px]:min-h-11 max-[800px]:flex-1 max-[800px]:px-1 max-[800px]:text-[13px]';
 
 /**
  * Desde 1.100 px, la cola a la izquierda (340 px) y el detalle en todo el resto; por debajo, dos
@@ -275,10 +278,10 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Por debajo de 800 px de ancho útil (tableta, o zoom 200 %), los filtros son tres desplegables
           compactos en una línea, y el recuento de seleccionadas va en la barra de abajo (docs/33 RV-331). */}
-      <div className="border-linea bg-fondo flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm max-[799px]:gap-1.5 max-[799px]:py-1">
+      <div className="border-linea bg-fondo flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm max-[800px]:gap-1.5 max-[800px]:py-1">
         {pendientes ? (
           <>
-            <label className="flex min-h-11 items-center gap-2 max-[799px]:min-w-11 max-[799px]:justify-center">
+            <label className="flex min-h-11 items-center gap-2 max-[800px]:min-w-11 max-[800px]:justify-center">
               <input
                 type="checkbox"
                 className="size-4"
@@ -288,7 +291,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
                 aria-label={T.panelCola.seleccionarTodas}
               />
               <span
-                className={cn('max-[799px]:hidden', elegidas.length ? 'text-texto font-semibold' : 'text-texto-suave')}
+                className={cn('max-[800px]:hidden', elegidas.length ? 'text-texto font-semibold' : 'text-texto-suave')}
               >
                 {elegidas.length ? T.panelCola.seleccionadas(elegidas.length) : T.panelCola.ningunaSeleccionada}
               </span>
@@ -297,14 +300,14 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
             {ancho && botonesLote}
           </>
         ) : (
-          <span className="text-texto-suave max-[799px]:order-last max-[799px]:basis-full max-[799px]:text-[13px]">
+          <span className="text-texto-suave max-[800px]:order-last max-[800px]:basis-full max-[800px]:text-[13px]">
             {T.panelCola.soloLectura}
           </span>
         )}
         <div
           role="radiogroup"
           aria-label={T.panelCola.filtroEstado}
-          className="flex flex-wrap gap-1.5 max-[799px]:hidden lg:ml-4"
+          className="flex flex-wrap gap-1.5 max-[800px]:hidden lg:ml-4"
         >
           {ESTADOS.map((e) => (
             <button
@@ -322,8 +325,8 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2 max-[799px]:min-w-0 max-[799px]:flex-1 max-[799px]:flex-nowrap max-[799px]:gap-1.5 lg:ml-auto">
-          <span className="text-texto-suave max-[799px]:hidden">{T.panelCola.filtrar}</span>
+        <div className="flex flex-wrap items-center gap-2 max-[800px]:min-w-0 max-[800px]:flex-1 max-[800px]:flex-nowrap max-[800px]:gap-1.5 lg:ml-auto">
+          <span className="text-texto-suave max-[800px]:hidden">{T.panelCola.filtrar}</span>
           <select
             aria-label={T.panelCola.filtroEstado}
             value={estado}
