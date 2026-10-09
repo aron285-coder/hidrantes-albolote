@@ -184,7 +184,7 @@ programada que falla). Debajo, lo que hay que mirar:
 | Entradas frenadas por el tope (24 h) | 0 | hay alguna: alguien con el código bueno no ha podido entrar. **Abre la entrada 24 h** con el enlace de la fila |
 | Zona y mapa base | una fecha | — |
 
-Debajo están las tareas programadas, con su nombre en palabras y cuándo pasaron por última vez.
+Debajo están las tareas programadas, con su nombre en palabras y cuándo pasaron por última vez, y los móviles que más fotos han pedido en 24 h.
 
 Para descargar el inventario completo (JSON), ve a *Inventario → Exportar → Inventario completo
 (JSON)*. Es una copia de consulta; el respaldo de verdad es automático (15).
