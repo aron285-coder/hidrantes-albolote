@@ -104,7 +104,7 @@ export function EstadoSincro() {
           <dl className="my-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-[15px]">
             <dt className="text-texto-suave">{T.sincro.ultima}</dt>
             <dd>{guardadoEn ? hace(guardadoEn, new Date(ahora)) : T.ajustes.sinSincronizar}</dd>
-            <dt className="text-texto-suave">{T.ajustes.puntosGuardados}</dt>
+            <dt className="text-texto-suave">{T.sincro.puntos}</dt>
             <dd>{T.sincro.puntosGuardados(puntos.length)}</dd>
             {cola.length > 0 && (
               <>

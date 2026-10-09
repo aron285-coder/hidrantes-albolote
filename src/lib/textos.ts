@@ -653,6 +653,7 @@ export const T = {
   sincro: {
     titulo: 'Sincronización',
     ultima: 'Última sincronización',
+    puntos: 'Puntos guardados',
     puntosGuardados: (n: Parametro) => `${n} en este móvil`,
     envios: 'Envíos',
     sincronizarAhora: 'Sincronizar ahora',
