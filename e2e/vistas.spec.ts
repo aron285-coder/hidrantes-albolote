@@ -137,7 +137,7 @@ async function voluntarioSinRevisar(page: Page) {
     fn_registrar_error: null,
   });
   // La clave es VISTA de src/lib/vista.ts; no se importa porque arrastra imports sin extensión.
-  await page.addInitScript(([clave, vista]) => localStorage.setItem(clave, vista), [
+  await page.addInitScript(([clave, vista]) => sessionStorage.setItem(clave, vista), [
     'hidrantes.vista',
     JSON.stringify({ centro: [37.2326, -3.6554], zoom: 17 }),
   ] as const);

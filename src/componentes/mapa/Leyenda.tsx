@@ -15,16 +15,14 @@ const FILAS: [Simbolo, string][] = [
   [{ tipo: 'hidrante', caudal: 'bueno', radio_px: 6, revision_caducada: true }, T.mapa.sinRevisar],
 ];
 
-/** Si la leyenda está desplegada; `null` es que nunca se ha visto (primer uso). */
+/** Si la leyenda está desplegada; `null` es que nunca se ha tocado. */
 export const CLAVE_LEYENDA = 'leyenda_abierta';
 
-/** Primer uso: desplegada esta vez, y plegada las siguientes salvo que el voluntario la abra (RV-82). */
-function abiertaAlEmpezar(): boolean {
-  const guardada = leer<boolean>(CLAVE_LEYENDA);
-  if (guardada !== null) return guardada;
-  escribir(CLAVE_LEYENDA, false);
-  return true;
-}
+/**
+ * Plegada por defecto, también el primer uso (docs/33 RV-310 y RV-319): desplegada tapaba media
+ * pantalla del móvil. Si el voluntario la abre, se recuerda (RV-82).
+ */
+const abiertaAlEmpezar = (): boolean => leer<boolean>(CLAVE_LEYENDA) ?? false;
 
 const SOMBRA = 'shadow-[0_1px_5px_rgba(0,0,0,.18)]';
 
