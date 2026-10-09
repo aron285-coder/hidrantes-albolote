@@ -45,6 +45,8 @@ interface Red {
   admin?: boolean;
   /** fn_validar_token: vale, lo rechaza (TOKEN_INVALIDO) o falla por dentro (permiso denegado). */
   token?: boolean | 'sin_permiso';
+  /** fn_registrar_error tampoco contesta bien. */
+  registroCae?: boolean;
   pendientes?: ReturnType<typeof pendiente>[];
   servicioPush?: Response;
   /** Respuesta del servicio de push según el endpoint; manda sobre `servicioPush`. */
@@ -80,7 +82,11 @@ function fingirRed(red: Red = {}) {
             }),
       );
     }
-    if (url.includes('fn_registrar_error')) return Promise.resolve(new Response(null, { status: 204 }));
+    if (url.includes('fn_registrar_error')) {
+      return Promise.resolve(
+        red.registroCae ? new Response('{}', { status: 500 }) : new Response(null, { status: 204 }),
+      );
+    }
     if (url.includes('fn_reclamar_notificaciones')) {
       return Promise.resolve(new Response(JSON.stringify(red.pendientes ?? [])));
     }
@@ -140,6 +146,17 @@ describe('POST /api/push', () => {
     });
     expect(JSON.stringify(anotado?.cuerpo)).not.toContain('tok_valido_de_un_movil_0561');
     expect(llamadas.some((l) => l.url.includes('fn_reclamar_notificaciones'))).toBe(false);
+    espia.mockRestore();
+  });
+
+  it('si tampoco se puede anotar, sigue siendo 503 y queda en el registro del Worker, sin el token', async () => {
+    const { espia } = fingirRed({ token: 'sin_permiso', registroCae: true });
+    const consola = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const r = await onRequestPost({ request: peticion({ token: 'tok_valido_de_un_movil_0561' }), env: ENV });
+    expect(r.status).toBe(503);
+    expect(consola).toHaveBeenCalledWith('validar_token_fallo sin anotar: NO_AUTORIZADO / ERROR_INTERNO en /api/push');
+    expect(JSON.stringify(consola.mock.calls)).not.toContain('tok_valido_de_un_movil_0561');
+    consola.mockRestore();
     espia.mockRestore();
   });
 

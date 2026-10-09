@@ -207,8 +207,9 @@ export async function validarToken(
   if (r.ok) return 'valido';
   if (r.codigo.startsWith('TOKEN_')) return 'invalido';
   // Firma de seis argumentos con service_role (0040), con su propio cupo por ip_hash fijo, como
-  // /api/direccion. Si tampoco esto llega, la respuesta 503 ya dice que el fallo es del servidor.
-  await rpc(env, 'fn_registrar_error', {
+  // /api/direccion. Si tampoco esto llega (base de datos caída), queda al menos en el registro del
+  // Worker (`wrangler pages deployment tail`): solo los códigos, nunca el token.
+  const anotado = await rpc(env, 'fn_registrar_error', {
     dispositivo_id: null,
     mensaje: `validar_token_fallo: ${r.codigo}`,
     pila: null,
@@ -216,6 +217,7 @@ export async function validarToken(
     agente: null,
     ip_hash: 'funcion:validar_token',
   });
+  if (!anotado.ok) console.error(`validar_token_fallo sin anotar: ${r.codigo} / ${anotado.codigo} en ${ruta}`);
   return 'sin_servidor';
 }
 
