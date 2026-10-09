@@ -35,7 +35,6 @@ import {
   diametroPermitido,
   necesitaFoto,
   necesitaFotoSitio,
-  textoHacerFoto,
   queFalta,
 } from '@/lib/propuestas';
 import { TITULO_OPERACION, textoEspera, textoFallo } from '@/lib/nombres-operacion';
@@ -128,9 +127,23 @@ function FormularioOperacion({
   // Salir con algo rellenado o alguna foto pregunta: con la flecha y con el "atrás" de Android (RV-239).
   const sucio = !!foto || !!fotoSitio || hayCambios(f, inicial);
   const [preguntaSalir, setPreguntaSalir] = useState(false);
-  const preguntar = () => setPreguntaSalir(true);
+  /** Adónde va «Salir» en la pregunta: atrás (null) o a otro formulario en lugar de este (RV-322). */
+  const [destinoSalida, setDestinoSalida] = useState<string | null>(null);
+  const preguntar = () => {
+    setDestinoSalida(null);
+    setPreguntaSalir(true);
+  };
   const cerrarPregunta = () => setPreguntaSalir(false);
   const { salir, reemplazarPor } = useSalidaFormulario(sucio, preguntar);
+  /**
+   * De Corregir datos a Proponer retirada (docs/33 RV-322): la retirada sustituye al formulario y a su
+   * entrada de historial propia, así que "atrás" desde ella vuelve a la ficha. Con algo escrito, pregunta.
+   */
+  const irEnLugarDeEste = (ruta: string) => {
+    if (!sucio) return reemplazarPor(ruta);
+    setDestinoSalida(ruta);
+    setPreguntaSalir(true);
+  };
 
   // Alta: el pin sale de la posición GPS en cuanto la hay, hasta que el voluntario lo mueve.
   const pinAlta = operacion === 'alta' && !f.pinMovido && gps ? { lat: gps.lat, lng: gps.lng } : f.pin;
@@ -204,7 +217,7 @@ function FormularioOperacion({
       {/* En el formulario, la etiqueta no lleva al panel: se perderían las fotos y los datos (DEC-164). */}
       <BarraSuperior
         titulo={TITULO_OPERACION[operacion]}
-        alVolver={() => (sucio ? setPreguntaSalir(true) : salir())}
+        alVolver={() => (sucio ? preguntar() : salir())}
         jefatura={jefatura}
         enlacePanel={false}
       />
@@ -245,9 +258,12 @@ function FormularioOperacion({
                 ? T.operaciones.ubicacionAyuda
                 : gps
                   ? T.avisosFormulario.ajustaPin
-                  : posicionVieja
-                    ? T.avisosFormulario.posicionNoAlDia
-                    : T.operaciones.sinGps}
+                  : // En cuanto se coloca el pin a mano, la posición vieja ya no importa (docs/33 RV-316).
+                    formulario.pinMovido
+                    ? T.avisosFormulario.ajustaPin
+                    : posicionVieja
+                      ? T.avisosFormulario.posicionNoAlDia
+                      : T.operaciones.sinGps}
             </p>
             {pinFuera && (
               <p className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm">
@@ -275,7 +291,13 @@ function FormularioOperacion({
         {operacion === 'revision' && <Aviso>{T.operaciones.revisionAviso}</Aviso>}
 
         {(operacion === 'alta' || operacion === 'datos') && (
-          <DatosPunto f={formulario} cambiar={cambiar} punto={punto} jefatura={jefatura} />
+          <DatosPunto
+            f={formulario}
+            cambiar={cambiar}
+            punto={punto}
+            jefatura={jefatura}
+            alIrEnLugarDeEste={irEnLugarDeEste}
+          />
         )}
 
         {(operacion === 'alta' || operacion === 'estado') && (
@@ -336,7 +358,7 @@ function FormularioOperacion({
           />
         ) : (
           (necesitaFoto(operacion) || operacion === 'datos') && (
-            <CampoFoto etiqueta={etiquetaFoto} foto={foto} alCambiar={setFoto} textoHacer={textoHacerFoto(operacion)} />
+            <CampoFoto etiqueta={etiquetaFoto} foto={foto} alCambiar={setFoto} opcional={!necesitaFoto(operacion)} />
           )
         )}
 
@@ -387,7 +409,8 @@ function FormularioOperacion({
             className="w-full"
             onClick={() => {
               setPreguntaSalir(false);
-              salir();
+              if (destinoSalida) reemplazarPor(destinoSalida);
+              else salir();
             }}
           >
             {T.avisoFormulario.botonSalir}
@@ -465,11 +488,14 @@ function DatosPunto({
   cambiar,
   punto,
   jefatura,
+  alIrEnLugarDeEste,
 }: {
   f: Formulario;
   cambiar: (c: Partial<Formulario>) => void;
   punto: ReturnType<typeof usePuntos>['puntos'][number] | null;
   jefatura: boolean;
+  /** Ir a otro formulario en lugar de este, preguntando si hay algo escrito (RV-322). */
+  alIrEnLugarDeEste: (ruta: string) => void;
 }) {
   const tipo = f.tipo;
   // Lo que tiene el punto al corregir datos: en una boca, 45, 70 u otra medida con su número (docs/24 RV-101).
@@ -511,15 +537,23 @@ function DatosPunto({
         // DEC-090).
         <Campo etiqueta={T.formulario.tipoElemento}>
           <p className="bg-papel border-linea rounded-campo min-h-11 border px-3 py-2">{nombreTipo[punto.tipo]}</p>
-          <p className="text-texto-suave mt-1 text-[13px]">
-            {T.operaciones.tipoNoCambia} ·{' '}
+          {/* Una frase con el enlace dentro (docs/33 RV-316, D8). El relleno vertical da al enlace
+              44 px de alto para el dedo sin separar las líneas. */}
+          <p data-ayuda-tipo className="text-texto-suave mt-1 text-[13px]">
+            {T.operaciones.tipoMal}{' '}
+            {/* Un enlace de verdad (se lee y se abre como tal), pero la navegación la lleva el
+                formulario: quita sus dos entradas de historial y pregunta si hay algo escrito (RV-322). */}
             <Link
               to={`/proponer/retirada?p=${encodeURIComponent(punto.id)}`}
-              replace
-              className="text-marino-600 inline-flex min-h-11 items-center font-semibold underline"
+              onClick={(e) => {
+                e.preventDefault();
+                alIrEnLugarDeEste(`/proponer/retirada?p=${encodeURIComponent(punto.id)}`);
+              }}
+              className="text-texto py-3 font-semibold underline"
             >
-              {T.operaciones.proponerRetirada}
-            </Link>
+              {T.operaciones.tipoMalEnlace}
+            </Link>{' '}
+            {T.operaciones.tipoMalResto}
           </p>
         </Campo>
       ) : (
@@ -549,14 +583,20 @@ function DatosPunto({
             etiqueta={T.formulario.diametro}
           />
           {diametroActual === 'otro' && (
-            <input
-              value={f.diametroOtro ?? otraMedidaActual}
-              onChange={(e) => cambiar({ diametro: 'otro', diametroOtro: e.target.value })}
-              inputMode="numeric"
-              placeholder={tipo === 'boca_riego' ? T.operaciones.phOtraMedidaBoca : T.operaciones.phOtraMedida}
-              aria-label={T.formulario.otraMedida}
-              className={cn(areaTexto, 'mt-1')}
-            />
+            // El número con su unidad al lado (docs/33 RV-316).
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                value={f.diametroOtro ?? otraMedidaActual}
+                onChange={(e) => cambiar({ diametro: 'otro', diametroOtro: e.target.value })}
+                inputMode="numeric"
+                placeholder={tipo === 'boca_riego' ? T.operaciones.phOtraMedidaBoca : T.operaciones.phOtraMedida}
+                aria-label={T.formulario.otraMedida}
+                className={cn(areaTexto, 'min-w-0 flex-1')}
+              />
+              <span aria-hidden className="text-texto font-semibold">
+                {T.formulario.unidadMm}
+              </span>
+            </div>
           )}
         </Campo>
       )}

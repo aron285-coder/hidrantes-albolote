@@ -450,7 +450,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · `Mapa base propio` ·
 `Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `© OpenStreetMap contributors` ·
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
-`© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
+`© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` · `Centrado en tu posición` · `Ver toda la zona` (aviso al abrir el mapa sobre el voluntario, docs/33 RV-310) ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
 `No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
@@ -510,7 +510,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
 `El caudal ha cambiado o ya no funciona` · `Corregir datos` ·
 `Diámetro, tipo de enganche o descripción mal anotados` ·
-`¿El tipo está mal? Propón retirarlo y da de alta el correcto` · `Corregir ubicación` · `El pin está desplazado` ·
+`¿El tipo está mal?` · `Propón retirarlo` · `y da de alta el correcto.` (una frase con el enlace dentro, docs/33 RV-316) · `Corregir ubicación` · `El pin está desplazado` ·
 `Proponer retirada` · `Ya no existe. Pide un motivo breve` · `Alta` · `Revisión` · `Estado` · `Datos` ·
 `Ubicación` · `Retirada` · `Consta como [Bueno] · revisado [hace 1 mes]` · `Caudal / estado ahora` ·
 `Confirmas que el punto sigue exactamente igual. Solo cambia la fecha de última revisión.` ·
@@ -530,8 +530,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
 `Tipo de enganche` · `Barcelona` · `Granada` · `Directo` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
-`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `repetir · [Sitio]` · `[Sitio] · [150] kB` ·
-`Hacer foto · obligatoria` · `Hacer foto · opcional` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
+`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` (la ficha de la foto hecha, docs/33 RV-316) · `[Sitio] · [150] kB` ·
+`Hacer foto · obligatoria` · `Foto · opcional` · `Hacer foto (opcional)` (corregir datos, docs/33 RV-316) · `mm` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
 `¿Por qué ya no existe?` · `Obras` · `Asfaltado` · `Sustituido` · `Otro` ·
 `Cuéntalo brevemente · obligatorio`.
@@ -645,7 +645,11 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Aprobar con correcciones` · `Guardar y aprobar` · `Rechazar…` · `Confirmar rechazo` ·
 `Fusionar con [BOC-0088]` · `Confirmar y aprobar` · `El punto ha cambiado: revisa los datos.` · `Cargando el punto de hoy…` ·
 `No se ha podido cargar el punto de hoy: sin verlo no se aprueba.` ·
-`El punto ya no está activo: solo se puede rechazar.` · `Cancelar` ·
+`El punto ya no está activo: solo se puede rechazar.` ·
+`Este punto ya no está activo (retirado el [7 oct 2026]). La propuesta no se puede aprobar.` ·
+`Este punto ya no está activo (en la papelera desde el [7 oct 2026]). La propuesta no se puede aprobar.` ·
+`Este punto ya no está activo. La propuesta no se puede aprobar.` · `Rechazar: el punto ya no existe` ·
+`El punto ya no está activo` · `Cancelar` ·
 `Motivo del rechazo (obligatorio, lo verá quien lo propuso)` ·
 `Sin motivo no se puede rechazar.` ·
 `El diff está calculado sobre un estado que ya no existe: el punto cambió [ayer]. Se pide confirmación expresa en lugar del botón normal.` ·
@@ -702,7 +706,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `↩ Retirada por el autor · [cuando]` · `Motivo: "[texto]"` · `Con correcciones: [texto]` ·
 `Fusionada con [codigo]. No se creó un punto nuevo.` · `Código asignado: [codigo]` ·
 `Consta en el Registro. Solo lectura.` · `Pin propuesto y puntos aprobados alrededor` ·
-`con avisos` · `Hidrantes Albolote · Panel de jefatura` ·
+`con avisos` · `Hidrantes Albolote · Panel de jefatura` · `Menú` (el ☰ de la cabecera por debajo de 800 px) ·
 `Direcciones deducidas con Nominatim · © OpenStreetMap contributors` · `datos de [hace]` ·
 `Esta propuesta ya no está pendiente: otra persona la ha resuelto. La lista se ha actualizado.` ·
 `El punto ya no está activo.` ·

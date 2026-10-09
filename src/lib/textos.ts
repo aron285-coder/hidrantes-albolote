@@ -130,6 +130,9 @@ export const T = {
     catastro: 'Catastro',
     necesitaCobertura: 'necesita cobertura',
     miPosicion: 'Mi posición',
+    // docs/33 RV-310: el aviso discreto al abrir el mapa sobre el voluntario.
+    centradoEnTi: 'Centrado en tu posición',
+    verTodaLaZona: 'Ver toda la zona',
     sincronizado: (hace: Parametro) => `Sincronizado ${hace}`,
     sinCobertura: (hace: Parametro) => `Sin cobertura · datos de ${hace}`,
     sinServidor: 'Sin conexión con el servidor',
@@ -220,6 +223,8 @@ export const T = {
     fotoNoDisponible: 'Foto no disponible sin cobertura',
     fotoNoCarga: 'No se ha podido cargar la foto',
     sinFoto: 'Sin foto',
+    // docs/33 RV-314: la foto que no ha cargado se vuelve a pedir.
+    reintentarFoto: 'Reintentar',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
     fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
     // docs/24 RV-102a: un estado que esta versión de la app no conoce.
@@ -328,7 +333,10 @@ export const T = {
     actualizarEstadoDetalle: 'El caudal ha cambiado o ya no funciona',
     corregirDatos: 'Corregir datos',
     corregirDatosDetalle: 'Diámetro, tipo de enganche o descripción mal anotados',
-    tipoNoCambia: '¿El tipo está mal? Propón retirarlo y da de alta el correcto',
+    // docs/33 RV-316 (D8): una frase con el enlace dentro, «Propón retirarlo».
+    tipoMal: '¿El tipo está mal?',
+    tipoMalEnlace: 'Propón retirarlo',
+    tipoMalResto: 'y da de alta el correcto.',
     corregirUbicacion: 'Corregir ubicación',
     corregirUbicacionDetalle: 'El pin está desplazado',
     proponerRetirada: 'Proponer retirada',
@@ -395,13 +403,17 @@ export const T = {
     conexion: 'Conexión',
     sitio: 'Sitio',
     hacerFoto: 'Hacer foto · obligatoria',
-    // #563: corregir datos se envía sin foto (FR-21, FR-44); el hueco no dice «obligatoria».
-    hacerFotoOpcional: 'Hacer foto · opcional',
+    // #563 y docs/33 RV-316 (D3): corregir datos se envía sin foto (FR-21, FR-44).
+    fotoOpcional: 'Foto · opcional',
+    hacerFotoOpcional: 'Hacer foto (opcional)',
     fotoAnadida: (kb: Parametro) => `Foto añadida · ${kb} kB`,
     repetir: 'repetir',
     // Nombre de los huecos de las dos fotos (docs/24 RV-103) para quien no ve la pantalla.
     hacerFotoDe: (que: Parametro) => `Hacer foto · ${que} · obligatoria`,
-    repetirDe: (que: Parametro) => `repetir · ${que}`,
+    // docs/33 RV-316 (D9): tocar la ficha de una foto hecha la repite.
+    repetirFotoConexion: 'Repetir la foto de la conexión',
+    repetirFotoSitio: 'Repetir la foto del sitio',
+    unidadMm: 'mm',
     huecoHecho: (que: Parametro, kb: Parametro) => `${que} · ${kb} kB`,
     descripcionOpcional: 'Descripción (opcional)',
     descripcionAyuda: 'Referencia de calle, acceso…',
@@ -702,6 +714,14 @@ export const T = {
     puntoNoCarga: 'No se ha podido cargar el punto de hoy: sin verlo no se aprueba.',
     // RV-270 D4: aprobar ha fallado con PUNTO_NO_ACTIVO; repetirlo fallaría igual (UI-02).
     soloRechazar: 'El punto ya no está activo: solo se puede rechazar.',
+    // docs/33 RV-330 (U15): el punto ya no está activo; se dice arriba y la acción principal es rechazar.
+    avisoRetirado: (fecha: Parametro) =>
+      `Este punto ya no está activo (retirado el ${fecha}). La propuesta no se puede aprobar.`,
+    avisoEnPapelera: (fecha: Parametro) =>
+      `Este punto ya no está activo (en la papelera desde el ${fecha}). La propuesta no se puede aprobar.`,
+    avisoNoActivo: 'Este punto ya no está activo. La propuesta no se puede aprobar.',
+    rechazarNoExiste: 'Rechazar: el punto ya no existe',
+    motivoNoActivo: 'El punto ya no está activo',
     cancelar: 'Cancelar',
     motivoRechazo: 'Motivo del rechazo (obligatorio, lo verá quien lo propuso)',
     sinMotivo: 'Sin motivo no se puede rechazar.',
@@ -1166,6 +1186,8 @@ export const T = {
     titulo: 'Hidrantes Albolote · Panel de jefatura',
     atribucion: 'Direcciones deducidas con Nominatim · © OpenStreetMap contributors',
     salir: 'Cerrar sesión',
+    // docs/33 RV-331: el menú ☰ de la cabecera del panel por debajo de 800 px.
+    menu: 'Menú',
     sinServidor: 'Sin conexión con el servidor',
     datosDe: (hace: Parametro) => `datos de ${hace}`,
     editar: 'Editar',

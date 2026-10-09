@@ -247,7 +247,7 @@ test.describe('con sesión guardada', () => {
       if (nombre === 'fn_registrar_error') enviados.push(r.request().postDataJSON());
       await r.fulfill({ status: 200, contentType: 'application/json', body: '{"puntos":[],"bajas":[]}' });
     });
-    // docs/31 RV-148: el error sale por la Function /api/error (la RPC queda para una app anterior).
+    // docs/31 RV-148, docs/33 RV-306: el error sale solo por la Function /api/error.
     await page.route('**/api/error', async (r) => {
       enviados.push(r.request().postDataJSON());
       await r.fulfill({ status: 204 });
@@ -285,7 +285,10 @@ test.describe('jefatura (FL-20)', () => {
     await conGoogle(page, 'jefe@example.org');
     await simularRpc(page, { fn_es_admin: true });
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeVisible();
+    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeAttached();
+    // Por debajo de 800 px, "Ir al mapa" está en el menú ☰ de la cabecera (docs/33 RV-331).
+    const menu = page.getByRole('button', { name: T.panel.menu });
+    if (await menu.isVisible()) await menu.click();
     await page.getByRole('link', { name: T.jefatura.irAlMapa }).click();
     await expect(page.getByTestId('mapa')).toBeVisible();
     await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();
