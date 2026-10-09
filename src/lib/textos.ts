@@ -174,8 +174,8 @@ export const T = {
     },
     ocultarAviso: 'Ocultar aviso',
     capaSinCobertura: (capa: Parametro) =>
-      `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia al mapa base.`,
-    capaConBaseDebajo: (capa: Parametro) => `Sin cobertura: se ve el mapa base propio en lugar de «${capa}»`,
+      `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia a «Mapa sin conexión».`,
+    capaConBaseDebajo: (capa: Parametro) => `Sin cobertura: se ve el mapa sin conexión en lugar de «${capa}»`,
     busquedaVacia: 'Nada coincide con esa búsqueda.',
     borrarBusqueda: 'Borrar búsqueda',
     buscandoPosicion: 'Buscando tu posición…',

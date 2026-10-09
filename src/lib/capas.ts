@@ -26,7 +26,8 @@ export const PARA_QUE_CAPA: Record<Capa, string> = {
 };
 
 /**
- * Miniatura de cada capa: un recorte fijo de 96 × 64 px de la propia capa sobre Albolote, en
+ * Miniatura de cada capa: un recorte fijo de 192 × 128 px (se ve a 64 × 43, nítido en pantallas densas) de
+ * la propia capa sobre Albolote, en
  * public/capas/ (docs/33 RV-317). Va en el precache como el resto de imágenes: se ve sin cobertura.
  */
 export const MINIATURA_CAPA: Record<Capa, string> = {

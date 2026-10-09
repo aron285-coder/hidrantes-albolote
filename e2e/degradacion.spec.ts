@@ -195,7 +195,7 @@ test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
     await page.goto('/proponer/alta');
     const selector = page.getByTestId('selector-pin');
     await expect(selector).toBeVisible();
-    // La capa elegida es la del mapa principal: Satélite (PNOA).
+    // La capa elegida es la del mapa principal: Foto aérea.
     await expect(selector.locator('img.leaflet-tile[src*="ign.es"]').first()).toBeAttached();
 
     await context.setOffline(true);

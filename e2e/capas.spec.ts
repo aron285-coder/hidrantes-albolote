@@ -44,6 +44,25 @@ test('las capas en palabras, con su miniatura y las fuentes al pie (RV-317)', as
 
 test('Ajustes, «Capa por defecto», con los mismos nombres (RV-317)', async ({ page }) => {
   await abrir(page, '/ajustes');
-  await expect(page.getByText(T.ajustes.capaPorDefecto)).toBeVisible();
-  await expect(page.getByText(NOMBRES[0]!, { exact: true })).toBeVisible();
+  const fila = page.getByText(T.ajustes.capaPorDefecto).locator('xpath=ancestor::*[.//button][1]');
+  await expect(fila).toContainText(NOMBRES[0]!);
+  await fila.getByRole('button', { name: T.ajustes.cambiar }).click();
+  const grupo = page.getByRole('radiogroup', { name: T.ajustes.capaPorDefecto });
+  for (const [i, nombre] of NOMBRES.entries()) await expect(grupo.getByRole('radio').nth(i)).toContainText(nombre);
+  await grupo.getByRole('radio', { name: new RegExp(NOMBRES[2]!) }).click();
+  await expect(fila).toContainText(NOMBRES[2]!);
+});
+
+test('sin cobertura, las tres en línea salen apagadas y dicen por qué', async ({ page, context }) => {
+  await abrir(page);
+  await expect(page.locator('.marcador').first()).toBeVisible();
+  await context.setOffline(true);
+  await page.getByRole('button', { name: T.mapa.capas }).click();
+  const radios = page.getByRole('radiogroup', { name: T.mapa.capas }).getByRole('radio');
+  await expect(radios.nth(0)).toBeEnabled();
+  for (const i of [1, 2, 3]) {
+    await expect(radios.nth(i)).toBeDisabled();
+    await expect(radios.nth(i)).toContainText(T.mapa.necesitaCobertura);
+  }
+  await context.setOffline(false);
 });
