@@ -48,9 +48,9 @@ select set_eq(
   $$ select p.proname::text from pg_proc p where p.pronamespace = 'hidrantes'::regnamespace
        and has_function_privilege('anon', p.oid, 'execute') $$,
   array['fn_listar_puntos', 'fn_ficha_punto', 'fn_proponer', 'fn_mis_propuestas', 'fn_retirar_propuesta',
-        'fn_cerrar_sesion', 'fn_guardar_suscripcion_push', 'fn_borrar_suscripcion_push', 'fn_registrar_error',
-        'fn_reportar_incidencia'],
-  'anon solo ejecuta las diez RPC de voluntario (05 §6.1): desde 0040, fn_cerrar_sesion; desde 0041, otra vez fn_reportar_incidencia como sumidero para la app 0.7.0'
+        'fn_cerrar_sesion', 'fn_guardar_suscripcion_push', 'fn_borrar_suscripcion_push',
+        'fn_reportar_incidencia', 'fn_liberar_reservas', 'fn_endpoint_tiene_jefatura'],
+  'anon solo ejecuta las once RPC de voluntario (05 §6.1): desde 0040, fn_cerrar_sesion; desde 0041, otra vez fn_reportar_incidencia como sumidero para la app 0.7.0; desde 0044, fn_liberar_reservas y fn_endpoint_tiene_jefatura, y ya no fn_registrar_error (RV-306)'
 );
 
 -- ---------- datos de prueba ----------
