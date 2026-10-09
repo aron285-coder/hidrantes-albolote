@@ -1,5 +1,5 @@
 import { Eye, EyeOff, TriangleAlert } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { CodigoQR } from './CodigoQR';
 import { Dialogo } from './Dialogo';
 import { ErrorReintentar } from './dialogos';
@@ -16,8 +16,7 @@ import {
   type ClaveParametro,
   type Parametros,
   type Workflow,
-  AVISAR_ESPACIO_PCT,
-  PARAMETROS,
+  clavesParametros,
   PARAMETROS_POR_DEFECTO,
   anadirNucleo,
   avisoPedido,
@@ -28,17 +27,12 @@ import {
   cargarNovedades,
   cargarNucleos,
   cargarParametros,
-  avisoEspacioFotos,
   cargarPedidos,
   estadoPedido,
   revocarDispositivo,
-  textoBaseDeDatos,
-  textoEspacioFotos,
   cargarSalud,
   origenTareas,
-  vigilanciaAtrasada,
   contarDispositivos,
-  descargarInventarioJson,
   faltaEnParametros,
   generarCodigo,
   gestionarAdministrador,
@@ -50,6 +44,15 @@ import {
   textoRadios,
 } from '@/lib/panel/ajustes';
 import { type TemaJefatura, cargarTemas, estadoPushJefatura, fijarTemas } from '@/lib/panel/push-jefatura';
+import {
+  type EstadoEntrada,
+  abiertaHasta,
+  abrirEntrada,
+  cargarEntrada,
+  cerrarEntrada,
+  diaYHora,
+} from '@/lib/panel/entrada';
+import { atencionSalud, filasSalud, nombreTarea, tareasVisibles } from '@/lib/panel/salud';
 import type { Coordenadas } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
@@ -68,10 +71,14 @@ function Tarjeta({ titulo, ayuda, children }: { titulo: string; ayuda?: string; 
 
 /** Ajustes del panel (FR-140–FR-145, FR-162–FR-167; FL-29–FL-31, FL-33, FL-34). */
 export default function Ajustes() {
+  // La entrada del lanzamiento se abre desde Código de acceso o desde Salud (RV-338): al cambiarla en
+  // una, las dos se vuelven a leer.
+  const [marcaEntrada, setMarcaEntrada] = useState(0);
+  const entradaCambiada = useCallback(() => setMarcaEntrada((m) => m + 1), []);
   return (
     <div className="grid min-h-0 flex-1 gap-4 overflow-auto p-4 lg:grid-cols-2">
-      <CodigoDeAcceso />
-      <SaludDelSistema />
+      <CodigoDeAcceso marcaEntrada={marcaEntrada} entradaCambiada={entradaCambiada} />
+      <SaludDelSistema marcaEntrada={marcaEntrada} entradaCambiada={entradaCambiada} />
       <Administradores />
       <ParametrosTarjeta />
       <Nucleos />
@@ -87,9 +94,19 @@ export default function Ajustes() {
 
 // ---------- código de acceso (FR-140, FL-29) ----------
 
-function CodigoDeAcceso() {
+interface ConEntrada {
+  marcaEntrada: number;
+  entradaCambiada: () => void;
+}
+
+function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const { avisar } = usePanel();
   const carga = useCarga(() => cargarCodigo(), []);
+  // Cada minuto: la franja de «abierta» se quita sola al pasar la hora (RV-338).
+  const entrada = useCarga(() => cargarEntrada(), [marcaEntrada], 60_000);
+  // Con 0044, revocar todos abre la entrada 24 h (RV-300): la confirmación lo dice. Sin saberlo
+  // (no ha cargado, o la base no la tiene), no se promete.
+  const abreAlRevocar = entrada.estado !== 'error' && !!entrada.datos?.disponible;
   const [visible, setVisible] = useState(false);
   const [revocar, setRevocar] = useState(false);
   const [confirmar, setConfirmar] = useState<string | null>(null);
@@ -112,6 +129,7 @@ function CodigoDeAcceso() {
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     setVisible(true);
     avisar(T.panelAjustes.codigoCambiado(nuevo));
+    if (revocar) entradaCambiada();
     await Promise.all([carga.recargar(), cuenta.recargar()]);
   }
 
@@ -161,6 +179,7 @@ function CodigoDeAcceso() {
       <p className="text-texto-suave mt-2 text-[13px]">
         {revocar ? T.panelAjustes.explicaRevocando : T.panelAjustes.explicaSinRevocar}
       </p>
+      <SeccionEntrada entrada={entrada} entradaCambiada={entradaCambiada} />
 
       {confirmar && (
         <Dialogo titulo={T.panel.generarNuevo} alCerrar={() => setConfirmar(null)}>
@@ -171,6 +190,7 @@ function CodigoDeAcceso() {
                 ? T.panelAjustes.avisoRevocandoSinCuenta
                 : T.panelAjustes.avisoRevocando(moviles)}
           </p>
+          {revocar && abreAlRevocar && <p className="mt-2 text-sm">{T.panelAjustes.avisoEntradaAlRevocar}</p>}
           <div className="mt-3 flex gap-3">
             <Boton variante="destructivo" disabled={ocupado} onClick={() => void aplicar(confirmar)}>
               {T.panelAjustes.confirmarCodigo}
@@ -182,6 +202,98 @@ function CodigoDeAcceso() {
         </Dialogo>
       )}
     </Tarjeta>
+  );
+}
+
+/**
+ * La entrada del día del lanzamiento (docs/33 RV-338): cerrada, el botón que la abre 24 h con su
+ * explicación; abierta, una franja verde con hasta cuándo y «Cerrar ahora». Sin 0044 en la base no se
+ * dibuja (UI-01); si no se puede leer, se dice con Reintentar.
+ */
+/** El aviso al abrir la entrada, con la hora que devuelve el servidor (si no es una fecha, sin hora). */
+function useAvisarAbierta() {
+  const { avisar } = usePanel();
+  return (hasta: unknown) => {
+    const valida = abiertaHasta(hasta);
+    if (!valida) return avisar(T.panelAjustes.entradaAbierta);
+    const { dia, hora } = diaYHora(valida);
+    avisar(T.panelAjustes.entradaAbiertaHasta(dia, hora));
+  };
+}
+
+function SeccionEntrada({
+  entrada,
+  entradaCambiada,
+}: {
+  entrada: ReturnType<typeof useCarga<EstadoEntrada>>;
+  entradaCambiada: () => void;
+}) {
+  const { avisar } = usePanel();
+  const avisarAbierta = useAvisarAbierta();
+  const [ocupado, setOcupado] = useState(false);
+  const idExplica = useId();
+
+  async function cambiar(abrir: boolean) {
+    setOcupado(true);
+    try {
+      if (abrir) {
+        const r = await abrirEntrada();
+        if (!r.ok) return avisar(textoError(r.codigo), 'error');
+        avisarAbierta(r.datos);
+      } else {
+        const r = await cerrarEntrada();
+        if (!r.ok) return avisar(textoError(r.codigo), 'error');
+        avisar(T.panelAjustes.entradaCerrada);
+      }
+      entradaCambiada();
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  if (entrada.estado === 'error')
+    return (
+      <section aria-label={T.panelAjustes.entrada} className="border-linea mt-4 border-t pt-3">
+        <h3 className="text-sm font-semibold">{T.panelAjustes.entrada}</h3>
+        <ErrorReintentar
+          texto={`${T.panelAjustes.entradaNoCarga} ${textoError(entrada.codigo)}`}
+          reintentar={entrada.recargar}
+          className="mt-1"
+        />
+      </section>
+    );
+  const d = entrada.datos;
+  if (!d?.disponible) return null;
+  const abierta = d.hasta ? diaYHora(d.hasta) : null;
+  return (
+    <section aria-label={T.panelAjustes.entrada} className="border-linea mt-4 border-t pt-3">
+      <h3 className="text-sm font-semibold">{T.panelAjustes.entrada}</h3>
+      {abierta ? (
+        <div className="bg-verde-100 text-verde-700 rounded-campo mt-2 flex flex-wrap items-center gap-2 p-2 text-sm">
+          <span role="status" className="flex-1 font-semibold">
+            {T.panelAjustes.entradaAbiertaHasta(abierta.dia, abierta.hora)}
+          </span>
+          <Boton variante="secundario" disabled={ocupado} onClick={() => void cambiar(false)}>
+            {T.panelAjustes.cerrarAhora}
+          </Boton>
+        </div>
+      ) : (
+        <>
+          <Boton
+            variante="secundario"
+            className="mt-2"
+            disabled={ocupado}
+            aria-describedby={idExplica}
+            onClick={() => void cambiar(true)}
+          >
+            {T.panelAjustes.abrirEntrada}
+          </Boton>
+          <p id={idExplica} className="text-texto-suave mt-1 text-[13px]">
+            {T.panelAjustes.explicaEntrada}
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -307,6 +419,9 @@ const NOMBRE_PARAMETRO: Record<ClaveParametro, string> = {
   buffer_zona_m: T.panelAjustes.bufferZona,
   max_subidas_dispositivo_dia: T.panelAjustes.subidasDia,
   metros_tramo_manguera: T.panelAjustes.metrosTramo,
+  // docs/33 RV-338 (0044): los topes de entradas con el código.
+  max_altas_ip_dia: T.panelAjustes.altasIpDia,
+  max_altas_global_hora: T.panelAjustes.altasGlobalHora,
 };
 
 function ParametrosTarjeta() {
@@ -376,7 +491,7 @@ function ParametrosTarjeta() {
         sinCargar && <p className="text-texto-suave mb-2 text-sm">{T.panelCola.cargando}</p>
       )}
       <div className="grid gap-2 sm:grid-cols-2">
-        {(Object.keys(PARAMETROS) as ClaveParametro[]).map((clave) => (
+        {clavesParametros(v).map((clave) => (
           <label key={clave} className="flex items-center gap-2 text-sm">
             <span className="text-texto-suave flex-1">{NOMBRE_PARAMETRO[clave]}</span>
             <input
@@ -555,21 +670,13 @@ function DialogoNucleo({ alCerrar, alHecho }: { alCerrar: () => void; alHecho: (
 
 // ---------- salud del sistema (FR-143, FR-144) ----------
 
-function SaludDelSistema() {
+function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const { avisar } = usePanel();
-  const carga = useCarga(() => cargarSalud(), []);
+  const carga = useCarga(() => cargarSalud(), [marcaEntrada]);
+  const avisarAbierta = useAvisarAbierta();
   const [ocupado, setOcupado] = useState(false);
   const s = carga.datos;
-  const lleno = s ? avisoEspacioFotos(s) : null;
   const [revocando, setRevocando] = useState<string | null>(null);
-
-  async function descargar() {
-    setOcupado(true);
-    const r = await descargarInventarioJson();
-    setOcupado(false);
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
-    avisar(T.panelAjustes.inventarioDescargado(r.datos));
-  }
 
   // RV-262: revocar el móvil con más fotos pedidas; sus reservas abiertas dejan de contar (RV-220.4).
   async function revocar(dispositivo: string) {
@@ -585,47 +692,23 @@ function SaludDelSistema() {
     }
   }
 
-  // La tercera columna marca en tono de aviso una fila que pide atención (RV-93).
-  const filas: [string, string, boolean?][] = s
-    ? [
-        [T.panelAjustes.pendientes14, String(s.pendientes_14d)],
-        [T.panelAjustes.errores7, String(s.errores_7d)],
-        [T.panelAjustes.sinDireccion, String(s.sin_direccion)],
-        [
-          T.panelAjustes.ultimoRespaldo,
-          s.ultimo_respaldo
-            ? `${hace(s.ultimo_respaldo)} · ${fechaCorta(s.ultimo_respaldo)}`
-            : ENTORNO === 'staging'
-              ? T.panelAjustes.respaldoNoAplica
-              : T.panelAjustes.nunca,
-        ],
-        [T.panelAjustes.almacenamiento, textoEspacioFotos(s, ENTORNO), lleno != null || s.fotos_origen === 'respaldo'],
-        [
-          T.panelAjustes.zonaYMapa,
-          `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
-        ],
-        [T.panelAjustes.callejero, s.version_callejero ?? T.panelAjustes.sinDato],
-        [
-          T.panelAjustes.ultimaVigilancia,
-          s.ultima_vigilancia
-            ? [
-                hace(s.ultima_vigilancia),
-                s.vigilancia_ok ? T.panelAjustes.vigilanciaBien : T.panelAjustes.vigilanciaMal,
-              ]
-                .concat(vigilanciaAtrasada(s.ultima_vigilancia) ? [T.panelAjustes.vigilanciaAtrasada] : [])
-                .join(' · ')
-            : T.panelAjustes.nunca,
-          vigilanciaAtrasada(s.ultima_vigilancia),
-        ],
-        [T.panelAjustes.dispositivosActivos, String(s.dispositivos_activos)],
-        [T.panelAjustes.baseDeDatos, textoBaseDeDatos(s), (s.bd_pct ?? 0) >= AVISAR_ESPACIO_PCT],
-        [T.panelAjustes.intentosFallidos24h, String(s.intentos_fallidos_24h ?? 0)],
-        [
-          T.panelAjustes.topesAlcanzados24h,
-          T.panelAjustes.topesDetalle(s.topes_alcanzados_24h ?? 0, s.topes_globales_24h ?? 0),
-        ],
-      ]
-    : [];
+  // RV-338: "abrir la entrada 24 h" junto a las entradas frenadas por el tope.
+  async function abrir() {
+    setOcupado(true);
+    try {
+      const r = await abrirEntrada();
+      if (!r.ok) return avisar(textoError(r.codigo), 'error');
+      avisarAbierta(r.datos);
+      entradaCambiada();
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  // docs/33 RV-335 (U13): arriba "Todo bien" o lo que necesita atención; debajo, las filas en palabras.
+  const atencion = s ? atencionSalud(s, ENTORNO) : [];
+  const filas = s ? filasSalud(s, ENTORNO) : [];
+  const tareas = s ? tareasVisibles(s) : [];
 
   return (
     <Tarjeta titulo={T.panel.saludSistema}>
@@ -646,32 +729,73 @@ function SaludDelSistema() {
               className="mb-3"
             />
           )}
-          {/* Cuando el gigabyte gratuito va lleno, avisa con tiempo: el día que se llene, la
-              aplicación deja de admitir fotos (TR-53). No bloquea nada, solo se ve (06 §5). */}
-          {lleno != null && (
-            <p
+          {/* El resumen no bloquea nada, solo se ve (06 §5). Con el espacio de fotos casi lleno dice
+              qué hacer antes de que la aplicación deje de admitir fotos (TR-53). */}
+          {/* Con una recarga fallida, los datos de antes no dicen «Todo bien»: el resumen se esconde. */}
+          {carga.estado === 'error' ? null : atencion.length === 0 ? (
+            <p data-testid="resumen-salud" className="mb-3">
+              <span className="bg-verde-100 text-verde-700 rounded-full px-2.5 py-0.5 text-[13px] font-semibold">
+                {T.panelAjustes.todoBien}
+              </span>
+            </p>
+          ) : (
+            <div
               role="status"
+              data-testid="resumen-salud"
               className="bg-oro-100 border-oro-600 text-ambar-700 rounded-campo mb-3 flex items-start gap-2 border p-2 text-sm"
             >
               <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden />
-              <span>
-                {lleno.delTope
-                  ? T.panelAjustes.espacioFotosLleno(lleno.pct)
-                  : T.panelAjustes.almacenamientoLleno(lleno.pct)}
-              </span>
-            </p>
+              <div>
+                <p className="font-semibold">{T.panelAjustes.necesitaAtencion}</p>
+                <ul className="mt-0.5 flex flex-col gap-0.5">
+                  {atencion.map((a) => (
+                    <li key={a}>{a}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           )}
           <dl className="text-sm">
-            {filas.map(([k, valor, aviso]) => (
-              <div key={k} className="border-linea flex gap-2 border-b py-1 last:border-b-0">
-                <dt className="text-texto-suave flex-1">{k}</dt>
-                <dd className={cn('font-semibold', aviso && 'text-naranja-texto')} data-aviso={aviso || undefined}>
-                  {valor}
+            {filas.map((f) => (
+              <div key={f.etiqueta} className="border-linea flex items-center gap-2 border-b py-1 last:border-b-0">
+                <dt className="text-texto-suave flex-1">{f.etiqueta}</dt>
+                <dd
+                  className={cn(
+                    'flex flex-wrap items-center justify-end gap-x-2 text-right font-semibold',
+                    f.aviso && 'text-naranja-texto',
+                  )}
+                  data-aviso={f.aviso || undefined}
+                >
+                  {f.valor}
+                  {f.accion === 'abrirEntrada' && (
+                    <button
+                      type="button"
+                      disabled={ocupado}
+                      onClick={() => void abrir()}
+                      className="text-texto min-h-9 font-normal underline disabled:opacity-50"
+                    >
+                      {T.panelAjustes.abrirEntrada24h}
+                    </button>
+                  )}
+                  {f.barra != null && (
+                    // El valor ya va escrito al lado: la barra es solo para verlo de un vistazo.
+                    <span
+                      data-testid="barra-espacio"
+                      aria-hidden
+                      className="bg-linea inline-block h-1.5 w-16 shrink-0 overflow-hidden rounded-full"
+                    >
+                      <span
+                        className={cn('block h-full rounded-full', f.aviso ? 'bg-naranja-600' : 'bg-verde-600')}
+                        style={{ width: `${f.barra}%` }}
+                      />
+                    </span>
+                  )}
                 </dd>
               </div>
             ))}
-            {/* TR-54: la última ejecución de cada tarea de pg_cron: en vivo o, si pg_cron no deja leer,
-                según la anotó la vigilancia; debajo del título se dice cuál (RV-92). */}
+            {/* TR-54: la última ejecución de cada tarea de pg_cron, con su nombre en palabras: en vivo
+                o, si pg_cron no deja leer, según la anotó la vigilancia (RV-92). El resumen semanal y la
+                purga de errores siguen, pero ya no salen aquí (docs/33 RV-335). */}
             <div className="border-linea border-b py-1 last:border-b-0">
               <dt className="text-texto-suave">
                 {T.panelAjustes.tareasProgramadas}
@@ -680,11 +804,11 @@ function SaludDelSistema() {
                 </span>
               </dt>
               <dd>
-                {s.tareas?.length ? (
+                {tareas.length ? (
                   <ul className="mt-1" data-testid="tareas-programadas">
-                    {s.tareas.map((t) => (
-                      <li key={t.tarea} className="flex gap-2">
-                        <span className="font-datos flex-1 text-[13px]">{t.tarea.replace(/^hidrantes_/, '')}</span>
+                    {tareas.map((t) => (
+                      <li key={t.tarea} className="flex flex-wrap gap-x-2">
+                        <span className="flex-1 text-[13px]">{nombreTarea(t.tarea)}</span>
                         <span className={cn('font-semibold', t.problema && 'text-rojo-texto')}>
                           {t.falta
                             ? T.panelAjustes.tareaFalta
@@ -740,11 +864,6 @@ function SaludDelSistema() {
           </dl>
         </>
       )}
-      <div className="mt-3 flex flex-wrap gap-3">
-        <Boton variante="secundario" disabled={ocupado} onClick={() => void descargar()}>
-          {T.panel.descargarInventario}
-        </Boton>
-      </div>
       {revocando && (
         <Dialogo titulo={T.panelAjustes.revocarMovil} alCerrar={() => !ocupado && setRevocando(null)}>
           <p className="text-sm">{T.panelAjustes.avisoRevocarMovil(revocando)}</p>

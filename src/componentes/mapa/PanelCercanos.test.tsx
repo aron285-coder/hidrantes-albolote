@@ -215,7 +215,7 @@ describe('el subtítulo y sus avisos (DEC-165)', () => {
       const separadores = [...crudo.replace(/<[^>]+>/g, '').matchAll(/·(.)/gs)].map((m) => m[1]);
       expect(separadores.length).toBeGreaterThan(1);
       // Detrás de cada «·», un espacio duro (U+00A0): el salto solo puede ir antes del «·».
-      expect(separadores.every((c) => c === ' ')).toBe(true);
+      expect(separadores.every((c) => c === String.fromCharCode(0xa0))).toBe(true);
     }
   });
 

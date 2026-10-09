@@ -124,14 +124,72 @@ test.describe('RV-331: panel con poca pantalla', () => {
     await expect(page.getByText(T.panelCola.soloLectura)).toBeVisible();
   });
 
-  test('desde 800 px, la cabecera y los filtros de siempre', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
+  for (const ancho of [800, 1440]) {
+    test(`desde 800 px (a ${ancho}), la cabecera y los filtros de siempre`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: 900 });
+      await prepararPanel(page);
+      await page.goto('/admin/cola');
+      await expect(page.getByRole('link', { name: T.jefatura.irAlMapa })).toBeVisible();
+      await expect(page.getByRole('button', { name: T.panel.salir })).toBeVisible();
+      await expect(page.getByRole('button', { name: T.panel.menu })).toBeHidden();
+      await expect(page.getByRole('radiogroup', { name: T.panelCola.filtroEstado })).toBeVisible();
+      await expect(page.getByRole('combobox', { name: T.panelCola.filtroEstado })).toBeHidden();
+    });
+  }
+
+  test('a 799 px ya es la cabecera compacta, sin las pastillas de estado', async ({ page }) => {
+    await page.setViewportSize({ width: 799, height: 900 });
     await prepararPanel(page);
     await page.goto('/admin/cola');
-    await expect(page.getByRole('link', { name: T.jefatura.irAlMapa })).toBeVisible();
-    await expect(page.getByRole('button', { name: T.panel.salir })).toBeVisible();
-    await expect(page.getByRole('button', { name: T.panel.menu })).toBeHidden();
-    await expect(page.getByRole('radiogroup', { name: T.panelCola.filtroEstado })).toBeVisible();
+    await expect(page.getByRole('button', { name: T.panel.menu })).toBeVisible();
+    await expect(page.getByRole('combobox', { name: T.panelCola.filtroEstado })).toBeVisible();
+    await expect(page.getByRole('radiogroup', { name: T.panelCola.filtroEstado })).toBeHidden();
+    await expect(page.getByRole('link', { name: T.jefatura.irAlMapa })).toBeHidden();
+  });
+
+  test('el menú ☰ se cierra al tocar fuera y al salir con el tabulador', async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 450 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    const menu = page.getByRole('button', { name: T.panel.menu });
+    await menu.click();
+    await expect(page.getByRole('link', { name: T.jefatura.irAlMapa })).toBeFocused();
+    // Un toque en la franja de arriba, que no hace nada: solo cierra el menú.
+    await page.mouse.click(360, 6);
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+
+    await menu.click();
+    // Del primer enlace, al botón de salir y fuera del menú.
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('button', { name: T.panel.salir })).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('link', { name: T.jefatura.irAlMapa })).toBeHidden();
+  });
+
+  test('«Cerrar sesión» desde el menú ☰ sale del panel y olvida los temas de avisos de jefatura', async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 450 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await page.evaluate(() => localStorage.setItem('hidrantes.push_jefatura', '["cola"]'));
+    await page.getByRole('button', { name: T.panel.menu }).click();
+    await page.getByRole('button', { name: T.panel.salir }).click();
+    await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('hidrantes.push_jefatura'))).toBeNull();
+  });
+
+  test('cambiar de estado en el desplegable vacía la selección, como las pastillas', async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 450 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await lista.getByRole('checkbox').first().check();
+    await expect(page.getByTestId('barra-cola')).toContainText(T.panelCola.seleccionadas(1));
+    const estado = page.getByRole('combobox', { name: T.panelCola.filtroEstado });
+    await estado.selectOption('rechazada');
+    await expect(page.getByText(T.panelCola.soloLectura)).toBeVisible();
+    await estado.selectOption('pendiente');
+    await expect(page.getByTestId('barra-cola')).toContainText(T.panelCola.tocaUna);
   });
 
   for (const [ancho, alto] of [

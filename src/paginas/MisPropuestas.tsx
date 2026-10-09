@@ -71,7 +71,11 @@ function Tarjeta({
         </span>
         <span className={cn('rounded-chip shrink-0 px-2.5 py-0.5 text-[13px] font-semibold', clase)}>{texto}</span>
       </div>
-      <p className="text-texto mt-0.5 truncate text-[15px]">{linea}</p>
+      {linea && (
+        <p className="text-texto mt-0.5 truncate text-[15px]" title={linea}>
+          {linea}
+        </p>
+      )}
       {children}
       <div className="text-texto-suave flex items-center justify-between gap-2 text-[13px]">
         <span>{cuando}</span>

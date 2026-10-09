@@ -197,7 +197,7 @@ export function MinimapaPropuesta({
           'isolate overflow-hidden bg-[#ECEAE1]',
           grande
             ? 'fixed inset-0 z-50'
-            : 'border-linea rounded-tarjeta relative h-[200px] border max-md:rounded-none max-md:border-x-0 md:max-[1099px]:h-[280px] min-[1100px]:h-[300px]',
+            : 'border-linea rounded-tarjeta relative h-[200px] border max-md:rounded-none max-md:border-x-0 md:max-[1100px]:h-[280px] min-[1100px]:h-[300px]',
         )}
       >
         <div ref={contenedor} role="group" aria-label={T.panelCola.minimapa} className="absolute inset-0" />

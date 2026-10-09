@@ -7,7 +7,7 @@ DEC-187 a DEC-189). El detalle de cada punto (pruebas, revisión, desviaciones) 
 aquí va el resumen. Todo test de un punto con código **falló antes del arreglo** salvo donde se dice lo
 contrario.
 
-La señal para fusionar en `develop` («0.10.1 en producción», comentario de cuerpo entero en #580): pendiente.
+La señal para fusionar en `develop` («0.10.1 en producción», comentario de cuerpo entero en #580) se dio el 9 oct 2026 a las 10:05 UTC. Ops la esperó comprobando la igualdad del cuerpo entero, no «contiene».
 
 ## Backend (oleada 1, migración 0044)
 
@@ -40,10 +40,10 @@ La señal para fusionar en `develop` («0.10.1 en producción», comentario de c
 
 | Punto | PR | Qué | Cómo se ha comprobado |
 |---|---|---|---|
-| — | | `docs/33`, `docs/mockups/33-mejoras.html`, fila 33 de `INDICE.md`, DEC-190 a DEC-192 y este registro | Solo documentación |
-| RV-340 | | Staging con fotos que existen y sin las bocas duplicadas | |
-| RV-341 | | La huella GPG, constante en `respaldo.yml` | |
-| RV-342 | | Documentación (01, 13, 14, 15) | |
+| — | #581 | `docs/33` (con una nota arriba sobre DEC-190 a DEC-192 y D2 a D4), `docs/mockups/33-mejoras.html`, fila 33 de `INDICE.md`, DEC-190 a DEC-192 y este registro | Solo documentación; copias idénticas a los originales (`cmp`) más la nota. DEC-190 recoge además los detalles de 0044 del contrato de Backend en #580 |
+| RV-340 | #590, #597 | `npm run fotos-seed` en «Desplegar staging»: sube las fotos `fotos/prueba-*.jpg` que falten (generadas en Chromium, «[PRUEBA]», sin datos personales) y falla si alguna no da 200. El seed retira como jefatura, con motivo «prueba», BOC-0003 a BOC-0006; si ningún administrador puede, falla (#597, de la revisión) | **Antes:** `fotos-seed --solo-comprobar`, 17 de 17 con 400. **Después:** «Desplegar staging» 37915650407 (`9d9373a`): «4 bocas duplicadas de RV-139b retiradas» y las 17 fotos subidas; `--solo-comprobar` en local: 17 de 17 con 200. `fotos-seed-staging.test.ts` (fallaba antes); paso de ci-sql con las cuatro bocas y una quinta que no se toca |
+| RV-341 | #583 | `GPG_HUELLA` pasa de variable del repositorio a constante `env:` de `respaldo.yml`; cambiarla exige un PR | `clave-gpg.test.ts`: no hay `vars.GPG_HUELLA` y la constante es la huella de `docs/entornos.md` y de `docs/15` §2 (los dos tests fallaban antes). La variable del repositorio queda sin uso |
+| RV-342 | #602 | `docs/01` v1.13 (FR-33, FR-34, FR-91, FR-140, FR-142, FR-143), `03` TR-41, `09` (F9.10), `13` (la entrada, parámetros, Salud), `14` (Mis propuestas, capas), `15` §5.4 y el lanzamiento | Con lo que de verdad hacen 0044 (#592), #593 (Mis propuestas) y los PR del panel y de campo, leídos en #580 y en sus cuerpos |
 
 ## Ops (oleada 3)
 

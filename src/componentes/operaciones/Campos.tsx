@@ -231,7 +231,16 @@ function HuecoFoto({
         <button
           type="button"
           disabled={procesando}
-          aria-label={repetirCompacto}
+          // El nombre empieza por lo que se ve (WCAG 2.5.3) y dice qué hace; mientras se prepara la
+          // nueva, solo lo que se ve.
+          aria-label={
+            procesando || !repetirCompacto
+              ? undefined
+              : T.formulario.fichaFotoHecha(
+                  T.formulario.huecoHecho(etiqueta, Math.round(foto.blob.size / 1024)),
+                  repetirCompacto,
+                )
+          }
           onClick={() => entrada.current?.click()}
           className={cn(
             'rounded-campo flex min-h-11 min-w-0 items-center gap-1.5 px-2 text-[13px] font-semibold',

@@ -12,7 +12,8 @@ vi.mock('react-dom', async (original) => ({
   createPortal: (n: ReactNode) => n,
 }));
 vi.stubGlobal('document', { body: {} });
-vi.mock('@/hooks/estado', () => ({ useConexion: () => 'bien' }));
+const red = vi.hoisted(() => ({ conexion: 'bien' }));
+vi.mock('@/hooks/estado', () => ({ useConexion: () => red.conexion }));
 
 const { Ficha } = await import('./Ficha');
 const { T } = await import('@/lib/textos');
@@ -214,6 +215,19 @@ describe('ficha con banda de estado (RV-108)', () => {
     expect(html).toContain('data-testid="foto-franja"');
     expect(texto(html)).toContain(T.ficha.fotoNoCarga);
     expect(texto(html)).not.toContain(T.ficha.reintentarFoto);
+  });
+
+  it('sin cobertura lo dice en la franja; con el servidor caído, no se toma por falta de cobertura', () => {
+    try {
+      red.conexion = 'sin_cobertura';
+      expect(texto(pintar({ ...BOCA, foto_path: 'a.jpg' }))).toContain(T.ficha.fotoNoDisponible);
+      red.conexion = 'sin_servidor';
+      const html = texto(pintar({ ...BOCA, foto_path: 'a.jpg' }));
+      expect(html).toContain(T.ficha.fotoNoCarga);
+      expect(html).not.toContain(T.ficha.fotoNoDisponible);
+    } finally {
+      red.conexion = 'bien';
+    }
   });
 
   it('con las dos fotos, la etiqueta "Conexión · 1/2"', () => {

@@ -77,7 +77,7 @@ test.describe('salir de un formulario a medias (RV-239)', () => {
   test('con algo rellenado, la flecha de la barra también pregunta', async ({ page }) => {
     await preparar(page);
     await page.getByRole('radio', { name: T.formulario.d70 }).click();
-    await page.getByRole('button', { name: T.entrada.volver }).click();
+    await page.getByRole('button', { name: T.entrada.volver, exact: true }).click();
     await expect(pregunta(page)).toBeVisible();
     await pregunta(page).getByRole('button', { name: T.avisoFormulario.botonSalir, exact: true }).click();
     await expect(page).toHaveURL(/\/$/);
@@ -129,6 +129,18 @@ test.describe('de Corregir datos a Proponer retirada (RV-322)', () => {
     await pregunta(page).getByRole('button', { name: T.avisoFormulario.botonSalir, exact: true }).click();
     await enRetirada(page);
     await page.goBack();
+    await enLaFicha(page);
+  });
+
+  test('tras «Seguir» en la pregunta de la retirada, la flecha y «Salir» vuelven a la ficha, no a la retirada', async ({
+    page,
+  }) => {
+    await desdeLaFicha(page);
+    await page.getByRole('radio', { name: T.formulario.d70 }).click();
+    await enlace(page).click();
+    await pregunta(page).getByRole('button', { name: T.avisoFormulario.seguirCorto, exact: true }).click();
+    await page.getByRole('button', { name: T.entrada.volver, exact: true }).click();
+    await pregunta(page).getByRole('button', { name: T.avisoFormulario.botonSalir, exact: true }).click();
     await enLaFicha(page);
   });
 });

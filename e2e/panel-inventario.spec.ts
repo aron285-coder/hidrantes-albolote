@@ -1,5 +1,6 @@
 // Panel · inventario, registro y papelera (FR-120, FR-123–FR-125, FR-160; FL-24, FL-26, FL-32).
 
+import { readFileSync } from 'node:fs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
@@ -341,6 +342,29 @@ test('inventario: exportar en los tres formatos (FR-160, FL-32)', async ({ page 
   expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: {} });
 });
 
+// docs/33 RV-335: el JSON del inventario sale de Salud del sistema y es la cuarta opción de Exportar.
+// Es el inventario completo: no lleva los filtros ni la búsqueda (FR-144, consulta, no respaldo).
+test('Exportar ▾: «Inventario completo (JSON)», sin filtros (docs/33 RV-335)', async ({ page }) => {
+  const llamadas = await prepararPanel(page);
+  await page.goto('/admin/inventario');
+  await tipo(page).selectOption('hidrante');
+  await page.getByRole('button', { name: T.panel.exportar }).click();
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([
+    T.panel.excel,
+    T.panel.csv,
+    T.panel.geojson,
+    T.panel.inventarioCompletoJson,
+  ]);
+  const descarga = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: T.panel.inventarioCompletoJson, exact: true }).click();
+  const archivo = await descarga;
+  expect(archivo.suggestedFilename()).toMatch(/^hidrantes-albolote-\d{4}-\d{2}-\d{2}\.json$/);
+  const filas = JSON.parse(readFileSync((await archivo.path())!, 'utf8')) as { codigo: string }[];
+  expect(filas.length).toBe(2);
+  expect(llamadas.filter((l) => l.nombre === 'fn_exportar_inventario').at(-1)?.cuerpo).toEqual({ filtros: {} });
+  await expect(page.getByRole('status').filter({ hasText: T.panelAjustes.inventarioDescargado(2) })).toBeVisible();
+});
+
 test('registro: filtro por acción, solo lectura (FR-123, FL-26)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/registro');
@@ -528,13 +552,20 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
   await boton.focus();
   await page.keyboard.press('ArrowDown');
   await expect(boton).toHaveAttribute('aria-expanded', 'true');
-  await expect(menu.getByRole('menuitem')).toHaveText([T.panel.excel, T.panel.csv, T.panel.geojson]);
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    T.panel.excel,
+    T.panel.csv,
+    T.panel.geojson,
+    T.panel.inventarioCompletoJson,
+  ]);
   await expect(menu.getByRole('menuitem', { name: T.panel.excel })).toBeFocused();
   await page.keyboard.press('ArrowDown');
   await expect(menu.getByRole('menuitem', { name: T.panel.csv })).toBeFocused();
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
-  await expect(menu.getByRole('menuitem', { name: T.panel.geojson })).toBeFocused();
+  await expect(menu.getByRole('menuitem', { name: T.panel.inventarioCompletoJson })).toBeFocused();
+  await page.keyboard.press('End');
+  await expect(menu.getByRole('menuitem', { name: T.panel.inventarioCompletoJson })).toBeFocused();
   await page.keyboard.press('Home');
   await expect(menu.getByRole('menuitem', { name: T.panel.excel })).toBeFocused();
   await page.keyboard.press('Escape');
@@ -552,6 +583,7 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
   await tipo(page).selectOption('hidrante');
   await estado(page).selectOption('malo');
   await boton.focus();
+  await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
   await expect(menu.getByRole('menuitem', { name: T.panel.geojson })).toBeFocused();
   const descarga = page.waitForEvent('download');
@@ -623,7 +655,7 @@ test('Inventario con filtros: axe en claro y oscuro, y a 412 px nada se sale a l
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 });
 
-test('un filtro sin puntos: estado vacío, Exportar deshabilitado con el motivo y "Quitar filtros" (RV-123)', async ({
+test('un filtro sin puntos: estado vacío, Exportar solo con el inventario completo, el motivo y "Quitar filtros" (RV-123, RV-335)', async ({
   page,
 }) => {
   const llamadas = await prepararPanel(page);
@@ -634,14 +666,34 @@ test('un filtro sin puntos: estado vacío, Exportar deshabilitado con el motivo 
   await expect(page.getByText(T.panelInventario.vacio)).toBeVisible();
   await expect(page.getByRole('row')).toHaveCount(0);
   const boton = page.getByRole('button', { name: T.panel.exportar });
-  await expect(boton).toBeDisabled();
   await expect(boton).toHaveAccessibleDescription(T.panelInventario.nadaQueExportar);
   await expect(page.getByText(T.panelInventario.nadaQueExportar)).toBeVisible();
+  // Lo filtrado no se puede exportar; el inventario completo (JSON), sí: no depende de los filtros
+  // (docs/33 RV-335). Con el teclado, el menú entra directamente en él.
+  await boton.focus();
+  await page.keyboard.press('ArrowDown');
+  const menu = page.getByRole('menu');
+  for (const nombre of [T.panel.excel, T.panel.csv, T.panel.geojson]) {
+    const opcion = menu.getByRole('menuitem', { name: nombre, exact: true });
+    await expect(opcion).toBeDisabled();
+    await expect(opcion).toHaveAccessibleDescription(T.panelInventario.nadaQueExportar);
+  }
+  const completo = menu.getByRole('menuitem', { name: T.panel.inventarioCompletoJson });
+  await expect(completo).toBeEnabled();
+  await expect(completo).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(completo).toBeFocused();
+  await page.keyboard.press('Escape');
   expect(llamadaA(llamadas, 'fn_exportar_inventario')).toBeUndefined();
+  const descarga = page.waitForEvent('download');
+  await boton.click();
+  await completo.click();
+  expect((await descarga).suggestedFilename()).toMatch(/\.json$/);
+  expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: {} });
 
   await page.getByRole('button', { name: T.panelInventario.quitarFiltros }).click();
   await expect(page.getByRole('row')).toHaveCount(PUNTOS.length + 1);
-  await expect(boton).toBeEnabled();
+  await expect(boton).not.toHaveAttribute('aria-describedby');
   await expect(page.getByText(T.panelInventario.nadaQueExportar)).toHaveCount(0);
 });
 
