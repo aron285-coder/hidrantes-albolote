@@ -48,10 +48,11 @@ describe('las doce combinaciones (06 §4.2)', () => {
     const s = dibujar(svgMarcador({ tipo, caudal, radio_px: radio, revision_caducada: false }));
     expect(s.forma).toBe(tipo === 'hidrante' ? 'circulo' : 'cuadrado');
     expect(Number(s.r)).toBe(radio);
-    expect(s.relleno).toBe(COLOR_CAUDAL[caudal]);
-    expect(Number(s.borde)).toBe(radio <= 5.5 ? 2 : 2.5);
-    expect(s.tachado).toBe(caudal === 'no_funciona');
-    expect(s.opacidad).toBe(caudal === 'no_funciona' ? '0.5' : undefined);
+    // No funciona: blanco con borde gris y un aspa (docs/33 RV-319); sin atenuar ni tachar.
+    expect(s.relleno).toBe(caudal === 'no_funciona' ? 'var(--borde-marcador)' : COLOR_CAUDAL[caudal]);
+    expect(Number(s.borde)).toBe(caudal === 'no_funciona' ? 1.5 : radio <= 5.5 ? 2 : 2.5);
+    expect(s.tachado).toBe(false);
+    expect(s.opacidad).toBe(undefined);
     expect(s.discontinuo).toBe(false);
     if (tipo === 'boca_riego') expect(Number(s.esquina)).toBe(esquina(radio));
   });
@@ -72,7 +73,13 @@ describe('borde por estado (docs/25 RV-105, DEC-154)', () => {
 
   it.each(TABLA)('%s %i mm %s lleva el borde de su estado', (tipo, _d, caudal, radio) => {
     const svg = svgMarcador({ tipo, caudal, radio_px: radio, revision_caducada: false });
-    expect(trazo(svg)).toBe(caudal === 'regular' ? 'var(--borde-marcador-regular)' : 'var(--borde-marcador)');
+    const esperado =
+      caudal === 'regular'
+        ? 'var(--borde-marcador-regular)'
+        : caudal === 'no_funciona'
+          ? 'var(--gris-700)'
+          : 'var(--borde-marcador)';
+    expect(trazo(svg)).toBe(esperado);
   });
 
   it('regular sin revisar: el borde oscuro y continuo; "sin revisar" lo dice el anillo', () => {
@@ -82,10 +89,51 @@ describe('borde por estado (docs/25 RV-105, DEC-154)', () => {
     expect(svg).not.toMatch(/data-forma="\w+"[^>]*stroke-dasharray/);
   });
 
-  it('barro, con el borde de siempre también en el tachado', () => {
-    const svg = svgMarcador({ tipo: 'hidrante', caudal: 'barro', radio_px: 9, revision_caducada: false });
-    expect(trazo(svg)).toBe('var(--borde-marcador)');
-    expect(svg).toMatch(/<line data-tachado[^>]* stroke="var\(--borde-marcador\)"/);
+  // docs/33 RV-319 (U10): a tamaño de leyenda, Barro y No funciona eran dos iconos rayados casi iguales.
+  it('barro: marrón lleno con una «B» blanca, sin tachar', () => {
+    for (const tipo of ['hidrante', 'boca_riego'] as const) {
+      const svg = svgMarcador({ tipo, caudal: 'barro', radio_px: 5, revision_caducada: false });
+      expect(trazo(svg)).toBe('var(--borde-marcador)');
+      expect(svg).not.toContain('data-tachado');
+      expect(svg).toMatch(/<text data-letra[^>]* fill="var\(--borde-marcador\)"[^>]*>B<\/text>/);
+      expect(svg).not.toContain('data-aspa');
+    }
+  });
+
+  it('no funciona: blanco con borde gris y un aspa gris, sin atenuar', () => {
+    for (const tipo of ['hidrante', 'boca_riego'] as const) {
+      const svg = svgMarcador({ tipo, caudal: 'no_funciona', radio_px: 5, revision_caducada: false });
+      const s = dibujar(svg);
+      expect(s.relleno).toBe('var(--borde-marcador)');
+      expect(trazo(svg)).toBe('var(--gris-700)');
+      expect(s.opacidad).toBeUndefined();
+      expect(svg.match(/<line data-aspa[^>]* stroke="var\(--gris-700\)"/g)).toHaveLength(2);
+      expect(svg).not.toContain('data-letra');
+    }
+  });
+
+  it('se distinguen sin color: uno lleva letra y el otro aspa (WCAG 1.4.1)', () => {
+    const barro = svgMarcador({ tipo: 'hidrante', caudal: 'barro', radio_px: 5, revision_caducada: false });
+    const nf = svgMarcador({ tipo: 'hidrante', caudal: 'no_funciona', radio_px: 5, revision_caducada: false });
+    const sinColor = (s: string) => s.replace(/(fill|stroke)="[^"]*"/g, '');
+    expect(sinColor(barro)).not.toBe(sinColor(nf));
+    // Y las marcas se ven: la «B» blanca sobre el marrón y un aspa gris de largo > 0 (su contraste, en
+    // accesibilidad.test.ts).
+    expect(barro).toMatch(/<text data-letra[^>]* fill="var\(--borde-marcador\)"/);
+    const aspa = /<line data-aspa x1="(-?[\d.]+)"[^>]* x2="(-?[\d.]+)"[^>]* stroke="var\(--gris-700\)"/.exec(nf);
+    expect(Math.abs(Number(aspa?.[2]) - Number(aspa?.[1]))).toBeGreaterThan(0);
+  });
+
+  it('la letra crece con el radio y cabe dentro del marcador', () => {
+    const letra = (r: number) =>
+      Number(
+        /<text data-letra[^>]* font-size="([\d.]+)"/.exec(
+          svgMarcador({ tipo: 'hidrante', caudal: 'barro', radio_px: r, revision_caducada: false }),
+        )?.[1],
+      );
+    expect(letra(5)).toBeGreaterThan(0);
+    expect(letra(11)).toBeGreaterThan(letra(5));
+    for (const r of [5, 5.5, 7, 9, 11]) expect(letra(r)).toBeLessThanOrEqual(2 * r * 0.8);
   });
 });
 
@@ -250,9 +298,9 @@ describe('caudal desconocido (RV-102a)', () => {
     });
     const s = dibujar(svg);
     expect(svg).not.toContain('undefined');
-    expect(s.relleno).toBe(COLOR_CAUDAL.no_funciona);
-    expect(s.tachado).toBe(true);
-    expect(s.opacidad).toBe('0.5');
+    // Como No funciona (docs/33 RV-319): blanco, borde gris y aspa.
+    expect(s.relleno).toBe('var(--borde-marcador)');
+    expect(svg).toContain('data-aspa');
   });
 });
 

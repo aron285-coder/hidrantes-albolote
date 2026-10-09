@@ -5,13 +5,18 @@ import { escribir, leer } from '@/lib/almacen';
 import type { Simbolo } from '@/lib/simbologia';
 import { T } from '@/lib/textos';
 
-const FILAS: [Simbolo, string][] = [
+// En dos grupos (docs/33 RV-319, U10): el tipo, que dice la forma, y el estado, que dice el color.
+const TIPOS: [Simbolo, string][] = [
   [{ tipo: 'hidrante', caudal: 'bueno', radio_px: 7, revision_caducada: false }, T.formulario.hidrante],
   [{ tipo: 'boca_riego', caudal: 'bueno', radio_px: 5.5, revision_caducada: false }, T.formulario.bocaRiego],
+];
+const ESTADOS: [Simbolo, string][] = [
+  [{ tipo: 'hidrante', caudal: 'bueno', radio_px: 6, revision_caducada: false }, T.formulario.bueno],
   [{ tipo: 'hidrante', caudal: 'regular', radio_px: 6, revision_caducada: false }, T.formulario.regular],
   [{ tipo: 'hidrante', caudal: 'malo', radio_px: 6, revision_caducada: false }, T.formulario.malo],
-  [{ tipo: 'hidrante', caudal: 'barro', radio_px: 6, revision_caducada: false }, T.formulario.barro],
-  [{ tipo: 'hidrante', caudal: 'no_funciona', radio_px: 6, revision_caducada: false }, T.formulario.noFunciona],
+  // Barro y No funciona algo mayores: a 18 px su «B» y su aspa se leen mejor.
+  [{ tipo: 'hidrante', caudal: 'barro', radio_px: 7, revision_caducada: false }, T.formulario.barro],
+  [{ tipo: 'hidrante', caudal: 'no_funciona', radio_px: 7, revision_caducada: false }, T.formulario.noFunciona],
   [{ tipo: 'hidrante', caudal: 'bueno', radio_px: 6, revision_caducada: true }, T.mapa.sinRevisar],
 ];
 
@@ -70,7 +75,7 @@ export function Leyenda() {
         onClick={() => cambiar(true)}
         className={`text-texto rounded-tarjeta flex h-11 items-center gap-1.5 bg-[var(--control-mapa)] px-3 text-[13px] font-semibold ${SOMBRA}`}
       >
-        <MarcadorSvg punto={FILAS[0]![0]} tamano={16} />
+        <MarcadorSvg punto={TIPOS[0]![0]} tamano={16} />
         {T.mapa.leyenda}
       </button>
     );
@@ -81,14 +86,25 @@ export function Leyenda() {
       aria-label={T.mapa.leyenda}
       className={`rounded-tarjeta relative bg-[var(--control-mapa)] py-1.5 pr-9 pl-2 text-[11px] leading-tight sm:text-xs ${SOMBRA}`}
     >
-      <ul className="grid grid-cols-2 gap-x-2.5 gap-y-0.5">
-        {FILAS.map(([s, texto]) => (
-          <li key={texto} className="flex items-center gap-1">
-            <MarcadorSvg punto={s} tamano={18} />
-            {texto}
-          </li>
-        ))}
-      </ul>
+      {(
+        [
+          [T.mapa.leyendaTipo, TIPOS],
+          [T.mapa.leyendaEstado, ESTADOS],
+        ] as const
+      ).map(([grupo, filas], i) => (
+        <ul
+          key={grupo}
+          aria-label={grupo}
+          className={`grid grid-cols-2 gap-x-2.5 gap-y-0.5 ${i > 0 ? 'border-linea mt-1 border-t pt-1' : ''}`}
+        >
+          {filas.map(([s, texto]) => (
+            <li key={texto} className="flex items-center gap-1">
+              <MarcadorSvg punto={s} tamano={18} />
+              {texto}
+            </li>
+          ))}
+        </ul>
+      ))}
       <p className="text-texto-suave mt-0.5">{T.mapa.leyendaTamano}</p>
       {/* 44 px de objetivo táctil (UI-15) sobre la esquina, con el aspa pequeña dentro. */}
       <button

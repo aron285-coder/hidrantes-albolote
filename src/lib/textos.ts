@@ -185,6 +185,9 @@ export const T = {
     posicionDenegada: 'Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.',
     posicionNoDisponible: 'No se puede obtener tu posición ahora mismo.',
     leyenda: 'Leyenda',
+    // docs/33 RV-319: los dos grupos de la leyenda (para el lector de pantalla).
+    leyendaTipo: 'Tipo',
+    leyendaEstado: 'Estado',
     cerrarLeyenda: 'Cerrar la leyenda',
     zoom: 'Zoom',
     acercar: 'Acercar',
