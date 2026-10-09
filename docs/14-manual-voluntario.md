@@ -53,7 +53,10 @@ Pide el código a jefatura; no lo compartas fuera del grupo.
 - Arriba, la barra dice cuándo se sincronizó y cuántos puntos hay. Sin cobertura dice «sin
   cobertura» y de cuándo son los datos.
 - La línea discontinua es la **zona de cobertura**: Albolote y Calicasas.
-- A la derecha: **capas** (mapa, satélite…), **medir**, **centrar en mí** y el zoom.
+- A la derecha: **capas**, **medir**, **centrar en mí** y el zoom.
+- **Capas**, cada una con una miniatura: **Mapa sin conexión** (funciona sin cobertura),
+  **Callejero** (con los nombres de las calles), **Foto aérea** (para ver el terreno) y **Catastro**
+  (parcelas y edificios). Las tres últimas necesitan cobertura.
 - Abajo: **Cercanos** (el punto que funciona más cerca) y el botón naranja **+** (añadir un punto).
 
 **Cómo se lee un punto:**
@@ -187,9 +190,12 @@ necesitarla.
 
 ![Ajustes del voluntario](capturas/vistas/ajustes.png)
 
-- **Ajustes → Mis propuestas**: cada envío con su estado (pendiente, aprobada, rechazada con el
-  motivo, o con correcciones de jefatura) y lo que sigue sin enviar. Una pendiente la puedes
-  **retirar**.
+- **Ajustes → Mis propuestas**: cada envío en una tarjeta. Arriba, el código del punto (o «Punto
+  nuevo»), qué tipo de cambio es y su estado (pendiente, aprobada, rechazada). Debajo, **una línea
+  con lo que propusiste**: «Regular → No funciona», «Tipo de enganche: Granada → Directo»,
+  «Hidrante 100 mm» en un alta, «Sigue igual» en una revisión, «Retirada: Obras». Si jefatura la
+  rechazó, «Motivo: …»; si la aprobó con correcciones, cuáles. También sale lo que sigue sin
+  enviar. Una pendiente la puedes **retirar** con el botón de la tarjeta.
 - Al abrir la app, un aviso te resume lo que jefatura ha resuelto desde la última vez.
 - **Avisarme cuando jefatura resuelva mis propuestas**: notificaciones en el móvil. En iPhone solo
   funcionan con la app instalada y con iOS 16.4 o posterior. Al tocar una, se abre *Mis
@@ -198,10 +204,12 @@ necesitarla.
 ## 10. Ajustes
 
 - **Firma de tus propuestas → Cambiar**: si el móvil pasa a otra persona.
-- **Mapa sin cobertura**: si está descargado y de cuándo; actualizarlo si hay versión nueva.
-- **Puntos guardados → Sincronizar**: traer los últimos cambios ya.
+- **Mapa sin cobertura**, en una sola tarjeta: si el mapa está descargado y de cuándo (y
+  *Actualizar* si hay versión nueva), cuántos puntos tienes guardados y cuándo se sincronizaron
+  (*Sincronizar* trae los últimos cambios ya), y si el móvil puede borrar esos datos cuando le falta
+  espacio (para que no, instala la aplicación).
 - **Capa por defecto** y **modo oscuro**.
-- **Novedades**: lo nuevo de cada versión.
+- **Novedades de la versión …**: lo nuevo de la versión que tienes; las de antes, en *Ver versiones anteriores*.
 - **Cómo se usa**: las tres pantallas del principio.
 - **Cerrar sesión en este móvil**: borra el acceso, el nombre y lo que quede sin enviar (te avisa).
 - Cuando hay una versión nueva, la app dice **«hay una versión nueva, recargar»**. Tócalo; no hay que

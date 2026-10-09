@@ -17,10 +17,13 @@ const CAMPOS_DATOS = ['diametro_mm', 'diametro_otro', 'racor', 'descripcion'] as
 
 const hay = (v: unknown) => v !== undefined && v !== null && texto(v) !== '';
 
-/** "Regular → No funciona", o "No funciona" si no se sabe lo de antes o es lo mismo. */
+/**
+ * "Regular → No funciona", o "No funciona" si no se sabe lo de antes, estaba vacío (un enganche o una
+ * descripción sin poner: "ninguno →" no dice nada) o es lo mismo.
+ */
 function flecha(campo: string, antes: unknown, despues: unknown): string {
   const nuevo = valorDe(campo, despues);
-  if (antes === undefined) return nuevo;
+  if (!hay(antes)) return nuevo;
   const viejo = valorDe(campo, antes);
   return viejo === nuevo ? nuevo : T.misPropuestas.lineaCambio(viejo, nuevo);
 }
@@ -59,5 +62,9 @@ export function lineaPropuesta(operacion: Operacion, datos: unknown, antes?: Pun
       if (hay(d.motivo_rapido)) return T.misPropuestas.lineaRetirada(valorDe('motivo_rapido', d.motivo_rapido));
       return T.operaciones.etiquetaRetirada;
     }
+    default:
+      // Una operación que esta versión no conoce (la manda una versión más nueva, 04 §12): sin línea,
+      // antes que una inventada. La tarjeta sigue con su código y su estado.
+      return '';
   }
 }
