@@ -160,7 +160,7 @@ test.describe('app del voluntario', () => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null, fn_ficha_punto: PUNTOS[0] });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
     await auditar(page, 'mapa');
     await geometria(page, 'mapa', { movil: !!isMobile });
 
@@ -375,7 +375,7 @@ test.describe('avisos flotantes del mapa (RV-59)', () => {
       await conSesion(page);
       await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
       await page.goto('/');
-      await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+      await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
       await page.getByRole('button', { name: T.mapa.miPosicion }).click();
       await expect(page.getByRole('status').filter({ hasText: T.mapa.posicionDenegada })).toBeVisible();
 

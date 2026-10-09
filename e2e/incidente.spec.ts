@@ -43,7 +43,7 @@ async function preparar(
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: { ...LISTADO, puntos: CERCA }, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(CERCA.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(CERCA.length));
 }
 
 const hoja = (page: Page) => page.getByRole('region', { name: T.incidente.titulo });
@@ -145,7 +145,7 @@ test('G2: con puntos guardados y sin red, la primera fila de Cercanos en menos d
     await navigator.serviceWorker.ready;
   });
   await page.reload(); // la segunda carga ya la controla el Service Worker
-  await expect(page.getByText(T.mapa.nPuntos(CERCA.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(CERCA.length));
   await context.setOffline(true);
   const t0 = Date.now();
   await page.goto('/');

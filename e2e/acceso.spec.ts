@@ -65,7 +65,7 @@ test.describe('entrada del voluntario (FL-01)', () => {
     await page.goto('/');
     await rellenarEntrada(page);
     await expect(page.getByRole('alert')).toHaveText(T.entrada.sinServidor);
-    await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeVisible();
+    await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeVisible();
   });
 
   test('entra, ve las tres pantallas de primer uso y llega al mapa; el código no se guarda', async ({ page }) => {
@@ -146,7 +146,7 @@ test.describe('con sesión guardada', () => {
       return r.abort('connectionrefused');
     });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeVisible();
+    await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeVisible();
     await expect(page.getByTestId('mapa')).toBeVisible();
     await page.getByRole('link', { name: T.navegacion.ajustes }).click();
     await expect(page.getByText(`${FIRMA.nombre} ${FIRMA.apellido}`)).toBeVisible();
@@ -164,18 +164,22 @@ test.describe('con sesión guardada', () => {
       fn_registrar_error: null,
     });
     await page.getByRole('button', { name: T.mapa.reintentar }).click();
-    await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeHidden();
+    await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeHidden();
   });
 
-  test('sin cobertura: banda gris y la app sigue', async ({ page, context }) => {
+  test('sin cobertura: lo dice en gris y la app sigue', async ({ page, context }) => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: { puntos: [], bajas: [] } });
     await page.goto('/');
     await context.setOffline(true);
-    // La banda (div): la barra de estado lo dice también, solo al lector de pantalla (docs/31 RV-157).
-    await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
+    // En el mapa y la lista, la píldora de la cabecera (docs/33 RV-311); en las demás pantallas, la banda.
+    const pildora = page.getByTestId('estado-sincro');
+    await expect(pildora).toContainText(T.mapa.sinConexion);
     await page.getByRole('link', { name: T.navegacion.lista }).click();
     await expect(page.getByRole('radio', { name: T.mapa.todos })).toBeVisible();
+    await expect(pildora).toContainText(T.mapa.sinConexion);
+    await page.getByRole('link', { name: T.navegacion.ajustes }).click();
+    await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
     await context.setOffline(false);
     await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeHidden();
   });

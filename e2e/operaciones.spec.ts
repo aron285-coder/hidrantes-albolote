@@ -368,7 +368,7 @@ test.describe('operaciones (FL-03–FL-08)', () => {
   }) => {
     const s = await servidor(page);
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length))).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
     await context.setOffline(true);
     for (let i = 0; i < 3; i++) {
       await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
@@ -755,7 +755,7 @@ test.describe('el formulario de un punto al recargar (RV-152)', () => {
   test('recargar el formulario de un punto lo vuelve a abrir, sin mandar al mapa', async ({ page }) => {
     const hid = PUNTOS[0];
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length))).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
     await page.goto(`/proponer/revision?p=${hid.id}`);
     await expect(page.getByText(hid.codigo, { exact: true })).toBeVisible();
     await expect(page).toHaveURL((u) => u.pathname === '/proponer/revision');
@@ -763,7 +763,7 @@ test.describe('el formulario de un punto al recargar (RV-152)', () => {
 
   test('un punto que ya no está: lo dice y no redirige', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length))).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
     await page.goto('/proponer/estado?p=no-existe');
     await expect(page.getByRole('alert').filter({ hasText: T.operaciones.puntoYaNoEsta })).toBeVisible();
     await expect(page).toHaveURL((u) => u.pathname === '/proponer/estado');

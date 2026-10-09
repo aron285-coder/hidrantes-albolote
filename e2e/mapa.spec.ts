@@ -11,7 +11,7 @@ async function abrir(page: Page, ruta = '/') {
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
   if (ruta !== '/') await page.goto(ruta);
 }
 
@@ -45,14 +45,14 @@ test.describe('mapa y lista', () => {
     await expect(leyenda).toBeVisible();
     await page.reload();
     await expect(leyenda).toBeVisible();
-    await page.getByText(/Sincronizado hace/).click();
+    await page.getByRole('heading', { name: T.navegacion.puntosDeAgua }).click();
     await expect(leyenda).toHaveCount(0);
     await expect(ficha).toBeVisible();
   });
 
   test('sincroniza, pinta los marcadores y dice cuándo (FR-60, FR-80)', async ({ page }) => {
     await abrir(page);
-    await expect(page.getByText(/Sincronizado hace/)).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
     // Al encuadre inicial (zoom ≤ 13) solo se ven R1 y R2 (06 §4.4).
     const visibles = await page.locator('.marcador').count();
     expect(visibles).toBeGreaterThan(0);
@@ -209,7 +209,7 @@ test.describe('sin cobertura (criterio de salida)', () => {
       await conSesion(page, { extra: { capa } });
       await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
       await page.goto('/');
-      await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+      await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 
       await context.setOffline(true);
       await expect(page.getByRole('status').filter({ hasText: T.mapa.capaSinCobertura(nombre) })).toBeVisible();
@@ -327,7 +327,7 @@ test.describe('mapa y lista sin ningún punto (RV-76)', () => {
       fn_registrar_error: null,
     });
     await page.goto('/');
-    await expect(page.getByText(/Sincronizado hace/)).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-sincronizado', 'si');
     // En el mapa: en ordenador la lista de al lado también lo dice.
     const aviso = page.getByTestId('avisos-mapa').getByTestId('aviso-sin-puntos');
     await expect(aviso).toContainText(T.mapa.inventarioVacio);

@@ -34,7 +34,7 @@ async function abrir(page: Page, context: BrowserContext, ancho: number, alto: n
   if (ruta === '/') await expect(page.getByTestId('mapa')).toBeVisible();
   if (conLista) await expect(primero(page)).toContainText(T.mapa.desdeTi);
   // Se mide con los avisos de arriba ya puestos (el de sin conexión, con el Supabase ficticio): ocupan alto.
-  await expect(page.getByText(T.mapa.sinServidor)).toBeVisible();
+  await expect(page.getByText(T.mapa.sinServidor).first()).toBeVisible();
 }
 
 const altoPagina = (page: Page) => page.evaluate(() => document.documentElement.scrollHeight);

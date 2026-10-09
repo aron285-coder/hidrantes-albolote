@@ -452,7 +452,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
-`Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
+`Sin conexión con el servidor` · `[N] sin enviar` · `al día · [15]` · `sin conexión` (píldora de la cabecera, docs/33 RV-311) · `Sincronización` · `Última sincronización` · `[12] en este móvil` · `Envíos` · `Sincronizar ahora` (su detalle) · `Todos` · `Hidrantes` · `Bocas` ·
 `No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
 `Nada coincide con ese filtro.` · `revisado [hace 3 meses]` · `sin revisar` + `desde [hace 1 año]` = "sin revisar desde hace 1 año" (en `--naranja-texto`; si no cabe, se acorta la fecha, nunca `sin revisar`) (segunda línea de cada fila de la Lista, sin la dirección; a la derecha solo la distancia, y solo si hay posición: FR-68, docs/25 RV-106) ·
 `desde ti` · `desde el incidente` (solo para el lector de pantalla, detrás de la distancia de cada fila) · `Sin cobertura` · `Reintentar` ·

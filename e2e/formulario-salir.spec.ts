@@ -25,7 +25,7 @@ async function preparar(page: Page) {
   });
   // Del mapa al formulario, como al venir de la ficha: hay una pantalla a la que volver.
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
   await page.goto(FORMULARIO);
   await expect(page.getByRole('heading', { level: 1, name: T.operaciones.corregirDatos })).toBeVisible();
 }

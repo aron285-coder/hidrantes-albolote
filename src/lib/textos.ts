@@ -134,6 +134,9 @@ export const T = {
     sinCobertura: (hace: Parametro) => `Sin cobertura · datos de ${hace}`,
     sinServidor: 'Sin conexión con el servidor',
     sinEnviar: (n: Parametro) => `${n} sin enviar`,
+    // docs/33 RV-311: la píldora de la cabecera.
+    alDia: (n: Parametro) => `al día · ${n}`,
+    sinConexion: 'sin conexión',
     todos: 'Todos',
     hidrantes: 'Hidrantes',
     bocas: 'Bocas',
@@ -627,6 +630,15 @@ export const T = {
   },
 
   // docs/32 RV-230: recargar por versión nueva con envíos que solo están en memoria.
+  // docs/33 RV-311: el detalle de la sincronización, al tocar la píldora de la cabecera.
+  sincro: {
+    titulo: 'Sincronización',
+    ultima: 'Última sincronización',
+    puntosGuardados: (n: Parametro) => `${n} en este móvil`,
+    envios: 'Envíos',
+    sincronizarAhora: 'Sincronizar ahora',
+  },
+
   recarga: {
     titulo: 'Espera antes de actualizar',
     sinGuardar: (n: number) =>
