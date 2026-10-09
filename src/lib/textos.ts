@@ -358,7 +358,7 @@ export const T = {
     fotoIlegible: 'No se pudo leer la foto. Prueba otra vez.',
     // docs/31 RV-157: «Repetir» que falla; sigue la foto de antes.
     fotoRepetidaIlegible: 'No se pudo leer la foto nueva: sigue la anterior. Prueba otra vez.',
-    // Más de 24 MP en un navegador que no reduce al decodificar (docs/32 RV-244).
+    // Más de 26 MP en un navegador que no reduce al decodificar (docs/32 RV-244; docs/33 RV-326).
     fotoDemasiadoGrande: 'Esta foto es demasiado grande para este móvil: cambia la cámara a 12 MP o menos.',
     enviando: 'Enviando…',
     guardadoDetalle: 'Se enviará sola cuando haya conexión.',
