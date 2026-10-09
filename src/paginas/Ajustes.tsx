@@ -1,6 +1,6 @@
 import { type FormEvent, type ReactNode, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { LayoutDashboard } from 'lucide-react';
+import { Check, LayoutDashboard } from 'lucide-react';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
 import { SelectorCapas } from '@/componentes/mapa/SelectorCapas';
@@ -32,7 +32,7 @@ import { type Tema, guardarTema, leerTema } from '@/lib/tema';
 import { LIMITES } from '@/lib/limites';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
-import { NOVEDADES, hayNovedadesSinVer, marcarNovedadesVistas } from '@/lib/novedades';
+import { NOVEDADES, agruparNovedades, hayNovedadesSinVer, marcarNovedadesVistas } from '@/lib/novedades';
 
 function Fila({
   titulo,
@@ -308,47 +308,54 @@ function SeccionMapa() {
   return (
     <>
       <Seccion>{T.navegacion.mapa}</Seccion>
-      <Fila
-        titulo={T.ajustes.mapaSinCobertura}
-        detalle={
-          <>
-            {detalleMapa}
-            {mapabase.fallo && (
-              <span className="text-rojo-700 block">
-                {mapabase.parada ? T.ajustes.descargaParada : T.ajustes.falloDescarga}
-              </span>
-            )}
-            {sinRed && mapabase.progreso === null && <span className="block">{T.mapa.necesitaCobertura}</span>}
-          </>
-        }
+      {/* Una sola tarjeta para lo que se guarda en el móvil (docs/33 RV-320, U11): el mapa, los
+          puntos y si el móvil lo puede borrar, en frases. */}
+      <div
+        role="group"
+        aria-label={T.ajustes.mapaSinCobertura}
+        data-testid="tarjeta-mapa"
+        className="bg-papel border-linea rounded-tarjeta flex flex-col gap-0.5 border px-3 py-2"
       >
-        {mapabase.progreso === null && (!mapabase.descargado || nueva) && (
-          <Boton variante="enlace" className="text-sm" disabled={sinRed} onClick={() => void descargarMapabase()}>
-            {mapabase.parada ? T.ajustes.reintentar : mapabase.descargado ? T.ajustes.actualizar : T.ajustes.descargar}
+        <div className="text-[15px]">{T.ajustes.mapaSinCobertura}</div>
+        <div className="text-texto-suave text-[13px]">
+          <span className="block">{detalleMapa}</span>
+          <span className="block">
+            {guardadoEn ? T.ajustes.puntosGuardadosLinea(puntos.length, hace(guardadoEn)) : T.ajustes.sinSincronizar}
+          </span>
+          {protegido !== null && (
+            <span className="block">
+              {protegido && <Check size={14} aria-hidden className="mr-1 inline align-[-2px]" />}
+              {protegido ? T.ajustes.guardadoProtegidoSi : T.ajustes.guardadoProtegidoNo}
+            </span>
+          )}
+          {mapabase.fallo && (
+            <span className="text-rojo-700 block">
+              {mapabase.parada ? T.ajustes.descargaParada : T.ajustes.falloDescarga}
+            </span>
+          )}
+          {/* El motivo de los botones deshabilitados (UI-02). */}
+          {sinRed && <span className="block">{T.mapa.necesitaCobertura}</span>}
+        </div>
+        <div className="flex flex-wrap justify-end gap-x-3">
+          {mapabase.progreso === null && (!mapabase.descargado || nueva) && (
+            <Boton variante="enlace" className="text-sm" disabled={sinRed} onClick={() => void descargarMapabase()}>
+              {mapabase.parada
+                ? T.ajustes.reintentar
+                : mapabase.descargado
+                  ? T.ajustes.actualizar
+                  : T.ajustes.descargar}
+            </Boton>
+          )}
+          <Boton
+            variante="enlace"
+            className="text-sm"
+            disabled={sinRed || sincronizando}
+            onClick={() => void reintentarAhora()}
+          >
+            {sincronizando ? T.mapa.sincronizando : T.ajustes.sincronizar}
           </Boton>
-        )}
-      </Fila>
-      <Fila
-        titulo={T.ajustes.puntosGuardados}
-        detalle={
-          <>
-            {guardadoEn ? T.ajustes.puntosGuardadosDetalle(puntos.length, hace(guardadoEn)) : T.ajustes.sinSincronizar}
-            {sinRed && <span className="block">{T.mapa.necesitaCobertura}</span>}
-          </>
-        }
-      >
-        <Boton
-          variante="enlace"
-          className="text-sm"
-          disabled={sinRed || sincronizando}
-          onClick={() => void reintentarAhora()}
-        >
-          {sincronizando ? T.mapa.sincronizando : T.ajustes.sincronizar}
-        </Boton>
-      </Fila>
-      {protegido !== null && (
-        <Fila titulo={T.ajustes.guardadoProtegido} detalle={T.ajustes.guardadoProtegidoValor(protegido)} />
-      )}
+        </div>
+      </div>
       <Fila titulo={T.ajustes.capaPorDefecto} detalle={NOMBRE_CAPA[capa]}>
         <Boton variante="enlace" className="text-sm" onClick={() => setEligiendoCapa(true)}>
           {T.ajustes.cambiar}
@@ -392,26 +399,45 @@ function FilaMisPropuestas() {
 function SeccionNovedades() {
   const [nuevas] = useState(hayNovedadesSinVer);
   useEffect(() => marcarNovedadesVistas(), []);
+  // «Novedades de la versión 0.x.y» con sus líneas, sin repetir la versión en cada una; las de antes,
+  // plegadas y por versión (docs/33 RV-320, U11).
+  const { actual, anteriores } = agruparNovedades(NOVEDADES);
   return (
     <>
       <Seccion>
-        {T.ajustes.seccionNovedades}
+        {NOVEDADES.version ? T.ajustes.novedadesDeLaVersion(NOVEDADES.version) : T.ajustes.seccionNovedades}
         {nuevas && (
           <span className="bg-naranja-600 ml-2 rounded px-1.5 py-0.5 text-[11px] text-white">{T.ajustes.nuevo}</span>
         )}
       </Seccion>
       <div className="px-3 py-2 text-sm" data-testid="novedades">
-        {NOVEDADES.version && <p className="text-texto-suave text-[13px]">{T.ajustes.version(NOVEDADES.version)}</p>}
-        {NOVEDADES.lineas.length ? (
-          <ul className="mt-1 list-disc pl-5">
-            {NOVEDADES.lineas.map((l) => (
-              <li key={`${l.version}-${l.texto}`}>
-                <span className="font-datos text-texto-suave text-[13px]">{l.version}</span> · {l.texto}
-              </li>
+        {actual.length ? (
+          <ul className="list-disc pl-5">
+            {actual.map((l) => (
+              <li key={l}>{l}</li>
             ))}
           </ul>
         ) : (
-          <p className="text-texto-suave">{T.ajustes.sinNovedades}</p>
+          <p className="text-texto-suave">
+            {anteriores.length ? T.ajustes.sinNovedadesVersion : T.ajustes.sinNovedades}
+          </p>
+        )}
+        {anteriores.length > 0 && (
+          <details data-testid="novedades-anteriores" className="mt-1">
+            <summary className="text-texto flex min-h-11 cursor-pointer items-center font-semibold underline">
+              {T.ajustes.verVersionesAnteriores}
+            </summary>
+            {anteriores.map((g) => (
+              <div key={g.version} className="mt-1">
+                <p className="text-texto-suave text-[13px]">{T.ajustes.version(g.version)}</p>
+                <ul className="list-disc pl-5">
+                  {g.lineas.map((l) => (
+                    <li key={l}>{l}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </details>
         )}
       </div>
     </>

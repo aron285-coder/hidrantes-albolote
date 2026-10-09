@@ -583,7 +583,7 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
 `Descargado · [12] MB · [jul 2026]` · `No descargado` · `Descargar` · `Actualizar` ·
-`Puntos guardados` · `Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
+`Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
 `Avisarme cuando jefatura resuelva mis propuestas` ·
 `Cómo se usa (3 pantallas)` · `Cerrar sesión en este móvil` ·
 `Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
@@ -591,8 +591,8 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 `Panel de jefatura` (botón de la cuenta de jefatura, RV-113) · `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
 `¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Cerrando sesión…` (el botón, deshabilitado, mientras se cierra; docs/32 RV-234) · `No se ha podido cerrar la sesión. Inténtalo de nuevo.` · `Versión [0.1.0]` · `Descargando… [40] %` ·
 `No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
-`No se pudo descargar. Inténtalo de nuevo con wifi.` · `La descarga se ha parado.` con `Reintentar` (30 s sin llegar nada; docs/32 RV-235) · `[438] · sincronizado [hace 5 min]` ·
-`Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167; cada línea, `[0.6.4] · [texto]` con la versión que la trajo, DEC-142) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
+`No se pudo descargar. Inténtalo de nuevo con wifi.` · `La descarga se ha parado.` con `Reintentar` (30 s sin llegar nada; docs/32 RV-235) · `[438] puntos guardados · sincronizados [hace 5 min]` · `El móvil no borrará estos datos aunque le falte espacio` · `El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo` (una sola tarjeta «Mapa sin cobertura», docs/33 RV-320) ·
+`Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167) · `Novedades de la versión [0.10.1]` con sus líneas sin repetir la versión · `Ver versiones anteriores` (plegadas, cada versión con `Versión [0.10.0]`) · `Esta versión solo trae arreglos internos.` (docs/33 RV-320) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
 ha concedido, o no, no desalojar lo guardado; TR-07).
 
 **Instalar la aplicación.** `Instalar la aplicación` · `Instalar` ·

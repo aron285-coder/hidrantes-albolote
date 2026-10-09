@@ -13,7 +13,11 @@ vi.mock('@/hooks/estado', () => ({
   useConexion: () => 'bien',
   useInstalar: () => 'instalada',
   useMapabase: () => ({ progreso: null, descargado: null, fallo: false }),
-  usePuntos: () => ({ puntos: [], guardadoEn: null, sincronizando: false }),
+  usePuntos: () => ({
+    puntos: Array.from({ length: 15 }, () => ({})),
+    guardadoEn: Date.now() - 60_000,
+    sincronizando: false,
+  }),
 }));
 vi.mock('@/hooks/version', () => ({ useVersionNueva: () => false }));
 vi.mock('@/hooks/cola', () => ({ useCola: () => [], useMisPropuestas: () => [] }));
@@ -43,7 +47,8 @@ vi.mock('@/componentes/Boton', async (original) => {
     },
   };
 });
-vi.mock('@/lib/almacen', () => ({ leer: () => null }));
+const almacen = vi.hoisted(() => ({ protegido: null as boolean | null }));
+vi.mock('@/lib/almacen', () => ({ leer: (k: string) => (k === 'almacen_persistente' ? almacen.protegido : null) }));
 vi.mock('@/lib/conexion', () => ({ reintentarAhora: vi.fn() }));
 vi.mock('@/lib/instalar', () => ({ instalar: vi.fn() }));
 vi.mock('@/lib/mapabase', () => ({ descargarMapabase: vi.fn(), hayVersionNuevaMapabase: () => false }));
@@ -54,8 +59,14 @@ vi.mock('@/lib/capas', () => ({
   capaGuardada: () => 'calles',
   guardarCapa: vi.fn(),
 }));
-vi.mock('@/lib/novedades', () => ({
-  NOVEDADES: { version: null, lineas: [] },
+const novedades = vi.hoisted(() => ({
+  actuales: { version: null as string | null, fecha: null, lineas: [] as { version: string; texto: string }[] },
+}));
+vi.mock('@/lib/novedades', async (original) => ({
+  agruparNovedades: (await original<typeof import('@/lib/novedades')>()).agruparNovedades,
+  get NOVEDADES() {
+    return novedades.actuales;
+  },
   hayNovedadesSinVer: () => false,
   marcarNovedadesVistas: vi.fn(),
 }));
@@ -133,5 +144,58 @@ describe('Ajustes · Cerrar sesión de Google (docs/33 RV-325, N5)', () => {
     pulsar!();
     expect(olvidarTemasJefatura).toHaveBeenCalledTimes(1);
     expect(salirDeGoogle).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Ajustes sin jerga (docs/33 RV-320, U11)', () => {
+  const textoDe = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  /** Los grupos con nombre (cada tarjeta de Ajustes). */
+  const grupos = (html: string) => [...html.matchAll(/role="group" aria-label="([^"]*)"/g)].map((m) => m[1]);
+
+  beforeEach(() => {
+    acceso = { tipo: 'voluntario', sesion: { nombre: 'Voluntaria', apellido: 'Pruebas' } };
+    almacen.protegido = true;
+    novedades.actuales = { version: null, fecha: null, lineas: [] };
+  });
+
+  it('una sola tarjeta «Mapa sin cobertura» con el mapa, los puntos guardados y «Sincronizar»', () => {
+    const html = pintar();
+    expect(grupos(html)).toContain(T.ajustes.mapaSinCobertura);
+    expect(grupos(html)).not.toContain('Puntos guardados');
+    expect(grupos(html)).not.toContain('Guardado protegido');
+    const tarjeta = /<div[^>]*data-testid="tarjeta-mapa"[^>]*>(.*?)<\/div>\s*<\/div>\s*<\/div>/s.exec(html)?.[0] ?? '';
+    expect(textoDe(tarjeta)).toContain('15 puntos guardados');
+    expect(tarjeta).toMatch(/<button[^>]*>Sincronizar<\/button>/);
+  });
+
+  it('«Guardado protegido» en una frase, sí o no', () => {
+    expect(textoDe(pintar())).toContain(T.ajustes.guardadoProtegidoSi);
+    almacen.protegido = false;
+    const html = textoDe(pintar());
+    expect(html).toContain(T.ajustes.guardadoProtegidoNo);
+    expect(T.ajustes.guardadoProtegidoNo).toBe(
+      'El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo',
+    );
+    expect(html).not.toContain('Guardado protegido');
+  });
+
+  it('«Novedades de la versión 0.x.y» sin repetir la versión en cada línea; las de antes, plegadas', () => {
+    novedades.actuales = {
+      version: '0.10.1',
+      fecha: null,
+      lineas: [
+        { version: '0.10.1', texto: 'Nuevo tipo de enganche «Directo»' },
+        { version: '0.10.0', texto: 'La lista dice a qué distancia está' },
+      ],
+    };
+    const html = pintar();
+    expect(textoDe(html)).toContain('Novedades de la versión 0.10.1');
+    expect(html).toContain('<li>Nuevo tipo de enganche «Directo»</li>');
+    expect(html).not.toMatch(/<li>[^<]*0\.10\.1/);
+    const plegadas = /<details[^>]*data-testid="novedades-anteriores"[^>]*>(.*?)<\/details>/s.exec(html)?.[1] ?? '';
+    expect(plegadas).toMatch(/<summary[^>]*>Ver versiones anteriores<\/summary>/);
+    expect(plegadas).toContain('<li>La lista dice a qué distancia está</li>');
+    // Sin «open»: plegadas.
+    expect(html).not.toMatch(/<details[^>]*\bopen\b/);
   });
 });
