@@ -225,6 +225,7 @@ export const T = {
     sinFoto: 'Sin foto',
     // docs/33 RV-314: la foto que no ha cargado se vuelve a pedir.
     reintentarFoto: 'Reintentar',
+    fotoSigueSinCargar: 'La foto sigue sin cargar',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
     fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
     // docs/24 RV-102a: un estado que esta versión de la app no conoce.
@@ -413,6 +414,8 @@ export const T = {
     // docs/33 RV-316 (D9): tocar la ficha de una foto hecha la repite.
     repetirFotoConexion: 'Repetir la foto de la conexión',
     repetirFotoSitio: 'Repetir la foto del sitio',
+    // El nombre de la ficha para quien no ve la pantalla: lo que se ve y lo que hace (WCAG 2.5.3).
+    fichaFotoHecha: (hecho: Parametro, accion: Parametro) => `${hecho}. ${accion}`,
     unidadMm: 'mm',
     huecoHecho: (que: Parametro, kb: Parametro) => `${que} · ${kb} kB`,
     descripcionOpcional: 'Descripción (opcional)',

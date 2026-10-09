@@ -58,11 +58,17 @@ test.describe('la foto de la ficha (RV-314)', () => {
     });
     await abrirFicha(page, { ...P0, foto_path: 'fotos/no-esta.jpg' });
     await comprobarFranja(page, T.ficha.fotoNoCarga);
+    const reintentar = page.getByTestId('foto-franja').getByRole('button', { name: T.ficha.reintentarFoto });
+    // Si vuelve a fallar, lo dice y se puede probar otra vez: el botón no parece muerto.
+    await reintentar.click();
+    await comprobarFranja(page, T.ficha.fotoSigueSinCargar);
     pedirla = true;
-    await page.getByTestId('foto-franja').getByRole('button', { name: T.ficha.reintentarFoto }).click();
+    await reintentar.click();
     const foto = page.getByRole('img', { name: P0.codigo });
     await expect(foto).toBeVisible();
-    // Con foto, como mucho 200 px de alto.
+    // Con foto, el alto de siempre (150 o 170 px), nunca más de 200; y «Cómo llegar» sigue a la vista.
     expect((await foto.boundingBox())!.height).toBeLessThanOrEqual(200);
+    const llegar = (await page.getByRole('link', { name: T.ficha.comoLlegar }).boundingBox())!;
+    expect(llegar.y + llegar.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   });
 });

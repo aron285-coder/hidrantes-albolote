@@ -504,7 +504,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 **Ficha.** `Dirección` · `sin dirección` · `revisado [hace 2 meses] · [4 ago 2026]` · `sin revisar desde [hace 1 año]` · `Tipo` · `Diámetro` · `Tipo de enganche` · `a [80 m] de ti` · `[Conexión] · [1]/[2]` (banda y rejilla, RV-108) ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
 `Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Enganche [Granada]` ·
-`Foto no disponible sin cobertura` · `No se ha podido cargar la foto` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
+`Foto no disponible sin cobertura` · `No se ha podido cargar la foto` con `Reintentar` · `La foto sigue sin cargar` (tras reintentar) · `Sin foto` (las tres en una franja de 44 px, docs/33 RV-314) · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
@@ -530,7 +530,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
 `Tipo de enganche` · `Barcelona` · `Granada` · `Directo` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
-`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` (la ficha de la foto hecha, docs/33 RV-316) · `[Sitio] · [150] kB` ·
+`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` · `[Conexión · 18 kB]. [Repetir la foto de la conexión]` (la ficha de la foto hecha y su nombre accesible, docs/33 RV-316) · `[Sitio] · [150] kB` ·
 `Hacer foto · obligatoria` · `Foto · opcional` · `Hacer foto (opcional)` (corregir datos, docs/33 RV-316) · `mm` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
 `¿Por qué ya no existe?` · `Obras` · `Asfaltado` · `Sustituido` · `Otro` ·

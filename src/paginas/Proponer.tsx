@@ -133,7 +133,10 @@ function FormularioOperacion({
     setDestinoSalida(null);
     setPreguntaSalir(true);
   };
-  const cerrarPregunta = () => setPreguntaSalir(false);
+  const cerrarPregunta = () => {
+    setPreguntaSalir(false);
+    setDestinoSalida(null);
+  };
   const { salir, reemplazarPor } = useSalidaFormulario(sucio, preguntar);
   /**
    * De Corregir datos a Proponer retirada (docs/33 RV-322): la retirada sustituye al formulario y a su
@@ -546,10 +549,14 @@ function DatosPunto({
             <Link
               to={`/proponer/retirada?p=${encodeURIComponent(punto.id)}`}
               onClick={(e) => {
+                // Con Ctrl, Cmd o Mayúsculas se abre aparte, como cualquier enlace.
+                if (e.ctrlKey || e.metaKey || e.shiftKey) return;
                 e.preventDefault();
                 alIrEnLugarDeEste(`/proponer/retirada?p=${encodeURIComponent(punto.id)}`);
               }}
-              className="text-texto py-3 font-semibold underline"
+              // inline-block con relleno y margen negativo: 44 px de alto para el dedo (UI-15) sin
+              // separar las líneas de la frase.
+              className="text-texto -my-3.5 inline-block py-3.5 font-semibold underline"
             >
               {T.operaciones.tipoMalEnlace}
             </Link>{' '}
