@@ -283,7 +283,11 @@ describe('los topes nuevos de 0041 (RV-245)', () => {
   // docs/33 RV-329: con `ambito` (RV-303), «tu tope» y «el del grupo» se dicen distinto; sin él, como antes.
   it.each([
     ['grupo', 'cuota_fotos_grupo', 'En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará a las 12:10.'],
-    ['dispositivo', 'cuota_fotos_dispositivo', 'En espera: has llegado a tu máximo de fotos de hoy. Se enviará a las 12:10.'],
+    [
+      'dispositivo',
+      'cuota_fotos_dispositivo',
+      'En espera: has llegado a tu máximo de fotos de hoy. Se enviará a las 12:10.',
+    ],
     [undefined, 'cuota_fotos', 'En espera: has llegado al máximo de fotos de hoy. Se enviará a las 12:10.'],
   ] as const)('tope de fotos con ámbito %s: en la cola y en Mis propuestas', async (ambito, motivo, texto) => {
     respuestaReserva = () =>
