@@ -138,6 +138,31 @@ describe('Mis propuestas · qué se propuso (docs/33 RV-315)', () => {
     expect(t!.texto).toContain('|Retirada: Obras|');
   });
 
+  it('lo que falta por enviar lleva la flecha con lo que tiene el punto guardado', () => {
+    propias = [];
+    cola = [
+      {
+        clave_local: 'c2',
+        creada_en: AHORA - 60_000,
+        args: { operacion: 'estado', punto_id: 'pt1', datos: { caudal: 'malo' } },
+        codigo: 'HID-9002',
+        fallo: null,
+        intentos: 0,
+        proximo: 0,
+      },
+    ];
+    const [t] = tarjetas(pintar());
+    expect(t!.texto).toContain('|Regular → Malo|');
+  });
+
+  it('pendiente de un punto que ya no está en el móvil: solo lo nuevo', () => {
+    propias = [propia({})];
+    puntos = [];
+    const [t] = tarjetas(pintar());
+    expect(t!.texto).toContain('|No funciona|');
+    expect(t!.texto).not.toContain('→');
+  });
+
   it('«Retirar» es un botón de 44 × 44 px como mínimo (D10)', () => {
     propias = [propia({})];
     const boton = pintar().match(/<button[^>]*>Retirar<\/button>/);

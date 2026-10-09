@@ -232,6 +232,7 @@ export const T = {
     sinFoto: 'Sin foto',
     // docs/33 RV-314: la foto que no ha cargado se vuelve a pedir.
     reintentarFoto: 'Reintentar',
+    fotoSigueSinCargar: 'La foto sigue sin cargar',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
     fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
     // docs/24 RV-102a: un estado que esta versión de la app no conoce.
@@ -420,6 +421,8 @@ export const T = {
     // docs/33 RV-316 (D9): tocar la ficha de una foto hecha la repite.
     repetirFotoConexion: 'Repetir la foto de la conexión',
     repetirFotoSitio: 'Repetir la foto del sitio',
+    // El nombre de la ficha para quien no ve la pantalla: lo que se ve y lo que hace (WCAG 2.5.3).
+    fichaFotoHecha: (hecho: Parametro, accion: Parametro) => `${hecho}. ${accion}`,
     unidadMm: 'mm',
     huecoHecho: (que: Parametro, kb: Parametro) => `${que} · ${kb} kB`,
     descripcionOpcional: 'Descripción (opcional)',
@@ -545,7 +548,6 @@ export const T = {
     noDescargado: 'No descargado',
     descargar: 'Descargar',
     actualizar: 'Actualizar',
-    puntosGuardados: 'Puntos guardados',
     sincronizar: 'Sincronizar',
     capaPorDefecto: 'Capa por defecto',
     modoOscuro: 'Modo oscuro',
@@ -584,10 +586,16 @@ export const T = {
     // docs/32 RV-235: 30 s sin llegar nada.
     descargaParada: 'La descarga se ha parado.',
     reintentar: 'Reintentar',
-    puntosGuardadosDetalle: (n: Parametro, hace: Parametro) => `${n} · sincronizado ${hace}`,
+    // docs/33 RV-320 (U11): una sola tarjeta «Mapa sin cobertura», sin jerga.
+    puntosGuardadosLinea: (n: Parametro, hace: Parametro) => `${n} puntos guardados · sincronizados ${hace}`,
     sinSincronizar: 'Todavía sin sincronizar',
-    guardadoProtegido: 'Guardado protegido',
-    guardadoProtegidoValor: (si: boolean) => (si ? 'sí' : 'no'),
+    guardadoProtegidoSi: 'El móvil no borrará estos datos aunque le falte espacio',
+    guardadoProtegidoNo: 'El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo',
+    // Ya instalada, el consejo no sirve (algunos navegadores no protegen ni así).
+    guardadoProtegidoNoInstalada: 'El móvil podría borrar estos datos si le falta espacio',
+    novedadesDeLaVersion: (version: Parametro) => `Novedades de la versión ${version}`,
+    verVersionesAnteriores: 'Ver versiones anteriores',
+    sinNovedadesVersion: 'Esta versión solo trae arreglos internos.',
     avisos: 'Avisos',
     perderasEnvios: (n: Parametro) => `Tienes ${n} envíos sin mandar: se perderán.`,
   },
@@ -1025,6 +1033,18 @@ export const T = {
       `Se pondrá en vigor un código nuevo y ${moviles} móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.`,
     confirmarCodigo: 'Generar y poner en vigor',
     codigoCambiado: (codigo: Parametro) => `Código nuevo en vigor: ${codigo}. Comunícalo al grupo.`,
+    // docs/33 RV-338 (RV-300): la entrada del día del lanzamiento.
+    entrada: 'Entrada',
+    abrirEntrada: 'Abrir la entrada para todos (24 h)',
+    explicaEntrada:
+      'Para el día del lanzamiento o después de cambiar el código: deja entrar a todos desde la misma wifi durante 24 horas. Quien pruebe códigos sigue frenado.',
+    entradaAbiertaHasta: (dia: Parametro, hora: Parametro) =>
+      `Entrada abierta para todos hasta el ${dia} a las ${hora}`,
+    cerrarAhora: 'Cerrar ahora',
+    entradaAbierta: 'Entrada abierta para todos durante 24 h.',
+    entradaCerrada: 'Entrada cerrada: vuelven los topes de entradas.',
+    avisoEntradaAlRevocar: 'La entrada se abrirá 24 h para que todos puedan volver a entrar.',
+    entradaNoCarga: 'No se ha podido saber si la entrada está abierta.',
     administradores: 'Acceso de administradores',
     ayudaAdministradores: 'Lista propia de hidrantes, independiente de la app de uniformidad.',
     anadidoEl: (fecha: Parametro, quien: Parametro) => `añadido el ${fecha} por ${quien}`,
@@ -1042,6 +1062,8 @@ export const T = {
     diasPapelera: 'Días de papelera',
     bufferZona: 'Margen de la zona (m)',
     subidasDia: 'Fotos por móvil y día',
+    altasIpDia: 'Entradas desde una misma wifi al día',
+    altasGlobalHora: 'Entradas por hora, entre todos',
     metrosTramo: 'Tramo de manguera (m)',
     radiosMarcador: 'Radios de marcador (px)',
     fueraDeRango: (campo: Parametro) => `"${campo}" está fuera de rango.`,
@@ -1092,6 +1114,11 @@ export const T = {
     baseDeDatos: 'Base de datos',
     espacioDe: (mb: Parametro, total: Parametro) => `${mb} MB de ${total} MB`,
     zonaYMapaBase: 'Zona y mapa base',
+    entradasFrenadas24h: 'Entradas frenadas por el tope (24 h)',
+    abrirEntrada24h: 'abrir la entrada 24 h',
+    entradaAbiertaCorto: (dia: Parametro, hora: Parametro) => `entrada abierta hasta el ${dia} a las ${hora}`,
+    atencionFrenadas: (n: Parametro) =>
+      `${n} móviles con el código bueno no han podido entrar por el tope: abre la entrada 24 h.`,
     tareasProgramadas: 'Tareas programadas',
     tareaBien: (hace: Parametro) => `${hace} · bien`,
     tareaMal: (hace: Parametro) => `${hace} · falló o va con retraso`,

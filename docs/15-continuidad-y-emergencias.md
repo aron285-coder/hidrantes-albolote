@@ -305,11 +305,22 @@ también para ella, y lo vuelve a crear quien la mantiene, con el mismo nombre. 
 **Tiempo:** el mismo día. **Quién:** jefatura, desde el panel.
 
 1. Ajustes → Código de acceso → marcar *Revocar todos los dispositivos* → *Generar uno nuevo* →
-   confirmar.
+   confirmar. **La entrada se abre sola 24 horas** (DEC-190): todos los voluntarios vuelven a
+   entrar a la vez, desde la misma wifi si hace falta, sin que los frene el tope de entradas. Quien
+   pruebe códigos sigue frenado igual. Ajustes → Código de acceso → *Entrada* dice hasta cuándo.
 2. Revisar en la Cola las propuestas de las últimas horas antes de aprobar nada; rechazar lo que no
    cuadre.
-3. Comunicar el código nuevo por el canal habitual del grupo, no por uno público.
-4. Anotar en 11 §8.
+3. Comunicar el código nuevo por el canal habitual del grupo, no por uno público, **mientras la
+   entrada está abierta**. Si se comunica más tarde, abrirla antes: *Abrir la entrada para todos
+   (24 h)*.
+4. Cuando hayan entrado todos, se puede cerrar ya (*Cerrar ahora*); si no, se cierra sola.
+5. Anotar en 11 §8.
+
+**El día del lanzamiento (F9.10, #85)** se hace lo mismo con el código real: en Ajustes de
+producción, **primero** *Abrir la entrada para todos (24 h)* y **después** comunicar el código.
+Con la entrada cerrada solo entrarían 20 móviles desde la wifi de la sede, y el resto recibiría
+«demasiados intentos» durante un día. Si en Salud del sistema aparecen *Entradas frenadas por el
+tope*, es que alguien se ha quedado fuera: abrir la entrada desde ahí mismo.
 
 ### 5.5 Una cuenta de administrador puede estar comprometida
 

@@ -504,7 +504,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 **Ficha.** `Dirección` · `sin dirección` · `revisado [hace 2 meses] · [4 ago 2026]` · `sin revisar desde [hace 1 año]` · `Tipo` · `Diámetro` · `Tipo de enganche` · `a [80 m] de ti` · `[Conexión] · [1]/[2]` (banda y rejilla, RV-108) ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
 `Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Enganche [Granada]` ·
-`Foto no disponible sin cobertura` · `No se ha podido cargar la foto` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
+`Foto no disponible sin cobertura` · `No se ha podido cargar la foto` con `Reintentar` · `La foto sigue sin cargar` (tras reintentar) · `Sin foto` (las tres en una franja de 44 px, docs/33 RV-314) · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
@@ -530,7 +530,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
 `Tipo de enganche` · `Barcelona` · `Granada` · `Directo` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
-`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` (la ficha de la foto hecha, docs/33 RV-316) · `[Sitio] · [150] kB` ·
+`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` · `[Conexión · 18 kB]. [Repetir la foto de la conexión]` (la ficha de la foto hecha y su nombre accesible, docs/33 RV-316) · `[Sitio] · [150] kB` ·
 `Hacer foto · obligatoria` · `Foto · opcional` · `Hacer foto (opcional)` (corregir datos, docs/33 RV-316) · `mm` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
 `¿Por qué ya no existe?` · `Obras` · `Asfaltado` · `Sustituido` · `Otro` ·
@@ -583,7 +583,7 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
 `Descargado · [12] MB · [jul 2026]` · `No descargado` · `Descargar` · `Actualizar` ·
-`Puntos guardados` · `Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
+`Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
 `Avisarme cuando jefatura resuelva mis propuestas` ·
 `Cómo se usa (3 pantallas)` · `Cerrar sesión en este móvil` ·
 `Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
@@ -591,9 +591,8 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 `Panel de jefatura` (botón de la cuenta de jefatura, RV-113) · `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
 `¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Cerrando sesión…` (el botón, deshabilitado, mientras se cierra; docs/32 RV-234) · `No se ha podido cerrar la sesión. Inténtalo de nuevo.` · `Versión [0.1.0]` · `Descargando… [40] %` ·
 `No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
-`No se pudo descargar. Inténtalo de nuevo con wifi.` · `La descarga se ha parado.` con `Reintentar` (30 s sin llegar nada; docs/32 RV-235) · `[438] · sincronizado [hace 5 min]` ·
-`Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167; cada línea, `[0.6.4] · [texto]` con la versión que la trajo, DEC-142) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
-ha concedido, o no, no desalojar lo guardado; TR-07).
+`No se pudo descargar. Inténtalo de nuevo con wifi.` · `La descarga se ha parado.` con `Reintentar` (30 s sin llegar nada; docs/32 RV-235) · `[438] puntos guardados · sincronizados [hace 5 min]` · `El móvil no borrará estos datos aunque le falte espacio` · `El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo` (sin la segunda parte si ya está instalada: `El móvil podría borrar estos datos si le falta espacio`; el navegador ha concedido, o no, no desalojar lo guardado, TR-07; una sola tarjeta «Mapa sin cobertura», docs/33 RV-320) ·
+`Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167) · `Novedades de la versión [0.10.1]` con sus líneas sin repetir la versión · `Ver versiones anteriores` (plegadas, cada versión con `Versión [0.10.0]`) · `Esta versión solo trae arreglos internos.` (docs/33 RV-320) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.`.
 
 **Instalar la aplicación.** `Instalar la aplicación` · `Instalar` ·
 `Instala la aplicación en la pantalla de inicio: se abre más rápido y funciona sin cobertura.` ·
@@ -763,20 +762,20 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Se pondrá en vigor un código nuevo. Los móviles que ya tienen acceso siguen funcionando.` ·
 `Se pondrá en vigor un código nuevo y [moviles] móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.` ·
 `Se pondrá en vigor un código nuevo. No se sabe cuántos móviles se desconectarán: todos los que tienen acceso tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.` (RV-261) ·
-`Generar y poner en vigor` · `Código nuevo en vigor: [codigo]. Comunícalo al grupo.` ·
+`Generar y poner en vigor` · `Código nuevo en vigor: [codigo]. Comunícalo al grupo.` · la entrada del día del lanzamiento (docs/33 RV-338, solo con 0044): sección `Entrada` con `Abrir la entrada para todos (24 h)` y `Para el día del lanzamiento o después de cambiar el código: deja entrar a todos desde la misma wifi durante 24 horas. Quien pruebe códigos sigue frenado.`; abierta, franja verde `Entrada abierta para todos hasta el [jue 10] a las [18:30]` con `Cerrar ahora` (al abrirla, el aviso dice lo mismo; si el servidor no devuelve la hora, `Entrada abierta para todos durante 24 h.`); al cerrarla, `Entrada cerrada: vuelven los topes de entradas.`; si no se puede leer, `No se ha podido saber si la entrada está abierta.`; en la confirmación de revocar todos, `La entrada se abrirá 24 h para que todos puedan volver a entrar.` ·
 `Acceso de administradores` · `Lista propia de hidrantes, independiente de la app de uniformidad.` ·
 `añadido el [fecha] por [quien]` · `Acceso de [correo]` · `activo` · `sin acceso` ·
 `correo@albolote-pc.es` · `Sugerencias de la app de uniformidad:` ·
 `[correo] ya puede entrar en el panel.` · `[correo] se queda sin acceso al panel.` · `Parámetros` ·
 `Los móviles los aplican en su próxima sincronización.` · `Meses entre revisiones` ·
-`Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` · `Tramo de manguera (m)` ·
+`Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` · `Entradas desde una misma wifi al día` (5–500) · `Entradas por hora, entre todos` (10–500; los dos, solo con 0044) · `Tramo de manguera (m)` ·
 `Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.` (debajo del campo, al salir de él o al guardar, docs/31 RV-167) · `Parámetros guardados.` · `Núcleos` ·
 `Deducidos de OpenStreetMap. Se puede renombrar uno o añadir el que falte.` · `añadido a mano` ·
 `Renombrar` · `Nombre de [nucleo]` · `Todavía no hay núcleos.` · `Todavía no hay administradores.` (docs/31 RV-167) · `Añadir un núcleo` · `Nombre del núcleo` ·
 `Toca el mapa en el centro del núcleo: de ahí sale el municipio y a qué núcleo pertenece cada punto.` ·
 `Centro del núcleo` · `Escribe el nombre del núcleo` · `Toca el mapa para situarlo` ·
 `Núcleo "[nombre]" añadido.` · `"[antes]" ahora se llama "[ahora]".` ·
-Salud del sistema (docs/33 RV-335): arriba `Todo bien`, o `Necesita atención` con la lista: `Todavía no hay ningún respaldo.` · `El último respaldo es de [hace 9 días]: tendría que haber uno cada semana.` (más de 8 días, fuera de staging) · `La vigilancia lleva más de un día sin pasar.` · `La vigilancia no ha pasado nunca.` (fuera de staging) · `La última vigilancia dejó avisos: mira las issues.` · `La base de datos ocupa el [75] % de su espacio.` (desde el 70 %) · `Una tarea programada falla: [nombre de la tarea].` · `Una tarea programada no está programada: [nombre de la tarea].` · las filas, en este orden: `Fotos` · `Base de datos` · `Último respaldo` · `Última vigilancia` · `Errores de la aplicación (7 días)` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Zona y mapa base`, con `[112] MB de [800] MB` y una barra en Fotos y Base de datos ·
+Salud del sistema (docs/33 RV-335): arriba `Todo bien`, o `Necesita atención` con la lista: `Todavía no hay ningún respaldo.` · `El último respaldo es de [hace 9 días]: tendría que haber uno cada semana.` (más de 8 días, fuera de staging) · `La vigilancia lleva más de un día sin pasar.` · `La vigilancia no ha pasado nunca.` (fuera de staging) · `La última vigilancia dejó avisos: mira las issues.` · `La base de datos ocupa el [75] % de su espacio.` (desde el 70 %) · `Una tarea programada falla: [nombre de la tarea].` · `Una tarea programada no está programada: [nombre de la tarea].` · `[7] móviles con el código bueno no han podido entrar por el tope: abre la entrada 24 h.` (más de 5, con la entrada cerrada) · las filas, en este orden: `Fotos` · `Base de datos` · `Último respaldo` · `Última vigilancia` · `Errores de la aplicación (7 días)` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Entradas frenadas por el tope (24 h)` (con 0044: el número y el enlace `abrir la entrada 24 h`; con la entrada abierta, el número y `entrada abierta hasta el [jue 10] a las [18:30]`) · `Zona y mapa base`, con `[112] MB de [800] MB` y una barra en Fotos y Base de datos ·
 `Incidencias abiertas` ·
 `Última vigilancia` · `todo respondía` · `con avisos: mira las issues` ·
 `Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073; sin los datos de 0041) · con 0041 (docs/32 RV-262): `Las fotos ocupan el [72] % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.` (desde el 70 % del tope `max_bytes_fotos`, DEC-182) · `[112 MB de 800 MB] · medido en el último respaldo` (sin lectura en vivo del bucket, `fotos_origen = respaldo`) · `Móviles con más fotos pedidas (24 h)` · `[37] fotos · [4] sin subir` · `Ningún móvil ha pedido fotos en las últimas 24 h.` · `Revocar este móvil` (nombre accesible `Revocar este móvil ([abcd1234])`) · `revocado` · `El móvil [abcd1234] se queda sin acceso: tendrá que volver a escribir el código de acceso. Sus fotos pedidas y sin subir dejan de contar.` · `Revocar` · `Móvil [abcd1234] revocado.` ·

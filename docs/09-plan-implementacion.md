@@ -418,7 +418,8 @@ issue normal.
 - Autorizar los correos de jefatura desde Ajustes; por migración solo viene el propietario (#81).
 - Sesión presencial de 20 minutos en una reunión ordinaria: instalar, entrar, dar de alta un punto
   real en la puerta de la sede (#84).
-- Comunicar el código real al grupo (#85).
+- Comunicar el código real al grupo (#85), con la entrada abierta 24 h **antes** de comunicarlo
+  (Ajustes → Código de acceso → *Abrir la entrada para todos*; 15 §5.4, DEC-190).
 - Los contactos de 15 §10 y el traspaso a la cuenta institucional (15 §7).
 
 **Criterio de salida:** todos los casos de 10 en verde con firma de jefatura; datos del piloto en

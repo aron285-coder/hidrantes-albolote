@@ -37,7 +37,9 @@ function UnaFoto({
   const [intento, setIntento] = useState(0);
   const fallo = falloCon !== null && !(conexion === 'bien' && falloCon !== 'bien');
   if (!url || fallo) {
-    const sinCobertura = !!fotoPath && conexion !== 'bien';
+    // Sin cobertura de verdad; con el servidor de la app caído, el almacén de fotos puede contestar:
+    // se ofrece Reintentar.
+    const sinCobertura = !!fotoPath && conexion === 'sin_cobertura';
     return (
       // Sin foto, o si no carga, una franja de 44 px y no un bloque: «Cómo llegar» sube a la primera
       // pantalla (docs/33 RV-314, U5). text-texto: el suave sobre bg-linea se queda en 4,28:1 (axe).
@@ -48,7 +50,14 @@ function UnaFoto({
         <ImageOff size={18} className="shrink-0" aria-hidden />
         {etiqueta && <span className="shrink-0 font-semibold">{etiqueta}</span>}
         <span className="min-w-0 flex-1">
-          {!fotoPath ? T.ficha.sinFoto : sinCobertura ? T.ficha.fotoNoDisponible : T.ficha.fotoNoCarga}
+          {!fotoPath
+            ? T.ficha.sinFoto
+            : sinCobertura
+              ? T.ficha.fotoNoDisponible
+              : // Tras reintentar sin éxito se dice, para que no parezca que el botón no hace nada (UI-01).
+                intento > 0
+                ? T.ficha.fotoSigueSinCargar
+                : T.ficha.fotoNoCarga}
         </span>
         {/* Reintentar solo si hay a quién pedirla: con cobertura y con dirección de la foto. Sin
             cobertura se vuelve a pedir sola al volver la señal. */}
