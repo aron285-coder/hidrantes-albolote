@@ -532,7 +532,7 @@ export default function EditarPunto({
           aria-labelledby={titulo}
           aria-busy={ocupado || undefined}
           data-forma={forma}
-          className="bg-papel text-texto fixed inset-y-0 right-0 z-[950] flex w-full flex-col shadow-[0_6px_24px_rgba(14,27,48,.28)] md:max-[1099px]:w-[500px] min-[1100px]:w-[540px]"
+          className="bg-papel text-texto fixed inset-y-0 right-0 z-[950] flex w-full flex-col shadow-[0_6px_24px_rgba(14,27,48,.28)] md:max-[1100px]:w-[500px] min-[1100px]:w-[540px]"
         >
           {/* La banda enseña el estado guardado, no el que se está eligiendo. */}
           <div className={cn('flex min-h-14 shrink-0 items-center gap-3 px-4', banda.clase)}>
