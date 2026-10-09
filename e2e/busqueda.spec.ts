@@ -11,7 +11,7 @@ async function abrir(page: Page) {
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 }
 
 const buscador = (page: Page) => page.getByRole('searchbox', { name: T.mapa.buscar });
@@ -37,7 +37,7 @@ test('sin red, "calle real" enseña la calle; al elegirla, la resalta y abre ¿Q
     await navigator.serviceWorker.ready;
   });
   await page.reload(); // la segunda carga ya la controla el Service Worker, con el callejero precacheado
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
   await context.setOffline(true);
   await buscador(page).fill('c/ real');
   const calles = page.getByRole('group', { name: T.busqueda.calles });

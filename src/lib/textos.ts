@@ -129,10 +129,13 @@ export const T = {
     // docs/33 RV-310: el aviso discreto al abrir el mapa sobre el voluntario.
     centradoEnTi: 'Centrado en tu posición',
     verTodaLaZona: 'Ver toda la zona',
-    sincronizado: (hace: Parametro) => `Sincronizado ${hace}`,
-    sinCobertura: (hace: Parametro) => `Sin cobertura · datos de ${hace}`,
     sinServidor: 'Sin conexión con el servidor',
     sinEnviar: (n: Parametro) => `${n} sin enviar`,
+    // docs/33 RV-311: la píldora de la cabecera.
+    alDia: (n: Parametro) => `al día · ${n}`,
+    sinConexion: 'sin conexión',
+    // Sin cobertura, la fecha de los datos sigue a la vista (FR-80).
+    sinConexionHace: (hace: Parametro) => `sin conexión · ${hace}`,
     todos: 'Todos',
     hidrantes: 'Hidrantes',
     bocas: 'Bocas',
@@ -651,6 +654,17 @@ export const T = {
     salirSinEnviar: '¿Salir sin enviar?',
     sePierdeTodo: 'Se perderá lo que llevas, fotos incluidas.',
     seguirCorto: 'Seguir',
+  },
+
+  // docs/33 RV-311: el detalle de la sincronización, al tocar la píldora de la cabecera.
+  sincro: {
+    titulo: 'Sincronización',
+    ultima: 'Última sincronización',
+    puntos: 'Puntos guardados',
+    puntosGuardados: (n: Parametro) => `${n} en este móvil`,
+    envios: 'Envíos',
+    sincronizarAhora: 'Sincronizar ahora',
+    noSeHaPodido: 'No se ha podido sincronizar. Prueba más tarde.',
   },
 
   // docs/32 RV-230: recargar por versión nueva con envíos que solo están en memoria.

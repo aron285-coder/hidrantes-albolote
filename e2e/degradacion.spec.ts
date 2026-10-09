@@ -36,15 +36,15 @@ test.describe('degradación controlada (FR-168)', () => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null, fn_mis_propuestas: [] });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 
     // A partir de aquí no hay Supabase: ni RPC, ni auth, ni nada. La ruta nueva gana a la simulada.
     await page.route(`${SUPABASE_PRUEBAS}/**`, (r) => r.abort('connectionrefused'));
     await page.reload();
 
-    await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeVisible();
+    await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeVisible();
     // Lo que se guardó en el móvil sigue estando: es lo que un voluntario necesita en una salida.
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
     await page.getByRole('link', { name: T.navegacion.lista }).click();
     await expect(page.getByText(PUNTOS[0].codigo, { exact: true }).first()).toBeVisible();
     // Y la ficha, que es donde está el dato que se consulta delante del hidrante.
@@ -162,7 +162,7 @@ test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
     // Se descarga solo al arrancar con una conexión que lo permite (FR-81).
     await expect(page.getByText(/Descargado · /)).toBeVisible({ timeout: 20_000 });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 
     const calle = page.getByRole('radio', { name: new RegExp(T.capas.calle.replace(/[()]/g, '\\$&')) });
     await page.getByRole('button', { name: T.mapa.capas }).click();
