@@ -147,6 +147,8 @@ test('1440 px: Mis propuestas lleva la navegación de arriba, marcada como actua
     'aria-current',
     'page',
   );
+  // El punto de las novedades sin ver, también aquí.
+  await expect(page.getByTestId('punto-novedades-arriba')).toBeVisible();
   // Desde aquí, directa a Ajustes.
   await arriba.getByRole('link', { name: T.navegacion.ajustes }).click();
   await expect(page).toHaveURL(/\/ajustes$/);
