@@ -1,36 +1,43 @@
 // docs/33 RV-336: los mapas del panel dibujan Barro y No funciona con el mismo marcador que el mapa del
-// voluntario (06 §4.3, RV-319): el Inventario en modo mapa y el minimapa del detalle de la Cola.
+// voluntario (06 §4.3, RV-319): el Inventario en modo mapa y el minimapa del detalle de la Cola. Se
+// compara lo que dibuja el navegador en los dos sitios con los mismos puntos.
 
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { svgMarcador } from '../src/lib/simbologia.ts';
 import type { Punto } from '../src/tipos/punto.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas } from './ayudas.ts';
-import { PUNTOS } from './puntos.ts';
+import { conGoogle, conSesion, simularTablas } from './ayudas.ts';
+import { LISTADO, PUNTOS } from './puntos.ts';
 
-// Con el radio mayor, para que se vean al zoom con el que se abre el mapa (06 §4.4): aquí se mira el
-// dibujo, no el tamaño.
-const conRadio = (p: Punto, codigo: string, id: string, caudal: Punto['caudal']): Punto => ({
-  ...p,
-  id,
+// Todos los radios a 11 (la escala de config, la misma en el móvil y en la vista): así se ven al zoom
+// con el que se abre cada mapa (06 §4.4). Aquí se mira el dibujo, no el tamaño.
+const ESCALA = [11, 11, 11, 11, 11];
+const CONFIG = { meses_revision: 12, escala_radios: ESCALA };
+
+const punto = (base: Punto, i: number, codigo: string, caudal: Punto['caudal']): Punto => ({
+  ...base,
+  id: `5eed0000-0000-4000-8000-00000000009${i}`,
   codigo,
   caudal,
+  descripcion_fallo: '[PRUEBA] Tapa soldada',
   radio_px: 11,
   revision_caducada: false,
-});
-
-const BARRO_HID = conRadio(PUNTOS[0], 'HID-9091', '5eed0000-0000-4000-8000-000000000091', 'barro');
-const NF_HID = conRadio(PUNTOS[0], 'HID-9092', '5eed0000-0000-4000-8000-000000000092', 'no_funciona');
-const BARRO_BOC = conRadio(PUNTOS[8], 'BOC-9093', '5eed0000-0000-4000-8000-000000000093', 'barro');
-const NF_BOC = conRadio(PUNTOS[8], 'BOC-9094', '5eed0000-0000-4000-8000-000000000094', 'no_funciona');
-const LOS_CUATRO = [BARRO_HID, NF_HID, BARRO_BOC, NF_BOC].map((p, i) => ({
-  ...p,
+  fecha_ultima_revision: new Date().toISOString().slice(0, 10),
   lat: 37.2318 + i * 0.0004,
   lng: -3.6545,
-}));
+});
 
-async function prepararPanel(page: Page) {
+const LOS_CUATRO = [
+  punto(PUNTOS[0], 1, 'HID-9091', 'barro'),
+  punto(PUNTOS[0], 2, 'HID-9092', 'no_funciona'),
+  punto(PUNTOS[8], 3, 'BOC-9093', 'barro'),
+  punto(PUNTOS[8], 4, 'BOC-9094', 'no_funciona'),
+];
+const [PROPIO] = LOS_CUATRO;
+
+/** El móvil del voluntario y la sesión de jefatura en la misma página, con los cuatro puntos. */
+async function preparar(page: Page) {
+  await conSesion(page);
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
     v_puntos_activos: LOS_CUATRO,
@@ -43,32 +50,25 @@ async function prepararPanel(page: Page) {
   await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/*`, async (route) => {
     const nombre = new URL(route.request().url()).pathname.split('/').pop()!;
     const json = (d: unknown) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(d) });
-    return nombre === 'fn_es_admin' ? json(true) : json(null);
+    if (nombre === 'fn_es_admin') return json(true);
+    if (nombre === 'fn_listar_puntos') return json({ ...LISTADO, puntos: LOS_CUATRO, config: CONFIG });
+    return json(null);
   });
 }
 
-/** El SVG del marcador como lo deja el navegador, para comparar sin depender de comillas ni espacios. */
-const comoHtml = (page: Page, svg: string) =>
-  page.evaluate((s) => {
-    const d = document.createElement('div');
-    d.innerHTML = s;
-    return d.innerHTML;
-  }, svg);
+/** El SVG de cada marcador de un mapa, por su código (el `title` del marcador). */
+const svgsPorCodigo = (mapa: ReturnType<Page['locator']>) =>
+  mapa
+    .locator('.leaflet-marker-icon.marcador[title]')
+    .evaluateAll((l) => Object.fromEntries(l.map((e) => [e.getAttribute('title'), e.querySelector('svg')?.outerHTML])));
 
-test('Inventario en mapa: Barro y No funciona con el marcador del mapa del voluntario (RV-336)', async ({ page }) => {
-  await prepararPanel(page);
-  await page.goto('/admin/inventario');
-  await page.getByRole('radio', { name: T.panelInventario.mapa }).click();
-  await expect(page.getByTestId('mapa')).toBeVisible();
-  for (const p of LOS_CUATRO) {
-    const marcador = page.locator(`.leaflet-marker-icon.marcador[title="${p.codigo}"]`);
-    await expect(marcador, p.codigo).toBeVisible();
-    const esperado = await comoHtml(page, svgMarcador(p));
-    expect(await marcador.innerHTML(), p.codigo).toBe(esperado);
-  }
-});
-
-const [PROPIO] = LOS_CUATRO;
+/** Los marcadores del mapa del voluntario, cuando están los cuatro. */
+async function delVoluntario(page: Page): Promise<Record<string, string>> {
+  await page.goto('/');
+  const mapa = page.getByTestId('mapa');
+  await expect.poll(async () => Object.keys(await svgsPorCodigo(mapa)).length).toBe(LOS_CUATRO.length);
+  return (await svgsPorCodigo(mapa)) as Record<string, string>;
+}
 
 /** Una revisión pendiente sobre el primero de los cuatro, para abrir el detalle de la Cola. */
 const conPropuesta = (page: Page) =>
@@ -126,35 +126,55 @@ async function abrirDetalle(page: Page) {
   return mapa;
 }
 
-test('Cola, minimapa del detalle: el punto y los de alrededor con el marcador nuevo (RV-336)', async ({ page }) => {
-  await prepararPanel(page);
+test('Inventario en mapa: Barro y No funciona con el marcador del mapa del voluntario (RV-336)', async ({ page }) => {
+  await preparar(page);
+  const voluntario = await delVoluntario(page);
+
+  await page.goto('/admin/inventario');
+  await page.getByRole('radio', { name: T.panelInventario.mapa }).click();
+  const mapa = page.getByTestId('mapa');
+  await expect.poll(async () => svgsPorCodigo(mapa)).toEqual(voluntario);
+});
+
+test('Cola, minimapa del detalle: el punto y los de alrededor con el marcador del voluntario (RV-336)', async ({
+  page,
+}) => {
+  await preparar(page);
   await conPropuesta(page);
-  const [propio, ...alrededor] = LOS_CUATRO;
+  const voluntario = await delVoluntario(page);
+
   const mapa = await abrirDetalle(page);
-  // Los marcadores, como SVG del navegador: el del punto, sin atenuar; los de alrededor, dentro de su
-  // capa de opacidad. El dibujo es el mismo.
-  const svgs = () => mapa.locator('.leaflet-marker-icon.marcador svg').evaluateAll((l) => l.map((e) => e.outerHTML));
-  for (const p of [propio, ...alrededor]) {
-    const esperado = await comoHtml(page, svgMarcador(p));
-    await expect.poll(svgs, { message: p.codigo }).toContain(esperado);
-  }
+  // Los de alrededor llevan su código; el de la propuesta, no (va sin atenuar y sin title).
+  const { [PROPIO.codigo]: propio, ...alrededor } = voluntario;
+  await expect.poll(async () => svgsPorCodigo(mapa)).toEqual(alrededor);
+  const todos = () => mapa.locator('.leaflet-marker-icon.marcador svg').evaluateAll((l) => l.map((e) => e.outerHTML));
+  await expect.poll(todos).toContain(propio);
 });
 
 // En Tailwind 4, `max-[1099px]` es "< 1.099 px": a 1.099 px exactos no valía ni la medida de tableta
-// ni la de escritorio (`min-[1100px]`). El corte de tableta es `max-[1100px]`, "< 1.100 px".
-test.describe('a 1.099 px, la medida de tableta (DEC-158, DEC-169)', () => {
-  test.skip(({ isMobile }) => isMobile, 'una ventana de escritorio');
-  test.use({ viewport: { width: 1099, height: 900 } });
+// ni la de escritorio (`min-[1100px]`). El corte de tableta es `max-[1100px]`, "< 1.100 px". Se miran
+// los dos lados del corte.
+for (const [ancho, alturaMapa, anchoEditar, botonesAlAncho] of [
+  [1099, 280, 500, true],
+  [1100, 300, 540, false],
+] as const) {
+  test.describe(`a ${ancho} px (DEC-158, DEC-169)`, () => {
+    test.skip(({ isMobile }) => isMobile, 'una ventana de escritorio');
+    test.use({ viewport: { width: ancho, height: 900 } });
 
-  test('el mapa del detalle mide 280 px y Editar 500 px', async ({ page }) => {
-    await prepararPanel(page);
-    await conPropuesta(page);
-    const mapa = await abrirDetalle(page);
-    expect((await mapa.boundingBox())?.height).toBe(280);
+    test(`el mapa del detalle mide ${alturaMapa} px y Editar ${anchoEditar} px`, async ({ page }) => {
+      await preparar(page);
+      await conPropuesta(page);
+      const mapa = await abrirDetalle(page);
+      expect(Math.round((await mapa.boundingBox())!.height)).toBe(alturaMapa);
+      // Por debajo del corte, los botones de la barra de acciones se reparten el ancho.
+      const aprobar = page.getByRole('button', { name: T.panelCola.aprobar, exact: true });
+      await expect(aprobar).toHaveCSS('flex-grow', botonesAlAncho ? '1' : '0');
 
-    await page.goto('/admin/inventario');
-    const fila = page.getByRole('row').filter({ hasText: PROPIO.codigo });
-    await fila.getByRole('button', { name: T.panel.editar }).click();
-    expect((await page.getByRole('dialog').boundingBox())?.width).toBe(500);
+      await page.goto('/admin/inventario');
+      const fila = page.getByRole('row').filter({ hasText: PROPIO.codigo });
+      await fila.getByRole('button', { name: T.panel.editar }).click();
+      expect(Math.round((await page.getByRole('dialog').boundingBox())!.width)).toBe(anchoEditar);
+    });
   });
-});
+}
