@@ -55,6 +55,29 @@ const CLAVE_VISTAS = 'novedades_vistas';
 export const hayNovedadesSinVer = (n: NovedadesVersion = NOVEDADES) =>
   !!n.version && n.lineas.some((l) => l.version === n.version) && leer<string>(CLAVE_VISTAS) !== n.version;
 
+export interface NovedadesAgrupadas {
+  /** Las líneas de la versión instalada: van bajo «Novedades de la versión 0.x.y», sin repetirla. */
+  actual: string[];
+  /** Las de antes, por versión, en el orden del CHANGELOG (de la más nueva a la más vieja). */
+  anteriores: { version: string; lineas: string[] }[];
+}
+
+/** Ajustes sin jerga (docs/33 RV-320, U11): cada línea bajo su versión, no con la versión delante. */
+export function agruparNovedades(n: NovedadesVersion = NOVEDADES): NovedadesAgrupadas {
+  const actual: string[] = [];
+  const anteriores: { version: string; lineas: string[] }[] = [];
+  for (const l of n.lineas) {
+    if (l.version === n.version) {
+      actual.push(l.texto);
+      continue;
+    }
+    const grupo = anteriores.find((g) => g.version === l.version);
+    if (grupo) grupo.lineas.push(l.texto);
+    else anteriores.push({ version: l.version, lineas: [l.texto] });
+  }
+  return { actual, anteriores };
+}
+
 export function marcarNovedadesVistas(n: NovedadesVersion = NOVEDADES): void {
   if (n.version) escribir(CLAVE_VISTAS, n.version);
 }

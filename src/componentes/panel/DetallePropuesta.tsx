@@ -357,7 +357,7 @@ export function DetallePropuesta({
             bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>
           )}
           {avisoEspera}
-          <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
+          <div className="flex gap-3 max-[1100px]:[&>*]:flex-1 max-[1100px]:[&>*]:px-2">
             {/* La acción principal, delante, cuando el punto ya no existe (RV-330). */}
             {bloqueado && (
               <Boton variante="destructivo" disabled={ocupado} onClick={() => setModo('rechazar')}>
@@ -572,7 +572,7 @@ function AvisoDesactualizada({ p }: { p: PropuestaPanel }) {
   );
 }
 
-const ALTO_FOTO = 'h-[110px] md:max-[1099px]:h-[220px] min-[1100px]:h-[200px]';
+const ALTO_FOTO = 'h-[110px] md:max-[1100px]:h-[220px] min-[1100px]:h-[200px]';
 
 /** Una foto del detalle. Si no carga, lo dice con palabras en su hueco y queda anotado (UI-04). */
 function UnaFoto({ foto: f }: { foto: FotoDetalle }) {

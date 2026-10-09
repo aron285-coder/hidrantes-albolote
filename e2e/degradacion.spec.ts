@@ -137,7 +137,7 @@ test.describe('degradación controlada (FR-168)', () => {
       // Medio lleno: ni banda ni alarmismo, solo el dato de siempre.
       await page.goto('/admin/ajustes');
       const salud96 = T.panelAjustes.almacenamientoLleno(96);
-      await expect(page.getByText(T.panelAjustes.almacenamiento)).toBeVisible();
+      await expect(page.getByText(T.panelAjustes.fotos, { exact: true })).toBeVisible();
       await expect(page.getByText(salud96)).toBeHidden();
 
       // Al 96 %, la banda con qué hacer antes de que se llene.

@@ -54,6 +54,23 @@ describe('lineaPropuesta (docs/33 RV-315)', () => {
     expect(lineaPropuesta('retirada', {})).toBe('Retirada');
   });
 
+  it('lo de antes vacío o sin saber: solo lo nuevo, sin «ninguno →»', () => {
+    expect(lineaPropuesta('datos', { racor: 'directo' }, { racor: null })).toBe('Tipo de enganche: Directo');
+    expect(lineaPropuesta('datos', { descripcion: 'Junto al bar' }, { descripcion: null })).toBe(
+      'Descripción: Junto al bar',
+    );
+    expect(lineaPropuesta('estado', { caudal: 'malo' }, null)).toBe('Malo');
+    expect(lineaPropuesta('estado', { nota: 'x' })).toBe('Estado');
+  });
+
+  it('retirada con «Otro» y sin escribir nada: «Retirada: Otro»', () => {
+    expect(lineaPropuesta('retirada', { motivo_rapido: 'otro', motivo: '' })).toBe('Retirada: Otro');
+  });
+
+  it('una operación que esta versión no conoce: sin línea', () => {
+    expect(lineaPropuesta('fusion' as never, { caudal: 'malo' })).toBe('');
+  });
+
   it('unos datos raros no rompen la línea', () => {
     expect(lineaPropuesta('estado', null)).toBe('Estado');
     expect(lineaPropuesta('datos', ['x'])).toBe('Corregir datos');

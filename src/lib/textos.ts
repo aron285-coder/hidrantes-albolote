@@ -225,6 +225,7 @@ export const T = {
     sinFoto: 'Sin foto',
     // docs/33 RV-314: la foto que no ha cargado se vuelve a pedir.
     reintentarFoto: 'Reintentar',
+    fotoSigueSinCargar: 'La foto sigue sin cargar',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
     fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
     // docs/24 RV-102a: un estado que esta versión de la app no conoce.
@@ -413,6 +414,8 @@ export const T = {
     // docs/33 RV-316 (D9): tocar la ficha de una foto hecha la repite.
     repetirFotoConexion: 'Repetir la foto de la conexión',
     repetirFotoSitio: 'Repetir la foto del sitio',
+    // El nombre de la ficha para quien no ve la pantalla: lo que se ve y lo que hace (WCAG 2.5.3).
+    fichaFotoHecha: (hecho: Parametro, accion: Parametro) => `${hecho}. ${accion}`,
     unidadMm: 'mm',
     huecoHecho: (que: Parametro, kb: Parametro) => `${que} · ${kb} kB`,
     descripcionOpcional: 'Descripción (opcional)',
@@ -538,7 +541,6 @@ export const T = {
     noDescargado: 'No descargado',
     descargar: 'Descargar',
     actualizar: 'Actualizar',
-    puntosGuardados: 'Puntos guardados',
     sincronizar: 'Sincronizar',
     capaPorDefecto: 'Capa por defecto',
     modoOscuro: 'Modo oscuro',
@@ -577,10 +579,16 @@ export const T = {
     // docs/32 RV-235: 30 s sin llegar nada.
     descargaParada: 'La descarga se ha parado.',
     reintentar: 'Reintentar',
-    puntosGuardadosDetalle: (n: Parametro, hace: Parametro) => `${n} · sincronizado ${hace}`,
+    // docs/33 RV-320 (U11): una sola tarjeta «Mapa sin cobertura», sin jerga.
+    puntosGuardadosLinea: (n: Parametro, hace: Parametro) => `${n} puntos guardados · sincronizados ${hace}`,
     sinSincronizar: 'Todavía sin sincronizar',
-    guardadoProtegido: 'Guardado protegido',
-    guardadoProtegidoValor: (si: boolean) => (si ? 'sí' : 'no'),
+    guardadoProtegidoSi: 'El móvil no borrará estos datos aunque le falte espacio',
+    guardadoProtegidoNo: 'El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo',
+    // Ya instalada, el consejo no sirve (algunos navegadores no protegen ni así).
+    guardadoProtegidoNoInstalada: 'El móvil podría borrar estos datos si le falta espacio',
+    novedadesDeLaVersion: (version: Parametro) => `Novedades de la versión ${version}`,
+    verVersionesAnteriores: 'Ver versiones anteriores',
+    sinNovedadesVersion: 'Esta versión solo trae arreglos internos.',
     avisos: 'Avisos',
     perderasEnvios: (n: Parametro) => `Tienes ${n} envíos sin mandar: se perderán.`,
   },
@@ -1061,22 +1069,37 @@ export const T = {
     faltaPosicion: 'Toca el mapa para situarlo',
     nucleoAnadido: (nombre: Parametro) => `Núcleo "${nombre}" añadido.`,
     nucleoRenombrado: (antes: Parametro, ahora: Parametro) => `"${antes}" ahora se llama "${ahora}".`,
-    pendientes14: 'Propuestas pendientes de más de 14 días',
     errores7: 'Errores de la aplicación (7 días)',
-    sinDireccion: 'Puntos sin dirección deducida',
     ultimoRespaldo: 'Último respaldo',
     ultimaVigilancia: 'Última vigilancia',
     vigilanciaBien: 'todo respondía',
     vigilanciaMal: 'con avisos: mira las issues',
-    almacenamiento: 'Almacenamiento usado',
+    // docs/33 RV-335 (U13): Salud en palabras, con un resumen arriba.
+    fotos: 'Fotos',
+    todoBien: 'Todo bien',
+    necesitaAtencion: 'Necesita atención',
+    atencionSinRespaldo: 'Todavía no hay ningún respaldo.',
+    atencionRespaldoViejo: (hace: Parametro) => `El último respaldo es de ${hace}: tendría que haber uno cada semana.`,
+    atencionVigilancia: 'La vigilancia lleva más de un día sin pasar.',
+    atencionSinVigilancia: 'La vigilancia no ha pasado nunca.',
+    atencionVigilanciaAvisos: 'La última vigilancia dejó avisos: mira las issues.',
+    atencionBaseDeDatos: (porcentaje: Parametro) => `La base de datos ocupa el ${porcentaje} % de su espacio.`,
+    atencionTarea: (tarea: Parametro) => `Una tarea programada falla: ${tarea}.`,
+    atencionTareaFalta: (tarea: Parametro) => `Una tarea programada no está programada: ${tarea}.`,
+    nombresTareas: {
+      hidrantes_purgar_intentos: 'Borrar intentos de código viejos (cada hora)',
+      hidrantes_revocar_tokens: 'Quitar el acceso a los móviles que no se usan (cada día)',
+      hidrantes_purgar_notificaciones: 'Borrar avisos viejos (cada día)',
+      hidrantes_purgar_papelera: 'Vaciar lo caducado de la papelera (cada día)',
+      hidrantes_purgar_subidas: 'Borrar reservas de fotos viejas (cada día)',
+    },
     almacenamientoLleno: (porcentaje: Parametro) =>
       `Las fotos ocupan el ${porcentaje} % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.`,
-    zonaYMapa: 'Zona de cobertura · mapa base',
-    callejero: 'Callejero sin conexión',
     dispositivosActivos: 'Móviles con acceso',
     intentosFallidos24h: 'Códigos de acceso fallidos (24 h)',
     baseDeDatos: 'Base de datos',
-    baseDeDatosDetalle: (mb: Parametro, total: Parametro) => `${mb} MB de ${total} MB`,
+    espacioDe: (mb: Parametro, total: Parametro) => `${mb} MB de ${total} MB`,
+    zonaYMapaBase: 'Zona y mapa base',
     tareasProgramadas: 'Tareas programadas',
     tareaBien: (hace: Parametro) => `${hace} · bien`,
     tareaMal: (hace: Parametro) => `${hace} · falló o va con retraso`,
@@ -1086,8 +1109,6 @@ export const T = {
     tareasSegunVigilancia: (hace: Parametro) => `Según la vigilancia de ${hace}`,
     tareasSegunUltimaVigilancia: 'Según la última vigilancia',
     vigilanciaAtrasada: 'lleva más de un día sin pasar',
-    topesAlcanzados24h: 'Entradas bloqueadas por demasiados intentos (24 h)',
-    topesDetalle: (n: Parametro, grupo: Parametro) => `${n} · de todo el grupo: ${grupo}`,
     nunca: 'todavía ninguno',
     // En staging no se hacen respaldos: solo de producción (docs/20 RV-78).
     respaldoNoAplica: 'no se respalda: entorno de pruebas',
@@ -1105,7 +1126,6 @@ export const T = {
     pedidoError: (motivo: Parametro) => `error: ${motivo}`,
     pedidoErrorSinMotivo: 'error',
     // docs/32 RV-262: espacio de fotos y de la base de datos, y los móviles con más fotos pedidas.
-    espacioDetalle: (mb: Parametro, pct: Parametro, total: Parametro) => `${mb} MB · ${pct} % de ${total} MB`,
     espacioFotosLleno: (porcentaje: Parametro) =>
       `Las fotos ocupan el ${porcentaje} % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.`,
     espacioSegunRespaldo: (texto: Parametro) => `${texto} · medido en el último respaldo`,
@@ -1197,7 +1217,8 @@ export const T = {
     excel: 'Excel',
     csv: 'CSV',
     geojson: 'GeoJSON',
-    descargarInventario: 'Descargar inventario (JSON)',
+    // docs/33 RV-335: la cuarta opción de Exportar ▾ (antes, un botón en Salud del sistema).
+    inventarioCompletoJson: 'Inventario completo (JSON)',
     purgarFotos: 'Purgar fotos huérfanas',
     generarNuevo: 'Generar uno nuevo',
     revocarTodos: 'Revocar todos los dispositivos',
