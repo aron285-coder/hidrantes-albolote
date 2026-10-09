@@ -17,7 +17,7 @@ import { guardarVista, vistaGuardada } from '@/lib/vista';
 export interface ControlMapa {
   centrar(lat: number, lng: number, zoom?: number): void;
   /** Encuadra un recuadro [[sur, oeste], [norte, este]] sin que lo tapen la búsqueda ni la hoja. */
-  encuadrar(recuadro: [[number, number], [number, number]], margenInferior?: number): void;
+  encuadrar(recuadro: [[number, number], [number, number]], margenInferior?: number, maxZoom?: number): void;
   acercar(): void;
   alejar(): void;
   /** Centra a un zoom exacto (el de calle al abrir la aplicación, RV-310). */
@@ -212,7 +212,8 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     const tecla = (e: KeyboardEvent) => {
       if (e.key.startsWith('Arrow') || ['+', '-', '='].includes(e.key)) movido();
     };
-    m.on('dragstart', movido);
+    // Doble toque o doble clic y mayúsculas + arrastrar también son zoom del voluntario.
+    m.on('dragstart dblclick boxzoomstart', movido);
     lienzo.addEventListener('wheel', movido, { passive: true });
     lienzo.addEventListener('touchstart', conDosDedos, { passive: true });
     lienzo.addEventListener('keydown', tecla);
@@ -236,11 +237,11 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     centrar(lat, lng, zoom) {
       mapa.current?.setView([lat, lng], Math.max(zoom ?? 17, mapa.current.getZoom()));
     },
-    encuadrar(recuadro, margenInferior = 0) {
+    encuadrar(recuadro, margenInferior = 0, maxZoom = 18) {
       mapa.current?.fitBounds(recuadro, {
         paddingTopLeft: [56, 132],
         paddingBottomRight: [72, 48 + margenInferior],
-        maxZoom: 18,
+        maxZoom,
         animate: false,
       });
     },

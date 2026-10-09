@@ -51,6 +51,29 @@ export function centroGuardado(): LatLng | null {
   return v ? { lat: v.centro[0], lng: v.centro[1] } : null;
 }
 
+/**
+ * El voluntario ya ha movido el mapa (o ha ido a algo concreto) en esta sesión: desde entonces se
+ * respeta donde lo deja y ya no se coloca solo al abrirlo (RV-310). Va aparte de la vista, que se
+ * guarda también con los movimientos que hace la aplicación.
+ */
+export const VISTA_MOVIDA = 'hidrantes.vista_movida';
+
+export function marcarVistaMovida(): void {
+  try {
+    sesion()?.setItem(VISTA_MOVIDA, '1');
+  } catch {
+    // sin almacenamiento: al volver, el mapa se coloca otra vez como al abrir la aplicación
+  }
+}
+
+export function vistaMovida(): boolean {
+  try {
+    return sesion()?.getItem(VISTA_MOVIDA) === '1';
+  } catch {
+    return false;
+  }
+}
+
 /** Las versiones anteriores la guardaban para siempre: se borra para no dejar dónde estuvo el mapa. */
 export function olvidarVistaAntigua(): void {
   try {

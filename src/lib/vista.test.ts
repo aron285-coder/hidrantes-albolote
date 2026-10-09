@@ -2,7 +2,15 @@
 // solo dura la sesión (docs/33 RV-310).
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { VISTA, debeGuardarVista, guardarVista, olvidarVistaAntigua, vistaGuardada } from './vista';
+import {
+  VISTA,
+  debeGuardarVista,
+  guardarVista,
+  marcarVistaMovida,
+  olvidarVistaAntigua,
+  vistaGuardada,
+  vistaMovida,
+} from './vista';
 import { almacenEnMemoria } from './pruebas';
 
 afterEach(() => vi.unstubAllGlobals());
@@ -60,6 +68,14 @@ describe('vista del mapa', () => {
     vi.stubGlobal('location', { search: '' });
     guardarVista({ lat: 37.23, lng: -3.65 }, 18);
     expect(datos.has(VISTA)).toBe(true);
+  });
+
+  it('«ya lo movió» va aparte de la vista, que también guarda lo que mueve la aplicación', () => {
+    sesionEnMemoria();
+    guardarVista({ lat: 37.23, lng: -3.65 }, 16, '');
+    expect(vistaMovida()).toBe(false);
+    marcarVistaMovida();
+    expect(vistaMovida()).toBe(true);
   });
 
   it('sin almacenamiento de sesión no falla', () => {

@@ -41,6 +41,12 @@ describe('encuadre al abrir el mapa (RV-310)', () => {
     expect(encuadreInicial({ ...ALBOLOTE, lat: 40.4168, lng: -3.7038 }, PUNTOS, AHORA).tipo).toBe('puntos');
   });
 
+  it('con un solo punto, un recuadro de lado cero (Mapa lo limita a zoom de calle)', () => {
+    const e = encuadreInicial(null, [PUNTOS[0]!], AHORA);
+    expect(e.tipo === 'puntos' && e.recuadro[0]).toEqual([37.23, -3.66]);
+    expect(e.tipo === 'puntos' && e.recuadro[1]).toEqual([37.23, -3.66]);
+  });
+
   it('sin posición ni puntos: nada que encuadrar (se queda la zona)', () => {
     expect(encuadreInicial(null, [], AHORA)).toEqual({ tipo: 'nada' });
   });

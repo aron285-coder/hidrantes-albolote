@@ -43,8 +43,8 @@ import {
 import { esPruebas } from '@/lib/entorno';
 import { buscar, metrosTramoManguera } from '@/lib/puntos';
 import { ESTILO_PANEL_FLOTANTE, MARGEN_FICHA_PX, RESERVA_DERECHA, ZONA_ABAJO } from '@/lib/disposicion-mapa';
-import { type EncuadreInicial, encuadreInicial } from '@/lib/encuadre-inicial';
-import { vistaGuardada } from '@/lib/vista';
+import { type EncuadreInicial, ZOOM_CALLE, encuadreInicial } from '@/lib/encuadre-inicial';
+import { marcarVistaMovida, vistaMovida } from '@/lib/vista';
 import { T } from '@/lib/textos';
 
 type LatLngMedida = { lat: number; lng: number };
@@ -270,16 +270,22 @@ export function Mapa() {
 
   // Al abrir la aplicación (RV-310, U1): el mapa se coloca solo, sobre el voluntario o con todos los
   // puntos, hasta que él lo mueva o abra algo. Los puntos y el GPS llegan después del primer pintado:
-  // cada vez que llega algo se vuelve a colocar. Si ya lo vio en esta sesión, se queda como estaba.
-  const [colocarSolo, setColocarSolo] = useState(
-    () => vistaGuardada() === null && !seleccionado && !incidenteParam && !aquiParam && !midiendo && !enfoque,
-  );
+  // cada vez que llega algo se vuelve a colocar. Si ya lo movió en esta sesión, o abrió un punto, un
+  // resultado, un incidente o ¿Qué hay aquí?, se respeta donde lo dejó.
+  const aAlgoConcreto = !!(seleccionado || incidenteParam || aquiParam || midiendo || enfoque);
+  const [colocarSolo, setColocarSolo] = useState(() => !vistaMovida() && !aAlgoConcreto);
+  useEffect(() => {
+    if (aAlgoConcreto) marcarVistaMovida();
+  }, [aAlgoConcreto]);
   const [encuadre, setEncuadre] = useState<EncuadreInicial>({ tipo: 'nada' });
   const [avisoCentrado, setAvisoCentrado] = useState(false);
+  // Con el foco o el ratón encima, el aviso no se va (WCAG 2.2.1).
+  const [avisoRetenido, setAvisoRetenido] = useState(false);
+  const encuadreAhora = useMemo(() => encuadreInicial(pos, puntos), [pos, puntos]);
   if (colocarSolo) {
-    if (seleccionado || incidenteParam || aquiParam || midiendo || enfoque) setColocarSolo(false);
+    if (aAlgoConcreto) setColocarSolo(false);
     else {
-      const e = encuadreInicial(pos, puntos);
+      const e = encuadreAhora;
       if (e.tipo === 'posicion') {
         // Sobre el voluntario una vez, y se deja: seguirle a cada lectura del GPS no se ha pedido.
         setColocarSolo(false);
@@ -292,19 +298,21 @@ export function Mapa() {
   useEffect(() => {
     if (encuadre.tipo === 'posicion') control.current?.colocar(encuadre.lat, encuadre.lng, encuadre.zoom);
     // Sin taparlos con Cercanos y el + de abajo.
-    else if (encuadre.tipo === 'puntos') control.current?.encuadrar(encuadre.recuadro, ZONA_ABAJO - 48);
+    // Con un solo punto, a zoom de calle y no al máximo.
+    else if (encuadre.tipo === 'puntos') control.current?.encuadrar(encuadre.recuadro, ZONA_ABAJO - 48, ZOOM_CALLE);
   }, [encuadre]);
   /** El voluntario mueve el mapa: ya no se coloca solo ni sigue centrado en él. */
   const alMoverElMapa = () => {
+    marcarVistaMovida();
     setColocarSolo(false);
     setSiguiendo(false);
   };
   // El aviso "Centrado en tu posición" se va solo a los 4 s.
   useEffect(() => {
-    if (!avisoCentrado) return;
+    if (!avisoCentrado || avisoRetenido) return;
     const t = setTimeout(() => setAvisoCentrado(false), 4_000);
     return () => clearTimeout(t);
-  }, [avisoCentrado]);
+  }, [avisoCentrado, avisoRetenido]);
 
   // Sin cobertura, la capa elegida deja de pintarse y hay que decirlo (UI-04). También el Catastro,
   // aunque debajo siga el mapa base: si no, el plano de parcelas desaparece sin explicación. Con el
@@ -560,7 +568,7 @@ export function Mapa() {
             )}
             <Control
               etiqueta={T.mapa.miPosicion}
-              pulsado={siguiendo}
+              pulsado={siguiendo && !!pos}
               onClick={() => {
                 activarPosicion();
                 setColocarSolo(false);
@@ -615,6 +623,10 @@ export function Mapa() {
             {avisoCentrado && (
               <p
                 role="status"
+                onFocus={() => setAvisoRetenido(true)}
+                onBlur={() => setAvisoRetenido(false)}
+                onMouseEnter={() => setAvisoRetenido(true)}
+                onMouseLeave={() => setAvisoRetenido(false)}
                 className="bg-papel text-texto rounded-tarjeta flex items-center gap-2 py-0.5 pr-1 pl-2.5 text-[13px] shadow"
               >
                 <LocateFixed size={16} className="shrink-0" aria-hidden />
@@ -623,6 +635,7 @@ export function Mapa() {
                   type="button"
                   onClick={() => {
                     setAvisoCentrado(false);
+                    setAvisoRetenido(false);
                     alMoverElMapa();
                     control.current?.verZona();
                   }}

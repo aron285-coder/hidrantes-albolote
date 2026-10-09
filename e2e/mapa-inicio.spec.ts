@@ -2,7 +2,7 @@
 // la zona, a zoom de calle (17) sobre él; sin posición, con todos los puntos a la vista. Si ya movió
 // el mapa en esta sesión, se respeta. La leyenda, plegada.
 
-import { expect, test, type Page } from '@playwright/test';
+import { type BrowserContext, expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { conSesion, simularRpc } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
@@ -15,6 +15,26 @@ async function abrir(page: Page, { esperarPuntos = true } = {}) {
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_ficha_punto: PUNTOS[0], fn_registrar_error: null });
   await page.goto('/');
   if (esperarPuntos) await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+}
+
+type Fix = { __fix: (lat: number, lng: number, precision: number) => void };
+
+/** GPS que responde cuando lo dice el test (`__fix`), como el de incidente.spec.ts. */
+async function gpsAMano(page: Page, context: BrowserContext) {
+  await context.grantPermissions(['geolocation']);
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>;
+    const geo = {
+      watchPosition(ok: PositionCallback) {
+        w.__fix = (lat: number, lng: number, accuracy: number) =>
+          ok({ coords: { latitude: lat, longitude: lng, accuracy }, timestamp: Date.now() } as GeolocationPosition);
+        return 1;
+      },
+      clearWatch() {},
+      getCurrentPosition() {},
+    };
+    Object.defineProperty(navigator, 'geolocation', { value: geo, configurable: true });
+  });
 }
 
 /** El aviso dura 4 s: se busca nada más abrir, sin esperar a nada más. */
@@ -83,6 +103,70 @@ test.describe('el mapa se abre donde está el voluntario (RV-310)', () => {
       );
     await expect.poll(fuera, { timeout: 10_000 }).toEqual([]);
     await expect(avisoCentrado(page)).toHaveCount(0);
+  });
+
+  test('el GPS llega después de los puntos: se centra en él si no ha tocado el mapa', async ({ page, context }) => {
+    await gpsAMano(page, context);
+    await abrir(page);
+    await expect(page.locator('.marcador')).toHaveCount(PUNTOS.length);
+    await page.evaluate(
+      ([lat, lng]) => (window as unknown as Fix).__fix(lat!, lng!, 10),
+      [AQUI.latitude, AQUI.longitude],
+    );
+    await expect.poll(() => zoom(page)).toBe(17);
+    await expect(avisoCentrado(page)).toBeVisible();
+  });
+
+  test('si mueve el mapa antes de que llegue el GPS, no se le recentra', async ({ page, context }) => {
+    await gpsAMano(page, context);
+    await abrir(page);
+    await expect(page.locator('.marcador')).toHaveCount(PUNTOS.length);
+    await page.getByTestId('mapa').hover();
+    await page.mouse.wheel(0, 400);
+    await expect.poll(() => zoom(page)).toBeLessThan(16);
+    const antes = await zoom(page);
+    await page.evaluate(
+      ([lat, lng]) => (window as unknown as Fix).__fix(lat!, lng!, 10),
+      [AQUI.latitude, AQUI.longitude],
+    );
+    await page.waitForTimeout(500);
+    expect(await zoom(page)).toBe(antes);
+    await expect(avisoCentrado(page)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: T.mapa.miPosicion })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('ir a la Lista y volver sin haber tocado el mapa: aún se centra al llegar el GPS', async ({ page, context }) => {
+    test.skip((page.viewportSize()?.width ?? 0) >= 1100, 'en ordenador la lista va al lado del mapa');
+    await gpsAMano(page, context);
+    await abrir(page);
+    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    await page.getByRole('link', { name: T.navegacion.mapa }).click();
+    await expect(mapa(page)).toBeVisible();
+    await page.evaluate(
+      ([lat, lng]) => (window as unknown as Fix).__fix(lat!, lng!, 10),
+      [AQUI.latitude, AQUI.longitude],
+    );
+    await expect.poll(() => zoom(page)).toBe(17);
+  });
+
+  test('abierto desde un enlace a un incidente, no salta a la posición del voluntario', async ({ page, context }) => {
+    await context.grantPermissions(['geolocation']);
+    await context.setGeolocation({ ...AQUI, accuracy: 10 });
+    await conSesion(page);
+    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+    await page.goto('/?incidente=37.2320,-3.6550');
+    await expect(page.locator('.marca-incidente')).toBeVisible();
+    await page.waitForTimeout(1000);
+    const c = await centro(page);
+    expect(Math.abs(c.lat - AQUI.latitude) + Math.abs(c.lng - AQUI.longitude)).toBeGreaterThan(0.0005);
+    await expect(avisoCentrado(page)).toHaveCount(0);
+  });
+
+  test('sin permiso, «Mi posición» no se queda marcado', async ({ page }) => {
+    await abrir(page);
+    await page.getByRole('button', { name: T.mapa.miPosicion }).click();
+    await expect(page.getByText(T.mapa.posicionDenegada).or(page.getByText(T.mapa.buscandoPosicion))).toBeVisible();
+    await expect(page.getByRole('button', { name: T.mapa.miPosicion })).toHaveAttribute('aria-pressed', 'false');
   });
 
   test('la leyenda empieza plegada, también la primera vez', async ({ page }) => {
