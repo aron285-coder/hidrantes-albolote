@@ -713,7 +713,7 @@ describe('revisar_bd (RV-78)', () => {
           *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
           *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
           *ultimo_respaldo*) echo 3 ;;
-          *fn_espacio*) echo 'storage 10 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok' ;;
+          *fn_espacio*) echo 'storage 10 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok 0' ;;
           *notificaciones*) echo 0 ;;
           *intentos_codigo*) echo "$INTENTOS" ;;
           *) echo 1 ;;
@@ -801,6 +801,9 @@ describe('revisar_bd (RV-78)', () => {
     expect(correr('produccion', BIEN, '', '0 0 5').salida.trim()).toBe('FIN');
     // Una base sin 0044 da dos columnas: no es un problema.
     expect(correr('produccion', BIEN, '', '0 0').salida.trim()).toBe('FIN');
+    // Con la entrada ya abierta no se pide abrirla.
+    expect(correr('produccion', BIEN, '', '0 0 6 t').salida.trim()).toBe('FIN');
+    expect(correr('produccion', BIEN, '', '0 0 6 f').salida).toContain('Hay voluntarios que no pueden entrar');
   });
 
   it('la consulta de los frenados no falla en una base sin la columna codigo_correcto (0044)', () => {
@@ -842,7 +845,7 @@ describe('revisar_espacio (RV-220, RV-221)', () => {
    * las nueve columnas de antes se completa con un total bajo.
    */
   const conTotal = (espacio: string) =>
-    espacio.split(' ').length === 9 ? `${espacio} 120 500 f 80 50 5 1 64 ok` : espacio;
+    espacio.split(' ').length === 9 ? `${espacio} 120 500 f 80 50 5 1 64 ok 0` : espacio;
   const correr = (espacio: string, { push = '2', falla = '' } = {}) => {
     const guion = [
       'set -uo pipefail',
@@ -937,7 +940,7 @@ describe('revisar_espacio (RV-220, RV-221)', () => {
   });
 
   it('toda la base de datos del proyecto al 80 % o más: problema con el desglose y un aviso push', () => {
-    const r = correr('storage 100 800 f 50 400 f 70 0 410 500 t 80 50 300 20 40 ok');
+    const r = correr('storage 100 800 f 50 400 f 70 0 410 500 t 80 50 300 20 40 ok 0');
     expect(r.problemas).toEqual([
       expect.stringContaining(
         'toda la base de datos del proyecto ocupa 410 MB de 500 (aviso al 80 %): hidrantes 50 MB, historial de pg_cron 300 MB',
@@ -945,15 +948,24 @@ describe('revisar_espacio (RV-220, RV-221)', () => {
     ]);
     expect(r.problemas[0]).not.toContain('grant delete');
     expect(r.pushes).toBe(1);
-    const sinPermiso = correr('storage 100 800 f 50 400 f 70 0 410 500 t 80 50 300 20 40 sin_permiso');
-    expect(sinPermiso.problemas[0]).toContain('falta el grant delete de supabase/sql/arranque-bd.sql');
+  });
+
+  it('el historial de pg_cron que no se borra es un problema, con la causa si falta el permiso', () => {
+    const viejo = correr('storage 100 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok 12');
+    expect(viejo.problemas).toEqual([expect.stringContaining('el historial de pg_cron tiene 12 ejecuciones')]);
+    expect(viejo.pushes).toBe(0);
+    const sinPermiso = correr('storage 100 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 sin_permiso 12');
+    expect(sinPermiso.problemas[0]).toContain('falta el grant delete on cron.job_run_details');
+    expect(correr('storage 100 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 sin_permiso 0').problemas).toEqual([]);
+    const ilegible = correr('storage 100 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok -1');
+    expect(ilegible.problemas).toEqual([expect.stringContaining('no se puede leer el historial de pg_cron')]);
   });
 
   it('el tope de la base de datos lee el esquema (esquema_bytes), y sin 0044 el total como antes', () => {
     const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
     expect(guion).toContain("coalesce(e ->> 'esquema_bytes', e ->> 'bd_bytes')::bigint >= (e ->> 'aviso')::numeric");
     expect(correr('storage 100 800 f 290 400 t 70 0').problemas[0]).toContain('en el esquema hidrantes');
-    const raro = correr('storage 100 800 f 50 400 f 70 0 410 500 t 80 50 300 20 40 quizas');
+    const raro = correr('storage 100 800 f 50 400 f 70 0 410 500 t 80 50 300 20 40 quizas 0');
     expect(raro.problemas).toEqual([expect.stringContaining('no entiende')]);
   });
 

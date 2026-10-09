@@ -752,7 +752,8 @@ fn_salud() returns jsonb
   --   entrada_abierta_hasta (RV-300): timestamptz si la entrada está abierta para todos; null si no
   --     (también si la hora ya pasó).
   --   bd_pct (RV-301) pasa a ser esquema_bytes sobre max_bytes_bd (lo que frena las propuestas);
-  --     max_bytes_bd_total (524.288.000) y bd_total_pct (bd_bytes sobre ese tope) para el total.
+  --     max_bytes_bd_total (524.288.000) y bd_total_pct (bd_bytes sobre ese tope) para el total;
+  --     cron_purga ('ok' | 'sin_permiso'), como en fn_espacio.
   --   reservas_abiertas y reservas_dispositivos_24h[].abiertas ya no cuentan las liberadas (RV-302).
   -- tareas: una fila por tarea hidrantes_% de pg_cron, { tarea, ultima, fallo, falta, problema }.
   --   Desde 0031 sale **en vivo** de fn_tareas_programadas() y tareas_origen = 'en_vivo'. Si esa
@@ -818,7 +819,9 @@ fn_espacio() returns jsonb
   -- 0044 (docs/33 RV-301), además: esquema_bytes (fn_bytes_esquema(), contra max_bytes_bd al 70 %);
   --   max_bytes_bd_total (524.288.000) y aviso_total (0.8) para bd_bytes, el total del proyecto;
   --   bd_desglose { hidrantes, cron (cron.job_run_details), net (net._http_response), resto }, en
-  --   bytes; cron_purga: 'ok' | 'sin_permiso' (si hidrantes_purgar_registros_cron puede borrar, §5).
+  --   bytes; cron_purga: 'ok' | 'sin_permiso' (si hidrantes_purgar_registros_cron puede borrar, §5);
+  --   cron_antiguas: ejecuciones de tareas hidrantes_% de más de 11 días (-1 si no se puede leer): la
+  --   vigilancia avisa si hay alguna, porque entonces la purga no está borrando.
   --   bd_bytes sigue siendo el total (la vigilancia anterior lo lee).
 -- 0044 (docs/33 RV-301): solo pg_cron (hidrantes_purgar_registros_cron, cada día a las 04:17 UTC).
 -- Borra de cron.job_run_details las ejecuciones de más de 10 días de las tareas hidrantes_%. 10 y no

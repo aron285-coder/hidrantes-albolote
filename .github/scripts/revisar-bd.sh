@@ -60,18 +60,20 @@ revisar_bd() {
   revisar_espacio "$bd"
   # Intentos del código de acceso (RV-14, TR-41): muchos fallos o un tope de todo el grupo
   # alcanzado son la huella de un ataque, y los voluntarios con móvil nuevo no podrían entrar.
-  # La tercera columna (docs/33 RV-300, 0044): móviles con el código bueno frenados por un tope de
-  # canjes buenos. Se lee con to_jsonb para que la consulta no falle en una base sin 0044.
+  # Tercera y cuarta columna (docs/33 RV-300, 0044): móviles con el código bueno frenados por un tope
+  # de canjes buenos desde la última vez que se abrió la entrada, y si la entrada está abierta ahora
+  # (entonces no se pide abrirla). codigo_correcto se lee con to_jsonb para que la consulta no falle en
+  # una base sin 0044.
   if ! intentos=$(psql -X -A -t -F ' ' -v ON_ERROR_STOP=1 "$bd" -c \
-    "select count(*) filter (where not exito and not bloqueado), count(*) filter (where bloqueado and tope in ('global', 'altas_global')), count(distinct coalesce(dispositivo_id::text, ip_hash)) filter (where bloqueado and tope in ('altas_ip', 'altas_global') and coalesce((to_jsonb(i) ->> 'codigo_correcto')::boolean, false)) from hidrantes.intentos_codigo i where momento > now() - interval '24 hours';" 2>/dev/null); then
+    "select count(*) filter (where not i.exito and not i.bloqueado), count(*) filter (where i.bloqueado and i.tope in ('global', 'altas_global')), count(distinct coalesce(i.dispositivo_id::text, i.ip_hash)) filter (where i.bloqueado and i.tope in ('altas_ip', 'altas_global') and coalesce((to_jsonb(i) ->> 'codigo_correcto')::boolean, false) and i.momento > coalesce((select max(r.momento) from hidrantes.registro r where r.accion = 'entrada_abierta'), '-infinity'::timestamptz)), coalesce((select jsonb_typeof(c.valor) = 'string' and (c.valor #>> '{}')::timestamptz > now() from hidrantes.config c where c.clave = 'entrada_abierta_hasta'), false) from hidrantes.intentos_codigo i where i.momento > now() - interval '24 hours';" 2>/dev/null); then
     problemas+=("no se pueden leer los intentos del código de acceso")
     return 0
   fi
-  read -r fallidos globales frenadas <<< "$intentos"
+  read -r fallidos globales frenadas abierta <<< "$intentos"
   if [ "${fallidos:-0}" -gt 300 ] || [ "${globales:-0}" -gt 0 ]; then
     problemas+=("posible ataque al código de acceso ($fallidos fallos y $globales bloqueos de todo el grupo en 24 h): cambia el código (15 §5.4)")
   fi
-  if [ "${frenadas:-0}" -gt "$FRENADAS_MAX" ]; then
+  if [ "${frenadas:-0}" -gt "$FRENADAS_MAX" ] && [ "${abierta:-f}" != t ]; then
     problemas+=("Hay voluntarios que no pueden entrar: abre la entrada 24 h en Ajustes ($frenadas móviles con el código bueno frenados por el tope de entradas en 24 h; DEC-190)")
     avisar_jefatura "$bd" 'Voluntarios sin poder entrar' 'Hay voluntarios que no pueden entrar: abre la entrada 24 h en Ajustes' \
       'de que hay voluntarios que no pueden entrar'
@@ -109,23 +111,24 @@ revisar_espacio() {
            when e ->> 'fotos_medidos_en' is null then -1
            else floor(extract(epoch from now() - (e ->> 'fotos_medidos_en')::timestamptz) / 86400)::int end,
       (e ->> 'bd_bytes')::bigint / 1048576,
-      coalesce((e ->> 'max_bytes_bd_total')::bigint, 524288000) / 1048576,
-      (e ->> 'bd_bytes')::bigint >= coalesce((e ->> 'aviso_total')::numeric, 0.8)
-                                    * coalesce((e ->> 'max_bytes_bd_total')::bigint, 524288000),
-      round(coalesce((e ->> 'aviso_total')::numeric, 0.8) * 100),
-      coalesce((e -> 'bd_desglose' ->> 'hidrantes')::bigint, 0) / 1048576,
-      coalesce((e -> 'bd_desglose' ->> 'cron')::bigint, 0) / 1048576,
-      coalesce((e -> 'bd_desglose' ->> 'net')::bigint, 0) / 1048576,
-      coalesce((e -> 'bd_desglose' ->> 'resto')::bigint, 0) / 1048576,
-      coalesce(e ->> 'cron_purga', 'ok')
-    from hidrantes.fn_espacio() e;" 2>/dev/null); then
+      case when n then (e ->> 'max_bytes_bd_total')::bigint else 524288000 end / 1048576,
+      (e ->> 'bd_bytes')::bigint >= case when n then (e ->> 'aviso_total')::numeric else 0.8 end
+                                    * case when n then (e ->> 'max_bytes_bd_total')::bigint else 524288000 end,
+      round(case when n then (e ->> 'aviso_total')::numeric else 0.8 end * 100),
+      case when n then (e -> 'bd_desglose' ->> 'hidrantes')::bigint else 0 end / 1048576,
+      case when n then (e -> 'bd_desglose' ->> 'cron')::bigint else 0 end / 1048576,
+      case when n then (e -> 'bd_desglose' ->> 'net')::bigint else 0 end / 1048576,
+      case when n then (e -> 'bd_desglose' ->> 'resto')::bigint else 0 end / 1048576,
+      case when n then e ->> 'cron_purga' else 'ok' end,
+      case when n then (e ->> 'cron_antiguas')::int else 0 end
+    from hidrantes.fn_espacio() e, lateral (select e ? 'esquema_bytes' as n) v;" 2>/dev/null); then
     problemas+=("no se puede medir el espacio de fotos ni el de la base de datos (hidrantes.fn_espacio)")
     return 0
   fi
   read -r origen fotos_mb max_fotos_mb fotos_alto bd_mb max_bd_mb bd_alto pct dias \
-    total_mb max_total_mb total_alto pct_total hid_mb cron_mb net_mb resto_mb cron_purga <<< "$espacio"
+    total_mb max_total_mb total_alto pct_total hid_mb cron_mb net_mb resto_mb cron_purga cron_antiguas <<< "$espacio"
   if ! [[ "${dias:-}" =~ ^-?[0-9]+$ && "${fotos_alto:-}${bd_alto:-}${total_alto:-}" =~ ^[tf][tf][tf]$
-          && "${cron_purga:-}" =~ ^(ok|sin_permiso)$ ]]; then
+          && "${cron_purga:-}" =~ ^(ok|sin_permiso)$ && "${cron_antiguas:-}" =~ ^-?[0-9]+$ ]]; then
     problemas+=("hidrantes.fn_espacio ha devuelto algo que la vigilancia no entiende: no se ha comprobado el espacio")
     return 0
   fi
@@ -140,13 +143,20 @@ revisar_espacio() {
   fi
   if [ "$total_alto" = t ]; then
     lleno=1
-    local purga=""
-    if [ "$cron_purga" = sin_permiso ]; then
-      purga="; el historial de pg_cron no se borra porque falta el grant delete de supabase/sql/arranque-bd.sql"
-    fi
-    problemas+=("toda la base de datos del proyecto ocupa $total_mb MB de $max_total_mb (aviso al $pct_total %): hidrantes $hid_mb MB, historial de pg_cron $cron_mb MB, respuestas de pg_net $net_mb MB y el resto (uniformidad, auth) $resto_mb MB$purga")
+    problemas+=("toda la base de datos del proyecto ocupa $total_mb MB de $max_total_mb (aviso al $pct_total %): hidrantes $hid_mb MB, historial de pg_cron $cron_mb MB, respuestas de pg_net $net_mb MB y el resto (uniformidad, auth) $resto_mb MB")
   fi
   if [ "$lleno" = 1 ]; then avisar_espacio "$bd"; fi
+  # La purga del historial de pg_cron (0044): se mide el efecto, no solo el permiso. Ejecuciones de
+  # tareas de hidrantes de más de 11 días quieren decir que hidrantes_purgar_registros_cron no borra.
+  if [ "$cron_antiguas" -lt 0 ]; then
+    problemas+=("no se puede leer el historial de pg_cron para comprobar que se borra (hidrantes.fn_espacio)")
+  elif [ "$cron_antiguas" -gt 0 ]; then
+    local causa="mira la tarea en Salud del sistema"
+    if [ "$cron_purga" = sin_permiso ]; then
+      causa="falta el grant delete on cron.job_run_details to hidrantes_migrador de supabase/sql/arranque-bd.sql, que se da como postgres"
+    fi
+    problemas+=("el historial de pg_cron tiene $cron_antiguas ejecuciones de más de 11 días: hidrantes_purgar_registros_cron no lo está borrando ($causa; docs/33 RV-301)")
+  fi
   if [ "$origen" != storage ]; then
     problemas+=("el espacio de fotos no se mide en el bucket ($origen): falta el permiso de lectura de Storage del bloque \$storage\$ de supabase/sql/arranque-bd.sql (DEC-182)")
     if [ "$dias" -lt 0 ]; then

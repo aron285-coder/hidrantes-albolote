@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(62);
+select plan(68);
 
 -- ---------- datos de prueba ----------
 
@@ -128,13 +128,17 @@ create function pg_temp.ejecucion(tarea text, hace interval, n integer) returns 
          j.username, j.command, 'succeeded', 'prueba 41', now() - hace, now() - hace
   from cron.job j where j.jobname = tarea;
 $$;
-select pg_temp.ejecucion('hidrantes_purgar_intentos', interval '11 days', 1);
+select pg_temp.ejecucion('hidrantes_purgar_intentos', interval '12 days', 1);
 select pg_temp.ejecucion('hidrantes_purgar_intentos', interval '9 days', 2);
-select pg_temp.ejecucion('ajena_41', interval '11 days', 3);
+select pg_temp.ejecucion('ajena_41', interval '12 days', 3);
+select ok((hidrantes.fn_espacio() ->> 'cron_antiguas')::int >= 1,
+  'fn_espacio cuenta las ejecuciones de hidrantes de más de 11 días (la vigilancia ve si la purga no borra)');
 select ok(hidrantes.fn_purgar_registros_cron() >= 1, 'fn_purgar_registros_cron borra algo');
 select is((select count(*)::int from cron.job_run_details d join cron.job j using (jobid)
             where j.jobname = 'hidrantes_purgar_intentos' and d.return_message = 'prueba 41'), 1,
-  'de las de hidrantes, la de hace 11 días sí y la de hace 9 no');
+  'de las de hidrantes, la de hace 12 días sí y la de hace 9 no');
+select is((hidrantes.fn_espacio() ->> 'cron_antiguas')::int, 0, 'después de la purga no queda ninguna de más de 11 días');
+select is(hidrantes.fn_espacio() ->> 'cron_purga', 'ok', 'con el grant de arranque-bd.sql, cron_purga = ok');
 select is((select count(*)::int from cron.job_run_details d join cron.job j using (jobid)
             where j.jobname = 'ajena_41' and d.return_message = 'prueba 41'), 1,
   'las de otras tareas no se tocan');

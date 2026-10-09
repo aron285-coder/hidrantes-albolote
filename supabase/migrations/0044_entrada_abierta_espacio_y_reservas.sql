@@ -341,8 +341,18 @@ declare
   esquema bigint := hidrantes.fn_bytes_esquema();
   cron_b bigint := hidrantes.fn_bytes_tabla('cron', 'job_run_details');
   net_b bigint := hidrantes.fn_bytes_tabla('net', '_http_response');
+  antiguas integer;
 begin
   select * into f from hidrantes.fn_espacio_fotos();
+  -- El efecto de la purga del historial de pg_cron, no solo su permiso: ejecuciones de las tareas de
+  -- hidrantes de más de 11 días (la tarea borra las de más de 10 cada día). -1 si no se puede leer.
+  begin
+    select count(*)::int into antiguas
+      from cron.job_run_details d join cron.job j on j.jobid = d.jobid
+     where j.jobname like 'hidrantes\_%' and d.start_time < now() - interval '11 days';
+  exception when insufficient_privilege or undefined_table or invalid_schema_name then
+    antiguas := -1;
+  end;
   return jsonb_build_object(
     'fotos_bytes', f.bytes,
     'fotos_origen', f.origen,
@@ -364,7 +374,8 @@ begin
       'net', net_b,
       'resto', greatest(total - esquema - cron_b - net_b, 0)),
     -- ¿Puede la tarea diaria borrar el historial de pg_cron? (fn_purgar_registros_cron)
-    'cron_purga', case when hidrantes.fn_cron_purga_con_permiso() then 'ok' else 'sin_permiso' end);
+    'cron_purga', case when hidrantes.fn_cron_purga_con_permiso() then 'ok' else 'sin_permiso' end,
+    'cron_antiguas', antiguas);
 end $$;
 
 -- El historial de pg_cron de las tareas de hidrantes de más de 10 días. La spec pedía 7; con 7, la
@@ -883,6 +894,8 @@ begin
     'bd_pct', round(esquema * 100.0 / greatest(max_bd, 1), 1),
     'max_bytes_bd_total', 524288000,
     'bd_total_pct', round(bd * 100.0 / 524288000, 1),
+    -- ¿Puede hidrantes_purgar_registros_cron borrar el historial de pg_cron? (§5 de 05)
+    'cron_purga', case when hidrantes.fn_cron_purga_con_permiso() then 'ok' else 'sin_permiso' end,
     'tareas', tareas
   ) || origen;
 end $$;
