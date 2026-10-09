@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bocetos RV-270</title>
+<style>
+  /* Bocetos rápidos de las propuestas de RV-270 (docs/32). No son diseño final: colores aproximados de docs/06. */
+  :root { --marino: #101b30; --naranja: #c8501a; --papel: #f1f1ec; --tarjeta: #fff; --linea: #d8d8d0; --suave: #5b6070; --verde: #237a4b; --ambar: #f5e7c2; --rojo: #9b2226; }
+  body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: var(--papel); color: #1d2433; }
+  main { max-width: 980px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; } h2 { font-size: 16px; margin-top: 32px; }
+  .par { display: flex; flex-wrap: wrap; gap: 16px; }
+  .movil { width: 300px; border: 1px solid var(--linea); border-radius: 18px; overflow: hidden; background: var(--papel); }
+  .barra { background: var(--marino); color: #fff; padding: 12px 14px; font-weight: 700; }
+  .et { font-size: 12px; color: var(--suave); padding: 6px 14px; }
+  .tarjeta { background: var(--tarjeta); margin: 8px 10px; border: 1px solid var(--linea); border-radius: 10px; padding: 10px 12px; }
+  .fila { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .chip { border-radius: 99px; padding: 2px 10px; font-size: 13px; background: var(--ambar); color: #6b4e00; }
+  .chip.no { background: #f3d6d6; color: var(--rojo); }
+  .cambio { font-size: 14px; margin-top: 4px; } .cambio s { color: var(--suave); }
+  .btn44 { min-height: 44px; min-width: 88px; border: 1.5px solid #1d2433; border-radius: 10px; background: #fff; font-weight: 600; }
+  .busca { display: flex; align-items: center; gap: 8px; background: #fff; margin: 10px; border-radius: 12px; padding: 0 6px 0 12px; border: 1px solid var(--linea); }
+  .busca input { flex: 1; border: 0; height: 44px; font: inherit; outline: none; }
+  .x { width: 44px; height: 44px; border: 0; background: none; font-size: 20px; }
+  .aviso { margin: 10px; background: #1f3a63; color: #fff; border-radius: 12px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; }
+  .aviso button { min-height: 44px; border-radius: 10px; border: 0; padding: 0 12px; font-weight: 700; }
+  .nota { font-size: 13px; color: var(--suave); max-width: 640px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Bocetos de las propuestas de RV-270</h1>
+<p class="nota">Solo para enseñar la idea. Nada de esto está implementado: el desarrollador elige qué pasa a un docs/33. Datos ficticios.</p>
+
+<h2>P3 · Mis propuestas dice qué se propuso y cuándo se resolvió</h2>
+<div class="par">
+  <div class="movil">
+    <div class="barra">Mis propuestas · hoy</div>
+    <div class="tarjeta"><div class="fila"><b>ESTADO HID-9002</b><span class="chip">Pendiente</span></div><div class="et" style="padding:4px 0">hace 1 min</div><div class="fila"><span></span><a href="#" style="font-size:14px">Retirar</a></div></div>
+  </div>
+  <div class="movil">
+    <div class="barra">Mis propuestas · propuesta</div>
+    <div class="tarjeta"><div class="fila"><b>Estado · HID-9002</b><span class="chip">Pendiente</span></div>
+      <div class="cambio"><s>Regular</s> → <b>No funciona</b></div>
+      <div class="et" style="padding:4px 0">Enviada hace 1 min</div>
+      <div class="fila"><span></span><button class="btn44">Retirar</button></div></div>
+    <div class="tarjeta"><div class="fila"><b>Alta · boca de riego 45 mm</b><span class="chip no">Rechazada</span></div>
+      <div class="cambio">Motivo: «La foto es del hidrante de al lado»</div>
+      <div class="et" style="padding:4px 0">Resuelta ayer · enviada hace 3 días</div></div>
+  </div>
+</div>
+
+<h2>P4 · Un solo botón para cerrar la búsqueda</h2>
+<div class="par">
+  <div class="movil"><div class="barra">Hoy</div><div class="busca"><span>🔍</span><input value="Calle Real 10" aria-label="hoy"><button class="x" style="color:#1f5fbf">×</button><button class="x">✕</button></div><p class="et">Dos «×» seguidos: uno borra el texto y otro cierra. Se confunden.</p></div>
+  <div class="movil"><div class="barra">Propuesta</div><div class="busca"><span>🔍</span><input value="Calle Real 10" aria-label="propuesta"><button class="x" aria-label="Borrar y cerrar">✕</button></div><p class="et">Un solo ✕ de 44 px: con texto lo borra; vacío, cierra.</p></div>
+</div>
+
+<h2>P5 · El aviso de versión nueva, con mayúscula y un botón</h2>
+<div class="par">
+  <div class="movil"><div class="barra">Hoy</div><div class="aviso"><span>⟳ hay una versión nueva, recargar</span></div></div>
+  <div class="movil"><div class="barra">Propuesta</div><div class="aviso"><span>Hay una versión nueva</span><button>Actualizar</button></div><p class="et">En un formulario a medias, el aviso va abajo y espera a que se envíe (RV-230 ya protege los datos).</p></div>
+</div>
+</main>
+</body>
+</html>
