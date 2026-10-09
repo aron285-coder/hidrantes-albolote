@@ -71,6 +71,25 @@ describe('novedades desde el CHANGELOG (RV-20, FR-167)', () => {
     expect(AMBITOS_USUARIO.has('ci')).toBe(false);
   });
 
+  // docs/33: «el día del lanzamiento todos pueden entrar…» (acceso), «Mis propuestas también lleva la barra
+  // de arriba» (navegacion) o los formularios no salían en Novedades porque su ámbito no estaba en la lista.
+  it('incluye los ámbitos de usuario de docs/33', () => {
+    for (const a of [
+      'formulario',
+      'formularios',
+      'proponer',
+      'mis-propuestas',
+      'navegacion',
+      'acceso',
+      'app',
+      'sincronizacion',
+      'envio',
+    ])
+      expect(AMBITOS_USUARIO.has(a)).toBe(true);
+    const c = `## [1.0.1](x) (2026-10-09)\n\n### Correcciones\n\n* **navegacion:** en el ordenador, Mis propuestas también lleva la barra de arriba\n`;
+    expect(textos(c)).toEqual(['En el ordenador, Mis propuestas también lleva la barra de arriba']);
+  });
+
   it('excluye líneas con rutas o códigos internos', () => {
     const c = [
       '## [1.0.0](x) (2026-10-01)',
