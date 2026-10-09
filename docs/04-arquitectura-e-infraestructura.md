@@ -151,6 +151,10 @@ Reglas:
 - El seed es un archivo aparte (`supabase/seed-staging.sql`) y la CI de producción **aborta** si su
   nombre aparece en el comando o si `PROJECT_REF` no es el esperado.
 - Cada punto ficticio del seed lleva `descripcion` con prefijo `[PRUEBA]`.
+- Sus fotos (`fotos/prueba-*.jpg`) existen: después del seed, `deploy-staging.yml` corre
+  `npm run fotos-seed`, que sube a `hidrantes-fotos-dev` las que falten (generadas, con «[PRUEBA]» y
+  sin datos personales) y falla si alguna no responde 200. El seed retira además, como jefatura, las
+  cuatro bocas duplicadas que dejó RV-139b (BOC-0003 a BOC-0006) (docs/33 RV-340).
 - Las *preview deployments* de Cloudflare (una URL por Pull Request) apuntan siempre a Supabase
   **dev**.
 - **Antes de cada PR `develop → main`**, `npm run comprobar-produccion -- --completo` (docs/19 P-01,
