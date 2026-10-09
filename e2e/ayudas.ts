@@ -102,3 +102,11 @@ export async function simularTablas(page: Page, tablas: Record<string, unknown[]
     });
   });
 }
+
+/** La pestaña Lista; en el ordenador (desde 1100 px) no hay pestaña: la lista va al lado del mapa y se
+ *  abre /lista directamente (docs/33 RV-321). */
+export async function irALista(page: Page) {
+  const enlace = page.getByRole('link', { name: 'Lista', exact: true });
+  if (await enlace.count()) await enlace.click();
+  else await page.goto('/lista');
+}

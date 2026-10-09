@@ -2,7 +2,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { FIRMA, conGoogle, conSesion, simularRpc } from './ayudas.ts';
+import { FIRMA, conGoogle, conSesion, irALista, simularRpc } from './ayudas.ts';
 
 const TOKEN_NUEVO = 'n'.repeat(43);
 /** Demasiados intentos dice a qué hora se puede volver a probar (docs/32 RV-242). */
@@ -175,7 +175,10 @@ test.describe('con sesión guardada', () => {
     // En el mapa y la lista, la píldora de la cabecera (docs/33 RV-311); en las demás pantallas, la banda.
     const pildora = page.getByTestId('estado-sincro');
     await expect(pildora).toContainText(T.mapa.sinConexion);
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    // En el ordenador no hay pestaña «Lista»: la lista va al lado del mapa (docs/33 RV-321).
+    if (await page.getByRole('link', { name: T.navegacion.lista }).count()) {
+      await page.getByRole('link', { name: T.navegacion.lista }).click();
+    }
     await expect(page.getByRole('radio', { name: T.mapa.todos })).toBeVisible();
     await expect(pildora).toContainText(T.mapa.sinConexion);
     await page.getByRole('link', { name: T.navegacion.ajustes }).click();
@@ -257,7 +260,7 @@ test.describe('con sesión guardada', () => {
       await r.fulfill({ status: 204 });
     });
     await page.goto('/');
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    await irALista(page);
     await expect(page.getByRole('alert')).toContainText(T.fallo.titulo);
     // La navegación sigue viva y "Volver al mapa" funciona.
     await page.getByRole('button', { name: T.envio.volverAlMapa }).click();

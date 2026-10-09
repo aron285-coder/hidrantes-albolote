@@ -59,7 +59,8 @@ test.describe('el mapa se abre donde está el voluntario (RV-310)', () => {
     await context.setGeolocation({ ...AQUI, accuracy: 10 });
     await abrir(page, { esperarPuntos: false });
     await avisoCentrado(page).getByRole('button', { name: T.mapa.verTodaLaZona }).click();
-    await expect.poll(() => zoom(page)).toBeLessThan(14);
+    // Se aleja todo lo que deja el mapa (con el mapa sin conexión, hasta llenar su recorte: docs/33 RV-321).
+    await expect.poll(() => zoom(page)).toBeLessThan(15);
     await expect(avisoCentrado(page)).toHaveCount(0);
   });
 

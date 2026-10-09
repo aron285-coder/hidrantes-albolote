@@ -1,8 +1,11 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { LIMITES, capasDe } from './capas-leaflet';
-import { type Capa, ZOOM_MAX } from '@/lib/capas';
+import { LIMITES, RECORTE_MAPABASE, capasDe } from './capas-leaflet';
+import { type Capa, ZOOM_MAX, capasPintadas } from '@/lib/capas';
+
+/** Lo más lejos que se aleja el mapa (06 §4.4). */
+const MIN_ZOOM = 10;
 import type { LatLng } from '@/lib/coordenadas';
 import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
@@ -127,7 +130,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     const m = L.map(contenedor.current, {
       zoomControl: false,
       attributionControl: false,
-      minZoom: 10,
+      minZoom: MIN_ZOOM,
       maxZoom: ZOOM_MAX,
       maxBounds: LIMITES.pad(0.5),
       maxBoundsViscosity: 0.8,
@@ -142,6 +145,8 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
       const centro = m.getCenter();
       c.dataset.zoom = String(m.getZoom());
       c.dataset.centro = `${centro.lat.toFixed(6)},${centro.lng.toFixed(6)}`;
+      const b = m.getBounds();
+      c.dataset.vista = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((x) => x.toFixed(6)).join(',');
     };
     anotarZoom();
     m.on('moveend', () => {
@@ -258,6 +263,34 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
   }, [capa, modo, baseDebajo]);
+
+  // Con el mapa sin conexión a la vista, no se sale de su recorte ni se aleja más de lo que lo llena:
+  // si no, se veía su borde recto sobre el fondo vacío (docs/33 RV-321, D6b). Con las capas en línea,
+  // como antes: la zona con medio recuadro de aire.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!m) return;
+    if (!capasPintadas(capa, baseDebajo).includes('base')) {
+      m.setMinZoom(MIN_ZOOM);
+      m.setMaxBounds(LIMITES.pad(0.5));
+      m.options.maxBoundsViscosity = 0.8;
+      return;
+    }
+    const ajustar = () => {
+      // El zoom con el que la ventana cabe entera dentro del recorte.
+      const minimo = Math.max(MIN_ZOOM, Math.ceil(m.getBoundsZoom(RECORTE_MAPABASE, true)));
+      // Sin animación: una animación de zoom a medias pisaría el encuadre que se haga justo después.
+      if (m.getZoom() < minimo) m.setZoom(minimo, { animate: false });
+      m.setMinZoom(minimo);
+      m.setMaxBounds(RECORTE_MAPABASE);
+    };
+    m.options.maxBoundsViscosity = 1;
+    ajustar();
+    m.on('resize', ajustar);
+    return () => {
+      m.off('resize', ajustar);
+    };
+  }, [capa, baseDebajo]);
 
   // Puntos, con declutter por zoom (06 §4.4). El seleccionado se ve siempre.
   useEffect(() => {

@@ -301,3 +301,14 @@ path.vertice-medicion {
     display: none !important;
   }
 }
+
+/* Lo que ocupa la navegación de abajo (Armazon la pone en --nav-abajo, docs/33 RV-313). En el ordenador
+   (desde 1100 px) va arriba y abajo no hay nada (docs/33 RV-321). */
+:root {
+  --alto-nav-abajo: calc(50px + env(safe-area-inset-bottom));
+}
+@media (min-width: 1100px) {
+  :root {
+    --alto-nav-abajo: 0px;
+  }
+}
