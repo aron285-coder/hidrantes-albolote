@@ -702,7 +702,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `↩ Retirada por el autor · [cuando]` · `Motivo: "[texto]"` · `Con correcciones: [texto]` ·
 `Fusionada con [codigo]. No se creó un punto nuevo.` · `Código asignado: [codigo]` ·
 `Consta en el Registro. Solo lectura.` · `Pin propuesto y puntos aprobados alrededor` ·
-`con avisos` · `Hidrantes Albolote · Panel de jefatura` ·
+`con avisos` · `Hidrantes Albolote · Panel de jefatura` · `Menú` (el ☰ de la cabecera por debajo de 800 px) ·
 `Direcciones deducidas con Nominatim · © OpenStreetMap contributors` · `datos de [hace]` ·
 `Esta propuesta ya no está pendiente: otra persona la ha resuelto. La lista se ha actualizado.` ·
 `El punto ya no está activo.` ·
