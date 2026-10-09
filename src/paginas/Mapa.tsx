@@ -24,8 +24,8 @@ import { BandaEntorno } from '@/componentes/BandaEntorno';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { useAcceso, useConexion, useMapabase, useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { useAncho } from '@/hooks/ancho';
-import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
-import { type Enfoque, calleResaltada } from '@/lib/callejero';
+import { type Destino, hayLugares, teclaBuscador, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
+import { type Enfoque, calleResaltada, llevaNumero } from '@/lib/callejero';
 import { type Capa, NOMBRE_CAPA, atribucion, baseDebajo, capaGuardada, enLinea, guardarCapa } from '@/lib/capas';
 import { nombreCaudal } from '@/lib/ficha';
 import { escribir } from '@/lib/almacen';
@@ -42,7 +42,9 @@ import {
 } from '@/lib/posicion';
 import { esPruebas } from '@/lib/entorno';
 import { buscar, metrosTramoManguera } from '@/lib/puntos';
-import { ESTILO_PANEL_FLOTANTE, MARGEN_FICHA_PX, RESERVA_DERECHA } from '@/lib/disposicion-mapa';
+import { ESTILO_PANEL_FLOTANTE, MARGEN_FICHA_PX, RESERVA_DERECHA, ZONA_ABAJO } from '@/lib/disposicion-mapa';
+import { type EncuadreInicial, encuadreInicial } from '@/lib/encuadre-inicial';
+import { vistaGuardada } from '@/lib/vista';
 import { T } from '@/lib/textos';
 
 type LatLngMedida = { lat: number; lng: number };
@@ -50,10 +52,13 @@ type LatLngMedida = { lat: number; lng: number };
 const Control = ({
   etiqueta,
   onClick,
+  pulsado,
   children,
 }: {
   etiqueta: string;
   onClick: () => void;
+  /** Para "Mi posición": marcado mientras el mapa está centrado en el voluntario (RV-310). */
+  pulsado?: boolean;
   children: React.ReactNode;
 }) => (
   <button
@@ -61,7 +66,8 @@ const Control = ({
     onClick={onClick}
     aria-label={etiqueta}
     title={etiqueta}
-    className="text-texto rounded-tarjeta flex size-11 items-center justify-center bg-[var(--control-mapa)] shadow-[0_1px_5px_rgba(0,0,0,.18)]"
+    aria-pressed={pulsado}
+    className={`text-texto rounded-tarjeta flex size-11 items-center justify-center bg-[var(--control-mapa)] shadow-[0_1px_5px_rgba(0,0,0,.18)] ${pulsado ? 'ring-2 ring-[var(--anillo-seleccion)] ring-inset' : ''}`}
   >
     {children}
   </button>
@@ -123,6 +129,10 @@ export function Mapa() {
   const [capa, setCapa] = useState<Capa>(capaGuardada);
   const [menuCapas, setMenuCapas] = useState(false);
   const [texto, setTexto] = useState('');
+  // Con el foco en el buscador vacío, su ✕ lo cierra (RV-312).
+  const [buscando, setBuscando] = useState(false);
+  // Al pasar a ordenador el buscador flotante se desmonta sin perder el foco: no queda «buscando».
+  if (buscando && ancho === 'escritorio') setBuscando(false);
   const control = useRef<ControlMapa>(null);
 
   const punto = useMemo(() => puntos.find((p) => p.id === seleccionado) ?? null, [puntos, seleccionado]);
@@ -244,6 +254,15 @@ export function Mapa() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- una vez por navegación
   }, [ubicacion.key]);
 
+  // "Mi posición" marcado mientras el mapa sigue centrado en el voluntario (RV-310); al centrar otra
+  // cosa (un punto, un resultado de la búsqueda, un incidente, ¿Qué hay aquí?) deja de estarlo.
+  const [siguiendo, setSiguiendo] = useState(false);
+  const [vistoParaSeguir, setVistoParaSeguir] = useState(ubicacion.key);
+  if (vistoParaSeguir !== ubicacion.key) {
+    setVistoParaSeguir(ubicacion.key);
+    if (seleccionado || incidenteParam || aquiParam || enfoque) setSiguiendo(false);
+  }
+
   // El botón "Mi posición" centra en cuanto llega la primera lectura.
   const centrarEnMi = useRef(false);
   useEffect(() => {
@@ -252,6 +271,44 @@ export function Mapa() {
       centrarEnMi.current = false;
     }
   }, [pos]);
+
+  // Al abrir la aplicación (RV-310, U1): el mapa se coloca solo, sobre el voluntario o con todos los
+  // puntos, hasta que él lo mueva o abra algo. Los puntos y el GPS llegan después del primer pintado:
+  // cada vez que llega algo se vuelve a colocar. Si ya lo vio en esta sesión, se queda como estaba.
+  const [colocarSolo, setColocarSolo] = useState(
+    () => vistaGuardada() === null && !seleccionado && !incidenteParam && !aquiParam && !midiendo && !enfoque,
+  );
+  const [encuadre, setEncuadre] = useState<EncuadreInicial>({ tipo: 'nada' });
+  const [avisoCentrado, setAvisoCentrado] = useState(false);
+  if (colocarSolo) {
+    if (seleccionado || incidenteParam || aquiParam || midiendo || enfoque) setColocarSolo(false);
+    else {
+      const e = encuadreInicial(pos, puntos);
+      if (e.tipo === 'posicion') {
+        // Sobre el voluntario una vez, y se deja: seguirle a cada lectura del GPS no se ha pedido.
+        setColocarSolo(false);
+        setSiguiendo(true);
+        setAvisoCentrado(true);
+        setEncuadre(e);
+      } else if (JSON.stringify(e) !== JSON.stringify(encuadre)) setEncuadre(e);
+    }
+  }
+  useEffect(() => {
+    if (encuadre.tipo === 'posicion') control.current?.colocar(encuadre.lat, encuadre.lng, encuadre.zoom);
+    // Sin taparlos con Cercanos y el + de abajo.
+    else if (encuadre.tipo === 'puntos') control.current?.encuadrar(encuadre.recuadro, ZONA_ABAJO - 48);
+  }, [encuadre]);
+  /** El voluntario mueve el mapa: ya no se coloca solo ni sigue centrado en él. */
+  const alMoverElMapa = () => {
+    setColocarSolo(false);
+    setSiguiendo(false);
+  };
+  // El aviso "Centrado en tu posición" se va solo a los 4 s.
+  useEffect(() => {
+    if (!avisoCentrado) return;
+    const t = setTimeout(() => setAvisoCentrado(false), 4_000);
+    return () => clearTimeout(t);
+  }, [avisoCentrado]);
 
   // Sin cobertura, la capa elegida deja de pintarse y hay que decirlo (UI-04). También el Catastro,
   // aunque debajo siga el mapa base: si no, el plano de parcelas desaparece sin explicación. Con el
@@ -401,6 +458,7 @@ export function Mapa() {
             alPulsacionLarga={midiendo ? undefined : abrirAqui}
             aqui={midiendo ? null : aqui}
             calle={calleResaltada()?.g ?? null}
+            alMoverlo={alMoverElMapa}
             medicion={
               midiendo
                 ? {
@@ -427,22 +485,46 @@ export function Mapa() {
           {/* Búsqueda (FR-69) */}
           {ancho !== 'escritorio' && (
             <div className="absolute inset-x-2 top-2 z-[500]">
-              <label className="rounded-tarjeta flex min-h-11 items-center gap-2 bg-[var(--control-mapa)] px-2.5 shadow-[0_1px_5px_rgba(0,0,0,.18)]">
+              {/* Opaco también en oscuro (D5): translúcido, se leían los nombres del mapa a través. */}
+              <label
+                // «Buscando» mientras el foco está en el campo o en su ✕: pasar del uno al otro con el
+                // tabulador no lo cierra.
+                onFocus={() => setBuscando(true)}
+                onBlur={(e) => setBuscando(e.currentTarget.contains(e.relatedTarget as Node | null))}
+                className="rounded-tarjeta bg-papel flex min-h-11 items-center gap-2 px-2.5 shadow-[0_1px_5px_rgba(0,0,0,.18)]"
+              >
                 <Search size={18} className="text-texto-suave shrink-0" aria-hidden />
                 <input
                   ref={buscador}
-                  type="search"
+                  // Texto y no «search»: el navegador pintaría su propio ✕ junto al nuestro (docs/33 RV-312, U3).
+                  type="text"
+                  role="searchbox"
+                  inputMode="search"
+                  enterKeyHint="search"
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
+                  onKeyDown={(e) => teclaBuscador(e, texto, setTexto)}
                   placeholder={T.mapa.buscar}
                   aria-label={T.mapa.buscar}
                   className="min-w-0 flex-1 bg-transparent outline-none"
                 />
-                {texto && (
+                {/* Un solo ✕ (U3): con texto, borra y deja escribir otra cosa; vacío, cierra la búsqueda. */}
+                {(texto || buscando) && (
                   <button
                     type="button"
-                    onClick={() => setTexto('')}
-                    aria-label={T.mapa.borrarBusqueda}
+                    // Sin esto, el toque quita antes el foco al campo y el ✕ desaparece sin llegar a pulsarse.
+                    onPointerDown={(e) => e.preventDefault()}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      if (texto) {
+                        setTexto('');
+                        buscador.current?.focus();
+                      } else {
+                        buscador.current?.blur();
+                        setBuscando(false);
+                      }
+                    }}
+                    aria-label={texto ? T.mapa.borrarBusqueda : T.mapa.cerrarBusqueda}
                     className="-mr-2 flex size-11 items-center justify-center"
                   >
                     <X size={18} aria-hidden />
@@ -478,7 +560,11 @@ export function Mapa() {
                       </ul>
                     </div>
                   )}
-                  <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} />
+                  <ResultadosCallesYDirecciones
+                    lugares={lugares}
+                    alElegir={irA}
+                    direccionesPrimero={llevaNumero(texto)}
+                  />
                   {resultados.length === 0 && !conLugares && (
                     <p className="text-texto-suave p-3 text-sm">{T.mapa.busquedaVacia}</p>
                   )}
@@ -506,8 +592,11 @@ export function Mapa() {
             )}
             <Control
               etiqueta={T.mapa.miPosicion}
+              pulsado={siguiendo}
               onClick={() => {
                 activarPosicion();
+                setColocarSolo(false);
+                setSiguiendo(true);
                 if (pos) control.current?.centrar(pos.lat, pos.lng, 16);
                 else centrarEnMi.current = true;
               }}
@@ -523,7 +612,10 @@ export function Mapa() {
             >
               <button
                 type="button"
-                onClick={() => control.current?.acercar()}
+                onClick={() => {
+                  alMoverElMapa();
+                  control.current?.acercar();
+                }}
                 aria-label={T.mapa.acercar}
                 title={T.mapa.acercar}
                 className="text-texto flex size-11 items-center justify-center"
@@ -532,7 +624,10 @@ export function Mapa() {
               </button>
               <button
                 type="button"
-                onClick={() => control.current?.alejar()}
+                onClick={() => {
+                  alMoverElMapa();
+                  control.current?.alejar();
+                }}
                 aria-label={T.mapa.alejar}
                 title={T.mapa.alejar}
                 className="text-texto border-linea flex size-11 items-center justify-center border-t"
@@ -548,6 +643,27 @@ export function Mapa() {
             // Sin tapar la columna de controles: su margen, su ancho y 8 px de aire (RV-59, RV-82).
             style={{ right: RESERVA_DERECHA }}
           >
+            {/* Discreto y pasajero (RV-310): dice por qué el mapa no enseña la zona entera y cómo verla. */}
+            {avisoCentrado && (
+              <p
+                role="status"
+                className="bg-papel text-texto rounded-tarjeta flex items-center gap-2 py-0.5 pr-1 pl-2.5 text-[13px] shadow"
+              >
+                <LocateFixed size={16} className="shrink-0" aria-hidden />
+                <span className="flex-1">{T.mapa.centradoEnTi}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAvisoCentrado(false);
+                    alMoverElMapa();
+                    control.current?.verZona();
+                  }}
+                  className="min-h-11 shrink-0 px-2 font-semibold underline underline-offset-2"
+                >
+                  {T.mapa.verTodaLaZona}
+                </button>
+              </p>
+            )}
             {(avisoCapa || avisoPosicion) && (
               <p
                 role="status"
@@ -574,7 +690,7 @@ export function Mapa() {
 
           {/* Acciones principales abajo a la derecha, al alcance del pulgar (06 §5, DEC-123): "Cercanos"
               extendido (FR-74, con texto visible, 06 §4.7) encima del + de nuevo punto (FL-03), a 12 px. */}
-          <div className="absolute right-3 bottom-8 z-[450] flex flex-col items-end gap-3">
+          <div className="absolute right-3 bottom-[calc(2rem+var(--aviso-abajo,0px))] z-[450] flex flex-col items-end gap-3">
             <button
               type="button"
               onClick={pedirCercanos}
@@ -594,12 +710,12 @@ export function Mapa() {
             </button>
           </div>
 
-          <div className="absolute bottom-2 left-2 z-[400]">
+          <div className="absolute bottom-[calc(0.5rem+var(--aviso-abajo,0px))] left-2 z-[400]">
             <Leyenda />
           </div>
           <p
             data-testid="atribucion"
-            className="text-texto-suave absolute right-1 bottom-0.5 z-[400] rounded bg-[var(--control-mapa)] px-1 text-[10px]"
+            className="text-texto-suave absolute right-1 bottom-[calc(0.125rem+var(--aviso-abajo,0px))] z-[400] rounded bg-[var(--control-mapa)] px-1 text-[10px]"
           >
             {atribucion(capa)}
           </p>

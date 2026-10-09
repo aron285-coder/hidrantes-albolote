@@ -10,7 +10,11 @@ import { fechaCorta } from '../formato';
 import type { Caudal, Racor, TipoPunto } from '../puntos';
 import { T } from '../textos';
 
-export type Formato = 'xlsx' | 'csv' | 'geojson';
+/**
+ * `json` es el inventario completo con los datos tal cual, para consulta (FR-144; no es el respaldo,
+ * → 15). Desde docs/33 RV-335 es la cuarta opción de Exportar ▾ y no lleva filtros ni búsqueda.
+ */
+export type Formato = 'xlsx' | 'csv' | 'geojson' | 'json';
 
 export interface FilaExportada {
   codigo: string;
@@ -180,6 +184,7 @@ const TIPO_MIME: Record<Formato, string> = {
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   csv: 'text/csv;charset=utf-8',
   geojson: 'application/geo+json',
+  json: 'application/json',
 };
 
 /** Nombre del archivo: hidrantes-albolote-2026-09-20.xlsx */
@@ -189,6 +194,7 @@ export const nombreArchivo = (formato: Formato, hoy = new Date()) =>
 export function contenido(formato: Formato, filas: FilaExportada[]): BlobPart {
   if (formato === 'csv') return csv(filas);
   if (formato === 'geojson') return geojson(filas);
+  if (formato === 'json') return JSON.stringify(filas, null, 2);
   return xlsx(filas) as unknown as BlobPart;
 }
 
@@ -205,7 +211,6 @@ export function descargar(formato: Formato, filas: FilaExportada[]): void {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-/** Pide los datos y descarga. Devuelve cuántas filas salieron. */
 /** Solo las filas que se ven en pantalla, si hay búsqueda (FR-160): el servidor no la conoce. */
 export const soloVisibles = (filas: FilaExportada[], codigosVisibles?: string[]) => {
   if (!codigosVisibles) return filas;

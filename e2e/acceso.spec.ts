@@ -2,7 +2,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { FIRMA, conGoogle, conSesion, simularRpc } from './ayudas.ts';
+import { FIRMA, conGoogle, conSesion, irALista, simularRpc } from './ayudas.ts';
 
 const TOKEN_NUEVO = 'n'.repeat(43);
 /** Demasiados intentos dice a qué hora se puede volver a probar (docs/32 RV-242). */
@@ -65,7 +65,7 @@ test.describe('entrada del voluntario (FL-01)', () => {
     await page.goto('/');
     await rellenarEntrada(page);
     await expect(page.getByRole('alert')).toHaveText(T.entrada.sinServidor);
-    await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeVisible();
+    await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeVisible();
   });
 
   test('entra, ve las tres pantallas de primer uso y llega al mapa; el código no se guarda', async ({ page }) => {
@@ -146,7 +146,7 @@ test.describe('con sesión guardada', () => {
       return r.abort('connectionrefused');
     });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeVisible();
+    await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeVisible();
     await expect(page.getByTestId('mapa')).toBeVisible();
     await page.getByRole('link', { name: T.navegacion.ajustes }).click();
     await expect(page.getByText(`${FIRMA.nombre} ${FIRMA.apellido}`)).toBeVisible();
@@ -164,18 +164,25 @@ test.describe('con sesión guardada', () => {
       fn_registrar_error: null,
     });
     await page.getByRole('button', { name: T.mapa.reintentar }).click();
-    await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeHidden();
+    await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeHidden();
   });
 
-  test('sin cobertura: banda gris y la app sigue', async ({ page, context }) => {
+  test('sin cobertura: lo dice en gris y la app sigue', async ({ page, context }) => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: { puntos: [], bajas: [] } });
     await page.goto('/');
     await context.setOffline(true);
-    // La banda (div): la barra de estado lo dice también, solo al lector de pantalla (docs/31 RV-157).
-    await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    // En el mapa y la lista, la píldora de la cabecera (docs/33 RV-311); en las demás pantallas, la banda.
+    const pildora = page.getByTestId('estado-sincro');
+    await expect(pildora).toContainText(T.mapa.sinConexion);
+    // En el ordenador no hay pestaña «Lista»: la lista va al lado del mapa (docs/33 RV-321).
+    if (await page.getByRole('link', { name: T.navegacion.lista }).count()) {
+      await page.getByRole('link', { name: T.navegacion.lista }).click();
+    }
     await expect(page.getByRole('radio', { name: T.mapa.todos })).toBeVisible();
+    await expect(pildora).toContainText(T.mapa.sinConexion);
+    await page.getByRole('link', { name: T.navegacion.ajustes }).click();
+    await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeVisible();
     await context.setOffline(false);
     await expect(page.locator('div[role=status]').getByText(T.mapa.sinCoberturaSolo, { exact: true })).toBeHidden();
   });
@@ -247,25 +254,28 @@ test.describe('con sesión guardada', () => {
       if (nombre === 'fn_registrar_error') enviados.push(r.request().postDataJSON());
       await r.fulfill({ status: 200, contentType: 'application/json', body: '{"puntos":[],"bajas":[]}' });
     });
-    // docs/31 RV-148: el error sale por la Function /api/error (la RPC queda para una app anterior).
+    // docs/31 RV-148, docs/33 RV-306: el error sale solo por la Function /api/error.
     await page.route('**/api/error', async (r) => {
       enviados.push(r.request().postDataJSON());
       await r.fulfill({ status: 204 });
     });
     await page.goto('/');
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    await irALista(page);
     await expect(page.getByRole('alert')).toContainText(T.fallo.titulo);
     // La navegación sigue viva y "Volver al mapa" funciona.
     await page.getByRole('button', { name: T.envio.volverAlMapa }).click();
     await expect(page.getByTestId('mapa')).toBeVisible();
 
-    await expect.poll(() => enviados.length).toBeGreaterThan(0);
-    expect(enviados[0]).toMatchObject({
+    // El de la pantalla, buscado por su ruta: antes puede ir otro (la descarga del mapa base cortada).
+    const delFallo = () =>
+      enviados.find((e) => (e as { ruta?: string }).ruta === '/lista') as Record<string, unknown> | undefined;
+    await expect.poll(delFallo).toBeTruthy();
+    expect(delFallo()).toMatchObject({
       mensaje: 'Fallo provocado en /lista',
       ruta: '/lista',
       dispositivo_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
     });
-    expect(JSON.stringify(enviados[0])).not.toContain(FIRMA.apellido);
+    expect(JSON.stringify(delFallo())).not.toContain(FIRMA.apellido);
   });
 });
 
@@ -285,7 +295,13 @@ test.describe('jefatura (FL-20)', () => {
     await conGoogle(page, 'jefe@example.org');
     await simularRpc(page, { fn_es_admin: true });
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeVisible();
+    const titulo = page.getByRole('heading', { name: T.panel.titulo });
+    await expect(titulo).toBeAttached();
+    // Por debajo de 800 px, "Ir al mapa" está en el menú ☰ de la cabecera y el título, solo para el
+    // lector de pantalla (docs/33 RV-331); desde 800 px, el título se ve.
+    const menu = page.getByRole('button', { name: T.panel.menu });
+    if (await menu.isVisible()) await menu.click();
+    else await expect(titulo).toBeVisible();
     await page.getByRole('link', { name: T.jefatura.irAlMapa }).click();
     await expect(page.getByTestId('mapa')).toBeVisible();
     await expect(page.getByText(T.navegacion.jefatura, { exact: true })).toBeVisible();

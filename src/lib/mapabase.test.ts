@@ -203,6 +203,51 @@ describe('la descarga del mapa base no se queda colgada (RV-235)', () => {
     expect(m.estadoMapabase()).toMatchObject({ progreso: null, parada: true });
   });
 
+  it('cerrar o recargar la página a mitad no es un fallo: no se anota ni se marca', async () => {
+    prepararEntorno({ enLinea: true, tipo: 'wifi' });
+    anotarError.mockClear();
+    let cortar: ((e: unknown) => void) | undefined;
+    const stream = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(pmtiles().slice(0, 1000));
+        // Como el navegador al irse la página: la lectura acaba con un error de red.
+        cortar = (e) => c.error(e);
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(stream, { headers: { 'content-length': String(info.bytes) } })),
+    );
+    const m = await cargar();
+    const descarga = m.descargarMapabase();
+    await vi.waitFor(() => expect(m.estadoMapabase().progreso).toBeGreaterThanOrEqual(0));
+    await new Promise((r) => setTimeout(r, 10));
+    ventana.dispatchEvent(new Event('pagehide'));
+    cortar?.(new TypeError('network error'));
+    expect(await descarga).toBe(false);
+    expect(anotarError).not.toHaveBeenCalled();
+    expect(m.estadoMapabase()).toMatchObject({ progreso: null, fallo: false, parada: false });
+  });
+
+  it('un fallo real después de pagehide (al guardar) sí se anota', async () => {
+    prepararEntorno({ enLinea: true, tipo: 'wifi' });
+    anotarError.mockClear();
+    const lleno = new DOMException('Sin espacio', 'QuotaExceededError');
+    vi.stubGlobal('caches', {
+      open: async () => ({
+        match: async () => undefined,
+        put: async () => {
+          ventana.dispatchEvent(new Event('pagehide'));
+          throw lleno;
+        },
+      }),
+    });
+    const m = await cargar();
+    expect(await m.descargarMapabase()).toBe(false);
+    expect(anotarError).toHaveBeenCalledWith(lleno, 'mapabase');
+    expect(m.estadoMapabase()).toMatchObject({ fallo: true, parada: false });
+  });
+
   it('un fallo que no es parada no se presenta como parada', async () => {
     prepararEntorno({ enLinea: true, tipo: 'wifi' });
     vi.stubGlobal(

@@ -660,6 +660,44 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-192 · Mejoras de UI U1 a U15 del recorrido, con las indicaciones del desarrollador
+- **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-189; RV-310 a RV-321 y RV-330, RV-331, RV-335).
+- **Contexto:** el recorrido RV-270 (`verificacion/recorrido-staging-2026-10-08.md`, DEC-184) propuso mejoras de UI para la app y el panel. Las propuestas no se implementan solas: las elige el desarrollador para el documento siguiente.
+- **Decisión:** se hacen U1 a U15, cada una como la dibuja `docs/mockups/33-mejoras.html` y la describe `docs/33` (si no coinciden, manda el texto), con estas indicaciones:
+  - **U1** (el mapa se abre donde está el voluntario): con la leyenda plegada;
+  - **U6** (Mis propuestas dice qué se propuso): lo más simple posible, una línea con lo propuesto;
+  - **U13** (Salud del sistema en palabras): sin las cuatro filas;
+  - **U14** (panel con poca pantalla): sin el minimapa en la Cola.
+- **Alternativas descartadas:** las propuestas del recorrido que el desarrollador no eligió; hacer U1 con la leyenda abierta y U6 con el detalle de cada campo (más ruido en la pantalla del móvil).
+- **Al hacerlo:**
+  - **Cola sin mapita en las filas** (U14, RV-331): sustituye el punto 5 de DEC-159; por debajo de 800 px, la lista se abre con ☰.
+  - **U15, punto que ya no está activo** (RV-330): la fecha de «retirado el …» se toma de la última modificación del punto, porque `v_cola_revision` no trae la fecha de retirada (si un punto vuelve de la papelera a retirado, la fecha sale mal). Si la vista no trae la situación del punto, la pantalla no bloquea y lo hace el servidor con `PUNTO_NO_ACTIVO` (DEC-188).
+  - **U13, Salud en palabras** (RV-335, RV-338): siguen, debajo de las filas, «Tareas programadas» (con nombres en palabras) y «Móviles con más fotos pedidas (24 h)», porque quitarlas rompería TR-54 (última ejecución visible de cada purga) y la revocación de RV-262. Se quitan además «Callejero sin conexión» y «Entradas bloqueadas por demasiados intentos (24 h)», que la especificación no ponía en lo que queda. Salud avisa arriba si hay más de 5 entradas frenadas por el tope con la entrada cerrada (el umbral de la vigilancia).
+  - **La entrada** (RV-338): «Abrir la entrada para todos (24 h)» es directo, sin diálogo (se deshace con «Cerrar ahora»), y los dos topes de entradas van en la tarjeta *Parámetros*, no en la sección *Entrada*.
+  - **App del voluntario** (RV-311 a RV-321): la píldora de la cabecera dice «al día» si la última sincronización es de hace menos de 1 h, y sin cobertura «sin conexión · hace N» (FR-80: la fecha de los datos sigue a la vista); en el buscador, los puntos siguen arriba aunque lo escrito lleve número (un código como HID-9001 lo lleva); en el panel, el aviso de versión sigue arriba para no tapar Aprobar y Rechazar; la píldora de Medir usa `--papel` (oscura en oscuro); D6b solo sube el zoom mínimo al recorte del mapa base, sin encerrar el mapa en él (FR-55: hay que poder llegar a un punto fuera de zona).
+- **Afecta a:** 01 (Mis propuestas, FR-143); 06 (Apéndice A y simbología); `src/**`; DEC-159 punto 5 (sustituido).
+
+### DEC-191 · El tope de grupo de 150 fotos al día no se toca
+- **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-188).
+- **Contexto:** la revisión posterior al recorrido (T2) planteaba si `max_subidas_dia_total = 150` (0041, DEC-182) podía frenar a los voluntarios un día de mucho trabajo.
+- **Decisión:** se queda en 150. Con ~65 voluntarios no es un problema, y si algún día lo fuera, jefatura lo cambia desde Ajustes (de 1 a 5.000) sin código.
+- **Alternativas descartadas:** subirlo por defecto (más espacio en riesgo para un caso que no se da); quitar el tope de grupo (deja sin freno un abuso con muchos tokens).
+- **Afecta a:** nada (05 §2 `max_subidas_dia_total` sigue igual).
+
+### DEC-190 · La entrada del día del lanzamiento: topes en Ajustes y «abrir la entrada 24 h»
+- **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-187; RV-300, RV-338, RV-342, migración 0044).
+- **Contexto:** 0041 dejó `max_altas_ip_dia = 20` y `max_altas_global_hora = 40` fuera de Ajustes. El día del lanzamiento (F9.10), o cuando jefatura genera un código nuevo revocando todos los móviles (15 §5.4), los ~65 voluntarios entran desde la misma wifi: entrarían 20 y los demás recibirían `DEMASIADOS_INTENTOS` durante un día, y a partir de 40 en una hora ya nadie. Solo se arreglaba con SQL.
+- **Decisión:**
+  - Los dos topes se cambian desde Ajustes: «Entradas desde una misma wifi al día» (5–500) y «Entradas por hora, entre todos» (10–500), y quedan en el Registro.
+  - Jefatura puede **abrir la entrada para todos durante 24 h** (`entrada_abierta_hasta`; `fn_abrir_entrada(horas)` hasta 72 h y `fn_cerrar_entrada()`, solo administradores, en el Registro). Mientras está abierta, los topes por wifi y por hora pasan a 200, y los tokens creados entonces no llevan el límite de token nuevo. **Los topes de intentos fallidos no cambian:** solo se abre la entrada a quien acierta el código.
+  - **Se abre sola** al generar un código nuevo revocando todos los móviles, en la misma transacción; un código nuevo sin revocar no la abre. **Se cierra sola** al pasar la hora, sin tarea programada.
+  - Salud muestra las entradas frenadas por el tope en 24 h y hasta cuándo está abierta; la vigilancia avisa si se frenan más de 5.
+  - En el lanzamiento, la entrada se abre **antes** de comunicar el código (F9.10, #85; 15 §5.4).
+  - Detalles de 0044 (contrato de Backend en #580): con la entrada abierta, los topes de entrada valen `greatest(valor, 200)`; el tope global de propuestas se cuenta sin candado (puede pasarse en tantas como lleguen a la vez); el historial de `pg_cron` se guarda 10 días y no 7, porque Salud y la vigilancia miran fallos en 8 días. El `grant delete on cron.job_run_details` para `hidrantes_migrador` que necesita esa purga ya está dado en dev y prod por la vía de DEC-185 (la sesión principal): no es un paso del desarrollador.
+  - **El Storage de todo el proyecto no se vigila** en esta release: la política de lectura de `storage.objects` solo deja ver nuestros buckets, y abrirla a los demás dejaría leer los nombres de archivo de la app de uniformidad. Queda como propuesta.
+- **Alternativas descartadas:** subir los topes para siempre (se pierde el freno a quien reparte un código filtrado); relajar también los intentos fallidos (abriría la puerta a probar códigos); una tarea `pg_cron` para cerrarla (la comparación con `now()` basta y no puede fallar en silencio).
+- **Afecta a:** 01 FR-31 a FR-34 y FR-143; 05 (0044, parámetros y funciones); 06 Apéndice A (Ajustes, Salud); 09 (F9.10); 13; 15 §5.4.
+
 ### DEC-189 · El mapa y la lista miden la ventana; solo se desplaza la lista
 - **Fecha:** 9 oct 2026 · **Estado:** vigente (RV-270 D2, #562; PR #576).
 - **Contexto:** en el ordenador, la página del mapa y la de la lista medían siempre más que la ventana (1175 px en staging) y se desplazaban enteras con la rueda: un texto solo para lector de pantalla de cada fila escapaba de la caja que se desplaza, y nada limitaba el alto de la lista.
@@ -772,7 +810,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **La vigilancia mira que la copia exista** (RV-201, `.github/scripts/revisar-respaldo.sh`). Dos veces al día comprueba que el artifact de la última ejecución correcta de `respaldo.yml` existe, no ha caducado, pesa más de 0 bytes y tiene menos de 8 días. Si no, abre la issue de vigilancia y manda un aviso push a cada administrador. Antes solo miraba `config.ultimo_respaldo`, que dice que el respaldo corrió, no que su copia siga ahí.
   - **90 días de artifacts.** Con un respaldo semanal hay unas 12 copias a la vez: perder una no deja sin ninguna.
   - **El código de despacho no puede borrar** (RV-201). En `despachador.yml`, solo el trabajo `lanzar` tiene `actions: write`, el permiso que también borra artifacts. Ese trabajo no hace checkout, no ve la clave de servicio y solo lanza los cuatro workflows de su `case`. Los trabajos que corren código del repositorio con la clave de servicio solo tienen `contents: read`.
-  - **La copia se puede descifrar** (RV-202). La huella de la clave de `docs/15` §2 está en la variable del repositorio `GPG_HUELLA`. Antes de cifrar, `respaldo.yml` comprueba que `GPG_PUBLIC_KEY` es esa clave. Después, con `gpg --list-packets`, comprueba que el archivo va para ella y para ninguna otra. Si no, el job falla y abre «El respaldo semanal ha fallado».
+  - **La copia se puede descifrar** (RV-202). La huella de la clave de `docs/15` §2 es la constante `GPG_HUELLA` de `respaldo.yml` (hasta `docs/33` RV-341 era una variable del repositorio; ahora cambiarla exige un PR). Antes de cifrar, `respaldo.yml` comprueba que `GPG_PUBLIC_KEY` es esa clave. Después, con `gpg --list-packets`, comprueba que el archivo va para ella y para ninguna otra. Si no, el job falla y abre «El respaldo semanal ha fallado».
   - La restauración de prueba semanal (`docs/31` RV-134) sigue comprobando que el volcado se puede restaurar.
 - **Revisar si** cambia la cuenta de GitHub, el plan de retención de artifacts o el número de administradores que guardan la clave privada.
 - **Afecta a:** 04 §9 y §10; 15 §2 y §5; DEC-173.
@@ -954,14 +992,14 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 05 §4; `docs/25` RV-110.
 
 ### DEC-159 · Detalle de la cola: de dónde salen los datos, el radio y los mapitas
-- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-110).
+- **Fecha:** 4 oct 2026 · **Estado:** vigente, salvo el punto 5, sustituido por DEC-192 (`docs/25` RV-110).
 - **Contexto:** el detalle nuevo enseña todos los datos del punto, su posición y sus fotos actuales en las seis operaciones. Esos datos los trae 0036 (DEC-160), que se hizo a la vez que la pantalla; el panel tiene que seguir funcionando contra la vista de antes una versión (04 §12).
 - **Decisión:**
   1. **Datos y posición del punto:** `punto`, `punto_lat` y `punto_lng` de `v_cola_revision` y `v_historial_revision`. Si no vienen (vista anterior), los del inventario que el panel ya tiene cargado (`v_puntos_activos`); si tampoco, "—" y, en el mapa, "Sin posición" con palabras. Un alta se decide por `operacion`, nunca por `punto` nulo.
   2. **El "antes"** de un campo es el `antes` de la propuesta o, solo si está **pendiente**, el punto de hoy. En el historial el punto de hoy ya lleva el cambio y daría "70 mm → 70 mm".
   3. **El historial** lee `v_historial_revision` (0036) en vez de `propuestas` con el punto embebido.
   4. **Radio del círculo de duplicado:** `radio_duplicado_m` de `config`, leído una vez al abrir la cola. Sin poder leerlo, el círculo no se dibuja: uno supuesto podría contradecir el aviso de duplicado, que usa el de verdad.
-  5. **Mapitas de la lista (62 × 48 px, tableta y móvil):** un Leaflet sin controles con el mapa base propio (sin red), creado solo cuando la fila entra en la vista.
+  5. *(Sustituido por DEC-192: la Cola ya no lleva mapita en las filas.)* **Mapitas de la lista (62 × 48 px, tableta y móvil):** un Leaflet sin controles con el mapa base propio (sin red), creado solo cuando la fila entra en la vista.
   6. **"Tocar una foto la amplía":** abre la foto entera en otra pestaña, como hasta ahora; sin visor propio.
 - **Descartado:** una RPC nueva para los puntos de alrededor (el inventario ya está en memoria); dibujar los mapitas como SVG sin mapa base (la especificación pide el mapa base propio).
 - **Afecta a:** 06 §5 (panel); `src/lib/panel/cola.ts`.

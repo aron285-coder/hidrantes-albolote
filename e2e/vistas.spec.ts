@@ -78,6 +78,52 @@ async function voluntario(page: Page) {
   });
 }
 
+/** docs/33 RV-315 (U6): Mis propuestas con una de cada estado, como en el mockup. */
+async function voluntarioConPropuestas(page: Page) {
+  await conSesion(page);
+  const base = { correcciones: null, revisada_en: null, motivo_rechazo: null };
+  await simularRpc(page, {
+    fn_listar_puntos: LISTADO,
+    fn_mis_propuestas: [
+      {
+        ...base,
+        id: 'p1',
+        clave_local: 'k1',
+        operacion: 'estado',
+        punto_id: P0.id,
+        codigo: P0.codigo,
+        datos: { caudal: 'no_funciona', descripcion_fallo: 'Tapa soldada' },
+        estado: 'pendiente',
+        creada_en: hace(0.02),
+      },
+      {
+        ...base,
+        id: 'p2',
+        clave_local: 'k2',
+        operacion: 'alta',
+        punto_id: null,
+        codigo: null,
+        datos: { tipo: 'hidrante', diametro_mm: 100, caudal: 'bueno' },
+        estado: 'aprobada',
+        creada_en: hace(26),
+      },
+      {
+        ...base,
+        id: 'p3',
+        clave_local: 'k3',
+        operacion: 'datos',
+        punto_id: P1.id,
+        codigo: P1.codigo,
+        datos: { racor: 'directo' },
+        estado: 'rechazada',
+        motivo_rechazo: 'la foto es de la boca de al lado',
+        creada_en: hace(50),
+      },
+    ],
+    fn_registrar_error: null,
+  });
+}
+
 /**
  * docs/25 RV-107: los doce puntos sin revisar (los cinco tamaños, círculo y cuadrado), y el mapa
  * a z17 sobre ellos, para mirar el anillo de 8 rayas en el mapa y en la lista.
@@ -91,7 +137,7 @@ async function voluntarioSinRevisar(page: Page) {
     fn_registrar_error: null,
   });
   // La clave es VISTA de src/lib/vista.ts; no se importa porque arrastra imports sin extensión.
-  await page.addInitScript(([clave, vista]) => localStorage.setItem(clave, vista), [
+  await page.addInitScript(([clave, vista]) => sessionStorage.setItem(clave, vista), [
     'hidrantes.vista',
     JSON.stringify({ centro: [37.2326, -3.6554], zoom: 17 }),
   ] as const);
@@ -224,7 +270,7 @@ const VISTAS: Vista[] = [
     nombre: 'mapa',
     ruta: '/',
     preparar: voluntario,
-    lista: (p) => expect(p.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible(),
+    lista: (p) => expect(p.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length)),
   },
   {
     nombre: 'mapa-incidente',
@@ -318,6 +364,29 @@ const VISTAS: Vista[] = [
     },
   },
   {
+    // docs/33 RV-316 (D9): las dos fotos hechas, «✓ Conexión · N kB» en una línea.
+    nombre: 'nuevo-punto-fotos-hechas',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: async (p) => {
+      const jpeg = await p.evaluate(async () => {
+        const c = document.createElement('canvas');
+        c.width = 400;
+        c.height = 300;
+        c.getContext('2d')!.fillRect(0, 0, 400, 300);
+        const b = await new Promise<Blob>((r) => c.toBlob((x) => r(x!), 'image/jpeg'));
+        return Array.from(new Uint8Array(await b.arrayBuffer()));
+      });
+      for (const id of ['entrada-foto', 'entrada-foto-sitio']) {
+        await p.getByTestId(id).setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
+      }
+      const hueco = p.getByTestId('hueco-entrada-foto-sitio');
+      await hueco.scrollIntoViewIfNeeded();
+      await expect(hueco.getByText(/kB/)).toBeVisible();
+    },
+    anchoEscritorio: 1440,
+  },
+  {
     nombre: 'lista',
     ruta: '/lista',
     preparar: voluntario,
@@ -347,6 +416,13 @@ const VISTAS: Vista[] = [
     ruta: '/ajustes',
     preparar: voluntario,
     lista: (p) => expect(p.getByText(T.ajustes.firma)).toBeVisible(),
+  },
+  {
+    nombre: 'mis-propuestas',
+    ruta: '/mis-propuestas',
+    preparar: voluntarioConPropuestas,
+    lista: (p) => expect(p.getByText(T.misPropuestas.motivo('la foto es de la boca de al lado'))).toBeVisible(),
+    anchoEscritorio: 1440,
   },
   {
     nombre: 'panel-cola',

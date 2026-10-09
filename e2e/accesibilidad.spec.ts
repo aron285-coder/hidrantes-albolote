@@ -9,7 +9,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import type { NodeResult, Result } from 'axe-core';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, irALista, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 
@@ -160,17 +160,18 @@ test.describe('app del voluntario', () => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null, fn_ficha_punto: PUNTOS[0] });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
     await auditar(page, 'mapa');
     await geometria(page, 'mapa', { movil: !!isMobile });
 
-    // La leyenda plegada (RV-82): una ficha de 44 px con nombre, sin pegarse a los demás controles.
-    await page.reload();
-    await expect(page.getByRole('button', { name: T.mapa.leyenda, exact: true })).toBeVisible();
-    await auditar(page, 'mapa con la leyenda plegada');
-    await geometria(page, 'mapa con la leyenda plegada', { movil: !!isMobile });
+    // La leyenda empieza plegada (docs/33 RV-310): una ficha de 44 px con nombre. Desplegada, sin
+    // pegarse a los demás controles (RV-82).
+    await page.getByRole('button', { name: T.mapa.leyenda, exact: true }).click();
+    await expect(page.getByRole('region', { name: T.mapa.leyenda })).toBeVisible();
+    await auditar(page, 'mapa con la leyenda desplegada');
+    await geometria(page, 'mapa con la leyenda desplegada', { movil: !!isMobile });
 
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    await irALista(page);
     await expect(page.getByPlaceholder(T.mapa.buscar)).toBeVisible();
     await auditar(page, 'lista');
     await geometria(page, 'lista', { movil: !!isMobile });
@@ -375,7 +376,7 @@ test.describe('avisos flotantes del mapa (RV-59)', () => {
       await conSesion(page);
       await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
       await page.goto('/');
-      await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+      await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
       await page.getByRole('button', { name: T.mapa.miPosicion }).click();
       await expect(page.getByRole('status').filter({ hasText: T.mapa.posicionDenegada })).toBeVisible();
 

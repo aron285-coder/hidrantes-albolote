@@ -24,7 +24,7 @@ test('con teselas sueltas de una versión vieja y el SW nuevo, se borran y el av
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
   // Teselas vistas en línea con la versión anterior del mapa base.
   await page.evaluate(async (nombre) => {
     await navigator.serviceWorker.ready;

@@ -36,7 +36,7 @@ test('«N sin enviar» se toca en sus cuatro bordes (RV-243, UI-15)', async ({ p
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
   await page.evaluate(
     () =>
       new Promise<void>((ok, ko) => {

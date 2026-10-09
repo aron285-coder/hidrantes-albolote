@@ -13,7 +13,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, irALista, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 /** Nada de jerga ni de códigos internos en la pantalla (UI-04, UI-22). */
@@ -36,16 +36,16 @@ test.describe('degradación controlada (FR-168)', () => {
     await conSesion(page);
     await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null, fn_mis_propuestas: [] });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 
     // A partir de aquí no hay Supabase: ni RPC, ni auth, ni nada. La ruta nueva gana a la simulada.
     await page.route(`${SUPABASE_PRUEBAS}/**`, (r) => r.abort('connectionrefused'));
     await page.reload();
 
-    await expect(page.getByText(T.mapa.sinServidor, { exact: true })).toBeVisible();
+    await expect(page.getByText(T.mapa.sinServidor, { exact: true }).first()).toBeVisible();
     // Lo que se guardó en el móvil sigue estando: es lo que un voluntario necesita en una salida.
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
+    await irALista(page);
     await expect(page.getByText(PUNTOS[0].codigo, { exact: true }).first()).toBeVisible();
     // Y la ficha, que es donde está el dato que se consulta delante del hidrante.
     await page.getByText(PUNTOS[0].codigo, { exact: true }).first().click();
@@ -137,7 +137,7 @@ test.describe('degradación controlada (FR-168)', () => {
       // Medio lleno: ni banda ni alarmismo, solo el dato de siempre.
       await page.goto('/admin/ajustes');
       const salud96 = T.panelAjustes.almacenamientoLleno(96);
-      await expect(page.getByText(T.panelAjustes.almacenamiento)).toBeVisible();
+      await expect(page.getByText(T.panelAjustes.fotos, { exact: true })).toBeVisible();
       await expect(page.getByText(salud96)).toBeHidden();
 
       // Al 96 %, la banda con qué hacer antes de que se llene.
@@ -162,9 +162,9 @@ test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
     // Se descarga solo al arrancar con una conexión que lo permite (FR-81).
     await expect(page.getByText(/Descargado · /)).toBeVisible({ timeout: 20_000 });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 
-    const calle = page.getByRole('radio', { name: new RegExp(T.mapa.calleOsm.replace(/[()]/g, '\\$&')) });
+    const calle = page.getByRole('radio', { name: new RegExp(T.capas.calle.replace(/[()]/g, '\\$&')) });
     await page.getByRole('button', { name: T.mapa.capas }).click();
     await calle.click();
     await page.keyboard.press('Escape');
@@ -174,7 +174,7 @@ test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
 
     await page.route('https://tile.openstreetmap.org/**', (r) => r.abort('internetdisconnected'));
     await context.setOffline(true);
-    await expect(page.getByRole('status').filter({ hasText: T.mapa.capaConBaseDebajo(T.mapa.calleOsm) })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: T.mapa.capaConBaseDebajo(T.capas.calle) })).toBeVisible();
     await expect(teselasBase.first()).toBeVisible();
 
     // La elección no cambia: al volver la cobertura sigue elegida la calle.
@@ -195,7 +195,7 @@ test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
     await page.goto('/proponer/alta');
     const selector = page.getByTestId('selector-pin');
     await expect(selector).toBeVisible();
-    // La capa elegida es la del mapa principal: Satélite (PNOA).
+    // La capa elegida es la del mapa principal: Foto aérea.
     await expect(selector.locator('img.leaflet-tile[src*="ign.es"]').first()).toBeAttached();
 
     await context.setOffline(true);

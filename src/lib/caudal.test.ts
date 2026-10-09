@@ -9,7 +9,7 @@ vi.mock('./errores', () => ({ anotarError: (e: unknown) => anotarError(e) }));
 
 const { caudalParaDibujar, esCaudalConocido, reiniciarAvisoCaudal } = await import('./caudal');
 const { claseChip, nombreCaudal } = await import('./ficha');
-const { svgMarcador, COLOR_CAUDAL } = await import('./simbologia');
+const { svgMarcador } = await import('./simbologia');
 const { CONFIG_POR_DEFECTO, derivar, radioPx } = await import('./derivar');
 const { textoPunto } = await import('./compartir');
 const { filtrar, ordenar } = await import('./puntos');
@@ -55,13 +55,13 @@ describe('caudal desconocido (docs/24 RV-102a)', () => {
     }
   });
 
-  it('se dibuja como no funciona: gris, medio transparente y tachado, sin «undefined»', () => {
+  it('se dibuja como no funciona: blanco, borde gris y aspa (docs/33 RV-319), sin «undefined»', () => {
     const svg = svgMarcador({ tipo: 'hidrante', caudal: DESCONOCIDO, radio_px: 5, revision_caducada: false });
     expect(svg).not.toContain('undefined');
     expect(svg).not.toContain('NaN');
-    expect(svg).toContain(`fill="${COLOR_CAUDAL.no_funciona}"`);
-    expect(svg).toContain('opacity="0.5"');
-    expect(svg).toContain('data-tachado');
+    expect(svg).toContain('fill="var(--borde-marcador)"');
+    expect(svg).toContain('stroke="var(--gris-700)"');
+    expect(svg).toContain('data-aspa');
   });
 
   it('el radio es el mínimo de la escala y nunca NaN', () => {

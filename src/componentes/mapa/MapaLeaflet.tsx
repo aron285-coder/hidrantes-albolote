@@ -1,18 +1,24 @@
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import { LIMITES, capasDe } from './capas-leaflet';
-import { type Capa, ZOOM_MAX } from '@/lib/capas';
+import { LIMITES, RECORTE_MAPABASE, capasDe } from './capas-leaflet';
+import { type Capa, ZOOM_MAX, capasPintadas } from '@/lib/capas';
 import type { LatLng } from '@/lib/coordenadas';
 import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
 import { distancia } from '@/lib/formato';
-import { desplazamientoEtiqueta, imantar } from '@/lib/medicion';
+import { colocarEtiquetas, imantar } from '@/lib/medicion';
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
 import { RESERVA_DERECHA, ZONA_ABAJO } from '@/lib/disposicion-mapa';
 import { T } from '@/lib/textos';
 import { guardarVista, vistaGuardada } from '@/lib/vista';
+
+/** Lo más lejos que se aleja el mapa (06 §4.4). */
+const MIN_ZOOM = 10;
+
+/** La píldora de la distancia de un tramo (index.css, .etiqueta-medicion). */
+const TAM_ETIQUETA = { ancho: 56, alto: 22 };
 
 export interface ControlMapa {
   centrar(lat: number, lng: number, zoom?: number): void;
@@ -20,6 +26,10 @@ export interface ControlMapa {
   encuadrar(recuadro: [[number, number], [number, number]], margenInferior?: number): void;
   acercar(): void;
   alejar(): void;
+  /** Centra a un zoom exacto (el de calle al abrir la aplicación, RV-310). */
+  colocar(lat: number, lng: number, zoom: number): void;
+  /** Encuadra la zona de cobertura entera. */
+  verZona(): void;
 }
 
 interface Props {
@@ -49,11 +59,13 @@ interface Props {
    */
   medicion?: {
     vertices: LatLng[];
-    etiquetas: { en: LatLng; desde: LatLng; hasta: LatLng; metros: number }[];
+    etiquetas: { en: LatLng; desde: LatLng; hasta: LatLng; metros: number; tramo: number }[];
     alTocar: (l: LatLng) => void;
   } | null;
   /** La calle elegida en la búsqueda, resaltada durante la sesión (FR-73, 06 §4.7): [[[lng, lat], …], …]. */
   calle?: [number, number][][] | null;
+  /** El voluntario mueve el mapa con el dedo, la rueda o el teclado (RV-310): ya no se coloca solo. */
+  alMoverlo?: () => void;
 }
 
 /** Diana del incidente: el Crosshair de lucide sobre un círculo de papel con borde (06 §4.7). */
@@ -86,6 +98,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     incidente = null,
     medicion = null,
     calle = null,
+    alMoverlo,
   },
   ref,
 ) {
@@ -109,6 +122,10 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
   useEffect(() => {
     alPulsacionLargaRef.current = alPulsacionLarga;
   }, [alPulsacionLarga]);
+  const alMoverloRef = useRef(alMoverlo);
+  useEffect(() => {
+    alMoverloRef.current = alMoverlo;
+  }, [alMoverlo]);
 
   // Crear el mapa una vez.
   useEffect(() => {
@@ -116,7 +133,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     const m = L.map(contenedor.current, {
       zoomControl: false,
       attributionControl: false,
-      minZoom: 10,
+      minZoom: MIN_ZOOM,
       maxZoom: ZOOM_MAX,
       maxBounds: LIMITES.pad(0.5),
       maxBoundsViscosity: 0.8,
@@ -126,7 +143,14 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     else m.fitBounds(LIMITES, { padding: [8, 8] });
     // El zoom de ahora, a la vista en el contenedor: la vista guardada no vale para saberlo con un
     // incidente o "¿Qué hay aquí?" abiertos, porque entonces no se guarda (RV-62).
-    const anotarZoom = () => (m.getContainer().dataset.zoom = String(m.getZoom()));
+    const anotarZoom = () => {
+      const c = m.getContainer();
+      const centro = m.getCenter();
+      c.dataset.zoom = String(m.getZoom());
+      c.dataset.centro = `${centro.lat.toFixed(6)},${centro.lng.toFixed(6)}`;
+      const b = m.getBounds();
+      c.dataset.vista = [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()].map((x) => x.toFixed(6)).join(',');
+    };
     anotarZoom();
     m.on('moveend', () => {
       anotarZoom();
@@ -187,12 +211,29 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     // Si el mapa se mueve o hace zoom, el gesto era para el mapa.
     m.on('movestart zoomstart', soltar);
 
+    // Gestos del voluntario sobre el mapa, no los movimientos que hace la aplicación: arrastrar,
+    // pellizcar, la rueda o las teclas del mapa (RV-310).
+    const movido = () => alMoverloRef.current?.();
+    const conDosDedos = (e: TouchEvent) => {
+      if (e.touches.length > 1) movido();
+    };
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key.startsWith('Arrow') || ['+', '-', '='].includes(e.key)) movido();
+    };
+    m.on('dragstart', movido);
+    lienzo.addEventListener('wheel', movido, { passive: true });
+    lienzo.addEventListener('touchstart', conDosDedos, { passive: true });
+    lienzo.addEventListener('keydown', tecla);
+
     return () => {
       lienzo.removeEventListener('pointerdown', bajar);
       lienzo.removeEventListener('pointermove', mover);
       lienzo.removeEventListener('pointerup', soltar);
       lienzo.removeEventListener('pointercancel', soltar);
       lienzo.removeEventListener('contextmenu', menu);
+      lienzo.removeEventListener('wheel', movido);
+      lienzo.removeEventListener('touchstart', conDosDedos);
+      lienzo.removeEventListener('keydown', tecla);
       detector.cancelar();
       m.remove();
       mapa.current = null;
@@ -213,6 +254,8 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     },
     acercar: () => mapa.current?.zoomIn(),
     alejar: () => mapa.current?.zoomOut(),
+    colocar: (lat, lng, zoom) => mapa.current?.setView([lat, lng], zoom, { animate: false }),
+    verZona: () => mapa.current?.fitBounds(LIMITES, { padding: [8, 8] }),
   }));
 
   // Capa base, capa en línea y límite de zona: cambian con la capa elegida, el modo y la cobertura.
@@ -223,6 +266,31 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
   }, [capa, modo, baseDebajo]);
+
+  // Con el mapa sin conexión a la vista, no se aleja más de lo justo para ver su recorte entero: más
+  // lejos, el recorte se quedaba en un rectángulo de bordes rectos sobre el fondo vacío (docs/33 RV-321,
+  // D6b). Los límites para moverse no cambian (la zona con medio recuadro de aire): un punto o una
+  // posición fuera de la zona se siguen pudiendo ver (FR-55). Con las capas en línea, como antes.
+  useEffect(() => {
+    const m = mapa.current;
+    if (!m) return;
+    if (!capasPintadas(capa, baseDebajo).includes('base')) {
+      m.setMinZoom(MIN_ZOOM);
+      return;
+    }
+    const ajustar = () => {
+      // El zoom con el que el recorte entero cabe en la ventana: «Ver toda la zona» sigue viéndola entera.
+      const minimo = Math.max(MIN_ZOOM, Math.floor(m.getBoundsZoom(RECORTE_MAPABASE, false)));
+      // Sin animación: una animación de zoom a medias pisaría el encuadre que se haga justo después.
+      if (m.getZoom() < minimo) m.setZoom(minimo, { animate: false });
+      m.setMinZoom(minimo);
+    };
+    ajustar();
+    m.on('resize', ajustar);
+    return () => {
+      m.off('resize', ajustar);
+    };
+  }, [capa, baseDebajo]);
 
   // Puntos, con declutter por zoom (06 §4.4). El seleccionado se ve siempre.
   useEffect(() => {
@@ -381,25 +449,41 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
       L.circleMarker(v, { radius: 5, weight: 2, className: 'vertice-medicion', interactive: false }).addTo(g);
     }
     const m = mapa.current;
-    for (const e of medicion.etiquetas) {
-      // A 14 px de la línea, en perpendicular al tramo: sobre ella, la línea la tachaba (RV-67).
-      const d = m
-        ? desplazamientoEtiqueta(
-            m.latLngToLayerPoint([e.desde.lat, e.desde.lng]),
-            m.latLngToLayerPoint([e.hasta.lat, e.hasta.lng]),
-          )
-        : { x: 0, y: 0 };
-      L.marker([e.en.lat, e.en.lng], {
-        icon: L.divIcon({
-          html: distancia(e.metros),
-          className: 'etiqueta-medicion',
-          iconSize: [56, 20],
-          iconAnchor: [28 - d.x, 10 - d.y],
-        }),
-        interactive: false,
-        keyboard: false,
-      }).addTo(g);
-    }
+    if (!m) return;
+    // Las etiquetas, en píldoras apartadas de la línea hacia fuera del ángulo, y solo en los tramos que
+    // miden en pantalla lo bastante para que quepan (docs/33 RV-318, D7). Dependen del zoom: se vuelven
+    // a colocar en cada `zoomend`.
+    const etiquetas = L.layerGroup().addTo(g);
+    const { etiquetas: tramos } = medicion;
+    const colocar = () => {
+      etiquetas.clearLayers();
+      const enPantalla = medicion.vertices.map((l) => m.latLngToLayerPoint([l.lat, l.lng]));
+      const conEtiqueta = enPantalla.slice(1).map((_, i) => tramos.some((e) => e.tramo === i));
+      const sitios = colocarEtiquetas(enPantalla, conEtiqueta, TAM_ETIQUETA);
+      for (const e of tramos) {
+        const s = sitios[e.tramo];
+        if (!s?.visible) continue;
+        const a = enPantalla[e.tramo]!;
+        const b = enPantalla[e.tramo + 1]!;
+        // Desde el punto medio del tramo, que es donde va el marcador.
+        const d = { x: s.x - (a.x + b.x) / 2, y: s.y - (a.y + b.y) / 2 };
+        L.marker([e.en.lat, e.en.lng], {
+          icon: L.divIcon({
+            html: distancia(e.metros),
+            className: 'etiqueta-medicion',
+            iconSize: [TAM_ETIQUETA.ancho, TAM_ETIQUETA.alto],
+            iconAnchor: [TAM_ETIQUETA.ancho / 2 - d.x, TAM_ETIQUETA.alto / 2 - d.y],
+          }),
+          interactive: false,
+          keyboard: false,
+        }).addTo(etiquetas);
+      }
+    };
+    colocar();
+    m.on('zoomend', colocar);
+    return () => {
+      m.off('zoomend', colocar);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- la clave resume los vértices
   }, [claveMedicion, !!medicion]);
 

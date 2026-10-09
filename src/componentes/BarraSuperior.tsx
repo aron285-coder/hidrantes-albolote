@@ -1,4 +1,5 @@
 import { ChevronLeft } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { AvisoConexion } from './AvisoConexion';
 import { PilaAvisos } from './PilaAvisos';
@@ -15,6 +16,8 @@ export function BarraSuperior({
   jefatura = false,
   enlacePanel = true,
   centrado = false,
+  estado,
+  navegacion,
 }: {
   titulo: string;
   alVolver?: () => void;
@@ -25,6 +28,13 @@ export function BarraSuperior({
    */
   enlacePanel?: boolean;
   centrado?: boolean;
+  /**
+   * El estado de la sincronización a la derecha (docs/33 RV-311): en el mapa y la lista sustituye a la
+   * banda de conexión, que ya no se pinta debajo.
+   */
+  estado?: ReactNode;
+  /** En el ordenador, la navegación de la app junto al título (docs/33 RV-321). */
+  navegacion?: ReactNode;
 }) {
   return (
     <div className="sticky top-0 z-20">
@@ -44,10 +54,14 @@ export function BarraSuperior({
           className={cn(
             'font-titulo min-w-0 flex-1 truncate text-base font-semibold tracking-wide',
             centrado && 'text-center',
+            // Con la navegación al lado, el título mide lo suyo y la navegación va justo detrás.
+            navegacion && 'min-[1100px]:flex-none',
           )}
         >
           {titulo}
         </h1>
+        {navegacion}
+        {estado}
         {jefatura && enlacePanel && (
           // En el móvil, el camino al panel desde el mapa (RV-113, DEC-164). El área que se toca es de
           // 44 × 44 px (UI-15); la etiqueta de oro conserva su tamaño dentro.
@@ -66,7 +80,7 @@ export function BarraSuperior({
         )}
         {jefatura && !enlacePanel && <span className={cn(ETIQUETA, 'shrink-0')}>{T.navegacion.jefatura}</span>}
       </header>
-      <AvisoConexion />
+      {!estado && <AvisoConexion />}
       {/* Los avisos de arriba, apilados justo debajo (docs/32 RV-238). */}
       <PilaAvisos />
     </div>

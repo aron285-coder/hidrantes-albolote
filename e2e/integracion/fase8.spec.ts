@@ -92,7 +92,7 @@ test('camino crítico: alta con pin manual y foto, aprobación con dirección, m
   await page.getByLabel(T.entrada.apellido).fill(apellido);
   await page.getByRole('button', { name: T.entrada.entrar, exact: true }).click();
   await page.getByRole('button', { name: T.bienvenida.saltar }).click();
-  await expect(page.getByText(/Sincronizado .+/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-sincronizado', 'si', { timeout: 30_000 });
 
   // ---------- 2. Alta con el pin movido a mano y foto por URL firmada ----------
   await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();

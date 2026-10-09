@@ -43,7 +43,7 @@ async function preparar(
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: { ...LISTADO, puntos: CERCA }, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(CERCA.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(CERCA.length));
 }
 
 const hoja = (page: Page) => page.getByRole('region', { name: T.incidente.titulo });
@@ -145,7 +145,7 @@ test('G2: con puntos guardados y sin red, la primera fila de Cercanos en menos d
     await navigator.serviceWorker.ready;
   });
   await page.reload(); // la segunda carga ya la controla el Service Worker
-  await expect(page.getByText(T.mapa.nPuntos(CERCA.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(CERCA.length));
   await context.setOffline(true);
   const t0 = Date.now();
   await page.goto('/');
@@ -341,7 +341,7 @@ test.describe('cabos sueltos del modo incidente (RV-62)', () => {
     // 20 m de por defecto serían 4). A z18 está a unos 150 px, lejos de los demás marcadores.
     const sur = (O.latitude - 30 / M_POR_GRADO).toFixed(6);
     await page.addInitScript(
-      (lat) => localStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [Number(lat), -3.656], zoom: 18 })),
+      (lat) => sessionStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [Number(lat), -3.656], zoom: 18 })),
       sur,
     );
     await page.goto(`/?aqui=${sur},-3.656000`);
@@ -361,7 +361,7 @@ test.describe('cabos sueltos del modo incidente (RV-62)', () => {
       .toBe(true);
     const b = (await marcador.boundingBox())!;
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
-    await expect(page.getByRole('region', { name: T.medir.titulo })).toContainText(/70 m · 3 tramos de 25 m/);
+    await expect(page.getByRole('region', { name: T.medir.titulo })).toContainText(T.medir.resultado('70 m', 3, 25));
   });
 
   test('tras elegir un resultado de la búsqueda, cerrar ¿Qué hay aquí? no vuelve a enseñar "Sin posición"', async ({

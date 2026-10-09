@@ -4,7 +4,8 @@ import { useSearchParams } from 'react-router';
 import { AvisoSinPuntos } from './AvisoSinPuntos';
 import { MarcadorSvg } from './MarcadorSvg';
 import { CabeceraGrupo, ResultadoCoordenadas, ResultadosCallesYDirecciones } from './ResultadosLugares';
-import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
+import { type Destino, hayLugares, teclaBuscador, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
+import { llevaNumero } from '@/lib/callejero';
 import { usePosicion, usePuntos } from '@/hooks/estado';
 import { leer, escribir } from '@/lib/almacen';
 import { nombreCaudal } from '@/lib/ficha';
@@ -78,9 +79,14 @@ export function ListaPuntos({
           <Search size={18} className="text-texto-suave shrink-0" aria-hidden />
           <input
             id="buscar-lista"
-            type="search"
+            // Texto y no «search»: el navegador pintaría su propio ✕ junto al nuestro (docs/33 RV-312, U3).
+            type="text"
+            role="searchbox"
+            inputMode="search"
+            enterKeyHint="search"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => teclaBuscador(e, texto, setTexto)}
             placeholder={T.mapa.buscar}
             aria-label={T.mapa.buscar}
             className="min-w-0 flex-1 bg-transparent outline-none"
@@ -88,7 +94,12 @@ export function ListaPuntos({
           {texto && (
             <button
               type="button"
-              onClick={() => setTexto('')}
+              // Borrar deja el foco en el campo, para escribir otra cosa (el ✕ desaparece al borrar).
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setTexto('');
+                document.getElementById('buscar-lista')?.focus();
+              }}
               aria-label={T.mapa.borrarBusqueda}
               className="-mr-2 flex size-11 items-center justify-center"
             >
@@ -97,7 +108,7 @@ export function ListaPuntos({
           )}
         </label>
       </div>
-      <div role="radiogroup" aria-label={T.mapa.filtrar} className="flex gap-1.5 overflow-x-auto px-3 py-2">
+      <div role="radiogroup" aria-label={T.mapa.filtrar} className="flex flex-wrap gap-1.5 px-3 py-2">
         {FILTROS.map(([f, t]) => (
           <button
             key={f}
@@ -146,7 +157,7 @@ export function ListaPuntos({
 
       {/* `relative`: los textos solo para el lector (sr-only, absolutos) se recortan aquí; si no, se salían
           de la lista y estiraban la página entera (#562). */}
-      <div className="relative min-h-0 flex-1 overflow-y-auto">
+      <div className="relative min-h-0 flex-1 overflow-y-auto pb-[var(--aviso-abajo,0px)]">
         {texto && <ResultadoCoordenadas lugares={lugares} alElegir={irA} />}
         {conLugares && visibles.length > 0 && <CabeceraGrupo titulo={T.busqueda.puntos} />}
         {/* La lista no es una región viva: se leería entera con cada cambio. Solo se anuncia el número
@@ -194,7 +205,9 @@ export function ListaPuntos({
             </li>
           ))}
         </ul>
-        {texto && <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} />}
+        {texto && (
+          <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} direccionesPrimero={llevaNumero(texto)} />
+        )}
         {cargado &&
           visibles.length === 0 &&
           !conLugares &&

@@ -34,7 +34,7 @@ async function abrir(page: Page, context: BrowserContext, ancho: number, alto: n
   if (ruta === '/') await expect(page.getByTestId('mapa')).toBeVisible();
   if (conLista) await expect(primero(page)).toContainText(T.mapa.desdeTi);
   // Se mide con los avisos de arriba ya puestos (el de sin conexión, con el Supabase ficticio): ocupan alto.
-  await expect(page.getByText(T.mapa.sinServidor)).toBeVisible();
+  await expect(page.getByText(T.mapa.sinServidor).first()).toBeVisible();
 }
 
 const altoPagina = (page: Page) => page.evaluate(() => document.documentElement.scrollHeight);
@@ -71,7 +71,9 @@ async function listaSeDesplaza(page: Page) {
     c.scrollTop = 10000;
     return { abajo, desplazado: c.scrollTop };
   });
-  const barra = (await page.getByRole('navigation').last().boundingBox())!;
+  // La barra de abajo (la de «Lista»); en el ordenador no hay (docs/33 RV-321) y el límite es la ventana.
+  const navAbajo = page.getByRole('navigation').filter({ has: page.getByRole('link', { name: T.navegacion.lista }) });
+  const barra = (await navAbajo.count()) ? (await navAbajo.boundingBox())! : { y: await ventana(page) };
   expect(abajo, 'la lista llega a la barra de abajo').toBeGreaterThanOrEqual(barra.y - 8);
   expect(abajo, 'la lista no se mete bajo la barra de abajo').toBeLessThanOrEqual(barra.y + 1);
   expect(desplazado, 'la lista se desplaza').toBeGreaterThan(0);
@@ -85,6 +87,8 @@ async function mapaAlto(page: Page) {
 
 const ESCRITORIO = [
   [1440, 900],
+  // docs/33 RV-321: también con una ventana más baja de ordenador.
+  [1440, 700],
   [1280, 800],
   [1280, 768],
 ] as const;

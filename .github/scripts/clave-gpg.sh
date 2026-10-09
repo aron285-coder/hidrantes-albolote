@@ -4,7 +4,7 @@
 # Antes el destinatario era la primera huella de lo que hubiera en el secreto GPG_PUBLIC_KEY, sin
 # compararla con nada: si alguien cambiaba esa clave, todos los respaldos quedaban ilegibles para la
 # clave privada que se guarda (15 §2) y todo seguía en verde. Ahora la huella esperada es la variable
-# del repositorio GPG_HUELLA, y:
+# GPG_HUELLA, constante de respaldo.yml (docs/33 RV-341), y:
 #
 #   comprobar_clave HUELLA < CLAVE      antes de importar: la clave pública trae una sola clave
 #                                       principal, y es la de HUELLA
@@ -15,7 +15,7 @@
 
 _huella_valida() {
   if ! [[ "$1" =~ ^[0-9A-F]{40}$ ]]; then
-    echo "::error::GPG_HUELLA no es una huella de 40 cifras hexadecimales en mayúsculas (variable del repositorio; la de docs/15 §2)"
+    echo "::error::GPG_HUELLA no es una huella de 40 cifras hexadecimales en mayúsculas (la constante de respaldo.yml; la de docs/15 §2)"
     return 1
   fi
 }

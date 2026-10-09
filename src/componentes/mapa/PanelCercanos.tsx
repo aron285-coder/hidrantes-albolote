@@ -24,6 +24,9 @@ export interface EstadoCercanos {
   soloHidrantes: boolean;
 }
 
+/** «·» y un espacio duro (U+00A0): el separador va pegado a lo que sigue (docs/33 RV-316, D8). */
+const SEP = `·${String.fromCharCode(0xa0)}`;
+
 const boton =
   'bg-papel border-texto text-texto rounded-boton flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[14px] font-semibold';
 
@@ -83,7 +86,7 @@ export function PanelCercanos({
         'bg-fondo flex flex-col gap-2 overflow-y-auto p-3',
         enHoja
           ? cn(
-              'rounded-t-hoja absolute bottom-0 left-0 z-[600] pt-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-xl',
+              'rounded-t-hoja absolute bottom-0 left-0 z-[600] pt-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom),var(--aviso-abajo,0px))] shadow-xl',
               // La ficha flotante mide 360 px y está a 64 px del borde: 432 px libres a la derecha.
               dejarSitioFicha ? 'right-[27rem]' : 'right-0',
               altura === 'alta' ? 'max-h-[90%]' : 'max-h-[55%]',
@@ -120,11 +123,14 @@ export function PanelCercanos({
           <h2 className="font-titulo text-[22px] leading-tight font-bold">{T.incidente.titulo}</h2>
           {origen && (
             <p data-subtitulo role={aviso ? 'status' : undefined} className="text-texto-suave text-[13px]">
-              · {!desdeGps && <>{T.incidente.desdePuntoMarcado} · </>}
+              {/* Cada «·» va pegado a lo que sigue con un espacio duro: al partir la línea, el
+                  separador baja con su texto y no se queda solo (docs/33 RV-316, D8). */}
+              {SEP}
+              {!desdeGps && <>{`${T.incidente.desdePuntoMarcado} ${SEP}`}</>}
               {T.incidente.lineaRecta}
               {aviso && (
                 <>
-                  {' · '}
+                  {` ${SEP}`}
                   <span className="text-naranja-texto font-semibold whitespace-nowrap">{aviso}</span>
                 </>
               )}

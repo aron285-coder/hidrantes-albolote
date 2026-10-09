@@ -11,7 +11,7 @@ async function abrir(page: Page, ruta = '/') {
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
   if (ruta !== '/') await page.goto(ruta);
 }
 
@@ -19,17 +19,12 @@ async function abrir(page: Page, ruta = '/') {
 const boton = (page: Page, texto: string) => page.locator('button').filter({ hasText: texto }).first();
 
 test.describe('mapa y lista', () => {
-  // docs/21 RV-82: la leyenda desplegada, con Cercanos y el + abajo, dejaba medio mapa útil.
-  test('la leyenda se enseña desplegada el primer uso y después va plegada; se abre y se cierra (RV-82)', async ({
-    page,
-  }) => {
+  // docs/21 RV-82: la leyenda desplegada, con Cercanos y el + abajo, dejaba medio mapa útil. Desde
+  // docs/33 RV-310 va plegada también el primer uso.
+  test('la leyenda empieza plegada; se abre y se cierra, y se recuerda (RV-82, RV-310)', async ({ page }) => {
     await abrir(page);
     const leyenda = page.getByRole('region', { name: T.mapa.leyenda });
     const ficha = page.getByRole('button', { name: T.mapa.leyenda, exact: true });
-    await expect(leyenda).toBeVisible();
-    await expect(ficha).toHaveCount(0);
-
-    await page.reload();
     await expect(ficha).toBeVisible();
     await expect(leyenda).toHaveCount(0);
     await ficha.click();
@@ -45,18 +40,21 @@ test.describe('mapa y lista', () => {
     await expect(leyenda).toBeVisible();
     await page.reload();
     await expect(leyenda).toBeVisible();
-    await page.getByText(/Sincronizado hace/).click();
+    await page.getByRole('heading', { name: T.navegacion.puntosDeAgua }).click();
     await expect(leyenda).toHaveCount(0);
     await expect(ficha).toBeVisible();
   });
 
   test('sincroniza, pinta los marcadores y dice cuándo (FR-60, FR-80)', async ({ page }) => {
     await abrir(page);
-    await expect(page.getByText(/Sincronizado hace/)).toBeVisible();
-    // Al encuadre inicial (zoom ≤ 13) solo se ven R1 y R2 (06 §4.4).
-    const visibles = await page.locator('.marcador').count();
-    expect(visibles).toBeGreaterThan(0);
-    expect(visibles).toBeLessThan(PUNTOS.length);
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-sincronizado', 'si');
+    // Cuándo: en la cabecera o, sin servidor, en su detalle (docs/33 RV-311).
+    await page.getByTestId('estado-sincro').getByRole('button').first().click();
+    await expect(page.getByRole('dialog', { name: T.sincro.titulo })).toContainText(T.formato.haceUnMomento);
+    await page.keyboard.press('Escape');
+    // El encuadre inicial, sin posición, deja todos los puntos a la vista (docs/33 RV-310).
+    await expect(page.locator('.marcador')).toHaveCount(PUNTOS.length);
+    await page.getByRole('button', { name: T.mapa.leyenda, exact: true }).click();
     await expect(page.getByRole('region', { name: T.mapa.leyenda })).toContainText(T.mapa.leyendaTamano);
   });
 
@@ -152,7 +150,7 @@ test.describe('mapa y lista', () => {
   test('capas: elegir satélite se recuerda (FR-63)', async ({ page }) => {
     await abrir(page);
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await page.getByRole('radio', { name: new RegExp(T.mapa.satelitePnoa.replace(/[()]/g, '\\$&')) }).click();
+    await page.getByRole('radio', { name: new RegExp(T.capas.satelite.replace(/[()]/g, '\\$&')) }).click();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
     await page.reload();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
@@ -172,7 +170,7 @@ test.describe('sin cobertura (criterio de salida)', () => {
 
     await context.setOffline(true);
     await page.goto('/');
-    await expect(page.getByText(/Sin cobertura · datos de/)).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toContainText(T.mapa.sinConexionHace('hace'));
     await expect(page.locator('.marcador').first()).toBeVisible();
     // El mapa base se dibuja desde el móvil: hay teselas de lienzo pintadas.
     await expect(page.locator('.leaflet-tile-container canvas, canvas.leaflet-tile').first()).toBeVisible();
@@ -188,17 +186,15 @@ test.describe('sin cobertura (criterio de salida)', () => {
     // Una capa en línea sin cobertura sale en gris con el motivo.
     await page.goto('/');
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await expect(
-      page.getByRole('radio', { name: new RegExp(T.mapa.calleOsm.replace(/[()]/g, '\\$&')) }),
-    ).toBeDisabled();
+    await expect(page.getByRole('radio', { name: new RegExp(T.capas.calle.replace(/[()]/g, '\\$&')) })).toBeDisabled();
     await context.setOffline(false);
   });
 
   // FR-63 y UI-04: la capa en línea que se estaba usando deja de pintarse al perder la cobertura.
   // El Catastro también, aunque debajo siga el mapa base: desaparecería el plano sin decir por qué.
   for (const [capa, nombre] of [
-    ['satelite', T.mapa.satelitePnoa],
-    ['catastro', T.mapa.catastro],
+    ['satelite', T.capas.satelite],
+    ['catastro', T.capas.catastro],
   ] as const) {
     test(`sin cobertura, la capa "${capa}" dice que la necesita (FR-63)`, async ({ page, context }) => {
       // Datos móviles: el mapa base no se descarga solo. Con él descargado va debajo y el aviso es
@@ -209,7 +205,7 @@ test.describe('sin cobertura (criterio de salida)', () => {
       await conSesion(page, { extra: { capa } });
       await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
       await page.goto('/');
-      await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+      await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 
       await context.setOffline(true);
       await expect(page.getByRole('status').filter({ hasText: T.mapa.capaSinCobertura(nombre) })).toBeVisible();
@@ -263,8 +259,8 @@ test.describe('aviso del mapa base en el propio mapa (RV-10, FR-81)', () => {
     await expect(aviso.getByRole('button', { name: T.mapa.descargarVersionNueva })).toBeVisible();
     await aviso.getByRole('button', { name: T.mapa.ocultarAviso }).click();
     await expect(aviso).toHaveCount(0);
-    await page.getByRole('link', { name: T.navegacion.lista }).click();
-    await page.getByRole('link', { name: T.navegacion.mapa }).click();
+    await page.getByRole('link', { name: T.navegacion.ajustes }).click();
+    await page.getByRole('link', { name: T.navegacion.mapa, exact: true }).first().click();
     await expect(page.getByTestId('aviso-mapabase')).toHaveCount(0);
   });
 });
@@ -327,7 +323,7 @@ test.describe('mapa y lista sin ningún punto (RV-76)', () => {
       fn_registrar_error: null,
     });
     await page.goto('/');
-    await expect(page.getByText(/Sincronizado hace/)).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-sincronizado', 'si');
     // En el mapa: en ordenador la lista de al lado también lo dice.
     const aviso = page.getByTestId('avisos-mapa').getByTestId('aviso-sin-puntos');
     await expect(aviso).toContainText(T.mapa.inventarioVacio);
@@ -404,12 +400,12 @@ test.describe('zoom (#136)', () => {
     await page.route('https://www.ign.es/**', (r) => r.fulfill({ contentType: 'image/jpeg', body: TESELA }));
     await abrir(page);
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await page.getByRole('radio', { name: new RegExp(T.mapa.satelitePnoa.replace(/[()]/g, '\\$&')) }).click();
+    await page.getByRole('radio', { name: new RegExp(T.capas.satelite.replace(/[()]/g, '\\$&')) }).click();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
   }
 
   const zoomGuardado = (page: Page) =>
-    page.evaluate(() => (JSON.parse(localStorage.getItem('hidrantes.vista') ?? 'null')?.zoom ?? 0) as number);
+    page.evaluate(() => (JSON.parse(sessionStorage.getItem('hidrantes.vista') ?? 'null')?.zoom ?? 0) as number);
 
   test('se puede acercar hasta el tope y el satélite no se queda en blanco', async ({ page }) => {
     await conSatelite(page);
@@ -525,7 +521,9 @@ test.describe('pulsación larga: ¿Qué hay aquí? (#138, FR-72)', () => {
   test('en escritorio, el clic derecho hace lo mismo', async ({ page }) => {
     await abrir(page);
     const caja = (await page.locator('[data-testid="mapa"]').boundingBox())!;
-    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2, { button: 'right' });
+    // Abajo a la izquierda, en el margen que deja el encuadre de los puntos (RV-310): sobre un
+    // marcador, el clic derecho no abre nada.
+    await page.mouse.click(caja.x + caja.width * 0.3, caja.y + caja.height - 120, { button: 'right' });
     await expect(hoja(page)).toBeVisible();
     await expect(page).toHaveURL(/\?aqui=/);
   });
@@ -601,9 +599,18 @@ test('Ajustes enseña las novedades de la versión instalada (AC-127, RV-20, RV-
   await expect(page.getByTestId('punto-novedades')).toHaveCount(propia ? 1 : 0);
   await page.getByRole('link', { name: T.navegacion.ajustes }).click();
   const bloque = page.getByTestId('novedades');
-  // Cada línea con la versión que la trajo (docs/23 RV-95).
+  // docs/33 RV-320: «Novedades de la versión 0.x.y» con sus líneas, sin repetir la versión; las de antes,
+  // plegadas en «Ver versiones anteriores», bajo su versión.
+  // El build genera el JSON con la versión (prebuild, RV-20): sin ella, lo de abajo no probaría nada.
+  expect(novedades.version).toBeTruthy();
+  await expect(page.getByRole('heading', { name: T.ajustes.novedadesDeLaVersion(novedades.version!) })).toBeVisible();
+  const anteriores = novedades.lineas.filter((l) => l.version !== novedades.version);
+  if (anteriores.length) await bloque.getByText(T.ajustes.verVersionesAnteriores).click();
   for (const l of novedades.lineas) {
-    await expect(bloque.getByRole('listitem').filter({ hasText: l.texto })).toHaveText(`${l.version} · ${l.texto}`);
+    await expect(bloque.getByRole('listitem').filter({ hasText: l.texto }).first()).toHaveText(l.texto);
+  }
+  for (const v of new Set(anteriores.map((l) => l.version))) {
+    await expect(bloque.getByText(T.ajustes.version(v), { exact: true })).toBeVisible();
   }
   await expect(page.getByText(T.ajustes.nuevo, { exact: true })).toHaveCount(propia ? 1 : 0);
   await page.getByRole('link', { name: T.navegacion.mapa }).click();

@@ -54,8 +54,27 @@ async function prepararPanel(page: Page) {
     }
     return route.abort('connectionrefused');
   });
-  // Una lectura que falla deja la pestaña en «Reintentar» y el test mediría una pantalla vacía.
-  return { sinErrores: () => expect(errores, 'errores registrados por el panel').toEqual([]) };
+  // Los errores salen por /api/error desde RV-148: se cuentan también ahí.
+  await page.route('**/api/error', (route) => {
+    errores.push(`/api/error ${route.request().postData() ?? ''}`);
+    return route.fulfill({ status: 204 });
+  });
+  // Con datos móviles, el mapa base no se descarga solo: aquí no se mide eso, y una descarga cortada
+  // por el page.goto del test se anotaría como error.
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'connection', {
+      value: { type: 'cellular', saveData: false },
+      configurable: true,
+    }),
+  );
+  // Una lectura que falla deja la pestaña en «Reintentar» y el test mediría una pantalla vacía. Los
+  // errores se mandan después, sin esperar: se mira cuando la red está quieta.
+  return {
+    sinErrores: async () => {
+      await page.waitForLoadState('networkidle');
+      expect(errores, 'errores registrados por el panel').toEqual([]);
+    },
+  };
 }
 
 /** Lo que se sale a lo ancho: la página y cada caja con desplazamiento propio. */
@@ -105,7 +124,7 @@ test.describe('a 412 × 915', () => {
     await page.goto('/admin/registro');
     await expect(page.getByText(REGISTRO[0].codigo!)).toBeVisible({ timeout: CARGA });
     expect(await desbordes(page)).toEqual([]);
-    panel.sinErrores();
+    await panel.sinErrores();
     await auditar(page, 'Registro en el móvil');
   });
 
@@ -115,7 +134,7 @@ test.describe('a 412 × 915', () => {
     await page.goto('/admin/papelera');
     await expect(page.getByText(PAPELERA[1].codigo)).toBeVisible({ timeout: CARGA });
     expect(await desbordes(page)).toEqual([]);
-    panel.sinErrores();
+    await panel.sinErrores();
     const restaurar = page.getByRole('button', { name: T.panel.restaurar }).last();
     await expect(restaurar).toBeInViewport({ ratio: 1 });
     await auditar(page, 'Papelera en el móvil');
@@ -142,7 +161,7 @@ test.describe('desde md', () => {
       await expect(page.getByText(PAPELERA[1].codigo)).toBeVisible({ timeout: CARGA });
       await expect(page.locator('table')).toHaveCount(1);
       expect(await desbordes(page)).toEqual([]);
-      panel.sinErrores();
+      await panel.sinErrores();
     });
   }
 });

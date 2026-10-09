@@ -137,7 +137,7 @@ test.describe('presupuesto de rendimiento @rendimiento', () => {
     await page.goto('/');
     // Útil = el mapa con sus puntos, no un armazón vacío (TR-10).
     await expect(page.getByTestId('mapa')).toBeVisible();
-    await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
     const tardado = Date.now() - empezado;
 
     console.log(`TR-10 · primera pantalla útil con 3G: ${(tardado / 1000).toFixed(2)} s`);
@@ -183,7 +183,7 @@ test.describe('presupuesto de rendimiento @rendimiento', () => {
 
     const empezado = Date.now();
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(1000), { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(1000), { timeout: 30_000 });
     const tardado = Date.now() - empezado;
 
     console.log(`TR-14 · 1.000 puntos sincronizados con 3G: ${(tardado / 1000).toFixed(2)} s`);
@@ -198,7 +198,7 @@ test.describe('presupuesto de rendimiento @rendimiento', () => {
       fn_registrar_error: null,
     });
     await page.goto('/');
-    await expect(page.getByText(T.mapa.nPuntos(1000), { exact: false })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(1000), { timeout: 30_000 });
 
     // La búsqueda es local: sin red de por medio, el límite de TR-13 es el del algoritmo.
     const empezado = Date.now();
@@ -218,7 +218,7 @@ test('el callejero no se pide al arrancar, solo al buscar (TR-117) @rendimiento'
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
   await page.waitForLoadState('networkidle');
   expect(pedidos).toEqual([]);
   const callejero = page.waitForResponse((r) => r.url().endsWith('/callejero.json'));

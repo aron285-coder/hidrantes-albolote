@@ -30,7 +30,7 @@ async function preparar(page: Page) {
   // A z18, con B a 59 m al oeste de A y el centro 40 m al sur de los dos: a la misma altura, unos
   // 125 px el uno del otro, lejos de la búsqueda, de la columna de herramientas y de la barra de abajo.
   await page.addInitScript(() => {
-    localStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [37.23014, -3.65633], zoom: 18 }));
+    sessionStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [37.23014, -3.65633], zoom: 18 }));
   });
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: { ...LISTADO, puntos: [A, B] }, fn_registrar_error: null });
@@ -122,4 +122,65 @@ test('la etiqueta del tramo queda al lado de la línea, sin que la corte', async
   // Distancia del centro de la caja a la recta a–b: más de media caja, la línea no la corta.
   const dist = Math.abs((b.y - a.y) * cx - (b.x - a.x) * cy + b.x * a.y - b.y * a.x) / Math.hypot(b.y - a.y, b.x - a.x);
   expect(dist).toBeGreaterThan(e.height / 2);
+});
+
+// docs/33 RV-318 (U9, D7): con dos tramos en «V», las etiquetas se montaban en el vértice.
+test('dos tramos en ángulo agudo: dos píldoras que no se pisan; al alejar, las de tramos cortos se van', async ({
+  page,
+}) => {
+  await preparar(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: T.medir.boton }).click();
+  await expect(barra(page)).toBeVisible();
+  const mapa = (await page.getByTestId('mapa').boundingBox())!;
+  // Lejos de A y de B (arriba del centro) para que el imán no los atrape.
+  type Punto = { x: number; y: number };
+  const vertices: Punto[] = (
+    [
+      [0.12, 0.5],
+      [0.82, 0.42],
+      [0.2, 0.3],
+    ] as const
+  ).map(([fx, fy]) => ({ x: mapa.x + mapa.width * fx, y: mapa.y + mapa.height * fy }));
+  for (const v of vertices) await page.mouse.click(v.x, v.y);
+  const etiquetas = page.locator('.etiqueta-medicion');
+  await expect(etiquetas).toHaveCount(2);
+  const [e1, e2] = [(await etiquetas.nth(0).boundingBox())!, (await etiquetas.nth(1).boundingBox())!];
+  const solapan =
+    e1.x < e2.x + e2.width && e2.x < e1.x + e1.width && e1.y < e2.y + e2.height && e2.y < e1.y + e1.height;
+  expect(solapan).toBe(false);
+  // Hacia fuera del ángulo: la etiqueta de cada tramo, al otro lado del vértice libre del otro tramo.
+  const [p1, p2, p3] = vertices as [Punto, Punto, Punto];
+  const lado = (a: Punto, b: Punto, c: Punto) => Math.sign((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
+  const centroDe = (e: { x: number; y: number; width: number; height: number }) => ({
+    x: e.x + e.width / 2,
+    y: e.y + e.height / 2,
+  });
+  // Las etiquetas salen en el orden de los tramos (p1→p2, p2→p3).
+  expect(lado(p1, p2, centroDe(e1))).toBe(-lado(p1, p2, p3));
+  expect(lado(p2, p3, centroDe(e2))).toBe(-lado(p2, p3, p1));
+  // Una píldora opaca.
+  const estilo = await etiquetas.first().evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { radio: parseFloat(s.borderTopLeftRadius), fondo: s.backgroundColor };
+  });
+  expect(estilo.radio).toBeGreaterThanOrEqual(10);
+  expect(estilo.fondo).toMatch(/^rgb\(/);
+  // El total, en la fuente normal (no la monoespaciada).
+  const fuente = await barra(page)
+    .locator('p')
+    .first()
+    .evaluate((p) => getComputedStyle(p).fontFamily);
+  expect(fuente).not.toMatch(/mono/i);
+  // Al alejar, los tramos quedan cortos en pantalla (< 70 px) y sus etiquetas se van.
+  // Se pulsa dentro del poll: Leaflet ignora los clics mientras dura su animación de zoom.
+  await expect
+    .poll(
+      async () => {
+        await page.getByRole('button', { name: T.mapa.alejar }).click();
+        return etiquetas.count();
+      },
+      { timeout: 15_000, intervals: [400] },
+    )
+    .toBe(0);
 });

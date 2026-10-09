@@ -46,7 +46,8 @@ const ESTADOS = {
   regular: '--amarillo-500',
   malo: '--rojo-700',
   barro: '--marron-600',
-  no_funciona: '--gris-700',
+  // docs/33 RV-319: No funciona es blanco (el del borde, DEC-072) con borde gris.
+  no_funciona: '--borde-marcador',
 };
 
 /** El borde de cada estado (DEC-154): el amarillo lleva el suyo, oscuro en los dos mapas. */
@@ -55,7 +56,7 @@ const BORDE: Record<keyof typeof ESTADOS, string> = {
   regular: '--borde-marcador-regular',
   malo: '--borde-marcador',
   barro: '--borde-marcador',
-  no_funciona: '--borde-marcador',
+  no_funciona: '--gris-700',
 };
 
 describe('la fórmula, con los casos que todo el mundo conoce', () => {
@@ -124,6 +125,12 @@ for (const modo of ['claro', 'oscuro'] as const) {
     // en oscuro, el borde blanco (DEC-072). El amarillo de regular es la excepción (DEC-154): es tan
     // claro que en el mapa claro lo separa un borde oscuro, y en el oscuro el blanco no se separa
     // de él (1,96:1), así que allí el borde es oscuro y manda el relleno.
+    // docs/33 RV-319: la «B» blanca sobre el marrón de Barro y el aspa gris sobre el blanco de No funciona.
+    it('la «B» de Barro y el aspa de No funciona se leen sobre su relleno', () => {
+      expect(contraste(t['--borde-marcador'], t['--marron-600']), 'B sobre marrón').toBeGreaterThanOrEqual(4.5);
+      expect(contraste(t['--gris-700'], t['--borde-marcador']), 'aspa sobre blanco').toBeGreaterThanOrEqual(4.5);
+    });
+
     it('el relleno de estado se separa de su borde', () => {
       for (const [nombre, token] of Object.entries(ESTADOS) as [keyof typeof ESTADOS, string][]) {
         expect(t[BORDE[nombre]], `borde de ${nombre}`).toMatch(/^#/);

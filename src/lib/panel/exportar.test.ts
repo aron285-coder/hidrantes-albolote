@@ -159,3 +159,13 @@ describe('exportar con búsqueda (RV-24)', () => {
     expect(soloVisibles(FILAS, [])).toEqual([]);
   });
 });
+
+// docs/33 RV-335: «Descargar inventario (JSON)» sale de Salud y pasa a Exportar ▾, cuarta opción.
+describe('Inventario completo (JSON) en Exportar (RV-335)', () => {
+  it('el JSON lleva los datos tal cual y el archivo de siempre', async () => {
+    const { contenido } = await import('./exportar');
+    expect(JSON.parse(String(contenido('json', FILAS)))).toEqual(FILAS);
+    expect(nombreArchivo('json', new Date('2026-10-09T10:00:00Z'))).toBe('hidrantes-albolote-2026-10-09.json');
+    expect(T.panel.inventarioCompletoJson).toBe('Inventario completo (JSON)');
+  });
+});

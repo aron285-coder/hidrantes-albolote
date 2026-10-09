@@ -3,12 +3,17 @@
 import L from 'leaflet';
 import { labelRules, leafletLayer, paintRules } from 'protomaps-leaflet';
 import zonaTexto from '../../../datos/zona-cobertura.geojson?raw';
+import infoMapabase from '../../../datos/mapabase.json';
 import { CATASTRO, type Capa, OSM, PNOA, capasPintadas } from '@/lib/capas';
 import { estiloLimite, estiloMapabase } from '@/lib/estilo-mapabase';
 import { FuenteMapabase } from '@/lib/mapabase';
 
 export const ZONA = JSON.parse(zonaTexto) as GeoJSON.FeatureCollection;
 export const LIMITES = L.geoJSON(ZONA).getBounds();
+
+/** El recuadro que cubre el mapa base propio (datos/mapabase.json, `npm run mapabase`): más allá, nada. */
+const [oeste, sur, este, norte] = infoMapabase.recuadro;
+export const RECORTE_MAPABASE = L.latLngBounds([sur!, oeste!], [norte!, este!]);
 
 // Un solo origen del mapa base (teselas sueltas o copia descargada) para todas las capas base que se
 // creen (claro/oscuro, formularios).

@@ -82,7 +82,8 @@ Los filtros de arriba a la derecha separan por operación y por núcleo.
   («hace 1 año») es lo caducado: lo que conviene mandar a revisar.
 - **Tabla** o **Mapa**, a la derecha.
 - **Exportar ▾**: Excel, CSV o GeoJSON, con los filtros aplicados. El archivo se genera en tu
-  navegador. Para bomberos o el ayuntamiento. Queda en el Registro.
+  navegador. Para bomberos o el ayuntamiento. Queda en el Registro. La cuarta opción,
+  **Inventario completo (JSON)**, descarga todo sin filtros, como copia de consulta.
 
 **Sobre cada punto:**
 
@@ -125,9 +126,27 @@ El código de seis cifras con el que entran los voluntarios.
 1. Decide si marcas **Revocar todos los dispositivos**:
    - **sin marcar**: quien ya entró sigue trabajando; solo los móviles nuevos necesitan el código
      nuevo;
-   - **marcado**: todos vuelven a teclearlo. Es lo que se usa **si el código se ha filtrado**.
+   - **marcado**: todos vuelven a teclearlo. Es lo que se usa **si el código se ha filtrado**. La
+     entrada se abre sola 24 horas para que todos puedan volver a entrar (abajo).
 2. **Generar uno nuevo** → **Generar y poner en vigor**.
 3. Pásalo al grupo por el canal habitual. Nunca en un sitio público.
+
+#### La entrada (el día del lanzamiento)
+
+Para que un código filtrado no sirva para mucho, la app deja entrar a pocos móviles a la vez: 20 al
+día desde una misma wifi y 40 por hora entre todos. Cuando entra todo el grupo de golpe (el día del
+lanzamiento, en una reunión con la wifi de la sede, o después de cambiar el código revocando),
+eso se queda corto.
+
+- **Abrir la entrada para todos (24 h)**, en *Código de acceso*: durante 24 horas entran todos los
+  que tengan el código, desde la misma wifi si hace falta. Quien pruebe códigos al azar sigue frenado
+  igual.
+- Abierta, sale una franja verde con **hasta cuándo** y el botón **Cerrar ahora**. Si no, se cierra
+  sola al pasar la hora.
+- **El día del lanzamiento: ábrela antes de pasar el código al grupo.**
+- Si *Salud del sistema* dice que hay **entradas frenadas por el tope**, alguien con el código bueno
+  se ha quedado fuera: ábrela desde ahí.
+- Abrirla y cerrarla queda en el *Registro*.
 
 ### Acceso de administradores
 
@@ -137,7 +156,9 @@ activo no se puede quitar. No hace falta tocar nada técnico.
 ### Parámetros
 
 Meses entre revisiones, radio de duplicado, días de papelera, margen de la zona, fotos por móvil y
-día, tramo de manguera y radios de marcador. **Guardar cambios**; los móviles los aplican en su
+día, tramo de manguera, radios de marcador y los dos topes de entrada («Entradas desde una misma
+wifi al día» y «Entradas por hora, entre todos»; para un día puntual es mejor abrir la entrada 24 h
+que subirlos). **Guardar cambios**; los móviles los aplican en su
 siguiente sincronización. Si no sabes qué hace uno, déjalo como está.
 
 ### Núcleos
@@ -147,18 +168,26 @@ falte.
 
 ### Salud del sistema
 
-Una lista de comprobaciones. Lo que hay que mirar:
+Arriba, un resumen: **«Todo bien»** o **«Necesita atención»** con lo que falla (respaldo que falta
+o es viejo, vigilancia que no pasa o tiene avisos, fotos o base de datos al 70 % o más, una tarea
+programada que falla). Debajo, lo que hay que mirar:
 
 | Fila | Bien | Avisa al responsable técnico si… |
 |---|---|---|
-| Propuestas pendientes de más de 14 días | 0 | crece: hay que revisar la cola |
-| Errores de la aplicación (7 días) | 0 o pocos | sube de golpe |
+| Fotos | lejos de los 800 MB | la barra pasa del 70 % (15 §5.7) |
+| Base de datos | lejos de los 400 MB | la barra pasa del 70 % |
 | Último respaldo | de esta semana | tiene más de una semana |
-| Última vigilancia | «todo respondía» | dice «con avisos» o «lleva más de un día sin pasar» |
-| Almacenamiento usado | lejos del límite | se acerca a 1 GB (15 §5.7) |
-| Códigos de acceso fallidos / entradas bloqueadas | 0 o pocos | hay muchos: alguien prueba códigos (15 §5.4) |
+| Última vigilancia | «todo respondía» | dice «con avisos» o lleva más de un día sin pasar |
+| Errores de la aplicación (7 días) | 0 o pocos | sube de golpe |
+| Móviles con acceso | más o menos los del grupo | hay muchos más que voluntarios |
+| Códigos de acceso fallidos (24 h) | 0 o pocos | hay muchos: alguien prueba códigos (15 §5.4) |
+| Entradas frenadas por el tope (24 h) | 0 | hay alguna: alguien con el código bueno no ha podido entrar. **Abre la entrada 24 h** con el enlace de la fila |
+| Zona y mapa base | una fecha | — |
 
-*Descargar inventario (JSON)* es una copia de consulta. El respaldo de verdad es automático (15).
+Debajo están las tareas programadas, con su nombre en palabras y cuándo pasaron por última vez, y los móviles que más fotos han pedido en 24 h.
+
+Para descargar el inventario completo (JSON), ve a *Inventario → Exportar → Inventario completo
+(JSON)*. Es una copia de consulta; el respaldo de verdad es automático (15).
 
 ### Mantenimiento
 
