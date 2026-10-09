@@ -188,6 +188,37 @@ export async function esAdmin(env: Env, jwt: string | null): Promise<boolean> {
   return r.ok && r.datos === true;
 }
 
+/**
+ * ¿El token de dispositivo de un voluntario vale? Lo comprueba fn_validar_token, concedida a
+ * service_role en 0043 (#561): antes se usaba fn_listar_puntos, que service_role no puede ejecutar,
+ * y el permiso denegado se leía como token no válido (401 a todos los voluntarios).
+ *
+ * - `valido`: el token vale.
+ * - `invalido`: la base de datos lo rechaza (TOKEN_INVALIDO, TOKEN_REVOCADO, TOKEN_CADUCADO).
+ * - `sin_servidor`: cualquier otro fallo (red, permisos, error interno). No es culpa del voluntario:
+ *   la Function contesta 503 y el fallo queda anotado en errores_cliente con `ruta`, sin el token.
+ */
+export async function validarToken(
+  env: Env,
+  token: string,
+  ruta: string,
+): Promise<'valido' | 'invalido' | 'sin_servidor'> {
+  const r = await rpc<string>(env, 'fn_validar_token', { token });
+  if (r.ok) return 'valido';
+  if (r.codigo.startsWith('TOKEN_')) return 'invalido';
+  // Firma de seis argumentos con service_role (0040), con su propio cupo por ip_hash fijo, como
+  // /api/direccion. Si tampoco esto llega, la respuesta 503 ya dice que el fallo es del servidor.
+  await rpc(env, 'fn_registrar_error', {
+    dispositivo_id: null,
+    mensaje: `validar_token_fallo: ${r.codigo}`,
+    pila: null,
+    ruta,
+    agente: null,
+    ip_hash: 'funcion:validar_token',
+  });
+  return 'sin_servidor';
+}
+
 /** Estado HTTP de cada código de error de 05 §8 que puede llegar a una Function. */
 export function estadoDe(codigo: string): number {
   if (codigo.startsWith('TOKEN_') || codigo === 'CODIGO_INCORRECTO') return 401;
