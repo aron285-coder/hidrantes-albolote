@@ -165,7 +165,13 @@ export function DetallePropuesta({
   async function verDeNuevo() {
     const turno = ++turnoRecarga.current;
     setRecarga('cargando');
-    const ok = await alRecargar();
+    let ok = false;
+    try {
+      ok = await alRecargar();
+    } catch (e) {
+      // Nunca "Cargando…" para siempre: queda el error con su "Reintentar" (UI-04).
+      anotarError(e);
+    }
     if (turno === turnoRecarga.current) setRecarga(ok ? 'lista' : 'error');
   }
   const esperando = recarga !== 'lista';

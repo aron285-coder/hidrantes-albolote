@@ -101,13 +101,17 @@ test.describe('RV-332: zoom del mapa del panel', () => {
     });
   }
 
-  test('en claro sigue blanco, con el texto y la línea de la paleta', async ({ page }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.emulateMedia({ colorScheme: 'light' });
-    await prepararPanel(page);
-    await page.goto('/admin/cola?p=m1');
-    const c = await colores(page);
-    expect(c.fondo).toBe('rgb(255, 255, 255)');
-    expect(c.texto).toBe(c.tokens.texto);
-  });
+  for (const modo of ['sistema', 'forzado sobre un sistema oscuro'] as const) {
+    test(`en claro (${modo}) sigue blanco, con el texto y la línea de la paleta`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.emulateMedia({ colorScheme: modo === 'sistema' ? 'light' : 'dark' });
+      await prepararPanel(page);
+      await page.goto('/admin/cola?p=m1');
+      if (modo !== 'sistema') await page.evaluate(() => (document.documentElement.dataset.tema = 'claro'));
+      const c = await colores(page);
+      expect(c.fondo).toBe('rgb(255, 255, 255)');
+      expect(c.texto).toBe(c.tokens.texto);
+      expect(c.linea).toBe(c.tokens.linea);
+    });
+  }
 });

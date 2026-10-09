@@ -34,6 +34,42 @@ export async function esperarLaUltima(
   }
 }
 
+export interface Turnos<T> {
+  /** Lanza una carga; dice si ha ido bien y es la que se ve (una que llega tarde dice false). */
+  recargar: (cargar: () => Promise<Resultado<T>>) => Promise<boolean>;
+  /** Lanza una carga y dice si lo que se ve al final es de una carga buena: espera a la última. */
+  recargarYVer: (cargar: () => Promise<Resultado<T>>) => Promise<boolean>;
+}
+
+/**
+ * Las cargas de `useCarga`, sin React (RV-334): solo la última aplica su resultado con `aplicar`, y
+ * `recargarYVer` espera a la última aunque la suya la sustituya otra (la de cada minuto).
+ */
+export function crearTurnos<T>(aplicar: (r: Resultado<T>) => void): Turnos<T> {
+  let ultimo = 0;
+  let enCurso: Promise<boolean> | null = null;
+  const una = async (cargar: () => Promise<Resultado<T>>): Promise<boolean> => {
+    const n = ++ultimo;
+    let r: Resultado<T>;
+    try {
+      r = await cargar();
+    } catch (e) {
+      // Una fila que no se sabe leer no deja la pantalla en "Cargando…" para siempre.
+      anotarError(e);
+      r = { ok: false, codigo: 'ERROR_INTERNO' };
+    }
+    if (n !== ultimo) return false; // llegó tarde: lo que se ve es de una carga más nueva
+    aplicar(r);
+    return r.ok;
+  };
+  const recargar = (cargar: () => Promise<Resultado<T>>) => {
+    const p = una(cargar);
+    enCurso = p;
+    return p;
+  };
+  return { recargar, recargarYVer: (cargar) => esperarLaUltima(recargar(cargar), () => enCurso) };
+}
+
 /**
  * Carga datos del servidor para una pestaña del panel. Si falla, conserva lo que ya había (FR-168:
  * nunca en blanco) y dice el código; `recargar` repite, y también el reintento automático de la
@@ -50,25 +86,10 @@ export function useCarga<T>(
 ): Carga<T> & { en: number | null; recargar: () => Promise<void>; recargarYVer: () => Promise<boolean> } {
   const [carga, setCarga] = useState<Carga<T>>({ estado: 'cargando', datos: null });
   const [en, setEn] = useState<number | null>(null);
-  const ultimo = useRef(0);
-  // La carga más nueva en curso o terminada: la que se ve (RV-334).
-  const enCurso = useRef<Promise<boolean> | null>(null);
-
-  // Las dependencias las da quien llama, como en useEffect.
-  const cargarRef = useCallback(cargar, deps);
-
-  // Devuelve si la carga ha ido bien y es la que se ve: una que llega tarde devuelve false.
-  const cargarUna = useCallback(async (): Promise<boolean> => {
-    const n = ++ultimo.current;
-    let r: Resultado<T>;
-    try {
-      r = await cargarRef();
-    } catch (e) {
-      // Una fila que no se sabe leer no deja la pantalla en "Cargando…" para siempre.
-      anotarError(e);
-      r = { ok: false, codigo: 'ERROR_INTERNO' };
-    }
-    if (n !== ultimo.current) return false; // llegó tarde: lo que se ve es de una carga más nueva
+  // Los turnos viven lo que el componente: una carga de antes de cambiar la entrada que llega tarde
+  // no pisa la de ahora. `setCarga` y `setEn` son estables.
+  const turnos = useRef<Turnos<T> | null>(null);
+  turnos.current ??= crearTurnos<T>((r) => {
     if (r.ok) {
       setCarga({ estado: 'ok', datos: r.datos });
       setEn(Date.now());
@@ -76,13 +97,11 @@ export function useCarga<T>(
       const codigo = r.codigo;
       setCarga((c) => ({ estado: 'error', datos: c.datos, codigo }));
     }
-    return r.ok;
-  }, [cargarRef]);
-  const recargar = useCallback((): Promise<boolean> => {
-    const p = cargarUna();
-    enCurso.current = p;
-    return p;
-  }, [cargarUna]);
+  });
+
+  // Las dependencias las da quien llama, como en useEffect.
+  const cargarRef = useCallback(cargar, deps);
+  const recargar = useCallback(() => turnos.current!.recargar(cargarRef), [cargarRef]);
 
   useEffect(() => {
     setCarga((c) => alCambiarEntrada(c, vaciarAlCambiar));
@@ -104,6 +123,6 @@ export function useCarga<T>(
   const recargarSinMas = useCallback(async () => {
     await recargar();
   }, [recargar]);
-  const recargarYVer = useCallback(() => esperarLaUltima(recargar(), () => enCurso.current), [recargar]);
+  const recargarYVer = useCallback(() => turnos.current!.recargarYVer(cargarRef), [cargarRef]);
   return { ...carga, en, recargar: recargarSinMas, recargarYVer };
 }
