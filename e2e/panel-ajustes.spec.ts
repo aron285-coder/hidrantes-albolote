@@ -838,13 +838,14 @@ test.describe('La entrada del día del lanzamiento (docs/33 RV-338)', () => {
   });
 
   test('los dos topes de entradas en Parámetros, con sus rangos', async ({ page }) => {
-    const llamadas = await prepararPanel(page);
+    const llamadas = await prepararPanel(page, { entrada: null });
     await page.goto('/admin/ajustes');
     const tarjeta = tarjetaDe(page, T.panelAjustes.parametros);
     const wifi = tarjeta.getByLabel(T.panelAjustes.altasIpDia);
     const hora = tarjeta.getByLabel(T.panelAjustes.altasGlobalHora);
-    await expect(wifi).toHaveValue('150');
-    await expect(hora).toHaveValue('150');
+    // Sin su fila en config, los de 0041 (lo que aplica el servidor).
+    await expect(wifi).toHaveValue('20');
+    await expect(hora).toHaveValue('40');
     const guardar = tarjeta.getByRole('button', { name: T.panel.guardarCambios });
     await wifi.fill('4');
     await expect(guardar).toBeDisabled();
@@ -886,11 +887,49 @@ test.describe('La entrada del día del lanzamiento (docs/33 RV-338)', () => {
     await expect(page.getByRole('region', { name: T.panelAjustes.entrada })).toHaveCount(0);
     await expect(page.getByText(T.panelAjustes.entradasFrenadas24h)).toHaveCount(0);
     await expect(page.getByRole('button', { name: T.panelAjustes.abrirEntrada24h })).toHaveCount(0);
+    // Ni los topes de entradas en Parámetros: fn_guardar_config no los admitiría.
+    await expect(tarjetaDe(page, T.panelAjustes.parametros).getByLabel(T.panelAjustes.mesesRevision)).toBeVisible();
+    await expect(page.getByLabel(T.panelAjustes.altasIpDia)).toHaveCount(0);
+    await expect(page.getByLabel(T.panelAjustes.altasGlobalHora)).toHaveCount(0);
     // La confirmación de revocar tampoco promete abrirla.
     const tarjeta = tarjetaDe(page, T.panelAjustes.codigoAcceso);
     await tarjeta.getByLabel(T.panel.revocarTodos).check();
     await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
     await expect(page.getByRole('dialog').getByText(T.panelAjustes.avisoEntradaAlRevocar)).toHaveCount(0);
+  });
+
+  test('si no se puede abrir, lo dice y la sección no cambia', async ({ page }) => {
+    await prepararPanel(page, { entrada: null });
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_abrir_entrada`, (r) =>
+      r.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ code: 'P0001', message: 'NO_AUTORIZADO' }),
+      }),
+    );
+    await page.goto('/admin/ajustes');
+    const abrir = seccion(page).getByRole('button', { name: T.panelAjustes.abrirEntrada });
+    await abrir.click();
+    await expect(page.getByRole('alert').first()).toBeVisible();
+    await expect(abrir).toBeEnabled();
+    await expect(seccion(page).getByText(/^Entrada abierta para todos hasta el /)).toHaveCount(0);
+  });
+
+  test('Salud con la entrada ya abierta: hasta cuándo, sin enlace', async ({ page }) => {
+    await prepararPanel(page, {
+      entrada: new Date(Date.now() + 5 * 3_600_000).toISOString(),
+      salud: { ...SALUD_0041, entradas_frenadas_24h: 7, ultima_vigilancia: new Date().toISOString() },
+    });
+    await page.goto('/admin/ajustes');
+    const salud = tarjetaDe(page, T.panel.saludSistema);
+    const fila = salud
+      .locator('dl > div')
+      .filter({ has: page.getByText(T.panelAjustes.entradasFrenadas24h, { exact: true }) });
+    await expect(fila.locator('dd')).toContainText(/^7 · entrada abierta hasta el /);
+    await expect(fila.getByRole('button')).toHaveCount(0);
+    await expect(fila.locator('dd')).not.toHaveAttribute('data-aviso');
+    await expect(salud.getByTestId('resumen-salud')).not.toContainText(T.panelAjustes.atencionFrenadas(7));
   });
 
   test('si no se puede saber si está abierta, lo dice con Reintentar', async ({ page }) => {

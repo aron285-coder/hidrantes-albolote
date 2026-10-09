@@ -95,28 +95,47 @@ export const PARAMETROS = {
   buffer_zona_m: 400,
   max_subidas_dispositivo_dia: 40,
   metros_tramo_manguera: 20,
-  // docs/33 RV-338 (0044): los topes de entradas con el código.
-  max_altas_ip_dia: 150,
-  max_altas_global_hora: 150,
+  // docs/33 RV-338 (0044): los topes de entradas con el código. Por defecto, los de 0041 (DEC-183).
+  max_altas_ip_dia: 20,
+  max_altas_global_hora: 40,
 } as const;
+
+/** Los topes de entradas solo se pueden guardar con 0044 (fn_guardar_config los admite desde ahí). */
+const TOPES_ENTRADA = ['max_altas_ip_dia', 'max_altas_global_hora'] as const;
 
 export type ClaveParametro = keyof typeof PARAMETROS;
 
 export interface Parametros extends Record<ClaveParametro, number> {
   escala_radios: number[];
+  /**
+   * La base tiene 0044 (`config.entrada_abierta_hasta`): solo entonces se enseñan, validan y guardan
+   * los topes de entradas. Sin 0044, fn_guardar_config los rechazaría (docs/33 RV-338).
+   */
+  topesEntrada: boolean;
 }
 
-export const PARAMETROS_POR_DEFECTO: Parametros = { ...PARAMETROS, escala_radios: [11, 9, 7, 5.5, 5] };
+export const PARAMETROS_POR_DEFECTO: Parametros = {
+  ...PARAMETROS,
+  escala_radios: [11, 9, 7, 5.5, 5],
+  topesEntrada: false,
+};
+
+/** Las claves que se enseñan y se pueden guardar con esta base. */
+export const clavesParametros = (v: Pick<Parametros, 'topesEntrada'>): ClaveParametro[] =>
+  (Object.keys(PARAMETROS) as ClaveParametro[]).filter(
+    (c) => v.topesEntrada || !(TOPES_ENTRADA as readonly string[]).includes(c),
+  );
 
 export async function cargarParametros(): Promise<Resultado<Parametros>> {
-  const claves = [...Object.keys(PARAMETROS), 'escala_radios'];
+  const claves = [...Object.keys(PARAMETROS), 'escala_radios', 'entrada_abierta_hasta'];
   const r = await leerLista<{ clave: string; valor: unknown }>((c) =>
     c.from('config').select('clave, valor').in('clave', claves),
   );
   if (!r.ok) return r;
   const valores = { ...PARAMETROS_POR_DEFECTO };
   for (const { clave, valor } of r.datos) {
-    if (clave === 'escala_radios' && Array.isArray(valor)) valores.escala_radios = valor.map(Number);
+    if (clave === 'entrada_abierta_hasta') valores.topesEntrada = true;
+    else if (clave === 'escala_radios' && Array.isArray(valor)) valores.escala_radios = valor.map(Number);
     else if (clave in PARAMETROS && Number.isFinite(Number(valor))) {
       valores[clave as ClaveParametro] = Number(valor);
     }
@@ -132,7 +151,7 @@ export async function cargarParametros(): Promise<Resultado<Parametros>> {
 export function cambiosParametros(antes: Parametros | null, ahora: Parametros): Record<string, unknown> {
   const cambios: Record<string, unknown> = {};
   if (!antes) return cambios;
-  for (const clave of Object.keys(PARAMETROS) as ClaveParametro[]) {
+  for (const clave of clavesParametros(antes)) {
     if (ahora[clave] !== antes[clave]) cambios[clave] = ahora[clave];
   }
   if (ahora.escala_radios.join() !== antes.escala_radios.join()) cambios.escala_radios = ahora.escala_radios;
@@ -148,8 +167,8 @@ export function faltaEnParametros(v: Parametros): string | null {
   if (!entero(v.buffer_zona_m, 0, 5000)) return 'buffer_zona_m';
   if (!entero(v.max_subidas_dispositivo_dia, 1, 500)) return 'max_subidas_dispositivo_dia';
   if (!entero(v.metros_tramo_manguera, 10, 30)) return 'metros_tramo_manguera';
-  if (!entero(v.max_altas_ip_dia, 5, 500)) return 'max_altas_ip_dia';
-  if (!entero(v.max_altas_global_hora, 10, 500)) return 'max_altas_global_hora';
+  if (v.topesEntrada && !entero(v.max_altas_ip_dia, 5, 500)) return 'max_altas_ip_dia';
+  if (v.topesEntrada && !entero(v.max_altas_global_hora, 10, 500)) return 'max_altas_global_hora';
   // Cinco radios entre 2 y 30 (fn_guardar_config), de mayor a menor: R1 es el del punto con más
   // capacidad (06 §4.1). Al revés, el mapa dibujaría más grande lo que menos agua da.
   const r = v.escala_radios;

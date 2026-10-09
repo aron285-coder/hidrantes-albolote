@@ -1026,6 +1026,7 @@ export const T = {
     entradaAbiertaHasta: (dia: Parametro, hora: Parametro) =>
       `Entrada abierta para todos hasta el ${dia} a las ${hora}`,
     cerrarAhora: 'Cerrar ahora',
+    entradaAbierta: 'Entrada abierta para todos durante 24 h.',
     entradaCerrada: 'Entrada cerrada: vuelven los topes de entradas.',
     avisoEntradaAlRevocar: 'La entrada se abrirá 24 h para que todos puedan volver a entrar.',
     entradaNoCarga: 'No se ha podido saber si la entrada está abierta.',

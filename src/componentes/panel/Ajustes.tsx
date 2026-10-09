@@ -16,7 +16,7 @@ import {
   type ClaveParametro,
   type Parametros,
   type Workflow,
-  PARAMETROS,
+  clavesParametros,
   PARAMETROS_POR_DEFECTO,
   anadirNucleo,
   avisoPedido,
@@ -44,7 +44,14 @@ import {
   textoRadios,
 } from '@/lib/panel/ajustes';
 import { type TemaJefatura, cargarTemas, estadoPushJefatura, fijarTemas } from '@/lib/panel/push-jefatura';
-import { type EstadoEntrada, abrirEntrada, cargarEntrada, cerrarEntrada, diaYHora } from '@/lib/panel/entrada';
+import {
+  type EstadoEntrada,
+  abiertaHasta,
+  abrirEntrada,
+  cargarEntrada,
+  cerrarEntrada,
+  diaYHora,
+} from '@/lib/panel/entrada';
 import { atencionSalud, filasSalud, nombreTarea, tareasVisibles } from '@/lib/panel/salud';
 import type { Coordenadas } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
@@ -95,7 +102,8 @@ interface ConEntrada {
 function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const { avisar } = usePanel();
   const carga = useCarga(() => cargarCodigo(), []);
-  const entrada = useCarga(() => cargarEntrada(), [marcaEntrada]);
+  // Cada minuto: la franja de «abierta» se quita sola al pasar la hora (RV-338).
+  const entrada = useCarga(() => cargarEntrada(), [marcaEntrada], 60_000);
   // Con 0044, revocar todos abre la entrada 24 h (RV-300): la confirmación lo dice. Sin saberlo
   // (no ha cargado, o la base no la tiene), no se promete.
   const abreAlRevocar = entrada.estado !== 'error' && !!entrada.datos?.disponible;
@@ -202,6 +210,17 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
  * explicación; abierta, una franja verde con hasta cuándo y «Cerrar ahora». Sin 0044 en la base no se
  * dibuja (UI-01); si no se puede leer, se dice con Reintentar.
  */
+/** El aviso al abrir la entrada, con la hora que devuelve el servidor (si no es una fecha, sin hora). */
+function useAvisarAbierta() {
+  const { avisar } = usePanel();
+  return (hasta: unknown) => {
+    const valida = abiertaHasta(hasta);
+    if (!valida) return avisar(T.panelAjustes.entradaAbierta);
+    const { dia, hora } = diaYHora(valida);
+    avisar(T.panelAjustes.entradaAbiertaHasta(dia, hora));
+  };
+}
+
 function SeccionEntrada({
   entrada,
   entradaCambiada,
@@ -210,6 +229,7 @@ function SeccionEntrada({
   entradaCambiada: () => void;
 }) {
   const { avisar } = usePanel();
+  const avisarAbierta = useAvisarAbierta();
   const [ocupado, setOcupado] = useState(false);
   const idExplica = useId();
 
@@ -219,8 +239,7 @@ function SeccionEntrada({
       if (abrir) {
         const r = await abrirEntrada();
         if (!r.ok) return avisar(textoError(r.codigo), 'error');
-        const { dia, hora } = diaYHora(r.datos);
-        avisar(T.panelAjustes.entradaAbiertaHasta(dia, hora));
+        avisarAbierta(r.datos);
       } else {
         const r = await cerrarEntrada();
         if (!r.ok) return avisar(textoError(r.codigo), 'error');
@@ -472,7 +491,7 @@ function ParametrosTarjeta() {
         sinCargar && <p className="text-texto-suave mb-2 text-sm">{T.panelCola.cargando}</p>
       )}
       <div className="grid gap-2 sm:grid-cols-2">
-        {(Object.keys(PARAMETROS) as ClaveParametro[]).map((clave) => (
+        {clavesParametros(v).map((clave) => (
           <label key={clave} className="flex items-center gap-2 text-sm">
             <span className="text-texto-suave flex-1">{NOMBRE_PARAMETRO[clave]}</span>
             <input
@@ -654,6 +673,7 @@ function DialogoNucleo({ alCerrar, alHecho }: { alCerrar: () => void; alHecho: (
 function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const { avisar } = usePanel();
   const carga = useCarga(() => cargarSalud(), [marcaEntrada]);
+  const avisarAbierta = useAvisarAbierta();
   const [ocupado, setOcupado] = useState(false);
   const s = carga.datos;
   const [revocando, setRevocando] = useState<string | null>(null);
@@ -678,8 +698,7 @@ function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
     try {
       const r = await abrirEntrada();
       if (!r.ok) return avisar(textoError(r.codigo), 'error');
-      const { dia, hora } = diaYHora(r.datos);
-      avisar(T.panelAjustes.entradaAbiertaHasta(dia, hora));
+      avisarAbierta(r.datos);
       entradaCambiada();
     } finally {
       setOcupado(false);

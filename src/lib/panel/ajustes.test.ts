@@ -10,6 +10,7 @@ import {
   textoAlmacenamiento,
   vigilanciaAtrasada,
   cambiosParametros,
+  clavesParametros,
   faltaEnParametros,
   generarCodigo,
   leerRadios,
@@ -50,9 +51,10 @@ describe('parámetros (FR-142)', () => {
 
   // docs/33 RV-338: los topes de entradas con el código, con los rangos de fn_guardar_config (0044).
   it('entradas desde una misma wifi al día 5–500 y por hora entre todos 10–500', () => {
-    const v = PARAMETROS_POR_DEFECTO;
-    expect(v.max_altas_ip_dia).toBe(150);
-    expect(v.max_altas_global_hora).toBe(150);
+    const v = { ...PARAMETROS_POR_DEFECTO, topesEntrada: true };
+    // Los de 0041 (DEC-183), que es lo que aplica el servidor si falta la fila.
+    expect(v.max_altas_ip_dia).toBe(20);
+    expect(v.max_altas_global_hora).toBe(40);
     for (const n of [5, 500]) expect(faltaEnParametros({ ...v, max_altas_ip_dia: n })).toBeNull();
     for (const n of [4, 501, 20.5]) expect(faltaEnParametros({ ...v, max_altas_ip_dia: n })).toBe('max_altas_ip_dia');
     for (const n of [10, 500]) expect(faltaEnParametros({ ...v, max_altas_global_hora: n })).toBeNull();
@@ -61,8 +63,18 @@ describe('parámetros (FR-142)', () => {
     }
     // Solo viajan si cambian: contra una base sin 0044, no tocarlos no rompe el guardado.
     expect(cambiosParametros(v, { ...v, max_altas_ip_dia: 300 })).toEqual({ max_altas_ip_dia: 300 });
+    expect(clavesParametros(v)).toContain('max_altas_ip_dia');
     expect(T.panelAjustes.altasIpDia).toBe('Entradas desde una misma wifi al día');
     expect(T.panelAjustes.altasGlobalHora).toBe('Entradas por hora, entre todos');
+  });
+
+  it('sin 0044, los topes de entradas ni se enseñan, ni se validan, ni viajan', () => {
+    const v = PARAMETROS_POR_DEFECTO;
+    expect(v.topesEntrada).toBe(false);
+    expect(clavesParametros(v)).not.toContain('max_altas_ip_dia');
+    expect(clavesParametros(v)).not.toContain('max_altas_global_hora');
+    expect(faltaEnParametros({ ...v, max_altas_ip_dia: 1 })).toBeNull();
+    expect(cambiosParametros(v, { ...v, max_altas_ip_dia: 300 })).toEqual({});
   });
 });
 
