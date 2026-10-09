@@ -11,6 +11,7 @@ import {
   medidaValida,
   queFalta,
   rutaAltaEn,
+  textoHacerFoto,
 } from './propuestas';
 import { T } from './textos';
 
@@ -165,5 +166,19 @@ describe('alta desde una pulsación larga en el mapa (DEC-077)', () => {
     expect(coordenadasDe('91', '0')).toBe(null);
     expect(coordenadasDe('0', '181')).toBe(null);
     expect(coordenadasDe('NaN', '0')).toBe(null);
+  });
+});
+
+// #563 (RV-270 D3): el hueco de la foto dice «obligatoria» solo donde el botón la espera.
+describe('el hueco de la foto dice si es obligatoria (FR-21, FR-41 a FR-46)', () => {
+  it('corregir datos: opcional, porque se envía sin foto', () => {
+    expect(textoHacerFoto('datos')).toBe(T.formulario.hacerFotoOpcional);
+    expect(textoHacerFoto('datos')).toContain('opcional');
+  });
+
+  it('alta, revisión, estado, ubicación y retirada: obligatoria', () => {
+    for (const o of ['alta', 'revision', 'estado', 'ubicacion', 'retirada'] as const) {
+      expect(textoHacerFoto(o)).toBe(T.formulario.hacerFoto);
+    }
   });
 });

@@ -395,6 +395,8 @@ export const T = {
     conexion: 'Conexión',
     sitio: 'Sitio',
     hacerFoto: 'Hacer foto · obligatoria',
+    // #563: corregir datos se envía sin foto (FR-21, FR-44); el hueco no dice «obligatoria».
+    hacerFotoOpcional: 'Hacer foto · opcional',
     fotoAnadida: (kb: Parametro) => `Foto añadida · ${kb} kB`,
     repetir: 'repetir',
     // Nombre de los huecos de las dos fotos (docs/24 RV-103) para quien no ve la pantalla.
