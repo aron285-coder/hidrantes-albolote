@@ -334,7 +334,6 @@ export default function EditarPunto({
   const idResumen = useId();
   const idFalta = useId();
   const dialogo = useRef<HTMLDivElement>(null);
-  const cuerpo = useRef<HTMLDivElement>(null);
   // Con velo o a pantalla completa es modal y deja el resto inert; al lado de la tabla, no: la tabla
   // sigue a mano (DEC-169). Al cambiar de forma sin cerrar se activa o se desactiva (RV-128).
   useModal(dialogo, forma !== 'lateral');
@@ -343,8 +342,8 @@ export default function EditarPunto({
   const [v, setV] = useState<Valores>(() => valoresDe(punto));
   const [ocupado, setOcupado] = useState(false);
   const [pregunta, setPregunta] = useState<Pregunta | null>(null);
-  // Dónde estaba el foco al preguntar: si se sigue en Editar, vuelve ahí (o, si ya no está, al primer
-  // control), en vez de quedarse en <body> detrás del panel (RV-128, docs/31 RV-165).
+  // Dónde estaba el foco al preguntar: si se sigue en Editar, vuelve ahí (o, si ya no está, al título
+  // del panel, docs/33 RV-333), en vez de quedarse en <body> detrás del panel (RV-128, docs/31 RV-165).
   const focoAntes = useRef<HTMLElement | null>(null);
   const preguntar = useCallback((p: Pregunta) => {
     focoAntes.current = document.activeElement as HTMLElement | null;
@@ -403,13 +402,13 @@ export default function EditarPunto({
     else cerrar();
   }, [cerrar, preguntar]);
 
-  // El foco entra en el primer control; al cerrar lo devuelve el Inventario al "Editar" de la fila.
-  const alPrimerControl = useCallback(() => {
-    cuerpo.current?.querySelector<HTMLElement>('button:not(:disabled), input, select, textarea')?.focus({
-      preventScroll: true,
-    });
+  // El foco entra en el título del panel (docs/33 RV-333): el primer control es «Mi posición» y con el
+  // teclado un Intro de más movería el pin. Al cerrar lo devuelve el Inventario al "Editar" de la fila.
+  const cabecera = useRef<HTMLHeadingElement>(null);
+  const alTitulo = useCallback(() => {
+    cabecera.current?.focus({ preventScroll: true });
   }, []);
-  useEffect(alPrimerControl, [alPrimerControl]);
+  useEffect(alTitulo, [alTitulo]);
 
   // Cerrada la pregunta sin cerrar Editar ("Seguir editando", o "Ver lo nuevo" → "Descartar"). Va en
   // un efecto: hasta que la pregunta se desmonta, Editar está inert y no aceptaría el foco.
@@ -419,8 +418,8 @@ export default function EditarPunto({
     focoAntes.current = null;
     if (!estado.current.montado) return;
     if (antes.isConnected && dialogo.current?.contains(antes)) antes.focus({ preventScroll: true });
-    else alPrimerControl();
-  }, [pregunta, alPrimerControl]);
+    else alTitulo();
+  }, [pregunta, alTitulo]);
 
   // Esc cierra (con la pregunta si hay cambios), salvo con otro diálogo encima.
   useEffect(() => {
@@ -537,7 +536,7 @@ export default function EditarPunto({
         >
           {/* La banda enseña el estado guardado, no el que se está eligiendo. */}
           <div className={cn('flex min-h-14 shrink-0 items-center gap-3 px-4', banda.clase)}>
-            <h2 id={titulo} className="flex min-w-0 items-baseline gap-2">
+            <h2 id={titulo} ref={cabecera} tabIndex={-1} className="flex min-w-0 items-baseline gap-2 outline-none">
               <span className="font-datos text-[18px] font-semibold">{punto.codigo}</span>
               <span className="text-[13px]">{T.panelEditar.editar}</span>
             </h2>
@@ -568,7 +567,7 @@ export default function EditarPunto({
             </div>
           )}
 
-          <div ref={cuerpo} className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-2">
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-2">
             <CamposEditar
               punto={punto}
               v={v}
