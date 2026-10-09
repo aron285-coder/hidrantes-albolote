@@ -25,12 +25,18 @@ describe('píldora de la sincronización (RV-311)', () => {
     });
   });
 
-  it('sin cobertura: gris «sin conexión», aunque los datos sean de hace un momento', () => {
-    expect(pildora('sin_cobertura', hace(60_000), false, 15, AHORA)).toEqual({
+  it('sin cobertura: gris «sin conexión» con la fecha de los datos a la vista (FR-80)', () => {
+    expect(pildora('sin_cobertura', hace(2 * AL_DIA_MS + 60_000), false, 15, AHORA)).toEqual({
       tipo: 'normal',
-      texto: T.mapa.sinConexion,
+      texto: 'sin conexión · hace 2 h',
       punto: 'gris',
     });
+    expect(pildora('sin_cobertura', null, false, 0, AHORA).texto).toBe(T.mapa.sinConexion);
+  });
+
+  it('el umbral de «al día»: justo a una hora ya es ámbar', () => {
+    expect(pildora('bien', hace(AL_DIA_MS - 1), false, 15, AHORA)).toMatchObject({ punto: 'verde' });
+    expect(pildora('bien', hace(AL_DIA_MS), false, 15, AHORA)).toMatchObject({ punto: 'ambar' });
   });
 
   it('sin servidor: la píldora con «Reintentar»', () => {

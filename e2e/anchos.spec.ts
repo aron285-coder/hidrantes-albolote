@@ -163,6 +163,8 @@ for (const [ancho, alto] of [
     for (const [i, b] of columna.entries()) expect(cortan(b, cercanos), `${COLUMNA[i]} y Cercanos`).toBe(false);
     // Todo a la vista, sin desplazar la página ni quedar bajo la navegación (lo vio vistas.spec.ts, RV-88).
     const navegacion = (await page.getByRole('navigation').first().boundingBox())!;
+    // Desplegada, que es cuando más ocupa (va plegada al empezar, docs/33 RV-310).
+    await page.getByRole('button', { name: T.mapa.leyenda, exact: true }).click();
     const leyenda = (await page.getByRole('region', { name: T.mapa.leyenda }).boundingBox())!;
     for (const [nombre, b] of [
       ['Cercanos', cercanos],

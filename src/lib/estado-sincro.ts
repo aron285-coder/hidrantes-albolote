@@ -23,7 +23,11 @@ export function pildora(
   ahora = Date.now(),
 ): Pildora {
   if (conexion === 'sin_servidor') return { tipo: 'sin_servidor', texto: T.mapa.sinServidor };
-  if (conexion === 'sin_cobertura') return { tipo: 'normal', texto: T.mapa.sinConexion, punto: 'gris' };
+  // Sin cobertura, gris, y con la fecha de los datos a la vista (FR-80): «sin conexión · hace 2 h».
+  if (conexion === 'sin_cobertura') {
+    const texto = guardadoEn ? T.mapa.sinConexionHace(hace(guardadoEn, new Date(ahora))) : T.mapa.sinConexion;
+    return { tipo: 'normal', texto, punto: 'gris' };
+  }
   if (!guardadoEn) {
     return { tipo: 'normal', texto: sincronizando ? T.mapa.sincronizando : T.ajustes.sinSincronizar, punto: 'gris' };
   }

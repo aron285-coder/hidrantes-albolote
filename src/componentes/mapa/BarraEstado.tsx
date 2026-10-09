@@ -8,6 +8,7 @@ import { useConexion, usePuntos } from '@/hooks/estado';
 import { useReloj } from '@/hooks/reloj';
 import { ATASCADO_MS, esperaTope } from '@/lib/cola';
 import { reintentarAhora } from '@/lib/conexion';
+import { estadoPuntos } from '@/lib/puntos';
 import { type Punto, estadoAnunciado, pildora } from '@/lib/estado-sincro';
 import { hace } from '@/lib/formato';
 import { T } from '@/lib/textos';
@@ -29,14 +30,32 @@ export function EstadoSincro() {
   const cola = useCola();
   const ahora = useReloj();
   const [abierta, setAbierta] = useState(false);
+  // «Reintentar» y «Sincronizar ahora» dicen que están trabajando y, si no sale, lo dicen (06 §9, UI-06).
+  const [reintentando, setReintentando] = useState(false);
+  const [fallo, setFallo] = useState(false);
   const p = pildora(conexion, guardadoEn, sincronizando, puntos.length, ahora);
   const sinRed = conexion === 'sin_cobertura';
+  const sincronizarYa = async () => {
+    const antes = estadoPuntos().guardadoEn;
+    setReintentando(true);
+    setFallo(false);
+    try {
+      await reintentarAhora();
+    } finally {
+      setReintentando(false);
+    }
+    // Sin una sincronización nueva, no ha salido: se dice, en vez de dejar la hoja igual que estaba.
+    setFallo(estadoPuntos().guardadoEn === antes);
+  };
   const abrir = (
     <button
       type="button"
       aria-haspopup="dialog"
-      onClick={() => setAbierta(true)}
-      className="flex min-h-11 items-center gap-1.5 px-1.5 text-[13px] font-semibold whitespace-nowrap"
+      onClick={() => {
+        setFallo(false);
+        setAbierta(true);
+      }}
+      className="flex min-h-11 min-w-0 items-center gap-1.5 px-1.5 text-[13px] font-semibold whitespace-nowrap"
     >
       <span className="sr-only">{T.sincro.titulo}: </span>
       {p.tipo === 'sin_servidor' ? (
@@ -49,7 +68,8 @@ export function EstadoSincro() {
           style={{ background: COLOR_PUNTO[p.punto] }}
         />
       )}
-      <span>{p.texto}</span>
+      {/* En un móvil estrecho y con la etiqueta de jefatura, el texto se acorta; «Reintentar» no. */}
+      <span className="truncate">{p.texto}</span>
     </button>
   );
   return (
@@ -57,26 +77,27 @@ export function EstadoSincro() {
       data-testid="estado-sincro"
       data-puntos={puntos.length}
       data-sincronizado={guardadoEn ? 'si' : 'no'}
-      className="-mr-1.5 flex shrink-0 items-center"
+      className="-mr-1.5 flex max-w-[62%] min-w-0 items-center"
     >
       <span role="status" className="sr-only">
         {estadoAnunciado(conexion, guardadoEn, sincronizando)}
       </span>
       {p.tipo === 'sin_servidor' ? (
         // La píldora de «sin servidor», con su «Reintentar» dentro (no otra franja).
-        <span className="flex items-center rounded-full bg-white/15 pl-1.5 text-white">
+        <span className="bg-gris-700 flex min-w-0 items-center rounded-full pl-1.5 text-white">
           {abrir}
           <span aria-hidden>·</span>
           <button
             type="button"
-            onClick={() => void reintentarAhora()}
-            className="min-h-11 px-2 text-[13px] font-semibold underline underline-offset-2"
+            onClick={() => void sincronizarYa()}
+            disabled={reintentando}
+            className="min-h-11 shrink-0 px-2 text-[13px] font-semibold underline underline-offset-2"
           >
-            {T.mapa.reintentar}
+            {reintentando ? T.mapa.sincronizando : T.mapa.reintentar}
           </button>
         </span>
       ) : (
-        <span className="text-white/90">{abrir}</span>
+        <span className="flex min-w-0 text-white">{abrir}</span>
       )}
       {abierta && (
         <Hoja titulo={T.sincro.titulo} alCerrar={() => setAbierta(false)}>
@@ -98,12 +119,17 @@ export function EstadoSincro() {
           </dl>
           <Boton
             className="w-full"
-            disabled={sinRed || sincronizando}
-            onClick={() => void reintentarAhora()}
+            disabled={sinRed || sincronizando || reintentando}
+            onClick={() => void sincronizarYa()}
             aria-describedby={sinRed ? 'sincro-sin-red' : undefined}
           >
-            {sincronizando ? T.mapa.sincronizando : T.sincro.sincronizarAhora}
+            {sincronizando || reintentando ? T.mapa.sincronizando : T.sincro.sincronizarAhora}
           </Boton>
+          {fallo && !reintentando && !sinRed && (
+            <p role="status" className="text-rojo-700 mt-2 text-[13px]">
+              {T.sincro.noSeHaPodido}
+            </p>
+          )}
           {/* Un botón deshabilitado dice por qué (UI-03). */}
           {sinRed && (
             <p id="sincro-sin-red" className="text-texto-suave mt-2 text-[13px]">

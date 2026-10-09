@@ -53,7 +53,8 @@ test.describe('cabecera compacta (RV-311)', () => {
     await abrir(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
     await page.route(`${SUPABASE_PRUEBAS}/**`, (r) => r.abort('connectionrefused'));
     await page.reload();
-    await expect(estado(page)).toContainText(T.mapa.sinServidor);
+    // El texto a la vista en la píldora (no solo en la región que oye el lector de pantalla).
+    await expect(estado(page).getByRole('button', { name: new RegExp(T.mapa.sinServidor) })).toBeVisible();
     await expect(page.getByRole('banner').getByRole('button', { name: T.mapa.reintentar })).toBeVisible();
     expect(await hueco(page)).toBeLessThanOrEqual(1);
     // Al menos 80 px más de mapa que con la franja del sello y la de conexión (U2): a 412 × 915 el
@@ -63,25 +64,71 @@ test.describe('cabecera compacta (RV-311)', () => {
     await axe(page);
   });
 
-  test('sin cobertura: punto gris «sin conexión»', async ({ page, context }) => {
+  test('sin cobertura: punto gris «sin conexión», con la fecha de los datos (FR-80)', async ({ page, context }) => {
     await abrir(page);
     await expect(estado(page)).toContainText(T.mapa.alDia(PUNTOS.length));
     await context.setOffline(true);
-    await expect(estado(page)).toContainText(T.mapa.sinConexion);
+    await expect(estado(page)).toContainText(T.mapa.sinConexionHace(T.formato.haceUnMomento));
     await expect(estado(page).locator('[data-punto="gris"]')).toHaveCount(1);
     expect(await hueco(page)).toBeLessThanOrEqual(1);
+    await axe(page);
+    // Sin cobertura, «Sincronizar ahora» está deshabilitado y dice por qué (UI-03).
+    await estado(page).getByRole('button').first().click();
+    const boton = page
+      .getByRole('dialog', { name: T.sincro.titulo })
+      .getByRole('button', { name: T.sincro.sincronizarAhora });
+    await expect(boton).toBeDisabled();
+    await expect(boton).toHaveAccessibleDescription(T.mapa.necesitaCobertura);
     await context.setOffline(false);
   });
 
-  test('tocar el estado abre el detalle con «Sincronizar ahora»', async ({ page }) => {
+  test('con más de una hora: punto ámbar «hace 2 h»', async ({ page }) => {
+    await page.clock.install();
+    await abrir(page);
+    await expect(estado(page)).toContainText(T.mapa.alDia(PUNTOS.length));
+    // Dos horas sin volver a sincronizar (la app sigue abierta y sin abrirse de nuevo).
+    await page.clock.fastForward('02:01:00');
+    await expect(estado(page)).toContainText(T.formato.haceHoras(2));
+    await expect(estado(page).locator('[data-punto="ambar"]')).toHaveCount(1);
+    await axe(page);
+  });
+
+  test('tocar el estado abre el detalle; «Sincronizar ahora» pide los puntos', async ({ page }) => {
     await abrir(page);
     await estado(page).getByRole('button').first().click();
     const hoja = page.getByRole('dialog', { name: T.sincro.titulo });
     await expect(hoja).toBeVisible();
     await expect(hoja).toContainText(T.sincro.ultima);
     await expect(hoja).toContainText(T.sincro.puntosGuardados(PUNTOS.length));
-    await expect(hoja.getByRole('button', { name: T.sincro.sincronizarAhora })).toBeVisible();
     await axe(page);
+    const peticion = page.waitForRequest(/fn_listar_puntos/);
+    await hoja.getByRole('button', { name: T.sincro.sincronizarAhora }).click();
+    await peticion;
+    await expect(hoja.getByRole('status')).toHaveCount(0);
+  });
+
+  test('si «Sincronizar ahora» no sale, lo dice', async ({ page }) => {
+    await abrir(page);
+    await page.route('**/rest/v1/rpc/fn_listar_puntos', (r) =>
+      r.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"x"}' }),
+    );
+    await estado(page).getByRole('button').first().click();
+    const hoja = page.getByRole('dialog', { name: T.sincro.titulo });
+    await hoja.getByRole('button', { name: T.sincro.sincronizarAhora }).click();
+    await expect(hoja.getByRole('status')).toHaveText(T.sincro.noSeHaPodido);
+  });
+
+  test('a 360 px, sin servidor, la cabecera no se sale de la pantalla', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 800 });
+    await abrir(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
+    await page.route(`${SUPABASE_PRUEBAS}/**`, (r) => r.abort('connectionrefused'));
+    await page.reload();
+    const reintentar = page.getByRole('banner').getByRole('button', { name: T.mapa.reintentar });
+    await expect(reintentar).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(0);
+    const b = (await reintentar.boundingBox())!;
+    expect(b.x + b.width).toBeLessThanOrEqual(360);
+    await expect(page.getByRole('heading', { name: T.navegacion.puntosDeAgua })).toBeVisible();
   });
 });
 

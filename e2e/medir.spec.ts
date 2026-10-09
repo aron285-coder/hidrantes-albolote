@@ -30,7 +30,7 @@ async function preparar(page: Page) {
   // A z18, con B a 59 m al oeste de A y el centro 40 m al sur de los dos: a la misma altura, unos
   // 125 px el uno del otro, lejos de la búsqueda, de la columna de herramientas y de la barra de abajo.
   await page.addInitScript(() => {
-    localStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [37.23014, -3.65633], zoom: 18 }));
+    sessionStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [37.23014, -3.65633], zoom: 18 }));
   });
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: { ...LISTADO, puntos: [A, B] }, fn_registrar_error: null });

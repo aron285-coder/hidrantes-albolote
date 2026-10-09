@@ -168,7 +168,8 @@ function HuecoFoto({
   perfil = PERFIL_CONEXION,
   testId,
   compacto = false,
-  textoHacer = T.formulario.hacerFoto,
+  repetirCompacto,
+  opcional = false,
 }: {
   etiqueta: string;
   foto: FotoProcesada | null;
@@ -176,8 +177,10 @@ function HuecoFoto({
   perfil?: PerfilFoto;
   testId: string;
   compacto?: boolean;
-  /** El texto del hueco vacío sin `compacto`: «obligatoria» u «opcional» según la operación (#563). */
-  textoHacer?: string;
+  /** Con `compacto`: el nombre del botón que es la ficha entera de la foto hecha (docs/33 RV-316, D9). */
+  repetirCompacto?: string;
+  /** Corregir datos se envía sin foto (#563, docs/33 RV-316): botón secundario «Hacer foto (opcional)». */
+  opcional?: boolean;
 }) {
   const entrada = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
@@ -222,27 +225,37 @@ function HuecoFoto({
         data-testid={testId}
         onChange={(e) => void elegida(e.target.files?.[0])}
       />
-      {foto ? (
+      {foto && compacto ? (
+        // Las dos fotos del alta, a medio ancho: «✓ Conexión · 18 kB» en una línea, y la ficha entera
+        // es el botón que la repite (docs/33 RV-316, D9).
+        <button
+          type="button"
+          disabled={procesando}
+          aria-label={repetirCompacto}
+          onClick={() => entrada.current?.click()}
+          className={cn(
+            'rounded-campo flex min-h-11 min-w-0 items-center gap-1.5 px-2 text-[13px] font-semibold',
+            fallo === 'repetida' ? 'bg-ambar-100 text-ambar-700' : 'bg-verde-100 text-verde-700',
+          )}
+        >
+          <Check size={16} className="shrink-0" aria-hidden />
+          <span className="truncate">
+            {procesando
+              ? T.operaciones.preparandoFoto
+              : T.formulario.huecoHecho(etiqueta, Math.round(foto.blob.size / 1024))}
+          </span>
+        </button>
+      ) : foto ? (
         <div
           className={cn(
             'rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold',
             // Si la nueva falló, la anterior no se pinta como recién hecha: el aviso va con ella.
             fallo === 'repetida' ? 'bg-ambar-100 text-ambar-700' : 'bg-verde-100 text-verde-700',
-            compacto && 'flex-wrap gap-x-2 gap-y-0 py-1 text-[13px]',
           )}
         >
           <Check size={18} aria-hidden />
-          <span className="flex-1">
-            {compacto
-              ? T.formulario.huecoHecho(etiqueta, Math.round(foto.blob.size / 1024))
-              : T.formulario.fotoAnadida(Math.round(foto.blob.size / 1024))}
-          </span>
-          <button
-            type="button"
-            className="min-h-11 px-1 underline"
-            aria-label={compacto ? T.formulario.repetirDe(etiqueta) : undefined}
-            onClick={() => entrada.current?.click()}
-          >
+          <span className="flex-1">{T.formulario.fotoAnadida(Math.round(foto.blob.size / 1024))}</span>
+          <button type="button" className="min-h-11 px-1 underline" onClick={() => entrada.current?.click()}>
             {T.formulario.repetir}
           </button>
         </div>
@@ -252,10 +265,20 @@ function HuecoFoto({
           disabled={procesando}
           onClick={() => entrada.current?.click()}
           aria-label={compacto ? T.formulario.hacerFotoDe(etiqueta) : undefined}
-          className="border-naranja-600 text-naranja-texto bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold"
+          className={cn(
+            'bg-papel rounded-campo flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 font-semibold',
+            // Opcional: secundario de 06 §5; obligatoria, el naranja que pide atención.
+            opcional ? 'border-texto text-texto' : 'border-naranja-600 text-naranja-texto',
+          )}
         >
           <Camera size={18} aria-hidden />
-          {procesando ? T.operaciones.preparandoFoto : compacto ? etiqueta : textoHacer}
+          {procesando
+            ? T.operaciones.preparandoFoto
+            : compacto
+              ? etiqueta
+              : opcional
+                ? T.formulario.hacerFotoOpcional
+                : T.formulario.hacerFoto}
         </button>
       )}
       {fallo && (
@@ -273,22 +296,24 @@ function HuecoFoto({
 
 /**
  * Una sola foto con la cámara: revisión, estado y retirada (obligatoria, FR-42, FR-43, FR-46) y
- * corregir datos (opcional, FR-44). `textoHacer` lo dice en el hueco (#563).
+ * corregir datos (`opcional`, FR-44): entonces el título es «Foto · opcional» y el botón, secundario,
+ * «Hacer foto (opcional)» (#563, docs/33 RV-316).
  */
 export function CampoFoto({
   etiqueta,
   foto,
   alCambiar,
-  textoHacer,
+  opcional = false,
 }: {
   etiqueta: string;
   foto: FotoProcesada | null;
   alCambiar: (f: FotoProcesada | null) => void;
-  textoHacer: string;
+  opcional?: boolean;
 }) {
+  const titulo = opcional ? T.formulario.fotoOpcional : etiqueta;
   return (
-    <Campo etiqueta={etiqueta}>
-      <HuecoFoto etiqueta={etiqueta} foto={foto} alCambiar={alCambiar} testId="entrada-foto" textoHacer={textoHacer} />
+    <Campo etiqueta={titulo}>
+      <HuecoFoto etiqueta={titulo} foto={foto} alCambiar={alCambiar} testId="entrada-foto" opcional={opcional} />
     </Campo>
   );
 }
@@ -319,6 +344,7 @@ export function DosFotos({
           alCambiar={alCambiarConexion}
           testId="entrada-foto"
           compacto
+          repetirCompacto={T.formulario.repetirFotoConexion}
         />
         <HuecoFoto
           etiqueta={T.formulario.sitio}
@@ -327,6 +353,7 @@ export function DosFotos({
           perfil={PERFIL_SITIO}
           testId="entrada-foto-sitio"
           compacto
+          repetirCompacto={T.formulario.repetirFotoSitio}
         />
       </div>
     </Campo>

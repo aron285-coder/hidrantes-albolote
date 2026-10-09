@@ -209,6 +209,16 @@ describe('el subtítulo y sus avisos (DEC-165)', () => {
     expect(subtitulo(html)).toBe(`· ${T.incidente.desdePuntoMarcado} · ${T.incidente.lineaRecta}`);
   });
 
+  it('el «·» nunca se queda solo al partir la línea: va pegado a lo que sigue (docs/33 RV-316, D8)', () => {
+    for (const p of [props({ posicionVieja: Date.now() - 5 * 60_000 }), props({ desdeGps: false, precision: null })]) {
+      const crudo = /<p[^>]*data-subtitulo[^>]*>(.*?)<\/p>/s.exec(pintar(p))?.[1] ?? '';
+      const separadores = [...crudo.replace(/<[^>]+>/g, '').matchAll(/·(.)/gs)].map((m) => m[1]);
+      expect(separadores.length).toBeGreaterThan(1);
+      // Detrás de cada «·», un espacio duro (U+00A0): el salto solo puede ir antes del «·».
+      expect(separadores.every((c) => c === ' ')).toBe(true);
+    }
+  });
+
   it('sin posición: solo el mensaje, sin subtítulo ni lista', () => {
     const html = pintar(props({ origen: null, candidatos: [] }));
     expect(texto(html)).toContain(T.incidente.sinPosicion);

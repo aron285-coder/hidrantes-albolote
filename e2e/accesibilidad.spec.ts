@@ -164,11 +164,12 @@ test.describe('app del voluntario', () => {
     await auditar(page, 'mapa');
     await geometria(page, 'mapa', { movil: !!isMobile });
 
-    // La leyenda plegada (RV-82): una ficha de 44 px con nombre, sin pegarse a los demás controles.
-    await page.reload();
-    await expect(page.getByRole('button', { name: T.mapa.leyenda, exact: true })).toBeVisible();
-    await auditar(page, 'mapa con la leyenda plegada');
-    await geometria(page, 'mapa con la leyenda plegada', { movil: !!isMobile });
+    // La leyenda empieza plegada (docs/33 RV-310): una ficha de 44 px con nombre. Desplegada, sin
+    // pegarse a los demás controles (RV-82).
+    await page.getByRole('button', { name: T.mapa.leyenda, exact: true }).click();
+    await expect(page.getByRole('region', { name: T.mapa.leyenda })).toBeVisible();
+    await auditar(page, 'mapa con la leyenda desplegada');
+    await geometria(page, 'mapa con la leyenda desplegada', { movil: !!isMobile });
 
     await page.getByRole('link', { name: T.navegacion.lista }).click();
     await expect(page.getByPlaceholder(T.mapa.buscar)).toBeVisible();

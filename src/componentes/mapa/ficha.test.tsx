@@ -195,15 +195,25 @@ describe('ficha con banda de estado (RV-108)', () => {
     expect(pintar(BOCA)).toMatch(/<button\b[^>]*aria-label="Compartir"[^>]*class="[^"]*size-\[46px\]/);
   });
 
-  it('sin foto, no hay hueco', () => {
+  // docs/33 RV-314 (U5): sin foto, una franja de 44 px con icono y «Sin foto», no un bloque ni nada.
+  it('sin foto, una franja de 44 px con icono y «Sin foto»', () => {
     const html = pintar(BOCA);
-    expect(texto(html)).not.toContain(T.ficha.sinFoto);
+    const franja = /<div[^>]*data-testid="foto-franja"[^>]*>(.*?)<\/div>/s.exec(html);
+    expect(franja).not.toBeNull();
+    expect(franja![0]).toMatch(/\bmin-h-11\b/);
+    expect(franja![0]).not.toMatch(/h-\[1[57]0px\]/);
+    expect(franja![1]).toMatch(/<svg[^>]*aria-hidden="true"/);
+    expect(texto(franja![1])).toBe(T.ficha.sinFoto);
     expect(html).not.toContain('<img');
   });
 
-  it('una foto que no se puede pedir (sin URL de Supabase) lo dice, no desaparece', () => {
-    // En vitest no hay VITE_SUPABASE_URL: urlFoto() da null aunque haya ruta.
-    expect(texto(pintar({ ...BOCA, foto_path: 'a.jpg' }))).toContain(T.ficha.fotoNoCarga);
+  it('una foto que no se puede pedir (sin URL de Supabase) lo dice en la franja, no desaparece', () => {
+    // En vitest no hay VITE_SUPABASE_URL: urlFoto() da null aunque haya ruta. Sin dirección no hay
+    // a quién volver a pedirla: sin «Reintentar».
+    const html = pintar({ ...BOCA, foto_path: 'a.jpg' });
+    expect(html).toContain('data-testid="foto-franja"');
+    expect(texto(html)).toContain(T.ficha.fotoNoCarga);
+    expect(texto(html)).not.toContain(T.ficha.reintentarFoto);
   });
 
   it('con las dos fotos, la etiqueta "Conexión · 1/2"', () => {
