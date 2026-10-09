@@ -530,7 +530,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
 `Tipo de enganche` · `Barcelona` · `Granada` · `Directo` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
-`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` (la ficha de la foto hecha, docs/33 RV-316) · `[Sitio] · [150] kB` ·
+`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` · `[Conexión · 18 kB]. [Repetir la foto de la conexión]` (la ficha de la foto hecha y su nombre accesible, docs/33 RV-316) · `[Sitio] · [150] kB` ·
 `Hacer foto · obligatoria` · `Foto · opcional` · `Hacer foto (opcional)` (corregir datos, docs/33 RV-316) · `mm` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
 `¿Por qué ya no existe?` · `Obras` · `Asfaltado` · `Sustituido` · `Otro` ·

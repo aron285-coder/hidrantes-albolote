@@ -30,7 +30,9 @@ test('alta: «✓ Conexión · N kB» en una línea, y tocar la ficha repite la 
     ['hueco-entrada-foto', T.formulario.repetirFotoConexion, T.formulario.conexion],
     ['hueco-entrada-foto-sitio', T.formulario.repetirFotoSitio, T.formulario.sitio],
   ] as const) {
-    const ficha = page.getByTestId(hueco).getByRole('button', { name: nombre, exact: true });
+    const ficha = page
+      .getByTestId(hueco)
+      .getByRole('button', { name: new RegExp(`^${etiqueta} · \\d+ kB\\. ${nombre}$`) });
     await expect(ficha).toBeVisible();
     await expect(ficha).toContainText(new RegExp(`^${etiqueta} · \\d+ kB$`));
     // Sin «repetir» aparte: la ficha entera es el botón.
