@@ -145,6 +145,12 @@ export async function descargarMapabase(): Promise<boolean> {
     control.signal.addEventListener('abort', () => rechazar(control.signal.reason), { once: true }),
   );
   abortada.catch(() => undefined);
+  // Al cerrar o recargar la página a mitad, la lectura falla con un error de red ("network error",
+  // otro texto en Firefox o iOS) que no es un fallo: se aborta con un motivo propio y no se anota.
+  const salida = new DOMException('pagehide', 'AbortError');
+  const alSalir = () => control.abort(salida);
+  const ventana = typeof window === 'undefined' ? undefined : window;
+  ventana?.addEventListener('pagehide', alSalir);
   try {
     vigilar();
     const r = await Promise.race([fetch(URL_MAPABASE, { cache: 'no-store', signal: control.signal }), abortada]);
@@ -175,12 +181,24 @@ export async function descargarMapabase(): Promise<boolean> {
     fijar({ descargado, progreso: null });
     return true;
   } catch (e) {
-    // Se libera el bloqueo (progreso a null): se puede reintentar ya. Queda anotado para jefatura.
-    anotarError(control.signal.aborted ? new Error('mapabase: 30 s sin datos') : e, 'mapabase');
-    fijar({ progreso: null, fallo: true, parada: control.signal.aborted });
+    // Se libera el bloqueo (progreso a null): se puede reintentar ya.
+    // Por identidad, no por nombre: solo es salida el aborto propio de pagehide. Un fallo real que llegue
+    // después (p. ej. al guardar en caché) se sigue anotando.
+    if (e === salida) {
+      // La página se va: no es un fallo ni se anota. Se vuelve a intentar al abrir la app de nuevo, o
+      // con el botón del aviso si se vuelve a la página desde la caché del navegador (bfcache).
+      fijar({ progreso: null });
+      return false;
+    }
+    const motivo = control.signal.aborted ? (control.signal.reason as { name?: string } | undefined)?.name : undefined;
+    const parada = motivo === 'TimeoutError';
+    // Queda anotado para jefatura.
+    anotarError(parada ? new Error('mapabase: 30 s sin datos') : e, 'mapabase');
+    fijar({ progreso: null, fallo: true, parada });
     return false;
   } finally {
     clearTimeout(vigilante);
+    ventana?.removeEventListener('pagehide', alSalir);
   }
 }
 
