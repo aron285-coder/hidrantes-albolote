@@ -94,7 +94,9 @@ export function rpcDeServicio(raiz = process.cwd()): Map<string, string[]> {
 
 /** Las RPC que comprueba el pgTAP 40: las filas `('fn_x', …)` de su lista `rpc_de_servicio`. */
 export function rpcEnPgtap(sql: string): string[] {
-  const lista = /rpc_de_servicio\s*\(\s*nombre\s*,\s*argumentos\s*\)\s*as\s*\(\s*values([\s\S]*?)\)\s*select/i.exec(sql);
+  const lista = /rpc_de_servicio\s*\(\s*nombre\s*,\s*argumentos\s*\)\s*as\s*\(\s*values([\s\S]*?)\)\s*select/i.exec(
+    sql,
+  );
   if (!lista) return [];
   return [...lista[1]!.matchAll(/\(\s*'([a-z_][a-z0-9_]*)'/g)].map((m) => m[1]!).sort();
 }
@@ -108,7 +110,8 @@ export function planDePgtap(sql: string): number | null {
 /** Lo que no cuadra entre el código y el pgTAP, en frases para el PR. */
 export function diferencias(codigo: string[], pgtap: string[], plan: number | null): string[] {
   const p: string[] = [];
-  for (const n of codigo.filter((n) => !pgtap.includes(n))) p.push(`${n}: se llama con service_role y ${PGTAP} no la comprueba`);
+  for (const n of codigo.filter((n) => !pgtap.includes(n)))
+    p.push(`${n}: se llama con service_role y ${PGTAP} no la comprueba`);
   for (const n of pgtap.filter((n) => !codigo.includes(n))) p.push(`${n}: ${PGTAP} la comprueba y ya nadie la llama`);
   if (plan !== pgtap.length) p.push(`${PGTAP}: plan(${plan ?? '?'}) y la lista tiene ${pgtap.length}`);
   return p;

@@ -61,7 +61,12 @@ describe('el pgTAP 40 comprueba exactamente las RPC de servicio (RV-305)', () =>
   it('encuentra las llamadas de verdad', () => {
     // Las que hicieron falta en D1 y las de la purga, por si una regex deja de leerlas.
     expect(enCodigo).toEqual(
-      expect.arrayContaining(['fn_validar_token', 'fn_registrar_error', 'fn_reclamar_notificaciones', 'fn_fotos_referenciadas_lista']),
+      expect.arrayContaining([
+        'fn_validar_token',
+        'fn_registrar_error',
+        'fn_reclamar_notificaciones',
+        'fn_fotos_referenciadas_lista',
+      ]),
     );
     // Llamadas con el JWT de jefatura: no son de servicio.
     expect(enCodigo).not.toContain('fn_es_admin');
