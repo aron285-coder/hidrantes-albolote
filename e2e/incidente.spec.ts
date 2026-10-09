@@ -361,7 +361,7 @@ test.describe('cabos sueltos del modo incidente (RV-62)', () => {
       .toBe(true);
     const b = (await marcador.boundingBox())!;
     await page.mouse.click(b.x + b.width / 2, b.y + b.height / 2);
-    await expect(page.getByRole('region', { name: T.medir.titulo })).toContainText(/70 m · 3 tramos de 25 m/);
+    await expect(page.getByRole('region', { name: T.medir.titulo })).toContainText(T.medir.resultado('70 m', 3, 25));
   });
 
   test('tras elegir un resultado de la búsqueda, cerrar ¿Qué hay aquí? no vuelve a enseñar "Sin posición"', async ({
