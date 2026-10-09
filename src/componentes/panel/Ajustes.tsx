@@ -1,5 +1,5 @@
 import { Eye, EyeOff, TriangleAlert } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { CodigoQR } from './CodigoQR';
 import { Dialogo } from './Dialogo';
 import { ErrorReintentar } from './dialogos';
@@ -16,7 +16,7 @@ import {
   type ClaveParametro,
   type Parametros,
   type Workflow,
-  PARAMETROS,
+  clavesParametros,
   PARAMETROS_POR_DEFECTO,
   anadirNucleo,
   avisoPedido,
@@ -44,6 +44,14 @@ import {
   textoRadios,
 } from '@/lib/panel/ajustes';
 import { type TemaJefatura, cargarTemas, estadoPushJefatura, fijarTemas } from '@/lib/panel/push-jefatura';
+import {
+  type EstadoEntrada,
+  abiertaHasta,
+  abrirEntrada,
+  cargarEntrada,
+  cerrarEntrada,
+  diaYHora,
+} from '@/lib/panel/entrada';
 import { atencionSalud, filasSalud, nombreTarea, tareasVisibles } from '@/lib/panel/salud';
 import type { Coordenadas } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
@@ -63,10 +71,14 @@ function Tarjeta({ titulo, ayuda, children }: { titulo: string; ayuda?: string; 
 
 /** Ajustes del panel (FR-140–FR-145, FR-162–FR-167; FL-29–FL-31, FL-33, FL-34). */
 export default function Ajustes() {
+  // La entrada del lanzamiento se abre desde Código de acceso o desde Salud (RV-338): al cambiarla en
+  // una, las dos se vuelven a leer.
+  const [marcaEntrada, setMarcaEntrada] = useState(0);
+  const entradaCambiada = useCallback(() => setMarcaEntrada((m) => m + 1), []);
   return (
     <div className="grid min-h-0 flex-1 gap-4 overflow-auto p-4 lg:grid-cols-2">
-      <CodigoDeAcceso />
-      <SaludDelSistema />
+      <CodigoDeAcceso marcaEntrada={marcaEntrada} entradaCambiada={entradaCambiada} />
+      <SaludDelSistema marcaEntrada={marcaEntrada} entradaCambiada={entradaCambiada} />
       <Administradores />
       <ParametrosTarjeta />
       <Nucleos />
@@ -82,9 +94,19 @@ export default function Ajustes() {
 
 // ---------- código de acceso (FR-140, FL-29) ----------
 
-function CodigoDeAcceso() {
+interface ConEntrada {
+  marcaEntrada: number;
+  entradaCambiada: () => void;
+}
+
+function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const { avisar } = usePanel();
   const carga = useCarga(() => cargarCodigo(), []);
+  // Cada minuto: la franja de «abierta» se quita sola al pasar la hora (RV-338).
+  const entrada = useCarga(() => cargarEntrada(), [marcaEntrada], 60_000);
+  // Con 0044, revocar todos abre la entrada 24 h (RV-300): la confirmación lo dice. Sin saberlo
+  // (no ha cargado, o la base no la tiene), no se promete.
+  const abreAlRevocar = entrada.estado !== 'error' && !!entrada.datos?.disponible;
   const [visible, setVisible] = useState(false);
   const [revocar, setRevocar] = useState(false);
   const [confirmar, setConfirmar] = useState<string | null>(null);
@@ -107,6 +129,7 @@ function CodigoDeAcceso() {
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     setVisible(true);
     avisar(T.panelAjustes.codigoCambiado(nuevo));
+    if (revocar) entradaCambiada();
     await Promise.all([carga.recargar(), cuenta.recargar()]);
   }
 
@@ -156,6 +179,7 @@ function CodigoDeAcceso() {
       <p className="text-texto-suave mt-2 text-[13px]">
         {revocar ? T.panelAjustes.explicaRevocando : T.panelAjustes.explicaSinRevocar}
       </p>
+      <SeccionEntrada entrada={entrada} entradaCambiada={entradaCambiada} />
 
       {confirmar && (
         <Dialogo titulo={T.panel.generarNuevo} alCerrar={() => setConfirmar(null)}>
@@ -166,6 +190,7 @@ function CodigoDeAcceso() {
                 ? T.panelAjustes.avisoRevocandoSinCuenta
                 : T.panelAjustes.avisoRevocando(moviles)}
           </p>
+          {revocar && abreAlRevocar && <p className="mt-2 text-sm">{T.panelAjustes.avisoEntradaAlRevocar}</p>}
           <div className="mt-3 flex gap-3">
             <Boton variante="destructivo" disabled={ocupado} onClick={() => void aplicar(confirmar)}>
               {T.panelAjustes.confirmarCodigo}
@@ -177,6 +202,98 @@ function CodigoDeAcceso() {
         </Dialogo>
       )}
     </Tarjeta>
+  );
+}
+
+/**
+ * La entrada del día del lanzamiento (docs/33 RV-338): cerrada, el botón que la abre 24 h con su
+ * explicación; abierta, una franja verde con hasta cuándo y «Cerrar ahora». Sin 0044 en la base no se
+ * dibuja (UI-01); si no se puede leer, se dice con Reintentar.
+ */
+/** El aviso al abrir la entrada, con la hora que devuelve el servidor (si no es una fecha, sin hora). */
+function useAvisarAbierta() {
+  const { avisar } = usePanel();
+  return (hasta: unknown) => {
+    const valida = abiertaHasta(hasta);
+    if (!valida) return avisar(T.panelAjustes.entradaAbierta);
+    const { dia, hora } = diaYHora(valida);
+    avisar(T.panelAjustes.entradaAbiertaHasta(dia, hora));
+  };
+}
+
+function SeccionEntrada({
+  entrada,
+  entradaCambiada,
+}: {
+  entrada: ReturnType<typeof useCarga<EstadoEntrada>>;
+  entradaCambiada: () => void;
+}) {
+  const { avisar } = usePanel();
+  const avisarAbierta = useAvisarAbierta();
+  const [ocupado, setOcupado] = useState(false);
+  const idExplica = useId();
+
+  async function cambiar(abrir: boolean) {
+    setOcupado(true);
+    try {
+      if (abrir) {
+        const r = await abrirEntrada();
+        if (!r.ok) return avisar(textoError(r.codigo), 'error');
+        avisarAbierta(r.datos);
+      } else {
+        const r = await cerrarEntrada();
+        if (!r.ok) return avisar(textoError(r.codigo), 'error');
+        avisar(T.panelAjustes.entradaCerrada);
+      }
+      entradaCambiada();
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  if (entrada.estado === 'error')
+    return (
+      <section aria-label={T.panelAjustes.entrada} className="border-linea mt-4 border-t pt-3">
+        <h3 className="text-sm font-semibold">{T.panelAjustes.entrada}</h3>
+        <ErrorReintentar
+          texto={`${T.panelAjustes.entradaNoCarga} ${textoError(entrada.codigo)}`}
+          reintentar={entrada.recargar}
+          className="mt-1"
+        />
+      </section>
+    );
+  const d = entrada.datos;
+  if (!d?.disponible) return null;
+  const abierta = d.hasta ? diaYHora(d.hasta) : null;
+  return (
+    <section aria-label={T.panelAjustes.entrada} className="border-linea mt-4 border-t pt-3">
+      <h3 className="text-sm font-semibold">{T.panelAjustes.entrada}</h3>
+      {abierta ? (
+        <div className="bg-verde-100 text-verde-700 rounded-campo mt-2 flex flex-wrap items-center gap-2 p-2 text-sm">
+          <span role="status" className="flex-1 font-semibold">
+            {T.panelAjustes.entradaAbiertaHasta(abierta.dia, abierta.hora)}
+          </span>
+          <Boton variante="secundario" disabled={ocupado} onClick={() => void cambiar(false)}>
+            {T.panelAjustes.cerrarAhora}
+          </Boton>
+        </div>
+      ) : (
+        <>
+          <Boton
+            variante="secundario"
+            className="mt-2"
+            disabled={ocupado}
+            aria-describedby={idExplica}
+            onClick={() => void cambiar(true)}
+          >
+            {T.panelAjustes.abrirEntrada}
+          </Boton>
+          <p id={idExplica} className="text-texto-suave mt-1 text-[13px]">
+            {T.panelAjustes.explicaEntrada}
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -302,6 +419,9 @@ const NOMBRE_PARAMETRO: Record<ClaveParametro, string> = {
   buffer_zona_m: T.panelAjustes.bufferZona,
   max_subidas_dispositivo_dia: T.panelAjustes.subidasDia,
   metros_tramo_manguera: T.panelAjustes.metrosTramo,
+  // docs/33 RV-338 (0044): los topes de entradas con el código.
+  max_altas_ip_dia: T.panelAjustes.altasIpDia,
+  max_altas_global_hora: T.panelAjustes.altasGlobalHora,
 };
 
 function ParametrosTarjeta() {
@@ -371,7 +491,7 @@ function ParametrosTarjeta() {
         sinCargar && <p className="text-texto-suave mb-2 text-sm">{T.panelCola.cargando}</p>
       )}
       <div className="grid gap-2 sm:grid-cols-2">
-        {(Object.keys(PARAMETROS) as ClaveParametro[]).map((clave) => (
+        {clavesParametros(v).map((clave) => (
           <label key={clave} className="flex items-center gap-2 text-sm">
             <span className="text-texto-suave flex-1">{NOMBRE_PARAMETRO[clave]}</span>
             <input
@@ -550,9 +670,10 @@ function DialogoNucleo({ alCerrar, alHecho }: { alCerrar: () => void; alHecho: (
 
 // ---------- salud del sistema (FR-143, FR-144) ----------
 
-function SaludDelSistema() {
+function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const { avisar } = usePanel();
-  const carga = useCarga(() => cargarSalud(), []);
+  const carga = useCarga(() => cargarSalud(), [marcaEntrada]);
+  const avisarAbierta = useAvisarAbierta();
   const [ocupado, setOcupado] = useState(false);
   const s = carga.datos;
   const [revocando, setRevocando] = useState<string | null>(null);
@@ -566,6 +687,19 @@ function SaludDelSistema() {
       setRevocando(null);
       avisar(T.panelAjustes.movilRevocadoAviso(dispositivo));
       await carga.recargar();
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  // RV-338: "abrir la entrada 24 h" junto a las entradas frenadas por el tope.
+  async function abrir() {
+    setOcupado(true);
+    try {
+      const r = await abrirEntrada();
+      if (!r.ok) return avisar(textoError(r.codigo), 'error');
+      avisarAbierta(r.datos);
+      entradaCambiada();
     } finally {
       setOcupado(false);
     }
@@ -626,10 +760,23 @@ function SaludDelSistema() {
               <div key={f.etiqueta} className="border-linea flex items-center gap-2 border-b py-1 last:border-b-0">
                 <dt className="text-texto-suave flex-1">{f.etiqueta}</dt>
                 <dd
-                  className={cn('flex items-center gap-2 text-right font-semibold', f.aviso && 'text-naranja-texto')}
+                  className={cn(
+                    'flex flex-wrap items-center justify-end gap-x-2 text-right font-semibold',
+                    f.aviso && 'text-naranja-texto',
+                  )}
                   data-aviso={f.aviso || undefined}
                 >
                   {f.valor}
+                  {f.accion === 'abrirEntrada' && (
+                    <button
+                      type="button"
+                      disabled={ocupado}
+                      onClick={() => void abrir()}
+                      className="text-texto min-h-9 font-normal underline disabled:opacity-50"
+                    >
+                      {T.panelAjustes.abrirEntrada24h}
+                    </button>
+                  )}
                   {f.barra != null && (
                     // El valor ya va escrito al lado: la barra es solo para verlo de un vistazo.
                     <span
