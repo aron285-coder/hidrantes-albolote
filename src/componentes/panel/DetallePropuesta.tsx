@@ -80,6 +80,9 @@ export function DetallePropuesta({
   const [puntoCambiado, setPuntoCambiado] = useState(false);
   // La recarga que sigue a un error al decidir: mientras no llega, no se aprueba.
   const [recarga, setRecarga] = useState<'lista' | 'cargando' | 'error'>('lista');
+  // El servidor ha dicho PUNTO_NO_ACTIVO: aprobar (o fusionar) fallaría igual; solo queda rechazar
+  // (RV-270 D4, UI-02). Es de esta propuesta: el componente se monta con key = id.
+  const [puntoNoActivo, setPuntoNoActivo] = useState(false);
   const desactualizada = p.desactualizada || puntoCambiado;
   // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
   // la del punto. Es con lo que se compara al aprobar: lo que no se toca no es una corrección (RV-162).
@@ -137,6 +140,11 @@ export function DetallePropuesta({
       avisar(textoError(r.codigo), 'error');
       // El punto cambió: lo escrito se queda y se pide confirmación expresa (docs/32 RV-251).
       if (r.codigo.startsWith('PROPUESTA_DESACTUALIZADA')) setPuntoCambiado(true);
+      // El punto ya no está activo: vuelve a los botones, con aprobar deshabilitado y el motivo escrito.
+      if (r.codigo.startsWith('PUNTO_NO_ACTIVO')) {
+        setPuntoNoActivo(true);
+        setModo((m) => (m === 'rechazar' ? m : null));
+      }
       // Otra persona la resolvió o el punto cambió: se recarga para ver el estado real. Con un error el
       // detalle no se cierra (RV-252): si otra persona la resolvió, se va de la lista y entonces sí.
       if (/PROPUESTA_NO_PENDIENTE|PROPUESTA_DESACTUALIZADA|PUNTO_NO_ACTIVO/.test(r.codigo)) void verDeNuevo();
@@ -302,12 +310,16 @@ export function DetallePropuesta({
           )}
         >
           {desactualizada && <AvisoDesactualizada p={p} />}
-          {bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>}
+          {puntoNoActivo ? (
+            <p className="text-texto-suave mb-1.5 text-[12px]">{T.panelCola.soloRechazar}</p>
+          ) : (
+            bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>
+          )}
           {avisoEspera}
           <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
             <Boton
               className={desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
-              disabled={ocupado || !!bloqueoAprobar || esperando}
+              disabled={ocupado || !!bloqueoAprobar || esperando || puntoNoActivo}
               onClick={() => void aprobarTalCual()}
             >
               {desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
@@ -315,7 +327,7 @@ export function DetallePropuesta({
             {p.operacion !== 'retirada' && (
               <Boton
                 variante="secundario"
-                disabled={ocupado}
+                disabled={ocupado || puntoNoActivo}
                 onClick={() => setModo('corregir')}
                 aria-label={T.panelCola.aprobarConCorrecciones}
               >
@@ -327,7 +339,7 @@ export function DetallePropuesta({
               <Boton
                 variante="secundario"
                 className="border-oro-600 text-ambar-texto"
-                disabled={ocupado}
+                disabled={ocupado || puntoNoActivo}
                 onClick={() => setModo('fusionar')}
               >
                 {T.panelCola.fusionarCon(duplicado.codigo)}
