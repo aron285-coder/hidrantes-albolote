@@ -145,3 +145,24 @@ D3 y D4 son de pantalla con datos simulados (la Cola necesita entrar con Google)
 en la CI de `develop`.
 
 commit: ad105f0f8f1a2dd229ff2f25120aef401201d6b6 · resultado: verde
+
+## Release 0.11.0 (9 oct 2026, docs/33 RV-343)
+
+Con todo docs/33: la migración `0044_entrada_abierta_espacio_y_reservas.sql` (anotada en staging), las
+Functions y las mejoras U1 a U15. «Desplegar staging» en verde con el commit de abajo. Mismo método que
+en 0.10.0 (RV-208: la cadena solo en memoria; traspaso 37961020054, borrado). La espera de la píldora
+«al día · N» sustituye a la de la franja «Sincronizado…» (U2, RV-311).
+
+| Recorrido | Resultado |
+|---|---|
+| Cercanos, alta Directo con dos fotos sin conexión y con conexión, Mis propuestas, revisión, buscar «Calle Real 10», `POST /api/push`, SW de staging con un push, la página del escritorio que no se desplaza | ok |
+| Jefatura por BD: aprobar el alta (BOC-0009), `fn_editar_punto` 6 m y enganche; `detalleLegible` da «Enganche: Directo → Granada · Movido 6 m» | ok |
+| **Nuevo (RV-343):** 25 canjes desde una misma IP con la entrada **cerrada**: entran 20 y del 21.º al 25.º `DEMASIADOS_INTENTOS`; con la entrada **abierta** (`fn_abrir_entrada(24)` como jefatura), entran los 25 desde otra IP; `fn_cerrar_entrada` la deja cerrada. Todo en una transacción que se deshace: el código de prueba es desechable (no el real) y no queda nada en staging | ok |
+| `npm run anonimizar -- --entorno staging` del dispositivo de prueba | ok: 2 propuestas y 2 entradas del registro, «voluntario dado de baja» |
+| Limpieza | ok: 0 pendientes de prueba, 0 incidencias abiertas, token revocado |
+
+Los canjes van directos a `fn_verificar_codigo` en la base (no por `/api/verificar-codigo`, que pide el
+código real); el hash de la IP es el mismo valor que la Function le pasaría. Las capturas de
+`docs/capturas/staging-31/` se han renovado con la interfaz de docs/33.
+
+commit: 9f6d7ccdb9ac21d3b3411bc3116546db85f73030 · resultado: verde

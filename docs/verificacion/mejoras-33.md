@@ -26,7 +26,7 @@ La señal para fusionar en `develop` («0.10.1 en producción», comentario de c
 | Punto | PR | Qué | Capturas antes/después y comparación con el mockup |
 |---|---|---|---|
 | RV-310 a RV-321 | #601 (U1), #607 (U2, N3), #610 (U3, D5), #614 (U4), #605 y #609 (U5), #593 y #609 (U6), #603 y #609 (U7, D3, D8, D9), #615 (U8, D11), #616 (U9, D7), #617 (U10), #606 (U11), #619 (U12, D6a, D6b) | U1 a U12 | Capturas antes/después a 412 y 1440 px, claro y oscuro, en cada PR (`docs/capturas/mejoras-33/`), comparadas con el mockup; las desviaciones, en DEC-192 |
-| RV-322 a RV-328 | #603 (N1), #587 (N2), #607 (N3), #585 (N5, N6: 26 MP), RV-327 (ver abajo), #586 (reservas liberadas) | N1 a N3, N5, N6, hueco del alta, reservas liberadas | e2e y unitarios en cada PR |
+| RV-322 a RV-328 | #603 (N1), #587 (N2), #607 (N3), #585 (N5, N6: 26 MP), #623 (RV-327: el hueco de m13 era la captura de página completa con el formulario desplazado, no un defecto; queda un e2e de guarda), #586 (reservas liberadas); #622: cerrar la app a mitad de la descarga del mapa base ya no se anota como error | N1 a N3, N5, N6, hueco del alta, reservas liberadas | e2e y unitarios en cada PR |
 | RV-329 | #582 | «Has llegado a tu máximo…» / «El grupo ha llegado al máximo…» en la cola y en Mis propuestas | Unitarios |
 
 ## Frontend-panel (oleadas 1 y 2)
@@ -49,7 +49,7 @@ La señal para fusionar en `develop` («0.10.1 en producción», comentario de c
 
 | Punto | PR | Qué | Cómo se ha comprobado |
 |---|---|---|---|
-| RV-343 | | RV-139b sobre el commit nuevo, con 25 canjes desde una IP | |
+| RV-343 | este PR | RV-139b sobre el commit nuevo, con 25 canjes desde una IP | En verde con `9f6d7cc` (`revision-completa-staging.md`): entrada cerrada, 20 y el 21.º frenado; abierta, 25; se cierra; todo deshecho |
 | RV-344 | | Recorrido corto de lo cambiado | |
 | RV-345 | | 0.11.0 en producción | |
 
