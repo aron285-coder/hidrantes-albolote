@@ -108,5 +108,10 @@ export async function simularTablas(page: Page, tablas: Record<string, unknown[]
 export async function irALista(page: Page) {
   const enlace = page.getByRole('link', { name: 'Lista', exact: true });
   if (await enlace.count()) await enlace.click();
-  else await page.goto('/lista');
+  // Sin recargar, como un enlace: lo que la app tiene en memoria sigue (React Router atiende popstate).
+  else
+    await page.evaluate(() => {
+      history.pushState({}, '', '/lista');
+      dispatchEvent(new PopStateEvent('popstate'));
+    });
 }

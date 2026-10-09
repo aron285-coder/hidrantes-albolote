@@ -266,13 +266,17 @@ test.describe('con sesión guardada', () => {
     await page.getByRole('button', { name: T.envio.volverAlMapa }).click();
     await expect(page.getByTestId('mapa')).toBeVisible();
 
-    await expect.poll(() => enviados.length).toBeGreaterThan(0);
-    expect(enviados[0]).toMatchObject({
+    // El de la pantalla. En el ordenador se llega a /lista recargando (no hay pestaña, docs/33 RV-321) y
+    // antes puede ir el de la descarga del mapa base que la recarga corta.
+    const delFallo = () =>
+      enviados.find((e) => (e as { ruta?: string }).ruta === '/lista') as Record<string, unknown> | undefined;
+    await expect.poll(delFallo).toBeTruthy();
+    expect(delFallo()).toMatchObject({
       mensaje: 'Fallo provocado en /lista',
       ruta: '/lista',
       dispositivo_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
     });
-    expect(JSON.stringify(enviados[0])).not.toContain(FIRMA.apellido);
+    expect(JSON.stringify(delFallo())).not.toContain(FIRMA.apellido);
   });
 });
 
