@@ -134,6 +134,22 @@ test('Inventario en mapa: Barro y No funciona con el marcador del mapa del volun
   await page.getByRole('radio', { name: T.panelInventario.mapa }).click();
   const mapa = page.getByTestId('mapa');
   await expect.poll(async () => svgsPorCodigo(mapa)).toEqual(voluntario);
+
+  // El dibujo nuevo de RV-319 (06 §4.3): Barro, una «B» blanca y sin tachar; No funciona, blanco con
+  // borde gris y un aspa de dos trazos, sin atenuar. Se distinguen sin color.
+  for (const p of LOS_CUATRO) {
+    const svg = mapa.locator(`.leaflet-marker-icon.marcador[title="${p.codigo}"] svg`);
+    await expect(svg.locator('[data-tachado]'), p.codigo).toHaveCount(0);
+    if (p.caudal === 'barro') {
+      await expect(svg.locator('text[data-letra]'), p.codigo).toHaveText('B');
+      await expect(svg.locator('[data-aspa]'), p.codigo).toHaveCount(0);
+    } else {
+      await expect(svg.locator('[data-aspa]'), p.codigo).toHaveCount(2);
+      await expect(svg.locator('[data-letra]'), p.codigo).toHaveCount(0);
+      await expect(svg.locator('[data-forma]'), p.codigo).toHaveAttribute('fill', 'var(--borde-marcador)');
+      await expect(svg.locator('[data-forma]'), p.codigo).not.toHaveAttribute('opacity', /.*/);
+    }
+  }
 });
 
 test('Cola, minimapa del detalle: el punto y los de alrededor con el marcador del voluntario (RV-336)', async ({
