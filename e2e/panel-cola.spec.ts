@@ -281,8 +281,8 @@ test('aprobar en bloque dos revisiones (FL-22)', async ({ page }) => {
   await page.goto('/admin/cola');
   await page.getByLabel(T.panelCola.filtroOperacion).selectOption('revision');
   await page.getByLabel(T.panelCola.seleccionarTodas).check();
-  // En el móvil se lee también en la barra de abajo (RV-110).
-  await expect(page.getByText(T.panelCola.seleccionadas(2)).first()).toBeVisible();
+  // En el móvil (y por debajo de 800 px) se lee en la barra de abajo (RV-110, docs/33 RV-331).
+  await expect(page.getByText(T.panelCola.seleccionadas(2)).filter({ visible: true }).first()).toBeVisible();
   await page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas }).click();
   await expect(page.getByRole('status').filter({ hasText: T.panelCola.loteAprobadas(2) })).toBeVisible();
   expect((llamadaA(llamadas, 'fn_aprobar_lote')!.propuesta_ids as string[]).sort()).toEqual(['c2', 'c3']);
@@ -415,7 +415,11 @@ test('RV-270 D4: fusionar con PUNTO_NO_ACTIVO (el duplicado) no impide aprobar e
 test('historial de rechazadas en solo lectura (FR-109)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/cola');
-  await page.getByRole('radio', { name: T.panelCola.rechazadas }).click();
+  // Por debajo de 800 px el estado es un desplegable (docs/33 RV-331).
+  const radio = page.getByRole('radio', { name: T.panelCola.rechazadas });
+  await expect(page.getByRole('region', { name: T.panelCola.colaRevision })).toBeVisible();
+  if (await radio.isVisible()) await radio.click();
+  else await page.getByRole('combobox', { name: T.panelCola.filtroEstado }).selectOption('rechazada');
   await expect(page.getByText(T.panelCola.soloLectura)).toBeVisible();
   // En tableta y móvil no hay ninguna abierta hasta tocarla.
   if (!(await page.getByRole('article').isVisible())) await abrir(page, /Luis Martín/);
@@ -599,7 +603,8 @@ for (const ancho of [820, 412]) {
     await page.goto('/admin/cola');
     const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
     await expect(lista.getByRole('listitem').first()).toBeVisible();
-    await expect(lista.getByTestId('mapita').first()).toBeVisible();
+    // Sin mapita en las filas (docs/33 RV-331): el mapa está en el detalle.
+    await expect(lista.getByTestId('mapita')).toHaveCount(0);
     await expect(page.getByRole('article')).toHaveCount(0);
     await expect(page.getByText(T.panelCola.tocaUna)).toBeVisible();
 

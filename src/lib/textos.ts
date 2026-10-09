@@ -223,6 +223,8 @@ export const T = {
     fotoNoDisponible: 'Foto no disponible sin cobertura',
     fotoNoCarga: 'No se ha podido cargar la foto',
     sinFoto: 'Sin foto',
+    // docs/33 RV-314: la foto que no ha cargado se vuelve a pedir.
+    reintentarFoto: 'Reintentar',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
     fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
     // docs/24 RV-102a: un estado que esta versión de la app no conoce.
@@ -1202,6 +1204,8 @@ export const T = {
     titulo: 'Hidrantes Albolote · Panel de jefatura',
     atribucion: 'Direcciones deducidas con Nominatim · © OpenStreetMap contributors',
     salir: 'Cerrar sesión',
+    // docs/33 RV-331: el menú ☰ de la cabecera del panel por debajo de 800 px.
+    menu: 'Menú',
     sinServidor: 'Sin conexión con el servidor',
     datosDe: (hace: Parametro) => `datos de ${hace}`,
     editar: 'Editar',
