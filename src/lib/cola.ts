@@ -3,7 +3,7 @@
 // La marca `clave_local` es la misma en cada reintento, así que nada se duplica (FR-49).
 
 import { SIN_SERVIDOR, rpc } from './api';
-import { type AlmacenCola, almacenCola } from './bd';
+import { type AlmacenCola, alReabrir, almacenCola } from './bd';
 import { escribir } from './almacen';
 import { anotarServidor, espera, registrarComprobacion, reintentarAhora } from './conexion';
 import { anotarError } from './errores';
@@ -59,9 +59,24 @@ export interface Reserva {
   caduca_en: number;
 }
 
-/** El tope de propuestas al día (RV-141): `maximo` si el servidor lo dice. */
+/**
+ * Por qué tope espera la cola (docs/31 RV-154, docs/32 RV-232): el de propuestas al día, el de fotos
+ * del móvil o del grupo, el espacio de fotos o de la base de datos, o demasiadas fotos de este móvil a
+ * medio subir. Un envío guardado por la versión anterior solo puede traer `cuota_propuestas`.
+ */
+export type MotivoEspera =
+  | 'cuota_propuestas'
+  | 'cuota_propuestas_nuevo'
+  | 'cuota_propuestas_grupo'
+  | 'cuota_fotos'
+  | 'cuota_fotos_grupo'
+  | 'sin_espacio_fotos'
+  | 'sin_espacio'
+  | 'reservas_abiertas';
+
+/** La espera por un tope: `maximo` si el servidor lo dice. */
 export interface EnEspera {
-  motivo: 'cuota_propuestas';
+  motivo: MotivoEspera;
   maximo: number | null;
 }
 
@@ -90,17 +105,60 @@ export const esPermanente = (codigo: string) => PERMANENTES.some((p) => codigo.s
  * Cualquier otro (DESCONOCIDO, ERROR_INTERNO…) también se reintenta, pero a los cinco seguidos se
  * marca fallo: así no se insiste para siempre y el envío sigue siendo recuperable a mano (RV-03).
  */
-const TRANSITORIOS = [
-  SIN_SERVIDOR,
-  // Con o sin sufijo: el tope del dispositivo y el global (docs/31 RV-142) se tratan igual.
-  'CUOTA_SUBIDAS_AGOTADA',
-  'CUOTA_PROPUESTAS_AGOTADA',
-  'NO_AUTORIZADO',
-  'FOTO_NO_RESERVADA',
-];
+const TRANSITORIOS = [SIN_SERVIDOR, 'NO_AUTORIZADO', 'FOTO_NO_RESERVADA'];
 export const MAX_FALLOS_SEGUIDOS = 5;
 
 const HORA = 3600_000;
+
+/**
+ * Los topes del servidor (docs/32 RV-232): con cualquiera de ellos la pasada se para y toda la cola
+ * espera a la hora que diga el servidor. Con o sin sufijo (`CUOTA_SUBIDAS_AGOTADA(global)`, RV-142).
+ * `SIN_ESPACIO_FOTOS` va antes que `SIN_ESPACIO`, que es su prefijo.
+ */
+const TOPES: [string, MotivoEspera][] = [
+  ['CUOTA_PROPUESTAS_AGOTADA', 'cuota_propuestas'],
+  ['CUOTA_SUBIDAS_AGOTADA', 'cuota_fotos'],
+  ['SIN_ESPACIO_FOTOS', 'sin_espacio_fotos'],
+  ['SIN_ESPACIO', 'sin_espacio'],
+  ['RESERVAS_ABIERTAS', 'reservas_abiertas'],
+];
+
+export interface Tope {
+  motivo: MotivoEspera;
+  ms: number;
+  maximo: number | null;
+}
+
+/**
+ * ¿Es un tope, y cuánto se espera? El servidor puede decir `reintentar_en_s=S` (y `maximo=N`) en el
+ * texto del error; sin eso, el de propuestas espera a la próxima medianoche y los demás una hora.
+ */
+export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now()): Tope | null {
+  const tope = TOPES.find(([prefijo]) => codigo.startsWith(prefijo));
+  if (!tope) return null;
+  let motivo = tope[1];
+  // De quién es el tope (0041/0042, docs/32 RV-245): `ambito=token_nuevo|grupo|dispositivo` en el texto.
+  const ambito = /\bambito=([a-z_]+)/.exec(mensaje ?? '')?.[1];
+  const delGrupo = ambito === 'grupo' || codigo.includes('(global)');
+  if (motivo === 'cuota_propuestas') {
+    if (ambito === 'token_nuevo') motivo = 'cuota_propuestas_nuevo';
+    else if (delGrupo) motivo = 'cuota_propuestas_grupo';
+    return { motivo, ...esperaCuotaPropuestas(mensaje, ahora) };
+  }
+  if (motivo === 'cuota_fotos' && delGrupo) motivo = 'cuota_fotos_grupo';
+  const segundos = /reintentar_en_s=(\d+)/.exec(mensaje ?? '');
+  const maximo = /maximo=(\d+)/.exec(mensaje ?? '');
+  return {
+    motivo,
+    ms: Math.max(1000, segundos ? Number(segundos[1]) * 1000 : HORA),
+    // El de espacio de fotos viene en bytes: no se enseña.
+    maximo: maximo && motivo !== 'sin_espacio_fotos' ? Number(maximo[1]) : null,
+  };
+}
+
+/** ¿Espera este envío por un tope, todavía? Pasada la hora, ya no (aunque aún no se haya intentado). */
+export const esperaTope = (i: Pick<EnCola, 'en_espera' | 'fallo' | 'proximo'>, ahora = Date.now()) =>
+  !i.fallo && !!i.en_espera && i.proximo > ahora;
 
 /**
  * El tope de propuestas al día (docs/31 RV-141, RV-154): el servidor dice en el texto del error
@@ -206,6 +264,8 @@ async function guardar(item: EnCola, gen?: number): Promise<boolean> {
       return false;
     }
     marcarPersistida(item.clave_local, true);
+    // IndexedDB vuelve a funcionar: lo que se quedó solo en memoria se intenta guardar ya (RV-231).
+    if (items.some((i) => !persistidas.has(i.clave_local))) void persistirPendientes();
     return true;
   } catch (e) {
     marcarPersistida(item.clave_local, false);
@@ -229,6 +289,47 @@ function marcarPersistida(clave: string, si: boolean) {
   if (items.some((i) => i.clave_local === clave)) publicar(items);
 }
 
+let persistiendo = false;
+let otraVez = false;
+
+/**
+ * Guarda en IndexedDB lo que está solo en memoria (docs/32 RV-231): al volver a abrirse IndexedDB o
+ * tras un guardado bueno. Lee la memoria dentro de la transacción, como `adelantar`: lo que ya salió
+ * o se vació al cerrar sesión no se escribe.
+ */
+async function persistirPendientes(): Promise<void> {
+  if (persistiendo) {
+    // Alguien lo pidió durante una pasada: al acabar se da otra.
+    otraVez = true;
+    return;
+  }
+  persistiendo = true;
+  const gen = generacion;
+  try {
+    for (const clave of items.filter((i) => !persistidas.has(i.clave_local)).map((i) => i.clave_local)) {
+      if (gen !== generacion) return;
+      try {
+        const escrito = await bd().actualizar(clave, () =>
+          gen === generacion ? (items.find((x) => x.clave_local === clave) ?? null) : null,
+        );
+        if (escrito && gen === generacion && items.some((x) => x.clave_local === clave)) marcarPersistida(clave, true);
+      } catch (e) {
+        // Este sigue «Sin guardar» y se volverá a intentar; los demás se intentan igual. El primer
+        // fallo de la sesión queda anotado, como en guardar.
+        if (!errorGuardadoAnotado) {
+          errorGuardadoAnotado = true;
+          anotarError(e, 'cola');
+        }
+      }
+    }
+  } finally {
+    persistiendo = false;
+    const repetir = otraVez && gen === generacion;
+    otraVez = false;
+    if (repetir) void persistirPendientes();
+  }
+}
+
 async function quitar(clave: string) {
   persistidas.delete(clave);
   publicar(items.filter((i) => i.clave_local !== clave));
@@ -250,6 +351,8 @@ export async function encolar(
   fotoSitio: Blob | null = null,
 ): Promise<{ persistida: boolean }> {
   if (!cargada) await cargarCola();
+  // Si la cola espera por un tope, lo nuevo espera con ella: chocaría con el mismo (RV-232).
+  const enTope = items.find((i) => esperaTope(i));
   const persistida = await guardar({
     clave_local: args.clave_local,
     creada_en: Date.now(),
@@ -261,8 +364,9 @@ export async function encolar(
     firma_nueva: true,
     codigo,
     intentos: 0,
-    proximo: 0,
+    proximo: enTope ? enTope.proximo : 0,
     fallo: null,
+    en_espera: enTope ? enTope.en_espera : null,
   });
   void procesarCola();
   return { persistida };
@@ -311,7 +415,9 @@ const campoRuta = (cual: CualFoto) => (cual === 'foto' ? 'foto_path' : 'foto_sit
 const campoReserva = (cual: CualFoto) => (cual === 'foto' ? 'reserva_foto' : 'reserva_foto_sitio');
 
 /** POST /api/url-subida: una ruta reservada y su URL firmada. */
-async function pedirReserva(c: Credencial): Promise<{ ok: true; reserva: Reserva } | { ok: false; codigo: string }> {
+async function pedirReserva(
+  c: Credencial,
+): Promise<{ ok: true; reserva: Reserva } | { ok: false; codigo: string; mensaje?: string }> {
   let respuesta: Response;
   try {
     respuesta = await fetch('/api/url-subida', {
@@ -331,9 +437,21 @@ async function pedirReserva(c: Credencial): Promise<{ ok: true; reserva: Reserva
     url?: string;
     caduca_en_s?: number;
     error?: string;
+    mensaje?: string;
+    maximo?: number;
+    reintentar_en_s?: number;
+    ambito?: string;
   };
   if (!respuesta.ok || !cuerpo.url || !cuerpo.foto_path) {
-    return { ok: false, codigo: respuesta.status >= 500 || !cuerpo.error ? SIN_SERVIDOR : cuerpo.error };
+    if (respuesta.status >= 500 || !cuerpo.error) return { ok: false, codigo: SIN_SERVIDOR };
+    // Los números de un tope (RV-232, RV-245), si la respuesta los trae, en la forma del texto de las RPC.
+    const numeros = [
+      typeof cuerpo.maximo === 'number' ? `maximo=${cuerpo.maximo}` : '',
+      typeof cuerpo.reintentar_en_s === 'number' ? `reintentar_en_s=${cuerpo.reintentar_en_s}` : '',
+      typeof cuerpo.ambito === 'string' && /^[a-z_]+$/.test(cuerpo.ambito) ? `ambito=${cuerpo.ambito}` : '',
+    ].join(' ');
+    const texto = typeof cuerpo.mensaje === 'string' ? cuerpo.mensaje : '';
+    return { ok: false, codigo: cuerpo.error, mensaje: `${texto} ${numeros}`.trim() };
   }
   // Sin caducidad en la respuesta no se reutiliza: se da por caducada ya.
   const caduca_en = typeof cuerpo.caduca_en_s === 'number' ? Date.now() + cuerpo.caduca_en_s * 1000 : 0;
@@ -483,6 +601,13 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
       await guardar({ ...actual, fallo: r.codigo });
       continue;
     }
+    const tope = esperaPorTope(r.codigo, r.mensaje);
+    if (tope) {
+      // Un tope vale para toda la cola (docs/32 RV-232): seguir con las demás solo gastaba reservas y
+      // propuestas contra el mismo tope. Todo espera a la hora del servidor; Mis propuestas dice por qué.
+      await esperarTodo(tope, pendiente.clave_local, gen);
+      return gen === generacion ? 'parar' : 'reiniciar';
+    }
     const transitorio = TRANSITORIOS.some((t) => r.codigo.startsWith(t));
     const fallos_seguidos = transitorio ? 0 : (actual.fallos_seguidos ?? 0) + 1;
     if (fallos_seguidos >= MAX_FALLOS_SEGUIDOS) {
@@ -490,21 +615,38 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
       continue;
     }
     const intentos = actual.intentos + 1;
-    let retraso = r.codigo.startsWith('CUOTA_SUBIDAS_AGOTADA') ? HORA : espera(intentos);
-    let en_espera: EnEspera | null = null;
-    if (r.codigo.startsWith('CUOTA_PROPUESTAS_AGOTADA')) {
-      // Mañana, a la hora que diga el servidor; mientras, Mis propuestas dice por qué (RV-154).
-      const cuota = esperaCuotaPropuestas(r.mensaje);
-      retraso = cuota.ms;
-      en_espera = { motivo: 'cuota_propuestas', maximo: cuota.maximo };
-    }
-    await guardar({ ...actual, intentos, fallos_seguidos, en_espera, proximo: Date.now() + retraso });
+    await guardar({ ...actual, intentos, fallos_seguidos, en_espera: null, proximo: Date.now() + espera(intentos) });
     if (r.codigo === SIN_SERVIDOR) {
       anotarServidor(false);
       return 'parar'; // sin servidor no tiene sentido probar los siguientes
     }
   }
   return 'seguir';
+}
+
+/**
+ * Pone toda la cola (lo que no tiene un error permanente) en espera hasta la hora del tope. Lo que ya
+ * esperaba más, sigue esperando lo suyo. El envío que chocó con el tope cuenta un intento.
+ */
+async function esperarTodo(tope: Tope, elQueChoca: string, gen: number): Promise<void> {
+  const hasta = Date.now() + tope.ms;
+  const en_espera: EnEspera = { motivo: tope.motivo, maximo: tope.maximo };
+  for (const clave of items.map((i) => i.clave_local)) {
+    if (gen !== generacion) return;
+    const i = items.find((x) => x.clave_local === clave);
+    if (!i || i.fallo) continue;
+    await guardar(
+      {
+        ...i,
+        intentos: clave === elQueChoca ? i.intentos + 1 : i.intentos,
+        fallos_seguidos: 0,
+        // Si ya esperaba más por otro tope, se queda con ese motivo y esa hora.
+        en_espera: i.en_espera && i.proximo > hasta ? i.en_espera : en_espera,
+        proximo: Math.max(i.proximo, hasta),
+      },
+      gen,
+    );
+  }
 }
 
 /**
@@ -622,6 +764,7 @@ export function iniciarCola(): void {
   void cargarCola().then(procesarCola);
   pedirAlmacenPersistente();
   registrarComprobacion(reintentarCola);
+  alReabrir(() => void persistirPendientes());
 }
 
 /**
@@ -651,6 +794,8 @@ export function _usarAlmacenCola(a: AlmacenCola<EnCola>) {
   otraVuelta = false;
   huboEnvio = null;
   errorGuardadoAnotado = false;
+  persistiendo = false;
+  otraVez = false;
   persistidas.clear();
   clearTimeout(temporizador);
   oyentes.clear();

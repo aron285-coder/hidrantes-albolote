@@ -30,6 +30,10 @@ import {
   planMapa,
   rechazar,
   valoresPropuestos,
+  ponerAlDia,
+  cambiosDecision,
+  recortarOpcion,
+  MAXIMO_OPCION,
   bloqueoPorMedida,
 } from '@/lib/panel/cola';
 import { LIMITES } from '@/lib/limites';
@@ -52,12 +56,16 @@ export function DetallePropuesta({
   puntos,
   radioDuplicado,
   alHecho,
+  alRecargar,
   alVolver,
 }: {
   p: PropuestaPanel;
   puntos: Punto[];
   radioDuplicado: number | null;
+  /** La acción ha terminado de verdad (aprobada, rechazada, fusionada): en el móvil, vuelve a la cola. */
   alHecho: () => void;
+  /** Un error que pide ver el estado real (otra persona, el punto cambió): se recarga sin cerrar nada. */
+  alRecargar: () => Promise<boolean>;
   alVolver?: () => void;
 }) {
   const { avisar } = usePanel();
@@ -67,6 +75,12 @@ export function DetallePropuesta({
   const ficha = useMemo(() => fichaCompleta(p, punto), [p, punto]);
   const [modo, setModo] = useState<Modo>(null);
   const [ocupado, setOcupado] = useState(false);
+  // El servidor ha dicho PROPUESTA_DESACTUALIZADA: lo siguiente es "Confirmar y aprobar" con
+  // confirmación expresa (FR-108, docs/32 RV-251), cuando haya llegado el punto de hoy.
+  const [puntoCambiado, setPuntoCambiado] = useState(false);
+  // La recarga que sigue a un error al decidir: mientras no llega, no se aprueba.
+  const [recarga, setRecarga] = useState<'lista' | 'cargando' | 'error'>('lista');
+  const desactualizada = p.desactualizada || puntoCambiado;
   // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
   // la del punto. Es con lo que se compara al aprobar: lo que no se toca no es una corrección (RV-162).
   const [ensenada, setEnsenada] = useState(
@@ -121,18 +135,42 @@ export function DetallePropuesta({
     setOcupado(false);
     if (!r.ok) {
       avisar(textoError(r.codigo), 'error');
-      // Otra persona la resolvió o el punto cambió: se recarga para ver el estado real.
-      if (/PROPUESTA_NO_PENDIENTE|PROPUESTA_DESACTUALIZADA|PUNTO_NO_ACTIVO/.test(r.codigo)) alHecho();
+      // El punto cambió: lo escrito se queda y se pide confirmación expresa (docs/32 RV-251).
+      if (r.codigo.startsWith('PROPUESTA_DESACTUALIZADA')) setPuntoCambiado(true);
+      // Otra persona la resolvió o el punto cambió: se recarga para ver el estado real. Con un error el
+      // detalle no se cierra (RV-252): si otra persona la resolvió, se va de la lista y entonces sí.
+      if (/PROPUESTA_NO_PENDIENTE|PROPUESTA_DESACTUALIZADA|PUNTO_NO_ACTIVO/.test(r.codigo)) void verDeNuevo();
       return;
     }
     avisar(exito);
     alHecho();
   }
 
+  // Hasta que llega la lista nueva no se aprueba: la confirmación expresa (FR-108) es sobre lo que se ve.
+  async function verDeNuevo() {
+    setRecarga('cargando');
+    setRecarga((await alRecargar()) ? 'lista' : 'error');
+  }
+  const esperando = recarga !== 'lista';
+  const avisoEspera = esperando && (
+    <div role={recarga === 'error' ? 'alert' : 'status'} className="text-texto-suave mb-1.5 text-[12px]">
+      {recarga === 'cargando' ? (
+        T.panelCola.cargandoPunto
+      ) : (
+        <span className="flex flex-wrap items-center gap-2">
+          {T.panelCola.puntoNoCarga}
+          <Boton variante="secundario" onClick={() => void verDeNuevo()}>
+            {T.mapa.reintentar}
+          </Boton>
+        </span>
+      )}
+    </div>
+  );
+
   const aprobarTalCual = () =>
     ejecutar(
       async () => {
-        const r = await aprobar(p.id, conDireccion({}, direccion, ensenada), p.desactualizada);
+        const r = await aprobar(p.id, conDireccion({}, direccion, ensenada), desactualizada);
         return r.ok ? { ok: true as const, datos: r.datos } : r;
       },
       T.panelCola.aprobada(p.codigo ?? T.panelCola.nuevo),
@@ -199,18 +237,21 @@ export function DetallePropuesta({
           <div ref={formulario} className="scroll-mb-28">
             {pendiente ? (
               <>
-                {p.desactualizada && (modo === 'corregir' || modo === 'fusionar') && <AvisoDesactualizada p={p} />}
+                {desactualizada && (modo === 'corregir' || modo === 'fusionar') && <AvisoDesactualizada p={p} />}
                 {modo === 'corregir' && (
                   <FormularioCorrecciones
                     p={p}
                     punto={punto}
                     direccion={direccion}
-                    ocupado={ocupado}
+                    ocupado={ocupado || esperando}
+                    espera={avisoEspera}
+                    desactualizada={desactualizada}
+                    puntoCambiado={puntoCambiado}
                     alCancelar={() => setModo(null)}
                     alGuardar={(c, dir) =>
                       void ejecutar(
                         async () => {
-                          const r = await aprobar(p.id, conDireccion(c, dir, ensenada), p.desactualizada);
+                          const r = await aprobar(p.id, conDireccion(c, dir, ensenada), desactualizada);
                           return r.ok ? { ok: true as const } : r;
                         },
                         T.panelCola.aprobadaConCorrecciones(p.codigo ?? T.panelCola.nuevo),
@@ -233,7 +274,11 @@ export function DetallePropuesta({
                     alCancelar={() => setModo(null)}
                     alConfirmar={(prev) =>
                       void ejecutar(async () => {
-                        const r = await fusionar(p.id, duplicado.id, prev);
+                        // La dirección editada en el detalle, si se ha cambiado (docs/32 RV-253).
+                        const { direccion: dir } = conDireccion({}, direccion, ensenada) as {
+                          direccion?: string | null;
+                        };
+                        const r = await fusionar(p.id, duplicado.id, prev, dir);
                         return r.ok ? { ok: true as const } : r;
                       }, T.panelCola.fusionada(duplicado.codigo))
                     }
@@ -256,15 +301,16 @@ export function DetallePropuesta({
             !pantalla && 'sticky bottom-0',
           )}
         >
-          {p.desactualizada && <AvisoDesactualizada p={p} />}
+          {desactualizada && <AvisoDesactualizada p={p} />}
           {bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>}
+          {avisoEspera}
           <div className="flex gap-3 max-[1099px]:[&>*]:flex-1 max-[1099px]:[&>*]:px-2">
             <Boton
-              className={p.desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
-              disabled={ocupado || !!bloqueoAprobar}
+              className={desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
+              disabled={ocupado || !!bloqueoAprobar || esperando}
               onClick={() => void aprobarTalCual()}
             >
-              {p.desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
+              {desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.aprobar}
             </Boton>
             {p.operacion !== 'retirada' && (
               <Boton
@@ -578,15 +624,12 @@ function Comparacion({ p, existente, direccion }: { p: PropuestaPanel; existente
 function Decision({ p, puntos }: { p: PropuestaPanel; puntos: Punto[] }) {
   const quien = p.revisada_por ?? '—';
   const cuando = p.revisada_en ? `${hace(p.revisada_en)} (${fechaCorta(p.revisada_en)})` : '—';
-  const c = { ...(p.correcciones ?? {}) } as Record<string, unknown>;
+  const c = p.correcciones ?? {};
   const puntoId = c.punto_id as string | undefined;
   const fusionadaCon = c.fusionada_con as string | undefined;
-  delete c.punto_id;
-  delete c.fusionada_con;
   const codigo = puntoId && p.operacion === 'alta' ? puntos.find((x) => x.id === puntoId)?.codigo : undefined;
-  const cambios = Object.entries(c)
-    .map(([k, v]) => `${etiquetaCampo(k)} → ${String(v)}`)
-    .join(', ');
+  // En palabras, como en el Registro: "Dirección → —", no "null" ni "granada" (docs/32 RV-255).
+  const cambios = cambiosDecision(c);
   return (
     <div className="border-linea bg-papel rounded-campo border px-3 py-2">
       <p className="font-semibold">
@@ -613,6 +656,9 @@ function FormularioCorrecciones({
   punto,
   direccion,
   ocupado,
+  espera,
+  desactualizada,
+  puntoCambiado,
   alGuardar,
   alCancelar,
 }: {
@@ -620,11 +666,29 @@ function FormularioCorrecciones({
   punto?: Punto;
   direccion: string;
   ocupado: boolean;
+  /** Por qué no se puede aprobar todavía (se espera el punto de hoy), o nada. */
+  espera: React.ReactNode;
+  /** Se aprueba con confirmación expresa: el botón dice "Confirmar y aprobar" (FR-108). */
+  desactualizada: boolean;
+  /** El servidor ha dicho que el punto cambió con esto abierto (PROPUESTA_DESACTUALIZADA). */
+  puntoCambiado: boolean;
   alGuardar: (correcciones: Record<string, unknown>, direccion: string) => void;
   alCancelar: () => void;
 }) {
   const propuesto = useMemo(() => valoresPropuestos(p, punto), [p, punto]);
+  // Lo que jefatura vio al abrir (o al ponerse al día): con eso se sabe qué ha tocado (docs/32 RV-251).
+  const [visto, setVisto] = useState<ValoresPunto>(propuesto);
   const [v, setV] = useState<ValoresPunto>(propuesto);
+  const [alDia, setAlDia] = useState(false);
+  // Cambia lo propuesto con el formulario abierto (la cola se recarga): lo tocado se queda y lo demás
+  // pasa a lo nuevo. Se compara por contenido: cada recarga trae objetos nuevos aunque nada cambie.
+  if (JSON.stringify(propuesto) !== JSON.stringify(visto)) {
+    setV(ponerAlDia(visto, v, propuesto));
+    setVisto(propuesto);
+    // Solo avisa si lo que cambia es la fila del punto que trae la cola, no el inventario que llega
+    // después (la vista de antes, sin `punto`).
+    if (p.punto) setAlDia(true);
+  }
   // Sin tocar aquí (null), la del detalle tal como esté, también si la deducida llega con esto abierto.
   const [escrita, setEscrita] = useState<string | null>(null);
   const dir = escrita ?? direccion;
@@ -640,6 +704,14 @@ function FormularioCorrecciones({
       }}
     >
       <p className="font-semibold">{T.panelCola.corrigeYAprueba}</p>
+      {(puntoCambiado || alDia) && (
+        <p
+          role="status"
+          className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo border px-3 py-2 text-[13px]"
+        >
+          {T.panelCola.puntoHaCambiado}
+        </p>
+      )}
       <Fila etiqueta={T.panelCola.campoTipo}>
         {/* Fuera de un alta el tipo no cambia (DEC-090): se enseña sin selector. */}
         {p.operacion !== 'alta' ? (
@@ -755,10 +827,15 @@ function FormularioCorrecciones({
           className="border-linea rounded-campo min-h-9 flex-1 border px-2"
         />
       </Fila>
+      {espera}
       <div className="flex flex-wrap items-start gap-3">
         <div>
-          <Boton type="submit" className="bg-verde-600" disabled={ocupado || !!falta}>
-            {T.panelCola.guardarYAprobar}
+          <Boton
+            type="submit"
+            className={desactualizada ? 'bg-rojo-700' : 'bg-verde-600'}
+            disabled={ocupado || !!falta}
+          >
+            {desactualizada ? T.panelCola.confirmarYAprobar : T.panelCola.guardarYAprobar}
           </Boton>
           {falta && <p className="text-texto-suave mt-1 max-w-56 text-[11px]">{falta}</p>}
         </div>
@@ -843,22 +920,35 @@ function FormularioFusion({
     <div className="border-oro-600 rounded-campo border bg-[color-mix(in_srgb,var(--oro-600)_10%,var(--papel))] p-3">
       <p className="font-semibold">{T.panelCola.fusionTitulo(existente.codigo)}</p>
       <p className="mb-2 text-[13px]">{T.panelCola.fusionExplica(existente.codigo)}</p>
-      {difs.map((d) => (
-        <Fila key={d.campo} etiqueta={d.campo === 'ubicacion' ? T.panelCola.campoUbicacion : etiquetaCampo(d.campo)}>
-          <select
-            value={elegido[d.campo] ?? 'existente'}
-            onChange={(e) => setElegido((x) => ({ ...x, [d.campo]: e.target.value as Prevalece }))}
-            className="border-linea bg-papel rounded-campo min-h-9 flex-1 border px-2"
-          >
-            <option value="existente">
-              {d.campo === 'ubicacion' ? d.existente : T.panelCola.valorExistente(d.existente)}
-            </option>
-            <option value="propuesta">
-              {d.campo === 'ubicacion' ? d.propuesta : T.panelCola.valorPropuesta(d.propuesta)}
-            </option>
-          </select>
-        </Fila>
-      ))}
+      {difs.map((d) => {
+        // Entero (para `title`) y corto: se recorta el valor, no "(existente)" ni "(propuesta)".
+        const opcion = (valor: string, marca: (v: string) => string) =>
+          d.campo === 'ubicacion'
+            ? { entero: valor, corto: recortarOpcion(valor) }
+            : { entero: marca(valor), corto: marca(recortarOpcion(valor, MAXIMO_OPCION - marca('').length)) };
+        const existente = opcion(d.existente, T.panelCola.valorExistente);
+        const propuesta = opcion(d.propuesta, T.panelCola.valorPropuesta);
+        const valor = elegido[d.campo] ?? 'existente';
+        return (
+          <Fila key={d.campo} etiqueta={d.campo === 'ubicacion' ? T.panelCola.campoUbicacion : etiquetaCampo(d.campo)}>
+            {/* Una descripción de 500 caracteres no cabe a 412 px: la opción va recortada y entera en
+                `title`, también en el select para la elegida (docs/32 RV-254). */}
+            <select
+              value={valor}
+              title={valor === 'propuesta' ? propuesta.entero : existente.entero}
+              onChange={(e) => setElegido((x) => ({ ...x, [d.campo]: e.target.value as Prevalece }))}
+              className="border-linea bg-papel rounded-campo min-h-9 w-0 min-w-0 flex-1 border px-2"
+            >
+              <option value="existente" title={existente.entero}>
+                {existente.corto}
+              </option>
+              <option value="propuesta" title={propuesta.entero}>
+                {propuesta.corto}
+              </option>
+            </select>
+          </Fila>
+        );
+      })}
       <div className="mt-2 flex gap-3">
         <Boton
           variante="secundario"

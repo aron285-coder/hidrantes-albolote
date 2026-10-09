@@ -230,20 +230,32 @@ function MenuExportar({
 
 /**
  * La dirección, editable en la celda (FR-15). Controlada: enseña lo que se escribe y, al salir, solo
- * guarda si difiere de la dirección actual del punto (docs/31 RV-164). Nunca "— pen": el campo mide al
- * menos lo que su texto de "pendiente" (RV-79).
+ * guarda si se ha escrito algo en ella (docs/32 RV-256) y difiere de la dirección actual del punto
+ * (docs/31 RV-164). Nunca "— pen": el campo mide al menos lo que su texto de "pendiente" (RV-79).
  */
-function CeldaDireccion({ punto, alGuardar }: { punto: Punto; alGuardar: (p: Punto, valor: string) => Promise<void> }) {
+function CeldaDireccion({
+  punto,
+  alGuardar,
+}: {
+  punto: Punto;
+  alGuardar: (p: Punto, valor: string) => Promise<boolean>;
+}) {
   const dato = punto.direccion ?? '';
   const [valor, setValor] = useState(dato);
-  // La dirección que enseñaba al empezar; si el dato cambia (Editar, otro administrador), la celda
-  // vuelve a empezar con lo nuevo. Mientras se escribe en ella no: lo escrito no se pierde sin avisar,
-  // y al salir se guarda encima, que es lo que se quería.
+  // `base`: lo que enseñaba la celda sin que nadie escribiera (lo que había al entrar, o lo último
+  // guardado). `visto`: el último dato que ha llegado del servidor. Si el dato cambia (Editar, otro
+  // administrador) y no se ha escrito nada, la celda enseña lo nuevo, también con el foco dentro.
+  // Si se ha escrito, lo escrito no se pierde sin avisar, y al salir se guarda encima, que es lo
+  // que se quería.
   const [base, setBase] = useState(dato);
-  const [escribiendo, setEscribiendo] = useState(false);
-  if (dato !== base && !escribiendo) {
-    setBase(dato);
-    setValor(dato);
+  const [visto, setVisto] = useState(dato);
+  const escrito = valor !== base;
+  if (dato !== visto) {
+    setVisto(dato);
+    if (!escrito) {
+      setBase(dato);
+      setValor(dato);
+    }
   }
   return (
     <input
@@ -252,11 +264,16 @@ function CeldaDireccion({ punto, alGuardar }: { punto: Punto; alGuardar: (p: Pun
       placeholder={T.panel.pendienteEscribe}
       aria-label={T.panelInventario.direccionDe(punto.codigo)}
       maxLength={LIMITES.direccion}
-      onFocus={() => setEscribiendo(true)}
       onBlur={() => {
-        setEscribiendo(false);
-        setBase(dato);
-        void alGuardar(punto, valor);
+        // Sin escribir no se guarda nada: un blur con el dato ya cambiado por una sincronización
+        // escribiría la dirección vieja encima de la nueva (RV-256).
+        if (!escrito) return;
+        const escrita = valor;
+        setBase(escrita);
+        // Si no se ha podido guardar, lo escrito sigue siendo un cambio: el siguiente blur lo intenta.
+        void alGuardar(punto, escrita).then((ok) => {
+          if (!ok) setBase((b) => (b === escrita ? visto : b));
+        });
       }}
       className="border-linea rounded-campo min-h-8 w-full min-w-[27ch] border border-transparent bg-transparent px-1 hover:border-[var(--linea)] focus:border-[var(--linea)]"
     />
@@ -347,12 +364,16 @@ export default function Inventario() {
   useEffect(() => {
     actuales.current = puntos;
   }, [puntos]);
-  async function guardarDireccion(p: Punto, valor: string) {
+  async function guardarDireccion(p: Punto, valor: string): Promise<boolean> {
     const ahora = actuales.current.find((x) => x.id === p.id) ?? p;
-    if ((valor.trim() || null) === (ahora.direccion?.trim() || null)) return;
+    if ((valor.trim() || null) === (ahora.direccion?.trim() || null)) return true;
     const r = await editarPunto(p.id, { direccion: valor.trim() || null });
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
+    if (!r.ok) {
+      avisar(textoError(r.codigo), 'error');
+      return false;
+    }
     avisar(T.panelInventario.guardado(p.codigo));
+    return true;
   }
 
   async function exportarCon(formato: Formato) {

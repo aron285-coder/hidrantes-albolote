@@ -204,7 +204,9 @@ Desde 0041 (docs/32 RV-220, DEC-182) los topes de fotos cuentan **espacio** y **
   `SIN_ESPACIO_FOTOS`, para todos, también jefatura (es espacio físico). Leer `storage.objects` exige
   la lectura que da `supabase/sql/arranque-bd.sql` a `hidrantes_migrador` (§5); sin ella se usa
   `config.storage_bytes` (lo que midió la última purga o el último respaldo) y Salud lo dice
-  (`fotos_origen`).
+  (`fotos_origen`). Desde 0042, sin la política `hidrantes_migrador_mide_fotos` también (con el
+  `grant` pero sin política, la RLS daría un bucket "vacío" sin error), y un archivo sin tamaño legible
+  cuenta como 5 MB.
 - **Purga diaria de filas** (`pg_cron`, `hidrantes_purgar_subidas`, ahora `fn_purgar_subidas()`): además
   de las de más de 30 días, borra las filas de reservas **nunca confirmadas de más de 48 h cuyo archivo
   ya no está en el bucket** (nunca se subió, o la purga de fotos ya lo borró). Solo filas de `subidas`:
@@ -402,7 +404,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida`; desde 0041 también `fn_reportar_incidencia`, como sumidero para la app 0.7.0 (§2.7, hasta #472) |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni
@@ -449,6 +451,8 @@ fn_verificar_codigo(codigo text, dispositivo_id uuid, ip_hash text)
 
 -- Helper: devuelve el dispositivo_id, actualiza ultimo_uso.
 fn_validar_token(token text) returns uuid
+  -- Ni anon ni authenticated. service_role desde 0043 (#561): la llaman /api/push y /api/geocodificar
+  --   para comprobar el token de un voluntario (validarToken de functions/_lib/comun.ts).
   -- errores: TOKEN_INVALIDO · TOKEN_REVOCADO · TOKEN_CADUCADO
   -- TOKEN_REVOCADO también si el dispositivo_id del token es el de un administrador (0039, RV-143):
   --   0039 revoca los que hubiera, y esto cubre a quien se dé de alta como administrador más tarde.
@@ -469,6 +473,11 @@ fn_reservar_subida(token text) returns text  -- foto_path
   --   SIN_ESPACIO_FOTOS: 'SIN_ESPACIO_FOTOS: No queda espacio para fotos; avisa a jefatura'. Para todos.
   --   /api/url-subida responde los tres con el estado de estadoDe (CUOTA_* 429; los otros dos, los que
   --   fije functions/_lib/comun.ts).
+  -- 0042: los tres llevan 'CODIGO: maximo=<n> reintentar_en_s=<s>' y lo mismo en JSON en detail:
+  --   CUOTA_SUBIDAS_AGOTADA … ambito=dispositivo (s: hasta que su reserva más antigua de 24 h cumpla
+  --   24 h) o … ambito=grupo (s: hasta que la primera que cuenta deje de contar: una confirmada a las
+  --   24 h de reservarse, una abierta a las 2 h); SIN_ESPACIO_FOTOS con maximo = max_bytes_fotos (bytes)
+  --   y s = 3600 fijo.
 -- Jefatura desde el móvil (authenticated + fn_es_admin): misma cuota, su dispositivo técnico.
 fn_reservar_subida_admin() returns text
 
@@ -738,8 +747,9 @@ fn_reservas_sin_confirmar_lista() returns jsonb   -- {"fotos": [text], "total": 
 -- 0041 (docs/32 RV-220, RV-221): service_role (y hidrantes_migrador, su dueño, desde vigilancia.yml).
 -- Lo que mide la vigilancia para avisar al 70 % de max_bytes_fotos y de max_bytes_bd.
 fn_espacio() returns jsonb
-  -- { fotos_bytes, fotos_origen, reservas_abiertas, fotos_reservado_bytes (5 MB por abierta sin
-  --   archivo), max_bytes_fotos, bd_bytes, max_bytes_bd, aviso: 0.7 }
+  -- { fotos_bytes, fotos_origen, fotos_medidos_en (0042: now() si viene del bucket; si no, el
+  --   actualizado_en de config.storage_bytes), reservas_abiertas, fotos_reservado_bytes (5 MB por
+  --   abierta sin archivo), max_bytes_fotos, bd_bytes, max_bytes_bd, aviso: 0.7 }
 -- Solo service_role (la llama /api/push): reclama avisos pendientes con skip locked y los marca
 -- enviados en la misma transacción; después se anota el resultado de cada uno.
 fn_reclamar_notificaciones(limite integer default 100)
@@ -800,6 +810,9 @@ fn_espacio_fotos(out bytes bigint, out origen text, out abiertas integer)
                                            -- sin lectura del bucket, config.storage_bytes
 fn_purgar_subidas() returns integer        -- la llama pg_cron cada noche (hidrantes_purgar_subidas)
 fn_propuestas_hoy() returns integer        -- 0041, RV-221: de voluntarios, día natural de Madrid
+fn_error_tope(codigo text, maximo bigint, espera integer, ambito text default null) returns void
+                                           -- 0042: lanza 'CODIGO: maximo=<n> reintentar_en_s=<s>[ ambito=<a>]'
+                                           -- con lo mismo en JSON en detail
 fn_tareas_programadas() returns jsonb        -- 0031, RV-92: las tareas hidrantes_% de cron.job con su
                                              -- última ejecución en cron.job_run_details, como
                                              -- scripts/sql/tareas-programadas.sql pero sin esperadas;
@@ -957,6 +970,7 @@ Números de portal para la búsqueda (FR-73, DEC-092). **Nunca anónimo**: no es
         "fuente": "CartoCiudad (IGN/CNIG)" }        // como mucho 5
 ← 400 { "error": "PAYLOAD_INVALIDO" }   // q de menos de 3 o más de 120 caracteres tras trim
 ← 401 { "error": "TOKEN_INVALIDO" }     // sin token de voluntario válido ni sesión de administrador
+← 503 { "error": "SERVIDOR_NO_DISPONIBLE" } // el token no se ha podido comprobar (0043, #561): no es «vuelve a entrar»
 ← 429 { "error": "DEMASIADOS_INTENTOS" } // más de 30 por minuto con el mismo token (RV-63)
 ← 503 { "error": "SIN_SERVIDOR" }       // CartoCiudad caído o más de 5 s, o sin ningún resultado porque fallaron los find (TR-118, RV-63)
 ```
@@ -1014,7 +1028,10 @@ aplica el tope por IP y nunca falla hacia el cliente. La IP no se guarda en clar
 ### `POST /api/push`
 
 `→ { "token": "…" }` (voluntario) o cabecera de administrador, o cabecera `X-Vigilancia` con el
-secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. Reclama **20** avisos (el plan gratuito de Workers
+secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. El token se
+comprueba con `fn_validar_token` (0043, #561): rechazado (`TOKEN_*`) → `401 NO_AUTORIZADO`; si no se
+puede comprobar (red, permisos) → `503 SERVIDOR_NO_DISPONIBLE` y `validar_token_fallo: <código>` en
+`errores_cliente` (`ip_hash` fijo `funcion:validar_token`, sin el token). Igual en `/api/geocodificar`. Reclama **20** avisos (el plan gratuito de Workers
 permite 50 peticiones de salida por invocación y cada aviso gasta dos, más una para aplazar: 43), envía cada uno con Web Push
 (VAPID) y anota su resultado. Marca `suscripcion_caducada` **solo** con 404 o 410; cualquier otro
 error HTTP se anota como fallo (§2.12). **Sin respuesta** del servicio (corte de red, DNS o 10 s sin

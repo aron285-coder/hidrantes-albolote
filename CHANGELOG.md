@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.10.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.9.0...hidrantes-albolote-v0.10.0) (2026-10-09)
+
+
+### Novedades
+
+* **mapa:** avisos de arriba que no se tapan y hojas que no pierden el foco (RV-236 a RV-238) ([#553](https://github.com/aron285-coder/hidrantes-albolote/issues/553)) ([409cb91](https://github.com/aron285-coder/hidrantes-albolote/commit/409cb91d956c2d0025ebd8cc79ef65ec387ffe5b))
+* **panel:** Salud con espacio y móviles que más fotos piden, últimos pedidos y avisos de jefatura por administrador (docs/32 RV-260, RV-262, RV-264) ([#557](https://github.com/aron285-coder/hidrantes-albolote/issues/557)) ([b5e2768](https://github.com/aron285-coder/hidrantes-albolote/commit/b5e2768f22c405dbf78b9850b1617cff11c3ea0c))
+* **proponer:** salir de un formulario a medias pregunta, y mensajes claros (RV-239 a RV-244) ([#559](https://github.com/aron285-coder/hidrantes-albolote/issues/559)) ([4ab5c44](https://github.com/aron285-coder/hidrantes-albolote/commit/4ab5c44fd382b8611bd6852dfe2c117ad4974235))
+
+
+### Correcciones
+
+* **busqueda:** buscar números de portal y el aviso inmediato vuelven a funcionar para los voluntarios ([#566](https://github.com/aron285-coder/hidrantes-albolote/issues/566)) ([aba8754](https://github.com/aron285-coder/hidrantes-albolote/commit/aba87542a65cedfca72d274f7cf136a286715a0a))
+* **ci:** arreglos de la revisión de RV-201 a RV-203 ([#544](https://github.com/aron285-coder/hidrantes-albolote/issues/544)) ([25f82f2](https://github.com/aron285-coder/hidrantes-albolote/commit/25f82f2e783149281c36539e542320a71ab4c67d))
+* **cola:** la cola se para con un tope, recargar no pierde nada y cerrar sesión es rápido (docs/32 RV-230 a RV-235, RV-245, RV-258) ([#549](https://github.com/aron285-coder/hidrantes-albolote/issues/549)) ([73ec162](https://github.com/aron285-coder/hidrantes-albolote/commit/73ec1622d1707882f49c20f3bef39a92ef5244ce))
+* **fotos:** al llegar a un tope de fotos, el móvil sabe cuánto esperar ([#546](https://github.com/aron285-coder/hidrantes-albolote/issues/546)) ([4bc2f3c](https://github.com/aron285-coder/hidrantes-albolote/commit/4bc2f3cf2e79b2a44d5a2948f7e1b5157080fdc1))
+* **panel:** cola sin filas del filtro anterior, corregir solo lo tocado y detalle que no se cierra con un error (docs/32 RV-250 a RV-255) ([#551](https://github.com/aron285-coder/hidrantes-albolote/issues/551)) ([28b9f44](https://github.com/aron285-coder/hidrantes-albolote/commit/28b9f4427d383cd494ed952894a47ea1b118dfbb))
+* **panel:** Inventario, Ajustes y exportar sin datos inventados ni fallos callados (docs/32 RV-256 a RV-263b) ([#547](https://github.com/aron285-coder/hidrantes-albolote/issues/547)) ([0fae874](https://github.com/aron285-coder/hidrantes-albolote/commit/0fae8742ae14dcfcc957decc05288a6207319c26))
+
 ## [0.9.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.8.0...hidrantes-albolote-v0.9.0) (2026-10-08)
 
 

@@ -13,8 +13,8 @@ import {
   json,
   jwtDe,
   leerJson,
-  rpc,
   sha256Hex,
+  validarToken,
 } from '../_lib/comun.ts';
 import { dentroDelLimite } from '../_lib/limite.ts';
 import { cercaDeLaZona } from '../_lib/zona.ts';
@@ -144,25 +144,34 @@ export async function geocodificar(q: string, agente: string, signal: AbortSigna
   return resultados;
 }
 
+/** El token no se ha podido comprobar: 503, para que el móvil no diga «vuelve a entrar» (#561). */
+const SIN_SERVIDOR = Symbol('sin_servidor');
+
 /**
  * Quién pregunta, o null: token de voluntario válido, sesión de administrador o, como /api/push, el
  * secreto de vigilancia (lo usa comprobar-despliegue para ver que la caché funciona, docs/19 RV-63).
- * Lo que devuelve es la clave del tope por token: nunca el token en claro.
+ * Lo que devuelve es la clave del tope por token: nunca el token en claro. SIN_SERVIDOR si el token
+ * no se ha podido comprobar.
  */
-async function autorizado(request: Request, env: Env, cuerpo: Record<string, unknown> | null): Promise<string | null> {
+async function autorizado(
+  request: Request,
+  env: Env,
+  cuerpo: Record<string, unknown> | null,
+): Promise<string | null | typeof SIN_SERVIDOR> {
   const vigilancia = request.headers.get('X-Vigilancia');
   if (vigilancia && env.VIGILANCIA_SECRETO) return iguales(vigilancia, env.VIGILANCIA_SECRETO) ? 'vigilancia' : null;
   const jwt = jwtDe(request);
   if (jwt) return (await esAdmin(env, jwt)) ? `jefatura:${await sha256Hex(jwt)}` : null;
   if (typeof cuerpo?.token !== 'string') return null;
-  // Validar el token cuesta una lectura mínima: solo lo cambiado desde ahora.
-  const r = await rpc(env, 'fn_listar_puntos', { token: cuerpo.token, desde: new Date().toISOString() });
-  return r.ok ? `token:${await sha256Hex(cuerpo.token)}` : null;
+  const r = await validarToken(env, cuerpo.token, '/api/geocodificar');
+  if (r === 'sin_servidor') return SIN_SERVIDOR;
+  return r === 'valido' ? `token:${await sha256Hex(cuerpo.token)}` : null;
 }
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
   const cuerpo = await leerJson(request);
   const quien = await autorizado(request, env, cuerpo);
+  if (quien === SIN_SERVIDOR) return error(503, 'SERVIDOR_NO_DISPONIBLE');
   if (!quien) return error(401, 'TOKEN_INVALIDO');
   // 30 por minuto por token: frena un bucle de cliente (RV-63).
   if (!dentroDelLimite(quien)) return error(429, 'DEMASIADOS_INTENTOS');

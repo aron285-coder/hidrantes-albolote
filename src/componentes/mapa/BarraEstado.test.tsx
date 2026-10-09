@@ -10,7 +10,12 @@ const estado = vi.hoisted(() => ({
   conexion: 'bien' as 'bien' | 'sin_cobertura' | 'sin_servidor',
   guardadoEn: '2026-10-07T10:00:00Z' as string | null,
   sincronizando: false,
-  cola: [] as { creada_en: number; fallo: string | null }[],
+  cola: [] as {
+    creada_en: number;
+    fallo: string | null;
+    proximo?: number;
+    en_espera?: { motivo: string; maximo: number | null } | null;
+  }[],
 }));
 
 vi.mock('@/hooks/estado', () => ({
@@ -62,5 +67,26 @@ describe('BarraEstado (docs/31 RV-157)', () => {
     const enlace = pintar().match(/<a [^>]*href="\/mis-propuestas"[^>]*>/)?.[0] ?? '';
     expect(enlace).toMatch(/\bmin-h-11\b/);
     expect(enlace).toMatch(/\bmin-w-11\b/);
+  });
+});
+
+describe('BarraEstado: la espera por un tope no es falta de cobertura (docs/32 RV-233)', () => {
+  const haceUnDia = () => Date.now() - 25 * 3600_000;
+
+  it('más de 24 h sin enviar y sin tope: avisa de que espera cobertura', () => {
+    estado.cola = [{ creada_en: haceUnDia(), fallo: null, proximo: 0, en_espera: null }];
+    expect(pintar()).toContain(T.misPropuestas.esperando24h);
+  });
+
+  it('si lo que espera es un tope, no dice que espera cobertura', () => {
+    estado.cola = [
+      {
+        creada_en: haceUnDia(),
+        fallo: null,
+        proximo: Date.now() + 3600_000,
+        en_espera: { motivo: 'cuota_fotos_grupo', maximo: null },
+      },
+    ];
+    expect(pintar()).not.toContain(T.misPropuestas.esperando24h);
   });
 });

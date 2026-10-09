@@ -13,6 +13,11 @@ describe('enFormulario', () => {
     expect(enFormulario('/')).toBe(false);
     expect(enFormulario('/mis-propuestas')).toBe(false);
   });
+
+  it('la pantalla de resultado no es un formulario (docs/32 RV-240)', () => {
+    expect(enFormulario('/proponer/hecho')).toBe(false);
+    expect(enFormulario('/proponer/hecho/')).toBe(false);
+  });
 });
 
 describe('escucharAvisosPush', () => {

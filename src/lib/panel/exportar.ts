@@ -89,7 +89,10 @@ export function celdas(f: FilaExportada): (string | number)[] {
 // (=HYPERLINK…): lleva delante un apóstrofo y se lee como texto (docs/31 RV-168). Los números no
 // pasan por aquí: la longitud es negativa y tiene que seguir siendo un número.
 const sinFormula = (v: string) => (/^[=+\-@\t\r]/.test(v) ? `'${v}` : v);
-const campo = (v: string | number) => (typeof v === 'number' ? String(v) : `"${sinFormula(v).replace(/"/g, '""')}"`);
+// Los números con coma decimal (docs/32 RV-263b): con ; de separador, Excel en español lee
+// "37.2308" como texto y "37,2308" como número. El GeoJSON y el .xlsx llevan el número tal cual.
+const campo = (v: string | number) =>
+  typeof v === 'number' ? String(v).replace('.', ',') : `"${sinFormula(v).replace(/"/g, '""')}"`;
 
 export function csv(filas: FilaExportada[]): string {
   return '﻿' + [CABECERAS, ...filas.map(celdas)].map((f) => f.map(campo).join(';')).join('\r\n') + '\r\n';

@@ -120,4 +120,26 @@ describe('Historial del punto (docs/30 RV-127)', () => {
     expect(html).toMatch(new RegExp(`<p class="text-texto-suave[^"]*">${LEGIBLE}</p>`));
     expect(texto(html)).not.toMatch(/dispositivo_id|abcd-1234|actualizado_en/);
   });
+
+  // docs/32 RV-259: con error, el historial decía el error y además «no hay entradas».
+  it('con error, solo el error y Reintentar (docs/32 RV-259)', () => {
+    estado.datos = null;
+    estado.carga = 'error';
+    estado.codigo = 'SIN_SERVIDOR';
+    const punto = { id: 'b1', codigo: 'BOC-0001' } as Punto;
+    const html = renderToStaticMarkup(<DialogoHistorial punto={punto} alCerrar={() => undefined} />);
+    expect(html).toContain('role="alert"');
+    expect(texto(html)).toContain(textoError('SIN_SERVIDOR'));
+    expect(texto(html)).toContain(T.mapa.reintentar);
+    expect(texto(html)).not.toContain(T.panelRegistro.vacio);
+    expect(texto(html)).not.toContain(T.panelCola.cargando);
+  });
+
+  it('cargado y vacío, el estado vacío sin aviso de error (docs/32 RV-259)', () => {
+    estado.datos = [];
+    const punto = { id: 'b1', codigo: 'BOC-0001' } as Punto;
+    const html = renderToStaticMarkup(<DialogoHistorial punto={punto} alCerrar={() => undefined} />);
+    expect(texto(html)).toContain(T.panelRegistro.vacio);
+    expect(html).not.toContain('role="alert"');
+  });
 });

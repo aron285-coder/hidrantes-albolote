@@ -11,6 +11,8 @@ import {
   leerEntorno,
   motivoCadenaAjena,
   REFS,
+  repositorio,
+  repositorioDeRemoto,
 } from './comun.ts';
 
 describe('esAfirmativo', () => {
@@ -141,5 +143,47 @@ describe('entornos compartidos (RV-134)', () => {
       expect(texto, s).toMatch(/leerEntorno\(/);
       expect(texto, s).not.toMatch(/=== 'prod' \? 'produccion'|produccion: '/);
     }
+  });
+});
+
+describe('repositorio (docs/32 RV-208)', () => {
+  it.each([
+    'https://github.com/titular/hidrantes-albolote.git',
+    'https://github.com/titular/hidrantes-albolote',
+    'git@github.com:titular/hidrantes-albolote.git',
+    'ssh://git@github.com/titular/hidrantes-albolote.git',
+  ])('lee titular y nombre de %s', (url) => {
+    expect(repositorioDeRemoto(url)).toEqual({
+      propietario: 'titular',
+      nombre: 'hidrantes-albolote',
+      completo: 'titular/hidrantes-albolote',
+    });
+  });
+
+  it.each([
+    '',
+    'https://gitlab.com/titular/repo.git',
+    'https://github.com/solo-titular',
+    'C:/repos/local',
+    'https://notgithub.com/titular/repo.git',
+    'https://otro.host/github.com/titular/repo',
+    'git@evilgithub.com:titular/repo.git',
+  ])('un remoto que no es de GitHub no da repositorio: "%s"', (url) => expect(repositorioDeRemoto(url)).toBeNull());
+
+  it('el de este checkout sale de git remote, no de un nombre escrito en los scripts', () => {
+    const r = repositorio();
+    expect(r.completo).toBe(`${r.propietario}/${r.nombre}`);
+    expect(r.nombre).toBe('hidrantes-albolote');
+  });
+
+  it('ningún script escribe el titular a mano: lo lee de repositorio()', () => {
+    const dir = path.resolve(import.meta.dirname, '..');
+    const titular = repositorio().propietario.replace(/[-]/g, '\\-');
+    // `titular/repo` entre comillas, o el titular de este checkout solo (const X = 'titular').
+    const aMano = new RegExp(`(['"\`])(?:[A-Za-z0-9-]+\\/hidrantes-albolote|${titular})\\1`);
+    const conTitular = readdirSync(dir)
+      .filter((f) => f.endsWith('.ts') && !f.endsWith('.test.ts'))
+      .filter((f) => aMano.test(readFileSync(path.join(dir, f), 'utf8')));
+    expect(conTitular).toEqual([]);
   });
 });

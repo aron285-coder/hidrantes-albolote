@@ -2,8 +2,15 @@
 // (el Service Worker no navega la ventana y manda un mensaje, public/sw-push.js) ni al recargar por
 // una versión nueva.
 
-/** Las pantallas de proponer (alta y las seis operaciones) son formularios con fotos. */
-export const enFormulario = (ruta: string) => ruta.startsWith('/proponer');
+/** La pantalla de resultado tras enviar: ya no hay nada a medias (docs/32 RV-240). */
+export const RUTA_HECHO = '/proponer/hecho';
+
+/**
+ * Las pantallas de proponer (alta y las seis operaciones) son formularios con fotos. La de resultado,
+ * no: recargar o abrir una notificación desde ahí no pregunta (docs/32 RV-240). Mismo criterio en
+ * public/sw-push.js.
+ */
+export const enFormulario = (ruta: string) => ruta.startsWith('/proponer') && !ruta.startsWith(RUTA_HECHO);
 
 /**
  * Escucha el aviso del Service Worker de una notificación tocada con un formulario abierto y pasa la

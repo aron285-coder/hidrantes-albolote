@@ -27,8 +27,12 @@ Staging estaba desplegado con el commit probado: el último «Desplegar staging�
 
 - **Cadena de staging.** `SUPABASE_DB_URL` del environment `staging`, traída con el traspaso de
   clave efímera de §1 (las mismas funciones que `scripts/traspasar-secreto.ts`, que solo copia a
-  otro secreto de GitHub, descifrando a un archivo temporal fuera del repositorio). Ejecución del
-  workflow y artefacto borrados; el archivo, borrado al acabar. Nunca se imprimió.
+  otro secreto de GitHub). Ejecución del workflow y artefacto borrados. Nunca se imprimió.
+  *Corrección (docs/32 RV-208):* esta vez la cadena descifrada se escribió en un archivo temporal
+  fuera del repositorio, borrado al acabar. Eso no se repite: la próxima comprobación la descifra en
+  memoria y la pasa **por tubería** al proceso que la usa (stdin, o el entorno del proceso hijo con
+  `entornoPg` para `psql`), como `traspasar-secreto` se la pasa a `gh secret set`; nunca a un
+  archivo, a un argumento ni a la salida.
 - **Entrada como voluntario.** El código de acceso de staging solo está como hash bcrypt: no se
   puede canjear sin teclearlo. Se hizo lo mismo que el final de `fn_verificar_codigo`: un token
   aleatorio cuyo sha256 se guarda en `hidrantes.dispositivos` para un dispositivo nuevo, comprobado
@@ -95,4 +99,29 @@ Después de #539 y #542 (migración 0041), con «Desplegar staging» en verde pa
 | `npm run anonimizar -- --entorno staging` del dispositivo de prueba | ok: 4 filas, «voluntario dado de baja» |
 | Limpieza | ok: 0 propuestas pendientes y 0 incidencias abiertas; token revocado, cadena borrada |
 
-commit: 1117c8d2e86e4e1c8160d16e3eaba4480167934f · resultado: verde
+Repetición con `1117c8d2e86e4e1c8160d16e3eaba4480167934f` (release 0.9.0): en verde.
+
+## Release 0.10.0 (9 oct 2026)
+
+Con todo docs/32 y #566 (0043: `/api/geocodificar` y `/api/push` validan el token, arreglo de #561).
+«Desplegar staging» en verde con el commit actual de `develop` (run 37893324635), y
+`0043_validar_token_para_functions.sql` anotada en `hidrantes.migraciones_aplicadas` de staging.
+
+**Método (RV-208, sin archivo temporal).** Un solo proceso trae `SUPABASE_DB_URL` de staging con
+el traspaso de clave efímera y la tiene **solo en memoria**. Por disco pasa únicamente el sobre
+cifrado, como en `scripts/traspasar-secreto.ts`. A los procesos hijos les llega por su entorno:
+`psql` la recibe como variables `PG*` (como `entornoPg`), con el SQL por stdin, y `anonimizar` como
+`SUPABASE_DB_URL`. Nunca va en un archivo, en un argumento ni en la salida. El token de prueba se
+crea en la base y llega a Playwright también por el entorno; nadie teclea el código.
+
+| Recorrido | Resultado |
+|---|---|
+| Cercanos (móvil y escritorio), alta Directo con dos fotos sin conexión y con conexión, Mis propuestas (móvil y escritorio), revisión de HID-9001 | ok |
+| **Nuevo:** buscar «Calle Real 10» enseña el grupo «Direcciones» (CartoCiudad · IGN, «Calle Real, 10, Albolote») y no «Vuelve a entrar con el código…» (móvil y escritorio) | ok · `06-buscar-direccion-movil.png`, `06-buscar-direccion-escritorio.png` |
+| **Nuevo:** `POST /api/push` con el token del dispositivo de prueba: ni 401 ni 5xx | ok |
+| SW de staging muestra la notificación de un push | ok |
+| Jefatura por BD: aprobar el alta (BOC-0007), rechazar la revisión con «prueba», `fn_editar_punto` 6 m y enganche; `detalleLegible` da «Enganche: Directo → Granada · Movido 6 m» | ok |
+| `npm run anonimizar -- --entorno staging` del dispositivo de prueba | ok: 2 propuestas y 2 entradas del registro, «voluntario dado de baja» |
+| Limpieza | ok: nada pendiente del recorrido (lo que quedara, rechazado con «prueba»), 0 pendientes, 0 incidencias abiertas, token revocado; la cadena no salió de la memoria |
+
+commit: aba87542a65cedfca72d274f7cf136a286715a0a · resultado: verde

@@ -189,6 +189,18 @@ async function jefatura(page: Page) {
     if (nombre === 'fn_salud') return json(SALUD_STAGING);
     if (nombre === 'fn_registrar_error') return json(null);
     if (nombre === 'fn_historial_punto') return json([...REGISTRO].reverse());
+    // Ajustes → Mantenimiento (docs/32 RV-260): un pedido sin despachar, como en staging.
+    if (nombre === 'fn_pedidos_recientes')
+      return json([
+        {
+          id: 1,
+          workflow: 'regenerar-zona',
+          pedido_en: new Date(Date.now() - 20 * 60_000).toISOString(),
+          lanzado_en: null,
+          estado: 'pedido',
+          resultado: null,
+        },
+      ]);
     return route.abort('connectionrefused');
   });
   await page.route('**/api/direccion?*', (r) =>

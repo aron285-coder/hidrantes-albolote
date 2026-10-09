@@ -1,6 +1,7 @@
 // TR-15 y TR-47: tamaño final y lectura de la posición EXIF. Que la foto resultante no lleva EXIF se
 // comprueba en el navegador (e2e/operaciones.spec.ts), donde existe el lienzo.
 
+import { FotoDemasiadoGrande, _reiniciarReduce, cabeceraHeic, reduceAlDecodificar } from './foto-grande';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { conExif } from './exif-prueba';
 import {
@@ -124,6 +125,13 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
       });
     });
     afterEach(() => vi.unstubAllGlobals());
+    // La prueba de si el navegador reduce al decodificar (RV-244) se hace aquí, una vez, y no cuenta.
+    beforeEach(async () => {
+      _reiniciarReduce();
+      await reduceAlDecodificar();
+      crear.mockClear();
+      cerrar.mockClear();
+    });
 
     it('decodifica ya reducida una foto enorme', async () => {
       const r = await procesarFoto(new Blob([jpegConCabecera(12000, 9000, 6)]));
@@ -138,14 +146,45 @@ describe('foto grande sin decodificarla entera (docs/31 RV-157)', () => {
       expect(r).toMatchObject({ ancho: 1280, alto: 960 });
     });
 
-    it('si el navegador no sabe reducir al decodificar, lo hace como antes', async () => {
+    it('si el navegador no sabe reducir al decodificar, una foto de hasta 24 MP se abre como antes', async () => {
       crear.mockImplementationOnce(async () => {
         throw new TypeError('resizeWidth no admitido');
       });
-      const r = await procesarFoto(new Blob([jpegConCabecera(12000, 9000, 6)]));
+      crear.mockImplementationOnce(async () => ({ width: 3000, height: 4000, close: cerrar }));
+      const r = await procesarFoto(new Blob([jpegConCabecera(4000, 3000, 6)]));
       expect(crear).toHaveBeenCalledTimes(2);
       expect(crear.mock.calls[1]![1]).toEqual({ imageOrientation: 'from-image' });
-      expect(r).toMatchObject({ ancho: 1600, alto: 1200 });
+      expect(r).toMatchObject({ ancho: 1200, alto: 1600 });
+    });
+
+    it('una foto de 50 MP en un navegador que no reduce: aviso, y no se abre (docs/32 RV-244)', async () => {
+      // El navegador rechaza resizeWidth: la prueba se repite con él.
+      crear.mockImplementation(async () => {
+        throw new TypeError('resizeWidth no admitido');
+      });
+      _reiniciarReduce();
+      await expect(procesarFoto(new Blob([jpegConCabecera(8660, 5774)]))).rejects.toBeInstanceOf(FotoDemasiadoGrande);
+      // Solo la prueba de 1 × 1: la foto no se ha decodificado.
+      expect(crear).toHaveBeenCalledTimes(1);
+    });
+
+    it('una de 50 MP cuya apertura reducida falla: aviso, no se abre entera (RV-244)', async () => {
+      crear.mockImplementationOnce(async () => {
+        throw new Error('sin memoria');
+      });
+      await expect(procesarFoto(new Blob([jpegConCabecera(8660, 5774)]))).rejects.toBeInstanceOf(FotoDemasiadoGrande);
+      expect(crear).toHaveBeenCalledTimes(1);
+    });
+
+    it('una HEIC de 50 MP en un navegador que sí reduce: se pide ya reducida (RV-244)', async () => {
+      await procesarFoto(new Blob([heicConCabecera(8160, 6120)]));
+      expect(crear).toHaveBeenCalledWith(expect.any(Blob), expect.objectContaining({ resizeWidth: 1600 }));
+    });
+
+    it('una de 50 MP en un navegador que sí reduce: se abre ya reducida', async () => {
+      const r = await procesarFoto(new Blob([jpegConCabecera(8660, 5774)]));
+      expect(crear).toHaveBeenCalledWith(expect.any(Blob), expect.objectContaining({ resizeWidth: 1600 }));
+      expect(r.blob).toBeInstanceOf(Blob);
     });
 
     it('libera la imagen aunque falle el dibujo', async () => {
@@ -209,5 +248,29 @@ describe('posición EXIF (TR-47)', () => {
     expect(leerGpsExif(JPEG.buffer as ArrayBuffer)).toBeNull();
     expect(leerGpsExif(new Uint8Array([1, 2, 3, 4, 5, 6]).buffer as ArrayBuffer)).toBeNull();
     expect(leerGpsExif(new ArrayBuffer(0))).toBeNull();
+  });
+});
+
+/** Lo mínimo de una HEIC: ftyp y, dentro de meta, las cajas ispe (una por tesela y la de la imagen entera). */
+function heicConCabecera(ancho: number, alto: number): ArrayBuffer {
+  const caja = (tipo: string, cuerpo: number[]) => {
+    const t = [...tipo].map((c) => c.charCodeAt(0));
+    const n = 8 + cuerpo.length;
+    return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255, ...t, ...cuerpo];
+  };
+  const u32 = (v: number) => [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255];
+  const ftyp = caja('ftyp', [...'heic'].map((c) => c.charCodeAt(0)).concat([0, 0, 0, 0]));
+  const tesela = caja('ispe', [0, 0, 0, 0, ...u32(512), ...u32(512)]);
+  const entera = caja('ispe', [0, 0, 0, 0, ...u32(ancho), ...u32(alto)]);
+  return Uint8Array.from([...ftyp, ...caja('meta', [0, 0, 0, 0, ...tesela, ...entera])]).buffer;
+}
+
+describe('cabecera HEIC (docs/32 RV-244)', () => {
+  it('lee el tamaño de la imagen entera, no el de una tesela', () => {
+    expect(cabeceraHeic(heicConCabecera(8160, 6120))).toEqual({ ancho: 8160, alto: 6120 });
+  });
+  it('lo que no es HEIC: null', () => {
+    expect(cabeceraHeic(jpegConCabecera(4000, 3000).buffer as ArrayBuffer)).toBeNull();
+    expect(cabeceraHeic(new ArrayBuffer(0))).toBeNull();
   });
 });

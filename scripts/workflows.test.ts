@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 
 // Sin parser de YAML en las dependencias: expresiones acotadas sobre los archivos, que bastan para
 // lo que se comprueba aquí (DEC-085).
@@ -52,7 +52,32 @@ describe('workflows programados (DEC-085)', () => {
     for (const l of ls) expect(l).toEqual(programados);
     expect(texto).toContain('runs?event=schedule&per_page=1');
     expect(texto).toContain('/actions/workflows/$w/enable');
-    expect(texto).toMatch(/^\s{2}actions: write/m);
+  });
+
+  // docs/32 RV-201 (DEC-180): actions: write también borra artifacts, y el respaldo es uno, el único.
+  // Solo lo tiene el trabajo que rehabilita, sin checkout; nada por defecto en el workflow.
+  it.each(['vigilancia.yml', 'mantener-activo.yml'])(
+    '%s: actions: write solo en el trabajo que rehabilita, sin checkout',
+    (a) => {
+      const texto = leer(a);
+      expect(texto).toMatch(/^permissions: \{\}$/m);
+      const sinComentarios = texto.replace(/^\s*#.*$/gm, '');
+      expect(sinComentarios.match(/actions: write/g)).toHaveLength(1);
+      const trabajos = sinComentarios.slice(sinComentarios.indexOf('\njobs:\n')).split(/\n(?= {2}[a-z-]+:\n)/);
+      const conEscritura = trabajos.filter((t) => t.includes('actions: write'));
+      expect(conEscritura).toHaveLength(1);
+      expect(conEscritura[0]).toContain('/actions/workflows/$w/enable');
+      expect(conEscritura[0]).not.toMatch(/actions\/checkout|secrets\.(?!GITHUB_TOKEN)|environment:/);
+      // Cada trabajo declara sus permisos.
+      const nombres = [...sinComentarios.matchAll(/^ {2}([a-z-]+):\n {4}/gm)].map((m) => m[1]);
+      for (const t of trabajos.slice(1)) expect(t, nombres.join()).toMatch(/^ {4}permissions:/m);
+    },
+  );
+
+  it('vigilancia.yml: el trabajo mirar, con la base de datos de producción, solo lee las ejecuciones', () => {
+    const texto = leer('vigilancia.yml');
+    const mirar = texto.slice(texto.indexOf('\n  mirar:\n'), texto.indexOf('\n  rehabilitar:\n'));
+    expect(mirar).toMatch(/^ {4}permissions:\n {6}contents: read\n {6}actions: read\n {6}issues: write\n/m);
   });
 });
 
@@ -106,7 +131,13 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
     const texto = leer('vigilancia.yml');
     const paso = (nombre: string) => texto.slice(texto.indexOf(`- name: ${nombre}`)).split(/\n\s{6}- name:/)[0]!;
     expect(paso('Abrir o cerrar la issue de vigilancia')).toMatch(/^\s+if: always\(\)$/m);
-    expect(paso('Rehabilitar los workflows programados')).toMatch(/^\s+continue-on-error: true$/m);
+    // docs/32 RV-201: la rehabilitación va en su propio trabajo, que no depende de mirar ni mirar de él.
+    const rehabilitar = texto.slice(texto.indexOf('\n  rehabilitar:\n'));
+    expect(rehabilitar).toContain('- name: Rehabilitar los workflows programados');
+    expect(rehabilitar).not.toMatch(/^ {4}needs:/m);
+    expect(texto.slice(texto.indexOf('\n  mirar:\n'), texto.indexOf('\n  rehabilitar:\n'))).not.toContain(
+      '- name: Rehabilitar los workflows programados',
+    );
   });
 
   // docs/19 RV-56: con HAY vacío (Comprobar no terminó) la issue se cerraba con "todo responde".
@@ -519,6 +550,16 @@ describe('CI en paralelo (PAR-01)', () => {
     expect(t).toContain('name: playwright-report-${{ matrix.parte }}');
   });
 
+  // docs/32 RV-205: publicar exige ci.yml en verde con el commit de la marca; un push detrás no la cancela.
+  it('solo se cancela la CI anterior de un PR, nunca la de un push', () => {
+    expect(leer('ci.yml')).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
+  });
+
+  // docs/32 RV-206: ci-sql es obligatorio (protección de main) y en un PR a main no se salta nunca.
+  it('en un PR a main se prueba todo, aunque solo traiga documentación', () => {
+    expect(trabajo('cambios')).toContain('if [ "$EVENTO" != pull_request ] || [ "$BASE" = main ]; then');
+  });
+
   it('e2e y SQL se saltan sin código; ci-calidad corre siempre y mira las migraciones en los PR', () => {
     for (const id of ['sql', 'e2e-parte', 'e2e-rendimiento']) {
       expect(trabajo(id)).toContain("if: needs.cambios.outputs.codigo == 'true'");
@@ -531,12 +572,33 @@ describe('CI en paralelo (PAR-01)', () => {
     expect(trabajo('e2e-rendimiento')).toContain('--grep @rendimiento --workers=1');
   });
 
-  it('los navegadores salen de la caché por la versión de @playwright/test', () => {
+  it('los navegadores salen de la caché por la versión de @playwright/test y los navegadores', () => {
     const accion = readFileSync(path.join(raiz, '.github/actions/navegadores/action.yml'), 'utf8');
     expect(accion).toContain("packages['node_modules/@playwright/test'].version");
     expect(accion).toContain('path: ~/.cache/ms-playwright');
-    expect(accion).toContain('npx playwright install-deps chromium firefox');
-    expect(accion).toContain('npx playwright install --with-deps chromium firefox');
+    expect(accion).toContain(
+      'key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}-${{ steps.version.outputs.navegadores }}',
+    );
+    expect(accion).toContain('default: chromium firefox');
+    expect(accion).toContain('con_reintento 200 npx playwright install-deps $NAVEGADORES');
+    expect(accion).toContain('con_reintento 200 npx playwright install --with-deps $NAVEGADORES');
+    // Dos intentos con su KILL a los 15 s caben en los 8 minutos del paso con margen para la caché
+    // y para escribir el ::error:: final.
+    for (const m of accion.matchAll(/con_reintento (\d+) /g)) expect(2 * (Number(m[1]) + 15)).toBeLessThanOrEqual(450);
+  });
+
+  // docs/32 RV-207: un paso de instalar navegadores colgado no puede gastar la espera de publicar.
+  it('cada instalación de navegadores va por la acción, con timeout-minutes: 8', () => {
+    const usos: string[] = [];
+    for (const archivo of readdirSync(path.join(raiz, '.github/workflows')).filter((a) => a.endsWith('.yml'))) {
+      const t = readFileSync(path.join(raiz, '.github/workflows', archivo), 'utf8');
+      expect(t, archivo).not.toMatch(/npx playwright install/);
+      for (const m of t.matchAll(/uses: \.\/\.github\/actions\/navegadores\n(\s+)(.*)\n/g)) {
+        usos.push(`${archivo}: ${m[2]}`);
+      }
+    }
+    expect(usos.length).toBeGreaterThanOrEqual(5);
+    for (const u of usos) expect(u).toMatch(/: timeout-minutes: 8$/);
   });
 
   it('playwright.config.ts no tiene el puerto 4173 fuera del valor por defecto de PW_PUERTO', () => {
@@ -545,6 +607,62 @@ describe('CI en paralelo (PAR-01)', () => {
     expect(config.replace('process.env.PW_PUERTO ?? 4173', '')).not.toContain('4173');
     const vite = readFileSync(path.join(raiz, 'vite.config.ts'), 'utf8');
     expect(vite).toContain('port: Number(process.env.VITE_PUERTO ?? 5173)');
+  });
+});
+
+describe('con_reintento (RV-207)', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  const dir = mkdtempSync(path.join(tmpdir(), 'navegadores-'));
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+  /** npx simulado: cuenta los intentos; el comportamiento de cada uno, en la lista. */
+  const probar = (comportamientos: ('bien' | 'mal' | 'cuelga')[], tope = 2) => {
+    const contador = path.join(dir, `n-${Math.random().toString(36).slice(2)}`);
+    writeFileSync(contador, '0');
+    const npx = [
+      '#!/usr/bin/env bash',
+      `n=$(( $(cat '${contador.replace(/\\/g, '/')}') + 1 )); echo $n > '${contador.replace(/\\/g, '/')}'`,
+      `c=(${comportamientos.join(' ')}); case "\${c[$((n-1))]}" in bien) exit 0 ;; mal) exit 1 ;; cuelga) exec sleep 30 ;; esac`,
+    ].join('\n');
+    writeFileSync(path.join(dir, 'npx'), npx + '\n', { mode: 0o755 });
+    const r = spawnSync(
+      'bash',
+      [
+        '-c',
+        `export PATH="$(cygpath -u "$1" 2>/dev/null || printf %s "$1"):$PATH"; source .github/scripts/instalar-navegadores.sh; con_reintento ${tope} npx playwright install chromium`,
+        '_',
+        dir.replace(/\\/g, '/'),
+      ],
+      { cwd: raiz, encoding: 'utf8', timeout: 60_000 },
+    );
+    return { codigo: r.status, salida: r.stdout + r.stderr, intentos: Number(readFileSync(contador, 'utf8').trim()) };
+  };
+
+  it('a la primera, un solo intento', () => {
+    const r = probar(['bien']);
+    expect(r.codigo).toBe(0);
+    expect(r.intentos).toBe(1);
+  });
+
+  it('si falla una vez, lo reintenta y sigue', () => {
+    const r = probar(['mal', 'bien']);
+    expect(r.codigo).toBe(0);
+    expect(r.intentos).toBe(2);
+    expect(r.salida).toContain('intento 1 de 2');
+  });
+
+  it('si se cuelga, lo corta por el tope y lo reintenta', () => {
+    const inicio = Date.now();
+    const r = probar(['cuelga', 'bien'], 1);
+    expect(r.codigo).toBe(0);
+    expect(r.intentos).toBe(2);
+    expect(Date.now() - inicio).toBeLessThan(20_000);
+  });
+
+  it('dos fallos: el paso falla, no sigue sin navegadores', () => {
+    const r = probar(['mal', 'mal']);
+    expect(r.codigo).toBe(1);
+    expect(r.intentos).toBe(2);
+    expect(r.salida).toContain('::error::');
   });
 });
 
@@ -587,8 +705,8 @@ describe('revisar_bd (RV-78)', () => {
           *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
           *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
           *ultimo_respaldo*) echo 3 ;;
+          *fn_espacio*) echo 'storage 10 800 f 50 400 f 70 0' ;;
           *notificaciones*) echo 0 ;;
-          *pg_database_size*) echo 1000 ;;
           *intentos_codigo*) echo '0 0' ;;
           *) echo 1 ;;
         esac
@@ -649,7 +767,7 @@ describe('revisar_bd (RV-78)', () => {
   it.skipIf(!tieneJq).each([
     ['notificaciones', 'produccion', 'no se pueden contar los avisos push sin salir'],
     ['notificaciones', 'staging', 'staging: no se pueden contar los avisos push sin salir'],
-    ['pg_database_size', 'produccion', 'no se puede medir el tamaño de la base de datos'],
+    ['fn_espacio', 'produccion', 'no se puede medir el espacio de fotos ni el de la base de datos'],
     ['intentos_codigo', 'produccion', 'no se pueden leer los intentos del código de acceso'],
   ])('si falla la consulta de %s (%s), es un problema, y sigue con lo demás', (falla, entorno, problema) => {
     const r = correr(entorno, BIEN, falla);
@@ -663,15 +781,125 @@ describe('revisar_bd (RV-78)', () => {
     expect(guion).not.toMatch(/\|\| echo ['"]?0/);
   });
 
-  it('staging no mira el respaldo, el tamaño ni los intentos del código', () => {
+  it('staging no mira el respaldo, el espacio ni los intentos del código', () => {
     const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
     const antesDeStaging = guion.slice(0, guion.indexOf('elif ! psql'));
     expect(antesDeStaging).toContain('ultimo_respaldo');
+    expect(antesDeStaging).not.toContain('revisar_espacio "$bd"');
     const tras = guion.slice(guion.indexOf('[ "$entorno" = produccion ] || return 0'));
-    expect(tras).toContain('pg_database_size');
+    expect(tras).toContain('revisar_espacio "$bd"');
     expect(tras).toContain('intentos_codigo');
     // Nada de `a && b` en su propia línea: con bash -e y `a` falso, terminaría el paso.
     expect(guion.split('\n').filter((l) => /^\s*\[.*\]\s*&&/.test(l))).toEqual([]);
+  });
+});
+
+// docs/32 RV-220 y RV-221 (DEC-182, DEC-183): aviso al 70 % del espacio de fotos y de la base de datos
+// con fn_espacio(), issue y push a jefatura; y aviso si el espacio de fotos no sale del bucket o su
+// medida es vieja. Con bash -e, como en Actions, y un psql simulado.
+describe('revisar_espacio (RV-220, RV-221)', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  /**
+   * `espacio`: la línea que da la consulta de fn_espacio (origen, MB de fotos, tope, ¿alto?, MB de la
+   * base, tope, ¿alta?, %, días de la medida). `push`: lo que responde el insert del aviso.
+   */
+  const correr = (espacio: string, { push = '2', falla = '' } = {}) => {
+    const guion = [
+      'set -uo pipefail',
+      `psql() {
+        if [ -n "$FALLA" ] && [[ "$*" == *"$FALLA"* ]]; then echo 'ERROR: simulado' >&2; return 1; fi
+        case "$*" in
+          *"Espacio casi lleno"*) echo push >> "$ANOTADO"; echo "$PUSH" ;;
+          *fn_espacio*) printf '%s\\n' "$ESPACIO" ;;
+          *) echo 'consulta inesperada' >&2; return 1 ;;
+        esac
+      }`,
+      'problemas=()',
+      'source .github/scripts/revisar-bd.sh',
+      'revisar_espacio postgresql://simulada',
+      'printf "%s\\n" "${problemas[@]}"',
+      'echo FIN',
+    ].join('\n');
+    const dir = mkdtempSync(path.join(tmpdir(), 'espacio-'));
+    const anotado = path.join(dir, 'anotado');
+    try {
+      const r = spawnSync('bash', ['-e', '-c', guion], {
+        cwd: raiz,
+        encoding: 'utf8',
+        env: { ...process.env, ESPACIO: espacio, PUSH: push, FALLA: falla, ANOTADO: anotado },
+      });
+      const lineas = r.stdout.trim().split('\n');
+      return {
+        codigo: r.status,
+        fin: lineas.at(-1) === 'FIN',
+        problemas: lineas.slice(0, -1).filter(Boolean),
+        pushes: existsSync(anotado) ? readFileSync(anotado, 'utf8').trim().split('\n').length : 0,
+      };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it('por debajo del 70 % y medido en el bucket: nada', () => {
+    const r = correr('storage 100 800 f 50 400 f 70 0');
+    expect(r).toEqual({ codigo: 0, fin: true, problemas: [], pushes: 0 });
+  });
+
+  it('las fotos al 70 % o más: problema con los MB y un aviso push', () => {
+    const r = correr('storage 560 800 t 50 400 f 70 0');
+    expect(r.codigo).toBe(0);
+    expect(r.problemas).toEqual([expect.stringContaining('las fotos ocupan 560 MB de 800')]);
+    expect(r.problemas[0]).toContain('aviso al 70 %');
+    expect(r.pushes).toBe(1);
+  });
+
+  it('la base de datos al 70 % o más: problema y un aviso push; con las dos, un solo push', () => {
+    const bd = correr('storage 100 800 f 290 400 t 70 0');
+    expect(bd.problemas).toEqual([expect.stringContaining('la base de datos ocupa 290 MB de 400')]);
+    expect(bd.pushes).toBe(1);
+    const las2 = correr('storage 700 800 t 290 400 t 70 0');
+    expect(las2.problemas).toHaveLength(2);
+    expect(las2.pushes).toBe(1);
+  });
+
+  it('si ya se avisó en 20 h no es otro problema; si no hay administradores suscritos, sí', () => {
+    expect(correr('storage 560 800 t 50 400 f 70 0', { push: 'ya' }).problemas).toHaveLength(1);
+    const nadie = correr('storage 560 800 t 50 400 f 70 0', { push: '0' });
+    expect(nadie.problemas).toContainEqual(expect.stringContaining('ningún administrador tiene los avisos activados'));
+    const falla = correr('storage 560 800 t 50 400 f 70 0', { falla: 'Espacio casi lleno' });
+    expect(falla.problemas).toContainEqual('no se ha podido avisar a jefatura de que el espacio está casi lleno');
+    expect(falla.fin).toBe(true);
+  });
+
+  it('el espacio de fotos que no sale del bucket es un problema, sin push', () => {
+    const r = correr('respaldo 100 800 f 50 400 f 70 2');
+    expect(r.problemas).toEqual([expect.stringContaining('el espacio de fotos no se mide en el bucket (respaldo)')]);
+    expect(r.pushes).toBe(0);
+  });
+
+  it('una medida vieja (más de 8 días) o sin fecha es otro problema', () => {
+    expect(correr('respaldo 100 800 f 50 400 f 70 8').problemas).toHaveLength(1);
+    const vieja = correr('respaldo 100 800 f 50 400 f 70 9');
+    expect(vieja.problemas).toContainEqual(expect.stringContaining('la medida del espacio de fotos tiene 9 días'));
+    const sinFecha = correr('sin_dato 0 800 f 50 400 f 70 -1');
+    expect(sinFecha.problemas).toContainEqual(expect.stringContaining('no dice de cuándo es'));
+  });
+
+  it('si fn_espacio falla o da algo raro, es un problema y la vigilancia sigue', () => {
+    const falla = correr('storage 100 800 f 50 400 f 70 0', { falla: 'fn_espacio' });
+    expect(falla.problemas).toEqual([expect.stringContaining('no se puede medir el espacio')]);
+    expect(falla.fin).toBe(true);
+    for (const raro of ['', 'storage 100 800', 'storage 100 800 x 50 400 f 70 0']) {
+      const r = correr(raro);
+      expect(r.problemas, raro).toEqual([expect.stringContaining('no entiende')]);
+      expect(r.fin, raro).toBe(true);
+    }
+  });
+
+  it('sustituye al aviso fijo de 400 MB', () => {
+    const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
+    expect(guion).not.toContain('400 * 1024 * 1024');
+    expect(guion).toContain('from hidrantes.fn_espacio() e');
   });
 });
 
@@ -857,5 +1085,51 @@ describe('main dentro de la historia de la rama en los PR a main (RV-135)', { ti
     expect(paso).toContain('CABEZA: ${{ github.event.pull_request.head.sha }}');
     expect(paso).toContain('main_en_la_rama "$CABEZA"');
     expect(calidad).toMatch(/fetch-depth: 0/);
+  });
+});
+
+// docs/32 RV-209: respaldo y purga decían «gh secret set» de repositorio cuando faltaba un secreto, y
+// seguirlas devolvía los secretos de producción al repositorio, al alcance de cualquier rama (DEC-172).
+describe('las instrucciones de reparación no deshacen DEC-172 (docs/32 RV-209)', () => {
+  const scripts = path.resolve(import.meta.dirname, '../.github/scripts');
+  const textos: [string, string][] = [
+    ...archivos.map((a): [string, string] => [a, leer(a)]),
+    ...readdirSync(scripts).map((a): [string, string] => [a, readFileSync(path.join(scripts, a), 'utf8')]),
+  ];
+
+  it('ningún mensaje sugiere gh secret set sin --env', () => {
+    const malas = textos.flatMap(([a, t]) =>
+      t
+        .split('\n')
+        .filter((l) => /gh secret set\b/.test(l) && !/--env\b/.test(l))
+        .map((l) => `${a}: ${l.trim()}`),
+    );
+    expect(malas).toEqual([]);
+  });
+
+  it('ningún mensaje manda los secretos «de repositorio»', () => {
+    const malas = textos.flatMap(([a, t]) =>
+      t
+        .split('\n')
+        .filter((l) => /\becho\b/.test(l) && /secretos? (\*\*)?de repositorio/i.test(l))
+        .map((l) => `${a}: ${l.trim()}`),
+    );
+    expect(malas).toEqual([]);
+  });
+
+  it('respaldo y purga mandan a traspasar-secreto o a gh secret set --env prod-tareas', () => {
+    for (const a of ['respaldo.yml', 'purgar-fotos.yml']) {
+      expect(leer(a), a).toContain('npm run traspasar-secreto -- --secreto ');
+      expect(leer(a), a).toMatch(/--hacia prod-tareas/);
+      expect(leer(a), a).toMatch(/gh secret set \S+ --env prod-tareas/);
+    }
+  });
+
+  it('purgar-fotos trata SUPABASE_URL_PROD como variable, no como secreto', () => {
+    const purga = leer('purgar-fotos.yml');
+    expect(purga).toContain('${{ vars.SUPABASE_URL_PROD }}');
+    expect(purga).not.toMatch(/secrets\.SUPABASE_URL_PROD|secret set SUPABASE_URL_PROD/);
+    expect(purga).toContain('gh variable set SUPABASE_URL_PROD');
+    expect(purga).toContain('la variable SUPABASE_URL_PROD');
   });
 });

@@ -5,6 +5,8 @@ import { T } from '../src/lib/textos.ts';
 import { FIRMA, conGoogle, conSesion, simularRpc } from './ayudas.ts';
 
 const TOKEN_NUEVO = 'n'.repeat(43);
+/** Demasiados intentos dice a qué hora se puede volver a probar (docs/32 RV-242). */
+const CON_HORA = /^Demasiados intentos\. Podrás volver a intentarlo a las \d\d:\d\d\.$/;
 
 async function teclearCodigo(page: Page, codigo: string) {
   await page.getByLabel(T.entrada.cifra(1)).fill(codigo[0]);
@@ -37,11 +39,12 @@ test.describe('entrada del voluntario (FL-01)', () => {
     );
     await page.goto('/');
     await rellenarEntrada(page);
-    await expect(page.getByRole('alert')).toHaveText(T.entrada.demasiadosIntentos);
+    await expect(page.getByRole('alert')).toHaveText(CON_HORA);
     await expect(page.getByRole('button', { name: T.entrada.entrar, exact: true })).toBeDisabled();
     await page.reload();
     await expect(page.getByLabel(T.entrada.cifra(1))).toBeDisabled();
-    await expect(page.getByText(T.entrada.demasiadosIntentos)).toBeVisible();
+    // Con la hora, también al volver a abrir (docs/32 RV-242).
+    await expect(page.getByText(CON_HORA)).toBeVisible();
   });
 
   test('pide nombre, apellido y las 6 cifras antes de llamar al servidor', async ({ page }) => {

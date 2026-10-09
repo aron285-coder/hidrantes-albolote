@@ -62,6 +62,13 @@ describe('notificationclick (docs/31 RV-157)', () => {
     expect(v.postMessage).toHaveBeenCalledWith({ tipo: 'aviso_push', url: '/mis-propuestas' });
   });
 
+  it('desde la pantalla de resultado (/proponer/hecho) navega sin preguntar (docs/32 RV-240)', async () => {
+    const v = ventana('/proponer/hecho');
+    await tocar([v]);
+    expect(v.navigate).toHaveBeenCalledWith(`${ORIGEN}/mis-propuestas`);
+    expect(v.postMessage).not.toHaveBeenCalled();
+  });
+
   it('si hay otra ventana sin formulario, se usa esa', async () => {
     const formulario = ventana('/proponer/revision?p=x');
     const mapa = ventana('/lista');

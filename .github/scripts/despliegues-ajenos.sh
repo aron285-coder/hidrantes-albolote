@@ -8,11 +8,13 @@
 #
 # Un despliegue del proyecto de producción está autorizado solo si se creó mientras corría el paso
 # «Desplegar a Cloudflare Pages» de un job de deploy-prod.yml con su mismo commit (docs/32 RV-203):
-# la ventana started_at–completed_at de ese paso, de la API de jobs, con conclusion success (o en
-# marcha ahora mismo), ± 30 s por la diferencia de relojes. Ni la espera de la aprobación de
-# production, ni los pasos de antes o de después, ni una ejecución rechazada o cancelada (su paso no
-# llega a correr) autorizan nada: con el token de Cloudflare, en esa espera se podría desplegar el
-# commit pendiente y parecería legítimo (antes contaba toda la ejecución, de created_at a updated_at).
+# la ventana started_at–completed_at de ese paso, de la API de jobs (hasta ahora si sigue en marcha),
+# ± 30 s por la diferencia de relojes. Cuenta también si el paso terminó en failure o cancelled:
+# wrangler puede haber creado el despliegue antes de fallar, y ese paso solo corre después de la
+# aprobación de production. Ni la espera de esa aprobación, ni los pasos de antes o de después, ni
+# una ejecución rechazada (su paso no llega a empezar) autorizan nada: con el token de Cloudflare, en
+# esa espera se podría desplegar el commit pendiente y parecería legítimo (antes contaba toda la
+# ejecución, de created_at a updated_at).
 # Solo el commit no basta: `wrangler pages deploy --commit-hash` acepta cualquiera. deploy-prod solo
 # despliega producción: un despliegue de preview en ese proyecto nunca está autorizado.
 #
@@ -33,14 +35,21 @@
 # sigue llamándose así.
 PASO_DESPLIEGUE='Desplegar a Cloudflare Pages'
 
+# La primera línea de un archivo de errores, recortada: el porqué en el problema, sin tragárselo.
+_primera_linea() {
+  local linea=''
+  if [ -s "$1" ]; then IFS= read -r linea < "$1" || true; fi
+  printf '%s' "${linea:0:160}"
+  if [ -z "$linea" ]; then printf 'sin mensaje'; fi
+}
+
 ventanas() {
   jq -c --arg paso "$PASO_DESPLIEGUE" '
     def ts: sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601;
     [.[] | .head_sha as $sha | .steps[]?
-      | select(.name == $paso and .started_at != null)
-      | select(.conclusion == "success" or (.status == "in_progress" and .conclusion == null))
+      | select(.name == $paso and .started_at != null and .conclusion != "skipped")
       | {sha: $sha, ini: (.started_at | ts),
-         fin: (if .conclusion == "success" and .completed_at != null then (.completed_at | ts) else now end)}]' "$1"
+         fin: (if .completed_at != null then (.completed_at | ts) else now end)}]' "$1"
 }
 
 _JQ_AUTORIZADOS='
@@ -90,28 +99,29 @@ mirar_despliegues() {
     problemas+=("la respuesta de Cloudflare con los despliegues de producción no se entiende (RV-130)")
     return 0
   fi
-  if ! gh api "repos/$REPO/actions/workflows/deploy-prod.yml/runs?per_page=100" > "$dir/ejecuciones.json" 2>/dev/null; then
-    problemas+=("no se pueden leer las ejecuciones de deploy-prod.yml: no se han mirado los despliegues (RV-130)")
+  if ! gh api "repos/$REPO/actions/workflows/deploy-prod.yml/runs?per_page=100" > "$dir/ejecuciones.json" 2> "$dir/error"; then
+    problemas+=("no se pueden leer las ejecuciones de deploy-prod.yml ($(_primera_linea "$dir/error")): no se han mirado los despliegues (RV-130)")
     return 0
   fi
-  # Los jobs, con sus pasos, de las ejecuciones con el commit de algún despliegue de la lista (RV-203).
-  # Las que esperan la aprobación o están en cola aún no han corrido ningún paso: no hace falta pedirlas.
+  # Los jobs (todos los intentos), con sus pasos, de las ejecuciones con el commit de algún despliegue
+  # de la lista (RV-203), estén como estén: una relanzada que espera la aprobación tiene, en su intento
+  # anterior, el paso que desplegó lo que hay en producción. Los intentos que no han llegado al paso no
+  # dan ventana.
   if ! ejecuciones=$(jq -r --slurpfile lista "$dir/lista.json" '
       [$lista[0][] | .deployment_trigger.metadata.commit_hash // empty] as $shas
-      | .workflow_runs[]? | select(.status == "completed" or .status == "in_progress")
-      | select(.head_sha as $s | $shas | index($s)) | .id' "$dir/ejecuciones.json" 2>/dev/null); then
-    problemas+=("la respuesta de GitHub con las ejecuciones de deploy-prod.yml no se entiende (RV-203)")
+      | .workflow_runs[]? | select(.head_sha as $s | $shas | index($s)) | .id' "$dir/ejecuciones.json" 2> "$dir/error"); then
+    problemas+=("la respuesta de GitHub con las ejecuciones de deploy-prod.yml no se entiende ($(_primera_linea "$dir/error")) (RV-203)")
     return 0
   fi
   : > "$dir/jobs.ndjson"
   for id in $ejecuciones; do
-    if ! gh api "repos/$REPO/actions/runs/$id/jobs?filter=all&per_page=100" --jq '.jobs[]' >> "$dir/jobs.ndjson" 2>/dev/null; then
-      problemas+=("no se pueden leer los pasos de la ejecución $id de deploy-prod.yml: no se han mirado los despliegues (RV-203)")
+    if ! gh api "repos/$REPO/actions/runs/$id/jobs?filter=all&per_page=100" --jq '.jobs[]' >> "$dir/jobs.ndjson" 2> "$dir/error"; then
+      problemas+=("no se pueden leer los pasos de la ejecución $id de deploy-prod.yml ($(_primera_linea "$dir/error")): no se han mirado los despliegues (RV-203)")
       return 0
     fi
   done
-  if ! jq -s '.' "$dir/jobs.ndjson" > "$dir/jobs.json" 2>/dev/null || ! ventanas "$dir/jobs.json" > "$dir/ventanas.json" 2>/dev/null; then
-    problemas+=("la respuesta de GitHub con los pasos de deploy-prod.yml no se entiende (RV-203)")
+  if ! jq -s '.' "$dir/jobs.ndjson" > "$dir/jobs.json" 2> "$dir/error" || ! ventanas "$dir/jobs.json" > "$dir/ventanas.json" 2> "$dir/error"; then
+    problemas+=("la respuesta de GitHub con los pasos de deploy-prod.yml no se entiende ($(_primera_linea "$dir/error")) (RV-203)")
     return 0
   fi
   # Los de los últimos 3 días (la vigilancia corre dos veces al día) y siempre el activo.

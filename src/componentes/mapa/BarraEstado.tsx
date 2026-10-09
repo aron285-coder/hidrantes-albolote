@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { useCola } from '@/hooks/cola';
 import { useConexion, usePuntos } from '@/hooks/estado';
 import { useReloj } from '@/hooks/reloj';
-import { ATASCADO_MS } from '@/lib/cola';
+import { ATASCADO_MS, esperaTope } from '@/lib/cola';
 import { hace } from '@/lib/formato';
 import { T } from '@/lib/textos';
 
@@ -31,7 +31,8 @@ export function BarraEstado() {
     : conexion === 'sin_cobertura'
       ? T.mapa.sinCoberturaSolo
       : T.mapa.sincronizadoSolo;
-  const atascado = cola.some((c) => !c.fallo && ahora - c.creada_en > ATASCADO_MS);
+  // Lo que espera por un tope no espera cobertura: Mis propuestas dice por qué espera (docs/32 RV-233).
+  const atascado = cola.some((c) => !c.fallo && !esperaTope(c, ahora) && ahora - c.creada_en > ATASCADO_MS);
   return (
     <div className="bg-papel border-linea border-b">
       <span role="status" className="sr-only">
@@ -42,11 +43,12 @@ export function BarraEstado() {
           {sello} · {T.mapa.nPuntos(puntos.length)}
         </span>
         {cola.length > 0 && (
-          // 44 × 44 de objetivo táctil (UI-15) sin cambiar la barra: el enlace sobresale por arriba y
-          // por abajo con márgenes negativos, por encima del mapa, y la etiqueta de dentro se ve igual que antes.
+          // 44 × 44 de objetivo táctil (UI-15) sin cambiar la barra: el enlace sobresale solo por abajo,
+          // por encima del mapa. Por arriba lo tapaba la cabecera fija (8 px sin poder tocar, docs/32
+          // RV-243). La etiqueta de dentro sigue centrada en la barra.
           <Link
             to="/mis-propuestas"
-            className="relative z-10 -my-2 inline-flex min-h-11 min-w-11 items-center justify-center"
+            className="relative z-10 -mb-4 inline-flex min-h-11 min-w-11 items-start justify-center pt-0.5"
           >
             <span className="rounded-chip bg-[var(--badge-pendiente-fondo)] px-2.5 py-0.5 font-semibold text-[var(--badge-pendiente-texto)]">
               {T.mapa.sinEnviar(cola.length)}
