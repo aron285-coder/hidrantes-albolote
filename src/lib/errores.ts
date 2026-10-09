@@ -1,8 +1,7 @@
-// Errores del cliente (TR-90, TR-106): se anotan en una cola local y se envían a fn_registrar_error
-// cuando hay servidor. Nunca se escriben en la consola con datos personales; solo mensaje, pila,
+// Errores del cliente (TR-90, TR-106): se anotan en una cola local y se envían por POST /api/error
+// (que llama a fn_registrar_error) cuando hay servidor. Nunca se escriben en la consola con datos personales; solo mensaje, pila,
 // pantalla, agente y el identificador aleatorio del móvil.
 
-import { rpc } from './api';
 import { anotarServidor } from './conexion';
 import { LIMITES_RED, fetchConLimite } from './red';
 import { escribir, leer } from './almacen';
@@ -39,9 +38,8 @@ let enviando = false;
 type Cuerpo = { dispositivo_id: string; mensaje: string; pila: string | null; ruta: string; agente: string };
 
 /**
- * Un error al servidor (docs/31 RV-148): por POST /api/error, que pone el tope por IP. Si la
- * Function no existe aún (una app servida antes de su despliegue: 404, 405 o la página de la app),
- * por la RPC de 5 argumentos, como antes. Sin red o con el servidor caído, se queda en la cola.
+ * Un error al servidor (docs/31 RV-148): por POST /api/error, que pone el tope por IP. Sin red, con
+ * el servidor caído o sin la Function, se queda en la cola (como mucho los últimos 20).
  */
 async function enviarUno(cuerpo: Cuerpo): Promise<boolean> {
   let respuesta: Response;
@@ -60,10 +58,10 @@ async function enviarUno(cuerpo: Cuerpo): Promise<boolean> {
     anotarServidor(true);
     return true;
   }
-  if (respuesta.status === 404 || respuesta.status === 405 || html) {
-    const r = await rpc('fn_registrar_error', cuerpo);
-    return r.ok;
-  }
+  // Sin la Function (404, 405 o la página de la app) ya no se prueba la RPC de 5 argumentos: desde
+  // 0044 no es para anon (docs/33 RV-306) y solo daría 401. El error se queda en la cola. Eso no dice
+  // nada de si hay servidor: no se anota.
+  if (respuesta.status === 404 || respuesta.status === 405 || html) return false;
   anotarServidor(respuesta.status < 500);
   return false;
 }
