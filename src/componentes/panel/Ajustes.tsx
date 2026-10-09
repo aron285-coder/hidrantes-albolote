@@ -16,7 +16,6 @@ import {
   type ClaveParametro,
   type Parametros,
   type Workflow,
-  AVISAR_ESPACIO_PCT,
   PARAMETROS,
   PARAMETROS_POR_DEFECTO,
   anadirNucleo,
@@ -28,17 +27,12 @@ import {
   cargarNovedades,
   cargarNucleos,
   cargarParametros,
-  avisoEspacioFotos,
   cargarPedidos,
   estadoPedido,
   revocarDispositivo,
-  textoBaseDeDatos,
-  textoEspacioFotos,
   cargarSalud,
   origenTareas,
-  vigilanciaAtrasada,
   contarDispositivos,
-  descargarInventarioJson,
   faltaEnParametros,
   generarCodigo,
   gestionarAdministrador,
@@ -50,6 +44,7 @@ import {
   textoRadios,
 } from '@/lib/panel/ajustes';
 import { type TemaJefatura, cargarTemas, estadoPushJefatura, fijarTemas } from '@/lib/panel/push-jefatura';
+import { atencionSalud, filasSalud, nombreTarea, tareasVisibles } from '@/lib/panel/salud';
 import type { Coordenadas } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
@@ -560,16 +555,7 @@ function SaludDelSistema() {
   const carga = useCarga(() => cargarSalud(), []);
   const [ocupado, setOcupado] = useState(false);
   const s = carga.datos;
-  const lleno = s ? avisoEspacioFotos(s) : null;
   const [revocando, setRevocando] = useState<string | null>(null);
-
-  async function descargar() {
-    setOcupado(true);
-    const r = await descargarInventarioJson();
-    setOcupado(false);
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
-    avisar(T.panelAjustes.inventarioDescargado(r.datos));
-  }
 
   // RV-262: revocar el móvil con más fotos pedidas; sus reservas abiertas dejan de contar (RV-220.4).
   async function revocar(dispositivo: string) {
@@ -585,47 +571,10 @@ function SaludDelSistema() {
     }
   }
 
-  // La tercera columna marca en tono de aviso una fila que pide atención (RV-93).
-  const filas: [string, string, boolean?][] = s
-    ? [
-        [T.panelAjustes.pendientes14, String(s.pendientes_14d)],
-        [T.panelAjustes.errores7, String(s.errores_7d)],
-        [T.panelAjustes.sinDireccion, String(s.sin_direccion)],
-        [
-          T.panelAjustes.ultimoRespaldo,
-          s.ultimo_respaldo
-            ? `${hace(s.ultimo_respaldo)} · ${fechaCorta(s.ultimo_respaldo)}`
-            : ENTORNO === 'staging'
-              ? T.panelAjustes.respaldoNoAplica
-              : T.panelAjustes.nunca,
-        ],
-        [T.panelAjustes.almacenamiento, textoEspacioFotos(s, ENTORNO), lleno != null || s.fotos_origen === 'respaldo'],
-        [
-          T.panelAjustes.zonaYMapa,
-          `${s.version_zona ?? T.panelAjustes.sinDato} · ${s.version_mapabase ?? T.panelAjustes.sinDato}`,
-        ],
-        [T.panelAjustes.callejero, s.version_callejero ?? T.panelAjustes.sinDato],
-        [
-          T.panelAjustes.ultimaVigilancia,
-          s.ultima_vigilancia
-            ? [
-                hace(s.ultima_vigilancia),
-                s.vigilancia_ok ? T.panelAjustes.vigilanciaBien : T.panelAjustes.vigilanciaMal,
-              ]
-                .concat(vigilanciaAtrasada(s.ultima_vigilancia) ? [T.panelAjustes.vigilanciaAtrasada] : [])
-                .join(' · ')
-            : T.panelAjustes.nunca,
-          vigilanciaAtrasada(s.ultima_vigilancia),
-        ],
-        [T.panelAjustes.dispositivosActivos, String(s.dispositivos_activos)],
-        [T.panelAjustes.baseDeDatos, textoBaseDeDatos(s), (s.bd_pct ?? 0) >= AVISAR_ESPACIO_PCT],
-        [T.panelAjustes.intentosFallidos24h, String(s.intentos_fallidos_24h ?? 0)],
-        [
-          T.panelAjustes.topesAlcanzados24h,
-          T.panelAjustes.topesDetalle(s.topes_alcanzados_24h ?? 0, s.topes_globales_24h ?? 0),
-        ],
-      ]
-    : [];
+  // docs/33 RV-335 (U13): arriba "Todo bien" o lo que necesita atención; debajo, las filas en palabras.
+  const atencion = s ? atencionSalud(s, ENTORNO) : [];
+  const filas = s ? filasSalud(s, ENTORNO) : [];
+  const tareas = s ? tareasVisibles(s) : [];
 
   return (
     <Tarjeta titulo={T.panel.saludSistema}>
@@ -646,32 +595,60 @@ function SaludDelSistema() {
               className="mb-3"
             />
           )}
-          {/* Cuando el gigabyte gratuito va lleno, avisa con tiempo: el día que se llene, la
-              aplicación deja de admitir fotos (TR-53). No bloquea nada, solo se ve (06 §5). */}
-          {lleno != null && (
-            <p
+          {/* El resumen no bloquea nada, solo se ve (06 §5). Con el espacio de fotos casi lleno dice
+              qué hacer antes de que la aplicación deje de admitir fotos (TR-53). */}
+          {/* Con una recarga fallida, los datos de antes no dicen «Todo bien»: el resumen se esconde. */}
+          {carga.estado === 'error' ? null : atencion.length === 0 ? (
+            <p data-testid="resumen-salud" className="mb-3">
+              <span className="bg-verde-100 text-verde-700 rounded-full px-2.5 py-0.5 text-[13px] font-semibold">
+                {T.panelAjustes.todoBien}
+              </span>
+            </p>
+          ) : (
+            <div
               role="status"
+              data-testid="resumen-salud"
               className="bg-oro-100 border-oro-600 text-ambar-700 rounded-campo mb-3 flex items-start gap-2 border p-2 text-sm"
             >
               <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden />
-              <span>
-                {lleno.delTope
-                  ? T.panelAjustes.espacioFotosLleno(lleno.pct)
-                  : T.panelAjustes.almacenamientoLleno(lleno.pct)}
-              </span>
-            </p>
+              <div>
+                <p className="font-semibold">{T.panelAjustes.necesitaAtencion}</p>
+                <ul className="mt-0.5 flex flex-col gap-0.5">
+                  {atencion.map((a) => (
+                    <li key={a}>{a}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           )}
           <dl className="text-sm">
-            {filas.map(([k, valor, aviso]) => (
-              <div key={k} className="border-linea flex gap-2 border-b py-1 last:border-b-0">
-                <dt className="text-texto-suave flex-1">{k}</dt>
-                <dd className={cn('font-semibold', aviso && 'text-naranja-texto')} data-aviso={aviso || undefined}>
-                  {valor}
+            {filas.map((f) => (
+              <div key={f.etiqueta} className="border-linea flex items-center gap-2 border-b py-1 last:border-b-0">
+                <dt className="text-texto-suave flex-1">{f.etiqueta}</dt>
+                <dd
+                  className={cn('flex items-center gap-2 text-right font-semibold', f.aviso && 'text-naranja-texto')}
+                  data-aviso={f.aviso || undefined}
+                >
+                  {f.valor}
+                  {f.barra != null && (
+                    // El valor ya va escrito al lado: la barra es solo para verlo de un vistazo.
+                    <span
+                      data-testid="barra-espacio"
+                      aria-hidden
+                      className="bg-linea inline-block h-1.5 w-16 shrink-0 overflow-hidden rounded-full"
+                    >
+                      <span
+                        className={cn('block h-full rounded-full', f.aviso ? 'bg-naranja-600' : 'bg-verde-600')}
+                        style={{ width: `${f.barra}%` }}
+                      />
+                    </span>
+                  )}
                 </dd>
               </div>
             ))}
-            {/* TR-54: la última ejecución de cada tarea de pg_cron: en vivo o, si pg_cron no deja leer,
-                según la anotó la vigilancia; debajo del título se dice cuál (RV-92). */}
+            {/* TR-54: la última ejecución de cada tarea de pg_cron, con su nombre en palabras: en vivo
+                o, si pg_cron no deja leer, según la anotó la vigilancia (RV-92). El resumen semanal y la
+                purga de errores siguen, pero ya no salen aquí (docs/33 RV-335). */}
             <div className="border-linea border-b py-1 last:border-b-0">
               <dt className="text-texto-suave">
                 {T.panelAjustes.tareasProgramadas}
@@ -680,11 +657,11 @@ function SaludDelSistema() {
                 </span>
               </dt>
               <dd>
-                {s.tareas?.length ? (
+                {tareas.length ? (
                   <ul className="mt-1" data-testid="tareas-programadas">
-                    {s.tareas.map((t) => (
-                      <li key={t.tarea} className="flex gap-2">
-                        <span className="font-datos flex-1 text-[13px]">{t.tarea.replace(/^hidrantes_/, '')}</span>
+                    {tareas.map((t) => (
+                      <li key={t.tarea} className="flex flex-wrap gap-x-2">
+                        <span className="flex-1 text-[13px]">{nombreTarea(t.tarea)}</span>
                         <span className={cn('font-semibold', t.problema && 'text-rojo-texto')}>
                           {t.falta
                             ? T.panelAjustes.tareaFalta
@@ -740,11 +717,6 @@ function SaludDelSistema() {
           </dl>
         </>
       )}
-      <div className="mt-3 flex flex-wrap gap-3">
-        <Boton variante="secundario" disabled={ocupado} onClick={() => void descargar()}>
-          {T.panel.descargarInventario}
-        </Boton>
-      </div>
       {revocando && (
         <Dialogo titulo={T.panelAjustes.revocarMovil} alCerrar={() => !ocupado && setRevocando(null)}>
           <p className="text-sm">{T.panelAjustes.avisoRevocarMovil(revocando)}</p>

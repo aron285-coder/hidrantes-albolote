@@ -79,6 +79,16 @@ límite. Cinco capas, y por qué no basta con la primera:
    Con 150 por IP y día se sacaban unas 9.000 propuestas al día desde una sola IP (docs/32 RV-221,
    DEC-183). Son 65 voluntarios: una sesión presencial en la misma wifi se reparte en dos días o en
    dos redes (DEC-086). Además, un token nuevo solo propone 10 al día durante sus primeras 24 h (§4).
+   **Desde 0044 (docs/33 RV-300, DEC-190)** los dos topes se cambian en Ajustes (5–500 y 10–500), y
+   jefatura puede **abrir la entrada para todos** (24 h por defecto, 72 como mucho): mientras está
+   abierta, los dos topes de canjes buenos pasan a 200 y los móviles que entran no tienen el límite de
+   móvil nuevo. Se abre sola 24 h al generar un código nuevo revocando todos los móviles (la respuesta
+   a un código filtrado: los ~65 vuelven a entrar a la vez desde la misma wifi). **Las capas 1 a 3 no
+   cambian**: solo se abre a quien sabe el código. Quien pruebe códigos sigue frenado igual, y el
+   tope de canjes buenos responde lo mismo con código bueno o malo (no sirve para probar). Abrir y
+   cerrar queda en el registro con quién y hasta cuándo; Salud y la vigilancia cuentan los móviles
+   con el código bueno que el tope no ha dejado entrar (`entradas_frenadas_24h`; aviso con más de 5).
+   El "token nuevo" se mide desde la primera vez que se vio el móvil, no desde su último token (RV-302).
 4. **Token de dispositivo.** Tras el primer canje, el móvil usa un token aleatorio de 32 bytes (se
    guarda su hash); el código no vuelve a viajar. Los 65 voluntarios dejan de tocar el sistema de
    intentos, así que activar el techo global no deja a nadie fuera.
@@ -348,7 +358,10 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota por dispositivo y tope global (0039); tope de espacio, 6 reservas abiertas por móvil y tope global que no cuenta lo que no se sube (0041, DEC-182). |
 | Llenar la base de datos con un token | Longitud máxima de cada texto y 60 propuestas por dispositivo y día (0039, DEC-174). |
 | Llenar la base de datos sacando tokens nuevos | 20 canjes por IP y día y 40 por hora; 10 propuestas al día las primeras 24 h de un token; 600 al día entre todos; `SIN_ESPACIO` a 400 MB (0041, DEC-183). |
-| Agotar el cupo de errores con la RPC vieja de 5 argumentos | Cupo propio: 200 al día y 10 por dispositivo, que no gasta el de `/api/error` (0041, RV-222); se le quita `anon` con #472. |
+| Agotar el cupo de errores con la RPC vieja de 5 argumentos | Cupo propio: 200 al día y 10 por dispositivo, que no gasta el de `/api/error` (0041, RV-222). Desde 0044 ya no la ejecutan `anon` ni `authenticated` (docs/33 RV-306, #472). |
+| La entrada abierta para todos se usa para sacar tokens sin fin | Solo con el código bueno; los topes de fallos no cambian; dura como mucho 72 h y queda en el registro; jefatura la cierra en Ajustes (0044, docs/33 RV-300, DEC-190). |
+| Saber si un navegador tiene avisos de jefatura | `fn_endpoint_tiene_jefatura` exige un token de voluntario y solo responde sí o no, sin de quién ni de qué; el endpoint es una URL no adivinable que solo conoce ese navegador (0044, RV-323). |
+| Liberar reservas ajenas | `fn_liberar_reservas` solo toca las reservas sin confirmar del móvil del token; las demás rutas se ignoran sin decir nada (0044, RV-302). |
 | Usar el `dispositivo_id` de un administrador | `DISPOSITIVO_RESERVADO` en el canje (0039, DEC-175). |
 | Un token copiado sigue valiendo tras cerrar sesión | `fn_cerrar_sesion` lo revoca en el servidor (0040, RV-158). |
 | Agotar el cupo diario de errores rotando `dispositivo_id` | Tope por `ip_hash` en `/api/error` y cupo propio para lo que llega sin IP (0040, RV-148). |

@@ -19,17 +19,12 @@ async function abrir(page: Page, ruta = '/') {
 const boton = (page: Page, texto: string) => page.locator('button').filter({ hasText: texto }).first();
 
 test.describe('mapa y lista', () => {
-  // docs/21 RV-82: la leyenda desplegada, con Cercanos y el + abajo, dejaba medio mapa útil.
-  test('la leyenda se enseña desplegada el primer uso y después va plegada; se abre y se cierra (RV-82)', async ({
-    page,
-  }) => {
+  // docs/21 RV-82: la leyenda desplegada, con Cercanos y el + abajo, dejaba medio mapa útil. Desde
+  // docs/33 RV-310 va plegada también el primer uso.
+  test('la leyenda empieza plegada; se abre y se cierra, y se recuerda (RV-82, RV-310)', async ({ page }) => {
     await abrir(page);
     const leyenda = page.getByRole('region', { name: T.mapa.leyenda });
     const ficha = page.getByRole('button', { name: T.mapa.leyenda, exact: true });
-    await expect(leyenda).toBeVisible();
-    await expect(ficha).toHaveCount(0);
-
-    await page.reload();
     await expect(ficha).toBeVisible();
     await expect(leyenda).toHaveCount(0);
     await ficha.click();
@@ -53,10 +48,9 @@ test.describe('mapa y lista', () => {
   test('sincroniza, pinta los marcadores y dice cuándo (FR-60, FR-80)', async ({ page }) => {
     await abrir(page);
     await expect(page.getByText(/Sincronizado hace/)).toBeVisible();
-    // Al encuadre inicial (zoom ≤ 13) solo se ven R1 y R2 (06 §4.4).
-    const visibles = await page.locator('.marcador').count();
-    expect(visibles).toBeGreaterThan(0);
-    expect(visibles).toBeLessThan(PUNTOS.length);
+    // El encuadre inicial, sin posición, deja todos los puntos a la vista (docs/33 RV-310).
+    await expect(page.locator('.marcador')).toHaveCount(PUNTOS.length);
+    await page.getByRole('button', { name: T.mapa.leyenda, exact: true }).click();
     await expect(page.getByRole('region', { name: T.mapa.leyenda })).toContainText(T.mapa.leyendaTamano);
   });
 
@@ -409,7 +403,7 @@ test.describe('zoom (#136)', () => {
   }
 
   const zoomGuardado = (page: Page) =>
-    page.evaluate(() => (JSON.parse(localStorage.getItem('hidrantes.vista') ?? 'null')?.zoom ?? 0) as number);
+    page.evaluate(() => (JSON.parse(sessionStorage.getItem('hidrantes.vista') ?? 'null')?.zoom ?? 0) as number);
 
   test('se puede acercar hasta el tope y el satélite no se queda en blanco', async ({ page }) => {
     await conSatelite(page);
@@ -525,7 +519,9 @@ test.describe('pulsación larga: ¿Qué hay aquí? (#138, FR-72)', () => {
   test('en escritorio, el clic derecho hace lo mismo', async ({ page }) => {
     await abrir(page);
     const caja = (await page.locator('[data-testid="mapa"]').boundingBox())!;
-    await page.mouse.click(caja.x + caja.width / 2, caja.y + caja.height / 2, { button: 'right' });
+    // Abajo a la izquierda, en el margen que deja el encuadre de los puntos (RV-310): sobre un
+    // marcador, el clic derecho no abre nada.
+    await page.mouse.click(caja.x + caja.width * 0.3, caja.y + caja.height - 120, { button: 'right' });
     await expect(hoja(page)).toBeVisible();
     await expect(page).toHaveURL(/\?aqui=/);
   });
@@ -601,9 +597,18 @@ test('Ajustes enseña las novedades de la versión instalada (AC-127, RV-20, RV-
   await expect(page.getByTestId('punto-novedades')).toHaveCount(propia ? 1 : 0);
   await page.getByRole('link', { name: T.navegacion.ajustes }).click();
   const bloque = page.getByTestId('novedades');
-  // Cada línea con la versión que la trajo (docs/23 RV-95).
+  // docs/33 RV-320: «Novedades de la versión 0.x.y» con sus líneas, sin repetir la versión; las de antes,
+  // plegadas en «Ver versiones anteriores», bajo su versión.
+  // El build genera el JSON con la versión (prebuild, RV-20): sin ella, lo de abajo no probaría nada.
+  expect(novedades.version).toBeTruthy();
+  await expect(page.getByRole('heading', { name: T.ajustes.novedadesDeLaVersion(novedades.version!) })).toBeVisible();
+  const anteriores = novedades.lineas.filter((l) => l.version !== novedades.version);
+  if (anteriores.length) await bloque.getByText(T.ajustes.verVersionesAnteriores).click();
   for (const l of novedades.lineas) {
-    await expect(bloque.getByRole('listitem').filter({ hasText: l.texto })).toHaveText(`${l.version} · ${l.texto}`);
+    await expect(bloque.getByRole('listitem').filter({ hasText: l.texto }).first()).toHaveText(l.texto);
+  }
+  for (const v of new Set(anteriores.map((l) => l.version))) {
+    await expect(bloque.getByText(T.ajustes.version(v), { exact: true })).toBeVisible();
   }
   await expect(page.getByText(T.ajustes.nuevo, { exact: true })).toHaveCount(propia ? 1 : 0);
   await page.getByRole('link', { name: T.navegacion.mapa }).click();

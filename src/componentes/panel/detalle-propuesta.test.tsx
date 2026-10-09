@@ -285,3 +285,61 @@ describe('historial de la propuesta (docs/32 RV-255)', () => {
     expect(html).not.toContain('null');
   });
 });
+
+// docs/33 RV-330 (U15, D4): un punto que ya no está activo se dice arriba y solo se puede rechazar.
+describe('punto que ya no está activo (RV-330)', () => {
+  const inactivo = (op: Operacion, situacion: 'retirado' | 'borrado') =>
+    propuesta(op, {
+      datos: op === 'estado' ? { caudal: 'regular' } : {},
+      punto_actualizado_en: '2026-10-07T09:00:00Z',
+      desactualizada: true,
+      punto: { ...ACTUAL, situacion, borrado_en: situacion === 'borrado' ? '2026-10-05T08:00:00Z' : null },
+    });
+  /** El `<button …>…</button>` que contiene `texto`. */
+  const boton = (html: string, texto: string) => {
+    const en = html.indexOf(texto);
+    expect(en, `no hay botón con «${texto}»`).toBeGreaterThan(-1);
+    return html.slice(html.lastIndexOf('<button', en), html.indexOf('</button>', en));
+  };
+
+  it.each(['revision', 'estado', 'datos', 'ubicacion'] as Operacion[])(
+    '%s: aviso rojo arriba con la fecha, aprobar y corregir desactivados con su motivo',
+    (op) => {
+      const html = pintar(inactivo(op, 'retirado'));
+      const aviso = T.panelCola.avisoRetirado('7 oct 2026');
+      expect(html).toContain(aviso);
+      // Arriba: antes de los datos del punto, no abajo con los botones.
+      expect(html.indexOf(aviso)).toBeLessThan(html.indexOf(T.panelCola.datosDelPunto));
+      const barra = html.slice(html.indexOf('data-testid="acciones-propuesta"'));
+      expect(barra).toContain(T.panelCola.soloRechazar);
+      expect(boton(barra, `>${T.panelCola.aprobar}<`)).toContain('disabled=""');
+      expect(boton(barra, `aria-label="${T.panelCola.aprobarConCorrecciones}"`)).toContain('disabled=""');
+      // La acción principal es rechazar, con su nombre largo, y está activa.
+      expect(boton(barra, T.panelCola.rechazarNoExiste)).not.toContain('disabled=""');
+      // El punto cambió porque se retiró: no se pide "Confirmar y aprobar".
+      expect(html).not.toContain(T.panelCola.confirmarYAprobar);
+    },
+  );
+
+  it('en la papelera, la fecha de borrado', () => {
+    expect(pintar(inactivo('datos', 'borrado'))).toContain(T.panelCola.avisoEnPapelera('5 oct 2026'));
+  });
+
+  it('un punto activo sigue con sus botones de siempre', () => {
+    const html = pintar(propuesta('estado', { datos: { caudal: 'regular' } }));
+    expect(html).not.toContain(T.panelCola.avisoNoActivo);
+    expect(html).not.toContain(T.panelCola.rechazarNoExiste);
+    expect(boton(html, `>${T.panelCola.aprobar}<`)).not.toContain('disabled=""');
+  });
+
+  it('una propuesta ya decidida sobre un punto retirado no lleva el aviso (historial)', () => {
+    const html = pintar({ ...inactivo('estado', 'retirado'), estado: 'rechazada', revisada_en: '2026-10-08' });
+    expect(html).not.toContain(T.panelCola.avisoRetirado('7 oct 2026'));
+    expect(html).not.toContain(T.panelCola.rechazarNoExiste);
+  });
+
+  it('una retirada no se bloquea por la situación', () => {
+    const html = pintar(propuesta('retirada', { punto: { ...ACTUAL, situacion: 'retirado', borrado_en: null } }));
+    expect(html).not.toContain(T.panelCola.rechazarNoExiste);
+  });
+});

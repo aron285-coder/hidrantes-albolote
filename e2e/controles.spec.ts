@@ -289,6 +289,12 @@ for (const pantalla of PANTALLAS) {
     test.beforeEach(async ({ page }) => {
       if (pantalla.sesion !== false) await conSesion(page);
       await simularRpcLento(page, RESPUESTAS);
+      // El mapa ya visto en esta sesión: si no, se centra en la posición con un aviso que se va solo a
+      // los 4 s (docs/33 RV-310) y su botón desaparecería a mitad del recorrido. Se prueba en
+      // mapa-inicio.spec.ts.
+      await page.addInitScript(() =>
+        sessionStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [37.2309, -3.6558], zoom: 16 })),
+      );
     });
 
     // UI-22 y accesibilidad: un control sin nombre no se puede ni decir en voz alta.
@@ -332,7 +338,7 @@ const PANTALLAS_PANEL: Pantalla[] = [
 ];
 
 /** Controles del panel cuyo efecto es un archivo: se pulsan y se espera la descarga. */
-const DESCARGAS_PANEL = new Set([T.panel.excel, T.panel.csv, T.panel.geojson, T.panel.descargarInventario]);
+const DESCARGAS_PANEL = new Set([T.panel.excel, T.panel.csv, T.panel.geojson, T.panel.inventarioCompletoJson]);
 
 /** Controles del panel que no se pulsan en el recorrido, con el motivo. */
 const NO_SE_PULSAN_PANEL = new Map<string, string>([

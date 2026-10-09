@@ -73,6 +73,9 @@ export function useSalidaFormulario(sucio: boolean, preguntar: () => void) {
   /** Quita la entrada propia (si es la de arriba) y después hace `tarea`. */
   const quitarYLuego = useCallback(
     (tarea: () => void) => {
+      // Un segundo toque mientras se sale (el popstate llega después): otro back() se llevaría
+      // también la pantalla de antes (docs/33 RV-322).
+      if (despues.current || saliendo.current) return;
       if (marcaActual() === marca) {
         despues.current = tarea;
         window.history.back();

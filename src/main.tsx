@@ -17,6 +17,7 @@ import { registrarComprobacion } from './lib/conexion';
 import { enviarErrores, instalarCapturaGlobal } from './lib/errores';
 import { registrarServiceWorker } from './lib/pwa';
 import { aplicarTema } from './lib/tema';
+import { olvidarVistaAntigua } from './lib/vista';
 
 aplicarTema();
 escucharInstalacion();
@@ -24,6 +25,7 @@ instalarCapturaGlobal();
 registrarComprobacion(enviarErrores);
 iniciarAcceso();
 void activarSiHayPermiso();
+olvidarVistaAntigua();
 registrarServiceWorker();
 
 createRoot(document.getElementById('raiz')!).render(

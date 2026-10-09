@@ -5,7 +5,6 @@ import { type Resultado, rpc } from '../api';
 import { sincronizar } from '../puntos';
 import { funcion, leer, leerLista } from './consultas';
 import { NOVEDADES, type LineaNovedad, type NovedadesVersion } from '../novedades';
-import { type FilaExportada, pedirInventario } from './exportar';
 import { hace, megas } from '../formato';
 import type { Entorno } from '../entorno';
 import { T } from '../textos';
@@ -289,7 +288,7 @@ export function origenTareas(s: Salud, ahora: Date = new Date()): string {
 }
 
 /**
- * "Almacenamiento usado": 0 bytes, con el bucket vacío, también es un dato (docs/22 RV-94). Sin dato
+ * "Fotos" sin los datos de 0041: 0 bytes, con el bucket vacío, también es un dato (docs/22 RV-94). Sin dato
  * en staging, lo dice como "Último respaldo": la purga de fotos, que es la que lo mide, solo mira el
  * bucket de producción, y "sin dato" para siempre parecía una avería (docs/23 RV-98, DEC-143).
  */
@@ -297,30 +296,6 @@ export function textoAlmacenamiento(bytes: number | null | undefined, entorno: E
   if (bytes != null) return `${megas(bytes)} MB`;
   return entorno === 'staging' ? T.panelAjustes.almacenamientoNoAplica : T.panelAjustes.sinDato;
 }
-
-/**
- * "Espacio de fotos" (docs/32 RV-262): lo que ocupa el bucket y el % del tope, con 5 MB por reserva
- * abierta como lo cuenta el servidor. Sin el dato de 0041, como antes (`textoAlmacenamiento`).
- */
-export function textoEspacioFotos(s: Salud, entorno: Entorno): string {
-  if (s.fotos_bytes == null || s.fotos_origen === 'sin_dato' || !s.max_bytes_fotos || s.fotos_pct == null) {
-    return textoAlmacenamiento(s.storage_bytes, entorno);
-  }
-  const texto = T.panelAjustes.espacioDetalle(megas(s.fotos_bytes), porcentaje(s.fotos_pct), megas(s.max_bytes_fotos));
-  // Sin lectura en vivo del bucket, el dato es el del último respaldo: se dice (05 §2.6, fotos_origen).
-  return s.fotos_origen === 'respaldo' ? T.panelAjustes.espacioSegunRespaldo(texto) : texto;
-}
-
-/** "Base de datos": con el tope de 0041 (`max_bytes_bd`), MB y %; si no, contra los 500 MB del plan. */
-export function textoBaseDeDatos(s: Salud): string {
-  if (s.bd_bytes == null) return T.panelAjustes.sinDato;
-  if (s.max_bytes_bd && s.bd_pct != null) {
-    return T.panelAjustes.espacioDetalle(megas(s.bd_bytes), porcentaje(s.bd_pct), megas(s.max_bytes_bd));
-  }
-  return T.panelAjustes.baseDeDatosDetalle(megas(s.bd_bytes), megas(CUOTA_BD_BYTES));
-}
-
-const porcentaje = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
 
 /** Al 70 % del tope de fotos avisa también la vigilancia (DEC-182). */
 export const AVISAR_ESPACIO_PCT = 70;
@@ -393,23 +368,6 @@ export function estadoPedido(p: PedidoReciente): string {
     return motivo ? T.panelAjustes.pedidoError(motivo) : T.panelAjustes.pedidoErrorSinMotivo;
   }
   return T.panelAjustes.pedidoPendiente;
-}
-
-/** Descarga de consulta en JSON (FR-144). No es el respaldo: eso vive en 15. */
-export async function descargarInventarioJson(): Promise<Resultado<number>> {
-  const r = await pedirInventario({});
-  if (!r.ok) return r;
-  const filas: FilaExportada[] = Array.isArray(r.datos) ? r.datos : [];
-  const blob = new Blob([JSON.stringify(filas, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `hidrantes-albolote-${new Date().toISOString().slice(0, 10)}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  return { ok: true, datos: filas.length };
 }
 
 // ---------- novedades (FR-167) ----------

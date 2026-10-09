@@ -95,7 +95,7 @@ test('en Salud del sistema no aparece "Incidencias" (RV-122)', async ({ page }) 
   await prepararPanel(page);
   await page.goto('/admin/ajustes');
   const salud = page.getByRole('region', { name: T.panel.saludSistema });
-  await expect(salud.getByText(T.panelAjustes.pendientes14)).toBeVisible({ timeout: CARGA });
+  await expect(salud.getByText(T.panelAjustes.errores7)).toBeVisible({ timeout: CARGA });
   await expect(salud.getByText(/incidencias/i)).toHaveCount(0);
   await auditar(page, 'panel · ajustes');
 });

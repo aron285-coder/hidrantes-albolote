@@ -1,5 +1,5 @@
-import { CloudOff, LogOut, Map as IconoMapa, Search } from 'lucide-react';
-import { Suspense, lazy, useEffect } from 'react';
+import { CloudOff, LogOut, Map as IconoMapa, Menu as IconoMenu, Search } from 'lucide-react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Navigate, Route, Routes } from 'react-router';
 import { Escudo } from '@/componentes/Escudo';
 import { LimiteError } from '@/componentes/LimiteError';
@@ -128,15 +128,25 @@ function Armazon({ correo }: { correo: string }) {
   );
 }
 
+/** Al salir se borra lo que se recuerda de los avisos de este administrador (docs/32 RV-264). */
+function salir() {
+  olvidarTemasJefatura();
+  void salirDeGoogle();
+}
+
+/**
+ * Por debajo de 800 px de ancho útil (tableta, o zoom 200 %), todo en una línea: el escudo, el buscador
+ * dentro de la barra y "Ir al mapa" y "Cerrar sesión" en un menú ☰ (docs/33 RV-331, U14).
+ */
 function Cabecera({ correo }: { correo: string }) {
   const { busqueda, buscar } = usePanel();
   return (
-    <header className="bg-barra flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-white">
-      <div className="flex items-center gap-2">
+    <header className="bg-barra flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 text-white max-[800px]:flex-nowrap max-[800px]:gap-x-2 max-[800px]:py-1.5 max-[800px]:pr-1 max-[800px]:pl-3">
+      <div className="flex shrink-0 items-center gap-2">
         <Escudo className="size-8" />
-        <h1 className="font-titulo text-[17px] font-semibold">{T.panel.titulo}</h1>
+        <h1 className="font-titulo text-[17px] font-semibold max-[800px]:sr-only">{T.panel.titulo}</h1>
       </div>
-      <label className="relative order-last w-full md:order-none md:w-auto md:max-w-md md:flex-1">
+      <label className="relative order-last w-full max-[800px]:order-none max-[800px]:w-auto max-[800px]:min-w-0 max-[800px]:flex-1 md:order-none md:w-auto md:max-w-md md:flex-1">
         <span className="sr-only">{T.panelCola.buscar}</span>
         <Search size={16} aria-hidden className="absolute top-1/2 left-3 -translate-y-1/2 text-[#B7C2D6]" />
         <input
@@ -147,7 +157,7 @@ function Cabecera({ correo }: { correo: string }) {
           className="rounded-campo min-h-10 w-full bg-white/10 pr-3 pl-9 text-sm text-white placeholder:text-[#B7C2D6]"
         />
       </label>
-      <div className="ml-auto flex items-center gap-1 text-sm">
+      <div className="ml-auto flex items-center gap-1 text-sm max-[800px]:hidden">
         <span className="hidden text-[#B7C2D6] lg:inline">{correo}</span>
         <Link to="/" className="flex min-h-11 items-center gap-1 rounded px-2 hover:bg-white/10">
           <IconoMapa size={16} aria-hidden />
@@ -155,18 +165,98 @@ function Cabecera({ correo }: { correo: string }) {
         </Link>
         <button
           type="button"
-          // Lo que se recuerda de los avisos de este administrador se borra al salir (docs/32 RV-264).
-          onClick={() => {
-            olvidarTemasJefatura();
-            void salirDeGoogle();
-          }}
+          onClick={salir}
           className="flex min-h-11 items-center gap-1 rounded px-2 hover:bg-white/10"
         >
           <LogOut size={16} aria-hidden />
           {T.panel.salir}
         </button>
       </div>
+      <MenuPequeno correo={correo} />
     </header>
+  );
+}
+
+/** El menú ☰ de la cabecera por debajo de 800 px: se cierra con Escape, fuera o al elegir (RV-331). */
+function MenuPequeno({ correo }: { correo: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const caja = useRef<HTMLDivElement>(null);
+  const boton = useRef<HTMLButtonElement>(null);
+  const primero = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    primero.current?.focus();
+    const fuera = (e: PointerEvent) => {
+      if (!caja.current?.contains(e.target as Node)) setAbierto(false);
+    };
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setAbierto(false);
+      boton.current?.focus();
+    };
+    // Si la ventana se ensancha a 800 px o más, el menú desaparece: no se queda abierto escondido.
+    const ancho = window.matchMedia('(min-width: 800px)');
+    const alEnsanchar = () => ancho.matches && setAbierto(false);
+    document.addEventListener('pointerdown', fuera);
+    document.addEventListener('keydown', tecla);
+    ancho.addEventListener('change', alEnsanchar);
+    return () => {
+      document.removeEventListener('pointerdown', fuera);
+      document.removeEventListener('keydown', tecla);
+      ancho.removeEventListener('change', alEnsanchar);
+    };
+  }, [abierto]);
+
+  return (
+    <div
+      ref={caja}
+      className="relative shrink-0 min-[800px]:hidden"
+      // Al salir con el tabulador, se cierra: no se queda tapando lo que hay detrás.
+      onBlur={(e) => {
+        if (!caja.current?.contains(e.relatedTarget as Node | null)) setAbierto(false);
+      }}
+    >
+      <button
+        ref={boton}
+        type="button"
+        aria-label={T.panel.menu}
+        aria-expanded={abierto}
+        aria-controls={abierto ? 'menu-cabecera' : undefined}
+        onClick={() => setAbierto((a) => !a)}
+        className="grid size-11 place-items-center rounded hover:bg-white/10"
+      >
+        <IconoMenu size={22} aria-hidden />
+      </button>
+      {abierto && (
+        <div
+          id="menu-cabecera"
+          className="bg-barra rounded-campo absolute top-full right-0 z-50 mt-1 grid w-64 max-w-[calc(100vw-1rem)] border border-white/15 p-1 text-sm shadow-lg"
+        >
+          <span className="truncate px-3 py-2 text-[#B7C2D6]">{correo}</span>
+          <Link
+            ref={primero}
+            to="/"
+            onClick={() => setAbierto(false)}
+            className="flex min-h-11 items-center gap-2 rounded px-3 hover:bg-white/10"
+          >
+            <IconoMapa size={16} aria-hidden />
+            {T.jefatura.irAlMapa}
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              setAbierto(false);
+              salir();
+            }}
+            className="flex min-h-11 items-center gap-2 rounded px-3 text-left hover:bg-white/10"
+          >
+            <LogOut size={16} aria-hidden />
+            {T.panel.salir}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

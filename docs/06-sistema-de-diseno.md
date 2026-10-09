@@ -450,7 +450,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · `Mapa base propio` ·
 `Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `© OpenStreetMap contributors` ·
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
-`© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
+`© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` · `Centrado en tu posición` · `Ver toda la zona` (aviso al abrir el mapa sobre el voluntario, docs/33 RV-310) ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
 `No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
@@ -504,13 +504,13 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 **Ficha.** `Dirección` · `sin dirección` · `revisado [hace 2 meses] · [4 ago 2026]` · `sin revisar desde [hace 1 año]` · `Tipo` · `Diámetro` · `Tipo de enganche` · `a [80 m] de ti` · `[Conexión] · [1]/[2]` (banda y rejilla, RV-108) ·
 `Proponer un cambio` · `Cómo llegar` · `Datos de [hace N min] · sin cobertura` · `ampliar` · `Cerrar` ·
 `Punto no encontrado.` · `Datos sincronizados [hace N min]` · `Fallo:` · `Enganche [Granada]` ·
-`Foto no disponible sin cobertura` · `No se ha podido cargar la foto` · `Sin foto` · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
+`Foto no disponible sin cobertura` · `No se ha podido cargar la foto` con `Reintentar` · `La foto sigue sin cargar` (tras reintentar) · `Sin foto` (las tres en una franja de 44 px, docs/33 RV-314) · `[HID-0147] · [Sitio]` (texto alternativo, RV-103) · `Estado desconocido · actualiza la aplicación` (RV-102a).
 
 **Operaciones.** `¿Qué ha cambiado en [HID-0147]?` · `Sigue igual` ·
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
 `El caudal ha cambiado o ya no funciona` · `Corregir datos` ·
 `Diámetro, tipo de enganche o descripción mal anotados` ·
-`¿El tipo está mal? Propón retirarlo y da de alta el correcto` · `Corregir ubicación` · `El pin está desplazado` ·
+`¿El tipo está mal?` · `Propón retirarlo` · `y da de alta el correcto.` (una frase con el enlace dentro, docs/33 RV-316) · `Corregir ubicación` · `El pin está desplazado` ·
 `Proponer retirada` · `Ya no existe. Pide un motivo breve` · `Alta` · `Revisión` · `Estado` · `Datos` ·
 `Ubicación` · `Retirada` · `Consta como [Bueno] · revisado [hace 1 mes]` · `Caudal / estado ahora` ·
 `Confirmas que el punto sigue exactamente igual. Solo cambia la fecha de última revisión.` ·
@@ -530,8 +530,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
 `Tipo de enganche` · `Barcelona` · `Granada` · `Directo` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
-`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `repetir · [Sitio]` · `[Sitio] · [150] kB` ·
-`Hacer foto · obligatoria` · `Hacer foto · opcional` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
+`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` · `[Conexión · 18 kB]. [Repetir la foto de la conexión]` (la ficha de la foto hecha y su nombre accesible, docs/33 RV-316) · `[Sitio] · [150] kB` ·
+`Hacer foto · obligatoria` · `Foto · opcional` · `Hacer foto (opcional)` (corregir datos, docs/33 RV-316) · `mm` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
 `¿Por qué ya no existe?` · `Obras` · `Asfaltado` · `Sustituido` · `Otro` ·
 `Cuéntalo brevemente · obligatorio`.
@@ -583,7 +583,7 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·
 `Descargado · [12] MB · [jul 2026]` · `No descargado` · `Descargar` · `Actualizar` ·
-`Puntos guardados` · `Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
+`Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
 `Avisarme cuando jefatura resuelva mis propuestas` ·
 `Cómo se usa (3 pantallas)` · `Cerrar sesión en este móvil` ·
 `Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
@@ -591,9 +591,8 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 `Panel de jefatura` (botón de la cuenta de jefatura, RV-113) · `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
 `¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Cerrando sesión…` (el botón, deshabilitado, mientras se cierra; docs/32 RV-234) · `No se ha podido cerrar la sesión. Inténtalo de nuevo.` · `Versión [0.1.0]` · `Descargando… [40] %` ·
 `No descargado · el mapa no tendrá calles sin cobertura` · `Hay una versión nueva del mapa` ·
-`No se pudo descargar. Inténtalo de nuevo con wifi.` · `La descarga se ha parado.` con `Reintentar` (30 s sin llegar nada; docs/32 RV-235) · `[438] · sincronizado [hace 5 min]` ·
-`Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167; cada línea, `[0.6.4] · [texto]` con la versión que la trajo, DEC-142) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.` · `Guardado protegido` · `sí` · `no` (el navegador
-ha concedido, o no, no desalojar lo guardado; TR-07).
+`No se pudo descargar. Inténtalo de nuevo con wifi.` · `La descarga se ha parado.` con `Reintentar` (30 s sin llegar nada; docs/32 RV-235) · `[438] puntos guardados · sincronizados [hace 5 min]` · `El móvil no borrará estos datos aunque le falte espacio` · `El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo` (sin la segunda parte si ya está instalada: `El móvil podría borrar estos datos si le falta espacio`; el navegador ha concedido, o no, no desalojar lo guardado, TR-07; una sola tarjeta «Mapa sin cobertura», docs/33 RV-320) ·
+`Todavía sin sincronizar` · `Novedades` · `Nuevo` · `Todavía no hay novedades publicadas.` (en Ajustes de la app, FR-167) · `Novedades de la versión [0.10.1]` con sus líneas sin repetir la versión · `Ver versiones anteriores` (plegadas, cada versión con `Versión [0.10.0]`) · `Esta versión solo trae arreglos internos.` (docs/33 RV-320) · `Avisos` · `Tienes [2] envíos sin mandar: se perderán.`.
 
 **Instalar la aplicación.** `Instalar la aplicación` · `Instalar` ·
 `Instala la aplicación en la pantalla de inicio: se abre más rápido y funciona sin cobertura.` ·
@@ -645,7 +644,11 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Aprobar con correcciones` · `Guardar y aprobar` · `Rechazar…` · `Confirmar rechazo` ·
 `Fusionar con [BOC-0088]` · `Confirmar y aprobar` · `El punto ha cambiado: revisa los datos.` · `Cargando el punto de hoy…` ·
 `No se ha podido cargar el punto de hoy: sin verlo no se aprueba.` ·
-`El punto ya no está activo: solo se puede rechazar.` · `Cancelar` ·
+`El punto ya no está activo: solo se puede rechazar.` ·
+`Este punto ya no está activo (retirado el [7 oct 2026]). La propuesta no se puede aprobar.` ·
+`Este punto ya no está activo (en la papelera desde el [7 oct 2026]). La propuesta no se puede aprobar.` ·
+`Este punto ya no está activo. La propuesta no se puede aprobar.` · `Rechazar: el punto ya no existe` ·
+`El punto ya no está activo` · `Cancelar` ·
 `Motivo del rechazo (obligatorio, lo verá quien lo propuso)` ·
 `Sin motivo no se puede rechazar.` ·
 `El diff está calculado sobre un estado que ya no existe: el punto cambió [ayer]. Se pide confirmación expresa en lugar del botón normal.` ·
@@ -670,7 +673,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 **Panel: resto.** `Editar` · `Retirar` · `Borrar` · `Historial` · `Restaurar` ·
 `Borrar definitivamente…` · `Vaciar la papelera…` · 
 `Imprimir` · `Exportar` · `Exportando…` · `Excel` · `CSV` · `GeoJSON` ·
-`Descargar inventario (JSON)` · `Purgar fotos huérfanas` · `Generar uno nuevo` ·
+`Inventario completo (JSON)` (cuarta opción de Exportar ▾, sin filtros; antes un botón en Salud del sistema, docs/33 RV-335) · `Purgar fotos huérfanas` · `Generar uno nuevo` ·
 `Revocar todos los dispositivos` · `Guardar cambios` · `Añadir` ·
 `Regenerar zona de cobertura` · `Regenerar mapa base` · `Respaldo ahora` ·
 `Salud del sistema` · `Mostrando [10] de [438] puntos` ·
@@ -702,7 +705,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `↩ Retirada por el autor · [cuando]` · `Motivo: "[texto]"` · `Con correcciones: [texto]` ·
 `Fusionada con [codigo]. No se creó un punto nuevo.` · `Código asignado: [codigo]` ·
 `Consta en el Registro. Solo lectura.` · `Pin propuesto y puntos aprobados alrededor` ·
-`con avisos` · `Hidrantes Albolote · Panel de jefatura` ·
+`con avisos` · `Hidrantes Albolote · Panel de jefatura` · `Menú` (el ☰ de la cabecera por debajo de 800 px) ·
 `Direcciones deducidas con Nominatim · © OpenStreetMap contributors` · `datos de [hace]` ·
 `Esta propuesta ya no está pendiente: otra persona la ha resuelto. La lista se ha actualizado.` ·
 `El punto ya no está activo.` ·
@@ -772,14 +775,13 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Toca el mapa en el centro del núcleo: de ahí sale el municipio y a qué núcleo pertenece cada punto.` ·
 `Centro del núcleo` · `Escribe el nombre del núcleo` · `Toca el mapa para situarlo` ·
 `Núcleo "[nombre]" añadido.` · `"[antes]" ahora se llama "[ahora]".` ·
-`Propuestas pendientes de más de 14 días` · `Incidencias abiertas` ·
-`Errores de la aplicación (7 días)` · `Puntos sin dirección deducida` · `Último respaldo` ·
+Salud del sistema (docs/33 RV-335): arriba `Todo bien`, o `Necesita atención` con la lista: `Todavía no hay ningún respaldo.` · `El último respaldo es de [hace 9 días]: tendría que haber uno cada semana.` (más de 8 días, fuera de staging) · `La vigilancia lleva más de un día sin pasar.` · `La vigilancia no ha pasado nunca.` (fuera de staging) · `La última vigilancia dejó avisos: mira las issues.` · `La base de datos ocupa el [75] % de su espacio.` (desde el 70 %) · `Una tarea programada falla: [nombre de la tarea].` · `Una tarea programada no está programada: [nombre de la tarea].` · las filas, en este orden: `Fotos` · `Base de datos` · `Último respaldo` · `Última vigilancia` · `Errores de la aplicación (7 días)` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Zona y mapa base`, con `[112] MB de [800] MB` y una barra en Fotos y Base de datos ·
+`Incidencias abiertas` ·
 `Última vigilancia` · `todo respondía` · `con avisos: mira las issues` ·
-`Almacenamiento usado` ·
-`Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073; sin los datos de 0041) · con 0041 (docs/32 RV-262): `Las fotos ocupan el [72] % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.` (desde el 70 % del tope `max_bytes_fotos`, DEC-182) · `[200,0] MB · [26,9] % de [800,0] MB` (espacio de fotos y base de datos contra su tope) · `[200,0 MB · 25 % de 800,0 MB] · medido en el último respaldo` (sin lectura en vivo del bucket, `fotos_origen = respaldo`) · `Móviles con más fotos pedidas (24 h)` · `[37] fotos · [4] sin subir` · `Ningún móvil ha pedido fotos en las últimas 24 h.` · `Revocar este móvil` (nombre accesible `Revocar este móvil ([abcd1234])`) · `revocado` · `El móvil [abcd1234] se queda sin acceso: tendrá que volver a escribir el código de acceso. Sus fotos pedidas y sin subir dejan de contar.` · `Revocar` · `Móvil [abcd1234] revocado.` ·
-`Zona de cobertura · mapa base` · `Callejero sin conexión` · `Móviles con acceso` · `Códigos de acceso fallidos (24 h)` · `Base de datos` · `[38] MB de [500] MB` · `Tareas programadas` ·
+`Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073; sin los datos de 0041) · con 0041 (docs/32 RV-262): `Las fotos ocupan el [72] % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.` (desde el 70 % del tope `max_bytes_fotos`, DEC-182) · `[112 MB de 800 MB] · medido en el último respaldo` (sin lectura en vivo del bucket, `fotos_origen = respaldo`) · `Móviles con más fotos pedidas (24 h)` · `[37] fotos · [4] sin subir` · `Ningún móvil ha pedido fotos en las últimas 24 h.` · `Revocar este móvil` (nombre accesible `Revocar este móvil ([abcd1234])`) · `revocado` · `El móvil [abcd1234] se queda sin acceso: tendrá que volver a escribir el código de acceso. Sus fotos pedidas y sin subir dejan de contar.` · `Revocar` · `Móvil [abcd1234] revocado.` ·
+`Tareas programadas`, cada una en palabras: `Borrar intentos de código viejos (cada hora)` · `Quitar el acceso a los móviles que no se usan (cada día)` · `Borrar avisos viejos (cada día)` · `Vaciar lo caducado de la papelera (cada día)` · `Borrar reservas de fotos viejas (cada día)` (el resumen semanal y la purga de errores siguen, pero no salen) ·
 `[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` · `no está programada` (tarea de pg_cron que falta, RV-56) · debajo del título, `Ahora mismo` · `Según la vigilancia de [hace 13 h]` · `Según la última vigilancia` (docs/22 RV-92) · `lleva más de un día sin pasar` (última vigilancia de más de 26 h, en tono de aviso, RV-93) ·
-`Entradas bloqueadas por demasiados intentos (24 h)` · `[3] · de todo el grupo: [0]` · `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) · `no se mide en pruebas` (Almacenamiento usado en staging sin dato, docs/23 RV-98, DEC-143) ·
+`todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) · `no se mide en pruebas` (Fotos en staging sin dato, docs/23 RV-98, DEC-143) ·
 `sin dato` · `Inventario descargado: [n] puntos.` · `Mantenimiento` ·
 `Se ejecutan fuera de la aplicación y tardan unos minutos. Debajo, los últimos pedidos y qué ha pasado con cada uno.` · `Últimos pedidos` · `Todavía no se ha pedido nada.` · `pedido` · `lanzado` · `error: [motivo]` · `error` (los 5 últimos de `fn_pedidos_recientes`, docs/32 RV-260) ·
 `"[nombre]": pedido. Empezará en unos minutos.` (el panel deja un pedido que recoge un workflow, docs/31 RV-146) · `"[nombre]": pedido. En staging no se lanza: queda anotado.` (la respuesta lleva `staging: true`, docs/32 RV-224 y RV-260) · `Solo en producción` (debajo de «Purgar fotos huérfanas» y «Respaldo ahora», deshabilitados fuera de producción, RV-167) · `Avisos para jefatura` ·
