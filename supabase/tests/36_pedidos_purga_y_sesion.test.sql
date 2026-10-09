@@ -169,7 +169,7 @@ select is((hidrantes.fn_salud() ->> 'topes_globales_24h')::int, current_setting(
 select pg_temp.voluntario();
 
 -- errores: 100 de una IP ya hoy; 500 sin IP ya hoy.
-set local role anon;
+-- Desde 0044 (docs/33 RV-306) anon ya no ejecuta la firma anterior: se prueba con el dueño.
 select hidrantes.fn_registrar_error(gen_random_uuid(), 'antes del tope', null, '/', 'x');
 reset role;
 select is((select count(*)::int from hidrantes.errores_cliente where mensaje = 'antes del tope' and ip_hash is null), 1,

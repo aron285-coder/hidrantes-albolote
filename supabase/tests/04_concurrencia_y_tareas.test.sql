@@ -42,8 +42,8 @@ select set_eq(
   $$ select jobname from cron.job where jobname like 'hidrantes\_%' $$,
   array['hidrantes_purgar_intentos', 'hidrantes_purgar_errores', 'hidrantes_revocar_tokens',
         'hidrantes_purgar_notificaciones', 'hidrantes_purgar_papelera', 'hidrantes_resumen_semanal',
-        'hidrantes_purgar_subidas'],
-  'las siete tareas de 04 §9 programadas (la de subidas, RV-07)');
+        'hidrantes_purgar_subidas', 'hidrantes_purgar_registros_cron'],
+  'las ocho tareas programadas (la de subidas, RV-07; la del historial de pg_cron, 0044 RV-301)');
 select is(
   (select count(*)::int from cron.job where jobname like 'hidrantes\_%' and username <> 'hidrantes_migrador'), 0,
   'las tareas corren como hidrantes_migrador, no como postgres');
