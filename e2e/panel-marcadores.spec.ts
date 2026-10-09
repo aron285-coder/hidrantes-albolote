@@ -194,3 +194,32 @@ for (const [ancho, alturaMapa, anchoEditar, botonesAlAncho] of [
     });
   });
 }
+
+// Capturas para la revisión a ojo (skill revisar-pantallas): PW_CAPTURAS=1, en claro y en oscuro.
+test.describe('capturas', () => {
+  test.skip(({ isMobile }) => !isMobile || !process.env.PW_CAPTURAS, 'solo bajo demanda, en el proyecto movil');
+  for (const [ancho, alto] of [
+    [412, 915],
+    [1440, 900],
+  ] as const) {
+    test(`mapas del panel con Barro y No funciona a ${ancho} px`, async ({ page }, info) => {
+      await page.setViewportSize({ width: ancho, height: alto });
+      await preparar(page);
+      await conPropuesta(page);
+      const mapa = await abrirDetalle(page);
+      await expect.poll(async () => Object.keys(await svgsPorCodigo(mapa)).length).toBe(LOS_CUATRO.length - 1);
+      for (const tema of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme: tema });
+        await mapa.screenshot({ path: info.outputPath(`cola-${ancho}-${tema}.png`), animations: 'disabled' });
+      }
+      await page.goto('/admin/inventario');
+      await page.getByRole('radio', { name: T.panelInventario.mapa }).click();
+      const inventario = page.getByTestId('mapa');
+      await expect.poll(async () => Object.keys(await svgsPorCodigo(inventario)).length).toBe(LOS_CUATRO.length);
+      for (const tema of ['light', 'dark'] as const) {
+        await page.emulateMedia({ colorScheme: tema });
+        await page.screenshot({ path: info.outputPath(`inventario-${ancho}-${tema}.png`), animations: 'disabled' });
+      }
+    });
+  }
+});
