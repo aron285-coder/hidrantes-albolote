@@ -80,8 +80,8 @@ export function DetallePropuesta({
   const [puntoCambiado, setPuntoCambiado] = useState(false);
   // La recarga que sigue a un error al decidir: mientras no llega, no se aprueba.
   const [recarga, setRecarga] = useState<'lista' | 'cargando' | 'error'>('lista');
-  // El servidor ha dicho PUNTO_NO_ACTIVO: aprobar (o fusionar) fallaría igual; solo queda rechazar
-  // (RV-270 D4, UI-02). Es de esta propuesta: el componente se monta con key = id.
+  // Aprobar ha fallado con PUNTO_NO_ACTIVO: repetirlo fallaría igual; solo queda rechazar (RV-270 D4,
+  // UI-02). Es de esta propuesta: el componente se monta con key = id.
   const [puntoNoActivo, setPuntoNoActivo] = useState(false);
   const desactualizada = p.desactualizada || puntoCambiado;
   // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
@@ -132,6 +132,8 @@ export function DetallePropuesta({
   async function ejecutar(
     accion: () => Promise<{ ok: true; datos?: unknown } | { ok: false; codigo: string }>,
     exito: string,
+    /** Qué se intentaba: PUNTO_NO_ACTIVO habla del punto de la propuesta al aprobar, y del duplicado al fusionar. */
+    que: 'aprobar' | 'fusionar' | 'rechazar',
   ) {
     setOcupado(true);
     const r = await accion();
@@ -140,10 +142,12 @@ export function DetallePropuesta({
       avisar(textoError(r.codigo), 'error');
       // El punto cambió: lo escrito se queda y se pide confirmación expresa (docs/32 RV-251).
       if (r.codigo.startsWith('PROPUESTA_DESACTUALIZADA')) setPuntoCambiado(true);
-      // El punto ya no está activo: vuelve a los botones, con aprobar deshabilitado y el motivo escrito.
       if (r.codigo.startsWith('PUNTO_NO_ACTIVO')) {
-        setPuntoNoActivo(true);
-        setModo((m) => (m === 'rechazar' ? m : null));
+        // Al aprobar, es el punto de la propuesta: vuelve a los botones, con aprobar deshabilitado y el
+        // motivo escrito (RV-270 D4). Al fusionar, es el duplicado: el alta se puede aprobar igual; se
+        // cierra la fusión y la recarga quita "Fusionar con…" (el duplicado ya no está en el inventario).
+        if (que === 'aprobar') setPuntoNoActivo(true);
+        if (que !== 'rechazar') setModo(null);
       }
       // Otra persona la resolvió o el punto cambió: se recarga para ver el estado real. Con un error el
       // detalle no se cierra (RV-252): si otra persona la resolvió, se va de la lista y entonces sí.
@@ -182,6 +186,7 @@ export function DetallePropuesta({
         return r.ok ? { ok: true as const, datos: r.datos } : r;
       },
       T.panelCola.aprobada(p.codigo ?? T.panelCola.nuevo),
+      'aprobar',
     );
 
   const titulo = `${p.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[p.operacion]}`;
@@ -263,6 +268,7 @@ export function DetallePropuesta({
                           return r.ok ? { ok: true as const } : r;
                         },
                         T.panelCola.aprobadaConCorrecciones(p.codigo ?? T.panelCola.nuevo),
+                        'aprobar',
                       )
                     }
                   />
@@ -271,7 +277,7 @@ export function DetallePropuesta({
                   <FormularioRechazo
                     ocupado={ocupado}
                     alCancelar={() => setModo(null)}
-                    alConfirmar={(m) => void ejecutar(() => rechazar(p.id, m), T.panelCola.rechazadaAviso)}
+                    alConfirmar={(m) => void ejecutar(() => rechazar(p.id, m), T.panelCola.rechazadaAviso, 'rechazar')}
                   />
                 )}
                 {modo === 'fusionar' && duplicado && (
@@ -281,14 +287,18 @@ export function DetallePropuesta({
                     ocupado={ocupado}
                     alCancelar={() => setModo(null)}
                     alConfirmar={(prev) =>
-                      void ejecutar(async () => {
-                        // La dirección editada en el detalle, si se ha cambiado (docs/32 RV-253).
-                        const { direccion: dir } = conDireccion({}, direccion, ensenada) as {
-                          direccion?: string | null;
-                        };
-                        const r = await fusionar(p.id, duplicado.id, prev, dir);
-                        return r.ok ? { ok: true as const } : r;
-                      }, T.panelCola.fusionada(duplicado.codigo))
+                      void ejecutar(
+                        async () => {
+                          // La dirección editada en el detalle, si se ha cambiado (docs/32 RV-253).
+                          const { direccion: dir } = conDireccion({}, direccion, ensenada) as {
+                            direccion?: string | null;
+                          };
+                          const r = await fusionar(p.id, duplicado.id, prev, dir);
+                          return r.ok ? { ok: true as const } : r;
+                        },
+                        T.panelCola.fusionada(duplicado.codigo),
+                        'fusionar',
+                      )
                     }
                   />
                 )}
@@ -339,7 +349,7 @@ export function DetallePropuesta({
               <Boton
                 variante="secundario"
                 className="border-oro-600 text-ambar-texto"
-                disabled={ocupado || puntoNoActivo}
+                disabled={ocupado}
                 onClick={() => setModo('fusionar')}
               >
                 {T.panelCola.fusionarCon(duplicado.codigo)}
