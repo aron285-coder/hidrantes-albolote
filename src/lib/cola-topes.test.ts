@@ -199,7 +199,6 @@ describe('mensajes de la espera por tope (RV-233)', () => {
   it.each([
     ['cuota_fotos', 'En espera: has llegado al máximo de fotos de hoy. Se enviará a las 13:00.'],
     ['cuota_fotos_grupo', 'En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará a las 13:00.'],
-    ['cuota_fotos_dispositivo', 'En espera: has llegado a tu máximo de fotos de hoy. Se enviará a las 13:00.'],
     ['sin_espacio_fotos', 'En espera: el servidor no tiene sitio para más fotos. Se volverá a intentar a las 13:00.'],
     ['sin_espacio', 'En espera: el servidor no tiene sitio para más propuestas. Se volverá a intentar a las 13:00.'],
     [
@@ -281,21 +280,39 @@ describe('los topes nuevos de 0041 (RV-245)', () => {
   });
 
   // docs/33 RV-329: con `ambito` (RV-303), «tu tope» y «el del grupo» se dicen distinto; sin él, como antes.
+  // El ámbito del móvil va aparte del motivo: la versión anterior lee `cuota_fotos` y su texto de siempre.
   it.each([
-    ['grupo', 'cuota_fotos_grupo', 'En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará a las 12:10.'],
+    [
+      'grupo',
+      { motivo: 'cuota_fotos_grupo', maximo: null },
+      'En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará a las 12:10.',
+    ],
     [
       'dispositivo',
-      'cuota_fotos_dispositivo',
+      { motivo: 'cuota_fotos', maximo: null, ambito: 'dispositivo' },
       'En espera: has llegado a tu máximo de fotos de hoy. Se enviará a las 12:10.',
     ],
-    [undefined, 'cuota_fotos', 'En espera: has llegado al máximo de fotos de hoy. Se enviará a las 12:10.'],
-  ] as const)('tope de fotos con ámbito %s: en la cola y en Mis propuestas', async (ambito, motivo, texto) => {
+    [
+      undefined,
+      { motivo: 'cuota_fotos', maximo: null },
+      'En espera: has llegado al máximo de fotos de hoy. Se enviará a las 12:10.',
+    ],
+  ] as const)('tope de fotos con ámbito %s: en la cola y en Mis propuestas', async (ambito, en_espera, texto) => {
     respuestaReserva = () =>
       respuesta(429, { error: 'CUOTA_SUBIDAS_AGOTADA', ...(ambito ? { ambito } : {}), reintentar_en_s: 600 });
     await encolarSinRed(2);
     await cola.procesarCola();
-    expect(cola.colaActual().map((i) => i.en_espera?.motivo)).toEqual([motivo, motivo]);
+    expect(cola.colaActual().map((i) => i.en_espera)).toEqual([en_espera, en_espera]);
     expect(textoEspera(cola.colaActual()[0]!)).toBe(texto);
+  });
+
+  it('un envío guardado por la versión anterior (sin ámbito) dice el texto de siempre', () => {
+    const viejo = {
+      fallo: null,
+      proximo: Date.now() + 600_000,
+      en_espera: { motivo: 'cuota_fotos' as const, maximo: null },
+    };
+    expect(textoEspera(viejo)).toBe('En espera: has llegado al máximo de fotos de hoy. Se enviará a las 12:10.');
   });
 
   it('un ámbito que no se conoce se queda en el texto de antes', async () => {

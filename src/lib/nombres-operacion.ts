@@ -43,9 +43,10 @@ export function textoEspera(envio: Pick<EnCola, 'en_espera' | 'fallo' | 'proximo
     case 'cuota_propuestas_grupo':
       return T.misPropuestas.esperaPropuestasGrupo(cuando);
     case 'cuota_fotos':
-      return T.misPropuestas.esperaFotos(cuando);
-    case 'cuota_fotos_dispositivo':
-      return T.misPropuestas.esperaFotosDispositivo(cuando);
+      // docs/33 RV-329: «tu máximo» si el servidor dijo que el tope es el de este móvil.
+      return envio.en_espera.ambito === 'dispositivo'
+        ? T.misPropuestas.esperaFotosDispositivo(cuando)
+        : T.misPropuestas.esperaFotos(cuando);
     case 'cuota_fotos_grupo':
       return T.misPropuestas.esperaFotosGrupo(cuando);
     case 'sin_espacio_fotos':
