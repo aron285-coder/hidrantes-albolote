@@ -341,7 +341,7 @@ test.describe('cabos sueltos del modo incidente (RV-62)', () => {
     // 20 m de por defecto serían 4). A z18 está a unos 150 px, lejos de los demás marcadores.
     const sur = (O.latitude - 30 / M_POR_GRADO).toFixed(6);
     await page.addInitScript(
-      (lat) => localStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [Number(lat), -3.656], zoom: 18 })),
+      (lat) => sessionStorage.setItem('hidrantes.vista', JSON.stringify({ centro: [Number(lat), -3.656], zoom: 18 })),
       sur,
     );
     await page.goto(`/?aqui=${sur},-3.656000`);

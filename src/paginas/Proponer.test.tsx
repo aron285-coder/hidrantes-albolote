@@ -118,6 +118,47 @@ describe('el formulario de un punto que no está (docs/31 RV-152)', () => {
   });
 });
 
+describe('Corregir datos: foto opcional y textos enteros (docs/33 RV-316)', () => {
+  const BOC: Punto = { ...HID, id: 'b1', codigo: 'BOC-0003', tipo: 'boca_riego', diametro_mm: 32, racor: 'granada' };
+  beforeEach(() => {
+    estado.cargado = true;
+    estado.puntos = [HID, BOC];
+  });
+  const texto = (html: string) => html.replace(/<[^>]+>/g, '').replace(/&#x27;/g, "'");
+
+  it('la foto dice «Foto · opcional» y el botón «Hacer foto (opcional)», secundario (D3)', () => {
+    const html = pintar('/proponer/datos?p=p1');
+    expect(T.formulario.fotoOpcional).toBe('Foto · opcional');
+    expect(T.formulario.hacerFotoOpcional).toBe('Hacer foto (opcional)');
+    expect(html).toContain(`>${T.formulario.fotoOpcional}<`);
+    const boton = /<button[^>]*>(?:(?!<\/button>).)*Hacer foto \(opcional\)<\/button>/s.exec(html)?.[0];
+    expect(boton).toBeDefined();
+    // Secundario (06 §5): borde de --texto, no el naranja de la foto obligatoria.
+    expect(boton).toMatch(/\bborder-texto\b/);
+    expect(boton).not.toMatch(/border-naranja-600/);
+    expect(html).not.toMatch(/obligatoria/);
+  });
+
+  it('en las demás operaciones la foto sigue obligatoria, con el botón de siempre', () => {
+    const html = pintar('/proponer/revision?p=p1');
+    expect(html).toContain(T.formulario.hacerFoto);
+    expect(html).not.toContain(T.formulario.fotoOpcional);
+  });
+
+  it('la ayuda del tipo es una frase con el enlace dentro, sin «·» colgando (D8)', () => {
+    const html = pintar('/proponer/datos?p=p1');
+    const ayuda = /<p[^>]*data-ayuda-tipo[^>]*>(.*?)<\/p>/s.exec(html)?.[1] ?? '';
+    expect(texto(ayuda)).toBe('¿El tipo está mal? Propón retirarlo y da de alta el correcto.');
+    expect(ayuda).toMatch(/<a[^>]*href="\/proponer\/retirada\?p=p1"[^>]*>Propón retirarlo<\/a>/);
+    expect(ayuda).not.toContain('·');
+  });
+
+  it('«Otra medida» lleva «mm» al lado del número', () => {
+    const html = pintar('/proponer/datos?p=b1');
+    expect(html).toMatch(/<input[^>]*aria-label="Otra medida"[^>]*value="32"[^>]*\/?>\s*<span[^>]*>mm<\/span>/);
+  });
+});
+
 describe('el botón de jefatura sin conexión (docs/31 RV-151)', () => {
   const comoJefatura = () => {
     estado.acceso = { tipo: 'jefatura', correo: 'j@example.org' };
