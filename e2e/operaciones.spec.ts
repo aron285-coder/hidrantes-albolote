@@ -308,6 +308,40 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await expect(page.getByLabel(T.formulario.motivoRetirada)).toBeVisible();
   });
 
+  // #563 (RV-270 D3, FR-21, FR-44): en corregir datos la foto no se exige, y el hueco lo dice.
+  test('corregir datos: el hueco dice que la foto es opcional y se envía sin ella', async ({ page }) => {
+    const s = await servidor(page);
+    const hid = PUNTOS[0];
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.corregirDatos}`) }).click();
+    const hueco = page.getByTestId('hueco-entrada-foto');
+    await expect(hueco.getByRole('button', { name: T.formulario.hacerFotoOpcional })).toBeVisible();
+    await expect(hueco.getByText(/obligatoria/)).toHaveCount(0);
+    await page.getByRole('radio', { name: T.formulario.d70 }).click();
+    await expect(enviar(page)).toBeEnabled();
+    await enviar(page).click();
+    await expect(page.getByRole('heading', { level: 2, name: T.envio.enviado })).toBeVisible();
+    expect(s.propuestas[0]).toMatchObject({ operacion: 'datos', foto_path: null });
+  });
+
+  test('alta y revisión: el hueco de la foto sigue diciendo obligatoria', async ({ page }) => {
+    await servidor(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: T.navegacion.nuevoPunto }).click();
+    await expect(page.getByRole('button', { name: T.formulario.hacerFotoDe(T.formulario.conexion) })).toBeVisible();
+    await expect(page.getByRole('button', { name: T.formulario.hacerFotoDe(T.formulario.sitio) })).toBeVisible();
+    await expect(page.getByText(/opcional/).filter({ hasText: /foto/i })).toHaveCount(0);
+
+    const hid = PUNTOS[0];
+    await page.goto(`/?p=${hid.id}`);
+    await page.getByRole('button', { name: T.ficha.proponerCambio }).click();
+    await page.getByRole('button', { name: new RegExp(`^${T.operaciones.sigueIgual}`) }).click();
+    const hueco = page.getByTestId('hueco-entrada-foto');
+    await expect(hueco.getByRole('button', { name: T.formulario.hacerFoto })).toBeVisible();
+    await expect(enviar(page)).toBeDisabled();
+  });
+
   // docs/31 RV-157: «Repetir» con una foto que no se puede leer deja la anterior, con el aviso.
   test('repetir una foto que falla deja la anterior y lo dice', async ({ page }) => {
     await servidor(page);
