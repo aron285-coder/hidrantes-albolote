@@ -229,6 +229,25 @@ describe('la descarga del mapa base no se queda colgada (RV-235)', () => {
     expect(m.estadoMapabase()).toMatchObject({ progreso: null, fallo: false, parada: false });
   });
 
+  it('un fallo real después de pagehide (al guardar) sí se anota', async () => {
+    prepararEntorno({ enLinea: true, tipo: 'wifi' });
+    anotarError.mockClear();
+    const lleno = new DOMException('Sin espacio', 'QuotaExceededError');
+    vi.stubGlobal('caches', {
+      open: async () => ({
+        match: async () => undefined,
+        put: async () => {
+          ventana.dispatchEvent(new Event('pagehide'));
+          throw lleno;
+        },
+      }),
+    });
+    const m = await cargar();
+    expect(await m.descargarMapabase()).toBe(false);
+    expect(anotarError).toHaveBeenCalledWith(lleno, 'mapabase');
+    expect(m.estadoMapabase()).toMatchObject({ fallo: true, parada: false });
+  });
+
   it('un fallo que no es parada no se presenta como parada', async () => {
     prepararEntorno({ enLinea: true, tipo: 'wifi' });
     vi.stubGlobal(
