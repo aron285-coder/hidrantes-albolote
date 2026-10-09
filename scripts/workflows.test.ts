@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -580,8 +580,15 @@ describe('CI en paralelo (PAR-01)', () => {
       'key: playwright-${{ runner.os }}-${{ steps.version.outputs.version }}-${{ steps.version.outputs.navegadores }}',
     );
     expect(accion).toContain('default: chromium firefox');
-    expect(accion).toContain('con_reintento 200 npx playwright install-deps $NAVEGADORES');
-    expect(accion).toContain('con_reintento 200 npx playwright install --with-deps $NAVEGADORES');
+    expect(accion).toContain('con_reintento 200 npx playwright install $NAVEGADORES');
+    expect(accion).toContain('instalar_bibliotecas ~/debs-playwright $NAVEGADORES');
+    // Las bibliotecas del sistema, con caché por imagen del runner (el espejo de Ubuntu, 9 oct 2026).
+    expect(accion).toContain('path: ~/debs-playwright');
+    expect(accion).toContain(
+      'key: debs-playwright-${{ steps.version.outputs.imagen }}-${{ steps.version.outputs.version }}-${{ steps.version.outputs.navegadores }}',
+    );
+    expect(accion).toContain('${ImageOS:-sin-imagen}-${ImageVersion:-0}');
+    expect(accion).not.toContain('--with-deps');
     // Dos intentos con su KILL a los 15 s caben en los 8 minutos del paso con margen para la caché
     // y para escribir el ::error:: final.
     for (const m of accion.matchAll(/con_reintento (\d+) /g)) expect(2 * (Number(m[1]) + 15)).toBeLessThanOrEqual(450);
@@ -670,6 +677,83 @@ describe('con_reintento (RV-207)', () => {
     expect(r.codigo).toBe(1);
     expect(r.intentos).toBe(2);
     expect(r.salida).toContain('::error::');
+  });
+});
+
+// 9 oct 2026: el espejo de Ubuntu se pasó del tope cuatro veces en un día. Las bibliotecas salen de los
+// .deb guardados si bastan, y si no, de la red; con npx, sudo y dpkg simulados.
+describe('instalar_bibliotecas', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  const unix = (p: string) => p.replace(/\\/g, '/');
+  const probar = (o: { debsEnCaché: boolean; bastan: boolean; descarga: boolean; instalaFalla?: boolean }) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'bibliotecas-'));
+    const bin = path.join(dir, 'bin');
+    const cache = path.join(dir, 'debs');
+    const archivos = path.join(dir, 'archivos');
+    const registro = path.join(dir, 'registro');
+    for (const d of [bin, archivos]) mkdirSync(d, { recursive: true });
+    if (o.debsEnCaché) {
+      mkdirSync(cache);
+      writeFileSync(path.join(cache, 'libuno.deb'), 'x');
+    }
+    if (o.descarga) writeFileSync(path.join(archivos, 'libdos.deb'), 'x');
+    const anotar = `echo "$(basename "$0") $*" >> '${unix(registro)}'`;
+    const scripts: Record<string, string> = {
+      // --dry-run: 0 si no falta nada (apt-get -s sin red); install-deps sin --dry-run es la red.
+      npx: `${anotar}\ncase "$*" in *--dry-run*) exit ${o.bastan ? 0 : 1} ;; *install-deps*) exit ${o.instalaFalla ? 1 : 0} ;; esac`,
+      sudo: `${anotar}\n"$@"`,
+      dpkg: `${anotar}\nexit 0`,
+      pkill: 'exit 1',
+      pgrep: 'exit 1',
+    };
+    for (const [n, c] of Object.entries(scripts))
+      writeFileSync(path.join(bin, n), `#!/usr/bin/env bash\n${c}\n`, { mode: 0o755 });
+    const r = spawnSync(
+      'bash',
+      [
+        '-c',
+        `export PATH="$(cygpath -u "$1" 2>/dev/null || printf %s "$1"):$PATH"; export APT_ARCHIVOS="$3"; source .github/scripts/instalar-navegadores.sh; instalar_bibliotecas "$2" chromium firefox`,
+        '_',
+        unix(bin),
+        unix(cache),
+        unix(archivos),
+      ],
+      { cwd: raiz, encoding: 'utf8', timeout: 60_000 },
+    );
+    const llamadas = existsSync(registro) ? readFileSync(registro, 'utf8').trim().split('\n') : [];
+    const guardados = existsSync(cache) ? readdirSync(cache).sort() : [];
+    rmSync(dir, { recursive: true, force: true });
+    return { codigo: r.status, salida: r.stdout + r.stderr, llamadas, guardados };
+  };
+  const deRed = (l: string[]) => l.filter((x) => /^npx playwright install-deps chromium firefox$/.test(x)).length;
+
+  it('con los .deb guardados y sin que falte nada, no baja nada', () => {
+    const r = probar({ debsEnCaché: true, bastan: true, descarga: false });
+    expect(r.codigo).toBe(0);
+    expect(r.llamadas.some((l) => /^dpkg -i .*libuno\.deb$/.test(l))).toBe(true);
+    expect(deRed(r.llamadas)).toBe(0);
+    expect(r.salida).toContain('desde la caché');
+  });
+
+  it('si con los guardados aún falta algo, instala de la red', () => {
+    const r = probar({ debsEnCaché: true, bastan: false, descarga: true });
+    expect(r.codigo).toBe(0);
+    expect(deRed(r.llamadas)).toBe(1);
+    expect(r.salida).toContain('::warning::');
+  });
+
+  it('sin caché, instala de la red y guarda los .deb para la próxima', () => {
+    const r = probar({ debsEnCaché: false, bastan: false, descarga: true });
+    expect(r.codigo).toBe(0);
+    expect(deRed(r.llamadas)).toBe(1);
+    expect(r.guardados).toEqual(['libdos.deb']);
+  });
+
+  it('si la red falla dos veces, el paso falla', () => {
+    const r = probar({ debsEnCaché: false, bastan: false, descarga: false, instalaFalla: true });
+    expect(r.codigo).toBe(1);
+    expect(deRed(r.llamadas)).toBe(2);
+    expect(r.guardados).toEqual([]);
   });
 });
 

@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { List, Map as IconoMapa, Settings } from 'lucide-react';
-import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router';
+import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { EstadoSincro } from '@/componentes/mapa/BarraEstado';
+import { NavegacionArriba } from '@/componentes/NavegacionArriba';
 import { AvisoNovedades } from '@/componentes/AvisoNovedades';
 import { hayNovedadesSinVer } from '@/lib/novedades';
 import { LimiteError } from '@/componentes/LimiteError';
@@ -16,49 +17,6 @@ const DESTINOS = [
   { a: '/lista', texto: T.navegacion.lista, Icono: List },
   { a: '/ajustes', texto: T.navegacion.ajustes, Icono: Settings },
 ] as const;
-
-/**
- * En el ordenador (desde 1100 px), la navegación va arriba, junto al título, y sin «Lista», que ya está a
- * la izquierda del mapa (docs/33 RV-321, U12). Con «Mis propuestas», que en el móvil se abre desde Ajustes.
- */
-const ARRIBA = [
-  { a: '/', texto: T.navegacion.mapa },
-  { a: '/mis-propuestas', texto: T.navegacion.misPropuestas },
-  { a: '/ajustes', texto: T.navegacion.ajustes },
-] as const;
-
-function NavegacionArriba({ pathname, jefatura }: { pathname: string; jefatura: boolean }) {
-  // Mis propuestas es del voluntario (jefatura tiene la Cola del panel).
-  const destinos = ARRIBA.filter(({ a }) => !jefatura || a !== '/mis-propuestas');
-  return (
-    <nav aria-label={T.app.nombreCorto} className="mr-auto ml-6 hidden items-center gap-1 min-[1100px]:flex">
-      {destinos.map(({ a, texto }) => {
-        // La lista es parte del mapa en el ordenador: en /lista, «Mapa» también es la página activa.
-        const activa = pathname === a || (a === '/' && pathname.replace(/\/+$/, '') === '/lista');
-        return (
-          <Link
-            key={a}
-            to={a}
-            aria-current={activa ? 'page' : undefined}
-            className={cn(
-              'relative flex min-h-11 items-center border-b-2 px-3 text-[15px] font-semibold text-white',
-              activa ? 'border-naranja-600' : 'border-transparent',
-            )}
-          >
-            {texto}
-            {a === '/ajustes' && pathname !== '/ajustes' && hayNovedadesSinVer() && (
-              <span
-                data-testid="punto-novedades-arriba"
-                className="bg-naranja-600 absolute top-2 right-1 size-2 rounded-full"
-                aria-label={T.ajustes.seccionNovedades}
-              />
-            )}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
 
 const TITULOS: Record<string, string> = {
   '/': T.navegacion.puntosDeAgua,

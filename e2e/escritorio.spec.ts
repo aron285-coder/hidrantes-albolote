@@ -2,13 +2,20 @@
 // abajo y sin «Lista» (la lista ya está a la izquierda); los filtros de la lista se parten en dos líneas
 // en vez de desplazarse; y con el mapa sin conexión no se ve el borde recto de su recorte.
 
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { novedadesDe } from '../scripts/generar-novedades.ts';
 import { T } from '../src/lib/textos.ts';
 import { conSesion, simularRpc } from './ayudas.ts';
 import { LISTADO } from './puntos.ts';
 import mapabase from '../datos/mapabase.json' with { type: 'json' };
 
 test.skip(({ isMobile }) => !!isMobile, 'los tamaños se fijan a mano en el proyecto de escritorio');
+
+// El punto de novedades solo sale si la última versión del CHANGELOG trae alguna línea propia (DEC-142):
+// en un PR de versión que solo trae correcciones no sale, y el test no puede darlo por hecho.
+const NOVEDADES = novedadesDe(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8'));
+const PUNTO = NOVEDADES.lineas.some((l) => l.version === NOVEDADES.version) ? 1 : 0;
 
 async function abrir(page: Page, ancho: number, alto: number, ruta = '/') {
   await page.setViewportSize({ width: ancho, height: alto });
@@ -48,7 +55,7 @@ for (const [ancho, alto] of [
       'page',
     );
     // El punto de las novedades sin ver, también arriba.
-    await expect(page.getByTestId('punto-novedades-arriba')).toBeVisible();
+    await expect(page.getByTestId('punto-novedades-arriba')).toHaveCount(PUNTO);
     await arriba.getByRole('link', { name: T.navegacion.misPropuestas, exact: true }).click();
     await expect(page).toHaveURL(/\/mis-propuestas/);
   });
@@ -126,4 +133,58 @@ test('con una capa en línea se puede alejar como siempre (z10)', async ({ page 
       { timeout: 20_000, intervals: [500] },
     )
     .toBe(10);
+});
+
+// #625 (docs/33 RV-344 D1): Mis propuestas se abría sin la navegación de arriba; para ir a Ajustes había
+// que volver primero al mapa. Ahora la lleva como Mapa y Ajustes, y el móvil no cambia.
+test('1440 px: Mis propuestas lleva la navegación de arriba, marcada como actual (#625)', async ({ page }) => {
+  await abrir(page, 1440, 900);
+  await page.getByRole('banner').getByRole('link', { name: T.navegacion.misPropuestas, exact: true }).click();
+  await expect(page).toHaveURL(/\/mis-propuestas$/);
+  await expect(page.getByRole('heading', { level: 1, name: T.navegacion.misPropuestas })).toBeVisible();
+  const arriba = page.getByRole('banner');
+  for (const nombre of [T.navegacion.mapa, T.navegacion.misPropuestas, T.navegacion.ajustes]) {
+    await expect(arriba.getByRole('link', { name: nombre })).toBeVisible();
+  }
+  await expect(arriba.getByRole('link', { name: T.navegacion.misPropuestas, exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await expect(arriba.getByRole('link', { name: T.navegacion.mapa, exact: true })).not.toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  // El punto de las novedades sin ver, también aquí.
+  await expect(page.getByTestId('punto-novedades-arriba')).toHaveCount(PUNTO);
+  // Desde aquí, directa a Ajustes.
+  await arriba.getByRole('link', { name: T.navegacion.ajustes }).click();
+  await expect(page).toHaveURL(/\/ajustes$/);
+  // Volver atrás sigue llevando a Mis propuestas y, con la flecha, al mapa.
+  await page.goBack();
+  await expect(page).toHaveURL(/\/mis-propuestas$/);
+  await page.getByRole('button', { name: T.entrada.volver }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByTestId('mapa')).toBeVisible();
+});
+
+test('412 px: Mis propuestas sigue sin navegación y el mapa con la barra de abajo (#625)', async ({ page }) => {
+  await abrir(page, 412, 915);
+  // En el móvil, Mis propuestas se abre desde Ajustes.
+  await visibles(page, T.navegacion.ajustes).click();
+  await page
+    .getByRole('group', { name: T.navegacion.misPropuestas })
+    .getByRole('button', { name: T.ajustes.ver })
+    .click();
+  await expect(page.getByRole('heading', { level: 1, name: T.navegacion.misPropuestas })).toBeVisible();
+  for (const nombre of [T.navegacion.mapa, T.navegacion.misPropuestas, T.navegacion.ajustes]) {
+    await expect(visibles(page, nombre)).toHaveCount(0);
+  }
+  await page.getByRole('button', { name: T.entrada.volver }).click();
+  await expect(page).toHaveURL(/\/ajustes$/);
+  await visibles(page, T.navegacion.mapa).click();
+  await expect(page.getByTestId('mapa')).toBeVisible();
+  for (const nombre of [T.navegacion.mapa, T.navegacion.lista, T.navegacion.ajustes]) {
+    await expect(visibles(page, nombre)).toHaveCount(1);
+  }
+  await expect(visibles(page, T.navegacion.misPropuestas)).toHaveCount(0);
 });

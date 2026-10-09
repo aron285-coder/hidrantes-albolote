@@ -166,3 +166,29 @@ código real); el hash de la IP es el mismo valor que la Function le pasaría. L
 `docs/capturas/staging-31/` se han renovado con la interfaz de docs/33.
 
 commit: 9f6d7ccdb9ac21d3b3411bc3116546db85f73030 · resultado: verde
+
+## Release 0.11.1 (9 oct 2026)
+
+Con el arreglo de #625 (#628: en el ordenador, Mis propuestas lleva la barra de arriba). Sin migraciones
+nuevas: la última en staging sigue siendo `0044`. «Desplegar staging» y CI en verde con el commit de
+abajo. Mismo método (traspaso 37972589137, borrado).
+
+| Recorrido | Resultado |
+|---|---|
+| Los recorridos de 0.11.0 (voluntario, jefatura por BD, `detalleLegible`, anonimizar) y los 25 canjes de RV-343 (20 y el 21.º frenado con la entrada cerrada; 25 con la entrada abierta; todo deshecho) | ok (BOC-0010) |
+| **Nuevo (#625):** a 1440 × 900, en Mis propuestas la barra de arriba enseña «Mapa» y «Mis propuestas» marcada como actual | ok · `08-mis-propuestas-navegacion-escritorio.png` |
+| Limpieza | ok: 0 pendientes, 0 incidencias abiertas, token revocado |
+
+commit: 52b7050e4cc3cebf6a75baa11b5ea58a2216f3a6 · resultado: verde
+
+### Repetición con 6ca7b23 (9 oct 2026)
+
+Tras el marcador de `52b7050` entraron dos cambios que no son solo documentación: #632 (Novedades con
+los ámbitos de docs/33 y el e2e del escritorio que ya no da por hecho el punto de novedades; el PR de
+versión 0.11.1, #630, fallaba por eso) y #633 (las bibliotecas de los navegadores, desde una caché en la
+CI). Repetida la comprobación entera con el commit de abajo: recorridos de voluntario (13 en verde, con la
+barra de arriba en Mis propuestas), jefatura por BD (BOC-0011), los 25 canjes (20 y el 21.º frenado con la
+entrada cerrada; 25 con la entrada abierta; deshecho), `detalleLegible`, anonimizar y limpieza (0
+pendientes, 0 incidencias abiertas). Traspaso 37983045924, borrado.
+
+commit: 6ca7b23d8135317c22f8580f8c18aa14b084a7e2 · resultado: verde

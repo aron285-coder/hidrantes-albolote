@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
+import { NavegacionArriba } from '@/componentes/NavegacionArriba';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
 import { LimiteError } from '@/componentes/LimiteError';
@@ -88,6 +89,7 @@ function Tarjeta({
 /** Mis propuestas (FR-91, FL-10): lo que falta por enviar y lo enviado con su resultado. */
 export function MisPropuestas() {
   const navegar = useNavigate();
+  const { pathname } = useLocation();
   const cola = useCola();
   const propias = useMisPropuestas();
   const conexion = useConexion();
@@ -132,7 +134,13 @@ export function MisPropuestas() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <BarraSuperior titulo={T.navegacion.misPropuestas} alVolver={() => navegar(-1)} />
+      <BarraSuperior
+        titulo={T.navegacion.misPropuestas}
+        alVolver={() => navegar(-1)}
+        // Va fuera del armazón, pero en el ordenador lleva la misma navegación de arriba (#625, U12).
+        // Solo la abre el voluntario (RutasDentro): sin «Jefatura».
+        navegacion={<NavegacionArriba pathname={pathname} jefatura={false} />}
+      />
       <LimiteError>
         <div className="mx-auto w-full max-w-lg p-3">
           {aviso === 'sin_conexion' && (

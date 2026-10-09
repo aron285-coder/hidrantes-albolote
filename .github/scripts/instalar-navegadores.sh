@@ -24,6 +24,33 @@ liberar_apt() {
   sudo dpkg --configure -a >/dev/null 2>&1 || true
 }
 
+# Las bibliotecas del sistema que piden los navegadores, sin pasar por el espejo de Ubuntu si se puede.
+# El 9 oct 2026 el espejo tardó más de 2 × 200 s cuatro veces en un día y paró dos releases. Los .deb que
+# baja `install-deps` se guardan en <carpeta> (la acción la guarda en la caché por imagen del runner):
+# la vez siguiente se instalan con dpkg, sin red, y `install-deps --dry-run` (apt-get -s, sin red)
+# confirma que no falta nada. Si falta algo o no hay .deb, se instala de la red como siempre.
+#
+#   instalar_bibliotecas <carpeta> <navegador…>
+instalar_bibliotecas() {
+  local carpeta="$1"
+  shift
+  local archivos="${APT_ARCHIVOS:-/var/cache/apt/archives}"
+  if compgen -G "$carpeta/*.deb" >/dev/null; then
+    sudo dpkg -i "$carpeta"/*.deb >/dev/null 2>&1 || true
+    if npx playwright install-deps --dry-run "$@" >/dev/null 2>&1; then
+      echo "Bibliotecas del sistema desde la caché ($(compgen -G "$carpeta/*.deb" | wc -l) paquetes), sin red."
+      return 0
+    fi
+    echo "::warning::Con la caché de bibliotecas aún falta algo: se instalan de la red."
+    liberar_apt
+  fi
+  con_reintento 200 npx playwright install-deps "$@" || return 1
+  if compgen -G "$archivos/*.deb" >/dev/null; then
+    mkdir -p "$carpeta"
+    cp "$archivos"/*.deb "$carpeta"/
+  fi
+}
+
 con_reintento() {
   local tope="$1"
   shift
