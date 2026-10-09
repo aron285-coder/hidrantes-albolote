@@ -14,7 +14,8 @@ async function abrir(page: Page, { esperarPuntos = true } = {}) {
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_ficha_punto: PUNTOS[0], fn_registrar_error: null });
   await page.goto('/');
-  if (esperarPuntos) await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  // Los puntos ya guardados: se ve algún marcador (sin depender del sello, que cambia con RV-311).
+  if (esperarPuntos) await expect(page.locator('.marcador').first()).toBeVisible();
 }
 
 type Fix = { __fix: (lat: number, lng: number, precision: number) => void };
