@@ -689,6 +689,8 @@ export const T = {
     puntoHaCambiado: 'El punto ha cambiado: revisa los datos.',
     cargandoPunto: 'Cargando el punto de hoy…',
     puntoNoCarga: 'No se ha podido cargar el punto de hoy: sin verlo no se aprueba.',
+    // RV-270 D4: aprobar ha fallado con PUNTO_NO_ACTIVO; repetirlo fallaría igual (UI-02).
+    soloRechazar: 'El punto ya no está activo: solo se puede rechazar.',
     cancelar: 'Cancelar',
     motivoRechazo: 'Motivo del rechazo (obligatorio, lo verá quien lo propuso)',
     sinMotivo: 'Sin motivo no se puede rechazar.',
