@@ -125,9 +125,27 @@ El código de seis cifras con el que entran los voluntarios.
 1. Decide si marcas **Revocar todos los dispositivos**:
    - **sin marcar**: quien ya entró sigue trabajando; solo los móviles nuevos necesitan el código
      nuevo;
-   - **marcado**: todos vuelven a teclearlo. Es lo que se usa **si el código se ha filtrado**.
+   - **marcado**: todos vuelven a teclearlo. Es lo que se usa **si el código se ha filtrado**. La
+     entrada se abre sola 24 horas para que todos puedan volver a entrar (abajo).
 2. **Generar uno nuevo** → **Generar y poner en vigor**.
 3. Pásalo al grupo por el canal habitual. Nunca en un sitio público.
+
+#### La entrada (el día del lanzamiento)
+
+Para que un código filtrado no sirva para mucho, la app deja entrar a pocos móviles a la vez: 20 al
+día desde una misma wifi y 40 por hora entre todos. Cuando entra todo el grupo de golpe (el día del
+lanzamiento, en una reunión con la wifi de la sede, o después de cambiar el código revocando),
+eso se queda corto.
+
+- **Abrir la entrada para todos (24 h)**, en *Código de acceso*: durante 24 horas entran todos los
+  que tengan el código, desde la misma wifi si hace falta. Quien pruebe códigos al azar sigue frenado
+  igual.
+- Abierta, sale una franja verde con **hasta cuándo** y el botón **Cerrar ahora**. Si no, se cierra
+  sola al pasar la hora.
+- **El día del lanzamiento: ábrela antes de pasar el código al grupo.**
+- Si *Salud del sistema* dice que hay **entradas frenadas por el tope**, alguien con el código bueno
+  se ha quedado fuera: ábrela desde ahí.
+- Abrirla y cerrarla queda en el *Registro*.
 
 ### Acceso de administradores
 
@@ -137,7 +155,9 @@ activo no se puede quitar. No hace falta tocar nada técnico.
 ### Parámetros
 
 Meses entre revisiones, radio de duplicado, días de papelera, margen de la zona, fotos por móvil y
-día, tramo de manguera y radios de marcador. **Guardar cambios**; los móviles los aplican en su
+día, tramo de manguera, radios de marcador y los dos topes de entrada («Entradas desde una misma
+wifi al día» y «Entradas por hora, entre todos»; para un día puntual es mejor abrir la entrada 24 h
+que subirlos). **Guardar cambios**; los móviles los aplican en su
 siguiente sincronización. Si no sabes qué hace uno, déjalo como está.
 
 ### Núcleos
