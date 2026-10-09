@@ -127,6 +127,37 @@ describe('detalleTope (docs/32 RV-232)', () => {
     expect(detalleTope('reintentar_en_s=120')).toEqual({ reintentar_en_s: 120 });
   });
 
+  // docs/33 RV-303: 0042 añade ambito=dispositivo|grupo (y 0041 ambito=token_nuevo) para que el móvil
+  // diga si el tope es suyo o del grupo. Solo esos valores: cualquier otro se descarta.
+  it('deja pasar ambito si es uno de los conocidos', () => {
+    expect(detalleTope('maximo=80 reintentar_en_s=600 ambito=dispositivo')).toEqual({
+      maximo: 80,
+      reintentar_en_s: 600,
+      ambito: 'dispositivo',
+    });
+    expect(detalleTope('maximo=150 reintentar_en_s=40000 ambito=grupo')).toEqual({
+      maximo: 150,
+      reintentar_en_s: 40000,
+      ambito: 'grupo',
+    });
+    expect(detalleTope('maximo=3 reintentar_en_s=60 ambito=token_nuevo')).toEqual({
+      maximo: 3,
+      reintentar_en_s: 60,
+      ambito: 'token_nuevo',
+    });
+  });
+
+  it('un ambito desconocido no sale', () => {
+    expect(detalleTope('maximo=6 reintentar_en_s=900 ambito=<script>')).toEqual({ maximo: 6, reintentar_en_s: 900 });
+    expect(detalleTope('maximo=6 reintentar_en_s=900 ambito=grupos')).toEqual({ maximo: 6, reintentar_en_s: 900 });
+    expect(detalleTope('maximo=6 reintentar_en_s=900 ambito=ip')).toEqual({ maximo: 6, reintentar_en_s: 900 });
+  });
+
+  // 0044: SIN_ESPACIO (base de datos) llega con la misma forma que SIN_ESPACIO_FOTOS.
+  it('saca los números de SIN_ESPACIO como los de SIN_ESPACIO_FOTOS', () => {
+    expect(detalleTope('maximo=419430400 reintentar_en_s=3600')).toEqual({ maximo: 419430400, reintentar_en_s: 3600 });
+  });
+
   it('sin números, o sin texto, no inventa nada', () => {
     expect(detalleTope('Hoy se ha llegado al máximo de fotos de todo el grupo')).toEqual({});
     expect(detalleTope(undefined)).toEqual({});
