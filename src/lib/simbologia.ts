@@ -88,19 +88,30 @@ export function svgMarcador(p: Simbolo, { tamano = OBJETIVO_TACTIL, seleccionado
   // Un caudal que esta versión no conoce se dibuja como no funciona (docs/24 RV-102a).
   const caudal = caudalParaDibujar(p.caudal);
   const nf = caudal === 'no_funciona';
-  // Tachado = no se puede usar; el color dice por qué (WCAG 1.4.1, FR-61).
-  const tachar = nf || caudal === 'barro';
-  const borde = caudal === 'regular' ? 'var(--borde-marcador-regular)' : 'var(--borde-marcador)';
+  // docs/33 RV-319 (U10): Barro y No funciona se distinguen sin color (WCAG 1.4.1, FR-61). Barro,
+  // marrón lleno con una «B» blanca; No funciona, blanco con borde gris y un aspa gris.
+  const borde = nf
+    ? 'var(--gris-700)'
+    : caudal === 'regular'
+      ? 'var(--borde-marcador-regular)'
+      : 'var(--borde-marcador)';
   // El borde es siempre continuo (DEC-155): "sin revisar" lo dice el anillo de fuera.
-  const trazo = `stroke="${borde}" stroke-width="${bw}"`;
-  const relleno = `fill="${COLOR_CAUDAL[caudal]}"${nf ? ' opacity="0.5"' : ''}`;
+  // El borde gris de No funciona, más fino: grueso, a tamaño de leyenda el blanco no se veía.
+  const trazo = `stroke="${borde}" stroke-width="${nf ? 1.5 : bw}"`;
+  // El blanco de No funciona es el del borde de los marcadores: blanco en los dos modos (DEC-072).
+  const relleno = `fill="${nf ? 'var(--borde-marcador)' : COLOR_CAUDAL[caudal]}"`;
   const forma =
     p.tipo === 'hidrante'
       ? `<circle data-forma="circulo" r="${r}" ${relleno} ${trazo}/>`
       : `<rect data-forma="cuadrado" x="${-r}" y="${-r}" width="${2 * r}" height="${2 * r}" rx="${esquina(r)}" ${relleno} ${trazo}/>`;
-  const tachado = tachar
-    ? `<line data-tachado x1="${-r}" y1="${r}" x2="${r}" y2="${-r}" stroke="var(--borde-marcador)" stroke-width="2"/>`
-    : '';
+  const k = redondo(r * 0.4);
+  const tachado =
+    caudal === 'barro'
+      ? `<text data-letra x="0" y="0" text-anchor="middle" dominant-baseline="central" font-family="system-ui, sans-serif" font-weight="700" font-size="${redondo(r * 1.15)}" fill="var(--borde-marcador)">B</text>`
+      : nf
+        ? `<line data-aspa x1="${-k}" y1="${-k}" x2="${k}" y2="${k}" stroke="var(--gris-700)" stroke-width="1.25" stroke-linecap="round"/>` +
+          `<line data-aspa x1="${-k}" y1="${k}" x2="${k}" y2="${-k}" stroke="var(--gris-700)" stroke-width="1.25" stroke-linecap="round"/>`
+        : '';
   const sinRevisar = p.revision_caducada ? anilloSinRevisar(p.tipo, r) : '';
   // Medio lado de la caja del anillo de "sin revisar", hasta su cara exterior.
   const h = medioAnillo(r);
