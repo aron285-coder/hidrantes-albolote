@@ -447,8 +447,8 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Datos externos.` ·
 `Para deducir direcciones se consulta OpenStreetMap con las coordenadas del hidrante, nunca con datos tuyos. Mapa base y direcciones © OpenStreetMap contributors.`
 
-**Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · `Mapa base propio` ·
-`Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `© OpenStreetMap contributors` ·
+**Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · capas en palabras (docs/33 RV-317): `Mapa sin conexión` · `Callejero` · `Foto aérea` · `Funciona sin cobertura` · `Con nombres de calles` · `Para ver el terreno` · `Parcelas y edificios` · `Fuentes: OpenStreetMap, PNOA (IGN), Catastro.` ·
+`Catastro` · `© OpenStreetMap contributors` ·
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` · `Centrado en tu posición` · `Ver toda la zona` (aviso al abrir el mapa sobre el voluntario, docs/33 RV-310) ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
@@ -464,12 +464,12 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Descargar versión nueva` · `Ocultar aviso` (avisos del mapa base en el propio mapa, FR-81) ·
 `Descargando el mapa base` · `Mapa base: descargada la mitad` · `Mapa base descargado` ·
 `No se ha podido descargar el mapa base` (solo para el lector de pantalla: el porcentaje se ve pero no se anuncia, docs/32 RV-236) ·
-`La capa "[Satélite (PNOA)]" necesita cobertura. Los puntos siguen; cambia al mapa base.` ·
-`Sin cobertura: se ve el mapa base propio en lugar de «[Calle (OSM)]»` (con el mapa base en el móvil, RV-58) ·
+`La capa "[Foto aérea]" necesita cobertura. Los puntos siguen; cambia a «Mapa sin conexión».` ·
+`Sin cobertura: se ve el mapa sin conexión en lugar de «[Callejero]»` (con el mapa base en el móvil, RV-58) ·
 `Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Cerrar la búsqueda` (el mismo ✕ con el buscador vacío, docs/33 RV-312) · `Buscando tu posición…` ·
 `Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.` ·
 `No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Cerrar la leyenda` · `Zoom` · `Acercar` · `Alejar` ·
-`funciona sin cobertura` · `solo en línea` · `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
+`Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
 
 > **Coordenadas con su sistema (DEC-157).** Cada coordenada lleva delante el nombre de su sistema, en
 > la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte: `WGS84 · grados decimales`
