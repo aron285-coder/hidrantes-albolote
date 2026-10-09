@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.11.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.10.1...hidrantes-albolote-v0.11.0) (2026-10-09)
+
+
+### Novedades
+
+* **acceso:** el día del lanzamiento todos pueden entrar a la vez desde la misma wifi ([#592](https://github.com/aron285-coder/hidrantes-albolote/issues/592)) ([ce9a53c](https://github.com/aron285-coder/hidrantes-albolote/commit/ce9a53cf920f67f978d2c66c63b42b1c4a4c5da9))
+* **ajustes:** el mapa sin cobertura en una tarjeta y novedades sin repetir la versión (RV-320) ([#606](https://github.com/aron285-coder/hidrantes-albolote/issues/606)) ([03ea904](https://github.com/aron285-coder/hidrantes-albolote/commit/03ea90480d06ef3ac7e66036645cb4e7d66cdef1))
+* **app:** el aviso de versión nueva va abajo, con un botón «Actualizar» (docs/33 RV-313) ([#614](https://github.com/aron285-coder/hidrantes-albolote/issues/614)) ([063e7d9](https://github.com/aron285-coder/hidrantes-albolote/commit/063e7d95002213aea9538e3551e72fa724e3d9aa))
+* **ficha:** sin foto, una franja y no un bloque; si no carga, se puede reintentar ([#605](https://github.com/aron285-coder/hidrantes-albolote/issues/605)) ([123145c](https://github.com/aron285-coder/hidrantes-albolote/commit/123145cc24db3485359b739824ee7395c0dd5d1e))
+* **formularios:** foto opcional, textos enteros y «Propón retirarlo» que vuelve a la ficha (RV-316, RV-322) ([#603](https://github.com/aron285-coder/hidrantes-albolote/issues/603)) ([67164ed](https://github.com/aron285-coder/hidrantes-albolote/commit/67164ed52d0aebe61f5622e65b79426fb3c2b29b))
+* **mapa:** al medir, las distancias de cada tramo ya no se pisan (docs/33 RV-318) ([#616](https://github.com/aron285-coder/hidrantes-albolote/issues/616)) ([1f0ad0c](https://github.com/aron285-coder/hidrantes-albolote/commit/1f0ad0cc09b80e2688b6a8fd743dc4cd07c6a5d3))
+* **mapa:** Barro y No funciona se distinguen a simple vista ([#617](https://github.com/aron285-coder/hidrantes-albolote/issues/617)) ([6fe05ed](https://github.com/aron285-coder/hidrantes-albolote/commit/6fe05ed128540d77ffb68b0c53b37da638486073))
+* **mapa:** el buscador lleva un solo ✕ y enseña antes los portales (docs/33 RV-312) ([#610](https://github.com/aron285-coder/hidrantes-albolote/issues/610)) ([be4d2f1](https://github.com/aron285-coder/hidrantes-albolote/commit/be4d2f136bc01e09208958f9fcb4fec524c80fb1))
+* **mapa:** el mapa se abre donde estás, a nivel de calle (docs/33 RV-310) ([#601](https://github.com/aron285-coder/hidrantes-albolote/issues/601)) ([f561d10](https://github.com/aron285-coder/hidrantes-albolote/commit/f561d109d6cef40c327e8e32634d80ce0f908afc))
+* **mapa:** en el ordenador, la navegación va arriba y sin barra abajo (docs/33 RV-321) ([#619](https://github.com/aron285-coder/hidrantes-albolote/issues/619)) ([6d2111b](https://github.com/aron285-coder/hidrantes-albolote/commit/6d2111b63b2aef0969d41225c16a1bc59fc4564f))
+* **mapa:** la cabecera del móvil ocupa menos y el mapa se ve más (docs/33 RV-311, RV-324) ([#607](https://github.com/aron285-coder/hidrantes-albolote/issues/607)) ([4b657ee](https://github.com/aron285-coder/hidrantes-albolote/commit/4b657ee286aa48d6cda6c0c405ad68020144bb0f))
+* **mapa:** las capas del mapa con nombres claros y una miniatura (docs/33 RV-317) ([#615](https://github.com/aron285-coder/hidrantes-albolote/issues/615)) ([fd73cdd](https://github.com/aron285-coder/hidrantes-albolote/commit/fd73cdd1d9861f7a45528c3924a512d8030e66ac))
+* **mis-propuestas:** cada propuesta dice qué se propuso (RV-315) ([#593](https://github.com/aron285-coder/hidrantes-albolote/issues/593)) ([d535a0b](https://github.com/aron285-coder/hidrantes-albolote/commit/d535a0b9fafe0ab889b92aa88ce283cb9f4adb35))
+* **panel:** abrir la entrada para todos 24 h desde Ajustes, para el día del lanzamiento ([#611](https://github.com/aron285-coder/hidrantes-albolote/issues/611)) ([18472f9](https://github.com/aron285-coder/hidrantes-albolote/commit/18472f9526ae39de2c198a1c254ce8dd22df01ef))
+* **panel:** el panel se maneja con poca pantalla y la Cola enseña más propuestas ([#604](https://github.com/aron285-coder/hidrantes-albolote/issues/604)) ([64daeae](https://github.com/aron285-coder/hidrantes-albolote/commit/64daeaed8f92eca767facbcc06d6316a043d77b3)), closes [#580](https://github.com/aron285-coder/hidrantes-albolote/issues/580)
+* **panel:** Salud del sistema en palabras, con «Todo bien» o lo que necesita atención ([#598](https://github.com/aron285-coder/hidrantes-albolote/issues/598)) ([401664b](https://github.com/aron285-coder/hidrantes-albolote/commit/401664b6cce25c4c158d1b3d4cd8bce07464ef39))
+
+
+### Correcciones
+
+* **ajustes:** cerrar sesión de jefatura olvida sus avisos, y fotos de 24 MP de iPhone (RV-325, RV-326) ([#585](https://github.com/aron285-coder/hidrantes-albolote/issues/585)) ([c0fd27f](https://github.com/aron285-coder/hidrantes-albolote/commit/c0fd27f1e82cf7e0ba4afab822821ac84de91275))
+* arreglos de la revisión de Mis propuestas, formularios y ficha (RV-314, RV-315, RV-316, RV-322) ([#609](https://github.com/aron285-coder/hidrantes-albolote/issues/609)) ([163e96b](https://github.com/aron285-coder/hidrantes-albolote/commit/163e96be9455c8bece6eda7c6cb79f169e77b014))
+* **avisos:** apagar tus avisos en un móvil ya no apaga los de jefatura en ese mismo móvil ([#587](https://github.com/aron285-coder/hidrantes-albolote/issues/587)) ([b4d2a82](https://github.com/aron285-coder/hidrantes-albolote/commit/b4d2a828c07078dd75d4e4390226984e32d75d23))
+* **cola:** si llegas a tu máximo de fotos del día, Mis propuestas dice que es el tuyo y no el del grupo ([#582](https://github.com/aron285-coder/hidrantes-albolote/issues/582)) ([6dbb78b](https://github.com/aron285-coder/hidrantes-albolote/commit/6dbb78b3330db5625d2df087627fc03ff2b6d48f))
+* **cola:** una propuesta que no se puede enviar ya no frena el envío de las demás ([#586](https://github.com/aron285-coder/hidrantes-albolote/issues/586)) ([0e0c1ec](https://github.com/aron285-coder/hidrantes-albolote/commit/0e0c1ec11a1523204b701291465d551238d711e7))
+* **cola:** una propuesta sobre un punto que ya no existe solo se puede rechazar (RV-330) ([#591](https://github.com/aron285-coder/hidrantes-albolote/issues/591)) ([10ccfda](https://github.com/aron285-coder/hidrantes-albolote/commit/10ccfdaaa6852c60047271cba69f5b9660f2f7fa))
+* **errores:** los fallos de la app se envían solo por el servidor de la app ([#595](https://github.com/aron285-coder/hidrantes-albolote/issues/595)) ([d8b4ea2](https://github.com/aron285-coder/hidrantes-albolote/commit/d8b4ea20ea368741500325ee92e085d12242a654)), closes [#580](https://github.com/aron285-coder/hidrantes-albolote/issues/580)
+* **functions:** ámbito en los topes, tope de /api/push y vigilancia de permisos de service_role (docs/33 RV-303, RV-304, RV-305) ([#589](https://github.com/aron285-coder/hidrantes-albolote/issues/589)) ([9c7d75f](https://github.com/aron285-coder/hidrantes-albolote/commit/9c7d75f398f1fabad6af018e6275608fdcb2b0ff))
+* **panel:** al abrir Editar, el foco va al título y no a «Mi posición» ([#600](https://github.com/aron285-coder/hidrantes-albolote/issues/600)) ([e977edb](https://github.com/aron285-coder/hidrantes-albolote/commit/e977edbe896e0980e3aacbc9c3f098fee7aa4c5d))
+* **panel:** con la ventana a 1.099 px, el detalle de la Cola y Editar usan la medida de tableta ([#612](https://github.com/aron285-coder/hidrantes-albolote/issues/612)) ([43c790b](https://github.com/aron285-coder/hidrantes-albolote/commit/43c790b3d0eb7081f321077f4d65cc1135ff3466))
+* **panel:** el menú ☰ se cierra al salir de él y los filtros compactos se tocan bien con el dedo ([#608](https://github.com/aron285-coder/hidrantes-albolote/issues/608)) ([6b2d46c](https://github.com/aron285-coder/hidrantes-albolote/commit/6b2d46c9a4c3e1c39dbb3e2bb3b05159af599542)), closes [#580](https://github.com/aron285-coder/hidrantes-albolote/issues/580)
+* **panel:** zoom del mapa en oscuro y «Confirmar y aprobar» sin datos viejos (RV-332, RV-334) ([#599](https://github.com/aron285-coder/hidrantes-albolote/issues/599)) ([d0eed98](https://github.com/aron285-coder/hidrantes-albolote/commit/d0eed980208bdc6d083b0d492c5b0d2a2faf9226))
+
 ## [0.10.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.10.0...hidrantes-albolote-v0.10.1) (2026-10-09)
 
 
