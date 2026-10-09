@@ -27,6 +27,7 @@ import {
   planMapa,
   rechazarLote,
   resumenLote,
+  separarLote,
   tieneAviso,
 } from '@/lib/panel/cola';
 import { textoError } from '@/lib/panel/errores';
@@ -223,13 +224,26 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   };
 
   async function aprobarMarcadas() {
+    // Las de un punto que ya no está activo no se mandan: se saltan y se dice (RV-330).
+    const { aprobables, saltadas } = separarLote(elegidas);
+    if (!aprobables.length) {
+      setMarcadas(new Set());
+      avisar(resumenLote(saltadas, nombre), 'error');
+      // Lo saltado se decidió con la lista cargada: se recarga por si el punto se ha restaurado.
+      return void carga.recargar();
+    }
     setOcupado(true);
-    const r = await aprobarLote(elegidas.map((p) => p.id));
+    const r = await aprobarLote(aprobables.map((p) => p.id));
     setOcupado(false);
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
+    if (!r.ok) {
+      // Las saltadas se dicen también si el lote falla: si no, al reintentar se saltarían sin aviso.
+      const error = textoError(r.codigo);
+      return avisar(saltadas.length ? `${error} ${resumenLote(saltadas, nombre)}` : error, 'error');
+    }
     setMarcadas(new Set());
-    const omitidas = r.datos.some((x) => x.resultado === 'omitida');
-    avisar(resumenLote(r.datos, nombre), omitidas ? 'error' : 'ok');
+    const resultados = [...r.datos, ...saltadas];
+    const omitidas = resultados.some((x) => x.resultado === 'omitida');
+    avisar(resumenLote(resultados, nombre), omitidas ? 'error' : 'ok');
     await hecho();
   }
 

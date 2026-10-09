@@ -1162,7 +1162,7 @@ test.describe('a 412 × 915 (docs/32)', () => {
     await expect(acciones.getByText(T.panelCola.soloRechazar)).toBeVisible();
     await expect(acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeDisabled();
     await expect(acciones.getByRole('button', { name: T.panelCola.aprobarConCorrecciones })).toBeDisabled();
-    await expect(acciones.getByRole('button', { name: T.panelCola.rechazar })).toBeEnabled();
+    await expect(acciones.getByRole('button', { name: T.panelCola.rechazarNoExiste })).toBeEnabled();
     await info.attach('punto-no-activo-412', { body: await page.screenshot(), contentType: 'image/png' });
 
     // Otra propuesta empieza de cero: su Aprobar está activo.
@@ -1196,8 +1196,12 @@ test.describe('a 412 × 915 (docs/32)', () => {
     await expect(acciones.getByText(T.panelCola.soloRechazar)).toBeVisible();
     await expect(acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeDisabled();
     await expect(acciones.getByRole('button', { name: T.panelCola.aprobarConCorrecciones })).toBeDisabled();
-    await expect(acciones.getByRole('button', { name: T.panelCola.rechazar })).toBeEnabled();
+    await expect(acciones.getByRole('button', { name: T.panelCola.rechazarNoExiste })).toBeEnabled();
     expect(cuerpos).toHaveLength(1);
+    // Sin la situación en la cola, el aviso de arriba va sin fecha, y el rechazo, con el motivo escrito (RV-330).
+    await expect(detalle.getByTestId('aviso-punto-inactivo')).toHaveText(T.panelCola.avisoNoActivo);
+    await acciones.getByRole('button', { name: T.panelCola.rechazarNoExiste }).click();
+    await expect(detalle.getByLabel(T.panelCola.motivoRechazo)).toHaveValue(T.panelCola.motivoNoActivo);
   });
 
   test('RV-253 y RV-254: fusionar con una descripción de 500 caracteres cabe a lo ancho', async ({ page }, info) => {
@@ -1324,4 +1328,90 @@ test.describe('a 412 × 915 (docs/32)', () => {
     expect(await posicion()).toBe(antes);
     await expect(lista).toBeFocused();
   });
+});
+
+// docs/33 RV-330 (U15, D4): una propuesta sobre un punto que ya no está activo, vista por la cola.
+/** Una propuesta sobre P6, que se retiró el 7 de octubre después de proponerla. */
+function sobreRetirado(operacion: 'estado' | 'revision') {
+  const f = fila({
+    id: 'i6',
+    operacion,
+    creada_en: hace(1),
+    punto_id: P6.id,
+    codigo: P6.codigo,
+    datos: operacion === 'estado' ? { caudal: 'regular' } : {},
+    antes: operacion === 'estado' ? { caudal: P6.caudal } : null,
+    direccion_actual: P6.direccion,
+    desactualizada: true,
+    punto_actualizado_en: '2026-10-07T09:00:00Z',
+    autor_nombre: 'Prueba',
+    autor_apellido: 'Seis',
+  });
+  return { ...f, punto: { ...(f.punto as object), situacion: 'retirado', borrado_en: null } };
+}
+
+test('RV-330: un punto que ya no está activo se dice arriba y solo se rechaza, con el motivo escrito', async ({
+  page,
+}) => {
+  const llamadas = await prepararPanel(page, [sobreRetirado('estado')]);
+  await page.goto('/admin/cola');
+  // En la lista, la fila lleva ⚠.
+  const filaRetirado = page
+    .getByRole('region', { name: T.panelCola.colaRevision })
+    .getByRole('button', { name: new RegExp(P6.codigo) });
+  await expect(filaRetirado.getByLabel(T.panelCola.senalAviso)).toBeVisible();
+
+  await abrir(page, new RegExp(P6.codigo));
+  const detalle = page.getByRole('article');
+  await expect(detalle.getByTestId('aviso-punto-inactivo')).toHaveText(T.panelCola.avisoRetirado('7 oct 2026'));
+  const acciones = detalle.getByTestId('acciones-propuesta');
+  // Aprobar y Corregir, desactivados con el motivo escrito (UI-02); sin "Confirmar y aprobar".
+  await expect(acciones.getByText(T.panelCola.soloRechazar)).toBeVisible();
+  await expect(acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeDisabled();
+  await expect(acciones.getByRole('button', { name: T.panelCola.aprobarConCorrecciones })).toBeDisabled();
+  await expect(acciones.getByRole('button', { name: T.panelCola.confirmarYAprobar })).toHaveCount(0);
+
+  // La acción principal es rechazar, con el motivo ya escrito y editable.
+  await acciones.getByRole('button', { name: T.panelCola.rechazarNoExiste }).click();
+  const motivo = detalle.getByLabel(T.panelCola.motivoRechazo);
+  await expect(motivo).toHaveValue(T.panelCola.motivoNoActivo);
+  await motivo.fill(`${T.panelCola.motivoNoActivo}: se retiró en octubre`);
+  await detalle.getByRole('button', { name: T.panelCola.confirmarRechazo }).click();
+  await expect(page.getByRole('status').filter({ hasText: T.panelCola.rechazadaAviso })).toBeVisible();
+  expect(llamadaA(llamadas, 'fn_rechazar')).toEqual({
+    propuesta_id: 'i6',
+    motivo: `${T.panelCola.motivoNoActivo}: se retiró en octubre`,
+  });
+  expect(llamadaA(llamadas, 'fn_aprobar')).toBeUndefined();
+});
+
+test('RV-330: aprobar en bloque salta la de un punto que ya no está activo y lo dice', async ({ page }) => {
+  const llamadas = await prepararPanel(page, [sobreRetirado('revision')]);
+  await page.goto('/admin/cola');
+  await page.getByLabel(T.panelCola.filtroOperacion).selectOption('revision');
+  const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+  await expect(lista.getByRole('listitem')).toHaveCount(3);
+  await page.getByLabel(T.panelCola.seleccionarTodas).check();
+  await page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas }).click();
+  const aviso = page.getByRole('alert').filter({ hasText: T.panelCola.loteAprobadas(2) });
+  await expect(aviso).toContainText(T.panelCola.omitidaPuntoNoActivo);
+  // No se ha mandado: el servidor solo recibe las otras dos.
+  expect((llamadaA(llamadas, 'fn_aprobar_lote')!.propuesta_ids as string[]).sort()).toEqual(['c2', 'c3']);
+  // Sigue pendiente, en la lista.
+  await expect(lista.getByRole('button', { name: new RegExp(P6.codigo) })).toBeVisible();
+});
+
+test('RV-330: si todas las elegidas son de puntos que ya no están activos, no se manda nada y se dice', async ({
+  page,
+}) => {
+  const llamadas = await prepararPanel(page, [sobreRetirado('estado')]);
+  await page.goto('/admin/cola');
+  const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+  const casilla = lista.getByRole('checkbox', { name: new RegExp(P6.codigo) });
+  await casilla.check();
+  await page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas }).click();
+  await expect(page.getByRole('alert').filter({ hasText: T.panelCola.omitidaPuntoNoActivo })).toBeVisible();
+  await expect(page.getByText(T.panelCola.loteAprobadas(0))).toHaveCount(0);
+  expect(llamadaA(llamadas, 'fn_aprobar_lote')).toBeUndefined();
+  await expect(casilla).not.toBeChecked();
 });

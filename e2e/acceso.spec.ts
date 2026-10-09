@@ -247,7 +247,7 @@ test.describe('con sesión guardada', () => {
       if (nombre === 'fn_registrar_error') enviados.push(r.request().postDataJSON());
       await r.fulfill({ status: 200, contentType: 'application/json', body: '{"puntos":[],"bajas":[]}' });
     });
-    // docs/31 RV-148: el error sale por la Function /api/error (la RPC queda para una app anterior).
+    // docs/31 RV-148, docs/33 RV-306: el error sale solo por la Function /api/error.
     await page.route('**/api/error', async (r) => {
       enviados.push(r.request().postDataJSON());
       await r.fulfill({ status: 204 });
