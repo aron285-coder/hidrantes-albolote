@@ -270,7 +270,7 @@ const VISTAS: Vista[] = [
     nombre: 'mapa',
     ruta: '/',
     preparar: voluntario,
-    lista: (p) => expect(p.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible(),
+    lista: (p) => expect(p.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length)),
   },
   {
     nombre: 'mapa-incidente',

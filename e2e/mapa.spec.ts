@@ -11,7 +11,7 @@ async function abrir(page: Page, ruta = '/') {
   await conSesion(page);
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
   if (ruta !== '/') await page.goto(ruta);
 }
 
@@ -40,14 +40,18 @@ test.describe('mapa y lista', () => {
     await expect(leyenda).toBeVisible();
     await page.reload();
     await expect(leyenda).toBeVisible();
-    await page.getByText(/Sincronizado hace/).click();
+    await page.getByRole('heading', { name: T.navegacion.puntosDeAgua }).click();
     await expect(leyenda).toHaveCount(0);
     await expect(ficha).toBeVisible();
   });
 
   test('sincroniza, pinta los marcadores y dice cuándo (FR-60, FR-80)', async ({ page }) => {
     await abrir(page);
-    await expect(page.getByText(/Sincronizado hace/)).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-sincronizado', 'si');
+    // Cuándo: en la cabecera o, sin servidor, en su detalle (docs/33 RV-311).
+    await page.getByTestId('estado-sincro').getByRole('button').first().click();
+    await expect(page.getByRole('dialog', { name: T.sincro.titulo })).toContainText(T.formato.haceUnMomento);
+    await page.keyboard.press('Escape');
     // El encuadre inicial, sin posición, deja todos los puntos a la vista (docs/33 RV-310).
     await expect(page.locator('.marcador')).toHaveCount(PUNTOS.length);
     await page.getByRole('button', { name: T.mapa.leyenda, exact: true }).click();
@@ -146,7 +150,7 @@ test.describe('mapa y lista', () => {
   test('capas: elegir satélite se recuerda (FR-63)', async ({ page }) => {
     await abrir(page);
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await page.getByRole('radio', { name: new RegExp(T.mapa.satelitePnoa.replace(/[()]/g, '\\$&')) }).click();
+    await page.getByRole('radio', { name: new RegExp(T.capas.satelite.replace(/[()]/g, '\\$&')) }).click();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
     await page.reload();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
@@ -166,7 +170,7 @@ test.describe('sin cobertura (criterio de salida)', () => {
 
     await context.setOffline(true);
     await page.goto('/');
-    await expect(page.getByText(/Sin cobertura · datos de/)).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toContainText(T.mapa.sinConexionHace('hace'));
     await expect(page.locator('.marcador').first()).toBeVisible();
     // El mapa base se dibuja desde el móvil: hay teselas de lienzo pintadas.
     await expect(page.locator('.leaflet-tile-container canvas, canvas.leaflet-tile').first()).toBeVisible();
@@ -182,17 +186,15 @@ test.describe('sin cobertura (criterio de salida)', () => {
     // Una capa en línea sin cobertura sale en gris con el motivo.
     await page.goto('/');
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await expect(
-      page.getByRole('radio', { name: new RegExp(T.mapa.calleOsm.replace(/[()]/g, '\\$&')) }),
-    ).toBeDisabled();
+    await expect(page.getByRole('radio', { name: new RegExp(T.capas.calle.replace(/[()]/g, '\\$&')) })).toBeDisabled();
     await context.setOffline(false);
   });
 
   // FR-63 y UI-04: la capa en línea que se estaba usando deja de pintarse al perder la cobertura.
   // El Catastro también, aunque debajo siga el mapa base: desaparecería el plano sin decir por qué.
   for (const [capa, nombre] of [
-    ['satelite', T.mapa.satelitePnoa],
-    ['catastro', T.mapa.catastro],
+    ['satelite', T.capas.satelite],
+    ['catastro', T.capas.catastro],
   ] as const) {
     test(`sin cobertura, la capa "${capa}" dice que la necesita (FR-63)`, async ({ page, context }) => {
       // Datos móviles: el mapa base no se descarga solo. Con él descargado va debajo y el aviso es
@@ -203,7 +205,7 @@ test.describe('sin cobertura (criterio de salida)', () => {
       await conSesion(page, { extra: { capa } });
       await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
       await page.goto('/');
-      await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
+      await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 
       await context.setOffline(true);
       await expect(page.getByRole('status').filter({ hasText: T.mapa.capaSinCobertura(nombre) })).toBeVisible();
@@ -321,7 +323,7 @@ test.describe('mapa y lista sin ningún punto (RV-76)', () => {
       fn_registrar_error: null,
     });
     await page.goto('/');
-    await expect(page.getByText(/Sincronizado hace/)).toBeVisible();
+    await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-sincronizado', 'si');
     // En el mapa: en ordenador la lista de al lado también lo dice.
     const aviso = page.getByTestId('avisos-mapa').getByTestId('aviso-sin-puntos');
     await expect(aviso).toContainText(T.mapa.inventarioVacio);
@@ -398,7 +400,7 @@ test.describe('zoom (#136)', () => {
     await page.route('https://www.ign.es/**', (r) => r.fulfill({ contentType: 'image/jpeg', body: TESELA }));
     await abrir(page);
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await page.getByRole('radio', { name: new RegExp(T.mapa.satelitePnoa.replace(/[()]/g, '\\$&')) }).click();
+    await page.getByRole('radio', { name: new RegExp(T.capas.satelite.replace(/[()]/g, '\\$&')) }).click();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
   }
 

@@ -47,9 +47,6 @@ test.describe('avisos de arriba (RV-238)', () => {
     // Y no tapa la barra superior, que en staging lleva encima la banda de pruebas.
     const barra = await caja(page.locator('header').first());
     expect((await caja(aviso)).y, 'el aviso empieza bajo la barra').toBeGreaterThanOrEqual(barra.y + barra.height);
-    const sello = page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false });
-    const a = await caja(aviso);
-    expect((await caja(sello)).y, 'la barra de estado queda debajo del aviso').toBeGreaterThanOrEqual(a.y + a.height);
 
     // Lo que hay en el sitio del buscador es el buscador, no el aviso.
     const b = await caja(buscador);

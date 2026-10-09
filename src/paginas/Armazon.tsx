@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { List, Map as IconoMapa, Settings } from 'lucide-react';
 import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
+import { EstadoSincro } from '@/componentes/mapa/BarraEstado';
 import { AvisoNovedades } from '@/componentes/AvisoNovedades';
 import { hayNovedadesSinVer } from '@/lib/novedades';
 import { LimiteError } from '@/componentes/LimiteError';
@@ -25,6 +27,14 @@ const TITULOS: Record<string, string> = {
 export function Armazon() {
   const acceso = useAcceso();
   const { pathname } = useLocation();
+  // Lo que ocupa la navegación de abajo: el aviso de versión nueva va justo encima (docs/33 RV-313).
+  useEffect(() => {
+    const raiz = document.documentElement;
+    raiz.style.setProperty('--nav-abajo', 'calc(50px + env(safe-area-inset-bottom))');
+    return () => {
+      raiz.style.removeProperty('--nav-abajo');
+    };
+  }, []);
   if (acceso.tipo === 'voluntario' && !primerUsoVisto()) return <Navigate to="/bienvenida" replace />;
 
   // El mapa y la lista miden la pantalla y solo se desplaza la lista (#562): con `basis-0` el armazón no
@@ -41,7 +51,12 @@ export function Armazon() {
         aPantalla && '[@media(min-height:600px)]:min-h-0 [@media(min-height:600px)]:basis-0',
       )}
     >
-      <BarraSuperior titulo={TITULOS[pathname] ?? T.app.nombre} jefatura={acceso.tipo === 'jefatura'} />
+      <BarraSuperior
+        titulo={TITULOS[pathname] ?? T.app.nombre}
+        jefatura={acceso.tipo === 'jefatura'}
+        // En el mapa y la lista, el estado de la sincronización en la propia barra (docs/33 RV-311).
+        estado={aPantalla ? <EstadoSincro /> : undefined}
+      />
       <AvisoNovedades />
       <main className="flex min-h-0 flex-1 flex-col pb-[calc(50px+env(safe-area-inset-bottom))]">
         <LimiteError>

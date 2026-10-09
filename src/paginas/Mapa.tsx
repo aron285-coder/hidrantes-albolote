@@ -658,7 +658,7 @@ export function Mapa() {
 
           {/* Acciones principales abajo a la derecha, al alcance del pulgar (06 §5, DEC-123): "Cercanos"
               extendido (FR-74, con texto visible, 06 §4.7) encima del + de nuevo punto (FL-03), a 12 px. */}
-          <div className="absolute right-3 bottom-8 z-[450] flex flex-col items-end gap-3">
+          <div className="absolute right-3 bottom-[calc(2rem+var(--aviso-abajo,0px))] z-[450] flex flex-col items-end gap-3">
             <button
               type="button"
               onClick={pedirCercanos}
@@ -678,12 +678,12 @@ export function Mapa() {
             </button>
           </div>
 
-          <div className="absolute bottom-2 left-2 z-[400]">
+          <div className="absolute bottom-[calc(0.5rem+var(--aviso-abajo,0px))] left-2 z-[400]">
             <Leyenda />
           </div>
           <p
             data-testid="atribucion"
-            className="text-texto-suave absolute right-1 bottom-0.5 z-[400] rounded bg-[var(--control-mapa)] px-1 text-[10px]"
+            className="text-texto-suave absolute right-1 bottom-[calc(0.125rem+var(--aviso-abajo,0px))] z-[400] rounded bg-[var(--control-mapa)] px-1 text-[10px]"
           >
             {atribucion(capa)}
           </p>

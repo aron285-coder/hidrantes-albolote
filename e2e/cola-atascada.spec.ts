@@ -53,7 +53,7 @@ test.beforeEach(async ({ page }) => {
   // fn_proponer no está en la lista: responde como un servidor caído, que es lo que atasca la cola.
   await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null, fn_mis_propuestas: [] });
   await page.goto('/');
-  await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length))).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(PUNTOS.length));
 });
 
 test('un envío que lleva más de 24 h esperando se avisa (TR-06, FR-83)', async ({ page }) => {

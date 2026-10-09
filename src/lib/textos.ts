@@ -124,19 +124,18 @@ export const T = {
     atribucionPnoa: 'PNOA © Instituto Geográfico Nacional',
     atribucionCatastro: '© Dirección General del Catastro',
     atribucionBase: '© OpenStreetMap contributors · Protomaps',
-    mapaBasePropio: 'Mapa base propio',
-    calleOsm: 'Calle (OSM)',
-    satelitePnoa: 'Satélite (PNOA)',
-    catastro: 'Catastro',
     necesitaCobertura: 'necesita cobertura',
     miPosicion: 'Mi posición',
     // docs/33 RV-310: el aviso discreto al abrir el mapa sobre el voluntario.
     centradoEnTi: 'Centrado en tu posición',
     verTodaLaZona: 'Ver toda la zona',
-    sincronizado: (hace: Parametro) => `Sincronizado ${hace}`,
-    sinCobertura: (hace: Parametro) => `Sin cobertura · datos de ${hace}`,
     sinServidor: 'Sin conexión con el servidor',
     sinEnviar: (n: Parametro) => `${n} sin enviar`,
+    // docs/33 RV-311: la píldora de la cabecera.
+    alDia: (n: Parametro) => `al día · ${n}`,
+    sinConexion: 'sin conexión',
+    // Sin cobertura, la fecha de los datos sigue a la vista (FR-80).
+    sinConexionHace: (hace: Parametro) => `sin conexión · ${hace}`,
     todos: 'Todos',
     hidrantes: 'Hidrantes',
     bocas: 'Bocas',
@@ -178,8 +177,8 @@ export const T = {
     },
     ocultarAviso: 'Ocultar aviso',
     capaSinCobertura: (capa: Parametro) =>
-      `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia al mapa base.`,
-    capaConBaseDebajo: (capa: Parametro) => `Sin cobertura: se ve el mapa base propio en lugar de «${capa}»`,
+      `La capa "${capa}" necesita cobertura. Los puntos siguen; cambia a «Mapa sin conexión».`,
+    capaConBaseDebajo: (capa: Parametro) => `Sin cobertura: se ve el mapa sin conexión en lugar de «${capa}»`,
     busquedaVacia: 'Nada coincide con esa búsqueda.',
     borrarBusqueda: 'Borrar búsqueda',
     buscandoPosicion: 'Buscando tu posición…',
@@ -190,14 +189,25 @@ export const T = {
     zoom: 'Zoom',
     acercar: 'Acercar',
     alejar: 'Alejar',
-    funcionaSinCobertura: 'funciona sin cobertura',
-    soloEnLinea: 'solo en línea',
     orden: 'Orden',
     filtrar: 'Filtrar',
     porDistancia: 'distancia',
     porCodigo: 'código',
     porEstado: 'estado',
     gps: (metros: Parametro) => `GPS ±${metros} m`,
+  },
+
+  // docs/33 RV-317 (U8): las capas en palabras; las siglas, solo en la línea de fuentes.
+  capas: {
+    base: 'Mapa sin conexión',
+    calle: 'Callejero',
+    satelite: 'Foto aérea',
+    catastro: 'Catastro',
+    descBase: 'Funciona sin cobertura',
+    descCalle: 'Con nombres de calles',
+    descSatelite: 'Para ver el terreno',
+    descCatastro: 'Parcelas y edificios',
+    fuentes: 'Fuentes: OpenStreetMap, PNOA (IGN), Catastro.',
   },
 
   ficha: {
@@ -646,7 +656,25 @@ export const T = {
     seguirCorto: 'Seguir',
   },
 
+  // docs/33 RV-311: el detalle de la sincronización, al tocar la píldora de la cabecera.
+  sincro: {
+    titulo: 'Sincronización',
+    ultima: 'Última sincronización',
+    puntos: 'Puntos guardados',
+    puntosGuardados: (n: Parametro) => `${n} en este móvil`,
+    envios: 'Envíos',
+    sincronizarAhora: 'Sincronizar ahora',
+    noSeHaPodido: 'No se ha podido sincronizar. Prueba más tarde.',
+  },
+
   // docs/32 RV-230: recargar por versión nueva con envíos que solo están en memoria.
+  // docs/33 RV-313: el aviso de versión nueva, abajo y con botón.
+  version: {
+    hay: 'Hay una versión nueva',
+    actualizar: 'Actualizar',
+    alTerminar: 'Hay una versión nueva. Se actualizará cuando termines.',
+  },
+
   recarga: {
     titulo: 'Espera antes de actualizar',
     sinGuardar: (n: number) =>

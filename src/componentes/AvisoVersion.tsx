@@ -1,5 +1,5 @@
 import { Bell, RefreshCw, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
@@ -7,7 +7,14 @@ import { EnPilaAvisos } from '@/componentes/PilaAvisos';
 import { useCola } from '@/hooks/cola';
 import { useVersionNueva } from '@/hooks/version';
 import { enFormulario, escucharAvisosPush } from '@/lib/aviso-formulario';
-import { alPedirRecarga, pedirRecarga, queHacerAlRecargar, recargar, soloEnMemoria } from '@/lib/pwa';
+import {
+  alPedirRecarga,
+  debeActualizarAlVolver,
+  pedirRecarga,
+  queHacerAlRecargar,
+  recargar,
+  soloEnMemoria,
+} from '@/lib/pwa';
 import { ORDEN_AVISO } from '@/lib/orden-avisos';
 import { T } from '@/lib/textos';
 
@@ -18,7 +25,8 @@ type Pregunta =
   | { tipo: 'memoria'; paso: 'aviso' | 'confirmar' };
 
 /**
- * Aviso de versión nueva (TR-24): arriba, bajo la barra, hasta que se recargue. Y el de una
+ * Aviso de versión nueva (TR-24): abajo, sobre la navegación, hasta que se recargue (en el panel, en la
+ * pila de arriba; docs/33 RV-313). Y el de una
  * notificación tocada con un formulario a medias (docs/31 RV-157): el Service Worker no navega y la
  * app lo enseña aquí. Desde un formulario, recargar o ir al aviso preguntan antes. Y recargar, desde
  * cualquier pantalla (también Ajustes), no se hace si hay envíos solo en memoria (docs/32 RV-230).
@@ -36,16 +44,57 @@ export function AvisoVersion() {
   const formulario = enFormulario(pathname);
   const sinGuardar = soloEnMemoria(useCola());
 
-  // «Recargar» del aviso o de Ajustes: se decide aquí, que es quien pregunta.
-  useEffect(
-    () =>
-      alPedirRecarga(() => {
-        const hacer = queHacerAlRecargar(formulario);
-        if (hacer === 'recargar') recargar();
-        else setPregunta(hacer === 'memoria' ? { tipo: 'memoria', paso: 'aviso' } : { tipo: 'recargar' });
-      }),
-    [formulario],
-  );
+  // En el panel de jefatura el aviso sigue arriba, en la pila: abajo taparía sus barras de acciones
+  // (Aprobar, Rechazar), que van pegadas abajo.
+  const enPanel = pathname.startsWith('/admin');
+  // El mapa y la lista miden la pantalla (Armazon): ahí suben sus botones de abajo con --aviso-abajo.
+  // En las demás pantallas la página crece lo que ocupa el aviso, para que su final no quede debajo.
+  const aPantalla = ['/', '/lista'].includes(pathname.replace(/\/+$/, '') || '/');
+
+  // Lo que ocupa el aviso de abajo (docs/33 RV-313).
+  const caja = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = caja.current;
+    const raiz = document.documentElement;
+    if (!hay || enPanel || !el) return;
+    const anotar = () => {
+      const alto = `${Math.ceil(el.offsetHeight) + 16}px`;
+      raiz.style.setProperty('--aviso-abajo', alto);
+      document.body.style.paddingBottom = aPantalla ? '' : alto;
+    };
+    anotar();
+    const vigilar = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(anotar);
+    vigilar?.observe(el);
+    return () => {
+      vigilar?.disconnect();
+      raiz.style.removeProperty('--aviso-abajo');
+      document.body.style.paddingBottom = '';
+    };
+  }, [hay, enPanel, aPantalla, formulario]);
+
+  // Qué hacer al pedir la versión nueva (el botón, Ajustes o la vuelta al mapa): recargar, o preguntar
+  // antes si hay un formulario a medias o envíos solo en memoria (RV-230).
+  const atender = useCallback((enFormularioAhora: boolean) => {
+    const hacer = queHacerAlRecargar(enFormularioAhora);
+    if (hacer === 'recargar') recargar();
+    else setPregunta(hacer === 'memoria' ? { tipo: 'memoria', paso: 'aviso' } : { tipo: 'recargar' });
+  }, []);
+
+  // Con un formulario abierto no se ofrece actualizar: se hace al volver al mapa. Se decide aquí mismo
+  // y no con `pedirRecarga`: al cambiar de ruta, el oyente de abajo se está volviendo a apuntar y la
+  // petición se perdería sin decir nada.
+  const veniaDeFormulario = useRef(false);
+  useEffect(() => {
+    if (!hay) return;
+    if (formulario) veniaDeFormulario.current = true;
+    else if (debeActualizarAlVolver(veniaDeFormulario.current, pathname)) {
+      veniaDeFormulario.current = false;
+      atender(false);
+    }
+  }, [hay, formulario, pathname, atender]);
+
+  // «Actualizar» del aviso o de Ajustes: se decide aquí, que es quien pregunta.
+  useEffect(() => alPedirRecarga(() => atender(formulario)), [formulario, atender]);
   // Fuera del formulario el aviso sobra (y taparía los botones del mapa): lo resuelto se ve en Mis
   // propuestas. Estado derivado del render, el patrón de React para ello.
   if (aviso && !formulario) setAviso(null);
@@ -58,20 +107,53 @@ export function AvisoVersion() {
 
   return (
     <>
-      {hay && (
+      {/* Siempre montada, para que el lector de pantalla anuncie el aviso cuando llega. */}
+      <p aria-live="polite" className="sr-only" data-testid="anuncio-version">
+        {hay ? (formulario ? T.version.alTerminar : T.version.hay) : ''}
+      </p>
+      {hay && enPanel && (
         <EnPilaAvisos orden={ORDEN_AVISO.version}>
-          <button
-            type="button"
-            onClick={pedirRecarga}
-            className="bg-marino-700 rounded-boton flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-semibold text-white shadow-lg"
-          >
-            <RefreshCw size={18} aria-hidden />
-            {T.ajustes.versionNueva}
-          </button>
+          <div className="bg-marino-950 rounded-boton flex items-center gap-2 py-1 pr-1 pl-3 text-sm text-white shadow-lg">
+            <RefreshCw size={18} aria-hidden className="shrink-0" />
+            <span className="flex-1 font-semibold">{T.version.hay}</span>
+            <button
+              type="button"
+              onClick={pedirRecarga}
+              className="rounded-boton text-marino-950 min-h-11 shrink-0 bg-white px-3 font-semibold"
+            >
+              {T.version.actualizar}
+            </button>
+          </div>
         </EnPilaAvisos>
       )}
+      {hay && !enPanel && (
+        // Abajo, sobre la navegación (docs/33 RV-313, U4): fijo, no empuja el contenido ni tapa el
+        // buscador. Los botones de abajo del mapa suben lo que ocupa (--aviso-abajo).
+        <div
+          ref={caja}
+          data-testid="aviso-version"
+          className="bg-marino-950 rounded-tarjeta fixed inset-x-3 bottom-[calc(var(--nav-abajo,0px)+8px)] z-40 mx-auto flex max-w-md items-center gap-2 py-1 pr-1 pl-3 text-sm text-white shadow-lg"
+        >
+          <RefreshCw size={18} aria-hidden className="shrink-0" />
+          {formulario ? (
+            // En un formulario no se ofrece: se actualizará al volver al mapa.
+            <p className="py-2">{T.version.alTerminar}</p>
+          ) : (
+            <>
+              <p className="flex-1 font-semibold">{T.version.hay}</p>
+              <button
+                type="button"
+                onClick={pedirRecarga}
+                className="rounded-boton text-marino-950 min-h-11 shrink-0 bg-white px-3 font-semibold"
+              >
+                {T.version.actualizar}
+              </button>
+            </>
+          )}
+        </div>
+      )}
       {aviso && (
-        // Arriba, en la pila de avisos, bajo el de versión nueva si está: abajo taparía Enviar (RV-238).
+        // Arriba, en la pila de avisos: abajo taparía Enviar (RV-238).
         <EnPilaAvisos orden={ORDEN_AVISO.notificacion}>
           <div
             role="status"

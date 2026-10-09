@@ -61,7 +61,7 @@ test('los puntos del seed llegan sin autores y se ven en la lista', async ({ pag
     );
   }
 
-  await expect(page.getByText(T.mapa.nPuntos(cuerpo.puntos.length))).toBeVisible();
+  await expect(page.getByTestId('estado-sincro')).toHaveAttribute('data-puntos', String(cuerpo.puntos.length));
   await page.getByRole('link', { name: T.navegacion.lista }).click();
   await expect(page.locator('button').filter({ hasText: 'HID-9001' }).first()).toBeVisible();
 });

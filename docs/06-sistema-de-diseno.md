@@ -449,12 +449,12 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Datos externos.` ·
 `Para deducir direcciones se consulta OpenStreetMap con las coordenadas del hidrante, nunca con datos tuyos. Mapa base y direcciones © OpenStreetMap contributors.`
 
-**Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · `Mapa base propio` ·
-`Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `© OpenStreetMap contributors` ·
+**Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · capas en palabras (docs/33 RV-317): `Mapa sin conexión` · `Callejero` · `Foto aérea` · `Funciona sin cobertura` · `Con nombres de calles` · `Para ver el terreno` · `Parcelas y edificios` · `Fuentes: OpenStreetMap, PNOA (IGN), Catastro.` ·
+`Catastro` · `© OpenStreetMap contributors` ·
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` · `Centrado en tu posición` · `Ver toda la zona` (aviso al abrir el mapa sobre el voluntario, docs/33 RV-310) ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
-`Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
+`Sin conexión con el servidor` · `[N] sin enviar` · `al día · [15]` · `sin conexión` · `sin conexión · [hace 2 h]` (píldora de la cabecera, docs/33 RV-311) · `Sincronización` · `Última sincronización` · `Puntos guardados` · `[12] en este móvil` · `Envíos` · `Sincronizar ahora` · `No se ha podido sincronizar. Prueba más tarde.` (su detalle) · `Todos` · `Hidrantes` · `Bocas` ·
 `No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
 `Nada coincide con ese filtro.` · `revisado [hace 3 meses]` · `sin revisar` + `desde [hace 1 año]` = "sin revisar desde hace 1 año" (en `--naranja-texto`; si no cabe, se acorta la fecha, nunca `sin revisar`) (segunda línea de cada fila de la Lista, sin la dirección; a la derecha solo la distancia, y solo si hay posición: FR-68, docs/25 RV-106) ·
 `desde ti` · `desde el incidente` (solo para el lector de pantalla, detrás de la distancia de cada fila) · `Sin cobertura` · `Reintentar` ·
@@ -466,12 +466,12 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Descargar versión nueva` · `Ocultar aviso` (avisos del mapa base en el propio mapa, FR-81) ·
 `Descargando el mapa base` · `Mapa base: descargada la mitad` · `Mapa base descargado` ·
 `No se ha podido descargar el mapa base` (solo para el lector de pantalla: el porcentaje se ve pero no se anuncia, docs/32 RV-236) ·
-`La capa "[Satélite (PNOA)]" necesita cobertura. Los puntos siguen; cambia al mapa base.` ·
-`Sin cobertura: se ve el mapa base propio en lugar de «[Calle (OSM)]»` (con el mapa base en el móvil, RV-58) ·
+`La capa "[Foto aérea]" necesita cobertura. Los puntos siguen; cambia a «Mapa sin conexión».` ·
+`Sin cobertura: se ve el mapa sin conexión en lugar de «[Callejero]»` (con el mapa base en el móvil, RV-58) ·
 `Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Buscando tu posición…` ·
 `Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.` ·
 `No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Cerrar la leyenda` · `Zoom` · `Acercar` · `Alejar` ·
-`funciona sin cobertura` · `solo en línea` · `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
+`Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
 
 > **Coordenadas con su sistema (DEC-157).** Cada coordenada lleva delante el nombre de su sistema, en
 > la ficha, en *¿Qué hay aquí?*, en la cola del panel y en lo que se comparte: `WGS84 · grados decimales`
@@ -588,7 +588,7 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 `Sincronizar` · `Capa por defecto` · `Modo oscuro` · `Según el móvil` ·
 `Avisarme cuando jefatura resuelva mis propuestas` ·
 `Cómo se usa (3 pantallas)` · `Cerrar sesión en este móvil` ·
-`Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` ·
+`Se borran tu acceso, tu nombre y los puntos guardados.` · `hay una versión nueva, recargar` (en Ajustes) · `Hay una versión nueva` · `Hay una versión nueva. Se actualizará cuando termines.` (aviso de abajo, con el botón `Actualizar`, docs/33 RV-313) ·
 `novedades` · `Cuenta de jefatura` · `Sesión de Google · [correo]` · `Cerrar la sesión de Google` ·
 `Panel de jefatura` (botón de la cuenta de jefatura, RV-113) · `Ver` · `Siempre` · `Nunca` · `Guardar` · `Cancelar` · `Pantalla` · `Ayuda` ·
 `¿Cerrar sesión en este móvil?` · `Cerrar sesión` · `Cerrando sesión…` (el botón, deshabilitado, mientras se cierra; docs/32 RV-234) · `No se ha podido cerrar la sesión. Inténtalo de nuevo.` · `Versión [0.1.0]` · `Descargando… [40] %` ·
