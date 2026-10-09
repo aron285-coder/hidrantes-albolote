@@ -331,7 +331,10 @@ export const T = {
     actualizarEstadoDetalle: 'El caudal ha cambiado o ya no funciona',
     corregirDatos: 'Corregir datos',
     corregirDatosDetalle: 'Diámetro, tipo de enganche o descripción mal anotados',
-    tipoNoCambia: '¿El tipo está mal? Propón retirarlo y da de alta el correcto',
+    // docs/33 RV-316 (D8): una frase con el enlace dentro, «Propón retirarlo».
+    tipoMal: '¿El tipo está mal?',
+    tipoMalEnlace: 'Propón retirarlo',
+    tipoMalResto: 'y da de alta el correcto.',
     corregirUbicacion: 'Corregir ubicación',
     corregirUbicacionDetalle: 'El pin está desplazado',
     proponerRetirada: 'Proponer retirada',
@@ -398,13 +401,17 @@ export const T = {
     conexion: 'Conexión',
     sitio: 'Sitio',
     hacerFoto: 'Hacer foto · obligatoria',
-    // #563: corregir datos se envía sin foto (FR-21, FR-44); el hueco no dice «obligatoria».
-    hacerFotoOpcional: 'Hacer foto · opcional',
+    // #563 y docs/33 RV-316 (D3): corregir datos se envía sin foto (FR-21, FR-44).
+    fotoOpcional: 'Foto · opcional',
+    hacerFotoOpcional: 'Hacer foto (opcional)',
     fotoAnadida: (kb: Parametro) => `Foto añadida · ${kb} kB`,
     repetir: 'repetir',
     // Nombre de los huecos de las dos fotos (docs/24 RV-103) para quien no ve la pantalla.
     hacerFotoDe: (que: Parametro) => `Hacer foto · ${que} · obligatoria`,
-    repetirDe: (que: Parametro) => `repetir · ${que}`,
+    // docs/33 RV-316 (D9): tocar la ficha de una foto hecha la repite.
+    repetirFotoConexion: 'Repetir la foto de la conexión',
+    repetirFotoSitio: 'Repetir la foto del sitio',
+    unidadMm: 'mm',
     huecoHecho: (que: Parametro, kb: Parametro) => `${que} · ${kb} kB`,
     descripcionOpcional: 'Descripción (opcional)',
     descripcionAyuda: 'Referencia de calle, acceso…',

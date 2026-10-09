@@ -364,6 +364,29 @@ const VISTAS: Vista[] = [
     },
   },
   {
+    // docs/33 RV-316 (D9): las dos fotos hechas, «✓ Conexión · N kB» en una línea.
+    nombre: 'nuevo-punto-fotos-hechas',
+    ruta: '/proponer/alta',
+    preparar: voluntario,
+    lista: async (p) => {
+      const jpeg = await p.evaluate(async () => {
+        const c = document.createElement('canvas');
+        c.width = 400;
+        c.height = 300;
+        c.getContext('2d')!.fillRect(0, 0, 400, 300);
+        const b = await new Promise<Blob>((r) => c.toBlob((x) => r(x!), 'image/jpeg'));
+        return Array.from(new Uint8Array(await b.arrayBuffer()));
+      });
+      for (const id of ['entrada-foto', 'entrada-foto-sitio']) {
+        await p.getByTestId(id).setInputFiles({ name: 'f.jpg', mimeType: 'image/jpeg', buffer: Buffer.from(jpeg) });
+      }
+      const hueco = p.getByTestId('hueco-entrada-foto-sitio');
+      await hueco.scrollIntoViewIfNeeded();
+      await expect(hueco.getByText(/kB/)).toBeVisible();
+    },
+    anchoEscritorio: 1440,
+  },
+  {
     nombre: 'lista',
     ruta: '/lista',
     preparar: voluntario,

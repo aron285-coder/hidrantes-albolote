@@ -238,7 +238,3 @@ export const necesitaFotoSitio = (o: Operacion) => o === 'alta' || o === 'ubicac
 
 /** Las operaciones que llevan foto obligatoria (FR-21; corregir datos no, 05 §6). */
 export const necesitaFoto = (o: Operacion) => o !== 'datos';
-
-/** Lo que dice el hueco de la foto: «obligatoria» solo donde el botón espera la foto (#563). */
-export const textoHacerFoto = (o: Operacion) =>
-  necesitaFoto(o) ? T.formulario.hacerFoto : T.formulario.hacerFotoOpcional;
