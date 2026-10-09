@@ -686,9 +686,10 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - Jefatura puede **abrir la entrada para todos durante 24 h** (`entrada_abierta_hasta`; `fn_abrir_entrada(horas)` hasta 72 h y `fn_cerrar_entrada()`, solo administradores, en el Registro). Mientras está abierta, los topes por wifi y por hora pasan a 200, y los tokens creados entonces no llevan el límite de token nuevo. **Los topes de intentos fallidos no cambian:** solo se abre la entrada a quien acierta el código.
   - **Se abre sola** al generar un código nuevo revocando todos los móviles, en la misma transacción; un código nuevo sin revocar no la abre. **Se cierra sola** al pasar la hora, sin tarea programada.
   - Salud muestra las entradas frenadas por el tope en 24 h y hasta cuándo está abierta; la vigilancia avisa si se frenan más de 5.
-  - En el lanzamiento, la entrada se abre **antes** de comunicar el código (15 F9.10).
+  - En el lanzamiento, la entrada se abre **antes** de comunicar el código (F9.10, #85; 15 §5.4).
+  - Detalles de 0044 (contrato de Backend en #580): con la entrada abierta, los topes de entrada valen `greatest(valor, 200)`; el tope global de propuestas se cuenta sin candado (puede pasarse en tantas como lleguen a la vez); el historial de `pg_cron` se guarda 10 días y no 7, porque Salud y la vigilancia miran fallos en 8 días.
 - **Alternativas descartadas:** subir los topes para siempre (se pierde el freno a quien reparte un código filtrado); relajar también los intentos fallidos (abriría la puerta a probar códigos); una tarea `pg_cron` para cerrarla (la comparación con `now()` basta y no puede fallar en silencio).
-- **Afecta a:** 01 FR-31 a FR-34 y FR-143; 05 (0044, parámetros y funciones); 06 Apéndice A (Ajustes, Salud); 13; 15 §5.4 y F9.10.
+- **Afecta a:** 01 FR-31 a FR-34 y FR-143; 05 (0044, parámetros y funciones); 06 Apéndice A (Ajustes, Salud); 09 (F9.10); 13; 15 §5.4.
 
 ### DEC-189 · El mapa y la lista miden la ventana; solo se desplaza la lista
 - **Fecha:** 9 oct 2026 · **Estado:** vigente (RV-270 D2, #562; PR #576).
