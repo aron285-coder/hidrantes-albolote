@@ -35,8 +35,27 @@ const LOS_CUATRO = [
 ];
 const [PROPIO] = LOS_CUATRO;
 
+/** Lo que la página anota como error en cada test: tiene que quedarse vacío (ver `test.afterEach`). */
+const errores = new WeakMap<Page, string[]>();
+
 /** El móvil del voluntario y la sesión de jefatura en la misma página, con los cuatro puntos. */
 async function preparar(page: Page) {
+  const anotados: string[] = [];
+  errores.set(page, anotados);
+  page.on('pageerror', (e) => anotados.push(`pageerror ${e.message}`));
+  // Los errores de la app salen por /api/error (RV-148, RV-306): uno del dibujo no pasa en silencio.
+  await page.route('**/api/error', (route) => {
+    anotados.push(`/api/error ${route.request().postData() ?? ''}`);
+    return route.fulfill({ status: 204 });
+  });
+  // Con datos móviles el mapa base no se descarga solo: aquí no se mide eso, y una descarga cortada
+  // al cambiar de página se anotaría como error (avisado a Frontend-campo en #580).
+  await page.addInitScript(() =>
+    Object.defineProperty(navigator, 'connection', {
+      value: { type: 'cellular', saveData: false },
+      configurable: true,
+    }),
+  );
   await conSesion(page);
   await conGoogle(page, 'jefe@example.org');
   await simularTablas(page, {
@@ -55,6 +74,26 @@ async function preparar(page: Page) {
     return json(null);
   });
 }
+
+test.afterEach(async ({ page }) => {
+  const anotados = errores.get(page);
+  if (!anotados) return;
+  await page.waitForLoadState('networkidle');
+  expect(anotados, 'errores anotados por la página').toEqual([]);
+});
+
+/** La opacidad con la que se ve cada marcador, por su código: la del svg por la de sus padres hasta el icono. */
+const opacidadPorCodigo = (mapa: ReturnType<Page['locator']>) =>
+  mapa.locator('.leaflet-marker-icon.marcador[title]').evaluateAll((l) =>
+    Object.fromEntries(
+      l.map((icono) => {
+        let o = 1;
+        for (let e: Element | null = icono.querySelector('svg'); e; e = e === icono ? null : e.parentElement)
+          o *= Number(getComputedStyle(e).opacity);
+        return [icono.getAttribute('title'), Math.round(o * 100) / 100];
+      }),
+    ),
+  );
 
 /** El SVG de cada marcador de un mapa, por su código (el `title` del marcador). */
 const svgsPorCodigo = (mapa: ReturnType<Page['locator']>) =>
@@ -146,10 +185,12 @@ test('Inventario en mapa: Barro y No funciona con el marcador del mapa del volun
     } else {
       await expect(svg.locator('[data-aspa]'), p.codigo).toHaveCount(2);
       await expect(svg.locator('[data-letra]'), p.codigo).toHaveCount(0);
-      await expect(svg.locator('[data-forma]'), p.codigo).toHaveAttribute('fill', 'var(--borde-marcador)');
-      await expect(svg.locator('[data-forma]'), p.codigo).not.toHaveAttribute('opacity', /.*/);
+      // El color que se pinta, no el nombre del token: blanco en los dos modos (DEC-072).
+      await expect(svg.locator('[data-forma]'), p.codigo).toHaveCSS('fill', 'rgb(255, 255, 255)');
     }
   }
+  // En el Inventario, nada atenuado: ni el svg ni lo que lo envuelve.
+  expect(await opacidadPorCodigo(mapa)).toEqual(Object.fromEntries(LOS_CUATRO.map((p) => [p.codigo, 1])));
 });
 
 test('Cola, minimapa del detalle: el punto y los de alrededor con el marcador del voluntario (RV-336)', async ({
@@ -165,6 +206,9 @@ test('Cola, minimapa del detalle: el punto y los de alrededor con el marcador de
   await expect.poll(async () => svgsPorCodigo(mapa)).toEqual(alrededor);
   const todos = () => mapa.locator('.leaflet-marker-icon.marcador svg').evaluateAll((l) => l.map((e) => e.outerHTML));
   await expect.poll(todos).toContain(propio);
+  // Los de alrededor, atenuados enteros a 0,55 como contexto (06 §4.3, la única excepción al «sin
+  // opacidad»); sea cual sea su estado.
+  expect(await opacidadPorCodigo(mapa)).toEqual(Object.fromEntries(Object.keys(alrededor).map((c) => [c, 0.55])));
 });
 
 // En Tailwind 4, `max-[1099px]` es "< 1.099 px": a 1.099 px exactos no valía ni la medida de tableta
@@ -191,18 +235,24 @@ for (const [ancho, alturaMapa, anchoEditar, botonesAlAncho] of [
       const fila = page.getByRole('row').filter({ hasText: PROPIO.codigo });
       await fila.getByRole('button', { name: T.panel.editar }).click();
       expect(Math.round((await page.getByRole('dialog').boundingBox())!.width)).toBe(anchoEditar);
+      // El mapa de Editar solo lleva el pin, no marcadores de estado: RV-336 no le aplica (06 §4.3).
+      const dialogo = page.getByRole('dialog');
+      await expect(dialogo.locator('.leaflet-marker-icon')).not.toHaveCount(0);
+      await expect(dialogo.locator('.leaflet-marker-icon svg [data-forma]')).toHaveCount(0);
     });
   });
 }
 
-// Capturas para la revisión a ojo (skill revisar-pantallas): PW_CAPTURAS=1, en claro y en oscuro.
+// Capturas para la revisión a ojo (skill revisar-pantallas): PW_CAPTURAS=1, en claro y en oscuro. La de
+// 412 px en el proyecto movil y la de 1440 en escritorio, cada una con su dispositivo.
 test.describe('capturas', () => {
-  test.skip(({ isMobile }) => !isMobile || !process.env.PW_CAPTURAS, 'solo bajo demanda, en el proyecto movil');
-  for (const [ancho, alto] of [
-    [412, 915],
-    [1440, 900],
+  test.skip(() => !process.env.PW_CAPTURAS, 'solo bajo demanda');
+  for (const [ancho, alto, movil] of [
+    [412, 915, true],
+    [1440, 900, false],
   ] as const) {
-    test(`mapas del panel con Barro y No funciona a ${ancho} px`, async ({ page }, info) => {
+    test(`mapas del panel con Barro y No funciona a ${ancho} px`, async ({ page, isMobile }, info) => {
+      test.skip(isMobile !== movil, movil ? 'en el proyecto movil' : 'en el proyecto escritorio');
       await page.setViewportSize({ width: ancho, height: alto });
       await preparar(page);
       await conPropuesta(page);
