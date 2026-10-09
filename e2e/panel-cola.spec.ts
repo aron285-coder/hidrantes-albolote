@@ -385,6 +385,33 @@ test('posible duplicado: comparar y fusionar eligiendo qué prevalece (FR-51)', 
   });
 });
 
+test('RV-270 D4: fusionar con PUNTO_NO_ACTIVO (el duplicado) no impide aprobar el alta', async ({ page }) => {
+  await prepararPanel(page);
+  let fallar = true;
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_fusionar_con_existente`, (route) => {
+    if (!fallar) return route.fallback();
+    fallar = false;
+    return route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({ code: 'P0001', message: 'PUNTO_NO_ACTIVO: simulado' }),
+    });
+  });
+  await page.goto('/admin/cola');
+  await abrir(page, /Javier Ortiz/);
+  const detalle = page.getByRole('article');
+  await detalle.getByRole('button', { name: T.panelCola.fusionarCon(P8.codigo) }).click();
+  await detalle.getByRole('button', { name: T.panelCola.fusionar, exact: true }).click();
+  await expect(page.getByRole('alert').filter({ hasText: T.panelErrores.puntoNoActivo })).toBeVisible();
+
+  // Es el duplicado el que ya no está activo: el alta se sigue pudiendo aprobar.
+  const acciones = detalle.getByTestId('acciones-propuesta');
+  await expect(detalle.getByRole('button', { name: T.panelCola.fusionar, exact: true })).toHaveCount(0);
+  await expect(acciones.getByText(T.panelCola.soloRechazar)).toHaveCount(0);
+  await expect(acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true })).toBeEnabled();
+  await expect(acciones.getByRole('button', { name: T.panelCola.aprobarConCorrecciones })).toBeEnabled();
+});
+
 test('historial de rechazadas en solo lectura (FR-109)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/cola');
