@@ -42,6 +42,15 @@ select distinct r from (
   union all select foto_sitio_path from hidrantes.propuestas where id::text like '5eed0000-%'
 ) x where r like 'fotos/prueba-%' order by r;`;
 
+/** Las bocas de RV-139b que el seed debería haber retirado y siguen activas (mismo criterio). */
+export const SQL_DUPLICADAS_ACTIVAS = `
+select count(*) from hidrantes.puntos x
+ where x.codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
+   and x.tipo = 'boca_riego' and x.situacion = 'activo' and x.creado_en < '2026-10-10'
+   and exists (select 1 from hidrantes.puntos y
+                where y.codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
+                  and y.id <> x.id and extensions.st_dwithin(x.geom, y.geom, 15));`;
+
 export function urlPublica(base: string, bucket: string, ruta: string): string {
   return `${base.replace(/\/+$/, '')}/storage/v1/object/public/${bucket}/${ruta.split('/').map(encodeURIComponent).join('/')}`;
 }
@@ -143,15 +152,24 @@ async function subir(base: string, servicio: string, bucket: string, ruta: strin
 async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   const soloComprobar = banderas.has('solo-comprobar');
-  const base = valores.get('url') ?? process.env.SUPABASE_URL ?? (soloComprobar ? URL_STAGING : '');
+  // `||` y no `??`: un secreto que falta llega a Actions como cadena vacía.
+  const base = valores.get('url') || process.env.SUPABASE_URL || (soloComprobar ? URL_STAGING : '');
   if (!base) abortar('Falta SUPABASE_URL (la del environment staging).');
   comprobarStaging(base);
 
   const rutas = new Set(rutasDelSeed(readFileSync(path.join(RAIZ, 'supabase', 'seed-staging.sql'), 'utf8')));
-  const bd = process.env.SUPABASE_DB_URL;
+  const bd = process.env.SUPABASE_DB_URL || '';
   if (bd) {
     for (const r of psqlOk(bd, SQL_RUTAS_EN_LA_BASE, { tuplas: true }).split('\n')) {
       if (r.trim()) rutas.add(r.trim());
+    }
+    // El seed no rompe el despliegue si su administrador de prueba no está activo: solo avisa con un
+    // WARNING de psql. Aquí se hace visible en el resumen de la ejecución.
+    const duplicadas = Number(psqlOk(bd, SQL_DUPLICADAS_ACTIVAS, { tuplas: true }).trim());
+    if (duplicadas > 0) {
+      const aviso = `Quedan ${duplicadas} bocas duplicadas de RV-139b activas (BOC-0003 a BOC-0006): el seed no las ha retirado; ¿está activo jefatura.prueba@example.com en staging?`;
+      log.aviso(aviso);
+      if (process.env.GITHUB_ACTIONS) console.log(`::warning::${aviso}`);
     }
   } else if (!soloComprobar) {
     abortar('Falta SUPABASE_DB_URL (la del environment staging).');
@@ -165,7 +183,7 @@ async function principal(): Promise<void> {
   log.info(`Responden 200: ${lista.length - pendientes.length}; faltan: ${pendientes.length}`);
 
   if (pendientes.length > 0 && !soloComprobar) {
-    const servicio = process.env.SUPABASE_SERVICE_ROLE_KEY ?? abortar('Falta SUPABASE_SERVICE_ROLE_KEY.');
+    const servicio = process.env.SUPABASE_SERVICE_ROLE_KEY || abortar('Falta SUPABASE_SERVICE_ROLE_KEY.');
     const fotos = await generarFotos(pendientes);
     for (const ruta of pendientes) {
       await subir(base, servicio, BUCKET_STAGING, ruta, fotos.get(ruta)!);
