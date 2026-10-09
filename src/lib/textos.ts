@@ -541,7 +541,6 @@ export const T = {
     noDescargado: 'No descargado',
     descargar: 'Descargar',
     actualizar: 'Actualizar',
-    puntosGuardados: 'Puntos guardados',
     sincronizar: 'Sincronizar',
     capaPorDefecto: 'Capa por defecto',
     modoOscuro: 'Modo oscuro',
@@ -580,10 +579,16 @@ export const T = {
     // docs/32 RV-235: 30 s sin llegar nada.
     descargaParada: 'La descarga se ha parado.',
     reintentar: 'Reintentar',
-    puntosGuardadosDetalle: (n: Parametro, hace: Parametro) => `${n} · sincronizado ${hace}`,
+    // docs/33 RV-320 (U11): una sola tarjeta «Mapa sin cobertura», sin jerga.
+    puntosGuardadosLinea: (n: Parametro, hace: Parametro) => `${n} puntos guardados · sincronizados ${hace}`,
     sinSincronizar: 'Todavía sin sincronizar',
-    guardadoProtegido: 'Guardado protegido',
-    guardadoProtegidoValor: (si: boolean) => (si ? 'sí' : 'no'),
+    guardadoProtegidoSi: 'El móvil no borrará estos datos aunque le falte espacio',
+    guardadoProtegidoNo: 'El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo',
+    // Ya instalada, el consejo no sirve (algunos navegadores no protegen ni así).
+    guardadoProtegidoNoInstalada: 'El móvil podría borrar estos datos si le falta espacio',
+    novedadesDeLaVersion: (version: Parametro) => `Novedades de la versión ${version}`,
+    verVersionesAnteriores: 'Ver versiones anteriores',
+    sinNovedadesVersion: 'Esta versión solo trae arreglos internos.',
     avisos: 'Avisos',
     perderasEnvios: (n: Parametro) => `Tienes ${n} envíos sin mandar: se perderán.`,
   },
