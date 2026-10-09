@@ -260,6 +260,22 @@ path.vertice-medicion {
   background: var(--fondo);
   font-family: var(--font-texto);
 }
+/* Los botones de zoom de Leaflet (el mapa del detalle de la Cola) con los tokens del tema: el blanco
+   fijo de Leaflet desentonaba en los dos modos oscuros (docs/33 RV-332, D13). En claro, igual que antes. */
+.leaflet-bar a,
+.leaflet-bar a:focus {
+  background-color: var(--control-mapa);
+  color: var(--texto);
+  border-bottom-color: var(--linea);
+}
+.leaflet-bar a:hover {
+  background-color: color-mix(in srgb, var(--control-mapa) 90%, var(--texto));
+  color: var(--texto);
+}
+.leaflet-bar a.leaflet-disabled {
+  background-color: var(--control-mapa);
+  color: var(--texto-suave);
+}
 /* "antes · N m" junto a la posición guardada en Editar (docs/29 RV-124): papel y texto del tema, para
    que también se lea en oscuro (el tooltip de Leaflet es blanco fijo). */
 .leaflet-tooltip.rotulo-antes {
