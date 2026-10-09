@@ -11,7 +11,7 @@ import {
   medidaValida,
   queFalta,
   rutaAltaEn,
-  textoHacerFoto,
+  necesitaFoto,
 } from './propuestas';
 import { T } from './textos';
 
@@ -170,17 +170,16 @@ describe('alta desde una pulsación larga en el mapa (DEC-077)', () => {
 });
 
 // #563 (RV-270 D3): el hueco de la foto dice «obligatoria» solo donde el botón la espera.
-describe('el hueco de la foto dice si es obligatoria (FR-21, FR-41 a FR-46)', () => {
+// El hueco lo pinta CampoFoto con `opcional={!necesitaFoto(operacion)}` (docs/33 RV-316); lo que dice
+// lo comprueban Proponer.test.tsx y el e2e de corregir datos.
+describe('la foto es obligatoria salvo en corregir datos (FR-21, FR-41 a FR-46)', () => {
   it('corregir datos: opcional, porque se envía sin foto', () => {
-    expect(textoHacerFoto('datos')).toBe(T.formulario.hacerFotoOpcional);
-    expect(textoHacerFoto('datos')).toContain('opcional');
+    expect(necesitaFoto('datos')).toBe(false);
   });
 
-  // Alta y ubicación pintan dos huecos con «Hacer foto · [Conexión] · obligatoria»; lo comprueba el
-  // e2e «alta y revisión». Aquí solo se fija que la regla no las da por opcionales.
   it('alta, revisión, estado, ubicación y retirada: obligatoria', () => {
     for (const o of ['alta', 'revision', 'estado', 'ubicacion', 'retirada'] as const) {
-      expect(textoHacerFoto(o)).toBe(T.formulario.hacerFoto);
+      expect(necesitaFoto(o)).toBe(true);
     }
   });
 });

@@ -20,6 +20,10 @@ export interface ControlMapa {
   encuadrar(recuadro: [[number, number], [number, number]], margenInferior?: number): void;
   acercar(): void;
   alejar(): void;
+  /** Centra a un zoom exacto (el de calle al abrir la aplicación, RV-310). */
+  colocar(lat: number, lng: number, zoom: number): void;
+  /** Encuadra la zona de cobertura entera. */
+  verZona(): void;
 }
 
 interface Props {
@@ -54,6 +58,8 @@ interface Props {
   } | null;
   /** La calle elegida en la búsqueda, resaltada durante la sesión (FR-73, 06 §4.7): [[[lng, lat], …], …]. */
   calle?: [number, number][][] | null;
+  /** El voluntario mueve el mapa con el dedo, la rueda o el teclado (RV-310): ya no se coloca solo. */
+  alMoverlo?: () => void;
 }
 
 /** Diana del incidente: el Crosshair de lucide sobre un círculo de papel con borde (06 §4.7). */
@@ -86,6 +92,7 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     incidente = null,
     medicion = null,
     calle = null,
+    alMoverlo,
   },
   ref,
 ) {
@@ -109,6 +116,10 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
   useEffect(() => {
     alPulsacionLargaRef.current = alPulsacionLarga;
   }, [alPulsacionLarga]);
+  const alMoverloRef = useRef(alMoverlo);
+  useEffect(() => {
+    alMoverloRef.current = alMoverlo;
+  }, [alMoverlo]);
 
   // Crear el mapa una vez.
   useEffect(() => {
@@ -126,7 +137,12 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     else m.fitBounds(LIMITES, { padding: [8, 8] });
     // El zoom de ahora, a la vista en el contenedor: la vista guardada no vale para saberlo con un
     // incidente o "¿Qué hay aquí?" abiertos, porque entonces no se guarda (RV-62).
-    const anotarZoom = () => (m.getContainer().dataset.zoom = String(m.getZoom()));
+    const anotarZoom = () => {
+      const c = m.getContainer();
+      const centro = m.getCenter();
+      c.dataset.zoom = String(m.getZoom());
+      c.dataset.centro = `${centro.lat.toFixed(6)},${centro.lng.toFixed(6)}`;
+    };
     anotarZoom();
     m.on('moveend', () => {
       anotarZoom();
@@ -187,12 +203,29 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     // Si el mapa se mueve o hace zoom, el gesto era para el mapa.
     m.on('movestart zoomstart', soltar);
 
+    // Gestos del voluntario sobre el mapa, no los movimientos que hace la aplicación: arrastrar,
+    // pellizcar, la rueda o las teclas del mapa (RV-310).
+    const movido = () => alMoverloRef.current?.();
+    const conDosDedos = (e: TouchEvent) => {
+      if (e.touches.length > 1) movido();
+    };
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key.startsWith('Arrow') || ['+', '-', '='].includes(e.key)) movido();
+    };
+    m.on('dragstart', movido);
+    lienzo.addEventListener('wheel', movido, { passive: true });
+    lienzo.addEventListener('touchstart', conDosDedos, { passive: true });
+    lienzo.addEventListener('keydown', tecla);
+
     return () => {
       lienzo.removeEventListener('pointerdown', bajar);
       lienzo.removeEventListener('pointermove', mover);
       lienzo.removeEventListener('pointerup', soltar);
       lienzo.removeEventListener('pointercancel', soltar);
       lienzo.removeEventListener('contextmenu', menu);
+      lienzo.removeEventListener('wheel', movido);
+      lienzo.removeEventListener('touchstart', conDosDedos);
+      lienzo.removeEventListener('keydown', tecla);
       detector.cancelar();
       m.remove();
       mapa.current = null;
@@ -213,6 +246,8 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     },
     acercar: () => mapa.current?.zoomIn(),
     alejar: () => mapa.current?.zoomOut(),
+    colocar: (lat, lng, zoom) => mapa.current?.setView([lat, lng], zoom, { animate: false }),
+    verZona: () => mapa.current?.fitBounds(LIMITES, { padding: [8, 8] }),
   }));
 
   // Capa base, capa en línea y límite de zona: cambian con la capa elegida, el modo y la cobertura.

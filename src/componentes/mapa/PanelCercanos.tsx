@@ -24,6 +24,9 @@ export interface EstadoCercanos {
   soloHidrantes: boolean;
 }
 
+/** «·» y un espacio duro (U+00A0): el separador va pegado a lo que sigue (docs/33 RV-316, D8). */
+const SEP = `·${String.fromCharCode(0xa0)}`;
+
 const boton =
   'bg-papel border-texto text-texto rounded-boton flex min-h-11 items-center justify-center gap-2 border-[1.5px] px-3 text-[14px] font-semibold';
 
@@ -120,11 +123,14 @@ export function PanelCercanos({
           <h2 className="font-titulo text-[22px] leading-tight font-bold">{T.incidente.titulo}</h2>
           {origen && (
             <p data-subtitulo role={aviso ? 'status' : undefined} className="text-texto-suave text-[13px]">
-              · {!desdeGps && <>{T.incidente.desdePuntoMarcado} · </>}
+              {/* Cada «·» va pegado a lo que sigue con un espacio duro: al partir la línea, el
+                  separador baja con su texto y no se queda solo (docs/33 RV-316, D8). */}
+              {SEP}
+              {!desdeGps && <>{`${T.incidente.desdePuntoMarcado} ${SEP}`}</>}
               {T.incidente.lineaRecta}
               {aviso && (
                 <>
-                  {' · '}
+                  {` ${SEP}`}
                   <span className="text-naranja-texto font-semibold whitespace-nowrap">{aviso}</span>
                 </>
               )}
