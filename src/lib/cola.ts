@@ -652,7 +652,8 @@ async function marcarFallo(actual: EnCola, codigo: string, c: Credencial, extra:
   void rpc('fn_liberar_reservas', { token: c.token, rutas: [...new Set(rutas)] }).then((r) => {
     // Un servidor anterior sin la función (PGRST202) no es un error: las reservas caducan solas en 2 h.
     if (r.ok || r.codigo === SIN_SERVIDOR || /could not find the function/i.test(r.mensaje ?? '')) return;
-    anotarError(new Error(`fn_liberar_reservas: ${r.codigo}`.slice(0, 200)), 'cola:liberar');
+    // El texto del servidor no lleva las rutas (solo códigos y el nombre de la función); las rutas no se anotan.
+    anotarError(new Error(`fn_liberar_reservas: ${r.codigo} ${r.mensaje ?? ''}`.trim().slice(0, 300)), 'cola:liberar');
   });
 }
 

@@ -10,8 +10,10 @@ import type { ArgumentosPropuesta } from './propuestas';
 import { almacenEnMemoria, respuesta } from './pruebas';
 
 const rpc = vi.fn();
+/** Sesión de jefatura (credencial jwt); null: ninguna. */
+let sesionJefatura: { access_token: string } | null = null;
 vi.mock('./supabase', () => ({
-  supabase: () => ({ rpc, auth: { getSession: async () => ({ data: { session: null } }) } }),
+  supabase: () => ({ rpc, auth: { getSession: async () => ({ data: { session: sesionJefatura } }) } }),
 }));
 vi.mock('./errores', () => ({ anotarError: vi.fn() }));
 vi.mock('./push', () => ({ pedirEnvioPush: vi.fn() }));
@@ -61,6 +63,7 @@ beforeEach(() => {
   _reiniciar();
   cola._usarAlmacenCola(colaEnMemoria());
   rpc.mockReset();
+  sesionJefatura = null;
   respuestaReserva = () => respuesta(200, { foto_path: 'fotos/x.jpg', url: 'https://sb/subir', caduca_en_s: 7200 });
   fetchMock = vi.fn(async (url: string) => {
     if (url === '/api/url-subida') return respuestaReserva();
@@ -323,6 +326,53 @@ describe('fallo definitivo: se liberan sus reservas (RV-328)', () => {
     await cola.procesarCola();
     expect(cola.colaActual().map((i) => i.fallo)).toEqual(['PUNTO_NO_ACTIVO']);
     expect(llamadasLiberar()).toHaveLength(1);
+  });
+
+  it('«Reintentar» tras liberar pide otra reserva y sube otra vez la foto', async () => {
+    let enviadas = 0;
+    conProponer(() => (enviadas++ === 0 ? errorRpc('PUNTO_NO_ACTIVO: retirado') : ok()));
+    await encolarSinRed(1);
+    await cola.procesarCola();
+    respuestaReserva = () =>
+      respuesta(200, { foto_path: 'fotos/nueva.jpg', url: 'https://sb/subir', caduca_en_s: 7200 });
+    await cola.reintentarFallido('k-000000');
+    expect(reservas()).toBe(2);
+    const proponer = rpc.mock.calls.filter((c) => c[0] === 'fn_proponer');
+    expect(proponer[1]![1]).toMatchObject({ foto_path: 'fotos/nueva.jpg' });
+    expect(cola.colaActual()).toEqual([]);
+  });
+
+  it('con la foto del sitio, libera las dos rutas', async () => {
+    let n = 0;
+    respuestaReserva = () =>
+      respuesta(200, { foto_path: `fotos/${++n}.jpg`, url: 'https://sb/subir', caduca_en_s: 7200 });
+    conProponer(() => errorRpc('PUNTO_NO_ACTIVO: retirado'));
+    vi.stubGlobal('navigator', { onLine: false });
+    await cola.encolar(args('k-sitio'), FOTO, null, FOTO);
+    vi.stubGlobal('navigator', { onLine: true });
+    await cola.procesarCola();
+    expect(llamadasLiberar()).toEqual([
+      ['fn_liberar_reservas', { token: TOKEN, rutas: ['fotos/1.jpg', 'fotos/2.jpg'] }],
+    ]);
+    expect(cola.colaActual()[0]).toMatchObject({ foto_path: null, foto_sitio_path: null, reserva_foto_sitio: null });
+  });
+
+  it('con sesión de jefatura (sin token) no se llama y las rutas se quedan', async () => {
+    almacenEnMemoria();
+    sesionJefatura = { access_token: 'jwt' };
+    conProponer(() => errorRpc('PUNTO_NO_ACTIVO: retirado'));
+    await encolarSinRed(1);
+    await cola.procesarCola();
+    expect(cola.colaActual()[0]).toMatchObject({ fallo: 'PUNTO_NO_ACTIVO', foto_path: 'fotos/x.jpg' });
+    expect(llamadasLiberar()).toHaveLength(0);
+  });
+
+  it('un tope no libera nada: no es un fallo definitivo', async () => {
+    conProponer(() => errorRpc('CUOTA_PROPUESTAS_AGOTADA: maximo=60 reintentar_en_s=5000'));
+    await encolarSinRed(1);
+    await cola.procesarCola();
+    expect(llamadasLiberar()).toHaveLength(0);
+    expect(cola.colaActual()[0]!.foto_path).toBe('fotos/x.jpg');
   });
 
   it('sin fotos subidas ni reservadas no se llama', async () => {
