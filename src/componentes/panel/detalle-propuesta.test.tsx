@@ -332,6 +332,12 @@ describe('punto que ya no está activo (RV-330)', () => {
     expect(boton(html, `>${T.panelCola.aprobar}<`)).not.toContain('disabled=""');
   });
 
+  it('una propuesta ya decidida sobre un punto retirado no lleva el aviso (historial)', () => {
+    const html = pintar({ ...inactivo('estado', 'retirado'), estado: 'rechazada', revisada_en: '2026-10-08' });
+    expect(html).not.toContain(T.panelCola.avisoRetirado('7 oct 2026'));
+    expect(html).not.toContain(T.panelCola.rechazarNoExiste);
+  });
+
   it('una retirada no se bloquea por la situación', () => {
     const html = pintar(propuesta('retirada', { punto: { ...ACTUAL, situacion: 'retirado', borrado_en: null } }));
     expect(html).not.toContain(T.panelCola.rechazarNoExiste);

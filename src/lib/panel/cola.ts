@@ -239,7 +239,8 @@ export function puntoInactivo(p: PropuestaPanel, inventario?: Punto): PuntoInact
 
 /** El aviso rojo de arriba del detalle; sin datos (solo PUNTO_NO_ACTIVO), sin fecha. */
 export function avisoPuntoInactivo(i: PuntoInactivo | null): string {
-  if (!i?.desde) return T.panelCola.avisoNoActivo;
+  // Sin fecha, o una que no se sabe leer: el aviso sin paréntesis, nunca un detalle que no se pinta.
+  if (!i?.desde || Number.isNaN(new Date(i.desde).getTime())) return T.panelCola.avisoNoActivo;
   const fecha = fechaCorta(i.desde);
   return i.situacion === 'borrado' ? T.panelCola.avisoEnPapelera(fecha) : T.panelCola.avisoRetirado(fecha);
 }

@@ -93,6 +93,12 @@ describe('puntoInactivo (RV-330)', () => {
   it('sin la fila del punto (vista de antes) no se supone nada', () => {
     expect(puntoInactivo(propuesta('estado', null))).toBeNull();
   });
+
+  it('una fila del punto sin `situacion` (vista de antes de 0036) tampoco bloquea ni pone ⚠', () => {
+    const p = propuesta('estado', { situacion: undefined });
+    expect(puntoInactivo(p)).toBeNull();
+    expect(tieneAviso(p)).toBe(false);
+  });
 });
 
 describe('avisoPuntoInactivo (RV-330)', () => {
@@ -114,6 +120,8 @@ describe('avisoPuntoInactivo (RV-330)', () => {
   it('sin fecha (solo se sabe por PUNTO_NO_ACTIVO), sin paréntesis', () => {
     expect(avisoPuntoInactivo(null)).toBe(T.panelCola.avisoNoActivo);
     expect(avisoPuntoInactivo({ situacion: 'retirado', desde: null })).toBe(T.panelCola.avisoNoActivo);
+    // Una fecha que no se sabe leer no rompe el detalle.
+    expect(avisoPuntoInactivo({ situacion: 'retirado', desde: 'no es una fecha' })).toBe(T.panelCola.avisoNoActivo);
   });
 });
 
@@ -139,5 +147,21 @@ describe('la lista y el lote (RV-330)', () => {
       () => 'Estado HID-0147',
     );
     expect(texto).toBe(T.panelCola.loteOmitidas(`Estado HID-0147: ${T.panelCola.omitidaPuntoNoActivo}`));
+  });
+
+  it('las omitidas del servidor y las saltadas en el panel salen juntas', () => {
+    const texto = resumenLote(
+      [
+        { propuesta_id: 'a', resultado: 'aprobada', motivo: null },
+        { propuesta_id: 'c', resultado: 'omitida', motivo: 'DIAMETRO_SIN_FIJAR' },
+        { propuesta_id: 'b', resultado: 'omitida', motivo: 'PUNTO_NO_ACTIVO' },
+      ],
+      (id) => id.toUpperCase(),
+    );
+    expect(texto).toBe(
+      `${T.panelCola.loteAprobadas(1)} ${T.panelCola.loteOmitidas(
+        `C: ${T.panelCola.omitidaDiametro}; B: ${T.panelCola.omitidaPuntoNoActivo}`,
+      )}`,
+    );
   });
 });

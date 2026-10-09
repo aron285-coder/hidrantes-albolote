@@ -228,12 +228,18 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     const { aprobables, saltadas } = separarLote(elegidas);
     if (!aprobables.length) {
       setMarcadas(new Set());
-      return avisar(resumenLote(saltadas, nombre), 'error');
+      avisar(resumenLote(saltadas, nombre), 'error');
+      // Lo saltado se decidió con la lista cargada: se recarga por si el punto se ha restaurado.
+      return void carga.recargar();
     }
     setOcupado(true);
     const r = await aprobarLote(aprobables.map((p) => p.id));
     setOcupado(false);
-    if (!r.ok) return avisar(textoError(r.codigo), 'error');
+    if (!r.ok) {
+      // Las saltadas se dicen también si el lote falla: si no, al reintentar se saltarían sin aviso.
+      const error = textoError(r.codigo);
+      return avisar(saltadas.length ? `${error} ${resumenLote(saltadas, nombre)}` : error, 'error');
+    }
     setMarcadas(new Set());
     const resultados = [...r.datos, ...saltadas];
     const omitidas = resultados.some((x) => x.resultado === 'omitida');

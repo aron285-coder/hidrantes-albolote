@@ -92,6 +92,8 @@ export function DetallePropuesta({
   const desactualizada = p.desactualizada || puntoCambiado;
   // Un punto retirado también "cambió": eso no se pide confirmar, porque no se puede aprobar.
   const confirmar = desactualizada && !bloqueado;
+  // Si la recarga trae el punto ya retirado con las correcciones abiertas, se cierran: no se aprobaría.
+  if (bloqueado && modo === 'corregir') setModo(null);
   // La dirección que se enseña al abrir: la sugerida (o la deducida, que llega después) y, si no la hay,
   // la del punto. Es con lo que se compara al aprobar: lo que no se toca no es una corrección (RV-162).
   const [ensenada, setEnsenada] = useState(
