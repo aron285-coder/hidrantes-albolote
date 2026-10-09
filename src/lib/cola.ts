@@ -598,7 +598,7 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
       return 'parar';
     }
     if (esPermanente(r.codigo)) {
-      await guardar({ ...actual, fallo: r.codigo });
+      await marcarFallo(actual, r.codigo, c, {});
       continue;
     }
     const tope = esperaPorTope(r.codigo, r.mensaje);
@@ -611,7 +611,7 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
     const transitorio = TRANSITORIOS.some((t) => r.codigo.startsWith(t));
     const fallos_seguidos = transitorio ? 0 : (actual.fallos_seguidos ?? 0) + 1;
     if (fallos_seguidos >= MAX_FALLOS_SEGUIDOS) {
-      await guardar({ ...actual, fallo: r.codigo, fallos_seguidos });
+      await marcarFallo(actual, r.codigo, c, { fallos_seguidos });
       continue;
     }
     const intentos = actual.intentos + 1;
@@ -622,6 +622,39 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
     }
   }
   return 'seguir';
+}
+
+/**
+ * Fallo definitivo de un envío (docs/33 RV-328): se guarda el fallo y se liberan en el servidor sus
+ * fotos subidas y reservas sin usar (`fn_liberar_reservas`, RV-302), para que no cuenten 2 h contra
+ * RESERVAS_ABIERTAS y paren al resto de la cola. Sin esperar la respuesta. Las rutas se olvidan
+ * aquí: la purga del servidor las borrará, así que un «Reintentar» sube otra vez la foto, que el
+ * envío conserva. Solo con token de voluntario: la función es para `anon` con token.
+ */
+async function marcarFallo(actual: EnCola, codigo: string, c: Credencial, extra: Partial<EnCola>): Promise<void> {
+  // Solo las rutas que subió esta cola (con su foto aún en el envío, para poder subirla otra vez).
+  const rutas = [
+    actual.foto ? actual.foto_path : null,
+    actual.foto_sitio ? actual.foto_sitio_path : null,
+    actual.reserva_foto?.foto_path,
+    actual.reserva_foto_sitio?.foto_path,
+  ].filter((r): r is string => typeof r === 'string' && r.length > 0);
+  const liberar = 'token' in c && rutas.length > 0;
+  await guardar({
+    ...actual,
+    ...extra,
+    fallo: codigo,
+    ...(liberar ? { reserva_foto: null, reserva_foto_sitio: null } : {}),
+    ...(liberar && actual.foto ? { foto_path: null } : {}),
+    ...(liberar && actual.foto_sitio ? { foto_sitio_path: null } : {}),
+  });
+  if (!liberar) return;
+  void rpc('fn_liberar_reservas', { token: c.token, rutas: [...new Set(rutas)] }).then((r) => {
+    // Un servidor anterior sin la función (PGRST202) no es un error: las reservas caducan solas en 2 h.
+    if (r.ok || r.codigo === SIN_SERVIDOR || /could not find the function/i.test(r.mensaje ?? '')) return;
+    // El texto del servidor no lleva las rutas (solo códigos y el nombre de la función); las rutas no se anotan.
+    anotarError(new Error(`fn_liberar_reservas: ${r.codigo} ${r.mensaje ?? ''}`.trim().slice(0, 300)), 'cola:liberar');
+  });
 }
 
 /**
