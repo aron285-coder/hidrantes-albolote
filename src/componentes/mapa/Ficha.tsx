@@ -1,4 +1,4 @@
-import { Activity, Check, Crosshair, Navigation, Pencil, PenLine, Share2, X } from 'lucide-react';
+import { Activity, Check, Crosshair, ImageOff, Navigation, Pencil, PenLine, Share2, X } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Hoja } from '../Hoja';
@@ -33,29 +33,52 @@ function UnaFoto({
   const conexion = useConexion();
   // Con qué cobertura falló. Si falló sin cobertura y ya la hay, la foto se vuelve a pedir.
   const [falloCon, setFalloCon] = useState<string | null>(null);
+  // «Reintentar» pinta una <img> nueva, que vuelve a pedir la foto.
+  const [intento, setIntento] = useState(0);
   const fallo = falloCon !== null && !(conexion === 'bien' && falloCon !== 'bien');
-  if (!fotoPath && !etiqueta) return null;
   if (!url || fallo) {
+    const sinCobertura = !!fotoPath && conexion !== 'bien';
     return (
-      // text-texto: el suave sobre bg-linea se queda en 4,28:1 (axe, docs/18 GM-05).
+      // Sin foto, o si no carga, una franja de 44 px y no un bloque: «Cómo llegar» sube a la primera
+      // pantalla (docs/33 RV-314, U5). text-texto: el suave sobre bg-linea se queda en 4,28:1 (axe).
       <div
-        className={cn('bg-linea text-texto rounded-tarjeta relative flex items-center justify-center text-sm', alto)}
+        data-testid="foto-franja"
+        className="bg-linea text-texto rounded-tarjeta flex min-h-11 items-center gap-2 px-3 text-sm"
       >
-        {!fotoPath ? T.ficha.sinFoto : conexion !== 'bien' ? T.ficha.fotoNoDisponible : T.ficha.fotoNoCarga}
-        {etiqueta && <EtiquetaFoto texto={etiqueta} />}
+        <ImageOff size={18} className="shrink-0" aria-hidden />
+        {etiqueta && <span className="shrink-0 font-semibold">{etiqueta}</span>}
+        <span className="min-w-0 flex-1">
+          {!fotoPath ? T.ficha.sinFoto : sinCobertura ? T.ficha.fotoNoDisponible : T.ficha.fotoNoCarga}
+        </span>
+        {/* Reintentar solo si hay a quién pedirla: con cobertura y con dirección de la foto. Sin
+            cobertura se vuelve a pedir sola al volver la señal. */}
+        {fotoPath && url && !sinCobertura && (
+          <button
+            type="button"
+            onClick={() => {
+              setFalloCon(null);
+              setIntento((n) => n + 1);
+            }}
+            className="text-texto -my-1 min-h-11 shrink-0 px-1 font-semibold underline"
+          >
+            {T.ficha.reintentarFoto}
+          </button>
+        )}
       </div>
     );
   }
   return (
     <a href={url} target="_blank" rel="noreferrer" className="rounded-tarjeta relative block overflow-hidden">
       <img
+        key={intento}
         // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
         crossOrigin="anonymous"
         src={url}
         alt={alt}
         loading="lazy"
         onError={() => setFalloCon(conexion)}
-        className={cn('w-full bg-[linear-gradient(135deg,#C9CFD6,#9AA8BE)] object-cover', alto)}
+        // Con foto, como mucho 200 px de alto (docs/33 RV-314).
+        className={cn('max-h-[200px] w-full bg-[linear-gradient(135deg,#C9CFD6,#9AA8BE)] object-cover', alto)}
       />
       {etiqueta && <EtiquetaFoto texto={etiqueta} />}
       <span className="absolute right-1.5 bottom-1.5 rounded bg-[rgba(14,27,48,.6)] px-1.5 text-xs text-white">

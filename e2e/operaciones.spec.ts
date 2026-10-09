@@ -302,8 +302,8 @@ test.describe('operaciones (FL-03–FL-08)', () => {
     await page.getByRole('button', { name: new RegExp(`^${T.operaciones.corregirDatos}`) }).click();
     await expect(page.getByRole('radio', { name: T.formulario.bocaRiego })).toHaveCount(0);
     await expect(page.getByRole('radio', { name: T.formulario.hidrante })).toHaveCount(0);
-    await expect(page.getByText(T.operaciones.tipoNoCambia)).toBeVisible();
-    await page.getByRole('link', { name: T.operaciones.proponerRetirada }).click();
+    await expect(page.getByText(T.operaciones.tipoMal, { exact: false })).toBeVisible();
+    await page.getByRole('link', { name: T.operaciones.tipoMalEnlace }).click();
     await expect(page).toHaveURL((u) => u.pathname === '/proponer/retirada' && u.searchParams.get('p') === hid.id);
     await expect(page.getByLabel(T.formulario.motivoRetirada)).toBeVisible();
   });
