@@ -74,10 +74,15 @@ export type MotivoEspera =
   | 'sin_espacio'
   | 'reservas_abiertas';
 
-/** La espera por un tope: `maximo` si el servidor lo dice. */
+/**
+ * La espera por un tope: `maximo` si el servidor lo dice. `ambito: 'dispositivo'` (docs/33 RV-329):
+ * el tope de fotos es el de este móvil. Va aparte del motivo para que la versión anterior, que no lo
+ * conoce, siga leyendo `cuota_fotos` y diga su texto de siempre.
+ */
 export interface EnEspera {
   motivo: MotivoEspera;
   maximo: number | null;
+  ambito?: 'dispositivo';
 }
 
 export interface Enviada {
@@ -127,6 +132,7 @@ export interface Tope {
   motivo: MotivoEspera;
   ms: number;
   maximo: number | null;
+  ambito?: 'dispositivo';
 }
 
 /**
@@ -146,6 +152,8 @@ export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now
     return { motivo, ...esperaCuotaPropuestas(mensaje, ahora) };
   }
   if (motivo === 'cuota_fotos' && delGrupo) motivo = 'cuota_fotos_grupo';
+  // docs/33 RV-329: con el ámbito del móvil se dice «tu máximo»; sin ámbito (servidor anterior), como antes.
+  const delMovil = motivo === 'cuota_fotos' && ambito === 'dispositivo';
   const segundos = /reintentar_en_s=(\d+)/.exec(mensaje ?? '');
   const maximo = /maximo=(\d+)/.exec(mensaje ?? '');
   return {
@@ -153,6 +161,7 @@ export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now
     ms: Math.max(1000, segundos ? Number(segundos[1]) * 1000 : HORA),
     // El de espacio de fotos viene en bytes: no se enseña.
     maximo: maximo && motivo !== 'sin_espacio_fotos' ? Number(maximo[1]) : null,
+    ...(delMovil ? { ambito: 'dispositivo' as const } : {}),
   };
 }
 
@@ -663,7 +672,11 @@ async function marcarFallo(actual: EnCola, codigo: string, c: Credencial, extra:
  */
 async function esperarTodo(tope: Tope, elQueChoca: string, gen: number): Promise<void> {
   const hasta = Date.now() + tope.ms;
-  const en_espera: EnEspera = { motivo: tope.motivo, maximo: tope.maximo };
+  const en_espera: EnEspera = {
+    motivo: tope.motivo,
+    maximo: tope.maximo,
+    ...(tope.ambito ? { ambito: tope.ambito } : {}),
+  };
   for (const clave of items.map((i) => i.clave_local)) {
     if (gen !== generacion) return;
     const i = items.find((x) => x.clave_local === clave);

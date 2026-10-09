@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-// docs/32 RV-202: el respaldo se cifra para la clave de docs/15 §2 (GPG_HUELLA) y se comprueba antes
+// docs/32 RV-202: el respaldo se cifra para la clave de docs/15 §2 (GPG_HUELLA, constante de respaldo.yml desde docs/33 RV-341) y se comprueba antes
 // y después de cifrar. Con dos claves generadas aquí: la buena y una equivocada.
 const raiz = path.resolve(import.meta.dirname, '..');
 const tieneGpg = spawnSync('bash', ['-c', 'command -v gpg'], { encoding: 'utf8' }).status === 0;
@@ -127,9 +127,20 @@ describe('respaldo.yml usa la huella esperada (RV-202)', () => {
     return respaldo.slice(desde).split(/\n {6}- /)[0]!;
   };
 
-  it('la huella es la variable del repositorio GPG_HUELLA, y su falta para el respaldo', () => {
-    expect(respaldo).toContain('GPG_HUELLA: ${{ vars.GPG_HUELLA }}');
-    expect(paso('Comprobar que están los secretos')).toMatch(/for v in [^\n]*GPG_HUELLA/);
+  // docs/33 RV-341: la huella es una constante del workflow, no una variable del repositorio. Cambiarla
+  // exige un PR; no basta con quien pueda editar las variables.
+  it('la huella es una constante de respaldo.yml, no una variable del repositorio', () => {
+    expect(respaldo).not.toMatch(/vars\.GPG_HUELLA/);
+    const constante = /^env:\n(?: {2}\S.*\n)*? {2}GPG_HUELLA: ([0-9A-F]{40})$/m.exec(respaldo);
+    expect(constante, 'env: GPG_HUELLA del workflow').not.toBeNull();
+  });
+
+  it('la constante es la huella de docs/entornos.md y de docs/15 §2', () => {
+    const constante = /^ {2}GPG_HUELLA: ([0-9A-F]{40})$/m.exec(respaldo)?.[1];
+    const entornos = readFileSync(path.join(raiz, 'docs/entornos.md'), 'utf8');
+    const continuidad = readFileSync(path.join(raiz, 'docs/15-continuidad-y-emergencias.md'), 'utf8');
+    expect(constante).toBe(/Huella GPG de respaldos \| `([0-9A-F]{40})`/.exec(entornos)?.[1]);
+    expect(constante).toBe(/Clave GPG privada del respaldo \(huella `([0-9A-F]{40})`\)/.exec(continuidad)?.[1]);
   });
 
   it('antes de importar, comprobar_clave; el destinatario es GPG_HUELLA, no la primera huella que haya', () => {
