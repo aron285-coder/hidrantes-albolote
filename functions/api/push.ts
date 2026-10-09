@@ -3,7 +3,18 @@
 // y el Worker hidrantes-avisos cada 5 minutos (X-Vigilancia, DEC-097). Cada aviso se reclama en la base de datos antes de
 // enviarse y solo cuenta como enviado cuando su resultado queda anotado (RV-08).
 
-import { type Env, type Manejador, error, esAdmin, iguales, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
+import {
+  type Env,
+  type Manejador,
+  error,
+  esAdmin,
+  iguales,
+  json,
+  jwtDe,
+  leerJson,
+  rpc,
+  validarToken,
+} from '../_lib/comun.ts';
 import { type Suscripcion, enviar } from '../_lib/webpush.ts';
 
 interface Pendiente {
@@ -15,16 +26,16 @@ interface Pendiente {
   suscripcion: Suscripcion;
 }
 
-async function autorizado(request: Request, env: Env): Promise<boolean> {
+/** Quién puede pedir el envío. `sin_servidor`: el token no se ha podido comprobar (503, no 401). */
+async function autorizado(request: Request, env: Env): Promise<'si' | 'no' | 'sin_servidor'> {
   const vigilancia = request.headers.get('X-Vigilancia');
-  if (vigilancia && env.VIGILANCIA_SECRETO) return iguales(vigilancia, env.VIGILANCIA_SECRETO);
+  if (vigilancia && env.VIGILANCIA_SECRETO) return iguales(vigilancia, env.VIGILANCIA_SECRETO) ? 'si' : 'no';
   const jwt = jwtDe(request);
-  if (jwt) return esAdmin(env, jwt);
+  if (jwt) return (await esAdmin(env, jwt)) ? 'si' : 'no';
   const cuerpo = await leerJson(request);
-  if (typeof cuerpo?.token !== 'string') return false;
-  // Validar el token cuesta una lectura mínima: solo lo cambiado desde ahora.
-  const r = await rpc(env, 'fn_listar_puntos', { token: cuerpo.token, desde: new Date().toISOString() });
-  return r.ok;
+  if (typeof cuerpo?.token !== 'string') return 'no';
+  const r = await validarToken(env, cuerpo.token, '/api/push');
+  return r === 'valido' ? 'si' : r === 'invalido' ? 'no' : 'sin_servidor';
 }
 
 /**
@@ -35,7 +46,9 @@ async function autorizado(request: Request, env: Env): Promise<boolean> {
 export const LOTE = 20;
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
-  if (!(await autorizado(request, env))) return error(401, 'NO_AUTORIZADO');
+  const quien = await autorizado(request, env);
+  if (quien === 'sin_servidor') return error(503, 'SERVIDOR_NO_DISPONIBLE');
+  if (quien === 'no') return error(401, 'NO_AUTORIZADO');
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY || !env.VAPID_SUBJECT) return error(503, 'NO_CONFIGURADO');
 
   const pendientes = await rpc<Pendiente[]>(env, 'fn_reclamar_notificaciones', { limite: LOTE });

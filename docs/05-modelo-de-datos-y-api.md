@@ -404,7 +404,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida`; desde 0041 también `fn_reportar_incidencia`, como sumidero para la app 0.7.0 (§2.7, hasta #472) |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni
@@ -451,6 +451,8 @@ fn_verificar_codigo(codigo text, dispositivo_id uuid, ip_hash text)
 
 -- Helper: devuelve el dispositivo_id, actualiza ultimo_uso.
 fn_validar_token(token text) returns uuid
+  -- Ni anon ni authenticated. service_role desde 0043 (#561): la llaman /api/push y /api/geocodificar
+  --   para comprobar el token de un voluntario (validarToken de functions/_lib/comun.ts).
   -- errores: TOKEN_INVALIDO · TOKEN_REVOCADO · TOKEN_CADUCADO
   -- TOKEN_REVOCADO también si el dispositivo_id del token es el de un administrador (0039, RV-143):
   --   0039 revoca los que hubiera, y esto cubre a quien se dé de alta como administrador más tarde.
@@ -968,6 +970,7 @@ Números de portal para la búsqueda (FR-73, DEC-092). **Nunca anónimo**: no es
         "fuente": "CartoCiudad (IGN/CNIG)" }        // como mucho 5
 ← 400 { "error": "PAYLOAD_INVALIDO" }   // q de menos de 3 o más de 120 caracteres tras trim
 ← 401 { "error": "TOKEN_INVALIDO" }     // sin token de voluntario válido ni sesión de administrador
+← 503 { "error": "SERVIDOR_NO_DISPONIBLE" } // el token no se ha podido comprobar (0043, #561): no es «vuelve a entrar»
 ← 429 { "error": "DEMASIADOS_INTENTOS" } // más de 30 por minuto con el mismo token (RV-63)
 ← 503 { "error": "SIN_SERVIDOR" }       // CartoCiudad caído o más de 5 s, o sin ningún resultado porque fallaron los find (TR-118, RV-63)
 ```
@@ -1025,7 +1028,10 @@ aplica el tope por IP y nunca falla hacia el cliente. La IP no se guarda en clar
 ### `POST /api/push`
 
 `→ { "token": "…" }` (voluntario) o cabecera de administrador, o cabecera `X-Vigilancia` con el
-secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. Reclama **20** avisos (el plan gratuito de Workers
+secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. El token se
+comprueba con `fn_validar_token` (0043, #561): rechazado (`TOKEN_*`) → `401 NO_AUTORIZADO`; si no se
+puede comprobar (red, permisos) → `503 SERVIDOR_NO_DISPONIBLE` y `validar_token_fallo: <código>` en
+`errores_cliente` (`ip_hash` fijo `funcion:validar_token`, sin el token). Igual en `/api/geocodificar`. Reclama **20** avisos (el plan gratuito de Workers
 permite 50 peticiones de salida por invocación y cada aviso gasta dos, más una para aplazar: 43), envía cada uno con Web Push
 (VAPID) y anota su resultado. Marca `suscripcion_caducada` **solo** con 404 o 410; cualquier otro
 error HTTP se anota como fallo (§2.12). **Sin respuesta** del servicio (corte de red, DNS o 10 s sin

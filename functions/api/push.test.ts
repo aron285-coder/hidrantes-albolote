@@ -43,7 +43,10 @@ const peticion = (cuerpo: unknown = {}, cabeceras: Record<string, string> = {}) 
 
 interface Red {
   admin?: boolean;
-  token?: boolean;
+  /** fn_validar_token: vale, lo rechaza (TOKEN_INVALIDO) o falla por dentro (permiso denegado). */
+  token?: boolean | 'sin_permiso';
+  /** fn_registrar_error tampoco contesta bien. */
+  registroCae?: boolean;
   pendientes?: ReturnType<typeof pendiente>[];
   servicioPush?: Response;
   /** Respuesta del servicio de push según el endpoint; manda sobre `servicioPush`. */
@@ -56,6 +59,10 @@ interface Red {
   serviciosCaidos?: string[];
 }
 
+/** Lo que contesta PostgREST cuando el rol no tiene execute sobre la función. */
+const PERMISO_DENEGADO = () =>
+  new Response(JSON.stringify({ code: '42501', message: 'permission denied for function' }), { status: 401 });
+
 function fingirRed(red: Red = {}) {
   const llamadas: { url: string; cuerpo: unknown }[] = [];
   const espia = vi.spyOn(globalThis, 'fetch').mockImplementation((entrada, opciones) => {
@@ -63,9 +70,21 @@ function fingirRed(red: Red = {}) {
     const texto = (opciones as RequestInit | undefined)?.body;
     llamadas.push({ url, cuerpo: typeof texto === 'string' ? JSON.parse(texto) : texto });
     if (url.includes('fn_es_admin')) return Promise.resolve(new Response(String(red.admin ?? false)));
-    if (url.includes('fn_listar_puntos')) {
+    // Como en Supabase: service_role no ejecuta fn_listar_puntos (#561); fn_validar_token sí (0043).
+    if (url.includes('fn_listar_puntos')) return Promise.resolve(PERMISO_DENEGADO());
+    if (url.includes('fn_validar_token')) {
+      if (red.token === 'sin_permiso') return Promise.resolve(PERMISO_DENEGADO());
       return Promise.resolve(
-        red.token ? new Response('{"puntos":[],"bajas":[]}') : new Response('{}', { status: 401 }),
+        red.token
+          ? new Response('"a5610000-0000-4000-8000-000000000561"')
+          : new Response(JSON.stringify({ code: 'P0001', message: 'TOKEN_INVALIDO: Acceso no válido' }), {
+              status: 400,
+            }),
+      );
+    }
+    if (url.includes('fn_registrar_error')) {
+      return Promise.resolve(
+        red.registroCae ? new Response('{}', { status: 500 }) : new Response(null, { status: 204 }),
       );
     }
     if (url.includes('fn_reclamar_notificaciones')) {
@@ -101,6 +120,43 @@ describe('POST /api/push', () => {
     const { espia } = fingirRed({ token: false });
     const r = await onRequestPost({ request: peticion({ token: 'tok_inventado' }), env: ENV });
     expect(r.status).toBe(401);
+    espia.mockRestore();
+  });
+
+  it('un token de voluntario válido pide el envío: se comprueba con fn_validar_token (#561)', async () => {
+    const { espia, llamadas } = fingirRed({ token: true, pendientes: [] });
+    const r = await onRequestPost({ request: peticion({ token: 'tok_valido_de_un_movil_0561' }), env: ENV });
+    expect(r.status).toBe(200);
+    const validacion = llamadas.find((l) => l.url.endsWith('/rest/v1/rpc/fn_validar_token'));
+    expect(validacion?.cuerpo).toEqual({ token: 'tok_valido_de_un_movil_0561' });
+    expect(llamadas.some((l) => l.url.includes('fn_listar_puntos'))).toBe(false);
+    espia.mockRestore();
+  });
+
+  it('si el token no se puede comprobar, 503 y queda anotado, sin el token: no es culpa del voluntario', async () => {
+    const { espia, llamadas } = fingirRed({ token: 'sin_permiso', pendientes: [] });
+    const r = await onRequestPost({ request: peticion({ token: 'tok_valido_de_un_movil_0561' }), env: ENV });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'SERVIDOR_NO_DISPONIBLE' });
+    const anotado = llamadas.find((l) => l.url.endsWith('/rest/v1/rpc/fn_registrar_error'));
+    expect(anotado?.cuerpo).toMatchObject({
+      mensaje: 'validar_token_fallo: NO_AUTORIZADO',
+      ruta: '/api/push',
+      ip_hash: 'funcion:validar_token',
+    });
+    expect(JSON.stringify(anotado?.cuerpo)).not.toContain('tok_valido_de_un_movil_0561');
+    expect(llamadas.some((l) => l.url.includes('fn_reclamar_notificaciones'))).toBe(false);
+    espia.mockRestore();
+  });
+
+  it('si tampoco se puede anotar, sigue siendo 503 y queda en el registro del Worker, sin el token', async () => {
+    const { espia } = fingirRed({ token: 'sin_permiso', registroCae: true });
+    const consola = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const r = await onRequestPost({ request: peticion({ token: 'tok_valido_de_un_movil_0561' }), env: ENV });
+    expect(r.status).toBe(503);
+    expect(consola).toHaveBeenCalledWith('validar_token_fallo sin anotar: NO_AUTORIZADO / ERROR_INTERNO en /api/push');
+    expect(JSON.stringify(consola.mock.calls)).not.toContain('tok_valido_de_un_movil_0561');
+    consola.mockRestore();
     espia.mockRestore();
   });
 
