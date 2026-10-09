@@ -11,10 +11,29 @@ export type Capa = 'base' | 'calle' | 'satelite' | 'catastro';
 export const CAPAS: Capa[] = ['base', 'calle', 'satelite', 'catastro'];
 
 export const NOMBRE_CAPA: Record<Capa, string> = {
-  base: T.mapa.mapaBasePropio,
-  calle: T.mapa.calleOsm,
-  satelite: T.mapa.satelitePnoa,
-  catastro: T.mapa.catastro,
+  base: T.capas.base,
+  calle: T.capas.calle,
+  satelite: T.capas.satelite,
+  catastro: T.capas.catastro,
+};
+
+/** Para qué sirve cada capa, en palabras (docs/33 RV-317). */
+export const PARA_QUE_CAPA: Record<Capa, string> = {
+  base: T.capas.descBase,
+  calle: T.capas.descCalle,
+  satelite: T.capas.descSatelite,
+  catastro: T.capas.descCatastro,
+};
+
+/**
+ * Miniatura de cada capa: un recorte fijo de 96 × 64 px de la propia capa sobre Albolote, en
+ * public/capas/ (docs/33 RV-317). Va en el precache como el resto de imágenes: se ve sin cobertura.
+ */
+export const MINIATURA_CAPA: Record<Capa, string> = {
+  base: '/capas/base.webp',
+  calle: '/capas/calle.webp',
+  satelite: '/capas/satelite.webp',
+  catastro: '/capas/catastro.webp',
 };
 
 /** Capas que necesitan red. Catastro va superpuesta al mapa base propio. */

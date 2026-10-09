@@ -146,7 +146,7 @@ test.describe('mapa y lista', () => {
   test('capas: elegir satélite se recuerda (FR-63)', async ({ page }) => {
     await abrir(page);
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await page.getByRole('radio', { name: new RegExp(T.mapa.satelitePnoa.replace(/[()]/g, '\\$&')) }).click();
+    await page.getByRole('radio', { name: new RegExp(T.capas.satelite.replace(/[()]/g, '\\$&')) }).click();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
     await page.reload();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
@@ -182,17 +182,15 @@ test.describe('sin cobertura (criterio de salida)', () => {
     // Una capa en línea sin cobertura sale en gris con el motivo.
     await page.goto('/');
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await expect(
-      page.getByRole('radio', { name: new RegExp(T.mapa.calleOsm.replace(/[()]/g, '\\$&')) }),
-    ).toBeDisabled();
+    await expect(page.getByRole('radio', { name: new RegExp(T.capas.calle.replace(/[()]/g, '\\$&')) })).toBeDisabled();
     await context.setOffline(false);
   });
 
   // FR-63 y UI-04: la capa en línea que se estaba usando deja de pintarse al perder la cobertura.
   // El Catastro también, aunque debajo siga el mapa base: desaparecería el plano sin decir por qué.
   for (const [capa, nombre] of [
-    ['satelite', T.mapa.satelitePnoa],
-    ['catastro', T.mapa.catastro],
+    ['satelite', T.capas.satelite],
+    ['catastro', T.capas.catastro],
   ] as const) {
     test(`sin cobertura, la capa "${capa}" dice que la necesita (FR-63)`, async ({ page, context }) => {
       // Datos móviles: el mapa base no se descarga solo. Con él descargado va debajo y el aviso es
@@ -398,7 +396,7 @@ test.describe('zoom (#136)', () => {
     await page.route('https://www.ign.es/**', (r) => r.fulfill({ contentType: 'image/jpeg', body: TESELA }));
     await abrir(page);
     await page.getByRole('button', { name: T.mapa.capas }).click();
-    await page.getByRole('radio', { name: new RegExp(T.mapa.satelitePnoa.replace(/[()]/g, '\\$&')) }).click();
+    await page.getByRole('radio', { name: new RegExp(T.capas.satelite.replace(/[()]/g, '\\$&')) }).click();
     await expect(page.getByText(/Instituto Geográfico Nacional/)).toBeVisible();
   }
 

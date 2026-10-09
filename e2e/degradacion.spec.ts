@@ -164,7 +164,7 @@ test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
     await page.goto('/');
     await expect(page.getByText(T.mapa.nPuntos(PUNTOS.length), { exact: false })).toBeVisible();
 
-    const calle = page.getByRole('radio', { name: new RegExp(T.mapa.calleOsm.replace(/[()]/g, '\\$&')) });
+    const calle = page.getByRole('radio', { name: new RegExp(T.capas.calle.replace(/[()]/g, '\\$&')) });
     await page.getByRole('button', { name: T.mapa.capas }).click();
     await calle.click();
     await page.keyboard.press('Escape');
@@ -174,7 +174,7 @@ test.describe('sin cobertura con una capa en línea (RV-58, DEC-098)', () => {
 
     await page.route('https://tile.openstreetmap.org/**', (r) => r.abort('internetdisconnected'));
     await context.setOffline(true);
-    await expect(page.getByRole('status').filter({ hasText: T.mapa.capaConBaseDebajo(T.mapa.calleOsm) })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: T.mapa.capaConBaseDebajo(T.capas.calle) })).toBeVisible();
     await expect(teselasBase.first()).toBeVisible();
 
     // La elección no cambia: al volver la cobertura sigue elegida la calle.

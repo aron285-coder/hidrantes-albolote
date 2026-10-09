@@ -447,7 +447,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `Datos externos.` ·
 `Para deducir direcciones se consulta OpenStreetMap con las coordenadas del hidrante, nunca con datos tuyos. Mapa base y direcciones © OpenStreetMap contributors.`
 
-**Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · `Mapa base propio` ·
+**Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · `Mapa base propio` · capas en palabras (docs/33 RV-317): `Mapa sin conexión` · `Callejero` · `Foto aérea` · `Funciona sin cobertura` · `Con nombres de calles` · `Para ver el terreno` · `Parcelas y edificios` · `Fuentes: OpenStreetMap, PNOA (IGN), Catastro.` ·
 `Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `© OpenStreetMap contributors` ·
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` · `Centrado en tu posición` · `Ver toda la zona` (aviso al abrir el mapa sobre el voluntario, docs/33 RV-310) ·
