@@ -510,7 +510,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Solo actualiza la fecha de revisión. Foto y listo.` · `Actualizar estado` ·
 `El caudal ha cambiado o ya no funciona` · `Corregir datos` ·
 `Diámetro, tipo de enganche o descripción mal anotados` ·
-`¿El tipo está mal? Propón retirarlo y da de alta el correcto` · `Corregir ubicación` · `El pin está desplazado` ·
+`¿El tipo está mal?` · `Propón retirarlo` · `y da de alta el correcto.` (una frase con el enlace dentro, docs/33 RV-316) · `Corregir ubicación` · `El pin está desplazado` ·
 `Proponer retirada` · `Ya no existe. Pide un motivo breve` · `Alta` · `Revisión` · `Estado` · `Datos` ·
 `Ubicación` · `Retirada` · `Consta como [Bueno] · revisado [hace 1 mes]` · `Caudal / estado ahora` ·
 `Confirmas que el punto sigue exactamente igual. Solo cambia la fecha de última revisión.` ·
@@ -530,8 +530,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Diámetro de la salida mayor` · `45 mm` · `70 mm` · `100 mm` · `Otra medida` ·
 `Tipo de enganche` · `Barcelona` · `Granada` · `Directo` ·
 `Otro` · `Caudal / estado` · `Bueno` · `Regular` · `Malo` · `Barro` · `No funciona` ·
-`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `repetir · [Sitio]` · `[Sitio] · [150] kB` ·
-`Hacer foto · obligatoria` · `Hacer foto · opcional` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
+`Descripción del fallo · obligatoria` · `Foto` · `Foto de hoy` · `Foto del sitio` · `Conexión` · `Sitio` · `Hacer foto · [Sitio] · obligatoria` · `Repetir la foto de la conexión` · `Repetir la foto del sitio` (la ficha de la foto hecha, docs/33 RV-316) · `[Sitio] · [150] kB` ·
+`Hacer foto · obligatoria` · `Foto · opcional` · `Hacer foto (opcional)` (corregir datos, docs/33 RV-316) · `mm` · `Foto añadida · [230] kB` · `repetir` · `Descripción (opcional)` ·
 `Referencia de calle, acceso…` · `Nota (opcional)` · `Desplazamiento` · `Tu GPS` ·
 `¿Por qué ya no existe?` · `Obras` · `Asfaltado` · `Sustituido` · `Otro` ·
 `Cuéntalo brevemente · obligatorio`.

@@ -35,7 +35,6 @@ import {
   diametroPermitido,
   necesitaFoto,
   necesitaFotoSitio,
-  textoHacerFoto,
   queFalta,
 } from '@/lib/propuestas';
 import { TITULO_OPERACION, textoEspera, textoFallo } from '@/lib/nombres-operacion';
@@ -245,9 +244,12 @@ function FormularioOperacion({
                 ? T.operaciones.ubicacionAyuda
                 : gps
                   ? T.avisosFormulario.ajustaPin
-                  : posicionVieja
-                    ? T.avisosFormulario.posicionNoAlDia
-                    : T.operaciones.sinGps}
+                  : // En cuanto se coloca el pin a mano, la posición vieja ya no importa (docs/33 RV-316).
+                    formulario.pinMovido
+                    ? T.avisosFormulario.ajustaPin
+                    : posicionVieja
+                      ? T.avisosFormulario.posicionNoAlDia
+                      : T.operaciones.sinGps}
             </p>
             {pinFuera && (
               <p className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm">
@@ -336,7 +338,7 @@ function FormularioOperacion({
           />
         ) : (
           (necesitaFoto(operacion) || operacion === 'datos') && (
-            <CampoFoto etiqueta={etiquetaFoto} foto={foto} alCambiar={setFoto} textoHacer={textoHacerFoto(operacion)} />
+            <CampoFoto etiqueta={etiquetaFoto} foto={foto} alCambiar={setFoto} opcional={!necesitaFoto(operacion)} />
           )
         )}
 
@@ -511,15 +513,18 @@ function DatosPunto({
         // DEC-090).
         <Campo etiqueta={T.formulario.tipoElemento}>
           <p className="bg-papel border-linea rounded-campo min-h-11 border px-3 py-2">{nombreTipo[punto.tipo]}</p>
-          <p className="text-texto-suave mt-1 text-[13px]">
-            {T.operaciones.tipoNoCambia} ·{' '}
+          {/* Una frase con el enlace dentro (docs/33 RV-316, D8). El relleno vertical da al enlace
+              44 px de alto para el dedo sin separar las líneas. */}
+          <p data-ayuda-tipo className="text-texto-suave mt-1 text-[13px]">
+            {T.operaciones.tipoMal}{' '}
             <Link
               to={`/proponer/retirada?p=${encodeURIComponent(punto.id)}`}
               replace
-              className="text-marino-600 inline-flex min-h-11 items-center font-semibold underline"
+              className="text-texto py-3 font-semibold underline"
             >
-              {T.operaciones.proponerRetirada}
-            </Link>
+              {T.operaciones.tipoMalEnlace}
+            </Link>{' '}
+            {T.operaciones.tipoMalResto}
           </p>
         </Campo>
       ) : (
@@ -549,14 +554,20 @@ function DatosPunto({
             etiqueta={T.formulario.diametro}
           />
           {diametroActual === 'otro' && (
-            <input
-              value={f.diametroOtro ?? otraMedidaActual}
-              onChange={(e) => cambiar({ diametro: 'otro', diametroOtro: e.target.value })}
-              inputMode="numeric"
-              placeholder={tipo === 'boca_riego' ? T.operaciones.phOtraMedidaBoca : T.operaciones.phOtraMedida}
-              aria-label={T.formulario.otraMedida}
-              className={cn(areaTexto, 'mt-1')}
-            />
+            // El número con su unidad al lado (docs/33 RV-316).
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                value={f.diametroOtro ?? otraMedidaActual}
+                onChange={(e) => cambiar({ diametro: 'otro', diametroOtro: e.target.value })}
+                inputMode="numeric"
+                placeholder={tipo === 'boca_riego' ? T.operaciones.phOtraMedidaBoca : T.operaciones.phOtraMedida}
+                aria-label={T.formulario.otraMedida}
+                className={cn(areaTexto, 'min-w-0 flex-1')}
+              />
+              <span aria-hidden className="text-texto font-semibold">
+                {T.formulario.unidadMm}
+              </span>
+            </div>
           )}
         </Campo>
       )}

@@ -222,6 +222,9 @@ test.describe('alta con una posición que no está al día (RV-40)', () => {
     const caja = (await mapa.boundingBox())!;
     await mapa.click({ position: { x: caja.width / 3, y: caja.height / 3 } });
     await expect(page.getByText(T.avisosFormulario.muevePin)).toHaveCount(0);
+    // docs/33 RV-316: «La posición no está al día…» desaparece en cuanto se coloca el pin a mano.
+    await expect(page.getByText(T.avisosFormulario.posicionNoAlDia)).toHaveCount(0);
+    await expect(page.getByText(T.avisosFormulario.ajustaPin)).toBeVisible();
     await expect(mapa.locator('.pin-sin-colocar')).toHaveCount(0);
     await expect(mapa.locator('.leaflet-marker-icon.marcador')).toHaveCount(1);
   });
