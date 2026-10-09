@@ -672,6 +672,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Al hacerlo:**
   - **Cola sin mapita en las filas** (U14, RV-331): sustituye el punto 5 de DEC-159; por debajo de 800 px, la lista se abre con ☰.
   - **U15, punto que ya no está activo** (RV-330): la fecha de «retirado el …» se toma de la última modificación del punto, porque `v_cola_revision` no trae la fecha de retirada (si un punto vuelve de la papelera a retirado, la fecha sale mal). Si la vista no trae la situación del punto, la pantalla no bloquea y lo hace el servidor con `PUNTO_NO_ACTIVO` (DEC-188).
+  - **U13, Salud en palabras** (RV-335, RV-338): siguen, debajo de las filas, «Tareas programadas» (con nombres en palabras) y «Móviles con más fotos pedidas (24 h)», porque quitarlas rompería TR-54 (última ejecución visible de cada purga) y la revocación de RV-262. Salen además «Callejero sin conexión» y «Entradas bloqueadas por demasiados intentos (24 h)», que no estaban en la lista de la especificación. Salud avisa arriba si hay más de 5 entradas frenadas por el tope con la entrada cerrada (el umbral de la vigilancia).
+  - **La entrada** (RV-338): «Abrir la entrada para todos (24 h)» es directo, sin diálogo (se deshace con «Cerrar ahora»), y los dos topes de entradas van en la tarjeta *Parámetros*, no en la sección *Entrada*.
 - **Afecta a:** 01 (Mis propuestas, FR-143); 06 (Apéndice A y simbología); `src/**`; DEC-159 punto 5 (sustituido).
 
 ### DEC-191 · El tope de grupo de 150 fotos al día no se toca
