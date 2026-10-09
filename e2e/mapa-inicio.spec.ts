@@ -91,6 +91,14 @@ test.describe('el mapa se abre donde está el voluntario (RV-310)', () => {
     await abrir(page);
     await expect(page.getByRole('button', { name: T.mapa.leyenda, exact: true })).toBeVisible();
     await expect(page.getByRole('region', { name: T.mapa.leyenda })).toHaveCount(0);
+    // Desplegada, en dos grupos: el tipo (forma) y el estado (color) (docs/33 RV-319).
+    await page.getByRole('button', { name: T.mapa.leyenda, exact: true }).click();
+    const leyenda = page.getByRole('region', { name: T.mapa.leyenda });
+    await expect(leyenda.getByRole('list', { name: T.mapa.leyendaTipo }).getByRole('listitem')).toHaveCount(2);
+    const estados = leyenda.getByRole('list', { name: T.mapa.leyendaEstado }).getByRole('listitem');
+    await expect(estados).toHaveCount(6);
+    await expect(estados.filter({ hasText: T.formulario.barro }).locator('[data-letra]')).toHaveCount(1);
+    await expect(estados.filter({ hasText: T.formulario.noFunciona }).locator('[data-aspa]')).toHaveCount(2);
   });
 
   test('si el voluntario ya movió el mapa, al volver de la ficha no se recentra', async ({ page, context }) => {

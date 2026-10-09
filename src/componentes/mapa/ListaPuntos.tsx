@@ -4,7 +4,8 @@ import { useSearchParams } from 'react-router';
 import { AvisoSinPuntos } from './AvisoSinPuntos';
 import { MarcadorSvg } from './MarcadorSvg';
 import { CabeceraGrupo, ResultadoCoordenadas, ResultadosCallesYDirecciones } from './ResultadosLugares';
-import { type Destino, hayLugares, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
+import { type Destino, hayLugares, teclaBuscador, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
+import { llevaNumero } from '@/lib/callejero';
 import { usePosicion, usePuntos } from '@/hooks/estado';
 import { leer, escribir } from '@/lib/almacen';
 import { nombreCaudal } from '@/lib/ficha';
@@ -78,9 +79,14 @@ export function ListaPuntos({
           <Search size={18} className="text-texto-suave shrink-0" aria-hidden />
           <input
             id="buscar-lista"
-            type="search"
+            // Texto y no «search»: el navegador pintaría su propio ✕ junto al nuestro (docs/33 RV-312, U3).
+            type="text"
+            role="searchbox"
+            inputMode="search"
+            enterKeyHint="search"
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
+            onKeyDown={(e) => teclaBuscador(e, texto, setTexto)}
             placeholder={T.mapa.buscar}
             aria-label={T.mapa.buscar}
             className="min-w-0 flex-1 bg-transparent outline-none"
@@ -88,7 +94,12 @@ export function ListaPuntos({
           {texto && (
             <button
               type="button"
-              onClick={() => setTexto('')}
+              // Borrar deja el foco en el campo, para escribir otra cosa (el ✕ desaparece al borrar).
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setTexto('');
+                document.getElementById('buscar-lista')?.focus();
+              }}
               aria-label={T.mapa.borrarBusqueda}
               className="-mr-2 flex size-11 items-center justify-center"
             >
@@ -194,7 +205,9 @@ export function ListaPuntos({
             </li>
           ))}
         </ul>
-        {texto && <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} />}
+        {texto && (
+          <ResultadosCallesYDirecciones lugares={lugares} alElegir={irA} direccionesPrimero={llevaNumero(texto)} />
+        )}
         {cargado &&
           visibles.length === 0 &&
           !conLugares &&

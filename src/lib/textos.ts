@@ -181,10 +181,15 @@ export const T = {
     capaConBaseDebajo: (capa: Parametro) => `Sin cobertura: se ve el mapa sin conexión en lugar de «${capa}»`,
     busquedaVacia: 'Nada coincide con esa búsqueda.',
     borrarBusqueda: 'Borrar búsqueda',
+    // docs/33 RV-312: el mismo ✕ con el buscador vacío.
+    cerrarBusqueda: 'Cerrar la búsqueda',
     buscandoPosicion: 'Buscando tu posición…',
     posicionDenegada: 'Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.',
     posicionNoDisponible: 'No se puede obtener tu posición ahora mismo.',
     leyenda: 'Leyenda',
+    // docs/33 RV-319: los dos grupos de la leyenda (para el lector de pantalla).
+    leyendaTipo: 'Tipo',
+    leyendaEstado: 'Estado',
     cerrarLeyenda: 'Cerrar la leyenda',
     zoom: 'Zoom',
     acercar: 'Acercar',
@@ -314,7 +319,10 @@ export const T = {
     desdeAqui: 'Medir desde aquí',
     empezar: 'Toca el mapa para poner los puntos del tendido',
     resultado: (distancia: Parametro, n: Parametro, largo: Parametro) =>
-      n === 1 ? `${distancia} · 1 tramo de ${largo} m` : `${distancia} · ${n} tramos de ${largo} m`,
+      // docs/33 RV-318: «772 m · 39 tramos de manguera de 20 m».
+      n === 1
+        ? `${distancia} · 1 tramo de manguera de ${largo} m`
+        : `${distancia} · ${n} tramos de manguera de ${largo} m`,
     deshacer: 'Deshacer',
     borrar: 'Borrar',
     terminar: 'Terminar',

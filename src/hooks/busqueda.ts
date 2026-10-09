@@ -2,7 +2,7 @@
 // pegadas, calles y lugares del callejero (sin cobertura) y, si el texto lleva número y hay
 // cobertura, direcciones con número de portal.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useConexion } from './estado';
 import {
@@ -155,4 +155,15 @@ export function useIrADestino(): (d: Destino) => void {
     },
     [navegar],
   );
+}
+
+/**
+ * Teclas del buscador (docs/33 RV-312), como su ✕: Escape borra lo escrito y, vacío, cierra la
+ * búsqueda; la tecla «Buscar» (Intro) cierra el teclado y deja los resultados, que ya están a la vista.
+ */
+export function teclaBuscador(e: KeyboardEvent<HTMLInputElement>, texto: string, setTexto: (t: string) => void): void {
+  if (e.key === 'Escape') {
+    if (texto) setTexto('');
+    else e.currentTarget.blur();
+  } else if (e.key === 'Enter') e.currentTarget.blur();
 }

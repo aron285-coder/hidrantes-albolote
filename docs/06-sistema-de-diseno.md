@@ -466,9 +466,9 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se ha podido descargar el mapa base` (solo para el lector de pantalla: el porcentaje se ve pero no se anuncia, docs/32 RV-236) ·
 `La capa "[Foto aérea]" necesita cobertura. Los puntos siguen; cambia a «Mapa sin conexión».` ·
 `Sin cobertura: se ve el mapa sin conexión en lugar de «[Callejero]»` (con el mapa base en el móvil, RV-58) ·
-`Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Buscando tu posición…` ·
+`Nada coincide con esa búsqueda.` · `Borrar búsqueda` · `Cerrar la búsqueda` (el mismo ✕ con el buscador vacío, docs/33 RV-312) · `Buscando tu posición…` ·
 `Sin permiso de ubicación: actívalo en los ajustes del móvil para centrar el mapa en ti.` ·
-`No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Cerrar la leyenda` · `Zoom` · `Acercar` · `Alejar` ·
+`No se puede obtener tu posición ahora mismo.` · `Leyenda` · `Cerrar la leyenda` · `Tipo` · `Estado` (los dos grupos de la leyenda, docs/33 RV-319) · `Zoom` · `Acercar` · `Alejar` ·
 `Orden` · `Filtrar` · `distancia` · `código` · `estado` · `GPS ±[9] m`.
 
 > **Coordenadas con su sistema (DEC-157).** Cada coordenada lleva delante el nombre de su sistema, en
@@ -493,8 +493,8 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Buscando tu posición… (puedes marcar el incidente en el mapa)` ·
 `Ningún punto que funcione a menos de 2 km del incidente` · `Ver todos en la lista` ·
 `Distancias desde el incidente` · `Cerrar el incidente` · `Ver más cercanos` · `Ver más mapa` (las dos alturas de la hoja, RV-61) · `Volver a la lista` · `Volver a Cercanos` (la columna en ordenador, RV-60) · `Medir` · `Medir distancia` · `Medir desde aquí` ·
-`Toca el mapa para poner los puntos del tendido` · `[186 m] · [10] tramos de [20] m` ·
-`[40 m] · 1 tramo de [20] m` · `Deshacer` · `Borrar` · `Terminar` · `Para deshacer hacen falta dos puntos` ·
+`Toca el mapa para poner los puntos del tendido` · `[186 m] · [10] tramos de manguera de [20] m` (docs/33 RV-318) ·
+`[40 m] · 1 tramo de manguera de [20] m` · `Deshacer` · `Borrar` · `Terminar` · `Para deshacer hacen falta dos puntos` ·
 `Aún no hay puntos: toca el mapa` · `Coordenadas [37.230500, -3.656000]` · `Fuera de la zona habitual` ·
 `Se ha tomado [3.656] como Oeste` (longitud sin signo, RV-69) · `Abre el enlace en el navegador y copia las coordenadas` · `Puntos` · `Calles y lugares` · `Direcciones` ·
 `© OpenStreetMap` · `CartoCiudad · IGN` · `Buscando la dirección…` ·
