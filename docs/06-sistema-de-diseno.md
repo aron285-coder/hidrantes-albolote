@@ -574,6 +574,7 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 `En espera: un móvil recién dado de alta tiene un máximo de propuestas al día. Se enviará [a las 14:30].` ·
 `En espera: el grupo ha llegado al máximo de propuestas de hoy. Se enviará [mañana a las 00:05].` ·
 `En espera: has llegado al máximo de fotos de hoy. Se enviará [a las 14:30].` ·
+`En espera: has llegado a tu máximo de fotos de hoy. Se enviará [a las 14:30].` ·
 `En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará [a las 14:30].` ·
 `En espera: el servidor no tiene sitio para más fotos. Se volverá a intentar [a las 14:30].` ·
 `En espera: el servidor no tiene sitio para más propuestas. Se volverá a intentar [a las 14:30].` ·

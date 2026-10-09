@@ -282,6 +282,49 @@ describe('los topes nuevos de 0041 (RV-245)', () => {
     expect(cola.colaActual()[0]!.en_espera?.motivo).toBe('cuota_fotos_grupo');
   });
 
+  // docs/33 RV-329: con `ambito` (RV-303), «tu tope» y «el del grupo» se dicen distinto; sin él, como antes.
+  // El ámbito del móvil va aparte del motivo: la versión anterior lee `cuota_fotos` y su texto de siempre.
+  it.each([
+    [
+      'grupo',
+      { motivo: 'cuota_fotos_grupo', maximo: null },
+      'En espera: el grupo ha llegado al máximo de fotos de hoy. Se enviará a las 12:10.',
+    ],
+    [
+      'dispositivo',
+      { motivo: 'cuota_fotos', maximo: null, ambito: 'dispositivo' },
+      'En espera: has llegado a tu máximo de fotos de hoy. Se enviará a las 12:10.',
+    ],
+    [
+      undefined,
+      { motivo: 'cuota_fotos', maximo: null },
+      'En espera: has llegado al máximo de fotos de hoy. Se enviará a las 12:10.',
+    ],
+  ] as const)('tope de fotos con ámbito %s: en la cola y en Mis propuestas', async (ambito, en_espera, texto) => {
+    respuestaReserva = () =>
+      respuesta(429, { error: 'CUOTA_SUBIDAS_AGOTADA', ...(ambito ? { ambito } : {}), reintentar_en_s: 600 });
+    await encolarSinRed(2);
+    await cola.procesarCola();
+    expect(cola.colaActual().map((i) => i.en_espera)).toEqual([en_espera, en_espera]);
+    expect(textoEspera(cola.colaActual()[0]!)).toBe(texto);
+  });
+
+  it('un envío guardado por la versión anterior (sin ámbito) dice el texto de siempre', () => {
+    const viejo = {
+      fallo: null,
+      proximo: Date.now() + 600_000,
+      en_espera: { motivo: 'cuota_fotos' as const, maximo: null },
+    };
+    expect(textoEspera(viejo)).toBe('En espera: has llegado al máximo de fotos de hoy. Se enviará a las 12:10.');
+  });
+
+  it('un ámbito que no se conoce se queda en el texto de antes', async () => {
+    respuestaReserva = () => respuesta(429, { error: 'CUOTA_SUBIDAS_AGOTADA', ambito: 'otro', reintentar_en_s: 600 });
+    await encolarSinRed(1);
+    await cola.procesarCola();
+    expect(cola.colaActual()[0]!.en_espera?.motivo).toBe('cuota_fotos');
+  });
+
   it('sin espacio de fotos: el máximo viene en bytes y no se guarda', async () => {
     respuestaReserva = () => respuesta(429, { error: 'SIN_ESPACIO_FOTOS', maximo: 838860800, reintentar_en_s: 3600 });
     await encolarSinRed(1);
