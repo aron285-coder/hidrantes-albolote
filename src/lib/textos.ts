@@ -220,6 +220,8 @@ export const T = {
     fotoNoDisponible: 'Foto no disponible sin cobertura',
     fotoNoCarga: 'No se ha podido cargar la foto',
     sinFoto: 'Sin foto',
+    // docs/33 RV-314: la foto que no ha cargado se vuelve a pedir.
+    reintentarFoto: 'Reintentar',
     // Texto alternativo de cada una de las dos fotos (docs/24 RV-103).
     fotoDe: (codigo: Parametro, que: Parametro) => `${codigo} · ${que}`,
     // docs/24 RV-102a: un estado que esta versión de la app no conoce.
