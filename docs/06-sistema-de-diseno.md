@@ -450,7 +450,7 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 **Mapa y lista.** `Buscar código, calle, dirección o coordenadas…` · `Capas` · `Mapa base propio` ·
 `Calle (OSM)` · `Satélite (PNOA)` · `Catastro` · `© OpenStreetMap contributors` ·
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
-`© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` ·
+`© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` · `Centrado en tu posición` · `Ver toda la zona` (aviso al abrir el mapa sobre el voluntario, docs/33 RV-310) ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
 `Sin conexión con el servidor` · `[N] sin enviar` · `Todos` · `Hidrantes` · `Bocas` ·
 `No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·

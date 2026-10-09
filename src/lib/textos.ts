@@ -130,6 +130,9 @@ export const T = {
     catastro: 'Catastro',
     necesitaCobertura: 'necesita cobertura',
     miPosicion: 'Mi posición',
+    // docs/33 RV-310: el aviso discreto al abrir el mapa sobre el voluntario.
+    centradoEnTi: 'Centrado en tu posición',
+    verTodaLaZona: 'Ver toda la zona',
     sincronizado: (hace: Parametro) => `Sincronizado ${hace}`,
     sinCobertura: (hace: Parametro) => `Sin cobertura · datos de ${hace}`,
     sinServidor: 'Sin conexión con el servidor',
