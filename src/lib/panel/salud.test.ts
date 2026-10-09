@@ -253,3 +253,36 @@ describe('Salud: tareas programadas en palabras (RV-335)', () => {
     expect(nombreTarea('hidrantes_algo_nuevo')).toBe('algo_nuevo');
   });
 });
+
+// docs/33 RV-338: la fila de las entradas frenadas por el tope, con 0044.
+describe('Salud: entradas frenadas por el tope (RV-338)', () => {
+  const abierta = new Date(ahora.getTime() + 20 * 3_600_000).toISOString();
+
+  it('sin 0044 no hay fila ni aviso', () => {
+    expect(etiquetas(BIEN)).not.toContain(T.panelAjustes.entradasFrenadas24h);
+    expect(atencionSalud(BIEN, 'produccion', ahora)).toEqual([]);
+  });
+
+  it('con la entrada cerrada: el número, detrás de los códigos fallidos, con «abrir la entrada 24 h»', () => {
+    const s = { ...BIEN, entradas_frenadas_24h: 3, entrada_abierta_hasta: null };
+    const filas = filasSalud(s, 'produccion', ahora);
+    const i = filas.findIndex((f) => f.etiqueta === T.panelAjustes.entradasFrenadas24h);
+    expect(filas[i - 1]!.etiqueta).toBe(T.panelAjustes.intentosFallidos24h);
+    expect(filas[i]).toMatchObject({ valor: '3', aviso: false, accion: 'abrirEntrada' });
+  });
+
+  it('con la entrada abierta: hasta cuándo, sin enlace', () => {
+    const s = { ...BIEN, entradas_frenadas_24h: 0, entrada_abierta_hasta: abierta };
+    const f = fila(s, T.panelAjustes.entradasFrenadas24h)!;
+    expect(f.valor).toMatch(/^0 · entrada abierta hasta el \S+ \d+ a las \d\d:\d\d$/);
+    expect(f.accion).toBeUndefined();
+  });
+
+  it('más de 5 frenados con la entrada cerrada: aviso arriba (como la vigilancia)', () => {
+    const s = { ...BIEN, entradas_frenadas_24h: 7, entrada_abierta_hasta: null };
+    expect(fila(s, T.panelAjustes.entradasFrenadas24h)!.aviso).toBe(true);
+    expect(atencionSalud(s, 'produccion', ahora)).toEqual([T.panelAjustes.atencionFrenadas(7)]);
+    expect(atencionSalud({ ...s, entradas_frenadas_24h: 5 }, 'produccion', ahora)).toEqual([]);
+    expect(atencionSalud({ ...s, entrada_abierta_hasta: abierta }, 'produccion', ahora)).toEqual([]);
+  });
+});

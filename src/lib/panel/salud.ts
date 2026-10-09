@@ -9,6 +9,7 @@
 
 import type { Entorno } from '../entorno';
 import { fechaCorta, hace } from '../formato';
+import { abiertaHasta, diaYHora } from './entrada';
 import { T } from '../textos';
 import {
   AVISAR_ESPACIO_PCT,
@@ -27,7 +28,12 @@ export interface FilaSalud {
   aviso: boolean;
   /** % ocupado (0–100) para la barra de espacio; solo en Fotos y Base de datos con su tope. */
   barra?: number;
+  /** Un enlace junto al valor: "abrir la entrada 24 h" (RV-338). */
+  accion?: 'abrirEntrada';
 }
+
+/** Con más frenados que estos y la entrada cerrada, avisa (como la vigilancia, docs/33 RV-300). */
+export const FRENADAS_AVISO = 5;
 
 /** Con un respaldo a la semana, más de 8 días es que no ha habido el último (como la vigilancia, RV-201). */
 export const RESPALDO_VIEJO_DIAS = 8;
@@ -144,7 +150,36 @@ export function filasSalud(s: Salud, entorno: Entorno, ahora: Date = new Date())
     { etiqueta: T.panelAjustes.errores7, valor: numero(s.errores_7d), aviso: false },
     { etiqueta: T.panelAjustes.dispositivosActivos, valor: numero(s.dispositivos_activos), aviso: false },
     { etiqueta: T.panelAjustes.intentosFallidos24h, valor: numero(s.intentos_fallidos_24h), aviso: false },
+    ...filaFrenadas(s, ahora),
     { etiqueta: T.panelAjustes.zonaYMapaBase, valor: textoZonaYMapa(s), aviso: false },
+  ];
+}
+
+/**
+ * "Entradas frenadas por el tope (24 h)", con 0044 (docs/33 RV-338): con la entrada cerrada, el enlace
+ * que la abre; abierta, hasta cuándo. Sin el dato (base sin 0044), no hay fila.
+ */
+function filaFrenadas(s: Salud, ahora: Date): FilaSalud[] {
+  const n = s.entradas_frenadas_24h;
+  if (n == null) return [];
+  const hasta = abiertaHasta(s.entrada_abierta_hasta, ahora);
+  if (hasta) {
+    const { dia, hora } = diaYHora(hasta);
+    return [
+      {
+        etiqueta: T.panelAjustes.entradasFrenadas24h,
+        valor: `${n} · ${T.panelAjustes.entradaAbiertaCorto(dia, hora)}`,
+        aviso: false,
+      },
+    ];
+  }
+  return [
+    {
+      etiqueta: T.panelAjustes.entradasFrenadas24h,
+      valor: String(n),
+      aviso: n > FRENADAS_AVISO,
+      accion: 'abrirEntrada',
+    },
   ];
 }
 
@@ -172,6 +207,9 @@ export function atencionSalud(s: Salud, entorno: Entorno, ahora: Date = new Date
   const bd = espacioBd(s);
   if (bd && bd.pct >= AVISAR_ESPACIO_PCT)
     lista.push(T.panelAjustes.atencionBaseDeDatos(Math.min(Math.round(bd.pct), 100)));
+  const frenadas = s.entradas_frenadas_24h;
+  if (frenadas != null && frenadas > FRENADAS_AVISO && !abiertaHasta(s.entrada_abierta_hasta, ahora))
+    lista.push(T.panelAjustes.atencionFrenadas(frenadas));
   for (const t of tareasVisibles(s)) {
     if (t.falta) lista.push(T.panelAjustes.atencionTareaFalta(nombreTarea(t.tarea)));
     else if (t.problema) lista.push(T.panelAjustes.atencionTarea(nombreTarea(t.tarea)));
