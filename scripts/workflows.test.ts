@@ -588,7 +588,7 @@ describe('CI en paralelo (PAR-01)', () => {
   });
 
   // docs/32 RV-207: un paso de instalar navegadores colgado no puede gastar la espera de publicar.
-  it('cada instalación de navegadores va por la acción, con timeout-minutes: 8', () => {
+  it('cada instalación de navegadores va por la acción, con timeout-minutes: 9', () => {
     const usos: string[] = [];
     for (const archivo of readdirSync(path.join(raiz, '.github/workflows')).filter((a) => a.endsWith('.yml'))) {
       const t = readFileSync(path.join(raiz, '.github/workflows', archivo), 'utf8');
@@ -598,7 +598,14 @@ describe('CI en paralelo (PAR-01)', () => {
       }
     }
     expect(usos.length).toBeGreaterThanOrEqual(5);
-    for (const u of usos) expect(u).toMatch(/: timeout-minutes: 8$/);
+    for (const u of usos) expect(u).toMatch(/: timeout-minutes: 9$/);
+  });
+
+  // Run 37893324608: el apt-get del primer intento cortado seguía con el cerrojo de dpkg.
+  it('antes del segundo intento se libera apt', () => {
+    const s = readFileSync(path.join(raiz, '.github/scripts/instalar-navegadores.sh'), 'utf8');
+    expect(s).toMatch(/liberar_apt\(\) \{[\s\S]*pkill -x apt-get[\s\S]*dpkg --configure -a/);
+    expect(s).toMatch(/intento \$intento de 2\)"\n\s+\[ "\$intento" = 1 \] && liberar_apt/);
   });
 
   it('playwright.config.ts no tiene el puerto 4173 fuera del valor por defecto de PW_PUERTO', () => {
