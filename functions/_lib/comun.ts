@@ -132,8 +132,11 @@ export async function rpc<T>(
   env: Env,
   nombre: string,
   argumentos: Record<string, unknown>,
-  opciones: { jwt?: string } = {},
+  opciones: { jwt?: string | undefined } = {},
 ): Promise<ResultadoRpc<T>> {
+  // Quien pasa `jwt` pide ir con la identidad de quien llama: si viene vacío, nunca con service_role
+  // (scripts/rpc-de-servicio.ts no cuenta esas llamadas como de servicio, docs/33 RV-305).
+  if ('jwt' in opciones && !opciones.jwt) return { ok: false, codigo: 'NO_AUTORIZADO', estado: 403 };
   let r: Response;
   try {
     r = await fetch(`${env.SUPABASE_URL}/rest/v1/rpc/${nombre}`, {
@@ -169,15 +172,31 @@ export async function rpc<T>(
 }
 
 /**
- * Los números de espera de un tope, del texto de su error: `maximo=N reintentar_en_s=S` (05 §6, como
- * CUOTA_PROPUESTAS_AGOTADA desde 0039). Solo los números: el texto no se reenvía al cliente.
+ * De quién es el tope (docs/33 RV-303): `dispositivo` (el de este móvil), `grupo` (el de todos) o
+ * `token_nuevo` (el de un móvil recién entrado, 0041). Lista blanca: otro valor no llega al cliente.
  */
-export function detalleTope(mensaje: string | undefined): { maximo?: number; reintentar_en_s?: number } {
-  const detalle: { maximo?: number; reintentar_en_s?: number } = {};
+export const AMBITOS_TOPE = ['dispositivo', 'grupo', 'token_nuevo'] as const;
+export type AmbitoTope = (typeof AMBITOS_TOPE)[number];
+
+export interface DetalleTope {
+  maximo?: number;
+  reintentar_en_s?: number;
+  ambito?: AmbitoTope;
+}
+
+/**
+ * Los datos de un tope, del texto de su error: `maximo=N reintentar_en_s=S [ambito=X]` (05 §6, como
+ * CUOTA_PROPUESTAS_AGOTADA desde 0039; `ambito` desde 0042; SIN_ESPACIO con la misma forma desde
+ * 0044). Solo los números y un ámbito de AMBITOS_TOPE: el texto no se reenvía al cliente.
+ */
+export function detalleTope(mensaje: string | undefined): DetalleTope {
+  const detalle: DetalleTope = {};
   const maximo = /\bmaximo=(\d+)/.exec(mensaje ?? '');
   const segundos = /\breintentar_en_s=(\d+)/.exec(mensaje ?? '');
+  const ambito = /\bambito=(\w+)/.exec(mensaje ?? '');
   if (maximo) detalle.maximo = Number(maximo[1]);
   if (segundos) detalle.reintentar_en_s = Number(segundos[1]);
+  if (ambito && (AMBITOS_TOPE as readonly string[]).includes(ambito[1]!)) detalle.ambito = ambito[1] as AmbitoTope;
   return detalle;
 }
 
