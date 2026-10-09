@@ -131,7 +131,7 @@ jobs:
           tareas=$(psql -X -A -t -v ON_ERROR_STOP=1 "postgresql://hidrantes_migrador:migrador-local@127.0.0.1:55422/postgres" -f scripts/sql/tareas-programadas.sql) # detectar-secretos:permitir (Supabase local efímero)
           echo "$tareas" | jq .
           n=$(echo "$tareas" | jq 'length')
-          [ "$n" -eq 7 ] || { echo "::error::se esperaban 7 tareas hidrantes_%, hay $n"; exit 1; }
+          [ "$n" -eq 8 ] || { echo "::error::se esperaban 8 tareas hidrantes_%, hay $n"; exit 1; }
       # El comando real con el que vigilancia.yml guarda las tareas, y una semanal que dejó de correr
       # hace 20 días (RV-38). Sobre develop fallaban las dos: psql no sustituía :'valor' en -c y el
       # historial de 8 días dejaba la semanal con ultima = null, sin problema.
