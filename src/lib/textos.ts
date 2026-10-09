@@ -466,6 +466,12 @@ export const T = {
     vacio: 'Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.',
     resumen: (enviadas: Parametro, sinEnviar: Parametro) => `${enviadas} enviadas · ${sinEnviar} sin enviar`,
     nuevo: 'nuevo',
+    // docs/33 RV-315 (U6): la tarjeta dice qué se propuso, en una línea.
+    puntoNuevo: 'Punto nuevo',
+    lineaCambio: (antes: Parametro, despues: Parametro) => `${antes} → ${despues}`,
+    lineaCampo: (campo: Parametro, valor: Parametro) => `${campo}: ${valor}`,
+    lineaUbicacion: 'Posición nueva en el mapa',
+    lineaRetirada: (motivo: Parametro) => `Retirada: ${motivo}`,
     descartar: 'Descartar',
     reintentar: 'Reintentar',
     confirmarDescartar: '¿Descartar este envío?',

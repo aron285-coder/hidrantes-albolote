@@ -556,7 +556,9 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Retirar` · `Motivo: [texto]` · `con correcciones: [texto]` ·
 `⚠ Lleva más de 24 h esperando cobertura. Se enviará sola al tener señal.` ·
 `Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.` ·
-`[3] enviadas · [1] sin enviar` · `nuevo` · `Descartar` · `Jefatura ya la ha revisado` · `No se ha podido retirar. Inténtalo de nuevo.` · `¿Descartar este envío?` ·
+`[3] enviadas · [1] sin enviar` · `nuevo` · `Punto nuevo` · la línea de lo propuesto (docs/33 RV-315):
+`[Regular] → [No funciona]` · `[Tipo de enganche]: [Directo]` · `Posición nueva en el mapa` ·
+`Retirada: [Obras]` (en una alta, `[Hidrante] [100 mm]`; en una revisión, `Sigue igual`) · `Descartar` · `Jefatura ya la ha revisado` · `No se ha podido retirar. Inténtalo de nuevo.` · `¿Descartar este envío?` ·
 `No se ha podido enviar y ya no se enviará. No se puede deshacer.` · `¿Retirar esta propuesta?` ·
 `Jefatura ya no la verá. No se puede deshacer.` · `Aprobada [HID-0147]` · `Rechazada [HID-0147]` ·
 `El punto ya no está activo: no se ha enviado.` · `Faltan datos o no son válidos: no se ha enviado.` ·
