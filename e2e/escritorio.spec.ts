@@ -38,7 +38,7 @@ for (const [ancho, alto] of [
       await expect(arriba.getByRole('link', { name: nombre })).toBeVisible();
     }
     await expect(visibles(page, T.navegacion.lista)).toHaveCount(0);
-    // Ningún enlace de navegación por debajo de la mitad de la pantalla.
+    // Cada destino, una sola vez a la vista (la barra de abajo está oculta).
     for (const nombre of [T.navegacion.mapa, T.navegacion.ajustes]) {
       await expect(visibles(page, nombre)).toHaveCount(1);
     }
@@ -47,10 +47,20 @@ for (const [ancho, alto] of [
       'aria-current',
       'page',
     );
+    // El punto de las novedades sin ver, también arriba.
+    await expect(page.getByTestId('punto-novedades-arriba')).toBeVisible();
     await arriba.getByRole('link', { name: T.navegacion.misPropuestas, exact: true }).click();
     await expect(page).toHaveURL(/\/mis-propuestas/);
   });
 }
+
+test('en /lista, «Mapa» sigue marcado: la lista es parte del mapa en el ordenador', async ({ page }) => {
+  await abrir(page, 1440, 900, '/lista');
+  await expect(page.getByRole('banner').getByRole('link', { name: T.navegacion.mapa, exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+});
 
 test('1099 px: la barra de abajo sigue, con «Lista»', async ({ page }) => {
   await abrir(page, 1099, 800);
@@ -89,12 +99,31 @@ test('con el mapa sin conexión, al alejar no se sale de su recorte (D6b)', asyn
       { timeout: 20_000, intervals: [500] },
     )
     .toBe(true);
-  const [oeste, sur, este, norte] = mapabase.recuadro;
-  const [s, o, n, e] = ((await mapa.getAttribute('data-vista')) ?? '').split(',').map(Number);
-  // Lo que se ve queda dentro del recorte (con un margen de redondeo).
-  const margen = 0.002;
-  expect(o!).toBeGreaterThanOrEqual(oeste! - margen);
-  expect(e!).toBeLessThanOrEqual(este! + margen);
-  expect(s!).toBeGreaterThanOrEqual(sur! - margen);
-  expect(n!).toBeLessThanOrEqual(norte! + margen);
+  const [oeste, sur, este, norte] = mapabase.recuadro as [number, number, number, number];
+  const [s, o, n, e] = ((await mapa.getAttribute('data-vista')) ?? '').split(',').map(Number) as [
+    number,
+    number,
+    number,
+    number,
+  ];
+  // No se aleja más de lo justo para ver el recorte entero: en la medida que manda, la vista no pasa del
+  // doble del recorte (a z10, el mínimo de siempre, eran unas cuatro veces su alto y nueve su ancho).
+  const veces = Math.min((e - o) / (este - oeste), (n - s) / (norte - sur));
+  expect(veces).toBeLessThanOrEqual(2.2);
+});
+
+test('con una capa en línea se puede alejar como siempre (z10)', async ({ page }) => {
+  await abrir(page, 1440, 900);
+  await page.getByRole('button', { name: T.mapa.capas }).click();
+  await page.getByRole('radio', { name: new RegExp(T.capas.calle) }).click();
+  const mapa = page.getByTestId('mapa');
+  await expect
+    .poll(
+      async () => {
+        await page.getByRole('button', { name: T.mapa.alejar }).click();
+        return Number(await mapa.getAttribute('data-zoom'));
+      },
+      { timeout: 20_000, intervals: [500] },
+    )
+    .toBe(10);
 });

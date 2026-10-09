@@ -266,8 +266,7 @@ test.describe('con sesión guardada', () => {
     await page.getByRole('button', { name: T.envio.volverAlMapa }).click();
     await expect(page.getByTestId('mapa')).toBeVisible();
 
-    // El de la pantalla. En el ordenador se llega a /lista recargando (no hay pestaña, docs/33 RV-321) y
-    // antes puede ir el de la descarga del mapa base que la recarga corta.
+    // El de la pantalla, buscado por su ruta: antes puede ir otro (la descarga del mapa base cortada).
     const delFallo = () =>
       enviados.find((e) => (e as { ruta?: string }).ruta === '/lista') as Record<string, unknown> | undefined;
     await expect.poll(delFallo).toBeTruthy();

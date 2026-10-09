@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { List, Map as IconoMapa, Settings } from 'lucide-react';
-import { NavLink, Navigate, Outlet, useLocation } from 'react-router';
+import { Link, NavLink, Navigate, Outlet, useLocation } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { EstadoSincro } from '@/componentes/mapa/BarraEstado';
 import { AvisoNovedades } from '@/componentes/AvisoNovedades';
@@ -32,27 +32,30 @@ function NavegacionArriba({ pathname, jefatura }: { pathname: string; jefatura: 
   const destinos = ARRIBA.filter(({ a }) => !jefatura || a !== '/mis-propuestas');
   return (
     <nav aria-label={T.app.nombreCorto} className="mr-auto ml-6 hidden items-center gap-1 min-[1100px]:flex">
-      {destinos.map(({ a, texto }) => (
-        <NavLink
-          key={a}
-          to={a}
-          end
-          className={({ isActive }) =>
-            cn(
+      {destinos.map(({ a, texto }) => {
+        // La lista es parte del mapa en el ordenador: en /lista, «Mapa» también es la página activa.
+        const activa = pathname === a || (a === '/' && pathname.replace(/\/+$/, '') === '/lista');
+        return (
+          <Link
+            key={a}
+            to={a}
+            aria-current={activa ? 'page' : undefined}
+            className={cn(
               'relative flex min-h-11 items-center border-b-2 px-3 text-[15px] font-semibold text-white',
-              isActive ? 'border-naranja-600' : 'border-transparent',
-            )
-          }
-        >
-          {texto}
-          {a === '/ajustes' && pathname !== '/ajustes' && hayNovedadesSinVer() && (
-            <span
-              className="bg-naranja-600 absolute top-2 right-1 size-2 rounded-full"
-              aria-label={T.ajustes.seccionNovedades}
-            />
-          )}
-        </NavLink>
-      ))}
+              activa ? 'border-naranja-600' : 'border-transparent',
+            )}
+          >
+            {texto}
+            {a === '/ajustes' && pathname !== '/ajustes' && hayNovedadesSinVer() && (
+              <span
+                data-testid="punto-novedades-arriba"
+                className="bg-naranja-600 absolute top-2 right-1 size-2 rounded-full"
+                aria-label={T.ajustes.seccionNovedades}
+              />
+            )}
+          </Link>
+        );
+      })}
     </nav>
   );
 }
