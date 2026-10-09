@@ -204,10 +204,12 @@ necesitarla.
 ## 10. Ajustes
 
 - **Firma de tus propuestas → Cambiar**: si el móvil pasa a otra persona.
-- **Mapa sin cobertura**: si está descargado y de cuándo; actualizarlo si hay versión nueva.
-- **Puntos guardados → Sincronizar**: traer los últimos cambios ya.
+- **Mapa sin cobertura**, en una sola tarjeta: si el mapa está descargado y de cuándo (y
+  *Actualizar* si hay versión nueva), cuántos puntos tienes guardados y cuándo se sincronizaron
+  (*Sincronizar* trae los últimos cambios ya), y si el móvil puede borrar esos datos cuando le falta
+  espacio (para que no, instala la aplicación).
 - **Capa por defecto** y **modo oscuro**.
-- **Novedades**: lo nuevo de cada versión.
+- **Novedades de la versión …**: lo nuevo de la versión que tienes; las de antes, en *Ver versiones anteriores*.
 - **Cómo se usa**: las tres pantallas del principio.
 - **Cerrar sesión en este móvil**: borra el acceso, el nombre y lo que quede sin enviar (te avisa).
 - Cuando hay una versión nueva, la app dice **«hay una versión nueva, recargar»**. Tócalo; no hay que
