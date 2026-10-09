@@ -569,6 +569,8 @@ export const T = {
     sinSincronizar: 'Todavía sin sincronizar',
     guardadoProtegidoSi: 'El móvil no borrará estos datos aunque le falte espacio',
     guardadoProtegidoNo: 'El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo',
+    // Ya instalada, el consejo no sirve (algunos navegadores no protegen ni así).
+    guardadoProtegidoNoInstalada: 'El móvil podría borrar estos datos si le falta espacio',
     novedadesDeLaVersion: (version: Parametro) => `Novedades de la versión ${version}`,
     verVersionesAnteriores: 'Ver versiones anteriores',
     sinNovedadesVersion: 'Esta versión solo trae arreglos internos.',

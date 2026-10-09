@@ -603,13 +603,13 @@ test('Ajustes enseña las novedades de la versión instalada (AC-127, RV-20, RV-
   const bloque = page.getByTestId('novedades');
   // docs/33 RV-320: «Novedades de la versión 0.x.y» con sus líneas, sin repetir la versión; las de antes,
   // plegadas en «Ver versiones anteriores», bajo su versión.
-  if (novedades.version) {
-    await expect(page.getByRole('heading', { name: T.ajustes.novedadesDeLaVersion(novedades.version) })).toBeVisible();
-  }
+  // El build genera el JSON con la versión (prebuild, RV-20): sin ella, lo de abajo no probaría nada.
+  expect(novedades.version).toBeTruthy();
+  await expect(page.getByRole('heading', { name: T.ajustes.novedadesDeLaVersion(novedades.version!) })).toBeVisible();
   const anteriores = novedades.lineas.filter((l) => l.version !== novedades.version);
   if (anteriores.length) await bloque.getByText(T.ajustes.verVersionesAnteriores).click();
   for (const l of novedades.lineas) {
-    await expect(bloque.getByRole('listitem').filter({ hasText: l.texto })).toHaveText(l.texto);
+    await expect(bloque.getByRole('listitem').filter({ hasText: l.texto }).first()).toHaveText(l.texto);
   }
   for (const v of new Set(anteriores.map((l) => l.version))) {
     await expect(bloque.getByText(T.ajustes.version(v), { exact: true })).toBeVisible();

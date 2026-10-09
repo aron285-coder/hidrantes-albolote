@@ -288,6 +288,7 @@ export function Ajustes() {
 /** Mapa sin cobertura, puntos guardados y capa por defecto (FR-81, FR-93, FL-12). */
 function SeccionMapa() {
   const mapabase = useMapabase();
+  const instalada = useInstalar();
   const { puntos, guardadoEn, sincronizando } = usePuntos();
   const conexion = useConexion();
   const [capa, setCapa] = useState<Capa>(capaGuardada);
@@ -325,7 +326,11 @@ function SeccionMapa() {
           {protegido !== null && (
             <span className="block">
               {protegido && <Check size={14} aria-hidden className="mr-1 inline align-[-2px]" />}
-              {protegido ? T.ajustes.guardadoProtegidoSi : T.ajustes.guardadoProtegidoNo}
+              {protegido
+                ? T.ajustes.guardadoProtegidoSi
+                : instalada === 'instalada'
+                  ? T.ajustes.guardadoProtegidoNoInstalada
+                  : T.ajustes.guardadoProtegidoNo}
             </span>
           )}
           {mapabase.fallo && (
@@ -392,9 +397,10 @@ function FilaMisPropuestas() {
 
 /** Avisos push (FR-163): se explica antes de pedir el permiso del móvil. */
 /**
- * Lo que trae la versión instalada y las anteriores (FR-167, AC-127), desde el build (RV-20), cada
- * línea con su número (docs/23 RV-95). La primera vez que se abre Ajustes tras una versión nueva se
- * marca como "Nuevo"; al salir, ya está vista.
+ * Lo que trae la versión instalada y las anteriores (FR-167, AC-127), desde el build (RV-20): las de
+ * la versión instalada bajo su título, sin repetir la versión; las anteriores, plegadas y por versión
+ * (docs/33 RV-320). La primera vez que se abre Ajustes tras una versión nueva se marca como "Nuevo";
+ * al salir, ya está vista.
  */
 function SeccionNovedades() {
   const [nuevas] = useState(hayNovedadesSinVer);
@@ -413,13 +419,13 @@ function SeccionNovedades() {
       <div className="px-3 py-2 text-sm" data-testid="novedades">
         {actual.length ? (
           <ul className="list-disc pl-5">
-            {actual.map((l) => (
-              <li key={l}>{l}</li>
+            {actual.map((l, i) => (
+              <li key={`${i}-${l}`}>{l}</li>
             ))}
           </ul>
         ) : (
           <p className="text-texto-suave">
-            {anteriores.length ? T.ajustes.sinNovedadesVersion : T.ajustes.sinNovedades}
+            {NOVEDADES.version && anteriores.length ? T.ajustes.sinNovedadesVersion : T.ajustes.sinNovedades}
           </p>
         )}
         {anteriores.length > 0 && (
@@ -431,8 +437,8 @@ function SeccionNovedades() {
               <div key={g.version} className="mt-1">
                 <p className="text-texto-suave text-[13px]">{T.ajustes.version(g.version)}</p>
                 <ul className="list-disc pl-5">
-                  {g.lineas.map((l) => (
-                    <li key={l}>{l}</li>
+                  {g.lineas.map((l, i) => (
+                    <li key={`${i}-${l}`}>{l}</li>
                   ))}
                 </ul>
               </div>

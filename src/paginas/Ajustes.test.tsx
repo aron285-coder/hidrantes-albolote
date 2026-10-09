@@ -8,14 +8,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 let acceso: Record<string, unknown> = { tipo: 'nada' };
 
+const app = vi.hoisted(() => ({
+  conexion: 'bien',
+  instalar: 'instalada',
+  guardadoEn: null as number | null,
+}));
 vi.mock('@/hooks/estado', () => ({
   useAcceso: () => acceso,
-  useConexion: () => 'bien',
-  useInstalar: () => 'instalada',
+  useConexion: () => app.conexion,
+  useInstalar: () => app.instalar,
   useMapabase: () => ({ progreso: null, descargado: null, fallo: false }),
   usePuntos: () => ({
     puntos: Array.from({ length: 15 }, () => ({})),
-    guardadoEn: Date.now() - 60_000,
+    guardadoEn: app.guardadoEn,
     sincronizando: false,
   }),
 }));
@@ -151,11 +156,22 @@ describe('Ajustes sin jerga (docs/33 RV-320, U11)', () => {
   const textoDe = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   /** Los grupos con nombre (cada tarjeta de Ajustes). */
   const grupos = (html: string) => [...html.matchAll(/role="group" aria-label="([^"]*)"/g)].map((m) => m[1]);
+  /** La tarjeta del mapa: desde su marca hasta la tarjeta siguiente («Capa por defecto»). */
+  const tarjetaMapa = (html: string) => {
+    const desde = html.indexOf('data-testid="tarjeta-mapa"');
+    const hasta = html.indexOf(`aria-label="${T.ajustes.capaPorDefecto}"`, desde);
+    expect(desde).toBeGreaterThan(-1);
+    expect(hasta).toBeGreaterThan(desde);
+    return html.slice(desde, hasta);
+  };
 
   beforeEach(() => {
     acceso = { tipo: 'voluntario', sesion: { nombre: 'Voluntaria', apellido: 'Pruebas' } };
     almacen.protegido = true;
     novedades.actuales = { version: null, fecha: null, lineas: [] };
+    app.conexion = 'bien';
+    app.instalar = 'instalada';
+    app.guardadoEn = Date.now() - 60_000;
   });
 
   it('una sola tarjeta «Mapa sin cobertura» con el mapa, los puntos guardados y «Sincronizar»', () => {
@@ -163,20 +179,42 @@ describe('Ajustes sin jerga (docs/33 RV-320, U11)', () => {
     expect(grupos(html)).toContain(T.ajustes.mapaSinCobertura);
     expect(grupos(html)).not.toContain('Puntos guardados');
     expect(grupos(html)).not.toContain('Guardado protegido');
-    const tarjeta = /<div[^>]*data-testid="tarjeta-mapa"[^>]*>(.*?)<\/div>\s*<\/div>\s*<\/div>/s.exec(html)?.[0] ?? '';
+    const tarjeta = tarjetaMapa(html);
     expect(textoDe(tarjeta)).toContain('15 puntos guardados');
+    expect(textoDe(tarjeta)).toContain(T.ajustes.noDescargadoDetalle);
     expect(tarjeta).toMatch(/<button[^>]*>Sincronizar<\/button>/);
+    expect(tarjeta).toMatch(/<button[^>]*>Descargar<\/button>/);
   });
 
-  it('«Guardado protegido» en una frase, sí o no', () => {
+  it('sin sincronizar todavía, lo dice en la tarjeta', () => {
+    app.guardadoEn = null;
+    expect(textoDe(tarjetaMapa(pintar()))).toContain(T.ajustes.sinSincronizar);
+  });
+
+  it('sin cobertura: los dos botones deshabilitados y el motivo una sola vez (UI-02)', () => {
+    app.conexion = 'sin_cobertura';
+    const tarjeta = tarjetaMapa(pintar());
+    expect(tarjeta).toMatch(/<button[^>]*disabled=""[^>]*>Sincronizar<\/button>/);
+    expect(tarjeta).toMatch(/<button[^>]*disabled=""[^>]*>Descargar<\/button>/);
+    expect(textoDe(tarjeta).split(T.mapa.necesitaCobertura)).toHaveLength(2);
+  });
+
+  it('«Guardado protegido» en una frase, sí o no; sin respuesta del navegador, nada', () => {
     expect(textoDe(pintar())).toContain(T.ajustes.guardadoProtegidoSi);
     almacen.protegido = false;
-    const html = textoDe(pintar());
+    app.instalar = 'disponible';
+    let html = textoDe(pintar());
     expect(html).toContain(T.ajustes.guardadoProtegidoNo);
-    expect(T.ajustes.guardadoProtegidoNo).toBe(
-      'El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo',
-    );
     expect(html).not.toContain('Guardado protegido');
+    // Ya instalada, no se aconseja instalarla.
+    app.instalar = 'instalada';
+    html = textoDe(pintar());
+    expect(html).toContain(T.ajustes.guardadoProtegidoNoInstalada);
+    expect(html).not.toContain(T.ajustes.guardadoProtegidoNo);
+    almacen.protegido = null;
+    html = textoDe(tarjetaMapa(pintar()));
+    expect(html).not.toContain(T.ajustes.guardadoProtegidoSi);
+    expect(html).not.toContain(T.ajustes.guardadoProtegidoNoInstalada);
   });
 
   it('«Novedades de la versión 0.x.y» sin repetir la versión en cada línea; las de antes, plegadas', () => {
@@ -197,5 +235,20 @@ describe('Ajustes sin jerga (docs/33 RV-320, U11)', () => {
     expect(plegadas).toContain('<li>La lista dice a qué distancia está</li>');
     // Sin «open»: plegadas.
     expect(html).not.toMatch(/<details[^>]*\bopen\b/);
+  });
+
+  it('una versión sin líneas propias lo dice, con las anteriores plegadas; sin nada, «Todavía no hay…»', () => {
+    novedades.actuales = {
+      version: '0.10.2',
+      fecha: null,
+      lineas: [{ version: '0.10.1', texto: 'Algo de antes' }],
+    };
+    let html = pintar();
+    expect(textoDe(html)).toContain(T.ajustes.sinNovedadesVersion);
+    expect(html).toContain('data-testid="novedades-anteriores"');
+    novedades.actuales = { version: null, fecha: null, lineas: [] };
+    html = pintar();
+    expect(textoDe(html)).toContain(T.ajustes.sinNovedades);
+    expect(html).not.toContain('data-testid="novedades-anteriores"');
   });
 });
