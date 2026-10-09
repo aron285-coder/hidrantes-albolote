@@ -1,7 +1,7 @@
 {
   "name": "hidrantes-albolote",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.10.1",
   "type": "module",
   "description": "Mapa de hidrantes y bocas de riego de Protección Civil de Albolote",
   "engines": {
@@ -33,6 +33,7 @@
     "callejero": "tsx scripts/generar-callejero.ts",
     "cargar-zona": "tsx scripts/cargar-zona.ts",
     "cargar-version-mapabase": "tsx scripts/cargar-version-mapabase.ts",
+    "fotos-seed": "tsx scripts/fotos-seed-staging.ts",
     "respaldo-fotos": "tsx scripts/respaldo-fotos.ts",
     "purgar-fotos": "tsx scripts/purgar-fotos.ts",
     "restaurar": "tsx scripts/restaurar.ts",

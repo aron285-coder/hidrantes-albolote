@@ -2,9 +2,10 @@
 // VAPID configuradas y, sobre todo, que cada aviso reclamado se dé por resuelto pase lo que pase:
 // si un envío fallido no se anotara, el aviso se reintentaría para siempre.
 
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { type Env } from '../_lib/comun.ts';
-import { onRequestPost } from './push.ts';
+import { _reiniciarLimites } from '../_lib/limite.ts';
+import { LIMITE_PUSH_POR_HORA, onRequestPost } from './push.ts';
 
 /** Claves del ejemplo de la RFC 8291: sirven para cifrar de verdad en la prueba. */
 const SUSCRIPCION = {
@@ -468,6 +469,61 @@ describe('POST /api/push', () => {
     const { espia } = fingirRed({ pendientes: [] });
     const r = await onRequestPost({ request: peticion({}, { 'X-Vigilancia': 'secreto-de-vigilancia' }), env: ENV });
     expect(r.status).toBe(200);
+    espia.mockRestore();
+  });
+});
+
+// docs/33 RV-304: desde #566 un token de voluntario abre /api/push, así que un móvil en bucle podría
+// llamarlo sin parar. 30 por token y hora; por encima, 429 con Retry-After. Jefatura y la vigilancia
+// no tienen este tope.
+describe('POST /api/push: tope por token (RV-304)', () => {
+  afterEach(() => {
+    _reiniciarLimites();
+    vi.useRealTimers();
+  });
+
+  it('más de 30 llamadas por hora con el mismo token: 429 con Retry-After; otro token sigue', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const inicio = Date.now();
+    const { espia, llamadas } = fingirRed({ token: true, pendientes: [] });
+    const con = (token: string) => onRequestPost({ request: peticion({ token }), env: ENV });
+    for (let i = 0; i < LIMITE_PUSH_POR_HORA; i++) {
+      vi.setSystemTime(inicio + i * 1000);
+      expect((await con('tok_en_bucle_0000000000000001')).status, String(i)).toBe(200);
+    }
+    const reclamos = llamadas.filter((l) => l.url.includes('fn_reclamar_notificaciones')).length;
+    vi.setSystemTime(inicio + 60_000);
+    const r = await con('tok_en_bucle_0000000000000001');
+    expect(r.status).toBe(429);
+    // La primera de la hora deja de contar en inicio + 3600 s: faltan 3540 s.
+    expect(r.headers.get('Retry-After')).toBe('3540');
+    expect(await r.json()).toEqual({ error: 'DEMASIADOS_INTENTOS', reintentar_en_s: 3540 });
+    // Con el tope no se reclama nada.
+    expect(llamadas.filter((l) => l.url.includes('fn_reclamar_notificaciones')).length).toBe(reclamos);
+    expect((await con('tok_de_otro_movil_000000000002')).status).toBe(200);
+    // Pasada la hora desde la primera, vuelve a poder.
+    vi.setSystemTime(inicio + 3_600_001);
+    expect((await con('tok_en_bucle_0000000000000001')).status).toBe(200);
+    expect(LIMITE_PUSH_POR_HORA).toBe(30);
+    espia.mockRestore();
+  });
+
+  it('un token que no vale no gasta el tope de nadie: sigue siendo 401', async () => {
+    const { espia } = fingirRed({ token: false });
+    for (let i = 0; i <= LIMITE_PUSH_POR_HORA; i++) {
+      expect((await onRequestPost({ request: peticion({ token: 'tok_inventado' }), env: ENV })).status).toBe(401);
+    }
+    espia.mockRestore();
+  });
+
+  it('jefatura y la vigilancia no tienen este tope', async () => {
+    const { espia } = fingirRed({ admin: true, pendientes: [] });
+    for (let i = 0; i <= LIMITE_PUSH_POR_HORA; i++) {
+      const jefatura = peticion({}, { Authorization: 'Bearer aaa.bbb.ccc' });
+      expect((await onRequestPost({ request: jefatura, env: ENV })).status, String(i)).toBe(200);
+      const vigilancia = peticion({}, { 'X-Vigilancia': 'secreto-de-vigilancia' });
+      expect((await onRequestPost({ request: vigilancia, env: ENV })).status, String(i)).toBe(200);
+    }
     espia.mockRestore();
   });
 });

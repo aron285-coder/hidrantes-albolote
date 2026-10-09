@@ -898,6 +898,11 @@ cuando la respuesta no trae un código de los de arriba (un `PGRST…` durante u
 Todas en `functions/api/`, JSON, mismo dominio que el frontend. Errores: `{ error: <código>, mensaje }`
 con el estado HTTP indicado.
 
+Cada RPC que una Function (o un script) llama con `service_role`, sin JWT de usuario, tiene que poder
+ejecutarla `service_role` (D1, #561): `scripts/rpc-de-servicio.ts` las lista y
+`supabase/tests/40_permisos_service_role.test.sql` lo comprueba con pgTAP; un test vitest falla si las
+dos listas no coinciden (docs/33 RV-305). Una llamada nueva a una RPC lleva su fila en ese pgTAP.
+
 ### `POST /api/verificar-codigo`
 
 ```json
@@ -919,14 +924,21 @@ Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (T
 → { "token": "…" }            (voluntario)   ·   cabecera Authorization con el JWT (jefatura, DEC-059)
 ← 200 { "foto_path": "fotos/3f9c….jpg", "url": "https://…/object/upload/sign/…", "caduca_en_s": 7200 }
 ← 401 { "error": "TOKEN_INVALIDO" }
-← 429 { "error": "SIN_ESPACIO_FOTOS" | "RESERVAS_ABIERTAS" | "CUOTA_SUBIDAS_AGOTADA", "maximo"?: 6, "reintentar_en_s"?: 3600 }
+← 429 { "error": "SIN_ESPACIO_FOTOS" | "RESERVAS_ABIERTAS" | "CUOTA_SUBIDAS_AGOTADA", "maximo"?: 6, "reintentar_en_s"?: 3600,
+         "ambito"?: "dispositivo" | "grupo" | "token_nuevo" }
 ```
 Todo tope es `429` (también `SIN_ESPACIO_FOTOS` y `RESERVAS_ABIERTAS`, 0041, docs/32 RV-220): nunca `5xx`,
 que el móvil lee como "sin servidor". Si el texto del error de la base de datos lleva
 `maximo=<n> reintentar_en_s=<s>` (como `CUOTA_PROPUESTAS_AGOTADA`, 0039), la Function devuelve esos dos
 números como campos y la cola espera hasta esa hora (RV-232); sin ellos, no van. El texto no se reenvía.
+**`ambito`** (docs/33 RV-303): si el texto lleva además `ambito=<valor>` (0042: `dispositivo` en la cuota
+diaria de ese móvil, `grupo` en la de todos; 0041: `token_nuevo`), va como campo, para que el móvil diga
+si el tope es suyo o del grupo (RV-329). Solo esos tres valores (`AMBITOS_TOPE`, `detalleTope` en
+`functions/_lib/comun.ts`): cualquier otro se descarta. Sin `ambito` (`RESERVAS_ABIERTAS`,
+`SIN_ESPACIO_FOTOS`, o una base de datos anterior a 0042), la respuesta es la de antes: compatible.
 `estadoDe` (Functions) da también `429` a `SIN_ESPACIO` (0041, RV-221), aunque `fn_proponer` la llama el
-móvil directamente y hoy no pasa por ninguna Function.
+móvil directamente y hoy no pasa por ninguna Function; si alguna llega a tratarlo, `detalleTope` saca sus
+números igual que los de `SIN_ESPACIO_FOTOS` (0044: `SIN_ESPACIO: maximo=<bytes> reintentar_en_s=3600`).
 El móvil hace `PUT` del blob a `url` con `Content-Type: image/jpeg|image/webp`. El bucket se deduce del
 dominio: `hidrantes-fotos` solo en `hidrantes-albolote.pages.dev`; staging, previsualizaciones y local,
 `hidrantes-fotos-dev`.
@@ -1031,7 +1043,14 @@ aplica el tope por IP y nunca falla hacia el cliente. La IP no se guarda en clar
 secreto de vigilancia (`VIGILANCIA_SECRETO`), el que usan el Worker `hidrantes-avisos` y la vigilancia. El token se
 comprueba con `fn_validar_token` (0043, #561): rechazado (`TOKEN_*`) → `401 NO_AUTORIZADO`; si no se
 puede comprobar (red, permisos) → `503 SERVIDOR_NO_DISPONIBLE` y `validar_token_fallo: <código>` en
-`errores_cliente` (`ip_hash` fijo `funcion:validar_token`, sin el token). Igual en `/api/geocodificar`. Reclama **20** avisos (el plan gratuito de Workers
+`errores_cliente` (`ip_hash` fijo `funcion:validar_token`, sin el token). Igual en `/api/geocodificar`.
+**Tope por token** (docs/33 RV-304): con token de voluntario, 30 llamadas por token y hora, contadas en
+la memoria del aislado (`crearTope` en `functions/_lib/limite.ts`, con la clave `token:<sha256 del token>`,
+nunca el token en claro). Por encima, sin reclamar nada:
+`← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": s }` con la cabecera `Retry-After: s` (los
+segundos hasta que la más antigua de la hora deje de contar). Un token rechazado no cuenta (sigue siendo
+`401`); jefatura y `X-Vigilancia` no tienen este tope. El móvil no lee la respuesta (`pedirEnvioPush`):
+el aviso sale igual con el Worker a los 5 minutos. Reclama **20** avisos (el plan gratuito de Workers
 permite 50 peticiones de salida por invocación y cada aviso gasta dos, más una para aplazar: 43), envía cada uno con Web Push
 (VAPID) y anota su resultado. Marca `suscripcion_caducada` **solo** con 404 o 410; cualquier otro
 error HTTP se anota como fallo (§2.12). **Sin respuesta** del servicio (corte de red, DNS o 10 s sin
