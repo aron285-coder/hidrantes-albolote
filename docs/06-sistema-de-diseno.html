@@ -122,7 +122,7 @@
 
   <section>
     <h2><span class="num">3</span>Simbología del marcador</h2>
-    <p class="lead">Forma = tipo · color = estado · tamaño = diámetro × caudal · tachado = no funciona · borde discontinuo = sin revisar en más de 12 meses. Los marcadores de esta tabla los genera la fórmula, no están dibujados a mano.</p>
+    <p class="lead">Forma = tipo · color = estado · tamaño = diámetro × caudal · blanco con aspa = no funciona (marrón con «B» = barro, docs/33 RV-319; ver el .md §4.3) · borde discontinuo = sin revisar en más de 12 meses. Los marcadores de esta tabla los genera la fórmula, no están dibujados a mano.</p>
     <pre style="background:var(--marino-950);color:#DCE6F2;border-radius:8px;padding:14px 16px;font-size:12.5px;line-height:1.5;overflow:auto;">capacidad  = {100: 3, 70: 2, 45: 1}[diametro_mm]
 factor     = {bueno: 1.0, regular: 0.66, malo: 0.33, no_funciona: 0}[caudal]
 puntuacion = capacidad × factor
@@ -142,7 +142,7 @@ radio_px   = 11 si ≥ 3.0 · 9 si ≥ 1.9 · 7 si ≥ 0.9 · 5.5 si > 0 · 5 si
       <div class="m" id="mapa-claro"></div>
       <div class="m dark" id="mapa-oscuro"></div>
     </div>
-    <div class="cap">Los rellenos de estado no cambian entre modos; el borde del marcador pasa de blanco a <code>#111826</code>. La leyenda enseña siempre forma, color, tachado y borde discontinuo, en ese orden.</div>
+    <div class="cap">Los rellenos de estado no cambian entre modos; el borde del marcador pasa de blanco a <code>#111826</code>. La leyenda va en dos grupos, Tipo (forma) y Estado (color, con el aspa de No funciona y la «B» de Barro, y Sin revisar).</div>
   </section>
 
   <section>
@@ -242,11 +242,14 @@ radio_px   = 11 si ≥ 3.0 · 9 si ≥ 1.9 · 7 si ≥ 0.9 · 5.5 si > 0 · 5 si
   function radio(d,c){var cap={100:3,70:2,45:1}[d],f={bueno:1,regular:.66,malo:.33,no_funciona:0}[c],p=cap*f;
     return p>=3?ESCALA[0]:p>=1.9?ESCALA[1]:p>=.9?ESCALA[2]:p>0?ESCALA[3]:ESCALA[4]}
   function marcador(d,c,op){op=op||{}; var r=radio(d,c),tipo=d===45?'boca':'hidrante',fill=COLOR[c],nf=c==='no_funciona';
-    var borde=c==='regular'?(op.oscuro?'#111826':'#563E00'):'#fff', bw=r<=5.5?2:2.5, dash=op.caducado?' stroke-dasharray="3 2.5"':'', size=32, cx=size/2, cy=size/2, s='';
+    // docs/33 RV-319: No funciona, blanco con borde gris de 1,5 px y aspa gris; sin opacidad ni tachado.
+    if(nf) fill='#fff';
+    var borde=nf?'#40453D':c==='regular'?(op.oscuro?'#111826':'#563E00'):'#fff', bw=nf?1.5:r<=5.5?2:2.5, dash=op.caducado?' stroke-dasharray="3 2.5"':'', size=32, cx=size/2, cy=size/2, s='';
     if(op.seleccionado) s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+bw+3)+'" fill="none" stroke="#0E1B30" stroke-width="2"/>';
-    if(tipo==='hidrante') s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+fill+'" stroke="'+borde+'" stroke-width="'+bw+'"'+dash+(nf?' opacity=".5"':'')+'/>';
-    else { var rx=r>=7?3:r>=5.5?2.5:2; s+='<rect x="'+(cx-r)+'" y="'+(cy-r)+'" width="'+(2*r)+'" height="'+(2*r)+'" rx="'+rx+'" fill="'+fill+'" stroke="'+borde+'" stroke-width="'+bw+'"'+dash+(nf?' opacity=".5"':'')+'/>'; }
-    if(nf) s+='<line x1="'+(cx-r)+'" y1="'+(cy+r)+'" x2="'+(cx+r)+'" y2="'+(cy-r)+'" stroke="'+borde+'" stroke-width="2"/>';
+    if(tipo==='hidrante') s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="'+fill+'" stroke="'+borde+'" stroke-width="'+bw+'"'+dash+'/>';
+    else { var rx=r>=7?3:r>=5.5?2.5:2; s+='<rect x="'+(cx-r)+'" y="'+(cy-r)+'" width="'+(2*r)+'" height="'+(2*r)+'" rx="'+rx+'" fill="'+fill+'" stroke="'+borde+'" stroke-width="'+bw+'"'+dash+'/>'; }
+    if(nf){ var k=0.4*r, a=' stroke="#40453D" stroke-width="1.25" stroke-linecap="round"/>';
+      s+='<line x1="'+(cx-k)+'" y1="'+(cy-k)+'" x2="'+(cx+k)+'" y2="'+(cy+k)+'"'+a+'<line x1="'+(cx-k)+'" y1="'+(cy+k)+'" x2="'+(cx+k)+'" y2="'+(cy-k)+'"'+a; }
     return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'">'+s+'</svg>'; }
   var ESTADOS=['bueno','regular','malo','no_funciona'], NOM={bueno:'Bueno',regular:'Regular',malo:'Malo',no_funciona:'No funciona'};
   var h='<tr><th>Diámetro</th>'+ESTADOS.map(function(e){return '<th style="text-align:center">'+NOM[e]+'</th>'}).join('')+'</tr>';
