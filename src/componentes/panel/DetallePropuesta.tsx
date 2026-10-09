@@ -159,9 +159,14 @@ export function DetallePropuesta({
   }
 
   // Hasta que llega la lista nueva no se aprueba: la confirmación expresa (FR-108) es sobre lo que se ve.
+  // `alRecargar` espera a la última carga de la cola (RV-334); y aquí solo decide la última petición
+  // (un "Reintentar" encima de otra): una anterior que acaba después no desbloquea ni bloquea nada.
+  const turnoRecarga = useRef(0);
   async function verDeNuevo() {
+    const turno = ++turnoRecarga.current;
     setRecarga('cargando');
-    setRecarga((await alRecargar()) ? 'lista' : 'error');
+    const ok = await alRecargar();
+    if (turno === turnoRecarga.current) setRecarga(ok ? 'lista' : 'error');
   }
   const esperando = recarga !== 'lista';
   const avisoEspera = esperando && (

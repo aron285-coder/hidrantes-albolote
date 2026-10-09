@@ -17,6 +17,24 @@ export function alCambiarEntrada<T>(c: Carga<T>, vaciar: boolean): Carga<T> {
 }
 
 /**
+ * El resultado de la carga que se está viendo, no el de la propia (docs/33 RV-334, N4): si otra más
+ * nueva la ha sustituido (la recarga de cada minuto), se espera a esa, y así hasta la última. Sin esto,
+ * una carga vieja que llega bien desbloqueaba "Confirmar y aprobar" con datos que no se ven.
+ */
+export async function esperarLaUltima(
+  propia: Promise<boolean>,
+  ultima: () => Promise<boolean> | null,
+): Promise<boolean> {
+  let p = propia;
+  for (;;) {
+    const ok = await p;
+    const u = ultima();
+    if (!u || u === p) return ok;
+    p = u;
+  }
+}
+
+/**
  * Carga datos del servidor para una pestaña del panel. Si falla, conserva lo que ya había (FR-168:
  * nunca en blanco) y dice el código; `recargar` repite, y también el reintento automático de la
  * degradación controlada. `cadaMs` refresca solo (FR-110). `en`: última carga buena.
@@ -33,13 +51,14 @@ export function useCarga<T>(
   const [carga, setCarga] = useState<Carga<T>>({ estado: 'cargando', datos: null });
   const [en, setEn] = useState<number | null>(null);
   const ultimo = useRef(0);
+  // La carga más nueva en curso o terminada: la que se ve (RV-334).
+  const enCurso = useRef<Promise<boolean> | null>(null);
 
   // Las dependencias las da quien llama, como en useEffect.
   const cargarRef = useCallback(cargar, deps);
 
-  // Devuelve si la carga ha ido bien: quien espera datos nuevos (la Cola tras un DESACTUALIZADA) sabe
-  // si los tiene.
-  const recargar = useCallback(async (): Promise<boolean> => {
+  // Devuelve si la carga ha ido bien y es la que se ve: una que llega tarde devuelve false.
+  const cargarUna = useCallback(async (): Promise<boolean> => {
     const n = ++ultimo.current;
     let r: Resultado<T>;
     try {
@@ -49,7 +68,7 @@ export function useCarga<T>(
       anotarError(e);
       r = { ok: false, codigo: 'ERROR_INTERNO' };
     }
-    if (n !== ultimo.current) return r.ok; // llegó tarde: ya hay una carga más nueva
+    if (n !== ultimo.current) return false; // llegó tarde: lo que se ve es de una carga más nueva
     if (r.ok) {
       setCarga({ estado: 'ok', datos: r.datos });
       setEn(Date.now());
@@ -59,6 +78,11 @@ export function useCarga<T>(
     }
     return r.ok;
   }, [cargarRef]);
+  const recargar = useCallback((): Promise<boolean> => {
+    const p = cargarUna();
+    enCurso.current = p;
+    return p;
+  }, [cargarUna]);
 
   useEffect(() => {
     setCarga((c) => alCambiarEntrada(c, vaciarAlCambiar));
@@ -75,9 +99,11 @@ export function useCarga<T>(
     return () => clearInterval(t);
   }, [cadaMs, recargar]);
 
-  // `recargar` sigue sin devolver nada para quien ya la usa; `recargarYVer` dice si ha ido bien.
+  // `recargar` sigue sin devolver nada para quien ya la usa; `recargarYVer` dice si lo que se ve es
+  // de una carga buena, esperando a la última si otra más nueva sustituye a la suya (RV-334).
   const recargarSinMas = useCallback(async () => {
     await recargar();
   }, [recargar]);
-  return { ...carga, en, recargar: recargarSinMas, recargarYVer: recargar };
+  const recargarYVer = useCallback(() => esperarLaUltima(recargar(), () => enCurso.current), [recargar]);
+  return { ...carga, en, recargar: recargarSinMas, recargarYVer };
 }
