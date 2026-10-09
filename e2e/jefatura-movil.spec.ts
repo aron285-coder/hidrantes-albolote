@@ -38,6 +38,9 @@ test('en el mapa, tocar «Jefatura» abre el panel y «Ir al mapa» vuelve (RV-1
   await etiqueta(page).click();
   await enElPanel(page);
 
+  // Por debajo de 800 px, "Ir al mapa" está en el menú ☰ de la cabecera (docs/33 RV-331).
+  const menu = page.getByRole('button', { name: T.panel.menu });
+  if (await menu.isVisible()) await menu.click();
   await page.getByRole('link', { name: T.jefatura.irAlMapa }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByTestId('mapa')).toBeVisible();

@@ -1172,6 +1172,8 @@ export const T = {
     titulo: 'Hidrantes Albolote · Panel de jefatura',
     atribucion: 'Direcciones deducidas con Nominatim · © OpenStreetMap contributors',
     salir: 'Cerrar sesión',
+    // docs/33 RV-331: el menú ☰ de la cabecera del panel por debajo de 800 px.
+    menu: 'Menú',
     sinServidor: 'Sin conexión con el servidor',
     datosDe: (hace: Parametro) => `datos de ${hace}`,
     editar: 'Editar',
