@@ -8,7 +8,10 @@ import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
 import { detectorPulsacionLarga } from '@/lib/pulsacion-larga';
 import { distancia } from '@/lib/formato';
-import { desplazamientoEtiqueta, imantar } from '@/lib/medicion';
+import { colocarEtiquetas, imantar } from '@/lib/medicion';
+
+/** La píldora de la distancia de un tramo (index.css, .etiqueta-medicion). */
+const TAM_ETIQUETA = { ancho: 56, alto: 22 };
 import { svgMarcador, visibleEnZoom } from '@/lib/simbologia';
 import { RESERVA_DERECHA, ZONA_ABAJO } from '@/lib/disposicion-mapa';
 import { T } from '@/lib/textos';
@@ -53,7 +56,7 @@ interface Props {
    */
   medicion?: {
     vertices: LatLng[];
-    etiquetas: { en: LatLng; desde: LatLng; hasta: LatLng; metros: number }[];
+    etiquetas: { en: LatLng; desde: LatLng; hasta: LatLng; metros: number; tramo: number }[];
     alTocar: (l: LatLng) => void;
   } | null;
   /** La calle elegida en la búsqueda, resaltada durante la sesión (FR-73, 06 §4.7): [[[lng, lat], …], …]. */
@@ -416,25 +419,41 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
       L.circleMarker(v, { radius: 5, weight: 2, className: 'vertice-medicion', interactive: false }).addTo(g);
     }
     const m = mapa.current;
-    for (const e of medicion.etiquetas) {
-      // A 14 px de la línea, en perpendicular al tramo: sobre ella, la línea la tachaba (RV-67).
-      const d = m
-        ? desplazamientoEtiqueta(
-            m.latLngToLayerPoint([e.desde.lat, e.desde.lng]),
-            m.latLngToLayerPoint([e.hasta.lat, e.hasta.lng]),
-          )
-        : { x: 0, y: 0 };
-      L.marker([e.en.lat, e.en.lng], {
-        icon: L.divIcon({
-          html: distancia(e.metros),
-          className: 'etiqueta-medicion',
-          iconSize: [56, 20],
-          iconAnchor: [28 - d.x, 10 - d.y],
-        }),
-        interactive: false,
-        keyboard: false,
-      }).addTo(g);
-    }
+    if (!m) return;
+    // Las etiquetas, en píldoras apartadas de la línea hacia fuera del ángulo, y solo en los tramos que
+    // miden en pantalla lo bastante para que quepan (docs/33 RV-318, D7). Dependen del zoom: se vuelven
+    // a colocar en cada `zoomend`.
+    const etiquetas = L.layerGroup().addTo(g);
+    const { etiquetas: tramos } = medicion;
+    const colocar = () => {
+      etiquetas.clearLayers();
+      const enPantalla = medicion.vertices.map((l) => m.latLngToLayerPoint([l.lat, l.lng]));
+      const conEtiqueta = enPantalla.slice(1).map((_, i) => tramos.some((e) => e.tramo === i));
+      const sitios = colocarEtiquetas(enPantalla, conEtiqueta, TAM_ETIQUETA);
+      for (const e of tramos) {
+        const s = sitios[e.tramo];
+        if (!s?.visible) continue;
+        const a = enPantalla[e.tramo]!;
+        const b = enPantalla[e.tramo + 1]!;
+        // Desde el punto medio del tramo, que es donde va el marcador.
+        const d = { x: s.x - (a.x + b.x) / 2, y: s.y - (a.y + b.y) / 2 };
+        L.marker([e.en.lat, e.en.lng], {
+          icon: L.divIcon({
+            html: distancia(e.metros),
+            className: 'etiqueta-medicion',
+            iconSize: [TAM_ETIQUETA.ancho, TAM_ETIQUETA.alto],
+            iconAnchor: [TAM_ETIQUETA.ancho / 2 - d.x, TAM_ETIQUETA.alto / 2 - d.y],
+          }),
+          interactive: false,
+          keyboard: false,
+        }).addTo(etiquetas);
+      }
+    };
+    colocar();
+    m.on('zoomend', colocar);
+    return () => {
+      m.off('zoomend', colocar);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- la clave resume los vértices
   }, [claveMedicion, !!medicion]);
 

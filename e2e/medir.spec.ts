@@ -123,3 +123,52 @@ test('la etiqueta del tramo queda al lado de la línea, sin que la corte', async
   const dist = Math.abs((b.y - a.y) * cx - (b.x - a.x) * cy + b.x * a.y - b.y * a.x) / Math.hypot(b.y - a.y, b.x - a.x);
   expect(dist).toBeGreaterThan(e.height / 2);
 });
+
+// docs/33 RV-318 (U9, D7): con dos tramos en «V», las etiquetas se montaban en el vértice.
+test('dos tramos en ángulo agudo: dos píldoras que no se pisan; al alejar, las de tramos cortos se van', async ({
+  page,
+}) => {
+  await preparar(page);
+  await page.goto('/');
+  await page.getByRole('button', { name: T.medir.boton }).click();
+  await expect(barra(page)).toBeVisible();
+  const mapa = (await page.getByTestId('mapa').boundingBox())!;
+  // Lejos de A y de B (arriba del centro) para que el imán no los atrape.
+  for (const [fx, fy] of [
+    [0.12, 0.5],
+    [0.82, 0.42],
+    [0.2, 0.3],
+  ] as const) {
+    await page.mouse.click(mapa.x + mapa.width * fx, mapa.y + mapa.height * fy);
+  }
+  const etiquetas = page.locator('.etiqueta-medicion');
+  await expect(etiquetas).toHaveCount(2);
+  const [e1, e2] = [(await etiquetas.nth(0).boundingBox())!, (await etiquetas.nth(1).boundingBox())!];
+  const solapan =
+    e1.x < e2.x + e2.width && e2.x < e1.x + e1.width && e1.y < e2.y + e2.height && e2.y < e1.y + e1.height;
+  expect(solapan).toBe(false);
+  // Una píldora opaca.
+  const estilo = await etiquetas.first().evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { radio: parseFloat(s.borderTopLeftRadius), fondo: s.backgroundColor };
+  });
+  expect(estilo.radio).toBeGreaterThanOrEqual(10);
+  expect(estilo.fondo).toMatch(/^rgb\(/);
+  // El total, en la fuente normal (no la monoespaciada).
+  const fuente = await barra(page)
+    .locator('p')
+    .first()
+    .evaluate((p) => getComputedStyle(p).fontFamily);
+  expect(fuente).not.toMatch(/mono/i);
+  // Al alejar, los tramos quedan cortos en pantalla (< 70 px) y sus etiquetas se van.
+  // Se pulsa dentro del poll: Leaflet ignora los clics mientras dura su animación de zoom.
+  await expect
+    .poll(
+      async () => {
+        await page.getByRole('button', { name: T.mapa.alejar }).click();
+        return etiquetas.count();
+      },
+      { timeout: 15_000, intervals: [400] },
+    )
+    .toBe(0);
+});

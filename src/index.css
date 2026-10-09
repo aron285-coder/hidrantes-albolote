@@ -244,15 +244,19 @@ path.vertice-medicion {
   fill: var(--papel);
   fill-opacity: 1;
 }
-/* Al lado de la línea, no encima (RV-67): fondo de papel al 85 %, que en oscuro es el papel oscuro. */
-.leaflet-div-icon.etiqueta-medicion {
-  background: color-mix(in srgb, var(--papel) 85%, transparent);
+/* Una píldora de papel apartada de la línea (docs/33 RV-318, D7; antes RV-67): opaca, con borde, en la
+   fuente normal. Su tamaño es TAM_ETIQUETA de MapaLeaflet.tsx (56 × 22). Con «className» propio, Leaflet
+   quita «leaflet-div-icon»: la regla antigua (.leaflet-div-icon.etiqueta-medicion) no se aplicaba nunca. */
+.leaflet-marker-icon.etiqueta-medicion {
+  background: var(--papel);
   color: var(--texto);
-  border: 0;
-  border-radius: 4px;
-  font-family: var(--font-datos);
+  border: 1px solid var(--linea);
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  font-family: var(--font-texto);
+  font-weight: 600;
   font-size: 12px;
-  line-height: 18px;
+  line-height: 20px;
   text-align: center;
   white-space: nowrap;
 }
