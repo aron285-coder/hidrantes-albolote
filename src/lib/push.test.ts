@@ -312,7 +312,23 @@ describe('apagar los avisos de voluntario no apaga los de jefatura (docs/32 RV-2
     vi.stubGlobal('window', { PushManager: {}, Notification: {}, matchMedia: () => ({ matches: false }) });
   });
 
-  it('sin avisos de jefatura en el navegador, se da de baja y se borra la fila de voluntario', async () => {
+  /** Lo que contesta `fn_endpoint_tiene_jefatura` (docs/33 RV-323); lo demás, bien. */
+  const tieneJefatura = (respuesta: boolean | { ok: false; codigo: string; mensaje?: string }) =>
+    rpc.mockImplementation(async (nombre: string) =>
+      nombre === 'fn_endpoint_tiene_jefatura'
+        ? typeof respuesta === 'boolean'
+          ? { ok: true, datos: respuesta }
+          : respuesta
+        : { ok: true, datos: null },
+    );
+  const SIN_FUNCION = {
+    ok: false as const,
+    codigo: 'DESCONOCIDO',
+    mensaje: 'Could not find the function hidrantes.fn_endpoint_tiene_jefatura',
+  };
+
+  it('sin avisos de jefatura en el endpoint, se da de baja y se borra la fila de voluntario', async () => {
+    tieneJefatura(false);
     await desactivarPush();
     expect(s.unsubscribe).toHaveBeenCalledOnce();
     expect(llamadas('fn_borrar_suscripcion_push')).toHaveLength(1);
@@ -350,8 +366,49 @@ describe('apagar los avisos de voluntario no apaga los de jefatura (docs/32 RV-2
     expect(s.unsubscribe).not.toHaveBeenCalled();
   });
 
+  // docs/33 RV-323 (N2): sin sesión de jefatura se pregunta al servidor, no a lo que recuerda el panel,
+  // que se borra al cerrar sesión de jefatura.
+  it('sin sesión de jefatura, el servidor dice que el endpoint tiene jefatura: solo se borra la fila', async () => {
+    tieneJefatura(true);
+    await desactivarPush();
+    expect(llamadas('fn_endpoint_tiene_jefatura')).toEqual([
+      ['fn_endpoint_tiene_jefatura', { token: 't'.repeat(43), endpoint: ENDPOINT }],
+    ]);
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+    expect(llamadas('fn_borrar_suscripcion_push')).toHaveLength(1);
+  });
+
+  it('sin sesión de jefatura, el servidor dice que no: se da de baja aunque el panel recuerde temas', async () => {
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    tieneJefatura(false);
+    await desactivarPush();
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('sin sesión de jefatura y sin respuesta del servidor: la suscripción se queda y queda anotado', async () => {
+    tieneJefatura({ ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE' });
+    await desactivarPush();
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+    expect(mensajesAnotados()).toContain('no se sabe si jefatura tiene avisos');
+  });
+
+  it('con el token ya revocado (al cerrar sesión), vale lo que recuerda el panel', async () => {
+    tieneJefatura({ ok: false, codigo: 'TOKEN_INVALIDO' });
+    await desactivarPush({ borrarEnServidor: false });
+    expect(s.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('sin token de voluntario no se pregunta: vale lo que recuerda el panel', async () => {
+    datos.delete('hidrantes.token');
+    datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    await desactivarPush();
+    expect(llamadas('fn_endpoint_tiene_jefatura')).toEqual([]);
+    expect(s.unsubscribe).not.toHaveBeenCalled();
+  });
+
   it('sin sesión de jefatura, o con un servidor sin la función, vale lo que recuerda el panel', async () => {
     datos.set('hidrantes.push_jefatura', JSON.stringify(['resumen_semanal']));
+    tieneJefatura(SIN_FUNCION);
     await desactivarPush();
     expect(s.unsubscribe).not.toHaveBeenCalled();
 
@@ -393,6 +450,7 @@ describe('apagar los avisos de voluntario no apaga los de jefatura (docs/32 RV-2
   });
 
   it('al cerrar sesión no se borra la fila en el servidor: ya lo hace fn_cerrar_sesion (RV-234)', async () => {
+    tieneJefatura(false);
     await desactivarPush({ borrarEnServidor: false });
     expect(s.unsubscribe).toHaveBeenCalledOnce();
     expect(llamadas('fn_borrar_suscripcion_push')).toEqual([]);

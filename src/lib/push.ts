@@ -176,7 +176,10 @@ export async function activarPush({ limiteSwMs = LIMITE_SW_MS } = {}): Promise<R
  * sola y la comparten el voluntario y jefatura (0030): si jefatura tiene temas aquí, darla de baja
  * le quitaría sus avisos. Con sesión de jefatura se pregunta al servidor por los temas de ese
  * administrador en este endpoint (`fn_suscripcion_push_admin`, RV-225, que devuelve
- * `{ suscrita, temas }`); sin ella, o con un servidor sin la función, vale lo que recuerda el panel.
+ * `{ suscrita, temas }`). Sin ella se pregunta también al servidor, con el token del voluntario
+ * (`fn_endpoint_tiene_jefatura`, docs/33 RV-323): lo que recuerda el panel se borra al cerrar sesión
+ * de jefatura, y con eso se le quitaban sus avisos. Vale lo que recuerda el panel solo sin token, con
+ * el token ya revocado (al cerrar sesión) o con un servidor sin la función.
  * `desconocido`: no se ha podido preguntar (sin servidor, sesión caducada).
  */
 export async function avisosDeJefatura(endpoint: string): Promise<'si' | 'no' | 'desconocido'> {
@@ -187,7 +190,14 @@ export async function avisosDeJefatura(endpoint: string): Promise<'si' | 'no' | 
   } catch {
     conJefatura = false;
   }
-  if (!conJefatura) return segunPanel();
+  if (!conJefatura) {
+    const token = leerSesion()?.token;
+    if (!token) return segunPanel();
+    const r = await rpc<unknown>('fn_endpoint_tiene_jefatura', { token, endpoint });
+    if (r.ok) return r.datos === true ? 'si' : r.datos === false ? 'no' : 'desconocido';
+    if (r.codigo.startsWith('TOKEN_') || /could not find the function/i.test(r.mensaje ?? '')) return segunPanel();
+    return 'desconocido';
+  }
   const r = await rpc<unknown>('fn_suscripcion_push_admin', { endpoint });
   if (!r.ok && /could not find the function/i.test(r.mensaje ?? '')) return segunPanel();
   if (!r.ok) return 'desconocido';
