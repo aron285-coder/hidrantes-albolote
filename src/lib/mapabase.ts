@@ -145,6 +145,11 @@ export async function descargarMapabase(): Promise<boolean> {
     control.signal.addEventListener('abort', () => rechazar(control.signal.reason), { once: true }),
   );
   abortada.catch(() => undefined);
+  // Al cerrar o recargar la página a mitad, la lectura falla con un error de red ("network error",
+  // otro texto en Firefox o iOS) que no es un fallo: se aborta con un motivo propio y no se anota.
+  const alSalir = () => control.abort(new DOMException('pagehide', 'AbortError'));
+  const ventana = typeof window === 'undefined' ? undefined : window;
+  ventana?.addEventListener('pagehide', alSalir);
   try {
     vigilar();
     const r = await Promise.race([fetch(URL_MAPABASE, { cache: 'no-store', signal: control.signal }), abortada]);
@@ -175,12 +180,21 @@ export async function descargarMapabase(): Promise<boolean> {
     fijar({ descargado, progreso: null });
     return true;
   } catch (e) {
-    // Se libera el bloqueo (progreso a null): se puede reintentar ya. Queda anotado para jefatura.
-    anotarError(control.signal.aborted ? new Error('mapabase: 30 s sin datos') : e, 'mapabase');
-    fijar({ progreso: null, fallo: true, parada: control.signal.aborted });
+    // Se libera el bloqueo (progreso a null): se puede reintentar ya.
+    const motivo = control.signal.aborted ? (control.signal.reason as { name?: string } | undefined)?.name : undefined;
+    if (motivo === 'AbortError') {
+      // La página se va: no es un fallo ni se anota; la próxima apertura vuelve a intentarlo.
+      fijar({ progreso: null });
+      return false;
+    }
+    const parada = motivo === 'TimeoutError';
+    // Queda anotado para jefatura.
+    anotarError(parada ? new Error('mapabase: 30 s sin datos') : e, 'mapabase');
+    fijar({ progreso: null, fallo: true, parada });
     return false;
   } finally {
     clearTimeout(vigilante);
+    ventana?.removeEventListener('pagehide', alSalir);
   }
 }
 
