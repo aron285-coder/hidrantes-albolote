@@ -24,6 +24,7 @@ import {
   textoMotivoPush,
 } from '@/lib/push';
 import { cambiarFirma, cerrarSesionVoluntario, salirDeGoogle } from '@/lib/acceso';
+import { olvidarTemasJefatura } from '@/lib/panel/push-jefatura';
 import { anotarError } from '@/lib/errores';
 import { VERSION } from '@/lib/entorno';
 import { pedirRecarga } from '@/lib/pwa';
@@ -119,7 +120,16 @@ export function Ajustes() {
       {acceso.tipo === 'jefatura' && (
         <div className="bg-papel border-linea rounded-tarjeta flex flex-col gap-1.5 border px-3 py-1.5">
           <Fila titulo={T.ajustes.cuentaJefatura} detalle={T.ajustes.sesionGoogle(acceso.correo)} sinMarco>
-            <Boton variante="enlace" className="text-sm" onClick={() => void salirDeGoogle()}>
+            {/* Como «Salir» en el panel: lo que este navegador recuerda de los avisos de jefatura se
+                borra al cerrar la sesión (docs/32 RV-264, docs/33 RV-325). */}
+            <Boton
+              variante="enlace"
+              className="text-sm"
+              onClick={() => {
+                olvidarTemasJefatura();
+                void salirDeGoogle();
+              }}
+            >
               {T.ajustes.cerrarSesionGoogle}
             </Boton>
           </Fila>

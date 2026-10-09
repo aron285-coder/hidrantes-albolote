@@ -161,7 +161,8 @@ describe('foto del sitio en la cola (RV-103)', () => {
     await cola.encolar(args('k-sitio-06'), CONEXION, null, null);
     await cola.procesarCola();
     await cola.procesarCola();
-    expect(rpc).toHaveBeenCalledTimes(1);
+    // fn_proponer una vez; la otra llamada es la que libera su foto (docs/33 RV-328).
+    expect(rpc.mock.calls.filter((c) => c[0] === 'fn_proponer')).toHaveLength(1);
     expect(cola.colaActual()[0].fallo).toBe('FOTO_SITIO_OBLIGATORIA');
   });
 

@@ -1,10 +1,11 @@
 // docs/32 RV-244: fotos enormes en navegadores que no reducen al decodificar. Si createImageBitmap no
 // admite `resizeWidth`, una foto de 50 o 108 MP se decodifica entera y puede cerrar la pestaña en un
 // Android medio. Se leen las dimensiones de la cabecera (JPEG o HEIC) sin decodificar y, por encima de
-// 24 MP sin reducción, se avisa en vez de arriesgarse.
+// 26 MP sin reducción, se avisa en vez de arriesgarse. El tope era 24 MP y dejaba fuera la cámara por
+// defecto de un iPhone 15 o 16 (5712 × 4284 = 24,5 MP): sube a 26 MP (docs/33 RV-326).
 
-/** Por encima de esto, sin reducir al decodificar, la foto no se abre (24 MP). */
-export const MAXIMO_SIN_REDUCIR = 24_000_000;
+/** Por encima de esto, sin reducir al decodificar, la foto no se abre (26 MP). */
+export const MAXIMO_SIN_REDUCIR = 26_000_000;
 
 /** La foto pasa de lo que este móvil puede abrir sin reducirla al decodificar. */
 export class FotoDemasiadoGrande extends Error {
@@ -75,7 +76,7 @@ export function _reiniciarReduce() {
 }
 
 /**
- * Lanza FotoDemasiadoGrande si la foto de `dimensiones` pasa de 24 MP y el navegador no la puede
+ * Lanza FotoDemasiadoGrande si la foto de `dimensiones` pasa de 26 MP y el navegador no la puede
  * reducir al decodificar. Sin dimensiones (cabecera rara) no se puede saber: sigue como antes.
  */
 export async function comprobarTamano(dimensiones: { ancho: number; alto: number } | null): Promise<void> {
