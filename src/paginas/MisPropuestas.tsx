@@ -73,7 +73,7 @@ function Tarjeta({
       </div>
       <p className="text-texto mt-0.5 truncate text-[15px]">{linea}</p>
       {children}
-      <div className="text-texto-suave flex min-h-11 items-center justify-between gap-2 text-[13px]">
+      <div className="text-texto-suave flex items-center justify-between gap-2 text-[13px]">
         <span>{cuando}</span>
         {accion}
       </div>
