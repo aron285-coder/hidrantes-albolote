@@ -669,7 +669,10 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **U13** (Salud del sistema en palabras): sin las cuatro filas;
   - **U14** (panel con poca pantalla): sin el minimapa en la Cola.
 - **Alternativas descartadas:** las propuestas del recorrido que el desarrollador no eligió; hacer U1 con la leyenda abierta y U6 con el detalle de cada campo (más ruido en la pantalla del móvil).
-- **Afecta a:** 01 (Mis propuestas, FR-143); 06 (Apéndice A y simbología); `src/**`.
+- **Al hacerlo:**
+  - **Cola sin mapita en las filas** (U14, RV-331): sustituye el punto 5 de DEC-159; por debajo de 800 px, la lista se abre con ☰.
+  - **U15, punto que ya no está activo** (RV-330): la fecha de «retirado el …» se toma de la última modificación del punto, porque `v_cola_revision` no trae la fecha de retirada (si un punto vuelve de la papelera a retirado, la fecha sale mal). Si la vista no trae la situación del punto, la pantalla no bloquea y lo hace el servidor con `PUNTO_NO_ACTIVO` (DEC-188).
+- **Afecta a:** 01 (Mis propuestas, FR-143); 06 (Apéndice A y simbología); `src/**`; DEC-159 punto 5 (sustituido).
 
 ### DEC-191 · El tope de grupo de 150 fotos al día no se toca
 - **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-188).
@@ -687,7 +690,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - **Se abre sola** al generar un código nuevo revocando todos los móviles, en la misma transacción; un código nuevo sin revocar no la abre. **Se cierra sola** al pasar la hora, sin tarea programada.
   - Salud muestra las entradas frenadas por el tope en 24 h y hasta cuándo está abierta; la vigilancia avisa si se frenan más de 5.
   - En el lanzamiento, la entrada se abre **antes** de comunicar el código (F9.10, #85; 15 §5.4).
-  - Detalles de 0044 (contrato de Backend en #580): con la entrada abierta, los topes de entrada valen `greatest(valor, 200)`; el tope global de propuestas se cuenta sin candado (puede pasarse en tantas como lleguen a la vez); el historial de `pg_cron` se guarda 10 días y no 7, porque Salud y la vigilancia miran fallos en 8 días.
+  - Detalles de 0044 (contrato de Backend en #580): con la entrada abierta, los topes de entrada valen `greatest(valor, 200)`; el tope global de propuestas se cuenta sin candado (puede pasarse en tantas como lleguen a la vez); el historial de `pg_cron` se guarda 10 días y no 7, porque Salud y la vigilancia miran fallos en 8 días. El `grant delete on cron.job_run_details` para `hidrantes_migrador` que necesita esa purga ya está dado en dev y prod por la vía de DEC-185 (la sesión principal): no es un paso del desarrollador.
+  - **El Storage de todo el proyecto no se vigila** en esta release: la política de lectura de `storage.objects` solo deja ver nuestros buckets, y abrirla a los demás dejaría leer los nombres de archivo de la app de uniformidad. Queda como propuesta.
 - **Alternativas descartadas:** subir los topes para siempre (se pierde el freno a quien reparte un código filtrado); relajar también los intentos fallidos (abriría la puerta a probar códigos); una tarea `pg_cron` para cerrarla (la comparación con `now()` basta y no puede fallar en silencio).
 - **Afecta a:** 01 FR-31 a FR-34 y FR-143; 05 (0044, parámetros y funciones); 06 Apéndice A (Ajustes, Salud); 09 (F9.10); 13; 15 §5.4.
 
@@ -985,14 +989,14 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 05 §4; `docs/25` RV-110.
 
 ### DEC-159 · Detalle de la cola: de dónde salen los datos, el radio y los mapitas
-- **Fecha:** 4 oct 2026 · **Estado:** vigente (`docs/25` RV-110).
+- **Fecha:** 4 oct 2026 · **Estado:** vigente, salvo el punto 5, sustituido por DEC-192 (`docs/25` RV-110).
 - **Contexto:** el detalle nuevo enseña todos los datos del punto, su posición y sus fotos actuales en las seis operaciones. Esos datos los trae 0036 (DEC-160), que se hizo a la vez que la pantalla; el panel tiene que seguir funcionando contra la vista de antes una versión (04 §12).
 - **Decisión:**
   1. **Datos y posición del punto:** `punto`, `punto_lat` y `punto_lng` de `v_cola_revision` y `v_historial_revision`. Si no vienen (vista anterior), los del inventario que el panel ya tiene cargado (`v_puntos_activos`); si tampoco, "—" y, en el mapa, "Sin posición" con palabras. Un alta se decide por `operacion`, nunca por `punto` nulo.
   2. **El "antes"** de un campo es el `antes` de la propuesta o, solo si está **pendiente**, el punto de hoy. En el historial el punto de hoy ya lleva el cambio y daría "70 mm → 70 mm".
   3. **El historial** lee `v_historial_revision` (0036) en vez de `propuestas` con el punto embebido.
   4. **Radio del círculo de duplicado:** `radio_duplicado_m` de `config`, leído una vez al abrir la cola. Sin poder leerlo, el círculo no se dibuja: uno supuesto podría contradecir el aviso de duplicado, que usa el de verdad.
-  5. **Mapitas de la lista (62 × 48 px, tableta y móvil):** un Leaflet sin controles con el mapa base propio (sin red), creado solo cuando la fila entra en la vista.
+  5. *(Sustituido por DEC-192: la Cola ya no lleva mapita en las filas.)* **Mapitas de la lista (62 × 48 px, tableta y móvil):** un Leaflet sin controles con el mapa base propio (sin red), creado solo cuando la fila entra en la vista.
   6. **"Tocar una foto la amplía":** abre la foto entera en otra pestaña, como hasta ahora; sin visor propio.
 - **Descartado:** una RPC nueva para los puntos de alrededor (el inventario ya está en memoria); dibujar los mapitas como SVG sin mapa base (la especificación pide el mapa base propio).
 - **Afecta a:** 06 §5 (panel); `src/lib/panel/cola.ts`.
