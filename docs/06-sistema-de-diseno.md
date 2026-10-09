@@ -12,7 +12,7 @@
 ## 1. Principios
 
 1. **La información de estado viaja por dos canales como mínimo.** Forma para el tipo, color para el
-   estado, tamaño para lo aprovechable, tachado para "no funciona", anillo de rayas para "sin revisar". Nada
+   estado, tamaño para lo aprovechable, aspa para "no funciona" y «B» para "barro", anillo de rayas para "sin revisar". Nada
    depende solo del color (TR-30).
 2. **Legible en la calle.** A pleno sol, con guantes, deprisa: contraste alto, objetivos táctiles de
    44 px, texto de 16 px o más en el móvil, una acción principal por pantalla.
@@ -63,7 +63,7 @@ caudal de NFPA 291: verde, amarillo y rojo (DEC-154).
 | regular | `--amarillo-500` `#F9A900` (RAL 1003) | `--amarillo-100` `#FFF1C2` | `--amarillo-800` `#6B4E00` | `--borde-marcador-regular` `#563E00` / `#111826` |
 | malo | `--rojo-700` `#9B2423` (RAL 3001) | `--rojo-100` `#FBE0DB` | `--rojo-700` `#9B2423` | `--borde-marcador` blanco / blanco |
 | barro | `--marron-600` `#806460` | `--marron-100` `#EFE3D6` | `--marron-700` `#5A4632` | `--borde-marcador` blanco / blanco |
-| no funciona | `--gris-700` `#40453D` | `--gris-100` `#E5E4DC` | `#40453D` | `--borde-marcador` blanco / blanco |
+| no funciona | `--gris-700` `#40453D` (chip, banda y leyenda de texto; el marcador es blanco con borde y aspa `--gris-700`, §4.3) | `--gris-100` `#E5E4DC` | `#40453D` | `--gris-700` / `--gris-700` |
 
 Para **texto sobre `--verde-100`** (las etiquetas "bueno", "alta" y "resuelta") se usa
 `--verde-700`: el `--verde-600` sobre ese fondo se queda en 4,16:1 y TR-31 pide 4,5:1.
@@ -201,9 +201,10 @@ cliente no lo reimplementa. Los tests unitarios cubren las 12 combinaciones.
 | Boca de riego | cuadrado de lado `2 × radio_px`, esquinas `rx = 3` (a 5,5 px, `rx = 2.5`; a 5 px, `rx = 2`) |
 | Borde | `--borde-marcador`, blanco en claro y en oscuro (DEC-072), 2,5 px (2 px si `radio_px ≤ 5.5`). **Regular** lleva `--borde-marcador-regular`: `#563E00` en claro y `#111826` en oscuro (§2.2, DEC-154). Es el mismo dibujo en el mapa, la lista, la ficha, la leyenda, el panel y el minimapa |
 | Relleno | color de estado (§2.2) |
-| Barro | tamaño mínimo y la misma línea blanca cruzada que No funciona, **sin** atenuar: el tachado dice "no se puede usar" y el color marrón dice por qué (FR-61, WCAG 1.4.1) |
-| No funciona | opacidad **0,5** + línea blanca cruzada de 2 px de esquina inferior izquierda a superior derecha, largo `2 × radio_px` |
-| Estado desconocido | un `caudal` que esta versión de la app no conoce (el servidor añadió uno nuevo y el móvil aún no se ha actualizado) se dibuja **como No funciona**: color `--gris-700`, radio mínimo, opacidad 0,5 y tachado. La ficha dice "Estado desconocido · actualiza la aplicación" y la lista lo cuenta con No funciona (`docs/24` RV-102a) |
+| Barro | tamaño mínimo, relleno `--marron-600` **lleno** (sin atenuar), borde `--borde-marcador` y una **«B»** blanca (`--borde-marcador`, `system-ui` 700, `font-size = 1,15 × radio_px`, centrada). Sin tachado (`docs/33` RV-319, U10) |
+| No funciona | relleno **blanco** (`--borde-marcador`, blanco en los dos modos, DEC-072), borde `--gris-700` de **1,5 px** y un **aspa** `--gris-700` de 1,25 px: dos trazos de `−0,4 × radio_px` a `+0,4 × radio_px` en diagonal, extremos redondos. Sin opacidad ni tachado (`docs/33` RV-319, U10) |
+| Barro y No funciona sin color | se distinguen **sin color** (WCAG 1.4.1, FR-61): uno es oscuro y lleno con letra, el otro blanco y vacío con aspa. Contraste medido por `accesibilidad.test.ts`, en claro y oscuro: «B» sobre `--marron-600` **5,4:1** y aspa sobre blanco **9,9:1** (≥ 4,5:1); No funciona contra su borde y sobre el mapa, ≥ 3:1. El mismo dibujo (`svgMarcador`) en el mapa del voluntario, la lista, la ficha, la leyenda y los mapas del panel (Inventario en mapa y el detalle de la Cola, `docs/33` RV-336, `e2e/panel-marcadores.spec.ts`) |
+| Estado desconocido | un `caudal` que esta versión de la app no conoce (el servidor añadió uno nuevo y el móvil aún no se ha actualizado) se dibuja **como No funciona**: radio mínimo, blanco con borde gris y aspa. La ficha dice "Estado desconocido · actualiza la aplicación" y la lista lo cuenta con No funciona (`docs/24` RV-102a) |
 | Sin revisar > `meses_revision` | **anillo exterior discontinuo** de 1,5 px, `--anillo-sin-revisar` (`--texto-suave` en claro, `#C9CFD8` en oscuro), separado 2,5 px de la cara exterior del borde; el borde sigue **continuo** y el marcador mantiene tamaño y color. Las rayas se calculan para que salgan **8** sea cual sea el tamaño: `dash = gap = perímetro / 16`. En la boca, un cuadrado concéntrico (esquina `rx` del marcador + lo que se separa) con el perímetro del cuadrado redondeado. Si además está seleccionado, el anillo de selección va 2 px por fuera de este. En un lienzo pequeño (lista, leyenda, ficha) el dibujo se escala lo justo para que el anillo no se recorte, igual para un punto revisado que para uno sin revisar del mismo radio (DEC-155) |
 | Seleccionado | anillo exterior `--marino-950` de 2 px a 3 px del borde (en oscuro, `--anillo-seleccion` de §2.4) |
 | Propuesto (solo panel) | pin naranja `--naranja-600` con punto blanco; el punto existente en comparación, con opacidad .8 |
@@ -228,19 +229,18 @@ zoom que el mapa, Leaflet la quitaría entera al pasar de su tope y la pantalla 
 
 ### 4.5 Leyenda
 
-Plegable (§5, DEC-123): la primera vez y cuando se despliega, en el mapa (móvil: esquina inferior izquierda, dos columnas, 7,5–8 px; escritorio:
-igual con 9–10 px). Contenido fijo y en este orden:
+Plegable (§5, DEC-123) y **plegada por defecto, también la primera vez** (`docs/33` RV-310, RV-319); al desplegarla, en el mapa (móvil: esquina inferior izquierda, 7,5–8 px; escritorio: igual con 9–10 px). Contenido fijo, en **dos grupos** separados por una línea:
 
-1. ● Hidrante · ■ Boca de riego (forma)
-2. Regular · Malo · Barro · No funciona (color; "bueno" ya va implícito en la primera fila con relleno verde). Cada muestra lleva el borde de su estado (§4.3): la de Regular, amarillo con el borde oscuro
-3. Sin revisar (anillo exterior de rayas, DEC-155)
-4. Línea final: "Más grande = más agua aprovechable"
+1. **Tipo** (forma): ● Hidrante · ■ Boca de riego
+2. **Estado** (color): Bueno · Regular · Malo · Barro · No funciona · Sin revisar. Cada muestra con el dibujo de §4.3: la de Regular, amarillo con el borde oscuro; Barro con su «B» y No funciona blanco con su aspa, las dos a radio 7 para que se lean; Sin revisar, con el anillo exterior de rayas (DEC-155)
+3. Línea final: "Más grande = más agua aprovechable"
 
 ### 4.6 Ejemplos de lectura
 
 - Círculo grande verde: hidrante de 100 mm que funciona bien. El mejor recurso de la zona.
 - Cuadrado pequeño amarillo: boca de riego que da menos de lo que podría.
-- Punto gris pequeño tachado: no se pudo usar; hay que comunicarlo, pero no compite visualmente.
+- Punto blanco pequeño con un aspa gris: no se pudo usar; hay que comunicarlo, pero no compite visualmente.
+- Punto marrón pequeño con una «B»: tiene barro; no se puede usar tal como está.
 - Cualquiera con un anillo de rayas alrededor: el dato es el último conocido, pero tiene más de un año.
 
 ### 4.7 Marcas de trabajo (incidente, medición y "¿Qué hay aquí?")
