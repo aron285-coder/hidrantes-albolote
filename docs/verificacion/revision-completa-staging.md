@@ -194,3 +194,21 @@ entrada cerrada; 25 con la entrada abierta; deshecho), `detalleLegible`, anonimi
 pendientes, 0 incidencias abiertas). Traspaso 37983045924, borrado.
 
 commit: 6ca7b23d8135317c22f8580f8c18aa14b084a7e2 · resultado: verde
+
+### Release 0.12.0 con 8f7359d (10 oct 2026, `docs/34` RV-362)
+
+Con todo `docs/34` (RV-350 a RV-361) en `develop`, con «Desplegar staging» y CI en verde para ese commit y
+con `0044_entrada_abierta_espacio_y_reservas.sql` como última migración de staging. El método es el mismo:
+la cadena va por el traspaso, solo en memoria; el token de prueba se crea en la base; jefatura usa claims
+de administrador.
+
+| Recorrido | Resultado |
+|---|---|
+| Voluntario contra staging (Cercanos, alta Directo con dos fotos sin y con conexión, Mis propuestas, revisión de HID-9001, «Calle Real 10», `/api/push`, alto de página y navegación de escritorio) | 13 en verde (7 saltados por proyecto) |
+| Jefatura por BD: aprobar el alta (BOC-0012), rechazar la revisión con «prueba», `fn_editar_punto` 6 m y enganche | ok; `detalleLegible` da «Directo → Granada · Movido 6 m» |
+| 25 canjes desde una IP | cerrada: 20 ok y del 21.º al 25.º `DEMASIADOS_INTENTOS`; abierta: 25 ok; cerrada otra vez; todo deshecho |
+| Recorrido corto de lo cambiado (RV-350 a RV-356), 412, 360 y 1440 px, en claro y en oscuro | 30 en verde: [`recorrido-staging-2026-10-10.md`](recorrido-staging-2026-10-10.md) |
+| `npm run anonimizar -- --entorno staging` del dispositivo de prueba | ok: 2 propuestas y 2 entradas del registro, «voluntario dado de baja» |
+| Limpieza | ok: 0 pendientes y 0 incidencias abiertas; token revocado; traspaso 38043294133, borrado |
+
+commit: 8f7359d2ecb80b41c0addd5c4a709c92fe8c0d36 · resultado: verde
