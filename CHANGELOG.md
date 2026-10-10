@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.11.1...hidrantes-albolote-v0.12.0) (2026-10-10)
+
+
+### Novedades
+
+* **formulario:** el tipo de enganche se elige con fotos de las columnas de la agrupación ([#645](https://github.com/aron285-coder/hidrantes-albolote/issues/645)) ([ab89d67](https://github.com/aron285-coder/hidrantes-albolote/commit/ab89d677abbea09b1036fc5d27c2afe8f0147832))
+
+
+### Correcciones
+
+* **cola:** en el móvil, el aviso de un punto que ya no existe va arriba y «Rechazar» ocupa su fila ([#640](https://github.com/aron285-coder/hidrantes-albolote/issues/640)) ([f116f30](https://github.com/aron285-coder/hidrantes-albolote/commit/f116f301a3d30166e990f0740d15dcd8cad50aae))
+* **estilo:** en modo oscuro, los avisos y los chips de estado dejan de ser cajas claras ([#644](https://github.com/aron285-coder/hidrantes-albolote/issues/644)) ([3584d75](https://github.com/aron285-coder/hidrantes-albolote/commit/3584d75c379eddea2510504fa187e0ade7e51d42))
+* **mapa:** el texto de ayuda del buscador cabe entero (docs/34 RV-351) ([#639](https://github.com/aron285-coder/hidrantes-albolote/issues/639)) ([b9907a5](https://github.com/aron285-coder/hidrantes-albolote/commit/b9907a5066276c36f25bdb82c93589c3e2b8a64b))
+* **navegacion:** con novedades, el lector de pantalla dice «Ajustes, hay novedades» ([#642](https://github.com/aron285-coder/hidrantes-albolote/issues/642)) ([72e24ab](https://github.com/aron285-coder/hidrantes-albolote/commit/72e24ab60fe1238686896e7d46ac301af27ccf65))
+* **textos:** con un solo elemento, los contadores van en singular (docs/34 RV-350) ([#638](https://github.com/aron285-coder/hidrantes-albolote/issues/638)) ([0472a4b](https://github.com/aron285-coder/hidrantes-albolote/commit/0472a4bc8dd8509d08046e1b5d417e6373351632))
+
 ## [0.11.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.11.0...hidrantes-albolote-v0.11.1) (2026-10-09)
 
 
