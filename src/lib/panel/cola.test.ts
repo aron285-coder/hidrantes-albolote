@@ -299,7 +299,7 @@ describe('aprobación en bloque (FR-107)', () => {
       (id) => (id === 'b' ? 'Estado HID-0044' : id),
     );
     expect(texto).toBe(
-      '1 aprobadas, cada una con su entrada en el Registro. Quedan pendientes: Estado HID-0044: desactualizada.',
+      '1 aprobada, con su entrada en el Registro. Quedan pendientes: Estado HID-0044: desactualizada.',
     );
   });
 

@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { T } from './textos';
+import { plural, T } from './textos';
 
 const MARCA = '[]';
 const normalizar = (s: string) => s.replace(/\[[^\]]*\]/g, MARCA).trim();
@@ -138,5 +138,64 @@ describe('tipo de enganche, no racor (docs/25 RV-112)', () => {
     expect(T.panelCola.campoRacor).toBe('Tipo de enganche');
     expect(T.operaciones.corregirDatosDetalle).toBe('Diámetro, tipo de enganche o descripción mal anotados');
     expect(T.panelInventario.enganche('Granada')).toBe('enganche Granada');
+  });
+});
+
+// docs/34 RV-350: con un solo elemento, el singular («1 enviada», «1 móvil registrado»). Cero, en plural.
+describe('plurales (docs/34 RV-350)', () => {
+  it('plural: 0 y 2 en plural, 1 en singular', () => {
+    expect(plural(0, 'enviada', 'enviadas')).toBe('0 enviadas');
+    expect(plural(1, 'enviada', 'enviadas')).toBe('1 enviada');
+    expect(plural(2, 'enviada', 'enviadas')).toBe('2 enviadas');
+  });
+
+  it.each([
+    [T.mapa.nPuntos(1), '1 punto'],
+    [T.medir.resultado('40 m', 1, 20), '40 m · 1 tramo de manguera de 20 m'],
+    [T.misPropuestas.resumen(1, 1), '1 enviada · 1 sin enviar'],
+    [
+      T.misPropuestas.esperaPropuestasNuevo(1, 'a las 14:30'),
+      'En espera: un móvil recién dado de alta puede enviar 1 propuesta al día. Se enviará a las 14:30.',
+    ],
+    [T.ajustes.puntosGuardadosLinea(1, 'hace 5 min'), '1 punto guardado · sincronizados hace 5 min'],
+    [T.ajustes.perderasEnvios(1), 'Tienes 1 envío sin mandar: se perderá.'],
+    [T.panelCola.seleccionadas(1), '1 seleccionada'],
+    [T.panelCola.loteAprobadas(1), '1 aprobada, con su entrada en el Registro.'],
+    [T.panelCola.loteRechazadas(1), '1 rechazada. Su autor verá el motivo.'],
+    [T.panelCola.rechazarVarias(1), 'Rechazar 1 propuesta con un motivo común'],
+    [T.panelCola.cambios(1), '1 cambio'],
+    [T.panelEditar.descartarN(1), '¿Descartar 1 cambio?'],
+    [T.panelInventario.exportado(1), 'Exportada 1 fila. La exportación consta en el Registro.'],
+    [T.panelRegistro.entradas(1), '1 entrada'],
+    [T.panelPapelera.purgados(1), '1 punto purgado.'],
+    [T.panelPapelera.quedan(1), 'queda 1 día'],
+    [
+      T.panelAjustes.cambiadoPor('3 oct', 'jefatura', 1),
+      'Cambiado por última vez el 3 oct por jefatura. 1 móvil registrado.',
+    ],
+    [T.panelAjustes.sinCambios(1), 'Sin cambios desde el arranque. 1 móvil registrado.'],
+    [
+      T.panelAjustes.avisoRevocando(1),
+      'Se pondrá en vigor un código nuevo y 1 móvil tendrá que volver a escribirlo al abrir la aplicación. Su nombre se conserva.',
+    ],
+    [T.panelAjustes.nPuntos(1), '1 punto'],
+    [
+      T.panelAjustes.atencionFrenadas(1),
+      '1 móvil con el código bueno no ha podido entrar por el tope: abre la entrada 24 h.',
+    ],
+    [T.panelAjustes.inventarioDescargado(1), 'Inventario descargado: 1 punto.'],
+    [T.panelAjustes.reservasDetalle(1, 0), '1 foto · 0 sin subir'],
+    [T.panel.mostrando(1, 1), 'Mostrando 1 de 1 punto'],
+  ])('%s', (texto, esperado) => {
+    expect(texto).toBe(esperado);
+  });
+
+  it('con dos, el plural de siempre', () => {
+    expect(T.misPropuestas.resumen(2, 0)).toBe('2 enviadas · 0 sin enviar');
+    expect(T.panelAjustes.avisoRevocando(2)).toBe(
+      'Se pondrá en vigor un código nuevo y 2 móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.',
+    );
+    expect(T.panel.mostrando(2, 438)).toBe('Mostrando 2 de 438 puntos');
+    expect(T.panelPapelera.quedan(3)).toBe('quedan 3 días');
   });
 });
