@@ -1,7 +1,7 @@
 # Verificación · Cola sin señales y lo pendiente de 25, 26 y 27 (docs/28)
 
 **Estado: hecho en staging (oct 2026).** Producción, con la siguiente release (P-15 de `docs/25`).
-Especificación: `docs/28-cola-sin-senales-y-pendientes.md`. Dos sesiones (Panel, con un subagente, y
+Especificación: `docs/archivo/especificaciones/28-cola-sin-senales-y-pendientes.md`. Dos sesiones (Panel, con un subagente, y
 Ops). El detalle de cada punto está en el cuerpo de su PR.
 
 ## Panel

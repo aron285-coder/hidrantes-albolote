@@ -77,6 +77,11 @@ Reglas derivadas:
   prototipo y 01, 05 o 06 dicen cosas distintas, gana el documento y el prototipo se corrige (o se
   anota la diferencia como decisión en 12). Un prototipo no crea requisitos: lo que se ve ahí y no
   está en 01 no se construye.
+- **Las especificaciones de cambios no son propietarias de nada** (DEC-195). Mientras está en curso, una
+  especificación vive en la raíz de `docs/`; al cerrarse (verificación escrita y release en producción) pasa a
+  `docs/archivo/especificaciones/` en el PR que la cierra, y lo que cambió queda en su propietario. En Git solo
+  van las imágenes que enlaza algún documento, y ningún recuento ni versión se escribe a mano fuera de su
+  documento.
 
 ---
 

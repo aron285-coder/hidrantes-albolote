@@ -1,6 +1,6 @@
 # Verificación · Novedades y limpieza, sesión Frontend (docs/23)
 
-**Estado: hecho el 25 sep 2026.** Especificación: `docs/23-novedades-y-limpieza.md`, puntos RV-95 y
+**Estado: hecho el 25 sep 2026.** Especificación: `docs/archivo/especificaciones/23-novedades-y-limpieza.md`, puntos RV-95 y
 RV-98. Decisiones: DEC-142 y DEC-143. Coordinación en #393. Ops consolida este registro en
 `novedades-limpieza.md`.
 

@@ -1,6 +1,6 @@
 # Verificación · Lo pendiente y el mantenimiento (docs/22) · sesión Ops
 
-**Estado: hecho el 25 sep 2026**, salvo P-12 (§3). Especificación: `docs/22-pendientes-y-mantenimiento.md`, puntos de Ops. Coordinación: #362, que sustituye a #354. Los registros de Frontend y Backend están en `pendientes-frontend.md` y `pendientes-backend.md`, y los tres se juntan en `pendientes.md`.
+**Estado: hecho el 25 sep 2026**, salvo P-12 (§3). Especificación: `docs/archivo/especificaciones/22-pendientes-y-mantenimiento.md`, puntos de Ops. Coordinación: #362, que sustituye a #354. Los registros de Frontend y Backend están en `pendientes-frontend.md` y `pendientes-backend.md`, y los tres se juntan en `pendientes.md`.
 
 ## 1. Qué se ha hecho
 

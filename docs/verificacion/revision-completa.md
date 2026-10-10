@@ -3,7 +3,7 @@
 **Estado:** todo el código en `develop` y en staging (8 oct 2026). La comprobación en staging
 (RV-139b) está en `revision-completa-staging.md`, y la release 0.9.0 en `paridad-produccion.md`.
 La segunda copia en R2 (RV-133) queda **aplazada** por decisión del desarrollador (DEC-173).
-Especificación: `docs/31-revision-completa.md`. Cuatro sesiones con subagentes, coordinadas en #484.
+Especificación: `docs/archivo/especificaciones/31-revision-completa.md`. Cuatro sesiones con subagentes, coordinadas en #484.
 El detalle de cada punto (pruebas, revisión, desviaciones) está en el cuerpo de su PR.
 
 ## Ops

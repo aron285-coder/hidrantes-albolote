@@ -1,7 +1,7 @@
 # Verificación · Revisión de sep 2026 · bloque P1
 
 **Estado: hecho el 23 sep 2026**, salvo lo que depende de un paso manual o del calendario (§3).
-Especificación: `docs/17-cambios-revision-2026-09.md`. El bloque P0 está en `revision-p0.md`. Como
+Especificación: `docs/archivo/especificaciones/17-cambios-revision-2026-09.md`. El bloque P0 está en `revision-p0.md`. Como
 en P0, cada test de regresión se vio fallar sobre `develop` antes del arreglo; los de SQL, con un
 commit solo de tests y la CI lanzada sobre esa rama (Docker Desktop no arranca en este equipo).
 

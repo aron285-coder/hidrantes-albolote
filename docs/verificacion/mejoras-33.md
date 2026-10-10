@@ -1,6 +1,6 @@
 # Verificación · Mejoras elegidas, defectos y la entrada del lanzamiento (docs/33)
 
-**Estado:** hecho el 9 oct 2026, en staging y en producción (0.11.0). Especificación: `docs/33-mejoras-y-defectos.md`; mockups:
+**Estado:** hecho el 9 oct 2026, en staging y en producción (0.11.0). Especificación: `docs/archivo/especificaciones/33-mejoras-y-defectos.md`; mockups:
 `docs/mockups/33-mejoras.html`. Cuatro sesiones (Backend, Frontend-campo, Frontend-panel, Ops) en tres
 oleadas, coordinadas en #580. Decisiones: DEC-190, DEC-191 y DEC-192 (en la especificación figuran como
 DEC-187 a DEC-189). El detalle de cada punto (pruebas, revisión, desviaciones) está en el cuerpo de su PR;

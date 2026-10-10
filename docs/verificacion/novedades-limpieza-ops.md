@@ -1,6 +1,6 @@
 # Verificación · Novedades y limpieza (docs/23) · sesión Ops
 
-**Estado: hecho el 25 sep 2026.** Especificación: `docs/23-novedades-y-limpieza.md`, puntos de Ops. Coordinación: #393.
+**Estado: hecho el 25 sep 2026.** Especificación: `docs/archivo/especificaciones/23-novedades-y-limpieza.md`, puntos de Ops. Coordinación: #393.
 
 | RV | Issue · PR | Qué | Cómo se vio fallar antes |
 |---|---|---|---|

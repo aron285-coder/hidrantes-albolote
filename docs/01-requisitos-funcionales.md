@@ -299,10 +299,10 @@ administradores están pensados para ello.
 | 13 | DEC-037 (17 sep 2026): antes en la Fase 10 diferida del plan |
 | A | estructura del skill *product-management:write-spec* |
 | Cambio "defecto" → "no funciona" | plan v2.1, revisión 2.1 (16 sep 2026) |
-| FR-72 a FR-76, FR-11 (tipo fijo) | `docs/18-cambios-revision-2-y-mapa.md` §0.3 y bloque D (23 sep 2026), DEC-089, DEC-090 |
-| FR-20, FR-41, FR-44, FR-60 a FR-62, FR-66, FR-68, FR-72, FR-75, FR-102, FR-103, FR-105 (v1.8) | `docs/25-lista-ficha-cola-y-colores.md` (4 oct 2026), DEC-154 a DEC-158 y DEC-163 |
-| FR-150 (v1.9) | `docs/26-acceso-al-panel-desde-el-movil.md` (5 oct 2026), DEC-164 |
-| FR-74 (v1.10) | `docs/27-cercanos-simplificado.md` (5 oct 2026), DEC-165 |
-| FR-104 (v1.11) | `docs/28-cola-sin-senales-y-pendientes.md` (oct 2026), DEC-166 |
-| FR-20, FR-92, FR-120 a FR-122, FR-130 a FR-132, FR-143 (v1.12) | `docs/29-inventario-y-editar.md` (oct 2026), DEC-167 a DEC-170 |
-| FR-33, FR-34, FR-91, FR-140, FR-142 a FR-144 (v1.13) | `docs/33-mejoras-y-defectos.md` (9 oct 2026), DEC-190 y DEC-192 |
+| FR-72 a FR-76, FR-11 (tipo fijo) | `docs/archivo/especificaciones/18-cambios-revision-2-y-mapa.md` §0.3 y bloque D (23 sep 2026), DEC-089, DEC-090 |
+| FR-20, FR-41, FR-44, FR-60 a FR-62, FR-66, FR-68, FR-72, FR-75, FR-102, FR-103, FR-105 (v1.8) | `docs/archivo/especificaciones/25-lista-ficha-cola-y-colores.md` (4 oct 2026), DEC-154 a DEC-158 y DEC-163 |
+| FR-150 (v1.9) | `docs/archivo/especificaciones/26-acceso-al-panel-desde-el-movil.md` (5 oct 2026), DEC-164 |
+| FR-74 (v1.10) | `docs/archivo/especificaciones/27-cercanos-simplificado.md` (5 oct 2026), DEC-165 |
+| FR-104 (v1.11) | `docs/archivo/especificaciones/28-cola-sin-senales-y-pendientes.md` (oct 2026), DEC-166 |
+| FR-20, FR-92, FR-120 a FR-122, FR-130 a FR-132, FR-143 (v1.12) | `docs/archivo/especificaciones/29-inventario-y-editar.md` (oct 2026), DEC-167 a DEC-170 |
+| FR-33, FR-34, FR-91, FR-140, FR-142 a FR-144 (v1.13) | `docs/archivo/especificaciones/33-mejoras-y-defectos.md` (9 oct 2026), DEC-190 y DEC-192 |
