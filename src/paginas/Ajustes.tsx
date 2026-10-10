@@ -238,7 +238,7 @@ export function Ajustes() {
         <button
           type="button"
           onClick={() => setConfirmar(true)}
-          className="bg-rojo-100 border-rojo-700 rounded-tarjeta text-rojo-700 mt-3 min-h-12 border px-3 text-left text-[15px] font-semibold"
+          className="bg-tinte-rojo border-rojo-700 rounded-tarjeta text-tinte-rojo-texto mt-3 min-h-12 border px-3 text-left text-[15px] font-semibold"
         >
           {T.ajustes.cerrarSesion}
         </button>
@@ -260,10 +260,13 @@ export function Ajustes() {
         <Hoja titulo={T.ajustes.confirmarCerrar} alCerrar={cerrarHoja}>
           <p className="text-texto-suave mb-3 text-sm">
             {T.ajustes.cerrarSesionDetalle}
-            {cola.length > 0 && <b className="text-rojo-700 block">{T.ajustes.perderasEnvios(cola.length)}</b>}
+            {cola.length > 0 && <b className="text-rojo-texto block">{T.ajustes.perderasEnvios(cola.length)}</b>}
           </p>
           {errorCierre && (
-            <p role="alert" className="bg-rojo-100 text-rojo-700 rounded-campo mb-3 px-2 py-1 text-sm">
+            <p
+              role="alert"
+              className="bg-tinte-rojo text-tinte-rojo-texto rounded-campo mb-3 px-2 py-1 text-sm ring-1 ring-tinte-rojo-borde ring-inset"
+            >
               {T.ajustes.errorCerrarSesion}
             </p>
           )}
@@ -334,7 +337,7 @@ function SeccionMapa() {
             </span>
           )}
           {mapabase.fallo && (
-            <span className="text-rojo-700 block">
+            <span className="text-rojo-texto block">
               {mapabase.parada ? T.ajustes.descargaParada : T.ajustes.falloDescarga}
             </span>
           )}

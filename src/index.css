@@ -85,6 +85,29 @@
      quedaba un fondo claro bajo texto claro (docs/31 RV-169). Texto suave a ≥ 4,5:1 en los dos modos. */
   --fila-elegida: #eff3f8;
 
+  /* 06 §2.4 · tintes de aviso y de los chips (docs/34 RV-355): fondo y texto van en pareja y cambian
+     juntos en oscuro, donde los -100 eran las únicas superficies claras de la pantalla. En claro, los
+     mismos valores de siempre. El borde es transparente en claro; en oscuro, el texto al 40 %, porque
+     los fondos apenas se separan de --papel (1,02–1,18:1). Contraste de cada pareja en tintes.test.ts. */
+  --tinte-verde: var(--verde-100);
+  --tinte-verde-texto: var(--verde-700);
+  --tinte-ambar: var(--ambar-100);
+  --tinte-ambar-texto: var(--ambar-700);
+  --tinte-oro: var(--oro-100);
+  --tinte-oro-texto: var(--ambar-700);
+  --tinte-rojo: var(--rojo-100);
+  --tinte-rojo-texto: var(--rojo-700);
+  --tinte-amarillo: var(--amarillo-100);
+  --tinte-amarillo-texto: var(--amarillo-800);
+  --tinte-marron: var(--marron-100);
+  --tinte-marron-texto: var(--marron-700);
+  --tinte-verde-borde: transparent;
+  --tinte-ambar-borde: transparent;
+  --tinte-oro-borde: transparent;
+  --tinte-rojo-borde: transparent;
+  --tinte-amarillo-borde: transparent;
+  --tinte-marron-borde: transparent;
+
   color-scheme: light;
 }
 
@@ -111,6 +134,24 @@
        rótulos, 1,79:1, lo separa este borde, 5,06:1). Uno blanco no se separaría de él (1,96:1). */
     --borde-marcador-regular: #111826;
     --fila-elegida: #243149;
+    --tinte-verde: #16301f;
+    --tinte-verde-texto: #5fc48e;
+    --tinte-ambar: #352a0e;
+    --tinte-ambar-texto: #e8b54a;
+    --tinte-oro: #33290f;
+    --tinte-oro-texto: #e8b54a;
+    --tinte-rojo: #3a1c1b;
+    --tinte-rojo-texto: #f28b82;
+    --tinte-amarillo: #33300c;
+    --tinte-amarillo-texto: #f2d052;
+    --tinte-marron: #2e241e;
+    --tinte-marron-texto: #d9b79c;
+    --tinte-verde-borde: color-mix(in srgb, var(--tinte-verde-texto) 40%, transparent);
+    --tinte-ambar-borde: color-mix(in srgb, var(--tinte-ambar-texto) 40%, transparent);
+    --tinte-oro-borde: color-mix(in srgb, var(--tinte-oro-texto) 40%, transparent);
+    --tinte-rojo-borde: color-mix(in srgb, var(--tinte-rojo-texto) 40%, transparent);
+    --tinte-amarillo-borde: color-mix(in srgb, var(--tinte-amarillo-texto) 40%, transparent);
+    --tinte-marron-borde: color-mix(in srgb, var(--tinte-marron-texto) 40%, transparent);
     color-scheme: dark;
   }
 }
@@ -133,6 +174,24 @@
   --linea-incidente: rgba(230, 234, 240, 0.7);
   --borde-marcador-regular: #111826;
   --fila-elegida: #243149;
+  --tinte-verde: #16301f;
+  --tinte-verde-texto: #5fc48e;
+  --tinte-ambar: #352a0e;
+  --tinte-ambar-texto: #e8b54a;
+  --tinte-oro: #33290f;
+  --tinte-oro-texto: #e8b54a;
+  --tinte-rojo: #3a1c1b;
+  --tinte-rojo-texto: #f28b82;
+  --tinte-amarillo: #33300c;
+  --tinte-amarillo-texto: #f2d052;
+  --tinte-marron: #2e241e;
+  --tinte-marron-texto: #d9b79c;
+  --tinte-verde-borde: color-mix(in srgb, var(--tinte-verde-texto) 40%, transparent);
+  --tinte-ambar-borde: color-mix(in srgb, var(--tinte-ambar-texto) 40%, transparent);
+  --tinte-oro-borde: color-mix(in srgb, var(--tinte-oro-texto) 40%, transparent);
+  --tinte-rojo-borde: color-mix(in srgb, var(--tinte-rojo-texto) 40%, transparent);
+  --tinte-amarillo-borde: color-mix(in srgb, var(--tinte-amarillo-texto) 40%, transparent);
+  --tinte-marron-borde: color-mix(in srgb, var(--tinte-marron-texto) 40%, transparent);
   color-scheme: dark;
 }
 
@@ -172,6 +231,24 @@
   --color-marron-600: var(--marron-600);
   --color-marron-700: var(--marron-700);
   --color-marron-100: var(--marron-100);
+  --color-tinte-verde: var(--tinte-verde);
+  --color-tinte-verde-texto: var(--tinte-verde-texto);
+  --color-tinte-verde-borde: var(--tinte-verde-borde);
+  --color-tinte-ambar: var(--tinte-ambar);
+  --color-tinte-ambar-texto: var(--tinte-ambar-texto);
+  --color-tinte-ambar-borde: var(--tinte-ambar-borde);
+  --color-tinte-oro: var(--tinte-oro);
+  --color-tinte-oro-texto: var(--tinte-oro-texto);
+  --color-tinte-oro-borde: var(--tinte-oro-borde);
+  --color-tinte-rojo: var(--tinte-rojo);
+  --color-tinte-rojo-texto: var(--tinte-rojo-texto);
+  --color-tinte-rojo-borde: var(--tinte-rojo-borde);
+  --color-tinte-amarillo: var(--tinte-amarillo);
+  --color-tinte-amarillo-texto: var(--tinte-amarillo-texto);
+  --color-tinte-amarillo-borde: var(--tinte-amarillo-borde);
+  --color-tinte-marron: var(--tinte-marron);
+  --color-tinte-marron-texto: var(--tinte-marron-texto);
+  --color-tinte-marron-borde: var(--tinte-marron-borde);
 
   /* 06 §3 */
   --font-titulo: 'Barlow Condensed', sans-serif;

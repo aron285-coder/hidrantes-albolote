@@ -84,7 +84,10 @@ export function Entrada({ caducado }: { caducado: boolean }) {
       >
         <Escudo className="mx-auto mb-3 h-[52px] w-[46px]" />
         {caducado && (
-          <p role="alert" className="bg-oro-100 border-oro-600 text-ambar-700 mb-2 rounded-tarjeta border p-2 text-sm">
+          <p
+            role="alert"
+            className="bg-tinte-oro border-oro-600 text-tinte-oro-texto mb-2 rounded-tarjeta border p-2 text-sm"
+          >
             {T.entrada.accesoCaducado}
           </p>
         )}
@@ -114,7 +117,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           </div>
         </fieldset>
         {errorCodigo && (
-          <p role="alert" className="text-rojo-700 text-sm font-semibold">
+          <p role="alert" className="text-rojo-texto text-sm font-semibold">
             {errorCodigo}
           </p>
         )}
@@ -144,7 +147,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           className="bg-papel border-linea rounded-campo min-h-11 border px-3"
         />
         {errorNombre && (
-          <p role="alert" className="text-rojo-700 text-sm font-semibold">
+          <p role="alert" className="text-rojo-texto text-sm font-semibold">
             {errorNombre}
           </p>
         )}

@@ -971,3 +971,49 @@ test('sin sesión de administrador, nada de la entrada (docs/33 RV-338)', async 
   await expect(page.getByText(T.panelAjustes.altasIpDia)).toHaveCount(0);
   expect(llamadas.filter((n) => n.includes('entrada'))).toEqual([]);
 });
+
+// docs/34 RV-355: en oscuro, «Entrada abierta» y «Todo bien» ya no son superficies claras, y la página
+// pasa axe (contraste incluido) con los tintes nuevos.
+test('en oscuro, la entrada abierta y «Todo bien» van en tinte oscuro y pasan axe (docs/34 RV-355)', async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const haceH = (h: number) => new Date(Date.now() - h * 3600_000).toISOString();
+  await prepararPanel(page, {
+    entrada: new Date(Date.now() + 5 * 3_600_000).toISOString(),
+    salud: {
+      ...SALUD_0041,
+      fotos_bytes: 112 * MB,
+      fotos_pct: 14,
+      esquema_bytes: 38 * MB,
+      ultimo_respaldo: haceH(20),
+      ultima_vigilancia: haceH(1),
+      tareas: [{ tarea: 'hidrantes_purgar_papelera', ultima: haceH(6), fallo: false, problema: false }],
+    },
+  });
+  await page.goto('/admin/ajustes');
+  const franja = page.getByText(/^Entrada abierta para todos hasta el /);
+  const resumen = tarjetaDe(page, T.panel.saludSistema).getByTestId('resumen-salud');
+  await expect(franja).toBeVisible();
+  await expect(resumen).toHaveText(T.panelAjustes.todoBien);
+  // Luminancia relativa del fondo: los -100 de antes pasaban de 0,8; los tintes oscuros no llegan a 0,05.
+  const luz = (el: Element) => {
+    let n: Element | null = el;
+    let fondo = 'rgba(0, 0, 0, 0)';
+    while (n && /rgba\(0, 0, 0, 0\)|transparent/.test(fondo)) {
+      fondo = getComputedStyle(n).backgroundColor;
+      n = n.parentElement;
+    }
+    const [r, g, b] = (fondo.match(/[\d.]+/g) ?? []).slice(0, 3).map((c) => {
+      const v = Number(c) / 255;
+      return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  };
+  expect(await franja.evaluate(luz)).toBeLessThan(0.05);
+  expect(await resumen.evaluate(luz)).toBeLessThan(0.05);
+  const { violations } = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  expect(violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+});

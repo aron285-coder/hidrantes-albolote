@@ -42,7 +42,7 @@ describe('Barro, un estado conocido (RV-102)', () => {
     expect(esCaudalConocido('barro')).toBe(true);
     expect(CAUDALES).toEqual(['bueno', 'regular', 'malo', 'barro', 'no_funciona']);
     expect(nombreCaudal(BARRO)).toBe('Barro');
-    expect(claseChip(BARRO)).toBe('bg-marron-100 text-marron-700');
+    expect(claseChip(BARRO)).toBe('bg-tinte-marron text-tinte-marron-texto ring-tinte-marron-borde ring-1 ring-inset');
   });
 
   it('marcador: tamaño mínimo, marrón con una «B» y sin atenuar (FR-61, docs/33 RV-319)', () => {

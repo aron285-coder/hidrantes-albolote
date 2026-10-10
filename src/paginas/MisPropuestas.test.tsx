@@ -110,7 +110,7 @@ describe('Mis propuestas · qué se propuso (docs/33 RV-315)', () => {
     const motivo = t!.html.match(/<p[^>]*>Motivo: la foto es de la boca de al lado<\/p>/);
     expect(motivo).not.toBeNull();
     expect(motivo![0]).toMatch(/text-texto-suave/);
-    expect(motivo![0]).not.toMatch(/bg-rojo-100/);
+    expect(motivo![0]).not.toMatch(/bg-tinte-rojo/);
   });
 
   it('una resuelta no pone la flecha con lo de hoy (el punto ya cambió)', () => {

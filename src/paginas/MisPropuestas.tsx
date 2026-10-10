@@ -29,9 +29,15 @@ import { cn } from '@/lib/utils';
 
 const ESTADOS: Record<EstadoPropuesta | 'sin_enviar', [string, string]> = {
   sin_enviar: [T.misPropuestas.sinEnviar, 'bg-linea text-texto'],
-  pendiente: [T.misPropuestas.pendiente, 'bg-ambar-100 text-ambar-700'],
-  aprobada: [T.misPropuestas.aprobada, 'bg-verde-100 text-verde-700'],
-  rechazada: [T.misPropuestas.rechazada, 'bg-rojo-100 text-rojo-700'],
+  pendiente: [
+    T.misPropuestas.pendiente,
+    'bg-tinte-ambar text-tinte-ambar-texto ring-1 ring-tinte-ambar-borde ring-inset',
+  ],
+  aprobada: [
+    T.misPropuestas.aprobada,
+    'bg-tinte-verde text-tinte-verde-texto ring-1 ring-tinte-verde-borde ring-inset',
+  ],
+  rechazada: [T.misPropuestas.rechazada, 'bg-tinte-rojo text-tinte-rojo-texto ring-1 ring-tinte-rojo-borde ring-inset'],
   retirada_por_autor: [T.misPropuestas.retiradaPorTi, 'bg-linea text-texto'],
 };
 
@@ -179,7 +185,7 @@ export function MisPropuestas() {
                       <button
                         type="button"
                         data-variante="destructivo"
-                        className="text-rojo-700 min-h-11 underline"
+                        className="text-rojo-texto min-h-11 underline"
                         onClick={() => setConfirmar({ tipo: 'descartar', id: c.clave_local })}
                       >
                         {T.misPropuestas.descartar}
@@ -189,16 +195,16 @@ export function MisPropuestas() {
                 }
               >
                 {c.fallo ? (
-                  <p className="bg-rojo-100 text-rojo-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
+                  <p className="bg-tinte-rojo text-tinte-rojo-texto rounded-campo mt-1 px-2 py-1 text-[13px] ring-1 ring-tinte-rojo-borde ring-inset">
                     {textoFallo(c.fallo)}
                   </p>
                 ) : textoEspera(c, ahora) ? (
-                  <p className="bg-ambar-100 text-ambar-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
+                  <p className="bg-tinte-ambar text-tinte-ambar-texto rounded-campo mt-1 px-2 py-1 text-[13px] ring-1 ring-tinte-ambar-borde ring-inset">
                     {textoEspera(c, ahora)}
                   </p>
                 ) : (
                   ahora - c.creada_en > ATASCADO_MS && (
-                    <p className="bg-ambar-100 text-ambar-700 rounded-campo mt-1 px-2 py-1 text-[13px]">
+                    <p className="bg-tinte-ambar text-tinte-ambar-texto rounded-campo mt-1 px-2 py-1 text-[13px] ring-1 ring-tinte-ambar-borde ring-inset">
                       {T.misPropuestas.esperando24h}
                     </p>
                   )
@@ -264,7 +270,10 @@ export function MisPropuestas() {
             {confirmar.tipo === 'retirar' ? T.misPropuestas.retirarDetalle : T.misPropuestas.descartarDetalle}
           </p>
           {errorRetirar && (
-            <p role="alert" className="bg-rojo-100 text-rojo-700 rounded-campo mb-3 px-2 py-1 text-sm">
+            <p
+              role="alert"
+              className="bg-tinte-rojo text-tinte-rojo-texto rounded-campo mb-3 px-2 py-1 text-sm ring-1 ring-tinte-rojo-borde ring-inset"
+            >
               {errorRetirar}
             </p>
           )}

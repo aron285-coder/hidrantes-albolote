@@ -179,7 +179,7 @@ export function PanelCercanos({
       {!origen ? (
         <p
           role="status"
-          className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm"
+          className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta border px-2.5 py-2 text-sm"
         >
           {buscando ? T.incidente.buscandoPosicion : T.incidente.sinPosicion}
         </p>

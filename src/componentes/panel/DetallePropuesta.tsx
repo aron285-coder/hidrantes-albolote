@@ -246,7 +246,7 @@ export function DetallePropuesta({
           {bloqueado && (
             <p
               data-testid="aviso-punto-inactivo"
-              className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo border px-3 py-2 text-[14px] font-semibold max-md:order-first"
+              className="border-rojo-700 bg-tinte-rojo text-tinte-rojo-texto rounded-campo border px-3 py-2 text-[14px] font-semibold max-md:order-first"
             >
               {avisoPuntoInactivo(inactivo)}
             </p>
@@ -265,7 +265,7 @@ export function DetallePropuesta({
           {comparar && <Comparacion p={p} existente={duplicado} direccion={direccion} />}
           {/* El duplicado no está en el inventario cargado: no se puede comparar ni fusionar, pero se dice. */}
           {pendiente && p.operacion === 'alta' && p.duplicado_de && !duplicado && (
-            <p className="border-oro-600 bg-oro-100 text-ambar-700 rounded-campo border px-3 py-2 text-[13px]">
+            <p className="border-oro-600 bg-tinte-oro text-tinte-oro-texto rounded-campo border px-3 py-2 text-[13px]">
               {T.panelCola.duplicadoSinComparar(
                 p.codigo_duplicado ?? '—',
                 p.distancia_duplicado_m == null ? '—' : distancia(p.distancia_duplicado_m),
@@ -581,7 +581,7 @@ function dondeEsta(p: PropuestaPanel): string {
 /** El punto cambió después de la propuesta (FR-108): encima de los botones y de Corregir y Fusionar. */
 function AvisoDesactualizada({ p }: { p: PropuestaPanel }) {
   return (
-    <p className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo mb-2 border px-3 py-2 text-[13px]">
+    <p className="border-rojo-700 bg-tinte-rojo text-tinte-rojo-texto rounded-campo mb-2 border px-3 py-2 text-[13px]">
       {T.panelCola.desactualizada(p.punto_actualizado_en ? hace(p.punto_actualizado_en) : '—')}
     </p>
   );
@@ -784,7 +784,7 @@ function FormularioCorrecciones({
       {(puntoCambiado || alDia) && (
         <p
           role="status"
-          className="border-rojo-700 bg-rojo-100 text-rojo-700 rounded-campo border px-3 py-2 text-[13px]"
+          className="border-rojo-700 bg-tinte-rojo text-tinte-rojo-texto rounded-campo border px-3 py-2 text-[13px]"
         >
           {T.panelCola.puntoHaCambiado}
         </p>

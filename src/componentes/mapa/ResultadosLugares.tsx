@@ -37,7 +37,7 @@ export function ResultadoCoordenadas({ lugares, alElegir }: { lugares: Lugares; 
         <span className="min-w-0 flex-1">
           <span className="font-datos block truncate">{T.busqueda.coordenadas(formatoDecimal(l))}</span>
           {lugares.fueraDeZona && (
-            <span className="text-ambar-700 block text-[12px] font-semibold">{T.busqueda.fueraDeZona}</span>
+            <span className="text-ambar-texto block text-[12px] font-semibold">{T.busqueda.fueraDeZona}</span>
           )}
         </span>
       </button>

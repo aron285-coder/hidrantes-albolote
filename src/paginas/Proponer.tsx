@@ -269,7 +269,7 @@ function FormularioOperacion({
                       : T.operaciones.sinGps}
             </p>
             {pinFuera && (
-              <p className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm">
+              <p className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta border px-2.5 py-2 text-sm">
                 {T.avisosFormulario.fueraDeZona}
               </p>
             )}
@@ -399,7 +399,7 @@ function FormularioOperacion({
         </Boton>
         {falta && <p className="text-texto-suave -mt-1 text-center text-[13px]">{falta}</p>}
         {falloGuardar && (
-          <p role="alert" className="text-rojo-700 text-center text-sm">
+          <p role="alert" className="text-rojo-texto text-center text-sm">
             {T.operaciones.errorGuardar}
           </p>
         )}
@@ -468,7 +468,7 @@ function SinPunto({ operacion, cargando }: { operacion: Operacion; cargando: boo
           <>
             <p
               role="alert"
-              className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm"
+              className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta border px-2.5 py-2 text-sm"
             >
               {T.operaciones.puntoYaNoEsta}
             </p>
@@ -677,7 +677,7 @@ function PantallaResultado({ clave, jefatura }: { clave: string; jefatura: boole
       >
         <Icono
           size={44}
-          className={resultado === 'fallido' ? 'text-rojo-700' : pendiente ? 'text-naranja-600' : 'text-verde-600'}
+          className={resultado === 'fallido' ? 'text-rojo-texto' : pendiente ? 'text-naranja-600' : 'text-verde-600'}
           aria-hidden
         />
         <h2 className="font-titulo text-2xl font-bold">{titulo}</h2>

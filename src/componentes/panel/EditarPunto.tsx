@@ -165,7 +165,7 @@ export function CamposEditar({
         />
         <p className="text-texto-suave text-center text-[13px]">{T.avisosFormulario.ajustaPin}</p>
         {!dentroDeZona(v.pin.lat, v.pin.lng) && (
-          <p className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-2 text-sm">
+          <p className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta border px-2.5 py-2 text-sm">
             {T.panelEditar.fueraDeZona}
           </p>
         )}
@@ -558,7 +558,7 @@ export default function EditarPunto({
           {nuevo && !ocupado && (
             <div
               role="status"
-              className="bg-oro-100 border-oro-600 text-ambar-700 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm"
+              className="bg-tinte-oro border-oro-600 text-tinte-oro-texto flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm"
             >
               <span className="min-w-0 flex-1">{T.panelEditar.otroAdministrador}</span>
               <Boton variante="secundario" onClick={() => preguntar({ para: 'nuevo' })}>
