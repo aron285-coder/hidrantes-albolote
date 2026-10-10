@@ -1420,3 +1420,39 @@ test('RV-330: si todas las elegidas son de puntos que ya no están activos, no s
   expect(llamadaA(llamadas, 'fn_aprobar_lote')).toBeUndefined();
   await expect(casilla).not.toBeChecked();
 });
+
+// docs/34 RV-352 (N3, B2, U15): en el móvil, el aviso rojo va antes que el mapa y «Rechazar: el punto
+// ya no existe» ocupa su fila, en una línea. En el ordenador la barra queda como estaba.
+test.describe('punto que ya no existe, en el móvil (docs/34 RV-352)', () => {
+  test('a 412 × 915: el aviso encima del mapa y rechazar en una línea, en su fila', async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await prepararPanel(page, [sobreRetirado('estado')]);
+    await page.goto('/admin/cola');
+    await abrir(page, new RegExp(P6.codigo));
+    const detalle = page.getByRole('article');
+    const aviso = (await detalle.getByTestId('aviso-punto-inactivo').boundingBox())!;
+    const mapa = (await detalle.getByTestId('minimapa-propuesta').first().boundingBox())!;
+    expect(aviso.y).toBeLessThan(mapa.y);
+    const acciones = detalle.getByTestId('acciones-propuesta');
+    const rechazar = (await acciones.getByRole('button', { name: T.panelCola.rechazarNoExiste }).boundingBox())!;
+    const aprobar = (await acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true }).boundingBox())!;
+    const corregir = (await acciones.getByRole('button', { name: T.panelCola.aprobarConCorrecciones }).boundingBox())!;
+    expect(rechazar.height).toBeLessThanOrEqual(48);
+    // Toda la fila para rechazar; Aprobar y Corregir, juntos debajo.
+    expect(aprobar.y).toBeGreaterThanOrEqual(rechazar.y + rechazar.height);
+    expect(Math.abs(aprobar.y - corregir.y)).toBeLessThan(2);
+    expect(rechazar.width).toBeGreaterThan(aprobar.width + corregir.width);
+  });
+
+  test('a 1440 × 900: la barra en una sola fila, como antes', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await prepararPanel(page, [sobreRetirado('estado')]);
+    await page.goto('/admin/cola');
+    await abrir(page, new RegExp(P6.codigo));
+    const acciones = page.getByRole('article').getByTestId('acciones-propuesta');
+    const rechazar = (await acciones.getByRole('button', { name: T.panelCola.rechazarNoExiste }).boundingBox())!;
+    const aprobar = (await acciones.getByRole('button', { name: T.panelCola.aprobar, exact: true }).boundingBox())!;
+    expect(Math.abs(aprobar.y - rechazar.y)).toBeLessThan(2);
+    expect(aprobar.x).toBeGreaterThan(rechazar.x + rechazar.width);
+  });
+});
