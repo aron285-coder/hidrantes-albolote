@@ -4,6 +4,11 @@
 
 type Parametro = string | number;
 
+/** docs/34 RV-350: «1 enviada», «2 enviadas». Cero va en plural («0 enviadas»). */
+export function plural(n: number, uno: string, varios: string): string {
+  return `${n} ${n === 1 ? uno : varios}`;
+}
+
 export const T = {
   app: {
     nombre: 'Protección Civil Albolote',
@@ -156,7 +161,7 @@ export const T = {
     // docs/31 RV-157: lo que anuncia la barra de estado al lector de pantalla, sin la hora.
     sincronizadoSolo: 'Sincronizado',
     reintentar: 'Reintentar',
-    nPuntos: (n: Parametro) => `${n} puntos`,
+    nPuntos: (n: number) => plural(n, 'punto', 'puntos'),
     sincronizando: 'Sincronizando…',
     sinPuntos: 'Todavía no hay puntos guardados en este móvil. Se descargarán en cuanto haya conexión.',
     // Ya sincronizado y el servidor no tiene ninguno: el primer día de producción (DEC-051, docs/20 RV-76).
@@ -318,11 +323,9 @@ export const T = {
     titulo: 'Medir distancia',
     desdeAqui: 'Medir desde aquí',
     empezar: 'Toca el mapa para poner los puntos del tendido',
-    resultado: (distancia: Parametro, n: Parametro, largo: Parametro) =>
-      // docs/33 RV-318: «772 m · 39 tramos de manguera de 20 m».
-      n === 1
-        ? `${distancia} · 1 tramo de manguera de ${largo} m`
-        : `${distancia} · ${n} tramos de manguera de ${largo} m`,
+    // docs/33 RV-318: «772 m · 39 tramos de manguera de 20 m».
+    resultado: (distancia: Parametro, n: number, largo: Parametro) =>
+      `${distancia} · ${plural(n, 'tramo', 'tramos')} de manguera de ${largo} m`,
     deshacer: 'Deshacer',
     borrar: 'Borrar',
     terminar: 'Terminar',
@@ -497,7 +500,8 @@ export const T = {
     conCorrecciones: (texto: Parametro) => `con correcciones: ${texto}`,
     esperando24h: '⚠ Lleva más de 24 h esperando cobertura. Se enviará sola al tener señal.',
     vacio: 'Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.',
-    resumen: (enviadas: Parametro, sinEnviar: Parametro) => `${enviadas} enviadas · ${sinEnviar} sin enviar`,
+    resumen: (enviadas: number, sinEnviar: Parametro) =>
+      `${plural(enviadas, 'enviada', 'enviadas')} · ${sinEnviar} sin enviar`,
     nuevo: 'nuevo',
     // docs/33 RV-315 (U6): la tarjeta dice qué se propuso, en una línea.
     puntoNuevo: 'Punto nuevo',
@@ -531,8 +535,8 @@ export const T = {
     cuotaPropuestasSinNumero: 'Has llegado al máximo de propuestas de hoy. Se enviará mañana.',
     // docs/32 RV-233: la espera por los demás topes; `cuando` es «a las 14:30» o «mañana a las 00:05».
     // docs/32 RV-245: los topes de 0041, el del móvil recién dado de alta y el de todo el grupo.
-    esperaPropuestasNuevo: (maximo: Parametro, cuando: Parametro) =>
-      `En espera: un móvil recién dado de alta puede enviar ${maximo} propuestas al día. Se enviará ${cuando}.`,
+    esperaPropuestasNuevo: (maximo: number, cuando: Parametro) =>
+      `En espera: un móvil recién dado de alta puede enviar ${plural(maximo, 'propuesta', 'propuestas')} al día. Se enviará ${cuando}.`,
     esperaPropuestasNuevoSinNumero: (cuando: Parametro) =>
       `En espera: un móvil recién dado de alta tiene un máximo de propuestas al día. Se enviará ${cuando}.`,
     esperaPropuestasGrupo: (cuando: Parametro) =>
@@ -598,7 +602,8 @@ export const T = {
     descargaParada: 'La descarga se ha parado.',
     reintentar: 'Reintentar',
     // docs/33 RV-320 (U11): una sola tarjeta «Mapa sin cobertura», sin jerga.
-    puntosGuardadosLinea: (n: Parametro, hace: Parametro) => `${n} puntos guardados · sincronizados ${hace}`,
+    puntosGuardadosLinea: (n: number, hace: Parametro) =>
+      n === 1 ? `1 punto guardado · sincronizado ${hace}` : `${n} puntos guardados · sincronizados ${hace}`,
     sinSincronizar: 'Todavía sin sincronizar',
     guardadoProtegidoSi: 'El móvil no borrará estos datos aunque le falte espacio',
     guardadoProtegidoNo: 'El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo',
@@ -608,7 +613,8 @@ export const T = {
     verVersionesAnteriores: 'Ver versiones anteriores',
     sinNovedadesVersion: 'Esta versión solo trae arreglos internos.',
     avisos: 'Avisos',
-    perderasEnvios: (n: Parametro) => `Tienes ${n} envíos sin mandar: se perderán.`,
+    perderasEnvios: (n: number) =>
+      n === 1 ? 'Tienes 1 envío sin mandar: se perderá.' : `Tienes ${n} envíos sin mandar: se perderán.`,
   },
 
   instalar: {
@@ -740,7 +746,7 @@ export const T = {
     rechazadas: 'Rechazadas',
     retiradasPorAutor: 'Retiradas por el autor',
     ningunaSeleccionada: 'Ninguna seleccionada',
-    seleccionadas: (n: Parametro) => `${n} seleccionadas`,
+    seleccionadas: (n: number) => plural(n, 'seleccionada', 'seleccionadas'),
     aprobarSeleccionadas: 'Aprobar seleccionadas',
     rechazarSeleccionadas: 'Rechazar seleccionadas…',
     todasOperaciones: 'todas las operaciones',
@@ -806,10 +812,14 @@ export const T = {
     omitidaYaResuelta: 'ya estaba resuelta',
     omitidaDatos: 'datos no válidos',
     omitidaTipo: 'cambia el tipo, que no se puede cambiar: recházala',
-    loteAprobadas: (n: Parametro) => `${n} aprobadas, cada una con su entrada en el Registro.`,
+    loteAprobadas: (n: number) =>
+      n === 1
+        ? '1 aprobada, con su entrada en el Registro.'
+        : `${n} aprobadas, cada una con su entrada en el Registro.`,
     loteOmitidas: (lista: Parametro) => `Quedan pendientes: ${lista}.`,
-    loteRechazadas: (n: Parametro) => `${n} rechazadas. Cada autor verá el motivo.`,
-    rechazarVarias: (n: Parametro) => `Rechazar ${n} propuestas con un motivo común`,
+    loteRechazadas: (n: number) =>
+      n === 1 ? '1 rechazada. Su autor verá el motivo.' : `${n} rechazadas. Cada autor verá el motivo.`,
+    rechazarVarias: (n: number) => `Rechazar ${plural(n, 'propuesta', 'propuestas')} con un motivo común`,
     motivoComun: 'Motivo que verán los autores',
     phMotivo: 'Ej.: la foto es del hidrante de al lado, HID-0087',
     avisoNombres: 'No menciones a otros voluntarios: el autor lo leerá tal cual.',
@@ -856,7 +866,7 @@ export const T = {
     senalAviso: 'con avisos',
     // docs/25 RV-110 (DEC-158): el detalle con el mapa arriba, todos los datos y las fotos.
     datosDelPunto: 'Datos del punto',
-    cambios: (n: number) => (n === 1 ? '1 cambio' : `${n} cambios`),
+    cambios: (n: number) => plural(n, 'cambio', 'cambios'),
     restoIgual: 'el resto se queda igual',
     cambia: 'Cambia',
     campoCodigo: 'Código',
@@ -934,7 +944,10 @@ export const T = {
     avisoBorrar: 'El registro nunca debió existir: va a la papelera y se puede restaurar mientras esté en plazo.',
     motivo: 'Motivo (obligatorio, queda en el registro)',
     sinMotivo: 'Sin motivo no se puede continuar.',
-    exportado: (n: Parametro) => `Exportadas ${n} filas. La exportación consta en el Registro.`,
+    exportado: (n: number) =>
+      n === 1
+        ? 'Exportada 1 fila. La exportación consta en el Registro.'
+        : `Exportadas ${n} filas. La exportación consta en el Registro.`,
   },
 
   // docs/29 RV-124 (DEC-169): Editar como panel lateral con mapa y los cambios marcados.
@@ -956,7 +969,7 @@ export const T = {
     campoFallo: 'fallo',
     campoDireccion: 'dirección',
     campoDescripcion: 'descripción',
-    descartarN: (n: number) => (n === 1 ? '¿Descartar 1 cambio?' : `¿Descartar ${n} cambios?`),
+    descartarN: (n: number) => `¿Descartar ${plural(n, 'cambio', 'cambios')}?`,
     descartar: 'Descartar',
     seguirEditando: 'Seguir editando',
     guardando: 'Guardando…',
@@ -968,14 +981,14 @@ export const T = {
   panelRegistro: {
     filtroAccion: 'Filtrar por acción',
     todasAcciones: 'todas las acciones',
-    entradas: (n: Parametro) => `${n} entradas`,
+    entradas: (n: number) => plural(n, 'entrada', 'entradas'),
     inmutable: 'no se puede editar ni borrar',
     colMomento: 'Momento',
     colActor: 'Actor',
     colAccion: 'Acción',
     colPunto: 'Punto',
     colDetalle: 'Detalle',
-    porPagina: (n: Parametro) => `${n} entradas por página`,
+    porPagina: (n: number) => `${plural(n, 'entrada', 'entradas')} por página`,
     vacio: 'Todavía no hay entradas con ese filtro.',
     // docs/31 RV-166: falló la última carga y siguen a la vista las filas de antes.
     errorConFilas: (motivo: Parametro) => `${motivo} Las filas que ves son las de antes.`,
@@ -1029,23 +1042,24 @@ export const T = {
   },
 
   panelPapelera: {
-    explicacion: (dias: Parametro) => `Los borrados se conservan ${dias} días y después se purgan.`,
+    explicacion: (dias: number) => `Los borrados se conservan ${plural(dias, 'día', 'días')} y después se purgan.`,
     purgarCaducado: 'Purgar lo caducado…',
     confirmarPurga: 'Purgar ahora',
-    avisoPurga: (dias: Parametro) =>
-      `Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de ${dias} días en la papelera. No se puede deshacer.`,
-    purgados: (n: Parametro) => `${n} puntos purgados.`,
+    avisoPurga: (dias: number) =>
+      `Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de ${plural(dias, 'día', 'días')} en la papelera. No se puede deshacer.`,
+    purgados: (n: number) => `${plural(n, 'punto purgado', 'puntos purgados')}.`,
     restaurado: (codigo: Parametro) => `${codigo} restaurado: vuelve al mapa.`,
     colBorrado: 'Borrado',
-    quedan: (dias: Parametro) => `quedan ${dias} días`,
+    quedan: (dias: number) => (dias === 1 ? 'queda 1 día' : `quedan ${dias} días`),
     vacia: 'La papelera está vacía.',
   },
 
   panelAjustes: {
     codigoAcceso: 'Código de acceso',
-    cambiadoPor: (fecha: Parametro, quien: Parametro, moviles: Parametro) =>
-      `Cambiado por última vez el ${fecha} por ${quien}. ${moviles} móviles registrados.`,
-    sinCambios: (moviles: Parametro) => `Sin cambios desde el arranque. ${moviles} móviles registrados.`,
+    cambiadoPor: (fecha: Parametro, quien: Parametro, moviles: number) =>
+      `Cambiado por última vez el ${fecha} por ${quien}. ${plural(moviles, 'móvil registrado', 'móviles registrados')}.`,
+    sinCambios: (moviles: number) =>
+      `Sin cambios desde el arranque. ${plural(moviles, 'móvil registrado', 'móviles registrados')}.`,
     // docs/32 RV-261: sin poder contar los móviles no se dice un número, y sin el código, tampoco «—».
     cambiadoPorSinCuenta: (fecha: Parametro, quien: Parametro) => `Cambiado por última vez el ${fecha} por ${quien}.`,
     sinCambiosSinCuenta: 'Sin cambios desde el arranque.',
@@ -1058,8 +1072,10 @@ export const T = {
       'Sin revocar: quien ya entró sigue trabajando y solo los móviles nuevos necesitan el código nuevo.',
     explicaRevocando: 'Revocando: todos vuelven a teclearlo. Es lo que se usa si el código se ha filtrado.',
     avisoSinRevocar: 'Se pondrá en vigor un código nuevo. Los móviles que ya tienen acceso siguen funcionando.',
-    avisoRevocando: (moviles: Parametro) =>
-      `Se pondrá en vigor un código nuevo y ${moviles} móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.`,
+    avisoRevocando: (moviles: number) =>
+      moviles === 1
+        ? 'Se pondrá en vigor un código nuevo y 1 móvil tendrá que volver a escribirlo al abrir la aplicación. Su nombre se conserva.'
+        : `Se pondrá en vigor un código nuevo y ${moviles} móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.`,
     confirmarCodigo: 'Generar y poner en vigor',
     codigoCambiado: (codigo: Parametro) => `Código nuevo en vigor: ${codigo}. Comunícalo al grupo.`,
     // docs/33 RV-338 (RV-300): la entrada del día del lanzamiento.
@@ -1099,7 +1115,7 @@ export const T = {
     parametrosGuardados: 'Parámetros guardados.',
     nucleos: 'Núcleos',
     ayudaNucleos: 'Deducidos de OpenStreetMap. Se puede renombrar uno o añadir el que falte.',
-    nPuntos: (n: Parametro) => `${n} puntos`,
+    nPuntos: (n: number) => plural(n, 'punto', 'puntos'),
     anadidoAMano: 'añadido a mano',
     renombrar: 'Renombrar',
     nombreDe: (nucleo: Parametro) => `Nombre de ${nucleo}`,
@@ -1146,8 +1162,10 @@ export const T = {
     entradasFrenadas24h: 'Entradas frenadas por el tope (24 h)',
     abrirEntrada24h: 'abrir la entrada 24 h',
     entradaAbiertaCorto: (dia: Parametro, hora: Parametro) => `entrada abierta hasta el ${dia} a las ${hora}`,
-    atencionFrenadas: (n: Parametro) =>
-      `${n} móviles con el código bueno no han podido entrar por el tope: abre la entrada 24 h.`,
+    atencionFrenadas: (n: number) =>
+      n === 1
+        ? '1 móvil con el código bueno no ha podido entrar por el tope: abre la entrada 24 h.'
+        : `${n} móviles con el código bueno no han podido entrar por el tope: abre la entrada 24 h.`,
     tareasProgramadas: 'Tareas programadas',
     tareaBien: (hace: Parametro) => `${hace} · bien`,
     tareaMal: (hace: Parametro) => `${hace} · falló o va con retraso`,
@@ -1162,7 +1180,7 @@ export const T = {
     respaldoNoAplica: 'no se respalda: entorno de pruebas',
     almacenamientoNoAplica: 'no se mide en pruebas',
     sinDato: 'sin dato',
-    inventarioDescargado: (n: Parametro) => `Inventario descargado: ${n} puntos.`,
+    inventarioDescargado: (n: number) => `Inventario descargado: ${plural(n, 'punto', 'puntos')}.`,
     mantenimiento: 'Mantenimiento',
     ayudaMantenimiento:
       'Se ejecutan fuera de la aplicación y tardan unos minutos. Debajo, los últimos pedidos y qué ha pasado con cada uno.',
@@ -1178,7 +1196,7 @@ export const T = {
       `Las fotos ocupan el ${porcentaje} % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.`,
     espacioSegunRespaldo: (texto: Parametro) => `${texto} · medido en el último respaldo`,
     reservasPorMovil: 'Móviles con más fotos pedidas (24 h)',
-    reservasDetalle: (n: Parametro, abiertas: Parametro) => `${n} fotos · ${abiertas} sin subir`,
+    reservasDetalle: (n: number, abiertas: Parametro) => `${plural(n, 'foto', 'fotos')} · ${abiertas} sin subir`,
     reservasVacio: 'Ningún móvil ha pedido fotos en las últimas 24 h.',
     revocarMovil: 'Revocar este móvil',
     revocarMovilDe: (movil: Parametro) => `Revocar este móvil (${movil})`,
@@ -1276,7 +1294,7 @@ export const T = {
     regenerarMapaBase: 'Regenerar mapa base',
     respaldoAhora: 'Respaldo ahora',
     saludSistema: 'Salud del sistema',
-    mostrando: (n: Parametro, total: Parametro) => `Mostrando ${n} de ${total} puntos`,
+    mostrando: (n: Parametro, total: number) => `Mostrando ${n} de ${plural(total, 'punto', 'puntos')}`,
     ultimoAdministrador: 'No se puede desactivar al último administrador activo.',
     pendienteEscribe: '— pendiente, escribe aquí',
   },
