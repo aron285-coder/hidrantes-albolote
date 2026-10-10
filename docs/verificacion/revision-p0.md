@@ -1,7 +1,7 @@
 # Verificación · Revisión de sep 2026 · bloque P0
 
 **Estado: hecho el 23 sep 2026**, salvo un paso manual del desarrollador (§3). Especificación:
-`docs/17-cambios-revision-2026-09.md`. Cada RV tiene su issue (#158–#189) y su PR a `develop`; en
+`docs/archivo/especificaciones/17-cambios-revision-2026-09.md`. Cada RV tiene su issue (#158–#189) y su PR a `develop`; en
 cada uno, el test de regresión se escribió primero y se vio fallar sobre `develop` antes del arreglo
 (17 §0.4). Los de SQL, con un commit solo de tests y CI lanzada sobre esa rama: en este equipo Docker
 Desktop no arranca, así que pgTAP se ejecuta en `ci-sql`, que es donde tiene que pasar de todos modos.

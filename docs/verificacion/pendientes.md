@@ -1,7 +1,7 @@
 # Verificación · Lo pendiente de docs/21 y el mantenimiento (docs/22)
 
 **Estado: hecho el 25 sep 2026, en staging y en producción (0.6.4).** Quedan las comprobaciones del 27 y 28-09 y los pasos del desarrollador (§3).
-Especificación: `docs/22-pendientes-y-mantenimiento.md`, que recoge lo que quedaba de `docs/21`.
+Especificación: `docs/archivo/especificaciones/22-pendientes-y-mantenimiento.md`, que recoge lo que quedaba de `docs/21`.
 Tres sesiones en paralelo, coordinadas en #362. Los registros de cada sesión son
 `pendientes-frontend.md`, `pendientes-backend.md` y `pendientes-ops.md`. Las herramientas de Claude
 Code de `docs/21` (SK-01 a SK-03) se hicieron antes: #356, #358 y #360 (DEC-114 a DEC-116).

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   BUCKET_STAGING,
+  SQL_RUTAS_EN_LA_BASE,
   URL_STAGING,
   comprobarStaging,
   estados,
@@ -19,9 +20,11 @@ const leer = (r: string) => readFileSync(path.join(raiz, r), 'utf8');
 const seed = leer('supabase/seed-staging.sql');
 
 describe('fotos del seed de staging', () => {
-  it('salen del propio seed: las 12 de los puntos y las 5 de las propuestas con foto', () => {
+  it('salen del propio seed: las 12 de los puntos, las 2 del sitio y las 5 de las propuestas con foto', () => {
     const rutas = rutasDelSeed(seed);
-    expect(rutas).toHaveLength(17);
+    expect(rutas).toHaveLength(19);
+    expect(rutas).toContain('fotos/prueba-sitio-hid-9003.jpg');
+    expect(rutas).toContain('fotos/prueba-sitio-boc-9004.jpg');
     expect(rutas).toContain('fotos/prueba-hid-9001.jpg');
     expect(rutas).toContain('fotos/prueba-boc-9004.jpg');
     expect(rutas).toContain('fotos/prueba-propuesta-a6.jpg');
@@ -47,6 +50,7 @@ describe('fotos del seed de staging', () => {
     expect(rotulo('fotos/prueba-hid-9001.jpg')).toBe('HID-9001');
     expect(rotulo('fotos/prueba-boc-9003.jpg')).toBe('BOC-9003');
     expect(rotulo('fotos/prueba-propuesta-a1.jpg')).toBe('Propuesta a1');
+    expect(rotulo('fotos/prueba-sitio-hid-9003.jpg')).toBe('HID-9003 · sitio');
   });
 
   it('falta toda la que no responde 200, también la que no responde', async () => {
@@ -63,6 +67,26 @@ describe('fotos del seed de staging', () => {
       ['fotos/c', 0],
     ]);
     expect(faltan(e)).toEqual(['fotos/b', 'fotos/c']);
+  });
+});
+
+// docs/34 RV-354: staging enseña la ficha con sus dos variantes reales, una foto y dos (conexión y sitio).
+describe('dos puntos del seed con foto del sitio (docs/34 RV-354)', () => {
+  const bloque = seed.slice(seed.indexOf('-- ---------- foto del sitio'), seed.indexOf('-- ---------- propuestas'));
+
+  it('HID-9003 y BOC-9004, sin propuestas pendientes, y solo si aún no tienen una', () => {
+    const linea = (ruta: string, id: string) =>
+      `update hidrantes.puntos set foto_sitio_path = '${ruta}' where id = '${id}' and foto_sitio_path is null;`;
+    const plano = bloque.replace(/\s+/g, ' ');
+    expect(plano).toContain(linea('fotos/prueba-sitio-hid-9003.jpg', '5eed0000-0000-4000-8000-000000000003'));
+    expect(plano).toContain(linea('fotos/prueba-sitio-boc-9004.jpg', '5eed0000-0000-4000-8000-000000000012'));
+    // Ninguna propuesta del seed apunta a esos dos: el update no las vuelve desactualizadas.
+    expect(seed).not.toMatch(/'5eed0000-0000-4000-8000-0000000000a\d', '5eed0000-0000-4000-8000-0000000000(03|12)'/);
+  });
+
+  it('la comprobación de la base mira también foto_sitio_path de puntos y propuestas', () => {
+    expect(SQL_RUTAS_EN_LA_BASE).toContain('select foto_sitio_path from hidrantes.puntos');
+    expect(SQL_RUTAS_EN_LA_BASE).toContain('select foto_sitio_path from hidrantes.propuestas');
   });
 });
 

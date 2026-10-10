@@ -9,12 +9,12 @@ import { cn } from '@/lib/utils';
 
 /** Etiquetas de operación (06 §5): alta verde, revisión azul, estado ámbar, datos y ubicación gris, retirada rojo. */
 const COLOR_OPERACION: Record<Operacion, string> = {
-  alta: 'bg-verde-100 text-verde-700',
+  alta: 'bg-tinte-verde text-tinte-verde-texto ring-1 ring-tinte-verde-borde ring-inset',
   revision: 'bg-[#DCE6F2] text-marino-700',
-  estado: 'bg-ambar-100 text-ambar-700',
+  estado: 'bg-tinte-ambar text-tinte-ambar-texto ring-1 ring-tinte-ambar-borde ring-inset',
   datos: 'bg-gris-100 text-gris-700',
   ubicacion: 'bg-gris-100 text-gris-700',
-  retirada: 'bg-rojo-100 text-rojo-700',
+  retirada: 'bg-tinte-rojo text-tinte-rojo-texto ring-1 ring-tinte-rojo-borde ring-inset',
 };
 
 export function EtiquetaOperacion({ operacion }: { operacion: Operacion }) {

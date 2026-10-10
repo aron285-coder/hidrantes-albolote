@@ -26,10 +26,13 @@ export function NavegacionArriba({ pathname, jefatura }: { pathname: string; jef
       {destinos.map(({ a, texto }) => {
         // La lista es parte del mapa en el ordenador: en /lista, «Mapa» también es la página activa.
         const activa = ruta === a || (a === '/' && ruta === '/lista');
+        // docs/34 RV-353: el punto es solo de vista; el nombre dice «Ajustes, hay novedades».
+        const novedades = a === '/ajustes' && ruta !== '/ajustes' && hayNovedadesSinVer();
         return (
           <Link
             key={a}
             to={a}
+            aria-label={novedades ? `${texto}${T.navegacion.hayNovedades}` : undefined}
             aria-current={activa ? 'page' : undefined}
             className={cn(
               'relative flex min-h-11 items-center border-b-2 px-3 text-[15px] font-semibold text-white',
@@ -37,11 +40,11 @@ export function NavegacionArriba({ pathname, jefatura }: { pathname: string; jef
             )}
           >
             {texto}
-            {a === '/ajustes' && ruta !== '/ajustes' && hayNovedadesSinVer() && (
+            {novedades && (
               <span
                 data-testid="punto-novedades-arriba"
                 className="bg-naranja-600 absolute top-2 right-1 size-2 rounded-full"
-                aria-label={T.ajustes.seccionNovedades}
+                aria-hidden
               />
             )}
           </Link>

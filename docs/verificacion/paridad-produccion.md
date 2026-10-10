@@ -1,6 +1,6 @@
 # Verificación · Paridad de producción con develop (docs/19 bloque P)
 
-**Estado: hecho el 24 sep 2026.** Especificación: `docs/19-paridad-avisos-y-revision-3.md` §1 (P-01
+**Estado: hecho el 24 sep 2026.** Especificación: `docs/archivo/especificaciones/19-paridad-avisos-y-revision-3.md` §1 (P-01
 a P-04) y DEC-096. Cada vez que se repita P-02 se añade aquí una entrada al registro (§2).
 
 ## 1. Qué se ha hecho
@@ -26,6 +26,7 @@ a P-04) y DEC-096. Cada vez que se repita P-02 se añade aquí una entrada al re
 | 9 oct 2026, 07:11 UTC | `436f25a` (merge commit de #568) | 0.10.0 (`docs/32` entero y el arreglo de #561) | 2: `0042` y `0043` | **todo en verde**: `npm run publicar` (DEC-176) con la puerta automática (CI de `main`; RV-139b en verde con `aba8754`, CI, deploy de staging y lo que sirve staging; `comprobar-produccion --completo`; ninguna `bloquea-release`). La primera pasada la rechazó la puerta (#569): la CI del push de `aba8754` había fallado al instalar los navegadores (arreglado en #570); relanzada en verde, se relanzó el deploy. Producción sirve `0.10.0` y el commit `436f25a` | 37895425813 |
 | 9 oct 2026, 10:02 UTC | `71abc6b` (merge commit de #588) | 0.10.1 (arreglos de #562, #563 y #564; `publicar` reintenta la fusión, #573) | ninguna | **todo en verde**: `npm run publicar` aprobó con la puerta automática (CI de `main`, RV-139b en verde con `ad105f0` y después solo documentación y versión, `comprobar-produccion --completo`, ninguna `bloquea-release`); producción sirve `0.10.1` y el commit `71abc6b`. La CI del PR de versión falló antes una vez en la instalación de navegadores (espejo de Ubuntu) y se relanzó | 37913915437 |
 | 9 oct 2026, 17:46 UTC | `9882ddf` (merge commit de #627) | 0.11.0 (`docs/33` entero) | 1: `0044`, por `deploy-prod` | **todo en verde**: `npm run publicar` aprobó con la puerta automática (CI de `main`, RV-139b en verde con `9f6d7cc` —con los 25 canjes de RV-343— y después solo documentación y versión, `comprobar-produccion --completo`, ninguna `bloquea-release`); producción sirve `0.11.0` y el commit `9882ddf`. La CI del PR develop → main falló antes por la red de los runners (instalación de navegadores, `npm ci` con ECONNRESET) y se relanzó | 37967214836 |
+| 9 oct 2026, 20:32 UTC | `23d7885` (merge commit de #635) | 0.11.1 (arreglo de #625; Novedades con los ámbitos de docs/33, #632; bibliotecas de los navegadores desde una caché en la CI, #633) | ninguna | **todo en verde**: `npm run publicar` aprobó con la puerta automática (CI de `main`, RV-139b repetida en verde con `6ca7b23` y después solo documentación y versión, `comprobar-produccion --completo`, ninguna `bloquea-release`); producción sirve `0.11.1` y el commit `23d7885`. El primer intento paró en el PR de versión (#630) por un e2e que daba por hecho el punto de novedades (#632) | 37986265383 |
 
 `comprobar-despliegue` dio la versión 0.6.1 y las cabeceras de TR-100 en producción.
 

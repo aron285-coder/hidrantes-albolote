@@ -1,6 +1,6 @@
 # Verificación · Revisión en vivo, sesión Frontend (docs/20)
 
-**Estado: hecho el 24 sep 2026.** Especificación: `docs/20-revision-en-vivo.md`, puntos RV-71, RV-76,
+**Estado: hecho el 24 sep 2026.** Especificación: `docs/archivo/especificaciones/20-revision-en-vivo.md`, puntos RV-71, RV-76,
 RV-79, RV-80 y la parte Frontend de RV-78. Decisiones: DEC-111, DEC-112 y DEC-113; DEC-114 a 116
 quedan sin usar. Coordinación en #332. Ops consolida este registro en `revision-vivo.md`.
 

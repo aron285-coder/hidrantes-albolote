@@ -1,6 +1,8 @@
 # Verificación · Mejoras elegidas, defectos y la entrada del lanzamiento (docs/33)
 
-**Estado:** hecho el 9 oct 2026, en staging y en producción (0.11.0). Especificación: `docs/33-mejoras-y-defectos.md`; mockups:
+> **Nota (10 oct 2026, `docs/34` RV-359, DEC-195):** en Git solo quedan las capturas que este informe enlaza. Las demás se quitaron de `HEAD`; siguen en el historial, por ejemplo en `9a15d27` (`git show 9a15d27:<ruta>`).
+
+**Estado:** hecho el 9 oct 2026, en staging y en producción (0.11.0). Especificación: `docs/archivo/especificaciones/33-mejoras-y-defectos.md`; mockups:
 `docs/mockups/33-mejoras.html`. Cuatro sesiones (Backend, Frontend-campo, Frontend-panel, Ops) en tres
 oleadas, coordinadas en #580. Decisiones: DEC-190, DEC-191 y DEC-192 (en la especificación figuran como
 DEC-187 a DEC-189). El detalle de cada punto (pruebas, revisión, desviaciones) está en el cuerpo de su PR;

@@ -597,6 +597,13 @@ test('Ajustes enseña las novedades de la versión instalada (AC-127, RV-20, RV-
   await abrir(page);
   // Versión nueva sin ver: un punto en la pestaña de Ajustes hasta abrirlo.
   await expect(page.getByTestId('punto-novedades')).toHaveCount(propia ? 1 : 0);
+  // docs/34 RV-353: el nombre accesible lleva las novedades detrás: «Ajustes, hay novedades».
+  await expect(
+    page.getByRole('link', {
+      name: propia ? `${T.navegacion.ajustes}${T.navegacion.hayNovedades}` : T.navegacion.ajustes,
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.getByRole('link', { name: T.navegacion.ajustes }).click();
   const bloque = page.getByTestId('novedades');
   // docs/33 RV-320: «Novedades de la versión 0.x.y» con sus líneas, sin repetir la versión; las de antes,
@@ -615,6 +622,7 @@ test('Ajustes enseña las novedades de la versión instalada (AC-127, RV-20, RV-
   await expect(page.getByText(T.ajustes.nuevo, { exact: true })).toHaveCount(propia ? 1 : 0);
   await page.getByRole('link', { name: T.navegacion.mapa }).click();
   await expect(page.getByTestId('punto-novedades')).toHaveCount(0);
+  await expect(page.getByRole('link', { name: T.navegacion.ajustes, exact: true })).toBeVisible();
 });
 
 test('cada fila de la lista enseña la última revisión (RV-24, FR-68)', async ({ page }) => {

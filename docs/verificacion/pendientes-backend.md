@@ -1,6 +1,6 @@
 # Verificación · Lo pendiente de docs/21 y el mantenimiento (docs/22) · sesión Backend
 
-**Estado: hecho el 25 sep 2026.** Especificación: `docs/22-pendientes-y-mantenimiento.md`, puntos de
+**Estado: hecho el 25 sep 2026.** Especificación: `docs/archivo/especificaciones/22-pendientes-y-mantenimiento.md`, puntos de
 Backend (RV-84 y RV-86, escritos en `docs/21` §2, y la parte SQL de RV-92). Coordinación: #362. Ops
 junta este registro con los de Frontend y Ops en `pendientes.md`.
 

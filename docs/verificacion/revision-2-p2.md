@@ -1,6 +1,6 @@
 # Verificación · Segunda revisión (23 sep 2026) · bloque C (P2, calidad)
 
-**Estado: hecho el 24 sep 2026.** Especificación: `docs/18-cambios-revision-2-y-mapa.md` §3
+**Estado: hecho el 24 sep 2026.** Especificación: `docs/archivo/especificaciones/18-cambios-revision-2-y-mapa.md` §3
 (RV-49 a RV-51). Los bloques A, B y D están en `revision-2-p0.md`, `revision-2-p1.md` y
 `mapa-emergencias.md`.
 

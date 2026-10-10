@@ -18,7 +18,7 @@ let versionNuevaOculta = false;
 export function AvisoMapabase({ sinRed }: { sinRed: boolean }) {
   const mapabase = useMapabase();
   const [oculto, setOculto] = useState(versionNuevaOculta);
-  const clase = 'bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-1.5 text-[13px]';
+  const clase = 'bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta border px-2.5 py-1.5 text-[13px]';
   const nueva = hayVersionNuevaMapabase(mapabase);
   if (mapabase.descargado && (!nueva || oculto)) return null;
   if (!mapabase.descargado && sinRed) {
@@ -49,7 +49,7 @@ export function AvisoMapabase({ sinRed }: { sinRed: boolean }) {
       {accion}
       {mapabase.fallo && (
         // La descarga parada (30 s sin llegar nada, RV-235) lo dice; el botón de al lado es «Reintentar».
-        <span className="text-rojo-700 w-full">
+        <span className="text-rojo-texto w-full">
           {mapabase.parada ? T.ajustes.descargaParada : T.ajustes.falloDescarga}
         </span>
       )}

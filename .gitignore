@@ -58,3 +58,6 @@ Thumbs.db
 
 # Worktree temporal de scripts/compatibilidad.ts (TR-107)
 .anterior/
+
+# docs/34 RV-359 (DEC-195): el juego completo de capturas de un recorrido; a docs/ solo van las que comenta el informe.
+recorridos/

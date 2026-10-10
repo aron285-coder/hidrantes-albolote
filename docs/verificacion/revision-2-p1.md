@@ -1,6 +1,6 @@
 # Verificación · Segunda revisión (23 sep 2026) · bloque B (P1)
 
-**Estado: hecho el 23 sep 2026.** Especificación: `docs/18-cambios-revision-2-y-mapa.md` §2. El
+**Estado: hecho el 23 sep 2026.** Especificación: `docs/archivo/especificaciones/18-cambios-revision-2-y-mapa.md` §2. El
 bloque A está en `revision-2-p0.md`. Como en A, cada test de regresión se vio fallar sobre `develop`
 antes del arreglo.
 

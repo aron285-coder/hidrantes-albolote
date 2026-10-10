@@ -1,7 +1,7 @@
 # Verificación · Novedades que dicen lo que cambió, issues que se cierran solas y release sin runs caducados (docs/23)
 
 **Estado: hecho el 25 sep 2026, en staging y en producción (0.6.5).** Queda la GitHub App de RV-97, del desarrollador.
-Especificación: `docs/23-novedades-y-limpieza.md`. Dos sesiones (Frontend y Ops), coordinadas en
+Especificación: `docs/archivo/especificaciones/23-novedades-y-limpieza.md`. Dos sesiones (Frontend y Ops), coordinadas en
 #393. Registros: `novedades-limpieza-frontend.md` y `novedades-limpieza-ops.md`.
 
 ## 1. Qué se ha hecho

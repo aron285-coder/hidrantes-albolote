@@ -79,7 +79,7 @@ export default function Registro() {
           {carga.estado === 'error' && (
             <div
               role="alert"
-              className="bg-oro-100 border-oro-600 text-ambar-700 flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-2 text-[13px]"
+              className="bg-tinte-oro border-oro-600 text-tinte-oro-texto flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3 py-2 text-[13px]"
             >
               <span className="min-w-0 flex-1">{T.panelRegistro.errorConFilas(textoError(carga.codigo))}</span>
               <Boton variante="secundario" onClick={() => void carga.recargar()}>

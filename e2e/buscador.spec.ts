@@ -107,3 +107,28 @@ test('en la lista, el mismo campo: sin el ✕ del navegador y Escape borra', asy
   await page.keyboard.press('Escape');
   await expect(campo).toHaveValue('');
 });
+
+// docs/34 RV-351 (N4, B4): el texto de ayuda del buscador cabe entero a 360 px y en la columna del
+// ordenador. Se mide con la fuente calculada del campo, contra su ancho interior.
+test.describe('el texto de ayuda del buscador cabe (docs/34 RV-351)', () => {
+  for (const [ancho, alto] of [
+    [360, 800],
+    [1440, 900],
+  ] as const) {
+    test(`a ${ancho} × ${alto}`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: alto });
+      await abrir(page);
+      const campo = page.getByRole('searchbox', { name: T.mapa.buscar }).first();
+      await expect(campo).toBeVisible();
+      const { texto, cabe, disponible } = await campo.evaluate((el: HTMLInputElement) => {
+        const estilo = getComputedStyle(el);
+        const ctx = document.createElement('canvas').getContext('2d')!;
+        ctx.font = estilo.font;
+        const disponible = el.clientWidth - parseFloat(estilo.paddingLeft) - parseFloat(estilo.paddingRight);
+        return { texto: el.placeholder, cabe: ctx.measureText(el.placeholder).width, disponible };
+      });
+      expect(texto).toBe(T.mapa.buscarAyuda);
+      expect(cabe, `«${texto}» mide ${cabe} px y el campo deja ${disponible} px`).toBeLessThanOrEqual(disponible);
+    });
+  }
+});

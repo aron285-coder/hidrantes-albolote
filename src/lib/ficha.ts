@@ -63,11 +63,14 @@ const NOMBRE_RACOR: Record<Racor, string> = {
 export const nombreRacor = (r: string): string =>
   Object.hasOwn(NOMBRE_RACOR, r) ? NOMBRE_RACOR[r as Racor] : T.formulario.otro;
 
+// docs/34 RV-355: fondo y texto en pareja, con un anillo que solo se ve en oscuro (06 §2.4). En trozos de
+// dos palabras (el lint toma una cadena de tres por un texto de pantalla, UI-20) y enteros, para que
+// Tailwind encuentre cada clase.
 const CLASE_CHIP: Record<Caudal, string> = {
-  bueno: 'bg-verde-100 text-verde-700',
-  regular: 'bg-amarillo-100 text-amarillo-800',
-  malo: 'bg-rojo-100 text-rojo-700',
-  barro: 'bg-marron-100 text-marron-700',
+  bueno: ['bg-tinte-verde text-tinte-verde-texto', 'ring-tinte-verde-borde ring-1', 'ring-inset'].join(' '),
+  regular: ['bg-tinte-amarillo text-tinte-amarillo-texto', 'ring-tinte-amarillo-borde ring-1', 'ring-inset'].join(' '),
+  malo: ['bg-tinte-rojo text-tinte-rojo-texto', 'ring-tinte-rojo-borde ring-1', 'ring-inset'].join(' '),
+  barro: ['bg-tinte-marron text-tinte-marron-texto', 'ring-tinte-marron-borde ring-1', 'ring-inset'].join(' '),
   no_funciona: 'bg-gris-100 text-gris-700',
 };
 

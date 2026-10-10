@@ -62,6 +62,9 @@ export function comprobarStaging(base: string): void {
 /** El texto que lleva cada foto generada: `fotos/prueba-hid-9001.jpg` → `HID-9001`. */
 export function rotulo(ruta: string): string {
   const nombre = path.posix.basename(ruta, '.jpg').replace(/^prueba-/, '');
+  // La foto del sitio de un punto (docs/34 RV-354): `prueba-sitio-hid-9003` → `HID-9003 · sitio`.
+  const sitio = /^sitio-(hid|boc)-(\d{4})$/.exec(nombre);
+  if (sitio) return `${sitio[1]!.toUpperCase()}-${sitio[2]} · sitio`;
   const punto = /^(hid|boc)-(\d{4})$/.exec(nombre);
   if (punto) return `${punto[1]!.toUpperCase()}-${punto[2]}`;
   const propuesta = /^propuesta-([a-z0-9]+)$/.exec(nombre);

@@ -325,4 +325,4 @@ jobs:
         with:
           name: vistas
           path: test-results/vistas-*/*.png
-          retention-days: 14
+          retention-days: 90

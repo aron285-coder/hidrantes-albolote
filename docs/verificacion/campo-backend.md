@@ -1,6 +1,6 @@
 # Verificación · Pantallas de campo más simples (docs/24) · sesión Backend
 
-**Estado: hecho el 3 oct 2026.** Especificación: `docs/24-campo-mas-simple.md`, puntos de Backend
+**Estado: hecho el 3 oct 2026.** Especificación: `docs/archivo/especificaciones/24-campo-mas-simple.md`, puntos de Backend
 (RV-101, RV-102 y RV-103, parte de servidor). Coordinación: #409. Ops junta este registro con los de
 Frontend y Ops en `campo.md`.
 

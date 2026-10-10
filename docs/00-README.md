@@ -51,7 +51,7 @@ Cada tipo de contenido tiene exactamente un documento propietario. Los demás **
 |---|---|---|
 | Reglas funcionales ("el sistema debe…") | **01** | La foto es obligatoria en toda alta y revisión |
 | Orden de los pasos de una tarea | **02** | Qué pantalla sigue a cuál al dar de alta un punto |
-| Eisen medibles: rendimiento, offline, navegadores, límites | **03** | Primera carga < 3 s en 3G |
+| Requisitos medibles: rendimiento, offline, navegadores, límites | **03** | Primera carga < 3 s en 3G |
 | Decisiones de infraestructura y despliegue | **04** | Cloudflare Pages + Supabase, dos entornos |
 | Campos, tipos, constraints, vistas, firmas de RPC y de las *Pages Functions* | **05** | `diametro_mm smallint`, `fn_aprobar(propuesta_id, correcciones, confirmar_desactualizada)` |
 | Colores, tamaños, tipografía, simbología del marcador | **06** | Radio 11 px para 100 mm · bueno |
@@ -77,6 +77,11 @@ Reglas derivadas:
   prototipo y 01, 05 o 06 dicen cosas distintas, gana el documento y el prototipo se corrige (o se
   anota la diferencia como decisión en 12). Un prototipo no crea requisitos: lo que se ve ahí y no
   está en 01 no se construye.
+- **Las especificaciones de cambios no son propietarias de nada** (DEC-195). Mientras está en curso, una
+  especificación vive en la raíz de `docs/`; al cerrarse (verificación escrita y release en producción) pasa a
+  `docs/archivo/especificaciones/` en el PR que la cierra, y lo que cambió queda en su propietario. En Git solo
+  van las imágenes que enlaza algún documento, y ningún recuento ni versión se escribe a mano fuera de su
+  documento.
 
 ---
 

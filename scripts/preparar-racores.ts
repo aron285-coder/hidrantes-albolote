@@ -8,8 +8,8 @@
 // En la carpeta, un archivo por racor cuyo nombre empiece por «granada», «barcelona» o «directo»
 // (JPEG, PNG, WebP o un dibujo SVG; p. ej. granada.jpg). Sin lista, los tres; con lista, solo esos
 // (p. ej. `… <carpeta> directo` para poner la de Directo sin rehacer las otras dos). Nunca imágenes
-// sacadas de internet: fotos o dibujos propios, porque el repositorio es público. Los dibujos de
-// referencia (DEC-152, DEC-178) guardan su fuente en public/racores/fuentes/:
+// sacadas de internet: fotos o dibujos propios, porque el repositorio es público. Las fotos de los
+// enganches (DEC-194) guardan su original en public/racores/fuentes/:
 //
 //   npx tsx scripts/preparar-racores.ts public/racores/fuentes directo
 //

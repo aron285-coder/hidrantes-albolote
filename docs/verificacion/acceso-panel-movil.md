@@ -1,7 +1,7 @@
 # Verificación · Jefatura llega al panel desde la app del móvil (docs/26 RV-113)
 
 **Estado: hecho en código el 5 oct 2026; falta la prueba en el Android del desarrollador (§4).**
-Especificación: `docs/26-acceso-al-panel-desde-el-movil.md`. Una sesión (Frontend-acceso), DEC-164,
+Especificación: `docs/archivo/especificaciones/26-acceso-al-panel-desde-el-movil.md`. Una sesión (Frontend-acceso), DEC-164,
 `PW_PUERTO=4181`. Coordinación en #440.
 
 ## 1. Qué se ha hecho

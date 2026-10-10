@@ -1,6 +1,7 @@
-// Dibujos de referencia del racor (FR-20, docs/24 RV-104, docs/29 RV-121, docs/31 RV-157b). Están en
-// public/racores, hechos con scripts/preparar-racores.ts (DEC-152, DEC-178), y entran en el precache.
-// «Otro» no tiene dibujo. Si uno no carga, la tarjeta se ve solo con el nombre.
+// Fotos de referencia del enganche (FR-20, docs/24 RV-104, docs/34 RV-356, DEC-194). Están en
+// public/racores, hechas con scripts/preparar-racores.ts desde public/racores/fuentes, y entran en el
+// precache.
+// «Otro» no tiene foto. Si uno no carga, la tarjeta se ve solo con el nombre.
 
 import type { Racor } from '../tipos/punto';
 

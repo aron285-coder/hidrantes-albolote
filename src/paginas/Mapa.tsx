@@ -504,7 +504,7 @@ export function Mapa() {
                   value={texto}
                   onChange={(e) => setTexto(e.target.value)}
                   onKeyDown={(e) => teclaBuscador(e, texto, setTexto)}
-                  placeholder={T.mapa.buscar}
+                  placeholder={T.mapa.buscarAyuda}
                   aria-label={T.mapa.buscar}
                   className="min-w-0 flex-1 bg-transparent outline-none"
                 />
@@ -667,7 +667,7 @@ export function Mapa() {
             {(avisoCapa || avisoPosicion) && (
               <p
                 role="status"
-                className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-1.5 text-[13px]"
+                className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta border px-2.5 py-1.5 text-[13px]"
               >
                 {avisoPosicion ?? avisoCapa}
               </p>
@@ -675,7 +675,7 @@ export function Mapa() {
             {avisoMarcar && (
               <p
                 role="status"
-                className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta border px-2.5 py-1.5 text-[13px]"
+                className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta border px-2.5 py-1.5 text-[13px]"
               >
                 {avisoMarcar}
               </p>

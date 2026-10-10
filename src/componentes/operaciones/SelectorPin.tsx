@@ -226,7 +226,7 @@ export function SelectorPin({
         <p
           role="status"
           data-testid="aviso-pin-sin-mapa"
-          className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta absolute top-2 right-15 left-2 z-[500] border px-2 py-1 text-[13px]"
+          className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta absolute top-2 right-15 left-2 z-[500] border px-2 py-1 text-[13px]"
         >
           {T.operaciones.pinSinMapa}
         </p>
@@ -241,7 +241,7 @@ export function SelectorPin({
       {aviso && (
         <p
           role="status"
-          className="bg-oro-100 border-oro-600 text-ambar-700 rounded-tarjeta absolute inset-x-2 bottom-5 z-[500] border px-2 py-1 text-[13px]"
+          className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta absolute inset-x-2 bottom-5 z-[500] border px-2 py-1 text-[13px]"
         >
           {aviso}
         </p>

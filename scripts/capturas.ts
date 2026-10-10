@@ -172,7 +172,7 @@ async function principal(): Promise<void> {
 
     // 6. La lista, que es como se busca sin mirar el mapa.
     await page.getByRole('link', { name: T.navegacion.lista }).click();
-    await page.getByPlaceholder(T.mapa.buscar).waitFor();
+    await page.getByPlaceholder(T.mapa.buscarAyuda).waitFor();
     await page.waitForTimeout(500);
     await capturar('lista', 'La lista de puntos, con sus filtros y la distancia');
 

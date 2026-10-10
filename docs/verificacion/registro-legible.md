@@ -1,7 +1,7 @@
 # Verificación · Registro que se lee y el foco dentro de las ventanas del panel (docs/30)
 
 **Estado: hecho en staging (oct 2026).** Producción, con la siguiente release (sin migraciones).
-Especificación: `docs/30-registro-legible-y-foco.md`. Una sesión (Frontend-panel), repartida en dos
+Especificación: `docs/archivo/especificaciones/30-registro-legible-y-foco.md`. Una sesión (Frontend-panel), repartida en dos
 agentes. El detalle está en el cuerpo de cada PR.
 
 ## RV-127 · El Registro dice qué cambió · #478 (DEC-171)

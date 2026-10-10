@@ -50,6 +50,8 @@ function UnaFoto({
         <ImageOff size={18} className="shrink-0" aria-hidden />
         {etiqueta && <span className="shrink-0 font-semibold">{etiqueta}</span>}
         <span className="min-w-0 flex-1">
+          {/* «Sin foto» no se alcanza con el esquema actual: `puntos.foto_path` es `not null` (0001). Se
+              queda porque el tipo admite `null` y una caché antigua del móvil podría traerlo (docs/34 RV-354). */}
           {!fotoPath
             ? T.ficha.sinFoto
             : sinCobertura
@@ -369,9 +371,9 @@ function HojaOperaciones({ punto, alCerrar }: { punto: Punto; alCerrar: () => vo
                 className={cn(
                   'rounded-campo flex size-9 shrink-0 items-center justify-center',
                   op === 'retirada'
-                    ? 'bg-rojo-100 text-rojo-700'
+                    ? 'bg-tinte-rojo text-tinte-rojo-texto ring-1 ring-tinte-rojo-borde ring-inset'
                     : op === 'estado'
-                      ? 'bg-ambar-100 text-ambar-700'
+                      ? 'bg-tinte-ambar text-tinte-ambar-texto ring-1 ring-tinte-ambar-borde ring-inset'
                       : 'bg-linea',
                 )}
               >

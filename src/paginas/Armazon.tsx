@@ -76,6 +76,12 @@ export function Armazon() {
             key={a}
             to={a}
             end
+            // docs/34 RV-353: el punto es solo de vista; el nombre dice «Ajustes, hay novedades».
+            aria-label={
+              a === '/ajustes' && pathname !== '/ajustes' && hayNovedadesSinVer()
+                ? `${texto}${T.navegacion.hayNovedades}`
+                : undefined
+            }
             className={({ isActive }) =>
               cn(
                 'flex h-[50px] flex-1 flex-col items-center justify-center text-[12px]',
@@ -90,7 +96,7 @@ export function Armazon() {
                 <span
                   className="bg-naranja-600 absolute -top-0.5 -right-1 size-2.5 rounded-full"
                   data-testid="punto-novedades"
-                  aria-label={T.ajustes.seccionNovedades}
+                  aria-hidden
                 />
               )}
             </span>
