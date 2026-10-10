@@ -408,7 +408,7 @@ terminado; los casos de aceptación AC-140 a AC-146 las comprueban.
 
 Se usan tal cual (UI-21). Entre corchetes, lo que se sustituye por un valor.
 
-**Navegación y cabeceras.** `Mapa` · `Lista` · `Ajustes` · `Puntos de agua` · `Mis propuestas` ·
+**Navegación y cabeceras.** `Mapa` · `Lista` · `Ajustes` · `, hay novedades` (solo para el lector de pantalla: con novedades sin ver, el enlace se llama «Ajustes, hay novedades»; el punto naranja no se lee, docs/34 RV-353) · `Puntos de agua` · `Mis propuestas` ·
 `Nuevo punto` · `Jefatura` · `Protección Civil Albolote` · `Hidrantes` (nombre corto de la app
 instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 
