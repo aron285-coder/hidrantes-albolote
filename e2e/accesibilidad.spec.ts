@@ -172,7 +172,7 @@ test.describe('app del voluntario', () => {
     await geometria(page, 'mapa con la leyenda desplegada', { movil: !!isMobile });
 
     await irALista(page);
-    await expect(page.getByPlaceholder(T.mapa.buscar)).toBeVisible();
+    await expect(page.getByPlaceholder(T.mapa.buscarAyuda)).toBeVisible();
     await auditar(page, 'lista');
     await geometria(page, 'lista', { movil: !!isMobile });
   });

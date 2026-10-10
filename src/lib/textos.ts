@@ -21,6 +21,8 @@ export const T = {
     mapa: 'Mapa',
     lista: 'Lista',
     ajustes: 'Ajustes',
+    // docs/34 RV-353: detrás del texto visible, solo para el lector de pantalla: «Ajustes, hay novedades».
+    hayNovedades: ', hay novedades',
     puntosDeAgua: 'Puntos de agua',
     misPropuestas: 'Mis propuestas',
     nuevoPunto: 'Nuevo punto',
@@ -122,7 +124,10 @@ export const T = {
   },
 
   mapa: {
+    // docs/34 RV-351: el nombre accesible sigue diciendo que se aceptan coordenadas; el texto de ayuda,
+    // más corto, cabe a 360 px y en la columna del ordenador.
     buscar: 'Buscar código, calle, dirección o coordenadas…',
+    buscarAyuda: 'Código, calle o dirección…',
     capas: 'Capas',
     // Atribuciones de las capas: las exigen sus licencias y se ven en el mapa.
     atribucionOsm: '© OpenStreetMap contributors',

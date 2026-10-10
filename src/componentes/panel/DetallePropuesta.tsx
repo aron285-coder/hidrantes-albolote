@@ -242,10 +242,11 @@ export function DetallePropuesta({
             </span>
           </header>
 
+          {/* En el móvil, el aviso va antes que el mapa: el mapa sigue fijo al desplazar; el aviso no (docs/34 RV-352). */}
           {bloqueado && (
             <p
               data-testid="aviso-punto-inactivo"
-              className="border-rojo-700 bg-tinte-rojo text-tinte-rojo-texto rounded-campo border px-3 py-2 text-[14px] font-semibold"
+              className="border-rojo-700 bg-tinte-rojo text-tinte-rojo-texto rounded-campo border px-3 py-2 text-[14px] font-semibold max-md:order-first"
             >
               {avisoPuntoInactivo(inactivo)}
             </p>
@@ -255,7 +256,10 @@ export function DetallePropuesta({
           <MinimapaPropuesta
             plan={plan}
             radioDuplicado={radioDuplicado}
-            className="max-md:bg-fondo max-md:sticky max-md:top-0 max-md:z-10 max-md:order-first max-md:-mx-4 max-md:-mt-4 max-md:pb-1"
+            className={cn(
+              'max-md:bg-fondo max-md:sticky max-md:top-0 max-md:z-10 max-md:order-first max-md:-mx-4 max-md:pb-1',
+              !bloqueado && 'max-md:-mt-4',
+            )}
           />
 
           {comparar && <Comparacion p={p} existente={duplicado} direccion={direccion} />}
@@ -357,10 +361,21 @@ export function DetallePropuesta({
             bloqueoAprobar && <p className="text-texto-suave mb-1.5 text-[12px]">{bloqueoAprobar}</p>
           )}
           {avisoEspera}
-          <div className="flex gap-3 max-[1100px]:[&>*]:flex-1 max-[1100px]:[&>*]:px-2">
+          {/* Con el punto inactivo, por debajo de 1.100 px, rechazar ocupa su fila y los demás van debajo (RV-352). */}
+          <div
+            className={cn(
+              'flex gap-3 max-[1100px]:[&>*]:flex-1 max-[1100px]:[&>*]:px-2',
+              bloqueado && 'max-[1100px]:flex-wrap',
+            )}
+          >
             {/* La acción principal, delante, cuando el punto ya no existe (RV-330). */}
             {bloqueado && (
-              <Boton variante="destructivo" disabled={ocupado} onClick={() => setModo('rechazar')}>
+              <Boton
+                variante="destructivo"
+                className="max-[1100px]:basis-full!"
+                disabled={ocupado}
+                onClick={() => setModo('rechazar')}
+              >
                 {T.panelCola.rechazarNoExiste}
               </Boton>
             )}

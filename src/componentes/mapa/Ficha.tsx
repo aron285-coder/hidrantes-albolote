@@ -50,6 +50,8 @@ function UnaFoto({
         <ImageOff size={18} className="shrink-0" aria-hidden />
         {etiqueta && <span className="shrink-0 font-semibold">{etiqueta}</span>}
         <span className="min-w-0 flex-1">
+          {/* «Sin foto» no se alcanza con el esquema actual: `puntos.foto_path` es `not null` (0001). Se
+              queda porque el tipo admite `null` y una caché antigua del móvil podría traerlo (docs/34 RV-354). */}
           {!fotoPath
             ? T.ficha.sinFoto
             : sinCobertura

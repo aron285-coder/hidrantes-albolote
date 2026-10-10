@@ -58,7 +58,7 @@ interface Pantalla {
 const PANTALLAS: Pantalla[] = [
   { nombre: 'entrada', ruta: '/', listo: (p) => p.getByLabel(T.entrada.nombre), sesion: false },
   { nombre: 'mapa', ruta: '/', listo: (p) => p.getByTestId('mapa') },
-  { nombre: 'lista', ruta: '/lista', listo: (p) => p.getByPlaceholder(T.mapa.buscar) },
+  { nombre: 'lista', ruta: '/lista', listo: (p) => p.getByPlaceholder(T.mapa.buscarAyuda) },
   { nombre: 'ficha', ruta: `/?p=${PUNTOS[0].id}`, listo: (p) => p.getByRole('article') },
   {
     nombre: 'alta',
