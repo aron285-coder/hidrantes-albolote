@@ -266,6 +266,75 @@ function casos(): Caso[] {
       },
       bloquea: false,
     },
+    // esquema public (DEC-196)
+    {
+      hook: 'sin-esquema-public',
+      que: 'migración nueva con una tabla en public',
+      entrada: {
+        tool_name: 'Write',
+        tool_input: { file_path: `${m}/0099_nueva.sql`, content: 'alter table public.app_users add column x int;' },
+      },
+      bloquea: true,
+    },
+    {
+      hook: 'sin-esquema-public',
+      que: 'grant usage on schema public',
+      entrada: {
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: `${m}/0002_de_la_rama.sql`,
+          old_string: 'a',
+          new_string: 'grant usage on schema public to anon;',
+        },
+      },
+      bloquea: true,
+    },
+    {
+      hook: 'sin-esquema-public',
+      que: 'el seed de staging con public entre comillas',
+      entrada: {
+        tool_name: 'MultiEdit',
+        tool_input: {
+          file_path: 'supabase/seed-staging.sql',
+          edits: [{ old_string: 'a', new_string: 'insert into "public"."x" values (1);' }],
+        },
+      },
+      bloquea: true,
+    },
+    {
+      hook: 'sin-esquema-public',
+      que: 'revoke … from public (el rol, no el esquema)',
+      entrada: {
+        tool_name: 'Write',
+        tool_input: {
+          file_path: `${m}/0099_nueva.sql`,
+          content:
+            'revoke all on function hidrantes.fn_x() from public;\ngrant execute on function hidrantes.fn_x() to service_role;',
+        },
+      },
+      bloquea: false,
+    },
+    {
+      hook: 'sin-esquema-public',
+      que: 'public. solo en un comentario',
+      entrada: {
+        tool_name: 'Write',
+        tool_input: {
+          file_path: `${m}/0099_nueva.sql`,
+          content: '-- nunca public.app_users\n/* ni public.x */\nselect 1;',
+        },
+      },
+      bloquea: false,
+    },
+    {
+      hook: 'sin-esquema-public',
+      que: 'public. en un archivo que no es SQL de la base',
+      entrada: {
+        tool_name: 'Write',
+        tool_input: { file_path: 'docs/05-modelo-de-datos-y-api.md', content: 'public.app_users' },
+      },
+      bloquea: false,
+    },
     // git add
     { hook: 'git-add-prohibidos', que: '.env', entrada: bash('git add .env'), bloquea: true },
     {

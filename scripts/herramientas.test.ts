@@ -63,8 +63,8 @@ describe('hooks que hacen cumplir CLAUDE.md §3 (SK-02)', () => {
     ]);
   });
 
-  it('las escrituras pasan por los de migraciones y console.log', () => {
-    expect(scripts('Edit|Write|MultiEdit')).toEqual(['migraciones-aplicadas', 'sin-console-log']);
+  it('las escrituras pasan por los de migraciones, console.log y el esquema public', () => {
+    expect(scripts('Edit|Write|MultiEdit')).toEqual(['migraciones-aplicadas', 'sin-console-log', 'sin-esquema-public']);
   });
 
   it('cada hook existe y se llama con node desde la carpeta del proyecto', () => {
@@ -120,5 +120,55 @@ describe('plantilla de PR (RV-96)', () => {
     const skill = readFileSync(path.join(raiz, '.claude', 'skills', 'paquete-rv', 'SKILL.md'), 'utf8');
     expect(skill).toContain('`Closes #N`');
     expect(skill).not.toMatch(/ciérrala a mano/);
+  });
+});
+
+// DEC-196: CLAUDE.md lo lee entera cada sesión. Un comando, un script, una skill o un hook que ya no
+// existe manda a la sesión a un sitio que no hay (pasó con `npm run codigo` y `generar-codigo`).
+describe('CLAUDE.md solo nombra lo que existe (DEC-196)', () => {
+  const claude = readFileSync(path.join(raiz, 'CLAUDE.md'), 'utf8');
+  const paquete = JSON.parse(readFileSync(path.join(raiz, 'package.json'), 'utf8')) as {
+    scripts: Record<string, string>;
+  };
+
+  it('cada `npm run <script>` está en package.json', () => {
+    const nombrados = new Set<string>();
+    for (const m of claude.matchAll(/npm run ([\w:-]+)((?: \| [\w:-]+)*)/g)) {
+      nombrados.add(m[1]!);
+      for (const x of (m[2] ?? '').split('|').map((s) => s.trim())) if (x) nombrados.add(x);
+    }
+    expect(nombrados.size).toBeGreaterThan(5);
+    for (const n of nombrados) expect(paquete.scripts[n], `npm run ${n}`).toBeDefined();
+  });
+
+  it('cada `scripts/<archivo>.ts` y cada `.claude/hooks/<archivo>.mjs` existe', () => {
+    for (const m of claude.matchAll(/`((?:scripts|\.claude\/hooks)\/[\w./-]+\.(?:ts|mjs))`/g)) {
+      expect(existsSync(path.join(raiz, m[1]!)), m[1]).toBe(true);
+    }
+  });
+
+  it('cada `docs/…` que cita existe', () => {
+    // docs/verificacion/ guarda lo que se escribe al cerrar algo (fase-N.md, piloto.md): se cita antes de existir.
+    for (const m of claude.matchAll(/`(docs\/(?!verificacion\/)[\w./-]+\.(?:md|html))`/g)) {
+      expect(existsSync(path.join(raiz, m[1]!)), m[1]).toBe(true);
+    }
+  });
+
+  it('las skills del proyecto que nombra están versionadas', () => {
+    const seccion = claude.slice(claude.indexOf('## 8.'), claude.indexOf('## 9.'));
+    const versionadas = seccion.slice(0, seccion.indexOf('Instaladas por'));
+    for (const m of versionadas.matchAll(/^\| `([\w-]+)` \|/gm)) {
+      expect(existsSync(path.join(raiz, '.claude', 'skills', m[1]!, 'SKILL.md')), m[1]).toBe(true);
+    }
+  });
+
+  it('cada hook de settings.json tiene su fila en la tabla de §3', () => {
+    const ajustes = JSON.parse(readFileSync(rutaAjustes, 'utf8')) as {
+      hooks: { PreToolUse: { hooks: { command: string }[] }[] };
+    };
+    const hooks = new Set(
+      ajustes.hooks.PreToolUse.flatMap((g) => g.hooks.map((h) => /hooks\/([\w-]+)\.mjs/.exec(h.command)![1]!)),
+    );
+    for (const h of hooks) expect(claude, h).toContain(`hook \`${h}\``);
   });
 });
