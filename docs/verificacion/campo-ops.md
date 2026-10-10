@@ -1,6 +1,6 @@
 # Verificación · Pantallas de campo más simples (docs/24) · sesión Ops
 
-**Estado:** ver §3 (P-14). Especificación: `docs/24-campo-mas-simple.md`. Coordinación: #409.
+**Estado:** ver §3 (P-14). Especificación: `docs/archivo/especificaciones/24-campo-mas-simple.md`. Coordinación: #409.
 
 ## 1. Lo pendiente de docs/22 P-12 y docs/23 P-13, comprobado el 3-10
 

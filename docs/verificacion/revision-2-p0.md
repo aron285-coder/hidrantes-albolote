@@ -1,6 +1,6 @@
 # Verificación · Segunda revisión (23 sep 2026) · bloque A (P0)
 
-**Estado: hecho el 23 sep 2026.** Especificación: `docs/18-cambios-revision-2-y-mapa.md` §1. Cada
+**Estado: hecho el 23 sep 2026.** Especificación: `docs/archivo/especificaciones/18-cambios-revision-2-y-mapa.md` §1. Cada
 RV tiene su issue (#219–#229) y su PR a `develop`.
 
 El test de regresión de cada una se vio fallar sobre `develop` antes del arreglo (18 §0.1):

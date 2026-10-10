@@ -1,6 +1,6 @@
 # Verificación · Revisión de sep 2026 · bloque P2
 
-**Estado: hecho el 23 sep 2026.** Especificación: `docs/17-cambios-revision-2026-09.md` (RV-27 a
+**Estado: hecho el 23 sep 2026.** Especificación: `docs/archivo/especificaciones/17-cambios-revision-2026-09.md` (RV-27 a
 RV-32). Los bloques P0 y P1 están en `revision-p0.md` y `revision-p1.md`. Faltaba este registro: lo
 pidió la segunda revisión (`docs/18` RV-51).
 

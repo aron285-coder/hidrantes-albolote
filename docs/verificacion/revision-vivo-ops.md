@@ -1,6 +1,6 @@
 # Verificación · Revisión en vivo (docs/20) · sesión Ops
 
-**Estado: hecho el 24 sep 2026.** Especificación: `docs/20-revision-en-vivo.md`, puntos de Ops. Coordinación: #332. El registro de Frontend está en `revision-vivo-frontend.md`, y los dos se juntan en `revision-vivo.md`.
+**Estado: hecho el 24 sep 2026.** Especificación: `docs/archivo/especificaciones/20-revision-en-vivo.md`, puntos de Ops. Coordinación: #332. El registro de Frontend está en `revision-vivo-frontend.md`, y los dos se juntan en `revision-vivo.md`.
 
 ## 1. Qué se ha hecho
 

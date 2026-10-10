@@ -1,7 +1,7 @@
 # Verificación · Revisión sobre staging y producción en vivo (docs/20)
 
 **Estado: hecho el 25 sep 2026**, en staging y en producción. Especificación:
-`docs/20-revision-en-vivo.md`. Es la primera especificación en paralelo (`docs/trabajo-en-paralelo.md`,
+`docs/archivo/especificaciones/20-revision-en-vivo.md`. Es la primera especificación en paralelo (`docs/trabajo-en-paralelo.md`,
 DEC-100), con dos sesiones coordinadas en #332. Los registros de cada sesión:
 `revision-vivo-ops.md` y `revision-vivo-frontend.md`. La preparación del CI está en `par-01.md`.
 

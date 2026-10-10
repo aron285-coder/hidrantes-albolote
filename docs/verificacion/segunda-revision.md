@@ -2,7 +2,7 @@
 
 **Estado:** oleadas 0, 1 y 2 hechas el 8 oct 2026: todo el código en `develop` y en staging; la
 0.9.0, en producción. La oleada 3 (recorrido RV-270 y release 0.10.0, RV-271) se registra aparte.
-Especificación: `docs/32-segunda-revision-y-recorrido.md`. Cuatro sesiones con subagentes,
+Especificación: `docs/archivo/especificaciones/32-segunda-revision-y-recorrido.md`. Cuatro sesiones con subagentes,
 coordinadas en #535. El detalle de cada punto (pruebas, revisión, desviaciones) está en el cuerpo de
 su PR; aquí va el resumen. Todo test de un punto con código **falló antes del arreglo** salvo donde se
 dice lo contrario.

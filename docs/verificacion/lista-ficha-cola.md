@@ -1,7 +1,7 @@
 # Verificación · Lista sin dirección, ficha con banda, cola con mapa, regular en amarillo y «tipo de enganche» (docs/25)
 
 **Estado: hecho el 4 oct 2026 en staging.** Producción, con P-15 (`paridad-produccion.md`).
-Especificación: `docs/25-lista-ficha-cola-y-colores.md`. Cuatro sesiones (Frontend-campo con sus
+Especificación: `docs/archivo/especificaciones/25-lista-ficha-cola-y-colores.md`. Cuatro sesiones (Frontend-campo con sus
 subagentes, Frontend-panel, Backend y Ops), coordinadas en #440. El registro detallado de la pantalla
 de la cola es `lista-ficha-cola-panel.md`; el del resto está en cada PR.
 

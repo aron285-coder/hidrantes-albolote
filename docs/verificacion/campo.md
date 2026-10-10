@@ -1,7 +1,7 @@
 # Verificación · Pantallas de campo más simples, "Barro", 70 mm en bocas, dos fotos y fotos del racor (docs/24)
 
 **Estado: hecho el 4 oct 2026, en staging y en producción (0.7.0).** Los esquemas provisionales de los racores (#435, DEC-152) llegan a producción con la siguiente versión.
-Especificación: `docs/24-campo-mas-simple.md`. Tres sesiones en paralelo, coordinadas en #409. Los
+Especificación: `docs/archivo/especificaciones/24-campo-mas-simple.md`. Tres sesiones en paralelo, coordinadas en #409. Los
 registros de cada sesión son `campo-backend.md`, `campo-frontend.md` y `campo-ops.md`.
 
 ## 1. Qué se ha hecho

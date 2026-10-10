@@ -1,7 +1,7 @@
 # Verificación · Panel más corto, Inventario con dos filtros y Editar como el alta (docs/29)
 
 **Estado: hecho en staging (oct 2026).** Producción, con la siguiente release (lleva 0037 y 0038).
-Especificación: `docs/29-inventario-y-editar.md`. Cuatro sesiones (Backend, Frontend-campo,
+Especificación: `docs/archivo/especificaciones/29-inventario-y-editar.md`. Cuatro sesiones (Backend, Frontend-campo,
 Frontend-panel con un subagente, y Ops), coordinadas en #464. El detalle de cada punto está en el
 cuerpo de su PR.
 

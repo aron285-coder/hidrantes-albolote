@@ -1,6 +1,6 @@
 # Verificación · Paridad de producción con develop (docs/19 bloque P)
 
-**Estado: hecho el 24 sep 2026.** Especificación: `docs/19-paridad-avisos-y-revision-3.md` §1 (P-01
+**Estado: hecho el 24 sep 2026.** Especificación: `docs/archivo/especificaciones/19-paridad-avisos-y-revision-3.md` §1 (P-01
 a P-04) y DEC-096. Cada vez que se repita P-02 se añade aquí una entrada al registro (§2).
 
 ## 1. Qué se ha hecho

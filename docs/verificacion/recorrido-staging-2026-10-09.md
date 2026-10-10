@@ -1,5 +1,7 @@
 # Recorrido corto de lo cambiado en staging · 9 oct 2026 (docs/33 RV-344, DEC-184)
 
+> **Nota (10 oct 2026, `docs/34` RV-359, DEC-195):** en Git solo quedan las capturas que este informe enlaza. Las demás se quitaron de `HEAD`; siguen en el historial, por ejemplo en `9a15d27` (`git show 9a15d27:<ruta>`).
+
 | | |
 |---|---|
 | **Qué** | Solo lo que cambia `docs/33` (U1 a U15 y la entrada del lanzamiento, RV-338), recorrido como una persona en una ventana de Chrome visible en este PC (`headless: false`, `slowMo` 100 ms). |

@@ -1,6 +1,6 @@
 # Verificación · Tercera revisión (24 sep 2026) · bloque A (P0, errores)
 
-**Estado: hecho el 24 sep 2026.** Especificación: `docs/19-paridad-avisos-y-revision-3.md` §2
+**Estado: hecho el 24 sep 2026.** Especificación: `docs/archivo/especificaciones/19-paridad-avisos-y-revision-3.md` §2
 (RV-52 a RV-59). La paridad de producción (bloque P) va en `paridad-produccion.md`, y los bloques B y
 C en `revision-3-p1.md` y `revision-3-p2.md`.
 

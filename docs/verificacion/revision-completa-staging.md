@@ -1,5 +1,7 @@
 # Verificación · RV-139b: la comprobación en staging (docs/31)
 
+> **Nota (10 oct 2026, `docs/34` RV-359, DEC-195):** en Git solo quedan las capturas que este informe enlaza. Las demás se quitaron de `HEAD`; siguen en el historial, por ejemplo en `9a15d27` (`git show 9a15d27:<ruta>`).
+
 Sustituye a las pruebas a mano ("en el Android, probar…"). Una sesión con Playwright y el Chrome del
 PC, **contra staging de verdad** (`https://hidrantes-albolote-staging.pages.dev`, no los mocks),
 con un Pixel 7 emulado (412 × 915) y en escritorio (1280 × 800). 8 oct 2026.

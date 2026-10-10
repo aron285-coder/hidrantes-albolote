@@ -1,6 +1,6 @@
 # Verificación · Tercera revisión (24 sep 2026) · bloque C (P2)
 
-**Estado: hecho el 24 sep 2026.** Especificación: `docs/19-paridad-avisos-y-revision-3.md` §4 y §5
+**Estado: hecho el 24 sep 2026.** Especificación: `docs/archivo/especificaciones/19-paridad-avisos-y-revision-3.md` §4 y §5
 (RV-68 a RV-70). Los bloques A y B están en `revision-3-p0.md` y `revision-3-p1.md`.
 
 ## 1. Qué se ha hecho

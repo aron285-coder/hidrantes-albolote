@@ -1,6 +1,6 @@
 # Verificación · Segunda revisión (23 sep 2026) · bloque D: funciones de mapa para emergencias
 
-**Estado: hecho el 23 sep 2026.** Especificación: `docs/18-cambios-revision-2-y-mapa.md` §4
+**Estado: hecho el 23 sep 2026.** Especificación: `docs/archivo/especificaciones/18-cambios-revision-2-y-mapa.md` §4
 (GM-00 a GM-06). Requisitos: FR-50 v1.3, FR-69, FR-72 a FR-76, FR-142; flujos FL-35 a FL-38;
 técnicos TR-76, TR-77, TR-116 a TR-119; decisiones DEC-089, DEC-092 y DEC-093. Como en los bloques
 A y B, cada test nuevo falla sobre `develop` antes de su PR: el módulo, la Function o el control que
