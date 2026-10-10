@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.59 — 10 oct 2026 (DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.60 — 10 oct 2026 (DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -660,6 +660,25 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-195 · Reglas de la documentación
+- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34` RV-358 a RV-361).
+- **Contexto:** `docs/` pesa 25 MB y tiene más de 200.000 palabras. Las especificaciones de cambios (`docs/17` a
+  `docs/34`) conviven con los documentos propietarios (`00` a `16`), y cada recorrido añade más de cien imágenes a
+  un repositorio **público**, donde se quedan para siempre en el historial.
+- **Decisión:**
+  1. **`docs/` en la raíz solo guarda lo vigente:** los documentos propietarios `00`–`16`, `INDICE.md`,
+     `entornos.md`, `trabajo-en-paralelo.md` y la especificación **en curso**. Una especificación cerrada (con su
+     archivo de verificación y su release publicada) pasa a `docs/archivo/especificaciones/` en el PR que la
+     cierra.
+  2. **En Git, solo las imágenes que enlaza algún documento** de `docs/` (o que usa `scripts/capturas.ts` para 13 y
+     14). Un recorrido completo se guarda como artefacto del workflow, con 90 días, y su informe enlaza solo las
+     capturas que comenta.
+  3. **Ningún recuento ni versión escrita a mano fuera de su documento:** «son 32 documentos», «01 va por la v1.12».
+     Se remite al documento («la versión que diga la cabecera de 01»).
+  4. **El historial de Git no se reescribe** para quitar lo que ya entró. Es público, puede haber copias, y lo que
+     se ahorra no compensa romper los clones.
+- **Afecta a:** 00 §2; CLAUDE.md; INDICE.md; 09 §8; la skill `revisar-pantallas` y el orquestador de recorridos.
+
 ### DEC-194 · Fotos propias de los enganches
 - **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34` RV-356). Sustituye a DEC-178.
 - **Contexto:** DEC-178 dejó los dibujos como referencia definitiva porque las fotos no llegaban, y previó que, si
@@ -679,6 +698,27 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 01 FR-20 (sin cambio de texto); 06 §5 y Apéndice A (textos alternativos: siguen vacíos, el nombre va
   en el botón); DEC-152 y DEC-178 (pasan a «sustituida por DEC-194», con una línea que diga que los esquemas tenían
   dos tipos al revés).
+
+### DEC-193 · `docs/34` es la última especificación antes del piloto
+- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34`).
+- **Contexto:** entre el 23 sep y el 9 oct hubo diecisiete especificaciones de revisión (`docs/17` a `docs/33`),
+  todas sobre staging con datos de prueba. El recorrido RV-344 ya no encontró ningún defecto alto, y los bajos
+  eran plurales y textos recortados. La aplicación no la ha usado todavía ningún voluntario: la validación con
+  jefatura (#76) y el piloto (#77) siguen pendientes. Otra revisión sobre staging ya no enseña lo que enseñaría
+  una semana de uso real.
+- **Decisión:** después de `docs/34` no se escribe `docs/35` hasta que el piloto (#77) haya terminado y su
+  resultado esté en `docs/verificacion/piloto.md`. Hasta entonces solo entran en `develop`:
+  1. arreglos de una issue `bloquea-release`;
+  2. lo que salga de la validación con jefatura (#76) o del piloto (#77, #78), cada uno con su issue;
+  3. mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas programadas).
+
+  Una mejora que se le ocurra a Claude Code o al desarrollador mientras tanto se anota como issue con la
+  etiqueta `tras-piloto` y no se implementa.
+- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/35` parte de lo que diga ese
+  archivo y de las issues `tras-piloto`, en ese orden.
+- **Descartado:** seguir con revisiones sobre staging hasta el piloto (rendimiento cada vez menor); congelar
+  también los arreglos de defectos (un defecto que aparezca en la validación tiene que poder arreglarse).
+- **Afecta a:** 09 §8 (fase 9); CLAUDE.md §5 (una línea: «hasta el piloto, DEC-193»).
 
 ### DEC-192 · Mejoras de UI U1 a U15 del recorrido, con las indicaciones del desarrollador
 - **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-189; RV-310 a RV-321 y RV-330, RV-331, RV-335).
