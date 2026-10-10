@@ -142,7 +142,7 @@ test('camino crítico: alta con pin manual y foto, aprobación con dirección, m
   // ---------- 4. El voluntario lo ve en el mapa ----------
   await page.goto('/');
   await page.getByRole('link', { name: T.navegacion.lista }).click();
-  await page.getByPlaceholder(T.mapa.buscar).fill(codigo);
+  await page.getByPlaceholder(T.mapa.buscarAyuda).fill(codigo);
   await expect(page.getByText(codigo).first()).toBeVisible({ timeout: 30_000 });
   // Y en Mis propuestas consta como aprobada, sin decir quién la aprobó (FR-27).
   await page.goto('/mis-propuestas');
@@ -165,7 +165,7 @@ test('camino crítico: alta con pin manual y foto, aprobación con dirección, m
 
   await page.goto('/');
   await page.getByRole('link', { name: T.navegacion.lista }).click();
-  await page.getByPlaceholder(T.mapa.buscar).fill(codigo);
+  await page.getByPlaceholder(T.mapa.buscarAyuda).fill(codigo);
   await expect(page.getByText(codigo)).toHaveCount(0, { timeout: 30_000 });
 
   // ---------- 6. Papelera y restauración (FR-124) ----------

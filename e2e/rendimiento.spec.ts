@@ -202,7 +202,7 @@ test.describe('presupuesto de rendimiento @rendimiento', () => {
 
     // La búsqueda es local: sin red de por medio, el límite de TR-13 es el del algoritmo.
     const empezado = Date.now();
-    await page.getByPlaceholder(T.mapa.buscar).fill('HID-0500');
+    await page.getByPlaceholder(T.mapa.buscarAyuda).fill('HID-0500');
     await expect(page.getByText('HID-0500').first()).toBeVisible();
     expect(Date.now() - empezado).toBeLessThan(1000);
   });

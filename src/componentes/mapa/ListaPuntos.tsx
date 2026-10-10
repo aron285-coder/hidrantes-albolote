@@ -87,7 +87,7 @@ export function ListaPuntos({
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             onKeyDown={(e) => teclaBuscador(e, texto, setTexto)}
-            placeholder={T.mapa.buscar}
+            placeholder={T.mapa.buscarAyuda}
             aria-label={T.mapa.buscar}
             className="min-w-0 flex-1 bg-transparent outline-none"
           />
