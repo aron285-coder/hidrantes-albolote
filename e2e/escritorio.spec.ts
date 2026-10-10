@@ -56,6 +56,13 @@ for (const [ancho, alto] of [
     );
     // El punto de las novedades sin ver, también arriba.
     await expect(page.getByTestId('punto-novedades-arriba')).toHaveCount(PUNTO);
+    // docs/34 RV-353: el lector de pantalla oye «Ajustes, hay novedades», no «Novedades Ajustes».
+    await expect(
+      arriba.getByRole('link', {
+        name: PUNTO ? `${T.navegacion.ajustes}${T.navegacion.hayNovedades}` : T.navegacion.ajustes,
+        exact: true,
+      }),
+    ).toBeVisible();
     await arriba.getByRole('link', { name: T.navegacion.misPropuestas, exact: true }).click();
     await expect(page).toHaveURL(/\/mis-propuestas/);
   });

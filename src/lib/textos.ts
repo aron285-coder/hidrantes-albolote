@@ -21,6 +21,8 @@ export const T = {
     mapa: 'Mapa',
     lista: 'Lista',
     ajustes: 'Ajustes',
+    // docs/34 RV-353: detrás del texto visible, solo para el lector de pantalla: «Ajustes, hay novedades».
+    hayNovedades: ', hay novedades',
     puntosDeAgua: 'Puntos de agua',
     misPropuestas: 'Mis propuestas',
     nuevoPunto: 'Nuevo punto',
