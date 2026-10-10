@@ -603,7 +603,7 @@ export const T = {
     reintentar: 'Reintentar',
     // docs/33 RV-320 (U11): una sola tarjeta «Mapa sin cobertura», sin jerga.
     puntosGuardadosLinea: (n: number, hace: Parametro) =>
-      `${plural(n, 'punto guardado', 'puntos guardados')} · sincronizados ${hace}`,
+      n === 1 ? `1 punto guardado · sincronizado ${hace}` : `${n} puntos guardados · sincronizados ${hace}`,
     sinSincronizar: 'Todavía sin sincronizar',
     guardadoProtegidoSi: 'El móvil no borrará estos datos aunque le falte espacio',
     guardadoProtegidoNo: 'El móvil podría borrar estos datos si le falta espacio: instala la aplicación para evitarlo',

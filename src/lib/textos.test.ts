@@ -143,21 +143,16 @@ describe('tipo de enganche, no racor (docs/25 RV-112)', () => {
 
 // docs/34 RV-350: con un solo elemento, el singular («1 enviada», «1 móvil registrado»). Cero, en plural.
 describe('plurales (docs/34 RV-350)', () => {
-  it('plural: 0 y 2 en plural, 1 en singular', () => {
-    expect(plural(0, 'enviada', 'enviadas')).toBe('0 enviadas');
-    expect(plural(1, 'enviada', 'enviadas')).toBe('1 enviada');
-    expect(plural(2, 'enviada', 'enviadas')).toBe('2 enviadas');
-  });
-
-  it.each([
+  // TR-112 llama a cada función con «[]» y solo ve el plural: el singular se comprueba aquí.
+  const SINGULARES: [string, string][] = [
     [T.mapa.nPuntos(1), '1 punto'],
-    [T.medir.resultado('40 m', 1, 20), '40 m · 1 tramo de manguera de 20 m'],
-    [T.misPropuestas.resumen(1, 1), '1 enviada · 1 sin enviar'],
+    [T.medir.resultado('[]', 1, '[]'), '[] · 1 tramo de manguera de [] m'],
+    [T.misPropuestas.resumen(1, '[]'), '1 enviada · [] sin enviar'],
     [
-      T.misPropuestas.esperaPropuestasNuevo(1, 'a las 14:30'),
-      'En espera: un móvil recién dado de alta puede enviar 1 propuesta al día. Se enviará a las 14:30.',
+      T.misPropuestas.esperaPropuestasNuevo(1, '[]'),
+      'En espera: un móvil recién dado de alta puede enviar 1 propuesta al día. Se enviará [].',
     ],
-    [T.ajustes.puntosGuardadosLinea(1, 'hace 5 min'), '1 punto guardado · sincronizados hace 5 min'],
+    [T.ajustes.puntosGuardadosLinea(1, '[]'), '1 punto guardado · sincronizado []'],
     [T.ajustes.perderasEnvios(1), 'Tienes 1 envío sin mandar: se perderá.'],
     [T.panelCola.seleccionadas(1), '1 seleccionada'],
     [T.panelCola.loteAprobadas(1), '1 aprobada, con su entrada en el Registro.'],
@@ -167,12 +162,15 @@ describe('plurales (docs/34 RV-350)', () => {
     [T.panelEditar.descartarN(1), '¿Descartar 1 cambio?'],
     [T.panelInventario.exportado(1), 'Exportada 1 fila. La exportación consta en el Registro.'],
     [T.panelRegistro.entradas(1), '1 entrada'],
+    [T.panelRegistro.porPagina(1), '1 entrada por página'],
+    [T.panelPapelera.explicacion(1), 'Los borrados se conservan 1 día y después se purgan.'],
+    [
+      T.panelPapelera.avisoPurga(1),
+      'Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de 1 día en la papelera. No se puede deshacer.',
+    ],
     [T.panelPapelera.purgados(1), '1 punto purgado.'],
     [T.panelPapelera.quedan(1), 'queda 1 día'],
-    [
-      T.panelAjustes.cambiadoPor('3 oct', 'jefatura', 1),
-      'Cambiado por última vez el 3 oct por jefatura. 1 móvil registrado.',
-    ],
+    [T.panelAjustes.cambiadoPor('[]', '[]', 1), 'Cambiado por última vez el [] por []. 1 móvil registrado.'],
     [T.panelAjustes.sinCambios(1), 'Sin cambios desde el arranque. 1 móvil registrado.'],
     [
       T.panelAjustes.avisoRevocando(1),
@@ -184,10 +182,22 @@ describe('plurales (docs/34 RV-350)', () => {
       '1 móvil con el código bueno no ha podido entrar por el tope: abre la entrada 24 h.',
     ],
     [T.panelAjustes.inventarioDescargado(1), 'Inventario descargado: 1 punto.'],
-    [T.panelAjustes.reservasDetalle(1, 0), '1 foto · 0 sin subir'],
-    [T.panel.mostrando(1, 1), 'Mostrando 1 de 1 punto'],
-  ])('%s', (texto, esperado) => {
+    [T.panelAjustes.reservasDetalle(1, '[]'), '1 foto · [] sin subir'],
+    [T.panel.mostrando('[]', 1), 'Mostrando [] de 1 punto'],
+  ];
+
+  it.each(SINGULARES)('%s', (texto, esperado) => {
     expect(texto).toBe(esperado);
+  });
+
+  it.each(SINGULARES)('«%s» está en el Apéndice A', (texto) => {
+    expect(literalesDelApendice().has(normalizar(texto)), `"${texto}" no está en el Apéndice A de 06`).toBe(true);
+  });
+
+  it('plural: 0 y 2 en plural, 1 en singular', () => {
+    expect(plural(0, 'enviada', 'enviadas')).toBe('0 enviadas');
+    expect(plural(1, 'enviada', 'enviadas')).toBe('1 enviada');
+    expect(plural(2, 'enviada', 'enviadas')).toBe('2 enviadas');
   });
 
   it('con dos, el plural de siempre', () => {
