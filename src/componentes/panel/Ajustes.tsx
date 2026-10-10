@@ -269,7 +269,7 @@ function SeccionEntrada({
     <section aria-label={T.panelAjustes.entrada} className="border-linea mt-4 border-t pt-3">
       <h3 className="text-sm font-semibold">{T.panelAjustes.entrada}</h3>
       {abierta ? (
-        <div className="bg-verde-100 text-verde-700 rounded-campo mt-2 flex flex-wrap items-center gap-2 p-2 text-sm">
+        <div className="bg-tinte-verde text-tinte-verde-texto rounded-campo mt-2 flex flex-wrap items-center gap-2 p-2 text-sm ring-1 ring-tinte-verde-borde ring-inset">
           <span role="status" className="flex-1 font-semibold">
             {T.panelAjustes.entradaAbiertaHasta(abierta.dia, abierta.hora)}
           </span>
@@ -734,7 +734,7 @@ function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
           {/* Con una recarga fallida, los datos de antes no dicen «Todo bien»: el resumen se esconde. */}
           {carga.estado === 'error' ? null : atencion.length === 0 ? (
             <p data-testid="resumen-salud" className="mb-3">
-              <span className="bg-verde-100 text-verde-700 rounded-full px-2.5 py-0.5 text-[13px] font-semibold">
+              <span className="bg-tinte-verde text-tinte-verde-texto rounded-full px-2.5 py-0.5 text-[13px] font-semibold ring-1 ring-tinte-verde-borde ring-inset">
                 {T.panelAjustes.todoBien}
               </span>
             </p>
@@ -742,7 +742,7 @@ function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
             <div
               role="status"
               data-testid="resumen-salud"
-              className="bg-oro-100 border-oro-600 text-ambar-700 rounded-campo mb-3 flex items-start gap-2 border p-2 text-sm"
+              className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-campo mb-3 flex items-start gap-2 border p-2 text-sm"
             >
               <TriangleAlert size={16} className="mt-0.5 shrink-0" aria-hidden />
               <div>

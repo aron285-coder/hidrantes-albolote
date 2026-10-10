@@ -30,7 +30,7 @@ class Limite extends Component<Props, { fallo: boolean }> {
     if (!this.state.fallo) return this.props.children;
     return (
       <div role="alert" className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-        <TriangleAlert size={32} className="text-ambar-700" aria-hidden />
+        <TriangleAlert size={32} className="text-ambar-texto" aria-hidden />
         <h2 className="font-titulo text-lg font-bold">{T.fallo.titulo}</h2>
         <p className="text-texto-suave text-sm">{T.fallo.detalle}</p>
         <Boton className="mt-2 w-full max-w-xs" onClick={this.props.alVolver}>

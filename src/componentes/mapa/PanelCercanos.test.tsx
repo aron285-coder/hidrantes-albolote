@@ -184,7 +184,7 @@ describe('el subtítulo y sus avisos (DEC-165)', () => {
     expect(subtitulo(html)).toBe(`· ${T.incidente.lineaRecta} · ${T.incidente.posicionDe(hace(momento))}`);
     expect(/<p[^>]*data-subtitulo[^>]*>/.exec(html)?.[0]).toContain('role="status"');
     expect(html).toContain('text-naranja-texto');
-    expect(html).not.toContain('bg-oro-100');
+    expect(html).not.toContain('bg-tinte-oro');
   });
 
   it('poco precisa: "posición poco precisa (±80 m)" y "Marcar en el mapa"', () => {
@@ -192,7 +192,7 @@ describe('el subtítulo y sus avisos (DEC-165)', () => {
     const p = props({ precision: 80 }, { alMarcarEnMapa });
     const html = pintar(p);
     expect(subtitulo(html)).toBe(`· ${T.incidente.lineaRecta} · ${T.incidente.pocoPrecisa(80)}`);
-    expect(html).not.toContain('bg-oro-100');
+    expect(html).not.toContain('bg-tinte-oro');
     const [marcar] = buscar(arbol(p), (e) => e.type === 'button' && e.props.children === T.incidente.marcarEnMapa);
     (marcar!.props.onClick as () => void)();
     expect(alMarcarEnMapa).toHaveBeenCalledOnce();

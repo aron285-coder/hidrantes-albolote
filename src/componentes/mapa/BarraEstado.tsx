@@ -126,7 +126,7 @@ export function EstadoSincro() {
             {sincronizando || reintentando ? T.mapa.sincronizando : T.sincro.sincronizarAhora}
           </Boton>
           {fallo && !reintentando && !sinRed && (
-            <p role="status" className="text-rojo-700 mt-2 text-[13px]">
+            <p role="status" className="text-rojo-texto mt-2 text-[13px]">
               {T.sincro.noSeHaPodido}
             </p>
           )}
@@ -165,7 +165,11 @@ export function BarraEstado() {
           </Link>
         </p>
       )}
-      {atascado && <p className="bg-ambar-100 text-ambar-700 px-3 py-1 text-[13px]">{T.misPropuestas.esperando24h}</p>}
+      {atascado && (
+        <p className="bg-tinte-ambar text-tinte-ambar-texto px-3 py-1 text-[13px] ring-1 ring-tinte-ambar-borde ring-inset">
+          {T.misPropuestas.esperando24h}
+        </p>
+      )}
     </div>
   );
 }

@@ -244,7 +244,9 @@ function HuecoFoto({
           onClick={() => entrada.current?.click()}
           className={cn(
             'rounded-campo flex min-h-11 min-w-0 items-center gap-1.5 px-2 text-[13px] font-semibold',
-            fallo === 'repetida' ? 'bg-ambar-100 text-ambar-700' : 'bg-verde-100 text-verde-700',
+            fallo === 'repetida'
+              ? 'bg-tinte-ambar text-tinte-ambar-texto ring-1 ring-tinte-ambar-borde ring-inset'
+              : 'bg-tinte-verde text-tinte-verde-texto ring-1 ring-tinte-verde-borde ring-inset',
           )}
         >
           <Check size={16} className="shrink-0" aria-hidden />
@@ -259,7 +261,9 @@ function HuecoFoto({
           className={cn(
             'rounded-campo flex min-h-11 items-center gap-2 px-3 font-semibold',
             // Si la nueva falló, la anterior no se pinta como recién hecha: el aviso va con ella.
-            fallo === 'repetida' ? 'bg-ambar-100 text-ambar-700' : 'bg-verde-100 text-verde-700',
+            fallo === 'repetida'
+              ? 'bg-tinte-ambar text-tinte-ambar-texto ring-1 ring-tinte-ambar-borde ring-inset'
+              : 'bg-tinte-verde text-tinte-verde-texto ring-1 ring-tinte-verde-borde ring-inset',
           )}
         >
           <Check size={18} aria-hidden />
@@ -291,7 +295,7 @@ function HuecoFoto({
         </button>
       )}
       {fallo && (
-        <span role="alert" className="text-rojo-700 text-[13px]">
+        <span role="alert" className="text-rojo-texto text-[13px]">
           {fallo === 'grande'
             ? T.operaciones.fotoDemasiadoGrande
             : fallo === 'repetida'
