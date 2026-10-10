@@ -4,7 +4,8 @@
 -- que se distingan de los reales, correos de example.com, autores inventados.
 --
 -- 12 puntos con las 12 combinaciones diámetro × caudal (06 §4.2), repartidos por los núcleos;
--- tres con revisión caducada, uno retirado y uno en la papelera. 6 propuestas pendientes, una por
+-- tres con revisión caducada, uno retirado y uno en la papelera; dos con foto del sitio (docs/34
+-- RV-354). 6 propuestas pendientes, una por
 -- operación, con un posible duplicado y una desactualizada.
 --
 -- Las fotos `fotos/prueba-*.jpg` las sube después scripts/fotos-seed-staging.ts (deploy-staging.yml),
@@ -33,6 +34,16 @@ values
   ('5eed0000-0000-4000-8000-000000000011', 'BOC-9003', 'boca_riego', 'SRID=4326;POINT(-3.657300 37.230400)',  45, 'malo',        'otro',      null,                              '[PRUEBA] En la papelera',        'fotos/prueba-boc-9003.jpg', 'albolote',  'Albolote',                'borrado',  current_date - 100, now() - interval '3 days', now() - interval '7 days', now() - interval '7 days'),
   ('5eed0000-0000-4000-8000-000000000012', 'BOC-9004', 'boca_riego', 'SRID=4326;POINT(-3.618900 37.273100)',  45, 'no_funciona', 'granada',   '[PRUEBA] Sin presión',            '[PRUEBA] Lavadero',              'fotos/prueba-boc-9004.jpg', 'calicasas', 'Calicasas',               'activo',   current_date - 10,  null, now() - interval '7 days', now() - interval '7 days')
 on conflict do nothing;
+
+-- ---------- foto del sitio en dos puntos (docs/34 RV-354) ----------
+-- Para ver en staging la ficha con sus dos variantes reales: una foto (conexión) y dos (conexión y
+-- sitio). Un update y no el insert, para que llegue también a un staging ya sembrado; solo si el punto
+-- no tiene ya una (idempotente, y no pisa la de una aprobación). HID-9003 y BOC-9004 no tienen
+-- propuestas pendientes en el seed: tocar `actualizado_en` no vuelve ninguna desactualizada.
+update hidrantes.puntos set foto_sitio_path = 'fotos/prueba-sitio-hid-9003.jpg'
+ where id = '5eed0000-0000-4000-8000-000000000003' and foto_sitio_path is null;
+update hidrantes.puntos set foto_sitio_path = 'fotos/prueba-sitio-boc-9004.jpg'
+ where id = '5eed0000-0000-4000-8000-000000000012' and foto_sitio_path is null;
 
 -- ---------- propuestas pendientes (una por operación) ----------
 
