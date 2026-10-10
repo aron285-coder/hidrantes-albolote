@@ -51,7 +51,7 @@ Cada tipo de contenido tiene exactamente un documento propietario. Los demás **
 |---|---|---|
 | Reglas funcionales ("el sistema debe…") | **01** | La foto es obligatoria en toda alta y revisión |
 | Orden de los pasos de una tarea | **02** | Qué pantalla sigue a cuál al dar de alta un punto |
-| Eisen medibles: rendimiento, offline, navegadores, límites | **03** | Primera carga < 3 s en 3G |
+| Requisitos medibles: rendimiento, offline, navegadores, límites | **03** | Primera carga < 3 s en 3G |
 | Decisiones de infraestructura y despliegue | **04** | Cloudflare Pages + Supabase, dos entornos |
 | Campos, tipos, constraints, vistas, firmas de RPC y de las *Pages Functions* | **05** | `diametro_mm smallint`, `fn_aprobar(propuesta_id, correcciones, confirmar_desactualizada)` |
 | Colores, tamaños, tipografía, simbología del marcador | **06** | Radio 11 px para 100 mm · bueno |

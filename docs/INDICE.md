@@ -1,15 +1,15 @@
 # Documentación · Mapa de hidrantes · Protección Civil de Albolote
 
-Estado al 8 de octubre de 2026. La referencia completa está en `00-README.md`.
+La referencia completa está en `00-README.md`. La versión y la fecha de cada documento, en su cabecera (DEC-195).
 
 «Congelado, versionado»: no se reescribe; cada cambio es una versión nueva, anotada en su cabecera y
-pedida por una especificación (01 va por la v1.12; DEC-177).
+pedida por una especificación (DEC-177); la versión vigente es la que dice su cabecera.
 
 | # | Documento | Estado |
 |---|---|---|
 | — | `../CLAUDE.md` (raíz del repositorio) | vivo |
 | 00 | `00-README.md` · índice y reglas de propiedad | vivo |
-| 01 | `01-requisitos-funcionales.md` | congelado, versionado (v1.12) |
+| 01 | `01-requisitos-funcionales.md` | congelado, versionado |
 | 02 | `02-flujos-de-usuario.md` | congelado, versionado |
 | 03 | `03-requisitos-tecnicos.md` | congelado, versionado |
 | 04 | `04-arquitectura-e-infraestructura.md` | congelado, versionado |
