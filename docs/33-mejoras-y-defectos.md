@@ -460,9 +460,11 @@ Apéndice A con todos los textos nuevos de docs/33 (de las dos sesiones de front
 
 - **`supabase/seed-staging.sql:19-33`:**
   - los puntos de prueba llevan fotos que **existen**: el paso de seed (`ci.yml:123`) sube a `hidrantes-fotos-dev` unas fotos de prueba sin datos personales, generadas o de `e2e/fixtures`;
-  - si no se puede, `foto_path = null`.
+  - si no se puede, `foto_path = null`.¹
 - **Las cuatro bocas duplicadas BOC-0003 a BOC-0006** de RV-139b: retiradas con motivo "prueba" (con claims de administrador, como en RV-139b).
 - **Test:** después del seed, cada `foto_path` de staging responde 200.
+
+¹ *Nota (10 oct 2026, `docs/34` RV-354):* no era posible. `puntos.foto_path` es `not null` desde `0001_esquema.sql`; la base rechaza un punto sin foto. RV-340 se hizo subiendo las fotos, y la ficha «Sin foto» solo se ve con una caché antigua del móvil.
 
 ### RV-341 · La huella GPG dentro del workflow (T7) · P3
 
