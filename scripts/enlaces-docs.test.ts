@@ -1,5 +1,6 @@
-// docs/34 RV-358 (DEC-195): los enlaces relativos de la documentación llevan a algo que existe. Así,
-// archivar una especificación no rompe nada sin avisar.
+// docs/34 RV-358 y RV-359 (DEC-195): los enlaces relativos de la documentación llevan a algo que existe,
+// y cada imagen de docs/ la enlaza algún documento (o es una captura de scripts/capturas.ts para 13 y
+// 14). Así, archivar una especificación o borrar capturas no rompe nada sin avisar.
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
@@ -7,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 const raiz = path.resolve(import.meta.dirname, '..');
 const docs = path.join(raiz, 'docs');
+const IMAGEN = /\.(png|jpe?g|webp|gif|svg)$/i;
 
 function recorrer(dir: string): string[] {
   return readdirSync(dir).flatMap((n) => {
@@ -62,5 +64,19 @@ describe('enlaces de la documentación (docs/34 RV-358)', () => {
   it('cada enlace relativo lleva a un archivo que existe', () => {
     const rotos = resueltos.filter((r) => !existsSync(r.ruta)).map((r) => `${r.doc} → ${r.destino}`);
     expect(rotos).toEqual([]);
+  });
+});
+
+describe('imágenes de la documentación (docs/34 RV-359)', () => {
+  it('cada imagen de docs/ la enlaza algún documento o es una captura de 13 y 14', () => {
+    const enlazadas = new Set(resueltos.map((r) => path.normalize(r.ruta)));
+    const capturas = path.join(docs, 'capturas');
+    const sueltas = enDocs
+      .filter((p) => IMAGEN.test(p))
+      // Las de scripts/capturas.ts: los PNG de la raíz de docs/capturas/ (13 y 14 los nombran).
+      .filter((p) => !(path.dirname(p) === capturas && p.endsWith('.png')))
+      .filter((p) => !enlazadas.has(path.normalize(p)))
+      .map((p) => path.relative(raiz, p).replaceAll('\\', '/'));
+    expect(sueltas).toEqual([]);
   });
 });

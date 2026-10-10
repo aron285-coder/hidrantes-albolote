@@ -1,5 +1,7 @@
 # Recorrido completo de la app en staging · 8 oct 2026 (docs/32 RV-270, DEC-184)
 
+> **Nota (10 oct 2026, `docs/34` RV-359, DEC-195):** en Git solo quedan las capturas que este informe enlaza. Las demás se quitaron de `HEAD`; siguen en el historial, por ejemplo en `9a15d27` (`git show 9a15d27:<ruta>`).
+
 | | |
 |---|---|
 | **Qué** | La app entera recorrida como una persona, en una ventana de Chromium visible en este PC (`headless: false`, `slowMo` 250 ms), que se quedó abierta todo el recorrido. |
