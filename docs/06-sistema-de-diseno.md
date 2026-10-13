@@ -605,6 +605,7 @@ la espera por los demás topes (docs/32 RV-233; `[a las 14:30]` o `[mañana a la
 `En espera: el servidor no tiene sitio para más fotos. Se volverá a intentar [a las 14:30].` ·
 `En espera: el servidor no tiene sitio para más propuestas. Se volverá a intentar [a las 14:30].` ·
 `En espera: este móvil tiene varias fotos a medio enviar. Se volverá a intentar [a las 14:30].` ·
+`Hoy los móviles recién entrados ya han enviado mucho. Podrás seguir mañana; lo que tienes se queda guardado.` (el tope de los móviles recién entrados, docs/35 RV-427) ·
 `a las [14:30]` · `mañana a las [00:05]`.
 
 **Ajustes del voluntario.** `Firma de tus propuestas` · `Cambiar` · `Mapa sin cobertura` ·

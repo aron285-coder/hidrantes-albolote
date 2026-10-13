@@ -561,6 +561,9 @@ export const T = {
       `En espera: el servidor no tiene sitio para más propuestas. Se volverá a intentar ${cuando}.`,
     esperaReservas: (cuando: Parametro) =>
       `En espera: este móvil tiene varias fotos a medio enviar. Se volverá a intentar ${cuando}.`,
+    // docs/35 RV-427: lo que pueden enviar entre todos los móviles recién entrados.
+    esperaMovilesNuevos:
+      'Hoy los móviles recién entrados ya han enviado mucho. Podrás seguir mañana; lo que tienes se queda guardado.',
   },
 
   ajustes: {

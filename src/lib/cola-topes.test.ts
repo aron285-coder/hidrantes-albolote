@@ -458,3 +458,40 @@ describe('fallo definitivo: se liberan sus reservas (RV-328)', () => {
     expect(anotarError).not.toHaveBeenCalled();
   });
 });
+
+// docs/35 RV-427: el tope de los móviles recién entrados, con el mecanismo de los demás topes. La
+// propuesta queda guardada en la cola, sin fallo, y Mis propuestas lo dice con palabras.
+describe('tope de los móviles recién entrados (docs/35 RV-427)', () => {
+  const TEXTO =
+    'Hoy los móviles recién entrados ya han enviado mucho. Podrás seguir mañana; lo que tienes se queda guardado.';
+
+  it.each([
+    ['TOPE_MOVILES_NUEVOS: maximo=300 reintentar_en_s=43200 ambito=propuestas'],
+    ['TOPE_MOVILES_NUEVOS: tope'],
+    ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 reintentar_en_s=43200 ambito=moviles_nuevos'],
+  ])('en la propuesta (%s): espera en la cola y lo dice', async (mensaje) => {
+    rpc.mockResolvedValue(errorRpc(mensaje));
+    await encolarSinRed(2, null);
+    await cola.procesarCola();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    const items = cola.colaActual();
+    expect(items).toHaveLength(2);
+    expect(items.every((i) => !i.fallo && i.en_espera?.motivo === 'moviles_nuevos')).toBe(true);
+    // La hora del servidor o, sin ella, la medianoche, como el tope de propuestas al día.
+    expect(items[0]!.proximo).toBeGreaterThanOrEqual(new Date('2026-10-08T22:00:00Z').getTime());
+    expect(textoEspera(items[0]!)).toBe(TEXTO);
+  });
+
+  it.each([
+    [{ error: 'TOPE_MOVILES_NUEVOS', ambito: 'fotos', reintentar_en_s: 600 }],
+    [{ error: 'CUOTA_SUBIDAS_AGOTADA', ambito: 'moviles_nuevos', reintentar_en_s: 600 }],
+  ])('en la foto (%o): espera lo que dice el servidor y lo dice', async (cuerpo) => {
+    respuestaReserva = () => respuesta(429, cuerpo);
+    await encolarSinRed(2);
+    await cola.procesarCola();
+    expect(reservas()).toBe(1);
+    expect(cola.colaActual().map((i) => i.proximo - Date.now())).toEqual([600_000, 600_000]);
+    expect(cola.colaActual().every((i) => !i.fallo && i.en_espera?.motivo === 'moviles_nuevos')).toBe(true);
+    expect(textoEspera(cola.colaActual()[0]!)).toBe(TEXTO);
+  });
+});
