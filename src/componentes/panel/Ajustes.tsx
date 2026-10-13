@@ -8,7 +8,7 @@ import { Boton } from '@/componentes/Boton';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useCarga } from '@/hooks/carga';
 import { useAcceso, usePosicion, usePuntos } from '@/hooks/estado';
-import { comprobarAcceso } from '@/lib/acceso';
+import { dejarJefatura } from '@/lib/acceso';
 import { ENTORNO } from '@/lib/entorno';
 import { anotarError } from '@/lib/errores';
 import { fechaCorta, hace } from '@/lib/formato';
@@ -348,25 +348,31 @@ function Administradores() {
     void sugerenciasUniformidad().then(setSugerencias);
   }, []);
 
-  async function cambiar(email: string, activo: boolean): Promise<boolean> {
+  async function cambiar(email: string, activo: boolean) {
     setOcupado(true);
     const r = await gestionarAdministrador(email, activo);
     setOcupado(false);
-    if (!r.ok) {
-      avisar(textoError(r.codigo), 'error');
-      return false;
-    }
+    if (!r.ok) return avisar(textoError(r.codigo), 'error');
     avisar(activo ? T.panelAjustes.administradorAnadido(email) : T.panelAjustes.administradorQuitado(email));
     setCorreo('');
     await carga.recargar();
-    return true;
   }
 
+  // La ventana sigue abierta y bloqueada hasta tener la respuesta: un segundo toque no repite nada.
   async function quitar(email: string) {
-    const hecho = await cambiar(email, false);
+    setOcupado(true);
+    const r = await gestionarAdministrador(email, false);
+    if (!r.ok) {
+      setOcupado(false);
+      setQuitando(null);
+      return avisar(textoError(r.codigo), 'error');
+    }
+    avisar(T.panelAjustes.administradorQuitado(email));
+    // Quien se lo ha quitado a sí mismo sale del panel, sin recargar una lista que ya no puede leer.
+    if (esUnoMismo(email, propio)) return dejarJefatura();
+    setOcupado(false);
     setQuitando(null);
-    // Quien se ha quitado el acceso a sí mismo sale del panel: el servidor ya no le da jefatura.
-    if (hecho && esUnoMismo(email, propio)) await comprobarAcceso();
+    await carga.recargar();
   }
 
   const nuevos = sugerencias.filter((s) => !filas.some((a) => a.email === s));

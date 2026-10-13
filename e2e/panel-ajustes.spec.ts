@@ -76,12 +76,14 @@ async function prepararPanel(
     // docs/33 RV-338: `config.entrada_abierta_hasta` (0044). Sin poner, la base no la tiene.
     entrada = undefined as string | null | undefined,
     admins = ADMINISTRADORES,
+    // El correo de la sesión de Google: la lista lo guarda en minúsculas (docs/35 RV-431).
+    correo = 'jefe@example.org',
   } = {},
 ) {
   const llamadas: Llamada[] = [];
   let entradaHasta = entrada;
   let administradores = admins;
-  await conGoogle(page, 'jefe@example.org');
+  await conGoogle(page, correo);
   await simularTablas(page, {
     v_puntos_activos: PUNTOS,
     v_cola_revision: [],
@@ -262,16 +264,25 @@ test('ajustes: quitar el acceso a otro administrador pide confirmación; devolve
 });
 
 test('ajustes: quitarse el acceso a uno mismo lo avisa y saca del panel (docs/35 RV-431)', async ({ page }) => {
-  const llamadas = await prepararPanel(page, { admins: [...ADMINISTRADORES, OTRA_ACTIVA] });
+  // La sesión con mayúsculas: sigue siendo uno mismo.
+  const llamadas = await prepararPanel(page, { admins: [...ADMINISTRADORES, OTRA_ACTIVA], correo: 'Jefe@Example.org' });
   await page.goto('/admin/ajustes');
   await page.getByLabel(T.panelAjustes.accesoDe('jefe@example.org')).click();
   const dialogo = page.getByRole('dialog');
   await expect(dialogo.getByText(T.panelAjustes.avisoQuitarteAcceso)).toBeVisible();
+  const comprobaciones = llamadas.filter((l) => l.nombre === 'fn_es_admin').length;
   await dialogo.getByRole('button', { name: T.panelAjustes.quitarAcceso }).click();
   await expect
     .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
     .toEqual({ email: 'jefe@example.org', activo: false });
   await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
+  // Sale sin volver a preguntar al servidor (sin red se quedaría dentro), y sin nada guardado de jefatura.
+  expect(llamadas.filter((l) => l.nombre === 'fn_es_admin')).toHaveLength(comprobaciones);
+  const guardado = await page.evaluate(() => [
+    localStorage.getItem('hidrantes.auth'),
+    localStorage.getItem('hidrantes.jefatura_confirmada'),
+  ]);
+  expect(guardado).toEqual([null, null]);
 });
 
 test('ajustes: el último administrador con acceso no se lo puede quitar, y se dice (docs/35 RV-431)', async ({
