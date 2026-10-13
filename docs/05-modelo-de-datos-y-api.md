@@ -361,7 +361,7 @@ distingue temas.
 ### 2.16 `avisos_tecnicos` — última emisión de cada aviso técnico (0045, docs/35 RV-404, DEC-202)
 
 `clave text` PK (`vigilancia`, `respaldo`, `despliegue` o `intentos_codigo`), `ultimo_en timestamptz`
-(la última vez que se encoló al menos un aviso con esa clave; `null`, nunca). Sirve para la deduplicación de
+(la última vez que se encoló al menos un aviso con esa clave; `null`, nunca; cuenta al encolar, no al entregar). Sirve para la deduplicación de
 `fn_encolar_aviso_tecnico` y se bloquea por fila (`for update`). RLS con una sola política que no
 deja ver nada (`avisos_tecnicos_sin_acceso`, como `migraciones_aplicadas`) y sin `grant` para
 `anon` ni `authenticated`: solo `service_role` (y su dueño). Sin datos personales.
@@ -868,7 +868,7 @@ fn_encolar_aviso_tecnico(clave text, titulo text, cuerpo text, url text default 
   -- clave: vigilancia · respaldo · despliegue · intentos_codigo; otra → PAYLOAD_INVALIDO(clave).
   -- titulo y cuerpo: null o vacíos → los textos fijos de la clave (06 Apéndice A; título «Aviso
   --   técnico»); con valor, hasta 80 y 300 caracteres (si no, PAYLOAD_INVALIDO(titulo|cuerpo)). Nunca
-  --   nombres ni correos (FR-27). url: ruta de la app que empieza por '/' (si no, PAYLOAD_INVALIDO(url)).
+  --   nombres ni correos (FR-27). url: ruta de la propia app ('/' y letras, cifras, / _ ? = & . -; hasta 200), si no PAYLOAD_INVALIDO(url).
   -- Encola una notificación por cada suscripción de jefatura (dispositivo_id null) de un administrador
   --   activo con el tema avisos_tecnicos; ninguna de voluntario.
   -- Como mucho una vez por clave cada 24 h; intentos_codigo, una vez por hora. Bloquea la fila de la
@@ -885,6 +885,8 @@ fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- "fuera" = a más de config.buffer_zona_m de todo límite (st_dwithin), igual que zona-cobertura.geojson
   -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
+fn_punto_json(p puntos) returns jsonb   -- la fila sin geom y con lat/lng, para antes/despues del registro;
+                                        -- desde 0045 sin datos_cambiados_en (marca técnica, RV-403)
 fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con respaldo
 fn_es_admin() returns boolean       -- fn_email_jwt() presente y activo en administradores
 fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4; factor de diámetro

@@ -7,7 +7,7 @@ create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 set search_path = extensions, public;
 
-select plan(49);
+select plan(52);
 
 -- ---------- RV-404 · dos sesiones a la vez con la misma clave (dblink) ----------
 -- Va primero, como en 13: las otras sesiones solo ven lo confirmado, y esta no debe tener todavía
@@ -114,6 +114,15 @@ values ('00000000-0000-4000-8000-0000000042a3', 'HID-0423', 'hidrante', 'SRID=43
         'bueno', 'fotos/42-3.jpg', 'albolote', 'Centro', current_date - 30, now() - interval '3 days');
 select ok((select datos_cambiados_en = now() - interval '3 days' from hidrantes.puntos where codigo = 'HID-0423'),
   'al crear un punto sin datos_cambiados_en, toma su actualizado_en');
+select is((select tgenabled from pg_trigger where tgrelid = 'hidrantes.puntos'::regclass
+            and tgname = 'puntos_actualizado_en'), 'O'::"char",
+  'el disparador de actualizado_en sigue activo tras rellenar la columna');
+select ok(not (hidrantes.fn_punto_json(p) ? 'datos_cambiados_en') and hidrantes.fn_punto_json(p) ? 'actualizado_en',
+  'el Registro no recibe la marca nueva como un campo del punto')
+  from hidrantes.puntos p where p.codigo = 'HID-0423';
+update hidrantes.puntos set geom = 'SRID=4326;POINT(-3.6591 37.2311)' where codigo = 'HID-0423';
+select ok((select datos_cambiados_en = now() from hidrantes.puntos where codigo = 'HID-0423'),
+  'mover el punto sí cuenta como cambio de datos');
 -- Propuestas pendientes de hace una hora: A y B sobre P1, C sobre P2.
 insert into hidrantes.propuestas (id, punto_id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id,
                                   clave_local, foto_path, creada_en)

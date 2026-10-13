@@ -56,6 +56,14 @@ drop trigger if exists puntos_datos_cambiados_en on hidrantes.puntos;
 create trigger puntos_datos_cambiados_en before insert or update on hidrantes.puntos
   for each row execute function hidrantes.tg_datos_cambiados_en();
 
+-- El punto en el Registro (antes y despues): la marca nueva es técnica, como actualizado_en, y no
+-- debe salir como un campo cambiado en el panel de hoy ni en el anterior. Misma firma que 0005.
+create or replace function hidrantes.fn_punto_json(p hidrantes.puntos) returns jsonb
+language sql stable set search_path = pg_catalog, hidrantes, extensions as $$
+  select (to_jsonb(p) - 'geom' - 'datos_cambiados_en')
+         || jsonb_build_object('lat', st_y(p.geom::geometry), 'lng', st_x(p.geom::geometry));
+$$;
+
 -- El cuerpo de 0009 con un cambio: solo los puntos cuyo núcleo cambia. Con lock_timeout, como las
 -- demás RPC que escriben puntos (05 §11).
 create or replace function hidrantes.fn_anadir_nucleo(nombre text, lat double precision, lng double precision) returns void
@@ -353,7 +361,7 @@ begin
     perform hidrantes.fn_error('PAYLOAD_INVALIDO(cuerpo)', 'El texto tiene como mucho 300 caracteres');
   end if;
   -- Solo una ruta de la propia app.
-  if left(u, 1) <> '/' or left(u, 2) = '//' or length(u) > 200 then
+  if u !~ '^/[A-Za-z0-9_-][A-Za-z0-9/_?=&.-]*$' or length(u) > 200 then
     perform hidrantes.fn_error('PAYLOAD_INVALIDO(url)', 'La dirección es una ruta de la app');
   end if;
   plazo := case when fn_encolar_aviso_tecnico.clave = 'intentos_codigo' then interval '1 hour'
