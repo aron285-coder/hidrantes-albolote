@@ -6,7 +6,7 @@ import { almacenEnMemoria, respuesta } from './pruebas';
 
 const rpc = vi.fn();
 /** Sesión de Google que devuelve supabase-js (null: ninguna). */
-let sesionGoogle: { access_token: string; user: { email: string } } | null = null;
+let sesionGoogle: { access_token: string; user: { email: string; id?: string } } | null = null;
 vi.mock('./supabase', () => ({
   supabase: () => ({
     rpc,
@@ -225,6 +225,75 @@ describe('jefatura sin servidor al arrancar (RV-16, FR-168)', () => {
     vi.stubGlobal('navigator', { onLine: false });
     await comprobarAcceso();
     expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+  });
+});
+
+// docs/35 RV-432: la cuenta de jefatura se une a su cuenta de Google al entrar, una vez por sesión.
+describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
+  const si = { data: true, error: null, status: 200 };
+  const no = { data: false, error: null, status: 200 };
+  let fetch: ReturnType<typeof vi.fn>;
+  const entrar = () => {
+    datos.set('hidrantes.auth', '{"sesion":"guardada"}');
+    sesionGoogle = { access_token: 'jwt.de.sesion', user: { id: 'u1', email: 'jefa@example.org' } };
+    _reiniciarAcceso();
+  };
+  const contesta = (status: number, cuerpo: unknown) => {
+    fetch = vi.fn(async () => respuesta(status, cuerpo));
+    vi.stubGlobal('fetch', fetch);
+  };
+  /** Las peticiones a la Function (un fallo anotado va aparte, a /api/error). */
+  const pedidas = () => fetch.mock.calls.filter(([ruta]) => ruta === '/api/vincular-jefatura').length;
+  afterEach(() => {
+    sesionGoogle = null;
+  });
+
+  it('sin unir: la une con el JWT de la sesión, vuelve a preguntar y entra', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc.mockResolvedValueOnce(no).mockResolvedValueOnce(si);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [ruta, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(ruta).toBe('/api/vincular-jefatura');
+    expect(init.method).toBe('POST');
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer jwt.de.sesion', 'Content-Type': 'application/json' });
+    expect(rpc.mock.calls.filter(([n]) => n === 'fn_es_admin')).toHaveLength(2);
+  });
+
+  it('YA_VINCULADO también entra', async () => {
+    entrar();
+    contesta(200, { resultado: 'YA_VINCULADO' });
+    rpc.mockResolvedValueOnce(no).mockResolvedValueOnce(si);
+    await comprobarAcceso();
+    expect(acceso().tipo).toBe('jefatura');
+  });
+
+  it.each([
+    [403, { error: 'OTRA_CUENTA' }],
+    [403, { error: 'NO_ES_ADMINISTRADOR' }],
+    [403, { error: 'SIN_GOOGLE' }],
+    [503, { error: 'SERVIDOR_NO_DISPONIBLE' }],
+  ])('%s %o: «No autorizado», sin volver a preguntar ni a pedirlo otra vez', async (status, cuerpo) => {
+    entrar();
+    contesta(status, cuerpo);
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado' });
+    expect(rpc.mock.calls.filter(([n]) => n === 'fn_es_admin')).toHaveLength(1);
+    // Otra comprobación en la misma sesión: no se vuelve a pedir (sin bucle).
+    await comprobarAcceso();
+    expect(pedidas()).toBe(1);
+  });
+
+  it('ya es jefatura: no se pide nada', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc.mockResolvedValue(si);
+    await comprobarAcceso();
+    expect(acceso().tipo).toBe('jefatura');
+    expect(pedidas()).toBe(0);
   });
 });
 

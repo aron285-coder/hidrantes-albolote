@@ -64,10 +64,18 @@ export interface Administrador {
   activo: boolean;
   creado_en: string;
   creado_por: string;
+  /** ¿Unida ya a su cuenta de Google? (docs/35 RV-400, 0046). Sin la columna, no se sabe. */
+  vinculado?: boolean;
 }
 
+// Solo lo que enseña Ajustes: el usuario al que está unida cada fila no hace falta aquí.
 export const cargarAdministradores = () =>
-  leerLista<Administrador>((c) => c.from('administradores').select('*').order('email'));
+  leerLista<Administrador>((c) =>
+    c.from('administradores').select('email, activo, creado_en, creado_por, vinculado').order('email'),
+  );
+
+/** Activo pero aún sin unir a su cuenta de Google: no entra hasta su primer acceso (docs/35 RV-432). */
+export const pendienteDeVincular = (a: Administrador): boolean => a.activo && a.vinculado === false;
 
 export const gestionarAdministrador = (email: string, activo: boolean) =>
   rpc<null>('fn_gestionar_administrador', { email: email.trim().toLowerCase(), activo });

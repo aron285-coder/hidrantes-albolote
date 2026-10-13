@@ -790,7 +790,9 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Acceso de administradores` · `Lista propia de hidrantes, independiente de la app de uniformidad.` ·
 `añadido el [fecha] por [quien]` · `Acceso de [correo]` · `activo` · `sin acceso` ·
 `correo@albolote-pc.es` · `Sugerencias de la app de uniformidad:` ·
-`[correo] ya puede entrar en el panel.` · `[correo] se queda sin acceso al panel.` · `Parámetros` ·
+`[correo] ya puede entrar en el panel.` · `[correo] se queda sin acceso al panel.` ·
+un administrador activo y aún sin unir a su cuenta de Google (docs/35 RV-432): `Pendiente de su primer acceso` ·
+`Que entre en el panel cuanto antes con su cuenta de Google` · `Parámetros` ·
 `Los móviles los aplican en su próxima sincronización.` · `Meses entre revisiones` ·
 `Radio de duplicado (m)` · `Días de papelera` · `Margen de la zona (m)` · `Fotos por móvil y día` · `Entradas desde una misma wifi al día` (5–500) · `Entradas por hora, entre todos` (10–500; los dos, solo con 0044) · `Tramo de manguera (m)` ·
 `Radios de marcador (px)` · `"[campo]" está fuera de rango.` · `Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.` (debajo del campo, al salir de él o al guardar, docs/31 RV-167) · `Parámetros guardados.` · `Núcleos` ·

@@ -5,6 +5,7 @@ import {
   type Salud,
   VIGILANCIA_ATRASADA_H,
   avisoAlmacenamiento,
+  pendienteDeVincular,
   cargarNovedades,
   origenTareas,
   textoAlmacenamiento,
@@ -227,5 +228,19 @@ describe('novedades del panel (FR-167, RV-95)', () => {
       expect(l.version).toMatch(/^\d+\.\d+\.\d+$/);
       expect(typeof l.texto).toBe('string');
     }
+  });
+});
+
+// docs/35 RV-432: activo y aún sin unir a su cuenta de Google: «Pendiente de su primer acceso».
+describe('pendienteDeVincular (docs/35 RV-432)', () => {
+  const fila = { email: 'a@example.org', creado_en: '2026-10-01T10:00:00Z', creado_por: 'migracion' };
+  it('solo activo y sin unir', () => {
+    expect(pendienteDeVincular({ ...fila, activo: true, vinculado: false })).toBe(true);
+    expect(pendienteDeVincular({ ...fila, activo: true, vinculado: true })).toBe(false);
+    expect(pendienteDeVincular({ ...fila, activo: false, vinculado: false })).toBe(false);
+  });
+
+  it('sin la columna (base anterior), no se dice nada', () => {
+    expect(pendienteDeVincular({ ...fila, activo: true })).toBe(false);
   });
 });

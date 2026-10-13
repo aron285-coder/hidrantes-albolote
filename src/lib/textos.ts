@@ -1105,6 +1105,9 @@ export const T = {
     sugerencias: 'Sugerencias de la app de uniformidad:',
     administradorAnadido: (correo: Parametro) => `${correo} ya puede entrar en el panel.`,
     administradorQuitado: (correo: Parametro) => `${correo} se queda sin acceso al panel.`,
+    // docs/35 RV-432: activo, pero su cuenta aún no se ha unido a su cuenta de Google.
+    pendienteVincular: 'Pendiente de su primer acceso',
+    ayudaPendienteVincular: 'Que entre en el panel cuanto antes con su cuenta de Google',
     parametros: 'Parámetros',
     ayudaParametros: 'Los móviles los aplican en su próxima sincronización.',
     mesesRevision: 'Meses entre revisiones',

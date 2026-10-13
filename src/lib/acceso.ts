@@ -29,7 +29,7 @@ import {
   sincronizar,
 } from './puntos';
 import { anotarError } from './errores';
-import { LIMITES_RED } from './red';
+import { LIMITES_RED, fetchConLimite } from './red';
 import { desactivarPush, estadoPush, pedirEnvioPush, resincronizarPush } from './push';
 import { supabase } from './supabase';
 
@@ -122,6 +122,37 @@ export function limpiarDireccion(): void {
   if (limpia !== null) history.replaceState(history.state, '', limpia);
 }
 
+/** El usuario de la sesión de Google para el que ya se ha pedido unir la cuenta (una vez por sesión). */
+let vinculoPedido: string | null = null;
+const VINCULADA = ['VINCULADO', 'YA_VINCULADO'];
+
+/**
+ * POST /api/vincular-jefatura con el JWT de la sesión (docs/35 RV-400, 05 §9): une la fila de
+ * administradores a esta cuenta de Google. ¿Ha quedado unida? Lo demás (otra cuenta, no es
+ * administrador, un fallo) es que no; un fallo del servidor queda anotado, sin datos de la cuenta.
+ */
+async function vincularJefatura(token: string): Promise<boolean> {
+  try {
+    const r = await fetchConLimite(() => LIMITES_RED.rpc)('/api/vincular-jefatura', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const cuerpo = (await r.json().catch(() => ({}))) as { resultado?: string; error?: string };
+    if (r.ok && VINCULADA.includes(cuerpo.resultado ?? '')) return true;
+    if (r.ok || r.status >= 500) {
+      anotarError(
+        new Error(`vincular-jefatura: ${r.status} ${cuerpo.error ?? cuerpo.resultado ?? ''}`),
+        'vincular-jefatura',
+      );
+    }
+    return false;
+  } catch (e) {
+    anotarError(e, 'vincular-jefatura');
+    return false;
+  }
+}
+
 /**
  * Consulta al servidor quién es quién. Se llama al arrancar y en cada reintento de la
  * degradación controlada (FR-168); sin servidor no cambia nada de lo que ya funcionaba.
@@ -132,7 +163,14 @@ export async function comprobarAcceso(): Promise<void> {
     const { data } = await cliente.auth.getSession();
     limpiarDireccion();
     if (data.session) {
-      const r = await rpc<boolean>('fn_es_admin');
+      let r = await rpc<boolean>('fn_es_admin');
+      // La cuenta de jefatura se une a su cuenta de Google al entrar, una vez por sesión (docs/35
+      // RV-432, DEC-197): si se ha unido, se vuelve a preguntar. Si no, «No autorizado» de siempre.
+      const usuario = data.session.user.id;
+      if (r.ok && !r.datos && vinculoPedido !== usuario) {
+        vinculoPedido = usuario;
+        if (await vincularJefatura(data.session.access_token)) r = await rpc<boolean>('fn_es_admin');
+      }
       const correo = data.session.user.email ?? '';
       if (r.ok && r.datos) {
         const llega = estado.tipo !== 'jefatura';
@@ -334,4 +372,5 @@ export function _reiniciarAcceso(): void {
   estado = inicial();
   oyentes.clear();
   direccionLimpia = false;
+  vinculoPedido = null;
 }

@@ -32,6 +32,7 @@ import {
   revocarDispositivo,
   cargarSalud,
   origenTareas,
+  pendienteDeVincular,
   contarDispositivos,
   faltaEnParametros,
   generarCodigo,
@@ -374,6 +375,12 @@ function Administradores() {
                 {a.activo ? T.panelAjustes.activo : T.panelAjustes.sinAcceso}
               </span>
             </label>
+            {pendienteDeVincular(a) && (
+              <p className="basis-full text-[13px]">
+                <span className="text-ambar-texto font-semibold">{T.panelAjustes.pendienteVincular}</span>
+                <span className="text-texto-suave"> · {T.panelAjustes.ayudaPendienteVincular}</span>
+              </p>
+            )}
           </li>
         ))}
         <EstadoLista carga={carga} vacio={T.panelAjustes.administradoresVacio} />
