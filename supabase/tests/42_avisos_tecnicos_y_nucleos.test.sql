@@ -120,7 +120,7 @@ insert into hidrantes.propuestas (id, punto_id, operacion, datos, autor_nombre, 
 values ('00000000-0000-4000-8000-0000000042b1', '00000000-0000-4000-8000-0000000042a1', 'revision', '{}',
         'A', 'B', gen_random_uuid(), 'p42-a', 'fotos/42-a.jpg', now() - interval '1 hour'),
        ('00000000-0000-4000-8000-0000000042b2', '00000000-0000-4000-8000-0000000042a1', 'estado',
-        '{"caudal": "regular"}', 'A', 'B', gen_random_uuid(), 'p42-b', null, now() - interval '1 hour'),
+        '{"caudal": "regular"}', 'A', 'B', gen_random_uuid(), 'p42-b', 'fotos/42-b.jpg', now() - interval '1 hour'),
        ('00000000-0000-4000-8000-0000000042b3', '00000000-0000-4000-8000-0000000042a2', 'revision', '{}',
         'A', 'B', gen_random_uuid(), 'p42-c', 'fotos/42-c.jpg', now() - interval '1 hour');
 
