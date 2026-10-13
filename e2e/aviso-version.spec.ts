@@ -60,6 +60,9 @@ test.describe('el aviso de versión no tapa el final de la ficha (RV-424)', () =
     const aviso = (await page.getByTestId('aviso-version').boundingBox())!;
     // El botón termina por encima del aviso: no lo tapa.
     expect(boton.y + boton.height).toBeLessThanOrEqual(aviso.y);
+    // Ni nada del final de la ficha.
+    const ficha = (await page.getByRole('article').boundingBox())!;
+    expect(ficha.y + ficha.height).toBeLessThanOrEqual(aviso.y);
     // Y el toque llega al botón, no al aviso.
     await copiar.click({ trial: true });
   });

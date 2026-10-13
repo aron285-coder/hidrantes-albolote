@@ -24,6 +24,8 @@ import { BandaEntorno } from '@/componentes/BandaEntorno';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { useAcceso, useConexion, useMapabase, useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { useAncho } from '@/hooks/ancho';
+import { useVersionNueva } from '@/hooks/version';
+import { cn } from '@/lib/utils';
 import { type Destino, hayLugares, teclaBuscador, useBusquedaLugares, useIrADestino } from '@/hooks/busqueda';
 import { type Enfoque, calleResaltada, llevaNumero } from '@/lib/callejero';
 import { type Capa, NOMBRE_CAPA, atribucion, baseDebajo, capaGuardada, enLinea, guardarCapa } from '@/lib/capas';
@@ -86,6 +88,7 @@ export function Mapa() {
   const estadoPos = usePosicion();
   const ancho = useAncho();
   const navegar = useNavigate();
+  const hayVersion = useVersionNueva();
   const [params] = useSearchParams();
   const seleccionado = params.get('p');
   const aquiParam = params.get('aqui');
@@ -400,8 +403,14 @@ export function Mapa() {
   // Móvil: la ficha es una pantalla propia, con su barra y "volver".
   if (ficha && ancho === 'movil') {
     return (
-      // Deja sitio abajo al aviso de versión, que va fijo encima: si no, tapa el final (RV-424).
-      <div className="bg-fondo fixed inset-0 z-30 flex flex-col overflow-y-auto pb-[var(--aviso-abajo,0px)]">
+      // Deja sitio abajo al aviso de versión, que va fijo encima: si no, tapa el final (RV-424). El aviso
+      // va sobre la navegación de abajo, que la ficha tapa: el sitio es el aviso más la navegación.
+      <div
+        className={cn(
+          'bg-fondo fixed inset-0 z-30 flex flex-col overflow-y-auto',
+          hayVersion && 'pb-[calc(var(--aviso-abajo,0px)+var(--nav-abajo,0px))]',
+        )}
+      >
         {esPruebas && <BandaEntorno />}
         <BarraSuperior titulo={punto.codigo} alVolver={cerrarFicha} jefatura={acceso.tipo === 'jefatura'} />
         <div className="p-3">{ficha}</div>
