@@ -10,6 +10,7 @@ import {
   ETIQUETA_BLOQUEO,
   MENSAJE_EMPUJON,
   analizarArgumentos,
+  aprobadaOEsperando,
   checksObligatorios,
   compararChangelog,
   comprobarStaging,
@@ -893,5 +894,40 @@ describe('--solo-comprobar no cambia nada', () => {
     const s = simulado([[/^gh pr list .*--base develop/, ok('[]')]], { soloComprobar: true, hasta: 'release' });
     await publicar(s.ctx);
     expect(s.lineas()).toHaveLength(1);
+  });
+});
+
+// docs/35 RV-410: deploy-prod.yml construye en un trabajo sin environment antes del que pide la
+// aprobación. Mientras construye, la ejecución está in_progress sin estar aprobada.
+describe('deploy-prod con el build aparte (RV-410)', () => {
+  const run = (status: string) => ({ id: 77, status, conclusion: null, html_url: 'https://x/77' });
+  const jobs = (estado: string | null): Regla => [/actions\/runs\/77\/jobs/, ok(JSON.stringify(estado))];
+
+  it('waiting y completed cuentan sin mirar los trabajos', () => {
+    const s = simulado([]);
+    expect(aprobadaOEsperando(s.ctx, run('waiting'))).toBe(true);
+    expect(aprobadaOEsperando(s.ctx, run('completed'))).toBe(true);
+    expect(s.lineas()).toEqual([]);
+  });
+
+  it('in_progress mientras construye (desplegar aún no ha empezado): todavía no', () => {
+    expect(aprobadaOEsperando(simulado([jobs(null)]).ctx, run('in_progress'))).toBe(false);
+    expect(aprobadaOEsperando(simulado([jobs('queued')]).ctx, run('in_progress'))).toBe(false);
+    expect(aprobadaOEsperando(simulado([jobs('waiting')]).ctx, run('in_progress'))).toBe(false);
+  });
+
+  it('in_progress con desplegar en marcha o terminado: ya aprobada', () => {
+    expect(aprobadaOEsperando(simulado([jobs('in_progress')]).ctx, run('in_progress'))).toBe(true);
+    expect(aprobadaOEsperando(simulado([jobs('completed')]).ctx, run('in_progress'))).toBe(true);
+  });
+
+  it('queued: todavía no', () => {
+    expect(aprobadaOEsperando(simulado([]).ctx, run('queued'))).toBe(false);
+  });
+
+  it('si no puede leer los trabajos, se para con el motivo', () => {
+    expect(() => aprobadaOEsperando(simulado([[/jobs/, falla('HTTP 502')]]).ctx, run('in_progress'))).toThrow(
+      /No se han podido leer los trabajos/,
+    );
   });
 });

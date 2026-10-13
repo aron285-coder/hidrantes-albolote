@@ -283,10 +283,11 @@ select pg_temp.jefatura();
 select hidrantes.fn_cerrar_entrada();
 select hidrantes.fn_cambiar_codigo_acceso('123456', false);
 select is(hidrantes.fn_salud() -> 'entrada_abierta_hasta', 'null'::jsonb, 'un código nuevo sin revocar no abre la entrada');
-select hidrantes.fn_cambiar_codigo_acceso('654321', true);
+-- Desde docs/35 RV-402 (DEC-201) solo se abre si se pide (abrir_entrada); sin pedirlo, lo prueba 42.
+select hidrantes.fn_cambiar_codigo_acceso('654321', true, true);
 select ok((hidrantes.fn_salud() ->> 'entrada_abierta_hasta')::timestamptz
             between now() + interval '23 hours 59 minutes' and now() + interval '24 hours 1 minute',
-  'un código nuevo revocando todos la abre 24 h (sobre develop: no)');
+  'un código nuevo revocando todos y pidiendo abrir la entrada la abre 24 h');
 select ok(exists (select 1 from hidrantes.registro where accion = 'entrada_abierta'
                     and despues ->> 'motivo' = 'codigo_nuevo_revocando'),
   'y lo dice en el registro');

@@ -9,6 +9,7 @@ import {
   estadoCache,
   rutaTeselaDePrueba,
 } from './comprobar-despliegue.ts';
+import { avisoCache } from './comprobar-caches.ts';
 
 const RAIZ = path.resolve(import.meta.dirname, '..');
 const info = JSON.parse(readFileSync(path.join(RAIZ, 'datos', 'mapabase.json'), 'utf8'));
@@ -58,6 +59,14 @@ describe('estadoCache (RV-63)', () => {
     expect(estadoCache('hit')).toBe('funciona');
     expect(estadoCache('miss')).toBe('no_funciona');
     expect(estadoCache(null)).toBe('sin_dato');
+  });
+
+  // docs/35 RV-410: un secreto equivocado o la Function caída no se esconden tras un aviso de caché.
+  it('el aviso dice el estado HTTP cuando no es 200, y nada si sale de la caché', () => {
+    expect(avisoCache('/api/x', { cache: 'hit', estado: 200 })).toBeNull();
+    expect(avisoCache('/api/x', { cache: 'miss', estado: 200 })).toContain('no sale de la caché');
+    expect(avisoCache('/api/x', { cache: null, estado: 401 })).toContain('HTTP 401');
+    expect(avisoCache('/api/x', { cache: null, estado: 0 })).toContain('sin respuesta');
   });
 });
 

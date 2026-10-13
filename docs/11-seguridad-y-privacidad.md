@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se actualiza con cada revisión de seguridad y cada petición de derechos atendida. |
-| **Versión** | 1.3 — 23 de septiembre de 2026 (jefatura exige una sesión de Google, DEC-094; privacidad del incidente, la medición y la búsqueda, §6.1, DEC-089). 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
+| **Versión** | 1.4 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: §3, el techo global a 60 fallos por hora sin frenar a un móvil limpio, IPv6 por /48, solo peticiones de la propia app, el turno con espera máxima, los móviles recién entrados, la entrada que ya no se abre sola y revocar desde una hora; §9 al día (DEC-199, DEC-201). 1.3 — 23 de septiembre de 2026 (jefatura exige una sesión de Google, DEC-094; privacidad del incidente, la medición y la búsqueda, §6.1, DEC-089). 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
 | **Propietario de** | el modelo de acceso y amenazas, la protección del código, RLS y permisos, qué datos personales se guardan y por qué, retención, el procedimiento del derecho de supresión, y el aviso legal. |
 | **Para** | jefatura (que es la responsable del tratamiento) y construcción. Escrito para tenerlo **antes** de que alguien pregunte. |
 | **Referencias** | las cifras medibles están en **03** §5–7; los campos en **05**; la infraestructura en **04**. |
@@ -64,17 +64,26 @@ límite. Cinco capas, y por qué no basta con la primera:
 2. **Límite por IP real (30/h).** No se puede leer `x-forwarded-for` en Postgres porque el cliente lo
    falsifica. La Pages Function de Cloudflare ve `CF-Connecting-IP`, que el cliente no puede alterar,
    y es la única capa que conoce la IP; la guarda como `sha256(SAL_IP + ip)`, nunca en claro. En
-   IPv6 el límite "por IP" es **por /64** (los cuatro primeros grupos): un atacante rota direcciones
-   dentro de su /64 con facilidad (RV-14). Una IPv4 mapeada cuenta como la IPv4, también escrita en
+   IPv6 el límite "por IP" es **por /48** (los tres primeros grupos; hasta `docs/35`, el /64): un
+   cliente suele tener un /48 o un /56 entero (RV-14, DEC-199). Una IPv4 mapeada cuenta como la IPv4, también escrita en
    hexadecimal (`::ffff:c000:201`); algo con forma de IPv6 imposible (dos `::`, más de 8 grupos) va a un
    cubo propio, `invalida`, que no se mezcla con ninguna IP de verdad. Una petición bloqueada deja como
    mucho una fila por IP, tope y minuto en `intentos_codigo` (0026, docs/18 RV-48).
-3. **Techo global (200/h).** Nadie lo esquiva cambiando de identidad. A ese ritmo, el millón de
-   combinaciones lleva unos 208 días, y Salud del sistema y la vigilancia diaria avisan mucho antes
-   (más de 300 fallos en 24 h, o cualquier bloqueo de todo el grupo: RV-14). La cuenta va bajo un
-   bloqueo, así que peticiones en paralelo no lo pasan. El techo se puede usar para dejar sin
-   entrar a los voluntarios con móvil nuevo mientras dure el ataque; la defensa completa
-   (Turnstile o una regla de Cloudflare) queda para una decisión (`docs/17` §12).
+3. **Techo global (60/h desde `docs/35`; antes 200).** Nadie lo esquiva cambiando de identidad. La
+   cuenta va bajo un bloqueo, así que peticiones en paralelo no lo pasan; el código se compara antes
+   de pedir ese turno y el turno se espera como mucho 3 s (si no llega, `OCUPADO`: «prueba otra vez»,
+   sin contar como intento). **El techo no frena a un móvil limpio** (DEC-199): si ni el
+   `dispositivo_id` ni la IP agrupada tienen ningún fallo en 24 h, el intento se compara igual; con el
+   código bueno entra, y con uno malo cuenta como fallo y ese móvil y esa IP quedan frenados como los
+   demás. Así el voluntario que escribe bien el código entra aunque alguien esté probando códigos.
+   La primera vez que salta en una hora, jefatura recibe un **aviso técnico** por push (RV-404), y
+   Salud y la vigilancia lo cuentan como hasta ahora (más de 300 fallos en 24 h, o cualquier bloqueo
+   de todo el grupo: RV-14). Las Functions solo atienden **peticiones de la propia app** (cuerpo JSON y
+   mismo origen; las de servidor a servidor no llevan origen): `ORIGEN_NO_PERMITIDO` a las demás.
+   **Cuánto queda:** a 60 fallos por hora son 1.440 al día, un 4 % del millón de códigos al mes si
+   nadie hace nada; con el aviso a jefatura y el código cambiado al día siguiente, un 0,14 %. Las seis
+   cifras no cambian (DEC-004). Turnstile se descartó: añade a la entrada un paso y un script de
+   terceros (DEC-199).
 3b. **Tope de canjes buenos (20 por IP y día, 40 por hora en total desde 0041; antes 150 y 150).**
    Quien tenga el código no puede crear dispositivos sin fin para saltarse las cuotas por dispositivo.
    Con 150 por IP y día se sacaban unas 9.000 propuestas al día desde una sola IP (docs/32 RV-221,
@@ -83,13 +92,21 @@ límite. Cinco capas, y por qué no basta con la primera:
    **Desde 0044 (docs/33 RV-300, DEC-190)** los dos topes se cambian en Ajustes (5–500 y 10–500), y
    jefatura puede **abrir la entrada para todos** (24 h por defecto, 72 como mucho): mientras está
    abierta, los dos topes de canjes buenos pasan a 200 y los móviles que entran no tienen el límite de
-   móvil nuevo. Se abre sola 24 h al generar un código nuevo revocando todos los móviles (la respuesta
-   a un código filtrado: los ~65 vuelven a entrar a la vez desde la misma wifi). **Las capas 1 a 3 no
+   móvil nuevo. Desde `docs/35` (DEC-201) **ya no se abre sola** al generar un código nuevo revocando
+   todos los móviles: jefatura lo pide en la misma confirmación (`abrir_entrada`, sin marcar), porque
+   ante una filtración no conviene relajar los topes sin querer. **Las capas 1 a 3 no
    cambian**: solo se abre a quien sabe el código. Quien pruebe códigos sigue frenado igual, y el
    tope de canjes buenos responde lo mismo con código bueno o malo (no sirve para probar). Abrir y
    cerrar queda en el registro con quién y hasta cuándo; Salud y la vigilancia cuentan los móviles
-   con el código bueno que el tope no ha dejado entrar (`entradas_frenadas_24h`; aviso con más de 5).
+   con el código bueno que el tope no ha dejado entrar (`entradas_frenadas_24h`; aviso con más de 5),
+   con una fila como mucho por móvil y hora (DEC-199).
    El "token nuevo" se mide desde la primera vez que se vio el móvil, no desde su último token (RV-302).
+   **Móviles recién entrados (DEC-201):** entre todos, los móviles en sus primeras 24 h (sin contar los
+   que entraron con la entrada abierta ni los de jefatura) gastan como mucho **la mitad** del tope del
+   grupo de propuestas (`max_propuestas_dia_total`) y de fotos (`max_subidas_dia_total`); el resto del
+   grupo conserva la otra mitad. Con la entrada abierta no se aplica. Y el espacio de fotos de
+   jefatura cuenta sus bytes reales y **solo sus** reservas abiertas: las de los voluntarios no le
+   quitan el sitio.
 4. **Token de dispositivo.** Tras el primer canje, el móvil usa un token aleatorio de 32 bytes (se
    guarda su hash); el código no vuelve a viajar. Los 65 voluntarios dejan de tocar el sistema de
    intentos, así que activar el techo global no deja a nadie fuera.
@@ -104,8 +121,9 @@ límite. Cinco capas, y por qué no basta con la primera:
    él, cada prueba cuenta en el tope de canjes buenos (3b).
 
 Además: tiempo de respuesta constante (no filtra por duración), rotación en un minuto desde
-Ajustes con elección entre cerrar accesos nuevos o revocar todos los dispositivos (FR-34), y
-caducidad del token a los 365 días sin uso.
+Ajustes con elección entre cerrar accesos nuevos o revocar todos los dispositivos (FR-34), revocar
+solo los móviles que han entrado desde una fecha y hora (como mucho 30 días atrás; nunca los de
+jefatura; al registro con el número y la hora, DEC-201), y caducidad del token a los 365 días sin uso.
 
 **Qué hacer si el código se ha filtrado:** Ajustes → Código de acceso → marcar *Revocar todos los
 dispositivos* → Generar uno nuevo → confirmar → comunicar el nuevo por el canal habitual. Revisar en
@@ -362,9 +380,12 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | El techo global deja fuera a los 65 | Token de dispositivo: quien entró no vuelve a pasar por el control. |
 | Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota por dispositivo y tope global (0039); tope de espacio, 6 reservas abiertas por móvil y tope global que no cuenta lo que no se sube (0041, DEC-182). |
 | Llenar la base de datos con un token | Longitud máxima de cada texto y 60 propuestas por dispositivo y día (0039, DEC-174). |
-| Llenar la base de datos sacando tokens nuevos | 20 canjes por IP y día y 40 por hora; 10 propuestas al día las primeras 24 h de un token; 600 al día entre todos; `SIN_ESPACIO` a 400 MB (0041, DEC-183). |
+| Llenar la base de datos sacando tokens nuevos | 20 canjes por IP y día y 40 por hora; 10 propuestas al día las primeras 24 h de un token; 600 al día entre todos; `SIN_ESPACIO` a 400 MB (0041, DEC-183). Los móviles en sus primeras 24 h, entre todos, como mucho la mitad de las propuestas y fotos del grupo (`docs/35`, DEC-201). |
+| Dejar sin espacio de fotos a jefatura | Para jefatura cuentan sus bytes reales y solo sus reservas abiertas (`docs/35`, DEC-201). |
+| Que el techo global deje fuera a quien sabe el código | Un móvil y una IP sin fallos en 24 h se comparan igual; aviso técnico a jefatura (`docs/35`, DEC-199). |
+| Peticiones a las Functions desde otras webs | Solo cuerpo JSON y mismo origen; si no, `ORIGEN_NO_PERMITIDO` (`docs/35`, DEC-199). |
 | Agotar el cupo de errores con la RPC vieja de 5 argumentos | Cupo propio: 200 al día y 10 por dispositivo, que no gasta el de `/api/error` (0041, RV-222). Desde 0044 ya no la ejecutan `anon` ni `authenticated` (docs/33 RV-306, #472). |
-| La entrada abierta para todos se usa para sacar tokens sin fin | Solo con el código bueno; los topes de fallos no cambian; dura como mucho 72 h y queda en el registro; jefatura la cierra en Ajustes (0044, docs/33 RV-300, DEC-190). |
+| La entrada abierta para todos se usa para sacar tokens sin fin | Solo con el código bueno; los topes de fallos no cambian; dura como mucho 72 h y queda en el registro; jefatura la cierra en Ajustes (0044, docs/33 RV-300, DEC-190). Desde `docs/35` no se abre sola al revocar (DEC-201). |
 | Saber si un navegador tiene avisos de jefatura | `fn_endpoint_tiene_jefatura` exige un token de voluntario y solo responde sí o no, sin de quién ni de qué; el endpoint es una URL no adivinable que solo conoce ese navegador (0044, RV-323). |
 | Jefatura no se entera de un fallo técnico si el desarrollador no está | Aviso técnico por push a jefatura (vigilancia, respaldo, despliegue, intentos con el código), como mucho uno por clave cada 24 h (intentos con el código, uno por hora), además de la issue de siempre. Si Supabase o las Pages Functions están caídas, el push no sale y queda solo la issue (0045, docs/35 RV-404, DEC-202). |
 | Avisos técnicos repetidos o que no vienen del sistema | Solo `service_role` puede encolarlos (`fn_encolar_aviso_tecnico`, sin `execute` para `public`, `anon` ni `authenticated`); deduplicados por clave con la fila bloqueada; claves cerradas (0045, RV-404). |

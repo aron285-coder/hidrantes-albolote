@@ -430,8 +430,8 @@ e2e/                    # Playwright
 | Workflow | Disparo | Hace |
 |---|---|---|
 | `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP, las ocho pruebas de intrusión de TR-40 (`scripts/intrusion.ts`, 11 §5) y Playwright contra Supabase local + `wrangler pages dev`; si la rama cambia migraciones, además la compatibilidad hacia atrás de §12 (en un PR a `main`, contra el commit que sirve producción, docs/32 RV-206). Un *push* nuevo cancela solo la ejecución anterior **de un PR** (`cancel-in-progress` únicamente con `pull_request`): la de un *push* a `develop` o `main` sigue hasta el final, porque `publicar` exige `ci.yml` en verde con el commit de la marca de staging y el commit del registro que llega detrás la cancelaría (docs/32 RV-205) |
-| `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), `ENTORNO=staging` en el proyecto de Pages y despliegue a Pages staging con el nombre del proyecto fijo (nunca el de producción: el token es de toda la cuenta, docs/31 RV-130) y, si cambió `workers/` o aún no existe, el Worker de los avisos (DEC-097) |
-| `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, `ENTORNO=produccion` en el proyecto de Pages, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
+| `deploy-staging.yml` | merge a `develop` | cuatro trabajos (§11.2, DEC-198): `construir` y `fotos-seed` sin secretos; `desplegar`, con el *environment* `staging`: comprueba que el build es de staging, `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), `ENTORNO=staging` en el proyecto de Pages, despliegue a Pages staging con el nombre del proyecto fijo (nunca el de producción: el token es de toda la cuenta, docs/31 RV-130), el Worker de los avisos en cada push (DEC-097), versión, cabeceras, mapa base servido y caché de las Functions (`comprobar-despliegue.ts`, con `node`), la versión del mapa base en Salud del sistema y las fotos del seed; `comprobar`, sin secretos: e2e de cabeceras y Lighthouse |
+| `deploy-prod.yml` | merge a `main`, tras aprobación | `construir` sin secretos; `desplegar`, con el *environment* `production` (la aprobación): guarda de seguridad (sin seed, `PROJECT_REF` correcto) y que el build es de producción, `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, `ENTORNO=produccion` en el proyecto de Pages, despliegue, versión y cabeceras servidas (`comprobar-despliegue.ts`, con `node`), versión del mapa base y paridad; `avisar` si `desplegar` falla o se cancela después de empezar, y `cerrar` si todo va bien (§11.2, DEC-198). El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
 | `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
 | `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema, también en un ensayo. La primera pasada programada es ensayo, con su issue, hasta que haya `config.ultima_purga_fotos` (DEC-129) |
 | `canario-ubuntu.yml` | miércoles 05:13 UTC, y a mano | el camino crítico (`preparar` con psql, typecheck y tests) en `ubuntu-26.04`, sin tocar ninguna base de datos. Los demás trabajos van fijos en `ubuntu-24.04` (DEC-128) |
@@ -502,6 +502,49 @@ Fase 0.
 
 ---
 
+### 11.2 Dependencias y secretos (DEC-198)
+
+El código de las dependencias de npm **no corre con secretos** (docs/35 RV-410):
+
+- **Sin scripts de instalación.** `.npmrc` lleva `ignore-scripts=true`. Las dos dependencias que
+  necesitan el suyo (los binarios de `esbuild` y `workerd`) se reconstruyen a mano después de
+  `npm ci`: `npm rebuild esbuild workerd --ignore-scripts=false` (lo hace `.github/actions/preparar`;
+  en local, CLAUDE.md §6). `allowScripts` de `package.json` se queda solo con esas dos: npm 12 lo
+  exige para reconstruirlas. Con `ignore-scripts` npm tampoco corre `pre*` ni `post*`: `build`
+  genera las novedades él mismo.
+- **Los trabajos con secretos no tienen `node_modules`.** `preparar` con `npm: 'false'` (Node 24,
+  sin caché de npm) y los scripts con `node scripts/x.ts`, que quita los tipos: `migrar`,
+  `asegurar-propietario`, `cargar-zona`, `purgar-fotos`, `respaldo-fotos`, `restaurar`,
+  `comprobar-produccion`, `guarda-produccion`, `paridad`, `cargar-version-mapabase`,
+  `comprobar-despliegue`, `promover-piloto`, `fotos-seed-staging --desde` y `despachar`. Solo usan
+  módulos de Node, y un test lo comprueba recorriendo sus imports.
+- **Construir aparte de desplegar.** Cada despliegue tiene un trabajo `construir` sin *environment*
+  ni secretos (`contents: read`) que hace `npm ci` y el build con las variables públicas del
+  repositorio con sufijo `_STAGING` o `_PROD` (`SUPABASE_URL_*`, `SUPABASE_ANON_KEY_*`,
+  `VITE_VAPID_PUBLIC_KEY_*`, que pone `arranque.ts`, y, si el mapa base pasa a R2,
+  `VITE_MAPABASE_URL_*` junto a la del *environment*) y sube `dist` como artefacto de un día. `desplegar` lo descarga, comprueba antes
+  de migrar que lleva las variables de su *environment* (`.github/scripts/build-del-entorno.sh`) y
+  despliega con el `wrangler` de `.github/despliegue`: una carpeta con **solo** `wrangler` en
+  versión exacta, su lockfile y su propio `.npmrc` con `ignore-scripts` (`npm ci --prefix
+  .github/despliegue --ignore-scripts`). Dependabot la vigila aparte y nunca la fusiona sola.
+  Después, `comprobar-despliegue.ts` (con `node`) espera a que se sirva la versión nueva antes de
+  anunciar la del mapa base (RV-21). En staging, `comprobar` (sin secretos) pasa el e2e de cabeceras
+  y Lighthouse; las fotos del seed se generan en Chromium en un trabajo sin secretos y `desplegar`
+  sube las que falten. Si hay que relanzar un despliegue más de un día después, «Re-run all jobs»:
+  `dist` ya no existe.
+- **Avisos de producción.** `avisar` abre la issue «Deploy de producción fallido» solo si
+  `desplegar` llegó a empezar; si la puerta rechaza la aprobación o falla `construir`, producción
+  no se ha tocado.
+- **`persist-credentials: false`** en todo `checkout` de un trabajo con secretos o con permiso de
+  escritura. La excepción es `mantenimiento.yml` (`regenerar`), que empuja su rama con `git push`.
+- `scripts/workflows.test.ts` lo comprueba: ningún paso de un trabajo con secretos (salvo
+  `GITHUB_TOKEN`) llama a `npm run`, `npx`, `tsx` ni `npm ci` (salvo el `wrangler` de
+  `.github/despliegue`), tampoco a través de `preparar`, `navegadores` o un guion de
+  `.github/scripts`; y todo `checkout` de esos trabajos lleva `persist-credentials: false` o está en
+  la lista de excepciones, con su motivo.
+- `npm run publicar` espera a que `desplegar` pida la aprobación: mientras `construir` corre, la
+  ejecución está `in_progress` sin estar aprobada (§12.1).
+
 ## 12. Marcha atrás
 
 - **Frontend:** Pages conserva todos los despliegues; volver a uno es inmediato y sin reconstruir.
@@ -531,7 +574,7 @@ paso mira el estado real y sigue (PR ya fusionado, deploy ya aprobado…):
 |---|---|
 | 1 · `release` | Localiza el PR abierto de release-please (rama `release-please--…`, etiqueta `autorelease: pending`). Si no hay CI de `pull_request` para su cabeza, hace el empujón de DEC-079 sin cambiar de rama: `git commit-tree` de un commit vacío encima de la cabeza y `git push origin <sha>:refs/heads/<rama>`. Espera a que estén en verde **todos** los checks obligatorios de la protección de `develop` (uno que aún no existe, como `ci-e2e` mientras corren sus partes, no cuenta como verde) y lo fusiona con **squash**. |
 | 2 · `main` | Abre el PR `develop → main` (o usa el abierto), espera a que estén en verde todos los checks obligatorios de la protección de `main` y lo fusiona con **merge commit**, nunca squash (DEC-096; `ci-calidad` lo comprueba, RV-135). |
-| 3 · `despliegue` | Espera a que la ejecución de `deploy-prod.yml` de ese merge pida la aprobación (`waiting`). |
+| 3 · `despliegue` | Espera a que la ejecución de `deploy-prod.yml` de ese merge pida la aprobación (`waiting`). Mientras `construir` corre, la ejecución está `in_progress` y aún no hay nada que aprobar: solo cuenta como aprobada y en marcha si el trabajo `desplegar` ha empezado (§11.2). |
 | 4 · `puerta` | La puerta automática, abajo. |
 | 5 · `aprobar` | Puerta en verde: `POST repos/…/actions/runs/{id}/pending_deployments` con `state: approved`, el `id` del *environment* `production` y el resumen de la puerta como comentario. En rojo: lo mismo con `state: rejected`, y abre una issue con la etiqueta `bloquea-release` y el motivo; termina con error. |
 | 6 · `paridad` | Espera al final del deploy (que ya comprueba la paridad con `develop`) y repite `npm run comprobar-produccion -- --completo`. |

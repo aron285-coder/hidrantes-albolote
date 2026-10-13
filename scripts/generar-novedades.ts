@@ -1,6 +1,7 @@
 // Novedades de Ajustes (FR-167, AC-127) desde CHANGELOG.md, en el build (docs/17 RV-20, DEC-087).
 //
-//   npx tsx scripts/generar-novedades.ts        (lo corre `prebuild`)
+//   npx tsx scripts/generar-novedades.ts        (lo corre `npm run build`, al principio: con
+//                                                ignore-scripts no hay `prebuild`, docs/35 RV-410)
 //
 // Lee las entradas de release-please (`## [x.y.z](…) (fecha)`, `### Novedades`, `### Correcciones`)
 // y escribe src/generado/novedades.json con la última versión y hasta tres líneas legibles para un

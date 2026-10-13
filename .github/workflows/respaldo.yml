@@ -55,8 +55,12 @@ jobs:
           - 55422:5432
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Sin npm ci: los scripts corren con node, sin node_modules (docs/35 RV-410, DEC-198).
       - uses: ./.github/actions/preparar
         with:
+          npm: 'false'
           psql: 'true'
 
       - name: Comprobar que están los secretos
@@ -199,7 +203,7 @@ jobs:
           FECHA: ${{ steps.cuando.outputs.fecha }}
         run: |
           set -euo pipefail
-          npm run respaldo-fotos -- --destino "fotos-$FECHA" | tee salida.txt
+          node scripts/respaldo-fotos.ts --destino "fotos-$FECHA" | tee salida.txt
           bytes=$(grep -oP '^bytes=\K[0-9]+' salida.txt)
           echo "bytes=$bytes" >> "$GITHUB_OUTPUT"
           # Sin fotos todavía, respaldo-fotos no crea la carpeta y tar fallaba (4 oct 2026, #439):

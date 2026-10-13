@@ -577,6 +577,9 @@ function secretosGithub(
   const sufijo = sufijoDe(e);
   fijarVariable(`SUPABASE_URL_${sufijo}`, sb.url);
   fijarVariable(`SUPABASE_ANON_KEY_${sufijo}`, sb.anon);
+  // docs/35 RV-410 (DEC-198): el trabajo «construir» de los deploy no tiene environment y construye con
+  // las variables del repositorio; el que despliega comprueba que dist lleva las del environment.
+  if (vapidPublica) fijarVariable(`VITE_VAPID_PUBLIC_KEY_${sufijo}`, vapidPublica);
 
   // Por el mismo motivo, respaldo.yml y las demás tareas por calendario necesitan fuera de
   // `production` lo que ese entorno guarda tras una aprobación humana (DEC-071): los de producción,
@@ -705,7 +708,7 @@ ${filas.join('\n')}
 | Huella GPG de respaldos | \`${huellaTexto}\`${notaHuella} |
 | Secretos por environment | \`SUPABASE_DB_URL\`, \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\` (+ \`GPG_PUBLIC_KEY\` en production) |
 | Variables por environment | \`VITE_ENTORNO\`, \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_ANON_KEY\`, \`VITE_VAPID_PUBLIC_KEY\`, \`PAGES_PROYECTO\`, \`SUPABASE_PROJECT_REF\` |
-| Variables del repositorio | \`SUPABASE_URL_STAGING\`, \`SUPABASE_ANON_KEY_STAGING\`, \`SUPABASE_URL_PROD\`, \`SUPABASE_ANON_KEY_PROD\` (mantener-activo.yml, DEC-054) |
+| Variables del repositorio | \`SUPABASE_URL_STAGING\`, \`SUPABASE_ANON_KEY_STAGING\`, \`SUPABASE_URL_PROD\`, \`SUPABASE_ANON_KEY_PROD\` (mantener-activo.yml, DEC-054); \`VITE_VAPID_PUBLIC_KEY_STAGING\`, \`VITE_VAPID_PUBLIC_KEY_PROD\` (el trabajo construir de los deploy, DEC-198) |
 | Environment \`prod-tareas\` (sin revisores, solo \`develop\`) | \`SUPABASE_DB_URL_PROD\`, \`SUPABASE_SERVICE_ROLE_KEY_PROD\`, \`VIGILANCIA_SECRETO_PROD\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\`: las tareas de producción que no pueden esperar una aprobación (respaldo, purga de fotos, vigilancia, avisos a mano, comprobar-produccion; DEC-071, docs/31 RV-131, DEC-172) |
 | Secretos del repositorio | \`SUPABASE_DB_URL_STAGING\`, \`SUPABASE_SERVICE_ROLE_KEY_STAGING\` (promoción del piloto, DEC-078), \`GPG_PUBLIC_KEY\` (pública: cifra el respaldo, DEC-071), \`VIGILANCIA_SECRETO_STAGING\` (DEC-088), \`PROPIETARIO_EMAIL\` (DEC-053). Ninguno de producción: cualquier rama los podría leer (DEC-172) |
 | Secretos del Worker \`hidrantes-avisos\` | \`VIGILANCIA_SECRETO_{STAGING,PROD}\`, con los mismos valores que Pages y GitHub (docs/19 RV-52, DEC-097) |
@@ -888,7 +891,8 @@ export interface OpsFaltantes {
   fijarPages(proyecto: string, nombre: string, valor: string): void;
   fijarRepo(nombre: string, valor: string): void;
   fijarWorker(nombre: string, valor: string): EscrituraWorker;
-  fijarVariable(nombre: string, valor: string, entorno: string): void;
+  /** Sin entorno, del repositorio. */
+  fijarVariable(nombre: string, valor: string, entorno?: string): void;
   aplicar(e: Entorno): void;
   aleatorio(): string;
   vapid(): { privada: string; publica: string };
@@ -959,6 +963,7 @@ export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENT
       op.fijarPages(e.proyectoPages, 'VAPID_PRIVATE_KEY', par.privada);
       op.fijarPages(e.proyectoPages, 'VAPID_PUBLIC_KEY', par.publica);
       op.fijarVariable('VITE_VAPID_PUBLIC_KEY', par.publica, e.clave);
+      op.fijarVariable(`VITE_VAPID_PUBLIC_KEY_${sufijo}`, par.publica);
       puestos.push('VAPID_PRIVATE_KEY y VAPID_PUBLIC_KEY');
     }
     aMano.push(...plan.aMano.map((n) => `${n} en Pages ${e.proyectoPages}`));
@@ -970,12 +975,38 @@ export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENT
   return aMano;
 }
 
+/**
+ * docs/35 RV-410 (DEC-198): el trabajo «construir» de los deploy usa las variables públicas del
+ * repositorio con sufijo. Si falta la clave VAPID pública del repositorio, se copia la del
+ * environment (que es la que lleva Pages): así no cambia la clave de nadie.
+ */
+export function variablesDelBuildQueFaltan(enRepo: readonly string[]): string[] {
+  return ENTORNOS.map((e) => `VITE_VAPID_PUBLIC_KEY_${sufijoDe(e)}`).filter((n) => !enRepo.includes(n));
+}
+
+function copiarVariablesDelBuild(): void {
+  const enRepo = gh(['variable', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/);
+  for (const nombre of variablesDelBuildQueFaltan(enRepo)) {
+    const e = ENTORNOS.find((x) => nombre.endsWith(`_${sufijoDe(x)}`))!;
+    const valor = gh(['variable', 'get', 'VITE_VAPID_PUBLIC_KEY', '--repo', REPO, '--env', e.clave]).trim();
+    if (!valor) {
+      log.aviso(
+        `${nombre}: el environment ${e.clave} tampoco tiene VITE_VAPID_PUBLIC_KEY (lo pone el arranque completo).`,
+      );
+      continue;
+    }
+    fijarVariable(nombre, valor);
+    log.ok(`${nombre}, copiada del environment ${e.clave}`);
+  }
+}
+
 /** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
 async function soloFaltantes(): Promise<void> {
   log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
   const login = comprobarSesiones();
   await asegurarVariablePropietario(login, false);
   desplegarWorkerSiFalta();
+  copiarVariablesDelBuild();
   const aMano = await ponerFaltantes(OPS_REALES);
   if (aMano.length) log.aviso(`Faltan y solo los pone el arranque completo (npm run arranque): ${aMano.join('; ')}`);
 }
