@@ -49,8 +49,19 @@ export const VARIABLES_ENTORNO = [
   'SUPABASE_PROJECT_REF',
   'PAGES_PROYECTO',
 ];
+/**
+ * Variables del repositorio con las que construye el trabajo «construir» de deploy-prod.yml, que no
+ * tiene environment (docs/35 RV-410, DEC-198). Públicas: van en el bundle. El trabajo que despliega
+ * comprueba que dist lleva las del environment.
+ */
+export const VARIABLES_REPO = [
+  'SUPABASE_URL_PROD',
+  'SUPABASE_ANON_KEY_PROD',
+  'VITE_VAPID_PUBLIC_KEY_PROD',
+  'VITE_MAPABASE_URL_PROD',
+];
 /** Solo hace falta si el mapa base va en R2 (> 20 MB, 04 §8); sin ella se sirve desde Pages. */
-export const OPCIONALES = new Set(['VITE_MAPABASE_URL']);
+export const OPCIONALES = new Set(['VITE_MAPABASE_URL', 'VITE_MAPABASE_URL_PROD']);
 /** Secretos que puede tener el environment o el repositorio: GitHub los junta al ejecutar. */
 export const TAMBIEN_EN_REPO = new Set(['PROPIETARIO_EMAIL']);
 export const SECRETOS_PAGES = [
@@ -99,6 +110,7 @@ export interface EstadoToken {
 export interface Fuentes {
   secretosEntorno(): string[] | null;
   variablesEntorno(): string[] | null;
+  variablesRepo(): string[] | null;
   secretosRepo(): string[] | null;
   secretosTareas(): string[] | null;
   secretosPages(): string[] | null;
@@ -154,6 +166,10 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
     ...presentes('environment production · variables', VARIABLES_ENTORNO, f.variablesEntorno(), {
       opcionales: OPCIONALES,
       sinAcceso: 'sin sesión de gh con permisos de administrador',
+    }),
+    ...presentes('repositorio · variables del build', VARIABLES_REPO, f.variablesRepo(), {
+      opcionales: OPCIONALES,
+      sinAcceso: 'sin sesión de gh',
     }),
     ...presentes('Pages hidrantes-albolote · secretos', SECRETOS_PAGES, f.secretosPages(), {
       sinAcceso: 'sin wrangler con sesión o token',
@@ -369,9 +385,13 @@ function fuentesReales(): Fuentes {
   return {
     secretosEntorno: () => nombresGh(`repos/${repositorio().completo}/environments/production/secrets`, 'secrets'),
     variablesEntorno: () => nombresGh(`repos/${repositorio().completo}/environments/production/variables`, 'variables'),
+    variablesRepo: () => nombresGh(`repos/${repositorio().completo}/actions/variables`, 'variables'),
     secretosRepo: () => nombresGh(`repos/${repositorio().completo}/actions/secrets`, 'secrets'),
     secretosTareas: () => nombresGh(`repos/${repositorio().completo}/environments/prod-tareas/secrets`, 'secrets'),
     secretosPages: () => {
+      // En Actions no hay node_modules ni wrangler (docs/35 RV-410, DEC-198): queda NO COMPROBADO y
+      // lo comprueba la mitad local (--completo).
+      if (env.GITHUB_ACTIONS === 'true') return null;
       const r = ejecutar('npx', ['--no-install', 'wrangler', 'pages', 'secret', 'list', '--project-name', PAGES_PROD]);
       return r.codigo === 0 ? nombresWrangler(r.salida) : null;
     },
@@ -494,7 +514,7 @@ async function principal(): Promise<void> {
   const { secretos, variables } = requeridosDeWorkflow(yml);
   const fuera = [
     ...secretos.filter((s) => !SECRETOS_ENTORNO.includes(s)),
-    ...variables.filter((v) => !VARIABLES_ENTORNO.includes(v)),
+    ...variables.filter((v) => !VARIABLES_ENTORNO.includes(v) && !VARIABLES_REPO.includes(v)),
   ];
   if (fuera.length) log.aviso(`deploy-prod.yml usa algo que esta lista no conoce: ${fuera.join(', ')}`);
   let filas = await comprobar(fuentesReales(), leerMigraciones());

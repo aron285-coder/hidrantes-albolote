@@ -57,6 +57,7 @@ select set_eq(
 
 insert into hidrantes.administradores (email, creado_por) values
   ('admin@example.com', 'test'), ('antiguo@example.com', 'test');
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 update hidrantes.administradores set activo = false where email = 'antiguo@example.com';
 insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, fecha_ultima_revision)
 values ('00000000-0000-4000-8000-000000000001', 'HID-0200', 'hidrante', 'SRID=4326;POINT(-3.6569 37.2308)',
@@ -83,7 +84,7 @@ reset role;
 
 -- ---------- authenticated sin ser administrador ----------
 
-select set_config('request.jwt.claims', '{"email":"voluntario@example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
+select set_config('request.jwt.claims', '{"sub":"5238debc-4b22-d42d-173a-3443870a4394","email":"voluntario@example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 select is((select count(*)::int from hidrantes.puntos), 0, 'no administrador: puntos vacío');
 select is((select count(*)::int from hidrantes.propuestas), 0, 'no administrador: propuestas vacío');
@@ -97,14 +98,14 @@ select throws_ok(
 reset role;
 
 -- administrador desactivado
-select set_config('request.jwt.claims', '{"email":"antiguo@example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
+select set_config('request.jwt.claims', '{"sub":"e93772c8-b0d3-40c0-69fb-c46871b0822c","email":"antiguo@example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 select is((select count(*)::int from hidrantes.puntos), 0, 'administrador desactivado: no ve nada');
 reset role;
 
 -- ---------- administrador activo (mayúsculas en el JWT: se compara en minúsculas) ----------
 
-select set_config('request.jwt.claims', '{"email":"Admin@Example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
+select set_config('request.jwt.claims', '{"sub":"e64c7d89-f26b-d197-2efa-854d13d7dd61","email":"Admin@Example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 select ok(hidrantes.fn_es_admin(), 'fn_es_admin() reconoce al administrador activo');
 select ok((select count(*) from hidrantes.puntos where codigo = 'HID-0200') = 1, 'administrador: ve puntos');

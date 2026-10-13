@@ -158,7 +158,7 @@ describe('vigilancia y avisos sin fallos silenciosos (RV-38)', () => {
     const comprobar = mirar.slice(mirar.indexOf('- name: Comprobar'), mirar.indexOf('- name: Rehabilitar'));
     expect(comprobar).not.toMatch(/\bnpm\b|\bnpx\b|\bnode\b/);
     const preparar = readFileSync(path.resolve(import.meta.dirname, '../.github/actions/preparar/action.yml'), 'utf8');
-    expect(preparar).toMatch(/- if: inputs\.npm == 'true'\n\s+run: npm ci/);
+    expect(preparar).toMatch(/- if: inputs\.npm == 'true'\n\s+run: \|\n\s+npm ci\n/);
   });
 
   it('la vigilancia pasa la lista de tareas esperadas a la consulta de pg_cron', () => {
@@ -210,8 +210,8 @@ describe('paridad de producción (P-03)', () => {
     const paridad = texto.indexOf('- name: Paridad con develop');
     expect(paridad).toBeGreaterThan(-1);
     expect(paridad).toBeGreaterThan(texto.indexOf('wrangler pages deploy'));
-    expect(paridad).toBeGreaterThan(texto.indexOf('npm run cargar-version-mapabase'));
-    expect(texto.slice(paridad)).toContain('npm run paridad');
+    expect(paridad).toBeGreaterThan(texto.indexOf('node scripts/cargar-version-mapabase.ts'));
+    expect(texto.slice(paridad)).toContain('node scripts/paridad.ts');
     // Sin historia completa no hay HEAD^2 con el que comparar el árbol.
     expect(texto).toMatch(/fetch-depth: 0/);
   });
@@ -231,7 +231,8 @@ describe('deploy de producción fallido (RV-136)', () => {
   const paso = (texto: string, nombre: string) => {
     const desde = texto.indexOf(`- name: ${nombre}`);
     expect(desde, nombre).toBeGreaterThan(-1);
-    return texto.slice(desde).split(/\n\s{6}- /)[0]!;
+    // Hasta el paso siguiente o hasta el trabajo siguiente (o su comentario), lo que llegue antes.
+    return texto.slice(desde).split(/\n\s{6}- |\n(?= {0,2}\S)/)[0]!;
   };
 
   /** El guion de un `run: |`, sin la sangría del YAML. */
@@ -288,7 +289,9 @@ describe('deploy de producción fallido (RV-136)', () => {
   };
   const JOBS = JSON.stringify({
     jobs: [
+      { name: 'construir', steps: [{ name: 'npm run build', conclusion: 'success' }] },
       {
+        name: 'desplegar',
         steps: [
           { name: 'Guarda de seguridad', conclusion: 'success' },
           { name: 'Paridad con develop', conclusion: 'failure' },
@@ -300,11 +303,13 @@ describe('deploy de producción fallido (RV-136)', () => {
 
   it('con un paso fallido o cancelado, abre o reabre la issue y dice qué paso falló', () => {
     const p = paso(prod, 'Avisar del fallo');
-    expect(p).toContain('if: failure() || cancelled()');
-    expect(p).toContain('ESTADO: ${{ job.status }}');
+    // docs/35 RV-410: en su propio trabajo, después de todos los que pueden fallar.
+    const trabajo = prod.slice(prod.indexOf('\n  avisar:\n'), prod.indexOf('- name: Avisar del fallo'));
+    expect(trabajo).toContain('needs: [construir, desplegar]');
+    expect(trabajo).toContain("if: (failure() || cancelled()) && needs.desplegar.result != 'skipped'");
+    expect(p).toContain("ESTADO: ${{ contains(needs.*.result, 'cancelled') && 'cancelled' || 'failure' }}");
     expect(p).toContain("titulo='Deploy de producción fallido'");
-    // Después de todos los pasos que pueden fallar.
-    expect(prod.indexOf('- name: Avisar del fallo')).toBeGreaterThan(prod.indexOf('npm run paridad'));
+    expect(prod.indexOf('- name: Avisar del fallo')).toBeGreaterThan(prod.indexOf('node scripts/paridad.ts'));
   });
 
   it.skipIf(!tieneJq)('sin issue, la crea con el paso que falló', () => {
@@ -313,6 +318,27 @@ describe('deploy de producción fallido (RV-136)', () => {
     expect(r.anotado).toBe('gh issue create --title\n');
     expect(r.cuerpo).toContain('ha terminado con **failure**, en: **Paridad con develop**');
     expect(r.cuerpo).toContain('`aaaaaaa`');
+  });
+
+  // docs/35 RV-410: el aviso va en su trabajo; con la aprobación rechazada, `desplegar` falla sin pasos.
+  it.skipIf(!tieneJq)('si desplegar no llegó a correr ningún paso, no abre la issue y lo dice en el resumen', () => {
+    const sinPasos = JSON.stringify({
+      jobs: [
+        { name: 'construir', steps: [{ name: 'npm run build', conclusion: 'success' }] },
+        { name: 'desplegar', steps: [] },
+      ],
+    });
+    const resumen = path.join(mkdtempSync(path.join(tmpdir(), 'resumen-')), 'resumen.md');
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), {
+      JOBS: sinPasos,
+      ISSUES: '[]',
+      ESTADO: 'failure',
+      GITHUB_STEP_SUMMARY: resumen,
+    });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('');
+    expect(readFileSync(resumen, 'utf8')).toContain('no ha llegado a empezar');
+    rmSync(path.dirname(resumen), { recursive: true, force: true });
   });
 
   it.skipIf(!tieneJq)('si no puede leer los pasos, abre la issue igual y lo dice', () => {
@@ -338,14 +364,17 @@ describe('deploy de producción fallido (RV-136)', () => {
 
   it('con el despliegue bien, cierra la issue de un fallo anterior', () => {
     const p = paso(prod, 'Cerrar el aviso de un fallo anterior');
-    expect(p).toContain('if: success()');
+    const trabajo = prod.slice(prod.indexOf('\n  cerrar:\n'), prod.indexOf('- name: Cerrar el aviso'));
+    expect(trabajo).toContain('needs: [construir, desplegar]');
+    expect(trabajo).toContain('if: success()');
     expect(p).toContain("titulo='Deploy de producción fallido'");
     expect(p).toContain('gh issue close');
   });
 
   it('tiene permiso para las issues y para leer los pasos de su ejecución', () => {
-    expect(prod).toMatch(/^\s{2}issues: write$/m);
-    expect(prod).toMatch(/^\s{2}actions: read$/m);
+    const avisar = prod.slice(prod.indexOf('\n  avisar:\n'), prod.indexOf('\n  cerrar:\n'));
+    expect(avisar).toMatch(/^ {4}permissions:\n {6}issues: write\n {6}actions: read$/m);
+    expect(prod.slice(prod.indexOf('\n  cerrar:\n'))).toMatch(/^ {4}permissions:\n {6}issues: write$/m);
   });
 
   it.skipIf(!tieneJq)('con todo bien, cierra solo la issue abierta de ese título', () => {
@@ -436,7 +465,7 @@ describe('Worker hidrantes-avisos (RV-52)', () => {
     expect(paso).toBeGreaterThan(texto.indexOf('wrangler pages deploy'));
     const cuerpo = texto.slice(paso, texto.indexOf('\n      - name:', paso + 10));
     expect(cuerpo).toContain(
-      'npx wrangler deploy --config workers/avisos/wrangler.toml --var "VERSION_CODIGO:$version"',
+      '.github/despliegue/node_modules/.bin/wrangler deploy --config workers/avisos/wrangler.toml --var "VERSION_CODIGO:$version"',
     );
     expect(cuerpo).toContain('version=$(git log -1 --format=%H -- workers)');
     expect(cuerpo).not.toMatch(/git diff/);
@@ -1122,7 +1151,7 @@ describe('mantenimiento de docs/22', () => {
   it('la primera pasada programada de la purga es ensayo y lee ultima_purga_fotos (RV-94)', () => {
     const texto = leer('purgar-fotos.yml');
     expect(texto).toContain("PROGRAMADA: ${{ github.event_name == 'schedule' && '--programada' || '' }}");
-    expect(texto).toContain('npm run purgar-fotos -- $ENSAYO $PROGRAMADA');
+    expect(texto).toContain('node scripts/purgar-fotos.ts $ENSAYO $PROGRAMADA');
     expect(texto).toContain("if: ${{ steps.purga.outputs.primera_vez == '1' }}");
     expect(texto).toContain('Primera purga de fotos: revisa el ensayo');
     const script = readFileSync(path.resolve(import.meta.dirname, 'purgar-fotos.ts'), 'utf8');
@@ -1288,5 +1317,279 @@ describe('las instrucciones de reparación no deshacen DEC-172 (docs/32 RV-209)'
     expect(purga).not.toMatch(/secrets\.SUPABASE_URL_PROD|secret set SUPABASE_URL_PROD/);
     expect(purga).toContain('gh variable set SUPABASE_URL_PROD');
     expect(purga).toContain('la variable SUPABASE_URL_PROD');
+  });
+});
+
+// docs/35 RV-410 (DEC-198): el código de las dependencias no corre con secretos.
+describe('dependencias sin secretos (RV-410)', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  const sinComentarios = (t: string) => t.replace(/^\s*#.*$/gm, '');
+
+  /** Los trabajos de un workflow, con su texto sin comentarios. */
+  const trabajosDe = (texto: string) => {
+    const t = sinComentarios(texto);
+    const desde = t.search(/^jobs:\n/m);
+    if (desde === -1) return [];
+    return t
+      .slice(desde)
+      .split(/^(?= {2}[\w-]+:\s*$)/m)
+      .slice(1)
+      .map((p) => ({ nombre: /^ {2}([\w-]+):/.exec(p)![1]!, texto: p }));
+  };
+  /** ¿Tiene el trabajo algún permiso de escritura? Los suyos, o los del workflow si no declara. */
+  const escribe = (workflow: string, trabajo: string) => {
+    const propios = /^ {4}permissions:(.*(?:\n {6}.*)*)/m.exec(trabajo);
+    if (propios) return /:\s*write\b|write-all/.test(propios[1]!);
+    const generales = /^permissions:(.*(?:\n {2}.*)*)/m.exec(sinComentarios(workflow));
+    return generales ? /:\s*write\b|write-all/.test(generales[1]!) : true;
+  };
+  const conSecretos = (trabajo: string) => /secrets\.(?!GITHUB_TOKEN\b)\w+|secrets\[/.test(trabajo);
+  const pasos = (trabajo: string) => trabajo.split(/\n(?= {6}- )/).slice(1);
+
+  /** Una línea de shell sin el texto entre comillas: un mensaje que nombra `npm run` no lo ejecuta. */
+  const sinCadenas = (l: string) => l.replace(/'[^']*'/g, "''").replace(/"(?:\\.|[^"\\])*"/g, '""');
+  const ORDEN = /(?:^|[\s;&|(`]|\$\()(npx|tsx|npm\s+(?:run|exec|x|ci|install|i|rebuild|run-script|test|start))\b(.*)$/;
+  /** Lo que un paso ejecuta con el código de las dependencias: `npm run`, `npx`, `tsx`, `npm ci`… */
+  function ordenesDeNpm(paso: string): string[] {
+    const r: string[] = [];
+    for (const l of paso.split('\n')) {
+      const m = ORDEN.exec(sinCadenas(l));
+      if (!m) continue;
+      // La única excepción: instalar solo wrangler, con su lockfile, en .github/despliegue.
+      if (/^npm\s+ci$/.test(m[1]!) && /^\s+--prefix \.github\/despliegue --ignore-scripts\s*$/.test(m[2]!)) continue;
+      r.push(l.trim());
+    }
+    // Las acciones del repositorio que instalan dependencias.
+    if (/uses: \.\/\.github\/actions\/preparar/.test(paso) && !/npm: 'false'/.test(paso)) r.push('preparar con npm ci');
+    if (/uses: \.\/\.github\/actions\/navegadores/.test(paso)) r.push('navegadores (npx playwright install)');
+    // Los guiones de .github/scripts que el paso ejecuta.
+    for (const m of paso.matchAll(/\.github\/scripts\/([\w-]+\.sh)/g)) {
+      const guion = sinComentarios(readFileSync(path.join(raiz, '.github/scripts', m[1]!), 'utf8'));
+      if (guion.split('\n').some((l) => ORDEN.test(sinCadenas(l)))) r.push(`${m[1]} usa npm, npx o tsx`);
+    }
+    return r;
+  }
+
+  it('la comprobación ve npm run, npx, tsx y npm ci, pero no un mensaje ni el wrangler de despliegue', () => {
+    expect(ordenesDeNpm('      - run: npm run migrar')).toHaveLength(1);
+    expect(ordenesDeNpm('      - run: |\n          set -e\n          npx wrangler pages deploy dist')).toHaveLength(1);
+    expect(ordenesDeNpm('      - run: npx tsx scripts/x.ts')).toHaveLength(1);
+    expect(ordenesDeNpm('      - run: echo PROMOVER | npm run promover-piloto')).toHaveLength(1);
+    expect(ordenesDeNpm('      - run: npm ci')).toHaveLength(1);
+    expect(ordenesDeNpm('      - uses: ./.github/actions/preparar\n        with:\n          psql: true')).toHaveLength(
+      1,
+    );
+    expect(ordenesDeNpm('      - uses: ./.github/actions/navegadores')).toHaveLength(1);
+    expect(ordenesDeNpm("      - run: echo 'npm run traspasar-secreto -- --secreto X'")).toEqual([]);
+    expect(ordenesDeNpm('      - run: aviso="mientras, npm run arranque -- --solo-faltantes"')).toEqual([]);
+    expect(ordenesDeNpm('      - run: node scripts/migrar.ts')).toEqual([]);
+    expect(ordenesDeNpm('      - run: npm ci --prefix .github/despliegue --ignore-scripts')).toEqual([]);
+    expect(ordenesDeNpm('      - run: npm ci --prefix .github/despliegue')).toHaveLength(1);
+    expect(ordenesDeNpm("      - uses: ./.github/actions/preparar\n        with:\n          npm: 'false'")).toEqual([]);
+  });
+
+  it('ningún paso de un trabajo con secretos ejecuta npm run, npx, tsx ni npm ci (salvo wrangler aparte)', () => {
+    const malos = archivos.flatMap((a) =>
+      trabajosDe(leer(a))
+        .filter((t) => conSecretos(t.texto))
+        .flatMap((t) => pasos(t.texto).flatMap((p) => ordenesDeNpm(p).map((o) => `${a}:${t.nombre}: ${o}`))),
+    );
+    expect(malos).toEqual([]);
+  });
+
+  /** Checkouts que dejan el token en .git/config porque el trabajo hace git push, con su motivo. */
+  const CON_CREDENCIALES: Record<string, string> = {
+    'mantenimiento.yml:regenerar': 'empuja la rama con los datos regenerados (git push) para abrir su PR',
+  };
+
+  it('todo checkout de un trabajo con secretos o con permiso de escritura lleva persist-credentials: false', () => {
+    const malos = archivos.flatMap((a) =>
+      trabajosDe(leer(a))
+        .filter((t) => conSecretos(t.texto) || escribe(leer(a), t.texto))
+        .filter((t) => !CON_CREDENCIALES[`${a}:${t.nombre}`])
+        .flatMap((t) =>
+          pasos(t.texto)
+            .filter((p) => /uses: actions\/checkout@/.test(p) && !/persist-credentials: false/.test(p))
+            .map(() => `${a}:${t.nombre}`),
+        ),
+    );
+    expect(malos).toEqual([]);
+    // Las excepciones existen y de verdad empujan.
+    for (const clave of Object.keys(CON_CREDENCIALES)) {
+      const [a, nombre] = clave.split(':');
+      const t = trabajosDe(leer(a!)).find((x) => x.nombre === nombre);
+      expect(t?.texto, clave).toMatch(/git push/);
+    }
+  });
+
+  it('.npmrc no ejecuta los scripts de instalación; allowScripts, solo esbuild y workerd (npm 12 lo exige para rebuild)', () => {
+    expect(readFileSync(path.join(raiz, '.npmrc'), 'utf8')).toMatch(/^ignore-scripts=true$/m);
+    expect(readFileSync(path.join(raiz, '.github/despliegue/.npmrc'), 'utf8')).toMatch(/^ignore-scripts=true$/m);
+    const pkg = JSON.parse(readFileSync(path.join(raiz, 'package.json'), 'utf8'));
+    expect(pkg.allowScripts ?? {}).toEqual({ esbuild: true, workerd: true });
+    // Con ignore-scripts no corren pre ni post: generar las novedades va dentro de build.
+    const enganchados = Object.keys(pkg.scripts).filter(
+      (n) => n === 'prepare' || ['pre', 'post'].some((p) => n.startsWith(p) && n.slice(p.length) in pkg.scripts),
+    );
+    expect(enganchados).toEqual([]);
+    expect(pkg.scripts.build).toMatch(/^tsx scripts\/generar-novedades\.ts && /);
+  });
+
+  it('preparar reconstruye solo esbuild y workerd después de npm ci, y sin npm no usa la caché', () => {
+    const preparar = readFileSync(path.join(raiz, '.github/actions/preparar/action.yml'), 'utf8');
+    const ci = preparar.indexOf('npm ci\n');
+    expect(ci).toBeGreaterThan(-1);
+    expect(preparar.indexOf('npm rebuild esbuild workerd --ignore-scripts=false\n')).toBeGreaterThan(ci);
+    expect(preparar).toContain("cache: ${{ inputs.npm == 'true' && 'npm' || '' }}");
+  });
+
+  it('.github/despliegue tiene solo wrangler, en versión exacta, con su lockfile', () => {
+    const pkg = JSON.parse(readFileSync(path.join(raiz, '.github/despliegue/package.json'), 'utf8'));
+    expect(Object.keys(pkg.dependencies)).toEqual(['wrangler']);
+    expect(pkg.dependencies.wrangler).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(pkg).not.toHaveProperty('devDependencies');
+    expect(pkg).not.toHaveProperty('scripts');
+    const lock = JSON.parse(readFileSync(path.join(raiz, '.github/despliegue/package-lock.json'), 'utf8'));
+    expect(lock.packages[''].dependencies).toEqual({ wrangler: pkg.dependencies.wrangler });
+    expect(lock.packages['node_modules/wrangler'].version).toBe(pkg.dependencies.wrangler);
+  });
+
+  describe.each([
+    ['deploy-staging.yml', 'staging'],
+    ['deploy-prod.yml', 'production'],
+  ])('%s: construir y desplegar', (a, entorno) => {
+    const texto = leer(a);
+    const t = (n: string) => trabajosDe(texto).find((x) => x.nombre === n)?.texto ?? '';
+
+    it('construir no tiene environment ni secretos, solo lee, y sube dist un día', () => {
+      const c = t('construir');
+      expect(c).not.toBe('');
+      expect(c).not.toMatch(/environment:|secrets\./);
+      expect(c).toMatch(/^ {4}permissions:\n {6}contents: read\n(?! {6})/m);
+      expect(c).toContain('run: npm run build');
+      expect(c).toMatch(/name: dist\n\s+path: dist\n\s+retention-days: 1/);
+    });
+
+    it('desplegar tiene el environment, sin caché de npm y con wrangler aparte', () => {
+      const d = t('desplegar');
+      expect(d).toMatch(new RegExp(`^ {4}environment:\\n {6}name: ${entorno}$`, 'm'));
+      expect(d).toMatch(/^ {4}needs: \[?construir/m);
+      expect(d).toContain('npm ci --prefix .github/despliegue --ignore-scripts');
+      expect(d).toContain('.github/despliegue/node_modules/.bin/wrangler pages deploy dist');
+      expect(d).toMatch(/uses: \.\/\.github\/actions\/preparar\n\s+with:\n(?:\s+\w+: .*\n)*\s+npm: 'false'/);
+      expect(d).toMatch(/uses: actions\/download-artifact@[0-9a-f]{40} # v\d+\.\d+\.\d+\n\s+with:\n\s+name: dist/);
+    });
+
+    // El nombre del trabajo es su id: publicar.ts (TRABAJO_APROBACION), avisar y la vigilancia de
+    // despliegues ajenos lo buscan como «desplegar».
+    it('desplegar se llama así, sin name: que lo cambie', () => {
+      expect(t('desplegar')).not.toMatch(/^ {4}name:/m);
+    });
+
+    // RV-21: la versión del mapa base se anuncia cuando ya se sirve; comprobar-despliegue lo espera.
+    it('desplegar comprueba lo servido (solo Node) antes de anunciar la versión del mapa base', () => {
+      const d = t('desplegar');
+      const comprobarDespliegue = d.indexOf('run: node scripts/comprobar-despliegue.ts --url ');
+      expect(comprobarDespliegue).toBeGreaterThan(d.indexOf('wrangler pages deploy dist'));
+      expect(comprobarDespliegue).toBeLessThan(d.indexOf('run: node scripts/cargar-version-mapabase.ts'));
+    });
+  });
+
+  it('staging comprueba sin secretos, después de desplegar, con el navegador y Lighthouse', () => {
+    const c = trabajosDe(leer('deploy-staging.yml')).find((x) => x.nombre === 'comprobar')?.texto ?? '';
+    expect(c).toMatch(/^ {4}needs: \[desplegar\]$/m);
+    expect(c).not.toMatch(/environment:|secrets\./);
+    expect(c).toContain('npx playwright test e2e/cabeceras.spec.ts');
+    expect(c).toContain('treosh/lighthouse-ci-action@');
+  });
+
+  /** Los imports estáticos de un .ts que no se borran al quitar los tipos (`import type` sí se borra). */
+  const importsEstaticos = (fuente: string) =>
+    [...fuente.matchAll(/^(?:import|export)\s+(?!type\s)[^;]*?\sfrom\s+'([^']+)'/gm)].map((m) => m[1]!);
+
+  it('la comprobación de imports ve un paquete y deja pasar node:, rutas .ts e import type', () => {
+    expect(importsEstaticos("import { a } from 'pmtiles';\nimport type { B } from 'vite';")).toEqual(['pmtiles']);
+    expect(importsEstaticos("import { a } from 'node:fs';\nexport { c } from './x.ts';")).toEqual([
+      'node:fs',
+      './x.ts',
+    ]);
+  });
+
+  it('los scripts que corren con node en Actions solo importan módulos de Node y otros .ts del repositorio', () => {
+    const fuentes = [
+      ...archivos.map((a) => leer(a)),
+      ...readdirSync(path.join(raiz, '.github/scripts'))
+        .filter((a) => a.endsWith('.sh'))
+        .map((a) => readFileSync(path.join(raiz, '.github/scripts', a), 'utf8')),
+    ];
+    const entradas = new Set(
+      fuentes.flatMap((f) => [...f.matchAll(/\bnode (scripts\/[\w/-]+\.ts)\b/g)].map((m) => m[1]!)),
+    );
+    expect(entradas.size).toBeGreaterThan(10);
+    const malos: string[] = [];
+    const vistos = new Set<string>();
+    const pila = [...entradas].map((e) => path.join(raiz, e));
+    while (pila.length) {
+      const archivo = pila.pop()!;
+      if (vistos.has(archivo)) continue;
+      vistos.add(archivo);
+      for (const m of importsEstaticos(readFileSync(archivo, 'utf8'))) {
+        if (m.startsWith('node:')) continue;
+        if (m.startsWith('.') && m.endsWith('.ts')) pila.push(path.resolve(path.dirname(archivo), m));
+        else malos.push(`${path.relative(raiz, archivo)}: ${m}`);
+      }
+    }
+    expect(malos).toEqual([]);
+  });
+
+  describe('build_del_entorno: dist lleva las variables del environment', () => {
+    const guion = path.join(raiz, '.github/scripts/build-del-entorno.sh');
+    const correr = (archivos: Record<string, string>, variables: Record<string, string>) => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'build-entorno-'));
+      try {
+        mkdirSync(path.join(dir, 'dist', 'assets'), { recursive: true });
+        for (const [n, c] of Object.entries(archivos)) writeFileSync(path.join(dir, 'dist', 'assets', n), c);
+        const nombres = Object.keys(variables).join(' ');
+        return spawnSync('bash', ['-c', `source "$GUION"; build_del_entorno "$DIST" ${nombres}`], {
+          encoding: 'utf8',
+          env: { ...process.env, GUION: guion.replace(/\\/g, '/'), DIST: path.join(dir, 'dist'), ...variables },
+        });
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    };
+
+    it('con los valores dentro, pasa y no los imprime', () => {
+      const r = correr(
+        { 'a.js': 'const u="https://x.supabase.co",k="clave-anon";' },
+        { U: 'https://x.supabase.co', K: 'clave-anon' },
+      );
+      expect(r.status, r.stdout + r.stderr).toBe(0);
+      expect(r.stdout).not.toContain('clave-anon');
+    });
+
+    it('con un valor de otro proyecto, falla y dice cuál', () => {
+      const r = correr({ 'a.js': 'const u="https://otro.supabase.co";' }, { U: 'https://x.supabase.co' });
+      expect(r.status).toBe(1);
+      expect(r.stdout).toContain('::error::El build no lleva el U de este environment');
+    });
+
+    it('con la variable vacía, falla: no da por bueno lo que no ha mirado', () => {
+      const r = correr({ 'a.js': 'x' }, { U: '' });
+      expect(r.status).toBe(1);
+      expect(r.stdout).toContain('Falta la variable U');
+    });
+  });
+
+  it('deploy-prod avisa del fallo en un trabajo final, también si se cancela', () => {
+    const avisar = trabajosDe(leer('deploy-prod.yml')).find((x) => x.nombre === 'avisar')?.texto ?? '';
+    expect(avisar).toMatch(/^ {4}needs: \[construir, desplegar\]$/m);
+    expect(avisar).toMatch(/^ {4}if: \(failure\(\) \|\| cancelled\(\)\) && needs\.desplegar\.result != 'skipped'$/m);
+    expect(avisar).not.toMatch(/actions\/checkout|secrets\.(?!GITHUB_TOKEN)/);
+  });
+
+  it('Dependabot vigila también .github/despliegue', () => {
+    const dependabot = readFileSync(path.join(raiz, '.github/dependabot.yml'), 'utf8');
+    expect(dependabot).toMatch(/- package-ecosystem: npm\n\s+directory: \/\.github\/despliegue\n/);
   });
 });
