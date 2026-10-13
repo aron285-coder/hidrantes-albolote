@@ -9,6 +9,7 @@ import {
   SECRETOS_REPO,
   SECRETOS_TAREAS,
   VARIABLES_ENTORNO,
+  VARIABLES_REPO,
   codigoSalida,
   comprobar,
   unirMitades,
@@ -30,6 +31,7 @@ function fuentes(cambios: Partial<Fuentes> = {}): Fuentes {
   return {
     secretosEntorno: () => SECRETOS_ENTORNO.filter((s) => s !== 'PROPIETARIO_EMAIL'),
     variablesEntorno: () => [...VARIABLES_ENTORNO],
+    variablesRepo: () => [...VARIABLES_REPO, 'PROPIETARIO'],
     secretosRepo: () => [...SECRETOS_REPO, 'PROPIETARIO_EMAIL'],
     secretosTareas: () => [...SECRETOS_TAREAS],
     secretosPages: () => [...SECRETOS_PAGES],
@@ -217,7 +219,20 @@ describe('lectura de las fuentes', () => {
     const yml = readFileSync(path.join(RAIZ, '.github', 'workflows', 'deploy-prod.yml'), 'utf8');
     const { secretos, variables } = requeridosDeWorkflow(yml);
     expect(secretos.filter((s) => !SECRETOS_ENTORNO.includes(s))).toEqual([]);
-    expect(variables.filter((v) => !VARIABLES_ENTORNO.includes(v))).toEqual([]);
+    expect(variables.filter((v) => !VARIABLES_ENTORNO.includes(v) && !VARIABLES_REPO.includes(v))).toEqual([]);
+  });
+
+  // docs/35 RV-410: «construir» no tiene environment y usa las del repositorio, y solo esas.
+  it('el build de deploy-prod.yml usa las variables del repositorio, y estas se comprueban', async () => {
+    const yml = readFileSync(path.join(RAIZ, '.github', 'workflows', 'deploy-prod.yml'), 'utf8');
+    const construir = yml.slice(yml.indexOf('\n  construir:\n'), yml.indexOf('\n  desplegar:\n'));
+    expect(requeridosDeWorkflow(construir).variables.filter((v) => v !== 'VITE_MAPABASE_URL')).toEqual(
+      [...VARIABLES_REPO].sort(),
+    );
+    const filas = await comprobar(fuentes({ variablesRepo: () => ['SUPABASE_URL_PROD'] }), LOCALES);
+    expect(filas.filter((f) => f.grupo === 'repositorio · variables del build' && f.estado === 'FALTA')).toHaveLength(
+      2,
+    );
   });
 });
 

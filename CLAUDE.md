@@ -130,7 +130,9 @@ rama; nunca añadas secretos, respaldos, fotos ni `.env` (mira el `.gitignore` a
 Detalle en `docs/04` §11.1.
 
 ```
-npm install
+npm ci                        # sin scripts de instalación: .npmrc con ignore-scripts (DEC-198)
+npm rebuild esbuild workerd --ignore-scripts=false   # los dos binarios que necesitan su script
+git config core.hooksPath .githooks                  # una vez por clon (ya no lo hace npm)
 npx supabase start            # Postgres local con PostGIS; datos efímeros
 npm run migrar -- --local     # aplica supabase/migrations con psql
 npm run dev                   # Vite en :5173

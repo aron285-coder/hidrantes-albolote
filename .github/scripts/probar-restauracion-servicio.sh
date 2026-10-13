@@ -50,7 +50,7 @@ psql "$PG" -X -q -v ON_ERROR_STOP=1 \
   -c 'drop schema if exists hidrantes cascade' \
   -c 'grant create on database postgres to hidrantes_migrador'
 
-npx tsx scripts/restaurar.ts --entorno local --archivo "$volcado" --confirmar RESTAURAR
+node scripts/restaurar.ts --entorno local --archivo "$volcado" --confirmar RESTAURAR
 
 restaurados=$(psql "$PG" -X -A -t -v ON_ERROR_STOP=1 -c 'select count(*) from hidrantes.puntos')
 for esperado in "$@"; do

@@ -1,4 +1,11 @@
 # Staging: cada merge a develop (04 §4, §11). Migraciones con psql, nunca `supabase db push`.
+#
+# docs/35 RV-410 (DEC-198): el código de las dependencias no corre con secretos. Cuatro trabajos:
+#   construir  sin environment ni secretos: npm ci y el build; sube dist.
+#   fotos-seed sin secretos: genera en Chromium las fotos del seed; las sube como artefacto.
+#   desplegar  con el environment staging y sin node_modules: los scripts con `node`, y wrangler
+#              desde .github/despliegue (solo wrangler, con su lockfile y sin scripts de instalación).
+#   comprobar  sin secretos: lo desplegado, con comprobar-despliegue, el e2e de cabeceras y Lighthouse.
 name: Desplegar staging
 
 on:
@@ -8,42 +15,120 @@ on:
 
 permissions:
   contents: read
-  deployments: write
 
 concurrency:
   group: deploy-staging
   cancel-in-progress: false
 
 jobs:
+  construir:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      # Variables públicas (van dentro del bundle): las del repositorio, porque este trabajo no tiene
+      # environment. «desplegar» comprueba que dist lleva las del environment staging.
+      - run: npm run build
+        env:
+          VITE_ENTORNO: staging
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL_STAGING }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY_STAGING }}
+          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL }}
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY_STAGING }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dist
+          path: dist
+          retention-days: 1
+          if-no-files-found: error
+          include-hidden-files: true
+
+  # docs/33 RV-340: las fotos `fotos/prueba-*.jpg` del seed, generadas en Chromium con «[PRUEBA]» y sin
+  # datos personales. Aquí solo se generan; «desplegar» sube las que falten, sin Chromium.
+  fotos-seed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
+      - uses: ./.github/actions/navegadores
+        timeout-minutes: 9
+        with:
+          navegadores: chromium
+      - name: Generar las fotos del seed
+        run: npm run fotos-seed -- --generar fotos-seed
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fotos-seed
+          path: fotos-seed
+          retention-days: 1
+          if-no-files-found: error
+
   desplegar:
+    needs: [construir, fotos-seed]
     runs-on: ubuntu-24.04
     environment:
       name: staging
       url: https://hidrantes-albolote-staging.pages.dev
     timeout-minutes: 20
+    permissions:
+      contents: read
+      deployments: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Historia completa: VERSION_CODIGO del Worker es el último commit que tocó workers/ (docs/20
           # RV-74), y con una historia corta saldría otro.
           fetch-depth: 0
+          persist-credentials: false
+      # Node 24 sin caché de npm y sin npm ci: los scripts corren con `node`, que les quita los tipos.
       - uses: ./.github/actions/preparar
         with:
+          npm: 'false'
           psql: 'true'
+      # Solo wrangler, en versión exacta y con su lockfile, sin scripts de instalación (DEC-198).
+      - name: Wrangler
+        run: npm ci --prefix .github/despliegue --ignore-scripts
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist
+
+      # El build se hizo con las variables del repositorio (construir no tiene environment): dist tiene
+      # que llevar las de este environment, o staging serviría una app que habla con otro proyecto.
+      # Antes de migrar nada.
+      - name: El build es de staging
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
+        run: |
+          set -euo pipefail
+          source .github/scripts/build-del-entorno.sh
+          build_del_entorno dist VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_VAPID_PUBLIC_KEY
 
       - name: Migraciones (hidrantes_migrador, DEC-052)
-        run: npm run migrar
+        run: node scripts/migrar.ts
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       - name: Propietario como administrador (sin correo en el repositorio, DEC-053)
-        run: npm run asegurar-propietario
+        run: node scripts/asegurar-propietario.ts
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           PROPIETARIO_EMAIL: ${{ secrets.PROPIETARIO_EMAIL }}
 
       - name: Zona de cobertura
-        run: npm run cargar-zona
+        run: node scripts/cargar-zona.ts
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
@@ -51,14 +136,6 @@ jobs:
         run: psql -X -q -v ON_ERROR_STOP=1 -f supabase/seed-staging.sql "$SUPABASE_DB_URL"
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-
-      - run: npm run build
-        env:
-          VITE_ENTORNO: ${{ vars.VITE_ENTORNO }}
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
-          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL }}
-          VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
 
       # ENTORNO para las Functions (docs/31 RV-130; la usa RV-146). Antes de desplegar: Pages solo
       # aplica sus variables a los despliegues nuevos.
@@ -74,7 +151,7 @@ jobs:
       - name: Desplegar a Cloudflare Pages
         # Nombre fijo (docs/31 RV-130): el token de Cloudflare es de toda la cuenta y también podría
         # desplegar producción; este trabajo nunca la nombra, y scripts/seguridad-ci.test.ts lo comprueba.
-        run: npx wrangler pages deploy dist --project-name hidrantes-albolote-staging --branch develop --commit-hash "${{ github.sha }}"
+        run: .github/despliegue/node_modules/.bin/wrangler pages deploy dist --project-name hidrantes-albolote-staging --branch develop --commit-hash "${{ github.sha }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -100,20 +177,50 @@ jobs:
             echo "$aviso" >> "$GITHUB_STEP_SUMMARY"
           else
             version=$(git log -1 --format=%H -- workers)
-            npx wrangler deploy --config workers/avisos/wrangler.toml --var "VERSION_CODIGO:$version"
+            .github/despliegue/node_modules/.bin/wrangler deploy --config workers/avisos/wrangler.toml --var "VERSION_CODIGO:$version"
           fi
+
+      # docs/33 RV-340: las fotos del seed existen en el bucket de staging. Sube las que falten (las
+      # generó el trabajo fotos-seed) y comprueba que cada una responde 200 en su URL pública; si
+      # alguna no, falla. Después del seed. Solo staging: el script se niega con otra SUPABASE_URL.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: fotos-seed
+          path: fotos-seed
+      - name: Fotos del seed de staging (docs/33 RV-340)
+        run: node scripts/fotos-seed-staging.ts --desde fotos-seed
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      # Después de desplegar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
+      - name: Versión del mapa base en Salud del sistema (FR-143)
+        run: node scripts/cargar-version-mapabase.ts
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      # Dos peticiones iguales con el secreto de vigilancia: la segunda, de la caché (docs/19 RV-63).
+      # Solo avisa. Aquí y no en «comprobar», que no tiene secretos.
+      - name: Caché de las Functions
+        run: node scripts/comprobar-caches.ts --url https://hidrantes-albolote-staging.pages.dev
+        env:
+          VIGILANCIA_SECRETO: ${{ secrets.VIGILANCIA_SECRETO_STAGING }}
+
+  comprobar:
+    needs: [desplegar]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/preparar
 
       - name: Comprobar versión, banda y cabeceras servidas (TR-100)
         run: npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
-        env:
-          # Para ver con dos peticiones iguales que la caché de las Functions funciona (docs/19 RV-63).
-          VIGILANCIA_SECRETO: ${{ secrets.VIGILANCIA_SECRETO_STAGING }}
-
-      # Después de desplegar y comprobar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
-      - name: Versión del mapa base en Salud del sistema (FR-143)
-        run: npm run cargar-version-mapabase
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       # TR-100: las mismas cabeceras, leídas con un navegador sobre lo desplegado, y que la página
       # carga sin violar su propia CSP. Solo GET a la portada: no se envía ni se lee ningún dato.
@@ -122,16 +229,6 @@ jobs:
         timeout-minutes: 9
         with:
           navegadores: chromium
-      # docs/33 RV-340: las fotos `fotos/prueba-*.jpg` del seed existen en el bucket de staging. Sube las
-      # que falten (generadas en Chromium, con «[PRUEBA]» y sin datos personales) y comprueba que cada
-      # una responde 200 en su URL pública; si alguna no, falla. Después del seed y con el navegador ya
-      # instalado. Solo staging: el script se niega con otra SUPABASE_URL.
-      - name: Fotos del seed de staging (docs/33 RV-340)
-        run: npm run fotos-seed
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       - name: Cabeceras y CSP en el navegador (TR-100)
         env:
           URL_DESPLEGADA: https://hidrantes-albolote-staging.pages.dev
