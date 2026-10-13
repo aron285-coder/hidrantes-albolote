@@ -251,7 +251,10 @@ propio sistema sin datos más allá del `dispositivo_id`.
 
 **Notificaciones push (FR-163–164):** el texto nunca incluye nombres de otros voluntarios; el
 mensaje viaja cifrado al servicio push del navegador (Google, Apple o Mozilla), que no puede leerlo;
-la suscripción es revocable desde Ajustes. **Exportaciones (FR-160):** contienen datos de hidrantes,
+la suscripción es revocable desde Ajustes. Los **avisos técnicos** a jefatura (tema `avisos_tecnicos`,
+0045, docs/35 RV-404, DEC-202) llevan textos fijos sin nombres ni correos, solo van a suscripciones de
+jefatura de administradores activos y solo los encola `service_role` (`fn_encolar_aviso_tecnico`):
+ni `anon` ni `authenticated` pueden ejecutarla. **Exportaciones (FR-160):** contienen datos de hidrantes,
 no de personas; quien las comparte fuera de la agrupación decide a quién; el Registro guarda quién
 exportó y cuándo.
 
@@ -382,6 +385,8 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | Agotar el cupo de errores con la RPC vieja de 5 argumentos | Cupo propio: 200 al día y 10 por dispositivo, que no gasta el de `/api/error` (0041, RV-222). Desde 0044 ya no la ejecutan `anon` ni `authenticated` (docs/33 RV-306, #472). |
 | La entrada abierta para todos se usa para sacar tokens sin fin | Solo con el código bueno; los topes de fallos no cambian; dura como mucho 72 h y queda en el registro; jefatura la cierra en Ajustes (0044, docs/33 RV-300, DEC-190). Desde `docs/35` no se abre sola al revocar (DEC-201). |
 | Saber si un navegador tiene avisos de jefatura | `fn_endpoint_tiene_jefatura` exige un token de voluntario y solo responde sí o no, sin de quién ni de qué; el endpoint es una URL no adivinable que solo conoce ese navegador (0044, RV-323). |
+| Jefatura no se entera de un fallo técnico si el desarrollador no está | Aviso técnico por push a jefatura (vigilancia, respaldo, despliegue, intentos con el código), como mucho uno por clave cada 24 h (intentos con el código, uno por hora), además de la issue de siempre. Si Supabase o las Pages Functions están caídas, el push no sale y queda solo la issue (0045, docs/35 RV-404, DEC-202). |
+| Avisos técnicos repetidos o que no vienen del sistema | Solo `service_role` puede encolarlos (`fn_encolar_aviso_tecnico`, sin `execute` para `public`, `anon` ni `authenticated`); deduplicados por clave con la fila bloqueada; claves cerradas (0045, RV-404). |
 | Liberar reservas ajenas | `fn_liberar_reservas` solo toca las reservas sin confirmar del móvil del token; las demás rutas se ignoran sin decir nada (0044, RV-302). |
 | Usar el `dispositivo_id` de un administrador | `DISPOSITIVO_RESERVADO` en el canje (0039, DEC-175). |
 | Un token copiado sigue valiendo tras cerrar sesión | `fn_cerrar_sesion` lo revoca en el servidor (0040, RV-158). |

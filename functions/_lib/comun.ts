@@ -70,19 +70,25 @@ export async function leerJson(peticion: Request): Promise<Record<string, unknow
  * no llevan `Origin` ni `Sec-Fetch-Site` y siguen pasando.
  */
 export function exigirMismoOrigen(peticion: Request): Response | null {
-  const prohibido = () => error(403, 'ORIGEN_NO_PERMITIDO');
+  const url = new URL(peticion.url);
+  // Queda en el registro del Worker (`wrangler pages deployment tail`) solo la ruta y el motivo, sin
+  // IP ni cuerpo: si algún día se rechaza a la propia app, se ve por qué.
+  const prohibido = (motivo: 'tipo' | 'origen' | 'sitio') => {
+    console.warn(`ORIGEN_NO_PERMITIDO ${url.pathname} ${motivo}`);
+    return error(403, 'ORIGEN_NO_PERMITIDO');
+  };
   const tipo = peticion.headers.get('Content-Type');
   if (tipo === null) {
     const largo = peticion.headers.get('Content-Length');
     const sinCuerpo = peticion.body === null || largo === '0';
-    if (!sinCuerpo) return prohibido();
+    if (!sinCuerpo) return prohibido('tipo');
   } else if (tipo.split(';')[0]!.trim().toLowerCase() !== 'application/json') {
-    return prohibido();
+    return prohibido('tipo');
   }
   const origen = peticion.headers.get('Origin');
-  if (origen !== null && origen !== new URL(peticion.url).origin) return prohibido();
+  if (origen !== null && origen !== url.origin) return prohibido('origen');
   const sitio = peticion.headers.get('Sec-Fetch-Site');
-  if (sitio !== null && sitio !== 'same-origin' && sitio !== 'none') return prohibido();
+  if (sitio !== null && sitio !== 'same-origin' && sitio !== 'none') return prohibido('sitio');
   return null;
 }
 

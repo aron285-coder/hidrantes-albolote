@@ -1,4 +1,4 @@
--- docs/35 RV-401 y RV-402 (DEC-199, DEC-201): la entrada con el código (el turno con espera máxima,
+-- docs/35 RV-401 y RV-402 (0047; DEC-199, DEC-201): la entrada con el código (el turno con espera máxima,
 -- el tope global que deja entrar a un móvil limpio, los frenados con el código bueno) y lo que el
 -- grupo comparte (la mitad para los móviles recién entrados, el espacio de jefatura, cambiar el
 -- código sin abrir la entrada y revocar desde una hora). Todo dentro de una transacción que se
@@ -8,7 +8,7 @@ create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 set search_path = extensions, public;
 
-select plan(57);
+select plan(60);
 
 -- ---------- RV-401: el turno no se espera más de 3 s (va primero: esta sesión aún no lo tiene) ----------
 
@@ -104,6 +104,18 @@ select pg_temp.voluntario();
 
 select is(hidrantes.fn_config('max_intentos_global', 'null'), '60'::jsonb, 'tope global de fallos: 60 por hora (DEC-199)');
 
+-- Jefatura con avisos técnicos (RV-404), para ver el aviso de los intentos.
+select pg_temp.jefatura();
+select pg_temp.voluntario();
+insert into hidrantes.suscripciones_push (id, email, suscripcion, temas) values
+  ('00000000-0000-4000-8000-0000000044a1', 'jefa42@example.com',
+   '{"endpoint":"https://fcm.googleapis.com/fcm/send/jefa44","keys":{"p256dh":"p","auth":"a"}}', array['avisos_tecnicos']);
+delete from hidrantes.avisos_tecnicos where clave = 'intentos_codigo';
+select is(pg_temp.canje('111111', 'a4200000-0000-4000-8000-0000000e4200', 'ip42-antes'), 'CODIGO_INCORRECTO',
+  'un fallo con el tope global sin alcanzar');
+select is((select count(*)::int from hidrantes.notificaciones where suscripcion_id = '00000000-0000-4000-8000-0000000044a1'), 0,
+  'sin el tope global alcanzado, ningún aviso técnico');
+
 -- 200 fallos en la última hora desde otras IP: el tope global está alcanzado de sobra.
 insert into hidrantes.intentos_codigo (dispositivo_id, ip_hash, exito)
 select gen_random_uuid(), 'ip42-f-' || i, false from generate_series(1, 200) i;
@@ -131,6 +143,11 @@ select ok(pg_temp.canje('482917', 'a4200000-0000-4000-8000-0000000e4206', 'ip42-
 select ok(exists (select 1 from hidrantes.intentos_codigo where tope = 'global' and bloqueado
                     and dispositivo_id = 'a4200000-0000-4000-8000-0000000e4204'),
   'el frenado por el tope global se anota como hasta ahora');
+
+select is((select count(*)::int from hidrantes.notificaciones
+            where suscripcion_id = '00000000-0000-4000-8000-0000000044a1'
+              and cuerpo = 'Alguien está probando códigos de acceso. Si se repite, cambia el código en Ajustes.'), 1,
+  'con el tope global alcanzado, un solo aviso técnico a jefatura en la hora, aunque haya varios intentos');
 
 delete from hidrantes.intentos_codigo where ip_hash like 'ip42-f-%';
 

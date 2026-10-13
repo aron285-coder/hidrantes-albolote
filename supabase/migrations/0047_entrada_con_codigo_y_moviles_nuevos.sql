@@ -7,6 +7,8 @@
 -- 2. Tope global de fallos: 60 por hora (antes 200), en el valor por defecto y en la fila de config.
 -- 3. Con el tope global alcanzado, un móvil y su IP agrupada sin ningún fallo en 24 h siguen
 --    pudiendo entrar: con el código bueno entra; con uno malo cuenta como fallo y quedan frenados.
+--    Con el tope alcanzado, aviso técnico a jefatura (fn_encolar_aviso_tecnico de 0045, clave
+--    intentos_codigo: una vez por hora como mucho).
 -- 4. Frenados con el código bueno: como mucho una fila por móvil y hora (fn_entradas_frenadas_24h ya
 --    cuenta móviles distintos).
 --
@@ -21,7 +23,7 @@
 --    ya no se abre sola al revocar. Se borra la de dos argumentos (PostgREST no sabría cuál llamar);
 --    el panel anterior llama a esta con dos argumentos y cambia el código sin abrir la entrada.
 -- 8. fn_contar_desde(desde) y fn_revocar_desde(desde), solo jefatura: los tokens sin revocar
---    emitidos desde esa hora (nunca los de jefatura), como mucho 30 días atrás.
+--    emitidos desde esa hora (nunca los de jefatura), como mucho 30 días atrás y nunca futura.
 --
 -- Compatibilidad (04 §12): mismas firmas salvo fn_cambiar_codigo_acceso, que admite la llamada de
 -- dos argumentos. create or replace conserva los grant. Los códigos de error nuevos (OCUPADO,
@@ -94,6 +96,12 @@ begin
     into fallos_dispositivo, fallos_ip, fallos_global, fallos_24h, altas_ip, altas_global
     from hidrantes.intentos_codigo i
    where i.momento > now() - interval '24 hours';
+
+  -- Tope global alcanzado: aviso técnico a jefatura (RV-404, DEC-202). Una vez por hora como mucho:
+  -- lo controla fn_encolar_aviso_tecnico, que solo encola filas (ninguna petición de red aquí).
+  if fallos_global >= (hidrantes.fn_config('max_intentos_global', '60') #>> '{}')::int then
+    perform hidrantes.fn_encolar_aviso_tecnico('intentos_codigo', null, null);
+  end if;
 
   -- El tope global solo frena a quien tiene algún fallo en 24 h (en el móvil o en su IP agrupada): un
   -- voluntario que escribe bien el código entra aunque alguien esté probando códigos (DEC-199).
@@ -241,10 +249,20 @@ begin
   max_fotos := (hidrantes.fn_config('max_bytes_fotos', '838860800') #>> '{}')::bigint;
   select * into espacio from hidrantes.fn_espacio_fotos();
   if es_admin then
+    -- Las suyas abiertas; con el bucket legible, sin las que ya tienen archivo (sus bytes ya están en
+    -- espacio.bytes), como hace fn_espacio_fotos con las de todos.
     select count(*)::int into abiertas_d
       from hidrantes.subidas s
      where s.dispositivo_id = d and s.confirmada_en is null and s.liberada_en is null
        and s.reservada_en > now() - interval '2 hours';
+    if espacio.origen = 'storage' and abiertas_d > 0 then
+      select count(*)::int into abiertas_d
+        from hidrantes.subidas s
+       where s.dispositivo_id = d and s.confirmada_en is null and s.liberada_en is null
+         and s.reservada_en > now() - interval '2 hours'
+         and not exists (select 1 from storage.objects o
+                          where o.bucket_id in ('hidrantes-fotos', 'hidrantes-fotos-dev') and o.name = s.foto_path);
+    end if;
   else
     abiertas_d := espacio.abiertas;
   end if;
@@ -570,12 +588,13 @@ end $$;
 
 -- ---------- RV-402: revocar desde una hora ----------
 
--- La hora desde la que se cuenta o se revoca: no más de 30 días atrás (ni null).
+-- La hora desde la que se cuenta o se revoca: no más de 30 días atrás, ni futura, ni null. Una hora
+-- futura no revocaría nada y lo diría como hecho.
 create function hidrantes.fn_validar_desde(desde timestamptz) returns void
 language plpgsql stable set search_path = pg_catalog, hidrantes as $$
 begin
-  if desde is null or desde < now() - interval '30 days' then
-    perform hidrantes.fn_error('PAYLOAD_INVALIDO(desde)', 'Como mucho 30 días atrás');
+  if desde is null or desde < now() - interval '30 days' or desde > now() then
+    perform hidrantes.fn_error('PAYLOAD_INVALIDO(desde)', 'Entre hace 30 días y ahora');
   end if;
 end $$;
 

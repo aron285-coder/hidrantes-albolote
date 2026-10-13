@@ -253,4 +253,4 @@ El procedimiento de cada caso está en **15** (Continuidad y emergencias). Los m
 | Un sábado por la tarde nadie conecta | Bloqueos durante el fútbol: lo pendiente sale solo al acabar |
 
 > Pendiente de revisar tras el piloto: las dudas reales de jefatura en la validación (#76) y el
-> piloto (#77), y los contactos de 15 §10.
+> piloto (#77). Los contactos van en el sobre y en el gestor de contraseñas, no aquí (15 §10).

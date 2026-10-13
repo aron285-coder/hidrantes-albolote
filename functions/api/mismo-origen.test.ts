@@ -57,6 +57,7 @@ describe('ORIGEN_NO_PERMITIDO en todas las Functions con POST (docs/35 RV-401)',
     ],
     ['un subdominio hermano (same-site)', { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-site' }, '{}'],
     ['texto plano', { 'Content-Type': 'text/plain' }, '{}'],
+    ['otra web, sin cuerpo ni Content-Type', { Origin: 'https://otra.example', 'Content-Length': '0' }, null],
     ['formulario', { 'Content-Type': 'application/x-www-form-urlencoded' }, 'a=1'],
     ['cuerpo sin Content-Type', {}, '{}'],
   ];
@@ -64,6 +65,7 @@ describe('ORIGEN_NO_PERMITIDO en todas las Functions con POST (docs/35 RV-401)',
   for (const [ruta, manejador] of Object.entries(MANEJADORES)) {
     it(`/api/${ruta}: 403 ORIGEN_NO_PERMITIDO sin llamar a nadie`, async () => {
       const espia = vi.spyOn(globalThis, 'fetch');
+      const aviso = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       // A la vez: /api/verificar-codigo tarda siempre lo mismo (TR-42), también en el 403.
       const respuestas = await Promise.all(
         ajenas.map(([, cabeceras, cuerpo]) => manejador({ request: peticion(ruta, cabeceras, cuerpo), env: ENV })),
@@ -74,6 +76,11 @@ describe('ORIGEN_NO_PERMITIDO en todas las Functions con POST (docs/35 RV-401)',
         expect(await r.json(), que).toEqual({ error: 'ORIGEN_NO_PERMITIDO' });
       }
       expect(espia).not.toHaveBeenCalled();
+      // Cada rechazo deja en el registro del Worker la ruta y el motivo, nada más.
+      expect(aviso).toHaveBeenCalledTimes(ajenas.length);
+      for (const [linea] of aviso.mock.calls) {
+        expect(String(linea)).toMatch(new RegExp(`^ORIGEN_NO_PERMITIDO /api/${ruta} (tipo|origen|sitio)$`));
+      }
     });
   }
 });
