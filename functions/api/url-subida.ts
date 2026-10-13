@@ -2,11 +2,24 @@
 // Voluntario: { token }. Jefatura desde el móvil: cabecera Authorization con su JWT (DEC-059).
 // Nadie sube a Storage sin pasar por aquí: el bucket no tiene políticas de escritura.
 
-import { type Manejador, bucketPara, detalleTope, error, estadoDe, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
+import {
+  type Manejador,
+  bucketPara,
+  detalleTope,
+  error,
+  estadoDe,
+  exigirMismoOrigen,
+  json,
+  jwtDe,
+  leerJson,
+  rpc,
+} from '../_lib/comun.ts';
 
 export const CADUCIDAD_S = 7200; // la de las URL firmadas de subida de Supabase
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
+  const ajena = exigirMismoOrigen(request);
+  if (ajena) return ajena;
   const cuerpo = (await leerJson(request)) ?? {};
   const jwt = jwtDe(request);
 

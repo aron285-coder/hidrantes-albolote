@@ -8,6 +8,7 @@ import {
   type Manejador,
   error,
   esAdmin,
+  exigirMismoOrigen,
   iguales,
   json,
   jwtDe,
@@ -59,6 +60,8 @@ async function autorizado(request: Request, env: Env): Promise<'si' | 'no' | 'si
 export const LOTE = 20;
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
+  const ajena = exigirMismoOrigen(request);
+  if (ajena) return ajena;
   const quien = await autorizado(request, env);
   if (quien === 'sin_servidor') return error(503, 'SERVIDOR_NO_DISPONIBLE');
   if (quien === 'no') return error(401, 'NO_AUTORIZADO');

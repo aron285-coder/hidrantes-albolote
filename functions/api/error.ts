@@ -1,9 +1,18 @@
 // POST /api/error (05 §9, TR-90, TR-106, RV-148): los errores del cliente. Es la única capa que ve
-// la IP real (CF-Connecting-IP): la pasa como sha256(SAL_IP + ip normalizada), con IPv6 por /64
-// (RV-14), a la firma de seis argumentos de fn_registrar_error (0040, solo service_role), que aplica
+// la IP real (CF-Connecting-IP): la pasa como sha256(SAL_IP + ip normalizada), con IPv6 por /48
+// (RV-14, docs/35 RV-401), a la firma de seis argumentos de fn_registrar_error (0040, solo service_role), que aplica
 // el tope por IP. La IP nunca se guarda en claro, y aquí no se registra nada.
 
-import { type Manejador, error, esUuid, leerJson, normalizarIp, rpc, sha256Hex } from '../_lib/comun.ts';
+import {
+  type Manejador,
+  error,
+  esUuid,
+  exigirMismoOrigen,
+  leerJson,
+  normalizarIp,
+  rpc,
+  sha256Hex,
+} from '../_lib/comun.ts';
 
 /** Los mismos recortes que hace la base de datos (0005, 0040). */
 const MAXIMO = { mensaje: 1000, pila: 4096, ruta: 200, agente: 300 } as const;
@@ -15,6 +24,8 @@ const textoOpcional = (v: unknown, max: number): string | null | undefined =>
 export const CUERPO_MAXIMO = 16 * 1024;
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
+  const ajena = exigirMismoOrigen(request);
+  if (ajena) return ajena;
   // Sin sal, el hash de una IPv4 se deshace por fuerza bruta: mejor no anotar que anotar mal.
   if (!env.SAL_IP) return error(503, 'NO_CONFIGURADO');
   const largo = Number(request.headers.get('Content-Length') ?? '0');
