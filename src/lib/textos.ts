@@ -1105,6 +1105,11 @@ export const T = {
     sugerencias: 'Sugerencias de la app de uniformidad:',
     administradorAnadido: (correo: Parametro) => `${correo} ya puede entrar en el panel.`,
     administradorQuitado: (correo: Parametro) => `${correo} se queda sin acceso al panel.`,
+    // docs/35 RV-431: pasar a «sin acceso» se confirma; devolverlo, no.
+    quitarAcceso: 'Quitar el acceso',
+    avisoQuitarAcceso: (correo: Parametro) => `¿Quitar el acceso a ${correo}?`,
+    avisoQuitarteAcceso:
+      'Vas a quitarte el acceso a ti. Saldrás del panel y otro administrador tendrá que devolvértelo.',
     parametros: 'Parámetros',
     ayudaParametros: 'Los móviles los aplican en su próxima sincronización.',
     mesesRevision: 'Meses entre revisiones',
@@ -1300,7 +1305,7 @@ export const T = {
     respaldoAhora: 'Respaldo ahora',
     saludSistema: 'Salud del sistema',
     mostrando: (n: Parametro, total: number) => `Mostrando ${n} de ${plural(total, 'punto', 'puntos')}`,
-    ultimoAdministrador: 'No se puede desactivar al último administrador activo.',
+    ultimoAdministrador: 'Tiene que quedar al menos un administrador con acceso.',
     pendienteEscribe: '— pendiente, escribe aquí',
   },
 } as const;
