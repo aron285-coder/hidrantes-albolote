@@ -59,10 +59,11 @@ select ok((select command from cron.job where jobname = 'hidrantes_purgar_subida
 
 select set_config('test.correo', repeat('j', 58) || '@example.com', true);
 insert into hidrantes.administradores (email, creado_por) values (current_setting('test.correo'), 'test');
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 insert into hidrantes.subidas (dispositivo_id, foto_path)
 values (hidrantes.fn_dispositivo_admin(current_setting('test.correo')), 'fotos/admin-largo.jpg');
 select set_config('request.jwt.claims',
-  jsonb_build_object('role', 'authenticated', 'email', current_setting('test.correo'), 'amr', '[{"method":"oauth","timestamp":1}]'::jsonb, 'app_metadata', '{"provider":"google","providers":["google"]}'::jsonb)::text, true);
+  jsonb_build_object('role', 'authenticated', 'sub', md5(lower(current_setting('test.correo')))::uuid, 'email', current_setting('test.correo'), 'amr', '[{"method":"oauth","timestamp":1}]'::jsonb, 'app_metadata', '{"provider":"google","providers":["google"]}'::jsonb)::text, true);
 set local role authenticated;
 select is(length(current_setting('test.correo')), 70, 'el correo de prueba tiene 70 caracteres');
 select is(hidrantes.fn_proponer(null, 'admin-clave-larga', 'Jefatura', current_setting('test.correo'), 'estado',

@@ -13,6 +13,7 @@ import { onRequestPost as lanzarWorkflow } from './lanzar-workflow.ts';
 import { onRequestPost as push } from './push.ts';
 import { onRequestPost as urlSubida } from './url-subida.ts';
 import { onRequestPost as verificarCodigo } from './verificar-codigo.ts';
+import { onRequestPost as vincularJefatura } from './vincular-jefatura.ts';
 
 const ENV = {
   SUPABASE_URL: 'https://proyecto.supabase.co',
@@ -29,6 +30,7 @@ const MANEJADORES: Record<string, Manejador> = {
   push,
   'url-subida': urlSubida,
   'verificar-codigo': verificarCodigo,
+  'vincular-jefatura': vincularJefatura,
 };
 
 const peticion = (ruta: string, cabeceras: Record<string, string>, cuerpo: string | null = '{}') =>

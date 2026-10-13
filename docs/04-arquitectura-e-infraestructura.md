@@ -238,6 +238,7 @@ Las Pages Functions (`functions/api/`), en TypeScript, con su contrato en 05 §9
 | `POST /api/lanzar-workflow` | Deja un **pedido** en la base de datos (`fn_pedir_trabajo`) para un trabajo de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. No habla con GitHub ni guarda ningún token: lo lanza `despachador.yml`, solo en producción (DEC-172); desde staging, `purgar-fotos` y `respaldo` no se piden. |
 | `POST /api/geocodificar` | Números de portal para la búsqueda con CartoCiudad (IGN/CNIG), con token de voluntario o JWT de administrador, nunca anónima; 5 s como mucho, caché de 30 días por el sha256 de la consulta, que no se registra (DEC-092, 05 §9). |
 | `POST /api/push` | Envía las notificaciones pendientes (`notificaciones`) por Web Push con las claves VAPID; la llama el cliente tras cada acción que genera avisos y el trabajo diario de vigilancia. Idempotente. |
+| `POST /api/vincular-jefatura` | Une la fila de `administradores` al usuario de Supabase Auth de quien entra en el panel con Google, con el correo verificado de su identidad de Google; la llama el panel una vez por sesión (docs/35 RV-400, DEC-197). |
 
 ---
 

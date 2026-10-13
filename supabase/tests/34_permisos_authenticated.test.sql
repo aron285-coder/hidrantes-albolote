@@ -138,10 +138,11 @@ $$;
 grant execute on function pg_temp.es_no_autorizado(text) to authenticated;
 
 insert into hidrantes.administradores (email, creado_por) values ('jefa@example.com', 'test');
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 -- 1) Un usuario de Google que no es administrador.
 select set_config('request.jwt.claims',
-  '{"email":"voluntario@example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+  '{"sub":"5238debc-4b22-d42d-173a-3443870a4394","email":"voluntario@example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
   true);
 set local role authenticated;
 create temp table r_google as select * from pg_temp.probar_jefatura();
@@ -175,7 +176,7 @@ reset role;
 
 -- 2) El correo de un administrador, pero con contraseña (no Google, docs/18 RV-36).
 select set_config('request.jwt.claims',
-  '{"email":"jefa@example.com","role":"authenticated","amr":[{"method":"password","timestamp":1}],"app_metadata":{"provider":"email","providers":["email"]}}',
+  '{"sub":"b792a870-32f7-b315-d677-c1c1383f5f61","email":"jefa@example.com","role":"authenticated","amr":[{"method":"password","timestamp":1}],"app_metadata":{"provider":"email","providers":["email"]}}',
   true);
 set local role authenticated;
 create temp table r_clave as select * from pg_temp.probar_jefatura();
@@ -201,7 +202,7 @@ reset role;
 -- arriba depende de la sesión, no de que la función lo lance siempre. Con null en los argumentos
 -- pueden fallar por otra cosa; lo que hagan se deshace con el rollback.
 select set_config('request.jwt.claims',
-  '{"email":"jefa@example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+  '{"sub":"b792a870-32f7-b315-d677-c1c1383f5f61","email":"jefa@example.com","role":"authenticated","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
   true);
 set local role authenticated;
 create temp table r_jefa as select * from pg_temp.probar_jefatura();
