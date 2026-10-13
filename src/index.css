@@ -288,12 +288,14 @@ h3 {
   line-height: 1.2;
 }
 
-/* 06 §10 · foco visible: el token del modo y, sobre la barra, su variante clara (docs/35 RV-425). */
+/* 06 §10 · foco visible: el token del modo y, dentro de la barra y de las superficies marino fijas
+   (Bienvenida, avisos de versión e instalar), su variante clara (docs/35 RV-425). */
 :focus-visible {
   outline: 2px solid var(--anillo-foco);
   outline-offset: 2px;
 }
-.bg-barra :focus-visible {
+.bg-barra :focus-visible,
+.bg-marino-950 :focus-visible {
   outline-color: var(--anillo-foco-barra);
 }
 
