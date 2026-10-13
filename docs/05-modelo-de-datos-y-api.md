@@ -57,8 +57,9 @@ migración de una línea; renombrar uno exige dos pasos (04 §12).
 | `situacion` | `situacion_punto` | no | default `activo` |
 | `fecha_ultima_revision` | `date` | no | |
 | `creado_en` | `timestamptz` | no | default `now()` |
-| `actualizado_en` | `timestamptz` | no | trigger `before update` |
+| `actualizado_en` | `timestamptz` | no | trigger `before update`: sube con **cualquier** cambio (también de núcleo o municipio); la sincronización de los móviles depende de él (§10) |
 | `borrado_en` | `timestamptz` | sí | fijado al pasar a `borrado` |
+| `datos_cambiados_en` | `timestamptz` | no | 0045 (docs/35 RV-403): trigger `before insert or update` `puntos_datos_cambiados_en`; al actualizar, sube solo si cambia algo que no sea `nucleo`, `municipio` ni una marca de tiempo (`creado_en`, `actualizado_en`, la propia columna) y no se puede fijar a mano; al insertar, la que venga o, si no, `actualizado_en` (sin default). Al crear la columna, igual a `actualizado_en` de cada punto (sin subir este). Es con lo que se decide si una propuesta está desactualizada (`v_cola_revision`, `fn_aplicar_propuesta`): añadir o renombrar un núcleo ya no la desactualiza |
 
 Constraints:
 
@@ -333,7 +334,7 @@ Las carga `scripts/cargar-zona.ts` con `upsert`; no van por migración.
 | `dispositivo_id` | `uuid` | voluntario; `null` si es administrador |
 | `email` | `text` | administrador; `null` si es voluntario |
 | `suscripcion` | `jsonb` | `endpoint`, `keys.p256dh`, `keys.auth`. El `endpoint` es `https://` de un servicio de push de navegador: `fcm.googleapis.com`, `*.push.services.mozilla.com`, `web.push.apple.com`, `*.push.apple.com` o `*.notify.windows.com` (`fn_validar_suscripcion`, 0029, docs/19 RV-68) |
-| `temas` | `text[]` | `{resultado_propuesta}` para voluntarios; `{nuevas_propuestas, resumen_semanal}` para administradores |
+| `temas` | `text[]` | `{resultado_propuesta}` para voluntarios; para administradores, uno o varios de `nuevas_propuestas`, `resumen_semanal` y `avisos_tecnicos` (0045, docs/35 RV-404, DEC-202: las filas de jefatura que ya existían lo recibieron activado) |
 | `creada_en`, `ultimo_envio`, `fallos` | | un 404/410 del servicio de push (`suscripcion_caducada`) → se borra al momento; cualquier otro error suma un fallo, y se borra solo con **10 fallos seguidos y ningún envío bueno en los últimos 7 días** (o nunca). Un envío bueno pone `fallos = 0` (0030, docs/21 RV-84, DEC-118) |
 
 Único: `((suscripcion ->> 'endpoint'), (dispositivo_id is null))`, `suscripciones_endpoint_duenio_idx`
@@ -361,7 +362,17 @@ lo pone `fn_resultado_notificacion` con `ok`. Lo reclamado sin resultado vuelve 
 RV-144), eso suma un fallo a su suscripción con la regla de borrado de §2.12: un servicio que no
 contesta nunca ya no deja la suscripción para siempre. Lo que un servicio de push
 rechaza con 429 lo aplaza `fn_aplazar_notificaciones`: vuelve a poder reclamarse pasado el
-`Retry-After` y se le devuelve el intento (0030, DEC-118).
+`Retry-After` y se le devuelve el intento (0030, DEC-118). Los **avisos técnicos** a jefatura los
+encola `fn_encolar_aviso_tecnico` (0045, §6.2) y salen por el mismo camino: `/api/push` no
+distingue temas.
+
+### 2.16 `avisos_tecnicos` — última emisión de cada aviso técnico (0045, docs/35 RV-404, DEC-202)
+
+`clave text` PK (`vigilancia`, `respaldo`, `despliegue` o `intentos_codigo`), `ultimo_en timestamptz`
+(la última vez que se encoló al menos un aviso con esa clave; `null`, nunca; cuenta al encolar, no al entregar). Sirve para la deduplicación de
+`fn_encolar_aviso_tecnico` y se bloquea por fila (`for update`). RLS con una sola política que no
+deja ver nada (`avisos_tecnicos_sin_acceso`, como `migraciones_aplicadas`) y sin `grant` para
+`anon` ni `authenticated`: solo `service_role` (y su dueño). Sin datos personales.
 
 ### 2.15 `pedidos_trabajo` — trabajos pedidos desde Ajustes (0040, docs/31 RV-146)
 
@@ -402,7 +413,7 @@ y permisos como las demás tablas (lectura solo para administradores; nadie escr
 | Vista | Contenido |
 |---|---|
 | `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_path` y, al final, `foto_sitio_path` (0035). La URL pública de la foto la compone el cliente con la URL de Supabase y el bucket del entorno (DEC-058). Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). Jefatura la lee entera por páginas de 1.000 por clave: `order(codigo)` y `gt(codigo, último)` (RV-15, RV-65). |
-| `v_cola_revision` | propuestas con `estado = 'pendiente'` más el punto afectado, el diff (`antes`/`despues` calculados), y señales: `origen_ubicacion`, `precision_gps_m`, `distancia_gps_m`, `distancia_exif_m`, `fuera_de_zona`, `meses_desde_revision`, `duplicado_de` + `distancia_duplicado_m`, `otra_medida boolean`, `desactualizada boolean` (`puntos.actualizado_en > propuestas.creada_en`), `nucleo` (el del punto o, en un alta, el deducido del pin) y `punto_actualizado_en` (DEC-065); al final, `foto_sitio_path`, `foto_sitio_path_actual` y la señal `sin_foto_sitio` (alta o ubicación sin foto del sitio: la mandó la app anterior; 0035, DEC-146). Detrás, `punto jsonb`: la fila actual del punto con lo que enseña el detalle (`codigo`, `tipo`, `diametro_mm`, `caudal`, `racor`, `descripcion`, `descripcion_fallo`, `direccion`, `nucleo`, `fecha_ultima_revision`, `foto_path`, `foto_sitio_path`, `situacion`, `borrado_en`; siempre las catorce claves, con `null` si no hay valor), **nunca** autores ni correos (FR-27), `null` en un alta; y `punto_lat`, `punto_lng` (`double precision`, la posición actual del punto; `null` en un alta). El cliente decide si es un alta por `operacion`, **no** por `punto is null`. La UTM no va: la calcula el cliente con la función de la ficha (0036, DEC-160). `distancia_gps_m`, `distancia_exif_m` y `sin_foto_sitio` siguen en la vista, pero el panel ya no los enseña (DEC-166). |
+| `v_cola_revision` | propuestas con `estado = 'pendiente'` más el punto afectado, el diff (`antes`/`despues` calculados), y señales: `origen_ubicacion`, `precision_gps_m`, `distancia_gps_m`, `distancia_exif_m`, `fuera_de_zona`, `meses_desde_revision`, `duplicado_de` + `distancia_duplicado_m`, `otra_medida boolean`, `desactualizada boolean` (`puntos.datos_cambiados_en > propuestas.creada_en` desde 0045, docs/35 RV-403; antes, `actualizado_en`), `nucleo` (el del punto o, en un alta, el deducido del pin) y `punto_actualizado_en` (DEC-065); al final, `foto_sitio_path`, `foto_sitio_path_actual` y la señal `sin_foto_sitio` (alta o ubicación sin foto del sitio: la mandó la app anterior; 0035, DEC-146). Detrás, `punto jsonb`: la fila actual del punto con lo que enseña el detalle (`codigo`, `tipo`, `diametro_mm`, `caudal`, `racor`, `descripcion`, `descripcion_fallo`, `direccion`, `nucleo`, `fecha_ultima_revision`, `foto_path`, `foto_sitio_path`, `situacion`, `borrado_en`; siempre las catorce claves, con `null` si no hay valor), **nunca** autores ni correos (FR-27), `null` en un alta; y `punto_lat`, `punto_lng` (`double precision`, la posición actual del punto; `null` en un alta). El cliente decide si es un alta por `operacion`, **no** por `punto is null`. La UTM no va: la calcula el cliente con la función de la ficha (0036, DEC-160). `distancia_gps_m`, `distancia_exif_m` y `sin_foto_sitio` siguen en la vista, pero el panel ya no los enseña (DEC-166). Al final de todo, `punto_datos_cambiados_en` (0045, RV-403): cuándo cambiaron por última vez los datos del punto, lo que decide `desactualizada`; `punto_actualizado_en` sigue igual (sube también con el núcleo). |
 | `v_historial_revision` | propuestas decididas (`estado <> 'pendiente'`: aprobada, rechazada, retirada por el autor) para el detalle en solo lectura (FR-109): `id`, `operacion`, `estado`, `creada_en`, `autor_nombre`, `autor_apellido`, `punto_id`, `codigo`, `datos`, `foto_path`, `foto_sitio_path`, `direccion_sugerida`, `direccion_actual`, `lat` y `lng` (el pin de la propuesta), `origen_ubicacion`, `precision_gps_m`, `nucleo` (el del punto o, en un alta, el deducido del pin), `motivo_rechazo`, `correcciones`, `revisada_por`, `revisada_en` y, al final, `punto`, `punto_lat` y `punto_lng` como en `v_cola_revision`. Solo administradores, como la cola. Sin `antes`: el punto de hoy ya no es el de entonces. Un alta aprobada **no** enlaza al punto que creó (`punto_id` sigue `null` por el `check` de §2.2): `punto`, `codigo` y `punto_*` van `null`, y el código asignado está en el Registro. Orden: `revisada_en desc nulls last, creada_en desc, id`; el panel trae las 300 últimas de un estado, por debajo de `max_rows` (1.000), y si algún día pagina, lo hace por clave sobre ese orden, no por `offset` (0036, DEC-160). |
 | `v_revisiones_caducadas` | puntos activos con `revision_caducada`, con `direccion` o coordenadas, agrupables por `nucleo`. |
 | `v_registro` | `registro` legible: `momento`, `actor`, `accion`, `codigo` del punto, resumen. |
@@ -418,7 +429,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida`; desde 0041 también `fn_reportar_incidencia`, como sumidero para la app 0.7.0 (§2.7, hasta #472); desde 0044, `fn_liberar_reservas` y `fn_endpoint_tiene_jefatura`, y ya **no** la `fn_registrar_error` de 5 argumentos (docs/33 RV-306, #472) |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), `fn_vincular_administrador` (docs/35 RV-400: solo `/api/vincular-jefatura`; ni `anon` ni `authenticated`), más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), `fn_encolar_aviso_tecnico` (0045, docs/35 RV-404), `fn_vincular_administrador` (0046, docs/35 RV-400: solo `/api/vincular-jefatura`; ni `anon` ni `authenticated`), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni
@@ -678,8 +689,9 @@ fn_editar_punto(punto_id uuid, cambios jsonb) returns void
   --   ubicación. La misma posición que ya tiene (a 0,1 m) no cuenta como movimiento: el panel puede
   --   mandarla sin haber tocado el pin. Una sola entrada 'edicion_admin' por llamada aunque cambien varias cosas; si se
   --   movió, `despues` lleva desplazamiento_m (redondeado a 0,1 m), como fn_aprobar con 'ubicacion'.
-  -- toda edición cambia puntos.actualizado_en (trigger puntos_actualizado_en): las propuestas
-  --   pendientes anteriores salen desactualizadas en v_cola_revision.
+  -- toda edición cambia puntos.actualizado_en (trigger puntos_actualizado_en) y, si cambia algo más
+  --   que el núcleo o el municipio, puntos.datos_cambiados_en (0045): las propuestas pendientes
+  --   anteriores salen desactualizadas en v_cola_revision.
   -- errores: NO_AUTORIZADO · PAYLOAD_INVALIDO(cambios|ubicacion|<constraint>|<campo>) · PUNTO_NO_ACTIVO ·
   --   TIPO_NO_MODIFICABLE. <campo>: descripcion, descripcion_fallo o direccion más largas que §7.1 (0039)
 
@@ -775,6 +787,9 @@ fn_salud() returns jsonb
   --   (scripts/sql/tareas-esperadas.txt) solo la compara la vigilancia.
 fn_exportar_inventario(filtros jsonb default '{}') returns jsonb   -- con foto_path y foto_sitio_path desde 0035; datos planos; el panel genera xlsx/csv/geojson en el navegador (TR-105) y registra 'exportacion'
 fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
+  -- temas: uno o varios de nuevas_propuestas, resumen_semanal y, desde 0045 (docs/35 RV-404),
+  --   avisos_tecnicos; vacío u otro → PAYLOAD_INVALIDO(temas). Guarda los temas que recibe: el panel
+  --   anterior, que no conoce avisos_tecnicos, lo quita si vuelve a guardar los temas.
 -- 0040 (docs/31 RV-167): apagar los avisos de jefatura en este navegador. Borra solo la fila de jefatura
 -- (dispositivo_id null) con ese endpoint; la del voluntario del mismo navegador no se toca. Sin fila, no
 -- hace nada. error: PAYLOAD_INVALIDO(endpoint) si viene vacío.
@@ -787,6 +802,8 @@ fn_borrar_suscripcion_push_admin(endpoint text) returns void
 fn_suscripcion_push_admin(endpoint text) returns jsonb
 fn_renombrar_nucleo(nombre_actual text, nombre_nuevo text) returns void   -- 0009, DEC-068 (FR-166)
 fn_anadir_nucleo(nombre text, lat double precision, lng double precision) returns void   -- 0009
+  -- desde 0045 (docs/35 RV-403) solo actualiza los puntos activos del municipio cuyo núcleo cambia
+  --   (is distinct from); ni esto ni fn_renombrar_nucleo desactualizan propuestas (datos_cambiados_en, §2.1)
 fn_encolar_resumen_semanal() returns integer                   -- 0009; solo pg_cron, los lunes (FR-164)
 fn_novedades() returns jsonb                                    -- OBSOLETA desde 0.5.0: sin uso (las novedades salen del build, DEC-087); se retira en la siguiente versión mayor. Sin execute para authenticated desde 0040 (no empezaba por fn_exigir_admin; RV-149)
 fn_guardar_direccion_sugerida(propuesta_id uuid, direccion text) returns void   -- la usa /api/direccion con el JWT
@@ -855,6 +872,19 @@ fn_resultado_notificacion(notificacion_id bigint, ok boolean, error text, suscri
 fn_aplazar_notificaciones(ids bigint[], segundos integer) returns integer
   -- 0030, RV-84: los avisos reclamados y sin resultado de `ids` vuelven a poder reclamarse pasados
   -- `segundos` (Retry-After de un 429; de 0 a 86.400, 60 si es null) y recuperan el intento. Devuelve cuántos.
+-- 0045 (docs/35 RV-404, DEC-202): aviso técnico a jefatura. Solo service_role (y el dueño, con psql
+-- desde los workflows); sin execute para public, anon ni authenticated.
+fn_encolar_aviso_tecnico(clave text, titulo text, cuerpo text, url text default '/admin/ajustes') returns boolean
+  -- clave: vigilancia · respaldo · despliegue · intentos_codigo; otra → PAYLOAD_INVALIDO(clave).
+  -- titulo y cuerpo: null o vacíos → los textos fijos de la clave (06 Apéndice A; título «Aviso
+  --   técnico»); con valor, hasta 80 y 300 caracteres (si no, PAYLOAD_INVALIDO(titulo|cuerpo)). Nunca
+  --   nombres ni correos (FR-27). url: ruta de la propia app ('/' y letras, cifras, / _ ? = & . -; hasta 200), si no PAYLOAD_INVALIDO(url).
+  -- Encola una notificación por cada suscripción de jefatura (dispositivo_id null) de un administrador
+  --   activo con el tema avisos_tecnicos; ninguna de voluntario.
+  -- Como mucho una vez por clave cada 24 h; intentos_codigo, una vez por hora. Bloquea la fila de la
+  --   clave en avisos_tecnicos (for update): dos llamadas a la vez no encolan dos veces.
+  -- Devuelve true si ha encolado al menos una; false si estaba dentro del plazo o no hay suscripciones
+  --   (entonces no cuenta como emitido). La envía /api/push en su siguiente vuelta (el Worker, cada 5 min).
 ```
 
 ### 6.3 Helpers internos (sin `execute` público)
@@ -865,6 +895,8 @@ fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- "fuera" = a más de config.buffer_zona_m de todo límite (st_dwithin), igual que zona-cobertura.geojson
   -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
+fn_punto_json(p puntos) returns jsonb   -- la fila sin geom y con lat/lng, para antes/despues del registro;
+                                        -- desde 0045 sin datos_cambiados_en (marca técnica, RV-403)
 fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con respaldo
 fn_es_admin() returns boolean       -- fn_email_jwt() presente y activo en administradores, y la fila
                                     -- vinculada al usuario del JWT: usuario_id = fn_usuario_jwt()
@@ -1276,6 +1308,7 @@ sin ese cuello de botella:
 | Cuota de propuestas (`fn_proponer`, 0039) | `pg_advisory_xact_lock(hashtext('propuestas:' || dispositivo))` después de la comprobación de `clave_local` y antes de contar: dos envíos del mismo móvil a la vez no pasan los dos la propuesta 60. El tope global (0041) se contaba bajo `pg_advisory_xact_lock(hashtext('propuestas:global'))` hasta el final de la transacción, y ponía en fila a todos los voluntarios; desde 0044 (docs/33 RV-304) se cuenta **sin** ese bloqueo: es un freno contra abusos (600 al día) y se acepta pasarlo en tantas como propuestas lleguen a la vez. |
 | Entrada abierta (`fn_abrir_entrada`, `fn_cerrar_entrada`, `fn_cambiar_codigo_acceso`, 0044) | `for update` sobre la fila `entrada_abierta_hasta` de `config` antes de escribirla. |
 | `fn_liberar_reservas` (0044) | `for update` sobre las filas de `subidas` que libera; `liberada_en` solo se pone en las sin confirmar, y `fn_proponer` solo confirma las sin liberar: una reserva o se confirma o se libera. |
+| `fn_encolar_aviso_tecnico` (0045) | `insert … on conflict do nothing` de la fila de la clave en `avisos_tecnicos` y `select … for update` antes de mirar el plazo: dos llamadas a la vez con la misma clave encolan una vez. |
 | `fn_verificar_codigo` | Empieza con `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). |
 | `fn_guardar_config`, `fn_gestionar_administrador` | `for update` sobre las filas afectadas; la regla del último administrador activo se comprueba **dentro** de la transacción. |
 | Escrituras largas | Ninguna RPC hace peticiones de red: Nominatim y GitHub se llaman desde las *Pages Functions*, nunca con una transacción abierta. |
