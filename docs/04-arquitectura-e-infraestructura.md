@@ -358,7 +358,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | dos veces al día (07:41 y 19:41 UTC) |
 | Despachar los trabajos que pide jefatura desde Ajustes (purgar fotos, respaldo, regenerar zona o mapa base) | GitHub Actions `despachador.yml` (`prod-tareas`): lee los pedidos de la base de producción (`fn_pedidos_pendientes`), lanza el workflow con su `GITHUB_TOKEN` y marca el pedido (`fn_marcar_pedido`); sin token de GitHub en Pages (DEC-172) | cada 15 minutos |
 | Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml`, por pedido desde Ajustes que lanza el despachador (`fn_pedir_trabajo`, DEC-172); abre un PR a `develop` con lo regenerado | bajo demanda |
-| Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt`, con CI verde, DEC-181; lo demás espera a una revisión, que hace una sesión con `pr-review-toolkit`) | semanal |
+| Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt`, con nombre exacto y el lockfile sin nada más, con CI verde, DEC-181, DEC-198; lo demás espera a una revisión, que hace una sesión con `pr-review-toolkit`) | semanal |
 | Lighthouse y cabeceras | dentro de `deploy-staging.yml`, tras desplegar | cada despliegue |
 
 Regla: lo que es puro SQL va por `pg_cron`; lo que necesita `service_role` fuera de la base de datos
@@ -446,7 +446,7 @@ e2e/                    # Playwright
 | Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` en cada push a `develop` con `VERSION_CODIGO` (el último commit de `workers/`), que la vigilancia compara con `develop` (docs/20 RV-74); sin superficie HTTP (DEC-097) |
 | `avisos.yml` | solo a mano (`workflow_dispatch`) | lo mismo que el Worker, como envío de emergencia si fallara (DEC-097) |
 | `traspaso.yml` | lo lanza `npm run traspasar-secreto` (`workflow_dispatch` en `develop`) | mueve un secreto de sitio sin que nadie vea su valor: solo lo lanza el titular de la variable `PROPIETARIO`; lo cifra en un sobre híbrido (AES-256-GCM para el valor y una clave pública RSA-OAEP de un solo uso para la clave AES, docs/32 RV-208, así caben secretos largos) y sube solo el texto cifrado como artefacto de 1 día; el script lo descifra en memoria, lo pone en el destino con `gh secret set` y borra el artefacto y la ejecución (docs/31 §1.2, DEC-172) |
-| `automerge.yml` | `pull_request_target` de un PR de Dependabot (mira el autor del PR, no el actor del evento) | fusión automática, con CI verde, solo de los parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt` (DEC-181; lo decide `.github/scripts/automerge-permitido.mjs`). Corre en `pull_request_target` para que el workflow, sus actions, la lista y el script salgan siempre de la **rama base** (checkout de `base.sha`, `persist-credentials: false`), **nunca del PR**: un PR no puede cambiar lo que decide si se fusiona, ni ejecutar con permiso de escritura una action que él mismo sube. Nunca se hace checkout del código del PR; los menores, los mayores, las actions y todo paquete fuera de la lista esperan a una revisión (TR-101, docs/31 RV-132, docs/32 RV-204). Todas las actions de fuera del repositorio van fijadas por SHA con la etiqueta en un comentario, y `scripts/seguridad-ci.test.ts` falla si una no lo está |
+| `automerge.yml` | `pull_request_target` de un PR de Dependabot (mira el autor del PR, no el actor del evento) | fusión automática, con CI verde, solo de los parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt`, con su nombre exacto, y solo si el lockfile del PR no cambia nada más que esos paquetes a esas versiones, sin entradas nuevas ni quitadas ni scripts de instalación (DEC-181, DEC-198; lo decide `.github/scripts/automerge-permitido.mjs`, con el lockfile de la base y el del PR, que lee como datos con la API de contenidos). Corre en `pull_request_target` para que el workflow, sus actions, la lista y el script salgan siempre de la **rama base** (checkout de `base.sha`, `persist-credentials: false`), **nunca del PR**: un PR no puede cambiar lo que decide si se fusiona, ni ejecutar con permiso de escritura una action que él mismo sube. Nunca se hace checkout del código del PR; los menores, los mayores, las actions y todo paquete fuera de la lista esperan a una revisión (TR-101, docs/31 RV-132, docs/32 RV-204). Todas las actions de fuera del repositorio van fijadas por SHA con la etiqueta en un comentario, y `scripts/seguridad-ci.test.ts` falla si una no lo está |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) La GitHub App que lo habría evitado no se hace (DEC-153) |
 
 Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml`: `ci-calidad`,
@@ -547,6 +547,18 @@ El código de las dependencias de npm **no corre con secretos** (docs/35 RV-410)
   la lista de excepciones, con su motivo.
 - `npm run publicar` espera a que `desplegar` pida la aprobación: mientras `construir` corre, la
   ejecución está `in_progress` sin estar aprobada (§12.1).
+- **Fusión automática estricta.** `.github/automerge-permitidos.txt` tiene nombres exactos, sin
+  comodines. `automerge.yml` lee el lockfile del PR como datos (API de contenidos con el SHA de su
+  cabeza; nunca un checkout del PR) y `automerge-permitido.mjs` lo compara con el de la base: espera
+  a una revisión si aparece o desaparece una entrada, si cambia una que no es una dependencia del PR
+  a la versión que dice Dependabot (con el tarball del registro de npm y su integridad), si la raíz
+  cambia algo más que esos rangos, si una entrada nueva o cambiada trae un script de instalación o
+  si el PR toca algo más que `package.json` y `package-lock.json`. Si una ejecución posterior ya no
+  lo permite, quita la fusión automática que dejara puesta otra anterior. `vitest`,
+  `@playwright/test` y `typescript-eslint` no están en la lista: fijan la versión exacta de paquetes
+  suyos y siempre esperarían. Los PR de `.github/despliegue` nunca se fusionan solos.
+- **`npm audit`** sin altas: `npm audit fix` sin `--force`; lo que necesite una versión mayor va en
+  un PR aparte, revisado, o en una issue `tras-piloto`.
 
 ## 12. Marcha atrás
 
