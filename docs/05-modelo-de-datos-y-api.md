@@ -262,6 +262,14 @@ la app anterior). Índice `btree (ip_hash, momento)`. Borrado > 90 días por `pg
 | `activo` | `boolean` | default `true` |
 | `creado_en` | `timestamptz` | |
 | `creado_por` | `text` | email o `'migracion'` |
+| `usuario_id` | `uuid` | `unique`. El usuario de Supabase Auth (el `sub` del JWT) al que está unida la fila; `null` = sin vincular todavía (docs/35 RV-400, DEC-197) |
+| `vinculado_en` | `timestamptz` | cuándo se vinculó; `null` a la vez que `usuario_id` (check) |
+| `vinculado` | `boolean` | generada: `usuario_id is not null`. La lee Ajustes («Pendiente de su primer acceso») |
+
+La fila la vincula `/api/vincular-jefatura` (§9) con `fn_vincular_administrador` la primera vez que el
+administrador entra en el panel con Google. Una fila sin vincular **no** da jefatura (§6.3,
+`fn_es_admin`). Una restauración de `administradores` sin `usuario_id` (`scripts/lib/acceso-restaurado.ts`)
+las deja sin vincular, y cada uno se vuelve a vincular solo al entrar.
 
 El propietario **no** va en una migración (repositorio público, DEC-053): lo da de alta
 `scripts/asegurar-propietario.ts` en cada despliegue, desde el secreto `PROPIETARIO_EMAIL`, si no existe.
@@ -410,7 +418,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida`; desde 0041 también `fn_reportar_incidencia`, como sumidero para la app 0.7.0 (§2.7, hasta #472); desde 0044, `fn_liberar_reservas` y `fn_endpoint_tiene_jefatura`, y ya **no** la `fn_registrar_error` de 5 argumentos (docs/33 RV-306, #472) |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), `fn_vincular_administrador` (docs/35 RV-400: solo `/api/vincular-jefatura`; ni `anon` ni `authenticated`), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni
@@ -699,7 +707,8 @@ fn_abrir_entrada(horas integer default 24) returns timestamptz
 -- cerrada no hace nada). error: NO_AUTORIZADO
 fn_cerrar_entrada() returns void
 fn_gestionar_administrador(email text, activo boolean) returns void
-  -- error: ULTIMO_ADMINISTRADOR
+  -- error: ULTIMO_ADMINISTRADOR. Desde docs/35 RV-400: al desactivar, tiene que quedar otro
+  --   administrador activo **y vinculado** (§2.9); los sin vincular no cuentan
 fn_guardar_config(cambios jsonb) returns void
   -- solo claves de la lista blanca de §2.10; valida tipos y rangos. error: CONFIG_INVALIDA(<clave>)
   -- lista blanca: meses_revision, radio_duplicado_m, dias_papelera, buffer_zona_m,
@@ -856,7 +865,24 @@ fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
 fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con respaldo
-fn_es_admin() returns boolean       -- fn_email_jwt() presente y activo en administradores
+fn_es_admin() returns boolean       -- fn_email_jwt() presente y activo en administradores, y la fila
+                                    -- vinculada al usuario del JWT: usuario_id = fn_usuario_jwt()
+                                    -- (docs/35 RV-400, DEC-197). Una fila sin vincular no da jefatura.
+                                    -- Nada más decide quién es jefatura: fn_exigir_admin, las políticas
+                                    -- de RLS y las ramas de jefatura de las RPC pasan por ella
+fn_usuario_jwt() returns uuid       -- el `sub` del JWT si es un uuid; si no, null (docs/35 RV-400). No
+                                    -- lee auth.*: el rol del esquema no tiene permisos ahí (DEC-052)
+fn_vincular_administrador(usuario uuid, correo text) returns text
+                                    -- docs/35 RV-400: solo service_role (/api/vincular-jefatura). Bloqueo
+                                    -- por fila. `correo` en minúsculas y sin espacios. Devuelve:
+                                    --   VINCULADO: fila activa con ese correo y sin vincular → la vincula
+                                    --     (usuario_id, vinculado_en) y registra 'administrador_vinculado'
+                                    --     con despues = { email }, sin el usuario_id
+                                    --   YA_VINCULADO: ya lo está a ese mismo usuario; no hace nada
+                                    --   OTRA_CUENTA: la fila está vinculada a otro usuario, o ese usuario
+                                    --     ya lo está a otra fila; no hace nada
+                                    --   NO_ES_ADMINISTRADOR: no hay fila activa con ese correo
+                                    -- error: PAYLOAD_INVALIDO si falta alguno de los dos
 fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4; factor de diámetro
                                              -- ≤ 45 → 1, ≤ 70 → 2, > 70 → 3 (0032; antes, 0 para lo
                                              -- que no era 45, 70 o 100). Caudal: bueno 1 · regular 0,66 ·
@@ -948,7 +974,8 @@ mismo `maxLength` (`src/lib/limites.ts`).
 `config_cambiada`, `incidencia_resuelta`, `anonimizacion`, `exportacion`, `workflow_lanzado`, `nucleo_guardado` (DEC-068),
 `restauracion_respaldo` (0010, la anota `restaurar.ts`), `entrada_abierta` y `entrada_cerrada` (0044,
 docs/33 RV-300: `despues` = `{ hasta, horas, motivo: 'jefatura' | 'codigo_nuevo_revocando' }`;
-`antes` = `{ hasta }`).
+`antes` = `{ hasta }`), `administrador_vinculado` (docs/35 RV-400: `actor` y `despues.email` = el
+correo del administrador; nunca el `usuario_id`).
 
 Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTENTOS`,
 `TOKEN_INVALIDO`, `TOKEN_REVOCADO`, `TOKEN_CADUCADO`, `PAYLOAD_INVALIDO`, `FOTO_OBLIGATORIA`,
@@ -1105,6 +1132,31 @@ Según la variable `ENTORNO` del proyecto de Pages (RV-130):
 
 Un pedido pendiente del mismo trabajo (de menos de 24 h, 0040) → `409 { "error": "YA_PEDIDO" }`; la base de datos sin responder →
 `503 SERVIDOR_NO_DISPONIBLE`. `SOLO_EN_PRODUCCION` es un código solo de esta Function, no de una RPC.
+
+### `POST /api/vincular-jefatura`
+
+docs/35 RV-400, DEC-197. Une la fila de `administradores` a la cuenta de Supabase Auth de quien entra
+con Google. La llama el panel (`src/lib/acceso.ts`, RV-432) una vez por sesión cuando `fn_es_admin`
+da falso con una sesión de Google. Cabecera `Authorization: Bearer <JWT de la sesión>`; el cuerpo no
+se lee.
+
+1. Tope por IP (`CF-Connecting-IP` agrupada con `normalizarIp`, como en `/api/verificar-codigo`): 30
+   por minuto en el aislado (`dentroDelLimite` de `functions/_lib/limite.ts`, como `/api/geocodificar`).
+   Por encima → `429 { "error": "DEMASIADOS_INTENTOS" }`.
+2. Lee el usuario con `GET {SUPABASE_URL}/auth/v1/user` y ese JWT (lo valida Supabase Auth). Sin JWT,
+   o si Auth no lo acepta → `401 { "error": "NO_AUTORIZADO" }`. Auth sin responder → `503
+   SERVIDOR_NO_DISPONIBLE`.
+3. Busca en `identities` una con `provider = 'google'` e `identity_data.email_verified === true`. El
+   correo que cuenta es **`identity_data.email`** de esa identidad, en minúsculas; **nunca** `user.email`.
+   Sin esa identidad → `403 { "error": "SIN_GOOGLE" }`.
+4. Llama a `fn_vincular_administrador(user.id, correo)` con `service_role`:
+   - `VINCULADO` o `YA_VINCULADO` → `200 { "resultado": "…" }`;
+   - `NO_ES_ADMINISTRADOR` u `OTRA_CUENTA` → `403 { "error": "<ese código>" }`;
+   - la base de datos sin responder → `503 SERVIDOR_NO_DISPONIBLE`; otro fallo → `500 ERROR_INTERNO`.
+
+No registra el correo ni el `usuario_id` en ningún log. `SIN_GOOGLE` y `NO_ES_ADMINISTRADOR` son
+códigos solo de esta Function (además de la respuesta de la RPC). El panel trata todo lo que no sea
+`VINCULADO` o `YA_VINCULADO` como «sin acceso», sin reintentar.
 
 ### `POST /api/error`
 

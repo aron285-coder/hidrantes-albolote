@@ -9,10 +9,11 @@ set search_path = extensions, public;
 select plan(29);
 
 insert into hidrantes.administradores (email, creado_por) values ('cola-ficha@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 create function pg_temp.como(email text) returns void language sql as $$
   select set_config('request.jwt.claims',
-    format('{"role":"authenticated","email":"%s","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', email),
+    format('{"role":"authenticated","sub":"%s","email":"%s","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', md5(lower(email))::uuid, email),
     true);
 $$;
 
