@@ -14,6 +14,7 @@ values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen
 on conflict (clave) do update set valor = excluded.valor;
 insert into hidrantes.administradores (email, creado_por) values
   ('jefa34@example.com', 'test'), ('antigua34@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 update hidrantes.administradores set activo = false where email = 'antigua34@example.com';
 
 insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, direccion,
@@ -39,7 +40,7 @@ update hidrantes.dispositivos set emitido_en = now() - interval '2 days' where d
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims',
-    '{"role":"authenticated","email":"jefa34@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+    '{"role":"authenticated","sub":"4f3b3233-fee6-139e-dcd2-8262b946ac5e","email":"jefa34@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
     true);
 $$;
 create function pg_temp.voluntario() returns void language sql as $$

@@ -80,6 +80,8 @@ jobs:
       problemas: ${{ steps.mirar.outputs.problemas }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: ./.github/actions/preparar
         with:
           npm: 'false'
@@ -121,6 +123,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           # Para comparar main con develop (producción al día, docs/19 P-03).
           fetch-depth: 0
       # Sin npm ci (docs/19 RV-56): "Comprobar" solo usa bash, psql, gh y jq, y un npm ci roto no puede

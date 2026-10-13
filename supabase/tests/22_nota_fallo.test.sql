@@ -7,8 +7,9 @@ set search_path = extensions, public;
 select plan(3);
 
 insert into hidrantes.administradores (email, creado_por) values ('fallo@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 select set_config('request.jwt.claims',
-  '{"role":"authenticated","email":"fallo@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+  '{"role":"authenticated","sub":"45f0321e-a91b-3156-529d-f85e5f7b05b0","email":"fallo@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
   true);
 insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, descripcion_fallo, foto_path, municipio,
                               fecha_ultima_revision)

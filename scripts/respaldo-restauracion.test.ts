@@ -62,7 +62,8 @@ describe('respaldo.yml comprueba el respaldo restaurándolo (RV-134)', () => {
     expect(script).toContain('set -euo pipefail');
     expect(script).toContain('-f supabase/sql/arranque-bd.sql');
     expect(script).toContain('drop schema if exists hidrantes cascade');
-    expect(script).toContain('npx tsx scripts/restaurar.ts --entorno local --archivo "$volcado" --confirmar RESTAURAR');
+    // Con node, sin node_modules: corre en el respaldo, con los secretos (docs/35 RV-410).
+    expect(script).toContain('node scripts/restaurar.ts --entorno local --archivo "$volcado" --confirmar RESTAURAR');
     expect(script).toContain('select count(*) from hidrantes.puntos');
     expect(script).toMatch(/for esperado in "\$@"/);
     expect(script).toMatch(/exit 1\s*$/);

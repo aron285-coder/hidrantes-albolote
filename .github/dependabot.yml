@@ -39,6 +39,21 @@ updates:
       resto:
         update-types: [minor, patch]
 
+  # docs/35 RV-410 (DEC-198): el wrangler con el que se despliega, aparte y en versión exacta. Corre
+  # con los secretos de Cloudflare: nunca se fusiona solo (wrangler no está en la lista de permitidos)
+  # y cada PR se revisa con pr-review-toolkit, mirando el changelog.
+  - package-ecosystem: npm
+    directory: /.github/despliegue
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore(deps)
+
   # Las actions van fijadas por SHA con la etiqueta en un comentario; Dependabot actualiza los dos.
   - package-ecosystem: github-actions
     directory: /

@@ -9,10 +9,11 @@ set search_path = extensions, public;
 select plan(29);
 
 insert into hidrantes.administradores (email, creado_por) values ('cola-ficha@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 create function pg_temp.como(email text) returns void language sql as $$
   select set_config('request.jwt.claims',
-    format('{"role":"authenticated","email":"%s","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', email),
+    format('{"role":"authenticated","sub":"%s","email":"%s","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', md5(lower(email))::uuid, email),
     true);
 $$;
 
@@ -25,8 +26,8 @@ select is(
         'lat', 'lng', 'antes', 'despues', 'origen_ubicacion', 'precision_gps_m', 'distancia_gps_m', 'distancia_exif_m',
         'fuera_de_zona', 'meses_desde_revision', 'duplicado_de', 'distancia_duplicado_m', 'codigo_duplicado',
         'otra_medida', 'desactualizada', 'nucleo', 'punto_actualizado_en', 'foto_sitio_path',
-        'foto_sitio_path_actual', 'sin_foto_sitio', 'punto', 'punto_lat', 'punto_lng'],
-  'v_cola_revision: las 35 columnas de 0035 en su orden y punto, punto_lat, punto_lng al final');
+        'foto_sitio_path_actual', 'sin_foto_sitio', 'punto', 'punto_lat', 'punto_lng', 'punto_datos_cambiados_en'],
+  'v_cola_revision: las 35 columnas de 0035 en su orden y punto, punto_lat, punto_lng al final; desde 0045, punto_datos_cambiados_en detrás');
 select col_type_is('hidrantes', 'v_cola_revision', 'punto', 'jsonb', 'punto es jsonb');
 select col_type_is('hidrantes', 'v_cola_revision', 'punto_lat', 'double precision', 'punto_lat es double precision');
 select col_type_is('hidrantes', 'v_cola_revision', 'punto_lng', 'double precision', 'punto_lng es double precision');

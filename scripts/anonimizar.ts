@@ -135,7 +135,10 @@ export function claimsDe(admin: string, ahora = Math.floor(Date.now() / 1000)): 
 function comoAdmin(admin: string, cuerpo: string, fin: 'commit' | 'rollback'): string {
   return [
     'begin;',
-    `select set_config('request.jwt.claims', ${literal(claimsDe(admin))}, true) is not null as claims;`,
+    // docs/35 RV-400: jefatura exige la fila unida al usuario de la sesión: `sub` es su usuario_id.
+    `select set_config('request.jwt.claims', (${literal(claimsDe(admin))}::jsonb || jsonb_build_object('sub',
+       (select a.usuario_id from hidrantes.administradores a where a.email = ${literal(admin.toLowerCase())})))::text,
+       true) is not null as claims;`,
     cuerpo,
     `${fin};`,
   ].join('\n');
@@ -161,7 +164,8 @@ export function sqlVistaPrevia(admin: string, dispositivo: string): string {
   const d = `${literal(dispositivo)}::uuid`;
   const baja = literal(TEXTO_BAJA);
   return `select json_build_object(
-  'admin_activo', exists (select 1 from hidrantes.administradores a where a.email = ${literal(admin)} and a.activo),
+  'admin_activo', exists (select 1 from hidrantes.administradores a where a.email = ${literal(admin)} and a.activo
+                                   and a.usuario_id is not null),
   'de_administrador', exists (select 1 from hidrantes.administradores a where hidrantes.fn_dispositivo_admin(a.email) = ${d}),
   'propuestas', (select count(*) from hidrantes.propuestas r where r.dispositivo_id = ${d}),
   'registro', (select count(*) from hidrantes.registro g where g.dispositivo_id = ${d} and not g.es_admin),
@@ -242,7 +246,10 @@ export async function buscar(orden: Extract<Orden, { modo: 'buscar' }>, d: Depen
 export async function anonimizar(orden: Extract<Orden, { modo: 'anonimizar' }>, d: Dependencias): Promise<number> {
   const v = leerJson(d.consultar(sqlVistaPrevia(orden.admin, orden.dispositivo)), 'vista previa');
   if (!esVistaPrevia(v)) abortar('Respuesta inesperada de la base de datos (vista previa). No se ha cambiado nada.');
-  if (!v.admin_activo) abortar('--admin no es el correo de un administrador activo. No se ha cambiado nada.');
+  if (!v.admin_activo)
+    abortar(
+      '--admin no es el correo de un administrador activo y unido a su cuenta de Google (tiene que haber entrado una vez en el panel). No se ha cambiado nada.',
+    );
   if (v.de_administrador) abortar('Ese dispositivo es de un administrador: no se anonimiza. No se ha cambiado nada.');
   if (v.propuestas + v.registro === 0) abortar('No hay nada de ese dispositivo. Revisa el identificador con --buscar.');
   if (v.pendientes_propuestas + v.pendientes_registro === 0) {

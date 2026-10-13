@@ -17,6 +17,7 @@ select set_config('test.token',
 -- Tokens de más de 24 h: el tope de un token nuevo (0041, docs/32 RV-221) se prueba en 37.
 update hidrantes.dispositivos set emitido_en = now() - interval '2 days' where dispositivo_id in ('dddddddd-0000-4000-8000-0000000e2901');
 insert into hidrantes.administradores (email, creado_por) values ('diametro@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 -- Propuesta de voluntario (sin sesión de jefatura), con su foto reservada. Devuelve el id.
 create function pg_temp.proponer(clave text, op hidrantes.operacion, punto uuid, datos jsonb,
@@ -38,7 +39,7 @@ declare
   punto uuid;
 begin
   perform set_config('request.jwt.claims',
-    '{"role":"authenticated","email":"diametro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+    '{"role":"authenticated","sub":"a763a256-71ec-6612-32ce-7aaaaea3cb97","email":"diametro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
     true);
   punto := (hidrantes.fn_aprobar(propuesta, correcciones) ->> 'punto_id')::uuid;
   perform set_config('request.jwt.claims', '', true);
@@ -103,7 +104,7 @@ select throws_like($$ select pg_temp.proponer('diam-datos-hid', 'datos', current
 
 -- Edición directa de jefatura (FR-151): cambiar el racor no toca el diámetro.
 select set_config('request.jwt.claims',
-  '{"role":"authenticated","email":"diametro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+  '{"role":"authenticated","sub":"a763a256-71ec-6612-32ce-7aaaaea3cb97","email":"diametro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
   true);
 select hidrantes.fn_editar_punto(current_setting('test.boca70')::uuid, '{"diametro_mm":70}');
 select hidrantes.fn_editar_punto(current_setting('test.boca70')::uuid, '{"racor":"barcelona"}');
@@ -135,7 +136,7 @@ insert into hidrantes.propuestas (id, operacion, datos, autor_nombre, autor_apel
 values ('00000000-0000-4000-8000-0000000e2911', 'alta', '{"tipo":"boca_riego","diametro_otro":1e6,"caudal":"bueno","racor":"granada"}',
         'Ana', 'Ruiz', gen_random_uuid(), 'diam-vieja-enorme', 'gps', 'SRID=4326;POINT(-3.6091 37.2091)', 'fotos/v.jpg');
 select set_config('request.jwt.claims',
-  '{"role":"authenticated","email":"diametro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+  '{"role":"authenticated","sub":"a763a256-71ec-6612-32ce-7aaaaea3cb97","email":"diametro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
   true);
 select is((select resultado || ':' || motivo from hidrantes.fn_aprobar_lote(array['00000000-0000-4000-8000-0000000e2911'::uuid])),
   'omitida:PAYLOAD_INVALIDO(datos)', 'una otra medida enorme de antes: el lote la omite con PAYLOAD_INVALIDO');

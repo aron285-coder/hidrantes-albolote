@@ -45,7 +45,7 @@ describe('dependencias y actions (RV-132)', () => {
   it('Dependabot espera 7 días antes de proponer una versión, en npm y en actions', () => {
     const dependabot = readFileSync(path.join(raiz, '.github/dependabot.yml'), 'utf8');
     const bloques = dependabot.split(/\n\s{2}- package-ecosystem: /).slice(1);
-    expect(bloques.map((b) => b.split('\n')[0])).toEqual(['npm', 'github-actions']);
+    expect(bloques.map((b) => b.split('\n')[0])).toEqual(['npm', 'npm', 'github-actions']);
     for (const b of bloques) expect(b).toMatch(/\n\s{4}cooldown:\n\s{6}default-days: 7\n/);
   });
 
@@ -261,15 +261,17 @@ describe('staging no nombra el proyecto de producción (RV-130)', () => {
     expect(malos).toEqual([]);
     const staging = leer('deploy-staging.yml');
     expect(staging).toContain(
-      'npx wrangler pages deploy dist --project-name hidrantes-albolote-staging --branch develop',
+      '.github/despliegue/node_modules/.bin/wrangler pages deploy dist --project-name hidrantes-albolote-staging --branch develop',
     );
     expect(staging).not.toMatch(/--project-name\s+"?\$\{\{/);
   });
 
+  // docs/35 RV-410: el build va en «construir», sin environment: VITE_ENTORNO es fijo en cada flujo, y
+  // las variables públicas, las del repositorio de ese entorno.
   it('los dos despliegues ponen ENTORNO en su proyecto antes de desplegar, y VITE_ENTORNO en el build', () => {
-    for (const [a, proyecto, valor] of [
-      ['deploy-staging.yml', 'hidrantes-albolote-staging', 'staging'],
-      ['deploy-prod.yml', 'hidrantes-albolote', 'produccion'],
+    for (const [a, proyecto, valor, sufijo] of [
+      ['deploy-staging.yml', 'hidrantes-albolote-staging', 'staging', 'STAGING'],
+      ['deploy-prod.yml', 'hidrantes-albolote', 'produccion', 'PROD'],
     ] as const) {
       const texto = leer(a);
       const poner = texto.indexOf(`poner_entorno ${proyecto} ${valor}\n`);
@@ -277,7 +279,13 @@ describe('staging no nombra el proyecto de producción (RV-130)', () => {
       expect(poner, a).toBeLessThan(texto.indexOf('wrangler pages deploy'));
       expect(texto).toContain('source .github/scripts/entorno-pages.sh');
       const build = texto.slice(texto.indexOf('- run: npm run build'));
-      expect(build.slice(0, build.indexOf('\n      - '))).toContain('VITE_ENTORNO: ${{ vars.VITE_ENTORNO }}');
+      const paso = build.slice(0, build.indexOf('\n      - '));
+      expect(paso).toContain(`VITE_ENTORNO: ${valor}\n`);
+      expect(paso).toContain(`VITE_SUPABASE_URL: \${{ vars.SUPABASE_URL_${sufijo} }}`);
+      expect(paso).toContain(`VITE_SUPABASE_ANON_KEY: \${{ vars.SUPABASE_ANON_KEY_${sufijo} }}`);
+      expect(paso).toContain(`VITE_VAPID_PUBLIC_KEY: \${{ vars.VITE_VAPID_PUBLIC_KEY_${sufijo} }}`);
+      // Ninguna variable del otro entorno.
+      expect(paso).not.toMatch(sufijo === 'PROD' ? /_STAGING\b/ : /_PROD\b/);
     }
   });
 });

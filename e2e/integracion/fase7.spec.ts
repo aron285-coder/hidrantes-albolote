@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { T } from '../../src/lib/textos.ts';
-import { sesionDeJefatura } from './sesion-google.ts';
+import { sesionDeJefatura, sqlVincular } from './sesion-google.ts';
 
 const BD = process.env.BD_PRUEBAS ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (Supabase local efímero)
 const RAIZ = path.resolve(import.meta.dirname, '../..');
@@ -46,6 +46,7 @@ async function entrarComoJefatura(page: Page, request: APIRequestContext): Promi
     { url: env.VITE_SUPABASE_URL, anon: env.VITE_SUPABASE_ANON_KEY, servicio },
     correo,
   );
+  consulta(sqlVincular(correo, sesion.user.id));
   await page.addInitScript((s) => {
     if (!sessionStorage.getItem('g')) {
       sessionStorage.setItem('g', '1');
