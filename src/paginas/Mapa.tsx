@@ -386,6 +386,9 @@ export function Mapa() {
 
   const ficha = punto && (
     <Ficha
+      // En tableta y ordenador la ficha se queda abierta al cambiar de punto: sin la clave, lo de un
+      // punto (la foto que no cargó) pasaría al siguiente (RV-422).
+      key={punto.id}
       punto={punto}
       posicion={pos}
       guardadoEn={guardadoEn}
