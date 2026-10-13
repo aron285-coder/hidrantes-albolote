@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.60 — 10 oct 2026 (DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -633,8 +633,9 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 06 §5 y Apéndice A; 09 Fase 7.
 
 ### DEC-068 · Voluntarios, ajustes, núcleos, QR y avisos de jefatura
-- **Fecha:** 20 sep 2026 · **Estado:** vigente; el punto 5 lo sustituye DEC-069 (`workflow_dispatch`
-  en lugar de `repository_dispatch`)
+- **Fecha:** 20 sep 2026 · **Estado:** vigente salvo los puntos 5 y 6: el 5 lo sustituyó DEC-069
+  (`workflow_dispatch` en lugar de `repository_dispatch`), y los dos están **sustituidos por DEC-172**: el
+  panel deja un pedido y lo lanza `despachador.yml`; `GITHUB_DISPATCH_TOKEN` ya no existe
 - **Contexto:** última tanda de la Fase 7 (FR-130–FR-145, FR-162–FR-167). Los núcleos gestionables y
   el resumen semanal no tenían RPC en 05, y el QR no podía depender de un servicio externo.
 - **Decisiones:**
@@ -659,6 +660,25 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-196 · `docs/35`: seguridad antes del piloto, excepción a DEC-193
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35`).
+- **Contexto:** la revisión completa del 13 oct 2026, con seguridad, encontró dos fallos altos y varios medios:
+  en la entrada con el código, en staging, en el campo, en el panel y en la operación. Los altos bloquearían el
+  lanzamiento. Con los medios, el piloto se haría con defectos conocidos que ya tienen arreglo. DEC-193 solo deja
+  entrar arreglos `bloquea-release`, lo que salga de #76 a #78 y mantenimiento invisible.
+- **Decisión:**
+  1. `docs/35` entra como excepción a DEC-193, y solo con lo que contiene.
+  2. Los dos altos van como issues `bloquea-release`.
+  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/36`** y parte de
+     `docs/verificacion/piloto.md` (donde DEC-193 decía `docs/35`).
+  4. Fuera de `docs/35`: S3 (riesgo aceptado por el desarrollador), S5 (decidido por el desarrollador) y los
+     hallazgos bajos, que pasan a issues `tras-piloto`.
+- **Descartado:**
+  - esperar al piloto: un piloto con datos reales y el acceso de jefatura sin atar a su cuenta de Google no es
+    aceptable;
+  - meterlo todo como `bloquea-release` sin especificación: sin reparto ni tests escritos.
+- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/36`); CLAUDE.md §5 («salvo `docs/35`, DEC-196»); 09 §8.
 
 ### DEC-195 · Reglas de la documentación
 - **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34` RV-358 a RV-361).
@@ -700,7 +720,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   dos tipos al revés).
 
 ### DEC-193 · `docs/34` es la última especificación antes del piloto
-- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34`).
+- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34`), con la excepción de `docs/35` (DEC-196).
 - **Contexto:** entre el 23 sep y el 9 oct hubo diecisiete especificaciones de revisión (`docs/17` a `docs/33`),
   todas sobre staging con datos de prueba. El recorrido RV-344 ya no encontró ningún defecto alto, y los bajos
   eran plurales y textos recortados. La aplicación no la ha usado todavía ningún voluntario: la validación con
@@ -714,8 +734,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
   Una mejora que se le ocurra a Claude Code o al desarrollador mientras tanto se anota como issue con la
   etiqueta `tras-piloto` y no se implementa.
-- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/35` parte de lo que diga ese
-  archivo y de las issues `tras-piloto`, en ese orden.
+- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/36` parte de lo que diga ese
+  archivo y de las issues `tras-piloto`, en ese orden (`docs/35` es la excepción de seguridad de DEC-196).
 - **Descartado:** seguir con revisiones sobre staging hasta el piloto (rendimiento cada vez menor); congelar
   también los arreglos de defectos (un defecto que aparezca en la validación tiene que poder arreglarse).
 - **Afecta a:** 09 §8 (fase 9); CLAUDE.md §5 (una línea: «hasta el piloto, DEC-193»).
@@ -2280,7 +2300,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** `scripts/generar-zona.ts`; 04 §8; 12 (DEC-068.5).
 
 ### DEC-069 · El token de mantenimiento, con `actions:write` y no con `contents:write`
-- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Fecha:** 20 sep 2026 · **Estado:** sustituida por DEC-172: ninguna Function guarda un token de GitHub; el
+  panel deja un pedido y `despachador.yml` lo lanza con su `GITHUB_TOKEN` (`GITHUB_DISPATCH_TOKEN` se borró el 8 oct 2026)
 - **Contexto:** al ir a crear `GITHUB_DISPATCH_TOKEN` (último paso manual de la Fase 7) apareció una
   contradicción: 04 §10 lo describe desde el principio como un token con el **permiso único
   `actions:write`**, pero la implementación de DEC-068 usa `repository_dispatch`, y GitHub exige para
