@@ -72,3 +72,91 @@ test.describe('la foto de la ficha (RV-314)', () => {
     expect(llegar.y + llegar.height).toBeLessThanOrEqual(page.viewportSize()!.height);
   });
 });
+
+// docs/35 RV-422: en tableta y ordenador la ficha se queda abierta al cambiar de punto; que la foto
+// del anterior no cargara no impide pedir la del siguiente.
+test('al pasar a otro punto con la ficha abierta, se pide su foto aunque la anterior fallara', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!!isMobile, 'la ficha se queda abierta al lado del mapa: proyecto escritorio');
+  const P1 = PUNTOS[1];
+  const pedidas: string[] = [];
+  await page.route(`${SUPABASE_PRUEBAS}/storage/v1/object/public/**`, async (r) => {
+    const url = r.request().url();
+    pedidas.push(url);
+    if (url.includes('no-esta')) return r.fulfill({ status: 404, body: '' });
+    return r.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+      headers: { 'access-control-allow-origin': '*' },
+    });
+  });
+  await conSesion(page);
+  await simularRpc(page, {
+    fn_listar_puntos: {
+      ...LISTADO,
+      puntos: [
+        { ...P0, foto_path: 'fotos/no-esta.jpg' },
+        { ...P1, foto_path: 'fotos/si-esta.jpg' },
+        ...PUNTOS.slice(2),
+      ],
+    },
+    fn_mis_propuestas: [],
+    fn_registrar_error: null,
+  });
+  await page.goto(`/?p=${P0.id}`);
+  await expect(page.getByTestId('foto-franja')).toContainText(T.ficha.fotoNoCarga);
+  // Otro punto desde la lista de al lado: la ficha no se cierra.
+  await page
+    .getByRole('button', { name: new RegExp(P1.codigo) })
+    .first()
+    .click();
+  await expect(page).toHaveURL(new RegExp(`p=${P1.id}`));
+  await expect(page.getByRole('img', { name: P1.codigo })).toBeVisible();
+  expect(pedidas.some((u) => u.includes('si-esta'))).toBe(true);
+  await expect(page.getByTestId('foto-franja')).toHaveCount(0);
+});
+
+// docs/35 RV-422: si el mismo punto recibe otra foto (al sincronizar), se pide la nueva aunque la de
+// antes no cargara.
+test('con la ficha abierta, una foto nueva del mismo punto se pide aunque la anterior fallara', async ({
+  page,
+  context,
+}) => {
+  await page.route(`${SUPABASE_PRUEBAS}/storage/v1/object/public/**`, async (r) => {
+    if (r.request().url().includes('no-esta')) return r.fulfill({ status: 404, body: '' });
+    return r.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+      headers: { 'access-control-allow-origin': '*' },
+    });
+  });
+  await conSesion(page);
+  const listado = (foto: string) => ({ ...LISTADO, puntos: [{ ...P0, foto_path: foto }, ...PUNTOS.slice(1)] });
+  // simularRpc lee la respuesta en cada petición: cambiarla aquí es lo que trae la sincronización.
+  const respuestas: Record<string, unknown> = {
+    fn_listar_puntos: listado('fotos/no-esta.jpg'),
+    fn_mis_propuestas: [],
+    fn_registrar_error: null,
+  };
+  await simularRpc(page, respuestas);
+  await page.goto(`/?p=${P0.id}`);
+  await expect(page.getByTestId('foto-franja')).toContainText(T.ficha.fotoNoCarga);
+  respuestas.fn_listar_puntos = listado('fotos/nueva.jpg');
+  // Se va y vuelve la cobertura: la app vuelve a sincronizar.
+  const sincronizada = page.waitForRequest((r) => r.url().includes('/rpc/fn_listar_puntos'));
+  await context.setOffline(true);
+  await context.setOffline(false);
+  await sincronizada;
+  await expect(page.getByRole('img', { name: P0.codigo })).toBeVisible();
+  await expect(page.getByTestId('foto-franja')).toHaveCount(0);
+});

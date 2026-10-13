@@ -6,6 +6,8 @@ import {
   VIGILANCIA_ATRASADA_H,
   avisoAlmacenamiento,
   pendienteDeVincular,
+  avisoQuitarAcceso,
+  esUnoMismo,
   cargarNovedades,
   origenTareas,
   textoAlmacenamiento,
@@ -19,6 +21,7 @@ import {
 } from './ajustes';
 import { NOVEDADES, normalizarNovedades } from '../novedades';
 import { T } from '../textos';
+import { textoError } from './errores';
 
 describe('código de acceso (FR-140)', () => {
   it('son seis cifras y salen del generador criptográfico', () => {
@@ -242,5 +245,28 @@ describe('pendienteDeVincular (docs/35 RV-432)', () => {
 
   it('sin la columna (base anterior), no se dice nada', () => {
     expect(pendienteDeVincular({ ...fila, activo: true })).toBe(false);
+  });
+});
+
+// docs/35 RV-431: quitar el acceso a un administrador pide confirmación; a uno mismo, con su aviso.
+describe('avisoQuitarAcceso (docs/35 RV-431)', () => {
+  it('a otro administrador: con su correo', () => {
+    expect(avisoQuitarAcceso('otra@example.org', 'jefe@example.org')).toBe(
+      T.panelAjustes.avisoQuitarAcceso('otra@example.org'),
+    );
+  });
+
+  it('a uno mismo, sin mirar mayúsculas ni espacios: que saldrá del panel', () => {
+    expect(avisoQuitarAcceso('Jefe@Example.org ', 'jefe@example.org')).toBe(T.panelAjustes.avisoQuitarteAcceso);
+    expect(esUnoMismo('jefe@example.org', ' JEFE@example.org')).toBe(true);
+  });
+
+  it('sin saber quién es la sesión, nunca es uno mismo', () => {
+    expect(esUnoMismo('jefe@example.org', null)).toBe(false);
+    expect(esUnoMismo('', '')).toBe(false);
+  });
+
+  it('el último administrador, en palabras', () => {
+    expect(textoError('ULTIMO_ADMINISTRADOR')).toBe('Tiene que quedar al menos un administrador con acceso.');
   });
 });

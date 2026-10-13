@@ -137,10 +137,21 @@ jobs:
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-      - name: Seed de staging, idempotente
-        run: psql -X -q -v ON_ERROR_STOP=1 -f supabase/seed-staging.sql "$SUPABASE_DB_URL"
+      # El código de acceso de staging no está en el repositorio (docs/35 RV-411, DEC-200): llega del
+      # secreto CODIGO_STAGING como variable de psql y no se escribe en la salida. codigo-staging.sql
+      # cambia el de pruebas, o uno anterior del despliegue, y revoca los móviles; el de jefatura no.
+      - name: Seed de staging, idempotente, y su código de acceso
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          CODIGO_STAGING: ${{ secrets.CODIGO_STAGING }}
+        run: |
+          set -euo pipefail
+          if ! [[ "${CODIGO_STAGING:-}" =~ ^[0-9]{6}$ ]]; then
+            echo '::error::Falta CODIGO_STAGING (seis cifras) en el environment staging: npm run arranque -- --codigo-staging (15 §2)'
+            exit 1
+          fi
+          psql -X -q -v ON_ERROR_STOP=1 -v codigo="$CODIGO_STAGING" -f supabase/seed-staging.sql "$SUPABASE_DB_URL"
+          psql -X -q -v ON_ERROR_STOP=1 -v codigo="$CODIGO_STAGING" -f scripts/sql/codigo-staging.sql "$SUPABASE_DB_URL"
 
       # ENTORNO para las Functions (docs/31 RV-130; la usa RV-146). Antes de desplegar: Pages solo
       # aplica sus variables a los despliegues nuevos.
@@ -191,7 +202,8 @@ jobs:
         run: node scripts/comprobar-despliegue.ts --url https://hidrantes-albolote-staging.pages.dev --entorno staging
         env:
           # Para ver con dos peticiones iguales que la caché de las Functions funciona (docs/19 RV-63).
-          VIGILANCIA_SECRETO: ${{ secrets.VIGILANCIA_SECRETO_STAGING }}
+          # El de staging, en su environment (docs/35 RV-411, DEC-200).
+          VIGILANCIA_SECRETO: ${{ secrets.VIGILANCIA_SECRETO }}
 
       # Después de desplegar y comprobar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
       - name: Versión del mapa base en Salud del sistema (FR-143)

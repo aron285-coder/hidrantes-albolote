@@ -31,6 +31,7 @@ const {
   _reiniciarAcceso,
   acceso,
   comprobarAcceso,
+  dejarJefatura,
   direccionSinOauth,
   entrarConCodigo,
   limpiarDireccion,
@@ -214,6 +215,26 @@ describe('jefatura sin servidor al arrancar (RV-16, FR-168)', () => {
     await comprobarAcceso();
     await salirDeGoogle();
     expect(datos.has('hidrantes.jefatura_confirmada')).toBe(false);
+  });
+
+  // docs/35 RV-431: quitarse el acceso a uno mismo saca del panel sin volver a preguntar al servidor.
+  it('dejar jefatura: «No autorizado», sin confirmación ni sesión guardadas, y sin red tampoco vuelve', async () => {
+    conGoogle('jefa@example.org');
+    rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
+    await comprobarAcceso();
+    rpc.mockClear();
+    await dejarJefatura();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado' });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(datos.has('hidrantes.jefatura_confirmada')).toBe(false);
+    expect(datos.has('hidrantes.auth')).toBe(false);
+
+    // Otro arranque sin red: ya no entra como jefatura con lo guardado.
+    sesionGoogle = null;
+    _reiniciarAcceso();
+    vi.stubGlobal('navigator', { onLine: false });
+    await comprobarAcceso();
+    expect(acceso().tipo).not.toBe('jefatura');
   });
 
   it('sin sesión devuelta y sin red, con la confirmación guardada, sigue en solo lectura', async () => {

@@ -60,6 +60,9 @@ export const T = {
     cuota: 'Se ha llegado al máximo de entradas por ahora. Inténtalo más tarde; si sigue igual, díselo a jefatura.',
     tokenNoVale: 'El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo.',
     errorDesconocido: (codigo: Parametro) => `No se ha podido entrar (código ${codigo}). Inténtalo más tarde.`,
+    // docs/35 RV-426.
+    ocupado: 'Hay mucha gente entrando a la vez. Prueba otra vez en un minuto.',
+    errorGenerico: 'No se ha podido entrar. Inténtalo más tarde; si sigue igual, díselo a jefatura.',
   },
 
   bienvenida: {
@@ -558,6 +561,9 @@ export const T = {
       `En espera: el servidor no tiene sitio para más propuestas. Se volverá a intentar ${cuando}.`,
     esperaReservas: (cuando: Parametro) =>
       `En espera: este móvil tiene varias fotos a medio enviar. Se volverá a intentar ${cuando}.`,
+    // docs/35 RV-427: lo que pueden enviar entre todos los móviles recién entrados.
+    esperaMovilesNuevos:
+      'Hoy los móviles recién entrados ya han enviado mucho. Podrás seguir mañana; lo que tienes se queda guardado.',
   },
 
   ajustes: {
@@ -1108,6 +1114,11 @@ export const T = {
     // docs/35 RV-432: activo, pero su cuenta aún no se ha unido a su cuenta de Google.
     pendienteVincular: 'Pendiente de su primer acceso',
     ayudaPendienteVincular: 'Que entre en el panel cuanto antes con su cuenta de Google',
+    // docs/35 RV-431: pasar a «sin acceso» se confirma; devolverlo, no.
+    quitarAcceso: 'Quitar el acceso',
+    avisoQuitarAcceso: (correo: Parametro) => `¿Quitar el acceso a ${correo}?`,
+    avisoQuitarteAcceso:
+      'Vas a quitarte el acceso a ti. Saldrás del panel y otro administrador tendrá que devolvértelo.',
     parametros: 'Parámetros',
     ayudaParametros: 'Los móviles los aplican en su próxima sincronización.',
     mesesRevision: 'Meses entre revisiones',
@@ -1303,7 +1314,7 @@ export const T = {
     respaldoAhora: 'Respaldo ahora',
     saludSistema: 'Salud del sistema',
     mostrando: (n: Parametro, total: number) => `Mostrando ${n} de ${plural(total, 'punto', 'puntos')}`,
-    ultimoAdministrador: 'No se puede desactivar al último administrador activo.',
+    ultimoAdministrador: 'Tiene que quedar al menos un administrador con acceso.',
     pendienteEscribe: '— pendiente, escribe aquí',
   },
 } as const;

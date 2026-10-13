@@ -276,6 +276,24 @@ export async function salirDeGoogle(): Promise<void> {
   fijar(sinGoogle());
 }
 
+/**
+ * Jefatura se acaba de quitar el acceso a sí misma (docs/35 RV-431). El servidor ya lo ha aplicado:
+ * no se le vuelve a preguntar (sin red, `comprobarAcceso` la dejaría dentro con la confirmación
+ * guardada). Se olvida esa confirmación, se cierra la sesión de Google y queda «No autorizado».
+ */
+export async function dejarJefatura(): Promise<void> {
+  olvidarConfirmada();
+  await supabase()
+    ?.auth.signOut()
+    .catch((e: unknown) => anotarError(e, 'dejar-jefatura'));
+  try {
+    localStorage.removeItem(CLAVE_AUTH);
+  } catch {
+    // sin almacenamiento no había sesión guardada
+  }
+  fijar({ tipo: 'no_autorizado' });
+}
+
 /** "Volver" desde "No autorizado". */
 export function volverAEntrada(): void {
   olvidarConfirmada();

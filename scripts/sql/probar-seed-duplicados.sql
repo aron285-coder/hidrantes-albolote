@@ -6,6 +6,10 @@
 
 \set ON_ERROR_STOP on
 begin;
+-- Los administradores del seed están inactivos (docs/35 RV-411): en staging retira el propietario, que
+-- asegurar-propietario.ts da de alta antes del seed; aquí, uno de la CI en su lugar.
+insert into hidrantes.administradores (email, activo, creado_por) values ('propietario.ci@example.com', true, 'ci')
+on conflict (email) do update set activo = true;
 insert into hidrantes.puntos
   (id, codigo, tipo, geom, diametro_mm, caudal, racor, descripcion, foto_path, municipio, nucleo, situacion,
    fecha_ultima_revision, creado_en, actualizado_en)

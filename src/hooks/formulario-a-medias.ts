@@ -6,12 +6,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { type NavigateOptions, useNavigate } from 'react-router';
+import { volverOAlInicio } from '@/lib/navegacion';
 
 /** La entrada de historial del formulario lleva este campo, con un valor distinto en cada formulario. */
 const MARCA = 'formularioProponer';
 const marcaActual = () => (window.history.state as Record<string, unknown> | null)?.[MARCA];
-/** El índice de react-router de la entrada actual: 0 si es la primera de la pestaña. */
-const indice = () => ((window.history.state as { idx?: number } | null)?.idx ?? 0) as number;
 
 /**
  * La salida del formulario. `sucio`: hay algo rellenado o alguna foto. `preguntar`: enseña "¿Salir sin
@@ -38,8 +37,7 @@ export function useSalidaFormulario(sucio: boolean, preguntar: () => void) {
   /** Atrás de verdad: a la pantalla anterior o, si el formulario se abrió el primero, al mapa. */
   const volver = useCallback(() => {
     saliendo.current = true;
-    if (indice() > 0) navegar(-1);
-    else navegar('/', { replace: true });
+    volverOAlInicio(navegar);
   }, [navegar]);
 
   useEffect(() => {

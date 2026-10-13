@@ -6,6 +6,7 @@ import { capasDe } from '../mapa/capas-leaflet';
 import { ICONO_PIN, ICONO_PIN_SIN_COLOCAR } from '../mapa/iconos-leaflet';
 import { useConexion, useMapabase, useModo, usePosicion } from '@/hooks/estado';
 import { ZOOM_MAX, atribucion, baseDebajo, capaGuardada } from '@/lib/capas';
+import { claveMapabase } from '@/lib/mapabase';
 import type { Coordenadas } from '@/lib/propuestas';
 import { type Posicion, activarPosicion } from '@/lib/posicion';
 import { T } from '@/lib/textos';
@@ -49,6 +50,13 @@ export function SelectorPin({
   const estadoPos = usePosicion();
   const pendiente = useRef(false);
   const alUsarRef = useRef(alUsarMiPosicion);
+  /** El voluntario ya ha movido el pin o el mapa. */
+  const tocado = useRef(false);
+  /**
+   * El mapa abrió sin pin, sin posición anterior y sin GPS (en el centro del municipio): espera a la
+   * primera posición para centrarse en ella (docs/35 RV-423).
+   */
+  const esperaGps = useRef(!pin && !original && !gps);
 
   useEffect(() => {
     alUsarRef.current = alUsarMiPosicion;
@@ -82,12 +90,33 @@ export function SelectorPin({
     });
     mk.addTo(m);
     m.on('click', (e: L.LeafletMouseEvent) => {
+      tocado.current = true;
       mk.setLatLng(e.latlng);
       alMoverRef.current({ lat: e.latlng.lat, lng: e.latlng.lng });
     });
+    // Gestos del voluntario sobre el pin o el mapa, no los movimientos que hace la aplicación:
+    // arrastrar, pellizcar, la rueda o las teclas del mapa (como en el mapa principal, RV-310).
+    const lienzo = contenedor.current;
+    const tocar = () => {
+      tocado.current = true;
+    };
+    const conDosDedos = (e: TouchEvent) => {
+      if (e.touches.length > 1) tocar();
+    };
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key.startsWith('Arrow') || ['+', '-', '='].includes(e.key)) tocar();
+    };
+    mk.on('dragstart', tocar);
+    m.on('dragstart', tocar);
+    lienzo.addEventListener('wheel', tocar, { passive: true });
+    lienzo.addEventListener('touchstart', conDosDedos, { passive: true });
+    lienzo.addEventListener('keydown', tecla);
     marcador.current = mk;
     mapa.current = m;
     return () => {
+      lienzo.removeEventListener('wheel', tocar);
+      lienzo.removeEventListener('touchstart', conDosDedos);
+      lienzo.removeEventListener('keydown', tecla);
       m.remove();
       mapa.current = null;
     };
@@ -99,16 +128,19 @@ export function SelectorPin({
   // el móvil, el mapa base debajo. Al cambiar la conexión se vuelven a pintar: con Satélite elegido y
   // sin señal, el pin ya no se pone sobre un mapa gris (docs/31 RV-150).
   const debajo = baseDebajo(conexion, mapabase.descargado !== null);
+  // Otra copia del mapa base (descargada o borrada): las capas se pintan de nuevo con ella (RV-421).
+  const copia = claveMapabase(mapabase.descargado);
   useEffect(() => {
     const m = mapa.current;
     if (!m) return;
     const capas = capasDe(capaGuardada(), modo, debajo);
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
-  }, [modo, debajo]);
+  }, [modo, debajo, copia]);
 
   // El pin se mueve (GPS que llega, botón de posición…): solo se mueve el pin. El mapa no se
   // recentra solo, que descoloca mientras se ajusta a mano; para eso está "Mi posición" (DEC-066).
+  // La excepción es la primera posición de un alta que abrió sin ella (abajo, RV-423).
   // Sin pin (un alta sin GPS, o con la posición `antigua`), el marcador está pero no colocado: gris y
   // discontinuo, como dice «Mueve el pin al sitio correcto» (docs/31 RV-157, punto 6). Al tocar el
   // mapa o arrastrarlo, el formulario recibe el pin y vuelve el naranja.
@@ -135,6 +167,16 @@ export function SelectorPin({
       pendiente.current = false;
       irAMiPosicion(gps);
     }
+  }, [gps]);
+
+  // Un alta que abrió sin GPS: el pin salta a la primera posición que llega, que puede quedar fuera
+  // de la vista. El mapa se centra en ella una sola vez, y solo si el voluntario todavía no ha movido
+  // el pin ni el mapa: lo que él haya colocado no se le mueve (docs/35 RV-423).
+  useEffect(() => {
+    if (!gps || !esperaGps.current) return;
+    esperaGps.current = false;
+    const m = mapa.current;
+    if (m && !tocado.current) m.setView([gps.lat, gps.lng], m.getZoom(), { animate: false });
   }, [gps]);
 
   useEffect(() => {
