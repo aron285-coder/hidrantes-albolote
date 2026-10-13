@@ -18,7 +18,7 @@ export const RECORTE_MAPABASE = L.latLngBounds([sur!, oeste!], [norte!, este!]);
 // Un solo origen del mapa base (teselas sueltas o copia descargada) para todas las capas base que se
 // creen (claro/oscuro, formularios). Al descargar otra copia o al borrarse la que había, se crea de
 // nuevo: las capas que se pinten después ya no leen nada de la copia anterior (docs/35 RV-421). Los
-// mapas vuelven a pintar sus capas base cuando cambia `claveMapabase()` (useClaveMapabase).
+// mapas (MapaLeaflet, SelectorPin) vuelven a pintar sus capas base cuando cambia `claveMapabase()`.
 let archivo: FuenteMapabase | null = null;
 let claveArchivo = claveMapabase();
 function mapabase(): FuenteMapabase {

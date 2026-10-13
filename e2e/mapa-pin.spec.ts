@@ -22,11 +22,14 @@ test.describe('alta con el GPS que llega tarde (RV-423)', () => {
       navigator.geolocation.clearWatch = () => undefined;
     }, LEJOS);
     await conSesion(page);
-    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_registrar_error: null });
-    await page.goto('/proponer/alta');
+    await simularRpc(page, { fn_listar_puntos: LISTADO, fn_ficha_punto: PUNTOS[0], fn_registrar_error: null });
+  });
+
+  const abrir = async (page: Page, ruta = '/proponer/alta') => {
+    await page.goto(ruta);
     await expect(page.getByTestId('selector-pin')).toBeVisible();
     await expect.poll(() => page.evaluate(() => typeof (window as { __fix?: unknown }).__fix)).toBe('function');
-  });
+  };
 
   /** Manda la primera posición y espera a que el formulario la tenga («Buscando tu posición…» se va). */
   const fijarGps = async (page: Page) => {
@@ -43,6 +46,7 @@ test.describe('alta con el GPS que llega tarde (RV-423)', () => {
       .evaluate((e) => (e as HTMLElement).style.transform);
 
   test('con la primera posición, el mapa se centra y el pin queda a la vista', async ({ page }) => {
+    await abrir(page);
     await fijarGps(page);
     const mapa = (await page.getByTestId('selector-pin').boundingBox())!;
     const p = (await pin(page).boundingBox())!;
@@ -53,7 +57,21 @@ test.describe('alta con el GPS que llega tarde (RV-423)', () => {
     expect(centro.y).toBeLessThan(mapa.y + mapa.height);
   });
 
+  // Solo el alta se centra: al corregir la ubicación, el mapa abre en el punto y ahí se queda.
+  test('al corregir la ubicación, la posición que llega no mueve el mapa', async ({ page }) => {
+    await abrir(page, `/proponer/ubicacion?p=${PUNTOS[0]!.id}`);
+    const caja = async () => (await pin(page).boundingBox())!;
+    const antes = await caja();
+    await fijarGps(page);
+    const despues = await caja();
+    // Unos píxeles de margen por el texto de debajo del mapa, que cambia al llegar la posición; centrar
+    // en ella movería el pin más de 1.000 px.
+    expect(Math.abs(despues.x - antes.x)).toBeLessThan(5);
+    expect(Math.abs(despues.y - antes.y)).toBeLessThan(5);
+  });
+
   test('si antes se ha movido el mapa, no salta', async ({ page }) => {
+    await abrir(page);
     const mapa = (await page.getByTestId('selector-pin').boundingBox())!;
     const x = mapa.x + mapa.width / 2;
     const y = mapa.y + mapa.height * 0.75;
