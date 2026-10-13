@@ -64,8 +64,11 @@ export function DetallePropuesta({
   p: PropuestaPanel;
   puntos: Punto[];
   radioDuplicado: number | null;
-  /** La acción ha terminado de verdad (aprobada, rechazada, fusionada): en el móvil, vuelve a la cola. */
-  alHecho: () => void;
+  /**
+   * La acción sobre la propuesta `id` ha terminado de verdad (aprobada, rechazada, fusionada): en el
+   * móvil, vuelve a la cola si jefatura sigue en ella (docs/35 RV-430).
+   */
+  alHecho: (id: string) => void;
   /** Un error que pide ver el estado real (otra persona, el punto cambió): se recarga sin cerrar nada. */
   alRecargar: () => Promise<boolean>;
   alVolver?: () => void;
@@ -146,6 +149,9 @@ export function DetallePropuesta({
     que: 'aprobar' | 'fusionar' | 'rechazar',
   ) {
     setOcupado(true);
+    // El de cuando se pulsó: lleva la navegación de ese momento, para que la Cola sepa al terminar si
+    // jefatura se ha ido entretanto con "‹" o a otra propuesta (docs/35 RV-430).
+    const terminar = alHecho;
     const r = await accion();
     setOcupado(false);
     if (!r.ok) {
@@ -165,7 +171,7 @@ export function DetallePropuesta({
       return;
     }
     avisar(exito);
-    alHecho();
+    terminar(p.id);
   }
 
   // Hasta que llega la lista nueva no se aprueba: la confirmación expresa (FR-108) es sobre lo que se ve.

@@ -946,6 +946,73 @@ test.describe('a 412 × 915 (RV-163)', () => {
   });
 });
 
+// docs/35 RV-430: "‹" o abrir otra mientras se guarda. Al terminar, el guardado no vuelve a sacar de
+// la Cola ni cierra la propuesta que jefatura ha abierto entretanto.
+test.describe('a 412 × 915, mientras se guarda (docs/35 RV-430)', () => {
+  test.beforeEach(async ({ page }) => page.setViewportSize({ width: 412, height: 915 }));
+
+  /** `fn_aprobar` espera hasta `soltar()`; después contesta como siempre. */
+  async function aprobarRetenido(page: Page) {
+    let soltar: () => void = () => undefined;
+    const puerta = new Promise<void>((r) => (soltar = r));
+    let llegada = false;
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_aprobar`, async (route) => {
+      llegada = true;
+      await puerta;
+      return route.fallback();
+    });
+    return { soltar: () => soltar(), llegada: () => llegada };
+  }
+
+  /** Suelta el guardado y espera a su respuesta, y a lo que la app haga después con el historial. */
+  async function soltarYEsperar(page: Page, retenido: { soltar: () => void }) {
+    const respuesta = page.waitForResponse(/\/rest\/v1\/rpc\/fn_aprobar\b/);
+    retenido.soltar();
+    await respuesta;
+    // Un "atrás" del historial llega con popstate, después: sin esta espera se miraría la dirección antes.
+    await page.waitForTimeout(800);
+  }
+
+  test('"‹" durante el guardado: al terminar, sigue en la Cola', async ({ page }) => {
+    await prepararPanel(page);
+    const retenido = await aprobarRetenido(page);
+    // Antes de la Cola, otra pantalla del panel: si el guardado volviera atrás otra vez, saldría a ella.
+    await page.goto('/admin/inventario');
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await expect(lista.getByRole('listitem').first()).toBeVisible();
+
+    await abrir(page, new RegExp(P0.codigo));
+    await page.getByRole('article').getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect.poll(retenido.llegada).toBe(true);
+    await page.getByRole('button', { name: T.panelCola.volverCola }).click();
+    await expect(page.getByRole('article')).toHaveCount(0);
+
+    await soltarYEsperar(page, retenido);
+    await expect(lista.getByRole('button', { name: new RegExp(P0.codigo) })).toHaveCount(0);
+    await expect(lista.getByRole('button', { name: new RegExp(P4.codigo) })).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/cola$/);
+  });
+
+  test('abrir otra durante el guardado: al terminar, esa sigue abierta', async ({ page }) => {
+    await prepararPanel(page);
+    const retenido = await aprobarRetenido(page);
+    await page.goto('/admin/cola');
+    const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+    await expect(lista.getByRole('listitem').first()).toBeVisible();
+
+    await abrir(page, new RegExp(P0.codigo));
+    await page.getByRole('article').getByRole('button', { name: T.panelCola.aprobar, exact: true }).click();
+    await expect.poll(retenido.llegada).toBe(true);
+    await abrir(page, new RegExp(P4.codigo));
+    await expect(page).toHaveURL(/[?&]p=c2\b/);
+
+    await soltarYEsperar(page, retenido);
+    await expect(page).toHaveURL(/[?&]p=c2\b/);
+    await expect(page.getByRole('article').getByRole('heading', { name: new RegExp(P4.codigo) })).toBeVisible();
+  });
+});
+
 // docs/31 RV-169: la fila abierta con el oscuro elegido a mano (data-tema) y el sistema en claro. La
 // variante dark: solo sigue al sistema: con #EFF3F8 fijo, el texto claro del oscuro no se leía.
 test('Cola: la fila abierta y la lista pasan axe con el oscuro forzado sobre un sistema claro (RV-169)', async ({
