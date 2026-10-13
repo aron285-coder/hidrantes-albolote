@@ -7,7 +7,8 @@ import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
 import { useCarga } from '@/hooks/carga';
-import { usePosicion, usePuntos } from '@/hooks/estado';
+import { useAcceso, usePosicion, usePuntos } from '@/hooks/estado';
+import { dejarJefatura } from '@/lib/acceso';
 import { ENTORNO } from '@/lib/entorno';
 import { anotarError } from '@/lib/errores';
 import { fechaCorta, hace } from '@/lib/formato';
@@ -20,6 +21,7 @@ import {
   PARAMETROS_POR_DEFECTO,
   anadirNucleo,
   avisoPedido,
+  avisoQuitarAcceso,
   cambiarCodigo,
   cambiosParametros,
   cargarAdministradores,
@@ -33,6 +35,7 @@ import {
   cargarSalud,
   origenTareas,
   contarDispositivos,
+  esUnoMismo,
   faltaEnParametros,
   generarCodigo,
   gestionarAdministrador,
@@ -335,6 +338,10 @@ function Administradores() {
   const [correo, setCorreo] = useState('');
   const [sugerencias, setSugerencias] = useState<string[]>([]);
   const [ocupado, setOcupado] = useState(false);
+  // Pasar a «sin acceso» se confirma antes (docs/35 RV-431): el correo que espera la confirmación.
+  const [quitando, setQuitando] = useState<string | null>(null);
+  const acceso = useAcceso();
+  const propio = acceso.tipo === 'jefatura' ? acceso.correo : null;
   const filas = carga.datos ?? [];
 
   useEffect(() => {
@@ -348,6 +355,23 @@ function Administradores() {
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     avisar(activo ? T.panelAjustes.administradorAnadido(email) : T.panelAjustes.administradorQuitado(email));
     setCorreo('');
+    await carga.recargar();
+  }
+
+  // La ventana sigue abierta y bloqueada hasta tener la respuesta: un segundo toque no repite nada.
+  async function quitar(email: string) {
+    setOcupado(true);
+    const r = await gestionarAdministrador(email, false);
+    if (!r.ok) {
+      setOcupado(false);
+      setQuitando(null);
+      return avisar(textoError(r.codigo), 'error');
+    }
+    avisar(T.panelAjustes.administradorQuitado(email));
+    // Quien se lo ha quitado a sí mismo sale del panel, sin recargar una lista que ya no puede leer.
+    if (esUnoMismo(email, propio)) return dejarJefatura();
+    setOcupado(false);
+    setQuitando(null);
     await carga.recargar();
   }
 
@@ -367,7 +391,7 @@ function Administradores() {
                 className="size-4"
                 checked={a.activo}
                 disabled={ocupado}
-                onChange={(e) => void cambiar(a.email, e.target.checked)}
+                onChange={(e) => (e.target.checked ? void cambiar(a.email, true) : setQuitando(a.email))}
                 aria-label={T.panelAjustes.accesoDe(a.email)}
               />
               <span className={cn('text-[13px]', a.activo ? 'text-verde-texto' : 'text-texto-suave')}>
@@ -405,6 +429,19 @@ function Administradores() {
             </button>
           ))}
         </p>
+      )}
+      {quitando && (
+        <Dialogo titulo={T.panelAjustes.quitarAcceso} alCerrar={() => !ocupado && setQuitando(null)}>
+          <p className="text-sm">{avisoQuitarAcceso(quitando, propio)}</p>
+          <div className="mt-3 flex gap-3">
+            <Boton variante="destructivo" disabled={ocupado} onClick={() => void quitar(quitando)}>
+              {T.panelAjustes.quitarAcceso}
+            </Boton>
+            <Boton variante="secundario" disabled={ocupado} onClick={() => setQuitando(null)}>
+              {T.panelCola.cancelar}
+            </Boton>
+          </div>
+        </Dialogo>
       )}
     </Tarjeta>
   );

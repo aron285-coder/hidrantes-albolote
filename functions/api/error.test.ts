@@ -60,10 +60,10 @@ describe('POST /api/error', () => {
     espia.mockRestore();
   });
 
-  it('con IPv6 cuenta su /64, como el canje del código (RV-14)', async () => {
+  it('con IPv6 cuenta su /48, como el canje del código (RV-14, docs/35 RV-401)', async () => {
     const { espia, llamadas } = fingirRed();
     await onRequestPost({ request: peticion(bueno, '2001:db8:1:2:aaaa::1'), env: ENV });
-    await onRequestPost({ request: peticion(bueno, '2001:db8:1:2:bbbb::9'), env: ENV });
+    await onRequestPost({ request: peticion(bueno, '2001:db8:1:3:bbbb::9'), env: ENV });
     const esperado = await sha256Hex('sal-larga-de-pruebas' + normalizarIp('2001:db8:1:2::'));
     expect(llamadas.map((l) => l.cuerpo.ip_hash)).toEqual([esperado, esperado]);
     espia.mockRestore();
@@ -139,7 +139,7 @@ describe('POST /api/error', () => {
     // Con Content-Length y sin él (envío por trozos).
     const conLargo = new Request('https://hidrantes-albolote-staging.pages.dev/api/error', {
       method: 'POST',
-      headers: { 'Content-Length': String(grande.length) },
+      headers: { 'Content-Type': 'application/json', 'Content-Length': String(grande.length) },
       body: grande,
     });
     for (const request of [conLargo, peticion(grande)]) {

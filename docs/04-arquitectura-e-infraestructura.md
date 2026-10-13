@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión; cada cambio arrastra una entrada en 12. |
-| **Versión** | 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
+| **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión; cada cambio arrastra una entrada en 12. |
+| **Versión** | 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
 | **Propietario de** | las **decisiones de infraestructura y despliegue**: qué piezas hay, dónde corren, cómo se despliegan y cómo se vuelve atrás. |
 | **No contiene** | el esquema ni las firmas (→ 05), las exigencias que motivan estas decisiones (→ 03), procedimientos de emergencia paso a paso (→ 15). |
 
@@ -23,7 +23,7 @@ flowchart LR
   end
   subgraph cf["Cloudflare Pages (gratuito)"]
     EST[Archivos estáticos + PMTiles]
-    PF[Pages Functions<br/>verificar-codigo · url-subida · direccion · lanzar-workflow · push]
+    PF[Pages Functions<br/>functions/api, lista en 05 §9]
   end
   subgraph sb["Supabase (proyecto compartido con la app de uniformidad)"]
     PG[(Postgres · esquema hidrantes<br/>PostGIS · pg_cron)]
@@ -76,7 +76,7 @@ Tres ideas resumen el diseño:
 | Auth jefatura | Supabase Auth con Google, ya configurado por la app de uniformidad | Permisos en `hidrantes.administradores`, no en `public.app_users`. |
 | Acceso voluntario | Código de 6 dígitos canjeado una vez por un **token de dispositivo** | El código no vuelve a viajar; el límite de intentos no molesta a quien ya entró. |
 | Offline | Service Worker (`vite-plugin-pwa`), IndexedDB (`idb`), Cache Storage | TR-01–TR-08. |
-| Hosting | Cloudflare Pages + cinco **Pages Functions** (TypeScript) | Gratuito, CDN, despliegues inmutables, funciones en el mismo dominio. |
+| Hosting | Cloudflare Pages + **Pages Functions** (TypeScript) | Gratuito, CDN, despliegues inmutables, funciones en el mismo dominio. |
 | Dirección | Nominatim (OSM), desde una Pages Function, ≤ 1 req/s | FR-15, TR-72. |
 | Tareas programadas | `pg_cron` para purgas SQL; GitHub Actions para lo que necesita `service_role` fuera de la BD (respaldo, fotos huérfanas, promoción del piloto) | Nada depende de que alguien lo lance a mano. |
 | CI/CD | GitHub Actions | build, typecheck, lint, tests SQL, e2e, migraciones automáticas. |
@@ -127,7 +127,7 @@ Dos entornos completos y aislados. **Ningún dato, credencial ni bucket se compa
 | Proyecto Supabase | **dev** (el existente de la app de uniformidad) | **prod** (el existente) |
 | Esquema | `hidrantes` | `hidrantes` (idéntico, mismas migraciones) |
 | Bucket de Storage | `hidrantes-fotos-dev` | `hidrantes-fotos` |
-| Código de acceso | `000000` en el seed inicial; para el piloto, uno real generado desde Ajustes | real, generado y rotable |
+| Código de acceso | uno al azar que no está en el repositorio: el secreto `CODIGO_STAGING` del *environment* `staging`, que el seed recibe como variable de `psql` y `deploy-staging.yml` pone si el que hay es el de pruebas (DEC-200); para el piloto, uno real generado desde Ajustes, que el despliegue no toca | real, generado y rotable |
 | `administradores` | correos de prueba + el del propietario | el propietario al arrancar; el resto desde Ajustes |
 | Datos | seed de 12 puntos `[PRUEBA]` (idempotente, nunca pisa datos existentes) + los del piloto | vacío al arrancar; recibe los datos del piloto con `promover-piloto.ts` |
 | Indexación | `robots.txt` `Disallow: /` y meta `noindex` | normal |
@@ -228,16 +228,17 @@ Por qué así y no de otra forma:
 - **Nadie salta la Function:** `fn_verificar_codigo` no tiene `execute` para `anon` ni
   `authenticated`; solo la ejecuta la Function con `service_role`.
 
-Las cinco Pages Functions (`functions/api/`), en TypeScript, con su contrato en 05 §9:
+Las Pages Functions (`functions/api/`), en TypeScript, con su contrato en 05 §9 (allí está la lista completa):
 
 | Ruta | Función |
 |---|---|
 | `POST /api/verificar-codigo` | Canje del código por token, con la IP real. |
 | `POST /api/url-subida` | Reserva de subida y URL firmada para una foto. |
 | `GET /api/direccion` | Reverse geocoding en Nominatim, solo con JWT de administrador, ≤ 1 req/s, resultado cacheado en la propuesta. |
-| `POST /api/lanzar-workflow` | `workflow_dispatch` a un workflow de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. Con `workflow_dispatch` el token basta con `actions:write` (DEC-069). |
+| `POST /api/lanzar-workflow` | Deja un **pedido** en la base de datos (`fn_pedir_trabajo`) para un trabajo de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. No habla con GitHub ni guarda ningún token: lo lanza `despachador.yml`, solo en producción (DEC-172); desde staging, `purgar-fotos` y `respaldo` no se piden. |
 | `POST /api/geocodificar` | Números de portal para la búsqueda con CartoCiudad (IGN/CNIG), con token de voluntario o JWT de administrador, nunca anónima; 5 s como mucho, caché de 30 días por el sha256 de la consulta, que no se registra (DEC-092, 05 §9). |
 | `POST /api/push` | Envía las notificaciones pendientes (`notificaciones`) por Web Push con las claves VAPID; la llama el cliente tras cada acción que genera avisos y el trabajo diario de vigilancia. Idempotente. |
+| `POST /api/vincular-jefatura` | Une la fila de `administradores` al usuario de Supabase Auth de quien entra en el panel con Google, con el correo verificado de su identidad de Google; la llama el panel una vez por sesión (docs/35 RV-400, DEC-197). |
 
 ---
 
@@ -266,9 +267,12 @@ sequenceDiagram
 - **Las fotos no se mueven al aprobar.** Storage guarda los bytes fuera de Postgres; una función SQL
   no puede copiar archivos. `puntos.foto_path` pasa a apuntar al archivo ya subido.
 - **Dos fotos en alta y en corregir ubicación** (0035, DEC-146): la de la conexión y la del sitio, cada una
-  con su reserva y su `PUT`. Por eso la cuota de fábrica es 80 al día.
+  con su reserva y su `PUT`. Por eso la cuota de fábrica por móvil
+  (`max_subidas_dispositivo_dia`) es de 80 al día. Entre todos los voluntarios, el tope de fábrica es de
+  **150 reservas de foto en 24 h** (`max_subidas_dia_total`, DEC-182, DEC-191). Los dos se cambian en
+  Ajustes; el valor vigente y qué cuenta, en 05 §2.
 - **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas_lista()`
-  la lista de paths protegidos (`foto_path` y `foto_sitio_path` de puntos y de propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 7 días, DEC-084), lista
+  la lista de paths protegidos (`foto_path` y `foto_sitio_path` de puntos y de propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 2 días de fábrica, 05 §2, DEC-084, DEC-174), lista
   el bucket y borra el resto. La lista llega en una sola fila con su total, porque PostgREST corta en
   1.000 filas cualquier RPC que devuelva un conjunto. El guion no borra nada si la lista no cuadra con
   el total, si trae un múltiplo exacto de 1.000 o si la pasada borraría más de max(50, 10 %) del
@@ -279,7 +283,7 @@ sequenceDiagram
   (elimina metadatos), y coordenadas EXIF leídas antes y enviadas aparte como `exif_geom`. La foto del
   sitio, ≤ 1280 px y unos 150 kB: se ve un entorno, no un detalle.
 - **Almacenamiento (TR-53):** con 600 puntos, 600 × (250 + 150) kB ≈ **240 MB** de fotos vigentes, más
-  las de las propuestas pendientes y las reservas de menos de 7 días. Cabe en el gigabyte del plan
+  las de las propuestas pendientes y las reservas de menos de 2 días. Cabe en el gigabyte del plan
   gratuito; el aviso de Salud del sistema al 80 % no cambia.
 
 ---
@@ -347,13 +351,14 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Purga de fotos huérfanas | GitHub Actions `purgar-fotos.yml` (`service_role`) | semanal + bajo demanda desde Ajustes |
 | Respaldo cifrado de la BD (`pg_dump` del esquema `hidrantes`) | GitHub Actions `respaldo.yml` (`service_role`, GPG) | semanal, 90 días de retención |
 | Respaldo del bucket de fotos | mismo workflow | mensual |
+| Respaldo de staging, datos y fotos de `hidrantes-fotos-dev` (DEC-203: en el piloto los datos reales están en staging) | `respaldo.yml`, trabajo `respaldo-staging`, en el environment `staging`: la misma clave GPG, artefactos `respaldo-staging-«fecha»` y `respaldo-staging-fotos-«fecha»` de 90 días; sin restauración de prueba, pero comprueba que el cifrado no está vacío y va para la huella; si falla, la misma issue con «staging» en el título y un aviso técnico a la jefatura de staging (`fn_encolar_aviso_tecnico`, DEC-202); su fallo no pone en rojo la ejecución, para no esconder la copia de producción a la vigilancia. Un respaldo por entorno (DEC-180); restaurar, 15 §5.3 | semanal (datos) y el primer domingo del mes (fotos) |
 | Promoción de los datos del piloto | GitHub Actions `promover-piloto.yml` (manual, con aprobación) | una vez |
 | Versión del mapa base en `config.version_mapabase` (`cargar-version-mapabase.ts`, tras desplegar y comprobar lo servido; RV-21) | GitHub Actions `deploy-*.yml` | cada despliegue |
 | Mantener activos los proyectos de Supabase (DEC-054) | GitHub Actions `mantener-activo.yml` | diario |
 | Vigilancia (app responde, RPC responde, respaldo reciente, envío de push pendientes) | GitHub Actions `vigilancia.yml`; abre una issue si falla | dos veces al día (07:41 y 19:41 UTC) |
 | Despachar los trabajos que pide jefatura desde Ajustes (purgar fotos, respaldo, regenerar zona o mapa base) | GitHub Actions `despachador.yml` (`prod-tareas`): lee los pedidos de la base de producción (`fn_pedidos_pendientes`), lanza el workflow con su `GITHUB_TOKEN` y marca el pedido (`fn_marcar_pedido`); sin token de GitHub en Pages (DEC-172) | cada 15 minutos |
 | Regenerar zona / mapa base | GitHub Actions `mantenimiento.yml`, por pedido desde Ajustes que lanza el despachador (`fn_pedir_trabajo`, DEC-172); abre un PR a `develop` con lo regenerado | bajo demanda |
-| Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt`, con CI verde, DEC-181; lo demás espera a una revisión, que hace una sesión con `pr-review-toolkit`) | semanal |
+| Actualización de dependencias | Dependabot, con 7 días de espera (`cooldown`), + `automerge.yml` (solo parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt`, con nombre exacto y el lockfile sin nada más, con CI verde, DEC-181, DEC-198; lo demás espera a una revisión, que hace una sesión con `pr-review-toolkit`) | semanal |
 | Lighthouse y cabeceras | dentro de `deploy-staging.yml`, tras desplegar | cada despliegue |
 
 Regla: lo que es puro SQL va por `pg_cron`; lo que necesita `service_role` fuera de la base de datos
@@ -365,8 +370,8 @@ contienen nombres de voluntarios y el historial de Git es imposible de purgar.
 ## 10. Secretos
 
 Viven solo en estos sitios: los GitHub Environments `staging`, `production` y `prod-tareas`; el
-nivel del repositorio de GitHub, solo con `GPG_PUBLIC_KEY` (pública) y lo que no es secreto de
-producción; las variables cifradas de cada proyecto de Cloudflare Pages; y el Worker
+nivel del repositorio de GitHub, solo con `GPG_PUBLIC_KEY` (pública: un secreto del repositorio lo
+lee un workflow de cualquier rama, DEC-172, DEC-200); las variables cifradas de cada proyecto de Cloudflare Pages; y el Worker
 `hidrantes-avisos`. Ningún `.env` committeado; `.env.example` con los nombres y sin valores. Los carga
 `scripts/arranque.ts`, y se mueven de un sitio a otro sin ver el valor con `npm run traspasar-secreto`
 (`traspaso.yml`: cifrado híbrido AES-256-GCM + RSA-OAEP de un solo uso, que admite secretos de varios
@@ -379,9 +384,11 @@ KB; solo lo lanza quien diga la variable del repositorio `PROPIETARIO`; DEC-172,
 | GitHub (por entorno) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | `promover-piloto.ts` y lo que corre con el *environment* de su entorno. La purga de fotos y el respaldo de producción **no** los leen de aquí: leen `SUPABASE_SERVICE_ROLE_KEY_PROD` y `SUPABASE_DB_URL_PROD` de `prod-tareas` |
 | Cloudflare Pages (por proyecto, cifradas) | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` (DEC-059), `VAPID_SUBJECT`, `VIGILANCIA_SECRETO` (DEC-088) | las Pages Functions |
 | GitHub (variables por entorno, públicas) | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_MAPABASE_URL`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` | el build del frontend, que se hace en Actions y se sube con `wrangler pages deploy` (DEC-055) |
+| GitHub (*environment* `staging`: solo la rama `develop`), además | `PROPIETARIO_EMAIL` (DEC-053), `VIGILANCIA_SECRETO` (el de staging: el mismo valor que el de Pages y el del Worker, DEC-088) y `CODIGO_STAGING`, el código de acceso de staging. Lo genera `npm run arranque -- --codigo-staging` al azar y por tubería, sin mostrarlo, y solo está ahí y en el `.env.local` de quien lo generó (DEC-200) | `deploy-staging.yml` (alta del propietario, seed y código), `respaldo.yml` (trabajo `respaldo-staging`) y `avisos.yml` |
+| GitHub (*environment* `production`), además | `PROPIETARIO_EMAIL`, `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` | el alta del propietario en `deploy-prod.yml`, y `promover-piloto.yml`, que corre en `production` y lee staging (DEC-078, DEC-200) |
 | GitHub (*environment* `prod-tareas`: sin revisores, solo la rama `develop`) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD` (el mismo valor que el de Pages y el del Worker, DEC-088), `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `respaldo.yml`, `purgar-fotos.yml`, el trabajo `mirar` de `vigilancia.yml`, `avisos.yml` y `comprobar-produccion.yml`: no pueden usar los de `production`, que exige aprobación humana en cada ejecución (DEC-071), y en el repositorio los leería un workflow de cualquier rama (docs/31 RV-131, DEC-172). Cada trabajo que usa un secreto de producción declara `environment: prod-tareas` o `production`; `scripts/seguridad-ci.test.ts` lo comprueba |
-| GitHub (repositorio) | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078), `GPG_PUBLIC_KEY`, `VIGILANCIA_SECRETO_STAGING`, `PROPIETARIO_EMAIL` | lo de staging y lo que no es secreto de producción. Ninguno de producción (DEC-172). `GPG_PUBLIC_KEY` es la clave **pública** que cifra el respaldo (`respaldo.yml` la lee desde `prod-tareas`, que ve las del repositorio); la privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación. `arranque.ts` deja además una copia en `production`, que solo usa para saber si ya existe |
-| Worker `hidrantes-avisos` (cifrados) | `VIGILANCIA_SECRETO_PROD`, `VIGILANCIA_SECRETO_STAGING`, los mismos valores que Pages y el repositorio; los pone `npm run arranque` (también `--rotar vigilancia` y `--solo-faltantes`) | llamar a `/api/push` de cada entorno cada 5 minutos (docs/19 RV-52, DEC-097) |
+| GitHub (repositorio) | solo `GPG_PUBLIC_KEY` | ningún otro: ni de producción (DEC-172) ni de staging (DEC-200); `comprobar-produccion` falla si aparece otro. `GPG_PUBLIC_KEY` es la clave **pública** que cifra el respaldo (`respaldo.yml` la lee desde `prod-tareas`, que ve las del repositorio); la privada **no** está en GitHub: se imprime una vez al arrancar y va al sobre o al gestor de contraseñas de la agrupación. `arranque.ts` deja además una copia en `production`, que solo usa para saber si ya existe |
+| Worker `hidrantes-avisos` (cifrados) | `VIGILANCIA_SECRETO_PROD`, `VIGILANCIA_SECRETO_STAGING`, los mismos valores que Pages y GitHub; los pone `npm run arranque` (también `--rotar vigilancia` y `--solo-faltantes`) | llamar a `/api/push` de cada entorno cada 5 minutos (docs/19 RV-52, DEC-097) |
 | GitHub (variables del repositorio, públicas) | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` | `mantener-activo.yml`, sin *environment* (DEC-054); `SUPABASE_URL_PROD` también para `purgar-fotos.yml` |
 | GitHub (variables del repositorio, públicas) | `PROPIETARIO` (login de GitHub del titular) | quién puede lanzar `traspaso.yml` (docs/32 RV-208). La huella de `GPG_PUBLIC_KEY` (la de 15 §2) ya no es una variable: es la constante `GPG_HUELLA` de `respaldo.yml`, y cambiarla exige un PR (docs/33 RV-341) |
 
@@ -410,7 +417,7 @@ necesita mirar el otro repositorio, lo dice y pide permiso.
 
 ```
 src/{componentes,paginas,lib,hooks,tipos}
-functions/api/          # verificar-codigo, url-subida, direccion, lanzar-workflow, push
+functions/api/          # una Function por ruta /api/…; la lista y los contratos, en 05 §9
 scripts/                # arranque (+ --rotar), migrar, generar-zona, cargar-zona, generar-mapabase,
                         # generar-codigo, revertir, restaurar, restaurar-fotos, promover-piloto,
                         # capturas, crear-issues
@@ -426,20 +433,20 @@ e2e/                    # Playwright
 | Workflow | Disparo | Hace |
 |---|---|---|
 | `ci.yml` | cada push y PR | typecheck, lint, build, presupuesto de tamaño, tests unitarios, pgTAP, las ocho pruebas de intrusión de TR-40 (`scripts/intrusion.ts`, 11 §5) y Playwright contra Supabase local + `wrangler pages dev`; si la rama cambia migraciones, además la compatibilidad hacia atrás de §12 (en un PR a `main`, contra el commit que sirve producción, docs/32 RV-206). Un *push* nuevo cancela solo la ejecución anterior **de un PR** (`cancel-in-progress` únicamente con `pull_request`): la de un *push* a `develop` o `main` sigue hasta el final, porque `publicar` exige `ci.yml` en verde con el commit de la marca de staging y el commit del registro que llega detrás la cancelaría (docs/32 RV-205) |
-| `deploy-staging.yml` | merge a `develop` | `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente), `ENTORNO=staging` en el proyecto de Pages y despliegue a Pages staging con el nombre del proyecto fijo (nunca el de producción: el token es de toda la cuenta, docs/31 RV-130) y, si cambió `workers/` o aún no existe, el Worker de los avisos (DEC-097) |
-| `deploy-prod.yml` | merge a `main`, tras aprobación | guarda de seguridad (sin seed, `PROJECT_REF` correcto), `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, `ENTORNO=produccion` en el proyecto de Pages, despliegue. El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
-| `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual |
+| `deploy-staging.yml` | merge a `develop` | cuatro trabajos (§11.2, DEC-198): `construir` y `fotos-seed` sin secretos; `desplegar`, con el *environment* `staging`: comprueba que el build es de staging, `migrar.ts` contra dev, `cargar-zona.ts`, seed (idempotente, con `-v codigo` desde `CODIGO_STAGING`), `scripts/sql/codigo-staging.sql` (cambia el código de pruebas, o uno anterior del propio despliegue, por `CODIGO_STAGING` y revoca los móviles de staging; el que haya puesto jefatura no lo toca nunca, DEC-200), `ENTORNO=staging` en el proyecto de Pages, despliegue a Pages staging con el nombre del proyecto fijo (nunca el de producción: el token es de toda la cuenta, docs/31 RV-130), el Worker de los avisos en cada push (DEC-097), versión, cabeceras, mapa base servido y caché de las Functions (`comprobar-despliegue.ts`, con `node`), la versión del mapa base en Salud del sistema y las fotos del seed; `comprobar`, sin secretos: e2e de cabeceras y Lighthouse |
+| `deploy-prod.yml` | merge a `main`, tras aprobación | `construir` sin secretos; `desplegar`, con el *environment* `production` (la aprobación): guarda de seguridad (sin seed, `PROJECT_REF` correcto) y que el build es de producción, `migrar.ts` contra prod, `cargar-zona.ts`, alta del propietario, `ENTORNO=produccion` en el proyecto de Pages, despliegue, versión y cabeceras servidas (`comprobar-despliegue.ts`, con `node`), versión del mapa base y paridad; `avisar` si `desplegar` falla o se cancela después de empezar, y `cerrar` si todo va bien (§11.2, DEC-198). El código de acceso real **no** se genera aquí (el *summary* es público): lo genera jefatura en Ajustes (DEC-059) |
+| `respaldo.yml` | semanal | `pg_dump` cifrado + fotos mensual, de producción (`prod-tareas`) y de staging (`staging`, DEC-203) |
 | `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema, también en un ensayo. La primera pasada programada es ensayo, con su issue, hasta que haya `config.ultima_purga_fotos` (DEC-129) |
 | `canario-ubuntu.yml` | miércoles 05:13 UTC, y a mano | el camino crítico (`preparar` con psql, typecheck y tests) en `ubuntu-26.04`, sin tocar ninguna base de datos. Los demás trabajos van fijos en `ubuntu-24.04` (DEC-128) |
 | `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos, con las secuencias de prod al menos en las de staging para no volver a dar un código (RV-66); empieza en ensayo y exige escribir PROMOVER (DEC-078) |
 | `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
-| `vigilancia.yml` | dos veces al día, 07:41 y 19:41 UTC (GitHub las retrasa horas; docs/22 RV-93) | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa (issue y push a jefatura) si las fotos, con sus reservas abiertas, o la base de datos llegan al 70 % de su tope (`hidrantes.fn_espacio()`, `max_bytes_fotos` y `max_bytes_bd`; DEC-182, DEC-183), y si el espacio de fotos no sale del bucket o su medida tiene más de 8 días; abre una issue si algo falla (TR-102, TR-54, RV-22). Compara cada despliegue de producción de Pages (el activo y los de los últimos 3 días) con las ejecuciones de `deploy-prod.yml` del mismo commit en marcha a esa hora; si alguno no corresponde, abre la issue «Despliegue de producción no autorizado» y avisa por push a jefatura; con `config.revertir_despliegue_ajeno` a `true` (apagada si no existe) vuelve al último despliegue bueno (docs/31 RV-130). El trabajo `mirar` corre en `prod-tareas` (DEC-172). Staging tiene su propio trabajo, con la base de datos de su *environment*: mira los avisos sin salir y las tareas de `pg_cron`, y anota allí su última vigilancia. El respaldo solo existe en producción (docs/20 RV-78, DEC-104). Lo que se mira en cada base está en `.github/scripts/revisar-bd.sh`. La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
+| `vigilancia.yml` | dos veces al día, 07:41 y 19:41 UTC (GitHub las retrasa horas; docs/22 RV-93) | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa (issue y push a jefatura) si las fotos, con sus reservas abiertas, o la base de datos llegan al 70 % de su tope (`hidrantes.fn_espacio()`, `max_bytes_fotos` y `max_bytes_bd`; DEC-182, DEC-183), y si el espacio de fotos no sale del bucket o su medida tiene más de 8 días; abre una issue si algo falla (TR-102, TR-54, RV-22). Compara cada despliegue de producción de Pages (el activo y los de los últimos 3 días) con las ejecuciones de `deploy-prod.yml` del mismo commit en marcha a esa hora; si alguno no corresponde, abre la issue «Despliegue de producción no autorizado» y avisa por push a jefatura; con `config.revertir_despliegue_ajeno` a `true` (apagada si no existe) vuelve al último despliegue bueno (docs/31 RV-130). El trabajo `mirar` corre en `prod-tareas` (DEC-172). Staging tiene su propio trabajo, con la base de datos de su *environment*: mira los avisos sin salir y las tareas de `pg_cron`, y anota allí su última vigilancia. La vigilancia solo mira el respaldo de producción (docs/20 RV-78, DEC-104); el de staging (DEC-203) avisa con su propia issue si falla. Lo que se mira en cada base está en `.github/scripts/revisar-bd.sh`. La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
 | Worker `hidrantes-avisos` (Cloudflare, Cron Trigger) | cada 5 minutos | pide `/api/push` en producción y staging con `X-Vigilancia` hasta que no queden avisos, como mucho 10 veces por destino. Un solo Worker para los dos entornos, desplegado desde `deploy-staging.yml` en cada push a `develop` con `VERSION_CODIGO` (el último commit de `workers/`), que la vigilancia compara con `develop` (docs/20 RV-74); sin superficie HTTP (DEC-097) |
 | `avisos.yml` | solo a mano (`workflow_dispatch`) | lo mismo que el Worker, como envío de emergencia si fallara (DEC-097) |
 | `traspaso.yml` | lo lanza `npm run traspasar-secreto` (`workflow_dispatch` en `develop`) | mueve un secreto de sitio sin que nadie vea su valor: solo lo lanza el titular de la variable `PROPIETARIO`; lo cifra en un sobre híbrido (AES-256-GCM para el valor y una clave pública RSA-OAEP de un solo uso para la clave AES, docs/32 RV-208, así caben secretos largos) y sube solo el texto cifrado como artefacto de 1 día; el script lo descifra en memoria, lo pone en el destino con `gh secret set` y borra el artefacto y la ejecución (docs/31 §1.2, DEC-172) |
-| `automerge.yml` | `pull_request_target` de un PR de Dependabot (mira el autor del PR, no el actor del evento) | fusión automática, con CI verde, solo de los parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt` (DEC-181; lo decide `.github/scripts/automerge-permitido.mjs`). Corre en `pull_request_target` para que el workflow, sus actions, la lista y el script salgan siempre de la **rama base** (checkout de `base.sha`, `persist-credentials: false`), **nunca del PR**: un PR no puede cambiar lo que decide si se fusiona, ni ejecutar con permiso de escritura una action que él mismo sube. Nunca se hace checkout del código del PR; los menores, los mayores, las actions y todo paquete fuera de la lista esperan a una revisión (TR-101, docs/31 RV-132, docs/32 RV-204). Todas las actions de fuera del repositorio van fijadas por SHA con la etiqueta en un comentario, y `scripts/seguridad-ci.test.ts` falla si una no lo está |
+| `automerge.yml` | `pull_request_target` de un PR de Dependabot (mira el autor del PR, no el actor del evento) | fusión automática, con CI verde, solo de los parches de desarrollo de los paquetes de `.github/automerge-permitidos.txt`, con su nombre exacto, y solo si el lockfile del PR no cambia nada más que esos paquetes a esas versiones, sin entradas nuevas ni quitadas ni scripts de instalación (DEC-181, DEC-198; lo decide `.github/scripts/automerge-permitido.mjs`, con el lockfile de la base y el del PR, que lee como datos con la API de contenidos). Corre en `pull_request_target` para que el workflow, sus actions, la lista y el script salgan siempre de la **rama base** (checkout de `base.sha`, `persist-credentials: false`), **nunca del PR**: un PR no puede cambiar lo que decide si se fusiona, ni ejecutar con permiso de escritura una action que él mismo sube. Nunca se hace checkout del código del PR; los menores, los mayores, las actions y todo paquete fuera de la lista esperan a una revisión (TR-101, docs/31 RV-132, docs/32 RV-204). Todas las actions de fuera del repositorio van fijadas por SHA con la etiqueta en un comentario, y `scripts/seguridad-ci.test.ts` falla si una no lo está |
 | `release-please.yml` | merge a `develop` | release PR con versión y `CHANGELOG.md` (DEC-055). Para fusionarlo hace falta un empujón humano a su rama: lo que hace `GITHUB_TOKEN` no dispara los checks del PR, y el workflow deja el comando en su resumen (DEC-079) La GitHub App que lo habría evitado no se hace (DEC-153) |
 
 Los tres *checks* obligatorios de `main` y `develop` son los trabajos de `ci.yml`: `ci-calidad`,
@@ -498,6 +505,61 @@ Fase 0.
 
 ---
 
+### 11.2 Dependencias y secretos (DEC-198)
+
+El código de las dependencias de npm **no corre con secretos** (docs/35 RV-410):
+
+- **Sin scripts de instalación.** `.npmrc` lleva `ignore-scripts=true`. Las dos dependencias que
+  necesitan el suyo (los binarios de `esbuild` y `workerd`) se reconstruyen a mano después de
+  `npm ci`: `npm rebuild esbuild workerd --ignore-scripts=false` (lo hace `.github/actions/preparar`;
+  en local, CLAUDE.md §6). `allowScripts` de `package.json` se queda solo con esas dos: npm 12 lo
+  exige para reconstruirlas. Con `ignore-scripts` npm tampoco corre `pre*` ni `post*`: `build`
+  genera las novedades él mismo.
+- **Los trabajos con secretos no tienen `node_modules`.** `preparar` con `npm: 'false'` (Node 24,
+  sin caché de npm) y los scripts con `node scripts/x.ts`, que quita los tipos: `migrar`,
+  `asegurar-propietario`, `cargar-zona`, `purgar-fotos`, `respaldo-fotos`, `restaurar`,
+  `comprobar-produccion`, `guarda-produccion`, `paridad`, `cargar-version-mapabase`,
+  `comprobar-despliegue`, `promover-piloto`, `fotos-seed-staging --desde` y `despachar`. Solo usan
+  módulos de Node, y un test lo comprueba recorriendo sus imports.
+- **Construir aparte de desplegar.** Cada despliegue tiene un trabajo `construir` sin *environment*
+  ni secretos (`contents: read`) que hace `npm ci` y el build con las variables públicas del
+  repositorio con sufijo `_STAGING` o `_PROD` (`SUPABASE_URL_*`, `SUPABASE_ANON_KEY_*`,
+  `VITE_VAPID_PUBLIC_KEY_*`, que pone `arranque.ts`, y, si el mapa base pasa a R2,
+  `VITE_MAPABASE_URL_*` junto a la del *environment*) y sube `dist` como artefacto de un día. `desplegar` lo descarga, comprueba antes
+  de migrar que lleva las variables de su *environment* (`.github/scripts/build-del-entorno.sh`) y
+  despliega con el `wrangler` de `.github/despliegue`: una carpeta con **solo** `wrangler` en
+  versión exacta, su lockfile y su propio `.npmrc` con `ignore-scripts` (`npm ci --prefix
+  .github/despliegue --ignore-scripts`). Dependabot la vigila aparte y nunca la fusiona sola.
+  Después, `comprobar-despliegue.ts` (con `node`) espera a que se sirva la versión nueva antes de
+  anunciar la del mapa base (RV-21). En staging, `comprobar` (sin secretos) pasa el e2e de cabeceras
+  y Lighthouse; las fotos del seed se generan en Chromium en un trabajo sin secretos y `desplegar`
+  sube las que falten. Si hay que relanzar un despliegue más de un día después, «Re-run all jobs»:
+  `dist` ya no existe.
+- **Avisos de producción.** `avisar` abre la issue «Deploy de producción fallido» solo si
+  `desplegar` llegó a empezar; si la puerta rechaza la aprobación o falla `construir`, producción
+  no se ha tocado.
+- **`persist-credentials: false`** en todo `checkout` de un trabajo con secretos o con permiso de
+  escritura. La excepción es `mantenimiento.yml` (`regenerar`), que empuja su rama con `git push`.
+- `scripts/workflows.test.ts` lo comprueba: ningún paso de un trabajo con secretos (salvo
+  `GITHUB_TOKEN`) llama a `npm run`, `npx`, `tsx` ni `npm ci` (salvo el `wrangler` de
+  `.github/despliegue`), tampoco a través de `preparar`, `navegadores` o un guion de
+  `.github/scripts`; y todo `checkout` de esos trabajos lleva `persist-credentials: false` o está en
+  la lista de excepciones, con su motivo.
+- `npm run publicar` espera a que `desplegar` pida la aprobación: mientras `construir` corre, la
+  ejecución está `in_progress` sin estar aprobada (§12.1).
+- **Fusión automática estricta.** `.github/automerge-permitidos.txt` tiene nombres exactos, sin
+  comodines. `automerge.yml` lee el lockfile del PR como datos (API de contenidos con el SHA de su
+  cabeza; nunca un checkout del PR) y `automerge-permitido.mjs` lo compara con el de la base: espera
+  a una revisión si aparece o desaparece una entrada, si cambia una que no es una dependencia del PR
+  a la versión que dice Dependabot (con el tarball del registro de npm y su integridad), si la raíz
+  cambia algo más que esos rangos, si una entrada nueva o cambiada trae un script de instalación o
+  si el PR toca algo más que `package.json` y `package-lock.json`. Si una ejecución posterior ya no
+  lo permite, quita la fusión automática que dejara puesta otra anterior. `vitest`,
+  `@playwright/test` y `typescript-eslint` no están en la lista: fijan la versión exacta de paquetes
+  suyos y siempre esperarían. Los PR de `.github/despliegue` nunca se fusionan solos.
+- **`npm audit`** sin altas: `npm audit fix` sin `--force`; lo que necesite una versión mayor va en
+  un PR aparte, revisado, o en una issue `tras-piloto`.
+
 ## 12. Marcha atrás
 
 - **Frontend:** Pages conserva todos los despliegues; volver a uno es inmediato y sin reconstruir.
@@ -527,7 +589,7 @@ paso mira el estado real y sigue (PR ya fusionado, deploy ya aprobado…):
 |---|---|
 | 1 · `release` | Localiza el PR abierto de release-please (rama `release-please--…`, etiqueta `autorelease: pending`). Si no hay CI de `pull_request` para su cabeza, hace el empujón de DEC-079 sin cambiar de rama: `git commit-tree` de un commit vacío encima de la cabeza y `git push origin <sha>:refs/heads/<rama>`. Espera a que estén en verde **todos** los checks obligatorios de la protección de `develop` (uno que aún no existe, como `ci-e2e` mientras corren sus partes, no cuenta como verde) y lo fusiona con **squash**. |
 | 2 · `main` | Abre el PR `develop → main` (o usa el abierto), espera a que estén en verde todos los checks obligatorios de la protección de `main` y lo fusiona con **merge commit**, nunca squash (DEC-096; `ci-calidad` lo comprueba, RV-135). |
-| 3 · `despliegue` | Espera a que la ejecución de `deploy-prod.yml` de ese merge pida la aprobación (`waiting`). |
+| 3 · `despliegue` | Espera a que la ejecución de `deploy-prod.yml` de ese merge pida la aprobación (`waiting`). Mientras `construir` corre, la ejecución está `in_progress` y aún no hay nada que aprobar: solo cuenta como aprobada y en marcha si el trabajo `desplegar` ha empezado (§11.2). |
 | 4 · `puerta` | La puerta automática, abajo. |
 | 5 · `aprobar` | Puerta en verde: `POST repos/…/actions/runs/{id}/pending_deployments` con `state: approved`, el `id` del *environment* `production` y el resumen de la puerta como comentario. En rojo: lo mismo con `state: rejected`, y abre una issue con la etiqueta `bloquea-release` y el motivo; termina con error. |
 | 6 · `paridad` | Espera al final del deploy (que ya comprueba la paridad con `develop`) y repite `npm run comprobar-produccion -- --completo`. |

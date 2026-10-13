@@ -152,6 +152,34 @@ export function adaptarSesiones(texto: string): string {
 }
 
 /**
+ * Desde docs/35 RV-400 (DEC-197), jefatura exige además la fila de `administradores` unida al usuario
+ * de Auth de la sesión, y la une `/api/vincular-jefatura` con la identidad de Google, que el Supabase
+ * local no tiene. El frontend publicado no la llama (sí el siguiente, RV-432): esa diferencia la cubre
+ * la excepción de DEC-197. Lo que no puede quedarse así es su arnés: si el `sesion-google.ts` de la
+ * referencia no une la fila (`sqlVincular`), su `comoGoogle` pasa a unirla con psql contra la pila
+ * local, como hacen los casos de ahora. En cuanto la referencia publicada lo traiga, no hace nada.
+ */
+export const VINCULAR_EN_LA_PILA_LOCAL = `
+/** docs/35 RV-400: une la fila del administrador a este usuario de Auth (lo añade scripts/compatibilidad.ts). */
+function vincularEnLaPilaLocal(usuario: string, correo: string): void {
+  if (!/^[0-9a-f-]{36}$/i.test(usuario) || !correo.includes('@')) return;
+  const bd = process.env.BD_PRUEBAS ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (Supabase local efímero)
+  execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', bd, '-c',
+    \`update hidrantes.administradores set usuario_id = '\${usuario}', vinculado_en = now() where email = '\${correo.toLowerCase().replace(/'/g, "''")}' and usuario_id is null\`]);
+}
+`;
+
+export function adaptarVinculo(texto: string): string {
+  const firma = '  const firmado = `${b64(cab)}.${b64(nuevos)}`;';
+  if (texto.includes('sqlVincular') || texto.includes('vincularEnLaPilaLocal') || !texto.includes(firma)) return texto;
+  if (!texto.includes("import { execFileSync } from 'node:child_process';")) return texto;
+  return (
+    texto.replace(firma, `  vincularEnLaPilaLocal(String(claims.sub), String(claims.email));\n${firma}`) +
+    VINCULAR_EN_LA_PILA_LOCAL
+  );
+}
+
+/**
  * Columnas que `v_puntos_activos` ganó después de la referencia (05 §4). El caso de la Fase 5 de
  * entonces comprueba que la respuesta no trae autores con una lista cerrada de columnas, así que
  * cualquier columna nueva, aunque no sea personal, lo haría fallar sin que el frontend anterior
@@ -178,8 +206,20 @@ function adaptarColumnasAnteriores(): void {
   }
 }
 
+function adaptarVinculoAnterior(): void {
+  const ruta = path.join(DESTINO, 'e2e', 'integracion', 'sesion-google.ts');
+  if (!existsSync(ruta)) return;
+  const texto = readFileSync(ruta, 'utf8');
+  const adaptado = adaptarVinculo(texto);
+  if (adaptado !== texto) {
+    writeFileSync(ruta, adaptado);
+    log.info('sesion-google.ts: la sesión de jefatura deja unida su fila de administradores (docs/35 RV-400)');
+  }
+}
+
 function adaptarArnesAnterior(): void {
   adaptarColumnasAnteriores();
+  adaptarVinculoAnterior();
   const carpeta = path.join(DESTINO, 'e2e', 'integracion');
   if (!existsSync(carpeta) || existsSync(path.join(carpeta, 'sesion-google.ts'))) return;
   copyFileSync(path.join(RAIZ, 'e2e', 'integracion', 'sesion-google.ts'), path.join(carpeta, 'sesion-google.ts'));

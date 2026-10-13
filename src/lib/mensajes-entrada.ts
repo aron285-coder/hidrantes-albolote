@@ -25,6 +25,10 @@ export function mensajeEntrada(codigo: string, bloqueadoHasta: number | null = n
   // El móvil ya ha pedido otro identificador una vez (docs/31 RV-159) y sigue reservado.
   if (codigo === 'DISPOSITIVO_RESERVADO') return T.entrada.dispositivoReservado;
   if (codigo.startsWith('CUOTA_')) return T.entrada.cuota;
+  // docs/35 RV-426: mucha gente entrando a la vez; y una petición que la app no reconoce como suya,
+  // que con la app no debería pasar nunca: el texto genérico, sin el código.
+  if (codigo === 'OCUPADO') return T.entrada.ocupado;
+  if (codigo === 'ORIGEN_NO_PERMITIDO') return T.entrada.errorGenerico;
   if (codigo.startsWith('TOKEN_')) return T.entrada.tokenNoVale;
   // Solo el código (mayúsculas y guiones bajos), nunca un texto del servidor tal cual.
   const limpio = codigo.replace(/[^A-Z0-9_]/g, '').slice(0, 40) || '?';

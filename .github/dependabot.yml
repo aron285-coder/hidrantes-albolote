@@ -19,25 +19,43 @@ updates:
     commit-message:
       prefix: chore(deps)
     # El primer grupo que encaja se queda la dependencia: los parches de desarrollo de la lista de
-    # permitidos van en su PR, que es el único que automerge.yml fusiona solo. Los patrones son los
-    # de .github/automerge-permitidos.txt, en el mismo orden (scripts/seguridad-ci.test.ts).
+    # permitidos van en su PR, que es el único que automerge.yml fusiona solo. Los nombres son los
+    # de .github/automerge-permitidos.txt, exactos y en el mismo orden (scripts/seguridad-ci.test.ts,
+    # docs/35 RV-410).
     groups:
       parches-desarrollo:
         dependency-type: development
         update-types: [patch]
         patterns:
-          - 'eslint*'
-          - '@eslint/*'
+          - 'eslint'
+          - '@eslint/js'
+          - 'eslint-plugin-react-hooks'
+          - 'eslint-plugin-react-refresh'
           - 'prettier'
-          - '@types/*'
-          - 'typescript-eslint'
+          - '@types/geojson'
+          - '@types/leaflet'
+          - '@types/node'
+          - '@types/react'
+          - '@types/react-dom'
           - 'globals'
-          - '@playwright/test'
           - '@axe-core/playwright'
-          - 'vitest'
-          - '@vitest/*'
       resto:
         update-types: [minor, patch]
+
+  # docs/35 RV-410 (DEC-198): el wrangler con el que se despliega, aparte y en versión exacta. Corre
+  # con los secretos de Cloudflare: nunca se fusiona solo (wrangler no está en la lista de permitidos)
+  # y cada PR se revisa con pr-review-toolkit, mirando el changelog.
+  - package-ecosystem: npm
+    directory: /.github/despliegue
+    target-branch: develop
+    schedule:
+      interval: weekly
+      day: monday
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore(deps)
 
   # Las actions van fijadas por SHA con la etiqueta en un comentario; Dependabot actualiza los dos.
   - package-ecosystem: github-actions

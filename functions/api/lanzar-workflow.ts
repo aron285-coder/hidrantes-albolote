@@ -8,7 +8,17 @@
 // donde nadie los despacha (docs/15), y la respuesta lleva `staging: true` (RV-224). Sin ENTORNO, o con un valor que no sea `produccion`, cuenta
 // como staging: lo seguro.
 
-import { type Env, type Manejador, error, esAdmin, json, jwtDe, leerJson, rpc } from '../_lib/comun.ts';
+import {
+  type Env,
+  type Manejador,
+  error,
+  esAdmin,
+  exigirMismoOrigen,
+  json,
+  jwtDe,
+  leerJson,
+  rpc,
+} from '../_lib/comun.ts';
 
 export const WORKFLOWS = ['purgar-fotos', 'regenerar-zona', 'regenerar-mapabase', 'respaldo'] as const;
 export type Workflow = (typeof WORKFLOWS)[number];
@@ -19,6 +29,8 @@ export const SOLO_PRODUCCION = ['purgar-fotos', 'respaldo'] as const satisfies r
 const enProduccion = (env: Env) => env.ENTORNO === 'produccion';
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
+  const ajena = exigirMismoOrigen(request);
+  if (ajena) return ajena;
   const jwt = jwtDe(request);
   if (!jwt || !(await esAdmin(env, jwt))) return error(403, 'NO_AUTORIZADO');
   const cuerpo = await leerJson(request);

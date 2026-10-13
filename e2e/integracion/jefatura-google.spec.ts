@@ -1,12 +1,13 @@
 // docs/18 RV-36 contra la pila local real: el correo de un administrador no basta para ser jefatura.
 // Un usuario de Auth con contraseña (lo que permitiría un registro abierto por correo en el proyecto
-// compartido con uniformidad) no es jefatura; la misma sesión con amr oauth y providers google, sí.
+// compartido con uniformidad) no es jefatura; la misma sesión con amr oauth y providers google, solo
+// cuando la fila de administradores está unida a ese usuario de Auth (docs/35 RV-400).
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
-import { claimsDe, comoGoogle, sesionConClave } from './sesion-google.ts';
+import { claimsDe, comoGoogle, sesionConClave, sqlVincular } from './sesion-google.ts';
 
 const BD = process.env.BD_PRUEBAS ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (Supabase local efímero)
 const RAIZ = path.resolve(import.meta.dirname, '../..');
@@ -60,5 +61,10 @@ test('con contraseña y el correo de un administrador no se es jefatura; con Goo
   expect(claims.app_metadata).toEqual(expect.objectContaining({ provider: 'email', providers: ['email'] }));
 
   expect(await esAdmin(conClave.access_token)).toBe(false);
+  // docs/35 RV-400: con Google, pero la fila aún sin unir a este usuario, tampoco.
+  expect(await esAdmin(comoGoogle(conClave).access_token)).toBe(false);
+  consulta(sqlVincular(correo, conClave.user.id));
   expect(await esAdmin(comoGoogle(conClave).access_token)).toBe(true);
+  // Unida a este usuario, la contraseña sigue sin bastar.
+  expect(await esAdmin(conClave.access_token)).toBe(false);
 });

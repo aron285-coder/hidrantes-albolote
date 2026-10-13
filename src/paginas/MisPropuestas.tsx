@@ -11,6 +11,7 @@ import { useReloj } from '@/hooks/reloj';
 import { ATASCADO_MS, type EnCola, descartar, reintentarFallido } from '@/lib/cola';
 import { type Carga, avisoMisPropuestas } from '@/lib/aviso-mis-propuestas';
 import { hace } from '@/lib/formato';
+import { volverOAlInicio } from '@/lib/navegacion';
 import {
   type EstadoPropuesta,
   type PropuestaPropia,
@@ -142,7 +143,8 @@ export function MisPropuestas() {
     <div className="flex flex-1 flex-col">
       <BarraSuperior
         titulo={T.navegacion.misPropuestas}
-        alVolver={() => navegar(-1)}
+        // Abierta desde una notificación es la primera del historial: ‹ lleva al mapa (RV-420).
+        alVolver={() => volverOAlInicio(navegar)}
         // Va fuera del armazón, pero en el ordenador lleva la misma navegación de arriba (#625, U12).
         // Solo la abre el voluntario (RutasDentro): sin «Jefatura».
         navegacion={<NavegacionArriba pathname={pathname} jefatura={false} />}

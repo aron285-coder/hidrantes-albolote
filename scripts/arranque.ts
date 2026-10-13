@@ -5,12 +5,15 @@
 //   npm run arranque -- --rotar <qué>      db | cloudflare | sal-ip | vapid | gpg | vigilancia | todo
 //   npm run arranque -- --solo-faltantes   pone lo que falta sin rotar nada, con las sesiones de gh
 //                                          y wrangler (docs/19 P-01, RV-52)
+//   npm run arranque -- --codigo-staging   código de acceso de staging nuevo, al azar: al environment
+//                                          staging y a .env.local, sin mostrarlo (docs/35 RV-411)
 //
 // Pide a mano solo lo que ninguna API devuelve: token de Cloudflare, token de acceso de Supabase
 // (Management API) y las contraseñas de `postgres` de dev y prod. Nada de eso se guarda en disco:
 // la contraseña de `postgres` solo sirve para crear el rol hidrantes_migrador (DEC-052).
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { randomInt } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { claveAleatoria, parGpg, paresVapid, salAleatoria } from './lib/claves.ts';
 import {
@@ -443,7 +446,7 @@ async function prepararPages(
   }
   // Secreto compartido con avisos.yml y vigilancia.yml para llamar a /api/push (RV-08). Vive en
   // Pages y, con el mismo valor, en GitHub: el de producción en el environment prod-tareas y el de
-  // staging en el repositorio (DEC-071, DEC-172). El de Pages no se puede leer: si falta el de
+  // staging en el environment staging (DEC-071, DEC-172, DEC-200). El de Pages no se puede leer: si falta el de
   // GitHub, se hacen los dos de nuevo.
   let vigilancia: string | undefined;
   if (
@@ -491,29 +494,49 @@ function existeSecretoRepo(nombre: string): boolean {
 }
 
 /**
- * Dónde viven los secretos de las tareas automáticas (docs/31 RV-131, DEC-172): los de producción
- * (`_PROD`), en el environment prod-tareas, que solo admite develop; los de staging, en el
- * repositorio. `undefined` es el repositorio.
+ * Dónde viven los secretos de las tareas automáticas. Ninguno en el repositorio, que lo leería un
+ * workflow de cualquier rama (DEC-172, docs/35 RV-411):
+ * - los de producción (`_PROD`), en prod-tareas, que solo admite develop;
+ * - el de vigilancia de staging, en `staging` (solo develop), con el nombre que lee el workflow;
+ * - la base y la clave de servicio de staging, en `production`, porque solo las usa
+ *   `promover-piloto.yml`, que corre ahí (DEC-078).
+ * `undefined` es el repositorio.
  */
 export function sitioSecretoTareas(nombre: string): string | undefined {
-  return nombre.endsWith('_PROD') ? ENV_TAREAS : undefined;
+  if (nombre.endsWith('_PROD')) return ENV_TAREAS;
+  if (nombre === 'VIGILANCIA_SECRETO_STAGING') return 'staging';
+  if (nombre === 'SUPABASE_DB_URL_STAGING' || nombre === 'SUPABASE_SERVICE_ROLE_KEY_STAGING') return 'production';
+  return undefined;
 }
 
-/** De las listas del repositorio y de prod-tareas, solo los nombres que están en su sitio. */
-export function secretosEnSuSitio(repositorio: string[], tareas: string[]): string[] {
+/** Con qué nombre se guarda en su sitio: en `staging`, el de vigilancia es VIGILANCIA_SECRETO. */
+export function nombreEnSuSitio(nombre: string): string {
+  return nombre === 'VIGILANCIA_SECRETO_STAGING' ? 'VIGILANCIA_SECRETO' : nombre;
+}
+
+/** Los secretos de las tareas que tienen sitio propio, por su nombre lógico. */
+const SECRETOS_CON_SITIO = ['PROD', 'STAGING'].flatMap((s) =>
+  ['SUPABASE_DB_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'VIGILANCIA_SECRETO'].map((n) => `${n}_${s}`),
+);
+
+/**
+ * De las listas de nombres de cada sitio (`''` es el repositorio), los nombres lógicos que están en
+ * su sitio. Uno que siga en el repositorio pero falte en su environment cuenta como que falta.
+ */
+export function secretosEnSuSitio(listas: Record<string, string[]>): string[] {
   return [
-    ...repositorio.filter((n) => n && !sitioSecretoTareas(n)),
-    ...tareas.filter((n) => sitioSecretoTareas(n) === ENV_TAREAS),
+    ...(listas[''] ?? []).filter((n) => n && !sitioSecretoTareas(n)),
+    ...SECRETOS_CON_SITIO.filter((n) => (listas[sitioSecretoTareas(n)!] ?? []).includes(nombreEnSuSitio(n))),
   ];
 }
 
 function fijarSecretoTareas(nombre: string, valor: string): void {
-  fijarSecreto(nombre, valor, sitioSecretoTareas(nombre));
+  fijarSecreto(nombreEnSuSitio(nombre), valor, sitioSecretoTareas(nombre));
 }
 
 function existeSecretoTareas(nombre: string): boolean {
   const sitio = sitioSecretoTareas(nombre);
-  return sitio ? existeSecreto(nombre, sitio) : existeSecretoRepo(nombre);
+  return sitio ? existeSecreto(nombreEnSuSitio(nombre), sitio) : existeSecretoRepo(nombre);
 }
 
 async function prepararGpg(rotar: boolean): Promise<string | null> {
@@ -577,11 +600,15 @@ function secretosGithub(
   const sufijo = sufijoDe(e);
   fijarVariable(`SUPABASE_URL_${sufijo}`, sb.url);
   fijarVariable(`SUPABASE_ANON_KEY_${sufijo}`, sb.anon);
+  // docs/35 RV-410 (DEC-198): el trabajo «construir» de los deploy no tiene environment y construye con
+  // las variables del repositorio; el que despliega comprueba que dist lleva las del environment.
+  if (vapidPublica) fijarVariable(`VITE_VAPID_PUBLIC_KEY_${sufijo}`, vapidPublica);
 
   // Por el mismo motivo, respaldo.yml y las demás tareas por calendario necesitan fuera de
   // `production` lo que ese entorno guarda tras una aprobación humana (DEC-071): los de producción,
-  // en prod-tareas, sin revisores y solo para develop (DEC-172); los de staging, en el repositorio,
-  // porque `promover-piloto.yml` los lee desde el environment production (DEC-078).
+  // en prod-tareas, sin revisores y solo para develop (DEC-172); los de staging, en `production`,
+  // porque solo los lee `promover-piloto.yml` (DEC-078), y el de vigilancia en `staging`
+  // (sitioSecretoTareas, docs/35 RV-411). Ninguno en el repositorio.
   if (sb.urlMigrador) fijarSecretoTareas(`SUPABASE_DB_URL_${sufijo}`, sb.urlMigrador);
   fijarSecretoTareas(`SUPABASE_SERVICE_ROLE_KEY_${sufijo}`, sb.servicio);
   // El Worker hidrantes-avisos llama a /api/push cada 5 minutos con este secreto (DEC-097), y
@@ -597,13 +624,14 @@ function secretosGithub(
 
 /**
  * El correo del propietario no puede ir en una migración (repositorio público, DEC-053): se guarda
- * como secreto y asegurar-propietario.ts lo da de alta en cada despliegue si falta.
+ * como secreto y asegurar-propietario.ts lo da de alta en cada despliegue si falta. Va en los dos
+ * environments que despliegan, no en el repositorio (docs/35 RV-411).
  */
+export const SITIOS_PROPIETARIO = ['staging', 'production'] as const;
+
 async function asegurarSecretoPropietario(): Promise<void> {
   log.paso('8b. Propietario como administrador');
-  const existe = gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name'])
-    .split('\n')
-    .includes('PROPIETARIO_EMAIL');
+  const existe = SITIOS_PROPIETARIO.every((e) => existeSecreto('PROPIETARIO_EMAIL', e));
   if (existe && !(await confirmar('PROPIETARIO_EMAIL ya existe. ¿Cambiarlo?'))) {
     log.ok('se mantiene');
     return;
@@ -612,8 +640,41 @@ async function asegurarSecretoPropietario(): Promise<void> {
   const r = await preguntar(`Correo de Google con el que entrarás al panel [${porDefecto}]`);
   const email = (r || porDefecto).trim().toLowerCase();
   if (!/^[^@\s']+@[^@\s']+\.[^@\s']+$/.test(email)) abortar('Eso no parece un correo.');
-  fijarSecreto('PROPIETARIO_EMAIL', email);
-  log.ok('guardado como secreto; se da de alta en el próximo despliegue');
+  for (const e of SITIOS_PROPIETARIO) fijarSecreto('PROPIETARIO_EMAIL', email, e);
+  log.ok('guardado como secreto de staging y production; se da de alta en el próximo despliegue');
+}
+
+// ---------- 8c. código de acceso de staging (docs/35 RV-411, DEC-200) ----------
+
+/** Seis cifras al azar, ni el código de pruebas ni seis iguales. */
+export function codigoAleatorio(azar: (max: number) => number = (max) => randomInt(0, max)): string {
+  for (;;) {
+    const codigo = String(azar(1_000_000)).padStart(6, '0');
+    if (!/^(\d)\1{5}$/.test(codigo)) return codigo;
+  }
+}
+
+/** El texto de .env.local con la línea CODIGO_STAGING puesta o cambiada; lo demás, igual. */
+export function conCodigoStaging(texto: string, codigo: string): string {
+  const lineas = texto.split(/\r?\n/).filter((l) => !l.startsWith('CODIGO_STAGING='));
+  while (lineas.length && lineas.at(-1) === '') lineas.pop();
+  return [...lineas, `CODIGO_STAGING=${codigo}`, ''].join('\n');
+}
+
+/**
+ * Un código de staging nuevo: secreto CODIGO_STAGING del environment staging y .env.local, por
+ * tubería y sin mostrarlo. El próximo despliegue de staging lo pone en la base si el que hay es el de
+ * pruebas o uno puesto por el despliegue; uno que haya puesto jefatura no se toca.
+ */
+function ponerCodigoStaging(): void {
+  log.paso('Código de acceso de staging');
+  const codigo = codigoAleatorio();
+  fijarSecreto('CODIGO_STAGING', codigo, 'staging');
+  const archivo = path.join(RAIZ, '.env.local');
+  writeFileSync(archivo, conCodigoStaging(existsSync(archivo) ? readFileSync(archivo, 'utf8') : '', codigo));
+  log.ok(
+    'CODIGO_STAGING puesto en el environment staging y en .env.local; vale desde el próximo despliegue de staging',
+  );
 }
 
 // ---------- 9. skills, 10. issues, 11. docs/entornos.md ----------
@@ -703,11 +764,13 @@ ${filas.join('\n')}
 | Cuenta de Cloudflare | \`${cuentaCf}\` |
 | Rol de migraciones | \`hidrantes_migrador\` por el pooler en modo sesión, puerto 5432 (DEC-052) |
 | Huella GPG de respaldos | \`${huellaTexto}\`${notaHuella} |
-| Secretos por environment | \`SUPABASE_DB_URL\`, \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\` (+ \`GPG_PUBLIC_KEY\` en production) |
+| Secretos por environment | \`SUPABASE_DB_URL\`, \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\`, \`PROPIETARIO_EMAIL\` (DEC-053) (+ \`GPG_PUBLIC_KEY\` en production) |
+| Environment \`staging\` (solo \`develop\`), además | \`VIGILANCIA_SECRETO\` (DEC-088) y \`CODIGO_STAGING\`, el código de acceso de staging: lo genera \`npm run arranque -- --codigo-staging\` y no se escribe en ningún otro sitio (DEC-200) |
+| Environment \`production\`, además | \`SUPABASE_DB_URL_STAGING\`, \`SUPABASE_SERVICE_ROLE_KEY_STAGING\` (promoción del piloto, DEC-078, DEC-200) |
 | Variables por environment | \`VITE_ENTORNO\`, \`VITE_SUPABASE_URL\`, \`VITE_SUPABASE_ANON_KEY\`, \`VITE_VAPID_PUBLIC_KEY\`, \`PAGES_PROYECTO\`, \`SUPABASE_PROJECT_REF\` |
-| Variables del repositorio | \`SUPABASE_URL_STAGING\`, \`SUPABASE_ANON_KEY_STAGING\`, \`SUPABASE_URL_PROD\`, \`SUPABASE_ANON_KEY_PROD\` (mantener-activo.yml, DEC-054) |
+| Variables del repositorio | \`SUPABASE_URL_STAGING\`, \`SUPABASE_ANON_KEY_STAGING\`, \`SUPABASE_URL_PROD\`, \`SUPABASE_ANON_KEY_PROD\` (mantener-activo.yml, DEC-054); \`VITE_VAPID_PUBLIC_KEY_STAGING\`, \`VITE_VAPID_PUBLIC_KEY_PROD\` (el trabajo construir de los deploy, DEC-198) |
 | Environment \`prod-tareas\` (sin revisores, solo \`develop\`) | \`SUPABASE_DB_URL_PROD\`, \`SUPABASE_SERVICE_ROLE_KEY_PROD\`, \`VIGILANCIA_SECRETO_PROD\`, \`CLOUDFLARE_API_TOKEN\`, \`CLOUDFLARE_ACCOUNT_ID\`: las tareas de producción que no pueden esperar una aprobación (respaldo, purga de fotos, vigilancia, avisos a mano, comprobar-produccion; DEC-071, docs/31 RV-131, DEC-172) |
-| Secretos del repositorio | \`SUPABASE_DB_URL_STAGING\`, \`SUPABASE_SERVICE_ROLE_KEY_STAGING\` (promoción del piloto, DEC-078), \`GPG_PUBLIC_KEY\` (pública: cifra el respaldo, DEC-071), \`VIGILANCIA_SECRETO_STAGING\` (DEC-088), \`PROPIETARIO_EMAIL\` (DEC-053). Ninguno de producción: cualquier rama los podría leer (DEC-172) |
+| Secretos del repositorio | Solo \`GPG_PUBLIC_KEY\` (pública: cifra el respaldo, DEC-071). Ninguno más: cualquier rama los podría leer (DEC-172, DEC-200) |
 | Secretos del Worker \`hidrantes-avisos\` | \`VIGILANCIA_SECRETO_{STAGING,PROD}\`, con los mismos valores que Pages y GitHub (docs/19 RV-52, DEC-097) |
 | Variables cifradas de Pages | \`SUPABASE_URL\`, \`SUPABASE_SERVICE_ROLE_KEY\`, \`SAL_IP\`, \`NOMINATIM_USER_AGENT\`, \`VAPID_PRIVATE_KEY\`, \`VAPID_PUBLIC_KEY\`, \`VAPID_SUBJECT\`, \`VIGILANCIA_SECRETO\` (DEC-088) |
 
@@ -888,7 +951,8 @@ export interface OpsFaltantes {
   fijarPages(proyecto: string, nombre: string, valor: string): void;
   fijarRepo(nombre: string, valor: string): void;
   fijarWorker(nombre: string, valor: string): EscrituraWorker;
-  fijarVariable(nombre: string, valor: string, entorno: string): void;
+  /** Sin entorno, del repositorio. */
+  fijarVariable(nombre: string, valor: string, entorno?: string): void;
   aplicar(e: Entorno): void;
   aleatorio(): string;
   vapid(): { privada: string; publica: string };
@@ -899,8 +963,22 @@ const OPS_REALES: OpsFaltantes = {
   // prod-tareas cuenta como que falta.
   secretosRepo: () =>
     secretosEnSuSitio(
-      gh(['secret', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/),
-      gh(['secret', 'list', '--repo', REPO, '--env', ENV_TAREAS, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/),
+      Object.fromEntries(
+        ['', ENV_TAREAS, 'staging', 'production'].map((sitio) => [
+          sitio,
+          gh([
+            'secret',
+            'list',
+            '--repo',
+            REPO,
+            ...(sitio ? ['--env', sitio] : []),
+            '--json',
+            'name',
+            '--jq',
+            '.[].name',
+          ]).split(/\r?\n/),
+        ]),
+      ),
     ),
   secretosWorker: () => ejecutar('npx', ['--no-install', 'wrangler', 'secret', 'list', '--config', CONFIG_WORKER]),
   secretosPages: nombresSecretosPages,
@@ -939,7 +1017,7 @@ export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENT
           op.fijarRepo(`VIGILANCIA_SECRETO_${sufijo}`, valor);
         },
       );
-      puestos.push('VIGILANCIA_SECRETO (Worker, Pages y repositorio)');
+      puestos.push('VIGILANCIA_SECRETO (Worker, Pages y GitHub)');
     }
     if (plan.salIp) {
       op.fijarPages(e.proyectoPages, 'SAL_IP', op.aleatorio());
@@ -959,6 +1037,7 @@ export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENT
       op.fijarPages(e.proyectoPages, 'VAPID_PRIVATE_KEY', par.privada);
       op.fijarPages(e.proyectoPages, 'VAPID_PUBLIC_KEY', par.publica);
       op.fijarVariable('VITE_VAPID_PUBLIC_KEY', par.publica, e.clave);
+      op.fijarVariable(`VITE_VAPID_PUBLIC_KEY_${sufijo}`, par.publica);
       puestos.push('VAPID_PRIVATE_KEY y VAPID_PUBLIC_KEY');
     }
     aMano.push(...plan.aMano.map((n) => `${n} en Pages ${e.proyectoPages}`));
@@ -970,13 +1049,40 @@ export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENT
   return aMano;
 }
 
+/**
+ * docs/35 RV-410 (DEC-198): el trabajo «construir» de los deploy usa las variables públicas del
+ * repositorio con sufijo. Si falta la clave VAPID pública del repositorio, se copia la del
+ * environment (que es la que lleva Pages): así no cambia la clave de nadie.
+ */
+export function variablesDelBuildQueFaltan(enRepo: readonly string[]): string[] {
+  return ENTORNOS.map((e) => `VITE_VAPID_PUBLIC_KEY_${sufijoDe(e)}`).filter((n) => !enRepo.includes(n));
+}
+
+function copiarVariablesDelBuild(): void {
+  const enRepo = gh(['variable', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/);
+  for (const nombre of variablesDelBuildQueFaltan(enRepo)) {
+    const e = ENTORNOS.find((x) => nombre.endsWith(`_${sufijoDe(x)}`))!;
+    const valor = gh(['variable', 'get', 'VITE_VAPID_PUBLIC_KEY', '--repo', REPO, '--env', e.clave]).trim();
+    if (!valor) {
+      log.aviso(
+        `${nombre}: el environment ${e.clave} tampoco tiene VITE_VAPID_PUBLIC_KEY (lo pone el arranque completo).`,
+      );
+      continue;
+    }
+    fijarVariable(nombre, valor);
+    log.ok(`${nombre}, copiada del environment ${e.clave}`);
+  }
+}
+
 /** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
 async function soloFaltantes(): Promise<void> {
   log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
   const login = comprobarSesiones();
   await asegurarVariablePropietario(login, false);
   desplegarWorkerSiFalta();
+  copiarVariablesDelBuild();
   const aMano = await ponerFaltantes(OPS_REALES);
+  if (!existeSecreto('CODIGO_STAGING', 'staging')) ponerCodigoStaging();
   if (aMano.length) log.aviso(`Faltan y solo los pone el arranque completo (npm run arranque): ${aMano.join('; ')}`);
 }
 
@@ -987,13 +1093,21 @@ function arranqueLocal(): void {
   const estado = ejecutar('npx', ['--no-install', 'supabase', 'status', '-o', 'json']);
   if (estado.codigo !== 0) abortar('Supabase local no está en marcha. Ejecuta: npx supabase start');
   const s = JSON.parse(estado.salida.slice(estado.salida.indexOf('{'))) as Record<string, string>;
+  const archivo = path.join(RAIZ, '.env.local');
+  // El código de staging no se puede volver a leer de GitHub: si ya estaba, se conserva (RV-411).
+  const codigoStaging = existsSync(archivo)
+    ? readFileSync(archivo, 'utf8')
+        .split(/\r?\n/)
+        .filter((l) => l.startsWith('CODIGO_STAGING='))
+    : [];
   writeFileSync(
-    path.join(RAIZ, '.env.local'),
+    archivo,
     [
       '# Generado por npm run arranque -- --local. Solo Supabase local; no se commitea.',
       'VITE_ENTORNO=local',
       `VITE_SUPABASE_URL=${s.API_URL}`,
       `VITE_SUPABASE_ANON_KEY=${s.ANON_KEY}`,
+      ...codigoStaging,
       '',
     ].join('\n'),
   );
@@ -1022,6 +1136,10 @@ async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   if (banderas.has('local')) return arranqueLocal();
   if (banderas.has('solo-faltantes')) return await soloFaltantes();
+  if (banderas.has('codigo-staging')) {
+    comprobarSesiones();
+    return ponerCodigoStaging();
+  }
 
   const rotar = aRotar(valores.get('rotar'));
   const esRotacion = rotar.size > 0;
@@ -1061,6 +1179,7 @@ async function principal(): Promise<void> {
 
   if (!esRotacion) {
     await asegurarSecretoPropietario();
+    if (!existeSecreto('CODIGO_STAGING', 'staging')) ponerCodigoStaging();
     await instalarSkills();
     log.paso('10. Issues de las fases 1–9');
     crearIssues(REPO);

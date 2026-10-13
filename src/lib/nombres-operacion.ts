@@ -55,6 +55,8 @@ export function textoEspera(envio: Pick<EnCola, 'en_espera' | 'fallo' | 'proximo
       return T.misPropuestas.esperaSinEspacio(cuando);
     case 'reservas_abiertas':
       return T.misPropuestas.esperaReservas(cuando);
+    case 'moviles_nuevos':
+      return T.misPropuestas.esperaMovilesNuevos;
     default:
       return null;
   }

@@ -4,6 +4,7 @@ import {
   URL_PRODUCCION,
   adaptarColumnasPermitidas,
   adaptarSesiones,
+  adaptarVinculo,
   cambianMigraciones,
   elegirReferencia,
   leerCommitProduccion,
@@ -198,5 +199,34 @@ describe('adaptarColumnasPermitidas', () => {
     expect(adaptarColumnasPermitidas(ya)).toBe(ya);
     const otro = "test('x', () => {});\n";
     expect(adaptarColumnasPermitidas(otro)).toBe(otro);
+  });
+});
+
+describe('adaptarVinculo (docs/35 RV-400)', () => {
+  const firma = '  const firmado = `${b64(cab)}.${b64(nuevos)}`;';
+  const anterior = [
+    "import { execFileSync } from 'node:child_process';",
+    'export function comoGoogle(sesion: Sesion, secreto = secretoLocal()): Sesion {',
+    "  const claims = leer(sesion.access_token.split('.')[1]);",
+    firma,
+    '  return sesion;',
+    '}',
+    '',
+  ].join('\n');
+
+  it('el comoGoogle de una referencia sin sqlVincular deja unida la fila antes de firmar', () => {
+    const adaptado = adaptarVinculo(anterior);
+    expect(adaptado).toContain(`  vincularEnLaPilaLocal(String(claims.sub), String(claims.email));\n${firma}`);
+    expect(adaptado).toContain('function vincularEnLaPilaLocal(usuario: string, correo: string): void {');
+    expect(adaptado).toContain('usuario_id is null');
+  });
+
+  it('no toca una referencia que ya une la fila, ni una que no sabe leer, y es idempotente', () => {
+    const conVinculo = `${anterior}export const sqlVincular = () => '';\n`;
+    expect(adaptarVinculo(conVinculo)).toBe(conVinculo);
+    const otra = 'export const x = 1;\n';
+    expect(adaptarVinculo(otra)).toBe(otra);
+    const una = adaptarVinculo(anterior);
+    expect(adaptarVinculo(una)).toBe(una);
   });
 });

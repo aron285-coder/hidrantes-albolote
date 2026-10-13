@@ -350,3 +350,58 @@ describe('origen del mapa base (RV-71)', () => {
     expect(pedidasUrl).toEqual([]);
   });
 });
+
+// docs/35 RV-421: tras bajar otra vez el mapa base en la misma sesión, las teselas salen del archivo
+// nuevo y no de lo que se guardó del anterior.
+describe('volver a descargar el mapa base en la misma sesión (RV-421)', () => {
+  const recuadro = info.recuadro as [number, number, number, number];
+  const [primera, segunda] = teselasDelRecuadro(12, recuadro);
+
+  /** Un PMTiles con esas teselas, rellenado hasta el tamaño esperado para que pase la validación. */
+  function archivo(teselas: { x: number; y: number; texto: string }[]): Uint8Array {
+    const copia = escribirPmtiles(
+      teselas.map((t) => ({ z: 12, x: t.x, y: t.y, datos: gzipSync(Buffer.from(t.texto)) })),
+      { compresionTeselas: 2, tipoTesela: 1, minZoom: 12, maxZoom: 12, recuadro, metadatos: {} },
+    );
+    const lleno = new Uint8Array(info.bytes);
+    lleno.set(copia);
+    return lleno;
+  }
+
+  afterEach(() => vi.useRealTimers());
+
+  it('la clave del archivo cambia con cada descarga', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-13T10:00:00Z') });
+    prepararEntorno({ enLinea: true, tipo: 'cellular' });
+    const m = await cargar();
+    const fuente = new m.FuenteMapabase();
+    const antes = fuente.source.getKey();
+    expect(await m.descargarMapabase()).toBe(true);
+    const primeraClave = fuente.source.getKey();
+    expect(primeraClave).not.toBe(antes);
+    vi.setSystemTime(new Date('2026-10-13T11:00:00Z'));
+    expect(await m.descargarMapabase()).toBe(true);
+    expect(fuente.source.getKey()).not.toBe(primeraClave);
+  });
+
+  it('la misma fuente lee las teselas del archivo nuevo, no las del anterior', async () => {
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-10-13T10:00:00Z') });
+    prepararEntorno({ enLinea: true, tipo: 'cellular' });
+    cuerpo = archivo([{ ...primera!, texto: 'uno' }]);
+    const m = await cargar();
+    const fuente = new m.FuenteMapabase();
+    expect(await m.descargarMapabase()).toBe(true);
+    const r1 = await fuente.getZxy(12, primera!.x, primera!.y);
+    expect(Buffer.from(r1!.data).toString()).toBe('uno');
+
+    // Otra versión: la tesela cambia de sitio dentro del archivo.
+    vi.setSystemTime(new Date('2026-10-13T11:00:00Z'));
+    cuerpo = archivo([
+      { ...primera!, texto: 'dos, más larga que la de antes' },
+      { ...segunda!, texto: 'vecina' },
+    ]);
+    expect(await m.descargarMapabase()).toBe(true);
+    const r2 = await fuente.getZxy(12, primera!.x, primera!.y);
+    expect(Buffer.from(r2!.data).toString()).toBe('dos, más larga que la de antes');
+  });
+});

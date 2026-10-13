@@ -1,6 +1,6 @@
 // POST /api/verificar-codigo (05 §9, 11 §3): canje del código de acceso por un token de dispositivo.
 // Es la única capa que ve la IP real (CF-Connecting-IP) y la guarda como sha256(SAL_IP + ip), con la
-// IP normalizada: en IPv6 cuenta el /64 (RV-14).
+// IP normalizada: en IPv6 cuenta el /48 (RV-14, docs/35 RV-401). Solo peticiones de la propia app.
 
 import {
   type Env,
@@ -8,6 +8,7 @@ import {
   error,
   esUuid,
   esperar,
+  exigirMismoOrigen,
   json,
   leerJson,
   normalizarIp,
@@ -34,6 +35,8 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
 };
 
 async function canjear(request: Request, env: Env): Promise<Response> {
+  const ajena = exigirMismoOrigen(request);
+  if (ajena) return ajena;
   const cuerpo = await leerJson(request);
   if (!cuerpo || typeof cuerpo.codigo !== 'string' || !esUuid(cuerpo.dispositivo_id)) {
     return error(400, 'PAYLOAD_INVALIDO');
@@ -52,6 +55,9 @@ async function canjear(request: Request, env: Env): Promise<Response> {
   if (!r.ok) return error(r.estado === 503 ? 503 : 500, r.codigo);
   const fila = r.datos[0];
   if (fila?.error === DISPOSITIVO_RESERVADO) return error(409, DISPOSITIVO_RESERVADO);
+  // docs/35 RV-401: la base de datos no ha conseguido el turno en 3 s (mucha gente entrando a la vez).
+  // No cuenta como intento: el móvil repite pasado Retry-After.
+  if (fila?.error === 'OCUPADO') return json({ error: 'OCUPADO', reintentar_en_s: 30 }, 503, { 'Retry-After': '30' });
   if (fila?.error === 'DEMASIADOS_INTENTOS') return error(429, 'DEMASIADOS_INTENTOS', { reintentar_en_s: 3600 });
   if (!fila?.token) return error(401, 'CODIGO_INCORRECTO');
   return json({ token: fila.token, caduca_en: fila.caduca_en });
