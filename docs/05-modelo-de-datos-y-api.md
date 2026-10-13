@@ -362,8 +362,9 @@ distingue temas.
 
 `clave text` PK (`vigilancia`, `respaldo`, `despliegue` o `intentos_codigo`), `ultimo_en timestamptz`
 (la última vez que se encoló al menos un aviso con esa clave; `null`, nunca). Sirve para la deduplicación de
-`fn_encolar_aviso_tecnico` y se bloquea por fila (`for update`). RLS sin políticas; solo
-`service_role` (y su dueño). Sin datos personales.
+`fn_encolar_aviso_tecnico` y se bloquea por fila (`for update`). RLS con una sola política que no
+deja ver nada (`avisos_tecnicos_sin_acceso`, como `migraciones_aplicadas`) y sin `grant` para
+`anon` ni `authenticated`: solo `service_role` (y su dueño). Sin datos personales.
 
 ### 2.15 `pedidos_trabajo` — trabajos pedidos desde Ajustes (0040, docs/31 RV-146)
 
@@ -420,7 +421,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida`; desde 0041 también `fn_reportar_incidencia`, como sumidero para la app 0.7.0 (§2.7, hasta #472); desde 0044, `fn_liberar_reservas` y `fn_endpoint_tiene_jefatura`, y ya **no** la `fn_registrar_error` de 5 argumentos (docs/33 RV-306, #472) |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), `fn_encolar_aviso_tecnico` (0045, docs/35 RV-404), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni

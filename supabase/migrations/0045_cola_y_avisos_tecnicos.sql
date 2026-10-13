@@ -288,6 +288,9 @@ create table if not exists hidrantes.avisos_tecnicos (
   ultimo_en timestamptz
 );
 alter table hidrantes.avisos_tecnicos enable row level security;
+-- Toda tabla tiene al menos una política (05 §5); esta no deja ver nada, como migraciones_aplicadas.
+drop policy if exists avisos_tecnicos_sin_acceso on hidrantes.avisos_tecnicos;
+create policy avisos_tecnicos_sin_acceso on hidrantes.avisos_tecnicos for select to authenticated using (false);
 revoke all on hidrantes.avisos_tecnicos from public, anon, authenticated;
 grant all on hidrantes.avisos_tecnicos to service_role;
 
