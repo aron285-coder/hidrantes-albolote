@@ -26,6 +26,7 @@ export function SelectorPin({
   etiqueta,
   alto = 'h-84',
   rotuloOriginal,
+  centrarConPrimerGps = false,
 }: {
   pin: Coordenadas | undefined;
   gps: Posicion | null;
@@ -38,6 +39,11 @@ export function SelectorPin({
   alto?: string;
   /** Rótulo fijo junto a la posición de antes, p. ej. "antes · 6 m" (docs/29 RV-124). Sin él, solo el círculo. */
   rotuloOriginal?: string;
+  /**
+   * Si el mapa abre sin pin y sin GPS, se centra una vez con la primera posición que llegue (el alta,
+   * docs/35 RV-423). Apagado por defecto: los demás usos abren en su sitio y ahí se quedan.
+   */
+  centrarConPrimerGps?: boolean;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const mapa = useRef<L.Map | null>(null);
@@ -53,10 +59,10 @@ export function SelectorPin({
   /** El voluntario ya ha movido el pin o el mapa. */
   const tocado = useRef(false);
   /**
-   * El mapa abrió sin pin, sin posición anterior y sin GPS (en el centro del municipio): espera a la
-   * primera posición para centrarse en ella (docs/35 RV-423).
+   * Quien lo usa lo pide y el mapa abrió sin pin, sin posición anterior y sin GPS (en el centro del
+   * municipio): espera a la primera posición para centrarse en ella (docs/35 RV-423).
    */
-  const esperaGps = useRef(!pin && !original && !gps);
+  const esperaGps = useRef(centrarConPrimerGps && !pin && !original && !gps);
 
   useEffect(() => {
     alUsarRef.current = alUsarMiPosicion;
