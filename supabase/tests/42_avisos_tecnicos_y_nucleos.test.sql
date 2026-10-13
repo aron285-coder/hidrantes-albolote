@@ -1,12 +1,55 @@
 -- docs/35 (0045): RV-403, añadir o renombrar un núcleo no deja las propuestas de la Cola
 -- desactualizadas (puntos.datos_cambiados_en), y RV-404, avisos técnicos a jefatura
 -- (fn_encolar_aviso_tecnico y el tema avisos_tecnicos, DEC-202). Todo dentro de una transacción
--- que se deshace.
+-- que se deshace, salvo la prueba de dos sesiones, que limpia lo suyo.
 begin;
 create extension if not exists pgtap with schema extensions;
+create extension if not exists dblink with schema extensions;
 set search_path = extensions, public;
 
-select plan(46);
+select plan(49);
+
+-- ---------- RV-404 · dos sesiones a la vez con la misma clave (dblink) ----------
+-- Va primero, como en 13: las otras sesiones solo ven lo confirmado, y esta no debe tener todavía
+-- la fila de la clave. c0 prepara y limpia; c1 y c2 encolan a la vez.
+
+create temp table conexion as
+select format('dbname=postgres user=postgres password=postgres host=%s port=%s',
+              host(inet_server_addr()), inet_server_port()) as cadena;
+select dblink_connect(s, (select cadena from conexion)) from unnest(array['c0', 'c1', 'c2']) s;
+select dblink_exec('c0', $f$
+  insert into hidrantes.administradores (email, creado_por) values ('conc42@example.com', 'test') on conflict do nothing;
+  insert into hidrantes.suscripciones_push (id, email, suscripcion, temas)
+  values ('00000000-0000-4000-8000-0000000042e1', 'conc42@example.com',
+          '{"endpoint": "https://fcm.googleapis.com/fcm/send/rv404-conc", "keys": {"p256dh": "p", "auth": "a"}}',
+          array['avisos_tecnicos']);
+  delete from hidrantes.avisos_tecnicos where clave = 'despliegue';
+$f$);
+
+select dblink_exec('c1', 'begin');
+select dblink_exec('c1', 'set local role service_role');
+create temp table r1 as select * from dblink('c1',
+  $q$select hidrantes.fn_encolar_aviso_tecnico('despliegue', null, null)$q$) as t(r boolean);
+select dblink_exec('c2', 'set role service_role');
+select dblink_send_query('c2', $q$select hidrantes.fn_encolar_aviso_tecnico('despliegue', null, null)$q$);
+select pg_sleep(0.5);
+select dblink_exec('c1', 'commit');
+create temp table r2 as select * from dblink_get_result('c2', false) as t(r boolean);
+select * from dblink_get_result('c2', false) as t(r boolean);
+
+select is((select r from r1), true, 'dos a la vez con la misma clave: la primera encola');
+select is((select r from r2), false, 'la segunda espera a la primera y ya no encola');
+select is((select n from dblink('c0', $q$select count(*) from hidrantes.notificaciones
+             where suscripcion_id = '00000000-0000-4000-8000-0000000042e1'$q$) as t(n bigint)), 1::bigint,
+  'una sola notificación');
+
+select dblink_exec('c0', $f$
+  delete from hidrantes.notificaciones where cuerpo = 'La última actualización no se ha podido instalar entera.';
+  delete from hidrantes.suscripciones_push where id = '00000000-0000-4000-8000-0000000042e1';
+  delete from hidrantes.administradores where email = 'conc42@example.com';
+  delete from hidrantes.avisos_tecnicos where clave = 'despliegue';
+$f$);
+select dblink_disconnect(s) from unnest(array['c0', 'c1', 'c2']) s;
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims', jsonb_build_object(
