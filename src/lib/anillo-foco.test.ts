@@ -74,9 +74,10 @@ describe('anillo de foco (docs/35 RV-425)', () => {
 
   it('el foco usa el token, y sobre la barra y las superficies marino su variante', () => {
     expect(css).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--anillo-foco\);/);
-    const regla = /([^{}]+)\{\s*outline-color:\s*var\(--anillo-foco-barra\);\s*\}/.exec(css);
-    expect(regla, 'regla de la variante').not.toBeNull();
-    const selectores = regla![1]!.split(',').map((s) => s.trim());
+    // Todas las reglas con la variante, no solo la primera.
+    const selectores = [...css.matchAll(/([^{}]+)\{\s*outline-color:\s*var\(--anillo-foco-barra\);\s*\}/g)].flatMap(
+      (r) => r[1]!.split(',').map((s) => s.trim()),
+    );
     expect(selectores).toEqual(expect.arrayContaining(['.bg-barra :focus-visible', '.bg-marino-950 :focus-visible']));
   });
 });

@@ -57,7 +57,8 @@ test.describe('alta con el GPS que llega tarde (RV-423)', () => {
     expect(centro.y).toBeLessThan(mapa.y + mapa.height);
   });
 
-  // Solo el alta se centra: al corregir la ubicación, el mapa abre en el punto y ahí se queda.
+  // De no regresión: al corregir la ubicación, el mapa abre en el punto y ahí se queda. El caso que
+  // depende de que solo el alta lo pida es el diálogo de núcleos (panel-ajustes.spec.ts).
   test('al corregir la ubicación, la posición que llega no mueve el mapa', async ({ page }) => {
     await abrir(page, `/proponer/ubicacion?p=${PUNTOS[0]!.id}`);
     const caja = async () => (await pin(page).boundingBox())!;
