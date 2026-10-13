@@ -144,6 +144,20 @@ describe('POST /api/vincular-jefatura', () => {
     expect(await r.json()).toEqual({ resultado: 'YA_VINCULADO' });
   });
 
+  it('desde otra web → 403 ORIGEN_NO_PERMITIDO y no pregunta a nadie (docs/35 RV-401)', async () => {
+    const { llamadas } = fingirRed();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const ajena = new Request('https://hidrantes-albolote.pages.dev/api/vincular-jefatura', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'https://otra.example', Authorization: 'Bearer a.b.c' },
+      body: '{}',
+    });
+    const r = await onRequestPost({ request: ajena, env: ENV });
+    expect(r.status).toBe(403);
+    expect(await r.json()).toEqual({ error: 'ORIGEN_NO_PERMITIDO' });
+    expect(llamadas).toHaveLength(0);
+  });
+
   it('sin JWT → 401 y no pregunta a nadie', async () => {
     const { llamadas } = fingirRed();
     const r = await onRequestPost({ request: peticion(false), env: ENV });
