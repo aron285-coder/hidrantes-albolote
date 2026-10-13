@@ -54,9 +54,14 @@ export const VARIABLES_ENTORNO = [
  * tiene environment (docs/35 RV-410, DEC-198). Públicas: van en el bundle. El trabajo que despliega
  * comprueba que dist lleva las del environment.
  */
-export const VARIABLES_REPO = ['SUPABASE_URL_PROD', 'SUPABASE_ANON_KEY_PROD', 'VITE_VAPID_PUBLIC_KEY_PROD'];
+export const VARIABLES_REPO = [
+  'SUPABASE_URL_PROD',
+  'SUPABASE_ANON_KEY_PROD',
+  'VITE_VAPID_PUBLIC_KEY_PROD',
+  'VITE_MAPABASE_URL_PROD',
+];
 /** Solo hace falta si el mapa base va en R2 (> 20 MB, 04 §8); sin ella se sirve desde Pages. */
-export const OPCIONALES = new Set(['VITE_MAPABASE_URL']);
+export const OPCIONALES = new Set(['VITE_MAPABASE_URL', 'VITE_MAPABASE_URL_PROD']);
 /** Secretos que puede tener el environment o el repositorio: GitHub los junta al ejecutar. */
 export const TAMBIEN_EN_REPO = new Set(['PROPIETARIO_EMAIL']);
 export const SECRETOS_PAGES = [
@@ -163,6 +168,7 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
       sinAcceso: 'sin sesión de gh con permisos de administrador',
     }),
     ...presentes('repositorio · variables del build', VARIABLES_REPO, f.variablesRepo(), {
+      opcionales: OPCIONALES,
       sinAcceso: 'sin sesión de gh',
     }),
     ...presentes('Pages hidrantes-albolote · secretos', SECRETOS_PAGES, f.secretosPages(), {

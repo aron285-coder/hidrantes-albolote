@@ -226,13 +226,14 @@ describe('lectura de las fuentes', () => {
   it('el build de deploy-prod.yml usa las variables del repositorio, y estas se comprueban', async () => {
     const yml = readFileSync(path.join(RAIZ, '.github', 'workflows', 'deploy-prod.yml'), 'utf8');
     const construir = yml.slice(yml.indexOf('\n  construir:\n'), yml.indexOf('\n  desplegar:\n'));
-    expect(requeridosDeWorkflow(construir).variables.filter((v) => v !== 'VITE_MAPABASE_URL')).toEqual(
-      [...VARIABLES_REPO].sort(),
-    );
+    expect(requeridosDeWorkflow(construir).variables).toEqual([...VARIABLES_REPO].sort());
     const filas = await comprobar(fuentes({ variablesRepo: () => ['SUPABASE_URL_PROD'] }), LOCALES);
-    expect(filas.filter((f) => f.grupo === 'repositorio · variables del build' && f.estado === 'FALTA')).toHaveLength(
-      2,
-    );
+    const faltan = filas.filter((f) => f.grupo === 'repositorio · variables del build' && f.estado === 'FALTA');
+    // La del mapa base en R2 es opcional, como en el environment.
+    expect(faltan.filter((f) => f.imprescindible).map((f) => f.nombre)).toEqual([
+      'SUPABASE_ANON_KEY_PROD',
+      'VITE_VAPID_PUBLIC_KEY_PROD',
+    ]);
   });
 });
 
