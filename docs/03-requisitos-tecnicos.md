@@ -2,8 +2,8 @@
 
 | | |
 |---|---|
-| **Estado** | Congelado. Cambia con conformidad de jefatura y nueva versión. |
-| **Versión** | 1.5 — 8 de octubre de 2026: TR-92, la aprobación de producción la da la puerta automática (DEC-176, `docs/32` RV-210). 1.4 — 24 de septiembre de 2026: TR-78, Cloudflare Workers para los avisos (DEC-097). 1.3 — 23 de septiembre de 2026: §13, requisitos de las funciones de mapa para emergencias (TR-116 a TR-119), y CartoCiudad y el callejero de OSM en §8 (DEC-089, DEC-092, DEC-093; conformidad del desarrollador, DEC-177). v1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
+| **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión. |
+| **Versión** | 1.6 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177. 1.5 — 8 de octubre de 2026: TR-92, la aprobación de producción la da la puerta automática (DEC-176, `docs/32` RV-210). 1.4 — 24 de septiembre de 2026: TR-78, Cloudflare Workers para los avisos (DEC-097). 1.3 — 23 de septiembre de 2026: §13, requisitos de las funciones de mapa para emergencias (TR-116 a TR-119), y CartoCiudad y el callejero de OSM en §8 (DEC-089, DEC-092, DEC-093; conformidad del desarrollador, DEC-177). v1.2 — 17 de septiembre de 2026. v1.1 añadió cabeceras, vigilancia y push (ahora §12); v1.2 añade §11 (interfaz sin cabos sueltos, textos y concurrencia), DEC-047/048/050. |
 | **Propietario de** | las **exigencias medibles y no funcionales**: qué tiene que cumplir el sistema, no cómo se consigue. La solución elegida está en 04; si mañana cambia la solución, estas exigencias siguen en pie. |
 | **No contiene** | decisiones de producto (→ 04), reglas funcionales (→ 01), campos (→ 05). |
 

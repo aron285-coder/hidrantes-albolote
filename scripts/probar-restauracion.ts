@@ -115,8 +115,11 @@ const token = (codigo: string, ip: string) =>
 
 const ADMIN = 'jefe-restauracion@example.org';
 const ADMIN_BAJA = 'baja-restauracion@example.org';
-/** Una sesión de jefatura con Google, como la trae el JWT de Supabase (RV-36). */
+/** El usuario de Auth al que está unida la fila de ADMIN (docs/35 RV-400): uno fijo, de prueba. */
+const ADMIN_USUARIO = '0e5e0000-0000-4000-8000-000000000035';
+/** Una sesión de jefatura con Google, como la trae el JWT de Supabase (RV-36), unida a su fila (RV-400). */
 const CLAIMS = JSON.stringify({
+  sub: ADMIN_USUARIO,
   email: ADMIN,
   amr: [{ method: 'oauth', timestamp: 1 }],
   app_metadata: { provider: 'google', providers: ['google'] },
@@ -132,7 +135,9 @@ async function principal(): Promise<void> {
     LOCAL_POSTGRES,
     `insert into hidrantes.administradores (email, activo, creado_por) values
        ('${ADMIN}', true, 'probar-restauracion'), ('${ADMIN_BAJA}', true, 'probar-restauracion')
-     on conflict (email) do update set activo = true;`,
+     on conflict (email) do update set activo = true;
+     update hidrantes.administradores set usuario_id = '${ADMIN_USUARIO}', vinculado_en = now()
+      where email = '${ADMIN}' and usuario_id is distinct from '${ADMIN_USUARIO}';`,
   );
   const tokenViejo = token('000000', 'ip-rv35-antes');
   if (!tokenViejo || validar(tokenViejo) !== 'ok') abortar('No se ha podido sacar un token con el código del seed.');

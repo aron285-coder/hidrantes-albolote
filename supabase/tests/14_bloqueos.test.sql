@@ -31,6 +31,7 @@ select dblink_connect(s, (select cadena from conexion)) from unnest(array['b0', 
 
 select dblink_exec('b0', format($f$
   insert into hidrantes.administradores (email, creado_por) values ('bloqueos@example.com', 'test') on conflict do nothing;
+  update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
   insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, fecha_ultima_revision,
                                 actualizado_en)
   select p, 'HID-' || (8100 + i), 'hidrante', 'SRID=4326;POINT(-3.6300 37.2600)', 100, 'bueno', 'fotos/b.jpg', 'albolote',
@@ -52,7 +53,7 @@ select * from dblink('b1', format('select 1 from hidrantes.puntos where id = %L 
 select dblink_exec('b2', 'begin');
 select dblink_exec('b2', $$set local statement_timeout = '20s'$$);
 select x from dblink('b2',
-  $$select set_config('request.jwt.claims', '{"role":"authenticated","email":"bloqueos@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true)$$) as t(x text);
+  $$select set_config('request.jwt.claims', '{"role":"authenticated","sub":"dd4bf345-f7fc-5793-1f1e-840d77886123","email":"bloqueos@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true)$$) as t(x text);
 create temp table lote as
 select * from dblink('b2', format('select propuesta_id, resultado, motivo from hidrantes.fn_aprobar_lote(%L::uuid[])',
   (select propuestas from conexion))) as t(propuesta_id uuid, resultado text, motivo text);
