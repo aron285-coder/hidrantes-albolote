@@ -135,6 +135,14 @@ Las capas en línea (OSM, PNOA, Catastro) no se recolorean.
 | anillo del marcador seleccionado (`--anillo-seleccion`) | `#E6EAF0` (el `--marino-950` de claro no se ve sobre el mapa oscuro; DEC-062) |
 | anillo de "sin revisar" (`--anillo-sin-revisar`) | `#C9CFD8` (en claro es `--texto-suave`; §4.3, DEC-155) |
 | fila elegida de una lista del panel (`--fila-elegida`) | `#243149` (en claro `#EFF3F8`; texto suave a ≥ 4,5:1 en los dos; docs/31 RV-169) |
+| anillo de foco del teclado (`--anillo-foco`) | `#8FB4E3`, que es `--anillo-foco-barra` (en claro `--marino-700`; §10, `docs/35` RV-425) |
+| anillo de foco sobre la barra (`--anillo-foco-barra`) | `#8FB4E3` en los dos modos |
+
+**Anillo de foco** (`docs/35` RV-425). El `--marino-700` de claro se quedaba en 1,38–1,65:1 sobre las
+superficies oscuras y sobre la barra marino. `--anillo-foco` llega a ≥ 3:1 sobre lo que tiene detrás:
+en claro, `--marino-700` sobre `--fondo` y `--papel` (10,23 y 11,43:1); en oscuro, `#8FB4E3` sobre
+`--fondo` y `--papel` (8,29 y 7,36:1). Dentro de `.bg-barra` se usa siempre `--anillo-foco-barra`: 8,05:1
+sobre la barra clara y 8,82:1 sobre la oscura. Lo mide `src/lib/anillo-foco.test.ts`.
 
 Los rellenos de estado y el naranja de acción **no cambian**, y el **borde del marcador sigue
 blanco** (`--borde-marcador`): es lo que lo separa del mapa. La excepción es el amarillo de regular,
@@ -414,7 +422,7 @@ terminado; los casos de aceptación AC-140 a AC-146 las comprueban.
 ## 10. Accesibilidad
 
 - Contraste ≥ 4,5:1 en texto, ≥ 3:1 en elementos gráficos (TR-31).
-- Foco visible: anillo 2 px `--marino-700` con desplazamiento 2 px, en claro y oscuro.
+- Foco visible: anillo 2 px `--anillo-foco` con desplazamiento 2 px (`--marino-700` en claro, `#8FB4E3` en oscuro) y, dentro de la barra (`.bg-barra`), `--anillo-foco-barra` en los dos modos; ≥ 3:1 sobre lo que tiene detrás (§2.4, `docs/35` RV-425).
 - `prefers-reduced-motion`: sin transiciones.
 - Cada marcador tiene nombre accesible: "HID-0147, hidrante 100 mm, bueno, revisado hace 1 mes".
 - Los cuatro estados llevan texto siempre que hay espacio (chip); el color nunca va solo.
