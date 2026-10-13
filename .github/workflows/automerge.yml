@@ -37,28 +37,48 @@ jobs:
             .github/scripts/automerge-permitido.mjs
             package-lock.json
           sparse-checkout-cone-mode: false
-      # El lockfile del PR, como datos: la API de contenidos con el SHA de la cabeza del PR.
+      # El lockfile y la lista de archivos del PR, como datos: la API con el SHA de su cabeza.
       - name: Lockfile del PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           CABEZA: ${{ github.event.pull_request.head.sha }}
+          NUMERO: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           gh api -H 'Accept: application/vnd.github.raw' "repos/$REPO/contents/package-lock.json?ref=$CABEZA" \
             > "$RUNNER_TEMP/package-lock.pr.json"
-      # Cada dependencia del PR (un grupo trae varias): de desarrollo, de parche, en la lista, y el
-      # lockfile sin nada más.
+          gh api --paginate "repos/$REPO/pulls/$NUMERO/files" --jq '.[].filename' > "$RUNNER_TEMP/archivos.txt"
+      # Cada dependencia del PR (un grupo trae varias): de desarrollo, de parche, en la lista, solo
+      # package.json y package-lock.json, y el lockfile sin nada más.
       - id: decidir
         name: ¿Todo es un parche de desarrollo de la lista, sin nada más en el lockfile?
         env:
           DEPENDENCIAS: ${{ steps.meta.outputs.updated-dependencies-json }}
           LOCK_BASE: package-lock.json
           LOCK_PR: ${{ runner.temp }}/package-lock.pr.json
-        run: node .github/scripts/automerge-permitido.mjs .github/automerge-permitidos.txt >> "$GITHUB_OUTPUT"
+        run: |
+          set -euo pipefail
+          ARCHIVOS="$(cat "$RUNNER_TEMP/archivos.txt")" \
+            node .github/scripts/automerge-permitido.mjs .github/automerge-permitidos.txt >> "$GITHUB_OUTPUT"
       - name: Fusionar con CI verde
         if: steps.decidir.outputs.decision == 'fusionar'
         env:
           PR: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh pr merge --auto --squash "$PR"
+      # Dependabot puede volver a empujar al PR (un rebase, un grupo que crece): si ahora no se fusiona
+      # solo, se quita la fusión automática que dejara puesta una ejecución anterior. También si algo
+      # de antes ha fallado y no hay decisión.
+      - name: Quitar la fusión automática si ya no vale
+        if: always() && steps.decidir.outputs.decision != 'fusionar'
+        env:
+          PR: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          activa=$(gh pr view "$PR" --json autoMergeRequest --jq '.autoMergeRequest != null')
+          if [ "$activa" = true ]; then
+            gh pr merge --disable-auto "$PR"
+            echo "::notice::Fusión automática quitada: este PR espera a una revisión."
+          fi

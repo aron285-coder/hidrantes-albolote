@@ -548,8 +548,12 @@ El código de las dependencias de npm **no corre con secretos** (docs/35 RV-410)
   comodines. `automerge.yml` lee el lockfile del PR como datos (API de contenidos con el SHA de su
   cabeza; nunca un checkout del PR) y `automerge-permitido.mjs` lo compara con el de la base: espera
   a una revisión si aparece o desaparece una entrada, si cambia una que no es una dependencia del PR
-  a la versión que dice Dependabot, o si una entrada nueva o cambiada trae un script de instalación.
-  Los PR de `.github/despliegue` nunca se fusionan solos.
+  a la versión que dice Dependabot (con el tarball del registro de npm y su integridad), si la raíz
+  cambia algo más que esos rangos, si una entrada nueva o cambiada trae un script de instalación o
+  si el PR toca algo más que `package.json` y `package-lock.json`. Si una ejecución posterior ya no
+  lo permite, quita la fusión automática que dejara puesta otra anterior. `vitest`,
+  `@playwright/test` y `typescript-eslint` no están en la lista: fijan la versión exacta de paquetes
+  suyos y siempre esperarían. Los PR de `.github/despliegue` nunca se fusionan solos.
 - **`npm audit`** sin altas: `npm audit fix` sin `--force`; lo que necesite una versión mayor va en
   un PR aparte, revisado, o en una issue `tras-piloto`.
 

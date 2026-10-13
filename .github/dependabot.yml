@@ -37,11 +37,8 @@ updates:
           - '@types/node'
           - '@types/react'
           - '@types/react-dom'
-          - 'typescript-eslint'
           - 'globals'
-          - '@playwright/test'
           - '@axe-core/playwright'
-          - 'vitest'
       resto:
         update-types: [minor, patch]
 

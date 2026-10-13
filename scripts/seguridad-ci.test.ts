@@ -81,11 +81,18 @@ describe('dependencias y actions (RV-132)', () => {
     expect(texto).toContain('node .github/scripts/automerge-permitido.mjs .github/automerge-permitidos.txt');
     expect(texto).toContain('LOCK_BASE: package-lock.json');
     expect(texto).toContain('LOCK_PR: ${{ runner.temp }}/package-lock.pr.json');
-    // Solo fusiona si el script lo dice: ningún otro camino llega a gh pr merge.
-    expect(texto.match(/gh pr merge/g)).toHaveLength(1);
+    expect(texto).toContain('gh api --paginate "repos/$REPO/pulls/$NUMERO/files" --jq \'.[].filename\'');
+    expect(texto).toContain('ARCHIVOS="$(cat "$RUNNER_TEMP/archivos.txt")"');
+    // Solo fusiona si el script lo dice: ningún otro camino llega a gh pr merge --auto.
+    expect(texto.match(/gh pr merge --auto/g)).toHaveLength(1);
     expect(texto).toMatch(
       /if: steps\.decidir\.outputs\.decision == 'fusionar'\n(?:.*\n){0,4}\s+run: gh pr merge --auto --squash/,
     );
+    // Y si no, quita la que dejara una ejecución anterior (un empujón nuevo de Dependabot).
+    const quitar = texto.slice(texto.indexOf('- name: Quitar la fusión automática si ya no vale'));
+    expect(quitar).toContain("if: always() && steps.decidir.outputs.decision != 'fusionar'");
+    expect(quitar).toContain('gh pr merge --disable-auto "$PR"');
+    expect(quitar).not.toContain('|| true');
   });
 });
 
@@ -109,30 +116,48 @@ describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000
 
   // Lockfiles de ejemplo (docs/35 RV-410): la base y el PR, con lo que cada caso cambia.
   type Entrada = Record<string, unknown>;
-  const entrada = (version: string, extra: Entrada = {}): Entrada => ({
+  /** Una entrada del lockfile, con el tarball del registro de npm y su integridad. */
+  const entrada = (nombre: string, version: string, extra: Entrada = {}): Entrada => ({
     version,
-    resolved: `https://registry.npmjs.org/x/-/x-${version}.tgz`,
-    integrity: `sha512-${version}`,
+    resolved: `https://registry.npmjs.org/${nombre}/-/${nombre.split('/').pop()}-${version}.tgz`,
+    integrity: `sha512-${nombre}-${version}`,
     dev: true,
     ...extra,
   });
   const LOCK_BASE = {
     name: 'p',
     lockfileVersion: 3,
+    requires: true,
     packages: {
-      '': { name: 'p', devDependencies: { '@types/node': '^1.0.0', vitest: '^1.0.0', vite: '^1.0.0' } },
-      'node_modules/@types/node': entrada('1.0.0', { dependencies: { 'undici-types': '~1.0.0' } }),
-      'node_modules/undici-types': entrada('1.0.0'),
-      'node_modules/vitest': entrada('1.0.0'),
-      'node_modules/vite': entrada('1.0.0'),
+      '': {
+        name: 'p',
+        devDependencies: { '@types/node': '^1.0.0', '@types/react': '^1.0.0', vitest: '^1.0.0', vite: '^1.0.0' },
+      },
+      'node_modules/@types/node': entrada('@types/node', '1.0.0', { dependencies: { 'undici-types': '~1.0.0' } }),
+      'node_modules/@types/react': entrada('@types/react', '1.0.0'),
+      'node_modules/undici-types': entrada('undici-types', '1.0.0'),
+      'node_modules/vitest': entrada('vitest', '1.0.0'),
+      'node_modules/vite': entrada('vite', '1.0.0'),
+      'node_modules/vite/node_modules/@types/node': entrada('@types/node', '1.0.0'),
     },
   };
+  /** La raíz del PR: el rango de @types/node a ^1.0.1 y, con `extra`, otros cambios. */
+  const raizPr = (extra: Record<string, string> = {}) => ({
+    name: 'p',
+    devDependencies: {
+      '@types/node': '^1.0.1',
+      '@types/react': '^1.0.0',
+      vitest: '^1.0.0',
+      vite: '^1.0.0',
+      ...extra,
+    },
+  });
   /** El lockfile de un PR que sube @types/node a 1.0.1, con `cambios` encima. */
   const lockPr = (cambios: Record<string, Entrada | null> = {}) => {
     const packages: Record<string, Entrada> = {
       ...structuredClone(LOCK_BASE.packages),
-      '': { name: 'p', devDependencies: { '@types/node': '^1.0.1', vitest: '^1.0.0', vite: '^1.0.0' } },
-      'node_modules/@types/node': entrada('1.0.1', { dependencies: { 'undici-types': '~1.0.0' } }),
+      '': raizPr(),
+      'node_modules/@types/node': entrada('@types/node', '1.0.1', { dependencies: { 'undici-types': '~1.0.0' } }),
     };
     for (const [ruta, e] of Object.entries(cambios)) {
       if (e === null) delete packages[ruta];
@@ -140,8 +165,9 @@ describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000
     }
     return { ...LOCK_BASE, packages };
   };
+  const SOLO_MANIFIESTOS = 'package.json\npackage-lock.json';
 
-  const decidir = (dependencias: unknown, lockDelPr: unknown = lockPr()) => {
+  const decidir = (dependencias: unknown, lockDelPr: unknown = lockPr(), archivos = SOLO_MANIFIESTOS) => {
     const dir = mkdtempSync(path.join(tmpdir(), 'automerge-'));
     try {
       writeFileSync(path.join(dir, 'base.json'), JSON.stringify(LOCK_BASE));
@@ -152,6 +178,7 @@ describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000
           DEPENDENCIAS: JSON.stringify(dependencias),
           LOCK_BASE: path.join(dir, 'base.json'),
           LOCK_PR: path.join(dir, 'pr.json'),
+          ARCHIVOS: archivos,
           GITHUB_STEP_SUMMARY: '',
         },
         encoding: 'utf8',
@@ -174,13 +201,22 @@ describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000
       '@types/node',
       '@types/react',
       '@types/react-dom',
-      'typescript-eslint',
       'globals',
-      '@playwright/test',
       '@axe-core/playwright',
-      'vitest',
     ]);
     expect(patrones.filter((p) => /[*?]/.test(p))).toEqual([]);
+  });
+
+  // Un paquete que fija la versión exacta de otro suyo cambia esa entrada en cada parche: con el
+  // lockfile estricto, siempre esperaría. No se lista (vitest, @playwright/test, typescript-eslint).
+  it('ningún paquete de la lista fija la versión exacta de otro en el lockfile', () => {
+    const lock = JSON.parse(readFileSync(path.join(raiz, 'package-lock.json'), 'utf8'));
+    const fijan = patrones.filter((p) =>
+      Object.values(lock.packages[`node_modules/${p}`]?.dependencies ?? {}).some((v) =>
+        /^\d+\.\d+\.\d+$/.test(String(v)),
+      ),
+    );
+    expect(fijan).toEqual([]);
   });
 
   it('cada nombre de la lista es una dependencia de desarrollo de package.json', () => {
@@ -223,10 +259,12 @@ describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000
           DEPENDENCIAS: JSON.stringify([parche('@types/node')]),
           LOCK_BASE: path.join(dir, 'l.json'),
           LOCK_PR: path.join(dir, 'l.json'),
+          ARCHIVOS: SOLO_MANIFIESTOS,
         },
         encoding: 'utf8',
       });
       expect(r.status).toBe(2);
+      expect(r.stderr).toContain('nombres exactos');
       expect(r.stdout).not.toContain('fusionar');
     } finally {
       rmSync(dir, { recursive: true, force: true });
@@ -243,13 +281,16 @@ describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000
   });
 
   it('el lockfile añade un paquete: espera', () => {
-    const r = decidir([parche('@types/node')], lockPr({ 'node_modules/nuevo': entrada('0.0.1') }));
+    const r = decidir([parche('@types/node')], lockPr({ 'node_modules/nuevo': entrada('nuevo', '0.0.1') }));
     expect(r.salida).toBe('decision=esperar');
     expect(r.error).toContain('node_modules/nuevo: entrada nueva en el lockfile');
   });
 
   it('el lockfile cambia una dependencia transitiva: espera', () => {
-    const r = decidir([parche('@types/node')], lockPr({ 'node_modules/undici-types': entrada('1.0.9') }));
+    const r = decidir(
+      [parche('@types/node')],
+      lockPr({ 'node_modules/undici-types': entrada('undici-types', '1.0.9') }),
+    );
     expect(r.salida).toBe('decision=esperar');
     expect(r.error).toContain('node_modules/undici-types: cambia y no es una dependencia del PR');
   });
@@ -257,14 +298,14 @@ describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000
   it('el lockfile trae un script de instalación, nuevo o en la dependencia del PR: espera', () => {
     const nuevo = decidir(
       [parche('@types/node')],
-      lockPr({ 'node_modules/con-script': entrada('1.0.0', { hasInstallScript: true }) }),
+      lockPr({ 'node_modules/con-script': entrada('con-script', '1.0.0', { hasInstallScript: true }) }),
     );
     expect(nuevo.salida).toBe('decision=esperar');
     expect(nuevo.error).toContain('node_modules/con-script: trae un script de instalación');
     const mismo = decidir(
       [parche('@types/node')],
       lockPr({
-        'node_modules/@types/node': entrada('1.0.1', {
+        'node_modules/@types/node': entrada('@types/node', '1.0.1', {
           dependencies: { 'undici-types': '~1.0.0' },
           hasInstallScript: true,
         }),
@@ -279,29 +320,111 @@ describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000
     expect(otraVersion.error).toContain('queda en 1.0.1 y Dependabot dice 1.0.2');
     const otrasDependencias = decidir(
       [parche('@types/node')],
-      lockPr({ 'node_modules/@types/node': entrada('1.0.1', { dependencies: { otra: '^1.0.0' } }) }),
+      lockPr({ 'node_modules/@types/node': entrada('@types/node', '1.0.1', { dependencies: { otra: '^1.0.0' } }) }),
     );
     expect(otrasDependencias.error).toContain('cambia algo más que la versión');
-    const raiz = decidir(
-      [parche('@types/node')],
-      lockPr({ '': { name: 'p', devDependencies: { '@types/node': '^1.0.1', vitest: '^1.0.0', vite: '^2.0.0' } } }),
-    );
+    const raiz = decidir([parche('@types/node')], lockPr({ '': raizPr({ vite: '^2.0.0' }) }));
     expect(raiz.error).toContain('(raíz): cambia algo más');
     const quitada = decidir([parche('@types/node')], lockPr({ 'node_modules/vite': null }));
     expect(quitada.error).toContain('node_modules/vite: desaparece del lockfile');
-    for (const r of [otraVersion, otrasDependencias, raiz, quitada]) expect(r.salida).toBe('decision=esperar');
+    const fuera = decidir([parche('@types/node')], { ...lockPr(), lockfileVersion: 2 });
+    expect(fuera.error).toContain('el lockfile no es de la versión 3');
+    expect(fuera.error).toContain('el lockfile cambia fuera de `packages`');
+    for (const r of [otraVersion, otrasDependencias, raiz, quitada, fuera]) expect(r.salida).toBe('decision=esperar');
+  });
+
+  it('el tarball de fuera del registro de npm, sin integridad, o un rango raro en la raíz: espera', () => {
+    const git = decidir(
+      [parche('@types/node')],
+      lockPr({
+        'node_modules/@types/node': {
+          ...entrada('@types/node', '1.0.1', { dependencies: { 'undici-types': '~1.0.0' } }),
+          resolved: 'git+https://ejemplo.invalid/x.git#abc',
+        },
+      }),
+    );
+    expect(git.error).toContain('el tarball no sale del registro de npm');
+    const sinIntegridad = decidir(
+      [parche('@types/node')],
+      lockPr({
+        'node_modules/@types/node': {
+          ...entrada('@types/node', '1.0.1', { dependencies: { 'undici-types': '~1.0.0' } }),
+          integrity: undefined,
+        },
+      }),
+    );
+    expect(sinIntegridad.error).toContain('sin integridad sha512');
+    const rango = decidir(
+      [parche('@types/node')],
+      lockPr({ '': raizPr({ '@types/node': 'https://ejemplo.invalid/x.tgz' }) }),
+    );
+    expect(rango.error).toContain('el rango de @types/node pasa a');
+    for (const r of [git, sinIntegridad, rango]) expect(r.salida).toBe('decision=esperar');
+  });
+
+  it('si el lockfile no sube la dependencia del PR, espera', () => {
+    const r = decidir([parche('@types/node')], structuredClone(LOCK_BASE));
+    expect(r.salida).toBe('decision=esperar');
+    expect(r.error).toContain('@types/node: el lockfile no lo sube a 1.0.1');
+  });
+
+  it('una copia anidada de la dependencia del PR puede subir a la misma versión, no a otra', () => {
+    const anidada = (version: string) =>
+      lockPr({ 'node_modules/vite/node_modules/@types/node': entrada('@types/node', version) });
+    expect(decidir([parche('@types/node')], anidada('1.0.1')).salida).toBe('decision=fusionar');
+    const otra = decidir([parche('@types/node')], anidada('1.0.3'));
+    expect(otra.salida).toBe('decision=esperar');
+    expect(otra.error).toContain('node_modules/vite/node_modules/@types/node: queda en 1.0.3');
+  });
+
+  it('un grupo de dos: fusiona si sube las dos; si solo sube una, espera', () => {
+    const dos = [parche('@types/node'), parche('@types/react')];
+    const ambas = lockPr({
+      '': raizPr({ '@types/react': '^1.0.1' }),
+      'node_modules/@types/react': entrada('@types/react', '1.0.1'),
+    });
+    expect(decidir(dos, ambas).salida).toBe('decision=fusionar');
+    const una = decidir(dos);
+    expect(una.salida).toBe('decision=esperar');
+    expect(una.error).toContain('@types/react: el lockfile no lo sube a 1.0.1');
+  });
+
+  it('un alias (otro paquete con el nombre de uno de la lista): espera', () => {
+    const r = decidir(
+      [parche('@types/node')],
+      lockPr({
+        'node_modules/@types/node': entrada('@types/node', '1.0.1', {
+          name: 'otro-paquete',
+          dependencies: { 'undici-types': '~1.0.0' },
+        }),
+      }),
+    );
+    expect(r.salida).toBe('decision=esperar');
+  });
+
+  it('un PR que toca algo más que package.json y package-lock.json: espera', () => {
+    const r = decidir([parche('@types/node')], lockPr(), `${SOLO_MANIFIESTOS}\n.github/workflows/ci.yml`);
+    expect(r.salida).toBe('decision=esperar');
+    expect(r.error).toContain('.github/workflows/ci.yml: el PR toca algo más');
+    expect(decidir([parche('@types/node')], lockPr(), '').salida).toBe('decision=esperar');
   });
 
   it('sin dependencias, con un JSON roto o sin lockfiles, no se fusiona', () => {
     expect(decidir([]).salida).toBe('decision=esperar');
     const roto = spawnSync(process.execPath, [script, lista], {
-      env: { ...process.env, DEPENDENCIAS: '{no es json', LOCK_BASE: 'x', LOCK_PR: 'x' },
+      env: { ...process.env, DEPENDENCIAS: '{no es json', LOCK_BASE: 'x', LOCK_PR: 'x', ARCHIVOS: SOLO_MANIFIESTOS },
       encoding: 'utf8',
     });
     expect(roto.status).toBe(2);
     expect(roto.stdout).not.toContain('fusionar');
     const sinLock = spawnSync(process.execPath, [script, lista], {
-      env: { ...process.env, DEPENDENCIAS: JSON.stringify([parche('@types/node')]), LOCK_BASE: '', LOCK_PR: '' },
+      env: {
+        ...process.env,
+        DEPENDENCIAS: JSON.stringify([parche('@types/node')]),
+        LOCK_BASE: '',
+        LOCK_PR: '',
+        ARCHIVOS: SOLO_MANIFIESTOS,
+      },
       encoding: 'utf8',
     });
     expect(sinLock.status).toBe(2);

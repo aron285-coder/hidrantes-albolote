@@ -5,7 +5,9 @@
 #
 # Un nombre exacto por línea, sin comodines: un paquete nuevo con un nombre parecido no entra solo.
 # Además, automerge-permitido.mjs compara el lockfile del PR con el de la base y espera si cambia
-# cualquier otra cosa. dependabot.yml agrupa estos mismos nombres en parches-desarrollo
+# cualquier otra cosa. Por eso no están vitest, @playwright/test ni typescript-eslint: fijan la
+# versión exacta de paquetes suyos (@vitest/mocker, playwright, @typescript-eslint/*), que cambian en
+# cada parche, y siempre esperarían. dependabot.yml agrupa estos mismos nombres en parches-desarrollo
 # (scripts/seguridad-ci.test.ts comprueba que coinciden).
 eslint
 @eslint/js
@@ -17,8 +19,5 @@ prettier
 @types/node
 @types/react
 @types/react-dom
-typescript-eslint
 globals
-@playwright/test
 @axe-core/playwright
-vitest
