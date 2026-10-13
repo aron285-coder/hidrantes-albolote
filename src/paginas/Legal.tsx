@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router';
 import { BarraSuperior } from '@/componentes/BarraSuperior';
+import { volverOAlInicio } from '@/lib/navegacion';
 import { T } from '@/lib/textos';
 
 /** Aviso legal y privacidad (11 §7), desde la entrada y desde Ajustes. */
 export function Legal() {
   const navegar = useNavigate();
   // Abierto por enlace directo no hay a dónde volver: se va al inicio (UI-01).
-  const volver = () => ((window.history.state as { idx?: number } | null)?.idx ? navegar(-1) : navegar('/'));
+  const volver = () => volverOAlInicio(navegar);
   return (
     <div className="flex flex-1 flex-col">
       <BarraSuperior titulo={T.entrada.avisoLegalTitulo} alVolver={volver} />
