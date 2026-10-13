@@ -8,7 +8,7 @@ create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
 set search_path = extensions, public;
 
-select plan(49);
+select plan(57);
 
 -- ---------- RV-401: el turno no se espera más de 3 s (va primero: esta sesión aún no lo tiene) ----------
 
@@ -30,12 +30,17 @@ create temp table turno as select dblink_is_busy('t2') = 0 as termino_solo;
 select dblink_exec('t1', 'rollback');
 create temp table r2 as select * from dblink_get_result('t2', false) as t(e text);
 select * from dblink_get_result('t2', false) as t(e text);
+create temp table filas_b as select * from dblink('t2', format(
+  'select count(*)::int from hidrantes.intentos_codigo where ip_hash = %L',
+  (select prefijo from conexion) || '-b')) as t(n int);
 select dblink_exec('t2', format('delete from hidrantes.intentos_codigo where ip_hash like %L',
   (select prefijo from conexion) || '%'));
 select dblink_disconnect(s) from unnest(array['t1', 't2']) s;
 
 select ok((select termino_solo from turno), 'con el turno ocupado, la segunda no espera más de 3 s');
 select is((select e from r2), 'OCUPADO', 'y contesta OCUPADO');
+select is((select e from r1), 'CODIGO_INCORRECTO', 'la primera sí tuvo el turno y comparó');
+select is((select n from filas_b), 0, 'OCUPADO no cuenta como intento');
 
 select ok((select p.proconfig @> array['lock_timeout=3s'] from pg_proc p
             where p.oid = 'hidrantes.fn_verificar_codigo(text,uuid,text)'::regprocedure),
@@ -119,6 +124,10 @@ insert into hidrantes.intentos_codigo (dispositivo_id, ip_hash, exito, momento)
 values (gen_random_uuid(), 'ip42-limpia-5', false, now() - interval '20 hours');
 select is(pg_temp.canje('482917', 'a4200000-0000-4000-8000-0000000e4205', 'ip42-limpia-5'), 'DEMASIADOS_INTENTOS',
   'un móvil nuevo desde una IP con un fallo en 24 h, frenado');
+insert into hidrantes.intentos_codigo (dispositivo_id, ip_hash, exito, momento)
+values ('a4200000-0000-4000-8000-0000000e4206', 'ip42-limpia-6', false, now() - interval '25 hours');
+select ok(pg_temp.canje('482917', 'a4200000-0000-4000-8000-0000000e4206', 'ip42-limpia-6') ~ '^[A-Za-z0-9_-]{20,}$',
+  'un fallo de hace más de 24 h ya no cuenta: ese móvil entra con el código bueno');
 select ok(exists (select 1 from hidrantes.intentos_codigo where tope = 'global' and bloqueado
                     and dispositivo_id = 'a4200000-0000-4000-8000-0000000e4204'),
   'el frenado por el tope global se anota como hasta ahora');
@@ -127,6 +136,7 @@ delete from hidrantes.intentos_codigo where ip_hash like 'ip42-f-%';
 
 -- ---------- RV-401: frenados con el código bueno, una fila por móvil y hora ----------
 
+select set_config('test.frenadas', hidrantes.fn_entradas_frenadas_24h()::text, true);
 insert into hidrantes.intentos_codigo (dispositivo_id, ip_hash, exito, momento)
 select gen_random_uuid(), 'ip42-altas', true, now() - interval '3 hours' from generate_series(1, 20);
 select is(pg_temp.canje('482917', 'b4200000-0000-4000-8000-0000000e4201', 'ip42-altas'), 'DEMASIADOS_INTENTOS',
@@ -139,7 +149,8 @@ select is((select count(*)::int from hidrantes.intentos_codigo
   'siete intentos frenados con el código bueno del mismo móvil: una sola fila en la hora');
 select is(pg_temp.canje('482917', 'b4200000-0000-4000-8000-0000000e4202', 'ip42-altas'), 'DEMASIADOS_INTENTOS',
   'otro móvil frenado en la misma IP');
-select is(hidrantes.fn_entradas_frenadas_24h(), 2, 'fn_entradas_frenadas_24h cuenta móviles distintos: 2');
+select is(hidrantes.fn_entradas_frenadas_24h() - current_setting('test.frenadas')::int, 2,
+  'fn_entradas_frenadas_24h cuenta móviles distintos: dos más');
 
 -- ---------- RV-402: los móviles nuevos no gastan más de la mitad del grupo ----------
 
@@ -151,6 +162,13 @@ select set_config('test.ta', pg_temp.canje('482917', 'c4200000-0000-4000-8000-00
 select set_config('test.tb', pg_temp.canje('482917', 'c4200000-0000-4000-8000-0000000e4202', 'ip42-b'), true);
 select set_config('test.tc', pg_temp.canje('482917', 'c4200000-0000-4000-8000-0000000e4203', 'ip42-c'), true);
 select ok(current_setting('test.tc') ~ '^[A-Za-z0-9_-]{20,}$', 'los cuatro móviles tienen token');
+select ok(exists (select 1 from hidrantes.fn_moviles_nuevos() where dispositivo_id = 'c4200000-0000-4000-8000-0000000e4203')
+          and not exists (select 1 from hidrantes.fn_moviles_nuevos() where dispositivo_id = 'c4200000-0000-4000-8000-0000000e4200'),
+  'fn_moviles_nuevos: el recién entrado sí, el veterano no');
+insert into hidrantes.dispositivos (dispositivo_id, token_hash, en_entrada_abierta)
+values ('e4200000-0000-4000-8000-0000000e4200', 'hash-entrada-abierta-42', true);
+select ok(not exists (select 1 from hidrantes.fn_moviles_nuevos() where dispositivo_id = 'e4200000-0000-4000-8000-0000000e4200'),
+  'un móvil que entró con la entrada abierta no cuenta como nuevo, aunque la entrada ya esté cerrada');
 
 -- Propuestas. Lo que ya hubiera hoy (el seed) cuenta: el tope del grupo se pone a 2 × (lo de hoy +
 -- 20), y los móviles nuevos llenan justo su mitad (A lo que falte, B cuatro).
@@ -161,17 +179,21 @@ select pg_temp.hoy('c4200000-0000-4000-8000-0000000e4201',
     join hidrantes.fn_moviles_nuevos() n on n.dispositivo_id = x.dispositivo_id
    where x.creada_en >= date_trunc('day', now() at time zone 'Europe/Madrid') at time zone 'Europe/Madrid'), 'a42-');
 select pg_temp.hoy('c4200000-0000-4000-8000-0000000e4202', 4, 'b42-');
-select is(pg_temp.error_de($$ select pg_temp.datos(current_setting('test.tc'), 'c42-1') $$),
+select is(pg_temp.error_de($$ select pg_temp.datos(current_setting('test.tc'), 'c42-prop-1') $$),
   format('CUOTA_PROPUESTAS_AGOTADA: maximo=%s reintentar_en_s=%s ambito=moviles_nuevos', current_setting('test.mitad'),
     greatest(ceil(extract(epoch from least(
       (date_trunc('day', now() at time zone 'Europe/Madrid') + interval '1 day') at time zone 'Europe/Madrid',
       (select min(emitido_en) from hidrantes.dispositivos where dispositivo_id = 'c4200000-0000-4000-8000-0000000e4203')
         + interval '24 hours') - now()))::int, 1)),
   'con la mitad del grupo gastada por móviles nuevos, otro móvil nuevo espera (ambito=moviles_nuevos)');
-select lives_ok($$ select pg_temp.datos(current_setting('test.tv'), 'v42-1') $$,
+update hidrantes.config set valor = to_jsonb(hidrantes.fn_propuestas_hoy()) where clave = 'max_propuestas_dia_total';
+select ok(pg_temp.error_de($$ select pg_temp.datos(current_setting('test.tc'), 'c42-prop-g') $$) like '% ambito=grupo',
+  'con el grupo lleno, el mensaje es el del grupo (va antes)');
+update hidrantes.config set valor = to_jsonb(2 * current_setting('test.mitad')::int) where clave = 'max_propuestas_dia_total';
+select lives_ok($$ select pg_temp.datos(current_setting('test.tv'), 'v42-prop-1') $$,
   'un veterano sigue enviando: el grupo no ha llegado a su tope');
 update hidrantes.config set valor = to_jsonb(now() + interval '1 hour') where clave = 'entrada_abierta_hasta';
-select lives_ok($$ select pg_temp.datos(current_setting('test.tc'), 'c42-2') $$,
+select lives_ok($$ select pg_temp.datos(current_setting('test.tc'), 'c42-prop-2') $$,
   'con la entrada abierta, los móviles nuevos no tienen ese tope');
 update hidrantes.config set valor = 'null' where clave = 'entrada_abierta_hasta';
 update hidrantes.config set valor = '600' where clave = 'max_propuestas_dia_total';
@@ -185,7 +207,8 @@ select hidrantes.fn_reservar_subida_para('c4200000-0000-4000-8000-0000000e4201')
   from generate_series(1, current_setting('test.mitad_f')::int - 4 - (select count(*)::int from hidrantes.subidas s
     join hidrantes.fn_moviles_nuevos() n on n.dispositivo_id = s.dispositivo_id
    where s.reservada_en > now() - interval '1 day'
-     and (s.confirmada_en is not null or (s.reservada_en > now() - interval '2 hours' and s.liberada_en is null))));
+     and (s.confirmada_en is not null or (s.reservada_en > now() - interval '2 hours' and s.liberada_en is null
+                                          and not hidrantes.fn_dispositivo_liberado(s.dispositivo_id)))));
 select hidrantes.fn_reservar_subida_para('c4200000-0000-4000-8000-0000000e4202') from generate_series(1, 4);
 select ok(pg_temp.error_de($$ select hidrantes.fn_reservar_subida_para('c4200000-0000-4000-8000-0000000e4203') $$)
             ~ ('^CUOTA_SUBIDAS_AGOTADA: maximo=' || current_setting('test.mitad_f') || ' reintentar_en_s=[0-9]+ ambito=moviles_nuevos$'),
@@ -197,7 +220,7 @@ select lives_ok($$ select hidrantes.fn_reservar_subida_para('c4200000-0000-4000-
   'con la entrada abierta, tampoco en las fotos');
 update hidrantes.config set valor = 'null' where clave = 'entrada_abierta_hasta';
 select lives_ok($$ select hidrantes.fn_reservar_subida_para(hidrantes.fn_dispositivo_admin('jefa42@example.com')) $$,
-  'jefatura no cuenta como móvil nuevo');
+  'jefatura no tiene el tope de los móviles nuevos');
 update hidrantes.config set valor = '100000' where clave = 'max_subidas_dia_total';
 
 -- ---------- RV-402: el espacio de jefatura ----------
@@ -247,6 +270,8 @@ select throws_like($$ select hidrantes.fn_contar_desde(now() - interval '31 days
   'más de 30 días atrás: PAYLOAD_INVALIDO(desde)');
 select throws_like($$ select hidrantes.fn_revocar_desde(null) $$, 'PAYLOAD_INVALIDO(desde)%',
   'sin hora: PAYLOAD_INVALIDO(desde)');
+select throws_like($$ select hidrantes.fn_revocar_desde(now() + interval '1 hour') $$, 'PAYLOAD_INVALIDO(desde)%',
+  'una hora futura: PAYLOAD_INVALIDO(desde) (no revoca 0 en silencio)');
 select is(hidrantes.fn_revocar_desde(current_setting('test.desde')::timestamptz), current_setting('test.esperados')::int,
   'fn_revocar_desde revoca esos mismos y dice cuántos');
 select is(hidrantes.fn_contar_desde(current_setting('test.desde')::timestamptz), 0, 'después ya no queda ninguno');
@@ -269,6 +294,11 @@ select ok(has_function_privilege('authenticated', 'hidrantes.fn_cambiar_codigo_a
 select lives_ok($$ select hidrantes.fn_cambiar_codigo_acceso(nuevo => '123456', revocar_dispositivos => true) $$,
   'el panel anterior la llama con dos argumentos y funciona');
 select is(hidrantes.fn_entrada_abierta_hasta(), null, 'y revocando todos ya no abre la entrada');
+select ok(exists (select 1 from hidrantes.registro where accion = 'codigo_cambiado'
+                    and despues = '{"revocar_dispositivos": true, "abrir_entrada": false}'::jsonb)
+          and not exists (select 1 from hidrantes.registro where accion = 'entrada_abierta'
+                            and despues ->> 'motivo' like 'codigo_nuevo%'),
+  'el registro dice que no se pidió abrirla, y no hay entrada abierta');
 select is((select count(*)::int from hidrantes.dispositivos where revocado_en is null
             and not hidrantes.fn_es_dispositivo_admin(dispositivo_id)), 0, 'pero sí revoca todos');
 select lives_ok($$ select hidrantes.fn_cambiar_codigo_acceso('654321', true, true) $$,

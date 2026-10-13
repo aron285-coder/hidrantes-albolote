@@ -61,7 +61,9 @@ insert into jefatura values
   -- 0041 (docs/32 RV-225, RV-260, RV-262)
   ('fn_suscripcion_push_admin'), ('fn_pedidos_recientes'), ('fn_revocar_dispositivo'),
   -- 0044 (docs/33 RV-300)
-  ('fn_abrir_entrada'), ('fn_cerrar_entrada');
+  ('fn_abrir_entrada'), ('fn_cerrar_entrada'),
+  -- 0047 (docs/35 RV-402)
+  ('fn_contar_desde'), ('fn_revocar_desde');
 
 -- ---------- la lista exacta ----------
 
