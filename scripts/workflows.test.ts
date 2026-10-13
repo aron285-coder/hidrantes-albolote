@@ -90,7 +90,10 @@ describe('avisos.yml (RV-08)', () => {
   });
   it('recorre producción y staging', () => {
     expect(texto).toMatch(/entorno: \[PROD, STAGING\]/);
-    expect(texto).toContain("secrets[format('VIGILANCIA_SECRETO_{0}', matrix.entorno)]");
+    // El de staging, del environment staging (docs/35 RV-411, DEC-200).
+    expect(texto).toContain(
+      "SECRETO: ${{ matrix.entorno == 'PROD' && secrets.VIGILANCIA_SECRETO_PROD || secrets.VIGILANCIA_SECRETO }}",
+    );
     expect(texto).toContain('X-Vigilancia');
   });
   it('no declara environment: production pediría aprobación en cada ejecución (DEC-071)', () => {
@@ -101,6 +104,76 @@ describe('avisos.yml (RV-08)', () => {
   it('repite mientras queden avisos, como mucho diez veces', () => {
     expect(texto).toContain('"quedan":true');
     expect(texto).toContain('seq 1 10');
+  });
+});
+
+/** Los trabajos de un workflow, con su environment (o null), por sangría: sin parser de YAML. */
+function trabajosDe(texto: string): { nombre: string; entorno: string | null; cuerpo: string }[] {
+  const jobs = texto.slice(texto.search(/^jobs:$/m));
+  const partes = jobs.split(/^ {2}(?=[\w-]+:\s*$)/m).slice(1);
+  return partes.map((p) => {
+    const nombre = p.slice(0, p.indexOf(':'));
+    const linea = /^ {4}environment:[ \t]*(\S.*)$/m.exec(p)?.[1];
+    const bloque = /^ {4}environment:\s*\n {6}name:\s*(\S+)/m.exec(p)?.[1];
+    return { nombre, entorno: linea ?? bloque ?? null, cuerpo: p };
+  });
+}
+
+// docs/35 RV-411 (DEC-200): staging con sus secretos en su environment y su código fuera del repositorio.
+describe('secretos de staging fuera del repositorio (RV-411)', () => {
+  /** Dónde puede leerse cada uno de los cuatro que estaban en el repositorio. */
+  const PERMITIDOS: Record<string, string[]> = {
+    VIGILANCIA_SECRETO_STAGING: [],
+    PROPIETARIO_EMAIL: ['staging', 'production'],
+    SUPABASE_DB_URL_STAGING: ['production'],
+    SUPABASE_SERVICE_ROLE_KEY_STAGING: ['production'],
+  };
+
+  it('ningún workflow lee los cuatro secretos del nivel del repositorio', () => {
+    const fuera: string[] = [];
+    for (const a of archivos) {
+      for (const t of trabajosDe(leer(a))) {
+        for (const [secreto, entornos] of Object.entries(PERMITIDOS)) {
+          if (!new RegExp(`secrets\\.${secreto}\\b`).test(t.cuerpo)) continue;
+          if (!t.entorno || !entornos.includes(t.entorno)) fuera.push(`${a} · ${t.nombre} · ${secreto}`);
+        }
+      }
+    }
+    expect(fuera).toEqual([]);
+  });
+
+  it('nadie calcula el nombre de un secreto, salvo el traspaso (solo lo lanza el propietario)', () => {
+    const calculados = archivos.filter((a) => a !== 'traspaso.yml' && /secrets\[/.test(leer(a)));
+    expect(calculados).toEqual([]);
+  });
+
+  it('el seed de staging no lleva el código de pruebas: lo recibe con -v codigo', () => {
+    const seed = readFileSync(path.resolve(import.meta.dirname, '../supabase/seed-staging.sql'), 'utf8');
+    // Como número suelto: los uuid de prueba (…-8000-000000000001) sí llevan ceros seguidos.
+    expect(seed).not.toMatch(/\b000000\b/);
+    expect(seed).toContain("extensions.crypt(:'codigo'");
+    expect(seed).toMatch(/\\if :\{\?codigo\}/);
+  });
+
+  it('cada carga del seed pasa el código, y staging el de su environment', () => {
+    const cargas = archivos.flatMap((a) =>
+      leer(a)
+        .split('\n')
+        .filter((l) => l.includes('-f supabase/seed-staging.sql') && !l.trimStart().startsWith('#'))
+        .map((l) => `${a}: ${l.trim()}`),
+    );
+    expect(cargas.length).toBeGreaterThan(0);
+    expect(cargas.filter((c) => !c.includes('-v codigo='))).toEqual([]);
+    const staging = leer('deploy-staging.yml');
+    expect(staging).toContain('CODIGO_STAGING: ${{ secrets.CODIGO_STAGING }}');
+    expect(staging).toContain('-v codigo="$CODIGO_STAGING" -f supabase/seed-staging.sql');
+    expect(staging).toContain('-v codigo="$CODIGO_STAGING" -f scripts/sql/codigo-staging.sql');
+  });
+
+  it('los administradores del seed quedan inactivos, también si ya existían', () => {
+    const seed = readFileSync(path.resolve(import.meta.dirname, '../supabase/seed-staging.sql'), 'utf8');
+    expect(seed).toContain("('jefatura.prueba@example.com', 'seed', false)");
+    expect(seed).toContain('on conflict (email) do update set activo = false');
   });
 });
 
