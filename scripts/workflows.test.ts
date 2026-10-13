@@ -90,7 +90,10 @@ describe('avisos.yml (RV-08)', () => {
   });
   it('recorre producción y staging', () => {
     expect(texto).toMatch(/entorno: \[PROD, STAGING\]/);
-    expect(texto).toContain("secrets[format('VIGILANCIA_SECRETO_{0}', matrix.entorno)]");
+    // El de staging, del environment staging (docs/35 RV-411, DEC-200).
+    expect(texto).toContain(
+      "SECRETO: ${{ matrix.entorno == 'PROD' && secrets.VIGILANCIA_SECRETO_PROD || secrets.VIGILANCIA_SECRETO }}",
+    );
     expect(texto).toContain('X-Vigilancia');
   });
   it('no declara environment: production pediría aprobación en cada ejecución (DEC-071)', () => {
@@ -101,6 +104,100 @@ describe('avisos.yml (RV-08)', () => {
   it('repite mientras queden avisos, como mucho diez veces', () => {
     expect(texto).toContain('"quedan":true');
     expect(texto).toContain('seq 1 10');
+  });
+});
+
+/** Los trabajos de un workflow, con su environment (o null), por sangría: sin parser de YAML. */
+function trabajosDe(texto: string): { nombre: string; entorno: string | null; cuerpo: string }[] {
+  const jobs = texto.slice(texto.search(/^jobs:$/m));
+  const partes = jobs.split(/^ {2}(?=[\w-]+:\s*$)/m).slice(1);
+  return partes.map((p) => {
+    const nombre = p.slice(0, p.indexOf(':'));
+    const linea = /^ {4}environment:[ \t]*(\S.*)$/m.exec(p)?.[1];
+    const bloque = /^ {4}environment:\s*\n {6}name:\s*(\S+)/m.exec(p)?.[1];
+    return { nombre, entorno: linea ?? bloque ?? null, cuerpo: p };
+  });
+}
+
+// docs/35 RV-411 (DEC-200): staging con sus secretos en su environment y su código fuera del repositorio.
+describe('secretos de staging fuera del repositorio (RV-411)', () => {
+  /** Dónde puede leerse cada uno de los cuatro que estaban en el repositorio. */
+  const PERMITIDOS: Record<string, string[]> = {
+    VIGILANCIA_SECRETO_STAGING: [],
+    PROPIETARIO_EMAIL: ['staging', 'production'],
+    SUPABASE_DB_URL_STAGING: ['production'],
+    SUPABASE_SERVICE_ROLE_KEY_STAGING: ['production'],
+  };
+
+  it('ningún workflow lee los cuatro secretos del nivel del repositorio', () => {
+    const fuera: string[] = [];
+    for (const a of archivos) {
+      for (const t of trabajosDe(leer(a))) {
+        for (const [secreto, entornos] of Object.entries(PERMITIDOS)) {
+          if (!new RegExp(`secrets\\.${secreto}\\b`).test(t.cuerpo)) continue;
+          if (!t.entorno || !entornos.includes(t.entorno)) fuera.push(`${a} · ${t.nombre} · ${secreto}`);
+        }
+      }
+    }
+    expect(fuera).toEqual([]);
+  });
+
+  it('nadie calcula el nombre de un secreto, salvo el traspaso (solo lo lanza el propietario)', () => {
+    const calculados = archivos.filter((a) => a !== 'traspaso.yml' && /secrets\[/.test(leer(a)));
+    expect(calculados).toEqual([]);
+  });
+
+  it('el seed de staging no lleva el código de pruebas: lo recibe con -v codigo', () => {
+    const seed = readFileSync(path.resolve(import.meta.dirname, '../supabase/seed-staging.sql'), 'utf8');
+    // Como número suelto: los uuid de prueba (…-8000-000000000001) sí llevan ceros seguidos.
+    expect(seed).not.toMatch(/\b000000\b/);
+    expect(seed).toContain("extensions.crypt(:'codigo'");
+    expect(seed).toMatch(/\\if :\{\?codigo\}/);
+  });
+
+  it('cada carga del seed pasa el código, y staging el de su environment', () => {
+    const cargas = archivos.flatMap((a) =>
+      leer(a)
+        .split('\n')
+        .filter((l) => l.includes('-f supabase/seed-staging.sql') && !l.trimStart().startsWith('#'))
+        .map((l) => `${a}: ${l.trim()}`),
+    );
+    expect(cargas.length).toBeGreaterThan(0);
+    expect(cargas.filter((c) => !c.includes('-v codigo='))).toEqual([]);
+    const staging = leer('deploy-staging.yml');
+    expect(staging).toContain('CODIGO_STAGING: ${{ secrets.CODIGO_STAGING }}');
+    expect(staging).toContain('-v codigo="$CODIGO_STAGING" -f supabase/seed-staging.sql');
+    expect(staging).toContain('-v codigo="$CODIGO_STAGING" -f scripts/sql/codigo-staging.sql');
+  });
+
+  // docs/35 RV-413 (DEC-203): en el piloto, los datos reales están en staging.
+  it('respaldo.yml respalda también staging, en su environment y con la misma clave', () => {
+    const t = trabajosDe(leer('respaldo.yml')).find((x) => x.nombre === 'respaldo-staging');
+    expect(t?.entorno).toBe('staging');
+    const c = t!.cuerpo;
+    expect(c).toContain('BD: ${{ secrets.SUPABASE_DB_URL }}');
+    expect(c).not.toMatch(/_PROD\b/);
+    expect(c).toContain('BUCKET: hidrantes-fotos-dev');
+    expect(c).toContain('comprobar_clave "$GPG_HUELLA"');
+    expect(c).toContain('comprobar_cifrado "$DESTINATARIO" "hidrantes-staging-$FECHA.sql.gpg"');
+    expect(c).toContain('name: respaldo-staging-${{ steps.cuando.outputs.fecha }}');
+    expect(c).toContain('name: respaldo-staging-fotos-${{ steps.cuando.outputs.fecha }}');
+    expect(c.match(/retention-days: 90/g)).toHaveLength(2);
+    expect(c).toContain('"$TAMANO_DATOS" -lt 10000');
+    expect(c).toContain('titulo="El respaldo semanal de staging ha fallado"');
+    expect(c).toContain("hidrantes.fn_encolar_aviso_tecnico('respaldo', null, null)");
+    expect(c).toContain('persist-credentials: false');
+    // Su fallo no esconde la última ejecución correcta, que es la que mira la vigilancia (RV-201).
+    expect(c).toMatch(/^ {4}continue-on-error: true$/m);
+    expect(trabajosDe(leer('respaldo.yml')).find((x) => x.nombre === 'respaldo')!.cuerpo).not.toContain(
+      'continue-on-error',
+    );
+  });
+
+  it('los administradores del seed quedan inactivos, también si ya existían', () => {
+    const seed = readFileSync(path.resolve(import.meta.dirname, '../supabase/seed-staging.sql'), 'utf8');
+    expect(seed).toContain("('jefatura.prueba@example.com', 'seed', false)");
+    expect(seed).toContain('on conflict (email) do update set activo = false');
   });
 });
 

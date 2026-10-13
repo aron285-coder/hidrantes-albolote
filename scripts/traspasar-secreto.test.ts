@@ -122,6 +122,18 @@ describe('pedidoDe', () => {
     expect(() => pedido({ secreto: 'A', desde: 'Repo $(x)', hacia: 'x' })).toThrow(/--desde/);
     expect(() => pedido({ secreto: 'A', desde: 'staging', hacia: 'staging' })).toThrow(/mismo sitio/);
   });
+
+  // docs/35 RV-411: un secreto pasa a su environment con el nombre que allí se usa.
+  it('--como cambia el nombre en el destino, con un solo secreto y un nombre válido', () => {
+    expect(pedido({ secreto: 'X_STAGING', desde: 'repositorio', hacia: 'staging', como: 'X' })).toEqual({
+      secretos: ['X_STAGING'],
+      desde: 'repositorio',
+      hacia: 'staging',
+      como: 'X',
+    });
+    expect(() => pedido({ secreto: 'A,B', desde: 'repositorio', hacia: 'staging', como: 'X' })).toThrow(/un solo/);
+    expect(() => pedido({ secreto: 'A', desde: 'repositorio', hacia: 'staging', como: 'x y' })).toThrow(/--como/);
+  });
 });
 
 describe('comprobarOrigen', () => {
