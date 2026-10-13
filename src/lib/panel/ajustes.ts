@@ -72,6 +72,16 @@ export const cargarAdministradores = () =>
 export const gestionarAdministrador = (email: string, activo: boolean) =>
   rpc<null>('fn_gestionar_administrador', { email: email.trim().toLowerCase(), activo });
 
+const comparable = (correo: string) => correo.trim().toLowerCase();
+
+/** ¿Es el correo de la sesión de jefatura abierta? Sin sesión conocida, nunca (docs/35 RV-431). */
+export const esUnoMismo = (correo: string, propio: string | null): boolean =>
+  !!propio && !!comparable(propio) && comparable(correo) === comparable(propio);
+
+/** Lo que pregunta la confirmación de quitar el acceso: a uno mismo, que saldrá del panel (docs/35 RV-431). */
+export const avisoQuitarAcceso = (correo: string, propio: string | null): string =>
+  esUnoMismo(correo, propio) ? T.panelAjustes.avisoQuitarteAcceso : T.panelAjustes.avisoQuitarAcceso(correo);
+
 /**
  * Correos que ya existen en la app de uniformidad, solo como sugerencia al escribir (FR-141).
  * Es su esquema: se lee y nada más; si no deja, no hay sugerencias y no pasa nada.

@@ -8,8 +8,9 @@
 // mismos tres datos. vigilancia.yml no lo ejecuta (docs/18 RV-36).
 //
 // El riesgo que mira: si cualquiera puede registrarse con correo y contraseña, alguien puede darse
-// de alta con el correo de un administrador. Desde 0022 eso ya no da jefatura (hace falta una sesión
-// de Google), pero conviene que el responsable de uniformidad lo sepa.
+// de alta con el correo de un administrador. Jefatura no depende del correo de la sesión: va atada a la
+// identidad de Google de cada administrador (DEC-197, docs/35 RV-400). Aun así, conviene que el
+// responsable de uniformidad lo sepa.
 
 import { abortar, ejecutar, ejecutarScript, log } from './lib/comun.ts';
 import { SupabaseGestion } from './lib/servicios.ts';
@@ -64,13 +65,13 @@ function evaluarRegistro(e: EstadoAuth): { nivel: 'bajo' | 'medio' | 'alto'; tex
     return {
       nivel: 'alto',
       texto:
-        'Cualquiera puede registrarse con correo y contraseña **sin confirmar el correo**: podría usar el de un administrador. Desde 0022 eso no da jefatura (hace falta una sesión de Google). Recomendación para uniformidad: exigir confirmación del correo o cerrar el registro si su app no lo necesita.',
+        'Cualquiera puede registrarse con correo y contraseña **sin confirmar el correo**: podría usar el de un administrador. Eso no da jefatura: va atada a la identidad de Google de cada administrador, no al correo (DEC-197). Recomendación para uniformidad: exigir confirmación del correo o cerrar el registro si su app no lo necesita.',
     };
   }
   return {
     nivel: 'medio',
     texto:
-      'Cualquiera puede registrarse con correo y contraseña, con confirmación por correo: el correo de confirmación llegaría al administrador, que podría pulsarlo sin darse cuenta. Desde 0022 eso no da jefatura (hace falta una sesión de Google). Recomendación para uniformidad: cerrar el registro por correo si su app no lo necesita.',
+      'Cualquiera puede registrarse con correo y contraseña, con confirmación por correo: el correo de confirmación llegaría al administrador, que podría pulsarlo sin darse cuenta. Eso no da jefatura: va atada a la identidad de Google de cada administrador, no al correo (DEC-197). Recomendación para uniformidad: cerrar el registro por correo si su app no lo necesita.',
   };
 }
 

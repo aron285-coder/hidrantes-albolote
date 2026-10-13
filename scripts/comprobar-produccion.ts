@@ -62,8 +62,6 @@ export const VARIABLES_REPO = [
 ];
 /** Solo hace falta si el mapa base va en R2 (> 20 MB, 04 §8); sin ella se sirve desde Pages. */
 export const OPCIONALES = new Set(['VITE_MAPABASE_URL', 'VITE_MAPABASE_URL_PROD']);
-/** Secretos que puede tener el environment o el repositorio: GitHub los junta al ejecutar. */
-export const TAMBIEN_EN_REPO = new Set(['PROPIETARIO_EMAIL']);
 export const SECRETOS_PAGES = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
@@ -85,7 +83,10 @@ export const SECRETOS_TAREAS = [
   'CLOUDFLARE_API_TOKEN',
   'CLOUDFLARE_ACCOUNT_ID',
 ];
-/** En el repositorio solo la clave pública del respaldo; ninguno de producción (DEC-172). */
+/**
+ * En el repositorio solo la clave pública del respaldo: ninguno de producción (DEC-172) ni de staging
+ * ni el correo del propietario (DEC-200), que los leería un workflow de cualquier rama.
+ */
 export const SECRETOS_REPO = ['GPG_PUBLIC_KEY'];
 /** La paginación de RV-15 y RV-33 da por hecho este tope de PostgREST (04 §5). */
 export const MAX_ROWS_ESPERADO = 1000;
@@ -136,15 +137,12 @@ function presentes(
   grupo: string,
   esperados: string[],
   hay: string[] | null,
-  { opcionales = new Set<string>(), alternativa = null as string[] | null, sinAcceso = '' } = {},
+  { opcionales = new Set<string>(), sinAcceso = '' } = {},
 ): Fila[] {
   return esperados.map((nombre) => {
     const imprescindible = !opcionales.has(nombre);
     if (!hay) return { grupo, nombre, estado: 'NO COMPROBADO', imprescindible, nota: sinAcceso };
     if (hay.includes(nombre)) return { grupo, nombre, estado: 'OK', imprescindible };
-    if (alternativa?.includes(nombre)) {
-      return { grupo, nombre, estado: 'OK', imprescindible, nota: 'en el repositorio, no en el environment' };
-    }
     return {
       grupo,
       nombre,
@@ -160,7 +158,6 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
   const repo = f.secretosRepo();
   filas.push(
     ...presentes('environment production · secretos', SECRETOS_ENTORNO, f.secretosEntorno(), {
-      alternativa: repo?.filter((n) => TAMBIEN_EN_REPO.has(n)) ?? null,
       sinAcceso: 'sin sesión de gh con permisos de administrador',
     }),
     ...presentes('environment production · variables', VARIABLES_ENTORNO, f.variablesEntorno(), {
@@ -181,15 +178,16 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
       sinAcceso: 'sin sesión de gh con permisos de administrador',
     }),
   );
-  // Un secreto de producción en el repositorio lo puede leer un workflow de cualquier rama (DEC-172).
+  // Un secreto en el repositorio lo puede leer un workflow de cualquier rama: ni de producción
+  // (DEC-172) ni de staging (DEC-200). Cada uno va en su environment.
   if (repo) {
-    const enRepo = repo.filter((n) => n.endsWith('_PROD'));
+    const enRepo = repo.filter((n) => n && !SECRETOS_REPO.includes(n));
     filas.push({
       grupo: 'repositorio · secretos',
-      nombre: 'ninguno de producción',
+      nombre: 'ninguno más',
       estado: enRepo.length ? 'FALTA' : 'OK',
       imprescindible: true,
-      nota: enRepo.length ? `bórralos tras comprobar prod-tareas: ${enRepo.join(', ')}` : undefined,
+      nota: enRepo.length ? `bórralos tras comprobar su environment: ${enRepo.join(', ')}` : undefined,
     });
   }
 

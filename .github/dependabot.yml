@@ -19,23 +19,26 @@ updates:
     commit-message:
       prefix: chore(deps)
     # El primer grupo que encaja se queda la dependencia: los parches de desarrollo de la lista de
-    # permitidos van en su PR, que es el único que automerge.yml fusiona solo. Los patrones son los
-    # de .github/automerge-permitidos.txt, en el mismo orden (scripts/seguridad-ci.test.ts).
+    # permitidos van en su PR, que es el único que automerge.yml fusiona solo. Los nombres son los
+    # de .github/automerge-permitidos.txt, exactos y en el mismo orden (scripts/seguridad-ci.test.ts,
+    # docs/35 RV-410).
     groups:
       parches-desarrollo:
         dependency-type: development
         update-types: [patch]
         patterns:
-          - 'eslint*'
-          - '@eslint/*'
+          - 'eslint'
+          - '@eslint/js'
+          - 'eslint-plugin-react-hooks'
+          - 'eslint-plugin-react-refresh'
           - 'prettier'
-          - '@types/*'
-          - 'typescript-eslint'
+          - '@types/geojson'
+          - '@types/leaflet'
+          - '@types/node'
+          - '@types/react'
+          - '@types/react-dom'
           - 'globals'
-          - '@playwright/test'
           - '@axe-core/playwright'
-          - 'vitest'
-          - '@vitest/*'
       resto:
         update-types: [minor, patch]
 
