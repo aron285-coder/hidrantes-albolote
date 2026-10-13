@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -67,8 +68,19 @@ describe('dependencias y actions (RV-132)', () => {
     expect(texto).toMatch(/^on: pull_request_target$/m);
     // Ningún checkout del código del PR (con pull_request_target, eso sí sería peligroso).
     expect(texto.match(/uses: actions\/checkout@/g)).toHaveLength(1);
-    expect(texto).not.toMatch(/head\.(sha|ref)|github\.head_ref/);
+    expect(texto).not.toMatch(/head\.ref|github\.head_ref/);
+    // docs/35 RV-410: la cabeza del PR solo para leer su lockfile como datos, con la API de contenidos.
+    const conCabeza = texto.split(/\n(?= {6}- )/).filter((p) => /head\.sha/.test(p));
+    expect(conCabeza).toHaveLength(1);
+    expect(conCabeza[0]).toContain('- name: Lockfile del PR');
+    expect(conCabeza[0]).toContain(
+      `gh api -H 'Accept: application/vnd.github.raw' "repos/$REPO/contents/package-lock.json?ref=$CABEZA"`,
+    );
+    expect(conCabeza[0]).not.toMatch(/uses:|npm|node |git /);
+    expect(texto).toMatch(/sparse-checkout: \|\n(?:\s+\S+\n)*\s+package-lock\.json\n/);
     expect(texto).toContain('node .github/scripts/automerge-permitido.mjs .github/automerge-permitidos.txt');
+    expect(texto).toContain('LOCK_BASE: package-lock.json');
+    expect(texto).toContain('LOCK_PR: ${{ runner.temp }}/package-lock.pr.json');
     // Solo fusiona si el script lo dice: ningún otro camino llega a gh pr merge.
     expect(texto.match(/gh pr merge/g)).toHaveLength(1);
     expect(texto).toMatch(
@@ -78,7 +90,9 @@ describe('dependencias y actions (RV-132)', () => {
 });
 
 // docs/32 RV-204 (DEC-181): solo los parches de desarrollo de una lista de paquetes seguros se fusionan solos.
-describe('lista de permitidos de Dependabot (RV-204)', () => {
+// docs/35 RV-410 (DEC-198): nombres exactos, y el lockfile del PR sin nada más que esas dependencias.
+// Cada caso lanza Node: con margen de tiempo.
+describe('lista de permitidos de Dependabot (RV-204, RV-410)', { timeout: 30_000 }, () => {
   const lista = path.join(raiz, '.github/automerge-permitidos.txt');
   const script = path.join(raiz, '.github/scripts/automerge-permitido.mjs');
   const patrones = readFileSync(lista, 'utf8')
@@ -89,29 +103,89 @@ describe('lista de permitidos de Dependabot (RV-204)', () => {
     dependencyName: nombre,
     dependencyType: 'direct:development',
     updateType: 'version-update:semver-patch',
+    newVersion: '1.0.1',
     ...extra,
   });
-  const decidir = (dependencias: unknown) => {
-    const r = spawnSync(process.execPath, [script, lista], {
-      env: { ...process.env, DEPENDENCIAS: JSON.stringify(dependencias), GITHUB_STEP_SUMMARY: '' },
-      encoding: 'utf8',
-    });
-    return { codigo: r.status, salida: r.stdout.trim(), error: r.stderr };
+
+  // Lockfiles de ejemplo (docs/35 RV-410): la base y el PR, con lo que cada caso cambia.
+  type Entrada = Record<string, unknown>;
+  const entrada = (version: string, extra: Entrada = {}): Entrada => ({
+    version,
+    resolved: `https://registry.npmjs.org/x/-/x-${version}.tgz`,
+    integrity: `sha512-${version}`,
+    dev: true,
+    ...extra,
+  });
+  const LOCK_BASE = {
+    name: 'p',
+    lockfileVersion: 3,
+    packages: {
+      '': { name: 'p', devDependencies: { '@types/node': '^1.0.0', vitest: '^1.0.0', vite: '^1.0.0' } },
+      'node_modules/@types/node': entrada('1.0.0', { dependencies: { 'undici-types': '~1.0.0' } }),
+      'node_modules/undici-types': entrada('1.0.0'),
+      'node_modules/vitest': entrada('1.0.0'),
+      'node_modules/vite': entrada('1.0.0'),
+    },
+  };
+  /** El lockfile de un PR que sube @types/node a 1.0.1, con `cambios` encima. */
+  const lockPr = (cambios: Record<string, Entrada | null> = {}) => {
+    const packages: Record<string, Entrada> = {
+      ...structuredClone(LOCK_BASE.packages),
+      '': { name: 'p', devDependencies: { '@types/node': '^1.0.1', vitest: '^1.0.0', vite: '^1.0.0' } },
+      'node_modules/@types/node': entrada('1.0.1', { dependencies: { 'undici-types': '~1.0.0' } }),
+    };
+    for (const [ruta, e] of Object.entries(cambios)) {
+      if (e === null) delete packages[ruta];
+      else packages[ruta] = e;
+    }
+    return { ...LOCK_BASE, packages };
   };
 
-  it('la lista es la de la especificación', () => {
+  const decidir = (dependencias: unknown, lockDelPr: unknown = lockPr()) => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'automerge-'));
+    try {
+      writeFileSync(path.join(dir, 'base.json'), JSON.stringify(LOCK_BASE));
+      writeFileSync(path.join(dir, 'pr.json'), typeof lockDelPr === 'string' ? lockDelPr : JSON.stringify(lockDelPr));
+      const r = spawnSync(process.execPath, [script, lista], {
+        env: {
+          ...process.env,
+          DEPENDENCIAS: JSON.stringify(dependencias),
+          LOCK_BASE: path.join(dir, 'base.json'),
+          LOCK_PR: path.join(dir, 'pr.json'),
+          GITHUB_STEP_SUMMARY: '',
+        },
+        encoding: 'utf8',
+      });
+      return { codigo: r.status, salida: r.stdout.trim(), error: r.stderr };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it('la lista es la de la especificación: nombres exactos, sin comodines', () => {
     expect(patrones).toEqual([
-      'eslint*',
-      '@eslint/*',
+      'eslint',
+      '@eslint/js',
+      'eslint-plugin-react-hooks',
+      'eslint-plugin-react-refresh',
       'prettier',
-      '@types/*',
+      '@types/geojson',
+      '@types/leaflet',
+      '@types/node',
+      '@types/react',
+      '@types/react-dom',
       'typescript-eslint',
       'globals',
       '@playwright/test',
       '@axe-core/playwright',
       'vitest',
-      '@vitest/*',
     ]);
+    expect(patrones.filter((p) => /[*?]/.test(p))).toEqual([]);
+  });
+
+  it('cada nombre de la lista es una dependencia de desarrollo de package.json', () => {
+    const pkg = JSON.parse(readFileSync(path.join(raiz, 'package.json'), 'utf8'));
+    expect(patrones.filter((p) => !(p in pkg.devDependencies))).toEqual([]);
   });
 
   it('un parche de vite no se fusiona solo: va en el bundle', () => {
@@ -121,23 +195,42 @@ describe('lista de permitidos de Dependabot (RV-204)', () => {
     expect(r.error).toContain('vite: no está en la lista de permitidos');
   });
 
-  it('un parche de @types/node sí', () => {
+  it('el caso bueno: un parche de @types/node que solo cambia esa entrada y su rango, sí', () => {
     const r = decidir([parche('@types/node')]);
-    expect(r.salida).toBe('decision=fusionar');
+    expect(r.salida, r.error).toBe('decision=fusionar');
   });
 
-  it('los paquetes que corren con los secretos de producción o van en el bundle esperan', () => {
+  it('los paquetes que corren con secretos o van en el bundle esperan', () => {
     for (const p of ['workbox-window', 'vite-plugin-pwa', '@tailwindcss/vite', 'wrangler', 'tsx', 'openpgp']) {
       expect(decidir([parche(p)]).salida).toBe('decision=esperar');
     }
   });
 
-  it('los comodines: eslint-plugin-x y @vitest/coverage-v8 sí; algo que solo contiene el nombre, no', () => {
-    expect(decidir([parche('eslint-plugin-react-hooks'), parche('@vitest/coverage-v8')]).salida).toBe(
-      'decision=fusionar',
-    );
-    expect(decidir([parche('mi-eslint')]).salida).toBe('decision=esperar');
-    expect(decidir([parche('@typesx/node')]).salida).toBe('decision=esperar');
+  it('sin comodines: un nombre parecido a uno de la lista espera', () => {
+    for (const p of ['eslint-plugin-x', '@vitest/coverage-v8', '@types/otro', 'mi-eslint', '@typesx/node']) {
+      expect(decidir([parche(p)]).salida, p).toBe('decision=esperar');
+    }
+  });
+
+  it('una lista con un comodín no decide: sale con 2', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'automerge-lista-'));
+    try {
+      writeFileSync(path.join(dir, 'lista.txt'), '@types/*\n');
+      writeFileSync(path.join(dir, 'l.json'), JSON.stringify(LOCK_BASE));
+      const r = spawnSync(process.execPath, [script, path.join(dir, 'lista.txt')], {
+        env: {
+          ...process.env,
+          DEPENDENCIAS: JSON.stringify([parche('@types/node')]),
+          LOCK_BASE: path.join(dir, 'l.json'),
+          LOCK_PR: path.join(dir, 'l.json'),
+        },
+        encoding: 'utf8',
+      });
+      expect(r.status).toBe(2);
+      expect(r.stdout).not.toContain('fusionar');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('un grupo con uno solo fuera de la lista espera entero', () => {
@@ -149,14 +242,71 @@ describe('lista de permitidos de Dependabot (RV-204)', () => {
     expect(decidir([parche('@types/node', { dependencyType: 'direct:production' })]).salida).toBe('decision=esperar');
   });
 
-  it('sin dependencias, o con un JSON roto, no se fusiona', () => {
+  it('el lockfile añade un paquete: espera', () => {
+    const r = decidir([parche('@types/node')], lockPr({ 'node_modules/nuevo': entrada('0.0.1') }));
+    expect(r.salida).toBe('decision=esperar');
+    expect(r.error).toContain('node_modules/nuevo: entrada nueva en el lockfile');
+  });
+
+  it('el lockfile cambia una dependencia transitiva: espera', () => {
+    const r = decidir([parche('@types/node')], lockPr({ 'node_modules/undici-types': entrada('1.0.9') }));
+    expect(r.salida).toBe('decision=esperar');
+    expect(r.error).toContain('node_modules/undici-types: cambia y no es una dependencia del PR');
+  });
+
+  it('el lockfile trae un script de instalación, nuevo o en la dependencia del PR: espera', () => {
+    const nuevo = decidir(
+      [parche('@types/node')],
+      lockPr({ 'node_modules/con-script': entrada('1.0.0', { hasInstallScript: true }) }),
+    );
+    expect(nuevo.salida).toBe('decision=esperar');
+    expect(nuevo.error).toContain('node_modules/con-script: trae un script de instalación');
+    const mismo = decidir(
+      [parche('@types/node')],
+      lockPr({
+        'node_modules/@types/node': entrada('1.0.1', {
+          dependencies: { 'undici-types': '~1.0.0' },
+          hasInstallScript: true,
+        }),
+      }),
+    );
+    expect(mismo.salida).toBe('decision=esperar');
+    expect(mismo.error).toContain('node_modules/@types/node: cambia y trae un script de instalación');
+  });
+
+  it('la dependencia del PR en otra versión, con otras dependencias, o la raíz con más cambios: espera', () => {
+    const otraVersion = decidir([parche('@types/node', { newVersion: '1.0.2' })]);
+    expect(otraVersion.error).toContain('queda en 1.0.1 y Dependabot dice 1.0.2');
+    const otrasDependencias = decidir(
+      [parche('@types/node')],
+      lockPr({ 'node_modules/@types/node': entrada('1.0.1', { dependencies: { otra: '^1.0.0' } }) }),
+    );
+    expect(otrasDependencias.error).toContain('cambia algo más que la versión');
+    const raiz = decidir(
+      [parche('@types/node')],
+      lockPr({ '': { name: 'p', devDependencies: { '@types/node': '^1.0.1', vitest: '^1.0.0', vite: '^2.0.0' } } }),
+    );
+    expect(raiz.error).toContain('(raíz): cambia algo más');
+    const quitada = decidir([parche('@types/node')], lockPr({ 'node_modules/vite': null }));
+    expect(quitada.error).toContain('node_modules/vite: desaparece del lockfile');
+    for (const r of [otraVersion, otrasDependencias, raiz, quitada]) expect(r.salida).toBe('decision=esperar');
+  });
+
+  it('sin dependencias, con un JSON roto o sin lockfiles, no se fusiona', () => {
     expect(decidir([]).salida).toBe('decision=esperar');
     const roto = spawnSync(process.execPath, [script, lista], {
-      env: { ...process.env, DEPENDENCIAS: '{no es json' },
+      env: { ...process.env, DEPENDENCIAS: '{no es json', LOCK_BASE: 'x', LOCK_PR: 'x' },
       encoding: 'utf8',
     });
     expect(roto.status).toBe(2);
     expect(roto.stdout).not.toContain('fusionar');
+    const sinLock = spawnSync(process.execPath, [script, lista], {
+      env: { ...process.env, DEPENDENCIAS: JSON.stringify([parche('@types/node')]), LOCK_BASE: '', LOCK_PR: '' },
+      encoding: 'utf8',
+    });
+    expect(sinLock.status).toBe(2);
+    expect(decidir([parche('@types/node')], 'no es json').codigo).toBe(2);
+    expect(decidir([parche('@types/node')], { packages: null }).salida).toBe('decision=esperar');
   });
 
   it('dependabot.yml agrupa en parches-desarrollo los mismos patrones que la lista', () => {

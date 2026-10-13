@@ -1,17 +1,24 @@
-# docs/32 RV-204 (DEC-181): las dependencias que Dependabot puede fusionar solas, con CI verde y solo
-# en parches de desarrollo. Son herramientas de comprobación: no van en el bundle ni se ejecutan con
-# los secretos de producción. Todo lo demás (vite, wrangler, tsx, openpgp, workbox…) espera a una
-# revisión: una sesión de Claude Code con pr-review-toolkit, que mira el changelog del paquete.
+# docs/32 RV-204 (DEC-181) y docs/35 RV-410 (DEC-198): las dependencias que Dependabot puede fusionar
+# solas, con CI verde y solo en parches de desarrollo. Son herramientas de comprobación: no van en el
+# bundle ni se ejecutan con secretos. Todo lo demás (vite, wrangler, tsx, openpgp, workbox…) espera a
+# una revisión: una sesión de Claude Code con pr-review-toolkit, que mira el changelog del paquete.
 #
-# Un nombre por línea; `*` vale por cualquier texto. dependabot.yml agrupa estos mismos patrones en
-# parches-desarrollo (scripts/seguridad-ci.test.ts comprueba que coinciden).
-eslint*
-@eslint/*
+# Un nombre exacto por línea, sin comodines: un paquete nuevo con un nombre parecido no entra solo.
+# Además, automerge-permitido.mjs compara el lockfile del PR con el de la base y espera si cambia
+# cualquier otra cosa. dependabot.yml agrupa estos mismos nombres en parches-desarrollo
+# (scripts/seguridad-ci.test.ts comprueba que coinciden).
+eslint
+@eslint/js
+eslint-plugin-react-hooks
+eslint-plugin-react-refresh
 prettier
-@types/*
+@types/geojson
+@types/leaflet
+@types/node
+@types/react
+@types/react-dom
 typescript-eslint
 globals
 @playwright/test
 @axe-core/playwright
 vitest
-@vitest/*
