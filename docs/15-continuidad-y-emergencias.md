@@ -182,7 +182,8 @@ lo mismo que el de producción: los datos cada semana y las fotos de `hidrantes-
 domingo del mes, cifrados con la misma clave (la de §2), como artefactos `respaldo-staging-«fecha»`
 (datos) y `respaldo-staging-fotos-«fecha»` de 90 días. No hace la restauración de prueba, que es solo
 de producción: comprueba que el archivo cifrado no está vacío y que va para la huella de §2. Si falla,
-abre la misma issue, con «staging» en el título. Sigue siendo un respaldo por entorno (DEC-180).
+abre la misma issue, con «staging» en el título, y manda un aviso técnico a la jefatura de staging
+(DEC-202). Sigue siendo un respaldo por entorno (DEC-180).
 
 **Restaurar staging** es esta misma receta con otro artefacto y otra cadena:
 - en el paso 2, `gh run download «ID» --name respaldo-staging-«fecha»` (y

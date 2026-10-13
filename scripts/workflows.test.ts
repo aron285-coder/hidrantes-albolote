@@ -170,6 +170,30 @@ describe('secretos de staging fuera del repositorio (RV-411)', () => {
     expect(staging).toContain('-v codigo="$CODIGO_STAGING" -f scripts/sql/codigo-staging.sql');
   });
 
+  // docs/35 RV-413 (DEC-203): en el piloto, los datos reales están en staging.
+  it('respaldo.yml respalda también staging, en su environment y con la misma clave', () => {
+    const t = trabajosDe(leer('respaldo.yml')).find((x) => x.nombre === 'respaldo-staging');
+    expect(t?.entorno).toBe('staging');
+    const c = t!.cuerpo;
+    expect(c).toContain('BD: ${{ secrets.SUPABASE_DB_URL }}');
+    expect(c).not.toMatch(/_PROD\b/);
+    expect(c).toContain('BUCKET: hidrantes-fotos-dev');
+    expect(c).toContain('comprobar_clave "$GPG_HUELLA"');
+    expect(c).toContain('comprobar_cifrado "$DESTINATARIO" "hidrantes-staging-$FECHA.sql.gpg"');
+    expect(c).toContain('name: respaldo-staging-${{ steps.cuando.outputs.fecha }}');
+    expect(c).toContain('name: respaldo-staging-fotos-${{ steps.cuando.outputs.fecha }}');
+    expect(c.match(/retention-days: 90/g)).toHaveLength(2);
+    expect(c).toContain('"$TAMANO_DATOS" -lt 10000');
+    expect(c).toContain('titulo="El respaldo semanal de staging ha fallado"');
+    expect(c).toContain("hidrantes.fn_encolar_aviso_tecnico('respaldo', null, null)");
+    expect(c).toContain('persist-credentials: false');
+    // Su fallo no esconde la última ejecución correcta, que es la que mira la vigilancia (RV-201).
+    expect(c).toMatch(/^ {4}continue-on-error: true$/m);
+    expect(trabajosDe(leer('respaldo.yml')).find((x) => x.nombre === 'respaldo')!.cuerpo).not.toContain(
+      'continue-on-error',
+    );
+  });
+
   it('los administradores del seed quedan inactivos, también si ya existían', () => {
     const seed = readFileSync(path.resolve(import.meta.dirname, '../supabase/seed-staging.sql'), 'utf8');
     expect(seed).toContain("('jefatura.prueba@example.com', 'seed', false)");
