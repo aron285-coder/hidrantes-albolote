@@ -231,7 +231,8 @@ describe('deploy de producción fallido (RV-136)', () => {
   const paso = (texto: string, nombre: string) => {
     const desde = texto.indexOf(`- name: ${nombre}`);
     expect(desde, nombre).toBeGreaterThan(-1);
-    return texto.slice(desde).split(/\n\s{6}- /)[0]!;
+    // Hasta el paso siguiente o hasta el trabajo siguiente (o su comentario), lo que llegue antes.
+    return texto.slice(desde).split(/\n\s{6}- |\n(?= {0,2}\S)/)[0]!;
   };
 
   /** El guion de un `run: |`, sin la sangría del YAML. */
@@ -288,7 +289,9 @@ describe('deploy de producción fallido (RV-136)', () => {
   };
   const JOBS = JSON.stringify({
     jobs: [
+      { name: 'construir', steps: [{ name: 'npm run build', conclusion: 'success' }] },
       {
+        name: 'desplegar',
         steps: [
           { name: 'Guarda de seguridad', conclusion: 'success' },
           { name: 'Paridad con develop', conclusion: 'failure' },
@@ -302,8 +305,8 @@ describe('deploy de producción fallido (RV-136)', () => {
     const p = paso(prod, 'Avisar del fallo');
     // docs/35 RV-410: en su propio trabajo, después de todos los que pueden fallar.
     const trabajo = prod.slice(prod.indexOf('\n  avisar:\n'), prod.indexOf('- name: Avisar del fallo'));
-    expect(trabajo).toContain('needs: [construir, desplegar, comprobar]');
-    expect(trabajo).toContain('if: failure() || cancelled()');
+    expect(trabajo).toContain('needs: [construir, desplegar]');
+    expect(trabajo).toContain("if: (failure() || cancelled()) && needs.desplegar.result != 'skipped'");
     expect(p).toContain("ESTADO: ${{ contains(needs.*.result, 'cancelled') && 'cancelled' || 'failure' }}");
     expect(p).toContain("titulo='Deploy de producción fallido'");
     expect(prod.indexOf('- name: Avisar del fallo')).toBeGreaterThan(prod.indexOf('node scripts/paridad.ts'));
@@ -315,6 +318,27 @@ describe('deploy de producción fallido (RV-136)', () => {
     expect(r.anotado).toBe('gh issue create --title\n');
     expect(r.cuerpo).toContain('ha terminado con **failure**, en: **Paridad con develop**');
     expect(r.cuerpo).toContain('`aaaaaaa`');
+  });
+
+  // docs/35 RV-410: el aviso va en su trabajo; con la aprobación rechazada, `desplegar` falla sin pasos.
+  it.skipIf(!tieneJq)('si desplegar no llegó a correr ningún paso, no abre la issue y lo dice en el resumen', () => {
+    const sinPasos = JSON.stringify({
+      jobs: [
+        { name: 'construir', steps: [{ name: 'npm run build', conclusion: 'success' }] },
+        { name: 'desplegar', steps: [] },
+      ],
+    });
+    const resumen = path.join(mkdtempSync(path.join(tmpdir(), 'resumen-')), 'resumen.md');
+    const r = correr(guionDe(paso(prod, 'Avisar del fallo')), {
+      JOBS: sinPasos,
+      ISSUES: '[]',
+      ESTADO: 'failure',
+      GITHUB_STEP_SUMMARY: resumen,
+    });
+    expect(r.status, r.stderr).toBe(0);
+    expect(r.anotado).toBe('');
+    expect(readFileSync(resumen, 'utf8')).toContain('no ha llegado a empezar');
+    rmSync(path.dirname(resumen), { recursive: true, force: true });
   });
 
   it.skipIf(!tieneJq)('si no puede leer los pasos, abre la issue igual y lo dice', () => {
@@ -341,7 +365,7 @@ describe('deploy de producción fallido (RV-136)', () => {
   it('con el despliegue bien, cierra la issue de un fallo anterior', () => {
     const p = paso(prod, 'Cerrar el aviso de un fallo anterior');
     const trabajo = prod.slice(prod.indexOf('\n  cerrar:\n'), prod.indexOf('- name: Cerrar el aviso'));
-    expect(trabajo).toContain('needs: [construir, desplegar, comprobar]');
+    expect(trabajo).toContain('needs: [construir, desplegar]');
     expect(trabajo).toContain('if: success()');
     expect(p).toContain("titulo='Deploy de producción fallido'");
     expect(p).toContain('gh issue close');
@@ -1433,7 +1457,7 @@ describe('dependencias sin secretos (RV-410)', () => {
   describe.each([
     ['deploy-staging.yml', 'staging'],
     ['deploy-prod.yml', 'production'],
-  ])('%s: construir, desplegar, comprobar y avisar', (a, entorno) => {
+  ])('%s: construir y desplegar', (a, entorno) => {
     const texto = leer(a);
     const t = (n: string) => trabajosDe(texto).find((x) => x.nombre === n)?.texto ?? '';
 
@@ -1456,12 +1480,66 @@ describe('dependencias sin secretos (RV-410)', () => {
       expect(d).toMatch(/uses: actions\/download-artifact@[0-9a-f]{40} # v\d+\.\d+\.\d+\n\s+with:\n\s+name: dist/);
     });
 
-    it('comprobar no tiene secretos y va después de desplegar', () => {
-      const c = t('comprobar');
-      expect(c).toMatch(/^ {4}needs: \[?desplegar/m);
-      expect(c).not.toMatch(/environment:|secrets\./);
-      expect(c).toContain('npm run comprobar-despliegue');
+    // El nombre del trabajo es su id: publicar.ts (TRABAJO_APROBACION), avisar y la vigilancia de
+    // despliegues ajenos lo buscan como «desplegar».
+    it('desplegar se llama así, sin name: que lo cambie', () => {
+      expect(t('desplegar')).not.toMatch(/^ {4}name:/m);
     });
+
+    // RV-21: la versión del mapa base se anuncia cuando ya se sirve; comprobar-despliegue lo espera.
+    it('desplegar comprueba lo servido (solo Node) antes de anunciar la versión del mapa base', () => {
+      const d = t('desplegar');
+      const comprobarDespliegue = d.indexOf('run: node scripts/comprobar-despliegue.ts --url ');
+      expect(comprobarDespliegue).toBeGreaterThan(d.indexOf('wrangler pages deploy dist'));
+      expect(comprobarDespliegue).toBeLessThan(d.indexOf('run: node scripts/cargar-version-mapabase.ts'));
+    });
+  });
+
+  it('staging comprueba sin secretos, después de desplegar, con el navegador y Lighthouse', () => {
+    const c = trabajosDe(leer('deploy-staging.yml')).find((x) => x.nombre === 'comprobar')?.texto ?? '';
+    expect(c).toMatch(/^ {4}needs: \[desplegar\]$/m);
+    expect(c).not.toMatch(/environment:|secrets\./);
+    expect(c).toContain('npx playwright test e2e/cabeceras.spec.ts');
+    expect(c).toContain('treosh/lighthouse-ci-action@');
+  });
+
+  /** Los imports estáticos de un .ts que no se borran al quitar los tipos (`import type` sí se borra). */
+  const importsEstaticos = (fuente: string) =>
+    [...fuente.matchAll(/^(?:import|export)\s+(?!type\s)[^;]*?\sfrom\s+'([^']+)'/gm)].map((m) => m[1]!);
+
+  it('la comprobación de imports ve un paquete y deja pasar node:, rutas .ts e import type', () => {
+    expect(importsEstaticos("import { a } from 'pmtiles';\nimport type { B } from 'vite';")).toEqual(['pmtiles']);
+    expect(importsEstaticos("import { a } from 'node:fs';\nexport { c } from './x.ts';")).toEqual([
+      'node:fs',
+      './x.ts',
+    ]);
+  });
+
+  it('los scripts que corren con node en Actions solo importan módulos de Node y otros .ts del repositorio', () => {
+    const fuentes = [
+      ...archivos.map((a) => leer(a)),
+      ...readdirSync(path.join(raiz, '.github/scripts'))
+        .filter((a) => a.endsWith('.sh'))
+        .map((a) => readFileSync(path.join(raiz, '.github/scripts', a), 'utf8')),
+    ];
+    const entradas = new Set(
+      fuentes.flatMap((f) => [...f.matchAll(/\bnode (scripts\/[\w/-]+\.ts)\b/g)].map((m) => m[1]!)),
+    );
+    expect(entradas.size).toBeGreaterThan(10);
+    const malos: string[] = [];
+    const vistos = new Set<string>();
+    const pila = [...entradas].map((e) => path.join(raiz, e));
+    while (pila.length) {
+      const archivo = pila.pop()!;
+      if (vistos.has(archivo)) continue;
+      vistos.add(archivo);
+      for (const m of importsEstaticos(readFileSync(archivo, 'utf8'))) {
+        if (m.startsWith('node:')) continue;
+        if (m.startsWith('.') && m.endsWith('.ts')) pila.push(path.resolve(path.dirname(archivo), m));
+        else malos.push(`${path.relative(raiz, archivo)}: ${m}`);
+      }
+    }
+    expect(malos).toEqual([]);
   });
 
   describe('build_del_entorno: dist lleva las variables del environment', () => {
@@ -1505,8 +1583,8 @@ describe('dependencias sin secretos (RV-410)', () => {
 
   it('deploy-prod avisa del fallo en un trabajo final, también si se cancela', () => {
     const avisar = trabajosDe(leer('deploy-prod.yml')).find((x) => x.nombre === 'avisar')?.texto ?? '';
-    expect(avisar).toMatch(/^ {4}needs: \[construir, desplegar, comprobar\]$/m);
-    expect(avisar).toMatch(/^ {4}if: failure\(\) \|\| cancelled\(\)$/m);
+    expect(avisar).toMatch(/^ {4}needs: \[construir, desplegar\]$/m);
+    expect(avisar).toMatch(/^ {4}if: \(failure\(\) \|\| cancelled\(\)\) && needs\.desplegar\.result != 'skipped'$/m);
     expect(avisar).not.toMatch(/actions\/checkout|secrets\.(?!GITHUB_TOKEN)/);
   });
 

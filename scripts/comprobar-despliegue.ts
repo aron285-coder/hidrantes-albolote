@@ -1,17 +1,18 @@
 // Tras desplegar: la app responde, sirve la versión esperada, las cabeceras de TR-100 y el mapa base
 // (teselas sueltas y PMTiles entero, docs/20 RV-71).
-// Solo lectura, sin datos ni secretos. La usan los trabajos «comprobar» de deploy-staging.yml y
-// deploy-prod.yml (docs/35 RV-410). Con VIGILANCIA_SECRETO en local, también mira la caché de staging.
+// Solo lectura, sin datos. La usan deploy-staging.yml y deploy-prod.yml, en el trabajo que despliega,
+// antes de anunciar la versión del mapa base (RV-21). Solo módulos de Node: corre con `node` y sin
+// node_modules (docs/35 RV-410, DEC-198). En staging, con VIGILANCIA_SECRETO, mira también la caché
+// de las Functions (comprobar-caches.ts).
 //
-//   npm run comprobar-despliegue -- --url https://hidrantes-albolote-staging.pages.dev --entorno staging
+//   node scripts/comprobar-despliegue.ts --url https://hidrantes-albolote-staging.pages.dev --entorno staging
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { RAIZ, abortar, argumentos, ejecutarScript, log } from './lib/comun.ts';
 import { comprobarCaches } from './comprobar-caches.ts';
-import { teselasDelRecuadro } from './lib/pmtiles.ts';
+import { teselasDelRecuadro } from './lib/teselas.ts';
 
-// docs/35 RV-410: la comprobación de la caché vive en comprobar-caches.ts (solo Node, con el secreto).
 export { estadoCache } from './comprobar-caches.ts';
 
 export interface Pagina {

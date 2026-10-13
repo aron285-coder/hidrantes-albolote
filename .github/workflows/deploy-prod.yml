@@ -5,7 +5,8 @@
 #   construir  sin environment ni secretos: npm ci y el build; sube dist.
 #   desplegar  con el environment production (la aprobación) y sin node_modules: los scripts con
 #              `node`, y wrangler desde .github/despliegue (solo wrangler, sin scripts de instalación).
-#   comprobar  sin secretos: lo desplegado, con comprobar-despliegue.
+#              comprobar-despliegue (solo Node) espera a la versión nueva antes de anunciar el mapa
+#              base (RV-21); no hay más que comprobar sin secretos en producción.
 #   avisar     si algo falla o se cancela: la issue «Deploy de producción fallido». cerrar: si todo va bien.
 name: Desplegar producción
 
@@ -39,7 +40,7 @@ jobs:
           VITE_ENTORNO: produccion
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY_PROD }}
-          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL }}
+          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL_PROD }}
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY_PROD }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -102,10 +103,11 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
           VITE_VAPID_PUBLIC_KEY: ${{ vars.VITE_VAPID_PUBLIC_KEY }}
+          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL }}
         run: |
           set -euo pipefail
           source .github/scripts/build-del-entorno.sh
-          build_del_entorno dist VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_VAPID_PUBLIC_KEY
+          build_del_entorno dist VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_VAPID_PUBLIC_KEY ?VITE_MAPABASE_URL
 
       - name: Migraciones (hidrantes_migrador, DEC-052)
         run: node scripts/migrar.ts
@@ -140,40 +142,32 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # Después de desplegar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
+      # Espera a que Pages sirva la versión nueva y mira cabeceras y mapa base. Solo Node, sin secretos.
+      - name: Comprobar versión y cabeceras servidas (TR-100)
+        run: node scripts/comprobar-despliegue.ts --url https://hidrantes-albolote.pages.dev --entorno produccion
+
+      # Después de desplegar y comprobar: la versión del mapa base se anuncia cuando ya se sirve (RV-21).
       - name: Versión del mapa base en Salud del sistema (FR-143)
         run: node scripts/cargar-version-mapabase.ts
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
       # Producción es la versión de staging (docs/19 P-03, DEC-096): árbol, frontend servido,
-      # migraciones, Functions y versiones de datos. Si algo no coincide, el despliegue falla. Espera
-      # a que Pages sirva la versión nueva, con reintentos.
+      # migraciones, Functions y versiones de datos. Si algo no coincide, el despliegue falla.
       - name: Paridad con develop
         run: node scripts/paridad.ts --url https://hidrantes-albolote.pages.dev
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
-  comprobar:
-    needs: [desplegar]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/preparar
-      - name: Comprobar versión y cabeceras servidas (TR-100)
-        run: npm run comprobar-despliegue -- --url https://hidrantes-albolote.pages.dev --entorno produccion
-
   # docs/31 RV-136: si algo falla, producción puede haber cambiado a medias (migrada y sin
   # desplegar, o desplegada sin paridad). Se abre o se reabre la issue, con el paso que falló.
   # También si se cancela a mitad (a mano o por timeout-minutes): el caso es el mismo.
+  # Si falla `construir`, `desplegar` no llega a correr y producción no se toca: sin issue (la vigilancia
+  # y publicar ven la ejecución en rojo). Si `desplegar` no llegó a empezar ningún paso (la puerta la
+  # rechazó o se canceló esperando), el paso lo dice en el resumen y no abre la issue.
   avisar:
-    needs: [construir, desplegar, comprobar]
-    if: failure() || cancelled()
+    needs: [construir, desplegar]
+    if: (failure() || cancelled()) && needs.desplegar.result != 'skipped'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     # actions: read, para saber qué paso falló.
@@ -191,6 +185,15 @@ jobs:
         run: |
           set -euo pipefail
           titulo='Deploy de producción fallido'
+          # ¿Llegó `desplegar` a correr algún paso? Si no se puede saber, se avisa igual.
+          corridos=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
+            --jq '[.jobs[] | select(.name == "desplegar") | .steps[]? | select(.conclusion != null and .conclusion != "skipped")] | length' || echo '?')
+          if [ "$corridos" = 0 ]; then
+            aviso="El despliegue de producción de \`${GITHUB_SHA::7}\` no ha llegado a empezar (aprobación rechazada o cancelada): producción no se ha tocado."
+            echo "::notice::$aviso"
+            echo "$aviso" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           fallidos=$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs" \
             --jq '[.jobs[].steps[] | select(.conclusion == "failure" or .conclusion == "cancelled") | .name] | join(", ")' || true)
           cuerpo="El despliegue de producción de \`${GITHUB_SHA::7}\` ha terminado con **$ESTADO**, en: **${fallidos:-no lo he podido saber, mira la ejecución}**.
@@ -207,7 +210,7 @@ jobs:
 
   # Con el despliegue bien, la issue de un fallo anterior se cierra sola.
   cerrar:
-    needs: [construir, desplegar, comprobar]
+    needs: [construir, desplegar]
     if: success()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

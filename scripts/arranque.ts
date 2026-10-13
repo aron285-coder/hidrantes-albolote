@@ -975,12 +975,38 @@ export async function ponerFaltantes(op: OpsFaltantes, entornos: Entorno[] = ENT
   return aMano;
 }
 
+/**
+ * docs/35 RV-410 (DEC-198): el trabajo «construir» de los deploy usa las variables públicas del
+ * repositorio con sufijo. Si falta la clave VAPID pública del repositorio, se copia la del
+ * environment (que es la que lleva Pages): así no cambia la clave de nadie.
+ */
+export function variablesDelBuildQueFaltan(enRepo: readonly string[]): string[] {
+  return ENTORNOS.map((e) => `VITE_VAPID_PUBLIC_KEY_${sufijoDe(e)}`).filter((n) => !enRepo.includes(n));
+}
+
+function copiarVariablesDelBuild(): void {
+  const enRepo = gh(['variable', 'list', '--repo', REPO, '--json', 'name', '--jq', '.[].name']).split(/\r?\n/);
+  for (const nombre of variablesDelBuildQueFaltan(enRepo)) {
+    const e = ENTORNOS.find((x) => nombre.endsWith(`_${sufijoDe(x)}`))!;
+    const valor = gh(['variable', 'get', 'VITE_VAPID_PUBLIC_KEY', '--repo', REPO, '--env', e.clave]).trim();
+    if (!valor) {
+      log.aviso(
+        `${nombre}: el environment ${e.clave} tampoco tiene VITE_VAPID_PUBLIC_KEY (lo pone el arranque completo).`,
+      );
+      continue;
+    }
+    fijarVariable(nombre, valor);
+    log.ok(`${nombre}, copiada del environment ${e.clave}`);
+  }
+}
+
 /** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
 async function soloFaltantes(): Promise<void> {
   log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
   const login = comprobarSesiones();
   await asegurarVariablePropietario(login, false);
   desplegarWorkerSiFalta();
+  copiarVariablesDelBuild();
   const aMano = await ponerFaltantes(OPS_REALES);
   if (aMano.length) log.aviso(`Faltan y solo los pone el arranque completo (npm run arranque): ${aMano.join('; ')}`);
 }
