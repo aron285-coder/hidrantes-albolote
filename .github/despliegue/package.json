@@ -1,0 +1,8 @@
+{
+  "name": "hidrantes-despliegue",
+  "private": true,
+  "description": "Solo wrangler, para los trabajos que despliegan con secretos (DEC-198). Sin scripts de instalación (.npmrc).",
+  "dependencies": {
+    "wrangler": "4.149.0"
+  }
+}

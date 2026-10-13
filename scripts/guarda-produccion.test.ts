@@ -78,11 +78,20 @@ describe('guarda de producción', () => {
     );
   });
 
-  it('deploy-prod.yml pasa a la guarda las mismas variables con las que construye', () => {
+  // docs/35 RV-410: el build va en «construir», sin environment; antes de migrar, la guarda mira las
+  // variables del environment y el paso siguiente, que dist las lleva.
+  it('deploy-prod.yml pasa a la guarda las del environment y comprueba que el build las lleva, antes de migrar', () => {
     const guarda = flujoReal.slice(flujoReal.indexOf('- name: Guarda de seguridad')).split(/\n\s{6}- /)[0]!;
     expect(guarda).toContain('VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}');
     expect(guarda).toContain('VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}');
-    expect(flujoReal.indexOf('- name: Guarda de seguridad')).toBeLessThan(flujoReal.indexOf('npm run migrar'));
+    const build = flujoReal.slice(flujoReal.indexOf('- name: El build es de producción')).split(/\n\s{6}- /)[0]!;
+    expect(build).toContain('VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}');
+    expect(build).toContain('VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}');
+    expect(build).toContain('build_del_entorno dist VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_VAPID_PUBLIC_KEY');
+    const migrar = flujoReal.indexOf('node scripts/migrar.ts');
+    expect(migrar).toBeGreaterThan(-1);
+    expect(flujoReal.indexOf('- name: Guarda de seguridad')).toBeLessThan(migrar);
+    expect(flujoReal.indexOf('- name: El build es de producción')).toBeLessThan(migrar);
   });
 
   // docs/31 (#484): sin SAL_IP, /api/verificar-codigo y /api/error responden 503 NO_CONFIGURADO, y

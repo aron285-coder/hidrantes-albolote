@@ -1,8 +1,10 @@
 name: Preparar
-description: Node con caché de npm, dependencias y, si se pide, psql 17.
+description: Node 24 y, si se pide, las dependencias (sin scripts de instalación) y psql 17.
 inputs:
   npm:
-    description: Node y npm ci. 'false' en lo que solo usa bash, psql, gh y jq (vigilancia, docs/19 RV-56)
+    description: >-
+      npm ci con la caché de npm. 'false' en los trabajos con secretos (docs/35 RV-410, DEC-198), que
+      ejecutan sus scripts con `node scripts/x.ts`, y en lo que solo usa bash, psql, gh y jq (docs/19 RV-56).
     default: 'true'
   psql:
     description: Instalar los clientes de PostgreSQL 17 (psql, pg_dump)
@@ -10,13 +12,19 @@ inputs:
 runs:
   using: composite
   steps:
-    - if: inputs.npm == 'true'
-      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+    # Siempre Node 24: los scripts de los trabajos con secretos corren con `node`, que les quita los
+    # tipos. Sin npm ci, tampoco la caché de npm (DEC-198).
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: 24
-        cache: npm
+        cache: ${{ inputs.npm == 'true' && 'npm' || '' }}
+        package-manager-cache: ${{ inputs.npm == 'true' }}
+    # .npmrc tiene ignore-scripts=true: ninguna dependencia ejecuta nada al instalarse. Las dos que
+    # necesitan su script (los binarios de esbuild y workerd) se reconstruyen aquí, y solo ellas.
     - if: inputs.npm == 'true'
-      run: npm ci
+      run: |
+        npm ci
+        npm rebuild esbuild workerd --ignore-scripts=false
       shell: bash
     - if: inputs.psql == 'true'
       shell: bash

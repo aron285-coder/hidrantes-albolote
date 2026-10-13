@@ -34,8 +34,12 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Sin npm ci: los scripts corren con node, sin node_modules (docs/35 RV-410, DEC-198).
       - uses: ./.github/actions/preparar
         with:
+          npm: 'false'
           psql: 'true'
 
       - name: Promover
@@ -51,13 +55,13 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$ENSAYO" = 'true' ]; then
-            npm run promover-piloto -- --ensayo | tee salida.txt
+            node scripts/promover-piloto.ts --ensayo | tee salida.txt
           else
             if [ "$CONFIRMACION" != 'PROMOVER' ]; then
               echo 'Para promover de verdad hay que escribir PROMOVER en la entrada del workflow.' >&2
               exit 1
             fi
-            echo PROMOVER | npm run promover-piloto | tee salida.txt
+            echo PROMOVER | node scripts/promover-piloto.ts | tee salida.txt
           fi
 
       - name: Informe

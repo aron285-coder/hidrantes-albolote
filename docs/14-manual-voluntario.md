@@ -149,7 +149,7 @@ Cuando pases al lado de uno, compruébalo y envía *Sigue igual*.
 3. Elige **Hidrante** o **Boca de riego**.
    - Hidrante: diámetro de la salida mayor, 70, 100 u otra medida.
    - Boca de riego: diámetro 45, 70 u otra medida, y el **tipo de enganche** (Barcelona, Granada,
-     Directo u Otro). Los dibujos te ayudan a compararlo.
+     Directo u Otro). Las fotos te ayudan a compararlo.
 4. Elige el **caudal / estado**. Si es *No funciona*, escribe qué le pasa.
 5. Haz las **dos fotos**: **Conexión** (la salida de agua) y **Sitio** (algo para encontrarlo: «al
    lado de la gasolinera»). Hasta que estén las dos, el botón te dice cuál falta.
