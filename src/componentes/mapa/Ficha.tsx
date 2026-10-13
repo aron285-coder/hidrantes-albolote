@@ -117,7 +117,9 @@ function Foto({ punto, alto }: { punto: Punto; alto: string }) {
   const [cual, setCual] = useState<'conexion' | 'sitio'>('conexion');
   const inicio = useRef<number | null>(null);
   const haySitio = !!punto.foto_sitio_path;
-  if (!haySitio) return <UnaFoto fotoPath={punto.foto_path} alt={punto.codigo} alto={alto} />;
+  // Una clave por foto: si el punto recibe otra (al sincronizar), su estado («no carga») empieza de cero.
+  if (!haySitio)
+    return <UnaFoto key={punto.foto_path ?? ''} fotoPath={punto.foto_path} alt={punto.codigo} alto={alto} />;
   const fotos = [
     ['conexion', punto.foto_path, T.formulario.conexion],
     ['sitio', punto.foto_sitio_path ?? null, T.formulario.sitio],
@@ -136,7 +138,7 @@ function Foto({ punto, alto }: { punto: Punto; alto: string }) {
       }}
     >
       <UnaFoto
-        key={actual[0]}
+        key={`${actual[0]}:${actual[1] ?? ''}`}
         fotoPath={actual[1]}
         alt={T.ficha.fotoDe(punto.codigo, actual[2])}
         alto={alto}

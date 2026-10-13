@@ -121,3 +121,42 @@ test('al pasar a otro punto con la ficha abierta, se pide su foto aunque la ante
   expect(pedidas.some((u) => u.includes('si-esta'))).toBe(true);
   await expect(page.getByTestId('foto-franja')).toHaveCount(0);
 });
+
+// docs/35 RV-422: si el mismo punto recibe otra foto (al sincronizar), se pide la nueva aunque la de
+// antes no cargara.
+test('con la ficha abierta, una foto nueva del mismo punto se pide aunque la anterior fallara', async ({
+  page,
+  context,
+}) => {
+  await page.route(`${SUPABASE_PRUEBAS}/storage/v1/object/public/**`, async (r) => {
+    if (r.request().url().includes('no-esta')) return r.fulfill({ status: 404, body: '' });
+    return r.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+      headers: { 'access-control-allow-origin': '*' },
+    });
+  });
+  await conSesion(page);
+  const listado = (foto: string) => ({ ...LISTADO, puntos: [{ ...P0, foto_path: foto }, ...PUNTOS.slice(1)] });
+  // simularRpc lee la respuesta en cada petición: cambiarla aquí es lo que trae la sincronización.
+  const respuestas: Record<string, unknown> = {
+    fn_listar_puntos: listado('fotos/no-esta.jpg'),
+    fn_mis_propuestas: [],
+    fn_registrar_error: null,
+  };
+  await simularRpc(page, respuestas);
+  await page.goto(`/?p=${P0.id}`);
+  await expect(page.getByTestId('foto-franja')).toContainText(T.ficha.fotoNoCarga);
+  respuestas.fn_listar_puntos = listado('fotos/nueva.jpg');
+  // Se va y vuelve la cobertura: la app vuelve a sincronizar.
+  const sincronizada = page.waitForRequest((r) => r.url().includes('/rpc/fn_listar_puntos'));
+  await context.setOffline(true);
+  await context.setOffline(false);
+  await sincronizada;
+  await expect(page.getByRole('img', { name: P0.codigo })).toBeVisible();
+  await expect(page.getByTestId('foto-franja')).toHaveCount(0);
+});
