@@ -125,6 +125,15 @@ describe('verificarCodigo (FR-31)', () => {
     expect(estadoConexion()).toBe('bien');
   });
 
+  it('otro 5xx con código sigue siendo SERVIDOR_NO_DISPONIBLE (docs/35 RV-426)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respuesta(503, { error: 'ERROR_INTERNO' })),
+    );
+    await expect(verificarCodigo('x', 'd-1')).resolves.toEqual({ ok: false, codigo: SIN_SERVIDOR });
+    expect(estadoConexion()).toBe('sin_servidor');
+  });
+
   it('un 403 con su código llega tal cual (docs/35 RV-426)', async () => {
     vi.stubGlobal(
       'fetch',

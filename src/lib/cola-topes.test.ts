@@ -466,9 +466,9 @@ describe('tope de los móviles recién entrados (docs/35 RV-427)', () => {
     'Hoy los móviles recién entrados ya han enviado mucho. Podrás seguir mañana; lo que tienes se queda guardado.';
 
   it.each([
-    ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 reintentar_en_s=43200 ambito=moviles_nuevos'],
-    ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 ambito=moviles_nuevos'],
-  ])('en la propuesta (%s): espera en la cola y lo dice', async (mensaje) => {
+    ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 reintentar_en_s=7200 ambito=moviles_nuevos', 7200_000],
+    ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 ambito=moviles_nuevos', null],
+  ])('en la propuesta (%s): espera en la cola y lo dice', async (mensaje, esperaMs) => {
     rpc.mockResolvedValue(errorRpc(mensaje));
     await encolarSinRed(2, null);
     await cola.procesarCola();
@@ -476,8 +476,9 @@ describe('tope de los móviles recién entrados (docs/35 RV-427)', () => {
     const items = cola.colaActual();
     expect(items).toHaveLength(2);
     expect(items.every((i) => !i.fallo && i.en_espera?.motivo === 'moviles_nuevos')).toBe(true);
-    // La hora del servidor o, sin ella, la medianoche, como el tope de propuestas al día.
-    expect(items[0]!.proximo).toBeGreaterThanOrEqual(new Date('2026-10-08T22:00:00Z').getTime());
+    // La hora del servidor o, sin ella, pasada la medianoche, como el tope de propuestas al día.
+    if (esperaMs) expect(items[0]!.proximo - Date.now()).toBe(esperaMs);
+    else expect(items[0]!.proximo).toBeGreaterThan(new Date('2026-10-08T22:00:00Z').getTime());
     expect(textoEspera(items[0]!)).toBe(TEXTO);
   });
 
