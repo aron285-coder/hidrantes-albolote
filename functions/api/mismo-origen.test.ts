@@ -33,7 +33,8 @@ const MANEJADORES: Record<string, Manejador> = {
   'vincular-jefatura': vincularJefatura,
 };
 
-const peticion = (ruta: string, cabeceras: Record<string, string>, cuerpo: string | null = '{}') =>
+// Un cuerpo de texto sin tipo sale como text/plain; uno binario, sin ningún Content-Type.
+const peticion = (ruta: string, cabeceras: Record<string, string>, cuerpo: string | ArrayBuffer | null = '{}') =>
   new Request(`${ORIGEN}/api/${ruta}`, { method: 'POST', headers: cabeceras, body: cuerpo });
 
 afterEach(() => vi.restoreAllMocks());
@@ -49,7 +50,7 @@ describe('ORIGEN_NO_PERMITIDO en todas las Functions con POST (docs/35 RV-401)',
     expect(conPost).toEqual(Object.keys(MANEJADORES).sort());
   });
 
-  const ajenas: [string, Record<string, string>, string | null][] = [
+  const ajenas: [string, Record<string, string>, string | ArrayBuffer | null][] = [
     ['otra web (Origin distinto)', { 'Content-Type': 'application/json', Origin: 'https://otra.example' }, '{}'],
     ['Origin null', { 'Content-Type': 'application/json', Origin: 'null' }, '{}'],
     [
@@ -61,7 +62,7 @@ describe('ORIGEN_NO_PERMITIDO en todas las Functions con POST (docs/35 RV-401)',
     ['texto plano', { 'Content-Type': 'text/plain' }, '{}'],
     ['otra web, sin cuerpo ni Content-Type', { Origin: 'https://otra.example', 'Content-Length': '0' }, null],
     ['formulario', { 'Content-Type': 'application/x-www-form-urlencoded' }, 'a=1'],
-    ['cuerpo sin Content-Type', {}, '{}'],
+    ['cuerpo sin Content-Type', {}, new TextEncoder().encode('{}').buffer as ArrayBuffer],
   ];
 
   for (const [ruta, manejador] of Object.entries(MANEJADORES)) {
