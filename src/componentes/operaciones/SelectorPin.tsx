@@ -6,6 +6,7 @@ import { capasDe } from '../mapa/capas-leaflet';
 import { ICONO_PIN, ICONO_PIN_SIN_COLOCAR } from '../mapa/iconos-leaflet';
 import { useConexion, useMapabase, useModo, usePosicion } from '@/hooks/estado';
 import { ZOOM_MAX, atribucion, baseDebajo, capaGuardada } from '@/lib/capas';
+import { claveMapabase } from '@/lib/mapabase';
 import type { Coordenadas } from '@/lib/propuestas';
 import { type Posicion, activarPosicion } from '@/lib/posicion';
 import { T } from '@/lib/textos';
@@ -99,13 +100,15 @@ export function SelectorPin({
   // el móvil, el mapa base debajo. Al cambiar la conexión se vuelven a pintar: con Satélite elegido y
   // sin señal, el pin ya no se pone sobre un mapa gris (docs/31 RV-150).
   const debajo = baseDebajo(conexion, mapabase.descargado !== null);
+  // Otra copia del mapa base (descargada o borrada): las capas se pintan de nuevo con ella (RV-421).
+  const copia = claveMapabase(mapabase.descargado);
   useEffect(() => {
     const m = mapa.current;
     if (!m) return;
     const capas = capasDe(capaGuardada(), modo, debajo);
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
-  }, [modo, debajo]);
+  }, [modo, debajo, copia]);
 
   // El pin se mueve (GPS que llega, botón de posición…): solo se mueve el pin. El mapa no se
   // recentra solo, que descoloca mientras se ajusta a mano; para eso está "Mi posición" (DEC-066).
