@@ -195,7 +195,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 ## K · Funciones de mapa para emergencias (FR-72–76, TR-116–119, DEC-089)
 
-Pendientes de conformidad de jefatura en F9.1 (#76). Se comprueban en el piloto con uso real.
+Se validan con jefatura en F9.1 (#76) y en el piloto.
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|

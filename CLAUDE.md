@@ -83,7 +83,7 @@ cobertura · fuera de zona.
 
 ## 5. Cómo se trabaja
 
-**Hasta el piloto, DEC-193:** congelación. Solo entran arreglos `bloquea-release`, lo que salga de #76, #77 o #78
+**Hasta el piloto, DEC-193 (salvo `docs/35`, DEC-196):** congelación. Solo entran arreglos `bloquea-release`, lo que salga de #76, #77 o #78
 (cada uno con su issue) y mantenimiento invisible. Cualquier mejora, como issue `tras-piloto`, sin implementarla.
 
 1. `gh issue list --milestone "Fase N" --state open` → coge la issue más antigua de la fase en curso.
