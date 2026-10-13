@@ -2,7 +2,7 @@
 // pantallas del voluntario y deja los PNG en `docs/capturas/`, numerados y con nombre estable, para
 // que los manuales puedan citarlos sin volver a hacerlos a mano cada vez que cambie una pantalla.
 //
-//   npm run capturas                      contra staging
+//   npm run capturas                      contra staging (con CODIGO_STAGING del entorno o de .env.local)
 //   npm run capturas -- --local           contra la pila local (wrangler en :8788)
 //   npm run capturas -- --url <url> --codigo <6 cifras>
 //   npm run capturas -- --oscuro          las mismas, en modo oscuro
@@ -11,7 +11,7 @@
 // pruebas que escribe este script y los datos del seed, que van marcados `[PRUEBA]`. Antes de
 // guardar cada imagen se comprueba que no asome ningún otro nombre de voluntario.
 
-import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { devices, chromium, type Page } from '@playwright/test';
 import { abortar, argumentos, ejecutarScript, log, RAIZ } from './lib/comun.ts';
@@ -20,8 +20,23 @@ import { T } from '../src/lib/textos.ts';
 const DESTINO = path.join(RAIZ, 'docs', 'capturas');
 const STAGING = 'https://hidrantes-albolote-staging.pages.dev';
 const LOCAL = 'http://127.0.0.1:8788';
-/** El código del seed de staging, que no es secreto; el real nunca se escribe aquí. */
-const CODIGO_SEED = '000000';
+/** El código de pruebas de la pila local y de la CI (`psql -v codigo=…` al cargar el seed). */
+const CODIGO_LOCAL = '000000';
+
+/**
+ * El código con el que entrar. Staging tiene el suyo, que no está en el repositorio (DEC-200): sale
+ * de CODIGO_STAGING en el entorno o en `.env.local` (`npm run arranque -- --codigo-staging`).
+ */
+export function codigoPara(
+  url: string,
+  dado: string | undefined,
+  env: Record<string, string | undefined>,
+  envLocal: string,
+): string | undefined {
+  if (dado) return dado;
+  if (url.startsWith('http://127.0.0.1') || url.startsWith('http://localhost')) return CODIGO_LOCAL;
+  return env.CODIGO_STAGING || /^CODIGO_STAGING=(\d{6})\s*$/m.exec(envLocal)?.[1];
+}
 /** Nombre neutro: lo que se vea en las capturas no puede ser de nadie (FR-27, DEC-053). */
 export const FIRMA = { nombre: 'Voluntaria', apellido: 'Manual' };
 
@@ -109,7 +124,14 @@ async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   const oscuro = banderas.has('oscuro');
   const url = valores.get('url') ?? (banderas.has('local') ? LOCAL : STAGING);
-  const codigo = valores.get('codigo') ?? CODIGO_SEED;
+  const archivoEnv = path.join(RAIZ, '.env.local');
+  const codigo = codigoPara(
+    url,
+    valores.get('codigo'),
+    process.env,
+    existsSync(archivoEnv) ? readFileSync(archivoEnv, 'utf8') : '',
+  );
+  if (!codigo) abortar('Falta CODIGO_STAGING (entorno o .env.local): npm run arranque -- --codigo-staging');
   if (!/^\d{6}$/.test(codigo)) abortar('El código son seis cifras.');
   if (url.includes('hidrantes-albolote.pages.dev')) {
     abortar('Producción no: las capturas se hacen en staging o en local (04 §4).');

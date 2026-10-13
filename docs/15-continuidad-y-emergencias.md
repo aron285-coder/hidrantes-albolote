@@ -45,8 +45,9 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub (environments `staging`, `production` y `prod-tareas`); se puede regenerar en un minuto | — |
 | Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
+| Código de acceso de staging (hasta que jefatura ponga el del piloto) | entrar en staging para probar | secreto `CODIGO_STAGING` del environment `staging` y el `.env.local` de quien lo generó; **nunca** en el repositorio, en un PR, en una issue ni en el chat (DEC-200). Si se pierde: `npm run arranque -- --codigo-staging` genera otro y el siguiente despliegue de staging lo pone, salvo que jefatura ya haya puesto el suyo | — |
 
-**Dónde viven los secretos de producción (DEC-172):** en los environments `production` (el despliegue, con su aprobación, DEC-176) y `prod-tareas` (respaldo, purga de fotos, vigilancia, avisos, comprobar-produccion y el despachador; sin revisores y solo desde `develop`). **Ninguno está en el nivel del repositorio.** Para moverlos sin verlos: `npm run traspasar-secreto` (`traspaso.yml`, solo lo lanza quien diga la variable del repositorio `PROPIETARIO`; sirve también para secretos largos como `GPG_PUBLIC_KEY`, docs/32 RV-208). Si la vigilancia abre «Despliegue de producción no autorizado», alguien desplegó el proyecto de Pages de producción sin `deploy-prod`: mirar el despliegue que nombra la issue en Cloudflare y, si no es legítimo, volver al anterior (`wrangler pages deployment …`) y rotar el token de Cloudflare (`npm run arranque -- --rotar cloudflare`).
+**Dónde viven los secretos de producción (DEC-172):** en los environments `production` (el despliegue, con su aprobación, DEC-176) y `prod-tareas` (respaldo, purga de fotos, vigilancia, avisos, comprobar-produccion y el despachador; sin revisores y solo desde `develop`). **Ninguno está en el nivel del repositorio.** Los de staging tampoco (DEC-200): van en `staging`, que solo admite `develop`, y los dos que lee `promover-piloto.yml` (`SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING`), en `production`. En el repositorio solo queda `GPG_PUBLIC_KEY`, que es pública. Para moverlos sin verlos: `npm run traspasar-secreto` (`traspaso.yml`, solo lo lanza quien diga la variable del repositorio `PROPIETARIO`; sirve también para secretos largos como `GPG_PUBLIC_KEY`, docs/32 RV-208). Si la vigilancia abre «Despliegue de producción no autorizado», alguien desplegó el proyecto de Pages de producción sin `deploy-prod`: mirar el despliegue que nombra la issue en Cloudflare y, si no es legítimo, volver al anterior (`wrangler pages deployment …`) y rotar el token de Cloudflare (`npm run arranque -- --rotar cloudflare`).
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
 contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
@@ -58,8 +59,8 @@ su siguiente despliegue, el PR `develop → main` con la aprobación del desarro
 el Worker `hidrantes-avisos` recibe 401 en PROD, lo anota sin datos y sigue con staging: los avisos
 siguen saliendo al moderar y al sincronizar, y la vigilancia diaria salta si se atascan más de 30
 minutos (docs/18 RV-38, docs/19 RV-52). **Rotar `VIGILANCIA_SECRETO` lo cambia en tres sitios** —Pages,
-el secreto del repositorio y el Worker—, y el arranque los pone los tres; si falta en alguno,
-`npm run arranque -- --solo-faltantes` genera uno nuevo para los tres, sin pedir tokens. `VIGILANCIA_SECRETO` se rotó el 23 sep 2026. Si no puede leer los secretos del Worker (red, sesión de `wrangler` caducada), para sin cambiar nada; al rotar, el Worker se escribe primero, y si no lo acepta no se toca Pages ni el repositorio (docs/20 RV-72, DEC-102).
+GitHub (`prod-tareas` en producción, `staging` en staging) y el Worker—, y el arranque los pone los tres; si falta en alguno,
+`npm run arranque -- --solo-faltantes` genera uno nuevo para los tres, sin pedir tokens. `VIGILANCIA_SECRETO` se rotó el 23 sep 2026. Si no puede leer los secretos del Worker (red, sesión de `wrangler` caducada), para sin cambiar nada; al rotar, el Worker se escribe primero, y si no lo acepta no se toca Pages ni GitHub (docs/20 RV-72, DEC-102).
 
 **Si el token de Cloudflare no tiene permiso de Workers** (04 §9 pide **Pages: Edit** y **Workers Scripts: Edit**), staging se despliega igual, pero el paso del Worker avisa en el resumen del workflow. Lo mismo dice `npm run comprobar-produccion` («Workers Scripts: Edit · FALTA»). Mira el permiso con la lista de nombres de los secretos del Worker, que solo da un token que puede editarlo. El token del primer despliegue (24 sep 2026) **veía** los Workers pero no podía desplegarlos. Con ese permiso de lectura la vigilancia sí lee el cron y no salta; solo salta si el Worker no tiene su cron. Arreglo: en Cloudflare, *My Profile → API Tokens*, editar el token y añadir *Account · Workers Scripts · Edit* (unos 2 minutos; un token no se puede ampliar con la API). Mientras, `npm run arranque -- --solo-faltantes` despliega el Worker con la sesión de `wrangler login` si aún no existe.
 
@@ -173,6 +174,24 @@ cifrar no sale del runner y se borra al terminar.
 
 Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con GPG, de las últimas
 13 semanas (datos) y 3 meses (fotos).
+
+**Staging también tiene su respaldo** (DEC-203). En el piloto, los datos reales están en staging hasta
+`promover-piloto`. El trabajo `respaldo-staging` de `respaldo.yml`, en el environment `staging`, hace
+lo mismo que el de producción: los datos cada semana y las fotos de `hidrantes-fotos-dev` el primer
+domingo del mes, cifrados con la misma clave (la de §2), como artefactos `respaldo-staging-«fecha»`
+(datos) y `respaldo-staging-fotos-«fecha»` de 90 días. No hace la restauración de prueba, que es solo
+de producción: comprueba que el archivo cifrado no está vacío y que va para la huella de §2. Si falla,
+abre la misma issue, con «staging» en el título. Sigue siendo un respaldo por entorno (DEC-180).
+
+**Restaurar staging** es esta misma receta con otro artefacto y otra cadena:
+- en el paso 2, `gh run download «ID» --name respaldo-staging-«fecha»` (y
+  `respaldo-staging-fotos-«fecha»` si hacen falta las fotos);
+- en el paso 4, `npm run restaurar -- --entorno staging --archivo …` con la cadena de staging
+  (`SUPABASE_DB_URL` del environment `staging`, o la que pida el script); comprueba que el
+  `PROJECT_REF` es el de dev;
+- en el paso 5, `npm run restaurar-fotos -- --entorno staging …`, que sube a `hidrantes-fotos-dev`.
+
+El paso 1 (código nuevo con *Revocar todos los dispositivos*) se hace en el panel de staging.
 
 1. Antes de nada, **parar las escrituras**: Panel → Ajustes → Código de acceso → *Generar uno nuevo*
    con *Revocar todos los dispositivos*. Nadie podrá enviar nada hasta que se comunique el código

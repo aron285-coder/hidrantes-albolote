@@ -28,9 +28,9 @@ const LOCALES: Migracion[] = [
 /** Todo presente: lo que tendría producción al día. */
 function fuentes(cambios: Partial<Fuentes> = {}): Fuentes {
   return {
-    secretosEntorno: () => SECRETOS_ENTORNO.filter((s) => s !== 'PROPIETARIO_EMAIL'),
+    secretosEntorno: () => [...SECRETOS_ENTORNO],
     variablesEntorno: () => [...VARIABLES_ENTORNO],
-    secretosRepo: () => [...SECRETOS_REPO, 'PROPIETARIO_EMAIL'],
+    secretosRepo: () => [...SECRETOS_REPO],
     secretosTareas: () => [...SECRETOS_TAREAS],
     secretosPages: () => [...SECRETOS_PAGES],
     migracionesAplicadas: () =>
@@ -63,7 +63,22 @@ describe('comprobar-produccion (docs/19 P-01)', () => {
     );
     const texto = tabla(filas);
     expect(texto).toMatch(/environment prod-tareas · secretos \| VIGILANCIA_SECRETO_PROD \| FALTA/);
-    expect(texto).toMatch(/repositorio · secretos \| ninguno de producción \| FALTA \| .*SUPABASE_DB_URL_PROD/);
+    expect(texto).toMatch(/repositorio · secretos \| ninguno más \| FALTA \| .*SUPABASE_DB_URL_PROD/);
+    expect(codigoSalida(filas)).toBe(1);
+  });
+
+  // docs/35 RV-411 (DEC-200): tampoco los de staging ni el correo del propietario.
+  it('un secreto de staging o PROPIETARIO_EMAIL en el repositorio es un fallo, y no cuenta para production', async () => {
+    const filas = await comprobar(
+      fuentes({
+        secretosEntorno: () => SECRETOS_ENTORNO.filter((s) => s !== 'PROPIETARIO_EMAIL'),
+        secretosRepo: () => [...SECRETOS_REPO, 'PROPIETARIO_EMAIL', 'VIGILANCIA_SECRETO_STAGING'],
+      }),
+      LOCALES,
+    );
+    const texto = tabla(filas);
+    expect(texto).toMatch(/environment production · secretos \| PROPIETARIO_EMAIL \| FALTA/);
+    expect(texto).toMatch(/repositorio · secretos \| ninguno más \| FALTA \| .*PROPIETARIO_EMAIL, VIGILANCIA_SECRETO_STAGING/);
     expect(codigoSalida(filas)).toBe(1);
   });
 

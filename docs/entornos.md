@@ -14,11 +14,13 @@ en GitHub Environments y en Cloudflare Pages (04 §10).
 | Cuenta de Cloudflare | `12c14cad67798806b9ba75017f3e2959` |
 | Rol de migraciones | `hidrantes_migrador` por el pooler en modo sesión, puerto 5432 (DEC-052) |
 | Huella GPG de respaldos | `BD378A1E0E09843032B3A70254A89DD4FC82E6CE` (regenerada el 20 sep 2026: la anterior usaba algoritmos que GnuPG no lee) |
-| Secretos por environment | `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` (+ `GPG_PUBLIC_KEY` en production) |
+| Secretos por environment | `SUPABASE_DB_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `PROPIETARIO_EMAIL` (DEC-053) (+ `GPG_PUBLIC_KEY` en production) |
+| Environment `staging` (solo `develop`), además | `VIGILANCIA_SECRETO` (DEC-088) y `CODIGO_STAGING`, el código de acceso de staging: lo genera `npm run arranque -- --codigo-staging` y no se escribe en ningún otro sitio (DEC-200) |
+| Environment `production`, además | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078, DEC-200) |
 | Variables por environment | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` |
 | Variables del repositorio | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` (mantener-activo.yml, DEC-054) |
 | Environment `prod-tareas` (sin revisores, solo `develop`) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`: las tareas de producción que no pueden esperar una aprobación (respaldo, purga de fotos, vigilancia, avisos a mano, comprobar-produccion; DEC-071, docs/31 RV-131, DEC-172) |
-| Secretos del repositorio | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078), `GPG_PUBLIC_KEY` (pública: cifra el respaldo, DEC-071), `VIGILANCIA_SECRETO_STAGING` (DEC-088), `PROPIETARIO_EMAIL` (DEC-053). Ninguno de producción: cualquier rama los podría leer (DEC-172) |
+| Secretos del repositorio | Solo `GPG_PUBLIC_KEY` (pública: cifra el respaldo, DEC-071). Ninguno más: cualquier rama los podría leer (DEC-172, DEC-200) |
 | Secretos del Worker `hidrantes-avisos` | `VIGILANCIA_SECRETO_{STAGING,PROD}`, con los mismos valores que Pages y GitHub (docs/19 RV-52, DEC-097) |
 | Variables cifradas de Pages | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SAL_IP`, `NOMINATIM_USER_AGENT`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT`, `VIGILANCIA_SECRETO` (DEC-088) |
 

@@ -19,6 +19,10 @@ import {
   secretosWorkerDe,
   sufijoDe,
   vigilanciaEnOrden,
+  codigoAleatorio,
+  conCodigoStaging,
+  nombreEnSuSitio,
+  SITIOS_PROPIETARIO,
 } from './arranque.ts';
 
 describe('--rotar', () => {
@@ -61,20 +65,32 @@ describe('secreto de la vigilancia (RV-08)', () => {
 describe('environment prod-tareas (RV-131)', () => {
   const fuente = readFileSync(path.join(import.meta.dirname, 'arranque.ts'), 'utf8');
 
-  it('los secretos _PROD de las tareas van a prod-tareas; los de staging, al repositorio', () => {
+  it('los secretos _PROD de las tareas van a prod-tareas; los de staging, a un environment (RV-411)', () => {
     expect(ENV_TAREAS).toBe('prod-tareas');
     expect(sitioSecretoTareas('SUPABASE_DB_URL_PROD')).toBe('prod-tareas');
     expect(sitioSecretoTareas('SUPABASE_SERVICE_ROLE_KEY_PROD')).toBe('prod-tareas');
     expect(sitioSecretoTareas('VIGILANCIA_SECRETO_PROD')).toBe('prod-tareas');
-    expect(sitioSecretoTareas('VIGILANCIA_SECRETO_STAGING')).toBeUndefined();
+    expect(sitioSecretoTareas('VIGILANCIA_SECRETO_STAGING')).toBe('staging');
+    expect(nombreEnSuSitio('VIGILANCIA_SECRETO_STAGING')).toBe('VIGILANCIA_SECRETO');
+    expect(sitioSecretoTareas('SUPABASE_DB_URL_STAGING')).toBe('production');
+    expect(sitioSecretoTareas('SUPABASE_SERVICE_ROLE_KEY_STAGING')).toBe('production');
+    expect(nombreEnSuSitio('SUPABASE_DB_URL_STAGING')).toBe('SUPABASE_DB_URL_STAGING');
+    expect(sitioSecretoTareas('GPG_PUBLIC_KEY')).toBeUndefined();
   });
 
-  it('un _PROD que sigue en el repositorio pero no en prod-tareas cuenta como que falta', () => {
-    const hay = secretosEnSuSitio(
-      ['VIGILANCIA_SECRETO_PROD', 'VIGILANCIA_SECRETO_STAGING', ''],
-      ['SUPABASE_DB_URL_PROD', 'VIGILANCIA_SECRETO_STAGING'],
-    );
-    expect(hay).toEqual(['VIGILANCIA_SECRETO_STAGING', 'SUPABASE_DB_URL_PROD']);
+  it('uno que sigue en el repositorio pero no en su environment cuenta como que falta', () => {
+    const hay = secretosEnSuSitio({
+      '': ['VIGILANCIA_SECRETO_PROD', 'VIGILANCIA_SECRETO_STAGING', 'GPG_PUBLIC_KEY', ''],
+      'prod-tareas': ['SUPABASE_DB_URL_PROD', 'VIGILANCIA_SECRETO_STAGING'],
+      staging: ['VIGILANCIA_SECRETO'],
+      production: ['SUPABASE_SERVICE_ROLE_KEY_STAGING'],
+    });
+    expect(hay).toEqual([
+      'GPG_PUBLIC_KEY',
+      'SUPABASE_DB_URL_PROD',
+      'SUPABASE_SERVICE_ROLE_KEY_STAGING',
+      'VIGILANCIA_SECRETO_STAGING',
+    ]);
     expect(
       planFaltantes({
         clave: 'production',
@@ -94,6 +110,14 @@ describe('environment prod-tareas (RV-131)', () => {
     // fijarSecreto(nombre, valor) sin tercer argumento es el repositorio.
     const alRepositorio = [...fuente.matchAll(/fijarSecreto\(([^,]+),[^,)]+\)/g)].map((m) => m[1]!.trim());
     expect(alRepositorio.filter((n) => /PROD|sufijo/.test(n))).toEqual([]);
+  });
+
+  // docs/35 RV-411: ninguno de staging ni el del propietario en el nivel del repositorio.
+  it('ni los de staging ni PROPIETARIO_EMAIL ni CODIGO_STAGING se escriben en el repositorio', () => {
+    const alRepositorio = [...fuente.matchAll(/fijarSecreto\(([^,]+),[^,)]+\)/g)].map((m) => m[1]!.trim());
+    expect(alRepositorio.filter((n) => /STAGING|PROPIETARIO|CODIGO/.test(n))).toEqual([]);
+    expect(SITIOS_PROPIETARIO).toEqual(['staging', 'production']);
+    expect(fuente).toContain("fijarSecreto('CODIGO_STAGING', codigo, 'staging')");
   });
 
   it('entornos.md y su plantilla no dejan ningún secreto de producción en el repositorio', () => {
@@ -317,5 +341,22 @@ describe('variable PROPIETARIO', () => {
       throw new Error('no se debe leer el remoto');
     };
     expect(repoDestino(false, 'titular', sinRemoto)).toBe('titular/hidrantes-albolote');
+  });
+});
+
+// docs/35 RV-411 (DEC-200): el código de staging se genera al azar y solo va al secreto y a .env.local.
+describe('código de acceso de staging', () => {
+  it('seis cifras, y nunca seis iguales (tampoco el de pruebas)', () => {
+    const valores = [0, 111111, 42, 999999];
+    const azar = () => valores.shift()!;
+    expect(codigoAleatorio(azar)).toBe('000042');
+    expect(codigoAleatorio(() => 7)).toBe('000007');
+    expect(codigoAleatorio()).toMatch(/^\d{6}$/);
+  });
+
+  it('en .env.local cambia solo su línea y deja las demás', () => {
+    const antes = 'VITE_ENTORNO=local\nCODIGO_STAGING=123456\nVITE_SUPABASE_URL=x\n\n';
+    expect(conCodigoStaging(antes, '654321')).toBe('VITE_ENTORNO=local\nVITE_SUPABASE_URL=x\nCODIGO_STAGING=654321\n');
+    expect(conCodigoStaging('', '654321')).toBe('CODIGO_STAGING=654321\n');
   });
 });
