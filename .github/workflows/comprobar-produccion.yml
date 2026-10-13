@@ -17,14 +17,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Sin npm ci: los scripts corren con node, sin node_modules (docs/35 RV-410, DEC-198).
       - uses: ./.github/actions/preparar
         with:
+          npm: 'false'
           psql: 'true'
       # Su mitad (--parcial): lo que solo se ve desde aquí. La tabla completa la da
       # `npm run comprobar-produccion -- --completo` en local, que lanza este workflow y lee el artefacto
       # (docs/20 RV-73). Solo nombres y estados, nunca valores.
       - name: Comprobar (sin valores)
-        run: npm run comprobar-produccion -- --parcial --json filas-produccion.json
+        run: node scripts/comprobar-produccion.ts --parcial --json filas-produccion.json
         env:
           SUPABASE_DB_URL_PROD: ${{ secrets.SUPABASE_DB_URL_PROD }}
           SUPABASE_URL_PROD: ${{ vars.SUPABASE_URL_PROD }}

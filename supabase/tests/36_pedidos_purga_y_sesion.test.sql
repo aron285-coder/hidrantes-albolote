@@ -12,10 +12,11 @@ insert into hidrantes.config (clave, valor, actualizado_por)
 values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen_salt('bf', 4))), 'test')
 on conflict (clave) do update set valor = excluded.valor;
 insert into hidrantes.administradores (email, creado_por) values ('jefa36@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims',
-    '{"role":"authenticated","email":"jefa36@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+    '{"role":"authenticated","sub":"34b68ab3-8db0-5e46-14ab-6ce0cb70e2a5","email":"jefa36@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
     true);
 $$;
 create function pg_temp.voluntario() returns void language sql as $$

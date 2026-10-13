@@ -14,7 +14,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(13);
+select plan(14);
 
 -- Sin usage sobre el esquema, execute no basta: todas las llamadas fallarían con 42501.
 select ok(has_schema_privilege('service_role', 'hidrantes', 'usage'), 'service_role tiene usage sobre hidrantes');
@@ -31,7 +31,8 @@ with rpc_de_servicio(nombre, argumentos) as (values
   ('fn_reservas_sin_confirmar_lista', null),
   ('fn_resultado_notificacion', null),
   ('fn_validar_token', null),
-  ('fn_verificar_codigo', null)
+  ('fn_verificar_codigo', null),
+  ('fn_vincular_administrador', null)
 ) select ok(
     exists (
       select 1

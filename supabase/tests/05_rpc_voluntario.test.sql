@@ -24,7 +24,7 @@ set local role anon;
 select throws_ok($$ select * from hidrantes.fn_verificar_codigo('482917', gen_random_uuid(), 'x') $$,
   '42501', null, 'anon no puede llamar a fn_verificar_codigo (capa 5)');
 reset role;
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"x@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","sub":"6d1db9ff-40d6-53b4-09cd-a4c3ec45e5d7","email":"x@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 select throws_ok($$ select * from hidrantes.fn_verificar_codigo('482917', gen_random_uuid(), 'x') $$,
   '42501', null, 'authenticated tampoco');

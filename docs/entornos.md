@@ -18,7 +18,7 @@ en GitHub Environments y en Cloudflare Pages (04 §10).
 | Environment `staging` (solo `develop`), además | `VIGILANCIA_SECRETO` (DEC-088) y `CODIGO_STAGING`, el código de acceso de staging: lo genera `npm run arranque -- --codigo-staging` y no se escribe en ningún otro sitio (DEC-200) |
 | Environment `production`, además | `SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING` (promoción del piloto, DEC-078, DEC-200) |
 | Variables por environment | `VITE_ENTORNO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY`, `PAGES_PROYECTO`, `SUPABASE_PROJECT_REF` |
-| Variables del repositorio | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` (mantener-activo.yml, DEC-054) |
+| Variables del repositorio | `SUPABASE_URL_STAGING`, `SUPABASE_ANON_KEY_STAGING`, `SUPABASE_URL_PROD`, `SUPABASE_ANON_KEY_PROD` (mantener-activo.yml, DEC-054); `VITE_VAPID_PUBLIC_KEY_STAGING`, `VITE_VAPID_PUBLIC_KEY_PROD` (el trabajo construir de los deploy, DEC-198) |
 | Environment `prod-tareas` (sin revisores, solo `develop`) | `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`: las tareas de producción que no pueden esperar una aprobación (respaldo, purga de fotos, vigilancia, avisos a mano, comprobar-produccion; DEC-071, docs/31 RV-131, DEC-172) |
 | Secretos del repositorio | Solo `GPG_PUBLIC_KEY` (pública: cifra el respaldo, DEC-071). Ninguno más: cualquier rama los podría leer (DEC-172, DEC-200) |
 | Secretos del Worker `hidrantes-avisos` | `VIGILANCIA_SECRETO_{STAGING,PROD}`, con los mismos valores que Pages y GitHub (docs/19 RV-52, DEC-097) |

@@ -130,18 +130,28 @@ declare
   p record;
   n int := 0;
   admin text;
+  usuario uuid;
+  de_paso boolean := false;
 begin
   if not exists (select 1 from hidrantes.puntos where codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
                                                   and situacion = 'activo') then
     return;
   end if;
-  select a.email into admin
+  -- docs/35 RV-400: jefatura exige la fila unida al usuario de la sesión (`sub`). Se prefiere un
+  -- administrador ya unido; si no hay ninguno, se une el elegido a un uuid de paso y se deshace al
+  -- final de este bloque (un do es una sola sentencia: si algo falla, no queda nada unido).
+  select a.email, a.usuario_id into admin, usuario
     from hidrantes.administradores a
    where a.activo
-   order by a.email = 'jefatura.prueba@example.com' desc, a.email
+   order by a.usuario_id is not null desc, a.email = 'jefatura.prueba@example.com' desc, a.email
    limit 1;
+  if admin is not null and usuario is null then
+    usuario := gen_random_uuid();
+    de_paso := true;
+    update hidrantes.administradores set usuario_id = usuario, vinculado_en = now() where email = admin;
+  end if;
   perform set_config('request.jwt.claims', jsonb_build_object(
-    'role', 'authenticated', 'email', admin,
+    'role', 'authenticated', 'sub', usuario, 'email', admin,
     'amr', jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', extract(epoch from now())::bigint)),
     'app_metadata', jsonb_build_object('provider', 'google', 'providers', jsonb_build_array('google')))::text, true);
   if admin is null or not hidrantes.fn_es_admin() then
@@ -164,6 +174,9 @@ begin
     n := n + 1;
   end loop;
   raise notice 'RV-340: % bocas duplicadas de RV-139b retiradas', n;
+  if de_paso then
+    update hidrantes.administradores set usuario_id = null, vinculado_en = null where email = admin;
+  end if;
 end $$;
 
 commit;

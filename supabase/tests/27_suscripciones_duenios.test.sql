@@ -12,6 +12,7 @@ select plan(31);
 
 insert into hidrantes.administradores (email, creado_por) values
   ('jefa-avisos@example.com', 'test'), ('otra-jefa-avisos@example.com', 'test');
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 insert into hidrantes.dispositivos (dispositivo_id, token_hash) values
   ('00000000-0000-4000-8000-00000000d271', hidrantes.fn_sha256('token-de-prueba-rv84-dispositivo-uno')),
   ('00000000-0000-4000-8000-00000000d272', hidrantes.fn_sha256('token-de-prueba-rv84-dispositivo-dos'));
@@ -22,7 +23,7 @@ $$;
 
 create function pg_temp.como_admin(email text) returns void language sql as $$
   select set_config('request.jwt.claims', jsonb_build_object(
-    'role', 'authenticated', 'email', email,
+    'role', 'authenticated', 'sub', md5(lower(email))::uuid, 'email', email,
     'amr', jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', 1)),
     'app_metadata', jsonb_build_object('provider', 'google', 'providers', jsonb_build_array('google')))::text, true);
 $$;

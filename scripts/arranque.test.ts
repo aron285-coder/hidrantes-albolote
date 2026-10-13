@@ -18,12 +18,35 @@ import {
   ponerFaltantes,
   secretosWorkerDe,
   sufijoDe,
+  variablesDelBuildQueFaltan,
   vigilanciaEnOrden,
   codigoAleatorio,
   conCodigoStaging,
   nombreEnSuSitio,
   SITIOS_PROPIETARIO,
 } from './arranque.ts';
+
+// docs/35 RV-410: el build de los deploy, sin environment, usa la clave VAPID pública del repositorio.
+describe('variables del build en el repositorio', () => {
+  it('pide las de staging y producción que falten, y ninguna si están', () => {
+    expect(variablesDelBuildQueFaltan([])).toEqual(['VITE_VAPID_PUBLIC_KEY_STAGING', 'VITE_VAPID_PUBLIC_KEY_PROD']);
+    expect(variablesDelBuildQueFaltan(['VITE_VAPID_PUBLIC_KEY_STAGING'])).toEqual(['VITE_VAPID_PUBLIC_KEY_PROD']);
+    expect(variablesDelBuildQueFaltan(['VITE_VAPID_PUBLIC_KEY_STAGING', 'VITE_VAPID_PUBLIC_KEY_PROD'])).toEqual([]);
+  });
+
+  it('el arranque completo y --solo-faltantes las ponen, y los deploy las usan', () => {
+    const fuente = readFileSync(path.join(import.meta.dirname, 'arranque.ts'), 'utf8');
+    expect(fuente).toContain('fijarVariable(`VITE_VAPID_PUBLIC_KEY_${sufijo}`, vapidPublica)');
+    expect(fuente).toContain('copiarVariablesDelBuild();');
+    for (const [a, s] of [
+      ['deploy-staging.yml', 'STAGING'],
+      ['deploy-prod.yml', 'PROD'],
+    ]) {
+      const yml = readFileSync(path.join(import.meta.dirname, '..', '.github', 'workflows', a!), 'utf8');
+      expect(yml).toContain(`VITE_VAPID_PUBLIC_KEY: \${{ vars.VITE_VAPID_PUBLIC_KEY_${s} }}`);
+    }
+  });
+});
 
 describe('--rotar', () => {
   it('sin nada, no se rota nada: el arranque completo no es una rotación', () => {

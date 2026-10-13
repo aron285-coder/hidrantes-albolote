@@ -6,14 +6,20 @@
 // sube las que faltan: una imagen generada aquí, con «[PRUEBA]» y el nombre del archivo, sin datos
 // personales. Después vuelve a comprobarlas todas: cada una tiene que responder 200, o falla.
 //
-//   npm run fotos-seed                      deploy-staging.yml: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-//                                           y SUPABASE_DB_URL del environment staging
+//   npm run fotos-seed                      en local: genera en Chromium y sube las que falten
+//   npm run fotos-seed -- --generar <dir>   solo genera las fotos del seed en <dir>, sin secretos ni red
+//                                           (deploy-staging.yml, trabajo fotos-seed, con Chromium)
+//   node scripts/fotos-seed-staging.ts --desde <dir>
+//                                           sube las que falten desde <dir>, sin Chromium ni node_modules
+//                                           (deploy-staging.yml, trabajo desplegar: SUPABASE_URL,
+//                                           SUPABASE_SERVICE_ROLE_KEY y SUPABASE_DB_URL de staging;
+//                                           docs/35 RV-410, DEC-198)
 //   npm run fotos-seed -- --solo-comprobar  solo mira las URL públicas (sin secretos); falla si falta alguna
 //
 // Solo staging: el bucket es `hidrantes-fotos-dev` y SUPABASE_URL tiene que ser el proyecto de staging
 // (docs/entornos.md). Producción no tiene seed (04 §4) y este script se niega a tocarla.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { RAIZ, REFS, abortar, argumentos, ejecutarScript, log, psqlOk } from './lib/comun.ts';
 
@@ -147,9 +153,42 @@ async function subir(base: string, servicio: string, bucket: string, ruta: strin
     abortar(`Storage respondió ${r.status} al subir ${ruta}: ${(await r.text().catch(() => '')).slice(0, 300)}`);
 }
 
+/**
+ * Las fotos generadas antes, en otro trabajo (docs/35 RV-410): `<dir>/<ruta>`. Aborta si falta alguna
+ * de las que hay que subir: sin Chromium aquí, no se puede generar.
+ */
+export function fotosDe(dir: string, rutas: string[]): Map<string, Buffer> {
+  const fotos = new Map<string, Buffer>();
+  const sinFoto = rutas.filter((r) => !existsSync(path.join(dir, r)));
+  if (sinFoto.length)
+    abortar(
+      `Faltan en ${dir} las fotos de ${sinFoto.join(', ')}: el trabajo fotos-seed solo genera las rutas de seed-staging.sql.`,
+    );
+  for (const r of rutas) fotos.set(r, readFileSync(path.join(dir, r)));
+  return fotos;
+}
+
 async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   const soloComprobar = banderas.has('solo-comprobar');
+  const generar = valores.get('generar');
+  const desde = valores.get('desde');
+
+  // Solo generar: sin secretos, sin base de datos y sin red. Las rutas, del propio seed.
+  if (generar) {
+    const rutas = rutasDelSeed(readFileSync(path.join(RAIZ, 'supabase', 'seed-staging.sql'), 'utf8')).filter((r) =>
+      RUTA_DE_PRUEBA.test(r),
+    );
+    if (rutas.length === 0) abortar('No hay ninguna foto en seed-staging.sql: ¿ha cambiado el seed?');
+    const fotos = await generarFotos(rutas);
+    for (const [ruta, foto] of fotos) {
+      const destino = path.join(generar, ruta);
+      mkdirSync(path.dirname(destino), { recursive: true });
+      writeFileSync(destino, foto);
+    }
+    log.ok(`${fotos.size} fotos del seed generadas en ${generar}`);
+    return;
+  }
   // `||` y no `??`: un secreto que falta llega a Actions como cadena vacía.
   const base = valores.get('url') || process.env.SUPABASE_URL || (soloComprobar ? URL_STAGING : '');
   if (!base) abortar('Falta SUPABASE_URL (la del environment staging).');
@@ -174,7 +213,7 @@ async function principal(): Promise<void> {
 
   if (pendientes.length > 0 && !soloComprobar) {
     const servicio = process.env.SUPABASE_SERVICE_ROLE_KEY || abortar('Falta SUPABASE_SERVICE_ROLE_KEY.');
-    const fotos = await generarFotos(pendientes);
+    const fotos = desde ? fotosDe(desde, pendientes) : await generarFotos(pendientes);
     for (const ruta of pendientes) {
       await subir(base, servicio, BUCKET_STAGING, ruta, fotos.get(ruta)!);
       log.ok(`Subida ${ruta}`);

@@ -15,6 +15,7 @@ insert into hidrantes.nucleos (nombre, municipio, geom, version) values
   ('Albolote', 'albolote', 'SRID=4326;POINT(-3.6569 37.2308)', 'test'),
   ('Pretel',   'albolote', 'SRID=4326;POINT(-3.6300 37.2700)', 'test');
 insert into hidrantes.administradores (email, creado_por) values ('mover@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, racor, foto_path, municipio, nucleo,
                               fecha_ultima_revision, actualizado_en)
@@ -43,7 +44,7 @@ values ('00000000-0000-4000-8000-0000000e3311', '00000000-0000-4000-8000-0000000
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims',
-    '{"role":"authenticated","email":"mover@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+    '{"role":"authenticated","sub":"6e2a9d55-407b-58ca-8698-853f10a938f7","email":"mover@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
     true);
 $$;
 select pg_temp.jefatura();
