@@ -78,7 +78,9 @@ describe('comprobar-produccion (docs/19 P-01)', () => {
     );
     const texto = tabla(filas);
     expect(texto).toMatch(/environment production · secretos \| PROPIETARIO_EMAIL \| FALTA/);
-    expect(texto).toMatch(/repositorio · secretos \| ninguno más \| FALTA \| .*PROPIETARIO_EMAIL, VIGILANCIA_SECRETO_STAGING/);
+    expect(texto).toMatch(
+      /repositorio · secretos \| ninguno más \| FALTA \| .*PROPIETARIO_EMAIL, VIGILANCIA_SECRETO_STAGING/,
+    );
     expect(codigoSalida(filas)).toBe(1);
   });
 

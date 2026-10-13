@@ -669,7 +669,9 @@ function ponerCodigoStaging(): void {
   fijarSecreto('CODIGO_STAGING', codigo, 'staging');
   const archivo = path.join(RAIZ, '.env.local');
   writeFileSync(archivo, conCodigoStaging(existsSync(archivo) ? readFileSync(archivo, 'utf8') : '', codigo));
-  log.ok('CODIGO_STAGING puesto en el environment staging y en .env.local; vale desde el próximo despliegue de staging');
+  log.ok(
+    'CODIGO_STAGING puesto en el environment staging y en .env.local; vale desde el próximo despliegue de staging',
+  );
 }
 
 // ---------- 9. skills, 10. issues, 11. docs/entornos.md ----------
@@ -960,8 +962,17 @@ const OPS_REALES: OpsFaltantes = {
       Object.fromEntries(
         ['', ENV_TAREAS, 'staging', 'production'].map((sitio) => [
           sitio,
-          gh(['secret', 'list', '--repo', REPO, ...(sitio ? ['--env', sitio] : []), '--json', 'name', '--jq', '.[].name'])
-            .split(/\r?\n/),
+          gh([
+            'secret',
+            'list',
+            '--repo',
+            REPO,
+            ...(sitio ? ['--env', sitio] : []),
+            '--json',
+            'name',
+            '--jq',
+            '.[].name',
+          ]).split(/\r?\n/),
         ]),
       ),
     ),
