@@ -53,7 +53,7 @@ select dblink_disconnect(s) from unnest(array['c0', 'c1', 'c2']) s;
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims', jsonb_build_object(
-    'role', 'authenticated', 'email', 'jefa42@example.com',
+    'role', 'authenticated', 'sub', md5('jefa42@example.com')::uuid, 'email', 'jefa42@example.com',
     'amr', jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', 1)),
     'app_metadata', jsonb_build_object('provider', 'google', 'providers', jsonb_build_array('google')))::text, true);
 $$;
@@ -79,6 +79,7 @@ create function pg_temp.avisos_de(s uuid) returns bigint language sql as $$
 $$;
 
 insert into hidrantes.administradores (email, creado_por) values ('jefa42@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where email = 'jefa42@example.com' and usuario_id is null; -- docs/35 RV-400
 insert into hidrantes.administradores (email, activo, creado_por) values ('baja42@example.com', false, 'test')
 on conflict (email) do update set activo = false;
 

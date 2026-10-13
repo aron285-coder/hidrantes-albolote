@@ -17,8 +17,9 @@ select is(hidrantes.fn_listar_puntos(current_setting('test.token'), now()) -> 'c
   '20'::jsonb, 'fn_listar_puntos lo manda en config');
 
 insert into hidrantes.administradores (email, creado_por) values ('tramo@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 select set_config('request.jwt.claims',
-  '{"role":"authenticated","email":"tramo@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+  '{"role":"authenticated","sub":"f0888a89-5208-cfd2-681f-c529de50a60f","email":"tramo@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
   true);
 set local role authenticated;
 select throws_like($$ select hidrantes.fn_guardar_config('{"metros_tramo_manguera": 5}') $$, 'CONFIG_INVALIDA%',

@@ -7,13 +7,14 @@ set search_path = extensions, public;
 select plan(18);
 
 insert into hidrantes.administradores (email, creado_por) values ('salud-vivo@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 -- Una foto de la vigilancia que ya no es verdad: una tarea que ya no está en cron.job, "bien".
 insert into hidrantes.config (clave, valor, actualizado_por)
 values ('tareas_programadas', '[{"tarea":"hidrantes_foto_vieja","problema":false}]', 'vigilancia.yml')
 on conflict (clave) do update set valor = excluded.valor;
 
 create function pg_temp.como_admin() returns void language sql as $$
-  select set_config('request.jwt.claims', '{"role":"authenticated","email":"salud-vivo@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
+  select set_config('request.jwt.claims', '{"role":"authenticated","sub":"00270a23-3094-b4ef-4b0c-d59fb6c441e2","email":"salud-vivo@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 $$;
 
 -- Ejecuciones de prueba a nombre del dueño de cada tarea. runid a mano: postgres no puede usar

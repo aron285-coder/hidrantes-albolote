@@ -37,7 +37,7 @@ flowchart LR
   V -- token en cada RPC --> DB
   A[Administrador] -- Google --> AU[Supabase Auth]
   AU -- JWT --> DB
-  DB -- fn_es_admin: email en administradores y sesión de Google --> A
+  DB -- fn_es_admin: email en administradores, sesión de Google y fila unida a su usuario --> A
 ```
 
 | Principio | Cómo se aplica |
@@ -49,6 +49,7 @@ flowchart LR
 | Mínimo privilegio en secretos | la `service_role key` solo en las Pages Functions y en CI; el frontend solo tiene la `anon key` |
 | Permisos propios | `hidrantes.administradores`, independiente de la app de uniformidad; arranca solo con el propietario |
 | Jefatura es correo **y** Google | `fn_es_admin()` exige que el correo del JWT esté activo en `administradores`, que `app_metadata.providers` contenga `google` y que la sesión se abriera con OAuth (`amr` con `method = 'oauth'`). Una cuenta de Auth con contraseña y el correo de un administrador no es jefatura: el proyecto se comparte con uniformidad, que admite registro por correo (DEC-094, `npm run comprobar-auth`) |
+| Jefatura es su identidad de Google, no el correo de la cuenta | Desde docs/35 RV-400 (DEC-197), `fn_es_admin()` exige además que la fila de `administradores` esté unida al usuario de Auth del JWT (`usuario_id` = `sub`). La une `/api/vincular-jefatura` la primera vez que el administrador entra en el panel, con el correo **verificado de su identidad de Google** que lee Supabase Auth, no con el correo de la cuenta. Una fila ya unida no se une a otro usuario (`OTRA_CUENTA`), y una sin unir no da jefatura. La comprobación se hace en la Function porque el rol del esquema no lee `auth.*` (DEC-052) y no se pide ese permiso en el proyecto compartido |
 | Menos es más seguro | no se guardan DNI, teléfono, correo ni dirección de nadie |
 
 ---
@@ -191,6 +192,7 @@ sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausen
 | Coordenadas GPS del móvil en el momento de una propuesta | `propuestas.gps_geom`, `precision_gps_m` | señal de fiabilidad para jefatura | administradores |
 | Descripción libre de incidencias | `incidencias_app` | soporte | administradores |
 | Correo de Google | `administradores`, `registro.actor`, `propuestas.revisada_por` | acceso y auditoría de administradores | administradores |
+| Id de usuario de Supabase Auth de un administrador | `administradores.usuario_id` (docs/35 RV-400) | unir jefatura a su cuenta de Google | administradores (lectura del panel); nunca en el registro ni en los logs de las Functions |
 | Suscripción push (endpoint y claves del navegador) | `suscripciones_push` | avisar del resultado de una propuesta (voluntario) o de propuestas nuevas (jefatura); **solo si la persona lo activa** | nadie la lee; se borra al desactivar, cuando el servicio de push dice que ya no existe (404/410), o tras 10 fallos seguidos sin ningún envío bueno en 7 días (DEC-118) |
 
 **Funciones de mapa para emergencias (FR-72 a FR-76, DEC-089):** el punto de incidente, la
@@ -372,6 +374,7 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | Agotar el cupo diario de errores rotando `dispositivo_id` | Tope por `ip_hash` en `/api/error` y cupo propio para lo que llega sin IP (0040, RV-148). |
 | El panel de staging lanza trabajos de producción con un token de GitHub | Sin token: pedidos en la base de datos de cada entorno, que solo despacha `despachador.yml` en producción (0040, RV-146). |
 | Filtración de la `service_role key` | Solo en variables cifradas de Cloudflare y en GitHub Environments; nunca en el frontend ni en el repositorio; rotar = relanzar `arranque.ts`. |
+| Jefatura sin atar a una cuenta de Google concreta en un proyecto de Auth compartido | La fila de `administradores` queda unida a un único usuario de Auth, con el correo verificado de su identidad de Google; una fila unida no se une a otro usuario y una sin unir no da jefatura (docs/35 RV-400, DEC-197). |
 | Cuenta de Google de un administrador comprometida | Desactivación inmediata desde Ajustes por otro administrador; registro de todo lo que hizo; 2FA obligatorio en las cuentas de jefatura (13). |
 | Nombres de voluntarios expuestos a otros voluntarios | RLS: `anon` no lee tablas; `fn_ficha_punto` y `fn_listar_puntos` no incluyen autores; comprobado en la respuesta de red (AC-21). |
 | Nombres para siempre en Git | Respaldos como artefactos cifrados con caducidad; seed sin nombres reales. |

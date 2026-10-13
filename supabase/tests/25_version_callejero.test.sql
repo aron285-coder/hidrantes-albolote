@@ -7,7 +7,8 @@ set search_path = extensions, public;
 select plan(3);
 
 insert into hidrantes.administradores (email, creado_por) values ('callejero@example.com', 'test') on conflict do nothing;
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"callejero@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
+select set_config('request.jwt.claims', '{"role":"authenticated","sub":"7bd0459a-c646-4490-4a80-22f7dbbabcfe","email":"callejero@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 
 delete from hidrantes.config where clave = 'version_callejero';
 set local role authenticated;

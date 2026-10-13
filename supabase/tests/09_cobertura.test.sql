@@ -11,6 +11,7 @@ select plan(38);
 
 insert into hidrantes.administradores (email, creado_por) values ('jefa8@example.com', 'test')
 on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 insert into hidrantes.limite_municipal (municipio, geom, version) values
   ('albolote', 'SRID=4326;MULTIPOLYGON(((-3.70 37.20,-3.60 37.20,-3.60 37.30,-3.70 37.30,-3.70 37.20)))', 'test')
 on conflict (municipio) do update set geom = excluded.geom;
@@ -69,7 +70,7 @@ select set_config('test.disp_admin', hidrantes.fn_dispositivo_admin('jefa8@examp
 
 -- ---------- quien no es jefatura no pasa de aquí (05 §6.2) ----------
 
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"cualquiera@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","sub":"3868b3b9-d09b-e1ab-625e-42f7d8e0493b","email":"cualquiera@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 select throws_like($$ select hidrantes.fn_actividad_voluntarios(3) $$, 'NO_AUTORIZADO%',
   'la actividad de los voluntarios no la ve cualquiera');
@@ -87,7 +88,7 @@ reset role;
 
 -- ---------- jefatura ----------
 
-select set_config('request.jwt.claims', '{"role":"authenticated","email":"jefa8@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
+select set_config('request.jwt.claims', '{"role":"authenticated","sub":"2adaf6d1-a04c-05d6-91e5-fd225e3c7c49","email":"jefa8@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true);
 set local role authenticated;
 
 -- Actividad (FR-130)
