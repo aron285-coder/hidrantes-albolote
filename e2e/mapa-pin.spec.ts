@@ -61,8 +61,18 @@ test.describe('alta con el GPS que llega tarde (RV-423)', () => {
     await page.mouse.down();
     await page.mouse.move(x - 60, y - 40, { steps: 8 });
     await page.mouse.up();
-    const movido = await desplazamiento(page);
-    expect(movido).not.toBe('');
+    // Tras soltar, el mapa sigue un poco por inercia: se espera a que se quede quieto.
+    let movido = '';
+    await expect
+      .poll(
+        async () => {
+          const anterior = movido;
+          movido = await desplazamiento(page);
+          return movido !== '' && movido === anterior;
+        },
+        { intervals: [300] },
+      )
+      .toBe(true);
     const antes = await pin(page).evaluate((e) => (e as HTMLElement).style.transform);
     await fijarGps(page);
     // El pin va al GPS; el mapa se queda donde lo dejó el voluntario.
