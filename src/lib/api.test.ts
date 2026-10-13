@@ -116,6 +116,23 @@ describe('verificarCodigo (FR-31)', () => {
     expect(estadoConexion()).toBe('sin_servidor');
   });
 
+  it('un 503 con OCUPADO es una respuesta del servidor, no una caída (docs/35 RV-426)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respuesta(503, { error: 'OCUPADO' })),
+    );
+    await expect(verificarCodigo('x', 'd-1')).resolves.toEqual({ ok: false, codigo: 'OCUPADO' });
+    expect(estadoConexion()).toBe('bien');
+  });
+
+  it('un 403 con su código llega tal cual (docs/35 RV-426)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respuesta(403, { error: 'ORIGEN_NO_PERMITIDO' })),
+    );
+    await expect(verificarCodigo('x', 'd-1')).resolves.toEqual({ ok: false, codigo: 'ORIGEN_NO_PERMITIDO' });
+  });
+
   it('un canje que no responde se corta a su límite (docs/31 RV-157)', async () => {
     const { LIMITES_RED } = await import('./red');
     expect(LIMITES_RED.canje).toBe(20_000);

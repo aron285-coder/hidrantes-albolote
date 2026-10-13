@@ -447,7 +447,9 @@ instalada) · `ENTORNO DE PRUEBAS` (banda de staging, 04 §4).
 `No se ha podido registrar este móvil. Vuelve a intentarlo en un rato; si sigue igual, díselo a jefatura.` ·
 `Se ha llegado al máximo de entradas por ahora. Inténtalo más tarde; si sigue igual, díselo a jefatura.` ·
 `El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo.` ·
-`No se ha podido entrar (código [ALGO_NUEVO]). Inténtalo más tarde.` (un mensaje por error al entrar, docs/32 RV-242).
+`No se ha podido entrar (código [ALGO_NUEVO]). Inténtalo más tarde.` (un mensaje por error al entrar, docs/32 RV-242) ·
+`Hay mucha gente entrando a la vez. Prueba otra vez en un minuto.` ·
+`No se ha podido entrar. Inténtalo más tarde; si sigue igual, díselo a jefatura.` (docs/35 RV-426).
 
 **Primer uso** (FR-94). `Cuanto más grande, más agua da` ·
 `Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un anillo de rayas alrededor significa que nadie lo ha revisado en más de un año.` ·

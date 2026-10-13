@@ -26,6 +26,17 @@ describe('mensajeEntrada (RV-242)', () => {
     expect(mensajeEntrada('TOKEN_REVOCADO')).toBe(T.entrada.tokenNoVale);
   });
 
+  // docs/35 RV-426: los dos códigos nuevos de la entrada, con palabras y sin «Sin conexión».
+  it.each([
+    ['OCUPADO', () => T.entrada.ocupado],
+    ['ORIGEN_NO_PERMITIDO', () => T.entrada.errorGenerico],
+  ])('%s tiene su texto y no dice «Sin conexión» (docs/35 RV-426)', (codigo, texto) => {
+    expect(mensajeEntrada(codigo)).toBe(texto());
+    expect(texto()).toEqual(expect.any(String));
+    expect(mensajeEntrada(codigo)).not.toMatch(/sin conexión/i);
+    expect(mensajeEntrada(codigo)).not.toContain(codigo);
+  });
+
   it('uno desconocido dice su código, no "sin conexión"', () => {
     expect(mensajeEntrada('ALGO_NUEVO')).toBe(T.entrada.errorDesconocido('ALGO_NUEVO'));
     expect(mensajeEntrada('ALGO_NUEVO')).not.toBe(T.entrada.sinServidor);
