@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 
@@ -127,7 +127,9 @@ El código de seis cifras con el que entran los voluntarios.
    - **sin marcar**: quien ya entró sigue trabajando; solo los móviles nuevos necesitan el código
      nuevo;
    - **marcado**: todos vuelven a teclearlo. Es lo que se usa **si el código se ha filtrado**. La
-     entrada se abre sola 24 horas para que todos puedan volver a entrar (abajo).
+     entrada **no** se abre sola: si quieres que todos puedan volver a entrar a la vez, marca también
+     **Abrir la entrada 24 h para que todos puedan volver a entrar a la vez** (abajo). Si el código se
+     ha filtrado, mejor no: ábrela después, cuando el nuevo ya esté repartido.
 2. **Generar uno nuevo** → **Generar y poner en vigor**.
 3. Pásalo al grupo por el canal habitual. Nunca en un sitio público.
 
@@ -147,6 +149,14 @@ eso se queda corto.
 - Si *Salud del sistema* dice que hay **entradas frenadas por el tope**, alguien con el código bueno
   se ha quedado fuera: ábrela desde ahí.
 - Abrirla y cerrarla queda en el *Registro*.
+
+#### Revocar los móviles que han entrado desde una hora
+
+Si sospechas que el código se filtró a una hora concreta, no hace falta echar a todos: **Revocar los
+móviles que han entrado desde…**, junto al código. Elige la fecha y la hora (por defecto, hace 24
+horas; como mucho, 30 días atrás). Antes de confirmar te dice cuántos son. Esos móviles tienen que
+volver a teclear el código; los de jefatura nunca se revocan. Queda en el *Registro* con el número
+y la hora. Cambia también el código si el que se filtró sigue en vigor.
 
 ### Acceso de administradores
 

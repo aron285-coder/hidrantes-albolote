@@ -159,12 +159,12 @@ Un `dispositivo_id` puede tener varios tokens en el tiempo (revocación y nuevo 
 |---|---|---|
 | `id` | `bigint` identity | |
 | `dispositivo_id` | `uuid` | |
-| `ip_hash` | `text` | `sha256(SAL_IP + ip)`, calculado en la Pages Function; en IPv6, con el /64 (RV-14) |
+| `ip_hash` | `text` | `sha256(SAL_IP + ip)`, calculado en la Pages Function; en IPv6, con el /48 (RV-14; hasta `docs/35` RV-401, el /64) |
 | `momento` | `timestamptz` | |
 | `exito` | `boolean` | |
 | `bloqueado` | `boolean` | `true` en la fila que anota un `DEMASIADOS_INTENTOS` (0015); no cuenta como fallo |
 | `tope` | `text` | qué tope saltó: `dispositivo`, `ip`, `global`, `altas_ip`, `altas_global`; o `dispositivo_reservado` en el canje bueno que se rechazó por usar el `dispositivo_id` de un administrador (0039, RV-143) |
-| `codigo_correcto` | `boolean` | solo en las filas `bloqueado` de `altas_ip` y `altas_global` (0044, docs/33 RV-300): si el código era el bueno. Las de código bueno se anotan siempre (sin el filtro de una por IP y minuto) y cuentan en `entradas_frenadas_24h` de Salud. Nulo en las demás |
+| `codigo_correcto` | `boolean` | solo en las filas `bloqueado` de `altas_ip` y `altas_global` (0044, docs/33 RV-300): si el código era el bueno. Las de código bueno se anotan sin el filtro de una por IP y minuto, pero desde 0047 (docs/35 RV-401) como mucho una por `dispositivo_id` y hora, y cuentan en `entradas_frenadas_24h` de Salud (móviles distintos). Nulo en las demás |
 
 Índices sobre `(dispositivo_id, momento)`, `(ip_hash, momento)`, `(momento)`. Purga > 24 h por `pg_cron`.
 
@@ -282,19 +282,19 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `dias_papelera` | `30` | FR-124 |
 | `max_intentos_dispositivo` | `10` | por hora |
 | `max_intentos_ip` | `30` | por hora |
-| `max_intentos_global` | `200` | por hora |
+| `max_intentos_global` | `60` | fallos por hora entre todos. Era 200; 0047 (docs/35 RV-401, DEC-199) lo baja a 60, en el valor por defecto y en la fila. No frena a un móvil cuyo `dispositivo_id` y cuya IP agrupada no tienen ningún fallo en 24 h (§6.1). No está en la lista blanca |
 | `max_altas_ip_dia` | `20` | canjes **buenos** por IP en 24 h (RV-14, DEC-086). Era 150; 0041 lo baja a 20 (son 65 voluntarios; docs/32 RV-221, DEC-183). Desde 0044 (docs/33 RV-300, DEC-190) editable en Ajustes, de 5 a 500 ("Entradas desde una misma wifi al día"). Con la entrada abierta, 200 (o este, si es mayor) |
 | `max_altas_global_hora` | `40` | canjes buenos en total por hora (RV-14, DEC-086). Era 150; 0041 lo baja a 40 (RV-221, DEC-183). Desde 0044 editable en Ajustes, de 10 a 500 ("Entradas por hora, entre todos"). Con la entrada abierta, 200 (o este, si es mayor) |
-| `entrada_abierta_hasta` | `null` | `timestamptz` en JSON o `null` (0044, docs/33 RV-300, DEC-190). Mientras sea futuro, la **entrada está abierta para todos**: los dos topes de canjes buenos pasan a 200 y los tokens que se emiten no tienen el tope de móvil nuevo; los topes de fallos no cambian. Se cierra sola al pasar la hora (la comprobación es `> now()`, sin tarea). No está en la lista blanca: lo cambian `fn_abrir_entrada`, `fn_cerrar_entrada` y `fn_cambiar_codigo_acceso` con «revocar todos» |
+| `entrada_abierta_hasta` | `null` | `timestamptz` en JSON o `null` (0044, docs/33 RV-300, DEC-190). Mientras sea futuro, la **entrada está abierta para todos**: los dos topes de canjes buenos pasan a 200 y los tokens que se emiten no tienen el tope de móvil nuevo; los topes de fallos no cambian. Se cierra sola al pasar la hora (la comprobación es `> now()`, sin tarea). No está en la lista blanca: lo cambian `fn_abrir_entrada`, `fn_cerrar_entrada` y `fn_cambiar_codigo_acceso` con `abrir_entrada` (desde 0047, docs/35 RV-402; antes, con «revocar todos») |
 | `dias_caducidad_token` | `365` | |
 | `max_subidas_dispositivo_dia` | `80` | cuenta reservas: un alta o una ubicación gastan dos (conexión y sitio). Era 40; 0035 lo dobla solo si seguía en 40 (DEC-146) |
-| `max_subidas_dia_total` | `150` | reservas en 24 h entre todos los voluntarios que **cuentan**: desde 0041, las confirmadas y las abiertas (§2.6); los administradores no cuentan. Al llegar, `CUOTA_SUBIDAS_AGOTADA` para todos (0039, RV-142, DEC-174). Era 400; 0041 la baja a 150 si seguía en 400 (docs/32 RV-220, DEC-182). Editable en Ajustes, de 1 a 5.000 |
+| `max_subidas_dia_total` | `150` | reservas en 24 h entre todos los voluntarios que **cuentan**: desde 0041, las confirmadas y las abiertas (§2.6); los administradores no cuentan. Al llegar, `CUOTA_SUBIDAS_AGOTADA` para todos (0039, RV-142, DEC-174). Era 400; 0041 la baja a 150 si seguía en 400 (docs/32 RV-220, DEC-182). Editable en Ajustes, de 1 a 5.000. Desde 0047 (docs/35 RV-402, DEC-201), los **móviles nuevos** (`fn_moviles_nuevos()`) cuentan entre todos como mucho la mitad (`greatest(tope / 2, 1)`), salvo con la entrada abierta: `CUOTA_SUBIDAS_AGOTADA … ambito=moviles_nuevos` |
 | `max_reservas_abiertas` | `6` | reservas abiertas (§2.6) a la vez por dispositivo; la siguiente, `RESERVAS_ABIERTAS` (0041, RV-220, DEC-182). Editable en Ajustes, de 1 a 50 |
 | `max_bytes_fotos` | `838860800` | 800 MB: tope de espacio del bucket de fotos más 5 MB por reserva abierta; al pasarlo, `SIN_ESPACIO_FOTOS`. Vigilancia avisa al 70 % (0041, RV-220, DEC-182). Editable en Ajustes, en bytes, de 104.857.600 (100 MB) a 1.073.741.824 (1 GB) |
 | `max_bytes_bd` | `419430400` | 400 MB: si lo que ocupa el **esquema `hidrantes`** (`fn_bytes_esquema()`, la suma de `pg_total_relation_size` de sus tablas; desde 0044, docs/33 RV-301; antes, `pg_database_size` de toda la base) lo pasa, `fn_proponer` de un voluntario da `SIN_ESPACIO`. Vigilancia avisa al 70 % (0041, RV-221, DEC-183). El total de la base de datos (uniformidad, auth, pg_cron, pg_net) ya no frena: la vigilancia lo vigila aparte contra 500 MB, con aviso al 80 % y su desglose (`fn_espacio`). Editable en Ajustes, en bytes, de 104.857.600 a 524.288.000 (500 MB) |
 | `max_propuestas_dia` | `60` | propuestas por dispositivo y día natural (Europe/Madrid); un reintento con la misma `clave_local` no cuenta y los administradores no tienen tope. Al llegar, `CUOTA_PROPUESTAS_AGOTADA` (0039, RV-141, DEC-174). Editable en Ajustes, de 1 a 500 |
 | `max_propuestas_token_nuevo` | `10` | el mismo tope durante las primeras 24 h del **móvil**; después, `max_propuestas_dia` (0041, RV-221, DEC-183). Desde 0044 (docs/33 RV-302) las 24 h cuentan desde la primera vez que se vio el `dispositivo_id` (`min(emitido_en)` de sus tokens), no desde el token con el que se propone, y no se aplica a un móvil que entró con la entrada abierta (§2.4, RV-300). Editable en Ajustes, de 1 a 500 |
-| `max_propuestas_dia_total` | `600` | propuestas al día natural de Madrid entre todos los voluntarios; los administradores no cuentan. Al llegar, `CUOTA_PROPUESTAS_AGOTADA … ambito=grupo` (0041, RV-221, DEC-183). Editable en Ajustes, de 1 a 5.000 |
+| `max_propuestas_dia_total` | `600` | propuestas al día natural de Madrid entre todos los voluntarios; los administradores no cuentan. Al llegar, `CUOTA_PROPUESTAS_AGOTADA … ambito=grupo` (0041, RV-221, DEC-183). Editable en Ajustes, de 1 a 5.000. Desde 0047 (docs/35 RV-402, DEC-201), los **móviles nuevos** gastan entre todos como mucho la mitad, salvo con la entrada abierta: `CUOTA_PROPUESTAS_AGOTADA … ambito=moviles_nuevos` |
 | `max_errores_app_anterior_dia` | `200` | errores al día que entran por la RPC de 5 argumentos de la app anterior (además, 10 por dispositivo); no gastan el cupo de `/api/error` (0041, docs/32 RV-222). No está en la lista blanca |
 | `dias_reserva_subida` | `2` | ventana de las reservas de subida sin confirmar frente a la purga de fotos (DEC-084); `fn_proponer` acepta como mínimo 1 día y la purga protege como mínimo 2, también si se pone a 1 (0026, RV-48). Era 7; 0039 la baja a 2: 48 h de protección y 24 h para confirmar (RV-142, DEC-174) |
 | `max_incidencias_dispositivo_dia` | `5` | |
@@ -465,6 +465,14 @@ fn_verificar_codigo(codigo text, dispositivo_id uuid, ip_hash text)
   --   dispositivos.en_entrada_abierta = true. Cuando solo frena un tope de canjes buenos (altas_ip o
   --   altas_global) se comprueba el código (bcrypt, como siempre) y la fila bloqueada lleva
   --   codigo_correcto; la respuesta es DEMASIADOS_INTENTOS con código bueno o malo.
+  -- 0047 (docs/35 RV-401, DEC-199):
+  --   el bcrypt va antes del turno (pg_advisory_xact_lock), y la función lleva lock_timeout = '3s':
+  --     sin el turno en 3 s, error = 'OCUPADO' (no se anota ningún intento).
+  --   tope global: max_intentos_global (60). Solo frena si el dispositivo_id o el ip_hash tienen algún
+  --     fallo (no exito y no bloqueado) en 24 h; si no, el intento se evalúa como uno normal (con el
+  --     código bueno entra; con uno malo cuenta como fallo). Los topes de dispositivo e IP no cambian.
+  --   frenados con el código bueno (altas_ip, altas_global): como mucho una fila por dispositivo_id y
+  --     hora; los demás frenados, una por IP, tope y minuto, como antes.
 
 -- Helper: devuelve el dispositivo_id, actualiza ultimo_uso.
 fn_validar_token(token text) returns uuid
@@ -482,6 +490,11 @@ fn_ficha_punto(token text, punto_id uuid) returns jsonb
 
 -- Solo service_role (la llama /api/url-subida).
 fn_reservar_subida(token text) returns text  -- foto_path
+  -- 0047 (docs/35 RV-402, DEC-201): después del tope del grupo, los móviles nuevos (fn_moviles_nuevos)
+  --   cuentan entre todos como mucho greatest(max_subidas_dia_total / 2, 1) de las reservas que cuentan;
+  --   no con la entrada abierta. 'CUOTA_SUBIDAS_AGOTADA: maximo=<n> reintentar_en_s=<s> ambito=moviles_nuevos'
+  --   (s: hasta que este móvil deje de ser nuevo). SIN_ESPACIO_FOTOS de jefatura (fn_reservar_subida_admin):
+  --   sus bytes reales más 5 MB por cada reserva abierta suya, no las de todos.
   -- errores: CUOTA_SUBIDAS_AGOTADA (tope del dispositivo o, desde 0039, el global max_subidas_dia_total)
   -- 0041 (docs/32 RV-220, DEC-182), en este orden y con las reglas de §2.6:
   --   RESERVAS_ABIERTAS: 'RESERVAS_ABIERTAS: maximo=<n> reintentar_en_s=<s>' (s: hasta que la más
@@ -552,6 +565,12 @@ fn_proponer(…los 16 de arriba…, foto_sitio_path text) returns jsonb   -- FIR
   --     los números como los demás topes: 'SIN_ESPACIO: maximo=<max_bytes_bd> reintentar_en_s=3600',
   --     y lo mismo en detail. El prefijo no cambia.
   --   foto (RV-302): una reserva liberada (subidas.liberada_en) ya no se confirma: FOTO_NO_RESERVADA.
+  -- 0047 (docs/35 RV-402, DEC-201), después del tope del grupo y solo si quien propone es un móvil
+  --   nuevo (primeras 24 h, no con la entrada abierta) y la entrada está cerrada: si las propuestas de
+  --   hoy de los móviles nuevos (fn_moviles_nuevos) llegan a greatest(max_propuestas_dia_total / 2, 1),
+  --   'CUOTA_PROPUESTAS_AGOTADA: maximo=<n> reintentar_en_s=<s> ambito=moviles_nuevos' (s: hasta la
+  --   medianoche de Madrid o hasta que el móvil deje de ser nuevo). Sin candado, como el del grupo. Es
+  --   el código de siempre con otro ambito: la app anterior lo trata como un tope y espera (04 §12).
   -- Compatibilidad con la app 0.7.0 (RV-223): su cola trata CUOTA_PROPUESTAS_AGOTADA (y los códigos
   --   nuevos de 0041) como un error desconocido: reintenta con retroceso y lo marca fallo a los cinco
   --   seguidos, recuperable a mano. Se acepta: solo pasa con más de 60 al día (o 10 con un token nuevo).
@@ -686,11 +705,22 @@ fn_purgar_papelera() returns integer                            -- también la l
   --   con él (correcciones.punto_id, o el registro de su aprobación o fusión): sus fotos dejan de
   --   estar referenciadas y el nombre del autor se va con ellas.
 
-fn_cambiar_codigo_acceso(nuevo text, revocar_dispositivos boolean) returns void
+fn_cambiar_codigo_acceso(nuevo text, revocar_dispositivos boolean, abrir_entrada boolean default false) returns void
   -- errores: CODIGO_FORMATO (6 dígitos)
-  -- 0044 (docs/33 RV-300, DEC-190): con revocar_dispositivos = true abre la entrada para todos 24 h
-  --   (si ya estaba abierta más tiempo, no la acorta) en la misma transacción y registra
-  --   'entrada_abierta' con { hasta, horas: 24, motivo: 'codigo_nuevo_revocando' }. Sin revocar, no.
+  -- 0047 (docs/35 RV-402, DEC-201): la de dos argumentos (0006) se borra y esta la sustituye con sus
+  --   permisos (authenticated); el panel anterior la llama con dos argumentos y cambia el código sin
+  --   abrir la entrada. Con abrir_entrada = true abre la entrada para todos 24 h (si ya estaba abierta
+  --   más tiempo, no la acorta) en la misma transacción y registra 'entrada_abierta' con { hasta,
+  --   horas: 24, motivo: 'codigo_nuevo_revocando' | 'codigo_nuevo' }. 'codigo_cambiado' lleva
+  --   { revocar_dispositivos, abrir_entrada }. Revocar: bloqueo por fila (for update).
+  --   Entre 0044 y 0047, revocar_dispositivos = true abría la entrada siempre (DEC-190).
+-- 0047 (docs/35 RV-402, DEC-201): los tokens sin revocar emitidos desde `desde` (dispositivos.emitido_en
+-- >= desde), nunca los de jefatura. fn_contar_desde los cuenta (para el «Se revocarán N móviles» del
+-- panel); fn_revocar_desde los revoca con bloqueo por fila y registra 'dispositivos_revocados' con
+-- { dispositivos: n, desde } (sin dispositivo_id). Devuelven cuántos.
+-- errores: NO_AUTORIZADO · PAYLOAD_INVALIDO(desde) (null o de hace más de 30 días)
+fn_contar_desde(desde timestamptz) returns integer
+fn_revocar_desde(desde timestamptz) returns integer
 -- 0044 (docs/33 RV-300, DEC-190): abre la entrada para todos `horas` horas desde ahora (sustituye
 -- la hora que hubiera). Registra 'entrada_abierta' con { hasta, horas, motivo: 'jefatura' }. Devuelve
 -- hasta cuándo. errores: NO_AUTORIZADO · PAYLOAD_INVALIDO(horas) (null o fuera de 1–72)
@@ -904,6 +934,11 @@ fn_entradas_frenadas_24h() returns integer   -- RV-300: lo que da fn_salud.entra
 fn_bytes_esquema() returns bigint            -- RV-301: pg_total_relation_size de las tablas de hidrantes
 fn_bytes_tabla(esquema text, tabla text) returns bigint   -- RV-301: por nombre, sin permiso sobre la tabla; 0 si no está
 fn_cron_purga_con_permiso() returns boolean  -- RV-301: ¿puede el dueño borrar en cron.job_run_details?
+-- 0047 (docs/35 RV-402):
+fn_moviles_nuevos() returns table (dispositivo_id uuid, nuevo_hasta timestamptz)
+                                             -- móviles vistos por primera vez hace < 24 h (min(emitido_en)),
+                                             -- sin tokens de la entrada abierta, nunca de jefatura
+fn_validar_desde(desde timestamptz) returns void   -- PAYLOAD_INVALIDO(desde) si es null o de hace > 30 días
 ```
 
 ---
@@ -947,7 +982,7 @@ mismo `maxLength` (`src/lib/limites.ts`).
 `codigo_cambiado`, `dispositivos_revocados`, `administrador_alta`, `administrador_baja`,
 `config_cambiada`, `incidencia_resuelta`, `anonimizacion`, `exportacion`, `workflow_lanzado`, `nucleo_guardado` (DEC-068),
 `restauracion_respaldo` (0010, la anota `restaurar.ts`), `entrada_abierta` y `entrada_cerrada` (0044,
-docs/33 RV-300: `despues` = `{ hasta, horas, motivo: 'jefatura' | 'codigo_nuevo_revocando' }`;
+docs/33 RV-300: `despues` = `{ hasta, horas, motivo: 'jefatura' | 'codigo_nuevo_revocando' | 'codigo_nuevo' }` (el último, desde 0047);
 `antes` = `{ hasta }`).
 
 Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTENTOS`,
@@ -969,8 +1004,11 @@ message es `RESERVAS_ABIERTAS: maximo=<n> reintentar_en_s=<s>`, 0041, RV-220), `
 ("no queda espacio para fotos", `fn_reservar_subida`, 0041, RV-220), `SIN_ESPACIO` ("la base de datos
 está llena", `fn_proponer`, 0041, RV-221; desde 0044 el message es `SIN_ESPACIO: maximo=<bytes>
 reintentar_en_s=3600`, docs/33 RV-301), `DISPOSITIVO_NO_ENCONTRADO` (`fn_revocar_dispositivo`,
-0041). `CUOTA_PROPUESTAS_AGOTADA` lleva desde 0041 un `ambito=token_nuevo` o `ambito=grupo` al final
-cuando no es el tope del dispositivo. El cliente traduce cada código a un texto en español (TR-36); ningún error de
+0041), `OCUPADO` (en la columna `error` de `fn_verificar_codigo`: el turno no ha llegado en 3 s;
+`/api/verificar-codigo` responde `503` con `Retry-After: 30`; 0047, docs/35 RV-401), `ORIGEN_NO_PERMITIDO`
+(solo de las Functions, `403`: la petición no viene de la propia app; docs/35 RV-401). `CUOTA_PROPUESTAS_AGOTADA`
+lleva desde 0041 un `ambito=token_nuevo` o `ambito=grupo` al final cuando no es el tope del dispositivo,
+y desde 0047 `ambito=moviles_nuevos` (también `CUOTA_SUBIDAS_AGOTADA`; docs/35 RV-402). El cliente traduce cada código a un texto en español (TR-36); ningún error de
 Postgres llega crudo.
 
 `DESCONOCIDO` es un código **solo de cliente** y no sale de ninguna RPC: lo pone `src/lib/api.ts`
@@ -985,6 +1023,14 @@ cuando la respuesta no trae un código de los de arriba (un `PGRST…` durante u
 Todas en `functions/api/`, JSON, mismo dominio que el frontend. Errores: `{ error: <código>, mensaje }`
 con el estado HTTP indicado.
 
+**Solo peticiones de la propia app** (docs/35 RV-401, DEC-199): toda Function con `POST` empieza por
+`exigirMismoOrigen(peticion)` (`functions/_lib/comun.ts`) y responde `403 { "error": "ORIGEN_NO_PERMITIDO" }`,
+sin leer el cuerpo ni llamar a nadie, si: el `Content-Type` no es `application/json` (sin cuerpo puede
+no llevarlo: el aviso del panel a `/api/push` es un `POST` vacío; nadie usa `sendBeacon`); hay `Origin` y
+no es el de la propia petición; o hay `Sec-Fetch-Site` y no es `same-origin` ni `none`. Las llamadas de
+servidor a servidor (el Worker de avisos, la vigilancia, los scripts) no llevan `Origin` y pasan.
+`functions/api/mismo-origen.test.ts` falla si una Function con `POST` no está en su lista.
+
 Cada RPC que una Function (o un script) llama con `service_role`, sin JWT de usuario, tiene que poder
 ejecutarla `service_role` (D1, #561): `scripts/rpc-de-servicio.ts` las lista y
 `supabase/tests/40_permisos_service_role.test.sql` lo comprueba con pgTAP; un test vitest falla si las
@@ -998,8 +1044,9 @@ dos listas no coinciden (docs/33 RV-305). Una llamada nueva a una RPC lleva su f
 ← 401 { "error": "CODIGO_INCORRECTO" }
 ← 409 { "error": "DISPOSITIVO_RESERVADO" }   // 0039, RV-143: ese dispositivo_id es el de un administrador
 ← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 3600 }
+← 503 { "error": "OCUPADO", "reintentar_en_s": 30 }   // 0047, docs/35 RV-401, con la cabecera Retry-After: 30
 ```
-Lee `CF-Connecting-IP`, calcula `ip_hash`, llama a `fn_verificar_codigo` con `service_role`.
+Lee `CF-Connecting-IP`, calcula `ip_hash` (IPv6 por /48), llama a `fn_verificar_codigo` con `service_role`.
 `409 DISPOSITIVO_RESERVADO`: el `dispositivo_id` coincide con el de un administrador (RV-143, DEC-175);
 no dice de quién. El móvil genera otro id y repite el canje una vez (RV-159).
 Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (TR-42). Sin `SAL_IP`
@@ -1012,7 +1059,7 @@ Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (T
 ← 200 { "foto_path": "fotos/3f9c….jpg", "url": "https://…/object/upload/sign/…", "caduca_en_s": 7200 }
 ← 401 { "error": "TOKEN_INVALIDO" }
 ← 429 { "error": "SIN_ESPACIO_FOTOS" | "RESERVAS_ABIERTAS" | "CUOTA_SUBIDAS_AGOTADA", "maximo"?: 6, "reintentar_en_s"?: 3600,
-         "ambito"?: "dispositivo" | "grupo" | "token_nuevo" }
+         "ambito"?: "dispositivo" | "grupo" | "token_nuevo" | "moviles_nuevos" }
 ```
 Todo tope es `429` (también `SIN_ESPACIO_FOTOS` y `RESERVAS_ABIERTAS`, 0041, docs/32 RV-220): nunca `5xx`,
 que el móvil lee como "sin servidor". Si el texto del error de la base de datos lleva
@@ -1020,7 +1067,7 @@ que el móvil lee como "sin servidor". Si el texto del error de la base de datos
 números como campos y la cola espera hasta esa hora (RV-232); sin ellos, no van. El texto no se reenvía.
 **`ambito`** (docs/33 RV-303): si el texto lleva además `ambito=<valor>` (0042: `dispositivo` en la cuota
 diaria de ese móvil, `grupo` en la de todos; 0041: `token_nuevo`), va como campo, para que el móvil diga
-si el tope es suyo o del grupo (RV-329). Solo esos tres valores (`AMBITOS_TOPE`, `detalleTope` en
+si el tope es suyo o del grupo (RV-329); desde 0047, `moviles_nuevos` (docs/35 RV-402). Solo esos cuatro valores (`AMBITOS_TOPE`, `detalleTope` en
 `functions/_lib/comun.ts`): cualquier otro se descarta. Sin `ambito` (`RESERVAS_ABIERTAS`,
 `SIN_ESPACIO_FOTOS`, o una base de datos anterior a 0042), la respuesta es la de antes: compatible.
 `estadoDe` (Functions) da también `429` a `SIN_ESPACIO` (0041, RV-221), aunque `fn_proponer` la llama el
@@ -1119,7 +1166,7 @@ Un pedido pendiente del mismo trabajo (de menos de 24 h, 0040) → `409 { "error
 ```
 Con 5xx el error sigue en la cola del móvil.
 Sin credencial (los errores pueden ocurrir antes de tener token). Lee `CF-Connecting-IP` y calcula
-`ip_hash = sha256(SAL_IP + ip normalizada)` como `/api/verificar-codigo` (IPv6 por /64, RV-14); sin la
+`ip_hash = sha256(SAL_IP + ip normalizada)` como `/api/verificar-codigo` (IPv6 por /48, RV-14, docs/35 RV-401); sin la
 cabecera, `ip_hash` nulo. Recorta como la base de datos (mensaje 1000, pila 4096, ruta 200, agente
 300) y llama con `service_role` a `fn_registrar_error` de **seis** argumentos (0040, RV-148), que
 aplica el tope por IP y nunca falla hacia el cliente. La IP no se guarda en claro ni se registra.
@@ -1215,7 +1262,8 @@ sin ese cuello de botella:
 | Cuota de propuestas (`fn_proponer`, 0039) | `pg_advisory_xact_lock(hashtext('propuestas:' || dispositivo))` después de la comprobación de `clave_local` y antes de contar: dos envíos del mismo móvil a la vez no pasan los dos la propuesta 60. El tope global (0041) se contaba bajo `pg_advisory_xact_lock(hashtext('propuestas:global'))` hasta el final de la transacción, y ponía en fila a todos los voluntarios; desde 0044 (docs/33 RV-304) se cuenta **sin** ese bloqueo: es un freno contra abusos (600 al día) y se acepta pasarlo en tantas como propuestas lleguen a la vez. |
 | Entrada abierta (`fn_abrir_entrada`, `fn_cerrar_entrada`, `fn_cambiar_codigo_acceso`, 0044) | `for update` sobre la fila `entrada_abierta_hasta` de `config` antes de escribirla. |
 | `fn_liberar_reservas` (0044) | `for update` sobre las filas de `subidas` que libera; `liberada_en` solo se pone en las sin confirmar, y `fn_proponer` solo confirma las sin liberar: una reserva o se confirma o se libera. |
-| `fn_verificar_codigo` | Empieza con `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). |
+| `fn_verificar_codigo` | Compara el código y después toma `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). Desde 0047 (docs/35 RV-401) el bcrypt va antes del turno y el turno se espera como mucho 3 s (`lock_timeout`): si no, `OCUPADO`. |
+| `fn_revocar_desde`, `fn_cambiar_codigo_acceso` (revocar) | `for update` sobre las filas de `dispositivos` que revocan (0047, docs/35 RV-402). |
 | `fn_guardar_config`, `fn_gestionar_administrador` | `for update` sobre las filas afectadas; la regla del último administrador activo se comprueba **dentro** de la transacción. |
 | Escrituras largas | Ninguna RPC hace peticiones de red: Nominatim y GitHub se llaman desde las *Pages Functions*, nunca con una transacción abierta. |
 | Tiempo máximo | `lock_timeout` de 5 s en las RPC de escritura que bloquean filas (0013, 0016): una espera de bloqueo que no avanza falla en vez de dejar la interfaz colgada. `statement_timeout` como atributo de función no hacía nada y se quitó (RV-17). En `fn_aprobar_lote` esa propuesta se omite con `PUNTO_OCUPADO` y siguen las demás; una RPC suelta devuelve el error 55P03, que PostgREST responde como 5xx y el cliente trata como sin servidor (la cola lo reintenta). |
