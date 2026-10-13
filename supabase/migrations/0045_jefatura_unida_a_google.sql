@@ -13,7 +13,7 @@
 -- 4. fn_vincular_administrador(usuario, correo): VINCULADO · YA_VINCULADO · OTRA_CUENTA ·
 --    NO_ES_ADMINISTRADOR. Registra 'administrador_vinculado' sin el usuario_id.
 -- 5. fn_gestionar_administrador: misma firma; al desactivar, tiene que quedar otro administrador
---    activo y vinculado (ULTIMO_ADMINISTRADOR).
+--    activo y vinculado (ULTIMO_ADMINISTRADOR). Quitar el acceso deshace el vínculo.
 --
 -- Tras esta migración ninguna fila está vinculada: el panel nuevo (RV-432) llama a la Function al
 -- entrar. Con el panel anterior en caché, jefatura ve «sin acceso» hasta actualizar (excepción a la
@@ -52,7 +52,7 @@ begin
   select array_agg(m[1] order by o)
     into actuales
     from pg_constraint c,
-         regexp_matches(pg_get_constraintdef(c.oid), '''([a-z_]+)''', 'g') with ordinality as t(m, o)
+         regexp_matches(pg_get_constraintdef(c.oid), '''([^'']+)''', 'g') with ordinality as t(m, o)
    where c.conname = 'registro_accion_check' and c.conrelid = 'hidrantes.registro'::regclass;
   if actuales is null then
     raise exception 'registro_accion_check no encontrado';
@@ -153,6 +153,11 @@ begin
   end if;
   insert into hidrantes.administradores (email, activo, creado_por) values (e, activo, actor)
   on conflict on constraint administradores_pkey do update set activo = excluded.activo;
+  -- Quitar el acceso también deshace el vínculo: si se le devuelve, se vuelve a unir al entrar, quizá
+  -- con otra cuenta de Google con ese correo, sin quedarse en OTRA_CUENTA para siempre.
+  if not activo then
+    update hidrantes.administradores a set usuario_id = null, vinculado_en = null where a.email = e;
+  end if;
   perform hidrantes.fn_registrar(actor, null, true,
     case when activo then 'administrador_alta' else 'administrador_baja' end, null, null, null,
     jsonb_build_object('email', e));

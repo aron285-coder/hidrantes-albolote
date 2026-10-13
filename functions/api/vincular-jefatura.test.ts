@@ -58,7 +58,9 @@ function fingirRed({
       ? usuario
       : url.includes('/rpc/fn_vincular_administrador')
         ? vincular
-        : null;
+        : url.includes('/rpc/fn_registrar_error')
+          ? new Response('', { status: 204 })
+          : null;
     if (r === null) return Promise.resolve(new Response('null', { status: 404 }));
     return r instanceof Error ? Promise.reject(r) : Promise.resolve(r.clone());
   });
@@ -66,8 +68,17 @@ function fingirRed({
 }
 
 const llamoALaRpc = (llamadas: { url: string }[]) => llamadas.some((l) => l.url.includes('fn_vincular_administrador'));
+/** Lo que se anotó en errores_cliente (el mensaje), si se anotó algo. */
+const anotado = (llamadas: { url: string; cuerpo: unknown }[]) =>
+  llamadas
+    .filter((l) => l.url.includes('/rpc/fn_registrar_error'))
+    .map((l) => (l.cuerpo as { mensaje: string; ip_hash: string }).mensaje);
 
-beforeEach(() => _reiniciarLimites());
+let errores: ReturnType<typeof vi.spyOn>;
+beforeEach(() => {
+  _reiniciarLimites();
+  errores = vi.spyOn(console, 'error').mockImplementation(() => {});
+});
 afterEach(() => vi.restoreAllMocks());
 
 describe('POST /api/vincular-jefatura', () => {
@@ -140,35 +151,88 @@ describe('POST /api/vincular-jefatura', () => {
     expect(llamadas).toHaveLength(0);
   });
 
-  it('JWT que Supabase Auth no acepta → 401 y no llama a la RPC', async () => {
-    const { llamadas } = fingirRed({ usuario: new Response('{"msg":"invalid JWT"}', { status: 401 }) });
+  it.each([401, 403])('Supabase Auth responde %i al JWT → 401 sin acceso, sin anotar nada', async (estado) => {
+    const { llamadas } = fingirRed({ usuario: new Response('{"msg":"invalid JWT"}', { status: estado }) });
     const r = await onRequestPost({ request: peticion(), env: ENV });
     expect(r.status).toBe(401);
     expect(llamoALaRpc(llamadas)).toBe(false);
+    expect(anotado(llamadas)).toEqual([]);
   });
 
-  it('Supabase Auth sin responder → 503', async () => {
-    fingirRed({ usuario: new Error('red') });
+  it.each([
+    ['429', new Response('{}', { status: 429 }), 'vincular_jefatura: auth 429'],
+    ['404', new Response('{}', { status: 404 }), 'vincular_jefatura: auth 404'],
+    ['503', new Response('{}', { status: 503 }), 'vincular_jefatura: auth 503'],
+    ['sin red', new Error('red'), 'vincular_jefatura: auth red'],
+    ['200 sin JSON', new Response('<html>', { status: 200 }), 'vincular_jefatura: auth respuesta no JSON'],
+  ])('Supabase Auth con %s → 503, no «sin acceso», y queda anotado', async (_, usuario, mensaje) => {
+    const { llamadas } = fingirRed({ usuario });
     const r = await onRequestPost({ request: peticion(), env: ENV });
     expect(r.status).toBe(503);
     expect(await r.json()).toEqual({ error: 'SERVIDOR_NO_DISPONIBLE' });
+    expect(llamoALaRpc(llamadas)).toBe(false);
+    expect(anotado(llamadas)).toEqual([mensaje]);
+    const registro = llamadas.find((l) => l.url.includes('/rpc/fn_registrar_error'))!;
+    expect(registro.cuerpo).toMatchObject({ ip_hash: 'funcion:vincular_jefatura', ruta: '/api/vincular-jefatura' });
   });
 
-  it('la base de datos sin responder → 503; una respuesta rara → 500', async () => {
-    fingirRed({ vincular: new Error('red') });
+  it('sin SUPABASE_URL (mal configurado) → 503 anotado', async () => {
+    const { llamadas } = fingirRed({ usuario: new TypeError('URL no válida') });
+    const r = await onRequestPost({ request: peticion(), env: { ...ENV, SUPABASE_URL: undefined } as unknown as Env });
+    expect(r.status).toBe(503);
+    expect(anotado(llamadas)).toEqual(['vincular_jefatura: auth red']);
+  });
+
+  it('Auth devuelve un usuario sin id válido → 500 anotado, no 401', async () => {
+    const { llamadas } = fingirRed({
+      usuario: new Response(JSON.stringify({ id: 'x', identities: [google('jefa@example.com')] })),
+    });
+    const r = await onRequestPost({ request: peticion(), env: ENV });
+    expect(r.status).toBe(500);
+    expect(llamoALaRpc(llamadas)).toBe(false);
+    expect(anotado(llamadas)).toEqual(['vincular_jefatura: auth usuario sin id']);
+  });
+
+  it('una identidad de Google sin correo verificado se anota, sin el correo; sin ninguna, no', async () => {
+    let red = fingirRed({ usuario: usuarioAuth({ identities: [google('jefa@example.com', 'true')] }) });
+    expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(403);
+    expect(anotado(red.llamadas)).toEqual(['vincular_jefatura: identidad de Google sin correo verificado']);
+    vi.mocked(globalThis.fetch).mockRestore();
+    red = fingirRed({ usuario: usuarioAuth({ identities: [] }) });
+    expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(403);
+    expect(anotado(red.llamadas)).toEqual([]);
+  });
+
+  it('la base de datos sin responder → 503 anotado con código y estado', async () => {
+    const { llamadas } = fingirRed({ vincular: new Error('red') });
     expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
-    vi.restoreAllMocks();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    fingirRed({ vincular: new Response('"OTRA_COSA"') });
-    expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(500);
+    expect(anotado(llamadas)).toEqual(['vincular_jefatura: rpc SERVIDOR_NO_DISPONIBLE 503']);
   });
 
-  it('nunca escribe el correo ni el usuario en el registro de la Function', async () => {
-    const errores = vi.spyOn(console, 'error').mockImplementation(() => {});
+  it.each([
+    ['un resultado desconocido', new Response('"OTRA_COSA"'), 'vincular_jefatura: rpc resultado inesperado'],
+    ['un 200 que no es JSON', new Response('<html>'), 'vincular_jefatura: rpc respuesta no JSON'],
+    ['un error 400', new Response('{"code":"XX000"}', { status: 400 }), 'vincular_jefatura: rpc ERROR_INTERNO 400'],
+  ])('la RPC con %s → 500 anotado', async (_, vincular, mensaje) => {
+    const { llamadas } = fingirRed({ vincular });
+    expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(500);
+    expect(anotado(llamadas)).toEqual([mensaje]);
+  });
+
+  it('si ni siquiera se puede anotar, queda en el registro del Worker', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('red'));
+    expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
+    expect(errores).toHaveBeenCalledWith('vincular_jefatura: auth red (sin anotar)');
+    espia.mockRestore();
+  });
+
+  it('nunca escribe el correo ni el usuario en el registro de la Function ni en lo anotado', async () => {
     const avisos = vi.spyOn(console, 'log').mockImplementation(() => {});
-    fingirRed({ vincular: new Response('{"code":"XX000","message":"jefa@example.com"}', { status: 500 }) });
+    const { llamadas } = fingirRed({
+      vincular: new Response('{"code":"XX000","message":"jefa@example.com"}', { status: 500 }),
+    });
     await onRequestPost({ request: peticion(), env: ENV });
-    const escrito = JSON.stringify([...errores.mock.calls, ...avisos.mock.calls]);
+    const escrito = JSON.stringify([...errores.mock.calls, ...avisos.mock.calls, anotado(llamadas)]);
     expect(escrito).not.toContain('jefa@example.com');
     expect(escrito).not.toContain(USUARIO);
   });

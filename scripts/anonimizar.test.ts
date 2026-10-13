@@ -123,7 +123,12 @@ describe('SQL', () => {
     });
     const sql = sqlAnonimizar(ADMIN, D);
     expect(sql).toMatch(/^begin;/);
-    expect(sql).toMatch(/set_config\('request\.jwt\.claims', '.*', true\)/);
+    expect(sql).toMatch(/set_config\('request\.jwt\.claims', \('.*'::jsonb \|\| jsonb_build_object\('sub',/);
+    // docs/35 RV-400: el sub es el usuario al que está unida la fila del administrador.
+    expect(sql).toContain(
+      `select a.usuario_id from hidrantes.administradores a where a.email = '${ADMIN.toLowerCase()}'`,
+    );
+    expect(sql).toMatch(/\s+true\) is not null as claims;/);
     expect(sql).toContain(`hidrantes.fn_anonimizar_autor('${D}'::uuid)`);
     expect(sql.trim()).toMatch(/commit;$/);
   });

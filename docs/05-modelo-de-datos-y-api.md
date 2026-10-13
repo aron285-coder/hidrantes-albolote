@@ -708,7 +708,8 @@ fn_abrir_entrada(horas integer default 24) returns timestamptz
 fn_cerrar_entrada() returns void
 fn_gestionar_administrador(email text, activo boolean) returns void
   -- error: ULTIMO_ADMINISTRADOR. Desde docs/35 RV-400: al desactivar, tiene que quedar otro
-  --   administrador activo **y vinculado** (§2.9); los sin vincular no cuentan
+  --   administrador activo **y vinculado** (§2.9); los sin vincular no cuentan. Quitar el acceso
+  --   deshace el vínculo (usuario_id y vinculado_en a null): si se le devuelve, se une al entrar
 fn_guardar_config(cambios jsonb) returns void
   -- solo claves de la lista blanca de §2.10; valida tipos y rangos. error: CONFIG_INVALIDA(<clave>)
   -- lista blanca: meses_revision, radio_duplicado_m, dias_papelera, buffer_zona_m,
@@ -1144,19 +1145,27 @@ se lee.
    por minuto en el aislado (`dentroDelLimite` de `functions/_lib/limite.ts`, como `/api/geocodificar`).
    Por encima → `429 { "error": "DEMASIADOS_INTENTOS" }`.
 2. Lee el usuario con `GET {SUPABASE_URL}/auth/v1/user` y ese JWT (lo valida Supabase Auth). Sin JWT,
-   o si Auth no lo acepta → `401 { "error": "NO_AUTORIZADO" }`. Auth sin responder → `503
-   SERVIDOR_NO_DISPONIBLE`.
+   o si Auth responde 401 o 403 → `401 { "error": "NO_AUTORIZADO" }`. Cualquier otra respuesta de Auth
+   (429, 404, 5xx, sin red, un 200 que no es JSON) → `503 SERVIDOR_NO_DISPONIBLE`; un usuario sin
+   `id` uuid → `500 ERROR_INTERNO`.
 3. Busca en `identities` una con `provider = 'google'` e `identity_data.email_verified === true`. El
    correo que cuenta es **`identity_data.email`** de esa identidad, en minúsculas; **nunca** `user.email`.
    Sin esa identidad → `403 { "error": "SIN_GOOGLE" }`.
 4. Llama a `fn_vincular_administrador(user.id, correo)` con `service_role`:
    - `VINCULADO` o `YA_VINCULADO` → `200 { "resultado": "…" }`;
    - `NO_ES_ADMINISTRADOR` u `OTRA_CUENTA` → `403 { "error": "<ese código>" }`;
-   - la base de datos sin responder → `503 SERVIDOR_NO_DISPONIBLE`; otro fallo → `500 ERROR_INTERNO`.
+   - la base de datos sin responder → `503 SERVIDOR_NO_DISPONIBLE`; otro fallo, un 200 que no es JSON
+     o un resultado desconocido → `500 ERROR_INTERNO`.
 
-No registra el correo ni el `usuario_id` en ningún log. `SIN_GOOGLE` y `NO_ES_ADMINISTRADOR` son
-códigos solo de esta Function (además de la respuesta de la RPC). El panel trata todo lo que no sea
-`VINCULADO` o `YA_VINCULADO` como «sin acceso», sin reintentar.
+Cada `503` o `500`, y una identidad de Google que no pasa el filtro, quedan anotados en
+`errores_cliente` con `fn_registrar_error` (ruta `/api/vincular-jefatura`, `ip_hash`
+`funcion:vincular_jefatura`, mensaje `vincular_jefatura: <motivo y estado>`), y si eso tampoco llega,
+en el registro del Worker. Nunca el correo ni el `usuario_id`. `SIN_GOOGLE` y `NO_ES_ADMINISTRADOR`
+son códigos solo de esta Function (además de la respuesta de la RPC).
+
+**En el panel:** solo `401 NO_AUTORIZADO` y `403 SIN_GOOGLE`, `NO_ES_ADMINISTRADOR` u `OTRA_CUENTA`
+son «sin acceso», sin reintentar. `429`, `500` y `503` (y sin red) no dicen nada de la cuenta: «no se
+ha podido comprobar, inténtalo de nuevo».
 
 ### `POST /api/error`
 

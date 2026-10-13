@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(22);
+select plan(23);
 
 -- Solo las filas de esta prueba cuentan para la regla del último administrador.
 update hidrantes.administradores set activo = false;
@@ -108,6 +108,10 @@ select pg_temp.sesion('aaaaaaaa-0000-4000-8000-00000000a400', 'vinc@example.com'
 set local role authenticated;
 select lives_ok($$ select hidrantes.fn_gestionar_administrador('vinc@example.com', false) $$,
   'con otro vinculado, sí');
+reset role;
+select ok((select usuario_id is null and vinculado_en is null and not vinculado
+             from hidrantes.administradores where email = 'vinc@example.com'),
+  'quitar el acceso deshace el vínculo: si se le devuelve, se vuelve a unir al entrar');
 reset role;
 
 select * from finish();

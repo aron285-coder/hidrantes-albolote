@@ -43,7 +43,7 @@ select ok((select punto_actualizado_en is not null from hidrantes.v_cola_revisio
 set local role postgres;
 insert into hidrantes.administradores (email, creado_por) values ('panel@example.com', 'test') on conflict do nothing;
 update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
-set local request.jwt.claims = '{"email": "panel@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}';
+set local request.jwt.claims = '{"sub":"3dd6ccb9-12a7-1358-8f1d-f280b7d6bc55","email": "panel@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}';
 
 select hidrantes.fn_renombrar_nucleo('Centro', 'Centro histórico');
 select is((select nucleo from hidrantes.puntos where codigo = 'HID-0800'), 'El Chaparral',

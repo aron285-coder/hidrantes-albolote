@@ -6,14 +6,19 @@
 // la sesión (`GET /auth/v1/user`), que así queda validado.
 // La base de datos decide con fn_vincular_administrador (solo service_role).
 //
-// Nunca registra ni devuelve el correo ni el id del usuario (11 §6).
+// Solo «sin acceso» (401 NO_AUTORIZADO, 403 SIN_GOOGLE / NO_ES_ADMINISTRADOR / OTRA_CUENTA) dice que
+// esa cuenta no es jefatura. Un fallo nuestro o de Auth es 503 o 500, y queda anotado en
+// errores_cliente con un ip_hash fijo, como validarToken: solo códigos y estados, nunca el correo ni
+// el id del usuario (11 §6).
 
-import { type Env, type Manejador, error, json, jwtDe, normalizarIp, rpc } from '../_lib/comun.ts';
+import { type Env, type Manejador, type ResultadoRpc, error, json, jwtDe, normalizarIp, rpc } from '../_lib/comun.ts';
 import { dentroDelLimite } from '../_lib/limite.ts';
 
 export const RESULTADOS_BUENOS = ['VINCULADO', 'YA_VINCULADO'] as const;
 export const RESULTADOS_SIN_ACCESO = ['NO_ES_ADMINISTRADOR', 'OTRA_CUENTA'] as const;
 type Resultado = (typeof RESULTADOS_BUENOS)[number] | (typeof RESULTADOS_SIN_ACCESO)[number];
+
+const RUTA = '/api/vincular-jefatura';
 
 interface Identidad {
   provider?: unknown;
@@ -31,9 +36,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * `email_verified` tiene que ser `true` de verdad: ni `"true"` ni ausente.
  */
 export function correoDeGoogle(usuario: UsuarioAuth): string | null {
-  if (!Array.isArray(usuario.identities)) return null;
-  for (const i of usuario.identities as Identidad[]) {
-    if (i?.provider !== 'google') continue;
+  for (const i of identidadesDeGoogle(usuario)) {
     const datos = i.identity_data;
     if (datos?.email_verified !== true || typeof datos.email !== 'string') continue;
     const correo = datos.email.trim().toLowerCase();
@@ -42,20 +45,51 @@ export function correoDeGoogle(usuario: UsuarioAuth): string | null {
   return null;
 }
 
-/** El usuario de Supabase Auth de ese JWT; null si Auth no lo acepta; 'sin_servidor' si no responde. */
-async function leerUsuario(env: Env, jwt: string): Promise<UsuarioAuth | null | 'sin_servidor'> {
+function identidadesDeGoogle(usuario: UsuarioAuth): Identidad[] {
+  if (!Array.isArray(usuario.identities)) return [];
+  return (usuario.identities as (Identidad | null)[]).filter((i): i is Identidad => i?.provider === 'google');
+}
+
+/**
+ * Deja constancia de un fallo en errores_cliente (la firma de seis argumentos, de service_role, con
+ * su propio cupo por ip_hash fijo). Si tampoco eso llega, al menos en el registro del Worker.
+ */
+async function anotar(env: Env, motivo: string): Promise<void> {
+  const mensaje = `vincular_jefatura: ${motivo}`;
+  let anotado = false;
+  try {
+    const r = await rpc(env, 'fn_registrar_error', {
+      dispositivo_id: null,
+      mensaje,
+      pila: null,
+      ruta: RUTA,
+      agente: null,
+      ip_hash: 'funcion:vincular_jefatura',
+    });
+    anotado = r.ok;
+  } catch {
+    // se queda sin anotar: lo dice el console.error de abajo
+  }
+  if (!anotado) console.error(`${mensaje} (sin anotar)`);
+}
+
+type Lectura = { usuario: UsuarioAuth } | { rechazado: true } | { fallo: string };
+
+/** El usuario de Supabase Auth de ese JWT. Solo 401 y 403 son «no es una sesión válida». */
+async function leerUsuario(env: Env, jwt: string): Promise<Lectura> {
   let r: Response;
   try {
     r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
       headers: { apikey: env.SUPABASE_SERVICE_ROLE_KEY, Authorization: `Bearer ${jwt}` },
     });
   } catch {
-    return 'sin_servidor';
+    return { fallo: 'auth red' };
   }
-  if (r.status >= 500) return 'sin_servidor';
-  if (!r.ok) return null;
-  const usuario = (await r.json().catch(() => null)) as UsuarioAuth | null;
-  return usuario && typeof usuario === 'object' ? usuario : null;
+  if (r.status === 401 || r.status === 403) return { rechazado: true };
+  if (!r.ok) return { fallo: `auth ${r.status}` };
+  const usuario: unknown = await r.json().catch(() => null);
+  if (!usuario || typeof usuario !== 'object' || Array.isArray(usuario)) return { fallo: 'auth respuesta no JSON' };
+  return { usuario: usuario as UsuarioAuth };
 }
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
@@ -64,22 +98,42 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
 
   const jwt = jwtDe(request);
   if (!jwt) return error(401, 'NO_AUTORIZADO');
-  const usuario = await leerUsuario(env, jwt);
-  if (usuario === 'sin_servidor') return error(503, 'SERVIDOR_NO_DISPONIBLE');
-  if (!usuario || typeof usuario.id !== 'string' || !UUID.test(usuario.id)) return error(401, 'NO_AUTORIZADO');
+
+  const lectura = await leerUsuario(env, jwt);
+  if ('rechazado' in lectura) return error(401, 'NO_AUTORIZADO');
+  if ('fallo' in lectura) {
+    await anotar(env, lectura.fallo);
+    return error(503, 'SERVIDOR_NO_DISPONIBLE');
+  }
+  const { usuario } = lectura;
+  if (typeof usuario.id !== 'string' || !UUID.test(usuario.id)) {
+    await anotar(env, 'auth usuario sin id');
+    return error(500, 'ERROR_INTERNO');
+  }
 
   const correo = correoDeGoogle(usuario);
-  if (!correo) return error(403, 'SIN_GOOGLE');
+  if (!correo) {
+    // Con una identidad de Google que no pasa el filtro, se anota (sin el correo): puede ser un cambio
+    // de forma de Supabase Auth, no una cuenta ajena.
+    if (identidadesDeGoogle(usuario).length > 0) await anotar(env, 'identidad de Google sin correo verificado');
+    return error(403, 'SIN_GOOGLE');
+  }
 
-  const r = await rpc<string>(env, 'fn_vincular_administrador', { usuario: usuario.id, correo });
+  let r: ResultadoRpc<unknown>;
+  try {
+    r = await rpc<unknown>(env, 'fn_vincular_administrador', { usuario: usuario.id, correo });
+  } catch {
+    // El ayudante de comun.ts no captura un 200 con un cuerpo que no es JSON.
+    await anotar(env, 'rpc respuesta no JSON');
+    return error(500, 'ERROR_INTERNO');
+  }
   if (!r.ok) {
-    // Solo el código: ni el correo ni el usuario (11 §6).
-    console.error(`vincular-jefatura: fn_vincular_administrador ${r.codigo}`);
-    return error(r.estado === 503 ? 503 : 500, r.estado === 503 ? 'SERVIDOR_NO_DISPONIBLE' : 'ERROR_INTERNO');
+    await anotar(env, `rpc ${r.codigo} ${r.estado}`);
+    return r.estado === 503 ? error(503, 'SERVIDOR_NO_DISPONIBLE') : error(500, 'ERROR_INTERNO');
   }
   const resultado = r.datos as Resultado;
-  if ((RESULTADOS_BUENOS as readonly string[]).includes(resultado)) return json({ resultado });
-  if ((RESULTADOS_SIN_ACCESO as readonly string[]).includes(resultado)) return error(403, resultado);
-  console.error('vincular-jefatura: respuesta inesperada de fn_vincular_administrador');
+  if ((RESULTADOS_BUENOS as readonly unknown[]).includes(resultado)) return json({ resultado });
+  if ((RESULTADOS_SIN_ACCESO as readonly unknown[]).includes(resultado)) return error(403, resultado);
+  await anotar(env, 'rpc resultado inesperado');
   return error(500, 'ERROR_INTERNO');
 };
