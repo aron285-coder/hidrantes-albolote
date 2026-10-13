@@ -149,8 +149,9 @@ export function DetallePropuesta({
     que: 'aprobar' | 'fusionar' | 'rechazar',
   ) {
     setOcupado(true);
-    // El de cuando se pulsó: lleva la navegación de ese momento, para que la Cola sepa al terminar si
-    // jefatura se ha ido entretanto con "‹" o a otra propuesta (docs/35 RV-430).
+    // El `alHecho` de cuando se pulsó (el de este render, que ya es el que ve `ejecutar`; la línea solo lo
+    // deja escrito): lleva la navegación de ese momento, para que la Cola sepa al terminar si jefatura se
+    // ha ido entretanto con "‹" o a otra propuesta (docs/35 RV-430).
     const terminar = alHecho;
     const r = await accion();
     setOcupado(false);

@@ -964,13 +964,18 @@ test.describe('a 412 × 915, mientras se guarda (docs/35 RV-430)', () => {
     return { soltar: () => soltar(), llegada: () => llegada };
   }
 
-  /** Suelta el guardado y espera a su respuesta, y a lo que la app haga después con el historial. */
+  /**
+   * Suelta el guardado y espera a su respuesta y a la recarga de la Cola que lo sigue: la app decide si
+   * vuelve atrás justo antes de pedirla. Si ha salido de la Cola no hay recarga, y basta con el tope.
+   */
   async function soltarYEsperar(page: Page, retenido: { soltar: () => void }) {
     const respuesta = page.waitForResponse(/\/rest\/v1\/rpc\/fn_aprobar\b/);
+    const recarga = page.waitForResponse(/\/rest\/v1\/v_cola_revision\b/, { timeout: 5_000 }).catch(() => null);
     retenido.soltar();
     await respuesta;
-    // Un "atrás" del historial llega con popstate, después: sin esta espera se miraría la dirección antes.
-    await page.waitForTimeout(800);
+    await recarga;
+    // Un "atrás" del historial llega con popstate, después de pedirse: margen para que se note si lo hay.
+    await page.waitForTimeout(500);
   }
 
   test('"‹" durante el guardado: al terminar, sigue en la Cola', async ({ page }) => {
@@ -994,6 +999,7 @@ test.describe('a 412 × 915, mientras se guarda (docs/35 RV-430)', () => {
     await expect(page).toHaveURL(/\/admin\/cola$/);
   });
 
+  // En el móvil, para abrir otra se pasa por la lista: es "‹" y tocar otra fila.
   test('abrir otra durante el guardado: al terminar, esa sigue abierta', async ({ page }) => {
     await prepararPanel(page);
     const retenido = await aprobarRetenido(page);
@@ -1010,6 +1016,9 @@ test.describe('a 412 × 915, mientras se guarda (docs/35 RV-430)', () => {
     await soltarYEsperar(page, retenido);
     await expect(page).toHaveURL(/[?&]p=c2\b/);
     await expect(page.getByRole('article').getByRole('heading', { name: new RegExp(P4.codigo) })).toBeVisible();
+    // Al cerrarla, el foco vuelve a su fila: la resuelta es la que se guardaba, no esta (RV-263).
+    await page.getByRole('button', { name: T.panelCola.volverCola }).click();
+    await expect(page.locator('[data-propuesta="c2"]')).toBeFocused();
   });
 });
 
