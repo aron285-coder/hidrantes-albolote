@@ -466,9 +466,8 @@ describe('tope de los móviles recién entrados (docs/35 RV-427)', () => {
     'Hoy los móviles recién entrados ya han enviado mucho. Podrás seguir mañana; lo que tienes se queda guardado.';
 
   it.each([
-    ['TOPE_MOVILES_NUEVOS: maximo=300 reintentar_en_s=43200 ambito=propuestas'],
-    ['TOPE_MOVILES_NUEVOS: tope'],
     ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 reintentar_en_s=43200 ambito=moviles_nuevos'],
+    ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 ambito=moviles_nuevos'],
   ])('en la propuesta (%s): espera en la cola y lo dice', async (mensaje) => {
     rpc.mockResolvedValue(errorRpc(mensaje));
     await encolarSinRed(2, null);
@@ -482,11 +481,9 @@ describe('tope de los móviles recién entrados (docs/35 RV-427)', () => {
     expect(textoEspera(items[0]!)).toBe(TEXTO);
   });
 
-  it.each([
-    [{ error: 'TOPE_MOVILES_NUEVOS', ambito: 'fotos', reintentar_en_s: 600 }],
-    [{ error: 'CUOTA_SUBIDAS_AGOTADA', ambito: 'moviles_nuevos', reintentar_en_s: 600 }],
-  ])('en la foto (%o): espera lo que dice el servidor y lo dice', async (cuerpo) => {
-    respuestaReserva = () => respuesta(429, cuerpo);
+  it('en la foto: espera lo que dice el servidor y lo dice', async () => {
+    respuestaReserva = () =>
+      respuesta(429, { error: 'CUOTA_SUBIDAS_AGOTADA', ambito: 'moviles_nuevos', reintentar_en_s: 600 });
     await encolarSinRed(2);
     await cola.procesarCola();
     expect(reservas()).toBe(1);

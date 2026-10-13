@@ -144,9 +144,10 @@ export interface Tope {
 export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now()): Tope | null {
   // De quién es el tope (0041/0042, docs/32 RV-245): `ambito=token_nuevo|grupo|dispositivo` en el texto.
   const ambito = /\bambito=([a-z_]+)/.exec(mensaje ?? '')?.[1];
-  // docs/35 RV-427: el de los móviles recién entrados, con su código o como un tope de cuota con ese
-  // ámbito. Se espera a la hora del servidor o, sin ella, a la medianoche, como el de propuestas.
-  if (codigo.startsWith('TOPE_MOVILES_NUEVOS') || (codigo.startsWith('CUOTA_') && ambito === 'moviles_nuevos')) {
+  // docs/35 RV-427: el de los móviles recién entrados llega como un tope de cuota con su ámbito, para
+  // que la versión anterior lo trate como un tope más. Se espera a la hora del servidor o, sin ella, a
+  // la medianoche, como el de propuestas.
+  if (codigo.startsWith('CUOTA_') && ambito === 'moviles_nuevos') {
     return { motivo: 'moviles_nuevos', ms: esperaCuotaPropuestas(mensaje, ahora).ms, maximo: null };
   }
   const tope = TOPES.find(([prefijo]) => codigo.startsWith(prefijo));
