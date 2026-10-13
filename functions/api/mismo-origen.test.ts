@@ -50,7 +50,11 @@ describe('ORIGEN_NO_PERMITIDO en todas las Functions con POST (docs/35 RV-401)',
   const ajenas: [string, Record<string, string>, string | null][] = [
     ['otra web (Origin distinto)', { 'Content-Type': 'application/json', Origin: 'https://otra.example' }, '{}'],
     ['Origin null', { 'Content-Type': 'application/json', Origin: 'null' }, '{}'],
-    ['otra web (Sec-Fetch-Site: cross-site)', { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'cross-site' }, '{}'],
+    [
+      'otra web (Sec-Fetch-Site: cross-site)',
+      { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'cross-site' },
+      '{}',
+    ],
     ['un subdominio hermano (same-site)', { 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-site' }, '{}'],
     ['texto plano', { 'Content-Type': 'text/plain' }, '{}'],
     ['formulario', { 'Content-Type': 'application/x-www-form-urlencoded' }, 'a=1'],
