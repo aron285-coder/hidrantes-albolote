@@ -120,8 +120,16 @@ describe('el seed retira las cuatro bocas duplicadas de RV-139b', () => {
 
   it('con fn_retirar_punto, motivo «prueba», y claims de un administrador activo locales a la transacción', () => {
     expect(bloque).toContain("perform hidrantes.fn_retirar_punto(p.id, 'prueba')");
-    expect(bloque).toMatch(/order by a\.email = 'jefatura\.prueba@example\.com' desc/);
-    expect(bloque).toMatch(/set_config\('request\.jwt\.claims',[\s\S]*'email', admin,[\s\S]*, true\)/);
+    // docs/35 RV-400: primero un administrador ya unido a su usuario; si no, el de prueba.
+    expect(bloque).toMatch(/order by a\.usuario_id is not null desc, a\.email = 'jefatura\.prueba@example\.com' desc/);
+    expect(bloque).toMatch(/set_config\('request\.jwt\.claims',[\s\S]*'sub', usuario, 'email', admin,[\s\S]*, true\)/);
+  });
+
+  it('si une un administrador solo para esto, lo deshace al final del mismo bloque', () => {
+    expect(bloque).toMatch(/de_paso := true;\s+update hidrantes\.administradores set usuario_id = usuario/);
+    expect(bloque).toMatch(
+      /if de_paso then\s+update hidrantes\.administradores set usuario_id = null, vinculado_en = null where email = admin;\s+end if;\s+end \$\$;/,
+    );
   });
 
   it('sin un administrador que pase fn_es_admin, falla en vez de seguir sin aviso', () => {
