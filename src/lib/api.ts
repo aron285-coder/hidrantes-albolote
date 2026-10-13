@@ -73,7 +73,9 @@ export async function verificarCodigo(codigo: string, dispositivoId: string): Pr
       anotarServidor(true);
       return { ok: true, datos: cuerpo as Canje };
     }
-    const caido = r.status >= 500 || !cuerpo.error;
+    // OCUPADO (503) es una respuesta del servidor, que está ahí pero con mucha gente entrando a la
+    // vez (docs/35 RV-426): no es «Sin conexión». Cualquier otro 5xx, o sin código, sí lo es.
+    const caido = !cuerpo.error || (r.status >= 500 && cuerpo.error !== 'OCUPADO');
     anotarServidor(!caido);
     return { ok: false, codigo: caido ? SIN_SERVIDOR : cuerpo.error! };
   } catch {

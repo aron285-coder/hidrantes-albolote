@@ -458,3 +458,38 @@ describe('fallo definitivo: se liberan sus reservas (RV-328)', () => {
     expect(anotarError).not.toHaveBeenCalled();
   });
 });
+
+// docs/35 RV-427: el tope de los móviles recién entrados, con el mecanismo de los demás topes. La
+// propuesta queda guardada en la cola, sin fallo, y Mis propuestas lo dice con palabras.
+describe('tope de los móviles recién entrados (docs/35 RV-427)', () => {
+  const TEXTO =
+    'Hoy los móviles recién entrados ya han enviado mucho. Podrás seguir mañana; lo que tienes se queda guardado.';
+
+  it.each([
+    ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 reintentar_en_s=7200 ambito=moviles_nuevos', 7200_000],
+    ['CUOTA_PROPUESTAS_AGOTADA: maximo=300 ambito=moviles_nuevos', null],
+  ])('en la propuesta (%s): espera en la cola y lo dice', async (mensaje, esperaMs) => {
+    rpc.mockResolvedValue(errorRpc(mensaje));
+    await encolarSinRed(2, null);
+    await cola.procesarCola();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    const items = cola.colaActual();
+    expect(items).toHaveLength(2);
+    expect(items.every((i) => !i.fallo && i.en_espera?.motivo === 'moviles_nuevos')).toBe(true);
+    // La hora del servidor o, sin ella, pasada la medianoche, como el tope de propuestas al día.
+    if (esperaMs) expect(items[0]!.proximo - Date.now()).toBe(esperaMs);
+    else expect(items[0]!.proximo).toBeGreaterThan(new Date('2026-10-08T22:00:00Z').getTime());
+    expect(textoEspera(items[0]!)).toBe(TEXTO);
+  });
+
+  it('en la foto: espera lo que dice el servidor y lo dice', async () => {
+    respuestaReserva = () =>
+      respuesta(429, { error: 'CUOTA_SUBIDAS_AGOTADA', ambito: 'moviles_nuevos', reintentar_en_s: 600 });
+    await encolarSinRed(2);
+    await cola.procesarCola();
+    expect(reservas()).toBe(1);
+    expect(cola.colaActual().map((i) => i.proximo - Date.now())).toEqual([600_000, 600_000]);
+    expect(cola.colaActual().every((i) => !i.fallo && i.en_espera?.motivo === 'moviles_nuevos')).toBe(true);
+    expect(textoEspera(cola.colaActual()[0]!)).toBe(TEXTO);
+  });
+});
