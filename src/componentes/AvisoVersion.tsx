@@ -51,7 +51,8 @@ export function AvisoVersion() {
   // En las demás pantallas la página crece lo que ocupa el aviso, para que su final no quede debajo.
   const aPantalla = ['/', '/lista'].includes(pathname.replace(/\/+$/, '') || '/');
 
-  // Lo que ocupa el aviso de abajo (docs/33 RV-313).
+  // Lo que ocupa el aviso de abajo (docs/33 RV-313), en --aviso-abajo; lo usan la ficha del móvil, la
+  // lista, los paneles flotantes y las hojas de abajo del mapa (docs/35 RV-424).
   const caja = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = caja.current;
@@ -67,7 +68,8 @@ export function AvisoVersion() {
     vigilar?.observe(el);
     return () => {
       vigilar?.disconnect();
-      raiz.style.removeProperty('--aviso-abajo');
+      // Oculto, no ocupa nada: la ficha, la lista y las hojas de abajo no dejan hueco (RV-424).
+      raiz.style.setProperty('--aviso-abajo', '0px');
       document.body.style.paddingBottom = '';
     };
   }, [hay, enPanel, aPantalla, formulario]);
