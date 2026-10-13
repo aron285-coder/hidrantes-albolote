@@ -66,8 +66,11 @@ export function AvisoVersion() {
     anotar();
     const vigilar = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(anotar);
     vigilar?.observe(el);
+    // Sin ResizeObserver (navegadores viejos), se vuelve a medir al cambiar el tamaño de la ventana.
+    if (!vigilar) window.addEventListener('resize', anotar);
     return () => {
       vigilar?.disconnect();
+      if (!vigilar) window.removeEventListener('resize', anotar);
       // Oculto, no ocupa nada: la ficha, la lista y las hojas de abajo no dejan hueco (RV-424).
       raiz.style.setProperty('--aviso-abajo', '0px');
       document.body.style.paddingBottom = '';

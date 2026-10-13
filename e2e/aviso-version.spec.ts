@@ -66,4 +66,38 @@ test.describe('el aviso de versión no tapa el final de la ficha (RV-424)', () =
     // Y el toque llega al botón, no al aviso.
     await copiar.click({ trial: true });
   });
+
+  test('sin ResizeObserver, el sitio que deja se vuelve a medir al cambiar el tamaño de la ventana', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      // Como en un navegador que no lo tiene.
+      delete (window as { ResizeObserver?: unknown }).ResizeObserver;
+    });
+    await abrirFicha(page);
+    await publicarVersionNueva(page);
+    const sitio = () =>
+      page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--aviso-abajo').trim());
+    const antes = await sitio();
+    // Más estrecho, el aviso ocupa dos líneas: crece.
+    await page.setViewportSize({ width: 200, height: 915 });
+    await expect(page.getByTestId('aviso-version')).toBeVisible();
+    const alto = (await page.getByTestId('aviso-version').boundingBox())!.height;
+    await expect.poll(sitio).toBe(`${Math.ceil(alto) + 16}px`);
+    expect(await sitio()).not.toBe(antes);
+  });
+});
+
+test('en el ordenador, con el aviso visible, el panel de la ficha termina por encima del aviso', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!!isMobile, 'el panel flotante es de tableta y ordenador: proyecto escritorio');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await abrirFicha(page);
+  await publicarVersionNueva(page);
+  const panel = page.getByRole('article').locator('xpath=ancestor::aside[1]');
+  const caja = (await panel.boundingBox())!;
+  const aviso = (await page.getByTestId('aviso-version').boundingBox())!;
+  expect(caja.y + caja.height).toBeLessThanOrEqual(aviso.y);
 });
