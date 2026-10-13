@@ -110,6 +110,7 @@ describe('estadoDe (05 §8)', () => {
     expect(estadoDe('DEMASIADOS_INTENTOS')).toBe(429);
     expect(estadoDe('CUOTA_INCIDENCIAS_AGOTADA')).toBe(429);
     expect(estadoDe('SERVIDOR_NO_DISPONIBLE')).toBe(503);
+    expect(estadoDe('OCUPADO')).toBe(503); // docs/35 RV-401
     expect(estadoDe('ERROR_INTERNO')).toBe(500);
     expect(estadoDe('PAYLOAD_INVALIDO(descripcion)')).toBe(400);
   });
@@ -144,6 +145,12 @@ describe('detalleTope (docs/32 RV-232)', () => {
       maximo: 3,
       reintentar_en_s: 60,
       ambito: 'token_nuevo',
+    });
+    // docs/35 RV-402: la mitad del grupo para los móviles recién entrados.
+    expect(detalleTope('maximo=75 reintentar_en_s=7200 ambito=moviles_nuevos')).toEqual({
+      maximo: 75,
+      reintentar_en_s: 7200,
+      ambito: 'moviles_nuevos',
     });
   });
 

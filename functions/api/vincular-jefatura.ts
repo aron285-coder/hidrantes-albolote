@@ -11,7 +11,17 @@
 // errores_cliente con un ip_hash fijo, como validarToken: solo códigos y estados, nunca el correo ni
 // el id del usuario (11 §6).
 
-import { type Env, type Manejador, type ResultadoRpc, error, json, jwtDe, normalizarIp, rpc } from '../_lib/comun.ts';
+import {
+  type Env,
+  type Manejador,
+  type ResultadoRpc,
+  error,
+  exigirMismoOrigen,
+  json,
+  jwtDe,
+  normalizarIp,
+  rpc,
+} from '../_lib/comun.ts';
 import { dentroDelLimite } from '../_lib/limite.ts';
 
 export const RESULTADOS_BUENOS = ['VINCULADO', 'YA_VINCULADO'] as const;
@@ -93,6 +103,9 @@ async function leerUsuario(env: Env, jwt: string): Promise<Lectura> {
 }
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
+  // Solo peticiones de la propia app (docs/35 RV-401), antes que el tope por IP.
+  const ajena = exigirMismoOrigen(request);
+  if (ajena) return ajena;
   const ip = request.headers.get('CF-Connecting-IP') ?? 'desconocida';
   if (!dentroDelLimite(`vincular:${normalizarIp(ip)}`)) return error(429, 'DEMASIADOS_INTENTOS');
 

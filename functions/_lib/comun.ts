@@ -56,6 +56,42 @@ export async function leerJson(peticion: Request): Promise<Record<string, unknow
   }
 }
 
+/**
+ * Solo peticiones de la propia app (docs/35 RV-401, DEC-199, 05 §9). Todas las Functions con POST lo
+ * llaman antes de nada; devuelve la respuesta 403 `ORIGEN_NO_PERMITIDO`, o null si la petición vale:
+ *
+ * - `Content-Type` es `application/json` (con o sin `charset`). Sin cuerpo puede no llevarlo: el
+ *   panel avisa a `/api/push` con un POST vacío (`src/lib/panel/push-jefatura.ts`). Nadie usa
+ *   `sendBeacon`.
+ * - Si hay `Origin`, es el de la propia petición.
+ * - Si hay `Sec-Fetch-Site`, es `same-origin` o `none`.
+ *
+ * Las llamadas de servidor a servidor (el Worker de avisos a `/api/push`, la vigilancia, los scripts)
+ * no llevan `Origin` ni `Sec-Fetch-Site` y siguen pasando.
+ */
+export function exigirMismoOrigen(peticion: Request): Response | null {
+  const url = new URL(peticion.url);
+  // Queda en el registro del Worker (`wrangler pages deployment tail`) solo la ruta y el motivo, sin
+  // IP ni cuerpo: si algún día se rechaza a la propia app, se ve por qué.
+  const prohibido = (motivo: 'tipo' | 'origen' | 'sitio') => {
+    console.warn(`ORIGEN_NO_PERMITIDO ${url.pathname} ${motivo}`);
+    return error(403, 'ORIGEN_NO_PERMITIDO');
+  };
+  const tipo = peticion.headers.get('Content-Type');
+  if (tipo === null) {
+    const largo = peticion.headers.get('Content-Length');
+    const sinCuerpo = peticion.body === null || largo === '0';
+    if (!sinCuerpo) return prohibido('tipo');
+  } else if (tipo.split(';')[0]!.trim().toLowerCase() !== 'application/json') {
+    return prohibido('tipo');
+  }
+  const origen = peticion.headers.get('Origin');
+  if (origen !== null && origen !== url.origin) return prohibido('origen');
+  const sitio = peticion.headers.get('Sec-Fetch-Site');
+  if (sitio !== null && sitio !== 'same-origin' && sitio !== 'none') return prohibido('sitio');
+  return null;
+}
+
 export const esUuid = (v: unknown): v is string =>
   typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
@@ -65,8 +101,8 @@ export async function sha256Hex(texto: string): Promise<string> {
 }
 
 /**
- * La IP con la que cuenta el límite por IP (11 §3, RV-14). Con IPv6 un atacante rota direcciones
- * dentro de su /64, así que cuenta el /64: los cuatro primeros grupos, ya expandido `::`. Una IPv4
+ * La IP con la que cuenta el límite por IP (11 §3, RV-14). Con IPv6 un cliente suele tener un /48 o
+ * un /56 entero, así que cuenta el /48 (docs/35 RV-401): los tres primeros grupos, ya expandido `::`. Una IPv4
  * mapeada (`::ffff:a.b.c.d`) es esa IPv4, y una IPv4 queda tal cual. Lo que no parezca una IP se
  * devuelve sin tocar.
  */
@@ -91,16 +127,16 @@ export function normalizarIp(ip: string): string {
       ? izq
       : [...izq, ...Array<string>(Math.max(0, 8 - izq.length - der.length)).fill('0'), ...der];
   if (completos.length !== 8 || completos.some((g) => g.length > 4 || g === '')) return IP_INVALIDA;
-  // IPv4 mapeada escrita en hexadecimal (::ffff:c000:201): es 192.0.2.1, no el /64 de ::1.
+  // IPv4 mapeada escrita en hexadecimal (::ffff:c000:201): es 192.0.2.1, no el prefijo de ::1.
   const numeros = completos.map((g) => parseInt(g, 16));
   if (numeros.slice(0, 5).every((n) => n === 0) && numeros[5] === 0xffff) {
     const [a, b] = [numeros[6]!, numeros[7]!];
     return [a >> 8, a & 255, b >> 8, b & 255].join('.');
   }
   return `${completos
-    .slice(0, 4)
+    .slice(0, 3)
     .map((g) => parseInt(g || '0', 16).toString(16))
-    .join(':')}::/64`;
+    .join(':')}::/48`;
 }
 
 /** JWT de la cabecera Authorization, si la hay. */
@@ -173,9 +209,11 @@ export async function rpc<T>(
 
 /**
  * De quién es el tope (docs/33 RV-303): `dispositivo` (el de este móvil), `grupo` (el de todos) o
- * `token_nuevo` (el de un móvil recién entrado, 0041). Lista blanca: otro valor no llega al cliente.
+ * `token_nuevo` (el de un móvil recién entrado, 0041) o `moviles_nuevos` (la mitad del grupo que
+ * pueden gastar entre todos los móviles recién entrados, docs/35 RV-402). Lista blanca: otro valor
+ * no llega al cliente.
  */
-export const AMBITOS_TOPE = ['dispositivo', 'grupo', 'token_nuevo'] as const;
+export const AMBITOS_TOPE = ['dispositivo', 'grupo', 'token_nuevo', 'moviles_nuevos'] as const;
 export type AmbitoTope = (typeof AMBITOS_TOPE)[number];
 
 export interface DetalleTope {
@@ -248,7 +286,7 @@ export function estadoDe(codigo: string): number {
   // Topes de 0041 (docs/32 RV-220, RV-221): esperas, como las cuotas. Nunca 5xx, que el móvil lee
   // como "sin servidor" y pierde el código.
   if (codigo === 'SIN_ESPACIO_FOTOS' || codigo === 'RESERVAS_ABIERTAS' || codigo === 'SIN_ESPACIO') return 429;
-  if (codigo === 'SERVIDOR_NO_DISPONIBLE') return 503;
+  if (codigo === 'SERVIDOR_NO_DISPONIBLE' || codigo === 'OCUPADO') return 503;
   if (codigo === 'ERROR_INTERNO') return 500;
   return 400;
 }

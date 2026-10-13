@@ -89,6 +89,14 @@ describe('POST /api/verificar-codigo', () => {
         espera: { error: 'DISPOSITIVO_RESERVADO' },
       },
       {
+        // docs/35 RV-401: sin turno en la base de datos en 3 s. 503 y que repita en 30 s.
+        que: 'mucha gente entrando a la vez (OCUPADO)',
+        codigo: '000006',
+        da: canje({ token: null, caduca_en: null, error: 'OCUPADO' }),
+        estado: 503,
+        espera: { error: 'OCUPADO', reintentar_en_s: 30 },
+      },
+      {
         que: 'base de datos sin responder',
         codigo: '000003',
         da: new Error('ECONNREFUSED'),
@@ -104,6 +112,7 @@ describe('POST /api/verificar-codigo', () => {
     for (const [i, r] of respuestas.entries()) {
       expect(r.status, casos[i].que).toBe(casos[i].estado);
       expect(await r.json(), casos[i].que).toEqual(casos[i].espera);
+      expect(r.headers.get('Retry-After'), casos[i].que).toBe(casos[i].codigo === '000006' ? '30' : null);
     }
     espia.mockRestore();
   });
@@ -179,13 +188,16 @@ describe('POST /api/verificar-codigo', () => {
   });
 });
 
-// RV-14: con IPv6, quien ataca rota direcciones dentro de su /64; el límite por IP cuenta el /64.
-describe('normalizarIp (RV-14)', () => {
-  it('IPv6: sus primeros 64 bits, se escriba como se escriba', async () => {
+// RV-14 y docs/35 RV-401: con IPv6, un cliente suele tener un /48 o un /56 entero; el límite por IP
+// cuenta el /48.
+describe('normalizarIp (RV-14, docs/35 RV-401)', () => {
+  it('IPv6: sus primeros 48 bits, se escriba como se escriba', async () => {
     const { normalizarIp } = await import('../_lib/comun.ts');
     expect(normalizarIp('2001:db8:1:2:3:4:5:6')).toBe(normalizarIp('2001:db8:1:2::9'));
     expect(normalizarIp('2001:0DB8:0001:0002:ffff::1')).toBe(normalizarIp('2001:db8:1:2::'));
-    expect(normalizarIp('2001:db8:1:2::9')).not.toBe(normalizarIp('2001:db8:1:3::9'));
+    expect(normalizarIp('2001:db8:1:2::9')).toBe(normalizarIp('2001:db8:1:3::9'));
+    expect(normalizarIp('2001:db8:1:ffff::9')).toBe('2001:db8:1::/48');
+    expect(normalizarIp('2001:db8:1::9')).not.toBe(normalizarIp('2001:db8:2::9'));
     expect(normalizarIp('::1')).toBe(normalizarIp('0:0:0:0:0:0:0:1'));
   });
   it('una IPv4 mapeada es la IPv4, y una IPv4 queda intacta', async () => {
@@ -194,7 +206,7 @@ describe('normalizarIp (RV-14)', () => {
     expect(normalizarIp('192.0.2.1')).toBe('192.0.2.1');
   });
   // docs/18 RV-48: basura con forma de IPv6 no se mezcla con nadie, y la IPv4 mapeada en
-  // hexadecimal es su IPv4, no el /64 de ::1.
+  // hexadecimal es su IPv4, no el prefijo de ::1.
   it('más de un :: o más de 8 grupos es una IP inválida, en un cubo propio', async () => {
     const { normalizarIp } = await import('../_lib/comun.ts');
     expect(normalizarIp('1::2::3')).toBe('invalida');
@@ -211,14 +223,14 @@ describe('normalizarIp (RV-14)', () => {
     expect(normalizarIp('desconocida')).toBe('desconocida');
   });
 
-  it('dos IPv6 del mismo /64 comparten ip_hash', async () => {
+  it('dos IPv6 del mismo /48 comparten ip_hash', async () => {
     const hashes: string[] = [];
     const espia = vi.spyOn(globalThis, 'fetch').mockImplementation((_url, opciones) => {
       hashes.push((JSON.parse((opciones as RequestInit).body as string) as { ip_hash: string }).ip_hash);
       return Promise.resolve(canje({ token: null, caduca_en: null, error: 'CODIGO_INCORRECTO' }));
     });
     await Promise.all(
-      ['2001:db8:aa:bb:1::1', '2001:db8:aa:bb:ffff:2::7'].map((ip) =>
+      ['2001:db8:aa:bb:1::1', '2001:db8:aa:cc:ffff:2::7'].map((ip) =>
         onRequestPost({
           request: peticion({ codigo: '000000', dispositivo_id: DISPOSITIVO }, { 'CF-Connecting-IP': ip }),
           env: ENV,

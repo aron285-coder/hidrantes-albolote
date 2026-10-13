@@ -9,6 +9,7 @@ import {
   type Manejador,
   error,
   esAdmin,
+  exigirMismoOrigen,
   iguales,
   json,
   jwtDe,
@@ -169,6 +170,8 @@ async function autorizado(
 }
 
 export const onRequestPost: Manejador = async ({ request, env }) => {
+  const ajena = exigirMismoOrigen(request);
+  if (ajena) return ajena;
   const cuerpo = await leerJson(request);
   const quien = await autorizado(request, env, cuerpo);
   if (quien === SIN_SERVIDOR) return error(503, 'SERVIDOR_NO_DISPONIBLE');
