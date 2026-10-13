@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../../src/lib/textos.ts';
-import { sesionDeJefatura } from './sesion-google.ts';
+import { sesionDeJefatura, sqlVincular } from './sesion-google.ts';
 
 const BD = process.env.BD_PRUEBAS ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (Supabase local efímero)
 const RAIZ = path.resolve(import.meta.dirname, '../..');
@@ -142,6 +142,7 @@ test('un administrador desde el móvil aplica al momento y ve el punto en el map
   consulta(`insert into hidrantes.administradores (email, creado_por) values ('${correo}', 'prueba')`);
   // Jefatura exige una sesión de Google (RV-36): la local se vuelve a firmar como tal.
   const sesion = await sesionDeJefatura(request, { url: api, anon: env.VITE_SUPABASE_ANON_KEY, servicio }, correo);
+  consulta(sqlVincular(correo, sesion.user.id));
 
   await page.addInitScript((s) => {
     if (!sessionStorage.getItem('g')) {

@@ -21,7 +21,7 @@ import { type IncomingHttpHeaders, type Server, createServer } from 'node:http';
 import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { paresVapid } from '../../scripts/lib/claves.ts';
-import { sesionDeJefatura } from './sesion-google.ts';
+import { sesionDeJefatura, sqlVincular } from './sesion-google.ts';
 
 const BD = process.env.BD_PRUEBAS ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (Supabase local efímero)
 const RAIZ = path.resolve(import.meta.dirname, '../..');
@@ -210,6 +210,7 @@ test('una suscripción de FCM guardada de verdad recibe el aviso con VAPID váli
   consulta(`insert into hidrantes.administradores (email, creado_por) values ('${correo}', 'prueba')`);
   const servicio = variables('.dev.vars').SUPABASE_SERVICE_ROLE_KEY;
   const sesion = await sesionDeJefatura(request, { ...api, servicio }, correo);
+  consulta(sqlVincular(correo, sesion.user.id));
   const rechazo = await rpc(
     'fn_rechazar',
     { propuesta_id: propuesta, motivo: 'prueba de avisos' },

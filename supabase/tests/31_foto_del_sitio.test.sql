@@ -20,6 +20,7 @@ update hidrantes.dispositivos set emitido_en = now() - interval '2 days' where d
 -- Aquí se reservan fotos que no se usan: sin el tope de reservas abiertas (0041, se prueba en 37).
 update hidrantes.config set valor = '1000' where clave = 'max_reservas_abiertas';
 insert into hidrantes.administradores (email, creado_por) values ('sitio@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 create function pg_temp.foto() returns text language sql as $$
   select hidrantes.fn_reservar_subida(current_setting('test.token'));
@@ -49,7 +50,7 @@ end $$;
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims',
-    '{"role":"authenticated","email":"sitio@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+    '{"role":"authenticated","sub":"2d71be43-26e4-f055-0bff-61348e85093d","email":"sitio@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
     true);
 $$;
 
