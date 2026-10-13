@@ -421,7 +421,7 @@ issue normal.
   real en la puerta de la sede (#84).
 - Comunicar el código real al grupo (#85), con la entrada abierta 24 h **antes** de comunicarlo
   (Ajustes → Código de acceso → *Abrir la entrada para todos*; 15 §5.4, DEC-190).
-- Los contactos de 15 §10 y el traspaso a la cuenta institucional (15 §7).
+- Los contactos en el sobre y en el gestor de contraseñas (15 §10) y el traspaso a la cuenta institucional (15 §7).
 
 **Criterio de salida:** todos los casos de 10 en verde con firma de jefatura; datos del piloto en
 producción; los 65 tienen el enlace y el código. La parte de software está hecha; el resto depende

@@ -54,7 +54,7 @@ contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace fal
 **Tras regenerar un secreto de Cloudflare Pages** (`npm run arranque -- --rotar …`): Pages solo lo
 aplica a los despliegues **nuevos**, y el del repositorio vale al momento. El arranque vuelve a
 desplegar staging solo (`gh workflow run "Desplegar staging" --ref develop`). Producción lo aplica en
-su siguiente despliegue, `npm run publicar`, que aprueba la puerta automática (DEC-176). Mientras tanto
+su siguiente despliegue (§5.6, paso 2). Mientras tanto
 el Worker `hidrantes-avisos` recibe 401 en PROD, lo anota sin datos y sigue con staging: los avisos
 siguen saliendo al moderar y al sincronizar, y la vigilancia diaria salta si se atascan más de 30
 minutos (docs/18 RV-38, docs/19 RV-52). **Rotar `VIGILANCIA_SECRETO` lo cambia en tres sitios** —Pages,
@@ -103,7 +103,7 @@ En orden de fiabilidad:
    mostrando los datos guardados en los móviles (FR-168).
 7. **Issue «Deploy de producción fallido»** (etiqueta `vigilancia`, docs/31 RV-136): la abre (o la reabre) `deploy-prod.yml` cuando falla un paso, y dice cuál. Se cierra sola con el siguiente despliegue bueno. La vigilancia, además, avisa si el último `deploy-prod` no terminó en *success*, también si se canceló sin aprobar.
    - **Qué hacer según el paso:** la guarda, nada ha cambiado: corrige la variable que nombra en el *environment* `production`. Las migraciones, §5.2. El despliegue o la comprobación de versión y cabeceras, §5.1. La paridad, producción ya está desplegada: mira qué no coincide en el resumen de la ejecución y `docs/verificacion/paridad-produccion.md`.
-   - **Cancelado:** la puerta automática de `npm run publicar` no aprobó el *environment* (DEC-176; dice el motivo y abre la issue), así que producción sigue en la versión anterior. Se arregla lo que diga y se vuelve a lanzar con `npm run publicar`.
+   - **Rechazado o cancelado:** la puerta automática de `npm run publicar` lo rechazó (dice el motivo y abre una issue `bloquea-release`, DEC-176), o nadie lo aprobó a tiempo. Producción sigue en la versión anterior. Se arregla lo que diga la issue, se relanza con `gh run rerun <id>` (o llega un commit nuevo a `main`) y se aprueba con `npm run publicar`.
 8. **Issue «El despachador de trabajos ha fallado»** (etiqueta `vigilancia`, `despachador.yml`, docs/31 RV-137): los botones de mantenimiento de Ajustes (purgar fotos, respaldo ahora, regenerar la zona o el mapa base) ya no lanzan nada directamente: dejan un **pedido**, y el despachador lo lanza cada 15 minutos, solo en producción. Desde staging no se lanza nada de producción.
    - **Qué hacer:** no ha podido leer o anotar los pedidos, así que no se lanza nada. Abrir la ejecución que enlaza la issue y mirar que `prod-tareas` tiene `SUPABASE_SERVICE_ROLE_KEY_PROD` y que la base de datos responde. La issue se cierra sola en la siguiente pasada buena. Para no esperar los 15 minutos: `gh workflow run despachador.yml --ref develop`.
    - **Issue «Un trabajo pedido desde el panel no se ha lanzado»:** un pedido concreto se anotó con error y **no se reintenta**. La issue dice cuál y por qué (`GitHub respondió 422: …` suele ser un workflow desactivado o una entrada que ya no declara; `trabajo desconocido`, un panel más nuevo que el despachador). Arreglarlo, volver a pulsar el botón en Ajustes y **cerrar la issue a mano**: no se cierra sola.
@@ -341,8 +341,11 @@ tope*, es que alguien se ha quedado fuera: abrir la entrada desde ahí mismo.
    `production` y `prod-tareas`, DEC-172), y a Cloudflare. Se pueden pedir varios: `--rotar db,gpg`. Para rotar
    todo: `--rotar todo` (ojo: cambia también las claves VAPID, y los móviles ya suscritos dejan de
    recibir avisos hasta que vuelvan a abrir la aplicación).
-2. Redesplegar: staging con `gh workflow run "Desplegar staging" --ref develop`; producción con
-   `npm run publicar`, que aprueba la puerta automática (DEC-176).
+2. Redesplegar:
+   - staging: `gh workflow run "Desplegar staging" --ref develop`;
+   - producción: relanzar la última ejecución de *Desplegar producción* (`gh run rerun <id>`) y dejar
+     que la apruebe `npm run publicar` (puerta automática, DEC-176); o esperar a la siguiente versión.
+     `npm run publicar` por sí solo no despliega nada si `main` ya tiene todo `develop`.
 3. Si fue la `service_role key` de producción: revisar el Registro de las últimas 24 h.
 
 ### 5.7 El almacenamiento de fotos se acerca a 1 GB
@@ -476,7 +479,6 @@ Registro de comprobaciones y de incidentes:
 ## 10. Contactos
 
 Los contactos van en el sobre y en el gestor de contraseñas, nunca aquí: el repositorio es público.
-
 ---
 
 ## Trazabilidad

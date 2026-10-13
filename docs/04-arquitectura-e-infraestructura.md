@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión; cada cambio arrastra una entrada en 12. |
-| **Versión** | 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de 150 fotos al día entre todos (DEC-174, DEC-182, DEC-191). 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
+| **Versión** | 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
 | **Propietario de** | las **decisiones de infraestructura y despliegue**: qué piezas hay, dónde corren, cómo se despliegan y cómo se vuelve atrás. |
 | **No contiene** | el esquema ni las firmas (→ 05), las exigencias que motivan estas decisiones (→ 03), procedimientos de emergencia paso a paso (→ 15). |
 
@@ -235,7 +235,7 @@ Las Pages Functions (`functions/api/`), en TypeScript, con su contrato en 05 §9
 | `POST /api/verificar-codigo` | Canje del código por token, con la IP real. |
 | `POST /api/url-subida` | Reserva de subida y URL firmada para una foto. |
 | `GET /api/direccion` | Reverse geocoding en Nominatim, solo con JWT de administrador, ≤ 1 req/s, resultado cacheado en la propuesta. |
-| `POST /api/lanzar-workflow` | Deja un **pedido** en la base de datos (`fn_pedir_trabajo`) para un trabajo de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. No habla con GitHub ni guarda ningún token: lo lanza `despachador.yml` (DEC-172). |
+| `POST /api/lanzar-workflow` | Deja un **pedido** en la base de datos (`fn_pedir_trabajo`) para un trabajo de una lista blanca (`purgar-fotos`, `regenerar-zona`, `regenerar-mapabase`, `respaldo`), solo con JWT de administrador. No habla con GitHub ni guarda ningún token: lo lanza `despachador.yml`, solo en producción (DEC-172); desde staging, `purgar-fotos` y `respaldo` no se piden. |
 | `POST /api/geocodificar` | Números de portal para la búsqueda con CartoCiudad (IGN/CNIG), con token de voluntario o JWT de administrador, nunca anónima; 5 s como mucho, caché de 30 días por el sha256 de la consulta, que no se registra (DEC-092, 05 §9). |
 | `POST /api/push` | Envía las notificaciones pendientes (`notificaciones`) por Web Push con las claves VAPID; la llama el cliente tras cada acción que genera avisos y el trabajo diario de vigilancia. Idempotente. |
 
@@ -266,11 +266,12 @@ sequenceDiagram
 - **Las fotos no se mueven al aprobar.** Storage guarda los bytes fuera de Postgres; una función SQL
   no puede copiar archivos. `puntos.foto_path` pasa a apuntar al archivo ya subido.
 - **Dos fotos en alta y en corregir ubicación** (0035, DEC-146): la de la conexión y la del sitio, cada una
-  con su reserva y su `PUT`. Por eso la cuota de fábrica es 80 al día por móvil
-  (`max_subidas_dispositivo_dia`). Entre todos los voluntarios, el tope es de **150 fotos en 24 h**
-  (`max_subidas_dia_total`, DEC-182, DEC-191).
+  con su reserva y su `PUT`. Por eso la cuota de fábrica por móvil
+  (`max_subidas_dispositivo_dia`) es de 80 al día. Entre todos los voluntarios, el tope de fábrica es de
+  **150 reservas de foto en 24 h** (`max_subidas_dia_total`, DEC-182, DEC-191). Los dos se cambian en
+  Ajustes; el valor vigente y qué cuenta, en 05 §2.
 - **Purga de huérfanas:** workflow semanal con `service_role`, que pide a `fn_fotos_referenciadas_lista()`
-  la lista de paths protegidos (`foto_path` y `foto_sitio_path` de puntos y de propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 2 días, DEC-084, DEC-174), lista
+  la lista de paths protegidos (`foto_path` y `foto_sitio_path` de puntos y de propuestas pendientes o aprobadas, reservas de menos de `dias_reserva_subida`, 2 días de fábrica, 05 §2, DEC-084, DEC-174), lista
   el bucket y borra el resto. La lista llega en una sola fila con su total, porque PostgREST corta en
   1.000 filas cualquier RPC que devuelva un conjunto. El guion no borra nada si la lista no cuadra con
   el total, si trae un múltiplo exacto de 1.000 o si la pasada borraría más de max(50, 10 %) del

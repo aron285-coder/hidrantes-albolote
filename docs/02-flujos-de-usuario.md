@@ -325,11 +325,11 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 
 1. Decide si marca **Revocar todos los dispositivos** (sospecha de filtración) o no (solo cerrar la puerta a accesos nuevos). (FR-34)
 2. Pulsa *Generar uno nuevo* y confirma en el aviso, que explica qué pasará con los móviles registrados. (FR-140)
-3. Si van a entrar muchos a la vez (el día del lanzamiento o después de revocar), en *Entrada* pulsa **Abrir la entrada para todos (24 h)** **antes** de comunicar el código: durante ese tiempo, los topes de entradas no frenan a quien entra desde la misma wifi. (FR-34, FR-140)
+3. Si van a entrar muchos a la vez (el día del lanzamiento o después de revocar), mira en *Entrada* que esté abierta **antes** de comunicar el código; si no lo está, pulsa **Abrir la entrada para todos (24 h)**. Mientras esté abierta, los topes de entradas con el código bueno no frenan a quien entra desde la misma wifi; los de intentos fallidos siguen igual. (FR-34, FR-140)
 4. Comunica el código nuevo al grupo por el canal habitual.
 5. Cuando hayan entrado todos, *Cerrar ahora*; si no, se cierra sola al pasar la hora. (FR-34)
 
-**Resultado:** código nuevo en vigor al instante; el registro anota el cambio, y también abrir y cerrar la entrada; si se revocó, cada móvil pedirá el código al abrir la aplicación (FL-01 sin volver a escribir el nombre).
+**Resultado:** código nuevo en vigor al instante; el registro anota el cambio, y también abrir la entrada y cerrarla con *Cerrar ahora*; si se revocó, cada móvil pedirá el código al abrir la aplicación (FL-01 sin volver a escribir el nombre).
 
 ---
 

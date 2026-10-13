@@ -90,7 +90,7 @@ Reglas derivadas:
 - **Congelado (01–08 y 16):** describe lo acordado. Cambia solo con nuevo número de versión y fecha
   en la cabecera, y arrastra una entrada en 12. Cambia con una especificación, aprobada por el
   desarrollador al pedirla (DEC-177); jefatura recibe la versión nueva con la release y la valida
-  sobre la app real (#76, #77).
+  sobre la app real.
 - **Vivo (00, 09–15):** documentos de trabajo que se actualizan sobre la marcha, sin ceremonia.
 
 Cada archivo lleva en la cabecera su estado, versión, fecha y de qué verdad es propietario. Así

@@ -633,9 +633,10 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 06 §5 y Apéndice A; 09 Fase 7.
 
 ### DEC-068 · Voluntarios, ajustes, núcleos, QR y avisos de jefatura
-- **Fecha:** 20 sep 2026 · **Estado:** vigente salvo los puntos 5 y 6: el 5 lo sustituyó DEC-069
-  (`workflow_dispatch` en lugar de `repository_dispatch`), y los dos están **sustituidos por DEC-172**: el
-  panel deja un pedido y lo lanza `despachador.yml`; `GITHUB_DISPATCH_TOKEN` ya no existe
+- **Fecha:** 20 sep 2026 · **Estado:** vigente salvo cómo se lanza el trabajo (puntos 5 y 6): DEC-069 cambió
+  `repository_dispatch` por `workflow_dispatch`, y los dos quedan **sustituidos por DEC-172**: el panel deja un
+  pedido y lo lanza `despachador.yml`; `GITHUB_DISPATCH_TOKEN` ya no existe. Sigue vigente que
+  `mantenimiento.yml` abra un PR a `develop` con lo regenerado
 - **Contexto:** última tanda de la Fase 7 (FR-130–FR-145, FR-162–FR-167). Los núcleos gestionables y
   el resumen semanal no tenían RPC en 05, y el QR no podía depender de un servicio externo.
 - **Decisiones:**
@@ -675,8 +676,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   4. Fuera de `docs/35`: S3 (riesgo aceptado por el desarrollador), S5 (decidido por el desarrollador) y los
      hallazgos bajos, que pasan a issues `tras-piloto`.
 - **Descartado:**
-  - esperar al piloto: un piloto con datos reales y el acceso de jefatura sin atar a su cuenta de Google no es
-    aceptable;
+  - esperar al piloto: un piloto con datos reales y un fallo alto sin arreglar no es aceptable;
   - meterlo todo como `bloquea-release` sin especificación: sin reparto ni tests escritos.
 - **Afecta a:** DEC-193 («Fin de la congelación»: `docs/36`); CLAUDE.md §5 («salvo `docs/35`, DEC-196»); 09 §8.
 
@@ -973,7 +973,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §9; 15 §2 y §5.3.
 
 ### DEC-172 · Secretos de producción en `prod-tareas` y vigilancia de despliegues ajenos
-- **Fecha:** oct 2026 · **Estado:** vigente. Matiza DEC-071 (`docs/31` RV-130 a RV-132).
+- **Fecha:** oct 2026 · **Estado:** vigente. Matiza DEC-071 (`docs/31` RV-130 a RV-132). Sustituye a DEC-069 y a cómo se lanza el trabajo en DEC-068 (puntos 5 y 6).
 - **Contexto:** los secretos de producción de las tareas automáticas estaban en el repositorio (DEC-071), al alcance de cualquier workflow de cualquier rama. El permiso «Cloudflare Pages: Edit» es de toda la cuenta y no se puede limitar a un proyecto (https://developers.cloudflare.com/fundamentals/api/reference/permissions/), así que el token con el que se despliega staging también podría desplegar producción. Dependabot fusionaba solo los menores, y las actions iban fijadas por etiqueta.
 - **Decisión:**
   - Environment `prod-tareas`, sin revisores y solo para `develop`, con `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD`, `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Respaldo, purga de fotos, el trabajo `mirar` de la vigilancia, la fila de producción de avisos, comprobar-produccion y el despachador lo declaran. Ningún secreto de producción queda en el repositorio, y `scripts/seguridad-ci.test.ts` falla con cualquier `secrets.*_PROD` fuera de un trabajo con `prod-tareas` o `production`.
@@ -1996,7 +1996,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §9, 15 §4.
 
 ### DEC-084 · Las reservas de subida valen 7 días y caducan un día antes de que la purga las borre
-- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/17` RV-07, RV-19)
+- **Fecha:** 23 sep 2026 · **Estado:** vigente salvo el plazo: los 7 días los sustituye DEC-174 (2 días) (`docs/17` RV-07, RV-19)
 - **Contexto:** la purga de fotos protegía las reservas de menos de 24 h, y `fn_proponer` aceptaba
   cualquier reserva del mismo dispositivo. Con una foto subida, un `fn_proponer` fallido y más de
   24 h sin red, la purga del lunes borraba el archivo y el reintento **entraba**: jefatura podía
