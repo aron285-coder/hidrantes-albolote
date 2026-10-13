@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(45);
+select plan(46);
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims', jsonb_build_object(
@@ -64,6 +64,13 @@ values ('00000000-0000-4000-8000-0000000042a1', 'HID-0421', 'hidrante', 'SRID=43
        ('00000000-0000-4000-8000-0000000042a2', 'HID-0422', 'hidrante', 'SRID=4326;POINT(-3.6585 37.2315)', 70,
         'bueno', 'fotos/42-2.jpg', 'albolote', 'Centro', current_date - 30,
         now() - interval '2 days', now() - interval '2 days');
+-- Un punto creado sin datos_cambiados_en toma su actualizado_en (el seed crea puntos "de hace días").
+insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, nucleo,
+                              fecha_ultima_revision, actualizado_en)
+values ('00000000-0000-4000-8000-0000000042a3', 'HID-0423', 'hidrante', 'SRID=4326;POINT(-3.6590 37.2310)', 70,
+        'bueno', 'fotos/42-3.jpg', 'albolote', 'Centro', current_date - 30, now() - interval '3 days');
+select ok((select datos_cambiados_en = now() - interval '3 days' from hidrantes.puntos where codigo = 'HID-0423'),
+  'al crear un punto sin datos_cambiados_en, toma su actualizado_en');
 -- Propuestas pendientes de hace una hora: A y B sobre P1, C sobre P2.
 insert into hidrantes.propuestas (id, punto_id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id,
                                   clave_local, foto_path, creada_en)
@@ -146,7 +153,7 @@ select is((select relrowsecurity from pg_class where oid = 'hidrantes.avisos_tec
 update hidrantes.suscripciones_push set temas = array_remove(temas, 'avisos_tecnicos');
 delete from hidrantes.avisos_tecnicos;
 select is(pg_temp.aviso('vigilancia'), false, 'sin suscripciones con el tema, devuelve false');
-select ok(not exists (select 1 from hidrantes.avisos_tecnicos where clave = 'vigilancia'),
+select ok(not exists (select 1 from hidrantes.avisos_tecnicos where clave = 'vigilancia' and ultimo_en is not null),
   'y no cuenta como emitido');
 
 -- s1: jefatura con el tema · s2: jefatura sin el tema · s3: administrador inactivo con el tema ·

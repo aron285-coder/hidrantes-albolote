@@ -59,7 +59,7 @@ migración de una línea; renombrar uno exige dos pasos (04 §12).
 | `creado_en` | `timestamptz` | no | default `now()` |
 | `actualizado_en` | `timestamptz` | no | trigger `before update`: sube con **cualquier** cambio (también de núcleo o municipio); la sincronización de los móviles depende de él (§10) |
 | `borrado_en` | `timestamptz` | sí | fijado al pasar a `borrado` |
-| `datos_cambiados_en` | `timestamptz` | no | 0045 (docs/35 RV-403): trigger `before update` `puntos_datos_cambiados_en`; sube solo si cambia algo que no sea `nucleo`, `municipio` ni una marca de tiempo (`creado_en`, `actualizado_en`, la propia columna). Al crearla, igual a `actualizado_en`; en un alta, `now()`. Es con lo que se decide si una propuesta está desactualizada (`v_cola_revision`, `fn_aplicar_propuesta`): añadir o renombrar un núcleo ya no la desactualiza |
+| `datos_cambiados_en` | `timestamptz` | no | 0045 (docs/35 RV-403): trigger `before insert or update` `puntos_datos_cambiados_en`; al actualizar, sube solo si cambia algo que no sea `nucleo`, `municipio` ni una marca de tiempo (`creado_en`, `actualizado_en`, la propia columna) y no se puede fijar a mano; al insertar, la que venga o, si no, `actualizado_en` (sin default). Al crear la columna, igual a `actualizado_en` de cada punto (sin subir este). Es con lo que se decide si una propuesta está desactualizada (`v_cola_revision`, `fn_aplicar_propuesta`): añadir o renombrar un núcleo ya no la desactualiza |
 
 Constraints:
 
@@ -361,7 +361,7 @@ distingue temas.
 ### 2.16 `avisos_tecnicos` — última emisión de cada aviso técnico (0045, docs/35 RV-404, DEC-202)
 
 `clave text` PK (`vigilancia`, `respaldo`, `despliegue` o `intentos_codigo`), `ultimo_en timestamptz`
-(la última vez que se encoló al menos un aviso con esa clave). Sirve para la deduplicación de
+(la última vez que se encoló al menos un aviso con esa clave; `null`, nunca). Sirve para la deduplicación de
 `fn_encolar_aviso_tecnico` y se bloquea por fila (`for update`). RLS sin políticas; solo
 `service_role` (y su dueño). Sin datos personales.
 
