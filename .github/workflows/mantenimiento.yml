@@ -2,6 +2,13 @@
 # despachador.yml lo lanza con workflow_dispatch y el trabajo como entrada (DEC-172, que sustituye en
 # esto a DEC-069); aquí se regenera el dato y se abre un PR a
 # develop, que es lo que lo despliega. Nunca se escribe directamente en develop.
+#
+# Dos trabajos (docs/36 RV-460, que matiza DEC-198): el código de las dependencias nunca corre con
+# permiso de escritura.
+#   generar   solo lectura y sin credenciales en .git: npm ci y los npm run de siempre. Sube como
+#             artefacto la lista de cambios y los archivos, si todos están en RUTAS_MANTENIMIENTO.
+#   publicar  contents y pull-requests de escritura, sin Node ni node_modules: develop, el artefacto,
+#             copia solo las rutas de la lista (rechaza cualquier otra), commit y PR.
 name: Mantenimiento
 
 on:
@@ -12,35 +19,52 @@ on:
         required: true
         type: choice
         options: [regenerar-zona, regenerar-mapabase]
+      ensayo:
+        description: Ensayo (regenera y comprueba la lista, pero no abre el PR)
+        required: false
+        type: boolean
+        default: false
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: mantenimiento
   cancel-in-progress: false
 
+env:
+  # La lista cerrada de lo que este workflow puede cambiar: lo que escriben generar-zona.ts (datos/),
+  # generar-mapabase.ts (el PMTiles, sus teselas sueltas por versión y datos/mapabase.json) y
+  # generar-callejero.ts. Una expresión regular extendida de bash, entera, sin `..` posible.
+  RUTAS_MANTENIMIENTO: '^(datos/(limite-municipal|zona-cobertura|nucleos)\.geojson|datos/(meta|mapabase|callejero)\.json|public/callejero\.json|public/mapabase/albolote\.pmtiles|public/mapabase/t/[0-9]{8}/(meta\.json|[0-9]{1,2}/[0-9]{1,6}/[0-9]{1,6}\.pbf))$'
+
 jobs:
-  regenerar:
+  generar:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      base: ${{ steps.base.outputs.commit }}
+      hay_cambios: ${{ steps.recoger.outputs.hay_cambios }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: develop
+          persist-credentials: false
+      # El commit de develop sobre el que se regenera, antes de que corra ninguna dependencia:
+      # publicar copia sobre ese mismo commit, aunque develop avance mientras tanto.
+      - name: Commit de partida
+        id: base
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/preparar
 
-      - name: Qué toca
-        id: trabajo
-        run: echo "nombre=${{ inputs.trabajo }}" >> "$GITHUB_OUTPUT"
-
       - name: Regenerar la zona de cobertura
-        if: steps.trabajo.outputs.nombre == 'regenerar-zona'
+        if: inputs.trabajo == 'regenerar-zona'
         run: npm run zona
 
       - name: Regenerar el mapa base
-        if: steps.trabajo.outputs.nombre == 'regenerar-mapabase'
+        if: inputs.trabajo == 'regenerar-mapabase'
         run: npm run mapabase
 
       # El callejero sin conexión va con los dos (docs/18 GM-04, DEC-093). Si Overpass no responde
@@ -50,26 +74,155 @@ jobs:
           if ! npm run callejero; then
             echo "::warning::No se pudo regenerar el callejero; sigue el que había."
             echo "El callejero no se ha regenerado (Overpass o tamaño): sigue el que había." >> "$GITHUB_STEP_SUMMARY"
-            git checkout -- public/callejero.json datos/callejero.json 2>/dev/null || true
+            git checkout -- public/callejero.json datos/callejero.json
           fi
 
+      # cambios.txt: una línea por archivo, «M ruta» (nuevo o cambiado, con su copia en archivos/) o
+      # «D ruta» (quitado). Una ruta fuera de la lista para aquí, con su nombre.
+      - name: Recoger lo regenerado
+        id: recoger
+        run: |
+          set -euo pipefail
+          salida="$RUNNER_TEMP/regenerado"
+          mkdir -p "$salida/archivos"
+          : > "$salida/cambios.txt"
+          # A un archivo primero: con `< <(git status …)`, un fallo de git no pararía el paso.
+          git status --porcelain=v1 -z --untracked-files=all > "$RUNNER_TEMP/estado"
+          while IFS= read -r -d '' linea; do
+            estado=${linea:0:2}
+            ruta=${linea:3}
+            if ! [[ "$ruta" =~ $RUTAS_MANTENIMIENTO ]]; then
+              echo "::error::La regeneración ha cambiado una ruta fuera de la lista: $ruta"
+              exit 1
+            fi
+            case "$estado" in
+              ' D') echo "D $ruta" >> "$salida/cambios.txt" ;;
+              ' M' | '??')
+                cp --parents -- "$ruta" "$salida/archivos/"
+                echo "M $ruta" >> "$salida/cambios.txt"
+                ;;
+              *)
+                echo "::error::Estado de Git inesperado ($estado) en $ruta"
+                exit 1
+                ;;
+            esac
+          done < "$RUNNER_TEMP/estado"
+          if [ -s "$salida/cambios.txt" ]; then
+            echo "hay_cambios=si" >> "$GITHUB_OUTPUT"
+            echo "$(wc -l < "$salida/cambios.txt") archivos regenerados." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "hay_cambios=no" >> "$GITHUB_OUTPUT"
+            echo "Sin cambios: la fuente pública no ha cambiado desde la última vez." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - if: steps.recoger.outputs.hay_cambios == 'si'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: regenerado
+          path: ${{ runner.temp }}/regenerado
+          retention-days: 1
+          if-no-files-found: error
+
+  publicar:
+    needs: generar
+    if: needs.generar.outputs.hay_cambios == 'si'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.generar.outputs.base }}
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: regenerado
+          path: ${{ runner.temp }}/regenerado
+
+      # Lo que trae el artefacto lo ha escrito un trabajo con dependencias: se comprueba todo otra vez.
+      # Cada ruta, en la lista; cada «M», con su archivo normal (no un enlace); y nada en archivos/ que
+      # no esté en cambios.txt.
+      - name: Copiar solo las rutas de la lista
+        env:
+          ENTRADA: ${{ runner.temp }}/regenerado
+        run: |
+          set -euo pipefail
+          declare -A esperados=()
+          while IFS= read -r linea || [ -n "$linea" ]; do
+            op=${linea%% *}
+            ruta=${linea#* }
+            if ! [[ "$ruta" =~ $RUTAS_MANTENIMIENTO ]]; then
+              echo "::error::El artefacto trae una ruta fuera de la lista: $ruta"
+              exit 1
+            fi
+            case "$op" in
+              M)
+                origen="$ENTRADA/archivos/$ruta"
+                if [ -L "$origen" ] || [ ! -f "$origen" ]; then
+                  echo "::error::Falta el archivo de $ruta en el artefacto, o no es un archivo normal"
+                  exit 1
+                fi
+                mkdir -p "$(dirname "$ruta")"
+                cp -- "$origen" "$ruta"
+                esperados["$ruta"]=1
+                ;;
+              D)
+                if [ ! -f "$ruta" ]; then
+                  echo "::error::El artefacto quita $ruta, que no existe en el commit de partida"
+                  exit 1
+                fi
+                rm -- "$ruta"
+                ;;
+              *)
+                echo "::error::Operación desconocida en el artefacto: $op"
+                exit 1
+                ;;
+            esac
+          done < "$ENTRADA/cambios.txt"
+          # Con solo «D», el artefacto llega sin archivos/ (no se suben carpetas vacías).
+          mkdir -p "$ENTRADA/archivos"
+          find "$ENTRADA/archivos" -mindepth 1 ! -type d -print0 > "$RUNNER_TEMP/traidos"
+          while IFS= read -r -d '' f; do
+            rel=${f#"$ENTRADA/archivos/"}
+            if [ -z "${esperados[$rel]:-}" ]; then
+              echo "::error::El artefacto trae un archivo que no está en la lista de cambios: $rel"
+              exit 1
+            fi
+          done < "$RUNNER_TEMP/traidos"
+
+      # Sin credenciales en .git/config: el token va solo en el git push, como cabecera (lo mismo que
+      # hace checkout cuando las guarda).
       - name: PR con lo regenerado
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TRABAJO: ${{ steps.trabajo.outputs.nombre }}
+          TRABAJO: ${{ inputs.trabajo }}
+          ENSAYO: ${{ inputs.ensayo }}
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "Sin cambios: la fuente pública no ha cambiado desde la última vez." >> "$GITHUB_STEP_SUMMARY"
+          git add -A -- datos public
+          # publicar solo corre si generar vio cambios: aquí, sin ninguno, algo no cuadra.
+          if git diff --cached --quiet; then
+            echo "::error::generar vio cambios y aquí no queda ninguno sobre el mismo commit"
+            exit 1
+          fi
+          if [ "$ENSAYO" = true ]; then
+            {
+              echo "Ensayo: no se abre el PR. Lo que llevaría:"
+              echo
+              git diff --cached --stat | tail -n 1
+            } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           rama="mantenimiento/$TRABAJO-$(date +%Y%m%d%H%M)"
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git switch -c "$rama"
-          git add -A
           git commit -m "chore(datos): $TRABAJO desde Ajustes"
-          git push -u origin "$rama"
+          cabecera=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$cabecera"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $cabecera" push -u origin "$rama"
           gh pr create --base develop --head "$rama" \
             --title "chore(datos): $TRABAJO" \
             --body "Lanzado desde Ajustes del panel (FR-165). Revisa el tamaño del archivo y fusiona para desplegarlo."
