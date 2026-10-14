@@ -728,18 +728,18 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 ### DEC-199 · Entrada con el código: el tope global no frena un código bueno
 - **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-401, 0047).
-- **Contexto:** el tope de fallos en total (200 por hora) se miraba antes de comparar el código: mientras estaba alcanzado, no entraba nadie, tampoco con el código bueno. A ese ritmo sostenido, en un mes se prueba un 14 % de los códigos sin que nadie se entere. Las Functions no comprobaban de dónde venía la petición, el turno para comparar se esperaba sin límite y con la comparación dentro, y en IPv6 la IP se agrupaba por /64.
+- **Contexto:** el tope de fallos en total (200 por hora) se miraba antes de comparar el código: mientras estaba alcanzado, no entraba nadie, tampoco con el código bueno. Las Functions no comprobaban de dónde venía la petición, el turno para comparar se esperaba sin límite y con la comparación dentro, y en IPv6 la IP se agrupaba por /64.
 - **Decisión:**
   1. Tope de fallos en total: **60 por hora** (valor por defecto y fila de `config`; no está en Ajustes).
   2. Con ese tope alcanzado, un móvil y su IP agrupada **sin ningún fallo en 24 h** se comparan igual: con el código bueno entra; con uno malo cuenta como fallo y quedan frenados.
   3. La primera vez que salta en una hora, **aviso técnico** a jefatura (`intentos_codigo`, DEC-202).
-  4. Las Functions con `POST` solo atienden **peticiones de la propia app** (cuerpo JSON, mismo origen); las demás, `403 ORIGEN_NO_PERMITIDO`. Las de servidor a servidor siguen funcionando.
+  4. Las Functions con `POST` rechazan con `403 ORIGEN_NO_PERMITIDO` las peticiones de navegador desde otras webs y las que no son JSON. Las de servidor a servidor siguen funcionando.
   5. IPv6 agrupada por **/48**.
   6. La comparación va antes del turno y el turno se espera **como mucho 3 s**: si no, `OCUPADO` (`503`, `Retry-After: 30`), sin contar como intento.
   7. Los frenados con el código bueno, como mucho una fila por móvil y hora.
   8. Las seis cifras no cambian: DEC-004 es de jefatura.
 
-  Cuánto queda: 1.440 fallos al día, un 4 % de los códigos al mes si nadie hace nada; con el aviso y el código cambiado al día siguiente, un 0,14 %.
+  El cálculo de lo que permiten estos topes está en `docs/35` RV-401, que entra en el repositorio al cerrar la especificación (RV-442).
 - **Descartado:**
   - Turnstile: añade un paso y un script de terceros a la entrada (CSP), y se configura en un panel web;
   - más cifras: lo decide jefatura (DEC-004);

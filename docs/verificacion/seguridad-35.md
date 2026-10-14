@@ -16,7 +16,8 @@ de `hidrantes`), sin conectarse a staging.
 
 **RV-401 (DEC-199) · Entrada con el código** (#671, migración `0047`). El voluntario que escribe bien
 el código desde un móvil sin fallos entra aunque haya muchos intentos fallidos; tope de fallos en
-total a 60 por hora; aviso técnico a jefatura; solo peticiones de la propia app; IPv6 por /48;
+total a 60 por hora; aviso técnico a jefatura; las Functions rechazan las peticiones de navegador desde otras webs
+y las que no son JSON; IPv6 por /48;
 espera máxima del turno (`OCUPADO`). Tests: `44_entrada_y_moviles_nuevos.test.sql`,
 `13_codigo_acceso.test.sql`, `mismo-origen.test.ts`, `verificar-codigo.test.ts`.
 
