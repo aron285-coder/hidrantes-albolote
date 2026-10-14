@@ -1,7 +1,9 @@
 # Capturas de la CI, para los borradores de 13 y 14
 
-Copiadas el 2026-10-07 del artefacto `vistas` del trabajo `ci-vistas` (`e2e/vistas.spec.ts`,
-docs/21 RV-88), en la CI del PR #482, el último de `develop` que tocó pantallas. Son de la versión
+Copiadas el 2026-10-14 del artefacto `vistas` del trabajo `ci-vistas` (`e2e/vistas.spec.ts`,
+docs/21 RV-88), en la CI del PR #690 (`docs/35` RV-433), el último de `develop` que tocó pantallas
+en `docs/35` (RV-414). `nuevo-punto-boca.png` enseña las fotos propias de los enganches, con
+Barcelona y Directo como dice DEC-194. Son de la versión
 actual de la app, con **datos simulados** (`e2e/puntos.ts`): códigos `HID-90nn` y `BOC-90nn`,
 descripciones `[PRUEBA]`, la voluntaria ficticia «Voluntaria Pruebas» y `jefe@example.org`.
 Ninguna sale de staging ni de producción, y ningún nombre es de nadie (FR-27, DEC-053).

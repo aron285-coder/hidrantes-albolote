@@ -114,4 +114,19 @@ comentarios de los workflows de mantenimiento con el despachador. Sin cambios de
   ventana; para uno mismo, con el aviso de que se sale del panel. Devolverlo, sin confirmación.
   `ULTIMO_ADMINISTRADOR` con palabras. Tests: vitest `ajustes.test.ts` (4) y `acceso.test.ts` (1), y
   e2e `panel-ajustes.spec.ts` (3), «docs/35 RV-431», fallaban antes del arreglo (#676).
-- RV-432 y RV-433: pendientes.
+- **RV-432 · El panel une la cuenta de jefatura al entrar.** Al entrar con Google, si la cuenta aún no
+  está unida, el panel la une una vez por sesión y vuelve a comprobar. Solo las respuestas que dicen
+  algo de la cuenta llevan a «No autorizado»; un fallo de red o del servidor se dice como tal, con
+  Reintentar a mano y sin bucle. En Ajustes, el administrador aún sin unir sale «Pendiente de su
+  primer acceso». Tests: vitest de `acceso` y de Ajustes, e2e de acceso y de Ajustes (#687).
+- **RV-433 · Código de acceso, revocar desde una hora y avisos técnicos.** Revocando todos, la
+  entrada ya no se abre sola: hay una casilla sin marcar. Se pueden revocar solo los móviles que han
+  entrado desde una hora (por defecto hace 24 h, como mucho 30 días), con la cuenta antes de
+  confirmar y sin poder confirmar si no hay ninguno. Jefatura puede activar los avisos técnicos en
+  Ajustes. Tests: vitest de Ajustes y de los avisos de jefatura, e2e de Ajustes (#690).
+
+## Manual y capturas
+
+Las capturas de `docs/capturas/vistas/` (manuales 13 y 14) se han copiado del artefacto `vistas` de
+la CI de #690, el último PR de pantallas de `docs/35`; `nuevo-punto-boca.png` enseña las fotos
+propias de los enganches, con Barcelona y Directo como dice DEC-194 (RV-414).
