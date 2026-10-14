@@ -11,14 +11,15 @@
 revisar_bd() {
   local entorno="$1" bd="$2" pre=""
   if [ "$entorno" = staging ]; then pre="staging: "; fi
-  # La edad del último respaldo, en los dos entornos: staging guarda los datos del piloto (DEC-203) y
-  # su respaldo también escribe ultimo_respaldo (docs/36 RV-461). Es además la primera consulta: si
-  # falla, la base no responde y no se sigue.
-  dias=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c \
-    "select coalesce(extract(day from now() - (hidrantes.fn_config('ultimo_respaldo','null') #>> '{}')::timestamptz)::int, 999);" 2>/dev/null || echo error)
-  if [ "$dias" = "error" ]; then
+  if ! psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c 'select 1;' > /dev/null 2>&1; then
     problemas+=("${pre}no se puede consultar la base de datos")
     return
+  fi
+  # La edad del último respaldo, en los dos entornos: staging guarda los datos del piloto (DEC-203) y
+  # su respaldo también escribe ultimo_respaldo (docs/36 RV-461). Sin fecha cuenta como 999 días.
+  if ! dias=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c \
+    "select coalesce(extract(day from now() - (hidrantes.fn_config('ultimo_respaldo','null') #>> '{}')::timestamptz)::int, 999);" 2>/dev/null); then
+    problemas+=("${pre}no se puede leer la fecha del último respaldo")
   elif [ "$dias" -gt 8 ]; then
     problemas+=("${pre}el último respaldo tiene $dias días (más de 8)")
   fi

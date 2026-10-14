@@ -1072,10 +1072,16 @@ describe('revisar_bd (RV-78)', () => {
     expect(r.salida).toContain('staging: el último respaldo tiene 9 días (más de 8)');
     expect(r.salida.trim().endsWith('FIN')).toBe(true);
     expect(correr('staging', BIEN, '', '0 0 0', '8').salida.trim()).toBe('FIN');
-    // Si no se puede consultar, lo dice y no sigue.
-    expect(correr('staging', BIEN, 'ultimo_respaldo').salida.trim()).toBe(
-      'staging: no se puede consultar la base de datos\nFIN',
-    );
+    // Si no se puede leer la fecha, lo dice y sigue con lo demás; si la base no responde, no sigue.
+    for (const entorno of ['produccion', 'staging']) {
+      const pre = entorno === 'staging' ? 'staging: ' : '';
+      const r = correr(entorno, BIEN, 'ultimo_respaldo');
+      expect(r.codigo, entorno).toBe(0);
+      expect(r.salida.trim(), entorno).toBe(`${pre}no se puede leer la fecha del último respaldo\nFIN`);
+      expect(correr(entorno, BIEN, 'select 1').salida.trim(), entorno).toBe(
+        `${pre}no se puede consultar la base de datos\nFIN`,
+      );
+    }
   });
 
   // docs/31 RV-138: con `|| echo 0`, una consulta que fallaba contaba como «todo bien».
