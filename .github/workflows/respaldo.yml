@@ -296,11 +296,13 @@ jobs:
   # Si falla, su issue y su aviso técnico lo dicen; la ejecución no sale en rojo por él, porque la
   # vigilancia de producción busca la última ejecución correcta de respaldo.yml para mirar la copia de
   # producción (revisar-respaldo.sh, RV-201), y un fallo de staging la escondería.
+  # Si se corta por tiempo, el trabajo queda cancelado, no fallido: los dos avisos corren también
+  # entonces, y la vigilancia de staging mira la edad de ultimo_respaldo (docs/36 RV-461).
   respaldo-staging:
     runs-on: ubuntu-24.04
     environment: staging
     continue-on-error: true
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -442,7 +444,7 @@ jobs:
         run: if [ -n "${PLANO:-}" ]; then shred -u "$PLANO" 2>/dev/null || rm -f "$PLANO"; fi
 
       - name: Avisar si el respaldo de staging ha fallado
-        if: failure()
+        if: failure() || cancelled()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -451,7 +453,7 @@ jobs:
           # búsqueda de GitHub casaría también la de producción.
           titulo="El respaldo semanal de staging ha fallado"
           existe=$(gh issue list --label vigilancia --state open --search "$titulo in:title" --json number,title --jq "[.[] | select(.title == \"$titulo\")][0].number // empty")
-          cuerpo="La ejecución ${{ github.run_id }} no terminó el respaldo de staging. Revisa el registro del workflow y 15 §5.3."
+          cuerpo="La ejecución ${{ github.run_id }} no terminó el respaldo de staging (${{ job.status }}). Revisa el registro del workflow y 15 §5.3."
           if [ -n "$existe" ]; then
             gh issue comment "$existe" --body "$cuerpo"
           else
@@ -461,7 +463,7 @@ jobs:
       # Aviso técnico a la jefatura de staging, la del piloto (RV-404, DEC-202). La issue es el aviso
       # principal: si encolar falla, queda como aviso de este paso y no tapa el fallo del respaldo.
       - name: Aviso técnico a jefatura de staging
-        if: failure()
+        if: failure() || cancelled()
         env:
           BD: ${{ secrets.SUPABASE_DB_URL }}
         run: |
