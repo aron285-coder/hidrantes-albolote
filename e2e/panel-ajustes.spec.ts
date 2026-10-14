@@ -1164,14 +1164,16 @@ test('revocar desde una hora: por defecto hace 24 h, dice cuántos y revoca (doc
   const seccion = revocarDesde(page);
   const campo = seccion.getByLabel(T.panelAjustes.fechaDesde);
   const valor = await campo.inputValue();
-  const horas = (Date.now() - new Date(valor).getTime()) / 3_600_000;
+  // El campo va en la hora del navegador (Europe/Madrid), no en la del proceso de los tests.
+  const msValor = await page.evaluate((v) => new Date(v).getTime(), valor);
+  const horas = (Date.now() - msValor) / 3_600_000;
   expect(horas).toBeGreaterThan(23.9);
   expect(horas).toBeLessThan(24.1);
   await seccion.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
   const dialogo = page.getByRole('dialog');
   await expect(dialogo.getByText(T.panelAjustes.seRevocaran(2))).toBeVisible();
   const contada = llamadaA(llamadas, 'fn_contar_desde')!;
-  expect(new Date(String(contada.desde)).getTime()).toBe(new Date(valor).getTime());
+  expect(new Date(String(contada.desde)).getTime()).toBe(msValor);
   await dialogo.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
   await expect.poll(() => llamadaA(llamadas, 'fn_revocar_desde')).toEqual(contada);
   await expect(page.getByText(T.panelAjustes.revocadosDesde(2))).toBeVisible();
@@ -1199,16 +1201,19 @@ test('revocar desde una hora: una hora futura o de hace más de 30 días no deja
   const seccion = revocarDesde(page);
   const campo = seccion.getByLabel(T.panelAjustes.fechaDesde);
   const boton = seccion.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton });
-  const local = (d: Date) => {
-    const z = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
-  };
-  await campo.fill(local(new Date(Date.now() + 2 * 3_600_000)));
+  // En la hora del navegador (Europe/Madrid), no en la del proceso de los tests.
+  const local = (desplazamientoMs: number) =>
+    page.evaluate((ms) => {
+      const d = new Date(Date.now() + ms);
+      const z = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+    }, desplazamientoMs);
+  await campo.fill(await local(2 * 3_600_000));
   await expect(boton).toBeDisabled();
   await expect(seccion.getByText(T.panelAjustes.desdeFutura)).toBeVisible();
-  await campo.fill(local(new Date(Date.now() - 31 * 86_400_000)));
+  await campo.fill(await local(-31 * 86_400_000));
   await expect(seccion.getByText(T.panelAjustes.desdeAntigua)).toBeVisible();
-  await campo.fill(local(new Date(Date.now() - 3_600_000)));
+  await campo.fill(await local(-3_600_000));
   await expect(boton).toBeEnabled();
 });
 
