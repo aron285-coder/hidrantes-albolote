@@ -658,6 +658,227 @@ test.describe('El foco no se escapa de las ventanas del panel (docs/30 RV-128)',
   });
 });
 
+// docs/36 RV-471 (DEC-208): Editar manda la versión del punto que se abrió. Si otro lo ha cambiado
+// entretanto, el servidor no guarda (PUNTO_CAMBIADO): aviso, «Ver lo nuevo» sin perder lo escrito, y
+// guardar otra vez con la versión nueva.
+test.describe('Editar no pisa el cambio de otro (docs/36 RV-471)', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'los anchos se fijan a mano en el proyecto de escritorio');
+
+  const V1 = '2026-10-14T08:00:00.123456+00:00';
+  const V2 = '2026-10-14T09:30:00.654321+00:00';
+  const V3 = '2026-10-14T10:45:00.111111+00:00';
+  type PuntoVista = (typeof PUNTOS)[number] & { datos_cambiados_en?: string };
+
+  /**
+   * El servidor: guarda solo con la versión de ahora; si no, PUNTO_CAMBIADO. `otro()` es otro
+   * administrador que cambia la boca: sube la versión del servidor y lo que devuelve la vista.
+   */
+  async function montar(page: Page) {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const vista = { lista: PUNTOS.map((x) => ({ ...x, datos_cambiados_en: V1 })) as PuntoVista[] };
+    await preparar(page, [], vista);
+    let version = V1;
+    const enviados: Record<string, unknown>[] = [];
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_editar_punto`, (r) => {
+      const cuerpo = r.request().postDataJSON() as Record<string, unknown>;
+      enviados.push(cuerpo);
+      if (cuerpo.version !== version) {
+        return r.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'P0001',
+            message: 'PUNTO_CAMBIADO: Otro administrador ha cambiado este punto mientras lo editabas',
+            details: null,
+            hint: null,
+          }),
+        });
+      }
+      return r.fulfill({ contentType: 'application/json', body: 'null' });
+    });
+    const otro = (cambios: Partial<PuntoVista>, nueva: string) => {
+      version = nueva;
+      vista.lista = vista.lista.map((x) =>
+        x.id === BOCA.id
+          ? { ...x, ...cambios, datos_cambiados_en: nueva, actualizado_en: new Date().toISOString() }
+          : x,
+      );
+    };
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    return {
+      p,
+      vista,
+      enviados,
+      otro,
+      guardar: p.getByRole('button', { name: T.panel.guardarCambios }),
+      aviso: p.getByRole('alert').filter({ hasText: T.panelEditar.puntoCambiado }),
+      verLoNuevo: p.getByRole('alert').getByRole('button', { name: T.panelEditar.verLoNuevo }),
+    };
+  }
+
+  /** Estado Malo y una descripción: lo que escribe quien edita. */
+  async function escribir(p: Page | ReturnType<typeof panel>) {
+    await p.getByRole('radio', { name: T.formulario.malo }).click();
+    await p.getByRole('textbox', { name: T.formulario.descripcionOpcional }).fill('[PRUEBA] Mía');
+  }
+
+  test('PUNTO_CAMBIADO: aviso, Ver lo nuevo conserva lo escrito y marca lo del otro, y guardar funciona', async ({
+    page,
+  }) => {
+    const { p, enviados, otro, guardar, aviso, verLoNuevo } = await montar(page);
+    await escribir(p);
+    otro({ racor: 'barcelona', direccion: '[PRUEBA] Calle del otro 7' }, V2);
+    await guardar.click();
+
+    // El aviso sale en la ventana; no se ha guardado nada y Guardar espera a ver lo nuevo, con el
+    // aviso como motivo (UI-02). El foco pasa a «Ver lo nuevo».
+    await expect(aviso).toBeVisible();
+    await expect(guardar).toBeDisabled();
+    const idAviso = await aviso.getAttribute('id');
+    await expect(guardar).toHaveAttribute('aria-describedby', idAviso!);
+    await expect(verLoNuevo).toBeFocused();
+    await expect(p.getByRole('radio', { name: T.formulario.malo })).toHaveAttribute('aria-checked', 'true');
+    expect(enviados).toEqual([
+      { punto_id: BOCA.id, cambios: { caudal: 'malo', descripcion: '[PRUEBA] Mía' }, version: V1 },
+    ]);
+    for (const tema of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: tema });
+      const { violations } = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+        .include('[role="dialog"] [role="alert"]')
+        .analyze();
+      expect(violations.flatMap((v) => v.nodes.map((n) => `${tema} · ${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+    }
+    await page.emulateMedia({ colorScheme: 'light' });
+
+    await verLoNuevo.click();
+    await expect(aviso).toHaveCount(0);
+    // Ni el aviso de RV-165: lo nuevo ya está cargado.
+    await expect(p.getByText(T.panelEditar.otroAdministrador)).toHaveCount(0);
+    // Lo escrito, donde el otro no ha tocado; lo del otro, con su valor y marcado.
+    await expect(p.getByRole('radio', { name: T.formulario.malo })).toHaveAttribute('aria-checked', 'true');
+    await expect(p.getByRole('textbox', { name: T.formulario.descripcionOpcional })).toHaveValue('[PRUEBA] Mía');
+    const enganche = p.locator('[data-campo="enganche"]');
+    await expect(enganche).toHaveAttribute('data-nuevo', 'true');
+    await expect(enganche).toContainText(T.panelEditar.valorNuevo);
+    await expect(p.getByRole('radio', { name: T.formulario.barcelona })).toHaveAttribute('aria-checked', 'true');
+    await expect(p.getByRole('textbox', { name: T.ficha.direccion })).toHaveValue('[PRUEBA] Calle del otro 7');
+    await expect(p.locator('[data-campo="direccion"]')).toHaveAttribute('data-nuevo', 'true');
+    await expect(p.locator('[data-campo="estado"]')).not.toHaveAttribute('data-nuevo', 'true');
+
+    await expect(guardar).toBeEnabled();
+    await guardar.click();
+    await expect(p).toHaveCount(0);
+    expect(enviados.at(-1)).toEqual({
+      punto_id: BOCA.id,
+      cambios: { caudal: 'malo', descripcion: '[PRUEBA] Mía' },
+      version: V2,
+    });
+  });
+
+  test('el mismo campo cambiado por los dos: sale el del otro, marcado, con lo que se había puesto debajo', async ({
+    page,
+  }) => {
+    const { p, enviados, otro, guardar, verLoNuevo } = await montar(page);
+    await escribir(p);
+    otro({ caudal: 'regular' }, V2);
+    await guardar.click();
+    await verLoNuevo.click();
+    const estado = p.locator('[data-campo="estado"]');
+    await expect(estado).toHaveAttribute('data-nuevo', 'true');
+    await expect(p.getByRole('radio', { name: T.formulario.regular })).toHaveAttribute('aria-checked', 'true');
+    await expect(estado).toContainText(T.panelEditar.loQueEscribiste(T.formulario.malo));
+    // Se guarda lo que se ve: el estado del otro no se reenvía; la descripción propia, sí.
+    await guardar.click();
+    await expect(p).toHaveCount(0);
+    expect(enviados.at(-1)).toEqual({ punto_id: BOCA.id, cambios: { descripcion: '[PRUEBA] Mía' }, version: V2 });
+  });
+
+  test('otro PUNTO_CAMBIADO después de Ver lo nuevo repite el ciclo', async ({ page }) => {
+    const { p, enviados, otro, guardar, aviso, verLoNuevo } = await montar(page);
+    await escribir(p);
+    otro({ racor: 'barcelona' }, V2);
+    await guardar.click();
+    await verLoNuevo.click();
+    await expect(aviso).toHaveCount(0);
+    otro({ direccion: '[PRUEBA] Otra vez' }, V3);
+    await guardar.click();
+    await expect(aviso).toBeVisible();
+    await verLoNuevo.click();
+    await expect(p.getByRole('textbox', { name: T.ficha.direccion })).toHaveValue('[PRUEBA] Otra vez');
+    await guardar.click();
+    await expect(p).toHaveCount(0);
+    expect(enviados.map((e) => e.version)).toEqual([V1, V2, V3]);
+  });
+
+  test('si la primera lectura aún trae lo de antes, se repite y llega lo nuevo', async ({ page }) => {
+    const { p, vista, otro, guardar, aviso, verLoNuevo } = await montar(page);
+    await escribir(p);
+    otro({ racor: 'barcelona' }, V2);
+    await guardar.click();
+    await expect(aviso).toBeVisible();
+    // La primera lectura tras el aviso devuelve el punto de antes; la segunda, el nuevo.
+    const antes = vista.lista.map((x) => (x.id === BOCA.id ? { ...x, racor: 'granada', datos_cambiados_en: V1 } : x));
+    let lecturas = 0;
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/v_puntos_activos*`, (r) => {
+      lecturas++;
+      return lecturas === 1
+        ? r.fulfill({ contentType: 'application/json', body: JSON.stringify(antes) })
+        : r.fallback();
+    });
+    await verLoNuevo.click();
+    await expect(aviso).toHaveCount(0);
+    await expect(p.getByRole('radio', { name: T.formulario.barcelona })).toHaveAttribute('aria-checked', 'true');
+    expect(lecturas).toBeGreaterThanOrEqual(2);
+  });
+
+  test('si no se puede leer lo nuevo: lo dice, lo escrito sigue y se puede volver a probar', async ({ page }) => {
+    const { p, otro, guardar, aviso, verLoNuevo } = await montar(page);
+    await escribir(p);
+    otro({ racor: 'barcelona' }, V2);
+    await guardar.click();
+    let fallar = true;
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/v_puntos_activos*`, (r) =>
+      fallar ? r.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"fallo"}' }) : r.fallback(),
+    );
+    await verLoNuevo.click();
+    // El aviso del panel dice el fallo, además del de la ventana.
+    await expect.poll(() => page.getByRole('alert').count()).toBeGreaterThanOrEqual(2);
+    await expect(aviso).toBeVisible();
+    await expect(verLoNuevo).toBeEnabled();
+    await expect(guardar).toBeDisabled();
+    await expect(p.getByRole('textbox', { name: T.formulario.descripcionOpcional })).toHaveValue('[PRUEBA] Mía');
+    fallar = false;
+    await verLoNuevo.click();
+    await expect(aviso).toHaveCount(0);
+    await expect(p.getByRole('radio', { name: T.formulario.barcelona })).toHaveAttribute('aria-checked', 'true');
+    await expect(p.getByRole('textbox', { name: T.formulario.descripcionOpcional })).toHaveValue('[PRUEBA] Mía');
+  });
+
+  test('si el punto ya no está: lo dice, sin Ver lo nuevo, y se puede cerrar', async ({ page }) => {
+    const { p, vista, otro, guardar, aviso, verLoNuevo } = await montar(page);
+    await escribir(p);
+    otro({}, V2);
+    await guardar.click();
+    // Otro administrador lo ha retirado: la vista ya no lo trae.
+    vista.lista = vista.lista.filter((x) => x.id !== BOCA.id);
+    await verLoNuevo.click();
+    const yaNoEsta = p.getByRole('alert').filter({ hasText: T.panelEditar.yaNoEsta });
+    await expect(yaNoEsta).toBeVisible();
+    await expect(aviso).toHaveCount(0);
+    await expect(yaNoEsta.getByRole('button')).toHaveCount(0);
+    await expect(guardar).toBeDisabled();
+    await expect(guardar).toHaveAttribute('aria-describedby', (await yaNoEsta.getAttribute('id'))!);
+    // Lo escrito sigue a la vista hasta cerrar; cerrar pregunta antes de descartarlo.
+    await expect(p.getByRole('textbox', { name: T.formulario.descripcionOpcional })).toHaveValue('[PRUEBA] Mía');
+    await p.getByRole('button', { name: T.panelCola.cancelar }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: T.panelEditar.descartar }).click();
+    await expect(p).toHaveCount(0);
+  });
+});
+
 // docs/31 RV-165: Editar no se queda con una foto vieja del punto. Sin cambios propios se pone al
 // día solo; con cambios, avisa y deja ver lo nuevo tras confirmar que se descartan los propios.
 test.describe('Editar con el punto al día (docs/31 RV-165)', () => {

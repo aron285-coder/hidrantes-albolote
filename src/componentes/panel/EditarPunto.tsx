@@ -12,6 +12,7 @@ import { bandaDe, nombreCaudal, nombreRacor } from '@/lib/ficha';
 import { useModal } from '@/lib/foco-modal';
 import { LIMITES } from '@/lib/limites';
 import { distancia } from '@/lib/formato';
+import { anotarError } from '@/lib/errores';
 import { textoError } from '@/lib/panel/errores';
 import { MARCA, marcaActual } from '@/lib/panel/historial-editar';
 import {
@@ -24,11 +25,13 @@ import {
   type Valores,
   faltaEnEdicion,
   formularioDe,
+  fusionarConNuevo,
   movidoM,
+  PARTES_CAMPO,
   valoresDe,
 } from '@/lib/panel/inventario';
 import type { Posicion } from '@/lib/posicion';
-import type { Punto } from '@/lib/puntos';
+import { type Punto, estadoPuntos, sincronizar } from '@/lib/puntos';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 import { dentroDeZona } from '@/lib/zona';
@@ -91,18 +94,25 @@ function Marcado({
   etiqueta,
   cambia,
   antes,
+  nuevo = false,
+  escrito,
   children,
 }: {
   campo: CampoEditado | 'tipo';
   etiqueta: string;
   cambia: boolean;
   antes?: string;
+  /** Lo ha cambiado otro administrador y sale su valor, tras «Ver lo nuevo» (docs/36 RV-471). */
+  nuevo?: boolean;
+  /** Lo que se había puesto en este campo, si el otro también lo cambió (no se pierde sin verse). */
+  escrito?: string;
   children: ReactNode;
 }) {
   return (
     <div
       data-campo={campo}
       data-cambia={cambia}
+      data-nuevo={nuevo || undefined}
       className={cn(
         '-mx-4 px-4 py-2',
         cambia && 'bg-[color-mix(in_srgb,#FFB000_8%,var(--papel))] shadow-[inset_4px_0_0_var(--naranja-600)]',
@@ -113,6 +123,17 @@ function Marcado({
         {cambia && antes !== undefined && (
           <span className="text-texto-suave text-[13px]">
             {T.panelEditar.antes} <del className="text-rojo-texto">{antes}</del>
+          </span>
+        )}
+        {nuevo && (
+          <span className="bg-tinte-oro border-oro-600 text-tinte-oro-texto rounded-tarjeta self-start border px-2 py-0.5 text-[13px]">
+            {T.panelEditar.valorNuevo}
+            {escrito !== undefined && (
+              <>
+                <br />
+                {T.panelEditar.loQueEscribiste(escrito)}
+              </>
+            )}
           </span>
         )}
       </Campo>
@@ -128,11 +149,17 @@ export function CamposEditar({
   v,
   cambiar,
   gps,
+  nuevos = [],
+  escritos = {},
 }: {
   punto: Punto;
   v: Valores;
   cambiar: (c: Partial<Valores>) => void;
   gps: Posicion | null;
+  /** Los campos que ha cambiado otro administrador, tras «Ver lo nuevo» (docs/36 RV-471). */
+  nuevos?: CampoEditado[];
+  /** Lo que se había puesto en los campos que el otro también cambió. */
+  escritos?: Partial<Record<CampoEditado, string>>;
 }) {
   const marcados = new Set(camposCambiados(cambiosDe(punto, formularioDe(v))));
   const movido = movidoM(punto, formularioDe(v));
@@ -151,7 +178,13 @@ export function CamposEditar({
 
   return (
     <>
-      <Marcado campo="ubicacion" etiqueta={T.panelEditar.ubicacion} cambia={marcados.has('ubicacion')}>
+      <Marcado
+        campo="ubicacion"
+        nuevo={nuevos.includes('ubicacion')}
+        escrito={escritos.ubicacion}
+        etiqueta={T.panelEditar.ubicacion}
+        cambia={marcados.has('ubicacion')}
+      >
         <SelectorPin
           pin={v.pin}
           gps={gps}
@@ -198,6 +231,8 @@ export function CamposEditar({
 
       <Marcado
         campo="diametro"
+        nuevo={nuevos.includes('diametro')}
+        escrito={escritos.diametro}
         etiqueta={T.formulario.diametro}
         cambia={marcados.has('diametro')}
         antes={T.formato.mm(punto.diametro_mm)}
@@ -223,6 +258,8 @@ export function CamposEditar({
       {boca && (
         <Marcado
           campo="enganche"
+          nuevo={nuevos.includes('enganche')}
+          escrito={escritos.enganche}
           etiqueta={T.formulario.racor}
           cambia={marcados.has('enganche')}
           antes={punto.racor ? nombreRacor(punto.racor) : T.panelEditar.vacio}
@@ -233,6 +270,8 @@ export function CamposEditar({
 
       <Marcado
         campo="estado"
+        nuevo={nuevos.includes('estado')}
+        escrito={escritos.estado}
         etiqueta={T.formulario.caudal}
         cambia={marcados.has('estado')}
         antes={nombreCaudal(punto.caudal)}
@@ -243,6 +282,8 @@ export function CamposEditar({
       {v.caudal === 'no_funciona' && (
         <Marcado
           campo="fallo"
+          nuevo={nuevos.includes('fallo')}
+          escrito={escritos.fallo}
           etiqueta={T.formulario.descripcionFallo}
           cambia={marcados.has('fallo')}
           antes={vacio(punto.descripcion_fallo)}
@@ -260,6 +301,8 @@ export function CamposEditar({
 
       <Marcado
         campo="direccion"
+        nuevo={nuevos.includes('direccion')}
+        escrito={escritos.direccion}
         etiqueta={T.ficha.direccion}
         cambia={marcados.has('direccion')}
         antes={vacio(punto.direccion)}
@@ -279,6 +322,8 @@ export function CamposEditar({
 
       <Marcado
         campo="descripcion"
+        nuevo={nuevos.includes('descripcion')}
+        escrito={escritos.descripcion}
         etiqueta={T.formulario.descripcionOpcional}
         cambia={marcados.has('descripcion')}
         antes={vacio(punto.descripcion)}
@@ -294,6 +339,29 @@ export function CamposEditar({
       </Marcado>
     </>
   );
+}
+
+/** Lo que se había puesto en un campo, en palabras, para enseñarlo si el otro lo cambió (RV-471). */
+function textoEscrito(campo: CampoEditado, v: Valores): string {
+  const texto = (s: string) => s.trim() || T.panelEditar.vacio;
+  switch (campo) {
+    case 'ubicacion':
+      return T.panelEditar.otraPosicion;
+    case 'diametro':
+      if (v.diametro === 'otro')
+        return v.diametroOtro.trim() ? T.formato.mm(v.diametroOtro.trim()) : T.panelEditar.vacio;
+      return v.diametro === undefined ? T.panelEditar.vacio : T.formato.mm(v.diametro);
+    case 'enganche':
+      return v.racor ? nombreRacor(v.racor) : T.panelEditar.vacio;
+    case 'estado':
+      return nombreCaudal(v.caudal);
+    case 'fallo':
+      return texto(v.fallo);
+    case 'direccion':
+      return texto(v.direccion);
+    case 'descripcion':
+      return texto(v.descripcion);
+  }
 }
 
 type Pregunta = { para: 'cerrar' } | { para: 'salir'; destino: string } | { para: 'nuevo' };
@@ -342,6 +410,23 @@ export default function EditarPunto({
   const [v, setV] = useState<Valores>(() => valoresDe(punto));
   const [ocupado, setOcupado] = useState(false);
   const [pregunta, setPregunta] = useState<Pregunta | null>(null);
+  // Al guardar, el servidor ha dicho que otro lo ha cambiado (PUNTO_CAMBIADO, docs/36 RV-471): no se
+  // guarda hasta ver lo nuevo; `desaparecido` si al releer el punto ya no está. `nuevos`: los campos
+  // que trajo lo nuevo, marcados; `escritos`: lo que se había puesto en los que también cambió el otro.
+  const [cambiado, setCambiado] = useState<null | 'cambiado' | 'desaparecido'>(null);
+  const [cargandoNuevo, setCargandoNuevo] = useState(false);
+  const [nuevos, setNuevos] = useState<CampoEditado[]>([]);
+  const [escritos, setEscritos] = useState<Partial<Record<CampoEditado, string>>>({});
+  const idCambiado = useId();
+  // Con el aviso, el foco va a «Ver lo nuevo»: Guardar, que lo tenía, queda deshabilitado.
+  const botonVerNuevo = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (cambiado === 'cambiado') botonVerNuevo.current?.focus({ preventScroll: true });
+  }, [cambiado]);
+  const vActual = useRef(v);
+  useEffect(() => {
+    vActual.current = v;
+  }, [v]);
   // Dónde estaba el foco al preguntar: si se sigue en Editar, vuelve ahí (o, si ya no está, al título
   // del panel, docs/33 RV-333), en vez de quedarse en <body> detrás del panel (RV-128, docs/31 RV-165).
   const focoAntes = useRef<HTMLElement | null>(null);
@@ -355,19 +440,37 @@ export default function EditarPunto({
   const campos = camposCambiados(cambios);
   const n = campos.length;
   const falta = faltaEnEdicion(punto, formulario);
-  const cambiar = useCallback((c: Partial<Valores>) => setV((x) => ({ ...x, ...c })), []);
+  const cambiar = useCallback((c: Partial<Valores>) => {
+    setV((x) => ({ ...x, ...c }));
+    // Tocado a mano, un campo deja de ir marcado como «lo nuevo» (RV-471).
+    const tocaA = (campo: CampoEditado) => PARTES_CAMPO[campo].some((k) => k in c);
+    setNuevos((l) => (l.some(tocaA) ? l.filter((campo) => !tocaA(campo)) : l));
+    setEscritos((e) =>
+      (Object.keys(e) as CampoEditado[]).some(tocaA)
+        ? Object.fromEntries(Object.entries(e).filter(([campo]) => !tocaA(campo as CampoEditado)))
+        : e,
+    );
+  }, []);
+  const olvidarMarcas = () => {
+    setNuevos([]);
+    setEscritos({});
+  };
 
   // Cambiado por fuera: sin nada propio (ni guardando ni preguntando), se carga lo nuevo al momento,
   // durante el render, como recomienda React para un estado que sigue a una prop.
   const nuevo = actual && actual.actualizado_en !== punto.actualizado_en ? actual : null;
-  if (nuevo && n === 0 && !ocupado && !pregunta) {
+  if (nuevo && n === 0 && !ocupado && !pregunta && !cargandoNuevo) {
     setPunto(nuevo);
     setV(valoresDe(nuevo));
+    olvidarMarcas();
+    // Sin nada propio que guardar, el aviso de RV-471 ya no hace falta (salvo si el punto ya no está).
+    if (cambiado === 'cambiado') setCambiado(null);
   }
   const cargarNuevo = () => {
     if (!nuevo) return;
     setPunto(nuevo);
     setV(valoresDe(nuevo));
+    olvidarMarcas();
   };
 
   useEffect(() => alEstado?.({ pendientes: n, ocupado }), [n, ocupado, alEstado]);
@@ -500,8 +603,15 @@ export default function EditarPunto({
     setOcupado(true);
     estado.current.ocupado = true;
     try {
-      // lat y lng solo si se ha movido: cambiosDe ya los deja fuera si no.
-      const r = await editarPunto(punto.id, cambios);
+      // lat y lng solo si se ha movido: cambiosDe ya los deja fuera si no. Con la versión del punto
+      // que se está editando: si otro lo ha cambiado, no se pisa (DEC-208).
+      const r = await editarPunto(punto.id, cambios, punto.datos_cambiados_en);
+      if (!r.ok && r.codigo === 'PUNTO_CAMBIADO') {
+        // Cerrado mientras guardaba: el aviso del panel, para que no parezca guardado.
+        if (!estado.current.montado) return avisar(textoError(r.codigo), 'error');
+        setCambiado('cambiado');
+        return;
+      }
       if (!r.ok) return avisar(textoError(r.codigo), 'error');
       avisar(T.panelInventario.guardado(punto.codigo));
       if (!estado.current.montado) return;
@@ -510,6 +620,47 @@ export default function EditarPunto({
     } finally {
       estado.current.ocupado = false;
       if (estado.current.montado) setOcupado(false);
+    }
+  }
+
+  /**
+   * «Ver lo nuevo» tras PUNTO_CAMBIADO: vuelve a leer el inventario y carga el punto de ahora,
+   * conservando lo escrito en lo que el otro no ha tocado (fusionarConNuevo).
+   */
+  async function verLoNuevo() {
+    setCargandoNuevo(true);
+    try {
+      const leer = () => estadoPuntos().puntos.find((p) => p.id === punto.id);
+      const igual = () => {
+        const p = leer();
+        return !!p && p.datos_cambiados_en === punto.datos_cambiados_en;
+      };
+      let r = await sincronizar(null);
+      // Una lectura que ya estaba en marcha puede traer el punto de antes: se repite una vez.
+      if (r.ok && igual()) r = await sincronizar(null);
+      if (!estado.current.montado) return;
+      if (!r.ok) return avisar(textoError(r.codigo), 'error');
+      const ahora = leer();
+      if (!ahora) {
+        // Retirado o borrado: no hay nada que guardar. Lo escrito sigue a la vista hasta cerrar.
+        setCambiado('desaparecido');
+        return;
+      }
+      // Todavía no llega lo nuevo: el aviso sigue y se puede volver a probar.
+      if (igual()) return avisar(T.panelEditar.aunNoSeVe, 'error');
+      const { valores, tocados, pisados } = fusionarConNuevo(punto, ahora, vActual.current);
+      setV(valores);
+      setNuevos(tocados);
+      setEscritos(Object.fromEntries(pisados.map((c) => [c, textoEscrito(c, vActual.current)])));
+      setPunto(ahora);
+      setCambiado(null);
+      if (!tocados.length) avisar(T.panelEditar.cambioFuera);
+      alTitulo();
+    } catch (e) {
+      anotarError(e, 'editar-ver-lo-nuevo');
+      if (estado.current.montado) avisar(textoError('ERROR_INTERNO'), 'error');
+    } finally {
+      if (estado.current.montado) setCargandoNuevo(false);
     }
   }
 
@@ -555,7 +706,30 @@ export default function EditarPunto({
 
           {/* Cambiado por fuera con cambios propios sin guardar (RV-165). Mientras guarda no sale:
               "Ver lo nuevo" no podría hacer nada. */}
-          {nuevo && !ocupado && (
+          {/* Al guardar, el servidor ha dicho que otro lo ha cambiado (docs/36 RV-471): no se ha guardado
+              nada y lo escrito sigue aquí. «Ver lo nuevo» lo carga sin perderlo. */}
+          {cambiado && (
+            <div
+              role="alert"
+              id={idCambiado}
+              className="bg-tinte-oro border-oro-600 text-tinte-oro-texto flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm"
+            >
+              <span className="min-w-0 flex-1">
+                {cambiado === 'cambiado' ? T.panelEditar.puntoCambiado : T.panelEditar.yaNoEsta}
+              </span>
+              {cambiado === 'cambiado' && (
+                <Boton
+                  ref={botonVerNuevo}
+                  variante="secundario"
+                  disabled={cargandoNuevo}
+                  onClick={() => void verLoNuevo()}
+                >
+                  {cargandoNuevo ? T.panelEditar.cargandoNuevo : T.panelEditar.verLoNuevo}
+                </Boton>
+              )}
+            </div>
+          )}
+          {nuevo && !ocupado && !cambiado && (
             <div
               role="status"
               className="bg-tinte-oro border-oro-600 text-tinte-oro-texto flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b px-4 py-2 text-sm"
@@ -573,6 +747,8 @@ export default function EditarPunto({
               v={v}
               cambiar={cambiar}
               gps={posicion.tipo === 'ok' ? posicion.posicion : null}
+              nuevos={nuevos}
+              escritos={escritos}
             />
           </div>
 
@@ -583,9 +759,10 @@ export default function EditarPunto({
                 <Boton variante="secundario" disabled={ocupado} onClick={intentarCerrar}>
                   {T.panelCola.cancelar}
                 </Boton>
+                {/* Tras PUNTO_CAMBIADO no se guarda hasta ver lo nuevo: el motivo es el aviso de arriba. */}
                 <Boton
-                  disabled={ocupado || !!falta}
-                  aria-describedby={motivo ? idFalta : idResumen}
+                  disabled={ocupado || !!falta || !!cambiado}
+                  aria-describedby={cambiado ? idCambiado : motivo ? idFalta : idResumen}
                   onClick={() => void guardar()}
                 >
                   {ocupado ? T.panelEditar.guardando : T.panel.guardarCambios}

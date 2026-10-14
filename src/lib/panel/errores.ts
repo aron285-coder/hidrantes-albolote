@@ -47,6 +47,9 @@ export function textoError(codigo: string): string {
       return T.panelErrores.sinServidor;
     case 'PUNTO_OCUPADO':
       return T.panelErrores.puntoOcupado;
+    // docs/36 RV-471: otro administrador ha cambiado el punto mientras se editaba.
+    case 'PUNTO_CAMBIADO':
+      return T.panelEditar.puntoCambiado;
     case 'TIPO_NO_MODIFICABLE':
       return T.panelErrores.tipoNoModificable;
     // docs/31 RV-146: /api/lanzar-workflow en staging, y un trabajo que ya está pedido.

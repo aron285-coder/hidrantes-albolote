@@ -27,4 +27,9 @@ export interface Punto {
   lng: number;
   radio_px: number;
   revision_caducada: boolean;
+  /**
+   * Cuándo cambiaron por última vez los datos del punto (0048, docs/36 RV-452): la versión que Editar
+   * manda al guardar. Solo la trae jefatura; los puntos guardados antes de 0048 no la tienen.
+   */
+  datos_cambiados_en?: string;
 }
