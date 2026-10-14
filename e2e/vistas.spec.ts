@@ -489,6 +489,22 @@ const VISTAS: Vista[] = [
     },
     anchoEscritorio: 1440,
   },
+  {
+    // docs/36 RV-450: la cuenta de Google tiene otra identidad unida y no entra en jefatura.
+    nombre: 'no-autorizado-cuenta-mezclada',
+    ruta: '/admin',
+    preparar: async (p) => {
+      await conGoogle(p, 'jefe@example.org');
+      await simularRpc(p, { fn_es_admin: false });
+      await p.route('**/api/vincular-jefatura', (r) =>
+        r.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"CUENTA_MEZCLADA"}' }),
+      );
+    },
+    lista: async (p) => {
+      await expect(p.getByText(T.entrada.cuentaMezcladaDetalle)).toBeVisible();
+    },
+    anchoEscritorio: 1440,
+  },
 ];
 
 async function capturar(page: Page, info: TestInfo, nombre: string) {
