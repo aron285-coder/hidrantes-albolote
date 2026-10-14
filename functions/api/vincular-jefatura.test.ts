@@ -30,11 +30,20 @@ const google = (email: string, ...v: unknown[]) => ({
   identity_data: { email, email_verified: v.length ? v[0] : true },
 });
 
+const conCorreo = (email: string, provider = 'email', verificado: unknown = true) => ({
+  provider,
+  identity_data: { email, email_verified: verificado },
+});
+
 interface Red {
   /** Lo que contesta GET /auth/v1/user. */
   usuario?: Response | Error;
   /** Lo que contesta fn_vincular_administrador. */
   vincular?: Response | Error;
+  /** Lo que contesta POST /auth/v1/logout?scope=others (docs/36 RV-450). */
+  cerrarOtras?: Response | Error;
+  /** Lo que contesta fn_desvincular_administrador. */
+  desvincular?: Response | Error;
 }
 
 const usuarioAuth = (cuerpo: Record<string, unknown>) =>
@@ -43,6 +52,8 @@ const usuarioAuth = (cuerpo: Record<string, unknown>) =>
 function fingirRed({
   usuario = usuarioAuth({ email: 'jefa@example.com', identities: [google('jefa@example.com')] }),
   vincular = new Response('"VINCULADO"'),
+  cerrarOtras = new Response(null, { status: 204 }),
+  desvincular = new Response('true'),
 }: Red = {}) {
   const llamadas: { url: string; cuerpo: unknown; autorizacion: string | null }[] = [];
   const espia = vi.spyOn(globalThis, 'fetch').mockImplementation((entrada, opciones) => {
@@ -56,11 +67,15 @@ function fingirRed({
     });
     const r = url.endsWith('/auth/v1/user')
       ? usuario
-      : url.includes('/rpc/fn_vincular_administrador')
-        ? vincular
-        : url.includes('/rpc/fn_registrar_error')
-          ? new Response('', { status: 204 })
-          : null;
+      : url.endsWith('/auth/v1/logout?scope=others')
+        ? cerrarOtras
+        : url.includes('/rpc/fn_vincular_administrador')
+          ? vincular
+          : url.includes('/rpc/fn_desvincular_administrador')
+            ? desvincular
+            : url.includes('/rpc/fn_registrar_error')
+              ? new Response('', { status: 204 })
+              : null;
     if (r === null) return Promise.resolve(new Response('null', { status: 404 }));
     return r instanceof Error ? Promise.reject(r) : Promise.resolve(r.clone());
   });
@@ -68,6 +83,10 @@ function fingirRed({
 }
 
 const llamoALaRpc = (llamadas: { url: string }[]) => llamadas.some((l) => l.url.includes('fn_vincular_administrador'));
+const cerroOtras = <L extends { url: string }>(llamadas: L[]) =>
+  llamadas.filter((l) => l.url.includes('/auth/v1/logout'));
+const desvinculo = <L extends { url: string }>(llamadas: L[]) =>
+  llamadas.filter((l) => l.url.includes('/rpc/fn_desvincular_administrador'));
 /** Lo que se anotó en errores_cliente (el mensaje), si se anotó algo. */
 const anotado = (llamadas: { url: string; cuerpo: unknown }[]) =>
   llamadas
@@ -95,17 +114,166 @@ describe('POST /api/vincular-jefatura', () => {
     expect(rpc.autorizacion).toBe('Bearer clave-de-servicio');
   });
 
-  it('el correo de la cuenta distinto del de su identidad de Google: cuenta el de Google, y sin acceso → 403', async () => {
-    const { llamadas } = fingirRed({
-      usuario: usuarioAuth({ email: 'jefa@example.com', identities: [google('otra.persona@example.org')] }),
-      vincular: new Response('"NO_ES_ADMINISTRADOR"'),
-    });
+  it('sin acceso en la base de datos → 403 con su código, y no se cierra ninguna sesión', async () => {
+    const { llamadas } = fingirRed({ vincular: new Response('"NO_ES_ADMINISTRADOR"') });
     const r = await onRequestPost({ request: peticion(), env: ENV });
     expect(r.status).toBe(403);
     expect(await r.json()).toEqual({ error: 'NO_ES_ADMINISTRADOR' });
-    const rpc = llamadas.find((l) => l.url.includes('/rpc/fn_vincular_administrador'))!;
-    expect(rpc.cuerpo).toEqual({ usuario: USUARIO, correo: 'otra.persona@example.org' });
-    expect(JSON.stringify(llamadas.map((l) => l.cuerpo))).not.toContain('jefa@example.com');
+    expect(cerroOtras(llamadas)).toEqual([]);
+  });
+
+  // docs/36 RV-450 (DEC-206): solo se une una cuenta cuyas identidades llevan todas el mismo correo
+  // verificado, que además es el de la cuenta.
+  describe('una cuenta con otra identidad unida (docs/36 RV-450)', () => {
+    it.each([
+      [
+        'dos identidades de Google con correos distintos',
+        { email: 'jefa@example.com', identities: [google('jefa@example.com'), google('otra.persona@example.org')] },
+        'identidad google con otro correo',
+      ],
+      [
+        // La primera de Google es la que da el correo: aquí no coincide con el de la cuenta.
+        'dos identidades de Google, la ajena primero',
+        { email: 'jefa@example.com', identities: [google('otra.persona@example.org'), google('jefa@example.com')] },
+        'correo de la cuenta distinto',
+      ],
+      [
+        'el correo de la cuenta distinto del de su identidad de Google',
+        { email: 'otra.persona@example.org', identities: [google('jefa@example.com')] },
+        'correo de la cuenta distinto',
+      ],
+      ['la cuenta sin correo', { identities: [google('jefa@example.com')] }, 'correo de la cuenta distinto'],
+      [
+        'otra identidad con el mismo correo sin verificar',
+        {
+          email: 'jefa@example.com',
+          identities: [conCorreo('jefa@example.com', 'email', false), google('jefa@example.com')],
+        },
+        'identidad email sin verificar',
+      ],
+      [
+        'otra identidad sin correo',
+        {
+          email: 'jefa@example.com',
+          identities: [{ provider: 'phone', identity_data: {} }, google('jefa@example.com')],
+        },
+        'identidad phone con otro correo',
+      ],
+      [
+        'otra identidad de otro proveedor con otro correo',
+        {
+          email: 'jefa@example.com',
+          identities: [google('jefa@example.com'), conCorreo('otra.persona@example.org', 'github')],
+        },
+        'identidad github con otro correo',
+      ],
+      [
+        'otra identidad de un proveedor que no se conoce',
+        {
+          email: 'jefa@example.com',
+          identities: [google('jefa@example.com'), conCorreo('otra.persona@example.org', 'jefa@example.com')],
+        },
+        'identidad otro con otro correo',
+      ],
+    ])('%s → 403 CUENTA_MEZCLADA, sin unir y anotado sin datos', async (_, cuerpo, motivo) => {
+      const { llamadas } = fingirRed({ usuario: usuarioAuth(cuerpo) });
+      const r = await onRequestPost({ request: peticion(), env: ENV });
+      expect(r.status).toBe(403);
+      expect(await r.json()).toEqual({ error: 'CUENTA_MEZCLADA' });
+      expect(llamoALaRpc(llamadas)).toBe(false);
+      expect(cerroOtras(llamadas)).toEqual([]);
+      expect(anotado(llamadas)).toEqual([`vincular_jefatura: cuenta con otra identidad (${motivo})`]);
+      // Con su propio cupo, aparte del de los fallos de verdad.
+      const registro = llamadas.find((l) => l.url.includes('/rpc/fn_registrar_error'))!;
+      expect(registro.cuerpo).toMatchObject({ ip_hash: 'funcion:vincular_jefatura:cuenta' });
+      const escrito = JSON.stringify(llamadas.map((l) => l.cuerpo));
+      expect(escrito).not.toContain('example');
+      expect(escrito).not.toContain(USUARIO);
+    });
+
+    it('una identidad de correo y contraseña con el mismo correo, más la de Google → une', async () => {
+      const { llamadas } = fingirRed({
+        usuario: usuarioAuth({
+          email: 'Jefa@Example.com',
+          identities: [conCorreo(' jefa@example.com '), google('JEFA@example.com')],
+        }),
+      });
+      const r = await onRequestPost({ request: peticion(), env: ENV });
+      expect(r.status).toBe(200);
+      expect(await r.json()).toEqual({ resultado: 'VINCULADO' });
+      const rpc = llamadas.find((l) => l.url.includes('/rpc/fn_vincular_administrador'))!;
+      expect(rpc.cuerpo).toEqual({ usuario: USUARIO, correo: 'jefa@example.com' });
+    });
+  });
+
+  describe('tras unir, las demás sesiones se cierran (docs/36 RV-450)', () => {
+    it('VINCULADO → cierra las demás sesiones de ese usuario con el JWT de esta', async () => {
+      const { llamadas } = fingirRed();
+      const r = await onRequestPost({ request: peticion(), env: ENV });
+      expect(r.status).toBe(200);
+      const cierre = cerroOtras(llamadas);
+      expect(cierre).toHaveLength(1);
+      expect(cierre[0]!.url).toBe('https://proyecto.supabase.co/auth/v1/logout?scope=others');
+      expect(cierre[0]!.autorizacion).toBe('Bearer a.b.c');
+      // Primero la unión, después el cierre.
+      expect(llamadas.findIndex((l) => l.url.includes('/auth/v1/logout'))).toBeGreaterThan(
+        llamadas.findIndex((l) => l.url.includes('fn_vincular_administrador')),
+      );
+      expect(desvinculo(llamadas)).toEqual([]);
+    });
+
+    // El panel solo llama aquí si fn_es_admin le ha dicho que no: una unión anterior cuyo cierre
+    // falló (y no se pudo deshacer) se cierra en la siguiente entrada.
+    it('YA_VINCULADO → también cierra las demás sesiones; si falla, deshace y 503', async () => {
+      let red = fingirRed({ vincular: new Response('"YA_VINCULADO"') });
+      expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(200);
+      expect(cerroOtras(red.llamadas)).toHaveLength(1);
+      vi.mocked(globalThis.fetch).mockRestore();
+      red = fingirRed({ vincular: new Response('"YA_VINCULADO"'), cerrarOtras: new Response('{}', { status: 500 }) });
+      expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
+      expect(desvinculo(red.llamadas)).toHaveLength(1);
+    });
+
+    it.each([
+      ['un 500', new Response('{}', { status: 500 }), 'vincular_jefatura: cierre de sesiones 500'],
+      ['un 401', new Response('{}', { status: 401 }), 'vincular_jefatura: cierre de sesiones 401'],
+      ['sin red', new Error('red'), 'vincular_jefatura: cierre de sesiones red'],
+    ])('si el cierre falla con %s, se deshace la unión y 503', async (_, cerrarOtras, mensaje) => {
+      const { llamadas } = fingirRed({ cerrarOtras });
+      const r = await onRequestPost({ request: peticion(), env: ENV });
+      expect(r.status).toBe(503);
+      expect(await r.json()).toEqual({ error: 'SERVIDOR_NO_DISPONIBLE' });
+      const deshacer = desvinculo(llamadas);
+      expect(deshacer).toHaveLength(1);
+      expect(deshacer[0]!.cuerpo).toEqual({ correo: 'jefa@example.com' });
+      expect(deshacer[0]!.autorizacion).toBe('Bearer clave-de-servicio');
+      expect(anotado(llamadas)).toEqual([mensaje]);
+    });
+
+    it('si tampoco se puede deshacer, lo reintenta una vez; 503 y los dos fallos anotados', async () => {
+      const { llamadas } = fingirRed({
+        cerrarOtras: new Response('{}', { status: 500 }),
+        desvincular: new Response('{}', { status: 503 }),
+      });
+      expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
+      expect(desvinculo(llamadas)).toHaveLength(2);
+      expect(anotado(llamadas)).toEqual([
+        'vincular_jefatura: cierre de sesiones 500',
+        'vincular_jefatura: unión sin deshacer, rpc ERROR_INTERNO 503',
+      ]);
+    });
+
+    it('deshacer que contesta «no estaba unida» también se anota', async () => {
+      const { llamadas } = fingirRed({
+        cerrarOtras: new Response('{}', { status: 500 }),
+        desvincular: new Response('false'),
+      });
+      expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
+      expect(anotado(llamadas)).toEqual([
+        'vincular_jefatura: cierre de sesiones 500',
+        'vincular_jefatura: unión sin deshacer, no estaba unida',
+      ]);
+    });
   });
 
   it('sin identidad de Google → 403 y no llama a la RPC', async () => {

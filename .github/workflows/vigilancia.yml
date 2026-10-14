@@ -18,6 +18,12 @@ on:
     - cron: '41 7 * * *'
     - cron: '41 19 * * *'
   workflow_dispatch:
+    inputs:
+      uniones:
+        description: 'Uniones de jefatura (docs/36 RV-463): solo informar del motivo o desunir'
+        type: choice
+        options: [solo-informar, desunir]
+        default: solo-informar
 
 # Nada por defecto: cada trabajo pide lo suyo (docs/32 RV-201, DEC-180). actions: write también borra
 # artifacts, y el respaldo es un artifact y el único: solo lo tiene «rehabilitar», que no hace checkout.
@@ -88,14 +94,37 @@ jobs:
         with:
           npm: 'false'
           psql: 'true'
+      # Las uniones de jefatura de staging (docs/36 RV-463): la service role, solo en este paso. Si se
+      # corta, el resto se comprueba igual y eso es un problema (UNIONES_RESULTADO).
+      - name: Revisar las uniones de jefatura
+        id: uniones
+        timeout-minutes: 5
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # La programada desune; a mano, solo-informar por defecto (entrada uniones).
+          REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'desunir' }}
+        run: |
+          set -uo pipefail
+          source .github/scripts/revisar-uniones.sh
+          revisar_uniones 'staging: '
       - name: Comprobar staging
         id: mirar
         env:
           BD: ${{ secrets.SUPABASE_DB_URL }}
+          UNIONES: ${{ steps.uniones.outputs.problemas }}
+          UNIONES_RESULTADO: ${{ steps.uniones.outcome }}
         run: |
           set -uo pipefail
           problemas=()
           source .github/scripts/revisar-bd.sh
+          while IFS= read -r linea; do
+            if [ -n "$linea" ]; then problemas+=("$linea"); fi
+          done <<< "${UNIONES:-}"
+          if [ "${UNIONES_RESULTADO:-}" != success ]; then
+            problemas+=("staging: la revisión de las uniones de jefatura no terminó (${UNIONES_RESULTADO:-sin resultado})")
+          fi
           if [ -n "${BD:-}" ]; then
             revisar_bd staging "$BD"
             ok=$([ ${#problemas[@]} -eq 0 ] && echo true || echo false)
@@ -108,6 +137,16 @@ jobs:
             if [ ${#problemas[@]} -gt 0 ]; then printf '%s\n' "${problemas[@]}"; fi
             echo 'FIN_PROBLEMAS'
           } >> "$GITHUB_OUTPUT"
+      # Una cuenta de jefatura de staging desunida: aviso técnico a la jefatura de staging, la del
+      # piloto (DEC-202). Los problemas de staging no lo mandan desde `mirar`, que avisa a producción.
+      - name: Aviso técnico a jefatura de staging
+        if: always() && steps.uniones.outputs.avisar == 'si'
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -uo pipefail
+          source .github/scripts/avisos-tecnicos.sh
+          aviso_tecnico_paso vigilancia
 
   mirar:
     needs: [worker, staging]
@@ -135,9 +174,28 @@ jobs:
           npm: 'false'
           psql: 'true'
 
+      # Las uniones de jefatura de producción (docs/36 RV-463): la service role, solo en este paso. Una
+      # desunida es un problema de producción, y con él va el aviso técnico de «Aviso técnico a jefatura».
+      # Si se corta, el resto se comprueba igual y eso es un problema (UNIONES_RESULTADO).
+      - name: Revisar las uniones de jefatura
+        id: uniones
+        timeout-minutes: 5
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          # La programada desune; a mano, solo-informar por defecto (entrada uniones).
+          REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'desunir' }}
+        run: |
+          set -uo pipefail
+          source .github/scripts/revisar-uniones.sh
+          revisar_uniones ''
+
       - name: Comprobar
         id: mirar
         env:
+          UNIONES: ${{ steps.uniones.outputs.problemas }}
+          UNIONES_RESULTADO: ${{ steps.uniones.outcome }}
           APP: https://hidrantes-albolote.pages.dev
           APP_STAGING: https://hidrantes-albolote-staging.pages.dev
           SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
@@ -196,6 +254,13 @@ jobs:
             revisar_bd produccion "$BD"
           else
             problemas+=("falta SUPABASE_DB_URL_PROD en prod-tareas: la vigilancia no puede mirar el respaldo (DEC-172)")
+          fi
+          # Las uniones de jefatura, del paso anterior (docs/36 RV-463).
+          while IFS= read -r linea; do
+            if [ -n "$linea" ]; then problemas+=("$linea"); fi
+          done <<< "${UNIONES:-}"
+          if [ "${UNIONES_RESULTADO:-}" != success ]; then
+            problemas+=("la revisión de las uniones de jefatura no terminó (${UNIONES_RESULTADO:-sin resultado})")
           fi
           # La copia del respaldo sigue ahí (docs/32 RV-201, DEC-180): el artifact de la última ejecución
           # correcta de respaldo.yml, no solo la fecha de config.ultimo_respaldo. Es la única copia: si

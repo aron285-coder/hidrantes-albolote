@@ -154,6 +154,12 @@ export const NOMBRE_ACCION: Record<string, string> = {
   anonimizacion: T.panelRegistro.anonimizacion,
   exportacion: T.panelRegistro.exportacion,
   workflow_lanzado: T.panelRegistro.workflowLanzado,
+  // docs/36 RV-472: `acciones-registro.test.ts` comprueba que no falta ninguna de las migraciones.
+  entrada_abierta: T.panelRegistro.entradaAbierta,
+  entrada_cerrada: T.panelRegistro.entradaCerrada,
+  nucleo_guardado: T.panelRegistro.nucleoGuardado,
+  restauracion_respaldo: T.panelRegistro.restauracionRespaldo,
+  administrador_desvinculado: T.panelRegistro.administradorDesvinculado,
 };
 
 export const nombreAccion = (a: string) => NOMBRE_ACCION[a] ?? a;
@@ -207,8 +213,14 @@ export function movidoM(p: Punto, v: CambiosPunto): number {
   return v.lat === undefined || v.lng === undefined ? 0 : metros(p, { lat: v.lat, lng: v.lng });
 }
 
-export async function editarPunto(id: string, cambios: CambiosPunto): Promise<Resultado<null>> {
-  return refrescar(await rpc<null>('fn_editar_punto', { punto_id: id, cambios }));
+/**
+ * Guarda la edición. Con `version` (la `datos_cambiados_en` del punto que se abrió, docs/36 RV-471,
+ * DEC-208), si otro lo ha cambiado entretanto el servidor responde `PUNTO_CAMBIADO` y no toca nada.
+ */
+export async function editarPunto(id: string, cambios: CambiosPunto, version?: string): Promise<Resultado<null>> {
+  const argumentos: Record<string, unknown> = { punto_id: id, cambios };
+  if (version) argumentos.version = version;
+  return refrescar(await rpc<null>('fn_editar_punto', argumentos));
 }
 
 export async function retirarPunto(id: string, motivo: string): Promise<Resultado<null>> {
@@ -320,6 +332,47 @@ export function camposCambiados(c: CambiosPunto): CampoEditado[] {
   if ('direccion' in c) lista.push('direccion');
   if ('descripcion' in c) lista.push('descripcion');
   return lista;
+}
+
+/** Qué partes de `Valores` lleva cada campo de Editar (la ubicación, el pin; el diámetro, sus dos). */
+export const PARTES_CAMPO: Record<CampoEditado, (keyof Valores)[]> = {
+  ubicacion: ['pin'],
+  diametro: ['diametro', 'diametroOtro'],
+  enganche: ['racor'],
+  estado: ['caudal'],
+  fallo: ['fallo'],
+  direccion: ['direccion'],
+  descripcion: ['descripcion'],
+};
+
+/**
+ * «Ver lo nuevo» tras `PUNTO_CAMBIADO` (docs/36 RV-471, DEC-208): lo escrito en `v` se conserva en
+ * los campos que el otro no ha tocado entre `abierto` y `nuevo`; en los que sí, sale el valor nuevo,
+ * y `tocados` dice cuáles para marcarlos. `pisados` son los tocados en los que también se había
+ * escrito algo: Editar enseña lo que se había escrito, para que no se pierda sin verse (UI-06).
+ */
+export function fusionarConNuevo(
+  abierto: Punto,
+  nuevo: Punto,
+  v: Valores,
+): { valores: Valores; tocados: CampoEditado[]; pisados: CampoEditado[] } {
+  const antes = valoresDe(abierto);
+  const ahora = valoresDe(nuevo);
+  const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  const valores: Valores = { ...v };
+  const tocados: CampoEditado[] = [];
+  const pisados: CampoEditado[] = [];
+  for (const campo of Object.keys(PARTES_CAMPO) as CampoEditado[]) {
+    const partes = PARTES_CAMPO[campo];
+    if (partes.every((k) => igual(antes[k], ahora[k]))) continue;
+    tocados.push(campo);
+    // Lo escrito era distinto de lo que había y también de lo que ha puesto el otro.
+    if (partes.some((k) => !igual(v[k], antes[k])) && partes.some((k) => !igual(v[k], ahora[k]))) {
+      pisados.push(campo);
+    }
+    for (const k of partes) Object.assign(valores, { [k]: ahora[k] });
+  }
+  return { valores, tocados, pisados };
 }
 
 // ---------- parámetros que el panel necesita leer (05 §2.10) ----------

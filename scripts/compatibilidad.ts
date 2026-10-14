@@ -165,9 +165,20 @@ function vincularEnLaPilaLocal(usuario: string, correo: string): void {
   if (!/^[0-9a-f-]{36}$/i.test(usuario) || !correo.includes('@')) return;
   const bd = process.env.BD_PRUEBAS ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (Supabase local efímero)
   execFileSync('psql', ['-X', '-v', 'ON_ERROR_STOP=1', bd, '-c',
-    \`update hidrantes.administradores set usuario_id = '\${usuario}', vinculado_en = now() where email = '\${correo.toLowerCase().replace(/'/g, "''")}' and usuario_id is null\`]);
+    \`update hidrantes.administradores set usuario_id = '\${usuario}', vinculado_en = now() - interval '1 day' where email = '\${correo.toLowerCase().replace(/'/g, "''")}' and usuario_id is null\`]);
 }
 `;
+
+/**
+ * docs/36 RV-450 (DEC-206): jefatura exige además un JWT emitido después de la unión. El `sqlVincular`
+ * de una referencia de docs/35 une la fila con `vinculado_en = now()` **después** de emitir la sesión,
+ * así que su JWT ya no valdría. Se une como si fuera de antes (hace un día), igual que hace ahora
+ * `e2e/integracion/sesion-google.ts`: es un administrador que ya se unió, que es lo que hay en
+ * producción mientras dura el despliegue.
+ */
+export function adaptarVinculadoEn(texto: string): string {
+  return texto.replaceAll('vinculado_en = now() where email', "vinculado_en = now() - interval '1 day' where email");
+}
 
 export function adaptarVinculo(texto: string): string {
   const firma = '  const firmado = `${b64(cab)}.${b64(nuevos)}`;';
@@ -210,10 +221,12 @@ function adaptarVinculoAnterior(): void {
   const ruta = path.join(DESTINO, 'e2e', 'integracion', 'sesion-google.ts');
   if (!existsSync(ruta)) return;
   const texto = readFileSync(ruta, 'utf8');
-  const adaptado = adaptarVinculo(texto);
+  const adaptado = adaptarVinculadoEn(adaptarVinculo(texto));
   if (adaptado !== texto) {
     writeFileSync(ruta, adaptado);
-    log.info('sesion-google.ts: la sesión de jefatura deja unida su fila de administradores (docs/35 RV-400)');
+    log.info(
+      'sesion-google.ts: la sesión de jefatura deja unida su fila de administradores, desde antes de la sesión (docs/35 RV-400, docs/36 RV-450)',
+    );
   }
 }
 

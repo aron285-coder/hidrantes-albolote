@@ -166,6 +166,31 @@ const SALUD_STAGING = {
  * detalle legible: una edición con movimiento, un alta, un borrado y un cambio de parámetros.
  */
 const REGISTRO = [
+  // docs/36 RV-472: la entrada y los móviles, con palabras y en hora de Albolote.
+  {
+    id: 6,
+    momento: hace(0.2),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'entrada_abierta',
+    punto_id: null,
+    codigo: null,
+    resumen: 'entrada_abierta · hasta, horas, motivo',
+    antes: null,
+    despues: { hasta: '2026-10-14T22:00:00+00:00', horas: 24, motivo: 'codigo_nuevo_revocando' },
+  },
+  {
+    id: 5,
+    momento: hace(0.5),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'dispositivos_revocados',
+    punto_id: null,
+    codigo: null,
+    resumen: 'dispositivos_revocados · desde, dispositivos',
+    antes: null,
+    despues: { dispositivos: 3, desde: '2026-10-13T22:00:00+00:00' },
+  },
   {
     id: 4,
     momento: hace(1),
@@ -234,7 +259,7 @@ async function jefatura(page: Page) {
     // Salud del sistema como en staging: sin respaldo ni medida del bucket (docs/23 RV-98).
     if (nombre === 'fn_salud') return json(SALUD_STAGING);
     if (nombre === 'fn_registrar_error') return json(null);
-    if (nombre === 'fn_historial_punto') return json([...REGISTRO].reverse());
+    if (nombre === 'fn_historial_punto') return json(REGISTRO.filter((e) => e.punto_id).reverse());
     // Ajustes → Mantenimiento (docs/32 RV-260): un pedido sin despachar, como en staging.
     if (nombre === 'fn_pedidos_recientes')
       return json([
@@ -446,6 +471,30 @@ const VISTAS: Vista[] = [
     soloEscritorio: true,
   },
   {
+    // docs/36 RV-471: al guardar, otro administrador ya había cambiado el punto (PUNTO_CAMBIADO).
+    nombre: 'panel-editar-punto-cambiado',
+    ruta: '/admin/inventario',
+    preparar: async (p) => {
+      await jefatura(p);
+      await p.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_editar_punto`, (r) =>
+        r.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ code: 'P0001', message: 'PUNTO_CAMBIADO: otro administrador', details: null }),
+        }),
+      );
+    },
+    lista: async (p) => {
+      await p.getByRole('row').filter({ hasText: P0.codigo }).getByRole('button', { name: T.panel.editar }).click();
+      const editar = p.getByRole('dialog');
+      await editar.getByRole('radio', { name: T.formulario.malo }).click();
+      await editar.getByRole('button', { name: T.panel.guardarCambios }).click();
+      await expect(editar.getByText(T.panelEditar.puntoCambiado)).toBeVisible();
+    },
+    soloEscritorio: true,
+    anchoEscritorio: 1440,
+  },
+  {
     // docs/30 RV-127: el Registro dice qué cambió, con palabras, en la tabla y en las filas apiladas.
     nombre: 'panel-registro',
     ruta: '/admin/registro',
@@ -461,6 +510,24 @@ const VISTAS: Vista[] = [
     lista: async (p) => {
       await p.getByRole('button', { name: T.panel.historial }).first().click();
       await expect(p.getByRole('dialog').getByText(/Movido 5,6 m/)).toBeVisible();
+    },
+    anchoEscritorio: 1440,
+  },
+  {
+    // docs/36 RV-450: la cuenta de Google tiene otra identidad unida y no entra en jefatura.
+    nombre: 'no-autorizado-cuenta-mezclada',
+    ruta: '/admin',
+    preparar: async (p) => {
+      await conGoogle(p, 'jefe@example.org');
+      await simularRpc(p, { fn_es_admin: false });
+      await p.route('**/api/vincular-jefatura', (r) =>
+        r.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"CUENTA_MEZCLADA"}' }),
+      );
+      // Queda anotado: el servidor lo recibe.
+      await p.route('**/api/error', (r) => r.fulfill({ contentType: 'application/json', body: '{}' }));
+    },
+    lista: async (p) => {
+      await expect(p.getByText(T.entrada.cuentaMezcladaDetalle)).toBeVisible();
     },
     anchoEscritorio: 1440,
   },

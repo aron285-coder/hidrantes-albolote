@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 
@@ -32,6 +32,22 @@ cuenta lo que es solo de jefatura.
   **Jefatura** arriba. Al tocar *Jefatura* (o *Ajustes → Panel de jefatura*) se abre el panel; *Ir
   al mapa* o «atrás» te devuelven.
 - **Cerrar sesión**, arriba a la derecha.
+
+**La primera vez que entras en el panel** (o la primera tras devolverte el acceso), tu fila de
+administrador queda unida a tu cuenta de Google (DEC-197). Al unirla se cierran las sesiones que esa
+cuenta tenga abiertas en tus otros dispositivos (DEC-206): en el otro ordenador o en el móvil tendrás
+que **volver a entrar una vez**. Si usas el mismo usuario en la app de uniformidad, también allí. Después
+ya no vuelve a pasar.
+
+**Si sale «No autorizado» con este texto:** «Esta cuenta tiene otra identidad unida. Pide a otro
+administrador que te quite y te devuelva el acceso, y entra con una cuenta de Google propia.» Quiere
+decir que la cuenta con la que has entrado no es solo tuya: tiene unida otra forma de entrar (otra
+cuenta u otro proveedor) con un correo distinto o sin verificar, y una cuenta así no se une a jefatura
+(para el responsable técnico es la respuesta `CUENTA_MEZCLADA`, que queda anotada en *Errores de la
+aplicación* de Salud del sistema).
+Entra con una cuenta de Google que solo uses tú y pide a otro administrador que te quite el acceso y
+te lo devuelva en *Ajustes → Acceso de administradores*. Si no sabes de dónde sale esa otra identidad,
+avisa al responsable técnico (15 §5.5).
 
 Desde el móvil, como jefatura, cualquier operación sobre un punto **se aplica al momento**: el botón
 dice *Aplicar ahora* y el cambio no pasa por la cola. Queda en el Registro como acción de
@@ -162,7 +178,11 @@ y la hora. Cambia también el código si el que se filtró sigue en vigor.
 
 Escribe el correo y **Añadir**; para quitar a alguien, apaga su interruptor y confírmalo en
 **Quitar el acceso** (si eres tú, saldrás del panel). Tiene que quedar al menos un administrador con
-acceso. Quien acabas de añadir queda unido a su cuenta de Google la primera vez que entra en el panel. No hace falta tocar nada técnico.
+acceso. Quien acabas de añadir queda unido a su cuenta de Google la primera vez que entra en el panel,
+y tendrá que volver a entrar una vez en sus otros dispositivos (apartado 2). No hace falta tocar nada
+técnico. La comprobación diaria revisa estas uniones: si una cuenta deja de ser de una sola persona, la
+desune y lo dice en la issue de vigilancia (y llega el aviso técnico de la comprobación diaria); quien
+sea vuelve a entrar (15 §4).
 
 ### Parámetros
 
@@ -252,6 +272,7 @@ El procedimiento de cada caso está en **15** (Continuidad y emergencias). Los m
 | La app no carga o sale en blanco | 15 §5.1 |
 | El código de acceso se ha filtrado | 15 §5.4: código nuevo **revocando** |
 | Una cuenta de administrador puede estar comprometida | 15 §5.5: quitarla de *Acceso de administradores* |
+| La comprobación diaria ha desunido una cuenta de jefatura (aviso técnico; en la issue, «una cuenta de jefatura se ha desunido») | 15 §4: volver a entrar; si se repite, revisar la cuenta de Google |
 | Se han perdido o estropeado datos | 15 §5.3: se restaura el respaldo |
 | Supabase, Cloudflare o GitHub caídos | 15 §5.8: la app sigue abriendo con lo guardado en cada móvil |
 | Un sábado por la tarde nadie conecta | Bloqueos durante el fútbol: lo pendiente sale solo al acabar |

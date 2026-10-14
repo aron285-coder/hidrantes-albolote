@@ -43,6 +43,9 @@ export const T = {
     noAutorizadoDetalle:
       'Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.',
     sinAcceso: 'Sin acceso',
+    // docs/36 RV-450: la cuenta de Google tiene otra identidad unida y no se une a jefatura.
+    cuentaMezcladaDetalle:
+      'Esta cuenta tiene otra identidad unida. Pide a otro administrador que te quite y te devuelva el acceso, y entra con una cuenta de Google propia.',
     // docs/35 RV-432: al entrar con Google no se ha podido saber si la cuenta es de jefatura.
     cuentaSinComprobar: 'No se ha podido comprobar tu cuenta',
     cuentaSinComprobarDetalle: 'Puede ser la conexión o el servidor. Inténtalo de nuevo en un momento.',
@@ -991,6 +994,17 @@ export const T = {
     // docs/31 RV-165: el punto cambió por fuera mientras Editar tenía cambios sin guardar.
     otroAdministrador: 'Otro administrador ha cambiado este punto.',
     verLoNuevo: 'Ver lo nuevo',
+    // docs/36 RV-471: al guardar, el servidor dice que otro lo ha cambiado (PUNTO_CAMBIADO).
+    puntoCambiado: 'Otro administrador ha cambiado este punto mientras lo editabas. Mira lo nuevo antes de guardar.',
+    cargandoNuevo: 'Cargando lo nuevo…',
+    // Debajo de un campo que el otro ha cambiado, tras «Ver lo nuevo».
+    valorNuevo: 'Valor nuevo: lo ha cambiado otro administrador.',
+    yaNoEsta: 'Este punto ya no está en el inventario: otro administrador lo ha retirado o borrado.',
+    // Debajo de un campo que los dos habían cambiado: lo que había escrito quien edita.
+    loQueEscribiste: (valor: Parametro) => `Lo que habías puesto: ${valor}`,
+    otraPosicion: 'otra posición del pin',
+    aunNoSeVe: 'Todavía no llega lo nuevo. Prueba otra vez en un momento.',
+    cambioFuera: 'Ha cambiado algo que no se edita aquí. Ya puedes guardar.',
   },
 
   panelRegistro: {
@@ -1030,6 +1044,19 @@ export const T = {
     exportacion: 'Exportación',
     // docs/32 RV-260: el panel solo lo pide; lo lanza el despachador (o nadie, en staging).
     workflowLanzado: 'Mantenimiento pedido',
+    // docs/36 RV-472: las acciones que salían con su clave, y la de RV-450.
+    entradaAbierta: 'Entrada abierta para todos',
+    entradaCerrada: 'Entrada para todos cerrada',
+    nucleoGuardado: 'Núcleo guardado',
+    restauracionRespaldo: 'Respaldo restaurado',
+    administradorDesvinculado: 'Administrador separado de su cuenta de Google',
+    // Una marca de tiempo del detalle, en hora de Albolote (docs/36 RV-472).
+    fechaHora: (fecha: Parametro, hora: Parametro) => `${fecha} a las ${hora}`,
+    motivos: {
+      jefatura: 'Abierta por jefatura',
+      codigo_nuevo: 'Código nuevo',
+      codigo_nuevo_revocando: 'Código nuevo revocando los móviles',
+    },
     // Detalle legible (docs/30 RV-127, DEC-171): qué cambió, con palabras.
     cambio: (campo: Parametro, antes: Parametro, despues: Parametro) => `${campo}: ${antes} → ${despues}`,
     valor: (campo: Parametro, valor: Parametro) => `${campo}: ${valor}`,
@@ -1054,6 +1081,16 @@ export const T = {
       foto_sitio_path: 'Foto del sitio',
       situacion: 'Situación',
       codigo: 'Código',
+      // docs/36 RV-472: los campos de la entrada, el código, los móviles, los núcleos y los respaldos.
+      nombre: 'Nombre',
+      email: 'Correo',
+      archivo: 'Archivo',
+      desde: 'Desde',
+      hasta: 'Hasta',
+      horas: 'Horas',
+      dispositivos: 'Móviles',
+      revocar_dispositivos: 'Revocar los móviles',
+      abrir_entrada: 'Abrir la entrada',
       motivo: 'Motivo',
     },
   },

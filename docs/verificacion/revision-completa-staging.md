@@ -229,3 +229,20 @@ método (cadena solo en memoria; traspaso 38529307399, borrado).
 | `npm run anonimizar -- --entorno staging` y limpieza | ok: 0 pendientes, 0 incidencias abiertas, token revocado, unión temporal deshecha |
 
 commit: 80a489d4ae3794b447461851efea3d5461a8c9ab · resultado: verde
+
+## Release 0.14.0 (14 oct 2026, docs/36 RV-481)
+
+Con todo docs/36: la migración `0048` (anotada en staging), la unión de la cuenta de jefatura y la
+entrada con el código en la Function, Editar con versión, el código pegado entero, el Registro con
+palabras y los trabajos de mantenimiento y vigilancia. «Desplegar staging» en verde con el commit de abajo.
+Mismo método (cadena solo en memoria; traspaso 38574202522, borrado).
+
+| Recorrido | Resultado |
+|---|---|
+| Voluntario (los 13 de 0.13.0) | ok |
+| Jefatura por BD con un administrador unido de forma temporal (deshecho al acabar): aprobar el alta (BOC-0014), `fn_editar_punto` 6 m y enganche; `detalleLegible` | ok |
+| 25 canjes desde una misma IP: entrada cerrada, 20 y del 21.º al 25.º `DEMASIADOS_INTENTOS`; abierta, 25; se cierra; todo deshecho | ok |
+| El rol del migrador sin acceso al esquema `auth` | ok: `false` |
+| `npm run anonimizar -- --entorno staging` y limpieza | ok: 0 pendientes, 0 incidencias abiertas, token revocado, unión temporal deshecha |
+
+commit: 0785f9676ec714c7ced2822c1c11424650acf291 · resultado: verde
