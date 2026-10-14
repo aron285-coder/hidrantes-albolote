@@ -1546,16 +1546,21 @@ describe('dependencias sin secretos (RV-410)', () => {
     expect(malos).toEqual([]);
   });
 
-  /** Checkouts que dejan el token en .git/config porque el trabajo hace git push, con su motivo. */
-  const CON_CREDENCIALES: Record<string, string> = {
-    'mantenimiento.yml:regenerar': 'empuja la rama con los datos regenerados (git push) para abrir su PR',
-  };
+  // docs/36 RV-460: tampoco en un trabajo con permiso de escritura, aunque sea solo el GITHUB_TOKEN.
+  it('ningún paso de un trabajo con permiso de escritura ejecuta npm run, npx, tsx ni npm ci', () => {
+    const malos = archivos.flatMap((a) =>
+      trabajosDe(leer(a))
+        .filter((t) => escribe(leer(a), t.texto))
+        .flatMap((t) => pasos(t.texto).flatMap((p) => ordenesDeNpm(p).map((o) => `${a}:${t.nombre}: ${o}`))),
+    );
+    expect(malos).toEqual([]);
+  });
 
+  // Sin excepciones desde docs/36 RV-460: el trabajo que empuja lo hace sin dejar el token en .git/config.
   it('todo checkout de un trabajo con secretos o con permiso de escritura lleva persist-credentials: false', () => {
     const malos = archivos.flatMap((a) =>
       trabajosDe(leer(a))
         .filter((t) => conSecretos(t.texto) || escribe(leer(a), t.texto))
-        .filter((t) => !CON_CREDENCIALES[`${a}:${t.nombre}`])
         .flatMap((t) =>
           pasos(t.texto)
             .filter((p) => /uses: actions\/checkout@/.test(p) && !/persist-credentials: false/.test(p))
@@ -1563,12 +1568,156 @@ describe('dependencias sin secretos (RV-410)', () => {
         ),
     );
     expect(malos).toEqual([]);
-    // Las excepciones existen y de verdad empujan.
-    for (const clave of Object.keys(CON_CREDENCIALES)) {
-      const [a, nombre] = clave.split(':');
-      const t = trabajosDe(leer(a!)).find((x) => x.nombre === nombre);
-      expect(t?.texto, clave).toMatch(/git push/);
-    }
+  });
+
+  // docs/36 RV-460: mantenimiento.yml regenera con las dependencias en un trabajo de solo lectura y
+  // publica en otro sin Node, que copia solo las rutas de una lista cerrada.
+  describe('mantenimiento.yml en dos trabajos (RV-460)', () => {
+    const texto = leer('mantenimiento.yml');
+    const t = (n: string) => trabajosDe(texto).find((x) => x.nombre === n)?.texto ?? '';
+    const RUTAS = /^ {2}RUTAS_MANTENIMIENTO: '(.+)'$/m.exec(texto)?.[1] ?? '';
+    /** El guion de un paso `run: |`, sin la sangría del YAML. */
+    const guionDe = (trabajo: string, nombre: string) => {
+      const paso = pasos(t(trabajo)).find((p) => p.includes(`- name: ${nombre}\n`)) ?? '';
+      const desde = paso.indexOf('run: |\n');
+      expect(desde, nombre).toBeGreaterThan(-1);
+      return paso
+        .slice(desde + 'run: |\n'.length)
+        .split('\n')
+        .map((l) => l.replace(/^ {10}/, ''))
+        .join('\n');
+    };
+
+    it('generar solo lee, sin credenciales, y sube lo regenerado como artefacto', () => {
+      const g = t('generar');
+      expect(g).toMatch(/^ {4}permissions:\n {6}contents: read\n(?! {6})/m);
+      expect(g).not.toMatch(/secrets\./);
+      expect(g).toContain('persist-credentials: false');
+      expect(g).toContain('uses: ./.github/actions/preparar');
+      expect(g).toContain('run: npm run zona');
+      expect(g).toContain('run: npm run mapabase');
+      expect(g).toContain('npm run callejero');
+      expect(g).toMatch(/uses: actions\/upload-artifact@[0-9a-f]{40}/);
+    });
+
+    it('publicar escribe sin Node ni dependencias, con develop y el artefacto', () => {
+      const p = t('publicar');
+      expect(p).toMatch(/^ {4}needs: generar$/m);
+      expect(p).toMatch(/^ {4}permissions:\n {6}contents: write\n {6}pull-requests: write\n(?! {6})/m);
+      expect(p).not.toMatch(/actions\/preparar|setup-node|node_modules|\bnode\b|\bnpm\b|\bnpx\b|\btsx\b/);
+      expect(p).toMatch(/ref: develop\n\s+persist-credentials: false/);
+      expect(p).toMatch(/uses: actions\/download-artifact@[0-9a-f]{40}/);
+      expect(p).not.toContain('git add -A\n');
+      // El permiso general del workflow es de lectura.
+      expect(texto).toMatch(/^permissions:\n {2}contents: read\n(?! {2})/m);
+    });
+
+    it('la lista cerrada casa lo que regeneran zona, mapabase y callejero, y nada más', () => {
+      const re = new RegExp(RUTAS);
+      for (const r of [
+        'datos/limite-municipal.geojson',
+        'datos/zona-cobertura.geojson',
+        'datos/nucleos.geojson',
+        'datos/meta.json',
+        'datos/mapabase.json',
+        'datos/callejero.json',
+        'public/callejero.json',
+        'public/mapabase/albolote.pmtiles',
+        'public/mapabase/t/20261014/meta.json',
+        'public/mapabase/t/20261014/15/16024/12713.pbf',
+      ]) {
+        expect(re.test(r), r).toBe(true);
+      }
+      for (const r of [
+        'package.json',
+        '.github/workflows/ci.yml',
+        'src/main.tsx',
+        'datos/zona-cobertura.html',
+        'datos/../package.json',
+        'public/mapabase/t/20261014/../../../../package.json',
+        'public/sw.js',
+        'datos/meta.json.bak',
+        'xdatos/meta.json',
+      ]) {
+        expect(re.test(r), r).toBe(false);
+      }
+    });
+
+    describe('copiar solo las rutas de la lista', () => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'mantenimiento-'));
+      afterAll(() => rmSync(dir, { recursive: true, force: true }));
+      let n = 0;
+
+      /** Un develop de prueba y un artefacto con `cambios` y `archivos`; devuelve el resultado. */
+      const copiar = (cambios: string, archivos: Record<string, string>) => {
+        const repo = path.join(dir, `r${++n}`);
+        const entrada = path.join(dir, `e${n}`);
+        const poner = (base: string, r: string, c: string) => {
+          mkdirSync(path.dirname(path.join(base, r)), { recursive: true });
+          writeFileSync(path.join(base, r), c);
+        };
+        poner(repo, 'datos/meta.json', 'viejo\n');
+        poner(repo, 'public/mapabase/t/20260101/10/1/1.pbf', 'vieja\n');
+        poner(repo, 'package.json', '{}\n');
+        poner(entrada, 'cambios.txt', cambios);
+        mkdirSync(path.join(entrada, 'archivos'), { recursive: true });
+        for (const [r, c] of Object.entries(archivos)) poner(path.join(entrada, 'archivos'), r, c);
+        const r = spawnSync('bash', ['-c', guionDe('publicar', 'Copiar solo las rutas de la lista')], {
+          cwd: repo,
+          encoding: 'utf8',
+          env: { ...process.env, RUTAS_MANTENIMIENTO: RUTAS, ENTRADA: entrada.replaceAll('\\', '/') },
+        });
+        const leerRepo = (x: string) =>
+          existsSync(path.join(repo, x)) ? readFileSync(path.join(repo, x), 'utf8') : undefined;
+        return { codigo: r.status, salida: r.stdout + r.stderr, leerRepo };
+      };
+
+      it('copia lo cambiado y borra lo quitado, si está en la lista', () => {
+        const r = copiar('M datos/meta.json\nM public/mapabase/t/20261014/10/1/1.pbf\nD public/mapabase/t/20260101/10/1/1.pbf\n', {
+          'datos/meta.json': 'nuevo\n',
+          'public/mapabase/t/20261014/10/1/1.pbf': 'nueva\n',
+        });
+        expect(r.salida).toBe('');
+        expect(r.codigo).toBe(0);
+        expect(r.leerRepo('datos/meta.json')).toBe('nuevo\n');
+        expect(r.leerRepo('public/mapabase/t/20261014/10/1/1.pbf')).toBe('nueva\n');
+        expect(r.leerRepo('public/mapabase/t/20260101/10/1/1.pbf')).toBeUndefined();
+      });
+
+      it('rechaza una ruta fuera de la lista, también para borrar', () => {
+        const r = copiar('M package.json\n', { 'package.json': '{"x":1}\n' });
+        expect(r.codigo).not.toBe(0);
+        expect(r.salida).toContain('fuera de la lista');
+        expect(r.leerRepo('package.json')).toBe('{}\n');
+        expect(copiar('D package.json\n', {}).codigo).not.toBe(0);
+      });
+
+      it('rechaza un archivo del artefacto que no está en la lista de cambios', () => {
+        const r = copiar('M datos/meta.json\n', { 'datos/meta.json': 'nuevo\n', '.github/workflows/x.yml': 'x\n' });
+        expect(r.codigo).not.toBe(0);
+        expect(r.salida).toContain('no está en la lista de cambios');
+      });
+
+      it('rechaza un cambio sin su archivo y una operación desconocida', () => {
+        expect(copiar('M datos/meta.json\n', {}).codigo).not.toBe(0);
+        expect(copiar('X datos/meta.json\n', { 'datos/meta.json': 'nuevo\n' }).codigo).not.toBe(0);
+      });
+    });
+  });
+
+  // docs/36 RV-460: el canario prueba con las dependencias sin permiso de escritura, y otro trabajo,
+  // sin dependencias, abre o cierra la issue.
+  it('canario-ubuntu.yml: la prueba solo lee y la issue la abre un trabajo sin dependencias', () => {
+    const texto = leer('canario-ubuntu.yml');
+    const t = (n: string) => trabajosDe(texto).find((x) => x.nombre === n)?.texto ?? '';
+    expect(texto).toMatch(/^permissions:\n {2}contents: read\n(?! {2})/m);
+    expect(t('canario-ubuntu-26')).not.toMatch(/issues: write|gh issue/);
+    const avisar = t('avisar');
+    expect(avisar).toMatch(/^ {4}needs: canario-ubuntu-26$/m);
+    expect(avisar).toMatch(/^ {4}if: always\(\)$/m);
+    expect(avisar).toMatch(/^ {4}permissions:\n {6}issues: write\n(?! {6})/m);
+    expect(avisar).toContain('RESULTADO: ${{ needs.canario-ubuntu-26.result }}');
+    expect(avisar).not.toMatch(/actions\/checkout|actions\/preparar|\bnpm\b|\bnpx\b/);
   });
 
   it('.npmrc no ejecuta los scripts de instalación; allowScripts, solo esbuild y workerd (npm 12 lo exige para rebuild)', () => {
