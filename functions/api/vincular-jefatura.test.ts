@@ -83,8 +83,9 @@ function fingirRed({
 }
 
 const llamoALaRpc = (llamadas: { url: string }[]) => llamadas.some((l) => l.url.includes('fn_vincular_administrador'));
-const cerroOtras = (llamadas: { url: string }[]) => llamadas.filter((l) => l.url.includes('/auth/v1/logout'));
-const desvinculo = (llamadas: { url: string }[]) =>
+const cerroOtras = <L extends { url: string }>(llamadas: L[]) =>
+  llamadas.filter((l) => l.url.includes('/auth/v1/logout'));
+const desvinculo = <L extends { url: string }>(llamadas: L[]) =>
   llamadas.filter((l) => l.url.includes('/rpc/fn_desvincular_administrador'));
 /** Lo que se anotó en errores_cliente (el mensaje), si se anotó algo. */
 const anotado = (llamadas: { url: string; cuerpo: unknown }[]) =>
@@ -136,15 +137,24 @@ describe('POST /api/vincular-jefatura', () => {
       ['la cuenta sin correo', { identities: [google('jefa@example.com')] }],
       [
         'otra identidad con el mismo correo sin verificar',
-        { email: 'jefa@example.com', identities: [conCorreo('jefa@example.com', 'email', false), google('jefa@example.com')] },
+        {
+          email: 'jefa@example.com',
+          identities: [conCorreo('jefa@example.com', 'email', false), google('jefa@example.com')],
+        },
       ],
       [
         'otra identidad sin correo',
-        { email: 'jefa@example.com', identities: [{ provider: 'phone', identity_data: {} }, google('jefa@example.com')] },
+        {
+          email: 'jefa@example.com',
+          identities: [{ provider: 'phone', identity_data: {} }, google('jefa@example.com')],
+        },
       ],
       [
         'otra identidad de otro proveedor con otro correo',
-        { email: 'jefa@example.com', identities: [google('jefa@example.com'), conCorreo('otra.persona@example.org', 'github')] },
+        {
+          email: 'jefa@example.com',
+          identities: [google('jefa@example.com'), conCorreo('otra.persona@example.org', 'github')],
+        },
       ],
     ])('%s → 403 CUENTA_MEZCLADA, sin unir y anotado sin datos', async (_, cuerpo) => {
       const { llamadas } = fingirRed({ usuario: usuarioAuth(cuerpo) });

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se actualiza con cada revisión de seguridad y cada petición de derechos atendida. |
-| **Versión** | 1.4 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: §3, el techo global a 60 fallos por hora sin frenar a un móvil limpio, IPv6 por /48, solo peticiones de la propia app, el turno con espera máxima, los móviles recién entrados, la entrada que ya no se abre sola y revocar desde una hora; §9 al día (DEC-199, DEC-201). 1.3 — 23 de septiembre de 2026 (jefatura exige una sesión de Google, DEC-094; privacidad del incidente, la medición y la búsqueda, §6.1, DEC-089). 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
+| **Versión** | 1.5 — 14 de octubre de 2026 (`docs/36`): §2, la unión de la cuenta de jefatura (DEC-206); §3, un intento frenado no cuesta un bcrypt y el tope por IP de la Function (DEC-207); §9 al día. 1.4 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: §3, el techo global a 60 fallos por hora sin frenar a un móvil limpio, IPv6 por /48, solo peticiones de la propia app, el turno con espera máxima, los móviles recién entrados, la entrada que ya no se abre sola y revocar desde una hora; §9 al día (DEC-199, DEC-201). 1.3 — 23 de septiembre de 2026 (jefatura exige una sesión de Google, DEC-094; privacidad del incidente, la medición y la búsqueda, §6.1, DEC-089). 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
 | **Propietario de** | el modelo de acceso y amenazas, la protección del código, RLS y permisos, qué datos personales se guardan y por qué, retención, el procedimiento del derecho de supresión, y el aviso legal. |
 | **Para** | jefatura (que es la responsable del tratamiento) y construcción. Escrito para tenerlo **antes** de que alguien pregunte. |
 | **Referencias** | las cifras medibles están en **03** §5–7; los campos en **05**; la infraestructura en **04**. |
@@ -49,7 +49,7 @@ flowchart LR
 | Mínimo privilegio en secretos | la `service_role key` solo en las Pages Functions y en CI; el frontend solo tiene la `anon key` |
 | Permisos propios | `hidrantes.administradores`, independiente de la app de uniformidad; arranca solo con el propietario |
 | Jefatura es correo **y** Google | `fn_es_admin()` exige que el correo del JWT esté activo en `administradores`, que `app_metadata.providers` contenga `google` y que la sesión se abriera con OAuth (`amr` con `method = 'oauth'`). Una cuenta de Auth con contraseña y el correo de un administrador no es jefatura: el proyecto se comparte con uniformidad, que admite registro por correo (DEC-094, `npm run comprobar-auth`) |
-| Jefatura es su identidad de Google, no el correo de la cuenta | Desde docs/35 RV-400 (DEC-197), `fn_es_admin()` exige además que la fila de `administradores` esté unida al usuario de Auth del JWT (`usuario_id` = `sub`). La une `/api/vincular-jefatura` la primera vez que el administrador entra en el panel, con el correo **verificado de su identidad de Google** que lee Supabase Auth, no con el correo de la cuenta. Una fila ya unida no se une a otro usuario (`OTRA_CUENTA`), y una sin unir no da jefatura. La comprobación se hace en la Function porque el rol del esquema no lee `auth.*` (DEC-052) y no se pide ese permiso en el proyecto compartido |
+| Jefatura es su identidad de Google, no el correo de la cuenta | Desde docs/35 RV-400 (DEC-197), `fn_es_admin()` exige además que la fila de `administradores` esté unida al usuario de Auth del JWT (`usuario_id` = `sub`). La une `/api/vincular-jefatura` la primera vez que el administrador entra en el panel, con el correo **verificado de su identidad de Google** que lee Supabase Auth, no con el correo de la cuenta. Una fila ya unida no se une a otro usuario (`OTRA_CUENTA`), y una sin unir no da jefatura. La comprobación se hace en la Function porque el rol del esquema no lee `auth.*` (DEC-052) y no se pide ese permiso en el proyecto compartido. **Desde `docs/36` (DEC-206):** solo se une una cuenta de una sola persona: **todas** sus identidades llevan ese mismo correo verificado y el correo de la cuenta también es ese; si no, `CUENTA_MEZCLADA` y no se une. Al unir, se cierran las demás sesiones de ese usuario (si no se puede, la unión se deshace), y `fn_es_admin()` solo acepta un JWT emitido después de la unión. Las uniones que ya existen se revisan a diario con la misma regla (RV-463) |
 | Menos es más seguro | no se guardan DNI, teléfono, correo ni dirección de nadie |
 
 ---
@@ -84,6 +84,15 @@ límite. Cinco capas, y por qué no basta con la primera:
    nadie hace nada; con el aviso a jefatura y el código cambiado al día siguiente, un 0,14 %. Las seis
    cifras no cambian (DEC-004). Turnstile se descartó: añade a la entrada un paso y un script de
    terceros (DEC-199).
+   **Un intento ya frenado no cuesta un bcrypt** (`docs/36`, DEC-207). La base de datos es el proyecto
+   compartido con uniformidad: antes de comparar, `fn_verificar_codigo` lee sin turno los fallos de ese
+   móvil, de esa IP agrupada y, si tienen alguno en 24 h, el techo global; si ya están pasados, contesta
+   `DEMASIADOS_INTENTOS` sin comparar ni esperar el turno. Si no, decide el recuento de siempre, bajo el
+   turno. Antes de llegar a la base de datos, la Function deja pasar como mucho **10 peticiones por
+   minuto por IP agrupada** (03 TR-41); la undécima recibe `429` sin tocar la base de datos. Ese tope
+   vive en la memoria de cada aislado del Worker, así que no es global: el límite de verdad sigue en la
+   base de datos. Las respuestas siguen tardando lo mismo (800 ms como mínimo). Si el aviso técnico de
+   los intentos falla, la entrada sigue.
 3b. **Tope de canjes buenos (20 por IP y día, 40 por hora en total desde 0041; antes 150 y 150).**
    Quien tenga el código no puede crear dispositivos sin fin para saltarse las cuotas por dispositivo.
    Con 150 por IP y día se sacaban unas 9.000 propuestas al día desde una sola IP (docs/32 RV-221,
@@ -396,6 +405,8 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | El panel de staging lanza trabajos de producción con un token de GitHub | Sin token: pedidos en la base de datos de cada entorno, que solo despacha `despachador.yml` en producción (0040, RV-146). |
 | Filtración de la `service_role key` | Solo en variables cifradas de Cloudflare y en GitHub Environments; nunca en el frontend ni en el repositorio; rotar = relanzar `arranque.ts`. |
 | Jefatura sin atar a una cuenta de Google concreta en un proyecto de Auth compartido | La fila de `administradores` queda unida a un único usuario de Auth, con el correo verificado de su identidad de Google; una fila unida no se une a otro usuario y una sin unir no da jefatura (docs/35 RV-400, DEC-197). |
+| Una cuenta de Auth con otra identidad unida acaba unida a jefatura | Solo se une una cuenta cuyas identidades llevan todas el mismo correo verificado, que es también el de la cuenta (`CUENTA_MEZCLADA`); al unir se cierran las demás sesiones de ese usuario y un JWT emitido antes de la unión no da jefatura; las uniones existentes se revisan a diario (`docs/36`, DEC-206). |
+| Intentos con el código que hacen trabajar a la base de datos compartida | Un intento ya frenado se contesta sin bcrypt y sin esperar el turno, y la Function corta a partir de 10 por minuto por IP agrupada antes de llamar a la base de datos (`docs/36`, DEC-207). |
 | Cuenta de Google de un administrador comprometida | Desactivación inmediata desde Ajustes por otro administrador; registro de todo lo que hizo; 2FA obligatorio en las cuentas de jefatura (13). |
 | Nombres de voluntarios expuestos a otros voluntarios | RLS: `anon` no lee tablas; `fn_ficha_punto` y `fn_listar_puntos` no incluyen autores; comprobado en la respuesta de red (AC-21). |
 | Nombres para siempre en Git | Respaldos como artefactos cifrados con caducidad; seed sin nombres reales. |

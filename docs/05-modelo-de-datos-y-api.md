@@ -271,6 +271,9 @@ La fila la vincula `/api/vincular-jefatura` (§9) con `fn_vincular_administrador
 administrador entra en el panel con Google. Una fila sin vincular **no** da jefatura (§6.3,
 `fn_es_admin`). Una restauración de `administradores` sin `usuario_id` (`scripts/lib/acceso-restaurado.ts`)
 las deja sin vincular, y cada uno se vuelve a vincular solo al entrar.
+Desde 0048 (docs/36 RV-450, DEC-206), la jefatura solo vale con un JWT emitido en el segundo de
+`vinculado_en` o después (`fn_es_admin`), y `fn_desvincular_administrador` (solo `service_role`) deshace
+la unión: la usan `/api/vincular-jefatura` y la revisión de las uniones (RV-463).
 
 El propietario **no** va en una migración (repositorio público, DEC-053): lo da de alta
 `scripts/asegurar-propietario.ts` en cada despliegue, desde el secreto `PROPIETARIO_EMAIL`, si no existe.
@@ -412,7 +415,7 @@ y permisos como las demás tablas (lectura solo para administradores; nadie escr
 
 | Vista | Contenido |
 |---|---|
-| `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_path` y, al final, `foto_sitio_path` (0035). La URL pública de la foto la compone el cliente con la URL de Supabase y el bucket del entorno (DEC-058). Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). Jefatura la lee entera por páginas de 1.000 por clave: `order(codigo)` y `gt(codigo, último)` (RV-15, RV-65). |
+| `v_puntos_activos` | `puntos` con `situacion = 'activo'` más `radio_px` (06 §4, calculado con `config.escala_radios`), `revision_caducada boolean` (`fecha_ultima_revision < current_date - meses_revision`), `lat`, `lng`, `foto_path`, `foto_sitio_path` (0035) y, al final, `datos_cambiados_en` (0048, docs/36 RV-452: la versión que abre Editar en el panel y que vuelve en `fn_editar_punto(…, version)`; `fn_listar_puntos` y `fn_ficha_punto` la quitan, porque el móvil no la usa). La URL pública de la foto la compone el cliente con la URL de Supabase y el bucket del entorno (DEC-058). Es lo que ve el mapa. **Sin columnas de autor** — `puntos` no las tiene; los nombres solo existen en `propuestas` y `registro`, que `anon` no puede leer (FR-27). Jefatura la lee entera por páginas de 1.000 por clave: `order(codigo)` y `gt(codigo, último)` (RV-15, RV-65). |
 | `v_cola_revision` | propuestas con `estado = 'pendiente'` más el punto afectado, el diff (`antes`/`despues` calculados), y señales: `origen_ubicacion`, `precision_gps_m`, `distancia_gps_m`, `distancia_exif_m`, `fuera_de_zona`, `meses_desde_revision`, `duplicado_de` + `distancia_duplicado_m`, `otra_medida boolean`, `desactualizada boolean` (`puntos.datos_cambiados_en > propuestas.creada_en` desde 0045, docs/35 RV-403; antes, `actualizado_en`), `nucleo` (el del punto o, en un alta, el deducido del pin) y `punto_actualizado_en` (DEC-065); al final, `foto_sitio_path`, `foto_sitio_path_actual` y la señal `sin_foto_sitio` (alta o ubicación sin foto del sitio: la mandó la app anterior; 0035, DEC-146). Detrás, `punto jsonb`: la fila actual del punto con lo que enseña el detalle (`codigo`, `tipo`, `diametro_mm`, `caudal`, `racor`, `descripcion`, `descripcion_fallo`, `direccion`, `nucleo`, `fecha_ultima_revision`, `foto_path`, `foto_sitio_path`, `situacion`, `borrado_en`; siempre las catorce claves, con `null` si no hay valor), **nunca** autores ni correos (FR-27), `null` en un alta; y `punto_lat`, `punto_lng` (`double precision`, la posición actual del punto; `null` en un alta). El cliente decide si es un alta por `operacion`, **no** por `punto is null`. La UTM no va: la calcula el cliente con la función de la ficha (0036, DEC-160). `distancia_gps_m`, `distancia_exif_m` y `sin_foto_sitio` siguen en la vista, pero el panel ya no los enseña (DEC-166). Al final de todo, `punto_datos_cambiados_en` (0045, RV-403): cuándo cambiaron por última vez los datos del punto, lo que decide `desactualizada`; `punto_actualizado_en` sigue igual (sube también con el núcleo). |
 | `v_historial_revision` | propuestas decididas (`estado <> 'pendiente'`: aprobada, rechazada, retirada por el autor) para el detalle en solo lectura (FR-109): `id`, `operacion`, `estado`, `creada_en`, `autor_nombre`, `autor_apellido`, `punto_id`, `codigo`, `datos`, `foto_path`, `foto_sitio_path`, `direccion_sugerida`, `direccion_actual`, `lat` y `lng` (el pin de la propuesta), `origen_ubicacion`, `precision_gps_m`, `nucleo` (el del punto o, en un alta, el deducido del pin), `motivo_rechazo`, `correcciones`, `revisada_por`, `revisada_en` y, al final, `punto`, `punto_lat` y `punto_lng` como en `v_cola_revision`. Solo administradores, como la cola. Sin `antes`: el punto de hoy ya no es el de entonces. Un alta aprobada **no** enlaza al punto que creó (`punto_id` sigue `null` por el `check` de §2.2): `punto`, `codigo` y `punto_*` van `null`, y el código asignado está en el Registro. Orden: `revisada_en desc nulls last, creada_en desc, id`; el panel trae las 300 últimas de un estado, por debajo de `max_rows` (1.000), y si algún día pagina, lo hace por clave sobre ese orden, no por `offset` (0036, DEC-160). |
 | `v_revisiones_caducadas` | puntos activos con `revision_caducada`, con `direccion` o coordenadas, agrupables por `nucleo`. |
@@ -429,7 +432,7 @@ tabla base, la vista no devuelve nada. Cada RPC se prueba con el rol previsto (p
 |---|---|---|
 | `anon` | **ningún** acceso directo | `execute` sobre las RPC de voluntario (§6.1) salvo `fn_verificar_codigo` y `fn_reservar_subida`; desde 0041 también `fn_reportar_incidencia`, como sumidero para la app 0.7.0 (§2.7, hasta #472); desde 0044, `fn_liberar_reservas` y `fn_endpoint_tiene_jefatura`, y ya **no** la `fn_registrar_error` de 5 argumentos (docs/33 RV-306, #472) |
 | `authenticated` | `select` sobre tablas base **condicionado a `fn_es_admin()`** (política por tabla) | `execute` sobre RPC de voluntario y de administrador; las de administrador vuelven a comprobar `fn_es_admin()` |
-| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), `fn_encolar_aviso_tecnico` (0045, docs/35 RV-404), `fn_vincular_administrador` (0046, docs/35 RV-400: solo `/api/vincular-jefatura`; ni `anon` ni `authenticated`), más las anteriores |
+| `service_role` | todo | `fn_verificar_codigo`, `fn_reservar_subida`, `fn_fotos_referenciadas_lista` (y la obsoleta `fn_fotos_referenciadas`), `fn_reservas_sin_confirmar_lista` (0039), `fn_pedidos_pendientes`, `fn_marcar_pedido` y `fn_registrar_error` con `ip_hash` (0040), `fn_espacio` (0041), `fn_validar_token` (0043, #561: /api/push y /api/geocodificar comprueban así el token del voluntario; `fn_listar_puntos` **no**), `fn_encolar_aviso_tecnico` (0045, docs/35 RV-404), `fn_vincular_administrador` (0046, docs/35 RV-400: solo `/api/vincular-jefatura`; ni `anon` ni `authenticated`), `fn_desvincular_administrador` (0048, docs/36 RV-450: `/api/vincular-jefatura` y la revisión de las uniones; ni `anon` ni `authenticated`), más las anteriores |
 
 Reglas: RLS activado en todas las tablas y cada una con al menos una política (un `enable row level
 security` sin políticas bloquea todo, incluidas las RPC mal declaradas); `registro` sin `update` ni
@@ -494,6 +497,15 @@ fn_verificar_codigo(codigo text, dispositivo_id uuid, ip_hash text)
   --     un aviso a jefatura por hora como mucho.
   --   frenados con el código bueno (altas_ip, altas_global): como mucho una fila por dispositivo_id y
   --     hora; los demás frenados, una por IP, tope y minuto, como antes.
+  -- 0048 (docs/36 RV-451, DEC-207):
+  --   antes del bcrypt, una lectura sin turno de los topes de fallos: los fallos de la última hora del
+  --     dispositivo_id (intentos_dispositivo_idx) y del ip_hash (intentos_ip_idx) y, solo si alguno de
+  --     los dos tiene un fallo en 24 h, el tope global (intentos_momento_idx). Si ya está pasado,
+  --     DEMASIADOS_INTENTOS sin bcrypt ni turno; la fila bloqueada (una por IP, tope y minuto) solo se
+  --     anota si el turno está libre en ese momento (pg_try_advisory_xact_lock), sin esperarlo. Si no,
+  --     todo como en 0047: el recuento bajo el turno es el que decide.
+  --   fn_encolar_aviso_tecnico va en su propio bloque (exception when others → raise warning con el
+  --     sqlstate): si el aviso falla, la entrada sigue.
 
 -- Helper: devuelve el dispositivo_id, actualiza ultimo_uso.
 fn_validar_token(token text) returns uuid
@@ -696,7 +708,12 @@ fn_fusionar_con_existente(propuesta_id uuid, punto_id uuid, prevalece jsonb defa
   -- errores: TIPO_DISTINTO · PUNTO_NO_ACTIVO · PROPUESTA_NO_ALTA · DIAMETRO_SIN_FIJAR ·
   --          PAYLOAD_INVALIDO(direccion) (0041)
 
-fn_editar_punto(punto_id uuid, cambios jsonb) returns void
+fn_editar_punto(punto_id uuid, cambios jsonb, version timestamptz default null) returns void
+  -- 0048 (docs/36 RV-452, DEC-208): `version` es la datos_cambiados_en del punto que abrió el panel
+  --   (v_puntos_activos). Con ella, bajo el bloqueo de la fila, si datos_cambiados_en es posterior
+  --   (comparadas al milisegundo, la precisión del navegador) → PUNTO_CAMBIADO y no se toca nada. Sin
+  --   ella (o null), como antes: es la llamada del panel anterior. La firma de dos argumentos se borró
+  --   en 0048; la llamada con dos sigue valiendo.
   -- un caudal distinto de 'no_funciona' borra descripcion_fallo, como en fn_aplicar_propuesta (0024, RV-42)
   -- edición directa de administrador (FR-151 desde el inventario); registro es_admin = true.
   -- diametro_mm en una boca: de 20 a 150; ya no se fuerza a 45 (0032, DEC-144)
@@ -714,7 +731,8 @@ fn_editar_punto(punto_id uuid, cambios jsonb) returns void
   --   que el núcleo o el municipio, puntos.datos_cambiados_en (0045): las propuestas pendientes
   --   anteriores salen desactualizadas en v_cola_revision.
   -- errores: NO_AUTORIZADO · PAYLOAD_INVALIDO(cambios|ubicacion|<constraint>|<campo>) · PUNTO_NO_ACTIVO ·
-  --   TIPO_NO_MODIFICABLE. <campo>: descripcion, descripcion_fallo o direccion más largas que §7.1 (0039)
+  --   PUNTO_CAMBIADO (0048) · TIPO_NO_MODIFICABLE. <campo>: descripcion, descripcion_fallo o direccion
+  --   más largas que §7.1 (0039)
 
 fn_retirar_punto(punto_id uuid, motivo text) returns void       -- PAYLOAD_INVALIDO(motivo) con más de 1.000 (0039)
 fn_borrar_punto(punto_id uuid, motivo text) returns void        -- situacion = 'borrado', borrado_en = now(); ídem
@@ -933,6 +951,12 @@ fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con 
 fn_es_admin() returns boolean       -- fn_email_jwt() presente y activo en administradores, y la fila
                                     -- vinculada al usuario del JWT: usuario_id = fn_usuario_jwt()
                                     -- (docs/35 RV-400, DEC-197). Una fila sin vincular no da jefatura.
+                                    -- Desde 0048 (docs/36 RV-450, DEC-206), si el JWT trae `iat`, tiene
+                                    -- que ser >= date_trunc('second', vinculado_en): un token emitido
+                                    -- antes de la unión no da jefatura. Un iat que no es un número, null,
+                                    -- negativo o más allá del año 3000, tampoco. Sin iat no se compara:
+                                    -- todo JWT de Supabase Auth lo lleva; solo lo omiten los claims que
+                                    -- montan a mano los scripts y las pruebas con acceso a la base de datos.
                                     -- Nada más decide quién es jefatura: fn_exigir_admin, las políticas
                                     -- de RLS y las ramas de jefatura de las RPC pasan por ella
 fn_usuario_jwt() returns uuid       -- el `sub` del JWT si es un uuid; si no, null (docs/35 RV-400). No
@@ -948,6 +972,16 @@ fn_vincular_administrador(usuario uuid, correo text) returns text
                                     --     ya lo está a otra fila; no hace nada
                                     --   NO_ES_ADMINISTRADOR: no hay fila activa con ese correo
                                     -- error: PAYLOAD_INVALIDO si falta alguno de los dos
+fn_desvincular_administrador(correo text) returns boolean
+                                    -- docs/36 RV-450 (0048): solo service_role (/api/vincular-jefatura,
+                                    -- si no puede cerrar las demás sesiones, y la revisión de las uniones,
+                                    -- RV-463). Bloqueo por fila. `correo` en minúsculas y sin espacios.
+                                    -- true: la fila (activa o no) estaba unida → usuario_id y vinculado_en
+                                    --   a null y registra 'administrador_desvinculado' con despues =
+                                    --   { email }, sin ids. La fila sigue activa: al volver a entrar con
+                                    --   una cuenta limpia, se vuelve a unir.
+                                    -- false: no hay fila con ese correo, o no estaba unida; no hace nada
+                                    -- error: PAYLOAD_INVALIDO si falta el correo
 fn_radio_px(diametro_mm smallint, caudal estado_caudal) returns numeric   -- 06 §4; factor de diámetro
                                              -- ≤ 45 → 1, ≤ 70 → 2, > 70 → 3 (0032; antes, 0 para lo
                                              -- que no era 45, 70 o 100). Caudal: bueno 1 · regular 0,66 ·
@@ -1045,7 +1079,8 @@ mismo `maxLength` (`src/lib/limites.ts`).
 `restauracion_respaldo` (0010, la anota `restaurar.ts`), `entrada_abierta` y `entrada_cerrada` (0044,
 docs/33 RV-300: `despues` = `{ hasta, horas, motivo: 'jefatura' | 'codigo_nuevo_revocando' | 'codigo_nuevo' }` (el último, desde 0047);
 `antes` = `{ hasta }`), `administrador_vinculado` (docs/35 RV-400: `actor` y `despues.email` = el
-correo del administrador; nunca el `usuario_id`).
+correo del administrador; nunca el `usuario_id`), `administrador_desvinculado` (0048, docs/36 RV-450:
+igual, la anota `fn_desvincular_administrador`).
 
 Códigos de error (prefijo del `message`): `CODIGO_INCORRECTO`, `DEMASIADOS_INTENTOS`,
 `TOKEN_INVALIDO`, `TOKEN_REVOCADO`, `TOKEN_CADUCADO`, `PAYLOAD_INVALIDO`, `FOTO_OBLIGATORIA`,
@@ -1068,7 +1103,10 @@ está llena", `fn_proponer`, 0041, RV-221; desde 0044 el message es `SIN_ESPACIO
 reintentar_en_s=3600`, docs/33 RV-301), `DISPOSITIVO_NO_ENCONTRADO` (`fn_revocar_dispositivo`,
 0041), `OCUPADO` (en la columna `error` de `fn_verificar_codigo`: el turno no ha llegado en 3 s;
 `/api/verificar-codigo` responde `503` con `Retry-After: 30`; 0047, docs/35 RV-401), `ORIGEN_NO_PERMITIDO`
-(solo de las Functions, `403`: la petición no viene de la propia app; docs/35 RV-401). `CUOTA_PROPUESTAS_AGOTADA`
+(solo de las Functions, `403`: la petición no viene de la propia app; docs/35 RV-401), `PUNTO_CAMBIADO`
+("otro administrador ha cambiado este punto mientras lo editabas", `fn_editar_punto` con `version`; 0048,
+docs/36 RV-452), `CUENTA_MEZCLADA` (solo de `/api/vincular-jefatura`, `403`: la cuenta tiene otra
+identidad unida; docs/36 RV-450). `CUOTA_PROPUESTAS_AGOTADA`
 lleva desde 0041 un `ambito=token_nuevo` o `ambito=grupo` al final cuando no es el tope del dispositivo,
 y desde 0047 `ambito=moviles_nuevos` (también `CUOTA_SUBIDAS_AGOTADA`; docs/35 RV-402). El cliente traduce cada código a un texto en español (TR-36); ningún error de
 Postgres llega crudo.
@@ -1106,9 +1144,15 @@ dos listas no coinciden (docs/33 RV-305). Una llamada nueva a una RPC lleva su f
 ← 401 { "error": "CODIGO_INCORRECTO" }
 ← 409 { "error": "DISPOSITIVO_RESERVADO" }   // 0039, RV-143: ese dispositivo_id es el de un administrador
 ← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 3600 }
+← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 1…60 }   // docs/36 RV-451: el tope de la Function
 ← 503 { "error": "OCUPADO", "reintentar_en_s": 30 }   // 0047, docs/35 RV-401, con la cabecera Retry-After: 30
 ```
 Lee `CF-Connecting-IP`, calcula `ip_hash` (IPv6 por /48), llama a `fn_verificar_codigo` con `service_role`.
+Antes de leer el cuerpo, su propio tope (docs/36 RV-451, DEC-207, 03 TR-41): como mucho 10 peticiones por
+minuto por IP agrupada (`LIMITE_CODIGO_POR_MINUTO`, en la memoria del aislado, como `dentroDelLimite`). La
+undécima recibe `429 DEMASIADOS_INTENTOS` con `reintentar_en_s` (hasta que la más antigua sale de la
+ventana, de 1 a 60) **sin llamar a la base de datos**, y también tarda la duración mínima. No es global
+(Cloudflare reparte entre aislados): el tope de verdad sigue en `fn_verificar_codigo`.
 `409 DISPOSITIVO_RESERVADO`: el `dispositivo_id` coincide con el de un administrador (RV-143, DEC-175);
 no dice de quién. El móvil genera otro id y repite el canje una vez (RV-159).
 Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (TR-42). Sin `SAL_IP`
@@ -1232,22 +1276,37 @@ se lee.
    (429, 404, 5xx, sin red, un 200 que no es JSON) → `503 SERVIDOR_NO_DISPONIBLE`; un usuario sin
    `id` uuid → `500 ERROR_INTERNO`.
 3. Busca en `identities` una con `provider = 'google'` e `identity_data.email_verified === true`. El
-   correo que cuenta es **`identity_data.email`** de esa identidad, en minúsculas; **nunca** `user.email`.
+   correo que cuenta es **`identity_data.email`** de esa identidad, en minúsculas.
    Sin esa identidad → `403 { "error": "SIN_GOOGLE" }`.
+3b. docs/36 RV-450 (DEC-206): la cuenta tiene que ser de una sola persona. **Todas** sus identidades,
+   de cualquier proveedor, llevan en `identity_data` ese mismo correo (en minúsculas, sin espacios) con
+   `email_verified === true`, y `user.email` también es ese correo. Si no →
+   `403 { "error": "CUENTA_MEZCLADA" }`, sin llamar a la RPC. Quien ya tenía en uniformidad una cuenta
+   de correo y contraseña con el mismo correo pasa: su identidad `email` lleva ese correo.
 4. Llama a `fn_vincular_administrador(user.id, correo)` con `service_role`:
-   - `VINCULADO` o `YA_VINCULADO` → `200 { "resultado": "…" }`;
+   - `VINCULADO` → cierra las demás sesiones de ese usuario con `POST {SUPABASE_URL}/auth/v1/logout?scope=others`
+     y el JWT de esta (docs/36 RV-450). Si responde 2xx → `200 { "resultado": "VINCULADO" }`. Si no (otro
+     estado o sin red) → deshace la unión con `fn_desvincular_administrador(correo)` y
+     `503 SERVIDOR_NO_DISPONIBLE`: no queda una unión con otras sesiones vivas. El panel, con
+     `VINCULADO`, refresca la sesión antes de volver a comprobar (`fn_es_admin` exige un JWT posterior a
+     la unión). Efecto aceptado: el administrador vuelve a entrar, una vez, en sus otros dispositivos,
+     también en uniformidad si usa el mismo usuario;
+   - `YA_VINCULADO` → `200 { "resultado": "YA_VINCULADO" }`, sin cerrar nada;
    - `NO_ES_ADMINISTRADOR` u `OTRA_CUENTA` → `403 { "error": "<ese código>" }`;
    - la base de datos sin responder → `503 SERVIDOR_NO_DISPONIBLE`; otro fallo, un 200 que no es JSON
      o un resultado desconocido → `500 ERROR_INTERNO`.
 
+`CUENTA_MEZCLADA` (`vincular_jefatura: cuenta con otra identidad`), el cierre de sesiones que falla
+(`cierre de sesiones <estado|red>`) y una unión que no se puede deshacer
+(`unión sin deshacer, rpc <código> <estado>`) también se anotan.
 Cada `503` o `500`, y una identidad de Google que no pasa el filtro, quedan anotados en
 `errores_cliente` con `fn_registrar_error` (ruta `/api/vincular-jefatura`, `ip_hash`
 `funcion:vincular_jefatura`, mensaje `vincular_jefatura: <motivo y estado>`), y si eso tampoco llega,
 en el registro del Worker. Nunca el correo ni el `usuario_id`. `SIN_GOOGLE` y `NO_ES_ADMINISTRADOR`
 son códigos solo de esta Function (además de la respuesta de la RPC).
 
-**En el panel:** solo `401 NO_AUTORIZADO` y `403 SIN_GOOGLE`, `NO_ES_ADMINISTRADOR` u `OTRA_CUENTA`
-son «sin acceso», sin reintentar. `429`, `500` y `503` (y sin red) no dicen nada de la cuenta: «no se
+**En el panel:** solo `401 NO_AUTORIZADO` y `403 SIN_GOOGLE`, `CUENTA_MEZCLADA` (con su texto, 06
+Apéndice A), `NO_ES_ADMINISTRADOR` u `OTRA_CUENTA` son «sin acceso», sin reintentar. `429`, `500` y `503` (y sin red) no dicen nada de la cuenta: «no se
 ha podido comprobar, inténtalo de nuevo».
 
 ### `POST /api/error`
@@ -1359,7 +1418,9 @@ sin ese cuello de botella:
 | Cuota de propuestas (`fn_proponer`, 0039) | `pg_advisory_xact_lock(hashtext('propuestas:' || dispositivo))` después de la comprobación de `clave_local` y antes de contar: dos envíos del mismo móvil a la vez no pasan los dos la propuesta 60. El tope global (0041) se contaba bajo `pg_advisory_xact_lock(hashtext('propuestas:global'))` hasta el final de la transacción, y ponía en fila a todos los voluntarios; desde 0044 (docs/33 RV-304) se cuenta **sin** ese bloqueo: es un freno contra abusos (600 al día) y se acepta pasarlo en tantas como propuestas lleguen a la vez. |
 | Entrada abierta (`fn_abrir_entrada`, `fn_cerrar_entrada`, `fn_cambiar_codigo_acceso`, 0044) | `for update` sobre la fila `entrada_abierta_hasta` de `config` antes de escribirla. |
 | `fn_liberar_reservas` (0044) | `for update` sobre las filas de `subidas` que libera; `liberada_en` solo se pone en las sin confirmar, y `fn_proponer` solo confirma las sin liberar: una reserva o se confirma o se libera. |
-| `fn_verificar_codigo` | Compara el código y después toma `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). Desde 0047 (docs/35 RV-401) el bcrypt va antes del turno y el turno se espera como mucho 3 s (`lock_timeout`): si no, `OCUPADO`. |
+| `fn_verificar_codigo` | Compara el código y después toma `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). Desde 0047 (docs/35 RV-401) el bcrypt va antes del turno y el turno se espera como mucho 3 s (`lock_timeout`): si no, `OCUPADO`. Desde 0048 (docs/36 RV-451) una lectura previa sin turno corta, sin bcrypt, al que ya está frenado por fallos; solo ahorra trabajo, y la anotación de ese frenado se hace con `pg_try_advisory_xact_lock` (si el turno está ocupado, no se anota y no se espera). |
+| `fn_editar_punto` con `version` (0048) | La versión se compara **después** del `for update` del punto: de dos ediciones a la vez con la misma versión, la segunda espera y, si la primera cambió los datos, ve `datos_cambiados_en` nueva y recibe `PUNTO_CAMBIADO` (docs/36 RV-452). |
+| `fn_vincular_administrador`, `fn_desvincular_administrador` (0046, 0048) | `for update` sobre la fila de `administradores` de ese correo. |
 | `fn_encolar_aviso_tecnico` (0045) | `insert … on conflict do nothing` de la fila de la clave en `avisos_tecnicos` y `select … for update` antes de mirar el plazo: dos llamadas a la vez con la misma clave encolan una vez. |
 | `fn_revocar_desde`, `fn_cambiar_codigo_acceso` (revocar) | `for update` sobre las filas de `dispositivos` que revocan (0047, docs/35 RV-402). |
 | `fn_guardar_config`, `fn_gestionar_administrador` | `for update` sobre las filas afectadas; la regla del último administrador activo se comprueba **dentro** de la transacción. |
