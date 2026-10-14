@@ -499,6 +499,8 @@ const VISTAS: Vista[] = [
       await p.route('**/api/vincular-jefatura', (r) =>
         r.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"CUENTA_MEZCLADA"}' }),
       );
+      // Queda anotado: el servidor lo recibe.
+      await p.route('**/api/error', (r) => r.fulfill({ contentType: 'application/json', body: '{}' }));
     },
     lista: async (p) => {
       await expect(p.getByText(T.entrada.cuentaMezcladaDetalle)).toBeVisible();

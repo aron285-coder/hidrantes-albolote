@@ -385,6 +385,8 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
     });
     await Promise.all([comprobarAcceso(), comprobarAcceso()]);
     expect(pedidas()).toBe(1);
+    // Una sola renovación de la sesión (docs/36 RV-450).
+    expect(refreshSession).toHaveBeenCalledTimes(1);
     expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
   });
 
@@ -409,12 +411,16 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
     expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
   });
 
-  it('unida, pero el servidor sigue diciendo que no: «No autorizado»', async () => {
+  // docs/36 RV-450: con la sesión ya renovada, un «no» no cuadra con la unión: se anota y se deja
+  // reintentar, sin cerrar la sesión (antes era «No autorizado»).
+  it('unida, pero el servidor sigue diciendo que no: «no se ha podido comprobar», anotado', async () => {
     entrar();
     contesta(200, { resultado: 'VINCULADO' });
     rpc.mockResolvedValue(no);
     await comprobarAcceso();
-    expect(acceso()).toEqual({ tipo: 'no_autorizado' });
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+    expect(signOut).not.toHaveBeenCalled();
+    expect(fetch.mock.calls.filter(([ruta]) => ruta === '/api/error')).toHaveLength(1);
   });
 
   it('otra cuenta de Google en el mismo navegador: se vuelve a pedir', async () => {
@@ -456,6 +462,15 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
     expect(acceso().tipo).toBe('jefatura');
   });
 
+  it('YA_VINCULADO también renueva la sesión', async () => {
+    entrar();
+    contesta(200, { resultado: 'YA_VINCULADO' });
+    rpc.mockResolvedValueOnce(no).mockResolvedValueOnce(si);
+    await comprobarAcceso();
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(acceso().tipo).toBe('jefatura');
+  });
+
   it.each([
     ['con error', async () => ({ data: { session: null }, error: new Error('sin red') })],
     ['sin sesión', async () => ({ data: { session: null }, error: null })],
@@ -476,6 +491,8 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
     expect(datos.has('hidrantes.auth')).toBe(true);
     // Solo la primera pregunta: con el token de antes, el servidor diría que no.
     expect(rpc.mock.calls.filter(([n]) => n === 'fn_es_admin')).toHaveLength(1);
+    // El fallo de la renovación queda anotado.
+    expect(fetch.mock.calls.filter(([ruta]) => ruta === '/api/error')).toHaveLength(1);
   });
 
   it('CUENTA_MEZCLADA: «No autorizado» con su texto, sesión cerrada, sin pedirlo otra vez', async () => {
@@ -486,8 +503,11 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
     expect(acceso()).toEqual({ tipo: 'no_autorizado', cuentaMezclada: true });
     expect(signOut).toHaveBeenCalled();
     expect(refreshSession).not.toHaveBeenCalled();
-    // No es un fallo del servidor: no se anota.
-    expect(fetch.mock.calls.filter(([ruta]) => ruta === '/api/error')).toHaveLength(0);
+    // Queda anotado, sin datos de la cuenta.
+    const anotados = fetch.mock.calls.filter(([ruta]) => ruta === '/api/error');
+    expect(anotados).toHaveLength(1);
+    expect(String((anotados[0]![1] as RequestInit).body)).toContain('CUENTA_MEZCLADA');
+    expect(String((anotados[0]![1] as RequestInit).body)).not.toContain('jefa@example.org');
     datos.set('hidrantes.auth', '{"sesion":"guardada"}');
     await comprobarAcceso();
     expect(pedidas()).toBe(1);

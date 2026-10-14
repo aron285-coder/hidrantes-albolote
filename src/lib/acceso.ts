@@ -147,16 +147,28 @@ const SIN_ACCESO: Record<number, string[]> = {
   403: ['SIN_GOOGLE', 'NO_ES_ADMINISTRADOR', 'OTRA_CUENTA'],
 };
 
+type Cliente = NonNullable<ReturnType<typeof supabase>>;
+
+/** Cierra la sesión de Google; si falla, queda anotado (signOut devuelve el error, no lo lanza). */
+async function cerrarGoogle(cliente: Cliente, donde: string): Promise<void> {
+  try {
+    const r = await cliente.auth.signOut();
+    if (r?.error) anotarError(r.error, donde);
+  } catch (e) {
+    anotarError(e, donde);
+  }
+}
+
 /**
  * Tras unir la cuenta, un JWT nuevo (docs/36 RV-450, DEC-206): la jefatura solo vale con un token
  * emitido después de la unión. Si no se puede renovar, no se ha podido comprobar: con el token de
  * antes el servidor diría que no y se cerraría la sesión sin motivo.
  */
-async function renovarSesion(): Promise<Vinculo> {
+async function renovarSesion(cliente: Cliente): Promise<Vinculo> {
   try {
-    const r = await supabase()?.auth.refreshSession();
-    if (r && !r.error && r.data.session) return 'unida';
-    anotarError(r?.error ?? new Error('refreshSession sin sesión'), 'vincular-jefatura-renovar');
+    const r = await cliente.auth.refreshSession();
+    if (!r.error && r.data.session) return 'unida';
+    anotarError(r.error ?? new Error('refreshSession sin sesión'), 'vincular-jefatura-renovar');
   } catch (e) {
     anotarError(e, 'vincular-jefatura-renovar');
   }
@@ -168,7 +180,7 @@ async function renovarSesion(): Promise<Vinculo> {
  * administradores a esta cuenta de Google. Un fallo que no sea «demasiadas peticiones» queda
  * anotado, sin datos de la cuenta.
  */
-async function vincularJefatura(token: string): Promise<Vinculo> {
+async function vincularJefatura(cliente: Cliente, token: string): Promise<Vinculo> {
   try {
     const r = await fetchConLimite(() => LIMITES_RED.rpc)('/api/vincular-jefatura', {
       method: 'POST',
@@ -176,9 +188,13 @@ async function vincularJefatura(token: string): Promise<Vinculo> {
       body: '{}',
     });
     const cuerpo = (await r.json().catch(() => ({}))) as { resultado?: string; error?: string };
-    if (r.ok && VINCULADA.includes(cuerpo.resultado ?? '')) return await renovarSesion();
+    if (r.ok && VINCULADA.includes(cuerpo.resultado ?? '')) return await renovarSesion(cliente);
     if (SIN_ACCESO[r.status]?.includes(cuerpo.error ?? '')) return 'sin_acceso';
-    if (r.status === 403 && cuerpo.error === 'CUENTA_MEZCLADA') return 'mezclada';
+    if (r.status === 403 && cuerpo.error === 'CUENTA_MEZCLADA') {
+      // Queda anotado, sin datos de la cuenta: jefatura puede tener que revisar esa unión (RV-450).
+      anotarError(new Error('vincular-jefatura: 403 CUENTA_MEZCLADA'), 'vincular-jefatura');
+      return 'mezclada';
+    }
     if (r.status !== 429) {
       anotarError(
         new Error(`vincular-jefatura: ${r.status} ${cuerpo.error ?? cuerpo.resultado ?? ''}`),
@@ -213,19 +229,25 @@ export async function comprobarAcceso(): Promise<void> {
         const pedido =
           vinculo && vinculo.usuario === usuario && !otraVez
             ? vinculo
-            : (vinculo = { usuario, resultado: vincularJefatura(data.session.access_token) });
+            : (vinculo = { usuario, resultado: vincularJefatura(cliente, data.session.access_token) });
         const resultado = await pedido.resultado;
         // «Unida» no se recuerda (RV-450): la próxima comprobación vuelve a preguntar al servidor.
         if (resultado === 'unida' && vinculo === pedido) vinculo = null;
-        if (resultado === 'mezclada' && r.ok && !r.datos) {
+        if (resultado === 'mezclada') {
           olvidarConfirmada();
-          await cliente.auth.signOut().catch(() => undefined);
+          await cerrarGoogle(cliente, 'vincular-jefatura-salir');
           return fijar({ tipo: 'no_autorizado', cuentaMezclada: true });
         }
         if (resultado === 'unida') {
           r = await rpc<boolean>('fn_es_admin');
           // Unida, pero sin poder volver a preguntar: se dice, en vez de volver a la entrada sin más.
           if (!r.ok) return fijar({ tipo: 'no_autorizado', sinComprobar: true });
+          // Unida y con la sesión renovada, pero el servidor dice que no: no cuadra con la unión. Se
+          // anota y se deja reintentar, sin cerrar la sesión (docs/36 RV-450).
+          if (!r.datos) {
+            anotarError(new Error('vincular-jefatura: unida pero fn_es_admin=false'), 'vincular-jefatura');
+            return fijar({ tipo: 'no_autorizado', sinComprobar: true });
+          }
         }
         if (r.ok && !r.datos && resultado === 'sin_comprobar') {
           olvidarConfirmada();
@@ -249,7 +271,7 @@ export async function comprobarAcceso(): Promise<void> {
       }
       if (r.ok) {
         olvidarConfirmada();
-        await cliente.auth.signOut().catch(() => undefined);
+        await cerrarGoogle(cliente, 'no-autorizado-salir');
         return fijar({ tipo: 'no_autorizado' });
       }
       // Sin servidor: si este mismo correo ya fue jefatura, se sigue como jefatura, sin sincronizar;
