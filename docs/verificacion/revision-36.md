@@ -128,3 +128,10 @@ Ningún defecto alto ni medio. Bajos, de antes de `docs/36` y fuera de estos pun
 - En las tarjetas del Registro en el móvil, una acción sin punto enseña «Punto —».
 - A 412 px, los filtros de la Cola cortan su texto («todas las opera…», «todos los núcle…»).
 - A 412 px, el aviso «Guardado …» del Inventario tapa el centro de la cabecera mientras se ve.
+
+## Cierre (RV-483)
+
+- **0.14.0 en producción** el 14 oct 2026 con `npm run publicar` y la puerta automática (CI de `main`, RV-139b en verde con `0785f96` y después solo documentación y versión, `comprobar-produccion --completo`, ninguna `bloquea-release`); producción sirve `0.14.0` y el commit `df3d4bf`. Fila en `paridad-produccion.md`.
+- **La especificación** pasa a `archivo/especificaciones/36-revision-tras-35.md` y sale de `.git/info/exclude`.
+- **Para después del piloto** (issues `tras-piloto`): #708, #720, #721, #722, #723, #724. Los hallazgos bajos de la revisión del 14 oct no están en la especificación: los anota el desarrollador como issues `tras-piloto` si quiere conservarlos.
+- **Desde 0.14.0** la vigilancia de producción puede desunir (lleva `0048`).
