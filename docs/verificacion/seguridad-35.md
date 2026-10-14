@@ -130,3 +130,72 @@ comentarios de los workflows de mantenimiento con el despachador. Sin cambios de
 Las capturas de `docs/capturas/vistas/` (manuales 13 y 14) se han copiado del artefacto `vistas` de
 la CI de #690, el último PR de pantallas de `docs/35`; `nuevo-punto-boca.png` enseña las fotos
 propias de los enganches, con Barcelona y Directo como dice DEC-194 (RV-414).
+
+## Cierre · RV-441 · recorrido corto de lo cambiado
+
+14 oct 2026, con `revisar-pantallas`. La app de campo, en staging con el commit `3b49cbe` de `develop`
+(el de RV-440 más el registro de RV-139b, sin cambios de código), entrando con un móvil de prueba
+creado y revocado por el propio recorrido: sin teclear el código de acceso y sin enviar nada. El
+panel, simulado en local con el servidor simulado de sus e2e. Cuatro tamaños en cada pantalla:
+412 × 915 y 1440 × 900, en claro y en oscuro. Staging queda como estaba: 0 propuestas pendientes,
+0 incidencias abiertas y el móvil de prueba revocado. Las capturas que no se comentan aquí no
+entran en Git (DEC-195).
+
+**Resultado: todo ok, sin defectos.** Nada para issue.
+
+| Qué | Resultado |
+|---|---|
+| Mis propuestas abierta por URL directa (RV-420) | ok en los cuatro tamaños: ‹ lleva al mapa. |
+| Mapa sin conexión descargado dos veces (RV-421) | ok en el móvil, claro y oscuro: tras la segunda descarga el mapa base se pinta, también al moverlo, y la consola no da ningún error. |
+| La ficha con una foto que falla y después otro punto (RV-422) | ok en el ordenador, claro y oscuro: la primera dice que no se ha podido cargar, con Reintentar; al pasar al otro punto desde la lista, su foto se pide y se ve. |
+| Un punto nuevo con el GPS retrasado (RV-423) | ok en los cuatro: la posición llega a los 6 s y el pin queda dentro del mapa del alta, centrado. |
+| El aviso de versión (RV-424) | ok en los cuatro. Provocado solo en el navegador del recorrido, como el 9 oct. En el móvil, al bajar, «Copiar» de las UTM queda por encima del aviso y se puede pulsar. |
+| El foco en oscuro y sobre la barra (RV-425) | ok: el anillo se ve en todo lo recorrido con el teclado. Contraste mínimo: 10,2:1 sobre el fondo claro, 8,3:1 sobre el oscuro y 8,1:1 / 8,8:1 sobre la barra (claro / oscuro). |
+| ‹ en la Cola durante un guardado (RV-430) | ok a 412: tras el guardado se sigue en la Cola, sin la propuesta aprobada. A 1440 la lista y la propuesta van juntas y no hay ‹, como debe ser. |
+| Ajustes · administradores (RV-431, RV-432) | ok: «Pendiente de su primer acceso» con su ayuda; quitar el acceso a otro y a uno mismo pide confirmación, cada uno con su texto. |
+| Ajustes · código (RV-433) | ok: revocando todos, la casilla de abrir la entrada sale sin marcar, con su línea de ayuda. |
+| Ajustes · revocar desde una hora (RV-433) | ok: por defecto hace 24 h; la ventana dice cuántos, en singular con uno («Se revocará 1 móvil»); con ninguno, el botón deshabilitado y el motivo escrito. |
+| Ajustes · avisos técnicos (RV-433) | ok: el interruptor, apagado, con su explicación. |
+
+<table><tr>
+<td><img src="recorrido/2026-10-14/rv441-03-mapabase-segunda-descarga-m412-claro.jpg" width="160"></td>
+<td><img src="recorrido/2026-10-14/rv441-07-alta-gps-llegado-m412-claro.jpg" width="160"></td>
+<td><img src="recorrido/2026-10-14/rv441-09-aviso-version-ficha-abajo-m412-claro.jpg" width="160"></td>
+<td><img src="recorrido/2026-10-14/rv441-10-foco-barra-m412-oscuro.jpg" width="160"></td>
+</tr></table>
+
+De izquierda a derecha: el mapa tras la segunda descarga; el alta con el pin a la vista cuando llega
+la posición; el final de la ficha por encima del aviso de versión; el anillo de foco sobre la barra,
+en oscuro.
+
+<table><tr>
+<td><img src="recorrido/2026-10-14/rv441-04-ficha-foto-falla-e1440-claro.jpg" width="320"></td>
+<td><img src="recorrido/2026-10-14/rv441-05b-ficha-otro-punto-8s-e1440-claro.jpg" width="320"></td>
+<td><img src="recorrido/2026-10-14/rv441-11-foco-fondo-e1440-oscuro.jpg" width="320"></td>
+</tr></table>
+
+La foto que falla; el punto siguiente con su foto; el anillo de foco en la lista, en oscuro.
+
+<table><tr>
+<td><img src="recorrido/2026-10-14/rv441-p02-cola-tras-guardar-m412-claro.jpg" width="160"></td>
+<td><img src="recorrido/2026-10-14/rv441-p03-administradores-m412-oscuro.jpg" width="160"></td>
+<td><img src="recorrido/2026-10-14/rv441-p06-codigo-casilla-m412-claro.jpg" width="160"></td>
+<td><img src="recorrido/2026-10-14/rv441-p10-avisos-tecnicos-m412-oscuro.jpg" width="160"></td>
+</tr></table>
+
+Panel (simulado): la Cola tras guardar habiendo pulsado ‹; administradores con uno pendiente de su
+primer acceso; la casilla de abrir la entrada sin marcar; los avisos técnicos.
+
+<table><tr>
+<td><img src="recorrido/2026-10-14/rv441-p05-quitarte-acceso-e1440-claro.jpg" width="400"></td>
+<td><img src="recorrido/2026-10-14/rv441-p08-revocar-desde-dialogo-e1440-oscuro.jpg" width="400"></td>
+</tr></table>
+
+Quitarse el acceso a uno mismo, con su aviso; revocar desde una hora, con la cuenta.
+
+**Notas (no son defectos):**
+
+- Justo al pasar a un punto lejano, el fondo del mapa tarda un momento en pintarse entero; a los 2 s
+  están todas las teselas (30 de 30 en los dos temas).
+- El campo de fecha y hora de «Revocar desde…» sale en el formato del idioma del navegador, que en
+  el de las pruebas era inglés; en un navegador en español sale en español.
