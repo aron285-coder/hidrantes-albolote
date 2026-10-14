@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes } from 'react';
+import type { ButtonHTMLAttributes, Ref } from 'react';
 import { cn } from '@/lib/utils';
 
 type Variante = 'primario' | 'secundario' | 'destructivo' | 'enlace';
@@ -17,7 +17,7 @@ export function Boton({
   className,
   type = 'button',
   ...resto
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variante?: Variante }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variante?: Variante; ref?: Ref<HTMLButtonElement> }) {
   return (
     <button
       type={type}
