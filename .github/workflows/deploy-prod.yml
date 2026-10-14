@@ -8,6 +8,7 @@
 #              comprobar-despliegue (solo Node) espera a la versión nueva antes de anunciar el mapa
 #              base (RV-21); no hay más que comprobar sin secretos en producción.
 #   avisar     si algo falla o se cancela: la issue «Deploy de producción fallido». cerrar: si todo va bien.
+#              Si falla un paso de desplegar, su último paso avisa también a jefatura por push (RV-412).
 name: Desplegar producción
 
 on:
@@ -158,6 +159,18 @@ jobs:
         run: node scripts/paridad.ts --url https://hidrantes-albolote.pages.dev
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
+      # Aviso técnico a jefatura (docs/35 RV-412, DEC-202), aquí y no en «avisar», que no tiene la
+      # base de datos. La issue de «avisar» es el aviso principal: si encolar falla, queda como aviso
+      # de este paso y no tapa el fallo del despliegue.
+      - name: Aviso técnico a jefatura
+        if: failure()
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -uo pipefail
+          source .github/scripts/avisos-tecnicos.sh
+          avisar_jefatura despliegue
 
   # docs/31 RV-136: si algo falla, producción puede haber cambiado a medias (migrada y sin
   # desplegar, o desplegada sin paridad). Se abre o se reabre la issue, con el paso que falló.

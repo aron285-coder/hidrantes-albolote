@@ -276,6 +276,17 @@ jobs:
             gh issue create --title "$titulo" --label vigilancia --body "$cuerpo"
           fi
 
+      # Aviso técnico a jefatura (docs/35 RV-412, DEC-202). La issue es el aviso principal: si encolar
+      # falla, queda como aviso de este paso y no tapa el fallo del respaldo.
+      - name: Aviso técnico a jefatura
+        if: failure()
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -uo pipefail
+          source .github/scripts/avisos-tecnicos.sh
+          avisar_jefatura respaldo
+
   # docs/35 RV-413 (DEC-203): en el piloto, los datos reales están en staging hasta promover-piloto.
   # El mismo respaldo que el de producción, en el environment `staging` (solo develop), con sus
   # secretos y la misma clave GPG: los datos cada semana y las fotos de hidrantes-fotos-dev el primer
@@ -455,14 +466,5 @@ jobs:
           BD: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -uo pipefail
-          if [ -z "${BD:-}" ]; then
-            echo '::warning::Sin SUPABASE_DB_URL no se puede encolar el aviso técnico; la issue sigue siendo el aviso'
-            exit 0
-          fi
-          if r=$(psql -X -A -t -v ON_ERROR_STOP=1 "$BD" -c "select hidrantes.fn_encolar_aviso_tecnico('respaldo', null, null);" 2>&1); then
-            if [ "$r" = t ]; then estado='encolado'; else estado='no encolado: ya hubo uno en las últimas 24 h o nadie tiene el tema'; fi
-            echo "Aviso técnico a jefatura de staging: $estado" >> "$GITHUB_STEP_SUMMARY"
-          else
-            # Sin el error de psql: puede nombrar el servidor, y el registro es público.
-            echo '::warning::No se ha podido encolar el aviso técnico a jefatura de staging; la issue sigue siendo el aviso'
-          fi
+          source .github/scripts/avisos-tecnicos.sh
+          avisar_jefatura respaldo

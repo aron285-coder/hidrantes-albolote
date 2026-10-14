@@ -1,6 +1,8 @@
 # Vigilancia diaria (TR-102, 04 §9): comprueba que la aplicación responde, que una RPC de lectura
 # responde, que el último respaldo tiene menos de ocho días y que no se acumulan avisos push sin
-# enviar, y que producción no lleva más de una semana por detrás de develop. En staging mira lo que
+# enviar, que las Pages Functions responden, y que producción no lleva más de una semana por detrás
+# de develop en algo que corre en producción (docs/35 RV-412). Con problemas de producción, además, un
+# aviso técnico a jefatura por push (DEC-202). En staging mira lo que
 # aplica allí, en su propio trabajo, y también lo anota (docs/20 RV-78). Si algo falla, abre
 # una issue con la etiqueta `vigilancia`; si todo va bien y había una abierta, la cierra. Salud del
 # sistema enseña cuándo corrió y cómo fue.
@@ -167,6 +169,13 @@ jobs:
             fi
           done
 
+          # 1b. Las Pages Functions responden (docs/35 RV-412, DEC-202): .github/scripts/avisos-tecnicos.sh.
+          source .github/scripts/avisos-tecnicos.sh
+          for url in "$APP" "$APP_STAGING"; do
+            fallo=$(sondear_functions "$url")
+            if [ -n "$fallo" ]; then problemas+=("$fallo"); fi
+          done
+
           # 2. Una RPC de lectura responde. anon no puede leer hidrantes.migraciones_aplicadas y
           #    Postgres contesta 42501: esa respuesta prueba que la petición llegó a la base de datos.
           respuesta=$(curl -s --max-time 20 -X POST "$SUPABASE_URL/rest/v1/rpc/fn_listar_puntos" \
@@ -227,13 +236,12 @@ jobs:
           done
 
           # 6. Producción al día (docs/19 P-03, DEC-096): main no lleva más de 7 días por detrás de
-          #    develop en algo que no sea documentación.
-          if git fetch -q origin main develop 2>/dev/null; then
-            atrasados=$(git rev-list --count origin/main..origin/develop -- . ':!docs')
+          #    develop en algo que corre en producción (docs/35 RV-412, DEC-202): ni documentación, ni
+          #    CI, ni dependencias de desarrollo (.github/scripts/produccion-atrasada.sh).
+          source .github/scripts/produccion-atrasada.sh
+          if git fetch -q origin main develop 2>/dev/null && atraso=$(produccion_atrasada origin/main origin/develop); then
+            read -r atrasados primero <<< "$atraso"
             if [ "${atrasados:-0}" -gt 0 ]; then
-              # tail y no head: head cerraba la tubería con git log aún escribiendo, y con pipefail bajo
-              # bash -e el paso terminaba con 141 sin resultado (docs/20, DEC-104).
-              primero=$(git log --format=%ct origin/main..origin/develop -- . ':!docs' | tail -1)
               dias_atras=$(( (ahora - primero) / 86400 ))
               if [ "$dias_atras" -gt 7 ]; then
                 problemas+=("producción va $atrasados commits por detrás de develop desde hace $dias_atras días: haz P-02 (docs/19, DEC-096)")
@@ -300,6 +308,21 @@ jobs:
 
           printf '%s\n' "${problemas[@]}" > problemas.txt
           echo "hay=$([ ${#problemas[@]} -eq 0 ] && echo no || echo si)" >> "$GITHUB_OUTPUT"
+          # Los de producción, para el aviso técnico (docs/35 RV-412): los que no son solo de staging.
+          de_produccion=$(grep -cvE "^(staging:|$APP_STAGING)" problemas.txt || true)
+          echo "hay_produccion=$([ ${#problemas[@]} -gt 0 ] && [ "${de_produccion:-0}" -gt 0 ] && echo si || echo no)" >> "$GITHUB_OUTPUT"
+
+      # Aviso técnico a jefatura de producción (docs/35 RV-412, DEC-202) si hay problemas de
+      # producción: `fn_encolar_aviso_tecnico('vigilancia')`, como mucho uno cada 24 h. La issue es el
+      # aviso principal: si encolar falla, queda como aviso de este paso y no tapa el resultado.
+      - name: Aviso técnico a jefatura
+        if: always() && steps.mirar.outputs.hay_produccion == 'si'
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -uo pipefail
+          source .github/scripts/avisos-tecnicos.sh
+          avisar_jefatura vigilancia
 
       - name: Abrir o cerrar la issue de vigilancia
         if: always()

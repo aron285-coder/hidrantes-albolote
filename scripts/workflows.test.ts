@@ -185,7 +185,7 @@ describe('secretos de staging fuera del repositorio (RV-411)', () => {
     expect(c.match(/retention-days: 90/g)).toHaveLength(2);
     expect(c).toContain('"$TAMANO_DATOS" -lt 10000');
     expect(c).toContain('titulo="El respaldo semanal de staging ha fallado"');
-    expect(c).toContain("hidrantes.fn_encolar_aviso_tecnico('respaldo', null, null)");
+    expect(c).toContain('avisar_jefatura respaldo');
     expect(c).toContain('persist-credentials: false');
     // Su fallo no esconde la última ejecución correcta, que es la que mira la vigilancia (RV-201).
     expect(c).toMatch(/^ {4}continue-on-error: true$/m);
@@ -198,6 +198,54 @@ describe('secretos de staging fuera del repositorio (RV-411)', () => {
     const seed = readFileSync(path.resolve(import.meta.dirname, '../supabase/seed-staging.sql'), 'utf8');
     expect(seed).toContain("('jefatura.prueba@example.com', 'seed', false)");
     expect(seed).toContain('on conflict (email) do update set activo = false');
+  });
+});
+
+// docs/35 RV-412 (DEC-202): la vigilancia sondea las Functions, y la vigilancia, el respaldo y el
+// despliegue de producción avisan a jefatura cuando fallan, cada uno en su propio paso.
+describe('avisos técnicos a jefatura desde los workflows (RV-412)', () => {
+  const pasoAviso = (cuerpo: string) => {
+    const i = cuerpo.indexOf('- name: Aviso técnico a jefatura');
+    return i < 0 ? '' : cuerpo.slice(i).split(/\n {6}- /)[0]!;
+  };
+
+  it.each([
+    ['vigilancia.yml', 'mirar', 'prod-tareas', 'vigilancia', 'SUPABASE_DB_URL_PROD'],
+    ['respaldo.yml', 'respaldo', 'prod-tareas', 'respaldo', 'SUPABASE_DB_URL_PROD'],
+    ['respaldo.yml', 'respaldo-staging', 'staging', 'respaldo', 'SUPABASE_DB_URL'],
+    ['deploy-prod.yml', 'desplegar', 'production', 'despliegue', 'SUPABASE_DB_URL'],
+  ])(
+    '%s › %s (%s): paso propio con la clave %s y la base de su environment',
+    (archivo, trabajo, entorno, clave, secreto) => {
+      const t = trabajosDe(leer(archivo)).find((x) => x.nombre === trabajo);
+      expect(t?.entorno).toBe(entorno);
+      const paso = pasoAviso(t!.cuerpo);
+      expect(paso).not.toBe('');
+      expect(paso).toContain(`BD: \${{ secrets.${secreto} }}`);
+      expect(paso).toContain('source .github/scripts/avisos-tecnicos.sh');
+      expect(paso).toContain(`avisar_jefatura ${clave}`);
+      // Su fallo no sustituye al original: ni || true ni un exit propio.
+      expect(paso).not.toMatch(/\|\|\s*true|exit 1/);
+      if (archivo === 'vigilancia.yml') {
+        expect(paso).toContain("if: always() && steps.mirar.outputs.hay_produccion == 'si'");
+      } else {
+        expect(paso).toContain('if: failure()');
+      }
+    },
+  );
+
+  it('el aviso de la vigilancia va antes de abrir la issue, que hace fallar el trabajo', () => {
+    const c = trabajosDe(leer('vigilancia.yml')).find((x) => x.nombre === 'mirar')!.cuerpo;
+    expect(c.indexOf('- name: Aviso técnico a jefatura')).toBeLessThan(
+      c.indexOf('- name: Abrir o cerrar la issue de vigilancia'),
+    );
+    // Solo los problemas de producción: los de staging empiezan por «staging:» o por su dirección.
+    expect(c).toContain('grep -cvE "^(staging:|$APP_STAGING)" problemas.txt');
+  });
+
+  it('la vigilancia sondea las Functions de producción y de staging', () => {
+    const c = trabajosDe(leer('vigilancia.yml')).find((x) => x.nombre === 'mirar')!.cuerpo;
+    expect(c).toMatch(/for url in "\$APP" "\$APP_STAGING"; do\n\s+fallo=\$\(sondear_functions "\$url"\)/);
   });
 });
 
@@ -313,9 +361,11 @@ describe('paridad de producción (P-03)', () => {
     expect(texto).toMatch(/fetch-depth: 0/);
   });
 
-  it('vigilancia.yml comprueba que producción está al día, sin contar la documentación', () => {
+  it('vigilancia.yml comprueba que producción está al día, solo por lo que corre en producción (RV-412)', () => {
     const texto = leer('vigilancia.yml');
-    expect(texto).toContain("origin/main..origin/develop -- . ':!docs'");
+    expect(texto).toContain('source .github/scripts/produccion-atrasada.sh');
+    expect(texto).toContain('atraso=$(produccion_atrasada origin/main origin/develop)');
+    expect(texto).not.toContain("':!docs'");
     expect(texto).toMatch(/"\$dias_atras" -gt 7/);
     expect(texto).toContain('haz P-02');
     expect(texto).toMatch(/fetch-depth: 0/);

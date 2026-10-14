@@ -67,7 +67,10 @@ const lock = (paquetes: Record<string, object>, version = '1.0.0') => ({
   name: 'app',
   version,
   lockfileVersion: 3,
-  packages: { '': { name: 'app', version, dependencies: { a: '^1.0.0' }, devDependencies: { d: '^1.0.0' } }, ...paquetes },
+  packages: {
+    '': { name: 'app', version, dependencies: { a: '^1.0.0' }, devDependencies: { d: '^1.0.0' } },
+    ...paquetes,
+  },
 });
 const LOCK_BASE = {
   'node_modules/a': { version: '1.0.0' },
@@ -174,7 +177,8 @@ describe('produccion_atrasada (RV-412)', () => {
       },
       20,
     );
-    const { 'node_modules/t': _t, ...sinT } = LOCK_BASE;
+    const sinT: Record<string, unknown> = { ...LOCK_BASE };
+    delete sinT['node_modules/t'];
     commit({ 'package-lock.json': lock({ ...sinT, 'node_modules/n': { version: '1.0.0' } }) }, 30);
     expect(atrasada()).toBe(`3 ${t}`);
   });

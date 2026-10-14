@@ -56,7 +56,7 @@ function correr(guion: string, env: Record<string, string> = {}) {
       },
     },
   );
-  let anotado = '';
+  let anotado: string;
   try {
     anotado = readFileSync(path.join(dir, 'anotado'), 'utf8');
   } catch {
@@ -108,9 +108,27 @@ describe('aviso_tecnico (RV-412)', () => {
   });
 
   it('una clave que no es suya ni llega a la base', () => {
-    const r = correr("aviso_tecnico \"x'); drop table y; --\"");
+    const r = correr('aviso_tecnico "x\'); drop table y; --"');
     expect(r.status).toBe(2);
     expect(r.anotado).not.toContain('psql');
+  });
+
+  it('avisar_jefatura: encolado o no, lo deja en el resumen del paso y no falla', () => {
+    const resumen = path.join(dir, 'resumen');
+    rmSync(resumen, { force: true });
+    const r = correr('avisar_jefatura despliegue; avisar_jefatura respaldo', {
+      GITHUB_STEP_SUMMARY: resumen,
+      PSQL_SALIDA: 'f',
+    });
+    expect(r.status).toBe(0);
+    expect(readFileSync(resumen, 'utf8')).toContain('Aviso técnico a jefatura (despliegue): no encolado');
+  });
+
+  it('avisar_jefatura: si no se puede encolar, un aviso del paso y sale con 0 (no tapa el fallo original)', () => {
+    const r = correr('avisar_jefatura vigilancia', { PSQL_FALLA: '1', GITHUB_STEP_SUMMARY: '/dev/null' });
+    expect(r.status).toBe(0);
+    expect(r.stdout).toContain('::warning::No se ha podido encolar el aviso técnico a jefatura (vigilancia)');
+    expect(r.stdout + r.stderr).not.toContain('servidor');
   });
 
   it('sin cadena de conexión, falla', () => {

@@ -6,6 +6,8 @@
 #                             jefatura con hidrantes.fn_encolar_aviso_tecnico, en la base de $BD;
 #                             escribe «t» si lo ha encolado y «f» si no (ya avisado en las últimas 24 h
 #                             o nadie con el tema). Falla si no se puede llamar.
+#   avisar_jefatura CLAVE     lo mismo, para el paso «Aviso técnico a jefatura» de un workflow: deja
+#                             el resultado en el resumen o un ::warning:: y nunca falla.
 
 # Las Functions responden: POST /api/verificar-codigo con `{}` da 400 con el JSON de error. Ese camino
 # responde antes de llamar a Supabase y no cuenta como intento. Sin Origin, como toda llamada de
@@ -32,4 +34,21 @@ aviso_tecnico() {
   # Sin el error de psql en la salida: puede nombrar el servidor, y las issues son públicas.
   psql -X -A -t -v ON_ERROR_STOP=1 "$BD" \
     -c "select hidrantes.fn_encolar_aviso_tecnico('$clave', null, null);" 2>/dev/null
+}
+
+# La issue es el aviso principal: si no se puede encolar, queda como aviso del paso (::warning::), sin
+# que el paso falle ni tape el fallo original del trabajo. Siempre devuelve 0.
+avisar_jefatura() {
+  local clave=$1 r
+  if r=$(aviso_tecnico "$clave"); then
+    if [ "$r" = t ]; then
+      r='encolado'
+    else
+      r='no encolado: ya hubo uno en las últimas 24 h o nadie tiene el tema'
+    fi
+    echo "Aviso técnico a jefatura ($clave): $r" >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
+  else
+    echo "::warning::No se ha podido encolar el aviso técnico a jefatura ($clave); la issue sigue siendo el aviso"
+  fi
+  return 0
 }
