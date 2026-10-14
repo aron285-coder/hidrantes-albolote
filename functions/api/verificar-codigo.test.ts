@@ -8,9 +8,14 @@
 // vio en la CI—, así que las llamadas que no dependen unas de otras se lanzan a la vez: todas caben
 // en la misma espera.
 
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Env } from '../_lib/comun.ts';
-import { DURACION_MINIMA_MS, onRequestPost } from './verificar-codigo.ts';
+import { _reiniciarLimites } from '../_lib/limite.ts';
+import { DURACION_MINIMA_MS, LIMITE_CODIGO_POR_MINUTO, onRequestPost } from './verificar-codigo.ts';
+
+// El tope por IP de la Function (docs/36 RV-451) vive en la memoria del módulo: cada prueba empieza
+// con él vacío.
+beforeEach(() => _reiniciarLimites());
 
 const ENV = {
   SUPABASE_URL: 'https://proyecto.supabase.co',
@@ -167,6 +172,37 @@ describe('POST /api/verificar-codigo', () => {
     }
     expect(espia).not.toHaveBeenCalled();
     espia.mockRestore();
+  });
+
+  // docs/36 RV-451 (DEC-207): la Function pone su propio tope por IP agrupada, antes de la base de datos.
+  it('el undécimo intento en un minuto desde la misma IP agrupada → 429 sin llamar a la base; de otra IP, pasa', async () => {
+    expect(LIMITE_CODIGO_POR_MINUTO).toBe(10);
+    const espia = fingir(canje({ token: null, caduca_en: null, error: null }));
+    const desde = (ip: string) =>
+      responder(peticion({ codigo: '000001', dispositivo_id: DISPOSITIVO }, { 'CF-Connecting-IP': ip }));
+    const empezado = Date.now();
+    // Las diez primeras desde dos IPv6 del mismo /48: cuentan juntas.
+    const respuestas = await Promise.all([
+      ...Array.from({ length: 5 }, () => desde('2001:db8:aa:1::1')),
+      ...Array.from({ length: 5 }, () => desde('2001:db8:aa:2::2')),
+      desde('2001:db8:aa:3::3'),
+      desde('198.51.100.20'),
+    ]);
+    const tardado = Date.now() - empezado;
+    const llamadasALaBase = espia.mock.calls.length;
+    espia.mockRestore();
+
+    expect(respuestas.slice(0, 10).map((r) => r.status)).toEqual(Array(10).fill(401));
+    expect(respuestas[10]!.status).toBe(429);
+    const cuerpo = (await respuestas[10]!.json()) as { error: string; reintentar_en_s: number };
+    expect(cuerpo.error).toBe('DEMASIADOS_INTENTOS');
+    expect(cuerpo.reintentar_en_s).toBeGreaterThanOrEqual(1);
+    expect(cuerpo.reintentar_en_s).toBeLessThanOrEqual(60);
+    expect(respuestas[11]!.status).toBe(401);
+    // Once llamadas a la base de datos: las diez primeras y la de la otra IP.
+    expect(llamadasALaBase).toBe(11);
+    // El 429 también espera la duración mínima.
+    expect(tardado).toBeGreaterThanOrEqual(DURACION_MINIMA_MS - 20);
   });
 
   // TR-42: si acertar tardara menos que fallar, se podría adivinar el código a base de cronómetro.
