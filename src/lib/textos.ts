@@ -991,6 +991,12 @@ export const T = {
     // docs/31 RV-165: el punto cambió por fuera mientras Editar tenía cambios sin guardar.
     otroAdministrador: 'Otro administrador ha cambiado este punto.',
     verLoNuevo: 'Ver lo nuevo',
+    // docs/36 RV-471: al guardar, el servidor dice que otro lo ha cambiado (PUNTO_CAMBIADO).
+    puntoCambiado: 'Otro administrador ha cambiado este punto mientras lo editabas. Mira lo nuevo antes de guardar.',
+    cargandoNuevo: 'Cargando lo nuevo…',
+    // Debajo de un campo que el otro ha cambiado, tras «Ver lo nuevo».
+    valorNuevo: 'Valor nuevo: lo ha cambiado otro administrador.',
+    yaNoEsta: 'Este punto ya no está en el inventario: otro administrador lo ha retirado o borrado.',
   },
 
   panelRegistro: {

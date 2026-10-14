@@ -658,6 +658,100 @@ test.describe('El foco no se escapa de las ventanas del panel (docs/30 RV-128)',
   });
 });
 
+// docs/36 RV-471 (DEC-208): Editar manda la versión del punto que se abrió. Si otro lo ha cambiado
+// entretanto, el servidor no guarda (PUNTO_CAMBIADO): aviso, «Ver lo nuevo» sin perder lo escrito, y
+// guardar otra vez con la versión nueva.
+test.describe('Editar no pisa el cambio de otro (docs/36 RV-471)', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'los anchos se fijan a mano en el proyecto de escritorio');
+
+  test('PUNTO_CAMBIADO: aviso, Ver lo nuevo conserva lo escrito y marca lo del otro, y guardar funciona', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const V1 = '2026-10-14T08:00:00.123456+00:00';
+    const V2 = '2026-10-14T09:30:00.654321+00:00';
+    const vista = { lista: PUNTOS.map((x) => ({ ...x, datos_cambiados_en: V1 })) };
+    await preparar(page, [], vista);
+    const enviados: Record<string, unknown>[] = [];
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_editar_punto`, (r) => {
+      const cuerpo = r.request().postDataJSON() as Record<string, unknown>;
+      enviados.push(cuerpo);
+      if (cuerpo.version === V1) {
+        // Entretanto, otro administrador ha cambiado el enganche y la dirección.
+        vista.lista = vista.lista.map((x) =>
+          x.id === BOCA.id
+            ? {
+                ...x,
+                racor: 'barcelona' as const,
+                direccion: '[PRUEBA] Calle del otro 7',
+                datos_cambiados_en: V2,
+                actualizado_en: new Date().toISOString(),
+              }
+            : x,
+        );
+        return r.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            code: 'P0001',
+            message: 'PUNTO_CAMBIADO: Otro administrador ha cambiado este punto mientras lo editabas',
+            details: null,
+            hint: null,
+          }),
+        });
+      }
+      return r.fulfill({ contentType: 'application/json', body: 'null' });
+    });
+    await page.goto('/admin/inventario');
+    await editarDe(page, BOCA.codigo).click();
+    const p = panel(page);
+    await p.getByRole('radio', { name: T.formulario.malo }).click();
+    await p.getByRole('textbox', { name: T.formulario.descripcionOpcional }).fill('[PRUEBA] Mía');
+    const guardar = p.getByRole('button', { name: T.panel.guardarCambios });
+    await guardar.click();
+
+    // El aviso sale en la ventana; no se ha guardado nada y Guardar espera a ver lo nuevo.
+    const aviso = p.getByRole('alert').filter({ hasText: T.panelEditar.puntoCambiado });
+    await expect(aviso).toBeVisible();
+    await expect(guardar).toBeDisabled();
+    await expect(p.getByRole('radio', { name: T.formulario.malo })).toHaveAttribute('aria-checked', 'true');
+    expect(enviados).toEqual([
+      { punto_id: BOCA.id, cambios: { caudal: 'malo', descripcion: '[PRUEBA] Mía' }, version: V1 },
+    ]);
+    for (const tema of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: tema });
+      const { violations } = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+        .include('[role="dialog"] [role="alert"]')
+        .analyze();
+      expect(violations.flatMap((v) => v.nodes.map((n) => `${tema} · ${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+    }
+    await page.emulateMedia({ colorScheme: 'light' });
+
+    await aviso.getByRole('button', { name: T.panelEditar.verLoNuevo }).click();
+    await expect(aviso).toHaveCount(0);
+    // Lo escrito, donde el otro no ha tocado; lo del otro, con su valor y marcado.
+    await expect(p.getByRole('radio', { name: T.formulario.malo })).toHaveAttribute('aria-checked', 'true');
+    await expect(p.getByRole('textbox', { name: T.formulario.descripcionOpcional })).toHaveValue('[PRUEBA] Mía');
+    const enganche = p.locator('[data-campo="enganche"]');
+    await expect(enganche).toHaveAttribute('data-nuevo', 'true');
+    await expect(enganche).toContainText(T.panelEditar.valorNuevo);
+    await expect(p.getByRole('radio', { name: T.formulario.barcelona })).toHaveAttribute('aria-checked', 'true');
+    await expect(p.getByRole('textbox', { name: T.ficha.direccion })).toHaveValue('[PRUEBA] Calle del otro 7');
+    await expect(p.locator('[data-campo="direccion"]')).toHaveAttribute('data-nuevo', 'true');
+    await expect(p.locator('[data-campo="estado"]')).not.toHaveAttribute('data-nuevo', 'true');
+
+    await expect(guardar).toBeEnabled();
+    await guardar.click();
+    await expect(p).toHaveCount(0);
+    expect(enviados.at(-1)).toEqual({
+      punto_id: BOCA.id,
+      cambios: { caudal: 'malo', descripcion: '[PRUEBA] Mía' },
+      version: V2,
+    });
+  });
+});
+
 // docs/31 RV-165: Editar no se queda con una foto vieja del punto. Sin cambios propios se pone al
 // día solo; con cambios, avisa y deja ver lo nuevo tras confirmar que se descartan los propios.
 test.describe('Editar con el punto al día (docs/31 RV-165)', () => {

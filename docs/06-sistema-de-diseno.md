@@ -761,7 +761,11 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `⚠ Esto queda fuera de la zona habitual.` · `Has movido el punto [30 m]: revisa la dirección.` ·
 `[2 cambios] · [ubicación, enganche]` · `ubicación` · `diámetro` · `enganche` · `estado` · `fallo` · `dirección` ·
 `descripción` · `¿Descartar [n] cambios?` (`¿Descartar 1 cambio?` con uno) · `Descartar` · `Seguir editando` · `Guardando…` ·
-`Otro administrador ha cambiado este punto.` · `Ver lo nuevo`.
+`Otro administrador ha cambiado este punto.` · `Ver lo nuevo` · al guardar, si otro lo ha cambiado entretanto
+(docs/36 RV-471, DEC-208; Guardar queda deshabilitado con este aviso como motivo hasta ver lo nuevo):
+`Otro administrador ha cambiado este punto mientras lo editabas. Mira lo nuevo antes de guardar.` · `Cargando lo nuevo…` ·
+`Valor nuevo: lo ha cambiado otro administrador.` (bajo cada campo que trajo lo nuevo) ·
+`Este punto ya no está en el inventario: otro administrador lo ha retirado o borrado.`.
 
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
 `Quitar filtros` · `[Regular] · [3]` (opciones del desplegable Estado, docs/29 RV-123) · `Nada que exportar con estos filtros` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
