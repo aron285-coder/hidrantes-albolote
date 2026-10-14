@@ -12,23 +12,23 @@ export interface Reparto {
 }
 
 /**
- * Lo que de verdad se ha escrito en la casilla, a partir de lo que tenía (`previo`) y de lo que trae
- * ahora (`valor`). Una cifra tecleada encima de otra llega como dos caracteres; un código insertado
- * detrás de la cifra que ya había llega con ella delante.
+ * Lo escrito en la casilla cuando el navegador no dice qué se ha insertado (una sugerencia que
+ * sustituye el valor entero, un teclado que compone): se deduce de lo que tenía (`previo`) y de lo
+ * que trae ahora (`valor`). Una cifra tecleada encima de otra llega como dos caracteres, uno de
+ * ellos el anterior; lo demás se toma tal cual.
  */
-export function textoEscrito(previo: string, valor: string, quedan: number): string {
-  if (valor.length <= 1) return valor;
+export function textoEscrito(previo: string, valor: string): string {
   if (previo && valor.length === 2 && valor.includes(previo)) {
     return valor.startsWith(previo) ? valor.slice(1) : valor.slice(0, 1);
   }
-  const digitos = valor.replace(/\D/g, '');
-  if (previo && digitos.length > quedan && digitos.startsWith(previo)) return digitos.slice(previo.length);
   return valor;
 }
 
 /**
  * Reparte `texto` desde la casilla `desde`. Devuelve null si no trae ninguna cifra (se ignora); con
- * texto vacío, borra la casilla. Si llegan varias cifras y el código queda completo, el foco sale.
+ * texto vacío, borra la casilla. Un código entero (seis cifras) va siempre desde la primera casilla,
+ * entre en la que entre. Si llegan varias cifras, caben y el código queda completo, el foco sale; si
+ * sobran cifras, el foco se queda en las casillas para que se vea lo que ha entrado.
  */
 export function repartir(cifras: readonly string[], desde: number, texto: string): Reparto | null {
   const digitos = texto.replace(/\D/g, '');
@@ -38,12 +38,24 @@ export function repartir(cifras: readonly string[], desde: number, texto: string
     nuevas[desde] = '';
     return { cifras: nuevas, foco: null };
   }
-  for (let i = 0; i < digitos.length && desde + i < CIFRAS_CODIGO; i++) nuevas[desde + i] = digitos[i];
-  const completo = digitos.length > 1 && nuevas.every(Boolean);
-  return { cifras: nuevas, foco: completo ? 'completo' : Math.min(CIFRAS_CODIGO - 1, desde + digitos.length) };
+  const inicio = digitos.length === CIFRAS_CODIGO ? 0 : desde;
+  for (let i = 0; i < digitos.length && inicio + i < CIFRAS_CODIGO; i++) nuevas[inicio + i] = digitos[i];
+  const caben = digitos.length <= CIFRAS_CODIGO - inicio;
+  const completo = digitos.length > 1 && caben && nuevas.every(Boolean);
+  return { cifras: nuevas, foco: completo ? 'completo' : Math.min(CIFRAS_CODIGO - 1, inicio + digitos.length) };
 }
 
-/** Lo que pasa al cambiar el valor de la casilla `i` (evento de entrada, no de pegar). */
-export function escribirEnCasilla(cifras: readonly string[], i: number, valor: string): Reparto | null {
-  return repartir(cifras, i, textoEscrito(cifras[i] ?? '', valor, CIFRAS_CODIGO - i));
+/**
+ * Lo que pasa al cambiar el valor de la casilla `i` (evento de entrada, no de pegar). `insertado` es
+ * lo que el navegador dice que se ha insertado (`InputEvent.data`); si lo dice, manda sobre el valor,
+ * que puede llevar delante o detrás la cifra que ya había.
+ */
+export function escribirEnCasilla(
+  cifras: readonly string[],
+  i: number,
+  valor: string,
+  insertado: string | null = null,
+): Reparto | null {
+  if (insertado && valor) return repartir(cifras, i, insertado);
+  return repartir(cifras, i, textoEscrito(cifras[i] ?? '', valor));
 }

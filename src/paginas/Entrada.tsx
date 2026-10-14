@@ -13,6 +13,15 @@ import { T } from '@/lib/textos';
 
 const CIFRAS = CIFRAS_CODIGO;
 
+/**
+ * Lo que el navegador dice que se ha insertado (RV-470). Mientras el teclado compone, `data` es la
+ * composición entera y no lo nuevo: entonces no se usa y manda el valor de la casilla.
+ */
+function insertado(evento: Event): string | null {
+  if (typeof InputEvent === 'undefined' || !(evento instanceof InputEvent)) return null;
+  return evento.inputType === 'insertCompositionText' ? null : evento.data;
+}
+
 /** Pantalla de entrada (FL-01, 07 §7.1). El código no se guarda nunca en el móvil (TR-43). */
 export function Entrada({ caducado }: { caducado: boolean }) {
   const firma = leerFirma();
@@ -111,13 +120,13 @@ export function Entrada({ caducado }: { caducado: boolean }) {
                   casillas.current[i] = el;
                 }}
                 value={c}
-                onChange={(e) => aplicar(escribirEnCasilla(cifras, i, e.target.value))}
+                onChange={(e) => aplicar(escribirEnCasilla(cifras, i, e.target.value, insertado(e.nativeEvent)))}
                 onKeyDown={(e) => tecla(i, e)}
                 onPaste={(e) => pegar(i, e)}
                 inputMode="numeric"
                 autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                // Cabe un código entero más la cifra que ya hubiera: se reparte, no se corta (RV-470).
-                maxLength={CIFRAS + 1}
+                // Cabe un código entero con separadores y la cifra que ya hubiera: se reparte, no se corta (RV-470).
+                maxLength={CIFRAS * 3}
                 aria-label={T.entrada.cifra(i + 1)}
                 aria-invalid={errorCodigo ? true : undefined}
                 className="bg-papel border-linea rounded-campo font-datos size-11 border text-center text-xl disabled:opacity-60"
