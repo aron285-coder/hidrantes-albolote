@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -662,6 +662,108 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-208 · Editar un punto en el panel lleva la versión que se abrió
+- **Fecha:** 14 oct 2026 (desarrollador) · **Estado:** vigente (`docs/36` RV-452, RV-471; migración `0048`).
+- **Contexto:** `fn_editar_punto` no miraba ninguna versión: si otro administrador cambiaba el punto, o se
+  aprobaba una propuesta sobre él, mientras alguien lo tenía abierto en Editar, al guardar se pisaba ese cambio
+  sin aviso.
+- **Decisión:**
+  1. `fn_editar_punto(punto_id, cambios, version timestamptz default null)`. Con `version`, bajo el bloqueo de
+     la fila, si `datos_cambiados_en` es posterior (comparadas al milisegundo) → `PUNTO_CAMBIADO` y no se toca
+     nada. Sin ella, o con `null`, como antes: es la llamada del panel anterior (04 §12). La firma de dos
+     argumentos se borra (PostgREST no sabría cuál llamar); la llamada con dos sigue valiendo.
+  2. `v_puntos_activos` trae `datos_cambiados_en` como última columna, para el panel; `fn_listar_puntos` y
+     `fn_ficha_punto` la quitan, así que no llega al móvil del voluntario.
+  3. El panel manda la `datos_cambiados_en` del punto que abrió. Con `PUNTO_CAMBIADO` no se guarda: aviso en la
+     ventana y «Ver lo nuevo», que carga lo nuevo, conserva lo escrito en lo que el otro no tocó y marca lo que
+     sí (UI-06: nada se pierde en silencio). Guardar después lleva la versión nueva.
+- **Descartado:**
+  - comparar al microsegundo: la versión que el panel tiene en la mano puede venir redondeada al milisegundo
+    (`Date#toISOString`) y daría `PUNTO_CAMBIADO` sin que nadie haya cambiado nada;
+  - guardar lo último y avisar después: el cambio del otro ya se habría perdido.
+- **Afecta a:** 05 §4, §6.3, §8 y §11; 06 Apéndice A.
+
+### DEC-207 · Un intento con el código ya frenado no cuesta un bcrypt, y la Function pone su propio tope por IP
+- **Fecha:** 14 oct 2026 (desarrollador) · **Estado:** vigente (`docs/36` RV-451; migración `0048`). Matiza DEC-199.
+- **Contexto:** desde 0047 todo intento comparaba el código antes de mirar los topes, también el que ya estaba
+  frenado, y cada comparación tiene un coste fijo en la base de datos, que es la del proyecto compartido con
+  uniformidad.
+- **Decisión:**
+  1. `fn_verificar_codigo` lee primero, sin turno, los fallos de la última hora del móvil y de la IP agrupada y,
+     si alguno de los dos tiene un fallo en 24 h, el techo global. Si ya están pasados, `DEMASIADOS_INTENTOS` sin
+     comparar ni esperar el turno. Si no, decide el recuento de siempre, bajo el turno. Misma firma y mismas
+     respuestas.
+  2. `/api/verificar-codigo` deja pasar como mucho **10 peticiones por minuto por IP agrupada** (IPv6 por /48),
+     contadas antes de leer el cuerpo, en la memoria de la instancia. La siguiente recibe **`503 OCUPADO`** con
+     `reintentar_en_s` (1–60) y `Retry-After`, sin llamar a la base de datos y con la duración mínima de siempre.
+     Cuenta por instancia del Worker: el límite de verdad sigue en la base de datos (03 TR-41). El corte no se
+     anota, para no escribir justo lo que se quiere ahorrar.
+  3. Un fallo del aviso técnico de los intentos no impide entrar; queda en `errores_cliente`.
+  4. Lo de DEC-199 sigue: un móvil y una IP sin fallos en 24 h se comparan aunque el techo global esté alcanzado.
+- **Descartado:**
+  - `429 DEMASIADOS_INTENTOS` en el tope de la Function, como decía la especificación: con ese código la app, la
+    actual y la anterior, bloquea el móvil **una hora**, y un grupo que entra a la vez desde la misma wifi no ha
+    fallado nada. `OCUPADO` ya lo entienden las dos versiones como «prueba otra vez en un minuto», sin tocar la
+    app;
+  - anotar cada intento frenado aunque el turno esté ocupado: es solo recuento (05 §6.1, §11);
+  - una regla de Cloudflare: panel web y fuera del repositorio (como en DEC-199).
+- **Afecta a:** 03 TR-41; 05 §6.1, §9 y §11; 11 §3 y §9; DEC-199.
+
+### DEC-206 · La cuenta de jefatura solo se une si es de una sola persona, y la unión cierra las demás sesiones
+- **Fecha:** 14 oct 2026 (desarrollador) · **Estado:** vigente (`docs/36` RV-450, RV-463; migración `0048`). Matiza DEC-197.
+- **Contexto:** DEC-197 une la fila de `administradores` al usuario de Supabase Auth con el correo verificado de
+  su identidad de Google. En el proyecto de Auth compartido con uniformidad, un mismo usuario puede tener varias
+  identidades unidas, y la unión tenía que valer solo para la persona dueña de ese correo.
+- **Decisión:**
+  1. `/api/vincular-jefatura` solo une una cuenta con al menos una identidad de Google cuyas identidades llevan
+     **todas** el mismo correo verificado (`email_verified`), que es también el correo de la cuenta. Si no,
+     `403 CUENTA_MEZCLADA` y no se une; se anota qué regla falla (correo de la cuenta distinto, sin identidades,
+     identidad de un proveedor con otro correo o sin verificar), sin correos ni ids. Una cuenta con su identidad de
+     Google que además tenga la de correo y contraseña de uniformidad, con el mismo correo verificado, pasa. El panel lo trata como «sin acceso», sin
+     reintentar, con su texto (06 Apéndice A).
+  2. Con `VINCULADO` y también con `YA_VINCULADO`, la Function cierra las demás sesiones de ese usuario. Si no
+     puede, deshace la unión con `fn_desvincular_administrador(correo)` (solo `service_role`; reintentado una
+     vez) y responde `503`. El panel solo llama ahí cuando `fn_es_admin` le ha dicho que no, así que no cierra
+     sesiones de más.
+  3. `fn_es_admin()` exige además un JWT emitido en el segundo de la unión o después (`iat`). Un `iat` no
+     numérico, nulo, negativo o desmesurado no da jefatura. Un JWT **sin** `iat` no se compara: todo JWT de
+     Supabase Auth lo lleva, y solo lo omiten los claims montados a mano con acceso directo a la base de datos
+     (seed de staging, `anonimizar`, `probar-restauracion`, pgTAP). El panel renueva la sesión tras unir antes
+     de volver a comprobar; si no puede, lo dice y deja reintentar sin cerrar la sesión.
+     - **Excepción a 04 §12, como en DEC-197:** el panel anterior no renueva la sesión; tras la primera unión
+       dice «No autorizado» y basta con volver a entrar una vez. Los administradores ya unidos no lo notan.
+  4. Las uniones que ya existen las revisa la vigilancia a diario, en producción y en staging, con la misma
+     regla, leyendo de Supabase Auth solo los usuarios unidos. La pasada programada desune la que no la cumple
+     (también la de un usuario que ya no existe) desde #715, con su problema y su aviso técnico; lanzada a mano,
+     por defecto solo informa del motivo. Si no cumple ninguna de dos o más uniones, no se desune ninguna y se
+     avisa. La primera revisión a mano no encontró ninguna unión en staging ni en producción.
+  5. Efecto aceptado: tras unirse, el administrador vuelve a entrar una vez en sus otros dispositivos, también
+     en la app de uniformidad si usa el mismo usuario.
+- **Descartado:**
+  - leer `auth.identities` desde SQL: exigiría un `grant` sobre `auth` en el proyecto de uniformidad (DEC-197);
+  - unir y dejar abiertas las demás sesiones: una sesión emitida antes de la unión no debe dar jefatura;
+  - rechazar todo JWT sin `iat`: rompería el seed de staging, `anonimizar` y `probar-restauracion` sin
+    proteger nada, porque solo los monta quien ya tiene la base de datos;
+  - desunir desde la primera pasada programada sin mirar antes: la primera revisión fue a mano y solo informando.
+- **Afecta a:** 05 §2.9, §6.3, §8 y §9; 11 §2 y §9; 13 §2, §8 y §11; 15 §4; 04 (vigilancia); 06 Apéndice A; DEC-197.
+
+### DEC-205 · `docs/36`: lo que encontró la revisión tras `docs/35`, segunda excepción a DEC-193
+- **Fecha:** 14 oct 2026 (desarrollador) · **Estado:** vigente (`docs/36`).
+- **Contexto:** la revisión completa del 14 oct 2026, hecha con `docs/35` ya en producción, confirmó lo de
+  `docs/35` y encontró ocho hallazgos medios. Dos son de seguridad: la unión de la cuenta de jefatura y el
+  coste de los intentos con el código. Los otros seis son de CI, del respaldo de staging, de la entrada con el
+  código y del panel.
+- **Decisión:**
+  1. `docs/36` entra como excepción a DEC-193, y solo con lo que contiene. Los dos de seguridad van como
+     `bloquea-release`.
+  2. La especificación de después del piloto pasa a ser **`docs/37`** y parte de `docs/verificacion/piloto.md`.
+     Donde DEC-193 y DEC-196 dicen `docs/36`, léase `docs/37`.
+  3. Los hallazgos bajos de esa revisión van como issues `tras-piloto`.
+- **Nota (RV-470):** las casillas del código de acceso admiten hasta 18 caracteres cada una; un código entero
+  de seis cifras se escribe siempre desde la primera casilla aunque entre en otra, y unas cifras sueltas se
+  reparten desde la casilla donde entran. Si sobran cifras, el foco se queda en las casillas.
+- **Afecta a:** DEC-193, DEC-196, CLAUDE.md §5 y 09 §8.
+
 ### DEC-204 · Los archivos de contexto de Claude Code, al día con la aplicación
 - **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (anotada como DEC-204: DEC-196 a DEC-203 son de `docs/35`). Mantenimiento durante la congelación (DEC-193, punto 3).
 - **Contexto:** el desarrollador pidió revisar los archivos que Claude Code lee o que le gobiernan (`CLAUDE.md`,
@@ -727,6 +829,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      - el canje del código, con `intentos_codigo` (DEC-199).
   3. **Sondeo de las Functions**, en producción y en staging: `POST /api/verificar-codigo` con `{}` tiene que dar 400 con el JSON de error, que responde antes de llamar a Supabase y no cuenta como intento. Un 5xx, HTML o nada es «las funciones del servidor no responden».
   4. **Producción atrasada** (`.github/scripts/produccion-atrasada.sh`) solo cuenta lo que cambia lo que corre en producción: `src/`, `public/`, `functions/`, `workers/`, `supabase/migrations/`, `index.html`, `vite.config.ts` y, en `package.json` y `package-lock.json`, las dependencias que no son de desarrollo.
+     - **Desde `docs/36` RV-462:** cuenta `src/`, `public/`, `index.html`, `vite.config.ts`, `config/` (cabeceras, CSP y cachés del service worker), `functions/`, `supabase/migrations/`, `datos/` (lo carga `deploy-prod.yml` en la base), `CHANGELOG.md` (las Novedades van en el bundle) y las dependencias que no son de desarrollo; ya no `workers/`, que se despliega desde `develop` con staging. Una release cuenta por su `CHANGELOG.md` (el cambio de versión de `package.json` solo, no).
   - **Límite aceptado:** con Supabase o las Pages Functions caídas no sale el push y queda solo la issue (15 §4).
 - **Descartado:**
   - avisar por correo: exige cuenta y un servicio externo;
@@ -785,6 +888,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - bajar el tope sin dejar pasar al móvil limpio: dejaría fuera a los voluntarios mientras dure;
   - una regla de Cloudflare: panel web y fuera del repositorio.
 - **Afecta a:** DEC-086 (el /64 y el techo de 200); FR-33 (01 v1.14); TR-41 (03 v1.6); 05 §2.5, §2.10, §6.1, §8, §9 y §11; 11 §3 y §9 (v1.4); `docs/17` §12.
+- **Matizada por DEC-207 (`docs/36`):** un intento ya frenado no compara el código, y la Function pone un tope de 10 por minuto por IP agrupada (`503 OCUPADO`).
 
 ### DEC-198 · El código de las dependencias no corre con secretos
 - **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-410).
@@ -793,7 +897,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   1. `.npmrc` con `ignore-scripts=true`. Solo `esbuild` y `workerd` se reconstruyen a mano tras `npm ci` (`npm rebuild esbuild workerd --ignore-scripts=false`). `allowScripts` se queda con esas dos: npm 12 lo exige para reconstruirlas. `build` genera las novedades él mismo, porque sin scripts npm no corre `prebuild`.
   2. Los trabajos con secretos no instalan dependencias: Node 24 sin caché de npm y los scripts con `node scripts/x.ts`. Un test recorre sus imports: solo módulos de Node.
   3. Cada despliegue en trabajos: `construir` sin environment ni secretos (con las variables públicas del repositorio con sufijo `_STAGING`/`_PROD`), `desplegar` con el environment (comprueba antes de migrar que el build lleva las variables del environment, y despliega con el `wrangler` de `.github/despliegue`, solo wrangler en versión exacta con su lockfile), `comprobar` sin secretos en staging, y en producción `avisar`/`cerrar` en trabajos finales. `publicar` espera a que `desplegar` pida la aprobación.
-  4. `persist-credentials: false` en todo checkout de un trabajo con secretos o permiso de escritura, salvo donde se hace `git push` (`mantenimiento.yml`), anotado en el test.
+  4. `persist-credentials: false` en todo checkout de un trabajo con secretos o permiso de escritura. (Hasta `docs/36` RV-460 había una excepción donde se hace `git push`, en `mantenimiento.yml`; ya no la hay: ver el matiz al final.)
   5. Fusión automática estricta: nombres exactos; el lockfile del PR (leído como datos con la API de contenidos, sin checkout) frente al de la base: espera ante entradas nuevas o quitadas, cambios que no sean las dependencias del PR a la versión de Dependabot, o scripts de instalación. `.github/despliegue` nunca se fusiona solo.
   6. `npm audit fix` sin `--force`; lo que pida una versión mayor, en PR aparte o issue `tras-piloto`.
 - **Descartado:**
@@ -801,6 +905,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - construir con el environment: en producción pediría una segunda aprobación;
   - comprobar lo desplegado solo en un trabajo sin secretos: la versión del mapa base se anunciaría antes de que se sirva (RV-21). `comprobar-despliegue` pasa a solo Node y va en `desplegar`.
 - **Afecta a:** 04 §11 y §11.2, §12.1; 11 (cadena de suministro); CLAUDE.md §6; `entornos.md`.
+- **Matizada por `docs/36` RV-460:** tampoco corre código de dependencias en un trabajo con **permiso de escritura**, aunque sea solo el del `GITHUB_TOKEN`. `mantenimiento.yml` regenera en `generar` (solo lectura, sin credenciales en `.git`) y publica en `publicar` (escritura en `contents` y `pull-requests`, sin Node), que parte del mismo commit de `develop`, copia solo las rutas de la lista cerrada `RUTAS_MANTENIMIENTO` y rechaza cualquier otra; tiene una entrada `ensayo` (por defecto `false`) que no abre el PR. `canario-ubuntu.yml` prueba sin escritura y abre su issue en `avisar`, sin dependencias. Desaparece la excepción de `persist-credentials` del punto 4: el `git push` lleva el token solo en esa orden. Un test comprueba que ningún trabajo con permiso de escritura ejecuta código de dependencias.
 
 ### DEC-197 · Jefatura atada a su identidad de Google
 - **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-400, 0046) · **Complementa:** DEC-094
@@ -815,6 +920,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - leer `auth.identities` desde SQL: exigiría un `grant` sobre `auth` en el proyecto de uniformidad;
   - vincular a mano cada administrador: el desarrollador no hace pasos manuales (DEC-176, DEC-177).
 - **Afecta a:** 04 §6, 05 §2.9, §6.2, §6.3, §8 y §9, 11 §2, §6.1 y §9, 13 (el primer acceso de un administrador nuevo), 15.
+- **Matizada por DEC-206 (`docs/36`):** la cuenta tiene que ser de una sola persona, la unión cierra las demás sesiones y la jefatura exige un JWT emitido después de la unión.
 
 ### DEC-196 · `docs/35`: seguridad antes del piloto, excepción a DEC-193
 - **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35`).
@@ -825,15 +931,16 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. `docs/35` entra como excepción a DEC-193, y solo con lo que contiene.
   2. Los dos altos van como issues `bloquea-release`.
-  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/36`** y parte de
-     `docs/verificacion/piloto.md` (donde DEC-193 decía `docs/35`).
+  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/37`** y parte de
+     `docs/verificacion/piloto.md` (donde DEC-193 decía `docs/35`; decía `docs/36` hasta que DEC-205 hizo de
+     `docs/36` la segunda excepción).
   4. Fuera de `docs/35`: S3 (riesgo aceptado por el desarrollador), S5 (decidido por el desarrollador) y los
      hallazgos bajos, que pasan a issues `tras-piloto`.
 - **Descartado:**
   - esperar al piloto: un piloto con datos reales y el acceso de jefatura sin atar a su cuenta de Google no es
     aceptable;
   - meterlo todo como `bloquea-release` sin especificación: sin reparto ni tests escritos.
-- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/36`); CLAUDE.md §5 («salvo `docs/35`, DEC-196»); 09 §8.
+- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/37`, por DEC-205); CLAUDE.md §5 («salvo `docs/35` y `docs/36`, DEC-196 y DEC-205»); 09 §8.
 
 ### DEC-195 · Reglas de la documentación
 - **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34` RV-358 a RV-361).
@@ -875,7 +982,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   dos tipos al revés).
 
 ### DEC-193 · `docs/34` es la última especificación antes del piloto
-- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34`), con la excepción de `docs/35` (DEC-196).
+- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34`), con las excepciones de `docs/35` (DEC-196) y `docs/36` (DEC-205).
 - **Contexto:** entre el 23 sep y el 9 oct hubo diecisiete especificaciones de revisión (`docs/17` a `docs/33`),
   todas sobre staging con datos de prueba. El recorrido RV-344 ya no encontró ningún defecto alto, y los bajos
   eran plurales y textos recortados. La aplicación no la ha usado todavía ningún voluntario: la validación con
@@ -889,8 +996,9 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
   Una mejora que se le ocurra a Claude Code o al desarrollador mientras tanto se anota como issue con la
   etiqueta `tras-piloto` y no se implementa.
-- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/36` parte de lo que diga ese
-  archivo y de las issues `tras-piloto`, en ese orden (`docs/35` es la excepción de seguridad de DEC-196).
+- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/37` parte de lo que diga ese
+  archivo y de las issues `tras-piloto`, en ese orden (`docs/35` es la excepción de seguridad de DEC-196, y
+  `docs/36`, la de DEC-205).
 - **Descartado:** seguir con revisiones sobre staging hasta el piloto (rendimiento cada vez menor); congelar
   también los arreglos de defectos (un defecto que aparezca en la validación tiene que poder arreglarse).
 - **Afecta a:** 09 §8 (fase 9); CLAUDE.md §5 (una línea: «hasta el piloto, DEC-193»).
@@ -2545,7 +2653,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 196 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 196, 205 |
 | 11 | 002, 004, 011, 017–019, 022, 086, 094, 118 |
 | 15 | 023, 061, 085, 088, 102, 128, 129 |
 | 16 | 007, 037, 111 |

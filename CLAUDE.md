@@ -104,16 +104,16 @@ dispositivo · zona de cobertura · fuera de zona.
 
 ## 5. Cómo se trabaja
 
-**Hasta el piloto, DEC-193 (salvo `docs/35`, DEC-196): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
+**Hasta el piloto, DEC-193 (salvo `docs/35` y `docs/36`, DEC-196 y DEC-205): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
 agrupación. Solo entran en `develop`:
 
 1. arreglos de una issue `bloquea-release`;
 2. lo que salga de la validación (#76) o del piloto (#77, #78), cada uno con su issue (etiqueta `piloto`);
 3. mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas programadas, estos archivos).
 
-Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. La única
-excepción es `docs/35` (DEC-196), y solo con lo que contiene; `docs/36` no se escribe hasta que exista
-`docs/verificacion/piloto.md`.
+Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. Las únicas
+excepciones son `docs/35` (DEC-196) y `docs/36` (DEC-205), y solo con lo que contienen; `docs/37`, la de
+después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md`.
 
 1. Qué coger: si te han pedido algo concreto, eso. Si no, la issue `bloquea-release` más antigua y después la
    `piloto` más antigua. **Nunca** una con `organizacion` (es trabajo de personas: validar, dar la sesión,
