@@ -4,6 +4,7 @@ import {
   URL_PRODUCCION,
   adaptarColumnasPermitidas,
   adaptarSesiones,
+  adaptarVinculadoEn,
   adaptarVinculo,
   cambianMigraciones,
   elegirReferencia,
@@ -221,6 +222,11 @@ describe('adaptarVinculo (docs/35 RV-400)', () => {
     expect(adaptado).toContain('usuario_id is null');
   });
 
+  it('docs/36 RV-450: la fila queda unida desde antes de la sesión, para que su JWT valga', () => {
+    expect(adaptarVinculo(anterior)).toContain("vinculado_en = now() - interval '1 day'");
+    expect(adaptarVinculo(anterior)).not.toMatch(/vinculado_en = now\(\) where/);
+  });
+
   it('no toca una referencia que ya une la fila, ni una que no sabe leer, y es idempotente', () => {
     const conVinculo = `${anterior}export const sqlVincular = () => '';\n`;
     expect(adaptarVinculo(conVinculo)).toBe(conVinculo);
@@ -228,5 +234,27 @@ describe('adaptarVinculo (docs/35 RV-400)', () => {
     expect(adaptarVinculo(otra)).toBe(otra);
     const una = adaptarVinculo(anterior);
     expect(adaptarVinculo(una)).toBe(una);
+  });
+});
+
+describe('adaptarVinculadoEn (docs/36 RV-450)', () => {
+  // El sqlVincular de una referencia de docs/35 une la fila después de emitir la sesión.
+  const sqlVincularAnterior = [
+    'export const sqlVincular = (correo: string, usuarioId: string) => {',
+    "  return `update hidrantes.administradores set usuario_id = '${usuarioId}', vinculado_en = now() where email = '${correo.toLowerCase()}'`;",
+    '};',
+    '',
+  ].join('\n');
+
+  it('une la fila con vinculado_en de hace un día, y es idempotente', () => {
+    const adaptado = adaptarVinculadoEn(sqlVincularAnterior);
+    expect(adaptado).toContain("vinculado_en = now() - interval '1 day' where email");
+    expect(adaptado).not.toMatch(/vinculado_en = now\(\) where/);
+    expect(adaptarVinculadoEn(adaptado)).toBe(adaptado);
+  });
+
+  it('una referencia que ya lo hace, o sin sqlVincular, no se toca', () => {
+    const otra = 'export const x = 1;\n';
+    expect(adaptarVinculadoEn(otra)).toBe(otra);
   });
 });
