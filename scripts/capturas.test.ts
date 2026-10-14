@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { FIRMA, indice, nombreArchivo, nombresAjenos, vocabularioInterfaz } from './capturas.ts';
+import { FIRMA, codigoPara, indice, nombreArchivo, nombresAjenos, vocabularioInterfaz } from './capturas.ts';
+
+// docs/35 RV-411 (DEC-200): staging ya no entra con el código de pruebas.
+describe('código con el que entrar', () => {
+  const STAGING = 'https://hidrantes-albolote-staging.pages.dev';
+  it('en staging, CODIGO_STAGING del entorno o de .env.local; nunca el de pruebas', () => {
+    expect(codigoPara(STAGING, undefined, { CODIGO_STAGING: '135790' }, '')).toBe('135790');
+    expect(codigoPara(STAGING, undefined, {}, 'A=1\nCODIGO_STAGING=246801\n')).toBe('246801');
+    expect(codigoPara(STAGING, undefined, {}, '')).toBeUndefined();
+  });
+
+  it('en local, el de pruebas; con --codigo, el que se da', () => {
+    expect(codigoPara('http://127.0.0.1:8788', undefined, { CODIGO_STAGING: '135790' }, '')).toMatch(/^\d{6}$/);
+    expect(codigoPara(STAGING, '112233', { CODIGO_STAGING: '135790' }, '')).toBe('112233');
+  });
+});
 
 describe('nombre de archivo', () => {
   it('va numerado para que los manuales puedan citarlo', () => {

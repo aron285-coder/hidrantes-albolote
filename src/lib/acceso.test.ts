@@ -6,7 +6,7 @@ import { almacenEnMemoria, respuesta } from './pruebas';
 
 const rpc = vi.fn();
 /** Sesión de Google que devuelve supabase-js (null: ninguna). */
-let sesionGoogle: { access_token: string; user: { email: string } } | null = null;
+let sesionGoogle: { access_token: string; user: { email: string; id?: string } } | null = null;
 vi.mock('./supabase', () => ({
   supabase: () => ({
     rpc,
@@ -31,10 +31,13 @@ const {
   _reiniciarAcceso,
   acceso,
   comprobarAcceso,
+  dejarJefatura,
   direccionSinOauth,
   entrarConCodigo,
   limpiarDireccion,
+  reintentarComprobacion,
   salirDeGoogle,
+  volverAEntrada,
 } = await import('./acceso');
 const { codigoDeError, SIN_SERVIDOR, verificarCodigo } = await import('./api');
 const { _reiniciar, estadoConexion } = await import('./conexion');
@@ -203,6 +206,11 @@ describe('jefatura sin servidor al arrancar (RV-16, FR-168)', () => {
     rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
     await comprobarAcceso();
     rpc.mockResolvedValueOnce({ data: false, error: null, status: 200 });
+    // Sin acceso ya: la Function lo confirma (docs/35 RV-432).
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respuesta(403, { error: 'NO_ES_ADMINISTRADOR' })),
+    );
     await comprobarAcceso();
     expect(acceso()).toEqual({ tipo: 'no_autorizado' });
     expect(datos.has('hidrantes.jefatura_confirmada')).toBe(false);
@@ -216,6 +224,26 @@ describe('jefatura sin servidor al arrancar (RV-16, FR-168)', () => {
     expect(datos.has('hidrantes.jefatura_confirmada')).toBe(false);
   });
 
+  // docs/35 RV-431: quitarse el acceso a uno mismo saca del panel sin volver a preguntar al servidor.
+  it('dejar jefatura: «No autorizado», sin confirmación ni sesión guardadas, y sin red tampoco vuelve', async () => {
+    conGoogle('jefa@example.org');
+    rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
+    await comprobarAcceso();
+    rpc.mockClear();
+    await dejarJefatura();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado' });
+    expect(rpc).not.toHaveBeenCalled();
+    expect(datos.has('hidrantes.jefatura_confirmada')).toBe(false);
+    expect(datos.has('hidrantes.auth')).toBe(false);
+
+    // Otro arranque sin red: ya no entra como jefatura con lo guardado.
+    sesionGoogle = null;
+    _reiniciarAcceso();
+    vi.stubGlobal('navigator', { onLine: false });
+    await comprobarAcceso();
+    expect(acceso().tipo).not.toBe('jefatura');
+  });
+
   it('sin sesión devuelta y sin red, con la confirmación guardada, sigue en solo lectura', async () => {
     conGoogle('jefa@example.org');
     rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
@@ -225,6 +253,193 @@ describe('jefatura sin servidor al arrancar (RV-16, FR-168)', () => {
     vi.stubGlobal('navigator', { onLine: false });
     await comprobarAcceso();
     expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+  });
+});
+
+// docs/35 RV-432: la cuenta de jefatura se une a su cuenta de Google al entrar, una vez por sesión.
+describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
+  const si = { data: true, error: null, status: 200 };
+  const no = { data: false, error: null, status: 200 };
+  let fetch: ReturnType<typeof vi.fn>;
+  const entrar = () => {
+    datos.set('hidrantes.auth', '{"sesion":"guardada"}');
+    sesionGoogle = { access_token: 'jwt.de.sesion', user: { id: 'u1', email: 'jefa@example.org' } };
+    _reiniciarAcceso();
+  };
+  const contesta = (status: number, cuerpo: unknown) => {
+    fetch = vi.fn(async () => respuesta(status, cuerpo));
+    vi.stubGlobal('fetch', fetch);
+  };
+  /** Las peticiones a la Function (un fallo anotado va aparte, a /api/error). */
+  const pedidas = () => fetch.mock.calls.filter(([ruta]) => ruta === '/api/vincular-jefatura').length;
+  afterEach(() => {
+    sesionGoogle = null;
+  });
+
+  it('sin unir: la une con el JWT de la sesión, vuelve a preguntar y entra', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc.mockResolvedValueOnce(no).mockResolvedValueOnce(si);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [ruta, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(ruta).toBe('/api/vincular-jefatura');
+    expect(init.method).toBe('POST');
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer jwt.de.sesion', 'Content-Type': 'application/json' });
+    expect(rpc.mock.calls.filter(([n]) => n === 'fn_es_admin')).toHaveLength(2);
+  });
+
+  it('YA_VINCULADO también entra', async () => {
+    entrar();
+    contesta(200, { resultado: 'YA_VINCULADO' });
+    rpc.mockResolvedValueOnce(no).mockResolvedValueOnce(si);
+    await comprobarAcceso();
+    expect(acceso().tipo).toBe('jefatura');
+  });
+
+  it.each([
+    [403, { error: 'OTRA_CUENTA' }],
+    [403, { error: 'NO_ES_ADMINISTRADOR' }],
+    [403, { error: 'SIN_GOOGLE' }],
+    [401, { error: 'NO_AUTORIZADO' }],
+  ])('%s %o: «No autorizado», sin volver a preguntar ni a pedirlo otra vez', async (status, cuerpo) => {
+    entrar();
+    contesta(status, cuerpo);
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado' });
+    expect(rpc.mock.calls.filter(([n]) => n === 'fn_es_admin')).toHaveLength(1);
+    // Otra comprobación en la misma sesión: no se vuelve a pedir (sin bucle).
+    await comprobarAcceso();
+    expect(pedidas()).toBe(1);
+  });
+
+  it.each([
+    [429, { error: 'DEMASIADOS_INTENTOS' }],
+    [500, { error: 'ERROR_INTERNO' }],
+    [503, { error: 'SERVIDOR_NO_DISPONIBLE' }],
+    [403, { error: 'ORIGEN_NO_PERMITIDO' }],
+    [200, { resultado: 'OTRO' }],
+  ])('%s %o: «no se ha podido comprobar», sin cerrar la sesión ni pedirlo solo otra vez', async (status, cuerpo) => {
+    entrar();
+    contesta(status, cuerpo);
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+    expect(datos.has('hidrantes.auth')).toBe(true);
+    // Otra comprobación automática en la misma sesión: ni se vuelve a pedir ni cambia la pantalla.
+    await comprobarAcceso();
+    expect(pedidas()).toBe(1);
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+  });
+
+  it('sin red: «no se ha podido comprobar»', async () => {
+    entrar();
+    fetch = vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    });
+    vi.stubGlobal('fetch', fetch);
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+  });
+
+  it('Reintentar vuelve a pedirlo una vez y, si se une, entra', async () => {
+    entrar();
+    contesta(503, { error: 'SERVIDOR_NO_DISPONIBLE' });
+    rpc.mockResolvedValueOnce(no);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc.mockResolvedValueOnce(no).mockResolvedValueOnce(si);
+    await reintentarComprobacion();
+    expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+    expect(pedidas()).toBe(1);
+  });
+
+  it('Reintentar que vuelve a fallar: la misma pantalla, una sola petición más', async () => {
+    entrar();
+    contesta(503, { error: 'SERVIDOR_NO_DISPONIBLE' });
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    await reintentarComprobacion();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+    expect(pedidas()).toBe(2);
+  });
+
+  it('dos comprobaciones a la vez: una sola petición, y las dos entran', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    let unida = false;
+    rpc.mockImplementation(async () => ({ data: unida, error: null, status: 200 }));
+    fetch.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+      unida = true;
+      return respuesta(200, { resultado: 'VINCULADO' });
+    });
+    await Promise.all([comprobarAcceso(), comprobarAcceso()]);
+    expect(pedidas()).toBe(1);
+    expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+  });
+
+  it('Reintentar sin servidor: sigue en la misma pantalla, sin volver a la entrada', async () => {
+    entrar();
+    contesta(503, { error: 'SERVIDOR_NO_DISPONIBLE' });
+    rpc.mockResolvedValueOnce(no);
+    await comprobarAcceso();
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
+    await reintentarComprobacion();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+    expect(pedidas()).toBe(1);
+  });
+
+  it('unida, pero sin servidor para volver a preguntar: «no se ha podido comprobar»', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc
+      .mockResolvedValueOnce(no)
+      .mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+  });
+
+  it('unida, pero el servidor sigue diciendo que no: «No autorizado»', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado' });
+  });
+
+  it('otra cuenta de Google en el mismo navegador: se vuelve a pedir', async () => {
+    entrar();
+    contesta(403, { error: 'OTRA_CUENTA' });
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    datos.set('hidrantes.auth', '{"sesion":"guardada"}');
+    sesionGoogle = { access_token: 'otro.jwt', user: { id: 'u2', email: 'otra@example.org' } };
+    await comprobarAcceso();
+    expect(pedidas()).toBe(2);
+  });
+
+  it('Volver sin poder comprobar cierra la sesión de Google', async () => {
+    entrar();
+    contesta(503, { error: 'SERVIDOR_NO_DISPONIBLE' });
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    volverAEntrada();
+    expect(datos.has('hidrantes.auth')).toBe(false);
+    expect(acceso().tipo).toBe('fuera');
+  });
+
+  it('ya es jefatura: no se pide nada', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc.mockResolvedValue(si);
+    await comprobarAcceso();
+    expect(acceso().tipo).toBe('jefatura');
+    expect(pedidas()).toBe(0);
   });
 });
 

@@ -5,6 +5,12 @@ import {
   type Salud,
   VIGILANCIA_ATRASADA_H,
   avisoAlmacenamiento,
+  pendienteDeVincular,
+  leerFechaLocal,
+  motivoDesde,
+  valorFechaLocal,
+  avisoQuitarAcceso,
+  esUnoMismo,
   cargarNovedades,
   origenTareas,
   textoAlmacenamiento,
@@ -18,6 +24,7 @@ import {
 } from './ajustes';
 import { NOVEDADES, normalizarNovedades } from '../novedades';
 import { T } from '../textos';
+import { textoError } from './errores';
 
 describe('código de acceso (FR-140)', () => {
   it('son seis cifras y salen del generador criptográfico', () => {
@@ -227,5 +234,66 @@ describe('novedades del panel (FR-167, RV-95)', () => {
       expect(l.version).toMatch(/^\d+\.\d+\.\d+$/);
       expect(typeof l.texto).toBe('string');
     }
+  });
+});
+
+// docs/35 RV-432: activo y aún sin unir a su cuenta de Google: «Pendiente de su primer acceso».
+describe('pendienteDeVincular (docs/35 RV-432)', () => {
+  const fila = { email: 'a@example.org', creado_en: '2026-10-01T10:00:00Z', creado_por: 'migracion' };
+  it('solo activo y sin unir', () => {
+    expect(pendienteDeVincular({ ...fila, activo: true, vinculado: false })).toBe(true);
+    expect(pendienteDeVincular({ ...fila, activo: true, vinculado: true })).toBe(false);
+    expect(pendienteDeVincular({ ...fila, activo: false, vinculado: false })).toBe(false);
+  });
+
+  it('sin la columna (base anterior), no se dice nada', () => {
+    expect(pendienteDeVincular({ ...fila, activo: true })).toBe(false);
+  });
+});
+
+// docs/35 RV-431: quitar el acceso a un administrador pide confirmación; a uno mismo, con su aviso.
+describe('avisoQuitarAcceso (docs/35 RV-431)', () => {
+  it('a otro administrador: con su correo', () => {
+    expect(avisoQuitarAcceso('otra@example.org', 'jefe@example.org')).toBe(
+      T.panelAjustes.avisoQuitarAcceso('otra@example.org'),
+    );
+  });
+
+  it('a uno mismo, sin mirar mayúsculas ni espacios: que saldrá del panel', () => {
+    expect(avisoQuitarAcceso('Jefe@Example.org ', 'jefe@example.org')).toBe(T.panelAjustes.avisoQuitarteAcceso);
+    expect(esUnoMismo('jefe@example.org', ' JEFE@example.org')).toBe(true);
+  });
+
+  it('sin saber quién es la sesión, nunca es uno mismo', () => {
+    expect(esUnoMismo('jefe@example.org', null)).toBe(false);
+    expect(esUnoMismo('', '')).toBe(false);
+  });
+
+  it('el último administrador, en palabras', () => {
+    expect(textoError('ULTIMO_ADMINISTRADOR')).toBe('Tiene que quedar al menos un administrador con acceso.');
+  });
+});
+
+// docs/35 RV-433: revocar los móviles que han entrado desde una hora.
+describe('revocar desde una hora (docs/35 RV-433)', () => {
+  const ahora = new Date(2026, 9, 14, 12, 30);
+  it('el campo de fecha y hora, en la hora del navegador, ida y vuelta', () => {
+    expect(valorFechaLocal(new Date(2026, 0, 5, 7, 4))).toBe('2026-01-05T07:04');
+    expect(leerFechaLocal('2026-01-05T07:04')?.getTime()).toBe(new Date(2026, 0, 5, 7, 4).getTime());
+    expect(leerFechaLocal('')).toBeNull();
+    expect(leerFechaLocal('ayer')).toBeNull();
+  });
+
+  it('entre hace 30 días y ahora; si no, el motivo', () => {
+    expect(motivoDesde(new Date(2026, 9, 13, 12, 30), ahora)).toBeNull();
+    expect(motivoDesde(ahora, ahora)).toBeNull();
+    expect(motivoDesde(null, ahora)).toBe(T.panelAjustes.desdeVacio);
+    expect(motivoDesde(new Date(2026, 9, 14, 12, 31), ahora)).toBe(T.panelAjustes.desdeFutura);
+    expect(motivoDesde(new Date(2026, 8, 14, 12, 29), ahora)).toBe(T.panelAjustes.desdeAntigua);
+  });
+
+  it('el aviso dice cuántos, en singular y en plural', () => {
+    expect(T.panelAjustes.seRevocaran(1)).toMatch(/^Se revocará 1 móvil\./);
+    expect(T.panelAjustes.seRevocaran(3)).toMatch(/^Se revocarán 3 móviles\./);
   });
 });

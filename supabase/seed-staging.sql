@@ -13,6 +13,19 @@
 -- retiradas.
 
 \set ON_ERROR_STOP on
+
+-- El código de acceso no va escrito aquí (DEC-200): llega como variable de psql, `-v codigo=…`.
+-- La CI pasa el de pruebas; deploy-staging.yml, el secreto CODIGO_STAGING.
+\if :{?codigo}
+\else
+  do $$ begin raise exception 'seed-staging.sql: falta el código de acceso (psql -v codigo=<seis cifras>)'; end $$;
+\endif
+select :'codigo' ~ '^[0-9]{6}$' as codigo_valido \gset
+\if :codigo_valido
+\else
+  do $$ begin raise exception 'seed-staging.sql: el código de acceso son seis cifras'; end $$;
+\endif
+
 begin;
 
 -- ---------- puntos ----------
@@ -84,27 +97,31 @@ values
    null, null, null, null, null, null, null, 'fotos/prueba-propuesta-a6.jpg', now() - interval '5 hours')
 on conflict do nothing;
 
--- ---------- config: código 000000 solo si no hay ya uno (p. ej. el del piloto) ----------
+-- ---------- config: el código de -v codigo, solo si no hay ya uno (p. ej. el del piloto) ----------
+-- En un staging que ya tenía el de pruebas, lo cambia deploy-staging.yml (scripts/sql/codigo-staging.sql).
 
 insert into hidrantes.config (clave, valor, actualizado_por) values
-  ('codigo_acceso_hash',         to_jsonb(extensions.crypt('000000', extensions.gen_salt('bf', 10))), 'seed'),
+  ('codigo_acceso_hash',         to_jsonb(extensions.crypt(:'codigo', extensions.gen_salt('bf', 10))), 'seed'),
   ('codigo_acceso_cambiado_en',  to_jsonb(now()),                                                    'seed'),
   ('codigo_acceso_cambiado_por', '"seed"',                                                            'seed')
 on conflict (clave) do nothing;
 
 -- ---------- administradores de prueba (el propietario lo añade asegurar-propietario.ts) ----------
+-- Inactivos (DEC-200), también si ya existían activos de un seed anterior. Uno que jefatura haya
+-- creado con el mismo correo (creado_por distinto de 'seed') no se toca.
 
-insert into hidrantes.administradores (email, creado_por) values
-  ('jefatura.prueba@example.com', 'seed'),
-  ('panel.prueba@example.com',    'seed')
-on conflict (email) do nothing;
+insert into hidrantes.administradores (email, creado_por, activo) values
+  ('jefatura.prueba@example.com', 'seed', false),
+  ('panel.prueba@example.com',    'seed', false)
+on conflict (email) do update set activo = false
+ where hidrantes.administradores.creado_por = 'seed' and hidrantes.administradores.activo;
 
 -- ---------- las cuatro bocas duplicadas de RV-139b, retiradas (docs/33 RV-340, D12) ----------
 -- BOC-0003 a BOC-0006 son altas de prueba que RV-139b aprobó en el mismo sitio (8 oct 2026): cuatro
 -- marcadores encima unos de otros. Se retiran como lo haría jefatura, con fn_retirar_punto (queda en el
 -- Registro) y con los claims de un administrador activo **locales a esta transacción**
--- (set_config(…, true)), como en RV-139b: el de prueba si está activo y, si no, otro activo (el
--- propietario lo está siempre, asegurar-propietario.ts). Si ninguno pasa fn_es_admin, falla: el seed se
+-- (set_config(…, true)), como en RV-139b: los de prueba están inactivos (DEC-200), así que es otro
+-- activo (el propietario lo está siempre, asegurar-propietario.ts). Si ninguno pasa fn_es_admin, falla: el seed se
 -- deshace y el despliegue lo dice, en vez de dejar las bocas sin aviso. Solo si siguen activas, son
 -- bocas, se crearon antes del 10 oct 2026 y tienen otra de las cuatro a menos de 15 m: si staging se
 -- rehace y esos códigos son otros puntos, no se toca nada. Idempotente: retiradas, ya no están activas.
@@ -113,18 +130,28 @@ declare
   p record;
   n int := 0;
   admin text;
+  usuario uuid;
+  de_paso boolean := false;
 begin
   if not exists (select 1 from hidrantes.puntos where codigo in ('BOC-0003', 'BOC-0004', 'BOC-0005', 'BOC-0006')
                                                   and situacion = 'activo') then
     return;
   end if;
-  select a.email into admin
+  -- docs/35 RV-400: jefatura exige la fila unida al usuario de la sesión (`sub`). Se prefiere un
+  -- administrador ya unido; si no hay ninguno, se une el elegido a un uuid de paso y se deshace al
+  -- final de este bloque (un do es una sola sentencia: si algo falla, no queda nada unido).
+  select a.email, a.usuario_id into admin, usuario
     from hidrantes.administradores a
    where a.activo
-   order by a.email = 'jefatura.prueba@example.com' desc, a.email
+   order by a.usuario_id is not null desc, a.email = 'jefatura.prueba@example.com' desc, a.email
    limit 1;
+  if admin is not null and usuario is null then
+    usuario := gen_random_uuid();
+    de_paso := true;
+    update hidrantes.administradores set usuario_id = usuario, vinculado_en = now() where email = admin;
+  end if;
   perform set_config('request.jwt.claims', jsonb_build_object(
-    'role', 'authenticated', 'email', admin,
+    'role', 'authenticated', 'sub', usuario, 'email', admin,
     'amr', jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', extract(epoch from now())::bigint)),
     'app_metadata', jsonb_build_object('provider', 'google', 'providers', jsonb_build_array('google')))::text, true);
   if admin is null or not hidrantes.fn_es_admin() then
@@ -147,6 +174,9 @@ begin
     n := n + 1;
   end loop;
   raise notice 'RV-340: % bocas duplicadas de RV-139b retiradas', n;
+  if de_paso then
+    update hidrantes.administradores set usuario_id = null, vinculado_en = null where email = admin;
+  end if;
 end $$;
 
 commit;

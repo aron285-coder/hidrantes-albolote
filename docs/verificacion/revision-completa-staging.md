@@ -212,3 +212,20 @@ de administrador.
 | Limpieza | ok: 0 pendientes y 0 incidencias abiertas; token revocado; traspaso 38043294133, borrado |
 
 commit: 8f7359d2ecb80b41c0addd5c4a709c92fe8c0d36 · resultado: verde
+
+## Release 0.13.0 (14 oct 2026, docs/35 RV-440)
+
+Con todo docs/35: las migraciones `0045` a `0047` (anotadas en staging), la Function nueva de jefatura,
+los despliegues por trabajos sin dependencias con secretos, staging con sus secretos y su propio código,
+y los arreglos del campo y del panel. «Desplegar staging» y CI en verde con el commit de abajo. Mismo
+método (cadena solo en memoria; traspaso 38529307399, borrado).
+
+| Recorrido | Resultado |
+|---|---|
+| Voluntario (Cercanos, alta Directo con dos fotos sin conexión y con conexión, Mis propuestas, revisión, buscar «Calle Real 10», `POST /api/push`, SW con un push, la página del escritorio y Mis propuestas con la barra de arriba) | ok (13) |
+| Jefatura por BD con un administrador unido a su cuenta (docs/35 RV-400: sin ninguno unido en staging, la prueba une uno de forma temporal y lo deshace al acabar): aprobar el alta (BOC-0013), `fn_editar_punto` 6 m y enganche; `detalleLegible` | ok |
+| 25 canjes desde una misma IP: entrada cerrada, 20 y del 21.º al 25.º `DEMASIADOS_INTENTOS`; abierta, 25; se cierra; todo deshecho | ok |
+| El rol del migrador no tiene acceso al esquema `auth` (paso 1 de RV-400: la comprobación de la identidad va en la Function, DEC-052) | ok: `false` |
+| `npm run anonimizar -- --entorno staging` y limpieza | ok: 0 pendientes, 0 incidencias abiertas, token revocado, unión temporal deshecha |
+
+commit: 80a489d4ae3794b447461851efea3d5461a8c9ab · resultado: verde

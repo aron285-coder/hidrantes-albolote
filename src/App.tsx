@@ -64,7 +64,7 @@ function Rutas() {
       </p>
     );
   }
-  if (acceso.tipo === 'no_autorizado') return <NoAutorizado />;
+  if (acceso.tipo === 'no_autorizado') return <NoAutorizado sinComprobar={acceso.sinComprobar} />;
   if (acceso.tipo === 'fuera') {
     return (
       <Routes>

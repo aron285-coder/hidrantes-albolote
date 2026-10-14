@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -8,6 +9,7 @@ import {
   comprobarStaging,
   estados,
   faltan,
+  fotosDe,
   rotulo,
   rutasDelSeed,
   urlPublica,
@@ -98,16 +100,35 @@ describe('deploy-staging sube y comprueba las fotos del seed', () => {
     return flujo.slice(desde).split(/\n {6}- /)[0]!;
   };
 
-  it('después del seed y del navegador, con los secretos del environment staging', () => {
+  // docs/35 RV-410: se generan en un trabajo sin secretos (con Chromium) y se suben, con node, desde
+  // el que tiene el environment staging.
+  it('se generan sin secretos y se suben después del seed, con los secretos del environment staging', () => {
+    const fotosSeed = flujo.slice(flujo.indexOf('\n  fotos-seed:\n'), flujo.indexOf('\n  desplegar:\n'));
+    expect(fotosSeed).toContain('run: npm run fotos-seed -- --generar fotos-seed');
+    expect(fotosSeed).toContain('uses: ./.github/actions/navegadores');
+    expect(fotosSeed).not.toMatch(/secrets\.|environment:/);
     const fotos = paso('Fotos del seed de staging (docs/33 RV-340)');
-    expect(fotos).toContain('run: npm run fotos-seed');
+    expect(fotos).toContain('run: node scripts/fotos-seed-staging.ts --desde fotos-seed');
     expect(fotos).toContain('SUPABASE_URL: ${{ secrets.SUPABASE_URL }}');
     expect(fotos).toContain('SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}');
     expect(fotos).toContain('SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}');
     const i = flujo.indexOf('- name: Fotos del seed de staging');
     expect(flujo.indexOf('- name: Seed de staging, idempotente')).toBeLessThan(i);
-    expect(flujo.indexOf('uses: ./.github/actions/navegadores')).toBeLessThan(i);
     expect(flujo).toMatch(/environment:\n\s+name: staging/);
+  });
+
+  it('fotosDe lee las generadas y para si falta alguna, sin subir nada', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'fotos-seed-'));
+    try {
+      mkdirSync(path.join(dir, 'fotos'));
+      writeFileSync(path.join(dir, 'fotos', 'prueba-hid-9001.jpg'), 'jpeg');
+      expect(fotosDe(dir, ['fotos/prueba-hid-9001.jpg']).get('fotos/prueba-hid-9001.jpg')?.toString()).toBe('jpeg');
+      expect(() => fotosDe(dir, ['fotos/prueba-hid-9001.jpg', 'fotos/prueba-boc-9002.jpg'])).toThrow(
+        /fotos\/prueba-boc-9002\.jpg/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('producción no lo nombra', () => {
@@ -120,8 +141,16 @@ describe('el seed retira las cuatro bocas duplicadas de RV-139b', () => {
 
   it('con fn_retirar_punto, motivo «prueba», y claims de un administrador activo locales a la transacción', () => {
     expect(bloque).toContain("perform hidrantes.fn_retirar_punto(p.id, 'prueba')");
-    expect(bloque).toMatch(/order by a\.email = 'jefatura\.prueba@example\.com' desc/);
-    expect(bloque).toMatch(/set_config\('request\.jwt\.claims',[\s\S]*'email', admin,[\s\S]*, true\)/);
+    // docs/35 RV-400: primero un administrador ya unido a su usuario; si no, el de prueba.
+    expect(bloque).toMatch(/order by a\.usuario_id is not null desc, a\.email = 'jefatura\.prueba@example\.com' desc/);
+    expect(bloque).toMatch(/set_config\('request\.jwt\.claims',[\s\S]*'sub', usuario, 'email', admin,[\s\S]*, true\)/);
+  });
+
+  it('si une un administrador solo para esto, lo deshace al final del mismo bloque', () => {
+    expect(bloque).toMatch(/de_paso := true;\s+update hidrantes\.administradores set usuario_id = usuario/);
+    expect(bloque).toMatch(
+      /if de_paso then\s+update hidrantes\.administradores set usuario_id = null, vinculado_en = null where email = admin;\s+end if;\s+end \$\$;/,
+    );
   });
 
   it('sin un administrador que pase fn_es_admin, falla en vez de seguir sin aviso', () => {

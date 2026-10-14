@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo (este índice se actualiza cada vez que cambia la lista de documentos) |
-| **Versión** | 1.6 — 17 de septiembre de 2026 |
+| **Versión** | 1.7 — 10 de octubre de 2026 (DEC-204): términos de §6 al día (barro, tipo de enganche, las dos fotos) y la estructura de §7 con lo que hay hoy en `docs/`. · 1.6 — 17 de septiembre de 2026 |
 | **Idioma** | Español, en todos los documentos. Ver "Idioma" al final. |
 
 Este archivo dice qué documento existe, para quién es, y **quién es dueño de cada tipo de verdad**.
@@ -88,9 +88,9 @@ Reglas derivadas:
 ## 3. Congelado frente a vivo
 
 - **Congelado (01–08 y 16):** describe lo acordado. Cambia solo con nuevo número de versión y fecha
-  en la cabecera, y arrastra una entrada en 12. Hasta la validación de jefatura (que se hace sobre
-  staging al terminar la Fase 8, DEC-043) los congela el desarrollador; después, cualquier cambio
-  exige la conformidad de jefatura.
+  en la cabecera, y arrastra una entrada en 12. Cambia con una especificación, aprobada por el
+  desarrollador al pedirla (DEC-177); jefatura recibe la versión nueva con la release y la valida
+  sobre la app real.
 - **Vivo (00, 09–15):** documentos de trabajo que se actualizan sobre la marcha, sin ceremonia.
 
 Cada archivo lleva en la cabecera su estado, versión, fecha y de qué verdad es propietario. Así
@@ -153,7 +153,9 @@ Términos fijos, para no traducirlos de tres maneras:
 | **hidrante** / **boca de riego** | los dos tipos; nunca "hidrante" para ambos |
 | **propuesta** | lo que envía un voluntario; es "pendiente", "aprobada", "rechazada" o "retirada por el autor" |
 | **alta, revisión, actualizar estado, corregir datos, corregir ubicación, proponer retirada** | las seis operaciones, siempre con estos nombres |
-| **caudal / estado** | la escala bueno · regular · malo · **no funciona** (nunca "defecto") |
+| **caudal / estado** | la escala bueno · regular · malo · **no funciona**, más **barro** (DEC-149); nunca "defecto" |
+| **tipo de enganche** | lo que se lee de la pieza donde se engancha la manguera de una **boca de riego**: Barcelona · Granada · Directo · Otro, con los nombres que usa la agrupación (DEC-163, DEC-194). En el código y la base es `racor`; en lo que lee una persona, nunca. Los hidrantes no lo tienen |
+| **foto de la conexión** / **foto del sitio** | la de la pieza, obligatoria en alta y revisión / la del entorno para encontrarlo, obligatoria al dar de alta y al corregir la ubicación (FR-21) |
 | **retirado** / **borrado** | el punto ya no existe / el registro nunca debió existir (papelera) |
 | **jefatura** / **administrador** | quien revisa y aprueba; en el sistema, un correo en `administradores` |
 | **código de acceso** / **token de dispositivo** | lo que teclea el voluntario una vez / lo que guarda su móvil después |
@@ -189,10 +191,20 @@ docs/
   14-manual-voluntario.md
   15-continuidad-y-emergencias.md
   16-alcance-y-hoja-de-ruta.md
-  archivo/            # requisitos-hidrantes.html v6.1 y plan-implementacion-hidrantes.md v2.1
+  INDICE.md           # la lista de todo, con las especificaciones archivadas
+  entornos.md         # lo que dejó el arranque (refs, buckets, secretos por nombre)
+  trabajo-en-paralelo.md
+  NN-*.md             # la especificación en curso, si la hay (DEC-195)
+  verificacion/       # qué se comprobó al cerrar cada fase, especificación o recorrido
+  capturas/           # pantallas para 13 y 14 (npm run capturas)
+  mockups/            # mockups que cita un documento vigente
+  archivo/            # los documentos originales (requisitos v6.1, plan v2.1), el historial de la fase 9,
+    especificaciones/ #   las especificaciones cerradas 17–34 (DEC-195)
+    racores-dibujos/  #   los dibujos de los enganches, sustituidos por fotos (DEC-194)
 CLAUDE.md             # en la raíz del repositorio, no en docs/
+.claude/              # settings.json (plugins y hooks), hooks/ y skills/ del proyecto
 ```
 
-Claude Code lee `CLAUDE.md` (raíz del repo; 09 §5) al empezar cada sesión y 01, 03, 04, 05 y 06 antes
-de cada fase de 09; usa los skills de 04 §15. Jefatura valida sobre **staging**, al terminar la Fase
+Claude Code lee `CLAUDE.md` (raíz del repo; 09 §5) al empezar cada sesión y, después, solo el documento que pide la
+tarea (CLAUDE.md §2); usa las skills de CLAUDE.md §8 y 04 §15. Jefatura valida sobre **staging**, al terminar la Fase
 8, con 01, 02 y 10 en la mano (DEC-043); no antes.

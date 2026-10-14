@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Los valores marcados `«…»` los rellena `scripts/arranque.ts` en `docs/entornos.md` y se copian aquí al cerrar la Fase 0; la tabla de §9 se actualiza en cada comprobación. |
-| **Versión** | 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
+| **Versión** | 1.4 — 14 oct 2026 (`docs/35` RV-414): §4 con los avisos técnicos a jefatura y su límite (DEC-202); §5.4, la entrada ya no se abre sola al cambiar el código revocando, y se puede revocar desde una hora (DEC-201). 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
 | **Propietario de** | qué cuenta controla qué, dónde están las credenciales, y los procedimientos paso a paso para restaurar, revertir, rotar y recuperar el control cuando algo falla o cuando el desarrollador no está. |
 | **Para** | jefatura y quien tenga que hacerse cargo del sistema sin conocerlo. Escrito para leerse con prisa. |
 | **Referencias** | arquitectura en **04**; datos personales en **11**; tareas de construcción en **09** Fase 8. |
@@ -45,8 +45,9 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub (environments `staging`, `production` y `prod-tareas`); se puede regenerar en un minuto | — |
 | Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
+| Código de acceso de staging (hasta que jefatura ponga el del piloto) | entrar en staging para probar | secreto `CODIGO_STAGING` del environment `staging` y el `.env.local` de quien lo generó; **nunca** en el repositorio, en un PR, en una issue ni en el chat (DEC-200). Si se pierde: `npm run arranque -- --codigo-staging` genera otro y el siguiente despliegue de staging lo pone, salvo que jefatura ya haya puesto el suyo | — |
 
-**Dónde viven los secretos de producción (DEC-172):** en los environments `production` (el despliegue, con su aprobación, DEC-176) y `prod-tareas` (respaldo, purga de fotos, vigilancia, avisos, comprobar-produccion y el despachador; sin revisores y solo desde `develop`). **Ninguno está en el nivel del repositorio.** Para moverlos sin verlos: `npm run traspasar-secreto` (`traspaso.yml`, solo lo lanza quien diga la variable del repositorio `PROPIETARIO`; sirve también para secretos largos como `GPG_PUBLIC_KEY`, docs/32 RV-208). Si la vigilancia abre «Despliegue de producción no autorizado», alguien desplegó el proyecto de Pages de producción sin `deploy-prod`: mirar el despliegue que nombra la issue en Cloudflare y, si no es legítimo, volver al anterior (`wrangler pages deployment …`) y rotar el token de Cloudflare (`npm run arranque -- --rotar cloudflare`).
+**Dónde viven los secretos de producción (DEC-172):** en los environments `production` (el despliegue, con su aprobación, DEC-176) y `prod-tareas` (respaldo, purga de fotos, vigilancia, avisos, comprobar-produccion y el despachador; sin revisores y solo desde `develop`). **Ninguno está en el nivel del repositorio.** Los de staging tampoco (DEC-200): van en `staging`, que solo admite `develop`, y los dos que lee `promover-piloto.yml` (`SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING`), en `production`. En el repositorio solo queda `GPG_PUBLIC_KEY`, que es pública. Para moverlos sin verlos: `npm run traspasar-secreto` (`traspaso.yml`, solo lo lanza quien diga la variable del repositorio `PROPIETARIO`; sirve también para secretos largos como `GPG_PUBLIC_KEY`, docs/32 RV-208). Si la vigilancia abre «Despliegue de producción no autorizado», alguien desplegó el proyecto de Pages de producción sin `deploy-prod`: mirar el despliegue que nombra la issue en Cloudflare y, si no es legítimo, volver al anterior (`wrangler pages deployment …`) y rotar el token de Cloudflare (`npm run arranque -- --rotar cloudflare`).
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
 contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
@@ -54,12 +55,12 @@ contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace fal
 **Tras regenerar un secreto de Cloudflare Pages** (`npm run arranque -- --rotar …`): Pages solo lo
 aplica a los despliegues **nuevos**, y el del repositorio vale al momento. El arranque vuelve a
 desplegar staging solo (`gh workflow run "Desplegar staging" --ref develop`). Producción lo aplica en
-su siguiente despliegue, el PR `develop → main` con la aprobación del desarrollador. Mientras tanto
+su siguiente despliegue (§5.6, paso 2). Mientras tanto
 el Worker `hidrantes-avisos` recibe 401 en PROD, lo anota sin datos y sigue con staging: los avisos
 siguen saliendo al moderar y al sincronizar, y la vigilancia diaria salta si se atascan más de 30
 minutos (docs/18 RV-38, docs/19 RV-52). **Rotar `VIGILANCIA_SECRETO` lo cambia en tres sitios** —Pages,
-el secreto del repositorio y el Worker—, y el arranque los pone los tres; si falta en alguno,
-`npm run arranque -- --solo-faltantes` genera uno nuevo para los tres, sin pedir tokens. `VIGILANCIA_SECRETO` se rotó el 23 sep 2026. Si no puede leer los secretos del Worker (red, sesión de `wrangler` caducada), para sin cambiar nada; al rotar, el Worker se escribe primero, y si no lo acepta no se toca Pages ni el repositorio (docs/20 RV-72, DEC-102).
+GitHub (`prod-tareas` en producción, `staging` en staging) y el Worker—, y el arranque los pone los tres; si falta en alguno,
+`npm run arranque -- --solo-faltantes` genera uno nuevo para los tres, sin pedir tokens. `VIGILANCIA_SECRETO` se rotó el 23 sep 2026. Si no puede leer los secretos del Worker (red, sesión de `wrangler` caducada), para sin cambiar nada; al rotar, el Worker se escribe primero, y si no lo acepta no se toca Pages ni GitHub (docs/20 RV-72, DEC-102).
 
 **Si el token de Cloudflare no tiene permiso de Workers** (04 §9 pide **Pages: Edit** y **Workers Scripts: Edit**), staging se despliega igual, pero el paso del Worker avisa en el resumen del workflow. Lo mismo dice `npm run comprobar-produccion` («Workers Scripts: Edit · FALTA»). Mira el permiso con la lista de nombres de los secretos del Worker, que solo da un token que puede editarlo. El token del primer despliegue (24 sep 2026) **veía** los Workers pero no podía desplegarlos. Con ese permiso de lectura la vigilancia sí lee el cron y no salta; solo salta si el Worker no tiene su cron. Arreglo: en Cloudflare, *My Profile → API Tokens*, editar el token y añadir *Account · Workers Scripts · Edit* (unos 2 minutos; un token no se puede ampliar con la API). Mientras, `npm run arranque -- --solo-faltantes` despliega el Worker con la sesión de `wrangler login` si aún no existe.
 
@@ -103,10 +104,13 @@ En orden de fiabilidad:
    mostrando los datos guardados en los móviles (FR-168).
 7. **Issue «Deploy de producción fallido»** (etiqueta `vigilancia`, docs/31 RV-136): la abre (o la reabre) `deploy-prod.yml` cuando falla un paso, y dice cuál. Se cierra sola con el siguiente despliegue bueno. La vigilancia, además, avisa si el último `deploy-prod` no terminó en *success*, también si se canceló sin aprobar.
    - **Qué hacer según el paso:** la guarda, nada ha cambiado: corrige la variable que nombra en el *environment* `production`. Las migraciones, §5.2. El despliegue o la comprobación de versión y cabeceras, §5.1. La paridad, producción ya está desplegada: mira qué no coincide en el resumen de la ejecución y `docs/verificacion/paridad-produccion.md`.
-   - **Cancelado:** nadie aprobó el *environment* a tiempo, así que producción sigue en la versión anterior. Se vuelve a lanzar con la siguiente fusión en `main`.
+   - **Rechazado o cancelado:** la puerta automática de `npm run publicar` lo rechazó (dice el motivo y abre una issue `bloquea-release`, DEC-176), o nadie lo aprobó a tiempo. Producción sigue en la versión anterior. Se arregla lo que diga la issue, se relanza con `gh run rerun <id>` (o llega un commit nuevo a `main`) y se aprueba con `npm run publicar`.
 8. **Issue «El despachador de trabajos ha fallado»** (etiqueta `vigilancia`, `despachador.yml`, docs/31 RV-137): los botones de mantenimiento de Ajustes (purgar fotos, respaldo ahora, regenerar la zona o el mapa base) ya no lanzan nada directamente: dejan un **pedido**, y el despachador lo lanza cada 15 minutos, solo en producción. Desde staging no se lanza nada de producción.
    - **Qué hacer:** no ha podido leer o anotar los pedidos, así que no se lanza nada. Abrir la ejecución que enlaza la issue y mirar que `prod-tareas` tiene `SUPABASE_SERVICE_ROLE_KEY_PROD` y que la base de datos responde. La issue se cierra sola en la siguiente pasada buena. Para no esperar los 15 minutos: `gh workflow run despachador.yml --ref develop`.
    - **Issue «Un trabajo pedido desde el panel no se ha lanzado»:** un pedido concreto se anotó con error y **no se reintenta**. La issue dice cuál y por qué (`GitHub respondió 422: …` suele ser un workflow desactivado o una entrada que ya no declara; `trabajo desconocido`, un panel más nuevo que el despachador). Arreglarlo, volver a pulsar el botón en Ajustes y **cerrar la issue a mano**: no se cierra sola.
+9. **Avisos técnicos en el móvil de jefatura** (push «Aviso técnico», DEC-202): llegan a jefatura además de la issue cuando la vigilancia encuentra un problema de producción, cuando falla el respaldo o un despliegue de producción, y cuando alguien está probando códigos de acceso. Como mucho uno de cada tipo cada 24 h (el de los códigos, uno por hora); los recibe quien tenga activado *Avisos técnicos* en Ajustes → Avisos para jefatura (apagado por defecto en una suscripción nueva; las que ya existían lo recibieron activado). Llevan a Ajustes, donde está Salud del sistema.
+   - **Límite:** si Supabase o las Pages Functions están caídas, el aviso no sale y queda solo la issue. Que no llegue un aviso técnico no quiere decir que todo vaya bien: Salud del sistema y las issues siguen siendo lo que manda.
+   - **Qué hacer:** el de los códigos, §5.4 (cambiar el código si se repite); los demás, mirar Salud del sistema y avisar al responsable técnico, que ya tiene la issue.
 
 ---
 
@@ -141,7 +145,8 @@ aplicada**. Se corrige con otra migración que deshaga el efecto:
 1. Identificar la migración culpable en `supabase/migrations/` (la última con fecha del despliegue).
 2. Pedir a Claude Code: "Escribe una migración que revierta `«archivo»` sin perder datos, con test
    pgTAP, y ábrela como PR a `develop`". Revisar el PR, fusionar, comprobar en staging.
-3. PR de `develop` a `main`, aprobar el *environment* `production`. CI la aplica.
+3. `npm run publicar`: abre el PR de `develop` a `main` y la puerta automática aprueba el *environment*
+   `production` si todo está en verde (DEC-176). `deploy-prod` aplica la migración.
 4. Si los datos ya están dañados y no basta con revertir el esquema: §5.3.
 
 ### 5.3 Restaurar un respaldo (pérdida o corrupción de datos)
@@ -173,6 +178,25 @@ cifrar no sale del runner y se borra al terminar.
 
 Los respaldos son artefactos del workflow `respaldo.yml` en GitHub, cifrados con GPG, de las últimas
 13 semanas (datos) y 3 meses (fotos).
+
+**Staging también tiene su respaldo** (DEC-203). En el piloto, los datos reales están en staging hasta
+`promover-piloto`. El trabajo `respaldo-staging` de `respaldo.yml`, en el environment `staging`, hace
+lo mismo que el de producción: los datos cada semana y las fotos de `hidrantes-fotos-dev` el primer
+domingo del mes, cifrados con la misma clave (la de §2), como artefactos `respaldo-staging-«fecha»`
+(datos) y `respaldo-staging-fotos-«fecha»` de 90 días. No hace la restauración de prueba, que es solo
+de producción: comprueba que el archivo cifrado no está vacío y que va para la huella de §2. Si falla,
+abre la misma issue, con «staging» en el título, y manda un aviso técnico a la jefatura de staging
+(DEC-202). Sigue siendo un respaldo por entorno (DEC-180).
+
+**Restaurar staging** es esta misma receta con otro artefacto y otra cadena:
+- en el paso 2, `gh run download «ID» --name respaldo-staging-«fecha»` (y
+  `respaldo-staging-fotos-«fecha»` si hacen falta las fotos);
+- en el paso 4, `npm run restaurar -- --entorno staging --archivo …` con la cadena de staging
+  (`SUPABASE_DB_URL` del environment `staging`, o la que pida el script); comprueba que el
+  `PROJECT_REF` es el de dev;
+- en el paso 5, `npm run restaurar-fotos -- --entorno staging …`, que sube a `hidrantes-fotos-dev`.
+
+El paso 1 (código nuevo con *Revocar todos los dispositivos*) se hace en el panel de staging.
 
 1. Antes de nada, **parar las escrituras**: Panel → Ajustes → Código de acceso → *Generar uno nuevo*
    con *Revocar todos los dispositivos*. Nadie podrá enviar nada hasta que se comunique el código
@@ -305,14 +329,18 @@ también para ella, y lo vuelve a crear quien la mantiene, con el mismo nombre. 
 **Tiempo:** el mismo día. **Quién:** jefatura, desde el panel.
 
 1. Ajustes → Código de acceso → marcar *Revocar todos los dispositivos* → *Generar uno nuevo* →
-   confirmar. **La entrada se abre sola 24 horas** (DEC-190): todos los voluntarios vuelven a
-   entrar a la vez, desde la misma wifi si hace falta, sin que los frene el tope de entradas. Quien
-   pruebe códigos sigue frenado igual. Ajustes → Código de acceso → *Entrada* dice hasta cuándo.
+   confirmar. **La entrada ya no se abre sola** (DEC-201): la casilla de abrirla 24 h a la vez va
+   sin marcar, y ante una filtración conviene dejarla así, porque abrir la entrada relaja los topes
+   de entradas. Quien pruebe códigos sigue frenado igual.
+   - Si se sabe a qué hora se filtró, no hace falta echar a todos: *Revocar los móviles que han
+     entrado desde…*, junto al código, con la fecha y la hora (como mucho 30 días atrás). Antes de
+     confirmar dice cuántos son; los de jefatura nunca se revocan. Si el código filtrado sigue en
+     vigor, cámbialo también.
 2. Revisar en la Cola las propuestas de las últimas horas antes de aprobar nada; rechazar lo que no
    cuadre.
-3. Comunicar el código nuevo por el canal habitual del grupo, no por uno público, **mientras la
-   entrada está abierta**. Si se comunica más tarde, abrirla antes: *Abrir la entrada para todos
-   (24 h)*.
+3. Comunicar el código nuevo por el canal habitual del grupo, no por uno público. Si van a volver a
+   entrar todos a la vez (por ejemplo, desde la wifi de la sede), abrir antes la entrada: *Abrir la
+   entrada para todos (24 h)*; Ajustes → Código de acceso → *Entrada* dice hasta cuándo.
 4. Cuando hayan entrado todos, se puede cerrar ya (*Cerrar ahora*); si no, se cierra sola.
 5. Anotar en 11 §8.
 
@@ -336,12 +364,15 @@ tope*, es que alguien se ha quedado fuera: abrir la entrada desde ahí mismo.
 **Gravedad:** alta. **Tiempo:** el mismo día. **Quién:** quien maneje el ordenador.
 
 1. `npm run arranque -- --rotar <db|cloudflare|sal-ip|vapid|gpg|vigilancia|todo>` regenera ese secreto en Supabase o GitHub y lo
-   vuelve a subir a GitHub Environments, a los secretos del repositorio (los que usan los trabajos
-   por calendario, DEC-071) y a Cloudflare. Se pueden pedir varios: `--rotar db,gpg`. Para rotar
+   vuelve a subir a GitHub, cada uno en su sitio (04 §10; los de producción, en los environments
+   `production` y `prod-tareas`, DEC-172), y a Cloudflare. Se pueden pedir varios: `--rotar db,gpg`. Para rotar
    todo: `--rotar todo` (ojo: cambia también las claves VAPID, y los móviles ya suscritos dejan de
    recibir avisos hasta que vuelvan a abrir la aplicación).
-2. Redesplegar (`git commit --allow-empty -m "chore: rotación" && git push` en `develop`, luego PR a
-   `main`).
+2. Redesplegar:
+   - staging: `gh workflow run "Desplegar staging" --ref develop`;
+   - producción: relanzar la última ejecución de *Desplegar producción* (`gh run rerun <id>`) y dejar
+     que la apruebe `npm run publicar` (puerta automática, DEC-176); o esperar a la siguiente versión.
+     `npm run publicar` por sí solo no despliega nada si `main` ya tiene todo `develop`.
 3. Si fue la `service_role key` de producción: revisar el Registro de las últimas 24 h.
 
 ### 5.7 El almacenamiento de fotos se acerca a 1 GB
@@ -474,13 +505,7 @@ Registro de comprobaciones y de incidentes:
 
 ## 10. Contactos
 
-| Rol | Nombre | Cómo |
-|---|---|---|
-| Jefatura | `«…»` | `«…»` |
-| Segunda persona con acceso al sobre | `«…»` | `«…»` |
-| Desarrollador actual | `«…»` | `«…»` · disponibilidad: `«…»` |
-| Administrador de la app de uniformidad (Supabase compartido) | `«…»` | `«…»` |
-
+Los contactos van en el sobre y en el gestor de contraseñas, nunca aquí: el repositorio es público.
 ---
 
 ## Trazabilidad

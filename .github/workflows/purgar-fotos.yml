@@ -3,7 +3,8 @@
 # archivo se queda ocupando el gigabyte gratuito. Aquí se recogen.
 #
 #   - Sola, los lunes de madrugada, sin que nadie lo pida (TR-54).
-#   - A mano desde Ajustes del panel, con /api/lanzar-workflow (FR-144, DEC-069).
+#   - A mano desde Ajustes del panel: /api/lanzar-workflow deja un pedido y despachador.yml lo lanza
+#     (FR-144, DEC-172).
 #   - La primera pasada programada, en ensayo: la primera vez que se borra lo revisa una persona
 #     (docs/22 RV-94, DEC-129).
 #
@@ -40,8 +41,12 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Sin npm ci: los scripts corren con node, sin node_modules (docs/35 RV-410, DEC-198).
       - uses: ./.github/actions/preparar
         with:
+          npm: 'false'
           psql: 'true'
 
       - name: Comprobar que están los secretos
@@ -83,7 +88,7 @@ jobs:
           PROGRAMADA: ${{ github.event_name == 'schedule' && '--programada' || '' }}
         run: |
           set -euo pipefail
-          npm run purgar-fotos -- $ENSAYO $PROGRAMADA | tee salida.txt
+          node scripts/purgar-fotos.ts $ENSAYO $PROGRAMADA | tee salida.txt
           for clave in borradas bytes_liberados bytes_restantes ensayo primera_vez; do
             echo "$clave=$(grep -oP "^$clave=\K[0-9]+" salida.txt)" >> "$GITHUB_OUTPUT"
           done

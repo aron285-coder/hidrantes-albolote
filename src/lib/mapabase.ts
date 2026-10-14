@@ -63,9 +63,17 @@ async function archivoGuardado(): Promise<Blob | null> {
   return blob;
 }
 
+/**
+ * La clave con la que PMTiles guarda la cabecera y los directorios leídos. Lleva la versión y la
+ * fecha de la descarga: tras bajar otra copia en la misma sesión, nada de lo guardado de la anterior
+ * se usa para leer la nueva (docs/35 RV-421).
+ */
+export const claveMapabase = (d: Descarga | null = estado.descargado) =>
+  d ? `${URL_MAPABASE}#${d.version}-${d.fecha}` : URL_MAPABASE;
+
 /** Rangos por la copia descargada; sin ella no se lee nada (las teselas van sueltas). */
 class ArchivoGuardado implements Source {
-  getKey = () => URL_MAPABASE;
+  getKey = () => claveMapabase();
   async getBytes(offset: number, length: number): Promise<RangeResponse> {
     const local = await archivoGuardado();
     if (!local) throw new Error('mapa base no descargado');

@@ -31,6 +31,9 @@ export const ANCHO_FICHA = 360;
 /** Lo que tapa la ficha flotante por la derecha, para el encuadre del incidente: la ficha, la columna y aire. */
 export const MARGEN_FICHA_PX = ANCHO_FICHA + RESERVA_DERECHA + CONTROLES.aire;
 
+/** Lo que ocupa el aviso de versión abajo (AvisoVersion); 0 sin aviso. */
+const ALTO_AVISO = 'var(--aviso-abajo,0px)';
+
 /**
  * Posición de los paneles que flotan sobre el mapa en tableta y ordenador (la ficha y "¿Qué hay aquí?"):
  * a la izquierda de la columna y terminando por encima de los botones de abajo, sin tapar ninguno.
@@ -39,5 +42,6 @@ export const ESTILO_PANEL_FLOTANTE = {
   right: RESERVA_DERECHA,
   width: ANCHO_FICHA,
   maxWidth: `calc(100% - ${RESERVA_DERECHA + 20}px)`,
-  maxHeight: `calc(100% - ${8 + ZONA_ABAJO}px)`,
+  // Con el aviso de versión abajo, los botones suben lo que ocupa y el panel termina antes (RV-424).
+  maxHeight: `calc(100% - ${8 + ZONA_ABAJO}px - ${ALTO_AVISO})`,
 } as const;

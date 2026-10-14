@@ -205,11 +205,22 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     });
   }
 
-  async function hecho() {
+  // Lo que hay abierto ahora, para compararlo al terminar un guardado con lo de cuando empezó.
+  const ahora = useRef({ activa, clave: location.key });
+  useEffect(() => {
+    ahora.current = { activa, clave: location.key };
+  }, [activa, location.key]);
+
+  /**
+   * Resuelta `id`, en tableta y móvil se vuelve a la cola, pero solo si sigue abierta y no ha habido
+   * otra navegación desde `clave` (la de cuando se empezó a guardar). Si jefatura ya ha pulsado "‹" o
+   * ha abierto otra, volver otra vez sacaría de la Cola o cerraría la otra (docs/35 RV-430).
+   */
+  async function hecho(id: string | null, clave: string) {
     alCambiar();
-    // Resuelta la abierta, en tableta y móvil se vuelve a la cola.
-    resuelta.current = activa;
-    if (!ancho) volverACola();
+    resuelta.current = id;
+    const sigue = ahora.current.activa === id && ahora.current.clave === clave;
+    if (!ancho && sigue) volverACola();
     await carga.recargar();
   }
 
@@ -246,7 +257,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     const resultados = [...r.datos, ...saltadas];
     const omitidas = resultados.some((x) => x.resultado === 'omitida');
     avisar(resumenLote(resultados, nombre), omitidas ? 'error' : 'ok');
-    await hecho();
+    await hecho(activa, location.key);
   }
 
   async function rechazarMarcadas(motivo: string) {
@@ -260,7 +271,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     setMarcadas(new Set());
     if (fallos.length) avisar(`${T.panelCola.loteRechazadas(hechas)} ${textoError(fallos[0])}`, 'error');
     else avisar(T.panelCola.loteRechazadas(hechas));
-    await hecho();
+    await hecho(activa, location.key);
   }
 
   const botonesLote = (
@@ -409,7 +420,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
                 p={seleccion}
                 puntos={puntos}
                 radioDuplicado={radioDuplicado}
-                alHecho={() => void hecho()}
+                alHecho={(id) => void hecho(id, location.key)}
                 alRecargar={recargar}
               />
             ) : (
@@ -442,7 +453,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
                   p={seleccion}
                   puntos={puntos}
                   radioDuplicado={radioDuplicado}
-                  alHecho={() => void hecho()}
+                  alHecho={(id) => void hecho(id, location.key)}
                   alRecargar={recargar}
                   alVolver={volverACola}
                 />

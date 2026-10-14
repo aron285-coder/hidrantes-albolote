@@ -45,8 +45,53 @@ export function generarCodigo(): string {
   return String(n[0] % 1_000_000).padStart(6, '0');
 }
 
-export const cambiarCodigo = (nuevo: string, revocarDispositivos: boolean) =>
-  rpc<null>('fn_cambiar_codigo_acceso', { nuevo, revocar_dispositivos: revocarDispositivos });
+/**
+ * Pone en vigor el código nuevo. Revocando todos, la entrada solo se abre si jefatura lo marca
+ * (docs/35 RV-433, DEC-201): sin revocar no se abre nunca.
+ */
+export const cambiarCodigo = (nuevo: string, revocarDispositivos: boolean, abrirEntrada = false) =>
+  rpc<null>('fn_cambiar_codigo_acceso', {
+    nuevo,
+    revocar_dispositivos: revocarDispositivos,
+    abrir_entrada: revocarDispositivos && abrirEntrada,
+  });
+
+// ---------- revocar desde una hora (docs/35 RV-433, 0047) ----------
+
+/** Como mucho tan atrás (lo mismo que comprueba el servidor). */
+export const DIAS_REVOCAR_DESDE = 30;
+const DIA_MS = 86_400_000;
+
+const dosCifras = (n: number) => String(n).padStart(2, '0');
+
+/** La fecha en el formato de `<input type="datetime-local">`, en la hora del navegador. */
+export function valorFechaLocal(fecha: Date): string {
+  return (
+    `${fecha.getFullYear()}-${dosCifras(fecha.getMonth() + 1)}-${dosCifras(fecha.getDate())}` +
+    `T${dosCifras(fecha.getHours())}:${dosCifras(fecha.getMinutes())}`
+  );
+}
+
+/** Lo escrito en el campo de fecha y hora, o null si está vacío o no es una fecha. */
+export function leerFechaLocal(texto: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(texto)) return null;
+  const fecha = new Date(texto);
+  return Number.isNaN(fecha.getTime()) ? null : fecha;
+}
+
+/** Por qué no se puede revocar desde esa hora, o null si se puede. */
+export function motivoDesde(desde: Date | null, ahora = new Date()): string | null {
+  if (!desde) return T.panelAjustes.desdeVacio;
+  if (desde.getTime() > ahora.getTime()) return T.panelAjustes.desdeFutura;
+  if (desde.getTime() < ahora.getTime() - DIAS_REVOCAR_DESDE * DIA_MS) return T.panelAjustes.desdeAntigua;
+  return null;
+}
+
+/** Cuántos móviles han entrado desde esa hora y siguen con acceso (los de jefatura no cuentan). */
+export const contarDesde = (desde: Date) => rpc<number>('fn_contar_desde', { desde: desde.toISOString() });
+
+/** Revoca esos móviles; devuelve cuántos. */
+export const revocarDesde = (desde: Date) => rpc<number>('fn_revocar_desde', { desde: desde.toISOString() });
 
 /**
  * Cuántos móviles tienen acceso ahora mismo, para explicar qué pasa al revocar. Si no se puede
@@ -64,13 +109,31 @@ export interface Administrador {
   activo: boolean;
   creado_en: string;
   creado_por: string;
+  /** ¿Unida ya a su cuenta de Google? (docs/35 RV-400, 0046). Sin la columna, no se sabe. */
+  vinculado?: boolean;
 }
 
+// Solo lo que enseña Ajustes: el usuario al que está unida cada fila no hace falta aquí.
 export const cargarAdministradores = () =>
-  leerLista<Administrador>((c) => c.from('administradores').select('*').order('email'));
+  leerLista<Administrador>((c) =>
+    c.from('administradores').select('email, activo, creado_en, creado_por, vinculado').order('email'),
+  );
+
+/** Activo pero aún sin unir a su cuenta de Google: no entra hasta su primer acceso (docs/35 RV-432). */
+export const pendienteDeVincular = (a: Administrador): boolean => a.activo && a.vinculado === false;
 
 export const gestionarAdministrador = (email: string, activo: boolean) =>
   rpc<null>('fn_gestionar_administrador', { email: email.trim().toLowerCase(), activo });
+
+const comparable = (correo: string) => correo.trim().toLowerCase();
+
+/** ¿Es el correo de la sesión de jefatura abierta? Sin sesión conocida, nunca (docs/35 RV-431). */
+export const esUnoMismo = (correo: string, propio: string | null): boolean =>
+  !!propio && !!comparable(propio) && comparable(correo) === comparable(propio);
+
+/** Lo que pregunta la confirmación de quitar el acceso: a uno mismo, que saldrá del panel (docs/35 RV-431). */
+export const avisoQuitarAcceso = (correo: string, propio: string | null): string =>
+  esUnoMismo(correo, propio) ? T.panelAjustes.avisoQuitarteAcceso : T.panelAjustes.avisoQuitarAcceso(correo);
 
 /**
  * Correos que ya existen en la app de uniformidad, solo como sugerencia al escribir (FR-141).

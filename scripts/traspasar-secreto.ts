@@ -3,6 +3,10 @@
 //   npm run traspasar-secreto -- --secreto SUPABASE_DB_URL_PROD,SUPABASE_SERVICE_ROLE_KEY_PROD \
 //                                --desde repositorio --hacia prod-tareas
 //   npm run traspasar-secreto -- --secreto CLOUDFLARE_API_TOKEN --desde staging --hacia prod-tareas
+//   npm run traspasar-secreto -- --secreto VIGILANCIA_SECRETO_STAGING --desde repositorio --hacia staging \
+//                                --como VIGILANCIA_SECRETO
+//
+// `--como` lo pone con otro nombre en el destino, de uno en uno (docs/35 RV-411).
 //
 // GitHub no deja leer un secreto: para moverlo de sitio sin que nadie vea su valor,
 //   1. se genera aquí un par RSA de 4096 bits de un solo uso; la privada solo vive en memoria;
@@ -52,6 +56,8 @@ export interface Pedido {
   secretos: string[];
   desde: string;
   hacia: string;
+  /** El nombre en el destino, si cambia. Solo con un secreto. */
+  como?: string;
 }
 
 /** Valida los argumentos. `repositorio` es el nivel del repositorio; cualquier otro, un environment. */
@@ -67,7 +73,11 @@ export function pedidoDe(valores: Map<string, string>): Pedido {
   if (!SITIO_VALIDO.test(desde)) abortar("--desde tiene que ser 'repositorio' o el nombre de un environment");
   if (!SITIO_VALIDO.test(hacia)) abortar("--hacia tiene que ser 'repositorio' o el nombre de un environment");
   if (desde === hacia) abortar('--desde y --hacia son el mismo sitio');
-  return { secretos, desde, hacia };
+  const como = valores.get('como');
+  if (como === undefined) return { secretos, desde, hacia };
+  if (!NOMBRE_VALIDO.test(como)) abortar(`Nombre de secreto no válido en --como: ${como}`);
+  if (secretos.length !== 1) abortar('--como va con un solo secreto');
+  return { secretos, desde, hacia, como };
 }
 
 /** Un par RSA de un solo uso: la pública, en DER y base64 para pasarla como entrada del workflow. */
@@ -236,8 +246,8 @@ function fijar(nombre: string, valor: string, hacia: string): void {
   gh(args, valor);
 }
 
-async function traspasar(nombre: string, desde: string, hacia: string): Promise<void> {
-  log.paso(`${nombre}: ${desde} → ${hacia}`);
+async function traspasar(nombre: string, desde: string, hacia: string, como = nombre): Promise<void> {
+  log.paso(`${nombre}: ${desde} → ${hacia}${como === nombre ? '' : ` (como ${como})`}`);
   const { publica, privada } = parEfimero();
   const id = randomUUID();
   gh([
@@ -266,8 +276,8 @@ async function traspasar(nombre: string, desde: string, hacia: string): Promise<
       abortar(`traspaso.yml terminó en ${conclusion}: mira la ejecución ${run} (no lleva el valor)`);
     gh(['run', 'download', String(run), '--repo', repositorio().completo, '-n', 'cifrado', '-D', carpeta]);
     const valor = descifrar(privada, readFileSync(path.join(carpeta, 'cifrado.json'), 'utf8'));
-    fijar(nombre, valor, hacia);
-    log.ok(`${nombre} puesto en ${hacia}`);
+    fijar(como, valor, hacia);
+    log.ok(`${como} puesto en ${hacia}`);
   } finally {
     rmSync(carpeta, { recursive: true, force: true });
     limpiar(run);
@@ -299,7 +309,7 @@ export function comprobarOrigen(secretos: string[], enOrigen: string[], desde: s
 }
 
 async function principal(): Promise<void> {
-  const { secretos, desde, hacia } = pedidoDe(argumentos().valores);
+  const { secretos, desde, hacia, como } = pedidoDe(argumentos().valores);
   const sesion = ejecutar('gh', ['auth', 'status']);
   if (sesion.codigo !== 0) abortar('Hace falta la sesión de gh: gh auth login');
   const variable = ejecutar('gh', ['variable', 'get', 'PROPIETARIO', '--repo', repositorio().completo]);
@@ -308,7 +318,7 @@ async function principal(): Promise<void> {
   secretosDe(hacia);
   for (const s of secretos) {
     try {
-      await traspasar(s, desde, hacia);
+      await traspasar(s, desde, hacia, como);
     } catch (e) {
       abortar(`${s}: ${errorSeguro(e instanceof Error ? e.message : String(e))}`);
     }

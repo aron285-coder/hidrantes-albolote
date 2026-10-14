@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 
@@ -127,7 +127,9 @@ El código de seis cifras con el que entran los voluntarios.
    - **sin marcar**: quien ya entró sigue trabajando; solo los móviles nuevos necesitan el código
      nuevo;
    - **marcado**: todos vuelven a teclearlo. Es lo que se usa **si el código se ha filtrado**. La
-     entrada se abre sola 24 horas para que todos puedan volver a entrar (abajo).
+     entrada **no** se abre sola: si quieres que todos puedan volver a entrar a la vez, marca también
+     **Abrir la entrada 24 h para que todos puedan volver a entrar a la vez** (abajo). Si el código se
+     ha filtrado, mejor no: ábrela después, cuando el nuevo ya esté repartido.
 2. **Generar uno nuevo** → **Generar y poner en vigor**.
 3. Pásalo al grupo por el canal habitual. Nunca en un sitio público.
 
@@ -148,10 +150,19 @@ eso se queda corto.
   se ha quedado fuera: ábrela desde ahí.
 - Abrirla y cerrarla queda en el *Registro*.
 
+#### Revocar los móviles que han entrado desde una hora
+
+Si sospechas que el código se filtró a una hora concreta, no hace falta echar a todos: **Revocar los
+móviles que han entrado desde…**, junto al código. Elige la fecha y la hora (por defecto, hace 24
+horas; como mucho, 30 días atrás). Antes de confirmar te dice cuántos son. Esos móviles tienen que
+volver a teclear el código; los de jefatura nunca se revocan. Queda en el *Registro* con el número
+y la hora. Cambia también el código si el que se filtró sigue en vigor.
+
 ### Acceso de administradores
 
-Escribe el correo y **Añadir**; para quitar a alguien, apaga su interruptor. El último administrador
-activo no se puede quitar. No hace falta tocar nada técnico.
+Escribe el correo y **Añadir**; para quitar a alguien, apaga su interruptor y confírmalo en
+**Quitar el acceso** (si eres tú, saldrás del panel). Tiene que quedar al menos un administrador con
+acceso. Quien acabas de añadir queda unido a su cuenta de Google la primera vez que entra en el panel. No hace falta tocar nada técnico.
 
 ### Parámetros
 
@@ -198,8 +209,11 @@ el Registro. En el uso normal no hace falta tocarlos.
 ### Avisos para jefatura
 
 Notificaciones en este navegador, apagadas por defecto: **Nuevas propuestas pendientes** (como mucho
-una por hora) y **Resumen semanal** (los lunes: revisiones caducadas y pendientes antiguas). En
-iPhone, solo con la app instalada.
+una por hora), **Resumen semanal** (los lunes: revisiones caducadas y pendientes antiguas) y **Avisos
+técnicos** (si falla la comprobación diaria, el respaldo o una actualización, o si alguien está
+probando códigos de acceso; como mucho uno de cada tipo al día, el de los códigos uno por hora). Un aviso
+técnico lleva a Ajustes: mira Salud del sistema; el responsable técnico ya tiene el aviso. Si es el de
+los códigos y se repite, cambia el código. En iPhone, solo con la app instalada.
 
 ### Código QR del enlace
 
@@ -243,4 +257,4 @@ El procedimiento de cada caso está en **15** (Continuidad y emergencias). Los m
 | Un sábado por la tarde nadie conecta | Bloqueos durante el fútbol: lo pendiente sale solo al acabar |
 
 > Pendiente de revisar tras el piloto: las dudas reales de jefatura en la validación (#76) y el
-> piloto (#77), y los contactos de 15 §10.
+> piloto (#77). Los contactos van en el sobre y en el gestor de contraseñas, no aquí (15 §10).

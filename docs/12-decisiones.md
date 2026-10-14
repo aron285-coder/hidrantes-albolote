@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.60 — 10 oct 2026 (DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -633,8 +633,10 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 06 §5 y Apéndice A; 09 Fase 7.
 
 ### DEC-068 · Voluntarios, ajustes, núcleos, QR y avisos de jefatura
-- **Fecha:** 20 sep 2026 · **Estado:** vigente; el punto 5 lo sustituye DEC-069 (`workflow_dispatch`
-  en lugar de `repository_dispatch`)
+- **Fecha:** 20 sep 2026 · **Estado:** vigente salvo cómo se lanza el trabajo (puntos 5 y 6): DEC-069 cambió
+  `repository_dispatch` por `workflow_dispatch`, y los dos quedan **sustituidos por DEC-172**: el panel deja un
+  pedido y lo lanza `despachador.yml`; `GITHUB_DISPATCH_TOKEN` ya no existe. Sigue vigente que
+  `mantenimiento.yml` abra un PR a `develop` con lo regenerado
 - **Contexto:** última tanda de la Fase 7 (FR-130–FR-145, FR-162–FR-167). Los núcleos gestionables y
   el resumen semanal no tenían RPC en 05, y el QR no podía depender de un servicio externo.
 - **Decisiones:**
@@ -659,6 +661,179 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      *fine-grained* no se puede crear por API. Sin él, `/api/lanzar-workflow` responde
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
+
+### DEC-204 · Los archivos de contexto de Claude Code, al día con la aplicación
+- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (anotada como DEC-204: DEC-196 a DEC-203 son de `docs/35`). Mantenimiento durante la congelación (DEC-193, punto 3).
+- **Contexto:** el desarrollador pidió revisar los archivos que Claude Code lee o que le gobiernan (`CLAUDE.md`,
+  `.claude/`, las plantillas de `.github/`, 00 §6–7, 04 §11 y §15) contra la aplicación tal como está tras 0.12.0.
+  Una sesión nueva lee `CLAUDE.md` entero y se fía de él. La revisión encontró que mandaba a sitios que no existen
+  y que callaba cosas que una sesión necesita:
+  1. `npm run codigo` y `scripts/generar-codigo` ya no existen: el código real lo genera jefatura en Ajustes.
+  2. `npx wrangler pages dev` sin carpeta falla (no hay `wrangler.toml`); el comando es `npm run functions:dev`
+     después de `npm run build`.
+  3. Seis skills se daban por disponibles en `.claude/skills/`, pero solo tres están en Git. Las oficiales las
+     instala el arranque en un PC; `task-shaper` no la instala nadie.
+  4. El paso 1 de §5 («coge la issue más antigua de la fase en curso») llevaba a una sesión a #76, que es de
+     `organizacion`: trabajo de personas.
+  5. «Estas reglas las hace cumplir también `.claude/settings.json`» valía para 5 de las 15 prohibiciones. Del
+     esquema `public`, la que protege los datos de la otra aplicación, no había ninguna guarda.
+  6. El glosario no tenía «barro», «tipo de enganche» (con Directo y los nombres de DEC-194) ni las dos fotos.
+- **Decisión:**
+  1. **Hook nuevo `sin-esquema-public`:** bloquea en las migraciones y en el seed de staging un objeto calificado
+     con `public.` o `schema public`, sin contar los comentarios. Deja pasar `revoke … from public` y
+     `grant … to public`, donde `public` es el rol. Comprobado: ninguna de las 44 migraciones ni el seed lo
+     disparan. Seis casos en `scripts/probar-hooks.ts`.
+  2. **`CLAUDE.md` §3 dice quién vigila cada prohibición:** un hook, el CI, los tests o **nadie**. Donde pone
+     nadie, la regla depende solo de la sesión.
+  3. **`CLAUDE.md` §5 dice qué coger durante la congelación:** `bloquea-release`, después `piloto`; nunca
+     `organizacion` ni `tras-piloto`; si no hay nada, parar.
+  4. **`CLAUDE.md` §8 separa** las skills versionadas de las que instala el arranque, y dice que sin estas se
+     sigue trabajando. 04 §15 dice lo mismo.
+  5. **Un test impide que vuelva a pasar:** `scripts/herramientas.test.ts` falla si `CLAUDE.md` nombra un
+     `npm run`, un script, un hook, un documento o una skill del proyecto que no existe, o si un hook de
+     `settings.json` no tiene su fila en la tabla de §3.
+  6. Glosario (00 §6 y `CLAUDE.md` §4) y estructura (00 §7, 04 §11) al día. `paquete-rv` sirve también para un
+     arreglo suelto y archiva la especificación que cierra; `nueva-migracion` y `revisar-pantallas` con lo
+     aprendido en `docs/34`; las plantillas de PR e issue con las etiquetas de la congelación.
+- **Descartado:** hooks para el resto de prohibiciones sin guarda. «Tests contra dev o prod» o «nombres en lo que
+  llega a un voluntario» no se reconocen con fiabilidad en el texto de una edición: un hook que se equivoca a menudo
+  se acaba ignorando. Quedan marcadas como «nadie» para que la sesión sepa que dependen de ella.
+- **Afecta a:** CLAUDE.md §2–§9; `.claude/settings.json`; `.claude/hooks/`; las tres skills; 00 §6 y §7; 04 §11 y
+  §15; `.github/PULL_REQUEST_TEMPLATE.md` y `.github/ISSUE_TEMPLATE/tarea.md`.
+
+### DEC-203 · Respaldo de staging
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-413).
+- **Contexto:** en el piloto, los datos reales están en staging hasta `promover-piloto`, y el respaldo solo copiaba producción.
+- **Decisión:**
+  1. `respaldo.yml` gana el trabajo `respaldo-staging`, en el environment `staging`, igual que el de producción: los datos cada semana y las fotos de `hidrantes-fotos-dev` el primer domingo del mes, cifrados con la misma clave GPG (huella fija), como artefactos `respaldo-staging-«fecha»` y `respaldo-staging-fotos-«fecha»` de 90 días.
+  2. Sin restauración de prueba, que es solo de producción; sí comprueba que el archivo cifrado no está vacío y que va para la huella.
+  3. Si falla, la misma issue de siempre con «staging» en el título y aviso técnico a la jefatura de staging (`fn_encolar_aviso_tecnico`, DEC-202). Su fallo no pone en rojo la ejecución, para no esconder a la vigilancia la última ejecución correcta del respaldo de producción.
+  4. Sigue siendo un respaldo por entorno, en el mismo sitio (DEC-180): no es una segunda copia.
+  5. Restaurar staging es la receta de `docs/15` §5.3 con el artefacto de staging y `--entorno staging`.
+- **Descartado:**
+  - esperar a `promover-piloto` sin respaldo: las semanas del piloto quedarían sin copia;
+  - la restauración de prueba también en staging: dobla el tiempo del trabajo y la de producción ya prueba la receta.
+- **Afecta a:** DEC-104 (la vigilancia sigue mirando solo el respaldo de producción), DEC-180; `docs/04` §9 y §11; `docs/15` §5.3.
+
+### DEC-202 · Avisos técnicos a jefatura; la vigilancia mira las Functions y el retraso real de producción
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-404, 0045; RV-412).
+- **Contexto:** todo lo que vigila la app (vigilancia, respaldo, despliegue) terminaba en una issue de GitHub, que solo ve el desarrollador: si él no está, jefatura no se entera de que falla el respaldo o de que alguien está probando códigos. Además, la vigilancia no comprobaba que las Pages Functions respondieran, y daba producción por atrasada con cualquier commit fuera de `docs/`, así que cada fusión de Dependabot la ponía en rojo a los 7 días.
+- **Decisión:**
+  1. **Avisos técnicos a jefatura por push:** tema `avisos_tecnicos`, activado en las suscripciones de jefatura que ya existían; solo lo reciben las de administradores activos. `fn_encolar_aviso_tecnico(clave, titulo, cuerpo, url default '/admin/ajustes')`, solo para el servidor (`service_role` y el dueño, para `psql` desde los workflows). Claves cerradas (`vigilancia`, `respaldo`, `despliegue`, `intentos_codigo`) con texto fijo y sin nombres ni correos; como mucho uno por clave cada 24 h (intentos con el código, uno por hora); salen por `/api/push` como los demás. El `url` por defecto es Ajustes del panel, donde está Salud del sistema (la especificación decía `/panel/salud`, que no existe).
+  2. **Quién avisa** (RV-412), cada uno en su propio paso, que no sustituye al fallo original: si no se puede encolar, queda como aviso del paso y la issue sigue siendo el aviso principal:
+     - la vigilancia, con problemas **de producción** (no los que son solo de staging), en su trabajo de `prod-tareas`;
+     - el respaldo, si falla, con la clave `respaldo` (y el de staging, a la jefatura de staging, DEC-203);
+     - el despliegue de producción, si falla un paso de `desplegar`, con la clave `despliegue` (en ese trabajo, el único que tiene la base de datos);
+     - el canje del código, con `intentos_codigo` (DEC-199).
+  3. **Sondeo de las Functions**, en producción y en staging: `POST /api/verificar-codigo` con `{}` tiene que dar 400 con el JSON de error, que responde antes de llamar a Supabase y no cuenta como intento. Un 5xx, HTML o nada es «las funciones del servidor no responden».
+  4. **Producción atrasada** (`.github/scripts/produccion-atrasada.sh`) solo cuenta lo que cambia lo que corre en producción: `src/`, `public/`, `functions/`, `workers/`, `supabase/migrations/`, `index.html`, `vite.config.ts` y, en `package.json` y `package-lock.json`, las dependencias que no son de desarrollo.
+  - **Límite aceptado:** con Supabase o las Pages Functions caídas no sale el push y queda solo la issue (15 §4).
+- **Descartado:**
+  - avisar por correo: exige cuenta y un servicio externo;
+  - avisar desde el trabajo `avisar` de `deploy-prod.yml`: no tiene la base de datos, y dársela pediría otra aprobación de `production`;
+  - sondear las Functions con un `GET`: no prueba que la Function corre;
+  - seguir contando cualquier commit fuera de `docs/`: una vigilancia en rojo cada semana deja de mirarse.
+- **Afecta a:** DEC-096 (producción al día), DEC-104; `docs/04` §9 y §11.2; 05 §2 y §8; 06 Apéndice A; 15 §4.
+
+### DEC-201 · Quien tiene el código no agota lo de todos
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-402, 0047).
+- **Contexto:** con el código se pueden sacar muchos móviles: unos pocos bastan para llegar al tope diario del grupo de propuestas o de fotos, y el resto del grupo se queda sin enviar ese día. Las reservas de foto abiertas de todos contaban en el espacio de jefatura. «Cambiar el código revocando todos» abría la entrada 24 h sin preguntar (DEC-190), justo cuando se sospecha una filtración. Y solo se podía revocar a todos.
+- **Decisión:**
+  1. Los **móviles nuevos** (primeras 24 h desde la primera vez que se vio el móvil, como en RV-302; no los que entraron con la entrada abierta; nunca los de jefatura) gastan entre todos como mucho **la mitad** de `max_propuestas_dia_total` y de `max_subidas_dia_total`. No se aplica con la entrada abierta. Se comprueba después del tope del grupo y usa el código de ese tope con `ambito=moviles_nuevos`, para que la app anterior espere como con los demás.
+  2. **Espacio de jefatura:** sus bytes reales y solo sus reservas abiertas.
+  3. **La entrada no se abre sola:** `fn_cambiar_codigo_acceso(nuevo, revocar_dispositivos, abrir_entrada default false)`; en el panel, una casilla sin marcar. La de dos argumentos se borra (PostgREST no sabría cuál llamar); el panel anterior, con dos, cambia el código sin abrir la entrada.
+  4. **Revocar desde una hora:** `fn_contar_desde` y `fn_revocar_desde`, solo jefatura, los tokens sin revocar emitidos desde esa hora (como mucho 30 días atrás; nunca los de jefatura), al Registro con el número y la hora.
+- **Descartado:**
+  - un código de error nuevo para el tope de los móviles nuevos: la cola de la app anterior lo marcaría como fallo;
+  - contar «nuevo» por token: los veteranos que vuelven a entrar tras revocar a todos contarían como nuevos;
+  - seguir abriendo la entrada al revocar: relaja los topes justo ante una filtración;
+  - un tope fijo por móvil nuevo: no protege al grupo frente a muchos móviles.
+- **Afecta a:** sustituye el «se abre sola» de DEC-190; FR-33, FR-34 y FR-140 (01 v1.14); TR-41 (03 v1.6); 05; 11 §3 y §9; 13 (v0.2); 15 §5.4; FL-29 (02); RV-427 y RV-433.
+
+### DEC-200 · Staging: secretos en su environment, el código fuera del repositorio y los administradores del seed inactivos
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-411).
+- **Contexto:** en el piloto, staging tendrá datos reales y se trata como producción: sus secretos, su código de acceso y sus administradores se guardan con el mismo cuidado. Hasta ahora, cuatro secretos de staging y del propietario (`SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING`, `VIGILANCIA_SECRETO_STAGING` y `PROPIETARIO_EMAIL`) vivían en el nivel del repositorio, y el código y los administradores de staging salían del seed.
+- **Decisión:**
+  1. En el repositorio solo queda `GPG_PUBLIC_KEY`, que es pública. `VIGILANCIA_SECRETO_STAGING` pasa al environment `staging` como `VIGILANCIA_SECRETO`; `PROPIETARIO_EMAIL`, a `staging` y `production`; los dos de staging que lee `promover-piloto.yml`, a `production`, donde corre. Se mueven con `npm run traspasar-secreto` (nueva opción `--como` para cambiar el nombre) y `arranque.ts` los escribe ya en su sitio. `comprobar-produccion` falla si aparece otro secreto en el repositorio. Los del repositorio se borraron el 14 oct 2026, tras un despliegue de staging y una vigilancia en verde.
+  2. El environment `staging` solo admite `develop` (comprobado con la API).
+  3. El código de staging lo genera Claude Code al azar (`crypto.randomInt`) con `npm run arranque -- --codigo-staging`, y solo vive en el secreto `CODIGO_STAGING` del environment `staging` y en el `.env.local` de quien lo generó. Nunca en el repositorio, los registros, los PR, las issues ni el chat. Si una sesión no lo tiene, genera otro; no se le pide a nadie.
+  4. `seed-staging.sql` lo recibe como variable de `psql` (`-v codigo=…`): la CI pasa el de pruebas y `deploy-staging.yml`, `CODIGO_STAGING`. Después del seed, `scripts/sql/codigo-staging.sql` cambia el de la base por `CODIGO_STAGING` y revoca los móviles de staging solo si el que hay es el de pruebas o uno que puso el propio seed o el despliegue; el que haya puesto jefatura (el del piloto) no se toca nunca. No abre la entrada (DEC-201).
+  5. Los administradores de prueba del seed quedan inactivos, también si ya existían.
+- **Descartado:**
+  - dejar los secretos de staging en el repositorio porque «no son de producción»: en el piloto staging tiene los datos reales;
+  - un código de staging fijo pero distinto en el repositorio: seguiría siendo público;
+  - pedir el código a una persona: Claude Code lo genera y lo regenera sin intervención (DEC-176, DEC-177).
+- **Afecta a:** DEC-053, DEC-078, DEC-088, DEC-172; `docs/04` §4, §10 y §11; `docs/15` §2; `docs/entornos.md`; `docs/05` §12.
+
+### DEC-199 · Entrada con el código: el tope global no frena un código bueno
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-401, 0047).
+- **Contexto:** el tope de fallos en total (200 por hora) se miraba antes de comparar el código: mientras estaba alcanzado, no entraba nadie, tampoco con el código bueno. Las Functions no comprobaban de dónde venía la petición, el turno para comparar se esperaba sin límite y con la comparación dentro, y en IPv6 la IP se agrupaba por /64.
+- **Decisión:**
+  1. Tope de fallos en total: **60 por hora** (valor por defecto y fila de `config`; no está en Ajustes).
+  2. Con ese tope alcanzado, un móvil y su IP agrupada **sin ningún fallo en 24 h** se comparan igual: con el código bueno entra; con uno malo cuenta como fallo y quedan frenados.
+  3. La primera vez que salta en una hora, **aviso técnico** a jefatura (`intentos_codigo`, DEC-202).
+  4. Las Functions con `POST` rechazan con `403 ORIGEN_NO_PERMITIDO` las peticiones de navegador desde otras webs y las que no son JSON. Las de servidor a servidor siguen funcionando.
+  5. IPv6 agrupada por **/48**.
+  6. La comparación va antes del turno y el turno se espera **como mucho 3 s**: si no, `OCUPADO` (`503`, `Retry-After: 30`), sin contar como intento.
+  7. Los frenados con el código bueno, como mucho una fila por móvil y hora.
+  8. Las seis cifras no cambian: DEC-004 es de jefatura.
+
+  El cálculo de lo que permiten estos topes está en `docs/35` RV-401, que entra en el repositorio al cerrar la especificación (RV-442).
+- **Descartado:**
+  - Turnstile: añade un paso y un script de terceros a la entrada (CSP), y se configura en un panel web;
+  - más cifras: lo decide jefatura (DEC-004);
+  - bajar el tope sin dejar pasar al móvil limpio: dejaría fuera a los voluntarios mientras dure;
+  - una regla de Cloudflare: panel web y fuera del repositorio.
+- **Afecta a:** DEC-086 (el /64 y el techo de 200); FR-33 (01 v1.14); TR-41 (03 v1.6); 05 §2.5, §2.10, §6.1, §8, §9 y §11; 11 §3 y §9 (v1.4); `docs/17` §12.
+
+### DEC-198 · El código de las dependencias no corre con secretos
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-410).
+- **Contexto:** la revisión del 13 oct 2026 (`docs/35`) pide separar el código de las dependencias de npm de los secretos de Actions: en la instalación, en los despliegues, en los checkout y en la fusión automática de Dependabot.
+- **Decisión:**
+  1. `.npmrc` con `ignore-scripts=true`. Solo `esbuild` y `workerd` se reconstruyen a mano tras `npm ci` (`npm rebuild esbuild workerd --ignore-scripts=false`). `allowScripts` se queda con esas dos: npm 12 lo exige para reconstruirlas. `build` genera las novedades él mismo, porque sin scripts npm no corre `prebuild`.
+  2. Los trabajos con secretos no instalan dependencias: Node 24 sin caché de npm y los scripts con `node scripts/x.ts`. Un test recorre sus imports: solo módulos de Node.
+  3. Cada despliegue en trabajos: `construir` sin environment ni secretos (con las variables públicas del repositorio con sufijo `_STAGING`/`_PROD`), `desplegar` con el environment (comprueba antes de migrar que el build lleva las variables del environment, y despliega con el `wrangler` de `.github/despliegue`, solo wrangler en versión exacta con su lockfile), `comprobar` sin secretos en staging, y en producción `avisar`/`cerrar` en trabajos finales. `publicar` espera a que `desplegar` pida la aprobación.
+  4. `persist-credentials: false` en todo checkout de un trabajo con secretos o permiso de escritura, salvo donde se hace `git push` (`mantenimiento.yml`), anotado en el test.
+  5. Fusión automática estricta: nombres exactos; el lockfile del PR (leído como datos con la API de contenidos, sin checkout) frente al de la base: espera ante entradas nuevas o quitadas, cambios que no sean las dependencias del PR a la versión de Dependabot, o scripts de instalación. `.github/despliegue` nunca se fusiona solo.
+  6. `npm audit fix` sin `--force`; lo que pida una versión mayor, en PR aparte o issue `tras-piloto`.
+- **Descartado:**
+  - quitar `allowScripts`, como pedía la especificación: con npm 12 dejaría sin reconstruir los dos binarios en local; con `ignore-scripts` no permite nada más;
+  - construir con el environment: en producción pediría una segunda aprobación;
+  - comprobar lo desplegado solo en un trabajo sin secretos: la versión del mapa base se anunciaría antes de que se sirva (RV-21). `comprobar-despliegue` pasa a solo Node y va en `desplegar`.
+- **Afecta a:** 04 §11 y §11.2, §12.1; 11 (cadena de suministro); CLAUDE.md §6; `entornos.md`.
+
+### DEC-197 · Jefatura atada a su identidad de Google
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-400, 0046) · **Complementa:** DEC-094
+- **Contexto:** desde 0022, jefatura exigía una sesión de Google cuyo correo estuviera activo en `administradores`. El proyecto de Supabase Auth es el de uniformidad, compartido, y el correo de una cuenta no identifica por sí solo a la persona que está detrás de su cuenta de Google.
+- **Decisión:**
+  1. `administradores` guarda el usuario de Auth al que está unida cada fila (`usuario_id`, `vinculado_en`); `fn_es_admin()` exige que la fila esté unida al usuario de la sesión. Una fila sin unir no da jefatura.
+  2. La une `POST /api/vincular-jefatura`, que lee el usuario en Supabase Auth con el JWT de la sesión y usa el correo **verificado de su identidad de Google**, nunca el de la cuenta, con `fn_vincular_administrador` (solo `service_role`). Una fila unida no se une a otro usuario (`OTRA_CUENTA`).
+  3. La comprobación va en una Function y no en SQL porque el rol del esquema no lee `auth.*` (DEC-052); comprobado razonándolo sobre DEC-052, sin conectarse. No se pide ningún permiso sobre `auth` en el proyecto compartido.
+  4. Al quitar el acceso tiene que quedar al menos un administrador activo y unido (`ULTIMO_ADMINISTRADOR`); quitarlo deshace también el vínculo, y al devolverlo el administrador vuelve a unirse al entrar.
+  5. **Excepción a «compatible una versión atrás» (CLAUDE.md §9, 04 §12):** tras la migración ninguna fila está unida; el panel nuevo la une al entrar (RV-432) y, con el panel anterior en caché, jefatura ve «sin acceso» hasta pulsar *Actualizar*. Afecta a dos o tres personas y producción aún no está abierta.
+- **Descartado:**
+  - leer `auth.identities` desde SQL: exigiría un `grant` sobre `auth` en el proyecto de uniformidad;
+  - vincular a mano cada administrador: el desarrollador no hace pasos manuales (DEC-176, DEC-177).
+- **Afecta a:** 04 §6, 05 §2.9, §6.2, §6.3, §8 y §9, 11 §2, §6.1 y §9, 13 (el primer acceso de un administrador nuevo), 15.
+
+### DEC-196 · `docs/35`: seguridad antes del piloto, excepción a DEC-193
+- **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35`).
+- **Contexto:** la revisión completa del 13 oct 2026, con seguridad, encontró dos fallos altos y varios medios:
+  en la entrada con el código, en staging, en el campo, en el panel y en la operación. Los altos bloquearían el
+  lanzamiento. Con los medios, el piloto se haría con defectos conocidos que ya tienen arreglo. DEC-193 solo deja
+  entrar arreglos `bloquea-release`, lo que salga de #76 a #78 y mantenimiento invisible.
+- **Decisión:**
+  1. `docs/35` entra como excepción a DEC-193, y solo con lo que contiene.
+  2. Los dos altos van como issues `bloquea-release`.
+  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/36`** y parte de
+     `docs/verificacion/piloto.md` (donde DEC-193 decía `docs/35`).
+  4. Fuera de `docs/35`: S3 (riesgo aceptado por el desarrollador), S5 (decidido por el desarrollador) y los
+     hallazgos bajos, que pasan a issues `tras-piloto`.
+- **Descartado:**
+  - esperar al piloto: un piloto con datos reales y el acceso de jefatura sin atar a su cuenta de Google no es
+    aceptable;
+  - meterlo todo como `bloquea-release` sin especificación: sin reparto ni tests escritos.
+- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/36`); CLAUDE.md §5 («salvo `docs/35`, DEC-196»); 09 §8.
 
 ### DEC-195 · Reglas de la documentación
 - **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34` RV-358 a RV-361).
@@ -700,7 +875,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   dos tipos al revés).
 
 ### DEC-193 · `docs/34` es la última especificación antes del piloto
-- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34`).
+- **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34`), con la excepción de `docs/35` (DEC-196).
 - **Contexto:** entre el 23 sep y el 9 oct hubo diecisiete especificaciones de revisión (`docs/17` a `docs/33`),
   todas sobre staging con datos de prueba. El recorrido RV-344 ya no encontró ningún defecto alto, y los bajos
   eran plurales y textos recortados. La aplicación no la ha usado todavía ningún voluntario: la validación con
@@ -714,8 +889,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
   Una mejora que se le ocurra a Claude Code o al desarrollador mientras tanto se anota como issue con la
   etiqueta `tras-piloto` y no se implementa.
-- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/35` parte de lo que diga ese
-  archivo y de las issues `tras-piloto`, en ese orden.
+- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/36` parte de lo que diga ese
+  archivo y de las issues `tras-piloto`, en ese orden (`docs/35` es la excepción de seguridad de DEC-196).
 - **Descartado:** seguir con revisiones sobre staging hasta el piloto (rendimiento cada vez menor); congelar
   también los arreglos de defectos (un defecto que aparezca en la validación tiene que poder arreglarse).
 - **Afecta a:** 09 §8 (fase 9); CLAUDE.md §5 (una línea: «hasta el piloto, DEC-193»).
@@ -745,7 +920,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** nada (05 §2 `max_subidas_dia_total` sigue igual).
 
 ### DEC-190 · La entrada del día del lanzamiento: topes en Ajustes y «abrir la entrada 24 h»
-- **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente (`docs/33` §0.1, donde figura como DEC-187; RV-300, RV-338, RV-342, migración 0044).
+- **Fecha:** 9 oct 2026 (desarrollador) · **Estado:** vigente, salvo «se abre sola» al revocar todos los móviles: sustituido por DEC-201 (la entrada ya no se abre sola; en el panel, una casilla sin marcar). Era: vigente (`docs/33` §0.1, donde figura como DEC-187; RV-300, RV-338, RV-342, migración 0044).
 - **Contexto:** 0041 dejó `max_altas_ip_dia = 20` y `max_altas_global_hora = 40` fuera de Ajustes. El día del lanzamiento (F9.10), o cuando jefatura genera un código nuevo revocando todos los móviles (15 §5.4), los ~65 voluntarios entran desde la misma wifi: entrarían 20 y los demás recibirían `DEMASIADOS_INTENTOS` durante un día, y a partir de 40 en una hora ya nadie. Solo se arreglaba con SQL.
 - **Decisión:**
   - Los dos topes se cambian desde Ajustes: «Entradas desde una misma wifi al día» (5–500) y «Entradas por hora, entre todos» (10–500), y quedan en el Registro.
@@ -953,7 +1128,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §9; 15 §2 y §5.3.
 
 ### DEC-172 · Secretos de producción en `prod-tareas` y vigilancia de despliegues ajenos
-- **Fecha:** oct 2026 · **Estado:** vigente. Matiza DEC-071 (`docs/31` RV-130 a RV-132).
+- **Fecha:** oct 2026 · **Estado:** vigente. Matiza DEC-071 (`docs/31` RV-130 a RV-132). Sustituye a DEC-069 y a cómo se lanza el trabajo en DEC-068 (puntos 5 y 6).
 - **Contexto:** los secretos de producción de las tareas automáticas estaban en el repositorio (DEC-071), al alcance de cualquier workflow de cualquier rama. El permiso «Cloudflare Pages: Edit» es de toda la cuenta y no se puede limitar a un proyecto (https://developers.cloudflare.com/fundamentals/api/reference/permissions/), así que el token con el que se despliega staging también podría desplegar producción. Dependabot fusionaba solo los menores, y las actions iban fijadas por etiqueta.
 - **Decisión:**
   - Environment `prod-tareas`, sin revisores y solo para `develop`, con `SUPABASE_DB_URL_PROD`, `SUPABASE_SERVICE_ROLE_KEY_PROD`, `VIGILANCIA_SECRETO_PROD`, `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`. Respaldo, purga de fotos, el trabajo `mirar` de la vigilancia, la fila de producción de avisos, comprobar-produccion y el despachador lo declaran. Ningún secreto de producción queda en el repositorio, y `scripts/seguridad-ci.test.ts` falla con cualquier `secrets.*_PROD` fuera de un trabajo con `prod-tareas` o `production`.
@@ -1976,7 +2151,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** 04 §9, 15 §4.
 
 ### DEC-084 · Las reservas de subida valen 7 días y caducan un día antes de que la purga las borre
-- **Fecha:** 23 sep 2026 · **Estado:** vigente (`docs/17` RV-07, RV-19)
+- **Fecha:** 23 sep 2026 · **Estado:** vigente salvo el plazo: los 7 días los sustituye DEC-174 (2 días) (`docs/17` RV-07, RV-19)
 - **Contexto:** la purga de fotos protegía las reservas de menos de 24 h, y `fn_proponer` aceptaba
   cualquier reserva del mismo dispositivo. Con una foto subida, un `fn_proponer` fallido y más de
   24 h sin red, la purga del lunes borraba el archivo y el reintento **entraba**: jefatura podía
@@ -2280,7 +2455,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Afecta a:** `scripts/generar-zona.ts`; 04 §8; 12 (DEC-068.5).
 
 ### DEC-069 · El token de mantenimiento, con `actions:write` y no con `contents:write`
-- **Fecha:** 20 sep 2026 · **Estado:** vigente
+- **Fecha:** 20 sep 2026 · **Estado:** sustituida por DEC-172: ninguna Function guarda un token de GitHub; el
+  panel deja un pedido y `despachador.yml` lo lanza con su `GITHUB_TOKEN` (`GITHUB_DISPATCH_TOKEN` se borró el 8 oct 2026)
 - **Contexto:** al ir a crear `GITHUB_DISPATCH_TOKEN` (último paso manual de la Fase 7) apareció una
   contradicción: 04 §10 lo describe desde el principio como un token con el **permiso único
   `actions:write`**, pero la implementación de DEC-068 usa `repository_dispatch`, y GitHub exige para
@@ -2364,12 +2540,12 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157 |
 | 03 | 001, 004, 026, 028, 099, 111, 112 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111, 196 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157 |
 | 07, 08 | 036 |
 | 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 196 |
 | 11 | 002, 004, 011, 017–019, 022, 086, 094, 118 |
 | 15 | 023, 061, 085, 088, 102, 128, 129 |
 | 16 | 007, 037, 111 |

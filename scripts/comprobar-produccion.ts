@@ -49,10 +49,19 @@ export const VARIABLES_ENTORNO = [
   'SUPABASE_PROJECT_REF',
   'PAGES_PROYECTO',
 ];
+/**
+ * Variables del repositorio con las que construye el trabajo «construir» de deploy-prod.yml, que no
+ * tiene environment (docs/35 RV-410, DEC-198). Públicas: van en el bundle. El trabajo que despliega
+ * comprueba que dist lleva las del environment.
+ */
+export const VARIABLES_REPO = [
+  'SUPABASE_URL_PROD',
+  'SUPABASE_ANON_KEY_PROD',
+  'VITE_VAPID_PUBLIC_KEY_PROD',
+  'VITE_MAPABASE_URL_PROD',
+];
 /** Solo hace falta si el mapa base va en R2 (> 20 MB, 04 §8); sin ella se sirve desde Pages. */
-export const OPCIONALES = new Set(['VITE_MAPABASE_URL']);
-/** Secretos que puede tener el environment o el repositorio: GitHub los junta al ejecutar. */
-export const TAMBIEN_EN_REPO = new Set(['PROPIETARIO_EMAIL']);
+export const OPCIONALES = new Set(['VITE_MAPABASE_URL', 'VITE_MAPABASE_URL_PROD']);
 export const SECRETOS_PAGES = [
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
@@ -74,7 +83,10 @@ export const SECRETOS_TAREAS = [
   'CLOUDFLARE_API_TOKEN',
   'CLOUDFLARE_ACCOUNT_ID',
 ];
-/** En el repositorio solo la clave pública del respaldo; ninguno de producción (DEC-172). */
+/**
+ * En el repositorio solo la clave pública del respaldo: ninguno de producción (DEC-172) ni de staging
+ * ni el correo del propietario (DEC-200), que los leería un workflow de cualquier rama.
+ */
 export const SECRETOS_REPO = ['GPG_PUBLIC_KEY'];
 /** La paginación de RV-15 y RV-33 da por hecho este tope de PostgREST (04 §5). */
 export const MAX_ROWS_ESPERADO = 1000;
@@ -99,6 +111,7 @@ export interface EstadoToken {
 export interface Fuentes {
   secretosEntorno(): string[] | null;
   variablesEntorno(): string[] | null;
+  variablesRepo(): string[] | null;
   secretosRepo(): string[] | null;
   secretosTareas(): string[] | null;
   secretosPages(): string[] | null;
@@ -124,15 +137,12 @@ function presentes(
   grupo: string,
   esperados: string[],
   hay: string[] | null,
-  { opcionales = new Set<string>(), alternativa = null as string[] | null, sinAcceso = '' } = {},
+  { opcionales = new Set<string>(), sinAcceso = '' } = {},
 ): Fila[] {
   return esperados.map((nombre) => {
     const imprescindible = !opcionales.has(nombre);
     if (!hay) return { grupo, nombre, estado: 'NO COMPROBADO', imprescindible, nota: sinAcceso };
     if (hay.includes(nombre)) return { grupo, nombre, estado: 'OK', imprescindible };
-    if (alternativa?.includes(nombre)) {
-      return { grupo, nombre, estado: 'OK', imprescindible, nota: 'en el repositorio, no en el environment' };
-    }
     return {
       grupo,
       nombre,
@@ -148,12 +158,15 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
   const repo = f.secretosRepo();
   filas.push(
     ...presentes('environment production · secretos', SECRETOS_ENTORNO, f.secretosEntorno(), {
-      alternativa: repo?.filter((n) => TAMBIEN_EN_REPO.has(n)) ?? null,
       sinAcceso: 'sin sesión de gh con permisos de administrador',
     }),
     ...presentes('environment production · variables', VARIABLES_ENTORNO, f.variablesEntorno(), {
       opcionales: OPCIONALES,
       sinAcceso: 'sin sesión de gh con permisos de administrador',
+    }),
+    ...presentes('repositorio · variables del build', VARIABLES_REPO, f.variablesRepo(), {
+      opcionales: OPCIONALES,
+      sinAcceso: 'sin sesión de gh',
     }),
     ...presentes('Pages hidrantes-albolote · secretos', SECRETOS_PAGES, f.secretosPages(), {
       sinAcceso: 'sin wrangler con sesión o token',
@@ -165,15 +178,16 @@ export async function comprobar(f: Fuentes, locales: Migracion[]): Promise<Fila[
       sinAcceso: 'sin sesión de gh con permisos de administrador',
     }),
   );
-  // Un secreto de producción en el repositorio lo puede leer un workflow de cualquier rama (DEC-172).
+  // Un secreto en el repositorio lo puede leer un workflow de cualquier rama: ni de producción
+  // (DEC-172) ni de staging (DEC-200). Cada uno va en su environment.
   if (repo) {
-    const enRepo = repo.filter((n) => n.endsWith('_PROD'));
+    const enRepo = repo.filter((n) => n && !SECRETOS_REPO.includes(n));
     filas.push({
       grupo: 'repositorio · secretos',
-      nombre: 'ninguno de producción',
+      nombre: 'ninguno más',
       estado: enRepo.length ? 'FALTA' : 'OK',
       imprescindible: true,
-      nota: enRepo.length ? `bórralos tras comprobar prod-tareas: ${enRepo.join(', ')}` : undefined,
+      nota: enRepo.length ? `bórralos tras comprobar su environment: ${enRepo.join(', ')}` : undefined,
     });
   }
 
@@ -369,9 +383,13 @@ function fuentesReales(): Fuentes {
   return {
     secretosEntorno: () => nombresGh(`repos/${repositorio().completo}/environments/production/secrets`, 'secrets'),
     variablesEntorno: () => nombresGh(`repos/${repositorio().completo}/environments/production/variables`, 'variables'),
+    variablesRepo: () => nombresGh(`repos/${repositorio().completo}/actions/variables`, 'variables'),
     secretosRepo: () => nombresGh(`repos/${repositorio().completo}/actions/secrets`, 'secrets'),
     secretosTareas: () => nombresGh(`repos/${repositorio().completo}/environments/prod-tareas/secrets`, 'secrets'),
     secretosPages: () => {
+      // En Actions no hay node_modules ni wrangler (docs/35 RV-410, DEC-198): queda NO COMPROBADO y
+      // lo comprueba la mitad local (--completo).
+      if (env.GITHUB_ACTIONS === 'true') return null;
       const r = ejecutar('npx', ['--no-install', 'wrangler', 'pages', 'secret', 'list', '--project-name', PAGES_PROD]);
       return r.codigo === 0 ? nombresWrangler(r.salida) : null;
     },
@@ -494,7 +512,7 @@ async function principal(): Promise<void> {
   const { secretos, variables } = requeridosDeWorkflow(yml);
   const fuera = [
     ...secretos.filter((s) => !SECRETOS_ENTORNO.includes(s)),
-    ...variables.filter((v) => !VARIABLES_ENTORNO.includes(v)),
+    ...variables.filter((v) => !VARIABLES_ENTORNO.includes(v) && !VARIABLES_REPO.includes(v)),
   ];
   if (fuera.length) log.aviso(`deploy-prod.yml usa algo que esta lista no conoce: ${fuera.join(', ')}`);
   let filas = await comprobar(fuentesReales(), leerMigraciones());

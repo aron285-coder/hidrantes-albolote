@@ -45,6 +45,10 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/sin-console-log.mjs\""
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/sin-esquema-public.mjs\""
           }
         ]
       }

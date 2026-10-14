@@ -43,6 +43,10 @@ export const T = {
     noAutorizadoDetalle:
       'Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.',
     sinAcceso: 'Sin acceso',
+    // docs/35 RV-432: al entrar con Google no se ha podido saber si la cuenta es de jefatura.
+    cuentaSinComprobar: 'No se ha podido comprobar tu cuenta',
+    cuentaSinComprobarDetalle: 'Puede ser la conexión o el servidor. Inténtalo de nuevo en un momento.',
+    reintentar: 'Reintentar',
     volver: 'Volver',
     cifra: (n: Parametro) => `Cifra ${n} de 6`,
     codigoSeisCifras: 'El código son 6 cifras',
@@ -60,6 +64,9 @@ export const T = {
     cuota: 'Se ha llegado al máximo de entradas por ahora. Inténtalo más tarde; si sigue igual, díselo a jefatura.',
     tokenNoVale: 'El acceso de este móvil ya no vale. Vuelve a escribir el código del grupo.',
     errorDesconocido: (codigo: Parametro) => `No se ha podido entrar (código ${codigo}). Inténtalo más tarde.`,
+    // docs/35 RV-426.
+    ocupado: 'Hay mucha gente entrando a la vez. Prueba otra vez en un minuto.',
+    errorGenerico: 'No se ha podido entrar. Inténtalo más tarde; si sigue igual, díselo a jefatura.',
   },
 
   bienvenida: {
@@ -558,6 +565,9 @@ export const T = {
       `En espera: el servidor no tiene sitio para más propuestas. Se volverá a intentar ${cuando}.`,
     esperaReservas: (cuando: Parametro) =>
       `En espera: este móvil tiene varias fotos a medio enviar. Se volverá a intentar ${cuando}.`,
+    // docs/35 RV-427: lo que pueden enviar entre todos los móviles recién entrados.
+    esperaMovilesNuevos:
+      'Hoy los móviles recién entrados ya han enviado mucho. Podrás seguir mañana; lo que tienes se queda guardado.',
   },
 
   ajustes: {
@@ -1012,6 +1022,8 @@ export const T = {
     dispositivosRevocados: 'Dispositivos revocados',
     administradorAlta: 'Administrador añadido',
     administradorBaja: 'Administrador desactivado',
+    // docs/35 RV-400: la fila de administradores se ha unido a su cuenta de Google.
+    administradorVinculado: 'Administrador unido a su cuenta de Google',
     configCambiada: 'Parámetros cambiados',
     incidenciaResuelta: 'Incidencia resuelta',
     anonimizacion: 'Anonimización',
@@ -1093,7 +1105,28 @@ export const T = {
     cerrarAhora: 'Cerrar ahora',
     entradaAbierta: 'Entrada abierta para todos durante 24 h.',
     entradaCerrada: 'Entrada cerrada: vuelven los topes de entradas.',
-    avisoEntradaAlRevocar: 'La entrada se abrirá 24 h para que todos puedan volver a entrar.',
+    // docs/35 RV-433 (DEC-201): revocando todos, la entrada ya no se abre sola; solo con la casilla.
+    avisoEntradaAlRevocar: 'Además, la entrada se abrirá 24 h para que todos puedan volver a entrar a la vez.',
+    abrirEntradaAlRevocar: 'Abrir la entrada 24 h para que todos puedan volver a entrar a la vez',
+    ayudaAbrirEntradaAlRevocar:
+      'Sin marcar, cada móvil vuelve a entrar con los topes de entradas de siempre. Márcala solo si van a entrar muchos a la vez desde la misma wifi.',
+    // docs/35 RV-433: revocar solo los móviles que han entrado desde una hora.
+    revocarDesde: 'Revocar los móviles que han entrado desde…',
+    ayudaRevocarDesde:
+      'Si el código se ha filtrado a una hora conocida: solo los móviles que entraron desde entonces tendrán que volver a escribirlo. Los de jefatura no se revocan.',
+    fechaDesde: 'Fecha y hora',
+    revocarDesdeBoton: 'Revocar desde esa hora',
+    desdeVacio: 'Escribe la fecha y la hora.',
+    desdeFutura: 'La hora no puede ser posterior a ahora.',
+    desdeAntigua: 'Como mucho, desde hace 30 días.',
+    desdeFueraDeRango: 'La hora tiene que estar entre hace 30 días y ahora: cámbiala y vuelve a probar.',
+    seRevocaran: (moviles: number) =>
+      moviles === 1
+        ? 'Se revocará 1 móvil. Tendrá que volver a escribir el código al abrir la aplicación; su nombre se conserva.'
+        : `Se revocarán ${moviles} móviles. Tendrán que volver a escribir el código al abrir la aplicación; sus nombres se conservan.`,
+    ningunoDesde: 'Ningún móvil ha entrado desde esa hora: no hay nada que revocar.',
+    contarDesdeNoCarga: 'No se ha podido saber cuántos móviles son.',
+    revocadosDesde: (moviles: number) => `${plural(moviles, 'móvil revocado', 'móviles revocados')}.`,
     entradaNoCarga: 'No se ha podido saber si la entrada está abierta.',
     administradores: 'Acceso de administradores',
     ayudaAdministradores: 'Lista propia de hidrantes, independiente de la app de uniformidad.',
@@ -1105,6 +1138,14 @@ export const T = {
     sugerencias: 'Sugerencias de la app de uniformidad:',
     administradorAnadido: (correo: Parametro) => `${correo} ya puede entrar en el panel.`,
     administradorQuitado: (correo: Parametro) => `${correo} se queda sin acceso al panel.`,
+    // docs/35 RV-432: activo, pero su cuenta aún no se ha unido a su cuenta de Google.
+    pendienteVincular: 'Pendiente de su primer acceso',
+    ayudaPendienteVincular: 'Que entre en el panel cuanto antes con su cuenta de Google',
+    // docs/35 RV-431: pasar a «sin acceso» se confirma; devolverlo, no.
+    quitarAcceso: 'Quitar el acceso',
+    avisoQuitarAcceso: (correo: Parametro) => `¿Quitar el acceso a ${correo}?`,
+    avisoQuitarteAcceso:
+      'Vas a quitarte el acceso a ti. Saldrás del panel y otro administrador tendrá que devolvértelo.',
     parametros: 'Parámetros',
     ayudaParametros: 'Los móviles los aplican en su próxima sincronización.',
     mesesRevision: 'Meses entre revisiones',
@@ -1225,6 +1266,10 @@ export const T = {
     agrupadas: 'agrupadas: como mucho una por hora',
     resumenSemanal: 'Resumen semanal',
     losLunes: 'los lunes: revisiones caducadas y pendientes antiguas',
+    // docs/35 RV-433 (DEC-202): tema `avisos_tecnicos`.
+    avisosTecnicos: 'Avisos técnicos',
+    avisosTecnicosDetalle:
+      'si falla la comprobación diaria, el respaldo o una actualización, o si alguien está probando códigos de acceso',
     avisosDenegados: 'Este navegador tiene los avisos bloqueados. Actívalos en la configuración del sitio.',
     avisosInstalar: 'En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.',
     avisosNoDisponibles: 'Este navegador no admite avisos.',
@@ -1300,7 +1345,7 @@ export const T = {
     respaldoAhora: 'Respaldo ahora',
     saludSistema: 'Salud del sistema',
     mostrando: (n: Parametro, total: number) => `Mostrando ${n} de ${plural(total, 'punto', 'puntos')}`,
-    ultimoAdministrador: 'No se puede desactivar al último administrador activo.',
+    ultimoAdministrador: 'Tiene que quedar al menos un administrador con acceso.',
     pendienteEscribe: '— pendiente, escribe aquí',
   },
 } as const;

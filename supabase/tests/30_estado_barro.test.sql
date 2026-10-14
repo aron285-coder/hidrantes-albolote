@@ -18,6 +18,7 @@ select set_config('test.token',
 -- Tokens de más de 24 h: el tope de un token nuevo (0041, docs/32 RV-221) se prueba en 37.
 update hidrantes.dispositivos set emitido_en = now() - interval '2 days' where dispositivo_id in ('dddddddd-0000-4000-8000-0000000e3001');
 insert into hidrantes.administradores (email, creado_por) values ('barro@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 create function pg_temp.proponer(clave text, op hidrantes.operacion, punto uuid, datos jsonb,
                                  lat double precision default null, lng double precision default null)
@@ -32,7 +33,7 @@ end $$;
 
 create function pg_temp.jefatura() returns void language sql as $$
   select set_config('request.jwt.claims',
-    '{"role":"authenticated","email":"barro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+    '{"role":"authenticated","sub":"e336e747-3677-eb88-a7ae-37d750c2c5d6","email":"barro@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
     true);
 $$;
 

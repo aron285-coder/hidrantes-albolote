@@ -9,6 +9,7 @@ import {
   SECRETOS_REPO,
   SECRETOS_TAREAS,
   VARIABLES_ENTORNO,
+  VARIABLES_REPO,
   codigoSalida,
   comprobar,
   unirMitades,
@@ -28,9 +29,10 @@ const LOCALES: Migracion[] = [
 /** Todo presente: lo que tendría producción al día. */
 function fuentes(cambios: Partial<Fuentes> = {}): Fuentes {
   return {
-    secretosEntorno: () => SECRETOS_ENTORNO.filter((s) => s !== 'PROPIETARIO_EMAIL'),
+    secretosEntorno: () => [...SECRETOS_ENTORNO],
     variablesEntorno: () => [...VARIABLES_ENTORNO],
-    secretosRepo: () => [...SECRETOS_REPO, 'PROPIETARIO_EMAIL'],
+    variablesRepo: () => [...VARIABLES_REPO, 'PROPIETARIO'],
+    secretosRepo: () => [...SECRETOS_REPO],
     secretosTareas: () => [...SECRETOS_TAREAS],
     secretosPages: () => [...SECRETOS_PAGES],
     migracionesAplicadas: () =>
@@ -63,7 +65,24 @@ describe('comprobar-produccion (docs/19 P-01)', () => {
     );
     const texto = tabla(filas);
     expect(texto).toMatch(/environment prod-tareas · secretos \| VIGILANCIA_SECRETO_PROD \| FALTA/);
-    expect(texto).toMatch(/repositorio · secretos \| ninguno de producción \| FALTA \| .*SUPABASE_DB_URL_PROD/);
+    expect(texto).toMatch(/repositorio · secretos \| ninguno más \| FALTA \| .*SUPABASE_DB_URL_PROD/);
+    expect(codigoSalida(filas)).toBe(1);
+  });
+
+  // docs/35 RV-411 (DEC-200): tampoco los de staging ni el correo del propietario.
+  it('un secreto de staging o PROPIETARIO_EMAIL en el repositorio es un fallo, y no cuenta para production', async () => {
+    const filas = await comprobar(
+      fuentes({
+        secretosEntorno: () => SECRETOS_ENTORNO.filter((s) => s !== 'PROPIETARIO_EMAIL'),
+        secretosRepo: () => [...SECRETOS_REPO, 'PROPIETARIO_EMAIL', 'VIGILANCIA_SECRETO_STAGING'],
+      }),
+      LOCALES,
+    );
+    const texto = tabla(filas);
+    expect(texto).toMatch(/environment production · secretos \| PROPIETARIO_EMAIL \| FALTA/);
+    expect(texto).toMatch(
+      /repositorio · secretos \| ninguno más \| FALTA \| .*PROPIETARIO_EMAIL, VIGILANCIA_SECRETO_STAGING/,
+    );
     expect(codigoSalida(filas)).toBe(1);
   });
 
@@ -217,7 +236,21 @@ describe('lectura de las fuentes', () => {
     const yml = readFileSync(path.join(RAIZ, '.github', 'workflows', 'deploy-prod.yml'), 'utf8');
     const { secretos, variables } = requeridosDeWorkflow(yml);
     expect(secretos.filter((s) => !SECRETOS_ENTORNO.includes(s))).toEqual([]);
-    expect(variables.filter((v) => !VARIABLES_ENTORNO.includes(v))).toEqual([]);
+    expect(variables.filter((v) => !VARIABLES_ENTORNO.includes(v) && !VARIABLES_REPO.includes(v))).toEqual([]);
+  });
+
+  // docs/35 RV-410: «construir» no tiene environment y usa las del repositorio, y solo esas.
+  it('el build de deploy-prod.yml usa las variables del repositorio, y estas se comprueban', async () => {
+    const yml = readFileSync(path.join(RAIZ, '.github', 'workflows', 'deploy-prod.yml'), 'utf8');
+    const construir = yml.slice(yml.indexOf('\n  construir:\n'), yml.indexOf('\n  desplegar:\n'));
+    expect(requeridosDeWorkflow(construir).variables).toEqual([...VARIABLES_REPO].sort());
+    const filas = await comprobar(fuentes({ variablesRepo: () => ['SUPABASE_URL_PROD'] }), LOCALES);
+    const faltan = filas.filter((f) => f.grupo === 'repositorio · variables del build' && f.estado === 'FALTA');
+    // La del mapa base en R2 es opcional, como en el environment.
+    expect(faltan.filter((f) => f.imprescindible).map((f) => f.nombre)).toEqual([
+      'SUPABASE_ANON_KEY_PROD',
+      'VITE_VAPID_PUBLIC_KEY_PROD',
+    ]);
   });
 });
 
