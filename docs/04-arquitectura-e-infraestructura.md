@@ -443,7 +443,7 @@ e2e/                    # Playwright
 | `purgar-fotos.yml` | lunes de madrugada, y desde Ajustes | purga de huérfanas (`scripts/purgar-fotos.ts`); anota el espacio que queda en Salud del sistema, también en un ensayo. La primera pasada programada es ensayo, con su issue, hasta que haya `config.ultima_purga_fotos` (DEC-129) |
 | `canario-ubuntu.yml` | miércoles 05:13 UTC, y a mano | el camino crítico (`preparar` con psql, typecheck y tests) en `ubuntu-26.04`, sin tocar ninguna base de datos. Los demás trabajos van fijos en `ubuntu-24.04` (DEC-128) |
 | `promover-piloto.yml` | manual, con aprobación en `production` | copia puntos, fotos y registro de staging a prod conservando códigos, con las secuencias de prod al menos en las de staging para no volver a dar un código (RV-66); empieza en ensayo y exige escribir PROMOVER (DEC-078) |
-| `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070) |
+| `mantenimiento.yml` | desde Ajustes (`workflow_dispatch`; a mano, también con `ensayo`, que no abre el PR) | regenera la zona de cobertura o el mapa base y abre un PR a `develop` con el resultado (DEC-068, DEC-070), en dos trabajos: `generar`, de solo lectura, y `publicar`, sin Node, que copia solo las rutas de su lista cerrada (docs/36 RV-460) |
 | `vigilancia.yml` | dos veces al día, 07:41 y 19:41 UTC (GitHub las retrasa horas; docs/22 RV-93) | comprueba que la app y una RPC de lectura responden y que el respaldo es reciente; sondea las Pages Functions de producción y de staging (`POST /api/verificar-codigo` con `{}` tiene que dar 400 con el JSON de error, sin llegar a Supabase ni contar como intento; un 5xx, HTML o nada es «las funciones del servidor no responden»); da producción por atrasada solo si lleva más de 7 días sin algo que corre en producción (`.github/scripts/produccion-atrasada.sh`: `src/`, `public/`, `index.html`, `vite.config.ts`, `config/`, `functions/`, `supabase/migrations/`, `datos/`, `CHANGELOG.md` y las dependencias que no son de desarrollo; una fusión de Dependabot de desarrollo no cuenta, ni `workers/`, que se despliega desde `develop` con staging; docs/36 RV-462); con problemas de producción, aviso técnico `vigilancia` a jefatura (`fn_encolar_aviso_tecnico`, como mucho uno cada 24 h; DEC-202); lee la última ejecución de cada tarea de `pg_cron` (`scripts/sql/tareas-programadas.sql`, la ve `hidrantes_migrador` porque es su dueño: no hace falta ningún permiso) y la anota en `config.tareas_programadas`, con las que tienen que existir (`scripts/sql/tareas-esperadas.txt`, `npm run tareas-esperadas`; una que falte es un problema, RV-56); avisa (issue y push a jefatura) si las fotos, con sus reservas abiertas, o la base de datos llegan al 70 % de su tope (`hidrantes.fn_espacio()`, `max_bytes_fotos` y `max_bytes_bd`; DEC-182, DEC-183), y si el espacio de fotos no sale del bucket o su medida tiene más de 8 días; abre una issue si algo falla (TR-102, TR-54, RV-22). Compara cada despliegue de producción de Pages (el activo y los de los últimos 3 días) con las ejecuciones de `deploy-prod.yml` del mismo commit en marcha a esa hora; si alguno no corresponde, abre la issue «Despliegue de producción no autorizado» y avisa por push a jefatura; con `config.revertir_despliegue_ajeno` a `true` (apagada si no existe) vuelve al último despliegue bueno (docs/31 RV-130). El trabajo `mirar` corre en `prod-tareas` (DEC-172). Staging tiene su propio trabajo, con la base de datos de su *environment*: mira la edad de su último respaldo (más de 8 días es un problema, docs/36 RV-461), los avisos sin salir y las tareas de `pg_cron`, y anota allí su última vigilancia. La copia del respaldo solo la mira en producción (docs/20 RV-78, DEC-104); el de staging (DEC-203) avisa además con su propia issue si falla o se corta. Lo que se mira en cada base está en `.github/scripts/revisar-bd.sh`. La transferencia de 5 GB/mes no se puede leer por SQL y sigue siendo una estimación |
 | `mantener-activo.yml` | diario | una lectura de la API de dev y prod para que Supabase Free no los pause (DEC-054) |
 | `mantener-activo.yml` · job `mantener-workflows` (y paso final de `vigilancia.yml`) | diario | rehabilita los workflows programados para que GitHub no los apague tras 60 días sin actividad (DEC-085) |
@@ -542,13 +542,20 @@ El código de las dependencias de npm **no corre con secretos** (docs/35 RV-410)
 - **Avisos de producción.** `avisar` abre la issue «Deploy de producción fallido» solo si
   `desplegar` llegó a empezar; si la puerta rechaza la aprobación o falla `construir`, producción
   no se ha tocado. Si falla un paso de `desplegar`, su último paso encola además el aviso técnico `despliegue` a jefatura (`fn_encolar_aviso_tecnico`, DEC-202); si no se puede encolar, queda como aviso del paso y la issue sigue siendo el aviso principal.
+- **Tampoco con permiso de escritura** (docs/36 RV-460): un trabajo con algún permiso `write`, aunque
+  sea solo el del `GITHUB_TOKEN`, no ejecuta código de dependencias. `mantenimiento.yml` regenera en
+  `generar` (solo lectura) y sube como artefacto la lista de cambios y los archivos; `publicar`
+  (`contents` y `pull-requests` de escritura, sin Node) copia solo las rutas de la lista cerrada
+  `RUTAS_MANTENIMIENTO`, rechaza cualquier otra y abre el PR. `canario-ubuntu.yml` prueba en un trabajo
+  de solo lectura y abre o cierra su issue en otro, `avisar`, sin checkout ni dependencias.
 - **`persist-credentials: false`** en todo `checkout` de un trabajo con secretos o con permiso de
-  escritura. La excepción es `mantenimiento.yml` (`regenerar`), que empuja su rama con `git push`.
+  escritura, sin excepciones: `publicar` de `mantenimiento.yml` pasa el token solo a su `git push`,
+  como cabecera.
 - `scripts/workflows.test.ts` lo comprueba: ningún paso de un trabajo con secretos (salvo
-  `GITHUB_TOKEN`) llama a `npm run`, `npx`, `tsx` ni `npm ci` (salvo el `wrangler` de
-  `.github/despliegue`), tampoco a través de `preparar`, `navegadores` o un guion de
-  `.github/scripts`; y todo `checkout` de esos trabajos lleva `persist-credentials: false` o está en
-  la lista de excepciones, con su motivo.
+  `GITHUB_TOKEN`) o con permiso de escritura llama a `npm run`, `npx`, `tsx` ni `npm ci` (salvo el
+  `wrangler` de `.github/despliegue`, con su lockfile y sin scripts), tampoco a través de `preparar`,
+  `navegadores` o un guion de `.github/scripts`; y todo `checkout` de esos trabajos lleva
+  `persist-credentials: false`. La copia de `publicar` se prueba con un artefacto simulado.
 - `npm run publicar` espera a que `desplegar` pida la aprobación: mientras `construir` corre, la
   ejecución está `in_progress` sin estar aprobada (§12.1).
 - **Fusión automática estricta.** `.github/automerge-permitidos.txt` tiene nombres exactos, sin
