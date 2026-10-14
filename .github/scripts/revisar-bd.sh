@@ -4,25 +4,24 @@
 # lo llama y guarda las tareas de pg_cron en config.tareas_programadas de esa base.
 #
 #   revisar_bd produccion "$BD"   todo: respaldo, avisos sin salir, tareas, espacio e intentos del código
-#   revisar_bd staging "$BD"      lo que aplica en staging: avisos sin salir y tareas programadas
+#   revisar_bd staging "$BD"      lo que aplica en staging: respaldo, avisos sin salir y tareas programadas
 #
 # Corre con bash -e (el shell de Actions): nada de `a && b` al final de un bloque, que con `a` falso
 # terminaría el paso.
 revisar_bd() {
   local entorno="$1" bd="$2" pre=""
   if [ "$entorno" = staging ]; then pre="staging: "; fi
-  if [ "$entorno" = produccion ]; then
-    dias=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c \
-      "select coalesce(extract(day from now() - (hidrantes.fn_config('ultimo_respaldo','null') #>> '{}')::timestamptz)::int, 999);" 2>/dev/null || echo error)
-    if [ "$dias" = "error" ]; then
-      problemas+=("no se puede consultar la base de datos")
-      return
-    elif [ "$dias" -gt 8 ]; then
-      problemas+=("el último respaldo tiene $dias días (más de 8)")
-    fi
-  elif ! psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c 'select 1;' > /dev/null 2>&1; then
+  if ! psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c 'select 1;' > /dev/null 2>&1; then
     problemas+=("${pre}no se puede consultar la base de datos")
     return
+  fi
+  # La edad del último respaldo, en los dos entornos: staging guarda los datos del piloto (DEC-203) y
+  # su respaldo también escribe ultimo_respaldo (docs/36 RV-461). Sin fecha cuenta como 999 días.
+  if ! dias=$(psql -X -A -t -v ON_ERROR_STOP=1 "$bd" -c \
+    "select coalesce(extract(day from now() - (hidrantes.fn_config('ultimo_respaldo','null') #>> '{}')::timestamptz)::int, 999);" 2>/dev/null); then
+    problemas+=("${pre}no se puede leer la fecha del último respaldo")
+  elif [ "$dias" -gt 8 ]; then
+    problemas+=("${pre}el último respaldo tiene $dias días (más de 8)")
   fi
   # Una consulta que falla es un problema, no un cero (docs/31 RV-138): antes un fallo de psql se
   # cambiaba por 0, y la cola de avisos atascada se veía como vacía.

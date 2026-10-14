@@ -36,6 +36,11 @@ export function fechaCorta(f: Date | string | number): string {
 const HORA = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
 const DIA = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' });
 
+/** La hora en Albolote: "00:00" (TR-81). */
+export function horaCorta(f: Date | string | number): string {
+  return HORA.format(new Date(f));
+}
+
 /** Cuándo, en hora de Albolote: "a las 14:30", o "mañana a las 00:05" si es otro día (docs/32 RV-233). */
 export function aLaHora(cuando: number, ahora: number = Date.now()): string {
   const hora = HORA.format(new Date(cuando));

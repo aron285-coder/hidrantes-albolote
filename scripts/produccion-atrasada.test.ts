@@ -122,14 +122,25 @@ describe('produccion_atrasada (RV-412)', () => {
     'src/app.ts',
     'public/sw.js',
     'functions/api/x.ts',
-    'workers/avisos/index.ts',
     'supabase/migrations/0099_x.sql',
     'index.html',
     'vite.config.ts',
+    // docs/36 RV-462: config/ entra en el build (cabeceras, CSP, cachés del SW), datos/ lo carga
+    // deploy-prod.yml en la base y las Novedades del CHANGELOG van en el bundle.
+    'config/cabeceras.ts',
+    'datos/zona-cobertura.geojson',
+    'CHANGELOG.md',
   ])('un cambio en %s cuenta', (archivo) => {
     const t = commit({ [archivo]: `// ${archivo}\n` }, 100);
     commit({ 'docs/a.md': 'c\n' }, 200);
     expect(atrasada()).toBe(`1 ${t}`);
+  });
+
+  // docs/36 RV-462: el Worker se despliega desde develop con cada despliegue de staging; producción
+  // no tiene nada que publicar por él.
+  it('un cambio que solo toca workers/ no cuenta', () => {
+    commit({ 'workers/avisos/index.ts': '// worker\n' }, 10);
+    expect(atrasada()).toBe('0');
   });
 
   it('una dependencia de desarrollo (package.json y lockfile) no cuenta', () => {
@@ -148,8 +159,20 @@ describe('produccion_atrasada (RV-412)', () => {
     expect(atrasada()).toBe('0');
   });
 
-  it('el cambio de versión de una release no cuenta', () => {
+  it('el cambio de versión de package.json y del lockfile no cuenta por sí solo', () => {
     commit(
+      {
+        'package.json': paquete({ a: '^1.0.0' }, { d: '^1.0.0' }, '1.1.0'),
+        'package-lock.json': lock(LOCK_BASE, '1.1.0'),
+      },
+      10,
+    );
+    expect(atrasada()).toBe('0');
+  });
+
+  // docs/36 RV-462: una release cambia CHANGELOG.md, y sus Novedades van en el bundle de producción.
+  it('una release (versión y CHANGELOG.md) cuenta', () => {
+    const t = commit(
       {
         'package.json': paquete({ a: '^1.0.0' }, { d: '^1.0.0' }, '1.1.0'),
         'package-lock.json': lock(LOCK_BASE, '1.1.0'),
@@ -157,7 +180,7 @@ describe('produccion_atrasada (RV-412)', () => {
       },
       10,
     );
-    expect(atrasada()).toBe('0');
+    expect(atrasada()).toBe(`1 ${t}`);
   });
 
   it('una dependencia de producción en package.json cuenta', () => {

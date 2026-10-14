@@ -1,5 +1,14 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -195,6 +204,25 @@ describe('secretos de staging fuera del repositorio (RV-411)', () => {
     );
   });
 
+  // docs/36 RV-461: con continue-on-error, un respaldo de staging cortado por tiempo queda cancelado y
+  // los pasos con `if: failure()` no corrían.
+  it('respaldo-staging avisa también si se corta, y tiene el mismo tiempo que producción', () => {
+    const ts = trabajosDe(leer('respaldo.yml'));
+    const staging = ts.find((x) => x.nombre === 'respaldo-staging')!.cuerpo;
+    const prod = ts.find((x) => x.nombre === 'respaldo')!.cuerpo;
+    const paso = (nombre: string) => {
+      const i = staging.indexOf(`- name: ${nombre}`);
+      expect(i, nombre).toBeGreaterThan(-1);
+      return staging.slice(i).split(/\n {6}- /)[0]!;
+    };
+    for (const nombre of ['Avisar si el respaldo de staging ha fallado', 'Aviso técnico a jefatura de staging']) {
+      expect(paso(nombre)).toMatch(/^ {8}if: failure\(\) \|\| cancelled\(\)$/m);
+    }
+    const tiempo = (c: string) => /^ {4}timeout-minutes: (\d+)$/m.exec(c)?.[1];
+    expect(tiempo(prod)).toBeDefined();
+    expect(tiempo(staging)).toBe(tiempo(prod));
+  });
+
   it('los administradores del seed quedan inactivos, también si ya existían', () => {
     const seed = readFileSync(path.resolve(import.meta.dirname, '../supabase/seed-staging.sql'), 'utf8');
     expect(seed).toContain("('jefatura.prueba@example.com', 'seed', false)");
@@ -229,6 +257,9 @@ describe('avisos técnicos a jefatura desde los workflows (RV-412)', () => {
       expect(paso).not.toMatch(/\|\|\s*true|exit 1/);
       if (archivo === 'vigilancia.yml') {
         expect(paso).toContain("if: always() && steps.mirar.outputs.hay_produccion == 'si'");
+      } else if (trabajo === 'respaldo-staging') {
+        // docs/36 RV-461: cortado por tiempo queda cancelado, no fallido, y también avisa.
+        expect(paso).toContain('if: failure() || cancelled()');
       } else {
         expect(paso).toContain('if: failure()');
       }
@@ -967,7 +998,8 @@ describe('revisar_bd (RV-78)', () => {
   /** psql simulado: responde según la consulta; `tareas` es lo que da tareas-programadas.sql. */
   /** `falla`: un trozo de la consulta con el que psql sale con error (docs/31 RV-138). */
   /** `intentos`: fallos, bloqueos de todo el grupo y móviles frenados con el código bueno (24 h). */
-  const correr = (entorno: string, tareas: string, falla = '', intentos = '0 0 0') => {
+  /** `dias`: la edad del último respaldo que da la consulta de ultimo_respaldo. */
+  const correr = (entorno: string, tareas: string, falla = '', intentos = '0 0 0', dias = '3') => {
     const guion = [
       'set -uo pipefail',
       `psql() {
@@ -975,7 +1007,7 @@ describe('revisar_bd (RV-78)', () => {
         case "$*" in
           *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
           *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
-          *ultimo_respaldo*) echo 3 ;;
+          *ultimo_respaldo*) echo "$DIAS" ;;
           *fn_espacio*) echo 'storage 10 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok 0' ;;
           *notificaciones*) echo 0 ;;
           *intentos_codigo*) echo "$INTENTOS" ;;
@@ -1001,6 +1033,7 @@ describe('revisar_bd (RV-78)', () => {
           RUNNER_TEMP: dir,
           FALLA: falla,
           INTENTOS: intentos,
+          DIAS: dias,
         },
       });
       const archivo = `tareas-${entorno}.json`;
@@ -1039,6 +1072,26 @@ describe('revisar_bd (RV-78)', () => {
     expect(r.codigo).toBe(0);
     expect(r.salida).toContain('staging: faltan tareas programadas de pg_cron: hidrantes_purgar_errores');
     expect(r.salida.trim().endsWith('FIN')).toBe(true);
+  });
+
+  // docs/36 RV-461: staging guarda los datos del piloto (DEC-203) y su respaldo escribe ultimo_respaldo.
+  it.skipIf(!tieneJq)('un respaldo de más de 8 días es un problema, también en staging', () => {
+    expect(correr('produccion', BIEN, '', '0 0 0', '9').salida).toContain('el último respaldo tiene 9 días (más de 8)');
+    const r = correr('staging', BIEN, '', '0 0 0', '9');
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain('staging: el último respaldo tiene 9 días (más de 8)');
+    expect(r.salida.trim().endsWith('FIN')).toBe(true);
+    expect(correr('staging', BIEN, '', '0 0 0', '8').salida.trim()).toBe('FIN');
+    // Si no se puede leer la fecha, lo dice y sigue con lo demás; si la base no responde, no sigue.
+    for (const entorno of ['produccion', 'staging']) {
+      const pre = entorno === 'staging' ? 'staging: ' : '';
+      const r = correr(entorno, BIEN, 'ultimo_respaldo');
+      expect(r.codigo, entorno).toBe(0);
+      expect(r.salida.trim(), entorno).toBe(`${pre}no se puede leer la fecha del último respaldo\nFIN`);
+      expect(correr(entorno, BIEN, 'select 1').salida.trim(), entorno).toBe(
+        `${pre}no se puede consultar la base de datos\nFIN`,
+      );
+    }
   });
 
   // docs/31 RV-138: con `|| echo 0`, una consulta que fallaba contaba como «todo bien».
@@ -1080,11 +1133,13 @@ describe('revisar_bd (RV-78)', () => {
     expect(guion).not.toMatch(/\|\| echo ['"]?0/);
   });
 
-  it('staging no mira el respaldo, el espacio ni los intentos del código', () => {
+  // docs/36 RV-461: la edad del respaldo la miran ya los dos entornos (se prueba arriba, con 9 días).
+  it('staging no mira el espacio ni los intentos del código', () => {
     const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
-    const antesDeStaging = guion.slice(0, guion.indexOf('elif ! psql'));
+    const antesDeStaging = guion.slice(0, guion.indexOf('[ "$entorno" = produccion ] || return 0'));
     expect(antesDeStaging).toContain('ultimo_respaldo');
     expect(antesDeStaging).not.toContain('revisar_espacio "$bd"');
+    expect(antesDeStaging).not.toContain('intentos_codigo');
     const tras = guion.slice(guion.indexOf('[ "$entorno" = produccion ] || return 0'));
     expect(tras).toContain('revisar_espacio "$bd"');
     expect(tras).toContain('intentos_codigo');
@@ -1547,16 +1602,21 @@ describe('dependencias sin secretos (RV-410)', () => {
     expect(malos).toEqual([]);
   });
 
-  /** Checkouts que dejan el token en .git/config porque el trabajo hace git push, con su motivo. */
-  const CON_CREDENCIALES: Record<string, string> = {
-    'mantenimiento.yml:regenerar': 'empuja la rama con los datos regenerados (git push) para abrir su PR',
-  };
+  // docs/36 RV-460: tampoco en un trabajo con permiso de escritura, aunque sea solo el GITHUB_TOKEN.
+  it('ningún paso de un trabajo con permiso de escritura ejecuta npm run, npx, tsx ni npm ci', () => {
+    const malos = archivos.flatMap((a) =>
+      trabajosDe(leer(a))
+        .filter((t) => escribe(leer(a), t.texto))
+        .flatMap((t) => pasos(t.texto).flatMap((p) => ordenesDeNpm(p).map((o) => `${a}:${t.nombre}: ${o}`))),
+    );
+    expect(malos).toEqual([]);
+  });
 
+  // Sin excepciones desde docs/36 RV-460: el trabajo que empuja lo hace sin dejar el token en .git/config.
   it('todo checkout de un trabajo con secretos o con permiso de escritura lleva persist-credentials: false', () => {
     const malos = archivos.flatMap((a) =>
       trabajosDe(leer(a))
         .filter((t) => conSecretos(t.texto) || escribe(leer(a), t.texto))
-        .filter((t) => !CON_CREDENCIALES[`${a}:${t.nombre}`])
         .flatMap((t) =>
           pasos(t.texto)
             .filter((p) => /uses: actions\/checkout@/.test(p) && !/persist-credentials: false/.test(p))
@@ -1564,12 +1624,295 @@ describe('dependencias sin secretos (RV-410)', () => {
         ),
     );
     expect(malos).toEqual([]);
-    // Las excepciones existen y de verdad empujan.
-    for (const clave of Object.keys(CON_CREDENCIALES)) {
-      const [a, nombre] = clave.split(':');
-      const t = trabajosDe(leer(a!)).find((x) => x.nombre === nombre);
-      expect(t?.texto, clave).toMatch(/git push/);
-    }
+  });
+
+  // docs/36 RV-460: mantenimiento.yml regenera con las dependencias en un trabajo de solo lectura y
+  // publica en otro sin Node, que copia solo las rutas de una lista cerrada.
+  describe('mantenimiento.yml en dos trabajos (RV-460)', () => {
+    const texto = leer('mantenimiento.yml');
+    const t = (n: string) => trabajosDe(texto).find((x) => x.nombre === n)?.texto ?? '';
+    const RUTAS = /^ {2}RUTAS_MANTENIMIENTO: '(.+)'$/m.exec(texto)?.[1] ?? '';
+    /** El guion de un paso `run: |`, sin la sangría del YAML. */
+    const guionDe = (trabajo: string, nombre: string) => {
+      const paso = pasos(t(trabajo)).find((p) => p.includes(`- name: ${nombre}\n`)) ?? '';
+      const desde = paso.indexOf('run: |\n');
+      expect(desde, nombre).toBeGreaterThan(-1);
+      return paso
+        .slice(desde + 'run: |\n'.length)
+        .split('\n')
+        .map((l) => l.replace(/^ {10}/, ''))
+        .join('\n');
+    };
+
+    it('generar solo lee, sin credenciales, y sube lo regenerado como artefacto', () => {
+      const g = t('generar');
+      expect(g).toMatch(/^ {4}permissions:\n {6}contents: read\n(?! {6})/m);
+      expect(g).not.toMatch(/secrets\./);
+      expect(g).toContain('persist-credentials: false');
+      expect(g).toContain('uses: ./.github/actions/preparar');
+      expect(g).toContain('run: npm run zona');
+      expect(g).toContain('run: npm run mapabase');
+      expect(g).toContain('npm run callejero');
+      expect(g).toMatch(/uses: actions\/upload-artifact@[0-9a-f]{40}/);
+    });
+
+    it('publicar escribe sin Node ni dependencias, con develop y el artefacto', () => {
+      const p = t('publicar');
+      expect(p).toMatch(/^ {4}needs: generar$/m);
+      expect(p).toMatch(/^ {4}permissions:\n {6}contents: write\n {6}pull-requests: write\n(?! {6})/m);
+      expect(p).not.toMatch(/actions\/preparar|setup-node|node_modules|\bnode\b|\bnpm\b|\bnpx\b|\btsx\b/);
+      // El mismo commit de develop que generar, anotado antes de que corriera ninguna dependencia.
+      expect(p).toMatch(/ref: \$\{\{ needs\.generar\.outputs\.base \}\}\n\s+persist-credentials: false/);
+      const g = t('generar');
+      expect(g).toContain('base: ${{ steps.base.outputs.commit }}');
+      expect(g.indexOf('id: base')).toBeGreaterThan(-1);
+      expect(g.indexOf('id: base')).toBeLessThan(g.indexOf('uses: ./.github/actions/preparar'));
+      expect(p).toMatch(/uses: actions\/download-artifact@[0-9a-f]{40}/);
+      expect(p).not.toContain('git add -A\n');
+      // Sin cambios en publicar, cuando generar sí los vio, no es un «todo bien».
+      expect(guionDe('publicar', 'PR con lo regenerado')).toMatch(
+        /git diff --cached --quiet; then\n.*::error::.*\n\s+exit 1/,
+      );
+      // El permiso general del workflow es de lectura.
+      expect(texto).toMatch(/^permissions:\n {2}contents: read\n(?! {2})/m);
+    });
+
+    it('la lista cerrada casa lo que regeneran zona, mapabase y callejero, y nada más', () => {
+      const re = new RegExp(RUTAS);
+      for (const r of [
+        'datos/limite-municipal.geojson',
+        'datos/zona-cobertura.geojson',
+        'datos/nucleos.geojson',
+        'datos/meta.json',
+        'datos/mapabase.json',
+        'datos/callejero.json',
+        'public/callejero.json',
+        'public/mapabase/albolote.pmtiles',
+        'public/mapabase/t/20261014/meta.json',
+        'public/mapabase/t/20261014/15/16024/12713.pbf',
+      ]) {
+        expect(re.test(r), r).toBe(true);
+      }
+      for (const r of [
+        'package.json',
+        '.github/workflows/ci.yml',
+        'src/main.tsx',
+        'datos/zona-cobertura.html',
+        'datos/../package.json',
+        'public/mapabase/t/20261014/../../../../package.json',
+        'public/sw.js',
+        'datos/meta.json.bak',
+        'xdatos/meta.json',
+      ]) {
+        expect(re.test(r), r).toBe(false);
+      }
+    });
+
+    describe('copiar solo las rutas de la lista', () => {
+      const dir = mkdtempSync(path.join(tmpdir(), 'mantenimiento-'));
+      afterAll(() => rmSync(dir, { recursive: true, force: true }));
+      let n = 0;
+
+      /** Un develop de prueba y un artefacto con `cambios` y `archivos`; devuelve el resultado. */
+      const puedeEnlazar = (() => {
+        const enlace = path.join(dir, 'enlace');
+        try {
+          symlinkSync(dir, enlace);
+          rmSync(enlace, { force: true });
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      const copiar = (
+        cambios: string,
+        archivos: Record<string, string>,
+        conCarpeta = true,
+        antes?: (entrada: string, repo: string) => void,
+      ) => {
+        const repo = path.join(dir, `r${++n}`);
+        const entrada = path.join(dir, `e${n}`);
+        const temporal = path.join(dir, `t${n}`);
+        mkdirSync(temporal);
+        const poner = (base: string, r: string, c: string) => {
+          mkdirSync(path.dirname(path.join(base, r)), { recursive: true });
+          writeFileSync(path.join(base, r), c);
+        };
+        poner(repo, 'datos/meta.json', 'viejo\n');
+        poner(repo, 'public/mapabase/t/20260101/10/1/1.pbf', 'vieja\n');
+        poner(repo, 'package.json', '{}\n');
+        poner(entrada, 'cambios.txt', cambios);
+        if (conCarpeta) mkdirSync(path.join(entrada, 'archivos'), { recursive: true });
+        for (const [r, c] of Object.entries(archivos)) poner(path.join(entrada, 'archivos'), r, c);
+        antes?.(entrada, repo);
+        const r = spawnSync('bash', ['-c', guionDe('publicar', 'Copiar solo las rutas de la lista')], {
+          cwd: repo,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            RUTAS_MANTENIMIENTO: RUTAS,
+            ENTRADA: entrada.replaceAll('\\', '/'),
+            RUNNER_TEMP: temporal.replaceAll('\\', '/'),
+          },
+        });
+        const leerRepo = (x: string) =>
+          existsSync(path.join(repo, x)) ? readFileSync(path.join(repo, x), 'utf8') : undefined;
+        return { codigo: r.status, salida: r.stdout + r.stderr, leerRepo };
+      };
+
+      it('copia lo cambiado y borra lo quitado, si está en la lista', () => {
+        const r = copiar(
+          'M datos/meta.json\nM public/mapabase/t/20261014/10/1/1.pbf\nD public/mapabase/t/20260101/10/1/1.pbf\n',
+          {
+            'datos/meta.json': 'nuevo\n',
+            'public/mapabase/t/20261014/10/1/1.pbf': 'nueva\n',
+          },
+        );
+        expect(r.salida).toBe('');
+        expect(r.codigo).toBe(0);
+        expect(r.leerRepo('datos/meta.json')).toBe('nuevo\n');
+        expect(r.leerRepo('public/mapabase/t/20261014/10/1/1.pbf')).toBe('nueva\n');
+        expect(r.leerRepo('public/mapabase/t/20260101/10/1/1.pbf')).toBeUndefined();
+      });
+
+      it('rechaza una ruta fuera de la lista, también para borrar', () => {
+        const r = copiar('M package.json\n', { 'package.json': '{"x":1}\n' });
+        expect(r.codigo).not.toBe(0);
+        expect(r.salida).toContain('fuera de la lista');
+        expect(r.leerRepo('package.json')).toBe('{}\n');
+        expect(copiar('D package.json\n', {}).codigo).not.toBe(0);
+      });
+
+      it('rechaza un archivo del artefacto que no está en la lista de cambios', () => {
+        const r = copiar('M datos/meta.json\n', { 'datos/meta.json': 'nuevo\n', '.github/workflows/x.yml': 'x\n' });
+        expect(r.codigo).not.toBe(0);
+        expect(r.salida).toContain('no está en la lista de cambios');
+      });
+
+      it('rechaza un cambio sin su archivo y una operación desconocida', () => {
+        expect(copiar('M datos/meta.json\n', {}).codigo).not.toBe(0);
+        expect(copiar('X datos/meta.json\n', { 'datos/meta.json': 'nuevo\n' }).codigo).not.toBe(0);
+      });
+
+      // Sin permiso para crear enlaces (Windows sin modo de desarrollador) se salta: lo prueba la CI.
+      it.skipIf(!puedeEnlazar)('rechaza un archivo del artefacto que es un enlace', () => {
+        const r = copiar('M datos/meta.json\n', {}, true, (entrada, repo) => {
+          mkdirSync(path.join(entrada, 'archivos', 'datos'), { recursive: true });
+          symlinkSync(path.join(repo, 'package.json'), path.join(entrada, 'archivos', 'datos', 'meta.json'));
+        });
+        expect(r.codigo).not.toBe(0);
+        expect(r.salida).toContain('no es un archivo normal');
+        expect(r.leerRepo('datos/meta.json')).toBe('viejo\n');
+      });
+
+      it('rechaza quitar un archivo que no existe en el commit de partida', () => {
+        const r = copiar('D datos/callejero.json\n', {});
+        expect(r.codigo).not.toBe(0);
+        expect(r.salida).toContain('no existe en el commit de partida');
+      });
+
+      it('generar recoge lo cambiado, lo nuevo y lo quitado de la lista, y para con una ruta de fuera', () => {
+        const repo = path.join(dir, `g${++n}`);
+        const temporal = path.join(dir, `gt${n}`);
+        mkdirSync(temporal);
+        const poner = (r: string, c: string) => {
+          mkdirSync(path.dirname(path.join(repo, r)), { recursive: true });
+          writeFileSync(path.join(repo, r), c);
+        };
+        const git = (...a: string[]) => execFileSync('git', a, { cwd: repo, encoding: 'utf8' });
+        poner('datos/meta.json', 'viejo\n');
+        poner('datos/callejero.json', 'igual\n');
+        poner('public/mapabase/t/20260101/10/1/1.pbf', 'vieja\n');
+        poner('package.json', '{}\n');
+        git('init', '-q');
+        git('config', 'core.autocrlf', 'false');
+        git('add', '-A');
+        git(
+          '-c',
+          'user.name=prueba',
+          '-c',
+          'user.email=prueba@prueba.invalid',
+          '-c',
+          'commit.gpgsign=false',
+          'commit',
+          '-qm',
+          'base',
+        );
+        const recoger = () => {
+          rmSync(path.join(temporal, 'regenerado'), { recursive: true, force: true });
+          const salidaGh = path.join(temporal, 'salida');
+          writeFileSync(salidaGh, '');
+          const r = spawnSync('bash', ['-c', guionDe('generar', 'Recoger lo regenerado')], {
+            cwd: repo,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              RUTAS_MANTENIMIENTO: RUTAS,
+              RUNNER_TEMP: temporal.replaceAll('\\', '/'),
+              GITHUB_OUTPUT: salidaGh.replaceAll('\\', '/'),
+              GITHUB_STEP_SUMMARY: path.join(temporal, 'resumen').replaceAll('\\', '/'),
+            },
+          });
+          const cambios = path.join(temporal, 'regenerado', 'cambios.txt');
+          return {
+            codigo: r.status,
+            salida: r.stdout + r.stderr,
+            gh: readFileSync(salidaGh, 'utf8'),
+            cambios: existsSync(cambios) ? readFileSync(cambios, 'utf8').trim().split('\n').sort() : [],
+            copia: (x: string) => {
+              const p = path.join(temporal, 'regenerado', 'archivos', x);
+              return existsSync(p) ? readFileSync(p, 'utf8') : undefined;
+            },
+          };
+        };
+
+        expect(recoger().gh).toBe('hay_cambios=no\n');
+
+        poner('datos/meta.json', 'nuevo\n');
+        rmSync(path.join(repo, 'public/mapabase/t/20260101/10/1/1.pbf'));
+        poner('public/mapabase/t/20261014/10/1/1.pbf', 'nueva\n');
+        const r = recoger();
+        expect(r.salida).toBe('');
+        expect(r.codigo).toBe(0);
+        expect(r.gh).toBe('hay_cambios=si\n');
+        expect(r.cambios).toEqual([
+          'D public/mapabase/t/20260101/10/1/1.pbf',
+          'M datos/meta.json',
+          'M public/mapabase/t/20261014/10/1/1.pbf',
+        ]);
+        expect(r.copia('datos/meta.json')).toBe('nuevo\n');
+        expect(r.copia('public/mapabase/t/20261014/10/1/1.pbf')).toBe('nueva\n');
+        expect(r.copia('datos/callejero.json')).toBeUndefined();
+
+        poner('package.json', '{"x":1}\n');
+        const fuera = recoger();
+        expect(fuera.codigo).not.toBe(0);
+        expect(fuera.salida).toContain('fuera de la lista: package.json');
+        expect(fuera.gh).toBe('');
+      });
+
+      it('con solo archivos quitados, el artefacto llega sin archivos/ y vale', () => {
+        const r = copiar('D public/mapabase/t/20260101/10/1/1.pbf\n', {}, false);
+        expect(r.salida).toBe('');
+        expect(r.codigo).toBe(0);
+        expect(r.leerRepo('public/mapabase/t/20260101/10/1/1.pbf')).toBeUndefined();
+      });
+    });
+  });
+
+  // docs/36 RV-460: el canario prueba con las dependencias sin permiso de escritura, y otro trabajo,
+  // sin dependencias, abre o cierra la issue.
+  it('canario-ubuntu.yml: la prueba solo lee y la issue la abre un trabajo sin dependencias', () => {
+    const texto = leer('canario-ubuntu.yml');
+    const t = (n: string) => trabajosDe(texto).find((x) => x.nombre === n)?.texto ?? '';
+    expect(texto).toMatch(/^permissions:\n {2}contents: read\n(?! {2})/m);
+    expect(t('canario-ubuntu-26')).not.toMatch(/issues: write|gh issue/);
+    const avisar = t('avisar');
+    expect(avisar).toMatch(/^ {4}needs: canario-ubuntu-26$/m);
+    expect(avisar).toMatch(/^ {4}if: always\(\)$/m);
+    expect(avisar).toMatch(/^ {4}permissions:\n {6}issues: write\n(?! {6})/m);
+    expect(avisar).toContain('RESULTADO: ${{ needs.canario-ubuntu-26.result }}');
+    expect(avisar).not.toMatch(/actions\/checkout|actions\/preparar|\bnpm\b|\bnpx\b/);
   });
 
   it('.npmrc no ejecuta los scripts de instalación; allowScripts, solo esbuild y workerd (npm 12 lo exige para rebuild)', () => {
