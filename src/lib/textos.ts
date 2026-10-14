@@ -1030,6 +1030,19 @@ export const T = {
     exportacion: 'Exportación',
     // docs/32 RV-260: el panel solo lo pide; lo lanza el despachador (o nadie, en staging).
     workflowLanzado: 'Mantenimiento pedido',
+    // docs/36 RV-472: las acciones que salían con su clave, y la de RV-450.
+    entradaAbierta: 'Entrada abierta para todos',
+    entradaCerrada: 'Entrada para todos cerrada',
+    nucleoGuardado: 'Núcleo guardado',
+    restauracionRespaldo: 'Respaldo restaurado',
+    administradorDesvinculado: 'Administrador separado de su cuenta de Google',
+    // Una marca de tiempo del detalle, en hora de Albolote (docs/36 RV-472).
+    fechaHora: (fecha: Parametro, hora: Parametro) => `${fecha} a las ${hora}`,
+    motivos: {
+      jefatura: 'Abierta por jefatura',
+      codigo_nuevo: 'Código nuevo',
+      codigo_nuevo_revocando: 'Código nuevo revocando los móviles',
+    },
     // Detalle legible (docs/30 RV-127, DEC-171): qué cambió, con palabras.
     cambio: (campo: Parametro, antes: Parametro, despues: Parametro) => `${campo}: ${antes} → ${despues}`,
     valor: (campo: Parametro, valor: Parametro) => `${campo}: ${valor}`,
@@ -1054,6 +1067,16 @@ export const T = {
       foto_sitio_path: 'Foto del sitio',
       situacion: 'Situación',
       codigo: 'Código',
+      // docs/36 RV-472: los campos de la entrada, el código, los móviles, los núcleos y los respaldos.
+      nombre: 'Nombre',
+      email: 'Correo',
+      archivo: 'Archivo',
+      desde: 'Desde',
+      hasta: 'Hasta',
+      horas: 'Horas',
+      dispositivos: 'Móviles',
+      revocar_dispositivos: 'Revocar los móviles',
+      abrir_entrada: 'Abrir la entrada',
       motivo: 'Motivo',
     },
   },

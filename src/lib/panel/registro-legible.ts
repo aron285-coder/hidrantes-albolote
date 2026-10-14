@@ -3,7 +3,7 @@
 // búsqueda del servidor (que sigue buscando en `resumen`, por nombre de campo) no cambian.
 
 import { nombreCaudal, nombreRacor, nombreTipo } from '../ficha';
-import { fechaCorta } from '../formato';
+import { fechaCorta, horaCorta } from '../formato';
 import { metros } from '../geometria';
 import { ETIQUETA_OPERACION } from '../nombres-operacion';
 import type { TipoPunto } from '../puntos';
@@ -28,6 +28,16 @@ const ORDEN: readonly Campo[] = [
   'foto_sitio_path',
   'situacion',
   'codigo',
+  // docs/36 RV-472: los de la entrada, el código, los móviles, los núcleos y los respaldos.
+  'nombre',
+  'email',
+  'archivo',
+  'desde',
+  'hasta',
+  'horas',
+  'dispositivos',
+  'revocar_dispositivos',
+  'abrir_entrada',
   'motivo',
 ];
 
@@ -83,6 +93,15 @@ function fechaLegible(texto: string): string {
   return Number.isNaN(f.getTime()) ? recortar(texto) : fechaCorta(f);
 }
 
+/** Una marca de tiempo ISO con hora, como la deja jsonb: "2026-10-13T22:00:00+00:00". */
+const MARCA_DE_TIEMPO = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
+
+/** Una marca de tiempo en fecha corta y hora de Albolote (docs/36 RV-472), nunca en UTC. */
+function fechaHoraLegible(texto: string): string {
+  const f = new Date(texto);
+  return Number.isNaN(f.getTime()) ? recortar(texto) : T.panelRegistro.fechaHora(fechaCorta(f), horaCorta(f));
+}
+
 /** Un valor en palabras. Vacío o nulo, "—". Una foto, sin su ruta. */
 function valorLegible(k: string, v: unknown): string {
   if (v === null || v === undefined || (typeof v === 'string' && !v.trim())) return VACIO;
@@ -109,8 +128,10 @@ function valorLegible(k: string, v: unknown): string {
       return deTabla(ETIQUETA_OPERACION, texto);
     case 'fecha_ultima_revision':
       return fechaLegible(texto);
+    case 'motivo':
+      return recortar(deTabla(T.panelRegistro.motivos, texto));
     default:
-      return recortar(texto);
+      return MARCA_DE_TIEMPO.test(texto) ? fechaHoraLegible(texto) : recortar(texto);
   }
 }
 
@@ -174,6 +195,9 @@ function soloAntes(antes: Objeto): string[] {
   return sinVacios(partes);
 }
 
+/** Acciones que dejan en `antes` algo que no es un punto (0044): se enseña entero, no como un borrado. */
+const SIN_PUNTO = new Set(['entrada_cerrada']);
+
 /** `resumen` de v_registro sin "acción · código" (ya tienen su columna) ni las claves que no se enseñan. */
 function resumenSinPrefijo(e: EntradaRegistro): string {
   let r = (e.resumen ?? '').trim();
@@ -199,6 +223,7 @@ export function detalleLegible(e: EntradaRegistro): string {
     // Dos puntos enteros iguales: decirlo, no listar todas sus claves como si hubieran cambiado.
     if (!partes.length && esPunto(antes) && esPunto(despues)) return T.panelRegistro.sinCambios;
   } else if (despues) partes = esPunto(despues) ? resumenPunto(despues) : comoValores(despues);
-  else if (antes) partes = soloAntes(antes);
+  // Solo `antes` en una acción que no es de un punto (cerrar la entrada, RV-472): lo que había, con sus nombres.
+  else if (antes) partes = SIN_PUNTO.has(e.accion) ? comoValores(antes) : soloAntes(antes);
   return partes.length ? partes.join(SEPARADOR) : resumenSinPrefijo(e);
 }
