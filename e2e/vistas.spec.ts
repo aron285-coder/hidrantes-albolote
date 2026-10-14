@@ -471,6 +471,30 @@ const VISTAS: Vista[] = [
     soloEscritorio: true,
   },
   {
+    // docs/36 RV-471: al guardar, otro administrador ya había cambiado el punto (PUNTO_CAMBIADO).
+    nombre: 'panel-editar-punto-cambiado',
+    ruta: '/admin/inventario',
+    preparar: async (p) => {
+      await jefatura(p);
+      await p.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_editar_punto`, (r) =>
+        r.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({ code: 'P0001', message: 'PUNTO_CAMBIADO: otro administrador', details: null }),
+        }),
+      );
+    },
+    lista: async (p) => {
+      await p.getByRole('row').filter({ hasText: P0.codigo }).getByRole('button', { name: T.panel.editar }).click();
+      const editar = p.getByRole('dialog');
+      await editar.getByRole('radio', { name: T.formulario.malo }).click();
+      await editar.getByRole('button', { name: T.panel.guardarCambios }).click();
+      await expect(editar.getByText(T.panelEditar.puntoCambiado)).toBeVisible();
+    },
+    soloEscritorio: true,
+    anchoEscritorio: 1440,
+  },
+  {
     // docs/30 RV-127: el Registro dice qué cambió, con palabras, en la tabla y en las filas apiladas.
     nombre: 'panel-registro',
     ruta: '/admin/registro',
