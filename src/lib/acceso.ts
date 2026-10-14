@@ -184,7 +184,11 @@ export async function comprobarAcceso(): Promise<void> {
       if (r.ok && !r.datos) {
         if (vinculo?.usuario !== usuario) {
           vinculo = { usuario, resultado: await vincularJefatura(data.session.access_token) };
-          if (vinculo.resultado === 'unida') r = await rpc<boolean>('fn_es_admin');
+          if (vinculo.resultado === 'unida') {
+            r = await rpc<boolean>('fn_es_admin');
+            // Unida, pero sin poder volver a preguntar: se dice, en vez de volver a la entrada sin más.
+            if (!r.ok) return fijar({ tipo: 'no_autorizado', sinComprobar: true });
+          }
         }
         if (r.ok && !r.datos && vinculo?.resultado === 'sin_comprobar') {
           olvidarConfirmada();

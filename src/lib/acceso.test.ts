@@ -353,6 +353,43 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
     expect(pedidas()).toBe(1);
   });
 
+  it('Reintentar que vuelve a fallar: la misma pantalla, una sola petición más', async () => {
+    entrar();
+    contesta(503, { error: 'SERVIDOR_NO_DISPONIBLE' });
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    await reintentarComprobacion();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+    expect(pedidas()).toBe(2);
+  });
+
+  it('unida, pero sin servidor para volver a preguntar: «no se ha podido comprobar»', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc.mockResolvedValueOnce(no).mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+  });
+
+  it('unida, pero el servidor sigue diciendo que no: «No autorizado»', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado' });
+  });
+
+  it('otra cuenta de Google en el mismo navegador: se vuelve a pedir', async () => {
+    entrar();
+    contesta(403, { error: 'OTRA_CUENTA' });
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    datos.set('hidrantes.auth', '{"sesion":"guardada"}');
+    sesionGoogle = { access_token: 'otro.jwt', user: { id: 'u2', email: 'otra@example.org' } };
+    await comprobarAcceso();
+    expect(pedidas()).toBe(2);
+  });
+
   it('Volver sin poder comprobar cierra la sesión de Google', async () => {
     entrar();
     contesta(503, { error: 'SERVIDOR_NO_DISPONIBLE' });
