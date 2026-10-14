@@ -148,6 +148,7 @@ export const NOMBRE_ACCION: Record<string, string> = {
   dispositivos_revocados: T.panelRegistro.dispositivosRevocados,
   administrador_alta: T.panelRegistro.administradorAlta,
   administrador_baja: T.panelRegistro.administradorBaja,
+  administrador_vinculado: T.panelRegistro.administradorVinculado,
   config_cambiada: T.panelRegistro.configCambiada,
   incidencia_resuelta: T.panelRegistro.incidenciaResuelta,
   anonimizacion: T.panelRegistro.anonimizacion,

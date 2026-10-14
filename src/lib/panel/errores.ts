@@ -5,6 +5,8 @@ import { T } from '../textos';
 
 export function textoError(codigo: string): string {
   if (codigo === 'PAYLOAD_INVALIDO(dispositivo)') return T.panelErrores.dispositivoAmbiguo;
+  // docs/35 RV-433: revocar desde una hora fuera del margen (el reloj del servidor manda).
+  if (codigo === 'PAYLOAD_INVALIDO(desde)') return T.panelAjustes.desdeFueraDeRango;
   const base = codigo.replace(/\(.*$/, '');
   switch (base) {
     case 'SERVICE_WORKER':

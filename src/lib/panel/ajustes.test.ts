@@ -6,6 +6,9 @@ import {
   VIGILANCIA_ATRASADA_H,
   avisoAlmacenamiento,
   pendienteDeVincular,
+  leerFechaLocal,
+  motivoDesde,
+  valorFechaLocal,
   avisoQuitarAcceso,
   esUnoMismo,
   cargarNovedades,
@@ -268,5 +271,29 @@ describe('avisoQuitarAcceso (docs/35 RV-431)', () => {
 
   it('el último administrador, en palabras', () => {
     expect(textoError('ULTIMO_ADMINISTRADOR')).toBe('Tiene que quedar al menos un administrador con acceso.');
+  });
+});
+
+// docs/35 RV-433: revocar los móviles que han entrado desde una hora.
+describe('revocar desde una hora (docs/35 RV-433)', () => {
+  const ahora = new Date(2026, 9, 14, 12, 30);
+  it('el campo de fecha y hora, en la hora del navegador, ida y vuelta', () => {
+    expect(valorFechaLocal(new Date(2026, 0, 5, 7, 4))).toBe('2026-01-05T07:04');
+    expect(leerFechaLocal('2026-01-05T07:04')?.getTime()).toBe(new Date(2026, 0, 5, 7, 4).getTime());
+    expect(leerFechaLocal('')).toBeNull();
+    expect(leerFechaLocal('ayer')).toBeNull();
+  });
+
+  it('entre hace 30 días y ahora; si no, el motivo', () => {
+    expect(motivoDesde(new Date(2026, 9, 13, 12, 30), ahora)).toBeNull();
+    expect(motivoDesde(ahora, ahora)).toBeNull();
+    expect(motivoDesde(null, ahora)).toBe(T.panelAjustes.desdeVacio);
+    expect(motivoDesde(new Date(2026, 9, 14, 12, 31), ahora)).toBe(T.panelAjustes.desdeFutura);
+    expect(motivoDesde(new Date(2026, 8, 14, 12, 29), ahora)).toBe(T.panelAjustes.desdeAntigua);
+  });
+
+  it('el aviso dice cuántos, en singular y en plural', () => {
+    expect(T.panelAjustes.seRevocaran(1)).toMatch(/^Se revocará 1 móvil\./);
+    expect(T.panelAjustes.seRevocaran(3)).toMatch(/^Se revocarán 3 móviles\./);
   });
 });
