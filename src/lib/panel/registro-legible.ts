@@ -102,8 +102,8 @@ function fechaHoraLegible(texto: string): string {
   return Number.isNaN(f.getTime()) ? recortar(texto) : T.panelRegistro.fechaHora(fechaCorta(f), horaCorta(f));
 }
 
-/** Un valor en palabras. Vacío o nulo, "—". Una foto, sin su ruta. */
-function valorLegible(k: string, v: unknown): string {
+/** Un valor en palabras. Vacío o nulo, "—". Una foto, sin su ruta. `accion`, la de la entrada. */
+function valorLegible(k: string, v: unknown, accion = ''): string {
   if (v === null || v === undefined || (typeof v === 'string' && !v.trim())) return VACIO;
   if (esFoto(k)) return T.panelRegistro.adjunta;
   if (typeof v === 'boolean') return v ? T.panelRegistro.si : T.panelRegistro.no;
@@ -128,10 +128,15 @@ function valorLegible(k: string, v: unknown): string {
       return deTabla(ETIQUETA_OPERACION, texto);
     case 'fecha_ultima_revision':
       return fechaLegible(texto);
+    // Solo el motivo de abrir la entrada es una clave fija; el de un borrado lo escribe jefatura.
     case 'motivo':
-      return recortar(deTabla(T.panelRegistro.motivos, texto));
-    default:
+      return recortar(accion === 'entrada_abierta' ? deTabla(T.panelRegistro.motivos, texto) : texto);
+    // Solo los campos que son una hora: un texto libre que empiece por una fecha se deja como está.
+    case 'desde':
+    case 'hasta':
       return MARCA_DE_TIEMPO.test(texto) ? fechaHoraLegible(texto) : recortar(texto);
+    default:
+      return recortar(texto);
   }
 }
 
@@ -181,8 +186,8 @@ const sinVacios = (partes: string[]) => partes.filter((v) => v !== VACIO);
 const resumenPunto = (p: Objeto) =>
   sinVacios((['tipo', 'diametro_mm', 'caudal', 'nucleo'] as const).map((k) => valorLegible(k, p[k])));
 
-const comoValores = (o: Objeto) =>
-  clavesVisibles(o).map((k) => T.panelRegistro.valor(nombreDe(k), valorLegible(k, o[k])));
+const comoValores = (o: Objeto, accion: string) =>
+  clavesVisibles(o).map((k) => T.panelRegistro.valor(nombreDe(k), valorLegible(k, o[k], accion)));
 
 /** Un borrado o una purga (solo `antes`): qué punto era y, si lo hay, el motivo. */
 function soloAntes(antes: Objeto): string[] {
@@ -222,8 +227,8 @@ export function detalleLegible(e: EntradaRegistro): string {
     partes = cambios(antes, despues);
     // Dos puntos enteros iguales: decirlo, no listar todas sus claves como si hubieran cambiado.
     if (!partes.length && esPunto(antes) && esPunto(despues)) return T.panelRegistro.sinCambios;
-  } else if (despues) partes = esPunto(despues) ? resumenPunto(despues) : comoValores(despues);
+  } else if (despues) partes = esPunto(despues) ? resumenPunto(despues) : comoValores(despues, e.accion);
   // Solo `antes` en una acción que no es de un punto (cerrar la entrada, RV-472): lo que había, con sus nombres.
-  else if (antes) partes = SIN_PUNTO.has(e.accion) ? comoValores(antes) : soloAntes(antes);
+  else if (antes) partes = SIN_PUNTO.has(e.accion) ? comoValores(antes, e.accion) : soloAntes(antes);
   return partes.length ? partes.join(SEPARADOR) : resumenSinPrefijo(e);
 }

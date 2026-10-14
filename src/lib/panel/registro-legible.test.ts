@@ -411,6 +411,48 @@ describe('detalleLegible · entrada, código y móviles (RV-472)', () => {
     ).toBe('Archivo: respaldo.sql.gpg');
   });
 
+  it('un borrado con un motivo que coincide con una clave de la entrada sale literal', () => {
+    for (const motivo of ['jefatura', 'codigo_nuevo']) {
+      expect(
+        detalleLegible(entrada({ accion: 'borrado', antes: { codigo: 'BOC-0001', tipo: 'boca_riego', motivo } })),
+      ).toBe(`Código: BOC-0001 · Boca de riego · Motivo: ${motivo}`);
+    }
+  });
+
+  it('un texto libre que empieza por una fecha no se toca', () => {
+    expect(detalleLegible(edicion({ descripcion: '2026-10-13 10:00 revisado' }))).toBe(
+      'Descripción: — → 2026-10-13 10:00 revisado',
+    );
+    expect(detalleLegible(edicion({ descripcion: '2026-10-13 10:00' }))).toBe('Descripción: — → 2026-10-13 10:00');
+  });
+
+  it('núcleo renombrado: «Nombre: A → B»', () => {
+    expect(
+      detalleLegible(
+        entrada({
+          accion: 'nucleo_guardado',
+          codigo: null,
+          antes: { nombre: 'Cerro' },
+          despues: { nombre: 'Cerro Bermejo' },
+        }),
+      ),
+    ).toBe('Nombre: Cerro → Cerro Bermejo');
+  });
+
+  it('dispositivos_revocados sin «desde»: solo los móviles', () => {
+    expect(
+      detalleLegible(entrada({ accion: 'dispositivos_revocados', codigo: null, despues: { dispositivos: 3 } })),
+    ).toBe('Móviles: 3');
+  });
+
+  it('administrador_vinculado y administrador_desvinculado: el correo con su nombre', () => {
+    for (const accion of ['administrador_vinculado', 'administrador_desvinculado']) {
+      expect(detalleLegible(entrada({ accion, codigo: null, despues: { email: 'jefe@example.org' } }))).toBe(
+        'Correo: jefe@example.org',
+      );
+    }
+  });
+
   it('una clave desconocida se sigue enseñando tal cual (RV-127)', () => {
     expect(detalleLegible(entrada({ accion: 'config_cambiada', codigo: null, despues: { algo_nuevo: 1 } }))).toBe(
       'algo_nuevo: 1',
