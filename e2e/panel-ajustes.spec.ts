@@ -1096,6 +1096,10 @@ test('sin sesión de administrador, nada de la entrada (docs/33 RV-338)', async 
     if (nombre === 'fn_es_admin') return route.fulfill({ contentType: 'application/json', body: 'false' });
     return route.abort('connectionrefused');
   });
+  // La cuenta no está en la lista: la Function lo dice así (docs/35 RV-432).
+  await page.route('**/api/vincular-jefatura', (r) =>
+    r.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"NO_ES_ADMINISTRADOR"}' }),
+  );
   await page.goto('/admin/ajustes');
   await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
   await expect(page.getByText(T.panelAjustes.abrirEntrada)).toHaveCount(0);
