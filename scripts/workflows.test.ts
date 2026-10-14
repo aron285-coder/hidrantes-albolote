@@ -203,6 +203,25 @@ describe('secretos de staging fuera del repositorio (RV-411)', () => {
     );
   });
 
+  // docs/36 RV-461: con continue-on-error, un respaldo de staging cortado por tiempo queda cancelado y
+  // los pasos con `if: failure()` no corrían.
+  it('respaldo-staging avisa también si se corta, y tiene el mismo tiempo que producción', () => {
+    const ts = trabajosDe(leer('respaldo.yml'));
+    const staging = ts.find((x) => x.nombre === 'respaldo-staging')!.cuerpo;
+    const prod = ts.find((x) => x.nombre === 'respaldo')!.cuerpo;
+    const paso = (nombre: string) => {
+      const i = staging.indexOf(`- name: ${nombre}`);
+      expect(i, nombre).toBeGreaterThan(-1);
+      return staging.slice(i).split(/\n {6}- /)[0]!;
+    };
+    for (const nombre of ['Avisar si el respaldo de staging ha fallado', 'Aviso técnico a jefatura de staging']) {
+      expect(paso(nombre)).toMatch(/^ {8}if: failure\(\) \|\| cancelled\(\)$/m);
+    }
+    const tiempo = (c: string) => /^ {4}timeout-minutes: (\d+)$/m.exec(c)?.[1];
+    expect(tiempo(prod)).toBeDefined();
+    expect(tiempo(staging)).toBe(tiempo(prod));
+  });
+
   it('los administradores del seed quedan inactivos, también si ya existían', () => {
     const seed = readFileSync(path.resolve(import.meta.dirname, '../supabase/seed-staging.sql'), 'utf8');
     expect(seed).toContain("('jefatura.prueba@example.com', 'seed', false)");
@@ -237,6 +256,9 @@ describe('avisos técnicos a jefatura desde los workflows (RV-412)', () => {
       expect(paso).not.toMatch(/\|\|\s*true|exit 1/);
       if (archivo === 'vigilancia.yml') {
         expect(paso).toContain("if: always() && steps.mirar.outputs.hay_produccion == 'si'");
+      } else if (trabajo === 'respaldo-staging') {
+        // docs/36 RV-461: cortado por tiempo queda cancelado, no fallido, y también avisa.
+        expect(paso).toContain('if: failure() || cancelled()');
       } else {
         expect(paso).toContain('if: failure()');
       }
@@ -975,7 +997,8 @@ describe('revisar_bd (RV-78)', () => {
   /** psql simulado: responde según la consulta; `tareas` es lo que da tareas-programadas.sql. */
   /** `falla`: un trozo de la consulta con el que psql sale con error (docs/31 RV-138). */
   /** `intentos`: fallos, bloqueos de todo el grupo y móviles frenados con el código bueno (24 h). */
-  const correr = (entorno: string, tareas: string, falla = '', intentos = '0 0 0') => {
+  /** `dias`: la edad del último respaldo que da la consulta de ultimo_respaldo. */
+  const correr = (entorno: string, tareas: string, falla = '', intentos = '0 0 0', dias = '3') => {
     const guion = [
       'set -uo pipefail',
       `psql() {
@@ -983,7 +1006,7 @@ describe('revisar_bd (RV-78)', () => {
         case "$*" in
           *tareas-programadas.sql*) printf '%s' "$TAREAS" ;;
           *guardar-tareas.sql*) echo "guardado $*" >> "$ANOTADO" ;;
-          *ultimo_respaldo*) echo 3 ;;
+          *ultimo_respaldo*) echo "$DIAS" ;;
           *fn_espacio*) echo 'storage 10 800 f 50 400 f 70 0 120 500 f 80 50 5 1 64 ok 0' ;;
           *notificaciones*) echo 0 ;;
           *intentos_codigo*) echo "$INTENTOS" ;;
@@ -1009,6 +1032,7 @@ describe('revisar_bd (RV-78)', () => {
           RUNNER_TEMP: dir,
           FALLA: falla,
           INTENTOS: intentos,
+          DIAS: dias,
         },
       });
       const archivo = `tareas-${entorno}.json`;
@@ -1047,6 +1071,26 @@ describe('revisar_bd (RV-78)', () => {
     expect(r.codigo).toBe(0);
     expect(r.salida).toContain('staging: faltan tareas programadas de pg_cron: hidrantes_purgar_errores');
     expect(r.salida.trim().endsWith('FIN')).toBe(true);
+  });
+
+  // docs/36 RV-461: staging guarda los datos del piloto (DEC-203) y su respaldo escribe ultimo_respaldo.
+  it.skipIf(!tieneJq)('un respaldo de más de 8 días es un problema, también en staging', () => {
+    expect(correr('produccion', BIEN, '', '0 0 0', '9').salida).toContain('el último respaldo tiene 9 días (más de 8)');
+    const r = correr('staging', BIEN, '', '0 0 0', '9');
+    expect(r.codigo).toBe(0);
+    expect(r.salida).toContain('staging: el último respaldo tiene 9 días (más de 8)');
+    expect(r.salida.trim().endsWith('FIN')).toBe(true);
+    expect(correr('staging', BIEN, '', '0 0 0', '8').salida.trim()).toBe('FIN');
+    // Si no se puede leer la fecha, lo dice y sigue con lo demás; si la base no responde, no sigue.
+    for (const entorno of ['produccion', 'staging']) {
+      const pre = entorno === 'staging' ? 'staging: ' : '';
+      const r = correr(entorno, BIEN, 'ultimo_respaldo');
+      expect(r.codigo, entorno).toBe(0);
+      expect(r.salida.trim(), entorno).toBe(`${pre}no se puede leer la fecha del último respaldo\nFIN`);
+      expect(correr(entorno, BIEN, 'select 1').salida.trim(), entorno).toBe(
+        `${pre}no se puede consultar la base de datos\nFIN`,
+      );
+    }
   });
 
   // docs/31 RV-138: con `|| echo 0`, una consulta que fallaba contaba como «todo bien».
@@ -1088,11 +1132,13 @@ describe('revisar_bd (RV-78)', () => {
     expect(guion).not.toMatch(/\|\| echo ['"]?0/);
   });
 
-  it('staging no mira el respaldo, el espacio ni los intentos del código', () => {
+  // docs/36 RV-461: la edad del respaldo la miran ya los dos entornos (se prueba arriba, con 9 días).
+  it('staging no mira el espacio ni los intentos del código', () => {
     const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
-    const antesDeStaging = guion.slice(0, guion.indexOf('elif ! psql'));
+    const antesDeStaging = guion.slice(0, guion.indexOf('[ "$entorno" = produccion ] || return 0'));
     expect(antesDeStaging).toContain('ultimo_respaldo');
     expect(antesDeStaging).not.toContain('revisar_espacio "$bd"');
+    expect(antesDeStaging).not.toContain('intentos_codigo');
     const tras = guion.slice(guion.indexOf('[ "$entorno" = produccion ] || return 0'));
     expect(tras).toContain('revisar_espacio "$bd"');
     expect(tras).toContain('intentos_codigo');

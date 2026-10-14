@@ -8,13 +8,22 @@
 # fuera de docs/, y cada fusión de Dependabot ponía la vigilancia en rojo a los 7 días.
 #
 # Cuenta un commit si cambia:
-#   - src/, public/, functions/, workers/, supabase/migrations/, index.html o vite.config.ts;
+#   - una de las rutas de PRODUCCION_RUTAS (abajo, cada una con su porqué);
 #   - en package.json, las `dependencies` (no las de desarrollo ni la versión de una release);
 #   - en package-lock.json, alguna entrada de `packages` sin `"dev": true` (cambiada, nueva o quitada);
 #     de la entrada raíz, solo sus `dependencies`.
 # Necesita el historial completo (checkout con fetch-depth: 0), git y node.
 
-PRODUCCION_RUTAS=(src public functions workers supabase/migrations index.html vite.config.ts)
+# Lo que llega a producción con `npm run publicar` (docs/36 RV-462):
+#   src, public, index.html, vite.config.ts   el build que se sirve;
+#   config                 lo importa vite.config.ts: _headers, la CSP y las cachés del SW;
+#   functions              las Pages Functions;
+#   supabase/migrations    las migraciones que aplica deploy-prod.yml;
+#   datos                  la zona, los núcleos y las versiones que deploy-prod.yml carga en la base;
+#   CHANGELOG.md           las Novedades van dentro del bundle.
+# workers/ no está: el Worker de los avisos se despliega desde develop con cada despliegue de staging
+# (deploy-staging.yml), así que producción no tiene nada pendiente por él.
+PRODUCCION_RUTAS=(src public index.html vite.config.ts config functions supabase/migrations datos CHANGELOG.md)
 
 # Las dependencias que no son de desarrollo de un package.json o un package-lock.json, en JSON
 # ordenado. Lee el archivo por la entrada; vacío cuenta como «sin dependencias», y uno que no es JSON
