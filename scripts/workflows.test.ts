@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { PROBLEMA_DESUNIDA, PROBLEMA_NINGUNA, PROBLEMA_SIN_DESUNIR } from './revisar-uniones.ts';
 
 // Sin parser de YAML en las dependencias: expresiones acotadas sobre los archivos, que bastan para
 // lo que se comprueba aquí (DEC-085).
@@ -2083,5 +2084,138 @@ describe('dependencias sin secretos (RV-410)', () => {
   it('Dependabot vigila también .github/despliegue', () => {
     const dependabot = readFileSync(path.join(raiz, '.github/dependabot.yml'), 'utf8');
     expect(dependabot).toMatch(/- package-ecosystem: npm\n\s+directory: \/\.github\/despliegue\n/);
+  });
+});
+
+// docs/36 RV-463 (DEC-206): la vigilancia revisa las uniones de jefatura de producción y de staging, en
+// un paso propio con la service role de su entorno; una desunida es un problema y un aviso técnico.
+describe('uniones de jefatura en la vigilancia (RV-463)', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  const texto = leer('vigilancia.yml');
+  const trabajo = (n: string) => trabajosDe(texto).find((t) => t.nombre === n)!.cuerpo;
+  const paso = (cuerpo: string, nombre: string) => {
+    const i = cuerpo.indexOf(`- name: ${nombre}\n`);
+    return i < 0 ? '' : cuerpo.slice(i).split(/\n {6}- /)[0]!;
+  };
+
+  it.each([
+    ['mirar', 'Comprobar', '${{ vars.SUPABASE_URL_PROD }}', 'SUPABASE_SERVICE_ROLE_KEY_PROD', "revisar_uniones ''"],
+    [
+      'staging',
+      'Comprobar staging',
+      '${{ secrets.SUPABASE_URL }}',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      "revisar_uniones 'staging: '",
+    ],
+  ])('%s: paso propio antes de «%s», el único con la service role', (n, comprobar, url, clave, llamada) => {
+    const c = trabajo(n);
+    const p = paso(c, 'Revisar las uniones de jefatura');
+    expect(p).toContain(`SUPABASE_URL: ${url}`);
+    expect(p).toContain(`SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.${clave} }}`);
+    expect(p).toContain('source .github/scripts/revisar-uniones.sh');
+    expect(p).toContain(llamada);
+    // Solo desune si se pide a mano (hasta revisar la primera pasada, la programada solo informa).
+    expect(p).toContain("REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'solo-informar' }}");
+    expect(texto).toMatch(
+      /uniones:\n(?: {8}.*\n)*? {8}options: \[solo-informar, desunir\]\n {8}default: solo-informar/,
+    );
+    expect(c.indexOf('- name: Revisar las uniones de jefatura')).toBeLessThan(c.indexOf(`- name: ${comprobar}\n`));
+    expect(c.match(new RegExp(`secrets\\.${clave}\\b`, 'g'))).toHaveLength(1);
+    const comp = paso(c, comprobar);
+    expect(comp).toContain('UNIONES: ${{ steps.uniones.outputs.problemas }}');
+    expect(comp).toContain('done <<< "${UNIONES:-}"');
+    // Si el paso se corta, lo demás se comprueba igual y eso es un problema.
+    expect(p).toMatch(/^ {8}timeout-minutes: 5\n {8}continue-on-error: true$/m);
+    expect(comp).toContain('UNIONES_RESULTADO: ${{ steps.uniones.outcome }}');
+    expect(comp).toContain('if [ "${UNIONES_RESULTADO:-}" != success ]; then');
+  });
+
+  it('staging manda el aviso técnico a su jefatura si ha desunido una cuenta', () => {
+    const p = paso(trabajo('staging'), 'Aviso técnico a jefatura de staging');
+    expect(p).toContain("if: always() && steps.uniones.outputs.avisar == 'si'");
+    expect(p).toContain('BD: ${{ secrets.SUPABASE_DB_URL }}');
+    expect(p).toContain('aviso_tecnico_paso vigilancia');
+  });
+
+  describe('revisar_uniones', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'uniones-'));
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+    let n = 0;
+    /** Con un `node` simulado que escribe `salida` y sale con `codigo`. */
+    const correr = (pre: string, salida: string, codigo = 0, conClave = true) => {
+      const gh = path.join(dir, `salida${++n}`);
+      writeFileSync(gh, '');
+      const guion = [
+        `node() { if [ "$1" != scripts/revisar-uniones.ts ]; then return 9; fi; printf '%s' "$SALIDA"; return ${codigo}; }`,
+        'source .github/scripts/revisar-uniones.sh',
+        `revisar_uniones '${pre}'`,
+        'echo "fin $?"',
+      ].join('\n');
+      const r = spawnSync('bash', ['-e', '-c', guion], {
+        cwd: raiz,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          SALIDA: salida,
+          GITHUB_OUTPUT: gh.replaceAll('\\', '/'),
+          SUPABASE_URL: conClave ? 'https://ejemplo.invalid' : '',
+          SUPABASE_SERVICE_ROLE_KEY: conClave ? 'clave' : '',
+        },
+      });
+      const out = readFileSync(gh, 'utf8');
+      const problemas = /problemas<<FIN_PROBLEMAS\n([\s\S]*?)FIN_PROBLEMAS\n/.exec(out)?.[1] ?? 'SIN BLOQUE';
+      return {
+        fin: r.stdout.trim(),
+        problemas: problemas.split('\n').filter(Boolean),
+        avisar: /^avisar=(\w+)$/m.exec(out)?.[1],
+      };
+    };
+    const DESUNIDA = PROBLEMA_DESUNIDA;
+
+    it('el guion busca los textos que escribe el script', () => {
+      const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-uniones.sh'), 'utf8');
+      expect(guion).toContain(`'${PROBLEMA_DESUNIDA}'`);
+      expect(guion).toContain(`'${PROBLEMA_SIN_DESUNIR}'*`);
+      expect(guion).toContain(`'${PROBLEMA_NINGUNA.split(':')[0]}'*`);
+    });
+
+    it.each([[PROBLEMA_SIN_DESUNIR + ' (rpc 500): quítale el acceso y devuélveselo en Ajustes'], [PROBLEMA_NINGUNA]])(
+      '«%s» también avisa',
+      (linea) => {
+        expect(correr('staging: ', `${linea}\n`).avisar).toBe('si');
+      },
+    );
+
+    it('sin nada que decir: sin problemas y avisar=no', () => {
+      expect(correr('', '')).toEqual({ fin: 'fin 0', problemas: [], avisar: 'no' });
+    });
+
+    it('cada línea es un problema, con el prefijo; una desunida da avisar=si', () => {
+      const r = correr('staging: ', `${DESUNIDA}\nno se ha podido revisar una unión de jefatura (auth 500)\n`);
+      expect(r).toEqual({
+        fin: 'fin 0',
+        problemas: [`staging: ${DESUNIDA}`, 'staging: no se ha podido revisar una unión de jefatura (auth 500)'],
+        avisar: 'si',
+      });
+    });
+
+    it('si el script no termina, lo escrito cuenta y se añade el problema; nunca falla', () => {
+      const r = correr('', `${DESUNIDA}\n`, 1);
+      expect(r).toEqual({
+        fin: 'fin 0',
+        problemas: [DESUNIDA, 'no se ha podido terminar la revisión de las uniones de jefatura'],
+        avisar: 'si',
+      });
+    });
+
+    it('sin la URL o la service role, es un problema', () => {
+      expect(correr('staging: ', DESUNIDA, 0, false)).toEqual({
+        fin: 'fin 0',
+        problemas: [
+          'staging: faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY: no se han revisado las uniones de jefatura',
+        ],
+        avisar: 'no',
+      });
+    });
   });
 });

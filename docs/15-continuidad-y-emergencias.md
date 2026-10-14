@@ -111,6 +111,7 @@ En orden de fiabilidad:
 9. **Avisos técnicos en el móvil de jefatura** (push «Aviso técnico», DEC-202): llegan a jefatura además de la issue cuando la vigilancia encuentra un problema de producción, cuando falla el respaldo o un despliegue de producción, y cuando alguien está probando códigos de acceso. Como mucho uno de cada tipo cada 24 h (el de los códigos, uno por hora); los recibe quien tenga activado *Avisos técnicos* en Ajustes → Avisos para jefatura (apagado por defecto en una suscripción nueva; las que ya existían lo recibieron activado). Llevan a Ajustes, donde está Salud del sistema.
    - **Límite:** si Supabase o las Pages Functions están caídas, el aviso no sale y queda solo la issue. Que no llegue un aviso técnico no quiere decir que todo vaya bien: Salud del sistema y las issues siguen siendo lo que manda.
    - **Qué hacer:** el de los códigos, §5.4 (cambiar el código si se repite); los demás, mirar Salud del sistema y avisar al responsable técnico, que ya tiene la issue.
+   - **«Una cuenta de jefatura se ha desunido: que vuelva a entrar»** (vigilancia, docs/36 RV-463, DEC-206): una cuenta unida a jefatura tenía otra identidad que no es la suya. La vigilancia ya la ha desunido. Quien sea vuelve a entrar en el panel con su cuenta de Google propia; si el panel le dice que la cuenta tiene otra identidad unida, otro administrador le quita y le devuelve el acceso en Ajustes. Si nadie sabe de dónde salía esa otra identidad, §5.5.
 
 ---
 
