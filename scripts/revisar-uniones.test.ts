@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { type Pedir, revisarUniones, unionLimpia } from './revisar-uniones.ts';
+import { correoDeGoogle, cuentaSinMezcla } from '../functions/api/vincular-jefatura.ts';
+import { PROBLEMA_DESUNIDA, PROBLEMA_NINGUNA, type Pedir, revisarUniones, unionLimpia } from './revisar-uniones.ts';
 
 // docs/36 RV-463: la vigilancia revisa cada unión de jefatura con la regla de /api/vincular-jefatura
 // (RV-450, DEC-206) y desune la que no la cumple. Con usuarios simulados: nada sale a la red.
@@ -97,7 +98,8 @@ function simulado(opciones: {
       const estado = opciones.estadoUsuario?.[id];
       if (estado) return r(estado, { msg: 'error' });
       const u = opciones.usuarios?.[id];
-      return u ? r(200, u) : r(404, { msg: 'User not found' });
+      // La forma del 404 de GoTrue cuando el usuario no existe.
+      return u ? r(200, u) : r(404, { code: 404, error_code: 'user_not_found', msg: 'User not found' });
     }
     if (url === `${URL_BASE}/rest/v1/rpc/fn_desvincular_administrador`) {
       return r(opciones.desunir?.estado ?? 200, opciones.desunir?.cuerpo ?? true);
@@ -159,6 +161,66 @@ describe('revisarUniones (RV-463)', () => {
     const s = simulado({ uniones: [UNIONES[0]] });
     const r = await revisarUniones({ url: URL_BASE, clave: CLAVE, pedir: s.pedir });
     expect(r.desunidas).toBe(1);
+  });
+
+  // Revisión de #712: un 404 de una URL equivocada o de una pasarela no dice nada del usuario.
+  it('un 404 que no es «user_not_found» es un problema y no desune', async () => {
+    const s = simulado({ uniones: UNIONES, estadoUsuario: { [ID_LIMPIO]: 404, [ID_MEZCLADO]: 404 } });
+    const r = await revisarUniones({ url: URL_BASE, clave: CLAVE, pedir: s.pedir });
+    expect(r).toEqual({
+      revisadas: 0,
+      desunidas: 0,
+      problemas: [
+        'no se ha podido revisar una unión de jefatura (auth 404)',
+        'no se ha podido revisar una unión de jefatura (auth 404)',
+      ],
+    });
+    expect(s.llamadas.filter((l) => l.url.includes('/rpc/'))).toEqual([]);
+  });
+
+  it('si ninguna de dos o más cumple la regla, no desune ninguna y lo dice', async () => {
+    const otro = { ...MEZCLADO, id: ID_LIMPIO, email: 'jefa@ejemplo.org' };
+    const s = simulado({ uniones: UNIONES, usuarios: { [ID_LIMPIO]: otro, [ID_MEZCLADO]: MEZCLADO } });
+    const r = await revisarUniones({ url: URL_BASE, clave: CLAVE, pedir: s.pedir });
+    expect(r).toEqual({ revisadas: 2, desunidas: 0, problemas: [PROBLEMA_NINGUNA] });
+    expect(s.llamadas.filter((l) => l.url.includes('/rpc/'))).toEqual([]);
+  });
+
+  it('cada problema sale en cuanto se sabe, y cada petición lleva un tiempo máximo', async () => {
+    const s = simulado({
+      uniones: UNIONES,
+      usuarios: { [ID_MEZCLADO]: MEZCLADO },
+      estadoUsuario: { [ID_LIMPIO]: 500 },
+    });
+    const vistos: string[] = [];
+    const senales: unknown[] = [];
+    const pedir: Pedir = (url, init) => {
+      senales.push(init?.signal);
+      return s.pedir(url, init);
+    };
+    const r = await revisarUniones({ url: URL_BASE, clave: CLAVE, pedir, alProblema: (p) => vistos.push(p) });
+    expect(vistos).toEqual(r.problemas);
+    expect(vistos).toContain(PROBLEMA_DESUNIDA);
+    expect(senales.length).toBeGreaterThan(0);
+    for (const sn of senales) expect(sn).toBeInstanceOf(AbortSignal);
+  });
+
+  it('la regla es la de /api/vincular-jefatura: Google verificado y cuenta sin mezcla', () => {
+    const casos: [unknown, string][] = [
+      [LIMPIO, 'jefa@ejemplo.org'],
+      [MEZCLADO, 'jefe@ejemplo.org'],
+      [{ ...LIMPIO, identities: [conCorreo('jefa@ejemplo.org'), google('jefa@ejemplo.org')] }, 'jefa@ejemplo.org'],
+      [{ ...LIMPIO, identities: [conCorreo('jefa@ejemplo.org')] }, 'jefa@ejemplo.org'],
+      [{ ...LIMPIO, email: 'otra@ejemplo.org' }, 'jefa@ejemplo.org'],
+      [{ ...LIMPIO, identities: [google('jefa@ejemplo.org', 'true')] }, 'jefa@ejemplo.org'],
+      [{ ...LIMPIO, identities: [] }, 'jefa@ejemplo.org'],
+      [LIMPIO, 'otro@ejemplo.org'],
+    ];
+    for (const [usuario, correo] of casos) {
+      const u = usuario as Parameters<typeof unionLimpia>[0];
+      const funcion = correoDeGoogle(u as never) === correo && cuentaSinMezcla(u as never, correo);
+      expect(unionLimpia(u, correo), JSON.stringify(usuario)).toBe(funcion);
+    }
   });
 
   it('un id que no es un uuid no se pide a Auth: es un problema', async () => {

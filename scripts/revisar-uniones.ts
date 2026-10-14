@@ -29,7 +29,12 @@ interface Union {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Los dos problemas que llevan aviso técnico en staging: .github/scripts/revisar-uniones.sh los busca
+// por este texto (scripts/workflows.test.ts comprueba que coinciden).
 export const PROBLEMA_DESUNIDA = 'una cuenta de jefatura se ha desunido: que vuelva a entrar';
+export const PROBLEMA_SIN_DESUNIR = 'una cuenta de jefatura no cumple la regla de la unión y no se ha podido desunir';
+export const PROBLEMA_NINGUNA =
+  'ninguna cuenta de jefatura cumple la regla de la unión: no se ha desunido ninguna (¿ha cambiado Supabase Auth?); revísalo a mano';
 
 const normalizar = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase() : null);
 
@@ -56,11 +61,39 @@ export interface Resultado {
   problemas: string[];
 }
 
-export async function revisarUniones(cfg: { url: string; clave: string; pedir?: Pedir }): Promise<Resultado> {
-  const pedir = cfg.pedir ?? fetch;
+/** Lo máximo que se espera a cada petición: una colgada no se come el trabajo de la vigilancia. */
+export const ESPERA_MS = 15_000;
+
+/**
+ * El 404 de Auth cuando el usuario no existe. Otro 404 (una URL equivocada, una pasarela) no dice
+ * nada del usuario y no puede desunir a nadie.
+ */
+async function usuarioNoExiste(r: Response): Promise<boolean> {
+  if (r.status !== 404) return false;
+  const datos: unknown = await r.json().catch(() => null);
+  return !!datos && typeof datos === 'object' && (datos as { error_code?: unknown }).error_code === 'user_not_found';
+}
+
+export async function revisarUniones(cfg: {
+  url: string;
+  clave: string;
+  pedir?: Pedir;
+  /** Cada problema en cuanto se sabe: si el proceso muere después, lo dicho ya consta. */
+  alProblema?: (problema: string) => void;
+}): Promise<Resultado> {
+  const pedirBase = cfg.pedir ?? fetch;
+  const pedir: Pedir = (url, init = {}) => pedirBase(url, { ...init, signal: AbortSignal.timeout(ESPERA_MS) });
   const base = cfg.url.replace(/\/+$/, '');
   const cabeceras = { apikey: cfg.clave, Authorization: `Bearer ${cfg.clave}` };
-  const resultado: Resultado = { revisadas: 0, desunidas: 0, problemas: [] };
+  const lista: string[] = [];
+  const problemas = {
+    push(p: string) {
+      lista.push(p);
+      cfg.alProblema?.(p);
+    },
+  };
+  const resultado = { revisadas: 0, desunidas: 0, problemas };
+  const fin = (): Resultado => ({ revisadas: resultado.revisadas, desunidas: resultado.desunidas, problemas: lista });
 
   let uniones: Union[];
   try {
@@ -69,7 +102,7 @@ export async function revisarUniones(cfg: { url: string; clave: string; pedir?: 
     });
     if (!r.ok) {
       resultado.problemas.push(`no se pueden leer las uniones de jefatura (rest ${r.status})`);
-      return resultado;
+      return fin();
     }
     const datos: unknown = await r.json().catch(() => null);
     if (
@@ -77,14 +110,15 @@ export async function revisarUniones(cfg: { url: string; clave: string; pedir?: 
       !datos.every((u) => u && typeof u.email === 'string' && typeof u.usuario_id === 'string')
     ) {
       resultado.problemas.push('no se pueden leer las uniones de jefatura (respuesta inesperada)');
-      return resultado;
+      return fin();
     }
     uniones = datos as Union[];
   } catch {
     resultado.problemas.push('no se pueden leer las uniones de jefatura (red)');
-    return resultado;
+    return fin();
   }
 
+  const mezcladas: Union[] = [];
   for (const union of uniones) {
     if (!UUID.test(union.usuario_id)) {
       resultado.problemas.push('una unión de jefatura tiene un usuario que no es válido: no se ha revisado');
@@ -100,18 +134,27 @@ export async function revisarUniones(cfg: { url: string; clave: string; pedir?: 
           continue;
         }
         usuario = datos as UsuarioAuth;
-      } else if (r.status !== 404) {
+      } else if (!(await usuarioNoExiste(r))) {
         resultado.problemas.push(`no se ha podido revisar una unión de jefatura (auth ${r.status})`);
         continue;
       }
-      // 404: el usuario ya no existe. La unión no vale para nadie: se desune como una mezclada.
+      // Sin usuario: ya no existe. La unión no vale para nadie: se desune como una mezclada.
     } catch {
       resultado.problemas.push('no se ha podido revisar una unión de jefatura (auth red)');
       continue;
     }
     resultado.revisadas++;
-    if (usuario && unionLimpia(usuario, union.email)) continue;
+    if (!usuario || !unionLimpia(usuario, union.email)) mezcladas.push(union);
+  }
 
+  // Si ninguna de dos o más cumple la regla, lo más probable es un cambio de forma de Supabase Auth, no
+  // que todas sean ajenas: no se desune ninguna (el panel se quedaría sin jefatura) y se avisa.
+  if (resultado.revisadas >= 2 && mezcladas.length === resultado.revisadas) {
+    resultado.problemas.push(PROBLEMA_NINGUNA);
+    return fin();
+  }
+
+  for (const union of mezcladas) {
     let motivo: string;
     try {
       const r = await pedir(`${base}/rest/v1/rpc/fn_desvincular_administrador`, {
@@ -131,11 +174,9 @@ export async function revisarUniones(cfg: { url: string; clave: string; pedir?: 
     } catch {
       motivo = 'rpc red';
     }
-    resultado.problemas.push(
-      `una cuenta de jefatura no cumple la regla de la unión y no se ha podido desunir (${motivo}): quítale el acceso y devuélveselo en Ajustes`,
-    );
+    resultado.problemas.push(`${PROBLEMA_SIN_DESUNIR} (${motivo}): quítale el acceso y devuélveselo en Ajustes`);
   }
-  return resultado;
+  return fin();
 }
 
 async function principal(): Promise<number> {
@@ -145,8 +186,7 @@ async function principal(): Promise<number> {
     console.error('Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY.');
     return 1;
   }
-  const r = await revisarUniones({ url, clave });
-  for (const p of r.problemas) console.log(p);
+  const r = await revisarUniones({ url, clave, alProblema: (p) => console.log(p) });
   console.error(`Uniones de jefatura: ${r.revisadas} revisadas, ${r.desunidas} desunidas.`);
   return 0;
 }

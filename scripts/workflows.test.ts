@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { PROBLEMA_DESUNIDA, PROBLEMA_NINGUNA, PROBLEMA_SIN_DESUNIR } from './revisar-uniones.ts';
 
 // Sin parser de YAML en las dependencias: expresiones acotadas sobre los archivos, que bastan para
 // lo que se comprueba aquí (DEC-085).
@@ -1775,11 +1776,15 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
     const comp = paso(c, comprobar);
     expect(comp).toContain('UNIONES: ${{ steps.uniones.outputs.problemas }}');
     expect(comp).toContain('done <<< "${UNIONES:-}"');
+    // Si el paso se corta, lo demás se comprueba igual y eso es un problema.
+    expect(p).toMatch(/^ {8}timeout-minutes: 5\n {8}continue-on-error: true$/m);
+    expect(comp).toContain('UNIONES_RESULTADO: ${{ steps.uniones.outcome }}');
+    expect(comp).toContain('if [ "${UNIONES_RESULTADO:-}" != success ]; then');
   });
 
   it('staging manda el aviso técnico a su jefatura si ha desunido una cuenta', () => {
     const p = paso(trabajo('staging'), 'Aviso técnico a jefatura de staging');
-    expect(p).toContain("if: always() && steps.uniones.outputs.desunida == 'si'");
+    expect(p).toContain("if: always() && steps.uniones.outputs.avisar == 'si'");
     expect(p).toContain('BD: ${{ secrets.SUPABASE_DB_URL }}');
     expect(p).toContain('aviso_tecnico_paso vigilancia');
   });
@@ -1814,21 +1819,35 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
       return {
         fin: r.stdout.trim(),
         problemas: problemas.split('\n').filter(Boolean),
-        desunida: /^desunida=(\w+)$/m.exec(out)?.[1],
+        avisar: /^avisar=(\w+)$/m.exec(out)?.[1],
       };
     };
-    const DESUNIDA = 'una cuenta de jefatura se ha desunido: que vuelva a entrar';
+    const DESUNIDA = PROBLEMA_DESUNIDA;
 
-    it('sin nada que decir: sin problemas y desunida=no', () => {
-      expect(correr('', '')).toEqual({ fin: 'fin 0', problemas: [], desunida: 'no' });
+    it('el guion busca los textos que escribe el script', () => {
+      const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-uniones.sh'), 'utf8');
+      expect(guion).toContain(`'${PROBLEMA_DESUNIDA}'`);
+      expect(guion).toContain(`'${PROBLEMA_SIN_DESUNIR}'*`);
+      expect(guion).toContain(`'${PROBLEMA_NINGUNA.split(':')[0]}'*`);
     });
 
-    it('cada línea es un problema, con el prefijo; una desunida da desunida=si', () => {
+    it.each([[PROBLEMA_SIN_DESUNIR + ' (rpc 500): quítale el acceso y devuélveselo en Ajustes'], [PROBLEMA_NINGUNA]])(
+      '«%s» también avisa',
+      (linea) => {
+        expect(correr('staging: ', `${linea}\n`).avisar).toBe('si');
+      },
+    );
+
+    it('sin nada que decir: sin problemas y avisar=no', () => {
+      expect(correr('', '')).toEqual({ fin: 'fin 0', problemas: [], avisar: 'no' });
+    });
+
+    it('cada línea es un problema, con el prefijo; una desunida da avisar=si', () => {
       const r = correr('staging: ', `${DESUNIDA}\nno se ha podido revisar una unión de jefatura (auth 500)\n`);
       expect(r).toEqual({
         fin: 'fin 0',
         problemas: [`staging: ${DESUNIDA}`, 'staging: no se ha podido revisar una unión de jefatura (auth 500)'],
-        desunida: 'si',
+        avisar: 'si',
       });
     });
 
@@ -1837,7 +1856,7 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
       expect(r).toEqual({
         fin: 'fin 0',
         problemas: [DESUNIDA, 'no se ha podido terminar la revisión de las uniones de jefatura'],
-        desunida: 'si',
+        avisar: 'si',
       });
     });
 
@@ -1847,7 +1866,7 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
         problemas: [
           'staging: faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY: no se han revisado las uniones de jefatura',
         ],
-        desunida: 'no',
+        avisar: 'no',
       });
     });
   });
