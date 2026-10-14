@@ -16,12 +16,13 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: canario-ubuntu
   cancel-in-progress: false
 
+# Dos trabajos (docs/36 RV-460): la prueba, con las dependencias, solo lee; la issue la abre o cierra
+# otro trabajo, sin checkout ni dependencias, con el resultado de la prueba.
 jobs:
   canario-ubuntu-26:
     runs-on: ubuntu-26.04
@@ -42,12 +43,19 @@ jobs:
           jq --version
       - run: npm run typecheck && npm test
 
+  avisar:
+    needs: canario-ubuntu-26
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
       - name: Abrir o cerrar la issue del canario
-        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          RESULTADO: ${{ job.status }}
+          RESULTADO: ${{ needs.canario-ubuntu-26.result }}
         run: |
           set -euo pipefail
           titulo='Canario Ubuntu 26 en rojo'
