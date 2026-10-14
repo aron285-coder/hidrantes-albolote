@@ -199,3 +199,11 @@ Quitarse el acceso a uno mismo, con su aviso; revocar desde una hora, con la cue
   están todas las teselas (30 de 30 en los dos temas).
 - El campo de fecha y hora de «Revocar desde…» sale en el formato del idioma del navegador, que en
   el de las pruebas era inglés; en un navegador en español sale en español.
+
+## Cierre (RV-442)
+
+- **0.13.0 en producción** el 14 oct 2026 con `npm run publicar` y la puerta automática (CI de `main`, RV-139b en verde con `80a489d` y después solo documentación y versión, `comprobar-produccion --completo`, ninguna `bloquea-release`); producción sirve `0.13.0` y el commit `bb95c00`. Fila en `paridad-produccion.md`.
+- **Novedades:** los PR de docs/35 se fusionaron con títulos neutros; release-please los lee con `BEGIN_COMMIT_OVERRIDE` en su cuerpo, escrito para quien usa la app.
+- **La especificación** pasa a `archivo/especificaciones/35-seguridad-antes-del-piloto.md` y sale de `.git/info/exclude`.
+- **Para después del piloto** (issues `tras-piloto`): #669, #684, #685, #686, #694, #695 y #696.
+- **Fuera de este documento** (§8): S3 (riesgo aceptado por el desarrollador) y S5 (decidido por el desarrollador). Los hallazgos bajos y S8 de la revisión del 13 oct se quedaron fuera del repositorio con ella: los anota el desarrollador como issues `tras-piloto` si quiere conservarlos.
