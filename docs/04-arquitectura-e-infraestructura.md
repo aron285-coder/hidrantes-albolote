@@ -553,7 +553,7 @@ El código de las dependencias de npm **no corre con secretos** (docs/35 RV-410)
   como cabecera.
 - `scripts/workflows.test.ts` lo comprueba: ningún paso de un trabajo con secretos (salvo
   `GITHUB_TOKEN`) o con permiso de escritura llama a `npm run`, `npx`, `tsx` ni `npm ci` (salvo el
-  `wrangler` de `.github/despliegue`, solo en trabajos con secretos), tampoco a través de `preparar`,
+  `wrangler` de `.github/despliegue`, con su lockfile y sin scripts), tampoco a través de `preparar`,
   `navegadores` o un guion de `.github/scripts`; y todo `checkout` de esos trabajos lleva
   `persist-credentials: false`. La copia de `publicar` se prueba con un artefacto simulado.
 - `npm run publicar` espera a que `desplegar` pida la aprobación: mientras `construir` corre, la

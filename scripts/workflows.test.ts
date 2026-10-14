@@ -1,5 +1,14 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
@@ -1605,9 +1614,18 @@ describe('dependencias sin secretos (RV-410)', () => {
       expect(p).toMatch(/^ {4}needs: generar$/m);
       expect(p).toMatch(/^ {4}permissions:\n {6}contents: write\n {6}pull-requests: write\n(?! {6})/m);
       expect(p).not.toMatch(/actions\/preparar|setup-node|node_modules|\bnode\b|\bnpm\b|\bnpx\b|\btsx\b/);
-      expect(p).toMatch(/ref: develop\n\s+persist-credentials: false/);
+      // El mismo commit de develop que generar, anotado antes de que corriera ninguna dependencia.
+      expect(p).toMatch(/ref: \$\{\{ needs\.generar\.outputs\.base \}\}\n\s+persist-credentials: false/);
+      const g = t('generar');
+      expect(g).toContain('base: ${{ steps.base.outputs.commit }}');
+      expect(g.indexOf('id: base')).toBeGreaterThan(-1);
+      expect(g.indexOf('id: base')).toBeLessThan(g.indexOf('uses: ./.github/actions/preparar'));
       expect(p).toMatch(/uses: actions\/download-artifact@[0-9a-f]{40}/);
       expect(p).not.toContain('git add -A\n');
+      // Sin cambios en publicar, cuando generar sí los vio, no es un «todo bien».
+      expect(guionDe('publicar', 'PR con lo regenerado')).toMatch(
+        /git diff --cached --quiet; then\n.*::error::.*\n\s+exit 1/,
+      );
       // El permiso general del workflow es de lectura.
       expect(texto).toMatch(/^permissions:\n {2}contents: read\n(?! {2})/m);
     });
@@ -1649,9 +1667,26 @@ describe('dependencias sin secretos (RV-410)', () => {
       let n = 0;
 
       /** Un develop de prueba y un artefacto con `cambios` y `archivos`; devuelve el resultado. */
-      const copiar = (cambios: string, archivos: Record<string, string>) => {
+      const puedeEnlazar = (() => {
+        const enlace = path.join(dir, 'enlace');
+        try {
+          symlinkSync(dir, enlace);
+          rmSync(enlace, { force: true });
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      const copiar = (
+        cambios: string,
+        archivos: Record<string, string>,
+        conCarpeta = true,
+        antes?: (entrada: string, repo: string) => void,
+      ) => {
         const repo = path.join(dir, `r${++n}`);
         const entrada = path.join(dir, `e${n}`);
+        const temporal = path.join(dir, `t${n}`);
+        mkdirSync(temporal);
         const poner = (base: string, r: string, c: string) => {
           mkdirSync(path.dirname(path.join(base, r)), { recursive: true });
           writeFileSync(path.join(base, r), c);
@@ -1660,12 +1695,18 @@ describe('dependencias sin secretos (RV-410)', () => {
         poner(repo, 'public/mapabase/t/20260101/10/1/1.pbf', 'vieja\n');
         poner(repo, 'package.json', '{}\n');
         poner(entrada, 'cambios.txt', cambios);
-        mkdirSync(path.join(entrada, 'archivos'), { recursive: true });
+        if (conCarpeta) mkdirSync(path.join(entrada, 'archivos'), { recursive: true });
         for (const [r, c] of Object.entries(archivos)) poner(path.join(entrada, 'archivos'), r, c);
+        antes?.(entrada, repo);
         const r = spawnSync('bash', ['-c', guionDe('publicar', 'Copiar solo las rutas de la lista')], {
           cwd: repo,
           encoding: 'utf8',
-          env: { ...process.env, RUTAS_MANTENIMIENTO: RUTAS, ENTRADA: entrada.replaceAll('\\', '/') },
+          env: {
+            ...process.env,
+            RUTAS_MANTENIMIENTO: RUTAS,
+            ENTRADA: entrada.replaceAll('\\', '/'),
+            RUNNER_TEMP: temporal.replaceAll('\\', '/'),
+          },
         });
         const leerRepo = (x: string) =>
           existsSync(path.join(repo, x)) ? readFileSync(path.join(repo, x), 'utf8') : undefined;
@@ -1704,6 +1745,110 @@ describe('dependencias sin secretos (RV-410)', () => {
       it('rechaza un cambio sin su archivo y una operación desconocida', () => {
         expect(copiar('M datos/meta.json\n', {}).codigo).not.toBe(0);
         expect(copiar('X datos/meta.json\n', { 'datos/meta.json': 'nuevo\n' }).codigo).not.toBe(0);
+      });
+
+      // Sin permiso para crear enlaces (Windows sin modo de desarrollador) se salta: lo prueba la CI.
+      it.skipIf(!puedeEnlazar)('rechaza un archivo del artefacto que es un enlace', () => {
+        const r = copiar('M datos/meta.json\n', {}, true, (entrada, repo) => {
+          mkdirSync(path.join(entrada, 'archivos', 'datos'), { recursive: true });
+          symlinkSync(path.join(repo, 'package.json'), path.join(entrada, 'archivos', 'datos', 'meta.json'));
+        });
+        expect(r.codigo).not.toBe(0);
+        expect(r.salida).toContain('no es un archivo normal');
+        expect(r.leerRepo('datos/meta.json')).toBe('viejo\n');
+      });
+
+      it('rechaza quitar un archivo que no existe en el commit de partida', () => {
+        const r = copiar('D datos/callejero.json\n', {});
+        expect(r.codigo).not.toBe(0);
+        expect(r.salida).toContain('no existe en el commit de partida');
+      });
+
+      it('generar recoge lo cambiado, lo nuevo y lo quitado de la lista, y para con una ruta de fuera', () => {
+        const repo = path.join(dir, `g${++n}`);
+        const temporal = path.join(dir, `gt${n}`);
+        mkdirSync(temporal);
+        const poner = (r: string, c: string) => {
+          mkdirSync(path.dirname(path.join(repo, r)), { recursive: true });
+          writeFileSync(path.join(repo, r), c);
+        };
+        const git = (...a: string[]) => execFileSync('git', a, { cwd: repo, encoding: 'utf8' });
+        poner('datos/meta.json', 'viejo\n');
+        poner('datos/callejero.json', 'igual\n');
+        poner('public/mapabase/t/20260101/10/1/1.pbf', 'vieja\n');
+        poner('package.json', '{}\n');
+        git('init', '-q');
+        git('config', 'core.autocrlf', 'false');
+        git('add', '-A');
+        git(
+          '-c',
+          'user.name=prueba',
+          '-c',
+          'user.email=prueba@prueba.invalid',
+          '-c',
+          'commit.gpgsign=false',
+          'commit',
+          '-qm',
+          'base',
+        );
+        const recoger = () => {
+          rmSync(path.join(temporal, 'regenerado'), { recursive: true, force: true });
+          const salidaGh = path.join(temporal, 'salida');
+          writeFileSync(salidaGh, '');
+          const r = spawnSync('bash', ['-c', guionDe('generar', 'Recoger lo regenerado')], {
+            cwd: repo,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              RUTAS_MANTENIMIENTO: RUTAS,
+              RUNNER_TEMP: temporal.replaceAll('\\', '/'),
+              GITHUB_OUTPUT: salidaGh.replaceAll('\\', '/'),
+              GITHUB_STEP_SUMMARY: path.join(temporal, 'resumen').replaceAll('\\', '/'),
+            },
+          });
+          const cambios = path.join(temporal, 'regenerado', 'cambios.txt');
+          return {
+            codigo: r.status,
+            salida: r.stdout + r.stderr,
+            gh: readFileSync(salidaGh, 'utf8'),
+            cambios: existsSync(cambios) ? readFileSync(cambios, 'utf8').trim().split('\n').sort() : [],
+            copia: (x: string) => {
+              const p = path.join(temporal, 'regenerado', 'archivos', x);
+              return existsSync(p) ? readFileSync(p, 'utf8') : undefined;
+            },
+          };
+        };
+
+        expect(recoger().gh).toBe('hay_cambios=no\n');
+
+        poner('datos/meta.json', 'nuevo\n');
+        rmSync(path.join(repo, 'public/mapabase/t/20260101/10/1/1.pbf'));
+        poner('public/mapabase/t/20261014/10/1/1.pbf', 'nueva\n');
+        const r = recoger();
+        expect(r.salida).toBe('');
+        expect(r.codigo).toBe(0);
+        expect(r.gh).toBe('hay_cambios=si\n');
+        expect(r.cambios).toEqual([
+          'D public/mapabase/t/20260101/10/1/1.pbf',
+          'M datos/meta.json',
+          'M public/mapabase/t/20261014/10/1/1.pbf',
+        ]);
+        expect(r.copia('datos/meta.json')).toBe('nuevo\n');
+        expect(r.copia('public/mapabase/t/20261014/10/1/1.pbf')).toBe('nueva\n');
+        expect(r.copia('datos/callejero.json')).toBeUndefined();
+
+        poner('package.json', '{"x":1}\n');
+        const fuera = recoger();
+        expect(fuera.codigo).not.toBe(0);
+        expect(fuera.salida).toContain('fuera de la lista: package.json');
+        expect(fuera.gh).toBe('');
+      });
+
+      it('con solo archivos quitados, el artefacto llega sin archivos/ y vale', () => {
+        const r = copiar('D public/mapabase/t/20260101/10/1/1.pbf\n', {}, false);
+        expect(r.salida).toBe('');
+        expect(r.codigo).toBe(0);
+        expect(r.leerRepo('public/mapabase/t/20260101/10/1/1.pbf')).toBeUndefined();
       });
     });
   });
