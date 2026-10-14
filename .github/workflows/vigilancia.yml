@@ -172,8 +172,10 @@ jobs:
           # 1b. Las Pages Functions responden (docs/35 RV-412, DEC-202): .github/scripts/avisos-tecnicos.sh.
           source .github/scripts/avisos-tecnicos.sh
           for url in "$APP" "$APP_STAGING"; do
-            fallo=$(sondear_functions "$url")
-            if [ -n "$fallo" ]; then problemas+=("$fallo"); fi
+            # Un fallo del propio sondeo (sin salida) también es un problema: nunca «bien» sin mirar.
+            if ! fallo=$(sondear_functions "$url") || [ -n "$fallo" ]; then
+              problemas+=("${fallo:-$url: no se han podido sondear las funciones del servidor}")
+            fi
           done
 
           # 2. Una RPC de lectura responde. anon no puede leer hidrantes.migraciones_aplicadas y
@@ -322,7 +324,7 @@ jobs:
         run: |
           set -uo pipefail
           source .github/scripts/avisos-tecnicos.sh
-          avisar_jefatura vigilancia
+          aviso_tecnico_paso vigilancia
 
       - name: Abrir o cerrar la issue de vigilancia
         if: always()

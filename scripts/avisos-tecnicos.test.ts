@@ -24,7 +24,8 @@ curl() {
     esac
   done
   echo "curl $url $cuerpo" >> "$D/anotado"
-  [ "$CURL_FALLA" = 1 ] && return 7
+  # Como curl de verdad: con la red caída escribe 000 y sale con error.
+  [ "$CURL_FALLA" = 1 ] && { printf 000; return 7; }
   printf '%s' "$CURL_CUERPO" > "$salida"
   printf '%s' "$CURL_CODIGO"
 }
@@ -83,6 +84,12 @@ describe('sondear_functions (RV-412)', () => {
   ])('%s es un problema', (_n, env) => {
     const r = correr('sondear_functions https://app.example', env);
     expect(r.stdout).toContain('https://app.example: las funciones del servidor no responden');
+    expect(r.status).toBe(1);
+  });
+
+  it('sin respuesta dice 000, no 000000', () => {
+    const r = correr('sondear_functions https://app.example', { CURL_FALLA: '1' });
+    expect(r.stdout).toContain('verificar-codigo da 000)');
   });
 });
 
@@ -113,10 +120,10 @@ describe('aviso_tecnico (RV-412)', () => {
     expect(r.anotado).not.toContain('psql');
   });
 
-  it('avisar_jefatura: encolado o no, lo deja en el resumen del paso y no falla', () => {
+  it('aviso_tecnico_paso: encolado o no, lo deja en el resumen del paso y no falla', () => {
     const resumen = path.join(dir, 'resumen');
     rmSync(resumen, { force: true });
-    const r = correr('avisar_jefatura despliegue; avisar_jefatura respaldo', {
+    const r = correr('aviso_tecnico_paso despliegue; aviso_tecnico_paso respaldo', {
       GITHUB_STEP_SUMMARY: resumen,
       PSQL_SALIDA: 'f',
     });
@@ -124,8 +131,8 @@ describe('aviso_tecnico (RV-412)', () => {
     expect(readFileSync(resumen, 'utf8')).toContain('Aviso técnico a jefatura (despliegue): no encolado');
   });
 
-  it('avisar_jefatura: si no se puede encolar, un aviso del paso y sale con 0 (no tapa el fallo original)', () => {
-    const r = correr('avisar_jefatura vigilancia', { PSQL_FALLA: '1', GITHUB_STEP_SUMMARY: '/dev/null' });
+  it('aviso_tecnico_paso: si no se puede encolar, un aviso del paso y sale con 0 (no tapa el fallo original)', () => {
+    const r = correr('aviso_tecnico_paso vigilancia', { PSQL_FALLA: '1', GITHUB_STEP_SUMMARY: '/dev/null' });
     expect(r.status).toBe(0);
     expect(r.stdout).toContain('::warning::No se ha podido encolar el aviso técnico a jefatura (vigilancia)');
     expect(r.stdout + r.stderr).not.toContain('servidor');

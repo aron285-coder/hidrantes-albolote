@@ -185,7 +185,7 @@ describe('secretos de staging fuera del repositorio (RV-411)', () => {
     expect(c.match(/retention-days: 90/g)).toHaveLength(2);
     expect(c).toContain('"$TAMANO_DATOS" -lt 10000');
     expect(c).toContain('titulo="El respaldo semanal de staging ha fallado"');
-    expect(c).toContain('avisar_jefatura respaldo');
+    expect(c).toContain('aviso_tecnico_paso respaldo');
     expect(c).toContain('persist-credentials: false');
     // Su fallo no esconde la última ejecución correcta, que es la que mira la vigilancia (RV-201).
     expect(c).toMatch(/^ {4}continue-on-error: true$/m);
@@ -223,7 +223,7 @@ describe('avisos técnicos a jefatura desde los workflows (RV-412)', () => {
       expect(paso).not.toBe('');
       expect(paso).toContain(`BD: \${{ secrets.${secreto} }}`);
       expect(paso).toContain('source .github/scripts/avisos-tecnicos.sh');
-      expect(paso).toContain(`avisar_jefatura ${clave}`);
+      expect(paso).toContain(`aviso_tecnico_paso ${clave}`);
       // Su fallo no sustituye al original: ni || true ni un exit propio.
       expect(paso).not.toMatch(/\|\|\s*true|exit 1/);
       if (archivo === 'vigilancia.yml') {
@@ -245,7 +245,9 @@ describe('avisos técnicos a jefatura desde los workflows (RV-412)', () => {
 
   it('la vigilancia sondea las Functions de producción y de staging', () => {
     const c = trabajosDe(leer('vigilancia.yml')).find((x) => x.nombre === 'mirar')!.cuerpo;
-    expect(c).toMatch(/for url in "\$APP" "\$APP_STAGING"; do\n\s+fallo=\$\(sondear_functions "\$url"\)/);
+    expect(c).toContain('for url in "$APP" "$APP_STAGING"; do');
+    // Un sondeo que falla sin decir nada también es un problema.
+    expect(c).toContain('if ! fallo=$(sondear_functions "$url") || [ -n "$fallo" ]; then');
   });
 });
 

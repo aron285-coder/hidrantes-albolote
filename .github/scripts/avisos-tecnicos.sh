@@ -1,13 +1,14 @@
 # Sondeo de las Functions y avisos técnicos a jefatura (docs/35 RV-412, DEC-202). Se carga con `source`.
 #
-#   sondear_functions APP     escribe un problema si las Functions de APP no responden como deben;
-#                             nada si responden
+#   sondear_functions APP     escribe un problema y sale con 1 si las Functions de APP no responden
+#                             como deben; nada y 0 si responden
 #   aviso_tecnico CLAVE       encola el aviso técnico CLAVE (vigilancia, respaldo, despliegue) para
 #                             jefatura con hidrantes.fn_encolar_aviso_tecnico, en la base de $BD;
 #                             escribe «t» si lo ha encolado y «f» si no (ya avisado en las últimas 24 h
 #                             o nadie con el tema). Falla si no se puede llamar.
-#   avisar_jefatura CLAVE     lo mismo, para el paso «Aviso técnico a jefatura» de un workflow: deja
-#                             el resultado en el resumen o un ::warning:: y nunca falla.
+#   aviso_tecnico_paso CLAVE  lo mismo, para el paso «Aviso técnico a jefatura» de un workflow: deja
+#                             el resultado en el resumen o un ::warning:: y nunca falla. No se llama
+#                             avisar_jefatura: ese nombre ya lo usan revisar-bd.sh y despliegues-ajenos.sh.
 
 # Las Functions responden: POST /api/verificar-codigo con `{}` da 400 con el JSON de error. Ese camino
 # responde antes de llamar a Supabase y no cuenta como intento. Sin Origin, como toda llamada de
@@ -17,9 +18,14 @@ sondear_functions() {
   local app=$1 cuerpo codigo
   cuerpo=$(mktemp)
   codigo=$(curl -s -o "$cuerpo" -w '%{http_code}' --max-time 20 -X POST "$app/api/verificar-codigo" \
-    -H 'Content-Type: application/json' -d '{}' || echo 000)
+    -H 'Content-Type: application/json' -d '{}' || true)
+  # Sin || echo 000: con la red caída curl ya escribe 000 y quedaba 000000 (codigo-http.sh, RV-38).
+  codigo=${codigo:-000}
+  codigo=${codigo: -3}
   if [ "$codigo" != "400" ] || ! grep -q '"error"' "$cuerpo"; then
+    rm -f "$cuerpo"
     echo "$app: las funciones del servidor no responden (verificar-codigo da $codigo)"
+    return 1
   fi
   rm -f "$cuerpo"
 }
@@ -38,7 +44,7 @@ aviso_tecnico() {
 
 # La issue es el aviso principal: si no se puede encolar, queda como aviso del paso (::warning::), sin
 # que el paso falle ni tape el fallo original del trabajo. Siempre devuelve 0.
-avisar_jefatura() {
+aviso_tecnico_paso() {
   local clave=$1 r
   if r=$(aviso_tecnico "$clave"); then
     if [ "$r" = t ]; then

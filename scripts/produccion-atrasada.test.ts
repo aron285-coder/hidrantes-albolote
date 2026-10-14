@@ -203,4 +203,19 @@ describe('produccion_atrasada (RV-412)', () => {
     git('switch', '-q', 'develop');
     expect(atrasada()).toBe('0');
   });
+
+  it('un package.json que no se puede leer hace fallar la cuenta, en vez de dar 0 sin mirar', () => {
+    commit({ 'package.json': '{ esto no es JSON' }, 10);
+    expect(() => atrasada()).toThrow(/produccion_atrasada/);
+  });
+
+  it('un lockfile que aparece por primera vez cuenta sus dependencias de producción', () => {
+    rmSync(path.join(repo, 'package-lock.json'));
+    commit({ 'docs/b.md': 'b\n' }, 5);
+    git('switch', '-q', 'main');
+    git('merge', '-q', '--no-edit', '--no-ff', 'develop');
+    git('switch', '-q', 'develop');
+    const t = commit({ 'package-lock.json': lock(LOCK_BASE) }, 10);
+    expect(atrasada()).toBe(`1 ${t}`);
+  });
 });

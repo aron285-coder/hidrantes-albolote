@@ -285,7 +285,7 @@ jobs:
         run: |
           set -uo pipefail
           source .github/scripts/avisos-tecnicos.sh
-          avisar_jefatura respaldo
+          aviso_tecnico_paso respaldo
 
   # docs/35 RV-413 (DEC-203): en el piloto, los datos reales están en staging hasta promover-piloto.
   # El mismo respaldo que el de producción, en el environment `staging` (solo develop), con sus
@@ -467,4 +467,4 @@ jobs:
         run: |
           set -uo pipefail
           source .github/scripts/avisos-tecnicos.sh
-          avisar_jefatura respaldo
+          aviso_tecnico_paso respaldo
