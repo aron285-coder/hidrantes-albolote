@@ -179,10 +179,11 @@ describe('detalleLegible · valores frecuentes en palabras', () => {
     const d = detalleLegible(
       entrada({ accion: 'codigo_cambiado', codigo: null, despues: { revocar_dispositivos: true } }),
     );
-    expect(d).toBe('revocar_dispositivos: sí');
+    // Con su nombre desde docs/36 RV-472.
+    expect(d).toBe('Revocar los móviles: sí');
     expect(
       detalleLegible(entrada({ accion: 'codigo_cambiado', codigo: null, despues: { revocar_dispositivos: false } })),
-    ).toBe('revocar_dispositivos: no');
+    ).toBe('Revocar los móviles: no');
   });
 
   it('la operación de una propuesta, con el nombre de la cola, y una foto anidada sin su ruta', () => {
@@ -330,5 +331,131 @@ describe('detalleLegible · nada que enseñar', () => {
   it('si tampoco queda nada, "—"', () => {
     expect(detalleLegible(entrada({ resumen: 'edicion_admin · BOC-0001' }))).toBe('—');
     expect(detalleLegible(entrada({ resumen: '' }))).toBe('—');
+  });
+});
+
+// docs/36 RV-472: las acciones de la entrada, del código y de los móviles, con palabras y en hora de
+// Albolote (Europe/Madrid, TR-81), como las escribe la base de datos (0044, 0047).
+describe('detalleLegible · entrada, código y móviles (RV-472)', () => {
+  const sinClaves = /[a-z]+_[a-z]+|\+00:00|T\d\d:/;
+
+  it('dispositivos_revocados desde una hora: la hora en Albolote, no en UTC', () => {
+    const d = detalleLegible(
+      entrada({
+        accion: 'dispositivos_revocados',
+        codigo: null,
+        despues: { dispositivos: 3, desde: '2026-10-13T22:00:00+00:00' },
+      }),
+    );
+    expect(d).toBe('Desde: 14 oct 2026 a las 00:00 · Móviles: 3');
+    expect(d).not.toMatch(sinClaves);
+  });
+
+  it('codigo_cambiado: qué se pidió, con palabras', () => {
+    const d = detalleLegible(
+      entrada({
+        accion: 'codigo_cambiado',
+        codigo: null,
+        despues: { revocar_dispositivos: true, abrir_entrada: false },
+      }),
+    );
+    expect(d).toBe('Revocar los móviles: sí · Abrir la entrada: no');
+    expect(d).not.toMatch(sinClaves);
+  });
+
+  it('entrada_abierta: hasta cuándo, cuántas horas y por qué', () => {
+    const abierta = (motivo: string) =>
+      detalleLegible(
+        entrada({
+          accion: 'entrada_abierta',
+          codigo: null,
+          despues: { hasta: '2026-10-14T21:30:00.123456+00:00', horas: 24, motivo },
+        }),
+      );
+    expect(abierta('codigo_nuevo_revocando')).toBe(
+      'Hasta: 14 oct 2026 a las 23:30 · Horas: 24 · Motivo: Código nuevo revocando los móviles',
+    );
+    expect(abierta('codigo_nuevo')).toMatch(/Motivo: Código nuevo$/);
+    expect(abierta('jefatura')).toMatch(/Motivo: Abierta por jefatura$/);
+    expect(abierta('codigo_nuevo_revocando')).not.toMatch(sinClaves);
+  });
+
+  it('en invierno, la hora también es la de Albolote', () => {
+    expect(
+      detalleLegible(entrada({ accion: 'entrada_cerrada', codigo: null, antes: { hasta: '2026-12-01T09:15:00Z' } })),
+    ).toBe('Hasta: 1 dic 2026 a las 10:15');
+  });
+
+  it('un motivo escrito por jefatura (un borrado) sale tal cual', () => {
+    expect(
+      detalleLegible(
+        entrada({ accion: 'borrado', antes: { codigo: 'BOC-0001', tipo: 'boca_riego', motivo: 'Duplicado' } }),
+      ),
+    ).toBe('Código: BOC-0001 · Boca de riego · Motivo: Duplicado');
+  });
+
+  it('núcleo guardado y respaldo restaurado, con el nombre de cada campo', () => {
+    expect(
+      detalleLegible(
+        entrada({
+          accion: 'nucleo_guardado',
+          codigo: null,
+          despues: { nombre: 'Cerro Bermejo', municipio: 'albolote' },
+        }),
+      ),
+    ).toBe('Nombre: Cerro Bermejo');
+    expect(
+      detalleLegible(
+        entrada({ accion: 'restauracion_respaldo', codigo: null, despues: { archivo: 'respaldo.sql.gpg' } }),
+      ),
+    ).toBe('Archivo: respaldo.sql.gpg');
+  });
+
+  it('un borrado con un motivo que coincide con una clave de la entrada sale literal', () => {
+    for (const motivo of ['jefatura', 'codigo_nuevo']) {
+      expect(
+        detalleLegible(entrada({ accion: 'borrado', antes: { codigo: 'BOC-0001', tipo: 'boca_riego', motivo } })),
+      ).toBe(`Código: BOC-0001 · Boca de riego · Motivo: ${motivo}`);
+    }
+  });
+
+  it('un texto libre que empieza por una fecha no se toca', () => {
+    expect(detalleLegible(edicion({ descripcion: '2026-10-13 10:00 revisado' }))).toBe(
+      'Descripción: — → 2026-10-13 10:00 revisado',
+    );
+    expect(detalleLegible(edicion({ descripcion: '2026-10-13 10:00' }))).toBe('Descripción: — → 2026-10-13 10:00');
+  });
+
+  it('núcleo renombrado: «Nombre: A → B»', () => {
+    expect(
+      detalleLegible(
+        entrada({
+          accion: 'nucleo_guardado',
+          codigo: null,
+          antes: { nombre: 'Cerro' },
+          despues: { nombre: 'Cerro Bermejo' },
+        }),
+      ),
+    ).toBe('Nombre: Cerro → Cerro Bermejo');
+  });
+
+  it('dispositivos_revocados sin «desde»: solo los móviles', () => {
+    expect(
+      detalleLegible(entrada({ accion: 'dispositivos_revocados', codigo: null, despues: { dispositivos: 3 } })),
+    ).toBe('Móviles: 3');
+  });
+
+  it('administrador_vinculado y administrador_desvinculado: el correo con su nombre', () => {
+    for (const accion of ['administrador_vinculado', 'administrador_desvinculado']) {
+      expect(detalleLegible(entrada({ accion, codigo: null, despues: { email: 'jefe@example.org' } }))).toBe(
+        'Correo: jefe@example.org',
+      );
+    }
+  });
+
+  it('una clave desconocida se sigue enseñando tal cual (RV-127)', () => {
+    expect(detalleLegible(entrada({ accion: 'config_cambiada', codigo: null, despues: { algo_nuevo: 1 } }))).toBe(
+      'algo_nuevo: 1',
+    );
   });
 });

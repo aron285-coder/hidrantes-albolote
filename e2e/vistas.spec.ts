@@ -166,6 +166,31 @@ const SALUD_STAGING = {
  * detalle legible: una edición con movimiento, un alta, un borrado y un cambio de parámetros.
  */
 const REGISTRO = [
+  // docs/36 RV-472: la entrada y los móviles, con palabras y en hora de Albolote.
+  {
+    id: 6,
+    momento: hace(0.2),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'entrada_abierta',
+    punto_id: null,
+    codigo: null,
+    resumen: 'entrada_abierta · hasta, horas, motivo',
+    antes: null,
+    despues: { hasta: '2026-10-14T22:00:00+00:00', horas: 24, motivo: 'codigo_nuevo_revocando' },
+  },
+  {
+    id: 5,
+    momento: hace(0.5),
+    actor: 'jefe@example.org',
+    es_admin: true,
+    accion: 'dispositivos_revocados',
+    punto_id: null,
+    codigo: null,
+    resumen: 'dispositivos_revocados · desde, dispositivos',
+    antes: null,
+    despues: { dispositivos: 3, desde: '2026-10-13T22:00:00+00:00' },
+  },
   {
     id: 4,
     momento: hace(1),
@@ -234,7 +259,7 @@ async function jefatura(page: Page) {
     // Salud del sistema como en staging: sin respaldo ni medida del bucket (docs/23 RV-98).
     if (nombre === 'fn_salud') return json(SALUD_STAGING);
     if (nombre === 'fn_registrar_error') return json(null);
-    if (nombre === 'fn_historial_punto') return json([...REGISTRO].reverse());
+    if (nombre === 'fn_historial_punto') return json(REGISTRO.filter((e) => e.punto_id).reverse());
     // Ajustes → Mantenimiento (docs/32 RV-260): un pedido sin despachar, como en staging.
     if (nombre === 'fn_pedidos_recientes')
       return json([

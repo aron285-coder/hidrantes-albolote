@@ -154,6 +154,12 @@ export const NOMBRE_ACCION: Record<string, string> = {
   anonimizacion: T.panelRegistro.anonimizacion,
   exportacion: T.panelRegistro.exportacion,
   workflow_lanzado: T.panelRegistro.workflowLanzado,
+  // docs/36 RV-472: `acciones-registro.test.ts` comprueba que no falta ninguna de las migraciones.
+  entrada_abierta: T.panelRegistro.entradaAbierta,
+  entrada_cerrada: T.panelRegistro.entradaCerrada,
+  nucleo_guardado: T.panelRegistro.nucleoGuardado,
+  restauracion_respaldo: T.panelRegistro.restauracionRespaldo,
+  administrador_desvinculado: T.panelRegistro.administradorDesvinculado,
 };
 
 export const nombreAccion = (a: string) => NOMBRE_ACCION[a] ?? a;
