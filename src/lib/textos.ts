@@ -43,6 +43,10 @@ export const T = {
     noAutorizadoDetalle:
       'Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.',
     sinAcceso: 'Sin acceso',
+    // docs/35 RV-432: al entrar con Google no se ha podido saber si la cuenta es de jefatura.
+    cuentaSinComprobar: 'No se ha podido comprobar tu cuenta',
+    cuentaSinComprobarDetalle: 'Puede ser la conexión o el servidor. Inténtalo de nuevo en un momento.',
+    reintentar: 'Reintentar',
     volver: 'Volver',
     cifra: (n: Parametro) => `Cifra ${n} de 6`,
     codigoSeisCifras: 'El código son 6 cifras',
@@ -1111,6 +1115,9 @@ export const T = {
     sugerencias: 'Sugerencias de la app de uniformidad:',
     administradorAnadido: (correo: Parametro) => `${correo} ya puede entrar en el panel.`,
     administradorQuitado: (correo: Parametro) => `${correo} se queda sin acceso al panel.`,
+    // docs/35 RV-432: activo, pero su cuenta aún no se ha unido a su cuenta de Google.
+    pendienteVincular: 'Pendiente de su primer acceso',
+    ayudaPendienteVincular: 'Que entre en el panel cuanto antes con su cuenta de Google',
     // docs/35 RV-431: pasar a «sin acceso» se confirma; devolverlo, no.
     quitarAcceso: 'Quitar el acceso',
     avisoQuitarAcceso: (correo: Parametro) => `¿Quitar el acceso a ${correo}?`,
