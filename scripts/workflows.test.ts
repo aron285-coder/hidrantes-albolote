@@ -1673,10 +1673,13 @@ describe('dependencias sin secretos (RV-410)', () => {
       };
 
       it('copia lo cambiado y borra lo quitado, si está en la lista', () => {
-        const r = copiar('M datos/meta.json\nM public/mapabase/t/20261014/10/1/1.pbf\nD public/mapabase/t/20260101/10/1/1.pbf\n', {
-          'datos/meta.json': 'nuevo\n',
-          'public/mapabase/t/20261014/10/1/1.pbf': 'nueva\n',
-        });
+        const r = copiar(
+          'M datos/meta.json\nM public/mapabase/t/20261014/10/1/1.pbf\nD public/mapabase/t/20260101/10/1/1.pbf\n',
+          {
+            'datos/meta.json': 'nuevo\n',
+            'public/mapabase/t/20261014/10/1/1.pbf': 'nueva\n',
+          },
+        );
         expect(r.salida).toBe('');
         expect(r.codigo).toBe(0);
         expect(r.leerRepo('datos/meta.json')).toBe('nuevo\n');
