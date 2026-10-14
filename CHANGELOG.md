@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.13.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.12.0...hidrantes-albolote-v0.13.0) (2026-10-14)
+
+
+### Novedades
+
+* **panel:** al cambiar el código, la entrada para todos solo se abre si lo marcas ([776bcd5](https://github.com/aron285-coder/hidrantes-albolote/commit/776bcd55476098d92f7a72f18352bf772135cadd))
+* **panel:** jefatura recibe un aviso en el móvil cuando falla algo importante del sistema ([cc1b1d5](https://github.com/aron285-coder/hidrantes-albolote/commit/cc1b1d5fa1eb58c28e3bb55b7eda6fa463a72669))
+* **panel:** se pueden revocar solo los móviles que han entrado desde una hora concreta ([776bcd5](https://github.com/aron285-coder/hidrantes-albolote/commit/776bcd55476098d92f7a72f18352bf772135cadd))
+
+
+### Correcciones
+
+* **accesibilidad:** el recuadro que marca dónde estás al usar el teclado se ve también en modo oscuro ([606b60c](https://github.com/aron285-coder/hidrantes-albolote/commit/606b60c2981c6642d67eeacdfa19d290f00fb6f5))
+* **acceso:** quien escribe bien el código entra aunque haya mucha gente entrando a la vez ([30e5dd1](https://github.com/aron285-coder/hidrantes-albolote/commit/30e5dd18d4343457c51d5edcfdf2a8177dc0c85c))
+* **acceso:** si hay mucha gente entrando a la vez o el grupo ha enviado mucho hoy, la app lo explica con palabras ([27c6a81](https://github.com/aron285-coder/hidrantes-albolote/commit/27c6a818b12ae0189b192126d8fd4963578a08dd))
+* **alta:** al dar de alta un punto, el mapa se centra en tu posición cuando llega el GPS ([606b60c](https://github.com/aron285-coder/hidrantes-albolote/commit/606b60c2981c6642d67eeacdfa19d290f00fb6f5))
+* **cola-revision:** añadir o renombrar un núcleo ya no marca como desactualizadas las propuestas pendientes ([cc1b1d5](https://github.com/aron285-coder/hidrantes-albolote/commit/cc1b1d5fa1eb58c28e3bb55b7eda6fa463a72669))
+* **cola-revision:** volver mientras se guarda una propuesta ya no te saca de la Cola ([90fca70](https://github.com/aron285-coder/hidrantes-albolote/commit/90fca70ec5acc68466f88e085bbcc8bfbebfab05))
+* **ficha:** una foto que no carga ya no afecta al punto siguiente, y el aviso de versión nueva ya no tapa el final de la ficha ([e8e8d3f](https://github.com/aron285-coder/hidrantes-albolote/commit/e8e8d3f8c2b51814a2a6966130afd35ec5c982eb))
+* **mapabase:** el mapa sin cobertura se ve bien aunque lo descargues otra vez ([606b60c](https://github.com/aron285-coder/hidrantes-albolote/commit/606b60c2981c6642d67eeacdfa19d290f00fb6f5))
+* **mis-propuestas:** la flecha de volver te lleva al mapa también cuando abres Mis propuestas desde un aviso ([e8e8d3f](https://github.com/aron285-coder/hidrantes-albolote/commit/e8e8d3f8c2b51814a2a6966130afd35ec5c982eb))
+* **panel:** la cuenta de jefatura queda unida a su cuenta de Google ([6e71964](https://github.com/aron285-coder/hidrantes-albolote/commit/6e71964c81aaf376c6b16d160369ac9d4dfb3eb5))
+* **panel:** quitar el acceso a un administrador pide confirmación ([6812cd9](https://github.com/aron285-coder/hidrantes-albolote/commit/6812cd9b6ed98189337c18f415e3035265c987f5))
+* **panel:** si no se puede comprobar tu cuenta al entrar, el panel lo dice y te deja reintentar ([fd5a433](https://github.com/aron285-coder/hidrantes-albolote/commit/fd5a4338e8ec64ba70c0fefad6443c2b02639244))
+
 ## [0.12.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.11.1...hidrantes-albolote-v0.12.0) (2026-10-10)
 
 
