@@ -103,8 +103,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          # Hasta revisar los motivos de la primera pasada, también la programada solo informa.
-          REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'solo-informar' }}
+          # La programada desune; a mano, solo-informar por defecto (entrada uniones).
+          REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'desunir' }}
         run: |
           set -uo pipefail
           source .github/scripts/revisar-uniones.sh
@@ -184,8 +184,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
-          # Hasta revisar los motivos de la primera pasada, también la programada solo informa.
-          REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'solo-informar' }}
+          # La programada desune; a mano, solo-informar por defecto (entrada uniones).
+          REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'desunir' }}
         run: |
           set -uo pipefail
           source .github/scripts/revisar-uniones.sh
