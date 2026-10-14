@@ -5,6 +5,9 @@ description: Ciclo completo de un paquete de puntos RV/GM de una especificación
 
 # Paquete RV
 
+> **Hasta el piloto (DEC-193)** no hay especificaciones nuevas. Un arreglo suelto (`bloquea-release` o `piloto`)
+> sigue los mismos pasos sin issue de coordinación: el paso 1 es leer la issue, y en el 10 basta con `Closes #N`.
+
 1. Lee en la especificación los puntos del paquete y los documentos que citan. Comprueba en la issue
    «Coordinación docs/NN» que sus dependencias ya están en `develop`; si no, pasa a otro paquete.
 2. `git switch -c fase-N/<sesión>-<paquete> origin/develop`.
@@ -25,3 +28,6 @@ description: Ciclo completo de un paquete de puntos RV/GM de una especificación
 10. Al fusionar, marca la casilla en la issue de coordinación con una línea: qué entró y qué PR.
     En la descripción del PR, `Closes #N` (en inglés: es la palabra clave de GitHub). Las casillas de
     la issue de coordinación se marcan a mano.
+11. Si con este paquete se cierra la especificación (verificación escrita y release en producción), en ese PR:
+    `git mv docs/NN-*.md docs/archivo/especificaciones/` y su fila en la tabla de `docs/INDICE.md` (DEC-195).
+    `scripts/enlaces-docs.test.ts` dirá si queda algún enlace roto.

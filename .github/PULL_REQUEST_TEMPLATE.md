@@ -13,6 +13,14 @@ Closes #
 
 <!-- Una línea por dependencia con el porqué (CLAUDE.md §3). "Ninguna" si no hay. -->
 
+## Durante la congelación (DEC-193)
+
+<!-- Hasta que exista docs/verificacion/piloto.md. Marca una; si no encaja ninguna, es una issue tras-piloto. -->
+
+- [ ] Arregla una issue `bloquea-release`.
+- [ ] Sale de la validación o del piloto (issue `piloto`, #76–#78).
+- [ ] Mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas, documentación de trabajo).
+
 ## Definición de terminado (09 §6)
 
 - [ ] La issue enlazada tiene todos sus criterios de aceptación marcados.
@@ -23,6 +31,7 @@ Closes #
 - [ ] Una tabla nueva de `hidrantes` lleva en su migración los `grant` que le da 05 §5 (Supabase no los concede solo, 04 §5).
 - [ ] Textos de UI en español, sin jerga técnica, con los términos de 00 §6.
 - [ ] Sin secretos, sin `console.log` de datos personales, sin dependencias nuevas sin motivo escrito.
+- [ ] Ningún test contra dev ni prod (CLAUDE.md §3: nadie lo vigila más que tú).
 - [ ] Reglas de interfaz de 06 §9 cumplidas en lo tocado: ningún control muerto, motivo en los botones
       deshabilitados, estado vacío en las listas, notación canónica, separación de acciones destructivas,
       objetivos táctiles.

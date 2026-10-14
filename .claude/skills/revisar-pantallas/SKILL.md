@@ -17,7 +17,11 @@ description: Revisar a ojo las pantallas de la app y del panel antes de fusionar
    - "Cercanos" abajo a la derecha, encima del "+", sin solaparse;
    - ningún texto cortado a mitad de palabra ("— pen");
    - listas con estado vacío y textos útiles;
-   - en el móvil, al menos tres candidatos de "Cercanos" visibles sin desplazarse.
+   - en el móvil, al menos tres candidatos de "Cercanos" visibles sin desplazarse;
+   - en oscuro, ninguna caja clara: avisos y chips con los tokens `tinte-*` (docs/34 RV-355);
+   - ningún botón partido en varias líneas, sobre todo en las barras de acciones a 360–412 px (docs/34 RV-352);
+   - los textos de ayuda de los campos caben enteros a 360 px y en la columna del ordenador (docs/34 RV-351);
+   - con un solo elemento, los contadores en singular («1 móvil», no «1 móviles»; docs/34 RV-350).
 3. Si hay acceso a staging, repite lo mismo con Playwright contra staging, **solo para leer**: nunca
    aprobar, enviar ni cambiar datos.
 4. Adjunta dos o tres capturas representativas al PR y escribe qué has comprobado. En Git solo entra

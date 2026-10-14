@@ -29,7 +29,7 @@ import {
   sincronizar,
 } from './puntos';
 import { anotarError } from './errores';
-import { LIMITES_RED } from './red';
+import { LIMITES_RED, fetchConLimite } from './red';
 import { desactivarPush, estadoPush, pedirEnvioPush, resincronizarPush } from './push';
 import { supabase } from './supabase';
 
@@ -38,7 +38,8 @@ export type Acceso =
   | { tipo: 'fuera'; caducado: boolean }
   | { tipo: 'voluntario'; sesion: SesionVoluntario }
   | { tipo: 'jefatura'; correo: string }
-  | { tipo: 'no_autorizado' };
+  // sinComprobar: no se ha podido saber si la cuenta es de jefatura; se reintenta a mano (docs/35 RV-432).
+  | { tipo: 'no_autorizado'; sinComprobar?: boolean };
 
 const CLAVE_AUTH = 'hidrantes.auth';
 
@@ -123,6 +124,54 @@ export function limpiarDireccion(): void {
 }
 
 /**
+ * Lo que ha dicho el servidor al unir la cuenta: `unida`; `sin_acceso` (la cuenta no puede ser de
+ * jefatura); o `sin_comprobar` (no se ha podido saber: sin red, demasiadas peticiones, servidor).
+ */
+type Vinculo = 'unida' | 'sin_acceso' | 'sin_comprobar';
+
+/**
+ * El usuario de la sesión para el que ya se ha pedido unir la cuenta y su resultado (una vez por
+ * sesión). Se guarda la promesa: una comprobación que llegue a la vez espera a la misma petición.
+ */
+let vinculo: { usuario: string; resultado: Promise<Vinculo> } | null = null;
+/** Se ha pulsado «Reintentar»: la próxima comprobación con respuesta vuelve a pedir unirla. */
+let reintentoPedido = false;
+const VINCULADA = ['VINCULADO', 'YA_VINCULADO'];
+/** Las únicas respuestas que dicen algo de la cuenta (05 §9): «sin acceso» de siempre, sin reintentar. */
+const SIN_ACCESO: Record<number, string[]> = {
+  401: ['NO_AUTORIZADO'],
+  403: ['SIN_GOOGLE', 'NO_ES_ADMINISTRADOR', 'OTRA_CUENTA'],
+};
+
+/**
+ * POST /api/vincular-jefatura con el JWT de la sesión (docs/35 RV-400, 05 §9): une la fila de
+ * administradores a esta cuenta de Google. Un fallo que no sea «demasiadas peticiones» queda
+ * anotado, sin datos de la cuenta.
+ */
+async function vincularJefatura(token: string): Promise<Vinculo> {
+  try {
+    const r = await fetchConLimite(() => LIMITES_RED.rpc)('/api/vincular-jefatura', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    const cuerpo = (await r.json().catch(() => ({}))) as { resultado?: string; error?: string };
+    if (r.ok && VINCULADA.includes(cuerpo.resultado ?? '')) return 'unida';
+    if (SIN_ACCESO[r.status]?.includes(cuerpo.error ?? '')) return 'sin_acceso';
+    if (r.status !== 429) {
+      anotarError(
+        new Error(`vincular-jefatura: ${r.status} ${cuerpo.error ?? cuerpo.resultado ?? ''}`),
+        'vincular-jefatura',
+      );
+    }
+    return 'sin_comprobar';
+  } catch (e) {
+    anotarError(e, 'vincular-jefatura');
+    return 'sin_comprobar';
+  }
+}
+
+/**
  * Consulta al servidor quién es quién. Se llama al arrancar y en cada reintento de la
  * degradación controlada (FR-168); sin servidor no cambia nada de lo que ya funcionaba.
  */
@@ -132,7 +181,29 @@ export async function comprobarAcceso(): Promise<void> {
     const { data } = await cliente.auth.getSession();
     limpiarDireccion();
     if (data.session) {
-      const r = await rpc<boolean>('fn_es_admin');
+      let r = await rpc<boolean>('fn_es_admin');
+      // La cuenta de jefatura se une a su cuenta de Google al entrar, una vez por sesión (docs/35
+      // RV-432, DEC-197): si se ha unido, se vuelve a preguntar. Si la cuenta no puede serlo, «No
+      // autorizado» de siempre. Si no se ha podido saber, se dice así y solo se reintenta a mano.
+      const usuario = data.session.user.id;
+      const otraVez = reintentoPedido && r.ok;
+      if (r.ok) reintentoPedido = false;
+      if (r.ok && !r.datos) {
+        const pedido =
+          vinculo && vinculo.usuario === usuario && !otraVez
+            ? vinculo
+            : (vinculo = { usuario, resultado: vincularJefatura(data.session.access_token) });
+        const resultado = await pedido.resultado;
+        if (resultado === 'unida') {
+          r = await rpc<boolean>('fn_es_admin');
+          // Unida, pero sin poder volver a preguntar: se dice, en vez de volver a la entrada sin más.
+          if (!r.ok) return fijar({ tipo: 'no_autorizado', sinComprobar: true });
+        }
+        if (r.ok && !r.datos && resultado === 'sin_comprobar') {
+          olvidarConfirmada();
+          return fijar({ tipo: 'no_autorizado', sinComprobar: true });
+        }
+      }
       const correo = data.session.user.email ?? '';
       if (r.ok && r.datos) {
         const llega = estado.tipo !== 'jefatura';
@@ -256,9 +327,38 @@ export async function dejarJefatura(): Promise<void> {
   fijar({ tipo: 'no_autorizado' });
 }
 
+/**
+ * «Reintentar» cuando no se ha podido comprobar la cuenta (docs/35 RV-432): vuelve a pedir unirla.
+ * Solo a mano: así no hay bucle.
+ */
+export async function reintentarComprobacion(): Promise<void> {
+  reintentoPedido = true;
+  fijar({ tipo: 'comprobando' });
+  await comprobarAcceso();
+  // Sin llegar ni a preguntar (sin red, servidor caído), se sigue en la misma pantalla, no en la
+  // entrada: la sesión de Google sigue abierta.
+  if (estado.tipo !== 'jefatura' && estado.tipo !== 'no_autorizado' && hayGoogle()) {
+    fijar({ tipo: 'no_autorizado', sinComprobar: true });
+  }
+}
+
 /** "Volver" desde "No autorizado". */
 export function volverAEntrada(): void {
   olvidarConfirmada();
+  // Sin poder comprobar la cuenta, la sesión de Google sigue abierta: se cierra al volver, para que
+  // la próxima comprobación no devuelva aquí (docs/35 RV-432).
+  if (estado.tipo === 'no_autorizado' && estado.sinComprobar) {
+    // signOut no rechaza con un fallo de red: devuelve { error }.
+    void supabase()
+      ?.auth.signOut()
+      .then((r) => r?.error && anotarError(r.error, 'volver-a-entrada'))
+      .catch((e: unknown) => anotarError(e, 'volver-a-entrada'));
+    try {
+      localStorage.removeItem(CLAVE_AUTH);
+    } catch {
+      // sin almacenamiento no había sesión guardada
+    }
+  }
   fijar(sinGoogle());
 }
 
@@ -352,4 +452,6 @@ export function _reiniciarAcceso(): void {
   estado = inicial();
   oyentes.clear();
   direccionLimpia = false;
+  vinculo = null;
+  reintentoPedido = false;
 }
