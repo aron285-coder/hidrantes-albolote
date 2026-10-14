@@ -96,3 +96,35 @@ documentación.
 
 Pendiente: RV-481 (RV-139b sobre el commit final de `develop`), RV-482 (recorrido corto) y RV-483
 (0.14.0 y archivo de la especificación).
+
+**RV-482 · Recorrido corto** (este PR). Con `revisar-pantallas`, en local sobre `develop` (`0785f96`),
+con el servidor simulado de los e2e (el build de pruebas y las respuestas de `entrada-codigo-entero`,
+`inventario-editar` y `acceso`), a 412 × 915 (Pixel 7) y 1440 × 900, en claro y en oscuro: 20
+recorridos, todos en verde, y 36 capturas miradas una a una. Staging no hacía falta: lo simulado lo
+cubre todo, y el código de staging no se teclea ni se ve. Solo documentación.
+
+- **La entrada con el código pegado y con `insertText`:** ok. Seis cifras con `fill` en la primera
+  casilla, con `insertText` en la primera y con `insertText` de lo que falta desde la tercera: las seis
+  llenas y el foco en el nombre. Seis cifras con `fill` en la tercera también van desde la primera, con
+  el foco en el nombre.
+  [Captura](recorrido/2026-10-14/rv482-01-entrada-insertar-tercera-m412-oscuro.jpg).
+- **Editar con `PUNTO_CAMBIADO`:** ok. El aviso sale arriba de la ventana con «Ver lo nuevo», y
+  «Guardar cambios» espera con el aviso como motivo. «Ver lo nuevo» conserva lo escrito (estado y
+  descripción) y marca el enganche y la dirección del otro con «Valor nuevo». Guardar de nuevo cierra la
+  ventana con «Guardado». En oscuro, el aviso y las marcas con su tinte, sin cajas claras.
+  [Captura](recorrido/2026-10-14/rv482-02-editar-ver-lo-nuevo-m412-claro.jpg).
+- **El Registro con las acciones nuevas y las horas locales:** ok. «Entrada abierta para todos»,
+  «Dispositivos revocados», «Código de acceso cambiado», «Entrada para todos cerrada», «Núcleo
+  guardado» y «Administrador separado de su cuenta de Google», con su nombre en la tabla, en las
+  tarjetas del móvil y en el filtro. Revocar desde una hora dice «Desde: 14 oct 2026 a las 00:00» (la
+  hora de Albolote) y la entrada abierta, «Hasta: … a las 23:30 · Horas: 24 · Motivo: Código nuevo
+  revocando los móviles». Ninguna clave cruda, ningún `+00:00` ni `T..:..` en la página.
+  [Captura](recorrido/2026-10-14/rv482-03-registro-acciones-e1440-oscuro.jpg).
+- **El panel tras unir la cuenta:** ok. Une, renueva la sesión y entra en la Cola de revisión.
+  **`CUENTA_MEZCLADA`:** ok. «No autorizado» con su explicación y «Volver», sin «Reintentar».
+  [Captura](recorrido/2026-10-14/rv482-04-cuenta-mezclada-m412-oscuro.jpg).
+
+Ningún defecto alto ni medio. Bajos, de antes de `docs/36` y fuera de estos puntos:
+- En las tarjetas del Registro en el móvil, una acción sin punto enseña «Punto —».
+- A 412 px, los filtros de la Cola cortan su texto («todas las opera…», «todos los núcle…»).
+- A 412 px, el aviso «Guardado …» del Inventario tapa el centro de la cabecera mientras se ve.
