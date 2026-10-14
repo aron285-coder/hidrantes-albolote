@@ -335,7 +335,7 @@ export function camposCambiados(c: CambiosPunto): CampoEditado[] {
 }
 
 /** Qué partes de `Valores` lleva cada campo de Editar (la ubicación, el pin; el diámetro, sus dos). */
-const PARTES: Record<CampoEditado, (keyof Valores)[]> = {
+export const PARTES_CAMPO: Record<CampoEditado, (keyof Valores)[]> = {
   ubicacion: ['pin'],
   diametro: ['diametro', 'diametroOtro'],
   enganche: ['racor'],
@@ -348,24 +348,31 @@ const PARTES: Record<CampoEditado, (keyof Valores)[]> = {
 /**
  * «Ver lo nuevo» tras `PUNTO_CAMBIADO` (docs/36 RV-471, DEC-208): lo escrito en `v` se conserva en
  * los campos que el otro no ha tocado entre `abierto` y `nuevo`; en los que sí, sale el valor nuevo,
- * y `tocados` dice cuáles para marcarlos. Así nada de lo escrito se pierde sin verse (UI-06).
+ * y `tocados` dice cuáles para marcarlos. `pisados` son los tocados en los que también se había
+ * escrito algo: Editar enseña lo que se había escrito, para que no se pierda sin verse (UI-06).
  */
 export function fusionarConNuevo(
   abierto: Punto,
   nuevo: Punto,
   v: Valores,
-): { valores: Valores; tocados: CampoEditado[] } {
+): { valores: Valores; tocados: CampoEditado[]; pisados: CampoEditado[] } {
   const antes = valoresDe(abierto);
   const ahora = valoresDe(nuevo);
+  const igual = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
   const valores: Valores = { ...v };
   const tocados: CampoEditado[] = [];
-  for (const campo of Object.keys(PARTES) as CampoEditado[]) {
-    const partes = PARTES[campo];
-    if (partes.every((k) => JSON.stringify(antes[k]) === JSON.stringify(ahora[k]))) continue;
+  const pisados: CampoEditado[] = [];
+  for (const campo of Object.keys(PARTES_CAMPO) as CampoEditado[]) {
+    const partes = PARTES_CAMPO[campo];
+    if (partes.every((k) => igual(antes[k], ahora[k]))) continue;
     tocados.push(campo);
+    // Lo escrito era distinto de lo que había y también de lo que ha puesto el otro.
+    if (partes.some((k) => !igual(v[k], antes[k])) && partes.some((k) => !igual(v[k], ahora[k]))) {
+      pisados.push(campo);
+    }
     for (const k of partes) Object.assign(valores, { [k]: ahora[k] });
   }
-  return { valores, tocados };
+  return { valores, tocados, pisados };
 }
 
 // ---------- parámetros que el panel necesita leer (05 §2.10) ----------

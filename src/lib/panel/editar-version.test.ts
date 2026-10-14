@@ -77,12 +77,18 @@ describe('Ver lo nuevo: fusionarConNuevo (RV-471)', () => {
     expect(valores.descripcion).toBe('Tapa rota');
   });
 
-  it('si el otro cambió el mismo campo, sale su valor marcado', () => {
+  it('si el otro cambió el mismo campo, sale su valor marcado y lo propio va en «pisados»', () => {
     const nuevo: Punto = { ...BOCA, caudal: 'regular' };
-    const { valores, tocados } = fusionarConNuevo(BOCA, nuevo, escrito);
+    const { valores, tocados, pisados } = fusionarConNuevo(BOCA, nuevo, escrito);
     expect(tocados).toEqual(['estado']);
+    expect(pisados).toEqual(['estado']);
     expect(valores.caudal).toBe('regular');
     expect(valores.descripcion).toBe('Tapa rota');
+  });
+
+  it('si los dos pusieron lo mismo, o solo cambió el otro, no hay nada pisado', () => {
+    expect(fusionarConNuevo(BOCA, { ...BOCA, caudal: 'malo' }, escrito).pisados).toEqual([]);
+    expect(fusionarConNuevo(BOCA, { ...BOCA, racor: 'barcelona' }, escrito).pisados).toEqual([]);
   });
 
   it('la ubicación y el diámetro de otra medida cuentan como un campo cada uno', () => {
@@ -96,6 +102,6 @@ describe('Ver lo nuevo: fusionarConNuevo (RV-471)', () => {
 
   it('si solo cambió algo que Editar no enseña, nada se marca y lo escrito queda entero', () => {
     const nuevo: Punto = { ...BOCA, foto_path: 'puntos/x.webp', datos_cambiados_en: '2026-10-02T00:00:00Z' };
-    expect(fusionarConNuevo(BOCA, nuevo, escrito)).toEqual({ valores: escrito, tocados: [] });
+    expect(fusionarConNuevo(BOCA, nuevo, escrito)).toEqual({ valores: escrito, tocados: [], pisados: [] });
   });
 });

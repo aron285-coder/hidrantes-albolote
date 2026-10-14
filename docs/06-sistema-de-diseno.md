@@ -765,7 +765,9 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 (docs/36 RV-471, DEC-208; Guardar queda deshabilitado con este aviso como motivo hasta ver lo nuevo):
 `Otro administrador ha cambiado este punto mientras lo editabas. Mira lo nuevo antes de guardar.` · `Cargando lo nuevo…` ·
 `Valor nuevo: lo ha cambiado otro administrador.` (bajo cada campo que trajo lo nuevo) ·
-`Este punto ya no está en el inventario: otro administrador lo ha retirado o borrado.`.
+`Lo que habías puesto: [valor]` (debajo, si los dos habían cambiado ese campo; en la ubicación, `otra posición del pin`) ·
+`Este punto ya no está en el inventario: otro administrador lo ha retirado o borrado.` (en lugar del aviso, sin «Ver lo nuevo») ·
+`Todavía no llega lo nuevo. Prueba otra vez en un momento.` · `Ha cambiado algo que no se edita aquí. Ya puedes guardar.`.
 
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
 `Quitar filtros` · `[Regular] · [3]` (opciones del desplegable Estado, docs/29 RV-123) · `Nada que exportar con estos filtros` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·

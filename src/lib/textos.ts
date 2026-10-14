@@ -997,6 +997,11 @@ export const T = {
     // Debajo de un campo que el otro ha cambiado, tras «Ver lo nuevo».
     valorNuevo: 'Valor nuevo: lo ha cambiado otro administrador.',
     yaNoEsta: 'Este punto ya no está en el inventario: otro administrador lo ha retirado o borrado.',
+    // Debajo de un campo que los dos habían cambiado: lo que había escrito quien edita.
+    loQueEscribiste: (valor: Parametro) => `Lo que habías puesto: ${valor}`,
+    otraPosicion: 'otra posición del pin',
+    aunNoSeVe: 'Todavía no llega lo nuevo. Prueba otra vez en un momento.',
+    cambioFuera: 'Ha cambiado algo que no se edita aquí. Ya puedes guardar.',
   },
 
   panelRegistro: {
