@@ -2114,8 +2114,9 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
     expect(p).toContain(`SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.${clave} }}`);
     expect(p).toContain('source .github/scripts/revisar-uniones.sh');
     expect(p).toContain(llamada);
-    // Solo desune si se pide a mano (hasta revisar la primera pasada, la programada solo informa).
-    expect(p).toContain("REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'solo-informar' }}");
+    // La programada desune (decisión de la sesión principal tras la primera pasada, sin uniones); a
+    // mano, `solo-informar` por defecto.
+    expect(p).toContain("REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'desunir' }}");
     expect(texto).toMatch(
       /uniones:\n(?: {8}.*\n)*? {8}options: \[solo-informar, desunir\]\n {8}default: solo-informar/,
     );
