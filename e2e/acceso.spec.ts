@@ -331,6 +331,31 @@ test.describe('jefatura (FL-20)', () => {
     expect(pedidas[0]).toMatch(/^Bearer \S+$/);
   });
 
+  // docs/36 RV-450: tras unir, el panel renueva la sesión antes de volver a preguntar.
+  test('al unir, renueva la sesión y entra (docs/36 RV-450)', async ({ page }) => {
+    await conGoogle(page, 'jefe@example.org');
+    const renovaciones: string[] = [];
+    page.on('request', (r) => {
+      if (r.url().includes('/auth/v1/token') && r.url().includes('refresh_token')) renovaciones.push(r.url());
+    });
+    await conVincular(page, { status: 200, cuerpo: { resultado: 'VINCULADO' } });
+    await page.goto('/admin');
+    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeAttached();
+    expect(renovaciones.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('una cuenta con otra identidad unida: «No autorizado» con su texto (docs/36 RV-450)', async ({ page }) => {
+    await conGoogle(page, 'jefe@example.org');
+    const pedidas = await conVincular(page, { status: 403, cuerpo: { error: 'CUENTA_MEZCLADA' } });
+    await page.goto('/admin');
+    await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
+    await expect(page.getByText(T.entrada.cuentaMezcladaDetalle)).toBeVisible();
+    await expect(page.getByRole('button', { name: T.entrada.reintentar })).toHaveCount(0);
+    expect(pedidas).toHaveLength(1);
+    await page.getByRole('button', { name: T.entrada.volver }).click();
+    await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
+  });
+
   test('con otra cuenta: «No autorizado», sin volver a pedirlo (docs/35 RV-432)', async ({ page }) => {
     await conGoogle(page, 'jefe@example.org');
     const pedidas = await conVincular(page, { status: 403, cuerpo: { error: 'OTRA_CUENTA' } });
