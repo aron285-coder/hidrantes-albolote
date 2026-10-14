@@ -319,6 +319,8 @@ test.describe('jefatura (FL-20)', () => {
       if (nombre === 'fn_registrar_error') return route.fulfill({ contentType: 'application/json', body: 'null' });
       return route.abort('connectionrefused');
     });
+    // Los fallos anotados (docs/36 RV-450 anota CUENTA_MEZCLADA): el servidor los recibe.
+    await page.route('**/api/error', (route) => route.fulfill({ contentType: 'application/json', body: '{}' }));
     return pedidas;
   }
 
@@ -329,6 +331,85 @@ test.describe('jefatura (FL-20)', () => {
     await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeAttached();
     expect(pedidas).toHaveLength(1);
     expect(pedidas[0]).toMatch(/^Bearer \S+$/);
+  });
+
+  // docs/36 RV-450: tras unir, el panel renueva la sesión antes de volver a preguntar.
+  /** Las renovaciones de la sesión que pide supabase-js. Con `status`, el servidor de Auth contesta así. */
+  async function renovaciones(page: Page, status = 200) {
+    const pedidas: string[] = [];
+    await page.route(`${SUPABASE_PRUEBAS}/auth/v1/token?grant_type=refresh_token`, async (route) => {
+      pedidas.push(route.request().url());
+      if (status === 200) return route.fallback();
+      return route.fulfill({
+        status,
+        contentType: 'application/json',
+        body: '{"error":"invalid_grant","error_description":"Invalid Refresh Token"}',
+      });
+    });
+    return pedidas;
+  }
+
+  test('al unir, renueva la sesión y solo entonces es jefatura (docs/36 RV-450)', async ({ page }) => {
+    await conGoogle(page, 'jefe@example.org');
+    // El servidor solo da jefatura con un token renovado después de unir (DEC-206).
+    let unida = false;
+    await page.route('**/api/vincular-jefatura', (route) => {
+      unida = true;
+      return route.fulfill({ contentType: 'application/json', body: '{"resultado":"VINCULADO"}' });
+    });
+    const renovadas: string[] = [];
+    let renovadaTrasUnir = false;
+    await page.route(`${SUPABASE_PRUEBAS}/auth/v1/token?grant_type=refresh_token`, (route) => {
+      renovadas.push(route.request().url());
+      if (unida) renovadaTrasUnir = true;
+      return route.fallback();
+    });
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/*`, (route) => {
+      const nombre = new URL(route.request().url()).pathname.split('/').pop()!;
+      if (nombre === 'fn_es_admin')
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify(renovadaTrasUnir) });
+      if (nombre === 'fn_registrar_error') return route.fulfill({ contentType: 'application/json', body: 'null' });
+      return route.abort('connectionrefused');
+    });
+    await page.goto('/admin');
+    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeAttached();
+    expect(renovadas.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test('al unir, si la sesión no se renueva: lo dice y deja reintentar (docs/36 RV-450)', async ({ page }) => {
+    await conGoogle(page, 'jefe@example.org');
+    const pedidas = await conVincular(page, { status: 200, cuerpo: { resultado: 'VINCULADO' } });
+    const renovadas = await renovaciones(page, 400);
+    // Sin renovar, el servidor no da jefatura con el token de antes (DEC-206).
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/*`, (route) => {
+      const nombre = new URL(route.request().url()).pathname.split('/').pop()!;
+      return route.fulfill({ contentType: 'application/json', body: nombre === 'fn_es_admin' ? 'false' : 'null' });
+    });
+    const reintentar = page.getByRole('button', { name: T.entrada.reintentar });
+    await page.goto('/admin');
+    await expect(page.getByRole('heading', { name: T.entrada.cuentaSinComprobar })).toBeVisible();
+    await expect(reintentar).toBeVisible();
+    expect(renovadas).toHaveLength(1);
+    expect(pedidas).toHaveLength(1);
+    // La sesión sigue guardada, y Reintentar vuelve a pedir la unión.
+    expect(await page.evaluate(() => localStorage.getItem('hidrantes.auth'))).not.toBeNull();
+    await reintentar.click();
+    await expect.poll(() => pedidas.length).toBe(2);
+    await expect(page.getByRole('heading', { name: T.entrada.cuentaSinComprobar })).toBeVisible();
+  });
+
+  test('una cuenta con otra identidad unida: «No autorizado» con su texto (docs/36 RV-450)', async ({ page }) => {
+    await conGoogle(page, 'jefe@example.org');
+    const pedidas = await conVincular(page, { status: 403, cuerpo: { error: 'CUENTA_MEZCLADA' } });
+    await page.goto('/admin');
+    await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
+    await expect(page.getByText(T.entrada.cuentaMezcladaDetalle)).toBeVisible();
+    await expect(page.getByRole('button', { name: T.entrada.reintentar })).toHaveCount(0);
+    expect(pedidas).toHaveLength(1);
+    // La sesión de Google ya está cerrada, antes de pulsar Volver.
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('hidrantes.auth'))).toBeNull();
+    await page.getByRole('button', { name: T.entrada.volver }).click();
+    await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
   });
 
   test('con otra cuenta: «No autorizado», sin volver a pedirlo (docs/35 RV-432)', async ({ page }) => {
