@@ -7,9 +7,21 @@ import { T } from '@/lib/textos';
 /**
  * Cuenta de Google que no está en `administradores` (FR-37); la sesión ya se ha cerrado. Con
  * `sinComprobar`, no se ha podido saber si lo está (docs/35 RV-432): se reintenta a mano, y mientras
- * tanto la app enseña «Comprobando tu cuenta…».
+ * tanto la app enseña «Comprobando tu cuenta…». Con `cuentaMezclada`, la cuenta tiene otra identidad
+ * unida y no se une (docs/36 RV-450): «No autorizado» de siempre, con su explicación.
  */
-export function NoAutorizado({ sinComprobar = false }: { sinComprobar?: boolean }) {
+export function NoAutorizado({
+  sinComprobar = false,
+  cuentaMezclada = false,
+}: {
+  sinComprobar?: boolean;
+  cuentaMezclada?: boolean;
+}) {
+  const detalle = sinComprobar
+    ? T.entrada.cuentaSinComprobarDetalle
+    : cuentaMezclada
+      ? T.entrada.cuentaMezcladaDetalle
+      : T.entrada.noAutorizadoDetalle;
   const Icono = sinComprobar ? CloudOff : Lock;
   return (
     <div className="flex flex-1 flex-col">
@@ -19,9 +31,7 @@ export function NoAutorizado({ sinComprobar = false }: { sinComprobar?: boolean 
         <h2 className="font-titulo text-xl font-bold">
           {sinComprobar ? T.entrada.cuentaSinComprobar : T.entrada.noAutorizado}
         </h2>
-        <p className="text-texto-suave text-sm">
-          {sinComprobar ? T.entrada.cuentaSinComprobarDetalle : T.entrada.noAutorizadoDetalle}
-        </p>
+        <p className="text-texto-suave text-sm">{detalle}</p>
         {sinComprobar && (
           <Boton className="mt-4 w-full" onClick={() => void reintentarComprobacion()}>
             {T.entrada.reintentar}
