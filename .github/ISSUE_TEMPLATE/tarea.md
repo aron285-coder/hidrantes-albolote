@@ -27,4 +27,8 @@ labels: []
 
 **Esfuerzo:** S / M / L
 
+<!-- Etiquetas: `bloquea-release` si impide publicar; `piloto` si sale de la validación o del piloto;
+     `tras-piloto` si es una mejora (hasta el piloto no se implementa, DEC-193); `organizacion` si lo hace
+     una persona y no Claude Code. -->
+
 <!-- Repositorio público (DEC-053): nunca nombres de voluntarios, correos ni datos de contacto aquí. -->

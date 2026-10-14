@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión; cada cambio arrastra una entrada en 12. |
-| **Versión** | 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
+| **Versión** | 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
 | **Propietario de** | las **decisiones de infraestructura y despliegue**: qué piezas hay, dónde corren, cómo se despliegan y cómo se vuelve atrás. |
 | **No contiene** | el esquema ni las firmas (→ 05), las exigencias que motivan estas decisiones (→ 03), procedimientos de emergencia paso a paso (→ 15). |
 
@@ -418,11 +418,15 @@ necesita mirar el otro repositorio, lo dice y pide permiso.
 ```
 src/{componentes,paginas,lib,hooks,tipos}
 functions/api/          # una Function por ruta /api/…; la lista y los contratos, en 05 §9
+workers/avisos/         # Worker de los avisos (DEC-097)
 scripts/                # arranque (+ --rotar), migrar, generar-zona, cargar-zona, generar-mapabase,
-                        # generar-codigo, revertir, restaurar, restaurar-fotos, promover-piloto,
-                        # capturas, crear-issues
+                        # revertir, restaurar, restaurar-fotos, promover-piloto, publicar, capturas,
+                        # crear-issues y las pruebas (intrusion, probar-*); el código de acceso real lo
+                        # genera jefatura en Ajustes, no un script
 CLAUDE.md               # memoria de Claude Code (09 §5)
-.claude/skills/         # skills de 04 §15
+.claude/settings.json   # plugins y hooks (DEC-114, DEC-115, DEC-204)
+.claude/hooks/          # los hooks que bloquean lo prohibido de CLAUDE.md §3
+.claude/skills/         # skills del proyecto (DEC-116); las oficiales de §15 no se versionan
 supabase/migrations/    # solo hacia adelante, aplicadas por migrar.ts
 supabase/seed-staging.sql
 datos/                  # geojson, pmtiles, meta.json, zona-cobertura.html (generados)
@@ -677,7 +681,12 @@ documento es dueño de qué (00 §2), la regla "nunca `supabase db push`", el id
 commits y ramas (09 §6), y el orden de lectura (01 → 05 → 06 → 09 fase actual). Sin ese archivo, cada
 sesión nueva empieza de cero.
 
-Skills instalados en `.claude/skills/` por `arranque.ts` (todos oficiales, gratuitos y sin cuenta):
+Hay dos clases de skills. Las **del proyecto** (`paquete-rv`, `nueva-migracion`, `revisar-pantallas`) están
+versionadas en `.claude/skills/` (DEC-116) y las tiene cualquier sesión. Las **oficiales** de esta tabla las
+instala `arranque.ts` en el PC del desarrollador y **no están en Git**: una sesión en otra máquina o en la nube
+puede no tenerlas, y tiene que poder trabajar sin ellas (CLAUDE.md §8).
+
+Skills oficiales, gratuitos y sin cuenta, que instala `arranque.ts`:
 
 | Skill | Origen | Para qué |
 |---|---|---|
@@ -685,10 +694,13 @@ Skills instalados en `.claude/skills/` por `arranque.ts` (todos oficiales, gratu
 | `cloudflare` | `cloudflare/skills` (oficial) | Pages, Pages Functions, Wrangler, R2, cabeceras |
 | `webapp-testing` | `anthropics/skills` (oficial) | Playwright contra la app local: scripts de reconocimiento y e2e |
 | `frontend-design` | `anthropics/skills` (oficial) | evitar el aspecto de plantilla; se combina con 06 |
-| `task-shaper` | Productized (organización) | forma de cada issue de GitHub: Why, criterios de aceptación como checklist, esfuerzo |
 
-Instalación: `npx skills add supabase/agent-skills cloudflare/skills anthropics/skills` (o el
-marketplace de plugins de Claude Code). El marketplace y las versiones se fijan en `CLAUDE.md`.
+Instalación: `npx skills add supabase/agent-skills cloudflare/skills anthropics/skills` (lo hace el paso 9 de
+`arranque.ts`). Los **plugins** (`pr-review-toolkit`, `code-review`, `security-guidance`) sí van en Git, declarados
+en `.claude/settings.json` con su marketplace (DEC-114).
+
+`task-shaper` no se instala: es de otra organización. Su forma (Por qué, Qué, Fuera de alcance, Cómo verificar,
+Criterios, Esfuerzo) está en la plantilla `.github/ISSUE_TEMPLATE/tarea.md`.
 
 ## 16. Continuidad de propiedad
 
