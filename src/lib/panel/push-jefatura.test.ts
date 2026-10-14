@@ -162,6 +162,15 @@ describe('avisos de jefatura por administrador (docs/32 RV-264)', () => {
     expect(rpc).toHaveBeenCalledWith('fn_suscripcion_push_admin', { endpoint: ENDPOINT });
   });
 
+  // docs/35 RV-433: el tema de los avisos técnicos ya no se pierde al leer ni al volver a guardar.
+  it('los avisos técnicos se leen y se conservan al cambiar otro tema (docs/35 RV-433)', async () => {
+    fila = { email: A, temas: ['nuevas_propuestas', 'avisos_tecnicos'] };
+    await expect(cargarTemas()).resolves.toEqual({ ok: true, datos: ['nuevas_propuestas', 'avisos_tecnicos'] });
+    await fijarTemas(['nuevas_propuestas', 'avisos_tecnicos', 'resumen_semanal']);
+    expect(fila).toEqual({ email: A, temas: ['nuevas_propuestas', 'avisos_tecnicos', 'resumen_semanal'] });
+    expect(temasActivos()).toEqual(['nuevas_propuestas', 'avisos_tecnicos', 'resumen_semanal']);
+  });
+
   it('A apaga los suyos cuando la fila ya es de B: los de B siguen y el navegador no se da de baja', async () => {
     const s = suscripcion();
     pushManager.getSubscription.mockResolvedValue(s);

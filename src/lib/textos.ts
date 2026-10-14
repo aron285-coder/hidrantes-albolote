@@ -1022,6 +1022,8 @@ export const T = {
     dispositivosRevocados: 'Dispositivos revocados',
     administradorAlta: 'Administrador añadido',
     administradorBaja: 'Administrador desactivado',
+    // docs/35 RV-400: la fila de administradores se ha unido a su cuenta de Google.
+    administradorVinculado: 'Administrador unido a su cuenta de Google',
     configCambiada: 'Parámetros cambiados',
     incidenciaResuelta: 'Incidencia resuelta',
     anonimizacion: 'Anonimización',
@@ -1103,7 +1105,28 @@ export const T = {
     cerrarAhora: 'Cerrar ahora',
     entradaAbierta: 'Entrada abierta para todos durante 24 h.',
     entradaCerrada: 'Entrada cerrada: vuelven los topes de entradas.',
-    avisoEntradaAlRevocar: 'La entrada se abrirá 24 h para que todos puedan volver a entrar.',
+    // docs/35 RV-433 (DEC-201): revocando todos, la entrada ya no se abre sola; solo con la casilla.
+    avisoEntradaAlRevocar: 'Además, la entrada se abrirá 24 h para que todos puedan volver a entrar a la vez.',
+    abrirEntradaAlRevocar: 'Abrir la entrada 24 h para que todos puedan volver a entrar a la vez',
+    ayudaAbrirEntradaAlRevocar:
+      'Sin marcar, cada móvil vuelve a entrar con los topes de entradas de siempre. Márcala solo si van a entrar muchos a la vez desde la misma wifi.',
+    // docs/35 RV-433: revocar solo los móviles que han entrado desde una hora.
+    revocarDesde: 'Revocar los móviles que han entrado desde…',
+    ayudaRevocarDesde:
+      'Si el código se ha filtrado a una hora conocida: solo los móviles que entraron desde entonces tendrán que volver a escribirlo. Los de jefatura no se revocan.',
+    fechaDesde: 'Fecha y hora',
+    revocarDesdeBoton: 'Revocar desde esa hora',
+    desdeVacio: 'Escribe la fecha y la hora.',
+    desdeFutura: 'La hora no puede ser posterior a ahora.',
+    desdeAntigua: 'Como mucho, desde hace 30 días.',
+    desdeFueraDeRango: 'La hora tiene que estar entre hace 30 días y ahora: cámbiala y vuelve a probar.',
+    seRevocaran: (moviles: number) =>
+      moviles === 1
+        ? 'Se revocará 1 móvil. Tendrá que volver a escribir el código al abrir la aplicación; su nombre se conserva.'
+        : `Se revocarán ${moviles} móviles. Tendrán que volver a escribir el código al abrir la aplicación; sus nombres se conservan.`,
+    ningunoDesde: 'Ningún móvil ha entrado desde esa hora: no hay nada que revocar.',
+    contarDesdeNoCarga: 'No se ha podido saber cuántos móviles son.',
+    revocadosDesde: (moviles: number) => `${plural(moviles, 'móvil revocado', 'móviles revocados')}.`,
     entradaNoCarga: 'No se ha podido saber si la entrada está abierta.',
     administradores: 'Acceso de administradores',
     ayudaAdministradores: 'Lista propia de hidrantes, independiente de la app de uniformidad.',
@@ -1243,6 +1266,10 @@ export const T = {
     agrupadas: 'agrupadas: como mucho una por hora',
     resumenSemanal: 'Resumen semanal',
     losLunes: 'los lunes: revisiones caducadas y pendientes antiguas',
+    // docs/35 RV-433 (DEC-202): tema `avisos_tecnicos`.
+    avisosTecnicos: 'Avisos técnicos',
+    avisosTecnicosDetalle:
+      'si falla la comprobación diaria, el respaldo o una actualización, o si alguien está probando códigos de acceso',
     avisosDenegados: 'Este navegador tiene los avisos bloqueados. Actívalos en la configuración del sitio.',
     avisosInstalar: 'En iPhone hay que instalar la aplicación en la pantalla de inicio para recibir avisos.',
     avisosNoDisponibles: 'Este navegador no admite avisos.',

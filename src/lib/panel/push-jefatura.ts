@@ -1,5 +1,6 @@
-// Avisos push para jefatura (FR-164): nuevas propuestas (agrupadas, como mucho una por hora) y
-// resumen semanal de los lunes. Opcionales y apagados por defecto, como los del voluntario.
+// Avisos push para jefatura (FR-164): nuevas propuestas (agrupadas, como mucho una por hora),
+// resumen semanal de los lunes y avisos técnicos (docs/35 RV-404, DEC-202). Opcionales y apagados por
+// defecto, como los del voluntario (las suscripciones que ya existían reciben los técnicos activados).
 
 import { acceso } from '../acceso';
 import { type Resultado, SIN_SERVIDOR, rpc } from '../api';
@@ -8,10 +9,11 @@ import { anotarError } from '../errores';
 
 import { jwt } from './consultas';
 
-export type TemaJefatura = 'nuevas_propuestas' | 'resumen_semanal';
+export type TemaJefatura = 'nuevas_propuestas' | 'resumen_semanal' | 'avisos_tecnicos';
 export type EstadoPushJefatura = 'no_disponible' | 'instalar_primero' | 'denegado' | 'listo';
 
-const TEMAS: readonly TemaJefatura[] = ['nuevas_propuestas', 'resumen_semanal'];
+// Un tema que no esté aquí se pierde al leer y al volver a guardar los temas (docs/35 RV-433).
+const TEMAS: readonly TemaJefatura[] = ['nuevas_propuestas', 'resumen_semanal', 'avisos_tecnicos'];
 const esTema = (t: unknown): t is TemaJefatura => TEMAS.includes(t as TemaJefatura);
 
 /**
