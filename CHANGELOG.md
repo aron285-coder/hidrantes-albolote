@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.14.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.13.0...hidrantes-albolote-v0.14.0) (2026-10-14)
+
+
+### Novedades
+
+* **panel:** al editar un punto, si otro administrador lo cambia a la vez se avisa y se puede ver lo nuevo sin perder lo escrito ([98a6d1a](https://github.com/aron285-coder/hidrantes-albolote/commit/98a6d1a9585739a90370576fd8b80525fa929b42))
+
+
+### Correcciones
+
+* **acceso:** el código de acceso pegado desde el teclado o sugerido por el móvil se escribe entero en las seis casillas ([856dd07](https://github.com/aron285-coder/hidrantes-albolote/commit/856dd07f2ed860477cc305b3a871fe520766a8a1))
+* **acceso:** la entrada con el código aguanta mejor una avalancha de intentos sin hacer esperar a quien escribe bien el código ([2daafda](https://github.com/aron285-coder/hidrantes-albolote/commit/2daafdaa41eca0fd4856440c071ade64353a504a))
+* **panel:** al unir la cuenta de jefatura se renueva la sesión, y una cuenta de Google con otra identidad unida no entra y lo explica ([bc18d25](https://github.com/aron285-coder/hidrantes-albolote/commit/bc18d25e86581c3cacc4011d6887069c4927ebc8))
+* **panel:** el Registro nombra todas sus acciones, dice con palabras qué se hizo con la entrada y los móviles, y enseña las horas en hora de Albolote ([b340004](https://github.com/aron285-coder/hidrantes-albolote/commit/b3400040fc1026778fa8792d8baedaf5189d26ab))
+* **panel:** la cuenta de jefatura se une solo a una cuenta de Google propia; al unirla se cierran las sesiones abiertas en otros dispositivos ([2daafda](https://github.com/aron285-coder/hidrantes-albolote/commit/2daafdaa41eca0fd4856440c071ade64353a504a))
+* **vigilancia:** la comprobación diaria revisa las cuentas unidas a jefatura y desune la que no es de una sola persona ([b087ab8](https://github.com/aron285-coder/hidrantes-albolote/commit/b087ab8e7eb484e30782ad3ded0be5d529c083e1))
+
 ## [0.13.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.12.0...hidrantes-albolote-v0.13.0) (2026-10-14)
 
 
