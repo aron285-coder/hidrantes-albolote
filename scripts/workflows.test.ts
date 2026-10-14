@@ -1117,11 +1117,13 @@ describe('revisar_bd (RV-78)', () => {
     expect(guion).not.toMatch(/\|\| echo ['"]?0/);
   });
 
-  it('staging no mira el respaldo, el espacio ni los intentos del código', () => {
+  // docs/36 RV-461: la edad del respaldo la miran ya los dos entornos (se prueba arriba, con 9 días).
+  it('staging no mira el espacio ni los intentos del código', () => {
     const guion = readFileSync(path.join(raiz, '.github/scripts/revisar-bd.sh'), 'utf8');
-    const antesDeStaging = guion.slice(0, guion.indexOf('elif ! psql'));
+    const antesDeStaging = guion.slice(0, guion.indexOf('[ "$entorno" = produccion ] || return 0'));
     expect(antesDeStaging).toContain('ultimo_respaldo');
     expect(antesDeStaging).not.toContain('revisar_espacio "$bd"');
+    expect(antesDeStaging).not.toContain('intentos_codigo');
     const tras = guion.slice(guion.indexOf('[ "$entorno" = produccion ] || return 0'));
     expect(tras).toContain('revisar_espacio "$bd"');
     expect(tras).toContain('intentos_codigo');
