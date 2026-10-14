@@ -72,7 +72,9 @@ export type MotivoEspera =
   | 'cuota_fotos_grupo'
   | 'sin_espacio_fotos'
   | 'sin_espacio'
-  | 'reservas_abiertas';
+  | 'reservas_abiertas'
+  // docs/35 RV-427: lo que pueden enviar entre todos los móviles recién entrados, de propuestas o de fotos.
+  | 'moviles_nuevos';
 
 /**
  * La espera por un tope: `maximo` si el servidor lo dice. `ambito: 'dispositivo'` (docs/33 RV-329):
@@ -140,11 +142,17 @@ export interface Tope {
  * texto del error; sin eso, el de propuestas espera a la próxima medianoche y los demás una hora.
  */
 export function esperaPorTope(codigo: string, mensaje?: string, ahora = Date.now()): Tope | null {
+  // De quién es el tope (0041/0042, docs/32 RV-245): `ambito=token_nuevo|grupo|dispositivo` en el texto.
+  const ambito = /\bambito=([a-z_]+)/.exec(mensaje ?? '')?.[1];
+  // docs/35 RV-427: el de los móviles recién entrados llega como un tope de cuota con su ámbito, para
+  // que la versión anterior lo trate como un tope más. Se espera a la hora del servidor o, sin ella, a
+  // la medianoche, como el de propuestas.
+  if (codigo.startsWith('CUOTA_') && ambito === 'moviles_nuevos') {
+    return { motivo: 'moviles_nuevos', ms: esperaCuotaPropuestas(mensaje, ahora).ms, maximo: null };
+  }
   const tope = TOPES.find(([prefijo]) => codigo.startsWith(prefijo));
   if (!tope) return null;
   let motivo = tope[1];
-  // De quién es el tope (0041/0042, docs/32 RV-245): `ambito=token_nuevo|grupo|dispositivo` en el texto.
-  const ambito = /\bambito=([a-z_]+)/.exec(mensaje ?? '')?.[1];
   const delGrupo = ambito === 'grupo' || codigo.includes('(global)');
   if (motivo === 'cuota_propuestas') {
     if (ambito === 'token_nuevo') motivo = 'cuota_propuestas_nuevo';

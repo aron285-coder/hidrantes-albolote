@@ -255,6 +255,7 @@ function FormularioOperacion({
               alMover={(c) => cambiar({ pin: c, pinMovido: true })}
               alUsarMiPosicion={operacion === 'alta' ? () => cambiar({ pin: undefined, pinMovido: false }) : undefined}
               etiqueta={TITULO_OPERACION[operacion]}
+              centrarConPrimerGps={operacion === 'alta'}
             />
             <p className="text-texto-suave text-center text-[13px]">
               {operacion === 'ubicacion'

@@ -2,7 +2,9 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { LIMITES, RECORTE_MAPABASE, capasDe } from './capas-leaflet';
+import { useMapabase } from '@/hooks/estado';
 import { type Capa, ZOOM_MAX, capasPintadas } from '@/lib/capas';
+import { claveMapabase } from '@/lib/mapabase';
 import type { LatLng } from '@/lib/coordenadas';
 import { type Posicion, esAntigua } from '@/lib/posicion';
 import type { Punto } from '@/lib/puntos';
@@ -258,14 +260,16 @@ export const MapaLeaflet = forwardRef<ControlMapa, Props>(function MapaLeaflet(
     verZona: () => mapa.current?.fitBounds(LIMITES, { padding: [8, 8] }),
   }));
 
-  // Capa base, capa en línea y límite de zona: cambian con la capa elegida, el modo y la cobertura.
+  // Capa base, capa en línea y límite de zona: cambian con la capa elegida, el modo y la cobertura, y
+  // con cada copia del mapa base que se descarga o se borra (docs/35 RV-421).
+  const copia = claveMapabase(useMapabase().descargado);
   useEffect(() => {
     const m = mapa.current;
     if (!m) return;
     const capas = capasDe(capa, modo, baseDebajo);
     capas.forEach((c) => c.addTo(m));
     return () => capas.forEach((c) => m.removeLayer(c));
-  }, [capa, modo, baseDebajo]);
+  }, [capa, modo, baseDebajo, copia]);
 
   // Con el mapa sin conexión a la vista, no se aleja más de lo justo para ver su recorte entero: más
   // lejos, el recorte se quedaba en un rectángulo de bordes rectos sobre el fondo vacío (docs/33 RV-321,

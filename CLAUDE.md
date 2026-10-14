@@ -80,7 +80,7 @@ lo demás lo detecta el CI después, o no lo detecta nadie. Donde pone «nadie»
 | Regla | La vigila |
 |---|---|
 | `supabase db push` | hook `sin-db-push` |
-| esquema `public` en migraciones y seed | hook `sin-esquema-public` (DEC-196) |
+| esquema `public` en migraciones y seed | hook `sin-esquema-public` (DEC-204) |
 | migración aplicada editada o borrada | hook `migraciones-aplicadas`; CI `comprobar-migraciones-nuevas` |
 | `git push --force` a `develop` o `main` | hook `sin-force-push` |
 | secretos, `.env`, respaldos y fotos en Git | hook `git-add-prohibidos`; `.githooks/pre-commit` (`detectar-secretos`) |
@@ -104,15 +104,16 @@ dispositivo · zona de cobertura · fuera de zona.
 
 ## 5. Cómo se trabaja
 
-**Hasta el piloto, DEC-193: congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
+**Hasta el piloto, DEC-193 (salvo `docs/35`, DEC-196): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
 agrupación. Solo entran en `develop`:
 
 1. arreglos de una issue `bloquea-release`;
 2. lo que salga de la validación (#76) o del piloto (#77, #78), cada uno con su issue (etiqueta `piloto`);
 3. mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas programadas, estos archivos).
 
-Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. No se
-escribe `docs/35` hasta que exista `docs/verificacion/piloto.md`.
+Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. La única
+excepción es `docs/35` (DEC-196), y solo con lo que contiene; `docs/36` no se escribe hasta que exista
+`docs/verificacion/piloto.md`.
 
 1. Qué coger: si te han pedido algo concreto, eso. Si no, la issue `bloquea-release` más antigua y después la
    `piloto` más antigua. **Nunca** una con `organizacion` (es trabajo de personas: validar, dar la sesión,
@@ -163,7 +164,9 @@ rama; nunca añadas secretos, respaldos, fotos ni `.env` (mira el `.gitignore` a
 Detalle en `docs/04` §11.1.
 
 ```
-npm install
+npm ci                        # sin scripts de instalación: .npmrc con ignore-scripts (DEC-198)
+npm rebuild esbuild workerd --ignore-scripts=false   # los dos binarios que necesitan su script
+git config core.hooksPath .githooks                  # una vez por clon (ya no lo hace npm)
 npx supabase start            # Postgres local con PostGIS; datos efímeros
 npm run migrar -- --local     # aplica supabase/migrations con psql
 npm run dev                   # Vite en :5173

@@ -12,7 +12,7 @@ description: Crear una migración SQL del esquema hidrantes sin romper staging n
    `.claude/settings.json` lo bloquean si está en `develop` (DEC-115); una migración que solo está
    en tu rama sí se puede editar y renumerar.
    Todo objeto va en `hidrantes`: nada calificado con `public.` ni `schema public`, que es de la app de
-   uniformidad. El hook `sin-esquema-public` lo bloquea (DEC-196). `revoke … from public` sí: ahí `public` es
+   uniformidad. El hook `sin-esquema-public` lo bloquea (DEC-204). `revoke … from public` sí: ahí `public` es
    el rol.
 4. Para cambiar una función: `create or replace` con **la misma firma**, o `alter function … set/reset`.
    Firma nueva = función nueva, y la antigua se queda (compatibilidad con la versión anterior del

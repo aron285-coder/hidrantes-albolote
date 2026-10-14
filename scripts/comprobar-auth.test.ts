@@ -57,3 +57,14 @@ describe('comprobar-auth', () => {
     }
   });
 });
+
+// docs/35 RV-411: el texto dice a qué va atada jefatura (DEC-197), no que baste una sesión de Google.
+describe('comprobar-auth · jefatura', () => {
+  it('con el registro abierto, dice que jefatura va atada a la identidad de Google de cada administrador', () => {
+    for (const autoconfirmar of [true, false]) {
+      const { texto } = evaluar({ registroCerrado: false, correo: true, autoconfirmar });
+      expect(texto).toMatch(/identidad de Google de cada administrador/);
+      expect(texto).not.toMatch(/hace falta una sesión de Google/);
+    }
+  });
+});

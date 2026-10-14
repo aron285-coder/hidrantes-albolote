@@ -120,7 +120,7 @@ jobs:
           npm run cargar-zona -- --local
           for i in 1 2; do
             psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55422 -U hidrantes_migrador -d postgres \
-              -f supabase/seed-staging.sql
+              -v codigo=000000 -f supabase/seed-staging.sql
           done
       - run: npm run test:sql
       # Más de 1.000 fotos referenciadas por PostgREST: la lista llega entera (RV-33).
@@ -212,9 +212,32 @@ jobs:
           psql -X -q -v ON_ERROR_STOP=1 "$PG" -f scripts/sql/probar-seed-duplicados.sql
           for i in 1 2; do
             psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55422 -U hidrantes_migrador -d postgres \
-              -f supabase/seed-staging.sql
+              -v codigo=000000 -f supabase/seed-staging.sql
           done
           psql -X -q -v ON_ERROR_STOP=1 "$PG" -f scripts/sql/verificar-seed-duplicados.sql
+      # docs/35 RV-411 (DEC-200): el despliegue de staging cambia el código de pruebas por el suyo y
+      # revoca los móviles, una sola vez, y nunca pisa el que haya puesto jefatura. Los códigos de aquí
+      # son de la CI. Al final vuelve a dejar el de pruebas, que usa la restauración.
+      - name: El código de staging sustituye al de pruebas y respeta el de jefatura (RV-411)
+        env:
+          PG: postgresql://postgres:postgres@127.0.0.1:55422/postgres # detectar-secretos:permitir (Supabase local efímero)
+          PGPASSWORD: migrador-local # detectar-secretos:permitir (contraseña del Supabase local efímero)
+        run: |
+          set -euo pipefail
+          migrador() { psql -X -q -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 55422 -U hidrantes_migrador -d postgres "$@"; }
+          probar() { psql -X -q -v ON_ERROR_STOP=1 "$PG" -v paso="$1" -v codigo="$2" -f scripts/sql/probar-codigo-staging.sql; }
+          # Sin -v codigo, el seed tiene que fallar (en variable: workflows.test.ts exige -v en las cargas).
+          seed=supabase/seed-staging.sql
+          if migrador -f "$seed" 2>/dev/null; then
+            echo '::error::el seed se carga sin -v codigo'; exit 1
+          fi
+          probar antes 135790
+          for i in 1 2; do migrador -v codigo=135790 -f scripts/sql/codigo-staging.sql; done
+          probar cambiado 135790
+          probar jefatura 246802
+          migrador -v codigo=135790 -f scripts/sql/codigo-staging.sql
+          probar intacto 246802
+          probar deshacer 000000
       # Al final: la restauración deja la base como estaba el volcado (RV-13, TR-51, 15 §5.3).
       - name: Restauración sobre un esquema con datos y de un volcado anterior a 0010 (RV-13)
         run: npx tsx scripts/probar-restauracion.ts --viejo /tmp/volcado-0009.sql

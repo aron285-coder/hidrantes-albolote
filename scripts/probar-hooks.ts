@@ -266,7 +266,7 @@ function casos(): Caso[] {
       },
       bloquea: false,
     },
-    // esquema public (DEC-196)
+    // esquema public (DEC-204)
     {
       hook: 'sin-esquema-public',
       que: 'migración nueva con una tabla en public',

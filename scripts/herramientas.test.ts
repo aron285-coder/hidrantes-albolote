@@ -123,9 +123,9 @@ describe('plantilla de PR (RV-96)', () => {
   });
 });
 
-// DEC-196: CLAUDE.md lo lee entera cada sesión. Un comando, un script, una skill o un hook que ya no
+// DEC-204: CLAUDE.md lo lee entera cada sesión. Un comando, un script, una skill o un hook que ya no
 // existe manda a la sesión a un sitio que no hay (pasó con `npm run codigo` y `generar-codigo`).
-describe('CLAUDE.md solo nombra lo que existe (DEC-196)', () => {
+describe('CLAUDE.md solo nombra lo que existe (DEC-204)', () => {
   const claude = readFileSync(path.join(raiz, 'CLAUDE.md'), 'utf8');
   const paquete = JSON.parse(readFileSync(path.join(raiz, 'package.json'), 'utf8')) as {
     scripts: Record<string, string>;

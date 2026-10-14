@@ -75,12 +75,15 @@ async function prepararPanel(
     pedidos = [] as unknown[],
     // docs/33 RV-338: `config.entrada_abierta_hasta` (0044). Sin poner, la base no la tiene.
     entrada = undefined as string | null | undefined,
+    admins = ADMINISTRADORES,
+    // El correo de la sesión de Google: la lista lo guarda en minúsculas (docs/35 RV-431).
+    correo = 'jefe@example.org',
   } = {},
 ) {
   const llamadas: Llamada[] = [];
   let entradaHasta = entrada;
-  let administradores = ADMINISTRADORES;
-  await conGoogle(page, 'jefe@example.org');
+  let administradores = admins;
+  await conGoogle(page, correo);
   await simularTablas(page, {
     v_puntos_activos: PUNTOS,
     v_cola_revision: [],
@@ -109,7 +112,8 @@ async function prepararPanel(
     const json = (d: unknown) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(d) });
     switch (nombre) {
       case 'fn_es_admin':
-        return json(true);
+        // Quien se quita el acceso a sí mismo deja de ser jefatura (docs/35 RV-431).
+        return json(administradores.some((a) => a.email === 'jefe@example.org' && a.activo));
       case 'fn_salud':
         // Con 0044, fn_salud dice si la entrada está abierta (RV-300).
         return json(
@@ -124,6 +128,15 @@ async function prepararPanel(
       case 'fn_exportar_inventario':
         return json([]);
       case 'fn_gestionar_administrador':
+        // Como la base: no se queda nadie con acceso (docs/35 RV-431).
+        if (!cuerpo.activo && !administradores.some((a) => a.activo && a.email !== cuerpo.email)) {
+          return route.fulfill({
+            status: 400,
+            contentType: 'application/json',
+            headers: { 'Access-Control-Allow-Origin': '*' },
+            body: JSON.stringify({ code: 'P0001', message: 'ULTIMO_ADMINISTRADOR: sin otro administrador' }),
+          });
+        }
         administradores = administradores.map((a) =>
           a.email === cuerpo.email ? { ...a, activo: cuerpo.activo as boolean } : a,
         );
@@ -203,6 +216,86 @@ test('ajustes: administradores, parámetros y núcleos (FR-141, FR-142, FR-166)'
   await expect
     .poll(() => llamadaA(llamadas, 'fn_renombrar_nucleo'))
     .toEqual({ nombre_actual: 'Albolote', nombre_nuevo: 'Albolote centro' });
+});
+
+// ---------- docs/35 RV-431: quitar el acceso pide confirmación ----------
+
+const OTRA_ACTIVA = {
+  email: 'otra@example.org',
+  activo: true,
+  creado_en: '2026-09-04T10:00:00Z',
+  creado_por: 'jefe@example.org',
+};
+
+test('ajustes: quitar el acceso a otro administrador pide confirmación; devolverlo, no (docs/35 RV-431)', async ({
+  page,
+}) => {
+  const llamadas = await prepararPanel(page, { admins: [...ADMINISTRADORES, OTRA_ACTIVA] });
+  await page.goto('/admin/ajustes');
+  const casilla = page.getByLabel(T.panelAjustes.accesoDe('otra@example.org'));
+  await expect(casilla).toBeChecked();
+
+  // Cancelar: nada cambia.
+  await casilla.click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByText(T.panelAjustes.avisoQuitarAcceso('otra@example.org'))).toBeVisible();
+  await expect(casilla).toBeChecked();
+  await dialogo.getByRole('button', { name: T.panelCola.cancelar }).click();
+  await expect(dialogo).toHaveCount(0);
+  await expect(casilla).toBeChecked();
+  expect(llamadaA(llamadas, 'fn_gestionar_administrador')).toBeUndefined();
+
+  // Confirmar: se quita.
+  await casilla.click();
+  await dialogo.getByRole('button', { name: T.panelAjustes.quitarAcceso }).click();
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
+    .toEqual({ email: 'otra@example.org', activo: false });
+  await expect(casilla).not.toBeChecked();
+  await expect(page.getByText(T.panelAjustes.administradorQuitado('otra@example.org'))).toBeVisible();
+
+  // Devolver el acceso: sin confirmación.
+  llamadas.length = 0;
+  await casilla.click();
+  await expect(dialogo).toHaveCount(0);
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
+    .toEqual({ email: 'otra@example.org', activo: true });
+});
+
+test('ajustes: quitarse el acceso a uno mismo lo avisa y saca del panel (docs/35 RV-431)', async ({ page }) => {
+  // La sesión con mayúsculas: sigue siendo uno mismo.
+  const llamadas = await prepararPanel(page, { admins: [...ADMINISTRADORES, OTRA_ACTIVA], correo: 'Jefe@Example.org' });
+  await page.goto('/admin/ajustes');
+  await page.getByLabel(T.panelAjustes.accesoDe('jefe@example.org')).click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByText(T.panelAjustes.avisoQuitarteAcceso)).toBeVisible();
+  const comprobaciones = llamadas.filter((l) => l.nombre === 'fn_es_admin').length;
+  await dialogo.getByRole('button', { name: T.panelAjustes.quitarAcceso }).click();
+  await expect
+    .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
+    .toEqual({ email: 'jefe@example.org', activo: false });
+  await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
+  // Sale sin volver a preguntar al servidor (sin red se quedaría dentro), y sin nada guardado de jefatura.
+  expect(llamadas.filter((l) => l.nombre === 'fn_es_admin')).toHaveLength(comprobaciones);
+  const guardado = await page.evaluate(() => [
+    localStorage.getItem('hidrantes.auth'),
+    localStorage.getItem('hidrantes.jefatura_confirmada'),
+  ]);
+  expect(guardado).toEqual([null, null]);
+});
+
+test('ajustes: el último administrador con acceso no se lo puede quitar, y se dice (docs/35 RV-431)', async ({
+  page,
+}) => {
+  await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  const casilla = page.getByLabel(T.panelAjustes.accesoDe('jefe@example.org'));
+  await casilla.click();
+  await page.getByRole('dialog').getByRole('button', { name: T.panelAjustes.quitarAcceso }).click();
+  await expect(page.getByText(T.panel.ultimoAdministrador)).toBeVisible();
+  await expect(casilla).toBeChecked();
+  await expect(page.getByRole('heading', { name: T.panelAjustes.administradores })).toBeVisible();
 });
 
 // docs/18 GM-01: el tramo de manguera se ajusta entre 10 y 30 m (FR-142).
@@ -1016,4 +1109,37 @@ test('en oscuro, la entrada abierta y «Todo bien» van en tinte oscuro y pasan 
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze();
   expect(violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+});
+
+// docs/35 RV-423: solo el alta se centra con la primera posición. En el diálogo de núcleos, el mapa abre
+// en su sitio y la posición que llega después no lo mueve.
+test('al añadir un núcleo, la posición que llega no mueve el mapa (docs/35 RV-423)', async ({ page }) => {
+  // GPS que el test maneja, a unos 700 m del centro con el que abre el mapa: centrar en él sacaría el pin.
+  // Con el permiso ya concedido, la app sigue la posición desde el arranque.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __fix?: () => void };
+    navigator.permissions.query = () => Promise.resolve({ state: 'granted' } as PermissionStatus);
+    navigator.geolocation.watchPosition = (ok) => {
+      w.__fix = () =>
+        ok({ coords: { latitude: 37.2345, longitude: -3.65, accuracy: 8 }, timestamp: Date.now() } as never);
+      return 1;
+    };
+    navigator.geolocation.clearWatch = () => undefined;
+  });
+  await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  await expect.poll(() => page.evaluate(() => typeof (window as { __fix?: unknown }).__fix)).toBe('function');
+  await page.getByRole('button', { name: T.panelAjustes.anadirNucleo }).click();
+  const selector = page.getByRole('dialog').getByTestId('selector-pin');
+  await expect(selector).toBeVisible();
+  const pin = selector.locator('.leaflet-marker-icon');
+  const trazos = selector.locator('.leaflet-overlay-pane path');
+  const sinGps = await trazos.count();
+  const antes = (await pin.boundingBox())!;
+  await page.evaluate(() => (window as unknown as { __fix: () => void }).__fix());
+  // La posición ya está en el mapa (su círculo y su punto) y el pin sigue donde estaba.
+  await expect(trazos).toHaveCount(sinGps + 2);
+  const despues = (await pin.boundingBox())!;
+  expect(Math.abs(despues.x - antes.x)).toBeLessThan(5);
+  expect(Math.abs(despues.y - antes.y)).toBeLessThan(5);
 });

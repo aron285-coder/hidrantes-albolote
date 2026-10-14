@@ -18,6 +18,7 @@ select dblink_connect(s, (select cadena from conexion)) from unnest(array['s0', 
 -- Datos confirmados: un administrador, un punto con una revisión pendiente y un móvil con token.
 select dblink_exec('s0', format($f$
   insert into hidrantes.administradores (email, creado_por) values ('conc@example.com', 'test') on conflict do nothing;
+  update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
   insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, fecha_ultima_revision,
                                 actualizado_en)
   values (%1$L, hidrantes.fn_siguiente_codigo('hidrante'), 'hidrante', 'SRID=4326;POINT(-3.6300 37.2600)', 100, 'bueno',
@@ -39,7 +40,7 @@ $f$, (select punto from conexion), (select propuesta from conexion), (select dis
 
 select dblink_exec(s, 'begin') from unnest(array['s1', 's2']) s;
 select x from unnest(array['s1', 's2']) s, dblink(s,
-  $$select set_config('request.jwt.claims', '{"role":"authenticated","email":"conc@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true)$$) as t(x text);
+  $$select set_config('request.jwt.claims', '{"role":"authenticated","sub":"715e7e6c-207b-6553-fc08-9360192892cb","email":"conc@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}', true)$$) as t(x text);
 select * from dblink('s1', format('select hidrantes.fn_aprobar(%L)::text', (select propuesta from conexion))) as t(r text);
 select dblink_send_query('s2', format('select hidrantes.fn_aprobar(%L)::text', (select propuesta from conexion)));
 select dblink_exec('s1', 'commit');

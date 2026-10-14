@@ -15,7 +15,8 @@ import { abortar, argumentos, ejecutar, ejecutarScript, log, RAIZ } from './lib/
 const DOC = path.join(RAIZ, 'docs', '11-seguridad-y-privacidad.md');
 const FUNCIONES = process.env.FUNCTIONS_URL ?? 'http://127.0.0.1:8788';
 const BUCKET = process.env.BUCKET ?? 'hidrantes-fotos-dev';
-// El código del seed de staging (supabase/seed-staging.sql), no un secreto.
+// Solo contra la pila local: el código de pruebas que la CI pasa al seed (`psql -v codigo=…`). El de
+// staging no está en el repositorio (DEC-200); no hace falta aquí, que nunca corre contra staging.
 const CODIGO_SEED = process.env.CODIGO_SEED ?? '000000';
 
 export interface Respuesta {

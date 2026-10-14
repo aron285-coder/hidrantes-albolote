@@ -16,6 +16,7 @@ values ('codigo_acceso_hash', to_jsonb(extensions.crypt('482917', extensions.gen
 on conflict (clave) do update set valor = excluded.valor;
 insert into hidrantes.administradores (email, creado_por) values
   ('jefa37a@example.com', 'test'), ('jefa37b@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, direccion,
                               fecha_ultima_revision)
@@ -27,7 +28,7 @@ values
 
 create function pg_temp.jefatura(correo text default 'jefa37a@example.com') returns void language sql as $$
   select set_config('request.jwt.claims', jsonb_build_object(
-    'role', 'authenticated', 'email', correo, 'amr', jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', 1)),
+    'role', 'authenticated', 'sub', md5(lower(correo))::uuid, 'email', correo, 'amr', jsonb_build_array(jsonb_build_object('method', 'oauth', 'timestamp', 1)),
     'app_metadata', jsonb_build_object('provider', 'google', 'providers', jsonb_build_array('google')))::text, true);
 $$;
 create function pg_temp.voluntario() returns void language sql as $$
@@ -145,8 +146,12 @@ update hidrantes.config set valor = to_jsonb(hidrantes.fn_subidas_contadas() + 1
 insert into hidrantes.subidas (dispositivo_id, foto_path, reservada_en)
 select 'b3700000-0000-4000-8000-0000000e3702', 'fotos/b37-sin-subir-' || i || '.jpg', now() - interval '3 hours'
 from generate_series(1, 200) i;
+-- Con la entrada abierta, para que el tope de los móviles nuevos (docs/35 RV-402, la mitad del
+-- grupo) no se mezcle con lo que se prueba aquí.
+update hidrantes.config set valor = to_jsonb(now() + interval '1 hour') where clave = 'entrada_abierta_hasta';
 select lives_ok($$ select hidrantes.fn_reservar_subida(current_setting('test.td')) $$,
   'doscientas reservas sin subir de hace 3 h no bloquean al grupo (sobre develop: CUOTA_SUBIDAS_AGOTADA)');
+update hidrantes.config set valor = 'null' where clave = 'entrada_abierta_hasta';
 update hidrantes.config set valor = '1000' where clave = 'max_subidas_dia_total';
 
 -- ---------- RV-220: espacio ----------
@@ -171,6 +176,10 @@ update hidrantes.config
  where clave = 'max_bytes_fotos';
 select throws_like($$ select hidrantes.fn_reservar_subida(current_setting('test.td')) $$, 'SIN_ESPACIO_FOTOS%',
   'sin sitio para 5 MB más: SIN_ESPACIO_FOTOS (sobre develop: entraba)');
+-- Para jefatura cuentan solo sus reservas abiertas (docs/35 RV-402): sin ninguna, sin sitio para 5 MB.
+update hidrantes.config
+   set valor = to_jsonb((hidrantes.fn_espacio() ->> 'fotos_bytes')::bigint + 5242880 - 1)
+ where clave = 'max_bytes_fotos';
 select pg_temp.jefatura();
 select throws_like($$ select hidrantes.fn_reservar_subida_admin() $$, 'SIN_ESPACIO_FOTOS%',
   'también para jefatura: es espacio físico');

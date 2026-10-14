@@ -72,6 +72,16 @@ export async function sesionConClave(
   return sesion;
 }
 
+/**
+ * SQL que une la fila de `administradores` al usuario de Auth de la sesión (docs/35 RV-400), lo que
+ * en el panel hace `/api/vincular-jefatura` al entrar. El Supabase local no tiene identidad de Google,
+ * así que la Function no puede hacerlo aquí: se vincula a mano, solo contra la pila local.
+ */
+export const sqlVincular = (correo: string, usuarioId: string) => {
+  if (!/^[0-9a-f-]{36}$/i.test(usuarioId)) throw new Error('usuario de Auth no válido');
+  return `update hidrantes.administradores set usuario_id = '${usuarioId}', vinculado_en = now() where email = '${correo.toLowerCase()}'`;
+};
+
 /** La sesión de un administrador tal como la tendría tras entrar con Google. */
 export async function sesionDeJefatura(
   request: APIRequestContext,

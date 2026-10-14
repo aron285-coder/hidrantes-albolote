@@ -5,8 +5,9 @@
 #
 # Sin `production` (DEC-071): pediría aprobación humana en cada ejecución. La fila de producción va en
 # `prod-tareas`, donde está VIGILANCIA_SECRETO_PROD (docs/31 RV-131, DEC-172); la de staging, en
-# `staging`, y lee VIGILANCIA_SECRETO_STAGING del repositorio. Es el mismo valor que la Function lee
-# de sus secretos de Pages (npm run arranque -- --rotar vigilancia). En un repositorio público los minutos
+# `staging`, y lee VIGILANCIA_SECRETO de ese environment (docs/35 RV-411, DEC-200: ninguno en el
+# repositorio). Es el mismo valor que la Function lee de sus secretos de Pages (npm run arranque --
+# --rotar vigilancia). En un repositorio público los minutos
 # de Actions no cuentan (TR-53).
 name: Avisos
 
@@ -33,19 +34,20 @@ jobs:
       # Solo para el cálculo del código HTTP (RV-38).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           sparse-checkout: .github/scripts
       - name: Pedir el envío hasta que no quede nada
         env:
           APP: ${{ matrix.entorno == 'PROD' && 'https://hidrantes-albolote.pages.dev' || 'https://hidrantes-albolote-staging.pages.dev' }}
-          SECRETO: ${{ secrets[format('VIGILANCIA_SECRETO_{0}', matrix.entorno)] }}
+          SECRETO: ${{ matrix.entorno == 'PROD' && secrets.VIGILANCIA_SECRETO_PROD || secrets.VIGILANCIA_SECRETO }}
         run: |
           set -uo pipefail
           # Sin el secreto (antes del paso manual de 15 §2) se avisa sin salir en rojo: un fallo cada
           # 15 minutos serían 96 correos al día, y mientras tanto los avisos siguen saliendo al
           # moderar y al sincronizar. La vigilancia diaria sí salta si se atascan más de dos horas.
           if [ -z "${SECRETO:-}" ]; then
-            echo "::warning::Falta VIGILANCIA_SECRETO_${{ matrix.entorno }}: npm run arranque -- --rotar vigilancia (15 §2)"
-            echo "### Avisos ${{ matrix.entorno }}: falta el secreto VIGILANCIA_SECRETO_${{ matrix.entorno }} (npm run arranque -- --rotar vigilancia)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Falta el secreto de vigilancia de ${{ matrix.entorno }}: npm run arranque -- --rotar vigilancia (15 §2)"
+            echo "### Avisos ${{ matrix.entorno }}: falta el secreto de vigilancia (npm run arranque -- --rotar vigilancia)" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           source .github/scripts/codigo-http.sh

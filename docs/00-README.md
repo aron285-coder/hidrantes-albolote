@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo (este índice se actualiza cada vez que cambia la lista de documentos) |
-| **Versión** | 1.7 — 10 de octubre de 2026 (DEC-196): términos de §6 al día (barro, tipo de enganche, las dos fotos) y la estructura de §7 con lo que hay hoy en `docs/`. · 1.6 — 17 de septiembre de 2026 |
+| **Versión** | 1.7 — 10 de octubre de 2026 (DEC-204): términos de §6 al día (barro, tipo de enganche, las dos fotos) y la estructura de §7 con lo que hay hoy en `docs/`. · 1.6 — 17 de septiembre de 2026 |
 | **Idioma** | Español, en todos los documentos. Ver "Idioma" al final. |
 
 Este archivo dice qué documento existe, para quién es, y **quién es dueño de cada tipo de verdad**.
@@ -88,9 +88,9 @@ Reglas derivadas:
 ## 3. Congelado frente a vivo
 
 - **Congelado (01–08 y 16):** describe lo acordado. Cambia solo con nuevo número de versión y fecha
-  en la cabecera, y arrastra una entrada en 12. Hasta la validación de jefatura (que se hace sobre
-  staging al terminar la Fase 8, DEC-043) los congela el desarrollador; después, cualquier cambio
-  exige la conformidad de jefatura.
+  en la cabecera, y arrastra una entrada en 12. Cambia con una especificación, aprobada por el
+  desarrollador al pedirla (DEC-177); jefatura recibe la versión nueva con la release y la valida
+  sobre la app real.
 - **Vivo (00, 09–15):** documentos de trabajo que se actualizan sobre la marcha, sin ceremonia.
 
 Cada archivo lleva en la cabecera su estado, versión, fecha y de qué verdad es propietario. Así

@@ -678,6 +678,31 @@ export function ejecucionDe(ctx: Contexto, workflow: string, sha: string): Ejecu
   );
 }
 
+/** El trabajo de deploy-prod.yml que lleva el environment production y pide la aprobación. */
+export const TRABAJO_APROBACION = 'desplegar';
+
+/**
+ * ¿Ha llegado la ejecución a la aprobación, o ya la ha pasado? deploy-prod.yml construye antes, en un
+ * trabajo sin environment (docs/35 RV-410, DEC-198): mientras construye, la ejecución está
+ * `in_progress` y aún no hay nada que aprobar. `in_progress` solo cuenta como «ya aprobada y en
+ * marcha» si el trabajo `desplegar` ha empezado o terminado.
+ */
+export function aprobadaOEsperando(ctx: Contexto, r: Ejecucion): boolean {
+  if (r.status === 'waiting' || r.status === 'completed') return true;
+  if (r.status !== 'in_progress') return false;
+  const estado = json<string | null>(
+    ctx,
+    [
+      'api',
+      `repos/${repo()}/actions/runs/${r.id}/jobs`,
+      '--jq',
+      `[.jobs[] | select(.name == "${TRABAJO_APROBACION}") | .status] | first | tojson`,
+    ],
+    `No se han podido leer los trabajos de la ejecución ${r.id} de deploy-prod.yml`,
+  );
+  return estado === 'in_progress' || estado === 'completed';
+}
+
 async function pasoDespliegue(ctx: Contexto, main: string): Promise<Ejecucion | null> {
   log.paso(`3 · deploy-prod.yml de ${main.slice(0, 7)}`);
   if (ctx.opciones.soloComprobar) {
@@ -693,7 +718,7 @@ async function pasoDespliegue(ctx: Contexto, main: string): Promise<Ejecucion | 
     ctx,
     () => {
       const r = ejecucionDe(ctx, 'deploy-prod.yml', main);
-      return r && (r.status === 'waiting' || r.status === 'completed' || r.status === 'in_progress') ? r : null;
+      return r && aprobadaOEsperando(ctx, r) ? r : null;
     },
     ctx.limites.despliegue,
     'la ejecución de deploy-prod.yml',

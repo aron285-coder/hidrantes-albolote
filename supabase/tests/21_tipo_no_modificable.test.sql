@@ -13,6 +13,7 @@ on conflict (clave) do update set valor = excluded.valor;
 select set_config('test.token',
   (select token from hidrantes.fn_verificar_codigo('482917', 'dddddddd-0000-4000-8000-0000000e0041', 'ip-tipo')), true);
 insert into hidrantes.administradores (email, creado_por) values ('tipo@example.com', 'test') on conflict do nothing;
+update hidrantes.administradores set usuario_id = md5(email)::uuid, vinculado_en = now() where usuario_id is null; -- docs/35 RV-400
 
 insert into hidrantes.puntos (id, codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, fecha_ultima_revision)
 values ('00000000-0000-4000-8000-0000000e4101', 'HID-8301', 'hidrante', 'SRID=4326;POINT(-3.6571 37.2311)', 100,
@@ -33,7 +34,7 @@ select lives_ok($$
 
 -- ---------- jefatura ----------
 select set_config('request.jwt.claims',
-  '{"role":"authenticated","email":"tipo@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
+  '{"role":"authenticated","sub":"5dce9e66-cd18-7c6c-0f34-04bd8aa76d03","email":"tipo@example.com","amr":[{"method":"oauth","timestamp":1}],"app_metadata":{"provider":"google","providers":["google"]}}',
   true);
 set local role authenticated;
 select throws_like($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-0000000e4101',
