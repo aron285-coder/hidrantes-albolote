@@ -1245,7 +1245,8 @@ test('Avisos para jefatura: el interruptor de avisos técnicos guarda su tema (d
   const interruptor = tarjeta.getByLabel(T.panelAjustes.avisosTecnicos);
   await expect(tarjeta.getByText(T.panelAjustes.avisosTecnicosDetalle)).toBeVisible();
   await expect(interruptor).not.toBeChecked();
-  await interruptor.check();
+  // La casilla cambia cuando el servidor lo ha guardado (no al pulsar).
+  await interruptor.click();
   await expect.poll(() => guardar.at(-1)?.temas).toEqual(['nuevas_propuestas', 'avisos_tecnicos']);
   await expect(interruptor).toBeChecked();
 });
