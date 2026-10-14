@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 
@@ -160,8 +160,9 @@ y la hora. Cambia también el código si el que se filtró sigue en vigor.
 
 ### Acceso de administradores
 
-Escribe el correo y **Añadir**; para quitar a alguien, apaga su interruptor. El último administrador
-activo no se puede quitar. No hace falta tocar nada técnico.
+Escribe el correo y **Añadir**; para quitar a alguien, apaga su interruptor y confírmalo en
+**Quitar el acceso** (si eres tú, saldrás del panel). Tiene que quedar al menos un administrador con
+acceso. Quien acabas de añadir queda unido a su cuenta de Google la primera vez que entra en el panel. No hace falta tocar nada técnico.
 
 ### Parámetros
 
@@ -208,8 +209,11 @@ el Registro. En el uso normal no hace falta tocarlos.
 ### Avisos para jefatura
 
 Notificaciones en este navegador, apagadas por defecto: **Nuevas propuestas pendientes** (como mucho
-una por hora) y **Resumen semanal** (los lunes: revisiones caducadas y pendientes antiguas). En
-iPhone, solo con la app instalada.
+una por hora), **Resumen semanal** (los lunes: revisiones caducadas y pendientes antiguas) y **Avisos
+técnicos** (si falla la comprobación diaria, el respaldo o una actualización, o si alguien está
+probando códigos de acceso; como mucho uno de cada tipo al día, el de los códigos uno por hora). Un aviso
+técnico lleva a Ajustes: mira Salud del sistema; el responsable técnico ya tiene el aviso. Si es el de
+los códigos y se repite, cambia el código. En iPhone, solo con la app instalada.
 
 ### Código QR del enlace
 

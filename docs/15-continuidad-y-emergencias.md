@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Los valores marcados `«…»` los rellena `scripts/arranque.ts` en `docs/entornos.md` y se copian aquí al cerrar la Fase 0; la tabla de §9 se actualiza en cada comprobación. |
-| **Versión** | 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
+| **Versión** | 1.4 — 14 oct 2026 (`docs/35` RV-414): §4 con los avisos técnicos a jefatura y su límite (DEC-202); §5.4, la entrada ya no se abre sola al cambiar el código revocando, y se puede revocar desde una hora (DEC-201). 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
 | **Propietario de** | qué cuenta controla qué, dónde están las credenciales, y los procedimientos paso a paso para restaurar, revertir, rotar y recuperar el control cuando algo falla o cuando el desarrollador no está. |
 | **Para** | jefatura y quien tenga que hacerse cargo del sistema sin conocerlo. Escrito para leerse con prisa. |
 | **Referencias** | arquitectura en **04**; datos personales en **11**; tareas de construcción en **09** Fase 8. |
@@ -108,6 +108,9 @@ En orden de fiabilidad:
 8. **Issue «El despachador de trabajos ha fallado»** (etiqueta `vigilancia`, `despachador.yml`, docs/31 RV-137): los botones de mantenimiento de Ajustes (purgar fotos, respaldo ahora, regenerar la zona o el mapa base) ya no lanzan nada directamente: dejan un **pedido**, y el despachador lo lanza cada 15 minutos, solo en producción. Desde staging no se lanza nada de producción.
    - **Qué hacer:** no ha podido leer o anotar los pedidos, así que no se lanza nada. Abrir la ejecución que enlaza la issue y mirar que `prod-tareas` tiene `SUPABASE_SERVICE_ROLE_KEY_PROD` y que la base de datos responde. La issue se cierra sola en la siguiente pasada buena. Para no esperar los 15 minutos: `gh workflow run despachador.yml --ref develop`.
    - **Issue «Un trabajo pedido desde el panel no se ha lanzado»:** un pedido concreto se anotó con error y **no se reintenta**. La issue dice cuál y por qué (`GitHub respondió 422: …` suele ser un workflow desactivado o una entrada que ya no declara; `trabajo desconocido`, un panel más nuevo que el despachador). Arreglarlo, volver a pulsar el botón en Ajustes y **cerrar la issue a mano**: no se cierra sola.
+9. **Avisos técnicos en el móvil de jefatura** (push «Aviso técnico», DEC-202): llegan a jefatura además de la issue cuando la vigilancia encuentra un problema de producción, cuando falla el respaldo o un despliegue de producción, y cuando alguien está probando códigos de acceso. Como mucho uno de cada tipo cada 24 h (el de los códigos, uno por hora); los recibe quien tenga activado *Avisos técnicos* en Ajustes → Avisos para jefatura (apagado por defecto en una suscripción nueva; las que ya existían lo recibieron activado). Llevan a Ajustes, donde está Salud del sistema.
+   - **Límite:** si Supabase o las Pages Functions están caídas, el aviso no sale y queda solo la issue. Que no llegue un aviso técnico no quiere decir que todo vaya bien: Salud del sistema y las issues siguen siendo lo que manda.
+   - **Qué hacer:** el de los códigos, §5.4 (cambiar el código si se repite); los demás, mirar Salud del sistema y avisar al responsable técnico, que ya tiene la issue.
 
 ---
 
@@ -326,14 +329,18 @@ también para ella, y lo vuelve a crear quien la mantiene, con el mismo nombre. 
 **Tiempo:** el mismo día. **Quién:** jefatura, desde el panel.
 
 1. Ajustes → Código de acceso → marcar *Revocar todos los dispositivos* → *Generar uno nuevo* →
-   confirmar. **La entrada se abre sola 24 horas** (DEC-190): todos los voluntarios vuelven a
-   entrar a la vez, desde la misma wifi si hace falta, sin que los frene el tope de entradas. Quien
-   pruebe códigos sigue frenado igual. Ajustes → Código de acceso → *Entrada* dice hasta cuándo.
+   confirmar. **La entrada ya no se abre sola** (DEC-201): la casilla de abrirla 24 h a la vez va
+   sin marcar, y ante una filtración conviene dejarla así, porque abrir la entrada relaja los topes
+   de entradas. Quien pruebe códigos sigue frenado igual.
+   - Si se sabe a qué hora se filtró, no hace falta echar a todos: *Revocar los móviles que han
+     entrado desde…*, junto al código, con la fecha y la hora (como mucho 30 días atrás). Antes de
+     confirmar dice cuántos son; los de jefatura nunca se revocan. Si el código filtrado sigue en
+     vigor, cámbialo también.
 2. Revisar en la Cola las propuestas de las últimas horas antes de aprobar nada; rechazar lo que no
    cuadre.
-3. Comunicar el código nuevo por el canal habitual del grupo, no por uno público, **mientras la
-   entrada está abierta**. Si se comunica más tarde, abrirla antes: *Abrir la entrada para todos
-   (24 h)*.
+3. Comunicar el código nuevo por el canal habitual del grupo, no por uno público. Si van a volver a
+   entrar todos a la vez (por ejemplo, desde la wifi de la sede), abrir antes la entrada: *Abrir la
+   entrada para todos (24 h)*; Ajustes → Código de acceso → *Entrada* dice hasta cuándo.
 4. Cuando hayan entrado todos, se puede cerrar ya (*Cerrar ahora*); si no, se cierra sola.
 5. Anotar en 11 §8.
 

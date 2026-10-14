@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se amplía cuando aparece un caso nuevo; los resultados se anotan por recorrido. |
-| **Versión** | 1.5 — 23 de septiembre de 2026: §K, AC-150 a AC-156 de las funciones de mapa para emergencias (DEC-089), y §L, un caso para cada FR que no tenía (docs/18 GM-00). 1.4 — 22 de septiembre de 2026: AC-140 pasa a comprobarse sola (`e2e/controles.spec.ts`). v1.3: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
+| **Versión** | 1.6 — 14 oct 2026 (`docs/35` RV-414): AC-103 con la confirmación al quitar el acceso (RV-431) y el primer acceso unido a Google (DEC-197). 1.5 — 23 de septiembre de 2026: §K, AC-150 a AC-156 de las funciones de mapa para emergencias (DEC-089), y §L, un caso para cada FR que no tenía (docs/18 GM-00). 1.4 — 22 de septiembre de 2026: AC-140 pasa a comprobarse sola (`e2e/controles.spec.ts`). v1.3: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
 | **Propietario de** | los casos de prueba de aceptación (`AC-nn`). Cada caso cita el requisito que verifica (01, 03). |
 | **Cómo se usa** | Se imprime. Jefatura y 2–3 voluntarios lo recorren en la calle sobre **staging** con el código del piloto, y después sobre producción antes de abrir a los 65. Columna "Resultado": ✓ / ✗ / n.a.; columna "Notas": qué pasó si ✗. |
 
@@ -140,7 +140,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 | AC-100 | Incidencia resuelta | *Retirado (DEC-167).* Marcar resuelta la de AC-63 | Estado resuelta; Salud baja en uno | FR-132, FR-143 | | |
 | AC-101 | Cambiar código sin revocar | Generar uno nuevo sin revocar → confirmar | Los móviles registrados siguen; un móvil nuevo necesita el código nuevo; el antiguo ya no vale | FR-34, FR-140 | | |
 | AC-102 | Cambiar código revocando | Generar con "Revocar todos" → confirmar | Todos los móviles piden el código al abrir; conservan el nombre | FR-34, FR-35 | | |
-| AC-103 | Administradores | Añadir un correo, entrar con él; desactivarlo, volver a entrar | Entra / "No autorizado". No deja desactivar al último activo | FR-141 | | |
+| AC-103 | Administradores | Añadir un correo, entrar con él; desactivarlo, volver a entrar | Entra (la primera vez queda unido a su cuenta de Google, DEC-197) / pide confirmación al desactivar y después "No autorizado". No deja desactivar al último con acceso | FR-141 | | |
 | AC-104 | Parámetros | Cambiar meses de revisión a 6 → Guardar → sincronizar un móvil | Más puntos con anillo de rayas | FR-142 | | |
 | AC-105 | Salud | Abrir Ajustes | Los ocho indicadores con valores plausibles; fecha del último respaldo de la semana | FR-143 | | |
 | AC-106 | Purga | Lanzar purga | Aviso de que tarda unos minutos; después Storage usado baja o queda igual y hay entrada en el registro | FR-144 | | |
