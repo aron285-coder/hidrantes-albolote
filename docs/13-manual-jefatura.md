@@ -209,8 +209,11 @@ el Registro. En el uso normal no hace falta tocarlos.
 ### Avisos para jefatura
 
 Notificaciones en este navegador, apagadas por defecto: **Nuevas propuestas pendientes** (como mucho
-una por hora) y **Resumen semanal** (los lunes: revisiones caducadas y pendientes antiguas). En
-iPhone, solo con la app instalada.
+una por hora), **Resumen semanal** (los lunes: revisiones caducadas y pendientes antiguas) y **Avisos
+técnicos** (si falla la comprobación diaria, el respaldo o una actualización, o si alguien está
+probando códigos de acceso; como mucho uno de cada tipo al día, el de los códigos uno por hora). Un aviso
+técnico lleva a Ajustes: mira Salud del sistema; el responsable técnico ya tiene el aviso. Si es el de
+los códigos y se repite, cambia el código. En iPhone, solo con la app instalada.
 
 ### Código QR del enlace
 
