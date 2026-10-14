@@ -284,6 +284,10 @@ test.describe('jefatura (FL-20)', () => {
   test('correo no autorizado ve "No autorizado" y vuelve a la entrada (FR-37)', async ({ page }) => {
     await conGoogle(page, 'ajeno@example.org');
     await simularRpc(page, { fn_es_admin: false });
+    // La cuenta no está en la lista: la Function lo dice así (docs/35 RV-432).
+    await page.route('**/api/vincular-jefatura', (route) =>
+      route.fulfill({ status: 403, contentType: 'application/json', body: '{"error":"NO_ES_ADMINISTRADOR"}' }),
+    );
     await page.goto('/');
     await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
     await expect(page.getByText(T.entrada.noAutorizadoDetalle)).toBeVisible();
@@ -293,11 +297,14 @@ test.describe('jefatura (FL-20)', () => {
   });
 
   // docs/35 RV-432: la cuenta de jefatura se une a su cuenta de Google al entrar, una vez por sesión.
-  async function conVincular(page: Page, respuesta: { status: number; cuerpo: Record<string, string> }) {
+  /** Cada petición a la Function recibe la siguiente respuesta de la lista (la última se repite). */
+  type Respuesta = { status: number; cuerpo: Record<string, string> };
+  async function conVincular(page: Page, ...respuestas: Respuesta[]) {
     let unida = false;
     const pedidas: (string | null)[] = [];
     await page.route('**/api/vincular-jefatura', (route) => {
       pedidas.push(route.request().headers()['authorization'] ?? null);
+      const respuesta = respuestas[Math.min(pedidas.length, respuestas.length) - 1]!;
       if (respuesta.status === 200) unida = true;
       return route.fulfill({
         status: respuesta.status,
@@ -333,6 +340,24 @@ test.describe('jefatura (FL-20)', () => {
     await page.waitForTimeout(1000);
     expect(pedidas).toHaveLength(1);
     await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
+  });
+
+  test('sin poder comprobarla: lo dice, y Reintentar la une y entra (docs/35 RV-432)', async ({ page }) => {
+    await conGoogle(page, 'jefe@example.org');
+    const pedidas = await conVincular(
+      page,
+      { status: 503, cuerpo: { error: 'SERVIDOR_NO_DISPONIBLE' } },
+      { status: 200, cuerpo: { resultado: 'VINCULADO' } },
+    );
+    await page.goto('/admin');
+    await expect(page.getByRole('heading', { name: T.entrada.cuentaSinComprobar })).toBeVisible();
+    // Sin bucle: no se vuelve a pedir sola.
+    await page.waitForTimeout(1000);
+    expect(pedidas).toHaveLength(1);
+    // El de la pantalla (el aviso de conexión tiene el suyo).
+    await page.locator('[data-variante="primario"]', { hasText: T.entrada.reintentar }).click();
+    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeAttached();
+    expect(pedidas).toHaveLength(2);
   });
 
   test('administrador: etiqueta Jefatura, ruta /admin y salida', async ({ page }) => {

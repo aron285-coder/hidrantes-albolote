@@ -43,6 +43,10 @@ export const T = {
     noAutorizadoDetalle:
       'Tu cuenta de Google no está en la lista de administradores de hidrantes. Pide a jefatura que la añada desde Ajustes del panel.',
     sinAcceso: 'Sin acceso',
+    // docs/35 RV-432: al entrar con Google no se ha podido saber si la cuenta es de jefatura.
+    cuentaSinComprobar: 'No se ha podido comprobar tu cuenta',
+    cuentaSinComprobarDetalle: 'Puede ser la conexión o el servidor. Inténtalo de nuevo en un momento.',
+    reintentar: 'Reintentar',
     volver: 'Volver',
     cifra: (n: Parametro) => `Cifra ${n} de 6`,
     codigoSeisCifras: 'El código son 6 cifras',

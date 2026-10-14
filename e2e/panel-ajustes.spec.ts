@@ -138,7 +138,10 @@ async function prepararPanel(
           });
         }
         administradores = administradores.map((a) =>
-          a.email === cuerpo.email ? { ...a, activo: cuerpo.activo as boolean } : a,
+          // Quitar el acceso deshace también su unión a Google (docs/35 RV-400).
+          a.email === cuerpo.email
+            ? { ...a, activo: cuerpo.activo as boolean, ...(cuerpo.activo ? {} : { vinculado: false }) }
+            : a,
         );
         return json(null);
       case 'fn_cambiar_codigo_acceso':
@@ -225,6 +228,7 @@ const OTRA_ACTIVA = {
   activo: true,
   creado_en: '2026-09-04T10:00:00Z',
   creado_por: 'jefe@example.org',
+  vinculado: true,
 };
 
 test('ajustes: quitar el acceso a otro administrador pide confirmación; devolverlo, no (docs/35 RV-431)', async ({
@@ -234,6 +238,8 @@ test('ajustes: quitar el acceso a otro administrador pide confirmación; devolve
   await page.goto('/admin/ajustes');
   const casilla = page.getByLabel(T.panelAjustes.accesoDe('otra@example.org'));
   await expect(casilla).toBeChecked();
+  // Unida ya a su cuenta de Google: nada pendiente (docs/35 RV-432).
+  await expect(page.getByText(T.panelAjustes.pendienteVincular)).toHaveCount(0);
 
   // Cancelar: nada cambia.
   await casilla.click();
@@ -261,6 +267,10 @@ test('ajustes: quitar el acceso a otro administrador pide confirmación; devolve
   await expect
     .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
     .toEqual({ email: 'otra@example.org', activo: true });
+  // Con el acceso devuelto vuelve a estar sin unir: «Pendiente de su primer acceso» (docs/35 RV-432).
+  const fila = page.getByRole('listitem').filter({ hasText: 'otra@example.org' });
+  await expect(fila.getByText(T.panelAjustes.pendienteVincular)).toBeVisible();
+  await expect(fila.getByText(T.panelAjustes.ayudaPendienteVincular, { exact: false })).toBeVisible();
 });
 
 test('ajustes: quitarse el acceso a uno mismo lo avisa y saca del panel (docs/35 RV-431)', async ({ page }) => {
