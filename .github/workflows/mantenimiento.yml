@@ -1,6 +1,5 @@
-# Trabajos que jefatura pide desde Ajustes (FR-165, DEC-068). /api/lanzar-workflow solo deja un pedido;
-# despachador.yml lo lanza con workflow_dispatch y el trabajo como entrada (DEC-172, que sustituye en
-# esto a DEC-069); aquí se regenera el dato y se abre un PR a
+# Trabajos que jefatura lanza desde Ajustes (FR-165, DEC-068). /api/lanzar-workflow lo despacha con
+# workflow_dispatch y el trabajo como entrada (DEC-069); aquí se regenera el dato y se abre un PR a
 # develop, que es lo que lo despliega. Nunca se escribe directamente en develop.
 name: Mantenimiento
 

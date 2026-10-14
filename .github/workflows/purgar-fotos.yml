@@ -3,8 +3,7 @@
 # archivo se queda ocupando el gigabyte gratuito. Aquí se recogen.
 #
 #   - Sola, los lunes de madrugada, sin que nadie lo pida (TR-54).
-#   - A mano desde Ajustes del panel: /api/lanzar-workflow deja un pedido y despachador.yml lo lanza
-#     (FR-144, DEC-172).
+#   - A mano desde Ajustes del panel, con /api/lanzar-workflow (FR-144, DEC-069).
 #   - La primera pasada programada, en ensayo: la primera vez que se borra lo revisa una persona
 #     (docs/22 RV-94, DEC-129).
 #
