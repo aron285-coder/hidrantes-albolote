@@ -1250,3 +1250,36 @@ test('Avisos para jefatura: el interruptor de avisos técnicos guarda su tema (d
   await expect.poll(() => guardar.at(-1)?.temas).toEqual(['nuevas_propuestas', 'avisos_tecnicos']);
   await expect(interruptor).toBeChecked();
 });
+
+// docs/35 RV-423: solo el alta se centra con la primera posición. En el diálogo de núcleos, el mapa abre
+// en su sitio y la posición que llega después no lo mueve.
+test('al añadir un núcleo, la posición que llega no mueve el mapa (docs/35 RV-423)', async ({ page }) => {
+  // GPS que el test maneja, a unos 700 m del centro con el que abre el mapa: centrar en él sacaría el pin.
+  // Con el permiso ya concedido, la app sigue la posición desde el arranque.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __fix?: () => void };
+    navigator.permissions.query = () => Promise.resolve({ state: 'granted' } as PermissionStatus);
+    navigator.geolocation.watchPosition = (ok) => {
+      w.__fix = () =>
+        ok({ coords: { latitude: 37.2345, longitude: -3.65, accuracy: 8 }, timestamp: Date.now() } as never);
+      return 1;
+    };
+    navigator.geolocation.clearWatch = () => undefined;
+  });
+  await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  await expect.poll(() => page.evaluate(() => typeof (window as { __fix?: unknown }).__fix)).toBe('function');
+  await page.getByRole('button', { name: T.panelAjustes.anadirNucleo }).click();
+  const selector = page.getByRole('dialog').getByTestId('selector-pin');
+  await expect(selector).toBeVisible();
+  const pin = selector.locator('.leaflet-marker-icon');
+  const trazos = selector.locator('.leaflet-overlay-pane path');
+  const sinGps = await trazos.count();
+  const antes = (await pin.boundingBox())!;
+  await page.evaluate(() => (window as unknown as { __fix: () => void }).__fix());
+  // La posición ya está en el mapa (su círculo y su punto) y el pin sigue donde estaba.
+  await expect(trazos).toHaveCount(sinGps + 2);
+  const despues = (await pin.boundingBox())!;
+  expect(Math.abs(despues.x - antes.x)).toBeLessThan(5);
+  expect(Math.abs(despues.y - antes.y)).toBeLessThan(5);
+});

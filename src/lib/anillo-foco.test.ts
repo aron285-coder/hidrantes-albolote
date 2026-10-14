@@ -58,9 +58,13 @@ describe('anillo de foco (docs/35 RV-425)', () => {
       }
     });
 
-    it(`se ve sobre la barra en ${modo}`, () => {
+    // La barra y las superficies marino fijas (Bienvenida, avisos de versión e instalar), que no
+    // cambian con el modo: sobre ellas, el marino de claro se quedaba en ≈ 1,4:1.
+    it(`se ve sobre la barra y las superficies marino en ${modo}`, () => {
       const anillo = resolver(valores, '--anillo-foco-barra');
-      expect(contraste(anillo, resolver(valores, '--barra'))).toBeGreaterThanOrEqual(3);
+      for (const fondo of ['--barra', '--marino-950']) {
+        expect(contraste(anillo, resolver(valores, fondo)), `sobre ${fondo}`).toBeGreaterThanOrEqual(3);
+      }
     });
   }
 
@@ -68,8 +72,12 @@ describe('anillo de foco (docs/35 RV-425)', () => {
     expect(claro.get('--anillo-foco')).toBe('var(--marino-700)');
   });
 
-  it('el foco usa el token, y sobre la barra su variante', () => {
+  it('el foco usa el token, y sobre la barra y las superficies marino su variante', () => {
     expect(css).toMatch(/:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--anillo-foco\);/);
-    expect(css).toMatch(/\.bg-barra :focus-visible\s*\{[^}]*outline-color:\s*var\(--anillo-foco-barra\);/);
+    // Todas las reglas con la variante, no solo la primera.
+    const selectores = [...css.matchAll(/([^{}]+)\{\s*outline-color:\s*var\(--anillo-foco-barra\);\s*\}/g)].flatMap(
+      (r) => r[1]!.split(',').map((s) => s.trim()),
+    );
+    expect(selectores).toEqual(expect.arrayContaining(['.bg-barra :focus-visible', '.bg-marino-950 :focus-visible']));
   });
 });
