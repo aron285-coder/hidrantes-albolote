@@ -206,6 +206,11 @@ describe('jefatura sin servidor al arrancar (RV-16, FR-168)', () => {
     rpc.mockResolvedValueOnce({ data: true, error: null, status: 200 });
     await comprobarAcceso();
     rpc.mockResolvedValueOnce({ data: false, error: null, status: 200 });
+    // Sin acceso ya: la Function lo confirma (docs/35 RV-432).
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respuesta(403, { error: 'NO_ES_ADMINISTRADOR' })),
+    );
     await comprobarAcceso();
     expect(acceso()).toEqual({ tipo: 'no_autorizado' });
     expect(datos.has('hidrantes.jefatura_confirmada')).toBe(false);
@@ -363,10 +368,38 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
     expect(pedidas()).toBe(2);
   });
 
+  it('dos comprobaciones a la vez: una sola petición, y las dos entran', async () => {
+    entrar();
+    contesta(200, { resultado: 'VINCULADO' });
+    let unida = false;
+    rpc.mockImplementation(async () => ({ data: unida, error: null, status: 200 }));
+    fetch.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 10));
+      unida = true;
+      return respuesta(200, { resultado: 'VINCULADO' });
+    });
+    await Promise.all([comprobarAcceso(), comprobarAcceso()]);
+    expect(pedidas()).toBe(1);
+    expect(acceso()).toEqual({ tipo: 'jefatura', correo: 'jefa@example.org' });
+  });
+
+  it('Reintentar sin servidor: sigue en la misma pantalla, sin volver a la entrada', async () => {
+    entrar();
+    contesta(503, { error: 'SERVIDOR_NO_DISPONIBLE' });
+    rpc.mockResolvedValueOnce(no);
+    await comprobarAcceso();
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
+    await reintentarComprobacion();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
+    expect(pedidas()).toBe(1);
+  });
+
   it('unida, pero sin servidor para volver a preguntar: «no se ha podido comprobar»', async () => {
     entrar();
     contesta(200, { resultado: 'VINCULADO' });
-    rpc.mockResolvedValueOnce(no).mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
+    rpc
+      .mockResolvedValueOnce(no)
+      .mockResolvedValueOnce({ data: null, error: { message: 'Failed to fetch' }, status: 0 });
     await comprobarAcceso();
     expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
   });

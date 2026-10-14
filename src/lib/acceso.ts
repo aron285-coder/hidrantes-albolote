@@ -129,8 +129,13 @@ export function limpiarDireccion(): void {
  */
 type Vinculo = 'unida' | 'sin_acceso' | 'sin_comprobar';
 
-/** El usuario de la sesión para el que ya se ha pedido unir la cuenta y su resultado (una vez por sesión). */
-let vinculo: { usuario: string; resultado: Vinculo } | null = null;
+/**
+ * El usuario de la sesión para el que ya se ha pedido unir la cuenta y su resultado (una vez por
+ * sesión). Se guarda la promesa: una comprobación que llegue a la vez espera a la misma petición.
+ */
+let vinculo: { usuario: string; resultado: Promise<Vinculo> } | null = null;
+/** Se ha pulsado «Reintentar»: la próxima comprobación con respuesta vuelve a pedir unirla. */
+let reintentoPedido = false;
 const VINCULADA = ['VINCULADO', 'YA_VINCULADO'];
 /** Las únicas respuestas que dicen algo de la cuenta (05 §9): «sin acceso» de siempre, sin reintentar. */
 const SIN_ACCESO: Record<number, string[]> = {
@@ -181,16 +186,20 @@ export async function comprobarAcceso(): Promise<void> {
       // RV-432, DEC-197): si se ha unido, se vuelve a preguntar. Si la cuenta no puede serlo, «No
       // autorizado» de siempre. Si no se ha podido saber, se dice así y solo se reintenta a mano.
       const usuario = data.session.user.id;
+      const otraVez = reintentoPedido && r.ok;
+      if (r.ok) reintentoPedido = false;
       if (r.ok && !r.datos) {
-        if (vinculo?.usuario !== usuario) {
-          vinculo = { usuario, resultado: await vincularJefatura(data.session.access_token) };
-          if (vinculo.resultado === 'unida') {
-            r = await rpc<boolean>('fn_es_admin');
-            // Unida, pero sin poder volver a preguntar: se dice, en vez de volver a la entrada sin más.
-            if (!r.ok) return fijar({ tipo: 'no_autorizado', sinComprobar: true });
-          }
+        const pedido =
+          vinculo && vinculo.usuario === usuario && !otraVez
+            ? vinculo
+            : (vinculo = { usuario, resultado: vincularJefatura(data.session.access_token) });
+        const resultado = await pedido.resultado;
+        if (resultado === 'unida') {
+          r = await rpc<boolean>('fn_es_admin');
+          // Unida, pero sin poder volver a preguntar: se dice, en vez de volver a la entrada sin más.
+          if (!r.ok) return fijar({ tipo: 'no_autorizado', sinComprobar: true });
         }
-        if (r.ok && !r.datos && vinculo?.resultado === 'sin_comprobar') {
+        if (r.ok && !r.datos && resultado === 'sin_comprobar') {
           olvidarConfirmada();
           return fijar({ tipo: 'no_autorizado', sinComprobar: true });
         }
@@ -323,9 +332,14 @@ export async function dejarJefatura(): Promise<void> {
  * Solo a mano: así no hay bucle.
  */
 export async function reintentarComprobacion(): Promise<void> {
-  vinculo = null;
+  reintentoPedido = true;
   fijar({ tipo: 'comprobando' });
   await comprobarAcceso();
+  // Sin llegar ni a preguntar (sin red, servidor caído), se sigue en la misma pantalla, no en la
+  // entrada: la sesión de Google sigue abierta.
+  if (estado.tipo !== 'jefatura' && estado.tipo !== 'no_autorizado' && hayGoogle()) {
+    fijar({ tipo: 'no_autorizado', sinComprobar: true });
+  }
 }
 
 /** "Volver" desde "No autorizado". */
@@ -334,8 +348,10 @@ export function volverAEntrada(): void {
   // Sin poder comprobar la cuenta, la sesión de Google sigue abierta: se cierra al volver, para que
   // la próxima comprobación no devuelva aquí (docs/35 RV-432).
   if (estado.tipo === 'no_autorizado' && estado.sinComprobar) {
+    // signOut no rechaza con un fallo de red: devuelve { error }.
     void supabase()
       ?.auth.signOut()
+      .then((r) => r?.error && anotarError(r.error, 'volver-a-entrada'))
       .catch((e: unknown) => anotarError(e, 'volver-a-entrada'));
     try {
       localStorage.removeItem(CLAVE_AUTH);
@@ -437,4 +453,5 @@ export function _reiniciarAcceso(): void {
   oyentes.clear();
   direccionLimpia = false;
   vinculo = null;
+  reintentoPedido = false;
 }
