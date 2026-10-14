@@ -48,9 +48,14 @@ async function canjear(request: Request, env: Env): Promise<Response> {
   const ajena = exigirMismoOrigen(request);
   if (ajena) return ajena;
   // docs/36 RV-451: antes de leer nada, el tope por IP agrupada. Cuenta toda petición, buena o mala.
+  // Responde como el turno ocupado de la base de datos (OCUPADO, 503 con Retry-After), no como
+  // DEMASIADOS_INTENTOS: con ese código la app bloquea el móvil una hora, y aquí basta con esperar a
+  // que la ventana se vacíe (un grupo entrando a la vez desde la misma wifi no ha fallado nada).
   const ip = normalizarIp(request.headers.get('CF-Connecting-IP') ?? 'desconocida');
   const espera = topeCodigo.pedir(`codigo:${ip}`);
-  if (espera !== null) return error(429, 'DEMASIADOS_INTENTOS', { reintentar_en_s: espera });
+  if (espera !== null) {
+    return json({ error: 'OCUPADO', reintentar_en_s: espera }, 503, { 'Retry-After': String(espera) });
+  }
   const cuerpo = await leerJson(request);
   if (!cuerpo || typeof cuerpo.codigo !== 'string' || !esUuid(cuerpo.dispositivo_id)) {
     return error(400, 'PAYLOAD_INVALIDO');

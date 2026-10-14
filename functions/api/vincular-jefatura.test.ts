@@ -128,19 +128,28 @@ describe('POST /api/vincular-jefatura', () => {
     it.each([
       [
         'dos identidades de Google con correos distintos',
+        { email: 'jefa@example.com', identities: [google('jefa@example.com'), google('otra.persona@example.org')] },
+        'identidad google con otro correo',
+      ],
+      [
+        // La primera de Google es la que da el correo: aquí no coincide con el de la cuenta.
+        'dos identidades de Google, la ajena primero',
         { email: 'jefa@example.com', identities: [google('otra.persona@example.org'), google('jefa@example.com')] },
+        'correo de la cuenta distinto',
       ],
       [
         'el correo de la cuenta distinto del de su identidad de Google',
         { email: 'otra.persona@example.org', identities: [google('jefa@example.com')] },
+        'correo de la cuenta distinto',
       ],
-      ['la cuenta sin correo', { identities: [google('jefa@example.com')] }],
+      ['la cuenta sin correo', { identities: [google('jefa@example.com')] }, 'correo de la cuenta distinto'],
       [
         'otra identidad con el mismo correo sin verificar',
         {
           email: 'jefa@example.com',
           identities: [conCorreo('jefa@example.com', 'email', false), google('jefa@example.com')],
         },
+        'identidad email sin verificar',
       ],
       [
         'otra identidad sin correo',
@@ -148,6 +157,7 @@ describe('POST /api/vincular-jefatura', () => {
           email: 'jefa@example.com',
           identities: [{ provider: 'phone', identity_data: {} }, google('jefa@example.com')],
         },
+        'identidad phone con otro correo',
       ],
       [
         'otra identidad de otro proveedor con otro correo',
@@ -155,15 +165,27 @@ describe('POST /api/vincular-jefatura', () => {
           email: 'jefa@example.com',
           identities: [google('jefa@example.com'), conCorreo('otra.persona@example.org', 'github')],
         },
+        'identidad github con otro correo',
       ],
-    ])('%s → 403 CUENTA_MEZCLADA, sin unir y anotado sin datos', async (_, cuerpo) => {
+      [
+        'otra identidad de un proveedor que no se conoce',
+        {
+          email: 'jefa@example.com',
+          identities: [google('jefa@example.com'), conCorreo('otra.persona@example.org', 'jefa@example.com')],
+        },
+        'identidad otro con otro correo',
+      ],
+    ])('%s → 403 CUENTA_MEZCLADA, sin unir y anotado sin datos', async (_, cuerpo, motivo) => {
       const { llamadas } = fingirRed({ usuario: usuarioAuth(cuerpo) });
       const r = await onRequestPost({ request: peticion(), env: ENV });
       expect(r.status).toBe(403);
       expect(await r.json()).toEqual({ error: 'CUENTA_MEZCLADA' });
       expect(llamoALaRpc(llamadas)).toBe(false);
       expect(cerroOtras(llamadas)).toEqual([]);
-      expect(anotado(llamadas)).toEqual(['vincular_jefatura: cuenta con otra identidad']);
+      expect(anotado(llamadas)).toEqual([`vincular_jefatura: cuenta con otra identidad (${motivo})`]);
+      // Con su propio cupo, aparte del de los fallos de verdad.
+      const registro = llamadas.find((l) => l.url.includes('/rpc/fn_registrar_error'))!;
+      expect(registro.cuerpo).toMatchObject({ ip_hash: 'funcion:vincular_jefatura:cuenta' });
       const escrito = JSON.stringify(llamadas.map((l) => l.cuerpo));
       expect(escrito).not.toContain('example');
       expect(escrito).not.toContain(USUARIO);
@@ -200,10 +222,16 @@ describe('POST /api/vincular-jefatura', () => {
       expect(desvinculo(llamadas)).toEqual([]);
     });
 
-    it('YA_VINCULADO → no cierra nada', async () => {
-      const { llamadas } = fingirRed({ vincular: new Response('"YA_VINCULADO"') });
+    // El panel solo llama aquí si fn_es_admin le ha dicho que no: una unión anterior cuyo cierre
+    // falló (y no se pudo deshacer) se cierra en la siguiente entrada.
+    it('YA_VINCULADO → también cierra las demás sesiones; si falla, deshace y 503', async () => {
+      let red = fingirRed({ vincular: new Response('"YA_VINCULADO"') });
       expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(200);
-      expect(cerroOtras(llamadas)).toEqual([]);
+      expect(cerroOtras(red.llamadas)).toHaveLength(1);
+      vi.mocked(globalThis.fetch).mockRestore();
+      red = fingirRed({ vincular: new Response('"YA_VINCULADO"'), cerrarOtras: new Response('{}', { status: 500 }) });
+      expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
+      expect(desvinculo(red.llamadas)).toHaveLength(1);
     });
 
     it.each([
@@ -222,15 +250,28 @@ describe('POST /api/vincular-jefatura', () => {
       expect(anotado(llamadas)).toEqual([mensaje]);
     });
 
-    it('si tampoco se puede deshacer, 503 y los dos fallos anotados', async () => {
+    it('si tampoco se puede deshacer, lo reintenta una vez; 503 y los dos fallos anotados', async () => {
       const { llamadas } = fingirRed({
         cerrarOtras: new Response('{}', { status: 500 }),
         desvincular: new Response('{}', { status: 503 }),
       });
       expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
+      expect(desvinculo(llamadas)).toHaveLength(2);
       expect(anotado(llamadas)).toEqual([
         'vincular_jefatura: cierre de sesiones 500',
         'vincular_jefatura: unión sin deshacer, rpc ERROR_INTERNO 503',
+      ]);
+    });
+
+    it('deshacer que contesta «no estaba unida» también se anota', async () => {
+      const { llamadas } = fingirRed({
+        cerrarOtras: new Response('{}', { status: 500 }),
+        desvincular: new Response('false'),
+      });
+      expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
+      expect(anotado(llamadas)).toEqual([
+        'vincular_jefatura: cierre de sesiones 500',
+        'vincular_jefatura: unión sin deshacer, no estaba unida',
       ]);
     });
   });

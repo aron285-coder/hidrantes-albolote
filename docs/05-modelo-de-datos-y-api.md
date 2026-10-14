@@ -504,8 +504,10 @@ fn_verificar_codigo(codigo text, dispositivo_id uuid, ip_hash text)
   --     DEMASIADOS_INTENTOS sin bcrypt ni turno; la fila bloqueada (una por IP, tope y minuto) solo se
   --     anota si el turno está libre en ese momento (pg_try_advisory_xact_lock), sin esperarlo. Si no,
   --     todo como en 0047: el recuento bajo el turno es el que decide.
-  --   fn_encolar_aviso_tecnico va en su propio bloque (exception when others → raise warning con el
-  --     sqlstate): si el aviso falla, la entrada sigue.
+  --   fn_encolar_aviso_tecnico va en su propio bloque (exception when others): si el aviso falla, la
+  --     entrada sigue, y el fallo queda en errores_cliente (fn_registrar_error, ip_hash
+  --     'sql:verificar_codigo', mensaje 'fn_verificar_codigo: aviso técnico sin encolar (<sqlstate>)')
+  --     y en el log de Postgres (raise warning).
 
 -- Helper: devuelve el dispositivo_id, actualiza ultimo_uso.
 fn_validar_token(token text) returns uuid
@@ -1144,15 +1146,19 @@ dos listas no coinciden (docs/33 RV-305). Una llamada nueva a una RPC lleva su f
 ← 401 { "error": "CODIGO_INCORRECTO" }
 ← 409 { "error": "DISPOSITIVO_RESERVADO" }   // 0039, RV-143: ese dispositivo_id es el de un administrador
 ← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 3600 }
-← 429 { "error": "DEMASIADOS_INTENTOS", "reintentar_en_s": 1…60 }   // docs/36 RV-451: el tope de la Function
 ← 503 { "error": "OCUPADO", "reintentar_en_s": 30 }   // 0047, docs/35 RV-401, con la cabecera Retry-After: 30
+← 503 { "error": "OCUPADO", "reintentar_en_s": 1…60 } // docs/36 RV-451: el tope de la Function, con Retry-After
 ```
 Lee `CF-Connecting-IP`, calcula `ip_hash` (IPv6 por /48), llama a `fn_verificar_codigo` con `service_role`.
 Antes de leer el cuerpo, su propio tope (docs/36 RV-451, DEC-207, 03 TR-41): como mucho 10 peticiones por
-minuto por IP agrupada (`LIMITE_CODIGO_POR_MINUTO`, en la memoria del aislado, como `dentroDelLimite`). La
-undécima recibe `429 DEMASIADOS_INTENTOS` con `reintentar_en_s` (hasta que la más antigua sale de la
-ventana, de 1 a 60) **sin llamar a la base de datos**, y también tarda la duración mínima. No es global
-(Cloudflare reparte entre aislados): el tope de verdad sigue en `fn_verificar_codigo`.
+minuto por IP agrupada (`LIMITE_CODIGO_POR_MINUTO`, en la memoria del aislado, con `crearTope`). La
+undécima recibe `503 OCUPADO` con `reintentar_en_s` y `Retry-After` (hasta que la más antigua sale de la
+ventana, de 1 a 60) **sin llamar a la base de datos**, y también tarda la duración mínima. Es `OCUPADO` y no
+`DEMASIADOS_INTENTOS` porque con este la app bloquea el móvil una hora, y un grupo que entra a la vez
+desde la misma wifi no ha fallado nada; las dos versiones de la app ya enseñan con `OCUPADO` «Hay mucha
+gente entrando a la vez. Prueba otra vez en un minuto». No es global (Cloudflare reparte entre
+aislados): el tope de verdad sigue en `fn_verificar_codigo`. No se anota: un tope que escribiera en cada
+corte multiplicaría la escritura que quiere ahorrar.
 `409 DISPOSITIVO_RESERVADO`: el `dispositivo_id` coincide con el de un administrador (RV-143, DEC-175);
 no dice de quién. El móvil genera otro id y repite el canje una vez (RV-159).
 Respuesta en tiempo constante: ninguna tarda menos de 800 ms, acierte o falle (TR-42). Sin `SAL_IP`
@@ -1284,21 +1290,27 @@ se lee.
    `403 { "error": "CUENTA_MEZCLADA" }`, sin llamar a la RPC. Quien ya tenía en uniformidad una cuenta
    de correo y contraseña con el mismo correo pasa: su identidad `email` lleva ese correo.
 4. Llama a `fn_vincular_administrador(user.id, correo)` con `service_role`:
-   - `VINCULADO` → cierra las demás sesiones de ese usuario con `POST {SUPABASE_URL}/auth/v1/logout?scope=others`
-     y el JWT de esta (docs/36 RV-450). Si responde 2xx → `200 { "resultado": "VINCULADO" }`. Si no (otro
-     estado o sin red) → deshace la unión con `fn_desvincular_administrador(correo)` y
-     `503 SERVIDOR_NO_DISPONIBLE`: no queda una unión con otras sesiones vivas. El panel, con
-     `VINCULADO`, refresca la sesión antes de volver a comprobar (`fn_es_admin` exige un JWT posterior a
-     la unión). Efecto aceptado: el administrador vuelve a entrar, una vez, en sus otros dispositivos,
-     también en uniformidad si usa el mismo usuario;
-   - `YA_VINCULADO` → `200 { "resultado": "YA_VINCULADO" }`, sin cerrar nada;
+   - `VINCULADO` o `YA_VINCULADO` → cierra las demás sesiones de ese usuario con
+     `POST {SUPABASE_URL}/auth/v1/logout?scope=others` y el JWT de esta (docs/36 RV-450). Si responde 2xx
+     → `200 { "resultado": "…" }`. Si no (otro estado o sin red) → deshace la unión con
+     `fn_desvincular_administrador(correo)` (un reintento) y `503 SERVIDOR_NO_DISPONIBLE`: no queda una
+     unión con otras sesiones vivas. También con `YA_VINCULADO` porque el panel solo llama si
+     `fn_es_admin` le ha dicho que no: una unión anterior cuyo cierre falló, y que no se pudo deshacer, se
+     cierra en la siguiente entrada. Efecto aceptado: el administrador vuelve a entrar, una vez, en sus
+     otros dispositivos, también en uniformidad si usa el mismo usuario.
+   - **El panel**, con `VINCULADO`, tiene que refrescar la sesión antes de volver a comprobar
+     (`fn_es_admin` exige un JWT posterior a la unión; RV-450 punto 4, Frontend). El panel anterior no lo
+     hace: tras la primera unión dice «No autorizado» y basta con volver a entrar una vez (excepción a
+     la compatibilidad una versión atrás, DEC-206);
    - `NO_ES_ADMINISTRADOR` u `OTRA_CUENTA` → `403 { "error": "<ese código>" }`;
    - la base de datos sin responder → `503 SERVIDOR_NO_DISPONIBLE`; otro fallo, un 200 que no es JSON
      o un resultado desconocido → `500 ERROR_INTERNO`.
 
-`CUENTA_MEZCLADA` (`vincular_jefatura: cuenta con otra identidad`), el cierre de sesiones que falla
-(`cierre de sesiones <estado|red>`) y una unión que no se puede deshacer
-(`unión sin deshacer, rpc <código> <estado>`) también se anotan.
+`CUENTA_MEZCLADA` (`vincular_jefatura: cuenta con otra identidad (<regla>)`, con `<regla>` =
+`correo de la cuenta distinto`, `sin identidades`, `identidad <proveedor> con otro correo` o
+`identidad <proveedor> sin verificar`; con su propio cupo, `ip_hash` `funcion:vincular_jefatura:cuenta`),
+el cierre de sesiones que falla (`cierre de sesiones <estado|red>`) y una unión que no se puede deshacer
+(`unión sin deshacer, rpc <código> <estado>` o `…, no estaba unida`) también se anotan.
 Cada `503` o `500`, y una identidad de Google que no pasa el filtro, quedan anotados en
 `errores_cliente` con `fn_registrar_error` (ruta `/api/vincular-jefatura`, `ip_hash`
 `funcion:vincular_jefatura`, mensaje `vincular_jefatura: <motivo y estado>`), y si eso tampoco llega,

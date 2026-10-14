@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(45);
+select plan(46);
 
 -- Solo las filas de esta prueba cuentan como administradores activos.
 update hidrantes.administradores set activo = false;
@@ -167,6 +167,9 @@ create temp table frenado_global as
 select is((select resultado from frenado_global), 'DEMASIADOS_INTENTOS',
   'un móvil con un fallo en 24 h, frenado por el tope global aunque el aviso falle');
 select cmp_ok((select ms from frenado_global), '<', 50::numeric, 'y sin bcrypt');
+select ok(exists (select 1 from hidrantes.errores_cliente
+                   where ip_hash = 'sql:verificar_codigo' and mensaje like 'fn_verificar_codigo: aviso técnico sin encolar%'),
+  'el aviso que falla queda anotado en errores_cliente');
 alter table hidrantes.avisos_tecnicos_apartada36 rename to avisos_tecnicos;
 delete from hidrantes.intentos_codigo where ip_hash like 'ip36-%';
 
@@ -222,10 +225,10 @@ select throws_like($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-
 select lives_ok($$ select hidrantes.fn_editar_punto('00000000-0000-4000-8000-000000036452', '{"caudal":"malo"}') $$,
   'sin versión (el panel anterior): guarda como siempre');
 select lives_ok($$ select hidrantes.fn_editar_punto(punto_id => '00000000-0000-4000-8000-000000036452',
-                                                   cambios => '{"caudal":"no_funciona"}', version => null) $$,
+                                                   cambios => '{"caudal":"regular"}', version => null) $$,
   'con la versión nula: también');
 reset role;
-select is((select caudal::text from hidrantes.puntos where id = '00000000-0000-4000-8000-000000036452'), 'no_funciona',
+select is((select caudal::text from hidrantes.puntos where id = '00000000-0000-4000-8000-000000036452'), 'regular',
   'los guardados que valían han entrado');
 
 select * from finish();

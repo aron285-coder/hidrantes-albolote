@@ -89,7 +89,8 @@ límite. Cinco capas, y por qué no basta con la primera:
    móvil, de esa IP agrupada y, si tienen alguno en 24 h, el techo global; si ya están pasados, contesta
    `DEMASIADOS_INTENTOS` sin comparar ni esperar el turno. Si no, decide el recuento de siempre, bajo el
    turno. Antes de llegar a la base de datos, la Function deja pasar como mucho **10 peticiones por
-   minuto por IP agrupada** (03 TR-41); la undécima recibe `429` sin tocar la base de datos. Ese tope
+   minuto por IP agrupada** (03 TR-41); la undécima recibe `OCUPADO` («prueba otra vez en un minuto»)
+   sin tocar la base de datos, y no el bloqueo de una hora: un grupo en la misma wifi no ha fallado nada. Ese tope
    vive en la memoria de cada aislado del Worker, así que no es global: el límite de verdad sigue en la
    base de datos. Las respuestas siguen tardando lo mismo (800 ms como mínimo). Si el aviso técnico de
    los intentos falla, la entrada sigue.

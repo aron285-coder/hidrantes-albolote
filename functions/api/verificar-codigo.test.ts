@@ -175,7 +175,9 @@ describe('POST /api/verificar-codigo', () => {
   });
 
   // docs/36 RV-451 (DEC-207): la Function pone su propio tope por IP agrupada, antes de la base de datos.
-  it('el undécimo intento en un minuto desde la misma IP agrupada → 429 sin llamar a la base; de otra IP, pasa', async () => {
+  // Contesta OCUPADO (503 + Retry-After) y no DEMASIADOS_INTENTOS: con este último la app bloquea el
+  // móvil una hora, y un grupo entrando a la vez desde la misma wifi no ha fallado nada.
+  it('el undécimo intento en un minuto desde la misma IP agrupada → OCUPADO sin llamar a la base; de otra IP, pasa', async () => {
     expect(LIMITE_CODIGO_POR_MINUTO).toBe(10);
     const espia = fingir(canje({ token: null, caduca_en: null, error: null }));
     const desde = (ip: string) =>
@@ -193,11 +195,12 @@ describe('POST /api/verificar-codigo', () => {
     espia.mockRestore();
 
     expect(respuestas.slice(0, 10).map((r) => r.status)).toEqual(Array(10).fill(401));
-    expect(respuestas[10]!.status).toBe(429);
+    expect(respuestas[10]!.status).toBe(503);
     const cuerpo = (await respuestas[10]!.json()) as { error: string; reintentar_en_s: number };
-    expect(cuerpo.error).toBe('DEMASIADOS_INTENTOS');
+    expect(cuerpo.error).toBe('OCUPADO');
     expect(cuerpo.reintentar_en_s).toBeGreaterThanOrEqual(1);
     expect(cuerpo.reintentar_en_s).toBeLessThanOrEqual(60);
+    expect(respuestas[10]!.headers.get('Retry-After')).toBe(String(cuerpo.reintentar_en_s));
     expect(respuestas[11]!.status).toBe(401);
     // Once llamadas a la base de datos: las diez primeras y la de la otra IP.
     expect(llamadasALaBase).toBe(11);

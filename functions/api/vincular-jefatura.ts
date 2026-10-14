@@ -6,9 +6,9 @@
 // (`GET /auth/v1/user`), que así queda validado.
 // docs/36 RV-450 (DEC-206): solo se une una cuenta «limpia»: **todas** sus identidades llevan ese mismo
 // correo, verificado, y `user.email` también es ese. Si no, 403 CUENTA_MEZCLADA.
-// La base de datos decide con fn_vincular_administrador (solo service_role). Con VINCULADO se cierran
-// las demás sesiones de ese usuario (`logout?scope=others`); si no se puede, la unión se deshace con
-// fn_desvincular_administrador y 503.
+// La base de datos decide con fn_vincular_administrador (solo service_role). Con VINCULADO o
+// YA_VINCULADO se cierran las demás sesiones de ese usuario (`logout?scope=others`); si no se puede,
+// la unión se deshace con fn_desvincular_administrador y 503.
 //
 // Solo «sin acceso» (401 NO_AUTORIZADO, 403 SIN_GOOGLE / CUENTA_MEZCLADA / NO_ES_ADMINISTRADOR /
 // OTRA_CUENTA) dice que esa cuenta no es jefatura. Un fallo nuestro o de Auth es 503 o 500, y queda
@@ -67,25 +67,39 @@ function identidadesDeGoogle(usuario: UsuarioAuth): Identidad[] {
 
 const normalizar = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase() : null);
 
+/** El proveedor de una identidad, solo si es uno conocido: lo que se anota no lleva nada más. */
+const PROVEEDORES = ['google', 'email', 'phone', 'github', 'apple', 'azure', 'facebook', 'twitter', 'gitlab'];
+const proveedor = (i: Identidad | null) =>
+  typeof i?.provider === 'string' && PROVEEDORES.includes(i.provider) ? i.provider : 'otro';
+
 /**
  * docs/36 RV-450 (DEC-206): ¿es una cuenta de una sola persona? Todas sus identidades, sean del
  * proveedor que sean, llevan `correo` verificado (`email_verified === true`), y el correo de la cuenta
  * también es `correo`. Una cuenta de uniformidad con correo y contraseña y el mismo correo pasa.
+ *
+ * Devuelve null si lo es, o qué regla no cumple, para anotarlo: un código fijo y, como mucho, el
+ * proveedor de la identidad. Nunca un correo ni un id. Así se distingue una cuenta mezclada de un
+ * cambio de forma de Supabase Auth (por ejemplo, identidades sin `email_verified`).
  */
-export function cuentaSinMezcla(usuario: UsuarioAuth, correo: string): boolean {
-  if (normalizar(usuario.email) !== correo) return false;
-  if (!Array.isArray(usuario.identities) || usuario.identities.length === 0) return false;
-  return (usuario.identities as (Identidad | null)[]).every((i) => {
+export function motivoDeMezcla(usuario: UsuarioAuth, correo: string): string | null {
+  if (normalizar(usuario.email) !== correo) return 'correo de la cuenta distinto';
+  if (!Array.isArray(usuario.identities) || usuario.identities.length === 0) return 'sin identidades';
+  for (const i of usuario.identities as (Identidad | null)[]) {
     const datos = i?.identity_data;
-    return datos?.email_verified === true && normalizar(datos.email) === correo;
-  });
+    if (normalizar(datos?.email) !== correo) return `identidad ${proveedor(i)} con otro correo`;
+    if (datos?.email_verified !== true) return `identidad ${proveedor(i)} sin verificar`;
+  }
+  return null;
 }
+
+export const cuentaSinMezcla = (usuario: UsuarioAuth, correo: string) => motivoDeMezcla(usuario, correo) === null;
 
 /**
  * Deja constancia de un fallo en errores_cliente (la firma de seis argumentos, de service_role, con
  * su propio cupo por ip_hash fijo). Si tampoco eso llega, al menos en el registro del Worker.
+ * `cupo`: las cuentas mezcladas van aparte, para que muchas no agoten el cupo de los fallos de verdad.
  */
-async function anotar(env: Env, motivo: string): Promise<void> {
+async function anotar(env: Env, motivo: string, cupo = 'funcion:vincular_jefatura'): Promise<void> {
   const mensaje = `vincular_jefatura: ${motivo}`;
   let anotado = false;
   try {
@@ -95,7 +109,7 @@ async function anotar(env: Env, motivo: string): Promise<void> {
       pila: null,
       ruta: RUTA,
       agente: null,
-      ip_hash: 'funcion:vincular_jefatura',
+      ip_hash: cupo,
     });
     anotado = r.ok;
   } catch {
@@ -123,10 +137,23 @@ async function leerUsuario(env: Env, jwt: string): Promise<Lectura> {
   return { usuario: usuario as UsuarioAuth };
 }
 
+/** Deshace la unión. Devuelve null si se ha deshecho, o por qué no. */
+async function desunir(env: Env, correo: string): Promise<string | null> {
+  let r: ResultadoRpc<unknown>;
+  try {
+    r = await rpc<unknown>(env, 'fn_desvincular_administrador', { correo });
+  } catch {
+    return 'rpc respuesta no JSON';
+  }
+  if (!r.ok) return `rpc ${r.codigo} ${r.estado}`;
+  // Justo después de unirla, «no estaba unida» no debería pasar: se anota igual.
+  return r.datos === true ? null : 'no estaba unida';
+}
+
 /**
- * docs/36 RV-450: recién unida la fila, cierra las demás sesiones de ese usuario (también las de la
- * app de uniformidad, si es el mismo usuario). Si no se puede, deshace la unión: no se queda una
- * cuenta de jefatura con sesiones de otros vivas. Devuelve si el cierre ha ido bien.
+ * docs/36 RV-450: con la fila unida, cierra las demás sesiones de ese usuario (también las de la app
+ * de uniformidad, si es el mismo usuario). Si no se puede, deshace la unión (un reintento): no se
+ * queda una cuenta de jefatura con otras sesiones vivas. Devuelve si el cierre ha ido bien.
  */
 async function cerrarOtrasSesiones(env: Env, jwt: string, correo: string): Promise<boolean> {
   let motivo: string;
@@ -141,13 +168,10 @@ async function cerrarOtrasSesiones(env: Env, jwt: string, correo: string): Promi
     motivo = 'red';
   }
   await anotar(env, `cierre de sesiones ${motivo}`);
-  let deshecha: ResultadoRpc<unknown>;
-  try {
-    deshecha = await rpc<unknown>(env, 'fn_desvincular_administrador', { correo });
-  } catch {
-    deshecha = { ok: false, codigo: 'RESPUESTA_NO_JSON', estado: 500 };
-  }
-  if (!deshecha.ok) await anotar(env, `unión sin deshacer, rpc ${deshecha.codigo} ${deshecha.estado}`);
+  const fallo = (await desunir(env, correo)) && (await desunir(env, correo));
+  // Queda unida sin haber cerrado las demás sesiones. La próxima entrada al panel vuelve a pasar por
+  // aquí (YA_VINCULADO también cierra), y la revisión diaria de las uniones (RV-463) la ve.
+  if (fallo) await anotar(env, `unión sin deshacer, ${fallo}`);
   return false;
 }
 
@@ -181,8 +205,9 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     return error(403, 'SIN_GOOGLE');
   }
   // docs/36 RV-450: una cuenta con otra identidad unida no se une a jefatura.
-  if (!cuentaSinMezcla(usuario, correo)) {
-    await anotar(env, 'cuenta con otra identidad');
+  const mezcla = motivoDeMezcla(usuario, correo);
+  if (mezcla) {
+    await anotar(env, `cuenta con otra identidad (${mezcla})`, 'funcion:vincular_jefatura:cuenta');
     return error(403, 'CUENTA_MEZCLADA');
   }
 
@@ -199,7 +224,9 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     return r.estado === 503 ? error(503, 'SERVIDOR_NO_DISPONIBLE') : error(500, 'ERROR_INTERNO');
   }
   const resultado = r.datos as Resultado;
-  if (resultado === 'VINCULADO' && !(await cerrarOtrasSesiones(env, jwt, correo))) {
+  // También con YA_VINCULADO: el panel solo llama aquí si fn_es_admin le ha dicho que no, así que una
+  // unión anterior cuyo cierre falló se cierra ahora (y si vuelve a fallar, se deshace).
+  if ((RESULTADOS_BUENOS as readonly unknown[]).includes(resultado) && !(await cerrarOtrasSesiones(env, jwt, correo))) {
     return error(503, 'SERVIDOR_NO_DISPONIBLE');
   }
   if ((RESULTADOS_BUENOS as readonly unknown[]).includes(resultado)) return json({ resultado });

@@ -17,7 +17,8 @@
 --    última hora de ese móvil y de esa IP agrupada y, si tienen algún fallo en 24 h, del tope global.
 --    Si alguno ya está pasado, DEMASIADOS_INTENTOS sin bcrypt y sin esperar el turno. Si no, todo
 --    sigue como en 0047: bcrypt, turno y el recuento de verdad bajo el turno.
--- 4. El aviso técnico (fn_encolar_aviso_tecnico) va en su propio bloque: si falla, la entrada sigue.
+-- 4. El aviso técnico (fn_encolar_aviso_tecnico) va en su propio bloque: si falla, la entrada sigue, y
+--    el fallo queda en errores_cliente (fn_registrar_error, ip_hash 'sql:verificar_codigo') y en el log.
 --
 -- RV-452 (DEC-208):
 -- 5. fn_editar_punto(punto_id, cambios, version timestamptz default null): se borra la de dos
@@ -171,7 +172,10 @@ begin
       begin
         perform hidrantes.fn_encolar_aviso_tecnico('intentos_codigo', null, null);
       exception when others then
-        raise warning 'fn_verificar_codigo: aviso técnico sin encolar (%)', sqlstate;
+        -- Queda en errores_cliente (Salud del sistema) y en el log; fn_registrar_error no lanza nunca.
+        raise warning 'fn_verificar_codigo: aviso técnico sin encolar (%: %)', sqlstate, sqlerrm;
+        perform hidrantes.fn_registrar_error(null, 'fn_verificar_codigo: aviso técnico sin encolar (' || sqlstate || ')',
+                                             null, 'fn_verificar_codigo', null, 'sql:verificar_codigo');
       end;
     end if;
     -- La misma anotación que abajo (una fila por IP, tope y minuto), solo si el turno está libre en
@@ -233,7 +237,9 @@ begin
     begin
       perform hidrantes.fn_encolar_aviso_tecnico('intentos_codigo', null, null);
     exception when others then
-      raise warning 'fn_verificar_codigo: aviso técnico sin encolar (%)', sqlstate;
+      raise warning 'fn_verificar_codigo: aviso técnico sin encolar (%: %)', sqlstate, sqlerrm;
+      perform hidrantes.fn_registrar_error(null, 'fn_verificar_codigo: aviso técnico sin encolar (' || sqlstate || ')',
+                                           null, 'fn_verificar_codigo', null, 'sql:verificar_codigo');
     end;
   end if;
 
