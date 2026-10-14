@@ -18,6 +18,12 @@ on:
     - cron: '41 7 * * *'
     - cron: '41 19 * * *'
   workflow_dispatch:
+    inputs:
+      uniones:
+        description: 'Uniones de jefatura (docs/36 RV-463): solo informar del motivo o desunir'
+        type: choice
+        options: [solo-informar, desunir]
+        default: solo-informar
 
 # Nada por defecto: cada trabajo pide lo suyo (docs/32 RV-201, DEC-180). actions: write también borra
 # artifacts, y el respaldo es un artifact y el único: solo lo tiene «rehabilitar», que no hace checkout.
@@ -97,6 +103,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Hasta revisar los motivos de la primera pasada, también la programada solo informa.
+          REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'solo-informar' }}
         run: |
           set -uo pipefail
           source .github/scripts/revisar-uniones.sh
@@ -176,6 +184,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY_PROD }}
+          # Hasta revisar los motivos de la primera pasada, también la programada solo informa.
+          REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'solo-informar' }}
         run: |
           set -uo pipefail
           source .github/scripts/revisar-uniones.sh

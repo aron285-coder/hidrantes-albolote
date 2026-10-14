@@ -2114,6 +2114,11 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
     expect(p).toContain(`SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.${clave} }}`);
     expect(p).toContain('source .github/scripts/revisar-uniones.sh');
     expect(p).toContain(llamada);
+    // Solo desune si se pide a mano (hasta revisar la primera pasada, la programada solo informa).
+    expect(p).toContain("REVISAR_UNIONES_MODO: ${{ inputs.uniones || 'solo-informar' }}");
+    expect(texto).toMatch(
+      /uniones:\n(?: {8}.*\n)*? {8}options: \[solo-informar, desunir\]\n {8}default: solo-informar/,
+    );
     expect(c.indexOf('- name: Revisar las uniones de jefatura')).toBeLessThan(c.indexOf(`- name: ${comprobar}\n`));
     expect(c.match(new RegExp(`secrets\\.${clave}\\b`, 'g'))).toHaveLength(1);
     const comp = paso(c, comprobar);

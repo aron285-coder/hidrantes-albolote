@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { correoDeGoogle, cuentaSinMezcla } from '../functions/api/vincular-jefatura.ts';
-import { PROBLEMA_DESUNIDA, PROBLEMA_NINGUNA, type Pedir, revisarUniones, unionLimpia } from './revisar-uniones.ts';
+import {
+  PROBLEMA_DESUNIDA,
+  PROBLEMA_NINGUNA,
+  PROBLEMA_SOLO_INFORMAR,
+  type Pedir,
+  motivoDeMezcla,
+  revisarUniones,
+  unionLimpia,
+} from './revisar-uniones.ts';
 
 // docs/36 RV-463: la vigilancia revisa cada unión de jefatura con la regla de /api/vincular-jefatura
 // (RV-450, DEC-206) y desune la que no la cumple. Con usuarios simulados: nada sale a la red.
@@ -203,6 +211,37 @@ describe('revisarUniones (RV-463)', () => {
     expect(vistos).toContain(PROBLEMA_DESUNIDA);
     expect(senales.length).toBeGreaterThan(0);
     for (const sn of senales) expect(sn).toBeInstanceOf(AbortSignal);
+  });
+
+  it('solo informar: dice el motivo de cada una y no desune ninguna', async () => {
+    const sinCampo = {
+      ...LIMPIO,
+      identities: [google('jefa@ejemplo.org'), { provider: 'email', identity_data: { email: 'jefa@ejemplo.org' } }],
+    };
+    const s = simulado({ uniones: UNIONES, usuarios: { [ID_LIMPIO]: sinCampo, [ID_MEZCLADO]: MEZCLADO } });
+    const r = await revisarUniones({ url: URL_BASE, clave: CLAVE, pedir: s.pedir, soloInformar: true });
+    expect(r).toEqual({
+      revisadas: 2,
+      desunidas: 0,
+      problemas: [
+        `${PROBLEMA_SOLO_INFORMAR} (una identidad sin el correo verificado); no se ha desunido: solo se informa`,
+        `${PROBLEMA_SOLO_INFORMAR} (una identidad con otro correo); no se ha desunido: solo se informa`,
+      ],
+    });
+    expect(s.llamadas.filter((l) => l.url.includes('/rpc/'))).toEqual([]);
+  });
+
+  it('motivoDeMezcla da un motivo para cada caso, y null si cumple la regla', () => {
+    expect(motivoDeMezcla(LIMPIO, 'jefa@ejemplo.org')).toBeNull();
+    expect(motivoDeMezcla(null, 'jefa@ejemplo.org')).toBe('el usuario ya no existe');
+    expect(motivoDeMezcla({ ...LIMPIO, email: 'x@ejemplo.org' }, 'jefa@ejemplo.org')).toBe(
+      'el correo de la cuenta es otro',
+    );
+    expect(motivoDeMezcla({ ...LIMPIO, identities: [] }, 'jefa@ejemplo.org')).toBe('sin identidades');
+    expect(motivoDeMezcla({ ...LIMPIO, identities: [conCorreo('jefa@ejemplo.org')] }, 'jefa@ejemplo.org')).toBe(
+      'sin identidad de Google',
+    );
+    expect(motivoDeMezcla(MEZCLADO, 'jefe@ejemplo.org')).toBe('una identidad con otro correo');
   });
 
   it('la regla es la de /api/vincular-jefatura: Google verificado y cuenta sin mezcla', () => {

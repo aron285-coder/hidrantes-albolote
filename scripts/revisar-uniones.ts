@@ -4,7 +4,10 @@
 // (RV-450). Si no la cumple, la desune con fn_desvincular_administrador (solo service_role) y deja un
 // problema para la vigilancia.
 //
-//   SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… node scripts/revisar-uniones.ts
+//   SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… [REVISAR_UNIONES_MODO=desunir] node scripts/revisar-uniones.ts
+//
+// Sin REVISAR_UNIONES_MODO=desunir solo informa: dice el motivo de cada unión que no cumple la regla,
+// sin desunir ninguna (lo primero, antes de desunir en producción).
 //
 // Solo módulos de Node (DEC-198): corre en la vigilancia con secretos, sin node_modules. Escribe
 // cada problema en una línea de la salida estándar, sin correos ni ids (11 §6), y el recuento en la
@@ -44,16 +47,29 @@ const normalizar = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase
  * `user.email` ese mismo correo; y ese correo es el del administrador de la fila.
  */
 export function unionLimpia(usuario: UsuarioAuth, correoAdministrador: string): boolean {
-  const correo = normalizar(correoAdministrador);
-  if (!correo || !correo.includes('@')) return false;
-  if (normalizar(usuario.email) !== correo) return false;
-  if (!Array.isArray(usuario.identities) || usuario.identities.length === 0) return false;
-  const identidades = usuario.identities as (Identidad | null)[];
-  if (!identidades.some((i) => i?.provider === 'google')) return false;
-  return identidades.every(
-    (i) => i?.identity_data?.email_verified === true && normalizar(i.identity_data.email) === correo,
-  );
+  return motivoDeMezcla(usuario, correoAdministrador) === null;
 }
+
+/**
+ * Por qué una unión no cumple la regla, en palabras y sin datos (para el modo que solo informa), o
+ * null si la cumple. `usuario` null: ya no existe en Auth.
+ */
+export function motivoDeMezcla(usuario: UsuarioAuth | null, correoAdministrador: string): string | null {
+  if (!usuario) return 'el usuario ya no existe';
+  const correo = normalizar(correoAdministrador);
+  if (!correo || !correo.includes('@')) return 'la fila no tiene un correo válido';
+  if (normalizar(usuario.email) !== correo) return 'el correo de la cuenta es otro';
+  if (!Array.isArray(usuario.identities) || usuario.identities.length === 0) return 'sin identidades';
+  const identidades = usuario.identities as (Identidad | null)[];
+  if (!identidades.some((i) => i?.provider === 'google')) return 'sin identidad de Google';
+  if (identidades.some((i) => i?.identity_data?.email_verified !== true)) {
+    return 'una identidad sin el correo verificado';
+  }
+  if (identidades.some((i) => normalizar(i?.identity_data?.email) !== correo)) return 'una identidad con otro correo';
+  return null;
+}
+
+export const PROBLEMA_SOLO_INFORMAR = 'una cuenta de jefatura no cumple la regla de la unión';
 
 export interface Resultado {
   revisadas: number;
@@ -80,6 +96,8 @@ export async function revisarUniones(cfg: {
   pedir?: Pedir;
   /** Cada problema en cuanto se sabe: si el proceso muere después, lo dicho ya consta. */
   alProblema?: (problema: string) => void;
+  /** Dice por qué no cumple la regla cada unión, sin desunir ninguna. */
+  soloInformar?: boolean;
 }): Promise<Resultado> {
   const pedirBase = cfg.pedir ?? fetch;
   const pedir: Pedir = (url, init = {}) => pedirBase(url, { ...init, signal: AbortSignal.timeout(ESPERA_MS) });
@@ -144,8 +162,16 @@ export async function revisarUniones(cfg: {
       continue;
     }
     resultado.revisadas++;
-    if (!usuario || !unionLimpia(usuario, union.email)) mezcladas.push(union);
+    const motivo = motivoDeMezcla(usuario, union.email);
+    if (motivo === null) continue;
+    // Solo informar: el motivo, sin desunir (la primera revisión, para mirarlo antes de desunir).
+    if (cfg.soloInformar) {
+      resultado.problemas.push(`${PROBLEMA_SOLO_INFORMAR} (${motivo}); no se ha desunido: solo se informa`);
+      continue;
+    }
+    mezcladas.push(union);
   }
+  if (cfg.soloInformar) return fin();
 
   // Si ninguna de dos o más cumple la regla, lo más probable es un cambio de forma de Supabase Auth, no
   // que todas sean ajenas: no se desune ninguna (el panel se quedaría sin jefatura) y se avisa.
@@ -186,8 +212,16 @@ async function principal(): Promise<number> {
     console.error('Faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY.');
     return 1;
   }
-  const r = await revisarUniones({ url, clave, alProblema: (p) => console.log(p) });
-  console.error(`Uniones de jefatura: ${r.revisadas} revisadas, ${r.desunidas} desunidas.`);
+  // REVISAR_UNIONES_MODO: «desunir» desune; cualquier otro valor (o nada) solo informa. Lo seguro es
+  // no desunir: se desune solo cuando se pide (vigilancia.yml lo decide).
+  const modo = process.env.REVISAR_UNIONES_MODO === 'desunir' ? 'desunir' : 'solo-informar';
+  const r = await revisarUniones({
+    url,
+    clave,
+    soloInformar: modo !== 'desunir',
+    alProblema: (p) => console.log(p),
+  });
+  console.error(`Uniones de jefatura (${modo}): ${r.revisadas} revisadas, ${r.desunidas} desunidas.`);
   return 0;
 }
 
