@@ -1283,3 +1283,77 @@ test('al añadir un núcleo, la posición que llega no mueve el mapa (docs/35 RV
   expect(Math.abs(despues.x - antes.x)).toBeLessThan(5);
   expect(Math.abs(despues.y - antes.y)).toBeLessThan(5);
 });
+
+const falla = (status = 400) => ({
+  status,
+  contentType: 'application/json',
+  headers: { 'Access-Control-Allow-Origin': '*' },
+  body: JSON.stringify({ code: 'P0001', message: 'ERROR_INTERNO' }),
+});
+
+test('revocar desde una hora: si no se puede contar, lo dice con Reintentar y no deja confirmar (docs/35 RV-433)', async ({
+  page,
+}) => {
+  await prepararPanel(page, { desde: 2 });
+  let fallar = true;
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_contar_desde`, (r) =>
+    fallar ? r.fulfill(falla()) : r.fulfill({ contentType: 'application/json', body: '2' }),
+  );
+  await page.goto('/admin/ajustes');
+  await revocarDesde(page).getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByText(T.panelAjustes.contarDesdeNoCarga, { exact: false })).toBeVisible();
+  await expect(dialogo.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton })).toBeDisabled();
+  fallar = false;
+  await dialogo.getByRole('button', { name: T.mapa.reintentar }).click();
+  await expect(dialogo.getByText(T.panelAjustes.seRevocaran(2))).toBeVisible();
+  await expect(dialogo.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton })).toBeEnabled();
+});
+
+test('revocar desde una hora: si no se puede revocar, la ventana se cierra y lo dice (docs/35 RV-433)', async ({
+  page,
+}) => {
+  await prepararPanel(page, { desde: 2 });
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_revocar_desde`, (r) => r.fulfill(falla()));
+  await page.goto('/admin/ajustes');
+  await revocarDesde(page).getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
+  const dialogo = page.getByRole('dialog');
+  await dialogo.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
+  await expect(dialogo).toHaveCount(0);
+  await expect(page.getByText(T.panelErrores.generico)).toBeVisible();
+});
+
+test('revocar desde una hora: cancelar mientras cuenta no vuelve a abrir la ventana (docs/35 RV-433)', async ({
+  page,
+}) => {
+  await prepararPanel(page, { desde: 2 });
+  let soltar: () => void = () => undefined;
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_contar_desde`, async (r) => {
+    await new Promise<void>((ok) => (soltar = ok));
+    await r.fulfill({ contentType: 'application/json', body: '2' });
+  });
+  await page.goto('/admin/ajustes');
+  await revocarDesde(page).getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByText(T.panelCola.cargando)).toBeVisible();
+  await dialogo.getByRole('button', { name: T.panelCola.cancelar }).click();
+  await expect(dialogo).toHaveCount(0);
+  soltar();
+  await page.waitForTimeout(500);
+  await expect(dialogo).toHaveCount(0);
+});
+
+test('la casilla de abrir la entrada sale siempre sin marcar al volver a revocar (docs/35 RV-433)', async ({
+  page,
+}) => {
+  await prepararPanel(page, { entrada: null });
+  await page.goto('/admin/ajustes');
+  const tarjeta = tarjetaDe(page, T.panelAjustes.codigoAcceso);
+  const revocarTodos = tarjeta.getByLabel(T.panel.revocarTodos);
+  const casilla = tarjeta.getByLabel(T.panelAjustes.abrirEntradaAlRevocar);
+  await revocarTodos.check();
+  await casilla.check();
+  await revocarTodos.uncheck();
+  await revocarTodos.check();
+  await expect(casilla).not.toBeChecked();
+});

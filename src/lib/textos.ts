@@ -1119,6 +1119,7 @@ export const T = {
     desdeVacio: 'Escribe la fecha y la hora.',
     desdeFutura: 'La hora no puede ser posterior a ahora.',
     desdeAntigua: 'Como mucho, desde hace 30 días.',
+    desdeFueraDeRango: 'La hora tiene que estar entre hace 30 días y ahora: cámbiala y vuelve a probar.',
     seRevocaran: (moviles: number) =>
       moviles === 1
         ? 'Se revocará 1 móvil. Tendrá que volver a escribir el código al abrir la aplicación; su nombre se conserva.'

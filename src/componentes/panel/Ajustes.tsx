@@ -1,5 +1,5 @@
 import { Eye, EyeOff, TriangleAlert } from 'lucide-react';
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { CodigoQR } from './CodigoQR';
 import { Dialogo } from './Dialogo';
 import { ErrorReintentar } from './dialogos';
@@ -122,7 +122,9 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const [abrir, setAbrir] = useState(false);
   const abrirAlRevocar = revocar && abrir && hayEntrada;
   const idAyudaAbrir = useId();
-  const [confirmar, setConfirmar] = useState<string | null>(null);
+  // El código que espera confirmación y si abre la entrada, fijado al pedirlo: lo que dice la ventana
+  // es lo que se envía, aunque entretanto falle la lectura de la entrada.
+  const [confirmar, setConfirmar] = useState<{ codigo: string; abrir: boolean } | null>(null);
   // Cuántos móviles tienen acceso; null si no se ha podido saber (docs/32 RV-261): entonces no se
   // dice ningún número, y la ventana de revocar avisa de que no se sabe, sin impedir seguir.
   const cuenta = useCarga(() => contarDispositivos(), []);
@@ -130,19 +132,19 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const [ocupado, setOcupado] = useState(false);
 
   async function generar() {
-    const nuevo = generarCodigo();
-    setConfirmar(nuevo);
+    setConfirmar({ codigo: generarCodigo(), abrir: abrirAlRevocar });
   }
 
-  async function aplicar(nuevo: string) {
+  async function aplicar({ codigo: nuevo, abrir: abrirEntrada }: { codigo: string; abrir: boolean }) {
     setOcupado(true);
-    const r = await cambiarCodigo(nuevo, revocar, abrirAlRevocar);
+    const r = await cambiarCodigo(nuevo, revocar, abrirEntrada);
     setOcupado(false);
     setConfirmar(null);
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     setVisible(true);
+    setAbrir(false);
     avisar(T.panelAjustes.codigoCambiado(nuevo));
-    if (abrirAlRevocar) entradaCambiada();
+    if (abrirEntrada) entradaCambiada();
     await Promise.all([carga.recargar(), cuenta.recargar()]);
   }
 
@@ -183,7 +185,16 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
         </div>
       )}
       <label className="mt-3 flex items-center gap-2 text-sm">
-        <input type="checkbox" className="size-4" checked={revocar} onChange={(e) => setRevocar(e.target.checked)} />
+        <input
+          type="checkbox"
+          className="size-4"
+          checked={revocar}
+          onChange={(e) => {
+            setRevocar(e.target.checked);
+            // La casilla de abrir la entrada sale siempre sin marcar (DEC-201).
+            setAbrir(false);
+          }}
+        />
         {T.panel.revocarTodos}
       </label>
       {revocar && hayEntrada && (
@@ -221,7 +232,7 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
                 ? T.panelAjustes.avisoRevocandoSinCuenta
                 : T.panelAjustes.avisoRevocando(moviles)}
           </p>
-          {abrirAlRevocar && <p className="mt-2 text-sm">{T.panelAjustes.avisoEntradaAlRevocar}</p>}
+          {confirmar.abrir && <p className="mt-2 text-sm">{T.panelAjustes.avisoEntradaAlRevocar}</p>}
           <div className="mt-3 flex gap-3">
             <Boton variante="destructivo" disabled={ocupado} onClick={() => void aplicar(confirmar)}>
               {T.panelAjustes.confirmarCodigo}
@@ -352,9 +363,19 @@ function RevocarDesde({ alRevocar }: { alRevocar: () => void }) {
   const motivo = motivoDesde(desde);
   const ahora = new Date();
 
+  // Cada apertura o cierre de la ventana cambia la vuelta: una cuenta que llega con la ventana ya
+  // cerrada (o de una apertura anterior) no la vuelve a abrir.
+  const vuelta = useRef(0);
+  const cerrar = () => {
+    vuelta.current++;
+    setCuenta(null);
+  };
+
   async function contar(fecha: Date) {
+    const esta = ++vuelta.current;
     setCuenta({ desde: fecha, estado: 'cargando' });
     const r = await contarDesde(fecha);
+    if (esta !== vuelta.current) return;
     setCuenta(r.ok ? { desde: fecha, n: r.datos } : { desde: fecha, codigo: r.codigo });
   }
 
@@ -363,10 +384,10 @@ function RevocarDesde({ alRevocar }: { alRevocar: () => void }) {
     const r = await revocarDesde(fecha);
     setOcupado(false);
     if (!r.ok) {
-      setCuenta(null);
+      cerrar();
       return avisar(textoError(r.codigo), 'error');
     }
-    setCuenta(null);
+    cerrar();
     avisar(T.panelAjustes.revocadosDesde(r.datos));
     alRevocar();
   }
@@ -403,7 +424,7 @@ function RevocarDesde({ alRevocar }: { alRevocar: () => void }) {
         </p>
       )}
       {cuenta && (
-        <Dialogo titulo={T.panelAjustes.revocarDesdeBoton} alCerrar={() => !ocupado && setCuenta(null)}>
+        <Dialogo titulo={T.panelAjustes.revocarDesdeBoton} alCerrar={() => !ocupado && cerrar()}>
           {'estado' in cuenta ? (
             <p className="text-sm">{T.panelCola.cargando}</p>
           ) : 'codigo' in cuenta ? (
@@ -425,7 +446,7 @@ function RevocarDesde({ alRevocar }: { alRevocar: () => void }) {
             >
               {T.panelAjustes.revocarDesdeBoton}
             </Boton>
-            <Boton variante="secundario" disabled={ocupado} onClick={() => setCuenta(null)}>
+            <Boton variante="secundario" disabled={ocupado} onClick={cerrar}>
               {T.panelCola.cancelar}
             </Boton>
           </div>
