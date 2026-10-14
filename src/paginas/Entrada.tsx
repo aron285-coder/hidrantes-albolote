@@ -4,13 +4,14 @@ import { BarraSuperior } from '@/componentes/BarraSuperior';
 import { Boton } from '@/componentes/Boton';
 import { Escudo } from '@/componentes/Escudo';
 import { entrarConCodigo, entrarConGoogle } from '@/lib/acceso';
+import { CIFRAS_CODIGO, escribirEnCasilla, repartir, type Reparto } from '@/lib/casillas-codigo';
 import { VERSION } from '@/lib/entorno';
 import { bloqueadoHasta, leerFirma } from '@/lib/sesion';
 import { LIMITES } from '@/lib/limites';
 import { mensajeEntrada } from '@/lib/mensajes-entrada';
 import { T } from '@/lib/textos';
 
-const CIFRAS = 6;
+const CIFRAS = CIFRAS_CODIGO;
 
 /** Pantalla de entrada (FL-01, 07 §7.1). El código no se guarda nunca en el móvil (TR-43). */
 export function Entrada({ caducado }: { caducado: boolean }) {
@@ -23,6 +24,9 @@ export function Entrada({ caducado }: { caducado: boolean }) {
   const [enviando, setEnviando] = useState(false);
   const [bloqueado, setBloqueado] = useState(() => bloqueadoHasta() !== null);
   const casillas = useRef<(HTMLInputElement | null)[]>([]);
+  const campoNombre = useRef<HTMLInputElement>(null);
+  const campoApellido = useRef<HTMLInputElement>(null);
+  const botonEntrar = useRef<HTMLButtonElement>(null);
 
   // El bloqueo dura una hora: pasada, la pantalla se desbloquea sola.
   useEffect(() => {
@@ -32,15 +36,19 @@ export function Entrada({ caducado }: { caducado: boolean }) {
     return () => clearTimeout(t);
   }, [bloqueado]);
 
-  function poner(desde: number, texto: string) {
-    const digitos = texto.replace(/\D/g, '');
-    if (!digitos && texto) return;
-    const nuevas = [...cifras];
-    if (!digitos) nuevas[desde] = '';
-    for (let i = 0; i < digitos.length && desde + i < CIFRAS; i++) nuevas[desde + i] = digitos[i];
-    setCifras(nuevas);
+  function aplicar(reparto: Reparto | null) {
+    if (!reparto) return;
+    setCifras(reparto.cifras);
     setErrorCodigo(null);
-    if (digitos) casillas.current[Math.min(CIFRAS - 1, desde + digitos.length)]?.focus();
+    if (reparto.foco === 'completo') {
+      // Con el código entero (RV-470), lo siguiente que falta: el nombre, el apellido o entrar.
+      const siguiente = !nombre.trim()
+        ? campoNombre.current
+        : !apellido.trim()
+          ? campoApellido.current
+          : botonEntrar.current;
+      siguiente?.focus();
+    } else if (reparto.foco !== null) casillas.current[reparto.foco]?.focus();
   }
 
   function tecla(i: number, e: KeyboardEvent<HTMLInputElement>) {
@@ -49,7 +57,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
 
   function pegar(i: number, e: ClipboardEvent<HTMLInputElement>) {
     e.preventDefault();
-    poner(i, e.clipboardData.getData('text'));
+    aplicar(repartir(cifras, i, e.clipboardData.getData('text')));
   }
 
   async function entrar(e: FormEvent) {
@@ -103,12 +111,13 @@ export function Entrada({ caducado }: { caducado: boolean }) {
                   casillas.current[i] = el;
                 }}
                 value={c}
-                onChange={(e) => poner(i, e.target.value.slice(-1))}
+                onChange={(e) => aplicar(escribirEnCasilla(cifras, i, e.target.value))}
                 onKeyDown={(e) => tecla(i, e)}
                 onPaste={(e) => pegar(i, e)}
                 inputMode="numeric"
                 autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                maxLength={2}
+                // Cabe un código entero más la cifra que ya hubiera: se reparte, no se corta (RV-470).
+                maxLength={CIFRAS + 1}
                 aria-label={T.entrada.cifra(i + 1)}
                 aria-invalid={errorCodigo ? true : undefined}
                 className="bg-papel border-linea rounded-campo font-datos size-11 border text-center text-xl disabled:opacity-60"
@@ -123,6 +132,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
         )}
 
         <input
+          ref={campoNombre}
           value={nombre}
           onChange={(e) => {
             setNombre(e.target.value);
@@ -135,6 +145,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           className="bg-papel border-linea rounded-campo mt-2 min-h-11 border px-3"
         />
         <input
+          ref={campoApellido}
           value={apellido}
           onChange={(e) => {
             setApellido(e.target.value);
@@ -152,7 +163,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           </p>
         )}
 
-        <Boton type="submit" disabled={bloqueado || enviando} className="mt-1.5">
+        <Boton ref={botonEntrar} type="submit" disabled={bloqueado || enviando} className="mt-1.5">
           {enviando ? T.entrada.entrando : T.entrada.entrar}
         </Boton>
         {bloqueado && !errorCodigo && (
