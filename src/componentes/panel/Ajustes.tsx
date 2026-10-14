@@ -36,6 +36,12 @@ import {
   origenTareas,
   pendienteDeVincular,
   contarDispositivos,
+  contarDesde,
+  DIAS_REVOCAR_DESDE,
+  leerFechaLocal,
+  motivoDesde,
+  revocarDesde,
+  valorFechaLocal,
   esUnoMismo,
   faltaEnParametros,
   generarCodigo,
@@ -108,11 +114,14 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
   const carga = useCarga(() => cargarCodigo(), []);
   // Cada minuto: la franja de «abierta» se quita sola al pasar la hora (RV-338).
   const entrada = useCarga(() => cargarEntrada(), [marcaEntrada], 60_000);
-  // Con 0044, revocar todos abre la entrada 24 h (RV-300): la confirmación lo dice. Sin saberlo
-  // (no ha cargado, o la base no la tiene), no se promete.
-  const abreAlRevocar = entrada.estado !== 'error' && !!entrada.datos?.disponible;
+  // Revocando todos, la entrada solo se abre si se marca (docs/35 RV-433, DEC-201). Sin saber si la
+  // base tiene la entrada (no ha cargado, o no la tiene), no se ofrece.
+  const hayEntrada = entrada.estado !== 'error' && !!entrada.datos?.disponible;
   const [visible, setVisible] = useState(false);
   const [revocar, setRevocar] = useState(false);
+  const [abrir, setAbrir] = useState(false);
+  const abrirAlRevocar = revocar && abrir && hayEntrada;
+  const idAyudaAbrir = useId();
   const [confirmar, setConfirmar] = useState<string | null>(null);
   // Cuántos móviles tienen acceso; null si no se ha podido saber (docs/32 RV-261): entonces no se
   // dice ningún número, y la ventana de revocar avisa de que no se sabe, sin impedir seguir.
@@ -127,13 +136,13 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
 
   async function aplicar(nuevo: string) {
     setOcupado(true);
-    const r = await cambiarCodigo(nuevo, revocar);
+    const r = await cambiarCodigo(nuevo, revocar, abrirAlRevocar);
     setOcupado(false);
     setConfirmar(null);
     if (!r.ok) return avisar(textoError(r.codigo), 'error');
     setVisible(true);
     avisar(T.panelAjustes.codigoCambiado(nuevo));
-    if (revocar) entradaCambiada();
+    if (abrirAlRevocar) entradaCambiada();
     await Promise.all([carga.recargar(), cuenta.recargar()]);
   }
 
@@ -177,6 +186,23 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
         <input type="checkbox" className="size-4" checked={revocar} onChange={(e) => setRevocar(e.target.checked)} />
         {T.panel.revocarTodos}
       </label>
+      {revocar && hayEntrada && (
+        <div className="mt-2 ml-6">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="size-4"
+              checked={abrir}
+              onChange={(e) => setAbrir(e.target.checked)}
+              aria-describedby={idAyudaAbrir}
+            />
+            {T.panelAjustes.abrirEntradaAlRevocar}
+          </label>
+          <p id={idAyudaAbrir} className="text-texto-suave mt-0.5 ml-6 text-[13px]">
+            {T.panelAjustes.ayudaAbrirEntradaAlRevocar}
+          </p>
+        </div>
+      )}
       <Boton className="mt-3" disabled={ocupado} onClick={() => void generar()}>
         {T.panel.generarNuevo}
       </Boton>
@@ -184,6 +210,7 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
         {revocar ? T.panelAjustes.explicaRevocando : T.panelAjustes.explicaSinRevocar}
       </p>
       <SeccionEntrada entrada={entrada} entradaCambiada={entradaCambiada} />
+      <RevocarDesde alRevocar={() => void cuenta.recargar()} />
 
       {confirmar && (
         <Dialogo titulo={T.panel.generarNuevo} alCerrar={() => setConfirmar(null)}>
@@ -194,7 +221,7 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
                 ? T.panelAjustes.avisoRevocandoSinCuenta
                 : T.panelAjustes.avisoRevocando(moviles)}
           </p>
-          {revocar && abreAlRevocar && <p className="mt-2 text-sm">{T.panelAjustes.avisoEntradaAlRevocar}</p>}
+          {abrirAlRevocar && <p className="mt-2 text-sm">{T.panelAjustes.avisoEntradaAlRevocar}</p>}
           <div className="mt-3 flex gap-3">
             <Boton variante="destructivo" disabled={ocupado} onClick={() => void aplicar(confirmar)}>
               {T.panelAjustes.confirmarCodigo}
@@ -296,6 +323,113 @@ function SeccionEntrada({
             {T.panelAjustes.explicaEntrada}
           </p>
         </>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Revocar solo los móviles que han entrado desde una hora (docs/35 RV-433, DEC-201): por defecto,
+ * hace 24 h. Antes de confirmar, la ventana dice cuántos son (`fn_contar_desde`); con ninguno, el
+ * botón de confirmar queda deshabilitado con su motivo.
+ */
+function RevocarDesde({ alRevocar }: { alRevocar: () => void }) {
+  const { avisar } = usePanel();
+  const [texto, setTexto] = useState(() => valorFechaLocal(new Date(Date.now() - 86_400_000)));
+  // null: ventana cerrada; si no, lo que dice el servidor de cuántos son.
+  const [cuenta, setCuenta] = useState<
+    | { desde: Date; estado: 'cargando' }
+    | { desde: Date; n: number }
+    | {
+        desde: Date;
+        codigo: string;
+      }
+    | null
+  >(null);
+  const [ocupado, setOcupado] = useState(false);
+  const idMotivo = useId();
+  const desde = leerFechaLocal(texto);
+  const motivo = motivoDesde(desde);
+  const ahora = new Date();
+
+  async function contar(fecha: Date) {
+    setCuenta({ desde: fecha, estado: 'cargando' });
+    const r = await contarDesde(fecha);
+    setCuenta(r.ok ? { desde: fecha, n: r.datos } : { desde: fecha, codigo: r.codigo });
+  }
+
+  async function revocar(fecha: Date) {
+    setOcupado(true);
+    const r = await revocarDesde(fecha);
+    setOcupado(false);
+    if (!r.ok) {
+      setCuenta(null);
+      return avisar(textoError(r.codigo), 'error');
+    }
+    setCuenta(null);
+    avisar(T.panelAjustes.revocadosDesde(r.datos));
+    alRevocar();
+  }
+
+  return (
+    <section aria-label={T.panelAjustes.revocarDesde} className="border-linea mt-4 border-t pt-3">
+      <h3 className="text-sm font-semibold">{T.panelAjustes.revocarDesde}</h3>
+      <p className="text-texto-suave mt-0.5 text-[13px]">{T.panelAjustes.ayudaRevocarDesde}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <label className="flex flex-wrap items-center gap-2 text-sm">
+          {T.panelAjustes.fechaDesde}
+          <input
+            type="datetime-local"
+            className={campo}
+            value={texto}
+            min={valorFechaLocal(new Date(ahora.getTime() - DIAS_REVOCAR_DESDE * 86_400_000))}
+            max={valorFechaLocal(ahora)}
+            onChange={(e) => setTexto(e.target.value)}
+            aria-describedby={motivo ? idMotivo : undefined}
+          />
+        </label>
+        <Boton
+          variante="secundario"
+          disabled={!!motivo}
+          aria-describedby={motivo ? idMotivo : undefined}
+          onClick={() => desde && void contar(desde)}
+        >
+          {T.panelAjustes.revocarDesdeBoton}
+        </Boton>
+      </div>
+      {motivo && (
+        <p id={idMotivo} className="text-texto-suave mt-1 text-[13px]">
+          {motivo}
+        </p>
+      )}
+      {cuenta && (
+        <Dialogo titulo={T.panelAjustes.revocarDesdeBoton} alCerrar={() => !ocupado && setCuenta(null)}>
+          {'estado' in cuenta ? (
+            <p className="text-sm">{T.panelCola.cargando}</p>
+          ) : 'codigo' in cuenta ? (
+            <ErrorReintentar
+              texto={`${T.panelAjustes.contarDesdeNoCarga} ${textoError(cuenta.codigo)}`}
+              reintentar={() => contar(cuenta.desde)}
+            />
+          ) : (
+            <p id={`${idMotivo}-n`} className="text-sm">
+              {cuenta.n === 0 ? T.panelAjustes.ningunoDesde : T.panelAjustes.seRevocaran(cuenta.n)}
+            </p>
+          )}
+          <div className="mt-3 flex gap-3">
+            <Boton
+              variante="destructivo"
+              disabled={ocupado || !('n' in cuenta) || cuenta.n === 0}
+              aria-describedby={'n' in cuenta ? `${idMotivo}-n` : undefined}
+              onClick={() => void revocar(cuenta.desde)}
+            >
+              {T.panelAjustes.revocarDesdeBoton}
+            </Boton>
+            <Boton variante="secundario" disabled={ocupado} onClick={() => setCuenta(null)}>
+              {T.panelCola.cancelar}
+            </Boton>
+          </div>
+        </Dialogo>
       )}
     </section>
   );
@@ -1022,6 +1156,8 @@ function Mantenimiento() {
 const TEMAS: { tema: TemaJefatura; nombre: string; detalle: string }[] = [
   { tema: 'nuevas_propuestas', nombre: T.panelAjustes.nuevasPropuestas, detalle: T.panelAjustes.agrupadas },
   { tema: 'resumen_semanal', nombre: T.panelAjustes.resumenSemanal, detalle: T.panelAjustes.losLunes },
+  // docs/35 RV-433 (DEC-202).
+  { tema: 'avisos_tecnicos', nombre: T.panelAjustes.avisosTecnicos, detalle: T.panelAjustes.avisosTecnicosDetalle },
 ];
 
 function AvisosJefatura() {

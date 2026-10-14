@@ -78,9 +78,12 @@ async function prepararPanel(
     admins = ADMINISTRADORES,
     // El correo de la sesión de Google: la lista lo guarda en minúsculas (docs/35 RV-431).
     correo = 'jefe@example.org',
+    // docs/35 RV-433: cuántos móviles han entrado desde la hora que se elija.
+    desde = 2,
   } = {},
 ) {
   const llamadas: Llamada[] = [];
+  let revocablesDesde = desde;
   let entradaHasta = entrada;
   let administradores = admins;
   await conGoogle(page, correo);
@@ -145,8 +148,8 @@ async function prepararPanel(
         );
         return json(null);
       case 'fn_cambiar_codigo_acceso':
-        // Con 0044, revocar todos abre la entrada 24 h (RV-300).
-        if (cuerpo.revocar_dispositivos && entradaHasta !== undefined) {
+        // Desde 0047, revocando todos la entrada solo se abre si se pide (docs/35 RV-433, DEC-201).
+        if (cuerpo.revocar_dispositivos && cuerpo.abrir_entrada && entradaHasta !== undefined) {
           entradaHasta = new Date(Date.now() + 24 * 3_600_000).toISOString();
         }
         return json(null);
@@ -157,6 +160,14 @@ async function prepararPanel(
         return json(pedidos);
       case 'fn_revocar_dispositivo':
         return json(1);
+      // docs/35 RV-433 (0047): los móviles que han entrado desde una hora.
+      case 'fn_contar_desde':
+        return json(revocablesDesde);
+      case 'fn_revocar_desde': {
+        const n = revocablesDesde;
+        revocablesDesde = 0;
+        return json(n);
+      }
       default:
         return route.abort('connectionrefused');
     }
@@ -922,21 +933,37 @@ test.describe('La entrada del día del lanzamiento (docs/33 RV-338)', () => {
     await expect(seccion(page).getByRole('button', { name: T.panelAjustes.abrirEntrada })).toBeVisible();
   });
 
-  test('generar un código revocando todos avisa de que la entrada se abrirá 24 h', async ({ page }) => {
-    await prepararPanel(page, { entrada: null });
+  // docs/35 RV-433 (DEC-201): revocando todos, la entrada ya no se abre sola; solo con la casilla.
+  test('revocando todos, la entrada solo se abre si se marca la casilla (docs/35 RV-433)', async ({ page }) => {
+    const llamadas = await prepararPanel(page, { entrada: null });
     await page.goto('/admin/ajustes');
     const tarjeta = tarjetaDe(page, T.panelAjustes.codigoAcceso);
     await expect(seccion(page).getByRole('button', { name: T.panelAjustes.abrirEntrada })).toBeVisible();
-    // Sin revocar, la confirmación no lo dice.
-    await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
-    await expect(page.getByRole('dialog').getByText(T.panelAjustes.avisoEntradaAlRevocar)).toHaveCount(0);
-    await page.getByRole('dialog').getByRole('button', { name: T.panelCola.cancelar }).click();
+    const casilla = tarjeta.getByLabel(T.panelAjustes.abrirEntradaAlRevocar);
+    // Sin revocar no se ofrece.
+    await expect(casilla).toHaveCount(0);
     await tarjeta.getByLabel(T.panel.revocarTodos).check();
+    await expect(casilla).not.toBeChecked();
+    await expect(tarjeta.getByText(T.panelAjustes.ayudaAbrirEntradaAlRevocar)).toBeVisible();
+    // Sin marcarla: ni el aviso ni la entrada abierta.
     await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
     const dialogo = page.getByRole('dialog');
+    await expect(dialogo.getByText(T.panelAjustes.avisoEntradaAlRevocar)).toHaveCount(0);
+    await dialogo.getByRole('button', { name: T.panelAjustes.confirmarCodigo }).click();
+    await expect
+      .poll(() => llamadaA(llamadas, 'fn_cambiar_codigo_acceso'))
+      .toMatchObject({
+        revocar_dispositivos: true,
+        abrir_entrada: false,
+      });
+    await expect(seccion(page).getByRole('button', { name: T.panelAjustes.abrirEntrada })).toBeVisible();
+    // Marcándola: el aviso lo dice y la entrada queda abierta.
+    llamadas.length = 0;
+    await casilla.check();
+    await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
     await expect(dialogo.getByText(T.panelAjustes.avisoEntradaAlRevocar)).toBeVisible();
     await dialogo.getByRole('button', { name: T.panelAjustes.confirmarCodigo }).click();
-    // Después, la sección dice que está abierta (la abrió el servidor).
+    await expect.poll(() => llamadaA(llamadas, 'fn_cambiar_codigo_acceso')).toMatchObject({ abrir_entrada: true });
     await expect(seccion(page).getByText(/^Entrada abierta para todos hasta el /)).toBeVisible();
   });
 
@@ -994,9 +1021,10 @@ test.describe('La entrada del día del lanzamiento (docs/33 RV-338)', () => {
     await expect(tarjetaDe(page, T.panelAjustes.parametros).getByLabel(T.panelAjustes.mesesRevision)).toBeVisible();
     await expect(page.getByLabel(T.panelAjustes.altasIpDia)).toHaveCount(0);
     await expect(page.getByLabel(T.panelAjustes.altasGlobalHora)).toHaveCount(0);
-    // La confirmación de revocar tampoco promete abrirla.
+    // Ni la casilla de abrirla al revocar, ni la confirmación promete abrirla.
     const tarjeta = tarjetaDe(page, T.panelAjustes.codigoAcceso);
     await tarjeta.getByLabel(T.panel.revocarTodos).check();
+    await expect(tarjeta.getByLabel(T.panelAjustes.abrirEntradaAlRevocar)).toHaveCount(0);
     await tarjeta.getByRole('button', { name: T.panel.generarNuevo }).click();
     await expect(page.getByRole('dialog').getByText(T.panelAjustes.avisoEntradaAlRevocar)).toHaveCount(0);
   });
@@ -1119,4 +1147,101 @@ test('en oscuro, la entrada abierta y «Todo bien» van en tinte oscuro y pasan 
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze();
   expect(violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`))).toEqual([]);
+});
+
+// ---------- docs/35 RV-433: revocar desde una hora y avisos técnicos ----------
+
+const revocarDesde = (page: Page) =>
+  tarjetaDe(page, T.panelAjustes.codigoAcceso).getByRole('region', { name: T.panelAjustes.revocarDesde });
+
+test('revocar desde una hora: por defecto hace 24 h, dice cuántos y revoca (docs/35 RV-433)', async ({ page }) => {
+  const llamadas = await prepararPanel(page, { desde: 2 });
+  await page.goto('/admin/ajustes');
+  const seccion = revocarDesde(page);
+  const campo = seccion.getByLabel(T.panelAjustes.fechaDesde);
+  const valor = await campo.inputValue();
+  const horas = (Date.now() - new Date(valor).getTime()) / 3_600_000;
+  expect(horas).toBeGreaterThan(23.9);
+  expect(horas).toBeLessThan(24.1);
+  await seccion.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByText(T.panelAjustes.seRevocaran(2))).toBeVisible();
+  const contada = llamadaA(llamadas, 'fn_contar_desde')!;
+  expect(new Date(String(contada.desde)).getTime()).toBe(new Date(valor).getTime());
+  await dialogo.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
+  await expect.poll(() => llamadaA(llamadas, 'fn_revocar_desde')).toEqual(contada);
+  await expect(page.getByText(T.panelAjustes.revocadosDesde(2))).toBeVisible();
+  await expect(dialogo).toHaveCount(0);
+});
+
+test('revocar desde una hora: con ninguno, no se puede confirmar y se dice por qué (docs/35 RV-433)', async ({
+  page,
+}) => {
+  const llamadas = await prepararPanel(page, { desde: 0 });
+  await page.goto('/admin/ajustes');
+  await revocarDesde(page).getByRole('button', { name: T.panelAjustes.revocarDesdeBoton }).click();
+  const dialogo = page.getByRole('dialog');
+  await expect(dialogo.getByText(T.panelAjustes.ningunoDesde)).toBeVisible();
+  await expect(dialogo.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton })).toBeDisabled();
+  await dialogo.getByRole('button', { name: T.panelCola.cancelar }).click();
+  expect(llamadaA(llamadas, 'fn_revocar_desde')).toBeUndefined();
+});
+
+test('revocar desde una hora: una hora futura o de hace más de 30 días no deja seguir (docs/35 RV-433)', async ({
+  page,
+}) => {
+  await prepararPanel(page);
+  await page.goto('/admin/ajustes');
+  const seccion = revocarDesde(page);
+  const campo = seccion.getByLabel(T.panelAjustes.fechaDesde);
+  const boton = seccion.getByRole('button', { name: T.panelAjustes.revocarDesdeBoton });
+  const local = (d: Date) => {
+    const z = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
+  };
+  await campo.fill(local(new Date(Date.now() + 2 * 3_600_000)));
+  await expect(boton).toBeDisabled();
+  await expect(seccion.getByText(T.panelAjustes.desdeFutura)).toBeVisible();
+  await campo.fill(local(new Date(Date.now() - 31 * 86_400_000)));
+  await expect(seccion.getByText(T.panelAjustes.desdeAntigua)).toBeVisible();
+  await campo.fill(local(new Date(Date.now() - 3_600_000)));
+  await expect(boton).toBeEnabled();
+});
+
+test('Avisos para jefatura: el interruptor de avisos técnicos guarda su tema (docs/35 RV-433)', async ({ page }) => {
+  await page.context().grantPermissions(['notifications']);
+  await page.addInitScript(() => {
+    Object.defineProperty(Notification, 'permission', { get: () => 'granted', configurable: true });
+    Notification.requestPermission = async () => 'granted';
+    const endpoint = 'https://fcm.googleapis.com/fcm/send/prueba';
+    const suscripcion = {
+      endpoint,
+      expirationTime: null,
+      options: { applicationServerKey: null, userVisibleOnly: true },
+      unsubscribe: async () => true,
+      toJSON: () => ({ endpoint, expirationTime: null, keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } }),
+    };
+    PushManager.prototype.getSubscription = async () => suscripcion as unknown as PushSubscription;
+    PushManager.prototype.subscribe = async () => suscripcion as unknown as PushSubscription;
+  });
+  await prepararPanel(page);
+  const guardar: Record<string, unknown>[] = [];
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_suscripcion_push_admin`, (r) =>
+    r.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ suscrita: true, temas: ['nuevas_propuestas'] }),
+    }),
+  );
+  await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_guardar_suscripcion_push_admin`, (r) => {
+    guardar.push(r.request().postDataJSON() as Record<string, unknown>);
+    return r.fulfill({ contentType: 'application/json', body: '"id"' });
+  });
+  await page.goto('/admin/ajustes');
+  const tarjeta = tarjetaDe(page, T.panelAjustes.avisosJefatura);
+  const interruptor = tarjeta.getByLabel(T.panelAjustes.avisosTecnicos);
+  await expect(tarjeta.getByText(T.panelAjustes.avisosTecnicosDetalle)).toBeVisible();
+  await expect(interruptor).not.toBeChecked();
+  await interruptor.check();
+  await expect.poll(() => guardar.at(-1)?.temas).toEqual(['nuevas_propuestas', 'avisos_tecnicos']);
+  await expect(interruptor).toBeChecked();
 });
