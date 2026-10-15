@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se actualiza con cada revisión de seguridad y cada petición de derechos atendida. |
-| **Versión** | 1.6 — 15 de octubre de 2026 (`docs/37` RV-490): §9, lo que sale de `construir` no cambia el código de servidor (DEC-210). 1.5 — 14 de octubre de 2026 (`docs/36`): §2, la unión de la cuenta de jefatura (DEC-206); §3, un intento frenado no cuesta un bcrypt y el tope por IP de la Function (DEC-207); §9 al día. 1.4 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: §3, el techo global a 60 fallos por hora sin frenar a un móvil limpio, IPv6 por /48, solo peticiones de la propia app, el turno con espera máxima, los móviles recién entrados, la entrada que ya no se abre sola y revocar desde una hora; §9 al día (DEC-199, DEC-201). 1.3 — 23 de septiembre de 2026 (jefatura exige una sesión de Google, DEC-094; privacidad del incidente, la medición y la búsqueda, §6.1, DEC-089). 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
+| **Versión** | 1.7 — 15 de octubre de 2026 (`docs/37` RV-495): §3 y §9, las capas de protección del código sin contarlas (hoy son de la 1 a la 6 más la 3b); §5, la reserva siguiente al tope en vez de un número que ya no vale. 1.6 — 15 de octubre de 2026 (`docs/37` RV-490): §9, lo que sale de `construir` no cambia el código de servidor (DEC-210). 1.5 — 14 de octubre de 2026 (`docs/36`): §2, la unión de la cuenta de jefatura (DEC-206); §3, un intento frenado no cuesta un bcrypt y el tope por IP de la Function (DEC-207); §9 al día. 1.4 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: §3, el techo global a 60 fallos por hora sin frenar a un móvil limpio, IPv6 por /48, solo peticiones de la propia app, el turno con espera máxima, los móviles recién entrados, la entrada que ya no se abre sola y revocar desde una hora; §9 al día (DEC-199, DEC-201). 1.3 — 23 de septiembre de 2026 (jefatura exige una sesión de Google, DEC-094; privacidad del incidente, la medición y la búsqueda, §6.1, DEC-089). 1.2 — 21 de septiembre de 2026 (checklist de intrusión ejecutada y automatizada) |
 | **Propietario de** | el modelo de acceso y amenazas, la protección del código, RLS y permisos, qué datos personales se guardan y por qué, retención, el procedimiento del derecho de supresión, y el aviso legal. |
 | **Para** | jefatura (que es la responsable del tratamiento) y construcción. Escrito para tenerlo **antes** de que alguien pregunte. |
 | **Referencias** | las cifras medibles están en **03** §5–7; los campos en **05**; la infraestructura en **04**. |
@@ -57,7 +57,7 @@ flowchart LR
 ## 3. Protección del código de acceso
 
 Jefatura ha fijado 6 dígitos (DEC-004): un millón de combinaciones, poco si se puede probar sin
-límite. Cinco capas, y por qué no basta con la primera:
+límite. Varias capas, y por qué no basta con la primera:
 
 1. **Límite por dispositivo (10/h).** Insuficiente solo: el `dispositivo_id` lo genera el móvil y un
    atacante cambia de uuid en cada intento.
@@ -204,7 +204,7 @@ los permisos vistos desde dentro de Postgres los cubre pgTAP (`supabase/tests`).
 | 8 | `GET /api/direccion` sin JWT de administrador | 403 | 2026-09-21 | ✅ 403 · NO_AUTORIZADO |
 
 Complementarias (TR-41–TR-47): 11 intentos → bloqueo; tiempo constante; sin código en el móvil;
-sin secretos en el build; reserva 41 rechazada; `registro` inmutable; EXIF ausente.
+sin secretos en el build; la reserva siguiente al tope, rechazada; `registro` inmutable; EXIF ausente.
 
 ---
 
@@ -385,7 +385,7 @@ correo. Si algún día quieres que tu nombre desaparezca, pídelo y lo anonimiza
 | Riesgo | Mitigación |
 |---|---|
 | El código circula fuera del grupo | Ubicaciones no personales; toda escritura moderada; rotación en un minuto; límites de intentos. |
-| Fuerza bruta sobre 6 dígitos | Las cinco capas de §3. |
+| Fuerza bruta sobre 6 dígitos | Las capas de §3. |
 | Esquivar el límite con `dispositivo_id` nuevos o `x-forwarded-for` falso | Límite por `CF-Connecting-IP` en la Function + techo global. |
 | El techo global deja fuera a los 65 | Token de dispositivo: quien entró no vuelve a pasar por el control. |
 | Llenar Storage con la `anon key` | Sin escritura para `anon`; URL firmada con cuota por dispositivo y tope global (0039); tope de espacio, 6 reservas abiertas por móvil y tope global que no cuenta lo que no se sube (0041, DEC-182). |
