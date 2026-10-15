@@ -10,7 +10,8 @@ import { supabase } from './supabase';
  * `mensaje`: el texto del error de la RPC, tal cual. Solo para distinguir dos errores con el mismo
  * código (FOTO_NO_RESERVADA de una foto o de la otra, docs/24 RV-103); nunca se enseña.
  */
-export type Resultado<T> = { ok: true; datos: T } | { ok: false; codigo: string; mensaje?: string };
+export type Resultado<T> =
+  { ok: true; datos: T } | { ok: false; codigo: string; mensaje?: string; reintentarEnS?: number };
 
 export const SIN_SERVIDOR = 'SERVIDOR_NO_DISPONIBLE';
 
@@ -68,7 +69,7 @@ export async function verificarCodigo(codigo: string, dispositivoId: string): Pr
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ codigo, dispositivo_id: dispositivoId }),
     });
-    const cuerpo = (await r.json().catch(() => ({}))) as Partial<Canje> & { error?: string };
+    const cuerpo = (await r.json().catch(() => ({}))) as Partial<Canje> & { error?: string; reintentar_en_s?: unknown };
     if (r.ok && cuerpo.token) {
       anotarServidor(true);
       return { ok: true, datos: cuerpo as Canje };
@@ -77,6 +78,10 @@ export async function verificarCodigo(codigo: string, dispositivoId: string): Pr
     // vez (docs/35 RV-426): no es «Sin conexión». Cualquier otro 5xx, o sin código, sí lo es.
     const caido = !cuerpo.error || (r.status >= 500 && cuerpo.error !== 'OCUPADO');
     anotarServidor(!caido);
+    // docs/37 RV-491: con OCUPADO, cuánto esperar antes de que la app lo intente sola.
+    if (!caido && cuerpo.error === 'OCUPADO' && typeof cuerpo.reintentar_en_s === 'number') {
+      return { ok: false, codigo: cuerpo.error, reintentarEnS: cuerpo.reintentar_en_s };
+    }
     return { ok: false, codigo: caido ? SIN_SERVIDOR : cuerpo.error! };
   } catch {
     anotarServidor(false);

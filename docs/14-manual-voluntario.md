@@ -43,6 +43,10 @@ Nada de lo que envías cambia el mapa directamente. **Todo pasa por jefatura.**
 pasas semanas sin abrirla, el iPhone puede borrar sus datos: la app te pedirá el código otra vez y
 volverá a descargar todo.
 
+**Si sale «Mucha gente entrando a la vez»:** no hagas nada. La app lo vuelve a intentar sola y te dice
+cuántos segundos faltan; si quieres parar, toca **Cancelar**. Si después de tres intentos sigue igual,
+toca **Entrar** pasado un minuto.
+
 **Si el código no entra:** «código incorrecto». Tras muchos intentos te pedirá esperar una hora.
 Pide el código a jefatura; no lo compartas fuera del grupo.
 

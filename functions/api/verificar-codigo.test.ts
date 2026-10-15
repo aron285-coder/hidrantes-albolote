@@ -11,11 +11,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type Env } from '../_lib/comun.ts';
 import { _reiniciarLimites } from '../_lib/limite.ts';
-import { DURACION_MINIMA_MS, LIMITE_CODIGO_POR_MINUTO, onRequestPost } from './verificar-codigo.ts';
+import {
+  CONSULTA_ENTRADA_MS,
+  DURACION_MINIMA_MS,
+  LIMITE_CODIGO_ENTRADA_ABIERTA,
+  LIMITE_CODIGO_POR_MINUTO,
+  _reiniciarEntrada,
+  onRequestPost,
+} from './verificar-codigo.ts';
 
 // El tope por IP de la Function (docs/36 RV-451) vive en la memoria del módulo: cada prueba empieza
 // con él vacío.
-beforeEach(() => _reiniciarLimites());
+// Lo mismo con lo que la Function sabe de la entrada abierta (docs/37 RV-491).
+beforeEach(() => {
+  _reiniciarLimites();
+  _reiniciarEntrada();
+});
 
 const ENV = {
   SUPABASE_URL: 'https://proyecto.supabase.co',
@@ -191,7 +202,7 @@ describe('POST /api/verificar-codigo', () => {
       desde('198.51.100.20'),
     ]);
     const tardado = Date.now() - empezado;
-    const llamadasALaBase = espia.mock.calls.length;
+    const llamadasALaBase = espia.mock.calls.filter(([url]) => String(url).endsWith('/fn_verificar_codigo')).length;
     espia.mockRestore();
 
     expect(respuestas.slice(0, 10).map((r) => r.status)).toEqual(Array(10).fill(401));
@@ -279,5 +290,96 @@ describe('normalizarIp (RV-14, docs/35 RV-401)', () => {
     expect(hashes).toHaveLength(2);
     expect(hashes[0]).toBe(hashes[1]);
     espia.mockRestore();
+  });
+});
+
+// docs/37 RV-491 (DEC-211): el día del lanzamiento, una sala entera entra desde la misma wifi.
+describe('POST /api/verificar-codigo con la entrada abierta', () => {
+  const responder = (request: Request) => onRequestPost({ request, env: ENV });
+  const intento = () =>
+    responder(peticion({ codigo: '000001', dispositivo_id: DISPOSITIVO }, { 'CF-Connecting-IP': '203.0.113.50' }));
+
+  /** fn_entrada_abierta_hasta responde `entrada`; fn_verificar_codigo, código incorrecto. */
+  function fingirEntrada(entrada: Response | Error) {
+    return vi
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation((url) =>
+        String(url).endsWith('/fn_entrada_abierta_hasta')
+          ? servir(entrada)
+          : servir(canje({ token: null, caduca_en: null, error: null })),
+      );
+  }
+  const abierta = () => new Response(JSON.stringify(new Date(Date.now() + 3_600_000).toISOString()));
+  const llamadasEntrada = (espia: ReturnType<typeof fingirEntrada>) =>
+    espia.mock.calls.filter(([url]) => String(url).endsWith('/fn_entrada_abierta_hasta')).length;
+
+  it('abierta: el intento 11 y el 60 pasan y el 61 recibe OCUPADO; la entrada se pregunta una vez', async () => {
+    expect(LIMITE_CODIGO_ENTRADA_ABIERTA).toBe(60);
+    const espia = fingirEntrada(abierta());
+    const respuestas: Response[] = [];
+    // Las diez primeras no preguntan por la entrada; las demás, a la vez.
+    respuestas.push(...(await Promise.all(Array.from({ length: 10 }, intento))));
+    expect(llamadasEntrada(espia)).toBe(0);
+    respuestas.push(...(await Promise.all(Array.from({ length: 51 }, intento))));
+    const entrada = llamadasEntrada(espia);
+    const alaBase = espia.mock.calls.length - entrada;
+    espia.mockRestore();
+
+    expect(respuestas.slice(0, 60).map((r) => r.status)).toEqual(Array(60).fill(401));
+    expect(respuestas[60]!.status).toBe(503);
+    expect(((await respuestas[60]!.json()) as { error: string }).error).toBe('OCUPADO');
+    expect(alaBase).toBe(60);
+    expect(entrada).toBe(1);
+  });
+
+  it('cerrada (null): el 11 recibe OCUPADO', async () => {
+    const espia = fingirEntrada(new Response('null'));
+    const respuestas = await Promise.all(Array.from({ length: 11 }, intento));
+    espia.mockRestore();
+    expect(respuestas.slice(0, 10).map((r) => r.status)).toEqual(Array(10).fill(401));
+    expect(respuestas[10]!.status).toBe(503);
+  });
+
+  it('con una hora que ya pasó, cerrada', async () => {
+    const espia = fingirEntrada(new Response(JSON.stringify('2020-01-01T00:00:00Z')));
+    const respuestas = await Promise.all(Array.from({ length: 11 }, intento));
+    espia.mockRestore();
+    expect(respuestas[10]!.status).toBe(503);
+  });
+
+  it.each([
+    ['la base de datos da un error', new Response('{"code":"42501"}', { status: 403 })],
+    ['no hay red', new Error('sin red')],
+    ['responde algo que no es una fecha', new Response('"mañana"')],
+  ])('si %s, el tope de 10', async (_caso, r) => {
+    const espia = fingirEntrada(r);
+    const respuestas = await Promise.all(Array.from({ length: 12 }, intento));
+    const entrada = llamadasEntrada(espia);
+    espia.mockRestore();
+    expect(respuestas.slice(0, 10).map((x) => x.status)).toEqual(Array(10).fill(401));
+    expect(respuestas.slice(10).map((x) => x.status)).toEqual([503, 503]);
+    // Tampoco se pregunta en cada intento cuando falla.
+    expect(entrada).toBe(1);
+  });
+
+  it('se vuelve a preguntar pasado un minuto, no antes', async () => {
+    let desfase = 0;
+    const reloj = Date.now;
+    const ahora = vi.spyOn(Date, 'now').mockImplementation(() => reloj() + desfase);
+    const espia = fingirEntrada(new Response('null'));
+    try {
+      await Promise.all(Array.from({ length: 12 }, intento));
+      expect(llamadasEntrada(espia)).toBe(1);
+      desfase = CONSULTA_ENTRADA_MS - 5_000;
+      await intento();
+      expect(llamadasEntrada(espia)).toBe(1);
+      // Pasado el minuto la ventana del tope también se ha vaciado: hacen falta 11 para volver a preguntar.
+      desfase = CONSULTA_ENTRADA_MS + 1_000;
+      await Promise.all(Array.from({ length: 11 }, intento));
+      expect(llamadasEntrada(espia)).toBe(2);
+    } finally {
+      espia.mockRestore();
+      ahora.mockRestore();
+    }
   });
 });
