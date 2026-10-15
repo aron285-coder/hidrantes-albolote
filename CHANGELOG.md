@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.16.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.15.0...hidrantes-albolote-v0.16.0) (2026-10-15)
+
+
+### Novedades
+
+* **panel:** Ajustes ordenado y en columnas, con cada administrador en una fila clara (docs/38 RV-509) ([#803](https://github.com/aron285-coder/hidrantes-albolote/issues/803)) ([f3163e6](https://github.com/aron285-coder/hidrantes-albolote/commit/f3163e649981e5b9a49c3d3ad1c3e5eb368c52d8))
+* **panel:** el Inventario filtra y ordena desde un botón y, en el móvil, cada punto es una fila que abre Editar ([d494bc4](https://github.com/aron285-coder/hidrantes-albolote/commit/d494bc49a5e5b8a038a1010ad83709ec42d34af9))
+* **panel:** el Registro se lee en el móvil, con el detalle entero y los ajustes con su nombre ([d494bc4](https://github.com/aron285-coder/hidrantes-albolote/commit/d494bc49a5e5b8a038a1010ad83709ec42d34af9))
+* **panel:** en el móvil, las pestañas del panel están en el menú, la cabecera dice dónde estás y la búsqueda es una lupa ([950b984](https://github.com/aron285-coder/hidrantes-albolote/commit/950b98437247716f1ef0863bbe400f205c826d54))
+* **panel:** en modo oscuro, las etiquetas de revisión, datos y ubicación de la cola ya no salen claras ([61ef564](https://github.com/aron285-coder/hidrantes-albolote/commit/61ef564d870ecbbc71e1175058747295c0d12fbb))
+* **panel:** la Cola filtra desde un botón que dice lo que está puesto, cada propuesta se lee en tres líneas y Aprobar y Rechazar en bloque salen al marcar ([66e6335](https://github.com/aron285-coder/hidrantes-albolote/commit/66e6335ab8ca64e918d7dccfbbc72600660f1fd3))
+* **panel:** la Papelera en el móvil, con «Restaurar» a mano y «Purgar» aparte en rojo (docs/38 RV-508) ([#802](https://github.com/aron285-coder/hidrantes-albolote/issues/802)) ([9ffb08b](https://github.com/aron285-coder/hidrantes-albolote/commit/9ffb08bfd3a539dde1ca58eda07ae6676e441dfe))
+
+
+### Correcciones
+
+* **panel:** el buscador y las casillas de avisos, fáciles de tocar en todos los anchos (docs/38 RV-510) ([#804](https://github.com/aron285-coder/hidrantes-albolote/issues/804)) ([b5327a7](https://github.com/aron285-coder/hidrantes-albolote/commit/b5327a78f36f39095d4e0b3cb464c267e7f8807f))
+
 ## [0.15.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.14.0...hidrantes-albolote-v0.15.0) (2026-10-15)
 
 
