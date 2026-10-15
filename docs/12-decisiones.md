@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.65 — 15 oct 2026 (DEC-209 a DEC-211, de `docs/37`; `docs/38` en DEC-193, DEC-196 y DEC-205) · 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.66 — 15 oct 2026 (`docs/37` RV-497: el índice por documento afectado con DEC-157 a DEC-211; DEC-199 y DEC-201 sin la versión de 03, y DEC-204 sin el recuento de migraciones, DEC-195) · 1.65 — 15 oct 2026 (DEC-209 a DEC-211, de `docs/37`; `docs/38` en DEC-193, DEC-196 y DEC-205) · 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -833,7 +833,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. **Hook nuevo `sin-esquema-public`:** bloquea en las migraciones y en el seed de staging un objeto calificado
      con `public.` o `schema public`, sin contar los comentarios. Deja pasar `revoke … from public` y
-     `grant … to public`, donde `public` es el rol. Comprobado: ninguna de las 44 migraciones ni el seed lo
+     `grant … to public`, donde `public` es el rol. Comprobado: ninguna de las migraciones que había entonces ni el seed lo
      disparan. Seis casos en `scripts/probar-hooks.ts`.
   2. **`CLAUDE.md` §3 dice quién vigila cada prohibición:** un hook, el CI, los tests o **nadie**. Donde pone
      nadie, la regla depende solo de la sesión.
@@ -901,7 +901,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - contar «nuevo» por token: los veteranos que vuelven a entrar tras revocar a todos contarían como nuevos;
   - seguir abriendo la entrada al revocar: relaja los topes justo ante una filtración;
   - un tope fijo por móvil nuevo: no protege al grupo frente a muchos móviles.
-- **Afecta a:** sustituye el «se abre sola» de DEC-190; FR-33, FR-34 y FR-140 (01 v1.14); TR-41 (03 v1.6); 05; 11 §3 y §9; 13 (v0.2); 15 §5.4; FL-29 (02); RV-427 y RV-433.
+- **Afecta a:** sustituye el «se abre sola» de DEC-190; FR-33, FR-34 y FR-140 (01 v1.14); TR-41 (03); 05; 11 §3 y §9; 13 (v0.2); 15 §5.4; FL-29 (02); RV-427 y RV-433.
 
 ### DEC-200 · Staging: secretos en su environment, el código fuera del repositorio y los administradores del seed inactivos
 - **Fecha:** 13 oct 2026 (desarrollador) · **Estado:** vigente (`docs/35` RV-411).
@@ -937,7 +937,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - más cifras: lo decide jefatura (DEC-004);
   - bajar el tope sin dejar pasar al móvil limpio: dejaría fuera a los voluntarios mientras dure;
   - una regla de Cloudflare: panel web y fuera del repositorio.
-- **Afecta a:** DEC-086 (el /64 y el techo de 200); FR-33 (01 v1.14); TR-41 (03 v1.6); 05 §2.5, §2.10, §6.1, §8, §9 y §11; 11 §3 y §9 (v1.4); `docs/17` §12.
+- **Afecta a:** DEC-086 (el /64 y el techo de 200); FR-33 (01 v1.14); TR-41 (03); 05 §2.5, §2.10, §6.1, §8, §9 y §11; 11 §3 y §9 (v1.4); `docs/17` §12.
 - **Matizada por DEC-207 (`docs/36`):** un intento ya frenado no compara el código, y la Function pone un tope de 10 por minuto por IP agrupada (`503 OCUPADO`).
 
 ### DEC-198 · El código de las dependencias no corre con secretos
@@ -2696,19 +2696,24 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157 |
-| 03 | 001, 004, 026, 028, 099, 111, 112 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111, 196 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157, 158, 163–171, 177, 178, 186, 190, 192, 194, 199, 201 |
+| 03 | 001, 004, 026, 028, 099, 111, 112, 172, 181, 183, 199, 201, 207, 211 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111, 172, 173, 176, 180–182, 196, 197, 198, 200, 202–204, 206, 210 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132, 160, 163, 166, 167, 169, 170, 174, 175, 182, 183, 185, 190, 197, 199–202, 206–208, 211 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157, 158, 159, 162–171, 178, 179, 182, 183, 186–190, 192, 194, 202, 206, 208, 211 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 196, 205 |
-| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118 |
-| 15 | 023, 061, 085, 088, 102, 128, 129 |
-| 16 | 007, 037, 111 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080, 177, 178, 184, 190, 193, 195, 196, 205, 209 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 176, 193, 195, 196, 198, 204, 205, 209 |
+| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118, 167, 197–199, 201, 206, 207, 210 |
+| 15 | 023, 061, 085, 088, 102, 128, 129, 172, 173, 176, 180, 190, 197, 200–203, 206 |
+| 16 | 007, 037, 111, 177 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |
+| 02 | 163–169, 177, 201 |
+| 10 | 165–169, 172, 177 |
+| 13 | 190, 197, 201, 206, 211 |
+| 14 | 211 |
+| entornos.md | 172, 198, 200 |
 
 ## Cómo añadir una decisión
 
