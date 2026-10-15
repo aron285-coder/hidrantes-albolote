@@ -6,7 +6,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import type { NodeResult, Result } from 'axe-core';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { buscarEnPanel, conGoogle, irAPestana, simularRpc, simularTablas } from './ayudas.ts';
+import { buscarEnPanel, conGoogle, irAPestana, simularRpc, simularTablas, filaInventario } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 test.describe.configure({ timeout: 60_000 });
@@ -93,7 +93,7 @@ for (const vieja of ['caducadas', 'voluntarios']) {
     await expect(pestanas(page)).toHaveCount(5, { timeout: CARGA });
     await page.goto(`/admin/${vieja}`);
     await expect(page).toHaveURL(/\/admin\/inventario$/, { timeout: CARGA });
-    await expect(page.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length))).toBeVisible({ timeout: CARGA });
+    await expect(filaInventario(page, PUNTOS[0]!.codigo)).toBeVisible({ timeout: CARGA });
     // Con replace, "atrás" vuelve a la cola y no a la ruta vieja (que redirigiría otra vez al Inventario).
     await page.goBack();
     await expect(page).toHaveURL(/\/admin\/cola$/, { timeout: CARGA });

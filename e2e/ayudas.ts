@@ -163,3 +163,30 @@ export async function filtrarPor(page: Page, grupo: string, opcion: string | Reg
   await elegirFiltro(page, grupo, opcion);
   await page.getByRole('button', { name: T.panel.listo, exact: true }).click();
 }
+
+/**
+ * Las filas del Inventario (docs/38 RV-506): las de la tabla desde 1.100 px o los elementos de la lista por debajo.
+ * Sin la fila de cabeceras.
+ */
+export const filasInventario = (page: Page) =>
+  page.getByRole('main').locator('tbody > tr, ul[aria-label="Inventario"] > li');
+export const filaInventario = (page: Page, codigo: string) => filasInventario(page).filter({ hasText: codigo });
+
+/** Las entradas del Registro (docs/38 RV-507): las filas de la tabla desde 1.100 px o los elementos de la lista. */
+export const filasRegistro = (page: Page) =>
+  page.getByRole('main').locator('tbody > tr, ul[aria-label="Registro"] > li');
+
+/** Editar, Historial, Retirar o Borrar de un punto del Inventario: «Editar» y «⋯» en la tabla; la fila y «⋯» en la lista. */
+export async function accionInventario(page: Page, codigo: string, que: 'editar' | 'historial' | 'retirar' | 'borrar') {
+  const fila = filaInventario(page, codigo);
+  // Antes de mirar si es tabla o lista, que la fila haya llegado.
+  await fila.first().waitFor();
+  if (que === 'editar') {
+    const enTabla = fila.getByRole('button', { name: T.panel.editar, exact: true });
+    if (await enTabla.count()) return enTabla.click();
+    return fila.getByRole('button', { name: T.panelInventario.editarPunto(codigo), exact: true }).click();
+  }
+  await fila.getByRole('button', { name: T.panel.masAcciones(codigo) }).click();
+  const nombre = que === 'historial' ? T.panel.historial : que === 'retirar' ? T.panel.retirar : T.panel.borrar;
+  await page.getByRole('menuitem', { name: nombre, exact: true }).click();
+}

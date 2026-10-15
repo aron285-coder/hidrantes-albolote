@@ -727,9 +727,8 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Inventario completo (JSON)` (cuarta opción de Exportar ▾, sin filtros; antes un botón en Salud del sistema, docs/33 RV-335) · `Purgar fotos huérfanas` · `Generar uno nuevo` ·
 `Revocar todos los dispositivos` · `Guardar cambios` · `Añadir` ·
 `Regenerar zona de cobertura` · `Regenerar mapa base` · `Respaldo ahora` ·
-`Salud del sistema` · `Mostrando [10] de [438] puntos` (con uno en total, `Mostrando [1] de 1 punto`) ·
-`Tiene que quedar al menos un administrador con acceso.` (`ULTIMO_ADMINISTRADOR`, docs/35 RV-431) ·
-`— pendiente, escribe aquí`.
+`Salud del sistema` ·
+`Tiene que quedar al menos un administrador con acceso.` (`ULTIMO_ADMINISTRADOR`, docs/35 RV-431).
 
 **Panel: cola, detalle y errores (Fase 7, DEC-065).** `Fuera de zona` · `sin núcleo` · `ninguno` ·
 `Tipo` · `Diámetro` · `Tipo de enganche` · `Fallo` · `Descripción` · `Nota` · `Situación` · `Motivo` · `Activo` ·
@@ -741,7 +740,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `[n] rechazadas. Cada autor verá el motivo.` (con uno, `1 rechazada. Su autor verá el motivo.`) · `Rechazar [n] propuestas con un motivo común` (con uno, `Rechazar 1 propuesta con un motivo común`) ·
 `Motivo que verán los autores` · `Ej.: la foto es del hidrante de al lado, HID-0087` ·
 `No menciones a otros voluntarios: el autor lo leerá tal cual.` · `Propuesto por [autor] · [hace] ·
-[nucleo]` · `Seleccionar [nombre]` · `Seleccionar todas` · `Historial: solo lectura` · `Filtrar:` ·
+[nucleo]` · `Seleccionar [nombre]` · `Seleccionar todas` · `Historial: solo lectura` ·
 `Selecciona una propuesta de la lista.` · `Todavía no hay propuestas en este estado.` ·
 `Nada coincide con "[texto]".` · `No queda ninguna propuesta pendiente con ese filtro.` ·
 `Cargando…` · `Foto del voluntario · toca para ampliar` · `Esta propuesta no trae foto nueva.` ·
@@ -782,7 +781,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Todavía no llega lo nuevo. Prueba otra vez en un momento.` · `Ha cambiado algo que no se edita aquí. Ya puedes guardar.`.
 
 **Panel: inventario, caducadas, registro y papelera (Fase 7, DEC-067).** `Bocas de riego` ·
-`Quitar filtros` · `[Regular] · [3]` (opciones del desplegable Estado, docs/29 RV-123) · `Nada que exportar con estos filtros` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
+`Quitar filtros` · `Nada que exportar con estos filtros` · `Vista` · `Tabla` · `Código` · `Núcleo` · `Municipio` · `Última revisión` ·
 `Acciones` · `Latitud` · `Longitud` · `Albolote` · `Calicasas` · `enganche [Granada]` · `Ordenar por [columna]` ·
 `Dirección de [codigo]` · `pulsa una columna para ordenar ·
 la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con esos filtros.` ·
@@ -791,7 +790,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `El registro nunca debió existir: va a la papelera y se puede restaurar mientras esté en plazo.` ·
 `Motivo (obligatorio, queda en el registro)` ·
 `Exportadas [n] filas. La exportación consta en el Registro.` (con uno, `Exportada 1 fila. La exportación consta en el Registro.`) ·
-`Filtrar por acción` · `todas las acciones` ·
+`Filtrar por acción` ·
 `[n] entradas` (con uno, `1 entrada`) · `no se puede editar ni borrar` · `Momento` · `Actor` · `Acción` · `Punto` ·
 `Detalle` · `[n] entradas por página` (con uno, `1 entrada por página`) · `Todavía no hay entradas con ese filtro.` ·
 `[motivo] Las filas que ves son las de antes.` ·
@@ -808,7 +807,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Retirado` · `Borrado` · `Estado` ·
 `Enganche` · `Diámetro` · `Tipo` · `Fallo` · `Dirección` · `Descripción` · `Núcleo` ·
 `Última revisión` · `Foto` · `Foto del sitio` · `Situación` · `Código` · `Nombre` · `Correo` · `Archivo` ·
-`Desde` · `Hasta` · `Horas` · `Móviles` · `Revocar los móviles` · `Abrir la entrada` (docs/36 RV-472) · `Motivo` ·
+`Desde` · `Hasta` · `Horas` · `Móviles` · `Revocar los móviles` · `Abrir la entrada` (docs/36 RV-472) · `Motivo` · `Trabajo` · `Filtros` · `Filas` · `Propuestas` · `Entradas del Registro` (un trabajo de Mantenimiento, una exportación y una anonimización, docs/38 RV-507) ·
 `Los borrados se conservan [dias] días y después se purgan.` (con uno, `Los borrados se conservan 1 día y después se purgan.`) · `Purgar lo caducado…` ·
 `Purgar ahora` ·
 `Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de [dias] días en la papelera. No se puede deshacer.` (con uno, `Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de 1 día en la papelera. No se puede deshacer.`) ·
@@ -866,7 +865,7 @@ Salud del sistema (docs/33 RV-335): arriba `Todo bien`, o `Necesita atención` c
 `Respaldo sin copia` · `El último respaldo no tiene su copia guardada en GitHub. Mira la issue de vigilancia.` (el artifact del único respaldo falta, ha caducado, está vacío o tiene más de 8 días; RV-201, DEC-180) ·
 `Espacio casi lleno` · `Las fotos o la base de datos se están quedando sin espacio. Mira Salud del sistema.` (fotos con sus reservas abiertas o base de datos al 70 % de su tope; RV-220, RV-221, DEC-182, DEC-183).
 
-**Panel en el móvil y listas (docs/38, DEC-213 a DEC-215).** `Filtrar la cola` · `Filtrar y ordenar` (títulos de la hoja de filtros) · `Filtros: [Pendientes · Alta]` (nombre accesible del botón) · `Listo` · `Estado` · `Operación` · `Núcleo` · `Tipo` · `Acción` · `Ordenar por` (títulos de los grupos) · `Todas` (primera opción de Operación) · `Tocar otra vez el elegido cambia ▲ / ▼.` · `Todas las acciones` (resumen del botón del Registro y primera opción de su lista) · `Todos los puntos` (resumen del Inventario en el PC sin filtros) · `Buscar` · `Cerrar la búsqueda` (la lupa y la ✕ de la cabecera del móvil) · `Menú, hay propuestas pendientes` · `Más acciones de [HID-0147]` · `Más acciones de [correo]` · `Editar [HID-0147]` (el botón que cubre la fila del Inventario por debajo de 1.100 px) · `Revisado: [hace 3 días]` · `Revisado: [20 ago 2026]` · `[4] puntos con este filtro` (con uno, `1 punto con este filtro`) · `[4] puntos con esta búsqueda` (con uno, `1 punto con esta búsqueda`) · `＋ Añadir dirección` (celda de dirección vacía) · `Borrado [hace 1 día]` (Papelera, en filas) · `Tú` (tu correo en el Registro; etiqueta en tu fila de Administradores) · `añadido el [5 sept 2026] por ti` · `Activo` · `Sin acceso` · `Pendiente de su primer acceso` (etiquetas de acceso) · `Quitar el acceso…` · `Devolver el acceso` («⋯» de un administrador) · `«Añadir» se activa al escribir un correo.` · `[Purgar fotos huérfanas] y [Respaldo ahora]: solo en producción.` · `error` (etiqueta del pedido con error, con el motivo detrás).
+**Panel en el móvil y listas (docs/38, DEC-213 a DEC-215).** `Filtrar la cola` · `Filtrar y ordenar` (títulos de la hoja de filtros) · `Filtros: [Pendientes · Alta]` (nombre accesible del botón) · `Listo` · `Estado` · `Operación` · `Núcleo` · `Tipo` · `Acción` · `Ordenar por` (títulos de los grupos) · `Todas` (primera opción de Operación) · `Tocar otra vez el elegido cambia ▲ / ▼.` · `Todas las acciones` (resumen del botón del Registro y primera opción de su lista) · `Todos los puntos` (resumen del Inventario en el PC sin filtros) · `Buscar` · `Cerrar la búsqueda` (la lupa y la ✕ de la cabecera del móvil) · `Menú, hay propuestas pendientes` · `Más acciones de [HID-0147]` · `Más acciones de [correo]` · `Editar [HID-0147]` (el botón que cubre la fila del Inventario por debajo de 1.100 px) · `Revisado: [hace 3 días]` · `Revisado: [20 ago 2026]` (`Revisado:` delante de la fecha) · `[4] puntos con este filtro` (con uno, `1 punto con este filtro`) · `[4] puntos con esta búsqueda` (con uno, `1 punto con esta búsqueda`) · `＋ Añadir dirección` (celda de dirección vacía) · `Borrado [hace 1 día]` (Papelera, en filas) · `Tú` (tu correo en el Registro; etiqueta en tu fila de Administradores) · `añadido el [5 sept 2026] por ti` · `Activo` · `Sin acceso` · `Pendiente de su primer acceso` (etiquetas de acceso) · `Quitar el acceso…` · `Devolver el acceso` («⋯» de un administrador) · `«Añadir» se activa al escribir un correo.` · `[Purgar fotos huérfanas] y [Respaldo ahora]: solo en producción.` · `error` (etiqueta del pedido con error, con el motivo detrás).
 
 **Avisos técnicos a jefatura** (docs/35 RV-404, DEC-202; tema `avisos_tecnicos`, interruptor «Avisos técnicos» de Ajustes; los textos fijos viven en `fn_encolar_aviso_tecnico`; como mucho uno por clave cada 24 h, el de los códigos uno por hora; sin datos personales; abren `/admin/ajustes`). Título `Aviso técnico` y cuerpo:
 `La comprobación diaria ha encontrado un problema. El desarrollador ya tiene el aviso. Mira Salud del sistema.` (vigilancia) ·

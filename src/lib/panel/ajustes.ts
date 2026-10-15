@@ -168,6 +168,22 @@ const TOPES_ENTRADA = ['max_altas_ip_dia', 'max_altas_global_hora'] as const;
 
 export type ClaveParametro = keyof typeof PARAMETROS;
 
+/**
+ * El nombre de cada parámetro en la tarjeta Parámetros (FR-142). También lo usa el Registro, para decir los
+ * cambios de `config` con las mismas palabras (docs/38 RV-507). Los radios de marcador van aparte (`escala_radios`).
+ */
+export const NOMBRE_PARAMETRO: Record<ClaveParametro, string> = {
+  meses_revision: T.panelAjustes.mesesRevision,
+  radio_duplicado_m: T.panelAjustes.radioDuplicado,
+  dias_papelera: T.panelAjustes.diasPapelera,
+  buffer_zona_m: T.panelAjustes.bufferZona,
+  max_subidas_dispositivo_dia: T.panelAjustes.subidasDia,
+  metros_tramo_manguera: T.panelAjustes.metrosTramo,
+  // docs/33 RV-338 (0044): los topes de entradas con el código.
+  max_altas_ip_dia: T.panelAjustes.altasIpDia,
+  max_altas_global_hora: T.panelAjustes.altasGlobalHora,
+};
+
 export interface Parametros extends Record<ClaveParametro, number> {
   escala_radios: number[];
   /**
@@ -425,6 +441,14 @@ export function avisoAlmacenamiento(bytes: number | null): number | null {
 // ---------- mantenimiento (FR-144, FR-165, FL-33) ----------
 
 export type Workflow = 'purgar-fotos' | 'regenerar-zona' | 'regenerar-mapabase' | 'respaldo';
+
+/** El nombre de cada trabajo de Mantenimiento: el de su botón. También lo usa el Registro (docs/38 RV-507). */
+export const NOMBRE_TRABAJO: Record<Workflow, string> = {
+  'purgar-fotos': T.panel.purgarFotos,
+  'regenerar-zona': T.panel.regenerarZona,
+  'regenerar-mapabase': T.panel.regenerarMapaBase,
+  respaldo: T.panel.respaldoAhora,
+};
 
 export const lanzarWorkflow = (workflow: Workflow) =>
   // Desde docs/31 RV-146 la Function deja un pedido ({ pedido: true }) que recoge despachador.yml. En
