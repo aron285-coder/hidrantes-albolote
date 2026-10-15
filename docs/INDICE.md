@@ -30,7 +30,7 @@ pedida por una especificación (DEC-177); la versión vigente es la que dice su 
 | — | `trabajo-en-paralelo.md` · cómo repartir una especificación grande entre tres sesiones de Claude Code (Ops, Backend, Frontend), y PAR-01 (DEC-100) | vivo |
 | — | `entornos.md` · lo que dejó el arranque (refs, buckets, secretos por nombre) | vivo |
 | — | `verificacion/fase-N.md` · qué se ejecutó al cerrar cada fase y con qué resultado | vivo |
-| — | `capturas/` · pantallas de la app para 13 y 14, con su `LEEME.md` (`npm run capturas`) | vivo |
+| — | `capturas/vistas/` · pantallas de la app para 13 y 14, de la CI (`e2e/vistas.spec.ts`), con su `LEEME.md`; `npm run capturas` las saca de staging a `capturas/` | vivo |
 | — | `notas-para-14-ios.md` · lo que hay que contar de iPhone en el manual | vivo |
 | — | `archivo/` · los dos documentos originales, sustituidos (`requisitos-hidrantes.html` v6.1 y `plan-implementacion-hidrantes.md` v2.1); las especificaciones cerradas, en `archivo/especificaciones/` (tabla de abajo, DEC-195); los dibujos de los enganches, en `archivo/racores-dibujos/` (DEC-194) | histórico |
 
