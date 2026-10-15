@@ -198,6 +198,9 @@ async function elegirDe(page: Page, correo: string, opcion: string) {
   // Con todo cargado: una tarjeta que crece encima mueve la página, y el menú se cierra al moverse.
   await expect(page.getByRole('main').getByText(T.panelCola.cargando)).toHaveCount(0);
   await page.waitForLoadState('networkidle');
+  // El scroll que hace Playwright para llegar al botón avisa un frame después y cerraría el menú recién abierto.
+  await masDe(page, correo).scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   await masDe(page, correo).click();
   await page.getByRole('menuitem', { name: opcion }).click();
 }
@@ -284,6 +287,7 @@ test('ajustes: quitar el acceso a otro administrador pide confirmación; devolve
     .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
     .toEqual({ email: 'otra@example.org', activo: false });
   await expect(fila.getByText(T.panelAjustes.etiquetaSinAcceso, { exact: true })).toBeVisible();
+  await expect(masDe(page, 'otra@example.org')).toBeFocused();
   await expect(page.getByText(T.panelAjustes.administradorQuitado('otra@example.org'))).toBeVisible();
 
   // Devolver el acceso: sin confirmación.
@@ -328,6 +332,7 @@ test('ajustes: el último administrador con acceso no se lo puede quitar, y se d
   await elegirDe(page, 'jefe@example.org', T.panelAjustes.quitarAccesoMenu);
   await page.getByRole('dialog').getByRole('button', { name: T.panelAjustes.quitarAcceso }).click();
   await expect(page.getByText(T.panel.ultimoAdministrador)).toBeVisible();
+  await expect(masDe(page, 'jefe@example.org')).toBeFocused();
   await expect(
     filaAdmin(page, 'jefe@example.org').getByText(T.panelAjustes.etiquetaActivo, { exact: true }),
   ).toBeVisible();

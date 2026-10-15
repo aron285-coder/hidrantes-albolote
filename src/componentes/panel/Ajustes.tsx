@@ -520,24 +520,6 @@ function Administradores() {
     await carga.recargar();
   }
 
-  // La ventana sigue abierta y bloqueada hasta tener la respuesta: un segundo toque no repite nada.
-  async function quitar(email: string) {
-    setOcupado(true);
-    const r = await gestionarAdministrador(email, false);
-    if (!r.ok) {
-      setOcupado(false);
-      setQuitando(null);
-      return avisar(textoError(r.codigo), 'error');
-    }
-    avisar(T.panelAjustes.administradorQuitado(email));
-    // Quien se lo ha quitado a sí mismo sale del panel, sin recargar una lista que ya no puede leer.
-    if (esUnoMismo(email, propio)) return dejarJefatura();
-    setOcupado(false);
-    setQuitando(null);
-    await carga.recargar();
-  }
-
-  const nuevos = sugerencias.filter((s) => !filas.some((a) => a.email === s));
   // Al cerrar la confirmación, el foco vuelve al «⋯» de esa fila (docs/38 RV-509).
   const botonesMas = useRef(new Map<string, HTMLButtonElement>());
   const cerrarQuitar = () => {
@@ -545,6 +527,25 @@ function Administradores() {
     setQuitando(null);
     if (email) requestAnimationFrame(() => botonesMas.current.get(email)?.focus());
   };
+
+  // La ventana sigue abierta y bloqueada hasta tener la respuesta: un segundo toque no repite nada.
+  async function quitar(email: string) {
+    setOcupado(true);
+    const r = await gestionarAdministrador(email, false);
+    if (!r.ok) {
+      setOcupado(false);
+      cerrarQuitar();
+      return avisar(textoError(r.codigo), 'error');
+    }
+    avisar(T.panelAjustes.administradorQuitado(email));
+    // Quien se lo ha quitado a sí mismo sale del panel, sin recargar una lista que ya no puede leer.
+    if (esUnoMismo(email, propio)) return dejarJefatura();
+    setOcupado(false);
+    cerrarQuitar();
+    await carga.recargar();
+  }
+
+  const nuevos = sugerencias.filter((s) => !filas.some((a) => a.email === s));
   return (
     <Tarjeta titulo={T.panelAjustes.administradores} ayuda={T.panelAjustes.ayudaAdministradores}>
       <ul className="text-sm">
