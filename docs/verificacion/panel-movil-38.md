@@ -47,3 +47,10 @@ workflows. Una sola sesión, en el orden de §0.2.
   una fila sin desplazamiento. Test nuevo `panel-navegacion.spec.ts` (fallaba antes: no había ☰ con pestañas ni
   lupa); adaptados `panel-pestanas`, `jefatura-movil`, `acceso`, `panel-poca-pantalla` (la cabecera compacta con el
   buscador, a 780 px: a 720 ya es la del móvil), `panel-cola` y `panel-inventario` (con `buscarEnPanel`).
+- **RV-504:** `Filtros` (`src/componentes/panel/Filtros.tsx`): el botón con `SlidersHorizontal`, el resumen (parte en dos
+  líneas, nunca «…») y ▾, «Filtros: …» como nombre y la marca de activo; por debajo de 768 px, dentro de la `Hoja`
+  de siempre (sin cambiarla) con su cabecera y ✕; desde 768, una ventana no modal de 400 px alineada con el borde del
+  botón que quede dentro de la pantalla (Esc, fuera y Tab la cierran); cruzar 768 px la cierra; grupos como
+  `radiogroup` con chips de 44 px (o filas con círculo, `forma: 'lista'`), se aplica al tocar; pie con «Quitar
+  filtros» (solo activo) y «Listo». Test que fallaba antes: `filtros.test.tsx` (el archivo no existía). Sus e2e van
+  con la Cola, que la estrena (RV-505).
