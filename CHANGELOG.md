@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.15.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.14.0...hidrantes-albolote-v0.15.0) (2026-10-15)
+
+
+### Novedades
+
+* **acceso:** si hay mucha gente entrando a la vez, la app lo vuelve a intentar sola y te dice cuánto falta ([c71aa98](https://github.com/aron285-coder/hidrantes-albolote/commit/c71aa98c6345822b44da3a6e23cb78f335619af3))
+
+
+### Correcciones
+
+* **panel:** al editar un punto, no se pisa el cambio que otro guardó a la vez ([d915d79](https://github.com/aron285-coder/hidrantes-albolote/commit/d915d796592973d4eadb7c1e5ad7bfa09026c24d))
+* **panel:** si tu correo de jefatura ya está unido a otra cuenta de Google, el panel te dice qué hacer ([8ad9fbc](https://github.com/aron285-coder/hidrantes-albolote/commit/8ad9fbc52cb212cf1460d397a941877aa9141abc))
+
 ## [0.14.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.13.0...hidrantes-albolote-v0.14.0) (2026-10-14)
 
 
