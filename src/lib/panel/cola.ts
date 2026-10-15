@@ -5,7 +5,7 @@
 import { type Resultado, rpc } from '../api';
 import { ETIQUETA_CAMPO, MOTIVO_RAPIDO, etiquetaCampo, texto, valorDe } from '../campos';
 import { type LatLng, aUtm, dentroDelHuso, formatoDecimal, formatoUtm } from '../coordenadas';
-import { distancia, fechaCorta, hace } from '../formato';
+import { distancia, fechaCorta } from '../formato';
 import type { MotivoRapido, Operacion } from '../propuestas';
 import { type Caudal, type Punto, type Racor, type TipoPunto, metros, sincronizar } from '../puntos';
 import { T } from '../textos';
@@ -193,14 +193,28 @@ export const autor = (p: Pick<PropuestaPanel, 'autor_nombre' | 'autor_apellido'>
 /** Dirección que se enseña en la lista: la del punto, o la deducida para un alta. */
 export const direccionDe = (p: PropuestaPanel) => p.direccion_actual ?? p.direccion_sugerida;
 
-/** "Autor · hace 2 h · C/ Real 14 · Albolote" (UI-11). */
-export function lineaCola(p: PropuestaPanel, ahora = new Date()): string {
-  return [
-    autor(p),
-    hace(p.creada_en, ahora),
-    direccionDe(p) ?? T.ficha.sinDireccion,
-    p.nucleo ?? (p.fuera_de_zona ? T.panelCola.fueraDeZona : T.panelCola.sinNucleo),
-  ].join(' · ');
+/**
+ * Lo que dice cada fila de la cola, en tres líneas (docs/38 RV-505, UI-11, DEC-215): la operación, el código y
+ * cuándo van en la primera; aquí, la dirección (null: «sin dirección»), el núcleo («Fuera de zona» o «sin
+ * núcleo» si no lo hay) y el autor.
+ */
+export function lineasCola(p: PropuestaPanel): { direccion: string | null; nucleo: string; autor: string } {
+  return {
+    direccion: direccionDe(p) ?? null,
+    nucleo: p.nucleo ?? (p.fuera_de_zona ? T.panelCola.fueraDeZona : T.panelCola.sinNucleo),
+    autor: autor(p),
+  };
+}
+
+/**
+ * El código de la fila: el de la propuesta; en el historial, un alta aprobada enseña el del punto que creó
+ * (`correcciones.punto_id`, como el detalle); si ya no está en la lista (borrado), «nuevo» (docs/38 RV-505).
+ */
+export function codigoCola(p: PropuestaPanel, puntos: Pick<Punto, 'id' | 'codigo'>[]): string {
+  if (p.codigo) return p.codigo;
+  const id =
+    p.operacion === 'alta' && p.estado === 'aprobada' ? (p.correcciones?.punto_id as string | undefined) : undefined;
+  return (id && puntos.find((x) => x.id === id)?.codigo) || T.panelCola.nuevo;
 }
 
 /**

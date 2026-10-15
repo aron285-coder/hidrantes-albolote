@@ -24,7 +24,8 @@ import {
   diferenciasFusion,
   faltaEnCorrecciones,
   fichaCompleta,
-  lineaCola,
+  codigoCola,
+  lineasCola,
   motivoOmitida,
   resumenLote,
   tieneAviso,
@@ -34,7 +35,6 @@ import { textoError } from './errores';
 import type { Punto } from '../puntos';
 import { T } from '../textos';
 
-const AHORA = new Date('2026-09-20T12:00:00Z');
 
 function propuesta(extra: Partial<PropuestaPanel> = {}): PropuestaPanel {
   return {
@@ -92,13 +92,25 @@ const PUNTO: Punto = {
 };
 
 describe('lista de la cola', () => {
-  it('sigue la notación canónica "Autor · hace 2 h · dirección · núcleo" (UI-11)', () => {
-    expect(lineaCola(propuesta(), AHORA)).toBe('Sara Ruiz · hace 2 h · C/ Real 14 · Albolote');
+  // docs/38 RV-505 (UI-11, DEC-215): en tres líneas; la fecha va en la primera, con la operación y el código.
+  it('en tres partes: dirección, núcleo y autor (UI-11)', () => {
+    expect(lineasCola(propuesta())).toEqual({ direccion: 'C/ Real 14', nucleo: 'Albolote', autor: 'Sara Ruiz' });
   });
 
-  it('sin dirección ni núcleo lo dice, nunca un hueco', () => {
-    const p = propuesta({ direccion_actual: null, nucleo: null, fuera_de_zona: true });
-    expect(lineaCola(p, AHORA)).toBe(`Sara Ruiz · hace 2 h · ${T.ficha.sinDireccion} · ${T.panelCola.fueraDeZona}`);
+  it('sin dirección, null (se pinta «sin dirección»); fuera de zona o sin núcleo, lo dice', () => {
+    expect(lineasCola(propuesta({ direccion_actual: null, direccion_sugerida: null })).direccion).toBeNull();
+    expect(lineasCola(propuesta({ nucleo: null, fuera_de_zona: true })).nucleo).toBe(T.panelCola.fueraDeZona);
+    expect(lineasCola(propuesta({ nucleo: null, fuera_de_zona: false })).nucleo).toBe(T.panelCola.sinNucleo);
+  });
+
+  it('el código: el de la propuesta, el del punto creado por un alta aprobada o «nuevo»', () => {
+    const punto = { id: 'pt-1', codigo: 'BOC-0099' } as Punto;
+    expect(codigoCola(propuesta(), [punto])).toBe(propuesta().codigo);
+    const alta = propuesta({ operacion: 'alta', codigo: null, estado: 'aprobada', correcciones: { punto_id: 'pt-1' } });
+    expect(codigoCola(alta, [punto])).toBe('BOC-0099');
+    // Borrado (ya no está en la lista) o pendiente: «nuevo», como antes.
+    expect(codigoCola(alta, [])).toBe(T.panelCola.nuevo);
+    expect(codigoCola({ ...alta, estado: 'pendiente', correcciones: null }, [punto])).toBe(T.panelCola.nuevo);
   });
 
   it('la búsqueda global encuentra por código, calle y autor, sin acentos (FR-145)', () => {

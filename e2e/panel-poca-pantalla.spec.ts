@@ -4,7 +4,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas } from './ayudas.ts';
+import { conGoogle, simularTablas, filtrarPor } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 const hace = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
@@ -114,38 +114,35 @@ test.describe('RV-331: panel con poca pantalla', () => {
     await expect(page.getByRole('link', { name: T.jefatura.irAlMapa })).toBeHidden();
     await expect(menu).toBeFocused();
 
-    // Los filtros: tres desplegables en una línea.
-    const desplegables = [T.panelCola.filtroEstado, T.panelCola.filtroOperacion, T.panelCola.filtroNucleo].map((n) =>
-      page.getByRole('combobox', { name: n }),
-    );
-    const cajas = await Promise.all(desplegables.map(async (d) => (await d.boundingBox())!));
-    for (const c of cajas) expect(Math.abs(c.y - cajas[0]!.y)).toBeLessThanOrEqual(2);
-    await expect(page.getByRole('radiogroup', { name: T.panelCola.filtroEstado })).toBeHidden();
-    // El de estado funciona: Rechazadas deja la lista en solo lectura.
-    await desplegables[0]!.selectOption('rechazada');
+    // Los filtros: un botón (docs/38 RV-505, UI-19), sin desplegables. El estado funciona: Rechazadas deja la
+    // lista en solo lectura.
+    await expect(page.getByRole('combobox')).toHaveCount(0);
+    await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.rechazadas);
     await expect(page.getByText(T.panelCola.soloLectura)).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Filtros: / })).toHaveAccessibleName(
+      T.panel.filtrosDe(T.panelCola.rechazadas),
+    );
   });
 
   for (const ancho of [800, 1440]) {
-    test(`desde 800 px (a ${ancho}), la cabecera y los filtros de siempre`, async ({ page }) => {
+    test(`desde 800 px (a ${ancho}), la cabecera de siempre y el botón de filtros`, async ({ page }) => {
       await page.setViewportSize({ width: ancho, height: 900 });
       await prepararPanel(page);
       await page.goto('/admin/cola');
       await expect(page.getByRole('link', { name: T.jefatura.irAlMapa })).toBeVisible();
       await expect(page.getByRole('button', { name: T.panel.salir })).toBeVisible();
       await expect(page.getByRole('button', { name: T.panel.menu })).toBeHidden();
-      await expect(page.getByRole('radiogroup', { name: T.panelCola.filtroEstado })).toBeVisible();
-      await expect(page.getByRole('combobox', { name: T.panelCola.filtroEstado })).toBeHidden();
+      await expect(page.getByRole('button', { name: T.panel.filtrosDe(T.panelCola.pendientes) })).toBeVisible();
+      await expect(page.getByRole('combobox')).toHaveCount(0);
     });
   }
 
-  test('a 799 px ya es la cabecera compacta, sin las pastillas de estado', async ({ page }) => {
+  test('a 799 px ya es la cabecera compacta, con el botón de filtros', async ({ page }) => {
     await page.setViewportSize({ width: 799, height: 900 });
     await prepararPanel(page);
     await page.goto('/admin/cola');
     await expect(page.getByRole('button', { name: T.panel.menu })).toBeVisible();
-    await expect(page.getByRole('combobox', { name: T.panelCola.filtroEstado })).toBeVisible();
-    await expect(page.getByRole('radiogroup', { name: T.panelCola.filtroEstado })).toBeHidden();
+    await expect(page.getByRole('button', { name: T.panel.filtrosDe(T.panelCola.pendientes) })).toBeVisible();
     await expect(page.getByRole('link', { name: T.jefatura.irAlMapa })).toBeHidden();
   });
 
@@ -180,18 +177,18 @@ test.describe('RV-331: panel con poca pantalla', () => {
     expect(await page.evaluate(() => localStorage.getItem('hidrantes.push_jefatura'))).toBeNull();
   });
 
-  test('cambiar de estado en el desplegable vacía la selección, como las pastillas', async ({ page }) => {
+  test('cambiar de estado en la hoja de filtros vacía la selección (docs/38 RV-505)', async ({ page }) => {
     await page.setViewportSize({ width: 720, height: 450 });
     await prepararPanel(page);
     await page.goto('/admin/cola');
     const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
     await lista.getByRole('checkbox').first().check();
     await expect(page.getByTestId('barra-cola')).toContainText(T.panelCola.seleccionadas(1));
-    const estado = page.getByRole('combobox', { name: T.panelCola.filtroEstado });
-    await estado.selectOption('rechazada');
+    await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.rechazadas);
     await expect(page.getByText(T.panelCola.soloLectura)).toBeVisible();
-    await estado.selectOption('pendiente');
-    await expect(page.getByTestId('barra-cola')).toContainText(T.panelCola.tocaUna);
+    await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.pendientes);
+    // Sin nada marcado, no hay barra abajo.
+    await expect(page.getByTestId('barra-cola')).toHaveCount(0);
   });
 
   for (const [ancho, alto] of [

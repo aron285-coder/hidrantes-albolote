@@ -776,8 +776,6 @@ export const T = {
     seleccionadas: (n: number) => plural(n, 'seleccionada', 'seleccionadas'),
     aprobarSeleccionadas: 'Aprobar seleccionadas',
     rechazarSeleccionadas: 'Rechazar seleccionadas…',
-    todasOperaciones: 'todas las operaciones',
-    todosNucleos: 'todos los núcleos',
     aprobar: 'Aprobar',
     aprobarConCorrecciones: 'Aprobar con correcciones',
     guardarYAprobar: 'Guardar y aprobar',
@@ -855,10 +853,13 @@ export const T = {
     seleccionar: (nombre: Parametro) => `Seleccionar ${nombre}`,
     seleccionarTodas: 'Seleccionar todas',
     soloLectura: 'Historial: solo lectura',
+    // docs/38 RV-505: el botón de filtros de la Cola (UI-19, DEC-214).
+    filtrarCola: 'Filtrar la cola',
+    grupoEstado: 'Estado',
+    grupoOperacion: 'Operación',
+    grupoNucleo: 'Núcleo',
+    todas: 'Todas',
     filtrar: 'Filtrar:',
-    filtroOperacion: 'Filtrar por operación',
-    filtroNucleo: 'Filtrar por núcleo',
-    filtroEstado: 'Estado de las propuestas',
     eligeUna: 'Selecciona una propuesta de la lista.',
     historialVacio: 'Todavía no hay propuestas en este estado.',
     busquedaVacia: (texto: Parametro) => `Nada coincide con "${texto}".`,
@@ -933,7 +934,6 @@ export const T = {
       'Sin posición: el punto no está entre los activos del inventario (puede estar retirado o en la papelera).',
     volverCola: 'Volver a la cola',
     corregirCorto: 'Corregir',
-    tocaUna: 'Toca una para revisarla',
   },
 
   panelInventario: {

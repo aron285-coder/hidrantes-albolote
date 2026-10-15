@@ -691,7 +691,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Papelera` · `Ajustes` · `Buscar código, calle o voluntario…` ·
 `Pendientes` · `Aprobadas` · `Rechazadas` · `Retiradas por el autor` ·
 `Ninguna seleccionada` · `[N] seleccionadas` (con uno, `1 seleccionada`) · `Aprobar seleccionadas` ·
-`Rechazar seleccionadas…` · `todas las operaciones` · `todos los núcleos` · `Aprobar` ·
+`Rechazar seleccionadas…` · `Aprobar` ·
 `Aprobar con correcciones` · `Guardar y aprobar` · `Rechazar…` · `Confirmar rechazo` ·
 `Fusionar con [BOC-0088]` · `Confirmar y aprobar` · `El punto ha cambiado: revisa los datos.` · `Cargando el punto de hoy…` ·
 `No se ha podido cargar el punto de hoy: sin verlo no se aprueba.` ·
@@ -719,7 +719,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Satélite` · `Capa del mapa` · `Abrir en grande` · `Cerrar el mapa grande` · `posición de ahora` ·
 `propuesta` · `el punto` · `puntos de alrededor` · `radio de duplicado · [25] m` ·
 `Sin posición: el punto no está entre los activos del inventario (puede estar retirado o en la papelera).` ·
-`Volver a la cola` · `Corregir` · `Toca una para revisarla`.
+`Volver a la cola` · `Corregir`.
 
 **Panel: resto.** `Editar` · `Retirar` · `Borrar` · `Historial` · `Restaurar` ·
 `Borrar definitivamente…` · `Vaciar la papelera…` · 
@@ -742,7 +742,6 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Motivo que verán los autores` · `Ej.: la foto es del hidrante de al lado, HID-0087` ·
 `No menciones a otros voluntarios: el autor lo leerá tal cual.` · `Propuesto por [autor] · [hace] ·
 [nucleo]` · `Seleccionar [nombre]` · `Seleccionar todas` · `Historial: solo lectura` · `Filtrar:` ·
-`Filtrar por operación` · `Filtrar por núcleo` · `Estado de las propuestas` ·
 `Selecciona una propuesta de la lista.` · `Todavía no hay propuestas en este estado.` ·
 `Nada coincide con "[texto]".` · `No queda ninguna propuesta pendiente con ese filtro.` ·
 `Cargando…` · `Foto del voluntario · toca para ampliar` · `Esta propuesta no trae foto nueva.` ·

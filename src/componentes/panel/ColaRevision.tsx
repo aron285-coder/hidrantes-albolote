@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { usePanel } from './usar-panel';
 import { DetallePropuesta } from './DetallePropuesta';
-import { ErrorCarga, EtiquetaOperacion } from './piezas';
+import { Filtros } from './Filtros';
+import { ErrorCarga, EtiquetaOperacion, Fecha } from './piezas';
 import { Boton } from '@/componentes/Boton';
 import { useCarga } from '@/hooks/carga';
 import { usePuntos } from '@/hooks/estado';
@@ -20,7 +21,8 @@ import {
   cargarCola,
   cargarHistorial,
   coincide,
-  lineaCola,
+  codigoCola,
+  lineasCola,
   rechazarLote,
   resumenLote,
   separarLote,
@@ -41,14 +43,7 @@ const ESTADOS: { valor: EstadoModeracion; nombre: string }[] = [
 const OPERACIONES: Operacion[] = ['alta', 'revision', 'estado', 'datos', 'ubicacion', 'retirada'];
 
 /**
- * Un desplegable de filtro; por debajo de 800 px se encogen a partes iguales en una línea y miden 44 px
- * de alto, porque ahí son el único control de los filtros en una tableta táctil (RV-331, UI-15).
- */
-const SELECT =
-  'border-linea bg-papel rounded-campo min-h-9 border px-2 max-[800px]:w-0 max-[800px]:min-w-0 max-[800px]:min-h-11 max-[800px]:flex-1 max-[800px]:px-1 max-[800px]:text-[13px]';
-
-/**
- * Desde 1.100 px, la cola a la izquierda (340 px) y el detalle en todo el resto; por debajo, dos
+ * Desde 1.100 px, la cola a la izquierda (360 px; 380 desde 1.600) y el detalle en todo el resto; por debajo, dos
  * pantallas (docs/25 RV-110, DEC-158). El mismo corte que las clases `min-[1100px]:` de abajo.
  */
 const COLA_Y_DETALLE = '(min-width: 1100px)';
@@ -274,107 +269,89 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     await hecho(activa, location.key);
   }
 
+  // Solo con algo marcado (docs/38 RV-505): sin nada, no hay botones que dirían lo mismo que «Ninguna seleccionada».
+  // Aprobar y Rechazar separados 12 px (UI-14).
   const botonesLote = (
     <>
-      <BotonBarra disabled={!elegidas.length || ocupado || cargando} onClick={() => void aprobarMarcadas()}>
+      <BotonBarra disabled={ocupado || cargando} onClick={() => void aprobarMarcadas()}>
         {T.panelCola.aprobarSeleccionadas}
       </BotonBarra>
-      <BotonBarra disabled={!elegidas.length || ocupado || cargando} onClick={() => setRechazoLote(true)}>
+      <BotonBarra disabled={ocupado || cargando} onClick={() => setRechazoLote(true)}>
         {T.panelCola.rechazarSeleccionadas}
       </BotonBarra>
     </>
   );
 
+  // El botón de filtros (UI-19, DEC-214): estado, operación y núcleo; lo de por defecto, Pendientes, Todas y Todos.
+  const nombreEstado = ESTADOS.find((e) => e.valor === estado)?.nombre ?? '';
+  const resumen = [nombreEstado, operacion && ETIQUETA_OPERACION[operacion], nucleo].filter(Boolean).join(' · ');
+  const filtrado = estado !== 'pendiente' || !!operacion || !!nucleo;
+  const filtros = (
+    <Filtros
+      titulo={T.panelCola.filtrarCola}
+      resumen={resumen}
+      activo={filtrado}
+      lleno={!ancho}
+      alQuitar={() => {
+        if (estado !== 'pendiente') cambiarEstado('pendiente');
+        setOperacion('');
+        setNucleo('');
+      }}
+      grupos={[
+        {
+          titulo: T.panelCola.grupoEstado,
+          valor: estado,
+          alCambiar: (v: EstadoModeracion) => cambiarEstado(v),
+          opciones: ESTADOS.map((e) => ({ valor: e.valor, nombre: e.nombre })),
+        },
+        {
+          titulo: T.panelCola.grupoOperacion,
+          valor: operacion,
+          alCambiar: (v: Operacion | '') => setOperacion(v),
+          opciones: [
+            { valor: '', nombre: T.panelCola.todas },
+            ...OPERACIONES.map((o) => ({
+              valor: o,
+              nombre: ETIQUETA_OPERACION[o],
+              adorno: <EtiquetaOperacion operacion={o} />,
+            })),
+          ],
+        },
+        {
+          titulo: T.panelCola.grupoNucleo,
+          valor: nucleo,
+          alCambiar: (v: string) => setNucleo(v),
+          opciones: [{ valor: '', nombre: T.mapa.todos }, ...nucleos.map((n) => ({ valor: n, nombre: n }))],
+        },
+      ]}
+    />
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Por debajo de 800 px de ancho útil (tableta, o zoom 200 %), los filtros son tres desplegables
-          compactos en una línea, y el recuento de seleccionadas va en la barra de abajo (docs/33 RV-331). */}
-      <div className="border-linea bg-fondo flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm max-[800px]:gap-1.5 max-[800px]:py-1">
+      {/* docs/38 RV-505: «Seleccionar todas» y el botón de filtros; en el historial, «solo lectura» y el botón. Desde
+          1.100 px, con algo marcado, Aprobar y Rechazar en esta barra; por debajo, en la de abajo. */}
+      <div className="border-linea bg-fondo flex items-center gap-2 border-b px-3 py-2 text-sm max-[800px]:py-1.5">
         {pendientes ? (
-          <>
-            <label className="flex min-h-11 items-center gap-2 max-[800px]:min-w-11 max-[800px]:justify-center">
-              <input
-                type="checkbox"
-                className="size-4"
-                checked={elegidas.length > 0 && elegidas.length === visibles.length}
-                disabled={!visibles.length || cargando}
-                onChange={(e) => setMarcadas(new Set(e.target.checked ? visibles.map((p) => p.id) : []))}
-                aria-label={T.panelCola.seleccionarTodas}
-              />
-              <span
-                className={cn('max-[800px]:hidden', elegidas.length ? 'text-texto font-semibold' : 'text-texto-suave')}
-              >
-                {elegidas.length ? T.panelCola.seleccionadas(elegidas.length) : T.panelCola.ningunaSeleccionada}
-              </span>
-            </label>
-            {/* En tableta y móvil, la barra de abajo (FR-107). */}
-            {ancho && botonesLote}
-          </>
+          <label className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2">
+            <input
+              type="checkbox"
+              className="size-4"
+              checked={elegidas.length > 0 && elegidas.length === visibles.length}
+              disabled={!visibles.length || cargando}
+              onChange={(e) => setMarcadas(new Set(e.target.checked ? visibles.map((p) => p.id) : []))}
+              aria-label={T.panelCola.seleccionarTodas}
+            />
+            {/* «N seleccionadas», una vez: aquí desde 768 px; en el móvil, en la barra de abajo. */}
+            <span className={cn('max-md:hidden', elegidas.length ? 'text-texto font-semibold' : 'text-texto-suave')}>
+              {elegidas.length ? T.panelCola.seleccionadas(elegidas.length) : T.panelCola.ningunaSeleccionada}
+            </span>
+          </label>
         ) : (
-          <span className="text-texto-suave max-[800px]:order-last max-[800px]:basis-full max-[800px]:text-[13px]">
-            {T.panelCola.soloLectura}
-          </span>
+          <span className="text-texto-suave shrink-0 max-md:text-[13px]">{T.panelCola.soloLectura}</span>
         )}
-        <div
-          role="radiogroup"
-          aria-label={T.panelCola.filtroEstado}
-          className="flex flex-wrap gap-1.5 max-[800px]:hidden lg:ml-4"
-        >
-          {ESTADOS.map((e) => (
-            <button
-              key={e.valor}
-              type="button"
-              role="radio"
-              aria-checked={estado === e.valor}
-              onClick={() => cambiarEstado(e.valor)}
-              className={cn(
-                'border-linea min-h-9 rounded-full border px-3 text-[13px]',
-                estado === e.valor ? 'bg-barra border-barra text-white' : 'bg-papel text-texto-suave',
-              )}
-            >
-              {e.nombre}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 max-[800px]:min-w-0 max-[800px]:flex-1 max-[800px]:flex-nowrap max-[800px]:gap-1.5 lg:ml-auto">
-          <span className="text-texto-suave max-[800px]:hidden">{T.panelCola.filtrar}</span>
-          <select
-            aria-label={T.panelCola.filtroEstado}
-            value={estado}
-            onChange={(e) => cambiarEstado(e.target.value as EstadoModeracion)}
-            className={cn(SELECT, 'min-[800px]:hidden')}
-          >
-            {ESTADOS.map((e) => (
-              <option key={e.valor} value={e.valor}>
-                {e.nombre}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label={T.panelCola.filtroOperacion}
-            value={operacion}
-            onChange={(e) => setOperacion(e.target.value as Operacion | '')}
-            className={SELECT}
-          >
-            <option value="">{T.panelCola.todasOperaciones}</option>
-            {OPERACIONES.map((o) => (
-              <option key={o} value={o}>
-                {ETIQUETA_OPERACION[o]}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label={T.panelCola.filtroNucleo}
-            value={nucleo}
-            onChange={(e) => setNucleo(e.target.value)}
-            className={SELECT}
-          >
-            <option value="">{T.panelCola.todosNucleos}</option>
-            {nucleos.map((n) => (
-              <option key={n}>{n}</option>
-            ))}
-          </select>
-        </div>
+        {filtros}
+        {pendientes && ancho && elegidas.length > 0 && <div className="ml-auto flex gap-3">{botonesLote}</div>}
       </div>
 
       {rechazoLote && (
@@ -391,11 +368,12 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
           ref={lista}
           tabIndex={-1}
           aria-label={T.panelCola.colaRevision}
-          className="border-linea outline-none bg-papel flex-1 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:max-h-dvh min-[1100px]:w-[340px] min-[1100px]:flex-none min-[1100px]:self-start min-[1100px]:overflow-y-auto min-[1100px]:border-r"
+          className="border-linea outline-none bg-papel flex-1 min-[1100px]:sticky min-[1100px]:top-0 min-[1100px]:max-h-dvh min-[1100px]:w-[360px] min-[1600px]:w-[380px] min-[1100px]:flex-none min-[1100px]:self-start min-[1100px]:overflow-y-auto min-[1100px]:border-r"
         >
           <Lista
             carga={carga}
             visibles={visibles}
+            puntos={puntos}
             pendientes={pendientes}
             seleccion={ancho ? seleccion : null}
             marcadas={marcadas}
@@ -429,19 +407,15 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
           </section>
         ) : (
           <>
-            {pendientes && visibles.length > 0 && (
+            {/* Solo con algo marcado (docs/38 RV-505): en el móvil, «N seleccionadas» y debajo los dos botones a lo
+                ancho; en la tableta, solo los botones (el número ya está arriba). */}
+            {pendientes && elegidas.length > 0 && (
               <div
                 data-testid="barra-cola"
-                className="bg-barra sticky bottom-0 z-10 flex flex-wrap items-center gap-2 px-3 py-2 text-sm text-white"
+                className="bg-barra sticky bottom-0 z-10 px-3 py-2 text-sm text-white md:flex md:justify-end md:gap-3"
               >
-                {elegidas.length ? (
-                  <>
-                    <span className="mr-auto font-semibold">{T.panelCola.seleccionadas(elegidas.length)}</span>
-                    {botonesLote}
-                  </>
-                ) : (
-                  <span className="min-h-9 py-2 font-semibold">{T.panelCola.tocaUna}</span>
-                )}
+                <p className="mb-2 font-semibold md:hidden">{T.panelCola.seleccionadas(elegidas.length)}</p>
+                <div className="grid grid-cols-2 gap-3 md:flex">{botonesLote}</div>
               </div>
             )}
             {seleccion && (
@@ -469,6 +443,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
 function Lista({
   carga,
   visibles,
+  puntos,
   pendientes,
   seleccion,
   marcadas,
@@ -479,6 +454,7 @@ function Lista({
 }: {
   carga: ReturnType<typeof useCarga<PropuestaPanel[]>>;
   visibles: PropuestaPanel[];
+  puntos: Parameters<typeof codigoCola>[1];
   pendientes: boolean;
   seleccion: PropuestaPanel | null;
   marcadas: Set<string>;
@@ -515,41 +491,55 @@ function Lista({
       {error}
       <ul>
         {visibles.map((p) => {
-          const nombre = `${ETIQUETA_OPERACION[p.operacion]} ${p.codigo ?? T.panelCola.nuevo}`;
+          const codigo = codigoCola(p, puntos);
+          const nombre = `${ETIQUETA_OPERACION[p.operacion]} ${codigo}`;
           const activa = p.id === seleccion?.id;
+          const { direccion, nucleo, autor } = lineasCola(p);
           return (
             <li
               key={p.id}
               className={cn(
-                'border-linea flex items-center gap-2.5 border-b px-3 py-1',
+                'border-linea flex items-start gap-1 border-b pr-3 pl-1',
                 activa && 'bg-fila-elegida shadow-[inset_3px_0_0_var(--marino-700)]',
               )}
             >
               {pendientes && (
-                <input
-                  type="checkbox"
-                  className="size-4 shrink-0"
-                  checked={marcadas.has(p.id)}
-                  onChange={() => alMarcar(p.id)}
-                  aria-label={T.panelCola.seleccionar(nombre)}
-                />
+                // La casilla, dentro de una etiqueta de 44 × 44 (UI-15).
+                <label className="flex size-11 shrink-0 items-center justify-center">
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={marcadas.has(p.id)}
+                    onChange={() => alMarcar(p.id)}
+                    aria-label={T.panelCola.seleccionar(nombre)}
+                  />
+                </label>
               )}
-              {/* Sin mapita en la fila (docs/33 RV-331, U14): la fila es más baja y el mapa está en el detalle. */}
+              {/* Tres líneas (UI-11, DEC-215), sin «…»: lo largo parte (UI-17). Sin mapita (docs/33 RV-331, U14). */}
               <button
                 type="button"
                 data-propuesta={p.id}
                 onClick={() => alElegir(p)}
                 aria-current={activa || undefined}
-                className="min-h-11 min-w-0 flex-1 text-left"
+                className={cn('min-h-11 min-w-0 flex-1 py-1 text-left leading-tight', !pendientes && 'pl-2')}
               >
                 <span className="flex items-center gap-1.5">
                   <EtiquetaOperacion operacion={p.operacion} />
-                  <span className="font-datos text-texto-suave text-[13px]">{p.codigo ?? T.panelCola.nuevo}</span>
+                  <span className="font-datos text-texto-suave text-[13px]">{codigo}</span>
                   {pendientes && tieneAviso(p) && (
-                    <TriangleAlert size={14} className="text-ambar-texto" aria-label={T.panelCola.senalAviso} />
+                    <TriangleAlert
+                      size={14}
+                      className="text-ambar-texto shrink-0"
+                      aria-label={T.panelCola.senalAviso}
+                    />
                   )}
+                  <Fecha f={p.creada_en} className="text-texto-suave ml-auto shrink-0 text-[12px]" />
                 </span>
-                <span className="text-texto-suave block truncate text-[13px]">{lineaCola(p)}</span>
+                <span className="block text-[13px] break-words">
+                  {direccion ?? <span className="text-texto-suave">{T.ficha.sinDireccion}</span>}
+                  <span className="text-texto-suave">{` · ${nucleo}`}</span>
+                </span>
+                <span className="text-texto-suave block text-[13px] break-words">{autor}</span>
               </button>
             </li>
           );
@@ -580,7 +570,7 @@ function BotonBarra({ className, ...resto }: React.ButtonHTMLAttributes<HTMLButt
     <button
       type="button"
       className={cn(
-        'border-linea bg-papel text-texto rounded-campo min-h-9 border px-3 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-50',
+        'border-linea bg-papel text-texto rounded-campo min-h-11 border px-3 text-[13px] font-semibold disabled:cursor-not-allowed disabled:opacity-50 min-[1100px]:min-h-9',
         className,
       )}
       {...resto}
