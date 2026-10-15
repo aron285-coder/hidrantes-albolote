@@ -7,7 +7,7 @@ import type { NodeResult, Result } from 'axe-core';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas } from './ayudas.ts';
+import { conGoogle, simularTablas, filasRegistro, filtrarPor } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 test.describe.configure({ timeout: 60_000 });
@@ -144,17 +144,17 @@ test.describe('a 412 × 915', () => {
 test.describe('desde md', () => {
   test.skip(({ isMobile }) => isMobile, 'la tabla, en escritorio');
 
-  // 768 es el primer ancho con tabla: si cabe ahí, cabe en todos los demás.
-  for (const [ancho, alto] of [
-    [768, 1024],
-    [1440, 900],
+  // Desde docs/38 (DEC-213), el Registro es una lista hasta 1.099 px y una tabla desde 1.100.
+  for (const [ancho, alto, tablaRegistro] of [
+    [768, 1024, false],
+    [1440, 900, true],
   ] as const) {
-    test(`a ${ancho} px, Registro y Papelera siguen en tabla y caben (RV-116)`, async ({ page }) => {
+    test(`a ${ancho} px, Registro y Papelera caben (RV-116, docs/38 RV-507)`, async ({ page }) => {
       await page.setViewportSize({ width: ancho, height: alto });
       const panel = await prepararPanel(page);
       await page.goto('/admin/registro');
       await expect(page.getByText(REGISTRO[0].codigo).first()).toBeVisible({ timeout: CARGA });
-      await expect(page.locator('table')).toHaveCount(1);
+      await expect(page.locator('table')).toHaveCount(tablaRegistro ? 1 : 0);
       expect(await desbordes(page)).toEqual([]);
 
       await page.goto('/admin/papelera');
@@ -196,4 +196,98 @@ test.describe('capturas', () => {
       }
     });
   }
+});
+
+// ---------- docs/38 RV-507 (DEC-213, DEC-215): el Registro por anchos ----------
+
+test.describe('Registro por anchos (docs/38 RV-507)', () => {
+  test.skip(({ isMobile }) => isMobile, 'cada test fija su ventana');
+  const ENTRADAS = [
+    {
+      ...REGISTRO[0],
+      id: 101,
+      actor: 'jefatura@example.org',
+      es_admin: true,
+      accion: 'borrado',
+      codigo: 'HID-0101',
+      resumen: 'borrado · HID-0101',
+      antes: { codigo: 'HID-0101', tipo: 'hidrante', motivo: 'Duplicado' },
+      despues: null,
+    },
+    {
+      ...REGISTRO[0],
+      id: 102,
+      actor: 'jefatura@example.org',
+      es_admin: true,
+      accion: 'config_cambiada',
+      codigo: null,
+      resumen: 'config_cambiada · dias_papelera',
+      antes: { dias_papelera: 30 },
+      despues: { dias_papelera: 45 },
+    },
+    { ...REGISTRO[1], id: 103 },
+  ];
+
+  async function preparar(page: Page) {
+    const panel = await prepararPanel(page);
+    // Como PostgREST: el filtro por acción lo hace el servidor.
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/v_registro?*`, (route) => {
+      const url = new URL(route.request().url());
+      const accion = url.searchParams.get('accion')?.replace(/^eq\./, '');
+      const filas = accion ? ENTRADAS.filter((e) => e.accion === accion) : ENTRADAS;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Expose-Headers': 'Content-Range',
+          'Content-Range': `0-${Math.max(filas.length - 1, 0)}/${filas.length}`,
+        },
+        body: JSON.stringify(filas),
+      });
+    });
+    return panel;
+  }
+
+  test('a 412: tres líneas; sin punto, ni «Punto» ni «—»; tu entrada dice «Tú»; filtrar por «Borrado»', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await preparar(page);
+    await page.goto('/admin/registro');
+    await expect(filasRegistro(page)).toHaveCount(3, { timeout: CARGA });
+    await expect(filasRegistro(page).first().locator('p')).toHaveCount(3);
+    const sinPunto = filasRegistro(page).nth(1);
+    await expect(sinPunto).toContainText(`${T.panelAjustes.diasPapelera}: 30 → 45`);
+    await expect(sinPunto).not.toContainText(T.panelRegistro.colPunto);
+    await expect(sinPunto).not.toContainText('—');
+    await expect(sinPunto).toContainText(T.panel.tu);
+    await expect(page.getByRole('main')).not.toContainText('jefatura@example.org');
+    await filtrarPor(page, T.panelRegistro.colAccion, T.panelRegistro.borrado);
+    await expect(filasRegistro(page)).toHaveCount(1);
+    await expect(page.getByRole('button', { name: /^Filtros: / })).toHaveAccessibleName(
+      T.panel.filtrosDe(T.panelRegistro.borrado),
+    );
+  });
+
+  for (const [ancho, alto, tabla] of [
+    [820, 1180, false],
+    [1280, 800, true],
+  ] as const) {
+    test(`a ${ancho} px, ${tabla ? 'tabla' : 'lista'}`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: alto });
+      await preparar(page);
+      await page.goto('/admin/registro');
+      await expect(filasRegistro(page)).toHaveCount(3, { timeout: CARGA });
+      await expect(page.getByRole('main').locator('table')).toHaveCount(tabla ? 1 : 0);
+    });
+  }
+
+  test('a 1920 px, la tabla mide como mucho 1.500 px', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await preparar(page);
+    await page.goto('/admin/registro');
+    await expect(filasRegistro(page)).toHaveCount(3, { timeout: CARGA });
+    expect((await page.getByRole('main').locator('table').boundingBox())!.width).toBeLessThanOrEqual(1500);
+  });
 });

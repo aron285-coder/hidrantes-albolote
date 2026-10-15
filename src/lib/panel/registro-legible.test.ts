@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import type { EntradaRegistro } from './inventario';
 import { detalleLegible } from './registro-legible';
+import { T } from '../textos';
 
 /** Un punto como lo deja fn_punto_json en `antes`/`despues` (0005, 0035). */
 const PUNTO = {
@@ -117,12 +118,13 @@ describe('detalleLegible · edición con el punto entero en antes y después', (
     expect(detalleLegible(edicion({ racor: 'storz' }))).toBe('Enganche: Granada → Otro');
   });
 
-  it('un texto largo se recorta a 60 caracteres con "…"', () => {
-    const largo = 'a'.repeat(80);
+  // docs/38 RV-507 (UI-17, DEC-215): sin recortar; la lista y la tabla parten el texto en líneas.
+  it('un texto largo sale entero, sin «…»', () => {
+    const largo = 'a'.repeat(120);
     const d = detalleLegible(edicion({ descripcion: largo }));
     const valor = d.split(' → ')[1]!;
-    expect(valor).toHaveLength(60);
-    expect(valor.endsWith('…')).toBe(true);
+    expect(valor).toBe(largo);
+    expect(d).not.toContain('…');
   });
 
   it('un valor vacío o nulo se lee "—"', () => {
@@ -205,7 +207,7 @@ describe('detalleLegible · valores frecuentes en palabras', () => {
         despues: { filtros: { tipo: 'hidrante', revision_caducada: true }, filas: 4 },
       }),
     );
-    expect(d).toBe('filas: 4 · filtros: Tipo: Hidrante, revision_caducada: sí');
+    expect(d).toBe('Filtros: Tipo: Hidrante, revision_caducada: sí · Filas: 4');
   });
 });
 
@@ -221,7 +223,7 @@ describe('detalleLegible · solo después', () => {
     expect(detalleLegible(entrada({ accion: 'aprobacion', despues: hidrante }))).toBe('Hidrante · 100 mm · Regular');
   });
 
-  it('config_cambiada: cada clave con su valor', () => {
+  it('config_cambiada: cada clave con el nombre de la tarjeta Parámetros (docs/38 RV-507)', () => {
     const d = detalleLegible(
       entrada({
         accion: 'config_cambiada',
@@ -230,7 +232,7 @@ describe('detalleLegible · solo después', () => {
         despues: { dias_papelera: 45, escala_radios: [5, 10, 15, 20, 25] },
       }),
     );
-    expect(d).toBe('dias_papelera: 30 → 45 · escala_radios: 5, 10, 15, 20, 25');
+    expect(d).toBe(`${T.panelAjustes.diasPapelera}: 30 → 45 · ${T.panelAjustes.radiosMarcador}: 5, 10, 15, 20, 25`);
   });
 
   it('una restauración: la clave con su nombre', () => {
@@ -290,7 +292,7 @@ describe('detalleLegible · privacidad (FR-27)', () => {
       const d = detalleLegible(e);
       expect(d).not.toMatch(/abcd-1234|dispositivo|Nombrevoluntario|Apellidovoluntario|Actorvoluntario|autor|actor/);
     }
-    expect(detalleLegible(casos[0]!)).toBe('propuestas: 3 · registro: 5');
+    expect(detalleLegible(casos[0]!)).toBe('Propuestas: 3 · Entradas del Registro: 5');
     expect(detalleLegible(casos[1]!)).toBe('datos: Estado: Bueno · operacion: Revisión');
   });
 
@@ -456,6 +458,45 @@ describe('detalleLegible · entrada, código y móviles (RV-472)', () => {
   it('una clave desconocida se sigue enseñando tal cual (RV-127)', () => {
     expect(detalleLegible(entrada({ accion: 'config_cambiada', codigo: null, despues: { algo_nuevo: 1 } }))).toBe(
       'algo_nuevo: 1',
+    );
+  });
+});
+
+// docs/38 RV-507 (#758): las tres acciones que enseñaban claves crudas, con palabras.
+describe('workflow_lanzado, exportacion y anonimizacion, con palabras (#758)', () => {
+  it('workflow_lanzado: el trabajo con el nombre de su botón de Mantenimiento', () => {
+    expect(
+      detalleLegible(entrada({ accion: 'workflow_lanzado', codigo: null, despues: { workflow: 'purgar-fotos' } })),
+    ).toBe(`${T.panelRegistro.campos.workflow}: ${T.panel.purgarFotos}`);
+  });
+
+  it('exportacion: los filtros con sus nombres y las filas', () => {
+    expect(
+      detalleLegible(
+        entrada({
+          accion: 'exportacion',
+          codigo: null,
+          despues: { filtros: { tipo: 'hidrante', caudal: 'malo' }, filas: 12 },
+        }),
+      ),
+    ).toBe(`${T.panelRegistro.campos.filtros}: Estado: Malo, Tipo: Hidrante · ${T.panelRegistro.campos.filas}: 12`);
+  });
+
+  it('anonimizacion: cuántas propuestas y entradas, sin el id del móvil', () => {
+    const d = detalleLegible(
+      entrada({
+        accion: 'anonimizacion',
+        codigo: null,
+        despues: { dispositivo_id: 'd-123', propuestas: 3, registro: 5 },
+      }),
+    );
+    expect(d).toBe(`${T.panelRegistro.campos.propuestas}: 3 · ${T.panelRegistro.campos.registro}: 5`);
+    expect(d).not.toContain('d-123');
+  });
+
+  it('una clave que no tiene nombre se enseña tal cual', () => {
+    expect(detalleLegible(entrada({ accion: 'config_cambiada', codigo: null, despues: { clave_nueva: 7 } }))).toBe(
+      'clave_nueva: 7',
     );
   });
 });

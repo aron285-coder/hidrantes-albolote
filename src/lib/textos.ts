@@ -859,7 +859,6 @@ export const T = {
     grupoOperacion: 'Operación',
     grupoNucleo: 'Núcleo',
     todas: 'Todas',
-    filtrar: 'Filtrar:',
     eligeUna: 'Selecciona una propuesta de la lista.',
     historialVacio: 'Todavía no hay propuestas en este estado.',
     busquedaVacia: (texto: Parametro) => `Nada coincide con "${texto}".`,
@@ -1027,7 +1026,8 @@ export const T = {
 
   panelRegistro: {
     filtroAccion: 'Filtrar por acción',
-    todasAcciones: 'todas las acciones',
+    // docs/38 RV-507: con mayúscula, como las demás opciones de los filtros (R7).
+    todasAcciones: 'Todas las acciones',
     entradas: (n: number) => plural(n, 'entrada', 'entradas'),
     inmutable: 'no se puede editar ni borrar',
     colMomento: 'Momento',
@@ -1110,6 +1110,12 @@ export const T = {
       revocar_dispositivos: 'Revocar los móviles',
       abrir_entrada: 'Abrir la entrada',
       motivo: 'Motivo',
+      // docs/38 RV-507 (#758): un trabajo de Mantenimiento, una exportación y una anonimización.
+      workflow: 'Trabajo',
+      filtros: 'Filtros',
+      filas: 'Filas',
+      propuestas: 'Propuestas',
+      registro: 'Entradas del Registro',
     },
   },
 

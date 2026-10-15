@@ -52,6 +52,8 @@ import {
   renombrarNucleo,
   sugerenciasUniformidad,
   textoRadios,
+  NOMBRE_PARAMETRO,
+  NOMBRE_TRABAJO,
 } from '@/lib/panel/ajustes';
 import { type TemaJefatura, cargarTemas, estadoPushJefatura, fijarTemas } from '@/lib/panel/push-jefatura';
 import {
@@ -611,18 +613,6 @@ function Administradores() {
 
 // ---------- parámetros (FR-142, FL-31) ----------
 
-const NOMBRE_PARAMETRO: Record<ClaveParametro, string> = {
-  meses_revision: T.panelAjustes.mesesRevision,
-  radio_duplicado_m: T.panelAjustes.radioDuplicado,
-  dias_papelera: T.panelAjustes.diasPapelera,
-  buffer_zona_m: T.panelAjustes.bufferZona,
-  max_subidas_dispositivo_dia: T.panelAjustes.subidasDia,
-  metros_tramo_manguera: T.panelAjustes.metrosTramo,
-  // docs/33 RV-338 (0044): los topes de entradas con el código.
-  max_altas_ip_dia: T.panelAjustes.altasIpDia,
-  max_altas_global_hora: T.panelAjustes.altasGlobalHora,
-};
-
 function ParametrosTarjeta() {
   const { avisar } = usePanel();
   const carga = useCarga(() => cargarParametros(), []);
@@ -1084,14 +1074,11 @@ function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
 
 // Solo se dibuja lo que existe (UI-01): cada uno de estos cuatro tiene su workflow, y una prueba de
 // /api/lanzar-workflow comprueba que sigue siendo así (DEC-080).
-const TRABAJOS: { workflow: Workflow; nombre: string }[] = [
-  { workflow: 'purgar-fotos', nombre: T.panel.purgarFotos },
-  { workflow: 'regenerar-zona', nombre: T.panel.regenerarZona },
-  { workflow: 'regenerar-mapabase', nombre: T.panel.regenerarMapaBase },
-  { workflow: 'respaldo', nombre: T.panel.respaldoAhora },
-];
+const TRABAJOS: { workflow: Workflow; nombre: string }[] = (Object.keys(NOMBRE_TRABAJO) as Workflow[]).map((w) => ({
+  workflow: w,
+  nombre: NOMBRE_TRABAJO[w],
+}));
 const SOLO_PRODUCCION = new Set<Workflow>(['purgar-fotos', 'respaldo']);
-const NOMBRE_TRABAJO = Object.fromEntries(TRABAJOS.map((t) => [t.workflow, t.nombre])) as Record<Workflow, string>;
 
 function Mantenimiento() {
   const { avisar } = usePanel();

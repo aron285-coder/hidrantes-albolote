@@ -740,7 +740,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `[n] rechazadas. Cada autor verá el motivo.` (con uno, `1 rechazada. Su autor verá el motivo.`) · `Rechazar [n] propuestas con un motivo común` (con uno, `Rechazar 1 propuesta con un motivo común`) ·
 `Motivo que verán los autores` · `Ej.: la foto es del hidrante de al lado, HID-0087` ·
 `No menciones a otros voluntarios: el autor lo leerá tal cual.` · `Propuesto por [autor] · [hace] ·
-[nucleo]` · `Seleccionar [nombre]` · `Seleccionar todas` · `Historial: solo lectura` · `Filtrar:` ·
+[nucleo]` · `Seleccionar [nombre]` · `Seleccionar todas` · `Historial: solo lectura` ·
 `Selecciona una propuesta de la lista.` · `Todavía no hay propuestas en este estado.` ·
 `Nada coincide con "[texto]".` · `No queda ninguna propuesta pendiente con ese filtro.` ·
 `Cargando…` · `Foto del voluntario · toca para ampliar` · `Esta propuesta no trae foto nueva.` ·
@@ -790,7 +790,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `El registro nunca debió existir: va a la papelera y se puede restaurar mientras esté en plazo.` ·
 `Motivo (obligatorio, queda en el registro)` ·
 `Exportadas [n] filas. La exportación consta en el Registro.` (con uno, `Exportada 1 fila. La exportación consta en el Registro.`) ·
-`Filtrar por acción` · `todas las acciones` ·
+`Filtrar por acción` ·
 `[n] entradas` (con uno, `1 entrada`) · `no se puede editar ni borrar` · `Momento` · `Actor` · `Acción` · `Punto` ·
 `Detalle` · `[n] entradas por página` (con uno, `1 entrada por página`) · `Todavía no hay entradas con ese filtro.` ·
 `[motivo] Las filas que ves son las de antes.` ·
@@ -807,7 +807,7 @@ la dirección se edita en la propia celda` · `Páginas` · `No hay puntos con e
 `Retirado` · `Borrado` · `Estado` ·
 `Enganche` · `Diámetro` · `Tipo` · `Fallo` · `Dirección` · `Descripción` · `Núcleo` ·
 `Última revisión` · `Foto` · `Foto del sitio` · `Situación` · `Código` · `Nombre` · `Correo` · `Archivo` ·
-`Desde` · `Hasta` · `Horas` · `Móviles` · `Revocar los móviles` · `Abrir la entrada` (docs/36 RV-472) · `Motivo` ·
+`Desde` · `Hasta` · `Horas` · `Móviles` · `Revocar los móviles` · `Abrir la entrada` (docs/36 RV-472) · `Motivo` · `Trabajo` · `Filtros` · `Filas` · `Propuestas` · `Entradas del Registro` (un trabajo de Mantenimiento, una exportación y una anonimización, docs/38 RV-507) ·
 `Los borrados se conservan [dias] días y después se purgan.` (con uno, `Los borrados se conservan 1 día y después se purgan.`) · `Purgar lo caducado…` ·
 `Purgar ahora` ·
 `Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de [dias] días en la papelera. No se puede deshacer.` (con uno, `Se borran definitivamente, con sus propuestas y sus fotos, los puntos que llevan más de 1 día en la papelera. No se puede deshacer.`) ·

@@ -172,6 +172,10 @@ export const filasInventario = (page: Page) =>
   page.getByRole('main').locator('tbody > tr, ul[aria-label="Inventario"] > li');
 export const filaInventario = (page: Page, codigo: string) => filasInventario(page).filter({ hasText: codigo });
 
+/** Las entradas del Registro (docs/38 RV-507): las filas de la tabla desde 1.100 px o los elementos de la lista. */
+export const filasRegistro = (page: Page) =>
+  page.getByRole('main').locator('tbody > tr, ul[aria-label="Registro"] > li');
+
 /** Editar, Historial, Retirar o Borrar de un punto del Inventario: «Editar» y «⋯» en la tabla; la fila y «⋯» en la lista. */
 export async function accionInventario(page: Page, codigo: string, que: 'editar' | 'historial' | 'retirar' | 'borrar') {
   const fila = filaInventario(page, codigo);

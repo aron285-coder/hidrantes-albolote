@@ -14,6 +14,7 @@ import {
   filaInventario,
   filasInventario,
   filtrarPor,
+  filasRegistro,
 } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
@@ -376,11 +377,12 @@ test('Exportar ▾: «Inventario completo (JSON)», sin filtros (docs/33 RV-335)
 test('registro: filtro por acción, solo lectura (FR-123, FL-26)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/registro');
-  await expect(page.getByRole('row')).toHaveCount(3);
+  await expect(filasRegistro(page)).toHaveCount(2);
   await expect(page.getByText(T.panelRegistro.inmutable)).toBeVisible();
-  await page.getByLabel(T.panelRegistro.filtroAccion).selectOption('aprobacion');
-  await expect(page.getByRole('row')).toHaveCount(2);
-  await expect(page.getByRole('cell', { name: T.panelRegistro.aprobacion })).toBeVisible();
+  // Exacto: «Aprobación con correcciones» también empieza igual.
+  await filtrarPor(page, T.panelRegistro.colAccion, new RegExp(`^${T.panelRegistro.aprobacion}$`));
+  await expect(filasRegistro(page)).toHaveCount(1);
+  await expect(filasRegistro(page).first()).toContainText(T.panelRegistro.aprobacion);
 });
 
 // docs/31 RV-166: buscar desde la página 3 vuelve a la primera. Antes pedía una página fuera de
@@ -432,8 +434,8 @@ test('registro: buscar desde otra página vuelve a la primera (docs/31 RV-166)',
 
   await buscarEnPanel(page, 'HID-9001');
   await expect(page.getByText(T.panelRegistro.entradas(12))).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'HID-9002', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('cell', { name: 'HID-9001', exact: true })).toHaveCount(12);
+  await expect(filasRegistro(page).filter({ hasText: 'HID-9002' })).toHaveCount(0);
+  await expect(filasRegistro(page).filter({ hasText: 'HID-9001' })).toHaveCount(12);
   // Ninguna petición con búsqueda ha pedido la página 3: ni un 416 ni el aviso de error de paso.
   expect(conBusqueda.length).toBeGreaterThan(0);
   expect(conBusqueda.every((d) => d === 0)).toBe(true);

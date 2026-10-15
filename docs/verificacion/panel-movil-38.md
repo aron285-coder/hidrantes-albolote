@@ -73,7 +73,17 @@ workflows. Una sola sesión, en el orden de §0.2.
   con «Editar» y «⋯» y una sola fecha en la revisión. En el móvil, Exportar es un botón de icono con el motivo dentro del
   menú. «＋ Añadir dirección» con borde discontinuo. Pie: «N puntos con este filtro / esta búsqueda», solo con filtro o
   búsqueda (fuera «Mostrando»). Páginas y Tabla/Mapa de 44 px por debajo de 1.100. El chip de «No funciona» usa
-  `tinte-gris` (en oscuro se quedaba claro). Tests que fallaban antes: los e2e nuevos «Inventario por anchos» de
+  `tinte-gris` solo en el panel (`EtiquetaEstado`; en oscuro se quedaba claro); la app del voluntario no cambia. Tests que fallaban antes: los e2e nuevos «Inventario por anchos» de
   `panel-inventario.spec.ts`; adaptados con `filasInventario` y `accionInventario` los de `panel-inventario`,
   `panel-dialogo` (el foco vuelve al «⋯»), `inventario-editar`, `panel-marcadores`, `vistas`, `controles`, `degradacion`,
   `panel-pestanas` e `integracion/fase7` y `fase8`.
+- **RV-507:** el Registro con el botón de filtros («Todas las acciones» / la acción elegida, en una lista de una sola
+  elección); el desplegable y su botón de quitar, fuera. Por debajo de 1.100 px, una lista de tres líneas (la acción y
+  el código, solo si hay punto; el detalle entero, partiendo donde haga falta; quién y cuándo) y ya no `filas-apiladas`;
+  desde 1.100, la tabla (1.500 px como mucho desde 1.600). Tu propia entrada dice «Tú» y no tu correo; la etiqueta
+  «Jefatura» va en azul; la fecha con `Fecha` («hace…» y la exacta en el `title`). El detalle ya no se corta a 120
+  caracteres y nombra los ajustes y los trabajos de Mantenimiento como en Ajustes (#758): `NOMBRE_PARAMETRO` y
+  `NOMBRE_TRABAJO` pasan a `src/lib/panel/ajustes.ts`; una clave desconocida sale tal cual. Tests que fallaban antes:
+  `registro-legible.test.ts` (texto entero, nombres de ajustes y trabajos), `registro.test.tsx` («Tú», sin «Punto —»,
+  el resumen del botón) y el e2e «Registro por anchos» de `panel-movil.spec.ts` (412, 820, 1280 y 1920); adaptados los
+  del Registro de `panel-inventario.spec.ts` con `filasRegistro` y `filtrarPor`.
