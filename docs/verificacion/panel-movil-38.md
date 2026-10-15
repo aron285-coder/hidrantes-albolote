@@ -128,3 +128,9 @@ workflows. Una sola sesión, en el orden de §0.2.
   `panel-ajustes` sustituidas, y `panel-movil-menu` y `panel-movil-filtros` nuevas (enlazadas desde 13 §3 y §5), con
   `vistas.spec.ts` sobre `PANEL_COMPLETO` (la papelera y lo que lee Ajustes, que pasa de `listas-anchos.spec.ts` a
   `e2e/panel-simulado.ts`: sin él, Ajustes salía con errores de carga en las capturas); `LEEME.md` al día.
+- **RV-512:** RV-139b en verde sobre `6a62228` (`revision-completa-staging.md`, release 0.16.0). Recorrido de
+  `revisar-pantallas`: el panel de staging pide entrar con Google, que no se automatiza, así que las cinco pestañas, la
+  hoja de filtros, el menú ☰ y un «⋯» se miraron con el mismo código y el panel simulado (`vistas.spec.ts` a 412, 820,
+  1.280 y 1.920 en claro y en oscuro, y `listas-anchos.spec.ts`), al lado de los mockups `38-panel-*.html`. Todo
+  coincide salvo lo de §0.6 y una cosa: en la Papelera, «Purgar lo caducado…» va detrás de la explicación y no
+  alineado a la derecha como en el mockup; §9 solo pide que esté arriba y apartado de los «Restaurar», y así se queda.
