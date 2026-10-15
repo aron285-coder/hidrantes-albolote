@@ -25,6 +25,7 @@ pedida por una especificación (DEC-177); la versión vigente es la que dice su 
 | 14 | `14-manual-voluntario.md` · manual del voluntario (`docs/31` RV-139) | borrador, se revisa tras el piloto |
 | 15 | `15-continuidad-y-emergencias.md` | vivo |
 | 16 | `16-alcance-y-hoja-de-ruta.md` | congelado |
+| 37 | `37-antes-del-piloto.md` · antes del piloto: `dist` comprobado antes de desplegar, la entrada del lanzamiento, Editar con la misma versión, `OTRA_CUENTA` y la documentación del piloto (DEC-209); registro en `verificacion/antes-del-piloto-37.md` | en curso |
 | — | `mockups/` · mockups definitivos que cita un documento vigente: `25-lista.html` (solo §1), `25-ficha.html` y `25-cola.html` y `27-cercanos.html` (solo la versión A), citados por 06; y `33-mejoras.html` («Ahora» y «Propuesta» de cada mejora de `docs/33`), citado por 12. `29-inventario-y-editar.html` está archivado | vivo |
 | — | `trabajo-en-paralelo.md` · cómo repartir una especificación grande entre tres sesiones de Claude Code (Ops, Backend, Frontend), y PAR-01 (DEC-100) | vivo |
 | — | `entornos.md` · lo que dejó el arranque (refs, buckets, secretos por nombre) | vivo |

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.65 — 15 oct 2026 (DEC-209 a DEC-211, de `docs/37`; `docs/38` en DEC-193, DEC-196 y DEC-205) · 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -662,6 +662,55 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-211 · Con la entrada abierta, la Function deja pasar más intentos por wifi y la app vuelve a intentarlo sola
+- **Fecha:** 15 oct 2026 (desarrollador) · **Estado:** vigente (`docs/37` RV-491). Matiza DEC-207.
+- **Contexto:** el tope de `/api/verificar-codigo` (DEC-207) deja 10 intentos por minuto y por IP agrupada también
+  con la entrada abierta. El día del lanzamiento, 65 personas en una sala con la misma wifi tardarían por lo menos
+  siete minutos en entrar, y la app no volvía a intentarlo sola tras «mucha gente entrando».
+- **Decisión:**
+  1. La Function pregunta `fn_entrada_abierta_hasta()` con la service role como mucho una vez por minuto y por
+     instancia, y guarda la respuesta en memoria. Si la pregunta falla, sigue con el tope normal.
+  2. Con la entrada abierta, **60** peticiones por minuto y por IP agrupada; sin ella, **10** como hasta ahora. Dos
+     constantes en la Function, en 03 TR-41. Lo de la base de datos no cambia.
+  3. Con `OCUPADO`, la app espera `reintentar_en_s` más entre 0 y 10 s al azar y lo vuelve a intentar sola, como
+     mucho tres veces seguidas, con la cuenta atrás y **Cancelar**. Cambiar el código o el nombre cancela la espera.
+     A la tercera, el texto de siempre y Entrar a mano.
+- **Descartado:** subir el tope a 60 siempre (el tope sin la entrada abierta es el que frena a quien prueba códigos
+  desde una sola IP); reintentar sin azar (todos volverían a chocar en el mismo segundo).
+- **Afecta a:** 03 TR-41; 05 §9; 06 Apéndice A; 13 §2; 14 §2; DEC-207.
+
+### DEC-210 · `dist` se comprueba antes de desplegar
+- **Fecha:** 15 oct 2026 (desarrollador) · **Estado:** vigente (`docs/37` RV-490). Matiza DEC-198.
+- **Contexto:** desde DEC-198, `construir` (sin secretos, con las dependencias) entrega `dist` y `desplegar`
+  (con el environment) lo sube tal cual. Wrangler solo empaqueta `functions/` si `dist` no trae `_worker.js`; si lo
+  trae, ese código sustituye a todas las Functions y corre con las variables de Pages. `_routes.json`,
+  `_redirects` y `_headers` también cambian lo que hace el servidor.
+- **Decisión:**
+  1. `desplegar` ejecuta `.github/scripts/comprobar-dist.sh` justo después de descargar `dist` y antes de
+     cualquier paso con secretos. Falla si hay `_worker.js` (archivo o carpeta), `functions/`, `_routes.json` o
+     `_redirects`; si `_headers` no es idéntico, byte a byte, al que genera el repositorio; si hay un archivo con
+     una extensión fuera de la lista cerrada, o un enlace simbólico.
+  2. Si algún día hace falta uno de esos archivos, se genera en `desplegar` desde el repositorio, nunca desde `dist`.
+  3. Después de desplegar, `comprobar` exige que `/api/verificar-codigo` con `{}` dé exactamente el 400
+     `PAYLOAD_INVALIDO` de las Functions del repositorio.
+- **Riesgo aceptado:** el JavaScript del navegador también sale de `construir`. Una dependencia comprometida podría
+  cambiarlo y llevarse el JWT de quien use el panel, pero no los secretos del servidor. Lo cubren la lista de
+  permitidos de Dependabot y el lockfile estricto (DEC-198).
+- **Afecta a:** 04 (despliegue); 11 (cadena de suministro); DEC-198.
+
+### DEC-209 · `docs/37`, dentro de DEC-193
+- **Fecha:** 15 oct 2026 (desarrollador) · **Estado:** vigente (`docs/37`).
+- **Contexto:** la revisión completa del 15 oct 2026, hecha después de cerrar `docs/36`, dejó dos arreglos que
+  bloquearían el lanzamiento (el despliegue de `dist` y la entrada de 65 personas desde una wifi), dos arreglos
+  pequeños y la documentación que necesita el piloto.
+- **Decisión:**
+  1. `docs/37` cabe en DEC-193 tal cual: arreglos `bloquea-release` y mantenimiento de la documentación. No es
+     otra excepción.
+  2. La especificación de después del piloto pasa a ser **`docs/38`** y parte de `docs/verificacion/piloto.md`.
+     Donde DEC-193, DEC-196 y DEC-205 dicen `docs/37`, léase `docs/38`.
+  3. Los hallazgos bajos de las revisiones del 14 y el 15 oct van como issues `tras-piloto` (RV-498).
+- **Afecta a:** DEC-193, DEC-196, DEC-205, CLAUDE.md §5 y 09 §8.
+
 ### DEC-208 · Editar un punto en el panel lleva la versión que se abrió
 - **Fecha:** 14 oct 2026 (desarrollador) · **Estado:** vigente (`docs/36` RV-452, RV-471; migración `0048`).
 - **Contexto:** `fn_editar_punto` no miraba ninguna versión: si otro administrador cambiaba el punto, o se
@@ -757,7 +806,8 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   1. `docs/36` entra como excepción a DEC-193, y solo con lo que contiene. Los dos de seguridad van como
      `bloquea-release`.
   2. La especificación de después del piloto pasa a ser **`docs/37`** y parte de `docs/verificacion/piloto.md`.
-     Donde DEC-193 y DEC-196 dicen `docs/36`, léase `docs/37`.
+     Donde DEC-193 y DEC-196 dicen `docs/36`, léase `docs/37`. (Desde DEC-209, **`docs/38`**: `docs/37` es lo de
+     antes del piloto.)
   3. Los hallazgos bajos de esa revisión van como issues `tras-piloto`.
 - **Nota (RV-470):** las casillas del código de acceso admiten hasta 18 caracteres cada una; un código entero
   de seis cifras se escribe siempre desde la primera casilla aunque entre en otra, y unas cifras sueltas se
@@ -931,16 +981,16 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. `docs/35` entra como excepción a DEC-193, y solo con lo que contiene.
   2. Los dos altos van como issues `bloquea-release`.
-  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/37`** y parte de
+  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/38`** y parte de
      `docs/verificacion/piloto.md` (donde DEC-193 decía `docs/35`; decía `docs/36` hasta que DEC-205 hizo de
-     `docs/36` la segunda excepción).
+     `docs/36` la segunda excepción, y `docs/37` hasta DEC-209).
   4. Fuera de `docs/35`: S3 (riesgo aceptado por el desarrollador), S5 (decidido por el desarrollador) y los
      hallazgos bajos, que pasan a issues `tras-piloto`.
 - **Descartado:**
   - esperar al piloto: un piloto con datos reales y el acceso de jefatura sin atar a su cuenta de Google no es
     aceptable;
   - meterlo todo como `bloquea-release` sin especificación: sin reparto ni tests escritos.
-- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/37`, por DEC-205); CLAUDE.md §5 («salvo `docs/35` y `docs/36`, DEC-196 y DEC-205»); 09 §8.
+- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/38`, por DEC-205 y DEC-209); CLAUDE.md §5 («salvo `docs/35` y `docs/36`, DEC-196 y DEC-205»); 09 §8.
 
 ### DEC-195 · Reglas de la documentación
 - **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34` RV-358 a RV-361).
@@ -996,9 +1046,9 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
   Una mejora que se le ocurra a Claude Code o al desarrollador mientras tanto se anota como issue con la
   etiqueta `tras-piloto` y no se implementa.
-- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/37` parte de lo que diga ese
-  archivo y de las issues `tras-piloto`, en ese orden (`docs/35` es la excepción de seguridad de DEC-196, y
-  `docs/36`, la de DEC-205).
+- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/38` parte de lo que diga ese
+  archivo y de las issues `tras-piloto`, en ese orden (`docs/35` es la excepción de seguridad de DEC-196;
+  `docs/36`, la de DEC-205, y `docs/37`, lo de antes del piloto dentro de esta regla, DEC-209).
 - **Descartado:** seguir con revisiones sobre staging hasta el piloto (rendimiento cada vez menor); congelar
   también los arreglos de defectos (un defecto que aparezca en la validación tiene que poder arreglarse).
 - **Afecta a:** 09 §8 (fase 9); CLAUDE.md §5 (una línea: «hasta el piloto, DEC-193»).
