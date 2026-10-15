@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public;
 
-select plan(10);
+select plan(9);
 
 -- ---------- RV-491 ----------
 
