@@ -342,10 +342,12 @@ test.describe('Papelera por anchos (docs/38 RV-508)', () => {
 
   test('a 820 px, lista', async ({ page }) => {
     await page.setViewportSize({ width: 820, height: 1180 });
-    await prepararPanel(page);
+    const panel = await prepararPanel(page);
     await page.goto('/admin/papelera');
     await expect(filas(page)).toHaveCount(PAPELERA.length, { timeout: CARGA });
     await expect(page.getByRole('main').locator('table')).toHaveCount(0);
+    expect(await desbordes(page)).toEqual([]);
+    await panel.sinErrores();
   });
 
   test('a 1280 px, la tabla mide como mucho 900 px y el diálogo de purgar sigue igual', async ({ page }) => {
