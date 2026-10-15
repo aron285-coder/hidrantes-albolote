@@ -127,7 +127,8 @@ export function limpiarDireccion(): void {
 
 /**
  * Lo que ha dicho el servidor al unir la cuenta: `unida` (y la sesión ya renovada); `sin_acceso` (la
- * cuenta no puede ser de jefatura); `mezclada` (la cuenta tiene otra identidad unida, docs/36
+ * cuenta no puede ser de jefatura); `otra_cuenta` (el correo de jefatura ya está unido a otra cuenta de
+ * Google, docs/37 RV-493); `mezclada` (la cuenta tiene otra identidad unida, docs/36
  * RV-450); o `sin_comprobar` (no se ha podido saber: sin red, demasiadas peticiones, servidor).
  */
 type Vinculo = 'unida' | 'sin_acceso' | 'otra_cuenta' | 'mezclada' | 'sin_comprobar';
@@ -136,7 +137,7 @@ type Vinculo = 'unida' | 'sin_acceso' | 'otra_cuenta' | 'mezclada' | 'sin_compro
  * El usuario de la sesión para el que ya se ha pedido unir la cuenta y su resultado. Se guarda la
  * promesa: una comprobación que llegue a la vez espera a la misma petición. «Unida» no se guarda
  * (docs/36 RV-450): si la unión se deshace después, la próxima comprobación vuelve a pedirla; solo
- * se recuerdan «sin acceso», «mezclada» y «sin comprobar», que no se piden solas otra vez.
+ * se recuerdan «sin acceso», «otra cuenta», «mezclada» y «sin comprobar», que no se piden solas otra vez.
  */
 let vinculo: { usuario: string; resultado: Promise<Vinculo> } | null = null;
 /** Se ha pulsado «Reintentar»: la próxima comprobación con respuesta vuelve a pedir unirla. */
