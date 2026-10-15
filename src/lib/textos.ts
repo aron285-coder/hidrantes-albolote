@@ -747,6 +747,8 @@ export const T = {
     haceUnMomento: 'hace un momento',
     haceMin: (n: Parametro) => `hace ${n} min`,
     haceHoras: (n: Parametro) => `hace ${n} h`,
+    // docs/38 RV-502: una fecha sin hora (última revisión) que es de hoy, en las listas del panel.
+    hoy: 'hoy',
     haceUnDia: 'hace 1 día',
     haceDias: (n: Parametro) => `hace ${n} días`,
     haceUnMes: 'hace 1 mes',

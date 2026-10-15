@@ -4,7 +4,7 @@ import type { ReactNode, Ref } from 'react';
 import { Ellipsis } from 'lucide-react';
 import { Boton } from '@/componentes/Boton';
 import { claseChip, nombreCaudal } from '@/lib/ficha';
-import { cuando, fechaCorta, fechaDe, horaCorta } from '@/lib/formato';
+import { cuando, cuandoDia, fechaCorta, fechaDe, horaCorta } from '@/lib/formato';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
 import { textoError } from '@/lib/panel/errores';
 import type { Operacion } from '@/lib/propuestas';
@@ -113,10 +113,12 @@ export function Fecha({
   className?: string;
 }) {
   const d = fechaDe(f);
+  // Una fecha que no se puede leer no tumba la lista: se dice que no hay dato (UI-04).
+  if (Number.isNaN(d.getTime())) return <span className={className}>{T.panelCola.sinDato}</span>;
   const exacta = soloDia ? fechaCorta(d) : T.panelRegistro.fechaHora(fechaCorta(d), horaCorta(d));
   return (
-    <time dateTime={d.toISOString()} title={exacta} className={className}>
-      {cuando(d, ahora)}
+    <time dateTime={soloDia ? d.toISOString().slice(0, 10) : d.toISOString()} title={exacta} className={className}>
+      {soloDia ? cuandoDia(d, ahora) : cuando(d, ahora)}
     </time>
   );
 }

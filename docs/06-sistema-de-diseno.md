@@ -684,7 +684,7 @@ tanto se guardan: `Ya están guardadas en el móvil. Puedes actualizar.`
 `Queda anotado para jefatura. Lo que tenías guardado sigue en el móvil.` · `Panel de jefatura` ·
 `Ir al mapa` · `Abrir el panel de jefatura` (nombre accesible de la etiqueta *Jefatura* de la barra, RV-113).
 
-**Tiempos** (UI-12). `hace un momento` · `hace [5] min` · `hace [3] h` · `hace 1 día` · `hace [2] días` · `hace 1 mes` ·
+**Tiempos** (UI-12). `hace un momento` · `hoy` (una fecha sin hora de hoy, en las listas del panel; docs/38 RV-502) · `hace [5] min` · `hace [3] h` · `hace 1 día` · `hace [2] días` · `hace 1 mes` ·
 `hace [3] meses` · `hace 1 año` · `hace [2] años` · `[100] mm`.
 
 **Panel: cola.** `Cola de revisión` · `Inventario` · `Registro` ·

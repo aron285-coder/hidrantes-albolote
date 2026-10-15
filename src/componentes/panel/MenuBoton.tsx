@@ -166,6 +166,12 @@ export function MenuBoton({
         }}
         onKeyDown={(e) => {
           if (ocupado) return;
+          // Con el menú abierto y el foco aún en el botón (todas las opciones deshabilitadas), Esc y Tab lo cierran.
+          if (abierto && e.key === 'Escape') {
+            e.preventDefault();
+            return cerrar(false);
+          }
+          if (abierto && e.key === 'Tab') return cerrar(false);
           if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
           e.preventDefault();
           setAbierto(e.key === 'ArrowUp' ? 'ultimo' : 'primero');

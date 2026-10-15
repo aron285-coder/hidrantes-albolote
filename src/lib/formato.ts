@@ -53,6 +53,18 @@ export function cuando(f: Date | string | number, ahora: Date = new Date()): str
   return ahora.getTime() - d.getTime() < 7 * 86_400_000 ? hace(d, ahora) : fechaCorta(d);
 }
 
+/**
+ * Lo mismo para una fecha sin hora (`date`, como la última revisión): no tiene horas, así que se cuentan días
+ * de calendario en Albolote: «hoy», «hace 1 día»… hasta 6, y la fecha desde 7 (o si fuera de un día futuro).
+ */
+export function cuandoDia(f: Date | string | number, ahora: Date = new Date()): string {
+  const d = fechaDe(f);
+  const dias = Math.round((Date.parse(DIA.format(ahora)) - Date.parse(DIA.format(d))) / 86_400_000);
+  if (dias < 0 || dias >= 7) return fechaCorta(d);
+  if (dias === 0) return T.formato.hoy;
+  return dias === 1 ? T.formato.haceUnDia : T.formato.haceDias(dias);
+}
+
 /** La hora en Albolote: "00:00" (TR-81). */
 export function horaCorta(f: Date | string | number): string {
   return HORA.format(new Date(f));

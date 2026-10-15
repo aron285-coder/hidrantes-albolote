@@ -30,6 +30,15 @@ describe('Fecha (UI-12, DEC-215)', () => {
     const html = pintar(<Fecha f="2026-08-20" soloDia ahora={ahora} />);
     expect(html).toContain('>20 ago 2026</time>');
     expect(html).toContain('title="20 ago 2026"');
+    expect(html).toContain('dateTime="2026-08-20"');
+  });
+
+  it('con soloDia, una fecha de hoy dice «hoy», nunca horas', () => {
+    expect(pintar(<Fecha f="2026-10-15" soloDia ahora={new Date('2026-10-15T20:00:00Z')} />)).toContain('>hoy</time>');
+  });
+
+  it('una fecha que no se puede leer no rompe la lista', () => {
+    expect(pintar(<Fecha f="no es una fecha" ahora={ahora} />)).toContain(`>${T.panelCola.sinDato}<`);
   });
 });
 
