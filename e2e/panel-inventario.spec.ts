@@ -582,7 +582,9 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
   await elegirTipo(page, T.mapa.hidrantes);
   await elegirEstado(page, T.formulario.malo);
   await boton.focus();
+  // Flecha arriba abre en la última; la segunda, cuando el menú ya tiene el foco (si no, la recibe el botón).
   await page.keyboard.press('ArrowUp');
+  await expect(menu.getByRole('menuitem', { name: T.panel.inventarioCompletoJson })).toBeFocused();
   await page.keyboard.press('ArrowUp');
   await expect(menu.getByRole('menuitem', { name: T.panel.geojson })).toBeFocused();
   const descarga = page.waitForEvent('download');
