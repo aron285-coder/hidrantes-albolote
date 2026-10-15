@@ -1368,6 +1368,9 @@ export const T = {
     masAcciones: (que: Parametro) => `Más acciones de ${que}`,
     // docs/38 RV-502: la lupa de la cabecera del móvil (RV-503).
     buscar: 'Buscar',
+    cerrarBusqueda: 'Cerrar la búsqueda',
+    // docs/38 RV-503: ☰ con propuestas pendientes desde otra pestaña (UI-18).
+    menuPendientes: 'Menú, hay propuestas pendientes',
     titulo: 'Hidrantes Albolote · Panel de jefatura',
     atribucion: 'Direcciones deducidas con Nominatim · © OpenStreetMap contributors',
     salir: 'Cerrar sesión',

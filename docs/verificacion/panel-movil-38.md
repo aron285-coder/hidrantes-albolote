@@ -40,3 +40,10 @@ workflows. Una sola sesión, en el orden de §0.2.
   - Al pasar la tabla a 1.100 px, la tabla y Editar con velo cambian en el mismo corte: la fila con el foco
     desaparece y el foco queda en `<body>`. `useModal` lo mete ahora también en Editar en ese caso (el e2e de
     `inventario-editar.spec.ts` que estrecha a 1.050 px lo comprueba).
+- **RV-503:** por debajo de 768 px, sin fila de pestañas: la cabecera dice la pestaña (`h1`, con «Panel de jefatura
+  ·» solo para el lector), la lupa abre la búsqueda en la cabecera (✕ la borra y la cierra; con algo escrito se
+  queda abierta) y ☰ lleva el correo, las cinco pestañas con su icono y su número, «Ir al mapa» y «Cerrar sesión»;
+  desde otra pestaña, con pendientes, el punto naranja y «Menú, hay propuestas pendientes». Desde 768, las cinco en
+  una fila sin desplazamiento. Test nuevo `panel-navegacion.spec.ts` (fallaba antes: no había ☰ con pestañas ni
+  lupa); adaptados `panel-pestanas`, `jefatura-movil`, `acceso`, `panel-poca-pantalla` (la cabecera compacta con el
+  buscador, a 780 px: a 720 ya es la del móvil), `panel-cola` y `panel-inventario` (con `buscarEnPanel`).

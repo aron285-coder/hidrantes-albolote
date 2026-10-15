@@ -4,7 +4,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas } from './ayudas.ts';
+import { conGoogle, simularTablas, buscarEnPanel } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 const hace = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
@@ -262,7 +262,11 @@ test('lista, contador, filtros y búsqueda global (FR-101, FR-110, FR-145)', asy
   // COLA_Y_DETALLE de src/componentes/panel/ColaRevision.tsx.
   const conDetalle = page.viewportSize()!.width >= 1100;
   await expect(page).toHaveURL(conDetalle ? /\/admin\/cola\?p=c1$/ : /\/admin\/cola$/);
+  // El número de la pestaña: a la vista desde 768 px; en el móvil, en el menú ☰ (docs/38 RV-503).
+  const menu = page.getByRole('button', { name: /^Menú/ });
+  if (await menu.isVisible()) await menu.click();
   await expect(page.getByRole('link', { name: `${T.panelCola.colaRevision} 6` })).toBeVisible();
+  if (await menu.isVisible()) await page.keyboard.press('Escape');
   await expect(page.getByText('Sara Ruiz · hace 2 h · Calle Real 14 · Albolote')).toBeVisible();
 
   const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
@@ -270,9 +274,9 @@ test('lista, contador, filtros y búsqueda global (FR-101, FR-110, FR-145)', asy
   await expect(lista.getByRole('listitem')).toHaveCount(2);
   await page.getByLabel(T.panelCola.filtroOperacion).selectOption('');
 
-  await page.getByPlaceholder(T.panelCola.buscar).fill('marta');
+  await buscarEnPanel(page, 'marta');
   await expect(lista.getByRole('listitem')).toHaveCount(1);
-  await page.getByPlaceholder(T.panelCola.buscar).fill('nadie');
+  await buscarEnPanel(page, 'nadie');
   await expect(page.getByText(T.panelCola.busquedaVacia('nadie'))).toBeVisible();
 });
 
