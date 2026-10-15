@@ -108,3 +108,18 @@ Una issue por línea de §7, con título neutro y la etiqueta `tras-piloto`. No 
 28. #768 · CI · «desunida» no se pierde si el paso se corta por tiempo
 29. #769 · CI · timeout-minutes y concurrency en todos los trabajos
 30. #770 · CI · búsqueda exacta de issues por título y cierre del aviso del respaldo de staging
+
+## RV-495 y RV-496 · Límites y manuales
+
+- **RV-495** (#775): 03 con TR-48, TR-49 y TR-56 (los topes de propuestas, fotos y espacio, con 05 §2 como fuente)
+  y TR-41 «en un minuto»; 05 con la cabecera al día (`docs/35`, `docs/36` y `0049`); 11 sin números que caducan.
+- **RV-496** (#776): 14 v0.2 («demasiados intentos» con la hora, el tope de los móviles recién entrados,
+  Sincronizar donde está) y 13 v0.4 (activar los avisos técnicos antes del piloto, y la lista de «una vez, antes
+  del piloto»). Lo del día del lanzamiento y `OTRA_CUENTA` ya estaba (RV-491, RV-493).
+
+## RV-499 · Cierre
+
+- **RV-139b** en verde con `c71aa98` (`revision-completa-staging.md`, release 0.15.0); después, solo documentación.
+- **Recorrido corto** en staging: la entrada con `OCUPADO` simulado (espera, reintento solo y Cancelar), en
+  verde. `OTRA_CUENTA` simulado, en local (e2e y capturas a 412 y 1280, claro y oscuro): el panel de staging no
+  tiene ninguna cuenta unida y simularlo allí exigiría una sesión de Google falsa contra el Supabase de staging.

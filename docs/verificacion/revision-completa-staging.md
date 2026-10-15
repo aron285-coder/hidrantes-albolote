@@ -246,3 +246,21 @@ Mismo método (cadena solo en memoria; traspaso 38574202522, borrado).
 | `npm run anonimizar -- --entorno staging` y limpieza | ok: 0 pendientes, 0 incidencias abiertas, token revocado, unión temporal deshecha |
 
 commit: 0785f9676ec714c7ced2822c1c11424650acf291 · resultado: verde
+
+## Release 0.15.0 (15 oct 2026, docs/37 RV-499)
+
+Con todo docs/37: `dist` comprobado antes de desplegar (en verde en el despliegue de staging, también el sondeo
+de las Functions servidas), la migración `0049` (anotada en staging), la entrada con la entrada abierta y el
+reintento solo, Editar con la misma versión y `OTRA_CUENTA`. «Desplegar staging» en verde con el commit de abajo;
+después, solo documentación. Mismo método (cadena solo en memoria; traspaso 38718256813, borrado).
+
+| Recorrido | Resultado |
+|---|---|
+| Voluntario (los 13 de 0.13.0 y dos más) | ok (15) |
+| Jefatura por BD con un administrador unido de forma temporal (deshecho al acabar): aprobar el alta (BOC-0015), `fn_editar_punto` 6 m y enganche; `detalleLegible` | ok |
+| 25 canjes desde una misma IP: entrada cerrada, 20 y del 21.º al 25.º `DEMASIADOS_INTENTOS`; abierta, 25; se cierra; todo deshecho | ok |
+| El rol del migrador sin acceso al esquema `auth` | ok: `false` |
+| `npm run anonimizar -- --entorno staging` y limpieza | ok: 0 pendientes, 0 incidencias abiertas, token revocado, unión temporal deshecha |
+| Recorrido corto (RV-499): la entrada con `OCUPADO` simulado en el navegador, espera, reintento solo y Cancelar | ok |
+
+commit: c71aa98c6345822b44da3a6e23cb78f335619af3 · resultado: verde
