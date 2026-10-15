@@ -54,3 +54,14 @@ workflows. Una sola sesión, en el orden de §0.2.
   `radiogroup` con chips de 44 px (o filas con círculo, `forma: 'lista'`), se aplica al tocar; pie con «Quitar
   filtros» (solo activo) y «Listo». Test que fallaba antes: `filtros.test.tsx` (el archivo no existía). Sus e2e van
   con la Cola, que la estrena (RV-505).
+- **RV-505:** la Cola con el botón de filtros («Filtrar la cola»: Estado, Operación con sus etiquetas y Núcleo; «Pendientes
+  · Alta · Albolote»; marcado si algo no es lo de por defecto); fuera los cuatro botones de estado, los tres
+  desplegables y «Filtrar:». Cada fila en tres líneas (operación, código o «nuevo», ⚠ y cuándo; dirección o «sin
+  dirección» · núcleo; autor), sin «…», con la casilla en una etiqueta de 44 × 44; en el historial, un alta aprobada
+  enseña el código del punto que creó (`codigoCola`). Lote solo con algo marcado: abajo por debajo de 1.100 px («N
+  seleccionadas» encima en el móvil; en la tableta, solo los botones) y arriba desde 1.100; fuera «Toca una para
+  revisarla». La lista, 360 px (380 desde 1.600). Tests que fallaban antes: `cola.test.ts` (`lineasCola`,
+  `codigoCola`) y los e2e nuevos de `panel-cola.spec.ts` (hoja modal a 412 con Quitar filtros y el foco en «Listo»,
+  ventana a 1280 y Tab fuera, cruce de 768 px, lote a 412, 820 y 1280, sin «…», el código del alta aprobada).
+  - A 720 × 450 las filas de tres líneas dejaban 3 propuestas; se bajó el alto de la fila (sin relleno arriba y
+    abajo, interlineado ajustado) y vuelven a verse 4, como pide 06 §5.

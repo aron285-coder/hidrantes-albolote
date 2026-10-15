@@ -156,3 +156,10 @@ export async function elegirFiltro(page: Page, grupo: string, opcion: string | R
 function escaparRegex(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/** Abre los filtros, elige `opcion` en `grupo` y cierra con «Listo» (docs/38 RV-505). */
+export async function filtrarPor(page: Page, grupo: string, opcion: string | RegExp) {
+  await abrirFiltros(page);
+  await elegirFiltro(page, grupo, opcion);
+  await page.getByRole('button', { name: T.panel.listo, exact: true }).click();
+}
