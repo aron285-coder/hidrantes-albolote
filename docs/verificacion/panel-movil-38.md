@@ -108,3 +108,15 @@ workflows. Una sola sesión, en el orden de §0.2.
   administradores (con «⋯» y el foco de vuelta), el de «solo en producción» y el de los pedidos.
   - Abrir un «⋯» mientras la página aún carga puede cerrarlo (una tarjeta que crece encima mueve la página y el menú se
     cierra al moverse, como en todo el panel): los e2e esperan a que no quede nada cargando.
+- **RV-510:** `e2e/listas-anchos.spec.ts` (nuevo): las cinco pestañas a 360, 412, 820, 1.100, 1.280 y 1.920 px, en claro y
+  en oscuro, sin desplazamiento a lo ancho, sin recortes con «…» ni datos que acaben en «…» (los textos de interfaz que
+  acaban así, sacados de `textos.ts`, no cuentan), y toques ≥ 44 × 44 por debajo de 1.100 y ≥ 32 desde ahí en `main` y la
+  cabecera (una casilla por su etiqueta; un botón estirado con `::after`, por su fila; fuera, el zoom de Leaflet, pieza
+  unida de UI-15); axe en cada pestaña a 412 y 1.280, y con la hoja de filtros (Cola, Inventario, Registro) y el menú ☰
+  abiertos a 412; y «un dato, una vez» (Inventario sin «Mostrando» ni dos fechas por revisión, Registro con «Tú» y sin
+  el correo, Ajustes con «solo en producción» una vez y sin «móviles registrados»). Con 60 entradas en el Registro, sus
+  páginas también se miden. Lo que encontró y se arregló (#754): el buscador de la cabecera, de 40 px, y las casillas de
+  Avisos para jefatura desde 1.100 px (20 px). Lo demás de #754 ya había quedado en RV-505 a RV-509. El panel simulado de
+  `vistas.spec.ts` pasa a `e2e/panel-simulado.ts` (`jefatura(page, tablas)`), que usan las dos. `vistas.spec.ts`: las
+  cinco pestañas a 412, 820, 1.280 y 1.920 px en claro y en oscuro y, a 412, las hojas de filtros de Cola e Inventario,
+  el menú ☰ y el «⋯» de una fila (sustituyen a las vistas sueltas de Cola, Inventario y Ajustes).

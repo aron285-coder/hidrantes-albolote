@@ -1261,7 +1261,7 @@ function AvisosJefatura() {
                 <p>{t.nombre}</p>
                 <p className="text-texto-suave text-[13px]">{t.detalle}</p>
               </div>
-              <label className="flex size-11 shrink-0 items-center justify-center min-[1100px]:size-auto">
+              <label className="flex size-11 shrink-0 items-center justify-center min-[1100px]:size-8">
                 <input
                   type="checkbox"
                   className="size-5"
