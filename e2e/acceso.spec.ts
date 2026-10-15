@@ -412,6 +412,16 @@ test.describe('jefatura (FL-20)', () => {
     await expect(page.getByLabel(T.entrada.cifra(1))).toBeVisible();
   });
 
+  test('el correo de jefatura unido a otra cuenta de Google: su texto (docs/37 RV-493)', async ({ page }) => {
+    await conGoogle(page, 'jefe@example.org');
+    const pedidas = await conVincular(page, { status: 403, cuerpo: { error: 'OTRA_CUENTA' } });
+    await page.goto('/admin');
+    await expect(page.getByRole('heading', { name: T.entrada.noAutorizado })).toBeVisible();
+    await expect(page.getByText(T.entrada.otraCuentaDetalle)).toBeVisible();
+    await expect(page.getByText(T.entrada.noAutorizadoDetalle)).toHaveCount(0);
+    expect(pedidas).toHaveLength(1);
+  });
+
   test('con otra cuenta: «No autorizado», sin volver a pedirlo (docs/35 RV-432)', async ({ page }) => {
     await conGoogle(page, 'jefe@example.org');
     const pedidas = await conVincular(page, { status: 403, cuerpo: { error: 'OTRA_CUENTA' } });

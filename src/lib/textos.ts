@@ -46,6 +46,9 @@ export const T = {
     // docs/36 RV-450: la cuenta de Google tiene otra identidad unida y no se une a jefatura.
     cuentaMezcladaDetalle:
       'Esta cuenta tiene otra identidad unida. Pide a otro administrador que te quite y te devuelva el acceso, y entra con una cuenta de Google propia.',
+    // docs/37 RV-493: el correo de jefatura ya está unido a otra cuenta de Google.
+    otraCuentaDetalle:
+      'Este correo de jefatura ya está unido a otra cuenta de Google. Entra con esa, o pide a otro administrador que te quite y te devuelva el acceso.',
     // docs/35 RV-432: al entrar con Google no se ha podido saber si la cuenta es de jefatura.
     cuentaSinComprobar: 'No se ha podido comprobar tu cuenta',
     cuentaSinComprobarDetalle: 'Puede ser la conexión o el servidor. Inténtalo de nuevo en un momento.',
