@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión. |
-| **Versión** | 1.12 — 15 oct 2026 (`docs/37` RV-497, aprobada por el desarrollador al pedir el cambio: FL-34 con los avisos técnicos, DEC-202). 1.11 — 14 oct 2026 (`docs/35` RV-414, aprobada por el desarrollador al pedir el cambio: FL-29 con la casilla de abrir la entrada, sin marcar, y «revocar desde una hora», DEC-201; FL-30 con la confirmación al quitar el acceso, RV-431, y el primer acceso que une la cuenta de Google, DEC-197). 1.10 — 13 oct 2026 (`docs/35` RV-414, aprobada por el desarrollador al pedir el cambio: cabecera con DEC-177; Barro en el guion de la sesión presencial; FL-29 con «abrir la entrada 24 h»; FL-31 con Salud del sistema como la deja DEC-192). 1.9 — oct 2026 (`docs/29`, conformidad del desarrollador: FL-24 con los dos filtros y Editar en panel lateral; FL-11, FL-25 y FL-27 retirados, DEC-167 a DEC-169). 1.8 — 5 de octubre de 2026 (`docs/27` RV-114, conformidad del desarrollador: la hoja de Cercanos sin tramos, *Medir tendido* ni compartir, y los avisos de posición en el subtítulo, en FL-35, FL-37 y FL-38, DEC-165). 1.7 — 5 de octubre de 2026 (`docs/26` RV-113, conformidad del desarrollador: en el móvil, jefatura abre el panel desde la etiqueta *Jefatura* o desde Ajustes, FL-20 paso 4 y FL-28 paso 3, DEC-164). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; conformidad del desarrollador, DEC-177). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.13 — 15 oct 2026 (`docs/38` RV-501, aprobada por el desarrollador al pedir el cambio (`docs/38`): FL-21, FL-23 y FL-24 con el botón de filtros, y Editar tocando la fila en la tableta y el móvil, DEC-214, DEC-215) · 1.12 — 15 oct 2026 (`docs/37` RV-497, aprobada por el desarrollador al pedir el cambio: FL-34 con los avisos técnicos, DEC-202). 1.11 — 14 oct 2026 (`docs/35` RV-414, aprobada por el desarrollador al pedir el cambio: FL-29 con la casilla de abrir la entrada, sin marcar, y «revocar desde una hora», DEC-201; FL-30 con la confirmación al quitar el acceso, RV-431, y el primer acceso que une la cuenta de Google, DEC-197). 1.10 — 13 oct 2026 (`docs/35` RV-414, aprobada por el desarrollador al pedir el cambio: cabecera con DEC-177; Barro en el guion de la sesión presencial; FL-29 con «abrir la entrada 24 h»; FL-31 con Salud del sistema como la deja DEC-192). 1.9 — oct 2026 (`docs/29`, conformidad del desarrollador: FL-24 con los dos filtros y Editar en panel lateral; FL-11, FL-25 y FL-27 retirados, DEC-167 a DEC-169). 1.8 — 5 de octubre de 2026 (`docs/27` RV-114, conformidad del desarrollador: la hoja de Cercanos sin tramos, *Medir tendido* ni compartir, y los avisos de posición en el subtítulo, en FL-35, FL-37 y FL-38, DEC-165). 1.7 — 5 de octubre de 2026 (`docs/26` RV-113, conformidad del desarrollador: en el móvil, jefatura abre el panel desde la etiqueta *Jefatura* o desde Ajustes, FL-20 paso 4 y FL-28 paso 3, DEC-164). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; conformidad del desarrollador, DEC-177). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -222,7 +222,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 
 **Actor:** administrador. **Parte de:** *Panel* → *Cola de revisión*.
 
-1. Elige una propuesta de la lista, filtrando por operación si quiere. (FR-101)
+1. Elige una propuesta de la lista, filtrando por operación con el botón de filtros si quiere. (FR-101)
 2. Lee el detalle: minimapa (FR-103), dirección deducida en campo editable (FR-105), diff campo a campo (FR-102), los datos del punto, con su origen (FR-104), y foto.
 3. Decide:
    - **Aprobar.** (FR-106)
@@ -251,7 +251,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 
 **Actor:** administrador. **Parte de:** *Cola de revisión*.
 
-1. Cambia el filtro *Pendientes* por *Aprobadas* o *Rechazadas*. (FR-109)
+1. Cambia *Pendientes* por *Aprobadas* o *Rechazadas* en el botón de filtros. (FR-109)
 2. Abre una propuesta: se ve en solo lectura quién decidió, cuándo, el motivo o las correcciones.
 
 Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
@@ -262,8 +262,9 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 
 **Actor:** administrador. **Parte de:** *Panel* → *Inventario*. (FR-120)
 
-1. Filtra por tipo y estado (dos desplegables, DEC-168) y ordena por columna (también núcleo, diámetro y última revisión); busca por código o calle con la búsqueda global. (FR-145)
+1. Filtra por tipo y estado con el botón de filtros; en el ordenador ordena por columna, y en la tableta y el móvil, desde el mismo botón (también núcleo, diámetro y última revisión; DEC-214). Busca por código o calle con la búsqueda global. (FR-145)
 2. Sobre un punto:
+   - En el ordenador, *Editar* en la fila; en la tableta y el móvil, tocando la fila. *Historial*, *Retirar* y *Borrar*, en el menú «⋯» de la fila (DEC-215).
    - **Editar:** se abre un panel lateral (a pantalla completa en el móvil) con el mapa y los controles del alta; lo que cambia se marca. Puede mover el pin y cambiar diámetro, enganche, estado, fallo, dirección y descripción; el tipo no. *Guardar cambios* se aplica al momento y queda en el registro como acción de administrador, con los metros si se movió. (FR-120, FR-151, DEC-169)
    - **Dirección:** se edita en la propia celda. (FR-15)
    - **Retirar:** el punto existió y ya no está; pide motivo. (FR-124)
@@ -474,10 +475,10 @@ La segunda pantalla de primer uso (FR-94) repite Malo y No funciona, una línea 
 | FL-04–08 | 07 §7.3 | FR-42–46 |
 | FL-09 | 07 §7.2, §7.4, §7.5 | FR-80–84 |
 | FL-10–12 | 07 §7.5 | FR-90–94 |
-| FL-20–23 | 08 Cola de revisión | FR-100–110 |
-| FL-24–26 | 08 Inventario, Caducadas, Registro, Papelera | FR-120–125 |
+| FL-20–23 | 08 Cola de revisión y `mockups/38-panel-*.html` | FR-100–110 |
+| FL-24–26 | 08 Inventario, Caducadas, Registro, Papelera y `mockups/38-panel-*.html` | FR-120–125 |
 | FL-27 | 08 Voluntarios | FR-130–132 |
 | FL-28 | 07 §7.3 (variante jefatura) | FR-150–151 |
-| FL-29–31 | 08 Ajustes | FR-140–145 |
+| FL-29–31 | 08 Ajustes y `mockups/38-panel-*.html` | FR-140–145 |
 | FL-35–38 | 07 Mapa, Ficha (incidente, ¿Qué hay aquí?, búsqueda, compartir, medir) | FR-72–76, FR-161 |
 | FL-13, FL-32–34 | 07 Ficha/Ajustes (cómo llegar, avisos, novedades, servidor caído), 08 Inventario/Ajustes (exportar, mantenimiento, avisos, QR, novedades, servidor caído) | FR-160–168 |
