@@ -1,15 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Dialogo } from './Dialogo';
-import { ErrorCarga } from './piezas';
+import { ErrorCarga, Fecha } from './piezas';
 import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
+import { usePanelAncho } from '@/hooks/ancho';
 import { useCarga } from '@/hooks/carga';
 import { nombreTipo } from '@/lib/ficha';
-import { fechaCorta } from '@/lib/formato';
 import { textoError } from '@/lib/panel/errores';
 import {
   DIAS_PAPELERA_POR_DEFECTO,
   cargarPapelera,
+  type Borrado,
   diasQueQuedan,
   leerParametro,
   purgarPapelera,
@@ -28,6 +29,9 @@ export default function Papelera({ alCambiar }: { alCambiar: () => void }) {
   const [ocupado, setOcupado] = useState(false);
   const [purga, setPurga] = useState(false);
   const filas = carga.datos ?? [];
+  // Desde 1.100 px, la tabla; por debajo, una lista (docs/38 RV-508, DEC-213).
+  const ancha = usePanelAncho();
+  const idVacia = useId();
 
   async function restaurar(id: string, codigo: string) {
     setOcupado(true);
@@ -54,73 +58,102 @@ export default function Papelera({ alCambiar }: { alCambiar: () => void }) {
     return <ErrorCarga codigo={carga.codigo} alReintentar={() => void carga.recargar()} />;
   }
 
+  // «Borrado hace… · quedan N días»; con un día, en rojo y negrita (docs/38 RV-508).
+  const quedan = (p: Borrado) => {
+    const n = diasQueQuedan(p.borrado_en, dias);
+    return (
+      <span className={n === 1 ? 'font-bold text-rojo-texto' : 'text-texto-suave'}>{T.panelPapelera.quedan(n)}</span>
+    );
+  };
+  const restaurarBoton = (p: Borrado) => (
+    <Boton
+      variante="secundario"
+      disabled={ocupado}
+      className="min-h-11 shrink-0 text-[13px] min-[1100px]:min-h-9"
+      onClick={() => void restaurar(p.id, p.codigo)}
+    >
+      {T.panel.restaurar}
+    </Boton>
+  );
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      {/* «Purgar…» en rojo, arriba y apartado de los «Restaurar» de cada fila (docs/38 RV-508). */}
       <div className="border-linea bg-fondo flex flex-wrap items-center gap-3 border-b px-3 py-2 text-sm">
         <span>{T.panelPapelera.explicacion(dias)}</span>
         <button
           type="button"
           onClick={() => setPurga(true)}
           disabled={ocupado || !filas.length}
-          className="border-linea bg-papel rounded-campo min-h-9 border px-3 text-[13px] font-semibold disabled:opacity-50"
+          aria-describedby={!filas.length ? idVacia : undefined}
+          className="border-rojo-texto text-rojo-texto bg-papel rounded-campo min-h-11 border px-3 text-[13px] font-semibold disabled:opacity-50 min-[1100px]:min-h-9"
         >
           {T.panelPapelera.purgarCaducado}
         </button>
       </div>
 
       {!filas.length ? (
-        <p className="text-texto-suave p-6 text-center text-sm">
+        <p id={idVacia} className="text-texto-suave p-6 text-center text-sm">
           {carga.estado === 'cargando' ? T.panelCola.cargando : T.panelPapelera.vacia}
         </p>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto">
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr>
-                {[
-                  T.panelInventario.colCodigo,
-                  T.panelInventario.colTipo,
-                  T.panelPapelera.colBorrado,
-                  T.panelInventario.colAcciones,
-                ].map((c) => (
-                  <th
-                    key={c}
-                    scope="col"
-                    className="border-barra bg-fondo font-titulo text-texto-suave sticky top-0 border-b-2 px-3 py-2 text-left font-semibold"
-                  >
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
+          {!ancha ? (
+            // Por debajo de 1.100 px, una lista (docs/38 RV-508): el código y «Restaurar»; tipo · diámetro; cuándo se borró
+            // y cuántos días quedan.
+            <ul aria-label={T.panelCola.papelera} className="text-[13px]">
               {filas.map((p) => (
-                <tr key={p.id} className="border-linea bg-papel border-b">
-                  <td className="font-datos px-3 py-1.5 whitespace-nowrap">{p.codigo}</td>
-                  <td className="px-3 py-1.5">
-                    {nombreTipo[p.tipo]} · {T.formato.mm(p.diametro_mm)}
-                  </td>
-                  <td className="px-3 py-1.5">
-                    {fechaCorta(p.borrado_en)}
-                    <span className="text-texto-suave">
-                      {' '}
-                      · {T.panelPapelera.quedan(diasQueQuedan(p.borrado_en, dias))}
-                    </span>
-                  </td>
-                  <td className="px-3 py-1.5">
-                    <Boton
-                      variante="secundario"
-                      disabled={ocupado}
-                      className="min-h-9 text-[13px]"
-                      onClick={() => void restaurar(p.id, p.codigo)}
-                    >
-                      {T.panel.restaurar}
-                    </Boton>
-                  </td>
-                </tr>
+                <li key={p.id} className="border-linea bg-papel flex items-center gap-3 border-b px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-datos font-semibold">{p.codigo}</p>
+                    <p className="text-texto-suave mt-0.5">
+                      {nombreTipo[p.tipo]} · {T.formato.mm(p.diametro_mm)}
+                    </p>
+                    <p className="mt-0.5">
+                      {T.panelPapelera.colBorrado} <Fecha f={p.borrado_en} className="whitespace-nowrap" /> ·{' '}
+                      {quedan(p)}
+                    </p>
+                  </div>
+                  {restaurarBoton(p)}
+                </li>
               ))}
-            </tbody>
-          </table>
+            </ul>
+          ) : (
+            <table className="w-full max-w-[900px] text-[13px]">
+              <thead>
+                <tr>
+                  {[
+                    T.panelInventario.colCodigo,
+                    T.panelInventario.colTipo,
+                    T.panelPapelera.colBorrado,
+                    T.panelInventario.colAcciones,
+                  ].map((c) => (
+                    <th
+                      key={c}
+                      scope="col"
+                      className="border-barra bg-fondo font-titulo text-texto-suave sticky top-0 border-b-2 px-3 py-2 text-left font-semibold"
+                    >
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map((p) => (
+                  <tr key={p.id} className="border-linea bg-papel border-b">
+                    <td className="font-datos px-3 py-1.5 whitespace-nowrap">{p.codigo}</td>
+                    <td className="px-3 py-1.5">
+                      {nombreTipo[p.tipo]} · {T.formato.mm(p.diametro_mm)}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <Fecha f={p.borrado_en} /> · {quedan(p)}
+                    </td>
+                    <td className="px-3 py-1.5">{restaurarBoton(p)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
