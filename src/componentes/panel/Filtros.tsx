@@ -60,7 +60,6 @@ export function Filtros({
   // La ventana se alinea con el borde del botón que quede dentro de la pantalla: se mide al abrir.
   const [aLaDerecha, setALaDerecha] = useState(false);
   const boton = useRef<HTMLButtonElement>(null);
-  const id = useId();
 
   // Si el ancho cruza 768 px con la hoja o la ventana abierta, se cierra: no se queda en el modo equivocado.
   const [modo, setModo] = useState(movil);
@@ -77,7 +76,6 @@ export function Filtros({
   const contenido = (
     <Contenido
       titulo={titulo}
-      tituloId={`${id}-titulo`}
       grupos={grupos}
       quitar={activo && alQuitar ? alQuitar : undefined}
       alCerrar={() => cerrar()}
@@ -151,7 +149,9 @@ function Ventana({
     };
     const tecla = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
+      // Solo cierra esto: no llega a otros Esc de la página (Editar al lado de la tabla, en el PC).
       e.preventDefault();
+      e.stopPropagation();
       alCerrar(true);
     };
     document.addEventListener('pointerdown', fuera);
@@ -187,23 +187,20 @@ function Ventana({
 /** Lo de dentro, igual en la hoja y en la ventana: cabecera con ✕, los grupos (se desplazan) y el pie fijo. */
 function Contenido({
   titulo,
-  tituloId,
   grupos,
   quitar,
   alCerrar,
 }: {
   titulo: string;
-  tituloId: string;
   grupos: CualquierGrupo[];
   quitar?: () => void;
   alCerrar: () => void;
 }) {
+  const listo = useRef<HTMLButtonElement>(null);
   return (
     <div className="flex max-h-[70dvh] min-h-0 flex-col">
       <div className="flex items-center gap-2 pb-2">
-        <h2 id={tituloId} className="flex-1 text-[15px] font-bold">
-          {titulo}
-        </h2>
+        <h2 className="flex-1 text-[15px] font-bold">{titulo}</h2>
         <button
           type="button"
           aria-label={T.ficha.cerrar}
@@ -220,11 +217,20 @@ function Contenido({
       </div>
       <div className="border-linea flex items-center gap-3 border-t pt-3">
         {quitar && (
-          <button type="button" onClick={quitar} className="min-h-11 px-1 text-[14px] underline">
+          <button
+            type="button"
+            // «Quitar filtros» desaparece al quitarlos: el foco pasa a «Listo», no se pierde en <body>.
+            onClick={() => {
+              quitar();
+              requestAnimationFrame(() => listo.current?.focus());
+            }}
+            className="min-h-11 px-1 text-[14px] underline"
+          >
             {T.panelInventario.quitarFiltros}
           </button>
         )}
         <button
+          ref={listo}
           type="button"
           onClick={alCerrar}
           className="bg-marino-950 rounded-boton ml-auto min-h-11 px-5 text-[14px] font-semibold text-white"
@@ -282,7 +288,7 @@ export function GrupoFiltro({ grupo }: { grupo: CualquierGrupo }) {
               type="button"
               role="radio"
               aria-checked={elegida}
-              aria-label={o.adorno ? nombre : undefined}
+              aria-label={o.adorno || o.cuenta != null ? nombre : undefined}
               onClick={() => grupo.alCambiar(o.valor)}
               className={cn(
                 'flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px]',
