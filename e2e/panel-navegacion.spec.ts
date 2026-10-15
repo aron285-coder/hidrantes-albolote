@@ -53,6 +53,8 @@ test.describe('a 412 px (móvil)', () => {
     await enlaces.filter({ hasText: T.panelCola.inventario }).click();
     await expect(page).toHaveURL(/\/admin\/inventario$/);
     await expect(navegacion(page)).toHaveCount(0);
+    // El enlace elegido desaparece con el menú: el foco vuelve a ☰.
+    await expect(menu(page)).toBeFocused();
     await expect(titulo(page)).toHaveText(`${T.jefatura.panel} · ${T.panelCola.inventario}`);
   });
 

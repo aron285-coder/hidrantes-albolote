@@ -232,6 +232,8 @@ function Cabecera({
             type="search"
             value={busqueda}
             onChange={(e) => buscar(e.target.value)}
+            // Mientras tiene el foco, se queda abierto aunque se borre lo escrito (llegó abierto por el texto).
+            onFocus={() => setLupaAbierta(true)}
             placeholder={T.panelCola.buscar}
             className="rounded-campo min-h-10 w-full bg-white/10 pr-3 pl-9 text-sm text-white placeholder:text-[#B7C2D6]"
           />
@@ -360,7 +362,11 @@ function MenuPequeno({
                 <NavLink
                   key={p.ruta}
                   to={`/admin/${p.ruta}`}
-                  onClick={() => setAbierto(false)}
+                  // El enlace desaparece al cerrar: el foco vuelve a ☰, no se pierde en <body>.
+                  onClick={() => {
+                    setAbierto(false);
+                    boton.current?.focus();
+                  }}
                   className={({ isActive }) =>
                     cn(
                       'flex min-h-11 items-center gap-2 rounded px-3 hover:bg-white/10',
