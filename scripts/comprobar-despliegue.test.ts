@@ -3,8 +3,10 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { archivoHeaders, cabecerasGenerales, TIPO_TESELA } from '../config/cabeceras.ts';
 import {
+  comprobarFunciones,
   comprobarMapabase,
   comprobarPagina,
+  comprobarRespuestaFunciones,
   comprobarRespuestasMapabase,
   estadoCache,
   rutaTeselaDePrueba,
@@ -127,5 +129,49 @@ describe('comprobarRespuestasMapabase (RV-71)', () => {
 
   it('el _headers generado da a las teselas un tipo que esta comprobación acepta', () => {
     expect(archivoHeaders({ entorno: 'produccion' })).toContain(`Content-Type: ${TIPO_TESELA}`);
+  });
+});
+
+// docs/37 RV-490 (DEC-210): tras desplegar, las Functions servidas son las del repositorio.
+describe('comprobarRespuestaFunciones', () => {
+  const buena = { estado: 400, tipo: 'application/json; charset=utf-8', cuerpo: '{"error":"PAYLOAD_INVALIDO"}' };
+
+  it('el 400 PAYLOAD_INVALIDO en JSON de las Functions del repositorio: sin problemas', () => {
+    expect(comprobarRespuestaFunciones(buena)).toEqual([]);
+  });
+
+  it('otro estado, HTML u otro cuerpo: problema', () => {
+    expect(comprobarRespuestaFunciones({ ...buena, estado: 200 })).toHaveLength(1);
+    expect(comprobarRespuestaFunciones({ ...buena, estado: 503 })).toHaveLength(1);
+    expect(comprobarRespuestaFunciones({ ...buena, tipo: 'text/html', cuerpo: '<!doctype html>' })).toHaveLength(2);
+    expect(comprobarRespuestaFunciones({ ...buena, cuerpo: '{"error":"OTRO"}' })).toHaveLength(1);
+    expect(comprobarRespuestaFunciones({ ...buena, cuerpo: '{"error":"PAYLOAD_INVALIDO","x":1}' })).toHaveLength(1);
+  });
+
+  it('comprobarFunciones manda {} por POST sin Origin y reintenta hasta que responde bien', async () => {
+    const pedidas: { url: string; init?: RequestInit }[] = [];
+    let n = 0;
+    const pedir = (async (url: URL, init?: RequestInit) => {
+      pedidas.push({ url: String(url), init });
+      n++;
+      return n === 1
+        ? new Response('<!doctype html>', { status: 200, headers: { 'content-type': 'text/html' } })
+        : new Response(buena.cuerpo, { status: 400, headers: { 'content-type': buena.tipo } });
+    }) as typeof fetch;
+    expect(await comprobarFunciones('https://app.example', { pedir, esperaMs: 0 })).toEqual([]);
+    expect(pedidas).toHaveLength(2);
+    expect(pedidas[0]!.url).toBe('https://app.example/api/verificar-codigo');
+    expect(pedidas[0]!.init?.method).toBe('POST');
+    expect(pedidas[0]!.init?.body).toBe('{}');
+    expect(new Headers(pedidas[0]!.init?.headers).has('origin')).toBe(false);
+  });
+
+  it('comprobarFunciones devuelve los problemas del último intento si nunca responde bien', async () => {
+    const pedir = (async () => {
+      throw new Error('sin red');
+    }) as typeof fetch;
+    expect(await comprobarFunciones('https://app.example', { pedir, esperaMs: 0, intentos: 2 })).toEqual([
+      'verificar-codigo no responde: sin red',
+    ]);
   });
 });
