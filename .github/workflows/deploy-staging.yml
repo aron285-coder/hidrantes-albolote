@@ -106,6 +106,15 @@ jobs:
         with:
           name: dist
           path: dist
+      # docs/37 RV-490 (DEC-210): dist viene de un trabajo que corre el código de las dependencias. Antes de
+      # cualquier paso con secretos: sin _worker.js, functions/, _routes.json ni _redirects, solo estáticos
+      # esperados y el _headers que genera el repositorio con las mismas variables públicas que «construir».
+      - name: Comprobar dist
+        run: bash .github/scripts/comprobar-dist.sh dist
+        env:
+          VITE_ENTORNO: staging
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL_STAGING }}
+          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL_STAGING }}
 
       # El build se hizo con las variables del repositorio (construir no tiene environment): dist tiene
       # que llevar las de este environment, o staging serviría una app que habla con otro proyecto.

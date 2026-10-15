@@ -69,11 +69,73 @@ async function principal(): Promise<void> {
   if (problemas.length) abortar(`${url}:\n  - ${problemas.join('\n  - ')}`);
   log.ok(`${url} responde con la versión ${version} y las cabeceras de TR-100`);
 
+  // docs/37 RV-490 (DEC-210): las Functions servidas son las del repositorio, no un _worker.js de dist.
+  const funciones = await comprobarFunciones(url);
+  if (funciones.length) abortar(`${url}, Functions:\n  - ${funciones.join('\n  - ')}`);
+  log.ok(`${url}/api/verificar-codigo responde como las Functions del repositorio`);
+
   const mapabase = await comprobarMapabase(url);
   if (mapabase.length) abortar(`${url}, mapa base:\n  - ${mapabase.join('\n  - ')}`);
 
   const secreto = process.env.VIGILANCIA_SECRETO;
   if (entorno === 'staging' && secreto) await comprobarCaches(url, secreto);
+}
+
+/** Lo que responde `POST /api/verificar-codigo` con `{}`. */
+export interface RespuestaFunciones {
+  estado: number;
+  tipo: string;
+  cuerpo: string;
+}
+
+/**
+ * docs/37 RV-490 (DEC-210): con `{}`, la Function del repositorio responde exactamente
+ * `400 {"error":"PAYLOAD_INVALIDO"}` en JSON, antes de llamar a Supabase y sin contar como intento. Otra
+ * respuesta (otro estado, HTML, otro cuerpo) es que no se sirven las Functions del repositorio.
+ */
+export function comprobarRespuestaFunciones(r: RespuestaFunciones): string[] {
+  const problemas: string[] = [];
+  if (r.estado !== 400) problemas.push(`verificar-codigo con {} da ${r.estado}, no 400`);
+  if (r.tipo.split(';')[0]!.trim() !== 'application/json') {
+    problemas.push(`verificar-codigo con {} no responde JSON (${r.tipo || 'sin Content-Type'})`);
+  }
+  let cuerpo: unknown = null;
+  try {
+    cuerpo = JSON.parse(r.cuerpo);
+  } catch {
+    // Se dice abajo: el cuerpo no es el esperado.
+  }
+  if (JSON.stringify(cuerpo) !== JSON.stringify({ error: 'PAYLOAD_INVALIDO' })) {
+    problemas.push('verificar-codigo con {} no responde {"error":"PAYLOAD_INVALIDO"}');
+  }
+  return problemas;
+}
+
+/** El sondeo de RV-412 (avisos-tecnicos.sh), con la respuesta exacta. Sin Origin: llamada de servidor. */
+export async function comprobarFunciones(
+  url: string,
+  { intentos = 3, esperaMs = 10_000, pedir = fetch as typeof fetch } = {},
+): Promise<string[]> {
+  let problemas: string[] = [];
+  for (let intento = 1; intento <= intentos; intento++) {
+    try {
+      const r = await pedir(new URL('/api/verificar-codigo', url), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      problemas = comprobarRespuestaFunciones({
+        estado: r.status,
+        tipo: r.headers.get('content-type') ?? '',
+        cuerpo: await r.text(),
+      });
+    } catch (e) {
+      problemas = [`verificar-codigo no responde: ${e instanceof Error ? e.message : String(e)}`];
+    }
+    if (problemas.length === 0 || intento === intentos) break;
+    await new Promise((ok) => setTimeout(ok, esperaMs));
+  }
+  return problemas;
 }
 
 /** Lo que se ha visto al pedir una tesela suelta y el PMTiles entero (docs/20 RV-71). */

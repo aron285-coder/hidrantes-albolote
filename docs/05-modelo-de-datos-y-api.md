@@ -716,6 +716,9 @@ fn_editar_punto(punto_id uuid, cambios jsonb, version timestamptz default null) 
   --   (comparadas al milisegundo, la precisión del navegador) → PUNTO_CAMBIADO y no se toca nada. Sin
   --   ella (o null), como antes: es la llamada del panel anterior. La firma de dos argumentos se borró
   --   en 0048; la llamada con dos sigue valiendo.
+  -- 0049 (docs/37 RV-492): PUNTO_CAMBIADO con cualquier versión distinta de la guardada (al milisegundo), no
+  --   solo con una anterior: now() es la hora en que empezó la transacción, y un cambio que empezó antes y
+  --   terminó después de otro deja una marca anterior.
   -- un caudal distinto de 'no_funciona' borra descripcion_fallo, como en fn_aplicar_propuesta (0024, RV-42)
   -- edición directa de administrador (FR-151 desde el inventario); registro es_admin = true.
   -- diametro_mm en una boca: de 20 a 150; ya no se fuerza a 45 (0032, DEC-144)
@@ -1025,7 +1028,9 @@ fn_tareas_programadas() returns jsonb        -- 0031, RV-92: las tareas hidrante
                                              -- tareas); sin execute para anon ni authenticated: solo
                                              -- la llama fn_salud (DEC-132)
 -- 0044 (docs/33):
-fn_entrada_abierta_hasta() returns timestamptz   -- RV-300: config.entrada_abierta_hasta si es futuro; si no, null
+fn_entrada_abierta_hasta() returns timestamptz   -- RV-300: config.entrada_abierta_hasta si es futuro; si no, null.
+                                                 -- Desde 0049 (docs/37 RV-491, DEC-211), execute para service_role:
+                                                 -- /api/verificar-codigo la pregunta para su tope por IP
 fn_poner_entrada(hasta timestamptz, actor text) returns void   -- RV-300: escribe config.entrada_abierta_hasta
 fn_entradas_frenadas_24h() returns integer   -- RV-300: lo que da fn_salud.entradas_frenadas_24h
 fn_bytes_esquema() returns bigint            -- RV-301: pg_total_relation_size de las tablas de hidrantes
@@ -1431,7 +1436,7 @@ sin ese cuello de botella:
 | Entrada abierta (`fn_abrir_entrada`, `fn_cerrar_entrada`, `fn_cambiar_codigo_acceso`, 0044) | `for update` sobre la fila `entrada_abierta_hasta` de `config` antes de escribirla. |
 | `fn_liberar_reservas` (0044) | `for update` sobre las filas de `subidas` que libera; `liberada_en` solo se pone en las sin confirmar, y `fn_proponer` solo confirma las sin liberar: una reserva o se confirma o se libera. |
 | `fn_verificar_codigo` | Compara el código y después toma `pg_advisory_xact_lock(hashtext('hidrantes:intentos_codigo'))`: los canjes van de uno en uno y la cuenta y la inserción no se pisan (0015, RV-14). Desde 0047 (docs/35 RV-401) el bcrypt va antes del turno y el turno se espera como mucho 3 s (`lock_timeout`): si no, `OCUPADO`. Desde 0048 (docs/36 RV-451) una lectura previa sin turno corta, sin bcrypt, al que ya está frenado por fallos; solo ahorra trabajo, y la anotación de ese frenado se hace con `pg_try_advisory_xact_lock` (si el turno está ocupado, no se anota y no se espera). |
-| `fn_editar_punto` con `version` (0048) | La versión se compara **después** del `for update` del punto: de dos ediciones a la vez con la misma versión, la segunda espera y, si la primera cambió los datos, ve `datos_cambiados_en` nueva y recibe `PUNTO_CAMBIADO` (docs/36 RV-452). |
+| `fn_editar_punto` con `version` (0048) | La versión se compara **después** del `for update` del punto: de dos ediciones a la vez con la misma versión, la segunda espera y, si la primera cambió los datos, ve `datos_cambiados_en` nueva y recibe `PUNTO_CAMBIADO` (docs/36 RV-452). Desde 0049, cualquier versión distinta, no solo una anterior (docs/37 RV-492). |
 | `fn_vincular_administrador`, `fn_desvincular_administrador` (0046, 0048) | `for update` sobre la fila de `administradores` de ese correo. |
 | `fn_encolar_aviso_tecnico` (0045) | `insert … on conflict do nothing` de la fila de la clave en `avisos_tecnicos` y `select … for update` antes de mirar el plazo: dos llamadas a la vez con la misma clave encolan una vez. |
 | `fn_revocar_desde`, `fn_cambiar_codigo_acceso` (revocar) | `for update` sobre las filas de `dispositivos` que revocan (0047, docs/35 RV-402). |
