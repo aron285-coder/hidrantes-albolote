@@ -65,7 +65,13 @@ function Rutas() {
     );
   }
   if (acceso.tipo === 'no_autorizado')
-    return <NoAutorizado sinComprobar={acceso.sinComprobar} cuentaMezclada={acceso.cuentaMezclada} />;
+    return (
+      <NoAutorizado
+        sinComprobar={acceso.sinComprobar}
+        cuentaMezclada={acceso.cuentaMezclada}
+        otraCuenta={acceso.otraCuenta}
+      />
+    );
   if (acceso.tipo === 'fuera') {
     return (
       <Routes>
