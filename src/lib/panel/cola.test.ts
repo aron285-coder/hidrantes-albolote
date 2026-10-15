@@ -35,7 +35,6 @@ import { textoError } from './errores';
 import type { Punto } from '../puntos';
 import { T } from '../textos';
 
-
 function propuesta(extra: Partial<PropuestaPanel> = {}): PropuestaPanel {
   return {
     id: 'p1',

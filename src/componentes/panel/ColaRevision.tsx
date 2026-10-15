@@ -8,6 +8,7 @@ import { DetallePropuesta } from './DetallePropuesta';
 import { Filtros } from './Filtros';
 import { ErrorCarga, EtiquetaOperacion, Fecha } from './piezas';
 import { Boton } from '@/componentes/Boton';
+import { usePanelMovil } from '@/hooks/ancho';
 import { useCarga } from '@/hooks/carga';
 import { usePuntos } from '@/hooks/estado';
 import { useModal } from '@/lib/foco-modal';
@@ -70,6 +71,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   const { busqueda, avisar } = usePanel();
   const { puntos } = usePuntos();
   const ancho = useColaYDetalle();
+  const movil = usePanelMovil();
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const navegar = useNavigate();
@@ -226,16 +228,26 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     return carga.recargarYVer();
   }
 
+  // Tras un lote, los botones de lote desaparecen con la selección (docs/38 RV-505): el foco pasa a «Seleccionar
+  // todas» (o a la lista), no se queda en <body>.
+  const todasRef = useRef<HTMLInputElement>(null);
+  function vaciarSeleccion() {
+    setMarcadas(new Set());
+    requestAnimationFrame(() =>
+      (todasRef.current && !todasRef.current.disabled ? todasRef.current : lista.current)?.focus(),
+    );
+  }
+
   const nombre = (id: string) => {
     const p = todas.find((x) => x.id === id);
-    return p ? `${ETIQUETA_OPERACION[p.operacion]} ${p.codigo ?? T.panelCola.nuevo}` : id;
+    return p ? `${ETIQUETA_OPERACION[p.operacion]} ${codigoCola(p, puntos)}` : id;
   };
 
   async function aprobarMarcadas() {
     // Las de un punto que ya no está activo no se mandan: se saltan y se dice (RV-330).
     const { aprobables, saltadas } = separarLote(elegidas);
     if (!aprobables.length) {
-      setMarcadas(new Set());
+      vaciarSeleccion();
       avisar(resumenLote(saltadas, nombre), 'error');
       // Lo saltado se decidió con la lista cargada: se recarga por si el punto se ha restaurado.
       return void carga.recargar();
@@ -248,7 +260,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
       const error = textoError(r.codigo);
       return avisar(saltadas.length ? `${error} ${resumenLote(saltadas, nombre)}` : error, 'error');
     }
-    setMarcadas(new Set());
+    vaciarSeleccion();
     const resultados = [...r.datos, ...saltadas];
     const omitidas = resultados.some((x) => x.resultado === 'omitida');
     avisar(resumenLote(resultados, nombre), omitidas ? 'error' : 'ok');
@@ -263,7 +275,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
     );
     setOcupado(false);
     setRechazoLote(false);
-    setMarcadas(new Set());
+    vaciarSeleccion();
     if (fallos.length) avisar(`${T.panelCola.loteRechazadas(hechas)} ${textoError(fallos[0])}`, 'error');
     else avisar(T.panelCola.loteRechazadas(hechas));
     await hecho(activa, location.key);
@@ -291,7 +303,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
       titulo={T.panelCola.filtrarCola}
       resumen={resumen}
       activo={filtrado}
-      lleno={!ancho}
+      lleno={movil}
       alQuitar={() => {
         if (estado !== 'pendiente') cambiarEstado('pendiente');
         setOperacion('');
@@ -335,6 +347,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
         {pendientes ? (
           <label className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-2">
             <input
+              ref={todasRef}
               type="checkbox"
               className="size-4"
               checked={elegidas.length > 0 && elegidas.length === visibles.length}
@@ -412,9 +425,9 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
             {pendientes && elegidas.length > 0 && (
               <div
                 data-testid="barra-cola"
-                className="bg-barra sticky bottom-0 z-10 px-3 py-2 text-sm text-white md:flex md:justify-end md:gap-3"
+                className="bg-barra sticky bottom-0 z-10 px-3 py-1.5 text-sm text-white md:flex md:justify-end md:gap-3"
               >
-                <p className="mb-2 font-semibold md:hidden">{T.panelCola.seleccionadas(elegidas.length)}</p>
+                <p className="mb-1 font-semibold md:hidden">{T.panelCola.seleccionadas(elegidas.length)}</p>
                 <div className="grid grid-cols-2 gap-3 md:flex">{botonesLote}</div>
               </div>
             )}
@@ -521,7 +534,7 @@ function Lista({
                 data-propuesta={p.id}
                 onClick={() => alElegir(p)}
                 aria-current={activa || undefined}
-                className={cn('min-h-11 min-w-0 flex-1 py-1 text-left leading-tight', !pendientes && 'pl-2')}
+                className={cn('min-h-11 min-w-0 flex-1 py-0.5 text-left leading-tight', !pendientes && 'pl-2')}
               >
                 <span className="flex items-center gap-1.5">
                   <EtiquetaOperacion operacion={p.operacion} />

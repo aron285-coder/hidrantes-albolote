@@ -1665,6 +1665,17 @@ test.describe('Cola con el botón de filtros (docs/38 RV-505)', () => {
     await expect(page.getByText(T.panelCola.seleccionadas(2)).filter({ visible: true })).toHaveCount(1);
   });
 
+  test('a 1280: tras aprobar en bloque con el teclado, el foco va a «Seleccionar todas»', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await lista(page).getByRole('checkbox').first().check();
+    await page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: T.panelCola.seleccionarTodas })).toBeFocused();
+  });
+
   test('a 1280: Aprobar seleccionadas solo con algo marcado', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await prepararPanel(page);

@@ -86,6 +86,10 @@ test.describe('RV-331: panel con poca pantalla', () => {
     const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
     await expect(lista.getByRole('listitem')).toHaveCount(COLA.length);
     expect(await filasEnteras(page)).toBeGreaterThanOrEqual(4);
+    // También con la barra de lote abajo (docs/38 RV-505: sale al marcar).
+    await lista.getByRole('checkbox').first().check();
+    await expect(page.getByTestId('barra-cola')).toBeVisible();
+    expect(await filasEnteras(page)).toBeGreaterThanOrEqual(4);
     await info.attach('cola-720x450', { body: await page.screenshot(), contentType: 'image/png' });
   });
 
