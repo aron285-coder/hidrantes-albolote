@@ -29,7 +29,7 @@ esfuerzo para ir más rápido.
 | tocar infraestructura, CI, secretos, entornos | `docs/04-arquitectura-e-infraestructura.md` | crear recursos a mano fuera de `scripts/arranque.ts` |
 | tocar una tabla, columna, enum, vista, RLS, RPC o Function | `docs/05-modelo-de-datos-y-api.md` | cambiar una firma sin actualizar 05 primero |
 | elegir color, tamaño, tipografía o dibujar un marcador | `docs/06-sistema-de-diseno.md` (§4 = simbología exacta) | inventar tokens |
-| construir una pantalla | `docs/07-mockups-app.html`, `docs/08-mockups-panel.html` (abrir con Playwright si hace falta verlas) | — |
+| construir una pantalla | `docs/07-mockups-app.html`, `docs/08-mockups-panel.html` y `docs/mockups/38-panel-*.html` para las listas del panel (abrir con Playwright si hace falta verlas) | — |
 | saber qué toca ahora | §5 de este archivo y `docs/09-plan-implementacion.md` §8 (estado de la fase 9) | saltar de fase con la anterior en rojo |
 | escribir un texto de interfaz | `docs/06-sistema-de-diseno.md` Apéndice A y `src/lib/textos.ts` | un literal en un componente |
 | trabajar en una especificación `docs/NN` | la especificación en la raíz de `docs/` y la skill `paquete-rv` | — |
@@ -104,7 +104,7 @@ dispositivo · zona de cobertura · fuera de zona.
 
 ## 5. Cómo se trabaja
 
-**Hasta el piloto, DEC-193 (salvo `docs/35` y `docs/36`, DEC-196 y DEC-205; `docs/37` cabe dentro, DEC-209): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
+**Hasta el piloto, DEC-193 (salvo `docs/35`, `docs/36` y `docs/38`, DEC-196, DEC-205 y DEC-212; `docs/37` cabe dentro, DEC-209): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
 agrupación. Solo entran en `develop`:
 
 1. arreglos de una issue `bloquea-release`;
@@ -112,7 +112,7 @@ agrupación. Solo entran en `develop`:
 3. mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas programadas, estos archivos).
 
 Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. Las únicas
-excepciones son `docs/35` (DEC-196) y `docs/36` (DEC-205), y solo con lo que contienen; `docs/38`, la de
+excepciones son `docs/35`, `docs/36` y `docs/38` (DEC-196, DEC-205 y DEC-212), y solo con lo que contienen; `docs/39`, la de
 después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md`.
 
 1. Qué coger: si te han pedido algo concreto, eso. Si no, la issue `bloquea-release` más antigua y después la
@@ -214,7 +214,7 @@ Las del proyecto están versionadas en `.claude/skills/` (DEC-116) y las tiene c
 |---|---|
 | `paquete-rv` | al empezar cualquier paquete de puntos RV/GM de una especificación `docs/NN`, o un arreglo suelto durante la congelación: de la rama a la fusión, con el test que falla antes (DEC-116) |
 | `nueva-migracion` | siempre que haya que cambiar una tabla, función, vista, permiso o tarea `pg_cron` (con varias sesiones, solo la Backend) |
-| `revisar-pantallas` | en cualquier PR que toque `src/**` o estilos, y cuando se pida una revisión visual de staging: capturas a 412 × 915 y 1280 × 800, mirarlas y adjuntarlas |
+| `revisar-pantallas` | en cualquier PR que toque `src/**` o estilos, y cuando se pida una revisión visual de staging: capturas a 412 × 915 y 1280 × 800 (en el panel, también 820 × 1180 y 1920 × 1080), mirarlas y adjuntarlas |
 
 Instaladas por `npm run arranque` en el PC del desarrollador (04 §15). **No están en Git:** en una sesión nueva o
 en la nube pueden faltar. Si faltan, sigue sin ellas; no las instales por tu cuenta.
