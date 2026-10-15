@@ -6,7 +6,7 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, conSesion, simularRpc, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, simularRpc, simularTablas, accionInventario } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 const [P0, P1] = PUNTOS;
@@ -485,7 +485,7 @@ const VISTAS: Vista[] = [
       );
     },
     lista: async (p) => {
-      await p.getByRole('row').filter({ hasText: P0.codigo }).getByRole('button', { name: T.panel.editar }).click();
+      await accionInventario(p, P0.codigo, 'editar');
       const editar = p.getByRole('dialog');
       await editar.getByRole('radio', { name: T.formulario.malo }).click();
       await editar.getByRole('button', { name: T.panel.guardarCambios }).click();
@@ -508,7 +508,12 @@ const VISTAS: Vista[] = [
     ruta: '/admin/inventario',
     preparar: jefatura,
     lista: async (p) => {
-      await p.getByRole('button', { name: T.panel.historial }).first().click();
+      // Historial, en el «⋯» de la fila (docs/38 RV-506).
+      await p
+        .getByRole('button', { name: /^Más acciones de / })
+        .first()
+        .click();
+      await p.getByRole('menuitem', { name: T.panel.historial, exact: true }).click();
       await expect(p.getByRole('dialog').getByText(/Movido 5,6 m/)).toBeVisible();
     },
     anchoEscritorio: 1440,

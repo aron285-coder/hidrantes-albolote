@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { T } from '../../src/lib/textos.ts';
-import { filtrarPor } from '../ayudas.ts';
+import { filtrarPor, filasInventario } from '../ayudas.ts';
 import { sesionDeJefatura, sqlVincular } from './sesion-google.ts';
 
 const BD = process.env.BD_PRUEBAS ?? 'postgresql://postgres:postgres@127.0.0.1:55422/postgres'; // detectar-secretos:permitir (Supabase local efímero)
@@ -301,9 +301,11 @@ test('el inventario del panel enseña más de 1.000 puntos (RV-15, TR-60)', asyn
   try {
     await entrarComoJefatura(page, request);
     await page.goto('/admin/inventario');
-    await expect(page.getByText(T.panel.mostrando(50, antes + 1050), { exact: false })).toBeVisible({
+    // El total, en la pestaña; la primera página, 50 filas (docs/38 RV-506: sin «Mostrando»).
+    await expect(page.getByRole('link', { name: `${T.panelCola.inventario} ${antes + 1050}` })).toBeVisible({
       timeout: 20_000,
     });
+    await expect(filasInventario(page)).toHaveCount(50);
   } finally {
     consulta(`delete from hidrantes.puntos where codigo between 'HID-7000' and 'HID-8049'`);
   }

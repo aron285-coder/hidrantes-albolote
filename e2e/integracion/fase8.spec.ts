@@ -156,7 +156,8 @@ test('camino crítico: alta con pin manual y foto, aprobación con dirección, m
   await panel.getByPlaceholder(T.panelCola.buscar).fill(codigo);
   const fila = panel.getByRole('row').filter({ hasText: codigo });
   await expect(fila).toHaveCount(1, { timeout: 30_000 });
-  await fila.getByRole('button', { name: T.panel.retirar }).click();
+  await fila.getByRole('button', { name: T.panel.masAcciones(codigo) }).click();
+  await panel.getByRole('menuitem', { name: T.panel.retirar, exact: true }).click();
   const dialogoRetirar = panel.getByRole('dialog');
   await expect(dialogoRetirar.getByText(T.panelInventario.avisoRetirar)).toBeVisible();
   await dialogoRetirar.getByLabel(T.panelInventario.motivo).fill('Sustituido en obra (prueba)');
@@ -176,7 +177,8 @@ test('camino crítico: alta con pin manual y foto, aprobación con dirección, m
   await panel.getByPlaceholder(T.panelCola.buscar).fill(codigo);
   const fila2 = panel.getByRole('row').filter({ hasText: codigo });
   await expect(fila2).toHaveCount(1, { timeout: 30_000 });
-  await fila2.getByRole('button', { name: T.panel.borrar, exact: true }).click();
+  await fila2.getByRole('button', { name: T.panel.masAcciones(codigo) }).click();
+  await panel.getByRole('menuitem', { name: T.panel.borrar, exact: true }).click();
   const dialogoBorrar = panel.getByRole('dialog');
   await dialogoBorrar.getByLabel(T.panelInventario.motivo).fill('Duplicado de prueba');
   await dialogoBorrar.getByRole('button', { name: T.panel.borrar, exact: true }).click();

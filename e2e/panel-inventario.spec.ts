@@ -5,7 +5,16 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas, buscarEnPanel } from './ayudas.ts';
+import {
+  conGoogle,
+  simularTablas,
+  buscarEnPanel,
+  abrirFiltros,
+  accionInventario,
+  filaInventario,
+  filasInventario,
+  filtrarPor,
+} from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 const [P0] = PUNTOS;
@@ -124,28 +133,31 @@ async function prepararPanel(page: Page, puntos?: { lista: typeof PUNTOS }) {
   return llamadas;
 }
 
-/** Los dos filtros del inventario (docs/29 RV-123): desplegables con la etiqueta encima. */
-const tipo = (page: Page) => page.getByRole('combobox', { name: T.panelInventario.colTipo, exact: true });
-const estado = (page: Page) => page.getByRole('combobox', { name: T.panelInventario.colEstado, exact: true });
+/** Tipo y Estado (docs/29 RV-123), en el botón de filtros desde docs/38 (RV-506, DEC-214). */
+const elegirTipo = (page: Page, nombre: string) => filtrarPor(page, T.panelInventario.colTipo, nombre);
+const elegirEstado = (page: Page, nombre: string) => filtrarPor(page, T.panelInventario.colEstado, nombre);
+const filas = (page: Page) => filasInventario(page);
 
 const llamadaA = (llamadas: Llamada[], nombre: string) => llamadas.find((l) => l.nombre === nombre)?.cuerpo;
 
 test('inventario: filtros, orden y búsqueda global (FR-120, FR-145)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/inventario');
-  const filas = page.getByRole('row');
-  await expect(filas).toHaveCount(PUNTOS.length + 1); // + la cabecera
-  await expect(page.getByRole('cell', { name: P0.codigo })).toBeVisible();
+  await expect(filas(page)).toHaveCount(PUNTOS.length);
+  await expect(filaInventario(page, P0.codigo)).toBeVisible();
 
-  await tipo(page).selectOption('boca_riego');
-  await expect(filas).toHaveCount(5);
-  await tipo(page).selectOption('todos');
+  await elegirTipo(page, T.panelInventario.bocasDeRiego);
+  await expect(filas(page)).toHaveCount(4);
+  await elegirTipo(page, T.mapa.todos);
 
-  await page.getByRole('button', { name: T.panelInventario.ordenarPor(T.panelInventario.colCodigo) }).click();
-  await expect(filas.nth(1).getByRole('cell').first()).toHaveText('HID-9008');
+  // El orden: por la cabecera en la tabla; desde el botón de filtros en la lista (docs/38 RV-506).
+  const cabecera = page.getByRole('button', { name: T.panelInventario.ordenarPor(T.panelInventario.colCodigo) });
+  if (await cabecera.count()) await cabecera.click();
+  else await filtrarPor(page, T.panelInventario.ordenarPorTitulo, T.panelInventario.colCodigo);
+  await expect(filas(page).first()).toContainText('HID-9008');
 
   await buscarEnPanel(page, 'BOC-9009');
-  await expect(filas).toHaveCount(2);
+  await expect(filas(page)).toHaveCount(1);
   await buscarEnPanel(page, '');
 
   await page.getByRole('radio', { name: T.panelInventario.mapa }).click();
@@ -165,8 +177,7 @@ test('inventario: editar la dirección en la celda y editar el punto (FR-15, FR-
       cambios: { direccion: 'Calle Real 16' },
     });
 
-  const fila = page.getByRole('row').filter({ hasText: P0.codigo });
-  await fila.getByRole('button', { name: T.panel.editar }).click();
+  await accionInventario(page, P0.codigo, 'editar');
   const dialogo = page.getByRole('dialog');
   await expect(dialogo.getByRole('button', { name: T.panel.guardarCambios })).toBeDisabled();
   // Editar es el panel lateral con las píldoras de estado del alta (docs/29 RV-124).
@@ -192,8 +203,7 @@ test('la dirección de la celda no deshace un cambio más nuevo (docs/31 RV-164)
   await celda.fill('Calle Real 16');
   await celda.blur();
   await expect.poll(() => ediciones().length).toBe(1);
-  const fila = page.getByRole('row').filter({ hasText: P0.codigo });
-  await fila.getByRole('button', { name: T.panel.editar }).click();
+  await accionInventario(page, P0.codigo, 'editar');
   const dialogo = page.getByRole('dialog');
   await dialogo.getByRole('textbox', { name: T.ficha.direccion, exact: true }).fill('Calle Nueva 1');
   await dialogo.getByRole('button', { name: T.panel.guardarCambios }).click();
@@ -289,8 +299,7 @@ test('la dirección que no se pudo guardar se vuelve a intentar al salir otra ve
 test('panel-inventario: editar no ofrece el tipo', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/inventario');
-  const fila = page.getByRole('row').filter({ hasText: P0.codigo });
-  await fila.getByRole('button', { name: T.panel.editar }).click();
+  await accionInventario(page, P0.codigo, 'editar');
   const dialogo = page.getByRole('dialog');
   // El segmentado del tipo está, pero bloqueado (docs/29 RV-124).
   const tipo = dialogo.getByRole('radiogroup', { name: T.formulario.tipoElemento });
@@ -302,8 +311,7 @@ test('panel-inventario: editar no ofrece el tipo', async ({ page }) => {
 test('inventario: retirar pide motivo y el historial se puede consultar (FR-123, FR-124)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/inventario');
-  const fila = page.getByRole('row').filter({ hasText: P0.codigo });
-  await fila.getByRole('button', { name: T.panel.retirar }).click();
+  await accionInventario(page, P0.codigo, 'retirar');
   let dialogo = page.getByRole('dialog');
   await expect(dialogo.getByText(T.panelInventario.avisoRetirar)).toBeVisible();
   await dialogo.getByRole('button', { name: T.panel.retirar }).click();
@@ -318,7 +326,7 @@ test('inventario: retirar pide motivo y el historial se puede consultar (FR-123,
       motivo: 'Sustituido por obra',
     });
 
-  await fila.getByRole('button', { name: T.panel.historial }).click();
+  await accionInventario(page, P0.codigo, 'historial');
   dialogo = page.getByRole('dialog');
   await expect(dialogo.getByText(T.panelRegistro.aprobacion)).toBeVisible();
 });
@@ -347,7 +355,7 @@ test('inventario: exportar en los tres formatos (FR-160, FL-32)', async ({ page 
 test('Exportar ▾: «Inventario completo (JSON)», sin filtros (docs/33 RV-335)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/inventario');
-  await tipo(page).selectOption('hidrante');
+  await elegirTipo(page, T.mapa.hidrantes);
   await page.getByRole('button', { name: T.panel.exportar }).click();
   await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([
     T.panel.excel,
@@ -453,11 +461,10 @@ test('papelera: restaurar dentro de plazo (FR-124, FL-24)', async ({ page }) => 
 test('filtrar hidrantes regulares y exportar CSV da solo esas filas (RV-24)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/inventario');
-  const filas = page.getByRole('row');
-  await tipo(page).selectOption('hidrante');
-  await estado(page).selectOption('regular');
+  await elegirTipo(page, T.mapa.hidrantes);
+  await elegirEstado(page, T.formulario.regular);
   const regulares = PUNTOS.filter((p) => p.tipo === 'hidrante' && p.caudal === 'regular').map((p) => p.codigo);
-  await expect(filas).toHaveCount(regulares.length + 1);
+  await expect(filas(page)).toHaveCount(regulares.length);
 
   const leerCsv = async () => {
     const descarga = page.waitForEvent('download');
@@ -483,60 +490,50 @@ test('filtrar hidrantes regulares y exportar CSV da solo esas filas (RV-24)', as
 
   // Con búsqueda, solo lo que se ve.
   await buscarEnPanel(page, regulares[1]!);
-  await expect(filas).toHaveCount(2);
+  await expect(filas(page)).toHaveCount(1);
   expect(await leerCsv()).toEqual([regulares[1]]);
   await expect(page.getByRole('status').filter({ hasText: T.panelInventario.exportado(1) })).toBeVisible();
 });
 
-// ---------- docs/29 RV-123 (DEC-168): Tipo y Estado en desplegables, Exportar ▾ ----------
+// ---------- docs/29 RV-123 (DEC-168): Tipo y Estado; desde docs/38 (DEC-214), en el botón de filtros ----------
 
-test('Tipo y Estado: desplegables con los números de cada estado y "Quitar filtros" (RV-123)', async ({ page }) => {
+test('Tipo y Estado en la hoja, con los números de cada estado y "Quitar filtros" (RV-123, docs/38 RV-506)', async ({
+  page,
+}) => {
   await prepararPanel(page);
   await page.goto('/admin/inventario');
-  const filas = page.getByRole('row');
-  await expect(filas).toHaveCount(PUNTOS.length + 1);
-  // Los filtros quitados no están: ni chips, ni núcleo, ni diámetro, ni revisión.
-  await expect(page.getByRole('radiogroup', { name: T.panelInventario.colTipo })).toHaveCount(0);
-  await expect(page.getByRole('main').getByRole('combobox')).toHaveCount(2);
-  await expect(page.getByRole('button', { name: T.panelInventario.quitarFiltros })).toHaveCount(0);
-
+  await expect(filas(page)).toHaveCount(PUNTOS.length);
+  // Sin desplegables: el botón de filtros.
+  await expect(page.getByRole('main').getByRole('combobox')).toHaveCount(0);
   const cuantos = (deTipo: string, caudal: string) =>
     PUNTOS.filter((p) => (deTipo === 'todos' || p.tipo === deTipo) && p.caudal === caudal).length;
-  expect(await estado(page).locator('option').allTextContents()).toEqual([
-    T.panelInventario.conNumero(T.mapa.todos, PUNTOS.length),
-    T.panelInventario.conNumero(T.formulario.bueno, cuantos('todos', 'bueno')),
-    T.panelInventario.conNumero(T.formulario.regular, cuantos('todos', 'regular')),
-    T.panelInventario.conNumero(T.formulario.malo, cuantos('todos', 'malo')),
-    T.panelInventario.conNumero(T.formulario.barro, cuantos('todos', 'barro')),
-    T.panelInventario.conNumero(T.formulario.noFunciona, cuantos('todos', 'no_funciona')),
-  ]);
-  expect(await tipo(page).locator('option').allTextContents()).toEqual([
+
+  await abrirFiltros(page);
+  const hoja = page.getByRole('dialog');
+  const estados = hoja.getByRole('radiogroup', { name: T.panelInventario.colEstado }).getByRole('radio');
+  // Los cinco estados con su número, también Barro (que en los datos de prueba no tiene ninguno).
+  await expect(estados).toHaveCount(6);
+  await expect(estados.nth(0)).toHaveAccessibleName(`${T.mapa.todos} ${PUNTOS.length}`);
+  await expect(estados.nth(4)).toHaveAccessibleName(`${T.formulario.barro} ${cuantos('todos', 'barro')}`);
+  await expect(hoja.getByRole('radiogroup', { name: T.panelInventario.colTipo }).getByRole('radio')).toHaveText([
     T.mapa.todos,
     T.mapa.hidrantes,
     T.panelInventario.bocasDeRiego,
   ]);
+  await expect(hoja.getByRole('button', { name: T.panelInventario.quitarFiltros })).toHaveCount(0);
 
-  // Con el tipo elegido, los números son los de ese tipo; el filtro activo va en negrita.
-  await tipo(page).selectOption('boca_riego');
+  // Con el tipo elegido, los números son los de ese tipo.
+  await hoja.getByRole('radio', { name: T.panelInventario.bocasDeRiego }).click();
   const bocas = PUNTOS.filter((p) => p.tipo === 'boca_riego');
-  await expect(filas).toHaveCount(bocas.length + 1);
-  await expect(estado(page).locator('option').first()).toHaveText(
-    T.panelInventario.conNumero(T.mapa.todos, bocas.length),
-  );
-  await expect(estado(page).locator('option[value="regular"]')).toHaveText(
-    T.panelInventario.conNumero(T.formulario.regular, cuantos('boca_riego', 'regular')),
-  );
-  expect(await tipo(page).evaluate((e) => getComputedStyle(e).fontWeight)).toBe('600');
-  expect(await estado(page).evaluate((e) => getComputedStyle(e).fontWeight)).toBe('400');
+  await expect(filas(page)).toHaveCount(bocas.length);
+  await expect(estados.nth(0)).toHaveAccessibleName(`${T.mapa.todos} ${bocas.length}`);
+  await expect(estados.nth(2)).toHaveAccessibleName(`${T.formulario.regular} ${cuantos('boca_riego', 'regular')}`);
 
-  await estado(page).selectOption('malo');
-  await expect(filas).toHaveCount(cuantos('boca_riego', 'malo') + 1);
-
-  await page.getByRole('button', { name: T.panelInventario.quitarFiltros }).click();
-  await expect(filas).toHaveCount(PUNTOS.length + 1);
-  await expect(tipo(page)).toHaveValue('todos');
-  await expect(estado(page)).toHaveValue('todos');
-  await expect(page.getByRole('button', { name: T.panelInventario.quitarFiltros })).toHaveCount(0);
+  await estados.nth(3).click();
+  await expect(filas(page)).toHaveCount(cuantos('boca_riego', 'malo'));
+  await hoja.getByRole('button', { name: T.panelInventario.quitarFiltros }).click();
+  await expect(filas(page)).toHaveCount(PUNTOS.length);
+  await expect(hoja.getByRole('button', { name: T.panelInventario.quitarFiltros })).toHaveCount(0);
 });
 
 test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (RV-123)', async ({ page }) => {
@@ -576,12 +573,12 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
   // Tocar fuera lo cierra.
   await boton.click();
   await expect(menu).toBeVisible();
-  await page.getByText(T.panelInventario.ayudaTabla).click();
+  await page.getByText(T.panel.atribucion).click();
   await expect(menu).toHaveCount(0);
 
   // Elegir con Intro: exporta lo filtrado y el foco vuelve al botón.
-  await tipo(page).selectOption('hidrante');
-  await estado(page).selectOption('malo');
+  await elegirTipo(page, T.mapa.hidrantes);
+  await elegirEstado(page, T.formulario.malo);
   await boton.focus();
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
@@ -593,13 +590,15 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
   expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: { tipo: 'hidrante', caudal: 'malo' } });
 });
 
-test('Inventario con filtros: axe en claro y oscuro, y a 412 px nada se sale a lo ancho (RV-123)', async ({ page }) => {
+test('Inventario con filtros: axe en claro y oscuro, y a 412 px nada se sale a lo ancho (RV-123, docs/38 RV-506)', async ({
+  page,
+}) => {
   await prepararPanel(page);
   for (const tema of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: tema });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/admin/inventario');
-    await tipo(page).selectOption('boca_riego');
+    await elegirTipo(page, T.panelInventario.bocasDeRiego);
     await page.getByRole('button', { name: T.panel.exportar }).click();
     await expect(page.getByRole('menu')).toBeVisible();
     const { violations } = await new AxeBuilder({ page })
@@ -612,41 +611,27 @@ test('Inventario con filtros: axe en claro y oscuro, y a 412 px nada se sale a l
     ).toEqual([]);
   }
 
-  // Tableta: todo en una fila, también con "Quitar filtros" a la vista.
-  await page.setViewportSize({ width: 768, height: 1024 });
-  await page.goto('/admin/inventario');
-  await tipo(page).selectOption('boca_riego');
-  const enTableta = await Promise.all(
-    [
-      tipo(page),
-      page.getByRole('button', { name: T.panelInventario.quitarFiltros }),
-      page.getByRole('button', { name: T.panel.exportar }),
-      page.getByRole('radio', { name: T.panelInventario.mapa }),
-    ].map((l) => l.boundingBox()),
-  );
-  const [st] = enTableta.map((c) => c!);
-  for (const c of enTableta) expect(c!.y + c!.height / 2).toBeGreaterThan(st.y);
-  for (const c of enTableta) expect(c!.y + c!.height / 2).toBeLessThan(st.y + st.height);
-
-  // Móvil: Tipo y Estado lado a lado; debajo, Quitar filtros, Exportar y Tabla/Mapa.
-  await page.setViewportSize({ width: 412, height: 915 });
-  await page.goto('/admin/inventario');
-  await tipo(page).selectOption('boca_riego');
-  const cajas = await Promise.all(
-    [
-      tipo(page),
-      estado(page),
-      page.getByRole('button', { name: T.panelInventario.quitarFiltros }),
-      page.getByRole('button', { name: T.panel.exportar }),
-    ].map((l) => l.boundingBox()),
-  );
-  const [t, e, q, x] = cajas.map((c) => c!);
-  expect(Math.abs(t.y - e.y)).toBeLessThan(2);
-  expect(e.x).toBeGreaterThan(t.x + t.width - 1);
-  expect(t.height).toBeGreaterThanOrEqual(44);
-  expect(q.y).toBeGreaterThan(t.y + t.height);
-  expect(x.y).toBeGreaterThan(t.y + t.height);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  // Tableta y móvil: el botón de filtros, Exportar y Tabla/Mapa en una fila (docs/38 RV-506).
+  for (const [ancho, alto] of [
+    [768, 1024],
+    [412, 915],
+  ] as const) {
+    await page.setViewportSize({ width: ancho, height: alto });
+    await page.goto('/admin/inventario');
+    await elegirTipo(page, T.panelInventario.bocasDeRiego);
+    const cajas = await Promise.all(
+      [
+        page.getByRole('button', { name: /^Filtros: / }),
+        page.getByRole('button', { name: T.panel.exportar }),
+        page.getByRole('radio', { name: T.panelInventario.mapa }),
+      ].map((l) => l.boundingBox()),
+    );
+    const [f] = cajas.map((c) => c!);
+    for (const c of cajas) expect(c!.y + c!.height / 2).toBeGreaterThan(f.y);
+    for (const c of cajas) expect(c!.y + c!.height / 2).toBeLessThan(f.y + f.height);
+    for (const c of cajas) expect(Math.round(c!.height)).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  }
   // El menú abierto cabe en la pantalla del móvil.
   await page.getByRole('button', { name: T.panel.exportar }).click();
   const menu = (await page.getByRole('menu').boundingBox())!;
@@ -660,14 +645,18 @@ test('un filtro sin puntos: estado vacío, Exportar solo con el inventario compl
 }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/inventario');
-  await expect(page.getByRole('row')).toHaveCount(PUNTOS.length + 1);
+  await expect(filas(page)).toHaveCount(PUNTOS.length);
   // En los datos de prueba no hay ningún punto con barro.
-  await estado(page).selectOption('barro');
+  await elegirEstado(page, T.formulario.barro);
   await expect(page.getByText(T.panelInventario.vacio)).toBeVisible();
-  await expect(page.getByRole('row')).toHaveCount(0);
+  await expect(filas(page)).toHaveCount(0);
   const boton = page.getByRole('button', { name: T.panel.exportar });
-  await expect(boton).toHaveAccessibleDescription(T.panelInventario.nadaQueExportar);
-  await expect(page.getByText(T.panelInventario.nadaQueExportar)).toBeVisible();
+  // El motivo: debajo del botón desde 768 px; en el móvil, dentro del menú (docs/38 RV-506).
+  const movil = page.viewportSize()!.width < 768;
+  if (!movil) {
+    await expect(boton).toHaveAccessibleDescription(T.panelInventario.nadaQueExportar);
+    await expect(page.getByText(T.panelInventario.nadaQueExportar)).toBeVisible();
+  }
   // Lo filtrado no se puede exportar; el inventario completo (JSON), sí: no depende de los filtros
   // (docs/33 RV-335). Con el teclado, el menú entra directamente en él.
   await boton.focus();
@@ -691,9 +680,11 @@ test('un filtro sin puntos: estado vacío, Exportar solo con el inventario compl
   expect((await descarga).suggestedFilename()).toMatch(/\.json$/);
   expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: {} });
 
+  await abrirFiltros(page);
   await page.getByRole('button', { name: T.panelInventario.quitarFiltros }).click();
-  await expect(page.getByRole('row')).toHaveCount(PUNTOS.length + 1);
-  await expect(boton).not.toHaveAttribute('aria-describedby');
+  await page.getByRole('button', { name: T.panel.listo, exact: true }).click();
+  await expect(filas(page)).toHaveCount(PUNTOS.length);
+  if (!movil) await expect(boton).not.toHaveAttribute('aria-describedby');
   await expect(page.getByText(T.panelInventario.nadaQueExportar)).toHaveCount(0);
 });
 
@@ -738,5 +729,130 @@ test('Inventario, Registro y Ajustes: axe con el oscuro forzado sobre un sistema
       violations.flatMap((v) => v.nodes.map((n) => `${v.id} · ${n.target.join(' ')}`)),
       ruta,
     ).toEqual([]);
+  }
+});
+
+// ---------- docs/38 RV-506 (DEC-213 a DEC-215): filas por debajo de 1.100 px, tabla desde ahí ----------
+
+test.describe('Inventario por anchos (docs/38 RV-506)', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'cada test fija su ventana');
+  const malos = PUNTOS.filter((p) => p.caudal === 'malo');
+
+  test('a 412: sin cabeceras; el botón dice el orden; filtrar por Malo y ordenar por Dirección', async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await prepararPanel(page);
+    await page.goto('/admin/inventario');
+    await expect(filas(page)).toHaveCount(PUNTOS.length);
+    await expect(page.getByRole('columnheader')).toHaveCount(0);
+    const boton = page.getByRole('button', { name: /^Filtros: / });
+    await expect(boton).toHaveAccessibleName(T.panel.filtrosDe(`${T.mapa.todos} · ${T.panelInventario.colCodigo} ▲`));
+    // Sin filtro, el total no se repite al pie (ya está en la pestaña).
+    await expect(page.getByText(/con este filtro/)).toHaveCount(0);
+    await elegirEstado(page, T.formulario.malo);
+    await expect(filas(page)).toHaveCount(malos.length);
+    await expect(boton).toHaveAccessibleName(
+      T.panel.filtrosDe(`${T.formulario.malo} · ${T.panelInventario.colCodigo} ▲`),
+    );
+    await expect(boton).toHaveClass(/anillo-seleccion/);
+    await expect(page.getByText(T.panelInventario.puntosConFiltro(malos.length))).toBeVisible();
+    await abrirFiltros(page);
+    const orden = page.getByRole('radiogroup', { name: T.panelInventario.ordenarPorTitulo });
+    await orden.getByRole('radio', { name: new RegExp(`^${T.ficha.direccion}`) }).click();
+    await orden.getByRole('radio', { name: new RegExp(`^${T.ficha.direccion}`) }).click();
+    await expect(orden.getByRole('radio', { name: `${T.ficha.direccion} ▼` })).toBeVisible();
+    await page.getByRole('button', { name: T.panel.listo, exact: true }).click();
+    await expect(boton).toHaveAccessibleName(T.panel.filtrosDe(`${T.formulario.malo} · ${T.ficha.direccion} ▼`));
+  });
+
+  test('a 412: tocar el código abre Editar; la dirección se escribe sin abrirlo; «⋯» → Borrar devuelve el foco', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await prepararPanel(page);
+    await page.goto('/admin/inventario');
+    const celda = page.getByLabel(T.panelInventario.direccionDe(P0.codigo));
+    await celda.click();
+    await celda.fill('Calle Nueva 1');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(celda).toHaveValue('Calle Nueva 1');
+
+    await filaInventario(page, P0.codigo).getByText(P0.codigo, { exact: true }).click();
+    const editar = page.getByRole('dialog');
+    await expect(editar).toBeVisible();
+    expect(Math.round((await editar.boundingBox())!.width)).toBe(412);
+    await page.keyboard.press('Escape');
+    await expect(editar).toHaveCount(0);
+
+    const mas = page.getByRole('button', { name: T.panel.masAcciones(P0.codigo) });
+    await mas.click();
+    await page.getByRole('menuitem', { name: T.panel.borrar, exact: true }).click();
+    const dialogo = page.getByRole('dialog');
+    await expect(dialogo.getByText(T.panelInventario.avisoBorrar)).toBeVisible();
+    await dialogo.getByRole('button', { name: T.panelCola.cancelar }).click();
+    await expect(dialogo).toHaveCount(0);
+    await expect(mas).toBeFocused();
+  });
+
+  for (const [ancho, tabla] of [
+    [820, false],
+    [1099, false],
+    [1100, true],
+    [1280, true],
+  ] as const) {
+    test(`a ${ancho} px, ${tabla ? 'tabla' : 'filas'}`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: 900 });
+      await prepararPanel(page);
+      await page.goto('/admin/inventario');
+      await expect(filas(page)).toHaveCount(PUNTOS.length);
+      await expect(page.getByRole('main').locator('table')).toHaveCount(tabla ? 1 : 0);
+      await expect(page.getByRole('main').getByRole('list', { name: T.panelCola.inventario })).toHaveCount(
+        tabla ? 0 : 1,
+      );
+    });
+  }
+
+  test('a 1280: Editar y «⋯» en cada fila, una fecha por revisión, sin «Mostrando», orden por cabecera', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await prepararPanel(page);
+    await page.goto('/admin/inventario');
+    await expect(filas(page)).toHaveCount(PUNTOS.length);
+    await expect(page.getByText(/^Mostrando/)).toHaveCount(0);
+    for (const fila of await filas(page).all()) {
+      await expect(fila.getByRole('button', { name: T.panel.editar, exact: true })).toBeVisible();
+      await expect(fila.getByRole('button', { name: /^Más acciones de / })).toBeVisible();
+      // La revisión: un <time>, con la exacta en el title, sin una segunda fecha a la vista.
+      await expect(fila.locator('time')).toHaveCount(1);
+    }
+    await page.getByRole('button', { name: T.panelInventario.ordenarPor(T.panelInventario.colCodigo) }).click();
+    await expect(filas(page).first()).toContainText('HID-9008');
+  });
+});
+
+// Capturas para la revisión a ojo (skill revisar-pantallas): PW_CAPTURAS=1, a 412, 820, 1280 y 1920, en claro y oscuro.
+test.describe('capturas del Inventario (docs/38)', () => {
+  test.skip(({ isMobile }) => !process.env.PW_CAPTURAS || isMobile, 'solo bajo demanda');
+  for (const [ancho, alto] of [
+    [412, 915],
+    [820, 1180],
+    [1280, 800],
+    [1920, 1080],
+  ] as const) {
+    for (const tema of ['light', 'dark'] as const) {
+      test(`inventario ${ancho} ${tema}`, async ({ page }) => {
+        await page.setViewportSize({ width: ancho, height: alto });
+        await page.emulateMedia({ colorScheme: tema });
+        await prepararPanel(page);
+        await page.goto('/admin/inventario');
+        await expect(filas(page)).toHaveCount(PUNTOS.length);
+        await page.screenshot({ path: `recorridos/capturas-38/inventario-${ancho}-${tema}.png` });
+        await abrirFiltros(page);
+        await page.screenshot({ path: `recorridos/capturas-38/inventario-filtros-${ancho}-${tema}.png` });
+        await page.getByRole('button', { name: T.panel.listo, exact: true }).click();
+        await page.getByRole('button', { name: T.panel.masAcciones(P0.codigo) }).click();
+        await page.screenshot({ path: `recorridos/capturas-38/inventario-mas-${ancho}-${tema}.png` });
+      });
+    }
   }
 });

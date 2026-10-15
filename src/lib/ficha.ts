@@ -71,7 +71,7 @@ const CLASE_CHIP: Record<Caudal, string> = {
   regular: ['bg-tinte-amarillo text-tinte-amarillo-texto', 'ring-tinte-amarillo-borde ring-1', 'ring-inset'].join(' '),
   malo: ['bg-tinte-rojo text-tinte-rojo-texto', 'ring-tinte-rojo-borde ring-1', 'ring-inset'].join(' '),
   barro: ['bg-tinte-marron text-tinte-marron-texto', 'ring-tinte-marron-borde ring-1', 'ring-inset'].join(' '),
-  no_funciona: 'bg-gris-100 text-gris-700',
+  no_funciona: ['bg-tinte-gris text-tinte-gris-texto', 'ring-tinte-gris-borde ring-1', 'ring-inset'].join(' '),
 };
 
 /** Chip de estado (06 §5): fondo y texto de su color. Uno desconocido, como no funciona. */

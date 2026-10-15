@@ -940,7 +940,6 @@ export const T = {
     bocasDeRiego: 'Bocas de riego',
     // docs/29 RV-123 (DEC-168): Tipo y Estado en desplegables; Revisión, Núcleo y Diámetro fuera.
     quitarFiltros: 'Quitar filtros',
-    conNumero: (nombre: Parametro, n: Parametro) => `${nombre} · ${n}`,
     nadaQueExportar: 'Nada que exportar con estos filtros',
     vista: 'Vista',
     tabla: 'Tabla',
@@ -962,6 +961,16 @@ export const T = {
     ordenarPor: (columna: Parametro) => `Ordenar por ${columna}`,
     direccionDe: (codigo: Parametro) => `Dirección de ${codigo}`,
     ayudaTabla: 'pulsa una columna para ordenar · la dirección se edita en la propia celda',
+    // docs/38 RV-506: el botón de filtros del Inventario, las filas y el pie (DEC-214, DEC-215).
+    filtrarYOrdenar: 'Filtrar y ordenar',
+    ordenarPorTitulo: 'Ordenar por',
+    ayudaOrden: 'Tocar otra vez el elegido cambia ▲ / ▼.',
+    todosLosPuntos: 'Todos los puntos',
+    editarPunto: (codigo: Parametro) => `Editar ${codigo}`,
+    revisado: 'Revisado:',
+    puntosConFiltro: (n: number) => `${plural(n, 'punto', 'puntos')} con este filtro`,
+    puntosConBusqueda: (n: number) => `${plural(n, 'punto', 'puntos')} con esta búsqueda`,
+    anadirDireccion: '＋ Añadir dirección',
     paginas: 'Páginas',
     vacio: 'No hay puntos con esos filtros.',
     guardado: (codigo: Parametro) => `Guardado ${codigo}.`,
@@ -1404,8 +1413,6 @@ export const T = {
     regenerarMapaBase: 'Regenerar mapa base',
     respaldoAhora: 'Respaldo ahora',
     saludSistema: 'Salud del sistema',
-    mostrando: (n: Parametro, total: number) => `Mostrando ${n} de ${plural(total, 'punto', 'puntos')}`,
     ultimoAdministrador: 'Tiene que quedar al menos un administrador con acceso.',
-    pendienteEscribe: '— pendiente, escribe aquí',
   },
 } as const;

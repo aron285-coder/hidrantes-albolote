@@ -13,7 +13,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, conSesion, irALista, simularRpc, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, irALista, simularRpc, simularTablas, filaInventario } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 /** Nada de jerga ni de códigos internos en la pantalla (UI-04, UI-22). */
@@ -97,14 +97,14 @@ test.describe('degradación controlada (FR-168)', () => {
         r.fulfill({ contentType: 'application/json', body: 'true' }),
       );
       await page.goto('/admin/inventario');
-      await expect(page.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length))).toBeVisible();
+      await expect(filaInventario(page, PUNTOS[0]!.codigo)).toBeVisible();
 
       // Segundo arranque: el servidor no responde a nada.
       await page.unrouteAll({ behavior: 'ignoreErrors' });
       await page.route(`${SUPABASE_PRUEBAS}/**`, (r) => r.fulfill(paginaDeError));
       await page.reload();
       await expect(page.getByLabel(T.entrada.nombre)).toHaveCount(0);
-      await expect(page.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length))).toBeVisible({ timeout: 20_000 });
+      await expect(filaInventario(page, PUNTOS[0]!.codigo)).toBeVisible({ timeout: 20_000 });
       await expect(page.getByText(T.panel.sinServidor, { exact: false })).toBeVisible({ timeout: 20_000 });
       await sinJergaTecnica(page);
     });

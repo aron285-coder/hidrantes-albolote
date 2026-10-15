@@ -65,3 +65,15 @@ workflows. Una sola sesión, en el orden de §0.2.
   ventana a 1280 y Tab fuera, cruce de 768 px, lote a 412, 820 y 1280, sin «…», el código del alta aprobada).
   - A 720 × 450 las filas de tres líneas dejaban 3 propuestas; se bajó el alto de la fila (sin relleno arriba y
     abajo, interlineado ajustado) y vuelven a verse 4, como pide 06 §5.
+- **RV-506:** el Inventario con el botón de filtros («Filtrar y ordenar» por debajo de 1.100 px: Tipo, Estado con sus
+  etiquetas y su número —Barro incluido— y Ordenar por las siete columnas con ▲ / ▼; «Filtrar» en el PC, que ordena por
+  las cabeceras); fuera los dos desplegables y «Quitar filtros» de la barra. Por debajo de 1.100 px, una lista de filas de
+  tres líneas (código, tipo · diámetro; estado, dirección · núcleo; «Revisado:» y la fecha) sin fila de cabeceras: tocar
+  la fila abre Editar, la dirección se escribe en su celda y «⋯» lleva Historial, Retirar y Borrar; desde 1.100, la tabla,
+  con «Editar» y «⋯» y una sola fecha en la revisión. En el móvil, Exportar es un botón de icono con el motivo dentro del
+  menú. «＋ Añadir dirección» con borde discontinuo. Pie: «N puntos con este filtro / esta búsqueda», solo con filtro o
+  búsqueda (fuera «Mostrando»). Páginas y Tabla/Mapa de 44 px por debajo de 1.100. El chip de «No funciona» usa
+  `tinte-gris` (en oscuro se quedaba claro). Tests que fallaban antes: los e2e nuevos «Inventario por anchos» de
+  `panel-inventario.spec.ts`; adaptados con `filasInventario` y `accionInventario` los de `panel-inventario`,
+  `panel-dialogo` (el foco vuelve al «⋯»), `inventario-editar`, `panel-marcadores`, `vistas`, `controles`, `degradacion`,
+  `panel-pestanas` e `integracion/fase7` y `fase8`.
