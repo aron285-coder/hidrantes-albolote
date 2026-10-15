@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.4 — 15 de octubre de 2026 (`docs/37` RV-496): §8, activar los avisos técnicos antes del piloto, porque vienen apagados (DEC-202); §10, la rutina de antes del piloto (entrar en el panel, volver a entrar en los demás dispositivos, DEC-206, y activar los avisos). El día del lanzamiento (RV-491) y `OTRA_CUENTA` (RV-493) ya estaban en §8 y §2. 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 
@@ -48,6 +48,12 @@ aplicación* de Salud del sistema).
 Entra con una cuenta de Google que solo uses tú y pide a otro administrador que te quite el acceso y
 te lo devuelva en *Ajustes → Acceso de administradores*. Si no sabes de dónde sale esa otra identidad,
 avisa al responsable técnico (15 §5.5).
+
+**Si sale «No autorizado» con «Este correo de jefatura ya está unido a otra cuenta de Google»:** tu correo
+de jefatura quedó unido la primera vez a otra cuenta de Google (`OTRA_CUENTA`). Entra con esa cuenta. Si
+ya no la tienes o no es tuya, pide a otro administrador que te quite el acceso y te lo devuelva en
+*Ajustes → Acceso de administradores*: eso deshace la unión, y la próxima vez que entres se une a la cuenta
+con la que entres. Si no sabes de qué cuenta se trata, 15 §5.5.
 
 Desde el móvil, como jefatura, cualquier operación sobre un punto **se aplica al momento**: el botón
 dice *Aplicar ahora* y el cambio no pasa por la cola. Queda en el Registro como acción de
@@ -161,7 +167,9 @@ eso se queda corto.
   igual.
 - Abierta, sale una franja verde con **hasta cuándo** y el botón **Cerrar ahora**. Si no, se cierra
   sola al pasar la hora.
-- **El día del lanzamiento: ábrela antes de pasar el código al grupo.**
+- **El día del lanzamiento: ábrela antes de pasar el código al grupo.** Con la entrada abierta entran
+  unas 60 personas por minuto desde la misma wifi; cerrada, unas 10. Si a alguien le sale «Mucha gente
+  entrando a la vez», no tiene que hacer nada: la app lo vuelve a intentar sola.
 - Si *Salud del sistema* dice que hay **entradas frenadas por el tope**, alguien con el código bueno
   se ha quedado fuera: ábrela desde ahí.
 - Abrirla y cerrarla queda en el *Registro*.
@@ -235,6 +243,12 @@ probando códigos de acceso; como mucho uno de cada tipo al día, el de los cód
 técnico lleva a Ajustes: mira Salud del sistema; el responsable técnico ya tiene el aviso. Si es el de
 los códigos y se repite, cambia el código. En iPhone, solo con la app instalada.
 
+**Activa los avisos técnicos antes del piloto.** Vienen apagados, como todos, y sin ellos un fallo del
+respaldo, de la comprobación diaria o de una actualización, o alguien probando códigos, solo llega al
+responsable técnico. Al menos una persona de jefatura los activa en el navegador que más usa (en
+*Ajustes → Avisos para jefatura*, la casilla **Avisos técnicos**; el navegador pedirá permiso para
+mostrar notificaciones). Al tocar uno se abre *Ajustes*, donde está *Salud del sistema*.
+
 ### Código QR del enlace
 
 Para la sede y las reuniones: **Imprimir A4** saca un cartel con el QR que abre la app. El cartel no
@@ -257,6 +271,7 @@ Lo que cambió en las últimas versiones.
 
 | Cuándo | Qué |
 |---|---|
+| Una vez, antes del piloto | Entrar en el panel (y después, una vez, en los demás dispositivos: apartado 2) y activar los **Avisos técnicos** (apartado 8). |
 | Cada pocos días | Vaciar la cola de revisión. Las *revisiones* se aprueban en bloque. |
 | Cada mes | Inventario ordenado por *Última revisión*: mandar a revisar lo que sale en rojo, por el canal del grupo. |
 | Cada mes | Mirar Salud del sistema (apartado 8). |

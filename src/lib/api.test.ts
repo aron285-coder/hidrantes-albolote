@@ -125,6 +125,14 @@ describe('verificarCodigo (FR-31)', () => {
     expect(estadoConexion()).toBe('bien');
   });
 
+  it('OCUPADO con reintentar_en_s lo pasa, para que la app lo intente sola (docs/37 RV-491)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => respuesta(503, { error: 'OCUPADO', reintentar_en_s: 7 })),
+    );
+    await expect(verificarCodigo('x', 'd-1')).resolves.toEqual({ ok: false, codigo: 'OCUPADO', reintentarEnS: 7 });
+  });
+
   it('otro 5xx con código sigue siendo SERVIDOR_NO_DISPONIBLE (docs/35 RV-426)', async () => {
     vi.stubGlobal(
       'fetch',

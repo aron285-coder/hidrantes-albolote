@@ -46,6 +46,9 @@ export const T = {
     // docs/36 RV-450: la cuenta de Google tiene otra identidad unida y no se une a jefatura.
     cuentaMezcladaDetalle:
       'Esta cuenta tiene otra identidad unida. Pide a otro administrador que te quite y te devuelva el acceso, y entra con una cuenta de Google propia.',
+    // docs/37 RV-493: el correo de jefatura ya está unido a otra cuenta de Google.
+    otraCuentaDetalle:
+      'Este correo de jefatura ya está unido a otra cuenta de Google. Entra con esa, o pide a otro administrador que te quite y te devuelva el acceso.',
     // docs/35 RV-432: al entrar con Google no se ha podido saber si la cuenta es de jefatura.
     cuentaSinComprobar: 'No se ha podido comprobar tu cuenta',
     cuentaSinComprobarDetalle: 'Puede ser la conexión o el servidor. Inténtalo de nuevo en un momento.',
@@ -69,6 +72,10 @@ export const T = {
     errorDesconocido: (codigo: Parametro) => `No se ha podido entrar (código ${codigo}). Inténtalo más tarde.`,
     // docs/35 RV-426.
     ocupado: 'Hay mucha gente entrando a la vez. Prueba otra vez en un minuto.',
+    // docs/37 RV-491: la app lo vuelve a intentar sola, como mucho tres veces.
+    ocupadoReintento: (segundos: Parametro) => `Mucha gente entrando a la vez. Lo vuelvo a intentar en ${segundos} s…`,
+    ocupadoReintentoAnuncio: 'Mucha gente entrando a la vez. Lo vuelvo a intentar solo.',
+    cancelarReintento: 'Cancelar',
     errorGenerico: 'No se ha podido entrar. Inténtalo más tarde; si sigue igual, díselo a jefatura.',
   },
 

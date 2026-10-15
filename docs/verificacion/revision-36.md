@@ -94,8 +94,8 @@ DEC-197, DEC-198, DEC-199 y DEC-202, y `docs/37` en DEC-193 y DEC-196; `CLAUDE.m
 tiene otra identidad unida»); 15 §4 (qué hacer si la vigilancia desune una cuenta). Solo
 documentación.
 
-Pendiente: RV-481 (RV-139b sobre el commit final de `develop`), RV-482 (recorrido corto) y RV-483
-(0.14.0 y archivo de la especificación).
+Después, ya hechos: RV-481 (RV-139b en verde sobre el commit final de `develop`, #717), RV-482
+(recorrido corto, abajo, #718) y RV-483 (0.14.0 y archivo de la especificación, en «Cierre (RV-483)», #725).
 
 **RV-482 · Recorrido corto** (este PR). Con `revisar-pantallas`, en local sobre `develop` (`0785f96`),
 con el servidor simulado de los e2e (el build de pruebas y las respuestas de `entrada-codigo-entero`,
@@ -128,3 +128,10 @@ Ningún defecto alto ni medio. Bajos, de antes de `docs/36` y fuera de estos pun
 - En las tarjetas del Registro en el móvil, una acción sin punto enseña «Punto —».
 - A 412 px, los filtros de la Cola cortan su texto («todas las opera…», «todos los núcle…»).
 - A 412 px, el aviso «Guardado …» del Inventario tapa el centro de la cabecera mientras se ve.
+
+## Cierre (RV-483)
+
+- **0.14.0 en producción** el 14 oct 2026 con `npm run publicar` y la puerta automática (CI de `main`, RV-139b en verde con `0785f96` y después solo documentación y versión, `comprobar-produccion --completo`, ninguna `bloquea-release`); producción sirve `0.14.0` y el commit `df3d4bf`. Fila en `paridad-produccion.md`.
+- **La especificación** pasa a `archivo/especificaciones/36-revision-tras-35.md` y sale de `.git/info/exclude`.
+- **Para después del piloto** (issues `tras-piloto`): #708, #720, #721, #722, #723, #724. Los hallazgos bajos de la revisión del 14 oct no están en la especificación: los anota el desarrollador como issues `tras-piloto` si quiere conservarlos.
+- **Desde 0.14.0** la vigilancia de producción puede desunir (lleva `0048`).

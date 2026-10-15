@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.1 — 7 de octubre de 2026. Primer borrador completo, con la app de la versión 0.8 y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.2 — 15 de octubre de 2026 (`docs/37` RV-496): §2, «Mucha gente entrando a la vez» y «Demasiados intentos» con la hora a la que se puede volver a probar; §9, el máximo de propuestas de un móvil recién entrado (lo que no sale se queda guardado); §12, *Sincronizar* está en Ajustes → *Mapa sin cobertura* o en la píldora de la cabecera. 0.1 — 7 de octubre de 2026. Primer borrador completo, con la app de la versión 0.8 y las capturas de `capturas/vistas/`. |
 | **Para** | Los voluntarios de Protección Civil de Albolote. |
 | **Se apoya en** | 02 (los pasos, FL-01 a FL-38), 01 (las reglas) y `notas-para-14-ios.md` (iPhone). Si este manual y 01 o 02 dicen cosas distintas, mandan 01 y 02, y este manual se corrige. |
 
@@ -43,7 +43,12 @@ Nada de lo que envías cambia el mapa directamente. **Todo pasa por jefatura.**
 pasas semanas sin abrirla, el iPhone puede borrar sus datos: la app te pedirá el código otra vez y
 volverá a descargar todo.
 
-**Si el código no entra:** «código incorrecto». Tras muchos intentos te pedirá esperar una hora.
+**Si sale «Mucha gente entrando a la vez»:** no hagas nada. La app lo vuelve a intentar sola y te dice
+cuántos segundos faltan; si quieres parar, toca **Cancelar**. Si después de tres intentos sigue igual,
+toca **Entrar** pasado un minuto.
+
+**Si el código no entra:** «código incorrecto». Tras muchos intentos sale «Demasiados intentos.
+Podrás volver a intentarlo a las …», con la hora: hasta entonces no sirve de nada probar otra vez.
 Pide el código a jefatura; no lo compartas fuera del grupo.
 
 ## 3. El mapa
@@ -196,6 +201,12 @@ necesitarla.
   «Hidrante 100 mm» en un alta, «Sigue igual» en una revisión, «Retirada: Obras». Si jefatura la
   rechazó, «Motivo: …»; si la aprobó con correcciones, cuáles. También sale lo que sigue sin
   enviar. Una pendiente la puedes **retirar** con el botón de la tarjeta.
+- **Los primeros días con un móvil nuevo:** durante las primeras 24 horas, un móvil recién entrado
+  puede enviar como mucho 10 propuestas al día, y entre todos los móviles recién entrados, la mitad
+  de lo que puede enviar el grupo. Si llegas a ese máximo, la propuesta **no se pierde**: se queda
+  guardada en el móvil, *Mis propuestas* te dice «En espera…» y cuándo se enviará, y sale sola
+  entonces. No hace falta repetirla. El día del lanzamiento, si jefatura abre la entrada, este
+  máximo no se aplica a quien entra.
 - Al abrir la app, un aviso te resume lo que jefatura ha resuelto desde la última vez.
 - **Avisarme cuando jefatura resuelva mis propuestas**: notificaciones en el móvil. En iPhone solo
   funcionan con la app instalada y con iOS 16.4 o posterior. Al tocar una, se abre *Mis
@@ -227,6 +238,6 @@ grupo y quieres que se borre, díselo a jefatura. El detalle está en *Ajustes �
 |---|---|
 | Pide el código otra vez | Escríbelo; tu nombre ya está. Si no lo tienes, pídelo a jefatura (puede haberlo cambiado). |
 | «Sin conexión con el servidor» | Sigue trabajando: se envía solo al volver. |
-| «N sin enviar» no baja con cobertura | Ajustes → Puntos guardados → *Sincronizar*. Si sigue, avisa a jefatura. |
+| «N sin enviar» no baja con cobertura | Toca *Sincronizar* en Ajustes → *Mapa sin cobertura*, o la píldora de arriba del mapa → *Sincronizar ahora*. Si sigue, avisa a jefatura. |
 | El mapa sale en blanco sin cobertura | El mapa sin cobertura no está descargado: Ajustes → *Mapa sin cobertura*, con wifi. |
 | No llegan las notificaciones | Revisa el permiso en los ajustes del móvil; en iPhone, que la app esté instalada. |

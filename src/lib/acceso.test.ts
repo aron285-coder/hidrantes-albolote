@@ -130,7 +130,9 @@ describe('canje del código (FR-31, FR-33)', () => {
   it('DISPOSITIVO_RESERVADO dos veces: el error de siempre, sin más reintentos (docs/31 RV-159)', async () => {
     const fetch = vi.fn(async () => respuesta(409, { error: 'DISPOSITIVO_RESERVADO' }));
     vi.stubGlobal('fetch', fetch);
-    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBe('DISPOSITIVO_RESERVADO');
+    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toEqual({
+      codigo: 'DISPOSITIVO_RESERVADO',
+    });
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(acceso().tipo).toBe('fuera');
   });
@@ -140,7 +142,9 @@ describe('canje del código (FR-31, FR-33)', () => {
       'fetch',
       vi.fn(async () => respuesta(429, { error: 'DEMASIADOS_INTENTOS' })),
     );
-    expect(await entrarConCodigo('000001', { nombre: 'Ana', apellido: 'Ruiz' })).toBe('DEMASIADOS_INTENTOS');
+    expect(await entrarConCodigo('000001', { nombre: 'Ana', apellido: 'Ruiz' })).toEqual({
+      codigo: 'DEMASIADOS_INTENTOS',
+    });
     expect(bloqueadoHasta()).not.toBeNull();
     expect(acceso().tipo).toBe('fuera');
   });
@@ -304,7 +308,6 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
   });
 
   it.each([
-    [403, { error: 'OTRA_CUENTA' }],
     [403, { error: 'NO_ES_ADMINISTRADOR' }],
     [403, { error: 'SIN_GOOGLE' }],
     [401, { error: 'NO_AUTORIZADO' }],
@@ -421,6 +424,19 @@ describe('unir la cuenta de jefatura al entrar (docs/35 RV-432)', () => {
     expect(acceso()).toEqual({ tipo: 'no_autorizado', sinComprobar: true });
     expect(signOut).not.toHaveBeenCalled();
     expect(fetch.mock.calls.filter(([ruta]) => ruta === '/api/error')).toHaveLength(1);
+  });
+
+  // docs/37 RV-493: el correo de jefatura ya está unido a otra cuenta de Google; el panel dice qué hacer.
+  it('OTRA_CUENTA: «No autorizado» con su texto, sesión cerrada, sin pedirlo otra vez', async () => {
+    entrar();
+    contesta(403, { error: 'OTRA_CUENTA' });
+    rpc.mockResolvedValue(no);
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'no_autorizado', otraCuenta: true });
+    expect(signOut).toHaveBeenCalled();
+    expect(rpc.mock.calls.filter(([n]) => n === 'fn_es_admin')).toHaveLength(1);
+    await comprobarAcceso();
+    expect(pedidas()).toBe(1);
   });
 
   it('otra cuenta de Google en el mismo navegador: se vuelve a pedir', async () => {

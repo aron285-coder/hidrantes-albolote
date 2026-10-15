@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
+import { archivoHeaders } from '../config/cabeceras.ts';
 import { PROBLEMA_DESUNIDA, PROBLEMA_NINGUNA, PROBLEMA_SIN_DESUNIR } from './revisar-uniones.ts';
 
 // Sin parser de YAML en las dependencias: expresiones acotadas sobre los archivos, que bastan para
@@ -1973,6 +1974,28 @@ describe('dependencias sin secretos (RV-410)', () => {
       expect(d).toMatch(/uses: actions\/download-artifact@[0-9a-f]{40} # v\d+\.\d+\.\d+\n\s+with:\n\s+name: dist/);
     });
 
+    // docs/37 RV-490 (DEC-210): dist se comprueba nada más descargarlo, antes de cualquier secreto.
+    it('desplegar comprueba dist justo después de descargarlo y antes de cualquier paso con secretos', () => {
+      const d = t('desplegar');
+      const descarga = d.search(/uses: actions\/download-artifact@/);
+      const comprobar = d.indexOf('run: bash .github/scripts/comprobar-dist.sh dist');
+      expect(descarga).toBeGreaterThan(-1);
+      expect(comprobar).toBeGreaterThan(descarga);
+      expect(comprobar).toBeLessThan(d.indexOf('secrets.'));
+      // El paso siguiente a la descarga es la comprobación: nada entre medias.
+      const pasos = d.slice(descarga).split(/\n {6}- /);
+      expect(pasos[1]).toMatch(/^name: Comprobar dist\n/);
+      // Las mismas variables públicas con las que «construir» genera _headers.
+      const sufijo = entorno === 'production' ? 'PROD' : 'STAGING';
+      for (const linea of [
+        `VITE_SUPABASE_URL: \${{ vars.SUPABASE_URL_${sufijo} }}`,
+        `VITE_MAPABASE_URL: \${{ vars.VITE_MAPABASE_URL_${sufijo} }}`,
+      ]) {
+        expect(pasos[1]).toContain(linea);
+        expect(t('construir')).toContain(linea);
+      }
+    });
+
     // El nombre del trabajo es su id: publicar.ts (TRABAJO_APROBACION), avisar y la vigilancia de
     // despliegues ajenos lo buscan como «desplegar».
     it('desplegar se llama así, sin name: que lo cambie', () => {
@@ -2218,5 +2241,125 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
         avisar: 'no',
       });
     });
+  });
+});
+
+// docs/37 RV-490 (DEC-210): lo que llega de «construir» no puede cambiar el código de servidor.
+describe('comprobar-dist.sh', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  const guion = path.join(raiz, '.github/scripts/comprobar-dist.sh').replace(/\\/g, '/');
+  const variables = {
+    VITE_ENTORNO: 'produccion',
+    VITE_SUPABASE_URL: 'https://ejemplo.supabase.co',
+    VITE_MAPABASE_URL: '',
+  };
+  const cabeceras = archivoHeaders({
+    entorno: 'produccion',
+    supabaseUrl: variables.VITE_SUPABASE_URL,
+    mapabaseUrl: '',
+  });
+  const base = mkdtempSync(path.join(tmpdir(), 'comprobar-dist-'));
+  afterAll(() => rmSync(base, { recursive: true, force: true }));
+  const puedeEnlazar = (() => {
+    const enlace = path.join(base, 'enlace');
+    try {
+      symlinkSync(base, enlace);
+      rmSync(enlace, { force: true });
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  const ejecutar = (dist: string) =>
+    spawnSync('bash', [guion, dist.replace(/\\/g, '/')], { encoding: 'utf8', env: { ...process.env, ...variables } });
+
+  let n = 0;
+  /** Un dist limpio (con las extensiones de uno de hoy), con `cambiar` aplicado; devuelve el resultado. */
+  const correr = (cambiar: (dist: string) => void = () => {}) => {
+    const dist = path.join(base, `dist-${n++}`);
+    mkdirSync(path.join(dist, 'assets'), { recursive: true });
+    mkdirSync(path.join(dist, 'mapabase', 't', 'v1', '10', '1'), { recursive: true });
+    const archivos: Record<string, string> = {
+      'index.html': '<!doctype html>',
+      'sw.js': '',
+      'manifest.webmanifest': '{}',
+      'robots.txt': 'User-agent: *',
+      _headers: cabeceras,
+      'assets/index-abc.js': '',
+      'assets/index-abc.js.map': '{}',
+      'assets/index-abc.css': '',
+      'assets/fuente.woff2': '',
+      'assets/fuente.woff': '',
+      'escudo.svg': '',
+      'icono.png': '',
+      'foto.jpg': '',
+      'foto.webp': '',
+      'mapabase/albolote.pmtiles': '',
+      'mapabase/t/v1/meta.json': '{}',
+      'mapabase/t/v1/10/1/2.pbf': '',
+    };
+    for (const [nombre, contenido] of Object.entries(archivos)) writeFileSync(path.join(dist, nombre), contenido);
+    cambiar(dist);
+    return ejecutar(dist);
+  };
+
+  it('con un dist limpio, pasa', () => {
+    const r = correr();
+    expect(r.status, r.stdout + r.stderr).toBe(0);
+  });
+
+  it.each<[string, (d: string) => void, string]>([
+    ['_worker.js como archivo', (d) => writeFileSync(path.join(d, '_worker.js'), 'export default {}'), '_worker.js'],
+    [
+      '_worker.js como carpeta',
+      (d) => {
+        mkdirSync(path.join(d, '_worker.js'));
+        writeFileSync(path.join(d, '_worker.js', 'index.js'), '');
+      },
+      '_worker.js',
+    ],
+    [
+      'functions/',
+      (d) => {
+        mkdirSync(path.join(d, 'functions', 'api'), { recursive: true });
+        writeFileSync(path.join(d, 'functions', 'api', 'x.js'), '');
+      },
+      'functions',
+    ],
+    ['_routes.json', (d) => writeFileSync(path.join(d, '_routes.json'), '{}'), '_routes.json'],
+    ['_redirects', (d) => writeFileSync(path.join(d, '_redirects'), '/* https://otra.example 302'), '_redirects'],
+    ['otro nombre reservado en la raíz', (d) => writeFileSync(path.join(d, '_otro.txt'), ''), '_otro.txt'],
+    [
+      'un _headers cambiado',
+      (d) => writeFileSync(path.join(d, '_headers'), cabeceras.replace(/ {2}Content-Security-Policy: [^\n]*\n/, '')),
+      '_headers',
+    ],
+    ['un _headers con un byte de más', (d) => writeFileSync(path.join(d, '_headers'), cabeceras + '\n'), '_headers'],
+    ['sin _headers', (d) => rmSync(path.join(d, '_headers')), '_headers'],
+    ['un .exe', (d) => writeFileSync(path.join(d, 'assets', 'programa.exe'), ''), 'programa.exe'],
+    ['un archivo sin extensión', (d) => writeFileSync(path.join(d, 'assets', 'sinextension'), ''), 'sinextension'],
+  ])('falla con %s', (_caso, cambiar, menciona) => {
+    const r = correr(cambiar);
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stdout).toContain('::error::');
+    expect(r.stdout).toContain(menciona);
+  });
+
+  it('falla si el _headers es de otro proyecto de Supabase', () => {
+    const r = correr((d) =>
+      writeFileSync(
+        path.join(d, '_headers'),
+        archivoHeaders({ entorno: 'produccion', supabaseUrl: 'https://otro.supabase.co', mapabaseUrl: '' }),
+      ),
+    );
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stdout).toContain('dist/_headers no es el que genera');
+  });
+
+  // Sin permiso para crear enlaces (Windows sin modo de desarrollador) se salta: lo prueba la CI.
+  it.skipIf(!puedeEnlazar)('falla con un enlace simbólico', () => {
+    const r = correr((d) => symlinkSync(path.join(d, 'index.html'), path.join(d, 'assets', 'enlace.js')));
+    expect(r.status, r.stdout + r.stderr).toBe(1);
+    expect(r.stdout).toContain('enlace simbólico: assets/enlace.js');
   });
 });

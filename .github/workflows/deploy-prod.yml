@@ -79,6 +79,15 @@ jobs:
         with:
           name: dist
           path: dist
+      # docs/37 RV-490 (DEC-210): dist viene de un trabajo que corre el código de las dependencias. Antes de
+      # cualquier paso con secretos: sin _worker.js, functions/, _routes.json ni _redirects, solo estáticos
+      # esperados y el _headers que genera el repositorio con las mismas variables públicas que «construir».
+      - name: Comprobar dist
+        run: bash .github/scripts/comprobar-dist.sh dist
+        env:
+          VITE_ENTORNO: produccion
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
+          VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL_PROD }}
 
       - name: Guarda de seguridad
         run: node scripts/guarda-produccion.ts

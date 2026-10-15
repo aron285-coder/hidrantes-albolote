@@ -40,7 +40,8 @@ export type Acceso =
   | { tipo: 'jefatura'; correo: string }
   // sinComprobar: no se ha podido saber si la cuenta es de jefatura; se reintenta a mano (docs/35 RV-432).
   // cuentaMezclada: la cuenta tiene otra identidad unida y no se puede unir a jefatura (docs/36 RV-450).
-  | { tipo: 'no_autorizado'; sinComprobar?: boolean; cuentaMezclada?: boolean };
+  // otraCuenta: el correo de jefatura ya está unido a otra cuenta de Google (docs/37 RV-493).
+  | { tipo: 'no_autorizado'; sinComprobar?: boolean; cuentaMezclada?: boolean; otraCuenta?: boolean };
 
 const CLAVE_AUTH = 'hidrantes.auth';
 
@@ -126,16 +127,17 @@ export function limpiarDireccion(): void {
 
 /**
  * Lo que ha dicho el servidor al unir la cuenta: `unida` (y la sesión ya renovada); `sin_acceso` (la
- * cuenta no puede ser de jefatura); `mezclada` (la cuenta tiene otra identidad unida, docs/36
+ * cuenta no puede ser de jefatura); `otra_cuenta` (el correo de jefatura ya está unido a otra cuenta de
+ * Google, docs/37 RV-493); `mezclada` (la cuenta tiene otra identidad unida, docs/36
  * RV-450); o `sin_comprobar` (no se ha podido saber: sin red, demasiadas peticiones, servidor).
  */
-type Vinculo = 'unida' | 'sin_acceso' | 'mezclada' | 'sin_comprobar';
+type Vinculo = 'unida' | 'sin_acceso' | 'otra_cuenta' | 'mezclada' | 'sin_comprobar';
 
 /**
  * El usuario de la sesión para el que ya se ha pedido unir la cuenta y su resultado. Se guarda la
  * promesa: una comprobación que llegue a la vez espera a la misma petición. «Unida» no se guarda
  * (docs/36 RV-450): si la unión se deshace después, la próxima comprobación vuelve a pedirla; solo
- * se recuerdan «sin acceso», «mezclada» y «sin comprobar», que no se piden solas otra vez.
+ * se recuerdan «sin acceso», «otra cuenta», «mezclada» y «sin comprobar», que no se piden solas otra vez.
  */
 let vinculo: { usuario: string; resultado: Promise<Vinculo> } | null = null;
 /** Se ha pulsado «Reintentar»: la próxima comprobación con respuesta vuelve a pedir unirla. */
@@ -144,7 +146,7 @@ const VINCULADA = ['VINCULADO', 'YA_VINCULADO'];
 /** Las únicas respuestas que dicen algo de la cuenta (05 §9): «sin acceso» de siempre, sin reintentar. */
 const SIN_ACCESO: Record<number, string[]> = {
   401: ['NO_AUTORIZADO'],
-  403: ['SIN_GOOGLE', 'NO_ES_ADMINISTRADOR', 'OTRA_CUENTA'],
+  403: ['SIN_GOOGLE', 'NO_ES_ADMINISTRADOR'],
 };
 
 type Cliente = NonNullable<ReturnType<typeof supabase>>;
@@ -190,6 +192,8 @@ async function vincularJefatura(cliente: Cliente, token: string): Promise<Vincul
     const cuerpo = (await r.json().catch(() => ({}))) as { resultado?: string; error?: string };
     if (r.ok && VINCULADA.includes(cuerpo.resultado ?? '')) return await renovarSesion(cliente);
     if (SIN_ACCESO[r.status]?.includes(cuerpo.error ?? '')) return 'sin_acceso';
+    // docs/37 RV-493: el correo de jefatura ya está unido a otra cuenta de Google. Sin acceso, con su texto.
+    if (r.status === 403 && cuerpo.error === 'OTRA_CUENTA') return 'otra_cuenta';
     if (r.status === 403 && cuerpo.error === 'CUENTA_MEZCLADA') {
       // Queda anotado, sin datos de la cuenta: jefatura puede tener que revisar esa unión (RV-450).
       anotarError(new Error('vincular-jefatura: 403 CUENTA_MEZCLADA'), 'vincular-jefatura');
@@ -237,6 +241,12 @@ export async function comprobarAcceso(): Promise<void> {
           olvidarConfirmada();
           await cerrarGoogle(cliente, 'vincular-jefatura-salir');
           return fijar({ tipo: 'no_autorizado', cuentaMezclada: true });
+        }
+        // docs/37 RV-493: «sin acceso», como un desconocido, pero con lo que se puede hacer.
+        if (resultado === 'otra_cuenta') {
+          olvidarConfirmada();
+          await cerrarGoogle(cliente, 'no-autorizado-salir');
+          return fijar({ tipo: 'no_autorizado', otraCuenta: true });
         }
         if (resultado === 'unida') {
           r = await rpc<boolean>('fn_es_admin');
@@ -312,14 +322,20 @@ export async function comprobarAcceso(): Promise<void> {
 }
 
 /** Canje del código (FR-31). Devuelve null si ha entrado, o el código de error de 05 §8. */
-export async function entrarConCodigo(codigo: string, firma: Firma): Promise<string | null> {
+/** Por qué no se ha entrado: el código de 05 §8 y, con OCUPADO, cuánto esperar (docs/37 RV-491). */
+export interface ErrorEntrada {
+  codigo: string;
+  reintentarEnS?: number;
+}
+
+export async function entrarConCodigo(codigo: string, firma: Firma): Promise<ErrorEntrada | null> {
   let r: Resultado<{ token: string }> = await verificarCodigo(codigo, dispositivoId());
   // El identificador de este móvil está reservado (DEC-175): otro y una sola vez más (docs/31 RV-159).
   // Si vuelve a pasar, el error de siempre.
   if (!r.ok && r.codigo === 'DISPOSITIVO_RESERVADO') r = await verificarCodigo(codigo, renovarDispositivoId());
   if (!r.ok) {
     if (r.codigo === 'DEMASIADOS_INTENTOS') bloquear();
-    return r.codigo;
+    return r.reintentarEnS === undefined ? { codigo: r.codigo } : { codigo: r.codigo, reintentarEnS: r.reintentarEnS };
   }
   guardarSesion(r.datos.token, firma);
   fijar({ tipo: 'voluntario', sesion: leerSesion()! });
