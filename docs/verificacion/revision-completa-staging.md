@@ -264,3 +264,20 @@ después, solo documentación. Mismo método (cadena solo en memoria; traspaso 3
 | Recorrido corto (RV-499): la entrada con `OCUPADO` simulado en el navegador, espera, reintento solo y Cancelar | ok |
 
 commit: c71aa98c6345822b44da3a6e23cb78f335619af3 · resultado: verde
+
+## Release 0.16.0 (16 oct 2026, docs/38 RV-512)
+
+Con todo docs/38: el panel en el móvil (pestañas en ☰, filtros en un botón, listas de tres líneas, Ajustes en
+columnas). Sin migraciones: la última de staging sigue siendo `0049`. «Desplegar staging» en verde con el commit de
+abajo. Mismo método (cadena solo en memoria; traspaso 38824302992, borrado).
+
+| Recorrido | Resultado |
+|---|---|
+| Voluntario (los 13 de 0.13.0) | ok (13) |
+| Jefatura por BD con el administrador ya unido: aprobar el alta (BOC-0016), `fn_editar_punto` 6 m y enganche; `detalleLegible` | ok |
+| 25 canjes desde una misma IP: entrada cerrada, 20 y del 21.º al 25.º `DEMASIADOS_INTENTOS`; abierta, 25; se cierra; todo deshecho | ok |
+| El rol del migrador sin acceso al esquema `auth` | ok: `false` |
+| `npm run anonimizar -- --entorno staging` y limpieza | ok: 0 pendientes, 0 incidencias abiertas, token revocado |
+| El panel de docs/38 (Google no se automatiza): el mismo build con el panel simulado, `listas-anchos` y `vistas` (ver `panel-movil-38.md`, RV-512) | ok |
+
+commit: 6a62228ccf6cad07787f3abf8274b78534536dfd · resultado: verde
