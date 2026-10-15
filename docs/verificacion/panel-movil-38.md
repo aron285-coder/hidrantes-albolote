@@ -87,3 +87,17 @@ workflows. Una sola sesión, en el orden de §0.2.
   `registro-legible.test.ts` (texto entero, nombres de ajustes y trabajos), `registro.test.tsx` («Tú», sin «Punto —»,
   el resumen del botón) y el e2e «Registro por anchos» de `panel-movil.spec.ts` (412, 820, 1280 y 1920); adaptados los
   del Registro de `panel-inventario.spec.ts` con `filasRegistro` y `filtrarPor`.
+- **RV-509:** Ajustes. Las tarjetas en el orden de §10 (Código de acceso, Administradores, Salud, Avisos, Parámetros,
+  Núcleos, Mantenimiento, QR, Novedades) en una columna por debajo de 1.100 px, dos hasta 1.599 y tres desde 1.600, con
+  `columns-*` y `break-inside: avoid` (sin huecos). Código de acceso sin el número de móviles (está en Salud).
+  Administradores: el correo con «Tú» y `EtiquetaAcceso`, «añadido el … por ti» y «⋯» con «Quitar el acceso…» (la
+  confirmación de antes; el foco vuelve al «⋯») o «Devolver el acceso»; fuera la casilla. «Añadir» deshabilitado con «
+  «Añadir» se activa al escribir un correo.» (#753, `aria-describedby`). Mantenimiento: una sola línea «Purgar fotos
+  huérfanas y Respaldo ahora: solo en producción.», descripción de los dos botones. Últimos pedidos con `EtiquetaPedido` y
+  el motivo detrás (`motivoPedido` sustituye a `estadoPedido`). Toques de 44 px por debajo de 1.100 en campos, Renombrar,
+  sugerencias, casillas (por su etiqueta) y botones de Salud. Tests que fallaban antes: «Ajustes por anchos» de
+  `panel-ajustes.spec.ts` (412: orden, «Tú», sin casillas, «Añadir» con motivo, Devolver el acceso, textos que salen una
+  vez; 412/1280/1920: una, dos y tres columnas sin huecos) y `ajustes-carga.test.ts` (`motivoPedido`); adaptados los de
+  administradores (con «⋯» y el foco de vuelta), el de «solo en producción» y el de los pedidos.
+  - Abrir un «⋯» mientras la página aún carga puede cerrarlo (una tarjeta que crece encima mueve la página y el menú se
+    cierra al moverse, como en todo el panel): los e2e esperan a que no quede nada cargando.

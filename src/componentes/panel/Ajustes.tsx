@@ -3,6 +3,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { CodigoQR } from './CodigoQR';
 import { Dialogo } from './Dialogo';
 import { ErrorReintentar } from './dialogos';
+import { BotonMas, EtiquetaAcceso, EtiquetaPedido, EtiquetaPequena } from './piezas';
 import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
@@ -30,7 +31,7 @@ import {
   cargarNucleos,
   cargarParametros,
   cargarPedidos,
-  estadoPedido,
+  motivoPedido,
   revocarDispositivo,
   cargarSalud,
   origenTareas,
@@ -69,11 +70,13 @@ import type { Coordenadas } from '@/lib/propuestas';
 import { T } from '@/lib/textos';
 import { cn } from '@/lib/utils';
 
-const campo = 'border-linea rounded-campo min-h-9 border px-2';
+// Toques de 44 px por debajo de 1.100 px y de 36 desde ahí (UI-15, docs/38 RV-509).
+const toque = 'min-h-11 min-[1100px]:min-h-9';
+const campo = `border-linea rounded-campo ${toque} border px-2`;
 
 function Tarjeta({ titulo, ayuda, children }: { titulo: string; ayuda?: string; children: React.ReactNode }) {
   return (
-    <section aria-label={titulo} className="border-linea bg-papel rounded-tarjeta border p-4">
+    <section aria-label={titulo} className="border-linea bg-papel rounded-tarjeta mb-4 break-inside-avoid border p-4">
       <h2 className="font-titulo text-[17px] font-semibold">{titulo}</h2>
       {ayuda && <p className="text-texto-suave mt-0.5 mb-2 text-[13px]">{ayuda}</p>}
       <div className={ayuda ? '' : 'mt-2'}>{children}</div>
@@ -88,18 +91,22 @@ export default function Ajustes() {
   const [marcaEntrada, setMarcaEntrada] = useState(0);
   const entradaCambiada = useCallback(() => setMarcaEntrada((m) => m + 1), []);
   return (
-    <div className="grid min-h-0 flex-1 gap-4 overflow-auto p-4 lg:grid-cols-2">
-      <CodigoDeAcceso marcaEntrada={marcaEntrada} entradaCambiada={entradaCambiada} />
-      <SaludDelSistema marcaEntrada={marcaEntrada} entradaCambiada={entradaCambiada} />
-      <Administradores />
-      <ParametrosTarjeta />
-      <Nucleos />
-      <Mantenimiento />
-      <AvisosJefatura />
-      <Tarjeta titulo={T.panelAjustes.codigoQr} ayuda={T.panelAjustes.ayudaQr}>
-        <CodigoQR />
-      </Tarjeta>
-      <Novedades />
+    <div className="min-h-0 flex-1 overflow-auto p-4">
+      {/* Una columna por debajo de 1.100 px, dos hasta 1.599 y tres desde 1.600, cada una a su ritmo y sin huecos
+          (docs/38 RV-509); el orden de lectura y del tabulador es el de aquí. */}
+      <div className="gap-4 min-[1100px]:columns-2 min-[1600px]:columns-3">
+        <CodigoDeAcceso marcaEntrada={marcaEntrada} entradaCambiada={entradaCambiada} />
+        <Administradores />
+        <SaludDelSistema marcaEntrada={marcaEntrada} entradaCambiada={entradaCambiada} />
+        <AvisosJefatura />
+        <ParametrosTarjeta />
+        <Nucleos />
+        <Mantenimiento />
+        <Tarjeta titulo={T.panelAjustes.codigoQr} ayuda={T.panelAjustes.ayudaQr}>
+          <CodigoQR />
+        </Tarjeta>
+        <Novedades />
+      </div>
     </div>
   );
 }
@@ -152,14 +159,10 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
 
   const datos = carga.datos;
   const fecha = datos?.cambiadoEn ? fechaCorta(datos.cambiadoEn) : null;
-  const ayuda =
-    moviles === null
-      ? fecha
-        ? T.panelAjustes.cambiadoPorSinCuenta(fecha, datos?.cambiadoPor ?? '—')
-        : T.panelAjustes.sinCambiosSinCuenta
-      : fecha
-        ? T.panelAjustes.cambiadoPor(fecha, datos?.cambiadoPor ?? '—', moviles)
-        : T.panelAjustes.sinCambios(moviles);
+  // Sin el número de móviles: está en Salud y en la ventana de revocar (docs/38 RV-509).
+  const ayuda = fecha
+    ? T.panelAjustes.cambiadoPorSinCuenta(fecha, datos?.cambiadoPor ?? '—')
+    : T.panelAjustes.sinCambiosSinCuenta;
   return (
     <Tarjeta titulo={T.panelAjustes.codigoAcceso} ayuda={ayuda}>
       {/* El código que no se ha podido leer se dice, con Reintentar; nunca «—» (docs/32 RV-261). Si
@@ -179,14 +182,14 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
           <button
             type="button"
             onClick={() => setVisible((v) => !v)}
-            className="text-texto-suave flex min-h-9 items-center gap-1 px-2 underline"
+            className={cn('text-texto-suave flex items-center gap-1 px-2 underline', toque)}
           >
             {visible ? <EyeOff size={15} aria-hidden /> : <Eye size={15} aria-hidden />}
             {visible ? T.panelAjustes.ocultar : T.panelAjustes.ver}
           </button>
         </div>
       )}
-      <label className="mt-3 flex items-center gap-2 text-sm">
+      <label className={cn('mt-3 flex items-center gap-2 text-sm', toque)}>
         <input
           type="checkbox"
           className="size-4"
@@ -201,7 +204,7 @@ function CodigoDeAcceso({ marcaEntrada, entradaCambiada }: ConEntrada) {
       </label>
       {revocar && hayEntrada && (
         <div className="mt-2 ml-6">
-          <label className="flex items-center gap-2 text-sm">
+          <label className={cn('flex items-center gap-2 text-sm', toque)}>
             <input
               type="checkbox"
               className="size-4"
@@ -501,6 +504,7 @@ function Administradores() {
   const acceso = useAcceso();
   const propio = acceso.tipo === 'jefatura' ? acceso.correo : null;
   const filas = carga.datos ?? [];
+  const idMotivoAnadir = useId();
 
   useEffect(() => {
     void sugerenciasUniformidad().then(setSugerencias);
@@ -534,36 +538,59 @@ function Administradores() {
   }
 
   const nuevos = sugerencias.filter((s) => !filas.some((a) => a.email === s));
+  // Al cerrar la confirmación, el foco vuelve al «⋯» de esa fila (docs/38 RV-509).
+  const botonesMas = useRef(new Map<string, HTMLButtonElement>());
+  const cerrarQuitar = () => {
+    const email = quitando;
+    setQuitando(null);
+    if (email) requestAnimationFrame(() => botonesMas.current.get(email)?.focus());
+  };
   return (
     <Tarjeta titulo={T.panelAjustes.administradores} ayuda={T.panelAjustes.ayudaAdministradores}>
       <ul className="text-sm">
-        {filas.map((a) => (
-          <li key={a.email} className="border-linea flex flex-wrap items-center gap-2 border-b py-1.5 last:border-b-0">
-            <span className="min-w-52 flex-1">{a.email}</span>
-            <span className="text-texto-suave text-[13px]">
-              {T.panelAjustes.anadidoEl(fechaCorta(a.creado_en), a.creado_por)}
-            </span>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                className="size-4"
-                checked={a.activo}
-                disabled={ocupado}
-                onChange={(e) => (e.target.checked ? void cambiar(a.email, true) : setQuitando(a.email))}
-                aria-label={T.panelAjustes.accesoDe(a.email)}
+        {filas.map((a) => {
+          const yo = esUnoMismo(a.email, propio);
+          const pendiente = pendienteDeVincular(a);
+          return (
+            <li key={a.email} className="border-linea flex items-start gap-2 border-b py-1.5 last:border-b-0">
+              {/* El correo (el tuyo, con «Tú»), cómo está su acceso y, debajo, quién lo añadió (DEC-215). */}
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="[overflow-wrap:anywhere]">{a.email}</span>
+                  {yo && <EtiquetaPequena tono="gris">{T.panel.tu}</EtiquetaPequena>}
+                  <EtiquetaAcceso estado={!a.activo ? 'sin_acceso' : pendiente ? 'pendiente' : 'activo'} />
+                </p>
+                <p className="text-texto-suave mt-0.5 text-[13px]">
+                  {esUnoMismo(a.creado_por, propio)
+                    ? T.panelAjustes.anadidoPorTi(fechaCorta(a.creado_en))
+                    : T.panelAjustes.anadidoEl(fechaCorta(a.creado_en), a.creado_por)}
+                </p>
+                {pendiente && <p className="text-texto-suave text-[13px]">{T.panelAjustes.ayudaPendienteVincular}</p>}
+              </div>
+              <BotonMas
+                nombre={a.email}
+                ref={(b) => {
+                  if (b) botonesMas.current.set(a.email, b);
+                  else botonesMas.current.delete(a.email);
+                }}
+                opciones={[
+                  a.activo
+                    ? {
+                        nombre: T.panelAjustes.quitarAccesoMenu,
+                        peligro: true,
+                        deshabilitada: ocupado,
+                        alElegir: () => setQuitando(a.email),
+                      }
+                    : {
+                        nombre: T.panelAjustes.devolverAcceso,
+                        deshabilitada: ocupado,
+                        alElegir: () => void cambiar(a.email, true),
+                      },
+                ]}
               />
-              <span className={cn('text-[13px]', a.activo ? 'text-verde-texto' : 'text-texto-suave')}>
-                {a.activo ? T.panelAjustes.activo : T.panelAjustes.sinAcceso}
-              </span>
-            </label>
-            {pendienteDeVincular(a) && (
-              <p className="basis-full text-[13px]">
-                <span className="text-ambar-texto font-semibold">{T.panelAjustes.pendienteVincular}</span>
-                <span className="text-texto-suave"> · {T.panelAjustes.ayudaPendienteVincular}</span>
-              </p>
-            )}
-          </li>
-        ))}
+            </li>
+          );
+        })}
         <EstadoLista carga={carga} vacio={T.panelAjustes.administradoresVacio} />
       </ul>
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -575,10 +602,20 @@ function Administradores() {
           aria-label={T.panelAjustes.correoNuevo}
           className={cn(campo, 'min-w-56 flex-1')}
         />
-        <Boton disabled={ocupado || !correo.includes('@')} onClick={() => void cambiar(correo, true)}>
+        <Boton
+          disabled={ocupado || !correo.includes('@')}
+          aria-describedby={!correo.includes('@') ? idMotivoAnadir : undefined}
+          onClick={() => void cambiar(correo, true)}
+        >
           {T.panel.anadir}
         </Boton>
       </div>
+      {/* #753 (UI-02): por qué «Añadir» no se puede tocar. */}
+      {!correo.includes('@') && (
+        <p id={idMotivoAnadir} className="text-texto-suave mt-1 text-[13px]">
+          {T.panelAjustes.motivoAnadir}
+        </p>
+      )}
       {nuevos.length > 0 && (
         <p className="text-texto-suave mt-2 flex flex-wrap items-center gap-2 text-[13px]">
           {T.panelAjustes.sugerencias}
@@ -587,7 +624,7 @@ function Administradores() {
               key={s}
               type="button"
               onClick={() => setCorreo(s)}
-              className="border-linea rounded-chip border px-2 py-0.5"
+              className={cn('border-linea rounded-chip border px-2 py-0.5', toque)}
             >
               {s}
             </button>
@@ -595,13 +632,13 @@ function Administradores() {
         </p>
       )}
       {quitando && (
-        <Dialogo titulo={T.panelAjustes.quitarAcceso} alCerrar={() => !ocupado && setQuitando(null)}>
+        <Dialogo titulo={T.panelAjustes.quitarAcceso} alCerrar={() => !ocupado && cerrarQuitar()}>
           <p className="text-sm">{avisoQuitarAcceso(quitando, propio)}</p>
           <div className="mt-3 flex gap-3">
             <Boton variante="destructivo" disabled={ocupado} onClick={() => void quitar(quitando)}>
               {T.panelAjustes.quitarAcceso}
             </Boton>
-            <Boton variante="secundario" disabled={ocupado} onClick={() => setQuitando(null)}>
+            <Boton variante="secundario" disabled={ocupado} onClick={cerrarQuitar}>
               {T.panelCola.cancelar}
             </Boton>
           </div>
@@ -763,10 +800,10 @@ function Nucleos() {
                   aria-label={T.panelAjustes.nombreDe(n.nombre)}
                   className={cn(campo, 'min-w-40 flex-1')}
                 />
-                <Boton className="min-h-9 text-[13px]" disabled={ocupado} onClick={() => void renombrar(n.nombre)}>
+                <Boton className={cn(toque, 'text-[13px]')} disabled={ocupado} onClick={() => void renombrar(n.nombre)}>
                   {T.panel.guardarCambios}
                 </Boton>
-                <Boton variante="secundario" className="min-h-9 text-[13px]" onClick={() => setRenombrando(null)}>
+                <Boton variante="secundario" className={cn(toque, 'text-[13px]')} onClick={() => setRenombrando(null)}>
                   {T.panelCola.cancelar}
                 </Boton>
               </>
@@ -783,7 +820,7 @@ function Nucleos() {
                     setRenombrando(n.nombre);
                     setNombre(n.nombre);
                   }}
-                  className="min-h-8 px-2 underline"
+                  className="min-h-11 px-2 underline min-[1100px]:min-h-8"
                 >
                   {T.panelAjustes.renombrar}
                 </button>
@@ -961,7 +998,7 @@ function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
                       type="button"
                       disabled={ocupado}
                       onClick={() => void abrir()}
-                      className="text-texto min-h-9 font-normal underline disabled:opacity-50"
+                      className={cn('text-texto font-normal underline disabled:opacity-50', toque)}
                     >
                       {T.panelAjustes.abrirEntrada24h}
                     </button>
@@ -1034,7 +1071,7 @@ function SaludDelSistema({ marcaEntrada, entradaCambiada }: ConEntrada) {
                           ) : (
                             <Boton
                               variante="secundario"
-                              className="min-h-9 text-[13px]"
+                              className={cn(toque, 'text-[13px]')}
                               aria-label={T.panelAjustes.revocarMovilDe(d.dispositivo)}
                               onClick={() => setRevocando(d.dispositivo)}
                             >
@@ -1087,6 +1124,9 @@ function Mantenimiento() {
   const pedidos = useCarga(() => cargarPedidos(), [], 60_000);
 
   const idSolo = useId();
+  // Purgar fotos y el respaldo trabajan contra producción: fuera de ella no se piden (RV-167). Sin VITE_ENTORNO
+  // cuenta como fuera de producción (lib/entorno: 'local').
+  const soloEnProduccion = TRABAJOS.filter((t) => SOLO_PRODUCCION.has(t.workflow) && ENTORNO !== 'produccion');
 
   async function lanzar(w: Workflow, nombre: string) {
     setOcupado(true);
@@ -1105,28 +1145,26 @@ function Mantenimiento() {
     <Tarjeta titulo={T.panelAjustes.mantenimiento} ayuda={T.panelAjustes.ayudaMantenimiento}>
       <div className="flex flex-wrap items-start gap-3">
         {TRABAJOS.map((t) => {
-          // Purgar fotos y el respaldo trabajan contra producción: fuera de ella no se piden (RV-167).
-          // Sin VITE_ENTORNO cuenta como fuera de producción (lib/entorno: 'local').
-          const soloProduccion = SOLO_PRODUCCION.has(t.workflow) && ENTORNO !== 'produccion';
+          const soloProduccion = soloEnProduccion.includes(t);
           return (
-            <div key={t.workflow} className="flex flex-col items-start gap-0.5">
-              <Boton
-                variante="secundario"
-                disabled={ocupado || soloProduccion}
-                aria-describedby={soloProduccion ? `${idSolo}-${t.workflow}` : undefined}
-                onClick={() => void lanzar(t.workflow, t.nombre)}
-              >
-                {t.nombre}
-              </Boton>
-              {soloProduccion && (
-                <p id={`${idSolo}-${t.workflow}`} className="text-texto-suave text-[11px]">
-                  {T.panelAjustes.soloEnProduccion}
-                </p>
-              )}
-            </div>
+            <Boton
+              key={t.workflow}
+              variante="secundario"
+              disabled={ocupado || soloProduccion}
+              aria-describedby={soloProduccion ? idSolo : undefined}
+              onClick={() => void lanzar(t.workflow, t.nombre)}
+            >
+              {t.nombre}
+            </Boton>
           );
         })}
       </div>
+      {/* Una sola línea con los botones que solo van en producción, que la tienen de descripción (docs/38 RV-509). */}
+      {soloEnProduccion.length > 0 && (
+        <p id={idSolo} className="text-texto-suave mt-1 text-[13px]">
+          {T.panelAjustes.soloEnProduccion(T.panel.purgarFotos, T.panel.respaldoAhora)}
+        </p>
+      )}
       {/* RV-260: lo que se ha pedido y qué ha pasado (fn_pedidos_recientes, 0041). */}
       <h3 className="mt-4 text-sm font-semibold">{T.panelAjustes.pedidosRecientes}</h3>
       <ul className="mt-1 text-sm" data-testid="pedidos-recientes">
@@ -1136,11 +1174,10 @@ function Mantenimiento() {
               {NOMBRE_TRABAJO[p.workflow] ?? p.workflow}
               <span className="text-texto-suave"> · {hace(p.pedido_en)}</span>
             </span>
-            <span
-              className={cn('font-semibold [overflow-wrap:anywhere]', p.estado === 'error' && 'text-rojo-texto')}
-              data-estado={p.estado}
-            >
-              {estadoPedido(p)}
+            {/* El estado con su etiqueta y, con error, el motivo detrás (docs/38 RV-509). */}
+            <span className="flex items-center gap-1.5 [overflow-wrap:anywhere]" data-estado={p.estado}>
+              <EtiquetaPedido estado={p.estado} />
+              {motivoPedido(p) && <span className="text-texto-suave text-[13px]">{motivoPedido(p)}</span>}
             </span>
           </li>
         ))}
@@ -1223,14 +1260,16 @@ function AvisosJefatura() {
                 <p>{t.nombre}</p>
                 <p className="text-texto-suave text-[13px]">{t.detalle}</p>
               </div>
-              <input
-                type="checkbox"
-                className="size-5"
-                checked={temas.includes(t.tema)}
-                disabled={ocupado}
-                onChange={(e) => void cambiar(t.tema, e.target.checked)}
-                aria-label={t.nombre}
-              />
+              <label className="flex size-11 shrink-0 items-center justify-center min-[1100px]:size-auto">
+                <input
+                  type="checkbox"
+                  className="size-5"
+                  checked={temas.includes(t.tema)}
+                  disabled={ocupado}
+                  onChange={(e) => void cambiar(t.tema, e.target.checked)}
+                  aria-label={t.nombre}
+                />
+              </label>
             </li>
           ))}
         </ul>

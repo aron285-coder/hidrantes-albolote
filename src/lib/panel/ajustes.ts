@@ -476,14 +476,10 @@ export async function cargarPedidos(): Promise<Resultado<PedidoReciente[]>> {
   return { ok: true, datos: Array.isArray(r.datos) ? r.datos : [] };
 }
 
-/** El estado de un pedido en palabras: pedido, lanzado o el error con su motivo. */
-export function estadoPedido(p: PedidoReciente): string {
-  if (p.estado === 'lanzado') return T.panelAjustes.pedidoLanzado;
-  if (p.estado === 'error') {
-    const motivo = (p.resultado ?? '').replace(/^error:\s*/, '').trim();
-    return motivo ? T.panelAjustes.pedidoError(motivo) : T.panelAjustes.pedidoErrorSinMotivo;
-  }
-  return T.panelAjustes.pedidoPendiente;
+/** El motivo de un pedido con error, para escribirlo detrás de su etiqueta (docs/38 RV-509); si no, null. */
+export function motivoPedido(p: PedidoReciente): string | null {
+  if (p.estado !== 'error') return null;
+  return (p.resultado ?? '').replace(/^error:\s*/, '').trim() || null;
 }
 
 // ---------- novedades (FR-167) ----------
