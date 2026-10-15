@@ -3,6 +3,7 @@
 import type { ReactNode, Ref } from 'react';
 import { Ellipsis } from 'lucide-react';
 import { Boton } from '@/componentes/Boton';
+import { caudalParaDibujar } from '@/lib/caudal';
 import { claseChip, nombreCaudal } from '@/lib/ficha';
 import { cuando, cuandoDia, fechaCorta, fechaDe, horaCorta } from '@/lib/formato';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
@@ -56,15 +57,15 @@ function Etiqueta({ tinte, children }: { tinte: keyof typeof TINTE; children: Re
   );
 }
 
-/** El estado de un punto (caudal), con su color: el chip que antes pintaba el Inventario (docs/38 RV-502). */
+/**
+ * El estado de un punto (caudal), con su color: el chip que antes pintaba el Inventario (docs/38 RV-502). En el
+ * panel, «No funciona» con `tinte-gris` (en oscuro, el gris claro de siempre se quedaba como una caja clara); la
+ * app del voluntario sigue con su chip (docs/38 §15).
+ */
 export function EtiquetaEstado({ caudal }: { caudal: string }) {
+  const clase = caudalParaDibujar(caudal) === 'no_funciona' ? `${TINTE.gris} ring-1 ring-inset` : claseChip(caudal);
   return (
-    <span
-      className={cn(
-        'rounded-chip inline-block px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap',
-        claseChip(caudal),
-      )}
-    >
+    <span className={cn('rounded-chip inline-block px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap', clase)}>
       {nombreCaudal(caudal)}
     </span>
   );

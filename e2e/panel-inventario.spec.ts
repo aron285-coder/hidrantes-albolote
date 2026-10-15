@@ -782,6 +782,16 @@ test.describe('Inventario por anchos (docs/38 RV-506)', () => {
     expect(Math.round((await editar.boundingBox())!.width)).toBe(412);
     await page.keyboard.press('Escape');
     await expect(editar).toHaveCount(0);
+    // El foco vuelve a la fila (su botón «Editar [código]»).
+    await expect(
+      filaInventario(page, P0.codigo).getByRole('button', { name: T.panelInventario.editarPunto(P0.codigo) }),
+    ).toBeFocused();
+    // Tocar otra parte de la fila (aquí, la línea de «Revisado:») también abre Editar: el botón la cubre entera.
+    const caja = (await filaInventario(page, P0.codigo).boundingBox())!;
+    await page.mouse.click(caja.x + 40, caja.y + caja.height - 8);
+    await expect(editar).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(editar).toHaveCount(0);
 
     const mas = page.getByRole('button', { name: T.panel.masAcciones(P0.codigo) });
     await mas.click();
