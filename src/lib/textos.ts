@@ -69,6 +69,9 @@ export const T = {
     errorDesconocido: (codigo: Parametro) => `No se ha podido entrar (código ${codigo}). Inténtalo más tarde.`,
     // docs/35 RV-426.
     ocupado: 'Hay mucha gente entrando a la vez. Prueba otra vez en un minuto.',
+    // docs/37 RV-491: la app lo vuelve a intentar sola, como mucho tres veces.
+    ocupadoReintento: (segundos: Parametro) => `Mucha gente entrando a la vez. Lo vuelvo a intentar en ${segundos} s…`,
+    cancelarReintento: 'Cancelar',
     errorGenerico: 'No se ha podido entrar. Inténtalo más tarde; si sigue igual, díselo a jefatura.',
   },
 

@@ -161,7 +161,9 @@ eso se queda corto.
   igual.
 - Abierta, sale una franja verde con **hasta cuándo** y el botón **Cerrar ahora**. Si no, se cierra
   sola al pasar la hora.
-- **El día del lanzamiento: ábrela antes de pasar el código al grupo.**
+- **El día del lanzamiento: ábrela antes de pasar el código al grupo.** Con la entrada abierta entran
+  unas 60 personas por minuto desde la misma wifi; cerrada, unas 10. Si a alguien le sale «Mucha gente
+  entrando a la vez», no tiene que hacer nada: la app lo vuelve a intentar sola.
 - Si *Salud del sistema* dice que hay **entradas frenadas por el tope**, alguien con el código bueno
   se ha quedado fuera: ábrela desde ahí.
 - Abrirla y cerrarla queda en el *Registro*.

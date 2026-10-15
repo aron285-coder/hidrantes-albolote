@@ -130,7 +130,9 @@ describe('canje del código (FR-31, FR-33)', () => {
   it('DISPOSITIVO_RESERVADO dos veces: el error de siempre, sin más reintentos (docs/31 RV-159)', async () => {
     const fetch = vi.fn(async () => respuesta(409, { error: 'DISPOSITIVO_RESERVADO' }));
     vi.stubGlobal('fetch', fetch);
-    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBe('DISPOSITIVO_RESERVADO');
+    expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toEqual({
+      codigo: 'DISPOSITIVO_RESERVADO',
+    });
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(acceso().tipo).toBe('fuera');
   });
@@ -140,7 +142,9 @@ describe('canje del código (FR-31, FR-33)', () => {
       'fetch',
       vi.fn(async () => respuesta(429, { error: 'DEMASIADOS_INTENTOS' })),
     );
-    expect(await entrarConCodigo('000001', { nombre: 'Ana', apellido: 'Ruiz' })).toBe('DEMASIADOS_INTENTOS');
+    expect(await entrarConCodigo('000001', { nombre: 'Ana', apellido: 'Ruiz' })).toEqual({
+      codigo: 'DEMASIADOS_INTENTOS',
+    });
     expect(bloqueadoHasta()).not.toBeNull();
     expect(acceso().tipo).toBe('fuera');
   });

@@ -9,6 +9,7 @@ import { VERSION } from '@/lib/entorno';
 import { bloqueadoHasta, leerFirma } from '@/lib/sesion';
 import { LIMITES } from '@/lib/limites';
 import { mensajeEntrada } from '@/lib/mensajes-entrada';
+import { REINTENTOS_OCUPADO, esperaOcupado } from '@/lib/reintento-entrada';
 import { T } from '@/lib/textos';
 
 const CIFRAS = CIFRAS_CODIGO;
@@ -32,10 +33,27 @@ export function Entrada({ caducado }: { caducado: boolean }) {
   const [errorNombre, setErrorNombre] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [bloqueado, setBloqueado] = useState(() => bloqueadoHasta() !== null);
+  // docs/37 RV-491: tras OCUPADO, la espera hasta el reintento solo (segundos que quedan y cuál es).
+  const [reintento, setReintento] = useState<{ quedan: number; numero: number } | null>(null);
   const casillas = useRef<(HTMLInputElement | null)[]>([]);
   const campoNombre = useRef<HTMLInputElement>(null);
   const campoApellido = useRef<HTMLInputElement>(null);
   const botonEntrar = useRef<HTMLButtonElement>(null);
+
+  // La cuenta atrás del reintento solo; a cero, se intenta otra vez con lo que haya escrito ahora.
+  const intentarRef = useRef<(reintentos: number) => Promise<void>>(async () => {});
+  useEffect(() => {
+    if (!reintento) return;
+    const t = setTimeout(() => {
+      if (reintento.quedan > 1) {
+        setReintento({ ...reintento, quedan: reintento.quedan - 1 });
+        return;
+      }
+      setReintento(null);
+      void intentarRef.current(reintento.numero);
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [reintento]);
 
   // El bloqueo dura una hora: pasada, la pantalla se desbloquea sola.
   useEffect(() => {
@@ -47,6 +65,8 @@ export function Entrada({ caducado }: { caducado: boolean }) {
 
   function aplicar(reparto: Reparto | null) {
     if (!reparto) return;
+    // Cambiar el código cancela la espera del reintento solo.
+    setReintento(null);
     setCifras(reparto.cifras);
     setErrorCodigo(null);
     if (reparto.foco === 'completo') {
@@ -78,18 +98,32 @@ export function Entrada({ caducado }: { caducado: boolean }) {
     setErrorCodigo(faltaCodigo ? T.entrada.codigoSeisCifras : null);
     setErrorNombre(faltaNombre ? T.entrada.faltaNombre : null);
     if (faltaCodigo || faltaNombre) return;
+    setReintento(null);
+    await intentar(0);
+  }
 
+  /** Canjea el código. `reintentos`: cuántos reintentos solos van ya tras OCUPADO (0: a mano). */
+  async function intentar(reintentos: number) {
     setEnviando(true);
-    const error = await entrarConCodigo(codigo, { nombre, apellido });
+    const error = await entrarConCodigo(cifras.join(''), { nombre, apellido });
     setEnviando(false);
     if (!error) return;
-    setErrorCodigo(mensajeEntrada(error, bloqueadoHasta()));
-    if (error === 'DEMASIADOS_INTENTOS') setBloqueado(true);
-    if (error === 'CODIGO_INCORRECTO') {
+    // docs/37 RV-491: mucha gente entrando; se espera lo que dice el servidor más un poco al azar y se
+    // intenta solo, como mucho REINTENTOS_OCUPADO veces seguidas. Después, el texto de siempre.
+    if (error.codigo === 'OCUPADO' && reintentos < REINTENTOS_OCUPADO) {
+      setErrorCodigo(null);
+      setReintento({ quedan: esperaOcupado(error.reintentarEnS), numero: reintentos + 1 });
+      return;
+    }
+    setErrorCodigo(mensajeEntrada(error.codigo, bloqueadoHasta()));
+    if (error.codigo === 'DEMASIADOS_INTENTOS') setBloqueado(true);
+    if (error.codigo === 'CODIGO_INCORRECTO') {
       setCifras(Array(CIFRAS).fill(''));
       casillas.current[0]?.focus();
     }
   }
+
+  intentarRef.current = intentar;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -146,6 +180,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           onChange={(e) => {
             setNombre(e.target.value);
             setErrorNombre(null);
+            setReintento(null);
           }}
           placeholder={T.entrada.nombre}
           aria-label={T.entrada.nombre}
@@ -159,6 +194,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           onChange={(e) => {
             setApellido(e.target.value);
             setErrorNombre(null);
+            setReintento(null);
           }}
           placeholder={T.entrada.apellido}
           aria-label={T.entrada.apellido}
@@ -172,9 +208,25 @@ export function Entrada({ caducado }: { caducado: boolean }) {
           </p>
         )}
 
-        <Boton ref={botonEntrar} type="submit" disabled={bloqueado || enviando} className="mt-1.5">
+        {/* Mientras espera el reintento solo, Entrar no se pulsa: el motivo es la cuenta atrás (UI-02). */}
+        <Boton
+          ref={botonEntrar}
+          type="submit"
+          disabled={bloqueado || enviando || reintento !== null}
+          className="mt-1.5"
+        >
           {enviando ? T.entrada.entrando : T.entrada.entrar}
         </Boton>
+        {reintento && (
+          <div className="flex flex-col items-center gap-1">
+            <p role="status" className="text-texto text-sm font-semibold text-balance">
+              {T.entrada.ocupadoReintento(reintento.quedan)}
+            </p>
+            <Boton variante="secundario" onClick={() => setReintento(null)}>
+              {T.entrada.cancelarReintento}
+            </Boton>
+          </div>
+        )}
         {bloqueado && !errorCodigo && (
           <p className="text-texto-suave text-[13px]">{mensajeEntrada('DEMASIADOS_INTENTOS', bloqueadoHasta())}</p>
         )}
