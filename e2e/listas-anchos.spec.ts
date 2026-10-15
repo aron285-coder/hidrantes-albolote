@@ -91,14 +91,18 @@ async function problemas(page: Page, minimo: number) {
       // Sin «…»: ni recortes con text-overflow ni datos que acaben así.
       for (const e of main.querySelectorAll<HTMLElement>('*')) {
         if (!visible(e)) continue;
-        if (getComputedStyle(e).textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth)
-          fallos.push(`recortado: ${nombre(e)}`);
+        const st = getComputedStyle(e);
+        if (st.textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth) fallos.push(`recortado: ${nombre(e)}`);
+        // Cada pestaña se desplaza dentro de su propio contenedor: que tampoco ahí haya desplazamiento a lo ancho.
+        if ((st.overflowX === 'auto' || st.overflowX === 'scroll') && e.scrollWidth > e.clientWidth + 1)
+          fallos.push(`a lo ancho dentro: ${nombre(e)} (${e.scrollWidth} > ${e.clientWidth})`);
       }
       const recorrido = document.createTreeWalker(main, NodeFilter.SHOW_TEXT);
       for (let n = recorrido.nextNode(); n; n = recorrido.nextNode()) {
-        const t = n.textContent!.trim();
-        if (!t.endsWith('…') || !n.parentElement || !visible(n.parentElement)) continue;
-        if (interfaz.some((i) => i.endsWith(t) || t.endsWith(i))) continue;
+        if (!n.textContent!.trim().endsWith('…') || !n.parentElement || !visible(n.parentElement)) continue;
+        // Con el texto del elemento entero: un «…» suelto detrás de un dato («{dato}…» en JSX) también cuenta.
+        const t = n.parentElement.textContent!.trim();
+        if (interfaz.some((i) => t.endsWith(i))) continue;
         fallos.push(`dato con «…»: «${t.slice(-60)}»`);
       }
 
