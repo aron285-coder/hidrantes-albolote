@@ -235,7 +235,7 @@ function Cabecera({
             // Mientras tiene el foco, se queda abierto aunque se borre lo escrito (llegó abierto por el texto).
             onFocus={() => setLupaAbierta(true)}
             placeholder={T.panelCola.buscar}
-            className="rounded-campo min-h-10 w-full bg-white/10 pr-3 pl-9 text-sm text-white placeholder:text-[#B7C2D6]"
+            className="rounded-campo min-h-11 w-full bg-white/10 min-[1100px]:min-h-10 pr-3 pl-9 text-sm text-white placeholder:text-[#B7C2D6]"
           />
         </label>
       ) : (
