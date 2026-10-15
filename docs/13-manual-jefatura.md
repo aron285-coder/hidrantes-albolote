@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.4 — 15 de octubre de 2026 (`docs/37` RV-496): §8, activar los avisos técnicos antes del piloto, porque vienen apagados (DEC-202); §10, la rutina de antes del piloto (entrar en el panel, volver a entrar en los demás dispositivos, DEC-206, y activar los avisos). El día del lanzamiento (RV-491) y `OTRA_CUENTA` (RV-493) ya estaban en §8 y §2. 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.5 — 16 de octubre de 2026 (`docs/38` RV-511): el panel en el móvil y la tableta: §3, las pestañas en ☰, la lupa y el punto naranja; §4, el botón de filtros y la barra de lote solo con algo marcado; §5, filtrar y ordenar desde un botón, tocar la fila abre Editar y «⋯» lleva lo demás, «＋ Añadir dirección»; §6, el filtro del Registro y «Tú»; §7, «Purgar lo caducado…» en rojo; §8, el orden de las tarjetas y Administradores con su etiqueta y «⋯». 0.4 — 15 de octubre de 2026 (`docs/37` RV-496): §8, activar los avisos técnicos antes del piloto, porque vienen apagados (DEC-202); §10, la rutina de antes del piloto (entrar en el panel, volver a entrar en los demás dispositivos, DEC-206, y activar los avisos). El día del lanzamiento (RV-491) y `OTRA_CUENTA` (RV-493) ya estaban en §8 y §2. 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 
@@ -65,6 +65,15 @@ Cinco pestañas: **Cola de revisión**, **Inventario**, **Registro**, **Papelera
 revisión, Inventario y Papelera llevan al lado cuántas cosas tienen. La búsqueda de arriba encuentra por código, calle
 o voluntario.
 
+**En el móvil** (menos de 768 px de ancho) no hay fila de pestañas: la cabecera dice en qué pestaña estás, y las
+pestañas, con sus números, están en el menú **☰** de arriba a la derecha. Si hay propuestas pendientes y estás en otra
+pestaña, el ☰ lleva un **punto naranja**. La búsqueda está detrás de la **lupa**; la ✕ la cierra y borra lo escrito.
+
+![El menú ☰ del panel en el móvil](capturas/vistas/panel-movil-menu.png)
+
+En la tableta y el ordenador las pestañas siguen arriba. Las listas se leen igual en todos los tamaños: en el móvil y
+la tableta, una fila de tres líneas por elemento; en el ordenador (desde 1.100 px), la tabla.
+
 ## 4. Cola de revisión
 
 ![Cola de revisión](capturas/vistas/panel-cola.png)
@@ -87,27 +96,31 @@ A la izquierda, las propuestas; a la derecha, la elegida:
 - Si el punto cambió después de la propuesta, el botón pasa a *Confirmar y aprobar* y el panel lo
   explica.
 
-**En bloque:** marca las casillas (o *todas*) → **Aprobar seleccionadas**. Lo típico: filtrar por
-*revisiones* («sigue igual») y aprobarlas de golpe. El panel dice cuántas se aprobaron y cuáles se
-quedaron fuera, y por qué.
+**En bloque:** marca las casillas (o *todas*) y aparece la barra de lote con **Aprobar seleccionadas**: abajo en el
+móvil y la tableta, arriba en el ordenador. Sin nada marcado no hay barra. Lo típico: filtrar por *revisiones* («sigue
+igual») y aprobarlas de golpe. El panel dice cuántas se aprobaron y cuáles se quedaron fuera, y por qué.
 
-**Historial:** los botones *Aprobadas*, *Rechazadas* y *Retiradas por el autor* enseñan lo ya
-decidido, en solo lectura, con quién y por qué.
-
-Los filtros de arriba a la derecha separan por operación y por núcleo.
+**Filtros:** el botón de filtros de arriba (dice lo que está elegido, por ejemplo «Pendientes · Alta») abre una hoja
+con **Estado** (*Pendientes*, *Aprobadas*, *Rechazadas*, *Retiradas por el autor*: las ya decididas, en solo lectura,
+con quién y por qué), **Operación** y **Núcleo**. *Quitar filtros* lo deja todo como al principio; *Listo* cierra.
 
 ## 5. Inventario
 
 ![Inventario](capturas/vistas/panel-inventario.png)
 
-- **Tipo** y **Estado** filtran; cada columna se ordena tocando su título. *Última revisión* en rojo
-  («hace 1 año») es lo caducado: lo que conviene mandar a revisar.
+- **Filtrar y ordenar:** el botón de arriba abre una hoja con **Tipo**, **Estado** (con cuántos puntos hay de cada uno)
+  y, en el móvil y la tableta, **Ordenar por** (tocar otra vez el elegido cambia ▲ / ▼). En el ordenador se ordena
+  tocando el título de cada columna. La revisión en rojo («hace 1 año») es lo caducado: lo que conviene mandar a revisar.
+
+  ![Filtrar y ordenar en el móvil](capturas/vistas/panel-movil-filtros.png)
+
 - **Tabla** o **Mapa**, a la derecha.
 - **Exportar ▾**: Excel, CSV o GeoJSON, con los filtros aplicados. El archivo se genera en tu
   navegador. Para bomberos o el ayuntamiento. Queda en el Registro. La cuarta opción,
   **Inventario completo (JSON)**, descarga todo sin filtros, como copia de consulta.
 
-**Sobre cada punto:**
+**Sobre cada punto:** en el móvil y la tableta, **tocar la fila abre Editar**, y el **«⋯»** de la fila lleva
+*Historial*, *Retirar* y *Borrar*. En el ordenador, cada fila tiene **Editar** y **«⋯»** con lo mismo.
 
 - **Editar:** se abre al lado (a pantalla completa en el móvil), con el mapa y lo que cambias
   marcado. Puedes mover el punto y cambiar diámetro, enganche, estado, fallo, dirección y
@@ -120,7 +133,7 @@ Los filtros de arriba a la derecha separan por operación y por núcleo.
 
 - **Borrar:** el punto nunca debió existir (un error, un duplicado). Pide motivo y va a la
   **Papelera**.
-- **Dirección:** se escribe en la propia celda («— pendiente, escribe aquí»).
+- **Dirección:** se escribe en la propia celda, sin abrir Editar. Si falta, la celda dice **«＋ Añadir dirección»**.
 
 **Retirar o borrar:** si el hidrante estaba y lo quitaron, *Retirar*. Si nunca existió, *Borrar*.
 
@@ -128,18 +141,24 @@ Los filtros de arriba a la derecha separan por operación y por núcleo.
 
 ![Registro](capturas/vistas/panel-registro.png)
 
-Todo lo que se ha hecho: cuándo, quién, qué acción, sobre qué punto y qué cambió. Se filtra por tipo
-de acción. **No se puede editar ni borrar.** Sirve para responder a «¿quién cambió esto y cuándo?».
+Todo lo que se ha hecho: cuándo, quién, qué acción, sobre qué punto y qué cambió. El botón de filtros de arriba
+(«Todas las acciones») deja elegir una acción, por ejemplo *Borrado*. Lo que hiciste tú dice **«Tú»** en vez de tu
+correo. **No se puede editar ni borrar.** Sirve para responder a «¿quién cambió esto y cuándo?».
 
 ## 7. Papelera
 
 Los puntos borrados se guardan los días que diga *Ajustes → Parámetros → Días de papelera* (30 por
-defecto). **Restaurar** los devuelve al mapa. Pasado ese plazo se purgan solos; *Purgar lo
-caducado…* lo hace ya, y **no se puede deshacer**.
+defecto). **Restaurar** los devuelve al mapa; si a uno le queda un día, sale en rojo. Pasado ese plazo se purgan
+solos; **Purgar lo caducado…**, el botón rojo de arriba, apartado de los *Restaurar*, lo hace ya, y **no se puede
+deshacer**.
 
 ## 8. Ajustes
 
 ![Ajustes del panel](capturas/vistas/panel-ajustes.png)
+
+Las tarjetas van en este orden: Código de acceso, Acceso de administradores, Salud del sistema, Avisos para jefatura,
+Parámetros, Núcleos, Mantenimiento, Código QR del enlace y Novedades. En el móvil, una debajo de otra; en el ordenador,
+en dos o tres columnas.
 
 ### Código de acceso
 
@@ -184,8 +203,10 @@ y la hora. Cambia también el código si el que se filtró sigue en vigor.
 
 ### Acceso de administradores
 
-Escribe el correo y **Añadir**; para quitar a alguien, apaga su interruptor y confírmalo en
-**Quitar el acceso** (si eres tú, saldrás del panel). Tiene que quedar al menos un administrador con
+Cada administrador sale con su correo (el tuyo, con **«Tú»**), una etiqueta (**Activo**, **Pendiente de su primer
+acceso** o **Sin acceso**) y quién lo añadió. Escribe el correo y **Añadir** (hasta que no escribes un correo, el botón
+no se puede tocar y lo dice debajo). Para quitar a alguien, **«⋯» → Quitar el acceso…** y confírmalo (si eres tú,
+saldrás del panel); para devolverlo, **«⋯» → Devolver el acceso**. Tiene que quedar al menos un administrador con
 acceso. Quien acabas de añadir queda unido a su cuenta de Google la primera vez que entra en el panel,
 y tendrá que volver a entrar una vez en sus otros dispositivos (apartado 2). No hace falta tocar nada
 técnico. La comprobación diaria revisa estas uniones: si una cuenta deja de ser de una sola persona, la
