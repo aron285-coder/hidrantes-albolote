@@ -94,8 +94,8 @@ DEC-197, DEC-198, DEC-199 y DEC-202, y `docs/37` en DEC-193 y DEC-196; `CLAUDE.m
 tiene otra identidad unida»); 15 §4 (qué hacer si la vigilancia desune una cuenta). Solo
 documentación.
 
-Pendiente: RV-481 (RV-139b sobre el commit final de `develop`), RV-482 (recorrido corto) y RV-483
-(0.14.0 y archivo de la especificación).
+Después, ya hechos: RV-481 (RV-139b en verde sobre el commit final de `develop`, #717), RV-482
+(recorrido corto, abajo, #718) y RV-483 (0.14.0 y archivo de la especificación, en «Cierre (RV-483)», #725).
 
 **RV-482 · Recorrido corto** (este PR). Con `revisar-pantallas`, en local sobre `develop` (`0785f96`),
 con el servidor simulado de los e2e (el build de pruebas y las respuestas de `entrada-codigo-entero`,

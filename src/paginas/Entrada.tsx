@@ -219,7 +219,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
         </Boton>
         {/* El aviso para lectores de pantalla, siempre en la página y una sola vez por espera: la cuenta
             atrás de abajo cambia cada segundo y no se anuncia (UI-03). */}
-        <p role="status" className="sr-only">
+        <p aria-live="polite" className="sr-only">
           {reintento ? T.entrada.ocupadoReintentoAnuncio : ''}
         </p>
         {reintento && (

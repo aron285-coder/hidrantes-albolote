@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Los valores marcados `«…»` los rellena `scripts/arranque.ts` en `docs/entornos.md` y se copian aquí al cerrar la Fase 0; la tabla de §9 se actualiza en cada comprobación. |
-| **Versión** | 1.5 — 14 oct 2026 (`docs/36` RV-480): §4, qué hacer si la vigilancia desune una cuenta de jefatura y si se repite (DEC-206). 1.4 — 14 oct 2026 (`docs/35` RV-414): §4 con los avisos técnicos a jefatura y su límite (DEC-202); §5.4, la entrada ya no se abre sola al cambiar el código revocando, y se puede revocar desde una hora (DEC-201). 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
+| **Versión** | 1.6 — 15 oct 2026 (`docs/37` RV-493): §5.5, qué hacer con «Este correo de jefatura ya está unido a otra cuenta de Google». 1.5 — 14 oct 2026 (`docs/36` RV-480): §4, qué hacer si la vigilancia desune una cuenta de jefatura y si se repite (DEC-206). 1.4 — 14 oct 2026 (`docs/35` RV-414): §4 con los avisos técnicos a jefatura y su límite (DEC-202); §5.4, la entrada ya no se abre sola al cambiar el código revocando, y se puede revocar desde una hora (DEC-201). 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
 | **Propietario de** | qué cuenta controla qué, dónde están las credenciales, y los procedimientos paso a paso para restaurar, revertir, rotar y recuperar el control cuando algo falla o cuando el desarrollador no está. |
 | **Para** | jefatura y quien tenga que hacerse cargo del sistema sin conocerlo. Escrito para leerse con prisa. |
 | **Referencias** | arquitectura en **04**; datos personales en **11**; tareas de construcción en **09** Fase 8. |
@@ -362,6 +362,12 @@ tope*, es que alguien se ha quedado fuera: abrir la entrada desde ahí mismo.
 2. Registro → filtrar por actor = ese correo → revisar y deshacer (restaurar desde Papelera, editar)
    lo que no cuadre.
 3. La persona recupera su cuenta de Google (contraseña + 2FA) y se la reactiva.
+
+**Si el panel le dice «Este correo de jefatura ya está unido a otra cuenta de Google»** (`OTRA_CUENTA`,
+`docs/37` RV-493): su correo está unido a otra cuenta de Google que no es con la que entra ahora.
+1. Si esa otra cuenta es suya, que entre con ella.
+2. Si no lo es o no la reconoce, otro administrador le quita el acceso y se lo devuelve en Ajustes: eso
+   deshace la unión, y al entrar queda unido a la cuenta con la que entre. Después, los pasos 2 y 3 de arriba.
 
 ### 5.6 Un secreto de servidor se ha filtrado (`service_role`, token de GitHub, VAPID…)
 

@@ -49,6 +49,12 @@ Entra con una cuenta de Google que solo uses tú y pide a otro administrador que
 te lo devuelva en *Ajustes → Acceso de administradores*. Si no sabes de dónde sale esa otra identidad,
 avisa al responsable técnico (15 §5.5).
 
+**Si sale «No autorizado» con «Este correo de jefatura ya está unido a otra cuenta de Google»:** tu correo
+de jefatura quedó unido la primera vez a otra cuenta de Google (`OTRA_CUENTA`). Entra con esa cuenta. Si
+ya no la tienes o no es tuya, pide a otro administrador que te quite el acceso y te lo devuelva en
+*Ajustes → Acceso de administradores*: eso deshace la unión, y la próxima vez que entres se une a la cuenta
+con la que entres. Si no sabes de qué cuenta se trata, 15 §5.5.
+
 Desde el móvil, como jefatura, cualquier operación sobre un punto **se aplica al momento**: el botón
 dice *Aplicar ahora* y el cambio no pasa por la cola. Queda en el Registro como acción de
 administrador.

@@ -111,7 +111,7 @@ test.describe('entrar con mucha gente entrando: reintento solo (RV-491)', () => 
     const espera = page.getByText(/Lo vuelvo a intentar en \d+ s/);
     await expect(espera).toBeVisible();
     // Lo que oye un lector de pantalla: una vez, sin la cuenta atrás.
-    await expect(page.getByRole('status').filter({ hasText: T.entrada.ocupadoReintentoAnuncio })).toBeAttached();
+    await expect(page.getByText(T.entrada.ocupadoReintentoAnuncio)).toBeAttached();
     await expect(page.getByRole('button', { name: T.entrada.entrar, exact: true })).toBeDisabled();
     await page.getByRole('button', { name: T.entrada.cancelarReintento }).click();
     await expect(espera).toBeHidden();
