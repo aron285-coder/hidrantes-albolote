@@ -1,5 +1,7 @@
 # 37 · Antes del piloto: el despliegue, la entrada del lanzamiento y la documentación (oct 2026)
 
+> **Archivada el 15 oct 2026 (RV-499).** Todo lo de este documento está en producción con 0.15.0. Lo que se hizo, PR a PR, en `verificacion/antes-del-piloto-37.md`. Migración `0049` (RV-491 y RV-492 juntas, en un PR antes del código de RV-491); DEC-209 a DEC-211. «Como mucho tres veces seguidas» quedó como tres reintentos solos tras el intento a mano. Los 30 bajos de §7, en las issues `tras-piloto` #741 a #770.
+
 | | |
 |---|---|
 | **Para** | Claude Code, en este repositorio. **Una sola sesión, en orden** (§0.2). |
