@@ -170,8 +170,6 @@ describe('plurales (docs/34 RV-350)', () => {
     ],
     [T.panelPapelera.purgados(1), '1 punto purgado.'],
     [T.panelPapelera.quedan(1), 'queda 1 día'],
-    [T.panelAjustes.cambiadoPor('[]', '[]', 1), 'Cambiado por última vez el [] por []. 1 móvil registrado.'],
-    [T.panelAjustes.sinCambios(1), 'Sin cambios desde el arranque. 1 móvil registrado.'],
     [
       T.panelAjustes.avisoRevocando(1),
       'Se pondrá en vigor un código nuevo y 1 móvil tendrá que volver a escribirlo al abrir la aplicación. Su nombre se conserva.',

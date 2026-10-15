@@ -1134,11 +1134,7 @@ export const T = {
 
   panelAjustes: {
     codigoAcceso: 'Código de acceso',
-    cambiadoPor: (fecha: Parametro, quien: Parametro, moviles: number) =>
-      `Cambiado por última vez el ${fecha} por ${quien}. ${plural(moviles, 'móvil registrado', 'móviles registrados')}.`,
-    sinCambios: (moviles: number) =>
-      `Sin cambios desde el arranque. ${plural(moviles, 'móvil registrado', 'móviles registrados')}.`,
-    // docs/32 RV-261: sin poder contar los móviles no se dice un número, y sin el código, tampoco «—».
+    // docs/38 RV-509: el número de móviles ya no sale aquí (está en Salud); sin el código, tampoco «—» (docs/32 RV-261).
     cambiadoPorSinCuenta: (fecha: Parametro, quien: Parametro) => `Cambiado por última vez el ${fecha} por ${quien}.`,
     sinCambiosSinCuenta: 'Sin cambios desde el arranque.',
     codigoNoCarga: 'No se ha podido leer el código.',
@@ -1192,9 +1188,13 @@ export const T = {
     administradores: 'Acceso de administradores',
     ayudaAdministradores: 'Lista propia de hidrantes, independiente de la app de uniformidad.',
     anadidoEl: (fecha: Parametro, quien: Parametro) => `añadido el ${fecha} por ${quien}`,
-    accesoDe: (correo: Parametro) => `Acceso de ${correo}`,
-    activo: 'activo',
-    sinAcceso: 'sin acceso',
+    // docs/38 RV-509 (DEC-215): «por ti» si lo añadiste tú.
+    anadidoPorTi: (fecha: Parametro) => `añadido el ${fecha} por ti`,
+    // El «⋯» de un administrador (docs/38 RV-509).
+    quitarAccesoMenu: 'Quitar el acceso…',
+    devolverAcceso: 'Devolver el acceso',
+    // #753 (UI-02): el motivo de «Añadir» deshabilitado.
+    motivoAnadir: '«Añadir» se activa al escribir un correo.',
     correoNuevo: 'correo@albolote-pc.es',
     sugerencias: 'Sugerencias de la app de uniformidad:',
     administradorAnadido: (correo: Parametro) => `${correo} ya puede entrar en el panel.`,
@@ -1299,7 +1299,6 @@ export const T = {
     pedidosVacio: 'Todavía no se ha pedido nada.',
     pedidoPendiente: 'pedido',
     pedidoLanzado: 'lanzado',
-    pedidoError: (motivo: Parametro) => `error: ${motivo}`,
     pedidoErrorSinMotivo: 'error',
     // docs/32 RV-262: espacio de fotos y de la base de datos, y los móviles con más fotos pedidas.
     espacioFotosLleno: (porcentaje: Parametro) =>
@@ -1320,7 +1319,8 @@ export const T = {
     trabajoPedido: (nombre: Parametro) => `"${nombre}": pedido. Empezará en unos minutos.`,
     // docs/32 RV-224 y RV-260: en staging nadie despacha el pedido.
     trabajoAnotadoStaging: (nombre: Parametro) => `"${nombre}": pedido. En staging no se lanza: queda anotado.`,
-    soloEnProduccion: 'Solo en producción',
+    // docs/38 RV-509: una sola línea debajo de los botones de Mantenimiento, con sus nombres.
+    soloEnProduccion: (uno: Parametro, otro: Parametro) => `${uno} y ${otro}: solo en producción.`,
     radiosInvalidos: 'Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.',
     nucleosVacio: 'Todavía no hay núcleos.',
     administradoresVacio: 'Todavía no hay administradores.',

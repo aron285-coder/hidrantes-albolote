@@ -187,6 +187,24 @@ async function prepararPanel(
 
 const llamadaA = (llamadas: Llamada[], nombre: string) => llamadas.find((l) => l.nombre === nombre)?.cuerpo;
 
+// docs/38 RV-509: cada administrador tiene su «⋯» (con su correo en el nombre) en vez de una casilla.
+const masDe = (page: Page, correo: string) => page.getByRole('button', { name: T.panel.masAcciones(correo) });
+const filaAdmin = (page: Page, correo: string) =>
+  page
+    .getByRole('region', { name: T.panelAjustes.administradores, exact: true })
+    .getByRole('listitem')
+    .filter({ has: masDe(page, correo) });
+async function elegirDe(page: Page, correo: string, opcion: string) {
+  // Con todo cargado: una tarjeta que crece encima mueve la página, y el menú se cierra al moverse.
+  await expect(page.getByRole('main').getByText(T.panelCola.cargando)).toHaveCount(0);
+  await page.waitForLoadState('networkidle');
+  // El scroll que hace Playwright para llegar al botón avisa un frame después y cerraría el menú recién abierto.
+  await masDe(page, correo).scrollIntoViewIfNeeded();
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await masDe(page, correo).click();
+  await page.getByRole('menuitem', { name: opcion }).click();
+}
+
 test('ajustes: código de acceso con confirmación y revocación (FR-140, FL-29)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/ajustes');
@@ -212,7 +230,7 @@ test('ajustes: administradores, parámetros y núcleos (FR-141, FR-142, FR-166)'
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/ajustes');
 
-  await page.getByLabel(T.panelAjustes.accesoDe('secretaria@example.org')).click();
+  await elegirDe(page, 'secretaria@example.org', T.panelAjustes.devolverAcceso);
   await expect
     .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
     .toEqual({ email: 'secretaria@example.org', activo: true });
@@ -247,39 +265,39 @@ test('ajustes: quitar el acceso a otro administrador pide confirmación; devolve
 }) => {
   const llamadas = await prepararPanel(page, { admins: [...ADMINISTRADORES, OTRA_ACTIVA] });
   await page.goto('/admin/ajustes');
-  const casilla = page.getByLabel(T.panelAjustes.accesoDe('otra@example.org'));
-  await expect(casilla).toBeChecked();
+  const fila = filaAdmin(page, 'otra@example.org');
+  await expect(fila.getByText(T.panelAjustes.etiquetaActivo, { exact: true })).toBeVisible();
   // Unida ya a su cuenta de Google: nada pendiente (docs/35 RV-432).
   await expect(page.getByText(T.panelAjustes.pendienteVincular)).toHaveCount(0);
 
-  // Cancelar: nada cambia.
-  await casilla.click();
+  // Cancelar: nada cambia, y el foco vuelve al «⋯» (docs/38 RV-509).
+  await elegirDe(page, 'otra@example.org', T.panelAjustes.quitarAccesoMenu);
   const dialogo = page.getByRole('dialog');
   await expect(dialogo.getByText(T.panelAjustes.avisoQuitarAcceso('otra@example.org'))).toBeVisible();
-  await expect(casilla).toBeChecked();
   await dialogo.getByRole('button', { name: T.panelCola.cancelar }).click();
   await expect(dialogo).toHaveCount(0);
-  await expect(casilla).toBeChecked();
+  await expect(masDe(page, 'otra@example.org')).toBeFocused();
+  await expect(fila.getByText(T.panelAjustes.etiquetaActivo, { exact: true })).toBeVisible();
   expect(llamadaA(llamadas, 'fn_gestionar_administrador')).toBeUndefined();
 
   // Confirmar: se quita.
-  await casilla.click();
+  await elegirDe(page, 'otra@example.org', T.panelAjustes.quitarAccesoMenu);
   await dialogo.getByRole('button', { name: T.panelAjustes.quitarAcceso }).click();
   await expect
     .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
     .toEqual({ email: 'otra@example.org', activo: false });
-  await expect(casilla).not.toBeChecked();
+  await expect(fila.getByText(T.panelAjustes.etiquetaSinAcceso, { exact: true })).toBeVisible();
+  await expect(masDe(page, 'otra@example.org')).toBeFocused();
   await expect(page.getByText(T.panelAjustes.administradorQuitado('otra@example.org'))).toBeVisible();
 
   // Devolver el acceso: sin confirmación.
   llamadas.length = 0;
-  await casilla.click();
+  await elegirDe(page, 'otra@example.org', T.panelAjustes.devolverAcceso);
   await expect(dialogo).toHaveCount(0);
   await expect
     .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
     .toEqual({ email: 'otra@example.org', activo: true });
   // Con el acceso devuelto vuelve a estar sin unir: «Pendiente de su primer acceso» (docs/35 RV-432).
-  const fila = page.getByRole('listitem').filter({ hasText: 'otra@example.org' });
   await expect(fila.getByText(T.panelAjustes.pendienteVincular)).toBeVisible();
   await expect(fila.getByText(T.panelAjustes.ayudaPendienteVincular, { exact: false })).toBeVisible();
 });
@@ -288,7 +306,7 @@ test('ajustes: quitarse el acceso a uno mismo lo avisa y saca del panel (docs/35
   // La sesión con mayúsculas: sigue siendo uno mismo.
   const llamadas = await prepararPanel(page, { admins: [...ADMINISTRADORES, OTRA_ACTIVA], correo: 'Jefe@Example.org' });
   await page.goto('/admin/ajustes');
-  await page.getByLabel(T.panelAjustes.accesoDe('jefe@example.org')).click();
+  await elegirDe(page, 'jefe@example.org', T.panelAjustes.quitarAccesoMenu);
   const dialogo = page.getByRole('dialog');
   await expect(dialogo.getByText(T.panelAjustes.avisoQuitarteAcceso)).toBeVisible();
   const comprobaciones = llamadas.filter((l) => l.nombre === 'fn_es_admin').length;
@@ -311,11 +329,13 @@ test('ajustes: el último administrador con acceso no se lo puede quitar, y se d
 }) => {
   await prepararPanel(page);
   await page.goto('/admin/ajustes');
-  const casilla = page.getByLabel(T.panelAjustes.accesoDe('jefe@example.org'));
-  await casilla.click();
+  await elegirDe(page, 'jefe@example.org', T.panelAjustes.quitarAccesoMenu);
   await page.getByRole('dialog').getByRole('button', { name: T.panelAjustes.quitarAcceso }).click();
   await expect(page.getByText(T.panel.ultimoAdministrador)).toBeVisible();
-  await expect(casilla).toBeChecked();
+  await expect(masDe(page, 'jefe@example.org')).toBeFocused();
+  await expect(
+    filaAdmin(page, 'jefe@example.org').getByText(T.panelAjustes.etiquetaActivo, { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole('heading', { name: T.panelAjustes.administradores })).toBeVisible();
 });
 
@@ -419,7 +439,9 @@ test('ajustes: salud, mantenimiento, QR y novedades (FR-143–FR-145, FR-162, FR
   for (const nombre of [T.panel.purgarFotos, T.panel.respaldoAhora]) {
     const boton = page.getByRole('button', { name: nombre });
     await expect(boton).toBeDisabled();
-    await expect(boton).toHaveAccessibleDescription(T.panelAjustes.soloEnProduccion);
+    await expect(boton).toHaveAccessibleDescription(
+      T.panelAjustes.soloEnProduccion(T.panel.purgarFotos, T.panel.respaldoAhora),
+    );
   }
 
   // Las novedades salen del build, no de fn_novedades (RV-20): sin simular la RPC, se ven igual.
@@ -872,7 +894,9 @@ test('Mantenimiento: los últimos pedidos y qué ha pasado (docs/32 RV-260)', as
   await expect(filas.nth(0)).toContainText(T.panelAjustes.pedidoPendiente);
   await expect(filas.nth(1)).toContainText(T.panelAjustes.pedidoLanzado);
   await expect(filas.nth(2)).toContainText(T.panel.respaldoAhora);
-  await expect(filas.nth(2)).toContainText(T.panelAjustes.pedidoError('caducado'));
+  // docs/38 RV-509: la etiqueta «error» y, detrás, el motivo.
+  await expect(filas.nth(2).getByText(T.panelAjustes.pedidoErrorSinMotivo, { exact: true })).toBeVisible();
+  await expect(filas.nth(2)).toContainText('caducado');
 });
 
 test('Mantenimiento: sin pedidos, el estado vacío; si no cargan, el error y Reintentar (docs/32 RV-260)', async ({
@@ -1361,4 +1385,110 @@ test('la casilla de abrir la entrada sale siempre sin marcar al volver a revocar
   await revocarTodos.uncheck();
   await revocarTodos.check();
   await expect(casilla).not.toBeChecked();
+});
+
+// ---------- docs/38 RV-509 (#753): Ajustes por anchos ----------
+
+test.describe('Ajustes por anchos (docs/38 RV-509)', () => {
+  test.skip(({ isMobile }) => isMobile, 'cada test fija su ventana');
+  const ORDEN = [
+    T.panelAjustes.codigoAcceso,
+    T.panelAjustes.administradores,
+    T.panel.saludSistema,
+    T.panelAjustes.avisosJefatura,
+    T.panelAjustes.parametros,
+    T.panelAjustes.nucleos,
+    T.panelAjustes.mantenimiento,
+    T.panelAjustes.codigoQr,
+    T.panelAjustes.novedades,
+  ];
+  // Las tarjetas, no las secciones de dentro de alguna.
+  const tarjetas = (page: Page) =>
+    page.getByRole('main').locator('xpath=.//section[@aria-label][not(ancestor::section)]');
+
+  test('a 412: el orden; tu fila con «Tú» y «Activo»; sin casillas; «Añadir» con su motivo; lo que sale una vez', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    const llamadas = await prepararPanel(page, { admins: [...ADMINISTRADORES, OTRA_ACTIVA] });
+    await page.goto('/admin/ajustes');
+    await expect(tarjetas(page)).toHaveCount(ORDEN.length);
+    expect(await tarjetas(page).evaluateAll((ts) => ts.map((t) => t.getAttribute('aria-label')))).toEqual(ORDEN);
+
+    const yo = filaAdmin(page, 'jefe@example.org');
+    await expect(yo.getByText(T.panel.tu, { exact: true })).toBeVisible();
+    await expect(yo.getByText(T.panelAjustes.etiquetaActivo, { exact: true })).toBeVisible();
+    await expect(filaAdmin(page, 'otra@example.org')).toContainText(T.panelAjustes.anadidoPorTi('4 sept 2026'));
+    const admins = tarjetaDe(page, T.panelAjustes.administradores);
+    await expect(admins.getByRole('checkbox')).toHaveCount(0);
+    const anadir = admins.getByRole('button', { name: T.panel.anadir, exact: true });
+    await expect(anadir).toBeDisabled();
+    await expect(anadir).toHaveAccessibleDescription(T.panelAjustes.motivoAnadir);
+    await admins.getByRole('textbox').fill('nueva@example.org');
+    await expect(anadir).toBeEnabled();
+
+    // «⋯» de uno sin acceso → «Devolver el acceso».
+    await elegirDe(page, 'secretaria@example.org', T.panelAjustes.devolverAcceso);
+    await expect
+      .poll(() => llamadaA(llamadas, 'fn_gestionar_administrador'))
+      .toEqual({ email: 'secretaria@example.org', activo: true });
+
+    // El número de móviles, en Salud; en Código de acceso, no. «solo en producción», una vez.
+    await expect(tarjetaDe(page, T.panelAjustes.codigoAcceso)).not.toContainText(/registrados?\./);
+    await expect(tarjetaDe(page, T.panel.saludSistema)).toContainText(T.panelAjustes.dispositivosActivos);
+    await expect(page.getByRole('main').getByText(/solo en producción/i)).toHaveCount(1);
+  });
+
+  for (const [ancho, alto, columnas] of [
+    [412, 915, 1],
+    [1280, 800, 2],
+    [1920, 1080, 3],
+  ] as const) {
+    test(`a ${ancho} px, ${columnas} columnas y sin huecos encima de ninguna tarjeta`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: alto });
+      await prepararPanel(page);
+      await page.goto('/admin/ajustes');
+      await expect(tarjetas(page)).toHaveCount(ORDEN.length);
+      // Que carguen las listas antes de medir.
+      await expect(page.getByRole('main').getByText(T.panelCola.cargando)).toHaveCount(0);
+      const cajas = await tarjetas(page).evaluateAll((ts) =>
+        ts.map((t) => {
+          const r = t.getBoundingClientRect();
+          return { x: Math.round(r.left), arriba: r.top, abajo: r.bottom };
+        }),
+      );
+      const xs = [...new Set(cajas.map((c) => c.x))];
+      expect(xs).toHaveLength(columnas);
+      // En cada columna, de una tarjeta a la siguiente, el hueco de siempre (16 px), nunca más.
+      for (const x of xs) {
+        const col = cajas.filter((c) => c.x === x).sort((a, b) => a.arriba - b.arriba);
+        for (let i = 1; i < col.length; i++) expect(col[i].arriba - col[i - 1].abajo).toBeLessThanOrEqual(17);
+      }
+    });
+  }
+});
+
+// Capturas para la revisión a ojo (skill revisar-pantallas): PW_CAPTURAS=1.
+test.describe('capturas de Ajustes (docs/38)', () => {
+  test.skip(({ isMobile }) => isMobile || !process.env.PW_CAPTURAS, 'solo bajo demanda, en escritorio');
+  for (const [ancho, alto] of [
+    [412, 915],
+    [1280, 800],
+    [1920, 1080],
+  ] as const) {
+    for (const tema of ['light', 'dark'] as const) {
+      test(`ajustes ${ancho} ${tema}`, async ({ page }, info) => {
+        await page.setViewportSize({ width: ancho, height: alto });
+        await page.emulateMedia({ colorScheme: tema });
+        await prepararPanel(page, { admins: [...ADMINISTRADORES, OTRA_ACTIVA] });
+        await page.goto('/admin/ajustes');
+        await expect(page.getByRole('main').getByText(T.panelCola.cargando)).toHaveCount(0);
+        await page.waitForLoadState('networkidle');
+        const main = page.getByRole('main').locator('div.overflow-auto').first();
+        const alto2 = await main.evaluate((e) => e.scrollHeight);
+        await page.setViewportSize({ width: ancho, height: Math.min(alto2 + 200, 6000) });
+        await page.screenshot({ path: info.outputPath(`ajustes-${ancho}-${tema}.png`), fullPage: true });
+      });
+    }
+  }
 });
