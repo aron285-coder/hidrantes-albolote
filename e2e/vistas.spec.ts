@@ -8,7 +8,7 @@ import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 import { abrirFiltros, conGoogle, conSesion, simularRpc, accionInventario } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
-import { jefatura } from './panel-simulado.ts';
+import { jefatura, PANEL_COMPLETO } from './panel-simulado.ts';
 
 const [P0, P1] = PUNTOS;
 const hace = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
@@ -360,7 +360,7 @@ for (const tema of ['claro', 'oscuro'] as const) {
       test.skip(!!isMobile, 'en escritorio, con el ancho a mano');
       await page.setViewportSize({ width: ancho, height: ancho < 768 ? 915 : 900 });
       await page.emulateMedia({ colorScheme: tema === 'oscuro' ? 'dark' : 'light' });
-      await jefatura(page);
+      await jefatura(page, PANEL_COMPLETO);
       for (const pestana of PESTANAS_PANEL) {
         await page.goto(`/admin/${pestana}`);
         await expect(page.getByRole('main').getByText(T.panelCola.cargando)).toHaveCount(0);
