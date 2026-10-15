@@ -87,3 +87,10 @@ workflows. Una sola sesión, en el orden de §0.2.
   `registro-legible.test.ts` (texto entero, nombres de ajustes y trabajos), `registro.test.tsx` («Tú», sin «Punto —»,
   el resumen del botón) y el e2e «Registro por anchos» de `panel-movil.spec.ts` (412, 820, 1280 y 1920); adaptados los
   del Registro de `panel-inventario.spec.ts` con `filasRegistro` y `filtrarPor`.
+- **RV-508:** la Papelera. «Purgar lo caducado…» en rojo (borde y texto `--rojo-texto`, que es `--rojo-700` en claro y
+  el rojo claro de 06 §2 en oscuro, donde `--rojo-700` no llegaba a 4,5:1), de 44 px por debajo de 1.100 y en la barra de
+  arriba, lejos de los «Restaurar»; con la papelera vacía, deshabilitado y descrito por «La papelera está vacía.»
+  (`aria-describedby`). Por debajo de 1.100 px, una lista: el código y «Restaurar» (44 px); tipo · diámetro; «Borrado
+  [`Fecha`] · quedan N días», con «queda 1 día» en rojo y negrita. Desde 1.100, la tabla de antes con `Fecha`, de 900 px
+  como mucho. Tests que fallaban antes: el e2e «Papelera por anchos» de `panel-movil.spec.ts` (412, 820, 1280 con el
+  diálogo de purgar, y vacía); adaptado el de 768 px, que ahora es lista.
