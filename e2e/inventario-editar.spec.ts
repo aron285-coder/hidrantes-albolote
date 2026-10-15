@@ -564,8 +564,8 @@ test.describe('El foco no se escapa de las ventanas del panel (docs/30 RV-128)',
     await expect(p).toHaveAttribute('aria-modal', 'false');
     await editarDe(page, HIDRANTE.codigo).focus();
     expect((await dondeFoco(page)).sitio).toBe('raiz');
-    // 1050 px: Editar con velo, y la tabla sigue siendo tabla (por debajo de 1024 px pasa a filas
-    // apiladas y el botón con el foco se desmonta, que es otra cosa).
+    // 1050 px: Editar con velo y, desde docs/38 (DEC-213), la tabla pasa a filas en el mismo corte: el
+    // botón que tenía el foco se desmonta y el foco entra igualmente en Editar.
     await page.setViewportSize({ width: 1050, height: 900 });
     await expect(p).toHaveAttribute('aria-modal', 'true');
     await expect.poll(async () => (await dondeFoco(page)).sitio).toBe('editar');

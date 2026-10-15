@@ -36,6 +36,23 @@ export function fechaCorta(f: Date | string | number): string {
 const HORA = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
 const DIA = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' });
 
+/**
+ * Una fecha para enseñar: una `date` de la base (YYYY-MM-DD, sin hora) se lee a mediodía UTC, para que en
+ * Europe/Madrid nunca cambie de día (TR-81); lo demás, tal cual.
+ */
+export function fechaDe(f: Date | string | number): Date {
+  return typeof f === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(f) ? new Date(`${f}T12:00:00Z`) : new Date(f);
+}
+
+/**
+ * Cuándo, en las listas del panel (docs/38 RV-502, UI-12, DEC-215): una fecha, un formato. Menos de 7 días,
+ * «hace…»; desde 7, la fecha corta. La exacta va en el `title` (componente `Fecha`).
+ */
+export function cuando(f: Date | string | number, ahora: Date = new Date()): string {
+  const d = fechaDe(f);
+  return ahora.getTime() - d.getTime() < 7 * 86_400_000 ? hace(d, ahora) : fechaCorta(d);
+}
+
 /** La hora en Albolote: "00:00" (TR-81). */
 export function horaCorta(f: Date | string | number): string {
   return HORA.format(new Date(f));

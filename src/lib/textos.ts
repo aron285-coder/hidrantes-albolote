@@ -1184,6 +1184,9 @@ export const T = {
     administradorQuitado: (correo: Parametro) => `${correo} se queda sin acceso al panel.`,
     // docs/35 RV-432: activo, pero su cuenta aún no se ha unido a su cuenta de Google.
     pendienteVincular: 'Pendiente de su primer acceso',
+    // docs/38 RV-502: etiquetas de acceso (DEC-215).
+    etiquetaActivo: 'Activo',
+    etiquetaSinAcceso: 'Sin acceso',
     ayudaPendienteVincular: 'Que entre en el panel cuanto antes con su cuenta de Google',
     // docs/35 RV-431: pasar a «sin acceso» se confirma; devolverlo, no.
     quitarAcceso: 'Quitar el acceso',
@@ -1358,6 +1361,11 @@ export const T = {
   },
 
   panel: {
+    // docs/38 RV-502: el propio administrador y el «⋯» de una fila (DEC-215).
+    tu: 'Tú',
+    masAcciones: (que: Parametro) => `Más acciones de ${que}`,
+    // docs/38 RV-502: la lupa de la cabecera del móvil (RV-503).
+    buscar: 'Buscar',
     titulo: 'Hidrantes Albolote · Panel de jefatura',
     atribucion: 'Direcciones deducidas con Nominatim · © OpenStreetMap contributors',
     salir: 'Cerrar sesión',

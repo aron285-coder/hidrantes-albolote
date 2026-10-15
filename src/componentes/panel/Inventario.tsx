@@ -1,15 +1,5 @@
 import { ChevronDown } from 'lucide-react';
-import {
-  type KeyboardEvent as ReactKeyboardEvent,
-  Suspense,
-  lazy,
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { Suspense, lazy, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { DialogoHistorial, DialogoMotivo } from './dialogos';
 import { ConfirmarDescartar, type EstadoEditar } from './descartar';
 
@@ -18,6 +8,7 @@ const EditarPunto = lazy(() => import('./EditarPunto'));
 import { usePanel } from './usar-panel';
 import { MapaLeaflet } from '@/componentes/mapa/MapaLeaflet';
 import { usePanelAncho } from '@/hooks/ancho';
+import { MenuBoton } from './MenuBoton';
 import { useModo, usePosicion, usePuntos } from '@/hooks/estado';
 import { claseChip, nombreCaudal, nombreRacor, nombreTipo } from '@/lib/ficha';
 import { fechaCorta, hace } from '@/lib/formato';
@@ -128,108 +119,28 @@ function MenuExportar({
   ocupado: boolean;
   alElegir: (f: Formato) => void;
 }) {
-  const [abierto, setAbierto] = useState<false | 'primero' | 'ultimo'>(false);
-  const boton = useRef<HTMLButtonElement>(null);
-  const menu = useRef<HTMLDivElement>(null);
-  const id = useId();
-
-  const opciones = () => [
-    ...(menu.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? []),
-  ];
-  const cerrar = (devolverFoco: boolean) => {
-    setAbierto(false);
-    if (devolverFoco) boton.current?.focus();
-  };
-
-  useEffect(() => {
-    if (!abierto) return;
-    const lista = opciones();
-    (abierto === 'ultimo' ? lista.at(-1) : lista[0])?.focus();
-    const fuera = (e: PointerEvent) => {
-      const t = e.target as Node;
-      if (!menu.current?.contains(t) && !boton.current?.contains(t)) setAbierto(false);
-    };
-    document.addEventListener('pointerdown', fuera);
-    return () => document.removeEventListener('pointerdown', fuera);
-  }, [abierto]);
-
-  function teclaMenu(e: ReactKeyboardEvent) {
-    const lista = opciones();
-    const i = lista.indexOf(document.activeElement as HTMLButtonElement);
-    const ir = (n: number) => lista[(n + lista.length) % lista.length]?.focus();
-    if (e.key === 'ArrowDown') ir(i + 1);
-    else if (e.key === 'ArrowUp') ir(i - 1);
-    else if (e.key === 'Home') ir(0);
-    else if (e.key === 'End') ir(lista.length - 1);
-    else if (e.key === 'Escape') cerrar(true);
-    else if (e.key === 'Tab') return setAbierto(false);
-    else return;
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  const motivo = `${id}-motivo`;
+  const motivo = `${useId()}-motivo`;
   return (
     <div className="relative flex flex-col items-end">
       {/* Las clases de <Boton variante="secundario">: Boton no reenvía la referencia del foco. */}
-      <button
-        ref={boton}
-        type="button"
-        id={`${id}-boton`}
-        aria-haspopup="menu"
-        aria-expanded={!!abierto}
-        aria-controls={abierto ? `${id}-menu` : undefined}
-        aria-disabled={ocupado || undefined}
-        aria-busy={ocupado || undefined}
-        aria-describedby={sinFilas ? motivo : undefined}
-        onClick={() => {
-          if (ocupado) return;
-          if (abierto) cerrar(false);
-          else setAbierto('primero');
-        }}
-        onKeyDown={(e) => {
-          if (ocupado) return;
-          if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
-          e.preventDefault();
-          setAbierto(e.key === 'ArrowUp' ? 'ultimo' : 'primero');
-        }}
+      <MenuBoton
+        ocupado={ocupado}
+        describedBy={sinFilas ? motivo : undefined}
+        opciones={FORMATOS.map(({ formato, nombre, completo }) => ({
+          nombre,
+          alElegir: () => alElegir(formato),
+          deshabilitada: sinFilas && !completo,
+          descritaPor: sinFilas && !completo ? motivo : undefined,
+        }))}
         className="rounded-boton bg-papel text-texto border-texto disabled:bg-linea disabled:text-texto-suave flex min-h-11 min-w-11 items-center gap-1.5 border-[1.5px] px-4 text-[14px] font-semibold disabled:cursor-not-allowed aria-disabled:cursor-progress aria-disabled:opacity-60"
       >
         {ocupado ? T.panel.exportando : T.panel.exportar}
         <ChevronDown size={16} aria-hidden />
-      </button>
+      </MenuBoton>
       {sinFilas && (
         <p id={motivo} className="text-texto-suave mt-0.5 text-[11px]">
           {T.panelInventario.nadaQueExportar}
         </p>
-      )}
-      {abierto && (
-        <div
-          ref={menu}
-          id={`${id}-menu`}
-          role="menu"
-          aria-labelledby={`${id}-boton`}
-          onKeyDown={teclaMenu}
-          className="bg-papel border-linea rounded-tarjeta absolute top-full right-0 z-[500] mt-1 flex min-w-44 flex-col border py-1 shadow-[0_6px_24px_rgba(14,27,48,.28)]"
-        >
-          {FORMATOS.map(({ formato, nombre, completo }) => (
-            <button
-              key={formato}
-              type="button"
-              role="menuitem"
-              tabIndex={-1}
-              disabled={sinFilas && !completo}
-              aria-describedby={sinFilas && !completo ? motivo : undefined}
-              onClick={() => {
-                cerrar(true);
-                alElegir(formato);
-              }}
-              className="hover:bg-fondo focus:bg-fondo disabled:text-texto-suave min-h-11 px-4 text-left text-[14px] disabled:cursor-not-allowed disabled:hover:bg-transparent"
-            >
-              {nombre}
-            </button>
-          ))}
-        </div>
       )}
     </div>
   );

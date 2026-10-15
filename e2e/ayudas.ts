@@ -2,6 +2,7 @@
 
 import type { Page, Route } from '@playwright/test';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
+import { T } from '../src/lib/textos.ts';
 
 export const TOKEN = 'a'.repeat(43);
 export const FIRMA = { nombre: 'Voluntaria', apellido: 'Pruebas' };
@@ -114,4 +115,44 @@ export async function irALista(page: Page) {
       history.pushState({}, '', '/lista');
       dispatchEvent(new PopStateEvent('popstate'));
     });
+}
+
+// docs/38 RV-502: para que los e2e lleguen igual al panel a todos los anchos. Por debajo de 768 px las pestañas van
+// en el menú ☰ y la búsqueda detrás de la lupa (RV-503); desde 768, a la vista. Las ayudas miran lo que hay en
+// pantalla, así valen antes y después de cada cambio.
+
+/** Las pestañas del panel: la fila de arriba o, en el móvil, la de dentro del menú. */
+const navegacionPanel = (page: Page) => page.getByRole('navigation', { name: T.jefatura.panel });
+
+/** Va a la pestaña `nombre` del panel: la pulsa a la vista o, si está en el menú ☰, lo abre y la elige. */
+export async function irAPestana(page: Page, nombre: string) {
+  const enlace = navegacionPanel(page).getByRole('link', { name: new RegExp(`^${escaparRegex(nombre)}`) });
+  if (!(await enlace.first().isVisible())) {
+    await page.getByRole('button', { name: new RegExp(`^${escaparRegex(T.panel.menu)}`) }).click();
+  }
+  await enlace.first().click();
+}
+
+/** Escribe en la búsqueda del panel: el campo a la vista o, en el móvil, tras la lupa. */
+export async function buscarEnPanel(page: Page, texto: string) {
+  const campo = page.getByPlaceholder(T.panelCola.buscar);
+  if (!(await campo.isVisible())) await page.getByRole('button', { name: T.panel.buscar, exact: true }).click();
+  await campo.fill(texto);
+}
+
+/** Abre el botón de filtros de la pestaña (UI-19). */
+export async function abrirFiltros(page: Page) {
+  await page.getByRole('button', { name: /^Filtros: / }).click();
+}
+
+/** Dentro de la hoja o la ventana de filtros, elige `opcion` en el grupo `grupo`. */
+export async function elegirFiltro(page: Page, grupo: string, opcion: string | RegExp) {
+  await page
+    .getByRole('radiogroup', { name: grupo })
+    .getByRole('radio', { name: typeof opcion === 'string' ? new RegExp(`^${escaparRegex(opcion)}`) : opcion })
+    .click();
+}
+
+function escaparRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

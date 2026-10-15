@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { distancia, fechaCorta, hace, megas } from './formato';
+import { cuando, distancia, fechaCorta, fechaDe, hace, megas } from './formato';
 
 describe('formato (UI-12)', () => {
   const ahora = new Date('2026-09-19T12:00:00Z');
@@ -51,5 +51,24 @@ describe('formato (UI-12)', () => {
       process.env.TZ = tzOriginal;
       vi.resetModules();
     }
+  });
+});
+
+// docs/38 RV-502 (UI-12, DEC-215): en las listas del panel, una fecha, un formato.
+describe('cuando (listas del panel)', () => {
+  const ahora = new Date('2026-10-15T12:00:00Z');
+  const menos = (ms: number) => new Date(ahora.getTime() - ms);
+
+  it('hasta 7 días, «hace…»; desde 7, la fecha', () => {
+    expect(cuando(menos(2 * 3600_000), ahora)).toBe('hace 2 h');
+    expect(cuando(menos((6 * 24 + 23) * 3600_000), ahora)).toBe('hace 6 días');
+    expect(cuando(menos(7 * 86_400_000), ahora)).toBe(fechaCorta(menos(7 * 86_400_000)));
+    expect(cuando(menos(7 * 86_400_000), ahora)).toBe('8 oct 2026');
+  });
+
+  it('una fecha sin hora (columna date) no cambia de día en Madrid', () => {
+    expect(fechaCorta(fechaDe('2026-08-20'))).toBe('20 ago 2026');
+    expect(fechaDe('2026-08-20').toISOString()).toBe('2026-08-20T12:00:00.000Z');
+    expect(fechaDe('2026-08-20T23:30:00Z').toISOString()).toBe('2026-08-20T23:30:00.000Z');
   });
 });
