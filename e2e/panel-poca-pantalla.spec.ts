@@ -89,8 +89,10 @@ test.describe('RV-331: panel con poca pantalla', () => {
     await info.attach('cola-720x450', { body: await page.screenshot(), contentType: 'image/png' });
   });
 
+  // Desde docs/38 (DEC-213), por debajo de 768 px la cabecera es la del móvil (lupa y pestañas en ☰,
+  // panel-navegacion.spec.ts); la compacta, con el buscador en la barra, queda entre 768 y 799 px.
   test('por debajo de 800 px: buscador en la barra, menú ☰ y filtros en una línea', async ({ page }) => {
-    await page.setViewportSize({ width: 720, height: 450 });
+    await page.setViewportSize({ width: 780, height: 450 });
     await prepararPanel(page);
     await page.goto('/admin/cola');
     const cabecera = page.getByRole('banner');
@@ -148,7 +150,7 @@ test.describe('RV-331: panel con poca pantalla', () => {
   });
 
   test('el menú ☰ se cierra al tocar fuera y al salir con el tabulador', async ({ page }) => {
-    await page.setViewportSize({ width: 720, height: 450 });
+    await page.setViewportSize({ width: 780, height: 450 });
     await prepararPanel(page);
     await page.goto('/admin/cola');
     const menu = page.getByRole('button', { name: T.panel.menu });

@@ -5,7 +5,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas } from './ayudas.ts';
+import { conGoogle, simularTablas, buscarEnPanel } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 const [P0] = PUNTOS;
@@ -144,9 +144,9 @@ test('inventario: filtros, orden y búsqueda global (FR-120, FR-145)', async ({ 
   await page.getByRole('button', { name: T.panelInventario.ordenarPor(T.panelInventario.colCodigo) }).click();
   await expect(filas.nth(1).getByRole('cell').first()).toHaveText('HID-9008');
 
-  await page.getByPlaceholder(T.panelCola.buscar).fill('BOC-9009');
+  await buscarEnPanel(page, 'BOC-9009');
   await expect(filas).toHaveCount(2);
-  await page.getByPlaceholder(T.panelCola.buscar).fill('');
+  await buscarEnPanel(page, '');
 
   await page.getByRole('radio', { name: T.panelInventario.mapa }).click();
   await expect(page.getByTestId('mapa')).toBeVisible();
@@ -422,7 +422,7 @@ test('registro: buscar desde otra página vuelve a la primera (docs/31 RV-166)',
   await expect(paginas.getByRole('button', { name: '3', exact: true })).toHaveAttribute('aria-current', 'true');
   await expect.poll(() => desplazamientos.at(-1)).toBe(100);
 
-  await page.getByPlaceholder(T.panelCola.buscar).fill('HID-9001');
+  await buscarEnPanel(page, 'HID-9001');
   await expect(page.getByText(T.panelRegistro.entradas(12))).toBeVisible();
   await expect(page.getByRole('cell', { name: 'HID-9002', exact: true })).toHaveCount(0);
   await expect(page.getByRole('cell', { name: 'HID-9001', exact: true })).toHaveCount(12);
@@ -432,7 +432,7 @@ test('registro: buscar desde otra página vuelve a la primera (docs/31 RV-166)',
   await expect(page.getByRole('alert')).toHaveCount(0);
 
   // Volver a la búsqueda de antes (vacía) también empieza en la primera página.
-  await page.getByPlaceholder(T.panelCola.buscar).fill('');
+  await buscarEnPanel(page, '');
   await expect(page.getByText(T.panelRegistro.entradas(120))).toBeVisible();
   await expect(paginas.getByRole('button', { name: '1', exact: true })).toHaveAttribute('aria-current', 'true');
   expect(desplazamientos.at(-1)).toBe(0);
@@ -482,7 +482,7 @@ test('filtrar hidrantes regulares y exportar CSV da solo esas filas (RV-24)', as
   expect(llamadaA(llamadas, 'fn_exportar_inventario')).toEqual({ filtros: { tipo: 'hidrante', caudal: 'regular' } });
 
   // Con búsqueda, solo lo que se ve.
-  await page.getByPlaceholder(T.panelCola.buscar).fill(regulares[1]!);
+  await buscarEnPanel(page, regulares[1]!);
   await expect(filas).toHaveCount(2);
   expect(await leerCsv()).toEqual([regulares[1]]);
   await expect(page.getByRole('status').filter({ hasText: T.panelInventario.exportado(1) })).toBeVisible();

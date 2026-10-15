@@ -42,3 +42,14 @@ function suscribirPanel(o: () => void) {
  * debajo, filas. Hasta `docs/38` el corte del Inventario era 1.024 (docs/20 RV-79).
  */
 export const usePanelAncho = () => useSyncExternalStore(suscribirPanel, () => window.matchMedia(PANEL_ANCHO).matches);
+
+const PANEL_MOVIL = `(max-width: ${PANEL_TABLETA - 0.02}px)`;
+
+function suscribirMovil(o: () => void) {
+  const m = window.matchMedia(PANEL_MOVIL);
+  m.addEventListener('change', o);
+  return () => m.removeEventListener('change', o);
+}
+
+/** ¿Es el panel en el móvil, por debajo de 768 px (DEC-213)? Las pestañas van en el menú ☰ (UI-18). */
+export const usePanelMovil = () => useSyncExternalStore(suscribirMovil, () => window.matchMedia(PANEL_MOVIL).matches);

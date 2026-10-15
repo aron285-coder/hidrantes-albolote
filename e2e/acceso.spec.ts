@@ -328,7 +328,7 @@ test.describe('jefatura (FL-20)', () => {
     await conGoogle(page, 'jefe@example.org');
     const pedidas = await conVincular(page, { status: 200, cuerpo: { resultado: 'VINCULADO' } });
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeAttached();
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(T.jefatura.panel) })).toBeAttached();
     expect(pedidas).toHaveLength(1);
     expect(pedidas[0]).toMatch(/^Bearer \S+$/);
   });
@@ -372,7 +372,7 @@ test.describe('jefatura (FL-20)', () => {
       return route.abort('connectionrefused');
     });
     await page.goto('/admin');
-    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeAttached();
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(T.jefatura.panel) })).toBeAttached();
     expect(renovadas.length).toBeGreaterThanOrEqual(1);
   });
 
@@ -447,7 +447,7 @@ test.describe('jefatura (FL-20)', () => {
     expect(pedidas).toHaveLength(1);
     // El de la pantalla (el aviso de conexión tiene el suyo).
     await page.locator('[data-variante="primario"]', { hasText: T.entrada.reintentar }).click();
-    await expect(page.getByRole('heading', { name: T.panel.titulo })).toBeAttached();
+    await expect(page.getByRole('heading', { level: 1, name: new RegExp(T.jefatura.panel) })).toBeAttached();
     expect(pedidas).toHaveLength(2);
   });
 
@@ -455,10 +455,10 @@ test.describe('jefatura (FL-20)', () => {
     await conGoogle(page, 'jefe@example.org');
     await simularRpc(page, { fn_es_admin: true });
     await page.goto('/admin');
-    const titulo = page.getByRole('heading', { name: T.panel.titulo });
+    const titulo = page.getByRole('heading', { level: 1, name: new RegExp(T.jefatura.panel) });
     await expect(titulo).toBeAttached();
-    // Por debajo de 800 px, "Ir al mapa" está en el menú ☰ de la cabecera y el título, solo para el
-    // lector de pantalla (docs/33 RV-331); desde 800 px, el título se ve.
+    // Por debajo de 800 px, "Ir al mapa" está en el menú ☰ de la cabecera (docs/33 RV-331); por debajo de 768,
+    // el título dice la pestaña y «Panel de jefatura» solo para el lector (docs/38 RV-503); desde 800 px, se ve.
     const menu = page.getByRole('button', { name: T.panel.menu });
     if (await menu.isVisible()) await menu.click();
     else await expect(titulo).toBeVisible();
