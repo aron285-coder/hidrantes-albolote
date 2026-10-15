@@ -1369,6 +1369,9 @@ export const T = {
     // docs/38 RV-502: la lupa de la cabecera del móvil (RV-503).
     buscar: 'Buscar',
     cerrarBusqueda: 'Cerrar la búsqueda',
+    // docs/38 RV-504: el botón de filtros y su hoja (UI-19, DEC-214).
+    filtrosDe: (resumen: Parametro) => `Filtros: ${resumen}`,
+    listo: 'Listo',
     // docs/38 RV-503: ☰ con propuestas pendientes desde otra pestaña (UI-18).
     menuPendientes: 'Menú, hay propuestas pendientes',
     titulo: 'Hidrantes Albolote · Panel de jefatura',
