@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Se amplía cuando aparece un caso nuevo; los resultados se anotan por recorrido. |
-| **Versión** | 1.7 — 15 oct 2026 (`docs/37` RV-494): AC-102, la casilla de abrir la entrada sale sin marcar; §M, AC-172 a AC-178 con lo que cambió en `docs/35` y `docs/36` y la entrada del lanzamiento desde una wifi (RV-491, DEC-211). 1.6 — 14 oct 2026 (`docs/35` RV-414): AC-103 con la confirmación al quitar el acceso (RV-431) y el primer acceso unido a Google (DEC-197). 1.5 — 23 de septiembre de 2026: §K, AC-150 a AC-156 de las funciones de mapa para emergencias (DEC-089), y §L, un caso para cada FR que no tenía (docs/18 GM-00). 1.4 — 22 de septiembre de 2026: AC-140 pasa a comprobarse sola (`e2e/controles.spec.ts`). v1.3: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
+| **Versión** | 1.8 — 15 oct 2026 (`docs/38` RV-501, aprobada por el desarrollador al pedir el cambio (`docs/38`)): AC-90 y AC-169 con el botón de filtros y el pie «N puntos con este filtro». 1.7 — 15 oct 2026 (`docs/37` RV-494): AC-102, la casilla de abrir la entrada sale sin marcar; §M, AC-172 a AC-178 con lo que cambió en `docs/35` y `docs/36` y la entrada del lanzamiento desde una wifi (RV-491, DEC-211). 1.6 — 14 oct 2026 (`docs/35` RV-414): AC-103 con la confirmación al quitar el acceso (RV-431) y el primer acceso unido a Google (DEC-197). 1.5 — 23 de septiembre de 2026: §K, AC-150 a AC-156 de las funciones de mapa para emergencias (DEC-089), y §L, un caso para cada FR que no tenía (docs/18 GM-00). 1.4 — 22 de septiembre de 2026: AC-140 pasa a comprobarse sola (`e2e/controles.spec.ts`). v1.3: anotados los cuatro casos técnicos que ya están comprobados (AC-110, AC-114, AC-115, AC-116); el resto los recorre jefatura. v1.2 — 17 de septiembre de 2026. v1.1 añadió la sección I; v1.2 añade la J (reglas de interfaz, textos y concurrencia). |
 | **Propietario de** | los casos de prueba de aceptación (`AC-nn`). Cada caso cita el requisito que verifica (01, 03). |
 | **Cómo se usa** | Se imprime. Jefatura y 2–3 voluntarios lo recorren en la calle sobre **staging** con el código del piloto, y después sobre producción antes de abrir a los 65. Columna "Resultado": ✓ / ✗ / n.a.; columna "Notas": qué pasó si ✗. |
 
@@ -127,7 +127,7 @@ Cada recorrido se registra al final del documento (§ Recorridos).
 
 | ID | Caso | Pasos | Resultado esperado | Verifica | ✓/✗ | Notas |
 |---|---|---|---|---|---|---|
-| AC-90 | Inventario: filtros y orden | Filtrar por tipo y estado y ordenar por última revisión | Correcto; "mostrando X de N" | FR-120 | | |
+| AC-90 | Inventario: filtros y orden | Filtrar por tipo y estado con el botón de filtros y ordenar por última revisión (por la cabecera en el ordenador; desde el botón en la tableta y el móvil) | Correcto; el botón dice lo que está puesto y el pie, «N puntos con este filtro» | FR-120 | | |
 | AC-91 | Dirección en celda | Editar una dirección en la tabla | Se guarda; la ficha la muestra | FR-120, FR-15 | | |
 | AC-92 | Retirar | Retirar un punto con motivo | Desaparece del mapa; sigue en el registro e historial | FR-124 | | |
 | AC-93 | Borrar y restaurar | Borrar un punto → Papelera → Restaurar | Vuelve al mapa | FR-124 | | |
@@ -228,7 +228,7 @@ se ven al recorrer los anteriores: aquí se anotan una vez.
 | AC-166 | Caducadas sin correos | Dejar puntos sin revisar más de 12 meses | Salen con «hace N» en rojo en el Inventario; no llega ningún correo automático | FR-125 | | |
 | AC-167 | Núcleos desde Ajustes | Ajustes → Núcleos: renombrar uno y añadir otro | El renombrado se ve en el inventario y la lista; el nuevo sale con su recuento de puntos | FR-166 | | e2e `panel-ajustes.spec.ts` |
 | AC-168 | Enganche Directo | Alta de una boca eligiendo Directo, a 360 px | Cuatro opciones Barcelona · Granada · Directo · Otro en una fila; la ficha, el inventario, la cola y las exportaciones dicen «Directo» | FR-20 | | |
-| AC-169 | Inventario con dos filtros | Filtrar por Bocas de riego y Regular → Quitar filtros → Exportar ▾ CSV | El desplegable de Estado da los números del tipo elegido; Quitar filtros vuelve a todos; el CSV trae lo filtrado | FR-120 | | |
+| AC-169 | Inventario con dos filtros | En el botón de filtros, Bocas de riego y Regular → Quitar filtros → Exportar ▾ CSV | El grupo Estado de la hoja da los números del tipo elegido; Quitar filtros vuelve a todos y deja el orden; el CSV trae lo filtrado | FR-120 | | |
 | AC-170 | Editar y mover | Inventario → Editar → mover el pin unos metros y cambiar el enganche → Guardar | Los dos campos marcados con «antes»; el pie dice «2 cambios»; en el Registro, una entrada `edicion_admin` con el desplazamiento; el núcleo recalculado. Guardar con el pin en la misma posición (±0,1 m) no cuenta como movimiento; unas coordenadas fuera de los límites dan `PAYLOAD_INVALIDO(ubicacion)` | FR-120, FR-151 | | |
 | AC-171 | Cinco pestañas | Abrir el panel; ir a /admin/caducadas y /admin/voluntarios | Cola · Inventario · Registro · Papelera · Ajustes; las dos rutas viejas llevan al Inventario | FR-120 | | |
 
