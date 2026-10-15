@@ -20,7 +20,16 @@ function suscribir(o: () => void) {
 /** Tramo de ancho de FR-70: desde 768 px mapa y ficha a la vez; desde 900 px, además la lista. */
 export const useAncho = () => useSyncExternalStore(suscribir, ancho);
 
-const PANEL_ANCHO = '(min-width: 1024px)';
+/**
+ * Los anchos del panel (docs/38, DEC-213): móvil por debajo de 768 px, tableta de 768 a 1.099, PC pequeño de
+ * 1.100 a 1.599 y PC grande desde 1.600. En Tailwind, `md:` para 768 y `min-[1100px]:` / `max-[1100px]:` y
+ * `min-[1600px]:` para los otros (06 §5: nunca `max-[1099px]`).
+ */
+export const PANEL_TABLETA = 768;
+export const PANEL_PC = 1100;
+export const PANEL_GRANDE = 1600;
+
+const PANEL_ANCHO = `(min-width: ${PANEL_PC}px)`;
 
 function suscribirPanel(o: () => void) {
   const m = window.matchMedia(PANEL_ANCHO);
@@ -29,7 +38,7 @@ function suscribirPanel(o: () => void) {
 }
 
 /**
- * ¿Cabe la tabla del Inventario? Por debajo de 1.024 px (una tableta en vertical) las filas pasan a
- * dos líneas: la tabla cortaba la dirección y partía "Boca de riego" (docs/20 RV-79).
+ * ¿Van tablas en el panel? Desde 1.100 px (DEC-213), como la cola con el detalle y Editar a la derecha; por
+ * debajo, filas. Hasta `docs/38` el corte del Inventario era 1.024 (docs/20 RV-79).
  */
 export const usePanelAncho = () => useSyncExternalStore(suscribirPanel, () => window.matchMedia(PANEL_ANCHO).matches);

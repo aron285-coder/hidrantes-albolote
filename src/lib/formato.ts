@@ -36,6 +36,35 @@ export function fechaCorta(f: Date | string | number): string {
 const HORA = new Intl.DateTimeFormat('es-ES', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Madrid' });
 const DIA = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid' });
 
+/**
+ * Una fecha para enseñar: una `date` de la base (YYYY-MM-DD, sin hora) se lee a mediodía UTC, para que en
+ * Europe/Madrid nunca cambie de día (TR-81); lo demás, tal cual.
+ */
+export function fechaDe(f: Date | string | number): Date {
+  return typeof f === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(f) ? new Date(`${f}T12:00:00Z`) : new Date(f);
+}
+
+/**
+ * Cuándo, en las listas del panel (docs/38 RV-502, UI-12, DEC-215): una fecha, un formato. Menos de 7 días,
+ * «hace…»; desde 7, la fecha corta. La exacta va en el `title` (componente `Fecha`).
+ */
+export function cuando(f: Date | string | number, ahora: Date = new Date()): string {
+  const d = fechaDe(f);
+  return ahora.getTime() - d.getTime() < 7 * 86_400_000 ? hace(d, ahora) : fechaCorta(d);
+}
+
+/**
+ * Lo mismo para una fecha sin hora (`date`, como la última revisión): no tiene horas, así que se cuentan días
+ * de calendario en Albolote: «hoy», «hace 1 día»… hasta 6, y la fecha desde 7 (o si fuera de un día futuro).
+ */
+export function cuandoDia(f: Date | string | number, ahora: Date = new Date()): string {
+  const d = fechaDe(f);
+  const dias = Math.round((Date.parse(DIA.format(ahora)) - Date.parse(DIA.format(d))) / 86_400_000);
+  if (dias < 0 || dias >= 7) return fechaCorta(d);
+  if (dias === 0) return T.formato.hoy;
+  return dias === 1 ? T.formato.haceUnDia : T.formato.haceDias(dias);
+}
+
 /** La hora en Albolote: "00:00" (TR-81). */
 export function horaCorta(f: Date | string | number): string {
   return HORA.format(new Date(f));

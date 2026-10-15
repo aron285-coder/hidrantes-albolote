@@ -10,7 +10,7 @@ const raiz = path.resolve(import.meta.dirname, '..');
 // Sin comentarios: alguno nombra una variable seguida de dos puntos («sobre --verde-100: el 600…»).
 const css = readFileSync(path.join(raiz, 'index.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
-const TINTES = ['verde', 'ambar', 'oro', 'rojo', 'amarillo', 'marron'] as const;
+const TINTES = ['verde', 'ambar', 'oro', 'rojo', 'amarillo', 'marron', 'gris', 'azul'] as const;
 
 /** Los valores de un bloque: desde su selector hasta la primera llave que lo cierra. */
 function bloque(selector: string): Map<string, string> {

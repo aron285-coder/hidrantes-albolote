@@ -6,7 +6,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import type { NodeResult, Result } from 'axe-core';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { conGoogle, simularRpc, simularTablas } from './ayudas.ts';
+import { buscarEnPanel, conGoogle, irAPestana, simularRpc, simularTablas } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 test.describe.configure({ timeout: 60_000 });
@@ -129,3 +129,22 @@ test.describe('a 412 px', () => {
     await auditar(page, 'panel · inventario a 412 px');
   });
 });
+
+// docs/38 RV-502: las ayudas de los e2e llegan a las pestañas y a la búsqueda igual a todos los anchos.
+for (const [ancho, alto] of [
+  [412, 915],
+  [1280, 800],
+] as const) {
+  test(`a ${ancho} px, irAPestana y buscarEnPanel llegan a la pestaña y a la búsqueda (docs/38 RV-502)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: ancho, height: alto });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await expect(pestanas(page).first()).toBeAttached({ timeout: CARGA });
+    await irAPestana(page, T.panelCola.inventario);
+    await expect(page).toHaveURL(/\/admin\/inventario$/);
+    await buscarEnPanel(page, PUNTOS[0]!.codigo);
+    await expect(page.getByPlaceholder(T.panelCola.buscar)).toHaveValue(PUNTOS[0]!.codigo);
+  });
+}

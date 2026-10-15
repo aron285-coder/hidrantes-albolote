@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { distancia, fechaCorta, hace, megas } from './formato';
+import { cuando, cuandoDia, distancia, fechaCorta, fechaDe, hace, megas } from './formato';
 
 describe('formato (UI-12)', () => {
   const ahora = new Date('2026-09-19T12:00:00Z');
@@ -51,5 +51,36 @@ describe('formato (UI-12)', () => {
       process.env.TZ = tzOriginal;
       vi.resetModules();
     }
+  });
+});
+
+// docs/38 RV-502 (UI-12, DEC-215): en las listas del panel, una fecha, un formato.
+describe('cuando (listas del panel)', () => {
+  const ahora = new Date('2026-10-15T12:00:00Z');
+  const menos = (ms: number) => new Date(ahora.getTime() - ms);
+
+  it('hasta 7 días, «hace…»; desde 7, la fecha', () => {
+    expect(cuando(menos(2 * 3600_000), ahora)).toBe('hace 2 h');
+    expect(cuando(menos((6 * 24 + 23) * 3600_000), ahora)).toBe('hace 6 días');
+    expect(cuando(menos(7 * 86_400_000), ahora)).toBe(fechaCorta(menos(7 * 86_400_000)));
+    expect(cuando(menos(7 * 86_400_000), ahora)).toBe('8 oct 2026');
+  });
+
+  it('una fecha sin hora (columna date) no cambia de día en Madrid', () => {
+    expect(fechaCorta(fechaDe('2026-08-20'))).toBe('20 ago 2026');
+    expect(fechaDe('2026-08-20').toISOString()).toBe('2026-08-20T12:00:00.000Z');
+    expect(fechaDe('2026-08-20T23:30:00Z').toISOString()).toBe('2026-08-20T23:30:00.000Z');
+  });
+});
+
+// La última revisión no tiene hora: no se dice «hace 6 h» de una fecha (revisión de #795).
+describe('cuandoDia (columnas date en las listas del panel)', () => {
+  it('cuenta días de calendario en Albolote, no horas', () => {
+    expect(cuandoDia('2026-10-15', new Date('2026-10-15T08:00:00Z'))).toBe('hoy');
+    expect(cuandoDia('2026-10-15', new Date('2026-10-15T21:00:00Z'))).toBe('hoy');
+    expect(cuandoDia('2026-10-14', new Date('2026-10-15T07:00:00Z'))).toBe('hace 1 día');
+    expect(cuandoDia('2026-10-09', new Date('2026-10-15T12:00:00Z'))).toBe('hace 6 días');
+    expect(cuandoDia('2026-10-08', new Date('2026-10-15T12:00:00Z'))).toBe('8 oct 2026');
+    expect(cuandoDia('2026-10-20', new Date('2026-10-15T12:00:00Z'))).toBe('20 oct 2026');
   });
 });
