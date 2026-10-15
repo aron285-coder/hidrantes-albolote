@@ -120,3 +120,11 @@ workflows. Una sola sesión, en el orden de §0.2.
   `vistas.spec.ts` pasa a `e2e/panel-simulado.ts` (`jefatura(page, tablas)`), que usan las dos. `vistas.spec.ts`: las
   cinco pestañas a 412, 820, 1.280 y 1.920 px en claro y en oscuro y, a 412, las hojas de filtros de Cola e Inventario,
   el menú ☰ y el «⋯» de una fila (sustituyen a las vistas sueltas de Cola, Inventario y Ajustes).
+- **RV-511:** 13 v0.5 (§3 el ☰, la lupa y el punto naranja; §4 el botón de filtros y la barra de lote solo con algo
+  marcado; §5 Filtrar y ordenar, tocar la fila abre Editar, «⋯» y «＋ Añadir dirección»; §6 el filtro del Registro y
+  «Tú»; §7 «Purgar lo caducado…» en rojo; §8 el orden de las tarjetas y Administradores con su etiqueta y «⋯»); 10, §N
+  con AC-179 a AC-184 (la cola en bloque verifica FR-101 y FR-107: FR-121 está retirado); INDICE, los cinco mockups de
+  docs/38 en la fila de `mockups/`. Capturas: `panel-cola`, `panel-inventario`, `panel-registro`, `panel-historial` y
+  `panel-ajustes` sustituidas, y `panel-movil-menu` y `panel-movil-filtros` nuevas (enlazadas desde 13 §3 y §5), con
+  `vistas.spec.ts` sobre `PANEL_COMPLETO` (la papelera y lo que lee Ajustes, que pasa de `listas-anchos.spec.ts` a
+  `e2e/panel-simulado.ts`: sin él, Ajustes salía con errores de carga en las capturas); `LEEME.md` al día.

@@ -164,6 +164,40 @@ export const REGISTRO = [
   },
 ];
 
+/** Lo que falta en el panel de siempre para verlo entero: la papelera con puntos y lo que lee Ajustes (docs/38). */
+export const PANEL_COMPLETO = {
+  puntos: [
+    { id: 'b1', codigo: 'BOC-0042', tipo: 'boca_riego', diametro_mm: 45, borrado_en: hace(48) },
+    { id: 'b2', codigo: 'HID-0108', tipo: 'hidrante', diametro_mm: 80, borrado_en: hace(29 * 24 + 2) },
+  ],
+  config: [
+    { clave: 'codigo_acceso', valor: '482917' },
+    { clave: 'codigo_acceso_cambiado_en', valor: '2026-09-02T10:00:00Z' },
+    { clave: 'codigo_acceso_cambiado_por', valor: 'jefe@example.org' },
+    { clave: 'meses_revision', valor: 12 },
+    { clave: 'radio_duplicado_m', valor: 25 },
+    { clave: 'dias_papelera', valor: 30 },
+    { clave: 'buffer_zona_m', valor: 400 },
+    { clave: 'max_subidas_dispositivo_dia', valor: 40 },
+    { clave: 'metros_tramo_manguera', valor: 20 },
+    { clave: 'escala_radios', valor: [11, 9, 7, 5.5, 5] },
+  ],
+  administradores: [
+    { email: 'jefe@example.org', activo: true, creado_en: '2026-08-01T10:00:00Z', creado_por: 'migracion' },
+    {
+      email: 'jefatura-de-pruebas-con-correo-largo@example.org',
+      activo: false,
+      creado_en: '2026-09-03T10:00:00Z',
+      creado_por: 'jefe@example.org',
+    },
+  ],
+  dispositivos: [{ id: 'x1' }, { id: 'x2' }],
+  nucleos: [
+    { nombre: 'Albolote', municipio: 'albolote', manual: false },
+    { nombre: 'Pretel', municipio: 'albolote', manual: true },
+  ],
+};
+
 /** Jefatura con el panel simulado; `tablas` añade o sustituye tablas (la papelera, los administradores…). */
 export async function jefatura(page: Page, tablas: Parameters<typeof simularTablas>[1] = {}) {
   await conGoogle(page, 'jefe@example.org');

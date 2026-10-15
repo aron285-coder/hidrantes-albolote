@@ -8,7 +8,7 @@ import type { NodeResult, Result } from 'axe-core';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { abrirFiltros } from './ayudas.ts';
-import { jefatura, REGISTRO } from './panel-simulado.ts';
+import { jefatura, PANEL_COMPLETO, REGISTRO } from './panel-simulado.ts';
 
 test.describe.configure({ timeout: 120_000 });
 test.skip(({ isMobile }) => isMobile, 'en el proyecto de escritorio, con el ancho a mano (como anchos.spec.ts)');
@@ -17,44 +17,6 @@ const CARGA = 15_000;
 const ANCHOS = [360, 412, 820, 1100, 1280, 1920] as const;
 const PESTANAS = ['cola', 'inventario', 'registro', 'papelera', 'ajustes'] as const;
 
-const hace = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
-
-/** Lo que falta en el panel simulado de siempre: la papelera con puntos y lo que lee Ajustes. */
-const EXTRA = {
-  // Más de una página (50 por página): los botones de página también se miden.
-  v_registro: Array.from({ length: 60 }, (_, i) => ({ ...REGISTRO[i % REGISTRO.length], id: i + 1 })),
-  puntos: [
-    { id: 'b1', codigo: 'BOC-0042', tipo: 'boca_riego', diametro_mm: 45, borrado_en: hace(48) },
-    { id: 'b2', codigo: 'HID-0108', tipo: 'hidrante', diametro_mm: 80, borrado_en: hace(29 * 24 + 2) },
-  ],
-  config: [
-    { clave: 'codigo_acceso', valor: '482917' },
-    { clave: 'codigo_acceso_cambiado_en', valor: '2026-09-02T10:00:00Z' },
-    { clave: 'codigo_acceso_cambiado_por', valor: 'jefe@example.org' },
-    { clave: 'meses_revision', valor: 12 },
-    { clave: 'radio_duplicado_m', valor: 25 },
-    { clave: 'dias_papelera', valor: 30 },
-    { clave: 'buffer_zona_m', valor: 400 },
-    { clave: 'max_subidas_dispositivo_dia', valor: 40 },
-    { clave: 'metros_tramo_manguera', valor: 20 },
-    { clave: 'escala_radios', valor: [11, 9, 7, 5.5, 5] },
-  ],
-  administradores: [
-    { email: 'jefe@example.org', activo: true, creado_en: '2026-08-01T10:00:00Z', creado_por: 'migracion' },
-    {
-      email: 'jefatura-de-pruebas-con-correo-largo@example.org',
-      activo: false,
-      creado_en: '2026-09-03T10:00:00Z',
-      creado_por: 'jefe@example.org',
-    },
-  ],
-  dispositivos: [{ id: 'x1' }, { id: 'x2' }],
-  nucleos: [
-    { nombre: 'Albolote', municipio: 'albolote', manual: false },
-    { nombre: 'Pretel', municipio: 'albolote', manual: true },
-  ],
-};
-
 /** Los textos de la interfaz que acaban en «…» (un botón que abre algo, «Cargando…»): esos no son datos cortados. */
 function textosConPuntos(o: unknown, fuera = new Set<string>()): Set<string> {
   if (typeof o === 'string') {
@@ -62,6 +24,13 @@ function textosConPuntos(o: unknown, fuera = new Set<string>()): Set<string> {
   } else if (o && typeof o === 'object') for (const v of Object.values(o)) textosConPuntos(v, fuera);
   return fuera;
 }
+/** El panel completo y, además, 60 entradas en el Registro: más de una página. */
+const EXTRA = {
+  ...PANEL_COMPLETO,
+  // Más de una página (50 por página): los botones de página también se miden.
+  v_registro: Array.from({ length: 60 }, (_, i) => ({ ...REGISTRO[i % REGISTRO.length], id: i + 1 })),
+};
+
 const INTERFAZ_CON_PUNTOS = [...textosConPuntos(T)];
 
 async function abrir(page: Page, pestana: (typeof PESTANAS)[number]) {

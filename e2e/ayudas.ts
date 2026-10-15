@@ -1,6 +1,6 @@
 // Ayudas de los e2e: sesión guardada y un Supabase simulado con page.route.
 
-import type { Page, Route } from '@playwright/test';
+import { expect, type Page, type Route } from '@playwright/test';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 import { T } from '../src/lib/textos.ts';
 
@@ -162,6 +162,8 @@ export async function filtrarPor(page: Page, grupo: string, opcion: string | Reg
   await abrirFiltros(page);
   await elegirFiltro(page, grupo, opcion);
   await page.getByRole('button', { name: T.panel.listo, exact: true }).click();
+  // El foco vuelve al botón de filtros un frame después: se espera, para que no se lo quite a lo siguiente.
+  await expect(page.getByRole('button', { name: /^Filtros: / })).toBeFocused();
 }
 
 /**
