@@ -31,6 +31,8 @@ const REGISTRO = Array.from({ length: 6 }, (_, i) => ({
 const PAPELERA = [
   { id: 'b1', codigo: 'BOC-0042', tipo: 'boca_riego', diametro_mm: 45, borrado_en: hace(48) },
   { id: 'b2', codigo: 'HID-0107', tipo: 'hidrante', diametro_mm: 100, borrado_en: hace(500) },
+  // docs/38 RV-508: a este le queda un día.
+  { id: 'b3', codigo: 'HID-0108', tipo: 'hidrante', diametro_mm: 80, borrado_en: hace(29 * 24 + 2) },
 ];
 
 async function prepararPanel(page: Page) {
@@ -128,7 +130,7 @@ test.describe('a 412 × 915', () => {
     await auditar(page, 'Registro en el móvil');
   });
 
-  // Papelera sigue en tabla: con cuatro columnas cabe a 412 px (docs/28 RV-116, comprobado aquí).
+  // Desde docs/38 RV-508, la Papelera es una lista por debajo de 1.100 px.
   test('Papelera con filas cabe a lo ancho y «Restaurar» se toca (RV-116)', async ({ page }) => {
     const panel = await prepararPanel(page);
     await page.goto('/admin/papelera');
@@ -149,7 +151,7 @@ test.describe('desde md', () => {
     [768, 1024, false],
     [1440, 900, true],
   ] as const) {
-    test(`a ${ancho} px, Registro y Papelera caben (RV-116, docs/38 RV-507)`, async ({ page }) => {
+    test(`a ${ancho} px, Registro y Papelera caben (RV-116, docs/38 RV-507 y RV-508)`, async ({ page }) => {
       await page.setViewportSize({ width: ancho, height: alto });
       const panel = await prepararPanel(page);
       await page.goto('/admin/registro');
@@ -159,7 +161,7 @@ test.describe('desde md', () => {
 
       await page.goto('/admin/papelera');
       await expect(page.getByText(PAPELERA[1].codigo)).toBeVisible({ timeout: CARGA });
-      await expect(page.locator('table')).toHaveCount(1);
+      await expect(page.locator('table')).toHaveCount(tablaRegistro ? 1 : 0);
       expect(await desbordes(page)).toEqual([]);
       await panel.sinErrores();
     });
@@ -289,5 +291,93 @@ test.describe('Registro por anchos (docs/38 RV-507)', () => {
     await page.goto('/admin/registro');
     await expect(filasRegistro(page)).toHaveCount(3, { timeout: CARGA });
     expect((await page.getByRole('main').locator('table').boundingBox())!.width).toBeLessThanOrEqual(1500);
+  });
+});
+
+// ---------- docs/38 RV-508: la Papelera por anchos ----------
+
+test.describe('Papelera por anchos (docs/38 RV-508)', () => {
+  test.skip(({ isMobile }) => isMobile, 'cada test fija su ventana');
+  const filas = (page: Page) => page.getByRole('main').locator('ul[aria-label="Papelera"] > li');
+
+  test('a 412: lista; «Restaurar» de 44 px; «Purgar…» en rojo y lejos de los «Restaurar»; «queda 1 día» en rojo', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    const panel = await prepararPanel(page);
+    await page.goto('/admin/papelera');
+    await expect(filas(page)).toHaveCount(PAPELERA.length, { timeout: CARGA });
+    await expect(page.getByRole('main').locator('table')).toHaveCount(0);
+    const primera = filas(page).first();
+    await expect(primera).toContainText(`${T.panelPapelera.colBorrado} `);
+    await expect(primera).toContainText(T.panelPapelera.quedan(28));
+    const restaurar = page.getByRole('button', { name: T.panel.restaurar });
+    for (const b of await restaurar.all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+
+    const purgar = page.getByRole('button', { name: T.panelPapelera.purgarCaducado });
+    const caja = (await purgar.boundingBox())!;
+    expect(caja.height).toBeGreaterThanOrEqual(44);
+    const rojo = await page.evaluate(() => {
+      const d = document.createElement('div');
+      d.className = 'text-rojo-texto';
+      document.body.append(d);
+      const c = getComputedStyle(d).color;
+      d.remove();
+      return c;
+    });
+    await expect(purgar).toHaveCSS('color', rojo);
+    await expect(purgar).toHaveCSS('border-top-color', rojo);
+    // Ningún «Restaurar» en la misma franja que «Purgar…».
+    for (const b of await restaurar.all()) {
+      const r = (await b.boundingBox())!;
+      expect(r.y >= caja.y + caja.height || r.y + r.height <= caja.y).toBe(true);
+    }
+
+    const ultimo = filas(page).filter({ hasText: 'HID-0108' }).getByText(T.panelPapelera.quedan(1));
+    await expect(ultimo).toHaveCSS('color', rojo);
+    await expect(ultimo).toHaveCSS('font-weight', '700');
+    expect(await desbordes(page)).toEqual([]);
+    await panel.sinErrores();
+  });
+
+  test('a 820 px, lista', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 1180 });
+    const panel = await prepararPanel(page);
+    await page.goto('/admin/papelera');
+    await expect(filas(page)).toHaveCount(PAPELERA.length, { timeout: CARGA });
+    await expect(page.getByRole('main').locator('table')).toHaveCount(0);
+    expect(await desbordes(page)).toEqual([]);
+    await panel.sinErrores();
+  });
+
+  test('a 1280 px, la tabla mide como mucho 900 px y el diálogo de purgar sigue igual', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await prepararPanel(page);
+    await page.goto('/admin/papelera');
+    const tabla = page.getByRole('main').locator('table');
+    await expect(tabla.locator('tbody > tr')).toHaveCount(PAPELERA.length, { timeout: CARGA });
+    expect((await tabla.boundingBox())!.width).toBeLessThanOrEqual(900);
+    await page.getByRole('button', { name: T.panelPapelera.purgarCaducado }).click();
+    const dialogo = page.getByRole('dialog', { name: T.panelPapelera.purgarCaducado });
+    await expect(dialogo).toContainText(T.panelPapelera.avisoPurga(30));
+    await dialogo.getByRole('button', { name: T.panelCola.cancelar }).click();
+    await expect(dialogo).toHaveCount(0);
+  });
+
+  test('vacía: «Purgar…» deshabilitado y descrito por «La papelera está vacía.»', async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await prepararPanel(page);
+    await page.route(`${SUPABASE_PRUEBAS}/rest/v1/puntos?*`, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: '[]',
+      }),
+    );
+    await page.goto('/admin/papelera');
+    const purgar = page.getByRole('button', { name: T.panelPapelera.purgarCaducado });
+    await expect(page.getByText(T.panelPapelera.vacia)).toBeVisible({ timeout: CARGA });
+    await expect(purgar).toBeDisabled();
+    await expect(purgar).toHaveAccessibleDescription(T.panelPapelera.vacia);
   });
 });
