@@ -91,7 +91,7 @@ export function Entrada({ caducado }: { caducado: boolean }) {
 
   async function entrar(e: FormEvent) {
     e.preventDefault();
-    if (bloqueado || enviando) return;
+    if (bloqueado || enviando || reintento) return;
     const codigo = cifras.join('');
     const faltaCodigo = codigo.length !== CIFRAS;
     const faltaNombre = !nombre.trim() || !apellido.trim();
@@ -217,9 +217,14 @@ export function Entrada({ caducado }: { caducado: boolean }) {
         >
           {enviando ? T.entrada.entrando : T.entrada.entrar}
         </Boton>
+        {/* El aviso para lectores de pantalla, siempre en la página y una sola vez por espera: la cuenta
+            atrás de abajo cambia cada segundo y no se anuncia (UI-03). */}
+        <p role="status" className="sr-only">
+          {reintento ? T.entrada.ocupadoReintentoAnuncio : ''}
+        </p>
         {reintento && (
           <div className="flex flex-col items-center gap-1">
-            <p role="status" className="text-texto text-sm font-semibold text-balance">
+            <p aria-hidden className="text-texto text-sm font-semibold text-balance">
               {T.entrada.ocupadoReintento(reintento.quedan)}
             </p>
             <Boton variante="secundario" onClick={() => setReintento(null)}>

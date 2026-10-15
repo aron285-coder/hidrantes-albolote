@@ -1,18 +1,18 @@
 {
-  "version": "0.10.0",
-  "fecha": "2026-10-09",
+  "version": "0.14.0",
+  "fecha": "2026-10-14",
   "lineas": [
     {
-      "version": "0.10.0",
-      "texto": "Buscar números de portal y el aviso inmediato vuelven a funcionar para los voluntarios"
+      "version": "0.14.0",
+      "texto": "Al editar un punto, si otro administrador lo cambia a la vez se avisa y se puede ver lo nuevo sin perder lo escrito"
     },
     {
-      "version": "0.10.0",
-      "texto": "Al llegar a un tope de fotos, el móvil sabe cuánto esperar"
+      "version": "0.14.0",
+      "texto": "El código de acceso pegado desde el teclado o sugerido por el móvil se escribe entero en las seis casillas"
     },
     {
-      "version": "0.9.0",
-      "texto": "Fuera «Algo no funciona en la aplicación»"
+      "version": "0.14.0",
+      "texto": "La entrada con el código aguanta mejor una avalancha de intentos sin hacer esperar a quien escribe bien el código"
     }
   ]
 }

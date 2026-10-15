@@ -77,7 +77,7 @@ test.describe('entrar con mucha gente entrando: reintento solo (RV-491)', () => 
     await simularRpc(page, { fn_listar_puntos: { puntos: [], bajas: [] } });
     await page.goto('/');
     await entrar(page);
-    await expect(page.getByRole('status').filter({ hasText: T.entrada.ocupadoReintento(1) })).toBeVisible();
+    await expect(page.getByText(T.entrada.ocupadoReintento(1))).toBeVisible();
     await expect(page.getByRole('heading', { name: T.bienvenida.pantallas[0]!.titulo })).toBeVisible();
     expect(llamadas).toBe(2);
   });
@@ -108,8 +108,10 @@ test.describe('entrar con mucha gente entrando: reintento solo (RV-491)', () => 
     });
     await page.goto('/');
     await entrar(page);
-    const espera = page.getByRole('status').filter({ hasText: /Lo vuelvo a intentar en \d+ s/ });
+    const espera = page.getByText(/Lo vuelvo a intentar en \d+ s/);
     await expect(espera).toBeVisible();
+    // Lo que oye un lector de pantalla: una vez, sin la cuenta atrás.
+    await expect(page.getByRole('status').filter({ hasText: T.entrada.ocupadoReintentoAnuncio })).toBeAttached();
     await expect(page.getByRole('button', { name: T.entrada.entrar, exact: true })).toBeDisabled();
     await page.getByRole('button', { name: T.entrada.cancelarReintento }).click();
     await expect(espera).toBeHidden();
@@ -126,7 +128,7 @@ test.describe('entrar con mucha gente entrando: reintento solo (RV-491)', () => 
     });
     await page.goto('/');
     await entrar(page);
-    const espera = page.getByRole('status').filter({ hasText: /Lo vuelvo a intentar en \d+ s/ });
+    const espera = page.getByText(/Lo vuelvo a intentar en \d+ s/);
     await expect(espera).toBeVisible();
     await page.getByLabel(T.entrada.nombre).fill(`${FIRMA.nombre}a`);
     await expect(espera).toBeHidden();

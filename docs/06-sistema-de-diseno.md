@@ -462,7 +462,7 @@ con una cuenta que tiene otra identidad unida (docs/36 RV-450, en lugar del ante
 `No se ha podido entrar (código [ALGO_NUEVO]). Inténtalo más tarde.` (un mensaje por error al entrar, docs/32 RV-242) ·
 `Hay mucha gente entrando a la vez. Prueba otra vez en un minuto.` ·
 `No se ha podido entrar. Inténtalo más tarde; si sigue igual, díselo a jefatura.` (docs/35 RV-426) ·
-`Mucha gente entrando a la vez. Lo vuelvo a intentar en [N] s…` · `Cancelar` (la app lo intenta sola tras «mucha gente entrando», como mucho tres veces; Cancelar para la espera; docs/37 RV-491).
+`Mucha gente entrando a la vez. Lo vuelvo a intentar en [N] s…` · `Mucha gente entrando a la vez. Lo vuelvo a intentar solo.` (lo que oye un lector de pantalla, una vez) · `Cancelar` (la app lo intenta sola tras «mucha gente entrando», como mucho tres veces; Cancelar para la espera; docs/37 RV-491).
 
 **Primer uso** (FR-94). `Cuanto más grande, más agua da` ·
 `Círculo = hidrante, cuadrado = boca de riego. El color dice el estado; el tamaño, lo aprovechable que es. Un anillo de rayas alrededor significa que nadie lo ha revisado en más de un año.` ·
