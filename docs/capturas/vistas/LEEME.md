@@ -8,7 +8,7 @@ actual de la app, con **datos simulados** (`e2e/puntos.ts`): códigos `HID-90nn`
 descripciones `[PRUEBA]`, la voluntaria ficticia «Voluntaria Pruebas» y `jefe@example.org`.
 Ninguna sale de staging ni de producción, y ningún nombre es de nadie (FR-27, DEC-053).
 
-Las del panel se sustituyeron el 2026-10-16 (`docs/38` RV-511) con `e2e/vistas.spec.ts` del PR #804 (RV-510), con el
+Las del panel se sustituyeron el 2026-10-16 (`docs/38` RV-511) con `e2e/vistas.spec.ts` del PR #805 (RV-511, sobre el de RV-510, PR #804), con el
 panel simulado de `e2e/panel-simulado.ts` (`PANEL_COMPLETO`): el panel por anchos, con las listas, los filtros en un
 botón y el menú ☰ del móvil.
 
