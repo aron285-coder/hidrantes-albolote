@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.18.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.17.0...hidrantes-albolote-v0.18.0) (2026-10-16)
+
+
+### Correcciones
+
+* **ajustes:** Novedades vuelve a enseñar lo de la última versión ([#895](https://github.com/aron285-coder/hidrantes-albolote/issues/895)) ([41f65ea](https://github.com/aron285-coder/hidrantes-albolote/commit/41f65ea417c6006bf7191f1189e3bddb1bf9b657))
+* **avisos:** un móvil sin acceso deja de recibir avisos, también si se revoca mientras se suscribe ([#899](https://github.com/aron285-coder/hidrantes-albolote/issues/899)) ([0fe4424](https://github.com/aron285-coder/hidrantes-albolote/commit/0fe44247b6c877abe21943259cd007d5f8b6b735))
+* **panel:** el detalle de un alta aprobada dice en su título el código del punto que creó ([#900](https://github.com/aron285-coder/hidrantes-albolote/issues/900)) ([6d4dc9c](https://github.com/aron285-coder/hidrantes-albolote/commit/6d4dc9cdb128ec681b9abea2837ff7c6d9874fab))
+* **panel:** en el móvil, «Reintentar» y la ✕ de los diálogos del panel se tocan bien ([#902](https://github.com/aron285-coder/hidrantes-albolote/issues/902)) ([42d826f](https://github.com/aron285-coder/hidrantes-albolote/commit/42d826f7de5114dd577d38ed8c9546132e0f6020))
+* **propuestas:** con el acceso caducado, la pantalla de resultado solo deja volver al mapa ([#901](https://github.com/aron285-coder/hidrantes-albolote/issues/901)) ([61b890a](https://github.com/aron285-coder/hidrantes-albolote/commit/61b890a3f477ad4237da90ddbbb479f577047dee))
+
+
+### Documentación
+
+* la release de la revisión tras docs/39 es la 0.18.0 ([#905](https://github.com/aron285-coder/hidrantes-albolote/issues/905)) ([0e60d39](https://github.com/aron285-coder/hidrantes-albolote/commit/0e60d39a6147abf5ca43db3c326d0b17cdfd4515))
+
 ## [0.17.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.16.1...hidrantes-albolote-v0.17.0) (2026-10-16)
 
 
