@@ -98,7 +98,8 @@ export function MenuBoton({
   useEffect(() => {
     if (!abierto || !posicion) return;
     const lista = habilitadas();
-    (abierto === 'ultimo' ? lista.at(-1) : lista[0])?.focus();
+    // La capa es fixed: enfocar no tiene que desplazar nada, y un desplazamiento cerraría el menú (moverse).
+    (abierto === 'ultimo' ? lista.at(-1) : lista[0])?.focus({ preventScroll: true });
   }, [abierto, posicion]);
 
   useEffect(() => {
@@ -124,7 +125,7 @@ export function MenuBoton({
   function teclaMenu(e: ReactKeyboardEvent) {
     const lista = habilitadas();
     const i = lista.indexOf(document.activeElement as HTMLButtonElement);
-    const ir = (n: number) => lista[(n + lista.length) % lista.length]?.focus();
+    const ir = (n: number) => lista[(n + lista.length) % lista.length]?.focus({ preventScroll: true });
     if (e.key === 'ArrowDown') ir(i + 1);
     else if (e.key === 'ArrowUp') ir(i - 1);
     else if (e.key === 'Home') ir(0);
