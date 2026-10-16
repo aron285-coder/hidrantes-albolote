@@ -5,7 +5,8 @@
  */
 export function destinoAdmitido(endpoint: unknown): boolean {
   if (typeof endpoint !== 'string') return false;
-  const m = /^https:\/\/([^/?#]*)/i.exec(endpoint);
+  // `https://` en minúsculas, como en la base; el host, sin distinguir (docs/40 RV-532).
+  const m = /^https:\/\/([^/?#]*)/.exec(endpoint);
   if (!m) return false;
   const host = m[1].toLowerCase();
   if (!/^[a-z0-9.-]+$/.test(host)) return false;

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura (si afecta a datos que ve) y nueva versión; todo cambio arrastra una entrada en 12 y una migración nueva. |
-| **Versión** | 1.7 — 16 de octubre de 2026 (`docs/39` RV-517, DEC-220, migración 0051): la clave `tareas_paradas` (§2.16), `fn_vigilar_tareas` y la tarea `hidrantes_vigilar_tareas` (§6.3), y `config.vigilar_respaldo`. 1.6 — 16 de octubre de 2026 (`docs/39` RV-515, DEC-218, migración 0050): avisos push, comprobaciones del destino y tope por móvil (§2.12, §6.1, §6.3). 1.5 — 15 de octubre de 2026 (`docs/37` RV-495), aprobada por el desarrollador al pedir el cambio (DEC-177): recoge los cambios de `docs/35` y `docs/36` (DEC-197 a DEC-208; migraciones 0045 a 0048: jefatura atada a su cuenta de Google, avisos técnicos, la entrada con el código, los móviles recién entrados y la versión al editar) y de `docs/37` (DEC-211; migración 0049: la entrada abierta para la Function y cualquier versión distinta en Editar). Los topes de §2.6 y §2.10 tienen ahora su exigencia en 03 (TR-48, TR-49, TR-56). Las versiones intermedias no se numeraron: cada cambio está anotado en su sección con su migración y su especificación. 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
+| **Versión** | 1.8 — 16 de octubre de 2026 (`docs/40` RV-532, migración 0052): §2.12, el cerrojo por móvil también en el disparador de la revocación, y guardar una suscripción comprueba el token después de tomarlo · 1.7 — 16 de octubre de 2026 (`docs/39` RV-517, DEC-220, migración 0051): la clave `tareas_paradas` (§2.16), `fn_vigilar_tareas` y la tarea `hidrantes_vigilar_tareas` (§6.3), y `config.vigilar_respaldo`. 1.6 — 16 de octubre de 2026 (`docs/39` RV-515, DEC-218, migración 0050): avisos push, comprobaciones del destino y tope por móvil (§2.12, §6.1, §6.3). 1.5 — 15 de octubre de 2026 (`docs/37` RV-495), aprobada por el desarrollador al pedir el cambio (DEC-177): recoge los cambios de `docs/35` y `docs/36` (DEC-197 a DEC-208; migraciones 0045 a 0048: jefatura atada a su cuenta de Google, avisos técnicos, la entrada con el código, los móviles recién entrados y la versión al editar) y de `docs/37` (DEC-211; migración 0049: la entrada abierta para la Function y cualquier versión distinta en Editar). Los topes de §2.6 y §2.10 tienen ahora su exigencia en 03 (TR-48, TR-49, TR-56). Las versiones intermedias no se numeraron: cada cambio está anotado en su sección con su migración y su especificación. 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
 | **Propietario de** | **campos, tipos, constraints, índices, vistas, políticas RLS, firmas de las RPC y contrato HTTP de las Pages Functions.** El documento más consultado durante la construcción; 04 y 09 lo citan, no lo repiten. |
 | **No contiene** | la motivación de las decisiones (→ 04, 12) ni las reglas funcionales (→ 01, citadas por `FR-nn`). |
 
@@ -351,7 +351,10 @@ administrador en el mismo ordenador, se la queda). Hasta 0030 el único era solo
 guardar la cuarta se borra la más vieja (con un cerrojo por móvil o por correo, `pg_advisory_xact_lock`, 05 §11).
 Cuando a un móvil no le queda **ningún token válido** (sin `revocado_en`), sus suscripciones se borran (disparador
 `dispositivos_suscripciones_tras_revocar`: cubre `fn_revocar_dispositivo`, `fn_revocar_desde`, el cambio de código
-revocando y la tarea `hidrantes_revocar_tokens`); un móvil con otro token válido las conserva. Al quitar el acceso a
+revocando y la tarea `hidrantes_revocar_tokens`); un móvil con otro token válido las conserva. **Desde 0052**
+(`docs/40` RV-532), el disparador toma el mismo cerrojo por móvil antes de mirar si quedan tokens válidos, y
+`fn_guardar_suscripcion_push` vuelve a comprobar el token **después** de tomarlo: una revocación que se confirma
+mientras se guarda una suscripción, o dos tokens del mismo móvil revocados a la vez, no dejan ninguna. Al quitar el acceso a
 un administrador, las suyas (disparador `administradores_suscripciones_tras_quitar_acceso`). `fn_avisar_jefatura` y
 `fn_encolar_resumen_semanal` solo avisan a administradores activos.
 
@@ -633,6 +636,7 @@ fn_reportar_incidencia(token text, descripcion text, version_app text, ruta text
 fn_guardar_suscripcion_push(token text, suscripcion jsonb, temas text[]) returns uuid
   -- 0050 (DEC-218): temas null o {resultado_propuesta}; otro → PAYLOAD_INVALIDO(temas). Como mucho 3 por móvil:
   --   la cuarta borra la más vieja. El destino, con fn_validar_suscripcion (§2.12).
+  -- 0052 (docs/40 RV-532): el token se comprueba otra vez tras tomar el cerrojo del móvil.
 fn_borrar_suscripcion_push(token text) returns void
 
 -- 0044 (docs/33 RV-323): ¿tiene ese endpoint alguna fila de jefatura (dispositivo_id null)? Solo
@@ -968,7 +972,8 @@ fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- "fuera" = a más de config.buffer_zona_m de todo límite (st_dwithin), igual que zona-cobertura.geojson
   -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
-fn_suscripciones_tras_revocar() returns trigger          -- 0050: un móvil sin tokens válidos, sin suscripciones
+fn_suscripciones_tras_revocar() returns trigger          -- 0050: un móvil sin tokens válidos, sin suscripciones;
+                                                         --   0052: con el cerrojo del móvil
 fn_suscripciones_tras_quitar_acceso() returns trigger    -- 0050: un administrador sin acceso, sin suscripciones
 fn_punto_json(p puntos) returns jsonb   -- la fila sin geom y con lat/lng, para antes/despues del registro;
                                         -- desde 0045 sin datos_cambiados_en (marca técnica, RV-403)

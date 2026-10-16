@@ -24,3 +24,12 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   `comprobar-cadena --url` comprueba la URL de la API (`https://<ref>.supabase.co`) y `purgar-fotos.yml` la usa para
   `SUPABASE_URL_PROD`. Tests que fallaban antes: los siete nuevos de `scripts/workflows.test.ts` (la guarda con id y sin
   `if:`, y todo paso tras un fallo que usa la base depende de ella) y los de `comprobar-cadena --url`. 04 v1.11 (§9).
+- **RV-532:** migración `0052`: el disparador de la revocación toma el cerrojo por móvil antes de mirar si quedan tokens
+  válidos, y `fn_guardar_suscripcion_push` vuelve a comprobar el token tras tomarlo; `acceso-restaurado.ts` inserta los
+  tokens vigentes antes de revocar el resto; `destino-push.ts`, `https://` sin `/i` (como la base). Tests que fallaban
+  antes: pgTAP `50_suscripciones_concurrencia` (4, con `dblink`: revocar mientras se guarda y dos tokens a la vez, los
+  dos dejaban una suscripción), `scripts/lib/acceso-restaurado.test.ts` (el orden) y `destino-push.test.ts`
+  (`HTTPS://` rechaza). 05 v1.8 (§2.12), 12 v1.71 (DEC-218).
+  Revisión: tras el cerrojo, la comprobación del token solo lee (`fn_validar_token` anota `ultimo_uso`, y escribir en
+  `dispositivos` después del cerrojo podría cruzarse con una revocación); tercer caso pgTAP con un token viejo y una
+  revocación de todo el móvil (6 en total). Sin `0052`, los casos 1 y 4 fallaban en CI; con ella, en verde.
