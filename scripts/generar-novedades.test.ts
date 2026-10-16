@@ -367,7 +367,7 @@ describe('títulos con «(docs/NN …)» y el CHANGELOG real (docs/40 RV-529, DE
     const n = novedadesDe(log);
     const porAmbito = new Map<string, Set<string>>();
     for (const l of deUsuario) {
-      const ambito = /^**([^*:]+):/.exec(l)![1]!.trim().toLowerCase();
+      const ambito = /^\*\*([^*:]+):/.exec(l)![1]!.trim().toLowerCase();
       porAmbito.set(ambito, (porAmbito.get(ambito) ?? new Set()).add(lineaParaNovedades(l)!));
     }
     const caben = [...porAmbito.values()].reduce((n, textos) => n + Math.min(textos.size, MAX_POR_AMBITO), 0);
