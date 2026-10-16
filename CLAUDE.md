@@ -217,7 +217,7 @@ Las del proyecto están versionadas en `.claude/skills/` (DEC-116) y las tiene c
 |---|---|
 | `paquete-rv` | al empezar cualquier paquete de puntos RV/GM de una especificación `docs/NN`, o un arreglo suelto durante la congelación: de la rama a la fusión, con el test que falla antes (DEC-116) |
 | `nueva-migracion` | siempre que haya que cambiar una tabla, función, vista, permiso o tarea `pg_cron` (con varias sesiones, solo la Backend) |
-| `revisar-pantallas` | en cualquier PR que toque `src/**` o estilos, y cuando se pida una revisión visual de staging: capturas a 412 × 915 y 1280 × 800 (en el panel, también 820 × 1180 y 1920 × 1080), mirarlas y adjuntarlas |
+| `revisar-pantallas` | en cualquier PR que toque `src/**` o estilos, y cuando se pida una revisión visual de staging: capturas a 412 × 915 y 1280 × 800 (el panel, a 412 × 915 y a 820, 1280 y 1920 × 900, como `vistas.spec.ts`), mirarlas y adjuntarlas |
 
 Instaladas por `npm run arranque` en el PC del desarrollador (04 §15). **No están en Git:** en una sesión nueva o
 en la nube pueden faltar. Si faltan, sigue sin ellas; no las instales por tu cuenta.

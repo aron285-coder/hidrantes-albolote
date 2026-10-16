@@ -146,11 +146,13 @@ describe('Salud: lo que queda, con nombres en palabras (RV-335)', () => {
     );
   });
 
-  it('en staging, el respaldo no aplica; en producción, sin respaldo, "todavía ninguno"', () => {
-    expect(fila({ ...BIEN, ultimo_respaldo: null }, T.panelAjustes.ultimoRespaldo, 'staging')!.valor).toBe(
-      T.panelAjustes.respaldoNoAplica,
-    );
-    expect(fila({ ...BIEN, ultimo_respaldo: null }, T.panelAjustes.ultimoRespaldo)!.valor).toBe(T.panelAjustes.nunca);
+  // docs/39 RV-522: staging tiene respaldo semanal desde DEC-203: se trata como producción.
+  it('sin respaldo, "todavía ninguno" y aviso, también en staging', () => {
+    for (const entorno of ['staging', 'produccion'] as const) {
+      const f = fila({ ...BIEN, ultimo_respaldo: null }, T.panelAjustes.ultimoRespaldo, entorno)!;
+      expect(f.valor).toBe(T.panelAjustes.nunca);
+      expect(f.aviso).toBe(true);
+    }
   });
 });
 
@@ -170,8 +172,10 @@ describe('Salud: el resumen de arriba (RV-335)', () => {
     expect(atencionSalud({ ...sinBd, ultimo_respaldo: null }, 'produccion', ahora)).toEqual([
       T.panelAjustes.atencionSinRespaldo,
     ]);
-    // En staging no se respalda (RV-78): no es un problema.
-    expect(atencionSalud({ ...sinBd, ultimo_respaldo: null }, 'staging', ahora)).toEqual([]);
+    // docs/39 RV-522: en staging hay respaldo (DEC-203): que falte sí es un problema.
+    expect(atencionSalud({ ...sinBd, ultimo_respaldo: null }, 'staging', ahora)).toContain(
+      T.panelAjustes.atencionSinRespaldo,
+    );
   });
 
   it('la vigilancia que no ha pasado nunca: aviso fuera de staging', () => {

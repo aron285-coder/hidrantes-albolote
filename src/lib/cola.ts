@@ -415,6 +415,9 @@ export async function vaciarCola(): Promise<void> {
 
 type Credencial = { token: string } | { jwt: string };
 
+/** El último token que el servidor rechazó (TOKEN_*): no se vuelve a pedir la comprobación de acceso por él. */
+let tokenRechazado: string | null = null;
+
 async function credencial(): Promise<Credencial | null> {
   const s = leerSesion();
   if (s) return { token: s.token };
@@ -610,8 +613,14 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
     const actual = items.find((i) => i.clave_local === pendiente.clave_local);
     if (!actual) continue;
     if (r.codigo.startsWith('TOKEN_')) {
-      // Acceso caducado o revocado: lo resuelve acceso (vuelta a la entrada); la cola espera.
-      void reintentarAhora();
+      // Acceso caducado o revocado: lo resuelve acceso (vuelta a la entrada); la cola espera. Una vez por token:
+      // con un formulario abierto acceso no lo borra (docs/39 RV-520), y pedir otra comprobación en cada vuelta
+      // volvería a lanzar la cola sin pausa.
+      const token = 'token' in c ? c.token : null;
+      if (token === null || token !== tokenRechazado) {
+        tokenRechazado = token;
+        void reintentarAhora();
+      }
       return 'parar';
     }
     if (esPermanente(r.codigo)) {
@@ -842,6 +851,7 @@ function pedirAlmacenPersistente() {
 /** Solo para los tests. */
 export function _usarAlmacenCola(a: AlmacenCola<EnCola>) {
   almacen = a;
+  tokenRechazado = null;
   items = [];
   cargada = false;
   procesando = null;

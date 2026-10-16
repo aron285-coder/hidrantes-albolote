@@ -75,6 +75,15 @@ jobs:
             exit 1
           fi
 
+      # docs/39 RV-518: la cadena tiene que ser del proyecto de producción, antes de cualquier psql o pg_dump.
+      - name: Comprobar el proyecto de la base
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BD:-}" ]; then echo "::warning::Sin SUPABASE_DB_URL_PROD: no hay base que comprobar"; exit 0; fi
+          node scripts/comprobar-cadena.ts --entorno prod --variable BD
+
       - name: Buscar y borrar las huérfanas
         id: purga
         env:

@@ -130,10 +130,9 @@ export function filasSalud(s: Salud, entorno: Entorno, ahora: Date = new Date())
       etiqueta: T.panelAjustes.ultimoRespaldo,
       valor: s.ultimo_respaldo
         ? `${hace(s.ultimo_respaldo, ahora)} · ${fechaCorta(s.ultimo_respaldo)}`
-        : entorno === 'staging'
-          ? T.panelAjustes.respaldoNoAplica
-          : T.panelAjustes.nunca,
-      aviso: entorno !== 'staging' && (!s.ultimo_respaldo || respaldoViejo(s.ultimo_respaldo, ahora)),
+        : T.panelAjustes.nunca,
+      // Staging también se respalda cada semana (DEC-203): igual que producción (docs/39 RV-522).
+      aviso: !s.ultimo_respaldo || respaldoViejo(s.ultimo_respaldo, ahora),
     },
     {
       etiqueta: T.panelAjustes.ultimaVigilancia,
@@ -189,12 +188,10 @@ function filaFrenadas(s: Salud, ahora: Date): FilaSalud[] {
  */
 export function atencionSalud(s: Salud, entorno: Entorno, ahora: Date = new Date()): string[] {
   const lista: string[] = [];
-  // En staging no se respalda (docs/20 RV-78): que no haya respaldo no es un problema.
-  if (entorno !== 'staging') {
-    if (!s.ultimo_respaldo) lista.push(T.panelAjustes.atencionSinRespaldo);
-    else if (respaldoViejo(s.ultimo_respaldo, ahora))
-      lista.push(T.panelAjustes.atencionRespaldoViejo(hace(s.ultimo_respaldo, ahora)));
-  }
+  // En staging también hay respaldo semanal desde DEC-203: se trata como producción (docs/39 RV-522).
+  if (!s.ultimo_respaldo) lista.push(T.panelAjustes.atencionSinRespaldo);
+  else if (respaldoViejo(s.ultimo_respaldo, ahora))
+    lista.push(T.panelAjustes.atencionRespaldoViejo(hace(s.ultimo_respaldo, ahora)));
   if (sinVigilancia(s, entorno)) lista.push(T.panelAjustes.atencionSinVigilancia);
   else if (vigilanciaAtrasada(s.ultima_vigilancia, ahora)) lista.push(T.panelAjustes.atencionVigilancia);
   else if (s.ultima_vigilancia && s.vigilancia_ok === false) lista.push(T.panelAjustes.atencionVigilanciaAvisos);

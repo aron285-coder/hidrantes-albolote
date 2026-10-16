@@ -28,6 +28,8 @@ vi.mock('./supabase', () => ({
 }));
 
 const reintentarCola = vi.fn(async () => undefined);
+const resincronizarPush = vi.fn(async () => undefined);
+vi.mock('./push', async (original) => ({ ...(await original<typeof import('./push')>()), resincronizarPush }));
 vi.mock('./cola', async (original) => ({ ...(await original<typeof import('./cola')>()), reintentarCola }));
 
 const {
@@ -96,6 +98,8 @@ describe('canje del código (FR-31, FR-33)', () => {
     vi.stubGlobal('fetch', fetch);
     expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBeNull();
     expect(acceso()).toEqual({ tipo: 'voluntario', sesion: { token: TOKEN, nombre: 'Ana', apellido: 'Ruiz' } });
+    // Al revocar se borraron las suscripciones (DEC-218): se piden ya, sin esperar a la vuelta diaria (docs/39 RV-520).
+    expect(resincronizarPush).toHaveBeenCalledWith(TOKEN, expect.any(Number), true);
 
     const cuerpo = JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
     expect(cuerpo).toEqual({ codigo: '482915', dispositivo_id: expect.stringMatching(/^[0-9a-f-]{36}$/) });
@@ -652,4 +656,48 @@ describe('cerrar sesión revoca el token (docs/31 RV-158)', () => {
       LIMITES_RED.cerrarSesion = 5000;
     }
   }, 2000);
+});
+
+// docs/39 RV-520 (DEC-221): con un formulario abierto, revocar el acceso no salta a la entrada.
+describe('el formulario no se pierde al revocar el acceso (docs/39 RV-520)', () => {
+  beforeEach(async () => {
+    guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+    _reiniciarAcceso();
+    (await import('./formulario-abierto'))._reiniciarFormularios();
+  });
+
+  it('TOKEN_REVOCADO con un formulario abierto: accesoCaducado, el token sigue y no se va a la entrada', async () => {
+    const { abrirFormulario } = await import('./formulario-abierto');
+    const { leerSesion } = await import('./sesion');
+    const cerrar = abrirFormulario();
+    rpc.mockResolvedValue({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: revocado' } });
+    await comprobarAcceso();
+    expect(acceso()).toMatchObject({ tipo: 'voluntario', accesoCaducado: true });
+    expect(leerSesion()?.token).toBe(TOKEN);
+    // Al cerrar el formulario, la entrada y el token olvidado.
+    cerrar();
+    await new Promise((ok) => setTimeout(ok, 0));
+    expect(acceso()).toEqual({ tipo: 'fuera', caducado: true });
+    expect(leerSesion()).toBeNull();
+  });
+
+  it('del formulario a su pantalla de resultado no se sale: el aviso espera a que no quede ninguno', async () => {
+    const { abrirFormulario } = await import('./formulario-abierto');
+    const cerrarFormulario = abrirFormulario();
+    rpc.mockResolvedValue({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: revocado' } });
+    await comprobarAcceso();
+    cerrarFormulario();
+    const cerrarResultado = abrirFormulario();
+    await new Promise((ok) => setTimeout(ok, 0));
+    expect(acceso()).toMatchObject({ tipo: 'voluntario', accesoCaducado: true });
+    cerrarResultado();
+    await new Promise((ok) => setTimeout(ok, 0));
+    expect(acceso().tipo).toBe('fuera');
+  });
+
+  it('sin formulario abierto, como siempre: a la entrada', async () => {
+    rpc.mockResolvedValue({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: revocado' } });
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'fuera', caducado: true });
+  });
 });

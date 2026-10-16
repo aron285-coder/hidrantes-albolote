@@ -129,9 +129,13 @@ jobs:
           set -euo pipefail
           source .github/scripts/build-del-entorno.sh
           build_del_entorno dist VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_VAPID_PUBLIC_KEY ?VITE_MAPABASE_URL
+          # docs/39 RV-524 (DEC-223): la app de staging se llama «Hidrantes test» (manifiesto y <title>).
+          grep -q '"short_name":"Hidrantes test"' dist/manifest.webmanifest || { echo '::error::el manifiesto de staging no dice «Hidrantes test»'; exit 1; }
+          grep -q '<title>Hidrantes test · ' dist/index.html || { echo '::error::el <title> de staging no dice «Hidrantes test»'; exit 1; }
 
       - name: Migraciones (hidrantes_migrador, DEC-052)
-        run: node scripts/migrar.ts
+        # Con --entorno, migrar.ts comprueba que la cadena es del proyecto de staging (docs/39 RV-518).
+        run: node scripts/migrar.ts --entorno staging
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
@@ -159,6 +163,8 @@ jobs:
             echo '::error::Falta CODIGO_STAGING (seis cifras) en el environment staging: npm run arranque -- --codigo-staging (15 §2)'
             exit 1
           fi
+          # docs/39 RV-518: la cadena, del proyecto de staging, antes del primer psql.
+          node scripts/comprobar-cadena.ts --entorno staging
           psql -X -q -v ON_ERROR_STOP=1 -v codigo="$CODIGO_STAGING" -f supabase/seed-staging.sql "$SUPABASE_DB_URL"
           psql -X -q -v ON_ERROR_STOP=1 -v codigo="$CODIGO_STAGING" -f scripts/sql/codigo-staging.sql "$SUPABASE_DB_URL"
 

@@ -12,6 +12,7 @@ let cola: Record<string, unknown>[] = [];
 let puntos: Record<string, unknown>[] = [];
 
 vi.mock('@/hooks/estado', () => ({
+  useAcceso: () => ({ tipo: 'voluntario' }),
   useConexion: () => 'bien',
   usePuntos: () => ({ puntos, guardadoEn: null, sincronizando: false }),
 }));

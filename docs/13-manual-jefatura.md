@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.5 — 16 de octubre de 2026 (`docs/38` RV-511): el panel en el móvil y la tableta: §3, las pestañas en ☰, la lupa y el punto naranja; §4, el botón de filtros y la barra de lote solo con algo marcado; §5, filtrar y ordenar desde un botón, tocar la fila abre Editar y «⋯» lleva lo demás, «＋ Añadir dirección»; §6, el filtro del Registro y «Tú»; §7, «Purgar lo caducado…» en rojo; §8, el orden de las tarjetas y Administradores con su etiqueta y «⋯». 0.4 — 15 de octubre de 2026 (`docs/37` RV-496): §8, activar los avisos técnicos antes del piloto, porque vienen apagados (DEC-202); §10, la rutina de antes del piloto (entrar en el panel, volver a entrar en los demás dispositivos, DEC-206, y activar los avisos). El día del lanzamiento (RV-491) y `OTRA_CUENTA` (RV-493) ya estaban en §8 y §2. 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.9 — 16 de octubre de 2026 (`docs/39` RV-525): §4 y §5, cómo se ve en el móvil (el detalle a pantalla completa, «Corregir», «Rechazar seleccionadas…», Exportar como icono); §5, la revisión caducada es la fecha en rojo; §8, Mantenimiento en staging. 0.8 — 16 de octubre de 2026 (`docs/39` RV-524): §10, la app del piloto se llama «Hidrantes test». 0.7 — 16 de octubre de 2026 (`docs/39` RV-523): §5, las fotos en Editar y el mapa que abre Editar. 0.6 — 16 de octubre de 2026 (`docs/39` RV-517): §8 y §11, el aviso de las tareas automáticas paradas. 0.5 — 16 de octubre de 2026 (`docs/38` RV-511): el panel en el móvil y la tableta: §3, las pestañas en ☰, la lupa y el punto naranja; §4, el botón de filtros y la barra de lote solo con algo marcado; §5, filtrar y ordenar desde un botón, tocar la fila abre Editar y «⋯» lleva lo demás, «＋ Añadir dirección»; §6, el filtro del Registro y «Tú»; §7, «Purgar lo caducado…» en rojo; §8, el orden de las tarjetas y Administradores con su etiqueta y «⋯». 0.4 — 15 de octubre de 2026 (`docs/37` RV-496): §8, activar los avisos técnicos antes del piloto, porque vienen apagados (DEC-202); §10, la rutina de antes del piloto (entrar en el panel, volver a entrar en los demás dispositivos, DEC-206, y activar los avisos). El día del lanzamiento (RV-491) y `OTRA_CUENTA` (RV-493) ya estaban en §8 y §2. 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 
@@ -78,7 +78,8 @@ la tableta, una fila de tres líneas por elemento; en el ordenador (desde 1.100 
 
 ![Cola de revisión](capturas/vistas/panel-cola.png)
 
-A la izquierda, las propuestas; a la derecha, la elegida:
+A la izquierda, las propuestas; a la derecha, la elegida. **En el móvil y la tableta**, tocar una propuesta abre su
+detalle a pantalla completa, con **‹** arriba para volver a la lista:
 
 - el **mapa** con el punto y los de alrededor (*Abrir en grande*, *Mapa* / *Satélite*);
 - **Datos del punto**: todos los campos, con lo que cambia marcado («Bueno → Regular»);
@@ -87,7 +88,7 @@ A la izquierda, las propuestas; a la derecha, la elegida:
 **Decidir:**
 
 - **Aprobar.**
-- **Aprobar con correcciones:** cambias lo que haga falta y *Guardar y aprobar*. Un hidrante con
+- **Aprobar con correcciones** (en el móvil, **Corregir**): cambias lo que haga falta y *Guardar y aprobar*. Un hidrante con
   «otra medida» de diámetro hay que dejarlo en 70 o 100 antes de aprobarlo; una boca de riego se
   aprueba tal cual.
 - **Rechazar…:** el motivo es obligatorio. El voluntario lo verá.
@@ -98,7 +99,8 @@ A la izquierda, las propuestas; a la derecha, la elegida:
 
 **En bloque:** marca las casillas (o *todas*) y aparece la barra de lote con **Aprobar seleccionadas**: abajo en el
 móvil y la tableta, arriba en el ordenador. Sin nada marcado no hay barra. Lo típico: filtrar por *revisiones* («sigue
-igual») y aprobarlas de golpe. El panel dice cuántas se aprobaron y cuáles se quedaron fuera, y por qué.
+igual») y aprobarlas de golpe. El panel dice cuántas se aprobaron y cuáles se quedaron fuera, y por qué. **Rechazar
+seleccionadas…** pide un motivo común, el que verán los autores de todas.
 
 **Filtros:** el botón de filtros de arriba (dice lo que está elegido, por ejemplo «Pendientes · Alta») abre una hoja
 con **Estado** (*Pendientes*, *Aprobadas*, *Rechazadas*, *Retiradas por el autor*: las ya decididas, en solo lectura,
@@ -110,19 +112,21 @@ con quién y por qué), **Operación** y **Núcleo**. *Quitar filtros* lo deja t
 
 - **Filtrar y ordenar:** el botón de arriba abre una hoja con **Tipo**, **Estado** (con cuántos puntos hay de cada uno)
   y, en el móvil y la tableta, **Ordenar por** (tocar otra vez el elegido cambia ▲ / ▼). En el ordenador se ordena
-  tocando el título de cada columna. La revisión en rojo («hace 1 año») es lo caducado: lo que conviene mandar a revisar.
+  tocando el título de cada columna. La fecha de la última revisión **en rojo** es lo caducado: lo que conviene mandar a
+  revisar.
 
   ![Filtrar y ordenar en el móvil](capturas/vistas/panel-movil-filtros.png)
 
-- **Tabla** o **Mapa**, a la derecha.
-- **Exportar ▾**: Excel, CSV o GeoJSON, con los filtros aplicados. El archivo se genera en tu
+- **Tabla** o **Mapa**, a la derecha. En el mapa, tocar un punto abre su *Editar*.
+- **Exportar ▾** (en el móvil, un botón con el icono de descarga): Excel, CSV o GeoJSON, con los filtros aplicados. El archivo se genera en tu
   navegador. Para bomberos o el ayuntamiento. Queda en el Registro. La cuarta opción,
   **Inventario completo (JSON)**, descarga todo sin filtros, como copia de consulta.
 
 **Sobre cada punto:** en el móvil y la tableta, **tocar la fila abre Editar**, y el **«⋯»** de la fila lleva
 *Historial*, *Retirar* y *Borrar*. En el ordenador, cada fila tiene **Editar** y **«⋯»** con lo mismo.
 
-- **Editar:** se abre al lado (a pantalla completa en el móvil), con el mapa y lo que cambias
+- **Editar:** se abre al lado (a pantalla completa en el móvil), con **las fotos del punto** arriba (conexión y
+  sitio; tócalas para verlas en grande; aquí no se cambian), el mapa y lo que cambias
   marcado. Puedes mover el punto y cambiar diámetro, enganche, estado, fallo, dirección y
   descripción; el tipo no. *Guardar cambios* se aplica al momento.
 - **Retirar:** el punto existió y ya no está (obras, asfaltado). Pide motivo y se conserva su
@@ -253,14 +257,16 @@ Para descargar el inventario completo (JSON), ve a *Inventario → Exportar → 
 
 *Regenerar zona de cobertura*, *Regenerar mapa base*, *Respaldo ahora* y *Purgar fotos huérfanas*.
 Se ejecutan fuera de la aplicación y tardan unos minutos; el resultado sale en Salud del sistema y en
-el Registro. En el uso normal no hace falta tocarlos.
+el Registro. En el uso normal no hace falta tocarlos. **En staging (la app del piloto)**, *Purgar fotos huérfanas* y
+*Respaldo ahora* no se pueden usar (trabajan contra producción) y los otros dos solo quedan pedidos: nadie los lanza
+desde staging.
 
 ### Avisos para jefatura
 
 Notificaciones en este navegador, apagadas por defecto: **Nuevas propuestas pendientes** (como mucho
 una por hora), **Resumen semanal** (los lunes: revisiones caducadas y pendientes antiguas) y **Avisos
-técnicos** (si falla la comprobación diaria, el respaldo o una actualización, o si alguien está
-probando códigos de acceso; como mucho uno de cada tipo al día, el de los códigos uno por hora). Un aviso
+técnicos** (si falla la comprobación diaria, el respaldo o una actualización, si las tareas automáticas llevan días
+sin hacerse, o si alguien está probando códigos de acceso; como mucho uno de cada tipo al día, el de los códigos uno por hora). Un aviso
 técnico lleva a Ajustes: mira Salud del sistema; el responsable técnico ya tiene el aviso. Si es el de
 los códigos y se repite, cambia el código. En iPhone, solo con la app instalada.
 
@@ -292,7 +298,7 @@ Lo que cambió en las últimas versiones.
 
 | Cuándo | Qué |
 |---|---|
-| Una vez, antes del piloto | Entrar en el panel (y después, una vez, en los demás dispositivos: apartado 2) y activar los **Avisos técnicos** (apartado 8). |
+| Una vez, antes del piloto | Entrar en el panel (y después, una vez, en los demás dispositivos: apartado 2) y activar los **Avisos técnicos** (apartado 8). Durante el piloto, la app instalada se llama **«Hidrantes test»** (staging); la de producción, «Hidrantes» (DEC-223). |
 | Cada pocos días | Vaciar la cola de revisión. Las *revisiones* se aprueban en bloque. |
 | Cada mes | Inventario ordenado por *Última revisión*: mandar a revisar lo que sale en rojo, por el canal del grupo. |
 | Cada mes | Mirar Salud del sistema (apartado 8). |
@@ -309,6 +315,7 @@ El procedimiento de cada caso está en **15** (Continuidad y emergencias). Los m
 | El código de acceso se ha filtrado | 15 §5.4: código nuevo **revocando** |
 | Una cuenta de administrador puede estar comprometida | 15 §5.5: quitarla de *Acceso de administradores* |
 | La comprobación diaria ha desunido una cuenta de jefatura (aviso técnico; en la issue, «una cuenta de jefatura se ha desunido») | 15 §4: volver a entrar; si se repite, revisar la cuenta de Google |
+| «Las tareas automáticas… llevan días sin hacerse» (aviso técnico) | Avisar al desarrollador: 15 §4, punto 9 |
 | Se han perdido o estropeado datos | 15 §5.3: se restaura el respaldo |
 | Supabase, Cloudflare o GitHub caídos | 15 §5.8: la app sigue abriendo con lo guardado en cada móvil |
 | Un sábado por la tarde nadie conecta | Bloqueos durante el fútbol: lo pendiente sale solo al acabar |

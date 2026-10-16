@@ -34,7 +34,8 @@ const SALUD = {
   pendientes_14d: 2,
   errores_7d: 0,
   sin_direccion: 3,
-  ultimo_respaldo: '2026-09-18T03:00:00Z',
+  // Reciente: desde docs/39 RV-522, en staging (como se construyen los e2e) un respaldo viejo también avisa.
+  ultimo_respaldo: new Date(Date.now() - 2 * 86_400_000).toISOString(),
   storage_bytes: 117_440_512,
   version_zona: '2026-07-14',
   version_mapabase: '2026-07-14',
@@ -482,10 +483,9 @@ test('Salud del sistema enseña la base de datos y las tareas programadas (RV-22
   ).toContainText(T.panelAjustes.tareaFalta);
 });
 
-// docs/20 RV-78: en staging no se hacen respaldos (solo de producción). "todavía ninguno" se leía
-// como un fallo y tapaba los problemas de verdad del piloto. Los e2e se construyen con
-// VITE_ENTORNO=staging (playwright.config.ts).
-test('en staging, el texto del respaldo no aplica (RV-78)', async ({ page }) => {
+// docs/39 RV-522: staging tiene respaldo semanal desde DEC-203, así que sin respaldo se dice y sale en «Necesita
+// atención», como en producción (antes, RV-78, «no se respalda»). Los e2e se construyen con VITE_ENTORNO=staging.
+test('en staging, sin respaldo: «todavía ninguno» y aviso (docs/39 RV-522)', async ({ page }) => {
   await prepararPanel(page, { salud: { ...SALUD, ultimo_respaldo: null } });
   await page.goto('/admin/ajustes');
   const salud = page.getByRole('region').filter({ hasText: T.panel.saludSistema }).first();
@@ -493,8 +493,8 @@ test('en staging, el texto del respaldo no aplica (RV-78)', async ({ page }) => 
     .locator('div')
     .filter({ has: page.getByText(T.panelAjustes.ultimoRespaldo, { exact: true }) })
     .last();
-  await expect(fila).toContainText(T.panelAjustes.respaldoNoAplica);
-  await expect(fila).not.toContainText(T.panelAjustes.nunca);
+  await expect(fila).toContainText(T.panelAjustes.nunca);
+  await expect(salud.getByTestId('resumen-salud')).toContainText(T.panelAjustes.atencionSinRespaldo);
 });
 
 // docs/23 RV-98: la purga de fotos solo mide producción; en staging, "sin dato" parecía una avería.

@@ -2363,3 +2363,60 @@ describe('comprobar-dist.sh', () => {
     expect(r.stdout).toContain('enlace simbólico: assets/enlace.js');
   });
 });
+
+// docs/39 RV-518: los despliegues, el seed, la purga de fotos y el respaldo comprueban el proyecto de la base antes de
+// tocarla.
+describe('la guarda de proyecto en los workflows (docs/39 RV-518)', () => {
+  it('cada deploy migra con su --entorno', () => {
+    expect(leer('deploy-staging.yml')).toMatch(/run: node scripts\/migrar\.ts --entorno staging\n/);
+    expect(leer('deploy-prod.yml')).toMatch(/run: node scripts\/migrar\.ts --entorno prod\n/);
+    for (const f of ['deploy-staging.yml', 'deploy-prod.yml'])
+      expect(leer(f)).not.toMatch(/run: node scripts\/migrar\.ts\n/);
+  });
+
+  /** Por cada trabajo, la posición del primer comprobar-cadena y del primer psql o pg_dump. */
+  const antesDe = (flujo: string, trabajo: string | null) => {
+    let texto = leer(flujo);
+    if (trabajo) {
+      const ini = texto.indexOf(`\n  ${trabajo}:\n`);
+      const resto = texto.slice(ini + 1);
+      const fin = resto.search(/\n {2}[a-z][a-z-]*:\n/);
+      texto = fin > 0 ? resto.slice(0, fin) : resto;
+    }
+    // Sin los comentarios: lo que cuenta son las órdenes.
+    texto = texto
+      .split('\n')
+      .filter((l) => !l.trim().startsWith('#'))
+      .join('\n');
+    const comprobar = texto.indexOf('node scripts/comprobar-cadena.ts');
+    const base = texto.search(/\bpsql -X|\bpg_dump\b|node scripts\/purgar-fotos\.ts/);
+    return { comprobar, base, texto };
+  };
+
+  it.each([
+    ['deploy-staging.yml', null, 'staging'],
+    ['purgar-fotos.yml', 'purgar', 'prod'],
+    ['respaldo.yml', 'respaldo', 'prod'],
+    ['respaldo.yml', 'respaldo-staging', 'staging'],
+  ])('%s (%s): comprobar-cadena --entorno %s antes del primer psql o pg_dump', (flujo, trabajo, entorno) => {
+    const { comprobar, base, texto } = antesDe(flujo, trabajo);
+    expect(comprobar).toBeGreaterThan(0);
+    expect(base).toBeGreaterThan(comprobar);
+    // El entorno, el de ese trabajo: respaldo.yml tiene los dos.
+    expect(texto).toMatch(new RegExp(`node scripts/comprobar-cadena\\.ts --entorno ${entorno}\\b`));
+  });
+});
+
+// docs/39 RV-524 (DEC-223): staging se llama «Hidrantes test» y producción no.
+describe('el nombre de la app por entorno en los deploys (docs/39 RV-524)', () => {
+  it('el deploy de staging comprueba «Hidrantes test» en el manifiesto y el <title>', () => {
+    const f = leer('deploy-staging.yml');
+    expect(f).toContain('"short_name":"Hidrantes test"');
+    expect(f).toContain('<title>Hidrantes test · ');
+  });
+  it('el de producción se para si el build lleva «Hidrantes test»', () => {
+    expect(leer('deploy-prod.yml')).toMatch(
+      /if grep -q 'Hidrantes test' dist\/manifest\.webmanifest dist\/index\.html/,
+    );
+  });
+});

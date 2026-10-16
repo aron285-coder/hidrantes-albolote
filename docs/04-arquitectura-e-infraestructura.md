@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión; cada cambio arrastra una entrada en 12. |
-| **Versión** | 1.6 — 15 oct 2026 (`docs/37` RV-490, DEC-210): §11.2 y la tabla de workflows, `dist` comprobado antes de desplegar y el sondeo de las Functions tras desplegar. 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
+| **Versión** | 1.10 — 16 oct 2026 (`docs/39` RV-524, DEC-223): §4, el nombre de la app por entorno. 1.9 — 16 oct 2026 (`docs/39` RV-518): §4 y §9, los despliegues, el seed, la purga de fotos y el respaldo comprueban el proyecto de la base. 1.8 — 16 oct 2026 (`docs/39` RV-517, DEC-220): §9, la tarea `hidrantes_vigilar_tareas`. 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §5, la cadena del migrador, en el sobre. · 1.6 — 15 oct 2026 (`docs/37` RV-490, DEC-210): §11.2 y la tabla de workflows, `dist` comprobado antes de desplegar y el sondeo de las Functions tras desplegar. 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
 | **Propietario de** | las **decisiones de infraestructura y despliegue**: qué piezas hay, dónde corren, cómo se despliegan y cómo se vuelve atrás. |
 | **No contiene** | el esquema ni las firmas (→ 05), las exigencias que motivan estas decisiones (→ 03), procedimientos de emergencia paso a paso (→ 15). |
 
@@ -132,6 +132,7 @@ Dos entornos completos y aislados. **Ningún dato, credencial ni bucket se compa
 | Datos | seed de 12 puntos `[PRUEBA]` (idempotente, nunca pisa datos existentes) + los del piloto | vacío al arrancar; recibe los datos del piloto con `promover-piloto.ts` |
 | Indexación | `robots.txt` `Disallow: /` y meta `noindex` | normal |
 | Aviso visual | banda naranja permanente "ENTORNO DE PRUEBAS" (`VITE_ENTORNO=staging`) | ninguna |
+| Nombre de la app | «Hidrantes test» en el manifiesto, el `<title>`, el nombre de iPhone y la cabecera del panel (`src/lib/nombre-app.ts`; `deploy-staging.yml` lo comprueba en el `dist`; `docs/39` RV-524, DEC-223) | «Hidrantes»; `deploy-prod.yml` se para si el `dist` lleva «Hidrantes test» |
 | Despliegue | automático al hacer merge a `develop` | automático al hacer merge a `main`, con la **aprobación** del *environment* `production`, que da la puerta automática de `npm run publicar` (§12.1, DEC-176) |
 | Migraciones | las aplica CI | las aplica CI tras la aprobación |
 
@@ -149,7 +150,12 @@ Reglas:
   el paso "Paridad con develop" de `deploy-prod.yml` comprueba que producción quedó igual. Poner
   producción al día no abre el acceso: el código real se comunica en F9.10 (#85).
 - El seed es un archivo aparte (`supabase/seed-staging.sql`) y la CI de producción **aborta** si su
-  nombre aparece en el comando o si `PROJECT_REF` no es el esperado.
+  nombre aparece en el comando o si `PROJECT_REF` no es el esperado: `guarda-produccion.ts` exige que sea el de
+  producción que el repositorio conoce (`REFS.prod`), no solo que las variables coincidan entre sí (docs/39 RV-518).
+  Antes de tocar la base, cada despliegue migra con su `--entorno` (`migrar.ts --entorno staging` / `--entorno prod`,
+  que comprueba la cadena con `comprobarCadena`), y el seed de staging, `purgar-fotos.yml` y los dos trabajos de
+  `respaldo.yml` llaman primero a `node scripts/comprobar-cadena.ts --entorno <e>`: con la cadena de otro proyecto,
+  se paran sin tocar nada.
 - Cada punto ficticio del seed lleva `descripcion` con prefijo `[PRUEBA]`.
 - Sus fotos (`fotos/prueba-*.jpg`) existen: después del seed, `deploy-staging.yml` corre
   `npm run fotos-seed`, que sube a `hidrantes-fotos-dev` las que falten (generadas, con «[PRUEBA]» y
@@ -172,6 +178,12 @@ Reglas:
 ---
 
 ## 5. Convivencia con la app de uniformidad
+
+> **La cadena del migrador, en el sobre (DEC-219, `docs/39` RV-516).** `npm run arranque` crea la clave de
+> `hidrantes_migrador` al azar y la deja en los secretos de GitHub, que no se pueden leer. Al crearla o rotarla
+> (`--rotar db`) la enseña **una vez** en la terminal, para el gestor o el sobre (15 §2): `restaurar` la necesita.
+> `--rotar db` toca los dos entornos (pide las dos contraseñas de `postgres`) y enseña las dos cadenas; sin terminal
+> se para antes de rotar nada, para no dejar en el sobre una cadena que ya no vale.
 
 Los dos proyectos de Supabase ya existen y los usa la otra aplicación. Tres problemas, resueltos
 antes de la primera migración:
@@ -348,6 +360,7 @@ Mantenimiento abriría un PR cuyo único cambio sería esa fecha (DEC-070).
 | Borrado de `errores_cliente` > 90 días | `pg_cron` | diario |
 | Revocación de tokens sin uso en `dias_caducidad_token` | `pg_cron` | diario |
 | Resumen semanal de jefatura encolado (FR-164) | `pg_cron`; lo envía `/api/push` (DEC-068) | lunes |
+| Vigilar las tareas automáticas (`hidrantes_vigilar_tareas`, 0051, DEC-220): aviso técnico `tareas_paradas` a jefatura si `ultima_vigilancia` tiene más de 36 h o `ultimo_respaldo` más de 9 días (este, con `config.vigilar_respaldo` a `true`, que es lo de por defecto); como mucho uno cada 24 h. No depende de GitHub: lo entrega el Worker | `pg_cron` | diario, 08:00 UTC |
 | Purga de fotos huérfanas | GitHub Actions `purgar-fotos.yml` (`service_role`) | semanal + bajo demanda desde Ajustes |
 | Respaldo cifrado de la BD (`pg_dump` del esquema `hidrantes`) | GitHub Actions `respaldo.yml` (`service_role`, GPG); si falla, issue y aviso técnico `respaldo` a jefatura (DEC-202) | semanal, 90 días de retención |
 | Respaldo del bucket de fotos | mismo workflow | mensual |

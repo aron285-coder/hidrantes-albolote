@@ -71,7 +71,8 @@ const SALUD_STAGING = {
   incidencias_abiertas: 0,
   errores_7d: 0,
   sin_direccion: 0,
-  ultimo_respaldo: null,
+  // Staging tiene respaldo semanal (DEC-203); sin él, Salud avisa (docs/39 RV-522).
+  ultimo_respaldo: new Date(Date.now() - 2 * 86_400_000).toISOString(),
   storage_bytes: null,
   version_zona: '2026-07-14',
   version_mapabase: '2026-07-14',

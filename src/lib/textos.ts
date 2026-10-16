@@ -13,6 +13,8 @@ export const T = {
   app: {
     nombre: 'Protección Civil Albolote',
     nombreCorto: 'Hidrantes',
+    // docs/39 RV-524 (DEC-223): la app de staging.
+    nombreCortoPruebas: 'Hidrantes test',
     entornoPruebas: 'ENTORNO DE PRUEBAS',
     cargando: 'Cargando…',
   },
@@ -158,6 +160,13 @@ export const T = {
     verTodaLaZona: 'Ver toda la zona',
     sinServidor: 'Sin conexión con el servidor',
     sinEnviar: (n: Parametro) => `${n} sin enviar`,
+    // docs/39 RV-521 (DEC-221): lo que ha fallado no se parece a lo que espera.
+    envios: (conError: number, sinEnviar: number) =>
+      sinEnviar > 0 ? `${conError} con error · ${sinEnviar} sin enviar` : `${conError} con error`,
+    avisoConError: (n: number) =>
+      n === 1
+        ? 'Un envío no se ha podido hacer. Mira Mis propuestas.'
+        : `${n} envíos no se han podido hacer. Mira Mis propuestas.`,
     // docs/33 RV-311: la píldora de la cabecera.
     alDia: (n: Parametro) => `al día · ${n}`,
     sinConexion: 'sin conexión',
@@ -500,6 +509,10 @@ export const T = {
     guardarEnMovil: 'Guardar en el móvil',
     enviado: 'Enviado para revisión',
     guardadoEnMovil: 'Guardado en el móvil',
+    // docs/39 RV-520 (DEC-221): el acceso del móvil deja de valer con un formulario abierto.
+    accesoCaducadoFormulario:
+      'El acceso de este móvil ya no vale. Guarda lo que llevas: se enviará cuando vuelvas a escribir el código.',
+    guardadoHastaEntrar: 'Se enviará cuando vuelvas a escribir el código.',
     soloEnMemoria: 'Sin guardar en el móvil',
     soloEnMemoriaDetalle: 'No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.',
     reintentarAhora: 'Reintentar ahora',
@@ -522,6 +535,8 @@ export const T = {
     conCorrecciones: (texto: Parametro) => `con correcciones: ${texto}`,
     esperando24h: '⚠ Lleva más de 24 h esperando cobertura. Se enviará sola al tener señal.',
     vacio: 'Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.',
+    // docs/39 RV-521: jefatura solo ve aquí lo que espera en la cola de este móvil.
+    vacioJefatura: 'No hay nada pendiente de enviar en este móvil.',
     resumen: (enviadas: number, sinEnviar: Parametro) =>
       `${plural(enviadas, 'enviada', 'enviadas')} · ${sinEnviar} sin enviar`,
     nuevo: 'nuevo',
@@ -1261,6 +1276,8 @@ export const T = {
       hidrantes_purgar_notificaciones: 'Borrar avisos viejos (cada día)',
       hidrantes_purgar_papelera: 'Vaciar lo caducado de la papelera (cada día)',
       hidrantes_purgar_subidas: 'Borrar reservas de fotos viejas (cada día)',
+      // docs/39 RV-517 (DEC-220).
+      hidrantes_vigilar_tareas: 'Vigilar las tareas automáticas',
     },
     almacenamientoLleno: (porcentaje: Parametro) =>
       `Las fotos ocupan el ${porcentaje} % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.`,
@@ -1286,8 +1303,7 @@ export const T = {
     tareasSegunUltimaVigilancia: 'Según la última vigilancia',
     vigilanciaAtrasada: 'lleva más de un día sin pasar',
     nunca: 'todavía ninguno',
-    // En staging no se hacen respaldos: solo de producción (docs/20 RV-78).
-    respaldoNoAplica: 'no se respalda: entorno de pruebas',
+    // El almacenamiento solo se mide en producción; el respaldo, en los dos (docs/39 RV-522).
     almacenamientoNoAplica: 'no se mide en pruebas',
     sinDato: 'sin dato',
     inventarioDescargado: (n: number) => `Inventario descargado: ${plural(n, 'punto', 'puntos')}.`,
@@ -1390,6 +1406,7 @@ export const T = {
     // docs/38 RV-503: ☰ con propuestas pendientes desde otra pestaña (UI-18).
     menuPendientes: 'Menú, hay propuestas pendientes',
     titulo: 'Hidrantes Albolote · Panel de jefatura',
+    tituloPruebas: 'Hidrantes test · Panel de jefatura',
     atribucion: 'Direcciones deducidas con Nominatim · © OpenStreetMap contributors',
     salir: 'Cerrar sesión',
     // docs/33 RV-331: el menú ☰ de la cabecera del panel por debajo de 800 px.

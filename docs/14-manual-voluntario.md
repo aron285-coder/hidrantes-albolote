@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.2 — 15 de octubre de 2026 (`docs/37` RV-496): §2, «Mucha gente entrando a la vez» y «Demasiados intentos» con la hora a la que se puede volver a probar; §9, el máximo de propuestas de un móvil recién entrado (lo que no sale se queda guardado); §12, *Sincronizar* está en Ajustes → *Mapa sin cobertura* o en la píldora de la cabecera. 0.1 — 7 de octubre de 2026. Primer borrador completo, con la app de la versión 0.8 y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.6 — 16 de octubre de 2026 (`docs/39` RV-525): §3, la barra y la leyenda como son hoy; §6, la foto de Corregir datos es opcional; §10, el aviso de versión nueva. 0.5 — 16 de octubre de 2026 (`docs/39` RV-524): §2, la app del piloto se llama «Hidrantes test». 0.4 — 16 de octubre de 2026 (`docs/39` RV-521): §8, §9 y §12, los envíos con error. 0.3 — 16 de octubre de 2026 (`docs/39` RV-520): §2 y §8, si cambian el código mientras rellenas algo. 0.2 — 15 de octubre de 2026 (`docs/37` RV-496): §2, «Mucha gente entrando a la vez» y «Demasiados intentos» con la hora a la que se puede volver a probar; §9, el máximo de propuestas de un móvil recién entrado (lo que no sale se queda guardado); §12, *Sincronizar* está en Ajustes → *Mapa sin cobertura* o en la píldora de la cabecera. 0.1 — 7 de octubre de 2026. Primer borrador completo, con la app de la versión 0.8 y las capturas de `capturas/vistas/`. |
 | **Para** | Los voluntarios de Protección Civil de Albolote. |
 | **Se apoya en** | 02 (los pasos, FL-01 a FL-38), 01 (las reglas) y `notas-para-14-ios.md` (iPhone). Si este manual y 01 o 02 dicen cosas distintas, mandan 01 y 02, y este manual se corrige. |
 
@@ -39,6 +39,10 @@ Nada de lo que envías cambia el mapa directamente. **Todo pasa por jefatura.**
    jefatura. Puedes saltarlas y volver a verlas desde Ajustes → *Cómo se usa*.
 5. Si estás con wifi, la app descarga sola el mapa para usarlo sin cobertura y los puntos.
 
+**Durante el piloto la app se llama «Hidrantes test».** En Android, si ya la tenías instalada, el nombre cambia
+solo (puede tardar un día). En iPhone, para que cambie hay que quitarla y volver a añadirla, y eso borra su acceso y
+lo que no se haya enviado: antes, comprueba que no queda nada «sin enviar»; después, vuelve a escribir el código.
+
 **En iPhone:** la app instalada y Safari no comparten datos. Instala primero y entra después. Si
 pasas semanas sin abrirla, el iPhone puede borrar sus datos: la app te pedirá el código otra vez y
 volverá a descargar todo.
@@ -51,12 +55,15 @@ toca **Entrar** pasado un minuto.
 Podrás volver a intentarlo a las …», con la hora: hasta entonces no sirve de nada probar otra vez.
 Pide el código a jefatura; no lo compartas fuera del grupo.
 
+**Si te pide el código otra vez** («El acceso de este móvil ya no vale…»): jefatura ha cambiado el
+código. Escribe el nuevo; lo que tenías guardado sin enviar sale solo al entrar.
+
 ## 3. El mapa
 
 ![El mapa, con la leyenda abierta](capturas/vistas/mapa.png)
 
-- Arriba, la barra dice cuándo se sincronizó y cuántos puntos hay. Sin cobertura dice «sin
-  cobertura» y de cuándo son los datos.
+- Arriba, la barra dice si está al día y cuántos puntos hay («al día · 15»). Sin cobertura dice
+  «sin conexión · hace 2 h»: de cuándo son los datos.
 - La línea discontinua es la **zona de cobertura**: Albolote y Calicasas.
 - A la derecha: **capas**, **medir**, **centrar en mí** y el zoom.
 - **Capas**, cada una con una miniatura: **Mapa sin conexión** (funciona sin cobertura),
@@ -73,8 +80,8 @@ Pide el código a jefatura; no lo compartas fuera del grupo.
 | Verde | Bueno |
 | Amarillo | Regular |
 | Rojo | Malo: se probó y sale débil |
-| Marrón y tachado | Barro: sale agua con barro y no se puede usar |
-| Gris y tachado | No funciona: no se pudo usar (tapa que no abre, válvula rota, arqueta enterrada) |
+| Marrón con una B blanca | Barro: sale agua con barro y no se puede usar |
+| Blanco con un aspa gris | No funciona: no se pudo usar (tapa que no abre, válvula rota, arqueta enterrada) |
 | Anillo de rayas alrededor | Sin revisar: hace más de un año que nadie lo comprueba |
 | Más grande | Más agua aprovechable |
 
@@ -138,7 +145,7 @@ existe, más el alta de uno nuevo:
 |---|---|---|
 | **Sigue igual** | Lo has comprobado y está como dice la ficha | La foto de hoy |
 | **Actualizar estado** | Funciona distinto (mejor o peor) | El estado de ahora y la foto; si no funciona, qué le pasa |
-| **Corregir datos** | El diámetro, el enganche o la descripción están mal | Los datos buenos y la foto |
+| **Corregir datos** | El diámetro, el enganche o la descripción están mal | Los datos buenos; la foto es opcional |
 | **Corregir ubicación** | El punto está en otro sitio del mapa | Arrastrar el pin al sitio real y las dos fotos |
 | **Proponer retirada** | Ya no existe (obras, asfaltado, sustituido) | El motivo y una foto del sitio |
 
@@ -183,8 +190,15 @@ La app funciona igual sin cobertura: ves el mapa, buscas, abres fichas y propone
 envías se guarda en el móvil, el botón dice *Guardar · se enviará con cobertura* y arriba aparece
 **«N sin enviar»**. Cuando vuelve la señal, sale solo; un reintento nunca lo duplica.
 
+Si algo no se ha podido enviar y no saldrá solo (por ejemplo, el punto ya no existe), arriba sale **«1 con error»**
+en rojo y «Un envío no se ha podido hacer. Mira Mis propuestas.»: tócalo y decide allí.
+
 Si algo lleva más de 24 horas sin salir, la app te lo dice. No cierres sesión con cosas sin enviar:
 se perderían (la app te avisa antes).
+
+**Si cambian el código mientras rellenas algo:** no pierdes nada. Arriba sale «El acceso de este móvil ya no vale.
+Guarda lo que llevas…». Toca **Guardar en el móvil**; al salir, la app te pide el código nuevo, y en cuanto lo
+escribes, lo guardado se envía solo.
 
 **Si un sábado por la tarde no conecta, no es tu móvil:** durante los partidos de fútbol algunos
 operadores bloquean el servidor. La app abre con lo guardado y dice «Sin conexión con el servidor»;
@@ -200,7 +214,8 @@ necesitarla.
   con lo que propusiste**: «Regular → No funciona», «Tipo de enganche: Granada → Directo»,
   «Hidrante 100 mm» en un alta, «Sigue igual» en una revisión, «Retirada: Obras». Si jefatura la
   rechazó, «Motivo: …»; si la aprobó con correcciones, cuáles. También sale lo que sigue sin
-  enviar. Una pendiente la puedes **retirar** con el botón de la tarjeta.
+  enviar. Una pendiente la puedes **retirar** con el botón de la tarjeta. Una que **no se ha podido enviar** sale en
+  rojo con el motivo y dos botones: **Reintentar** y **Descartar**.
 - **Los primeros días con un móvil nuevo:** durante las primeras 24 horas, un móvil recién entrado
   puede enviar como mucho 10 propuestas al día, y entre todos los móviles recién entrados, la mitad
   de lo que puede enviar el grupo. Si llegas a ese máximo, la propuesta **no se pierde**: se queda
@@ -223,8 +238,8 @@ necesitarla.
 - **Novedades de la versión …**: lo nuevo de la versión que tienes; las de antes, en *Ver versiones anteriores*.
 - **Cómo se usa**: las tres pantallas del principio.
 - **Cerrar sesión en este móvil**: borra el acceso, el nombre y lo que quede sin enviar (te avisa).
-- Cuando hay una versión nueva, la app dice **«hay una versión nueva, recargar»**. Tócalo; no hay que
-  reinstalar.
+- Cuando hay una versión nueva, abajo sale **«Hay una versión nueva»** con el botón **Actualizar**. Tócalo; no hay
+  que reinstalar. Si estás rellenando algo, dice que se actualizará cuando termines.
 
 ## 11. Tus datos
 
@@ -239,5 +254,6 @@ grupo y quieres que se borre, díselo a jefatura. El detalle está en *Ajustes �
 | Pide el código otra vez | Escríbelo; tu nombre ya está. Si no lo tienes, pídelo a jefatura (puede haberlo cambiado). |
 | «Sin conexión con el servidor» | Sigue trabajando: se envía solo al volver. |
 | «N sin enviar» no baja con cobertura | Toca *Sincronizar* en Ajustes → *Mapa sin cobertura*, o la píldora de arriba del mapa → *Sincronizar ahora*. Si sigue, avisa a jefatura. |
+| «N con error» en rojo | No saldrá solo: tócalo y, en *Mis propuestas*, **Reintentar** o **Descartar**. |
 | El mapa sale en blanco sin cobertura | El mapa sin cobertura no está descargado: Ajustes → *Mapa sin cobertura*, con wifi. |
 | No llegan las notificaciones | Revisa el permiso en los ajustes del móvil; en iPhone, que la app esté instalada. |

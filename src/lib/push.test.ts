@@ -176,6 +176,16 @@ describe('resincronizar la suscripción tras sincronizar (RV-81 punto 4)', () =>
     expect(rpc).not.toHaveBeenCalled();
   });
 
+  // docs/39 RV-520: al volver a entrar tras una revocación (que borra las suscripciones, DEC-218), sin esperar.
+  it('con forzar, aunque no hayan pasado 24 h', async () => {
+    datos.set('hidrantes.push', 'true');
+    pushManager.getSubscription.mockResolvedValue(suscripcion());
+    const ahora = 1_000_000_000_000;
+    datos.set('hidrantes.push_resincronizado_en', String(ahora - 60_000));
+    await resincronizarPush(token, ahora, true);
+    expect(rpc).toHaveBeenCalledWith('fn_guardar_suscripcion_push', expect.objectContaining({ token }));
+  });
+
   it('con los avisos apagados no hace nada', async () => {
     await resincronizarPush(token);
     expect(rpc).not.toHaveBeenCalled();

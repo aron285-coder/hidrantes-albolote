@@ -429,7 +429,9 @@ async function principal(): Promise<void> {
     entorno === 'local'
       ? LOCAL_MIGRADOR
       : (process.env.SUPABASE_DB_URL ??
-        (await preguntar(`Cadena de conexión de ${entorno} (hidrantes_migrador)`, { oculto: true })));
+        (await preguntar(`Cadena de conexión de ${entorno} (hidrantes_migrador; está en el sobre, 15 §2)`, {
+          oculto: true,
+        })));
 
   // Guarda del proyecto: restaurar producción sobre staging, o al revés, sería peor que el problema.
   // Con cualquier nombre del entorno (produccion = prod), y también en local (docs/31 RV-134).

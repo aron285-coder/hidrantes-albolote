@@ -159,7 +159,7 @@ test('«N sin enviar» no tapa el ✕ del buscador (RV-324)', async ({ page }) =
       }),
   );
   await page.reload();
-  await expect(page.getByRole('link', { name: T.mapa.sinEnviar(1) })).toBeVisible();
+  await expect(page.getByRole('link', { name: T.mapa.envios(1, 0) })).toBeVisible();
   await page.getByRole('searchbox', { name: T.mapa.buscar }).fill('HID');
   const aspa = page.getByRole('button', { name: T.mapa.borrarBusqueda });
   await expect(aspa).toBeVisible();
