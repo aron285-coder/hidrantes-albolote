@@ -56,3 +56,8 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   `cola.test.ts`, el e2e «buscar el código del punto creado» de `panel-cola.spec.ts`, y `salud.test.ts` y el de RV-78
   de `panel-ajustes.spec.ts`, que cambian (los e2e se construyen como staging; `panel-ajustes` y `panel-simulado` llevan
   ya un respaldo reciente). 06 v1.35.
+- **RV-523:** Editar enseña las fotos del punto (conexión y sitio, solo lectura, se amplían; si no cargan, el texto)
+  con `FotoPanel`, la pieza que ahora comparte con la cola (`UnaFoto` sale de `DetallePropuesta`); en el mapa del
+  Inventario, tocar un punto abre Editar. Tests que fallaban antes: el e2e nuevo `e2e/inventario-fotos.spec.ts` (412,
+  820 y 1.280; una sola foto a todo el ancho; la que no carga; la lista no pide ninguna; el mapa abre Editar). 01 v1.19,
+  06 v1.36, 13 v0.7.
