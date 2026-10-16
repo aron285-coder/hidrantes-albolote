@@ -2,6 +2,34 @@
 
 > **Nota (10 oct 2026, `docs/34` RV-359, DEC-195):** en Git solo quedan las capturas que este informe enlaza. Las demás se quitaron de `HEAD`; siguen en el historial, por ejemplo en `9a15d27` (`git show 9a15d27:<ruta>`).
 
+## Desde `docs/39` (DEC-217): sin escribir en los datos del piloto
+
+Durante el piloto, staging guarda los datos reales (DEC-203) y la puerta de `publicar` pide esta comprobación en cada
+release. Desde `docs/39` y hasta `promover-piloto`, RV-139b en staging:
+
+- **lee:** el commit servido, las pantallas, las vistas y las RPC de lectura;
+- **recorre la app como voluntario con un móvil de prueba**, «Prueba RV-139b», sin enviar nada. Se crea como hasta
+  ahora (abajo, «Entrada como voluntario»: un token al azar cuyo sha256 se guarda en `hidrantes.dispositivos`) y se
+  **revoca al acabar con `fn_revocar_dispositivo`**, como jefatura, también si la comprobación falla a medias. En el
+  navegador, las llamadas que escriben (`fn_proponer`, `fn_reservar_subida`, la suscripción a los avisos y las
+  subidas al bucket) se cortan: si algo intentara escribir, la comprobación falla. Al acabar se comprueba que el móvil
+  de prueba no tiene propuestas, subidas ni suscripciones;
+- **lo que tiene que escribir va en una transacción que termina en `rollback`:** una sola `psql` con `begin`, los
+  claims de un administrador activo y unido, una revisión de una boca `[PRUEBA]` del seed como propuesta del móvil de
+  prueba, `fn_aprobar`, `fn_editar_punto` (6 m y el enganche), la entrada (`fn_abrir_entrada` y
+  `fn_cerrar_entrada`), sus comprobaciones con `select` y `rollback`. Nada se manda por HTTP dentro de ella. Nunca
+  un alta: gastaría un número de código, que no vuelve con el `rollback`;
+- **no hace:** subir fotos; rechazar, aprobar, editar, retirar o anonimizar nada que quede; abrir o cerrar la entrada
+  de verdad; cambiar el código; revocar otros móviles; canjear el código (escribe intentos y puede mandar el aviso
+  «alguien está probando códigos»). **Los canjes del código y la subida de fotos se prueban en local**
+  (`e2e/integracion`), no en staging;
+- **sin un administrador activo y unido** no sigue (no une uno de forma temporal, como hacía antes);
+- **el marcador** del final de este archivo (04 §12) no cambia.
+
+Las secciones de abajo son las comprobaciones de antes de `docs/39`: escribían en staging (un alta aprobada en cada
+pasada, BOC-0007 a BOC-0017, retiradas en `docs/39` RV-514), y su «limpieza» llegó a rechazar todas las propuestas
+pendientes. No se repiten así.
+
 Sustituye a las pruebas a mano ("en el Android, probar…"). Una sesión con Playwright y el Chrome del
 PC, **contra staging de verdad** (`https://hidrantes-albolote-staging.pages.dev`, no los mocks),
 con un Pixel 7 emulado (412 × 915) y en escritorio (1280 × 800). 8 oct 2026.
@@ -287,3 +315,18 @@ la puerta no deja pasar entre la marca y `main`). Mismo método (traspaso 388290
 jefatura por BD ok (BOC-0017), 25 canjes ok, migrador sin `auth`, anonimizar y limpieza ok.
 
 commit: 81c4232aca10f2e55a86f3340ddf1e33e3dae275 · resultado: verde
+
+## Release 0.16.1 (16 oct 2026, docs/39 RV-515)
+
+La primera con el «cómo» de `docs/39` (DEC-217, arriba): sin escribir en los datos del piloto. Migración `0050` anotada
+en staging. «Desplegar staging» en verde con el commit de abajo. Cadena solo en memoria (traspaso 38874165624, borrado).
+
+| Recorrido | Resultado |
+|---|---|
+| Voluntario con el móvil de prueba «Prueba RV-139b», sin enviar nada (Cercanos, ficha y formulario de revisión de un punto `[PRUEBA]` sin enviarlo, Mis propuestas, buscar una dirección, escritorio sin desplazamiento, el aviso del service worker) | ok (13) |
+| El móvil de prueba no ha escrito nada (propuestas, subidas, suscripciones) | ok: 0 |
+| Jefatura por BD en una transacción con `rollback`: revisión de BOC-9001 como propuesta del móvil de prueba, `fn_aprobar`, `fn_editar_punto` (6 m y enganche), abrir y cerrar la entrada; `detalleLegible` («Enganche: Granada → Barcelona · Movido 6 m») | ok; deshecho: el punto sigue igual |
+| El rol del migrador sin acceso al esquema `auth` | ok: `false` |
+| Al acabar: el móvil de prueba revocado con `fn_revocar_dispositivo`; 0 propuestas pendientes en staging | ok |
+
+commit: 471c914af77f14830d0a9bd56f6547be8d299c35 · resultado: verde

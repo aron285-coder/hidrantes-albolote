@@ -5,6 +5,9 @@
 | **Para** | Claude Code, en este repositorio. **Una sola sesión (Frontend), en orden** (§0.3). |
 | **Base** | `develop` en `d092f66`. Producción en **0.15.0**. La siguiente decisión es DEC-212 y el siguiente punto, RV-500. **No hay migración** (§0.5). |
 | **Origen** | El desarrollador revisó el panel de jefatura en el móvil, la tableta y el ordenador, eligió un diseño por pestaña y pantalla y pidió dos cambios más: en el móvil, las pestañas dentro del menú; los filtros y el orden, en uno o dos botones con una ventana. El resultado son los cinco mockups de `docs/mockups/38-panel-*.html`. |
+
+> **Archivada el 16 oct 2026 (RV-512).** Todo lo de este documento está en producción con 0.16.0 (`2da866b`). Lo que se hizo, PR a PR, en `verificacion/panel-movil-38.md`. Sin migraciones. Los mockups `mockups/38-panel-*.html` siguen en `docs/mockups/`, citados por 06.
+
 | **Versión** | **1, del 15 oct 2026.** Antes de empezar, comprueba que tu copia tiene §0.6 (correcciones a los mockups) con once puntos. |
 | **Congelación** | **Tercera excepción a DEC-193** (DEC-212): solo lo que dice este documento. La especificación de después del piloto pasa a ser **`docs/39`**. |
 | **Divulgación** | Nada de seguridad. Este documento y los mockups entran en Git con el primer PR (RV-500). Los mockups solo llevan datos simulados de los e2e (`HID-90nn`, `@example.org`, «Voluntaria Pruebas»). |
@@ -223,7 +226,7 @@ CLAUDE.md §2: lo que un prototipo dibuja y 01 o 06 no dicen, no se construye. E
 | **Panel: «⋯» de una fila** (`docs/38` RV-502) | Botón de icono `Ellipsis` de 44 × 44 (32 desde 1.100), con nombre «Más acciones de [HID-0147]». Abre un menú con el patrón de «Exportar ▾» (`docs/29` RV-123): flechas, Inicio, Fin, Esc; se pinta en un portal y se abre hacia arriba si no cabe debajo. Filas de 44 px; la destructiva, la última, en `--rojo-700` y separada por una línea (UI-14). |
 | **Panel: etiquetas de estado** (`docs/38` RV-502) | Mismo dibujo que los chips de estado del punto (radio 999, 12 px 700). Acceso de un administrador: «Activo» (`tinte-verde`), «Pendiente de su primer acceso» (`tinte-ambar`), «Sin acceso» (`tinte-gris`). Pedido de Mantenimiento: «pedido» (`tinte-azul`), «lanzado» (`tinte-verde`), «error» (`tinte-rojo`), con el motivo detrás en texto. «Tú» y «Jefatura», etiquetas de 11 px (`tinte-gris` y `tinte-azul`). |
 
-**§5, el párrafo de los mockups de arriba:** añade «y las listas del panel por anchos en [`mockups/38-panel-cola.html`](mockups/38-panel-cola.html), `38-panel-inventario.html`, `38-panel-registro.html`, `38-panel-papelera.html` y `38-panel-ajustes.html` (`docs/38`; «Propuesta» de cada pantalla)».
+**§5, el párrafo de los mockups de arriba:** añade «y las listas del panel por anchos en [`mockups/38-panel-cola.html`](../../mockups/38-panel-cola.html), `38-panel-inventario.html`, `38-panel-registro.html`, `38-panel-papelera.html` y `38-panel-ajustes.html` (`docs/38`; «Propuesta» de cada pantalla)».
 
 **Apéndice A, «Tono»:** «neutro en el panel, salvo «Tú» y «por ti», que nombran al propio administrador (DEC-215)».
 
