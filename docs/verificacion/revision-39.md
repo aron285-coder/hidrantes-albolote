@@ -77,3 +77,9 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   del Apéndice A está en `textos.ts`, con `[…]` como hueco, o en la lista cerrada de textos del servidor, cada uno con su
   motivo); fallaba antes con los tres literales viejos. CLAUDE.md y `revisar-pantallas` con los tamaños de
   `vistas.spec.ts`; 09 §3, los dos riesgos al resumen semanal; INDICE, la fila de `docs/38` en las archivadas.
+- **RV-526:** el panel en el móvil ya no se salta en `controles`, `accesibilidad` y `degradacion` (412 × 915: los menús
+  se abren con las pestañas de abajo, el Inventario se mide en filas y no en tabla, y los botones de toda la fila no
+  cuentan en la geometría); pasan en los dos proyectos. pgTAP `49_rpc_sin_prueba_propia` (12): `fn_guardar_direccion_sugerida`
+  (solo jefatura, recortada, en blanco → sin dirección, 300 como mucho, una decidida no cambia) y
+  `fn_borrar_suscripcion_push` (token que no vale → error; borra solo las de ese móvil). Corrió en `ci-sql` (sin Docker en
+  local).

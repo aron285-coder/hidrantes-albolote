@@ -378,8 +378,8 @@ for (const pantalla of PANTALLAS_PANEL) {
   test.describe(`controles del panel · ${pantalla.nombre}`, () => {
     test.beforeEach(async ({ page }) => prepararPanel(page));
 
-    test('todos tienen nombre', async ({ page, isMobile }) => {
-      test.skip(!!isMobile, 'el panel es de escritorio (FR-100)');
+    // docs/39 RV-526: el panel también se usa en el móvil (DEC-213): se recorre en los dos proyectos.
+    test('todos tienen nombre', async ({ page }) => {
       await abrir(page, pantalla);
       const controles = pulsables(page);
       const total = await controles.count();
@@ -391,8 +391,7 @@ for (const pantalla of PANTALLAS_PANEL) {
       expect(mudos, `panel ${pantalla.nombre} · controles sin nombre accesible`).toEqual([]);
     });
 
-    test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page, isMobile }) => {
-      test.skip(!!isMobile, 'el panel es de escritorio (FR-100)');
+    test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page }) => {
       // El inventario tiene unos sesenta controles y cada uno recarga la pantalla: unos 50 s a solas,
       // más de 180 s con cuatro workers. Solo este recorrido va con más tiempo (docs/18 RV-49).
       test.slow(pantalla.nombre === 'inventario', 'sesenta controles, cada uno con su recarga');

@@ -9,7 +9,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import type { NodeResult, Result } from 'axe-core';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
-import { conGoogle, conSesion, irALista, simularRpc, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, filasInventario, irALista, simularRpc, simularTablas } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 
@@ -67,6 +67,10 @@ async function geometria(page: Page, contexto: string, { movil }: { movil: boole
       const st = getComputedStyle(e);
       if (r.width <= 1 || r.height <= 1 || st.visibility === 'hidden' || e.closest('[aria-hidden="true"]'))
         return false;
+      // El botón que se estira con ::after por toda la fila (la fila del Inventario que abre Editar, docs/38 RV-506):
+      // su objetivo es la fila entera, con los controles de la fila encima; no es un control suelto que medir.
+      const tras = getComputedStyle(e, '::after');
+      if (tras.content !== 'none' && tras.position === 'absolute') return false;
       // Solo lo que se puede tocar: un control que una hoja con scroll deja fuera de la vista no es un
       // objetivo táctil ahora (docs/18 GM-03). Se mira si su centro está a la vista y es suyo.
       const cx = r.left + r.width / 2;
@@ -290,10 +294,9 @@ test.describe('acciones destructivas (UI-13, RV-29)', () => {
 });
 
 test.describe('panel de jefatura', () => {
-  // El panel es de escritorio (FR-100).
-  test.skip(({ isMobile }) => !!isMobile, 'el panel se audita en escritorio');
+  // docs/39 RV-526: también en el móvil (DEC-213), a 412 × 915.
 
-  test('cola de revisión e inventario', async ({ page }) => {
+  test('cola de revisión e inventario', async ({ page, isMobile }) => {
     await conGoogle(page, 'jefa@example.org');
     await simularTablas(page, { v_puntos_activos: PUNTOS, v_cola_revision: [], propuestas: [] });
     await page.route(`${SUPABASE_PRUEBAS}/rest/v1/rpc/fn_es_admin`, (r) =>
@@ -302,12 +305,13 @@ test.describe('panel de jefatura', () => {
     await page.goto('/admin/cola');
     await expect(page.getByRole('region', { name: T.panelCola.colaRevision })).toBeVisible();
     await auditar(page, 'panel · cola');
-    await geometria(page, 'panel · cola', { movil: false });
+    await geometria(page, 'panel · cola', { movil: !!isMobile });
 
     await page.goto('/admin/inventario');
-    await expect(page.getByRole('table')).toBeVisible();
+    // En el móvil, filas en vez de tabla (docs/38 RV-506).
+    await expect(filasInventario(page).first()).toBeVisible();
     await auditar(page, 'panel · inventario');
-    await geometria(page, 'panel · inventario', { movil: false });
+    await geometria(page, 'panel · inventario', { movil: !!isMobile });
   });
 
   // docs/18 RV-50: la geometría en todas las pantallas del panel, no solo en la cola y el inventario.
