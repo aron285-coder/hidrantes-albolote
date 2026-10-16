@@ -843,7 +843,7 @@ Salud del sistema (docs/33 RV-335): arriba `Todo bien`, o `Necesita atención` c
 `Incidencias abiertas` ·
 `Última vigilancia` · `todo respondía` · `con avisos: mira las issues` ·
 `Las fotos ocupan el [96] % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.` (banda de aviso desde el 90 %, DEC-073; sin los datos de 0041) · con 0041 (docs/32 RV-262): `Las fotos ocupan el [72] % del espacio reservado para ellas. Purga la papelera y las fotos huérfanas antes de que se llene: entonces la aplicación no admite fotos nuevas.` (desde el 70 % del tope `max_bytes_fotos`, DEC-182) · `[112 MB de 800 MB] · medido en el último respaldo` (sin lectura en vivo del bucket, `fotos_origen = respaldo`) · `Móviles con más fotos pedidas (24 h)` · `[37] fotos · [4] sin subir` (con uno, `1 foto · [4] sin subir`) · `Ningún móvil ha pedido fotos en las últimas 24 h.` · `Revocar este móvil` (nombre accesible `Revocar este móvil ([abcd1234])`) · `revocado` · `El móvil [abcd1234] se queda sin acceso: tendrá que volver a escribir el código de acceso. Sus fotos pedidas y sin subir dejan de contar.` · `Revocar` · `Móvil [abcd1234] revocado.` ·
-`Tareas programadas`, cada una en palabras: `Borrar intentos de código viejos (cada hora)` · `Quitar el acceso a los móviles que no se usan (cada día)` · `Borrar avisos viejos (cada día)` · `Vaciar lo caducado de la papelera (cada día)` · `Borrar reservas de fotos viejas (cada día)` (el resumen semanal y la purga de errores siguen, pero no salen) ·
+`Tareas programadas`, cada una en palabras: `Borrar intentos de código viejos (cada hora)` · `Quitar el acceso a los móviles que no se usan (cada día)` · `Borrar avisos viejos (cada día)` · `Vaciar lo caducado de la papelera (cada día)` · `Borrar reservas de fotos viejas (cada día)` · `Vigilar las tareas automáticas` (`docs/39` RV-517, DEC-220) (el resumen semanal y la purga de errores siguen, pero no salen) ·
 `[hace 2 h] · bien` · `[hace 2 días] · falló o va con retraso` · `todavía sin ejecutar` · `no está programada` (tarea de pg_cron que falta, RV-56) · debajo del título, `Ahora mismo` · `Según la vigilancia de [hace 13 h]` · `Según la última vigilancia` (docs/22 RV-92) · `lleva más de un día sin pasar` (última vigilancia de más de 26 h, en tono de aviso, RV-93) ·
 `todavía ninguno` · `no se respalda: entorno de pruebas` (Último respaldo en staging, RV-78) · `no se mide en pruebas` (Fotos en staging sin dato, docs/23 RV-98, DEC-143) ·
 `sin dato` · `Inventario descargado: [n] puntos.` (con uno, `Inventario descargado: 1 punto.`) · `Mantenimiento` ·
@@ -870,7 +870,8 @@ Salud del sistema (docs/33 RV-335): arriba `Todo bien`, o `Necesita atención` c
 `La comprobación diaria ha encontrado un problema. El desarrollador ya tiene el aviso. Mira Salud del sistema.` (vigilancia) ·
 `El respaldo de esta semana ha fallado.` (respaldo) ·
 `La última actualización no se ha podido instalar entera.` (despliegue) ·
-`Alguien está probando códigos de acceso. Si se repite, cambia el código en Ajustes.` (intentos con el código).
+`Alguien está probando códigos de acceso. Si se repite, cambia el código en Ajustes.` (intentos con el código) ·
+`Las tareas automáticas (comprobación diaria o respaldo) llevan días sin hacerse. Avisa al desarrollador.` (tareas paradas: la vigilancia de más de 36 h o el respaldo de más de 9 días; lo manda la base de datos cada día a las 08:00 UTC, `docs/39` RV-517, DEC-220).
 
 **Tono.** Tuteo al voluntario, neutro en el panel, salvo «Tú» y «por ti», que nombran al propio administrador (DEC-215). Botones en infinitivo. Sin exclamaciones salvo
 en el estado vacío de la cola. Nunca "defecto": es `No funciona`.

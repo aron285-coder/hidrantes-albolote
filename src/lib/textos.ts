@@ -1261,6 +1261,8 @@ export const T = {
       hidrantes_purgar_notificaciones: 'Borrar avisos viejos (cada día)',
       hidrantes_purgar_papelera: 'Vaciar lo caducado de la papelera (cada día)',
       hidrantes_purgar_subidas: 'Borrar reservas de fotos viejas (cada día)',
+      // docs/39 RV-517 (DEC-220).
+      hidrantes_vigilar_tareas: 'Vigilar las tareas automáticas',
     },
     almacenamientoLleno: (porcentaje: Parametro) =>
       `Las fotos ocupan el ${porcentaje} % del gigabyte gratuito. Purga la papelera y las fotos huérfanas antes de que se llene: mientras esté lleno, la aplicación no admite fotos nuevas.`,
