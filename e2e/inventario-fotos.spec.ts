@@ -87,6 +87,32 @@ test('en el mapa del Inventario, tocar un punto abre Editar de ese punto', async
   await page.goto('/admin/inventario');
   await filtrarPor(page, T.panelInventario.colTipo, T.mapa.hidrantes);
   await page.getByRole('radio', { name: T.panelInventario.mapa }).click();
-  await page.locator('.leaflet-marker-icon.marcador[title="HID-9001"]').click();
-  await expect(page.getByRole('dialog').getByRole('heading', { name: /HID-9001/ })).toBeVisible();
+  const marcador = (codigo: string) => page.locator(`.leaflet-marker-icon.marcador[title="${codigo}"]`);
+  // A este zoom los dos marcadores se tocan: el toque, a mano (un toque de verdad también le da el foco).
+  const tocar = async (codigo: string) => {
+    await marcador(codigo).focus();
+    await marcador(codigo).dispatchEvent('click');
+  };
+  await marcador('HID-9001').click();
+  const editar = page.getByRole('dialog');
+  await expect(editar.getByRole('heading', { name: /HID-9001/ })).toBeVisible();
+  await expect(marcador('HID-9001').locator('[data-seleccion]')).toHaveCount(1);
+
+  // Con un cambio sin guardar, otro punto pregunta; «Seguir editando» deja Editar y el marcador resaltado como estaban.
+  await editar.getByRole('radio', { name: T.formulario.malo }).click();
+  await tocar('HID-9002');
+  const pregunta = page.getByRole('alertdialog', { name: T.panelEditar.descartarN(1) });
+  await pregunta.getByRole('button', { name: T.panelEditar.seguirEditando }).click();
+  await expect(editar.getByRole('heading', { name: /HID-9001/ })).toBeVisible();
+  await expect(marcador('HID-9001').locator('[data-seleccion]')).toHaveCount(1);
+  await expect(marcador('HID-9002').locator('[data-seleccion]')).toHaveCount(0);
+
+  // «Descartar» pasa al otro; al cerrar, el foco vuelve a su marcador (redibujado) y no se pierde.
+  await tocar('HID-9002');
+  await pregunta.getByRole('button', { name: T.panelEditar.descartar }).click();
+  await expect(editar.getByRole('heading', { name: /HID-9002/ })).toBeVisible();
+  await expect(marcador('HID-9002').locator('[data-seleccion]')).toHaveCount(1);
+  await editar.getByRole('button', { name: T.ficha.cerrar }).click();
+  await expect(marcador('HID-9002')).toBeFocused();
+  await expect(page.locator('[data-seleccion]')).toHaveCount(0);
 });

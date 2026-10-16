@@ -603,7 +603,6 @@ function AvisoDesactualizada({ p }: { p: PropuestaPanel }) {
 
 const ALTO_FOTO = 'h-[110px] md:max-[1100px]:h-[220px] min-[1100px]:h-[200px]';
 
-/** Una foto del detalle. Si no carga, lo dice con palabras en su hueco y queda anotado (UI-04). */
 /** Dos columnas, propuesta y existente, con lo que difiere en ámbar (FR-106, FL-21). */
 function Comparacion({ p, existente, direccion }: { p: PropuestaPanel; existente: Punto; direccion: string }) {
   const v = valoresPropuestos(p);

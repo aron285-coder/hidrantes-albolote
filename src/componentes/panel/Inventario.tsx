@@ -214,6 +214,9 @@ export default function Inventario() {
   const [estadoEditar, setEstadoEditar] = useState<EstadoEditar>({ pendientes: 0, ocupado: false });
   const [pasarA, setPasarA] = useState<{ punto: Punto; boton: HTMLElement } | null>(null);
   const origen = useRef<HTMLElement | null>(null);
+  // El código del punto abierto: desde el mapa, el marcador tocado se vuelve a dibujar y el foco se devuelve
+  // al nuevo marcador de ese punto (docs/39 RV-523).
+  const origenCodigo = useRef<string | null>(null);
 
   function abrirEditar(p: Punto, boton: HTMLElement) {
     if (editando?.id === p.id) return;
@@ -222,6 +225,7 @@ export default function Inventario() {
     // En el ordenador la tabla sigue a mano: con cambios sin guardar, pregunta antes de cambiar de punto.
     if (editando && estadoEditar.pendientes > 0) return setPasarA({ punto: p, boton });
     origen.current = boton;
+    origenCodigo.current = p.codigo;
     setEstadoEditar({ pendientes: 0, ocupado: false });
     setEditando(p);
   }
@@ -239,10 +243,15 @@ export default function Inventario() {
   useEffect(() => {
     const devolver = devolverFoco.current;
     devolverFoco.current = false;
-    if (devolver && !editando) origen.current?.focus();
+    if (!devolver || editando) return;
+    const o = origen.current;
+    if (o?.isConnected) return o.focus();
+    // Ya no está (un marcador del mapa redibujado): el marcador de ese punto o, si no se ve, el mapa.
+    const mapa = document.querySelector<HTMLElement>('[data-testid="mapa"]');
+    const marcador = mapa?.querySelector<HTMLElement>(`.leaflet-marker-icon[title="${origenCodigo.current}"]`);
+    (marcador ?? mapa)?.focus();
   }, [editando]);
   const [exportando, setExportando] = useState(false);
-  const [seleccion, setSeleccion] = useState<string | null>(null);
 
   const filtros: FiltrosInventario = { tipo, caudal, busqueda };
   const filtrados = useMemo(
@@ -556,13 +565,13 @@ export default function Inventario() {
         <div className="relative isolate min-h-[60vh] flex-1">
           <MapaLeaflet
             puntos={filtrados}
-            seleccionado={seleccion}
+            seleccionado={editando?.id ?? null}
             capa="base"
             modo={modo}
             posicion={posicion.tipo === 'ok' ? posicion.posicion : null}
             alSeleccionar={(id) => {
-              setSeleccion(id);
-              // docs/39 RV-523 (DEC-222): tocar un punto del mapa abre Editar, como tocar su fila.
+              // docs/39 RV-523 (DEC-222): tocar un punto del mapa abre Editar, como tocar su fila. El marcador resaltado
+              // es siempre el del punto abierto: si Editar no cambia (guardando, o se sigue editando), tampoco él.
               const p = id ? filtrados.find((x) => x.id === id) : null;
               if (p) abrirEditar(p, (document.activeElement as HTMLElement | null) ?? document.body);
             }}
@@ -619,6 +628,7 @@ export default function Inventario() {
           n={estadoEditar.pendientes}
           alDescartar={() => {
             origen.current = pasarA.boton;
+            origenCodigo.current = pasarA.punto.codigo;
             setEstadoEditar({ pendientes: 0, ocupado: false });
             setEditando(pasarA.punto);
             setPasarA(null);
