@@ -25,7 +25,9 @@ import { useReloj } from '@/hooks/reloj';
 import { salirDeGoogle } from '@/lib/acceso';
 import { olvidarTemasJefatura } from '@/lib/panel/push-jefatura';
 import { reintentarAhora } from '@/lib/conexion';
+import { ENTORNO } from '@/lib/entorno';
 import { hace } from '@/lib/formato';
+import { tituloPanelDe } from '@/lib/nombre-app';
 import { contar } from '@/lib/panel/consultas';
 import { pedirEnvioComoJefatura } from '@/lib/panel/push-jefatura';
 import { T } from '@/lib/textos';
@@ -219,7 +221,8 @@ function Cabecera({
               {pestana}
             </>
           ) : (
-            T.panel.titulo
+            // «Hidrantes test · Panel de jefatura» en staging (docs/39 RV-524, DEC-223).
+            tituloPanelDe(ENTORNO)
           )}
         </h1>
       </div>

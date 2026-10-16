@@ -13,6 +13,8 @@ export const T = {
   app: {
     nombre: 'Protección Civil Albolote',
     nombreCorto: 'Hidrantes',
+    // docs/39 RV-524 (DEC-223): la app de staging.
+    nombreCortoPruebas: 'Hidrantes test',
     entornoPruebas: 'ENTORNO DE PRUEBAS',
     cargando: 'Cargando…',
   },
@@ -1404,6 +1406,7 @@ export const T = {
     // docs/38 RV-503: ☰ con propuestas pendientes desde otra pestaña (UI-18).
     menuPendientes: 'Menú, hay propuestas pendientes',
     titulo: 'Hidrantes Albolote · Panel de jefatura',
+    tituloPruebas: 'Hidrantes test · Panel de jefatura',
     atribucion: 'Direcciones deducidas con Nominatim · © OpenStreetMap contributors',
     salir: 'Cerrar sesión',
     // docs/33 RV-331: el menú ☰ de la cabecera del panel por debajo de 800 px.

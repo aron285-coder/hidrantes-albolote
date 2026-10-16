@@ -118,6 +118,8 @@ jobs:
           set -euo pipefail
           source .github/scripts/build-del-entorno.sh
           build_del_entorno dist VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_VAPID_PUBLIC_KEY ?VITE_MAPABASE_URL
+          # docs/39 RV-524 (DEC-223): producción sigue llamándose «Hidrantes»; «Hidrantes test» es solo de staging.
+          if grep -q 'Hidrantes test' dist/manifest.webmanifest dist/index.html; then echo '::error::el build de producción lleva «Hidrantes test»'; exit 1; fi
 
       - name: Migraciones (hidrantes_migrador, DEC-052)
         # Con --entorno, migrar.ts comprueba que la cadena es del proyecto de producción (docs/39 RV-518).
