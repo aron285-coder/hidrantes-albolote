@@ -61,3 +61,5 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
 - **RV-537 (RV-139b):** verde sobre `b419e37` con la regla de DEC-217 (nada escrito en staging; el móvil de prueba,
   revocado). El despliegue de staging de ese commit falló una vez por un error interno de Cloudflare (10500) y pasó al
   relanzar el trabajo.
+- **RV-537 (versión):** release-please proponía 0.17.1 (sin `feat` desde 0.17.0); DEC-227: el pie `Release-As: 0.18.0`
+  en el commit de este PR (`docs/`). Sin test: documentación.
