@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.67 — 15 oct 2026 (DEC-212 a DEC-215, de `docs/38`; `docs/39` en DEC-193, DEC-196, DEC-205 y DEC-209; DEC-168, DEC-171 y DEC-192 matizadas) · 1.66 — 15 oct 2026 (`docs/37` RV-497: el índice por documento afectado con DEC-157 a DEC-211; DEC-199 y DEC-201 sin la versión de 03, y DEC-204 sin el recuento de migraciones, DEC-195) · 1.65 — 15 oct 2026 (DEC-209 a DEC-211, de `docs/37`; `docs/38` en DEC-193, DEC-196 y DEC-205) · 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.68 — 16 oct 2026 (DEC-216 a DEC-223, de `docs/39`; DEC-218 con texto neutro hasta 0.16.1; `docs/40` en DEC-193, DEC-196, DEC-205, DEC-209 y DEC-212) · 1.67 — 15 oct 2026 (DEC-212 a DEC-215, de `docs/38`; `docs/39` en DEC-193, DEC-196, DEC-205 y DEC-209; DEC-168, DEC-171 y DEC-192 matizadas) · 1.66 — 15 oct 2026 (`docs/37` RV-497: el índice por documento afectado con DEC-157 a DEC-211; DEC-199 y DEC-201 sin la versión de 03, y DEC-204 sin el recuento de migraciones, DEC-195) · 1.65 — 15 oct 2026 (DEC-209 a DEC-211, de `docs/37`; `docs/38` en DEC-193, DEC-196 y DEC-205) · 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -662,6 +662,59 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-223 · La app de staging se llama «Hidrantes test»
+- **Fecha:** 16 oct 2026 (desarrollador) · **Estado:** vigente (`docs/39` RV-524).
+- **Contexto:** en un móvil con las dos apps instaladas, las dos se llaman «Hidrantes».
+- **Decisión:** en staging, el nombre corto de la app (el de la pantalla de inicio) es «Hidrantes test», y con él el `<title>`, el nombre del manifiesto, el de iPhone y el título de la cabecera del panel. Producción sigue con «Hidrantes». La dirección de staging no cambia.
+- **Afecta a:** 04 §4, 06 Apéndice A, `docs/entornos.md`.
+
+### DEC-222 · Fotos en el Inventario
+- **Fecha:** 16 oct 2026 (desarrollador) · **Estado:** vigente (`docs/39` RV-523).
+- **Contexto:** jefatura no veía las fotos de un punto desde el Inventario; solo en la cola, y solo las de una propuesta.
+- **Decisión:** Editar enseña, en solo lectura, la foto de la conexión y la del sitio, debajo de la banda; tocarlas las amplía. En el mapa del Inventario, tocar un punto abre Editar. Sin miniaturas en la lista.
+- **Descartado:** una miniatura por fila (Supabase solo hace versiones pequeñas en un plan de pago: se bajaría la foto entera de cada punto, unos 10 MB por página en el móvil).
+- **Afecta a:** FR-120, 06 §5 (Panel: Editar), 13 §5.
+
+### DEC-221 · Lo escrito en el móvil no se pierde al revocar el acceso, y lo que falla al enviarse se ve
+- **Fecha:** 16 oct 2026 · **Estado:** vigente (`docs/39` RV-520 y RV-521).
+- **Contexto:** al revocar jefatura los móviles (la respuesta a un código filtrado: todos a la vez), la app saltaba a la entrada aunque hubiera un formulario a medias, y se perdía. Y un envío que fallaba para siempre en segundo plano solo dejaba «1 sin enviar», sin color ni aviso; en el móvil de jefatura, ni siquiera había dónde verlo.
+- **Decisión:** 1. Con un formulario de operación abierto, la app no salta a la entrada: dice que el acceso ya no vale, deja guardar en el móvil, enseña que se ha guardado y salta después; lo guardado se envía al volver a entrar, como cualquier envío en cola. 2. Con algún envío con error, «N con error» en rojo y un aviso que lleva a Mis propuestas; jefatura ve en Mis propuestas la parte de su cola.
+- **Afecta a:** FR-35, FR-82, FR-83; 02 FL-01, FL-09, FL-10 y FL-28; 06 §5 (estado de la sincronización) y Apéndice A; 14.
+
+### DEC-220 · La base de datos vigila que las tareas sigan vivas
+- **Fecha:** 16 oct 2026 · **Estado:** vigente (`docs/39` RV-517, migración `0051`). Complementa DEC-085 y DEC-202.
+- **Contexto:** el respaldo, la vigilancia y el despachador corren en GitHub Actions. Si GitHub los para (por ejemplo, 60 días sin actividad en el repositorio, después del piloto), nadie se entera hasta mirar Salud.
+- **Decisión:** una tarea `pg_cron` diaria, `hidrantes_vigilar_tareas` (08:00 UTC), manda el aviso técnico `tareas_paradas` a jefatura si `ultima_vigilancia` tiene más de 36 h o `ultimo_respaldo` más de 9 días, como mucho uno cada 24 h. El respaldo solo se mira con `config.vigilar_respaldo` a `true` (lo es por defecto; el PR que apague el respaldo de staging tras `promover-piloto` la pone a `false` allí). El Worker lo entrega sin GitHub.
+- **Afecta a:** 04 §9; 05 (tareas y avisos técnicos); 06 Apéndice A; 15 §4; `scripts/sql/tareas-esperadas.txt`.
+
+### DEC-219 · La cadena del migrador, en el sobre
+- **Fecha:** 16 oct 2026 · **Estado:** vigente (`docs/39` RV-516 y RV-519).
+- **Contexto:** `restaurar` necesita la cadena de `hidrantes_migrador`. `arranque` crea su clave al azar y solo la guarda en los secretos de GitHub, que no se pueden leer. 15 §2 da por hecho que está en el sobre, y no puede estarlo: en un desastre, el paso 4 de 15 §5.3 no tendría con qué seguir.
+- **Decisión:** 1. `arranque`, al crear o rotar la clave del migrador (`--rotar db`), enseña la cadena **una vez**, como enseña la clave privada del respaldo, para guardarla en el gestor o el sobre de la agrupación (15 §2). 2. Antes del piloto, una rotación (`--rotar db` de staging y de prod) la deja en el sobre (RV-519). 3. Si un día el sobre no la tiene, la salida es otra rotación, que pide la contraseña de `postgres` del proyecto.
+- **Descartado:** guardar en el sobre la contraseña de `postgres` (el proyecto es de la app de uniformidad: esa contraseña abre también el esquema `public` y la puede cambiar quien lleva uniformidad); que `restaurar` cambie la clave del migrador él solo (necesitaría un administrador de GitHub en mitad de un desastre, y si falla a medias deja la CI sin clave).
+- **Afecta a:** 15 §2, §5.3 y §9; 04 §5; 11.
+
+### DEC-218 · Avisos push: comprobaciones del destino y tope por móvil
+- **Fecha:** 16 oct 2026 · **Estado:** vigente (`docs/39` RV-515, migración `0050`). El texto completo, tras 0.16.1.
+
+### DEC-217 · RV-139b no escribe en los datos del piloto
+- **Fecha:** 16 oct 2026 (desarrollador) · **Estado:** vigente (`docs/39` RV-514). Matiza DEC-184 y el «cómo» de `docs/verificacion/revision-completa-staging.md`.
+- **Contexto:** durante el piloto los datos reales están en staging (DEC-203), y la puerta de `publicar` pide RV-139b en cada release. RV-139b aprobaba una boca de prueba en cada pasada (quedan BOC-0007 a BOC-0017 en el mismo sitio) y su «limpieza» llegó a rechazar todas las propuestas pendientes.
+- **Decisión:** desde `docs/39` y hasta `promover-piloto`, RV-139b en staging:
+  1. lee: el commit servido, las pantallas, las vistas y las RPC de lectura;
+  2. recorre la app como voluntario con **un móvil de prueba** («Prueba RV-139b»), creado al empezar y **revocado al acabar**, sin enviar nada;
+  3. lo que tenga que escribir (una revisión de un punto `[PRUEBA]` del seed, aprobarla, editar, abrir y cerrar la entrada) lo hace dentro de **una transacción que termina en `rollback`**, comprobando el resultado antes de deshacerla. Nunca un alta (gastaría un número de código, que no vuelve con el `rollback`);
+  4. nunca sube fotos, ni rechaza, aprueba, edita, retira o anonimiza nada que quede; no abre ni cierra la entrada de verdad, no cambia el código, no revoca otros móviles y no prueba los canjes del código (escriben intentos y pueden mandar el aviso «alguien está probando códigos»; se prueban en local);
+  5. el marcador de `revision-completa-staging.md` (04 §12) no cambia.
+- **Descartado:** parar las releases durante el piloto (los arreglos del piloto tienen que poder salir); escribir y «limpiar» después (la limpieza toca datos de personas).
+- **Afecta a:** DEC-184, 04 §12, `docs/verificacion/revision-completa-staging.md`, CLAUDE.md §5.
+
+### DEC-216 · `docs/39`: lo que encontró la revisión tras `docs/38`, cuarta excepción a DEC-193
+- **Fecha:** 16 oct 2026 (desarrollador) · **Estado:** vigente (`docs/39`).
+- **Contexto:** la revisión completa del 16 oct 2026 encontró un fallo alto (restaurar un respaldo se para en el paso 4) y varios medios en la operación, los avisos push, la app y los documentos que el piloto va a usar. El desarrollador pidió, además, las fotos en el Inventario y otro nombre para la app de staging.
+- **Decisión:** 1. `docs/39` entra como excepción a DEC-193, solo con lo que contiene. 2. La de después del piloto pasa a ser **`docs/40`**; donde DEC-193, DEC-196, DEC-205, DEC-209 y DEC-212 dicen `docs/39`, léase `docs/40`. 3. Los bajos, como issues `tras-piloto`.
+- **Afecta a:** DEC-193, DEC-196, DEC-205, DEC-209, DEC-212, CLAUDE.md §5 y 09 §8.
+
 ### DEC-215 · Las listas del panel, más simples
 - **Fecha:** 15 oct 2026 (desarrollador) · **Estado:** vigente (`docs/38` RV-505 a RV-509). Matiza UI-11, UI-12 y DEC-171 en el panel.
 - **Contexto:** la misma pantalla enseñaba el total del Inventario tres veces, cada fecha dos («hace 1 mes · 20 ago
@@ -721,7 +774,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. `docs/38` entra como excepción a DEC-193, solo con lo que contiene y sin tocar la base de datos, las RPC, las
      Functions ni los workflows.
-  2. La especificación de después del piloto pasa a ser **`docs/39`** y parte de `docs/verificacion/piloto.md`.
+  2. La especificación de después del piloto pasa a ser **`docs/39`** (desde DEC-216, **`docs/40`**) y parte de `docs/verificacion/piloto.md`.
      Donde DEC-193, DEC-196, DEC-205 y DEC-209 dicen `docs/38`, léase `docs/39`.
 - **Descartado:** dejarlo como issue `tras-piloto` (jefatura usaría en el piloto el panel que se va a cambiar).
 - **Afecta a:** DEC-193, DEC-196, DEC-205, DEC-209, CLAUDE.md §5, la skill `paquete-rv` y 09 §8.
@@ -771,7 +824,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   1. `docs/37` cabe en DEC-193 tal cual: arreglos `bloquea-release` y mantenimiento de la documentación. No es
      otra excepción.
   2. La especificación de después del piloto pasa a ser **`docs/38`** y parte de `docs/verificacion/piloto.md`.
-     Donde DEC-193, DEC-196 y DEC-205 dicen `docs/37`, léase `docs/38`. (Desde DEC-212, **`docs/39`**.)
+     Donde DEC-193, DEC-196 y DEC-205 dicen `docs/37`, léase `docs/38`. (Desde DEC-212, **`docs/39`**, y desde DEC-216, **`docs/40`**.)
   3. Los hallazgos bajos de las revisiones del 14 y el 15 oct van como issues `tras-piloto` (RV-498).
 - **Afecta a:** DEC-193, DEC-196, DEC-205, CLAUDE.md §5 y 09 §8.
 
@@ -870,7 +923,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   1. `docs/36` entra como excepción a DEC-193, y solo con lo que contiene. Los dos de seguridad van como
      `bloquea-release`.
   2. La especificación de después del piloto pasa a ser **`docs/37`** y parte de `docs/verificacion/piloto.md`.
-     Donde DEC-193 y DEC-196 dicen `docs/36`, léase `docs/37`. (Desde DEC-209, **`docs/38`**, y desde DEC-212, **`docs/39`**: `docs/37` es lo de
+     Donde DEC-193 y DEC-196 dicen `docs/36`, léase `docs/37`. (Desde DEC-209, **`docs/38`**, desde DEC-212, **`docs/39`**, y desde DEC-216, **`docs/40`**: `docs/37` es lo de
      antes del piloto.)
   3. Los hallazgos bajos de esa revisión van como issues `tras-piloto`.
 - **Nota (RV-470):** las casillas del código de acceso admiten hasta 18 caracteres cada una; un código entero
@@ -1045,7 +1098,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. `docs/35` entra como excepción a DEC-193, y solo con lo que contiene.
   2. Los dos altos van como issues `bloquea-release`.
-  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/38`** (desde DEC-212, `docs/39`) y parte de
+  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/38`** (desde DEC-212, `docs/39`; desde DEC-216, `docs/40`) y parte de
      `docs/verificacion/piloto.md` (donde DEC-193 decía `docs/35`; decía `docs/36` hasta que DEC-205 hizo de
      `docs/36` la segunda excepción, y `docs/37` hasta DEC-209).
   4. Fuera de `docs/35`: S3 (riesgo aceptado por el desarrollador), S5 (decidido por el desarrollador) y los
@@ -1054,7 +1107,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - esperar al piloto: un piloto con datos reales y el acceso de jefatura sin atar a su cuenta de Google no es
     aceptable;
   - meterlo todo como `bloquea-release` sin especificación: sin reparto ni tests escritos.
-- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/39`, por DEC-205, DEC-209 y DEC-212); CLAUDE.md §5 («salvo `docs/35` y `docs/36`, DEC-196 y DEC-205»); 09 §8.
+- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/40`, por DEC-205, DEC-209, DEC-212 y DEC-216); CLAUDE.md §5 («salvo `docs/35` y `docs/36`, DEC-196 y DEC-205»); 09 §8.
 
 ### DEC-195 · Reglas de la documentación
 - **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34` RV-358 a RV-361).
@@ -1110,9 +1163,9 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
   Una mejora que se le ocurra a Claude Code o al desarrollador mientras tanto se anota como issue con la
   etiqueta `tras-piloto` y no se implementa.
-- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/38` (desde DEC-212, `docs/39`) parte de lo que diga ese
+- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/38` (desde DEC-212, `docs/39`; desde DEC-216, `docs/40`) parte de lo que diga ese
   archivo y de las issues `tras-piloto`, en ese orden (`docs/35` es la excepción de seguridad de DEC-196;
-  `docs/36`, la de DEC-205; `docs/37`, lo de antes del piloto dentro de esta regla, DEC-209, y `docs/38`, el panel en el móvil, DEC-212).
+  `docs/36`, la de DEC-205; `docs/37`, lo de antes del piloto dentro de esta regla, DEC-209, y `docs/38`, el panel en el móvil, DEC-212, y `docs/39`, lo que encontró la revisión tras `docs/38`, DEC-216).
 - **Descartado:** seguir con revisiones sobre staging hasta el piloto (rendimiento cada vez menor); congelar
   también los arreglos de defectos (un defecto que aparezca en la validación tiene que poder arreglarse).
 - **Afecta a:** 09 §8 (fase 9); CLAUDE.md §5 (una línea: «hasta el piloto, DEC-193»).
@@ -2760,24 +2813,24 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
 | Documento | Decisiones |
 |---|---|
-| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157, 158, 163–171, 177, 178, 186, 190, 192, 194, 199, 201, 213, 214 |
+| 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157, 158, 163–171, 177, 178, 186, 190, 192, 194, 199, 201, 213, 214, 221, 222 |
 | 03 | 001, 004, 026, 028, 099, 111, 112, 172, 181, 183, 199, 201, 207, 211 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111, 172, 173, 176, 180–182, 196, 197, 198, 200, 202–204, 206, 210 |
-| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132, 160, 163, 166, 167, 169, 170, 174, 175, 182, 183, 185, 190, 197, 199–202, 206–208, 211 |
-| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157, 158, 159, 162–171, 178, 179, 182, 183, 186–190, 192, 194, 202, 206, 208, 211, 213–215 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111, 172, 173, 176, 180–182, 196, 197, 198, 200, 202–204, 206, 210, 217, 219, 220, 223 |
+| 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132, 160, 163, 166, 167, 169, 170, 174, 175, 182, 183, 185, 190, 197, 199–202, 206–208, 211, 218, 220 |
+| 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157, 158, 159, 162–171, 178, 179, 182, 183, 186–190, 192, 194, 202, 206, 208, 211, 213–215, 220–223 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080, 177, 178, 184, 190, 193, 195, 196, 205, 209, 212 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 176, 193, 195, 196, 198, 204, 205, 209, 212 |
-| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118, 167, 197–199, 201, 206, 207, 210 |
-| 15 | 023, 061, 085, 088, 102, 128, 129, 172, 173, 176, 180, 190, 197, 200–203, 206 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080, 177, 178, 184, 190, 193, 195, 196, 205, 209, 212, 216 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 176, 193, 195, 196, 198, 204, 205, 209, 212, 216, 217 |
+| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118, 167, 197–199, 201, 206, 207, 210, 218, 219 |
+| 15 | 023, 061, 085, 088, 102, 128, 129, 172, 173, 176, 180, 190, 197, 200–203, 206, 219, 220 |
 | 16 | 007, 037, 111, 177 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |
-| 02 | 163–169, 177, 201, 214 |
+| 02 | 163–169, 177, 201, 214, 221 |
 | 10 | 165–169, 172, 177 |
-| 13 | 190, 197, 201, 206, 211, 215 |
-| 14 | 211 |
-| entornos.md | 172, 198, 200 |
+| 13 | 190, 197, 201, 206, 211, 215, 222 |
+| 14 | 211, 221 |
+| entornos.md | 172, 198, 200, 223 |
 
 ## Cómo añadir una decisión
 
