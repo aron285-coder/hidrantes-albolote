@@ -7,6 +7,7 @@ import { usePanel } from './usar-panel';
 import { Boton } from '@/componentes/Boton';
 import { Campo, PildorasCaudal, Segmentado, SelectorRacor } from '@/componentes/operaciones/Campos';
 import { SelectorPin } from '@/componentes/operaciones/SelectorPin';
+import { FotoPanel } from './FotoPanel';
 import { usePosicion } from '@/hooks/estado';
 import { bandaDe, nombreCaudal, nombreRacor } from '@/lib/ficha';
 import { useModal } from '@/lib/foco-modal';
@@ -742,6 +743,8 @@ export default function EditarPunto({
           )}
 
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 py-2">
+            {/* docs/39 RV-523 (DEC-222): las fotos del punto, en solo lectura; se piden al abrir Editar. */}
+            <FotosDelPunto punto={punto} />
             <CamposEditar
               punto={punto}
               v={v}
@@ -792,5 +795,23 @@ export default function EditarPunto({
       )}
     </>,
     document.body,
+  );
+}
+
+/** Alto de las fotos de Editar: 150 px a pantalla completa (móvil), 160 en el panel lateral (docs/39 RV-523). */
+const ALTO_FOTO_EDITAR = 'h-[150px] md:h-[160px]';
+
+/** La foto de la conexión y la del sitio, lado a lado; una sola, a todo el ancho (DEC-222). */
+function FotosDelPunto({ punto }: { punto: Punto }) {
+  const fotos: { path: string; etiqueta: string }[] = [];
+  if (punto.foto_path) fotos.push({ path: punto.foto_path, etiqueta: T.formulario.conexion });
+  if (punto.foto_sitio_path) fotos.push({ path: punto.foto_sitio_path, etiqueta: T.formulario.sitio });
+  if (!fotos.length) return null;
+  return (
+    <div className={cn('grid gap-2', fotos.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
+      {fotos.map((f) => (
+        <FotoPanel key={f.path} path={f.path} etiqueta={f.etiqueta} alto={ALTO_FOTO_EDITAR} donde="de Editar" />
+      ))}
+    </div>
   );
 }
