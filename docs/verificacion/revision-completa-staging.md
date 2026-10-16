@@ -315,3 +315,18 @@ la puerta no deja pasar entre la marca y `main`). Mismo método (traspaso 388290
 jefatura por BD ok (BOC-0017), 25 canjes ok, migrador sin `auth`, anonimizar y limpieza ok.
 
 commit: 81c4232aca10f2e55a86f3340ddf1e33e3dae275 · resultado: verde
+
+## Release 0.16.1 (16 oct 2026, docs/39 RV-515)
+
+La primera con el «cómo» de `docs/39` (DEC-217, arriba): sin escribir en los datos del piloto. Migración `0050` anotada
+en staging. «Desplegar staging» en verde con el commit de abajo. Cadena solo en memoria (traspaso 38874165624, borrado).
+
+| Recorrido | Resultado |
+|---|---|
+| Voluntario con el móvil de prueba «Prueba RV-139b», sin enviar nada (Cercanos, ficha y formulario de revisión de un punto `[PRUEBA]` sin enviarlo, Mis propuestas, buscar una dirección, escritorio sin desplazamiento, el aviso del service worker) | ok (13) |
+| El móvil de prueba no ha escrito nada (propuestas, subidas, suscripciones) | ok: 0 |
+| Jefatura por BD en una transacción con `rollback`: revisión de BOC-9001 como propuesta del móvil de prueba, `fn_aprobar`, `fn_editar_punto` (6 m y enganche), abrir y cerrar la entrada; `detalleLegible` («Enganche: Granada → Barcelona · Movido 6 m») | ok; deshecho: el punto sigue igual |
+| El rol del migrador sin acceso al esquema `auth` | ok: `false` |
+| Al acabar: el móvil de prueba revocado con `fn_revocar_dispositivo`; 0 propuestas pendientes en staging | ok |
+
+commit: 471c914af77f14830d0a9bd56f6547be8d299c35 · resultado: verde

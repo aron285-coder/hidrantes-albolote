@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura (si afecta a datos que ve) y nueva versión; todo cambio arrastra una entrada en 12 y una migración nueva. |
-| **Versión** | 1.5 — 15 de octubre de 2026 (`docs/37` RV-495), aprobada por el desarrollador al pedir el cambio (DEC-177): recoge los cambios de `docs/35` y `docs/36` (DEC-197 a DEC-208; migraciones 0045 a 0048: jefatura atada a su cuenta de Google, avisos técnicos, la entrada con el código, los móviles recién entrados y la versión al editar) y de `docs/37` (DEC-211; migración 0049: la entrada abierta para la Function y cualquier versión distinta en Editar). Los topes de §2.6 y §2.10 tienen ahora su exigencia en 03 (TR-48, TR-49, TR-56). Las versiones intermedias no se numeraron: cada cambio está anotado en su sección con su migración y su especificación. 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
+| **Versión** | 1.6 — 16 de octubre de 2026 (`docs/39` RV-515, DEC-218, migración 0050): avisos push, comprobaciones del destino y tope por móvil (§2.12, §6.1, §6.3). 1.5 — 15 de octubre de 2026 (`docs/37` RV-495), aprobada por el desarrollador al pedir el cambio (DEC-177): recoge los cambios de `docs/35` y `docs/36` (DEC-197 a DEC-208; migraciones 0045 a 0048: jefatura atada a su cuenta de Google, avisos técnicos, la entrada con el código, los móviles recién entrados y la versión al editar) y de `docs/37` (DEC-211; migración 0049: la entrada abierta para la Function y cualquier versión distinta en Editar). Los topes de §2.6 y §2.10 tienen ahora su exigencia en 03 (TR-48, TR-49, TR-56). Las versiones intermedias no se numeraron: cada cambio está anotado en su sección con su migración y su especificación. 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
 | **Propietario de** | **campos, tipos, constraints, índices, vistas, políticas RLS, firmas de las RPC y contrato HTTP de las Pages Functions.** El documento más consultado durante la construcción; 04 y 09 lo citan, no lo repiten. |
 | **No contiene** | la motivación de las decisiones (→ 04, 12) ni las reglas funcionales (→ 01, citadas por `FR-nn`). |
 
@@ -336,8 +336,8 @@ Las carga `scripts/cargar-zona.ts` con `upsert`; no van por migración.
 | `id` | `uuid` | PK |
 | `dispositivo_id` | `uuid` | voluntario; `null` si es administrador |
 | `email` | `text` | administrador; `null` si es voluntario |
-| `suscripcion` | `jsonb` | `endpoint`, `keys.p256dh`, `keys.auth`. El `endpoint` es `https://` de un servicio de push de navegador: `fcm.googleapis.com`, `*.push.services.mozilla.com`, `web.push.apple.com`, `*.push.apple.com` o `*.notify.windows.com` (`fn_validar_suscripcion`, 0029, docs/19 RV-68) |
-| `temas` | `text[]` | `{resultado_propuesta}` para voluntarios; para administradores, uno o varios de `nuevas_propuestas`, `resumen_semanal` y `avisos_tecnicos` (0045, docs/35 RV-404, DEC-202: las filas de jefatura que ya existían lo recibieron activado) |
+| `suscripcion` | `jsonb` | `endpoint`, `keys.p256dh`, `keys.auth`. El `endpoint` es `https://` de un servicio de push de navegador: `fcm.googleapis.com`, `*.push.services.mozilla.com`, `web.push.apple.com`, `*.push.apple.com` o `*.notify.windows.com` (`fn_validar_suscripcion`, 0029, docs/19 RV-68). Desde 0050 (DEC-218), lo que va entre `https://` y la primera `/` es **solo** ese host: sin usuario, contraseña ni puerto (`^[a-z0-9.-]+$`); `/api/push` lo vuelve a comprobar antes de enviar y, si no cumple, no envía y la borra como caducada |
+| `temas` | `text[]` | `{resultado_propuesta}` para voluntarios (desde 0050, exactamente ese, sin repetidos); para administradores, uno o varios, sin repetidos, de `nuevas_propuestas`, `resumen_semanal` y `avisos_tecnicos` (0045, docs/35 RV-404, DEC-202: las filas de jefatura que ya existían lo recibieron activado) |
 | `creada_en`, `ultimo_envio`, `fallos` | | un 404/410 del servicio de push (`suscripcion_caducada`) → se borra al momento; cualquier otro error suma un fallo, y se borra solo con **10 fallos seguidos y ningún envío bueno en los últimos 7 días** (o nunca). Un envío bueno pone `fallos = 0` (0030, docs/21 RV-84, DEC-118) |
 
 Único: `((suscripcion ->> 'endpoint'), (dispositivo_id is null))`, `suscripciones_endpoint_duenio_idx`
@@ -346,6 +346,14 @@ si en él activan los avisos un voluntario y un administrador, cada uno conserva
 nuevo desde el mismo tipo de dueño actualiza esa fila (un token nuevo del mismo navegador, u otro
 administrador en el mismo ordenador, se la queda). Hasta 0030 el único era solo por `endpoint` y el
 último en activar le quitaba la fila al otro.
+
+**Tope y limpieza (0050, DEC-218).** Como mucho **3 suscripciones por móvil** y **3 por correo de jefatura**: al
+guardar la cuarta se borra la más vieja (con un cerrojo por móvil o por correo, `pg_advisory_xact_lock`, 05 §11).
+Cuando a un móvil no le queda **ningún token válido** (sin `revocado_en`), sus suscripciones se borran (disparador
+`dispositivos_suscripciones_tras_revocar`: cubre `fn_revocar_dispositivo`, `fn_revocar_desde`, el cambio de código
+revocando y la tarea `hidrantes_revocar_tokens`); un móvil con otro token válido las conserva. Al quitar el acceso a
+un administrador, las suyas (disparador `administradores_suscripciones_tras_quitar_acceso`). `fn_avisar_jefatura` y
+`fn_encolar_resumen_semanal` solo avisan a administradores activos.
 
 Desde 0041 (docs/32 RV-225) la fila de jefatura de un navegador es **de un administrador**: apagar los
 avisos (`fn_borrar_suscripcion_push_admin`) solo borra la fila si es del administrador que llama, y
@@ -623,6 +631,8 @@ fn_reportar_incidencia(token text, descripcion text, version_app text, ruta text
   --   no valida nada, no guarda nada y devuelve un uuid nuevo. SECURITY INVOKER. Se quita con #472.
 
 fn_guardar_suscripcion_push(token text, suscripcion jsonb, temas text[]) returns uuid
+  -- 0050 (DEC-218): temas null o {resultado_propuesta}; otro → PAYLOAD_INVALIDO(temas). Como mucho 3 por móvil:
+  --   la cuarta borra la más vieja. El destino, con fn_validar_suscripcion (§2.12).
 fn_borrar_suscripcion_push(token text) returns void
 
 -- 0044 (docs/33 RV-323): ¿tiene ese endpoint alguna fila de jefatura (dispositivo_id null)? Solo
@@ -845,6 +855,7 @@ fn_guardar_suscripcion_push_admin(suscripcion jsonb, temas text[]) returns uuid
   -- temas: uno o varios de nuevas_propuestas, resumen_semanal y, desde 0045 (docs/35 RV-404),
   --   avisos_tecnicos; vacío u otro → PAYLOAD_INVALIDO(temas). Guarda los temas que recibe: el panel
   --   anterior, que no conoce avisos_tecnicos, lo quita si vuelve a guardar los temas.
+  -- 0050 (DEC-218): sin temas repetidos; como mucho 3 por correo (la cuarta borra la más vieja).
 -- 0040 (docs/31 RV-167): apagar los avisos de jefatura en este navegador. Borra solo la fila de jefatura
 -- (dispositivo_id null) con ese endpoint; la del voluntario del mismo navegador no se toca. Sin fila, no
 -- hace nada. error: PAYLOAD_INVALIDO(endpoint) si viene vacío.
@@ -950,6 +961,8 @@ fn_municipio_de(geom geography) returns table (municipio municipio, nucleo text)
   -- "fuera" = a más de config.buffer_zona_m de todo límite (st_dwithin), igual que zona-cobertura.geojson
   -- del móvil; en el margen, el municipio del límite más cercano (DEC-057)
 fn_siguiente_codigo(tipo tipo_punto) returns text
+fn_suscripciones_tras_revocar() returns trigger          -- 0050: un móvil sin tokens válidos, sin suscripciones
+fn_suscripciones_tras_quitar_acceso() returns trigger    -- 0050: un administrador sin acceso, sin suscripciones
 fn_punto_json(p puntos) returns jsonb   -- la fila sin geom y con lat/lng, para antes/despues del registro;
                                         -- desde 0045 sin datos_cambiados_en (marca técnica, RV-403)
 fn_config(clave text, por_defecto jsonb) returns jsonb   -- valor de config con respaldo

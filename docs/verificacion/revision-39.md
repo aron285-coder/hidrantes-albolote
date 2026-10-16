@@ -16,3 +16,13 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   BOC-0016 y BOC-0017** (las once, `[PRUEBA] RV-139b alta …`; traspaso 38867050886, borrado). Consulta de solo lectura
   con la condición de `promover-piloto` (`situacion = 'activo'`, `CONDICION_PUNTOS`) sobre esos códigos: **0**.
   #651, cerrada. Sin test de código: es un procedimiento y una limpieza.
+- **RV-515:** avisos push: comprobaciones del destino y tope por móvil (migración `0050`, DEC-218; pgTAP
+  `47_avisos_push_destino_y_tope`, `functions/_lib/destino-push.test.ts` y `functions/api/push.test.ts`, que fallaban
+  antes). 05 v1.6 y 11 v1.8.
+  - Con 0.16.1 en producción, DEC-218 tiene su texto completo en 12 y este documento entra en Git (RV-516, §0.7).
+- **RV-516:** `arranque` enseña la cadena de `hidrantes_migrador` **una vez** al crearla o rotarla (`--rotar db`), con
+  el mismo patrón que la clave privada del respaldo (`ensenarCadenaMigrador`): nunca a un archivo, al registro ni a un
+  argumento; sin terminal no sale y dice cómo repetirlo. `restaurar` la pide diciendo que está en el sobre. Tests que
+  fallaban antes: los tres de «la cadena del migrador, en el sobre» de `scripts/arranque.test.ts`. 15 v1.7 (§2, §5.3
+  paso 4, §9), 04 v1.7 (§5), 11 v1.9. `docs/39-revision-tras-38.md` entra en Git y DEC-218, con su texto completo (12
+  v1.69).
