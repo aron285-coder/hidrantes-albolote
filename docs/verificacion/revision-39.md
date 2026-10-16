@@ -30,3 +30,8 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   `fn_vigilar_tareas` y la tarea `hidrantes_vigilar_tareas` (08:00 UTC), también en `scripts/sql/tareas-esperadas.txt`;
   Salud la nombra «Vigilar las tareas automáticas». Tests que fallaban antes: pgTAP `48_vigilar_tareas` y
   `04_concurrencia_y_tareas` (nueve tareas). 04 v1.8, 05 v1.7, 06 (Apéndice A), 13 v0.6 y 15 v1.8.
+- **RV-518:** `deploy-staging.yml` y `deploy-prod.yml` migran con `--entorno staging` / `--entorno prod`;
+  `scripts/comprobar-cadena.ts` (nuevo) como primer paso con la base en el seed de staging, `purgar-fotos.yml` y los dos
+  trabajos de `respaldo.yml`; `guarda-produccion.ts` exige `REFS.prod`. Tests que fallaban antes: los de «la guarda de
+  proyecto en los workflows» de `scripts/workflows.test.ts`, `scripts/comprobar-cadena.test.ts` y «todo coherente, pero
+  del proyecto de staging» de `guarda-produccion.test.ts` (que pasa a usar `REFS.prod`). 04 v1.9.

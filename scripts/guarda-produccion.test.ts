@@ -2,9 +2,11 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { comprobarGuarda, variablesDePages } from './guarda-produccion.ts';
+import { REFS } from './lib/comun.ts';
 
-const REF = 'abcdefghijklmnopqrst';
-const STAGING = 'zzzzzzzzzzzzzzzzzzzz';
+// docs/39 RV-518: el ref tiene que ser el de producción que el repositorio ya conoce (REFS.prod).
+const REF = REFS.prod;
+const STAGING = REFS.staging;
 /** Un JWT con esa carga y una firma cualquiera: la guarda no verifica la firma, solo el proyecto. */
 const jwt = (carga: object) =>
   ['{"alg":"HS256","typ":"JWT"}', JSON.stringify(carga)].map((p) => Buffer.from(p).toString('base64url')).join('.') +
@@ -30,6 +32,17 @@ describe('guarda de producción', () => {
 
   it.each([
     ['entorno de staging', { entorno: 'staging' }],
+    // docs/39 RV-518: todas las variables del proyecto de staging, coherentes entre sí, no pasan.
+    [
+      'todo coherente, pero del proyecto de staging',
+      {
+        ref: STAGING,
+        supabaseUrl: `https://${STAGING}.supabase.co`,
+        viteSupabaseUrl: `https://${STAGING}.supabase.co`,
+        dbUrl: `postgresql://hidrantes_migrador.${STAGING}:x@aws-0-eu-central-1.pooler.supabase.com:5432/postgres`,
+        anonKey: jwt({ iss: 'supabase', ref: STAGING, role: 'anon' }),
+      },
+    ],
     ['proyecto de Pages de staging', { proyectoPages: 'hidrantes-albolote-staging' }],
     ['URL de otro proyecto', { supabaseUrl: 'https://zzzzzzzzzzzzzzzzzzzz.supabase.co' }],
     ['conexión como postgres', { dbUrl: `postgresql://postgres.${REF}:x@h:5432/postgres` }],

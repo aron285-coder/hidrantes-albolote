@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión; cada cambio arrastra una entrada en 12. |
-| **Versión** | 1.8 — 16 oct 2026 (`docs/39` RV-517, DEC-220): §9, la tarea `hidrantes_vigilar_tareas`. 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §5, la cadena del migrador, en el sobre. · 1.6 — 15 oct 2026 (`docs/37` RV-490, DEC-210): §11.2 y la tabla de workflows, `dist` comprobado antes de desplegar y el sondeo de las Functions tras desplegar. 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
+| **Versión** | 1.9 — 16 oct 2026 (`docs/39` RV-518): §4 y §9, los despliegues, el seed, la purga de fotos y el respaldo comprueban el proyecto de la base. 1.8 — 16 oct 2026 (`docs/39` RV-517, DEC-220): §9, la tarea `hidrantes_vigilar_tareas`. 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §5, la cadena del migrador, en el sobre. · 1.6 — 15 oct 2026 (`docs/37` RV-490, DEC-210): §11.2 y la tabla de workflows, `dist` comprobado antes de desplegar y el sondeo de las Functions tras desplegar. 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
 | **Propietario de** | las **decisiones de infraestructura y despliegue**: qué piezas hay, dónde corren, cómo se despliegan y cómo se vuelve atrás. |
 | **No contiene** | el esquema ni las firmas (→ 05), las exigencias que motivan estas decisiones (→ 03), procedimientos de emergencia paso a paso (→ 15). |
 
@@ -149,7 +149,12 @@ Reglas:
   el paso "Paridad con develop" de `deploy-prod.yml` comprueba que producción quedó igual. Poner
   producción al día no abre el acceso: el código real se comunica en F9.10 (#85).
 - El seed es un archivo aparte (`supabase/seed-staging.sql`) y la CI de producción **aborta** si su
-  nombre aparece en el comando o si `PROJECT_REF` no es el esperado.
+  nombre aparece en el comando o si `PROJECT_REF` no es el esperado: `guarda-produccion.ts` exige que sea el de
+  producción que el repositorio conoce (`REFS.prod`), no solo que las variables coincidan entre sí (docs/39 RV-518).
+  Antes de tocar la base, cada despliegue migra con su `--entorno` (`migrar.ts --entorno staging` / `--entorno prod`,
+  que comprueba la cadena con `comprobarCadena`), y el seed de staging, `purgar-fotos.yml` y los dos trabajos de
+  `respaldo.yml` llaman primero a `node scripts/comprobar-cadena.ts --entorno <e>`: con la cadena de otro proyecto,
+  se paran sin tocar nada.
 - Cada punto ficticio del seed lleva `descripcion` con prefijo `[PRUEBA]`.
 - Sus fotos (`fotos/prueba-*.jpg`) existen: después del seed, `deploy-staging.yml` corre
   `npm run fotos-seed`, que sube a `hidrantes-fotos-dev` las que falten (generadas, con «[PRUEBA]» y

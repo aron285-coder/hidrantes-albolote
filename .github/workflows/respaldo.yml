@@ -120,6 +120,12 @@ jobs:
             echo "::warning::La cadena no usa hidrantes_migrador: el respaldo no necesita ser postgres (DEC-052)"
           fi
 
+      # docs/39 RV-518: la cadena tiene que ser del proyecto de producción, antes de cualquier psql o pg_dump.
+      - name: Comprobar el proyecto de la base
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
+        run: node scripts/comprobar-cadena.ts --entorno prod --variable BD
+
       - name: Fecha del respaldo
         id: cuando
         run: |
@@ -338,6 +344,12 @@ jobs:
             echo "::error::SUPABASE_DB_URL de staging apunta a la conexión directa; hace falta el pooler en modo sesión (04 §10)"
             exit 1
           fi
+
+      # docs/39 RV-518: la cadena tiene que ser del proyecto de staging, antes de cualquier psql o pg_dump.
+      - name: Comprobar el proyecto de la base
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL }}
+        run: node scripts/comprobar-cadena.ts --entorno staging --variable BD
 
       - name: Fecha del respaldo
         id: cuando
