@@ -139,11 +139,11 @@ select is((select count(*)::int from hidrantes.notificaciones where suscripcion_
   'nuevas_propuestas: nada a un administrador sin acceso');
 select ok((select count(*) from hidrantes.notificaciones n join hidrantes.suscripciones_push s on s.id = n.suscripcion_id
            where s.email = 'jefa-rv515@example.com') > 0, 'y sí a uno activo');
-with p as (insert into hidrantes.puntos (codigo, tipo, geom, diametro_mm, caudal, municipio, nucleo, descripcion)
-  values (hidrantes.fn_siguiente_codigo('hidrante'), 'hidrante', 'SRID=4326;POINT(-3.656 37.231)', 70, 'bueno',
-          'albolote', 'Albolote', '[PRUEBA] rv515') returning id)
-insert into hidrantes.propuestas (punto_id, operacion, datos, autor_nombre, autor_apellido, dispositivo_id, clave_local)
-select id, 'revision', '{}', 'Prueba', 'RV515', gen_random_uuid(), 'rv515-resumen' from p;
+-- Un punto con la revisión caducada, para que el resumen tenga algo que decir.
+insert into hidrantes.puntos (codigo, tipo, geom, diametro_mm, caudal, foto_path, municipio, nucleo, fecha_ultima_revision,
+                             descripcion)
+values (hidrantes.fn_siguiente_codigo('hidrante'), 'hidrante', 'SRID=4326;POINT(-3.656 37.231)', 70, 'bueno',
+        'fotos/rv515.jpg', 'albolote', 'Albolote', current_date - 800, '[PRUEBA] rv515');
 delete from hidrantes.notificaciones;
 select hidrantes.fn_encolar_resumen_semanal();
 select is((select count(*)::int from hidrantes.notificaciones where suscripcion_id = '00000000-0000-4000-8000-0000000051f1'), 0,
