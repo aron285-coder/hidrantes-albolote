@@ -162,6 +162,21 @@ describe('cola de envíos', () => {
     expect(cola.colaActual()[0]).toMatchObject({ fallo: null, intentos: 0 });
   });
 
+  it('tras una comprobación de acceso que acaba sin TOKEN_* (sin servidor), el siguiente TOKEN_* la vuelve a pedir (docs/40 RV-534)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'TOKEN_REVOCADO: x' }, status: 400 });
+    let comprobaciones = 0;
+    registrarComprobacion(async () => {
+      comprobaciones += 1;
+    });
+    await cola.encolar(args('k-000010'), null, 'HID-0147');
+    await cola.procesarCola();
+    await vi.waitFor(() => expect(comprobaciones).toBe(1));
+    // acceso: la comprobación no pudo hablar con el servidor; el token aún puede valer.
+    cola.olvidarTokenRechazado();
+    await cola.procesarCola();
+    await vi.waitFor(() => expect(comprobaciones).toBe(2));
+  });
+
   it('avisa de lo enviado y detecta lo atascado más de 24 h (FR-83)', async () => {
     const enviadas: string[] = [];
     cola.alEnviarPropuesta((e) => enviadas.push(e.clave_local));

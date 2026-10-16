@@ -418,6 +418,15 @@ type Credencial = { token: string } | { jwt: string };
 /** El último token que el servidor rechazó (TOKEN_*): no se vuelve a pedir la comprobación de acceso por él. */
 let tokenRechazado: string | null = null;
 
+/**
+ * Lo llama acceso cuando una comprobación termina sin TOKEN_* (con servidor y el token bueno, o sin servidor): el token
+ * aún puede valer, y el siguiente TOKEN_* vuelve a pedir la comprobación. Si no, la cola se quedaba parada con ese
+ * token hasta un cambio de visibilidad o de conexión (docs/40 RV-534).
+ */
+export function olvidarTokenRechazado(): void {
+  tokenRechazado = null;
+}
+
 async function credencial(): Promise<Credencial | null> {
   const s = leerSesion();
   if (s) return { token: s.token };
