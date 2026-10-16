@@ -417,6 +417,11 @@ type Credencial = { token: string } | { jwt: string };
 
 /** El último token que el servidor rechazó (TOKEN_*): no se vuelve a pedir la comprobación de acceso por él. */
 let tokenRechazado: string | null = null;
+/** El que acceso hizo olvidar: si vuelve a dar TOKEN_*, la comprobación se pide otra vez, pero tras una pausa. */
+let tokenOlvidado: string | null = null;
+let comprobacionPendiente: ReturnType<typeof setTimeout> | undefined;
+/** La pausa antes de volver a preguntar por un token que ya dio TOKEN_* (docs/40 RV-534). */
+export const PAUSA_COMPROBACION_MS = 30_000;
 
 /**
  * Lo llama acceso cuando una comprobación termina sin TOKEN_* (con servidor y el token bueno, o sin servidor): el token
@@ -424,7 +429,17 @@ let tokenRechazado: string | null = null;
  * token hasta un cambio de visibilidad o de conexión (docs/40 RV-534).
  */
 export function olvidarTokenRechazado(): void {
+  if (tokenRechazado) tokenOlvidado = tokenRechazado;
   tokenRechazado = null;
+}
+
+/** El mismo token otra vez rechazado: la comprobación, tras la pausa y una sola vez (no una por vuelta). */
+function comprobarTrasPausa(): void {
+  if (comprobacionPendiente) return;
+  comprobacionPendiente = setTimeout(() => {
+    comprobacionPendiente = undefined;
+    void reintentarAhora();
+  }, PAUSA_COMPROBACION_MS);
 }
 
 async function credencial(): Promise<Credencial | null> {
@@ -627,8 +642,13 @@ async function unaVuelta(c: Credencial, gen: number): Promise<'seguir' | 'parar'
       // volvería a lanzar la cola sin pausa.
       const token = 'token' in c ? c.token : null;
       if (token === null || token !== tokenRechazado) {
+        // El mismo que acceso hizo olvidar: con pausa. Sin ella, comprobación (sin servidor) y cola (TOKEN_*) se
+        // relanzarían la una a la otra sin fin.
+        const repetido = token !== null && token === tokenOlvidado;
         tokenRechazado = token;
-        void reintentarAhora();
+        tokenOlvidado = null;
+        if (repetido) comprobarTrasPausa();
+        else void reintentarAhora();
       }
       return 'parar';
     }
@@ -861,6 +881,9 @@ function pedirAlmacenPersistente() {
 export function _usarAlmacenCola(a: AlmacenCola<EnCola>) {
   almacen = a;
   tokenRechazado = null;
+  tokenOlvidado = null;
+  clearTimeout(comprobacionPendiente);
+  comprobacionPendiente = undefined;
   items = [];
   cargada = false;
   procesando = null;
