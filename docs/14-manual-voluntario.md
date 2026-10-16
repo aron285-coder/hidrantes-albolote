@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.4 — 16 de octubre de 2026 (`docs/39` RV-521): §8, §9 y §12, los envíos con error. 0.3 — 16 de octubre de 2026 (`docs/39` RV-520): §2 y §8, si cambian el código mientras rellenas algo. 0.2 — 15 de octubre de 2026 (`docs/37` RV-496): §2, «Mucha gente entrando a la vez» y «Demasiados intentos» con la hora a la que se puede volver a probar; §9, el máximo de propuestas de un móvil recién entrado (lo que no sale se queda guardado); §12, *Sincronizar* está en Ajustes → *Mapa sin cobertura* o en la píldora de la cabecera. 0.1 — 7 de octubre de 2026. Primer borrador completo, con la app de la versión 0.8 y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.5 — 16 de octubre de 2026 (`docs/39` RV-524): §2, la app del piloto se llama «Hidrantes test». 0.4 — 16 de octubre de 2026 (`docs/39` RV-521): §8, §9 y §12, los envíos con error. 0.3 — 16 de octubre de 2026 (`docs/39` RV-520): §2 y §8, si cambian el código mientras rellenas algo. 0.2 — 15 de octubre de 2026 (`docs/37` RV-496): §2, «Mucha gente entrando a la vez» y «Demasiados intentos» con la hora a la que se puede volver a probar; §9, el máximo de propuestas de un móvil recién entrado (lo que no sale se queda guardado); §12, *Sincronizar* está en Ajustes → *Mapa sin cobertura* o en la píldora de la cabecera. 0.1 — 7 de octubre de 2026. Primer borrador completo, con la app de la versión 0.8 y las capturas de `capturas/vistas/`. |
 | **Para** | Los voluntarios de Protección Civil de Albolote. |
 | **Se apoya en** | 02 (los pasos, FL-01 a FL-38), 01 (las reglas) y `notas-para-14-ios.md` (iPhone). Si este manual y 01 o 02 dicen cosas distintas, mandan 01 y 02, y este manual se corrige. |
 
@@ -38,6 +38,10 @@ Nada de lo que envías cambia el mapa directamente. **Todo pasa por jefatura.**
 4. Verás tres pantallas cortas: cómo se lee el mapa, cómo se añade un punto y que todo pasa por
    jefatura. Puedes saltarlas y volver a verlas desde Ajustes → *Cómo se usa*.
 5. Si estás con wifi, la app descarga sola el mapa para usarlo sin cobertura y los puntos.
+
+**Durante el piloto la app se llama «Hidrantes test».** En Android, si ya la tenías instalada, el nombre cambia
+solo (puede tardar un día). En iPhone, para que cambie hay que quitarla y volver a añadirla, y eso borra su acceso y
+lo que no se haya enviado: antes, comprueba que no queda nada «sin enviar»; después, vuelve a escribir el código.
 
 **En iPhone:** la app instalada y Safari no comparten datos. Instala primero y entra después. Si
 pasas semanas sin abrirla, el iPhone puede borrar sus datos: la app te pedirá el código otra vez y

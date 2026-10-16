@@ -6,7 +6,12 @@ test.describe('armazón', () => {
   test('carga en español con la versión y la banda de pruebas', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'es');
-    await expect(page).toHaveTitle(`${T.app.nombreCorto} · ${T.app.nombre}`);
+    // Los e2e se construyen como staging: «Hidrantes test» (docs/39 RV-524, DEC-223).
+    await expect(page).toHaveTitle(`${T.app.nombreCortoPruebas} · ${T.app.nombre}`);
+    await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute(
+      'content',
+      T.app.nombreCortoPruebas,
+    );
     await expect(page.locator('meta[name="version"]')).toHaveAttribute('content', /^\d+\.\d+\.\d+/);
     await expect(page.getByRole('status')).toHaveText(T.app.entornoPruebas);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(T.app.nombre);
@@ -32,7 +37,12 @@ test.describe('armazón', () => {
 
   test('el manifiesto de la PWA está en español', async ({ request }) => {
     const manifiesto = await (await request.get('/manifest.webmanifest')).json();
-    expect(manifiesto).toMatchObject({ lang: 'es', short_name: T.app.nombreCorto, display: 'standalone' });
+    expect(manifiesto).toMatchObject({
+      lang: 'es',
+      short_name: T.app.nombreCortoPruebas,
+      name: `${T.app.nombreCortoPruebas} · ${T.app.nombre}`,
+      display: 'standalone',
+    });
   });
 
   test('instalable: iconos del escudo, apple-touch-icon y Service Worker activo (F4.6)', async ({ page, request }) => {

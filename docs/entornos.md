@@ -3,10 +3,10 @@
 Generado por `npm run arranque` el 2026-09-23. Sin secretos: los valores viven
 en GitHub Environments y en Cloudflare Pages (04 §10).
 
-| Entorno | Rama | Proyecto Supabase · ref | Bucket | URL |
-|---|---|---|---|---|
-| staging | `develop` | `uniformidad-dev` · `jowapbzawsebfpksnlqx` | `hidrantes-fotos-dev` | https://hidrantes-albolote-staging.pages.dev |
-| production | `main` | `uniformidad-prod` · `cbgqirjqyltadpydpeyr` | `hidrantes-fotos` | https://hidrantes-albolote.pages.dev |
+| Entorno | Rama | Proyecto Supabase · ref | Bucket | URL | App |
+|---|---|---|---|---|---|
+| staging | `develop` | `uniformidad-dev` · `jowapbzawsebfpksnlqx` | `hidrantes-fotos-dev` | https://hidrantes-albolote-staging.pages.dev | Hidrantes test |
+| production | `main` | `uniformidad-prod` · `cbgqirjqyltadpydpeyr` | `hidrantes-fotos` | https://hidrantes-albolote.pages.dev | Hidrantes |
 
 | Cosa | Valor |
 |---|---|

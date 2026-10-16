@@ -16,6 +16,7 @@ import { randomInt } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { claveAleatoria, parGpg, paresVapid, salAleatoria } from './lib/claves.ts';
+import { nombreCortoDe } from '../src/lib/nombre-app.ts';
 import {
   RAIZ,
   abortar,
@@ -790,7 +791,9 @@ function escribirEntornos(datos: Map<string, DatosSupabase>, cuentaCf: string, h
     : (anterior.match(/Huella GPG de respaldos \| `[^`]+`([^|\n]*)\|/)?.[1] ?? '').trimEnd();
   const filas = ENTORNOS.map((e) => {
     const d = datos.get(e.clave)!;
-    return `| ${e.clave} | \`${e.rama}\` | \`${e.proyectoSupabase}\` · \`${d.ref}\` | \`${e.bucket}\` | https://${e.proyectoPages}.pages.dev |`;
+    // El nombre de la app instalada: «Hidrantes test» en staging (docs/39 RV-524, DEC-223; src/lib/nombre-app.ts).
+    const nombre = e.clave === 'staging' ? nombreCortoDe('staging') : nombreCortoDe('produccion');
+    return `| ${e.clave} | \`${e.rama}\` | \`${e.proyectoSupabase}\` · \`${d.ref}\` | \`${e.bucket}\` | https://${e.proyectoPages}.pages.dev | ${nombre} |`;
   });
   writeFileSync(
     archivo,
@@ -799,8 +802,8 @@ function escribirEntornos(datos: Map<string, DatosSupabase>, cuentaCf: string, h
 Generado por \`npm run arranque\` el ${new Date().toISOString().slice(0, 10)}. Sin secretos: los valores viven
 en GitHub Environments y en Cloudflare Pages (04 §10).
 
-| Entorno | Rama | Proyecto Supabase · ref | Bucket | URL |
-|---|---|---|---|---|
+| Entorno | Rama | Proyecto Supabase · ref | Bucket | URL | App |
+|---|---|---|---|---|---|
 ${filas.join('\n')}
 
 | Cosa | Valor |
