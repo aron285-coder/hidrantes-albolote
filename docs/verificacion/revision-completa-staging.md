@@ -281,3 +281,9 @@ abajo. Mismo método (cadena solo en memoria; traspaso 38824302992, borrado).
 | El panel de docs/38 (Google no se automatiza): el mismo build con el panel simulado, `listas-anchos` y `vistas` (ver `panel-movil-38.md`, RV-512) | ok |
 
 commit: 6a62228ccf6cad07787f3abf8274b78534536dfd · resultado: verde
+
+Otra vez sobre `81c4232` (#808, un test de Exportar que fallaba en la CI del PR `develop → main`; cambia `e2e/`, que
+la puerta no deja pasar entre la marca y `main`). Mismo método (traspaso 38829070851, borrado): voluntario 13 ok,
+jefatura por BD ok (BOC-0017), 25 canjes ok, migrador sin `auth`, anonimizar y limpieza ok.
+
+commit: 81c4232aca10f2e55a86f3340ddf1e33e3dae275 · resultado: verde
