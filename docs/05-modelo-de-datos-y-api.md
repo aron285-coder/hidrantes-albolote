@@ -320,6 +320,7 @@ El propietario **no** va en una migración (repositorio público, DEC-053): lo d
 | `version_zona` | | fecha de `datos/meta.json` |
 | `version_mapabase` | | ídem |
 | `ultimo_respaldo` | | lo escribe el workflow |
+| `vigilar_respaldo` | `true` | booleano JSON: si `fn_vigilar_tareas` mira también `ultimo_respaldo` (DEC-220, 0051). No sale en la lista de Ajustes |
 
 `SAL_IP` **no** está aquí: vive en las variables de la Pages Function.
 

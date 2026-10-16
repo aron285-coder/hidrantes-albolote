@@ -1995,7 +1995,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      - Sigue siendo una tabla para los lectores de pantalla (`role="table"`, `row`, `columnheader` y `cell`), con los mismos botones de ordenar arriba. Se cambia de tabla a filas con `matchMedia('(min-width: 1024px)')`, no con CSS, para no tener dos campos de dirección con la misma etiqueta.
      - El campo de dirección mide al menos `27ch`, así que "— pendiente, escribe aquí" nunca se corta, tampoco en la tabla ancha. El tipo va con `whitespace-nowrap`.
      - Las pestañas se reparten en dos filas (`flex-wrap`), sin selector: se ven todas a la vez y cada una sigue siendo un enlace.
-  3. **"Último respaldo" en staging (RV-78):** con `VITE_ENTORNO=staging` y sin respaldo, dice "no se respalda: entorno de pruebas". Si algún día hubiera una fecha, se enseña la fecha. En local sigue "todavía ninguno".
+  3. **"Último respaldo" en staging (RV-78):** con `VITE_ENTORNO=staging` y sin respaldo, dice "no se respalda: entorno de pruebas". Si algún día hubiera una fecha, se enseña la fecha. En local sigue "todavía ninguno". *Sustituido por DEC-203 y `docs/39` RV-522: staging se respalda y Salud lo vigila (anotado en `docs/40` RV-536).*
 - **Descartado:**
   - **Un selector "Sección: Inventario ▾"** para las pestañas: esconde las demás y añade un toque. Con dos filas caben las siete a 768 px.
   - **Filas de dos líneas solo con CSS** sobre la misma `<table>`: con `display` cambiado, algunos navegadores pierden la semántica de tabla, y el test tendría que adivinarla.

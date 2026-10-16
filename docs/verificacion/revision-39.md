@@ -16,10 +16,17 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   BOC-0016 y BOC-0017** (las once, `[PRUEBA] RV-139b alta …`; traspaso 38867050886, borrado). Consulta de solo lectura
   con la condición de `promover-piloto` (`situacion = 'activo'`, `CONDICION_PUNTOS`) sobre esos códigos: **0**.
   #651, cerrada. Sin test de código: es un procedimiento y una limpieza.
+  - **Comprobado de verdad (`docs/40` RV-536, 16 oct 2026, solo lectura, traspaso 38951893689 borrado).** Esa consulta
+    usaba `CONDICION_PUNTOS`, que deja fuera `[PRUEBA]` (`promover-piloto.ts`): habría dado 0 sin retirar nada (el fallo
+    estaba en la especificación). Ahora, `select codigo, situacion from hidrantes.puntos where codigo between 'BOC-0007'
+    and 'BOC-0017'` → **11 filas, todas `retirado`**; `select count(*) … where situacion = 'activo' and descripcion like
+    '[PRUEBA] RV-139b%'` → **0**.
 - **RV-515:** avisos push: comprobaciones del destino y tope por móvil (migración `0050`, DEC-218; pgTAP
   `47_avisos_push_destino_y_tope`, `functions/_lib/destino-push.test.ts` y `functions/api/push.test.ts`, que fallaban
   antes). 05 v1.6 y 11 v1.8.
   - Con 0.16.1 en producción, DEC-218 tiene su texto completo en 12 y este documento entra en Git (RV-516, §0.7).
+  - **RV-139b de 0.16.1 (#857):** la primera con la regla de DEC-217, en verde sobre `471c914`
+    (`revision-completa-staging.md`, «Release 0.16.1»); sin test: documentación.
 - **RV-516:** `arranque` enseña la cadena de `hidrantes_migrador` **una vez** al crearla o rotarla (`--rotar db`), con
   el mismo patrón que la clave privada del respaldo (`ensenarCadenaMigrador`): nunca a un archivo, al registro ni a un
   argumento; sin terminal no sale y dice cómo repetirlo. `restaurar` la pide diciendo que está en el sobre. Tests que
@@ -82,7 +89,10 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   cuentan en la geometría); pasan en los dos proyectos. pgTAP `49_rpc_sin_prueba_propia` (12): `fn_guardar_direccion_sugerida`
   (solo jefatura, recortada, en blanco → sin dirección, 300 como mucho, una decidida no cambia) y
   `fn_borrar_suscripcion_push` (token que no vale → error; borra solo las de ese móvil). Corrió en `ci-sql` (sin Docker en
-  local).
+  local). Test que falló antes: ninguno de código (las dos RPC ya hacían lo que prueba el pgTAP nuevo, y los e2e del panel
+  se saltaban en el móvil, no fallaban); los que fallaron en CI al quitar los `skip` fueron `panel-inventario`
+  («Exportar ▾: menú con flechas…», el menú se cerraba al enfocar) y `controles` del Inventario («Más acciones de
+  HID-9003» mudo bajo las pestañas), arreglados en el mismo PR (#872).
 - **RV-527 (RV-139b):** verde sobre `cdfc27a` con la regla de DEC-217 (nada escrito en staging; el móvil de prueba,
   revocado). Recorrido corto sin nada que corregir. En las PR de RV-526 se arreglaron dos tests que fallaban solo en CI
   con el panel en `movil`: el menú de Exportar se cerraba al enfocar un elemento (ahora `preventScroll`) y `controles`
