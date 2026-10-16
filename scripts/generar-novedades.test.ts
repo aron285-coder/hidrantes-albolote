@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   AMBITOS_USUARIO,
   MAX_CARACTERES,
+  MAX_LINEAS,
   MAX_POR_AMBITO,
   limpiar,
   lineaParaNovedades,
@@ -360,11 +361,17 @@ describe('títulos con «(docs/NN …)» y el CHANGELOG real (docs/40 RV-529, DE
       .map((l) => /^\s*[*-]\s+(\*\*([^*:]+):\*\*.+)$/.exec(l))
       .filter((m): m is RegExpExecArray => !!m && AMBITOS_USUARIO.has(m[2]!.trim().toLowerCase()))
       .map((m) => m[1]!);
-    expect(deUsuario.length).toBeGreaterThan(0);
+    // Una versión sin nada de usuario (solo operación o base) no tiene nada que enseñar: no es un fallo.
     for (const l of deUsuario) expect(lineaParaNovedades(l), l).not.toBeNull();
-    // Y lo que enseña Novedades es de esa versión.
+    // Y Novedades empieza por esa versión: sus líneas (hasta el tope) van primero; el resto, de las anteriores (RV-95).
     const n = novedadesDe(log);
-    expect(n.lineas.length).toBeGreaterThan(0);
-    expect(n.lineas.every((x) => x.version === n.version)).toBe(true);
+    const porAmbito = new Map<string, Set<string>>();
+    for (const l of deUsuario) {
+      const ambito = /^**([^*:]+):/.exec(l)![1]!.trim().toLowerCase();
+      porAmbito.set(ambito, (porAmbito.get(ambito) ?? new Set()).add(lineaParaNovedades(l)!));
+    }
+    const caben = [...porAmbito.values()].reduce((n, textos) => n + Math.min(textos.size, MAX_POR_AMBITO), 0);
+    const deLaUltima = Math.min(caben, MAX_LINEAS);
+    expect(n.lineas.slice(0, deLaUltima).every((x) => x.version === n.version)).toBe(true);
   });
 });
