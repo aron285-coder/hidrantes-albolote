@@ -653,3 +653,47 @@ describe('cerrar sesión revoca el token (docs/31 RV-158)', () => {
     }
   }, 2000);
 });
+
+// docs/39 RV-520 (DEC-221): con un formulario abierto, revocar el acceso no salta a la entrada.
+describe('el formulario no se pierde al revocar el acceso (docs/39 RV-520)', () => {
+  beforeEach(async () => {
+    guardarSesion(TOKEN, { nombre: 'Ana', apellido: 'Ruiz' });
+    _reiniciarAcceso();
+    (await import('./formulario-abierto'))._reiniciarFormularios();
+  });
+
+  it('TOKEN_REVOCADO con un formulario abierto: accesoCaducado, el token sigue y no se va a la entrada', async () => {
+    const { abrirFormulario } = await import('./formulario-abierto');
+    const { leerSesion } = await import('./sesion');
+    const cerrar = abrirFormulario();
+    rpc.mockResolvedValue({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: revocado' } });
+    await comprobarAcceso();
+    expect(acceso()).toMatchObject({ tipo: 'voluntario', accesoCaducado: true });
+    expect(leerSesion()?.token).toBe(TOKEN);
+    // Al cerrar el formulario, la entrada y el token olvidado.
+    cerrar();
+    await new Promise((ok) => setTimeout(ok, 0));
+    expect(acceso()).toEqual({ tipo: 'fuera', caducado: true });
+    expect(leerSesion()).toBeNull();
+  });
+
+  it('del formulario a su pantalla de resultado no se sale: el aviso espera a que no quede ninguno', async () => {
+    const { abrirFormulario } = await import('./formulario-abierto');
+    const cerrarFormulario = abrirFormulario();
+    rpc.mockResolvedValue({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: revocado' } });
+    await comprobarAcceso();
+    cerrarFormulario();
+    const cerrarResultado = abrirFormulario();
+    await new Promise((ok) => setTimeout(ok, 0));
+    expect(acceso()).toMatchObject({ tipo: 'voluntario', accesoCaducado: true });
+    cerrarResultado();
+    await new Promise((ok) => setTimeout(ok, 0));
+    expect(acceso().tipo).toBe('fuera');
+  });
+
+  it('sin formulario abierto, como siempre: a la entrada', async () => {
+    rpc.mockResolvedValue({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: revocado' } });
+    await comprobarAcceso();
+    expect(acceso()).toEqual({ tipo: 'fuera', caducado: true });
+  });
+});

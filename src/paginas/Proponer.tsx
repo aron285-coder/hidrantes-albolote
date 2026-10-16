@@ -21,6 +21,7 @@ import { useSalidaFormulario } from '@/hooks/formulario-a-medias';
 import { RUTA_HECHO } from '@/lib/aviso-formulario';
 import { hayCambios } from '@/lib/formulario-cambios';
 import { type EnCola, encolar, estadoDeEnvio, reintentarCola } from '@/lib/cola';
+import { abrirFormulario } from '@/lib/formulario-abierto';
 import { nombreCaudal, nombreTipo } from '@/lib/ficha';
 import type { FotoProcesada } from '@/lib/foto';
 import { distancia, hace } from '@/lib/formato';
@@ -106,6 +107,9 @@ function FormularioOperacion({
   const gps = ultimaPosicion && !esAntigua(ultimaPosicion) ? ultimaPosicion : null;
   const posicionVieja = !!ultimaPosicion && !gps;
   const jefatura = acceso.tipo === 'jefatura';
+  // docs/39 RV-520 (DEC-221): mientras está abierto, si el acceso deja de valer no se salta a la entrada.
+  useEffect(() => abrirFormulario(), []);
+  const accesoCaducado = acceso.tipo === 'voluntario' && !!acceso.accesoCaducado;
   const [foto, setFoto] = useState<FotoProcesada | null>(null);
   // La del sitio, en alta y corregir ubicación (docs/24 RV-103).
   const [fotoSitio, setFotoSitio] = useState<FotoProcesada | null>(null);
@@ -199,13 +203,15 @@ function FormularioOperacion({
       disponible
       ? T.envio.aplicarAhora
       : T.envio.guardarEnMovil
-    : !disponible
-      ? conexion === 'sin_cobertura'
-        ? T.envio.guardarSinCobertura
-        : T.envio.guardarSinServidor
-      : operacion === 'retirada'
-        ? T.envio.enviarRetirada
-        : T.envio.enviarRevision;
+    : accesoCaducado
+      ? T.envio.guardarEnMovil
+      : !disponible
+        ? conexion === 'sin_cobertura'
+          ? T.envio.guardarSinCobertura
+          : T.envio.guardarSinServidor
+        : operacion === 'retirada'
+          ? T.envio.enviarRetirada
+          : T.envio.enviarRevision;
 
   const etiquetaFoto =
     operacion === 'retirada'
@@ -224,6 +230,15 @@ function FormularioOperacion({
         jefatura={jefatura}
         enlacePanel={false}
       />
+      {accesoCaducado && (
+        // docs/39 RV-520 (DEC-221): el acceso de este móvil ya no vale; lo escrito se guarda y sale al volver a entrar.
+        <p
+          role="alert"
+          className="bg-tinte-ambar text-tinte-ambar-texto border-oro-600 mx-auto mt-3 w-full max-w-lg rounded-tarjeta border px-3 py-2 text-[14px]"
+        >
+          {T.envio.accesoCaducadoFormulario}
+        </p>
+      )}
       <form
         className="mx-auto flex w-full max-w-lg flex-col gap-3 p-3 pb-8"
         onSubmit={(e) => {
@@ -647,6 +662,9 @@ function resultadoDe(cola: readonly EnCola[], clave: string, jefatura: boolean):
 function PantallaResultado({ clave, jefatura }: { clave: string; jefatura: boolean }) {
   const navegar = useNavigate();
   const acceso = useAcceso();
+  // También la pantalla de resultado cuenta como formulario abierto (docs/39 RV-520): se sale a la entrada al dejarla.
+  useEffect(() => abrirFormulario(), []);
+  const accesoCaducado = acceso.tipo === 'voluntario' && !!acceso.accesoCaducado;
   const [reintentando, setReintentando] = useState(false);
   const cola = useCola();
   const resultado = resultadoDe(cola, clave, jefatura);
@@ -661,7 +679,9 @@ function PantallaResultado({ clave, jefatura }: { clave: string; jefatura: boole
   const detalle = {
     aplicado: T.operaciones.aplicadoDetalle,
     // Esperando al día siguiente por el tope (RV-154): se dice por qué, no «se enviará sola».
-    guardado: (envio && textoEspera(envio)) || T.operaciones.guardadoDetalle,
+    guardado: accesoCaducado
+      ? T.envio.guardadoHastaEntrar
+      : (envio && textoEspera(envio)) || T.operaciones.guardadoDetalle,
     // Con un error permanente no se enviará sola (#484): se dice qué pasa, como en Mis propuestas.
     fallido: envio?.fallo ? textoFallo(envio.fallo) : T.misPropuestas.errorGenerico,
     solo_en_memoria: T.envio.soloEnMemoriaDetalle,

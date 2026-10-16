@@ -38,3 +38,9 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
 - **RV-519:** issue `organizacion` #858 («Antes del piloto: la clave del respaldo y las cadenas del migrador, en la
   agrupación»), con los pasos y enlazada desde #77; 15 v1.9 §2 dice quién las tiene hoy (el desarrollador; las
   cadenas, nadie); 09 §8, en «Queda». Sin test: lo hacen personas.
+- **RV-520:** con un formulario abierto, revocar el acceso ya no salta a la entrada (`src/lib/formulario-abierto.ts`,
+  `accesoCaducado` en el acceso del voluntario): el formulario lo dice, «Guardar en el móvil» lo deja en la cola, la
+  pantalla de resultado dice que se enviará al volver a entrar, y la entrada sale al cerrarlos; al volver a entrar, la
+  suscripción a los avisos se rehace al momento (`resincronizarPush(…, forzar)`). Tests que fallaban antes: los tres de
+  «el formulario no se pierde al revocar el acceso» de `acceso.test.ts`, «con forzar» de `push.test.ts` y el e2e nuevo
+  `e2e/formulario-revocado.spec.ts`. 01 v1.17, 02 v1.14, 06 (Apéndice A), 14 v0.3.
