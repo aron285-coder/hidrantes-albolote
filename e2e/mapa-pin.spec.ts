@@ -154,7 +154,7 @@ test('«N sin enviar» se toca en sus cuatro bordes (RV-243, UI-15)', async ({ p
       }),
   );
   await page.reload();
-  const enlace = page.getByRole('link', { name: T.mapa.sinEnviar(1) });
+  const enlace = page.getByRole('link', { name: T.mapa.envios(1, 0) });
   await expect(enlace).toBeVisible();
   // El sello de la barra cambia de texto al sincronizar y mueve el enlace: se mide y se toca en el
   // mismo instante, y se espera a que quede quieto.
