@@ -48,3 +48,7 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   otra vez rechazado tras olvidarlo, pide la comprobación tras una pausa (`PAUSA_COMPROBACION_MS`, 30 s), una sola vez;
   test nuevo en `cola.test.ts` que la reproduce (4 comprobaciones antes, 1 después). `role="status"`, con su test en
   `BarraEstado.test.tsx`.
+- **RV-535:** Registro, Papelera y Ajustes cumplen los 44 px en el móvil. `accesibilidad.spec.ts` mide con
+  `{ movil: !!isMobile }`, baja pantalla a pantalla y abre un diálogo de Ajustes. Lo que fallaba: «Reintentar» de
+  `ErrorReintentar` (36 px, en Ajustes) y la ✕ de `Dialogo` (36 px, #843); ahora 44 px por debajo de 1.100 px. Tests que
+  fallaban antes: el de `accesibilidad.spec.ts` en `movil` (los dos, cada uno sin su arreglo). #843 cerrada.
