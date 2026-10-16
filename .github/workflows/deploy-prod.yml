@@ -90,6 +90,7 @@ jobs:
           VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL_PROD }}
 
       - name: Guarda de seguridad
+        id: guarda
         run: node scripts/guarda-produccion.ts
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -120,6 +121,13 @@ jobs:
           build_del_entorno dist VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_VAPID_PUBLIC_KEY ?VITE_MAPABASE_URL
           # docs/39 RV-524 (DEC-223): producción sigue llamándose «Hidrantes»; «Hidrantes test» es solo de staging.
           if grep -q 'Hidrantes test' dist/manifest.webmanifest dist/index.html; then echo '::error::el build de producción lleva «Hidrantes test»'; exit 1; fi
+
+      # docs/40 RV-531: la cadena, del proyecto de producción, antes de usarla (también el aviso técnico de abajo).
+      - name: Comprobar el proyecto de la base
+        id: guarda-bd
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL }}
+        run: node scripts/comprobar-cadena.ts --entorno prod --variable BD
 
       - name: Migraciones (hidrantes_migrador, DEC-052)
         # Con --entorno, migrar.ts comprueba que la cadena es del proyecto de producción (docs/39 RV-518).
@@ -176,8 +184,9 @@ jobs:
       # base de datos. La issue de «avisar» es el aviso principal: si encolar falla, queda como aviso
       # de este paso y no tapa el fallo del despliegue.
       - name: Aviso técnico a jefatura
-        # También si se cancela a mitad (timeout-minutes): «avisar» abre la issue en los dos casos.
-        if: failure() || cancelled()
+        # También si se cancela a mitad (timeout-minutes): «avisar» abre la issue en los dos casos. Solo con las dos
+        # guardas en verde: con la cadena de otro proyecto, el aviso acabaría en esa otra base (docs/40 RV-531).
+        if: (failure() || cancelled()) && steps.guarda.outcome == 'success' && steps.guarda-bd.outcome == 'success'
         env:
           BD: ${{ secrets.SUPABASE_DB_URL }}
         run: |

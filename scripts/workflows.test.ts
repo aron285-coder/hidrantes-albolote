@@ -217,7 +217,10 @@ describe('secretos de staging fuera del repositorio (RV-411)', () => {
       return staging.slice(i).split(/\n {6}- /)[0]!;
     };
     for (const nombre of ['Avisar si el respaldo de staging ha fallado', 'Aviso técnico a jefatura de staging']) {
-      expect(paso(nombre)).toMatch(/^ {8}if: failure\(\) \|\| cancelled\(\)$/m);
+      // El aviso técnico, además, solo con la guarda en verde (docs/40 RV-531).
+      expect(paso(nombre)).toMatch(
+        /^ {8}if: (failure\(\) \|\| cancelled\(\)|\(failure\(\) \|\| cancelled\(\)\) && steps\.guarda\.outcome == 'success')$/m,
+      );
     }
     const tiempo = (c: string) => /^ {4}timeout-minutes: (\d+)$/m.exec(c)?.[1];
     expect(tiempo(prod)).toBeDefined();
@@ -260,9 +263,10 @@ describe('avisos técnicos a jefatura desde los workflows (RV-412)', () => {
         expect(paso).toContain("if: always() && steps.mirar.outputs.hay_produccion == 'si'");
       } else if (trabajo === 'respaldo-staging') {
         // docs/36 RV-461: cortado por tiempo queda cancelado, no fallido, y también avisa.
-        expect(paso).toContain('if: failure() || cancelled()');
+        expect(paso).toContain("if: (failure() || cancelled()) && steps.guarda.outcome == 'success'");
       } else {
-        expect(paso).toContain('if: failure()');
+        // Con la guarda de proyecto en verde (docs/40 RV-531).
+        expect(paso).toMatch(/if: \(?failure\(\)( \|\| cancelled\(\)\))? && steps\.guarda\.outcome == 'success'/);
       }
     },
   );
@@ -2418,5 +2422,55 @@ describe('el nombre de la app por entorno en los deploys (docs/39 RV-524)', () =
     expect(leer('deploy-prod.yml')).toMatch(
       /if grep -q 'Hidrantes test' dist\/manifest\.webmanifest dist\/index\.html/,
     );
+  });
+});
+
+// docs/40 RV-531: un paso que corre tras un fallo (failure(), always(), cancelled()) no usa la base si la guarda de
+// proyecto no ha pasado: con la cadena de otro proyecto, el aviso técnico de producción acababa en la base de staging.
+describe('tras un fallo, nada usa la base que la guarda ha rechazado (docs/40 RV-531)', () => {
+  /** Los pasos de un trabajo, por sangría (sin parser de YAML). */
+  const pasosDe = (cuerpo: string) => cuerpo.split(/^ {6}- (?=name:|uses:|run:|id:|if:)/m).slice(1);
+  const esGuarda = (paso: string) =>
+    /^name: (Comprobar el proyecto de la base|Guarda de seguridad)\b/.test(paso) &&
+    /node scripts\/(comprobar-cadena|guarda-produccion)\.ts/.test(paso);
+  const usaBase = (paso: string) => /\b(BD|SUPABASE_DB_URL\w*|SUPABASE_URL\w*)\b/.test(paso);
+  const trasFallo = (paso: string) => /^ {8}if:.*\b(failure|always|cancelled)\(\)/m.test(paso);
+
+  const conGuarda = archivos.flatMap((a) =>
+    trabajosDe(leer(a))
+      .filter((t) => pasosDe(t.cuerpo).some(esGuarda))
+      .map((t) => [a, t.nombre, pasosDe(t.cuerpo)] as const),
+  );
+
+  it('hay trabajos con la guarda (respaldo, purga de fotos, despliegue de producción)', () => {
+    expect(conGuarda.map(([a, t]) => `${a} · ${t}`)).toEqual(
+      expect.arrayContaining([
+        'deploy-prod.yml · desplegar',
+        'purgar-fotos.yml · purgar',
+        'respaldo.yml · respaldo',
+        'respaldo.yml · respaldo-staging',
+      ]),
+    );
+  });
+
+  it.each(conGuarda)('%s · %s: la guarda tiene id, y sin if ni continue-on-error', (_a, _t, pasos) => {
+    for (const p of pasos.filter(esGuarda)) {
+      expect(p, p.split('\n')[0]).toMatch(/^ {8}id: [\w-]+$/m);
+      expect(p, p.split('\n')[0]).not.toMatch(/^ {8}if:/m);
+      expect(p, p.split('\n')[0]).not.toMatch(/continue-on-error/);
+    }
+  });
+
+  it.each(conGuarda)('%s · %s: lo que corre tras un fallo y usa la base depende de la guarda', (_a, _t, pasos) => {
+    const ids: string[] = [];
+    for (const p of pasos) {
+      if (esGuarda(p)) {
+        ids.push(/^ {8}id: ([\w-]+)$/m.exec(p)?.[1] ?? '(sin id)');
+        continue;
+      }
+      if (!usaBase(p) || !trasFallo(p) || !ids.length) continue;
+      const si = /^ {8}if:(.*)$/m.exec(p)![1]!;
+      for (const id of ids) expect(si, p.split('\n')[0]).toContain(`steps.${id}.outcome == 'success'`);
+    }
   });
 });
