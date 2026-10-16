@@ -83,3 +83,7 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   (solo jefatura, recortada, en blanco → sin dirección, 300 como mucho, una decidida no cambia) y
   `fn_borrar_suscripcion_push` (token que no vale → error; borra solo las de ese móvil). Corrió en `ci-sql` (sin Docker en
   local).
+- **RV-527 (RV-139b):** verde sobre `cdfc27a` con la regla de DEC-217 (nada escrito en staging; el móvil de prueba,
+  revocado). Recorrido corto sin nada que corregir. En las PR de RV-526 se arreglaron dos tests que fallaban solo en CI
+  con el panel en `movil`: el menú de Exportar se cerraba al enfocar un elemento (ahora `preventScroll`) y `controles`
+  lleva cada control al centro antes de pulsarlo.

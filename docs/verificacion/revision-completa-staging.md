@@ -330,3 +330,22 @@ en staging. «Desplegar staging» en verde con el commit de abajo. Cadena solo e
 | Al acabar: el móvil de prueba revocado con `fn_revocar_dispositivo`; 0 propuestas pendientes en staging | ok |
 
 commit: 471c914af77f14830d0a9bd56f6547be8d299c35 · resultado: verde
+
+## Cierre de docs/39 (16 oct 2026, RV-527)
+
+Con la regla de DEC-217: sin escribir en los datos del piloto. «Desplegar staging» y CI en verde con el commit de abajo
+(RV-513 a RV-526 fusionadas). Cadena solo en memoria (traspaso, borrado al acabar).
+
+| Recorrido | Resultado |
+|---|---|
+| Voluntario con el móvil de prueba «Prueba RV-139b», sin enviar nada (Cercanos, ficha y formulario de revisión de un punto `[PRUEBA]` sin enviarlo, Mis propuestas, buscar una dirección, escritorio sin desplazamiento, el aviso del service worker) | ok (13) |
+| El móvil de prueba no ha escrito nada (propuestas, subidas, suscripciones) | ok: 0 |
+| Jefatura por BD en una transacción con `rollback`: revisión de BOC-9001 como propuesta del móvil de prueba, `fn_aprobar`, `fn_editar_punto`, abrir y cerrar la entrada; `detalleLegible` («Enganche: Granada → Barcelona · Movido 6 m») | ok; deshecho: el punto sigue igual |
+| Staging se llama «Hidrantes test» (manifiesto `name`/`short_name`, `<title>`, `apple-mobile-web-app-title`); producción sigue «Hidrantes» | ok |
+| Al acabar: el móvil de prueba revocado con `fn_revocar_dispositivo`; 0 propuestas pendientes en staging | ok |
+
+Recorrido corto (`revisar-pantallas`, con los e2e de RV-521 a RV-523 en local; capturas en `recorridos/2026-10-16/`, fuera
+de Git): las fotos en Editar a 412, 820 y 1280; la pastilla «1 con error» en rojo con su aviso; el filtro del Inventario
+en oscuro a 412. Nada que corregir.
+
+commit: cdfc27aeb9ab87592da289b373a9646970a9839a · resultado: verde
