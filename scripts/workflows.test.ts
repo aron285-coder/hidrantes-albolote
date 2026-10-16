@@ -2461,16 +2461,25 @@ describe('tras un fallo, nada usa la base que la guarda ha rechazado (docs/40 RV
     }
   });
 
-  it.each(conGuarda)('%s · %s: lo que corre tras un fallo y usa la base depende de la guarda', (_a, _t, pasos) => {
+  it.each(conGuarda)('%s · %s: lo que corre tras un fallo y usa la base depende de la guarda', (_a, trabajo, pasos) => {
     const ids: string[] = [];
     for (const p of pasos) {
       if (esGuarda(p)) {
         ids.push(/^ {8}id: ([\w-]+)$/m.exec(p)?.[1] ?? '(sin id)');
         continue;
       }
+      // Un `if:` en varias líneas (`>-`) se leería mal: que no lo haya.
+      expect(p, p.split('\n')[0]).not.toMatch(/^ {8}if: *[>|]/m);
       if (!usaBase(p) || !trasFallo(p) || !ids.length) continue;
       const si = /^ {8}if:(.*)$/m.exec(p)![1]!;
       for (const id of ids) expect(si, p.split('\n')[0]).toContain(`steps.${id}.outcome == 'success'`);
+      comprobados.add(trabajo);
     }
+  });
+
+  // Que lo anterior no pase sin mirar nada: estos trabajos tienen un aviso técnico tras la guarda.
+  const comprobados = new Set<string>();
+  it('el aviso técnico tras la guarda está en el despliegue y en los dos respaldos', () => {
+    expect([...comprobados]).toEqual(expect.arrayContaining(['desplegar', 'respaldo', 'respaldo-staging']));
   });
 });
