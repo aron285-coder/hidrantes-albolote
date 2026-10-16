@@ -18,3 +18,9 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   la clave ya está cambiada y guardada; el recuadro dice «staging» o «producción»; sin terminal, nombra PowerShell y
   `winpty`. Tests que fallaban antes: los cinco nuevos o cambiados de `scripts/arranque.test.ts` (el orden, el Worker que
   rechaza, la etiqueta y `motivoSinTerminal`). 15 v1.10 (§2 y §5.3); CLAUDE.md §6.
+- **RV-531:** los avisos de fallo no escriben en la base que la guarda ha rechazado: en `respaldo.yml` (los dos trabajos),
+  `purgar-fotos.yml` y `deploy-prod.yml`, la guarda con `id` (en `deploy-prod`, `guarda-produccion` y un
+  `comprobar-cadena` nuevo antes de migrar) y el aviso técnico con `steps.<guarda>.outcome == 'success'`;
+  `comprobar-cadena --url` comprueba la URL de la API (`https://<ref>.supabase.co`) y `purgar-fotos.yml` la usa para
+  `SUPABASE_URL_PROD`. Tests que fallaban antes: los siete nuevos de `scripts/workflows.test.ts` (la guarda con id y sin
+  `if:`, y todo paso tras un fallo que usa la base depende de ella) y los de `comprobar-cadena --url`. 04 v1.11 (§9).
