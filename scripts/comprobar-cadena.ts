@@ -6,8 +6,7 @@
 //
 // Lee la cadena de la variable de entorno (SUPABASE_DB_URL si no se dice otra). Nunca la escribe.
 
-import { fileURLToPath } from 'node:url';
-import { abortar, argumentos, leerEntorno, log, motivoCadenaAjena } from './lib/comun.ts';
+import { abortar, argumentos, ejecutarScript, leerEntorno, log, motivoCadenaAjena } from './lib/comun.ts';
 
 /** Por qué no sigue, o null si la cadena es del proyecto de ese entorno. */
 export function motivoComprobacion(entorno: string, cadena: string | undefined): string | null {
@@ -15,7 +14,7 @@ export function motivoComprobacion(entorno: string, cadena: string | undefined):
   return motivoCadenaAjena(leerEntorno(entorno, ['staging', 'prod']), cadena);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+async function principal(): Promise<void> {
   const { valores } = argumentos();
   const variable = valores.get('variable') ?? 'SUPABASE_DB_URL';
   const entorno = valores.get('entorno');
@@ -23,3 +22,5 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (motivo) abortar(`${variable}: ${motivo}`);
   log.ok(`${variable} es del proyecto de ${entorno}`);
 }
+
+if (import.meta.main) ejecutarScript(principal);

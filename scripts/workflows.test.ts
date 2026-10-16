@@ -2390,7 +2390,7 @@ describe('la guarda de proyecto en los workflows (docs/39 RV-518)', () => {
       .join('\n');
     const comprobar = texto.indexOf('node scripts/comprobar-cadena.ts');
     const base = texto.search(/\bpsql -X|\bpg_dump\b|node scripts\/purgar-fotos\.ts/);
-    return { comprobar, base };
+    return { comprobar, base, texto };
   };
 
   it.each([
@@ -2399,10 +2399,10 @@ describe('la guarda de proyecto en los workflows (docs/39 RV-518)', () => {
     ['respaldo.yml', 'respaldo', 'prod'],
     ['respaldo.yml', 'respaldo-staging', 'staging'],
   ])('%s (%s): comprobar-cadena --entorno %s antes del primer psql o pg_dump', (flujo, trabajo, entorno) => {
-    const { comprobar, base } = antesDe(flujo, trabajo);
+    const { comprobar, base, texto } = antesDe(flujo, trabajo);
     expect(comprobar).toBeGreaterThan(0);
     expect(base).toBeGreaterThan(comprobar);
-    const texto = leer(flujo);
-    expect(texto).toContain(`node scripts/comprobar-cadena.ts --entorno ${entorno}`);
+    // El entorno, el de ese trabajo: respaldo.yml tiene los dos.
+    expect(texto).toMatch(new RegExp(`node scripts/comprobar-cadena\\.ts --entorno ${entorno}\\b`));
   });
 });
