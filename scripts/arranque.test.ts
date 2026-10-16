@@ -26,6 +26,9 @@ import {
   SITIOS_PROPIETARIO,
   ensenarCadenaMigrador,
   motivoSinTerminal,
+  arrancarEntorno,
+  guardarCadenaMigrador,
+  etiquetaEntorno,
 } from './arranque.ts';
 
 // docs/35 RV-410: el build de los deploy, sin environment, usa la clave VAPID pública del repositorio.
@@ -421,20 +424,91 @@ describe('la cadena del migrador, en el sobre', () => {
 
   it('sin terminal no se rota: la cadena del sobre dejaría de valer sin enseñar la nueva', () => {
     expect(motivoSinTerminal(true, false)).toMatch(/terminal/);
+    // docs/40 RV-530: en Git Bash (mintty) la salida no es una terminal; dice qué usar.
+    expect(motivoSinTerminal(true, false)).toMatch(/PowerShell/);
+    expect(motivoSinTerminal(true, false)).toMatch(/winpty npm run arranque -- --rotar db/);
     expect(motivoSinTerminal(true, true)).toBeNull();
     expect(motivoSinTerminal(false, false)).toBeNull();
   });
 
   it('solo se llama con una cadena nueva (--rotar db), y nunca va a log, a un archivo ni a un argumento', () => {
     const fuente = readFileSync(path.join(import.meta.dirname, 'arranque.ts'), 'utf8');
-    // La definición y una sola llamada, la de sb.urlMigrador, que solo existe con --rotar db.
+    // La definición y una sola llamada, la de guardarCadenaMigrador; a esta solo la llama prepararSupabase con la
+    // clave recién creada (docs/40 RV-530).
     expect(fuente.match(/ensenarCadenaMigrador\(/g) ?? []).toHaveLength(2);
-    expect(fuente).toMatch(/if \(sb\.urlMigrador\) await ensenarCadenaMigrador\(/);
+    expect(fuente.match(/await alTenerMigrador\(urlMigrador\)/g) ?? []).toHaveLength(1);
     // Comprobación de la fuente (no del comportamiento): ni la cadena ni la clave en un log, una consola o un archivo.
     for (const v of ['urlMigrador', 'claveMigrador']) {
       expect(fuente).not.toMatch(
         new RegExp(`(log\\.[a-z]+|console\\.[a-z]+|writeFileSync|appendFileSync)\\([^;]*${v}`),
       );
     }
+  });
+});
+
+// docs/40 RV-530: con --rotar db, la cadena se guarda y se enseña antes de nada que pueda abortar.
+describe('--rotar db: la cadena, a salvo antes de nada que pueda abortar', () => {
+  const CADENA = 'postgresql://hidrantes_migrador.ref:clave-nueva@pooler.example:5432/postgres'; // detectar-secretos:permitir (valor de prueba)
+  const pasos = (orden: string[], worker: EscrituraWorker) => ({
+    supabase: async (alTenerMigrador: (c: string) => Promise<void>) => {
+      orden.push('clave cambiada en la base');
+      await alTenerMigrador(CADENA);
+      orden.push('pregunta de PostGIS');
+      return { ref: 'ref', url: 'https://ref.supabase.co', anon: 'a', servicio: 's', urlMigrador: CADENA };
+    },
+    guardarCadena: (c: string) =>
+      guardarCadenaMigrador('production', 'PROD', c, {
+        fijar: (nombre, _valor, entorno) => void orden.push(`secreto ${nombre} ${entorno ?? 'repo'}`),
+        ensenar: async (etiqueta) => {
+          orden.push(`enseñada (${etiqueta})`);
+          return true;
+        },
+      }),
+    pages: async () => {
+      orden.push('Pages');
+      return { vigilancia: 'v', resto: async () => void orden.push('Pages y repositorio') };
+    },
+    worker: () => worker,
+  });
+
+  it('el orden: la base, los secretos de la cadena y la cadena en pantalla, antes de PostGIS y de Pages', async () => {
+    const orden: string[] = [];
+    await arrancarEntorno('PROD', pasos(orden, 'ok'));
+    expect(orden).toEqual([
+      'clave cambiada en la base',
+      'secreto SUPABASE_DB_URL production',
+      `secreto SUPABASE_DB_URL_PROD ${ENV_TAREAS}`,
+      'enseñada (producción)',
+      'pregunta de PostGIS',
+      'Pages',
+      'Pages y repositorio',
+    ]);
+  });
+
+  it('si el Worker rechaza, la cadena ya está guardada y enseñada, y no dice «todo sigue como estaba»', async () => {
+    const orden: string[] = [];
+    const error = await arrancarEntorno('PROD', pasos(orden, 'error')).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ErrorDeScript);
+    const mensaje = (error as Error).message;
+    expect(mensaje).not.toMatch(/todo sigue como estaba/);
+    expect(mensaje).toMatch(/La clave del migrador ya está cambiada y guardada en GitHub/);
+    expect(mensaje).not.toContain('clave-nueva');
+    expect(orden).toContain('enseñada (producción)');
+    expect(orden).not.toContain('Pages y repositorio');
+  });
+
+  it('sin rotar la base, el mensaje de siempre', async () => {
+    await expect(
+      vigilanciaEnOrden(
+        'STAGING',
+        () => 'error',
+        () => undefined,
+      ),
+    ).rejects.toThrow(/todo sigue como estaba/);
+  });
+
+  it('el recuadro dice «staging» o «producción»', () => {
+    expect(etiquetaEntorno('production')).toBe('producción');
+    expect(etiquetaEntorno('staging')).toBe('staging');
   });
 });
