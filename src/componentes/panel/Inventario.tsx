@@ -560,7 +560,12 @@ export default function Inventario() {
             capa="base"
             modo={modo}
             posicion={posicion.tipo === 'ok' ? posicion.posicion : null}
-            alSeleccionar={setSeleccion}
+            alSeleccionar={(id) => {
+              setSeleccion(id);
+              // docs/39 RV-523 (DEC-222): tocar un punto del mapa abre Editar, como tocar su fila.
+              const p = id ? filtrados.find((x) => x.id === id) : null;
+              if (p) abrirEditar(p, (document.activeElement as HTMLElement | null) ?? document.body);
+            }}
           />
         </div>
       ) : (

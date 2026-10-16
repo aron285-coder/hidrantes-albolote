@@ -1,16 +1,16 @@
 import { ChevronLeft } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePanel } from './usar-panel';
+import { FotoPanel } from './FotoPanel';
 import { MinimapaPropuesta } from './MinimapaPropuesta';
 import { Boton } from '@/componentes/Boton';
 import { distancia, fechaCorta, hace } from '@/lib/formato';
 import { esCaudalConocido } from '@/lib/caudal';
 import { anotarError } from '@/lib/errores';
-import { claseChip, nombreCaudal, nombreRacor, nombreTipo, urlFoto } from '@/lib/ficha';
+import { claseChip, nombreCaudal, nombreRacor, nombreTipo } from '@/lib/ficha';
 import { ETIQUETA_OPERACION } from '@/lib/nombres-operacion';
 import {
   type CampoFicha,
-  type FotoDetalle,
   type CampoFusion,
   type PropuestaPanel,
   type Prevalece,
@@ -569,7 +569,14 @@ function Fotos({ p, punto }: { p: PropuestaPanel; punto?: Punto }) {
       {fotos.length ? (
         <div className="grid gap-2.5" style={{ gridTemplateColumns: `repeat(${fotos.length}, minmax(0, 1fr))` }}>
           {fotos.map((f) => (
-            <UnaFoto key={f.path} foto={f} />
+            <FotoPanel
+              key={f.path}
+              path={f.path}
+              etiqueta={f.etiqueta}
+              nueva={f.nueva}
+              alto={ALTO_FOTO}
+              donde="de la cola"
+            />
           ))}
         </div>
       ) : (
@@ -597,53 +604,6 @@ function AvisoDesactualizada({ p }: { p: PropuestaPanel }) {
 const ALTO_FOTO = 'h-[110px] md:max-[1100px]:h-[220px] min-[1100px]:h-[200px]';
 
 /** Una foto del detalle. Si no carga, lo dice con palabras en su hueco y queda anotado (UI-04). */
-function UnaFoto({ foto: f }: { foto: FotoDetalle }) {
-  const url = urlFoto(f.path);
-  const [fallo, setFallo] = useState(false);
-  return (
-    <figure className="relative min-w-0">
-      {url && !fallo ? (
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          className="rounded-tarjeta block overflow-hidden"
-          aria-label={T.panelCola.ampliarFoto(f.etiqueta)}
-        >
-          <img
-            // CORS: la caché del Service Worker guarda la respuesta completa, no una opaca (RV-12).
-            crossOrigin="anonymous"
-            src={url}
-            alt={f.etiqueta}
-            onError={() => {
-              setFallo(true);
-              anotarError(new Error('panel: una foto de la cola no carga'));
-            }}
-            className={cn('w-full bg-[linear-gradient(180deg,#C6D2DA,#8C968F)] object-cover', ALTO_FOTO)}
-          />
-        </a>
-      ) : (
-        <div
-          className={cn(
-            'bg-linea text-texto rounded-tarjeta flex items-center justify-center px-2 pb-8 text-center text-[13px]',
-            ALTO_FOTO,
-          )}
-        >
-          {T.panelCola.fotoNoCarga}
-        </div>
-      )}
-      <figcaption
-        className={cn(
-          'pointer-events-none absolute bottom-2 left-2 rounded-md px-2 py-0.5 text-[12px] text-white',
-          f.nueva ? 'bg-naranja-600' : 'bg-[rgba(14,27,48,.8)]',
-        )}
-      >
-        {f.etiqueta}
-      </figcaption>
-    </figure>
-  );
-}
-
 /** Dos columnas, propuesta y existente, con lo que difiere en ámbar (FR-106, FL-21). */
 function Comparacion({ p, existente, direccion }: { p: PropuestaPanel; existente: Punto; direccion: string }) {
   const v = valoresPropuestos(p);
