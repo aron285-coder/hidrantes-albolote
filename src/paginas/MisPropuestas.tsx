@@ -5,7 +5,7 @@ import { NavegacionArriba } from '@/componentes/NavegacionArriba';
 import { Boton } from '@/componentes/Boton';
 import { Hoja } from '@/componentes/Hoja';
 import { LimiteError } from '@/componentes/LimiteError';
-import { useConexion, usePuntos } from '@/hooks/estado';
+import { useAcceso, useConexion, usePuntos } from '@/hooks/estado';
 import { useCola, useMisPropuestas } from '@/hooks/cola';
 import { useReloj } from '@/hooks/reloj';
 import { ATASCADO_MS, type EnCola, descartar, reintentarFallido } from '@/lib/cola';
@@ -99,6 +99,8 @@ export function MisPropuestas() {
   const { pathname } = useLocation();
   const cola = useCola();
   const propias = useMisPropuestas();
+  // docs/39 RV-521 (DEC-221): jefatura no tiene lista del servidor (es de voluntario); solo su parte de la cola.
+  const jefatura = useAcceso().tipo === 'jefatura';
   const conexion = useConexion();
   const ahora = useReloj();
   const [confirmar, setConfirmar] = useState<{ tipo: 'retirar' | 'descartar'; id: string } | null>(null);
@@ -119,17 +121,21 @@ export function MisPropuestas() {
     [],
   );
   useEffect(() => {
-    void cargar();
-  }, [cargar]);
+    if (!jefatura) void cargar();
+  }, [cargar, jefatura]);
   const reintentar = () => {
     setCarga('cargando');
     void cargar();
   };
 
   // Una propuesta enviada ya está en la lista del servidor; la cola solo guarda lo que falta.
-  const enviadas = propias.filter((p) => !cola.some((c) => c.clave_local === p.clave_local));
+  const enviadas = jefatura ? [] : propias.filter((p) => !cola.some((c) => c.clave_local === p.clave_local));
 
-  const aviso = avisoMisPropuestas(carga, enviadas.length > 0, cola.length > 0, conexion);
+  const aviso = jefatura
+    ? cola.length > 0
+      ? null
+      : 'vacia'
+    : avisoMisPropuestas(carga, enviadas.length > 0, cola.length > 0, conexion);
 
   const retirable = (p: PropuestaPropia) => p.estado === 'pendiente' && conexion === 'bien';
 
@@ -146,8 +152,8 @@ export function MisPropuestas() {
         // Abierta desde una notificación es la primera del historial: ‹ lleva al mapa (RV-420).
         alVolver={() => volverOAlInicio(navegar)}
         // Va fuera del armazón, pero en el ordenador lleva la misma navegación de arriba (#625, U12).
-        // Solo la abre el voluntario (RutasDentro): sin «Jefatura».
-        navegacion={<NavegacionArriba pathname={pathname} jefatura={false} />}
+        // Jefatura llega desde la pastilla y la hoja de la sincronización, no desde la navegación (docs/39 RV-521).
+        navegacion={<NavegacionArriba pathname={pathname} jefatura={jefatura} />}
       />
       <LimiteError>
         <div className="mx-auto w-full max-w-lg p-3">
@@ -246,7 +252,11 @@ export function MisPropuestas() {
               </Tarjeta>
             ))}
           </ul>
-          {aviso === 'vacia' && <p className="text-texto-suave p-6 text-center">{T.misPropuestas.vacio}</p>}
+          {aviso === 'vacia' && (
+            <p className="text-texto-suave p-6 text-center">
+              {jefatura ? T.misPropuestas.vacioJefatura : T.misPropuestas.vacio}
+            </p>
+          )}
           {aviso === 'cargando' && (
             <p role="status" className="text-texto-suave p-6 text-center">
               {T.app.cargando}

@@ -44,7 +44,10 @@ export default function RutasDentro({ acceso }: { acceso: Extract<Acceso, { tipo
       <Route path="/proponer/:operacion" element={<Proponer />} />
       <Route
         path="/mis-propuestas"
-        element={acceso.tipo === 'voluntario' ? <MisPropuestas /> : <Navigate to="/" replace />}
+        // Jefatura también: ve la parte de la cola de este móvil (docs/39 RV-521, DEC-221).
+        element={
+          acceso.tipo === 'voluntario' || acceso.tipo === 'jefatura' ? <MisPropuestas /> : <Navigate to="/" replace />
+        }
       />
       {/* docs/29 RV-125 (DEC-167): «Algo no funciona» ya no existe; un enlace viejo lleva a Ajustes. */}
       <Route path="/incidencia" element={<Navigate to="/ajustes" replace />} />

@@ -44,3 +44,8 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   suscripción a los avisos se rehace al momento (`resincronizarPush(…, forzar)`). Tests que fallaban antes: los tres de
   «el formulario no se pierde al revocar el acceso» de `acceso.test.ts`, «con forzar» de `push.test.ts` y el e2e nuevo
   `e2e/formulario-revocado.spec.ts`. 01 v1.17, 02 v1.14, 06 (Apéndice A), 14 v0.3.
+- **RV-521:** con algún envío con `fallo`, la pastilla dice «N con error» (o «N con error · M sin enviar») en
+  `tinte-rojo`, sale el aviso «Un envío no se ha podido hacer. Mira Mis propuestas.» y la hoja de la sincronización lo
+  cuenta igual; `/mis-propuestas` deja entrar a jefatura y le enseña solo su cola (Reintentar, Descartar). Tests que
+  fallaban antes: los de «los envíos con error, a la vista» de `BarraEstado.test.tsx` y el e2e nuevo
+  `e2e/envios-con-error.spec.ts` (voluntario y jefatura en el móvil). 01 v1.18, 02 v1.15, 06 (Apéndice A), 14 v0.4.
