@@ -104,7 +104,7 @@ dispositivo · zona de cobertura · fuera de zona.
 
 ## 5. Cómo se trabaja
 
-**Hasta el piloto, DEC-193 (salvo `docs/35`, `docs/36`, `docs/38` y `docs/39`, DEC-196, DEC-205, DEC-212 y DEC-216; `docs/37` cabe dentro, DEC-209): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
+**Hasta el piloto, DEC-193 (salvo `docs/35`, `docs/36`, `docs/38`, `docs/39` y `docs/40`, DEC-196, DEC-205, DEC-212, DEC-216 y DEC-224; `docs/37` cabe dentro, DEC-209): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
 agrupación. Solo entran en `develop`:
 
 1. arreglos de una issue `bloquea-release`;
@@ -112,8 +112,8 @@ agrupación. Solo entran en `develop`:
 3. mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas programadas, estos archivos).
 
 Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. Las únicas
-excepciones son `docs/35`, `docs/36`, `docs/38` y `docs/39` (DEC-196, DEC-205, DEC-212 y DEC-216), y solo con lo que contienen; `docs/40`, la de
-después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md`.
+excepciones son `docs/35`, `docs/36`, `docs/38`, `docs/39` y `docs/40` (DEC-196, DEC-205, DEC-212, DEC-216 y DEC-224), y solo con lo que contienen;
+`docs/41`, la de después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md`.
 
 1. Qué coger: si te han pedido algo concreto, eso. Si no, la issue `bloquea-release` más antigua y después la
    `piloto` más antigua. **Nunca** una con `organizacion` (es trabajo de personas: validar, dar la sesión,
@@ -129,7 +129,9 @@ después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md
    la issue se cierra sola al fusionar; DEC-141), con la plantilla rellena (definición de terminado, 09 §6).
    Commits *conventional* en español: `feat(mapa): …`, `fix(cola): …`, `chore(ci): …`. La descripción
    de un `feat:` o `fix:` con ámbito de usuario se escribe para un voluntario: qué cambia para él, sin
-   nombres de archivos ni códigos internos. Sale tal cual en Novedades (FR-167, DEC-091).
+   nombres de archivos ni códigos internos. Sale tal cual en Novedades (FR-167, DEC-091). **El título de un `feat` o `fix`
+   no lleva códigos** (`docs/NN`, `RV-nnn`, `DEC-nnn`): van en el cuerpo, `Refs: docs/40 RV-529` (DEC-225). Con
+   `--squash`, el título del PR es el del commit.
    Especificaciones grandes: varias sesiones en paralelo según `docs/trabajo-en-paralelo.md` (DEC-100); el
    reparto exacto lo fija cada especificación.
    Revisado con `pr-review-toolkit` y `code-review`; los hallazgos, resueltos o explicados en el PR
@@ -141,6 +143,10 @@ después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md
    tomado) y actualiza `docs/09-plan-implementacion.md` §8: una fase sin ese archivo no está terminada. Si cierra
    una especificación (verificación escrita y release en producción), muévela con `git mv` a
    `docs/archivo/especificaciones/` en ese mismo PR y añádela a la tabla de `docs/INDICE.md` (DEC-195).
+
+**El texto completo de un fallo de seguridad entra en Git cuando producción sirve el arreglo** (DEC-226): su PR enlaza
+el `deploy-prod` en verde y la salida de `npm run comprobar-produccion` con la versión y el commit servidos; la rama no se
+sube antes.
 
 **RV-139b no escribe en los datos del piloto** (DEC-217): lee; lo que escribe, en una transacción que se deshace; un
 solo móvil de prueba, revocado al acabar.

@@ -25,6 +25,7 @@ pedida por una especificación (DEC-177); la versión vigente es la que dice su 
 | 14 | `14-manual-voluntario.md` · manual del voluntario (`docs/31` RV-139) | borrador, se revisa tras el piloto |
 | 15 | `15-continuidad-y-emergencias.md` | vivo |
 | 16 | `16-alcance-y-hoja-de-ruta.md` | congelado |
+| 40 | `40-revision-tras-39.md` · lo que encontró la revisión tras `docs/39`: Novedades de 0.17.0, la rotación del migrador a salvo, los avisos de fallo tras la guarda, las suscripciones tras revocar, el título del alta aprobada y los flecos de `docs/39` (quinta excepción a DEC-193, DEC-224); registro en `verificacion/revision-40.md` | en curso |
 | — | `mockups/` · mockups definitivos que cita un documento vigente: `25-lista.html` (solo §1), `25-ficha.html` y `25-cola.html` y `27-cercanos.html` (solo la versión A), citados por 06; y `33-mejoras.html` («Ahora» y «Propuesta» de cada mejora de `docs/33`), citado por 12; y `38-panel-cola.html`, `38-panel-inventario.html`, `38-panel-registro.html`, `38-panel-papelera.html` y `38-panel-ajustes.html` («Propuesta» de cada pantalla), citados por 06. `29-inventario-y-editar.html` está archivado | vivo |
 | — | `trabajo-en-paralelo.md` · cómo repartir una especificación grande entre tres sesiones de Claude Code (Ops, Backend, Frontend), y PAR-01 (DEC-100) | vivo |
 | — | `entornos.md` · lo que dejó el arranque (refs, buckets, secretos por nombre) | vivo |

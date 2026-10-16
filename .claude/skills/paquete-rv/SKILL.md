@@ -5,7 +5,7 @@ description: Ciclo completo de un paquete de puntos RV/GM de una especificación
 
 # Paquete RV
 
-> **Hasta el piloto (DEC-193)** no hay especificaciones nuevas, salvo las excepciones que diga CLAUDE.md §5 (hoy, `docs/39`, DEC-216). Un arreglo suelto (`bloquea-release` o `piloto`)
+> **Hasta el piloto (DEC-193)** no hay especificaciones nuevas, salvo las excepciones que diga CLAUDE.md §5 (hoy, `docs/40`, DEC-224). Un arreglo suelto (`bloquea-release` o `piloto`)
 > sigue los mismos pasos sin issue de coordinación: el paso 1 es leer la issue, y en el 10 basta con `Closes #N`.
 
 1. Lee en la especificación los puntos del paquete y los documentos que citan. Comprueba en la issue
@@ -23,6 +23,10 @@ description: Ciclo completo de un paquete de puntos RV/GM de una especificación
 6. Si el paquete toca pantallas, usa la skill `revisar-pantallas`.
 7. Revisión: `pr-review-toolkit` y luego `code-review`. Resuelve o explica cada hallazgo.
 8. PR a `develop` con la plantilla: por cada punto, su test y "falló antes del arreglo: sí".
+   El título del PR (con `--squash`, el del commit) de un `feat`/`fix` es una frase para un voluntario o para jefatura,
+   **sin** códigos; el código, en el cuerpo: `gh pr merge --auto --squash --body "Refs: docs/NN RV-nnn"` (DEC-225).
+   Un arreglo de seguridad: su texto completo entra cuando producción sirve el arreglo; el PR enlaza el `deploy-prod`
+   en verde y la salida de `comprobar-produccion` (DEC-226).
    `gh pr merge --auto --squash`. No esperes al CI: empieza el siguiente paquete.
 9. Si el CI falla, arréglalo en esa rama antes de otra cosa.
 10. Al fusionar, marca la casilla en la issue de coordinación con una línea: qué entró y qué PR.
