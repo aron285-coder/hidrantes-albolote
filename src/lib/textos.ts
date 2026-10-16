@@ -1302,7 +1302,6 @@ export const T = {
     vigilanciaAtrasada: 'lleva más de un día sin pasar',
     nunca: 'todavía ninguno',
     // En staging no se hacen respaldos: solo de producción (docs/20 RV-78).
-    respaldoNoAplica: 'no se respalda: entorno de pruebas',
     almacenamientoNoAplica: 'no se mide en pruebas',
     sinDato: 'sin dato',
     inventarioDescargado: (n: number) => `Inventario descargado: ${plural(n, 'punto', 'puntos')}.`,
