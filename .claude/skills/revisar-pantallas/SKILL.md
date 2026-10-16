@@ -6,8 +6,8 @@ description: Revisar a ojo las pantallas de la app y del panel antes de fusionar
 # Revisar pantallas
 
 1. Ejecuta `npx playwright test e2e/vistas.spec.ts` con tu `PW_PUERTO` (docs/21 RV-88). Genera
-   capturas a 412 × 915 (Android) y 1280 × 800, en claro y en oscuro; en el panel, también a 820 × 1180 y
-   1920 × 1080.
+   capturas a 412 × 915 (Android) y 1280 × 800, en claro y en oscuro; el panel, a 412 × 915 y a 820, 1280 y
+   1920 × 900 (los tamaños de `vistas.spec.ts`).
    - Las capturas quedan en `test-results/vistas-*/*.png` y en el informe. En un PR que toca
      `src/**`, el trabajo `ci-vistas` las sube como artefacto `vistas`, que se guarda 90 días
      (`gh run download <id> -n vistas`). No se commitean (DEC-195).

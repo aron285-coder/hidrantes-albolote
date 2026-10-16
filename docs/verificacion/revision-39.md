@@ -69,3 +69,11 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   las Novedades de producción. Tests que fallaban antes: `src/lib/nombre-app.test.ts`, los dos de
   `scripts/workflows.test.ts` y `e2e/armazon.spec.ts` (título, nombre de iPhone y manifiesto). 04 v1.10, 06 v1.37,
   13 v0.8, 14 v0.5.
+- **RV-525:** la documentación, al día con la app, cada corrección con la línea del código que la respalda. 14 v0.6
+  (leyenda sin tachado, Barro y No funciona como en 06 §4.3; la foto opcional en Corregir datos; «sin conexión · hace N»;
+  la barra «Hay una versión nueva»); 13 v0.9 (la fecha en rojo; «En el móvil» de §4 y §5; lo que no se puede usar en
+  staging); 10 v1.9 (los AC que estaban mal hoy, y AC-185 a AC-191 nuevos); 01 v1.20, 02 v1.16, 03 v1.11 (TR-21: 768,
+  1.100 y 1.600 px); 06 v1.38 sin literales que ya no existen. `textos.test.ts` comprueba también al revés (cada literal
+  del Apéndice A está en `textos.ts`, con `[…]` como hueco, o en la lista cerrada de textos del servidor, cada uno con su
+  motivo); fallaba antes con los tres literales viejos. CLAUDE.md y `revisar-pantallas` con los tamaños de
+  `vistas.spec.ts`; 09 §3, los dos riesgos al resumen semanal; INDICE, la fila de `docs/38` en las archivadas.

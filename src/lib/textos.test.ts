@@ -29,11 +29,74 @@ function hojas(obj: object, prefijo = ''): [string, string][] {
   });
 }
 
+/** Como `hojas`, pero llamando a cada función con `valor` en todos sus argumentos. */
+function hojasCon(obj: object, valor: unknown): string[] {
+  return Object.values(obj).flatMap((v): string[] => {
+    if (typeof v === 'string') return [v];
+    if (typeof v === 'function') {
+      try {
+        return [normalizar(String(v(...Array.from({ length: v.length }, () => valor))))];
+      } catch {
+        return [];
+      }
+    }
+    return hojasCon(v as object, valor);
+  });
+}
+
 describe('textos.ts', () => {
   const apendice = literalesDelApendice();
 
   it.each(hojas(T))('%s está en el Apéndice A', (_ruta, texto) => {
     expect(apendice.has(texto), `"${texto}" no está en el Apéndice A de 06; añádelo en el mismo PR`).toBe(true);
+  });
+
+  // docs/39 RV-525: al revés, cada texto del Apéndice A existe en textos.ts (cada […] es un hueco que casa con cualquier
+  // valor; con 1 y 2 salen los singulares y plurales), o está en esta lista cerrada, cada uno con su motivo.
+  const NO_SON_DE_TEXTOS: Record<string, string> = {
+    'Respaldo sin copia': 'título del aviso push de la vigilancia (vigilancia.yml), no de la app',
+    'El último respaldo no tiene su copia guardada en GitHub. Mira la issue de vigilancia.': 'cuerpo de ese aviso',
+    'Espacio casi lleno': 'título del aviso push de la vigilancia (vigilancia.yml)',
+    'Las fotos o la base de datos se están quedando sin espacio. Mira Salud del sistema.': 'cuerpo de ese aviso',
+    'Aviso técnico': 'título por defecto de fn_encolar_aviso_tecnico (0045, 0051)',
+    'La comprobación diaria ha encontrado un problema. El desarrollador ya tiene el aviso. Mira Salud del sistema.':
+      'texto fijo de fn_encolar_aviso_tecnico (vigilancia)',
+    'El respaldo de esta semana ha fallado.': 'texto fijo de fn_encolar_aviso_tecnico (respaldo)',
+    'La última actualización no se ha podido instalar entera.': 'texto fijo de fn_encolar_aviso_tecnico (despliegue)',
+    'Alguien está probando códigos de acceso. Si se repite, cambia el código en Ajustes.':
+      'texto fijo de fn_encolar_aviso_tecnico (intentos_codigo)',
+    'Las tareas automáticas (comprobación diaria o respaldo) llevan días sin hacerse. Avisa al desarrollador.':
+      'texto fijo de fn_encolar_aviso_tecnico (tareas_paradas, 0051)',
+    '30S 441808 4120645': 'ejemplo de coordenadas UTM, no un texto',
+    'fotos_origen = respaldo': 'una clave del Registro, no un texto',
+    'staging: true': 'un campo de la respuesta de /api/lanzar-workflow, no un texto',
+    'WGS84 · grados decimales: []': 'la etiqueta de textos.ts con su valor detrás, en la pantalla',
+    'ETRS89 · UTM huso 30N: []': 'la etiqueta de textos.ts con su valor detrás, en la pantalla',
+    'Cercanos · en línea recta': 'el título de la hoja y su nota, dos textos de textos.ts juntos',
+    'Revisado: []': '«Revisado:» de textos.ts y la fecha, en la pantalla',
+    'Borrado []': '«Borrado» de textos.ts y la fecha, en la pantalla',
+  };
+  it('cada texto del Apéndice A está en textos.ts o en la lista cerrada', () => {
+    const textos = [MARCA, 1, 2]
+      .flatMap((a) => hojasCon(T, a))
+      .filter((t) => t.split(MARCA).join('').trim().length >= 3);
+    const regex = (t: string) =>
+      new RegExp(
+        `^${t
+          .split(MARCA)
+          .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          .join('.*')}$`,
+        's',
+      );
+    // Solo lo que es un texto: con un espacio y que no sea una ruta, una clase o un comando.
+    const esTexto = (l: string) =>
+      /\s/.test(l) &&
+      !/^(fn_|docs\/|--|src\/|e2e\/|scripts\/|\.github|tinte-|bg-|text-|npm |gh |node |git |psql)/.test(l);
+    const faltan = [...apendice]
+      .filter(esTexto)
+      .filter((l) => !(l in NO_SON_DE_TEXTOS))
+      .filter((l) => !textos.some((t) => t === l || regex(l).test(t) || regex(t).test(l)));
+    expect(faltan, 'textos del Apéndice A que ya no existen: quítalos o añádelos a textos.ts').toEqual([]);
   });
 
   it('el cuarto nivel es "No funciona", nunca "Defecto" (00 §6)', () => {
