@@ -500,6 +500,10 @@ export const T = {
     guardarEnMovil: 'Guardar en el móvil',
     enviado: 'Enviado para revisión',
     guardadoEnMovil: 'Guardado en el móvil',
+    // docs/39 RV-520 (DEC-221): el acceso del móvil deja de valer con un formulario abierto.
+    accesoCaducadoFormulario:
+      'El acceso de este móvil ya no vale. Guarda lo que llevas: se enviará cuando vuelvas a escribir el código.',
+    guardadoHastaEntrar: 'Se enviará cuando vuelvas a escribir el código.',
     soloEnMemoria: 'Sin guardar en el móvil',
     soloEnMemoriaDetalle: 'No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.',
     reintentarAhora: 'Reintentar ahora',
