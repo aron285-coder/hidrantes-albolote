@@ -19,6 +19,7 @@ import {
   renovarDispositivoId,
 } from './sesion';
 import { alEnviarPropuesta, iniciarCola, reintentarCola, vaciarCola } from './cola';
+import { alCerrarFormularios, hayFormularioAbierto } from './formulario-abierto';
 import { cargarMisPropuestas, olvidarMisPropuestas } from './mis-propuestas';
 import {
   borrarPuntos,
@@ -36,7 +37,9 @@ import { supabase } from './supabase';
 export type Acceso =
   | { tipo: 'comprobando' }
   | { tipo: 'fuera'; caducado: boolean }
-  | { tipo: 'voluntario'; sesion: SesionVoluntario }
+  // accesoCaducado: el servidor ya no acepta el token, pero hay un formulario abierto; se sale al cerrarlo
+  // (docs/39 RV-520, DEC-221).
+  | { tipo: 'voluntario'; sesion: SesionVoluntario; accesoCaducado?: boolean }
   | { tipo: 'jefatura'; correo: string }
   // sinComprobar: no se ha podido saber si la cuenta es de jefatura; se reintenta a mano (docs/35 RV-432).
   // cuentaMezclada: la cuenta tiene otra identidad unida y no se puede unir a jefatura (docs/36 RV-450).
@@ -308,6 +311,13 @@ export async function comprobarAcceso(): Promise<void> {
   // La sincronización de puntos valida el token de paso (FR-35, 05 §10).
   const r = await sincronizar(sesion.token);
   if (!r.ok && esErrorDeAcceso(r.codigo)) {
+    // docs/39 RV-520 (DEC-221): con un formulario abierto no se salta a la entrada (se perdería lo escrito). El
+    // formulario lo dice y deja guardar en el móvil; al cerrarlo, la entrada (salirSiCaducado).
+    if (hayFormularioAbierto()) {
+      if (!(estado.tipo === 'voluntario' && estado.accesoCaducado))
+        fijar({ tipo: 'voluntario', sesion, accesoCaducado: true });
+      return;
+    }
     olvidarToken();
     fijar({ tipo: 'fuera', caducado: true });
     return;
@@ -320,6 +330,14 @@ export async function comprobarAcceso(): Promise<void> {
     void resincronizarPush(sesion.token);
   }
 }
+
+/** El acceso caducó con un formulario abierto, y ya no queda ninguno: ahora sí, la entrada (DEC-221). */
+function salirSiCaducado(): void {
+  if (estado.tipo !== 'voluntario' || !estado.accesoCaducado) return;
+  olvidarToken();
+  fijar({ tipo: 'fuera', caducado: true });
+}
+alCerrarFormularios(salirSiCaducado);
 
 /** Canje del código (FR-31). Devuelve null si ha entrado, o el código de error de 05 §8. */
 /** Por qué no se ha entrado: el código de 05 §8 y, con OCUPADO, cuánto esperar (docs/37 RV-491). */
@@ -343,6 +361,9 @@ export async function entrarConCodigo(codigo: string, firma: Firma): Promise<Err
   void reintentarCola();
   // Primera sincronización en cuanto hay acceso: los puntos llegan antes de salir del primer uso.
   void sincronizar(r.datos.token);
+  // Al revocar el móvil se borraron sus suscripciones (DEC-218): con los avisos activados, se vuelve a suscribir ya,
+  // sin esperar a la vuelta diaria (docs/39 RV-520).
+  void resincronizarPush(r.datos.token, Date.now(), true);
   return null;
 }
 

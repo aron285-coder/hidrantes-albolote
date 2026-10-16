@@ -282,7 +282,8 @@ function conBdSw<T>(modo: IDBTransactionMode, hacer: (a: IDBObjectStore) => IDBR
  * servidor borró. Si el Service Worker dejó una suscripción nueva (`pushsubscriptionchange`), se
  * envía ya, sin esperar a las 24 h. Sin permiso, sin avisos o sin red no hace nada ni molesta.
  */
-export async function resincronizarPush(token: string, ahora = Date.now()): Promise<void> {
+/** `forzar`: sin esperar a la vuelta diaria (al volver a entrar tras una revocación, docs/39 RV-520). */
+export async function resincronizarPush(token: string, ahora = Date.now(), forzar = false): Promise<void> {
   if (!PUBLICA || !leer<boolean>(CLAVE)) return;
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
   if (!('serviceWorker' in navigator)) return;
@@ -291,7 +292,7 @@ export async function resincronizarPush(token: string, ahora = Date.now()): Prom
     const pendiente = await conBdSw<PushSubscriptionJSON | true>('readonly', (a) => a.get(BD_SW.pendiente));
     const ultima = leer<number>(CLAVE_RESINCRONIZADA) ?? 0;
     // Con una marca del SW se reintenta cada hora, no cada día; sin ella, una vez al día.
-    if (ahora - ultima < (pendiente ? REINTENTO_PENDIENTE_MS : RESINCRONIZAR_CADA_MS)) return;
+    if (!forzar && ahora - ultima < (pendiente ? REINTENTO_PENDIENTE_MS : RESINCRONIZAR_CADA_MS)) return;
     // Se marca el intento, salga como salga: un fallo que se repite no llena de errores a jefatura.
     escribir(CLAVE_RESINCRONIZADA, ahora);
     const registro = await registroListo(LIMITE_SW_MS);

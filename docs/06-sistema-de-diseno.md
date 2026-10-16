@@ -598,6 +598,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 `Guardar · se enviará con cobertura` · `Guardar · se enviará al volver el servidor` ·
 `Guardar en el móvil` (jefatura sin conexión, docs/31 RV-151) ·
 `Enviado para revisión` · `Guardado en el móvil` · `Aplicado` · `Volver al mapa` ·
+`El acceso de este móvil ya no vale. Guarda lo que llevas: se enviará cuando vuelvas a escribir el código.` (aviso del formulario cuando revocan el acceso con él abierto, `docs/39` RV-520, DEC-221) · `Se enviará cuando vuelvas a escribir el código.` (su pantalla de resultado) ·
 `Ver mis propuestas` · `Sin guardar en el móvil` ·
 `No se ha podido guardar en el móvil. No cierres la aplicación hasta que se envíe.` · `Reintentar ahora` ·
 `Jefatura lo revisará. Te avisaremos del resultado al abrir la aplicación.` · `No se ha enviado`.

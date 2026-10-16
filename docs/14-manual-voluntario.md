@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.2 — 15 de octubre de 2026 (`docs/37` RV-496): §2, «Mucha gente entrando a la vez» y «Demasiados intentos» con la hora a la que se puede volver a probar; §9, el máximo de propuestas de un móvil recién entrado (lo que no sale se queda guardado); §12, *Sincronizar* está en Ajustes → *Mapa sin cobertura* o en la píldora de la cabecera. 0.1 — 7 de octubre de 2026. Primer borrador completo, con la app de la versión 0.8 y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.3 — 16 de octubre de 2026 (`docs/39` RV-520): §2 y §8, si cambian el código mientras rellenas algo. 0.2 — 15 de octubre de 2026 (`docs/37` RV-496): §2, «Mucha gente entrando a la vez» y «Demasiados intentos» con la hora a la que se puede volver a probar; §9, el máximo de propuestas de un móvil recién entrado (lo que no sale se queda guardado); §12, *Sincronizar* está en Ajustes → *Mapa sin cobertura* o en la píldora de la cabecera. 0.1 — 7 de octubre de 2026. Primer borrador completo, con la app de la versión 0.8 y las capturas de `capturas/vistas/`. |
 | **Para** | Los voluntarios de Protección Civil de Albolote. |
 | **Se apoya en** | 02 (los pasos, FL-01 a FL-38), 01 (las reglas) y `notas-para-14-ios.md` (iPhone). Si este manual y 01 o 02 dicen cosas distintas, mandan 01 y 02, y este manual se corrige. |
 
@@ -50,6 +50,9 @@ toca **Entrar** pasado un minuto.
 **Si el código no entra:** «código incorrecto». Tras muchos intentos sale «Demasiados intentos.
 Podrás volver a intentarlo a las …», con la hora: hasta entonces no sirve de nada probar otra vez.
 Pide el código a jefatura; no lo compartas fuera del grupo.
+
+**Si te pide el código otra vez** («El acceso de este móvil ya no vale…»): jefatura ha cambiado el
+código. Escribe el nuevo; lo que tenías guardado sin enviar sale solo al entrar.
 
 ## 3. El mapa
 
@@ -185,6 +188,10 @@ envías se guarda en el móvil, el botón dice *Guardar · se enviará con cober
 
 Si algo lleva más de 24 horas sin salir, la app te lo dice. No cierres sesión con cosas sin enviar:
 se perderían (la app te avisa antes).
+
+**Si cambian el código mientras rellenas algo:** no pierdes nada. Arriba sale «El acceso de este móvil ya no vale.
+Guarda lo que llevas…». Toca **Guardar en el móvil**; al salir, la app te pide el código nuevo, y en cuanto lo
+escribes, lo guardado se envía solo.
 
 **Si un sábado por la tarde no conecta, no es tu móvil:** durante los partidos de fútbol algunos
 operadores bloquean el servidor. La app abre con lo guardado y dice «Sin conexión con el servidor»;
