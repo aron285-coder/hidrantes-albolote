@@ -567,6 +567,12 @@ async function prepararGpg(rotar: boolean): Promise<string | null> {
   return huella;
 }
 
+/** Por qué no se puede crear o rotar el migrador sin una terminal (DEC-219), o null si se puede seguir. */
+export function motivoSinTerminal(tocarBd: boolean, tty: boolean): string | null {
+  if (!tocarBd || tty) return null;
+  return 'Crear o rotar la clave del migrador enseña su cadena una vez, para el sobre (15 §2), y eso pide una terminal. Lánzalo en una: npm run arranque -- --rotar db';
+}
+
 /**
  * docs/39 RV-516 (DEC-219): la cadena de `hidrantes_migrador`, recién creada o rotada, se enseña **una sola vez**, como
  * la clave privada del respaldo, para guardarla en el gestor de contraseñas o en el sobre (15 §2): `restaurar` la
@@ -1184,6 +1190,10 @@ async function principal(): Promise<void> {
   const esRotacion = rotar.size > 0;
   // En el arranque completo se (re)crea siempre el rol; al rotar, solo si se pide `db`.
   const tocarBd = !esRotacion || rotar.has('db');
+
+  // DEC-219: rotar el migrador sin una terminal dejaría en el sobre una cadena que ya no vale, sin enseñar la nueva.
+  const sinTerminal = motivoSinTerminal(tocarBd, !!process.stdout.isTTY);
+  if (sinTerminal) abortar(sinTerminal);
 
   const login = comprobarSesiones();
   const cred = await pedirCredenciales(tocarBd);

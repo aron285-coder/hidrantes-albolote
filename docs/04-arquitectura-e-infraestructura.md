@@ -176,7 +176,8 @@ Reglas:
 > **La cadena del migrador, en el sobre (DEC-219, `docs/39` RV-516).** `npm run arranque` crea la clave de
 > `hidrantes_migrador` al azar y la deja en los secretos de GitHub, que no se pueden leer. Al crearla o rotarla
 > (`--rotar db`) la enseña **una vez** en la terminal, para el gestor o el sobre (15 §2): `restaurar` la necesita.
-> Sin terminal no la enseña y dice cómo repetirlo.
+> `--rotar db` toca los dos entornos (pide las dos contraseñas de `postgres`) y enseña las dos cadenas; sin terminal
+> se para antes de rotar nada, para no dejar en el sobre una cadena que ya no vale.
 
 Los dos proyectos de Supabase ya existen y los usa la otra aplicación. Tres problemas, resueltos
 antes de la primera migración:

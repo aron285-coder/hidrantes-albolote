@@ -25,6 +25,7 @@ import {
   nombreEnSuSitio,
   SITIOS_PROPIETARIO,
   ensenarCadenaMigrador,
+  motivoSinTerminal,
 } from './arranque.ts';
 
 // docs/35 RV-410: el build de los deploy, sin environment, usa la clave VAPID pública del repositorio.
@@ -418,12 +419,22 @@ describe('la cadena del migrador, en el sobre', () => {
     expect(preguntas).toHaveLength(0);
   });
 
+  it('sin terminal no se rota: la cadena del sobre dejaría de valer sin enseñar la nueva', () => {
+    expect(motivoSinTerminal(true, false)).toMatch(/terminal/);
+    expect(motivoSinTerminal(true, true)).toBeNull();
+    expect(motivoSinTerminal(false, false)).toBeNull();
+  });
+
   it('solo se llama con una cadena nueva (--rotar db), y nunca va a log, a un archivo ni a un argumento', () => {
     const fuente = readFileSync(path.join(import.meta.dirname, 'arranque.ts'), 'utf8');
     // La definición y una sola llamada, la de sb.urlMigrador, que solo existe con --rotar db.
     expect(fuente.match(/ensenarCadenaMigrador\(/g) ?? []).toHaveLength(2);
     expect(fuente).toMatch(/if \(sb\.urlMigrador\) await ensenarCadenaMigrador\(/);
-    expect(fuente).not.toMatch(/log\.[a-z]+\([^)]*urlMigrador/);
-    expect(fuente).not.toMatch(/writeFileSync\([^)]*urlMigrador/);
+    // Comprobación de la fuente (no del comportamiento): ni la cadena ni la clave en un log, una consola o un archivo.
+    for (const v of ['urlMigrador', 'claveMigrador']) {
+      expect(fuente).not.toMatch(
+        new RegExp(`(log\\.[a-z]+|console\\.[a-z]+|writeFileSync|appendFileSync)\\([^;]*${v}`),
+      );
+    }
   });
 });
