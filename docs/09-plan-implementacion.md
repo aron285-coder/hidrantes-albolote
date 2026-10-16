@@ -443,12 +443,12 @@ Los riesgos de seguridad y privacidad viven en **11**; aquí, los de construcci�
 | El PMTiles supera 25 MB | Decidido: > 20 MB va a R2; cambia `VITE_MAPABASE_URL`, no el código. |
 | Un hidrante con salida distinta de 70/100 | "Otra medida" llega marcada; jefatura fija o rechaza. |
 | Aparece un cuarto racor | `tipo_racor` es enum; migración de una línea. |
-| Nadie revisa la cola durante semanas | Salud del sistema muestra pendientes > 14 días. |
+| Nadie revisa la cola durante semanas | El resumen semanal de jefatura dice cuántas pendientes hay y cuántas de más de 14 días (FR-164); Salud ya no las cuenta (docs/33). |
 | Dos repositorios pisan el historial de migraciones compartido | Historial propio y `psql`; nunca `db push`. |
 | Dos voluntarios cambian el mismo punto el mismo día | Propuesta desactualizada con confirmación. |
 | Un lote falla entero por un caso raro | `fn_aprobar_lote` procesa una a una y devuelve qué quedó fuera. |
 | Los datos del piloto se pierden al arrancar producción vacía | `promover-piloto.ts` idempotente con informe. |
-| Nominatim no responde | Dirección opcional; nunca bloquea; pendiente visible en Salud. |
+| Nominatim no responde | Dirección opcional; nunca bloquea; las que faltan se ven en el Inventario («＋ Añadir dirección»), ya no en Salud. |
 | Los runners de GitHub no llegan a la BD (IPv6) | `SUPABASE_DB_URL` por el pooler de Supavisor. |
 | Falta una sesión de CLI al arrancar | `arranque.ts` lo detecta antes de crear nada a medias. |
 | Los tests e2e contaminan Supabase compartido | CI levanta Supabase local; nunca dev ni prod. |
