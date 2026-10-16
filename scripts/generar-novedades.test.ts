@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { AMBITOS_USUARIO, MAX_CARACTERES, MAX_POR_AMBITO, limpiar, novedadesDe } from './generar-novedades.ts';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import {
+  AMBITOS_USUARIO,
+  MAX_CARACTERES,
+  MAX_POR_AMBITO,
+  limpiar,
+  lineaParaNovedades,
+  novedadesDe,
+} from './generar-novedades.ts';
 
 /** Solo los textos, para los tests que no miran la versión de cada línea. */
 const textos = (changelog: string) => novedadesDe(changelog).lineas.map((l) => l.texto);
@@ -322,5 +331,40 @@ describe('lo último de cada versión, con su número (RV-95)', () => {
       '',
     ].join('\n');
     expect(novedadesDe(c).lineas).toEqual([{ version: '1.1.0', texto: 'Capa de satélite' }]);
+  });
+});
+
+describe('títulos con «(docs/NN …)» y el CHANGELOG real (docs/40 RV-529, DEC-225)', () => {
+  it('el paréntesis con docs/NN y códigos se quita', () => {
+    expect(
+      limpiar('**avisos:** jefatura recibe un aviso (docs/39 RV-517) ([#863](https://x/863)) ([20f1c37](https://x/c))'),
+    ).toBe('Jefatura recibe un aviso');
+    expect(limpiar('**panel:** el detalle dice su código (docs/40 RV-529, DEC-225)')).toBe('El detalle dice su código');
+    expect(limpiar('**mapa:** algo (docs/39 RV-516, DEC-219; RV-520)')).toBe('Algo');
+  });
+
+  it('un paréntesis de texto normal se queda', () => {
+    expect(limpiar('**mapa:** la lista (en el móvil) se ve entera')).toBe('La lista (en el móvil) se ve entera');
+  });
+
+  it('una línea con el ámbito propuestas sale', () => {
+    const log = `## [1.0.0](https://x) (2026-10-16)\n\n### Novedades\n\n* **propuestas:** lo que falla sale en rojo (docs/39 RV-521) ([#867](https://x))\n`;
+    expect(textos(log)).toEqual(['Lo que falla sale en rojo']);
+  });
+
+  it('con el CHANGELOG real: cada feat/fix de ámbito de usuario de la última versión vale para Novedades', () => {
+    const log = readFileSync(path.resolve(import.meta.dirname, '..', 'CHANGELOG.md'), 'utf8');
+    const ultima = log.split(/^## /m)[1]!;
+    const deUsuario = ultima
+      .split(/\r?\n/)
+      .map((l) => /^\s*[*-]\s+(\*\*([^*:]+):\*\*.+)$/.exec(l))
+      .filter((m): m is RegExpExecArray => !!m && AMBITOS_USUARIO.has(m[2]!.trim().toLowerCase()))
+      .map((m) => m[1]!);
+    expect(deUsuario.length).toBeGreaterThan(0);
+    for (const l of deUsuario) expect(lineaParaNovedades(l), l).not.toBeNull();
+    // Y lo que enseña Novedades es de esa versión.
+    const n = novedadesDe(log);
+    expect(n.lineas.length).toBeGreaterThan(0);
+    expect(n.lineas.every((x) => x.version === n.version)).toBe(true);
   });
 });

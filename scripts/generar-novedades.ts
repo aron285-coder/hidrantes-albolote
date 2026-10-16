@@ -75,6 +75,12 @@ export const AMBITOS_USUARIO = new Set([
   'app',
   'sincronizacion',
   'envio',
+  // docs/40 RV-529: los de 0.10.0 en adelante que ve alguien. Se quedan fuera, por internos: operacion (la cadena del
+  // migrador), base (migraciones), vigilancia (la revisión programada), ci, publicar, functions y errores (cómo se
+  // envían los fallos, nada que se vea).
+  'propuestas',
+  'estilo',
+  'textos',
 ]);
 
 /**
@@ -147,9 +153,10 @@ export function limpiar(linea: string): string {
   const sinEnlaces = sinAmbito
     .replace(/\s*\(\[[^\]]*\]\([^)]*\)\)/g, '') // ([#156](…)) ([2cbbde4](…))
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1'); // cualquier otro enlace: su texto
-  // Paréntesis que solo llevan códigos: «(GM-04)», «(RV-52, DEC-097)», «(Fase 9)», «(#12)».
+  // Paréntesis que solo llevan códigos: «(GM-04)», «(RV-52, DEC-097)», «(Fase 9)», «(#12)», y también con la
+  // especificación delante: «(docs/39 RV-517)», «(docs/39 RV-516, DEC-219)» (docs/40 RV-529, DEC-225).
   const sinCodigos = sinEnlaces.replace(
-    new RegExp(String.raw`\s*\((?:(?:${CODIGO}|Fase \d+|#\d+)(?:[,;]\s*)?)+\)`, 'g'),
+    new RegExp(String.raw`\s*\((?:(?:${CODIGO}|docs/\d+|Fase \d+|#\d+)(?:[,;]?\s*))+\)`, 'g'),
     '',
   );
   const texto = sinCodigos
@@ -157,6 +164,19 @@ export function limpiar(linea: string): string {
     .trim()
     .replace(/[.;:,]$/, '');
   return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/**
+ * El texto con el que una línea del CHANGELOG saldría en Novedades, o null si no vale: ámbito interno, nada que decir
+ * tras limpiarla, o con un archivo, un código o un término técnico (DEC-091, DEC-101).
+ */
+export function lineaParaNovedades(linea: string): string | null {
+  const ambito = ambitoDe(linea);
+  if (!ambito || !AMBITOS_USUARIO.has(ambito)) return null;
+  // El filtro antes del corte: una ruta más allá del carácter 140 no se cuela (docs/19 RV-68).
+  const entera = limpiar(linea);
+  if (!entera || TECNICA.some((t) => t.test(entera))) return null;
+  return cortar(entera);
 }
 
 export function novedadesDe(changelog: string): Novedades {
@@ -168,14 +188,11 @@ export function novedadesDe(changelog: string): Novedades {
   recorrido: for (const v of lista) {
     const porAmbito = new Map<string, number>();
     for (const l of [...v.novedades, ...v.correcciones]) {
-      const ambito = ambitoDe(l);
-      if (!ambito || !AMBITOS_USUARIO.has(ambito)) continue;
+      const texto = lineaParaNovedades(l);
+      if (!texto) continue;
+      const ambito = ambitoDe(l)!;
       const usadas = porAmbito.get(ambito) ?? 0;
       if (usadas >= MAX_POR_AMBITO) continue;
-      // El filtro antes del corte: una ruta más allá del carácter 140 no se cuela (docs/19 RV-68).
-      const entera = limpiar(l);
-      if (!entera || TECNICA.some((t) => t.test(entera))) continue;
-      const texto = cortar(entera);
       if (lineas.some((x) => x.texto === texto)) continue;
       lineas.push({ version: v.version, texto });
       porAmbito.set(ambito, usadas + 1);
