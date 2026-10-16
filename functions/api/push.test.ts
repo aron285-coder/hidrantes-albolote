@@ -9,7 +9,7 @@ import { LIMITE_PUSH_POR_HORA, onRequestPost } from './push.ts';
 
 /** Claves del ejemplo de la RFC 8291: sirven para cifrar de verdad en la prueba. */
 const SUSCRIPCION = {
-  endpoint: 'https://push.example.net/push/JzLQ3raZJfFBR0aqvOMsLrt54w4rJUsV',
+  endpoint: 'https://db5p.notify.windows.com/push/JzLQ3raZJfFBR0aqvOMsLrt54w4rJUsV',
   keys: {
     p256dh: 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4',
     auth: 'BTBZMqHH6r4Tts7J_aSIgg',
@@ -181,7 +181,7 @@ describe('POST /api/push', () => {
     const { espia, llamadas } = fingirRed({ admin: true, pendientes: [] });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
     expect(await r.json()).toEqual({ enviadas: 0, fallidas: 0, sin_anotar: 0, aplazadas: 0, quedan: false });
-    expect(llamadas.some((l) => l.url.includes('push.example.net'))).toBe(false);
+    expect(llamadas.some((l) => l.url.includes('db5p.notify.windows.com'))).toBe(false);
     espia.mockRestore();
   });
 
@@ -251,12 +251,12 @@ describe('POST /api/push', () => {
     const { espia, llamadas } = fingirRed({
       admin: true,
       pendientes: [pendiente(1), otro, pendiente(2)],
-      serviciosCaidos: ['https://push.example.net/'],
+      serviciosCaidos: ['https://db5p.notify.windows.com/'],
     });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
 
     expect(r.status).toBe(200);
-    // Los dos de push.example.net se intentan (no hay 429 que frene ese servicio) y quedan sin
+    // Los dos de db5p.notify.windows.com se intentan (no hay 429 que frene ese servicio) y quedan sin
     // anotar; el del otro servicio sale y se anota.
     expect(await r.json()).toEqual({ enviadas: 1, fallidas: 0, sin_anotar: 2, aplazadas: 0, quedan: false });
     expect(llamadas.filter((l) => l.url === SUSCRIPCION.endpoint)).toHaveLength(2);
@@ -265,6 +265,30 @@ describe('POST /api/push', () => {
       { notificacion_id: 9, ok: true, error: null, suscripcion_caducada: false },
     ]);
     expect(llamadas.some((l) => l.url.includes('fn_aplazar_notificaciones'))).toBe(false);
+    espia.mockRestore();
+  });
+
+  // docs/39 RV-515 (DEC-218): el destino tiene que ser solo un host de la lista, sin usuario, contraseña ni puerto.
+  it.each([
+    'https://usuario@fcm.googleapis.com/fcm/send/abc',
+    'https://fcm.googleapis.com:8443/fcm/send/abc',
+    'https://a:b@updates.push.services.mozilla.com/wpush/v2/x',
+    'https://otro-servicio.example.org/push/abc',
+    'http://fcm.googleapis.com/fcm/send/abc',
+  ])('un destino que no es solo un host de la lista (%s) no se envía y la suscripción se borra', async (endpoint) => {
+    const raro = { ...pendiente(7), suscripcion: { ...SUSCRIPCION, endpoint } };
+    const { espia, llamadas } = fingirRed({ admin: true, pendientes: [raro, pendiente(8)] });
+    const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
+    expect(r.status).toBe(200);
+    expect(await r.json()).toMatchObject({ enviadas: 1, fallidas: 1 });
+    expect(llamadas.some((l) => l.url === endpoint)).toBe(false);
+    const resultados = llamadas.filter((l) => l.url.includes('fn_resultado_notificacion')).map((l) => l.cuerpo);
+    expect(resultados).toContainEqual({
+      notificacion_id: 7,
+      ok: false,
+      error: 'destino no admitido',
+      suscripcion_caducada: true,
+    });
     espia.mockRestore();
   });
 
@@ -292,13 +316,13 @@ describe('POST /api/push', () => {
       admin: true,
       pendientes: veinte,
       servicioPushPor: (url) =>
-        url.startsWith('https://push.example.net/')
+        url.startsWith('https://db5p.notify.windows.com/')
           ? new Response(null, { status: 429, headers: { 'Retry-After': '120' } })
           : new Response(null, { status: 201 }),
     });
     const r = await onRequestPost({ request: peticion({}, { Authorization: 'Bearer a.b.c' }), env: ENV });
 
-    // 19 avisos a push.example.net: uno se intenta y recibe 429, los otros 18 ni se intentan.
+    // 19 avisos a db5p.notify.windows.com: uno se intenta y recibe 429, los otros 18 ni se intentan.
     // El lote venía lleno y no todo se ha aplazado: el Worker puede pedir el siguiente.
     expect(await r.json()).toEqual({ enviadas: 1, fallidas: 0, sin_anotar: 0, aplazadas: 19, quedan: true });
     expect(llamadas.filter((l) => l.url === SUSCRIPCION.endpoint)).toHaveLength(1);

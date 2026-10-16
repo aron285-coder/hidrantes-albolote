@@ -17,6 +17,7 @@ import {
   sha256Hex,
   validarToken,
 } from '../_lib/comun.ts';
+import { destinoAdmitido } from '../_lib/destino-push.ts';
 import { crearTope } from '../_lib/limite.ts';
 import { type Suscripcion, enviar } from '../_lib/webpush.ts';
 
@@ -88,6 +89,19 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
   // Servicios de push (origen del endpoint) que han contestado 429 en esta invocación.
   const enEspera = new Set<string>();
   for (const n of pendientes.datos) {
+    // docs/39 RV-515 (DEC-218): antes de enviar (y antes de destinoDePruebas), el destino tiene que ser solo un host de
+    // la lista. Si no, no se envía y la suscripción se borra como una caducada.
+    if (!destinoAdmitido(n.suscripcion?.endpoint)) {
+      const anotado = await rpc(env, 'fn_resultado_notificacion', {
+        notificacion_id: n.id,
+        ok: false,
+        error: 'destino no admitido',
+        suscripcion_caducada: true,
+      });
+      if (!anotado.ok) sin_anotar++;
+      fallidas++;
+      continue;
+    }
     const servicio = origenDe(n.suscripcion.endpoint);
     if (enEspera.has(servicio)) {
       aplazados.push(n.id);

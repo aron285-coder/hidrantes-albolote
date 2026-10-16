@@ -78,7 +78,9 @@ async function principal(): Promise<void> {
     const vapid = paresVapid();
     writeFileSync(
       devVars,
-      `${original.trimEnd()}\nVAPID_PUBLIC_KEY=${vapid.publica}\nVAPID_PRIVATE_KEY=${vapid.privada}\nVAPID_SUBJECT=${PAGES}\n`,
+      // docs/39 RV-515: el destino guardado es de un servicio de push de la lista, y destinoDePruebas (solo con un
+      // Supabase local) lo lleva al receptor de esta prueba.
+      `${original.trimEnd()}\nVAPID_PUBLIC_KEY=${vapid.publica}\nVAPID_PRIVATE_KEY=${vapid.privada}\nVAPID_SUBJECT=${PAGES}\nPUSH_ENDPOINT_PRUEBAS=http://127.0.0.1:${RECEPTOR}\n`,
     );
     lanzar('npm', ['run', 'functions:dev']);
     await hastaQueResponda(PAGES);
@@ -88,7 +90,7 @@ async function principal(): Promise<void> {
       LOCAL_POSTGRES,
       `with s as (
          insert into hidrantes.suscripciones_push (dispositivo_id, suscripcion)
-         values (gen_random_uuid(), jsonb_build_object('endpoint', 'http://127.0.0.1:${RECEPTOR}/push/${MARCA}',
+         values (gen_random_uuid(), jsonb_build_object('endpoint', 'https://fcm.googleapis.com/fcm/send/${MARCA}',
                  'keys', jsonb_build_object('p256dh', '${P256DH}', 'auth', '${AUTH}')))
          returning id)
        insert into hidrantes.notificaciones (suscripcion_id, titulo, cuerpo)
