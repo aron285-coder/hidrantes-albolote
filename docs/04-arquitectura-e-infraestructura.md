@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión; cada cambio arrastra una entrada en 12. |
-| **Versión** | 1.6 — 15 oct 2026 (`docs/37` RV-490, DEC-210): §11.2 y la tabla de workflows, `dist` comprobado antes de desplegar y el sondeo de las Functions tras desplegar. 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
+| **Versión** | 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §5, la cadena del migrador, en el sobre. · 1.6 — 15 oct 2026 (`docs/37` RV-490, DEC-210): §11.2 y la tabla de workflows, `dist` comprobado antes de desplegar y el sondeo de las Functions tras desplegar. 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
 | **Propietario de** | las **decisiones de infraestructura y despliegue**: qué piezas hay, dónde corren, cómo se despliegan y cómo se vuelve atrás. |
 | **No contiene** | el esquema ni las firmas (→ 05), las exigencias que motivan estas decisiones (→ 03), procedimientos de emergencia paso a paso (→ 15). |
 
@@ -172,6 +172,12 @@ Reglas:
 ---
 
 ## 5. Convivencia con la app de uniformidad
+
+> **La cadena del migrador, en el sobre (DEC-219, `docs/39` RV-516).** `npm run arranque` crea la clave de
+> `hidrantes_migrador` al azar y la deja en los secretos de GitHub, que no se pueden leer. Al crearla o rotarla
+> (`--rotar db`) la enseña **una vez** en la terminal, para el gestor o el sobre (15 §2): `restaurar` la necesita.
+> `--rotar db` toca los dos entornos (pide las dos contraseñas de `postgres`) y enseña las dos cadenas; sin terminal
+> se para antes de rotar nada, para no dejar en el sobre una cadena que ya no vale.
 
 Los dos proyectos de Supabase ya existen y los usa la otra aplicación. Tres problemas, resueltos
 antes de la primera migración:

@@ -24,6 +24,8 @@ import {
   conCodigoStaging,
   nombreEnSuSitio,
   SITIOS_PROPIETARIO,
+  ensenarCadenaMigrador,
+  motivoSinTerminal,
 } from './arranque.ts';
 
 // docs/35 RV-410: el build de los deploy, sin environment, usa la clave VAPID pública del repositorio.
@@ -381,5 +383,58 @@ describe('código de acceso de staging', () => {
     const antes = 'VITE_ENTORNO=local\nCODIGO_STAGING=123456\nVITE_SUPABASE_URL=x\n\n';
     expect(conCodigoStaging(antes, '654321')).toBe('VITE_ENTORNO=local\nVITE_SUPABASE_URL=x\nCODIGO_STAGING=654321\n');
     expect(conCodigoStaging('', '654321')).toBe('CODIGO_STAGING=654321\n');
+  });
+});
+
+// docs/39 RV-516 (DEC-219): la cadena del migrador se enseña una vez, al crearla o rotarla, para el sobre (15 §2).
+describe('la cadena del migrador, en el sobre', () => {
+  const CADENA = 'postgresql://hidrantes_migrador.ref:clave-de-prueba@pooler.example:5432/postgres'; // detectar-secretos:permitir (valor de prueba)
+  const preparar = (tty: boolean) => {
+    const salida: string[] = [];
+    const preguntas: string[] = [];
+    const io = {
+      tty,
+      escribir: (t: string) => void salida.push(t),
+      esperar: async (p: string) => void preguntas.push(p),
+      limpiar: () => void salida.push('<limpio>'),
+    };
+    return { salida, preguntas, io };
+  };
+
+  it('con una terminal, sale una vez, con el aviso del sobre, y espera a que se guarde', async () => {
+    const { salida, preguntas, io } = preparar(true);
+    expect(await ensenarCadenaMigrador('staging', CADENA, io)).toBe(true);
+    expect(salida.filter((l) => l.includes(CADENA))).toHaveLength(1);
+    expect(salida.join(' ')).toContain('Cadena del migrador de staging');
+    expect(salida.join(' ')).toContain('15 §2');
+    expect(preguntas).toHaveLength(1);
+    expect(salida.at(-1)).toBe('<limpio>');
+  });
+
+  it('sin terminal, no sale, y dice cómo repetir la rotación en una', async () => {
+    const { salida, preguntas, io } = preparar(false);
+    expect(await ensenarCadenaMigrador('production', CADENA, io)).toBe(false);
+    expect(salida.join(' ')).not.toContain('clave-de-prueba');
+    expect(salida.join(' ')).toContain('--rotar db');
+    expect(preguntas).toHaveLength(0);
+  });
+
+  it('sin terminal no se rota: la cadena del sobre dejaría de valer sin enseñar la nueva', () => {
+    expect(motivoSinTerminal(true, false)).toMatch(/terminal/);
+    expect(motivoSinTerminal(true, true)).toBeNull();
+    expect(motivoSinTerminal(false, false)).toBeNull();
+  });
+
+  it('solo se llama con una cadena nueva (--rotar db), y nunca va a log, a un archivo ni a un argumento', () => {
+    const fuente = readFileSync(path.join(import.meta.dirname, 'arranque.ts'), 'utf8');
+    // La definición y una sola llamada, la de sb.urlMigrador, que solo existe con --rotar db.
+    expect(fuente.match(/ensenarCadenaMigrador\(/g) ?? []).toHaveLength(2);
+    expect(fuente).toMatch(/if \(sb\.urlMigrador\) await ensenarCadenaMigrador\(/);
+    // Comprobación de la fuente (no del comportamiento): ni la cadena ni la clave en un log, una consola o un archivo.
+    for (const v of ['urlMigrador', 'claveMigrador']) {
+      expect(fuente).not.toMatch(
+        new RegExp(`(log\\.[a-z]+|console\\.[a-z]+|writeFileSync|appendFileSync)\\([^;]*${v}`),
+      );
+    }
   });
 });
