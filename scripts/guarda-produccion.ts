@@ -6,7 +6,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { RAIZ, abortar, ejecutarScript, log } from './lib/comun.ts';
+import { RAIZ, REFS, abortar, ejecutarScript, log } from './lib/comun.ts';
 
 export interface EntradaGuarda {
   entorno?: string;
@@ -57,6 +57,8 @@ export function comprobarGuarda(e: EntradaGuarda): string[] {
   if (e.entorno !== 'produccion') p.push('VITE_ENTORNO no es "produccion"');
   if (e.proyectoPages !== 'hidrantes-albolote') p.push('PAGES_PROYECTO no es "hidrantes-albolote"');
   if (!e.ref || !/^[a-z0-9]{20}$/.test(e.ref)) p.push('SUPABASE_PROJECT_REF falta o no tiene forma de ref');
+  // docs/39 RV-518 (04 §4): además de coincidir entre sí, el proyecto tiene que ser el de producción.
+  else if (e.ref !== REFS.prod) p.push('SUPABASE_PROJECT_REF no es el proyecto de producción (REFS.prod)');
   else {
     if (host(e.supabaseUrl) !== `${e.ref}.supabase.co`) {
       p.push('SUPABASE_URL no es el proyecto de SUPABASE_PROJECT_REF');

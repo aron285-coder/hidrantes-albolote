@@ -120,7 +120,8 @@ jobs:
           build_del_entorno dist VITE_SUPABASE_URL VITE_SUPABASE_ANON_KEY VITE_VAPID_PUBLIC_KEY ?VITE_MAPABASE_URL
 
       - name: Migraciones (hidrantes_migrador, DEC-052)
-        run: node scripts/migrar.ts
+        # Con --entorno, migrar.ts comprueba que la cadena es del proyecto de producción (docs/39 RV-518).
+        run: node scripts/migrar.ts --entorno prod
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
 
