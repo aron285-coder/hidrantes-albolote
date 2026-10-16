@@ -144,6 +144,8 @@ describe('los envíos con error, a la vista (docs/39 RV-521)', () => {
     expect(html).toContain('bg-tinte-rojo');
     expect(html).toContain(T.mapa.avisoConError(1));
     expect(html).toContain('href="/mis-propuestas"');
+    // Un lector de pantalla lo anuncia (docs/40 RV-534).
+    expect(regiones(html)).toContain(T.mapa.avisoConError(1));
   });
 
   it('con uno con error y dos esperando: «1 con error · 2 sin enviar»', () => {

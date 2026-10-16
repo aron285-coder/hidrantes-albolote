@@ -84,6 +84,8 @@ test('un alta a medias sobrevive a la revocación y se envía al volver a entrar
   await page.getByRole('button', { name: T.envio.guardarEnMovil, exact: true }).click();
   await expect(page.getByRole('heading', { level: 2, name: T.envio.guardadoEnMovil })).toBeVisible();
   await expect(page.getByText(T.envio.guardadoHastaEntrar)).toBeVisible();
+  // Con el acceso caducado, solo «Volver al mapa»: Mis propuestas pediría la lista con el token revocado (docs/40 RV-534).
+  await expect(page.getByRole('button', { name: T.envio.verMisPropuestas })).toHaveCount(0);
   expect(s.propuestas).toHaveLength(0);
   // Con la pantalla abierta, la cola no insiste sin pausa contra el acceso rechazado.
   const rechazadas = s.rechazadas;

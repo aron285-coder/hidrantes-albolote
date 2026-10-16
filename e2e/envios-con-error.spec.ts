@@ -15,6 +15,7 @@ const json = (r: Route, b: unknown, status = 200) =>
 
 /** fn_proponer contesta siempre PUNTO_NO_ACTIVO: un error que no se arregla reintentando sola. */
 async function servidor(page: Page, jefatura = false) {
+  const pedidas = { misPropuestas: 0 };
   await page.route('**/api/url-subida', (r) => json(r, { foto_path: 'fotos/1.jpg', url: `${SB}/storage/subir` }));
   await page.route(`${SB}/storage/subir`, (r) => r.fulfill({ status: 200, body: '{}' }));
   await page.route('**/api/push', (r) => json(r, { enviadas: 0 }));
@@ -24,9 +25,13 @@ async function servidor(page: Page, jefatura = false) {
     if (nombre === 'fn_listar_puntos') return json(r, LISTADO);
     if (nombre === 'fn_proponer')
       return json(r, { code: 'P0001', message: 'PUNTO_NO_ACTIVO: El punto ya no está activo' }, 400);
-    if (nombre === 'fn_mis_propuestas') return json(r, []);
+    if (nombre === 'fn_mis_propuestas') {
+      pedidas.misPropuestas++;
+      return json(r, []);
+    }
     return json(r, null);
   });
+  return pedidas;
 }
 
 async function revisionQueFalla(page: Page, boton: string) {
@@ -79,7 +84,7 @@ test('jefatura en el móvil: un «Aplicar ahora» con error lleva a su cola, que
   await context.setGeolocation({ latitude: 37.2309, longitude: -3.6566, accuracy: 9 });
   await conGoogle(page, 'jefa@example.org');
   await simularTablas(page, { v_puntos_activos: PUNTOS, v_cola_revision: [], propuestas: [], puntos: [] });
-  await servidor(page, true);
+  const pedidas = await servidor(page, true);
   await revisionQueFalla(page, T.envio.aplicarAhora);
 
   await page.getByRole('link', { name: T.mapa.envios(1, 0), exact: true }).click();
@@ -87,4 +92,6 @@ test('jefatura en el móvil: un «Aplicar ahora» con error lleva a su cola, que
   await page.getByRole('button', { name: T.misPropuestas.descartar }).click();
   await page.getByRole('dialog').getByRole('button', { name: T.misPropuestas.descartar }).click();
   await expect(page.getByText(T.misPropuestas.vacioJefatura)).toBeVisible();
+  // Solo la cola de este móvil: jefatura no pide la lista del servidor (docs/40 RV-534).
+  expect(pedidas.misPropuestas).toBe(0);
 });

@@ -38,3 +38,13 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   sacaba el código de ese `punto` (la vista de verdad no lo trae para un alta). Con `delPunto(undefined)` y sin el `skip`
   del móvil, el e2e de `panel-cola.spec.ts` («buscar el código del punto creado…») falla antes en `escritorio` y en `movil`
   y pasa después; `panel-firefox` corre en CI (en local no arranca). Toda `panel-cola` en verde (121).
+- **RV-534:** los flecos de RV-520 y RV-521. Con el acceso caducado, la pantalla de resultado no ofrece «Ver mis
+  propuestas»; la cola olvida el token rechazado cuando una comprobación de acceso acaba sin `TOKEN_*`
+  (`olvidarTokenRechazado`, desde `comprobarAcceso`); el aviso rojo de la barra con `role="status"`; el e2e de jefatura
+  cuenta 0 peticiones a `fn_mis_propuestas`; DEC-221 punto 3 y FR-35, al recargar con el acceso caducado. Tests que
+  fallaban antes: el nuevo de `cola.test.ts`, el de `acceso.test.ts` y el de `formulario-revocado.spec.ts` (el de
+  jefatura ya daba 0: queda de guarda). 01 v1.21, 12 v1.72 (DEC-221).
+  Revisión: olvidar el token podía volver a lanzar la lus (acceso sin servidor ↔ cola con `TOKEN_*`): el mismo token,
+  otra vez rechazado tras olvidarlo, pide la comprobación tras una pausa (`PAUSA_COMPROBACION_MS`, 30 s), una sola vez;
+  test nuevo en `cola.test.ts` que la reproduce (4 comprobaciones antes, 1 después). `role="status"`, con su test en
+  `BarraEstado.test.tsx`.

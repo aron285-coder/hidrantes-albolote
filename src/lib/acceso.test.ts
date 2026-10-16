@@ -30,7 +30,12 @@ vi.mock('./supabase', () => ({
 const reintentarCola = vi.fn(async () => undefined);
 const resincronizarPush = vi.fn(async () => undefined);
 vi.mock('./push', async (original) => ({ ...(await original<typeof import('./push')>()), resincronizarPush }));
-vi.mock('./cola', async (original) => ({ ...(await original<typeof import('./cola')>()), reintentarCola }));
+const olvidarTokenRechazado = vi.fn();
+vi.mock('./cola', async (original) => ({
+  ...(await original<typeof import('./cola')>()),
+  reintentarCola,
+  olvidarTokenRechazado,
+}));
 
 const {
   _reiniciarAcceso,
@@ -177,6 +182,18 @@ describe('comprobación del acceso al arrancar (FR-35, FR-168)', () => {
     await comprobarAcceso();
     expect(acceso().tipo).toBe('voluntario');
     expect(estadoConexion()).toBe('sin_servidor');
+  });
+
+  // docs/40 RV-534: la cola pregunta una vez por token rechazado; si la comprobación acaba sin TOKEN_*, se olvida.
+  it('una comprobación que acaba sin TOKEN_* deja a la cola volver a preguntar; con TOKEN_*, no', async () => {
+    olvidarTokenRechazado.mockClear();
+    rpc.mockResolvedValue({ data: null, status: 0, error: { message: 'TypeError: Failed to fetch' } });
+    await comprobarAcceso();
+    expect(olvidarTokenRechazado).toHaveBeenCalledTimes(1);
+    olvidarTokenRechazado.mockClear();
+    rpc.mockResolvedValue({ data: null, status: 400, error: { message: 'TOKEN_REVOCADO: revocado' } });
+    await comprobarAcceso();
+    expect(olvidarTokenRechazado).not.toHaveBeenCalled();
   });
 });
 

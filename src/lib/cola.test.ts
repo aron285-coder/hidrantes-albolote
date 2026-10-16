@@ -162,6 +162,42 @@ describe('cola de envíos', () => {
     expect(cola.colaActual()[0]).toMatchObject({ fallo: null, intentos: 0 });
   });
 
+  it('tras una comprobación de acceso que acaba sin TOKEN_* (sin servidor), el siguiente TOKEN_* la vuelve a pedir (docs/40 RV-534)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'TOKEN_REVOCADO: x' }, status: 400 });
+    let comprobaciones = 0;
+    registrarComprobacion(async () => {
+      comprobaciones += 1;
+    });
+    await cola.encolar(args('k-000010'), null, 'HID-0147');
+    await cola.procesarCola();
+    await vi.waitFor(() => expect(comprobaciones).toBe(1));
+    // acceso: la comprobación no pudo hablar con el servidor; el token aún puede valer. El siguiente TOKEN_* de ese
+    // mismo token la vuelve a pedir, pero con pausa: si no, comprobación y cola se relanzarían sin fin.
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    cola.olvidarTokenRechazado();
+    await cola.procesarCola();
+    await vi.advanceTimersByTimeAsync(cola.PAUSA_COMPROBACION_MS - 1);
+    expect(comprobaciones).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(comprobaciones).toBe(2);
+  });
+
+  it('si la comprobación acaba sin TOKEN_* y la cola sigue con TOKEN_*, no se relanzan sin pausa (docs/40 RV-534)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'TOKEN_REVOCADO: x' }, status: 400 });
+    let comprobaciones = 0;
+    // Como acceso con un formulario abierto y fn_listar_puntos sin servidor: olvida el token y relanza la cola.
+    registrarComprobacion(async () => {
+      comprobaciones += 1;
+      await new Promise((r) => setTimeout(r, 0)); // la red de la comprobación: la pasada ya ha terminado
+      cola.olvidarTokenRechazado();
+      if (comprobaciones < 10) await cola.reintentarCola();
+    });
+    await cola.encolar(args('k-000011'), null, 'HID-0147');
+    await cola.procesarCola();
+    await new Promise((r) => setTimeout(r, 30));
+    expect(comprobaciones).toBeLessThanOrEqual(2);
+  });
+
   it('avisa de lo enviado y detecta lo atascado más de 24 h (FR-83)', async () => {
     const enviadas: string[] = [];
     cola.alEnviarPropuesta((e) => enviadas.push(e.clave_local));
