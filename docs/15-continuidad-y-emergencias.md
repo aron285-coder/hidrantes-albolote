@@ -232,8 +232,9 @@ El paso 1 (código nuevo con *Revocar todos los dispositivos*) se hace en el pan
    confirmación escribiendo `RESTAURAR`.
 
    **La cadena** (la de `hidrantes_migrador`) es **la del sobre** (§2, DEC-219): el script la pide si no está en
-   `SUPABASE_DB_URL`. Si el sobre no la tiene, otra rotación, `npm run arranque -- --rotar db` (pide la contraseña
-   de `postgres` del proyecto, que tiene el desarrollador o quien lleve uniformidad), y apuntar la nueva en el sobre.
+   `SUPABASE_DB_URL`. Si el sobre no la tiene, otra rotación en una terminal, `npm run arranque -- --rotar db`: pide
+   la contraseña de `postgres` de **los dos** proyectos (las tiene el desarrollador o quien lleve uniformidad), rota
+   el rol en staging y en producción, y enseña las dos cadenas nuevas: las dos van al sobre, en lugar de las de antes.
 
    `--entorno` admite exactamente `local`, `staging` y `prod`; `produccion` vale igual que `prod`.
    Cualquier otro valor aborta. Con cualquiera de los dos nombres, la cadena tiene que ser del proyecto
