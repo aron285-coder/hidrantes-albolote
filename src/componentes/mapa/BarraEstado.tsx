@@ -12,6 +12,19 @@ import { estadoPuntos } from '@/lib/puntos';
 import { type Punto, estadoAnunciado, pildora } from '@/lib/estado-sincro';
 import { hace } from '@/lib/formato';
 import { T } from '@/lib/textos';
+import { cn } from '@/lib/utils';
+
+/** Cuántos envíos han fallado y cuántos esperan (docs/39 RV-521, DEC-221). */
+function cuentaEnvios(cola: readonly { fallo: string | null }[]) {
+  const conError = cola.filter((c) => c.fallo).length;
+  return { conError, esperando: cola.length - conError };
+}
+
+/** «N sin enviar», o «N con error · M sin enviar» si alguno ha fallado. */
+function textoEnvios(cola: readonly { fallo: string | null }[]): string {
+  const { conError, esperando } = cuentaEnvios(cola);
+  return conError > 0 ? T.mapa.envios(conError, esperando) : T.mapa.sinEnviar(cola.length);
+}
 
 const COLOR_PUNTO: Record<Punto, string> = {
   verde: 'var(--verde-600)',
@@ -110,8 +123,14 @@ export function EstadoSincro() {
               <>
                 <dt className="text-texto-suave">{T.sincro.envios}</dt>
                 <dd>
-                  <Link to="/mis-propuestas" className="font-semibold underline underline-offset-2">
-                    {T.mapa.sinEnviar(cola.length)}
+                  <Link
+                    to="/mis-propuestas"
+                    className={cn(
+                      'font-semibold underline underline-offset-2',
+                      cuentaEnvios(cola).conError > 0 && 'text-rojo-texto',
+                    )}
+                  >
+                    {textoEnvios(cola)}
                   </Link>
                 </dd>
               </>
@@ -152,6 +171,7 @@ export function BarraEstado() {
   const ahora = useReloj();
   // Lo que espera por un tope no espera cobertura: Mis propuestas dice por qué espera (docs/32 RV-233).
   const atascado = cola.some((c) => !c.fallo && !esperaTope(c, ahora) && ahora - c.creada_en > ATASCADO_MS);
+  const { conError } = cuentaEnvios(cola);
   if (cola.length === 0 && !atascado) return null;
   return (
     <div className="bg-papel border-linea border-b">
@@ -159,9 +179,24 @@ export function BarraEstado() {
         <p className="flex justify-end px-3 text-[13px]">
           {/* 44 × 44 de objetivo táctil (UI-15), dentro de su línea: no tapa nada (RV-243, RV-324). */}
           <Link to="/mis-propuestas" className="inline-flex min-h-11 min-w-11 items-center justify-center">
-            <span className="rounded-chip bg-[var(--badge-pendiente-fondo)] px-2.5 py-0.5 font-semibold text-[var(--badge-pendiente-texto)]">
-              {T.mapa.sinEnviar(cola.length)}
+            <span
+              className={cn(
+                'rounded-chip px-2.5 py-0.5 font-semibold',
+                conError > 0
+                  ? 'bg-tinte-rojo text-tinte-rojo-texto ring-tinte-rojo-borde ring-1 ring-inset'
+                  : 'bg-[var(--badge-pendiente-fondo)] text-[var(--badge-pendiente-texto)]',
+              )}
+            >
+              {textoEnvios(cola)}
             </span>
+          </Link>
+        </p>
+      )}
+      {conError > 0 && (
+        // docs/39 RV-521 (DEC-221): un envío que ha fallado no saldrá solo; lleva a Mis propuestas.
+        <p className="bg-tinte-rojo text-tinte-rojo-texto ring-tinte-rojo-borde px-3 text-[13px] ring-1 ring-inset">
+          <Link to="/mis-propuestas" className="inline-flex min-h-11 items-center underline underline-offset-2">
+            {T.mapa.avisoConError(conError)}
           </Link>
         </p>
       )}

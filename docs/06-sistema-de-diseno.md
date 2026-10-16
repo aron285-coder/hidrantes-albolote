@@ -502,7 +502,7 @@ con el correo de jefatura unido a otra cuenta de Google (docs/37 RV-493): `Este 
 `PNOA © Instituto Geográfico Nacional` · `© Dirección General del Catastro` ·
 `© OpenStreetMap contributors · Protomaps` (atribuciones de las capas) · `necesita cobertura` · `Mi posición` · `Centrado en tu posición` · `Ver toda la zona` (aviso al abrir el mapa sobre el voluntario, docs/33 RV-310) ·
 `Sincronizado [hace N min]` · `Sin cobertura · datos de [hace N min]` ·
-`Sin conexión con el servidor` · `[N] sin enviar` · `al día · [15]` · `sin conexión` · `sin conexión · [hace 2 h]` (píldora de la cabecera, docs/33 RV-311) · `Sincronización` · `Última sincronización` · `Puntos guardados` · `[12] en este móvil` · `Envíos` · `Sincronizar ahora` · `No se ha podido sincronizar. Prueba más tarde.` (su detalle) · `Todos` · `Hidrantes` · `Bocas` ·
+`Sin conexión con el servidor` · `[N] sin enviar` · `[1] con error` · `[1] con error · [2] sin enviar` (con algún envío que ha fallado, en `tinte-rojo`; lleva a Mis propuestas, `docs/39` RV-521, DEC-221) · `Un envío no se ha podido hacer. Mira Mis propuestas.` (con varios, `[N] envíos no se han podido hacer. Mira Mis propuestas.`) · `al día · [15]` · `sin conexión` · `sin conexión · [hace 2 h]` (píldora de la cabecera, docs/33 RV-311) · `Sincronización` · `Última sincronización` · `Puntos guardados` · `[12] en este móvil` · `Envíos` · `Sincronizar ahora` · `No se ha podido sincronizar. Prueba más tarde.` (su detalle) · `Todos` · `Hidrantes` · `Bocas` ·
 `No utilizable` · `Sin revisar` · `Más grande = más agua aprovechable` ·
 `Nada coincide con ese filtro.` · `revisado [hace 3 meses]` · `sin revisar` + `desde [hace 1 año]` = "sin revisar desde hace 1 año" (en `--naranja-texto`; si no cabe, se acorta la fecha, nunca `sin revisar`) (segunda línea de cada fila de la Lista, sin la dirección; a la derecha solo la distancia, y solo si hay posición: FR-68, docs/25 RV-106) ·
 `desde ti` · `desde el incidente` (solo para el lector de pantalla, detrás de la distancia de cada fila) · `Sin cobertura` · `Reintentar` ·
@@ -606,7 +606,7 @@ el subtítulo de Cercanos va en minúscula detrás del título y solo avisa cuan
 **Mis propuestas.** `Pendiente` · `Aprobada` · `Rechazada` · `Retirada por ti` · `Sin enviar` ·
 `Retirar` · `Motivo: [texto]` · `con correcciones: [texto]` ·
 `⚠ Lleva más de 24 h esperando cobertura. Se enviará sola al tener señal.` ·
-`Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.` ·
+`No hay nada pendiente de enviar en este móvil.` (Mis propuestas de jefatura, solo su cola, `docs/39` RV-521) · `Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.` ·
 `[3] enviadas · [1] sin enviar` (con uno, `1 enviada · [1] sin enviar`) · `nuevo` · `Punto nuevo` · la línea de lo propuesto (docs/33 RV-315):
 `[Regular] → [No funciona]` · `[Tipo de enganche]: [Directo]` · `Posición nueva en el mapa` ·
 `Retirada: [Obras]` (en una alta, `[Hidrante] [100 mm]`; en una revisión, `Sigue igual`) · `Descartar` · `Jefatura ya la ha revisado` · `No se ha podido retirar. Inténtalo de nuevo.` · `¿Descartar este envío?` ·

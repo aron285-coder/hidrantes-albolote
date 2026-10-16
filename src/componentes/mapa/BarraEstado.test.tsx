@@ -129,3 +129,37 @@ describe('BarraEstado: la espera por un tope no es falta de cobertura (docs/32 R
     expect(pintar()).not.toContain(T.misPropuestas.esperando24h);
   });
 });
+
+// docs/39 RV-521 (DEC-221): un envío con error no se parece a uno que espera.
+describe('los envíos con error, a la vista (docs/39 RV-521)', () => {
+  beforeEach(() => {
+    estado.conexion = 'bien';
+    estado.cola = [];
+  });
+
+  it('con un fallo: «1 con error», en rojo, y el aviso que lleva a Mis propuestas', () => {
+    estado.cola = [{ creada_en: Date.now(), fallo: 'PUNTO_NO_ACTIVO' }];
+    const html = pintar();
+    expect(html).toContain(T.mapa.envios(1, 0));
+    expect(html).toContain('bg-tinte-rojo');
+    expect(html).toContain(T.mapa.avisoConError(1));
+    expect(html).toContain('href="/mis-propuestas"');
+  });
+
+  it('con uno con error y dos esperando: «1 con error · 2 sin enviar»', () => {
+    estado.cola = [
+      { creada_en: Date.now(), fallo: 'PUNTO_NO_ACTIVO' },
+      { creada_en: Date.now(), fallo: null },
+      { creada_en: Date.now(), fallo: null },
+    ];
+    expect(pintar()).toContain(T.mapa.envios(1, 2));
+    expect(T.mapa.envios(1, 2)).toBe('1 con error · 2 sin enviar');
+  });
+
+  it('sin fallos, como siempre: «N sin enviar» sin rojo', () => {
+    estado.cola = [{ creada_en: Date.now(), fallo: null }];
+    const html = pintar();
+    expect(html).toContain(T.mapa.sinEnviar(1));
+    expect(html).not.toContain('bg-tinte-rojo');
+  });
+});

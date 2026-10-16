@@ -158,6 +158,13 @@ export const T = {
     verTodaLaZona: 'Ver toda la zona',
     sinServidor: 'Sin conexión con el servidor',
     sinEnviar: (n: Parametro) => `${n} sin enviar`,
+    // docs/39 RV-521 (DEC-221): lo que ha fallado no se parece a lo que espera.
+    envios: (conError: number, sinEnviar: number) =>
+      sinEnviar > 0 ? `${conError} con error · ${sinEnviar} sin enviar` : `${conError} con error`,
+    avisoConError: (n: number) =>
+      n === 1
+        ? 'Un envío no se ha podido hacer. Mira Mis propuestas.'
+        : `${n} envíos no se han podido hacer. Mira Mis propuestas.`,
     // docs/33 RV-311: la píldora de la cabecera.
     alDia: (n: Parametro) => `al día · ${n}`,
     sinConexion: 'sin conexión',
@@ -526,6 +533,8 @@ export const T = {
     conCorrecciones: (texto: Parametro) => `con correcciones: ${texto}`,
     esperando24h: '⚠ Lleva más de 24 h esperando cobertura. Se enviará sola al tener señal.',
     vacio: 'Todavía no has propuesto nada. Desde la ficha de un punto o con el botón + del mapa.',
+    // docs/39 RV-521: jefatura solo ve aquí lo que espera en la cola de este móvil.
+    vacioJefatura: 'No hay nada pendiente de enviar en este móvil.',
     resumen: (enviadas: number, sinEnviar: Parametro) =>
       `${plural(enviadas, 'enviada', 'enviadas')} · ${sinEnviar} sin enviar`,
     nuevo: 'nuevo',
