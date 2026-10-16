@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.17.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.16.1...hidrantes-albolote-v0.17.0) (2026-10-16)
+
+
+### Novedades
+
+* **avisos:** jefatura recibe un aviso si las tareas automáticas llevan días sin hacerse (docs/39 RV-517) ([#863](https://github.com/aron285-coder/hidrantes-albolote/issues/863)) ([20f1c37](https://github.com/aron285-coder/hidrantes-albolote/commit/20f1c374b4bef685f1d2c3ace1666143f337f77b))
+* **operacion:** la cadena del migrador se enseña una vez al crearla o rotarla, para el sobre (docs/39 RV-516) ([#861](https://github.com/aron285-coder/hidrantes-albolote/issues/861)) ([725a81a](https://github.com/aron285-coder/hidrantes-albolote/commit/725a81a46896c5df7fd77583ba5a055a57bc8173))
+* **panel:** Editar enseña las fotos del punto, y en el mapa del Inventario tocar un punto lo abre (docs/39 RV-523) ([#869](https://github.com/aron285-coder/hidrantes-albolote/issues/869)) ([9c47a92](https://github.com/aron285-coder/hidrantes-albolote/commit/9c47a92f855ce6e3a9d94a379eca3df70376ecfc))
+* **propuestas:** lo que no se ha podido enviar sale en rojo y te lleva a Mis propuestas (docs/39 RV-521) ([#867](https://github.com/aron285-coder/hidrantes-albolote/issues/867)) ([ca87692](https://github.com/aron285-coder/hidrantes-albolote/commit/ca876921b5915a288ce4e1942325da9b9f5e245b))
+* **propuestas:** si cambian el código mientras rellenas algo, no pierdes lo escrito (docs/39 RV-520) ([#866](https://github.com/aron285-coder/hidrantes-albolote/issues/866)) ([b6964c2](https://github.com/aron285-coder/hidrantes-albolote/commit/b6964c228aa53d3395bd667beca7dfebcdb91a47))
+
+
+### Correcciones
+
+* **panel:** el filtro se lee en modo oscuro, un alta aprobada se busca por su código y Salud avisa del respaldo de staging (docs/39 RV-522) ([#868](https://github.com/aron285-coder/hidrantes-albolote/issues/868)) ([001225c](https://github.com/aron285-coder/hidrantes-albolote/commit/001225c6e2e119bccf387d0f15cafeb5ef369690))
+
 ## [0.16.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.16.0...hidrantes-albolote-v0.16.1) (2026-10-16)
 
 
