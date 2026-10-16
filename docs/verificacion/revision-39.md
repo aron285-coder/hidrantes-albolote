@@ -7,6 +7,15 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   `docs/40` en DEC-193, DEC-196, DEC-205, DEC-209 y DEC-212. CLAUDE.md §5 (`docs/39` como cuarta excepción y la línea
   de DEC-217), la skill `paquete-rv` y 09 §8. Issues: #811 a #825, una por punto; los 27 bajos de §0.6, #826 a #852,
   con `tras-piloto`. El documento, en `.git/info/exclude` hasta 0.16.1. Sin test: solo documentación.
+- **RV-514:** `revision-completa-staging.md` con la sección «Desde `docs/39` (DEC-217)»: qué lee, el móvil de prueba
+  «Prueba RV-139b» revocado al acabar con `fn_revocar_dispositivo`, la transacción con `rollback` y lo que no hace.
+  La comprobación (fuera de Git, como siempre) se rehízo así: sin alta ni fotos ni canjes, las llamadas que escriben
+  cortadas en el navegador, y la escritura de jefatura en una transacción que se deshace. Bocas de las comprobaciones
+  de antes, retiradas en staging como jefatura (`fn_retirar_punto`, motivo «[PRUEBA] alta de la comprobación en
+  staging (RV-139b)»): **BOC-0007, BOC-0008, BOC-0009, BOC-0010, BOC-0011, BOC-0012, BOC-0013, BOC-0014, BOC-0015,
+  BOC-0016 y BOC-0017** (las once, `[PRUEBA] RV-139b alta …`; traspaso 38867050886, borrado). Consulta de solo lectura
+  con la condición de `promover-piloto` (`situacion = 'activo'`, `CONDICION_PUNTOS`) sobre esos códigos: **0**.
+  #651, cerrada. Sin test de código: es un procedimiento y una limpieza.
 - **RV-515:** avisos push: comprobaciones del destino y tope por móvil (migración `0050`, DEC-218; pgTAP
   `47_avisos_push_destino_y_tope`, `functions/_lib/destino-push.test.ts` y `functions/api/push.test.ts`, que fallaban
   antes). 05 v1.6 y 11 v1.8.
