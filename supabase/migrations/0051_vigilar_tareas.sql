@@ -86,8 +86,13 @@ language plpgsql volatile security definer set search_path = pg_catalog, hidrant
 declare
   vigilancia timestamptz;
   respaldo timestamptz;
-  mirar_respaldo boolean := coalesce((hidrantes.fn_config('vigilar_respaldo', 'true') #>> '{}')::boolean, true);
+  mirar_respaldo boolean := true;
 begin
+  begin
+    mirar_respaldo := coalesce((hidrantes.fn_config('vigilar_respaldo', 'true') #>> '{}')::boolean, true);
+  exception when others then
+    mirar_respaldo := true;   -- un valor que no se puede leer: se vigila, que es lo de por defecto
+  end;
   begin
     vigilancia := (hidrantes.fn_config('ultima_vigilancia', 'null') #>> '{}')::timestamptz;
   exception when others then
