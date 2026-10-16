@@ -197,6 +197,9 @@ const APROBADAS = [
     estado: 'aprobada',
     punto_id: null,
     codigo: null,
+    // docs/40 RV-533: como en la vista de verdad, un alta no trae el punto (copiado de RECHAZADAS, traía el de P0 y el
+    // detalle sacaba de ahí el código: el e2e pasaba con el título «nuevo · Alta»).
+    ...delPunto(undefined),
     motivo_rechazo: null,
     correcciones: { punto_id: P0.id },
   },
@@ -1711,8 +1714,8 @@ test.describe('Cola con el botón de filtros (docs/38 RV-505)', () => {
   });
 
   // docs/39 RV-522: se busca por ese código, y el detalle lo dice en el título.
+  // docs/40 RV-533: a 1280, el detalle al lado; a 412, a pantalla completa con su título arriba.
   test('en Aprobadas, buscar el código del punto creado lo encuentra y el detalle lo dice', async ({ page }) => {
-    test.skip(!!page.viewportSize() && page.viewportSize()!.width < 1100, 'el detalle al lado, en el ordenador');
     await prepararPanel(page);
     await page.goto('/admin/cola');
     await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.aprobadas);

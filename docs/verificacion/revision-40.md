@@ -33,3 +33,8 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   Revisión: tras el cerrojo, la comprobación del token solo lee (`fn_validar_token` anota `ultimo_uso`, y escribir en
   `dispositivos` después del cerrojo podría cruzarse con una revocación); tercer caso pgTAP con un token viejo y una
   revocación de todo el móvil (6 en total). Sin `0052`, los casos 1 y 4 fallaban en CI; con ella, en verde.
+- **RV-533:** el título del detalle de un alta aprobada dice su código (`codigoCola`, también en los textos de
+  «Aprobada …»). Por qué pasaba el e2e: la fixture `APROBADAS` copiaba `RECHAZADAS[0]` con `...delPunto(P0)`, y el detalle
+  sacaba el código de ese `punto` (la vista de verdad no lo trae para un alta). Con `delPunto(undefined)` y sin el `skip`
+  del móvil, el e2e de `panel-cola.spec.ts` («buscar el código del punto creado…») falla antes en `escritorio` y en `movil`
+  y pasa después; `panel-firefox` corre en CI (en local no arranca). Toda `panel-cola` en verde (121).
