@@ -6,3 +6,9 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   DEC-209, DEC-212 y DEC-216); CLAUDE.md §5 (`docs/40` como excepción, `docs/41` la de después del piloto, DEC-225 en los
   commits y DEC-226); skill `paquete-rv`; 09 §8; INDICE; `docs/40-revision-tras-39.md` entra en Git; issues de los puntos y
   las 6 `tras-piloto` de §0.4 (#878 a #887 y #888 a #893). Sin test: documentación.
+- **RV-529:** Novedades enseña lo de 0.17.0. `limpiar()` quita también «(docs/NN RV-nnn, DEC-nnn)»; `propuestas`, `estilo` y
+  `textos` pasan a ámbitos de usuario (los internos desde 0.10.0, en un comentario con su motivo); las líneas de 0.17.0 del
+  CHANGELOG, sin «(docs/39 RV-5xx)»; `src/generado/novedades.json` regenerado (tres líneas de 0.17.0). Tests que fallaban
+  antes: los tres nuevos de `scripts/generar-novedades.test.ts`, uno con el CHANGELOG real (cada línea de ámbito de
+  usuario de la última versión vale para Novedades: el tope de 3 líneas y 2 por ámbito decide cuáles salen). 10 v1.10,
+  AC-192.
