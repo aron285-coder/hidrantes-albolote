@@ -12,3 +12,9 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   antes: los tres nuevos de `scripts/generar-novedades.test.ts`, uno con el CHANGELOG real (cada línea de ámbito de
   usuario de la última versión vale para Novedades: el tope de 3 líneas y 2 por ámbito decide cuáles salen). 10 v1.10,
   AC-192.
+- **RV-530:** `arranque --rotar db` guarda la cadena nueva del migrador en los secretos de GitHub (la del entorno y la de las
+  tareas) y la enseña en cuanto la clave funciona, antes de la pregunta de PostGIS, de Pages y del Worker
+  (`guardarCadenaMigrador`, y el bucle por entorno en `arrancarEntorno`); si el Worker rechaza después, el mensaje dice que
+  la clave ya está cambiada y guardada; el recuadro dice «staging» o «producción»; sin terminal, nombra PowerShell y
+  `winpty`. Tests que fallaban antes: los cinco nuevos o cambiados de `scripts/arranque.test.ts` (el orden, el Worker que
+  rechaza, la etiqueta y `motivoSinTerminal`). 15 v1.10 (§2 y §5.3); CLAUDE.md §6.
