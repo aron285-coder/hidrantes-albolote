@@ -10,7 +10,8 @@ describe('destinoAdmitido', () => {
     'https://web.push.apple.com/QGuQyavXutnMs',
     'https://api.push.apple.com/3/device/abc',
     'https://db5p.notify.windows.com/w/?token=abc',
-    'HTTPS://FCM.GOOGLEAPIS.COM/fcm/send/abc',
+    // El host, sin distinguir mayúsculas, como lower() en la base.
+    'https://FCM.GOOGLEAPIS.COM/fcm/send/abc',
   ])('admite %s', (d) => expect(destinoAdmitido(d)).toBe(true));
 
   it.each([
@@ -21,6 +22,8 @@ describe('destinoAdmitido', () => {
     'https://push.services.mozilla.com.example.org/x',
     'http://fcm.googleapis.com/fcm/send/abc',
     'fcm.googleapis.com/fcm/send/abc',
+    // `https://` en minúsculas, como fn_validar_suscripcion (0050): la base no lo admite (docs/40 RV-532).
+    'HTTPS://FCM.GOOGLEAPIS.COM/fcm/send/abc',
     '',
     null,
     42,
