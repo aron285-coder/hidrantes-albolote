@@ -7,3 +7,6 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   `docs/40` en DEC-193, DEC-196, DEC-205, DEC-209 y DEC-212. CLAUDE.md §5 (`docs/39` como cuarta excepción y la línea
   de DEC-217), la skill `paquete-rv` y 09 §8. Issues: #811 a #825, una por punto; los 27 bajos de §0.6, #826 a #852,
   con `tras-piloto`. El documento, en `.git/info/exclude` hasta 0.16.1. Sin test: solo documentación.
+- **RV-515:** avisos push: comprobaciones del destino y tope por móvil (migración `0050`, DEC-218; pgTAP
+  `47_avisos_push_destino_y_tope`, `functions/_lib/destino-push.test.ts` y `functions/api/push.test.ts`, que fallaban
+  antes). 05 v1.6 y 11 v1.8.
