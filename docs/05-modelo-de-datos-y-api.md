@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura (si afecta a datos que ve) y nueva versión; todo cambio arrastra una entrada en 12 y una migración nueva. |
-| **Versión** | 1.6 — 16 de octubre de 2026 (`docs/39` RV-515, DEC-218, migración 0050): avisos push, comprobaciones del destino y tope por móvil (§2.12, §6.1, §6.3). 1.5 — 15 de octubre de 2026 (`docs/37` RV-495), aprobada por el desarrollador al pedir el cambio (DEC-177): recoge los cambios de `docs/35` y `docs/36` (DEC-197 a DEC-208; migraciones 0045 a 0048: jefatura atada a su cuenta de Google, avisos técnicos, la entrada con el código, los móviles recién entrados y la versión al editar) y de `docs/37` (DEC-211; migración 0049: la entrada abierta para la Function y cualquier versión distinta en Editar). Los topes de §2.6 y §2.10 tienen ahora su exigencia en 03 (TR-48, TR-49, TR-56). Las versiones intermedias no se numeraron: cada cambio está anotado en su sección con su migración y su especificación. 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
+| **Versión** | 1.7 — 16 de octubre de 2026 (`docs/39` RV-517, DEC-220, migración 0051): la clave `tareas_paradas` (§2.16), `fn_vigilar_tareas` y la tarea `hidrantes_vigilar_tareas` (§6.3), y `config.vigilar_respaldo`. 1.6 — 16 de octubre de 2026 (`docs/39` RV-515, DEC-218, migración 0050): avisos push, comprobaciones del destino y tope por móvil (§2.12, §6.1, §6.3). 1.5 — 15 de octubre de 2026 (`docs/37` RV-495), aprobada por el desarrollador al pedir el cambio (DEC-177): recoge los cambios de `docs/35` y `docs/36` (DEC-197 a DEC-208; migraciones 0045 a 0048: jefatura atada a su cuenta de Google, avisos técnicos, la entrada con el código, los móviles recién entrados y la versión al editar) y de `docs/37` (DEC-211; migración 0049: la entrada abierta para la Function y cualquier versión distinta en Editar). Los topes de §2.6 y §2.10 tienen ahora su exigencia en 03 (TR-48, TR-49, TR-56). Las versiones intermedias no se numeraron: cada cambio está anotado en su sección con su migración y su especificación. 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
 | **Propietario de** | **campos, tipos, constraints, índices, vistas, políticas RLS, firmas de las RPC y contrato HTTP de las Pages Functions.** El documento más consultado durante la construcción; 04 y 09 lo citan, no lo repiten. |
 | **No contiene** | la motivación de las decisiones (→ 04, 12) ni las reglas funcionales (→ 01, citadas por `FR-nn`). |
 
@@ -379,7 +379,7 @@ distingue temas.
 
 ### 2.16 `avisos_tecnicos` — última emisión de cada aviso técnico (0045, docs/35 RV-404, DEC-202)
 
-`clave text` PK (`vigilancia`, `respaldo`, `despliegue` o `intentos_codigo`), `ultimo_en timestamptz`
+`clave text` PK (`vigilancia`, `respaldo`, `despliegue`, `intentos_codigo` o, desde 0051, `tareas_paradas`), `ultimo_en timestamptz`
 (la última vez que se encoló al menos un aviso con esa clave; `null`, nunca; cuenta al encolar, no al entregar). Sirve para la deduplicación de
 `fn_encolar_aviso_tecnico` y se bloquea por fila (`for update`). RLS con una sola política que no
 deja ver nada (`avisos_tecnicos_sin_acceso`, como `migraciones_aplicadas`) y sin `grant` para
@@ -941,7 +941,7 @@ fn_aplazar_notificaciones(ids bigint[], segundos integer) returns integer
 -- 0045 (docs/35 RV-404, DEC-202): aviso técnico a jefatura. Solo service_role (y el dueño, con psql
 -- desde los workflows); sin execute para public, anon ni authenticated.
 fn_encolar_aviso_tecnico(clave text, titulo text, cuerpo text, url text default '/admin/ajustes') returns boolean
-  -- clave: vigilancia · respaldo · despliegue · intentos_codigo; otra → PAYLOAD_INVALIDO(clave).
+  -- clave: vigilancia · respaldo · despliegue · intentos_codigo · tareas_paradas (0051); otra → PAYLOAD_INVALIDO(clave).
   -- titulo y cuerpo: null o vacíos → los textos fijos de la clave (06 Apéndice A; título «Aviso
   --   técnico»); con valor, hasta 80 y 300 caracteres (si no, PAYLOAD_INVALIDO(titulo|cuerpo)). Nunca
   --   nombres ni correos (FR-27). url: ruta de la propia app ('/' y letras, cifras, / _ ? = & . -; hasta 200), si no PAYLOAD_INVALIDO(url).
@@ -951,6 +951,13 @@ fn_encolar_aviso_tecnico(clave text, titulo text, cuerpo text, url text default 
   --   clave en avisos_tecnicos (for update): dos llamadas a la vez no encolan dos veces.
   -- Devuelve true si ha encolado al menos una; false si estaba dentro del plazo o no hay suscripciones
   --   (entonces no cuenta como emitido). La envía /api/push en su siguiente vuelta (el Worker, cada 5 min).
+-- 0051 (docs/39 RV-517, DEC-220): solo pg_cron (hidrantes_vigilar_tareas, cada día a las 08:00 UTC, como
+-- hidrantes_migrador); sin execute para public, anon ni authenticated.
+fn_vigilar_tareas() returns boolean
+  -- Si config.ultima_vigilancia falta o tiene más de 36 h, o (con config.vigilar_respaldo a true, que es lo de
+  --   por defecto si no está) config.ultimo_respaldo falta o tiene más de 9 días, llama a
+  --   fn_encolar_aviso_tecnico('tareas_paradas', null, null, '/admin/ajustes'). Devuelve lo que esta devuelve.
+  --   El PR que apague el respaldo de staging tras promover-piloto pone vigilar_respaldo a false allí.
 ```
 
 ### 6.3 Helpers internos (sin `execute` público)

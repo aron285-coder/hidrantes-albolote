@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | **Borrador, se revisa tras el piloto** (DEC-041, `docs/31` RV-139). |
-| **Versión** | 0.5 — 16 de octubre de 2026 (`docs/38` RV-511): el panel en el móvil y la tableta: §3, las pestañas en ☰, la lupa y el punto naranja; §4, el botón de filtros y la barra de lote solo con algo marcado; §5, filtrar y ordenar desde un botón, tocar la fila abre Editar y «⋯» lleva lo demás, «＋ Añadir dirección»; §6, el filtro del Registro y «Tú»; §7, «Purgar lo caducado…» en rojo; §8, el orden de las tarjetas y Administradores con su etiqueta y «⋯». 0.4 — 15 de octubre de 2026 (`docs/37` RV-496): §8, activar los avisos técnicos antes del piloto, porque vienen apagados (DEC-202); §10, la rutina de antes del piloto (entrar en el panel, volver a entrar en los demás dispositivos, DEC-206, y activar los avisos). El día del lanzamiento (RV-491) y `OTRA_CUENTA` (RV-493) ya estaban en §8 y §2. 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
+| **Versión** | 0.6 — 16 de octubre de 2026 (`docs/39` RV-517): §8 y §11, el aviso de las tareas automáticas paradas. 0.5 — 16 de octubre de 2026 (`docs/38` RV-511): el panel en el móvil y la tableta: §3, las pestañas en ☰, la lupa y el punto naranja; §4, el botón de filtros y la barra de lote solo con algo marcado; §5, filtrar y ordenar desde un botón, tocar la fila abre Editar y «⋯» lleva lo demás, «＋ Añadir dirección»; §6, el filtro del Registro y «Tú»; §7, «Purgar lo caducado…» en rojo; §8, el orden de las tarjetas y Administradores con su etiqueta y «⋯». 0.4 — 15 de octubre de 2026 (`docs/37` RV-496): §8, activar los avisos técnicos antes del piloto, porque vienen apagados (DEC-202); §10, la rutina de antes del piloto (entrar en el panel, volver a entrar en los demás dispositivos, DEC-206, y activar los avisos). El día del lanzamiento (RV-491) y `OTRA_CUENTA` (RV-493) ya estaban en §8 y §2. 0.3 — 14 de octubre de 2026 (`docs/36` RV-480): tras unir la cuenta de jefatura hay que volver a entrar una vez en los otros dispositivos, qué quiere decir «Esta cuenta tiene otra identidad unida» y el aviso de una cuenta desunida (DEC-206). 0.2 — 13 de octubre de 2026 (`docs/35`), aprobada por el desarrollador al pedir el cambio: el código nuevo revocando ya no abre la entrada solo; revocar los móviles que han entrado desde una hora (DEC-201); quitar el acceso a un administrador pide confirmación (RV-431) y cada administrador queda unido a su cuenta de Google al entrar (DEC-197). 0.1 — 7 de octubre de 2026. Primer borrador completo, con el panel de la versión 0.9 (cinco pestañas) y las capturas de `capturas/vistas/`. |
 | **Para** | Jefatura y los administradores del panel. |
 | **Se apoya en** | 02 (los pasos, FL-20 a FL-38), 01 (las reglas), 11 (datos personales) y 15 (qué hacer si algo falla). Si este manual y esos documentos dicen cosas distintas, mandan ellos, y este manual se corrige. |
 
@@ -259,8 +259,8 @@ el Registro. En el uso normal no hace falta tocarlos.
 
 Notificaciones en este navegador, apagadas por defecto: **Nuevas propuestas pendientes** (como mucho
 una por hora), **Resumen semanal** (los lunes: revisiones caducadas y pendientes antiguas) y **Avisos
-técnicos** (si falla la comprobación diaria, el respaldo o una actualización, o si alguien está
-probando códigos de acceso; como mucho uno de cada tipo al día, el de los códigos uno por hora). Un aviso
+técnicos** (si falla la comprobación diaria, el respaldo o una actualización, si las tareas automáticas llevan días
+sin hacerse, o si alguien está probando códigos de acceso; como mucho uno de cada tipo al día, el de los códigos uno por hora). Un aviso
 técnico lleva a Ajustes: mira Salud del sistema; el responsable técnico ya tiene el aviso. Si es el de
 los códigos y se repite, cambia el código. En iPhone, solo con la app instalada.
 
@@ -309,6 +309,7 @@ El procedimiento de cada caso está en **15** (Continuidad y emergencias). Los m
 | El código de acceso se ha filtrado | 15 §5.4: código nuevo **revocando** |
 | Una cuenta de administrador puede estar comprometida | 15 §5.5: quitarla de *Acceso de administradores* |
 | La comprobación diaria ha desunido una cuenta de jefatura (aviso técnico; en la issue, «una cuenta de jefatura se ha desunido») | 15 §4: volver a entrar; si se repite, revisar la cuenta de Google |
+| «Las tareas automáticas… llevan días sin hacerse» (aviso técnico) | Avisar al desarrollador: 15 §4, punto 9 |
 | Se han perdido o estropeado datos | 15 §5.3: se restaura el respaldo |
 | Supabase, Cloudflare o GitHub caídos | 15 §5.8: la app sigue abriendo con lo guardado en cada móvil |
 | Un sábado por la tarde nadie conecta | Bloqueos durante el fútbol: lo pendiente sale solo al acabar |
