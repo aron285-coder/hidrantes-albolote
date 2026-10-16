@@ -49,3 +49,10 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   cuenta igual; `/mis-propuestas` deja entrar a jefatura y le enseña solo su cola (Reintentar, Descartar). Tests que
   fallaban antes: los de «los envíos con error, a la vista» de `BarraEstado.test.tsx` y el e2e nuevo
   `e2e/envios-con-error.spec.ts` (voluntario y jefatura en el móvil). 01 v1.18, 02 v1.15, 06 (Apéndice A), 14 v0.4.
+- **RV-522:** el filtro en oscuro (el chip y el radio elegidos en `--anillo-seleccion`; «Listo» con borde `--texto`),
+  el código del alta aprobada (`coincide` recibe los puntos y busca por `codigoCola`; el título y el `aria-label` del
+  detalle lo dicen) y el respaldo de staging en Salud (como producción: «todavía ninguno» y aviso; fuera
+  `respaldoNoAplica`). Tests que fallaban antes: el e2e nuevo `panel-filtros-oscuro.spec.ts`, el de `coincide` de
+  `cola.test.ts`, el e2e «buscar el código del punto creado» de `panel-cola.spec.ts`, y `salud.test.ts` y el de RV-78
+  de `panel-ajustes.spec.ts`, que cambian (los e2e se construyen como staging; `panel-ajustes` y `panel-simulado` llevan
+  ya un respaldo reciente). 06 v1.35.

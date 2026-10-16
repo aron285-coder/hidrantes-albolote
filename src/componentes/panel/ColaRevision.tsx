@@ -104,9 +104,12 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
   const visibles = useMemo(
     () =>
       todas.filter(
-        (p) => (!operacion || p.operacion === operacion) && (!nucleo || p.nucleo === nucleo) && coincide(p, busqueda),
+        (p) =>
+          (!operacion || p.operacion === operacion) &&
+          (!nucleo || p.nucleo === nucleo) &&
+          coincide(p, busqueda, puntos),
       ),
-    [todas, operacion, nucleo, busqueda],
+    [todas, operacion, nucleo, busqueda, puntos],
   );
   // En el ordenador siempre hay una abierta; en tableta y móvil, solo la que se ha tocado.
   const abierta = visibles.find((p) => p.id === activa) ?? null;
@@ -399,9 +402,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
         {ancho ? (
           <section
             aria-label={
-              seleccion
-                ? `${seleccion.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[seleccion.operacion]}`
-                : undefined
+              seleccion ? `${codigoCola(seleccion, puntos)} · ${ETIQUETA_OPERACION[seleccion.operacion]}` : undefined
             }
             className="bg-fondo min-w-0 flex-1"
           >
@@ -432,9 +433,7 @@ export default function ColaRevision({ alCambiar }: { alCambiar: () => void }) {
               </div>
             )}
             {seleccion && (
-              <PantallaDetalle
-                titulo={`${seleccion.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[seleccion.operacion]}`}
-              >
+              <PantallaDetalle titulo={`${codigoCola(seleccion, puntos)} · ${ETIQUETA_OPERACION[seleccion.operacion]}`}>
                 <DetallePropuesta
                   key={seleccion.id}
                   p={seleccion}

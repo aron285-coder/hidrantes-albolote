@@ -114,11 +114,19 @@ describe('lista de la cola', () => {
 
   it('la búsqueda global encuentra por código, calle y autor, sin acentos (FR-145)', () => {
     const p = propuesta({ autor_nombre: 'Ángela' });
-    expect(coincide(p, 'hid-0147')).toBe(true);
-    expect(coincide(p, 'real')).toBe(true);
-    expect(coincide(p, 'angela')).toBe(true);
-    expect(coincide(p, 'loja')).toBe(false);
-    expect(coincide(p, '  ')).toBe(true);
+    expect(coincide(p, 'hid-0147', [])).toBe(true);
+    expect(coincide(p, 'real', [])).toBe(true);
+    expect(coincide(p, 'angela', [])).toBe(true);
+    expect(coincide(p, 'loja', [])).toBe(false);
+    expect(coincide(p, '  ', [])).toBe(true);
+  });
+
+  // docs/39 RV-522: un alta aprobada se busca por el código del punto que creó (el que enseña la lista).
+  it('la búsqueda encuentra un alta aprobada por el código de su punto', () => {
+    const punto = { id: 'pt-9', codigo: 'BOC-0123' } as Punto;
+    const alta = propuesta({ operacion: 'alta', codigo: null, estado: 'aprobada', correcciones: { punto_id: 'pt-9' } });
+    expect(coincide(alta, 'boc-0123', [punto])).toBe(true);
+    expect(coincide(alta, 'boc-0123', [])).toBe(false);
   });
 });
 

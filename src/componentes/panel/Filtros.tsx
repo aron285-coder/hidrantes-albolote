@@ -233,7 +233,8 @@ function Contenido({
           ref={listo}
           type="button"
           onClick={alCerrar}
-          className="bg-marino-950 rounded-boton ml-auto min-h-11 px-5 text-[14px] font-semibold text-white"
+          // Con borde, como «Cómo llegar» de la ficha: en oscuro, el marino casi no se distingue del fondo (docs/39 RV-522).
+          className="bg-marino-950 border-texto rounded-boton ml-auto min-h-11 border-[1.5px] px-5 text-[14px] font-semibold text-white"
         >
           {T.panel.listo}
         </button>
@@ -275,10 +276,11 @@ export function GrupoFiltro({ grupo }: { grupo: CualquierGrupo }) {
                 aria-hidden
                 className={cn(
                   'grid size-5 shrink-0 place-items-center rounded-full border-2',
-                  elegida ? 'border-marino-700' : 'border-linea',
+                  // --anillo-seleccion: marino en claro, claro en oscuro (docs/39 RV-522; --marino-700 no se leía en oscuro).
+                  elegida ? 'border-[var(--anillo-seleccion)]' : 'border-linea',
                 )}
               >
-                {elegida && <span className="bg-marino-700 size-2.5 rounded-full" />}
+                {elegida && <span className="size-2.5 rounded-full bg-[var(--anillo-seleccion)]" />}
               </span>
               <span className={cn(elegida && 'font-semibold')}>{o.nombre}</span>
             </button>
@@ -293,7 +295,7 @@ export function GrupoFiltro({ grupo }: { grupo: CualquierGrupo }) {
               className={cn(
                 'flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px]',
                 elegida
-                  ? 'border-marino-700 bg-tinte-azul text-tinte-azul-texto border-2 font-semibold'
+                  ? 'bg-tinte-azul text-tinte-azul-texto border-2 border-[var(--anillo-seleccion)] font-semibold'
                   : 'border-linea text-texto border',
               )}
             >
