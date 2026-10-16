@@ -252,7 +252,6 @@ async function recorrer(
     const control = pulsables(page).nth(i);
     if (!(await cuenta(control))) continue;
 
-    const antes = { url: page.url(), html: await page.locator('body').innerHTML() };
     // Abrir la cámara o el carrete es cosa del móvil, no del DOM: si sale el selector de
     // archivos, el control ha hecho lo suyo (FR-21).
     const selector = page.waitForEvent('filechooser', { timeout: 3000 }).then(
@@ -265,6 +264,10 @@ async function recorrer(
           () => false,
         )
       : Promise.resolve(false);
+    // Al centro antes de pulsar: en el móvil, la última fila puede quedar bajo las pestañas fijas de abajo, y una persona
+    // desplazaría un poco más (Playwright solo hasta que asoma).
+    await control.evaluate((e) => e.scrollIntoView({ block: 'center' })).catch(() => undefined);
+    const antes = { url: page.url(), html: await page.locator('body').innerHTML() };
     // Un control puede desaparecer al pulsarlo (una hoja que se cierra): se pulsa a la fuerza,
     // sin esperar a que siga ahí después.
     await control.click({ timeout: 5000 }).catch(() => undefined);
