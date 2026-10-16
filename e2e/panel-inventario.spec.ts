@@ -549,6 +549,8 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
 
   // Con el teclado: flecha abajo abre y entra en Excel; las flechas dan la vuelta; Esc devuelve el foco.
   await boton.focus();
+  // Enfocar desplaza la página en el móvil y el aviso de desplazamiento llega un frame después: cerraría el menú.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   await page.keyboard.press('ArrowDown');
   await expect(boton).toHaveAttribute('aria-expanded', 'true');
   await expect(menu.getByRole('menuitem')).toHaveText([
@@ -582,6 +584,8 @@ test('Exportar ▾: menú con flechas, Esc y tocar fuera; exporta lo filtrado (R
   await elegirTipo(page, T.mapa.hidrantes);
   await elegirEstado(page, T.formulario.malo);
   await boton.focus();
+  // Enfocar desplaza la página en el móvil y el aviso de desplazamiento llega un frame después: cerraría el menú.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   // Flecha arriba abre en la última; la segunda, cuando el menú ya tiene el foco (si no, la recibe el botón).
   await page.keyboard.press('ArrowUp');
   await expect(menu.getByRole('menuitem', { name: T.panel.inventarioCompletoJson })).toBeFocused();
@@ -664,6 +668,8 @@ test('un filtro sin puntos: estado vacío, Exportar solo con el inventario compl
   // Lo filtrado no se puede exportar; el inventario completo (JSON), sí: no depende de los filtros
   // (docs/33 RV-335). Con el teclado, el menú entra directamente en él.
   await boton.focus();
+  // Enfocar desplaza la página en el móvil y el aviso de desplazamiento llega un frame después: cerraría el menú.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
   await page.keyboard.press('ArrowDown');
   const menu = page.getByRole('menu');
   for (const nombre of [T.panel.excel, T.panel.csv, T.panel.geojson]) {
