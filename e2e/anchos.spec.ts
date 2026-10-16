@@ -237,8 +237,11 @@ test.describe('panel de jefatura en tableta en vertical (RV-79)', () => {
       });
       expect(cortados).toEqual([]);
 
-      // "Boca de riego" en una sola línea.
-      const tipo = page.getByRole('main').getByText(T.formulario.bocaRiego, { exact: true }).first();
+      // "Boca de riego" en una sola línea; desde docs/38 RV-506, en la fila va con el diámetro: «Boca de riego · 80 mm».
+      const tipo = page
+        .getByRole('main')
+        .getByText(new RegExp(`^${T.formulario.bocaRiego} · `))
+        .first();
       const lineas = await tipo.evaluate((e) => {
         const r = document.createRange();
         r.selectNodeContents(e);

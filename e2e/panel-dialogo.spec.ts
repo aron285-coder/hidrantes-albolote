@@ -4,7 +4,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas } from './ayudas.ts';
+import { conGoogle, simularTablas, accionInventario } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 const [P0] = PUNTOS;
@@ -39,9 +39,9 @@ test('Retirar: un refresco del panel no saca el foco del motivo, y al cerrar vue
   await page.clock.install();
   const cuentas = await prepararPanel(page);
   await page.goto('/admin/inventario');
-  const fila = page.getByRole('row').filter({ hasText: P0.codigo });
-  const boton = fila.getByRole('button', { name: T.panel.retirar });
-  await boton.click();
+  // Retirar sale del «⋯» de la fila (docs/38 RV-506): el foco vuelve a ese «⋯».
+  const boton = page.getByRole('button', { name: T.panel.masAcciones(P0.codigo) });
+  await accionInventario(page, P0.codigo, 'retirar');
 
   const dialogo = page.getByRole('dialog');
   // Al abrir, el foco entra en la ventana (TR-35).
@@ -58,7 +58,7 @@ test('Retirar: un refresco del panel no saca el foco del motivo, y al cerrar vue
   await page.keyboard.type('por obra');
   await expect(motivo).toHaveValue('Sustituido por obra');
 
-  // Escape cierra y el foco vuelve al "Retirar" de la fila, no a <body>.
+  // Escape cierra y el foco vuelve al «⋯» de la fila, no a <body>.
   await page.keyboard.press('Escape');
   await expect(dialogo).toHaveCount(0);
   await expect(boton).toBeFocused();
@@ -68,8 +68,8 @@ test('Historial: al cerrar con la ✕, el foco vuelve al botón que lo abrió (R
   await page.setViewportSize({ width: 1280, height: 800 });
   await prepararPanel(page);
   await page.goto('/admin/inventario');
-  const boton = page.getByRole('row').filter({ hasText: P0.codigo }).getByRole('button', { name: T.panel.historial });
-  await boton.click();
+  const boton = page.getByRole('button', { name: T.panel.masAcciones(P0.codigo) });
+  await accionInventario(page, P0.codigo, 'historial');
   const dialogo = page.getByRole('dialog');
   await expect(dialogo).toBeFocused();
   await dialogo.getByRole('button', { name: T.ficha.cerrar }).click();

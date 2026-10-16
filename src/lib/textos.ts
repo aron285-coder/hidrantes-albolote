@@ -747,6 +747,8 @@ export const T = {
     haceUnMomento: 'hace un momento',
     haceMin: (n: Parametro) => `hace ${n} min`,
     haceHoras: (n: Parametro) => `hace ${n} h`,
+    // docs/38 RV-502: una fecha sin hora (última revisión) que es de hoy, en las listas del panel.
+    hoy: 'hoy',
     haceUnDia: 'hace 1 día',
     haceDias: (n: Parametro) => `hace ${n} días`,
     haceUnMes: 'hace 1 mes',
@@ -774,8 +776,6 @@ export const T = {
     seleccionadas: (n: number) => plural(n, 'seleccionada', 'seleccionadas'),
     aprobarSeleccionadas: 'Aprobar seleccionadas',
     rechazarSeleccionadas: 'Rechazar seleccionadas…',
-    todasOperaciones: 'todas las operaciones',
-    todosNucleos: 'todos los núcleos',
     aprobar: 'Aprobar',
     aprobarConCorrecciones: 'Aprobar con correcciones',
     guardarYAprobar: 'Guardar y aprobar',
@@ -853,10 +853,12 @@ export const T = {
     seleccionar: (nombre: Parametro) => `Seleccionar ${nombre}`,
     seleccionarTodas: 'Seleccionar todas',
     soloLectura: 'Historial: solo lectura',
-    filtrar: 'Filtrar:',
-    filtroOperacion: 'Filtrar por operación',
-    filtroNucleo: 'Filtrar por núcleo',
-    filtroEstado: 'Estado de las propuestas',
+    // docs/38 RV-505: el botón de filtros de la Cola (UI-19, DEC-214).
+    filtrarCola: 'Filtrar la cola',
+    grupoEstado: 'Estado',
+    grupoOperacion: 'Operación',
+    grupoNucleo: 'Núcleo',
+    todas: 'Todas',
     eligeUna: 'Selecciona una propuesta de la lista.',
     historialVacio: 'Todavía no hay propuestas en este estado.',
     busquedaVacia: (texto: Parametro) => `Nada coincide con "${texto}".`,
@@ -931,14 +933,12 @@ export const T = {
       'Sin posición: el punto no está entre los activos del inventario (puede estar retirado o en la papelera).',
     volverCola: 'Volver a la cola',
     corregirCorto: 'Corregir',
-    tocaUna: 'Toca una para revisarla',
   },
 
   panelInventario: {
     bocasDeRiego: 'Bocas de riego',
     // docs/29 RV-123 (DEC-168): Tipo y Estado en desplegables; Revisión, Núcleo y Diámetro fuera.
     quitarFiltros: 'Quitar filtros',
-    conNumero: (nombre: Parametro, n: Parametro) => `${nombre} · ${n}`,
     nadaQueExportar: 'Nada que exportar con estos filtros',
     vista: 'Vista',
     tabla: 'Tabla',
@@ -960,6 +960,16 @@ export const T = {
     ordenarPor: (columna: Parametro) => `Ordenar por ${columna}`,
     direccionDe: (codigo: Parametro) => `Dirección de ${codigo}`,
     ayudaTabla: 'pulsa una columna para ordenar · la dirección se edita en la propia celda',
+    // docs/38 RV-506: el botón de filtros del Inventario, las filas y el pie (DEC-214, DEC-215).
+    filtrarYOrdenar: 'Filtrar y ordenar',
+    ordenarPorTitulo: 'Ordenar por',
+    ayudaOrden: 'Tocar otra vez el elegido cambia ▲ / ▼.',
+    todosLosPuntos: 'Todos los puntos',
+    editarPunto: (codigo: Parametro) => `Editar ${codigo}`,
+    revisado: 'Revisado:',
+    puntosConFiltro: (n: number) => `${plural(n, 'punto', 'puntos')} con este filtro`,
+    puntosConBusqueda: (n: number) => `${plural(n, 'punto', 'puntos')} con esta búsqueda`,
+    anadirDireccion: '＋ Añadir dirección',
     paginas: 'Páginas',
     vacio: 'No hay puntos con esos filtros.',
     guardado: (codigo: Parametro) => `Guardado ${codigo}.`,
@@ -1016,7 +1026,8 @@ export const T = {
 
   panelRegistro: {
     filtroAccion: 'Filtrar por acción',
-    todasAcciones: 'todas las acciones',
+    // docs/38 RV-507: con mayúscula, como las demás opciones de los filtros (R7).
+    todasAcciones: 'Todas las acciones',
     entradas: (n: number) => plural(n, 'entrada', 'entradas'),
     inmutable: 'no se puede editar ni borrar',
     colMomento: 'Momento',
@@ -1099,6 +1110,12 @@ export const T = {
       revocar_dispositivos: 'Revocar los móviles',
       abrir_entrada: 'Abrir la entrada',
       motivo: 'Motivo',
+      // docs/38 RV-507 (#758): un trabajo de Mantenimiento, una exportación y una anonimización.
+      workflow: 'Trabajo',
+      filtros: 'Filtros',
+      filas: 'Filas',
+      propuestas: 'Propuestas',
+      registro: 'Entradas del Registro',
     },
   },
 
@@ -1117,11 +1134,7 @@ export const T = {
 
   panelAjustes: {
     codigoAcceso: 'Código de acceso',
-    cambiadoPor: (fecha: Parametro, quien: Parametro, moviles: number) =>
-      `Cambiado por última vez el ${fecha} por ${quien}. ${plural(moviles, 'móvil registrado', 'móviles registrados')}.`,
-    sinCambios: (moviles: number) =>
-      `Sin cambios desde el arranque. ${plural(moviles, 'móvil registrado', 'móviles registrados')}.`,
-    // docs/32 RV-261: sin poder contar los móviles no se dice un número, y sin el código, tampoco «—».
+    // docs/38 RV-509: el número de móviles ya no sale aquí (está en Salud); sin el código, tampoco «—» (docs/32 RV-261).
     cambiadoPorSinCuenta: (fecha: Parametro, quien: Parametro) => `Cambiado por última vez el ${fecha} por ${quien}.`,
     sinCambiosSinCuenta: 'Sin cambios desde el arranque.',
     codigoNoCarga: 'No se ha podido leer el código.',
@@ -1175,15 +1188,22 @@ export const T = {
     administradores: 'Acceso de administradores',
     ayudaAdministradores: 'Lista propia de hidrantes, independiente de la app de uniformidad.',
     anadidoEl: (fecha: Parametro, quien: Parametro) => `añadido el ${fecha} por ${quien}`,
-    accesoDe: (correo: Parametro) => `Acceso de ${correo}`,
-    activo: 'activo',
-    sinAcceso: 'sin acceso',
+    // docs/38 RV-509 (DEC-215): «por ti» si lo añadiste tú.
+    anadidoPorTi: (fecha: Parametro) => `añadido el ${fecha} por ti`,
+    // El «⋯» de un administrador (docs/38 RV-509).
+    quitarAccesoMenu: 'Quitar el acceso…',
+    devolverAcceso: 'Devolver el acceso',
+    // #753 (UI-02): el motivo de «Añadir» deshabilitado.
+    motivoAnadir: '«Añadir» se activa al escribir un correo.',
     correoNuevo: 'correo@albolote-pc.es',
     sugerencias: 'Sugerencias de la app de uniformidad:',
     administradorAnadido: (correo: Parametro) => `${correo} ya puede entrar en el panel.`,
     administradorQuitado: (correo: Parametro) => `${correo} se queda sin acceso al panel.`,
     // docs/35 RV-432: activo, pero su cuenta aún no se ha unido a su cuenta de Google.
     pendienteVincular: 'Pendiente de su primer acceso',
+    // docs/38 RV-502: etiquetas de acceso (DEC-215).
+    etiquetaActivo: 'Activo',
+    etiquetaSinAcceso: 'Sin acceso',
     ayudaPendienteVincular: 'Que entre en el panel cuanto antes con su cuenta de Google',
     // docs/35 RV-431: pasar a «sin acceso» se confirma; devolverlo, no.
     quitarAcceso: 'Quitar el acceso',
@@ -1279,7 +1299,6 @@ export const T = {
     pedidosVacio: 'Todavía no se ha pedido nada.',
     pedidoPendiente: 'pedido',
     pedidoLanzado: 'lanzado',
-    pedidoError: (motivo: Parametro) => `error: ${motivo}`,
     pedidoErrorSinMotivo: 'error',
     // docs/32 RV-262: espacio de fotos y de la base de datos, y los móviles con más fotos pedidas.
     espacioFotosLleno: (porcentaje: Parametro) =>
@@ -1300,7 +1319,8 @@ export const T = {
     trabajoPedido: (nombre: Parametro) => `"${nombre}": pedido. Empezará en unos minutos.`,
     // docs/32 RV-224 y RV-260: en staging nadie despacha el pedido.
     trabajoAnotadoStaging: (nombre: Parametro) => `"${nombre}": pedido. En staging no se lanza: queda anotado.`,
-    soloEnProduccion: 'Solo en producción',
+    // docs/38 RV-509: una sola línea debajo de los botones de Mantenimiento, con sus nombres.
+    soloEnProduccion: (uno: Parametro, otro: Parametro) => `${uno} y ${otro}: solo en producción.`,
     radiosInvalidos: 'Escribe cinco radios entre 2 y 30, de mayor a menor: 11 · 9 · 7 · 5,5 · 5.',
     nucleosVacio: 'Todavía no hay núcleos.',
     administradoresVacio: 'Todavía no hay administradores.',
@@ -1358,6 +1378,17 @@ export const T = {
   },
 
   panel: {
+    // docs/38 RV-502: el propio administrador y el «⋯» de una fila (DEC-215).
+    tu: 'Tú',
+    masAcciones: (que: Parametro) => `Más acciones de ${que}`,
+    // docs/38 RV-502: la lupa de la cabecera del móvil (RV-503).
+    buscar: 'Buscar',
+    cerrarBusqueda: 'Cerrar la búsqueda',
+    // docs/38 RV-504: el botón de filtros y su hoja (UI-19, DEC-214).
+    filtrosDe: (resumen: Parametro) => `Filtros: ${resumen}`,
+    listo: 'Listo',
+    // docs/38 RV-503: ☰ con propuestas pendientes desde otra pestaña (UI-18).
+    menuPendientes: 'Menú, hay propuestas pendientes',
     titulo: 'Hidrantes Albolote · Panel de jefatura',
     atribucion: 'Direcciones deducidas con Nominatim · © OpenStreetMap contributors',
     salir: 'Cerrar sesión',
@@ -1388,8 +1419,6 @@ export const T = {
     regenerarMapaBase: 'Regenerar mapa base',
     respaldoAhora: 'Respaldo ahora',
     saludSistema: 'Salud del sistema',
-    mostrando: (n: Parametro, total: number) => `Mostrando ${n} de ${plural(total, 'punto', 'puntos')}`,
     ultimoAdministrador: 'Tiene que quedar al menos un administrador con acceso.',
-    pendienteEscribe: '— pendiente, escribe aquí',
   },
 } as const;

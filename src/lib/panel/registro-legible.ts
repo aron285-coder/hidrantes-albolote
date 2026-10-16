@@ -8,6 +8,7 @@ import { metros } from '../geometria';
 import { ETIQUETA_OPERACION } from '../nombres-operacion';
 import type { TipoPunto } from '../puntos';
 import { T } from '../textos';
+import { NOMBRE_PARAMETRO, NOMBRE_TRABAJO } from './ajustes';
 import type { EntradaRegistro } from './inventario';
 
 type Objeto = Record<string, unknown>;
@@ -39,6 +40,12 @@ const ORDEN: readonly Campo[] = [
   'revocar_dispositivos',
   'abrir_entrada',
   'motivo',
+  // docs/38 RV-507 (#758): el trabajo de Mantenimiento, una exportación y una anonimización.
+  'workflow',
+  'filtros',
+  'filas',
+  'propuestas',
+  'registro',
 ];
 
 /**
@@ -70,19 +77,24 @@ const ignorada = (k: string, anidada: boolean) => personal(k) || (!anidada && TE
 
 const SEPARADOR = ' · ';
 const VACIO = '—';
-const MAXIMO = 60;
 /** Por debajo, un movimiento calculado es ruido del GPS o del redondeo (docs/30 RV-127). */
 const MOVIMIENTO_MINIMO_M = 0.5;
 
 const esObjeto = (v: unknown): v is Objeto => typeof v === 'object' && v !== null && !Array.isArray(v);
 const esPunto = (o: Objeto) => 'codigo' in o || 'tipo' in o;
 const conNombre = (k: string): k is Campo => Object.hasOwn(T.panelRegistro.campos, k);
-const nombreDe = (k: string) => (conNombre(k) ? T.panelRegistro.campos[k] : k);
+/**
+ * Las claves de `config` con el nombre de la tarjeta Parámetros (docs/38 RV-507): «Días de papelera: 30 → 45».
+ * Una clave sin nombre se enseña tal cual (mejor que perderla).
+ */
+const NOMBRE_CONFIG: Record<string, string> = { ...NOMBRE_PARAMETRO, escala_radios: T.panelAjustes.radiosMarcador };
+const nombreDe = (k: string, accion = '') =>
+  accion === 'config_cambiada' && Object.hasOwn(NOMBRE_CONFIG, k)
+    ? NOMBRE_CONFIG[k]!
+    : conNombre(k)
+      ? T.panelRegistro.campos[k]
+      : k;
 const esFoto = (k: string) => k === 'foto_path' || k === 'foto_sitio_path';
-
-function recortar(texto: string): string {
-  return texto.length > MAXIMO ? `${texto.slice(0, MAXIMO - 1)}…` : texto;
-}
 
 const deTabla = <K extends string>(tabla: Record<K, string>, v: string) =>
   Object.hasOwn(tabla, v) ? tabla[v as K] : v;
@@ -90,7 +102,7 @@ const deTabla = <K extends string>(tabla: Record<K, string>, v: string) =>
 /** Una fecha `date` (YYYY-MM-DD) a mediodía UTC: en Europe/Madrid nunca cambia de día. */
 function fechaLegible(texto: string): string {
   const f = new Date(/^\d{4}-\d{2}-\d{2}$/.test(texto) ? `${texto}T12:00:00Z` : texto);
-  return Number.isNaN(f.getTime()) ? recortar(texto) : fechaCorta(f);
+  return Number.isNaN(f.getTime()) ? texto : fechaCorta(f);
 }
 
 /** Una marca de tiempo ISO con hora, como la deja jsonb: "2026-10-13T22:00:00+00:00". */
@@ -99,7 +111,7 @@ const MARCA_DE_TIEMPO = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
 /** Una marca de tiempo en fecha corta y hora de Albolote (docs/36 RV-472), nunca en UTC. */
 function fechaHoraLegible(texto: string): string {
   const f = new Date(texto);
-  return Number.isNaN(f.getTime()) ? recortar(texto) : T.panelRegistro.fechaHora(fechaCorta(f), horaCorta(f));
+  return Number.isNaN(f.getTime()) ? texto : T.panelRegistro.fechaHora(fechaCorta(f), horaCorta(f));
 }
 
 /** Un valor en palabras. Vacío o nulo, "—". Una foto, sin su ruta. `accion`, la de la entrada. */
@@ -107,10 +119,10 @@ function valorLegible(k: string, v: unknown, accion = ''): string {
   if (v === null || v === undefined || (typeof v === 'string' && !v.trim())) return VACIO;
   if (esFoto(k)) return T.panelRegistro.adjunta;
   if (typeof v === 'boolean') return v ? T.panelRegistro.si : T.panelRegistro.no;
-  if (Array.isArray(v)) return v.length ? recortar(v.map((x) => valorLegible('', x)).join(', ')) : VACIO;
+  if (Array.isArray(v)) return v.length ? v.map((x) => valorLegible('', x)).join(', ') : VACIO;
   if (esObjeto(v)) {
     const partes = clavesVisibles(v, true).map((c) => T.panelRegistro.valor(nombreDe(c), valorLegible(c, v[c])));
-    return partes.length ? recortar(partes.join(', ')) : VACIO;
+    return partes.length ? partes.join(', ') : VACIO;
   }
   const texto = String(v);
   switch (k) {
@@ -130,13 +142,16 @@ function valorLegible(k: string, v: unknown, accion = ''): string {
       return fechaLegible(texto);
     // Solo el motivo de abrir la entrada es una clave fija; el de un borrado lo escribe jefatura.
     case 'motivo':
-      return recortar(accion === 'entrada_abierta' ? deTabla(T.panelRegistro.motivos, texto) : texto);
+      return accion === 'entrada_abierta' ? deTabla(T.panelRegistro.motivos, texto) : texto;
     // Solo los campos que son una hora: un texto libre que empiece por una fecha se deja como está.
     case 'desde':
     case 'hasta':
-      return MARCA_DE_TIEMPO.test(texto) ? fechaHoraLegible(texto) : recortar(texto);
+      return MARCA_DE_TIEMPO.test(texto) ? fechaHoraLegible(texto) : texto;
+    // docs/38 RV-507 (#758): el trabajo, con el nombre de su botón de Mantenimiento.
+    case 'workflow':
+      return deTabla(NOMBRE_TRABAJO, texto);
     default:
-      return recortar(texto);
+      return texto;
   }
 }
 
@@ -167,13 +182,14 @@ function movido(antes: Objeto, despues: Objeto): string | null {
   return m >= MOVIMIENTO_MINIMO_M ? T.panelRegistro.movido(metrosLegibles(m)) : null;
 }
 
-function cambios(antes: Objeto, despues: Objeto): string[] {
+function cambios(antes: Objeto, despues: Objeto, accion = ''): string[] {
   const partes = clavesVisibles(despues)
     .filter((k) => !Object.hasOwn(antes, k) || !iguales(antes[k], despues[k]))
     .map((k) => {
       if (esFoto(k)) return T.panelRegistro.valor(nombreDe(k), T.panelRegistro.cambiada);
-      if (!Object.hasOwn(antes, k)) return T.panelRegistro.valor(nombreDe(k), valorLegible(k, despues[k]));
-      return T.panelRegistro.cambio(nombreDe(k), valorLegible(k, antes[k]), valorLegible(k, despues[k]));
+      const nombre = nombreDe(k, accion);
+      if (!Object.hasOwn(antes, k)) return T.panelRegistro.valor(nombre, valorLegible(k, despues[k]));
+      return T.panelRegistro.cambio(nombre, valorLegible(k, antes[k]), valorLegible(k, despues[k]));
     });
   const m = movido(antes, despues);
   if (m) partes.push(m);
@@ -187,7 +203,7 @@ const resumenPunto = (p: Objeto) =>
   sinVacios((['tipo', 'diametro_mm', 'caudal', 'nucleo'] as const).map((k) => valorLegible(k, p[k])));
 
 const comoValores = (o: Objeto, accion: string) =>
-  clavesVisibles(o).map((k) => T.panelRegistro.valor(nombreDe(k), valorLegible(k, o[k], accion)));
+  clavesVisibles(o).map((k) => T.panelRegistro.valor(nombreDe(k, accion), valorLegible(k, o[k], accion)));
 
 /** Un borrado o una purga (solo `antes`): qué punto era y, si lo hay, el motivo. */
 function soloAntes(antes: Objeto): string[] {
@@ -224,7 +240,7 @@ export function detalleLegible(e: EntradaRegistro): string {
   const despues = esObjeto(e.despues) ? e.despues : null;
   let partes: string[] = [];
   if (antes && despues) {
-    partes = cambios(antes, despues);
+    partes = cambios(antes, despues, e.accion);
     // Dos puntos enteros iguales: decirlo, no listar todas sus claves como si hubieran cambiado.
     if (!partes.length && esPunto(antes) && esPunto(despues)) return T.panelRegistro.sinCambios;
   } else if (despues) partes = esPunto(despues) ? resumenPunto(despues) : comoValores(despues, e.accion);

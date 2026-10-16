@@ -112,6 +112,13 @@
   --tinte-rojo-borde: transparent;
   --tinte-amarillo-borde: transparent;
   --tinte-marron-borde: transparent;
+  /* docs/38 RV-502: etiquetas neutras y azules del panel (06 §2.4). */
+  --tinte-gris: var(--gris-100);
+  --tinte-gris-texto: var(--gris-700);
+  --tinte-gris-borde: transparent;
+  --tinte-azul: #dce6f2;
+  --tinte-azul-texto: var(--marino-700);
+  --tinte-azul-borde: transparent;
 
   color-scheme: light;
 }
@@ -158,6 +165,12 @@
     --tinte-rojo-borde: color-mix(in srgb, var(--tinte-rojo-texto) 40%, transparent);
     --tinte-amarillo-borde: color-mix(in srgb, var(--tinte-amarillo-texto) 40%, transparent);
     --tinte-marron-borde: color-mix(in srgb, var(--tinte-marron-texto) 40%, transparent);
+    --tinte-gris: #262b33;
+    --tinte-gris-texto: #c4c9d0;
+    --tinte-gris-borde: color-mix(in srgb, var(--tinte-gris-texto) 40%, transparent);
+    --tinte-azul: #182640;
+    --tinte-azul-texto: #9cc2ee;
+    --tinte-azul-borde: color-mix(in srgb, var(--tinte-azul-texto) 40%, transparent);
     color-scheme: dark;
   }
 }
@@ -199,6 +212,12 @@
   --tinte-rojo-borde: color-mix(in srgb, var(--tinte-rojo-texto) 40%, transparent);
   --tinte-amarillo-borde: color-mix(in srgb, var(--tinte-amarillo-texto) 40%, transparent);
   --tinte-marron-borde: color-mix(in srgb, var(--tinte-marron-texto) 40%, transparent);
+  --tinte-gris: #262b33;
+  --tinte-gris-texto: #c4c9d0;
+  --tinte-gris-borde: color-mix(in srgb, var(--tinte-gris-texto) 40%, transparent);
+  --tinte-azul: #182640;
+  --tinte-azul-texto: #9cc2ee;
+  --tinte-azul-borde: color-mix(in srgb, var(--tinte-azul-texto) 40%, transparent);
   color-scheme: dark;
 }
 
@@ -256,6 +275,12 @@
   --color-tinte-marron: var(--tinte-marron);
   --color-tinte-marron-texto: var(--tinte-marron-texto);
   --color-tinte-marron-borde: var(--tinte-marron-borde);
+  --color-tinte-gris: var(--tinte-gris);
+  --color-tinte-gris-texto: var(--tinte-gris-texto);
+  --color-tinte-gris-borde: var(--tinte-gris-borde);
+  --color-tinte-azul: var(--tinte-azul);
+  --color-tinte-azul-texto: var(--tinte-azul-texto);
+  --color-tinte-azul-borde: var(--tinte-azul-borde);
 
   /* 06 §3 */
   --font-titulo: 'Barlow Condensed', sans-serif;

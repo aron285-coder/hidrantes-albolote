@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import type { Punto } from '../src/tipos/punto.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, conSesion, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, simularTablas, accionInventario } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 // Todos los radios a 11 (la escala de config, la misma en el móvil y en la vista): así se ven al zoom
@@ -232,8 +232,7 @@ for (const [ancho, alturaMapa, anchoEditar, botonesAlAncho] of [
       await expect(aprobar).toHaveCSS('flex-grow', botonesAlAncho ? '1' : '0');
 
       await page.goto('/admin/inventario');
-      const fila = page.getByRole('row').filter({ hasText: PROPIO.codigo });
-      await fila.getByRole('button', { name: T.panel.editar }).click();
+      await accionInventario(page, PROPIO.codigo, 'editar');
       expect(Math.round((await page.getByRole('dialog').boundingBox())!.width)).toBe(anchoEditar);
       // El mapa de Editar solo lleva el pin, no marcadores de estado: RV-336 no le aplica (06 §4.3).
       const dialogo = page.getByRole('dialog');

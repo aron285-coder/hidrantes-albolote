@@ -6,7 +6,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas } from './ayudas.ts';
+import { conGoogle, simularTablas, accionInventario, filaInventario } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 const BOCA = PUNTOS.find((p) => p.tipo === 'boca_riego')!;
@@ -81,8 +81,11 @@ async function preparar(page: Page, extra: typeof PUNTOS = [], vista?: { lista: 
   return { llamadas, registro };
 }
 
+// «Editar» en la tabla; por debajo de 1.100 px, el botón que cubre la fila, «Editar [código]» (docs/38 RV-506).
 const editarDe = (page: Page, codigo: string) =>
-  page.getByRole('row').filter({ hasText: codigo }).getByRole('button', { name: T.panel.editar });
+  filaInventario(page, codigo).getByRole('button', {
+    name: new RegExp(`^(${T.panel.editar}|${T.panelInventario.editarPunto(codigo)})$`),
+  });
 
 const panel = (page: Page) => page.getByRole('dialog', { name: new RegExp(`^\\S+ ${T.panelEditar.editar}$`) });
 
@@ -118,8 +121,8 @@ test.describe('Editar del Inventario (docs/29 RV-124)', () => {
     expect(await p.evaluate((d) => d.contains(document.activeElement))).toBe(true);
 
     // La tabla se sigue viendo y desplazando; la fila editada, marcada.
-    await expect(page.getByRole('row').filter({ hasText: BOCA.codigo })).toHaveAttribute('data-editando', 'true');
-    await expect(page.getByRole('cell', { name: HIDRANTE.codigo })).toBeVisible();
+    await expect(filaInventario(page, BOCA.codigo)).toHaveAttribute('data-editando', 'true');
+    await expect(page.getByRole('cell', { name: HIDRANTE.codigo, exact: true })).toBeVisible();
 
     // Sin cambios, Editar en otra fila cambia de punto sin preguntar.
     await editarDe(page, OTRA.codigo).click();
@@ -187,7 +190,7 @@ test.describe('Editar del Inventario (docs/29 RV-124)', () => {
     await page.goBack();
     await expect(p).toHaveCount(0);
     await expect(page).toHaveURL(/\/admin\/inventario$/);
-    await expect(page.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length))).toBeVisible();
+    await expect(filaInventario(page, PUNTOS[0]!.codigo)).toBeVisible();
 
     // Con cambios, "atrás" pregunta y no cierra hasta Descartar.
     await editarDe(page, BOCA.codigo).click();
@@ -367,22 +370,20 @@ test.describe('Editar del Inventario (docs/29 RV-124)', () => {
     await page.goto('/admin/inventario');
     await editarDe(page, BOCA.codigo).click();
     const p = panel(page);
-    const fila = page.getByRole('row').filter({ hasText: BOCA.codigo });
-
-    await fila.getByRole('button', { name: T.panel.historial }).click();
+    await accionInventario(page, BOCA.codigo, 'historial');
     await expect(page.getByRole('dialog', { name: new RegExp(T.panel.historial) })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog', { name: new RegExp(T.panel.historial) })).toHaveCount(0);
     await expect(p).toBeVisible();
 
-    await fila.getByRole('button', { name: T.panel.retirar }).click();
+    await accionInventario(page, BOCA.codigo, 'retirar');
     const retirar = page.getByRole('dialog').filter({ hasText: T.panelInventario.avisoRetirar });
     await expect(retirar).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(retirar).toHaveCount(0);
     await expect(p).toBeVisible();
 
-    await fila.getByRole('button', { name: T.panel.retirar }).click();
+    await accionInventario(page, BOCA.codigo, 'retirar');
     await retirar.getByLabel(T.panelInventario.motivo).fill('Sustituido por obra');
     await retirar.getByRole('button', { name: T.panel.retirar }).click();
     await expect(retirar).toHaveCount(0);
@@ -564,8 +565,8 @@ test.describe('El foco no se escapa de las ventanas del panel (docs/30 RV-128)',
     await expect(p).toHaveAttribute('aria-modal', 'false');
     await editarDe(page, HIDRANTE.codigo).focus();
     expect((await dondeFoco(page)).sitio).toBe('raiz');
-    // 1050 px: Editar con velo, y la tabla sigue siendo tabla (por debajo de 1024 px pasa a filas
-    // apiladas y el botón con el foco se desmonta, que es otra cosa).
+    // 1050 px: Editar con velo y, desde docs/38 (DEC-213), la tabla pasa a filas en el mismo corte: el
+    // botón que tenía el foco se desmonta y el foco entra igualmente en Editar.
     await page.setViewportSize({ width: 1050, height: 900 });
     await expect(p).toHaveAttribute('aria-modal', 'true');
     await expect.poll(async () => (await dondeFoco(page)).sitio).toBe('editar');
@@ -585,7 +586,7 @@ test.describe('El foco no se escapa de las ventanas del panel (docs/30 RV-128)',
     await page.goto('/admin/inventario');
     await editarDe(page, BOCA.codigo).click();
     const p = panel(page);
-    await page.getByRole('row').filter({ hasText: BOCA.codigo }).getByRole('button', { name: T.panel.retirar }).click();
+    await accionInventario(page, BOCA.codigo, 'retirar');
     const retirar = page.getByRole('dialog').filter({ hasText: T.panelInventario.avisoRetirar });
     await expect(retirar).toBeVisible();
     await page.setViewportSize({ width: 768, height: 1024 });
@@ -990,7 +991,7 @@ test.describe('Editar con el punto al día (docs/31 RV-165)', () => {
     await editarDe(page, HIDRANTE.codigo).click();
     await expect(panel(page)).toBeVisible();
     await expect(page.getByLabel(T.panelInventario.direccionDe(HIDRANTE.codigo))).toHaveCount(0);
-    await expect(page.getByRole('row').filter({ hasText: HIDRANTE.codigo })).toContainText(HIDRANTE.direccion!);
+    await expect(filaInventario(page, HIDRANTE.codigo)).toContainText(HIDRANTE.direccion!);
     await expect(page.getByLabel(T.panelInventario.direccionDe(OTRA.codigo))).toBeEditable();
   });
 });

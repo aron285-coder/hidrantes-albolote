@@ -4,7 +4,7 @@ import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, simularTablas } from './ayudas.ts';
+import { conGoogle, simularTablas, buscarEnPanel, filtrarPor } from './ayudas.ts';
 import { PUNTOS } from './puntos.ts';
 
 const hace = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
@@ -188,6 +188,20 @@ const RECHAZADAS = [
   },
 ];
 
+/** docs/38 RV-505: un alta aprobada, que en el historial enseña el código del punto que creó. */
+const APROBADAS = [
+  {
+    ...RECHAZADAS[0],
+    id: 'a1',
+    operacion: 'alta',
+    estado: 'aprobada',
+    punto_id: null,
+    codigo: null,
+    motivo_rechazo: null,
+    correcciones: { punto_id: P0.id },
+  },
+];
+
 interface Llamada {
   nombre: string;
   cuerpo: Record<string, unknown>;
@@ -203,7 +217,12 @@ async function prepararPanel(page: Page, extra: Record<string, unknown>[] = []) 
     v_puntos_activos: PUNTOS,
     v_cola_revision: () => pendientes,
     propuestas: (url) => (url.searchParams.get('estado') === 'eq.pendiente' ? pendientes : []),
-    v_historial_revision: (url) => (url.searchParams.get('estado') === 'eq.rechazada' ? RECHAZADAS : []),
+    v_historial_revision: (url) =>
+      url.searchParams.get('estado') === 'eq.rechazada'
+        ? RECHAZADAS
+        : url.searchParams.get('estado') === 'eq.aprobada'
+          ? APROBADAS
+          : [],
     puntos: [],
     config: [],
   });
@@ -262,26 +281,32 @@ test('lista, contador, filtros y búsqueda global (FR-101, FR-110, FR-145)', asy
   // COLA_Y_DETALLE de src/componentes/panel/ColaRevision.tsx.
   const conDetalle = page.viewportSize()!.width >= 1100;
   await expect(page).toHaveURL(conDetalle ? /\/admin\/cola\?p=c1$/ : /\/admin\/cola$/);
+  // El número de la pestaña: a la vista desde 768 px; en el móvil, en el menú ☰ (docs/38 RV-503).
+  const menu = page.getByRole('button', { name: /^Menú/ });
+  if (await menu.isVisible()) await menu.click();
   await expect(page.getByRole('link', { name: `${T.panelCola.colaRevision} 6` })).toBeVisible();
-  await expect(page.getByText('Sara Ruiz · hace 2 h · Calle Real 14 · Albolote')).toBeVisible();
-
+  if (await menu.isVisible()) await page.keyboard.press('Escape');
   const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
-  await page.getByLabel(T.panelCola.filtroOperacion).selectOption('revision');
+  // Tres líneas (UI-11, docs/38 RV-505): la dirección y el núcleo, y el autor debajo.
+  const sara = lista.getByRole('listitem').filter({ hasText: 'Sara Ruiz' });
+  await expect(sara).toContainText('Calle Real 14 · Albolote');
+  await expect(sara).toContainText('hace 2 h');
+  await filtrarPor(page, T.panelCola.grupoOperacion, 'Revisión');
   await expect(lista.getByRole('listitem')).toHaveCount(2);
-  await page.getByLabel(T.panelCola.filtroOperacion).selectOption('');
+  await filtrarPor(page, T.panelCola.grupoOperacion, T.panelCola.todas);
 
-  await page.getByPlaceholder(T.panelCola.buscar).fill('marta');
+  await buscarEnPanel(page, 'marta');
   await expect(lista.getByRole('listitem')).toHaveCount(1);
-  await page.getByPlaceholder(T.panelCola.buscar).fill('nadie');
+  await buscarEnPanel(page, 'nadie');
   await expect(page.getByText(T.panelCola.busquedaVacia('nadie'))).toBeVisible();
 });
 
 test('aprobar en bloque dos revisiones (FL-22)', async ({ page }) => {
   const llamadas = await prepararPanel(page);
   await page.goto('/admin/cola');
-  await page.getByLabel(T.panelCola.filtroOperacion).selectOption('revision');
+  await filtrarPor(page, T.panelCola.grupoOperacion, 'Revisión');
   await page.getByLabel(T.panelCola.seleccionarTodas).check();
-  // En el móvil (y por debajo de 800 px) se lee en la barra de abajo (RV-110, docs/33 RV-331).
+  // En el móvil se lee en la barra de abajo; desde 768 px, arriba (docs/38 RV-505).
   await expect(page.getByText(T.panelCola.seleccionadas(2)).filter({ visible: true }).first()).toBeVisible();
   await page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas }).click();
   await expect(page.getByRole('status').filter({ hasText: T.panelCola.loteAprobadas(2) })).toBeVisible();
@@ -415,11 +440,9 @@ test('RV-270 D4: fusionar con PUNTO_NO_ACTIVO (el duplicado) no impide aprobar e
 test('historial de rechazadas en solo lectura (FR-109)', async ({ page }) => {
   await prepararPanel(page);
   await page.goto('/admin/cola');
-  // Por debajo de 800 px el estado es un desplegable (docs/33 RV-331).
-  const radio = page.getByRole('radio', { name: T.panelCola.rechazadas });
+  // El estado, en el botón de filtros (docs/38 RV-505).
   await expect(page.getByRole('region', { name: T.panelCola.colaRevision })).toBeVisible();
-  if (await radio.isVisible()) await radio.click();
-  else await page.getByRole('combobox', { name: T.panelCola.filtroEstado }).selectOption('rechazada');
+  await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.rechazadas);
   await expect(page.getByText(T.panelCola.soloLectura)).toBeVisible();
   // En tableta y móvil no hay ninguna abierta hasta tocarla.
   if (!(await page.getByRole('article').isVisible())) await abrir(page, /Luis Martín/);
@@ -552,7 +575,8 @@ test('a 1440 px el detalle ocupa todo el ancho y los botones se ven sin desplaza
   await abrir(page, /Prueba Tres/);
   const detalle = page.getByRole('article');
   const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
-  expect(Math.abs((await lista.boundingBox())!.width - 340)).toBeLessThanOrEqual(1);
+  // 360 px desde docs/38 RV-505 (380 desde 1.600).
+  expect(Math.abs((await lista.boundingBox())!.width - 360)).toBeLessThanOrEqual(1);
   const caja = (await detalle.boundingBox())!;
   const mapa = (await detalle.getByTestId('minimapa-propuesta').boundingBox())!;
   // El detalle llega al borde derecho y el mapa mide lo que él, menos su margen interior (2 × 20 px).
@@ -606,7 +630,8 @@ for (const ancho of [820, 412]) {
     // Sin mapita en las filas (docs/33 RV-331): el mapa está en el detalle.
     await expect(lista.getByTestId('mapita')).toHaveCount(0);
     await expect(page.getByRole('article')).toHaveCount(0);
-    await expect(page.getByText(T.panelCola.tocaUna)).toBeVisible();
+    // Sin nada marcado no hay barra abajo (docs/38 RV-505).
+    await expect(page.getByTestId('barra-cola')).toHaveCount(0);
 
     await abrir(page, /Prueba Tres/);
     const detalle = page.getByRole('article');
@@ -1111,7 +1136,7 @@ test('RV-250: al pasar de Pendientes a Rechazadas y volver no quedan las filas d
   await expect(lista.getByRole('listitem')).toHaveCount(cola().length);
 
   historial.activar();
-  await page.getByRole('radio', { name: T.panelCola.rechazadas }).click();
+  await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.rechazadas);
   // Mientras carga: ni las pendientes como "solo lectura" ni un detalle con Aprobar.
   await expect(lista.getByText(T.panelCola.cargando)).toBeVisible();
   await expect(lista.getByRole('listitem')).toHaveCount(0);
@@ -1122,12 +1147,13 @@ test('RV-250: al pasar de Pendientes a Rechazadas y volver no quedan las filas d
 
   const pendientes = await retener(page, 'v_cola_revision');
   pendientes.activar();
-  await page.getByRole('radio', { name: T.panelCola.pendientes }).click();
+  await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.pendientes);
   // Y al volver, las rechazadas no salen con casillas: un lote mandaría ids ya resueltos.
   await expect(lista.getByText(T.panelCola.cargando)).toBeVisible();
   await expect(lista.getByRole('checkbox')).toHaveCount(0);
   await expect(page.getByRole('checkbox', { name: T.panelCola.seleccionarTodas })).toBeDisabled();
-  await expect(page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toBeDisabled();
+  // Sin nada marcado, Aprobar seleccionadas ni siquiera está (docs/38 RV-505).
+  await expect(page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toHaveCount(0);
   pendientes.soltar();
   await expect(lista.getByRole('listitem')).toHaveCount(cola().length);
 });
@@ -1469,7 +1495,7 @@ test('RV-330: un punto que ya no está activo se dice arriba y solo se rechaza, 
 test('RV-330: aprobar en bloque salta la de un punto que ya no está activo y lo dice', async ({ page }) => {
   const llamadas = await prepararPanel(page, [sobreRetirado('revision')]);
   await page.goto('/admin/cola');
-  await page.getByLabel(T.panelCola.filtroOperacion).selectOption('revision');
+  await filtrarPor(page, T.panelCola.grupoOperacion, 'Revisión');
   const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
   await expect(lista.getByRole('listitem')).toHaveCount(3);
   await page.getByLabel(T.panelCola.seleccionarTodas).check();
@@ -1531,4 +1557,188 @@ test.describe('punto que ya no existe, en el móvil (docs/34 RV-352)', () => {
     expect(Math.abs(aprobar.y - rechazar.y)).toBeLessThan(2);
     expect(aprobar.x).toBeGreaterThan(rechazar.x + rechazar.width);
   });
+});
+
+// docs/38 RV-505 (UI-19, DEC-214): la Cola con el botón de filtros y su hoja (RV-504), las filas en tres
+// líneas y el lote solo con algo marcado.
+test.describe('Cola con el botón de filtros (docs/38 RV-505)', () => {
+  const lista = (page: Page) => page.getByRole('region', { name: T.panelCola.colaRevision });
+  const boton = (page: Page) => page.getByRole('button', { name: /^Filtros: / });
+
+  test('a 412: la hoja es modal; elegir «Alta» filtra sin cerrarla; Quitar filtros solo con algo puesto', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await expect(boton(page)).toHaveAccessibleName(T.panel.filtrosDe(T.panelCola.pendientes));
+    await expect(lista(page).getByRole('listitem')).toHaveCount(6);
+    await boton(page).click();
+    const hoja = page.getByRole('dialog', { name: T.panelCola.filtrarCola });
+    await expect(hoja).toHaveAttribute('aria-modal', 'true');
+    // Lo de detrás, inert.
+    expect(await page.locator('main').evaluate((m) => !!m.closest('[inert]'))).toBe(true);
+    await expect(hoja.getByRole('button', { name: T.panelInventario.quitarFiltros })).toHaveCount(0);
+    await hoja
+      .getByRole('radiogroup', { name: T.panelCola.grupoOperacion })
+      .getByRole('radio', { name: 'Alta' })
+      .click();
+    // Se aplica al tocar y no se cierra.
+    await expect(hoja).toBeVisible();
+    await expect(lista(page).getByRole('listitem')).toHaveCount(2);
+    await expect(boton(page)).toHaveAccessibleName(T.panel.filtrosDe(`${T.panelCola.pendientes} · Alta`));
+    const quitar = hoja.getByRole('button', { name: T.panelInventario.quitarFiltros });
+    await quitar.click();
+    await expect(lista(page).getByRole('listitem')).toHaveCount(6);
+    await expect(quitar).toHaveCount(0);
+    // El foco no se pierde: pasa a «Listo».
+    await expect(hoja.getByRole('button', { name: T.panel.listo })).toBeFocused();
+    // Esc cierra y devuelve el foco al botón.
+    await page.keyboard.press('Escape');
+    await expect(hoja).toHaveCount(0);
+    await expect(boton(page)).toBeFocused();
+  });
+
+  test('a 412: con un filtro puesto el botón se marca', async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await expect(boton(page)).not.toHaveClass(/anillo-seleccion/);
+    await filtrarPor(page, T.panelCola.grupoOperacion, 'Alta');
+    await expect(boton(page)).toHaveClass(/anillo-seleccion/);
+  });
+
+  test('a 1280: ventana no modal debajo del botón; Tab fuera la cierra', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await boton(page).click();
+    const ventana = page.getByRole('dialog', { name: T.panelCola.filtrarCola });
+    await expect(ventana).toBeVisible();
+    await expect(ventana).not.toHaveAttribute('aria-modal', 'true');
+    const [b, v] = [(await boton(page).boundingBox())!, (await ventana.boundingBox())!];
+    expect(v.y).toBeGreaterThanOrEqual(b.y + b.height - 1);
+    expect(Math.round(v.width)).toBe(400);
+    await ventana.getByRole('button', { name: T.panel.listo }).focus();
+    await page.keyboard.press('Tab');
+    await expect(ventana).toHaveCount(0);
+  });
+
+  test('cruzar 768 px con la hoja abierta la cierra', async ({ page }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await boton(page).click();
+    await expect(page.getByRole('dialog', { name: T.panelCola.filtrarCola })).toBeVisible();
+    await page.setViewportSize({ width: 900, height: 915 });
+    await expect(page.getByRole('dialog', { name: T.panelCola.filtrarCola })).toHaveCount(0);
+  });
+
+  test('a 412: sin marcar no hay barra; con dos, «2 seleccionadas» y los dos botones; Rechazar abre el lote', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 412, height: 915 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await expect(lista(page).getByRole('listitem')).toHaveCount(6);
+    await expect(page.getByTestId('barra-cola')).toHaveCount(0);
+    const casillas = lista(page).getByRole('checkbox');
+    await casillas.nth(0).check();
+    await casillas.nth(1).check();
+    const barra = page.getByTestId('barra-cola');
+    await expect(barra).toContainText(T.panelCola.seleccionadas(2));
+    await expect(barra.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toBeVisible();
+    await barra.getByRole('button', { name: T.panelCola.rechazarSeleccionadas }).click();
+    await expect(page.getByText(T.panelCola.rechazarVarias(2))).toBeVisible();
+  });
+
+  test('a 820: con dos marcadas, abajo solo los dos botones y el número arriba', async ({ page }) => {
+    await page.setViewportSize({ width: 820, height: 1180 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    const casillas = lista(page).getByRole('checkbox');
+    await casillas.nth(0).check();
+    await casillas.nth(1).check();
+    const barra = page.getByTestId('barra-cola');
+    await expect(barra.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toBeVisible();
+    await expect(barra.getByText(T.panelCola.seleccionadas(2))).toBeHidden();
+    await expect(page.getByText(T.panelCola.seleccionadas(2)).filter({ visible: true })).toHaveCount(1);
+  });
+
+  test('a 1280: tras aprobar en bloque con el teclado, el foco va a «Seleccionar todas»', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await lista(page).getByRole('checkbox').first().check();
+    await page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas }).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toHaveCount(0);
+    await expect(page.getByRole('checkbox', { name: T.panelCola.seleccionarTodas })).toBeFocused();
+  });
+
+  test('a 1280: Aprobar seleccionadas solo con algo marcado', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await expect(lista(page).getByRole('listitem')).toHaveCount(6);
+    await expect(page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toHaveCount(0);
+    await lista(page).getByRole('checkbox').first().check();
+    await expect(page.getByRole('button', { name: T.panelCola.aprobarSeleccionadas })).toBeVisible();
+  });
+
+  for (const ancho of [412, 1280]) {
+    test(`a ${ancho}: ninguna fila corta con «…» y una propuesta sin dirección lo dice`, async ({ page }) => {
+      await page.setViewportSize({ width: ancho, height: 900 });
+      await prepararPanel(page);
+      await page.goto('/admin/cola');
+      await expect(lista(page).getByRole('listitem')).toHaveCount(6);
+      const cortadas = await lista(page).evaluate(
+        (l) => [...l.querySelectorAll('*')].filter((e) => getComputedStyle(e).textOverflow === 'ellipsis').length,
+      );
+      expect(cortadas).toBe(0);
+      await expect(lista(page).getByRole('listitem').filter({ hasText: 'Marta León' })).toContainText(
+        T.ficha.sinDireccion,
+      );
+    });
+  }
+
+  test('en Aprobadas, un alta aprobada enseña el código de su punto', async ({ page }) => {
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.aprobadas);
+    await expect(lista(page).getByRole('listitem').first()).toContainText(P0.codigo);
+    await expect(lista(page).getByRole('listitem').first()).not.toContainText(T.panelCola.nuevo);
+  });
+});
+
+// Capturas para la revisión a ojo (skill revisar-pantallas): PW_CAPTURAS=1, a 412, 820, 1280 y 1920, en claro y oscuro.
+test.describe('capturas de la Cola (docs/38)', () => {
+  test.skip(({ isMobile }) => !process.env.PW_CAPTURAS || isMobile, 'solo bajo demanda');
+  for (const [ancho, alto] of [
+    [412, 915],
+    [820, 1180],
+    [1280, 800],
+    [1920, 1080],
+  ] as const) {
+    for (const tema of ['light', 'dark'] as const) {
+      test(`cola ${ancho} ${tema}`, async ({ page }, info) => {
+        await page.setViewportSize({ width: ancho, height: alto });
+        await page.emulateMedia({ colorScheme: tema });
+        await prepararPanel(page);
+        await page.goto('/admin/cola');
+        const lista = page.getByRole('region', { name: T.panelCola.colaRevision });
+        await expect(lista.getByRole('listitem')).toHaveCount(6);
+        await lista.getByRole('checkbox').nth(1).check();
+        await info.attach(`cola-${ancho}-${tema}`, {
+          body: await page.screenshot({ path: `recorridos/capturas-38/cola-${ancho}-${tema}.png` }),
+          contentType: 'image/png',
+        });
+        await page.getByRole('button', { name: /^Filtros: / }).click();
+        await info.attach(`cola-filtros-${ancho}-${tema}`, {
+          body: await page.screenshot({ path: `recorridos/capturas-38/cola-filtros-${ancho}-${tema}.png` }),
+          contentType: 'image/png',
+        });
+      });
+    }
+  }
 });

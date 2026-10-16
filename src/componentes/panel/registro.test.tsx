@@ -8,7 +8,16 @@ import type { EntradaRegistro } from '@/lib/panel/inventario';
 
 const estado = vi.hoisted(() => ({ ancho: 'escritorio', datos: null as unknown, carga: 'listo', codigo: '' }));
 
-vi.mock('@/hooks/ancho', () => ({ useAncho: () => estado.ancho }));
+vi.mock('@/hooks/ancho', () => ({
+  useAncho: () => estado.ancho,
+  // docs/38 RV-507: tabla desde 1.100 px ('escritorio'); lista por debajo.
+  usePanelAncho: () => estado.ancho === 'escritorio',
+  usePanelMovil: () => estado.ancho === 'movil',
+}));
+vi.mock('@/hooks/estado', async (original) => ({
+  ...(await original<typeof import('@/hooks/estado')>()),
+  useAcceso: () => ({ tipo: 'jefatura', correo: 'jefe@example.org' }),
+}));
 vi.mock('@/hooks/carga', () => ({
   useCarga: () => ({
     estado: estado.carga,
@@ -103,7 +112,7 @@ describe('Registro · columna Detalle (docs/30 RV-127)', () => {
     expect(texto(html)).not.toMatch(/actualizado_en|desplazamiento_m|dispositivo_id|abcd-1234|edicion_admin/);
   });
 
-  it('en las filas apiladas del móvil, lo mismo', () => {
+  it('en la lista de tres líneas (por debajo de 1.100 px), lo mismo', () => {
     estado.ancho = 'movil';
     const html = renderToStaticMarkup(<Registro />);
     expect(html).not.toContain('<table');
@@ -141,5 +150,44 @@ describe('Historial del punto (docs/30 RV-127)', () => {
     const html = renderToStaticMarkup(<DialogoHistorial punto={punto} alCerrar={() => undefined} />);
     expect(texto(html)).toContain(T.panelRegistro.vacio);
     expect(html).not.toContain('role="alert"');
+  });
+});
+
+// docs/38 RV-507 (DEC-215): «Tú», la etiqueta de jefatura y nada de «Punto —».
+describe('Registro · quién y el punto (docs/38 RV-507)', () => {
+  it.each(['escritorio', 'movil'])('en %s, tu entrada dice «Tú» y no tu correo', (ancho) => {
+    estado.ancho = ancho;
+    const html = renderToStaticMarkup(<Registro />);
+    expect(texto(html)).toContain(T.panel.tu);
+    expect(html).not.toContain('jefe@example.org');
+    expect(texto(html)).toContain(T.navegacion.jefatura);
+  });
+
+  it.each(['escritorio', 'movil'])('en %s, una entrada sin punto no tiene ni «Punto» ni «—»', (ancho) => {
+    estado.ancho = ancho;
+    estado.datos = {
+      filas: [
+        {
+          ...EDICION,
+          id: 8,
+          accion: 'config_cambiada',
+          codigo: null,
+          antes: { dias_papelera: 30 },
+          despues: { dias_papelera: 45 },
+        },
+      ],
+      total: 1,
+    };
+    const html = renderToStaticMarkup(<Registro />);
+    expect(texto(html)).not.toContain('—');
+    if (ancho === 'movil') expect(texto(html)).not.toContain(T.panelRegistro.colPunto);
+    expect(texto(html)).toContain(`${T.panelAjustes.diasPapelera}: 30 → 45`);
+  });
+
+  it('en la lista, el resumen del botón es «Todas las acciones»', () => {
+    estado.ancho = 'movil';
+    const html = renderToStaticMarkup(<Registro />);
+    expect(html).toContain(`aria-label="${T.panel.filtrosDe(T.panelRegistro.todasAcciones)}"`);
+    expect(html).not.toContain('<select');
   });
 });

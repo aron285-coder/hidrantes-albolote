@@ -78,9 +78,11 @@ export function useModal(ref: RefObject<HTMLElement | null>, activo = true) {
     const antes = el.ownerDocument.activeElement;
     const desactivar = activarModal(el);
     // Si estaba en lo que acaba de quedar inert (Editar pasa de al lado de la tabla a velo con el foco
-    // en la tabla), se quedaría en ninguna parte: entra en la ventana. Al abrir, el foco inicial de
-    // cada componente llega después, en su efecto, y es el que manda.
-    if (antes && antes !== el.ownerDocument.body && antes.closest('[inert]')) {
+    // en la tabla), se quedaría en ninguna parte: entra en la ventana. Lo mismo si ya estaba en <body>
+    // porque lo que lo tenía acaba de desaparecer (desde docs/38, DEC-213, la tabla pasa a filas en el
+    // mismo corte en que Editar pasa a velo). Al abrir, el foco inicial de cada componente llega
+    // después, en su efecto, y es el que manda.
+    if (antes && (antes === el.ownerDocument.body || antes.closest('[inert]'))) {
       const primero = el.querySelector<HTMLElement>(
         'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
       );

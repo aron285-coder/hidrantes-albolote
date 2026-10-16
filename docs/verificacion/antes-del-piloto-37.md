@@ -123,3 +123,12 @@ Una issue por línea de §7, con título neutro y la etiqueta `tras-piloto`. No 
 - **Recorrido corto** en staging: la entrada con `OCUPADO` simulado (espera, reintento solo y Cancelar), en
   verde. `OTRA_CUENTA` simulado, en local (e2e y capturas a 412 y 1280, claro y oscuro): el panel de staging no
   tiene ninguna cuenta unida y simularlo allí exigiría una sesión de Google falsa contra el Supabase de staging.
+- **0.15.0 en producción** el 15 oct 2026 con `npm run publicar` y la puerta automática (CI de `main`, RV-139b en
+  verde con `c71aa98` y después solo documentación y versión, `comprobar-produccion --completo`, ninguna
+  `bloquea-release`); producción sirve `0.15.0` y el commit `db91a7e`. En el registro de `deploy-prod`
+  (ejecución 38721772805), `comprobar-dist.sh` en verde («dist: sin archivos especiales…») y las Functions servidas,
+  las del repositorio. Fila en `paridad-produccion.md`.
+- **La especificación** pasa a `archivo/especificaciones/37-antes-del-piloto.md`, con su fila en el índice, y el
+  archivo de `docs/36` lleva la nota de que RV-464 (H1) se hizo aquí.
+- **Lo siguiente:** el piloto (#76 a #85, de personas). `docs/38` no se escribe hasta que exista
+  `docs/verificacion/piloto.md` (DEC-209).

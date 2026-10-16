@@ -170,8 +170,6 @@ describe('plurales (docs/34 RV-350)', () => {
     ],
     [T.panelPapelera.purgados(1), '1 punto purgado.'],
     [T.panelPapelera.quedan(1), 'queda 1 día'],
-    [T.panelAjustes.cambiadoPor('[]', '[]', 1), 'Cambiado por última vez el [] por []. 1 móvil registrado.'],
-    [T.panelAjustes.sinCambios(1), 'Sin cambios desde el arranque. 1 móvil registrado.'],
     [
       T.panelAjustes.avisoRevocando(1),
       'Se pondrá en vigor un código nuevo y 1 móvil tendrá que volver a escribirlo al abrir la aplicación. Su nombre se conserva.',
@@ -183,7 +181,8 @@ describe('plurales (docs/34 RV-350)', () => {
     ],
     [T.panelAjustes.inventarioDescargado(1), 'Inventario descargado: 1 punto.'],
     [T.panelAjustes.reservasDetalle(1, '[]'), '1 foto · [] sin subir'],
-    [T.panel.mostrando('[]', 1), 'Mostrando [] de 1 punto'],
+    [T.panelInventario.puntosConFiltro(1), '1 punto con este filtro'],
+    [T.panelInventario.puntosConBusqueda(1), '1 punto con esta búsqueda'],
   ];
 
   it.each(SINGULARES)('%s', (texto, esperado) => {
@@ -205,7 +204,7 @@ describe('plurales (docs/34 RV-350)', () => {
     expect(T.panelAjustes.avisoRevocando(2)).toBe(
       'Se pondrá en vigor un código nuevo y 2 móviles tendrán que volver a escribirlo al abrir la aplicación. Sus nombres se conservan.',
     );
-    expect(T.panel.mostrando(2, 438)).toBe('Mostrando 2 de 438 puntos');
+    expect(T.panelInventario.puntosConFiltro(4)).toBe('4 puntos con este filtro');
     expect(T.panelPapelera.quedan(3)).toBe('quedan 3 días');
   });
 });

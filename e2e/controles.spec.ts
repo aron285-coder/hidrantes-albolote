@@ -7,7 +7,7 @@
 // anterior y el fallo dice exactamente cuál se quedó mudo.
 
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
-import { conGoogle, conSesion, simularTablas } from './ayudas.ts';
+import { conGoogle, conSesion, simularTablas, filaInventario } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
 import { T } from '../src/lib/textos.ts';
@@ -330,7 +330,7 @@ const PANTALLAS_PANEL: Pantalla[] = [
   {
     nombre: 'inventario',
     ruta: '/admin/inventario',
-    listo: (p) => p.getByText(T.panel.mostrando(PUNTOS.length, PUNTOS.length)),
+    listo: (p) => filaInventario(p, PUNTOS[0]!.codigo),
   },
   { nombre: 'registro', ruta: '/admin/registro', listo: (p) => p.getByRole('main') },
   { nombre: 'papelera', ruta: '/admin/papelera', listo: (p) => p.getByRole('main') },

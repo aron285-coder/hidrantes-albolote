@@ -23,7 +23,8 @@ const botonAjustes = (page: Page) => page.getByRole('link', { name: T.ajustes.ir
 
 async function enElPanel(page: Page) {
   await expect(page).toHaveURL(/\/admin\/cola$/);
-  await expect(page.getByRole('link', { name: T.panelCola.colaRevision })).toBeVisible();
+  // En el móvil, el h1 dice la pestaña y las pestañas van en ☰ (docs/38 RV-503, UI-18).
+  await expect(page.getByRole('heading', { level: 1, name: new RegExp(T.panelCola.colaRevision) })).toBeVisible();
 }
 
 test('en el mapa, tocar «Jefatura» abre el panel y «Ir al mapa» vuelve (RV-113 · 1 y 2)', async ({ page }) => {

@@ -1,6 +1,8 @@
 # 36 · Lo que encontró la revisión tras `docs/35` (oct 2026)
 
 > **Archivada el 14 oct 2026 (RV-483).** Todo lo de este documento está en producción con 0.14.0. Lo que se hizo, PR a PR, en `verificacion/revision-36.md`. Migración `0048`; DEC-205 a DEC-208. Desviaciones: el tope de la Function de entrada responde `503 OCUPADO` con `Retry-After` (no `429`), para no bloquear una hora a un grupo que entra desde la misma wifi; las seis casillas del código aceptan hasta 18 caracteres para poder repartir lo insertado; la vigilancia programada desune desde #715 y a mano solo informa por defecto.
+>
+> **Nota (15 oct 2026):** RV-464 (H1) se hizo en `docs/37` RV-490.
 
 | | |
 |---|---|

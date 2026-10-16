@@ -5,7 +5,7 @@ description: Ciclo completo de un paquete de puntos RV/GM de una especificación
 
 # Paquete RV
 
-> **Hasta el piloto (DEC-193)** no hay especificaciones nuevas. Un arreglo suelto (`bloquea-release` o `piloto`)
+> **Hasta el piloto (DEC-193)** no hay especificaciones nuevas, salvo las excepciones que diga CLAUDE.md §5 (hoy, `docs/38`). Un arreglo suelto (`bloquea-release` o `piloto`)
 > sigue los mismos pasos sin issue de coordinación: el paso 1 es leer la issue, y en el 10 basta con `Closes #N`.
 
 1. Lee en la especificación los puntos del paquete y los documentos que citan. Comprueba en la issue

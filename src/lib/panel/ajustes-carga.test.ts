@@ -21,7 +21,7 @@ const {
   cambiosParametros,
   cargarPedidos,
   contarDispositivos,
-  estadoPedido,
+  motivoPedido,
   revocarDispositivo,
 } = await import('./ajustes');
 const { filasSalud } = await import('./salud');
@@ -100,13 +100,11 @@ describe('Mantenimiento: últimos pedidos (docs/32 RV-260)', () => {
     await expect(cargarPedidos()).resolves.toEqual({ ok: false, codigo: 'SIN_SERVIDOR' });
   });
 
-  it('el estado en palabras: pedido, lanzado y el error con su texto', () => {
-    expect(estadoPedido(pedido({}))).toBe(T.panelAjustes.pedidoPendiente);
-    expect(estadoPedido(pedido({ estado: 'lanzado', resultado: 'lanzado' }))).toBe(T.panelAjustes.pedidoLanzado);
-    expect(estadoPedido(pedido({ estado: 'error', resultado: 'error: caducado' }))).toBe(
-      T.panelAjustes.pedidoError('caducado'),
-    );
-    expect(estadoPedido(pedido({ estado: 'error', resultado: 'error: ' }))).toBe(T.panelAjustes.pedidoErrorSinMotivo);
+  it('el motivo, solo con error y si lo hay (docs/38 RV-509: el estado va en su etiqueta)', () => {
+    expect(motivoPedido(pedido({}))).toBeNull();
+    expect(motivoPedido(pedido({ estado: 'lanzado', resultado: 'lanzado' }))).toBeNull();
+    expect(motivoPedido(pedido({ estado: 'error', resultado: 'error: caducado' }))).toBe('caducado');
+    expect(motivoPedido(pedido({ estado: 'error', resultado: 'error: ' }))).toBeNull();
   });
 });
 
