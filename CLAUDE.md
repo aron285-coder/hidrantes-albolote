@@ -104,7 +104,7 @@ dispositivo · zona de cobertura · fuera de zona.
 
 ## 5. Cómo se trabaja
 
-**Hasta el piloto, DEC-193 (salvo `docs/35`, `docs/36` y `docs/38`, DEC-196, DEC-205 y DEC-212; `docs/37` cabe dentro, DEC-209): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
+**Hasta el piloto, DEC-193 (salvo `docs/35`, `docs/36`, `docs/38` y `docs/39`, DEC-196, DEC-205, DEC-212 y DEC-216; `docs/37` cabe dentro, DEC-209): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
 agrupación. Solo entran en `develop`:
 
 1. arreglos de una issue `bloquea-release`;
@@ -112,7 +112,7 @@ agrupación. Solo entran en `develop`:
 3. mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas programadas, estos archivos).
 
 Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. Las únicas
-excepciones son `docs/35`, `docs/36` y `docs/38` (DEC-196, DEC-205 y DEC-212), y solo con lo que contienen; `docs/39`, la de
+excepciones son `docs/35`, `docs/36`, `docs/38` y `docs/39` (DEC-196, DEC-205, DEC-212 y DEC-216), y solo con lo que contienen; `docs/40`, la de
 después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md`.
 
 1. Qué coger: si te han pedido algo concreto, eso. Si no, la issue `bloquea-release` más antigua y después la
@@ -141,6 +141,9 @@ después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md
    tomado) y actualiza `docs/09-plan-implementacion.md` §8: una fase sin ese archivo no está terminada. Si cierra
    una especificación (verificación escrita y release en producción), muévela con `git mv` a
    `docs/archivo/especificaciones/` en ese mismo PR y añádela a la tabla de `docs/INDICE.md` (DEC-195).
+
+**RV-139b no escribe en los datos del piloto** (DEC-217): lee; lo que escribe, en una transacción que se deshace; un
+solo móvil de prueba, revocado al acabar.
 
 Producción solo por PR `develop → main`, fusionado con **merge commit** (nunca squash), y con el
 *environment* `production` aprobado. Lo hace `npm run publicar` (DEC-176, 04 §12.1): empujón y
