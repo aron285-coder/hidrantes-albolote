@@ -26,3 +26,7 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   fallaban antes: los tres de «la cadena del migrador, en el sobre» de `scripts/arranque.test.ts`. 15 v1.7 (§2, §5.3
   paso 4, §9), 04 v1.7 (§5), 11 v1.9. `docs/39-revision-tras-38.md` entra en Git y DEC-218, con su texto completo (12
   v1.69).
+- **RV-517:** la base de datos vigila las tareas (migración `0051`, DEC-220): clave `tareas_paradas` con su texto fijo,
+  `fn_vigilar_tareas` y la tarea `hidrantes_vigilar_tareas` (08:00 UTC), también en `scripts/sql/tareas-esperadas.txt`;
+  Salud la nombra «Vigilar las tareas automáticas». Tests que fallaban antes: pgTAP `48_vigilar_tareas` y
+  `04_concurrencia_y_tareas` (nueve tareas). 04 v1.8, 05 v1.7, 06 (Apéndice A), 13 v0.6 y 15 v1.8.
