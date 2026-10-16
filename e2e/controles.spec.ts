@@ -252,7 +252,6 @@ async function recorrer(
     const control = pulsables(page).nth(i);
     if (!(await cuenta(control))) continue;
 
-    const antes = { url: page.url(), html: await page.locator('body').innerHTML() };
     // Abrir la cámara o el carrete es cosa del móvil, no del DOM: si sale el selector de
     // archivos, el control ha hecho lo suyo (FR-21).
     const selector = page.waitForEvent('filechooser', { timeout: 3000 }).then(
@@ -265,6 +264,10 @@ async function recorrer(
           () => false,
         )
       : Promise.resolve(false);
+    // Al centro antes de pulsar: en el móvil, la última fila puede quedar bajo las pestañas fijas de abajo, y una persona
+    // desplazaría un poco más (Playwright solo hasta que asoma).
+    await control.evaluate((e) => e.scrollIntoView({ block: 'center' })).catch(() => undefined);
+    const antes = { url: page.url(), html: await page.locator('body').innerHTML() };
     // Un control puede desaparecer al pulsarlo (una hoja que se cierra): se pulsa a la fuerza,
     // sin esperar a que siga ahí después.
     await control.click({ timeout: 5000 }).catch(() => undefined);
@@ -378,8 +381,8 @@ for (const pantalla of PANTALLAS_PANEL) {
   test.describe(`controles del panel · ${pantalla.nombre}`, () => {
     test.beforeEach(async ({ page }) => prepararPanel(page));
 
-    test('todos tienen nombre', async ({ page, isMobile }) => {
-      test.skip(!!isMobile, 'el panel es de escritorio (FR-100)');
+    // docs/39 RV-526: el panel también se usa en el móvil (DEC-213): se recorre en los dos proyectos.
+    test('todos tienen nombre', async ({ page }) => {
       await abrir(page, pantalla);
       const controles = pulsables(page);
       const total = await controles.count();
@@ -391,8 +394,7 @@ for (const pantalla of PANTALLAS_PANEL) {
       expect(mudos, `panel ${pantalla.nombre} · controles sin nombre accesible`).toEqual([]);
     });
 
-    test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page, isMobile }) => {
-      test.skip(!!isMobile, 'el panel es de escritorio (FR-100)');
+    test('ninguno se queda mudo al pulsarlo (UI-01)', async ({ page }) => {
       // El inventario tiene unos sesenta controles y cada uno recarga la pantalla: unos 50 s a solas,
       // más de 180 s con cuatro workers. Solo este recorrido va con más tiempo (docs/18 RV-49).
       test.slow(pantalla.nombre === 'inventario', 'sesenta controles, cada uno con su recarga');

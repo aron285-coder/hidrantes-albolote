@@ -13,7 +13,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { T } from '../src/lib/textos.ts';
 import { SUPABASE_PRUEBAS } from '../playwright.config.ts';
-import { conGoogle, conSesion, irALista, simularRpc, simularTablas, filaInventario } from './ayudas.ts';
+import { conGoogle, conSesion, irALista, irAPestana, simularRpc, simularTablas, filaInventario } from './ayudas.ts';
 import { LISTADO, PUNTOS } from './puntos.ts';
 
 /** Nada de jerga ni de códigos internos en la pantalla (UI-04, UI-22). */
@@ -71,7 +71,7 @@ test.describe('degradación controlada (FR-168)', () => {
   });
 
   test.describe('panel de jefatura', () => {
-    test.skip(({ isMobile }) => !!isMobile, 'el panel es de escritorio (FR-100)');
+    // docs/39 RV-526: también en el móvil (DEC-213).
 
     test('el panel avisa igual y no se queda en blanco', async ({ page }) => {
       await conGoogle(page, 'jefa@example.org');
@@ -83,7 +83,8 @@ test.describe('degradación controlada (FR-168)', () => {
       await expect(page.getByRole('region', { name: T.panelCola.colaRevision })).toBeVisible();
 
       await page.route(`${SUPABASE_PRUEBAS}/rest/v1/**`, (r) => r.fulfill(paginaDeError));
-      await page.getByRole('link', { name: T.panelCola.inventario }).click();
+      // En el móvil, las pestañas van en ☰ (docs/38 RV-503).
+      await irAPestana(page, T.panelCola.inventario);
       await expect(page.getByText(T.panel.sinServidor, { exact: false })).toBeVisible({ timeout: 20_000 });
       await expect(page.getByRole('button', { name: T.mapa.reintentar })).toBeVisible();
       await sinJergaTecnica(page);
