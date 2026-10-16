@@ -87,3 +87,8 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   revocado). Recorrido corto sin nada que corregir. En las PR de RV-526 se arreglaron dos tests que fallaban solo en CI
   con el panel en `movil`: el menú de Exportar se cerraba al enfocar un elemento (ahora `preventScroll`) y `controles`
   lleva cada control al centro antes de pulsarlo.
+- **RV-527 (cierre):** 0.17.0 en producción (`0ab153d`, deploy 38905909640) con `npm run publicar`; la primera pasada
+  se paró en `ci-sql` del PR `develop → main` por el límite de Docker, se relanzó ese trabajo. Producción dice «Hidrantes»;
+  la vigilancia ya encuentra `hidrantes_vigilar_tareas` en producción y staging, y avisa de que aún no ha corrido (#874, se
+  cierra sola tras su primera vuelta; el aviso de más, #876 `tras-piloto`). Los 27 bajos, #826 a #852 (`tras-piloto`).
+  `docs/39` archivada con `git mv` y su fila en la tabla de archivadas de `INDICE.md`.
