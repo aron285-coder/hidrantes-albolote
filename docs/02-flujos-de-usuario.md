@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión. |
-| **Versión** | 1.15 — 16 oct 2026 (`docs/39` RV-521, DEC-221): FL-10 y FL-28, los envíos con error. 1.14 — 16 oct 2026 (`docs/39` RV-520, DEC-221): FL-01 y FL-09, el acceso revocado con un formulario abierto. 1.13 — 15 oct 2026 (`docs/38` RV-501, aprobada por el desarrollador al pedir el cambio (`docs/38`): FL-21, FL-23 y FL-24 con el botón de filtros, y Editar tocando la fila en la tableta y el móvil, DEC-214, DEC-215) · 1.12 — 15 oct 2026 (`docs/37` RV-497, aprobada por el desarrollador al pedir el cambio: FL-34 con los avisos técnicos, DEC-202). 1.11 — 14 oct 2026 (`docs/35` RV-414, aprobada por el desarrollador al pedir el cambio: FL-29 con la casilla de abrir la entrada, sin marcar, y «revocar desde una hora», DEC-201; FL-30 con la confirmación al quitar el acceso, RV-431, y el primer acceso que une la cuenta de Google, DEC-197). 1.10 — 13 oct 2026 (`docs/35` RV-414, aprobada por el desarrollador al pedir el cambio: cabecera con DEC-177; Barro en el guion de la sesión presencial; FL-29 con «abrir la entrada 24 h»; FL-31 con Salud del sistema como la deja DEC-192). 1.9 — oct 2026 (`docs/29`, conformidad del desarrollador: FL-24 con los dos filtros y Editar en panel lateral; FL-11, FL-25 y FL-27 retirados, DEC-167 a DEC-169). 1.8 — 5 de octubre de 2026 (`docs/27` RV-114, conformidad del desarrollador: la hoja de Cercanos sin tramos, *Medir tendido* ni compartir, y los avisos de posición en el subtítulo, en FL-35, FL-37 y FL-38, DEC-165). 1.7 — 5 de octubre de 2026 (`docs/26` RV-113, conformidad del desarrollador: en el móvil, jefatura abre el panel desde la etiqueta *Jefatura* o desde Ajustes, FL-20 paso 4 y FL-28 paso 3, DEC-164). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; conformidad del desarrollador, DEC-177). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
+| **Versión** | 1.16 — 16 oct 2026 (`docs/39` RV-525): al día con la app: FL-01, la hora a la que se puede volver a probar; FL-03, los cuatro enganches; FL-06, la foto opcional y sin nota; FL-25, lo caducado con la fecha en rojo; FL-30, quitar y devolver el acceso desde «⋯»; FL-31, el inventario completo en Inventario → Exportar; FL-35, «sin conexión · hace N». 1.15 — 16 oct 2026 (`docs/39` RV-521, DEC-221): FL-10 y FL-28, los envíos con error. 1.14 — 16 oct 2026 (`docs/39` RV-520, DEC-221): FL-01 y FL-09, el acceso revocado con un formulario abierto. 1.13 — 15 oct 2026 (`docs/38` RV-501, aprobada por el desarrollador al pedir el cambio (`docs/38`): FL-21, FL-23 y FL-24 con el botón de filtros, y Editar tocando la fila en la tableta y el móvil, DEC-214, DEC-215) · 1.12 — 15 oct 2026 (`docs/37` RV-497, aprobada por el desarrollador al pedir el cambio: FL-34 con los avisos técnicos, DEC-202). 1.11 — 14 oct 2026 (`docs/35` RV-414, aprobada por el desarrollador al pedir el cambio: FL-29 con la casilla de abrir la entrada, sin marcar, y «revocar desde una hora», DEC-201; FL-30 con la confirmación al quitar el acceso, RV-431, y el primer acceso que une la cuenta de Google, DEC-197). 1.10 — 13 oct 2026 (`docs/35` RV-414, aprobada por el desarrollador al pedir el cambio: cabecera con DEC-177; Barro en el guion de la sesión presencial; FL-29 con «abrir la entrada 24 h»; FL-31 con Salud del sistema como la deja DEC-192). 1.9 — oct 2026 (`docs/29`, conformidad del desarrollador: FL-24 con los dos filtros y Editar en panel lateral; FL-11, FL-25 y FL-27 retirados, DEC-167 a DEC-169). 1.8 — 5 de octubre de 2026 (`docs/27` RV-114, conformidad del desarrollador: la hoja de Cercanos sin tramos, *Medir tendido* ni compartir, y los avisos de posición en el subtítulo, en FL-35, FL-37 y FL-38, DEC-165). 1.7 — 5 de octubre de 2026 (`docs/26` RV-113, conformidad del desarrollador: en el móvil, jefatura abre el panel desde la etiqueta *Jefatura* o desde Ajustes, FL-20 paso 4 y FL-28 paso 3, DEC-164). 1.6 — 4 de octubre de 2026 (`docs/25` RV-112, conformidad del desarrollador: «tipo de enganche» en lugar de «racor» en FL-02, FL-03 y FL-06, DEC-163). 1.5 — 3 de octubre de 2026 (`docs/24` RV-101 y RV-103, conformidad del desarrollador: bocas de 45, 70 u otra medida en FL-03; dos fotos, Conexión y Sitio, en FL-03 y FL-07). 1.4 — 3 de octubre de 2026 (`docs/24` RV-99, conformidad del desarrollador: las definiciones de los estados salen del formulario y pasan a la sesión presencial, §"Sesión presencial"). 1.3 — 23 de septiembre de 2026 (FL-06 sin cambio de tipo, DEC-090; FL-03 con "¿Qué hay aquí?" y FL-35 a FL-38, funciones de mapa para emergencias, DEC-089; conformidad del desarrollador, DEC-177). 1.2 — 21 de septiembre de 2026 (atajo de alta con pulsación larga en FL-03, DEC-077). v1.1 — 17 de septiembre de 2026 (añade FL-13 y FL-32–34 para FR-160–168) |
 | **Propietario de** | el **orden de los pasos** de cada tarea. Las reglas están en 01 y aquí solo se citan (`FR-nn`). Las pantallas están en 07 y 08. |
 
 Cada flujo tiene actor, condición de partida, pasos numerados con el requisito que aplica, resultado
@@ -27,7 +27,7 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 **Resultado:** el móvil está registrado, con nombre, puntos y mapa base guardados.
 
 **Variantes**
-- Código erróneo: mensaje "código incorrecto" sin más pistas. Tras demasiados intentos: "espera una hora". (FR-33)
+- Código erróneo: mensaje "código incorrecto" sin más pistas. Tras demasiados intentos, la hora a la que se puede volver a probar: «Demasiados intentos. Podrás volver a intentarlo a las 18:40.» (FR-33)
 - Sin wifi: el mapa base no se descarga aún; *Ajustes* muestra "no descargado" y el mapa lo avisa. (FR-81)
 - Es jefatura: pulsa "¿Eres de jefatura? Entrar con Google" → FL-20.
 - Vuelve tras una revocación (jefatura cambió el código revocando): la entrada lo dice; al entrar, sale solo lo que se
@@ -62,7 +62,7 @@ y variantes. Los nombres de pantalla y botón son los de 07 y 08.
 3. Si el pin queda fuera de la zona: aviso "esto queda fuera de la zona habitual, ¿seguro?". Puede continuar. (FR-55)
 4. Elige el **tipo**. (FR-11)
    - Hidrante: elige **diámetro de la salida mayor** 70 / 100 / otra medida. (FR-16, FR-17)
-   - Boca de riego: elige **diámetro** 45 / 70 / otra medida (entero de 20 a 150 mm) y el **tipo de enganche** (Barcelona, Granada u Otro), comparando con las fotos de referencia. (FR-16, FR-20; `docs/24` RV-101 y RV-104)
+   - Boca de riego: elige **diámetro** 45 / 70 / otra medida (entero de 20 a 150 mm) y el **tipo de enganche** (Barcelona, Granada, Directo u Otro; DEC-170, DEC-194), comparando con las fotos de referencia. (FR-16, FR-20; `docs/24` RV-101 y RV-104)
 5. Elige **caudal / estado**. Si es *no funciona*, aparece la **descripción del fallo**, obligatoria. (FR-18, FR-19)
 6. Hace las **dos fotos** con la cámara, lado a lado: **Conexión** (la de siempre) y **Sitio** (un entorno para encontrarlo). Hasta que están las dos, el botón de envío está deshabilitado y dice cuál falta ("Falta la foto del sitio"). (FR-21; `docs/24` RV-103)
 7. Añade **descripción** si quiere. (FR-22)
@@ -112,7 +112,7 @@ Es la operación que da sentido al ciclo de 12 meses y la que jefatura aprueba e
 1. Cambia diámetro, tipo de enganche o descripción. Las reglas de FR-16 y FR-20 aplican igual que en el alta.
    El tipo se ve pero no se cambia (FR-11): si está mal, el enlace *Proponer retirada* lleva a FL-08 de
    ese punto, y después se da de alta el correcto (FL-03).
-2. Foto de hoy y nota opcional.
+2. Foto opcional («Foto · opcional»); sin nota: lo que haya que explicar va en la descripción. (FR-21, FR-44)
 3. *Enviar para revisión*. (FR-44)
 
 **Resultado:** propuesta pendiente con el diff de los campos cambiados.
@@ -283,7 +283,7 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 
 ### FL-25 · Repartir revisiones caducadas
 
-> **Retirado (DEC-167, `docs/29`).** La pestaña y la hoja de campo ya no existen. Lo caducado se ve en el Inventario: «hace 1 año» en rojo, y la columna *Última revisión* se ordena.
+> **Retirado (DEC-167, `docs/29`).** La pestaña y la hoja de campo ya no existen. Lo caducado se ve en el Inventario: la fecha de la última revisión en rojo (UI-12 del panel), y la columna *Última revisión* se ordena.
 
 **Actor:** administrador. **Parte de:** *Panel* → *Revisiones caducadas*.
 
@@ -350,7 +350,7 @@ Responde a "¿por qué se rechazó aquello?" sin rebuscar en el registro.
 **Actor:** administrador. **Parte de:** *Panel* → *Ajustes* → *Acceso de administradores*. (FR-141)
 
 1. Escribe el correo (se sugieren los de la app de uniformidad) y añade.
-2. Para retirar el acceso, desactiva el interruptor y confírmalo en la ventana «Quitar el acceso» (si es tu propia cuenta, el aviso dice que saldrás del panel y, al confirmar, sales a «No autorizado»). Devolver el acceso no se confirma. Si no queda otro administrador con acceso, no se puede: «Tiene que quedar al menos un administrador con acceso.» (docs/35 RV-431)
+2. Para retirar el acceso, en el menú «⋯» de su fila elige *Quitar el acceso…* y confírmalo en la ventana «Quitar el acceso» (si es tu propia cuenta, el aviso dice que saldrás del panel y, al confirmar, sales a «No autorizado»). Para devolverlo, «⋯» → *Devolver el acceso*, que no se confirma (DEC-215). Si no queda otro administrador con acceso, no se puede: «Tiene que quedar al menos un administrador con acceso.» (docs/35 RV-431)
 3. Un administrador nuevo (o uno al que se le devuelve el acceso) queda unido a su cuenta de Google la primera vez que entra en el panel; hasta entonces no tiene acceso de jefatura. (DEC-197)
 
 No hace falta desplegar nada ni tocar código.
@@ -363,8 +363,8 @@ No hace falta desplegar nada ni tocar código.
 
 1. Cambia meses entre revisiones, radio de duplicado, días de papelera, margen de zona, radios de marcador, tope de subidas o los dos topes de entradas, y pulsa *Guardar cambios*. Los móviles lo aplican en su siguiente sincronización. (FR-142)
 2. Revisa *Salud del sistema*: arriba, «Todo bien» o lo que necesita atención; debajo, fotos y base de datos con su tope, último respaldo, última vigilancia, errores de la aplicación, móviles con acceso, códigos fallidos, entradas frenadas por el tope (con el enlace para abrir la entrada) y fecha de la zona y del mapa base; después, las tareas programadas y los móviles con más fotos pedidas. (FR-143, DEC-192)
-3. Si el almacenamiento crece, lanza *Purgar fotos huérfanas* y espera unos minutos. (FR-144)
-4. Para una copia de consulta, *Descargar inventario (JSON)*. (FR-144; el respaldo real está en 15)
+3. Si el almacenamiento crece, lanza *Purgar fotos huérfanas* y espera unos minutos; solo en producción (en staging, el botón no se puede usar y lo dice debajo). (FR-144)
+4. Para una copia de consulta, *Inventario* → *Exportar* → *Inventario completo (JSON)*. (FR-144; el respaldo real está en 15)
 
 ---
 
@@ -401,7 +401,7 @@ No hace falta desplegar nada ni tocar código.
 
 **Actor:** voluntario en una salida, con el móvil y sin cobertura. (FR-74, FR-80, G2)
 
-1. Abre la aplicación. El mapa pinta lo guardado en el móvil y la barra dice "sin cobertura · datos de hace N min". (FR-80, FR-168)
+1. Abre la aplicación. El mapa pinta lo guardado en el móvil y la barra dice «sin conexión · hace N». (FR-80, FR-168)
 2. Pulsa **Cercanos**, junto a *centrar en mí*. Con la posición del GPS al día, el incidente es esa posición. (FR-74)
 3. El mapa marca el incidente con una diana, traza líneas discontinuas a los candidatos y encuadra el incidente y los tres primeros. Se abre la hoja *Cercanos* con, como mucho, los cinco puntos activos más cercanos en estado *bueno* o *regular*. (FR-74)
 4. Cada fila da código, diámetro y estado, distancia en línea recta y rumbo (N, NE…), con un solo botón, *Cómo llegar*. Un punto que no funciona no sale en la lista. (FR-74, DEC-165)
