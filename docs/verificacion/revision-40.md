@@ -58,3 +58,6 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   **después** del despliegue; `revision-39.md`, la línea de #857 y el test que falló antes en RV-526; 05 v1.9 (`vigilar_respaldo`),
   12 v1.73 (DEC-113 punto 3), 03 v1.12 (TR-30) y 06 v1.39 (la cabecera de 1.35, punto por punto); los números de PR de
   este registro. Sin test: documentación.
+- **RV-537 (RV-139b):** verde sobre `b419e37` con la regla de DEC-217 (nada escrito en staging; el móvil de prueba,
+  revocado). El despliegue de staging de ese commit falló una vez por un error interno de Cloudflare (10500) y pasó al
+  relanzar el trabajo.
