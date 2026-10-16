@@ -21,7 +21,7 @@ vi.mock('./panel/push-jefatura', () => ({ pedirEnvioComoJefatura: vi.fn(async ()
 const cola = await import('./cola');
 const { textoEspera } = await import('./nombres-operacion');
 const { LIMITES_RED } = await import('./red');
-const { _reiniciar } = await import('./conexion');
+const { _reiniciar, registrarComprobacion } = await import('./conexion');
 const { guardarSesion } = await import('./sesion');
 
 const TOKEN = 'a'.repeat(43);
@@ -142,6 +142,23 @@ describe('cola de envíos', () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'TOKEN_REVOCADO: x' }, status: 400 });
     await cola.encolar(args('k-000005'), null, 'HID-0147');
     await cola.procesarCola();
+    expect(cola.colaActual()[0]).toMatchObject({ fallo: null, intentos: 0 });
+  });
+
+  it('acceso revocado con un formulario abierto: pide la comprobación una vez, no en cada vuelta (docs/39 RV-520)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'TOKEN_REVOCADO: x' }, status: 400 });
+    let comprobaciones = 0;
+    // Como acceso con un formulario abierto: no borra el token y la comprobación relanza la cola.
+    registrarComprobacion(async () => {
+      comprobaciones += 1;
+      await new Promise((r) => setTimeout(r, 0)); // como la red de la comprobación: la pasada ya ha terminado
+      if (comprobaciones < 10) await cola.reintentarCola();
+    });
+    await cola.encolar(args('k-000009'), null, 'HID-0147');
+    await cola.procesarCola();
+    await vi.waitFor(() => expect(comprobaciones).toBeGreaterThan(0));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(comprobaciones).toBe(1);
     expect(cola.colaActual()[0]).toMatchObject({ fallo: null, intentos: 0 });
   });
 

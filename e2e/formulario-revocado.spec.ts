@@ -11,13 +11,13 @@ const SB = 'https://supabase.invalid';
 const REVOCADO = { code: 'P0001', message: 'TOKEN_REVOCADO: El acceso de este móvil se ha revocado' };
 
 async function servidor(page: Page) {
-  const s = { revocado: false, propuestas: [] as Record<string, unknown>[], subidas: 0 };
+  const s = { revocado: false, propuestas: [] as Record<string, unknown>[], subidas: 0, rechazadas: 0 };
   const json = (r: Route, b: unknown, status = 200) =>
     r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(b) });
   await page.route('**/api/url-subida', (r) =>
-    // Con el acceso revocado, la reserva de la foto tampoco sale: lo guardado espera en el móvil.
+    // Con el acceso revocado, la reserva de la foto tampoco sale (como la Function: 401): lo guardado espera.
     s.revocado
-      ? r.abort('connectionrefused')
+      ? (s.rechazadas++, json(r, { error: 'TOKEN_INVALIDO' }, 401))
       : json(r, { foto_path: `fotos/${++s.subidas}.jpg`, url: `${SB}/storage/subir` }),
   );
   await page.route(`${SB}/storage/subir`, (r) => r.fulfill({ status: 200, body: '{}' }));
@@ -85,6 +85,10 @@ test('un alta a medias sobrevive a la revocación y se envía al volver a entrar
   await expect(page.getByRole('heading', { level: 2, name: T.envio.guardadoEnMovil })).toBeVisible();
   await expect(page.getByText(T.envio.guardadoHastaEntrar)).toBeVisible();
   expect(s.propuestas).toHaveLength(0);
+  // Con la pantalla abierta, la cola no insiste sin pausa contra el acceso rechazado.
+  const rechazadas = s.rechazadas;
+  await page.waitForTimeout(2_000);
+  expect(s.rechazadas - rechazadas).toBeLessThanOrEqual(1);
 
   // Al salir, la entrada.
   await page.getByRole('button', { name: T.envio.volverAlMapa }).click();

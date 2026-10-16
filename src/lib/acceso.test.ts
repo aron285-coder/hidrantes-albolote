@@ -28,6 +28,8 @@ vi.mock('./supabase', () => ({
 }));
 
 const reintentarCola = vi.fn(async () => undefined);
+const resincronizarPush = vi.fn(async () => undefined);
+vi.mock('./push', async (original) => ({ ...(await original<typeof import('./push')>()), resincronizarPush }));
 vi.mock('./cola', async (original) => ({ ...(await original<typeof import('./cola')>()), reintentarCola }));
 
 const {
@@ -96,6 +98,8 @@ describe('canje del código (FR-31, FR-33)', () => {
     vi.stubGlobal('fetch', fetch);
     expect(await entrarConCodigo('482915', { nombre: 'Ana', apellido: 'Ruiz' })).toBeNull();
     expect(acceso()).toEqual({ tipo: 'voluntario', sesion: { token: TOKEN, nombre: 'Ana', apellido: 'Ruiz' } });
+    // Al revocar se borraron las suscripciones (DEC-218): se piden ya, sin esperar a la vuelta diaria (docs/39 RV-520).
+    expect(resincronizarPush).toHaveBeenCalledWith(TOKEN, expect.any(Number), true);
 
     const cuerpo = JSON.parse((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body as string);
     expect(cuerpo).toEqual({ codigo: '482915', dispositivo_id: expect.stringMatching(/^[0-9a-f-]{36}$/) });
