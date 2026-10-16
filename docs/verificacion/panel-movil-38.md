@@ -134,3 +134,10 @@ workflows. Una sola sesión, en el orden de §0.2.
   1.280 y 1.920 en claro y en oscuro, y `listas-anchos.spec.ts`), al lado de los mockups `38-panel-*.html`. Todo
   coincide salvo lo de §0.6 y una cosa: en la Papelera, «Purgar lo caducado…» va detrás de la explicación y no
   alineado a la derecha como en el mockup; §9 solo pide que esté arriba y apartado de los «Restaurar», y así se queda.
+- **RV-512 (publicar y archivar):** `npm run publicar` publicó 0.16.0: release-please #796, PR `develop → main` #807
+  fusionado con merge commit (`2da866b`), la puerta en verde (CI de `main`, RV-139b con `81c4232`, `comprobar-produccion
+  --completo`, ninguna `bloquea-release`) y `deploy-prod` en verde (ejecución 38830604480, con `comprobar-dist`).
+  Producción sirve `2da866b`. La primera vez, la CI de #807 falló en el e2e de Exportar con flechas (el desplazamiento al
+  enfocar cerraba el menú un frame después): #808 lo arregló en el test, y RV-139b se repitió sobre `81c4232` porque
+  `e2e/` no puede cambiar entre la marca y `main`. RV-506 entró en develop dentro de #801 (iba encima y se fusionó
+  antes); su línea de Novedades, con `BEGIN_COMMIT_OVERRIDE`. docs/38 archivada; los mockups siguen en `docs/mockups/`.
