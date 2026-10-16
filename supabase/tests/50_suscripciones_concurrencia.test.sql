@@ -87,7 +87,9 @@ select dblink_exec('s0', $$
     ('00000000-0000-4000-8000-0000000053c1', hidrantes.fn_sha256('token-rv532-tres-b-de-prueba'), now() - interval '3 hours');
 $$);
 select dblink_exec('s3', 'begin');
-select dblink_exec('s3', $$ select pg_advisory_xact_lock(hashtext('suscripciones:00000000-0000-4000-8000-0000000053c1')) $$);
+select * from dblink('s3', $$
+  select 1 from (select pg_advisory_xact_lock(hashtext('suscripciones:00000000-0000-4000-8000-0000000053c1'))) x $$)
+  as t(uno int);
 select dblink_send_query('s2', $$
   select hidrantes.fn_guardar_suscripcion_push('token-rv532-tres-b-de-prueba',
     '{"endpoint": "https://fcm.googleapis.com/fcm/send/rv532-c", "keys": {"p256dh": "p", "auth": "a"}}',
