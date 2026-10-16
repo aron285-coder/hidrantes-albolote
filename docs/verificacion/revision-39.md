@@ -35,3 +35,6 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   trabajos de `respaldo.yml`; `guarda-produccion.ts` exige `REFS.prod`. Tests que fallaban antes: los de «la guarda de
   proyecto en los workflows» de `scripts/workflows.test.ts`, `scripts/comprobar-cadena.test.ts` y «todo coherente, pero
   del proyecto de staging» de `guarda-produccion.test.ts` (que pasa a usar `REFS.prod`). 04 v1.9.
+- **RV-519:** issue `organizacion` #858 («Antes del piloto: la clave del respaldo y las cadenas del migrador, en la
+  agrupación»), con los pasos y enlazada desde #77; 15 v1.9 §2 dice quién las tiene hoy (el desarrollador; las
+  cadenas, nadie); 09 §8, en «Queda». Sin test: lo hacen personas.
