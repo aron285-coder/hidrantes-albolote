@@ -276,11 +276,17 @@ export function separarLote(elegidas: PropuestaPanel[]): {
   return { aprobables, saltadas };
 }
 
-/** Búsqueda global (FR-145): código, dirección o nombre de quien propuso. */
-export function coincide(p: PropuestaPanel, texto: string): boolean {
+/**
+ * Búsqueda global (FR-145): código, dirección o nombre de quien propuso. El código, el que enseña la lista
+ * (`codigoCola`): un alta aprobada se encuentra por el del punto que creó (docs/39 RV-522).
+ */
+export function coincide(p: PropuestaPanel, texto: string, puntos: Pick<Punto, 'id' | 'codigo'>[]): boolean {
   const t = sinAcentos(texto.trim());
   if (!t) return true;
-  return sinAcentos([p.codigo, autor(p), direccionDe(p), p.nucleo].filter(Boolean).join(' ')).includes(t);
+  const codigo = codigoCola(p, puntos);
+  return sinAcentos(
+    [codigo === T.panelCola.nuevo ? null : codigo, autor(p), direccionDe(p), p.nucleo].filter(Boolean).join(' '),
+  ).includes(t);
 }
 
 export const sinAcentos = (s: string) =>

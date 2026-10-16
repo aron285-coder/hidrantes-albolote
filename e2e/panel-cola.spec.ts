@@ -1709,6 +1709,18 @@ test.describe('Cola con el botón de filtros (docs/38 RV-505)', () => {
     await expect(lista(page).getByRole('listitem').first()).toContainText(P0.codigo);
     await expect(lista(page).getByRole('listitem').first()).not.toContainText(T.panelCola.nuevo);
   });
+
+  // docs/39 RV-522: se busca por ese código, y el detalle lo dice en el título.
+  test('en Aprobadas, buscar el código del punto creado lo encuentra y el detalle lo dice', async ({ page }) => {
+    test.skip(!!page.viewportSize() && page.viewportSize()!.width < 1100, 'el detalle al lado, en el ordenador');
+    await prepararPanel(page);
+    await page.goto('/admin/cola');
+    await filtrarPor(page, T.panelCola.grupoEstado, T.panelCola.aprobadas);
+    await buscarEnPanel(page, P0.codigo);
+    await expect(lista(page).getByRole('listitem')).toHaveCount(1);
+    await lista(page).getByRole('listitem').first().click();
+    await expect(page.getByRole('heading', { name: new RegExp(`^${P0.codigo} · `) })).toBeVisible();
+  });
 });
 
 // Capturas para la revisión a ojo (skill revisar-pantallas): PW_CAPTURAS=1, a 412, 820, 1280 y 1920, en claro y oscuro.
