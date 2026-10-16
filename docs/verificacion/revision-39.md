@@ -69,3 +69,9 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   las Novedades de producción. Tests que fallaban antes: `src/lib/nombre-app.test.ts`, los dos de
   `scripts/workflows.test.ts` y `e2e/armazon.spec.ts` (título, nombre de iPhone y manifiesto). 04 v1.10, 06 v1.37,
   13 v0.8, 14 v0.5.
+- **RV-526:** el panel en el móvil ya no se salta en `controles`, `accesibilidad` y `degradacion` (412 × 915: los menús
+  se abren con las pestañas de abajo, el Inventario se mide en filas y no en tabla, y los botones de toda la fila no
+  cuentan en la geometría); pasan en los dos proyectos. pgTAP `49_rpc_sin_prueba_propia` (12): `fn_guardar_direccion_sugerida`
+  (solo jefatura, recortada, en blanco → sin dirección, 300 como mucho, una decidida no cambia) y
+  `fn_borrar_suscripcion_push` (token que no vale → error; borra solo las de ese móvil). Corrió en `ci-sql` (sin Docker en
+  local).
