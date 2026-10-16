@@ -2406,3 +2406,17 @@ describe('la guarda de proyecto en los workflows (docs/39 RV-518)', () => {
     expect(texto).toContain(`node scripts/comprobar-cadena.ts --entorno ${entorno}`);
   });
 });
+
+// docs/39 RV-524 (DEC-223): staging se llama «Hidrantes test» y producción no.
+describe('el nombre de la app por entorno en los deploys (docs/39 RV-524)', () => {
+  it('el deploy de staging comprueba «Hidrantes test» en el manifiesto y el <title>', () => {
+    const f = leer('deploy-staging.yml');
+    expect(f).toContain('"short_name":"Hidrantes test"');
+    expect(f).toContain('<title>Hidrantes test · ');
+  });
+  it('el de producción se para si el build lleva «Hidrantes test»', () => {
+    expect(leer('deploy-prod.yml')).toMatch(
+      /if grep -q 'Hidrantes test' dist\/manifest\.webmanifest dist\/index\.html/,
+    );
+  });
+});

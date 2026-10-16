@@ -61,3 +61,11 @@ Una línea por PR: qué entró, el test que falló antes y el PR. Hasta que 0.16
   Inventario, tocar un punto abre Editar. Tests que fallaban antes: el e2e nuevo `e2e/inventario-fotos.spec.ts` (412,
   820 y 1.280; una sola foto a todo el ancho; la que no carga; la lista no pide ninguna; el mapa abre Editar). 01 v1.19,
   06 v1.36, 13 v0.7.
+- **RV-524:** «Hidrantes test» en staging (manifiesto `name` y `short_name`, `<title>`, `apple-mobile-web-app-title` y la
+  cabecera del panel); producción y local, «Hidrantes». La función vive en `src/lib/nombre-app.ts` y no en `config/`:
+  `src` no puede importar de `config/` (`tsconfig.app.json`) y `vite.config.ts` ya importa de `src/lib`; decisión de
+  bajo riesgo, anotada aquí. `deploy-staging.yml` comprueba «Hidrantes test» en el `dist` y `deploy-prod.yml` se para si
+  lo lleva; `docs/entornos.md` (y su plantilla en `arranque.ts`) con la columna «App». Como `chore(staging)`: no sale en
+  las Novedades de producción. Tests que fallaban antes: `src/lib/nombre-app.test.ts`, los dos de
+  `scripts/workflows.test.ts` y `e2e/armazon.spec.ts` (título, nombre de iPhone y manifiesto). 04 v1.10, 06 v1.37,
+  13 v0.8, 14 v0.5.

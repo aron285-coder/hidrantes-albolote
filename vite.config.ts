@@ -10,6 +10,7 @@ import { CACHE_FOTOS } from './config/cache-fotos.ts';
 import { SCRIPT_TESELAS, cacheTeselas, teselasPlugin, versionMapabase } from './config/cache-teselas.ts';
 import { entradaCallejero } from './config/precacheo.ts';
 import { precargaPlugin } from './config/precarga.ts';
+import { nombreCortoDe } from './src/lib/nombre-app.ts';
 import { T } from './src/lib/textos.ts';
 
 /** En Actions, el commit que se construye; en local, el de HEAD (o "local" fuera de Git). */
@@ -40,8 +41,9 @@ function entornoPlugin(entorno: Entorno, env: Record<string, string>): Plugin {
       }
       return {
         html: html
-          .replace('%TITULO%', `${T.app.nombreCorto} · ${T.app.nombre}`)
-          .replace('%NOMBRE_CORTO%', T.app.nombreCorto),
+          // docs/39 RV-524 (DEC-223): «Hidrantes test» en staging.
+          .replace('%TITULO%', `${nombreCortoDe(entorno)} · ${T.app.nombre}`)
+          .replace('%NOMBRE_CORTO%', nombreCortoDe(entorno)),
         tags: etiquetas,
       };
     },
@@ -75,8 +77,8 @@ export default defineConfig(({ mode }) => {
         registerType: 'prompt',
         injectRegister: false,
         manifest: {
-          name: `${T.app.nombreCorto} · ${T.app.nombre}`,
-          short_name: T.app.nombreCorto,
+          name: `${nombreCortoDe(entorno)} · ${T.app.nombre}`,
+          short_name: nombreCortoDe(entorno),
           lang: 'es',
           start_url: '/',
           scope: '/',
