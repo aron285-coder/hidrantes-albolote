@@ -106,7 +106,7 @@ begin
   end if;
   return null;
 end $$;
-revoke all on function hidrantes.fn_suscripciones_tras_revocar() from public;
+revoke all on function hidrantes.fn_suscripciones_tras_revocar() from public, anon, authenticated;
 
 drop trigger if exists dispositivos_suscripciones_tras_revocar on hidrantes.dispositivos;
 create trigger dispositivos_suscripciones_tras_revocar
@@ -123,7 +123,7 @@ begin
   end if;
   return null;
 end $$;
-revoke all on function hidrantes.fn_suscripciones_tras_quitar_acceso() from public;
+revoke all on function hidrantes.fn_suscripciones_tras_quitar_acceso() from public, anon, authenticated;
 
 drop trigger if exists administradores_suscripciones_tras_quitar_acceso on hidrantes.administradores;
 create trigger administradores_suscripciones_tras_quitar_acceso
