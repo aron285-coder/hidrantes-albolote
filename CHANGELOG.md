@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.16.0...hidrantes-albolote-v0.16.1) (2026-10-16)
+
+
+### Correcciones
+
+* **avisos:** los avisos del móvil se guardan mejor y se limpian al quitar el acceso ([#855](https://github.com/aron285-coder/hidrantes-albolote/issues/855)) ([471c914](https://github.com/aron285-coder/hidrantes-albolote/commit/471c914af77f14830d0a9bd56f6547be8d299c35))
+
 ## [0.16.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.15.0...hidrantes-albolote-v0.16.0) (2026-10-15)
 
 
