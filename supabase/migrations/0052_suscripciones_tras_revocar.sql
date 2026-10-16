@@ -4,8 +4,10 @@
 --    antes de mirar si al móvil le queda algún token válido. Con READ COMMITTED, la consulta que sigue al cerrojo ve lo
 --    que otra transacción confirmó mientras esperaba: dos tokens del mismo móvil revocados a la vez ya no se ven el uno
 --    al otro aún válidos.
--- 2. fn_guardar_suscripcion_push vuelve a comprobar el token **después** de tomar el cerrojo: si la revocación se
---    confirmó entre la primera comprobación y el cerrojo, ahora falla con TOKEN_REVOCADO y no inserta nada.
+-- 2. fn_guardar_suscripcion_push vuelve a comprobar el token **después** de tomar el cerrojo, solo leyendo: si la
+--    revocación se confirmó entre la primera comprobación y el cerrojo, ahora falla con TOKEN_REVOCADO y no inserta
+--    nada. Lo que escribe en dispositivos (ultimo_uso) va antes del cerrojo, como el disparador, que lo toma después de
+--    las filas: el orden es siempre filas → cerrojo, y no hay cruce.
 --
 -- Compatibilidad (04 §12): mismas firmas y mismos errores.
 
@@ -38,8 +40,12 @@ begin
   -- Un móvil puede tener varias filas en dispositivos (una por token): el cerrojo es por móvil (05 §11).
   perform pg_advisory_xact_lock(hashtext('suscripciones:' || d::text));
   -- docs/40 RV-532: el token, otra vez, ya con el cerrojo: una revocación confirmada mientras se esperaba no deja
-  -- entrar la suscripción.
-  perform hidrantes.fn_validar_token(token);
+  -- entrar la suscripción. Solo leyendo: tras el cerrojo nada escribe en dispositivos (fn_validar_token anota
+  -- ultimo_uso), o una revocación con la fila tomada y esperando a este cerrojo se cruzaría con esta transacción.
+  if not exists (select 1 from hidrantes.dispositivos x
+                  where x.token_hash = hidrantes.fn_sha256(token) and x.revocado_en is null) then
+    perform hidrantes.fn_error('TOKEN_REVOCADO', 'El acceso de este móvil se ha revocado');
+  end if;
   insert into hidrantes.suscripciones_push (dispositivo_id, suscripcion, temas)
   values (d, fn_guardar_suscripcion_push.suscripcion, t)
   on conflict ((suscripcion ->> 'endpoint'), (dispositivo_id is null))
