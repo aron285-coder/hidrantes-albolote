@@ -567,6 +567,45 @@ async function prepararGpg(rotar: boolean): Promise<string | null> {
   return huella;
 }
 
+/**
+ * docs/39 RV-516 (DEC-219): la cadena de `hidrantes_migrador`, recién creada o rotada, se enseña **una sola vez**, como
+ * la clave privada del respaldo, para guardarla en el gestor de contraseñas o en el sobre (15 §2): `restaurar` la
+ * necesita y los secretos de GitHub no se pueden leer. Nunca va a un archivo, al registro ni a un argumento. Sin una
+ * terminal no se enseña: hay que repetir la rotación en una. Devuelve si se ha enseñado.
+ */
+export async function ensenarCadenaMigrador(
+  entorno: string,
+  cadena: string,
+  io: {
+    tty: boolean;
+    escribir: (texto: string) => void;
+    esperar: (pregunta: string) => Promise<unknown>;
+    limpiar: () => void;
+  } = {
+    tty: !!process.stdout.isTTY,
+    escribir: (t) => console.log(t),
+    esperar: (p) => preguntar(p),
+    limpiar: () => process.stdout.write('\x1b[2J\x1b[3J\x1b[H'),
+  },
+): Promise<boolean> {
+  if (!io.tty) {
+    io.escribir(
+      `La cadena del migrador de ${entorno} no se enseña: la salida no es una terminal. ` +
+        'Para guardarla en el sobre (15 §2), repite en una terminal: npm run arranque -- --rotar db',
+    );
+    return false;
+  }
+  io.escribir('\n\x1b[33m' + '═'.repeat(72));
+  io.escribir(` Cadena del migrador de ${entorno} · se muestra UNA sola vez`);
+  io.escribir(' Guárdala ahora en el gestor de contraseñas o en el sobre (15 §2). No se vuelve a enseñar.');
+  io.escribir(' La necesita restaurar (15 §5.3). No la pegues en ningún chat.');
+  io.escribir('═'.repeat(72) + '\x1b[0m\n');
+  io.escribir(cadena);
+  await io.esperar('Pulsa Enter cuando la hayas guardado');
+  io.limpiar();
+  return true;
+}
+
 function secretosGithub(
   e: Entorno,
   sb: DatosSupabase,
@@ -1163,6 +1202,8 @@ async function principal(): Promise<void> {
     const resto = async () => {
       await escribir();
       secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica, vigilancia);
+      // Ya en los secretos: ahora, una vez, para el sobre (DEC-219).
+      if (sb.urlMigrador) await ensenarCadenaMigrador(e.clave, sb.urlMigrador);
     };
     // El Worker de los avisos llama a /api/push con el mismo secreto (docs/19 RV-52): se escribe
     // primero, y si no lo acepta no se toca nada más (docs/20 RV-72).

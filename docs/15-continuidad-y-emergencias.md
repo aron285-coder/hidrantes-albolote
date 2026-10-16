@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Los valores marcados `«…»` los rellena `scripts/arranque.ts` en `docs/entornos.md` y se copian aquí al cerrar la Fase 0; la tabla de §9 se actualiza en cada comprobación. |
-| **Versión** | 1.6 — 15 oct 2026 (`docs/37` RV-493): §5.5, qué hacer con «Este correo de jefatura ya está unido a otra cuenta de Google». 1.5 — 14 oct 2026 (`docs/36` RV-480): §4, qué hacer si la vigilancia desune una cuenta de jefatura y si se repite (DEC-206). 1.4 — 14 oct 2026 (`docs/35` RV-414): §4 con los avisos técnicos a jefatura y su límite (DEC-202); §5.4, la entrada ya no se abre sola al cambiar el código revocando, y se puede revocar desde una hora (DEC-201). 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
+| **Versión** | 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §2, la cadena de `hidrantes_migrador` de cada entorno la enseña `arranque` al crearla o rotarla y va al sobre (la contraseña de `postgres`, no); §5.3 paso 4, la cadena del sobre y, si no está, otra rotación; §9, comprobar en el sobre las dos cadenas. 1.6 — 15 oct 2026 (`docs/37` RV-493): §5.5, qué hacer con «Este correo de jefatura ya está unido a otra cuenta de Google». 1.5 — 14 oct 2026 (`docs/36` RV-480): §4, qué hacer si la vigilancia desune una cuenta de jefatura y si se repite (DEC-206). 1.4 — 14 oct 2026 (`docs/35` RV-414): §4 con los avisos técnicos a jefatura y su límite (DEC-202); §5.4, la entrada ya no se abre sola al cambiar el código revocando, y se puede revocar desde una hora (DEC-201). 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
 | **Propietario de** | qué cuenta controla qué, dónde están las credenciales, y los procedimientos paso a paso para restaurar, revertir, rotar y recuperar el control cuando algo falla o cuando el desarrollador no está. |
 | **Para** | jefatura y quien tenga que hacerse cargo del sistema sin conocerlo. Escrito para leerse con prisa. |
 | **Referencias** | arquitectura en **04**; datos personales en **11**; tareas de construcción en **09** Fase 8. |
@@ -41,7 +41,8 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 | Contraseña + 2FA de la cuenta de Google institucional | entrar en GitHub, Cloudflare y Supabase | gestor de contraseñas de la agrupación (o sobre cerrado en la sede) | jefatura + secretaría |
 | Códigos de recuperación de 2FA (Google, GitHub, Cloudflare, Supabase) | recuperar acceso si se pierde el móvil del 2FA | mismo sitio, entrada aparte | ídem |
 | Clave GPG privada del respaldo (huella `BD378A1E0E09843032B3A70254A89DD4FC82E6CE`) | descifrar un respaldo | guardada el 21 sep 2026 por el desarrollador fuera del repositorio; **no está en GitHub ni en ningún ordenador de trabajo**. La pública sí: secreto `GPG_PUBLIC_KEY` | ídem |
-| Contraseñas de las bases de datos (dev, prod) | `pg_dump`, restauración | mismo sitio; también en los secretos de GitHub (cifrados) | ídem |
+| Cadena de `hidrantes_migrador` de dev y de prod (DEC-219) | `restaurar` (§5.3 paso 4) | la enseña `npm run arranque` **una vez**, al crearla o rotarla (`--rotar db`): al gestor o al sobre. También en los secretos de GitHub, que no se pueden leer | ídem |
+| Contraseña de `postgres` de cada proyecto | crear o rotar el rol del migrador (`--rotar db`) | **no va al sobre**: el proyecto es de la app de uniformidad y esa contraseña abre también su esquema `public`. La tiene el desarrollador o quien lleve ese proyecto | desarrollador |
 | Token de API de Cloudflare | despliegues desde CI | solo en los secretos de GitHub (environments `staging`, `production` y `prod-tareas`); se puede regenerar en un minuto | — |
 | Resto de secretos (`SERVICE_ROLE_KEY`, `SAL_IP`, VAPID, `VIGILANCIA_SECRETO` de los avisos…) | funcionamiento interno | secretos de GitHub y variables de Cloudflare; **todos regenerables** con `npm run arranque` | — |
 | Código de acceso de los voluntarios | entrar en la app | lo ve jefatura en Ajustes del panel | jefatura |
@@ -50,7 +51,7 @@ columna "Cuenta propietaria" dice `«desarrollador»`.
 **Dónde viven los secretos de producción (DEC-172):** en los environments `production` (el despliegue, con su aprobación, DEC-176) y `prod-tareas` (respaldo, purga de fotos, vigilancia, avisos, comprobar-produccion y el despachador; sin revisores y solo desde `develop`). **Ninguno está en el nivel del repositorio.** Los de staging tampoco (DEC-200): van en `staging`, que solo admite `develop`, y los dos que lee `promover-piloto.yml` (`SUPABASE_DB_URL_STAGING`, `SUPABASE_SERVICE_ROLE_KEY_STAGING`), en `production`. En el repositorio solo queda `GPG_PUBLIC_KEY`, que es pública. Para moverlos sin verlos: `npm run traspasar-secreto` (`traspaso.yml`, solo lo lanza quien diga la variable del repositorio `PROPIETARIO`; sirve también para secretos largos como `GPG_PUBLIC_KEY`, docs/32 RV-208). Si la vigilancia abre «Despliegue de producción no autorizado», alguien desplegó el proyecto de Pages de producción sin `deploy-prod`: mirar el despliegue que nombra la issue en Cloudflare y, si no es legítimo, volver al anterior (`wrangler pages deployment …`) y rotar el token de Cloudflare (`npm run arranque -- --rotar cloudflare`).
 
 Regla: lo que no se puede regenerar (contraseña de Google, códigos de recuperación, clave GPG,
-contraseñas de BD) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
+cadenas del migrador) va al gestor o al sobre. Lo demás se regenera y no hace falta guardarlo.
 
 **Tras regenerar un secreto de Cloudflare Pages** (`npm run arranque -- --rotar …`): Pages solo lo
 aplica a los despliegues **nuevos**, y el del repositorio vale al momento. El arranque vuelve a
@@ -228,6 +229,10 @@ El paso 1 (código nuevo con *Revocar todos los dispositivos*) se hace en el pan
    algo falla a la mitad, la base se queda como estaba. Antes comprueba que el archivo es un volcado
    nuestro, que no toca `public` y que el `PROJECT_REF` de la cadena es el de producción. Pide
    confirmación escribiendo `RESTAURAR`.
+
+   **La cadena** (la de `hidrantes_migrador`) es **la del sobre** (§2, DEC-219): el script la pide si no está en
+   `SUPABASE_DB_URL`. Si el sobre no la tiene, otra rotación, `npm run arranque -- --rotar db` (pide la contraseña
+   de `postgres` del proyecto, que tiene el desarrollador o quien lleve uniformidad), y apuntar la nueva en el sobre.
 
    `--entorno` admite exactamente `local`, `staging` y `prod`; `produccion` vale igual que `prod`.
    Cualquier otro valor aborta. Con cualquiera de los dos nombres, la cadena tiene que ser del proyecto
@@ -499,7 +504,7 @@ Entrar siempre con la cuenta institucional. Al terminar en un ordenador que no e
 |---|---|---|---|
 | **Mensual** (5 min) | Salud del sistema en verde; sin issues `vigilancia` abiertas; último respaldo < 8 días | jefatura | |
 | **Trimestral** (15 min) | Entrar en GitHub, Cloudflare y Supabase con la cuenta institucional; comprobar que el 2FA funciona; Dependabot sin PR mayores pendientes desde hace más de un mes | jefatura | |
-| **Anual** (1 h) | Ensayo de restauración en staging (§5.3 contra dev); comprobar el sobre (cerrado, dos firmas); regenerar zona y mapa base desde Ajustes; revisar 11 §8 | jefatura + una segunda persona | |
+| **Anual** (1 h) | Ensayo de restauración en staging (§5.3 contra dev); comprobar el sobre (cerrado, dos firmas; que tenga las dos cadenas del migrador y que sean las de ahora, con una conexión de prueba de solo lectura, DEC-219); regenerar zona y mapa base desde Ajustes; revisar 11 §8 | jefatura + una segunda persona | |
 | **Al cambiar jefatura** | §3; entrega del sobre firmada | ambos | |
 
 Registro de comprobaciones y de incidentes:
