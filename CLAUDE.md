@@ -194,7 +194,8 @@ git add -A && git commit -m "feat(mapa): búsqueda local por código y calle"
 git push -u origin HEAD && gh pr create --base develop --fill
 ```
 
-En Windows, PowerShell o Git Bash desde la carpeta del repositorio. Los finales de línea los
+En Windows, PowerShell o Git Bash desde la carpeta del repositorio; en Git Bash, los comandos que preguntan algo, con
+`winpty` (`winpty npm run arranque -- --rotar db`). Los finales de línea los
 normaliza `.gitattributes` (`eol=lf`): no cambies esa configuración.
 
 Variables locales en `.env.local` (no se commitea): las genera `npm run arranque -- --local`.
