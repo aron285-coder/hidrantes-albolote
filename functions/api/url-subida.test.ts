@@ -154,6 +154,17 @@ describe('POST /api/url-subida', () => {
     }
   });
 
+  // docs/41 RV-539: la reserva responde 200 con algo que no es JSON (mantenimiento, un proxy). Antes
+  // la Function lanzaba y Cloudflare devolvía su 500 genérico; ahora sale el 503 de siempre y el
+  // móvil deja la foto en la cola y reintenta.
+  it('una respuesta ilegible de la base es 503, no un 500 genérico', async () => {
+    const espia = fingirRed({ reserva: new Response('<html>En mantenimiento</html>', { status: 200 }) });
+    const r = await onRequestPost({ request: peticion({ token: TOKEN }), env: ENV });
+    expect(r.status).toBe(503);
+    expect(await r.json()).toEqual({ error: 'SERVIDOR_NO_DISPONIBLE' });
+    espia.mockRestore();
+  });
+
   it('si Storage no firma, 503: la foto se queda en la cola del móvil', async () => {
     for (const firma of [new Response('no', { status: 500 }), new Error('caído')]) {
       const espia = fingirRed({ reserva: reservaOk(), firma });

@@ -252,6 +252,33 @@ describe('rpc', () => {
     expect(await rpc(ENV, 'fn_salud', {})).toEqual({ ok: false, codigo: 'ERROR_INTERNO', estado: 503 });
     roto.mockRestore();
   });
+
+  // Un 200 que no se puede leer (una página de mantenimiento, un proxy por medio, el cuerpo cortado)
+  // es lo mismo que un fallo de red: servidor no disponible, y el móvil reintenta. Antes lanzaba
+  // dentro de la Function y Cloudflare devolvía su 500 genérico (docs/41 RV-539).
+  const SIN_SERVIDOR = { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE', estado: 503 };
+
+  it('un 200 que no es JSON es «sin servidor», no una excepción', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(respuesta('<html>En mantenimiento</html>', 200));
+    expect(await rpc(ENV, 'fn_salud', {})).toEqual(SIN_SERVIDOR);
+    espia.mockRestore();
+  });
+
+  it('un 200 cuyo cuerpo se corta a mitad también', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.reject(new Error('terminated')),
+    } as unknown as Response);
+    expect(await rpc(ENV, 'fn_salud', {})).toEqual(SIN_SERVIDOR);
+    espia.mockRestore();
+  });
+
+  it('un 200 vacío sigue siendo un resultado bueno sin datos', async () => {
+    const espia = vi.spyOn(globalThis, 'fetch').mockResolvedValue(respuesta('', 200));
+    expect(await rpc(ENV, 'fn_proponer', {})).toEqual({ ok: true, datos: null });
+    espia.mockRestore();
+  });
 });
 
 describe('esAdmin (FR-37)', () => {
