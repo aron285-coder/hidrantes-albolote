@@ -70,14 +70,16 @@ on conflict (clave) do update set valor = excluded.valor, actualizado_por = excl
 create temp table acceso_dispositivos on commit drop as
 select * from jsonb_to_recordset(${literal(a.dispositivos)})
   as d(dispositivo_id uuid, token_hash text, emitido_en timestamptz, ultimo_uso timestamptz, revocado_en timestamptz);
--- Todo token restaurado que no esté activo ahora queda revocado.
-update hidrantes.dispositivos d set revocado_en = now()
- where d.revocado_en is null
-   and not exists (select 1 from acceso_dispositivos x where x.token_hash = d.token_hash and x.revocado_en is null);
--- Los activos ahora que el volcado no conocía (emitidos después del respaldo) siguen valiendo.
+-- Primero, los activos ahora que el volcado no conocía (emitidos después del respaldo): siguen valiendo. Antes de
+-- revocar, para que el disparador de la revocación (0050) vea el token válido y no borre las suscripciones de ese
+-- móvil (docs/40 RV-532).
 insert into hidrantes.dispositivos (dispositivo_id, token_hash, emitido_en, ultimo_uso, revocado_en)
 select dispositivo_id, token_hash, emitido_en, ultimo_uso, revocado_en from acceso_dispositivos where revocado_en is null
-on conflict (token_hash) do update set revocado_en = excluded.revocado_en;`);
+on conflict (token_hash) do update set revocado_en = excluded.revocado_en;
+-- Después, todo token restaurado que no esté activo ahora queda revocado.
+update hidrantes.dispositivos d set revocado_en = now()
+ where d.revocado_en is null
+   and not exists (select 1 from acceso_dispositivos x where x.token_hash = d.token_hash and x.revocado_en is null);`);
   }
   if (a.administradores) {
     partes.push(`

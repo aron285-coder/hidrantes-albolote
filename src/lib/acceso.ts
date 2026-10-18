@@ -18,7 +18,7 @@ import {
   olvidarToken,
   renovarDispositivoId,
 } from './sesion';
-import { alEnviarPropuesta, iniciarCola, reintentarCola, vaciarCola } from './cola';
+import { alEnviarPropuesta, iniciarCola, olvidarTokenRechazado, reintentarCola, vaciarCola } from './cola';
 import { alCerrarFormularios, hayFormularioAbierto } from './formulario-abierto';
 import { cargarMisPropuestas, olvidarMisPropuestas } from './mis-propuestas';
 import {
@@ -310,6 +310,8 @@ export async function comprobarAcceso(): Promise<void> {
   if (!sesion) return;
   // La sincronización de puntos valida el token de paso (FR-35, 05 §10).
   const r = await sincronizar(sesion.token);
+  // Sin TOKEN_*, la cola puede volver a preguntar por este token (docs/40 RV-534).
+  if (r.ok || !esErrorDeAcceso(r.codigo)) olvidarTokenRechazado();
   if (!r.ok && esErrorDeAcceso(r.codigo)) {
     // docs/39 RV-520 (DEC-221): con un formulario abierto no se salta a la entrada (se perdería lo escrito). El
     // formulario lo dice y deja guardar en el móvil; al cerrarlo, la entrada (salirSiCaducado).

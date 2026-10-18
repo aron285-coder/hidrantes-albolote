@@ -315,7 +315,7 @@ test.describe('panel de jefatura', () => {
   });
 
   // docs/18 RV-50: la geometría en todas las pantallas del panel, no solo en la cola y el inventario.
-  test('registro, papelera y ajustes', async ({ page }) => {
+  test('registro, papelera y ajustes', async ({ page, isMobile }) => {
     await conGoogle(page, 'jefa@example.org');
     await simularTablas(page, {
       v_puntos_activos: PUNTOS,
@@ -350,7 +350,31 @@ test.describe('panel de jefatura', () => {
       await page.goto(ruta);
       await expect(listo(page)).toBeVisible();
       await auditar(page, `panel · ${nombre}`);
-      await geometria(page, `panel · ${nombre}`, { movil: false });
+      // docs/40 RV-535: en el móvil, también los 44 px y los 8 px de separación (UI-15).
+      await geometria(page, `panel · ${nombre}`, { movil: !!isMobile });
+      // Y lo que queda debajo: se baja pantalla a pantalla (la página o el contenedor que desplaza) y se mide otra vez.
+      for (let paso = 1; paso <= 12; paso++) {
+        const bajado = await page.evaluate(() => {
+          const caja = [...document.querySelectorAll<HTMLElement>('main, main *')].find(
+            (e) => e.scrollHeight > e.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(e).overflowY),
+          );
+          const antes = caja ? caja.scrollTop : scrollY;
+          if (caja) caja.scrollTop += caja.clientHeight * 0.8;
+          else scrollBy(0, innerHeight * 0.8);
+          return (caja ? caja.scrollTop : scrollY) !== antes;
+        });
+        if (!bajado) break;
+        await page.waitForTimeout(100);
+        await geometria(page, `panel · ${nombre} (bajando ${paso})`, { movil: !!isMobile });
+      }
+      // Un diálogo del panel, con su ✕ (Dialogo): en Ajustes, «Generar nuevo».
+      if (nombre === 'ajustes') {
+        await page.getByRole('button', { name: T.panel.generarNuevo }).first().click();
+        const dialogo = page.getByRole('dialog');
+        await expect(dialogo).toBeVisible();
+        await geometria(page, 'panel · diálogo de Ajustes', { movil: !!isMobile });
+        await dialogo.getByRole('button', { name: T.ficha.cerrar }).click();
+      }
     }
   });
 });

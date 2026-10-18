@@ -89,7 +89,17 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL_PROD }}
           VITE_MAPABASE_URL: ${{ vars.VITE_MAPABASE_URL_PROD }}
 
+      # docs/40 RV-531: la cadena, del proyecto de producción, en cuanto dist está comprobado y antes de cualquier otro
+      # paso con secretos: el aviso técnico de abajo la usa solo si esto ha pasado. Si falla algo de antes (preparar,
+      # Wrangler, dist), aún no se ha tocado producción y no hay aviso técnico: «avisar» abre la issue igual.
+      - name: Comprobar el proyecto de la base
+        id: guarda-bd
+        env:
+          BD: ${{ secrets.SUPABASE_DB_URL }}
+        run: node scripts/comprobar-cadena.ts --entorno prod --variable BD
+
       - name: Guarda de seguridad
+        id: guarda
         run: node scripts/guarda-produccion.ts
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -176,8 +186,9 @@ jobs:
       # base de datos. La issue de «avisar» es el aviso principal: si encolar falla, queda como aviso
       # de este paso y no tapa el fallo del despliegue.
       - name: Aviso técnico a jefatura
-        # También si se cancela a mitad (timeout-minutes): «avisar» abre la issue en los dos casos.
-        if: failure() || cancelled()
+        # También si se cancela a mitad (timeout-minutes): «avisar» abre la issue en los dos casos. Solo con las dos
+        # guardas en verde: con la cadena de otro proyecto, el aviso acabaría en esa otra base (docs/40 RV-531).
+        if: (failure() || cancelled()) && steps.guarda.outcome == 'success' && steps.guarda-bd.outcome == 'success'
         env:
           BD: ${{ secrets.SUPABASE_DB_URL }}
         run: |

@@ -194,7 +194,10 @@ export function BarraEstado() {
       )}
       {conError > 0 && (
         // docs/39 RV-521 (DEC-221): un envío que ha fallado no saldrá solo; lleva a Mis propuestas.
-        <p className="bg-tinte-rojo text-tinte-rojo-texto ring-tinte-rojo-borde px-3 text-[13px] ring-1 ring-inset">
+        <p
+          role="status"
+          className="bg-tinte-rojo text-tinte-rojo-texto ring-tinte-rojo-borde px-3 text-[13px] ring-1 ring-inset"
+        >
           <Link to="/mis-propuestas" className="inline-flex min-h-11 items-center underline underline-offset-2">
             {T.mapa.avisoConError(conError)}
           </Link>

@@ -122,6 +122,7 @@ jobs:
 
       # docs/39 RV-518: la cadena tiene que ser del proyecto de producción, antes de cualquier psql o pg_dump.
       - name: Comprobar el proyecto de la base
+        id: guarda
         env:
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: node scripts/comprobar-cadena.ts --entorno prod --variable BD
@@ -284,8 +285,9 @@ jobs:
 
       # Aviso técnico a jefatura (docs/35 RV-412, DEC-202). La issue es el aviso principal: si encolar
       # falla, queda como aviso de este paso y no tapa el fallo del respaldo.
+      # docs/40 RV-531: con la cadena de otro proyecto, el aviso acabaría en esa otra base.
       - name: Aviso técnico a jefatura
-        if: failure()
+        if: failure() && steps.guarda.outcome == 'success'
         env:
           BD: ${{ secrets.SUPABASE_DB_URL_PROD }}
         run: |
@@ -347,6 +349,7 @@ jobs:
 
       # docs/39 RV-518: la cadena tiene que ser del proyecto de staging, antes de cualquier psql o pg_dump.
       - name: Comprobar el proyecto de la base
+        id: guarda
         env:
           BD: ${{ secrets.SUPABASE_DB_URL }}
         run: node scripts/comprobar-cadena.ts --entorno staging --variable BD
@@ -474,8 +477,9 @@ jobs:
 
       # Aviso técnico a la jefatura de staging, la del piloto (RV-404, DEC-202). La issue es el aviso
       # principal: si encolar falla, queda como aviso de este paso y no tapa el fallo del respaldo.
+      # docs/40 RV-531: con la cadena de otro proyecto, el aviso acabaría en esa otra base.
       - name: Aviso técnico a jefatura de staging
-        if: failure() || cancelled()
+        if: (failure() || cancelled()) && steps.guarda.outcome == 'success'
         env:
           BD: ${{ secrets.SUPABASE_DB_URL }}
         run: |

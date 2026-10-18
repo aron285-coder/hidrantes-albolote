@@ -350,6 +350,7 @@ async function prepararSupabase(
   cred: Awaited<ReturnType<typeof pedirCredenciales>>,
   e: Entorno,
   rotarDb: boolean,
+  alTenerMigrador: (cadena: string) => Promise<void>,
 ): Promise<DatosSupabase> {
   log.paso(`3. Supabase · ${e.proyectoSupabase} (${e.clave})`);
   const p = cred.proyectos.find((x) => x.name === e.proyectoSupabase);
@@ -384,6 +385,9 @@ async function prepararSupabase(
     if (quien !== 'hidrantes_migrador') abortar(`El pooler conecta como ${quien}, no como hidrantes_migrador.`);
     ejecutarOk('npx', ['--no-install', 'tsx', 'scripts/migrar.ts'], { env: { SUPABASE_DB_URL: urlMigrador } });
     log.ok('historial de migraciones listo; conexión por el pooler como hidrantes_migrador');
+    // docs/40 RV-530: la clave ya ha cambiado en la base. Antes de nada que pueda abortar (la pregunta de PostGIS, Pages,
+    // el Worker), la cadena va a los secretos de GitHub y se enseña para el sobre.
+    await alTenerMigrador(urlMigrador);
 
     if (!teniaPostgis && e.clave === 'staging') {
       log.aviso('PostGIS se acaba de activar en dev (04 §5). Comprueba que la app de uniformidad sigue bien en dev.');
@@ -571,7 +575,10 @@ async function prepararGpg(rotar: boolean): Promise<string | null> {
 /** Por qué no se puede crear o rotar el migrador sin una terminal (DEC-219), o null si se puede seguir. */
 export function motivoSinTerminal(tocarBd: boolean, tty: boolean): string | null {
   if (!tocarBd || tty) return null;
-  return 'Crear o rotar la clave del migrador enseña su cadena una vez, para el sobre (15 §2), y eso pide una terminal. Lánzalo en una: npm run arranque -- --rotar db';
+  return (
+    'Crear o rotar la clave del migrador enseña su cadena una vez, para el sobre (15 §2), y eso pide una terminal. ' +
+    'Usa PowerShell o Windows Terminal; en Git Bash, winpty npm run arranque -- --rotar db'
+  );
 }
 
 /**
@@ -598,7 +605,8 @@ export async function ensenarCadenaMigrador(
   if (!io.tty) {
     io.escribir(
       `La cadena del migrador de ${entorno} no se enseña: la salida no es una terminal. ` +
-        'Para guardarla en el sobre (15 §2), repite en una terminal: npm run arranque -- --rotar db',
+        'Para guardarla en el sobre (15 §2), repite en PowerShell o Windows Terminal (en Git Bash, con winpty): ' +
+        'npm run arranque -- --rotar db',
     );
     return false;
   }
@@ -613,6 +621,52 @@ export async function ensenarCadenaMigrador(
   return true;
 }
 
+/** Cómo se llama cada entorno donde lo lee una persona (15 §2): «producción», no `production`. */
+export function etiquetaEntorno(clave: string): string {
+  return clave === 'production' ? 'producción' : clave;
+}
+
+/**
+ * docs/40 RV-530: la cadena del migrador recién creada o rotada, a salvo antes de nada que pueda abortar: a los
+ * secretos de GitHub que la usan (la del entorno y la de las tareas, `sitioSecretoTareas`) y, después, a la pantalla
+ * una vez, para el sobre (DEC-219).
+ */
+export async function guardarCadenaMigrador(
+  clave: string,
+  sufijo: string,
+  cadena: string,
+  deps: {
+    fijar: (nombre: string, valor: string, entorno?: string) => void;
+    ensenar: (etiqueta: string, cadena: string) => Promise<boolean>;
+  } = { fijar: fijarSecreto, ensenar: (etiqueta, c) => ensenarCadenaMigrador(etiqueta, c) },
+): Promise<void> {
+  deps.fijar('SUPABASE_DB_URL', cadena, clave);
+  const tareas = `SUPABASE_DB_URL_${sufijo}`;
+  deps.fijar(nombreEnSuSitio(tareas), cadena, sitioSecretoTareas(tareas));
+  log.ok('la cadena nueva del migrador, en los secretos de GitHub');
+  await deps.ensenar(etiquetaEntorno(clave), cadena);
+}
+
+/** Los pasos de un entorno, en su orden (docs/40 RV-530). Fuera de los tests, los de `principal`. */
+export interface PasosEntorno {
+  /** Supabase; con la base tocada, llama a `alTenerMigrador` en cuanto la clave nueva funciona. */
+  supabase: (alTenerMigrador: (cadena: string) => Promise<void>) => Promise<DatosSupabase>;
+  guardarCadena: (cadena: string) => Promise<void>;
+  pages: (sb: DatosSupabase) => Promise<{ vigilancia?: string; resto: () => Promise<void> }>;
+  worker: (vigilancia: string) => EscrituraWorker;
+}
+
+export async function arrancarEntorno(sufijo: string, pasos: PasosEntorno): Promise<DatosSupabase> {
+  const sb = await pasos.supabase(pasos.guardarCadena);
+  const { vigilancia, resto } = await pasos.pages(sb);
+  // El Worker de los avisos llama a /api/push con el mismo secreto (docs/19 RV-52): se escribe
+  // primero, y si no lo acepta no se toca nada más (docs/20 RV-72).
+  if (vigilancia) {
+    await vigilanciaEnOrden(sufijo, () => pasos.worker(vigilancia), resto, { bdRotada: !!sb.urlMigrador });
+  } else await resto();
+  return sb;
+}
+
 function secretosGithub(
   e: Entorno,
   sb: DatosSupabase,
@@ -622,7 +676,7 @@ function secretosGithub(
   vigilancia?: string,
 ) {
   log.paso(`7. Secretos y variables de GitHub · ${e.clave}`);
-  if (sb.urlMigrador) fijarSecreto('SUPABASE_DB_URL', sb.urlMigrador, e.clave);
+  // La cadena del migrador ya está, desde guardarCadenaMigrador (docs/40 RV-530).
   fijarSecreto('SUPABASE_URL', sb.url, e.clave);
   fijarSecreto('SUPABASE_SERVICE_ROLE_KEY', sb.servicio, e.clave);
   if (tokenCf) fijarSecreto('CLOUDFLARE_API_TOKEN', tokenCf, e.clave);
@@ -655,7 +709,6 @@ function secretosGithub(
   // en prod-tareas, sin revisores y solo para develop (DEC-172); los de staging, en `production`,
   // porque solo los lee `promover-piloto.yml` (DEC-078), y el de vigilancia en `staging`
   // (sitioSecretoTareas, docs/35 RV-411). Ninguno en el repositorio.
-  if (sb.urlMigrador) fijarSecretoTareas(`SUPABASE_DB_URL_${sufijo}`, sb.urlMigrador);
   fijarSecretoTareas(`SUPABASE_SERVICE_ROLE_KEY_${sufijo}`, sb.servicio);
   // El Worker hidrantes-avisos llama a /api/push cada 5 minutos con este secreto (DEC-097), y
   // avisos.yml, a mano, también (RV-08).
@@ -869,12 +922,15 @@ export async function vigilanciaEnOrden(
   sufijo: string,
   worker: () => EscrituraWorker,
   resto: () => void | Promise<void>,
+  opciones: { bdRotada?: boolean } = {},
 ): Promise<void> {
   const nombre = `VIGILANCIA_SECRETO_${sufijo}`;
   const w = worker();
   if (w === 'error') {
     abortar(
-      `El Worker hidrantes-avisos no ha aceptado ${nombre}: no se ha tocado Pages ni el repositorio, y todo sigue como estaba. Comprueba la sesión (npx wrangler whoami) y repite el mismo comando.`,
+      opciones.bdRotada
+        ? `El Worker hidrantes-avisos no ha aceptado ${nombre}. La clave del migrador ya está cambiada y guardada en GitHub; Pages y el repositorio no se han tocado. Comprueba la sesión (npx wrangler whoami) y repite el mismo comando.`
+        : `El Worker hidrantes-avisos no ha aceptado ${nombre}: no se ha tocado Pages ni el repositorio, y todo sigue como estaba. Comprueba la sesión (npx wrangler whoami) y repite el mismo comando.`,
     );
   }
   if (w === 'sin-worker') {
@@ -1209,25 +1265,21 @@ async function principal(): Promise<void> {
 
   const datos = new Map<string, DatosSupabase>();
   for (const e of ENTORNOS) {
-    const sb = await prepararSupabase(cred, e, tocarBd);
+    const sufijo = sufijoDe(e);
+    const sb = await arrancarEntorno(sufijo, {
+      supabase: (alTenerMigrador) => prepararSupabase(cred, e, tocarBd, alTenerMigrador),
+      guardarCadena: (cadena) => guardarCadenaMigrador(e.clave, sufijo, cadena),
+      pages: async (sb) => {
+        const { vapidPublica, vigilancia, escribir } = await prepararPages(cred, e, sb, rotar);
+        const resto = async () => {
+          await escribir();
+          secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica, vigilancia);
+        };
+        return { vigilancia, resto };
+      },
+      worker: (vigilancia) => fijarSecretoWorker(`VIGILANCIA_SECRETO_${sufijo}`, vigilancia, cred.tokenCf),
+    });
     datos.set(e.clave, sb);
-    const { vapidPublica, vigilancia, escribir } = await prepararPages(cred, e, sb, rotar);
-    const resto = async () => {
-      await escribir();
-      secretosGithub(e, sb, cred.cuentaCf, tokenCf, vapidPublica, vigilancia);
-      // Ya en los secretos: ahora, una vez, para el sobre (DEC-219).
-      if (sb.urlMigrador) await ensenarCadenaMigrador(e.clave, sb.urlMigrador);
-    };
-    // El Worker de los avisos llama a /api/push con el mismo secreto (docs/19 RV-52): se escribe
-    // primero, y si no lo acepta no se toca nada más (docs/20 RV-72).
-    if (vigilancia) {
-      const sufijo = sufijoDe(e);
-      await vigilanciaEnOrden(
-        sufijo,
-        () => fijarSecretoWorker(`VIGILANCIA_SECRETO_${sufijo}`, vigilancia, cred.tokenCf),
-        resto,
-      );
-    } else await resto();
   }
   const huella = await prepararGpg(rotar.has('gpg'));
 

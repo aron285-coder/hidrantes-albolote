@@ -69,7 +69,8 @@ export function Dialogo({
             type="button"
             onClick={alCerrar}
             aria-label={T.ficha.cerrar}
-            className="-mt-1 -mr-1 flex size-9 items-center justify-center"
+            // 44 px por debajo de 1.100 px (UI-15, docs/40 RV-535); 36 en el ordenador, con ratón.
+            className="-mt-2 -mr-2 flex size-11 items-center justify-center min-[1100px]:-mt-1 min-[1100px]:-mr-1 min-[1100px]:size-9"
           >
             <X size={18} aria-hidden />
           </button>

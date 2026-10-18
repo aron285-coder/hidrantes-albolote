@@ -99,7 +99,8 @@ export function ErrorReintentar({
       <span className="min-w-0 flex-1">{texto}</span>
       <Boton
         variante="secundario"
-        className="min-h-9 text-[13px]"
+        // 44 px por debajo de 1.100 px, como todo toque del panel (UI-15, docs/40 RV-535).
+        className="min-h-11 text-[13px] min-[1100px]:min-h-9"
         disabled={reintentando}
         onClick={() => void otraVez()}
       >

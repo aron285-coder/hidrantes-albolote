@@ -1,20 +1,36 @@
 # Changelog
 
+## [0.18.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.17.0...hidrantes-albolote-v0.18.0) (2026-10-16)
+
+
+### Correcciones
+
+* **ajustes:** Novedades vuelve a enseñar lo de la última versión ([#895](https://github.com/aron285-coder/hidrantes-albolote/issues/895)) ([41f65ea](https://github.com/aron285-coder/hidrantes-albolote/commit/41f65ea417c6006bf7191f1189e3bddb1bf9b657))
+* **avisos:** un móvil sin acceso deja de recibir avisos, también si se revoca mientras se suscribe ([#899](https://github.com/aron285-coder/hidrantes-albolote/issues/899)) ([0fe4424](https://github.com/aron285-coder/hidrantes-albolote/commit/0fe44247b6c877abe21943259cd007d5f8b6b735))
+* **panel:** el detalle de un alta aprobada dice en su título el código del punto que creó ([#900](https://github.com/aron285-coder/hidrantes-albolote/issues/900)) ([6d4dc9c](https://github.com/aron285-coder/hidrantes-albolote/commit/6d4dc9cdb128ec681b9abea2837ff7c6d9874fab))
+* **panel:** en el móvil, «Reintentar» y la ✕ de los diálogos del panel se tocan bien ([#902](https://github.com/aron285-coder/hidrantes-albolote/issues/902)) ([42d826f](https://github.com/aron285-coder/hidrantes-albolote/commit/42d826f7de5114dd577d38ed8c9546132e0f6020))
+* **propuestas:** con el acceso caducado, la pantalla de resultado solo deja volver al mapa ([#901](https://github.com/aron285-coder/hidrantes-albolote/issues/901)) ([61b890a](https://github.com/aron285-coder/hidrantes-albolote/commit/61b890a3f477ad4237da90ddbbb479f577047dee))
+
+
+### Documentación
+
+* la release de la revisión tras docs/39 es la 0.18.0 ([#905](https://github.com/aron285-coder/hidrantes-albolote/issues/905)) ([0e60d39](https://github.com/aron285-coder/hidrantes-albolote/commit/0e60d39a6147abf5ca43db3c326d0b17cdfd4515))
+
 ## [0.17.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.16.1...hidrantes-albolote-v0.17.0) (2026-10-16)
 
 
 ### Novedades
 
-* **avisos:** jefatura recibe un aviso si las tareas automáticas llevan días sin hacerse (docs/39 RV-517) ([#863](https://github.com/aron285-coder/hidrantes-albolote/issues/863)) ([20f1c37](https://github.com/aron285-coder/hidrantes-albolote/commit/20f1c374b4bef685f1d2c3ace1666143f337f77b))
-* **operacion:** la cadena del migrador se enseña una vez al crearla o rotarla, para el sobre (docs/39 RV-516) ([#861](https://github.com/aron285-coder/hidrantes-albolote/issues/861)) ([725a81a](https://github.com/aron285-coder/hidrantes-albolote/commit/725a81a46896c5df7fd77583ba5a055a57bc8173))
-* **panel:** Editar enseña las fotos del punto, y en el mapa del Inventario tocar un punto lo abre (docs/39 RV-523) ([#869](https://github.com/aron285-coder/hidrantes-albolote/issues/869)) ([9c47a92](https://github.com/aron285-coder/hidrantes-albolote/commit/9c47a92f855ce6e3a9d94a379eca3df70376ecfc))
-* **propuestas:** lo que no se ha podido enviar sale en rojo y te lleva a Mis propuestas (docs/39 RV-521) ([#867](https://github.com/aron285-coder/hidrantes-albolote/issues/867)) ([ca87692](https://github.com/aron285-coder/hidrantes-albolote/commit/ca876921b5915a288ce4e1942325da9b9f5e245b))
-* **propuestas:** si cambian el código mientras rellenas algo, no pierdes lo escrito (docs/39 RV-520) ([#866](https://github.com/aron285-coder/hidrantes-albolote/issues/866)) ([b6964c2](https://github.com/aron285-coder/hidrantes-albolote/commit/b6964c228aa53d3395bd667beca7dfebcdb91a47))
+* **avisos:** jefatura recibe un aviso si las tareas automáticas llevan días sin hacerse ([#863](https://github.com/aron285-coder/hidrantes-albolote/issues/863)) ([20f1c37](https://github.com/aron285-coder/hidrantes-albolote/commit/20f1c374b4bef685f1d2c3ace1666143f337f77b))
+* **operacion:** la cadena del migrador se enseña una vez al crearla o rotarla, para el sobre ([#861](https://github.com/aron285-coder/hidrantes-albolote/issues/861)) ([725a81a](https://github.com/aron285-coder/hidrantes-albolote/commit/725a81a46896c5df7fd77583ba5a055a57bc8173))
+* **panel:** Editar enseña las fotos del punto, y en el mapa del Inventario tocar un punto lo abre ([#869](https://github.com/aron285-coder/hidrantes-albolote/issues/869)) ([9c47a92](https://github.com/aron285-coder/hidrantes-albolote/commit/9c47a92f855ce6e3a9d94a379eca3df70376ecfc))
+* **propuestas:** lo que no se ha podido enviar sale en rojo y te lleva a Mis propuestas ([#867](https://github.com/aron285-coder/hidrantes-albolote/issues/867)) ([ca87692](https://github.com/aron285-coder/hidrantes-albolote/commit/ca876921b5915a288ce4e1942325da9b9f5e245b))
+* **propuestas:** si cambian el código mientras rellenas algo, no pierdes lo escrito ([#866](https://github.com/aron285-coder/hidrantes-albolote/issues/866)) ([b6964c2](https://github.com/aron285-coder/hidrantes-albolote/commit/b6964c228aa53d3395bd667beca7dfebcdb91a47))
 
 
 ### Correcciones
 
-* **panel:** el filtro se lee en modo oscuro, un alta aprobada se busca por su código y Salud avisa del respaldo de staging (docs/39 RV-522) ([#868](https://github.com/aron285-coder/hidrantes-albolote/issues/868)) ([001225c](https://github.com/aron285-coder/hidrantes-albolote/commit/001225c6e2e119bccf387d0f15cafeb5ef369690))
+* **panel:** el filtro se lee en modo oscuro, un alta aprobada se busca por su código y Salud avisa del respaldo de staging ([#868](https://github.com/aron285-coder/hidrantes-albolote/issues/868)) ([001225c](https://github.com/aron285-coder/hidrantes-albolote/commit/001225c6e2e119bccf387d0f15cafeb5ef369690))
 
 ## [0.16.1](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.16.0...hidrantes-albolote-v0.16.1) (2026-10-16)
 

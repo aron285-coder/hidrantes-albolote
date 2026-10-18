@@ -723,7 +723,9 @@ function PantallaResultado({ clave, jefatura }: { clave: string; jefatura: boole
         >
           {T.envio.volverAlMapa}
         </Boton>
-        {acceso.tipo === 'voluntario' && (
+        {/* Con el acceso caducado, Mis propuestas pediría la lista con el token revocado: solo «Volver al mapa», que lleva a
+            la entrada (docs/40 RV-534). */}
+        {acceso.tipo === 'voluntario' && !acceso.accesoCaducado && (
           <Boton variante="secundario" className="w-full" onClick={() => navegar('/mis-propuestas', { replace: true })}>
             {T.envio.verMisPropuestas}
           </Boton>

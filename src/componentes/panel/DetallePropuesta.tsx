@@ -37,6 +37,7 @@ import {
   bloqueoPorMedida,
   puntoInactivo,
   avisoPuntoInactivo,
+  codigoCola,
 } from '@/lib/panel/cola';
 import { LIMITES } from '@/lib/limites';
 import { ORDEN_RACORES } from '@/lib/racores';
@@ -213,11 +214,12 @@ export function DetallePropuesta({
         const r = await aprobar(p.id, conDireccion({}, direccion, ensenada), desactualizada);
         return r.ok ? { ok: true as const, datos: r.datos } : r;
       },
-      T.panelCola.aprobada(p.codigo ?? T.panelCola.nuevo),
+      T.panelCola.aprobada(codigoCola(p, puntos)),
       'aprobar',
     );
 
-  const titulo = `${p.codigo ?? T.panelCola.nuevo} · ${ETIQUETA_OPERACION[p.operacion]}`;
+  // Un alta aprobada, con el código del punto que creó (docs/40 RV-533), como la lista y el aria-label.
+  const titulo = `${codigoCola(p, puntos)} · ${ETIQUETA_OPERACION[p.operacion]}`;
   // Solo un hidrante de "otra medida" impide aprobar tal cual; una boca se aprueba con su número (DEC-144).
   const bloqueoAprobar = bloqueoPorMedida(p, punto);
   const comparar = pendiente && p.operacion === 'alta' && duplicado;
@@ -308,7 +310,7 @@ export function DetallePropuesta({
                           const r = await aprobar(p.id, conDireccion(c, dir, ensenada), desactualizada);
                           return r.ok ? { ok: true as const } : r;
                         },
-                        T.panelCola.aprobadaConCorrecciones(p.codigo ?? T.panelCola.nuevo),
+                        T.panelCola.aprobadaConCorrecciones(codigoCola(p, puntos)),
                         'aprobar',
                       )
                     }
