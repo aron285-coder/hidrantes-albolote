@@ -189,8 +189,27 @@ export async function rpc<T>(
   } catch {
     return { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE', estado: 503 };
   }
-  const texto = await r.text();
-  if (r.ok) return { ok: true, datos: (texto ? JSON.parse(texto) : null) as T };
+  // Leer el cuerpo también puede fallar: una página de mantenimiento o un proxy por medio devuelven
+  // un 200 que no es JSON, y una conexión que se corta deja `text()` a medias. Eso no es un error
+  // del sistema, es el servidor que no está: el mismo resultado que un fallo de red, con el que el
+  // móvil reintenta y no pierde ni el código ni la cola. Antes lanzaba aquí y Cloudflare respondía
+  // su 500 genérico (docs/41 RV-539).
+  //
+  // Que una escritura pase a 503 no duplica nada: `fn_proponer` es idempotente por `clave_local`
+  // (FR-49) y un canje repetido de `fn_verificar_codigo` devuelve otro token, no un error.
+  let texto: string;
+  try {
+    texto = await r.text();
+  } catch {
+    return { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE', estado: 503 };
+  }
+  if (r.ok) {
+    try {
+      return { ok: true, datos: (texto ? JSON.parse(texto) : null) as T };
+    } catch {
+      return { ok: false, codigo: 'SERVIDOR_NO_DISPONIBLE', estado: 503 };
+    }
+  }
   let codigo = 'ERROR_INTERNO';
   let mensaje: string | undefined;
   try {

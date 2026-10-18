@@ -139,12 +139,9 @@ async function leerUsuario(env: Env, jwt: string): Promise<Lectura> {
 
 /** Deshace la unión. Devuelve null si se ha deshecho, o por qué no. */
 async function desunir(env: Env, correo: string): Promise<string | null> {
-  let r: ResultadoRpc<unknown>;
-  try {
-    r = await rpc<unknown>(env, 'fn_desvincular_administrador', { correo });
-  } catch {
-    return 'rpc respuesta no JSON';
-  }
+  // El ayudante de `comun.ts` ya no lanza con un 2xx ilegible: lo devuelve como
+  // SERVIDOR_NO_DISPONIBLE (docs/41 RV-539).
+  const r: ResultadoRpc<unknown> = await rpc<unknown>(env, 'fn_desvincular_administrador', { correo });
   if (!r.ok) return `rpc ${r.codigo} ${r.estado}`;
   // Justo después de unirla, «no estaba unida» no debería pasar: se anota igual.
   return r.datos === true ? null : 'no estaba unida';
@@ -211,14 +208,11 @@ export const onRequestPost: Manejador = async ({ request, env }) => {
     return error(403, 'CUENTA_MEZCLADA');
   }
 
-  let r: ResultadoRpc<unknown>;
-  try {
-    r = await rpc<unknown>(env, 'fn_vincular_administrador', { usuario: usuario.id, correo });
-  } catch {
-    // El ayudante de comun.ts no captura un 200 con un cuerpo que no es JSON.
-    await anotar(env, 'rpc respuesta no JSON');
-    return error(500, 'ERROR_INTERNO');
-  }
+  // Un 2xx ilegible llega como SERVIDOR_NO_DISPONIBLE, con su 503 de abajo (docs/41 RV-539).
+  const r: ResultadoRpc<unknown> = await rpc<unknown>(env, 'fn_vincular_administrador', {
+    usuario: usuario.id,
+    correo,
+  });
   if (!r.ok) {
     await anotar(env, `rpc ${r.codigo} ${r.estado}`);
     return r.estado === 503 ? error(503, 'SERVIDOR_NO_DISPONIBLE') : error(500, 'ERROR_INTERNO');

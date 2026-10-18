@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con conformidad de jefatura (si afecta a datos que ve) y nueva versión; todo cambio arrastra una entrada en 12 y una migración nueva. |
-| **Versión** | 1.9 — 16 de octubre de 2026 (`docs/40` RV-536): §2.10, la fila `vigilar_respaldo`. 1.8 — 16 de octubre de 2026 (`docs/40` RV-532, migración 0052): §2.12, el cerrojo por móvil también en el disparador de la revocación, y guardar una suscripción comprueba el token después de tomarlo · 1.7 — 16 de octubre de 2026 (`docs/39` RV-517, DEC-220, migración 0051): la clave `tareas_paradas` (§2.16), `fn_vigilar_tareas` y la tarea `hidrantes_vigilar_tareas` (§6.3), y `config.vigilar_respaldo`. 1.6 — 16 de octubre de 2026 (`docs/39` RV-515, DEC-218, migración 0050): avisos push, comprobaciones del destino y tope por móvil (§2.12, §6.1, §6.3). 1.5 — 15 de octubre de 2026 (`docs/37` RV-495), aprobada por el desarrollador al pedir el cambio (DEC-177): recoge los cambios de `docs/35` y `docs/36` (DEC-197 a DEC-208; migraciones 0045 a 0048: jefatura atada a su cuenta de Google, avisos técnicos, la entrada con el código, los móviles recién entrados y la versión al editar) y de `docs/37` (DEC-211; migración 0049: la entrada abierta para la Function y cualquier versión distinta en Editar). Los topes de §2.6 y §2.10 tienen ahora su exigencia en 03 (TR-48, TR-49, TR-56). Las versiones intermedias no se numeraron: cada cambio está anotado en su sección con su migración y su especificación. 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
+| **Versión** | 1.10 — 18 de octubre de 2026 (`docs/41` RV-539): §9, un 2xx que no se puede leer cuenta como servidor no disponible. 1.9 — 16 de octubre de 2026 (`docs/40` RV-536): §2.10, la fila `vigilar_respaldo`. 1.8 — 16 de octubre de 2026 (`docs/40` RV-532, migración 0052): §2.12, el cerrojo por móvil también en el disparador de la revocación, y guardar una suscripción comprueba el token después de tomarlo · 1.7 — 16 de octubre de 2026 (`docs/39` RV-517, DEC-220, migración 0051): la clave `tareas_paradas` (§2.16), `fn_vigilar_tareas` y la tarea `hidrantes_vigilar_tareas` (§6.3), y `config.vigilar_respaldo`. 1.6 — 16 de octubre de 2026 (`docs/39` RV-515, DEC-218, migración 0050): avisos push, comprobaciones del destino y tope por móvil (§2.12, §6.1, §6.3). 1.5 — 15 de octubre de 2026 (`docs/37` RV-495), aprobada por el desarrollador al pedir el cambio (DEC-177): recoge los cambios de `docs/35` y `docs/36` (DEC-197 a DEC-208; migraciones 0045 a 0048: jefatura atada a su cuenta de Google, avisos técnicos, la entrada con el código, los móviles recién entrados y la versión al editar) y de `docs/37` (DEC-211; migración 0049: la entrada abierta para la Function y cualquier versión distinta en Editar). Los topes de §2.6 y §2.10 tienen ahora su exigencia en 03 (TR-48, TR-49, TR-56). Las versiones intermedias no se numeraron: cada cambio está anotado en su sección con su migración y su especificación. 1.4 — 20 de septiembre de 2026. v1.1 añadió push, exportación y las Functions nuevas; v1.2 añade §12 (concurrencia y aislamiento en las escrituras), tras la revisión de la app de uniformidad (DEC-048); v1.3 ajusta lo aprendido al construir la Fase 2 (DEC-058) y la Fase 3 (DEC-059); v1.4 añade a `v_cola_revision` el núcleo y la fecha del punto que necesita el panel (DEC-065, migración 0008). |
 | **Propietario de** | **campos, tipos, constraints, índices, vistas, políticas RLS, firmas de las RPC y contrato HTTP de las Pages Functions.** El documento más consultado durante la construcción; 04 y 09 lo citan, no lo repiten. |
 | **No contiene** | la motivación de las decisiones (→ 04, 12) ni las reglas funcionales (→ 01, citadas por `FR-nn`). |
 
@@ -1156,6 +1156,12 @@ cuando la respuesta no trae un código de los de arriba (un `PGRST…` durante u
 Todas en `functions/api/`, JSON, mismo dominio que el frontend. Errores: `{ error: <código>, mensaje }`
 con el estado HTTP indicado.
 
+**Un 2xx que no se puede leer cuenta como servidor no disponible** (`docs/41` RV-539): si la respuesta de
+la base de datos llega con un 200 pero su cuerpo no es JSON (una página de mantenimiento, un proxy por medio)
+o se corta a mitad, el ayudante `rpc()` devuelve `SERVIDOR_NO_DISPONIBLE` y la Function responde
+`503`, como con un fallo de red. No es un `500`: el móvil reintenta y no pierde el código ni la cola, y
+ninguna escritura se duplica (`fn_proponer` es idempotente por `clave_local`, FR-49).
+
 **Solo peticiones de la propia app** (docs/35 RV-401, DEC-199): toda Function con `POST` empieza por
 `exigirMismoOrigen(peticion)` (`functions/_lib/comun.ts`) y responde `403 { "error": "ORIGEN_NO_PERMITIDO" }`,
 sin leer el cuerpo ni llamar a nadie, si: el `Content-Type` no es `application/json` (sin cuerpo puede
@@ -1334,8 +1340,8 @@ se lee.
      hace: tras la primera unión dice «No autorizado» y basta con volver a entrar una vez (excepción a
      la compatibilidad una versión atrás, DEC-206);
    - `NO_ES_ADMINISTRADOR` u `OTRA_CUENTA` → `403 { "error": "<ese código>" }`;
-   - la base de datos sin responder → `503 SERVIDOR_NO_DISPONIBLE`; otro fallo, un 200 que no es JSON
-     o un resultado desconocido → `500 ERROR_INTERNO`.
+   - la base de datos sin responder, o un 2xx que no se puede leer → `503 SERVIDOR_NO_DISPONIBLE`
+     (`docs/41` RV-539); otro fallo o un resultado desconocido → `500 ERROR_INTERNO`.
 
 `CUENTA_MEZCLADA` (`vincular_jefatura: cuenta con otra identidad (<regla>)`, con `<regla>` =
 `correo de la cuenta distinto`, `sin identidades`, `identidad <proveedor> con otro correo` o

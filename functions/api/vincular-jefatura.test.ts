@@ -393,12 +393,20 @@ describe('POST /api/vincular-jefatura', () => {
 
   it.each([
     ['un resultado desconocido', new Response('"OTRA_COSA"'), 'vincular_jefatura: rpc resultado inesperado'],
-    ['un 200 que no es JSON', new Response('<html>'), 'vincular_jefatura: rpc respuesta no JSON'],
     ['un error 400', new Response('{"code":"XX000"}', { status: 400 }), 'vincular_jefatura: rpc ERROR_INTERNO 400'],
   ])('la RPC con %s → 500 anotado', async (_, vincular, mensaje) => {
     const { llamadas } = fingirRed({ vincular });
     expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(500);
     expect(anotado(llamadas)).toEqual([mensaje]);
+  });
+
+  // docs/41 RV-539: un 2xx ilegible ya no es un error del sistema, lo trata `rpc()` como servidor no
+  // disponible. Antes salía como 500 y «rpc respuesta no JSON»; ahora, 503, y el panel vuelve a
+  // intentarlo en vez de decir que algo ha fallado.
+  it('la RPC con un 200 que no es JSON → 503 anotado como servidor no disponible', async () => {
+    const { llamadas } = fingirRed({ vincular: new Response('<html>') });
+    expect((await onRequestPost({ request: peticion(), env: ENV })).status).toBe(503);
+    expect(anotado(llamadas)).toEqual(['vincular_jefatura: rpc SERVIDOR_NO_DISPONIBLE 503']);
   });
 
   it('si ni siquiera se puede anotar, queda en el registro del Worker', async () => {
