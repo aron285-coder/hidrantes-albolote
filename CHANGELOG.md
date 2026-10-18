@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.19.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.18.0...hidrantes-albolote-v0.19.0) (2026-10-18)
+
+
+### Novedades
+
+* **vigilancia:** revisar cada dia los limites del bucket de fotos ([#923](https://github.com/aron285-coder/hidrantes-albolote/issues/923)) ([685692e](https://github.com/aron285-coder/hidrantes-albolote/commit/685692ee038a15d1292fe927f77c82c978bfcf8c))
+
+
+### Correcciones
+
+* **servidor:** una respuesta ilegible de la base cuenta como falta de servidor ([#921](https://github.com/aron285-coder/hidrantes-albolote/issues/921)) ([4ccf16f](https://github.com/aron285-coder/hidrantes-albolote/commit/4ccf16f429849d36300f41cacabb5fade7dedcc7))
+
 ## [0.18.0](https://github.com/aron285-coder/hidrantes-albolote/compare/hidrantes-albolote-v0.17.0...hidrantes-albolote-v0.18.0) (2026-10-16)
 
 
