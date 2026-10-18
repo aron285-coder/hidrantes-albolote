@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Congelado. Cambia con una especificación, aprobada por el desarrollador al pedirla (DEC-177), y nueva versión; cada cambio arrastra una entrada en 12. |
-| **Versión** | 1.11 — 16 oct 2026 (`docs/40` RV-531): §9, la guarda de proyecto en `respaldo.yml`, `purgar-fotos.yml` (también la URL de la API) y `deploy-prod.yml`, y los avisos de fallo solo con la guarda en verde. 1.10 — 16 oct 2026 (`docs/39` RV-524, DEC-223): §4, el nombre de la app por entorno. 1.9 — 16 oct 2026 (`docs/39` RV-518): §4 y §9, los despliegues, el seed, la purga de fotos y el respaldo comprueban el proyecto de la base. 1.8 — 16 oct 2026 (`docs/39` RV-517, DEC-220): §9, la tarea `hidrantes_vigilar_tareas`. 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §5, la cadena del migrador, en el sobre. · 1.6 — 15 oct 2026 (`docs/37` RV-490, DEC-210): §11.2 y la tabla de workflows, `dist` comprobado antes de desplegar y el sondeo de las Functions tras desplegar. 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
+| **Versión** | 1.12 — 18 oct 2026 (`docs/41` RV-540): §7, los límites del bucket de fotos en un solo módulo y revisados cada día por la vigilancia. 1.11 — 16 oct 2026 (`docs/40` RV-531): §9, la guarda de proyecto en `respaldo.yml`, `purgar-fotos.yml` (también la URL de la API) y `deploy-prod.yml`, y los avisos de fallo solo con la guarda en verde. 1.10 — 16 oct 2026 (`docs/39` RV-524, DEC-223): §4, el nombre de la app por entorno. 1.9 — 16 oct 2026 (`docs/39` RV-518): §4 y §9, los despliegues, el seed, la purga de fotos y el respaldo comprueban el proyecto de la base. 1.8 — 16 oct 2026 (`docs/39` RV-517, DEC-220): §9, la tarea `hidrantes_vigilar_tareas`. 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §5, la cadena del migrador, en el sobre. · 1.6 — 15 oct 2026 (`docs/37` RV-490, DEC-210): §11.2 y la tabla de workflows, `dist` comprobado antes de desplegar y el sondeo de las Functions tras desplegar. 1.5 — 14 oct 2026 (DEC-204): §11 con la estructura real del repositorio y §15 con qué skills están en Git y cuáles instala el arranque. 1.4 — 13 oct 2026 (`docs/35` RV-414): la cabecera, con DEC-177; las Pages Functions sin número (DEC-195) y `/api/lanzar-workflow` como pedido (DEC-172); las reservas de subida, de 2 días, y el tope de grupo de 150 fotos en 24 h (DEC-174, DEC-182, DEC-191), con los valores vigentes en 05 §2. 1.2 — 17 de septiembre de 2026. Consolida el plan v2.1; v1.1 añadió skills, cabeceras, vigilancia y push; v1.2 añade §11.1 (control de versiones con Git y GitHub) y la ubicación local del repositorio; v1.3 (18 sep 2026) añade el rol `hidrantes_migrador` (DEC-052), repositorio público (DEC-053), `mantener-activo.yml` (DEC-054) y los ajustes del arranque (DEC-055). |
 | **Propietario de** | las **decisiones de infraestructura y despliegue**: qué piezas hay, dónde corren, cómo se despliegan y cómo se vuelve atrás. |
 | **No contiene** | el esquema ni las firmas (→ 05), las exigencias que motivan estas decisiones (→ 03), procedimientos de emergencia paso a paso (→ 15). |
 
@@ -272,8 +272,16 @@ sequenceDiagram
   M->>DB: fn_proponer(…, foto_path, foto_sitio_path)
 ```
 
-- **Ninguna política de escritura para `anon`.** Límites del bucket (fijados por `arranque.ts`): 5 MB,
-  `image/jpeg` e `image/webp`; sin `list`, `update` ni `delete` para nadie salvo `service_role`.
+- **Ninguna política de escritura para `anon`.** Límites del bucket: 5 MB, `image/jpeg` e `image/webp`;
+  sin `list`, `update` ni `delete` para nadie salvo `service_role`. Los tres valores viven en
+  `scripts/lib/bucket-fotos.ts` (`CONFIG_BUCKET_FOTOS`): de ahí los lee `arranque.ts` al crear el bucket,
+  `supabase/sql/local-storage.sql` para la pila local, y la vigilancia para revisarlos.
+- **La vigilancia los revisa cada día** (`docs/41` RV-540), en los dos entornos, en un paso propio con la
+  service role (`.github/scripts/revisar-bucket.sh` → `scripts/revisar-bucket.ts`, que solo lee). El
+  proyecto de Supabase es el de la app de uniformidad: un cambio desde su panel —otro tope, otro tipo,
+  `public` quitado— dejaría pasar lo que no debe, o las fotos sin verse, sin que nadie se enterara.
+  Cualquier diferencia es un problema de la vigilancia y un aviso técnico a jefatura, y se repone con
+  `npm run arranque -- --solo-bucket --entorno <staging|production>` (procedimiento en 15).
 - **Lectura pública** por URL no enumerable (uuid). Las URL firmadas de lectura romperían la caché
   offline de fichas; se descarta a sabiendas. La foto retrata un hidrante, no una persona (11).
 - **Las fotos no se mueven al aprobar.** Storage guarda los bytes fuera de Postgres; una función SQL

@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Los valores marcados `«…»` los rellena `scripts/arranque.ts` en `docs/entornos.md` y se copian aquí al cerrar la Fase 0; la tabla de §9 se actualiza en cada comprobación. |
-| **Versión** | 1.10 — 16 oct 2026 (`docs/40` RV-530): §2 y §5.3, `--rotar db` en PowerShell (en Git Bash, con `winpty`) y la cadena guardada en GitHub y enseñada antes de nada que pueda abortar · 1.9 — 16 oct 2026 (`docs/39` RV-519): §2, quién tiene hoy la clave del respaldo y las cadenas del migrador (#858). 1.8 — 16 oct 2026 (`docs/39` RV-517, DEC-220): §4 punto 9, el aviso «Las tareas automáticas… llevan días sin hacerse» y qué hacer. 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §2, la cadena de `hidrantes_migrador` de cada entorno la enseña `arranque` al crearla o rotarla y va al sobre (la contraseña de `postgres`, no); §5.3 paso 4, la cadena del sobre y, si no está, otra rotación; §9, comprobar en el sobre las dos cadenas. 1.6 — 15 oct 2026 (`docs/37` RV-493): §5.5, qué hacer con «Este correo de jefatura ya está unido a otra cuenta de Google». 1.5 — 14 oct 2026 (`docs/36` RV-480): §4, qué hacer si la vigilancia desune una cuenta de jefatura y si se repite (DEC-206). 1.4 — 14 oct 2026 (`docs/35` RV-414): §4 con los avisos técnicos a jefatura y su límite (DEC-202); §5.4, la entrada ya no se abre sola al cambiar el código revocando, y se puede revocar desde una hora (DEC-201). 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
+| **Versión** | 1.11 — 18 oct 2026 (`docs/41` RV-540): §5.11, reponer los límites del bucket de fotos cuando la vigilancia avisa. 1.10 — 16 oct 2026 (`docs/40` RV-530): §2 y §5.3, `--rotar db` en PowerShell (en Git Bash, con `winpty`) y la cadena guardada en GitHub y enseñada antes de nada que pueda abortar · 1.9 — 16 oct 2026 (`docs/39` RV-519): §2, quién tiene hoy la clave del respaldo y las cadenas del migrador (#858). 1.8 — 16 oct 2026 (`docs/39` RV-517, DEC-220): §4 punto 9, el aviso «Las tareas automáticas… llevan días sin hacerse» y qué hacer. 1.7 — 16 oct 2026 (`docs/39` RV-516, DEC-219): §2, la cadena de `hidrantes_migrador` de cada entorno la enseña `arranque` al crearla o rotarla y va al sobre (la contraseña de `postgres`, no); §5.3 paso 4, la cadena del sobre y, si no está, otra rotación; §9, comprobar en el sobre las dos cadenas. 1.6 — 15 oct 2026 (`docs/37` RV-493): §5.5, qué hacer con «Este correo de jefatura ya está unido a otra cuenta de Google». 1.5 — 14 oct 2026 (`docs/36` RV-480): §4, qué hacer si la vigilancia desune una cuenta de jefatura y si se repite (DEC-206). 1.4 — 14 oct 2026 (`docs/35` RV-414): §4 con los avisos técnicos a jefatura y su límite (DEC-202); §5.4, la entrada ya no se abre sola al cambiar el código revocando, y se puede revocar desde una hora (DEC-201). 1.3 — 13 oct 2026 (`docs/35` RV-414): producción la aprueba la puerta automática de `npm run publicar` (DEC-176) en §2, §4, §5.2 y §5.6; §10 sin tabla de contactos. 1.2 — 22 de septiembre de 2026: §1 y §2 con los datos reales del arranque, el ensayo de restauración anotado y el registro de §9 estrenado (F9.8). 1.0 — 17 de septiembre de 2026 |
 | **Propietario de** | qué cuenta controla qué, dónde están las credenciales, y los procedimientos paso a paso para restaurar, revertir, rotar y recuperar el control cuando algo falla o cuando el desarrollador no está. |
 | **Para** | jefatura y quien tenga que hacerse cargo del sistema sin conocerlo. Escrito para leerse con prisa. |
 | **Referencias** | arquitectura en **04**; datos personales en **11**; tareas de construcción en **09** Fase 8. |
@@ -444,6 +444,30 @@ No es una emergencia: 11 §6.4. Ya no hay botón en el panel (DEC-167): el desar
 su PC con `npm run anonimizar` (`--buscar` para localizar el dispositivo, `--dispositivo` para
 anonimizarlo, escribiendo `ANONIMIZAR`).
 
+### 5.11 La vigilancia dice que el bucket de fotos ha cambiado
+
+**Gravedad:** media. **Tiempo:** diez minutos. **Quién:** el desarrollador.
+
+La vigilancia compara cada día los límites del bucket con los que tiene que haber (04 §7) y avisa si
+no coinciden: «bucket de fotos: file_size_limit distinto», «allowed_mime_types distinto» o «public
+distinto». El proyecto de Supabase es el de la app de uniformidad, así que lo normal es que alguien
+los haya cambiado desde su panel. Mientras estén así: con el tope más alto o un tipo de más entra lo
+que no debería; sin `public`, las fotos dejan de verse (también las ya guardadas en los móviles).
+
+1. Mirar qué campo dice el aviso. No hace falta entrar en el panel de Supabase.
+2. Reponerlos, con la URL del proyecto (`docs/entornos.md`) y la `service_role` del sobre (§5.4):
+
+   ```
+   SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm run arranque -- --solo-bucket --entorno production
+   ```
+
+   (`--entorno staging` para el de staging.) Solo toca esos tres límites: no pide credenciales, ni
+   toca la base de datos, ni los secretos.
+3. Comprobar: la vigilancia del día siguiente ya no avisa. Para no esperar, lanzarla a mano
+   (`gh workflow run vigilancia.yml`) y ver el paso «Revisar el bucket de fotos» en verde.
+4. Si vuelve a cambiar sin que nadie lo haya tocado, avisar a quien lleva la app de uniformidad: el
+   proyecto de Supabase es compartido.
+
 ---
 
 ## 6. Marcha atrás de un despliegue del frontend (sin emergencia)
@@ -537,3 +561,4 @@ Los contactos van en el sobre y en el gestor de contraseñas, nunca aquí: el re
 | 5.3 | plan v2.1 Fase 8 (respaldo GPG, prueba de restauración); TR-50–51 |
 | 5.4–5.6 | 11 §3, §9 |
 | 4, 9 | TR-102 (vigilancia), FR-143 (Salud) |
+| 5.11 | `docs/41` RV-540 (los límites del bucket, vigilados); 04 §7 |
