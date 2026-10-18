@@ -104,17 +104,18 @@ dispositivo · zona de cobertura · fuera de zona.
 
 ## 5. Cómo se trabaja
 
-**Hasta el piloto, DEC-193 (salvo `docs/35`, `docs/36`, `docs/38`, `docs/39` y `docs/40`, DEC-196, DEC-205, DEC-212, DEC-216 y DEC-224; `docs/37` cabe dentro, DEC-209): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
+**Hasta el piloto, DEC-193 (salvo `docs/35`, `docs/36`, `docs/38`, `docs/39`, `docs/40` y `docs/41`, DEC-196, DEC-205, DEC-212, DEC-216, DEC-224 y DEC-228; `docs/37` cabe dentro, DEC-209): congelación.** La aplicación está terminada; lo que queda (#76 a #85) lo hace la
 agrupación. Solo entran en `develop`:
 
 1. arreglos de una issue `bloquea-release`;
 2. lo que salga de la validación (#76) o del piloto (#77, #78), cada uno con su issue (etiqueta `piloto`);
 3. mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas programadas, estos archivos).
 
-Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. Las únicas
+Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. Las
 excepciones fueron `docs/35`, `docs/36`, `docs/38`, `docs/39` y `docs/40` (DEC-196, DEC-205, DEC-212, DEC-216 y DEC-224), todas en producción y
-archivadas: **hoy no hay ninguna excepción abierta**;
-`docs/41`, la de después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md`.
+archivadas, y **hoy está abierta `docs/41`** (DEC-228): los límites de las fotos vigilados, `rpc()` sin 500 y los
+huecos de las pruebas, antes de empezar el piloto;
+`docs/42`, la de después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md`.
 
 1. Qué coger: si te han pedido algo concreto, eso. Si no, la issue `bloquea-release` más antigua y después la
    `piloto` más antigua. **Nunca** una con `organizacion` (es trabajo de personas: validar, dar la sesión,
@@ -182,6 +183,7 @@ npm run migrar -- --local     # aplica supabase/migrations con psql
 npm run dev                   # Vite en :5173
 npm run build && npm run functions:dev   # Pages Functions en :8788 sobre dist/ (vite les pasa /api)
 npm test                      # vitest
+npm test -- --coverage        # con el informe de cobertura, el mismo que mide la CI (DEC-230)
 npm run test:sql              # pgTAP contra la instancia local
 npm run e2e                   # Playwright (levanta todo lo anterior); npm run e2e:rapido sin los de rendimiento
 npm run typecheck && npm run lint && npm run formato:comprobar   # lo que mira ci-calidad, antes de cada PR
