@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Estado** | Vivo. Cada decisión se anota **el mismo día** que se toma. Nunca se edita una entrada cerrada: si cambia, se añade otra que la sustituye y se enlazan. |
-| **Versión** | 1.74 — 16 oct 2026 (DEC-227, la versión que pide una especificación, con `Release-As`, `docs/40` RV-537) · 1.73 — 16 oct 2026 (DEC-113 punto 3, sustituido por DEC-203 y `docs/39` RV-522, `docs/40` RV-536) · 1.72 — 16 oct 2026 (DEC-221 punto 3, al recargar con el acceso caducado, `docs/40` RV-534) · 1.71 — 16 oct 2026 (DEC-218, «Afecta a» con `0052`, `docs/40` RV-532) · 1.70 — 16 oct 2026 (DEC-224 a DEC-226, de `docs/40`; `docs/41` en DEC-193, DEC-196, DEC-205, DEC-209, DEC-212 y DEC-216) · 1.69 — 16 oct 2026 (DEC-218 con su texto completo, tras 0.16.1, `docs/39` §0.7) · 1.68 — 16 oct 2026 (DEC-216 a DEC-223, de `docs/39`; DEC-218 con texto neutro hasta 0.16.1; `docs/40` en DEC-193, DEC-196, DEC-205, DEC-209 y DEC-212) · 1.67 — 15 oct 2026 (DEC-212 a DEC-215, de `docs/38`; `docs/39` en DEC-193, DEC-196, DEC-205 y DEC-209; DEC-168, DEC-171 y DEC-192 matizadas) · 1.66 — 15 oct 2026 (`docs/37` RV-497: el índice por documento afectado con DEC-157 a DEC-211; DEC-199 y DEC-201 sin la versión de 03, y DEC-204 sin el recuento de migraciones, DEC-195) · 1.65 — 15 oct 2026 (DEC-209 a DEC-211, de `docs/37`; `docs/38` en DEC-193, DEC-196 y DEC-205) · 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
+| **Versión** | 1.75 — 18 oct 2026 (DEC-228 a DEC-230, de `docs/41`; `docs/42` en DEC-193, DEC-196, DEC-205, DEC-209, DEC-212, DEC-216 y DEC-224) · 1.74 — 16 oct 2026 (DEC-227, la versión que pide una especificación, con `Release-As`, `docs/40` RV-537) · 1.73 — 16 oct 2026 (DEC-113 punto 3, sustituido por DEC-203 y `docs/39` RV-522, `docs/40` RV-536) · 1.72 — 16 oct 2026 (DEC-221 punto 3, al recargar con el acceso caducado, `docs/40` RV-534) · 1.71 — 16 oct 2026 (DEC-218, «Afecta a» con `0052`, `docs/40` RV-532) · 1.70 — 16 oct 2026 (DEC-224 a DEC-226, de `docs/40`; `docs/41` en DEC-193, DEC-196, DEC-205, DEC-209, DEC-212 y DEC-216) · 1.69 — 16 oct 2026 (DEC-218 con su texto completo, tras 0.16.1, `docs/39` §0.7) · 1.68 — 16 oct 2026 (DEC-216 a DEC-223, de `docs/39`; DEC-218 con texto neutro hasta 0.16.1; `docs/40` en DEC-193, DEC-196, DEC-205, DEC-209 y DEC-212) · 1.67 — 15 oct 2026 (DEC-212 a DEC-215, de `docs/38`; `docs/39` en DEC-193, DEC-196, DEC-205 y DEC-209; DEC-168, DEC-171 y DEC-192 matizadas) · 1.66 — 15 oct 2026 (`docs/37` RV-497: el índice por documento afectado con DEC-157 a DEC-211; DEC-199 y DEC-201 sin la versión de 03, y DEC-204 sin el recuento de migraciones, DEC-195) · 1.65 — 15 oct 2026 (DEC-209 a DEC-211, de `docs/37`; `docs/38` en DEC-193, DEC-196 y DEC-205) · 1.64 — 14 oct 2026 (DEC-205 a DEC-208, de `docs/36`; matices a DEC-197, DEC-198, DEC-199 y DEC-202; `docs/37` en DEC-193 y DEC-196) · 1.63 — 14 oct 2026 (DEC-197 a DEC-203, de `docs/35`; DEC-190 «se abre sola», sustituido por DEC-201; DEC-196 con el «Descartado» literal) · 1.62 — 14 oct 2026 (DEC-204) · 1.61 — 13 oct 2026 (DEC-196; DEC-068 puntos 5 y 6 y DEC-069, sustituidas por DEC-172; v1.60 — 10 oct 2026: DEC-193 y DEC-195; v1.59: DEC-194; v1.58: DEC-185 y DEC-186; v1.57: DEC-180 a DEC-184; v1.56: DEC-172 a DEC-179; v1.55: DEC-171; v1.54: DEC-167 a DEC-170; v1.53: DEC-166; v1.52 — 5 de octubre de 2026: DEC-165; v1.51: DEC-164; v1.50 — 4 de octubre de 2026: DEC-156 a DEC-159, DEC-162 y DEC-163; v1.49: DEC-155; v1.48: DEC-154; v1.47: DEC-160; v1.46: DEC-152 y DEC-153; v1.45: DEC-144 a DEC-151; v1.44: DEC-142 y DEC-143; v1.43: DEC-140 y DEC-141; v1.42: DEC-118 a DEC-120, DEC-122 a DEC-126, DEC-132, DEC-136 y DEC-137; v1.41: DEC-129; v1.40: DEC-128; v1.39: DEC-116; v1.38: DEC-115; v1.37: DEC-114; v1.36: DEC-111 a DEC-113; v1.35: DEC-104; v1.34: DEC-101; v1.33: DEC-103; v1.32: DEC-102; v1.31: DEC-100; v1.30: DEC-099; v1.29: DEC-098; v1.28: DEC-097; v1.27: DEC-096; v1.26: DEC-095; v1.25: DEC-089, DEC-092, DEC-093; v1.24: DEC-091; v1.23: DEC-090; v1.22: DEC-094; v1.21: DEC-082 a DEC-088; v1.20: DEC-081; v1.19: DEC-080; v1.18: DEC-079; v1.17: DEC-078; v1.16: DEC-077; v1.15: DEC-076; v1.14: DEC-075; v1.13: DEC-074; v1.12: DEC-073; v1.11: DEC-072; v1.10: DEC-071; v1.9: DEC-069 y DEC-070; v1.7: DEC-065 a DEC-068; v1.4: DEC-060 a DEC-064; v1.3: DEC-052 a DEC-059; v1.1: DEC-037 a DEC-051) |
 | **Propietario de** | qué se decidió, cuándo, por qué, qué se descartó y a qué documentos afecta. |
 | **Formato** | `DEC-nnn` · fecha · estado (vigente / sustituida por DEC-xxx) · decisión · contexto · alternativas descartadas · consecuencias · documentos afectados. |
 
@@ -662,6 +662,25 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
      `NO_CONFIGURADO` y el panel lo dice con palabras, sin dejar la pantalla muda.
 - **Afecta a:** 04 §9; 05 §8; 06 Apéndice A; 09 Fase 7.
 
+### DEC-230 · La cobertura de las pruebas unitarias se mide en CI, y su umbral solo sube
+- **Fecha:** 18 oct 2026 · **Estado:** vigente (`docs/41` RV-543).
+- **Contexto:** hasta ahora no se medía. Qué tenía pruebas se sabía mirando nombres de archivo.
+- **Decisión:** 1. `vitest run --coverage` con `@vitest/coverage-v8` en el trabajo `calidad`, sobre `src/lib`, `src/hooks`, `functions`, `workers`, `scripts/lib` y `config`. 2. Umbrales globales de líneas y ramas, y por carpeta en `functions/` y `src/lib/`: la medida de RV-543 redondeada hacia abajo al entero, menos 1 punto. 3. Un PR que sube la cobertura puede subir el umbral; bajarlo pide una DEC. 4. El informe va como artefacto y, en el resumen del trabajo, como una tabla.
+- **Afecta a:** 04 §11, 09 §6, `vitest.config.ts`, `ci.yml`, plantilla del PR.
+
+### DEC-229 · Una foto que no es una imagen se detecta y se avisa, no se borra sola
+- **Fecha:** 18 oct 2026 · **Estado:** vigente (`docs/41` RV-542).
+- **Contexto:** la subida va directa del móvil a Storage con una URL firmada, y nadie ve los bytes. El bucket solo mira el `Content-Type` que declara quien sube. La app siempre manda una imagen recomprimida, así que algo que no sea JPEG ni WebP solo puede venir de alguien con el código y un cliente hecho a mano.
+- **Decisión:** 1. La vigilancia diaria lee los primeros 16 bytes de cada foto confirmada en las últimas 48 h (petición con `Range` a la URL pública, sin claves). 2. Si no son JPEG (`FF D8 FF`) ni WebP (`RIFF…WEBP`), es un problema de la vigilancia y un aviso técnico a jefatura, con el código del punto o los 8 primeros caracteres de la propuesta. 3. No se borra nada: lo decide jefatura (rechaza la propuesta o retira la foto); la purga se lleva después lo que quede sin referencia.
+- **Descartado:** comprobar en `fn_proponer` o al aprobar (la base no tiene los bytes, y una petición de red dentro de la transacción está prohibida); borrar sola (una falsa alarma borraría una foto buena de un punto).
+- **Afecta a:** 04 §7, 11 §4, 15, `vigilancia.yml`.
+
+### DEC-228 · `docs/41`: los límites de las fotos, `rpc()` y los huecos de las pruebas, sexta excepción a DEC-193
+- **Fecha:** 18 oct 2026 (desarrollador) · **Estado:** vigente (`docs/41`).
+- **Contexto:** la revisión del 18 oct encontró tres hallazgos de seguridad bajos y que las pruebas no ven algunas cosas que importan en el piloto: los límites del bucket, la revocación de punta a punta, que los datos simulados de los e2e se parezcan a los de verdad, y `revertir`, que es la marcha atrás si el piloto sale mal.
+- **Decisión:** 1. `docs/41` entra como excepción a DEC-193, solo con lo que contiene. 2. La de después del piloto pasa a ser **`docs/42`**. 3. El piloto (#77) empieza con `docs/41` cerrada.
+- **Afecta a:** DEC-193, DEC-196, DEC-205, DEC-209, DEC-212, DEC-216, DEC-224, CLAUDE.md §5, 09 §8.
+
 ### DEC-227 · La versión que pide una especificación, con `Release-As`
 - **Fecha:** 16 oct 2026 · **Estado:** vigente (`docs/40` RV-537). Complementa DEC-079 y DEC-176.
 - **Contexto:** `docs/40` pide publicar **0.18.0**, pero desde 0.17.0 solo hay `fix`, `chore`, `ci`, `docs` y `test`: release-please propone 0.17.1.
@@ -684,7 +703,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 ### DEC-224 · `docs/40`: lo que encontró la revisión tras `docs/39`, quinta excepción a DEC-193
 - **Fecha:** 16 oct 2026 (desarrollador) · **Estado:** vigente (`docs/40`).
 - **Contexto:** la revisión de la tarde del 16 oct encontró que Novedades no enseña nada de 0.17.0, que `arranque --rotar db` puede cambiar la clave del migrador y abortar sin enseñarla, y algunos puntos de `docs/39` a medias.
-- **Decisión:** 1. `docs/40` entra como excepción a DEC-193, solo con lo que contiene. 2. La de después del piloto pasa a ser **`docs/41`**. 3. Los bajos que no entran, como issues `tras-piloto`.
+- **Decisión:** 1. `docs/40` entra como excepción a DEC-193, solo con lo que contiene. 2. La de después del piloto pasa a ser **`docs/41`** (desde DEC-228, **`docs/42`**). 3. Los bajos que no entran, como issues `tras-piloto`.
 - **Afecta a:** DEC-193, DEC-196, DEC-205, DEC-209, DEC-212, DEC-216, CLAUDE.md §5, 09 §8.
 
 ### DEC-223 · La app de staging se llama «Hidrantes test»
@@ -740,7 +759,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 ### DEC-216 · `docs/39`: lo que encontró la revisión tras `docs/38`, cuarta excepción a DEC-193
 - **Fecha:** 16 oct 2026 (desarrollador) · **Estado:** vigente (`docs/39`).
 - **Contexto:** la revisión completa del 16 oct 2026 encontró un fallo alto (restaurar un respaldo se para en el paso 4) y varios medios en la operación, los avisos push, la app y los documentos que el piloto va a usar. El desarrollador pidió, además, las fotos en el Inventario y otro nombre para la app de staging.
-- **Decisión:** 1. `docs/39` entra como excepción a DEC-193, solo con lo que contiene. 2. La de después del piloto pasa a ser **`docs/40`** (desde DEC-224, **`docs/41`**); donde DEC-193, DEC-196, DEC-205, DEC-209 y DEC-212 dicen `docs/39`, léase `docs/40`. 3. Los bajos, como issues `tras-piloto`.
+- **Decisión:** 1. `docs/39` entra como excepción a DEC-193, solo con lo que contiene. 2. La de después del piloto pasa a ser **`docs/40`** (desde DEC-224, **`docs/41`**; desde DEC-228, **`docs/42`**); donde DEC-193, DEC-196, DEC-205, DEC-209 y DEC-212 dicen `docs/39`, léase `docs/40`. 3. Los bajos, como issues `tras-piloto`.
 - **Afecta a:** DEC-193, DEC-196, DEC-205, DEC-209, DEC-212, CLAUDE.md §5 y 09 §8.
 
 ### DEC-215 · Las listas del panel, más simples
@@ -802,7 +821,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. `docs/38` entra como excepción a DEC-193, solo con lo que contiene y sin tocar la base de datos, las RPC, las
      Functions ni los workflows.
-  2. La especificación de después del piloto pasa a ser **`docs/39`** (desde DEC-216, **`docs/40`**; desde DEC-224, **`docs/41`**) y parte de `docs/verificacion/piloto.md`.
+  2. La especificación de después del piloto pasa a ser **`docs/39`** (desde DEC-216, **`docs/40`**; desde DEC-224, **`docs/41`**; desde DEC-228, **`docs/42`**) y parte de `docs/verificacion/piloto.md`.
      Donde DEC-193, DEC-196, DEC-205 y DEC-209 dicen `docs/38`, léase `docs/39`.
 - **Descartado:** dejarlo como issue `tras-piloto` (jefatura usaría en el piloto el panel que se va a cambiar).
 - **Afecta a:** DEC-193, DEC-196, DEC-205, DEC-209, CLAUDE.md §5, la skill `paquete-rv` y 09 §8.
@@ -852,7 +871,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   1. `docs/37` cabe en DEC-193 tal cual: arreglos `bloquea-release` y mantenimiento de la documentación. No es
      otra excepción.
   2. La especificación de después del piloto pasa a ser **`docs/38`** y parte de `docs/verificacion/piloto.md`.
-     Donde DEC-193, DEC-196 y DEC-205 dicen `docs/37`, léase `docs/38`. (Desde DEC-212, **`docs/39`**, desde DEC-216, **`docs/40`**, y desde DEC-224, **`docs/41`**.)
+     Donde DEC-193, DEC-196 y DEC-205 dicen `docs/37`, léase `docs/38`. (Desde DEC-212, **`docs/39`**, desde DEC-216, **`docs/40`**, desde DEC-224, **`docs/41`**, y desde DEC-228, **`docs/42`**.)
   3. Los hallazgos bajos de las revisiones del 14 y el 15 oct van como issues `tras-piloto` (RV-498).
 - **Afecta a:** DEC-193, DEC-196, DEC-205, CLAUDE.md §5 y 09 §8.
 
@@ -951,7 +970,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   1. `docs/36` entra como excepción a DEC-193, y solo con lo que contiene. Los dos de seguridad van como
      `bloquea-release`.
   2. La especificación de después del piloto pasa a ser **`docs/37`** y parte de `docs/verificacion/piloto.md`.
-     Donde DEC-193 y DEC-196 dicen `docs/36`, léase `docs/37`. (Desde DEC-209, **`docs/38`**, desde DEC-212, **`docs/39`**, desde DEC-216, **`docs/40`**, y desde DEC-224, **`docs/41`**: `docs/37` es lo de
+     Donde DEC-193 y DEC-196 dicen `docs/36`, léase `docs/37`. (Desde DEC-209, **`docs/38`**, desde DEC-212, **`docs/39`**, desde DEC-216, **`docs/40`**, desde DEC-224, **`docs/41`**, y desde DEC-228, **`docs/42`**: `docs/37` es lo de
      antes del piloto.)
   3. Los hallazgos bajos de esa revisión van como issues `tras-piloto`.
 - **Nota (RV-470):** las casillas del código de acceso admiten hasta 18 caracteres cada una; un código entero
@@ -1126,7 +1145,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 - **Decisión:**
   1. `docs/35` entra como excepción a DEC-193, y solo con lo que contiene.
   2. Los dos altos van como issues `bloquea-release`.
-  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/38`** (desde DEC-212, `docs/39`; desde DEC-216, `docs/40`; desde DEC-224, `docs/41`) y parte de
+  3. DEC-193 sigue vigente para todo lo demás. La siguiente especificación es **`docs/38`** (desde DEC-212, `docs/39`; desde DEC-216, `docs/40`; desde DEC-224, `docs/41`; desde DEC-228, `docs/42`) y parte de
      `docs/verificacion/piloto.md` (donde DEC-193 decía `docs/35`; decía `docs/36` hasta que DEC-205 hizo de
      `docs/36` la segunda excepción, y `docs/37` hasta DEC-209).
   4. Fuera de `docs/35`: S3 (riesgo aceptado por el desarrollador), S5 (decidido por el desarrollador) y los
@@ -1135,7 +1154,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
   - esperar al piloto: un piloto con datos reales y el acceso de jefatura sin atar a su cuenta de Google no es
     aceptable;
   - meterlo todo como `bloquea-release` sin especificación: sin reparto ni tests escritos.
-- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/41`, por DEC-205, DEC-209, DEC-212, DEC-216 y DEC-224); CLAUDE.md §5 («salvo `docs/35` y `docs/36`, DEC-196 y DEC-205»); 09 §8.
+- **Afecta a:** DEC-193 («Fin de la congelación»: `docs/42`, por DEC-205, DEC-209, DEC-212, DEC-216, DEC-224 y DEC-228); CLAUDE.md §5 («salvo `docs/35` y `docs/36`, DEC-196 y DEC-205»); 09 §8.
 
 ### DEC-195 · Reglas de la documentación
 - **Fecha:** 10 oct 2026 (desarrollador) · **Estado:** vigente (`docs/34` RV-358 a RV-361).
@@ -1191,7 +1210,7 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 
   Una mejora que se le ocurra a Claude Code o al desarrollador mientras tanto se anota como issue con la
   etiqueta `tras-piloto` y no se implementa.
-- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/38` (desde DEC-212, `docs/39`; desde DEC-216, `docs/40`; desde DEC-224, `docs/41`) parte de lo que diga ese
+- **Fin de la congelación:** cuando exista `docs/verificacion/piloto.md`. `docs/38` (desde DEC-212, `docs/39`; desde DEC-216, `docs/40`; desde DEC-224, `docs/41`; desde DEC-228, `docs/42`) parte de lo que diga ese
   archivo y de las issues `tras-piloto`, en ese orden (`docs/35` es la excepción de seguridad de DEC-196;
   `docs/36`, la de DEC-205; `docs/37`, lo de antes del piloto dentro de esta regla, DEC-209, y `docs/38`, el panel en el móvil, DEC-212, y `docs/39`, lo que encontró la revisión tras `docs/38`, DEC-216).
 - **Descartado:** seguir con revisiones sobre staging hasta el piloto (rendimiento cada vez menor); congelar
@@ -2843,14 +2862,14 @@ Las fechas anteriores al 16 de septiembre de 2026 reconstruyen decisiones tomada
 |---|---|
 | 01 | 001–005, 007–022, 037, 039, 040, 042, 089, 090, 092, 093, 098, 142, 157, 158, 163–171, 177, 178, 186, 190, 192, 194, 199, 201, 213, 214, 221, 222, 225 |
 | 03 | 001, 004, 026, 028, 099, 111, 112, 172, 181, 183, 199, 201, 207, 211 |
-| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111, 172, 173, 176, 180–182, 196, 197, 198, 200, 202–204, 206, 210, 217, 219, 220, 223 |
+| 04 | 001, 003, 006, 014, 018–020, 023–031, 052–055, 068, 080, 084, 085, 088, 100, 102, 103, 104, 111, 172, 173, 176, 180–182, 196, 197, 198, 200, 202–204, 206, 210, 217, 219, 220, 223, 229, 230 |
 | 05 | 002, 005, 008–010, 012–022, 024–025, 030, 035, 057–059, 065, 068, 082, 083, 084, 086, 088, 087, 118, 119, 120, 132, 160, 163, 166, 167, 169, 170, 174, 175, 182, 183, 185, 190, 197, 199–202, 206–208, 211, 218, 220 |
 | 06 | 012, 013, 027, 047, 060, 062, 063, 064, 065, 066, 067, 068, 080, 081, 087, 098, 113, 142, 143, 147, 148, 149, 150, 154, 157, 158, 159, 162–171, 178, 179, 182, 183, 186–190, 192, 194, 202, 206, 208, 211, 213–215, 220–223 |
 | 07, 08 | 036 |
-| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080, 177, 178, 184, 190, 193, 195, 196, 205, 209, 212, 216, 224 |
-| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 176, 193, 195, 196, 198, 204, 205, 209, 212, 216, 217, 224–227 |
-| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118, 167, 197–199, 201, 206, 207, 210, 218, 219, 226 |
-| 15 | 023, 061, 085, 088, 102, 128, 129, 172, 173, 176, 180, 190, 197, 200–203, 206, 219, 220 |
+| 09 | 006, 029, 031, 032, 035, 037, 038, 040, 041, 043, 044, 046, 047, 048, 050, 051, 060, 061, 062, 063, 065, 067, 068, 080, 177, 178, 184, 190, 193, 195, 196, 205, 209, 212, 216, 224, 228, 230 |
+| 00, CLAUDE.md | 034, 038, 043, 044, 045, 046, 047, 049, 050, 053, 091, 100, 114, 115, 116, 176, 193, 195, 196, 198, 204, 205, 209, 212, 216, 217, 224–228 |
+| 11 | 002, 004, 011, 017–019, 022, 086, 094, 118, 167, 197–199, 201, 206, 207, 210, 218, 219, 226, 229 |
+| 15 | 023, 061, 085, 088, 102, 128, 129, 172, 173, 176, 180, 190, 197, 200–203, 206, 219, 220, 229 |
 | 16 | 007, 037, 111, 177 |
 | 03, 04, 05, 10 | 037, 038, 039, 047, 048, 050 |
 | 07, 08 | 036, 049 |
