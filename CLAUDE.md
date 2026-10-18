@@ -112,7 +112,8 @@ agrupación. Solo entran en `develop`:
 3. mantenimiento que no cambia lo que ve nadie (dependencias, CI, tareas programadas, estos archivos).
 
 Cualquier otra mejora, tuya o del desarrollador, se anota como issue `tras-piloto` y **no se implementa**. Las únicas
-excepciones son `docs/35`, `docs/36`, `docs/38`, `docs/39` y `docs/40` (DEC-196, DEC-205, DEC-212, DEC-216 y DEC-224), y solo con lo que contienen;
+excepciones fueron `docs/35`, `docs/36`, `docs/38`, `docs/39` y `docs/40` (DEC-196, DEC-205, DEC-212, DEC-216 y DEC-224), todas en producción y
+archivadas: **hoy no hay ninguna excepción abierta**;
 `docs/41`, la de después del piloto, no se escribe hasta que exista `docs/verificacion/piloto.md`.
 
 1. Qué coger: si te han pedido algo concreto, eso. Si no, la issue `bloquea-release` más antigua y después la

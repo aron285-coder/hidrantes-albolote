@@ -63,3 +63,9 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   relanzar el trabajo.
 - **RV-537 (versión):** release-please proponía 0.17.1 (sin `feat` desde 0.17.0); DEC-227: el pie `Release-As: 0.18.0`
   en el commit de este PR (`docs/`). Sin test: documentación.
+- **RV-537 (cierre):** 0.18.0 en producción (`af96667`, deploy 39130099388) con `npm run publicar`; Novedades de
+  producción enseña tres líneas de 0.18.0 sin códigos («Novedades vuelve a enseñar lo de la última versión», «Un móvil
+  sin acceso deja de recibir avisos…», «El detalle de un alta aprobada dice en su título…»), leídas con Playwright en el
+  código servido (sin el código de acceso no se llega a Ajustes). `docs/40` archivada con `git mv` y su fila en la tabla
+  de archivadas de `INDICE.md`; CLAUDE.md y `paquete-rv`, sin excepción abierta; 09 §8; comentario en #858 (ya se puede
+  lanzar `arranque --rotar db`).
