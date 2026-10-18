@@ -26,3 +26,15 @@ Una línea por PR: qué entró, el test que falló antes (o «sin test: document
   simulado. El que demuestra el hueco es el de `local-storage.sql`: con los valores a mano en dos sitios, cambiar uno
   lo rompía; y la comprobación de «la service role solo en un paso» pasa a «solo en esos dos». 04 v1.12, 11 v1.10,
   15 v1.11 (§5.11, al final para no renumerar lo que citan 09, 12 y 13).
+- **RV-541:** `e2e/integracion/subida-limites.spec.ts`: con una URL firmada de verdad, la Storage local acepta un
+  JPEG pequeño (el control) y rechaza 5 MB + 1 byte y un `Content-Type: text/html`; al acabar libera las reservas
+  sin usar con `fn_liberar_reservas`. No es una novena prueba de intrusión: «las ocho» de TR-40 no se renumeran
+  (11 §5 gana una línea que dice dónde está esta). **Falló antes:** en este ordenador Docker no arranca, así que la
+  prueba se hizo en la CI, en la rama de usar y tirar `pruebas/rv541-sin-limites` (ya borrada) con
+  `local-storage.sql` sin límites: «5 MB + 1 byte: 200 {"Key":"hidrantes-fotos-dev/fotos/…jpg"}», es decir, el bucket
+  se los tragaba (ejecución 39152731581). Con los límites puestos pasa, y deja los códigos en la salida: 5 MB + 1
+  byte → 400 y `text/html` → 400 (ejecución 39152897860). Esa ejecución enseñó además que el canje del código tiene
+  tope por IP y que en la CI todas las pruebas de integración salen de la misma: un canje más dejaba a
+  `token-functions` y a `fase7` con `OCUPADO`. Por eso la reserva se pide con una sesión de jefatura, no canjeando el
+  código, aunque §4 lo describiera así: se prueba lo mismo (`/api/url-subida` → URL firmada → `PUT`) y los límites
+  son del bucket, iguales para quien suba. 11 v1.11.
