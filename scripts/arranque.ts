@@ -32,6 +32,7 @@ import {
   psqlOk,
   repositorio,
 } from './lib/comun.ts';
+import { CONFIG_BUCKET_FOTOS } from './lib/bucket-fotos.ts';
 import {
   Cloudflare,
   SupabaseGestion,
@@ -1179,6 +1180,27 @@ function copiarVariablesDelBuild(): void {
 }
 
 /** Pone solo lo que falta, con las sesiones de gh y wrangler: sin pedir tokens ni contraseñas. */
+/**
+ * Vuelve a poner los límites del bucket de fotos y nada más (04 §7, `docs/41` RV-540). Es lo que
+ * pide 15 cuando la vigilancia avisa de que han cambiado desde el panel de Supabase: el arranque
+ * completo volvería a pedir todas las credenciales y a tocar el rol de la base.
+ *
+ *   SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm run arranque -- --solo-bucket --entorno staging
+ */
+export async function soloBucket(entorno: string | undefined): Promise<void> {
+  const e = ENTORNOS.find((x) => x.clave === entorno || x.entornoApp === entorno);
+  if (!e) abortar(`--entorno: hace falta ${ENTORNOS.map((x) => x.clave).join(' o ')}.`);
+  const url =
+    process.env.SUPABASE_URL ?? abortar('Falta SUPABASE_URL, la del proyecto de ese entorno (docs/entornos.md).');
+  const servicio =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ?? abortar('Falta SUPABASE_SERVICE_ROLE_KEY, la del sobre (15 §5.4).');
+  log.paso(`Límites del bucket de fotos de ${e.clave}`);
+  const que = await asegurarBucket(url, servicio, e.bucket);
+  const { file_size_limit: tope, allowed_mime_types: tipos } = CONFIG_BUCKET_FOTOS;
+  log.ok(`bucket ${e.bucket} ${que} (${tope / 1024 / 1024} MB, ${tipos.join(' y ')}, público solo para leer)`);
+  log.info('La próxima vigilancia lo comprobará; no hace falta esperar a nada más.');
+}
+
 async function soloFaltantes(): Promise<void> {
   log.paso('Solo lo que falta (sin rotar nada de lo que ya está)');
   const login = comprobarSesiones();
@@ -1240,6 +1262,7 @@ async function principal(): Promise<void> {
   const { banderas, valores } = argumentos();
   if (banderas.has('local')) return arranqueLocal();
   if (banderas.has('solo-faltantes')) return await soloFaltantes();
+  if (banderas.has('solo-bucket')) return await soloBucket(valores.get('entorno'));
   if (banderas.has('codigo-staging')) {
     comprobarSesiones();
     return ponerCodigoStaging();

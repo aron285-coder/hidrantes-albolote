@@ -1,6 +1,7 @@
 // Clientes mínimos de las API que usa el arranque: Supabase Management, Supabase Storage,
 // Cloudflare y GitHub (vía `gh`). Todos idempotentes: leen antes de escribir.
 
+import { CONFIG_BUCKET_FOTOS } from './bucket-fotos.ts';
 import { abortar, ejecutar, errorSeguro } from './comun.ts';
 
 async function peticion<R>(url: string, init: RequestInit & { permitir404?: boolean } = {}): Promise<R | null> {
@@ -102,11 +103,9 @@ export async function asegurarBucket(
   id: string,
 ): Promise<'creado' | 'actualizado'> {
   const cabeceras = { Authorization: `Bearer ${claveServicio}`, apikey: claveServicio };
-  const cuerpo = {
-    public: true, // lectura por URL no enumerable (04 §7); sin políticas de escritura para nadie
-    file_size_limit: 5 * 1024 * 1024,
-    allowed_mime_types: ['image/jpeg', 'image/webp'],
-  };
+  // Los tres límites, de `lib/bucket-fotos.ts`: los mismos que revisa la vigilancia cada día y los
+  // mismos que pone `supabase/sql/local-storage.sql` en la pila local (`docs/41` RV-540).
+  const cuerpo = CONFIG_BUCKET_FOTOS;
   const existe = await peticion(`${urlProyecto}/storage/v1/bucket/${id}`, {
     headers: cabeceras,
     permitir404: true,

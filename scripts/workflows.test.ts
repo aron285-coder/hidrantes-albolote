@@ -2148,7 +2148,13 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
       /uniones:\n(?: {8}.*\n)*? {8}options: \[solo-informar, desunir\]\n {8}default: solo-informar/,
     );
     expect(c.indexOf('- name: Revisar las uniones de jefatura')).toBeLessThan(c.indexOf(`- name: ${comprobar}\n`));
-    expect(c.match(new RegExp(`secrets\\.${clave}\\b`, 'g'))).toHaveLength(1);
+    // La service role vive en este paso y en el del bucket de fotos (docs/41 RV-540), y en ninguno
+    // más: fuera de ellos, el trabajo no la tiene.
+    expect(c.match(new RegExp(`secrets\\.${clave}\\b`, 'g'))).toHaveLength(2);
+    const sinPasosDeServicio = c
+      .replace(paso(c, 'Revisar las uniones de jefatura'), '')
+      .replace(paso(c, 'Revisar el bucket de fotos'), '');
+    expect(sinPasosDeServicio).not.toContain(`secrets.${clave}`);
     const comp = paso(c, comprobar);
     expect(comp).toContain('UNIONES: ${{ steps.uniones.outputs.problemas }}');
     expect(comp).toContain('done <<< "${UNIONES:-}"');
@@ -2160,7 +2166,9 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
 
   it('staging manda el aviso técnico a su jefatura si ha desunido una cuenta', () => {
     const p = paso(trabajo('staging'), 'Aviso técnico a jefatura de staging');
-    expect(p).toContain("if: always() && steps.uniones.outputs.avisar == 'si'");
+    // Desde docs/41 RV-540 el mismo aviso lo manda también el bucket de fotos.
+    expect(p).toContain("steps.uniones.outputs.avisar == 'si'");
+    expect(p).toMatch(/^ {8}if: always\(\) && \(.*\)$/m);
     expect(p).toContain('BD: ${{ secrets.SUPABASE_DB_URL }}');
     expect(p).toContain('aviso_tecnico_paso vigilancia');
   });
@@ -2243,6 +2251,122 @@ describe('uniones de jefatura en la vigilancia (RV-463)', () => {
           'staging: faltan SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY: no se han revisado las uniones de jefatura',
         ],
         avisar: 'no',
+      });
+    });
+  });
+});
+
+// docs/41 RV-540: los límites del bucket de fotos los pone el arranque y hasta ahora nadie los
+// volvía a mirar. La vigilancia los revisa cada día en los dos entornos, en un paso propio con la
+// service role (el único, junto al de las uniones), y cualquier diferencia es un aviso a jefatura.
+describe('bucket de fotos en la vigilancia (RV-540)', () => {
+  const raiz = path.resolve(import.meta.dirname, '..');
+  const texto = leer('vigilancia.yml');
+  const trabajo = (n: string) => trabajosDe(texto).find((t) => t.nombre === n)!.cuerpo;
+  const paso = (cuerpo: string, nombre: string) => {
+    const i = cuerpo.indexOf(`- name: ${nombre}\n`);
+    return i < 0 ? '' : cuerpo.slice(i).split(/\n {6}- /)[0]!;
+  };
+
+  it.each([
+    ['mirar', 'Comprobar', '${{ vars.SUPABASE_URL_PROD }}', 'SUPABASE_SERVICE_ROLE_KEY_PROD', 'hidrantes-fotos', ''],
+    [
+      'staging',
+      'Comprobar staging',
+      '${{ secrets.SUPABASE_URL }}',
+      'SUPABASE_SERVICE_ROLE_KEY',
+      'hidrantes-fotos-dev',
+      'staging: ',
+    ],
+  ])('%s: revisa su bucket antes de «%s»', (n, comprobar, url, clave, bucket, pre) => {
+    const c = trabajo(n);
+    const p = paso(c, 'Revisar el bucket de fotos');
+    expect(p).toContain(`SUPABASE_URL: ${url}`);
+    expect(p).toContain(`SUPABASE_SERVICE_ROLE_KEY: \${{ secrets.${clave} }}`);
+    expect(p).toContain(`BUCKET: ${bucket}`);
+    expect(p).toContain('source .github/scripts/revisar-bucket.sh');
+    expect(p).toContain(`revisar_bucket '${pre}'`);
+    // Si el paso se corta, lo demás se comprueba igual y eso es un problema.
+    expect(p).toMatch(/^ {8}timeout-minutes: 5\n {8}continue-on-error: true$/m);
+    expect(c.indexOf('- name: Revisar el bucket de fotos')).toBeLessThan(c.indexOf(`- name: ${comprobar}\n`));
+
+    const comp = paso(c, comprobar);
+    expect(comp).toContain('BUCKET_PROBLEMAS: ${{ steps.bucket.outputs.problemas }}');
+    expect(comp).toContain('done <<< "${BUCKET_PROBLEMAS:-}"');
+    expect(comp).toContain('BUCKET_RESULTADO: ${{ steps.bucket.outcome }}');
+    expect(comp).toContain('if [ "${BUCKET_RESULTADO:-}" != success ]; then');
+  });
+
+  it('en staging, una diferencia también manda el aviso técnico a su jefatura', () => {
+    const p = paso(trabajo('staging'), 'Aviso técnico a jefatura de staging');
+    expect(p).toContain("steps.bucket.outputs.avisar == 'si'");
+  });
+
+  describe('revisar_bucket', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'bucket-'));
+    afterAll(() => rmSync(dir, { recursive: true, force: true }));
+    let n = 0;
+    /** Con un `node` simulado que escribe `salida` y sale con `codigo`. */
+    const correr = (pre: string, salida: string, codigo = 0, conEntorno = true) => {
+      const gh = path.join(dir, `salida${++n}`);
+      writeFileSync(gh, '');
+      const guion = [
+        `node() { if [ "$1" != scripts/revisar-bucket.ts ]; then return 9; fi; printf '%s' "$SALIDA"; return ${codigo}; }`,
+        'source .github/scripts/revisar-bucket.sh',
+        `revisar_bucket '${pre}'`,
+        'echo "fin $?"',
+      ].join('\n');
+      const r = spawnSync('bash', ['-e', '-c', guion], {
+        cwd: raiz,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          SALIDA: salida,
+          GITHUB_OUTPUT: gh.replaceAll('\\', '/'),
+          SUPABASE_URL: conEntorno ? 'https://ejemplo.invalid' : '',
+          SUPABASE_SERVICE_ROLE_KEY: conEntorno ? 'clave' : '',
+          BUCKET: conEntorno ? 'hidrantes-fotos' : '',
+        },
+      });
+      const out = readFileSync(gh, 'utf8');
+      const problemas = /problemas<<FIN_PROBLEMAS\n([\s\S]*?)FIN_PROBLEMAS\n/.exec(out)?.[1] ?? 'SIN BLOQUE';
+      return {
+        fin: r.stdout.trim(),
+        problemas: problemas.split('\n').filter(Boolean),
+        avisar: /^avisar=(\w+)$/m.exec(out)?.[1],
+      };
+    };
+
+    it('sin diferencias, ni problemas ni aviso', () => {
+      expect(correr('', '')).toEqual({ fin: 'fin 0', problemas: [], avisar: 'no' });
+    });
+
+    it('cada diferencia es un problema y pide aviso, con el prefijo del entorno', () => {
+      expect(correr('staging: ', 'bucket de fotos: public distinto (false)')).toEqual({
+        fin: 'fin 0',
+        problemas: ['staging: bucket de fotos: public distinto (false)'],
+        avisar: 'si',
+      });
+    });
+
+    it('si el script se corta, lo que haya escrito cuenta y se dice que no terminó', () => {
+      expect(correr('', 'bucket de fotos: file_size_limit distinto (10485760, se esperaba 5242880)', 1)).toEqual({
+        fin: 'fin 0',
+        problemas: [
+          'bucket de fotos: file_size_limit distinto (10485760, se esperaba 5242880)',
+          'no se ha podido terminar la revisión del bucket de fotos',
+        ],
+        avisar: 'si',
+      });
+    });
+
+    it('sin la URL, la service role o el bucket, es un problema y se avisa', () => {
+      expect(correr('staging: ', '', 0, false)).toEqual({
+        fin: 'fin 0',
+        problemas: [
+          'staging: faltan SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY o BUCKET: no se han revisado los límites del bucket de fotos',
+        ],
+        avisar: 'si',
       });
     });
   });
